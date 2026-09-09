@@ -28,12 +28,12 @@ const SURFACES = [
     note: "Liquidación con desglose del excedente; cobro en taquilla o cargo a una mesa.",
   },
   {
-    href: "/monitor" as const,
-    name: "Punto de venta",
-    phase: "F4",
-    ready: false,
+    href: "/caja" as const,
+    name: "Caja",
+    phase: "F4-03",
+    ready: true,
     icon: CreditCard,
-    note: "Cobro mixto multimoneda, vuelto y cortes X/Z.",
+    note: "Cobro mixto multimoneda, IGTF sobre divisas y vuelto con sus tres destinos.",
   },
   {
     href: "/monitor" as const,

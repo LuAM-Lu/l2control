@@ -124,12 +124,18 @@ importers:
       '@l2/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@l2/domain-cash':
+        specifier: workspace:*
+        version: link:../../packages/domain/cash
       '@l2/domain-money':
         specifier: workspace:*
         version: link:../../packages/domain/money
       '@l2/domain-park':
         specifier: workspace:*
         version: link:../../packages/domain/park
+      '@l2/domain-tax':
+        specifier: workspace:*
+        version: link:../../packages/domain/tax
       '@l2/ui':
         specifier: workspace:*
         version: link:../../packages/ui

@@ -1406,7 +1406,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 18 tareas hechas y 8 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 18 tareas hechas y 12 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1550,18 +1550,18 @@ Termina en el hito M1.*
 
 - [ ] **F4-01 · Apertura de turno** con fondo inicial declarado por moneda.
   → *Criterio:* no se puede cobrar sin turno abierto; un dispositivo tiene un turno abierto como máximo (I-06).
-- [ ] **F4-02 · Los siete medios de pago** como catálogo configurable (§9.9), no como `enum` en el código.
+- [~] **F4-02 · Los siete medios de pago** como catálogo configurable (§9.9), no como `enum` en el código.
   → *Criterio:* añadir un medio de pago **no requiere desplegar**.
-- [ ] **F4-03 · Cobro mixto** en una misma transacción.
+- [~] **F4-03 · Cobro mixto** en una misma transacción.
   → *Criterio:* R5 completo: se reparte el total entre varios medios y monedas, con IGTF solo donde toca;
   la suma cuadra al céntimo.
 - [ ] **F4-04 · Campos requeridos por medio de pago** (referencia de Pago Móvil, TxID de USDT, titular
   de Zelle), **cifrados en reposo** (§7.6).
   → *Criterio:* el campo obligatorio de cada medio se exige; el dato no aparece en ningún log.
-- [ ] **F4-04b · Motor de vuelto con sus tres disposiciones** (§5.6).
+- [~] **F4-04b · Motor de vuelto con sus tres disposiciones** (§5.6).
   → *Criterio:* la invariante de cierre se cumple al céntimo; un cobro que no cuadra **no se confirma**;
   el vuelto cruzado usa la tasa congelada de la transacción y esa tasa se imprime en el ticket.
-- [ ] **F4-04c · Umbral de residuo retenido, configurable solo por administrador.**
+- [~] **F4-04c · Umbral de residuo retenido, configurable solo por administrador.**
   → *Criterio:* por encima del umbral el sistema exige dar vuelto o marcarlo como propina; el acumulado
   por cajero y turno aparece en el reporte de excepciones.
 - [ ] **F4-05 · Corte X repetible** que no cierra el turno.

@@ -12,11 +12,11 @@
 | F1 · Cimientos técnicos | 8 | 2 | 6 | En curso |
 | F2 · Identidad, permisos y auditoría | 0 | 0 | 10 | Sin empezar |
 | F3 · Núcleo monetario y fiscal | 4 | 0 | 8 | Motor de impuestos listo |
-| F4 · Caja y cobro mixto | 0 | 0 | 11 | Sin empezar |
+| F4 · Caja y cobro mixto | 0 | 4 | 7 | Dominio completo, pantalla en pie |
 | F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
 | F6-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
-**Se puede ver funcionando:** monitor (`/monitor`), entrada (`/entrada`) y salida (`/salida`), con datos de ejemplo **derivados del contrato**.
+**Se puede ver funcionando:** monitor (`/monitor`), entrada (`/entrada`), salida (`/salida`) y caja (`/caja`), con datos de ejemplo **derivados del contrato**.
 
 > **Orden de ejecución cambiado el 2026-09-09** (§11.4): frontend → backend → producción.
 > La condición para que ese orden no genere retrabajo es contratos primero, y ya está en marcha.
