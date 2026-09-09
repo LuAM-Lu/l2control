@@ -1,5 +1,5 @@
 /**
- * Reglas de arquitectura — F1-03, §9.2 y §9.3 del PLAN_L2_CONTROL_v2.md.
+ * Reglas de arquitectura — F1-03, §9.2 y §9.3 del docs/PLAN.md.
  *
  * Estas reglas existen porque una convención que solo vive en un documento se
  * rompe el primer viernes con prisa. Aquí, una importación que cruza una

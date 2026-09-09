@@ -1,7 +1,7 @@
 # L2 CONTROL — PLAN MAESTRO DE DESARROLLO v2.0
 
 > **Estado:** Borrador para aprobación del cliente y del equipo técnico.
-> **Reemplaza a:** `SPEC_L2_CONTROL.md` (v1.0), conservado como referencia histórica.
+> **Reemplaza a:** [`archivo/SPEC-v1.md`](archivo/SPEC-v1.md) (v1.0), conservado como referencia histórica.
 > **Fecha de revisión:** 2026-09-08.
 > **Cliente / caso piloto:** Abby Kingdom (Parque Infantil + Restaurante), Venezuela.
 
@@ -244,308 +244,35 @@ integración bancaria automática para conciliación, y facturación a crédito 
 
 ## 3. DECISIONES DE ARQUITECTURA (ADR)
 
-Formato: **contexto → decisión → consecuencias**. Se listan cerradas; las que dependen del cliente
-apuntan a un `DEC-n` de §14.
+Las 17 decisiones viven **una sola vez**, en `docs/adr/`, un archivo por decisión.
+Mantener el texto completo también aquí crearía dos fuentes de verdad que se
+desincronizan — exactamente lo que §9.7 prohíbe para las reglas de negocio, y vale
+igual para las decisiones.
 
-### ADR-001 · Monorepo con Turborepo
+Para cambiar cualquiera se escribe un ADR nuevo que la supersede. No se editan en silencio.
 
-**Contexto.** Web, agente de impresión, esquema de base de datos y tipos compartidos deben versionarse
-juntos: un cambio de esquema afecta a los tres.
-**Decisión.** Monorepo con **Turborepo** y `pnpm` workspaces.
-**Por qué.** Para 5-50 paquetes de TypeScript, Turborepo entrega la mayor parte del beneficio con una
-fracción de la complejidad de Nx; Nx se justifica con varios equipos, generadores y CI cara, que no es
-el caso. `pnpm` evita dependencias fantasma, que es justamente lo que rompe las fronteras de módulo.
-**Consecuencias.** Sin ejecución distribuida en CI (no hace falta). Si el proyecto llega a varios
-equipos y decenas de aplicaciones, reevaluar con un ADR nuevo.
-
-### ADR-002 · Multi-tenencia: esquema compartido + RLS forzada
-
-**Contexto.** El producto se describe como SaaS, pero el primer cliente es uno solo. Decidir esto tarde
-implica migrar todos los datos. **DEC-3 respondida: multi-tenant desde el día uno.**
-**Decisión.** Se construye **desde el día uno** con `tenant_id` en toda tabla de negocio, **aunque
-inicialmente exista un único tenant**, y con PostgreSQL **Row-Level Security en modo `FORCE`**.
-**Por qué.** Añadir `tenant_id` después es una migración de datos de alto riesgo sobre un histórico
-fiscal; añadirlo antes cuesta una columna y un índice. RLS es la red de seguridad que actúa aunque la
-aplicación tenga un bug: la base misma niega la fila.
-**Cómo.**
-- Toda tabla de negocio: `tenant_id` **no nulo**, y es la **primera columna de todo índice compuesto**.
-- `ALTER TABLE ... ENABLE ROW LEVEL SECURITY; ALTER TABLE ... FORCE ROW LEVEL SECURITY;`
-- Políticas separadas para `SELECT`, `INSERT`, `UPDATE`, `DELETE`.
-- La aplicación fija `SET LOCAL app.tenant_id` **dentro de la misma transacción** de cada petición.
-- Una extensión de Prisma inyecta el filtro de tenant automáticamente, para que olvidarlo sea imposible.
-**Consecuencias.** Obliga a la prueba negativa en CI descrita en §10.1 (el tenant A no lee filas del
-tenant B, por clase de tabla). Sin esa prueba, RLS es decorativa.
-
-### ADR-003 · Operación offline: degradación por niveles
-
-**Contexto.** El plan v1 asume nube permanente en un entorno donde no la hay. Un POS que no factura
-sin internet es un pasivo. **DEC-4 respondida por el cliente: cerrar no es una opción aceptable.**
-**Decisión.** No se elige entre «todo en la nube» y «todo local»: se define **qué sigue funcionando en
-cada nivel de degradación**, y el sistema lo anuncia en pantalla.
-
-| Nivel | Situación | Qué sigue funcionando | Qué se detiene |
-|---|---|---|---|
-| **N0** | Todo bien | Todo | — |
-| **N1** | Internet caído, LAN viva | Comandas, KDS, cronómetros de parque, pre-cuentas, cobro con tasa congelada del día | Sincronización de tasa BCV, respaldo remoto, reportes en nube |
-| **N2** | Servidor local caído, terminales vivas | Consulta de la última vista en caché; cola local de comandas | Cobros y cierres |
-| **N3** | Sin energía | Nada digital | Todo — se activa el **procedimiento manual en papel** de F12-08 |
-
-**Implicación técnica.** Existe un **servidor en sitio** (mini-PC o NUC) que corre la aplicación y la
-base de datos; la nube es réplica y respaldo, no la ruta crítica. Cada terminal mantiene una cola local
-con **claves de idempotencia** para reenviar sin duplicar.
-**Alternativas evaluadas.** Se compararon tres topologías antes de decidir:
-
-| | **A · Nube pura + PWA con cola** | **B · Servidor en sitio + réplica** ✅ | **C · B + equipo en espera** |
-|---|---|---|---|
-| Mecanismo | Cada terminal cachea y encola escrituras en IndexedDB; sincroniza al volver | Un mini-PC en el local corre la aplicación, PostgreSQL y Valkey; la nube es réplica y respaldo | Igual que B, más un segundo mini-PC con réplica en caliente por *streaming* |
-| ¿Cobra sin internet? | Sí, pero cada terminal aislada | **Sí, con normalidad** | Sí, con normalidad |
-| ¿La cocina recibe la comanda? | **No.** El mensaje tendría que viajar a la nube y volver | Sí, por LAN | Sí |
-| ¿Cronómetros coherentes entre terminales? | **No, divergen** | Sí, fuente única (ADR-010) | Sí |
-| ¿Correlativo fiscal seguro? | **No: riesgo de huecos o duplicados** | Sí, asignado por la base bajo bloqueo | Sí |
-| Si muere el servidor | — | Para todo hasta reponerlo | Se promueve el secundario en minutos |
-| Costo de hardware | ~US$ 0 | **~US$ 300-500** una vez | ~US$ 550-850 una vez |
-
-**Por qué se descarta A.** Sin un punto de coordinación en la LAN, el recorrido R4 se rompe: el mesero
-envía la comanda y la cocina no la ve. Además, asignar correlativos fiscales sin coordinación central
-produce huecos o duplicados, que es precisamente lo que la invariante I-07 prohíbe. La opción A solo
-sirve con **una sola terminal**, y este negocio tiene mesero, cocina, caja y parque.
-
-**Decisión adoptada: topología C.** Inicialmente se eligió B con ruta a C, pero **DEC-10 la elevó a C**:
-el cliente fijó una tolerancia de **media hora** de operación en papel. Ese número descarta B como
-estado final, porque conseguir, instalar y restaurar un equipo nuevo no cabe en 30 minutos; un segundo
-mini-PC ya instalado y replicando, sí.
-
-**Qué cubre cada pieza, por modo de fallo.** Es importante no confundirlos: cada uno tiene su remedio.
-
-| Modo de fallo | Frecuencia | Remedio | Tiempo fuera |
-|---|---|---|---|
-| Internet caído | Alta | Topología B: todo corre en la LAN | **Cero** |
-| Energía caída | Alta | UPS para servidor y red + tablets con batería | **Cero** durante 30-60 min |
-| Muere el mini-PC principal | Baja | **Equipo en espera con réplica y promoción manual** | 2-5 min |
-| Se pierde el local entero | Muy baja | Réplica y respaldo en la nube | Horas — fuera del alcance de este RTO |
-
-**El *failover* es manual, con runbook, y esa es la recomendación, no una concesión.** Un failover
-automático mal configurado provoca más caídas (por *split-brain*) de las que evita. La promoción manual
-del secundario toma entre dos y cinco minutos con el procedimiento escrito delante, muy holgado dentro
-de los 30 que fijó el cliente. Lo que sí es obligatorio es **ensayarla**: un runbook nunca ejecutado no
-cuenta como plan de recuperación (F10-05).
-
-**Cuándo entra el segundo equipo.** Durante el piloto no hace falta: el sistema corre en paralelo al
-método anterior (F11-04), que ya es el respaldo. Pasa a ser **condición de salida en vivo** (F11-07b):
-no se retira el método anterior hasta que el equipo en espera exista y su promoción esté ensayada.
-
-**La otra mitad del problema: la energía.** Sin luz el servidor no sirve de nada, y v1 tampoco lo trataba.
-Estrategia de mejor relación costo/beneficio, en este orden:
-
-1. **UPS solo para servidor, router y switch** (~US$ 80-150). Mantiene el cerebro vivo 30-60 minutos.
-   **No** se respaldan los monitores POS: consumen demasiado y hay una salida mejor.
-2. **Tablets como terminal de contingencia.** Tienen batería propia; si se va la luz, el sistema sigue
-   vivo y se opera desde tablets hasta que vuelva o se agote el UPS.
-3. Esto **confirma ADR-015**: el KDS en pantalla es la fuente de verdad y el papel es respaldo, no al
-   revés. Sin luz la impresora térmica muere; la tablet no.
-4. Planta eléctrica o inversor para todo el local es otra escala de costo y es una decisión del negocio,
-   no del software. Queda fuera de este plan.
-
-**Consecuencias.** Más infraestructura que un SaaS puro, a cambio de que el negocio nunca deje de operar.
-El mini-PC pasa a ser un activo crítico: exige el runbook de F10-03 (reinstalable desde cero por alguien
-que no lo instaló) y la prueba de restauración de F10-05.
-
-### ADR-004 · El dinero se almacena como entero en unidades menores
-
-**Contexto.** Es el error irreversible más común. Un `Float` pierde centavos de forma silenciosa.
-**Decisión.** Todo monto se almacena como **entero de la unidad menor** de su moneda (`BIGINT`),
-acompañado **siempre** de su código de moneda ISO-4217. Nunca `Float`, nunca `Number` de JavaScript
-para dinero, nunca un monto sin su moneda al lado.
-**Por qué.** Es el estándar de la industria financiera. La aritmética entera es exacta; la binaria de
-punto flotante no representa 0,1.
-**Cómo.**
-- Un tipo `Money = { amount: bigint; currency: CurrencyCode }`, no un número suelto.
-- Las conversiones a unidades mayores ocurren **solo en los bordes**: entrada de usuario y presentación.
-- La escala de cada moneda se valida contra su definición ISO (USD y VES: 2 decimales; ver DEC-5 para
-  la política de redondeo del bolívar).
-- Las operaciones aritméticas viven en **un solo módulo** (`packages/money`), y ese módulo prohíbe
-  sumar dos `Money` de distinta moneda sin pasar por una conversión explícita con tasa.
-**Consecuencias.** El sistema de tipos hace imposible sumar dólares con bolívares por accidente, que
-es el bug que de otro modo aparece en el reporte del tercer mes.
-
-### ADR-005 · La tasa de cambio se congela dentro de la transacción
-
-**Contexto.** v1 modela la tasa como configuración global. Con esa forma, cuando el administrador
-actualiza la tasa mañana, **el reporte de hoy cambia**, y la caja de ayer deja de cuadrar.
-**Decisión.** Cada pago, cada línea de factura convertida y cada cargo guarda **la tasa que se le
-aplicó**, junto con su origen y su marca de tiempo. Nada se reconvierte al leer.
-**Cómo.** Todo registro monetario convertido lleva: `rateValue`, `rateSource` (`BCV` | `MANUAL` |
-`COMERCIAL`), `rateCapturedAt`, `rateId` (referencia al registro de tasa vigente usado).
-**Regla fail-closed.** Si no hay tasa vigente para el `businessDate` en curso, el sistema **bloquea el
-cobro en la moneda afectada** y muestra un aviso accionable. **Nunca** usa cero, ni la tasa de ayer en
-silencio, ni un valor por defecto.
-**Consecuencias.** El reporte histórico es inmutable y reproducible. Es el requisito que hace posible
-auditar la caja.
-
-### ADR-006 · Un solo backend: Next.js con capa de aplicación propia
-
-**Contexto.** v1 ofrecía «NestJS **o** Next.js API Routes», sin decidir. Mantener dos backends para un
-equipo pequeño es costo puro.
-**Decisión.** **Una sola aplicación Next.js** (App Router) que expone: Server Actions y Route Handlers
-para el trabajo transaccional, y un **proceso worker separado** para el servidor de tiempo real, la cola
-de impresión y los trabajos programados.
-**Por qué.** Elimina la duplicación de autenticación, tipos y validación entre dos frameworks. NestJS es
-excelente cuando hay varios equipos y muchos módulos backend; aquí añadiría una frontera sin beneficio.
-La modularidad no la da el framework: la dan las fronteras de §9, que se aplican igual dentro de Next.
-**Consecuencias.** La disciplina de módulos debe imponerse con herramientas (§9.3), no confiando en que
-el framework la imponga. Si el backend crece más allá de lo que un equipo mantiene, extraer el dominio
-—que ya está aislado— a un servicio propio es mecánico.
-
-### ADR-007 · ORM: Prisma 7+
-
-**Contexto.** v1 dice «Prisma» sin versión. Prisma 7 eliminó el motor en Rust y pasó a TypeScript puro,
-reduciendo el tamaño del paquete cerca de un 90 % y mejorando el arranque en frío del orden de 9×;
-la versión 7.4 añadió caché de plan de consulta.
-**Decisión.** **Prisma 7.4 o superior**, con la versión exacta fijada.
-**Por qué.** La razón histórica para preferir Drizzle era el peso y el arranque en frío del motor Rust,
-y eso ya no aplica. A cambio, Prisma aporta el mejor sistema de migraciones del ecosistema — lo que
-importa cuando el histórico es fiscal — y las extensiones de cliente que hacen posible el filtrado
-automático de tenant de ADR-002.
-**Consecuencias.** Las consultas de reportes que Prisma exprese mal se escriben en SQL crudo tipado,
-lo cual es aceptable y esperado.
-
-### ADR-008 · Tiempo real: WebSocket para lo bidireccional, SSE donde alcance
-
-**Contexto.** v1 fija Socket.io para todo. Socket.io a escala exige sesiones pegajosas y un adaptador
-de pub/sub; para una sucursal con decenas de conexiones eso es infraestructura sin retorno.
-**Decisión.** **Socket.io con adaptador Valkey**, en **una sola instancia del worker** por sitio.
-El adaptador se configura desde el inicio (para que escalar no sea una reescritura) pero no se despliega
-un clúster hasta que haga falta.
-**Por qué.** El KDS es genuinamente bidireccional: el cocinero cambia estados que vuelven al mesero.
-El monitor de parque, en cambio, es unidireccional y podría ser SSE; se unifica en un solo transporte
-por simplicidad operativa, no por necesidad técnica.
-**Autorización.** La autenticación ocurre **en el handshake**, no después. Cada conexión se suscribe
-solo a las salas de su `tenant_id` y su `branch_id`. Se aplica límite de tasa por conexión.
-**Consecuencias.** Documentar que una instancia basta hasta ~10 000 conexiones concurrentes, muy por
-encima de lo que este negocio necesita.
-
-### ADR-009 · Zona horaria y día de negocio
-
-**Contexto.** Venezuela opera en UTC−4 sin horario de verano, pero el día contable no es el calendario.
-**Decisión.** Todas las marcas de tiempo se almacenan en **UTC** (`timestamptz`). Toda fila de venta,
-pago y estancia lleva además un campo **`businessDate`** (tipo `date`), asignado por el turno de caja
-abierto, **no** derivado del instante.
-**Consecuencias.** Los reportes agrupan por `businessDate` y nunca por `created_at::date`. Una venta a
-la 01:30 pertenece al día que el turno declara.
-
-### ADR-010 · El cronómetro es del servidor
-
-**Contexto.** Si el tiempo se calcula con el reloj del cliente, una tablet mal configurada regala o cobra
-tiempo de más, y el usuario puede manipularlo.
-**Decisión.** El servidor guarda `startedAt`, `expiresAt` y `serverNow` autoritativos. El cliente
-**solo interpola visualmente** entre latidos del servidor, y toda liquidación se calcula en el servidor.
-**Consecuencias.** El cliente necesita corrección de desfase de reloj para que el número que se ve no
-salte; el cobro nunca depende de ese número.
-
-### ADR-011 · Configuración peligrosa: tipos semánticos, no números desnudos
-
-**Contexto.** El plan v1 contiene varios valores donde «cero» es ambiguo y ambos significados son
-plausibles. Esta es la clase de fallo que no se detecta en revisión de código porque *parece* correcto.
-
-| Valor de v1 | La ambigüedad | Decisión |
+| # | Decisión | Estado |
 |---|---|---|
-| «Tiempo libre» como paquete | ¿Duración 0 = infinito o = inmediato? | Tipo `Duration = { kind: 'fixed', minutes } \| { kind: 'openEnded' }`. No existe el 0. |
-| «Margen de tolerancia (gracia)» | ¿Gracia 0 = sin gracia o gracia infinita? | Entero **no negativo obligatorio**; 0 significa explícitamente «sin gracia» y la interfaz lo dice con palabras. |
-| Tasa de cambio | ¿Tasa 0 o nula = gratis? | Prohibido por restricción de base de datos (`CHECK rate > 0`) y bloqueo *fail-closed* de ADR-005. |
-| Bloque de penalización | ¿Bloque 0 = no cobrar o = división por cero? | Entero **positivo obligatorio**, validado en el esquema. |
-| Rol como cadena de texto | `role: "admin"` se compara con cadenas y se acumula por concatenación | Permisos como **conjunto tipado** (§7.3), nunca cadenas concatenadas. |
+| [ADR-001](adr/001-monorepo-turborepo.md) | Monorepo con Turborepo | ✅ Implementada |
+| [ADR-002](adr/002-multi-tenencia-rls.md) | Multi-tenencia: esquema compartido + RLS forzada | · Aceptada |
+| [ADR-003](adr/003-operacion-offline.md) | Operación offline: degradación por niveles | · Aceptada |
+| [ADR-004](adr/004-dinero-entero-unidades-menores.md) | El dinero se almacena como entero en unidades menores | ✅ Implementada |
+| [ADR-005](adr/005-tasa-congelada.md) | La tasa de cambio se congela dentro de la transacción | · Aceptada |
+| [ADR-006](adr/006-un-solo-backend.md) | Un solo backend: Next.js con capa de aplicación propia | ✅ Implementada |
+| [ADR-007](adr/007-orm-prisma.md) | ORM: Prisma 7+ | · Aceptada |
+| [ADR-008](adr/008-tiempo-real.md) | Tiempo real: WebSocket para lo bidireccional, SSE donde alcance | · Aceptada |
+| [ADR-009](adr/009-dia-de-negocio.md) | Zona horaria y día de negocio | · Aceptada |
+| [ADR-010](adr/010-cronometro-del-servidor.md) | El cronómetro es del servidor | ✅ Implementada |
+| [ADR-011](adr/011-tipos-semanticos.md) | Configuración peligrosa: tipos semánticos, no números desnudos | ✅ Implementada |
+| [ADR-012](adr/012-descarga-de-inventario.md) | La descarga de inventario ocurre al marcar «listo» en el KDS | · Aceptada |
+| [ADR-013](adr/013-autenticacion.md) | Autenticación: Better Auth, con PIN para el piso | · Aceptada |
+| [ADR-014](adr/014-video-rtsp-webrtc.md) | Video: pasarela RTSP→WebRTC en la LAN, no la nube del fabricante | · Aceptada |
+| [ADR-015](adr/015-impresion-en-cola.md) | Impresión: cola con confirmación, nunca «disparar y olvidar» | · Aceptada |
+| [ADR-016](adr/016-cache-valkey.md) | Caché y pub/sub: Valkey | · Aceptada |
+| [ADR-017](adr/017-validacion-zod.md) | Validación: un solo esquema Zod por contrato, compartido | · Aceptada |
 
-**Regla general del proyecto:** ningún valor de seguridad, dinero o tiempo se acepta como número o
-cadena desnudos. Si el cero, el vacío o el nulo pueden interpretarse de dos maneras, el tipo debe hacer
-imposible expresar la ambigüedad.
-
-### ADR-012 · La descarga de inventario ocurre al marcar «listo» en el KDS
-
-**Contexto.** v1 ofrece «al facturar o al preparar» sin decidir; la ambigüedad produce doble descuento.
-**Decisión.** El stock se descuenta **cuando la comanda pasa a `LISTO` en el KDS**, en un movimiento de
-inventario idempotente con clave `(orderItemId, 'CONSUMPTION')`.
-**Por qué.** Es el instante en que el insumo realmente salió de la despensa. Facturar no consume insumos
-(una cuenta puede facturarse mucho después) y «enviar a cocina» tampoco (una comanda puede anularse antes
-de tocarse).
-**Reversión.** Anular un ítem ya listo genera un movimiento de **reversión**, no un `UPDATE` del anterior.
-**Consecuencias.** El inventario refleja producción, no ventas; la diferencia entre ambos es exactamente
-la merma, y ahora es medible.
-
-### ADR-013 · Autenticación: Better Auth, con PIN para el piso
-
-**Contexto.** v1 dice «JWT seguro» sin más. Auth.js/NextAuth está en modo mantenimiento y sus propios
-mantenedores recomiendan Better Auth para proyectos nuevos.
-**Decisión.** **Better Auth**, con sesión en **cookie `httpOnly`, `Secure`, `SameSite=Lax`** — nunca un
-token en `localStorage`, que es robable por XSS.
-**Dos modos de acceso, deliberadamente distintos:**
-- **Administración y cierres:** usuario + contraseña + segundo factor obligatorio.
-- **Piso (cajero, mesero, monitor, cocina):** **PIN corto sobre un dispositivo previamente registrado**.
-  El dispositivo es el primer factor; el PIN, el segundo. Un PIN **nunca** es credencial suficiente
-  desde un dispositivo desconocido.
-**Controles obligatorios sobre el PIN.** Límite de intentos con bloqueo temporal creciente, PIN
-almacenado con Argon2 igual que una contraseña, prohibición de secuencias triviales, rotación al salir
-un empleado, y registro en auditoría de todo intento fallido.
-**Consecuencias.** Entrar al POS toma dos segundos sin sacrificar el modelo de amenaza, porque el
-dispositivo aporta el factor que el PIN no puede.
-
-### ADR-014 · Video: pasarela RTSP→WebRTC en la LAN, no la nube del fabricante
-
-**Contexto.** v1 propone el SDK en la nube de EZVIZ para ver cámaras que están en la misma red que el
-usuario.
-**Decisión.** **go2rtc** o **MediaMTX** como pasarela local RTSP→WebRTC, con paso directo de H.264 sin
-recodificar.
-**Por qué.** Latencia por debajo del segundo frente a varios segundos vía nube; funciona sin internet;
-sirve cualquier cámara con RTSP, no solo EZVIZ, lo que elimina el amarre a un fabricante.
-**Consecuencias.** Un servicio más que operar en el sitio. Las credenciales RTSP son secretos y nunca
-llegan al navegador: el cliente recibe una sesión WebRTC, jamás la URL con usuario y contraseña.
-
-### ADR-015 · Impresión: cola con confirmación, nunca «disparar y olvidar»
-
-**Contexto.** Si la comanda se marca como enviada y la impresora estaba sin papel, la cocina nunca la ve
-y nadie se entera hasta que el cliente reclama.
-**Decisión.** Toda impresión es un **trabajo en cola** con estados `PENDIENTE → ENVIADO → CONFIRMADO |
-FALLIDO`, reintento con espera creciente, y **alerta visible en pantalla cuando falla**. El estado de la
-comanda **no avanza** por haber intentado imprimir: avanza por confirmación o por reconocimiento
-explícito de una persona.
-**Rutas soportadas.** Red por socket TCP 9100 (preferida); agente local para USB; `window.print()` con
-CSS de impresión solo como último recurso, porque no confirma nada.
-
-**DEC-8 resuelta a favor de la ruta simple.** El cliente confirma que la impresora comprada **admite
-tanto USB como red**, y que soporta **ambos anchos de papel**. Consecuencias directas:
-
-- Se despliega **en modo red, por socket TCP 9100**. Es la ruta preferida por una razón concreta: el
-  servidor le habla directo, sin intermediarios, y **la confirmación de impresión es real** en lugar de
-  la ficción que devuelve un diálogo del navegador.
-- **`apps/printer-agent` sale de la Ruta A.** Es una aplicación entera que un equipo de dos personas ya
-  no tiene que construir, empaquetar ni mantener actualizada en cada terminal. Queda en el plan como
-  adaptador para una impresora futura que solo tenga USB, pero no se construye ahora.
-- Las plantillas de 58 mm y 80 mm se construyen ambas igualmente (F1-12): el ancho es configuración por
-  estación, no una decisión de una vez para siempre.
-- **Contrapartida a cubrir:** una impresora en red es un dispositivo en la red. Va en la **VLAN de
-  hardware** (§7.1, T4), sin exposición a internet, y con IP fija para que no se pierda al reiniciar el
-  router. Sin esas dos cosas, cualquiera en la red del local puede imprimir en la cocina.
-**Consecuencias.** El KDS en pantalla es la fuente de verdad y el papel es respaldo, no al revés.
-
-### ADR-016 · Caché y pub/sub: Valkey
-
-**Contexto.** Redis cambió su licencia a SSPL/RSAL en 2024; Valkey es la bifurcación BSD bajo la Linux
-Foundation, compatible a nivel de protocolo.
-**Decisión.** **Valkey 8.x**, hablado con cliente estándar de Redis.
-**Por qué.** Licencia permisiva que no puede cambiar bajo los pies del proyecto, y un rendimiento algo
-superior con menor consumo de memoria. No se usan módulos de Redis Stack, que es el único caso donde
-Redis seguiría siendo necesario.
-**Consecuencias.** Ninguna a nivel de código: el cliente es el mismo.
-
-### ADR-017 · Validación: un solo esquema Zod por contrato, compartido
-
-**Contexto.** La duplicación más costosa de un proyecto full-stack es validar lo mismo en el formulario,
-en la API y en la base de datos, con tres definiciones que se desincronizan.
-**Decisión.** Cada contrato de entrada se define **una vez** con Zod en `packages/contracts`, y de ahí
-se derivan: los tipos de TypeScript, la validación del formulario en el cliente y la validación en el
-servidor. El servidor **siempre** revalida, aunque el cliente ya lo haya hecho.
-**Consecuencias.** Cambiar un campo obliga a un solo cambio y el compilador señala todos los usos.
-
----
+`Implementada` significa que hay código y prueba que la hacen cumplir, no que alguien
+esté de acuerdo con ella.
 
 ## 4. STACK FIJADO (revisión septiembre 2026)
 
@@ -1606,6 +1333,10 @@ aprueba el cliente. Este es el control de RIE-9 y con este tamaño de equipo dej
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
+> **Estado al 2026-09-08:** 13 tareas hechas y 5 parciales. El detalle con evidencia por
+> tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
+> `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
+
 Formato: `[ ] ID · Tarea` seguido del **criterio de aceptación**, que es lo que decide si está hecha.
 Aplica además el DoD global de §0.4 a toda tarea sin excepción.
 
@@ -1628,44 +1359,44 @@ que depende el modelo de datos. Saltarse F0 es la causa más común de reescritu
 - [ ] **F0-05 · Recolección de facturas reales para las pruebas de referencia fiscal.**
   → *Criterio:* mínimo 20 facturas reales que cubran los ocho casos límite de §5.3, con el desglose
   correcto validado por el contador. **Son la especificación ejecutable del motor de impuestos.**
-- [ ] **F0-06 · Decisión de tenencia y de estrategia offline.**
+- [x] **F0-06 · Decisión de tenencia y de estrategia offline.**
   → *Criterio:* **cerrado el 2026-09-08** — multi-tenant confirmado (ADR-002) y topología B de servidor en sitio adoptada (ADR-003). Queda especificar el modelo exacto de mini-PC y UPS en F0-03.
-- [ ] **F0-07 · Definición de monedas y política de redondeo.**
+- [x] **F0-07 · Definición de monedas y política de redondeo.**
   → *Criterio:* **DEC-2 cerrada: USD funcional.** Falta DEC-5 (escala y modo de redondeo del bolívar), que decide el contador.
-- [ ] **F0-08 · Política de datos personales y de menores.**
+- [x] **F0-08 · Política de datos personales y de menores.**
   → *Criterio:* DEC-9 respondida: qué se guarda, cuánto tiempo, texto del consentimiento.
-- [ ] **F0-09 · Firma del alcance.**
+- [~] **F0-09 · Firma del alcance.**
   → *Criterio:* el cliente aprueba §2.2 (recorridos), §2.3 (fuera de alcance) y los hitos de §11.2.
-- [ ] **F0-10 · Escritura de los ADR definitivos.**
+- [x] **F0-10 · Escritura de los ADR definitivos.**
   → *Criterio:* `docs/adr/` con un archivo por decisión, incluidas las que F0 confirmó o cambió.
 
 ### FASE 1 · CIMIENTOS TÉCNICOS
 *Al terminar F1 no hay funcionalidad visible, pero todo lo que venga después se construye rápido y seguro.
 Es la fase que v1 subestimaba.*
 
-- [ ] **F1-01 · Monorepo Turborepo + pnpm** con la estructura de §9.2.
+- [x] **F1-01 · Monorepo Turborepo + pnpm** con la estructura de §9.2.
   → *Criterio:* `pnpm build` construye todos los paquetes; cada uno tiene su `README.md`.
-- [ ] **F1-02 · TypeScript estricto** con `noUncheckedIndexedAccess` y `exactOptionalPropertyTypes`.
+- [x] **F1-02 · TypeScript estricto** con `noUncheckedIndexedAccess` y `exactOptionalPropertyTypes`.
   → *Criterio:* cero `any` implícitos; el CI falla si aparece uno.
-- [ ] **F1-03 · Reglas de frontera automatizadas** (dependency-cruiser + eslint-plugin-boundaries).
+- [x] **F1-03 · Reglas de frontera automatizadas** (dependency-cruiser + eslint-plugin-boundaries).
   → *Criterio:* una importación deliberadamente prohibida **rompe el CI** en una prueba de demostración.
 - [ ] **F1-04 · Docker Compose** con PostgreSQL 17 y Valkey 8.
   → *Criterio:* `docker compose up` deja un entorno funcional en una máquina limpia, documentado en el README.
 - [ ] **F1-05 · Prisma 7.4+ con `tenant_id` y RLS forzada** en el esquema base (ADR-002).
   → *Criterio:* migración aplicada, políticas activas, y **la prueba negativa de aislamiento pasa**.
-- [ ] **F1-06 · Tokens de diseño** (§8.2) en `packages/config`, consumidos por Tailwind.
+- [x] **F1-06 · Tokens de diseño** (§8.2) en `packages/config`, consumidos por Tailwind.
   → *Criterio:* ningún color literal fuera del archivo de tokens; verificado por lint.
-- [ ] **F1-07 · Tipografía** Quicksand + Inter con `tabular-nums` (§8.3).
+- [x] **F1-07 · Tipografía** Quicksand + Inter con `tabular-nums` (§8.3).
   → *Criterio:* una cifra que cambia no desplaza la columna; verificado visualmente.
-- [ ] **F1-08 · Primitivos de UI** (shadcn adaptado a tokens) + Storybook.
+- [~] **F1-08 · Primitivos de UI** (shadcn adaptado a tokens) + Storybook.
   → *Criterio:* Storybook publicado; cada primitivo con sus cinco estados documentados.
 - [ ] **F1-09 · `packages/contracts` con Zod** (ADR-017).
   → *Criterio:* un contrato de ejemplo valida en cliente y servidor desde **una sola definición**.
-- [ ] **F1-10 · `packages/hardware` con puertos y simuladores** (§9.6), con la impresora **en modo red
+- [~] **F1-10 · `packages/hardware` con puertos y simuladores** (§9.6), con la impresora **en modo red
   por socket TCP 9100** como adaptador principal (ADR-015).
   → *Criterio:* la aplicación arranca y opera de punta a punta **sin ningún periférico físico conectado**;
   el adaptador de red confirma la impresión de verdad. **`apps/printer-agent` no se construye en la Ruta A.**
-- [ ] **F1-11 · Hook `useBarcodeScanner`** con buffer, validación y límite de frecuencia (§7.7).
+- [x] **F1-11 · Hook `useBarcodeScanner`** con buffer, validación y límite de frecuencia (§7.7).
   → *Criterio:* captura un código sin foco en un campo; **rechaza** entradas con formato inválido;
   no interfiere cuando el usuario está escribiendo en un campo de texto.
 - [ ] **F1-12 · Motor de plantillas de ticket 58 mm y 80 mm**, con el ancho como configuración por estación.
@@ -1709,7 +1440,10 @@ Es la fase que v1 subestimaba.*
 *La fase de mayor riesgo. Se construye una vez, se prueba exhaustivamente, y todo lo demás la usa.
 Termina en el hito M1.*
 
-- [ ] **F3-01 · `packages/domain/money`** con el tipo `Money` y su aritmética (§5.1).
+> **Adelanto parcial.** F3-01 y F3-12 se construyeron durante F1 porque el monitor de parque
+> necesitaba mostrar el excedente. El resto de la fase sigue pendiente y su orden no cambia.
+
+- [x] **F3-01 · `packages/domain/money`** con el tipo `Money` y su aritmética (§5.1).
   → *Criterio:* no compila sumar USD con VES; el reparto por mayor resto cuadra siempre; cobertura ≥ 95 %.
 - [ ] **F3-02 · Prohibición de punto flotante** verificada en el esquema (I-01).
   → *Criterio:* una prueba de CI falla si alguien introduce una columna `FLOAT` para un monto.
@@ -1736,7 +1470,7 @@ Termina en el hito M1.*
   → *Criterio:* revertir deja los dos asientos y el saldo correcto; el original permanece intacto.
 - [ ] **F3-11 · `businessDate` en toda fila monetaria** (ADR-009).
   → *Criterio:* una venta a la 01:30 se agrupa en el día del turno que la generó.
-- [ ] **F3-12 · Componente `MoneyDisplay`** como única vía de mostrar dinero (§9.7).
+- [x] **F3-12 · Componente `MoneyDisplay`** como única vía de mostrar dinero (§9.7).
   → *Criterio:* el lint falla ante un `toFixed(2)` fuera de `packages/ui`.
 
 ### FASE 4 · CAJA, TURNOS Y COBRO MIXTO
@@ -1772,6 +1506,10 @@ Termina en el hito M1.*
 *Prioridad confirmada por el cliente (DEC-12): el parque sale en vivo primero. Es el diferencial del
 producto y el flujo más simple de validar en un turno.*
 
+> **Prototipo de interfaz disponible** en `/monitor`, con datos de ejemplo. Las reglas de tiempo,
+> gracia, penalización y aforo ya están escritas y son puras en `@l2/domain-park`; lo que falta
+> es conectarlas a datos reales y al WebSocket.
+
 
 - [ ] **F5-01 · Modelo `Guardian` / `Kid` / `Wristband` / `WristbandAssignment`** (§6.4), con el conjunto
   mínimo que fijó DEC-9: **nombre, apodo opcional, edad opcional y una referencia de contacto**.
@@ -1784,7 +1522,7 @@ producto y el flujo más simple de validar en un turno.*
 - [ ] **F5-03b · Aforo configurable con aviso al alcanzarlo** (30 niños según DEC-7).
   → *Criterio:* al llegar al aforo el sistema avisa antes de permitir un check-in más; el límite se
   cambia desde configuración, sin desplegar.
-- [ ] **F5-04 · Paquetes de tarifa como catálogo configurable,** con `Duration` semántico (ADR-011).
+- [~] **F5-04 · Paquetes de tarifa como catálogo configurable,** con `Duration` semántico (ADR-011).
   → *Criterio:* «pase libre» se modela como `openEnded`, no como duración cero.
 - [ ] **F5-05 · Modalidad prepago** con cronómetro regresivo del servidor (ADR-010).
   → *Criterio:* cambiar el reloj de la tablet **no** altera el tiempo cobrado; hay prueba.
@@ -1792,11 +1530,11 @@ producto y el flujo más simple de validar en un turno.*
   → *Criterio:* el monto al checkout coincide con el cálculo manual del operador.
 - [ ] **F5-07 · Gracia y bloques de penalización** con validación de ADR-011.
   → *Criterio:* gracia 0 significa «sin gracia» y la interfaz lo dice con palabras; el bloque debe ser positivo.
-- [ ] **F5-08 · Tablero en tiempo real** con tarjetas de estado (§8.5).
+- [~] **F5-08 · Tablero en tiempo real** con tarjetas de estado (§8.5).
   → *Criterio:* legible a 2 m; estado por **color + icono + texto**; actualiza en menos de 2 s.
 - [ ] **F5-09 · Alerta sonora por severidad,** silenciable por estación.
   → *Criterio:* audible sobre el ruido del parque; nunca es la única señal.
-- [ ] **F5-10 · Filtro por escaneo:** pasar la pulsera abre el perfil del niño.
+- [x] **F5-10 · Filtro por escaneo:** pasar la pulsera abre el perfil del niño.
   → *Criterio:* funciona desde cualquier pantalla del monitor, sin foco previo en un campo.
 - [ ] **F5-11 · Recarga de tiempo sin perder historial** (R2).
   → *Criterio:* la tarjeta vuelve a verde; la estancia conserva sus tramos y su cobro.

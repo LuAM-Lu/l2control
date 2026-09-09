@@ -1,6 +1,6 @@
 /**
  * L2 Control — Reglas de estancia del parque
- * Implementa §6.5, ADR-010 y ADR-011 del PLAN_L2_CONTROL_v2.md.
+ * Implementa §6.5 del plan, ADR-010 y ADR-011 (docs/adr/).
  *
  * Dos decisiones del plan gobiernan todo este módulo:
  *

@@ -65,7 +65,10 @@ export function ParkChildCard({
       leading={<Initial name={model.childNickname ?? model.childName} tone={status.tone} />}
       title={model.childNickname ?? model.childName}
       subtitle={model.childNickname ? model.childName : model.wristbandCode}
-      selected={selected}
+      // `exactOptionalPropertyTypes` distingue «ausente» de «explícitamente
+      // undefined»: una tarjeta está seleccionada o no lo está, no hay un
+      // tercer estado.
+      selected={selected ?? false}
       onClick={() => onSelect(model.id)}
       footer={
         <div className="flex items-center justify-between gap-3">

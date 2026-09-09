@@ -2,8 +2,8 @@
 
 Sistema de gestión para parque infantil + restaurante (Abby Kingdom, Venezuela).
 
-**El plan manda.** `PLAN_L2_CONTROL_v2.md` es la especificación: 17 ADRs, 12 decisiones del
-cliente cerradas y 160 tareas con criterio de aceptación. Antes de construir algo, busca su
+**El plan manda.** `docs/PLAN.md` es la especificación: 17 ADRs, 12 decisiones del
+cliente cerradas y 160 tareas con criterio de aceptación. El estado real está en `docs/PROGRESO.md`. Antes de construir algo, busca su
 tarea `Fn-nn` en §12. Si lo que vas a hacer no está en el plan, es un cambio de alcance: dilo,
 no lo hagas en silencio.
 
@@ -42,7 +42,11 @@ packages/config          tokens de diseño + tsconfig base
 packages/domain/money    aritmética de dinero (puro)
 packages/domain/park     tiempo, gracia, penalización, aforo (puro)
 packages/ui              nivel 1 primitivos + nivel 2 patrones
+docs/adr/                las 17 decisiones, una por archivo
 ```
+
+Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
+antes de añadirle nada.
 
 Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?» se responde con
 «¿de qué habla?», no con «¿qué tipo de archivo es?» (§9.1).

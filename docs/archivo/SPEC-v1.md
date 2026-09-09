@@ -1,7 +1,7 @@
 # L2 CONTROL - SISTEMA DE GESTIÓN INTEGRAL (PARQUE & RESTAURANTE)
 
 > ⚠️ **DOCUMENTO SUPERADO — NO EJECUTAR.** Este es el plan v1.0, conservado solo como referencia
-> histórica. El plan vigente es **`PLAN_L2_CONTROL_v2.md`**, que corrige 21 hallazgos de este
+> histórica. El plan vigente es **`../PLAN.md`**, que corrige 21 hallazgos de este
 > documento (entre ellos la ausencia total de cumplimiento fiscal, de modelo de impuestos y de
 > congelación de la tasa de cambio). Agentes de IA y desarrolladores: ejecutar v2, no este archivo.
 

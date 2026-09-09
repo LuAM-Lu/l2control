@@ -1,6 +1,6 @@
 /**
  * L2 Control — Aritmética de dinero
- * Implementa §5.1 del PLAN_L2_CONTROL_v2.md.
+ * Implementa §5.1 del plan (docs/PLAN.md).
  *
  * Reglas que este módulo IMPONE y que nadie puede saltarse:
  *
