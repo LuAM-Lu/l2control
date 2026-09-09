@@ -15,9 +15,6 @@ export default function TurnoPage() {
     <TurnoScreen
       movements={DEMO_SHIFT_MOVEMENTS}
       excepciones={DEMO_EXCEPCIONES}
-      shiftLabel="Turno tarde"
-      openedAt="14:00"
-      cajero="M. Prieto"
     />
   );
 }

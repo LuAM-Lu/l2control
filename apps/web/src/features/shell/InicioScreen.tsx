@@ -9,7 +9,7 @@ import {
   TrendingUp,
   TriangleAlert,
 } from "lucide-react";
-import { MoneyDisplay, cn } from "@l2/ui";
+import { MoneyDisplay, PageHeader, cn } from "@l2/ui";
 import type { Excepcion } from "../cash/shift-fixtures.ts";
 
 /**
@@ -71,14 +71,11 @@ export function InicioScreen({
 
   return (
     <div className="mx-auto w-full max-w-[1100px] px-6 py-8 pb-24 lg:pb-8">
-      <header className="mb-8">
-        <h1 className="font-display text-[2rem] leading-tight font-bold tracking-[-0.025em] text-ink">
-          Buenas tardes, Abigail
-        </h1>
-        <p className="mt-1.5 text-[14px] text-ink-2">
-          {diaSemana} · turno abierto desde las 14:00
-        </p>
-      </header>
+      <PageHeader
+        migas={[{ texto: "Abby Kingdom" }, { texto: "Inicio" }]}
+        titulo="Buenas tardes, Abigail"
+        descripcion={`${diaSemana} · turno abierto desde las 14:00`}
+      />
 
       {/* ─────────────────────── 1 · lo que exige atención ──────────────── */}
       <section className="mb-10">

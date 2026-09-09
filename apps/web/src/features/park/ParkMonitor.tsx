@@ -60,18 +60,13 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
     <div className="flex flex-1 flex-col">
       {/* Barra permanente (§8.5): turno, aforo, estado y tasa vigente con su
           origen y su hora. El operador no debe tener que buscar nada de esto. */}
-      <header className="sticky top-0 z-10 border-b border-line bg-base/95 backdrop-blur-sm">
+      <header className="border-b border-line">
         <div className="mx-auto w-full max-w-[1600px] px-6 py-4">
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
             <div>
               <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
                 Monitor de parque
               </h1>
-              <p className="mt-1.5 flex items-center gap-2 text-[13px] text-ink-3">
-                <span>Abby Kingdom</span>
-                <span aria-hidden="true">·</span>
-                <span>{model.shiftLabel}</span>
-              </p>
             </div>
 
             <div className="flex flex-wrap items-end gap-x-7 gap-y-4">

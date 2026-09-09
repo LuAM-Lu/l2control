@@ -59,9 +59,29 @@
   --size-touch-tablet: 3rem;   /* 48px — mesero                           */
   --size-touch-admin: 2rem;    /* 32px — administración con ratón         */
 
-  /* --- Radios y sombra --------------------------------------------------- */
+  /* --- Radios ------------------------------------------------------------ */
   --radius-card: 0.75rem;
   --radius-control: 0.5rem;
+
+  /* --- Elevación ---------------------------------------------------------
+     En una interfaz oscura la sombra se ve poco, así que la elevación se
+     construye con DOS capas: un halo de contacto muy corto que despega el
+     borde, y una sombra larga y difusa que da la altura. Una sola capa a
+     media opacidad se ve sucia y no eleva nada.
+
+     Se gastan por rol, no se reparten (§8.5): elevar todas las tarjetas
+     aplana la jerarquía en lugar de crearla. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 26px -18px rgb(0 0 0 / 0.75);
+  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 40px -22px rgb(0 0 0 / 0.85);
+  --shadow-bar: 0 1px 0 rgb(0 0 0 / 0.35), 0 8px 24px -20px rgb(0 0 0 / 0.9);
+
+  /* --- Movimiento --------------------------------------------------------
+     Una sola curva y dos duraciones para todo el sistema. Cada componente
+     con su propio tiempo es lo que hace que una interfaz se sienta
+     descosida; y `prefers-reduced-motion` ya las anula más abajo. */
+  --ease-salida: cubic-bezier(0.2, 0, 0, 1);
+  --dur-rapida: 120ms;
+  --dur-normal: 200ms;
 }
 
 /* Cifras que se comparan o se suman van siempre en numerales tabulares.

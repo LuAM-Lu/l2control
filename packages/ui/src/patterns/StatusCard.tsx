@@ -80,9 +80,12 @@ export function StatusCard({
         // `h-full` + grid de filas hace que todas las tarjetas de una fila
         // midan lo mismo aunque un nombre ocupe dos líneas.
         "group grid h-full grid-rows-[auto_auto_1fr_auto] overflow-hidden text-left",
-        "rounded-[var(--radius-card)] border transition-colors duration-150",
+        "rounded-[var(--radius-card)] border shadow-card",
+        "transition-[transform,box-shadow,border-color] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
         SHELL[tone],
-        onClick && "cursor-pointer hover:border-line-strong",
+        // La tarjeta se levanta solo si es clicable: el movimiento tiene que
+        // significar «esto responde», no ser decoración.
+        onClick && "cursor-pointer hover:-translate-y-0.5 hover:border-line-strong hover:shadow-lift",
         selected && "ring-2 ring-brand ring-offset-2 ring-offset-base",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         className,

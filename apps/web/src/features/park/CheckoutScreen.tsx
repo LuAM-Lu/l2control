@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   CircleCheckBig,
   LogOut,
   TriangleAlert,
@@ -120,16 +118,9 @@ export function CheckoutScreen({
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b border-line bg-base/95 backdrop-blur-sm">
+      <header className="border-b border-line">
         <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/monitor"
-              aria-label="Volver al monitor"
-              className="grid size-10 place-content-center rounded-[var(--radius-control)] border border-line text-ink-2 transition-colors hover:text-ink"
-            >
-              <ArrowLeft size={18} aria-hidden="true" />
-            </Link>
+          <div>
             <div>
               <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
                 Salida del parque

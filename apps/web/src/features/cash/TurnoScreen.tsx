@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   CircleCheckBig,
   FileText,
   Lock,
@@ -41,15 +39,12 @@ import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./shift-fixtures.ts
 export function TurnoScreen({
   movements,
   excepciones,
-  shiftLabel,
-  openedAt,
-  cajero,
 }: {
   movements: readonly ShiftMovement[];
   excepciones: readonly Excepcion[];
-  shiftLabel: string;
-  openedAt: string;
-  cajero: string;
+  // El turno, la hora de apertura y quién está en caja los muestra la barra
+  // de estación (§8.5): repetirlos aquí era la duplicación que hacía que cada
+  // pantalla se viera distinta.
 }) {
   const [status, setStatus] = useState<ShiftStatus>("ABIERTO");
   const [conteo, setConteo] = useState<Record<string, string>>({});
@@ -88,27 +83,13 @@ export function TurnoScreen({
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b border-line bg-base/95 backdrop-blur-sm">
+      <header className="border-b border-line">
         <div className="mx-auto flex w-full max-w-[1500px] flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              aria-label="Volver al inicio"
-              className="grid size-10 place-content-center rounded-[var(--radius-control)] border border-line text-ink-2 transition-colors hover:text-ink"
-            >
-              <ArrowLeft size={18} aria-hidden="true" />
-            </Link>
+          <div>
             <div>
               <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
                 Turno de caja
               </h1>
-              <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
-                <span>{shiftLabel}</span>
-                <span aria-hidden="true">·</span>
-                <span>abierto {openedAt}</span>
-                <span aria-hidden="true">·</span>
-                <span>{cajero}</span>
-              </p>
             </div>
           </div>
 
