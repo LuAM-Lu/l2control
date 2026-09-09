@@ -1,0 +1,18 @@
+{
+  "name": "@l2/domain-money",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Aritmética de dinero (§5.1 del plan). Enteros en unidades menores, nunca punto flotante.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "SIN DEPENDENCIAS A PROPÓSITO. Este paquete es dominio puro: si algún día aparece aquí React, Prisma o un cliente HTTP, la regla de §9.2 se rompió.",
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

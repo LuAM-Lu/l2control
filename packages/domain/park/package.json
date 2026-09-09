@@ -1,0 +1,21 @@
+{
+  "name": "@l2/domain-park",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reglas de estancia del parque: tiempo, gracia, penalización y tarifa (§6.5, ADR-010, ADR-011).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "Depende solo de @l2/domain-money (núcleo compartido). Sin React, sin Prisma, sin red, sin reloj propio: el instante SIEMPRE entra como argumento (ADR-010).",
+  "dependencies": {
+    "@l2/domain-money": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,89 @@
+/* ============================================================================
+   L2 CONTROL — Tokens de diseño
+   Implementa §8.2 y §8.3 del PLAN_L2_CONTROL_v2.md.
+
+   REGLA (F1-06): ningún color literal fuera de este archivo. Los componentes
+   consumen tokens; si necesitas un color que no está aquí, se agrega aquí.
+   ========================================================================= */
+
+@theme {
+  /* --- Superficies ------------------------------------------------------ */
+  --color-base: #0f172a;        /* Fondo de la aplicación (Slate 900)        */
+  --color-surface: #1e293b;     /* Tarjetas y paneles (Slate 800)            */
+  --color-surface-2: #273449;   /* Elevación secundaria; se gana, no se reparte */
+  --color-line: #334155;        /* Bordes y separadores                      */
+  --color-line-strong: #475569;
+
+  /* --- Texto ------------------------------------------------------------ */
+  --color-ink: #f1f5f9;
+  --color-ink-2: #94a3b8;
+  --color-ink-3: #64748b;
+
+  /* --- Marca -----------------------------------------------------------
+     SOLO identidad y acción primaria. En superficies operativas (KDS,
+     monitor de parque, POS) el ámbar pertenece AL ESTADO, no a la marca:
+     por eso `brand` y `state-warn` son variables distintas aunque el tono
+     sea parecido. Mezclarlas es el conflicto que advierte §8.2.         */
+  --color-brand: #eab308;
+  --color-brand-2: #f97316;
+  --color-on-brand: #0f172a;
+
+  /* --- Estado — RESERVADOS ---------------------------------------------
+     Nunca se reutilizan como color decorativo ni como "serie 4" de un
+     gráfico. Si el verde significa "en tiempo" en el tablero, no puede
+     significar otra cosa en ninguna otra pantalla.                      */
+  --color-state-ok: #10b981;      /* En tiempo, disponible, listo          */
+  --color-state-warn: #f59e0b;    /* Por vencer, requiere revisión         */
+  --color-state-crit: #ef4444;    /* Vencido, error, bloqueo               */
+  --color-state-idle: #64748b;    /* Libre, inactivo, sin datos            */
+
+  --color-state-ok-bg: #052e26;
+  --color-state-warn-bg: #3a2a08;
+  --color-state-crit-bg: #3f1414;
+  --color-state-idle-bg: #1e293b;
+
+  /* --- Tipografía (§8.3) -------------------------------------------------
+     Quicksand para títulos: redondeada y amigable, da el carácter del
+     parque. Inter para interfaz y datos. Quicksand NO se usa para cifras:
+     sus numerales no sirven para leer un total de un vistazo.           */
+  --font-display: "Quicksand", ui-rounded, "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+
+  /* --- Objetivos táctiles (§8.4) ---------------------------------------
+     Los mínimos de plataforma (44pt iOS / 48dp Android / 24px WCAG) son
+     insuficientes en el piso: se usa de pie, con prisa y a veces con
+     guantes. Estos son los del proyecto.                                */
+  --size-touch-kds: 4rem;      /* 64px — cocina, con guantes              */
+  --size-touch-pos: 3.5rem;    /* 56px — cajero                           */
+  --size-touch-tablet: 3rem;   /* 48px — mesero                           */
+  --size-touch-admin: 2rem;    /* 32px — administración con ratón         */
+
+  /* --- Radios y sombra --------------------------------------------------- */
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
+}
+
+/* Cifras que se comparan o se suman van siempre en numerales tabulares.
+   Sin esto las columnas bailan al actualizarse y leerlas se vuelve lento
+   y propenso a error (§8.3). */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* El pulso del estado crítico nunca es la única señal, y respeta la
+   preferencia de movimiento reducido (§8.5, §8.7). */
+@keyframes l2-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.l2-pulse { animation: l2-pulse 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .l2-pulse { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

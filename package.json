@@ -1,0 +1,25 @@
+{
+  "name": "l2-control",
+  "private": true,
+  "version": "0.1.0",
+  "description": "L2 Control — gestión integral de parque infantil y restaurante",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "arch": "depcruise \"packages/**/*.{ts,tsx}\" \"apps/**/*.{ts,tsx}\" --config .dependency-cruiser.cjs",
+    "arch:demo": "node scripts/arch-demo.mjs",
+    "verify": "pnpm arch && pnpm arch:demo && pnpm test"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "17.0.1",
+    "turbo": "2.10.12",
+    "typescript": "7.0.2"
+  }
+}

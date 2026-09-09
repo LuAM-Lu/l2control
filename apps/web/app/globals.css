@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import "@l2/config/tokens.css";
+
+/* Las fuentes se cargan con next/font en layout.tsx para evitar el salto
+   de texto sin estilar; aquí solo se declaran las familias. */
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-base);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* §8.7: el foco de teclado siempre visible. Nunca se quita el outline. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+}
