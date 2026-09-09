@@ -13,10 +13,10 @@
 | F2 · Identidad, permisos y auditoría | 0 | 0 | 10 | Sin empezar |
 | F3 · Núcleo monetario y fiscal | 2 | 0 | 10 | Adelanto parcial |
 | F4 · Caja y cobro mixto | 0 | 0 | 11 | Sin empezar |
-| F5 · Parque | 3 | 4 | 9 | Dos superficies en pie |
+| F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
 | F6-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
-**Se puede ver funcionando:** el monitor de parque en `/monitor`, con datos de ejemplo **derivados del contrato**.
+**Se puede ver funcionando:** monitor (`/monitor`), entrada (`/entrada`) y salida (`/salida`), con datos de ejemplo **derivados del contrato**.
 
 > **Orden de ejecución cambiado el 2026-09-09** (§11.4): frontend → backend → producción.
 > La condición para que ese orden no genere retrabajo es contratos primero, y ya está en marcha.
@@ -78,6 +78,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F5-03 Búsqueda de representante | ✅ Hecha | Por teléfono; si ya vino, no se teclea nada |
 | F5-03b Aforo con aviso | ✅ Hecha | Avisa antes de permitir un check-in de más; límite configurable |
 | F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato; falta que sea editable |
+| F5-14 Salida y liquidación | ✅ Hecha (interfaz) | Pantalla en `/salida`. Varios niños en una salida, desglose paquete + excedente con minutos y bloques, y las dos rutas del plan: taquilla o cargo a mesa. Falta el backend |
 | F5-08b Formato de hora configurable | Parcial | La hora de entrada se muestra en las tarjetas y el formateador acepta 24 h o 12 h; falta que la preferencia sea editable por sucursal |
 | F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |

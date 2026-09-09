@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { fromMajor, toMajor } from "@l2/domain-money";
 import {
   computeCapacity,
+  computeOverdueBreakdown,
   computeOverdueCharge,
   computeSessionView,
   computeSettlement,
@@ -155,6 +156,37 @@ describe("cargo por excedente", () => {
     const libre = sesion({ mode: "POSTPAGO", duration: openEnded });
     const v = computeSessionView(libre, POLICY, epochMs(T0 + 300 * MIN));
     assert.equal(toMajor(computeOverdueCharge(v, POLICY)), "0.00");
+  });
+});
+
+describe("desglose del excedente", () => {
+  test("dice minutos y bloques, no solo el importe", () => {
+    // 7 min vencida − 5 de gracia = 2 cobrables → 1 bloque de 15 iniciado
+    const d = computeOverdueBreakdown(alos(67), POLICY);
+    assert.equal(d.billableMinutes, 2);
+    assert.equal(d.blocks, 1);
+    assert.equal(toMajor(d.charge), "1.50");
+  });
+
+  test("dentro de la gracia el desglose es todo ceros", () => {
+    const d = computeOverdueBreakdown(alos(63), POLICY);
+    assert.deepEqual([d.billableMinutes, d.blocks, toMajor(d.charge)], [0, 0, "0.00"]);
+  });
+
+  test("redondea los minutos hacia arriba: cobrar 7 y mostrar 6 sería mentir", () => {
+    // 66 min y 30 s de estancia → 6 min 30 s vencidos − 5 de gracia = 1,5
+    const v = computeSessionView(sesion(), POLICY, epochMs(T0 + 66 * MIN + 30_000));
+    assert.equal(computeOverdueBreakdown(v, POLICY).billableMinutes, 2);
+  });
+
+  test("coincide siempre con computeOverdueCharge", () => {
+    for (const min of [61, 63, 67, 80, 81, 110, 200]) {
+      const v = alos(min);
+      assert.equal(
+        toMajor(computeOverdueBreakdown(v, POLICY).charge),
+        toMajor(computeOverdueCharge(v, POLICY)),
+      );
+    }
   });
 });
 

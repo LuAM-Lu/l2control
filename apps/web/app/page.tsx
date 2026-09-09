@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard, LogIn } from "lucide-react";
+import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard, LogIn, LogOut } from "lucide-react";
 
 /** Índice temporal de superficies. Se reemplaza por el login en F2. */
 const SURFACES = [
@@ -18,6 +18,14 @@ const SURFACES = [
     ready: true,
     icon: LogIn,
     note: "Registro por escaneo, búsqueda de representante y cobro del paquete.",
+  },
+  {
+    href: "/salida" as const,
+    name: "Salida del parque",
+    phase: "F5-14",
+    ready: true,
+    icon: LogOut,
+    note: "Liquidación con desglose del excedente; cobro en taquilla o cargo a una mesa.",
   },
   {
     href: "/monitor" as const,

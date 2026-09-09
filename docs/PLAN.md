@@ -1406,7 +1406,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 16 tareas hechas y 7 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 16 tareas hechas y 8 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1620,7 +1620,7 @@ producto y el flujo más simple de validar en un turno.*
 - [ ] **F5-13 · Auto-cierre administrativo de sesiones huérfanas** (H-19).
   → *Criterio:* superado el umbral, la sesión pasa a revisión del administrador **sin cobro automático
   de tiempo indefinido**; queda en auditoría.
-- [ ] **F5-14 · Liquidación: cobrar en taquilla o cargar a una mesa.**
+- [~] **F5-14 · Liquidación: cobrar en taquilla o cargar a una mesa.**
   → *Criterio:* ambas rutas producen el mismo total; cargar a mesa **no** cobra dos veces (idempotencia).
 
 ### FASE 6 · RESTAURANTE, COMANDAS Y COCINA

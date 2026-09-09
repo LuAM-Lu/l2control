@@ -182,12 +182,44 @@ export function computeSessionView(
  * papel, y hacerla explícita evita discusiones en taquilla.
  */
 export function computeOverdueCharge(view: SessionView, policy: ParkPolicy): Money {
+  return computeOverdueBreakdown(view, policy).charge;
+}
+
+export type OverdueBreakdown = Readonly<{
+  /** Minutos cobrables, ya descontada la gracia. */
+  billableMinutes: number;
+  /** Bloques INICIADOS que se cobran. */
+  blocks: number;
+  charge: Money;
+}>;
+
+/**
+ * El cargo por excedente, desglosado.
+ *
+ * Existe porque la pantalla de salida tiene que poder decir «1,50 por 7
+ * minutos de más, un bloque de 15 iniciado» con el representante delante. Ese
+ * desglose es una regla de negocio y vive aquí; recalcularlo en la interfaz
+ * sería la duplicación que §9.7 prohíbe, y el día que cambie la política las
+ * dos cuentas dejarían de coincidir.
+ */
+export function computeOverdueBreakdown(
+  view: SessionView,
+  policy: ParkPolicy,
+): OverdueBreakdown {
   const currency = policy.penaltyPricePerBlock.currency;
-  if (view.billableOverdueMs <= 0) return zero(currency);
+  if (view.billableOverdueMs <= 0) {
+    return Object.freeze({ billableMinutes: 0, blocks: 0, charge: zero(currency) });
+  }
 
   const blockMs = policy.penaltyBlockMinutes * MS_PER_MINUTE;
-  const blocksStarted = BigInt(Math.ceil(view.billableOverdueMs / blockMs));
-  return multiply(policy.penaltyPricePerBlock, blocksStarted);
+  const blocks = Math.ceil(view.billableOverdueMs / blockMs);
+  return Object.freeze({
+    // Se redondea hacia arriba también aquí: mostrar «6 minutos» cuando se
+    // cobran 7 sería explicar mal lo que se está cobrando.
+    billableMinutes: Math.ceil(view.billableOverdueMs / MS_PER_MINUTE),
+    blocks,
+    charge: multiply(policy.penaltyPricePerBlock, BigInt(blocks)),
+  });
 }
 
 /** Total a liquidar: lo pagado por el paquete más el excedente. */

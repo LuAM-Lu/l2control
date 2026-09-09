@@ -48,3 +48,16 @@ export {
   type CheckInCommand,
   type CheckInResult,
 } from "./park.ts";
+
+export {
+  SettlementLineSchema,
+  CheckoutPreviewSchema,
+  SettlementDispositionSchema,
+  CheckoutCommandSchema,
+  CheckoutResultSchema,
+  type SettlementLineDto,
+  type CheckoutPreviewDto,
+  type SettlementDisposition,
+  type CheckoutCommand,
+  type CheckoutResult,
+} from "./checkout.ts";
