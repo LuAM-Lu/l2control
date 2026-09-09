@@ -187,6 +187,50 @@ export function multiplyByRate(
   return money(negative ? -result : result, m.currency);
 }
 
+/**
+ * Tasa de cambio ya congelada, lista para operar.
+ *
+ * Es la parte **aritmética** de una tasa: cuántas unidades de `from` valen
+ * `denominator` unidades de `to`. El dato con vigencia, su origen y su hora de
+ * captura viven en el módulo de tasas (ADR-005); aquí solo llega la fracción,
+ * y llega ya fijada por la transacción.
+ */
+export type FrozenRate = Readonly<{
+  from: CurrencyCode;
+  to: CurrencyCode;
+  /** Unidades de `from` que equivalen a `denominator` unidades de `to`. */
+  numerator: bigint;
+  denominator: bigint;
+}>;
+
+export class RateMismatchError extends Error {
+  constructor(expected: CurrencyCode, got: CurrencyCode) {
+    super(`La tasa convierte desde ${expected}, pero el monto está en ${got}.`);
+    this.name = "RateMismatchError";
+  }
+}
+
+/**
+ * Convierte un monto con una tasa **explícita**.
+ *
+ * No existe una versión sin tasa a propósito: convertir «con la tasa actual»
+ * es cómo el reporte de ayer cambia hoy. Quien convierta tiene que decir con
+ * qué tasa, y esa tasa queda guardada en la transacción (ADR-005).
+ */
+export function convert(m: Money, rate: FrozenRate, rounding: Rounding = "HALF_UP"): Money {
+  if (m.currency !== rate.from) throw new RateMismatchError(rate.from, m.currency);
+  if (rate.numerator === 0n) {
+    throw new InvalidAmountError("Una tasa de cambio no puede ser cero (ADR-005).");
+  }
+  const converted = multiplyByRate(
+    money(m.amount, rate.to),
+    rate.denominator,
+    rate.numerator,
+    rounding,
+  );
+  return converted;
+}
+
 export function compare(a: Money, b: Money): -1 | 0 | 1 {
   assertSameCurrency(a, b);
   if (a.amount < b.amount) return -1;

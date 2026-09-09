@@ -19,6 +19,9 @@ import {
   money,
   multiply,
   multiplyByRate,
+  convert,
+  RateMismatchError,
+  type FrozenRate,
   subtract,
   sum,
   toMajor,
@@ -109,6 +112,30 @@ describe("multiplicación por tasa", () => {
 
   test("la moneda se conserva", () => {
     assert.equal(multiplyByRate(fromMajor("100.00", "VES"), 1600n, 10000n).currency, "VES");
+  });
+});
+
+describe("conversión con tasa congelada (ADR-005)", () => {
+  const TASA: FrozenRate = { from: "VES", to: "USD", numerator: 22841n, denominator: 100n };
+
+  test("convierte bolívares a dólares con la tasa dada", () => {
+    assert.equal(toMajor(convert(fromMajor("11420.50", "VES"), TASA)), "50.00");
+    assert.equal(toMajor(convert(fromMajor("228.41", "VES"), TASA)), "1.00");
+  });
+
+  test("rechaza una tasa que no corresponde a la moneda del monto", () => {
+    assert.throws(() => convert(fromMajor("100.00", "USD"), TASA), RateMismatchError);
+  });
+
+  test("una tasa de cero se rechaza: nunca es gratis", () => {
+    const cero: FrozenRate = { ...TASA, numerator: 0n };
+    assert.throws(() => convert(fromMajor("100.00", "VES"), cero), InvalidAmountError);
+  });
+
+  test("no existe una versión sin tasa: convertir con «la tasa actual» es el bug de ADR-005", () => {
+    // Comprobación de diseño: la única forma de convertir exige una tasa.
+    assert.equal(typeof convert, "function");
+    assert.equal(convert.length, 2);
   });
 });
 

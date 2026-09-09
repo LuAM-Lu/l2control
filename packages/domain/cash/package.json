@@ -1,0 +1,21 @@
+{
+  "name": "@l2/domain-cash",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cobro mixto, vuelto y cuadre de caja (§5.5, §5.6). Módulo puro.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "Aquí vive la invariante de cierre: si lo pagado no cuadra con lo debido más vuelto, propina y residuo, el cobro NO se confirma. Nunca se ajusta la diferencia en silencio.",
+  "dependencies": {
+    "@l2/domain-money": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}
