@@ -20,7 +20,7 @@ export function MoneyDisplay({
   /** Unidades mayores ya formateadas, ej. "17.50". */
   value: string;
   currency: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "hero";
   tone?: "default" | "muted" | "positive" | "negative";
   className?: string;
 }) {
@@ -29,6 +29,9 @@ export function MoneyDisplay({
     md: "text-base",
     lg: "text-2xl",
     xl: "text-4xl",
+    /* La cifra que manda en la pantalla: lo que falta por cobrar. Escala con
+       la ventana porque en la estación fija hay sitio y en la tablet no. */
+    hero: "text-[clamp(2.5rem,5.5vw,3.5rem)] leading-none",
   } as const;
 
   const TONE = {

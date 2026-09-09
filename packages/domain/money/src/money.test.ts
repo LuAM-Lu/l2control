@@ -20,6 +20,7 @@ import {
   multiply,
   multiplyByRate,
   convert,
+  invertRate,
   RateMismatchError,
   type FrozenRate,
   subtract,
@@ -130,6 +131,28 @@ describe("conversión con tasa congelada (ADR-005)", () => {
   test("una tasa de cero se rechaza: nunca es gratis", () => {
     const cero: FrozenRate = { ...TASA, numerator: 0n };
     assert.throws(() => convert(fromMajor("100.00", "VES"), cero), InvalidAmountError);
+  });
+
+  test("la tasa se puede dar la vuelta sin cambiar de tasa", () => {
+    const alReves = invertRate(TASA);
+    assert.equal(alReves.from, "USD");
+    assert.equal(alReves.to, "VES");
+    // 1 USD son 228,41 Bs, que es exactamente lo que decía la tasa original.
+    assert.equal(toMajor(convert(fromMajor("1.00", "USD"), alReves)), "228.41");
+    assert.equal(toMajor(convert(fromMajor("11.02", "USD"), alReves)), "2517.08");
+  });
+
+  test("invertir dos veces devuelve la tasa original: no se pierde precisión", () => {
+    const ida = invertRate(TASA);
+    const vuelta = invertRate(ida);
+    assert.deepEqual({ ...vuelta }, { ...TASA });
+    // Y el importe sobrevive el viaje de ida y vuelta.
+    assert.equal(toMajor(convert(convert(fromMajor("228.41", "VES"), TASA), ida)), "228.41");
+  });
+
+  test("una tasa de cero tampoco se puede invertir", () => {
+    assert.throws(() => invertRate({ ...TASA, numerator: 0n }), InvalidAmountError);
+    assert.throws(() => invertRate({ ...TASA, denominator: 0n }), InvalidAmountError);
   });
 
   test("no existe una versión sin tasa: convertir con «la tasa actual» es el bug de ADR-005", () => {

@@ -231,6 +231,30 @@ export function convert(m: Money, rate: FrozenRate, rounding: Rounding = "HALF_U
   return converted;
 }
 
+/**
+ * Da la vuelta a una tasa congelada: de VES→USD a USD→VES.
+ *
+ * Existe porque una tasa se captura en un sentido —el BCV publica cuántos
+ * bolívares vale un dólar— y la pantalla necesita a veces el otro: «faltan
+ * 11,02 USD» se le dice al cliente en bolívares.
+ *
+ * Se invierte la FRACCIÓN, no el resultado. Dividir dos importes ya
+ * redondeados arrastra el error del redondeo; intercambiar numerador y
+ * denominador es exacto y reversible, y sigue siendo la misma tasa congelada
+ * de la transacción, no una nueva (ADR-005).
+ */
+export function invertRate(rate: FrozenRate): FrozenRate {
+  if (rate.numerator === 0n || rate.denominator === 0n) {
+    throw new InvalidAmountError("Una tasa de cambio no puede ser cero (ADR-005).");
+  }
+  return Object.freeze({
+    from: rate.to,
+    to: rate.from,
+    numerator: rate.denominator,
+    denominator: rate.numerator,
+  });
+}
+
 export function compare(a: Money, b: Money): -1 | 0 | 1 {
   assertSameCurrency(a, b);
   if (a.amount < b.amount) return -1;
