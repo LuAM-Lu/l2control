@@ -22,6 +22,7 @@ import {
   add,
   convert,
   money,
+  multiply,
   subtract,
   sum,
   zero,
@@ -201,7 +202,174 @@ export class RetainedAboveThresholdError extends Error {
   }
 }
 
+/* -------------------------------------------------------------- turno */
+
+/** Ciclo de vida del turno de caja (§6.5). */
+export type ShiftStatus = "ABIERTO" | "EN_CIERRE" | "CERRADO_Z";
+
+export class ShiftClosedError extends Error {
+  constructor(action: string) {
+    super(
+      `No se puede "${action}": el turno ya tiene corte Z. ` +
+        `Después del Z ninguna operación monetaria toca ese turno (F4-06).`,
+    );
+    this.name = "ShiftClosedError";
+  }
+}
+
+/**
+ * Guarda del turno sellado.
+ *
+ * El corte Z es irreversible por diseño: sella los correlativos y cierra el
+ * día. Que esto sea una función y no un `if` suelto es deliberado — así no
+ * hay forma de olvidarlo en una ruta nueva.
+ */
+export function assertShiftAcceptsMoney(status: ShiftStatus, action: string): void {
+  if (status === "CERRADO_Z") throw new ShiftClosedError(action);
+}
+
+/**
+ * Movimiento de dinero dentro de un turno.
+ *
+ * `PAYMENT` entra, `CHANGE_OUT` y `PAYOUT` salen. La propina no es ingreso
+ * del negocio pero sí está físicamente en la gaveta si se dejó en efectivo,
+ * por eso también es un movimiento.
+ */
+export type ShiftMovementKind =
+  | "OPENING_FLOAT"
+  | "PAYMENT"
+  | "CHANGE_OUT"
+  | "TIP_IN_DRAWER"
+  | "RETAINED"
+  | "PAYOUT";
+
+export type ShiftMovement = Readonly<{
+  kind: ShiftMovementKind;
+  methodCode: string;
+  amount: Money;
+  /**
+   * Si el dinero está físicamente en la gaveta.
+   *
+   * Es la distinción que hace que un arqueo sirva: el Pago Móvil, el punto de
+   * venta y el Zelle NO están en la gaveta, y contarlos contra el efectivo
+   * produce una diferencia inventada. Se concilian contra su propio estado de
+   * cuenta, no contra lo que hay en el cajón.
+   */
+  inDrawer: boolean;
+}>;
+
+export type MethodTotal = Readonly<{
+  methodCode: string;
+  currency: CurrencyCode;
+  inDrawer: boolean;
+  total: Money;
+}>;
+
+export type DrawerExpectation = Readonly<{
+  currency: CurrencyCode;
+  openingFloat: Money;
+  cashIn: Money;
+  cashOut: Money;
+  /** Lo que el libro dice que debería haber en la gaveta ahora. */
+  expected: Money;
+}>;
+
+export type ShiftTally = Readonly<{
+  byMethod: readonly MethodTotal[];
+  drawer: readonly DrawerExpectation[];
+}>;
+
+const SIGN: Record<ShiftMovementKind, 1n | -1n> = {
+  OPENING_FLOAT: 1n,
+  PAYMENT: 1n,
+  TIP_IN_DRAWER: 1n,
+  RETAINED: 1n,
+  CHANGE_OUT: -1n,
+  PAYOUT: -1n,
+};
+
+/**
+ * Totaliza un turno: por medio de pago y, aparte, lo que debería haber en la
+ * gaveta.
+ *
+ * Son dos vistas distintas a propósito. La primera responde «¿cuánto entró
+ * por cada vía?»; la segunda, «¿cuánto efectivo debería contar el cajero?».
+ * Mezclarlas es el error que hace que los arqueos nunca cuadren.
+ */
+export function tallyShift(movements: readonly ShiftMovement[]): ShiftTally {
+  const porMedio = new Map<string, MethodTotal>();
+  const porMoneda = new Map<CurrencyCode, { float: Money; in: Money; out: Money }>();
+
+  for (const mv of movements) {
+    const signed = money(mv.amount.amount * SIGN[mv.kind], mv.amount.currency);
+
+    const clave = `${mv.methodCode}|${mv.amount.currency}`;
+    const previo = porMedio.get(clave);
+    porMedio.set(clave, {
+      methodCode: mv.methodCode,
+      currency: mv.amount.currency,
+      inDrawer: mv.inDrawer,
+      total: previo ? add(previo.total, signed) : signed,
+    });
+
+    if (!mv.inDrawer) continue;
+
+    const acc =
+      porMoneda.get(mv.amount.currency) ??
+      {
+        float: zero(mv.amount.currency),
+        in: zero(mv.amount.currency),
+        out: zero(mv.amount.currency),
+      };
+
+    if (mv.kind === "OPENING_FLOAT") acc.float = add(acc.float, mv.amount);
+    else if (SIGN[mv.kind] === 1n) acc.in = add(acc.in, mv.amount);
+    else acc.out = add(acc.out, mv.amount);
+
+    porMoneda.set(mv.amount.currency, acc);
+  }
+
+  const drawer: DrawerExpectation[] = [...porMoneda.entries()].map(([currency, a]) => ({
+    currency,
+    openingFloat: a.float,
+    cashIn: a.in,
+    cashOut: a.out,
+    expected: subtract(add(a.float, a.in), a.out),
+  }));
+
+  return Object.freeze({
+    byMethod: Object.freeze([...porMedio.values()]),
+    drawer: Object.freeze(drawer),
+  });
+}
+
 /* ------------------------------------------------------------- arqueo */
+
+export type DenominationCount = Readonly<{
+  /** Valor de la denominación: un billete de 20, una moneda de 0,25. */
+  denomination: Money;
+  count: number;
+}>;
+
+/**
+ * Suma un conteo por denominaciones.
+ *
+ * El cajero cuenta billetes, no importes: pedirle el total ya sumado invita a
+ * cuadrarlo «a ojo» contra lo que el sistema espera, que es justo lo que un
+ * arqueo debe impedir (F4-07).
+ */
+export function countDenominations(
+  entries: readonly DenominationCount[],
+  currency: CurrencyCode,
+): Money {
+  return entries.reduce<Money>((acc, e) => {
+    if (!Number.isInteger(e.count) || e.count < 0) {
+      throw new RangeError(`El conteo debe ser un entero ≥ 0, recibido: ${e.count}`);
+    }
+    return add(acc, multiply(e.denomination, BigInt(e.count)));
+  }, zero(currency));
+}
+
 
 export type CashCount = Readonly<{
   currency: CurrencyCode;

@@ -11,6 +11,10 @@ import assert from "node:assert/strict";
 import { type FrozenRate, fromMajor, toMajor, zero } from "@l2/domain-money";
 import {
   MissingRateError,
+  ShiftClosedError,
+  assertShiftAcceptsMoney,
+  countDenominations,
+  tallyShift,
   RetainedAboveThresholdError,
   SettlementImbalanceError,
   closeSettlement,
@@ -279,5 +283,134 @@ describe("cuadre de caja (F4-07)", () => {
   test("cuando cuadra, la diferencia es cero", () => {
     const r = reconcile([{ currency: "USD", counted: usd("100.00"), expected: usd("100.00") }]);
     assert.equal(r[0]!.difference.amount, 0n);
+  });
+});
+
+/* --------------------------------------------------------- turno */
+
+describe("turno de caja (F4-05, F4-06)", () => {
+  test("un turno abierto acepta dinero", () => {
+    assert.doesNotThrow(() => assertShiftAcceptsMoney("ABIERTO", "cobrar"));
+    assert.doesNotThrow(() => assertShiftAcceptsMoney("EN_CIERRE", "cobrar"));
+  });
+
+  test("después del corte Z, NINGUNA operación monetaria toca el turno", () => {
+    assert.throws(() => assertShiftAcceptsMoney("CERRADO_Z", "cobrar"), ShiftClosedError);
+    assert.throws(() => assertShiftAcceptsMoney("CERRADO_Z", "anular"), ShiftClosedError);
+  });
+});
+
+describe("totalización del turno", () => {
+  const mv = (
+    kind: Parameters<typeof tallyShift>[0][number]["kind"],
+    methodCode: string,
+    amount: ReturnType<typeof usd>,
+    inDrawer: boolean,
+  ) => ({ kind, methodCode, amount, inDrawer });
+
+  test("lo que NO está en la gaveta no entra en el arqueo de efectivo", () => {
+    // Es la distinción que hace que un arqueo sirva: el Pago Móvil no está
+    // en el cajón, y contarlo contra el efectivo inventa una diferencia.
+    const t = tallyShift([
+      mv("OPENING_FLOAT", "EFECTIVO_USD", usd("50.00"), true),
+      mv("PAYMENT", "EFECTIVO_USD", usd("100.00"), true),
+      mv("PAYMENT", "PAGO_MOVIL", bs("22841.00"), false),
+    ]);
+
+    const gavetaUsd = t.drawer.find((d) => d.currency === "USD")!;
+    assert.equal(toMajor(gavetaUsd.expected), "150.00");
+    // Los bolívares del Pago Móvil no generan expectativa de gaveta.
+    assert.equal(t.drawer.some((d) => d.currency === "VES"), false);
+    // Pero sí se totalizan por medio, para conciliar contra su estado de cuenta.
+    assert.equal(t.byMethod.some((m) => m.methodCode === "PAGO_MOVIL"), true);
+  });
+
+  test("el vuelto RESTA de la gaveta", () => {
+    const t = tallyShift([
+      mv("OPENING_FLOAT", "EFECTIVO_USD", usd("50.00"), true),
+      mv("PAYMENT", "EFECTIVO_USD", usd("20.00"), true),
+      mv("CHANGE_OUT", "EFECTIVO_USD", usd("3.00"), true),
+    ]);
+    const g = t.drawer.find((d) => d.currency === "USD")!;
+    assert.equal(toMajor(g.cashIn), "20.00");
+    assert.equal(toMajor(g.cashOut), "3.00");
+    assert.equal(toMajor(g.expected), "67.00");
+  });
+
+  test("la propina en efectivo SÍ está en la gaveta aunque no sea ingreso", () => {
+    const t = tallyShift([
+      mv("OPENING_FLOAT", "EFECTIVO_USD", usd("0.00"), true),
+      mv("TIP_IN_DRAWER", "EFECTIVO_USD", usd("3.00"), true),
+    ]);
+    assert.equal(toMajor(t.drawer[0]!.expected), "3.00");
+  });
+
+  test("una salida de caja resta", () => {
+    const t = tallyShift([
+      mv("OPENING_FLOAT", "EFECTIVO_USD", usd("100.00"), true),
+      mv("PAYOUT", "EFECTIVO_USD", usd("25.00"), true),
+    ]);
+    assert.equal(toMajor(t.drawer[0]!.expected), "75.00");
+  });
+
+  test("separa monedas: dólares y bolívares no se mezclan en la gaveta", () => {
+    const t = tallyShift([
+      mv("OPENING_FLOAT", "EFECTIVO_USD", usd("50.00"), true),
+      mv("OPENING_FLOAT", "EFECTIVO_VES", bs("1000.00"), true),
+      mv("PAYMENT", "EFECTIVO_VES", bs("500.00"), true),
+    ]);
+    assert.equal(toMajor(t.drawer.find((d) => d.currency === "USD")!.expected), "50.00");
+    assert.equal(toMajor(t.drawer.find((d) => d.currency === "VES")!.expected), "1500.00");
+  });
+});
+
+describe("conteo por denominaciones (F4-07)", () => {
+  test("suma billetes y monedas", () => {
+    const total = countDenominations(
+      [
+        { denomination: usd("20.00"), count: 5 },
+        { denomination: usd("5.00"), count: 3 },
+        { denomination: usd("0.25"), count: 4 },
+      ],
+      "USD",
+    );
+    assert.equal(toMajor(total), "116.00");
+  });
+
+  test("un conteo vacío es cero, no un error", () => {
+    assert.equal(toMajor(countDenominations([], "USD")), "0.00");
+  });
+
+  test("rechaza conteos negativos o fraccionarios", () => {
+    assert.throws(
+      () => countDenominations([{ denomination: usd("20.00"), count: -1 }], "USD"),
+      RangeError,
+    );
+    assert.throws(
+      () => countDenominations([{ denomination: usd("20.00"), count: 1.5 }], "USD"),
+      RangeError,
+    );
+  });
+
+  test("el arqueo completo: contar, comparar y ver la diferencia", () => {
+    const t = tallyShift([
+      { kind: "OPENING_FLOAT", methodCode: "EFECTIVO_USD", amount: usd("50.00"), inDrawer: true },
+      { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: usd("100.00"), inDrawer: true },
+      { kind: "CHANGE_OUT", methodCode: "EFECTIVO_USD", amount: usd("30.00"), inDrawer: true },
+    ]);
+    const esperado = t.drawer[0]!.expected; // 120,00
+    const contado = countDenominations(
+      [
+        { denomination: usd("20.00"), count: 5 },
+        { denomination: usd("10.00"), count: 1 },
+        { denomination: usd("5.00"), count: 1 },
+      ],
+      "USD",
+    ); // 115,00
+
+    const [linea] = reconcile([{ currency: "USD", counted: contado, expected: esperado }]);
+    assert.equal(toMajor(linea!.expected), "120.00");
+    assert.equal(toMajor(linea!.counted), "115.00");
+    assert.equal(toMajor(linea!.difference), "-5.00"); // faltan 5
   });
 });

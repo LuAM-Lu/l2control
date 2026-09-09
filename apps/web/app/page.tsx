@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard, LogIn, LogOut } from "lucide-react";
+import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard, LogIn, LogOut, Calculator } from "lucide-react";
 
 /** Índice temporal de superficies. Se reemplaza por el login en F2. */
 const SURFACES = [
@@ -34,6 +34,14 @@ const SURFACES = [
     ready: true,
     icon: CreditCard,
     note: "Cobro mixto multimoneda, IGTF sobre divisas y vuelto con sus tres destinos.",
+  },
+  {
+    href: "/turno" as const,
+    name: "Turno de caja",
+    phase: "F4-05/07",
+    ready: true,
+    icon: Calculator,
+    note: "Arqueo por denominaciones, cortes X y Z, y reporte de excepciones.",
   },
   {
     href: "/monitor" as const,

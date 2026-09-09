@@ -1406,7 +1406,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 18 tareas hechas y 12 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 18 tareas hechas y 17 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1548,7 +1548,7 @@ Termina en el hito M1.*
 
 ### FASE 4 · CAJA, TURNOS Y COBRO MIXTO
 
-- [ ] **F4-01 · Apertura de turno** con fondo inicial declarado por moneda.
+- [~] **F4-01 · Apertura de turno** con fondo inicial declarado por moneda.
   → *Criterio:* no se puede cobrar sin turno abierto; un dispositivo tiene un turno abierto como máximo (I-06).
 - [~] **F4-02 · Los siete medios de pago** como catálogo configurable (§9.9), no como `enum` en el código.
   → *Criterio:* añadir un medio de pago **no requiere desplegar**.
@@ -1564,13 +1564,13 @@ Termina en el hito M1.*
 - [~] **F4-04c · Umbral de residuo retenido, configurable solo por administrador.**
   → *Criterio:* por encima del umbral el sistema exige dar vuelto o marcarlo como propina; el acumulado
   por cajero y turno aparece en el reporte de excepciones.
-- [ ] **F4-05 · Corte X repetible** que no cierra el turno.
+- [~] **F4-05 · Corte X repetible** que no cierra el turno.
   → *Criterio:* se puede ejecutar varias veces; no altera el estado del turno; queda en auditoría.
-- [ ] **F4-06 · Corte Z irreversible** que sella correlativos (§5.4).
+- [~] **F4-06 · Corte Z irreversible** que sella correlativos (§5.4).
   → *Criterio:* después del Z, **ninguna** operación monetaria toca ese turno; hay prueba.
-- [ ] **F4-07 · Arqueo físico por moneda y denominación** frente al teórico del ledger.
+- [~] **F4-07 · Arqueo físico por moneda y denominación** frente al teórico del ledger.
   → *Criterio:* la diferencia se calcula, se muestra, exige justificación sobre el umbral, y queda registrada.
-- [ ] **F4-08 · Reporte de excepciones del turno** (§7.5, punto 8).
+- [~] **F4-08 · Reporte de excepciones del turno** (§7.5, punto 8).
   → *Criterio:* lista anulaciones, descuentos, cortesías y diferencias con usuario, hora y motivo.
 - [ ] **F4-09 · Apertura de gaveta solo asociada a operación.**
   → *Criterio:* no existe botón suelto; cada apertura queda en auditoría con su causa.
