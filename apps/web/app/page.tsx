@@ -1,8 +1,16 @@
 import Link from "next/link";
-import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard, LogIn, LogOut, Calculator } from "lucide-react";
+import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard, LogIn, LogOut, Calculator, KeyRound } from "lucide-react";
 
 /** Índice temporal de superficies. Se reemplaza por el login en F2. */
 const SURFACES = [
+  {
+    href: "/acceso" as const,
+    name: "Acceso por PIN",
+    phase: "F2-03",
+    ready: true,
+    icon: KeyRound,
+    note: "El dispositivo es el primer factor; el PIN, el segundo. Con bloqueo creciente.",
+  },
   {
     href: "/monitor" as const,
     name: "Monitor de parque",

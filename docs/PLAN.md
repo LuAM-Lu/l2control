@@ -1406,7 +1406,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 18 tareas hechas y 17 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 18 tareas hechas y 19 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1489,9 +1489,9 @@ Es la fase que v1 subestimaba.*
 
 - [ ] **F2-01 · Better Auth con cookie httpOnly** (ADR-013).
   → *Criterio:* la sesión no es accesible desde JavaScript; se invalida al salir; se renueva de forma segura.
-- [ ] **F2-02 · Registro de dispositivos.** Alta, aprobación por admin, revocación.
+- [~] **F2-02 · Registro de dispositivos.** Alta, aprobación por admin, revocación.
   → *Criterio:* un dispositivo no registrado **no puede** autenticar con PIN; revocarlo cierra sus sesiones.
-- [ ] **F2-03 · Acceso por PIN atado a dispositivo,** con Argon2, límite de intentos y bloqueo creciente.
+- [~] **F2-03 · Acceso por PIN atado a dispositivo,** con Argon2, límite de intentos y bloqueo creciente.
   → *Criterio:* 5 intentos fallidos bloquean; el bloqueo se registra; el PIN nunca viaja ni se guarda en claro.
 - [ ] **F2-04 · Segundo factor obligatorio** para administración.
   → *Criterio:* no se puede acceder a configuración, precios ni reportes globales sin 2FA.

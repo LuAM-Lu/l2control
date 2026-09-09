@@ -19,6 +19,7 @@ export { StatusCard } from "./patterns/StatusCard";
 export { CountdownDisplay } from "./patterns/CountdownDisplay";
 export { TimeBar } from "./patterns/TimeBar";
 export { StatTile } from "./patterns/StatTile";
+export { NumericKeypad } from "./patterns/NumericKeypad";
 export { Initial } from "./patterns/Initial";
 export { MoneyDisplay } from "./patterns/MoneyDisplay";
 export { ScannerField } from "./patterns/ScannerField";
