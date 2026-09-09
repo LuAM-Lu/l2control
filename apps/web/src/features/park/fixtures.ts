@@ -11,8 +11,10 @@
  * cambian**: ya consumen la forma definitiva.
  */
 import {
+  GuardianSchema,
   MonitorSnapshotSchema,
   PricePackageSchema,
+  type GuardianDto,
   type MonitorSnapshotDto,
   type PricePackageDto,
 } from "@l2/contracts";
@@ -54,6 +56,20 @@ export const DEMO_PACKAGES: PricePackageDto[] = [
     active: true,
   },
 ].map((p) => PricePackageSchema.parse(p));
+
+/**
+ * Representantes ya conocidos, para la búsqueda de F5-03.
+ *
+ * Que un representante recurrente no se vuelva a registrar es la mitad de los
+ * 90 segundos que exige F5-02: teclear un nombre y un teléfono en una tablet,
+ * con cola detrás, es lo que se lleva el tiempo.
+ */
+export const DEMO_GUARDIANS: (GuardianDto & { id: string })[] = [
+  { id: "g1", fullName: "Ana Rojas", contactReference: "0412-1234567" },
+  { id: "g2", fullName: "Luis Guerrero", contactReference: "0414-7654321" },
+  { id: "g3", fullName: "Marisol Prieto", contactReference: "0424-5551234" },
+  { id: "g4", fullName: "Pedro Bermúdez", contactReference: "0416-9876543" },
+].map((g) => ({ ...GuardianSchema.parse(g), id: g.id }));
 
 /**
  * Instantánea del monitor. Es exactamente lo que devolverá el servidor.

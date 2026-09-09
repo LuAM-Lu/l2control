@@ -1380,7 +1380,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 14 tareas hechas y 5 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 16 tareas hechas y 7 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1562,11 +1562,11 @@ producto y el flujo más simple de validar en un turno.*
   mínimo que fijó DEC-9: **nombre, apodo opcional, edad opcional y una referencia de contacto**.
   → *Criterio:* la misma pulsera sirve a otro niño mañana sin corromper el historial de ayer; el esquema
   **no admite** campos de identidad, foto ni dirección; la edad solo se pide si alguna tarifa depende de ella.
-- [ ] **F5-02 · Registro rápido en entrada** por escaneo de pulsera pre-impresa.
+- [~] **F5-02 · Registro rápido en entrada** por escaneo de pulsera pre-impresa.
   → *Criterio:* **R1 en menos de 90 segundos** con dos niños, medido con cronómetro sobre hardware real.
-- [ ] **F5-03 · Búsqueda de representante recurrente** por teléfono.
+- [x] **F5-03 · Búsqueda de representante recurrente** por teléfono.
   → *Criterio:* un representante que ya vino no se vuelve a registrar; el acceso a su contacto se audita.
-- [ ] **F5-03b · Aforo configurable con aviso al alcanzarlo** (30 niños según DEC-7).
+- [x] **F5-03b · Aforo configurable con aviso al alcanzarlo** (30 niños según DEC-7).
   → *Criterio:* al llegar al aforo el sistema avisa antes de permitir un check-in más; el límite se
   cambia desde configuración, sin desplegar.
 - [~] **F5-04 · Paquetes de tarifa como catálogo configurable,** con `Duration` semántico (ADR-011).
@@ -1585,7 +1585,7 @@ producto y el flujo más simple de validar en un turno.*
   → *Criterio:* funciona desde cualquier pantalla del monitor, sin foco previo en un campo.
 - [ ] **F5-11 · Recarga de tiempo sin perder historial** (R2).
   → *Criterio:* la tarjeta vuelve a verde; la estancia conserva sus tramos y su cobro.
-- [ ] **F5-12 · Sesión única activa por pulsera** (I-04).
+- [~] **F5-12 · Sesión única activa por pulsera** (I-04).
   → *Criterio:* escanear una pulsera ya activa **no** crea una segunda sesión; avisa cuál está en curso.
 - [ ] **F5-13 · Auto-cierre administrativo de sesiones huérfanas** (H-19).
   → *Criterio:* superado el umbral, la sesión pasa a revisión del administrador **sin cobro automático

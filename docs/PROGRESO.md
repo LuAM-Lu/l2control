@@ -13,7 +13,7 @@
 | F2 · Identidad, permisos y auditoría | 0 | 0 | 10 | Sin empezar |
 | F3 · Núcleo monetario y fiscal | 2 | 0 | 10 | Adelanto parcial |
 | F4 · Caja y cobro mixto | 0 | 0 | 11 | Sin empezar |
-| F5 · Parque | 1 | 2 | 12 | Prototipo de interfaz |
+| F5 · Parque | 3 | 4 | 9 | Dos superficies en pie |
 | F6-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
 **Se puede ver funcionando:** el monitor de parque en `/monitor`, con datos de ejemplo **derivados del contrato**.
@@ -74,10 +74,14 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 
 | Tarea | Estado | Nota |
 |---|---|---|
+| F5-02 Registro rápido en entrada | **Parcial** | Pantalla completa en `/entrada`. Escaneo, foco automático, aforo, rechazo de pulsera ocupada. **Falta calibrar el umbral del lector con el aparato real** y el backend |
+| F5-03 Búsqueda de representante | ✅ Hecha | Por teléfono; si ya vino, no se teclea nada |
+| F5-03b Aforo con aviso | ✅ Hecha | Avisa antes de permitir un check-in de más; límite configurable |
+| F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato; falta que sea editable |
 | F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |
-| F5-04 Paquetes de tarifa | Parcial | El tipo `Duration` existe; falta el catálogo configurable |
-| F5-01 a F5-14 (resto) | Pendiente | Necesitan persistencia |
+| F5-12 Sesión única por pulsera | Parcial | La interfaz lo rechaza; la invariante real necesita base de datos |
+| F5-01, F5-05 a F5-14 (resto) | Pendiente | Necesitan persistencia |
 
 Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son puras**
 (`@l2/domain-park`); lo que falta es conectarlas a datos reales.
@@ -93,15 +97,18 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 3. **F0-03 y F0-04, el trabajo de campo.** Hoy el sistema se prueba con nombres y tarifas
    inventadas. Hasta que entren el menú y las tarifas reales, no se puede validar nada con el
    cliente.
-4. **Sin pruebas de `@l2/domain-park`.** El paquete tiene lógica de cobro y cero pruebas. Es
-   una deuda que contradice el DoD de §0.4 y hay que saldarla antes de que crezca.
+4. ~~Sin pruebas de `@l2/domain-park`~~ — **saldado**: 20 pruebas, incluidos los bloques de
+   penalización y los bordes de la gracia.
+5. **Calibrar el umbral del lector.** `ScannerField` distingue al lector de una persona por
+   velocidad (55 ms entre pulsaciones). El valor depende del hardware y **F1-11 no está cerrada
+   hasta comprobarlo con el aparato que compró el cliente**.
 
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |
 |---|---|---|
 | Sin Storybook | Recorte de la Ruta A | Cuando entre un tercer consumidor de `@l2/ui` |
-| Sin pruebas en `domain/park` | Se priorizó ver la interfaz | Antes de F5-05 |
+| ~~Sin pruebas en `domain/park`~~ | Saldado el 2026-09-09: 20 pruebas | — |
 | Datos de ejemplo en `features/park/fixtures.ts` | No hay backend. **Mitigado:** se validan contra el contrato al construirse, así que la forma ya es la definitiva | F1-05 + F0-04 |
 | Solo el puerto de escáner | La impresora no hacía falta para el monitor | F1-12 |
 | `apps/printer-agent` sin construir | DEC-8: la impresora admite red | No se construye salvo que aparezca una impresora solo-USB |

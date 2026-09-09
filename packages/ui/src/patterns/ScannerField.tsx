@@ -17,8 +17,24 @@ import { cn } from "../cn";
  * formato antes de emitir nada, y limita la frecuencia.
  */
 const MAX_BUFFER = 64;
-const INTER_KEY_TIMEOUT_MS = 120; // un humano no teclea así de rápido
-const MIN_INTERVAL_MS = 250; // límite de frecuencia
+/**
+ * Umbral que separa al lector de una persona.
+ *
+ * Un lector HID «teclea» el código en 10-30 ms por carácter (los de Bluetooth
+ * o gama baja, hasta ~45 ms); una persona rápida no sostiene menos de ~80 ms.
+ * Detectar por VELOCIDAD y no por dónde está el foco es lo que permite que el
+ * operador escanee una pulsera mientras escribe el nombre del niño anterior —
+ * que es justo lo que hace en taquilla con cola delante.
+ *
+ * ⚠ CALIBRAR CONTRA EL LECTOR REAL. Este valor depende del hardware, y el
+ * criterio de F1-11 no está cumplido hasta comprobarlo con el aparato que
+ * compró el cliente. 55 ms deja margen para lectores lentos sin acercarse a
+ * la velocidad humana; si un lector concreto va más despacio, se sube, y si
+ * alguien logra dispararlo tecleando, se baja.
+ */
+const SCAN_MAX_GAP_MS = 55;
+const MIN_SCAN_LENGTH = 4;
+const MIN_INTERVAL_MS = 250; // límite de frecuencia (§7.7)
 
 export function ScannerField({
   onScan,
@@ -43,31 +59,69 @@ export function ScannerField({
   const buffer = useRef("");
   const lastKeyAt = useRef(0);
   const lastEmitAt = useRef(0);
+  /** Campo enfocado al empezar la ráfaga, y su valor previo. */
+  const burstField = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const burstFieldValue = useRef("");
+
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    function handleKey(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      // No interferir cuando la persona está escribiendo de verdad.
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
+    function isTextField(el: EventTarget | null): el is HTMLInputElement | HTMLTextAreaElement {
+      const node = el as HTMLElement | null;
+      return Boolean(node && (node.tagName === "INPUT" || node.tagName === "TEXTAREA"));
+    }
 
+    function handleKey(event: KeyboardEvent) {
       const now = Date.now();
-      if (now - lastKeyAt.current > INTER_KEY_TIMEOUT_MS) buffer.current = "";
+      const gap = now - lastKeyAt.current;
       lastKeyAt.current = now;
+
+      // CUALQUIER pausa a velocidad humana reinicia el buffer. Así el
+      // contenido siempre es «la última secuencia contigua tecleada a
+      // velocidad de máquina», y el operador puede escribir un nombre y
+      // escanear la siguiente pulsera acto seguido sin que se mezclen.
+      if (gap > SCAN_MAX_GAP_MS) {
+        buffer.current = "";
+        burstField.current = isTextField(event.target) ? event.target : null;
+        burstFieldValue.current = burstField.current?.value ?? "";
+      }
 
       if (event.key === "Enter") {
         const code = buffer.current;
         buffer.current = "";
-        if (code.length === 0) return;
 
-        if (now - lastEmitAt.current < MIN_INTERVAL_MS) return; // límite de frecuencia
+        // Enter escrito por una persona: no es asunto nuestro, que lo maneje
+        // el formulario.
+        if (code.length < MIN_SCAN_LENGTH) return;
+        if (now - lastEmitAt.current < MIN_INTERVAL_MS) return;
+
+        // Si el lector «escribió» dentro de un campo de texto, se deshace:
+        // el código pertenece al escáner, no al nombre del niño.
+        const field = burstField.current;
+        if (field && field.value !== burstFieldValue.current) {
+          const previo = burstFieldValue.current;
+          // Se usa EXCLUSIVAMENTE el setter nativo del prototipo.
+          //
+          // React parchea la propiedad `value` del nodo para llevar la cuenta
+          // del último valor que él escribió. Asignar `field.value = previo`
+          // pasa por ese parche y actualiza su rastreador; cuando después se
+          // emite el evento, React compara, no ve cambio y lo descarta — el
+          // campo se queda con el código pegado al nombre. Saltarse el parche
+          // con el setter del prototipo es lo que hace que React sí se entere.
+          const proto =
+            field instanceof HTMLTextAreaElement
+              ? HTMLTextAreaElement.prototype
+              : HTMLInputElement.prototype;
+          const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+          if (setter) {
+            setter.call(field, previo);
+            field.dispatchEvent(new Event("input", { bubbles: true }));
+          } else {
+            field.value = previo;
+          }
+        }
+
+        event.preventDefault();
 
         if (!validate(code)) {
           setFeedback({ kind: "error", text: `Código no reconocido: ${code.slice(0, 16)}` });
@@ -84,8 +138,8 @@ export function ScannerField({
       }
     }
 
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    window.addEventListener("keydown", handleKey, true);
+    return () => window.removeEventListener("keydown", handleKey, true);
   }, [onScan, validate]);
 
   useEffect(() => {

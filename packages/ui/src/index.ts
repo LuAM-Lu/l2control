@@ -12,6 +12,7 @@ export { useServerClock } from "./useServerClock";
 // Nivel 1 — primitivos: no conocen el dominio
 export { Button, type ButtonProps, type Surface } from "./primitives/Button";
 export { Badge, type Tone } from "./primitives/Badge";
+export { Input } from "./primitives/Input";
 
 // Nivel 2 — patrones: componen primitivos, siguen sin conocer el dominio
 export { StatusCard } from "./patterns/StatusCard";

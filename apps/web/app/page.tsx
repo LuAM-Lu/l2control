@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard } from "lucide-react";
+import { ArrowRight, Baby, ChefHat, CreditCard, LayoutDashboard, LogIn } from "lucide-react";
 
 /** Índice temporal de superficies. Se reemplaza por el login en F2. */
 const SURFACES = [
@@ -10,6 +10,14 @@ const SURFACES = [
     ready: true,
     icon: Baby,
     note: "Tarjetas de estancia con cronómetro del servidor, aforo y lectura de pulsera.",
+  },
+  {
+    href: "/entrada" as const,
+    name: "Entrada al parque",
+    phase: "F5-02",
+    ready: true,
+    icon: LogIn,
+    note: "Registro por escaneo, búsqueda de representante y cobro del paquete.",
   },
   {
     href: "/monitor" as const,
