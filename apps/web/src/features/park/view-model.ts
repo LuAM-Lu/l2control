@@ -32,6 +32,10 @@ export type SessionCardModel = Readonly<{
   direction: "up" | "down";
   /** Minutos contratados; `null` si la duración es abierta. */
   contractedMinutes: number | null;
+  /** Check-in, en epoch ms. Lo necesita la barra de progreso. */
+  startedAt: number;
+  /** Duración contratada en ms; `null` si es abierta. */
+  totalMs: number | null;
   overdueAmount: string;
   overdueCurrency: string;
   hasOverdueCharge: boolean;
@@ -62,6 +66,8 @@ export function toCardModel(
     targetMs,
     direction: isFixed ? "down" : "up",
     contractedMinutes,
+    startedAt: session.startedAt,
+    totalMs: contractedMinutes === null ? null : contractedMinutes * 60_000,
     overdueAmount: toMajor(overdue),
     overdueCurrency: overdue.currency,
     hasOverdueCharge: overdue.amount > 0n,

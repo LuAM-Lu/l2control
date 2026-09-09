@@ -1,17 +1,25 @@
 "use client";
 
-import { CheckCircle2, TimerReset, AlertTriangle, OctagonAlert } from "lucide-react";
-import { CountdownDisplay, MoneyDisplay, StatusCard, type Tone } from "@l2/ui";
+import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert } from "lucide-react";
+import {
+  CountdownDisplay,
+  Initial,
+  MoneyDisplay,
+  StatusCard,
+  TimeBar,
+  useServerClock,
+  type Tone,
+} from "@l2/ui";
 import { formatDuration, type SessionStatus } from "@l2/domain-park";
 import type { SessionCardModel } from "./view-model";
 
 /**
- * Nivel 3 — funcionalidad (§9.4). Conoce el dominio del parque y por eso
- * vive aquí y no en `@l2/ui`.
+ * Nivel 3 — funcionalidad (§9.4). Conoce el dominio del parque y por eso vive
+ * aquí y no en `@l2/ui`.
  *
- * §8.5: debe leerse A DOS METROS. Nombre grande, cronómetro en cifras
- * tabulares, y el estado comunicado por color + icono + texto — nunca solo
- * por color.
+ * §8.5: debe leerse A DOS METROS. La jerarquía es deliberada — el cronómetro
+ * es el elemento más grande porque es el dato que se consulta; el nombre va
+ * segundo; la barra da el contexto sin necesidad de leer nada.
  */
 
 const STATUS: Record<
@@ -20,40 +28,51 @@ const STATUS: Record<
 > = {
   ACTIVA: { tone: "ok", label: "En tiempo", icon: CheckCircle2, urgent: false },
   POR_VENCER: { tone: "warn", label: "Por vencer", icon: TimerReset, urgent: false },
-  EN_GRACIA: { tone: "warn", label: "En gracia", icon: AlertTriangle, urgent: false },
+  EN_GRACIA: { tone: "warn", label: "En gracia", icon: TriangleAlert, urgent: false },
   VENCIDA: { tone: "crit", label: "Tiempo cumplido", icon: OctagonAlert, urgent: true },
 };
 
 export function ParkChildCard({
   model,
   serverNow,
-  highlighted,
+  selected,
   onSelect,
 }: {
   model: SessionCardModel;
   serverNow: number;
-  highlighted?: boolean;
+  selected?: boolean;
   onSelect: (id: string) => void;
 }) {
+  // Un solo reloj por tarjeta: cifra y barra laten juntas.
+  const now = useServerClock(serverNow);
   const status = STATUS[model.status];
   const Icon = status.icon;
+
+  const elapsed = Math.max(0, now - model.startedAt);
+  const total = model.totalMs;
+
+  // Ratio para la barra. Es presentación, no reglas de negocio: el cobro del
+  // excedente lo calcula `@l2/domain-park`, nunca este componente.
+  const progress = total ? Math.min(1, elapsed / total) : 0;
+  const overflow = total && elapsed > total ? Math.min(1, (elapsed - total) / total) : 0;
 
   return (
     <StatusCard
       tone={status.tone}
-      title={model.childNickname ?? model.childName}
-      subtitle={model.childNickname ? model.childName : undefined}
       statusLabel={status.label}
-      statusIcon={<Icon size={13} aria-hidden="true" />}
+      statusIcon={<Icon size={12} aria-hidden="true" />}
       urgent={status.urgent}
+      leading={<Initial name={model.childNickname ?? model.childName} tone={status.tone} />}
+      title={model.childNickname ?? model.childName}
+      subtitle={model.childNickname ? model.childName : model.wristbandCode}
+      selected={selected}
       onClick={() => onSelect(model.id)}
-      className={highlighted ? "ring-2 ring-brand ring-offset-2 ring-offset-base" : undefined}
       footer={
         <div className="flex items-center justify-between gap-3">
-          <span className="tnum font-mono text-xs text-ink-3">{model.wristbandCode}</span>
+          <span className="tnum font-mono text-[11px] text-ink-3">{model.wristbandCode}</span>
           {model.hasOverdueCharge ? (
-            <span className="flex items-center gap-1.5">
-              <span className="text-xs text-ink-2">Excedente</span>
+            <span className="flex items-baseline gap-1.5">
+              <span className="text-[11px] text-ink-2">Excedente</span>
               <MoneyDisplay
                 value={model.overdueAmount}
                 currency={model.overdueCurrency}
@@ -62,16 +81,16 @@ export function ParkChildCard({
               />
             </span>
           ) : (
-            <span className="text-xs text-ink-3">
-              {model.contractedMinutes ? `Paquete ${model.contractedMinutes} min` : "Tiempo abierto"}
+            <span className="text-[11px] text-ink-3">
+              {model.contractedMinutes ? `${model.contractedMinutes} min` : "Tiempo abierto"}
             </span>
           )}
         </div>
       }
     >
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex items-end justify-between gap-2">
         <CountdownDisplay
-          serverNow={serverNow}
+          now={now}
           targetMs={model.targetMs}
           direction={model.direction}
           format={formatDuration}
@@ -84,10 +103,24 @@ export function ParkChildCard({
                 : "text-ink"
           }
         />
-        <span className="text-xs font-medium tracking-wide text-ink-3 uppercase">
+        <span className="pb-1 text-[10px] font-medium tracking-[0.09em] text-ink-3 uppercase">
           {model.mode === "PREPAGO" ? "restante" : "acumulado"}
         </span>
       </div>
+
+      {total ? (
+        <TimeBar
+          progress={progress}
+          overflow={overflow}
+          tone={status.tone}
+          label="Consumido"
+          value={`${Math.round(progress * 100)}%`}
+        />
+      ) : (
+        // Postpago: no hay objetivo contra el que medir. Una barra llena diría
+        // "se acabó el tiempo", que es justo lo contrario.
+        <TimeBar progress={0} indeterminate label="Sin límite" value="se cobra al salir" />
+      )}
     </StatusCard>
   );
 }

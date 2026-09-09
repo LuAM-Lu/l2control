@@ -1,19 +1,24 @@
 import type { ReactNode } from "react";
 import { cn } from "../cn";
-import { Badge, type Tone } from "../primitives/Badge";
+import type { Tone } from "../primitives/Badge";
 
 /**
  * Nivel 2 — patrón (§9.4).
  *
- * Tarjeta con estado codificado en la FORMA, no solo en el color: banda
- * lateral + icono + texto. Un cocinero con daltonismo (≈8 % de los hombres)
- * debe poder operar igual de rápido — §8.2 lo trata como requisito
- * funcional, no como accesibilidad opcional.
+ * Tarjeta operativa con estado codificado en la FORMA, no solo en el color:
+ * banda superior a todo lo ancho + icono + texto. Un cocinero con daltonismo
+ * (≈8 % de los hombres) debe operar igual de rápido — §8.2 lo trata como
+ * requisito funcional, no como accesibilidad opcional.
+ *
+ * La banda va ARRIBA y ocupa todo el ancho, no en un costado: se lee a dos
+ * metros y no compite por espacio con el nombre, que era el defecto de la
+ * primera versión (el chip de estado se recortaba contra el borde).
  *
  * Se reutiliza en monitor de parque, KDS y plano de mesas: por eso vive en
  * `patterns` y no conoce ninguno de los tres dominios.
  */
-const STRIPE: Record<Tone, string> = {
+
+const BAND: Record<Tone, string> = {
   ok: "bg-state-ok",
   warn: "bg-state-warn",
   crit: "bg-state-crit",
@@ -21,28 +26,49 @@ const STRIPE: Record<Tone, string> = {
   brand: "bg-brand",
 };
 
+const LABEL: Record<Tone, string> = {
+  ok: "text-state-ok",
+  warn: "text-state-warn",
+  crit: "text-state-crit",
+  idle: "text-ink-2",
+  brand: "text-brand",
+};
+
+const SHELL: Record<Tone, string> = {
+  ok: "border-line bg-surface",
+  warn: "border-state-warn/30 bg-state-warn-bg/40",
+  crit: "border-state-crit/45 bg-state-crit-bg/50",
+  idle: "border-line bg-surface",
+  brand: "border-brand/30 bg-surface",
+};
+
 export function StatusCard({
   tone = "idle",
-  title,
-  subtitle,
   statusLabel,
   statusIcon,
   urgent = false,
+  leading,
+  title,
+  subtitle,
   children,
   footer,
   onClick,
+  selected = false,
   className,
 }: {
   tone?: Tone;
-  title: string;
-  subtitle?: string;
   statusLabel: string;
   statusIcon?: ReactNode;
   /** Pulso visual. Nunca es la única señal, y respeta prefers-reduced-motion. */
   urgent?: boolean;
+  /** Ranura izquierda de la cabecera: avatar, inicial, número de mesa. */
+  leading?: ReactNode;
+  title: string;
+  subtitle?: string;
   children?: ReactNode;
   footer?: ReactNode;
   onClick?: () => void;
+  selected?: boolean;
   className?: string;
 }) {
   const Wrapper = onClick ? "button" : "div";
@@ -51,9 +77,13 @@ export function StatusCard({
     <Wrapper
       {...(onClick ? { type: "button" as const, onClick } : {})}
       className={cn(
-        "relative flex w-full flex-col overflow-hidden text-left",
-        "rounded-[var(--radius-card)] border border-line bg-surface",
-        onClick && "cursor-pointer transition-colors hover:bg-surface-2",
+        // `h-full` + grid de filas hace que todas las tarjetas de una fila
+        // midan lo mismo aunque un nombre ocupe dos líneas.
+        "group grid h-full grid-rows-[auto_auto_1fr_auto] overflow-hidden text-left",
+        "rounded-[var(--radius-card)] border transition-colors duration-150",
+        SHELL[tone],
+        onClick && "cursor-pointer hover:border-line-strong",
+        selected && "ring-2 ring-brand ring-offset-2 ring-offset-base",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         className,
       )}
@@ -61,26 +91,38 @@ export function StatusCard({
       {/* Banda de estado: la señal que se lee a dos metros */}
       <span
         aria-hidden="true"
-        className={cn("absolute top-0 bottom-0 left-0 w-1.5", STRIPE[tone], urgent && "l2-pulse")}
+        className={cn("h-1.5 w-full", BAND[tone], urgent && "l2-pulse")}
       />
 
-      <div className="flex flex-col gap-3 py-4 pr-4 pl-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="font-display truncate text-xl leading-tight font-bold text-ink">
+      <div className="flex items-center gap-2.5 px-4 pt-3">
+        <span
+          className={cn(
+            "flex items-center gap-1.5 text-[11px] font-bold tracking-[0.08em] uppercase",
+            LABEL[tone],
+            urgent && "l2-pulse",
+          )}
+        >
+          {statusIcon}
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-3 px-4 py-3">
+        <div className="flex items-start gap-3">
+          {leading}
+          <div className="min-w-0 flex-1">
+            <h3 className="font-display truncate text-lg leading-tight font-bold text-ink">
               {title}
             </h3>
-            {subtitle && <p className="mt-0.5 truncate text-sm text-ink-2">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 truncate text-[13px] text-ink-2">{subtitle}</p>}
           </div>
-          <Badge tone={tone} icon={statusIcon} className={cn(urgent && "l2-pulse")}>
-            {statusLabel}
-          </Badge>
         </div>
-
         {children}
-
-        {footer && <div className="border-t border-line pt-3">{footer}</div>}
       </div>
+
+      {footer && (
+        <div className="border-t border-line/70 px-4 py-2.5">{footer}</div>
+      )}
     </Wrapper>
   );
 }

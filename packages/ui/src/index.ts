@@ -7,6 +7,7 @@
  */
 
 export { cn } from "./cn";
+export { useServerClock } from "./useServerClock";
 
 // Nivel 1 — primitivos: no conocen el dominio
 export { Button, type ButtonProps, type Surface } from "./primitives/Button";
@@ -15,6 +16,9 @@ export { Badge, type Tone } from "./primitives/Badge";
 // Nivel 2 — patrones: componen primitivos, siguen sin conocer el dominio
 export { StatusCard } from "./patterns/StatusCard";
 export { CountdownDisplay } from "./patterns/CountdownDisplay";
+export { TimeBar } from "./patterns/TimeBar";
+export { StatTile } from "./patterns/StatTile";
+export { Initial } from "./patterns/Initial";
 export { MoneyDisplay } from "./patterns/MoneyDisplay";
 export { ScannerField } from "./patterns/ScannerField";
 export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBadge";

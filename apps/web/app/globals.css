@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @import "@l2/config/tokens.css";
 
+/* Los paquetes del workspace llegan por symlink dentro de node_modules, que
+   Tailwind excluye del escaneo por defecto. Sin estas líneas, cualquier clase
+   que exista SOLO en @l2/ui no se genera: el componente se monta, no da
+   error, y simplemente no se pinta. Es un fallo silencioso — precisamente el
+   tipo que §8.6 llama antipatrón. */
+@source "../../../packages/ui/src";
+
 /* Las fuentes se cargan con next/font en layout.tsx para evitar el salto
    de texto sin estilar; aquí solo se declaran las familias. */
 

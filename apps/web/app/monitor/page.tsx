@@ -23,6 +23,7 @@ export default function MonitorPage() {
       capacityLimit={DEMO_CAPACITY_LIMIT}
       rateValue="228,41"
       rateCapturedAt="08:00"
+      shiftLabel="Turno tarde · abierto 14:00"
     />
   );
 }

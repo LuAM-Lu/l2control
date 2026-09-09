@@ -86,42 +86,46 @@ export function ScannerField({
     return () => clearTimeout(id);
   }, [feedback]);
 
+  const tone =
+    feedback?.kind === "error" ? "crit" : feedback?.kind === "ok" ? "ok" : "idle";
+
   return (
     <div
       className={cn(
-        "flex min-h-14 items-center gap-3 rounded-[var(--radius-control)] border px-4",
-        feedback?.kind === "error"
+        "flex items-center gap-3 rounded-[var(--radius-control)] border px-4 py-2.5",
+        tone === "crit"
           ? "border-state-crit/50 bg-state-crit-bg"
-          : feedback?.kind === "ok"
+          : tone === "ok"
             ? "border-state-ok/50 bg-state-ok-bg"
-            : "border-dashed border-line bg-surface",
+            : "border-line bg-surface",
         className,
       )}
     >
       <ScanLine
-        size={20}
+        size={18}
         aria-hidden="true"
         className={
-          feedback?.kind === "error"
-            ? "text-state-crit"
-            : feedback?.kind === "ok"
-              ? "text-state-ok"
-              : "text-ink-3"
+          tone === "crit" ? "text-state-crit" : tone === "ok" ? "text-state-ok" : "text-brand"
         }
       />
       <span
         role="status"
         className={cn(
           "text-sm",
-          feedback?.kind === "error"
+          tone === "crit"
             ? "text-state-crit"
-            : feedback?.kind === "ok"
+            : tone === "ok"
               ? "text-state-ok"
-              : "text-ink-3",
+              : "text-ink-2",
         )}
       >
         {feedback?.text ?? placeholder}
       </span>
+      {!feedback && (
+        <span className="ml-auto hidden text-[11px] text-ink-3 sm:block">
+          No hace falta hacer clic en ningún campo
+        </span>
+      )}
     </div>
   );
 }
