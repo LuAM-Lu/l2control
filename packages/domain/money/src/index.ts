@@ -132,6 +132,61 @@ export function multiply(m: Money, factor: bigint): Money {
   return money(m.amount * factor, m.currency);
 }
 
+/**
+ * Modos de redondeo.
+ *
+ * `HALF_UP` (mitad hacia arriba, alejándose del cero) es la convención fiscal
+ * habitual y el valor por defecto. `DOWN` trunca, y sirve para la política de
+ * residuo a favor del cliente que fijó DEC-5.
+ */
+export type Rounding = "HALF_UP" | "HALF_EVEN" | "DOWN";
+
+/**
+ * Multiplica por una tasa expresada como fracción de enteros.
+ *
+ * Existe para los impuestos: un 16 % es `1600/10000`, no `0.16`. Mantener la
+ * tasa como fracción de enteros evita meter un `number` en el camino del
+ * dinero, que es exactamente lo que §5.1 prohíbe.
+ *
+ * El redondeo ocurre AQUÍ y una sola vez. Quien llame debe agrupar antes
+ * —por ejemplo, sumar toda la base de una alícuota— y multiplicar después;
+ * redondear línea a línea produce diferencias de céntimos que en un cierre de
+ * mes son visibles.
+ */
+export function multiplyByRate(
+  m: Money,
+  numerator: bigint,
+  denominator: bigint,
+  rounding: Rounding = "HALF_UP",
+): Money {
+  if (denominator === 0n) {
+    throw new InvalidAmountError("El denominador de una tasa no puede ser cero.");
+  }
+
+  const product = m.amount * numerator;
+  const negative = product < 0n !== denominator < 0n;
+  const absProduct = product < 0n ? -product : product;
+  const absDenom = denominator < 0n ? -denominator : denominator;
+
+  const quotient = absProduct / absDenom;
+  const remainder = absProduct % absDenom;
+
+  let result = quotient;
+  if (remainder !== 0n) {
+    const twice = remainder * 2n;
+    if (rounding === "HALF_UP") {
+      if (twice >= absDenom) result = quotient + 1n;
+    } else if (rounding === "HALF_EVEN") {
+      if (twice > absDenom || (twice === absDenom && quotient % 2n === 1n)) {
+        result = quotient + 1n;
+      }
+    }
+    // DOWN trunca: se queda con el cociente.
+  }
+
+  return money(negative ? -result : result, m.currency);
+}
+
 export function compare(a: Money, b: Money): -1 | 0 | 1 {
   assertSameCurrency(a, b);
   if (a.amount < b.amount) return -1;

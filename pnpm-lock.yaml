@@ -196,6 +196,16 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  packages/domain/tax:
+    dependencies:
+      '@l2/domain-money':
+        specifier: workspace:*
+        version: link:../money
+    devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   packages/ui:
     dependencies:
       clsx:

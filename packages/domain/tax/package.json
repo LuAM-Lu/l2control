@@ -1,0 +1,21 @@
+{
+  "name": "@l2/domain-tax",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Motor de IVA e IGTF (§5.3). Módulo puro: entra una cuenta y unas reglas vigentes, sale un desglose.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "Sin base de datos, sin red y sin reloj propio. Por eso se puede probar con las facturas reales del contador en milisegundos, que es lo que F3-08 exige.",
+  "dependencies": {
+    "@l2/domain-money": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

@@ -1406,7 +1406,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 16 tareas hechas y 8 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 18 tareas hechas y 8 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1528,9 +1528,9 @@ Termina en el hito M1.*
 - [ ] **F3-05 · Bloqueo fail-closed sin tasa vigente** (ADR-005).
   → *Criterio:* sin tasa confirmada del día, el cobro en la moneda afectada se bloquea con mensaje
   accionable. **Nunca** cero ni la tasa de ayer en silencio.
-- [ ] **F3-06 · `packages/domain/tax`: motor de IVA** con alícuotas versionadas por vigencia.
+- [x] **F3-06 · `packages/domain/tax`: motor de IVA** con alícuotas versionadas por vigencia.
   → *Criterio:* cambiar la alícuota hoy no altera el cálculo de una factura del mes pasado.
-- [ ] **F3-07 · Motor de IGTF por medio de pago** (§5.3).
+- [x] **F3-07 · Motor de IGTF por medio de pago** (§5.3).
   → *Criterio:* en pago mixto, el IGTF aplica **solo** a la porción en divisas o cripto; sale como línea
   separada del IVA; su base incluye el IVA.
 - [ ] **F3-08 · Pruebas de referencia fiscal `T-TAX-*`** con las facturas reales de F0-05.

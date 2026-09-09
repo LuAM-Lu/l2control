@@ -11,7 +11,7 @@
 | F0 · Descubrimiento y decisiones | 4 | 1 | 5 | En curso — bloqueada por trabajo de campo |
 | F1 · Cimientos técnicos | 8 | 2 | 6 | En curso |
 | F2 · Identidad, permisos y auditoría | 0 | 0 | 10 | Sin empezar |
-| F3 · Núcleo monetario y fiscal | 2 | 0 | 10 | Adelanto parcial |
+| F3 · Núcleo monetario y fiscal | 4 | 0 | 8 | Motor de impuestos listo |
 | F4 · Caja y cobro mixto | 0 | 0 | 11 | Sin empezar |
 | F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
 | F6-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
@@ -68,7 +68,9 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F3-01 Paquete de dinero | ✅ Hecha | `Money` con `bigint`; sumar USD con Bs no compila; 14 pruebas |
 | F3-12 `MoneyDisplay` | ✅ Hecha | Única vía de mostrar dinero; recibe cadena, no el tipo del dominio |
 | F3-02 Prohibición de `FLOAT` en esquema | Pendiente | Necesita base de datos (F1-05) |
-| F3-03 a F3-11 | Pendiente | Tasas, impuestos, ledger, vuelto, día de negocio |
+| F3-06 Motor de IVA con vigencias | ✅ Hecha | `@l2/domain-tax`; una factura vieja se recalcula con la regla que tenía |
+| F3-07 Motor de IGTF por medio de pago | ✅ Hecha | Solo la porción en divisas o cripto; los 8 casos límite de §5.3 con prueba |
+| F3-03 a F3-05, F3-08 a F3-11 | Pendiente | Tasas, ledger, vuelto, día de negocio, y las facturas reales del contador |
 
 ## F5 · Parque — prototipo de interfaz
 

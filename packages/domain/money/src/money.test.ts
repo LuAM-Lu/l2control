@@ -18,6 +18,7 @@ import {
   fromMajor,
   money,
   multiply,
+  multiplyByRate,
   subtract,
   sum,
   toMajor,
@@ -71,6 +72,43 @@ describe("aritmética", () => {
 
   test("multiplica por cantidades enteras", () => {
     assert.equal(toMajor(multiply(fromMajor("2.50", "USD"), 3n)), "7.50");
+  });
+});
+
+describe("multiplicación por tasa", () => {
+  const bs = (v: string) => fromMajor(v, "USD");
+
+  test("calcula el IVA del 16 % sin pasar por decimales", () => {
+    assert.equal(toMajor(multiplyByRate(bs("100.00"), 1600n, 10000n)), "16.00");
+    assert.equal(toMajor(multiplyByRate(bs("17.50"), 1600n, 10000n)), "2.80");
+  });
+
+  test("redondea la mitad hacia arriba, que es la convención fiscal", () => {
+    // 0,01 × 50 % = 0,005 → medio céntimo
+    assert.equal(toMajor(multiplyByRate(bs("0.01"), 5000n, 10000n, "HALF_UP")), "0.01");
+    assert.equal(toMajor(multiplyByRate(bs("0.01"), 5000n, 10000n, "DOWN")), "0.00");
+  });
+
+  test("HALF_EVEN parte los empates hacia el par", () => {
+    assert.equal(toMajor(multiplyByRate(bs("0.01"), 5000n, 10000n, "HALF_EVEN")), "0.00");
+    assert.equal(toMajor(multiplyByRate(bs("0.03"), 5000n, 10000n, "HALF_EVEN")), "0.02");
+  });
+
+  test("un monto negativo (nota de crédito) se aleja del cero igual", () => {
+    assert.equal(toMajor(multiplyByRate(bs("-0.01"), 5000n, 10000n, "HALF_UP")), "-0.01");
+    assert.equal(toMajor(multiplyByRate(bs("-100.00"), 1600n, 10000n)), "-16.00");
+  });
+
+  test("una tasa del 0 % da cero, no un error", () => {
+    assert.equal(toMajor(multiplyByRate(bs("100.00"), 0n, 10000n)), "0.00");
+  });
+
+  test("un denominador de cero se rechaza", () => {
+    assert.throws(() => multiplyByRate(bs("100.00"), 1600n, 0n), InvalidAmountError);
+  });
+
+  test("la moneda se conserva", () => {
+    assert.equal(multiplyByRate(fromMajor("100.00", "VES"), 1600n, 10000n).currency, "VES");
   });
 });
 
