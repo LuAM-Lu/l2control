@@ -14,7 +14,7 @@ import {
   WristbandCodeSchema,
   type MonitorSnapshotDto,
 } from "@l2/contracts";
-import { Badge, Button, Initial, MoneyDisplay, ScannerField, StatTile } from "@l2/ui";
+import { Badge, Button, Container, Initial, MoneyDisplay, ScannerField, StatTile } from "@l2/ui";
 import { PackageOpen } from "lucide-react";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
 import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
@@ -119,7 +119,7 @@ export function CheckoutScreen({
   return (
     <div className="flex flex-1 flex-col">
       <header className="border-b border-line">
-        <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 py-4">
+        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4">
           <div>
             <div>
               <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
@@ -139,11 +139,11 @@ export function CheckoutScreen({
               tone={hayAlgo ? "brand" : "idle"}
             />
           </div>
-        </div>
+        </Container>
       </header>
 
-      <main className="mx-auto grid w-full max-w-[1400px] flex-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="flex flex-col gap-4">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="flex flex-col gap-4 min-w-0">
           <ScannerField
             onScan={handleScan}
             validate={validarPulsera}
@@ -266,7 +266,7 @@ export function CheckoutScreen({
           )}
         </section>
 
-        <aside className="flex h-fit flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 lg:sticky lg:top-28">
+        <aside className="flex h-fit min-w-0 flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 lg:sticky lg:top-20">
           <h2 className="font-display text-lg font-bold text-ink">Liquidación</h2>
 
           <div className="border-t border-line pt-4">
@@ -339,7 +339,7 @@ export function CheckoutScreen({
             </Badge>
           )}
         </aside>
-      </main>
+      </Container>
     </div>
   );
 }

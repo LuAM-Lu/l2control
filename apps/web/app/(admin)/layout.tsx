@@ -1,5 +1,6 @@
 import type { Actor } from "@l2/domain-identity";
 import { AdminSidebar } from "../../src/features/shell/AdminSidebar";
+import { PageTransition } from "../../src/features/shell/PageTransition";
 
 /**
  * Cáscara del back-office — §9.10.2.
@@ -19,7 +20,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-dvh bg-base">
       <AdminSidebar actor={actor} usuario="Abigail Karam" rol="Administradora" />
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="flex min-w-0 flex-1 flex-col">
+        <PageTransition>{children}</PageTransition>
+      </main>
     </div>
   );
 }

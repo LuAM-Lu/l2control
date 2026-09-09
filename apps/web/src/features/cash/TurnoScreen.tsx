@@ -16,7 +16,7 @@ import {
   type ShiftMovement,
   type ShiftStatus,
 } from "@l2/domain-cash";
-import { Badge, Button, Input, MoneyDisplay, StatTile, cn } from "@l2/ui";
+import { Badge, Button, Container, Input, MoneyDisplay, StatTile, cn } from "@l2/ui";
 import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./shift-fixtures.ts";
 
 /**
@@ -84,7 +84,7 @@ export function TurnoScreen({
   return (
     <div className="flex flex-1 flex-col">
       <header className="border-b border-line">
-        <div className="mx-auto flex w-full max-w-[1500px] flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 py-4">
+        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4">
           <div>
             <div>
               <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
@@ -103,12 +103,12 @@ export function TurnoScreen({
               <Badge tone="ok">Abierto</Badge>
             )}
           </div>
-        </div>
+        </Container>
       </header>
 
-      <main className="mx-auto grid w-full max-w-[1500px] flex-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* -------------------------------------------- lo que dice el libro */}
-        <section className="flex flex-col gap-6">
+        <section className="flex flex-col gap-6 min-w-0">
           <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5">
             <h2 className="font-display mb-1 text-lg font-bold text-ink">Movimiento por medio</h2>
             <p className="mb-4 text-[12.5px] text-ink-3">
@@ -181,7 +181,7 @@ export function TurnoScreen({
         </section>
 
         {/* ---------------------------------------------------- el arqueo */}
-        <section className="flex flex-col gap-6">
+        <section className="flex flex-col gap-6 min-w-0">
           <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5">
             <h2 className="font-display mb-1 text-lg font-bold text-ink">Arqueo físico</h2>
             <p className="mb-4 text-[12.5px] text-ink-3">
@@ -370,7 +370,7 @@ export function TurnoScreen({
             )}
           </div>
         </section>
-      </main>
+      </Container>
     </div>
   );
 }

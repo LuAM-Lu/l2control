@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Baby, OctagonAlert, TimerReset, Users } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { EmptyState, ScannerField, StatTile } from "@l2/ui";
+import { Container, EmptyState, ScannerField, StatTile } from "@l2/ui";
 import { ParkChildCard } from "./ParkChildCard";
 import type { MonitorModel } from "./view-model";
 
@@ -61,7 +61,7 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
       {/* Barra permanente (§8.5): turno, aforo, estado y tasa vigente con su
           origen y su hora. El operador no debe tener que buscar nada de esto. */}
       <header className="border-b border-line">
-        <div className="mx-auto w-full max-w-[1600px] px-6 py-4">
+        <Container ancho="muro" className="py-4">
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
             <div>
               <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
@@ -93,10 +93,10 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
 
             </div>
           </div>
-        </div>
+        </Container>
       </header>
 
-      <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-6">
+      <Container as="main" ancho="muro" className="flex-1 py-6">
         <div className="mb-6">
           <ScannerField onScan={handleScan} validate={validarPulsera} />
           {scanError && (
@@ -125,15 +125,15 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
             ))}
           </div>
         )}
-      </main>
+      </Container>
 
-      <footer className="mx-auto w-full max-w-[1600px] px-6 pb-6">
+      <Container as="footer" ancho="muro" className="pb-6">
         <p className="border-t border-line pt-4 text-xs text-ink-3">
           Prototipo de la fase 5 con datos de ejemplo derivados del contrato. El cronómetro se
           calcula contra el instante del servidor (ADR-010): cambiar el reloj de este dispositivo
           mueve lo que se ve, nunca lo que se cobra.
         </p>
-      </footer>
+      </Container>
     </div>
   );
 }

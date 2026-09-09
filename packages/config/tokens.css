@@ -100,8 +100,26 @@
 }
 .l2-pulse { animation: l2-pulse 1.4s ease-in-out infinite; }
 
+/* Entrada de página (§8.5). Dos reglas la hacen segura:
+
+   1. El estado base del elemento es el FINAL (opaco, sin desplazar). La
+      animación solo lo trae desde abajo. Si el navegador no la ejecuta —o el
+      usuario pide menos movimiento— el contenido se ve igual: nunca queda
+      atrapado en opacidad 0.
+   2. Nada de estado de la aplicación depende de que termine. Escuchar
+      `animationend` para dar algo por listo es la forma clásica de dejar una
+      pantalla congelada cuando la transición se cancela a mitad. */
+@keyframes l2-entra {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.l2-entra {
+  animation: l2-entra var(--dur-normal) var(--ease-salida) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .l2-pulse { animation: none; }
+  .l2-entra { animation: none; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;

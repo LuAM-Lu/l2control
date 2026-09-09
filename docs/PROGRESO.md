@@ -136,6 +136,25 @@ No bloquea nada hoy —el restaurante está fuera de la Ruta A— pero hay que r
    velocidad (55 ms entre pulsaciones). El valor depende del hardware y **F1-11 no está cerrada
    hasta comprobarlo con el aparato que compró el cliente**.
 
+## Diseño responsive y movimiento — comprobado, no supuesto
+
+Se cerró el 2026-09-09 lo que el cliente señaló: contenedores inconsistentes, barra de estación
+mal resuelta y sin transiciones.
+
+| Qué | Cómo se comprobó |
+|---|---|
+| Un solo sistema de anchos (`Container`) | Antes convivían 1100, 1180, 1400, 1500 y 1600 px elegidos pantalla a pantalla. Ahora cuatro anchos con un trabajo cada uno: `prosa` 68ch, `panel` 1180, `operacion` 1440, `muro` 1680 |
+| Sin desplazamiento horizontal | **48 combinaciones** —8 rutas × 320, 375, 414, 768, 1024 y 1440 px— medidas con navegador real (`scrollWidth − clientWidth`). Cero desbordes |
+| Objetivos táctiles de la barra (§8.4) | Medidos en el navegador: todo lo pulsable ≥ 48 px. Antes las pestañas medían 28, un tamaño de ratón en una pantalla que se opera con el dedo |
+| Transición de entrada | `.l2-entra` con los tokens de movimiento compartidos. **Nada del estado depende de que termine**: el estado base ya es el final, así que si la animación no corre —movimiento reducido, navegación encadenada— la pantalla se ve igual |
+
+Lo que destapó la medición y no se veía a ojo: `/turno` desbordaba 62 px a 320 px porque los
+elementos de una rejilla tienen `min-width: auto` y no encogen. Se arregló en la raíz —`min-w-0`
+en las columnas—, no ensanchando la ventana de prueba.
+
+Queda por hacer en esta línea: estados de carga y esqueletos (§8.6), y repetir la medición cada
+vez que entre una pantalla nueva. Es un script, no una revisión a ojo.
+
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |

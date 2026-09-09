@@ -9,7 +9,7 @@ import {
   TrendingUp,
   TriangleAlert,
 } from "lucide-react";
-import { MoneyDisplay, PageHeader, cn } from "@l2/ui";
+import { Container, MoneyDisplay, PageHeader, cn } from "@l2/ui";
 import type { Excepcion } from "../cash/shift-fixtures.ts";
 
 /**
@@ -70,7 +70,7 @@ export function InicioScreen({
   const varVenta = variacion(Number(ventaHoy), Number(ventaSemanaPasada));
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-6 py-8 pb-24 lg:pb-8">
+    <Container ancho="panel" className="py-8 pb-24 lg:pb-8">
       <PageHeader
         migas={[{ texto: "Abby Kingdom" }, { texto: "Inicio" }]}
         titulo="Buenas tardes, Abigail"
@@ -263,7 +263,7 @@ export function InicioScreen({
           comparación con la semana pasada necesita histórico y hoy es de ejemplo.
         </p>
       </section>
-    </div>
+    </Container>
   );
 }
 

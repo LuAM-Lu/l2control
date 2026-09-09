@@ -15,6 +15,7 @@ export { Badge, type Tone } from "./primitives/Badge";
 export { Input } from "./primitives/Input";
 
 // Nivel 2 — patrones: componen primitivos, siguen sin conocer el dominio
+export { Container } from "./patterns/Container";
 export { StatusCard } from "./patterns/StatusCard";
 export { CountdownDisplay } from "./patterns/CountdownDisplay";
 export { TimeBar } from "./patterns/TimeBar";

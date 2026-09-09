@@ -11,7 +11,7 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
-import { Badge, MoneyDisplay, cn } from "@l2/ui";
+import { Badge, Container, MoneyDisplay, cn } from "@l2/ui";
 
 /**
  * Mapa del sistema — la pieza para mostrar y entender L2 Control.
@@ -186,7 +186,7 @@ export function SystemMap({ estado }: { estado: Estado }) {
           requiereAtencion ? "border-state-crit/30 bg-state-crit-bg/30" : "border-line",
         )}
       >
-        <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center gap-x-8 gap-y-3 px-6 py-3.5">
+        <Container ancho="panel" className="flex flex-wrap items-center gap-x-8 gap-y-3 py-3.5">
           <span className="text-[10px] font-semibold tracking-[0.14em] text-ink-3 uppercase">
             Ahora
           </span>
@@ -231,11 +231,11 @@ export function SystemMap({ estado }: { estado: Estado }) {
               <Badge tone="crit">Sin tasa del día</Badge>
             )}
           </span>
-        </div>
+        </Container>
       </div>
 
       {/* ─────────────────────────────── apertura ───────────────────── */}
-      <header className="mx-auto w-full max-w-[1180px] px-6 pt-16 pb-12">
+      <Container ancho="panel" as="header" className="pt-16 pb-12">
         <p className="font-mono text-[11px] tracking-[0.16em] text-brand uppercase">
           Abby Kingdom · Parque y restaurante
         </p>
@@ -250,10 +250,10 @@ export function SystemMap({ estado }: { estado: Estado }) {
         <p className="mt-4 max-w-[54ch] text-[15px] text-ink-3">
           Así es una tarde de sábado, paso a paso.
         </p>
-      </header>
+      </Container>
 
       {/* ─────────────────────────── la tarde ───────────────────────── */}
-      <section className="mx-auto w-full max-w-[1180px] px-6 pb-20">
+      <Container ancho="panel" as="section" className="pb-20">
         <ol className="relative">
           {/* La columna vertebral. Se detiene antes del último nodo para que
               la línea no sobresalga por debajo. */}
@@ -326,11 +326,11 @@ export function SystemMap({ estado }: { estado: Estado }) {
             );
           })}
         </ol>
-      </section>
+      </Container>
 
       {/* ─────────────────────── por dónde va el dinero ─────────────── */}
       <section className="border-t border-line bg-surface/30">
-        <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <Container ancho="panel" className="grid gap-12 py-16 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div>
             <h2 className="font-display text-[2rem] leading-tight font-bold tracking-[-0.025em] text-ink">
               Por dónde va el dinero
@@ -418,12 +418,12 @@ export function SystemMap({ estado }: { estado: Estado }) {
               </div>
             </dl>
           </div>
-        </div>
+        </Container>
       </section>
 
       {/* ───────────────────────── quién toca qué ───────────────────── */}
       <section className="border-t border-line">
-        <div className="mx-auto grid w-full max-w-[1180px] gap-12 px-6 py-16 lg:grid-cols-[380px_minmax(0,1fr)]">
+        <Container ancho="panel" className="grid gap-12 py-16 lg:grid-cols-[380px_minmax(0,1fr)]">
           <div>
             <h2 className="font-display text-[2rem] leading-tight font-bold tracking-[-0.025em] text-ink">
               Quién toca qué
@@ -484,12 +484,12 @@ export function SystemMap({ estado }: { estado: Estado }) {
               otra, aunque su rol se lo permita.
             </p>
           </div>
-        </div>
+        </Container>
       </section>
 
       {/* ────────────────────── lo que no deja pasar ─────────────────── */}
       <section className="border-t border-line bg-surface/30">
-        <div className="mx-auto w-full max-w-[1180px] px-6 py-16">
+        <Container ancho="panel" className="py-16">
           <h2 className="font-display max-w-[18ch] text-[2rem] leading-tight font-bold tracking-[-0.025em] text-ink">
             Lo que el sistema no deja pasar
           </h2>
@@ -516,17 +516,17 @@ export function SystemMap({ estado }: { estado: Estado }) {
               </li>
             ))}
           </ul>
-        </div>
+        </Container>
       </section>
 
       <footer className="border-t border-line">
-        <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-baseline justify-between gap-4 px-6 py-8 text-[12.5px] text-ink-3">
+        <Container ancho="panel" className="flex flex-wrap items-baseline justify-between gap-4 py-8 text-[12.5px] text-ink-3">
           <span>
             L2 Control · prototipo con datos de ejemplo. Las cifras son reales en su cálculo, no en
             su origen.
           </span>
           <span className="tnum font-mono">181 pruebas · 6 superficies</span>
-        </div>
+        </Container>
       </footer>
     </div>
   );

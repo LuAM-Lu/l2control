@@ -1,3 +1,4 @@
+import { PageTransition } from "../../src/features/shell/PageTransition";
 import { StationBar } from "../../src/features/shell/StationBar";
 
 /**
@@ -28,7 +29,7 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
           conexion: "N0",
         }}
       />
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      <PageTransition>{children}</PageTransition>
     </div>
   );
 }
