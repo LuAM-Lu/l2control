@@ -41,6 +41,15 @@ parkPolicy({ graceMinutes: 0, ... })         // ✓ válido: «sin gracia», exp
 | `fixed`, `openEnded`, `parkPolicy`, `minutes`, `epochMs` | Constructores que validan |
 | `formatDuration` | Presentación `HH:MM:SS` |
 
+## Nota sobre las pulseras
+
+Son **desechables** (§6.6 del plan): el código identifica **una estancia**, no a un niño ni a un
+objeto con historia. Por eso `ParkSession` lleva el código como atributo y no existe una entidad
+`Wristband`. La consecuencia que sorprende: al ser preimpresas, un lote nuevo puede repetir
+códigos de uno viejo, así que la unicidad vale **solo entre estancias activas**, nunca sobre el
+histórico — una unicidad global sobre todo el histórico sería falsa, y rechazaría entradas
+legítimas el día que el proveedor reinicie la numeración.
+
 ## Qué NO le corresponde
 
 - **Persistencia.** No sabe de base de datos; recibe la sesión ya cargada.

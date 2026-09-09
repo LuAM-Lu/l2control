@@ -5,9 +5,9 @@ import { DEMO_GUARDIANS, DEMO_PACKAGES, demoSnapshot } from "../../src/features/
  * Registro de entrada al parque (F5-02, F5-03, F5-04).
  *
  * Componente de servidor: aquí se resuelve el estado de sala —cuántos hay y
- * qué pulseras están ocupadas— antes de pintar. El aforo y la reutilización
- * de pulseras se comprueban contra ese estado, no contra lo que el cliente
- * crea recordar.
+ * qué códigos de pulsera están en uso— antes de pintar. El aforo y el
+ * rechazo de códigos ya activos se comprueban contra ese estado, no contra lo
+ * que el cliente crea recordar.
  */
 export const dynamic = "force-dynamic";
 

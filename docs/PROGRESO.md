@@ -78,6 +78,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F5-03 Búsqueda de representante | ✅ Hecha | Por teléfono; si ya vino, no se teclea nada |
 | F5-03b Aforo con aviso | ✅ Hecha | Avisa antes de permitir un check-in de más; límite configurable |
 | F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato; falta que sea editable |
+| F5-08b Formato de hora configurable | Parcial | La hora de entrada se muestra en las tarjetas y el formateador acepta 24 h o 12 h; falta que la preferencia sea editable por sucursal |
 | F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |
 | F5-12 Sesión única por pulsera | Parcial | La interfaz lo rechaza; la invariante real necesita base de datos |
@@ -99,7 +100,11 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
    cliente.
 4. ~~Sin pruebas de `@l2/domain-park`~~ — **saldado**: 20 pruebas, incluidos los bloques de
    penalización y los bordes de la gracia.
-5. **Calibrar el umbral del lector.** `ScannerField` distingue al lector de una persona por
+5. **Modelo de pulsera corregido el 2026-09-09.** El cliente aclaró que son **desechables**: el
+   código muere al salir el niño. Desaparecen `Wristband` y `WristbandAssignment` del modelo
+   (§6.6). Consecuencia menos obvia y ya registrada: un lote nuevo puede repetir códigos de uno
+   viejo, así que **la unicidad vale solo entre estancias activas**, nunca sobre el histórico.
+6. **Calibrar el umbral del lector.** `ScannerField` distingue al lector de una persona por
    velocidad (55 ms entre pulsaciones). El valor depende del hardware y **F1-11 no está cerrada
    hasta comprobarlo con el aparato que compró el cliente**.
 

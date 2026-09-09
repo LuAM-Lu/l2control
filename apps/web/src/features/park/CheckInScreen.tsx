@@ -59,7 +59,11 @@ export function CheckInScreen({
   guardians: readonly (GuardianDto & { id: string })[];
   activeSessions: number;
   capacityLimit: number;
-  /** Pulseras ya activas en sala: no pueden reutilizarse (invariante I-04). */
+  /**
+   * Códigos con una estancia ya activa. Las pulseras son desechables (§6.6),
+   * así que esto no impide «reutilizar» nada: impide escanear dos veces la
+   * misma pulsera que ya está puesta a un niño en sala (I-04).
+   */
   occupiedWristbands: readonly string[];
 }) {
   const defaultPackageId = packages.find((p) => p.id === "pkg-60")?.id ?? packages[0]?.id ?? "";
@@ -99,7 +103,7 @@ export function CheckInScreen({
       const limpio = parsed.data;
 
       if (occupiedWristbands.includes(limpio)) {
-        // I-04: una pulsera no puede tener dos estancias activas.
+        // I-04: un código no puede tener dos estancias activas a la vez.
         setAviso(`La pulsera ${limpio} ya está activa en sala`);
         return;
       }

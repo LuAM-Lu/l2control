@@ -58,7 +58,7 @@ Nadie debe adivinar estos términos. Si aparece uno del dominio que no esté aqu
 
 | Término | Significado exacto en este sistema |
 |---|---|
-| **Pulsera (wristband)** | Soporte físico con código de barras o QR. **Es reutilizable:** la misma pulsera sirve a distintos niños en distintos días. Nunca se modela como propiedad permanente de un niño. |
+| **Pulsera (wristband)** | Soporte físico con código de barras o QR. **Es desechable:** se corta al salir el niño y su código no vuelve a usarse. El código identifica **una estancia**, no a un niño ni a un objeto con historia. |
 | **Estancia (ParkSession)** | Período entre check-in y check-out de un niño. Es la unidad que se cobra. |
 | **Prepago** | El representante compra un bloque de tiempo por adelantado (30 min, 1 h, pase libre). El cronómetro cuenta hacia atrás. |
 | **Postpago** | El niño entra con cronómetro abierto y se cobra al salir. El cronómetro cuenta hacia adelante. |
@@ -549,7 +549,7 @@ pequeño y recurrente en el mismo cajero es la señal de T1 más barata de detec
 | En v1 | Problema | En v2 |
 |---|---|---|
 | `Order ||--o{ Invoice` | Cardinalidad invertida: sugiere que una orden tiene varias facturas | Una factura **consolida** una o varias órdenes; una orden puede facturarse parcialmente |
-| Pulsera implícita en `Kid` | La pulsera es reutilizable entre niños y días | `Wristband` es entidad propia, con historial de asignaciones |
+| Pulsera implícita en `Kid` | El código no pertenece al niño: identifica una estancia concreta | `wristbandCode` es un atributo de `ParkSession`. **No hay entidad `Wristband`** (ver §6.6) |
 | Sin `Tenant` | ADR-002 | `tenant_id` en toda tabla de negocio |
 | Sin entidades de dinero | §5 completo | `Currency`, `ExchangeRate`, `TaxRule`, `Payment`, `FiscalDocument` |
 | Sin auditoría | H-06 | `AuditLog` desde F2 |
@@ -611,7 +611,7 @@ No basta con validarlas en la aplicación: se implementan como restricciones, di
 | I-01 | Ningún monto en punto flotante | Prueba de esquema en CI que falla si aparece `FLOAT`/`REAL`/`DOUBLE` |
 | I-02 | Todo monto tiene moneda | `CHECK (amount_minor IS NULL) = (currency IS NULL)` |
 | I-03 | Toda tasa es positiva | `CHECK rate_value > 0` |
-| I-04 | Una pulsera no tiene dos sesiones activas a la vez | Índice único parcial `WHERE status = 'ACTIVA'` |
+| I-04 | Un código de pulsera no tiene dos estancias activas a la vez | Índice único parcial sobre `(tenant_id, wristband_code) WHERE status = 'ACTIVA'`. **Parcial a propósito:** al ser desechables, un lote nuevo puede repetir códigos de uno viejo, así que la unicidad global sobre el histórico sería falsa (§6.6) |
 | I-05 | Una mesa no tiene dos sesiones abiertas a la vez | Índice único parcial |
 | I-06 | Un turno de caja abierto por dispositivo, como máximo | Índice único parcial |
 | I-07 | Los correlativos fiscales no tienen huecos | Secuencia con bloqueo; auditoría de huecos en el cierre |
@@ -628,8 +628,8 @@ No basta con validarlas en la aplicación: se implementan como restricciones, di
 - **`Tenant`** — ADR-002. Sin ella, el segundo cliente obliga a migrar todo el histórico.
 - **`Device`** — Responde «¿desde qué terminal se anuló ese ítem?». Es la mitad del modelo anti-fraude
   y el primer factor de autenticación de ADR-013.
-- **`Wristband`** + **`WristbandAssignment`** — La pulsera se reutiliza. Sin separarla del niño, el
-  historial se corrompe cada vez que se reasigna.
+- ~~**`Wristband`** + **`WristbandAssignment`**~~ — **Eliminadas el 2026-09-09.** Se modelaron
+  suponiendo pulseras reutilizables; el cliente confirmó que son desechables. Ver §6.6.
 - **`ExchangeRate`** — §5.2. Sin ella no hay tasa congelada y ADR-005 es imposible.
 - **`TaxRule`** — §5.3. Alícuotas con vigencia, para que cambiar el IVA no reescriba el pasado.
 - **`FiscalDocument`** — §5.4. Separado de `Invoice` porque el documento fiscal tiene ciclo de vida
@@ -668,6 +668,32 @@ con `ANULADO_POR_NOTA_DE_CRÉDITO` como única salida después de `EMITIDO`. Nun
 **Turno de caja**
 `ABIERTO → (CORTE_X, repetible) → EN_CIERRE → CERRADO_Z`
 Después de `CERRADO_Z` no se admite ninguna operación monetaria contra ese turno.
+### 6.6 Las pulseras son desechables (corrección del 2026-09-09)
+
+**Qué se creía.** El plan modelaba `Wristband` como entidad propia con historial de
+asignaciones, suponiendo que la misma pulsera sirve a distintos niños en distintos días.
+
+**Qué confirmó el cliente.** Las pulseras son de un solo uso: se cortan al salir el niño y ese
+código no vuelve a leerse nunca.
+
+**Qué cambia.** El código deja de ser un objeto con vida propia y pasa a ser **un atributo de la
+estancia**. Desaparecen `Wristband` y `WristbandAssignment`, y con ellas una tabla, una relación
+y toda la lógica de reasignación. El modelo se simplifica de verdad, no solo sobre el papel.
+
+**La consecuencia que no es obvia, y que importa.** Al ser preimpresas y desechables, **un lote
+nuevo puede repetir códigos de un lote viejo**. Por eso:
+
+- La unicidad de `wristband_code` **no puede ser global sobre el histórico**: sería falsa, y el
+  día que el proveedor reinicie la numeración el sistema empezaría a rechazar entradas válidas.
+- La unicidad se impone **solo entre estancias activas** (I-04), que es lo que de verdad hay que
+  evitar: escanear dos veces la misma pulsera en sala.
+- Un reporte que busque «la pulsera AK-0142» debe acotar por fecha o por turno. Sin eso, mezcla
+  niños distintos de meses distintos.
+
+**Lo que NO cambia.** La minimización de datos de menores (DEC-9) sigue igual: el código de la
+pulsera no es un dato personal, y al no persistir entre visitas tampoco sirve para seguir a un
+niño entre días — lo cual, desde §7.6, es una mejora.
+
 ---
 
 ## 7. SEGURIDAD
@@ -1558,10 +1584,11 @@ producto y el flujo más simple de validar en un turno.*
 > es conectarlas a datos reales y al WebSocket.
 
 
-- [ ] **F5-01 · Modelo `Guardian` / `Kid` / `Wristband` / `WristbandAssignment`** (§6.4), con el conjunto
+- [ ] **F5-01 · Modelo `Guardian` / `Kid` / `ParkSession`** (§6.4 y §6.6 — sin entidad `Wristband`: las pulseras son desechables), con el conjunto
   mínimo que fijó DEC-9: **nombre, apodo opcional, edad opcional y una referencia de contacto**.
-  → *Criterio:* la misma pulsera sirve a otro niño mañana sin corromper el historial de ayer; el esquema
-  **no admite** campos de identidad, foto ni dirección; la edad solo se pide si alguna tarifa depende de ella.
+  → *Criterio:* el código vive en la estancia, no en una entidad aparte; **un código repetido de un lote
+  nuevo no colisiona con el histórico** (unicidad solo entre estancias activas, I-04); el esquema **no
+  admite** campos de identidad, foto ni dirección; la edad solo se pide si alguna tarifa depende de ella.
 - [~] **F5-02 · Registro rápido en entrada** por escaneo de pulsera pre-impresa.
   → *Criterio:* **R1 en menos de 90 segundos** con dos niños, medido con cronómetro sobre hardware real.
 - [x] **F5-03 · Búsqueda de representante recurrente** por teléfono.
@@ -1577,6 +1604,9 @@ producto y el flujo más simple de validar en un turno.*
   → *Criterio:* el monto al checkout coincide con el cálculo manual del operador.
 - [ ] **F5-07 · Gracia y bloques de penalización** con validación de ADR-011.
   → *Criterio:* gracia 0 significa «sin gracia» y la interfaz lo dice con palabras; el bloque debe ser positivo.
+- [ ] **F5-08b · Formato de hora configurable (24 h o 12 h) por sucursal.**
+  → *Criterio:* se cambia desde configuración sin desplegar y afecta a **todas** las superficies a la
+  vez; el valor por defecto es 24 h. Es catálogo, no constante (§9.9).
 - [~] **F5-08 · Tablero en tiempo real** con tarjetas de estado (§8.5).
   → *Criterio:* legible a 2 m; estado por **color + icono + texto**; actualiza en menos de 2 s.
 - [ ] **F5-09 · Alerta sonora por severidad,** silenciable por estación.
@@ -1585,7 +1615,7 @@ producto y el flujo más simple de validar en un turno.*
   → *Criterio:* funciona desde cualquier pantalla del monitor, sin foco previo en un campo.
 - [ ] **F5-11 · Recarga de tiempo sin perder historial** (R2).
   → *Criterio:* la tarjeta vuelve a verde; la estancia conserva sus tramos y su cobro.
-- [~] **F5-12 · Sesión única activa por pulsera** (I-04).
+- [~] **F5-12 · Estancia única activa por código de pulsera** (I-04, §6.6).
   → *Criterio:* escanear una pulsera ya activa **no** crea una segunda sesión; avisa cuál está en curso.
 - [ ] **F5-13 · Auto-cierre administrativo de sesiones huérfanas** (H-19).
   → *Criterio:* superado el umbral, la sesión pasa a revisión del administrador **sin cobro automático

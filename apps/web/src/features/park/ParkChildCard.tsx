@@ -12,6 +12,7 @@ import {
 } from "@l2/ui";
 import { formatDuration, type SessionStatus } from "@l2/domain-park";
 import type { SessionCardModel } from "./view-model";
+import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
 
 /**
  * Nivel 3 — funcionalidad (§9.4). Conoce el dominio del parque y por eso vive
@@ -37,11 +38,14 @@ export function ParkChildCard({
   serverNow,
   selected,
   onSelect,
+  timeFormat = DEFAULT_TIME_FORMAT,
 }: {
   model: SessionCardModel;
   serverNow: number;
   selected?: boolean;
   onSelect: (id: string) => void;
+  /** Configurable por sucursal (F5-08b); 24 h por defecto. */
+  timeFormat?: TimeFormat;
 }) {
   // Un solo reloj por tarjeta: cifra y barra laten juntas.
   const now = useServerClock(serverNow);
@@ -71,10 +75,18 @@ export function ParkChildCard({
       selected={selected ?? false}
       onClick={() => onSelect(model.id)}
       footer={
-        <div className="flex items-center justify-between gap-3">
-          <span className="tnum font-mono text-[11px] text-ink-3">{model.wristbandCode}</span>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <span className="flex items-baseline gap-1.5 text-[11px] whitespace-nowrap text-ink-3">
+            {/* El código de la pulsera es de un solo uso: identifica esta
+                estancia, no al niño (§6.6). */}
+            <span className="tnum font-mono">{model.wristbandCode}</span>
+            <span aria-hidden="true">·</span>
+            {/* Hora de entrada, discreta: responde «¿desde cuándo está?» sin
+                competir con el cronómetro, que es el dato principal. */}
+            <span className="tnum">entró {formatClock(model.startedAt, timeFormat)}</span>
+          </span>
           {model.hasOverdueCharge ? (
-            <span className="flex items-baseline gap-1.5">
+            <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
               <span className="text-[11px] text-ink-2">Excedente</span>
               <MoneyDisplay
                 value={model.overdueAmount}
@@ -84,7 +96,7 @@ export function ParkChildCard({
               />
             </span>
           ) : (
-            <span className="text-[11px] text-ink-3">
+            <span className="shrink-0 text-[11px] whitespace-nowrap text-ink-3">
               {model.contractedMinutes ? `${model.contractedMinutes} min` : "Tiempo abierto"}
             </span>
           )}
