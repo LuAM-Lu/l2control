@@ -1406,7 +1406,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 18 tareas hechas y 19 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 20 tareas hechas y 19 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1495,10 +1495,10 @@ Es la fase que v1 subestimaba.*
   → *Criterio:* 5 intentos fallidos bloquean; el bloqueo se registra; el PIN nunca viaja ni se guarda en claro.
 - [ ] **F2-04 · Segundo factor obligatorio** para administración.
   → *Criterio:* no se puede acceder a configuración, precios ni reportes globales sin 2FA.
-- [ ] **F2-05 · Motor de permisos `can()`** con la matriz de §7.3, deny-by-default.
+- [x] **F2-05 · Motor de permisos `can()`** con la matriz de §7.3, deny-by-default.
   → *Criterio:* **cada ❌ de la matriz tiene su prueba negativa** y devuelve 403; ningún permiso se
   evalúa comparando cadenas de rol.
-- [ ] **F2-06 · Alcance por sucursal en toda operación.**
+- [x] **F2-06 · Alcance por sucursal en toda operación.**
   → *Criterio:* un supervisor de la sucursal A recibe 403 al operar sobre la B; hay prueba.
 - [ ] **F2-07 · `AuditLog` append-only** (§7.4).
   → *Criterio:* disparador que rechaza `UPDATE`/`DELETE`; los logs se envían fuera de la máquina.

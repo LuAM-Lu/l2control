@@ -226,3 +226,19 @@ export function describeLockout(state: LockoutState): string | null {
   const m = Math.ceil(s / 60);
   return `Espera ${m} minuto${m === 1 ? "" : "s"}.`;
 }
+
+/* ------------------------------------------------------------ permisos */
+
+export {
+  MATRIZ,
+  SURFACE_ACTION,
+  can,
+  isAllowedOutright,
+  isReachable,
+  visibleSurfaces,
+  type Action,
+  type Actor,
+  type Permission,
+  type Role,
+  type SurfaceId,
+} from "./permissions.ts";
