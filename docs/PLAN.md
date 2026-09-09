@@ -1329,11 +1329,58 @@ Con dos personas, **cada tarea nueva que entre desplaza a otra**. No hay holgura
 lo que llegue fuera de la Ruta A entra como cambio de alcance explícito, con qué sale a cambio, y lo
 aprueba el cliente. Este es el control de RIE-9 y con este tamaño de equipo deja de ser una formalidad.
 
+### 11.4 Cambio de orden: frontend → backend → producción
+
+**Decidido por el cliente el 2026-09-09.** Sustituye al orden por dependencia técnica de §11.1
+para la Ruta A: se completan primero **todas las superficies de interfaz**, después la
+persistencia y la lógica de servidor, y por último la puesta en producción.
+
+**Por qué es defendible.** El cliente puede ver y corregir la operación antes de que exista
+backend, que es cuando corregirla sale barato. F11-06 exige resolver los tres puntos de fricción
+más citados por el personal; descubrirlos con pantallas reales meses antes del piloto vale más
+que el orden teórico. Y con dos personas (DEC-11) la paralelización que justificaba el orden
+original apenas existe.
+
+**El riesgo que sí tiene, y cómo se neutraliza.** Construir pantallas contra datos de ejemplo
+con la forma que resulte cómoda garantiza retrabajo: al llegar el backend, la mitad no encaja.
+La neutralización no es opcional, es la condición para que este orden funcione:
+
+> **Contratos primero.** Antes de cada pantalla se define su forma de datos con Zod en
+> `packages/contracts` (F1-09), y **los datos de ejemplo se derivan del contrato**, nunca al
+> revés. El backend implementa después ese mismo contrato. Así el contrato es el acuerdo entre
+> las dos mitades y el frontend construido ahora sobrevive intacto.
+
+**Qué NO cambia:**
+
+- La Ruta A sigue siendo el alcance (§11.3) y el parque sigue siendo primero (DEC-12).
+- El dominio se sigue construyendo puro y antes que la pantalla que lo usa. `@l2/domain-park`
+  ya existe, y por eso el monitor calcula el excedente de verdad en lugar de simularlo.
+- Las reglas de frontera de §9.2 no se relajan; `pnpm arch` sigue rompiendo la construcción.
+- F2 (identidad y auditoría) **no se salta**: sus pantallas entran en la fase de frontend, pero
+  su lógica sigue siendo requisito antes de que nada cobre.
+
+**Orden de superficies acordado**
+
+| # | Superficie | Tareas del plan | Estado |
+|---|---|---|---|
+| 1 | Monitor de parque | F5-08, F5-10 | Hecho |
+| 2 | **Registro de entrada** | F5-02, F5-03, F5-04 | **En curso** |
+| 3 | Salida y liquidación | F5-14 | Pendiente |
+| 4 | Caja: cobro mixto y vuelto | F4-03, F4-04b | Pendiente |
+| 5 | Cortes X y Z, arqueo | F4-05, F4-06, F4-07 | Pendiente |
+| 6 | Acceso por PIN y dispositivo | F2-03 | Pendiente |
+| 7 | Mesas, comandas y KDS | F6-01…F6-07 | Fuera de la Ruta A |
+
+**Deuda que este orden crea, y que se paga al entrar el backend.** Los estados de carga, error
+y degradación (N0-N3) se diseñan ahora contra situaciones simuladas. Cuando exista red real
+habrá que revisarlos con latencia y fallos reales: queda registrado en §13 como RIE-13 y no se
+considera terminado el frontend hasta esa revisión.
+
 ---
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-08:** 13 tareas hechas y 5 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 14 tareas hechas y 5 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1390,7 +1437,7 @@ Es la fase que v1 subestimaba.*
   → *Criterio:* una cifra que cambia no desplaza la columna; verificado visualmente.
 - [~] **F1-08 · Primitivos de UI** (shadcn adaptado a tokens) + Storybook.
   → *Criterio:* Storybook publicado; cada primitivo con sus cinco estados documentados.
-- [ ] **F1-09 · `packages/contracts` con Zod** (ADR-017).
+- [x] **F1-09 · `packages/contracts` con Zod** (ADR-017).
   → *Criterio:* un contrato de ejemplo valida en cliente y servidor desde **una sola definición**.
 - [~] **F1-10 · `packages/hardware` con puertos y simuladores** (§9.6), con la impresora **en modo red
   por socket TCP 9100** como adaptador principal (ADR-015).
@@ -1729,6 +1776,7 @@ cuando el trámite esté listo.*
 | **RIE-9** | **Alcance creciente** (cada semana un módulo nuevo) | Alta | Alto | §2.3 firmado en F0-09; todo lo nuevo entra como cambio de alcance con su costo | «Ya que estamos, ¿podrías…?» |
 | **RIE-10** | **Dependencia de una sola persona en el equipo** | Media | Alto | Documentación por paquete, runbooks, revisión obligatoria de código, F11-10 | Solo una persona entiende el motor de impuestos |
 | **RIE-11** | **Fuga de datos de menores** | Baja | Crítico | §7.6: minimización, cifrado, permiso propio con auditoría de cada consulta, retención limitada | Un reporte que exporta contactos sin control |
+| **RIE-13** | **Pantallas construidas contra datos simulados que no sobreviven al backend** | Alta | Alto | Contratos Zod primero (§11.4): los datos de ejemplo se derivan del contrato, no al revés. Revisión obligatoria de estados de carga y error con red real antes de dar el frontend por terminado | Un dato de ejemplo con una forma que ningún contrato declara |
 | **RIE-12** | **Erosión de la arquitectura modular con la prisa** | Alta | Medio | §9.3: las fronteras rompen el CI. Una regla que solo vive en un documento no sobrevive a un viernes con prisa | Aparece la primera excepción «temporal» a una regla de lint |
 
 ---

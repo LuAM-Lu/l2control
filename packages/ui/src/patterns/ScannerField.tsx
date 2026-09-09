@@ -22,13 +22,21 @@ const MIN_INTERVAL_MS = 250; // límite de frecuencia
 
 export function ScannerField({
   onScan,
-  validate = (code) => /^[A-Za-z0-9\-]{4,32}$/.test(code),
+  validate,
   placeholder = "Pasa la pulsera por el lector…",
   className,
 }: {
   onScan: (code: string) => void;
-  /** Formato esperado del código. Rechazar es el comportamiento por defecto. */
-  validate?: (code: string) => boolean;
+  /**
+   * Formato esperado del código. **Obligatorio a propósito.**
+   *
+   * Antes había un valor por defecto con una expresión regular escrita aquí,
+   * y eso era un doble error: duplicaba una regla que ya vive en
+   * `@l2/contracts` (§9.7), y permitía montar un lector sin decidir qué es un
+   * código válido. El camino fácil no puede ser el inseguro: quien use este
+   * componente tiene que declarar qué acepta.
+   */
+  validate: (code: string) => boolean;
   placeholder?: string;
   className?: string;
 }) {

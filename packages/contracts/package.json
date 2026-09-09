@@ -1,0 +1,21 @@
+{
+  "name": "@l2/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Contratos de datos con Zod (ADR-017). Una sola definición para cliente y servidor.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "Es la HOJA del grafo de dependencias: no importa de nadie salvo zod. Si algún día necesita el dominio, la frontera de §9.2 se rompió.",
+  "dependencies": {
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

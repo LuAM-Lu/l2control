@@ -1,24 +1,18 @@
 /**
  * Nivel 3 — funcionalidad (§9.4).
  *
- * Traduce el dominio a datos planos y serializables para el cliente.
+ * Convierte la instantánea del contrato en datos planos y serializables que
+ * el cliente puede pintar.
  *
  * Por qué existe esta capa: los `Money` del dominio llevan `bigint`, que no
  * cruza la frontera servidor→cliente de React. En lugar de degradar el tipo
- * del dominio a `number` — que es exactamente el error que §5.1 prohíbe —
- * se formatea aquí, en el borde, tal como manda la regla de "unidades
- * mayores solo en los bordes".
+ * del dominio a `number` —el error que §5.1 prohíbe— se formatea aquí, en el
+ * borde, igual que las unidades mayores solo aparecen al mostrar.
  */
-
-import {
-  type ParkPolicy,
-  type ParkSession,
-  type SessionStatus,
-  computeOverdueCharge,
-  computeSessionView,
-  epochMs,
-} from "@l2/domain-park";
+import type { MonitorSnapshotDto } from "@l2/contracts";
 import { toMajor } from "@l2/domain-money";
+import { computeOverdueCharge, computeSessionView, type SessionStatus } from "@l2/domain-park";
+import { toEpochMs, toParkPolicy, toParkSession } from "./mappers.ts";
 
 export type SessionCardModel = Readonly<{
   id: string;
@@ -41,35 +35,71 @@ export type SessionCardModel = Readonly<{
   hasOverdueCharge: boolean;
 }>;
 
-export function toCardModel(
-  session: ParkSession,
-  policy: ParkPolicy,
-  now: number,
-): SessionCardModel {
-  const view = computeSessionView(session, policy, epochMs(now));
-  const overdue = computeOverdueCharge(view, policy);
+export type MonitorModel = Readonly<{
+  serverNow: number;
+  capacityLimit: number;
+  shiftLabel: string;
+  rateValue: string | null;
+  rateSource: string | null;
+  rateCapturedAt: string | null;
+  rateConfirmed: boolean;
+  cards: readonly SessionCardModel[];
+}>;
 
-  const isFixed = session.duration.kind === "fixed";
-  const contractedMinutes = isFixed ? session.duration.minutes : null;
+/** Hora local en formato corto, para la barra permanente. */
+function horaCorta(iso: string): string {
+  return new Date(iso).toLocaleTimeString("es-VE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
 
-  // Prepago cuenta hacia atrás contra el vencimiento; postpago hacia
-  // adelante desde el check-in.
-  const targetMs = isFixed ? session.startedAt + session.duration.minutes * 60_000 : session.startedAt;
+export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
+  const now = toEpochMs(snapshot.serverNow);
+  const policy = toParkPolicy(snapshot.policy);
+
+  const cards = snapshot.sessions.map((dto) => {
+    const session = toParkSession(dto);
+    const view = computeSessionView(session, policy, now);
+    const overdue = computeOverdueCharge(view, policy);
+
+    const isFixed = session.duration.kind === "fixed";
+    const contractedMinutes = isFixed ? session.duration.minutes : null;
+    const totalMs = contractedMinutes === null ? null : contractedMinutes * 60_000;
+
+    // Prepago cuenta hacia atrás contra el vencimiento; postpago hacia
+    // adelante desde el check-in.
+    const targetMs = totalMs === null ? session.startedAt : session.startedAt + totalMs;
+
+    return {
+      id: session.id,
+      childName: session.childName,
+      childNickname: session.childNickname ?? null,
+      wristbandCode: session.wristbandCode,
+      mode: session.mode,
+      status: view.status,
+      targetMs,
+      direction: isFixed ? ("down" as const) : ("up" as const),
+      contractedMinutes,
+      startedAt: session.startedAt,
+      totalMs,
+      overdueAmount: toMajor(overdue),
+      overdueCurrency: overdue.currency,
+      hasOverdueCharge: overdue.amount > 0n,
+    };
+  });
 
   return {
-    id: session.id,
-    childName: session.childName,
-    childNickname: session.childNickname ?? null,
-    wristbandCode: session.wristbandCode,
-    mode: session.mode,
-    status: view.status,
-    targetMs,
-    direction: isFixed ? "down" : "up",
-    contractedMinutes,
-    startedAt: session.startedAt,
-    totalMs: contractedMinutes === null ? null : contractedMinutes * 60_000,
-    overdueAmount: toMajor(overdue),
-    overdueCurrency: overdue.currency,
-    hasOverdueCharge: overdue.amount > 0n,
+    serverNow: now,
+    capacityLimit: snapshot.policy.capacityLimit,
+    shiftLabel: snapshot.shiftLabel,
+    // Sin tasa confirmada no se puede cobrar (ADR-005, fail-closed). La
+    // interfaz tiene que poder decirlo, así que el modelo lo transporta.
+    rateValue: snapshot.rate?.value ?? null,
+    rateSource: snapshot.rate?.source ?? null,
+    rateCapturedAt: snapshot.rate ? horaCorta(snapshot.rate.capturedAt) : null,
+    rateConfirmed: snapshot.rate?.confirmed ?? false,
+    cards,
   };
 }

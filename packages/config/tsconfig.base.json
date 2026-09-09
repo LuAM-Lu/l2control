@@ -18,6 +18,13 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+
+    // Extensiones .ts explícitas en los imports relativos. Es lo que exige el
+    // ejecutor de pruebas nativo de Node (--experimental-strip-types), y de
+    // paso hace que la ruta del import sea la ruta real del archivo. Va aquí
+    // y no en cada paquete porque Next transpila el código de los paquetes
+    // del workspace y necesita el mismo permiso.
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true

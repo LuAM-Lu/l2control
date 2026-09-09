@@ -1,6 +1,6 @@
 # Progreso real
 
-> **Actualizado:** 2026-09-08 · Contrastado contra los criterios de aceptación de
+> **Actualizado:** 2026-09-09 · Contrastado contra los criterios de aceptación de
 > [PLAN.md §12](PLAN.md). Una tarea solo cuenta como hecha si su criterio se cumple y es
 > demostrable — «ya lo programé» no basta.
 
@@ -9,14 +9,17 @@
 | Fase | Hechas | Parciales | Pendientes | Estado |
 |---|---:|---:|---:|---|
 | F0 · Descubrimiento y decisiones | 4 | 1 | 5 | En curso — bloqueada por trabajo de campo |
-| F1 · Cimientos técnicos | 7 | 2 | 7 | En curso |
+| F1 · Cimientos técnicos | 8 | 2 | 6 | En curso |
 | F2 · Identidad, permisos y auditoría | 0 | 0 | 10 | Sin empezar |
 | F3 · Núcleo monetario y fiscal | 2 | 0 | 10 | Adelanto parcial |
 | F4 · Caja y cobro mixto | 0 | 0 | 11 | Sin empezar |
 | F5 · Parque | 1 | 2 | 12 | Prototipo de interfaz |
 | F6-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
-**Se puede ver funcionando:** el monitor de parque en `/monitor`, con datos de ejemplo.
+**Se puede ver funcionando:** el monitor de parque en `/monitor`, con datos de ejemplo **derivados del contrato**.
+
+> **Orden de ejecución cambiado el 2026-09-09** (§11.4): frontend → backend → producción.
+> La condición para que ese orden no genere retrabajo es contratos primero, y ya está en marcha.
 
 ---
 
@@ -47,7 +50,7 @@
 | F1-06 Tokens de diseño | ✅ Hecha | `packages/config/tokens.css`; ningún color literal fuera |
 | F1-07 Tipografía | ✅ Hecha | Quicksand + Inter con numerales tabulares |
 | F1-08 Primitivos + Storybook | **Parcial** | Primitivos y patrones sí. **Storybook no** — diferido en la Ruta A |
-| F1-09 Contratos Zod | Pendiente | Llega con la primera escritura real |
+| F1-09 Contratos Zod | ✅ Hecha | `@l2/contracts`, 17 pruebas. Los datos de ejemplo se derivan del contrato (§11.4) |
 | F1-10 Puertos de hardware | **Parcial** | Escáner sí. **Impresora, gaveta y dispositivo fiscal, no** |
 | F1-11 Hook de escaneo | ✅ Hecha | Captura sin foco, valida formato, limita frecuencia |
 | F1-12 Plantillas de ticket | Pendiente | 58 y 80 mm; la impresora comprada admite ambos |
@@ -99,6 +102,6 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 |---|---|---|
 | Sin Storybook | Recorte de la Ruta A | Cuando entre un tercer consumidor de `@l2/ui` |
 | Sin pruebas en `domain/park` | Se priorizó ver la interfaz | Antes de F5-05 |
-| Datos de ejemplo en `features/park/data.ts` | No hay backend | F1-05 + F0-04 |
+| Datos de ejemplo en `features/park/fixtures.ts` | No hay backend. **Mitigado:** se validan contra el contrato al construirse, así que la forma ya es la definitiva | F1-05 + F0-04 |
 | Solo el puerto de escáner | La impresora no hacía falta para el monitor | F1-12 |
 | `apps/printer-agent` sin construir | DEC-8: la impresora admite red | No se construye salvo que aparezca una impresora solo-USB |

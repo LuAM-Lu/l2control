@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Baby, OctagonAlert, TimerReset, Users } from "lucide-react";
-import { ConnectionBadge, EmptyState, ScannerField, StatTile } from "@l2/ui";
+import { Baby, OctagonAlert, TimerReset, TriangleAlert, Users } from "lucide-react";
+import { WristbandCodeSchema } from "@l2/contracts";
+import { Badge, ConnectionBadge, EmptyState, ScannerField, StatTile } from "@l2/ui";
 import { ParkChildCard } from "./ParkChildCard";
-import type { SessionCardModel } from "./view-model";
+import type { MonitorModel } from "./view-model";
 
 /**
  * Monitor de parque — F5-08.
@@ -12,53 +13,50 @@ import type { SessionCardModel } from "./view-model";
  * Nivel 3 (§9.4): conoce el dominio. Se lee a distancia, se opera con las
  * manos ocupadas, y el estado se comunica por color + icono + texto.
  */
-export function ParkMonitor({
-  models,
-  serverNow,
-  capacityLimit,
-  rateValue,
-  rateCapturedAt,
-  shiftLabel,
-}: {
-  models: readonly SessionCardModel[];
-  serverNow: number;
-  capacityLimit: number;
-  rateValue: string;
-  rateCapturedAt: string;
-  shiftLabel: string;
-}) {
+export function ParkMonitor({ model }: { model: MonitorModel }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   // F5-10: pasar la pulsera abre el perfil del niño, desde cualquier pantalla
   // del monitor y sin foco previo en un campo.
   const handleScan = useCallback(
     (code: string) => {
-      const match = models.find((m) => m.wristbandCode.toUpperCase() === code.toUpperCase());
+      const match = model.cards.find((c) => c.wristbandCode === code);
       setSelected(match ? match.id : null);
+      setScanError(match ? null : `La pulsera ${code} no está activa en sala`);
     },
-    [models],
+    [model.cards],
+  );
+
+  // La misma regla que usa el servidor: una sola definición (§9.7).
+  const validarPulsera = useCallback(
+    (code: string) => WristbandCodeSchema.safeParse(code).success,
+    [],
   );
 
   const counts = useMemo(
     () => ({
-      total: models.length,
-      expired: models.filter((m) => m.status === "VENCIDA").length,
-      warning: models.filter((m) => m.status === "POR_VENCER" || m.status === "EN_GRACIA").length,
+      total: model.cards.length,
+      expired: model.cards.filter((c) => c.status === "VENCIDA").length,
+      warning: model.cards.filter((c) => c.status === "POR_VENCER" || c.status === "EN_GRACIA")
+        .length,
     }),
-    [models],
+    [model.cards],
   );
 
-  const remaining = Math.max(0, capacityLimit - counts.total);
+  const remaining = Math.max(0, model.capacityLimit - counts.total);
   const capacityTone = remaining === 0 ? "crit" : remaining <= 3 ? "warn" : "idle";
 
   // Lo que exige atención va arriba: vencidos primero, y dentro de cada
   // grupo, el que venció hace más tiempo.
   const ordered = useMemo(() => {
     const weight: Record<string, number> = { VENCIDA: 0, EN_GRACIA: 1, POR_VENCER: 2, ACTIVA: 3 };
-    return [...models].sort(
+    return [...model.cards].sort(
       (a, b) => (weight[a.status] ?? 9) - (weight[b.status] ?? 9) || a.targetMs - b.targetMs,
     );
-  }, [models]);
+  }, [model.cards]);
+
+  const rateUsable = model.rateValue !== null && model.rateConfirmed;
 
   return (
     <div className="flex min-h-dvh flex-col bg-base">
@@ -74,7 +72,7 @@ export function ParkMonitor({
               <p className="mt-1.5 flex items-center gap-2 text-[13px] text-ink-3">
                 <span>Abby Kingdom</span>
                 <span aria-hidden="true">·</span>
-                <span>{shiftLabel}</span>
+                <span>{model.shiftLabel}</span>
               </p>
             </div>
 
@@ -82,7 +80,7 @@ export function ParkMonitor({
               <StatTile
                 label="En sala"
                 value={counts.total}
-                suffix={`/ ${capacityLimit}`}
+                suffix={`/ ${model.capacityLimit}`}
                 tone={capacityTone}
                 icon={<Users size={11} aria-hidden="true" />}
               />
@@ -103,9 +101,21 @@ export function ParkMonitor({
               <div className="h-9 w-px self-center bg-line" aria-hidden="true" />
 
               {/* ADR-005: la tasa vigente, su origen y su hora, siempre a la
-                  vista. El operador debe poder ver con qué tasa está cobrando
-                  sin ir a buscarla. */}
-              <StatTile label={`Tasa BCV · ${rateCapturedAt}`} value={rateValue} suffix="Bs" />
+                  vista. Y si no es usable, se dice con palabras — no se deja
+                  al operador descubrirlo al intentar cobrar. */}
+              {rateUsable ? (
+                <StatTile
+                  label={`Tasa ${model.rateSource} · ${model.rateCapturedAt}`}
+                  value={model.rateValue ?? "—"}
+                  suffix="Bs"
+                />
+              ) : (
+                <Badge tone="crit" icon={<TriangleAlert size={13} aria-hidden="true" />}>
+                  {model.rateValue === null
+                    ? "Sin tasa del día · no se puede cobrar en Bs"
+                    : "Tasa sin confirmar · no se puede cobrar en Bs"}
+                </Badge>
+              )}
 
               <div className="self-center pb-1">
                 <ConnectionBadge level="N0" />
@@ -117,7 +127,12 @@ export function ParkMonitor({
 
       <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-6">
         <div className="mb-6">
-          <ScannerField onScan={handleScan} />
+          <ScannerField onScan={handleScan} validate={validarPulsera} />
+          {scanError && (
+            <p role="status" className="mt-2 text-[13px] text-state-warn">
+              {scanError}
+            </p>
+          )}
         </div>
 
         {ordered.length === 0 ? (
@@ -128,12 +143,12 @@ export function ParkMonitor({
           />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(248px,1fr))] items-stretch gap-4">
-            {ordered.map((model) => (
+            {ordered.map((card) => (
               <ParkChildCard
-                key={model.id}
-                model={model}
-                serverNow={serverNow}
-                selected={selected === model.id}
+                key={card.id}
+                model={card}
+                serverNow={model.serverNow}
+                selected={selected === card.id}
                 onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
               />
             ))}
@@ -143,9 +158,9 @@ export function ParkMonitor({
 
       <footer className="mx-auto w-full max-w-[1600px] px-6 pb-6">
         <p className="border-t border-line pt-4 text-xs text-ink-3">
-          Prototipo de la fase 5 con datos de ejemplo. El cronómetro se calcula contra el instante del
-          servidor (ADR-010): cambiar el reloj de este dispositivo mueve lo que se ve, nunca lo que se
-          cobra.
+          Prototipo de la fase 5 con datos de ejemplo derivados del contrato. El cronómetro se
+          calcula contra el instante del servidor (ADR-010): cambiar el reloj de este dispositivo
+          mueve lo que se ve, nunca lo que se cobra.
         </p>
       </footer>
     </div>
