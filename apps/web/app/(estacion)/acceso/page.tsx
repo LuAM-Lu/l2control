@@ -1,4 +1,4 @@
-import { AccesoScreen, type Operador } from "../../src/features/identity/AccesoScreen";
+import { AccesoScreen, type Operador } from "../../../src/features/identity/AccesoScreen";
 import type { Device } from "@l2/domain-identity";
 
 /**

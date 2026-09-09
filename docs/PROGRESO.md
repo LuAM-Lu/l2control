@@ -107,9 +107,14 @@ resuelve, y siete decisiones nuevas (DEC-13 a DEC-18 y DEC-20) lo fijan:
 - **Sin capa de plataforma**: no hay planes ni facturación de suscripción. Se mantiene el
   , que cuesta poco ahora y es carísimo después.
 
-Tareas nuevas: F1-17, F1-18, F2-11, F2-12, F4-01b y F9-00.
+Tareas nuevas: F1-17, F1-18, F2-11, F2-12, F4-01b y F9-00. **F1-17 y F1-18 ya están hechas**:
+la cáscara del back-office existe, las seis superficies viven en el grupo de rutas que les toca, y
+las pantallas dejaron de repetir el contexto (turno, tasa, conexión, usuario), que ahora vive una
+sola vez en la barra de estación.
 
-**Sigue abierta DEC-19:** con los cuatro aparatos repartidos, la cocina se queda sin pantalla.
+~~**Sigue abierta DEC-19**~~ — cerrada el 2026-09-09: **KDS en tablet + comanda impresa**. Un KDS es una página web y corre en una tablet barata, así que no hace falta un tercer equipo fijo.
+
+Nota anterior: con los cuatro aparatos repartidos, la cocina se queda sin pantalla.
 No bloquea nada hoy —el restaurante está fuera de la Ruta A— pero hay que responderla antes de F6.
 
 ## Lo que hay que arreglar antes de seguir

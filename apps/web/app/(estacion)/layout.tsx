@@ -1,0 +1,34 @@
+import { StationBar } from "../../src/features/shell/StationBar";
+
+/**
+ * Cáscara de las estaciones de operación — §9.10.2.
+ *
+ * A pantalla completa y **sin navegación**. El monitor de parque es una
+ * pantalla de pared que nadie toca, el KDS se opera con guantes a dos metros
+ * y la caja se usa con cola delante: una barra lateral les roba espacio y les
+ * añade objetivos táctiles que nadie quiere pulsar.
+ *
+ * Lo único que aporta esta cáscara es la barra permanente de §8.5, con lo que
+ * el operador no debe tener que buscar: turno, tasa vigente, conexión y quién
+ * es. Antes cada pantalla lo repetía a su manera.
+ */
+export default function EstacionLayout({ children }: { children: React.ReactNode }) {
+  // TODO(F2-12/backend): el contexto vendrá de la sesión del dispositivo
+  // compartido. La forma ya es la definitiva, así que ese cambio no toca las
+  // pantallas (§11.4).
+  return (
+    <div className="flex min-h-dvh flex-col bg-base">
+      <StationBar
+        contexto={{
+          usuario: "Marisol Prieto",
+          rol: "Cajera",
+          turnoAbierto: "14:00",
+          tasa: "228.41",
+          tasaHora: "08:00",
+          conexion: "N0",
+        }}
+      />
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+    </div>
+  );
+}

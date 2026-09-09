@@ -8,7 +8,6 @@ import {
   Coins,
   HandCoins,
   PiggyBank,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import {
@@ -49,7 +48,6 @@ export function CajaScreen({
   igtfBasisPoints,
   maxRetained,
   rate,
-  rateLabel,
   serverNow,
 }: {
   lines: readonly DocumentLine[];
@@ -57,9 +55,9 @@ export function CajaScreen({
   tenders: readonly MedioPago[];
   igtfBasisPoints: number;
   maxRetained: Money;
-  /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs. */
+  /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs.
+   *  La tasa se MUESTRA en la barra de estación (§8.5); aquí solo se usa. */
   rate: FrozenRate | null;
-  rateLabel: string;
   serverNow: number;
 }) {
   const FUNCIONAL = "USD" as const;
@@ -193,7 +191,7 @@ export function CajaScreen({
   /* --------------------------------------------------------- pintado */
 
   return (
-    <div className="flex min-h-dvh flex-col bg-base">
+    <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-base/95 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 py-4">
           <div className="flex items-center gap-4">
@@ -215,13 +213,6 @@ export function CajaScreen({
             <StatTile label="Falta" value={toMajor(falta)} suffix="USD" tone={falta.amount > 0n ? "warn" : "ok"} />
             {sobra.amount > 0n && (
               <StatTile label="Sobra" value={toMajor(sobra)} suffix="USD" tone="brand" />
-            )}
-            {rate ? (
-              <StatTile label={rateLabel} value="228.41" suffix="Bs" />
-            ) : (
-              <Badge tone="crit" icon={<TriangleAlert size={13} aria-hidden="true" />}>
-                Sin tasa · no se cobra en Bs
-              </Badge>
             )}
           </div>
         </div>

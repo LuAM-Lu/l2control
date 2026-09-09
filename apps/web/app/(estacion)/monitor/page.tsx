@@ -1,6 +1,6 @@
-import { ParkMonitor } from "../../src/features/park/ParkMonitor";
-import { demoSnapshot } from "../../src/features/park/fixtures";
-import { toMonitorModel } from "../../src/features/park/view-model";
+import { ParkMonitor } from "../../../src/features/park/ParkMonitor";
+import { demoSnapshot } from "../../../src/features/park/fixtures";
+import { toMonitorModel } from "../../../src/features/park/view-model";
 
 /**
  * Monitor de parque (F5-08).

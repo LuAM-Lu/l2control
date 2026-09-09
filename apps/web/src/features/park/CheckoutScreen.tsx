@@ -119,7 +119,7 @@ export function CheckoutScreen({
   const hayAlgo = preview.lines.length > 0;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-base">
+    <div className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-base/95 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 py-4">
           <div className="flex items-center gap-4">

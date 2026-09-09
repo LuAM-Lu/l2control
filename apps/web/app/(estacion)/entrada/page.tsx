@@ -1,5 +1,5 @@
-import { CheckInScreen } from "../../src/features/park/CheckInScreen";
-import { DEMO_GUARDIANS, DEMO_PACKAGES, demoSnapshot } from "../../src/features/park/fixtures";
+import { CheckInScreen } from "../../../src/features/park/CheckInScreen";
+import { DEMO_GUARDIANS, DEMO_PACKAGES, demoSnapshot } from "../../../src/features/park/fixtures";
 
 /**
  * Registro de entrada al parque (F5-02, F5-03, F5-04).

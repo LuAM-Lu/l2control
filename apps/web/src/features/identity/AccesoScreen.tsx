@@ -84,7 +84,7 @@ export function AccesoScreen({
 
   if (!revision.ok) {
     return (
-      <div className="grid min-h-dvh place-content-center bg-base px-6">
+      <div className="grid flex-1 place-content-center bg-base px-6">
         <div className="max-w-md rounded-[var(--radius-card)] border border-state-crit/40 bg-state-crit-bg p-8 text-center">
           <ShieldAlert size={36} className="mx-auto text-state-crit" aria-hidden="true" />
           <h1 className="font-display mt-4 text-2xl font-bold text-ink">
@@ -104,7 +104,7 @@ export function AccesoScreen({
 
   if (entrado && operador) {
     return (
-      <div className="grid min-h-dvh place-content-center bg-base px-6">
+      <div className="grid flex-1 place-content-center bg-base px-6">
         <div className="max-w-md rounded-[var(--radius-card)] border border-state-ok/40 bg-state-ok-bg p-8 text-center">
           <Initial name={operador.nombre} tone="ok" className="mx-auto size-14 text-2xl" />
           <h1 className="font-display mt-4 text-2xl font-bold text-ink">
@@ -136,7 +136,7 @@ export function AccesoScreen({
 
   if (!operador) {
     return (
-      <div className="grid min-h-dvh place-content-center bg-base px-6 py-10">
+      <div className="grid flex-1 place-content-center bg-base px-6 py-10">
         <div className="w-full max-w-lg">
           <div className="mb-6 text-center">
             <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
@@ -178,7 +178,7 @@ export function AccesoScreen({
   /* ------------------------------------------------------- el PIN */
 
   return (
-    <div className="grid min-h-dvh place-content-center bg-base px-6 py-10">
+    <div className="grid flex-1 place-content-center bg-base px-6 py-10">
       <div className="w-full max-w-xs">
         <button
           type="button"

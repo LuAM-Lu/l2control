@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Baby, OctagonAlert, TimerReset, TriangleAlert, Users } from "lucide-react";
+import { Baby, OctagonAlert, TimerReset, Users } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Badge, ConnectionBadge, EmptyState, ScannerField, StatTile } from "@l2/ui";
+import { EmptyState, ScannerField, StatTile } from "@l2/ui";
 import { ParkChildCard } from "./ParkChildCard";
 import type { MonitorModel } from "./view-model";
 
@@ -56,10 +56,8 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
     );
   }, [model.cards]);
 
-  const rateUsable = model.rateValue !== null && model.rateConfirmed;
-
   return (
-    <div className="flex min-h-dvh flex-col bg-base">
+    <div className="flex flex-1 flex-col">
       {/* Barra permanente (§8.5): turno, aforo, estado y tasa vigente con su
           origen y su hora. El operador no debe tener que buscar nada de esto. */}
       <header className="sticky top-0 z-10 border-b border-line bg-base/95 backdrop-blur-sm">
@@ -98,28 +96,6 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
                 icon={<TimerReset size={11} aria-hidden="true" />}
               />
 
-              <div className="h-9 w-px self-center bg-line" aria-hidden="true" />
-
-              {/* ADR-005: la tasa vigente, su origen y su hora, siempre a la
-                  vista. Y si no es usable, se dice con palabras — no se deja
-                  al operador descubrirlo al intentar cobrar. */}
-              {rateUsable ? (
-                <StatTile
-                  label={`Tasa ${model.rateSource} · ${model.rateCapturedAt}`}
-                  value={model.rateValue ?? "—"}
-                  suffix="Bs"
-                />
-              ) : (
-                <Badge tone="crit" icon={<TriangleAlert size={13} aria-hidden="true" />}>
-                  {model.rateValue === null
-                    ? "Sin tasa del día · no se puede cobrar en Bs"
-                    : "Tasa sin confirmar · no se puede cobrar en Bs"}
-                </Badge>
-              )}
-
-              <div className="self-center pb-1">
-                <ConnectionBadge level="N0" />
-              </div>
             </div>
           </div>
         </div>

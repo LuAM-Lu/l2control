@@ -1303,12 +1303,23 @@ Tres reglas que hacen que esto no se convierta en un desorden:
 **El dueño no necesita aparato propio:** entra por navegador desde escritorio o teléfono
 (DEC-16), y por eso el back-office se diseña **responsive de verdad**, no solo «que no se rompa».
 
-> ⚠️ **Hallazgo: la cocina se queda sin pantalla.** Con los cuatro aparatos repartidos, el KDS no
-> tiene dónde correr. Hay dos salidas y hay que elegir una (queda como **DEC-19**): comprar un
-> tercer equipo fijo para cocina, o que la cocina trabaje **solo con comanda impresa** y el KDS
-> llegue más tarde. La segunda es viable —la impresora ya está comprada— pero contradice ADR-015,
-> que pone el KDS como fuente de verdad y el papel como respaldo. Si la cocina va solo con papel,
-> **hay que asumir que un fallo de impresión deja la comanda sin llegar y nadie se entera**.
+**Resuelto (DEC-19): un quinto aparato, y es barato.** Al repartir los cuatro la cocina se quedaba
+sin pantalla. La salida no es comprar un tercer equipo fijo: **un KDS es una página web** y corre
+en una tablet de gama baja o un teléfono viejo montado en pared.
+
+| Aparato | Puesto | Modo |
+|---|---|---|
+| Tablet 3 | Cocina | Estación · KDS a pantalla completa |
+
+Y van **las dos cosas**, como ya manda ADR-015: la pantalla es la fuente de verdad —estados,
+tiempos de espera, aviso al mesero cuando algo está listo— y **el papel es el objeto físico** que
+el cocinero clava en el riel y marca. El papel solo tiene un fallo que no se arregla con más
+papel: si la impresora se atasca, la comanda no llega y nadie se entera hasta que el cliente
+reclama.
+
+> ⚠️ **Nota de instalación.** En cocina hay calor y grasa. La tablet va **fuera de la línea de
+> fuego**, con carcasa y montada en pared, y se opera con guantes: objetivos táctiles de 64 px
+> (§8.4).
 
 #### 9.10.8 Lo que queda fuera
 
@@ -1562,7 +1573,7 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 20 tareas hechas y 19 parciales. El detalle con evidencia por
+> **Estado al 2026-09-09:** 22 tareas hechas y 20 parciales. El detalle con evidencia por
 > tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
@@ -1631,11 +1642,11 @@ Es la fase que v1 subestimaba.*
 - [ ] **F1-12 · Motor de plantillas de ticket 58 mm y 80 mm**, con el ancho como configuración por estación.
   → *Criterio:* la misma plantilla se renderiza correcta en ambos anchos — la impresora comprada admite
   los dos (DEC-8) —; incluye código de barras y QR; probada contra el simulador y contra papel real.
-- [ ] **F1-17 · Cáscara del back-office**: barra lateral por permisos, barra superior con contexto
+- [x] **F1-17 · Cáscara del back-office**: barra lateral por permisos, barra superior con contexto
   (sucursal, turno, tasa, usuario) y grupos de rutas `(admin)` y `(estacion)` (§9.10.2).
   → *Criterio:* una superficie de estación **no muestra ninguna navegación**; el back-office se usa
   en escritorio y en teléfono sin que nada se rompa ni desborde.
-- [ ] **F1-18 · Migrar las seis superficies existentes al grupo que les toca.**
+- [x] **F1-18 · Migrar las seis superficies existentes al grupo que les toca.**
   → *Criterio:* ninguna pantalla repite su propia cabecera de contexto; el contexto vive en la cáscara
   o en la barra permanente de la estación.
 - [ ] **F1-13 · Observabilidad** (§10.2): logger estructurado con redacción, trazas, métricas.
@@ -1875,7 +1886,7 @@ cuando el trámite esté listo.*
 ### FASE 9 · REPORTES Y PANEL EJECUTIVO
 *Sigue las reglas de visualización de §8.6.*
 
-- [ ] **F9-00 · Inicio del back-office** según §9.10.4 (DEC-16).
+- [~] **F9-00 · Inicio del back-office** según §9.10.4 (DEC-16).
   → *Criterio:* distingue «todo bien» de «no he mirado»; desglosa por moneda **y punto de cobro**; y
   compara contra el **mismo día de la semana pasada**, nunca contra ayer.
 - [ ] **F9-01 · Facturación del día por moneda y medio de pago.**
@@ -1987,7 +1998,7 @@ cuando el trámite esté listo.*
 
 ## 14. DECISIONES DEL CLIENTE
 
-**Diecinueve de veinte estan cerradas.** Las doce primeras el 2026-09-08; las siete de arquitectura de aplicacion el 2026-09-09. Queda **DEC-19**, abajo.
+**Las veinte estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09.
 
 ### 14.1 Cerradas
 
@@ -2011,15 +2022,8 @@ cuando el trámite esté listo.*
 | **DEC-16** OK | Donde entra el dueno y que mira | **Escritorio y movil**; el contenido, «las mejores practicas» | Back-office responsive de verdad. El inicio se define en §9.10.4: atencion primero, dia en curso por moneda **y punto de cobro**, excepciones, y comparacion contra el **mismo dia de la semana pasada** |
 | **DEC-17** OK | Dispositivos | **Del puesto, compartidos** | Cambio rapido de usuario, bloqueo por inactividad, y toda operacion registra a la persona (§9.10.5) |
 | **DEC-18** OK | Parque: pantalla fija y tablet | **Ambas** | El monitor corre como pantalla de pared de solo lectura y tambien se consulta en tablet |
+| **DEC-19** OK | Pantalla de cocina | **Las dos: KDS en tablet + comanda impresa** | Un KDS es una pagina web y corre en una tablet barata, no hace falta un tercer equipo fijo. La pantalla es la fuente de verdad —estados, tiempos de espera, aviso al mesero— y el papel es el objeto que se maneja en la linea (ADR-015). La tablet va **fuera de la linea de fuego**, con carcasa y montada en pared: hay calor y grasa |
 | **DEC-20** OK | Capa de plataforma | **No. Abby Kingdom es el unico cliente por ahora** | No se construyen registro de clientes, planes ni facturacion de suscripcion. El `tenant_id` y la RLS se mantienen: cuestan poco ahora y son carisimos despues (§9.10.8) |
-
-### 14.2 Abierta: DEC-19 · la pantalla de cocina
-
-| # | Decision | Que hay que elegir | Consecuencia de cada opcion |
-|---|---|---|---|
-| **DEC-19** | Donde corre el KDS | Con los cuatro aparatos repartidos (§9.10.7), la cocina se queda sin pantalla | **(a) Comprar un tercer equipo fijo** para cocina: el KDS funciona como manda ADR-015. **(b) Cocina solo con comanda impresa**: no cuesta hardware, la impresora ya esta, pero **un fallo de impresion deja la comanda sin llegar y nadie se entera** — que es exactamente lo que ADR-015 queria evitar |
-
-No bloquea nada hoy: el restaurante esta fuera de la Ruta A. Hay que responderla antes de F6.
 
 ### 14.3 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
 

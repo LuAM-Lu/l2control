@@ -1,11 +1,11 @@
-import { CajaScreen } from "../../src/features/cash/CajaScreen";
+import { CajaScreen } from "../../../src/features/cash/CajaScreen";
 import {
   DEMO_IGTF_BASIS_POINTS,
   DEMO_LINES,
   DEMO_MAX_RETAINED,
   DEMO_TAX_RULES,
   DEMO_TENDERS,
-} from "../../src/features/cash/fixtures";
+} from "../../../src/features/cash/fixtures";
 
 /**
  * Caja: cobro mixto, IGTF y vuelto (F4-03, F4-04b).
@@ -25,7 +25,6 @@ export default function CajaPage() {
       igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}
       maxRetained={DEMO_MAX_RETAINED}
       rate={{ from: "VES", to: "USD", numerator: 22841n, denominator: 100n }}
-      rateLabel="Tasa BCV · 08:00"
       serverNow={Date.now()}
     />
   );

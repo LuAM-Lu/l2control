@@ -1,5 +1,5 @@
-import { CheckoutScreen } from "../../src/features/park/CheckoutScreen";
-import { demoSnapshot } from "../../src/features/park/fixtures";
+import { CheckoutScreen } from "../../../src/features/park/CheckoutScreen";
+import { demoSnapshot } from "../../../src/features/park/fixtures";
 
 /**
  * Salida y liquidación del parque (F5-14).
