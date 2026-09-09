@@ -1164,6 +1164,162 @@ El plan v1 ya anticipa un módulo futuro (cámaras). Habrá más. Para que añad
 - **Banderas de funcionalidad** para activar módulos por sucursal y para desplegar sin publicar.
 - **Puertos de hardware** (§9.6) para que un modelo nuevo de impresora sea un adaptador.
 
+### 9.10 Arquitectura de aplicación: cáscara, estaciones y sesión
+
+**Añadida el 2026-09-09**, tras definir con el cliente cómo se opera físicamente el local. Esta
+sección decide la navegación, el modelo de sesión y en qué grupo de rutas vive cada pantalla.
+Es estructural: cambiarla después obliga a mover todas las superficies.
+
+#### 9.10.1 Este producto no es un CRM
+
+Un CRM gira alrededor del **cliente**: contactos, oportunidades, seguimiento. Esto gira alrededor
+de la **operación**: tiempo, comandas, dinero e inventario. Lo que un CRM llamaría su núcleo aquí
+es un módulo pequeño —representantes y niños recurrentes— y ni siquiera es el importante.
+
+La categoría correcta es **punto de venta con back-office**, con forma de SaaS. La consecuencia
+práctica es que **no todas las pantallas van dentro de una cáscara de aplicación**, y confundir
+eso es lo que hace que un POS se sienta pesado de usar.
+
+#### 9.10.2 Dos mundos, no uno
+
+| | **Back-office** | **Estaciones de operación** |
+|---|---|---|
+| Quién | Dueño, administrador, supervisor | Cajero, mesero, monitor, cocina |
+| Dónde | Escritorio y móvil, dentro o fuera del local | Aparato fijo del puesto o tablet |
+| Cómo se ve | Barra lateral, barra superior, área de trabajo | **Pantalla completa, sin navegación** |
+| Para qué | Configurar, revisar, entender | Ejecutar rápido, turnos largos |
+| Superficies | Inicio, reportes, catálogos, personas, configuración | Monitor de parque, entrada, salida, caja, comandas, KDS |
+
+**Por qué las estaciones no llevan cáscara.** El monitor de parque es una pantalla de pared que
+nadie toca. El KDS se opera con guantes a dos metros. La caja se usa con cola delante. Meterles
+una barra lateral les roba espacio, añade objetivos táctiles que nadie quiere pulsar y les da
+aire de herramienta administrativa. §8.1 ya lo dice: se operan, no se leen.
+
+**Implementación (Next App Router).** Dos grupos de rutas con layouts distintos:
+
+```text
+app/
+├── (marketing)/            página que explica el sistema, antes de entrar
+├── (admin)/                CÁSCARA: barra lateral + barra superior
+│   ├── layout.tsx
+│   ├── inicio/
+│   ├── reportes/
+│   ├── personas/
+│   └── configuracion/
+└── (estacion)/             PANTALLA COMPLETA, sin navegación
+    ├── layout.tsx
+    ├── monitor/
+    ├── entrada/
+    ├── salida/
+    ├── caja/
+    ├── comandas/
+    └── cocina/
+```
+
+#### 9.10.3 Módulos del back-office
+
+La barra lateral **se recorta sola por permisos** (§7.3): no hay listas de roles repartidas por
+el código, cada módulo declara la acción que lo abre.
+
+| Módulo | Contiene |
+|---|---|
+| **Inicio** | Lo que exige atención, el día en curso, excepciones |
+| **Parque** | Sala en vivo · Estancias del día · Tarifas y paquetes · Aforo |
+| **Restaurante** | Mesas y zonas · Menú · Modificadores · Comandas del día |
+| **Caja** | Turnos y cortes · Movimientos · Tasas de cambio · Medios de pago |
+| **Inventario** | Insumos · Recetas · Compras · Ajustes y mermas |
+| **Personas** | Representantes y niños · Usuarios y permisos · Dispositivos |
+| **Reportes** | Ventas · Excepciones y auditoría · Libro de ventas |
+| **Configuración** | Sucursal · Impuestos · Impresoras · Preferencias |
+
+#### 9.10.4 El inicio del back-office
+
+El cliente pidió «las mejores prácticas» (DEC-16). Estas son, y el orden importa:
+
+1. **Lo que exige atención, arriba y en grande.** Turno de ayer sin cerrar, arqueo con
+   diferencia, tasa del día sin confirmar, niños con tiempo cumplido ahora mismo. Si no hay nada,
+   se dice que no hay nada — un panel que no distingue «todo bien» de «no he mirado» no sirve.
+2. **El día en curso**, desglosado por **moneda y punto de cobro**, no un número único. Con una
+   sola caja y dos puntos de cobro, saber cuánto entró por taquilla y cuánto por mostrador es lo
+   que permite explicar una diferencia.
+3. **Las excepciones del turno**, con nombre y motivo. §7.5: visibles, no enterradas en un log.
+4. **La comparación honesta.** Contra **el mismo día de la semana pasada**, nunca contra ayer:
+   comparar un sábado con un viernes en un parque infantil no dice nada. Es el error más común de
+   los paneles de negocio.
+
+Lo que **no** va: gráficos decorativos, cifras acumuladas sin contexto, y cualquier métrica que
+nadie vaya a mirar dos veces.
+
+#### 9.10.5 Sesión en dispositivos compartidos
+
+**DEC-17: los aparatos son del puesto, no de la persona.** Eso cambia el modelo de sesión:
+
+- **Cambio rápido de usuario**, siempre a un toque de distancia. En un puesto compartido, salir
+  y entrar ocurre decenas de veces al día.
+- **Bloqueo por inactividad**, configurable y corto en las estaciones. Un puesto desatendido con
+  la sesión de la cajera abierta es una anulación esperando a ocurrir.
+- **Toda operación registra a la PERSONA, no al aparato.** El dispositivo es el primer factor de
+  autenticación (ADR-013) y queda en la auditoría, pero la responsabilidad es de quien la hizo.
+- **La sesión no sobrevive al cierre del turno.** El corte Z devuelve el aparato a la pantalla de
+  acceso.
+
+#### 9.10.6 Permisos: el rol es la base, la excepción es un dato
+
+**DEC-15** añade algo que el modelo de §7.3 no contemplaba: el rol define el permiso por defecto,
+pero **un usuario concreto puede tener excepciones**. «Marisol es cajera, pero además puede
+confirmar la tasa de cambio.»
+
+Se modela como **concesiones y revocaciones explícitas sobre el actor**, nunca como un rol nuevo
+inventado para una persona:
+
+```ts
+type Actor = {
+  role: Role;
+  branchIds: string[];
+  grants?: Partial<Record<Action, Permission>>;   // excepciones a favor
+  revokes?: Action[];                             // excepciones en contra
+};
+```
+
+Tres reglas que hacen que esto no se convierta en un desorden:
+
+1. **Toda excepción se audita**: quién la concedió, cuándo y por qué. Es un cambio de permisos y
+   §7.4 ya lo exige.
+2. **La excepción nunca amplía la sucursal.** Un permiso extra no saca a nadie de su sede.
+3. **La pantalla de usuarios muestra el rol y las excepciones por separado**, para que se vea de
+   un vistazo quién tiene poderes que su puesto no da.
+
+#### 9.10.7 Reparto de los cuatro aparatos
+
+**DEC-18: hay dos equipos fijos y dos tablets.** El reparto que sale de la operación:
+
+| Aparato | Puesto | Modo |
+|---|---|---|
+| Fijo 1 | Caja | Estación · pantalla completa |
+| Fijo 2 | Monitor de parque, en la pared | Estación · solo lectura, nadie lo toca |
+| Tablet 1 | Mesero | Estación · comandas |
+| Tablet 2 | Parque, entrada y salida | Estación · móvil por la sala |
+
+**El dueño no necesita aparato propio:** entra por navegador desde escritorio o teléfono
+(DEC-16), y por eso el back-office se diseña **responsive de verdad**, no solo «que no se rompa».
+
+> ⚠️ **Hallazgo: la cocina se queda sin pantalla.** Con los cuatro aparatos repartidos, el KDS no
+> tiene dónde correr. Hay dos salidas y hay que elegir una (queda como **DEC-19**): comprar un
+> tercer equipo fijo para cocina, o que la cocina trabaje **solo con comanda impresa** y el KDS
+> llegue más tarde. La segunda es viable —la impresora ya está comprada— pero contradice ADR-015,
+> que pone el KDS como fuente de verdad y el papel como respaldo. Si la cocina va solo con papel,
+> **hay que asumir que un fallo de impresión deja la comanda sin llegar y nadie se entera**.
+
+#### 9.10.8 Lo que queda fuera
+
+**DEC-20: no hay capa de plataforma.** Abby Kingdom es el único cliente por ahora, así que **no**
+se construye registro de clientes, planes ni facturación de la suscripción. Eso sería otra
+aplicación entera, con su propio dominio y sus propios usuarios.
+
+Lo que **sí** se mantiene es el `tenant_id` y la RLS de ADR-002: cuesta una columna y un índice
+ahora, y añadirlo después sería migrar un histórico fiscal. La capa de plataforma se puede
+construir encima el día que haga falta, sin tocar los datos.
+
 ---
 
 ## 10. CALIDAD, OPERACIÓN Y CONTINUIDAD
@@ -1475,6 +1631,13 @@ Es la fase que v1 subestimaba.*
 - [ ] **F1-12 · Motor de plantillas de ticket 58 mm y 80 mm**, con el ancho como configuración por estación.
   → *Criterio:* la misma plantilla se renderiza correcta en ambos anchos — la impresora comprada admite
   los dos (DEC-8) —; incluye código de barras y QR; probada contra el simulador y contra papel real.
+- [ ] **F1-17 · Cáscara del back-office**: barra lateral por permisos, barra superior con contexto
+  (sucursal, turno, tasa, usuario) y grupos de rutas `(admin)` y `(estacion)` (§9.10.2).
+  → *Criterio:* una superficie de estación **no muestra ninguna navegación**; el back-office se usa
+  en escritorio y en teléfono sin que nada se rompa ni desborde.
+- [ ] **F1-18 · Migrar las seis superficies existentes al grupo que les toca.**
+  → *Criterio:* ninguna pantalla repite su propia cabecera de contexto; el contexto vive en la cáscara
+  o en la barra permanente de la estación.
 - [ ] **F1-13 · Observabilidad** (§10.2): logger estructurado con redacción, trazas, métricas.
   → *Criterio:* una prueba verifica que un dato sensible **no** aparece en el log.
 - [ ] **F1-14 · Canalización de CI** completa (§10.3).
@@ -1506,6 +1669,12 @@ Es la fase que v1 subestimaba.*
   → *Criterio:* pide motivo de lista cerrada + identidad del autorizador; **registra antes de ejecutar**.
 - [ ] **F2-09 · Autorización en el handshake de WebSocket** (ADR-008).
   → *Criterio:* un cliente autenticado de otra sucursal **no recibe** eventos de esta; hay prueba.
+- [ ] **F2-11 · Permisos por persona: concesiones y revocaciones sobre el rol** (DEC-15, §9.10.6).
+  → *Criterio:* una excepción queda en auditoría con quién la concedió y por qué; **nunca amplía la
+  sucursal**; y la pantalla de usuarios muestra rol y excepciones por separado.
+- [ ] **F2-12 · Sesión en dispositivo compartido** (DEC-17, §9.10.5).
+  → *Criterio:* cambio de usuario a un toque; bloqueo por inactividad configurable; el corte Z
+  devuelve el aparato a la pantalla de acceso.
 - [ ] **F2-10 · Pantalla de gestión de usuarios, roles y PIN.**
   → *Criterio:* dar de baja a un empleado revoca todo su acceso en menos de 5 segundos.
 
@@ -1550,6 +1719,8 @@ Termina en el hito M1.*
 
 - [~] **F4-01 · Apertura de turno** con fondo inicial declarado por moneda.
   → *Criterio:* no se puede cobrar sin turno abierto; un dispositivo tiene un turno abierto como máximo (I-06).
+- [ ] **F4-01b · Cada cobro registra su punto de venta** (taquilla o mostrador) — DEC-13.
+  → *Criterio:* el corte desglosa por punto de cobro; sin eso, una diferencia no se puede explicar.
 - [~] **F4-02 · Los siete medios de pago** como catálogo configurable (§9.9), no como `enum` en el código.
   → *Criterio:* añadir un medio de pago **no requiere desplegar**.
 - [~] **F4-03 · Cobro mixto** en una misma transacción.
@@ -1704,6 +1875,9 @@ cuando el trámite esté listo.*
 ### FASE 9 · REPORTES Y PANEL EJECUTIVO
 *Sigue las reglas de visualización de §8.6.*
 
+- [ ] **F9-00 · Inicio del back-office** según §9.10.4 (DEC-16).
+  → *Criterio:* distingue «todo bien» de «no he mirado»; desglosa por moneda **y punto de cobro**; y
+  compara contra el **mismo día de la semana pasada**, nunca contra ayer.
 - [ ] **F9-01 · Facturación del día por moneda y medio de pago.**
   → *Criterio:* **cuadra exactamente con el arqueo físico** del cierre; barras apiladas, no anillo.
 - [ ] **F9-02 · Ingresos de parque frente a restaurante.**
@@ -1813,7 +1987,7 @@ cuando el trámite esté listo.*
 
 ## 14. DECISIONES DEL CLIENTE
 
-**Las doce estan cerradas** (2026-09-08). No queda ninguna decision del cliente bloqueando el arranque.
+**Diecinueve de veinte estan cerradas.** Las doce primeras el 2026-09-08; las siete de arquitectura de aplicacion el 2026-09-09. Queda **DEC-19**, abajo.
 
 ### 14.1 Cerradas
 
@@ -1831,8 +2005,23 @@ cuando el trámite esté listo.*
 | **DEC-12** OK | Prioridad del piloto | **Parque primero** | F5 se prioriza sobre F6; el parque es la primera validacion real en produccion |
 | **DEC-8** OK | Hardware ya comprado | **Lector sin drivers** (HID *keyboard wedge*); **impresora que admite ambos anchos y ambas conexiones**, USB y red | Confirma el diseno del hook `useBarcodeScanner` (F1-11) sin trabajo de driver. Y permite elegir **modo red por TCP 9100**, lo que **saca `apps/printer-agent` de la Ruta A**: una aplicacion entera menos que construir y mantener. Ver ADR-015 |
 | **DEC-10** OK | Tolerancia a caidas | **Media hora** de operacion en papel como maximo | **Eleva la topologia de B a C**: 30 minutos no alcanzan para conseguir e instalar un equipo nuevo, pero sobran para promover un secundario ya replicando. Ver ADR-003. Se mantiene RPO de 15 min |
+| **DEC-13** OK | Una caja o dos | **Una sola caja para todo el local** | Un turno, una gaveta, un arqueo y un corte Z. A cambio, **cada cobro registra desde que punto se hizo** (taquilla o mostrador): sin eso el corte no explica una diferencia |
+| **DEC-14** OK | Quien cobra | **El mesero lleva la cuenta; el cliente paga en caja** | El mesero **no toca dinero**: su tablet no lleva pantalla de cobro. Desaparecen la entrega de efectivo, el arqueo por persona y los controles antifraude sobre meseros |
+| **DEC-15** OK | Roles | **Un rol fijo por persona, con permisos adicionales editables** | El rol es la base; las excepciones son un dato auditable por usuario (§9.10.6). Obliga a extender el modelo de §7.3 con concesiones y revocaciones |
+| **DEC-16** OK | Donde entra el dueno y que mira | **Escritorio y movil**; el contenido, «las mejores practicas» | Back-office responsive de verdad. El inicio se define en §9.10.4: atencion primero, dia en curso por moneda **y punto de cobro**, excepciones, y comparacion contra el **mismo dia de la semana pasada** |
+| **DEC-17** OK | Dispositivos | **Del puesto, compartidos** | Cambio rapido de usuario, bloqueo por inactividad, y toda operacion registra a la persona (§9.10.5) |
+| **DEC-18** OK | Parque: pantalla fija y tablet | **Ambas** | El monitor corre como pantalla de pared de solo lectura y tambien se consulta en tablet |
+| **DEC-20** OK | Capa de plataforma | **No. Abby Kingdom es el unico cliente por ahora** | No se construyen registro de clientes, planes ni facturacion de suscripcion. El `tenant_id` y la RLS se mantienen: cuestan poco ahora y son carisimos despues (§9.10.8) |
 
-### 14.2 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
+### 14.2 Abierta: DEC-19 · la pantalla de cocina
+
+| # | Decision | Que hay que elegir | Consecuencia de cada opcion |
+|---|---|---|---|
+| **DEC-19** | Donde corre el KDS | Con los cuatro aparatos repartidos (§9.10.7), la cocina se queda sin pantalla | **(a) Comprar un tercer equipo fijo** para cocina: el KDS funciona como manda ADR-015. **(b) Cocina solo con comanda impresa**: no cuesta hardware, la impresora ya esta, pero **un fallo de impresion deja la comanda sin llegar y nadie se entera** — que es exactamente lo que ADR-015 queria evitar |
+
+No bloquea nada hoy: el restaurante esta fuera de la Ruta A. Hay que responderla antes de F6.
+
+### 14.3 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
 
 El cliente decidio que la homologacion fiscal no es critica ahora. Se respeta y **F7 sale de la ruta
 critica**, pero el plan conserva tres piezas que hacen barato encenderla despues. Sin ellas, "pensar en
@@ -1850,7 +2039,7 @@ entonces **no tienen valor fiscal**. Deben salir marcados como tales, y el negoc
 obligacion de facturacion digital ya esta vigente desde marzo de 2026. La decision es del cliente y
 queda registrada; el plan solo garantiza que revertirla sea barato.
 
-### 14.3 Consecuencia de DEC-10: por que media hora obliga al segundo equipo
+### 14.4 Consecuencia de DEC-10: por que media hora obliga al segundo equipo
 
 El cliente fijo **media hora** como maximo tolerable de operacion en papel. Ese numero, y no una
 preferencia tecnica, es lo que decide la arquitectura de continuidad:

@@ -92,6 +92,26 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ---
 
+## Definido el 2026-09-09: arquitectura de aplicación
+
+El cliente señaló que las pantallas eran islas sin cáscara, y tenía razón. §9.10 del plan lo
+resuelve, y siete decisiones nuevas (DEC-13 a DEC-18 y DEC-20) lo fijan:
+
+- **Dos mundos, no uno.** Back-office con barra lateral; estaciones a pantalla completa sin
+  navegación. Meterle un menú al KDS o al monitor de pared los empeora.
+- **Una sola caja** para todo el local, pero cada cobro registra desde qué punto se hizo.
+- **El mesero no toca dinero**: lleva la cuenta y el cliente paga en caja. Eso elimina la entrega
+  de efectivo, el arqueo por persona y los controles antifraude sobre meseros.
+- **El rol es la base; las excepciones por persona son un dato auditable.** Extiende §7.3.
+- **Aparatos del puesto, compartidos**: cambio rápido de usuario y bloqueo por inactividad.
+- **Sin capa de plataforma**: no hay planes ni facturación de suscripción. Se mantiene el
+  , que cuesta poco ahora y es carísimo después.
+
+Tareas nuevas: F1-17, F1-18, F2-11, F2-12, F4-01b y F9-00.
+
+**Sigue abierta DEC-19:** con los cuatro aparatos repartidos, la cocina se queda sin pantalla.
+No bloquea nada hoy —el restaurante está fuera de la Ruta A— pero hay que responderla antes de F6.
+
 ## Lo que hay que arreglar antes de seguir
 
 1. **F1-14, la CI.** `pnpm verify` comprueba arquitectura y pruebas, pero **nadie lo ejecuta
