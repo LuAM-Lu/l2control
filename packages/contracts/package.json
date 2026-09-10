@@ -16,6 +16,8 @@
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
     "typescript": "7.0.2"
   }
 }

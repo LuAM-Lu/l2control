@@ -185,6 +185,12 @@ importers:
         specifier: 4.5.4
         version: 4.5.4
     devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -195,18 +201,36 @@ importers:
         specifier: workspace:*
         version: link:../money
     devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
 
   packages/domain/identity:
     devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
 
   packages/domain/money:
     devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -217,6 +241,12 @@ importers:
         specifier: workspace:*
         version: link:../money
     devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -227,6 +257,12 @@ importers:
         specifier: workspace:*
         version: link:../money
     devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -246,6 +282,9 @@ importers:
         specifier: 3.6.0
         version: 3.6.0
     devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../config
       '@types/react':
         specifier: 19.2.7
         version: 19.2.7

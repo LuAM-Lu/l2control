@@ -15,7 +15,7 @@
     "test": "turbo run test",
     "arch": "depcruise \"packages/**/*.{ts,tsx}\" \"apps/**/*.{ts,tsx}\" --config .dependency-cruiser.cjs",
     "arch:demo": "node scripts/arch-demo.mjs",
-    "verify": "pnpm arch && pnpm arch:demo && pnpm test"
+    "verify": "pnpm typecheck && pnpm arch && pnpm arch:demo && pnpm test"
   },
   "devDependencies": {
     "dependency-cruiser": "17.0.1",

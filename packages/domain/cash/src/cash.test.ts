@@ -38,12 +38,6 @@ const USD_EFECTIVO: TenderMethod = {
   currency: "USD",
   canGiveChange: true,
 };
-const BS_EFECTIVO: TenderMethod = {
-  code: "EFECTIVO_VES",
-  label: "Efectivo Bs",
-  currency: "VES",
-  canGiveChange: true,
-};
 const PAGO_MOVIL: TenderMethod = {
   code: "PAGO_MOVIL",
   label: "Pago Móvil",

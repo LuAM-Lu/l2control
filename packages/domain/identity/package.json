@@ -13,6 +13,8 @@
   },
   "comment": "SIN DEPENDENCIAS. Aquí solo viven las reglas; el hash del PIN y la sesión los maneja Better Auth en el servidor, nunca este paquete.",
   "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
     "typescript": "7.0.2"
   }
 }

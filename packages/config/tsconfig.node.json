@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // Los paquetes de dominio se prueban con el ejecutor NATIVO de Node
+    // (`node --test`), así que sus pruebas importan `node:test` y
+    // `node:assert`. Sin esta línea, TypeScript trata `node:` como un URI
+    // ajeno, lo salta, y el `typecheck` falla aunque las pruebas pasen.
+    //
+    // Va declarado y no heredado por defecto porque decir «este paquete
+    // conoce Node» es una decisión: el dominio es puro, pero SUS PRUEBAS
+    // corren en Node. `@l2/ui` y `apps/web` no extienden de aquí.
+    "types": ["node"]
+  }
+}

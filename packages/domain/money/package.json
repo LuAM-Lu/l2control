@@ -13,6 +13,8 @@
   },
   "comment": "SIN DEPENDENCIAS A PROPÓSITO. Este paquete es dominio puro: si algún día aparece aquí React, Prisma o un cliente HTTP, la regla de §9.2 se rompió.",
   "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
     "typescript": "7.0.2"
   }
 }

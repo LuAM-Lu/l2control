@@ -16,6 +16,8 @@
     "@l2/domain-money": "workspace:*"
   },
   "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
     "typescript": "7.0.2"
   }
 }
