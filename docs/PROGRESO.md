@@ -155,6 +155,32 @@ en las columnas—, no ensanchando la ventana de prueba.
 Queda por hacer en esta línea: estados de carga y esqueletos (§8.6), y repetir la medición cada
 vez que entre una pantalla nueva. Es un script, no una revisión a ojo.
 
+## Organización de páginas y navegación — 2026-09-09
+
+El back-office pasa a colgar de `/panel` y la navegación se adapta al dispositivo.
+
+**Rutas.** Las estaciones conservan URL corta en la raíz —`/monitor`, `/entrada`, `/salida`,
+`/caja`, `/turno`, `/acceso`— porque se teclean y se marcan en equipos fijos. El back-office vive
+bajo `/panel`, con una página por módulo (`/panel/parque`) y una por sección sin construir
+(`/panel/restaurante/mesas`). Dos rutas dinámicas sirven las veinte: un archivo por módulo serían
+seis copias del mismo código esperando a desincronizarse.
+
+**Una sola fuente.** `features/shell/navigation.ts` describe los seis módulos y sus secciones. De
+ahí salen el menú, la página de cada módulo y las migas. Cada sección declara **la acción** que la
+abre, no una lista de roles.
+
+**Nada de enlaces muertos.** Las secciones sin construir tienen su página y dicen qué harán, qué
+tarea del plan las cubre y qué hace falta antes. Es el cuarto estado que §8.6 no nombraba: además
+de carga, vacío y error, «todavía no existe».
+
+**Navegación por tamaño.** ≥1280 px barra lateral de 256 px con secciones desplegables; 768–1279 px
+riel de 72 px solo iconos, donde tocar un módulo lleva a su página; <768 px barra superior con
+cajón. Antes, **entre 768 y 1279 px no había navegación ninguna** —justo el ancho de la tablet del
+local—, solo un botón redondo flotando sobre el contenido.
+
+Comprobado en navegador: 17 rutas × 6 anchos (320, 375, 414, 768, 1024, 1440) sin desplazamiento
+horizontal, y todo lo pulsable de las barras ≥ 44 px.
+
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |

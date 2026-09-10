@@ -108,7 +108,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
       <div className="flex flex-wrap items-center gap-2 px-2 py-2 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-0">
         {/* Volver: un solo destino, el panel. */}
         <Link
-          href="/inicio"
+          href="/panel"
           title="Volver al panel"
           className={cn(
             PILDORA,
