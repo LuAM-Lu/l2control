@@ -1,5 +1,6 @@
 import { AccesoScreen, type Operador } from "../../../src/features/identity/AccesoScreen";
 import type { Device } from "@l2/domain-identity";
+import { rutaSeccion } from "../../../src/features/shell/navigation";
 
 /**
  * Acceso por PIN atado a dispositivo (F2-03, ADR-013).
@@ -23,11 +24,41 @@ const DISPOSITIVOS: Record<string, Device | null> = {
   desconocido: null,
 };
 
+/**
+ * Cada rol entra directamente a su puesto (§7.3). Identificarse y tener que
+ * buscar después dónde se trabaja son dos pasos donde debería haber uno.
+ */
 const OPERADORES: Operador[] = [
-  { id: "u1", nombre: "Marisol Prieto", rol: "Cajera" },
-  { id: "u2", nombre: "Luis Guerrero", rol: "Supervisor" },
-  { id: "u3", nombre: "Ana Rojas", rol: "Monitora de parque" },
-  { id: "u4", nombre: "Diego Salas", rol: "Cocina" },
+  {
+    id: "u1",
+    nombre: "Marisol Prieto",
+    rol: "Cajera",
+    destino: "/caja",
+    destinoNombre: "la caja",
+  },
+  {
+    id: "u2",
+    nombre: "Luis Guerrero",
+    rol: "Supervisor",
+    destino: "/panel",
+    destinoNombre: "el panel",
+  },
+  {
+    id: "u3",
+    nombre: "Ana Rojas",
+    rol: "Monitora de parque",
+    destino: "/monitor",
+    destinoNombre: "la sala",
+  },
+  {
+    // La cocina todavía no tiene pantalla propia (F6-05), así que entra a la
+    // sección que lo explica en vez de a un sitio que no le sirve.
+    id: "u4",
+    nombre: "Diego Salas",
+    rol: "Cocina",
+    destino: rutaSeccion("restaurante", "comandas"),
+    destinoNombre: "las comandas",
+  },
 ];
 
 export default async function AccesoPage({

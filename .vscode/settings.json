@@ -1,0 +1,28 @@
+{
+  // ── Por qué existe este archivo ───────────────────────────────────────────
+  //
+  // Tailwind v4 mueve la configuración al propio CSS: `@theme` declara los
+  // tokens y `@source` añade rutas al escaneo. El validador de CSS que trae
+  // VS Code no conoce ninguna de las dos y las marca como «Unknown at rule»,
+  // así que `packages/config/tokens.css` aparecía con error y el explorador
+  // pintaba toda la carpeta `packages` en rojo.
+  //
+  // No era un error del proyecto: `pnpm typecheck`, `pnpm build` y las
+  // pruebas siempre estuvieron en verde. Era el editor avisando de una
+  // sintaxis que es correcta y que él no conoce.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+
+  // ── TypeScript ────────────────────────────────────────────────────────────
+  //
+  // NO se apunta `typescript.tsdk` al TypeScript del proyecto a propósito: la
+  // versión 7 es el compilador NATIVO y su `lib/` no trae `tsserver.js`, así
+  // que el editor no puede usarlo. Se queda con el suyo —hoy la serie 5—, que
+  // lee estos mismos tsconfig y da cero errores. Si algún día 7 publica su
+  // servidor, esa línea se añade aquí.
+  "typescript.enablePromptUseWorkspaceTsdk": false,
+
+  "editor.formatOnSave": false,
+  "files.eol": "\n"
+}

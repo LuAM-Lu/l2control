@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { ArrowLeft, Lock, MonitorSmartphone, ShieldAlert, TriangleAlert } from "lucide-react";
 import {
   DEFAULT_LOCKOUT_POLICY,
@@ -9,7 +11,7 @@ import {
   describeLockout,
   type Device,
 } from "@l2/domain-identity";
-import { Badge, Button, Initial, NumericKeypad, cn } from "@l2/ui";
+import { Badge, Initial, NumericKeypad, cn } from "@l2/ui";
 
 /**
  * Acceso por PIN atado a dispositivo — F2-03, ADR-013.
@@ -32,6 +34,14 @@ export type Operador = Readonly<{
   id: string;
   nombre: string;
   rol: string;
+  /**
+   * Superficie a la que entra este rol (§7.3). La cajera abre caja, la
+   * monitora la sala, la administradora el panel: nadie debería tener que
+   * navegar hasta su puesto después de identificarse.
+   */
+  destino: Route;
+  /** Qué verá al entrar. Se muestra bajo el nombre al elegir persona. */
+  destinoNombre: string;
 }>;
 
 const PIN_LENGTH = 4;
@@ -49,7 +59,8 @@ export function AccesoScreen({
   const [fallos, setFallos] = useState(0);
   const [ultimoFallo, setUltimoFallo] = useState<number | null>(null);
   const [ahora, setAhora] = useState(() => Date.now());
-  const [entrado, setEntrado] = useState(false);
+  const [entrando, setEntrando] = useState(false);
+  const router = useRouter();
 
   const revision = useMemo(() => checkDevice(device), [device]);
   const bloqueo = computeLockout(fallos, ultimoFallo, ahora, DEFAULT_LOCKOUT_POLICY);
@@ -69,8 +80,11 @@ export function AccesoScreen({
     // que se persiste (§7.6).
     // Mientras tanto se simula: "1970" entra, cualquier otro falla.
     if (pin === "1970") {
-      setEntrado(true);
+      // Entrar es IR al puesto de trabajo. Una pantalla intermedia de
+      // «bienvenido» es un toque de más en un sitio donde hay cola.
       setPin("");
+      setEntrando(true);
+      router.push(operador!.destino);
       return;
     }
 
@@ -95,38 +109,6 @@ export function AccesoScreen({
             El dispositivo es el primer factor de acceso. Sin él, un PIN correcto tampoco sirve —
             así, un PIN visto por encima del hombro no abre nada desde otro aparato.
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  /* ---------------------------------------------------- entrado */
-
-  if (entrado && operador) {
-    return (
-      <div className="grid flex-1 place-content-center bg-base px-6">
-        <div className="max-w-md rounded-[var(--radius-card)] border border-state-ok/40 bg-state-ok-bg p-8 text-center">
-          <Initial name={operador.nombre} tone="ok" className="mx-auto size-14 text-2xl" />
-          <h1 className="font-display mt-4 text-2xl font-bold text-ink">
-            Hola, {operador.nombre.split(" ")[0]}
-          </h1>
-          <p className="mt-1 text-sm text-ink-2">{operador.rol}</p>
-          <p className="mt-5 border-t border-state-ok/25 pt-4 text-[12.5px] text-ink-3">
-            Prototipo: aquí empezaría el turno y se abriría la superficie que corresponde al rol.
-          </p>
-          <Button
-            surface="tablet"
-            variant="neutral"
-            className="mt-4 w-full"
-            onClick={() => {
-              setEntrado(false);
-              setOperador(null);
-              setFallos(0);
-              setUltimoFallo(null);
-            }}
-          >
-            Salir
-          </Button>
         </div>
       </div>
     );
@@ -228,14 +210,24 @@ export function AccesoScreen({
           </div>
         ) : (
           <>
+            {/* Mientras se abre la superficie, el teclado se desactiva y lo
+                dice. Sin esto, el operador vuelve a pulsar «Entrar» creyendo
+                que no funcionó, que es como se duplican las acciones. */}
             <NumericKeypad
               value={pin}
               onChange={setPin}
               maxLength={PIN_LENGTH}
               surface="pos"
+              disabled={entrando}
               onSubmit={intentar}
-              submitLabel="Entrar"
+              submitLabel={entrando ? "Entrando…" : "Entrar"}
             />
+
+            {entrando && (
+              <p role="status" className="mt-4 text-center text-[12.5px] text-ink-2">
+                Abriendo {operador.destinoNombre}…
+              </p>
+            )}
 
             {fallos > 0 && (
               <p

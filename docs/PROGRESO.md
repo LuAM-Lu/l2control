@@ -181,6 +181,22 @@ local—, solo un botón redondo flotando sobre el contenido.
 Comprobado en navegador: 17 rutas × 6 anchos (320, 375, 414, 768, 1024, 1440) sin desplazamiento
 horizontal, y todo lo pulsable de las barras ≥ 44 px.
 
+## La raíz reparte, no explica — 2026-09-09
+
+`/` era una página de marketing que contaba el sistema con una línea de tiempo. Se eliminó: un
+punto de venta no tiene página de bienvenida. Ahora `/` redirige al acceso por PIN, y **cada rol
+entra directamente a su puesto** (§7.3): la cajera a caja, la monitora a la sala, la supervisora
+al panel. Identificarse y luego tener que buscar dónde se trabaja eran dos pasos donde debe haber
+uno. La cocina, que aún no tiene pantalla (F6-05), entra a la sección que lo explica.
+
+Queda pendiente de F2-12: cuando exista sesión de dispositivo, `/` comprobará si ya hay una
+abierta y saltará a su superficie sin volver a pedir el PIN.
+
+El inicio del back-office se rehízo con el mismo criterio que la caja —densidad y jerarquía—:
+cuatro cifras del día arriba con su comparación contra el mismo día de la semana pasada, la
+atención en tarjetas compactas, y el detalle abajo. Las barras de «entró hoy» comparan **solo
+dentro de cada moneda**: mezclar bolívares y dólares en una barra daría una imagen falsa.
+
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |

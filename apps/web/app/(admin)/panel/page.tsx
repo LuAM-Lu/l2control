@@ -4,6 +4,7 @@ import {
   InicioScreen,
   type Atencion,
   type PorMedio,
+  type SaldoMoneda,
 } from "../../../src/features/shell/InicioScreen";
 import {
   DEMO_EXCEPCIONES,
@@ -24,6 +25,10 @@ import { toMonitorModel } from "../../../src/features/park/view-model";
 export const dynamic = "force-dynamic";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MESES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
 
 export default function InicioPage() {
   const modelo = toMonitorModel(demoSnapshot(Date.now()));
@@ -75,19 +80,36 @@ export default function InicioPage() {
       medio: MEDIO_LABEL[m.methodCode] ?? m.methodCode,
       moneda: m.currency,
       total: toMajor(m.total),
+      // Las unidades menores viajan como texto: la proporción de las barras se
+      // calcula con enteros, sin pasar el dinero por un decimal (§5.1).
+      minor: m.total.amount.toString(),
       enGaveta: m.inDrawer,
     }));
+
+  // Lo que debería haber físicamente en la gaveta, por moneda. El dólar
+  // primero por ser la moneda funcional (ADR-004).
+  const gaveta: SaldoMoneda[] = tally.drawer
+    .map((d) => ({ moneda: d.currency, total: toMajor(d.expected) }))
+    .sort((a, b) => (a.moneda === "USD" ? -1 : b.moneda === "USD" ? 1 : 0));
+
+  const hoy = new Date();
 
   return (
     <InicioScreen
       atenciones={atenciones}
       porMedio={porMedio}
+      gaveta={gaveta}
       ninosHoy={modelo.cards.length}
       ninosSemanaPasada={11}
+      enSala={modelo.cards.length}
+      aforo={modelo.capacityLimit}
       ventaHoy="94.17"
       ventaSemanaPasada="108.40"
       excepciones={DEMO_EXCEPCIONES}
-      diaSemana={DIAS[new Date().getDay()] ?? "Hoy"}
+      fecha={`${hoy.getDate()} de ${MESES[hoy.getMonth()]}`}
+      diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
+      turnoDesde="14:00"
+      cajero="Marisol Prieto"
     />
   );
 }

@@ -12,5 +12,9 @@ next-env.d.ts
 
 .DS_Store
 Thumbs.db
-.vscode/
+# Los ajustes del editor SÍ se versionan: sin ellos, VS Code marca en rojo
+# `tokens.css` por usar sintaxis de Tailwind v4 que su validador no conoce.
+# Es un falso positivo que le pasaría a cualquiera que abra el repositorio.
+.vscode/*
+!.vscode/settings.json
 .idea/
