@@ -29,3 +29,4 @@ export { ScannerField } from "./patterns/ScannerField";
 export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBadge";
 export { EmptyState } from "./patterns/EmptyState";
 export { ScanPrompt } from "./patterns/ScanPrompt";
+export { Sheet, Dialog } from "./patterns/Capa";

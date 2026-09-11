@@ -2,8 +2,9 @@
 
 Sistema de gestión para parque infantil + restaurante (Abby Kingdom, Venezuela).
 
-**El plan manda.** `docs/PLAN.md` es la especificación: 17 ADRs, 12 decisiones del
-cliente cerradas y 160 tareas con criterio de aceptación. El estado real está en `docs/PROGRESO.md`. Antes de construir algo, busca su
+**El plan manda.** `docs/PLAN.md` es la especificación: 17 ADRs, 21 decisiones del
+cliente cerradas y 160 tareas con criterio de aceptación. El estado real está en `docs/PROGRESO.md`
+y el porqué de cada paso en `docs/BITACORA.md`. Antes de construir algo, busca su
 tarea `Fn-nn` en §12. Si lo que vas a hacer no está en el plan, es un cambio de alcance: dilo,
 no lo hagas en silencio.
 

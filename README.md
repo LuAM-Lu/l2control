@@ -42,7 +42,7 @@ packages/config          tokens de diseño + base de TypeScript
 packages/domain/money    aritmética de dinero — puro, sin dependencias
 packages/domain/park     tiempo, gracia, penalización, aforo — puro
 packages/ui              nivel 1 primitivos + nivel 2 patrones
-docs/                    plan maestro, ADRs y progreso
+docs/                    plan, progreso, bitácora y ADRs (índice en docs/README.md)
 ```
 
 Se agrupa **por dominio, no por capa técnica**: la pregunta «¿dónde va esto?» se responde con
@@ -55,6 +55,7 @@ qué resuelve y qué **no** le corresponde.
 |---|---|
 | **[docs/PLAN.md](docs/PLAN.md)** | El plan maestro: 15 secciones, 160 tareas con criterio de aceptación |
 | **[docs/PROGRESO.md](docs/PROGRESO.md)** | Qué está hecho de verdad y qué falta |
+| **[docs/BITACORA.md](docs/BITACORA.md)** | Qué se hizo, cuándo y por qué |
 | **[docs/adr/](docs/adr/)** | Las 17 decisiones de arquitectura, una por archivo |
 | **[CLAUDE.md](CLAUDE.md)** | Reglas para quien programe aquí, humano o agente |
 | [docs/archivo/SPEC-v1.md](docs/archivo/SPEC-v1.md) | El plan original, superado. Solo referencia histórica |

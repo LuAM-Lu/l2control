@@ -82,6 +82,7 @@
   --ease-salida: cubic-bezier(0.2, 0, 0, 1);
   --dur-rapida: 120ms;
   --dur-normal: 200ms;
+  --dur-pagina: 240ms;
 }
 
 /* Cifras que se comparan o se suman van siempre en numerales tabulares.
@@ -117,9 +118,56 @@
   animation: l2-entra var(--dur-normal) var(--ease-salida) both;
 }
 
+/* Cambio de pantalla CON DIRECCIÓN (PageTransition). Avanzar entra desde la
+   derecha, volver desde la izquierda, mismo nivel es un fundido. 28 px bastan
+   para leer la dirección; más empieza a marear en una caja con cola delante. */
+@keyframes l2-desde-derecha {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes l2-desde-izquierda {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes l2-fundido {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.l2-pagina-adelante { animation: l2-desde-derecha var(--dur-pagina) var(--ease-salida) both; }
+.l2-pagina-atras    { animation: l2-desde-izquierda var(--dur-pagina) var(--ease-salida) both; }
+.l2-pagina-lateral  { animation: l2-fundido var(--dur-normal) var(--ease-salida) both; }
+
+/* Capas (Sheet y Dialog). La hoja sube desde abajo en móvil —donde llega el
+   pulgar— y entra por la derecha desde 768 px (Material 3). El diálogo crece
+   levemente desde su sitio. El velo se funde. */
+@keyframes l2-sube {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+@keyframes l2-desde-lado {
+  from { transform: translateX(100%); }
+  to   { transform: none; }
+}
+@keyframes l2-aparece {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+.l2-hoja    { animation: l2-sube var(--dur-pagina) var(--ease-salida) both; }
+.l2-dialogo { animation: l2-aparece var(--dur-normal) var(--ease-salida) both; }
+@media (min-width: 48rem) {
+  .l2-hoja { animation-name: l2-desde-lado; }
+}
+dialog[open]::backdrop { animation: l2-fundido var(--dur-normal) var(--ease-salida) both; }
+
+/* Con una capa abierta, la página de detrás no se desplaza: el scroll pertenece
+   a la capa. Sin JavaScript que olvide restaurarlo al cerrar. */
+html:has(dialog[open]) { overflow: hidden; }
+
 @media (prefers-reduced-motion: reduce) {
   .l2-pulse { animation: none; }
   .l2-entra { animation: none; }
+  .l2-pagina-adelante, .l2-pagina-atras, .l2-pagina-lateral { animation: none; }
+  .l2-hoja, .l2-dialogo, dialog[open]::backdrop { animation: none; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;

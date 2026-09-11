@@ -112,64 +112,10 @@ Una tarea está hecha cuando **todas** estas condiciones se cumplen:
 
 ## 1. DIAGNÓSTICO DEL PLAN v1
 
-### 1.1 Lo que el plan v1 acertó
+Movido a **[archivo/diagnostico-plan-v1.md](archivo/diagnostico-plan-v1.md)** el 2026-09-11. Explica
+qué se conservó del plan original y por qué se reescribió; es historia, no especificación. La
+numeración de secciones se mantiene para que las referencias «§n» del código sigan valiendo.
 
-El plan original **no se reescribe por estar mal**. Su lectura del negocio es correcta y poco
-común, y esto se conserva íntegro:
-
-- **La tesis del producto es la correcta.** Unificar la cuenta del parque con la del restaurante
-  es el verdadero diferencial: el representante paga una sola vez y el negocio captura el consumo
-  cruzado. Casi ningún POS genérico hace esto.
-- **Trata el hardware como ciudadano de primera clase.** Escáner HID con buffer global e impresión
-  ESC/POS por socket TCP 9100 son las decisiones correctas, no atajos.
-- **La paleta y el modo oscuro.** Slate oscuro con semáforo verde/ámbar/rojo es lo correcto para
-  turnos largos y para leer estado a distancia. Se conserva y se formaliza (§8).
-- **Modalidad dual prepago/postpago.** Refleja cómo opera un parque real, no un modelo de libro.
-- **Separación de superficies** (POS / KDS / Monitor de parque / Admin) como rutas con layouts
-  propios: es la partición correcta y se profundiza en §9.
-- **El formato de documento ejecutable con casillas.** Se conserva y se refuerza con identificadores
-  y criterios de aceptación.
-
-### 1.2 Hallazgos — qué falta o qué rompería en producción
-
-| # | Sev. | Hallazgo | Consecuencia si se ignora | Se resuelve en |
-|---|---|---|---|---|
-| H-01 | 🔴 | **Cero cumplimiento fiscal venezolano.** No menciona SENIAT, máquina fiscal, imprenta digital autorizada, número de control ni homologación. | El sistema emite papeles sin valor legal. Sanción para el negocio y software inservible para su fin. | §5.4 · F7 |
-| H-02 | 🔴 | **No existe modelo de impuestos.** Ni IVA ni IGTF aparecen, pese a que el plan sí lista pagos en divisas y cripto — que es exactamente lo que dispara el IGTF del 3 %. | Toda factura sale con el monto equivocado. Corregirlo después obliga a reprocesar el histórico. | §5.3 |
-| H-03 | 🔴 | **El dinero no tiene representación definida.** Dice «multimoneda» pero nunca cómo se almacena un monto. | Si alguien usa `Float`, el sistema pierde centavos de forma silenciosa e irreparable. | §5.1 · ADR-004 |
-| H-04 | 🔴 | **La tasa de cambio no se congela.** Se trata como configuración global («actualización manual o BCV»), no como dato de la transacción. | El reporte de ventas de ayer cambia hoy al cambiar la tasa. La caja nunca cuadra. Es el error más común y más caro del software venezolano. | §5.2 · ADR-005 |
-| H-05 | 🔴 | **Sin plan de operación offline.** Define despliegue «en la nube» y nada más, en un entorno con cortes recurrentes de energía e internet. | Sin internet el negocio no puede facturar ni dejar salir a los niños. El sistema pasa de activo a pasivo. | ADR-003 · F1 |
-| H-06 | 🔴 | **Auditoría llegando en Fase 5.** El log de auditoría queda al final, junto con los reportes. | Todo lo construido en las fases 1-4 (caja, cobros, anulaciones) queda sin rastro. Y el fraude interno es la amenaza n.º 1 de un POS. | §7.4 · F2 |
-| H-07 | 🟠 | **RBAC declarado pero no especificado.** Cinco roles listados, sin matriz de permisos, sin verificación de pertenencia a sucursal y sin *deny-by-default*. | Un cajero de una sucursal anula tickets de otra. Escalada trivial. | §7.3 |
-| H-08 | 🟠 | **Multi-tenencia indefinida.** Se llama «SaaS» y tiene `Branch`, pero nunca decide si sirve a varios clientes. | Si entra un segundo cliente hay que rehacer el modelo de datos y migrar todo. | ADR-002 · DEC-3 |
-| H-09 | 🟠 | **Descarga de inventario ambigua.** Dice «al facturar **o** al preparar», sin decidir. | Doble descuento o ningún descuento. El inventario deja de servir en semanas. | §6.5 · ADR-012 |
-| H-10 | 🟠 | **Sin estrategia de pruebas.** No se menciona testing en ninguna de las 7 fases. | En un sistema que maneja dinero e impuestos es inaceptable: cada cambio es una apuesta. | §10.1 |
-| H-11 | 🟠 | **Sin CI/CD, entornos, respaldos ni recuperación.** No hay dev/staging/prod, ni RPO/RTO. | Un disco dañado borra el histórico fiscal y no hay forma de revertir un despliegue malo. | §10.3 · §10.4 |
-| H-12 | 🟠 | **Sin observabilidad.** Nada detecta «la comanda no llegó a cocina». | Los fallos los descubre el cliente enojado, no el equipo. | §10.2 |
-| H-13 | 🟠 | **Datos de menores sin tratamiento.** Registra nombres de niños y teléfonos de representantes sin minimización, consentimiento ni retención. | Riesgo legal y reputacional desproporcionado al beneficio. | §7.6 |
-| H-14 | 🟠 | **Sin propinas ni servicio.** Un restaurante sin manejo del 10 % de servicio y su reparto no es usable. | Módulo entero faltante, descubierto en producción. | F6 |
-| H-15 | 🟠 | **Sin arquitectura modular explícita.** El árbol de carpetas de v1 agrupa por *capa técnica* (`components/`, `lib/`), no por dominio, y nada impide que el POS importe internals del inventario. | A los pocos meses todo depende de todo: cambiar el precio de un plato rompe el KDS. | §9 |
-| H-16 | 🟡 | **Versiones del stack desactualizadas.** Fija Next.js 14 y no fija Node, Prisma ni NestJS. | Se arranca con dos versiones mayores de atraso el día uno. | §4 |
-| H-17 | 🟡 | **Sin `businessDate`.** No distingue día calendario de día de negocio. | El corte Z de las 2 a.m. parte las ventas en dos días y los reportes mienten. | ADR-009 |
-| H-18 | 🟡 | **Cronómetro sin fuente de verdad.** No define si el tiempo lo calcula el cliente o el servidor. | El reloj mal configurado de una tablet regala o cobra tiempo de más. | ADR-010 |
-| H-19 | 🟡 | **Sesiones de parque sin cierre forzado.** Nada define qué pasa si un niño se va sin check-out. | Sesiones abiertas acumulando cargos infinitos y ocupando el tablero. | F5 |
-| H-20 | 🟡 | **EZVIZ Cloud SDK como pasarela de video.** Dependencia de una nube de terceros para ver cámaras que están en la misma LAN. | Latencia, *lock-in*, y cámaras que dejan de verse cuando cae internet. | ADR-014 |
-| H-21 | 🟡 | **Sin rollout, migración de datos ni capacitación.** El plan termina en «software listo», no en «negocio operando». | El proyecto se entrega y no se usa. | F12 |
-
-### 1.3 Cambios estructurales respecto a v1
-
-1. **Se antepone una Fase 0 de descubrimiento y cumplimiento.** Antes de escribir código hay que
-   responder preguntas de las que depende el modelo de datos (fiscalidad, tenencia, offline).
-2. **El «Núcleo Monetario y Fiscal» pasa a ser su propia fase temprana (F3).** En v1 el dinero
-   estaba repartido entre caja y facturación, lo que obliga a rehacerlo. Monedas, tasas, impuestos
-   y ledger se construyen **una sola vez y antes** de que algo cobre.
-3. **Auditoría y RBAC suben a F2**, antes de cualquier operación con dinero.
-4. **Se separa «Facturación» de «Comandas».** En v1 iban juntas; son dominios distintos con reglas
-   legales distintas y ciclos de vida distintos.
-5. **Se añade §9, arquitectura modular y estándares**, que en v1 no existía: fronteras entre
-   módulos, biblioteca de componentes reutilizables y reglas que impiden la duplicación.
-6. **Se añaden fases de endurecimiento (F11) y de puesta en marcha real (F12).**
-7. **Cada tarea gana un criterio de aceptación verificable.**
 ---
 
 ## 2. CONTEXTO DE NEGOCIO Y ALCANCE
@@ -955,6 +901,34 @@ Reglas derivadas del análisis de visualización, para que el panel informe en l
 - [ ] Funciona a 1024 × 768 (monitores POS antiguos) y en tablet 8".
 - [ ] Sin desplazamiento horizontal en el cuerpo de la página.
 - [ ] Textos escritos desde el lado del usuario: el botón dice qué pasa, el error dice cómo arreglarlo.
+
+### 8.8 Pantallas sin scroll de página — decisión del 2026-09-11
+
+El cliente pidió que en escritorio las pantallas **no se alarguen hacia abajo**. No es estética: con
+cola delante, lo que queda bajo el pliegue no existe. Las reglas salen de NN/g, Material 3, Apple HIG
+y Shopify Polaris, y se verifican midiendo, no a ojo.
+
+**Tamaños de referencia.** Equipos fijos 1366×768 y tablet 1280×800 (el caso peor del hardware sin
+verificar; si cabe ahí, cabe en cualquier monitor mayor). En móvil el scroll es lo esperado.
+
+| Patrón | Cuándo | Ejemplo |
+|---|---|---|
+| **Estructura fija, scroll interno** | Siempre en estaciones desde 1024 px | La barra de estación no se mueve; solo se desplaza la lista que crece |
+| **Maestro-detalle** | Una lista y el elemento elegido | Caja: cola de cuentas a la izquierda, cobro a la derecha |
+| **Hoja lateral** (inferior en móvil) | Tarea acotada que acompaña al contexto | Ficha de un niño en la sala |
+| **Diálogo** | Decisión corta que hay que terminar | Confirmar el corte Z |
+| **Pestañas** | Contenido secundario del mismo objeto | Turno: arqueo · por punto · por medio · excepciones |
+
+**Lo que no se hace.** Un modal nunca aloja un flujo principal: rompe el camino y el botón de volver.
+Entrada, salida y caja son pantallas; las capas se abren encima.
+
+**Movimiento.** Avanzar en la jerarquía entra desde la derecha, volver desde la izquierda, mismo
+nivel es un fundido. Tras navegar, el foco pasa al contenido nuevo (WCAG). Todo respeta
+`prefers-reduced-motion` y nada espera a que termine una animación.
+
+**Verificación.** Un script mide `scrollHeight − innerHeight` de cada pantalla de parque y caja a
+1366×768 y 1280×800; el objetivo es cero.
+
 ---
 
 ## 9. ARQUITECTURA MODULAR, REUTILIZACIÓN Y ESTÁNDARES DE INGENIERÍA
@@ -1331,6 +1305,24 @@ Lo que **sí** se mantiene es el `tenant_id` y la RLS de ADR-002: cuesta una col
 ahora, y añadirlo después sería migrar un histórico fiscal. La capa de plataforma se puede
 construir encima el día que haga falta, sin tocar los datos.
 
+
+#### 9.10.9 La cuenta de la familia: cómo se enlazan entrada, salida y caja
+
+**DEC-21** fija que una familia paga el parque **de una de dos formas, según el cliente**, y se elige
+en cada entrada. Lo que enlaza las tres pantallas es **la cuenta de la familia**: nace en la entrada,
+la salida la actualiza y la caja la cierra.
+
+| Modo | En la entrada | En la salida | En la caja |
+|---|---|---|---|
+| **Prepago** | Se cobra el paquete: la cuenta pasa a caja y se vuelve a la entrada | Si hay excedente, solo eso pasa a caja; si no, la salida no cobra nada | Cobra lo que llega y devuelve a la pantalla de origen |
+| **Cuenta abierta** | Se abre la cuenta sin cobrar | Se cierra el tiempo y la cuenta entera —paquetes, excedente y restaurante— pasa a caja | Un solo cobro con todo |
+
+- **La caja es una cola de cuentas por cobrar** (maestro-detalle, §8.8): a la izquierda las cuentas
+  pendientes, a la derecha el cobro de la elegida.
+- **Cargar a una mesa** mueve la deuda del parque a la cuenta de la mesa: sigue siendo un solo pago.
+- **Cobrar devuelve a la pantalla de origen.** El cajero no busca a dónde volver.
+- Toda cuenta se cierra con un cobro o con una anulación con motivo: nada se borra (regla 5).
+
 ---
 
 ## 10. CALIDAD, OPERACIÓN Y CONTINUIDAD
@@ -1579,8 +1571,8 @@ considera terminado el frontend hasta esa revisión.
 
 ## 12. CHECKLIST MAESTRO DE EJECUCIÓN
 
-> **Estado al 2026-09-09:** 22 tareas hechas y 20 parciales. El detalle con evidencia por
-> tarea está en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan las casillas.
+> **Estado:** la evidencia por tarea vive en **[PROGRESO.md](PROGRESO.md)**; aquí solo se marcan
+> las casillas. Un recuento escrito a mano en este encabezado se desincronizaba con cada tarea.
 > `[x]` hecha y verificada · `[~]` en curso o parcial · `[ ]` pendiente.
 
 Formato: `[ ] ID · Tarea` seguido del **criterio de aceptación**, que es lo que decide si está hecha.
@@ -2004,7 +1996,7 @@ cuando el trámite esté listo.*
 
 ## 14. DECISIONES DEL CLIENTE
 
-**Las veinte estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09.
+**Las veintiuna estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 el 2026-09-11.
 
 ### 14.1 Cerradas
 
@@ -2030,6 +2022,7 @@ cuando el trámite esté listo.*
 | **DEC-18** OK | Parque: pantalla fija y tablet | **Ambas** | El monitor corre como pantalla de pared de solo lectura y tambien se consulta en tablet |
 | **DEC-19** OK | Pantalla de cocina | **Las dos: KDS en tablet + comanda impresa** | Un KDS es una pagina web y corre en una tablet barata, no hace falta un tercer equipo fijo. La pantalla es la fuente de verdad —estados, tiempos de espera, aviso al mesero— y el papel es el objeto que se maneja en la linea (ADR-015). La tablet va **fuera de la linea de fuego**, con carcasa y montada en pared: hay calor y grasa |
 | **DEC-20** OK | Capa de plataforma | **No. Abby Kingdom es el unico cliente por ahora** | No se construyen registro de clientes, planes ni facturacion de suscripcion. El `tenant_id` y la RLS se mantienen: cuestan poco ahora y son carisimos despues (§9.10.8) |
+| **DEC-21** OK | Como paga una familia el parque | **Las dos, segun el cliente**: prepago o cuenta abierta, elegido en cada entrada | La cuenta de la familia enlaza entrada, salida y caja (§9.10.9). En prepago se cobra el paquete al entrar y solo el excedente al salir; en cuenta abierta, parque y restaurante se pagan juntos al irse. La caja pasa a ser una cola de cuentas por cobrar |
 
 ### 14.3 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
 
