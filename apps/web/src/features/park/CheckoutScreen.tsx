@@ -1,20 +1,22 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import {
-  CircleCheckBig,
-  LogOut,
-  TriangleAlert,
-  Utensils,
-  Wallet,
-  X,
-} from "lucide-react";
+import { CircleCheckBig, ScanLine, TriangleAlert, Utensils, Wallet, X } from "lucide-react";
 import {
   CheckoutCommandSchema,
   WristbandCodeSchema,
   type MonitorSnapshotDto,
 } from "@l2/contracts";
-import { Badge, Button, Container, Initial, MoneyDisplay, ScannerField, StatTile } from "@l2/ui";
+import {
+  Badge,
+  Button,
+  Container,
+  Initial,
+  MoneyDisplay,
+  ScannerField,
+  ScanPrompt,
+  StatTile,
+} from "@l2/ui";
 import { PackageOpen } from "lucide-react";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
 import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
@@ -122,7 +124,7 @@ export function CheckoutScreen({
         <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4">
           <div>
             <div>
-              <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
+              <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
                 Salida del parque
               </h1>
               <p className="mt-1.5 text-[13px] text-ink-3">
@@ -161,16 +163,12 @@ export function CheckoutScreen({
           )}
 
           {!hayAlgo ? (
-            <div className="rounded-[var(--radius-card)] border border-dashed border-line bg-surface px-6 py-16 text-center">
-              <LogOut size={30} className="mx-auto text-ink-3" aria-hidden="true" />
-              <p className="font-display mt-3 text-lg font-semibold text-ink">
-                Ninguna salida en curso
-              </p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-ink-2">
-                Se pueden pasar varias pulseras seguidas: la familia se va junta y se cobra una
-                sola vez.
-              </p>
-            </div>
+            <ScanPrompt
+              icon={<ScanLine size={40} aria-hidden="true" />}
+              titulo="Pasa la pulsera de quien se va"
+              detalle="Si se va la familia entera, pasa todas seguidas: se liquidan juntas, con el desglose de cada niño, y se cobra una sola vez."
+              pasos={["Pasa las pulseras", "Revisa el desglose", "Cobra o carga a la mesa"]}
+            />
           ) : (
             <ul className="flex flex-col gap-3">
               {preview.lines.map((l) => {

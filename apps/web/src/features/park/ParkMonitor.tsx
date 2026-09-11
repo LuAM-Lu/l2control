@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Baby, OctagonAlert, TimerReset, Users } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Container, EmptyState, ScannerField, StatTile } from "@l2/ui";
+import { Container, EmptyState, ScannerField, cn } from "@l2/ui";
 import { ParkChildCard } from "./ParkChildCard";
 import type { MonitorModel } from "./view-model";
 
@@ -60,39 +60,33 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
     <div className="flex flex-1 flex-col">
       {/* Barra permanente (§8.5): turno, aforo, estado y tasa vigente con su
           origen y su hora. El operador no debe tener que buscar nada de esto. */}
+      {/* Las cifras de sala se leen a dos metros, así que van grandes y solas.
+          El título «Monitor de parque» sobraba: la pestaña «Sala» de la barra
+          ya dice dónde estás, y el título ocupaba el sitio de las cifras. */}
       <header className="border-b border-line">
-        <Container ancho="muro" className="py-4">
-          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-            <div>
-              <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
-                Monitor de parque
-              </h1>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-x-7 gap-y-4">
-              <StatTile
-                label="En sala"
-                value={counts.total}
-                suffix={`/ ${model.capacityLimit}`}
-                tone={capacityTone}
-                icon={<Users size={11} aria-hidden="true" />}
-              />
-              <StatTile
-                label="Cumplidos"
-                value={counts.expired}
-                tone={counts.expired > 0 ? "crit" : "idle"}
-                urgent={counts.expired > 0}
-                icon={<OctagonAlert size={11} aria-hidden="true" />}
-              />
-              <StatTile
-                label="Por vencer"
-                value={counts.warning}
-                tone={counts.warning > 0 ? "warn" : "idle"}
-                icon={<TimerReset size={11} aria-hidden="true" />}
-              />
-
-            </div>
-          </div>
+        <h1 className="sr-only">Monitor de parque</h1>
+        <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-3.5">
+          <Contador
+            etiqueta="En sala"
+            valor={counts.total}
+            sufijo={`de ${model.capacityLimit}`}
+            tono={capacityTone}
+            icono={<Users size={14} aria-hidden="true" />}
+            barra={Math.round((counts.total / Math.max(1, model.capacityLimit)) * 100)}
+          />
+          <Contador
+            etiqueta="Tiempo cumplido"
+            valor={counts.expired}
+            tono={counts.expired > 0 ? "crit" : "idle"}
+            urgente={counts.expired > 0}
+            icono={<OctagonAlert size={14} aria-hidden="true" />}
+          />
+          <Contador
+            etiqueta="Por vencer"
+            valor={counts.warning}
+            tono={counts.warning > 0 ? "warn" : "idle"}
+            icono={<TimerReset size={14} aria-hidden="true" />}
+          />
         </Container>
       </header>
 
@@ -134,6 +128,76 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
           mueve lo que se ve, nunca lo que se cobra.
         </p>
       </Container>
+    </div>
+  );
+}
+
+const TONO_CIFRA = {
+  ok: "text-state-ok",
+  warn: "text-state-warn",
+  crit: "text-state-crit",
+  idle: "text-ink",
+} as const;
+
+/**
+ * Contador de sala. Color + icono + texto, nunca solo color (§8.2): la
+ * etiqueta toma el color del estado junto con su icono, y cuando el valor es
+ * cero vuelve a neutro — un «0» en rojo sería una alarma falsa.
+ */
+function Contador({
+  etiqueta,
+  valor,
+  sufijo,
+  tono,
+  icono,
+  urgente = false,
+  barra,
+}: {
+  etiqueta: string;
+  valor: number;
+  sufijo?: string;
+  tono: keyof typeof TONO_CIFRA;
+  icono: React.ReactNode;
+  urgente?: boolean;
+  barra?: number;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span
+        className={cn(
+          "flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.09em] uppercase",
+          tono === "idle" ? "text-ink-3" : TONO_CIFRA[tono],
+        )}
+      >
+        <span className="shrink-0">{icono}</span>
+        <span className="truncate">{etiqueta}</span>
+      </span>
+      <span className="flex items-baseline gap-2">
+        <span
+          className={cn(
+            "tnum font-display text-[clamp(2rem,3.4vw,2.75rem)] leading-none font-bold tracking-tight",
+            TONO_CIFRA[tono],
+            urgente && "l2-pulse",
+          )}
+        >
+          {valor}
+        </span>
+        {sufijo && <span className="tnum text-[15px] text-ink-3">{sufijo}</span>}
+      </span>
+      {barra !== undefined && (
+        <span
+          aria-hidden="true"
+          className="block h-1 w-full max-w-48 overflow-hidden rounded-full bg-surface-2"
+        >
+          <span
+            className={cn(
+              "block h-full rounded-full",
+              barra >= 100 ? "bg-state-crit" : barra >= 90 ? "bg-state-warn" : "bg-state-ok",
+            )}
+            style={{ width: `${Math.min(barra, 100)}%` }}
+          />
+        </span>
+      )}
     </div>
   );
 }

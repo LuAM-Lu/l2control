@@ -197,6 +197,33 @@ cuatro cifras del día arriba con su comparación contra el mismo día de la sem
 atención en tarjetas compactas, y el detalle abajo. Las barras de «entró hoy» comparan **solo
 dentro de cada moneda**: mezclar bolívares y dólares en una barra daría una imagen falsa.
 
+## Pase de diseño de las estaciones — 2026-09-11
+
+El mismo criterio de densidad y jerarquía que se aplicó a caja, llevado al resto.
+
+| Pantalla | Qué estaba mal | Qué se hizo |
+|---|---|---|
+| Turno | El arqueo —la tarea— compartía ancho con información de solo lectura; campos de billetes de tamaño ratón; los cortes bajo el pliegue | Arqueo en la columna ancha con contador táctil de 48 px y subtotal por fila; cuadre y cortes al lado, clavados; el libro debajo |
+| Entrada y salida | Estado vacío pequeño y media pantalla en negro | `ScanPrompt`: la espera ocupa el hueco, dice la acción en grande y enseña el recorrido en pasos |
+| Acceso | Tarjeta pequeña flotando en una pantalla vacía | Pantalla de bloqueo: hora en grande, dispositivo autorizado y personas con objetivos de toque de 96 px |
+| Monitor | Título ocupando el sitio de las cifras de sala | Tres contadores grandes, color + icono + texto, que vuelven a neutro en cero |
+
+**Arreglado en la raíz, no por pantalla.** Un botón de color deshabilitado se veía como un amarillo
+o un rojo apagado —parece roto—. Se había parcheado en caja; ahora lo resuelve `Button` una vez, y
+entrada, salida y turno lo heredan.
+
+**Componentes nuevos, reutilizables.** `Stepper` y `ScanPrompt` en `@l2/ui`, sin conocer el
+dominio. `EntradasPorMedio` y `ExcepcionesTurno` en `features/cash`: inicio y turno pintaban la
+misma información de dos formas distintas.
+
+**Un fallo de comportamiento destapado.** El turno avisaba de «diferencia en el arqueo» con la
+gaveta sin tocar: todo lo esperado aparecía como faltante antes de contar un billete. Ahora la
+diferencia solo se señala en lo ya contado, y sin conteo pide contar antes del corte Z.
+
+Comprobado en navegador: el arqueo cuadra de punta a punta (3×20 + 1×10 = 70,00 contra 70,58 →
+«Falta 0,58», con el teórico oculto hasta contar), y 15 rutas × 6 anchos sin desplazamiento
+horizontal.
+
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |

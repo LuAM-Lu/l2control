@@ -13,6 +13,7 @@ export { useServerClock } from "./useServerClock";
 export { Button, type ButtonProps, type Surface } from "./primitives/Button";
 export { Badge, type Tone } from "./primitives/Badge";
 export { Input } from "./primitives/Input";
+export { Stepper } from "./primitives/Stepper";
 
 // Nivel 2 — patrones: componen primitivos, siguen sin conocer el dominio
 export { Container } from "./patterns/Container";
@@ -27,3 +28,4 @@ export { MoneyDisplay } from "./patterns/MoneyDisplay";
 export { ScannerField } from "./patterns/ScannerField";
 export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBadge";
 export { EmptyState } from "./patterns/EmptyState";
+export { ScanPrompt } from "./patterns/ScanPrompt";

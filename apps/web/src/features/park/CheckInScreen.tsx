@@ -2,20 +2,24 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  CircleCheckBig,
-  Phone,
-  TriangleAlert,
-  UserRound,
-  X,
-} from "lucide-react";
+import { CircleCheckBig, Phone, ScanLine, TriangleAlert, X } from "lucide-react";
 import {
   CheckInCommandSchema,
   WristbandCodeSchema,
   type GuardianDto,
   type PricePackageDto,
 } from "@l2/contracts";
-import { Badge, Button, Container, Initial, Input, MoneyDisplay, ScannerField, StatTile } from "@l2/ui";
+import {
+  Badge,
+  Button,
+  Container,
+  Initial,
+  Input,
+  MoneyDisplay,
+  ScannerField,
+  ScanPrompt,
+  StatTile,
+} from "@l2/ui";
 import { sum, toMajor, zero } from "@l2/domain-money";
 import { computeCapacity } from "@l2/domain-park";
 import { PackagePicker } from "./PackagePicker";
@@ -196,7 +200,7 @@ export function CheckInScreen({
         <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4">
           <div>
             <div>
-              <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight text-ink">
+              <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
                 Entrada al parque
               </h1>
               <p className="mt-1.5 text-[13px] text-ink-3">
@@ -238,16 +242,17 @@ export function CheckInScreen({
           )}
 
           {entradas.length === 0 ? (
-            <div className="rounded-[var(--radius-card)] border border-dashed border-line bg-surface px-6 py-16 text-center">
-              <UserRound size={30} className="mx-auto text-ink-3" aria-hidden="true" />
-              <p className="font-display mt-3 text-lg font-semibold text-ink">
-                Ningún niño en esta entrada
-              </p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-ink-2">
-                Cada pulsera que pases crea una fila. No hace falta tocar la pantalla para
-                empezar.
-              </p>
-            </div>
+            <ScanPrompt
+              icon={<ScanLine size={40} aria-hidden="true" />}
+              titulo="Pasa la primera pulsera"
+              detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila y el cursor salta solo al nombre del niño."
+              pasos={[
+                "Pasa las pulseras",
+                "Escribe los nombres",
+                "Busca al representante",
+                "Registra y cobra",
+              ]}
+            />
           ) : (
             <ul className="flex flex-col gap-3">
               {entradas.map((e, i) => (

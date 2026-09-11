@@ -557,12 +557,9 @@ export function CajaScreen({
             </div>
           )}
 
-          {/* Deshabilitado se pinta como NEUTRO, no como un primario apagado:
-              un botón de marca al 35 % de opacidad parece estropeado, y el
-              cajero no distingue «no puedo» de «se rompió». */}
           <Button
             surface="pos"
-            variant={puedeCobrar ? "primary" : "neutral"}
+            variant="primary"
             disabled={!puedeCobrar}
             onClick={cobrar}
             className="w-full text-base"

@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { ArrowLeft, Lock, MonitorSmartphone, ShieldAlert, TriangleAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Lock,
+  MonitorSmartphone,
+  ShieldAlert,
+  TriangleAlert,
+} from "lucide-react";
 import {
   DEFAULT_LOCKOUT_POLICY,
   checkDevice,
@@ -46,6 +53,17 @@ export type Operador = Readonly<{
 
 const PIN_LENGTH = 4;
 
+const FORMATO_HORA = new Intl.DateTimeFormat("es-VE", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+const FORMATO_FECHA = new Intl.DateTimeFormat("es-VE", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
 export function AccesoScreen({
   device,
   operadores,
@@ -61,6 +79,18 @@ export function AccesoScreen({
   const [ahora, setAhora] = useState(() => Date.now());
   const [entrando, setEntrando] = useState(false);
   const router = useRouter();
+
+  // Reloj de la pantalla de bloqueo. Se arranca en el cliente para no chocar
+  // con la hora del servidor al hidratar. Es solo presentación: el instante
+  // que cuenta para cobrar sigue viniendo del servidor (ADR-010).
+  const [reloj, setReloj] = useState<number | null>(null);
+  useEffect(() => {
+    setReloj(Date.now());
+    const id = setInterval(() => setReloj(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, []);
+  const hora = reloj === null ? null : FORMATO_HORA.format(reloj);
+  const fecha = reloj === null ? null : FORMATO_FECHA.format(reloj);
 
   const revision = useMemo(() => checkDevice(device), [device]);
   const bloqueo = computeLockout(fallos, ultimoFallo, ahora, DEFAULT_LOCKOUT_POLICY);
@@ -116,43 +146,80 @@ export function AccesoScreen({
 
   /* ------------------------------------------------ elegir persona */
 
+  /**
+   * Pantalla de bloqueo del dispositivo compartido.
+   *
+   * Antes era una tarjeta pequeña flotando en medio de una pantalla vacía.
+   * Un equipo compartido pasa buena parte del día aquí, así que esta pantalla
+   * hace el trabajo de una pantalla de bloqueo de verdad: la hora en grande,
+   * qué dispositivo es y que está autorizado, y las personas del turno con
+   * objetivos de toque grandes.
+   */
   if (!operador) {
     return (
-      <div className="grid flex-1 place-content-center bg-base px-6 py-10">
-        <div className="w-full max-w-lg">
-          <div className="mb-6 text-center">
-            <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
-              {device!.label}
-            </Badge>
-            <h1 className="font-display mt-4 text-3xl font-bold text-ink">¿Quién entra?</h1>
-            <p className="mt-1.5 text-sm text-ink-2">Toca tu nombre para escribir el PIN</p>
+      <div className="grid flex-1 bg-base lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <section className="flex flex-col justify-between gap-10 border-b border-line bg-surface/30 px-8 py-10 lg:border-r lg:border-b-0 lg:px-12 lg:py-14">
+          <div className="flex items-center gap-3">
+            <span className="font-display grid size-10 place-content-center rounded-[0.65rem] bg-brand text-base font-bold text-on-brand">
+              L2
+            </span>
+            <span>
+              <span className="font-display block font-bold text-ink">Abby Kingdom</span>
+              <span className="block text-[12px] text-ink-3">Parque y restaurante</span>
+            </span>
           </div>
 
-          <ul className="grid grid-cols-2 gap-3">
-            {operadores.map((o) => (
-              <li key={o.id}>
-                <button
-                  type="button"
-                  onClick={() => setOperador(o)}
-                  className={cn(
-                    "flex min-h-20 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-card)]",
-                    "border border-line bg-surface px-4 text-left transition-colors",
-                    "hover:border-brand/50 hover:bg-surface-2",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                  )}
-                >
-                  <Initial name={o.nombre} tone="brand" />
-                  <span className="min-w-0">
-                    <span className="font-display block truncate font-semibold text-ink">
-                      {o.nombre}
+          <div>
+            <p className="tnum font-display text-[clamp(4rem,9vw,7rem)] leading-none font-bold tracking-tight text-ink">
+              {hora ?? "--:--"}
+            </p>
+            <p className="mt-3 text-lg text-ink-2 first-letter:uppercase">{fecha ?? " "}</p>
+          </div>
+
+          <div>
+            <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
+              {device!.label} · autorizado
+            </Badge>
+          </div>
+        </section>
+
+        <section className="flex flex-col justify-center px-6 py-10 lg:px-14">
+          <div className="mx-auto w-full max-w-xl">
+            <h1 className="font-display text-3xl font-bold text-ink">¿Quién entra?</h1>
+            <p className="mt-1.5 text-[15px] text-ink-2">Toca tu nombre y escribe tu PIN.</p>
+
+            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+              {operadores.map((o) => (
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    onClick={() => setOperador(o)}
+                    className={cn(
+                      "group flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-[var(--radius-card)]",
+                      "border border-line bg-surface px-5 text-left shadow-card",
+                      "transition-[transform,border-color,box-shadow] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
+                      "hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-lift",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                    )}
+                  >
+                    <Initial name={o.nombre} tone="brand" className="size-12 text-lg" />
+                    <span className="min-w-0 flex-1">
+                      <span className="font-display block truncate text-[17px] font-bold text-ink">
+                        {o.nombre}
+                      </span>
+                      <span className="block text-[13px] text-ink-3">{o.rol}</span>
                     </span>
-                    <span className="block text-[12px] text-ink-3">{o.rol}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+                    <ArrowRight
+                      size={17}
+                      aria-hidden="true"
+                      className="shrink-0 text-ink-3 transition-[transform,color] duration-[var(--dur-rapida)] group-hover:translate-x-0.5 group-hover:text-brand"
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       </div>
     );
   }
