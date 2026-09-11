@@ -5,9 +5,10 @@ import Link from "next/link";
 import { CircleCheckBig, Phone, ScanLine, TriangleAlert, X } from "lucide-react";
 import {
   CheckInCommandSchema,
-  WristbandCodeSchema,
   type GuardianDto,
+  type PaymentMode,
   type PricePackageDto,
+  WristbandCodeSchema,
 } from "@l2/contracts";
 import {
   Badge,
@@ -19,9 +20,14 @@ import {
   ScannerField,
   ScanPrompt,
   StatTile,
+  cn,
 } from "@l2/ui";
 import { sum, toMajor, zero } from "@l2/domain-money";
 import { computeCapacity } from "@l2/domain-park";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
+import { abrirCuenta } from "../cuentas/cuentas.ts";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
 
@@ -75,7 +81,11 @@ export function CheckInScreen({
   const [aviso, setAviso] = useState<string | null>(null);
   const [telefono, setTelefono] = useState("");
   const [nombreNuevo, setNombreNuevo] = useState("");
-  const [enviado, setEnviado] = useState<{ ninos: number; total: string } | null>(null);
+  const [enviado, setEnviado] = useState<{ ninos: number; familia: string } | null>(null);
+  // DEC-21: cómo paga esta familia. Se elige en cada entrada.
+  const [modo, setModo] = useState<PaymentMode>("PREPAGO");
+  const router = useRouter();
+  const { guardar } = useCuentas();
 
   const nameRefs = useRef(new Map<string, HTMLInputElement | null>());
 
@@ -183,13 +193,43 @@ export function CheckInScreen({
       return;
     }
 
-    // TODO(F5-02/backend): aquí irá la llamada real. La forma del comando ya
-    // es la definitiva, así que ese cambio no toca esta pantalla (§11.4).
-    setEnviado({ ninos: entradas.length, total: toMajor(total) });
+    // Cada niño con su paquete. Un paquete que ya no existe en el catálogo
+    // no se cobra «a cero»: se detiene el registro (fail-closed).
+    const ninos = [];
+    for (const e of entradas) {
+      const p = packages.find((x) => x.id === e.packageId);
+      if (!p) {
+        setAviso(`El paquete de ${e.name.trim()} ya no existe en el catálogo`);
+        return;
+      }
+      ninos.push({
+        sessionId: `s-${e.uid}`,
+        concepto: `Paquete ${p.name} · ${e.nickname.trim() || e.name.trim()}`,
+        precio: p.price,
+      });
+    }
+
+    // TODO(F5-02/backend): aquí irá la llamada real; el servidor abrirá las
+    // estancias y la cuenta con estas mismas reglas (§11.4).
+    const cuenta = abrirCuenta({
+      familia: encontrado?.fullName ?? nombreNuevo.trim(),
+      modo,
+      ahora: new Date().toISOString(),
+      ninos,
+    });
+    guardar(cuenta);
     setEntradas([]);
     setTelefono("");
     setNombreNuevo("");
     setAviso(null);
+
+    if (modo === "PREPAGO") {
+      // Prepago: el paquete se cobra ya. La caja recibe la cuenta y, al
+      // cobrar, devuelve aquí para la siguiente familia (§9.10.9).
+      router.push(`/caja?cuenta=${cuenta.id}&volver=/entrada` as Route);
+      return;
+    }
+    setEnviado({ ninos: cuenta.sessionIds.length, familia: cuenta.family });
   }
 
   /* ------------------------------------------------------------ pintado */
@@ -351,10 +391,43 @@ export function CheckInScreen({
             />
           )}
 
+          {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. */}
+          <fieldset className="flex flex-col">
+            <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
+              Cómo paga
+            </legend>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(
+                [
+                  ["PREPAGO", "Pagar ahora", "Al salir, solo el tiempo de más"],
+                  ["CUENTA_ABIERTA", "Cuenta abierta", "Todo junto al salir"],
+                ] as const
+              ).map(([valor, nombre, detalle]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  aria-pressed={modo === valor}
+                  onClick={() => setModo(valor)}
+                  className={cn(
+                    "flex min-h-12 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 py-2 text-left",
+                    "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                    modo === valor
+                      ? "border-brand bg-brand/12 text-ink"
+                      : "border-line bg-base text-ink-2 hover:text-ink",
+                  )}
+                >
+                  <span className="text-[13px] font-semibold">{nombre}</span>
+                  <span className="text-[11px] leading-snug text-ink-3">{detalle}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
           <div className="mt-1 border-t border-line pt-4">
             <div className="flex items-baseline justify-between">
               <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
-                Total a cobrar
+                Paquetes
               </span>
               <MoneyDisplay value={toMajor(total)} currency={total.currency} size="lg" />
             </div>
@@ -372,7 +445,7 @@ export function CheckInScreen({
             onClick={registrar}
             className="w-full"
           >
-            Registrar y cobrar
+            {modo === "PREPAGO" ? "Registrar y cobrar" : "Registrar y abrir cuenta"}
           </Button>
 
           {/* §8.7: el motivo por el que un botón está deshabilitado se dice,
@@ -394,8 +467,9 @@ export function CheckInScreen({
             >
               <CircleCheckBig size={16} className="mt-0.5 shrink-0 text-state-ok" aria-hidden="true" />
               <p className="text-[13px] text-ink">
-                {enviado.ninos} {enviado.ninos === 1 ? "niño registrado" : "niños registrados"} por
-                USD {enviado.total}.{" "}
+                Cuenta abierta para <strong>{enviado.familia}</strong>:{" "}
+                {enviado.ninos} {enviado.ninos === 1 ? "niño" : "niños"}. Se cobra todo junto al
+                salir.{" "}
                 <Link href="/monitor" className="underline">
                   Ver en el monitor
                 </Link>

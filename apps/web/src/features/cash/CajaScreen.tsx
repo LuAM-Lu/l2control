@@ -26,8 +26,14 @@ import {
   type PointOfSale,
   type Tender,
 } from "@l2/domain-cash";
-import { Badge, Button, Container, MoneyDisplay, NumericKeypad, cn } from "@l2/ui";
+import { Badge, Button, Container, Dialog, MoneyDisplay, NumericKeypad, cn } from "@l2/ui";
 import type { MedioPago } from "./fixtures.ts";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
+import type { FamilyAccountDto } from "@l2/contracts";
+import { lineasParaCobrar, marcarCobrada, pendiente } from "../cuentas/cuentas.ts";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 
 /**
  * Caja: cobro mixto, IGTF y vuelto — F4-03, F4-04b.
@@ -42,17 +48,21 @@ import type { MedioPago } from "./fixtures.ts";
  * propina o residuo—, porque un sobrante sin explicación es dinero perdido
  * (§5.6).
  */
-export function CajaScreen({
+function CobroCuenta({
   lines,
+  cuenta,
+  onCobrado,
   rules,
   tenders: mediosDisponibles,
   igtfBasisPoints,
   maxRetained,
   rate,
-  puntoDeCobro,
   serverNow,
 }: {
   lines: readonly DocumentLine[];
+  /** La cuenta que se cobra: su familia y su modo encabezan el ticket. */
+  cuenta: FamilyAccountDto;
+  onCobrado: (r: { total: string; vuelto: string }) => void;
   rules: readonly TaxRule[];
   tenders: readonly MedioPago[];
   igtfBasisPoints: number;
@@ -189,6 +199,7 @@ export function CajaScreen({
         maxRetained,
       });
       setCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut) });
+      onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut) });
       setPagos([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cerrar el cobro");
@@ -237,35 +248,13 @@ export function CajaScreen({
     aBolivares && aBolivares.from === falta.currency ? toMajor(convert(falta, aBolivares)) : null;
 
   return (
-    <div className="flex flex-1 flex-col">
-      {/* Cabecera delgada: el título no compite con la cifra. */}
-      <header className="border-b border-line">
-        <Container ancho="operacion" className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3">
-          <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
-            Caja
-          </h1>
-          <p className="text-[13px] text-ink-3">
-            {lines.length} {lines.length === 1 ? "concepto" : "conceptos"} · cobra en {puntoDeCobro === "TAQUILLA" ? "taquilla" : "mostrador"}
-          </p>
-        </Container>
-      </header>
-
-      <Container
-        as="main"
-        ancho="operacion"
-        className={cn(
-          "grid flex-1 gap-5 py-5",
-          // Por debajo de lg, flujo normal: en un teléfono encajonar el
-          // contenido en una altura fija es peor que dejarlo correr.
-          "lg:h-[calc(100dvh-8.5rem)] lg:grid-cols-[minmax(0,1fr)_clamp(380px,32vw,440px)]",
-        )}
-      >
+    <>
         {/* ═══════════════════════ la cuenta ═══════════════════════════ */}
         <section className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
           <div className="flex items-baseline justify-between border-b border-line px-5 py-3.5">
             <h2 className="font-display text-base font-bold text-ink">La cuenta</h2>
             <span className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
-              Estancia · mesa 12
+              {cuenta.family} · {cuenta.mode === "PREPAGO" ? "prepago" : "cuenta abierta"}
             </span>
           </div>
 
@@ -447,7 +436,7 @@ export function CajaScreen({
                   onClick={() => setMedioActivo(m)}
                   title={bloqueado ? "Sin tasa del día no se puede cobrar en esta moneda" : m.label}
                   className={cn(
-                    "flex min-h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-2.5 text-left",
+                    "flex min-h-12 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-2.5 text-left",
                     "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     "disabled:cursor-not-allowed disabled:opacity-35",
@@ -492,7 +481,7 @@ export function CajaScreen({
             surface="tablet"
             onSubmit={agregarPago}
             submitLabel="Añadir"
-            className="min-h-0 flex-1 grid-rows-4 [&>button]:h-full"
+            className="min-h-0 flex-1 grid-rows-4 [&>button]:h-full [&>button]:min-h-11"
           />
 
           {faltaTasa && (
@@ -575,7 +564,222 @@ export function CajaScreen({
             {puedeCobrar ? "Cerrar cobro" : `Faltan ${toMajor(falta)} USD`}
           </Button>
         </aside>
+    </>
+  );
+}
+
+/* ═════════════════════════════════════════════ la caja: cola y cobro ══ */
+
+/**
+ * Caja como COLA DE CUENTAS POR COBRAR — DEC-21, §9.10.9, §8.8.
+ *
+ * Maestro-detalle (Apple HIG): a la izquierda las cuentas que esperan, a la
+ * derecha el cobro de la elegida, con la selección siempre resaltada. Llegan
+ * desde la entrada —prepago— y desde la salida —excedente o cuenta abierta—,
+ * y al cobrar la caja devuelve a la pantalla de origen.
+ */
+
+/** A dónde puede volver la caja. Solo rutas conocidas: un `?volver=` libre
+ *  sería una redirección abierta. */
+const ORIGEN: Readonly<Record<string, { ruta: Route; nombre: string }>> = {
+  "/entrada": { ruta: "/entrada", nombre: "Entrada" },
+  "/salida": { ruta: "/salida", nombre: "Salida" },
+};
+
+type CobroProps = Parameters<typeof CobroCuenta>[0];
+
+export function CajaScreen({
+  cuentaInicial,
+  volver,
+  ...cobro
+}: Omit<CobroProps, "lines" | "cuenta" | "onCobrado"> & {
+  cuentaInicial: string | null;
+  volver: string | null;
+}) {
+  const { cuentas, guardar } = useCuentas();
+  const router = useRouter();
+  const porCobrar = cuentas.filter((c) => c.status === "POR_COBRAR");
+  const [elegida, setElegida] = useState<string | null>(cuentaInicial);
+  const actual = porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
+  const lineas = useMemo(() => (actual ? lineasParaCobrar(actual) : []), [actual]);
+  const origen = volver !== null ? (ORIGEN[volver] ?? null) : null;
+  const [resultado, setResultado] = useState<{
+    familia: string;
+    total: string;
+    vuelto: string;
+  } | null>(null);
+
+  function alCobrar(cuenta: FamilyAccountDto, r: { total: string; vuelto: string }) {
+    guardar(marcarCobrada(cuenta));
+    setElegida(null);
+    setResultado({ familia: cuenta.family, ...r });
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Cabecera delgada: el título no compite con la cifra. */}
+      <header className="border-b border-line">
+        <Container ancho="operacion" className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3">
+          <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
+            Caja
+          </h1>
+          <p className="tnum text-[13px] text-ink-3">
+            {porCobrar.length} {porCobrar.length === 1 ? "cuenta por cobrar" : "cuentas por cobrar"}{" "}
+            · cobra en {cobro.puntoDeCobro === "TAQUILLA" ? "taquilla" : "mostrador"}
+          </p>
+        </Container>
+      </header>
+
+      <Container
+        as="main"
+        ancho="operacion"
+        className={cn(
+          "grid flex-1 gap-4 py-4",
+          // Desde lg la caja se reparte el alto de la ventana y cada columna
+          // se desplaza por dentro (§8.8). Por debajo, flujo normal.
+          "lg:min-h-0 lg:grid-cols-[15rem_minmax(0,1fr)_clamp(360px,30vw,420px)]",
+        )}
+      >
+        <ColaCuentas cuentas={porCobrar} actual={actual?.id ?? null} onElegir={setElegida} />
+        {actual ? (
+          <CobroCuenta
+            key={actual.id}
+            {...cobro}
+            cuenta={actual}
+            lines={lineas}
+            onCobrado={(r) => alCobrar(actual, r)}
+          />
+        ) : (
+          <SinCuentas />
+        )}
       </Container>
+
+      {/* Resultado del cobro: una decisión corta —volver o seguir—, que es
+          justo para lo que sirve un diálogo (§8.8). */}
+      <Dialog
+        abierto={resultado !== null}
+        onCerrar={() => setResultado(null)}
+        titulo="Cobro cerrado"
+        {...(resultado ? { descripcion: `Cuenta de ${resultado.familia}` } : {})}
+        pie={
+          <div className="flex flex-col gap-2 sm:flex-row-reverse">
+            {origen && (
+              <Button
+                surface="tablet"
+                variant="primary"
+                className="flex-1"
+                onClick={() => router.push(origen.ruta)}
+              >
+                Volver a {origen.nombre}
+              </Button>
+            )}
+            <Button
+              surface="tablet"
+              variant={origen ? "neutral" : "primary"}
+              className="flex-1"
+              onClick={() => setResultado(null)}
+            >
+              {porCobrar.length > 0 ? "Siguiente cuenta" : "Listo"}
+            </Button>
+          </div>
+        }
+      >
+        {resultado && (
+          <div className="flex items-start gap-3">
+            <CircleCheckBig size={22} className="mt-0.5 shrink-0 text-state-ok" aria-hidden="true" />
+            <div className="text-[14px]">
+              <p className="text-ink">
+                Cobrados <strong className="tnum">USD {resultado.total}</strong>.
+              </p>
+              {resultado.vuelto !== "0.00" && (
+                <p className="tnum mt-1 text-ink-2">Vuelto entregado: USD {resultado.vuelto}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </Dialog>
     </div>
+  );
+}
+
+function ColaCuentas({
+  cuentas,
+  actual,
+  onElegir,
+}: {
+  cuentas: readonly FamilyAccountDto[];
+  actual: string | null;
+  onElegir: (id: string) => void;
+}) {
+  return (
+    <section
+      aria-label="Cuentas por cobrar"
+      className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card"
+    >
+      <div className="flex items-baseline justify-between border-b border-line px-4 py-3">
+        <h2 className="font-display text-base font-bold text-ink">Por cobrar</h2>
+        <span className="tnum text-[12px] text-ink-3">{cuentas.length}</span>
+      </div>
+      {cuentas.length === 0 ? (
+        <p className="px-4 py-4 text-[13px] text-ink-3">La cola está vacía.</p>
+      ) : (
+        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
+          {cuentas.map((c) => {
+            const activa = c.id === actual;
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  aria-pressed={activa}
+                  onClick={() => onElegir(c.id)}
+                  className={cn(
+                    "flex min-h-14 w-full cursor-pointer flex-col gap-1 rounded-[var(--radius-control)] border px-3 py-2.5 text-left",
+                    "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                    activa ? "border-brand bg-brand/12" : "border-transparent hover:bg-surface-2",
+                  )}
+                >
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-[13.5px] font-semibold text-ink">{c.family}</span>
+                    <MoneyDisplay value={toMajor(pendiente(c))} currency="USD" size="sm" />
+                  </span>
+                  <span className="text-[11.5px] text-ink-3">
+                    {c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"} · {c.sessionIds.length}{" "}
+                    {c.sessionIds.length === 1 ? "niño" : "niños"}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function SinCuentas() {
+  return (
+    <section className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center lg:col-span-2">
+      <CircleCheckBig size={32} className="text-state-ok" aria-hidden="true" />
+      <p className="font-display text-xl font-bold text-ink">Nada por cobrar</p>
+      <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
+        Las cuentas llegan aquí desde la entrada, cuando la familia paga al entrar, y desde la
+        salida, cuando queda algo pendiente.
+      </p>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
+        <Link
+          href="/entrada"
+          className="flex min-h-11 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+        >
+          Ir a la entrada
+        </Link>
+        <Link
+          href="/salida"
+          className="flex min-h-11 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+        >
+          Ir a la salida
+        </Link>
+      </div>
+    </section>
   );
 }

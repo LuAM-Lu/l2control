@@ -5,7 +5,7 @@
  * el caso que enlaza con la pantalla de salida.
  */
 import { fromMajor } from "@l2/domain-money";
-import type { DocumentLine, PaymentMethodSpec, TaxRule } from "@l2/domain-tax";
+import type { PaymentMethodSpec, TaxRule } from "@l2/domain-tax";
 import type { TenderMethod } from "@l2/domain-cash";
 
 /**
@@ -76,30 +76,5 @@ export const DEMO_TENDERS: MedioPago[] = [
     currency: "USDT",
     triggersIgtf: true,
     canGiveChange: false,
-  },
-];
-
-/** Cuenta de ejemplo: la salida de dos niños del parque. */
-export const DEMO_LINES: DocumentLine[] = [
-  {
-    id: "l1",
-    description: "Paquete 1 hora · Vale",
-    unitPrice: fromMajor("5.00", "USD"),
-    quantity: 1n,
-    taxCode: "GENERAL",
-  },
-  {
-    id: "l2",
-    description: "Paquete 30 min · Santiago",
-    unitPrice: fromMajor("3.00", "USD"),
-    quantity: 1n,
-    taxCode: "GENERAL",
-  },
-  {
-    id: "l3",
-    description: "Tiempo de más · Santiago (1 bloque)",
-    unitPrice: fromMajor("1.50", "USD"),
-    quantity: 1n,
-    taxCode: "GENERAL",
   },
 ];

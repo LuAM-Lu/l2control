@@ -1,25 +1,34 @@
 import { CajaScreen } from "../../../src/features/cash/CajaScreen";
 import {
   DEMO_IGTF_BASIS_POINTS,
-  DEMO_LINES,
   DEMO_MAX_RETAINED,
   DEMO_TAX_RULES,
   DEMO_TENDERS,
 } from "../../../src/features/cash/fixtures";
 
 /**
- * Caja: cobro mixto, IGTF y vuelto (F4-03, F4-04b).
+ * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
+ *
+ * `?cuenta=` elige la cuenta que llega desde la entrada o la salida, y
+ * `?volver=` dice a qué pantalla regresar al cobrar. La caja solo acepta
+ * rutas de vuelta que conoce: nada de redirecciones abiertas.
  *
  * La tasa se fija AQUÍ, en el servidor, y se congela para toda la
- * transacción (ADR-005). Si no hubiera tasa confirmada del día, se pasaría
- * `null` y la pantalla bloquearía el cobro en bolívares — fail-closed.
+ * transacción (ADR-005). Sin tasa confirmada se pasaría `null` y la pantalla
+ * bloquearía el cobro en bolívares — fail-closed.
  */
 export const dynamic = "force-dynamic";
 
-export default function CajaPage() {
+export default async function CajaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cuenta?: string; volver?: string }>;
+}) {
+  const { cuenta, volver } = await searchParams;
   return (
     <CajaScreen
-      lines={DEMO_LINES}
+      cuentaInicial={cuenta ?? null}
+      volver={volver ?? null}
       rules={DEMO_TAX_RULES}
       tenders={DEMO_TENDERS}
       igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}

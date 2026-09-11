@@ -1,4 +1,5 @@
 import { DEFAULT_STATION_IDLE } from "@l2/domain-identity";
+import { CuentasProvider } from "../../src/features/cuentas/CuentasProvider";
 import { IdleGuard } from "../../src/features/shell/IdleGuard";
 import { PageTransition } from "../../src/features/shell/PageTransition";
 import { StationBar } from "../../src/features/shell/StationBar";
@@ -24,6 +25,9 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
     // barra queda quieta y cada pantalla reparte su alto por dentro (patrón
     // de estructura fija). En móvil vuelve el flujo normal, donde el scroll es
     // lo esperado.
+    // Las cuentas de las familias (DEC-21) viven por encima de las pantallas:
+    // entrada, salida y caja trabajan sobre las mismas.
+    <CuentasProvider>
     <div className="flex min-h-dvh flex-col bg-base lg:h-dvh lg:overflow-hidden">
       <StationBar
         contexto={{
@@ -41,5 +45,6 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
           sucursal; la forma ya es la definitiva. */}
       <IdleGuard politica={DEFAULT_STATION_IDLE} usuario="Marisol Prieto" />
     </div>
+    </CuentasProvider>
   );
 }

@@ -18,6 +18,11 @@ import {
   StatTile,
 } from "@l2/ui";
 import { PackageOpen } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
+import { sum, toMajor } from "@l2/domain-money";
+import { pendiente, registrarSalida } from "../cuentas/cuentas.ts";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
 import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
 
@@ -48,6 +53,8 @@ export function CheckoutScreen({
   const [cerrado, setCerrado] = useState<{ ninos: number; total: string; destino: string } | null>(
     null,
   );
+  const { cuentas, guardar } = useCuentas();
+  const router = useRouter();
 
   const preview = useMemo(
     () => buildCheckoutPreview(snapshot, seleccionados),
@@ -70,6 +77,12 @@ export function CheckoutScreen({
         setAviso(`La pulsera ${limpio} no corresponde a ningún niño en sala`);
         return;
       }
+      // Fail-closed: una estancia ya cerrada no se vuelve a liquidar.
+      const suCuenta = cuentas.find((c) => c.sessionIds.includes(sesion.id));
+      if (suCuenta?.closedSessionIds.includes(sesion.id)) {
+        setAviso(`${sesion.kid.nickname ?? sesion.kid.name} ya salió`);
+        return;
+      }
       if (seleccionados.includes(sesion.id)) {
         setAviso(`${sesion.kid.name} ya está en esta salida`);
         return;
@@ -77,7 +90,7 @@ export function CheckoutScreen({
       setSeleccionados((prev) => [...prev, sesion.id]);
       setAviso(null);
     },
-    [snapshot.sessions, seleccionados],
+    [snapshot.sessions, seleccionados, cuentas],
   );
 
   const validarPulsera = useCallback(
@@ -117,6 +130,84 @@ export function CheckoutScreen({
   }
 
   const hayAlgo = preview.lines.length > 0;
+
+  /**
+   * Qué pasa con cada cuenta si esta salida se confirma (DEC-21). Se calcula
+   * ANTES de confirmar para que el botón y el resumen digan exactamente lo
+   * que va a ocurrir: nada, solo el excedente, o la cuenta entera.
+   */
+  const plan = useMemo(() => {
+    const porCuenta = new Map<
+      string,
+      {
+        cuenta: (typeof cuentas)[number];
+        salen: string[];
+        excedentes: { sessionId: string; concept: string; amount: { minor: string; currency: "USD" | "VES" | "USDT" } }[];
+      }
+    >();
+    const sinCuenta: string[] = [];
+    for (const l of preview.lines) {
+      const c = cuentas.find(
+        (x) => x.sessionIds.includes(l.sessionId) && !x.closedSessionIds.includes(l.sessionId),
+      );
+      const nombre = l.kid.nickname ?? l.kid.name;
+      if (!c) {
+        sinCuenta.push(nombre);
+        continue;
+      }
+      const g = porCuenta.get(c.id) ?? { cuenta: c, salen: [], excedentes: [] };
+      g.salen.push(l.sessionId);
+      if (l.penaltyBlocks > 0) {
+        g.excedentes.push({
+          sessionId: l.sessionId,
+          concept: `Tiempo de más · ${nombre} (${l.penaltyBlocks === 1 ? "1 bloque" : `${l.penaltyBlocks} bloques`})`,
+          amount: l.overdue,
+        });
+      }
+      porCuenta.set(c.id, g);
+    }
+    const resultados = [...porCuenta.values()].map((g) =>
+      registrarSalida(g.cuenta, g.salen, g.excedentes),
+    );
+    return { resultados, sinCuenta };
+  }, [preview.lines, cuentas]);
+
+  const porCobrar = plan.resultados.filter((c) => c.status === "POR_COBRAR");
+  const aCobrar = sum(porCobrar.map(pendiente), "USD");
+
+  function confirmarSalida() {
+    if (plan.sinCuenta.length > 0) {
+      // Fail-closed: sin cuenta no se sabe quién paga ni qué se pagó ya.
+      setAviso(`Sin cuenta: ${plan.sinCuenta.join(", ")}. No se puede cerrar su salida.`);
+      return;
+    }
+    const r = CheckoutCommandSchema.safeParse({
+      idempotencyKey: globalThis.crypto.randomUUID(),
+      sessionIds: seleccionados,
+      disposition: { kind: "TAQUILLA" },
+    });
+    if (!r.success) {
+      setAviso(r.error.issues[0]?.message ?? "No se puede cerrar la salida");
+      return;
+    }
+
+    // TODO(F5-14/backend): el servidor cerrará las estancias con estas reglas.
+    for (const c of plan.resultados) guardar(c);
+    const ninos = seleccionados.length;
+    setSeleccionados([]);
+    setAviso(null);
+
+    const unica = porCobrar[0];
+    if (porCobrar.length === 1 && unica) {
+      router.push(`/caja?cuenta=${unica.id}&volver=/salida` as Route);
+      return;
+    }
+    if (porCobrar.length > 1) {
+      router.push("/caja?volver=/salida" as Route);
+      return;
+    }
+    setCerrado({ ninos, total: "0.00", destino: "sin cargo: estaba todo pagado" });
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -270,32 +361,61 @@ export function CheckoutScreen({
           <div className="border-t border-line pt-4">
             <div className="flex items-baseline justify-between">
               <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
-                Total
+                A cobrar ahora
               </span>
-              <MoneyDisplay
-                value={moneyDtoToMajor(preview.total)}
-                currency={preview.total.currency}
-                size="lg"
-              />
+              <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
             </div>
             <p className="mt-1 text-[12px] text-ink-3">
               {preview.lines.length === 0
                 ? "Sin niños en esta salida"
-                : `${preview.lines.length} ${preview.lines.length === 1 ? "niño" : "niños"}`}
+                : `${preview.lines.length} ${preview.lines.length === 1 ? "niño" : "niños"} · parque USD ${moneyDtoToMajor(preview.total)}`}
             </p>
           </div>
 
           {/* Las dos rutas del plan. Producen el mismo total; cambia a dónde
               va la deuda. */}
+          {/* Qué le pasa a cada cuenta, antes de confirmar (DEC-21). */}
+          {plan.resultados.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {plan.resultados.map((c) => {
+                const p = pendiente(c);
+                return (
+                  <li
+                    key={c.id}
+                    className="rounded-[var(--radius-control)] border border-line bg-base/40 px-3 py-2.5 text-[13px]"
+                  >
+                    <p className="flex items-center justify-between gap-2">
+                      <span className="truncate font-semibold text-ink">{c.family}</span>
+                      <Badge tone={c.mode === "PREPAGO" ? "idle" : "brand"}>
+                        {c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                      </Badge>
+                    </p>
+                    <p className="tnum mt-1 text-ink-3">
+                      {p.amount === 0n
+                        ? "Todo pagado: sale sin cargo"
+                        : c.status === "POR_COBRAR"
+                          ? `A cobrar ahora: USD ${toMajor(p)}`
+                          : `Se acumula USD ${toMajor(p)} hasta que salga el resto`}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
           <Button
             surface="pos"
             variant="primary"
             disabled={!hayAlgo}
-            onClick={() => liquidar("TAQUILLA")}
+            onClick={confirmarSalida}
             className="w-full"
           >
             <Wallet size={17} aria-hidden="true" />
-            Cobrar en taquilla
+            {porCobrar.length === 0
+              ? "Registrar salida sin cargo"
+              : porCobrar.length === 1
+                ? `Cobrar USD ${toMajor(aCobrar)} en caja`
+                : `Enviar ${porCobrar.length} cuentas a caja`}
           </Button>
 
           <Button

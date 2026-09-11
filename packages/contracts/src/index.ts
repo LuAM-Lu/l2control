@@ -76,3 +76,14 @@ export {
   type UsersDirectoryDto,
   type PermissionExceptionCommand,
 } from "./identity.ts";
+
+export {
+  PaymentModeSchema,
+  AccountStatusSchema,
+  AccountLineSchema,
+  FamilyAccountSchema,
+  type PaymentMode,
+  type AccountStatus,
+  type AccountLineDto,
+  type FamilyAccountDto,
+} from "./account.ts";
