@@ -356,6 +356,20 @@ describe("totalización del turno", () => {
     assert.equal(toMajor(t.drawer[0]!.expected), "75.00");
   });
 
+  test("lo cobrado por medio NO incluye el fondo inicial ni las salidas", () => {
+    // Es la diferencia entre «lo que entró hoy» y «lo que se movió». Sumar el
+    // fondo inflaría la venta del día con dinero que ya estaba en la gaveta.
+    const t = tallyShift([
+      mv("OPENING_FLOAT", "EFECTIVO_USD", usd("50.00"), true),
+      mv("PAYMENT", "EFECTIVO_USD", usd("20.00"), true),
+      mv("CHANGE_OUT", "EFECTIVO_USD", usd("3.00"), true),
+      mv("PAYOUT", "EFECTIVO_USD", usd("5.00"), true),
+    ]);
+    const efectivo = t.byMethod.find((m) => m.methodCode === "EFECTIVO_USD")!;
+    assert.equal(toMajor(efectivo.charged), "20.00");
+    assert.equal(toMajor(efectivo.total), "62.00");
+  });
+
   test("separa monedas: dólares y bolívares no se mezclan en la gaveta", () => {
     const t = tallyShift([
       mv("OPENING_FLOAT", "EFECTIVO_USD", usd("50.00"), true),

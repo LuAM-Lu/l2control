@@ -322,7 +322,17 @@ export type MethodTotal = Readonly<{
   methodCode: string;
   currency: CurrencyCode;
   inDrawer: boolean;
+  /**
+   * Movimiento NETO del medio en el turno: fondo inicial, cobros, vueltos,
+   * propinas y salidas. Sirve para conciliar; no es «lo que entró».
+   */
   total: Money;
+  /**
+   * Solo lo cobrado por ese medio. Es la cifra de «lo que entró hoy»: sin el
+   * fondo, que ya estaba en la gaveta, ni las salidas, que no son ventas.
+   * Confundir las dos infla la venta del día con dinero que no se vendió.
+   */
+  charged: Money;
 }>;
 
 export type DrawerExpectation = Readonly<{
@@ -392,11 +402,13 @@ export function tallyShift(movements: readonly ShiftMovement[]): ShiftTally {
 
     const clave = `${mv.methodCode}|${mv.amount.currency}`;
     const previo = porMedio.get(clave);
+    const cobrado = mv.kind === "PAYMENT" ? mv.amount : zero(mv.amount.currency);
     porMedio.set(clave, {
       methodCode: mv.methodCode,
       currency: mv.amount.currency,
       inDrawer: mv.inDrawer,
       total: previo ? add(previo.total, signed) : signed,
+      charged: previo ? add(previo.charged, cobrado) : cobrado,
     });
 
     if (!mv.inDrawer) continue;

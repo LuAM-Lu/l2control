@@ -73,17 +73,18 @@ export default function InicioPage() {
     });
   }
 
-  // Solo los ingresos, no el fondo inicial ni las salidas: eso es «lo que
-  // entró hoy», no el saldo de la gaveta.
+  // «Lo que entró hoy» es LO COBRADO, no el movimiento neto del medio. Antes
+  // se usaba el neto y el efectivo en dólares salía en 70,58: incluía los
+  // 50,00 del fondo inicial y restaba la salida de caja. Lo cobrado fue 35,17.
   const porMedio: PorMedio[] = tally.byMethod
-    .filter((m) => m.total.amount > 0n)
+    .filter((m) => m.charged.amount > 0n)
     .map((m) => ({
       medio: MEDIO_LABEL[m.methodCode] ?? m.methodCode,
       moneda: m.currency,
-      total: toMajor(m.total),
+      total: toMajor(m.charged),
       // Las unidades menores viajan como texto: la proporción de las barras se
       // calcula con enteros, sin pasar el dinero por un decimal (§5.1).
-      minor: m.total.amount.toString(),
+      minor: m.charged.amount.toString(),
       enGaveta: m.inDrawer,
     }));
 
