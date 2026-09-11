@@ -14,6 +14,7 @@ import { Container, MoneyDisplay, cn } from "@l2/ui";
 import type { Excepcion } from "../cash/shift-fixtures.ts";
 import { EntradasPorMedio, type PorMedio } from "../cash/EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "../cash/ExcepcionesTurno.tsx";
+import { PuntosDeCobro, type FilaPunto } from "../cash/PuntosDeCobro.tsx";
 
 // El tipo vive con su componente; se reexporta porque la página lo importa
 // desde aquí.
@@ -57,6 +58,7 @@ export function InicioScreen({
   atenciones,
   porMedio,
   gaveta,
+  puntos,
   ninosHoy,
   ninosSemanaPasada,
   enSala,
@@ -72,6 +74,7 @@ export function InicioScreen({
   atenciones: readonly Atencion[];
   porMedio: readonly PorMedio[];
   gaveta: readonly SaldoMoneda[];
+  puntos: readonly FilaPunto[];
   ninosHoy: number;
   ninosSemanaPasada: number;
   enSala: number;
@@ -228,14 +231,16 @@ export function InicioScreen({
 
       {/* ────────────────────────────── 3 · el detalle ───────────────────── */}
       <div className="grid gap-5 lg:grid-cols-2">
-        <EntradasPorMedio porMedio={porMedio} />
-        <ExcepcionesTurno excepciones={excepciones} />
+        <div className="flex min-w-0 flex-col gap-5">
+          <PuntosDeCobro filas={puntos} />
+          <EntradasPorMedio porMedio={porMedio} />
+        </div>
+        <ExcepcionesTurno excepciones={excepciones} className="h-fit" />
       </div>
 
       <p className="mt-8 border-t border-line pt-4 text-[11.5px] text-ink-3">
         Las cifras del día salen del libro de movimientos, con el mismo dominio que usa el arqueo.
-        La comparación con la semana pasada necesita histórico y hoy es de ejemplo, igual que el
-        desglose por punto de cobro, que llega con F4-01b.
+        La comparación con la semana pasada necesita histórico y hoy es de ejemplo.
       </p>
     </Container>
   );

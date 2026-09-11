@@ -37,29 +37,33 @@ export const DENOMINACIONES: Record<"USD" | "VES", Money[]> = {
   ],
 };
 
+/**
+ * Una tarde con los dos puntos de cobro (DEC-13): la taquilla cobra entradas
+ * y excedentes del parque; el mostrador, lo demás. Misma gaveta, mismo turno.
+ */
 export const DEMO_SHIFT_MOVEMENTS: ShiftMovement[] = [
-  // Fondo inicial declarado por moneda (F4-01)
-  { kind: "OPENING_FLOAT", methodCode: "EFECTIVO_USD", amount: fromMajor("50.00", "USD"), inDrawer: true },
-  { kind: "OPENING_FLOAT", methodCode: "EFECTIVO_VES", amount: fromMajor("2000.00", "VES"), inDrawer: true },
+  // Fondo inicial declarado por moneda (F4-01). Es del turno, no de un punto.
+  { kind: "OPENING_FLOAT", methodCode: "EFECTIVO_USD", amount: fromMajor("50.00", "USD"), inDrawer: true, origin: "TURNO" },
+  { kind: "OPENING_FLOAT", methodCode: "EFECTIVO_VES", amount: fromMajor("2000.00", "VES"), inDrawer: true, origin: "TURNO" },
 
-  // Cobros de la tarde
-  { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: fromMajor("11.17", "USD"), inDrawer: true },
-  { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: fromMajor("24.00", "USD"), inDrawer: true },
-  { kind: "PAYMENT", methodCode: "EFECTIVO_VES", amount: fromMajor("3426.15", "VES"), inDrawer: true },
-  { kind: "PAYMENT", methodCode: "PAGO_MOVIL", amount: fromMajor("18272.80", "VES"), inDrawer: false },
-  { kind: "PAYMENT", methodCode: "PDV_DEBITO", amount: fromMajor("9136.40", "VES"), inDrawer: false },
-  { kind: "PAYMENT", methodCode: "ZELLE", amount: fromMajor("35.00", "USD"), inDrawer: false },
-  { kind: "PAYMENT", methodCode: "USDT", amount: fromMajor("18.00", "USDT"), inDrawer: false },
+  // Cobros de la tarde, cada uno con su punto
+  { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: fromMajor("11.17", "USD"), inDrawer: true, origin: "MOSTRADOR" },
+  { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: fromMajor("24.00", "USD"), inDrawer: true, origin: "TAQUILLA" },
+  { kind: "PAYMENT", methodCode: "EFECTIVO_VES", amount: fromMajor("3426.15", "VES"), inDrawer: true, origin: "TAQUILLA" },
+  { kind: "PAYMENT", methodCode: "PAGO_MOVIL", amount: fromMajor("18272.80", "VES"), inDrawer: false, origin: "MOSTRADOR" },
+  { kind: "PAYMENT", methodCode: "PDV_DEBITO", amount: fromMajor("9136.40", "VES"), inDrawer: false, origin: "TAQUILLA" },
+  { kind: "PAYMENT", methodCode: "ZELLE", amount: fromMajor("35.00", "USD"), inDrawer: false, origin: "MOSTRADOR" },
+  { kind: "PAYMENT", methodCode: "USDT", amount: fromMajor("18.00", "USDT"), inDrawer: false, origin: "MOSTRADOR" },
 
-  // Vueltos entregados: SALEN de la gaveta
-  { kind: "CHANGE_OUT", methodCode: "EFECTIVO_USD", amount: fromMajor("2.59", "USD"), inDrawer: true },
-  { kind: "CHANGE_OUT", methodCode: "EFECTIVO_VES", amount: fromMajor("573.85", "VES"), inDrawer: true },
+  // Vueltos entregados: SALEN de la gaveta, desde el punto donde se dieron
+  { kind: "CHANGE_OUT", methodCode: "EFECTIVO_USD", amount: fromMajor("2.59", "USD"), inDrawer: true, origin: "MOSTRADOR" },
+  { kind: "CHANGE_OUT", methodCode: "EFECTIVO_VES", amount: fromMajor("573.85", "VES"), inDrawer: true, origin: "TAQUILLA" },
 
   // Propina en efectivo: está en la gaveta aunque no sea ingreso del negocio
-  { kind: "TIP_IN_DRAWER", methodCode: "EFECTIVO_USD", amount: fromMajor("3.00", "USD"), inDrawer: true },
+  { kind: "TIP_IN_DRAWER", methodCode: "EFECTIVO_USD", amount: fromMajor("3.00", "USD"), inDrawer: true, origin: "MOSTRADOR" },
 
-  // Salida de caja registrada
-  { kind: "PAYOUT", methodCode: "EFECTIVO_USD", amount: fromMajor("15.00", "USD"), inDrawer: true },
+  // Salida de caja registrada: es del turno
+  { kind: "PAYOUT", methodCode: "EFECTIVO_USD", amount: fromMajor("15.00", "USD"), inDrawer: true, origin: "TURNO" },
 ];
 
 /** Etiquetas legibles de cada medio. */

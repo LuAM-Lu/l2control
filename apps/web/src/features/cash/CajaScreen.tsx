@@ -23,6 +23,7 @@ import {
   closeSettlement,
   computeBalance,
   type ChangeDisposition,
+  type PointOfSale,
   type Tender,
 } from "@l2/domain-cash";
 import { Badge, Button, Container, MoneyDisplay, NumericKeypad, cn } from "@l2/ui";
@@ -48,6 +49,7 @@ export function CajaScreen({
   igtfBasisPoints,
   maxRetained,
   rate,
+  puntoDeCobro,
   serverNow,
 }: {
   lines: readonly DocumentLine[];
@@ -58,6 +60,12 @@ export function CajaScreen({
   /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs.
    *  La tasa se MUESTRA en la barra de estación (§8.5); aquí solo se usa. */
   rate: FrozenRate | null;
+  /**
+   * Desde qué punto cobra este equipo (DEC-13). Sale del dispositivo —el
+   * aparato es del puesto (DEC-17)—, no de una elección del cajero en cada
+   * cobro: pedírselo a mano es garantizar que un día se equivoque.
+   */
+  puntoDeCobro: PointOfSale;
   serverNow: number;
 }) {
   const FUNCIONAL = "USD" as const;
@@ -237,7 +245,7 @@ export function CajaScreen({
             Caja
           </h1>
           <p className="text-[13px] text-ink-3">
-            {lines.length} {lines.length === 1 ? "concepto" : "conceptos"} · cobro mixto multimoneda
+            {lines.length} {lines.length === 1 ? "concepto" : "conceptos"} · cobra en {puntoDeCobro === "TAQUILLA" ? "taquilla" : "mostrador"}
           </p>
         </Container>
       </header>

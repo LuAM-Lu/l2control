@@ -6,6 +6,7 @@ import {
   type PorMedio,
   type SaldoMoneda,
 } from "../../../src/features/shell/InicioScreen";
+import type { FilaPunto } from "../../../src/features/cash/PuntosDeCobro";
 import {
   DEMO_EXCEPCIONES,
   DEMO_SHIFT_MOVEMENTS,
@@ -92,6 +93,13 @@ export default function InicioPage() {
     .map((d) => ({ moneda: d.currency, total: toMajor(d.expected) }))
     .sort((a, b) => (a.moneda === "USD" ? -1 : b.moneda === "USD" ? 1 : 0));
 
+  const puntos: FilaPunto[] = tally.byPoint.map((p) => ({
+    punto: p.point,
+    moneda: p.currency,
+    cobrado: toMajor(p.charged),
+    efectivoNeto: toMajor(p.cashNet),
+  }));
+
   const hoy = new Date();
 
   return (
@@ -99,6 +107,7 @@ export default function InicioPage() {
       atenciones={atenciones}
       porMedio={porMedio}
       gaveta={gaveta}
+      puntos={puntos}
       ninosHoy={modelo.cards.length}
       ninosSemanaPasada={11}
       enSala={modelo.cards.length}

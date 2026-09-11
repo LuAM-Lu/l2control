@@ -14,6 +14,7 @@ import { Badge, Button, Container, MoneyDisplay, Stepper, cn } from "@l2/ui";
 import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./shift-fixtures.ts";
 import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
+import { PuntosDeCobro, type FilaPunto } from "./PuntosDeCobro.tsx";
 
 /**
  * Turno de caja: arqueo y cortes X/Z — F4-05, F4-06, F4-07, F4-08.
@@ -96,6 +97,13 @@ export function TurnoScreen({
       minor: m.total.amount.toString(),
       enGaveta: m.inDrawer,
     }));
+
+  const puntos: FilaPunto[] = tally.byPoint.map((p) => ({
+    punto: p.point,
+    moneda: p.currency,
+    cobrado: toMajor(p.charged),
+    efectivoNeto: toMajor(p.cashNet),
+  }));
 
   /**
    * DENSIDAD Y JERARQUÍA — la tarea manda.
@@ -352,8 +360,13 @@ export function TurnoScreen({
 
         {/* ═══════════ lo que dice el libro: para quien lo revise ═══════════ */}
         <div className="grid gap-5 lg:grid-cols-2">
-          <EntradasPorMedio porMedio={porMedio} titulo="Movimiento por medio" />
-          <ExcepcionesTurno excepciones={excepciones} />
+          {/* El desglose por punto va primero: es lo que explica una
+              diferencia del cuadre de arriba (F4-01b). */}
+          <div className="flex min-w-0 flex-col gap-5">
+            <PuntosDeCobro filas={puntos} />
+            <EntradasPorMedio porMedio={porMedio} titulo="Movimiento por medio" />
+          </div>
+          <ExcepcionesTurno excepciones={excepciones} className="h-fit" />
         </div>
       </Container>
     </div>

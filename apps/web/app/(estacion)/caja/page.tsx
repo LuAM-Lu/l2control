@@ -25,6 +25,9 @@ export default function CajaPage() {
       igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}
       maxRetained={DEMO_MAX_RETAINED}
       rate={{ from: "VES", to: "USD", numerator: 22841n, denominator: 100n }}
+      // TODO(F2-12/backend): el punto sale del registro del dispositivo. El
+      // equipo de caja es el del mostrador.
+      puntoDeCobro="MOSTRADOR"
       serverNow={Date.now()}
     />
   );

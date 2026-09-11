@@ -8,8 +8,9 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { type FrozenRate, fromMajor, toMajor, zero } from "@l2/domain-money";
+import { type FrozenRate, add, fromMajor, subtract, toMajor, zero } from "@l2/domain-money";
 import {
+  MissingPointOfSaleError,
   MissingRateError,
   ShiftClosedError,
   assertShiftAcceptsMoney,
@@ -21,6 +22,7 @@ import {
   computeBalance,
   reconcile,
   type Tender,
+  type MovementOrigin,
   type TenderMethod,
 } from "./index.ts";
 
@@ -300,7 +302,14 @@ describe("totalización del turno", () => {
     methodCode: string,
     amount: ReturnType<typeof usd>,
     inDrawer: boolean,
-  ) => ({ kind, methodCode, amount, inDrawer });
+  ) => ({
+    kind,
+    methodCode,
+    amount,
+    inDrawer,
+    // El fondo y las salidas son del turno; todo cobro declara su punto (DEC-13).
+    origin: (kind === "OPENING_FLOAT" || kind === "PAYOUT" ? "TURNO" : "MOSTRADOR") as MovementOrigin,
+  });
 
   test("lo que NO está en la gaveta no entra en el arqueo de efectivo", () => {
     // Es la distinción que hace que un arqueo sirva: el Pago Móvil no está
@@ -388,9 +397,9 @@ describe("conteo por denominaciones (F4-07)", () => {
 
   test("el arqueo completo: contar, comparar y ver la diferencia", () => {
     const t = tallyShift([
-      { kind: "OPENING_FLOAT", methodCode: "EFECTIVO_USD", amount: usd("50.00"), inDrawer: true },
-      { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: usd("100.00"), inDrawer: true },
-      { kind: "CHANGE_OUT", methodCode: "EFECTIVO_USD", amount: usd("30.00"), inDrawer: true },
+      { kind: "OPENING_FLOAT", methodCode: "EFECTIVO_USD", amount: usd("50.00"), inDrawer: true, origin: "TURNO" as MovementOrigin },
+      { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: usd("100.00"), inDrawer: true, origin: "MOSTRADOR" as MovementOrigin },
+      { kind: "CHANGE_OUT", methodCode: "EFECTIVO_USD", amount: usd("30.00"), inDrawer: true, origin: "MOSTRADOR" as MovementOrigin },
     ]);
     const esperado = t.drawer[0]!.expected; // 120,00
     const contado = countDenominations(
@@ -406,5 +415,91 @@ describe("conteo por denominaciones (F4-07)", () => {
     assert.equal(toMajor(linea!.expected), "120.00");
     assert.equal(toMajor(linea!.counted), "115.00");
     assert.equal(toMajor(linea!.difference), "-5.00"); // faltan 5
+  });
+});
+
+describe("punto de cobro (F4-01b, DEC-13)", () => {
+  type Kind = Parameters<typeof tallyShift>[0][number]["kind"];
+  const mp = (
+    kind: Kind,
+    methodCode: string,
+    amount: ReturnType<typeof usd>,
+    inDrawer: boolean,
+    origin: MovementOrigin,
+  ) => ({ kind, methodCode, amount, inDrawer, origin });
+
+  // Una tarde con los dos puntos: el parque cobra en taquilla y el local en
+  // mostrador, dentro del mismo turno y la misma gaveta.
+  const turno = [
+    mp("OPENING_FLOAT", "EFECTIVO_USD", usd("50.00"), true, "TURNO"),
+    mp("PAYMENT", "EFECTIVO_USD", usd("24.00"), true, "TAQUILLA"),
+    mp("PAYMENT", "EFECTIVO_USD", usd("11.17"), true, "MOSTRADOR"),
+    mp("CHANGE_OUT", "EFECTIVO_USD", usd("2.59"), true, "MOSTRADOR"),
+    mp("PAYMENT", "ZELLE", usd("35.00"), false, "MOSTRADOR"),
+    mp("TIP_IN_DRAWER", "EFECTIVO_USD", usd("3.00"), true, "MOSTRADOR"),
+    mp("PAYOUT", "EFECTIVO_USD", usd("15.00"), true, "TURNO"),
+  ];
+
+  const punto = (t: ReturnType<typeof tallyShift>, p: "TAQUILLA" | "MOSTRADOR") =>
+    t.byPoint.find((x) => x.point === p && x.currency === "USD")!;
+
+  test("desglosa lo cobrado por punto, por cualquier medio", () => {
+    const t = tallyShift(turno);
+    assert.equal(toMajor(punto(t, "TAQUILLA").charged), "24.00");
+    // 11,17 en efectivo + 35,00 por Zelle.
+    assert.equal(toMajor(punto(t, "MOSTRADOR").charged), "46.17");
+  });
+
+  test("el efectivo de un punto descuenta el vuelto que se dio allí", () => {
+    const t = tallyShift(turno);
+    // 11,17 cobrados − 2,59 de vuelto + 3,00 de propina. El Zelle no es efectivo.
+    assert.equal(toMajor(punto(t, "MOSTRADOR").cashNet), "11.58");
+    assert.equal(toMajor(punto(t, "TAQUILLA").cashNet), "24.00");
+  });
+
+  test("un pago fuera de gaveta sube lo cobrado, no el efectivo", () => {
+    const sin = tallyShift(turno.filter((m) => m.methodCode !== "ZELLE"));
+    const con = tallyShift(turno);
+    assert.equal(toMajor(punto(sin, "MOSTRADOR").cashNet), toMajor(punto(con, "MOSTRADOR").cashNet));
+    assert.equal(toMajor(punto(con, "MOSTRADOR").charged), "46.17");
+    assert.equal(toMajor(punto(sin, "MOSTRADOR").charged), "11.17");
+  });
+
+  test("PROPIEDAD: fondo y salidas del turno + efectivo de cada punto = lo esperado en gaveta", () => {
+    // Si esto no se cumple, el desglose por punto no explica el arqueo: sería
+    // una tabla más, no una herramienta para encontrar una diferencia.
+    const t = tallyShift(turno);
+    const esperado = t.drawer.find((d) => d.currency === "USD")!.expected;
+    const deLosPuntos = t.byPoint
+      .filter((p) => p.currency === "USD")
+      .reduce((acc, p) => add(acc, p.cashNet), zero("USD"));
+    const delTurno = subtract(usd("50.00"), usd("15.00"));
+
+    assert.equal(toMajor(add(deLosPuntos, delTurno)), toMajor(esperado));
+    assert.equal(toMajor(esperado), "70.58");
+  });
+
+  test("un cobro sin punto de cobro no se totaliza: fail-closed", () => {
+    assert.throws(
+      () => tallyShift([mp("PAYMENT", "EFECTIVO_USD", usd("10.00"), true, "TURNO")]),
+      MissingPointOfSaleError,
+    );
+    // Tampoco si llega sin el campo: un dato mal migrado o un llamador en JS.
+    assert.throws(
+      () =>
+        tallyShift([
+          { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: usd("10.00"), inDrawer: true } as never,
+        ]),
+      MissingPointOfSaleError,
+    );
+  });
+
+  test("el fondo inicial y las salidas de caja no son de ningún punto", () => {
+    const t = tallyShift([
+      mp("OPENING_FLOAT", "EFECTIVO_USD", usd("50.00"), true, "TURNO"),
+      mp("PAYOUT", "EFECTIVO_USD", usd("15.00"), true, "TURNO"),
+    ]);
+    assert.equal(t.byPoint.length, 0);
+    assert.equal(toMajor(t.drawer[0]!.expected), "35.00");
   });
 });

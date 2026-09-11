@@ -1730,7 +1730,7 @@ Termina en el hito M1.*
 
 - [~] **F4-01 · Apertura de turno** con fondo inicial declarado por moneda.
   → *Criterio:* no se puede cobrar sin turno abierto; un dispositivo tiene un turno abierto como máximo (I-06).
-- [ ] **F4-01b · Cada cobro registra su punto de venta** (taquilla o mostrador) — DEC-13.
+- [~] **F4-01b · Cada cobro registra su punto de venta** (taquilla o mostrador) — DEC-13.
   → *Criterio:* el corte desglosa por punto de cobro; sin eso, una diferencia no se puede explicar.
 - [~] **F4-02 · Los siete medios de pago** como catálogo configurable (§9.9), no como `enum` en el código.
   → *Criterio:* añadir un medio de pago **no requiere desplegar**.

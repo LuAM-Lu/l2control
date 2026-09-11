@@ -228,6 +228,49 @@ export function assertShiftAcceptsMoney(status: ShiftStatus, action: string): vo
   if (status === "CERRADO_Z") throw new ShiftClosedError(action);
 }
 
+/* ------------------------------------------------- punto de cobro */
+
+/**
+ * Punto desde el que se cobra — F4-01b, DEC-13.
+ *
+ * DEC-13 eligió una sola caja para todo el local: un turno, una gaveta, un
+ * arqueo. A cambio, **cada cobro registra desde qué punto se hizo**. Sin eso,
+ * un faltante en el arqueo no se puede atribuir: pudo ser la taquilla del
+ * parque o el mostrador, y sin saberlo no hay a quién preguntar.
+ */
+export type PointOfSale = "TAQUILLA" | "MOSTRADOR";
+
+/**
+ * Origen de un movimiento del turno.
+ *
+ * `TURNO` es explícito y no un `null`: el fondo inicial y una salida de caja
+ * no pertenecen a ningún punto, y decirlo con una palabra evita la
+ * ambigüedad de «¿falta el dato o es que no aplica?» que ADR-011 prohíbe.
+ */
+export type MovementOrigin = PointOfSale | "TURNO";
+
+export class MissingPointOfSaleError extends Error {
+  constructor(kind: string, methodCode: string) {
+    super(
+      `El movimiento ${kind} (${methodCode}) no dice en qué punto se hizo: taquilla o ` +
+        `mostrador. Sin eso el corte no puede explicar una diferencia (DEC-13).`,
+    );
+    this.name = "MissingPointOfSaleError";
+  }
+}
+
+/** Movimientos que ocurren en un punto de cobro y por tanto deben declararlo. */
+const NEEDS_POINT: Record<ShiftMovementKind, boolean> = {
+  OPENING_FLOAT: false,
+  PAYMENT: true,
+  CHANGE_OUT: true,
+  TIP_IN_DRAWER: true,
+  RETAINED: true,
+  PAYOUT: false,
+};
+
+const POINT_ORDER: readonly PointOfSale[] = ["TAQUILLA", "MOSTRADOR"];
+
 /**
  * Movimiento de dinero dentro de un turno.
  *
@@ -256,6 +299,23 @@ export type ShiftMovement = Readonly<{
    * cuenta, no contra lo que hay en el cajón.
    */
   inDrawer: boolean;
+  /** Dónde ocurrió. Todo cobro, vuelto o propina declara su punto (DEC-13). */
+  origin: MovementOrigin;
+}>;
+
+/**
+ * Lo que pasó en un punto de cobro, en una moneda.
+ *
+ * `charged` y `cashNet` responden preguntas distintas: cuánto se cobró ahí
+ * por cualquier medio, y cuánto efectivo aportó ese punto a la gaveta una vez
+ * descontado el vuelto que se dio ahí. Es la segunda la que explica un
+ * faltante en el cajón.
+ */
+export type PointTotal = Readonly<{
+  point: PointOfSale;
+  currency: CurrencyCode;
+  charged: Money;
+  cashNet: Money;
 }>;
 
 export type MethodTotal = Readonly<{
@@ -277,6 +337,8 @@ export type DrawerExpectation = Readonly<{
 export type ShiftTally = Readonly<{
   byMethod: readonly MethodTotal[];
   drawer: readonly DrawerExpectation[];
+  /** Desglose por punto de cobro (F4-01b). Sin él, una diferencia no se explica. */
+  byPoint: readonly PointTotal[];
 }>;
 
 const SIGN: Record<ShiftMovementKind, 1n | -1n> = {
@@ -299,9 +361,34 @@ const SIGN: Record<ShiftMovementKind, 1n | -1n> = {
 export function tallyShift(movements: readonly ShiftMovement[]): ShiftTally {
   const porMedio = new Map<string, MethodTotal>();
   const porMoneda = new Map<CurrencyCode, { float: Money; in: Money; out: Money }>();
+  const porPunto = new Map<
+    string,
+    { point: PointOfSale; currency: CurrencyCode; charged: Money; cashNet: Money }
+  >();
 
   for (const mv of movements) {
     const signed = money(mv.amount.amount * SIGN[mv.kind], mv.amount.currency);
+
+    // Fail-closed: un cobro que no dice dónde se hizo no se totaliza. Se
+    // comprueba el valor y no solo el tipo, porque el dato puede llegar de
+    // una migración o de un llamador que no pasa por el compilador.
+    const enPunto = mv.origin === "TAQUILLA" || mv.origin === "MOSTRADOR";
+    if (NEEDS_POINT[mv.kind] && !enPunto) {
+      throw new MissingPointOfSaleError(mv.kind, mv.methodCode);
+    }
+
+    if (enPunto) {
+      const claveP = `${mv.origin}|${mv.amount.currency}`;
+      const p = porPunto.get(claveP) ?? {
+        point: mv.origin as PointOfSale,
+        currency: mv.amount.currency,
+        charged: zero(mv.amount.currency),
+        cashNet: zero(mv.amount.currency),
+      };
+      if (mv.kind === "PAYMENT") p.charged = add(p.charged, mv.amount);
+      if (mv.inDrawer) p.cashNet = add(p.cashNet, signed);
+      porPunto.set(claveP, p);
+    }
 
     const clave = `${mv.methodCode}|${mv.amount.currency}`;
     const previo = porMedio.get(clave);
@@ -337,9 +424,14 @@ export function tallyShift(movements: readonly ShiftMovement[]): ShiftTally {
     expected: subtract(add(a.float, a.in), a.out),
   }));
 
+  const byPoint = [...porPunto.values()].sort(
+    (a, b) => POINT_ORDER.indexOf(a.point) - POINT_ORDER.indexOf(b.point),
+  );
+
   return Object.freeze({
     byMethod: Object.freeze([...porMedio.values()]),
     drawer: Object.freeze(drawer),
+    byPoint: Object.freeze(byPoint),
   });
 }
 

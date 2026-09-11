@@ -224,6 +224,25 @@ Comprobado en navegador: el arqueo cuadra de punta a punta (3×20 + 1×10 = 70,0
 «Falta 0,58», con el teórico oculto hasta contar), y 15 rutas × 6 anchos sin desplazamiento
 horizontal.
 
+## F4-01b · Punto de cobro — 2026-09-11
+
+DEC-13 eligió una sola caja: un turno, una gaveta, un arqueo. El precio era que un faltante no se
+podía atribuir. Ahora **cada movimiento del turno declara su origen** —taquilla, mostrador o el
+propio turno, para el fondo inicial y las salidas de caja— y el cuadre lo desglosa.
+
+- **Fail-closed.** Un cobro, vuelto o propina sin punto no se totaliza: el dominio lo rechaza. Se
+  comprueba el valor y no solo el tipo, porque el dato puede llegar de una migración.
+- **Dos cifras por punto.** Lo cobrado, por cualquier medio; y el efectivo que ese punto aportó a la
+  gaveta, descontado el vuelto que se dio ahí. Es la segunda la que explica un faltante.
+- **La propiedad que lo hace útil**, con prueba: fondo y salidas del turno más el efectivo de cada
+  punto es exactamente lo esperado en la gaveta. Si no se cumpliera, el desglose sería una tabla
+  más y no una herramienta para encontrar una diferencia.
+- El punto **sale del dispositivo**, no de una elección en cada cobro: el aparato es del puesto
+  (DEC-17). Caja lo muestra en su cabecera.
+
+La regla nueva mordió al entrar: una prueba existente creaba cobros sin punto y el dominio los
+rechazó. Queda parcial hasta que el backend guarde el punto con cada cobro. Pruebas de caja: 29 → 35.
+
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |
