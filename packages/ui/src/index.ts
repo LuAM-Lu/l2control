@@ -14,6 +14,7 @@ export { Button, type ButtonProps, type Surface } from "./primitives/Button";
 export { Badge, type Tone } from "./primitives/Badge";
 export { Input } from "./primitives/Input";
 export { Stepper } from "./primitives/Stepper";
+export { Tabs, type Pestana } from "./primitives/Tabs";
 
 // Nivel 2 — patrones: componen primitivos, siguen sin conocer el dominio
 export { Container } from "./patterns/Container";

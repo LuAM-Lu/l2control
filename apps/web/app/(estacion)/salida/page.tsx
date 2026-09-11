@@ -4,12 +4,17 @@ import { demoSnapshot } from "../../../src/features/park/fixtures";
 /**
  * Salida y liquidación del parque (F5-14).
  *
- * Componente de servidor: el instante del cierre lo fija el servidor
- * (ADR-010), no el dispositivo. Un reloj adelantado en la tablet de taquilla
- * no puede inventar minutos de excedente.
+ * `?pulsera=` llega desde la ficha del niño en el monitor y lo deja elegido.
+ * Es un dato de la URL: la pantalla lo valida con el mismo contrato que un
+ * escaneo antes de usarlo.
  */
 export const dynamic = "force-dynamic";
 
-export default function SalidaPage() {
-  return <CheckoutScreen snapshot={demoSnapshot(Date.now())} />;
+export default async function SalidaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pulsera?: string }>;
+}) {
+  const { pulsera } = await searchParams;
+  return <CheckoutScreen snapshot={demoSnapshot(Date.now())} pulseraInicial={pulsera ?? null} />;
 }

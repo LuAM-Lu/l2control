@@ -262,7 +262,7 @@ export function CheckInScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* ------------------------------------------------------ niños */}
         <section className="flex flex-col gap-4 min-w-0">
           <ScannerField

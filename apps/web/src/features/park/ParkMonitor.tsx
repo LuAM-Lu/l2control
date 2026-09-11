@@ -3,7 +3,13 @@
 import { useCallback, useMemo, useState } from "react";
 import { Baby, OctagonAlert, TimerReset, Users } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Container, EmptyState, ScannerField, cn } from "@l2/ui";
+import { Container, EmptyState, ScannerField, Sheet, cn } from "@l2/ui";
+import Link from "next/link";
+import type { Route } from "next";
+import { toMajor } from "@l2/domain-money";
+import { pendiente } from "../cuentas/cuentas.ts";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { formatClock, DEFAULT_TIME_FORMAT } from "./time-format.ts";
 import { ParkChildCard } from "./ParkChildCard";
 import type { MonitorModel } from "./view-model";
 
@@ -56,16 +62,21 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
     );
   }, [model.cards]);
 
+  const { cuentas } = useCuentas();
+  const compacta = ordered.length > 10;
+  const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
+  const cuentaFicha = ficha
+    ? (cuentas.find((c) => c.sessionIds.includes(ficha.id)) ?? null)
+    : null;
+
   return (
-    <div className="flex flex-1 flex-col">
-      {/* Barra permanente (§8.5): turno, aforo, estado y tasa vigente con su
-          origen y su hora. El operador no debe tener que buscar nada de esto. */}
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Las cifras de sala se leen a dos metros, así que van grandes y solas.
           El título «Monitor de parque» sobraba: la pestaña «Sala» de la barra
           ya dice dónde estás, y el título ocupaba el sitio de las cifras. */}
       <header className="border-b border-line">
         <h1 className="sr-only">Monitor de parque</h1>
-        <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-3.5">
+        <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-2.5">
           <Contador
             etiqueta="En sala"
             valor={counts.total}
@@ -90,8 +101,8 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
         </Container>
       </header>
 
-      <Container as="main" ancho="muro" className="flex-1 py-6">
-        <div className="mb-6">
+      <Container as="main" ancho="muro" className="flex min-h-0 flex-1 flex-col py-4">
+        <div className="mb-3 shrink-0">
           <ScannerField onScan={handleScan} validate={validarPulsera} />
           {scanError && (
             <p role="status" className="mt-2 text-[13px] text-state-warn">
@@ -107,27 +118,96 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
             hint="Al escanear una pulsera en la entrada, la estancia aparecerá aquí con su cronómetro."
           />
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(248px,1fr))] items-stretch gap-4">
-            {ordered.map((card) => (
-              <ParkChildCard
-                key={card.id}
-                model={card}
-                serverNow={model.serverNow}
-                selected={selected === card.id}
-                onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
-              />
-            ))}
+          // La rejilla se desplaza por dentro si hiciera falta; con la sala
+          // llena pasa a baldosas compactas para que no haga falta (§8.8).
+          <div className="-m-1 min-h-0 flex-1 overflow-y-auto p-1">
+            <div
+              className={cn(
+                "grid items-stretch",
+                compacta
+                  ? "grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2.5"
+                  : "grid-cols-[repeat(auto-fill,minmax(248px,1fr))] gap-4 md:max-lg:grid-cols-3",
+              )}
+            >
+              {ordered.map((card) => (
+                <ParkChildCard
+                  key={card.id}
+                  model={card}
+                  serverNow={model.serverNow}
+                  selected={selected === card.id}
+                  densidad={compacta ? "compacta" : "normal"}
+                  onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
+                />
+              ))}
+            </div>
           </div>
         )}
       </Container>
 
-      <Container as="footer" ancho="muro" className="pb-6">
-        <p className="border-t border-line pt-4 text-xs text-ink-3">
-          Prototipo de la fase 5 con datos de ejemplo derivados del contrato. El cronómetro se
-          calcula contra el instante del servidor (ADR-010): cambiar el reloj de este dispositivo
-          mueve lo que se ve, nunca lo que se cobra.
-        </p>
-      </Container>
+      {/* Ficha del niño: pasar su pulsera o tocar su tarjeta la abre (F5-10).
+          Es una hoja y no una pantalla: el monitor sigue visible detrás, y
+          desde aquí se baja un nivel, a su salida. */}
+      <Sheet
+        abierto={ficha !== null}
+        onCerrar={() => setSelected(null)}
+        titulo={ficha ? (ficha.childNickname ?? ficha.childName) : ""}
+        {...(ficha
+          ? {
+              descripcion: `${ficha.childNickname ? `${ficha.childName} · ` : ""}${ficha.wristbandCode} · entró ${formatClock(ficha.startedAt, DEFAULT_TIME_FORMAT)}`,
+            }
+          : {})}
+        pie={
+          ficha && (
+            <Link
+              href={`/salida?pulsera=${ficha.wristbandCode}` as Route}
+              className="flex min-h-14 w-full items-center justify-center rounded-[var(--radius-control)] bg-brand px-5 text-base font-semibold text-on-brand no-underline transition-colors hover:bg-brand-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              Registrar su salida
+            </Link>
+          )
+        }
+      >
+        {ficha && (
+          <dl className="flex flex-col gap-3 text-[14px]">
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-ink-3">Tiempo</dt>
+              <dd className="text-ink">
+                {ficha.contractedMinutes ? `${ficha.contractedMinutes} min contratados` : "Tiempo abierto"}
+              </dd>
+            </div>
+            {ficha.hasOverdueCharge && (
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-state-warn">Excedente hasta ahora</dt>
+                <dd className="tnum font-semibold text-state-crit">
+                  {ficha.overdueCurrency} {ficha.overdueAmount}
+                </dd>
+              </div>
+            )}
+            {cuentaFicha ? (
+              <>
+                <div className="flex items-baseline justify-between gap-3 border-t border-line pt-3">
+                  <dt className="text-ink-3">Representante</dt>
+                  <dd className="text-ink">{cuentaFicha.family}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-ink-3">Cómo paga</dt>
+                  <dd className="text-ink">
+                    {cuentaFicha.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-ink-3">Pendiente en su cuenta</dt>
+                  <dd className="tnum text-ink">USD {toMajor(pendiente(cuentaFicha))}</dd>
+                </div>
+              </>
+            ) : (
+              <p className="border-t border-line pt-3 text-[13px] text-state-warn">
+                Esta estancia no tiene cuenta: su salida no se podrá cerrar hasta resolverlo.
+              </p>
+            )}
+          </dl>
+        )}
+      </Sheet>
     </div>
   );
 }

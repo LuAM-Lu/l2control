@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleCheckBig, ScanLine, TriangleAlert, Utensils, Wallet, X } from "lucide-react";
 import {
   CheckoutCommandSchema,
@@ -44,9 +44,13 @@ import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format
 export function CheckoutScreen({
   snapshot,
   timeFormat = DEFAULT_TIME_FORMAT,
+  pulseraInicial = null,
 }: {
   snapshot: MonitorSnapshotDto;
   timeFormat?: TimeFormat;
+  /** Desde la ficha del monitor: el niño ya viene elegido. Se valida igual
+   *  que un escaneo, porque llega por la URL. */
+  pulseraInicial?: string | null;
 }) {
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -92,6 +96,14 @@ export function CheckoutScreen({
     },
     [snapshot.sessions, seleccionados, cuentas],
   );
+
+  const inicial = useRef(pulseraInicial);
+  useEffect(() => {
+    const codigo = inicial.current;
+    if (!codigo) return;
+    inicial.current = null;
+    handleScan(codigo);
+  }, [handleScan]);
 
   const validarPulsera = useCallback(
     (code: string) => WristbandCodeSchema.safeParse(code).success,
@@ -235,7 +247,7 @@ export function CheckoutScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section className="flex flex-col gap-4 min-w-0">
           <ScannerField
             onScan={handleScan}

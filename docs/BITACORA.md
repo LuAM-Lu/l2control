@@ -190,3 +190,36 @@ DEC-17: los aparatos son del puesto, no de la persona. Los tres criterios, compr
 
 Queda parcial: la política vendrá de la configuración de la sucursal, y la sesión real del
 dispositivo, del backend.
+
+## Documentos, capas y transiciones — 2026-09-11
+
+`PROGRESO` volvió a ser un estado y la narrativa pasó a esta bitácora. El §1 del plan fue al
+archivo. Se añadieron `Sheet` y `Dialog` sobre el `<dialog>` nativo, y las transiciones pasaron a
+tener dirección: avanzar entra desde la derecha, volver desde la izquierda, mismo nivel es un
+fundido. La dirección se conserva al cruzar entre la cáscara del panel y la de una estación, que
+desmonta la transición: la ruta anterior se guarda fuera de React.
+
+## La cuenta de la familia (DEC-21) — 2026-09-11
+
+El cliente decidió que una familia paga de una de dos formas, elegida en cada entrada. La cuenta
+es lo que enlaza entrada, salida y caja; sus reglas son invariantes del contrato, no de cada
+pantalla. La caja pasó a ser una cola de cuentas por cobrar en maestro-detalle. Los cinco flujos
+—prepago, cuenta abierta, salida sin cargo, excedente y cuenta entera— se probaron de punta a punta
+en navegador.
+
+## Sin scroll de página en parque y caja — 2026-09-11
+
+Medido en región interna, porque con la estructura fija la página ya no desplaza nunca y medirla
+no dice nada. A 1366×768 caben las cinco estaciones: turno bajó de +644 px a cero con pestañas
+(divulgación progresiva) y el monitor de +116 a cero. Con la sala llena, el monitor pasa a
+baldosas compactas; la ficha de cada niño es una hoja que enlaza con su salida.
+
+## El lector perdía el primer carácter al navegar — 2026-09-11
+
+Lo destapó la prueba de flujos: tras volver de caja a entrada, «AK-0902» se leyó «K-0902». Se
+comprobó antes de corregir: sin pausa tras navegar se perdía; con 300 ms, no. La causa era que
+cada pantalla instalaba su oyente al montarse, y en esa ventana se escapaba la primera tecla. Lo
+grave es que el código truncado también era válido, así que nada avisaba. Ahora hay un solo
+oyente para toda la aplicación que no se quita al navegar, y una lectura que termina durante el
+cambio de pantalla espera hasta 1,5 s a la siguiente.
+

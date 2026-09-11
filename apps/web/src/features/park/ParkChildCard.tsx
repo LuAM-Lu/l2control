@@ -7,8 +7,9 @@ import {
   MoneyDisplay,
   StatusCard,
   TimeBar,
-  useServerClock,
   type Tone,
+  useServerClock,
+  cn,
 } from "@l2/ui";
 import { formatDuration, type SessionStatus } from "@l2/domain-park";
 import type { SessionCardModel } from "./view-model";
@@ -39,6 +40,7 @@ export function ParkChildCard({
   selected,
   onSelect,
   timeFormat = DEFAULT_TIME_FORMAT,
+  densidad = "normal",
 }: {
   model: SessionCardModel;
   serverNow: number;
@@ -46,11 +48,69 @@ export function ParkChildCard({
   onSelect: (id: string) => void;
   /** Configurable por sucursal (F5-08b); 24 h por defecto. */
   timeFormat?: TimeFormat;
+  /**
+   * Con la sala llena la tarjeta completa no cabe: treinta niños a 1366×768
+   * piden una baldosa de una línea (§8.8). Lo esencial —quién, en qué estado
+   * y cuánto le queda— sigue ahí; el detalle está a un toque, en la ficha.
+   */
+  densidad?: "normal" | "compacta";
 }) {
   // Un solo reloj por tarjeta: cifra y barra laten juntas.
   const now = useServerClock(serverNow);
   const status = STATUS[model.status];
   const Icon = status.icon;
+
+  const colorCifra =
+    model.status === "VENCIDA"
+      ? "text-state-crit"
+      : model.status === "POR_VENCER" || model.status === "EN_GRACIA"
+        ? "text-state-warn"
+        : "text-ink";
+
+  if (densidad === "compacta") {
+    return (
+      <button
+        type="button"
+        onClick={() => onSelect(model.id)}
+        aria-pressed={selected ?? false}
+        className={cn(
+          "flex h-full w-full cursor-pointer items-center gap-2.5 overflow-hidden rounded-[var(--radius-card)]",
+          "border border-l-4 px-3 py-2.5 text-left shadow-card",
+          "transition-[transform,border-color] duration-[var(--dur-normal)] ease-[var(--ease-salida)] hover:-translate-y-0.5",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          BALDOSA[status.tone],
+          selected && "ring-2 ring-brand ring-offset-2 ring-offset-base",
+        )}
+      >
+        <Icon
+          size={16}
+          aria-hidden="true"
+          className={cn("shrink-0", ETIQUETA[status.tone], status.urgent && "l2-pulse")}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="font-display block truncate text-[15px] leading-tight font-bold text-ink">
+            {model.childNickname ?? model.childName}
+          </span>
+          <span
+            className={cn(
+              "block text-[10.5px] font-semibold tracking-[0.08em] uppercase",
+              ETIQUETA[status.tone],
+            )}
+          >
+            {status.label}
+          </span>
+        </span>
+        <CountdownDisplay
+          now={now}
+          targetMs={model.targetMs}
+          direction={model.direction}
+          format={formatDuration}
+          size="sm"
+          className={colorCifra}
+        />
+      </button>
+    );
+  }
 
   const elapsed = Math.max(0, now - model.startedAt);
   const total = model.totalMs;
@@ -139,3 +199,20 @@ export function ParkChildCard({
     </StatusCard>
   );
 }
+
+/** Baldosa compacta: el estado va en el borde izquierdo y en el fondo. */
+const BALDOSA: Record<Tone, string> = {
+  ok: "border-line border-l-state-ok bg-surface",
+  warn: "border-state-warn/40 border-l-state-warn bg-state-warn-bg/40",
+  crit: "border-state-crit/50 border-l-state-crit bg-state-crit-bg/50",
+  idle: "border-line border-l-state-idle bg-surface",
+  brand: "border-brand/30 border-l-brand bg-surface",
+};
+
+const ETIQUETA: Record<Tone, string> = {
+  ok: "text-state-ok",
+  warn: "text-state-warn",
+  crit: "text-state-crit",
+  idle: "text-ink-2",
+  brand: "text-brand",
+};

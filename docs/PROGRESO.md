@@ -1,6 +1,6 @@
 # Progreso real
 
-> **Actualizado:** 2026-09-11 · Contrastado contra los criterios de aceptación de
+> **Actualizado:** 2026-09-11 (tarde) · Contrastado contra los criterios de aceptación de
 > [PLAN.md §12](PLAN.md). Una tarea solo cuenta como hecha si su criterio se cumple y es
 > demostrable — «ya lo programé» no basta.
 >
@@ -55,7 +55,7 @@
 | F1-08 Primitivos + Storybook | **Parcial** | Primitivos y patrones sí. **Storybook no** — diferido en la Ruta A |
 | F1-09 Contratos Zod | ✅ Hecha | `@l2/contracts`, 17 pruebas. Los datos de ejemplo se derivan del contrato (§11.4) |
 | F1-10 Puertos de hardware | **Parcial** | Escáner sí. **Impresora, gaveta y dispositivo fiscal, no** |
-| F1-11 Hook de escaneo | ✅ Hecha | Captura sin foco, valida formato, limita frecuencia |
+| F1-11 Hook de escaneo | Parcial | Captura sin foco, valida formato, limita frecuencia y ya no pierde el primer carácter al navegar (un solo oyente para toda la app). Falta calibrar el umbral con el lector real |
 | F1-12 Plantillas de ticket | Pendiente | 58 y 80 mm; la impresora comprada admite ambos |
 | F1-13 Observabilidad | Pendiente | Logger con redacción, trazas, métricas |
 | F1-14 CI | **Pendiente** | **`pnpm verify` existe pero nada lo ejecuta solo. Ver abajo** |
@@ -113,6 +113,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F5-14 Salida y liquidación | ✅ Hecha (interfaz) | Pantalla en `/salida`. Varios niños en una salida, desglose paquete + excedente con minutos y bloques, y las dos rutas del plan: taquilla o cargo a mesa. Falta el backend |
 | F5-08b Formato de hora configurable | Parcial | La hora de entrada se muestra en las tarjetas y el formateador acepta 24 h o 12 h; falta que la preferencia sea editable por sucursal |
 | F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
+| DEC-21 Cuenta de la familia | Parcial | Entrada elige prepago o cuenta abierta; la salida dice qué pasa a caja; la caja es una cola de cuentas en maestro-detalle y devuelve a la pantalla de origen. Probado de punta a punta en navegador. Falta el backend |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |
 | F5-12 Sesión única por pulsera | Parcial | La interfaz lo rechaza; la invariante real necesita base de datos |
 | F5-01, F5-05 a F5-14 (resto) | Pendiente | Necesitan persistencia |
@@ -124,8 +125,8 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ## Próximos pasos
 
-1. **Flujos de parque y caja (DEC-21, en curso).** Entrada con prepago o cuenta abierta, caja como
-   cola de cuentas por cobrar, y pantallas sin scroll de página a 1366×768 (§8.8, §9.10).
+1. **Backend de la cuenta de la familia.** Los flujos de DEC-21 y las estaciones sin scroll ya
+   existen en la interfaz (§8.8, §9.10.9); hoy las cuentas viven en la sesión del navegador.
 2. **F1-14, la CI.** `pnpm verify` comprueba tipos, fronteras y pruebas, pero nadie lo ejecuta
    solo: las reglas muerden solo si alguien se acuerda de invocarlas.
 3. **El lint no existe.** `pnpm lint` no ejecuta nada, y `CLAUDE.md` promete una regla contra

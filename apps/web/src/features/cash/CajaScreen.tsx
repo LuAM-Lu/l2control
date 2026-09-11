@@ -250,7 +250,7 @@ function CobroCuenta({
   return (
     <>
         {/* ═══════════════════════ la cuenta ═══════════════════════════ */}
-        <section className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
+        <section className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:col-start-1 md:row-start-2 lg:col-start-2 lg:row-start-1">
           <div className="flex items-baseline justify-between border-b border-line px-5 py-3.5">
             <h2 className="font-display text-base font-bold text-ink">La cuenta</h2>
             <span className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
@@ -392,7 +392,7 @@ function CobroCuenta({
         </section>
 
         {/* ═══════════════════════ cobrar ══════════════════════════════ */}
-        <aside className="flex min-h-0 min-w-0 flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card">
+        <aside className="flex min-h-0 min-w-0 flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1">
           {/* ── la cifra que manda ── */}
           <div
             className={cn(
@@ -637,6 +637,9 @@ export function CajaScreen({
           "grid flex-1 gap-4 py-4",
           // Desde lg la caja se reparte el alto de la ventana y cada columna
           // se desplaza por dentro (§8.8). Por debajo, flujo normal.
+          // En tablet vertical, dos columnas: la cola sobre la cuenta y el
+          // cobro al lado, a todo el alto. En escritorio, tres.
+          "md:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]",
           "lg:min-h-0 lg:grid-cols-[15rem_minmax(0,1fr)_clamp(360px,30vw,420px)]",
         )}
       >
@@ -714,7 +717,7 @@ function ColaCuentas({
   return (
     <section
       aria-label="Cuentas por cobrar"
-      className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card"
+      className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:col-start-1 md:row-start-1 lg:col-start-1 lg:row-start-1"
     >
       <div className="flex items-baseline justify-between border-b border-line px-4 py-3">
         <h2 className="font-display text-base font-bold text-ink">Por cobrar</h2>
@@ -759,7 +762,7 @@ function ColaCuentas({
 
 function SinCuentas() {
   return (
-    <section className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center lg:col-span-2">
+    <section className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center md:col-span-2 md:row-start-2 lg:col-start-2 lg:row-start-1">
       <CircleCheckBig size={32} className="text-state-ok" aria-hidden="true" />
       <p className="font-display text-xl font-bold text-ink">Nada por cobrar</p>
       <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">

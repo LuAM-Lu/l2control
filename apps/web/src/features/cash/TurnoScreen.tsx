@@ -11,7 +11,7 @@ import {
   type ShiftMovement,
   type ShiftStatus,
 } from "@l2/domain-cash";
-import { Badge, Button, Container, MoneyDisplay, Stepper, cn } from "@l2/ui";
+import { Badge, Button, Container, MoneyDisplay, Stepper, Tabs, cn } from "@l2/ui";
 import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./shift-fixtures.ts";
 import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
@@ -48,6 +48,7 @@ export function TurnoScreen({
   const [conteo, setConteo] = useState<Record<string, string>>({});
   const [cortesX, setCortesX] = useState(0);
   const [confirmandoZ, setConfirmandoZ] = useState(false);
+  const [pestana, setPestana] = useState("arqueo");
 
   const tally = useMemo(() => tallyShift(movements), [movements]);
 
@@ -165,64 +166,96 @@ export function TurnoScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="flex flex-1 flex-col gap-5 py-5">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-          {/* ═══════════════════════ el arqueo ═══════════════════════ */}
-          <section className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-5 py-3.5">
-              <h2 className="font-display text-base font-bold text-ink">Arqueo físico</h2>
-              <span className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
-                Cuenta billetes, no importes
-              </span>
-            </div>
+      <Container as="main" ancho="operacion" className="flex flex-1 flex-col gap-5 py-4 lg:min-h-0">
+        <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_380px]">
+          {/* Divulgación progresiva (§8.8): lo que se HACE —contar— va al
+              frente; lo que se consulta —el libro— queda a un toque. Antes
+              iba todo apilado y la pantalla desbordaba 644 px. */}
+          <Tabs
+            etiqueta="Turno de caja"
+            activa={pestana}
+            onCambiar={setPestana}
+            className="min-w-0 lg:min-h-0"
+            pestanas={[
+              {
+                id: "arqueo",
+                etiqueta: "Arqueo",
+                contenido: (
+              <section className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-5 py-3.5">
+                  <h2 className="font-display text-base font-bold text-ink">Arqueo físico</h2>
+                  <span className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                    Cuenta billetes, no importes
+                  </span>
+                </div>
 
-            <div className="grid gap-px bg-line md:grid-cols-2">
-              {tally.drawer.map((d) => {
-                const contado = contadoPorMoneda.get(d.currency) ?? zero(d.currency);
-                return (
-                  <div key={d.currency} className="bg-surface px-5 py-4">
-                    <h3 className="mb-3 flex items-baseline justify-between gap-3">
-                      <span className="font-display text-sm font-bold text-ink">
-                        Efectivo en {d.currency}
-                      </span>
-                      <MoneyDisplay value={toMajor(contado)} currency={d.currency} size="sm" />
-                    </h3>
+                <div className="grid gap-px bg-line md:grid-cols-2">
+                  {tally.drawer.map((d) => {
+                    const contado = contadoPorMoneda.get(d.currency) ?? zero(d.currency);
+                    return (
+                      <div key={d.currency} className="bg-surface px-5 py-4">
+                        <h3 className="mb-3 flex items-baseline justify-between gap-3">
+                          <span className="font-display text-sm font-bold text-ink">
+                            Efectivo en {d.currency}
+                          </span>
+                          <MoneyDisplay value={toMajor(contado)} currency={d.currency} size="sm" />
+                        </h3>
 
-                    <ul className="flex flex-col gap-1.5">
-                      {DENOMINACIONES[d.currency as "USD" | "VES"].map((den) => {
-                        const clave = `${d.currency}|${toMajor(den)}`;
-                        const cantidad = Number.parseInt(conteo[clave] ?? "0", 10) || 0;
-                        const subtotal = multiply(den, BigInt(cantidad));
-                        return (
-                          <li key={clave} className="flex items-center justify-between gap-3">
-                            <span className="tnum w-16 shrink-0 font-semibold text-ink">
-                              {toMajor(den)}
-                            </span>
-                            <Stepper
-                              value={cantidad}
-                              onChange={(n) =>
-                                setConteo((prev) => ({ ...prev, [clave]: String(n) }))
-                              }
-                              label={`Billetes de ${toMajor(den)} ${d.currency}`}
-                              disabled={sellado}
-                            />
-                            <span
-                              className={cn(
-                                "tnum w-24 shrink-0 text-right text-[13px]",
-                                cantidad > 0 ? "text-ink-2" : "text-ink-3/60",
-                              )}
-                            >
-                              {toMajor(subtotal)}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+                        <ul className="flex flex-col gap-1.5">
+                          {DENOMINACIONES[d.currency as "USD" | "VES"].map((den) => {
+                            const clave = `${d.currency}|${toMajor(den)}`;
+                            const cantidad = Number.parseInt(conteo[clave] ?? "0", 10) || 0;
+                            const subtotal = multiply(den, BigInt(cantidad));
+                            return (
+                              <li key={clave} className="flex items-center justify-between gap-3">
+                                <span className="tnum w-16 shrink-0 font-semibold text-ink">
+                                  {toMajor(den)}
+                                </span>
+                                <Stepper
+                                  value={cantidad}
+                                  onChange={(n) =>
+                                    setConteo((prev) => ({ ...prev, [clave]: String(n) }))
+                                  }
+                                  label={`Billetes de ${toMajor(den)} ${d.currency}`}
+                                  disabled={sellado}
+                                />
+                                <span
+                                  className={cn(
+                                    "tnum w-24 shrink-0 text-right text-[13px]",
+                                    cantidad > 0 ? "text-ink-2" : "text-ink-3/60",
+                                  )}
+                                >
+                                  {toMajor(subtotal)}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+                ),
+              },
+              {
+                id: "puntos",
+                etiqueta: "Por punto de cobro",
+                contenido: <PuntosDeCobro filas={puntos} />,
+              },
+              {
+                id: "medios",
+                etiqueta: "Por medio",
+                contenido: <EntradasPorMedio porMedio={porMedio} titulo="Movimiento por medio" />,
+              },
+              {
+                id: "excepciones",
+                etiqueta: "Excepciones",
+                contador: excepciones.length,
+                contenido: <ExcepcionesTurno excepciones={excepciones} />,
+              },
+            ]}
+          />
 
           {/* ═══════════════════ cuadre y cortes ═══════════════════ */}
           <aside className="flex h-fit min-w-0 flex-col gap-4 lg:sticky lg:top-20">
@@ -390,16 +423,6 @@ export function TurnoScreen({
           </aside>
         </div>
 
-        {/* ═══════════ lo que dice el libro: para quien lo revise ═══════════ */}
-        <div className="grid gap-5 lg:grid-cols-2">
-          {/* El desglose por punto va primero: es lo que explica una
-              diferencia del cuadre de arriba (F4-01b). */}
-          <div className="flex min-w-0 flex-col gap-5">
-            <PuntosDeCobro filas={puntos} />
-            <EntradasPorMedio porMedio={porMedio} titulo="Movimiento por medio" />
-          </div>
-          <ExcepcionesTurno excepciones={excepciones} className="h-fit" />
-        </div>
       </Container>
     </div>
   );
