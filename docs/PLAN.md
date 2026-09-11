@@ -1680,7 +1680,7 @@ Es la fase que v1 subestimaba.*
   → *Criterio:* pide motivo de lista cerrada + identidad del autorizador; **registra antes de ejecutar**.
 - [ ] **F2-09 · Autorización en el handshake de WebSocket** (ADR-008).
   → *Criterio:* un cliente autenticado de otra sucursal **no recibe** eventos de esta; hay prueba.
-- [ ] **F2-11 · Permisos por persona: concesiones y revocaciones sobre el rol** (DEC-15, §9.10.6).
+- [~] **F2-11 · Permisos por persona: concesiones y revocaciones sobre el rol** (DEC-15, §9.10.6).
   → *Criterio:* una excepción queda en auditoría con quién la concedió y por qué; **nunca amplía la
   sucursal**; y la pantalla de usuarios muestra rol y excepciones por separado.
 - [ ] **F2-12 · Sesión en dispositivo compartido** (DEC-17, §9.10.5).

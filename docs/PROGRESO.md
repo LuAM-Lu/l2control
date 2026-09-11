@@ -243,6 +243,36 @@ propio turno, para el fondo inicial y las salidas de caja— y el cuadre lo desg
 La regla nueva mordió al entrar: una prueba existente creaba cobros sin punto y el dominio los
 rechazó. Queda parcial hasta que el backend guarde el punto con cada cobro. Pruebas de caja: 29 → 35.
 
+## F2-11 · Permisos por persona — 2026-09-11
+
+DEC-15: el rol es la base y la excepción es un dato. «Marisol es cajera, pero además puede
+confirmar la tasa.» Se modela como concesiones y revocaciones sobre la persona, nunca como un rol
+nuevo inventado para una sola.
+
+**Dominio.** `can()` evalúa en este orden: sucursal → acción conocida → revocación → concesión →
+matriz. De ese orden salen las garantías, cada una con su prueba:
+
+- **Nunca amplía la sucursal**: la sede se comprueba antes que cualquier excepción.
+- **No inventa acciones**: una concesión sobre una acción que la matriz no conoce no la crea.
+- **Ante la duda, niega**: si una acción está concedida y revocada a la vez, gana la revocación.
+- **No altera a quien no las tiene** (propiedad): sin excepciones, cada celda es la de la matriz.
+
+`explainPermission()` dice de dónde sale cada permiso —rol, concesión o revocación— y `can` la usa
+por dentro, así que la regla está escrita una vez. Pruebas de identidad: 60 → 68.
+
+**Contrato primero.** La excepción no tiene campo de sucursal y el esquema la rechaza si lo trae: una
+excepción que no puede nombrar una sede no puede ampliarla. El motivo es obligatorio y con
+contenido. El comando para concederla no admite autor ni hora: los pone el servidor, o un cliente
+podría atribuirle el cambio a otra persona. Pruebas de contratos: 17 → 29.
+
+**Pantalla** `/panel/personas/usuarios`. El rol y las excepciones aparecen por separado —«Además: …»,
+«Sin: …»—, cada excepción con quién la concedió, cuándo y por qué, y los permisos efectivos con lo
+que daría el rol tachado al lado. Registrar una excepción valida con el mismo contrato que usará el
+servidor, y bloquea las que no cambian nada: solo ensuciarían la auditoría.
+
+Comprobado en navegador: revocar a Ana la reimpresión, rechazo del motivo corto y bloqueo de una
+concesión sin efecto. Queda parcial hasta que el backend guarde las excepciones y su auditoría.
+
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |

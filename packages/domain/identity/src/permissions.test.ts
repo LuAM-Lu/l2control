@@ -12,6 +12,7 @@ import {
   MATRIZ,
   SURFACE_ACTION,
   can,
+  explainPermission,
   isAllowedOutright,
   isReachable,
   visibleSurfaces,
@@ -174,5 +175,85 @@ describe("superficies visibles por rol", () => {
     for (const s of ORDEN) {
       assert.ok(SURFACE_ACTION[s], `falta la acción de ${s}`);
     }
+  });
+});
+
+describe("excepciones por persona (F2-11, DEC-15)", () => {
+  test("una concesión da a una persona lo que su rol no da: la cajera que confirma la tasa", () => {
+    // El ejemplo literal de §9.10.6.
+    const marisol = { ...actor("CAJERO"), grants: { "tasa.confirmar": "PERMITIDO" } } as Actor;
+    assert.equal(can(actor("CAJERO"), "tasa.confirmar"), "DENEGADO");
+    assert.equal(can(marisol, "tasa.confirmar"), "PERMITIDO");
+  });
+
+  test("una revocación le quita a una persona lo que su rol sí da", () => {
+    const luis = { ...actor("SUPERVISOR"), revokes: ["cuenta.descuento"] } as Actor;
+    assert.equal(can(actor("SUPERVISOR"), "cuenta.descuento"), "REQUIERE_AUTORIZACION");
+    assert.equal(can(luis, "cuenta.descuento"), "DENEGADO");
+  });
+
+  test("concedida y revocada a la vez: gana la revocación (fail-closed)", () => {
+    const dudoso = {
+      ...actor("CAJERO"),
+      grants: { "tasa.confirmar": "PERMITIDO" },
+      revokes: ["tasa.confirmar"],
+    } as Actor;
+    assert.equal(can(dudoso, "tasa.confirmar"), "DENEGADO");
+  });
+
+  test("la excepción NUNCA amplía la sucursal", () => {
+    // Regla 2 de §9.10.6: la concesión vale en su sede y en ninguna otra.
+    const marisol = {
+      ...actor("CAJERO", ["b1"]),
+      grants: { "tasa.confirmar": "PERMITIDO" },
+    } as Actor;
+    assert.equal(can(marisol, "tasa.confirmar", { branchId: "b1" }), "PERMITIDO");
+    assert.equal(can(marisol, "tasa.confirmar", { branchId: "b2" }), "DENEGADO");
+  });
+
+  test("una concesión sobre una acción inexistente no la crea", () => {
+    const raro = {
+      ...actor("ADMIN"),
+      grants: { "accion.inventada": "PERMITIDO" },
+    } as unknown as Actor;
+    assert.equal(can(raro, "accion.inventada" as Action), "DENEGADO");
+  });
+
+  test("PROPIEDAD: sin excepciones, cada celda es exactamente la de la matriz", () => {
+    // Las excepciones no pueden alterar a quien no las tiene: listas vacías
+    // deben comportarse igual que no tener el campo.
+    for (const [accion, fila] of Object.entries(MATRIZ)) {
+      for (const rol of ROLES) {
+        const limpio = { ...actor(rol), grants: {}, revokes: [] } as Actor;
+        assert.equal(can(limpio, accion as Action), fila[rol], `${rol} · ${accion}`);
+      }
+    }
+  });
+
+  test("la explicación distingue lo que viene del rol de lo que es excepción", () => {
+    const marisol = {
+      ...actor("CAJERO"),
+      grants: { "tasa.confirmar": "PERMITIDO" },
+      revokes: ["documento.reimprimir"],
+    } as Actor;
+    assert.deepEqual(
+      { ...explainPermission(marisol, "tasa.confirmar") },
+      { base: "DENEGADO", effective: "PERMITIDO", source: "CONCESION" },
+    );
+    assert.deepEqual(
+      { ...explainPermission(marisol, "documento.reimprimir") },
+      { base: "REQUIERE_AUTORIZACION", effective: "DENEGADO", source: "REVOCACION" },
+    );
+    assert.deepEqual(
+      { ...explainPermission(marisol, "turno.abrir") },
+      { base: "PERMITIDO", effective: "PERMITIDO", source: "ROL" },
+    );
+  });
+
+  test("las superficies visibles también respetan las excepciones", () => {
+    // Un mesero al que se le concede cobrar ve la caja; sin la concesión, no.
+    const jesus = { ...actor("MESERO"), grants: { "documento.emitir": "PERMITIDO" } } as Actor;
+    assert.deepEqual([...visibleSurfaces(actor("MESERO"), ["caja"])], []);
+    assert.deepEqual([...visibleSurfaces(jesus, ["caja"])], ["caja"]);
   });
 });

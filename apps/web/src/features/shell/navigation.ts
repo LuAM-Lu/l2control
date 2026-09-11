@@ -220,7 +220,7 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "usuarios",
         nombre: "Usuarios y permisos",
-        href: null,
+        href: rutaSeccion("personas", "usuarios"),
         accion: "usuarios.gestionar",
         proposito:
           "Cada persona con su rol fijo, y los permisos adicionales que se le concedan uno a uno (DEC-15).",

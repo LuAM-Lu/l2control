@@ -126,6 +126,29 @@ export type Actor = Readonly<{
   role: Role;
   /** Sucursales en las que el actor puede operar. */
   branchIds: readonly string[];
+  /**
+   * Concesiones sobre el rol — DEC-15, §9.10.6. «Marisol es cajera, pero
+   * además puede confirmar la tasa.» Sustituyen la celda de la matriz para
+   * esa acción y esa persona.
+   *
+   * El rol es la base; la excepción es un DATO. Nunca se inventa un rol
+   * nuevo para una sola persona: los roles a medida son como una matriz de
+   * permisos acaba siendo imposible de leer.
+   */
+  grants?: Readonly<Partial<Record<Action, Permission>>>;
+  /** Revocaciones sobre el rol: le quitan a una persona lo que su puesto da. */
+  revokes?: readonly Action[];
+}>;
+
+/** De dónde sale el permiso efectivo de una persona para una acción. */
+export type PermissionSource = "ROL" | "CONCESION" | "REVOCACION";
+
+export type PermissionExplanation = Readonly<{
+  /** Lo que da el rol, según la matriz. */
+  base: Permission;
+  /** Lo que la persona tiene de verdad, con sus excepciones aplicadas. */
+  effective: Permission;
+  source: PermissionSource;
 }>;
 
 /**
@@ -136,6 +159,11 @@ export type Actor = Readonly<{
  * pertenece, se deniega sin mirar siquiera la matriz. Esa segunda parte es la
  * que impide la escalada trivial del hallazgo H-07: un cajero anulando
  * tickets de otra sede.
+ *
+ * **Las excepciones por persona (F2-11) se aplican DESPUÉS de la sucursal**,
+ * y ese orden es la regla 2 de §9.10.6: un permiso extra nunca saca a nadie
+ * de su sede. El orden completo es sucursal → acción conocida → revocación →
+ * concesión → matriz.
  */
 export function can(
   actor: Actor,
@@ -144,10 +172,38 @@ export function can(
 ): Permission {
   const branchId = context?.branchId;
   if (branchId !== undefined && !actor.branchIds.includes(branchId)) return D;
+  return explainPermission(actor, action).effective;
+}
 
+/**
+ * Explica de dónde sale el permiso de una persona para una acción.
+ *
+ * La pantalla de usuarios lo necesita para mostrar **el rol y las excepciones
+ * por separado** (§9.10.6, regla 3): que se vea de un vistazo quién tiene
+ * poderes que su puesto no da. Y `can` lo usa por dentro, así que la regla de
+ * las excepciones está escrita una sola vez.
+ *
+ * No evalúa la sucursal: describe a la persona, no una operación concreta.
+ */
+export function explainPermission(actor: Actor, action: Action): PermissionExplanation {
   const fila = MATRIZ[action];
-  if (!fila) return D;
-  return fila[actor.role] ?? D;
+  // Una acción que la matriz no conoce no existe, y una concesión no la crea.
+  if (!fila) return Object.freeze({ base: D, effective: D, source: "ROL" });
+
+  const base = fila[actor.role] ?? D;
+
+  // Revocación antes que concesión: si la misma acción aparece en las dos,
+  // gana la que niega. Ante la duda, fail-closed (regla 4 del repositorio).
+  if (actor.revokes?.includes(action)) {
+    return Object.freeze({ base, effective: D, source: "REVOCACION" });
+  }
+
+  const concedido = actor.grants?.[action];
+  if (concedido !== undefined) {
+    return Object.freeze({ base, effective: concedido, source: "CONCESION" });
+  }
+
+  return Object.freeze({ base, effective: base, source: "ROL" });
 }
 
 /** Atajo para el caso «¿puedo hacerlo sin pedir autorización?». */

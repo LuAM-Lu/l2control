@@ -61,3 +61,18 @@ export {
   type CheckoutCommand,
   type CheckoutResult,
 } from "./checkout.ts";
+
+export {
+  RoleSchema,
+  PermissionSchema,
+  PermissionExceptionSchema,
+  UserSummarySchema,
+  UsersDirectorySchema,
+  PermissionExceptionCommandSchema,
+  type RoleDto,
+  type PermissionDto,
+  type PermissionExceptionDto,
+  type UserSummaryDto,
+  type UsersDirectoryDto,
+  type PermissionExceptionCommand,
+} from "./identity.ts";

@@ -1,6 +1,18 @@
 import { notFound } from "next/navigation";
 import { SeccionPendienteScreen } from "../../../../../src/features/shell/SeccionPendienteScreen";
 import { buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
+import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
+
+/**
+ * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
+ *
+ * Viven aquí, bajo la ruta dinámica, y no en carpetas estáticas hermanas: una
+ * carpeta `personas/` junto a `[modulo]/` haría que `/panel/personas` dejara
+ * de encontrar la página del módulo. Añadir una pantalla es una línea.
+ */
+const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
+  "personas/usuarios": UsuariosPage,
+};
 
 /**
  * Sección de un módulo que todavía no tiene pantalla propia.
@@ -18,6 +30,9 @@ export default async function SeccionPage({
   const { modulo: moduloId, seccion: seccionId } = await params;
   const modulo = buscarModulo(moduloId);
   if (!modulo) notFound();
+
+  const Pantalla = PANTALLAS[`${moduloId}/${seccionId}`];
+  if (Pantalla) return <Pantalla />;
 
   const seccion = buscarSeccion(modulo, seccionId);
   if (!seccion || seccion.href !== null) notFound();

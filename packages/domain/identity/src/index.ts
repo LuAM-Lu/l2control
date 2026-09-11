@@ -236,9 +236,12 @@ export {
   isAllowedOutright,
   isReachable,
   visibleSurfaces,
+  explainPermission,
   type Action,
   type Actor,
   type Permission,
+  type PermissionExplanation,
+  type PermissionSource,
   type Role,
   type SurfaceId,
 } from "./permissions.ts";
