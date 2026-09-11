@@ -223,3 +223,12 @@ grave es que el código truncado también era válido, así que nada avisaba. Ah
 oyente para toda la aplicación que no se quita al navegar, y una lectura que termina durante el
 cambio de pantalla espera hasta 1,5 s a la siguiente.
 
+## Flujos del local — 2026-09-11
+
+Las visitas describieron cómo se mueve una familia de dos adultos y dos niños, el mesero, la
+cocina y la caja, y que la administración quiere verlo todo en vivo. Se escribió
+[FLUJOS.md](FLUJOS.md): cinco flujos paso a paso con sus eventos en tiempo real, un solo concepto de
+cuenta para familia y mesa, veinticinco escenarios de orden, pico y caos, y un simulador como base
+para construir el frontend. Casi todo ya estaba en el plan como R1–R7 y F6; lo nuevo es la zona de
+personas conectadas. Queda la decisión de alcance D1: el restaurante está fuera de la Ruta A.
+

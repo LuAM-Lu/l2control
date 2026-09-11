@@ -5,6 +5,7 @@
 | **[PLAN.md](PLAN.md)** | La especificación: qué se construye y con qué criterio de aceptación | Antes de construir cualquier cosa: busca su tarea `Fn-nn` en §12 |
 | **[PROGRESO.md](PROGRESO.md)** | El estado real, tarea por tarea, con evidencia | Para saber qué está hecho de verdad y qué falta |
 | **[BITACORA.md](BITACORA.md)** | Qué se hizo, cuándo y por qué | Para entender una decisión pasada |
+| **[FLUJOS.md](FLUJOS.md)** | Cómo se mueven personas, pedidos y dinero en el local, y los escenarios a simular | Antes de construir una pantalla de operación |
 | **[adr/](adr/)** | Las 17 decisiones de arquitectura, una por archivo | Antes de discutir una decisión técnica |
 | [archivo/](archivo/) | Lo superado: el plan v1 y su diagnóstico | Solo como referencia histórica |
 
