@@ -227,6 +227,70 @@ export function describeLockout(state: LockoutState): string | null {
   return `Espera ${m} minuto${m === 1 ? "" : "s"}.`;
 }
 
+/* --------------------------------------------- inactividad (F2-12) */
+
+/**
+ * Política de bloqueo por inactividad — DEC-17, §9.10.5.
+ *
+ * Unión discriminada y no un número con `null` para «nunca»: que una
+ * superficie no se bloquee es una decisión (la pantalla de pared), y se dice
+ * con una palabra. Un `null` que llegara por error se leería igual que la
+ * decisión, y el puesto quedaría abierto sin que nadie lo hubiera elegido.
+ */
+export type IdlePolicy =
+  | Readonly<{ kind: "SIN_BLOQUEO" }>
+  | Readonly<{ kind: "BLOQUEO"; afterSeconds: number; warnSeconds: number }>;
+
+/** Corta a propósito: en una estación compartida, tres minutos es mucho. */
+export const DEFAULT_STATION_IDLE: IdlePolicy = {
+  kind: "BLOQUEO",
+  afterSeconds: 180,
+  warnSeconds: 30,
+};
+
+export type IdleState =
+  | Readonly<{ state: "ACTIVO" }>
+  | Readonly<{ state: "AVISO"; secondsToLock: number }>
+  | Readonly<{ state: "BLOQUEADO" }>;
+
+export class InvalidIdlePolicyError extends Error {
+  constructor(detalle: string) {
+    super(`Política de inactividad no válida: ${detalle}`);
+    this.name = "InvalidIdlePolicyError";
+  }
+}
+
+/**
+ * ¿Cómo está la sesión, dado el último momento con actividad?
+ *
+ * `now` entra como argumento (ADR-010): la regla se prueba sin esperar tres
+ * minutos. Una política mal escrita se RECHAZA: tratarla como «no bloquear»
+ * dejaría el puesto abierto por un error de configuración (fail-closed).
+ */
+export function computeIdle(lastActivityAt: number, now: number, policy: IdlePolicy): IdleState {
+  if (policy.kind === "SIN_BLOQUEO") return Object.freeze({ state: "ACTIVO" });
+
+  const { afterSeconds, warnSeconds } = policy;
+  if (!Number.isFinite(afterSeconds) || afterSeconds <= 0) {
+    throw new InvalidIdlePolicyError("el plazo debe ser un número de segundos mayor que cero");
+  }
+  if (!Number.isFinite(warnSeconds) || warnSeconds < 0 || warnSeconds >= afterSeconds) {
+    throw new InvalidIdlePolicyError("el aviso debe ser menor que el plazo y no negativo");
+  }
+
+  // Un reloj que retrocede no cuenta tiempo negativo.
+  const transcurrido = Math.max(0, now - lastActivityAt) / 1000;
+
+  if (transcurrido >= afterSeconds) return Object.freeze({ state: "BLOQUEADO" });
+  if (transcurrido >= afterSeconds - warnSeconds) {
+    return Object.freeze({
+      state: "AVISO",
+      secondsToLock: Math.ceil(afterSeconds - transcurrido),
+    });
+  }
+  return Object.freeze({ state: "ACTIVO" });
+}
+
 /* ------------------------------------------------------------ permisos */
 
 export {

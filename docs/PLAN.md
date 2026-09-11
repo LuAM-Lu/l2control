@@ -1556,13 +1556,19 @@ La neutralización no es opcional, es la condición para que este orden funcione
 
 | # | Superficie | Tareas del plan | Estado |
 |---|---|---|---|
-| 1 | Monitor de parque | F5-08, F5-10 | Hecho |
-| 2 | **Registro de entrada** | F5-02, F5-03, F5-04 | **En curso** |
-| 3 | Salida y liquidación | F5-14 | Pendiente |
-| 4 | Caja: cobro mixto y vuelto | F4-03, F4-04b | Pendiente |
-| 5 | Cortes X y Z, arqueo | F4-05, F4-06, F4-07 | Pendiente |
-| 6 | Acceso por PIN y dispositivo | F2-03 | Pendiente |
+| 1 | Monitor de parque | F5-08, F5-10 | Interfaz hecha |
+| 2 | Registro de entrada | F5-02, F5-03, F5-04 | Interfaz hecha |
+| 3 | Salida y liquidación | F5-14 | Interfaz hecha |
+| 4 | Caja: cobro mixto y vuelto | F4-03, F4-04b | Interfaz hecha |
+| 5 | Cortes X y Z, arqueo | F4-05, F4-06, F4-07 | Interfaz hecha |
+| 6 | Acceso por PIN y dispositivo | F2-03 | Interfaz hecha |
 | 7 | Mesas, comandas y KDS | F6-01…F6-07 | Fuera de la Ruta A |
+
+**Estado al 2026-09-11.** Las seis superficies de la Ruta A tienen su interfaz, y con ellas las
+pantallas de F2 que este orden obliga a no saltarse: permisos por persona (F2-11) y sesión en
+dispositivo compartido (F2-12), además del punto de cobro (F4-01b). «Interfaz hecha» no es «hecha»:
+falta el backend que implemente los mismos contratos, y el frontend no se da por terminado hasta la
+revisión de carga, error y degradación con red real que exige RIE-13.
 
 **Deuda que este orden crea, y que se paga al entrar el backend.** Los estados de carga, error
 y degradación (N0-N3) se diseñan ahora contra situaciones simuladas. Cuando exista red real
@@ -1683,7 +1689,7 @@ Es la fase que v1 subestimaba.*
 - [~] **F2-11 · Permisos por persona: concesiones y revocaciones sobre el rol** (DEC-15, §9.10.6).
   → *Criterio:* una excepción queda en auditoría con quién la concedió y por qué; **nunca amplía la
   sucursal**; y la pantalla de usuarios muestra rol y excepciones por separado.
-- [ ] **F2-12 · Sesión en dispositivo compartido** (DEC-17, §9.10.5).
+- [~] **F2-12 · Sesión en dispositivo compartido** (DEC-17, §9.10.5).
   → *Criterio:* cambio de usuario a un toque; bloqueo por inactividad configurable; el corte Z
   devuelve el aparato a la pantalla de acceso.
 - [ ] **F2-10 · Pantalla de gestión de usuarios, roles y PIN.**

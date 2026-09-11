@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CircleCheckBig, FileText, Lock, OctagonAlert, TriangleAlert } from "lucide-react";
 import { type CurrencyCode, type Money, multiply, toMajor, zero } from "@l2/domain-money";
 import {
@@ -76,6 +77,24 @@ export function TurnoScreen({
   );
 
   const sellado = status === "CERRADO_Z";
+
+  // F2-12: «la sesión no sobrevive al cierre del turno». Tras el corte Z el
+  // equipo vuelve al acceso. Se dejan unos segundos para leer la
+  // confirmación, y el botón permite irse ya.
+  const router = useRouter();
+  const [regreso, setRegreso] = useState<number | null>(null);
+  useEffect(() => {
+    if (!sellado) return;
+    setRegreso(5);
+    const id = window.setInterval(
+      () => setRegreso((n) => (n === null ? null : Math.max(0, n - 1))),
+      1000,
+    );
+    return () => window.clearInterval(id);
+  }, [sellado]);
+  useEffect(() => {
+    if (regreso === 0) router.replace("/acceso");
+  }, [regreso, router]);
 
   /** Si el cajero ya empezó a contar alguna moneda. */
   const contadoAlgo = [...contadoPorMoneda.values()].some((m) => m.amount !== 0n);
@@ -348,10 +367,23 @@ export function TurnoScreen({
                     className="mt-0.5 shrink-0 text-state-ok"
                     aria-hidden="true"
                   />
-                  <p className="text-[13px] text-ink">
-                    Turno cerrado con corte Z. Los correlativos quedaron sellados y no admite más
-                    operaciones.
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] text-ink">
+                      Turno cerrado con corte Z. Los correlativos quedaron sellados y no admite más
+                      operaciones.
+                    </p>
+                    <p className="tnum mt-2 text-[12.5px] text-ink-2">
+                      El equipo vuelve a la pantalla de acceso en {regreso ?? 5} s.
+                    </p>
+                    <Button
+                      surface="tablet"
+                      variant="neutral"
+                      onClick={() => router.replace("/acceso")}
+                      className="mt-2 w-full"
+                    >
+                      Ir al acceso ahora
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

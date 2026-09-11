@@ -1,3 +1,5 @@
+import { DEFAULT_STATION_IDLE } from "@l2/domain-identity";
+import { IdleGuard } from "../../src/features/shell/IdleGuard";
 import { PageTransition } from "../../src/features/shell/PageTransition";
 import { StationBar } from "../../src/features/shell/StationBar";
 
@@ -30,6 +32,10 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
         }}
       />
       <PageTransition>{children}</PageTransition>
+      {/* F2-12: la sesión no se queda abierta en un puesto desatendido.
+          TODO(backend): la política vendrá de la configuración de la
+          sucursal; la forma ya es la definitiva. */}
+      <IdleGuard politica={DEFAULT_STATION_IDLE} usuario="Marisol Prieto" />
     </div>
   );
 }

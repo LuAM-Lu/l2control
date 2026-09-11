@@ -273,6 +273,28 @@ servidor, y bloquea las que no cambian nada: solo ensuciarían la auditoría.
 Comprobado en navegador: revocar a Ana la reimpresión, rechazo del motivo corto y bloqueo de una
 concesión sin efecto. Queda parcial hasta que el backend guarde las excepciones y su auditoría.
 
+## F2-12 · Sesión en dispositivo compartido — 2026-09-11
+
+DEC-17: los aparatos son del puesto, no de la persona. Los tres criterios, comprobados en navegador:
+
+| Criterio | Cómo quedó |
+|---|---|
+| Bloqueo por inactividad configurable | Tres minutos en las estaciones, con treinta segundos de aviso y la cuenta atrás en palabras. Configurable por superficie: **el monitor de pared no se bloquea nunca**, porque se mira y no se toca |
+| Cambio de usuario a un toque | El botón de la barra de estación lleva al acceso por PIN |
+| El corte Z devuelve el aparato al acceso | Tras sellar, cuenta atrás de cinco segundos para leer la confirmación y botón para irse ya |
+
+- **La regla es del dominio**, pura, con el instante como argumento (ADR-010), y con ocho pruebas.
+  Pruebas de identidad: 68 → 76.
+- **Una política mal escrita se rechaza**, nunca se lee como «no bloquear»: dejaría el puesto
+  abierto por un error de configuración. Y «sin bloqueo» es una palabra, no un `null`.
+- **Solo tocar, teclear o desplazar cuenta como actividad.** Mover el ratón por encima no: en un
+  mostrador, alguien que pasa rozándolo no está atendiendo el puesto.
+- `?inactividad=N` acorta el plazo para una demo o una prueba. **Solo puede acortarlo**: un
+  parámetro que lo alargara sería una forma trivial de desactivarlo.
+
+Queda parcial: la política vendrá de la configuración de la sucursal, y la sesión real del
+dispositivo, del backend.
+
 ## Deuda técnica registrada
 
 | Qué | Por qué se aceptó | Cuándo se salda |
