@@ -1554,7 +1554,12 @@ La neutralización no es opcional, es la condición para que este orden funcione
 | 4 | Caja: cobro mixto y vuelto | F4-03, F4-04b | Interfaz hecha |
 | 5 | Cortes X y Z, arqueo | F4-05, F4-06, F4-07 | Interfaz hecha |
 | 6 | Acceso por PIN y dispositivo | F2-03 | Interfaz hecha |
-| 7 | Mesas, comandas y KDS | F6-01…F6-07 | Fuera de la Ruta A |
+| 7 | Mesas, comandas y KDS | F6-01…F6-07 | Interfaz: filas 9 a 11 (DEC-22). Backend fuera de la Ruta A |
+| 8 | **Simulador de operación y catálogo de eventos** | F1-19, F1-20 | **En curso** |
+| 9 | Mesas y mesero | F6-01…F6-05 (interfaz) | Pendiente |
+| 10 | Cocina (KDS) | F6-06…F6-09 (interfaz) | Pendiente |
+| 11 | Caja con cuentas de mesa, adicionales y propina | F6-05, F6-13, F8-02 (interfaz) | Pendiente |
+| 12 | Panel en vivo del local | F9-08 | Pendiente |
 
 **Estado al 2026-09-11.** Las seis superficies de la Ruta A tienen su interfaz, y con ellas las
 pantallas de F2 que este orden obliga a no saltarse: permisos por persona (F2-11) y sesión en
@@ -1649,6 +1654,11 @@ Es la fase que v1 subestimaba.*
   o en la barra permanente de la estación.
 - [ ] **F1-13 · Observabilidad** (§10.2): logger estructurado con redacción, trazas, métricas.
   → *Criterio:* una prueba verifica que un dato sensible **no** aparece en el log.
+- [~] **F1-19 · Simulador de operación** (DEC-22, [FLUJOS.md](FLUJOS.md) §6).
+  → *Criterio:* reproduce los escenarios de FLUJOS §5 sobre los mismos contratos que usará el servidor, a
+  ×1, ×10 y ×60; varias ventanas ven la misma operación; las pantallas no distinguen el simulador del backend.
+- [~] **F1-20 · Catálogo de eventos en tiempo real como contrato** (ADR-008, FLUJOS §4).
+  → *Criterio:* cada evento se valida con Zod; un evento de tipo desconocido se rechaza.
 - [ ] **F1-14 · Canalización de CI** completa (§10.3).
   → *Criterio:* un *pull request* de ejemplo recorre las siete etapas y falla adecuadamente en cada una.
 - [ ] **F1-15 · Entorno de staging** desplegado.
@@ -1901,6 +1911,10 @@ cuando el trámite esté listo.*
   → *Criterio:* se abre sin errores en la herramienta del contador; los números coinciden.
 - [ ] **F9-07 · Todo gráfico con vista de tabla equivalente** (§8.6).
   → *Criterio:* ninguna información depende solo del color; verificado en simulación de daltonismo.
+- [ ] **F9-08 · Panel en vivo del local** (DEC-22, FLUJOS flujo E): parque, cocina, mesas, caja y
+  personas conectadas.
+  → *Criterio:* todo cambia sin recargar a partir de los eventos de F1-20; un puesto sin nadie en hora de
+  servicio se señala.
 
 ### FASE 10 · ENDURECIMIENTO, RENDIMIENTO Y CONTINUIDAD
 
@@ -1996,7 +2010,7 @@ cuando el trámite esté listo.*
 
 ## 14. DECISIONES DEL CLIENTE
 
-**Las veintiuna estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 el 2026-09-11.
+**Las veintidos estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 y DEC-22 el 2026-09-11.
 
 ### 14.1 Cerradas
 
@@ -2023,6 +2037,7 @@ cuando el trámite esté listo.*
 | **DEC-19** OK | Pantalla de cocina | **Las dos: KDS en tablet + comanda impresa** | Un KDS es una pagina web y corre en una tablet barata, no hace falta un tercer equipo fijo. La pantalla es la fuente de verdad —estados, tiempos de espera, aviso al mesero— y el papel es el objeto que se maneja en la linea (ADR-015). La tablet va **fuera de la linea de fuego**, con carcasa y montada en pared: hay calor y grasa |
 | **DEC-20** OK | Capa de plataforma | **No. Abby Kingdom es el unico cliente por ahora** | No se construyen registro de clientes, planes ni facturacion de suscripcion. El `tenant_id` y la RLS se mantienen: cuestan poco ahora y son carisimos despues (§9.10.8) |
 | **DEC-21** OK | Como paga una familia el parque | **Las dos, segun el cliente**: prepago o cuenta abierta, elegido en cada entrada | La cuenta de la familia enlaza entrada, salida y caja (§9.10.9). En prepago se cobra el paquete al entrar y solo el excedente al salir; en cuenta abierta, parque y restaurante se pagan juntos al irse. La caja pasa a ser una cola de cuentas por cobrar |
+| **DEC-22** OK | Restaurante y panel en vivo | **Se construye ya la interfaz de mesas, mesero, cocina y panel en vivo, sobre el simulador** (respuesta a D1 de [FLUJOS.md](FLUJOS.md)) | La interfaz de F6 y del panel en vivo entra en la fase de frontend (§11.4). Su backend sigue fuera de la Ruta A y llega despues del piloto del parque, cuya salida no se mueve. Base: FLUJOS.md y el simulador F1-19 |
 
 ### 14.3 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
 

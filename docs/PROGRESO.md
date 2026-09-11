@@ -58,6 +58,8 @@
 | F1-11 Hook de escaneo | Parcial | Captura sin foco, valida formato, limita frecuencia y ya no pierde el primer carácter al navegar (un solo oyente para toda la app). Falta calibrar el umbral con el lector real |
 | F1-12 Plantillas de ticket | Pendiente | 58 y 80 mm; la impresora comprada admite ambos |
 | F1-13 Observabilidad | Pendiente | Logger con redacción, trazas, métricas |
+| F1-19 Simulador de operación | Parcial | Motor, proyección del local, tres escenarios y panel de control; sincronizado entre pestañas. El monitor ya se alimenta de él (DEC-22) |
+| F1-20 Catálogo de eventos | Parcial | Contrato Zod de los eventos de FLUJOS §4 que emite el simulador; faltan los de cuentas |
 | F1-14 CI | **Pendiente** | **`pnpm verify` existe pero nada lo ejecuta solo. Ver abajo** |
 | F1-15 Staging | Pendiente | — |
 | F1-16 Semillas | Pendiente | Bloqueada por F0-04 |
@@ -125,8 +127,8 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ## Próximos pasos
 
-1. **Backend de la cuenta de la familia.** Los flujos de DEC-21 y las estaciones sin scroll ya
-   existen en la interfaz (§8.8, §9.10.9); hoy las cuentas viven en la sesión del navegador.
+1. **DEC-22, paso a paso sobre el simulador:** simulador y eventos (en curso) → mesas y mesero →
+   cocina (KDS) → caja con cuentas de mesa → panel en vivo. Orden de [FLUJOS.md](FLUJOS.md) §6.
 2. **F1-14, la CI.** `pnpm verify` comprueba tipos, fronteras y pruebas, pero nadie lo ejecuta
    solo: las reglas muerden solo si alguien se acuerda de invocarlas.
 3. **El lint no existe.** `pnpm lint` no ejecuta nada, y `CLAUDE.md` promete una regla contra

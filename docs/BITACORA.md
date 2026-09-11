@@ -232,3 +232,19 @@ cuenta para familia y mesa, veinticinco escenarios de orden, pico y caos, y un s
 para construir el frontend. Casi todo ya estaba en el plan como R1–R7 y F6; lo nuevo es la zona de
 personas conectadas. Queda la decisión de alcance D1: el restaurante está fuera de la Ruta A.
 
+## Alcance del restaurante y el simulador — 2026-09-11
+
+El cliente respondió a D1: la interfaz de mesas, mesero, cocina y panel en vivo se construye ya,
+sobre un simulador, y su backend llega después del piloto del parque, sin mover la salida en vivo
+del parque (DEC-22). Primer paso hecho: el catálogo de eventos de FLUJOS §4 es ahora un contrato
+Zod (F1-20) y el simulador (F1-19) reproduce tres tardes —O1 tranquila, P1 sábado a las cuatro,
+X3 impresora sin papel— a ×1, ×10 o ×60. El estado del local es una función pura de los eventos,
+así que varias pestañas siguen la misma operación sin enviarse eventos: la que lleva el reloj solo
+dice por dónde va, y una pestaña abierta tarde se pone al día sola. El monitor de sala ya lo
+consume con el mismo traductor que usa para los datos del servidor.
+
+Dos hallazgos por el camino. El cronómetro de cada tarjeta medía una sola vez el desfase con el
+servidor y después ignoraba las horas nuevas: con datos en vivo se habría quedado atrás. Ahora se
+remide con cada instante nuevo. Y un script de invariantes (aforo, todo cerrado al final,
+idempotencia, ningún evento fuera de la tarde) encontró que el escenario X3 dejaba a una niña
+dentro y liberaba una mesa después del final; se corrigió antes de enseñarlo.

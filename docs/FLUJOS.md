@@ -272,6 +272,10 @@ backend exista, se cambia la fuente y las pantallas no se tocan (§11.4).
 
 ## 7. Decisiones pendientes
 
+> **D1 quedó decidida el 2026-09-11 (DEC-22):** la interfaz de mesas, mesero, cocina y panel en vivo
+> se construye ya sobre el simulador; su backend, después del piloto del parque. Las demás siguen
+> abiertas.
+
 | # | Decisión | Por qué importa | Propuesta |
 |---|---|---|---|
 | **D1** | **Alcance.** Mesas, mesero, cocina y panel en vivo son F6 y F9, **fuera de la Ruta A** (§11.3) | Con dos personas, cada tarea nueva desplaza a otra (DEC-11) | Construir su **interfaz** ahora sobre el simulador, dentro de la fase de frontend, y dejar su backend para después del piloto del parque. La salida en vivo del parque no se mueve |

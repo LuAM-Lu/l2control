@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
+import { PanelSimulacion } from "../src/features/simulacion/PanelSimulacion";
+import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvider";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
    interfaz y datos. Quicksand NUNCA para cifras: sus numerales no sirven
@@ -33,7 +35,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
-      <body>{children}</body>
+      <body>
+        {/* F1-19: por encima del panel y de las estaciones, para que las dos
+            cáscaras vean la misma simulación. */}
+        <SimulacionProvider>
+          {children}
+          <PanelSimulacion />
+        </SimulacionProvider>
+      </body>
     </html>
   );
 }

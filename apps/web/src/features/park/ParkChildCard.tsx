@@ -93,7 +93,9 @@ export function ParkChildCard({
           </span>
           <span
             className={cn(
-              "block text-[10.5px] font-semibold tracking-[0.08em] uppercase",
+              // truncate: con una cuenta de horas (01:50:26) la cifra ensancha
+              // y la etiqueta se partía en dos líneas.
+              "block truncate text-[10.5px] font-semibold tracking-[0.08em] uppercase",
               ETIQUETA[status.tone],
             )}
           >

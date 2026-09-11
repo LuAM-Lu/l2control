@@ -10,6 +10,8 @@ import { toMajor } from "@l2/domain-money";
 import { pendiente } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock, DEFAULT_TIME_FORMAT } from "./time-format.ts";
+import { monitorSimulado } from "../simulacion/monitor.ts";
+import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
 import type { MonitorModel } from "./view-model";
 
@@ -19,7 +21,11 @@ import type { MonitorModel } from "./view-model";
  * Nivel 3 (§9.4): conoce el dominio. Se lee a distancia, se opera con las
  * manos ocupadas, y el estado se comunica por color + icono + texto.
  */
-export function ParkMonitor({ model }: { model: MonitorModel }) {
+export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) {
+  // F1-19: con una simulación en marcha, el monitor pinta la sala simulada con
+  // el mismo traductor que usa para los datos del servidor.
+  const sim = useSimulacion();
+  const model = useMemo(() => monitorSimulado(sim) ?? modeloServidor, [sim, modeloServidor]);
   const [selected, setSelected] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -68,6 +74,7 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
   const cuentaFicha = ficha
     ? (cuentas.find((c) => c.sessionIds.includes(ficha.id)) ?? null)
     : null;
+  const familiaSimulada = ficha && sim.activa ? (sim.estado.familias[ficha.id] ?? null) : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -76,6 +83,13 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
           ya dice dónde estás, y el título ocupaba el sitio de las cifras. */}
       <header className="border-b border-line">
         <h1 className="sr-only">Monitor de parque</h1>
+        {sim.activa && (
+          // Una pantalla con datos simulados lo dice: nadie debe confundirla
+          // con la sala real.
+          <p className="border-b border-brand/30 bg-brand/10 py-1 text-center text-[12px] font-semibold tracking-wide text-brand uppercase">
+            Simulación · {model.shiftLabel.replace("Simulación · ", "")}
+          </p>
+        )}
         <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-2.5">
           <Contador
             etiqueta="En sala"
@@ -200,6 +214,11 @@ export function ParkMonitor({ model }: { model: MonitorModel }) {
                   <dd className="tnum text-ink">USD {toMajor(pendiente(cuentaFicha))}</dd>
                 </div>
               </>
+            ) : familiaSimulada ? (
+              <div className="flex items-baseline justify-between gap-3 border-t border-line pt-3">
+                <dt className="text-ink-3">Representante</dt>
+                <dd className="text-ink">{familiaSimulada} · simulado</dd>
+              </div>
             ) : (
               <p className="border-t border-line pt-3 text-[13px] text-state-warn">
                 Esta estancia no tiene cuenta: su salida no se podrá cerrar hasta resolverlo.

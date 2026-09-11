@@ -87,3 +87,11 @@ export {
   type AccountLineDto,
   type FamilyAccountDto,
 } from "./account.ts";
+
+export {
+  OperationEventSchema,
+  OrderItemSchema,
+  type OperationEventDto,
+  type OperationEventType,
+  type OrderItemDto,
+} from "./eventos.ts";
