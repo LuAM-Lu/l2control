@@ -138,6 +138,9 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ## Próximos pasos
 
+0. **Pendiente de aprobar: [UX-MEJORAS.md](UX-MEJORAS.md).** Auditoría de experiencia y mini plan V1-V5
+   (avisos, roles en estaciones, plano espacial, editor de plano, venta directa), con cuatro decisiones
+   nuevas del cliente (D10-D12 y D6). Propone hacer V1 y V2 antes de la cocina.
 1. **DEC-22, paso a paso sobre el simulador:** simulador y eventos ✔ → mesas y mesero ✔ →
    **cocina (KDS)** → caja con cuentas de mesa → panel en vivo. Orden de [FLUJOS.md](FLUJOS.md) §6.
 2. **F1-14, la CI.** `pnpm verify` comprueba tipos, fronteras y pruebas, pero nadie lo ejecuta

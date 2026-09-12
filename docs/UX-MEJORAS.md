@@ -1,0 +1,247 @@
+# Mejoras de experiencia: auditoría y mini plan
+
+> **Qué es.** Una auditoría de las pantallas tal como están el 2026-09-12 (capturas a 1366×768) y un
+> plan corto de mejoras visuales y de uso. Nada de esto está construido todavía: **es una propuesta
+> para aprobar**. Lo que toca el alcance o una decisión del cliente se marca como decisión (§8).
+>
+> Las maquetas están en `docs/diseno/`: son dibujos de la propuesta, no pantallas construidas.
+>
+> Lo que ya manda sigue mandando: tokens de `packages/config/tokens.css`, estados reservados con color +
+> icono + texto (§8.2), objetivos táctiles por superficie (§8.4) y fail-closed.
+
+---
+
+## 1. Auditoría
+
+Severidad: **alta** si puede causar un error de operación o de atribución; **media** si frena o
+confunde; **baja** si es acabado.
+
+| # | Sev. | Qué pasa | Dónde | Propuesta |
+|---|---|---|---|---|
+| A1 | Alta | El botón del simulador flota encima de la operación: tapa el usuario y «Salir» del menú del panel, el final de la cola de caja y se amontona con la insignia del dispositivo | Todas | Llevarlo a un chip **«Demo»** dentro de la barra de estación y del pie del menú. Nunca flotante |
+| A2 | Alta | La identidad está fija: todas las estaciones dicen «Marisol Prieto · Cajera», también en Mesas | Barra de estación | Que salga de quien entró por el acceso. Si la pantalla dice otra persona, lo que se haga queda mal atribuido |
+| A3 | Alta | Los roles no filtran las estaciones: «Panel» y las pestañas se ven siempre, y cualquiera llega a `/caja` escribiendo la URL | Barra de estación | Filtrar con `visibleSurfaces` y una pantalla «Sin acceso» con cambio de usuario (§3) |
+| A4 | Alta | Cinco formas distintas de avisar: subtítulo de cabecera (Mesas), recuadro de alerta (Salida), tarjeta de estado (Liquidación), texto del lector y diálogo (Caja) | Todas | Una sola taxonomía: campo, toast, banner y diálogo (§4.2) |
+| M1 | Media | Hojas, diálogos y avisos **entran** animados pero **salen de golpe** | Capas | Animación de salida más corta que la de entrada (§4.1) |
+| M2 | Media | La píldora «14:00» parece un reloj; es la hora de apertura del turno | Barra de estación | «Turno desde 14:00» |
+| M3 | Media | El back-office desplaza: Inicio +491 px, Usuarios +1434 px | `/panel` | Usuarios en maestro-detalle; Inicio con lo urgente arriba. Decidir si el back-office puede desplazar (D12) |
+| M4 | Media | Mesas es una cuadrícula, no el local: el mesero no encuentra la mesa por su sitio | `/mesas` | Plano espacial del local (§2) |
+| M5 | Media | La entrada muestra el teléfono del representante a roles sin `parque.verContacto` (cajera) | `/entrada` | Enmascarar: «0412-•••4567» |
+| B1 | Baja | El indicador de desarrollo de Next («N») se monta abajo a la izquierda y ensucia las capturas | Solo desarrollo | `devIndicators` en otra esquina |
+| B2 | Baja | Todas las iniciales del acceso van en amarillo de marca; la marca es para la acción principal | `/acceso` | Iniciales neutras |
+| B3 | Baja | Insignias de 11 px en las baldosas densas | `/mesas`, `/monitor` | 12 px mínimo, texto antes que icono |
+
+---
+
+## 2. Plano de mesas
+
+### 2.1 Lo que dice el dibujo
+
+- **El parque** ocupa la franja de arriba, con una puerta propia hacia el salón (arriba a la izquierda).
+- **La entrada de la calle** está en la pared izquierda, con puerta doble.
+- **8 mesas redondas de 4 sillas**: 4 junto al parque, y dos filas de 2 hacia la calle.
+- **La caja** es una barra en L en el centro-derecha; **la cocina**, abajo a la derecha, detrás de la barra.
+- La pared derecha va en diagonal: el local no es rectangular.
+
+El prototipo actual inventó 8 mesas con algunas de 6 sillas y dos zonas. El dibujo lo corrige: **todas
+de 4 sillas**. Propuesta de numeración y zonas, a confirmar (D11): **1-4 «Junto al parque»** de
+izquierda a derecha, **5-8 «Salón»**. Las medidas reales siguen siendo trabajo de campo (F0-03).
+
+![Modo servicio: plano del local en /mesas](diseno/plano-servicio.png)
+
+### 2.2 Dos modos, nunca mezclados
+
+| | Modo servicio | Modo edición |
+|---|---|---|
+| Quién | Mesero, cajera, supervisor | Solo administración (`catalogo.modificar`, D10) |
+| Dónde | `/mesas` (estación) | Panel → Restaurante → Mesas y zonas |
+| Qué se hace | Tocar una mesa para verla y operarla | Mover, añadir, girar y retirar mesas |
+| Arrastrar | **Nunca**: un roce con prisa no puede mover una mesa en pleno servicio | Sí, con alternativa sin arrastre |
+| Cambios | En vivo, por eventos | En **borrador**; el servicio no los ve hasta **Publicar** |
+
+![Modo edición: borrador, rejilla, guía de alineación y solape marcado](diseno/plano-edicion.png)
+
+### 2.3 Buenas prácticas del editor
+
+**Datos**
+1. Posición en **unidades del local** (centímetros o cuadrícula), no en píxeles: el mismo plano escala
+   a 1366, a tablet y a móvil.
+2. Cada mesa lleva número único, zona, forma (redonda, cuadrada, rectangular), sillas y giro.
+3. **Estructura fija aparte**: paredes, puertas, parque, caja y cocina van en una capa bloqueada
+   (candado) que se edita pocas veces.
+4. **Nada se borra** (regla 5): una mesa se **retira**, porque los pedidos del pasado la nombran. Una
+   mesa ocupada no se puede retirar, y la pantalla dice por qué.
+5. **Versiones del plano**: publicar crea una versión con fecha; la anterior queda en el historial.
+
+**Interacción**
+1. **Ajuste a la cuadrícula** al soltar, y **guías de alineación** cuando una mesa se alinea con otra.
+2. **Solapes a la vista**: si una mesa pisa otra o sale de las paredes, se marca en rojo y no se publica.
+3. **Sin arrastre también se puede** (WCAG 2.5.7): panel de propiedades con posición y flechas para
+   empujar; con teclado, flechas mueven 1 unidad y Mayús + flechas, 5.
+4. **Deshacer y rehacer** (Ctrl+Z, Ctrl+Mayús+Z) y **Descartar borrador**.
+5. **Táctil**: el arrastre empieza con pulsación larga, para no confundirlo con desplazar.
+6. **Ajustar a la pantalla** siempre visible; zoom solo si el local crece.
+
+**En servicio**
+1. El plano cabe entero sin desplazar; la mesa elegida se abre a la derecha (maestro-detalle, como hoy).
+2. Estado con **color + icono + texto**; las sillas ocupadas se rellenan.
+3. Conmutador **Plano | Lista**: la lista es la vista para móvil y para lectores de pantalla.
+
+### 2.4 Nombres para investigar
+
+- **Librerías**: dnd-kit (`@dnd-kit/react`), Pragmatic drag and drop (Atlassian), React Flow (xyflow),
+  react-konva, Motion (gestos de arrastre), interact.js. **Propuesta**: SVG + eventos de puntero propios.
+  Con 8-10 mesas no hace falta una librería de diagramas, y el proyecto evita dependencias que no
+  cargan peso real.
+- **POS con editor de plano**: Odoo POS Restaurante (código abierto, editor muy parecido a lo pedido),
+  Lightspeed Restaurant K-Series, Toast POS, Square for Restaurants, Fudo (muy usado en Latinoamérica).
+
+---
+
+## 3. Qué ve cada rol
+
+Sale de la matriz de §7.3 (`packages/domain/identity`). **✓** puede · **🔐** con autorización · **—** no lo ve.
+
+| Superficie | Admin | Supervisor | Cajera | Mesero | Monitora | Cocina |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| Panel: Inicio e informes | ✓ | ✓ | — | — | — | — |
+| Sala y entrada del parque | ✓ | ✓ | ✓ | — | ✓ | — |
+| Salida del parque | ✓ | ✓ | ✓ | — | ✓ | — |
+| Caja: cobrar | ✓ | ✓ | ✓ | — | ✓ (taquilla) | — |
+| Turno: cortes X | ✓ | ✓ | ✓ | — | — | — |
+| Corte Z | ✓ | ✓ | 🔐 | — | — | — |
+| Mesas y pedidos | ✓ | ✓ | ✓ | ✓ | — | — |
+| Vincular pulseras a una mesa | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| Anular un pedido en cocina | ✓ | 🔐 | 🔐 | 🔐 | — | — |
+| Cocina (KDS) | ✓ | ✓ | — | — | — | ✓ |
+| Inventario | ✓ | 🔐 | — | — | — | — |
+| Carta, tarifas y **editar el plano** | ✓ | — | — | — | — | — |
+| Usuarios y permisos | ✓ | — | — | — | — | — |
+
+**Cuatro reglas de visibilidad**
+1. Lo que un rol no puede alcanzar **no aparece**: ni en el menú, ni en las pestañas, ni en la barra.
+2. Lo que puede **con autorización sí aparece**, con candado y el paso de autorización.
+3. Un dato sensible **se enmascara**; no se esconde la pantalla entera.
+4. **La URL no es una puerta**: entrar a mano muestra «Sin acceso» y cambio de usuario, nunca la pantalla.
+
+Las excepciones por persona (F2-11) cambian la fila de esa persona, no la del rol.
+
+---
+
+## 4. Movimiento y avisos
+
+### 4.1 Transiciones
+
+Una curva y pocas duraciones (ya en `tokens.css`). La salida siempre es más rápida que la entrada, se
+anima una o dos cosas por vista, y `prefers-reduced-motion` lo apaga todo.
+
+| Qué | Hoy | Propuesta |
+|---|---|---|
+| Avanzar o volver en la jerarquía | Desliza 28 px, 240 ms, solo entrada | Desliza 16 px con fundido, 220 ms; salida 160 ms |
+| Pestañas del mismo puesto | Fundido 200 ms | Fundido cruzado 150 ms, sin desplazamiento |
+| Hoja lateral | Entra 240 ms, sale de golpe | Entra 280 ms, sale 200 ms |
+| Diálogo | Crece desde 0,96, sale de golpe | Igual, y sale en 150 ms |
+| Toast | No existe | Entra 200 ms desde arriba, sale 150 ms, se apilan |
+| Una mesa o comanda cambia de estado | Salta | Un destello de borde de 600 ms, una vez. Solo lo crítico repite |
+| Dinero y contadores | Saltan | **Sin animar**: una cifra que rueda no se lee |
+
+**Nombres para investigar**
+- **View Transitions API** del navegador. En Next 16 va con `experimental.viewTransition` y el componente
+  `unstable_ViewTransition` de React: **todavía experimental**, Vercel no lo recomienda en producción.
+- **CSS `@starting-style` + `transition-behavior: allow-discrete`**: animación de salida nativa para
+  `<dialog>`, que es lo que ya usan las capas. Sin librería.
+- **Motion** (motion.dev, antes Framer Motion): `AnimatePresence` para salidas y `layout` para reordenar
+  listas (el KDS).
+- **AutoAnimate** (FormKit): reordenar listas con una línea.
+
+**Propuesta**: seguir con CSS. `@starting-style` para las salidas de capas y toasts, y Motion solo si el
+KDS necesita reordenar tarjetas animadas.
+
+### 4.2 Avisos: cuál usar
+
+| Tipo | Cuándo | Ejemplo | Cuánto dura |
+|---|---|---|---|
+| **En el campo** | Un dato no vale | «Código no reconocido» | Hasta corregirlo |
+| **Toast** | Terminó una acción, sin bloquear nada | «Mesa 3 abierta · 2 personas» | 4 s; 8 s si trae acción |
+| **Banner fijo** | Estado del sistema que degrada o bloquea | Sin tasa, impresora sin papel, sin internet | Mientras dure |
+| **Diálogo** | Decisión que no tiene vuelta | Corte Z, enviar a cocina | Hasta decidir |
+
+![Los cuatro tipos de aviso](diseno/avisos.png)
+
+**Regla fail-closed**: un error que impide operar **nunca es solo un toast**. Se va solo y nadie lo
+vuelve a ver.
+
+**Posición**: arriba al centro, bajo la barra, en las estaciones, lejos de la acción principal (abajo a
+la derecha) y visible a distancia. Arriba a la derecha en el back-office. Máximo 3 a la vista, pausa al
+pasar el ratón o enfocar, `aria-live` cortés para éxito y enérgico para error.
+
+**Nombres para investigar**: **Sonner** (Emil Kowalski; el de shadcn/ui), **React Aria Toast** (Adobe; la
+mejor accesibilidad), **Base UI Toast**, **Radix Toast**, **react-hot-toast**, **Notistack**.
+Referencias de estilo: los toasts de Vercel (Geist), Linear y Stripe.
+**Propuesta**: Sonner estilado con nuestros tokens.
+
+---
+
+## 5. Caja: venta directa
+
+Hoy la caja solo cobra **cuentas**: familias que salen y, pronto, mesas. Falta vender en el mostrador a
+quien no tiene cuenta (una golosina, un agua, un juguete) y **añadir un adicional a una cuenta** (el
+caramelo del flujo A11).
+
+![Venta directa en caja](diseno/caja-venta-directa.png)
+
+**Flujo propuesto**
+1. En la columna «Por cobrar», un botón **Venta directa** abre la carta de mostrador: rejilla táctil por
+   categorías, la misma pieza que la carta del mesero.
+2. El ticket se llena a la derecha y se cobra con el **mismo cobro mixto** de hoy (IVA, IGTF, vuelto).
+3. Desde una cuenta abierta, **Añadir productos** usa la misma carta y suma líneas a esa cuenta.
+4. El lector puede leer **códigos de barras** de productos: se distinguen de una pulsera por el formato
+   (`AK-…` frente a 13 dígitos).
+
+**Bloqueado por una decisión**: D6. Es F8-02, fuera de la Ruta A. La propuesta es un catálogo mínimo de
+mostrador **sin inventario**, que F8 completa después.
+
+---
+
+## 6. La insignia «Tablet taquilla · autorizado»
+
+Está en la pantalla de acceso y dice **qué equipo es y que está autorizado**. El PIN solo abre sesión en
+un dispositivo registrado y aprobado (ADR-013): el equipo es el primer factor y el PIN el segundo. Si
+alguien ve un PIN por encima del hombro, desde otro aparato no le sirve de nada. Si la tablet no está
+aprobada, en lugar de esta pantalla sale el bloqueo.
+
+**Problemas**
+- Parece un botón y no hace nada.
+- Es pequeña para lo que protege.
+- Justo debajo se le amontonan el simulador y el indicador de Next.
+
+**Propuesta**: una línea de **estado del equipo** al pie, con dispositivo, sucursal, conexión y versión.
+Que la administración la pueda tocar para ver el detalle.
+
+---
+
+## 7. Mini plan
+
+Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el siguiente.
+
+| Paso | Qué | Hallazgos | Tamaño |
+|---|---|---|---|
+| **V1** | Base visual: taxonomía de avisos con toasts, salidas animadas, simulador dentro de la barra, identidad desde el acceso, «Turno desde», indicador de Next | A1, A2, A4, M1, M2, B1, B2 | 1 sesión |
+| **V2** | Roles en estaciones: pestañas y «Panel» filtrados, pantalla «Sin acceso», teléfono enmascarado | A3, M5 | 1 sesión |
+| — | *DEC-22 paso 3: cocina (KDS)*, ya con toasts y roles | — | — |
+| **V3** | Plano espacial en `/mesas` con el local del dibujo, y vista Lista | M4 | 1 sesión |
+| **V4** | Editor del plano en el panel: borrador, publicar, retirar, deshacer | F6-01 | 1-2 sesiones |
+| **V5** | Caja: venta directa y adicionales, junto al paso 4 de DEC-22 | §5 | Tras D6 |
+| — | *DEC-22 paso 5: panel en vivo* | M3 | — |
+
+---
+
+## 8. Decisiones que hacen falta
+
+| # | Decisión | Propuesta |
+|---|---|---|
+| **D6** | ¿Venta directa en caja? (ya abierta en FLUJOS §7) | Catálogo mínimo de mostrador sin inventario |
+| **D10** | ¿Quién edita el plano de mesas? | Solo administración. El supervisor lo ve pero no lo mueve |
+| **D11** | Numeración y zonas del dibujo | 1-4 «Junto al parque», 5-8 «Salón», 4 sillas cada una |
+| **D12** | ¿El back-office puede desplazar? | Sí. Lo urgente arriba; las estaciones siguen sin desplazar |
+| — | Librería de toasts | Sonner, tras vuestra investigación |

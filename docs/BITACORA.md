@@ -277,3 +277,19 @@ el botón principal de la columna de acciones, que en todas las estaciones está
 la izquierda. Y dos ajustes de lectura: las insignias de solo icono y número («🍳 1») pasaron a decir
 «1 en cocina», y cada línea del ticket pasó a una sola fila para que cinco platos quepan sin
 desplazar.
+
+## Auditoría de experiencia y plano del local — 2026-09-12
+
+El cliente pidió una revisión de diseño con mirada de UX sénior y pasó un dibujo del local. Se
+revisaron las diez pantallas a 1366×768 y salieron doce hallazgos. Los cuatro altos: el botón del
+simulador tapa la operación, la barra de estación dice siempre «Marisol Prieto · Cajera», las
+estaciones no filtran por rol y hay cinco formas distintas de avisar. Todo está en
+[UX-MEJORAS.md](UX-MEJORAS.md), con maquetas en `docs/diseno/` y un orden propuesto (V1-V5).
+**No se construyó nada: es una propuesta para aprobar.**
+
+El dibujo corrige al prototipo: son 8 mesas redondas de **4 sillas**, cuatro junto al parque y dos
+filas de dos hacia la calle, con la caja en L y la cocina detrás. Se propone un plano espacial en dos
+modos que nunca se mezclan. En servicio nada se arrastra. En edición, solo la administración mueve
+mesas, con borrador, publicación versionada y retirada en vez de borrado, porque los pedidos del pasado
+nombran la mesa. Quedan cuatro decisiones: quién edita el plano (D10), numeración y zonas (D11), si hay
+venta directa en caja (D6) y si el back-office puede desplazar (D12).
