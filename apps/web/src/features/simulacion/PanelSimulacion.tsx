@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Activity, Pause, Play, Square, X } from "lucide-react";
 import { cn } from "@l2/ui";
 import { describir } from "./describir.ts";
@@ -10,10 +9,12 @@ import { useSimulacion } from "./SimulacionProvider.tsx";
 /**
  * Mandos del simulador — F1-19.
  *
- * Una tarjeta flotante y NO modal: el objetivo es mirar las pantallas
- * mientras la tarde avanza, así que no puede taparlas ni bloquearlas.
- * Plegada es una píldora con la hora simulada; desplegada, elige escenario,
- * velocidad y cuenta lo último que pasó.
+ * Antes era una píldora flotante en una esquina, y en cualquier esquina
+ * tapaba algo: el botón principal de las estaciones, el usuario y «Salir» del
+ * panel, la insignia del equipo en el acceso (hallazgo A1 de UX-MEJORAS). Ahora
+ * se abre desde un chip «Demo» que vive DENTRO de cada barra, y el panel
+ * desplegado es una tarjeta NO modal bajo esa barra: se mira la operación
+ * mientras la tarde avanza, y se pliega con el mismo chip o con Escape.
  */
 
 const HORA = new Intl.DateTimeFormat("es-VE", {
@@ -24,47 +25,58 @@ const HORA = new Intl.DateTimeFormat("es-VE", {
 });
 const VELOCIDADES = [1, 10, 60] as const;
 
+const apagado = () => process.env.NEXT_PUBLIC_SIMULADOR === "off";
+
+/** El chip de las barras: dice si hay una tarde simulada y a qué hora va. */
+export function ChipSimulacion({ className }: { className?: string }) {
+  const sim = useSimulacion();
+  if (apagado()) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => sim.alternarPanel()}
+      aria-expanded={sim.panelAbierto}
+      aria-controls="panel-simulacion"
+      title={sim.activa ? `Simulación: ${sim.escenario?.nombre}` : "Abrir el simulador de operación"}
+      className={cn(
+        "inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-dashed px-3 text-[12px] font-semibold tracking-wide whitespace-nowrap",
+        "transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        sim.activa || sim.panelAbierto
+          ? "border-brand bg-brand/10 text-brand"
+          : "border-line-strong text-ink-3 hover:border-brand/60 hover:text-brand",
+        className,
+      )}
+    >
+      <Activity size={13} aria-hidden="true" />
+      {sim.activa ? (
+        <span className="tnum">
+          DEMO · {HORA.format(sim.simNow)}
+          {sim.pausado ? " · pausa" : ` ×${sim.velocidad}`}
+        </span>
+      ) : (
+        "DEMO"
+      )}
+    </button>
+  );
+}
+
 export function PanelSimulacion() {
   const sim = useSimulacion();
-  const [abierto, setAbierto] = useState(false);
 
-  if (process.env.NEXT_PUBLIC_SIMULADOR === "off") return null;
+  if (apagado() || !sim.panelAbierto) return null;
 
   const esc = sim.escenario;
   const progreso = esc
     ? Math.min(1, Math.max(0, (sim.simNow - Date.parse(esc.inicio)) / (esc.duracionMin * 60_000)))
     : 0;
-
-  if (!abierto) {
-    return (
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className={cn(
-          "fixed bottom-4 left-4 z-40 flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-4 text-[13px] shadow-lift",
-          "transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-          sim.activa
-            ? "border-brand/50 bg-surface text-ink"
-            : "border-line bg-surface/90 text-ink-2 hover:text-ink",
-        )}
-      >
-        <Activity size={15} aria-hidden="true" className={sim.activa ? "text-brand" : undefined} />
-        {sim.activa ? (
-          <span className="tnum">
-            Simulación · {HORA.format(sim.simNow)} ×{sim.velocidad}
-            {sim.pausado && " · en pausa"}
-          </span>
-        ) : (
-          "Simulador"
-        )}
-      </button>
-    );
-  }
+  const setAbierto = (v: boolean) => sim.alternarPanel(v);
 
   return (
     <section
+      id="panel-simulacion"
       aria-label="Simulador de operación"
-      className="fixed bottom-4 left-4 z-40 flex max-h-[75dvh] w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-line-strong bg-surface shadow-lift"
+      onKeyDown={(e) => e.key === "Escape" && setAbierto(false)}
+      className="l2-entra fixed top-[4.5rem] right-4 z-40 flex max-h-[calc(100dvh-5.5rem)] w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-line-strong bg-surface shadow-lift"
     >
       <header className="flex items-start gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0 flex-1">

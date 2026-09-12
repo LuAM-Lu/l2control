@@ -26,7 +26,7 @@ import {
   type PointOfSale,
   type Tender,
 } from "@l2/domain-cash";
-import { Badge, Button, Container, Dialog, MoneyDisplay, NumericKeypad, cn } from "@l2/ui";
+import { Badge, Button, Container, MoneyDisplay, NumericKeypad, avisar, cn } from "@l2/ui";
 import type { MedioPago } from "./fixtures.ts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -85,7 +85,6 @@ function CobroCuenta({
   const [monto, setMonto] = useState("");
   const [destinoVuelto, setDestinoVuelto] = useState<"VUELTO" | "PROPINA" | "CAJA">("VUELTO");
   const [error, setError] = useState<string | null>(null);
-  const [cobrado, setCobrado] = useState<{ total: string; vuelto: string } | null>(null);
 
   /* ------------------------------------------------- documento (IVA) */
 
@@ -198,7 +197,6 @@ function CobroCuenta({
         functional: FUNCIONAL,
         maxRetained,
       });
-      setCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut) });
       onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut) });
       setPagos([]);
     } catch (e) {
@@ -537,22 +535,6 @@ function CobroCuenta({
             </p>
           )}
 
-          {cobrado && (
-            <div
-              role="status"
-              className="flex items-start gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-3"
-            >
-              <CircleCheckBig
-                size={16}
-                className="mt-0.5 shrink-0 text-state-ok"
-                aria-hidden="true"
-              />
-              <p className="text-[13px] text-ink">
-                Cobrados USD {cobrado.total}
-                {cobrado.vuelto !== "0.00" && ` · vuelto USD ${cobrado.vuelto}`}.
-              </p>
-            </div>
-          )}
 
           <Button
             surface="pos"
@@ -603,16 +585,17 @@ export function CajaScreen({
   const actual = porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
   const lineas = useMemo(() => (actual ? lineasParaCobrar(actual) : []), [actual]);
   const origen = volver !== null ? (ORIGEN[volver] ?? null) : null;
-  const [resultado, setResultado] = useState<{
-    familia: string;
-    total: string;
-    vuelto: string;
-  } | null>(null);
 
   function alCobrar(cuenta: FamilyAccountDto, r: { total: string; vuelto: string }) {
     guardar(marcarCobrada(cuenta));
     setElegida(null);
-    setResultado({ familia: cuenta.family, ...r });
+    // El cobro ya está cerrado: no hay nada que decidir, así que no bloquea
+    // la cola con un diálogo. Un aviso con el vuelto y, si se vino de otra
+    // pantalla, el paso para volver (UX-MEJORAS §4.2).
+    avisar.ok(`Cobrados USD ${r.total} · ${cuenta.family}`, {
+      ...(r.vuelto !== "0.00" ? { detalle: `Vuelto entregado: USD ${r.vuelto}` } : {}),
+      ...(origen ? { accion: { texto: `Volver a ${origen.nombre}`, alPulsar: () => router.push(origen.ruta) } } : {}),
+    });
   }
 
   return (
@@ -657,50 +640,6 @@ export function CajaScreen({
         )}
       </Container>
 
-      {/* Resultado del cobro: una decisión corta —volver o seguir—, que es
-          justo para lo que sirve un diálogo (§8.8). */}
-      <Dialog
-        abierto={resultado !== null}
-        onCerrar={() => setResultado(null)}
-        titulo="Cobro cerrado"
-        {...(resultado ? { descripcion: `Cuenta de ${resultado.familia}` } : {})}
-        pie={
-          <div className="flex flex-col gap-2 sm:flex-row-reverse">
-            {origen && (
-              <Button
-                surface="tablet"
-                variant="primary"
-                className="flex-1"
-                onClick={() => router.push(origen.ruta)}
-              >
-                Volver a {origen.nombre}
-              </Button>
-            )}
-            <Button
-              surface="tablet"
-              variant={origen ? "neutral" : "primary"}
-              className="flex-1"
-              onClick={() => setResultado(null)}
-            >
-              {porCobrar.length > 0 ? "Siguiente cuenta" : "Listo"}
-            </Button>
-          </div>
-        }
-      >
-        {resultado && (
-          <div className="flex items-start gap-3">
-            <CircleCheckBig size={22} className="mt-0.5 shrink-0 text-state-ok" aria-hidden="true" />
-            <div className="text-[14px]">
-              <p className="text-ink">
-                Cobrados <strong className="tnum">USD {resultado.total}</strong>.
-              </p>
-              {resultado.vuelto !== "0.00" && (
-                <p className="tnum mt-1 text-ink-2">Vuelto entregado: USD {resultado.vuelto}</p>
-              )}
-            </div>
-          </div>
-        )}
-      </Dialog>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CircleCheckBig, ScanLine, TriangleAlert, Utensils, Wallet, X } from "lucide-react";
+import { ScanLine, TriangleAlert, Utensils, Wallet, X } from "lucide-react";
 import {
   CheckoutCommandSchema,
   WristbandCodeSchema,
@@ -16,6 +16,7 @@ import {
   ScannerField,
   ScanPrompt,
   StatTile,
+  avisar,
 } from "@l2/ui";
 import { PackageOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -54,9 +55,11 @@ export function CheckoutScreen({
 }) {
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [cerrado, setCerrado] = useState<{ ninos: number; total: string; destino: string } | null>(
-    null,
-  );
+  /** Cerrar una salida es una acción terminada: se anuncia y la pantalla queda lista para la siguiente. */
+  const anunciarCierre = (c: { ninos: number; total: string; destino: string }) =>
+    avisar.ok(`${c.ninos} ${c.ninos === 1 ? "salida cerrada" : "salidas cerradas"} por USD ${c.total}`, {
+      detalle: c.destino.charAt(0).toUpperCase() + c.destino.slice(1),
+    });
   const { cuentas, guardar } = useCuentas();
   const router = useRouter();
 
@@ -132,7 +135,7 @@ export function CheckoutScreen({
 
     // TODO(F5-14/backend): aquí irá la llamada real. La clave de idempotencia
     // impide que un doble toque cobre dos veces (I-11).
-    setCerrado({
+    anunciarCierre({
       ninos: seleccionados.length,
       total: moneyDtoToMajor(preview.total),
       destino: destino === "TAQUILLA" ? "cobrado en taquilla" : "cargado a la mesa 12",
@@ -218,7 +221,7 @@ export function CheckoutScreen({
       router.push("/caja?volver=/salida" as Route);
       return;
     }
-    setCerrado({ ninos, total: "0.00", destino: "sin cargo: estaba todo pagado" });
+    anunciarCierre({ ninos, total: "0.00", destino: "sin cargo: estaba todo pagado" });
   }
 
   return (
@@ -446,22 +449,6 @@ export function CheckoutScreen({
             una sola vez al final.
           </p>
 
-          {cerrado && (
-            <div
-              role="status"
-              className="flex items-start gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-3"
-            >
-              <CircleCheckBig
-                size={16}
-                className="mt-0.5 shrink-0 text-state-ok"
-                aria-hidden="true"
-              />
-              <p className="text-[13px] text-ink">
-                {cerrado.ninos} {cerrado.ninos === 1 ? "salida cerrada" : "salidas cerradas"} por
-                USD {cerrado.total}, {cerrado.destino}.
-              </p>
-            </div>
-          )}
 
           {!hayAlgo && (
             <Badge tone="idle" icon={<PackageOpen size={13} aria-hidden="true" />}>

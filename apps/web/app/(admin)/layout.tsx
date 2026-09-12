@@ -1,4 +1,5 @@
 import type { Actor } from "@l2/domain-identity";
+import { Avisos } from "@l2/ui";
 import { BackOfficeShell } from "../../src/features/shell/BackOfficeShell";
 
 /**
@@ -16,6 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <BackOfficeShell actor={actor} usuario="Abigail Karam" rol="Administradora">
       {children}
+      <Avisos posicion="top-right" />
     </BackOfficeShell>
   );
 }

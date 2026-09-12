@@ -82,7 +82,10 @@
   --ease-salida: cubic-bezier(0.2, 0, 0, 1);
   --dur-rapida: 120ms;
   --dur-normal: 200ms;
-  --dur-pagina: 240ms;
+  --dur-pagina: 220ms;
+  /* Salir siempre es más rápido que entrar: lo que se va ya no se lee. */
+  --dur-salida: 150ms;
+  --dur-capa: 280ms;
 }
 
 /* Cifras que se comparan o se suman van siempre en numerales tabulares.
@@ -120,13 +123,14 @@
 
 /* Cambio de pantalla CON DIRECCIÓN (PageTransition). Avanzar entra desde la
    derecha, volver desde la izquierda, mismo nivel es un fundido. 28 px bastan
-   para leer la dirección; más empieza a marear en una caja con cola delante. */
+   para leer la dirección; más empieza a marear en una caja con cola delante.
+   Con 16 px y fundido se lee igual y se nota menos (UX-MEJORAS §4.1). */
 @keyframes l2-desde-derecha {
-  from { opacity: 0; transform: translateX(28px); }
+  from { opacity: 0; transform: translateX(16px); }
   to   { opacity: 1; transform: none; }
 }
 @keyframes l2-desde-izquierda {
-  from { opacity: 0; transform: translateX(-28px); }
+  from { opacity: 0; transform: translateX(-16px); }
   to   { opacity: 1; transform: none; }
 }
 @keyframes l2-fundido {
@@ -137,27 +141,58 @@
 .l2-pagina-atras    { animation: l2-desde-izquierda var(--dur-pagina) var(--ease-salida) both; }
 .l2-pagina-lateral  { animation: l2-fundido var(--dur-normal) var(--ease-salida) both; }
 
-/* Capas (Sheet y Dialog). La hoja sube desde abajo en móvil —donde llega el
-   pulgar— y entra por la derecha desde 768 px (Material 3). El diálogo crece
-   levemente desde su sitio. El velo se funde. */
-@keyframes l2-sube {
-  from { transform: translateY(100%); }
-  to   { transform: none; }
+/* Capas (Sheet y Dialog): ENTRAN Y SALEN — hallazgo M1 de UX-MEJORAS.
+   Antes entraban con una animación y salían de golpe, porque un <dialog> que
+   se cierra desaparece en el acto. `@starting-style` da el punto de partida al
+   abrir y `transition-behavior: allow-discrete` mantiene el <dialog> en pantalla
+   (display y overlay) mientras se va. Sin JavaScript y sin librería.
+   La hoja sube desde abajo en móvil —donde llega el pulgar— y entra por la
+   derecha desde 768 px (Material 3). El diálogo crece levemente. El velo se
+   funde. Donde el navegador no sabe animar la salida, la capa se cierra igual:
+   nada depende de que la animación termine. */
+.l2-capa {
+  transition:
+    display var(--dur-normal) allow-discrete,
+    overlay var(--dur-normal) allow-discrete;
 }
-@keyframes l2-desde-lado {
-  from { transform: translateX(100%); }
-  to   { transform: none; }
+.l2-capa::backdrop {
+  background-color: rgb(0 0 0 / 0);
+  backdrop-filter: blur(0);
+  transition:
+    background-color var(--dur-salida) var(--ease-salida),
+    backdrop-filter var(--dur-salida) var(--ease-salida),
+    display var(--dur-normal) allow-discrete,
+    overlay var(--dur-normal) allow-discrete;
 }
-@keyframes l2-aparece {
-  from { opacity: 0; transform: scale(0.96); }
-  to   { opacity: 1; transform: none; }
+.l2-capa[open]::backdrop {
+  background-color: rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(2px);
+  transition-duration: var(--dur-normal);
 }
-.l2-hoja    { animation: l2-sube var(--dur-pagina) var(--ease-salida) both; }
-.l2-dialogo { animation: l2-aparece var(--dur-normal) var(--ease-salida) both; }
+@starting-style {
+  .l2-capa[open]::backdrop { background-color: rgb(0 0 0 / 0); backdrop-filter: blur(0); }
+}
+
+.l2-hoja {
+  transform: translateY(100%);
+  transition: transform var(--dur-normal) var(--ease-salida);
+}
+.l2-capa[open] .l2-hoja { transform: none; transition-duration: var(--dur-capa); }
+@starting-style { .l2-capa[open] .l2-hoja { transform: translateY(100%); } }
 @media (min-width: 48rem) {
-  .l2-hoja { animation-name: l2-desde-lado; }
+  .l2-hoja { transform: translateX(100%); }
+  @starting-style { .l2-capa[open] .l2-hoja { transform: translateX(100%); } }
 }
-dialog[open]::backdrop { animation: l2-fundido var(--dur-normal) var(--ease-salida) both; }
+
+.l2-dialogo {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--dur-salida) var(--ease-salida),
+    transform var(--dur-salida) var(--ease-salida);
+}
+.l2-capa[open] .l2-dialogo { opacity: 1; transform: none; transition-duration: var(--dur-normal); }
+@starting-style { .l2-capa[open] .l2-dialogo { opacity: 0; transform: scale(0.96); } }
 
 /* Con una capa abierta, la página de detrás no se desplaza: el scroll pertenece
    a la capa. Sin JavaScript que olvide restaurarlo al cerrar. */
@@ -167,7 +202,6 @@ html:has(dialog[open]) { overflow: hidden; }
   .l2-pulse { animation: none; }
   .l2-entra { animation: none; }
   .l2-pagina-adelante, .l2-pagina-atras, .l2-pagina-lateral { animation: none; }
-  .l2-hoja, .l2-dialogo, dialog[open]::backdrop { animation: none; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;

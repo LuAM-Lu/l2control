@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { TimerReset } from "lucide-react";
+import { cerrarSesion, useOperador } from "../identity/operador.ts";
 import { computeIdle, type IdlePolicy, type IdleState } from "@l2/domain-identity";
 
 /**
@@ -43,7 +44,8 @@ function conAjusteDeUrl(base: IdlePolicy): IdlePolicy {
   return { kind: "BLOQUEO", afterSeconds: n, warnSeconds: Math.min(base.warnSeconds, Math.floor(n / 2)) };
 }
 
-export function IdleGuard({ politica, usuario }: { politica: IdlePolicy; usuario: string }) {
+export function IdleGuard({ politica }: { politica: IdlePolicy }) {
+  const operador = useOperador();
   const pathname = usePathname();
   const router = useRouter();
   const ultima = useRef(0);
@@ -78,6 +80,8 @@ export function IdleGuard({ politica, usuario }: { politica: IdlePolicy; usuario
       );
       if (s.state === "BLOQUEADO") {
         window.clearInterval(id);
+        // Bloquear es cerrar la sesión: quien vuelva tendrá que identificarse.
+        cerrarSesion();
         router.replace("/acceso");
       }
     }, 1000);
@@ -100,7 +104,13 @@ export function IdleGuard({ politica, usuario }: { politica: IdlePolicy; usuario
     >
       <TimerReset size={20} className="shrink-0 text-state-warn" aria-hidden="true" />
       <p className="min-w-0 flex-1 text-[14px] text-ink">
-        Sin actividad. La sesión de <strong>{usuario.split(" ")[0]}</strong> se bloquea en{" "}
+        Sin actividad. {operador ? (
+          <>
+            La sesión de <strong>{operador.nombre.split(" ")[0]}</strong> se bloquea en{" "}
+          </>
+        ) : (
+          "La pantalla se bloquea en "
+        )}
         <span className="tnum font-semibold text-state-warn">{estado.secondsToLock} s</span>.
       </p>
       {/* Tocar en cualquier parte ya cuenta como actividad; el botón está para

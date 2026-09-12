@@ -17,7 +17,10 @@ import {
   computeLockout,
   describeLockout,
   type Device,
+  type Role,
 } from "@l2/domain-identity";
+import { iniciarSesion } from "./operador.ts";
+import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { Badge, Initial, NumericKeypad, cn } from "@l2/ui";
 
 /**
@@ -41,6 +44,8 @@ export type Operador = Readonly<{
   id: string;
   nombre: string;
   rol: string;
+  /** Rol de la matriz (§7.3): de él sale lo que esta persona puede ver. */
+  role: Role;
   /**
    * Superficie a la que entra este rol (§7.3). La cajera abre caja, la
    * monitora la sala, la administradora el panel: nadie debería tener que
@@ -114,6 +119,7 @@ export function AccesoScreen({
       // «bienvenido» es un toque de más en un sitio donde hay cola.
       setPin("");
       setEntrando(true);
+      iniciarSesion({ id: operador!.id, nombre: operador!.nombre, rol: operador!.rol, role: operador!.role });
       router.push(operador!.destino);
       return;
     }
@@ -176,10 +182,11 @@ export function AccesoScreen({
             <p className="mt-3 text-lg text-ink-2 first-letter:uppercase">{fecha ?? " "}</p>
           </div>
 
-          <div>
+          <div className="flex flex-wrap items-center gap-3">
             <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
               {device!.label} · autorizado
             </Badge>
+            <ChipSimulacion />
           </div>
         </section>
 
@@ -202,7 +209,7 @@ export function AccesoScreen({
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     )}
                   >
-                    <Initial name={o.nombre} tone="brand" className="size-12 text-lg" />
+                    <Initial name={o.nombre} tone="idle" className="size-12 text-lg" />
                     <span className="min-w-0 flex-1">
                       <span className="font-display block truncate text-[17px] font-bold text-ink">
                         {o.nombre}
@@ -242,7 +249,7 @@ export function AccesoScreen({
         </button>
 
         <div className="mb-6 flex items-center gap-3">
-          <Initial name={operador.nombre} tone="brand" />
+          <Initial name={operador.nombre} tone="idle" />
           <div className="min-w-0">
             <p className="font-display truncate font-bold text-ink">{operador.nombre}</p>
             <p className="text-[12px] text-ink-3">{operador.rol}</p>

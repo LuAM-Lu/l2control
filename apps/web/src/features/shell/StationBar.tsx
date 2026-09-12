@@ -12,6 +12,8 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Initial, cn } from "@l2/ui";
+import { cerrarSesion, useOperador } from "../identity/operador.ts";
+import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 
 /**
  * Barra permanente de las estaciones — §8.5 y §9.10.2.
@@ -73,8 +75,6 @@ const PUESTOS: Puesto[] = [
 ];
 
 export type ContextoEstacion = {
-  usuario: string;
-  rol: string;
   turnoAbierto: string | null;
   tasa: string | null;
   tasaHora: string | null;
@@ -90,6 +90,9 @@ const PILDORA =
 
 export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const pathname = usePathname();
+  // Quién entró por el acceso (A2). Sin sesión se dice, en vez de mostrar a
+  // otra persona: lo que se hace aquí quedaría a su nombre.
+  const operador = useOperador();
 
   // La pantalla de acceso no lleva barra: todavía no se sabe quién entra, y
   // enseñar el turno o la tasa antes de autenticar no aporta nada.
@@ -174,7 +177,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             <Pildora
               tono="tenue"
               icono={<Clock size={14} />}
-              texto={contexto.turnoAbierto!}
+              texto={`Turno desde ${contexto.turnoAbierto!}`}
               ocultarTextoHasta="lg"
               titulo={`Turno abierto desde las ${contexto.turnoAbierto}`}
             />
@@ -198,21 +201,26 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             <Pildora tono="warn" icono={<WifiOff size={14} />} texto="Sin internet" />
           )}
 
+          <ChipSimulacion />
+
           <span className="mx-0.5 hidden h-6 w-px bg-line sm:block" aria-hidden="true" />
 
           <span className={cn(PILDORA, "h-12 gap-2 pr-1 pl-1 text-ink-2")}>
             <Initial
-              name={contexto.usuario}
-              tone="idle"
+              name={operador?.nombre ?? "?"}
+              tone={operador ? "idle" : "warn"}
               className="size-8 rounded-[0.45rem] text-[11.5px]"
             />
             <span className="hidden leading-tight xl:block">
-              <span className="block text-[12.5px] font-medium text-ink">{contexto.usuario}</span>
-              <span className="block text-[11px] text-ink-3">{contexto.rol}</span>
+              <span className={cn("block text-[12.5px] font-medium", operador ? "text-ink" : "text-state-warn")}>
+                {operador?.nombre ?? "Sin identificar"}
+              </span>
+              <span className="block text-[11px] text-ink-3">{operador?.rol ?? "Entra por el acceso"}</span>
             </span>
             <Link
               href="/acceso"
-              aria-label="Cambiar de usuario"
+              onClick={cerrarSesion}
+              aria-label={operador ? `Cambiar de usuario (sesión de ${operador.nombre})` : "Entrar por el acceso"}
               title="Cambiar de usuario"
               className="grid size-12 place-content-center rounded-[0.45rem] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >

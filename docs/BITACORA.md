@@ -293,3 +293,27 @@ modos que nunca se mezclan. En servicio nada se arrastra. En edición, solo la a
 mesas, con borrador, publicación versionada y retirada en vez de borrado, porque los pedidos del pasado
 nombran la mesa. Quedan cuatro decisiones: quién edita el plano (D10), numeración y zonas (D11), si hay
 venta directa en caja (D6) y si el back-office puede desplazar (D12).
+
+## V1: avisos, identidad y salidas animadas — 2026-09-12
+
+El cliente aprobó el mini plan de [UX-MEJORAS.md](UX-MEJORAS.md) y se hizo V1:
+
+- **Una forma de avisar para cada caso.** Toasts con Sonner, vestidos con los tokens: arriba al centro en
+  las estaciones, bajo la barra, y arriba a la derecha en el panel. Pasaron a toast los avisos de acción
+  terminada: entrada con cuenta abierta (con «Ver en la sala»), salida cerrada, excepción registrada y
+  todo lo del mesero. El cobro cerrado dejó de ser un diálogo que frenaba la cola: ahora es un toast
+  con el vuelto y «Volver a Entrada». Los errores de un dato siguen junto a su campo, porque un toast se
+  va solo y nadie lo vuelve a ver.
+- **La barra dice quién está.** La identidad sale de quien entró por el acceso. Sin sesión, la barra dice
+  «Sin identificar» en lugar de mostrar a Marisol. Bloquear por inactividad, el corte Z y «Salir» cierran
+  la sesión. Se guarda también el rol de la matriz, que es lo que usará V2.
+- **El simulador ya no tapa nada.** Es un chip «DEMO» dentro de la barra, del menú del panel y del acceso,
+  y su panel se abre bajo la barra.
+- **Las capas salen animadas** con `@starting-style`, sin librería. El cambio de pantalla sigue sin salida:
+  eso pide View Transitions, todavía experimental en Next 16.
+- Detalles: «Turno desde 14:00», iniciales neutras en el acceso y el indicador de desarrollo de Next
+  apagado.
+
+Probado en navegador de punta a punta: acceso → mesas con la identidad de Jesús, entrada prepago → caja
+→ toast → vuelta a entrada, hoja que sigue visible y moviéndose a los 120 ms de cerrarla, y barra sin
+desbordar de 390 a 1366 px.

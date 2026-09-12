@@ -9,6 +9,8 @@ import { can, type Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, MODULOS, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { PageTransition } from "./PageTransition.tsx";
+import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
+import { cerrarSesion } from "../identity/operador.ts";
 
 /**
  * Cáscara del back-office — §9.10.2 y §9.10.3.
@@ -76,6 +78,9 @@ export function BackOfficeShell({
           pathname={pathname}
           modo="lateral"
         />
+        <div className="hidden px-3 pb-2 xl:block">
+          <ChipSimulacion />
+        </div>
         <PieUsuario usuario={usuario} rol={rol} compacto />
       </aside>
 
@@ -94,6 +99,7 @@ export function BackOfficeShell({
             <Menu size={20} aria-hidden="true" />
           </button>
           <span className="font-display truncate font-bold text-ink">Abby Kingdom</span>
+          <ChipSimulacion className="ml-auto" />
         </header>
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -357,6 +363,7 @@ function PieUsuario({
       </div>
       <Link
         href="/acceso"
+        onClick={cerrarSesion}
         aria-label="Salir"
         title="Salir"
         className={cn(

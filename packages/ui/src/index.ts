@@ -31,3 +31,4 @@ export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBad
 export { EmptyState } from "./patterns/EmptyState";
 export { ScanPrompt } from "./patterns/ScanPrompt";
 export { Sheet, Dialog } from "./patterns/Capa";
+export { Avisos, avisar } from "./patterns/Avisos";

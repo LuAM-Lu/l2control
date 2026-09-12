@@ -8,7 +8,7 @@ import {
   type UserSummaryDto,
 } from "@l2/contracts";
 import { explainPermission, type Action, type Actor, type Permission } from "@l2/domain-identity";
-import { Badge, Button, Container, Initial, PageHeader, cn } from "@l2/ui";
+import { Badge, Button, Container, Initial, PageHeader, avisar, cn } from "@l2/ui";
 import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL, etiquetaDe, toActor } from "./permisos.ts";
 
 /**
@@ -325,10 +325,8 @@ function FormExcepcion({
   const [nivel, setNivel] = useState<"PERMITIDO" | "REQUIERE_AUTORIZACION">("PERMITIDO");
   const [motivo, setMotivo] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
-  const [hecho, setHecho] = useState<string | null>(null);
 
   function enviar() {
-    setHecho(null);
 
     // El mismo contrato que validará el servidor (ADR-017).
     const r = PermissionExceptionCommandSchema.safeParse(
@@ -382,7 +380,7 @@ function FormExcepcion({
     setErrores({});
     setAccion("");
     setMotivo("");
-    setHecho(
+    avisar.ok(
       `${r.data.effect === "GRANT" ? "Concesión" : "Revocación"} registrada: «${ETIQUETAS[nombre].etiqueta}».`,
     );
   }
@@ -486,15 +484,6 @@ function FormExcepcion({
           Registrar excepción
         </Button>
 
-        {hecho && (
-          <p
-            role="status"
-            className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-2 text-[13px] text-ink"
-          >
-            <CircleCheckBig size={15} className="shrink-0 text-state-ok" aria-hidden="true" />
-            {hecho}
-          </p>
-        )}
       </div>
     </div>
   );

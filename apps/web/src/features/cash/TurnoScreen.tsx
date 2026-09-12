@@ -16,6 +16,7 @@ import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./shift-fixtures.ts
 import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "./PuntosDeCobro.tsx";
+import { cerrarSesion } from "../identity/operador.ts";
 
 /**
  * Turno de caja: arqueo y cortes X/Z — F4-05, F4-06, F4-07, F4-08.
@@ -94,7 +95,10 @@ export function TurnoScreen({
     return () => window.clearInterval(id);
   }, [sellado]);
   useEffect(() => {
-    if (regreso === 0) router.replace("/acceso");
+    if (regreso === 0) {
+      cerrarSesion();
+      router.replace("/acceso");
+    }
   }, [regreso, router]);
 
   /** Si el cajero ya empezó a contar alguna moneda. */
@@ -411,7 +415,10 @@ export function TurnoScreen({
                     <Button
                       surface="tablet"
                       variant="neutral"
-                      onClick={() => router.replace("/acceso")}
+                      onClick={() => {
+                        cerrarSesion();
+                        router.replace("/acceso");
+                      }}
                       className="mt-2 w-full"
                     >
                       Ir al acceso ahora

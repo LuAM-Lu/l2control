@@ -90,8 +90,8 @@ function Capa({
         if (e.target === e.currentTarget) onCerrar();
       }}
       className={cn(
-        "m-0 max-h-none max-w-none border-0 bg-transparent p-0 text-ink",
-        "backdrop:bg-black/60 backdrop:backdrop-blur-[2px]",
+        // `l2-capa` anima entrada y salida, velo incluido (tokens.css).
+        "l2-capa m-0 max-h-none max-w-none border-0 bg-transparent p-0 text-ink",
         variante === "hoja"
           ? "fixed inset-x-0 top-auto bottom-0 w-full md:inset-x-auto md:inset-y-0 md:right-0 md:left-auto md:h-dvh md:w-[min(30rem,100vw)]"
           : "fixed inset-0 m-auto h-fit w-[min(30rem,calc(100vw-2rem))]",

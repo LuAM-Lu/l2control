@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { DiningTableDto, MenuDto } from "@l2/contracts";
-import { Badge, Button, Container, StatTile, Stepper, cn, type Tone } from "@l2/ui";
+import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import type { Pedido } from "../simulacion/proyeccion.ts";
 import { minutosDesde, vistaDelPlano, type EstadoVisible, type LineaBorrador, type MesaVista } from "./mesas.ts";
@@ -62,8 +62,6 @@ const ESTADO_PEDIDO: Readonly<Record<Pedido["estado"], { texto: string; tono: To
   ANULADO: { texto: "Anulado", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
 };
 
-type Aviso = { tono: "ok" | "crit"; texto: string };
-
 export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]; carta: MenuDto }) {
   const sim = useSimulacion();
   const ahora = useAhoraLocal();
@@ -74,7 +72,6 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
   const [vinculando, setVinculando] = useState(false);
   const [comensales, setComensales] = useState(2);
-  const [aviso, setAviso] = useState<Aviso | null>(null);
   const detalle = useRef<HTMLElement>(null);
 
   const mesas = useMemo(() => vistaDelPlano(plano, estado, ahora), [plano, estado, ahora]);
@@ -86,12 +83,6 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
   const listos = mesas.reduce((n, m) => n + m.listos, 0);
   const enCocina = mesas.reduce((n, m) => n + m.enCocina, 0);
   const impresorasCaidas = Object.entries(estado.impresoras).filter(([, i]) => i.estado === "FALLO");
-
-  useEffect(() => {
-    if (!aviso) return;
-    const id = window.setTimeout(() => setAviso(null), 4000);
-    return () => window.clearTimeout(id);
-  }, [aviso]);
 
   // El borrador de una mesa que se libera no pasa a la familia siguiente.
   useEffect(() => {
@@ -121,7 +112,8 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
 
   const emitir = (ev: Parameters<typeof sim.emitir>[0], exito: string): boolean => {
     const r = sim.emitir(ev);
-    setAviso(r.ok ? { tono: "ok", texto: exito } : { tono: "crit", texto: r.motivo });
+    if (r.ok) avisar.ok(exito);
+    else avisar.error(r.motivo);
     return r.ok;
   };
 
@@ -130,7 +122,7 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
   function abrir(m: MesaVista) {
     if (m.estado !== "LIBRE") {
       // I-05: una mesa no tiene dos sesiones abiertas.
-      setAviso({ tono: "crit", texto: `La mesa ${m.mesa.label} ya está abierta` });
+      avisar.error(`La mesa ${m.mesa.label} ya está abierta`);
       return;
     }
     emitir(
@@ -155,7 +147,7 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
     });
     // Fail-closed: si algo del borrador no se puede enviar, no se envía nada.
     if (items.length !== lineas.length || items.length === 0) {
-      setAviso({ tono: "crit", texto: "El borrador tiene platos que no se pueden enviar" });
+      avisar.error("El borrador tiene platos que no se pueden enviar");
       return;
     }
     const ok = emitir(
@@ -180,7 +172,7 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
     return (
       <div className="flex flex-1 flex-col lg:min-h-0">
         <BannerSimulacion />
-        <Cabecera titulo={`Pedido · Mesa ${elegida.mesa.label}`} subtitulo="Borrador: la cocina lo verá cuando lo envíes" aviso={aviso} />
+        <Cabecera titulo={`Pedido · Mesa ${elegida.mesa.label}`} subtitulo="Borrador: la cocina lo verá cuando lo envíes" />
         <Container
           as="main"
           ancho="operacion"
@@ -207,7 +199,7 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
       <Cabecera
         titulo="Mesas"
         subtitulo="Toca una mesa para ver sus pedidos"
-        aviso={aviso}
+       
         cifras={
           <>
             <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${plano.length}`} />
@@ -390,12 +382,10 @@ function BannerSimulacion() {
 function Cabecera({
   titulo,
   subtitulo,
-  aviso,
   cifras,
 }: {
   titulo: string;
   subtitulo: string;
-  aviso: Aviso | null;
   cifras?: React.ReactNode;
 }) {
   return (
@@ -403,18 +393,7 @@ function Cabecera({
       <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 py-3">
         <div className="min-w-0">
           <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">{titulo}</h1>
-          {/* El aviso ocupa el sitio del subtítulo: no empuja la pantalla hacia abajo. */}
-          <p
-            role="status"
-            className={cn(
-              "mt-1.5 flex items-center gap-1.5 text-[13px]",
-              aviso?.tono === "ok" ? "text-state-ok" : aviso?.tono === "crit" ? "text-state-crit" : "text-ink-3",
-            )}
-          >
-            {aviso?.tono === "ok" && <CircleCheckBig size={14} aria-hidden="true" />}
-            {aviso?.tono === "crit" && <TriangleAlert size={14} aria-hidden="true" />}
-            {aviso?.texto ?? subtitulo}
-          </p>
+          <p className="mt-1.5 text-[13px] text-ink-3">{subtitulo}</p>
         </div>
         {cifras && <div className="flex items-end gap-6">{cifras}</div>}
       </Container>

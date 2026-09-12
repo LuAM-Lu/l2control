@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { CircleCheckBig, Phone, ScanLine, TriangleAlert, X } from "lucide-react";
 import {
   CheckInCommandSchema,
@@ -21,6 +20,7 @@ import {
   ScanPrompt,
   StatTile,
   cn,
+  avisar,
 } from "@l2/ui";
 import { sum, toMajor, zero } from "@l2/domain-money";
 import { computeCapacity } from "@l2/domain-park";
@@ -81,7 +81,6 @@ export function CheckInScreen({
   const [aviso, setAviso] = useState<string | null>(null);
   const [telefono, setTelefono] = useState("");
   const [nombreNuevo, setNombreNuevo] = useState("");
-  const [enviado, setEnviado] = useState<{ ninos: number; familia: string } | null>(null);
   // DEC-21: cómo paga esta familia. Se elige en cada entrada.
   const [modo, setModo] = useState<PaymentMode>("PREPAGO");
   const router = useRouter();
@@ -229,7 +228,11 @@ export function CheckInScreen({
       router.push(`/caja?cuenta=${cuenta.id}&volver=/entrada` as Route);
       return;
     }
-    setEnviado({ ninos: cuenta.sessionIds.length, familia: cuenta.family });
+    const n = cuenta.sessionIds.length;
+    avisar.ok(`Cuenta abierta para ${cuenta.family}`, {
+      detalle: `${n} ${n === 1 ? "niño" : "niños"}. Se cobra todo junto al salir.`,
+      accion: { texto: "Ver en la sala", alPulsar: () => router.push("/monitor") },
+    });
   }
 
   /* ------------------------------------------------------------ pintado */
@@ -460,22 +463,6 @@ export function CheckInScreen({
             </p>
           )}
 
-          {enviado && (
-            <div
-              role="status"
-              className="flex items-start gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-3"
-            >
-              <CircleCheckBig size={16} className="mt-0.5 shrink-0 text-state-ok" aria-hidden="true" />
-              <p className="text-[13px] text-ink">
-                Cuenta abierta para <strong>{enviado.familia}</strong>:{" "}
-                {enviado.ninos} {enviado.ninos === 1 ? "niño" : "niños"}. Se cobra todo junto al
-                salir.{" "}
-                <Link href="/monitor" className="underline">
-                  Ver en el monitor
-                </Link>
-              </p>
-            </div>
-          )}
         </aside>
       </Container>
     </div>

@@ -63,6 +63,9 @@ export type Simulacion = Readonly<{
    * pasa, no se aplica en ninguna: fail-closed.
    */
   emitir: (evento: EventoSinSello) => ResultadoEmision;
+  /** Si el panel de mandos está desplegado. Lo abre el chip «Demo» de cada barra. */
+  panelAbierto: boolean;
+  alternarPanel: (abierto?: boolean) => void;
 }>;
 
 const INACTIVA: Simulacion = {
@@ -78,6 +81,8 @@ const INACTIVA: Simulacion = {
   cambiarVelocidad: () => {},
   detener: () => {},
   emitir: () => ({ ok: false, motivo: "El simulador no está disponible" }),
+  panelAbierto: false,
+  alternarPanel: () => {},
 };
 
 const Contexto = createContext<Simulacion>(INACTIVA);
@@ -97,6 +102,8 @@ export function SimulacionProvider({ children }: { children: React.ReactNode }) 
   const [velocidad, setVelocidad] = useState(10);
   const [pausado, setPausado] = useState(false);
   const [control, setControl] = useState(false);
+  const [panelAbierto, setPanelAbierto] = useState(false);
+  const alternarPanel = useCallback((abierto?: boolean) => setPanelAbierto((v) => abierto ?? !v), []);
 
   const reloj = useRef<Reloj | null>(null);
   const indice = useRef(0);
@@ -296,8 +303,10 @@ export function SimulacionProvider({ children }: { children: React.ReactNode }) 
       cambiarVelocidad,
       detener,
       emitir,
+      panelAbierto,
+      alternarPanel,
     }),
-    [escenario, simNow, estado, velocidad, pausado, control, iniciar, alternarPausa, cambiarVelocidad, detener, emitir],
+    [escenario, simNow, estado, velocidad, pausado, control, iniciar, alternarPausa, cambiarVelocidad, detener, emitir, panelAbierto, alternarPanel],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

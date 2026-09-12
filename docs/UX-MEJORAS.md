@@ -157,6 +157,10 @@ anima una o dos cosas por vista, y `prefers-reduced-motion` lo apaga todo.
 **Propuesta**: seguir con CSS. `@starting-style` para las salidas de capas y toasts, y Motion solo si el
 KDS necesita reordenar tarjetas animadas.
 
+> **Hecho en V1.** Hojas, diálogos y velo salen animados con `@starting-style`. El cambio de pantalla
+> bajó a 16 px y 220 ms, pero **sigue sin salida**: la página vieja no se puede animar mientras sale sin
+> View Transitions, que en Next 16 sigue siendo experimental. Se retoma cuando se estabilice.
+
 ### 4.2 Avisos: cuál usar
 
 | Tipo | Cuándo | Ejemplo | Cuánto dura |
@@ -226,7 +230,7 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 
 | Paso | Qué | Hallazgos | Tamaño |
 |---|---|---|---|
-| **V1** | Base visual: taxonomía de avisos con toasts, salidas animadas, simulador dentro de la barra, identidad desde el acceso, «Turno desde», indicador de Next | A1, A2, A4, M1, M2, B1, B2 | 1 sesión |
+| **V1** ✔ | Base visual: taxonomía de avisos con toasts, salidas animadas, simulador dentro de la barra, identidad desde el acceso, «Turno desde», indicador de Next. **Hecho el 2026-09-12** | A1, A2, A4, M1, M2, B1, B2 | 1 sesión |
 | **V2** | Roles en estaciones: pestañas y «Panel» filtrados, pantalla «Sin acceso», teléfono enmascarado | A3, M5 | 1 sesión |
 | — | *DEC-22 paso 3: cocina (KDS)*, ya con toasts y roles | — | — |
 | **V3** | Plano espacial en `/mesas` con el local del dibujo, y vista Lista | M4 | 1 sesión |

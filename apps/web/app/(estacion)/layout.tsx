@@ -1,4 +1,5 @@
 import { DEFAULT_STATION_IDLE } from "@l2/domain-identity";
+import { Avisos } from "@l2/ui";
 import { CuentasProvider } from "../../src/features/cuentas/CuentasProvider";
 import { IdleGuard } from "../../src/features/shell/IdleGuard";
 import { PageTransition } from "../../src/features/shell/PageTransition";
@@ -31,8 +32,6 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
     <div className="flex min-h-dvh flex-col bg-base lg:h-dvh lg:overflow-hidden">
       <StationBar
         contexto={{
-          usuario: "Marisol Prieto",
-          rol: "Cajera",
           turnoAbierto: "14:00",
           tasa: "228.41",
           tasaHora: "08:00",
@@ -40,10 +39,13 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
         }}
       />
       <PageTransition>{children}</PageTransition>
+      {/* Toasts arriba al centro, bajo la barra de 64 px: lejos de la acción
+          principal, que en las estaciones vive abajo a la derecha (UX-MEJORAS §4.2). */}
+      <Avisos posicion="top-center" desdeArriba={76} />
       {/* F2-12: la sesión no se queda abierta en un puesto desatendido.
           TODO(backend): la política vendrá de la configuración de la
           sucursal; la forma ya es la definitiva. */}
-      <IdleGuard politica={DEFAULT_STATION_IDLE} usuario="Marisol Prieto" />
+      <IdleGuard politica={DEFAULT_STATION_IDLE} />
     </div>
     </CuentasProvider>
   );
