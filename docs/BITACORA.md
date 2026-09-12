@@ -317,3 +317,32 @@ El cliente aprobó el mini plan de [UX-MEJORAS.md](UX-MEJORAS.md) y se hizo V1:
 Probado en navegador de punta a punta: acceso → mesas con la identidad de Jesús, entrada prepago → caja
 → toast → vuelta a entrada, hoja que sigue visible y moviéndose a los 120 ms de cerrarla, y barra sin
 desbordar de 390 a 1366 px.
+
+## V2: cada rol ve su puesto — 2026-09-12
+
+Segundo paso del mini plan. Hasta hoy el panel usaba una administradora fija y las estaciones enseñaban
+todo a todos. Ahora las cuatro reglas de [UX-MEJORAS.md](UX-MEJORAS.md) §3 salen de la matriz de §7.3,
+escritas una sola vez en `identity/visibilidad.ts`:
+
+- **La barra** muestra solo las pestañas que el rol puede abrir, y «Panel» solo a quien ve informes. La
+  monitora, en caja, ve «Cobrar» pero no «Turno».
+- **El menú del panel** se recorta con el rol de quien entró. Un módulo aparece si su acción alcanza o si
+  alguna de sus secciones alcanza. Así la cocina ve Restaurante con solo «Comandas del día», que ahora
+  pide `kds.cambiarEstado`.
+- **La dirección no es una puerta.** Cada pantalla tiene guardia. Sin sesión dice «Nadie ha entrado en este
+  equipo». Con otro rol, «Mesero no tiene acceso a la caja», y ofrece ir a su puesto o cambiar de usuario.
+  Antes de leer la sesión no se pinta nada, para no destellar la pantalla ni el rechazo.
+- La administradora entra por el acceso como los demás.
+
+Probado en navegador con los seis roles contra la tabla de §3, sin errores de página. Tres cosas que
+salieron por el camino:
+
+- **Una página de módulo del panel dejaba de cargar**, porque recibía del servidor un objeto con un icono,
+  que es una función y no puede pasar al cliente. Ahora recibe solo el id.
+- **El hallazgo M5 no aplicaba.** El teléfono de la entrada lo teclea el operador; el dato guardado no se
+  muestra en ninguna parte. Se corrigió la auditoría en vez de inventar un enmascarado.
+- **La sesión vive en la pestaña**: una pestaña nueva pide entrar otra vez. Es lo correcto en un equipo
+  compartido; para la demostración con varias pestañas hay que identificarse en cada una.
+
+Recordatorio: es experiencia de usuario, no seguridad. La puerta de verdad la pondrá el servidor con la
+misma matriz.

@@ -128,6 +128,8 @@ export const MODULOS: readonly Modulo[] = [
         id: "comandas",
         nombre: "Comandas del día",
         href: null,
+        // La cocina no toma pedidos, pero las comandas son su trabajo.
+        accion: "kds.cambiarEstado",
         proposito:
           "Lo que se ha pedido, en qué estado va y cuánto lleva esperando. La cocina lo ve en su propia pantalla.",
         tarea: "F6-05",

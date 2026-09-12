@@ -5,12 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import { ChevronDown, LogOut, Menu, X } from "lucide-react";
-import { can, type Actor } from "@l2/domain-identity";
+import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
-import { INICIO, MODULOS, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
+import { INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { PageTransition } from "./PageTransition.tsx";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
-import { cerrarSesion } from "../identity/operador.ts";
+import { cerrarSesion, useOperador } from "../identity/operador.ts";
+import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
+import {
+  actorDe,
+  modulosVisibles,
+  puedeAbrirPanel,
+  puedeVerInicio,
+  puedeVerSeccion,
+} from "../identity/visibilidad.ts";
 
 /**
  * Cáscara del back-office — §9.10.2 y §9.10.3.
@@ -31,22 +39,18 @@ import { cerrarSesion } from "../identity/operador.ts";
  * compró el cliente.
  */
 
-export function BackOfficeShell({
-  actor,
-  usuario,
-  rol,
-  children,
-}: {
-  actor: Actor;
-  usuario: string;
-  rol: string;
-  children: React.ReactNode;
-}) {
+export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [cajon, setCajon] = useState(false);
 
-  const visibles = MODULOS.filter((m) => can(actor, m.accion) !== "DENEGADO");
-  const inicioVisible = can(actor, INICIO.accion) !== "DENEGADO";
+  // El menú se recorta con el rol de quien entró (V2). Sin sesión, vacío: la
+  // guardia del contenido pide identificarse.
+  const operador = useOperador();
+  const actor = operador ? actorDe(operador) : null;
+  const visibles = actor ? modulosVisibles(actor) : [];
+  const inicioVisible = actor ? puedeVerInicio(actor) : false;
+  const usuario = operador?.nombre ?? "Sin identificar";
+  const rol = operador?.rol ?? "Entra por el acceso";
 
   // El cajón se cierra al navegar. Sin esto se queda abierto tapando la
   // pantalla a la que acabas de ir.
@@ -103,7 +107,14 @@ export function BackOfficeShell({
         </header>
 
         <main className="flex min-w-0 flex-1 flex-col">
-          <PageTransition>{children}</PageTransition>
+          <PageTransition>
+            <GuardiaAcceso
+              destino={nombreEnPanel(pathname)}
+              permitido={(o) => puedeAbrirPanel(actorDe(o), pathname)}
+            >
+              {children}
+            </GuardiaAcceso>
+          </PageTransition>
         </main>
       </div>
 
@@ -143,6 +154,15 @@ export function BackOfficeShell({
   );
 }
 
+/** Cómo se llama lo que se intentó abrir en el panel, para la guardia. */
+function nombreEnPanel(ruta: string): string {
+  const [, , moduloId, seccionId] = ruta.split("/");
+  const m = moduloId ? buscarModulo(moduloId) : undefined;
+  if (!m) return "el panel";
+  const s = seccionId ? buscarSeccion(m, seccionId) : undefined;
+  return s ? `«${s.nombre}»` : `el módulo ${m.nombre}`;
+}
+
 /* ────────────────────────────────────────────────────────────── piezas ── */
 
 function Marca({ compacta = false }: { compacta?: boolean }) {
@@ -172,7 +192,7 @@ function NavModulos({
   pathname,
   modo,
 }: {
-  actor: Actor;
+  actor: Actor | null;
   modulos: readonly Modulo[];
   inicioVisible: boolean;
   pathname: string;
@@ -203,9 +223,7 @@ function NavModulos({
 
         {modulos.map((m) => {
           const enModulo = pathname.startsWith(rutaModulo(m.id));
-          const secciones = m.secciones.filter(
-            (s) => !s.accion || can(actor, s.accion) !== "DENEGADO",
-          );
+          const secciones = m.secciones.filter((s) => actor !== null && puedeVerSeccion(actor, m, s));
           const seccionActiva = secciones.some((s) => s.href === pathname);
           const desplegado = abierto === m.id || enModulo;
 

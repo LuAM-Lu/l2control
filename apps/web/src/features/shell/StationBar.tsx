@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Initial, cn } from "@l2/ui";
 import { cerrarSesion, useOperador } from "../identity/operador.ts";
+import { actorDe, puedeAbrirRuta, puedeVerInicio } from "../identity/visibilidad.ts";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 
 /**
@@ -98,7 +99,13 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   // enseñar el turno o la tasa antes de autenticar no aporta nada.
   if (pathname === "/acceso") return null;
 
-  const puesto = PUESTOS.find((p) => p.superficies.some((s) => s.href === pathname));
+  // V2: solo las pestañas que el rol puede abrir, y «Panel» solo para quien
+  // ve informes. Sin sesión no hay a dónde ir más que al acceso.
+  const actor = operador ? actorDe(operador) : null;
+  const encontrado = PUESTOS.find((p) => p.superficies.some((s) => s.href === pathname));
+  const pestanas = actor && encontrado ? encontrado.superficies.filter((s) => puedeAbrirRuta(actor, s.href)) : [];
+  const puesto = encontrado && pestanas.length > 0 ? { ...encontrado, superficies: pestanas } : null;
+  const verPanel = actor !== null && puedeVerInicio(actor);
   const sinTasa = contexto.tasa === null;
   const sinTurno = contexto.turnoAbierto === null;
   const offline = contexto.conexion !== "N0";
@@ -116,6 +123,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
           order-last`); a partir de sm todo cabe en una sola de 64 px. */}
       <div className="flex flex-wrap items-center gap-2 px-2 py-2 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-0">
         {/* Volver: un solo destino, el panel. */}
+        {verPanel && (
         <Link
           href="/panel"
           title="Volver al panel"
@@ -133,6 +141,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
           <LayoutDashboard size={15} aria-hidden="true" />
           <span className="hidden text-[13px] md:inline">Panel</span>
         </Link>
+        )}
 
         {/* Conmutador del puesto: pestañas, no navegación hacia atrás.
             Se desplaza en horizontal antes que comprimirse. */}

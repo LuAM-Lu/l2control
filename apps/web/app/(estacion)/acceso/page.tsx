@@ -30,6 +30,14 @@ const DISPOSITIVOS: Record<string, Device | null> = {
  */
 const OPERADORES: Operador[] = [
   {
+    id: "u0",
+    nombre: "Abigail Karam",
+    rol: "Administradora",
+    role: "ADMIN",
+    destino: "/panel",
+    destinoNombre: "el panel",
+  },
+  {
     id: "u1",
     nombre: "Marisol Prieto",
     rol: "Cajera",

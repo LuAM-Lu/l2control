@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Clock3 } from "lucide-react";
-import { can, type Actor } from "@l2/domain-identity";
+import { useOperador } from "../identity/operador.ts";
+import { actorDe, puedeVerSeccion } from "../identity/visibilidad.ts";
 import { Container, PageHeader, cn } from "@l2/ui";
-import { rutaSeccion, type Modulo } from "./navigation.ts";
+import { buscarModulo, rutaSeccion } from "./navigation.ts";
 
 /**
  * Página de un módulo del back-office — §9.10.3.
@@ -16,10 +19,14 @@ import { rutaSeccion, type Modulo } from "./navigation.ts";
  * es peor. La tercera opción —decir qué harán, con qué tarea y qué falta
  * antes— es la única honesta.
  */
-export function ModuloScreen({ modulo, actor }: { modulo: Modulo; actor: Actor }) {
-  const secciones = modulo.secciones.filter(
-    (s) => !s.accion || can(actor, s.accion) !== "DENEGADO",
-  );
+export function ModuloScreen({ moduloId }: { moduloId: string }) {
+  // Llega el id, no el módulo: el módulo lleva su icono, que es una función,
+  // y una función no cruza del servidor al cliente.
+  const modulo = buscarModulo(moduloId)!;
+  // Solo se llega con sesión: la guardia del panel ya lo comprobó.
+  const operador = useOperador();
+  const actor = operador ? actorDe(operador) : null;
+  const secciones = modulo.secciones.filter((s) => actor !== null && puedeVerSeccion(actor, modulo, s));
   const listas = secciones.filter((s) => s.href !== null);
   const pendientes = secciones.filter((s) => s.href === null);
 

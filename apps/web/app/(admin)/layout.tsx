@@ -1,4 +1,3 @@
-import type { Actor } from "@l2/domain-identity";
 import { Avisos } from "@l2/ui";
 import { BackOfficeShell } from "../../src/features/shell/BackOfficeShell";
 
@@ -10,12 +9,11 @@ import { BackOfficeShell } from "../../src/features/shell/BackOfficeShell";
  * decide QUIÉN entra: el resto se recorta solo por permisos.
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  // TODO(F2-12/backend): el actor vendrá de la sesión. La forma ya es la
-  // definitiva, así que ese cambio no toca ninguna pantalla (§11.4).
-  const actor: Actor = { id: "u-admin", role: "ADMIN", branchIds: ["b1"] };
-
+  // El actor sale de la sesión dentro de la cáscara (V2 de UX-MEJORAS).
+  // TODO(F2-12/backend): la sesión real vendrá de Better Auth; la forma ya
+  // es la definitiva, así que ese cambio no toca ninguna pantalla (§11.4).
   return (
-    <BackOfficeShell actor={actor} usuario="Abigail Karam" rol="Administradora">
+    <BackOfficeShell>
       {children}
       <Avisos posicion="top-right" />
     </BackOfficeShell>

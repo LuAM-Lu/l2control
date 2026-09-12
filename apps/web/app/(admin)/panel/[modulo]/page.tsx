@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import type { Actor } from "@l2/domain-identity";
 import { ModuloScreen } from "../../../../src/features/shell/ModuloScreen";
 import { MODULOS, buscarModulo } from "../../../../src/features/shell/navigation";
 
@@ -23,8 +22,5 @@ export default async function ModuloPage({
   const modulo = buscarModulo(id);
   if (!modulo) notFound();
 
-  // TODO(F2-12/backend): el actor vendrá de la sesión (§11.4).
-  const actor: Actor = { id: "u-admin", role: "ADMIN", branchIds: ["b1"] };
-
-  return <ModuloScreen modulo={modulo} actor={actor} />;
+  return <ModuloScreen moduloId={modulo.id} />;
 }

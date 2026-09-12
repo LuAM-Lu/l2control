@@ -74,7 +74,7 @@
 | F2-05 Motor de permisos `can()` | ✅ Hecha | Matriz de §7.3 como dato, deny-by-default; cada ❌ con prueba negativa |
 | F2-06 Alcance por sucursal | ✅ Hecha | La sucursal es parte del permiso, no un `if` aparte |
 | F2-11 Permisos por persona | Parcial | Concesiones y revocaciones, auditadas, sin ampliar la sede; pantalla en `/panel/personas/usuarios`. Falta persistirlas |
-| F2-12 Sesión compartida | Parcial | Bloqueo por inactividad, cambio de usuario a un toque, el corte Z devuelve al acceso. Falta la sesión real |
+| F2-12 Sesión compartida | Parcial | Bloqueo por inactividad, cambio de usuario a un toque, el corte Z devuelve al acceso. La sesión (quién y con qué rol) sale del acceso y recorta barra, menú y pantallas por la matriz (V2). Vive en la pestaña: falta la sesión real del servidor |
 | F2-01, F2-04, F2-07 a F2-10 | Pendiente | Necesitan backend |
 
 ## F3 · Núcleo monetario — adelanto
@@ -138,9 +138,9 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ## Próximos pasos
 
-0. **[UX-MEJORAS.md](UX-MEJORAS.md), aprobado el 2026-09-12.** V1 hecha (avisos con toasts, salidas
-   animadas, simulador en la barra, identidad desde el acceso). Sigue **V2: roles en las estaciones**, y
-   después la cocina. Decisiones del cliente pendientes: D10-D12 y D6.
+0. **[UX-MEJORAS.md](UX-MEJORAS.md), aprobado el 2026-09-12.** V1 y V2 hechas (avisos, identidad, roles
+   en estaciones y panel). Sigue **la cocina (KDS)**, paso 3 de DEC-22, y luego V3 y V4 (plano del local).
+   Decisiones del cliente pendientes: D10-D12 y D6.
 1. **DEC-22, paso a paso sobre el simulador:** simulador y eventos ✔ → mesas y mesero ✔ →
    **cocina (KDS)** → caja con cuentas de mesa → panel en vivo. Orden de [FLUJOS.md](FLUJOS.md) §6.
 2. **F1-14, la CI.** `pnpm verify` comprueba tipos, fronteras y pruebas, pero nadie lo ejecuta

@@ -26,7 +26,7 @@ confunde; **baja** si es acabado.
 | M2 | Media | La píldora «14:00» parece un reloj; es la hora de apertura del turno | Barra de estación | «Turno desde 14:00» |
 | M3 | Media | El back-office desplaza: Inicio +491 px, Usuarios +1434 px | `/panel` | Usuarios en maestro-detalle; Inicio con lo urgente arriba. Decidir si el back-office puede desplazar (D12) |
 | M4 | Media | Mesas es una cuadrícula, no el local: el mesero no encuentra la mesa por su sitio | `/mesas` | Plano espacial del local (§2) |
-| M5 | Media | La entrada muestra el teléfono del representante a roles sin `parque.verContacto` (cajera) | `/entrada` | Enmascarar: «0412-•••4567» |
+| M5 | ~~Media~~ | ~~La entrada muestra el teléfono del representante a roles sin `parque.verContacto`~~ **Corregido al construir V2: no aplica.** El teléfono lo teclea el operador para buscar; el dato guardado no se muestra en ninguna pantalla | `/entrada` | Nada que enmascarar hoy. La regla 3 se aplicará cuando exista la ficha del representante (F5-07) |
 | B1 | Baja | El indicador de desarrollo de Next («N») se monta abajo a la izquierda y ensucia las capturas | Solo desarrollo | `devIndicators` en otra esquina |
 | B2 | Baja | Todas las iniciales del acceso van en amarillo de marca; la marca es para la acción principal | `/acceso` | Iniciales neutras |
 | B3 | Baja | Insignias de 11 px en las baldosas densas | `/mesas`, `/monitor` | 12 px mínimo, texto antes que icono |
@@ -231,7 +231,7 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 | Paso | Qué | Hallazgos | Tamaño |
 |---|---|---|---|
 | **V1** ✔ | Base visual: taxonomía de avisos con toasts, salidas animadas, simulador dentro de la barra, identidad desde el acceso, «Turno desde», indicador de Next. **Hecho el 2026-09-12** | A1, A2, A4, M1, M2, B1, B2 | 1 sesión |
-| **V2** | Roles en estaciones: pestañas y «Panel» filtrados, pantalla «Sin acceso», teléfono enmascarado | A3, M5 | 1 sesión |
+| **V2** ✔ | Roles en estaciones: pestañas y «Panel» filtrados, pantalla «Sin acceso», menú del panel por rol. **Hecho el 2026-09-12** | A3 | 1 sesión |
 | — | *DEC-22 paso 3: cocina (KDS)*, ya con toasts y roles | — | — |
 | **V3** | Plano espacial en `/mesas` con el local del dibujo, y vista Lista | M4 | 1 sesión |
 | **V4** | Editor del plano en el panel: borrador, publicar, retirar, deshacer | F6-01 | 1-2 sesiones |

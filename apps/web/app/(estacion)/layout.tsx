@@ -1,6 +1,7 @@
 import { DEFAULT_STATION_IDLE } from "@l2/domain-identity";
 import { Avisos } from "@l2/ui";
 import { CuentasProvider } from "../../src/features/cuentas/CuentasProvider";
+import { GuardiaEstacion } from "../../src/features/shell/GuardiaEstacion";
 import { IdleGuard } from "../../src/features/shell/IdleGuard";
 import { PageTransition } from "../../src/features/shell/PageTransition";
 import { StationBar } from "../../src/features/shell/StationBar";
@@ -38,7 +39,11 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
           conexion: "N0",
         }}
       />
-      <PageTransition>{children}</PageTransition>
+      {/* V2: la dirección no es una puerta. Cada pantalla pide el rol de su
+          superficie; sin sesión, a identificarse. */}
+      <PageTransition>
+        <GuardiaEstacion>{children}</GuardiaEstacion>
+      </PageTransition>
       {/* Toasts arriba al centro, bajo la barra de 64 px: lejos de la acción
           principal, que en las estaciones vive abajo a la derecha (UX-MEJORAS §4.2). */}
       <Avisos posicion="top-center" desdeArriba={76} />
