@@ -13,14 +13,24 @@
  */
 import type { OperationEventDto, OrderItemDto, ParkSessionDto } from "@l2/contracts";
 
-export type EstadoMesa = "OCUPADA" | "PIDE_CUENTA" | "POR_LIMPIAR";
+/** Un evento antes de sellarlo: el id y el instante los pone quien lo emite. */
+export type EventoSinSello = OperationEventDto extends infer E
+  ? E extends OperationEventDto
+    ? Omit<E, "id" | "at">
+    : never
+  : never;
+
+export type EstadoMesa ="OCUPADA" | "PIDE_CUENTA" | "POR_LIMPIAR";
 export type EstadoPedido = "ENVIADO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO" | "ANULADO";
 
 export type Mesa = Readonly<{
   id: string;
   label: string;
   estado: EstadoMesa;
+  /** Desde cuándo está en el estado actual. */
   desde: string;
+  /** Cuándo se abrió: separa los pedidos de esta familia de los de la anterior. */
+  abiertaEn: string;
   comensales: number;
   sesiones: readonly string[];
 }>;
@@ -117,6 +127,7 @@ export function aplicar(e: EstadoLocal, ev: OperationEventDto): EstadoLocal {
             label: ev.label,
             estado: "OCUPADA",
             desde: ev.at,
+            abiertaEn: ev.at,
             comensales: ev.guests,
             sesiones: [],
           },

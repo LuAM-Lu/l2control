@@ -38,7 +38,7 @@ import { Initial, cn } from "@l2/ui";
  *    horizontal y todo lo pulsable mide 48 px.
  */
 
-type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/turno";
+type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/turno" | "/mesas";
 
 type Puesto = {
   id: string;
@@ -63,6 +63,12 @@ const PUESTOS: Puesto[] = [
       { href: "/caja", corto: "Cobrar", largo: "Caja" },
       { href: "/turno", corto: "Turno", largo: "Turno de caja" },
     ],
+  },
+  {
+    // DEC-22: la cocina (KDS) se suma aquí en el paso siguiente.
+    id: "restaurante",
+    nombre: "Restaurante",
+    superficies: [{ href: "/mesas", corto: "Mesas", largo: "Mesas y pedidos" }],
   },
 ];
 

@@ -248,3 +248,32 @@ servidor y después ignoraba las horas nuevas: con datos en vivo se habría qued
 remide con cada instante nuevo. Y un script de invariantes (aforo, todo cerrado al final,
 idempotencia, ningún evento fuera de la tarde) encontró que el escenario X3 dejaba a una niña
 dentro y liberaba una mesa después del final; se corrigió antes de enseñarlo.
+
+## Mesas y mesero — 2026-09-12
+
+Segundo paso de DEC-22: la estación del mesero en `/mesas`, sobre el simulador. Maestro-detalle a
+pantalla fija: el plano por zonas a la izquierda y la mesa elegida a la derecha, con sus niños
+vinculados, sus pedidos y la acción que toca —abrir, tomar pedido, servir lo que está listo, pedir la
+cuenta, dejarla libre—. Tomar un pedido cambia a carta + ticket, porque la carta necesita el ancho
+del plano; vincular pulseras es una hoja lateral con lector. Cabe sin desplazar a 1366×768 y
+1280×800, y en tablet vertical; en móvil vuelve el flujo normal.
+
+La regla que ordena la pantalla viene de FLUJOS §2: **el borrador es del mesero; lo enviado, de la
+cocina**. El borrador se cambia y se descarta sin pedir permiso y la cocina no lo ve; el envío pasa
+por una confirmación que repite el pedido, porque es el momento de leérselo a la mesa. Un plato
+agotado no se puede enviar, y si algo del borrador no pasa, no se envía nada. El borrador de una mesa
+que se libera no hereda a la familia siguiente. Si la tablet se apaga, el borrador se pierde: X4
+sigue por decidir y no se inventó una respuesta.
+
+El simulador tuvo que crecer: hasta ahora solo reproducía guiones, y el mesero **emite**. Los eventos
+de las personas sí viajan entre pestañas —no están en ningún guion—, y quien los recibe los valida
+contra el contrato como si vinieran del servidor. Sobreviven a la reconstrucción del local y
+funcionan también sin escenario. Los guiones pasaron a usar las mesas del plano (`mesa-3`), así la
+mesa 3 del simulador es la que ve el mesero. El plano y la carta son contratos Zod nuevos, con datos
+inventados hasta F0-03 y F0-04.
+
+La prueba en navegador encontró un fallo real: la píldora del simulador, abajo a la derecha, tapaba
+el botón principal de la columna de acciones, que en todas las estaciones está a la derecha. Pasó a
+la izquierda. Y dos ajustes de lectura: las insignias de solo icono y número («🍳 1») pasaron a decir
+«1 en cocina», y cada línea del ticket pasó a una sola fila para que cinco platos quepan sin
+desplazar.

@@ -1,6 +1,6 @@
 # Progreso real
 
-> **Actualizado:** 2026-09-11 (tarde) · Contrastado contra los criterios de aceptación de
+> **Actualizado:** 2026-09-12 · Contrastado contra los criterios de aceptación de
 > [PLAN.md §12](PLAN.md). Una tarea solo cuenta como hecha si su criterio se cumple y es
 > demostrable — «ya lo programé» no basta.
 >
@@ -17,9 +17,10 @@
 | F3 · Núcleo monetario y fiscal | 4 | 0 | 8 | Motor de impuestos listo |
 | F4 · Caja y cobro mixto | 0 | 10 | 2 | Interfaz completa; falta persistencia |
 | F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
-| F6-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
+| F6 · Restaurante (interfaz, DEC-22) | 0 | 4 | 10 | Mesas y mesero sobre el simulador |
+| F7-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
-**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/turno`. Back-office: `/panel`, con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**.
+**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/turno`, `/mesas`. El botón «Simulador» (abajo a la izquierda) reproduce una tarde del local. Back-office: `/panel`, con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**.
 
 > **Orden de ejecución cambiado el 2026-09-09** (§11.4): frontend → backend → producción.
 > La condición para que ese orden no genere retrabajo es contratos primero, y ya está en marcha.
@@ -58,7 +59,7 @@
 | F1-11 Hook de escaneo | Parcial | Captura sin foco, valida formato, limita frecuencia y ya no pierde el primer carácter al navegar (un solo oyente para toda la app). Falta calibrar el umbral con el lector real |
 | F1-12 Plantillas de ticket | Pendiente | 58 y 80 mm; la impresora comprada admite ambos |
 | F1-13 Observabilidad | Pendiente | Logger con redacción, trazas, métricas |
-| F1-19 Simulador de operación | Parcial | Motor, proyección del local, tres escenarios y panel de control; sincronizado entre pestañas. El monitor ya se alimenta de él (DEC-22) |
+| F1-19 Simulador de operación | Parcial | Motor, proyección del local, tres escenarios y panel de control; sincronizado entre pestañas. Acepta eventos que emiten las pantallas, validados también al llegar de otra pestaña. Lo consumen el monitor y las mesas. Faltan escenarios de FLUJOS §5 |
 | F1-20 Catálogo de eventos | Parcial | Contrato Zod de los eventos de FLUJOS §4 que emite el simulador; faltan los de cuentas |
 | F1-14 CI | **Pendiente** | **`pnpm verify` existe pero nada lo ejecuta solo. Ver abajo** |
 | F1-15 Staging | Pendiente | — |
@@ -104,6 +105,16 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F4-08 Excepciones del turno | Parcial | Visibles en turno e inicio; faltan las reales del libro |
 | F4-04, F4-09 | Pendiente | Campos por medio de pago y gaveta asociada a operación |
 
+## F6 · Restaurante — interfaz sobre el simulador (DEC-22)
+
+| Tarea | Estado | Evidencia o qué falta |
+|---|---|---|
+| F6-01 Plano de mesas | Parcial | `/mesas`: plano por zonas desde un contrato (`FloorPlanSchema`, sin números repetidos). **8 mesas inventadas hasta F0-03**; falta que sea editable |
+| F6-02 Estados de mesa en vivo | Parcial | Libre, ocupada, pide la cuenta, por limpiar, con minutos y color + icono + texto; una mesa abierta no se abre dos veces (I-05). Sin servidor |
+| F6-03 Carta táctil | Parcial | Categorías y platos de 88 px, agotados visibles pero no pedibles, borrador con notas y confirmación antes de cocina. **Carta y precios inventados hasta F0-04** |
+| F6-04 Modificadores | Pendiente | Hoy solo nota libre por plato |
+| F6-05 Vincular pulseras | Parcial | Hoja con lector y lista por familia; un niño de otra mesa no se ofrece y al escanearlo se dice dónde está. **Falta la cuenta maestra** (paso de caja) |
+
 ## F5 · Parque — prototipo de interfaz
 
 | Tarea | Estado | Nota |
@@ -127,8 +138,8 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ## Próximos pasos
 
-1. **DEC-22, paso a paso sobre el simulador:** simulador y eventos (en curso) → mesas y mesero →
-   cocina (KDS) → caja con cuentas de mesa → panel en vivo. Orden de [FLUJOS.md](FLUJOS.md) §6.
+1. **DEC-22, paso a paso sobre el simulador:** simulador y eventos ✔ → mesas y mesero ✔ →
+   **cocina (KDS)** → caja con cuentas de mesa → panel en vivo. Orden de [FLUJOS.md](FLUJOS.md) §6.
 2. **F1-14, la CI.** `pnpm verify` comprueba tipos, fronteras y pruebas, pero nadie lo ejecuta
    solo: las reglas muerden solo si alguien se acuerda de invocarlas.
 3. **El lint no existe.** `pnpm lint` no ejecuta nada, y `CLAUDE.md` promete una regla contra

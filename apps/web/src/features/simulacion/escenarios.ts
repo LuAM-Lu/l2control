@@ -19,6 +19,7 @@ import {
   type ParkPolicyDto,
   type ParkSessionDto,
 } from "@l2/contracts";
+import type { EventoSinSello } from "./proyeccion.ts";
 
 export type Escenario = Readonly<{
   id: string;
@@ -50,11 +51,7 @@ const PAQUETES = {
 type Paquete = keyof typeof PAQUETES;
 
 /** Evento sin identificador ni instante: los pone el guion. */
-type Borrador = OperationEventDto extends infer E
-  ? E extends OperationEventDto
-    ? Omit<E, "id" | "at">
-    : never
-  : never;
+type Borrador = EventoSinSello;
 
 /** Guion: se le dictan eventos en minutos desde el inicio. */
 function guion(id: string, inicio: string) {
@@ -99,13 +96,15 @@ function guion(id: string, inicio: string) {
     pedidos: readonly { min: number; items: readonly OrderItemDto[]; cocina?: number }[],
     pideCuenta: number,
   ) => {
-    const tableId = `${id}-m${numero}`;
+    // El id es el del plano de mesas (mesas/plano.ts): la mesa 3 del guion es
+    // la mesa 3 que ve el mesero, no una mesa paralela con el mismo número.
+    const tableId = `mesa-${numero}`;
     emitir(min, { type: "mesa.abierta", tableId, label: String(numero), guests: personas });
     if (ninos.length > 0) {
       emitir(min + 1, { type: "mesa.vinculada", tableId, sessionIds: ninos.map((s) => s.id) });
     }
     pedidos.forEach((p, i) => {
-      const orderId = `${tableId}-p${i + 1}`;
+      const orderId = `${id}-m${numero}-p${i + 1}`;
       const cocina = p.cocina ?? 14;
       emitir(p.min, { type: "pedido.enviado", orderId, tableId, items: [...p.items] });
       emitir(p.min + 2, { type: "pedido.aceptado", orderId });

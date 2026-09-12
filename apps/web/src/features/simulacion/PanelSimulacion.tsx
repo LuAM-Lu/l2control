@@ -41,7 +41,7 @@ export function PanelSimulacion() {
         type="button"
         onClick={() => setAbierto(true)}
         className={cn(
-          "fixed right-4 bottom-4 z-40 flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-4 text-[13px] shadow-lift",
+          "fixed bottom-4 left-4 z-40 flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-4 text-[13px] shadow-lift",
           "transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           sim.activa
             ? "border-brand/50 bg-surface text-ink"
@@ -64,7 +64,7 @@ export function PanelSimulacion() {
   return (
     <section
       aria-label="Simulador de operación"
-      className="fixed right-4 bottom-4 z-40 flex max-h-[75dvh] w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-line-strong bg-surface shadow-lift"
+      className="fixed bottom-4 left-4 z-40 flex max-h-[75dvh] w-[min(23rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius-card)] border border-line-strong bg-surface shadow-lift"
     >
       <header className="flex items-start gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0 flex-1">

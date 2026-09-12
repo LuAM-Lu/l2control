@@ -51,6 +51,13 @@ const OPERADORES: Operador[] = [
     destinoNombre: "la sala",
   },
   {
+    id: "u5",
+    nombre: "Jesús Mendoza",
+    rol: "Mesero",
+    destino: "/mesas",
+    destinoNombre: "las mesas",
+  },
+  {
     // La cocina todavía no tiene pantalla propia (F6-05), así que entra a la
     // sección que lo explica en vez de a un sitio que no le sirve.
     id: "u4",

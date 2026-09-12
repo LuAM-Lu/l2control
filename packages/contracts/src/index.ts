@@ -95,3 +95,14 @@ export {
   type OperationEventType,
   type OrderItemDto,
 } from "./eventos.ts";
+
+export {
+  DiningTableSchema,
+  FloorPlanSchema,
+  MenuItemSchema,
+  MenuSchema,
+  type DiningTableDto,
+  type FloorPlanDto,
+  type MenuItemDto,
+  type MenuDto,
+} from "./restaurante.ts";

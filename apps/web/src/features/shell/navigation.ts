@@ -109,12 +109,10 @@ export const MODULOS: readonly Modulo[] = [
     secciones: [
       {
         id: "mesas",
-        nombre: "Mesas y zonas",
-        href: null,
+        nombre: "Mesas y pedidos",
+        href: "/mesas",
         proposito:
-          "El plano de sala: qué mesa está ocupada, desde cuándo y con qué cuenta abierta. Se vincula a las pulseras de los niños.",
-        tarea: "F6-01",
-        necesita: "El relevamiento en sitio (F0-03): cuántas mesas hay y cómo están distribuidas.",
+          "El plano de sala: qué mesa está ocupada, desde cuándo y qué pidió. Se vincula a las pulseras de los niños y el pedido se confirma antes de ir a cocina.",
       },
       {
         id: "carta",

@@ -263,7 +263,7 @@ backend exista, se cambia la fuente y las pantallas no se tocan (§11.4).
 
 1. **Motor de simulación y catálogo de eventos** (§4). Sin él, las pantallas en vivo no tienen de qué
    alimentarse.
-2. **Mesas y mesero**: plano de mesas, abrir, vincular pulseras, pedido con borrador y confirmación.
+2. **Mesas y mesero**: plano de mesas, abrir, vincular pulseras, pedido con borrador y confirmación. *Interfaz hecha el 2026-09-12 en `/mesas`.*
 3. **KDS**: comandas por antigüedad, estados, anulación visible, fallo de impresora.
 4. **Caja con cuentas de mesa**: cuenta maestra, adicionales y propina explícita.
 5. **Panel en vivo**: las cinco zonas de §2, flujo E.

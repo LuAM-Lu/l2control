@@ -1555,8 +1555,8 @@ La neutralización no es opcional, es la condición para que este orden funcione
 | 5 | Cortes X y Z, arqueo | F4-05, F4-06, F4-07 | Interfaz hecha |
 | 6 | Acceso por PIN y dispositivo | F2-03 | Interfaz hecha |
 | 7 | Mesas, comandas y KDS | F6-01…F6-07 | Interfaz: filas 9 a 11 (DEC-22). Backend fuera de la Ruta A |
-| 8 | **Simulador de operación y catálogo de eventos** | F1-19, F1-20 | **En curso** |
-| 9 | Mesas y mesero | F6-01…F6-05 (interfaz) | Pendiente |
+| 8 | Simulador de operación y catálogo de eventos | F1-19, F1-20 | Base hecha; crece con cada paso |
+| 9 | Mesas y mesero | F6-01…F6-05 (interfaz) | **Interfaz hecha** (2026-09-12) |
 | 10 | Cocina (KDS) | F6-06…F6-09 (interfaz) | Pendiente |
 | 11 | Caja con cuentas de mesa, adicionales y propina | F6-05, F6-13, F8-02 (interfaz) | Pendiente |
 | 12 | Panel en vivo del local | F9-08 | Pendiente |
@@ -1815,16 +1815,16 @@ producto y el flujo más simple de validar en un turno.*
 
 ### FASE 6 · RESTAURANTE, COMANDAS Y COCINA
 
-- [ ] **F6-01 · Zonas y plano de mesas** editable.
+- [~] **F6-01 · Zonas y plano de mesas** editable.
   → *Criterio:* refleja la distribución real relevada en F0-03 (7-10 mesas de 4-6 sillas según DEC-7),
   y el número de mesas y sillas es **configurable**, no una constante del código.
-- [ ] **F6-02 · Estados de mesa en tiempo real** (§6.5).
+- [~] **F6-02 · Estados de mesa en tiempo real** (§6.5).
   → *Criterio:* una mesa no tiene dos sesiones abiertas (I-05); los estados se ven a distancia.
-- [ ] **F6-03 · Catálogo táctil por categorías** con `TouchGrid` (§8.4).
+- [~] **F6-03 · Catálogo táctil por categorías** con `TouchGrid` (§8.4).
   → *Criterio:* objetivos de 48 px en tablet; un mesero nuevo toma un pedido sin entrenamiento previo.
 - [ ] **F6-04 · Modificadores de plato** con efecto en precio y en consumo de insumos.
   → *Criterio:* un modificador con costo altera el total y el escandallo de forma coherente.
-- [ ] **F6-05 · Vinculación de pulseras del parque a una mesa** (R3).
+- [~] **F6-05 · Vinculación de pulseras del parque a una mesa** (R3).
   → *Criterio:* la cuenta maestra muestra platos **y** tiempo de parque en un solo total.
 - [ ] **F6-06 · Envío de comanda por WebSocket** (ADR-008).
   → *Criterio:* **aparece en el KDS en menos de 2 s**, medido; si el socket cae, la cola local reintenta
