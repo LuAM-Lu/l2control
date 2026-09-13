@@ -90,6 +90,9 @@ export function NumericKeypad({
           className={cn(
             tecla,
             "border-brand bg-brand text-on-brand hover:bg-brand-2 text-base",
+            // Apagada, la tecla de marca se vuelve neutra en vez de quedar naranja a
+            // medias: igual que Button, para que «todavía no» no parezca «roto».
+            "disabled:border-line disabled:bg-surface-2 disabled:text-ink-3 disabled:opacity-100",
           )}
         >
           {submitLabel ?? "OK"}

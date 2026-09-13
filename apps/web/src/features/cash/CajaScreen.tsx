@@ -10,7 +10,6 @@ import {
   Copy,
   CreditCard,
   HandCoins,
-  Keyboard,
   PiggyBank,
   Plus,
   ShoppingBag,
@@ -136,10 +135,6 @@ function CobroCuenta({
   const [mostrarCatalogo, setMostrarCatalogo] = useState(
     cuenta.id.startsWith("c-dir-") || cuenta.family.startsWith("Mostrador"),
   );
-  // El teclado se abre bajo demanda: «Cobrar exacto» y los billetes cubren el
-  // caso común, y con todo abierto la columna no cabía a 1366×768 y el teclado
-  // quedaba aplastado debajo del botón de cierre.
-  const [teclado, setTeclado] = useState(false);
   /** Fila de mostrador tocada: enseña su cantidad y «Eliminar». */
   const [filaAbierta, setFilaAbierta] = useState<string | null>(null);
 
@@ -553,136 +548,61 @@ function CobroCuenta({
           </dl>
         </section>
 
-        {/* ═══════════════════════ cobrar ══════════════════════════════ */}
-        <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto rounded-[var(--radius-card)] border border-line bg-surface p-3.5 shadow-card [&>*]:shrink-0 md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1">
-          {/* ── la cifra que manda: visor bimoneda simultáneo y adaptable ── */}
+        {/* ═══════════════════════ cobrar ══════════════════════════════
+            Estructura FIJA, pedida por el cliente: visor, medios, una franja de
+            alto fijo según el medio, el teclado siempre a la vista y una fila de
+            dos columnas con «Cobrar exacto» y «Cerrar cobro». Cambiar de medio o
+            teclear no mueve nada de sitio, y no hay que abrir nada para teclear. */}
+        <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card [&>*]:shrink-0 md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1">
+          {/* ── visor: lo que falta (o el vuelto) y lo que se está tecleando ── */}
           <div
             className={cn(
-              "relative overflow-hidden rounded-[var(--radius-control)] border p-3.5",
-              "transition-all duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
-              cubierto
-                ? "border-state-ok/40 bg-state-ok-bg/40 shadow-xs"
-                : "border-line-strong bg-base shadow-xs",
+              "rounded-[var(--radius-control)] border px-3 py-2.5",
+              "transition-colors duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
+              cubierto ? "border-state-ok/40 bg-state-ok-bg/40" : "border-line-strong bg-base",
             )}
           >
-            {/* Con el teclado abierto el visor baja a un renglón: el teclado necesita el alto. */}
-            <div className={cn("flex items-center justify-between gap-2 border-b border-line/40 pb-2", teclado && !cubierto && "hidden")}>
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "size-2 rounded-full",
-                    cubierto ? "bg-state-ok" : "bg-brand animate-pulse",
-                  )}
-                />
-                <p className="text-[11px] font-bold tracking-[0.08em] text-ink uppercase">
-                  {cubierto ? "Cubierto · listo para cerrar" : "Falta por cobrar"}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.08em] text-ink uppercase">
+                  <span
+                    aria-hidden="true"
+                    className={cn("size-2 rounded-full", cubierto ? "bg-state-ok" : "bg-brand")}
+                  />
+                  {!cubierto ? "Falta por cobrar" : sobra.amount > 0n ? "Vuelto a entregar" : "Cubierto"}
                 </p>
+                <MoneyDisplay
+                  value={toMajor(!cubierto ? falta : sobra.amount > 0n ? sobra : aCobrar)}
+                  currency="USD"
+                  size="xl"
+                  tone={cubierto ? "positive" : "default"}
+                  className="mt-1 leading-none tracking-tight"
+                />
               </div>
-              {tasaTexto && (
-                <span className="tnum inline-flex items-center gap-1 rounded border border-line bg-surface px-2 py-0.5 text-[10.5px] font-semibold text-ink-2 shadow-2xs">
-                  <span className="text-ink-3">Tasa:</span>
-                  <span className="text-ink">{tasaTexto}</span>
-                </span>
+              {!cubierto && (
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                    Tecleado ({medioActivo.currency})
+                  </p>
+                  <p
+                    aria-live="polite"
+                    className={cn("tnum mt-1 text-2xl leading-none font-bold", digitos === "" ? "text-ink-3" : "text-ink")}
+                  >
+                    {toMajor(tecleado)}
+                  </p>
+                </div>
               )}
             </div>
-
-            {cubierto ? (
-              <div className="mt-2.5 flex flex-col gap-1.5">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-base font-bold text-state-ok">
-                    Total cubierto con éxito
-                  </span>
-                  <span className="text-[11px] font-bold tracking-wider text-state-ok uppercase">
-                    Listo
-                  </span>
-                </div>
-                {sobra.amount > 0n ? (
-                  <div className="mt-1 rounded-[var(--radius-control)] border border-brand/30 bg-brand/10 p-2.5">
-                    <span className="mb-1 block text-[10.5px] font-bold tracking-wider text-brand uppercase">
-                      Vuelto a entregar al cliente:
-                    </span>
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="tnum text-xl font-bold text-ink">
-                        {formatMoneyVE(toMajor(sobra), "USD")}
-                      </span>
-                      {sobraEnBs && (
-                        <span className="tnum text-sm font-semibold text-ink-2">
-                          ≈ {sobraEnBs}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-0.5 text-[11.5px] text-ink-3">
-                    El monto cobrado cuadra exactamente con el total de la cuenta.
-                  </p>
-                )}
-              </div>
-            ) : teclado ? (
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="text-[11px] font-bold tracking-[0.08em] text-ink uppercase">Falta</span>
-                <MoneyDisplay value={toMajor(falta)} currency="USD" size="lg" className="ml-auto" />
-                {faltaEnBs && <span className="tnum text-sm font-semibold text-ink-2">{faltaEnBs}</span>}
-              </div>
-            ) : (
-              <div className="mt-2 flex flex-col gap-1.5">
-                <div>
-                  <MoneyDisplay
-                    value={toMajor(falta)}
-                    currency="USD"
-                    size="hero"
-                    className="leading-none tracking-tight"
-                  />
-                </div>
-                {faltaEnBs && (
-                  <div className="flex items-center justify-between rounded border border-line/60 bg-surface/80 px-2.5 py-1.5 shadow-2xs">
-                    <span className="text-[10px] font-semibold tracking-wider text-ink-3 uppercase">
-                      En bolívares (BCV)
-                    </span>
-                    <span
-                      className={cn(
-                        "tnum font-bold text-ink-2",
-                        faltaEnBs.length > 13 ? "text-base" : "text-lg md:text-xl",
-                      )}
-                    >
-                      {faltaEnBs}
-                    </span>
-                  </div>
-                )}
-              </div>
+            {/* Los bolívares en su propio renglón: una cifra de 8 dígitos no cabe al lado. */}
+            {(cubierto ? sobraEnBs : faltaEnBs) && (
+              <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-line/40 pt-1.5">
+                <span className="text-[10px] font-semibold tracking-wider text-ink-3 uppercase">
+                  En bolívares{tasaTexto ? ` · ${tasaTexto}` : ""}
+                </span>
+                <span className="tnum text-lg font-bold text-ink-2">{cubierto ? sobraEnBs : faltaEnBs}</span>
+              </p>
             )}
           </div>
-
-          {/* ── atajo 1 toque: cobrar exacto ── */}
-          {!cubierto && !teclado && montoExacto && (
-            <button
-              type="button"
-              onClick={cobrarMontoExacto}
-              className={cn(
-                "group flex min-h-14 w-full cursor-pointer items-center justify-between rounded-[var(--radius-control)] border px-3 py-2 text-left",
-                "border-brand/40 bg-brand/10 hover:border-brand hover:bg-brand/20",
-                "transition-all duration-[var(--dur-rapida)] active:scale-[0.99]",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <span className="grid size-6 place-content-center rounded bg-brand text-ink-inverse transition-transform group-hover:scale-110">
-                  <Zap size={14} className="fill-current" />
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-[12px] font-bold text-ink">
-                    Cobrar exacto ({medioActivo.label})
-                  </span>
-                  <span className="text-[10px] text-ink-3">
-                    1 toque · Sin usar el teclado
-                  </span>
-                </span>
-              </span>
-              <span className="tnum rounded border border-brand/20 bg-surface px-2 py-0.5 text-[12.5px] font-bold text-brand shadow-2xs">
-                {formatMoneyVE(toMajor(montoExacto), medioActivo.currency)}
-              </span>
-            </button>
-          )}
 
           {/* ── medio de pago con iconos y jerarquía financiera ── */}
           <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Medio de pago">
@@ -705,24 +625,18 @@ function CobroCuenta({
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     "disabled:cursor-not-allowed disabled:opacity-35",
                     activo
-                      ? "border-brand bg-brand/12 text-ink ring-1 ring-brand/30 shadow-2xs"
+                      ? "border-brand bg-brand/12 text-ink ring-1 ring-brand/30"
                       : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
                   )}
                 >
                   <div className="flex w-full items-center justify-between gap-1">
-                    <span className="truncate text-[12px] leading-tight font-bold">
-                      {m.label}
-                    </span>
+                    <span className="truncate text-[12px] leading-tight font-bold">{m.label}</span>
                     <Icon size={13} className={activo ? "text-brand" : "text-ink-3"} aria-hidden="true" />
                   </div>
                   <div className="mt-0.5 flex w-full items-center justify-between text-[9.5px]">
-                    <span className={m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3"}>
-                      {m.currency}
-                    </span>
+                    <span className={m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3"}>{m.currency}</span>
                     {m.triggersIgtf ? (
-                      <span className="rounded bg-state-warn-bg px-1 py-0.2 font-bold text-state-warn">
-                        +3% IGTF
-                      </span>
+                      <span className="rounded bg-state-warn-bg px-1 font-bold text-state-warn">+3% IGTF</span>
                     ) : (
                       <span className="text-ink-3">0% IGTF</span>
                     )}
@@ -732,144 +646,11 @@ function CobroCuenta({
             })}
           </div>
 
-          {/* ── panel contextual: billetes rápidos inteligentes para Efectivo $ ── */}
-          {!cubierto && !teclado && medioActivo.code === "EFECTIVO_USD" && (
-            <div className="flex flex-col gap-1 rounded-[var(--radius-control)] border border-line bg-surface/60 p-2">
-              <div className="flex items-center justify-between px-0.5">
-                <span className="text-[10px] font-semibold tracking-wider text-ink-3 uppercase">
-                  Billetes rápidos ({falta.amount >= 5000n ? "Monto inteligente" : "Efectivo $"})
-                </span>
-                <span className="text-[10px] text-ink-3">Añade directo</span>
-              </div>
-              <div className="grid grid-cols-5 gap-1">
-                {billetesSugeridos.map((b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() => agregarBilleteRapido(b)}
-                    className={cn(
-                      "flex min-h-14 cursor-pointer flex-col items-center justify-center rounded border border-line bg-base",
-                      "font-mono text-sm font-bold text-ink transition-colors",
-                      "hover:border-brand hover:bg-brand/15 hover:text-brand active:scale-95",
-                    )}
-                  >
-                    ${b}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── panel contextual: datos de Pago Móvil ── */}
-          {!teclado && medioActivo.code === "PAGO_MOVIL" && (
-            <div
-              aria-label="Datos de Pago Móvil del local"
-              className="flex items-center gap-2 rounded-[var(--radius-control)] border border-brand/30 bg-surface py-1.5 pr-1.5 pl-2.5 text-[11px]"
-            >
-              <Smartphone size={14} className="shrink-0 text-brand" aria-hidden="true" />
-              <div className="grid min-w-0 flex-1 grid-cols-[auto_1fr_auto] gap-x-3">
-                <span className="text-[9.5px] text-ink-3 uppercase">Banco</span>
-                <span className="text-[9.5px] text-ink-3 uppercase">Teléfono</span>
-                <span className="text-[9.5px] text-ink-3 uppercase">RIF</span>
-                <span className="font-bold text-ink">Banesco 0134</span>
-                <span className="tnum truncate font-bold text-ink">0414-234.56.78</span>
-                <span className="tnum font-bold text-ink">J-40123456-7</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => copiarTexto("Banesco (0134) - 0414-234.56.78 - J-40123456-7")}
-                aria-label="Copiar los datos de Pago Móvil"
-                className="inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1 rounded border border-line bg-base px-2.5 text-[11.5px] font-medium text-ink-2 hover:border-brand hover:text-brand"
-              >
-                {copiado ? <Check size={12} className="text-state-ok" aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
-                <span>{copiado ? "Copiado" : "Copiar"}</span>
-              </button>
-            </div>
-          )}
-
-          {/* ── panel contextual: Zelle ── */}
-          {!teclado && medioActivo.code === "ZELLE" && (
-            <div className="flex items-center justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-xs">
-              <div>
-                <span className="block text-[9.5px] uppercase text-ink-3">Zelle del comercio</span>
-                <span className="font-bold text-ink">pagos@parquel2.com</span>
-                <span className="block text-[10px] text-ink-3">Parque Infantil L2 C.A.</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => copiarTexto("pagos@parquel2.com")}
-                className="inline-flex min-h-10 cursor-pointer items-center gap-1 rounded border border-line bg-base px-3 text-[11.5px] font-medium text-ink-2 hover:border-brand hover:text-brand"
-              >
-                {copiado ? <Check size={11} className="text-state-ok" /> : <Copy size={11} />}
-                <span>{copiado ? "Copiado" : "Copiar"}</span>
-              </button>
-            </div>
-          )}
-
-          {/* ── otro monto: teclado bajo demanda ── */}
-          {!cubierto && !teclado && (
-            <Button surface="pos" variant="neutral" className="w-full text-[15px]" onClick={() => setTeclado(true)}>
-              <Keyboard size={17} aria-hidden="true" />
-              Otro monto ({medioActivo.currency})
-            </Button>
-          )}
-          {teclado && (
-            <>
-              <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-line bg-base py-1 pr-1.5 pl-3">
-                <span className="text-[10.5px] font-bold tracking-[0.08em] text-ink-3 uppercase">
-                  Monto manual ({medioActivo.currency})
-                </span>
-                <span
-                  aria-live="polite"
-                  className={cn("tnum ml-auto text-xl leading-none font-bold", digitos === "" ? "text-ink-3" : "text-ink")}
-                >
-                  {toMajor(tecleado)}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Cerrar el teclado"
-                  title="Cerrar el teclado"
-                  onClick={() => {
-                    setTeclado(false);
-                    setMonto("");
-                  }}
-                  className="grid size-10 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
-                >
-                  <X size={17} aria-hidden="true" />
-                </button>
-              </div>
-              <NumericKeypad
-                value={monto}
-                onChange={setMonto}
-                maxLength={9}
-                // Filas de 56 px: el objetivo de POS de §8.4, sin robar el alto que
-                // necesita la columna a 1366×768.
-                surface="tablet"
-                onSubmit={agregarPago}
-                submitLabel="Añadir"
-                className="shrink-0"
-              />
-            </>
-          )}
-
-          {faltaTasa && (
-            <p role="alert" className="text-[12px] text-state-crit">
-              Hay un pago en otra moneda sin tasa congelada. No se puede cobrar (ADR-005).
-            </p>
-          )}
-
-          {/* El excedente exige una decisión: no se cierra solo (§5.6). */}
-          {sobra.amount > 0n && (
-            <div className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-brand/30 bg-brand/8 p-2.5">
-              <div className="flex items-baseline justify-between">
-                <p className="text-[11.5px] font-medium text-ink-2">Destino del vuelto:</p>
-                {sobraEnBs && (
-                  <span className="tnum text-[11px] font-semibold text-brand">
-                    {sobraEnBs}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
+          {/* ── franja del medio: SIEMPRE 56 px, ni uno más ── */}
+          <div className="h-14 overflow-hidden">
+            {cubierto && sobra.amount > 0n ? (
+              // El excedente exige una decisión: no se cierra solo (§5.6).
+              <div role="radiogroup" aria-label="Destino del vuelto" className="grid grid-cols-3 gap-1.5">
                 {(
                   [
                     ["VUELTO", "Vuelto", HandCoins],
@@ -880,29 +661,97 @@ function CobroCuenta({
                   <button
                     key={k}
                     type="button"
+                    role="radio"
+                    aria-checked={destinoVuelto === k}
                     onClick={() => setDestinoVuelto(k)}
                     className={cn(
-                      "flex min-h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border text-[11px]",
+                      "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border text-[12px]",
                       "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                      destinoVuelto === k
-                        ? "border-brand bg-brand/15 text-brand font-semibold"
-                        : "border-line text-ink-2 hover:text-ink",
+                      destinoVuelto === k ? "border-brand bg-brand/15 font-semibold text-brand" : "border-line text-ink-2 hover:text-ink",
                     )}
                   >
-                    <Icon size={14} aria-hidden="true" />
+                    <Icon size={15} aria-hidden="true" />
                     {label}
                   </button>
                 ))}
               </div>
-              {destinoVuelto === "CAJA" && sobra.amount > maxRetained.amount && (
-                <p className="text-[11.5px] text-state-crit">
-                  Por encima del umbral ({toMajor(maxRetained)} USD) no se puede dejar en caja: hay
-                  que dar vuelto o marcarlo como propina.
-                </p>
-              )}
-            </div>
-          )}
+            ) : cubierto ? (
+              <p className="flex min-h-14 items-center justify-center rounded-[var(--radius-control)] border border-state-ok/30 text-[13px] text-state-ok">
+                Lo cobrado cuadra con la cuenta: cierra el cobro.
+              </p>
+            ) : medioActivo.code === "EFECTIVO_USD" ? (
+              <div role="group" aria-label="Billetes rápidos" className="grid grid-cols-5 gap-1.5">
+                {billetesSugeridos.map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => agregarBilleteRapido(b)}
+                    aria-label={`Recibido un billete de $ ${b}`}
+                    className={cn(
+                      "flex min-h-14 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border border-line bg-base",
+                      "tnum text-[15px] font-bold text-ink transition-colors",
+                      "hover:border-brand hover:bg-brand/15 hover:text-brand active:scale-95",
+                    )}
+                  >
+                    ${b}
+                  </button>
+                ))}
+              </div>
+            ) : medioActivo.code === "PAGO_MOVIL" ? (
+              <div
+                aria-label="Datos de Pago Móvil del local"
+                className="flex h-14 items-center gap-2 rounded-[var(--radius-control)] border border-brand/30 pr-1.5 pl-2.5 text-[11px]"
+              >
+                <Smartphone size={14} className="shrink-0 text-brand" aria-hidden="true" />
+                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1fr)] gap-x-2">
+                  <span className="text-[9.5px] text-ink-3 uppercase">Banco</span>
+                  <span className="text-[9.5px] text-ink-3 uppercase">Teléfono</span>
+                  <span className="text-[9.5px] text-ink-3 uppercase">RIF</span>
+                  <span className="truncate font-bold text-ink">Banesco 0134</span>
+                  <span className="tnum truncate font-bold text-ink">0414-234.56.78</span>
+                  <span className="tnum truncate font-bold text-ink">J-40123456-7</span>
+                </div>
+                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto("Banesco (0134) - 0414-234.56.78 - J-40123456-7")} que="los datos de Pago Móvil" />
+              </div>
+            ) : medioActivo.code === "ZELLE" ? (
+              <div className="flex h-14 items-center gap-2 rounded-[var(--radius-control)] border border-line pr-1.5 pl-2.5 text-[11px]">
+                <Zap size={14} className="shrink-0 text-ink-3" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-[9.5px] text-ink-3 uppercase">Zelle · Parque Infantil L2 C.A.</span>
+                  <span className="block truncate font-bold text-ink">pagos@parquel2.com</span>
+                </div>
+                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto("pagos@parquel2.com")} que="el correo de Zelle" />
+              </div>
+            ) : (
+              <p className="flex h-14 items-center rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] leading-snug text-ink-3">
+                {INDICACION_MEDIO[medioActivo.code] ?? "Teclea lo recibido y pulsa «Añadir», o cobra el monto exacto."}
+              </p>
+            )}
+          </div>
 
+          {/* ── el teclado, siempre en su sitio ── */}
+          <NumericKeypad
+            value={monto}
+            onChange={setMonto}
+            maxLength={9}
+            // Filas de 56 px: el objetivo de POS de §8.4.
+            surface="tablet"
+            disabled={cubierto}
+            onSubmit={agregarPago}
+            submitLabel="Añadir"
+          />
+
+          {faltaTasa && (
+            <p role="alert" className="text-[12px] text-state-crit">
+              Hay un pago en otra moneda sin tasa congelada. No se puede cobrar (ADR-005).
+            </p>
+          )}
+          {cubierto && destinoVuelto === "CAJA" && sobra.amount > maxRetained.amount && (
+            <p role="alert" className="text-[11.5px] text-state-crit">
+              Por encima del umbral ({formatMoneyVE(toMajor(maxRetained), "USD")}) no se puede dejar en caja: hay que dar
+              vuelto o marcarlo como propina.
+            </p>
+          )}
           {error && (
             <p
               role="alert"
@@ -912,36 +761,46 @@ function CobroCuenta({
             </p>
           )}
 
-          <Button
-            surface="pos"
-            variant="primary"
-            disabled={!puedeCobrar}
-            onClick={cobrar}
-            className={cn(
-              "w-full text-base font-bold transition-all",
-              puedeCobrar
-                ? "min-h-14 bg-state-ok text-ink shadow-md shadow-state-ok/20 hover:bg-state-ok/90 active:scale-[0.99]"
-                : "min-h-14 py-1.5 flex flex-col items-center justify-center leading-tight gap-0.5",
-            )}
-          >
-            {puedeCobrar ? (
-              <span className="flex items-center justify-center gap-2">
-                <CircleCheckBig size={18} />
-                <span>Cerrar cobro (Total {formatMoneyVE(toMajor(aCobrar), "USD")})</span>
+          {/* ── una fila, dos columnas: cobrar exacto · cerrar cobro ── */}
+          <div className="mt-auto grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={cobrarMontoExacto}
+              disabled={cubierto || !montoExacto}
+              className={cn(
+                "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border px-2 leading-tight",
+                "border-brand/40 bg-brand/10 text-ink transition-colors duration-[var(--dur-rapida)] hover:border-brand hover:bg-brand/20",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                "disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-2 disabled:text-ink-3",
+              )}
+            >
+              <span className="flex items-center gap-1.5 text-[13px] font-bold">
+                <Zap size={14} aria-hidden="true" className="text-brand" />
+                Cobrar exacto
               </span>
-            ) : (
-              <>
-                <span className="text-sm sm:text-[15px] font-bold text-ink">
-                  Faltan {formatMoneyVE(toMajor(falta), "USD")}
-                </span>
-                {faltaEnBs && (
-                  <span className="text-[11px] font-semibold text-ink-3">
-                    ≈ {faltaEnBs}
-                  </span>
-                )}
-              </>
-            )}
-          </Button>
+              <span className="tnum text-[12px] font-semibold text-ink-2">
+                {montoExacto && !cubierto ? formatMoneyVE(toMajor(montoExacto), medioActivo.currency) : "—"}
+              </span>
+            </button>
+            <Button
+              surface="pos"
+              variant="primary"
+              disabled={!puedeCobrar}
+              onClick={cobrar}
+              className={cn(
+                "flex min-h-14 flex-col gap-0.5 px-2 leading-tight",
+                puedeCobrar && "bg-state-ok text-on-brand hover:bg-state-ok/90",
+              )}
+            >
+              <span className="flex items-center gap-1.5 text-[14px] font-bold">
+                {puedeCobrar && <CircleCheckBig size={15} aria-hidden="true" />}
+                Cerrar cobro
+              </span>
+              <span className="tnum text-[12px] font-semibold opacity-80">
+                {puedeCobrar ? formatMoneyVE(toMajor(aCobrar), "USD") : `Falta ${formatMoneyVE(toMajor(falta), "USD")}`}
+              </span>
+            </Button>
+          </div>
         </aside>
     </>
   );
@@ -1235,6 +1094,28 @@ function ColaCuentas({
  * La carta de mostrador: una rejilla táctil por categorías. La usan la venta
  * directa y «Añadir productos» de una cuenta abierta, así que vive una vez.
  */
+/** Qué hacer con los medios que no traen datos que enseñar al cliente. */
+const INDICACION_MEDIO: Readonly<Record<string, string>> = {
+  EFECTIVO_VES: "Cuenta los bolívares, teclea lo recibido y pulsa «Añadir».",
+  PDV_DEBITO: "Pasa la tarjeta por el monto exacto y confírmalo con «Cobrar exacto».",
+  USDT: "Confirma la transferencia en la billetera antes de añadir el pago.",
+};
+
+/** «Copiar» para los datos que el cliente teclea en su teléfono. */
+function BotonCopiar({ copiado, onCopiar, que }: { copiado: boolean; onCopiar: () => void; que: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onCopiar}
+      aria-label={`Copiar ${que}`}
+      className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1 rounded border border-line bg-base px-2.5 text-[11.5px] font-medium text-ink-2 hover:border-brand hover:text-brand"
+    >
+      {copiado ? <Check size={12} className="text-state-ok" aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+      <span>{copiado ? "Copiado" : "Copiar"}</span>
+    </button>
+  );
+}
+
 /** Columnas de la factura: cantidad, concepto, precio unitario e importe. */
 const COLUMNAS = "grid grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.75rem] items-baseline gap-x-3";
 

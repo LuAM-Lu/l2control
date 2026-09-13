@@ -455,3 +455,20 @@ Tres pedidos del cliente sobre la caja, en la misma sesión:
   ese alto es para los ítems.
 - **Factura de verdad**: columnas de cantidad, concepto, precio unitario e importe, filas de 32 px, y la
   cuenta más ancha (675 px a 1366; 944 px a 1920, porque la caja ya usa el ancho de pantallas grandes).
+
+## La columna de cobro, fija — 2026-09-12
+
+El cliente pidió que «Otro monto» y «Faltan» fueran una sola fila de dos columnas para que el teclado
+cupiera sin tener que abrir nada. Juntar esos dos botones liberaba unos 64 px y el teclado necesita unos
+300, así que la columna se rehízo con una estructura que no cambia:
+
+1. **Visor**: lo que falta (o el vuelto) y, al lado, lo que se está tecleando; los bolívares en su renglón.
+2. **Medios de pago.**
+3. **Una franja de 56 px exactos** según el medio: billetes rápidos, datos de Pago Móvil o de Zelle, una
+   indicación para los demás y, si hay vuelto, su destino.
+4. **El teclado, siempre a la vista.**
+5. **Una fila de dos columnas**: «Cobrar exacto» y «Cerrar cobro».
+
+«Otro monto» desapareció, porque el teclado ya está siempre. Medido en navegador: con los seis medios, a
+1366×768 y a 1280×800, el teclado queda en el mismo píxel, nada desborda y teclear no mueve nada. De paso,
+la tecla «Añadir» apagada ya no queda naranja a medias: se vuelve neutra, como los botones.
