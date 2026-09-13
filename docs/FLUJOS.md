@@ -283,7 +283,7 @@ backend exista, se cambia la fuente y las pantallas no se tocan (§11.4).
 | **D3** | ¿Se puede cobrar una mesa con los niños aún dentro? | El reloj sigue corriendo mientras se cobra | Al cobrar, la caja **cierra el tiempo** de los niños vinculados y la salida solo confirma la entrega |
 | **D4** | ¿Quién anula un pedido enviado que la cocina aún no aceptó? | Es la frontera entre «borrador» y «en cocina» | Enviado ya es de la cocina: anular exige autorización (§7.3). Hasta confirmar, el mesero lo cambia libremente |
 | **D5** | Cobrar en la mesa | Contradice DEC-14 | Se queda como futuro; si se quiere, es una decisión nueva que reabre DEC-14 |
-| **D6** | Venta de adicionales en caja | Es F8-02, fuera de la Ruta A | Un catálogo mínimo de mostrador (golosinas, bebidas) sin inventario, que F8 completa después |
+| **D6** | Venta de adicionales y mostrador en caja | Es F8-02, fuera de la Ruta A | **Resuelto en frontend (2026-09-12):** Botón «+ Venta directa (Mostrador)» y catálogo táctil integrado de 14 productos en 5 categorías para adición en 1 toque a comanda o venta directa sin inventario previo |
 | **D7** | Personas conectadas en vivo | Requisito nuevo, no está en el plan | Añadirlo a F9 como tarea nueva, alimentada por los eventos de sesión de F2-12 |
 | **D8** | Propina explícita y servicio del 10 % | DEC-6 dice «configurable por el administrador» | Propina voluntaria en caja ya; el servicio fijo, cuando la administración lo active |
 | **D9** | **Un niño que sale sin su representante** | Seguridad, no solo cobro | La salida muestra a quién se entrega y pide confirmarlo. Si no coincide, no se cierra la estancia |

@@ -1,6 +1,45 @@
 import { cn } from "../cn";
 
 /**
+ * Formatea un monto y moneda según la norma bancaria y comercial de Venezuela (BCV / SENIAT).
+ *
+ * - Para bolívares (VES / Bs.): Símbolo "Bs.", separador de miles con punto (.)
+ *   y separador decimal con coma (,). Ejemplo: "18272.80" -> "18.272,80".
+ * - Para dólares (USD): Símbolo "$", formato estándar limpio ("94.17").
+ * - Para USDT / otras: Símbolo "USDT" u original.
+ */
+export function formatPartsMoneyVE(
+  value: string,
+  currency: string,
+): { symbol: string; formatted: string } {
+  const isVES = currency === "VES" || currency === "Bs." || currency === "Bs" || currency === "Bs.S";
+  const isUSD = currency === "USD" || currency === "$";
+  const symbol = isVES ? "Bs." : isUSD ? "$" : currency;
+
+  const isNegative = value.startsWith("-");
+  const clean = value.replace("-", "").trim();
+  const [wholePart = "0", fracPart] = clean.split(".");
+
+  if (isVES) {
+    const wholeFormatted = wholePart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    const fracFormatted = fracPart !== undefined ? fracPart.padEnd(2, "0") : "00";
+    const formatted = `${isNegative ? "-" : ""}${wholeFormatted},${fracFormatted}`;
+    return { symbol, formatted };
+  }
+
+  const wholeFormatted = wholePart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const fracFormatted = fracPart !== undefined ? fracPart.padEnd(2, "0") : "00";
+  const formatted = `${isNegative ? "-" : ""}${wholeFormatted}.${fracFormatted}`;
+  return { symbol, formatted };
+}
+
+/** Helper para mostrar moneda formateada como texto plano (ej. "Bs. 18.272,80" o "$ 94.17"). */
+export function formatMoneyVE(value: string, currency: string): string {
+  const { symbol, formatted } = formatPartsMoneyVE(value, currency);
+  return `${symbol} ${formatted}`;
+}
+
+/**
  * Nivel 2 — patrón (§9.4). Única vía autorizada para mostrar dinero (F3-12).
  *
  * FRONTERA DELIBERADA: recibe `value` YA formateado en unidades mayores por
@@ -41,10 +80,12 @@ export function MoneyDisplay({
     negative: "text-state-crit",
   } as const;
 
+  const { symbol, formatted } = formatPartsMoneyVE(value, currency);
+
   return (
     <span className={cn("tnum inline-flex items-baseline gap-1", SIZE[size], TONE[tone], className)}>
-      <span className="text-[0.7em] font-medium text-ink-3">{currency}</span>
-      <span className="font-semibold">{value}</span>
+      <span className="text-[0.7em] font-medium text-ink-3">{symbol}</span>
+      <span className="font-semibold">{formatted}</span>
     </span>
   );
 }

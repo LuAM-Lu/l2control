@@ -33,9 +33,9 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
     <div className="flex min-h-dvh flex-col bg-base lg:h-dvh lg:overflow-hidden">
       <StationBar
         contexto={{
-          turnoAbierto: "14:00",
-          tasa: "228.41",
-          tasaHora: "08:00",
+          turnoAbierto: "2:00 pm",
+          tasa: "228,41",
+          tasaHora: "8:00 am",
           conexion: "N0",
         }}
       />

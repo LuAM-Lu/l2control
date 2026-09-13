@@ -199,10 +199,9 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             <Pildora
               tono="tenue"
               icono={<TrendingUp size={14} />}
-              texto={`${contexto.tasa}`}
-              sufijo="Bs"
+              texto={`Bs. ${contexto.tasa}`}
               ocultarTextoHasta="sm"
-              titulo={`Tasa BCV ${contexto.tasa} Bs, capturada a las ${contexto.tasaHora}`}
+              titulo={`Tasa BCV Bs. ${contexto.tasa}, capturada a las ${contexto.tasaHora}`}
             />
           )}
 

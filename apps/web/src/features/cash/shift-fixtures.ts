@@ -85,7 +85,7 @@ export const MEDIO_LABEL: Record<string, string> = {
  */
 export const DEMO_EXCEPCIONES: Excepcion[] = [
   {
-    hora: "15:42",
+    hora: "3:42 pm",
     tipo: "ANULACIÓN",
     detalle: "Paquete 1 hora · AK-0188",
     usuario: "M. Prieto",
@@ -93,7 +93,7 @@ export const DEMO_EXCEPCIONES: Excepcion[] = [
     autorizadoPor: "L. Guerrero",
   },
   {
-    hora: "16:20",
+    hora: "4:20 pm",
     tipo: "DESCUENTO",
     detalle: "Cuenta #1042 · 10 %",
     usuario: "M. Prieto",
@@ -101,7 +101,7 @@ export const DEMO_EXCEPCIONES: Excepcion[] = [
     autorizadoPor: "L. Guerrero",
   },
   {
-    hora: "17:05",
+    hora: "5:05 pm",
     tipo: "CORTESÍA",
     detalle: "Paquete 30 min · AK-0195",
     usuario: "L. Guerrero",
@@ -109,7 +109,7 @@ export const DEMO_EXCEPCIONES: Excepcion[] = [
     autorizadoPor: "L. Guerrero",
   },
   {
-    hora: "18:11",
+    hora: "6:11 pm",
     tipo: "REIMPRESIÓN",
     detalle: "Documento #1038",
     usuario: "M. Prieto",

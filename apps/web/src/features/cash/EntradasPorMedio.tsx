@@ -1,15 +1,19 @@
+import {
+  Banknote,
+  Coins,
+  CreditCard,
+  Landmark,
+  Smartphone,
+  Wallet,
+  Zap,
+} from "lucide-react";
 import { MoneyDisplay, cn } from "@l2/ui";
 
 /**
  * De dónde vino el dinero, por medio de pago — F4-07, F9-00.
  *
- * Lo usan el inicio del back-office y el turno de caja. Antes cada uno tenía
- * su versión —una lista plana en turno, barras en inicio— y mostraban la
- * misma cifra de dos maneras distintas.
- *
- * Se agrupa POR MONEDA y la barra compara solo dentro de su grupo. Poner
- * dólares y bolívares en la misma barra daría una imagen falsa: 18.272 Bs
- * parecería veinte veces más que 70,58 USD cuando es menos de la mitad.
+ * Lo usan el inicio del back-office y el turno de caja. Se agrupa POR MONEDA
+ * y la barra compara solo dentro de su grupo.
  */
 
 export type PorMedio = {
@@ -37,70 +41,124 @@ export function EntradasPorMedio({
   return (
     <section
       className={cn(
-        "rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card",
+        "rounded-[var(--radius-card)] border border-line bg-surface p-4 xl:p-4.5 shadow-card flex flex-col justify-between",
         className,
       )}
     >
-      <h2 className="font-display mb-4 text-base font-bold text-ink">{titulo}</h2>
-
-      {porMedio.length === 0 ? (
-        <p className="text-[13px] text-ink-3">Todavía no ha entrado dinero en este turno.</p>
-      ) : (
-        <div className="flex flex-col gap-5">
-          {monedas.map((moneda) => {
-            const grupo = porMedio.filter((m) => m.moneda === moneda);
-            const mayor = grupo.reduce(
-              (max, m) => (BigInt(m.minor) > max ? BigInt(m.minor) : max),
-              1n,
-            );
-
-            return (
-              <div key={moneda}>
-                <p className="mb-2 text-[10.5px] font-semibold tracking-[0.09em] text-ink-3 uppercase">
-                  {moneda}
-                </p>
-                <ul className="flex flex-col gap-2.5">
-                  {grupo.map((m) => {
-                    // Proporción entera sobre unidades menores: el dinero no
-                    // pasa por un decimal ni para dibujar una barra (§5.1).
-                    const proporcion = Number((BigInt(m.minor) * 100n) / mayor);
-                    return (
-                      <li key={`${m.medio}|${m.moneda}`}>
-                        <div className="flex items-baseline justify-between gap-3 text-[13.5px]">
-                          <span className="flex min-w-0 items-baseline gap-2">
-                            <span className="truncate text-ink-2">{m.medio}</span>
-                            {!m.enGaveta && (
-                              <span
-                                title="No entra en el arqueo de efectivo: se concilia contra su propio estado de cuenta"
-                                className="shrink-0 text-[10px] tracking-wide text-ink-3 uppercase"
-                              >
-                                fuera de gaveta
-                              </span>
-                            )}
-                          </span>
-                          <MoneyDisplay value={m.total} currency={m.moneda} size="sm" />
-                        </div>
-                        <span
-                          aria-hidden="true"
-                          className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-base"
-                        >
-                          <span
-                            className={cn(
-                              "block h-full rounded-full",
-                              m.enGaveta ? "bg-brand/70" : "bg-line-strong",
-                            )}
-                            style={{ width: `${Math.max(proporcion, 2)}%` }}
-                          />
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
+      <div>
+        <div className="mb-3">
+          <h2 className="font-display mb-0.5 text-base font-bold text-ink">{titulo}</h2>
+          <p className="text-xs text-ink-3">Desglose del turno por método y destino.</p>
         </div>
-      )}
+
+        {porMedio.length === 0 ? (
+          <p className="text-xs text-ink-3">Todavía no ha entrado dinero en este turno.</p>
+        ) : (
+          <div className="flex flex-col gap-3.5">
+            {monedas.map((moneda) => {
+              const grupo = porMedio.filter((m) => m.moneda === moneda);
+
+              return (
+                <div key={moneda} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10.5px] font-bold tracking-[0.1em] text-ink-3 uppercase">
+                      {moneda}
+                    </span>
+                    <span className="h-px flex-1 bg-line/40" />
+                  </div>
+
+                  <ul className="flex flex-col gap-1.5">
+                    {grupo.map((m) => {
+                      const { Icon, estilo } = obtenerEstiloMedio(m.medio);
+
+                      return (
+                        <li
+                          key={`${m.medio}|${m.moneda}`}
+                          className="flex items-center justify-between gap-2 rounded-md border border-line/40 bg-surface-2/30 px-2.5 py-1.5 transition-colors hover:border-line hover:bg-surface-2/60"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span
+                              className={cn(
+                                "flex size-5.5 shrink-0 items-center justify-center rounded-md border shadow-xs",
+                                estilo,
+                              )}
+                            >
+                              <Icon size={12} aria-hidden="true" />
+                            </span>
+                            <span className="truncate text-xs font-medium text-ink">
+                              {m.medio}
+                            </span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded px-1.5 py-0.2 text-[9px] font-semibold tracking-wide uppercase",
+                                m.enGaveta
+                                  ? "border border-brand/25 bg-brand/10 text-brand"
+                                  : "border border-line bg-surface text-ink-3",
+                              )}
+                            >
+                              {m.enGaveta ? (
+                                <>
+                                  <Wallet size={8.5} aria-hidden="true" />
+                                  <span className="hidden min-[400px]:inline">Gaveta</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Landmark size={8.5} aria-hidden="true" />
+                                  <span className="hidden min-[400px]:inline">Banco</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+
+                          <MoneyDisplay value={m.total} currency={m.moneda} size="sm" />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
+}
+
+function obtenerEstiloMedio(medio: string) {
+  const m = medio.toLowerCase();
+  if (m.includes("efectivo")) {
+    return {
+      Icon: Banknote,
+      estilo: "border-brand/30 bg-brand/15 text-brand",
+    };
+  }
+  if (m.includes("zelle")) {
+    return {
+      Icon: Zap,
+      estilo: "border-amber-400/30 bg-amber-400/15 text-brand",
+    };
+  }
+  if (m.includes("móvil") || m.includes("movil")) {
+    return {
+      Icon: Smartphone,
+      estilo: "border-line-strong bg-surface text-ink",
+    };
+  }
+  if (m.includes("punto") || m.includes("débito") || m.includes("tarjeta")) {
+    return {
+      Icon: CreditCard,
+      estilo: "border-line-strong bg-surface text-ink",
+    };
+  }
+  if (m.includes("usdt") || m.includes("cripto")) {
+    return {
+      Icon: Coins,
+      estilo: "border-state-ok/30 bg-state-ok-bg text-state-ok",
+    };
+  }
+  return {
+    Icon: Wallet,
+    estilo: "border-line bg-surface text-ink-2",
+  };
 }

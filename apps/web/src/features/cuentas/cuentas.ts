@@ -29,6 +29,30 @@ export function pendiente(c: FamilyAccountDto): Money {
   );
 }
 
+/**
+ * Una línea añadida en el mostrador (snack, bebida, golosina) que todavía no
+ * se cobró. Es la única que la caja puede cambiar de cantidad o quitar.
+ * Lo consumido —el paquete, el tiempo de más y, cuando exista, el plato que la
+ * cocina ya sirvió— no se toca desde aquí: corregirlo es una cortesía o una
+ * anulación, con motivo y autorización (F6-14).
+ */
+export function esLineaDeMostrador(l: FamilyAccountDto["lines"][number]): boolean {
+  return l.kind === "RESTAURANTE" && l.id.includes("-snk-") && !l.paid;
+}
+
+/** Venta de mostrador: una cuenta sin familia, abierta en la caja. */
+export function esVentaDirecta(c: FamilyAccountDto): boolean {
+  return c.id.startsWith("c-dir-");
+}
+
+/**
+ * Una venta directa que no se cobró es un borrador: si se vacía, se descarta
+ * entera. Una cuenta de familia, nunca (regla 5): tiene estancias detrás.
+ */
+export function puedeDescartarse(c: FamilyAccountDto): boolean {
+  return esVentaDirecta(c) && c.lines.every((l) => !l.paid);
+}
+
 /** Las líneas pendientes, en la forma que cobra la caja. */
 export function lineasParaCobrar(c: FamilyAccountDto): DocumentLine[] {
   return c.lines

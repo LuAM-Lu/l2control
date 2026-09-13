@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Baby, OctagonAlert, TimerReset, Users } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Container, EmptyState, ScannerField, Sheet, cn } from "@l2/ui";
+import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE } from "@l2/ui";
 import Link from "next/link";
 import type { Route } from "next";
 import { toMajor } from "@l2/domain-money";
@@ -211,7 +211,7 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
                 </div>
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-ink-3">Pendiente en su cuenta</dt>
-                  <dd className="tnum text-ink">USD {toMajor(pendiente(cuentaFicha))}</dd>
+                  <dd className="tnum text-ink">{formatMoneyVE(toMajor(pendiente(cuentaFicha)), "USD")}</dd>
                 </div>
               </>
             ) : familiaSimulada ? (

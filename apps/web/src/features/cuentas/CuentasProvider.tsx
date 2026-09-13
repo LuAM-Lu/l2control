@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { FamilyAccountSchema, type FamilyAccountDto } from "@l2/contracts";
 import { DEMO_CUENTAS } from "./cuentas-fixtures.ts";
+import { puedeDescartarse } from "./cuentas.ts";
 
 /**
  * Las cuentas de las familias, compartidas por las estaciones — DEC-21.
@@ -26,6 +27,8 @@ type Valor = Readonly<{
   cuentas: readonly FamilyAccountDto[];
   /** Crea o sustituye una cuenta. Rechaza la que no cumpla el contrato. */
   guardar: (cuenta: FamilyAccountDto) => void;
+  /** Descarta una venta directa sin cobrar. Cualquier otra cuenta se queda: fail-closed. */
+  descartar: (id: string) => void;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
@@ -68,7 +71,11 @@ export function CuentasProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const valor = useMemo(() => ({ cuentas, guardar }), [cuentas, guardar]);
+  const descartar = useCallback((id: string) => {
+    setCuentas((prev) => prev.filter((c) => c.id !== id || !puedeDescartarse(c)));
+  }, []);
+
+  const valor = useMemo(() => ({ cuentas, guardar, descartar }), [cuentas, guardar, descartar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

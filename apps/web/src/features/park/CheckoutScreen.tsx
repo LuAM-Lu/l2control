@@ -17,6 +17,7 @@ import {
   ScanPrompt,
   StatTile,
   avisar,
+  formatMoneyVE,
 } from "@l2/ui";
 import { PackageOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -57,7 +58,7 @@ export function CheckoutScreen({
   const [aviso, setAviso] = useState<string | null>(null);
   /** Cerrar una salida es una acción terminada: se anuncia y la pantalla queda lista para la siguiente. */
   const anunciarCierre = (c: { ninos: number; total: string; destino: string }) =>
-    avisar.ok(`${c.ninos} ${c.ninos === 1 ? "salida cerrada" : "salidas cerradas"} por USD ${c.total}`, {
+    avisar.ok(`${c.ninos} ${c.ninos === 1 ? "salida cerrada" : "salidas cerradas"} por ${formatMoneyVE(c.total, "USD")}`, {
       detalle: c.destino.charAt(0).toUpperCase() + c.destino.slice(1),
     });
   const { cuentas, guardar } = useCuentas();
@@ -383,7 +384,7 @@ export function CheckoutScreen({
             <p className="mt-1 text-[12px] text-ink-3">
               {preview.lines.length === 0
                 ? "Sin niños en esta salida"
-                : `${preview.lines.length} ${preview.lines.length === 1 ? "niño" : "niños"} · parque USD ${moneyDtoToMajor(preview.total)}`}
+                : `${preview.lines.length} ${preview.lines.length === 1 ? "niño" : "niños"} · parque ${formatMoneyVE(moneyDtoToMajor(preview.total), "USD")}`}
             </p>
           </div>
 
@@ -409,8 +410,8 @@ export function CheckoutScreen({
                       {p.amount === 0n
                         ? "Todo pagado: sale sin cargo"
                         : c.status === "POR_COBRAR"
-                          ? `A cobrar ahora: USD ${toMajor(p)}`
-                          : `Se acumula USD ${toMajor(p)} hasta que salga el resto`}
+                          ? `A cobrar ahora: ${formatMoneyVE(toMajor(p), "USD")}`
+                          : `Se acumula ${formatMoneyVE(toMajor(p), "USD")} hasta que salga el resto`}
                     </p>
                   </li>
                 );
@@ -429,7 +430,7 @@ export function CheckoutScreen({
             {porCobrar.length === 0
               ? "Registrar salida sin cargo"
               : porCobrar.length === 1
-                ? `Cobrar USD ${toMajor(aCobrar)} en caja`
+                ? `Cobrar ${formatMoneyVE(toMajor(aCobrar), "USD")} en caja`
                 : `Enviar ${porCobrar.length} cuentas a caja`}
           </Button>
 

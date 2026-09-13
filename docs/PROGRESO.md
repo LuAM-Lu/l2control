@@ -84,7 +84,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | Tarea | Estado | Evidencia |
 |---|---|---|
 | F3-01 Paquete de dinero | ✅ Hecha | `Money` con `bigint`; sumar USD con Bs no compila; 14 pruebas |
-| F3-12 `MoneyDisplay` | ✅ Hecha | Única vía de mostrar dinero; recibe cadena, no el tipo del dominio |
+| F3-12 `MoneyDisplay` | ✅ Hecha | Única vía de mostrar dinero; recibe cadena, no el tipo del dominio. Incluye `formatMoneyVE` para formato oficial normativo de Venezuela (`Bs. 18.272,80`) y `$ 94.17` |
 | F3-02 Prohibición de `FLOAT` en esquema | Pendiente | Necesita base de datos (F1-05) |
 | F3-06 Motor de IVA con vigencias | ✅ Hecha | `@l2/domain-tax`; una factura vieja se recalcula con la regla que tenía |
 | F3-07 Motor de IGTF por medio de pago | ✅ Hecha | Solo la porción en divisas o cripto; los 8 casos límite de §5.3 con prueba |
@@ -96,13 +96,13 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 |---|---|---|
 | F4-01 Apertura de turno | Parcial | Fondo inicial por moneda en los datos del turno; falta la pantalla de apertura |
 | F4-01b Punto de cobro | Parcial | Cada movimiento declara su punto y el cuadre lo desglosa; fail-closed sin punto |
-| F4-02 Medios de pago | Parcial | Catálogo en los datos, no `enum`; falta que sea editable |
-| F4-03 Cobro mixto | Parcial | `/caja`: varias monedas y medios en un cobro, con tasa congelada |
+| F4-02 Medios de pago | Parcial | Catálogo en los datos, no `enum`; 6 medios con iconos y jerarquía financiera |
+| F4-03 Cobro mixto | Parcial | `/caja`: varias monedas y medios en un cobro, con tasa congelada. Rediseño ágil bimoneda: atajo 1-toque «Cobrar exacto», atajos fast-cash inteligentes (`calcularBilletesSugeridos`), datos de Pago Móvil con botón Copiar, hero apilado para montos grandes en Bs, y catálogo táctil de venta directa en mostrador (D6/V5) |
 | F4-04b Vuelto y sus tres destinos | Parcial | Vuelto, propina o caja; la invariante de cierre no admite ajustes silenciosos |
 | F4-04c Umbral de residuo | Parcial | Por encima del umbral no se retiene; falta que lo configure el administrador |
 | F4-05 y F4-06 Cortes X y Z | Parcial | `/turno`: X repetible, Z irreversible con confirmación |
 | F4-07 Arqueo por denominación | Parcial | Contador táctil por billete, teórico oculto hasta contar |
-| F4-08 Excepciones del turno | Parcial | Visibles en turno e inicio; faltan las reales del libro |
+| F4-08 Excepciones del turno | Parcial | Visibles en turno e inicio en formato 12h; faltan las reales del libro |
 | F4-04, F4-09 | Pendiente | Campos por medio de pago y gaveta asociada a operación |
 
 ## F6 · Restaurante — interfaz sobre el simulador (DEC-22)
@@ -124,7 +124,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F5-03b Aforo con aviso | ✅ Hecha | Avisa antes de permitir un check-in de más; límite configurable |
 | F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato; falta que sea editable |
 | F5-14 Salida y liquidación | ✅ Hecha (interfaz) | Pantalla en `/salida`. Varios niños en una salida, desglose paquete + excedente con minutos y bloques, y las dos rutas del plan: taquilla o cargo a mesa. Falta el backend |
-| F5-08b Formato de hora configurable | Parcial | La hora de entrada se muestra en las tarjetas y el formateador acepta 24 h o 12 h; falta que la preferencia sea editable por sucursal |
+| F5-08b Formato de hora comercial 12h | Parcial | La hora se muestra en formato comercial 12h con sufijo en minúsculas (`2:00 pm`, `10:30 am`); falta persistir preferencia por sucursal |
 | F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
 | DEC-21 Cuenta de la familia | Parcial | Entrada elige prepago o cuenta abierta; la salida dice qué pasa a caja; la caja es una cola de cuentas en maestro-detalle y devuelve a la pantalla de origen. Probado de punta a punta en navegador. Falta el backend |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |
@@ -138,9 +138,7 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ## Próximos pasos
 
-0. **[UX-MEJORAS.md](UX-MEJORAS.md), aprobado el 2026-09-12.** V1 y V2 hechas (avisos, identidad, roles
-   en estaciones y panel). Sigue **la cocina (KDS)**, paso 3 de DEC-22, y luego V3 y V4 (plano del local).
-   Decisiones del cliente pendientes: D10-D12 y D6.
+0. **[UX-MEJORAS.md](UX-MEJORAS.md):** V1, V2 y V5 hechas (avisos, identidad, roles, formato VE, cobro rápido, venta directa y catálogo de mostrador). D6 cerrada. Sigue **la cocina (KDS)**, paso 3 de DEC-22, y luego V3 y V4 (plano del local). Decisiones del cliente pendientes: D10-D12.
 1. **DEC-22, paso a paso sobre el simulador:** simulador y eventos ✔ → mesas y mesero ✔ →
    **cocina (KDS)** → caja con cuentas de mesa → panel en vivo. Orden de [FLUJOS.md](FLUJOS.md) §6.
 2. **F1-14, la CI.** `pnpm verify` comprueba tipos, fronteras y pruebas, pero nadie lo ejecuta
@@ -158,6 +156,7 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 |---|---|---|
 | Sin Storybook | Recorte de la Ruta A | Cuando entre un tercer consumidor de `@l2/ui` |
 | ~~Sin pruebas en `domain/park`~~ | Saldado el 2026-09-09: 20 pruebas | — |
+| Venta de mostrador guardada como cuenta de familia con una estancia ficticia (`s-mostrador`) | El contrato de cuenta exige al menos un niño y V5 lo necesitaba ya | Cuando la cuenta tenga su propio tipo «mostrador» en el contrato |
 | Datos de ejemplo en `features/park/fixtures.ts` | No hay backend. **Mitigado:** se validan contra el contrato al construirse, así que la forma ya es la definitiva | F1-05 + F0-04 |
 | Solo el puerto de escáner | La impresora no hacía falta para el monitor | F1-12 |
 | `apps/printer-agent` sin construir | DEC-8: la impresora admite red | No se construye salvo que aparezca una impresora solo-USB |

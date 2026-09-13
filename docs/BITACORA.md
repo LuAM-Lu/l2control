@@ -346,3 +346,96 @@ salieron por el camino:
 
 Recordatorio: es experiencia de usuario, no seguridad. La puerta de verdad la pondrá el servidor con la
 misma matriz.
+
+## Formato monetario VE y estándar horario 12h — 2026-09-12
+
+Se establecieron como norma visual e institucional dos reglas de localización venezolana:
+
+- **Formato monetario oficial de Venezuela (BCV / SENIAT):** Los bolívares se formatean con el símbolo
+  `Bs. ` a la izquierda, punto (`.`) para separación de miles y coma (`,`) para decimales
+  (ejemplo: `Bs. 18.272,80` y `Bs. 4.852,30`). Los dólares usan `$` a la izquierda con dos decimales
+  limpios (ejemplo: `$ 94.17`). Se implementó en `@l2/ui` mediante los helpers `formatMoneyVE` y
+  `formatPartsMoneyVE` en `packages/ui/src/patterns/MoneyDisplay.tsx`, exportados en el índice de la
+  librería. La regla arquitectónica se cumple con rigor: `@l2/ui` recibe cadenas de caracteres y no
+  conoce el tipo `bigint` del dominio, y queda estrictamente prohibido usar `toFixed(2)` fuera de `@l2/ui`.
+- **Formato horario comercial de 12 horas:** El estándar comercial y cotidiano en Venezuela usa 12 horas
+  con sufijo en minúsculas y espacio (`2:00 pm` y `10:30 am` en lugar del formato militar de 24 horas).
+  Se ajustó `DEFAULT_TIME_FORMAT = "12h"` en `features/park/time-format.ts`, actualizando la cabecera
+  del turno («Turno desde 2:00 pm · Marisol Prieto») y las horas de las excepciones de demo (`3:42 pm`,
+  `4:20 pm`, `5:05 pm`, `6:11 pm`).
+
+## Barras operativas compactas (Parque, Caja, Mesas y Cocina) — 2026-09-12
+
+El panel de inicio requería visibilidad simultánea del parque y de la operación gastronómica sin
+provocar desplazamiento vertical:
+
+- **Eliminación total de emojis:** Se retiraron todos los emojis de las tarjetas y barras operativas,
+  reemplazándolos por micro-gráficas sobrias, barras de aforo y chips tipográficos acordes con el sistema de tokens.
+- **Fila 1 (Parque y Caja):** Vendido (`$ 94.17`), Niños atendidos (`8`), En sala ahora (`8 de 30`) y
+  En gaveta bimoneda (`$ 70.58` · `Bs. 4.852,30`).
+- **Fila 2 (Mesas y Cocina, debajo de Parque y Caja):** Mesas en servicio (`5 de 8` con barra turquesa
+  de aforo salón y mesas libres), En cocina KDS (`4 comandas` con desglose de cola y preparación), Listas
+  para servir (`2 en pase` con chip pulsante `[ ● Por retirar ]`) y Espera máxima (`18 min` de Mesa 4).
+- **Diseño compacto vertical:** Se redujeron paddings y alturas para que ambas barras convivan dentro
+  del primer pantallazo tanto en escritorio (1366×768 y 1920×961) como en tablet, sin desplazar las tarjetas de acción.
+
+## V5: Caja rápida bimoneda, venta directa y catálogo táctil (D6) — 2026-09-12
+
+Se resolvió la experiencia de cobro en `/caja`, transformándola en un flujo fintech ágil de 1 a 2 toques:
+
+- **Doble visor bimoneda simultáneo en Hero:** Muestra en grande el monto pendiente en USD y en un renglón
+  propio el contravalor en `Bs.` según la tasa oficial congelada para la transacción (`228,41 Bs/$`).
+- **Cobro exacto en 1 toque:** Al seleccionar un medio (ej. Pago Móvil o Punto Débito), un botón
+  prominente `Cobrar exacto (Medio)` autocompleta el 100% de la deuda en bolívares en 1 toque sin usar el
+  teclado numérico.
+- **6 medios de pago con jerarquía e iconos:** Efectivo $ (+3% IGTF), Efectivo Bs, Pago Móvil (0% IGTF),
+  Punto débito, Zelle (+3% IGTF) y USDT (+3% IGTF).
+- **Datos de Pago Móvil del comercio:** Panel desplegable al seleccionar Pago Móvil con Banco (Banesco 0134),
+  Teléfono (0414-234.56.78), RIF (J-40123456-7) y botón interactivo `Copiar` con confirmación temporal.
+- **IGTF automático y vuelto bimoneda:** Calcula el 3% fiscal sobre pagos en divisas y desglosa el vuelto
+  dualmente ($ y Bs.) permitiendo elegir su destino: `Vuelto`, `Propina` o `A caja`.
+- **Venta directa de mostrador (D6 / F8-02):** Botón `+ Venta directa (Mostrador)` en la cabecera de la
+  cola de cuentas. Permite abrir de inmediato una venta rápida (`Mostrador #XX`) para personas que solo
+  compran un café, bebida, golosina o delivery, sin exigir pulsera de parque ni registro previo de familia.
+  Cumple al 100% con `FamilyAccountSchema` al inicializarse con un producto base y sesión `s-mostrador`.
+- **Catálogo táctil integrado (1 toque, sin modal):** Desplegable táctil `+ Añadir snacks` en la
+  cabecera de la cuenta activa. 14 productos de mostrador organizados en 5 categorías (`Todos`, `Bebidas`,
+  `Snacks`, `Golosinas`, `Café`). Cada toque agrega una línea `RESTAURANTE` recalculando al instante subtotal,
+  IVA (16%) y tasa BCV, con botón `X` de retiro para corrección de pedidos.
+- **Adaptación para montos grandes en bolívares y smart tenders:**
+  - Hero apilado con tarjeta independiente para bolívares y escalado tipográfico automático para montos
+    de 6 a 8 dígitos (ej. `Bs. 1.250.000,00`).
+  - Billetes rápidos inteligentes (`calcularBilletesSugeridos`): ofrece atajos estándar ($5, $10, $20, $50, $100)
+    para deudas menores a $50, y redondeos superiores lógicos ($100, $150, $200) para cuentas de gran tamaño.
+  - Botón de cierre multilínea que preserva la legibilidad del monto en USD y Bs. sin saltos rotos de caja.
+
+
+## Revisión de V5 y ticket estilo factura — 2026-09-12
+
+Antes de construir encima se revisaron los cambios de V5 (caja rápida, venta directa, formato
+venezolano). Aportaron mucho, y la revisión encontró siete cosas que no podían quedar así:
+
+- **El teclado de caja no se podía usar a 1366×768.** La columna de cobro tenía más contenido del que
+  cabía, y el teclado era lo único que se encogía: sus botones quedaban montados bajo el botón de
+  cierre. Ahora el teclado se abre con «Otro monto» y, con él abierto, el visor baja a un renglón. Cabe
+  sin desplazar a 1366×768 y 1280×800, con cualquier medio de pago.
+- **La venta directa nacía con un «Agua mineral» cargado**: si la cajera no lo quitaba, se cobraba algo
+  que nadie pidió. Ahora la venta nace con el primer producto que se elige, y si se vacía se descarta.
+- **La tasa de Inicio estaba escrita a mano** (`36,40`) y contradecía la que se usa para cobrar
+  (`228,41`). Ahora sale del mismo dato.
+- **El bruto con IGTF se calculaba en la pantalla**, con aritmética `bigint` suelta (regla 3). Pasó al
+  dominio como `pagoQueCubreConIgtf`, con cuatro pruebas: el menor pago que salda la deuda y su propio
+  impuesto, al céntimo. Una deuda de 100,00 se salda con 103,09, no con 103,00.
+- **Quitar una línea no validaba qué se quitaba**: solo el botón visible lo impedía. Ahora la regla va en
+  la acción. Lo consumido (paquetes, tiempo de más) no se toca desde la caja: eso es una cortesía con
+  autorización (F6-14).
+- **Objetivos táctiles de 20 a 32 px** en una superficie de 56 (billetes rápidos, la «x», categorías).
+- **Montos en bolívares que se salían de su tarjeta** en «Por punto de cobro».
+
+Y lo que pidió el cliente sobre la marcha: el ticket de «La cuenta» pasó a **estilo factura** —filas
+compactas, concepto e importe, sin numerar—, los ítems repetidos de mostrador van **en una sola fila con
+su cantidad** (contador de 56 px al tocarla, precio por unidad y «Eliminar»), y el botón pasó a llamarse
+«Añadir ítems». Cada unidad sigue siendo su propia línea de la cuenta: solo se agrupan para leerlas.
+
+Queda registrada una deuda: la venta de mostrador se guarda como cuenta de familia con una estancia
+ficticia (`s-mostrador`), porque el contrato exige un niño. Necesita su propio tipo de cuenta.

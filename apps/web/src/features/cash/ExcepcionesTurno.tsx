@@ -22,43 +22,47 @@ export function ExcepcionesTurno({
   return (
     <section
       className={cn(
-        "rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card",
+        "rounded-[var(--radius-card)] border border-line bg-surface p-4 xl:p-4.5 shadow-card",
         className,
       )}
     >
-      <h2 className="font-display mb-1 flex items-baseline gap-2 text-base font-bold text-ink">
+      <h2 className="font-display mb-0.5 flex items-baseline gap-2 text-base font-bold text-ink">
         Excepciones del turno
         <span className="tnum text-[13px] font-medium text-ink-3">{excepciones.length}</span>
       </h2>
-      <p className="mb-4 text-[12px] text-ink-3">
+      <p className="mb-3 text-xs text-ink-3">
         Anulaciones, descuentos, cortesías y reimpresiones.
       </p>
 
       {excepciones.length === 0 ? (
         <p className="text-[13px] text-ink-3">Sin excepciones en este turno.</p>
       ) : (
-        <ul className="flex flex-col">
+        <ul className="flex flex-col max-h-[350px] overflow-y-auto overflow-x-hidden">
           {excepciones.map((e, i) => (
             <li
               key={i}
-              className="flex items-baseline gap-3 border-b border-line/50 py-2.5 text-[13px] last:border-0"
+              className="flex items-start gap-3 border-b border-line/50 py-2.5 text-[13px] last:border-0 hover:bg-surface-2/30 px-1.5 rounded-[var(--radius-control)] transition-colors duration-[var(--dur-rapida)]"
             >
-              <span className="tnum shrink-0 text-ink-3">{e.hora}</span>
+              <span className="tnum shrink-0 pt-0.5 text-[12px] text-ink-3">{e.hora}</span>
               <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-baseline gap-x-2">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span
                     className={cn(
-                      "font-mono text-[10.5px] font-semibold tracking-wide",
-                      e.tipo === "ANULACIÓN" ? "text-state-crit" : "text-state-warn",
+                      "inline-flex items-center px-2 py-0.5 rounded-[var(--radius-control)] border text-[10.5px] font-mono font-medium tracking-wide",
+                      e.tipo === "ANULACIÓN"
+                        ? "border-state-crit/30 bg-state-crit-bg text-state-crit"
+                        : "border-state-warn/30 bg-state-warn-bg text-state-warn",
                     )}
                   >
                     {e.tipo}
                   </span>
-                  <span className="text-ink-2">{e.detalle}</span>
+                  <span className="font-medium text-ink">{e.detalle}</span>
                 </span>
-                <span className="mt-0.5 block text-[11.5px] text-ink-3">
-                  {e.motivo} · {e.usuario}
-                  {e.autorizadoPor && ` · autorizó ${e.autorizadoPor}`}
+                <span className="mt-1 block text-[12px] text-ink-2">
+                  {e.motivo} · <span className="text-ink-3">{e.usuario}</span>
+                  {e.autorizadoPor && (
+                    <span className="text-ink-3"> · autorizó <strong className="font-medium text-ink-2">{e.autorizadoPor}</strong></span>
+                  )}
                 </span>
               </span>
             </li>

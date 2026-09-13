@@ -98,7 +98,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     // asome una barra de scroll horizontal durante 240 ms.
     // Si una pantalla todavía no cabe, se desplaza DENTRO de esta región y la
     // barra de estación no se mueve. Es la red de seguridad, no el diseño.
-    <div className="flex min-h-0 flex-1 flex-col overflow-x-clip lg:overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col overflow-x-clip md:overflow-y-auto">
       <div
         key={pathname}
         ref={contenedor}

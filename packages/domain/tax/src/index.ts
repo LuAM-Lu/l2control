@@ -25,6 +25,8 @@ import {
   type Rounding,
   add,
   allocateByRatios,
+  compare,
+  money,
   multiply,
   multiplyByRate,
   subtract,
@@ -318,4 +320,38 @@ export function computeIgtf(
   );
 
   return Object.freeze({ lines: Object.freeze(lines), total });
+}
+
+/**
+ * Cuánto hay que recibir en un medio que dispara IGTF para saldar una deuda
+ * ENTERA de una vez: el pago cubre la deuda y también su propio impuesto.
+ *
+ * Es el «cobrar exacto» de la caja. No basta con sumar el 3 % a la deuda,
+ * porque el IGTF grava el pago y no la deuda: pagar 103,00 por una deuda de
+ * 100,00 genera 3,09 de IGTF y quedan 0,09 pendientes. La respuesta es el
+ * menor monto p tal que p ≥ deuda + IGTF(p), con el mismo redondeo que usa
+ * `computeIgtf`, para que la caja cuadre al céntimo al cerrar.
+ *
+ * Con la tasa en cero el pago es la deuda. Una tasa del 100 % o más no tiene
+ * pago que la cubra y se rechaza en vez de devolver un número absurdo.
+ */
+export function pagoQueCubreConIgtf(
+  deuda: Money,
+  igtfBasisPoints: number,
+  rounding: Rounding = "HALF_UP",
+): Money {
+  if (deuda.amount <= 0n) return zero(deuda.currency);
+  if (!Number.isInteger(igtfBasisPoints) || igtfBasisPoints < 0 || BigInt(igtfBasisPoints) >= BASIS) {
+    throw new RangeError(`Alícuota de IGTF fuera de rango: ${igtfBasisPoints} puntos básicos`);
+  }
+  if (igtfBasisPoints === 0) return deuda;
+
+  const bp = BigInt(igtfBasisPoints);
+  // Estimación por debajo (deuda / (1 − t), truncada) y ajuste céntimo a
+  // céntimo hasta el primer monto que cubre. El redondeo nunca aleja más de
+  // dos céntimos, así que el ajuste da muy pocas vueltas.
+  let pago = multiplyByRate(deuda, BASIS, BASIS - bp, "DOWN");
+  const cubre = (p: Money) => compare(p, add(deuda, multiplyByRate(p, bp, BASIS, rounding))) >= 0;
+  while (!cubre(pago)) pago = add(pago, money(1n, deuda.currency));
+  return pago;
 }

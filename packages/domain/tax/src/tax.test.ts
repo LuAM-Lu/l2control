@@ -11,9 +11,10 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { fromMajor, sum, toMajor, zero } from "@l2/domain-money";
+import { add, compare, fromMajor, money, subtract, sum, toMajor, zero } from "@l2/domain-money";
 import {
   NoApplicableRuleError,
+  pagoQueCubreConIgtf,
   computeDocument,
   computeIgtf,
   findRule,
@@ -307,5 +308,40 @@ describe("T-TAX-07 · devoluciones y notas de crédito", () => {
       "USD",
     );
     assert.equal(toMajor(r.total), "-3.48");
+  });
+});
+
+describe("pago que cubre la deuda con su propio IGTF (cobrar exacto)", () => {
+  const igtfDe = (p: ReturnType<typeof fromMajor>) =>
+    computeIgtf(
+      [{ method: { code: "EFECTIVO_USD", label: "Efectivo $", currency: "USD", triggersIgtf: true }, amount: p }],
+      300,
+      "USD",
+    ).total;
+
+  test("una deuda de 100,00 se salda con 103,09, no con 103,00", () => {
+    const p = pagoQueCubreConIgtf(fromMajor("100.00", "USD"), 300);
+    assert.equal(toMajor(p), "103.09");
+    assert.equal(toMajor(igtfDe(fromMajor("103.00", "USD"))), "3.09");
+  });
+
+  test("el monto es el MENOR que cubre: un céntimo menos ya no alcanza", () => {
+    for (const deuda of ["0.01", "1.16", "9.50", "11.02", "57.40", "250.00", "1234.56"]) {
+      const d = fromMajor(deuda, "USD");
+      const p = pagoQueCubreConIgtf(d, 300);
+      assert.ok(compare(p, add(d, igtfDe(p))) >= 0, `${deuda}: ${toMajor(p)} no cubre`);
+      const menos = subtract(p, money(1n, "USD"));
+      assert.ok(compare(menos, add(d, igtfDe(menos))) < 0, `${deuda}: ${toMajor(menos)} ya cubría`);
+    }
+  });
+
+  test("sin IGTF el pago es la deuda, y sin deuda no hay nada que pagar", () => {
+    assert.equal(toMajor(pagoQueCubreConIgtf(fromMajor("11.02", "USD"), 0)), "11.02");
+    assert.equal(toMajor(pagoQueCubreConIgtf(zero("USD"), 300)), "0.00");
+  });
+
+  test("una alícuota imposible se rechaza, no se aproxima", () => {
+    assert.throws(() => pagoQueCubreConIgtf(fromMajor("10.00", "USD"), 10_000), RangeError);
+    assert.throws(() => pagoQueCubreConIgtf(fromMajor("10.00", "USD"), -1), RangeError);
   });
 });

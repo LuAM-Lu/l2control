@@ -118,8 +118,17 @@ export default function InicioPage() {
       excepciones={DEMO_EXCEPCIONES}
       fecha={`${hoy.getDate()} de ${MESES[hoy.getMonth()]}`}
       diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
-      turnoDesde="14:00"
+      turnoDesde="2:00 pm"
       cajero="Marisol Prieto"
+      tasa={modelo.rateConfirmed && modelo.rateValue ? modelo.rateValue.replace(".", ",") : null}
+      mesasOcupadas={5}
+      mesasTotales={8}
+      comandasCocina={4}
+      comandasEnCola={2}
+      comandasEnPrep={2}
+      comandasListas={2}
+      esperaMaximaMin={18}
+      mesaEsperaCritica="Mesa 4"
     />
   );
 }

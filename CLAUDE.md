@@ -61,9 +61,18 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
 - Cifras que se comparan o suman: clase `tnum`.
 - Objetivos táctiles por superficie: KDS 64 px, POS 56 px, tablet 48 px, admin 32 px (§8.4).
 - Estados de carga, vacío y **error visibles**. Los errores ocultos son antipatrón explícito.
+- **Formato monetario de Venezuela:** Mostrar importes con `MoneyDisplay` o `formatMoneyVE` desde `@l2/ui`.
+  Bolívares: `Bs. ` a la izquierda, miles con punto (`.`) y decimales con coma (`,`). Dólares: `$` y dos decimales.
+  Nunca usar `toFixed()` fuera de `@l2/ui`.
+- **Formato de hora comercial:** Estándar de 12 horas con indicador en minúsculas y espacio (`2:00 pm`, `10:30 am`).
+- **Sobriedad profesional:** Ningún emoji en elementos operativos, tarjetas o métricas del sistema; usar
+  iconos SVG, barras de aforo y chips acordes a los tokens.
+- **Montos grandes en bolívares:** Alojar en renglón propio o tarjeta dedicada con escalado tipográfico automático
+  para soportar cifras de 6 a 8 dígitos sin colapsar horizontalmente.
 
 ## Contexto del cliente
 
 Venezuela: multimoneda (USD funcional, Bs de liquidación), IVA + IGTF del 3 % sobre pagos en
 divisas, cortes de luz e internet frecuentes. Aforo del local: 30 niños, 7-10 mesas.
 Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
+

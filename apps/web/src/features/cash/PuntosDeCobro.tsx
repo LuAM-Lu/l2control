@@ -1,6 +1,6 @@
-import { Store, Ticket } from "lucide-react";
+import { Banknote, Store, Ticket } from "lucide-react";
 import type { PointOfSale } from "@l2/domain-cash";
-import { MoneyDisplay, cn } from "@l2/ui";
+import { MoneyDisplay, formatMoneyVE, cn } from "@l2/ui";
 
 /**
  * Lo cobrado en cada punto de cobro — F4-01b, DEC-13.
@@ -9,10 +9,6 @@ import { MoneyDisplay, cn } from "@l2/ui";
  * de esa simplicidad es que, si el arqueo no cuadra, hay que poder decir de
  * qué punto viene la diferencia. Esta pieza lo dice: por punto y por moneda,
  * cuánto se cobró y cuánto efectivo aportó a la gaveta.
- *
- * Las dos cifras son distintas a propósito. Lo cobrado incluye el Pago Móvil y
- * el Zelle; el efectivo a gaveta no, y además descuenta el vuelto que se dio
- * en ese punto. Es la segunda la que explica un faltante en el cajón.
  */
 
 export type FilaPunto = {
@@ -31,8 +27,6 @@ type DefPunto = Readonly<{
   Icono: typeof Ticket;
 }>;
 
-/** Los dos puntos, siempre en el mismo orden y siempre visibles: un punto sin
- *  cobros también es un dato. */
 const PUNTOS: readonly DefPunto[] = [
   { id: "TAQUILLA", nombre: "Taquilla", detalle: "Entrada y salida del parque", Icono: Ticket },
   { id: "MOSTRADOR", nombre: "Mostrador", detalle: "Caja del local", Icono: Store },
@@ -48,52 +42,114 @@ export function PuntosDeCobro({
   return (
     <section
       className={cn(
-        "rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card",
+        "rounded-[var(--radius-card)] border border-line bg-surface p-4 xl:p-4.5 shadow-card flex flex-col justify-between",
         className,
       )}
     >
-      <h2 className="font-display mb-1 text-base font-bold text-ink">Por punto de cobro</h2>
-      <p className="mb-4 text-[12px] text-ink-3">
-        Una sola caja, dos puntos. Si el arqueo no cuadra, aquí se ve de dónde viene.
-      </p>
+      <div>
+        <div className="mb-3">
+          <h2 className="font-display mb-0.5 text-base font-bold text-ink">Por punto de cobro</h2>
+          <p className="text-xs text-ink-3">
+            Conciliación por terminal física y aporte neto a gaveta.
+          </p>
+        </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {PUNTOS.map(({ id, nombre, detalle, Icono }) => {
-          const propias = filas.filter((f) => f.punto === id);
-          return (
-            <div
-              key={id}
-              className="rounded-[var(--radius-control)] border border-line bg-base/40 p-3.5"
-            >
-              <p className="font-display flex items-center gap-2 text-sm font-bold text-ink">
-                <Icono size={15} className="text-ink-3" aria-hidden="true" />
-                {nombre}
-              </p>
-              <p className="mt-0.5 text-[11.5px] text-ink-3">{detalle}</p>
+        <div className="grid grid-cols-1 min-[500px]:grid-cols-2 gap-2.5">
+          {PUNTOS.map(({ id, nombre, detalle, Icono }) => {
+            const propias = filas.filter((f) => f.punto === id);
+            const esTaquilla = id === "TAQUILLA";
 
-              {propias.length === 0 ? (
-                <p className="mt-3 text-[12.5px] text-ink-3">Sin cobros en este turno.</p>
-              ) : (
-                <ul className="mt-3 flex flex-col gap-2.5">
-                  {propias.map((f) => (
-                    <li key={f.moneda} className="flex flex-col gap-0.5">
-                      <span className="flex items-baseline justify-between gap-2">
-                        <span className="text-[10.5px] font-semibold tracking-[0.09em] text-ink-3 uppercase">
-                          {f.moneda}
-                        </span>
-                        <MoneyDisplay value={f.cobrado} currency={f.moneda} size="sm" />
-                      </span>
-                      <span className="tnum text-right text-[11.5px] text-ink-3">
-                        efectivo a gaveta {f.efectivoNeto}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={id}
+                className="rounded-[var(--radius-control)] border border-line/60 bg-surface-2/40 p-2.5 transition-colors duration-[var(--dur-rapida)] hover:border-line hover:bg-surface-2/70"
+              >
+                {/* Cabecera del terminal con avatar estilizado */}
+                <div className="flex items-center justify-between gap-2 border-b border-line/40 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "flex size-6.5 shrink-0 items-center justify-center rounded-lg border shadow-sm",
+                        esTaquilla
+                          ? "border-brand/30 bg-brand/15 text-brand"
+                          : "border-line-strong bg-surface text-ink",
+                      )}
+                    >
+                      <Icono size={14} aria-hidden="true" />
+                    </span>
+                    <div>
+                      <p className="font-display text-xs font-bold leading-none text-ink">
+                        {nombre}
+                      </p>
+                      <p className="mt-0.5 text-[10.5px] text-ink-3">{detalle}</p>
+                    </div>
+                  </div>
+                  <span className="rounded bg-surface px-1.5 py-0.2 text-[9.5px] font-medium tracking-wide text-ink-3 uppercase">
+                    {esTaquilla ? "Acceso" : "Local"}
+                  </span>
+                </div>
+
+                {propias.length === 0 ? (
+                  <p className="mt-2.5 text-xs text-ink-3">Sin cobros en este turno.</p>
+                ) : (
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {propias.map((f) => (
+                      <li
+                        key={f.moneda}
+                        className="rounded-md border border-line/40 bg-base/50 p-1.5 transition-colors hover:border-line"
+                      >
+                        {/* Monto en su propio renglón si no cabe: una cifra en bolívares
+                            de 6 a 8 dígitos no se sale de la tarjeta (CLAUDE.md). */}
+                        <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <InsigniaMoneda moneda={f.moneda} />
+                            <span className="text-xs font-semibold text-ink-2">
+                              {f.moneda}
+                            </span>
+                          </div>
+                          <MoneyDisplay value={f.cobrado} currency={f.moneda} size="sm" className="ml-auto" />
+                        </div>
+
+                        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-1.5 border-t border-line/30 pt-0.5 text-[10px]">
+                          <span className="flex items-center gap-1 text-ink-3">
+                            <Banknote size={10} className="text-brand" aria-hidden="true" />
+                            <span>Cajón:</span>
+                          </span>
+                          <span className="tnum ml-auto font-medium text-ink-2">
+                            {formatMoneyVE(f.efectivoNeto, f.moneda)}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
+  );
+}
+
+function InsigniaMoneda({ moneda }: { moneda: string }) {
+  if (moneda === "USD") {
+    return (
+      <span className="inline-flex size-4.5 items-center justify-center rounded-md border border-brand/30 bg-brand/15 text-[10.5px] font-bold text-brand">
+        $
+      </span>
+    );
+  }
+  if (moneda === "VES") {
+    return (
+      <span className="inline-flex h-4.5 items-center justify-center rounded-md border border-line px-1 text-[9.5px] font-bold text-ink-2">
+        Bs
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex size-4.5 items-center justify-center rounded-md border border-state-ok/30 bg-state-ok-bg text-[10px] font-bold text-state-ok">
+      ₮
+    </span>
   );
 }

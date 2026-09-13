@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, Send, StickyNote, Trash2, TriangleAlert } from "lucide-react";
 import type { MenuDto } from "@l2/contracts";
 import { multiply, toMajor } from "@l2/domain-money";
-import { Badge, Button, Dialog, Input, MoneyDisplay, Stepper, cn } from "@l2/ui";
+import { Badge, Button, Dialog, Input, MoneyDisplay, Stepper, cn, formatMoneyVE } from "@l2/ui";
 import { anadir, precioDe, totalBorrador, type LineaBorrador } from "./mesas.ts";
 
 /**
@@ -95,7 +95,7 @@ export function TomaPedido({
                     type="button"
                     disabled={!i.available}
                     onClick={() => onCambiar(anadir(lineas, i.id))}
-                    aria-label={`Añadir ${i.name}, USD ${toMajor(precioDe(i))}${n > 0 ? `, van ${n}` : ""}`}
+                    aria-label={`Añadir ${i.name}, ${formatMoneyVE(toMajor(precioDe(i)), "USD")}${n > 0 ? `, van ${n}` : ""}`}
                     className={cn(
                       "relative flex min-h-[5.5rem] w-full cursor-pointer flex-col justify-between rounded-[var(--radius-card)] border p-3 text-left",
                       "transition-[border-color,background-color,transform] duration-[var(--dur-rapida)] active:scale-[0.98]",
@@ -112,7 +112,7 @@ export function TomaPedido({
                       {i.name}
                     </span>
                     <span className="flex items-center justify-between gap-2">
-                      <span className="tnum text-[13px] text-ink-2">USD {toMajor(precioDe(i))}</span>
+                      <span className="tnum text-[13px] text-ink-2">{formatMoneyVE(toMajor(precioDe(i)), "USD")}</span>
                       {!i.available && <Badge tone="idle">Agotado</Badge>}
                     </span>
                     {n > 0 && (
@@ -163,7 +163,7 @@ export function TomaPedido({
                       </p>
                       <p className="flex items-center gap-2 text-[12.5px]">
                         {it && (
-                          <span className="tnum text-ink-2">USD {toMajor(multiply(precioDe(it), BigInt(l.cantidad)))}</span>
+                          <span className="tnum text-ink-2">{formatMoneyVE(toMajor(multiply(precioDe(it), BigInt(l.cantidad))), "USD")}</span>
                         )}
                         <button
                           type="button"

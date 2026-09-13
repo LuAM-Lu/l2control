@@ -188,22 +188,29 @@ Referencias de estilo: los toasts de Vercel (Geist), Linear y Stripe.
 
 ## 5. Caja: venta directa
 
-Hoy la caja solo cobra **cuentas**: familias que salen y, pronto, mesas. Falta vender en el mostrador a
-quien no tiene cuenta (una golosina, un agua, un juguete) y **añadir un adicional a una cuenta** (el
-caramelo del flujo A11).
+Hoy la caja no solo cobra **cuentas** de familias que salen o mesas de restaurante, sino que soporta
+**venta directa de mostrador** y **adición rápida de snacks** a una cuenta activa.
 
 ![Venta directa en caja](diseno/caja-venta-directa.png)
 
-**Flujo propuesto**
-1. En la columna «Por cobrar», un botón **Venta directa** abre la carta de mostrador: rejilla táctil por
-   categorías, la misma pieza que la carta del mesero.
-2. El ticket se llena a la derecha y se cobra con el **mismo cobro mixto** de hoy (IVA, IGTF, vuelto).
-3. Desde una cuenta abierta, **Añadir productos** usa la misma carta y suma líneas a esa cuenta.
-4. El lector puede leer **códigos de barras** de productos: se distinguen de una pulsera por el formato
-   (`AK-…` frente a 13 dígitos).
-
-**Bloqueado por una decisión**: D6. Es F8-02, fuera de la Ruta A. La propuesta es un catálogo mínimo de
-mostrador **sin inventario**, que F8 completa después.
+> **Construido el 2026-09-12 (V5).** Se implementó la solución táctil integrada:
+> 1. **Botón «+ Venta directa (Mostrador)»** en la cabecera de la cola de cobro: crea instantáneamente una
+>    cuenta de mostrador (`Mostrador #XX`) para clientes que solo consumen cafetería, snacks o delivery,
+>    cumpliendo íntegramente con `FamilyAccountSchema`.
+> 2. **Catálogo táctil integrado (sin modal intrusivo):** Botón `+ Añadir snacks` en la cabecera del ticket.
+>    Despliega una rejilla compacta de 14 productos en 5 categorías (`Todos`, `Bebidas`, `Snacks`,
+>    `Golosinas`, `Café`).
+> 3. **Operación a 1 toque:** Añade la línea al ticket, recalculando al instante subtotal, IVA (16%) y tasa BCV.
+> 4. **Retiro rápido:** Botón `X` en cada ítem de mostrador para corregir pedidos sin fricción.
+> **Revisado el 2026-09-12** (BITACORA): la venta nace con el primer producto elegido y se descarta si se
+> vacía; el ticket es estilo factura, con los ítems repetidos en una fila con cantidad; el teclado se abre
+> con «Otro monto» para que la columna quepa a 1366×768; lo consumido no se quita desde la caja.
+>
+> 5. **Adaptación para montos grandes y bimoneda VE:**
+>    - Monto en bolívares en tarjeta dedicada apilada con escalado tipográfico automático para cifras de 6 a 8 dígitos.
+>    - Billetes inteligentes (`calcularBilletesSugeridos`): atajos de $5 a $100 en cuentas pequeñas y redondeos
+>      superiores dinámicos en cuentas grandes.
+>    - Botón de cierre multilínea para no desbordar en montos largos.
 
 ---
 
@@ -235,17 +242,18 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 | — | *DEC-22 paso 3: cocina (KDS)*, ya con toasts y roles | — | — |
 | **V3** | Plano espacial en `/mesas` con el local del dibujo, y vista Lista | M4 | 1 sesión |
 | **V4** | Editor del plano en el panel: borrador, publicar, retirar, deshacer | F6-01 | 1-2 sesiones |
-| **V5** | Caja: venta directa y adicionales, junto al paso 4 de DEC-22 | §5 | Tras D6 |
+| **V5** ✔ | Caja: venta directa y adicionales (mostrador), catálogo táctil de snacks, formato bimoneda VE y montos grandes. **Hecho el 2026-09-12** | §5 | 1 sesión |
 | — | *DEC-22 paso 5: panel en vivo* | M3 | — |
 
 ---
 
 ## 8. Decisiones que hacen falta
 
-| # | Decisión | Propuesta |
+| # | Decisión | Propuesta / Estado |
 |---|---|---|
-| **D6** | ¿Venta directa en caja? (ya abierta en FLUJOS §7) | Catálogo mínimo de mostrador sin inventario |
+| **D6** | ¿Venta directa en caja? (ya abierta en FLUJOS §7) | **Cerrada (2026-09-12)**: Catálogo mínimo táctil de mostrador sin inventario |
 | **D10** | ¿Quién edita el plano de mesas? | Solo administración. El supervisor lo ve pero no lo mueve |
 | **D11** | Numeración y zonas del dibujo | 1-4 «Junto al parque», 5-8 «Salón», 4 sillas cada una |
 | **D12** | ¿El back-office puede desplazar? | Sí. Lo urgente arriba; las estaciones siguen sin desplazar |
 | — | Librería de toasts | Sonner, tras vuestra investigación |
+

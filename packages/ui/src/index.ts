@@ -25,7 +25,7 @@ export { StatTile } from "./patterns/StatTile";
 export { PageHeader, type Miga } from "./patterns/PageHeader";
 export { NumericKeypad } from "./patterns/NumericKeypad";
 export { Initial } from "./patterns/Initial";
-export { MoneyDisplay } from "./patterns/MoneyDisplay";
+export { MoneyDisplay, formatMoneyVE, formatPartsMoneyVE } from "./patterns/MoneyDisplay";
 export { ScannerField } from "./patterns/ScannerField";
 export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBadge";
 export { EmptyState } from "./patterns/EmptyState";

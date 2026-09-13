@@ -65,12 +65,12 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   }, [cajon]);
 
   return (
-    <div className="flex min-h-dvh bg-base">
+    <div className="flex min-h-dvh md:h-dvh md:overflow-hidden bg-base">
       {/* ══════════ riel (md) y barra completa (xl) ══════════ */}
       <aside
         className={cn(
           "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-surface/40",
-          "w-[4.5rem] md:flex xl:w-64",
+          "w-[4.5rem] md:flex xl:w-64 md:h-full",
           "transition-[width] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
         )}
       >
@@ -89,7 +89,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ══════════ columna de contenido ══════════ */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col md:h-full md:overflow-hidden">
         {/* Barra superior solo en móvil: el botón de menú va donde se busca,
             arriba a la izquierda, no flotando sobre el contenido. */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-base/85 px-3 backdrop-blur-md md:hidden">
@@ -106,7 +106,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
           <ChipSimulacion className="ml-auto" />
         </header>
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-w-0 flex-1 flex-col md:h-full md:overflow-hidden">
           <PageTransition>
             <GuardiaAcceso
               destino={nombreEnPanel(pathname)}
