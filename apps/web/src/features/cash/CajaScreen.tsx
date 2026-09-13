@@ -56,12 +56,15 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import {
   FamilyAccountSchema,
+  CONSUMIDOR_FINAL,
   type AccountLineDto,
+  type ClienteFacturaDto,
   type DatosDePagoDto,
   type FamilyAccountDto,
   type PosTerminalDto,
 } from "@l2/contracts";
 import { DatosPagoDialog, claveDeReferencia, resumenDatos, type Recordados } from "./DatosPagoDialog.tsx";
+import { ClienteFacturaDialog, documentoEnmascarado } from "./ClienteFacturaDialog.tsx";
 import {
   esLineaDeMostrador,
   esVentaDirecta,
@@ -116,7 +119,7 @@ function CobroCuenta({
   lines: readonly DocumentLine[];
   /** La cuenta que se cobra: su familia y su modo encabezan el ticket. */
   cuenta: FamilyAccountDto;
-  onCobrado: (r: { total: string; vuelto: string }) => void;
+  onCobrado: (r: { total: string; vuelto: string; cliente: ClienteFacturaDto }) => void;
   rules: readonly TaxRule[];
   tenders: readonly MedioPago[];
   /** Terminales de punto de venta del local (F4-04). */
@@ -142,6 +145,9 @@ function CobroCuenta({
   const [pagos, setPagos] = useState<{ uid: string; medio: MedioPago; amount: Money; datos?: DatosDePagoDto }[]>([]);
   /** Pago esperando sus datos: no entra al cobro hasta confirmarlos (F4-04). */
   const [pendienteDeDatos, setPendienteDeDatos] = useState<{ medio: MedioPago; amount: Money } | null>(null);
+  /** A nombre de quién sale la factura: consumidor final salvo que se pida (DEC-23). */
+  const [cliente, setCliente] = useState<ClienteFacturaDto>(CONSUMIDOR_FINAL);
+  const [identificando, setIdentificando] = useState(false);
   /** Último banco, terminal y red: la siguiente vez ya vienen puestos. */
   const [recordados, setRecordados] = useState<Recordados>({});
   const [medioActivo, setMedioActivo] = useState<MedioPago>(mediosDisponibles[0]!);
@@ -304,7 +310,7 @@ function CobroCuenta({
         functional: FUNCIONAL,
         maxRetained,
       });
-      onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut) });
+      onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut), cliente });
       setPagos([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cerrar el cobro");
@@ -536,7 +542,21 @@ function CobroCuenta({
           </div>
 
           {/* Los totales quedan CLAVADOS abajo */}
-          <dl className="flex flex-col gap-1.5 border-t border-line bg-base/40 px-5 py-4 text-sm">
+          <dl className="flex flex-col gap-1.5 border-t border-line bg-base/40 px-5 pt-2 pb-4 text-sm">
+            {/* A quién se factura: un toque solo cuando el cliente lo pide (DEC-23). */}
+            <div className="flex items-center justify-between gap-3 border-b border-line/60 pb-2">
+              <dt className="text-ink-2">Factura a</dt>
+              <dd className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-semibold text-ink">
+                  {cliente.kind === "CONSUMIDOR_FINAL"
+                    ? "Consumidor final"
+                    : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`}
+                </span>
+                <Button surface="tablet" variant="neutral" className="shrink-0 text-[13px]" onClick={() => setIdentificando(true)}>
+                  {cliente.kind === "CONSUMIDOR_FINAL" ? "Identificar" : "Cambiar"}
+                </Button>
+              </dd>
+            </div>
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-ink-2">Subtotal</dt>
               <dd>
@@ -667,14 +687,16 @@ function CobroCuenta({
                       : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
                   )}
                 >
-                  <div className="flex w-full items-center justify-between gap-1">
-                    <span className="truncate text-[13px] leading-tight font-bold">{m.label}</span>
-                    <Icon size={13} className={activo ? "text-brand" : "text-ink-3"} aria-hidden="true" />
-                  </div>
-                  <div className="mt-0.5 flex w-full items-center justify-between text-[11px]">
-                    <span className={m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3"}>{m.currency}</span>
+                  {/* El nombre ocupa todo el renglón: con el icono al lado, «Punto débito»
+                      se cortaba. El icono acompaña a la moneda, debajo. */}
+                  <span className="w-full truncate text-[12px] leading-tight font-bold">{m.label}</span>
+                  <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10.5px] whitespace-nowrap">
+                    <span className={cn("flex items-center gap-1", m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3")}>
+                      <Icon size={12} className={activo ? "text-brand" : "text-ink-3"} aria-hidden="true" />
+                      {m.currency}
+                    </span>
                     {m.triggersIgtf ? (
-                      <span className="rounded border border-line-strong px-1 font-semibold text-ink-2">+3% IGTF</span>
+                      <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">+3% IGTF</span>
                     ) : (
                       <span className="text-ink-3">0% IGTF</span>
                     )}
@@ -841,6 +863,17 @@ function CobroCuenta({
           </div>
         </aside>
 
+        <ClienteFacturaDialog
+          abierto={identificando}
+          actual={cliente}
+          nombrePropuesto={esVentaDirecta(cuenta) ? "" : cuenta.family}
+          onConfirmar={(c) => {
+            setCliente(c);
+            setIdentificando(false);
+          }}
+          onCerrar={() => setIdentificando(false)}
+        />
+
         <DatosPagoDialog
           tipo={pendienteDeDatos?.medio.datos ?? null}
           monto={pendienteDeDatos ? `${pendienteDeDatos.medio.label} · ${formatMoneyVE(toMajor(pendienteDeDatos.amount), pendienteDeDatos.amount.currency)}` : ""}
@@ -893,11 +926,16 @@ export function CajaScreen({
   const [ventaNueva, setVentaNueva] = useState(false);
   const aBolivares = cobro.rate ? (cobro.rate.from === "USD" ? cobro.rate : invertRate(cobro.rate)) : null;
 
-  function alCobrar(cuenta: FamilyAccountDto, r: { total: string; vuelto: string }) {
+  function alCobrar(cuenta: FamilyAccountDto, r: { total: string; vuelto: string; cliente: ClienteFacturaDto }) {
     guardar(marcarCobrada(cuenta));
     setElegida(null);
     avisar.ok(`Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`, {
-      ...(r.vuelto !== "0.00" ? { detalle: `Vuelto entregado: ${formatMoneyVE(r.vuelto, "USD")}` } : {}),
+      detalle: [
+        r.cliente.kind === "CONSUMIDOR_FINAL" ? "Factura a consumidor final" : `Factura a ${r.cliente.name}`,
+        r.vuelto !== "0.00" ? `vuelto entregado: ${formatMoneyVE(r.vuelto, "USD")}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
       ...(origen ? { accion: { texto: `Volver a ${origen.nombre}`, alPulsar: () => router.push(origen.ruta) } } : {}),
     });
   }

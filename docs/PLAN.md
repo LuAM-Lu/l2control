@@ -2010,7 +2010,7 @@ cuando el trámite esté listo.*
 
 ## 14. DECISIONES DEL CLIENTE
 
-**Las veintidos estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 y DEC-22 el 2026-09-11.
+**Las veintitres estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 y DEC-22 el 2026-09-11; DEC-23 el 2026-09-13.
 
 ### 14.1 Cerradas
 
@@ -2038,6 +2038,7 @@ cuando el trámite esté listo.*
 | **DEC-20** OK | Capa de plataforma | **No. Abby Kingdom es el unico cliente por ahora** | No se construyen registro de clientes, planes ni facturacion de suscripcion. El `tenant_id` y la RLS se mantienen: cuestan poco ahora y son carisimos despues (§9.10.8) |
 | **DEC-21** OK | Como paga una familia el parque | **Las dos, segun el cliente**: prepago o cuenta abierta, elegido en cada entrada | La cuenta de la familia enlaza entrada, salida y caja (§9.10.9). En prepago se cobra el paquete al entrar y solo el excedente al salir; en cuenta abierta, parque y restaurante se pagan juntos al irse. La caja pasa a ser una cola de cuentas por cobrar |
 | **DEC-22** OK | Restaurante y panel en vivo | **Se construye ya la interfaz de mesas, mesero, cocina y panel en vivo, sobre el simulador** (respuesta a D1 de [FLUJOS.md](FLUJOS.md)) | La interfaz de F6 y del panel en vivo entra en la fase de frontend (§11.4). Su backend sigue fuera de la Ruta A y llega despues del piloto del parque, cuya salida no se mueve. Base: FLUJOS.md y el simulador F1-19 |
+| **DEC-23** OK | A quien se factura | **Consumidor final por defecto; cedula o RIF y nombre cuando el cliente lo pide** (D14 de [UX-MEJORAS.md](UX-MEJORAS.md)) | En una caja con cola nadie teclea una cedula para un jugo. Contrato `ClienteFacturaSchema`: una factura identificada sin documento no se puede expresar. La direccion fiscal es opcional hasta que el contador confirme los requisitos (DEC-1) |
 
 ### 14.3 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
 

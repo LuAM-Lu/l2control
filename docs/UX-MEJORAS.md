@@ -297,8 +297,8 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | U1 | Quitar un pago: botón de 36 px | ✔ Objetivo de 56 px |
 | U2 | Los datos del pago en la lista, a la vista de la cola | ✔ Enmascarados: «Mercantil · Ref. ···1236» (§7.6) |
 | U3 | Corregir una referencia obliga a quitar el pago y añadirlo de nuevo | Propuesta: tocar el pago para editar sus datos |
-| U4 | **La factura no identifica al cliente** (cédula o RIF, nombre) | **Decisión D14**: «Consumidor final» por defecto, con opción de identificar; obligatorio si el cliente pide factura con RIF |
+| U4 | **La factura no identifica al cliente** (cédula o RIF, nombre) | ✔ Decidido (DEC-23) y hecho: fila «Factura a» con «Consumidor final» por defecto e «Identificar», que propone el nombre del representante |
 
 | # | Decisión | Propuesta |
 |---|---|---|
-| **D14** | ¿Se identifica al cliente en la factura? | Consumidor final por defecto; cédula o RIF y nombre cuando lo pida. Confirmar con el contador (DEC-1) |
+| **D14** | ¿Se identifica al cliente en la factura? | **Cerrada el 2026-09-13 (DEC-23)**: consumidor final por defecto; cédula o RIF y nombre cuando lo pida. La dirección fiscal, opcional hasta confirmar con el contador |

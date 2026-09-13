@@ -118,3 +118,9 @@ export {
   type PosTerminalDto,
   type RedUsdt,
 } from "./pagos.ts";
+
+export {
+  ClienteFacturaSchema,
+  CONSUMIDOR_FINAL,
+  type ClienteFacturaDto,
+} from "./documento.ts";

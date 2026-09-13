@@ -490,3 +490,16 @@ La auditoría de Caja quedó en [UX-MEJORAS.md](UX-MEJORAS.md) §9. Además de l
 IGTF pintado con colores de alarma, las etiquetas de 9,5 px y el formato de lo tecleado en bolívares.
 Quedan propuestas (atajos de teclado, avisos de cola, búsqueda, recibo) y una decisión nueva: D14,
 identificar al cliente en la factura.
+
+## A quién se factura — 2026-09-13
+
+El cliente cerró la decisión D14 como DEC-23: **consumidor final por defecto**, y cédula o RIF con el
+nombre cuando el cliente pide la factura a su nombre o al de su empresa. En la caja es una fila «Factura
+a» sobre los totales, con «Identificar». El diálogo propone el nombre del representante, que casi siempre
+es quien la pide, y valida el documento (V-, E-, J-, G-, P-). La dirección fiscal queda opcional hasta que
+el contador confirme qué exige la factura (DEC-1). El documento se enseña enmascarado (`V-18···432`) y el
+aviso de cobro dice a nombre de quién salió la factura.
+
+De paso se corrigió una regresión de la tanda anterior: al agrandar las etiquetas de los medios de pago,
+«Punto débito» se cortaba y «+3 % IGTF» se partía en dos renglones. El icono pasó junto a la moneda y el
+nombre tiene su renglón entero; comprobado a 1366, 1280 y 1024.

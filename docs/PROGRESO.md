@@ -103,6 +103,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F4-05 y F4-06 Cortes X y Z | Parcial | `/turno`: X repetible, Z irreversible con confirmación |
 | F4-07 Arqueo por denominación | Parcial | Contador táctil por billete, teórico oculto hasta contar |
 | F4-08 Excepciones del turno | Parcial | Visibles en turno e inicio en formato 12h; faltan las reales del libro |
+| DEC-23 Cliente de la factura | Parcial | `ClienteFacturaSchema` (3 pruebas); en caja, «Factura a: Consumidor final» con «Identificar» (cédula o RIF, nombre, dirección fiscal opcional), documento enmascarado. Falta llevarlo al documento fiscal (F3, F7) |
 | F4-04 Campos por medio de pago | Parcial | Contrato `DatosDePagoSchema` (5 pruebas): referencia y banco de Pago Móvil, titular de Zelle, TxID y red de USDT, terminal y referencia del punto. Se exigen al añadir el pago y se muestran enmascarados. Falta el cifrado en reposo y la redacción en logs, que son de servidor |
 | F4-09 | Pendiente | Gaveta asociada a operación |
 
