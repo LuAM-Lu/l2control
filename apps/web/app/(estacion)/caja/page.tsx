@@ -4,6 +4,7 @@ import {
   DEMO_MAX_RETAINED,
   DEMO_TAX_RULES,
   DEMO_TENDERS,
+  DEMO_TERMINALES,
 } from "../../../src/features/cash/fixtures";
 
 /**
@@ -31,6 +32,7 @@ export default async function CajaPage({
       volver={volver ?? null}
       rules={DEMO_TAX_RULES}
       tenders={DEMO_TENDERS}
+      terminales={DEMO_TERMINALES}
       igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}
       maxRetained={DEMO_MAX_RETAINED}
       rate={{ from: "VES", to: "USD", numerator: 22841n, denominator: 100n }}

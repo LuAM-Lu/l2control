@@ -103,7 +103,8 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F4-05 y F4-06 Cortes X y Z | Parcial | `/turno`: X repetible, Z irreversible con confirmación |
 | F4-07 Arqueo por denominación | Parcial | Contador táctil por billete, teórico oculto hasta contar |
 | F4-08 Excepciones del turno | Parcial | Visibles en turno e inicio en formato 12h; faltan las reales del libro |
-| F4-04, F4-09 | Pendiente | Campos por medio de pago y gaveta asociada a operación |
+| F4-04 Campos por medio de pago | Parcial | Contrato `DatosDePagoSchema` (5 pruebas): referencia y banco de Pago Móvil, titular de Zelle, TxID y red de USDT, terminal y referencia del punto. Se exigen al añadir el pago y se muestran enmascarados. Falta el cifrado en reposo y la redacción en logs, que son de servidor |
+| F4-09 | Pendiente | Gaveta asociada a operación |
 
 ## F6 · Restaurante — interfaz sobre el simulador (DEC-22)
 

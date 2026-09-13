@@ -1745,7 +1745,7 @@ Termina en el hito M1.*
 - [~] **F4-03 · Cobro mixto** en una misma transacción.
   → *Criterio:* R5 completo: se reparte el total entre varios medios y monedas, con IGTF solo donde toca;
   la suma cuadra al céntimo.
-- [ ] **F4-04 · Campos requeridos por medio de pago** (referencia de Pago Móvil, TxID de USDT, titular
+- [~] **F4-04 · Campos requeridos por medio de pago** (referencia de Pago Móvil, TxID de USDT, titular
   de Zelle), **cifrados en reposo** (§7.6).
   → *Criterio:* el campo obligatorio de cada medio se exige; el dato no aparece en ningún log.
 - [~] **F4-04b · Motor de vuelto con sus tres disposiciones** (§5.6).

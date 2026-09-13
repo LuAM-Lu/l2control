@@ -42,7 +42,7 @@ import {
   type PointOfSale,
   type Tender,
 } from "@l2/domain-cash";
-import { Badge, Button, Container, MoneyDisplay, NumericKeypad, Stepper, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { Button, Container, MoneyDisplay, NumericKeypad, Stepper, avisar, cn, formatMoneyVE } from "@l2/ui";
 import type { MedioPago } from "./fixtures.ts";
 import {
   PRODUCTOS_MOSTRADOR,
@@ -54,7 +54,14 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { FamilyAccountSchema, type AccountLineDto, type FamilyAccountDto } from "@l2/contracts";
+import {
+  FamilyAccountSchema,
+  type AccountLineDto,
+  type DatosDePagoDto,
+  type FamilyAccountDto,
+  type PosTerminalDto,
+} from "@l2/contracts";
+import { DatosPagoDialog, claveDeReferencia, resumenDatos, type Recordados } from "./DatosPagoDialog.tsx";
 import {
   esLineaDeMostrador,
   esVentaDirecta,
@@ -66,6 +73,9 @@ import {
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
+
+/** USDT → USD a la par (DEC-1: cuestión abierta con el contador). */
+const PARIDAD_USDT: FrozenRate = { from: "USDT", to: "USD", numerator: 1n, denominator: 1n };
 
 const MEDIO_ICONS: Record<string, typeof Banknote> = {
   EFECTIVO_USD: Banknote,
@@ -95,6 +105,7 @@ function CobroCuenta({
   onCobrado,
   rules,
   tenders: mediosDisponibles,
+  terminales,
   igtfBasisPoints,
   maxRetained,
   rate,
@@ -108,6 +119,8 @@ function CobroCuenta({
   onCobrado: (r: { total: string; vuelto: string }) => void;
   rules: readonly TaxRule[];
   tenders: readonly MedioPago[];
+  /** Terminales de punto de venta del local (F4-04). */
+  terminales: readonly PosTerminalDto[];
   igtfBasisPoints: number;
   maxRetained: Money;
   /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs.
@@ -126,7 +139,11 @@ function CobroCuenta({
 }) {
   const FUNCIONAL = "USD" as const;
 
-  const [pagos, setPagos] = useState<{ uid: string; medio: MedioPago; amount: Money }[]>([]);
+  const [pagos, setPagos] = useState<{ uid: string; medio: MedioPago; amount: Money; datos?: DatosDePagoDto }[]>([]);
+  /** Pago esperando sus datos: no entra al cobro hasta confirmarlos (F4-04). */
+  const [pendienteDeDatos, setPendienteDeDatos] = useState<{ medio: MedioPago; amount: Money } | null>(null);
+  /** Último banco, terminal y red: la siguiente vez ya vienen puestos. */
+  const [recordados, setRecordados] = useState<Recordados>({});
   const [medioActivo, setMedioActivo] = useState<MedioPago>(mediosDisponibles[0]!);
   const [monto, setMonto] = useState("");
   const [destinoVuelto, setDestinoVuelto] = useState<"VUELTO" | "PROPINA" | "CAJA">("VUELTO");
@@ -169,7 +186,11 @@ function CobroCuenta({
       pagos.map((p) => ({
         method: p.medio,
         amount: p.amount,
-        rate: p.amount.currency === FUNCIONAL ? null : rate,
+        // Cada moneda con SU tasa. Antes el USDT se convertía con la tasa de
+        // bolívares: la conversión fallaba y un cobro con USDT no se podía
+        // cerrar nunca. El USDT va 1:1 con el dólar, la misma paridad que ya
+        // usa el consolidado del IGTF, pendiente de confirmar con el contador.
+        rate: p.amount.currency === FUNCIONAL ? null : p.amount.currency === "USDT" ? PARIDAD_USDT : rate,
       })),
     [pagos, rate],
   );
@@ -218,6 +239,35 @@ function CobroCuenta({
 
   /* --------------------------------------------------------- acciones */
 
+  /**
+   * La única puerta de entrada de un pago. Si el medio exige datos (referencia,
+   * TxID, terminal…), el pago espera en el diálogo y no cuenta hasta que se
+   * confirman: un pago sin referencia no se puede conciliar (F4-04).
+   */
+  function registrarPago(medio: MedioPago, amount: Money) {
+    setError(null);
+    if (medio.datos) {
+      setPendienteDeDatos({ medio, amount });
+      return;
+    }
+    setPagos((prev) => [...prev, { uid: globalThis.crypto.randomUUID(), medio, amount }]);
+    setMonto("");
+  }
+
+  function confirmarDatos(datos: DatosDePagoDto) {
+    const p = pendienteDeDatos;
+    if (!p) return;
+    setPagos((prev) => [...prev, { uid: globalThis.crypto.randomUUID(), medio: p.medio, amount: p.amount, datos }]);
+    setRecordados((r) => ({
+      ...r,
+      ...(datos.kind === "PAGO_MOVIL" ? { bankCode: datos.bankCode } : {}),
+      ...(datos.kind === "PUNTO" ? { terminalId: datos.terminalId } : {}),
+      ...(datos.kind === "USDT" ? { network: datos.network } : {}),
+    }));
+    setPendienteDeDatos(null);
+    setMonto("");
+  }
+
   function agregarPago() {
     setError(null);
     const digitos = monto.replace(/\D/g, "");
@@ -230,11 +280,7 @@ function CobroCuenta({
       setError("Sin tasa confirmada del día no se puede cobrar en esa moneda");
       return;
     }
-    setPagos((prev) => [
-      ...prev,
-      { uid: globalThis.crypto.randomUUID(), medio: medioActivo, amount: valor },
-    ]);
-    setMonto("");
+    registrarPago(medioActivo, valor);
   }
 
   function cobrar() {
@@ -313,22 +359,11 @@ function CobroCuenta({
 
   function cobrarMontoExacto() {
     if (!montoExacto) return;
-    setError(null);
-    setPagos((prev) => [
-      ...prev,
-      { uid: globalThis.crypto.randomUUID(), medio: medioActivo, amount: montoExacto },
-    ]);
-    setMonto("");
+    registrarPago(medioActivo, montoExacto);
   }
 
   function agregarBilleteRapido(dolares: number) {
-    setError(null);
-    const valor = money(BigInt(dolares) * 100n, "USD");
-    setPagos((prev) => [
-      ...prev,
-      { uid: globalThis.crypto.randomUUID(), medio: medioActivo, amount: valor },
-    ]);
-    setMonto("");
+    registrarPago(medioActivo, multiply(money(100n, "USD"), BigInt(dolares)));
   }
 
   return (
@@ -463,14 +498,19 @@ function CobroCuenta({
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <Icon size={14} className="text-ink-3 shrink-0" aria-hidden="true" />
-                          <Badge tone={p.medio.triggersIgtf ? "warn" : "idle"}>
-                            {p.medio.label}
-                          </Badge>
-                          {p.medio.triggersIgtf && linea && (
-                            <span className="text-[11px] whitespace-nowrap text-ink-3">
-                              + IGTF {toMajor(linea.igtf)}
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-2">
+                              <span className="text-[13px] font-semibold text-ink">{p.medio.label}</span>
+                              {p.medio.triggersIgtf && linea && (
+                                <span className="tnum text-[11px] whitespace-nowrap text-ink-3">
+                                  + IGTF {formatMoneyVE(toMajor(linea.igtf), linea.igtf.currency)}
+                                </span>
+                              )}
                             </span>
-                          )}
+                            {p.datos && (
+                              <span className="tnum block truncate text-[11.5px] text-ink-3">{resumenDatos(p.datos, terminales)}</span>
+                            )}
+                          </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
                           <MoneyDisplay
@@ -482,7 +522,7 @@ function CobroCuenta({
                             type="button"
                             onClick={() => setPagos((prev) => prev.filter((x) => x.uid !== p.uid))}
                             aria-label={`Quitar el pago de ${p.medio.label}`}
-                            className="grid size-9 cursor-pointer place-content-center rounded text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
+                            className="relative grid size-10 cursor-pointer place-content-center rounded text-ink-3 transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-state-crit-bg hover:text-state-crit"
                           >
                             <X size={15} aria-hidden="true" />
                           </button>
@@ -517,17 +557,12 @@ function CobroCuenta({
 
             {igtfTotal.amount > 0n && (
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-state-warn">
+                <dt className="text-ink-2">
                   IGTF {igtfBasisPoints / 100}%
                   <span className="ml-1.5 text-ink-3">solo sobre lo pagado en divisas</span>
                 </dt>
                 <dd>
-                  <MoneyDisplay
-                    value={toMajor(igtfTotal)}
-                    currency="USD"
-                    size="sm"
-                    tone="negative"
-                  />
+                  <MoneyDisplay value={toMajor(igtfTotal)} currency="USD" size="sm" tone="muted" />
                 </dd>
               </div>
             )}
@@ -540,9 +575,8 @@ function CobroCuenta({
             </div>
 
             {igtfTotal.amount > 0n && (
-              <p className="mt-1 rounded-[var(--radius-control)] border border-state-warn/30 bg-state-warn-bg px-3 py-2 text-[12px] text-state-warn">
-                El total subió porque el IGTF grava el <strong>medio de pago</strong>, no la venta:
-                solo se aplica a lo que se paga en divisas o cripto.
+              <p className="mt-0.5 text-[11.5px] text-ink-3">
+                El IGTF grava el medio de pago, no la venta: solo lo pagado en divisas o cripto.
               </p>
             )}
           </dl>
@@ -586,9 +620,13 @@ function CobroCuenta({
                   </p>
                   <p
                     aria-live="polite"
-                    className={cn("tnum mt-1 text-2xl leading-none font-bold", digitos === "" ? "text-ink-3" : "text-ink")}
+                    className={cn(
+                      "tnum mt-1 leading-none font-bold",
+                      tecleado.currency === "VES" ? "text-lg" : "text-2xl",
+                      digitos === "" ? "text-ink-3" : "text-ink",
+                    )}
                   >
-                    {toMajor(tecleado)}
+                    {formatMoneyVE(toMajor(tecleado), tecleado.currency)}
                   </p>
                 </div>
               )}
@@ -620,7 +658,7 @@ function CobroCuenta({
                   onClick={() => setMedioActivo(m)}
                   title={bloqueado ? "Sin tasa del día no se puede cobrar en esta moneda" : m.label}
                   className={cn(
-                    "flex min-h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border p-2 text-left",
+                    "flex h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-2 text-left",
                     "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     "disabled:cursor-not-allowed disabled:opacity-35",
@@ -630,13 +668,13 @@ function CobroCuenta({
                   )}
                 >
                   <div className="flex w-full items-center justify-between gap-1">
-                    <span className="truncate text-[12px] leading-tight font-bold">{m.label}</span>
+                    <span className="truncate text-[13px] leading-tight font-bold">{m.label}</span>
                     <Icon size={13} className={activo ? "text-brand" : "text-ink-3"} aria-hidden="true" />
                   </div>
-                  <div className="mt-0.5 flex w-full items-center justify-between text-[9.5px]">
+                  <div className="mt-0.5 flex w-full items-center justify-between text-[11px]">
                     <span className={m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3"}>{m.currency}</span>
                     {m.triggersIgtf ? (
-                      <span className="rounded bg-state-warn-bg px-1 font-bold text-state-warn">+3% IGTF</span>
+                      <span className="rounded border border-line-strong px-1 font-semibold text-ink-2">+3% IGTF</span>
                     ) : (
                       <span className="text-ink-3">0% IGTF</span>
                     )}
@@ -802,6 +840,16 @@ function CobroCuenta({
             </Button>
           </div>
         </aside>
+
+        <DatosPagoDialog
+          tipo={pendienteDeDatos?.medio.datos ?? null}
+          monto={pendienteDeDatos ? `${pendienteDeDatos.medio.label} · ${formatMoneyVE(toMajor(pendienteDeDatos.amount), pendienteDeDatos.amount.currency)}` : ""}
+          terminales={terminales}
+          recordados={recordados}
+          referenciasUsadas={pagos.flatMap((p) => (p.datos ? [claveDeReferencia(p.datos)] : []))}
+          onConfirmar={confirmarDatos}
+          onCancelar={() => setPendienteDeDatos(null)}
+        />
     </>
   );
 }

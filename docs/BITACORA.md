@@ -472,3 +472,21 @@ cupiera sin tener que abrir nada. Juntar esos dos botones liberaba unos 64 px y 
 «Otro monto» desapareció, porque el teclado ya está siempre. Medido en navegador: con los seis medios, a
 1366×768 y a 1280×800, el teclado queda en el mismo píxel, nada desborda y teclear no mueve nada. De paso,
 la tecla «Añadir» apagada ya no queda naranja a medias: se vuelve neutra, como los botones.
+
+## Datos de cada pago y auditoría de Caja — 2026-09-12
+
+El cliente preguntó qué pasa con los datos de un Pago Móvil, un Zelle, un USDT o un punto de venta cuando
+hay más de un terminal. Era F4-04 y no existía: un pago así entraba sin referencia y no se podía conciliar.
+Ahora el contrato `DatosDePagoSchema` dice qué exige cada medio, y la caja lo pide **al añadir** el pago,
+en un diálogo pensado para la cola: el foco cae en la referencia, Enter confirma, se recuerdan el banco, el
+terminal y la red, y una referencia repetida en el mismo cobro se rechaza. En la lista de pagos los datos
+van enmascarados (§7.6).
+
+La prueba de punta a punta con los cuatro medios destapó un fallo que venía de F4-03: **un cobro con USDT
+nunca se podía cerrar**, porque se convertía con la tasa de bolívares. Va a la par con el dólar, como ya
+asumía el IGTF, a confirmar con el contador.
+
+La auditoría de Caja quedó en [UX-MEJORAS.md](UX-MEJORAS.md) §9. Además de lo anterior, se corrigieron el
+IGTF pintado con colores de alarma, las etiquetas de 9,5 px y el formato de lo tecleado en bolívares.
+Quedan propuestas (atajos de teclado, avisos de cola, búsqueda, recibo) y una decisión nueva: D14,
+identificar al cliente en la factura.

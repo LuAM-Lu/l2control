@@ -258,3 +258,47 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 | **D13** | Número de orden: ¿continuo o se reinicia cada día? | Hecho continuo por sucursal (`#1049`). Reiniciar a diario da números cortos para llamar al cliente, pero obliga a decir también la fecha en cada reclamo |
 | — | Librería de toasts | Sonner, tras vuestra investigación |
 
+
+---
+
+## 9. Auditoría de Caja — 2026-09-12
+
+Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y **facilidad de uso**. Estado:
+**✔ hecho** en esta revisión · **propuesta** para aprobar · **decisión** del cliente.
+
+### 9.1 Fluidez y rapidez
+
+| # | Hallazgo | Estado |
+|---|---|---|
+| C1 | Un Pago Móvil, un Zelle, un USDT o un punto de venta entraban al cobro **sin referencia**: no se podían conciliar al cierre (F4-04) | ✔ Se piden al añadir el pago; recuerda banco, terminal y red; rechaza una referencia repetida en el mismo cobro |
+| C2 | **Un cobro con USDT no se podía cerrar**: se convertía con la tasa de bolívares (fallo desde F4-03) | ✔ USDT a la par con el dólar, como ya asumía el IGTF (DEC-1, a confirmar con el contador) |
+| C3 | Con dos o más terminales de punto de venta no se sabía por cuál entró el pago | ✔ Se elige el terminal; con uno se asume. La lista se configurará en F4-02 |
+| C4 | El teclado se escondía y la columna cambiaba al usarlo | ✔ Columna fija: el teclado queda en el mismo píxel con cualquier medio |
+| C5 | El mostrador tiene teclado físico y no hay atajos | Propuesta: 1-6 elige medio, Enter añade, F2 cobrar exacto, F9 cerrar cobro, Esc cancela |
+| C6 | Una cuenta nueva llega a la cola sin avisar y sin decir cuánto lleva esperando | Propuesta: destello al llegar, minutos de espera y orden por antigüedad |
+| C7 | Con muchas cuentas no hay cómo buscar | Propuesta: buscar por nombre, número de orden o pulsera |
+| C8 | Tras cobrar no hay recibo | Propuesta: «Imprimir» y «Enviar por WhatsApp» en el aviso (F1-12) |
+| C9 | Cobro dividido (F6-12) y propina explícita (F6-13) | Llegan con la caja de mesas (DEC-22 paso 4) |
+
+### 9.2 Visual
+
+| # | Hallazgo | Estado |
+|---|---|---|
+| V1 | El IGTF usaba **ámbar y rojo**, colores reservados para «revisar» y «error»: el IGTF es un dato fiscal, no una alarma | ✔ Neutro en medios, pagos y totales; el aviso largo pasó a una línea |
+| V2 | Etiquetas de 9,5 px en los botones de medio | ✔ 11 y 13 px, sin cambiar el alto de 56 px |
+| V3 | Lo tecleado en bolívares se mostraba «1000.00» | ✔ «Bs. 1.000,00» |
+| V4 | «Venta directa» (amarillo punteado) compite con la cuenta elegida (amarillo) | Propuesta: botón neutro con icono; el amarillo solo para lo seleccionado |
+| V5 | La cola no dice de dónde viene cada cuenta | Propuesta: icono de origen (parque, mesa, mostrador) |
+
+### 9.3 Facilidad de uso
+
+| # | Hallazgo | Estado |
+|---|---|---|
+| U1 | Quitar un pago: botón de 36 px | ✔ Objetivo de 56 px |
+| U2 | Los datos del pago en la lista, a la vista de la cola | ✔ Enmascarados: «Mercantil · Ref. ···1236» (§7.6) |
+| U3 | Corregir una referencia obliga a quitar el pago y añadirlo de nuevo | Propuesta: tocar el pago para editar sus datos |
+| U4 | **La factura no identifica al cliente** (cédula o RIF, nombre) | **Decisión D14**: «Consumidor final» por defecto, con opción de identificar; obligatorio si el cliente pide factura con RIF |
+
+| # | Decisión | Propuesta |
+|---|---|---|
+| **D14** | ¿Se identifica al cliente en la factura? | Consumidor final por defecto; cédula o RIF y nombre cuando lo pida. Confirmar con el contador (DEC-1) |

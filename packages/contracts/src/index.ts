@@ -106,3 +106,15 @@ export {
   type MenuItemDto,
   type MenuDto,
 } from "./restaurante.ts";
+
+export {
+  DatosDePagoSchema,
+  PosTerminalSchema,
+  RedUsdtSchema,
+  TelefonoVeSchema,
+  DocumentoVeSchema,
+  type DatosDePagoDto,
+  type TipoDeDatosDePago,
+  type PosTerminalDto,
+  type RedUsdt,
+} from "./pagos.ts";

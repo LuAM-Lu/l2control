@@ -7,6 +7,7 @@
 import { fromMajor } from "@l2/domain-money";
 import type { PaymentMethodSpec, TaxRule } from "@l2/domain-tax";
 import type { TenderMethod } from "@l2/domain-cash";
+import { PosTerminalSchema, type PosTerminalDto, type TipoDeDatosDePago } from "@l2/contracts";
 
 /**
  * Alícuotas de trabajo. **No son una afirmación sobre la normativa vigente**:
@@ -32,7 +33,12 @@ export const DEMO_MAX_RETAINED = fromMajor("0.05", "USD");
  * y solo el efectivo devuelve vuelto. Modelarlos como datos permite
  * corregirlos sin desplegar (§9.9).
  */
-export type MedioPago = PaymentMethodSpec & TenderMethod;
+export type MedioPago = PaymentMethodSpec &
+  TenderMethod &
+  Readonly<{
+    /** Qué datos exige el medio antes de aceptar el pago (F4-04). Sin campo, ninguno. */
+    datos?: TipoDeDatosDePago;
+  }>;
 
 export const DEMO_TENDERS: MedioPago[] = [
   {
@@ -55,6 +61,7 @@ export const DEMO_TENDERS: MedioPago[] = [
     currency: "VES",
     triggersIgtf: false,
     canGiveChange: false,
+    datos: "PAGO_MOVIL",
   },
   {
     code: "PDV_DEBITO",
@@ -62,6 +69,7 @@ export const DEMO_TENDERS: MedioPago[] = [
     currency: "VES",
     triggersIgtf: false,
     canGiveChange: false,
+    datos: "PUNTO",
   },
   {
     code: "ZELLE",
@@ -69,6 +77,7 @@ export const DEMO_TENDERS: MedioPago[] = [
     currency: "USD",
     triggersIgtf: true,
     canGiveChange: false,
+    datos: "ZELLE",
   },
   {
     code: "USDT",
@@ -76,5 +85,16 @@ export const DEMO_TENDERS: MedioPago[] = [
     currency: "USDT",
     triggersIgtf: true,
     canGiveChange: false,
+    datos: "USDT",
   },
 ];
+
+/**
+ * Terminales de punto de venta del local. Con dos o más, la cajera elige por
+ * cuál pasó la tarjeta; con uno, se asume.
+ * TODO(F4-02): se configuran en Configuración; hoy son de ejemplo.
+ */
+export const DEMO_TERMINALES: readonly PosTerminalDto[] = PosTerminalSchema.array().parse([
+  { id: "pdv-banesco", name: "Punto Banesco", bank: "Banesco" },
+  { id: "pdv-mercantil", name: "Punto Mercantil", bank: "Mercantil" },
+]);
