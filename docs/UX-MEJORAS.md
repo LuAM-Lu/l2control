@@ -255,5 +255,6 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 | **D10** | ¿Quién edita el plano de mesas? | Solo administración. El supervisor lo ve pero no lo mueve |
 | **D11** | Numeración y zonas del dibujo | 1-4 «Junto al parque», 5-8 «Salón», 4 sillas cada una |
 | **D12** | ¿El back-office puede desplazar? | Sí. Lo urgente arriba; las estaciones siguen sin desplazar |
+| **D13** | Número de orden: ¿continuo o se reinicia cada día? | Hecho continuo por sucursal (`#1049`). Reiniciar a diario da números cortos para llamar al cliente, pero obliga a decir también la fecha en cada reclamo |
 | — | Librería de toasts | Sonner, tras vuestra investigación |
 

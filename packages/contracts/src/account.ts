@@ -47,6 +47,17 @@ export const FamilyAccountSchema = z
     family: z.string().trim().min(2).max(80),
     mode: PaymentModeSchema,
     status: AccountStatusSchema,
+    /**
+     * Número de orden: el correlativo que ampara la cuenta en toda la sucursal,
+     * sea de una familia, de una mesa o del mostrador. Es lo que se dice en voz
+     * alta y se busca en un reclamo. NO es el número de factura: ese lo asigna
+     * la máquina fiscal al emitir y tiene su propia serie (F3, SENIAT).
+     *
+     * Lo asigna quien registra la cuenta —mañana el servidor, en la misma
+     * transacción que la crea—, nunca la pantalla. Opcional solo hasta ese
+     * momento: una cuenta sin número todavía no está registrada.
+     */
+    orderNumber: z.number().int().positive().optional(),
     openedAt: TimestampSchema,
     sessionIds: z.array(IdSchema).min(1, "Una cuenta de parque tiene al menos un niño"),
     /** Estancias ya cerradas en la salida. */

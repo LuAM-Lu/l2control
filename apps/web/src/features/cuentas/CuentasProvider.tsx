@@ -44,7 +44,12 @@ export function CuentasProvider({ children }: { children: React.ReactNode }) {
       const crudo = window.sessionStorage.getItem(CLAVE);
       if (crudo) {
         const r = FamilyAccountSchema.array().safeParse(JSON.parse(crudo));
-        if (r.success) setCuentas(r.data);
+        if (r.success) {
+          // Cuentas guardadas antes de existir el número de orden: reciben el
+          // siguiente correlativo, en el orden en que se abrieron.
+          let ultimo = r.data.reduce((max, c) => Math.max(max, c.orderNumber ?? 0), 0);
+          setCuentas(r.data.map((c) => (c.orderNumber ? c : { ...c, orderNumber: ++ultimo })));
+        }
         else window.sessionStorage.removeItem(CLAVE);
       }
     } catch {
@@ -64,11 +69,18 @@ export function CuentasProvider({ children }: { children: React.ReactNode }) {
 
   const guardar = useCallback((cuenta: FamilyAccountDto) => {
     const valida = FamilyAccountSchema.parse(cuenta);
-    setCuentas((prev) =>
-      prev.some((c) => c.id === valida.id)
-        ? prev.map((c) => (c.id === valida.id ? valida : c))
-        : [...prev, valida],
-    );
+    setCuentas((prev) => {
+      const previa = prev.find((c) => c.id === valida.id);
+      if (previa) {
+        // El número de orden no cambia nunca: se conserva el que ya tenía.
+        return prev.map((c) => (c.id === valida.id ? { ...valida, orderNumber: previa.orderNumber ?? valida.orderNumber } : c));
+      }
+      // Cuenta nueva: recibe el siguiente correlativo de la sucursal. Se
+      // calcula aquí, dentro de la actualización, para que dos altas seguidas
+      // no reciban el mismo número.
+      const siguiente = prev.reduce((max, c) => Math.max(max, c.orderNumber ?? 0), 0) + 1;
+      return [...prev, { ...valida, orderNumber: valida.orderNumber ?? siguiente }];
+    });
   }, []);
 
   const descartar = useCallback((id: string) => {

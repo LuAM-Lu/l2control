@@ -40,6 +40,11 @@ export function esLineaDeMostrador(l: FamilyAccountDto["lines"][number]): boolea
   return l.kind === "RESTAURANTE" && l.id.includes("-snk-") && !l.paid;
 }
 
+/** «#1042»: como se dice y se busca un número de orden. */
+export function numeroDeOrden(c: FamilyAccountDto): string {
+  return c.orderNumber ? `#${String(c.orderNumber).padStart(4, "0")}` : "Sin número";
+}
+
 /** Venta de mostrador: una cuenta sin familia, abierta en la caja. */
 export function esVentaDirecta(c: FamilyAccountDto): boolean {
   return c.id.startsWith("c-dir-");

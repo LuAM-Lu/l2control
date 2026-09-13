@@ -439,3 +439,19 @@ su cantidad** (contador de 56 px al tocarla, precio por unidad y «Eliminar»), 
 
 Queda registrada una deuda: la venta de mostrador se guarda como cuenta de familia con una estancia
 ficticia (`s-mostrador`), porque el contrato exige un niño. Necesita su propio tipo de cuenta.
+
+## Número de orden y la caja como factura — 2026-09-12
+
+Tres pedidos del cliente sobre la caja, en la misma sesión:
+
+- **Cada cuenta lleva un número de orden** (`#1049`), un correlativo único para toda la sucursal: familia,
+  mesa o mostrador. Es lo que se dice en voz alta y se busca en un reclamo. **No es el número de factura**:
+  ese lo pone la máquina fiscal al emitir, con su propia serie. En el contrato es `orderNumber`, y lo asigna
+  quien registra la cuenta —hoy el proveedor de cuentas, mañana el servidor en la misma transacción—,
+  nunca la pantalla. Aparece en la cola, en la cabecera del ticket y en los avisos («Orden #1049 cobrada»).
+  Queda abierta la decisión D13: si se reinicia cada día o es continuo.
+- **La cabecera del ticket cabe en un renglón**: número, familia, forma de pago y hora de apertura. La
+  fila «Caja · 2 cuentas por cobrar · cobra en mostrador» era redundante —la cola ya lo dice— y se quitó:
+  ese alto es para los ítems.
+- **Factura de verdad**: columnas de cantidad, concepto, precio unitario e importe, filas de 32 px, y la
+  cuenta más ancha (675 px a 1366; 944 px a 1920, porque la caja ya usa el ancho de pantallas grandes).

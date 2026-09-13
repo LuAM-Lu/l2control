@@ -29,7 +29,7 @@ const prepago = (id: string, family: string, sessionId: string, concept: string,
   lines: [paquete(id, sessionId, concept, minor, true)],
 });
 
-export const DEMO_CUENTAS = FamilyAccountSchema.array().parse([
+const CUENTAS = FamilyAccountSchema.array().parse([
   prepago("c-rojas", "Ana Rojas", "s1", "Paquete 1 hora · Vale", "500"),
   prepago("c-guerrero", "Luis Guerrero", "s2", "Paquete 30 minutos · Mateo", "300"),
   prepago("c-prieto", "Marisol Prieto", "s3", "Paquete 1 hora · Isa", "500"),
@@ -90,3 +90,6 @@ export const DEMO_CUENTAS = FamilyAccountSchema.array().parse([
     ],
   },
 ]);
+
+/** Con su número de orden: el turno de ejemplo ya llevaba unas cuantas cuentas. */
+export const DEMO_CUENTAS = CUENTAS.map((c, i) => ({ ...c, orderNumber: 1041 + i }));

@@ -58,12 +58,15 @@ import type { Route } from "next";
 import { FamilyAccountSchema, type AccountLineDto, type FamilyAccountDto } from "@l2/contracts";
 import {
   esLineaDeMostrador,
+  esVentaDirecta,
   lineasParaCobrar,
+  numeroDeOrden,
   marcarCobrada,
   pendiente,
   puedeDescartarse,
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { formatClock } from "../park/time-format.ts";
 
 const MEDIO_ICONS: Record<string, typeof Banknote> = {
   EFECTIVO_USD: Banknote,
@@ -337,13 +340,18 @@ function CobroCuenta({
     <>
         {/* ═══════════════════════ la cuenta ═══════════════════════════ */}
         <section className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:col-start-1 md:row-start-2 lg:col-start-2 lg:row-start-1">
-          <div className="flex items-center justify-between border-b border-line px-5 py-3">
-            <div>
-              <h2 className="font-display text-base font-bold text-ink">La cuenta</h2>
-              <span className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
-                {cuenta.family} · {cuenta.mode === "PREPAGO" ? "prepago" : "cuenta abierta"}
+          {/* Un solo renglón: qué orden es, de quién, cómo paga y desde cuándo. */}
+          <div className="flex items-center gap-3 border-b border-line py-2 pr-2 pl-5">
+            <h2 className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+              <span className="font-display tnum text-lg leading-none font-bold text-ink">{numeroDeOrden(cuenta)}</span>
+              <span className="truncate text-[14px] font-semibold text-ink-2">
+                {esVentaDirecta(cuenta) ? "Venta de mostrador" : cuenta.family}
               </span>
-            </div>
+              <span className="text-[12px] text-ink-3">
+                {esVentaDirecta(cuenta) ? "Mostrador" : cuenta.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"} ·{" "}
+                {formatClock(Date.parse(cuenta.openedAt))}
+              </span>
+            </h2>
             {onAgregarProducto && (
               <button
                 type="button"
@@ -373,21 +381,27 @@ function CobroCuenta({
                 derecha, filas compactas y sin numerar. Lo que se añadió en
                 mostrador se toca para quitarlo: la fila crece y enseña el
                 botón, en vez de llevar una «x» diminuta en cada renglón. */}
-            <div className="flex items-baseline justify-between border-b border-line pb-1.5 text-[10px] font-semibold tracking-[0.09em] text-ink-3 uppercase">
+            <div className={cn(COLUMNAS, "border-b border-line pb-1 text-[10px] font-semibold tracking-[0.09em] text-ink-3 uppercase")}>
+              <span className="text-right">Cant.</span>
               <span>Concepto</span>
-              <span>Importe</span>
+              <span className="text-right">P. unit.</span>
+              <span className="text-right">Importe</span>
             </div>
             <ul className="flex flex-col divide-y divide-dashed divide-line/60">
               {filas.map((f) => {
                 const importe = formatMoneyVE(toMajor(multiply(f.precio, BigInt(f.cantidad))), f.precio.currency);
                 const editable = f.item !== null && onCambiarCantidad !== undefined;
                 const abierta = editable && filaAbierta === f.clave;
-                const nombre = (
-                  <span className="flex min-w-0 items-baseline gap-1.5">
-                    {f.item && <ShoppingBag size={12} className="shrink-0 self-center text-ink-3" aria-hidden="true" />}
-                    <span className="truncate text-ink-2">{f.concepto}</span>
-                    {f.cantidad > 1 && <span className="tnum shrink-0 text-[12px] font-semibold text-ink-3">× {f.cantidad}</span>}
-                  </span>
+                const celdas = (
+                  <>
+                    <span className="tnum text-right font-semibold text-ink">{f.cantidad}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-ink-2">{f.concepto}</span>
+                      {f.item && <ShoppingBag size={11} className="shrink-0 text-ink-3" aria-label="de mostrador" />}
+                    </span>
+                    <span className="tnum text-right text-ink-3">{formatMoneyVE(toMajor(f.precio), f.precio.currency)}</span>
+                    <span className="tnum text-right font-medium text-ink">{importe}</span>
+                  </>
                 );
                 return (
                   <li key={f.clave} className={cn(abierta && "bg-surface-2/60")}>
@@ -397,16 +411,12 @@ function CobroCuenta({
                         aria-expanded={abierta}
                         aria-label={`${f.concepto}, ${f.cantidad} ${f.cantidad === 1 ? "unidad" : "unidades"}, ${importe}. Cambiar cantidad`}
                         onClick={() => setFilaAbierta(abierta ? null : f.clave)}
-                        className="flex min-h-9 w-full cursor-pointer items-baseline justify-between gap-3 py-1.5 text-left text-[13.5px] transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+                        className={cn(COLUMNAS, "min-h-8 w-full cursor-pointer py-1 text-left text-[13px] transition-colors hover:bg-surface-2/50 focus-visible:outline-2 focus-visible:outline-brand")}
                       >
-                        {nombre}
-                        <span className="tnum shrink-0 font-medium text-ink">{importe}</span>
+                        {celdas}
                       </button>
                     ) : (
-                      <div className="flex min-h-9 items-baseline justify-between gap-3 py-1.5 text-[13.5px]">
-                        {nombre}
-                        <span className="tnum shrink-0 font-medium text-ink">{importe}</span>
-                      </div>
+                      <div className={cn(COLUMNAS, "min-h-8 py-1 text-[13px]")}>{celdas}</div>
                     )}
                     {abierta && f.item && (
                       <div className="flex flex-wrap items-center gap-2 pb-2">
@@ -418,9 +428,6 @@ function CobroCuenta({
                           max={50}
                           surface="pos"
                         />
-                        <span className="tnum text-[12px] text-ink-3">
-                          {formatMoneyVE(toMajor(f.precio), f.precio.currency)} c/u
-                        </span>
                         <Button
                           surface="pos"
                           variant="danger"
@@ -442,9 +449,8 @@ function CobroCuenta({
 
             {/* Los pagos son parte del mismo documento, no una tarjeta aparte. */}
             {pagos.length === 0 ? (
-              <p className="mt-4 border-t border-line/40 pt-4 text-[13px] text-ink-3">
-                Todavía no se ha recibido ningún pago. Elige el medio, teclea el monto o pulsa
-                «Cobrar exacto». Se pueden combinar varios: efectivo y punto, dólares y bolívares.
+              <p className="mt-3 border-t border-line/40 pt-3 text-[12.5px] text-ink-3">
+                Sin pagos todavía. Se pueden combinar medios: efectivo y punto, dólares y bolívares.
               </p>
             ) : (
               <div className="mt-5">
@@ -983,7 +989,7 @@ export function CajaScreen({
   function alCobrar(cuenta: FamilyAccountDto, r: { total: string; vuelto: string }) {
     guardar(marcarCobrada(cuenta));
     setElegida(null);
-    avisar.ok(`Cobrado: ${formatMoneyVE(r.total, "USD")} · ${cuenta.family}`, {
+    avisar.ok(`Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`, {
       ...(r.vuelto !== "0.00" ? { detalle: `Vuelto entregado: ${formatMoneyVE(r.vuelto, "USD")}` } : {}),
       ...(origen ? { accion: { texto: `Volver a ${origen.nombre}`, alPulsar: () => router.push(origen.ruta) } } : {}),
     });
@@ -1003,11 +1009,10 @@ export function CajaScreen({
    * contrato exige un niño; necesita su propio tipo de cuenta en el contrato.
    */
   function crearVentaDirecta(producto: ProductoMostrador) {
-    const numero = cuentas.filter((c) => c.id.startsWith("c-dir-")).length + 1;
     const id = `c-dir-${globalThis.crypto.randomUUID().slice(0, 6)}`;
     const nueva: FamilyAccountDto = FamilyAccountSchema.parse({
       id,
-      family: `Mostrador #${numero}`,
+      family: "Mostrador",
       mode: "PREPAGO",
       status: "POR_COBRAR",
       openedAt: new Date().toISOString(),
@@ -1082,7 +1087,7 @@ export function CajaScreen({
       if (puedeDescartarse(actual)) {
         descartar(actual.id);
         setElegida(null);
-        avisar.info(`${actual.family} descartada: no quedaba nada por cobrar`);
+        avisar.info(`Orden ${numeroDeOrden(actual)} descartada: no quedaba nada por cobrar`);
       }
       return;
     }
@@ -1091,22 +1096,12 @@ export function CajaScreen({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Cabecera delgada: el título no compite con la cifra. */}
-      <header className="border-b border-line">
-        <Container ancho="operacion" className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3">
-          <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
-            Caja
-          </h1>
-          <p className="tnum text-[13px] text-ink-3">
-            {porCobrar.length} {porCobrar.length === 1 ? "cuenta por cobrar" : "cuentas por cobrar"}{" "}
-            · cobra en {cobro.puntoDeCobro === "TAQUILLA" ? "taquilla" : "mostrador"}
-          </p>
-        </Container>
-      </header>
-
+      {/* Sin cabecera visible: lo que decía («2 por cobrar · mostrador») ya está en
+          la cola. El título sigue para los lectores de pantalla. */}
+      <h1 className="sr-only">Caja</h1>
       <Container
         as="main"
-        ancho="operacion"
+        ancho="muro"
         className={cn(
           "grid flex-1 gap-4 py-4",
           // Desde lg la caja se reparte el alto de la ventana y cada columna
@@ -1114,7 +1109,7 @@ export function CajaScreen({
           // En tablet vertical, dos columnas: la cola sobre la cuenta y el
           // cobro al lado, a todo el alto. En escritorio, tres.
           "md:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]",
-          "lg:min-h-0 lg:grid-cols-[16rem_minmax(0,1fr)_clamp(360px,30vw,420px)]",
+          "lg:min-h-0 lg:grid-cols-[15rem_minmax(0,1fr)_clamp(340px,26vw,400px)]",
         )}
       >
         <ColaCuentas
@@ -1126,6 +1121,7 @@ export function CajaScreen({
           }}
           onNuevaVentaDirecta={onNuevaVentaDirecta}
           ventaNueva={ventaNueva}
+          puntoDeCobro={cobro.puntoDeCobro}
         />
         {ventaNueva ? (
           <NuevaVentaDirecta
@@ -1157,21 +1153,25 @@ function ColaCuentas({
   onElegir,
   onNuevaVentaDirecta,
   ventaNueva,
+  puntoDeCobro,
 }: {
   cuentas: readonly FamilyAccountDto[];
   actual: string | null;
   onElegir: (id: string) => void;
   onNuevaVentaDirecta: () => void;
   ventaNueva: boolean;
+  puntoDeCobro: PointOfSale;
 }) {
   return (
     <section
       aria-label="Cuentas por cobrar"
       className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:col-start-1 md:row-start-1 lg:col-start-1 lg:row-start-1"
     >
-      <div className="flex items-baseline justify-between border-b border-line px-4 py-3">
-        <h2 className="font-display text-base font-bold text-ink">Por cobrar</h2>
-        <span className="tnum text-[12px] text-ink-3">{cuentas.length}</span>
+      <div className="flex items-baseline justify-between gap-2 border-b border-line px-4 py-3">
+        <h2 className="font-display text-base font-bold text-ink">
+          Por cobrar <span className="tnum ml-1 text-[13px] font-semibold text-ink-3">{cuentas.length}</span>
+        </h2>
+        <span className="text-[11.5px] text-ink-3">{puntoDeCobro === "TAQUILLA" ? "Taquilla" : "Mostrador"}</span>
       </div>
 
       <div className="border-b border-line/40 p-2">
@@ -1195,7 +1195,7 @@ function ColaCuentas({
         <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
           {cuentas.map((c) => {
             const activa = c.id === actual;
-            const esDirecta = c.id.startsWith("c-dir-") || c.family.startsWith("Mostrador");
+            const esDirecta = esVentaDirecta(c);
             return (
               <li key={c.id}>
                 <button
@@ -1211,12 +1211,14 @@ function ColaCuentas({
                 >
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="truncate text-[13.5px] font-semibold text-ink">
-                      {c.family}
+                      {esDirecta ? "Venta de mostrador" : c.family}
                     </span>
                     <MoneyDisplay value={toMajor(pendiente(c))} currency="USD" size="sm" />
                   </span>
                   <span className="text-[11.5px] text-ink-3">
-                    {esDirecta ? "Venta mostrador" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                    <span className="tnum font-semibold text-ink-2">{numeroDeOrden(c)}</span>
+                    {" · "}
+                    {esDirecta ? "Mostrador" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
                     {!esDirecta && ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
                   </span>
                 </button>
@@ -1233,6 +1235,9 @@ function ColaCuentas({
  * La carta de mostrador: una rejilla táctil por categorías. La usan la venta
  * directa y «Añadir productos» de una cuenta abierta, así que vive una vez.
  */
+/** Columnas de la factura: cantidad, concepto, precio unitario e importe. */
+const COLUMNAS = "grid grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.75rem] items-baseline gap-x-3";
+
 function CartaMostrador({
   aBolivares,
   onElegir,
