@@ -1,6 +1,6 @@
 # Qué queda pendiente
 
-> **Actualizado:** 2026-09-13. Una sola lista con todo lo que falta, agrupada por **quién lo
+> **Actualizado:** 2026-09-14. Una sola lista con todo lo que falta, agrupada por **quién lo
 > desbloquea**. El estado tarea por tarea sigue en [PROGRESO.md](PROGRESO.md); el porqué de cada
 > paso, en [BITACORA.md](BITACORA.md). Cuando algo de aquí se resuelve, se tacha aquí y se anota
 > en la bitácora en el mismo commit.
