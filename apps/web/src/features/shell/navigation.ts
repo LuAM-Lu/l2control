@@ -127,7 +127,7 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "comandas",
         nombre: "Comandas del día",
-        href: null,
+        href: "/cocina",
         // La cocina no toma pedidos, pero las comandas son su trabajo.
         accion: "kds.cambiarEstado",
         proposito:
