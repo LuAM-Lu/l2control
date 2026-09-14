@@ -261,11 +261,11 @@ function Mesa({
           return (
             <g key={i} transform={`rotate(${(360 / t.seats) * i} ${t.x} ${t.y})`}>
               <rect
-                x={t.x - 15}
-                y={t.y - r - 24}
-                width={30}
-                height={16}
-                rx={6}
+                x={t.x - 13}
+                y={t.y - r - 14}
+                width={26}
+                height={14}
+                rx={5}
                 fill={ocupada ? "var(--color-brand)" : "var(--color-surface-2)"}
                 fillOpacity={ocupada ? 0.85 : 1}
                 stroke={ocupada ? "var(--color-brand)" : "var(--color-line-strong)"}

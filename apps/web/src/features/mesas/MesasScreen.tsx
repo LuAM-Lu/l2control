@@ -194,7 +194,7 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
         <Container
           as="main"
           ancho="operacion"
-          className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[clamp(340px,34vw,480px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
+          className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[3fr_2fr] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
         >
           <TomaPedido
             mesaLabel={elegida.mesa.label}
@@ -253,7 +253,7 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
       <Container
         as="main"
         ancho="operacion"
-        className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[clamp(340px,34vw,480px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
+        className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[3fr_2fr] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
       >
         <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
           {/* El plano se parece al local; la lista se lee mejor en móvil y con

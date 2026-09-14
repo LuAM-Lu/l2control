@@ -15,7 +15,8 @@
  */
 import { MenuSchema, PlanoLocalSchema, type MenuDto, type PlanoLocalDto } from "@l2/contracts";
 
-/** Mesa redonda de 4 sillas: 90 cm de diámetro. */
+/** Mesa redonda de 4 sillas: 80 cm de diámetro. Con sus sillas ocupa 136 cm, así que
+ *  las filas y columnas van a 150 cm: nunca se tocan. */
 const redonda = (n: number, zone: string, x: number, y: number) => ({
   id: `mesa-${n}`,
   label: String(n),
@@ -24,8 +25,8 @@ const redonda = (n: number, zone: string, x: number, y: number) => ({
   shape: "REDONDA" as const,
   x,
   y,
-  width: 90,
-  height: 90,
+  width: 80,
+  height: 80,
   rotation: 0,
 });
 
@@ -42,8 +43,8 @@ export const PLANO_DEMO: PlanoLocalDto = PlanoLocalSchema.parse({
     // Salón: dos filas de dos hacia la calle.
     redonda(5, "Salón", 130, 390),
     redonda(6, "Salón", 280, 390),
-    redonda(7, "Salón", 130, 505),
-    redonda(8, "Salón", 280, 505),
+    redonda(7, "Salón", 130, 530),
+    redonda(8, "Salón", 280, 530),
   ],
   fixtures: [
     { id: "parque", kind: "PARQUE", x: 0, y: 0, width: 800, height: 170, label: "Parque" },
