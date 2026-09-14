@@ -281,7 +281,8 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | C9 | Cobro dividido (F6-12) y propina explícita (F6-13) | Llegan con la caja de mesas (DEC-22 paso 4) |
 | C10 | «Cobrar exacto» en efectivo: casi nunca se entrega el monto justo, e invitaba a registrar lo que no se contó | ✔ 2026-09-13: solo en medios electrónicos; en efectivo «Cerrar cobro» ocupa la fila entera (mismo alto) y «+» no hace nada |
 | C11 | Faltaba el billete de $1, y la fila de billetes cambiaba con el monto («$57» no es un billete) | ✔ Fila fija $1 · $5 · $10 · $20 · $50 · $100; cada toque suma al mismo pago en efectivo |
-| C12 | Pantalla «Ventas» del turno para reimprimir (copia marcada y auditada) y anular un cobro con motivo y supervisor | Aprobada. Decidido (DEC-24): autoriza supervisor con PIN o administrador; se devuelve por el mismo medio, efectivo solo como alternativa con motivo |
+| C12 | Pantalla «Ventas» del turno para reimprimir (copia marcada y auditada) y anular un cobro con motivo y supervisor | ✔ «Ventas» hecha el 2026-09-13: pestaña junto a «Cobrar» y «Turno» con los cobros del turno, búsqueda por familia o #orden, filtro por medio y el recibo tal como sale en papel. La primera impresión es el original; las demás salen «COPIA» y cada una queda con hora y persona (sin atajo de teclado, a propósito). WhatsApp desde el detalle. **Anular** (DEC-24: supervisor con PIN o administrador; mismo medio, efectivo con motivo) es el paso siguiente |
+| C13 | El IGTF se calcula sobre todo lo entregado en divisas, **vuelto incluido**: $ 15 en efectivo para $ 11,47 cargan $ 0,45 y no $ 0,34 | Por revisar con el contador (DEC-1): lo habitual es gravar lo aplicado al pago, no el billete entero |
 
 ### 9.2 Visual
 
@@ -291,6 +292,7 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | V2 | Etiquetas de 9,5 px en los botones de medio | ✔ 11 y 13 px, sin cambiar el alto de 56 px |
 | V3 | Lo tecleado en bolívares se mostraba «1000.00» | ✔ «Bs. 1.000,00» |
 | V4 | «Venta directa» (amarillo punteado) compite con la cuenta elegida (amarillo) | ✔ Botón neutro con icono; el amarillo queda para lo seleccionado |
+| V7 | Los datos de Pago Móvil se amontonaban y «Copiar» ocupaba media franja | ✔ Sin icono de medio, banco por nombre, teléfono sin puntos y «Copiar» solo con icono (48 px, nombre accesible); lo mismo en Zelle |
 | V6 | «0% IGTF» en los medios en bolívares: un dato que hay que leer para nada | ✔ En Bs solo la moneda; el chip de IGTF queda en divisas y su porcentaje sale del dato |
 | V5 | La cola no dice de dónde viene cada cuenta | ✔ Icono + texto: niño para parque, bolsa para mostrador. Mesa, con la caja de mesas |
 

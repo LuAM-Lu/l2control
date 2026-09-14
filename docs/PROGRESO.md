@@ -105,6 +105,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F4-08 Excepciones del turno | Parcial | Visibles en turno e inicio en formato 12h; faltan las reales del libro |
 | DEC-23 Cliente de la factura | Parcial | `ClienteFacturaSchema` (3 pruebas); en caja, «Factura a: Consumidor final» con «Identificar» (cédula o RIF, nombre, dirección fiscal opcional), documento enmascarado. Falta llevarlo al documento fiscal (F3, F7) |
 | F4-04 Campos por medio de pago | Parcial | Contrato `DatosDePagoSchema` (5 pruebas): referencia y banco de Pago Móvil, titular de Zelle, TxID y red de USDT, terminal y referencia del punto. Se exigen al añadir el pago y se muestran enmascarados. Falta el cifrado en reposo y la redacción en logs, que son de servidor |
+| Ventas del turno (C12) | Hecho | `/ventas`: contrato `VentaCerradaSchema` con la foto del recibo y sus impresiones (4 pruebas); la caja registra cada cobro; reimprimir sale «COPIA» con rastro. Falta anular (DEC-24) y el turno real del servidor |
 | UX Caja §9 (C5-C8, V4, V5, U3) | Hecho | Cola por antigüedad con espera y aviso de llegada, pulsera y buscador, corregir un pago tocándolo, atajos de teclado a prueba del lector, recibo no fiscal (imprimir, WhatsApp). Comprobado a 1366 y 1280 |
 | F4-09 | Pendiente | Gaveta asociada a operación |
 

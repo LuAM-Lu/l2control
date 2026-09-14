@@ -124,3 +124,12 @@ export {
   CONSUMIDOR_FINAL,
   type ClienteFacturaDto,
 } from "./documento.ts";
+
+export {
+  ImpresionSchema,
+  ReciboSchema,
+  VentaCerradaSchema,
+  type ImpresionDto,
+  type ReciboDto,
+  type VentaCerradaDto,
+} from "./ventas.ts";

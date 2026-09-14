@@ -13,37 +13,15 @@
  * ⚠ §7.6: las referencias de pago y el documento del cliente van
  * enmascarados. Un recibo viaja por WhatsApp y se reenvía.
  */
-import { TelefonoVeSchema } from "@l2/contracts";
+import { TelefonoVeSchema, type ReciboDto } from "@l2/contracts";
 
-export type LineaRecibo = Readonly<{ cantidad: number; concepto: string; importe: string }>;
-export type PagoRecibo = Readonly<{ medio: string; detalle: string | null; monto: string }>;
-
-export type Recibo = Readonly<{
-  orden: string;
-  /** A quién se atendió: la familia o «Venta de mostrador». */
-  cuenta: string;
-  /** Hora de cierre, ya formateada («13/09/2026 · 2:10 pm»). */
-  cuando: string;
-  /** «Consumidor final» o «Carolina Méndez · V-18···432». */
-  facturaA: string;
-  lineas: readonly LineaRecibo[];
-  subtotal: string;
-  impuestos: readonly { etiqueta: string; monto: string }[];
-  total: string;
-  totalBs: string | null;
-  tasa: string | null;
-  pagos: readonly PagoRecibo[];
-  vuelto: string | null;
-  destinoVuelto: string | null;
-  cajera: string | null;
-  /** Teléfono conocido de la familia, para proponerlo al enviar. */
-  telefono: string | null;
-}>;
+/** La forma vive en el contrato (`ReciboSchema`): la guarda «Ventas» y la valida al cargar. */
+export type Recibo = ReciboDto;
 
 /** El recibo como texto de WhatsApp: corto, con negritas de WhatsApp y sin datos sensibles. */
-export function textoRecibo(r: Recibo): string {
+export function textoRecibo(r: Recibo, copia = false): string {
   const renglones = [
-    "*Abby Kingdom* · Recibo no fiscal",
+    `*Abby Kingdom* · Recibo no fiscal${copia ? " · COPIA" : ""}`,
     `Orden ${r.orden} · ${r.cuando}`,
     `Factura a: ${r.facturaA}`,
     "",

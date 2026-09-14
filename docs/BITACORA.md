@@ -567,3 +567,24 @@ En el dominio de identidad hay una acción nueva, `cobro.anular` (🔐 para caje
 y una regla que faltaba: `canAuthorize`, quién puede dar la autorización de un 🔐. Solo supervisor o
 administrador, que alcancen la acción en esa sucursal; lo que el solicitante tiene denegado no se lo abre
 nadie. Cinco pruebas. La pantalla «Ventas» del turno, para reimprimir y anular, es el paso siguiente.
+
+## Ventas del turno y reimprimir con rastro — 2026-09-13
+
+La cajera ya puede volver a cualquier cobro del turno. «Ventas» es una pestaña del puesto de caja, entre
+«Cobrar» y «Turno», con la misma forma maestro-detalle: la lista a la izquierda (búsqueda por familia o
+número de orden, filtro por medio) y el recibo a la derecha, tal como sale en papel.
+
+La venta cerrada tiene contrato propio, `VentaCerradaSchema`: guarda el recibo **como foto**, con los
+textos ya formateados, para que una copia de mañana diga lo que se cobró hoy aunque cambie una tasa o un
+nombre del catálogo. Y guarda sus impresiones como lista que solo crece (regla 5): la primera es el
+original y las siguientes salen marcadas «COPIA», con la hora y la persona a la vista. Reimprimir es un
+vector de fraude conocido; por eso no tiene atajo de teclado. La caja registra cada cobro al cerrarlo, y
+su «Último cobro» sale ya de ese registro, así que sobrevive a una recarga. La copia de la factura fiscal
+seguirá pidiendo supervisor (§7.3) cuando exista F3.
+
+Dos cosas más del cliente y de la prueba: los datos de Pago Móvil se amontonaban, y la franja quedó sin
+el icono del medio, con el banco por su nombre, el teléfono sin puntos y «Copiar» como icono de 48 px. Y
+al revisar un recibo apareció que **el IGTF se calcula sobre el billete entero, vuelto incluido**: $ 15
+para $ 11,47 cargan $ 0,45. Queda anotado para el contador (DEC-1) antes de tocar el dominio fiscal.
+
+Sigue anular un cobro (DEC-24).

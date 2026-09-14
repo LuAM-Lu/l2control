@@ -152,6 +152,12 @@ export const MODULOS: readonly Modulo[] = [
         proposito: "Cobro mixto con IVA, IGTF sobre el medio de pago y destino del excedente.",
       },
       {
+        id: "ventas",
+        nombre: "Ventas del turno",
+        href: "/ventas",
+        proposito: "Los cobros cerrados con su recibo: buscar, reimprimir como copia y enviar por WhatsApp.",
+      },
+      {
         id: "turnos",
         nombre: "Turnos y cortes",
         href: "/turno",

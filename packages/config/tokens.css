@@ -210,6 +210,10 @@ html:has(dialog[open]) { overflow: hidden; }
 @media print {
   body * { visibility: hidden; }
   .l2-recibo, .l2-recibo * { visibility: visible; }
+  /* Con el recibo abierto en un diálogo, sale solo ese: no el que la página
+     de «Ventas» tiene detrás. */
+  body:has(dialog[open] .l2-recibo) .l2-recibo:not(dialog .l2-recibo),
+  body:has(dialog[open] .l2-recibo) .l2-recibo:not(dialog .l2-recibo) * { visibility: hidden; }
   .l2-recibo {
     position: fixed; inset: 0 auto auto 0; width: 80mm; max-width: none;
     border: 0; border-radius: 0; background: white; color: black;

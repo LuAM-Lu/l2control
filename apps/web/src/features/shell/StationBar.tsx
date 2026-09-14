@@ -42,7 +42,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
  *    horizontal y todo lo pulsable mide 48 px.
  */
 
-type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/turno" | "/mesas";
+type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/ventas" | "/turno" | "/mesas";
 
 type Puesto = {
   id: string;
@@ -65,6 +65,7 @@ const PUESTOS: Puesto[] = [
     nombre: "Caja",
     superficies: [
       { href: "/caja", corto: "Cobrar", largo: "Caja" },
+      { href: "/ventas", corto: "Ventas", largo: "Ventas del turno" },
       { href: "/turno", corto: "Turno", largo: "Turno de caja" },
     ],
   },

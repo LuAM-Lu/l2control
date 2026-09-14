@@ -71,6 +71,7 @@ import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import { ColaCuentas, filtrarCola, ordenarCola, type FiltroCola } from "./ColaCuentas.tsx";
 import { ReciboDialog } from "./ReciboDialog.tsx";
 import type { Recibo } from "./recibo.ts";
+import { useVentas } from "./VentasProvider.tsx";
 import { useOperador } from "../identity/operador.ts";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import {
@@ -88,7 +89,16 @@ import { formatClock } from "../park/time-format.ts";
 const PARIDAD_USDT: FrozenRate = { from: "USDT", to: "USD", numerator: 1n, denominator: 1n };
 
 /** Lo que la caja sabe al cerrar un cobro: para el aviso y para el recibo. */
-type Cobrado = Readonly<{ total: string; vuelto: string; cliente: ClienteFacturaDto; recibo: Recibo }>;
+type Cobrado = Readonly<{
+  total: string;
+  /** El total como dinero, para la venta registrada (regla 3). */
+  totalDinero: Money;
+  vuelto: string;
+  cliente: ClienteFacturaDto;
+  /** Los medios usados, sin repetir. */
+  medios: readonly string[];
+  recibo: Recibo;
+}>;
 
 const DESTINO_SOBRA = { VUELTO: "Vuelto entregado", PROPINA: "Propina", CAJA: "Redondeo a caja" } as const;
 
@@ -348,7 +358,14 @@ function CobroCuenta({
         functional: FUNCIONAL,
         maxRetained,
       });
-      onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut), cliente, recibo: armarRecibo() });
+      onCobrado({
+        total: toMajor(aCobrar),
+        totalDinero: aCobrar,
+        vuelto: toMajor(r.changeOut),
+        cliente,
+        medios: [...new Set(pagos.map((p) => p.medio.label))],
+        recibo: armarRecibo(),
+      });
       setPagos([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cerrar el cobro");
@@ -903,23 +920,25 @@ function CobroCuenta({
                 ))}
               </div>
             ) : medioActivo.code === "PAGO_MOVIL" ? (
+              // Compacto: sin icono (el medio ya está elegido arriba), el banco por
+              // su nombre y el teléfono sin puntos. «Copiar» es solo el icono;
+              // el código del banco va en lo que se copia.
               <div
                 aria-label="Datos de Pago Móvil del local"
-                className="flex h-14 items-center gap-2 rounded-[var(--radius-control)] border border-brand/30 pr-1.5 pl-2.5 text-[11px]"
+                className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-brand/30 pl-2.5 text-[11.5px]"
               >
-                <Smartphone size={14} className="shrink-0 text-brand" aria-hidden="true" />
-                <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1fr)] gap-x-2">
-                  <span className="text-[9.5px] text-ink-3 uppercase">Banco</span>
-                  <span className="text-[9.5px] text-ink-3 uppercase">Teléfono</span>
-                  <span className="text-[9.5px] text-ink-3 uppercase">RIF</span>
-                  <span className="truncate font-bold text-ink">Banesco 0134</span>
-                  <span className="tnum truncate font-bold text-ink">0414-234.56.78</span>
-                  <span className="tnum truncate font-bold text-ink">J-40123456-7</span>
-                </div>
-                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto("Banesco (0134) - 0414-234.56.78 - J-40123456-7")} que="los datos de Pago Móvil" />
+                <dl className="grid min-w-0 flex-1 grid-flow-col grid-cols-[auto_auto_auto] grid-rows-2 justify-between gap-x-2">
+                  <dt className="text-[9.5px] text-ink-3 uppercase">Banco</dt>
+                  <dd className="truncate font-bold text-ink">Banesco</dd>
+                  <dt className="text-[9.5px] text-ink-3 uppercase">Teléfono</dt>
+                  <dd className="tnum truncate font-bold text-ink">0414-2345678</dd>
+                  <dt className="text-[9.5px] text-ink-3 uppercase">RIF</dt>
+                  <dd className="tnum truncate font-bold text-ink">J-40123456-7</dd>
+                </dl>
+                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto("Banesco (0134) - 0414-2345678 - J-40123456-7")} que="los datos de Pago Móvil" />
               </div>
             ) : medioActivo.code === "ZELLE" ? (
-              <div className="flex h-14 items-center gap-2 rounded-[var(--radius-control)] border border-line pr-1.5 pl-2.5 text-[11px]">
+              <div className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-line pl-2.5 text-[11.5px]">
                 <Zap size={14} className="shrink-0 text-ink-3" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <span className="block truncate text-[9.5px] text-ink-3 uppercase">Zelle · Parque Infantil L2 C.A.</span>
@@ -1109,8 +1128,12 @@ export function CajaScreen({
   const buscadorRef = useRef<HTMLInputElement>(null);
   const visibles = useMemo(() => filtrarCola(porCobrar, busqueda, filtro), [porCobrar, busqueda, filtro]);
 
-  const [ultimoRecibo, setUltimoRecibo] = useState<Recibo | null>(null);
+  // El último cobro sale del registro de ventas: sobrevive a una recarga y
+  // «Ventas» ve lo mismo.
+  const { ventas, registrar, anotarImpresion } = useVentas();
+  const ultimaVenta = ventas[0] ?? null;
   const [viendoRecibo, setViendoRecibo] = useState(false);
+  const operadorCaja = useOperador();
   const [viendoAtajos, setViendoAtajos] = useState(false);
 
   /* ── lo que llega a la cola ──────────────────────────────────────────
@@ -1198,7 +1221,7 @@ export function CajaScreen({
       setVentaNueva(true);
       return true;
     }
-    if (letra === "R" && ultimoRecibo) {
+    if (letra === "R" && ultimaVenta) {
       setViendoRecibo(true);
       return true;
     }
@@ -1208,7 +1231,17 @@ export function CajaScreen({
   function alCobrar(cuenta: FamilyAccountDto, r: Cobrado) {
     guardar(marcarCobrada(cuenta));
     setElegida(null);
-    setUltimoRecibo(r.recibo);
+    registrar({
+      id: `v-${globalThis.crypto.randomUUID()}`,
+      ...(cuenta.orderNumber ? { orderNumber: cuenta.orderNumber } : {}),
+      accountId: cuenta.id,
+      closedAt: new Date().toISOString(),
+      cashier: operadorCaja ? { id: operadorCaja.id, name: operadorCaja.nombre } : null,
+      total: { minor: String(r.totalDinero.amount), currency: r.totalDinero.currency },
+      methods: [...r.medios],
+      recibo: r.recibo,
+      prints: [],
+    });
     avisar.ok(`Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`, {
       detalle: [
         r.cliente.kind === "CONSUMIDOR_FINAL" ? "Factura a consumidor final" : `Factura a ${r.cliente.name}`,
@@ -1358,7 +1391,7 @@ export function CajaScreen({
           onBuscando={setBuscando}
           buscadorRef={buscadorRef}
           onEscanear={alEscanear}
-          ultimoCobro={ultimoRecibo ? { orden: ultimoRecibo.orden, total: ultimoRecibo.total } : null}
+          ultimoCobro={ultimaVenta ? { orden: ultimaVenta.recibo.orden, total: ultimaVenta.recibo.total } : null}
           onVerRecibo={() => setViendoRecibo(true)}
           onVerAtajos={() => setViendoAtajos(true)}
         />
@@ -1382,7 +1415,18 @@ export function CajaScreen({
           <SinCuentas />
         )}
       </Container>
-      <ReciboDialog recibo={viendoRecibo ? ultimoRecibo : null} onCerrar={() => setViendoRecibo(false)} />
+      <ReciboDialog
+        recibo={viendoRecibo && ultimaVenta ? ultimaVenta.recibo : null}
+        copia={ultimaVenta ? ultimaVenta.prints.length > 0 : false}
+        onImprimir={() =>
+          ultimaVenta &&
+          anotarImpresion(ultimaVenta.id, {
+            at: new Date().toISOString(),
+            by: operadorCaja ? { id: operadorCaja.id, name: operadorCaja.nombre } : null,
+          })
+        }
+        onCerrar={() => setViendoRecibo(false)}
+      />
       <AtajosDialog abierto={viendoAtajos} onCerrar={() => setViendoAtajos(false)} />
     </div>
   );
@@ -1399,17 +1443,24 @@ const INDICACION_MEDIO: Readonly<Record<string, string>> = {
   USDT: "Confirma la transferencia en la billetera antes de añadir el pago.",
 };
 
-/** «Copiar» para los datos que el cliente teclea en su teléfono. */
+/**
+ * «Copiar» para los datos que el cliente teclea en su teléfono. Solo el icono,
+ * con su nombre accesible y un `title`; al copiar pasa a un check verde y lo
+ * anuncia a los lectores de pantalla.
+ */
 function BotonCopiar({ copiado, onCopiar, que }: { copiado: boolean; onCopiar: () => void; que: string }) {
   return (
     <button
       type="button"
       onClick={onCopiar}
-      aria-label={`Copiar ${que}`}
-      className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1 rounded border border-line bg-base px-2.5 text-[11.5px] font-medium text-ink-2 hover:border-brand hover:text-brand"
+      aria-label={copiado ? `Copiados ${que}` : `Copiar ${que}`}
+      title={copiado ? "Copiado" : "Copiar"}
+      className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-2 transition-colors hover:bg-surface-2 hover:text-brand"
     >
-      {copiado ? <Check size={12} className="text-state-ok" aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
-      <span>{copiado ? "Copiado" : "Copiar"}</span>
+      {copiado ? <Check size={16} className="text-state-ok" aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+      <span aria-live="polite" className="sr-only">
+        {copiado ? "Copiado" : ""}
+      </span>
     </button>
   );
 }
