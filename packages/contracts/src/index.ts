@@ -105,6 +105,12 @@ export {
   type FloorPlanDto,
   type MenuItemDto,
   type MenuDto,
+  ElementoFijoSchema,
+  FormaMesaSchema,
+  PlanoLocalSchema,
+  type ElementoFijoDto,
+  type FormaMesa,
+  type PlanoLocalDto,
 } from "./restaurante.ts";
 
 export {

@@ -115,7 +115,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 
 | Tarea | Estado | Evidencia o qué falta |
 |---|---|---|
-| F6-01 Plano de mesas | Parcial | `/mesas`: plano por zonas desde un contrato (`FloorPlanSchema`, sin números repetidos). **8 mesas inventadas hasta F0-03**; falta que sea editable |
+| F6-01 Plano de mesas | Parcial | `/mesas`: **plano espacial** en SVG con las medidas del local en cm (V3), parque, entrada, caja en L y cocina; conmutador Plano \| Lista; tocar elige, nunca mueve. Contrato `PlanoLocalSchema`: fuera de las paredes o encima de otra no se publica (5 pruebas). **8 mesas de 4 sillas inventadas hasta F0-03**; falta el editor (V4) |
 | F6-02 Estados de mesa en vivo | Parcial | Libre, ocupada, pide la cuenta, por limpiar, con minutos y color + icono + texto; una mesa abierta no se abre dos veces (I-05). Sin servidor |
 | F6-03 Carta táctil | Parcial | Categorías y platos de 88 px, agotados visibles pero no pedibles, borrador con notas y confirmación antes de cocina. **Carta y precios inventados hasta F0-04** |
 | F6-04 Modificadores | Pendiente | Hoy solo nota libre por plato |

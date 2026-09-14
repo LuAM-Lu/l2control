@@ -16,11 +16,12 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import type { DiningTableDto, MenuDto } from "@l2/contracts";
+import type { MenuDto, PlanoLocalDto } from "@l2/contracts";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import type { Pedido } from "../simulacion/proyeccion.ts";
 import { minutosDesde, vistaDelPlano, type EstadoVisible, type LineaBorrador, type MesaVista } from "./mesas.ts";
+import { PlanoLocal } from "./PlanoLocal.tsx";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
 
@@ -62,21 +63,23 @@ const ESTADO_PEDIDO: Readonly<Record<Pedido["estado"], { texto: string; tono: To
   ANULADO: { texto: "Anulado", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
 };
 
-export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]; carta: MenuDto }) {
+export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: MenuDto }) {
   const sim = useSimulacion();
   const ahora = useAhoraLocal();
   const { estado } = sim;
 
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const [vista, setVista] = useState<"plano" | "pedido">("plano");
+  /** Plano espacial o lista por zonas (V3). La lista es la vista de móvil y de lector de pantalla. */
+  const [modo, setModo] = useState<"PLANO" | "LISTA">("PLANO");
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
   const [vinculando, setVinculando] = useState(false);
   const [comensales, setComensales] = useState(2);
   const detalle = useRef<HTMLElement>(null);
 
-  const mesas = useMemo(() => vistaDelPlano(plano, estado, ahora), [plano, estado, ahora]);
+  const mesas = useMemo(() => vistaDelPlano(plano.tables, estado, ahora), [plano, estado, ahora]);
   const elegida = mesas.find((m) => m.mesa.id === seleccion) ?? null;
-  const zonas = [...new Set(plano.map((m) => m.zone))];
+  const zonas = [...new Set(plano.tables.map((m) => m.zone))];
 
   const ocupadas = mesas.filter((m) => m.estado !== "LIBRE").length;
   const pidenCuenta = mesas.filter((m) => m.estado === "PIDE_CUENTA").length;
@@ -202,7 +205,7 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
        
         cifras={
           <>
-            <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${plano.length}`} />
+            <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${plano.tables.length}`} />
             <StatTile label="En cocina" value={enCocina} icon={<ChefHat size={11} aria-hidden="true" />} />
             <StatTile
               label="Para servir"
@@ -237,7 +240,31 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
         ancho="operacion"
         className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
       >
-        <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
+        <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
+          {/* El plano se parece al local; la lista se lee mejor en móvil y con
+              lector de pantalla. Misma información, dos formas de mirarla. */}
+          <div role="radiogroup" aria-label="Cómo ver las mesas" className="flex gap-1 self-start rounded-[var(--radius-control)] bg-surface/70 p-1">
+            {([["PLANO", "Plano"], ["LISTA", "Lista"]] as const).map(([id, texto]) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={modo === id}
+                onClick={() => setModo(id)}
+                className={cn(
+                  "min-h-12 cursor-pointer rounded-[0.4rem] px-4 text-[13.5px] transition-colors",
+                  modo === id ? "bg-brand text-on-brand font-semibold" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                )}
+              >
+                {texto}
+              </button>
+            ))}
+          </div>
+
+          {modo === "PLANO" ? (
+            <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion} onElegir={elegir} className="lg:min-h-0" />
+          ) : (
+          <div className="flex flex-col gap-4">
           {zonas.map((zona) => (
             <div key={zona}>
               <h2 className="mb-2 text-[11px] font-semibold tracking-[0.09em] text-ink-3 uppercase">{zona}</h2>
@@ -252,6 +279,8 @@ export function MesasScreen({ plano, carta }: { plano: readonly DiningTableDto[]
               </ul>
             </div>
           ))}
+          </div>
+          )}
         </section>
 
         <aside

@@ -41,11 +41,12 @@ confunde; **baja** si es acabado.
 - **La entrada de la calle** está en la pared izquierda, con puerta doble.
 - **8 mesas redondas de 4 sillas**: 4 junto al parque, y dos filas de 2 hacia la calle.
 - **La caja** es una barra en L en el centro-derecha; **la cocina**, abajo a la derecha, detrás de la barra.
-- La pared derecha va en diagonal: el local no es rectangular.
+- El local es **rectangular**: la diagonal del dibujo fue un trazo involuntario (confirmado el 2026-09-14). Medidas de trabajo: 8 × 6 m hasta el relevamiento (F0-03).
 
 El prototipo actual inventó 8 mesas con algunas de 6 sillas y dos zonas. El dibujo lo corrige: **todas
-de 4 sillas**. Propuesta de numeración y zonas, a confirmar (D11): **1-4 «Junto al parque»** de
-izquierda a derecha, **5-8 «Salón»**. Las medidas reales siguen siendo trabajo de campo (F0-03).
+de 4 sillas**. Numeración y zonas (D11, cerrada el 2026-09-14): **1-4 «Junto al parque»** de izquierda a
+derecha, **5-8 «Salón»** en dos filas de dos hacia la calle, **editables** desde V4. Las medidas reales
+siguen siendo trabajo de campo (F0-03).
 
 ![Modo servicio: plano del local en /mesas](diseno/plano-servicio.png)
 
@@ -240,7 +241,7 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 | **V1** ✔ | Base visual: taxonomía de avisos con toasts, salidas animadas, simulador dentro de la barra, identidad desde el acceso, «Turno desde», indicador de Next. **Hecho el 2026-09-12** | A1, A2, A4, M1, M2, B1, B2 | 1 sesión |
 | **V2** ✔ | Roles en estaciones: pestañas y «Panel» filtrados, pantalla «Sin acceso», menú del panel por rol. **Hecho el 2026-09-12** | A3 | 1 sesión |
 | — | *DEC-22 paso 3: cocina (KDS)*, ya con toasts y roles | — | — |
-| **V3** | Plano espacial en `/mesas` con el local del dibujo, y vista Lista | M4 | 1 sesión |
+| **V3** ✔ | Plano espacial en `/mesas` con el local del dibujo, y vista Lista. **Hecho el 2026-09-14** | M4 | 1 sesión |
 | **V4** | Editor del plano en el panel: borrador, publicar, retirar, deshacer | F6-01 | 1-2 sesiones |
 | **V5** ✔ | Caja: venta directa y adicionales (mostrador), catálogo táctil de snacks, formato bimoneda VE y montos grandes. **Hecho el 2026-09-12** | §5 | 1 sesión |
 | — | *DEC-22 paso 5: panel en vivo* | M3 | — |
@@ -252,8 +253,8 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 | # | Decisión | Propuesta / Estado |
 |---|---|---|
 | **D6** | ¿Venta directa en caja? (ya abierta en FLUJOS §7) | **Cerrada (2026-09-12)**: Catálogo mínimo táctil de mostrador sin inventario |
-| **D10** | ¿Quién edita el plano de mesas? | Solo administración. El supervisor lo ve pero no lo mueve |
-| **D11** | Numeración y zonas del dibujo | 1-4 «Junto al parque», 5-8 «Salón», 4 sillas cada una |
+| **D10** | ¿Quién edita el plano de mesas? | **Cerrada el 2026-09-14**: solo administración. La supervisión lo ve pero no lo mueve: el plano es configuración del local, y moverlo en plena tarde deja a mesero y caja viendo cosas distintas |
+| **D11** | Numeración y zonas del dibujo | **Cerrada el 2026-09-14**: 1-4 «Junto al parque», 5-8 «Salón», 4 sillas, **como valor de partida editable** (V4). Número y zona son etiquetas; la identidad interna de la mesa no cambia nunca, así que renumerar no reescribe lo ya cobrado. Sin números repetidos (lo impone `FloorPlanSchema`) y los cambios se publican como versión nueva, no a mitad de servicio |
 | **D12** | ¿El back-office puede desplazar? | Sí. Lo urgente arriba; las estaciones siguen sin desplazar |
 | **D13** | Número de orden: ¿continuo o se reinicia cada día? | Hecho continuo por sucursal (`#1049`). Reiniciar a diario da números cortos para llamar al cliente, pero obliga a decir también la fecha en cada reclamo |
 | — | Librería de toasts | Sonner, tras vuestra investigación |

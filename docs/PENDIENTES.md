@@ -9,8 +9,8 @@
 
 | # | Decisión | Propuesta sobre la mesa | Dónde |
 |---|---|---|---|
-| D10 | ¿Quién edita el plano de mesas? | Solo administración; el supervisor lo ve pero no lo mueve | [UX-MEJORAS](UX-MEJORAS.md) §8 |
-| D11 | Numeración y zonas del dibujo del local | 1-4 «Junto al parque», 5-8 «Salón», 4 sillas cada una | UX-MEJORAS §8 |
+| ~~D10~~ | ~~¿Quién edita el plano?~~ | **Cerrada el 2026-09-14**: solo administración | [UX-MEJORAS](UX-MEJORAS.md) §8 |
+| ~~D11~~ | ~~Numeración y zonas~~ | **Cerrada el 2026-09-14**: 1-4 «Junto al parque», 5-8 «Salón», 4 sillas, editable desde V4 | UX-MEJORAS §8 |
 | D12 | ¿El back-office puede desplazar? | Sí; lo urgente arriba. Las estaciones siguen sin desplazar | UX-MEJORAS §8 |
 | D13 | Número de orden continuo o diario | Hecho continuo (`#1049`); diario da números cortos pero obliga a decir la fecha | UX-MEJORAS §8 |
 | D2, D3, D7, D8, D9 | Cuenta de mesa, cobrar con niños dentro, personas en vivo, servicio del 10 %, niño que sale sin su representante | Propuestas escritas | [FLUJOS](FLUJOS.md) §7 |
@@ -39,8 +39,10 @@
 
 1. ~~**Cocina (KDS)**~~ — hecha el 2026-09-14: `/cocina` con su rol, su pestaña y el escenario X5
    probado. Queda el servidor (tiempo real), el umbral de espera configurable y los modificadores.
-2. **V3 y V4, plano del local** — plano espacial en `/mesas` y editor (solo administración,
-   borrador y publicar). Espera D10 y D11.
+2. **V4, editor del plano** — ~~V3, el plano espacial, hecho el 2026-09-14~~. Falta el editor para
+   administración (D10): mover con rejilla y guías, girar, añadir y retirar, borrador y publicar,
+   con número y zona editables sin tocar lo ya cobrado. También la capa de estructura (paredes,
+   puertas, caja, cocina) y las medidas reales (F0-03).
 3. **Caja de mesas** (paso 4) — cuenta maestra con platos y parque (D2), cobro dividido (F6-12),
    propina explícita (F6-13), mesa por limpiar al cobrar.
 4. **Panel en vivo** (paso 5).

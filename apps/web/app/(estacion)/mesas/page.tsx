@@ -1,5 +1,5 @@
 import { MesasScreen } from "../../../src/features/mesas/MesasScreen";
-import { CARTA_DEMO, PLANO_DEMO } from "../../../src/features/mesas/plano";
+import { CARTA_DEMO, PLANO_DEMO } from "../../../src/demo/restaurante";
 
 /**
  * Estación del mesero: plano de mesas y pedidos (F6-01…F6-05, DEC-22).

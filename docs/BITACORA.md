@@ -669,3 +669,28 @@ pantalla, no una constante: será configuración de la sucursal.
 De paso, el acceso llevaba a la cocina a una sección del back-office que solo explicaba que la
 pantalla no existía; ahora Diego entra directo a `/cocina`, con su pestaña en la barra del
 restaurante, y el mesero que intente abrirla se topa con el guardia de la estación.
+
+## El plano se parece al local — 2026-09-14
+
+V3. Las mesas eran una rejilla ordenada por zonas: se entendía, pero el mesero tenía que traducir «la 6»
+a «la del fondo». Ahora `/mesas` dibuja el local: el parque arriba, la entrada de la calle a la izquierda,
+la caja en L al centro-derecha y la cocina detrás. El cliente confirmó que la pared en diagonal del dibujo
+fue un trazo involuntario: el local es rectangular, 8 × 6 m de trabajo hasta el relevamiento (F0-03).
+
+**La geometría entró al contrato, no a la pantalla.** `PlanoLocalSchema` guarda las medidas del local y,
+de cada mesa, su centro en **centímetros**, su forma, su tamaño y su giro; y la estructura fija —paredes,
+puertas, parque, caja, cocina— va en su propia capa. En cm y no en píxeles porque el mismo plano se pinta
+a 1366, en tablet y en móvil, y porque las medidas reales del relevamiento entrarán tal cual. El contrato
+además **niega lo que no se puede publicar**: una mesa fuera de las paredes o encima de otra. Cinco pruebas.
+Así el editor (V4) y el servidor aplicarán la misma regla sin repetirla.
+
+Se dibuja con un `<svg>` y dos manejadores: con ocho mesas no hace falta una librería de diagramas. En
+servicio **no se arrastra nada** (§2.2): tocar una mesa la elige. Cada mesa es un grupo con rol de botón,
+foco propio y nombre accesible, y hay conmutador **Plano | Lista** para móvil y lectores de pantalla.
+
+Decisiones cerradas de paso: **D10**, solo administración edita el plano; **D11**, 1-4 «Junto al parque» y
+5-8 «Salón» de 4 sillas, como punto de partida **editable**. El número y la zona son etiquetas: renumerar
+no reescribe lo ya cobrado, porque la identidad de la mesa no cambia.
+
+De paso, el plano y la carta de ejemplo salieron de `features/mesas` a `src/demo`, que es donde va lo
+inventado desde el orden del repositorio.
