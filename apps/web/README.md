@@ -20,6 +20,7 @@ pnpm dev     # http://localhost:3000 · PIN de prueba 1970
 | `/ventas` | Ventas del turno: reimprimir y anular | C12, DEC-24 | Interfaz |
 | `/turno` | Cortes X y Z, arqueo, excepciones | F4-05 a F4-08 | Interfaz |
 | `/mesas` | Plano, pedido, vincular pulseras | F6-01 a F6-05 | Interfaz sobre el simulador |
+| `/cocina` | Cocina (KDS): comandas, cronómetro, anulaciones | F6-07, F6-08 | Interfaz sobre el simulador |
 | `/panel` | Inicio del back-office | F9-00 | Interfaz |
 | `/panel/[modulo]/[seccion]` | Secciones del back-office (`personas/usuarios`, y las pendientes) | F2-11 | Interfaz |
 
@@ -37,6 +38,7 @@ src/features/<dominio>   nivel 3: pantallas y lógica que SÍ conocen el dominio
   mesas/                 plano y pedido
   identity/              acceso, sesión, visibilidad por rol, usuarios
   shell/                 barras, navegación, inicio del panel
+  cocina/                KDS: vista de cocina y cronómetro
   simulacion/            simulador de operación (demo) y proyección del local
 src/demo/                datos de ejemplo e interruptor NEXT_PUBLIC_DEMO (ver su README)
 ```

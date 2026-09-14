@@ -42,7 +42,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
  *    horizontal y todo lo pulsable mide 48 px.
  */
 
-type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/ventas" | "/turno" | "/mesas";
+type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/ventas" | "/turno" | "/mesas" | "/cocina";
 
 type Puesto = {
   id: string;
@@ -70,10 +70,12 @@ const PUESTOS: Puesto[] = [
     ],
   },
   {
-    // DEC-22: la cocina (KDS) se suma aquí en el paso siguiente.
     id: "restaurante",
     nombre: "Restaurante",
-    superficies: [{ href: "/mesas", corto: "Mesas", largo: "Mesas y pedidos" }],
+    superficies: [
+      { href: "/mesas", corto: "Mesas", largo: "Mesas y pedidos" },
+      { href: "/cocina", corto: "Cocina", largo: "Cocina (KDS)" },
+    ],
   },
 ];
 

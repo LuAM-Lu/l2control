@@ -37,10 +37,8 @@
 
 ## 4. Producto: lo que sigue, en orden (DEC-22)
 
-1. **Cocina (KDS)** — a medio hacer en la rama `wip/kds`: dominio de comandas (11 pruebas),
-   eventos y vista de cocina. Falta la pantalla `/cocina`, su ruta y rol, la pestaña y la
-   documentación. Al retomarla, traer `main` a la rama: `main` movió los datos de ejemplo a
-   `src/demo`.
+1. ~~**Cocina (KDS)**~~ — hecha el 2026-09-14: `/cocina` con su rol, su pestaña y el escenario X5
+   probado. Queda el servidor (tiempo real), el umbral de espera configurable y los modificadores.
 2. **V3 y V4, plano del local** — plano espacial en `/mesas` y editor (solo administración,
    borrador y publicar). Espera D10 y D11.
 3. **Caja de mesas** (paso 4) — cuenta maestra con platos y parque (D2), cobro dividido (F6-12),

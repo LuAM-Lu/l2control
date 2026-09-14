@@ -284,7 +284,59 @@ function impresoraSinPapel(): Escenario {
   };
 }
 
-export const ESCENARIOS: readonly Escenario[] = [tardeTranquila(), sabadoALasCuatro(), impresoraSinPapel()];
+/* ═══════════════════════════════════ X5 · plato equivocado ya en cocina ══ */
+
+function platoEquivocado(): Escenario {
+  const inicio = "2026-09-12T21:00:00.000Z"; // 17:00 en Caracas
+  const g = guion("x5", inicio);
+  g.turno(0);
+
+  // Mesa 2: la hamburguesa se envió normal y era sin queso. La cocina ya la
+  // estaba haciendo cuando se anuló. La anulación NO se da por vista en el
+  // guion: la tiene que confirmar quien esté en la cocina (FLUJOS C5).
+  g.emitir(1, { type: "mesa.abierta", tableId: "mesa-2", label: "2", guests: 3 });
+  g.emitir(3, { type: "pedido.enviado", orderId: "x5-m2-p1", tableId: "mesa-2", items: [hamburguesa(), jugo(2)] });
+  g.emitir(5, { type: "pedido.aceptado", orderId: "x5-m2-p1" });
+  g.emitir(8, {
+    type: "pedido.anulado",
+    orderId: "x5-m2-p1",
+    reason: "La hamburguesa era sin queso y se envió normal",
+    authorizedBy: "Luis Guerrero",
+  });
+  g.emitir(9, {
+    type: "pedido.enviado",
+    orderId: "x5-m2-p2",
+    tableId: "mesa-2",
+    items: [{ ...hamburguesa(), note: "Sin queso" }, jugo(2)],
+  });
+  g.emitir(11, { type: "pedido.aceptado", orderId: "x5-m2-p2" });
+  g.emitir(24, { type: "pedido.listo", orderId: "x5-m2-p2" });
+  g.emitir(26, { type: "pedido.entregado", orderId: "x5-m2-p2" });
+  g.emitir(40, { type: "mesa.pide_cuenta", tableId: "mesa-2" });
+  g.emitir(46, { type: "mesa.por_limpiar", tableId: "mesa-2" });
+  g.emitir(52, { type: "mesa.libre", tableId: "mesa-2" });
+
+  // Mientras tanto, otra mesa normal: la cocina no para por una anulación.
+  g.mesa(4, 5, 2, [], [{ min: 6, items: [pizza(), malta(2)], cocina: 16 }], 45);
+
+  return {
+    id: "X5",
+    nombre: "Plato equivocado ya en cocina",
+    descripcion: "Se anula una hamburguesa que la cocina ya empezó. La tarjeta queda tachada hasta que alguien la da por vista.",
+    inicio,
+    duracionMin: 60,
+    politica: POLITICA,
+    tasa: tasa(inicio),
+    eventos: g.cerrar(),
+  };
+}
+
+export const ESCENARIOS: readonly Escenario[] = [
+  tardeTranquila(),
+  sabadoALasCuatro(),
+  impresoraSinPapel(),
+  platoEquivocado(),
+];
 
 export function escenarioPorId(id: string | null): Escenario | null {
   return ESCENARIOS.find((e) => e.id === id) ?? null;

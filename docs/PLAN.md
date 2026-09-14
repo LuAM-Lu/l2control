@@ -1830,9 +1830,9 @@ producto y el flujo más simple de validar en un turno.*
 - [ ] **F6-06 · Envío de comanda por WebSocket** (ADR-008).
   → *Criterio:* **aparece en el KDS en menos de 2 s**, medido; si el socket cae, la cola local reintenta
   sin duplicar.
-- [ ] **F6-07 · KDS** con tarjetas ordenadas por antigüedad y temporizador de espera.
+- [~] **F6-07 · KDS** con tarjetas ordenadas por antigüedad y temporizador de espera. *Interfaz en `/cocina` (2026-09-14); falta el servidor.*
   → *Criterio:* objetivos táctiles de 64 px; cuerpo ≥ 20 px; legible a 2 m; usable con guantes.
-- [ ] **F6-08 · Máquina de estados de la comanda** (§6.5).
+- [x] **F6-08 · Máquina de estados de la comanda** (§6.5). *`@l2/domain-orders`, 11 pruebas.*
   → *Criterio:* toda transición registra quién y cuándo; anular exige motivo y autorización (§7.3).
 - [ ] **F6-09 · Cola de impresión con confirmación** (ADR-015).
   → *Criterio:* si la impresora falla, **se alerta en pantalla** y la comanda **no** avanza en silencio.

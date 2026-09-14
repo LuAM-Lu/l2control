@@ -17,10 +17,10 @@
 | F3 · Núcleo monetario y fiscal | 4 | 0 | 8 | Motor de impuestos listo |
 | F4 · Caja y cobro mixto | 2 | 11 | 1 | Interfaz completa con ventas, reimpresión y anulación; falta persistencia |
 | F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
-| F6 · Restaurante (interfaz, DEC-22) | 0 | 4 | 10 | Mesas y mesero sobre el simulador; cocina en la rama `wip/kds` |
+| F6 · Restaurante (interfaz, DEC-22) | 1 | 5 | 8 | Mesas, mesero y cocina (KDS) sobre el simulador |
 | F7-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
-**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel`, con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
+**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`, `/cocina`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel`, con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
 
 **Todo lo que falta, en una sola lista:** [PENDIENTES.md](PENDIENTES.md).
 
@@ -119,6 +119,8 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F6-02 Estados de mesa en vivo | Parcial | Libre, ocupada, pide la cuenta, por limpiar, con minutos y color + icono + texto; una mesa abierta no se abre dos veces (I-05). Sin servidor |
 | F6-03 Carta táctil | Parcial | Categorías y platos de 88 px, agotados visibles pero no pedibles, borrador con notas y confirmación antes de cocina. **Carta y precios inventados hasta F0-04** |
 | F6-04 Modificadores | Pendiente | Hoy solo nota libre por plato |
+| F6-07 KDS | Parcial | `/cocina`: comandas por antigüedad con cronómetro y nivel de espera (a tiempo, tarda, atrasada), «Empezar» y «Lista» de 64 px, columna de listas para servir, chip «sin ticket» y anulaciones en rojo que solo se van cuando la cocina confirma que las vio (FLUJOS C5). Comprobado a 1366, 1280 y 1024 con el escenario X5. Falta el servidor y el umbral configurable |
+| F6-08 Máquina de estados de la comanda | ✅ Hecha | `@l2/domain-orders` (11 pruebas): solo avanza hacia delante, un evento repetido o retrasado no hace retroceder, anular tras LISTO exige revertir inventario y el nivel de espera es puro |
 | F6-05 Vincular pulseras | Parcial | Hoja con lector y lista por familia; un niño de otra mesa no se ofrece y al escanearlo se dice dónde está. **Falta la cuenta maestra** (paso de caja) |
 
 ## F5 · Parque — prototipo de interfaz

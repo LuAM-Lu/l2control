@@ -12,6 +12,12 @@
  * cambio sobre un pedido que no existe se ignora.
  */
 import type { OperationEventDto, OrderItemDto, ParkSessionDto } from "@l2/contracts";
+import {
+  anulacionRequiereConfirmacion,
+  transicionar,
+  type EstadoComanda,
+  type Transicion,
+} from "@l2/domain-orders";
 
 /** Un evento antes de sellarlo: el id y el instante los pone quien lo emite. */
 export type EventoSinSello = OperationEventDto extends infer E
@@ -21,7 +27,11 @@ export type EventoSinSello = OperationEventDto extends infer E
   : never;
 
 export type EstadoMesa ="OCUPADA" | "PIDE_CUENTA" | "POR_LIMPIAR";
-export type EstadoPedido = "ENVIADO" | "EN_PREPARACION" | "LISTO" | "ENTREGADO" | "ANULADO";
+/** La máquina de estados de la comanda es del dominio (F6-08). */
+export type EstadoPedido = EstadoComanda;
+
+/** Nombre de la impresora de cocina en los eventos de ADR-015. */
+export const IMPRESORA_COCINA = "Cocina";
 
 export type Mesa = Readonly<{
   id: string;
@@ -42,6 +52,20 @@ export type Pedido = Readonly<{
   items: readonly OrderItemDto[];
   enviadoEn: string;
   cambioEn: string;
+  /** Si salió en papel. Con la impresora de cocina caída al enviarse, no (F6-09). */
+  impreso: boolean;
+  listoEn: string | null;
+  /** Motivo, quién autorizó y si la cocina ya confirmó que la vio (FLUJOS C5). */
+  anulacion: Readonly<{
+    motivo: string;
+    autorizo: string;
+    en: string;
+    /** Si la cocina ya la tenía en sus manos y tiene que confirmarla. */
+    confirmar: boolean;
+    vistaPor: string | null;
+  }> | null;
+  /** Quién y cuándo, en cada transición (F6-08). */
+  historial: readonly Readonly<{ estado: EstadoPedido; en: string; por: string | null }>[];
 }>;
 
 export type Impresora = Readonly<{ estado: "OK" | "FALLO"; detalle: string | null; desde: string }>;
@@ -92,9 +116,24 @@ export function aplicar(e: EstadoLocal, ev: OperationEventDto): EstadoLocal {
     const m = e.mesas[id];
     return m ? { ...base, mesas: { ...e.mesas, [id]: { ...m, ...cambio } } } : base;
   };
-  const pedido = (id: string, estado: EstadoPedido): EstadoLocal => {
+  /**
+   * Una transición de comanda, validada por el dominio. Un evento que pide un
+   * salto imposible —un «aceptado» que llega después de «listo»— no hace
+   * retroceder nada: se ignora (F6-08).
+   */
+  const pedido = (id: string, t: Transicion, por: string | undefined, extra?: (p: Pedido) => Partial<Pedido>): EstadoLocal => {
     const p = e.pedidos[id];
-    return p ? { ...base, pedidos: { ...e.pedidos, [id]: { ...p, estado, cambioEn: ev.at } } } : base;
+    if (!p) return base;
+    const r = transicionar(p.estado, t);
+    if (!r.ok) return base;
+    const nuevo: Pedido = {
+      ...p,
+      ...extra?.(p),
+      estado: r.estado,
+      cambioEn: ev.at,
+      historial: [...p.historial, { estado: r.estado, en: ev.at, por: por ?? null }],
+    };
+    return { ...base, pedidos: { ...e.pedidos, [id]: nuevo } };
   };
 
   switch (ev.type) {
@@ -158,17 +197,37 @@ export function aplicar(e: EstadoLocal, ev: OperationEventDto): EstadoLocal {
             items: ev.items,
             enviadoEn: ev.at,
             cambioEn: ev.at,
+            impreso: e.impresoras[IMPRESORA_COCINA]?.estado !== "FALLO",
+            listoEn: null,
+            anulacion: null,
+            historial: [{ estado: "ENVIADO", en: ev.at, por: null }],
           },
         },
       };
     case "pedido.aceptado":
-      return pedido(ev.orderId, "EN_PREPARACION");
+      return pedido(ev.orderId, "ACEPTAR", ev.by);
     case "pedido.listo":
-      return pedido(ev.orderId, "LISTO");
+      return pedido(ev.orderId, "MARCAR_LISTO", ev.by, () => ({ listoEn: ev.at }));
     case "pedido.entregado":
-      return pedido(ev.orderId, "ENTREGADO");
+      return pedido(ev.orderId, "ENTREGAR", ev.by);
     case "pedido.anulado":
-      return pedido(ev.orderId, "ANULADO");
+      return pedido(ev.orderId, "ANULAR", ev.authorizedBy, (p) => ({
+        anulacion: {
+          motivo: ev.reason,
+          autorizo: ev.authorizedBy,
+          en: ev.at,
+          confirmar: anulacionRequiereConfirmacion(p.estado),
+          vistaPor: null,
+        },
+      }));
+    case "pedido.anulacion_vista": {
+      const p = e.pedidos[ev.orderId];
+      if (!p?.anulacion || p.anulacion.vistaPor) return base;
+      return {
+        ...base,
+        pedidos: { ...e.pedidos, [p.id]: { ...p, anulacion: { ...p.anulacion, vistaPor: ev.by } } },
+      };
+    }
 
     case "impresora.fallo":
       return {

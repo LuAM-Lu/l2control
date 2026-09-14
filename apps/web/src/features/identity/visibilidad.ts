@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import { SURFACE_ACTION, can, visibleSurfaces, type Action, type Actor, type SurfaceId } from "@l2/domain-identity";
-import { INICIO, MODULOS, buscarModulo, buscarSeccion, rutaSeccion, type Modulo, type Seccion } from "../shell/navigation.ts";
+import { INICIO, MODULOS, buscarModulo, buscarSeccion, type Modulo, type Seccion } from "../shell/navigation.ts";
 import type { OperadorEnSesion } from "./operador.ts";
 
 /**
@@ -40,6 +40,7 @@ export const SUPERFICIE_DE_RUTA: Readonly<Record<string, SurfaceId>> = {
   "/ventas": "caja",
   "/turno": "turno",
   "/mesas": "mesas",
+  "/cocina": "kds",
 };
 
 const NOMBRE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, string>>> = {
@@ -49,6 +50,7 @@ const NOMBRE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, string>>> = {
   caja: "la caja",
   turno: "el turno de caja",
   mesas: "las mesas",
+  kds: "la cocina",
 };
 
 export function puedeAbrirRuta(actor: Actor, ruta: string): boolean {
@@ -96,11 +98,12 @@ export function puedeAbrirPanel(actor: Actor, ruta: string): boolean {
 
 /* ── a dónde va cada uno ── */
 
-const ORDEN_PUESTOS: readonly SurfaceId[] = ["caja", "monitor", "mesas", "entrada", "salida", "turno"];
+const ORDEN_PUESTOS: readonly SurfaceId[] = ["caja", "monitor", "mesas", "kds", "entrada", "salida", "turno"];
 const RUTA_DE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, Route>>> = {
   caja: "/caja",
   monitor: "/monitor",
   mesas: "/mesas",
+  kds: "/cocina",
   entrada: "/entrada",
   salida: "/salida",
   turno: "/turno",
@@ -108,16 +111,12 @@ const RUTA_DE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, Route>>> = {
 
 /**
  * El puesto de trabajo de un rol: el panel para quien ve informes, si no su
- * primera estación. La cocina todavía no tiene la suya (F6-07) y entra a la
- * sección que lo explica.
+ * primera estación. La cocina entra a la suya, `/cocina` (F6-07).
  */
 export function puestoDe(actor: Actor): { ruta: Route; nombre: string } {
   if (puedeVerInicio(actor)) return { ruta: "/panel", nombre: "el panel" };
   const primera = visibleSurfaces(actor, ORDEN_PUESTOS)[0];
   const ruta = primera ? RUTA_DE_SUPERFICIE[primera] : undefined;
   if (primera && ruta) return { ruta, nombre: NOMBRE_SUPERFICIE[primera] ?? "tu puesto" };
-  if (alcanza(actor, "kds.cambiarEstado")) {
-    return { ruta: rutaSeccion("restaurante", "comandas"), nombre: "las comandas" };
-  }
   return { ruta: "/acceso", nombre: "el acceso" };
 }

@@ -40,6 +40,8 @@ export function describir(ev: OperationEventDto, e: EstadoLocal): string {
       return `Entregado a la ${deMesa(ev.orderId)}`;
     case "pedido.anulado":
       return `Anulado lo de la ${deMesa(ev.orderId)}: ${ev.reason}`;
+    case "pedido.anulacion_vista":
+      return `Cocina vio la anulación de la ${deMesa(ev.orderId)} · ${ev.by}`;
     case "impresora.fallo":
       return `Impresora de ${ev.printer.toLowerCase()}: ${ev.detail.toLowerCase()}`;
     case "impresora.recuperada":

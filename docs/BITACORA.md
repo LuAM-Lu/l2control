@@ -645,3 +645,27 @@ commits, verificación y qué documento se toca en cada caso; `docs/PENDIENTES.m
 lo que falta, agrupado por quién lo desbloquea (cliente, contador, campo, producto, backend), y
 `PROGRESO.md` se quedó con el estado por tarea. Se añadieron el README de `@l2/domain-identity` y el
 índice de contratos por área.
+
+## La cocina tiene pantalla — 2026-09-14
+
+Tercer paso de DEC-22. El KDS estaba a medias en `wip/kds`: la máquina de estados de la comanda ya
+era dominio puro con sus once pruebas, pero no había dónde verla. Ahora existe `/cocina`.
+
+**Lo que decide la pantalla.** Una comanda, una acción: en cola se «Empieza», en preparación se marca
+«Lista», y ahí sale de la rejilla de trabajo a su propia columna, con cuánto lleva esperando al mesero
+—un plato listo que se enfría es tan malo como uno que no sale—. La cocina no entrega (eso es del
+mesero, FLUJOS §2 C) ni anula (eso exige autorización, §7.3): solo confirma que vio una anulación.
+
+**Las anulaciones mandan.** Van arriba, en rojo, con el motivo y quién autorizó, y no se van hasta que
+alguien pulsa «Enterado»; entonces sale el evento `pedido.anulacion_vista`. Es la regla de FLUJOS C5:
+un plato que se sigue cocinando porque nadie vio la anulación es comida tirada. Probado con el
+escenario X5 de punta a punta.
+
+**Tamaños de cocina.** Todo lo que se toca mide 64 px (§8.4), el cronómetro va en cifras tabulares y
+grande, y el nivel de espera —a tiempo, tarda, atrasada— se dice con color, icono y texto, además de
+cambiar el borde de la tarjeta para leerlo de lejos. El umbral (8 y 15 minutos) es un dato de la
+pantalla, no una constante: será configuración de la sucursal.
+
+De paso, el acceso llevaba a la cocina a una sección del back-office que solo explicaba que la
+pantalla no existía; ahora Diego entra directo a `/cocina`, con su pestaña en la barra del
+restaurante, y el mesero que intente abrirla se topa con el guardia de la estación.

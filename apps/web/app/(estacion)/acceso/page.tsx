@@ -1,6 +1,5 @@
 import { AccesoScreen, type Operador } from "../../../src/features/identity/AccesoScreen";
 import type { Device } from "@l2/domain-identity";
-import { rutaSeccion } from "../../../src/features/shell/navigation";
 
 /**
  * Acceso por PIN atado a dispositivo (F2-03, ADR-013).
@@ -70,14 +69,12 @@ const OPERADORES: Operador[] = [
     destinoNombre: "las mesas",
   },
   {
-    // La cocina todavía no tiene pantalla propia (F6-05), así que entra a la
-    // sección que lo explica en vez de a un sitio que no le sirve.
     id: "u4",
     nombre: "Diego Salas",
     rol: "Cocina",
     role: "COCINA",
-    destino: rutaSeccion("restaurante", "comandas"),
-    destinoNombre: "las comandas",
+    destino: "/cocina",
+    destinoNombre: "la cocina",
   },
 ];
 

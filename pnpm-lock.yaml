@@ -133,6 +133,9 @@ importers:
       '@l2/domain-money':
         specifier: workspace:*
         version: link:../../packages/domain/money
+      '@l2/domain-orders':
+        specifier: workspace:*
+        version: link:../../packages/domain/orders
       '@l2/domain-park':
         specifier: workspace:*
         version: link:../../packages/domain/park
@@ -224,6 +227,18 @@ importers:
         version: 7.0.2
 
   packages/domain/money:
+    devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/domain/orders:
     devDependencies:
       '@l2/config':
         specifier: workspace:*

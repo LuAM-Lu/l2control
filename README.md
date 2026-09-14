@@ -44,6 +44,7 @@ de los datos, validada contra los contratos, y la persistencia llega después.
 | Ventas del turno | `/ventas` | Cobros cerrados, reimpresión como copia auditada, anulación con PIN de supervisor |
 | Turno | `/turno` | Cortes X y Z, arqueo por denominación, excepciones |
 | Mesas | `/mesas` | Plano, pedido con borrador y confirmación, vincular pulseras |
+| Cocina (KDS) | `/cocina` | Comandas por antigüedad con cronómetro, empezar y marcar lista, anulaciones a confirmar |
 | Back-office | `/panel` | Inicio con indicadores, módulos, usuarios y permisos por persona |
 
 - Estado tarea por tarea: **[docs/PROGRESO.md](docs/PROGRESO.md)**
