@@ -1,6 +1,6 @@
 # Progreso real
 
-> **Actualizado:** 2026-09-13 · Contrastado contra los criterios de aceptación de
+> **Actualizado:** 2026-09-14 · Contrastado contra los criterios de aceptación de
 > [PLAN.md §12](PLAN.md). Una tarea solo cuenta como hecha si su criterio se cumple y es
 > demostrable — «ya lo programé» no basta.
 >
@@ -15,9 +15,9 @@
 | F1 · Cimientos técnicos | 8 | 2 | 6 | En curso |
 | F2 · Identidad, permisos y auditoría | 2 | 4 | 6 | Permisos por persona, sesión compartida y quién autoriza |
 | F3 · Núcleo monetario y fiscal | 4 | 0 | 8 | Motor de impuestos listo |
-| F4 · Caja y cobro mixto | 2 | 11 | 1 | Interfaz completa con ventas, reimpresión y anulación; falta persistencia |
+| F4 · Caja y cobro mixto | 2 | 11 | 1 | Interfaz completa: ventas, reimpresión, anulación y cuentas de mesa divididas; falta persistencia |
 | F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
-| F6 · Restaurante (interfaz, DEC-22) | 1 | 5 | 8 | Mesas, mesero y cocina (KDS) sobre el simulador |
+| F6 · Restaurante (interfaz, DEC-22) | 1 | 7 | 6 | Mesas con plano y editor, cocina (KDS) y caja de mesas con división |
 | F7-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
 **Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`, `/cocina`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel`, con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.

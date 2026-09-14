@@ -48,10 +48,19 @@
 3. ~~**Caja de mesas** (paso 4)~~ — hecha el 2026-09-14: cuenta con platos y parque (D2), mesa por
    limpiar al cobrar (D3) y **cobro dividido en partes iguales** (F6-12). Queda dividir **por ítems**
    («cada quien lo suyo»), que se hará si el cliente lo pide.
-4. **Panel en vivo** (paso 5).
+4. **Panel en vivo del local** (paso 5, F9-08) — **es lo siguiente**: qué pasa ahora mismo en parque,
+   mesas, cocina y caja, sin recargar, alimentado por los mismos eventos. Con él se cierra DEC-22 y la
+   interfaz entera.
 5. **Cortesía con motivo** (F6-14): hoy, anular un cobro devuelve la cuenta a «por cobrar»; si no
    hay que cobrar lo consumido, hace falta la cortesía.
-6. Modificadores de plato (F6-04), escenarios que faltan del simulador (FLUJOS §5), plano editable.
+6. Detalles que se harán si el cliente los pide: dividir la cuenta **por ítems** (F6-12), modificadores
+   de plato (F6-04), pre-cuenta no fiscal (F6-11), estructura del plano editable y su historial de
+   versiones, umbral de espera de cocina configurable, y los escenarios que faltan del simulador
+   (FLUJOS §5).
+
+**Después del panel, el orden cambia de terreno:** se acaba la interfaz y empieza el backend (§5 de este
+documento). Ahí es donde `pnpm verify` en CI, la base de datos y la auditoría dejan de ser deuda y pasan a
+ser el trabajo.
 
 ## 5. Backend e infraestructura (Ruta A)
 

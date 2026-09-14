@@ -1558,9 +1558,13 @@ La neutralización no es opcional, es la condición para que este orden funcione
 | 7 | Mesas, comandas y KDS | F6-01…F6-07 | Interfaz: filas 9 a 11 (DEC-22). Backend fuera de la Ruta A |
 | 8 | Simulador de operación y catálogo de eventos | F1-19, F1-20 | Base hecha; crece con cada paso |
 | 9 | Mesas y mesero | F6-01…F6-05 (interfaz) | **Interfaz hecha** (2026-09-12) |
-| 10 | Cocina (KDS) | F6-06…F6-09 (interfaz) | Pendiente |
-| 11 | Caja con cuentas de mesa, adicionales y propina | F6-05, F6-13, F8-02 (interfaz) | Pendiente |
-| 12 | Panel en vivo del local | F9-08 | Pendiente |
+| 10 | Cocina (KDS) | F6-06…F6-09 (interfaz) | **Interfaz hecha** (2026-09-14) |
+| 11 | Caja con cuentas de mesa, adicionales y división | F6-05, F6-12, F8-02 (interfaz) | **Interfaz hecha** (2026-09-14). La propina pasa a Configuración (D8) |
+| 12 | Panel en vivo del local | F9-08 | **Siguiente** |
+
+**Estado al 2026-09-14.** Las doce superficies de las filas 1 a 11 tienen su interfaz: parque, caja con
+ventas y anulación, mesas con su plano y su editor, cocina y caja de mesas. Queda la fila 12, el panel en
+vivo, y después el backend, que es lo que convierte todo esto en producto.
 
 **Estado al 2026-09-11.** Las seis superficies de la Ruta A tienen su interfaz, y con ellas las
 pantallas de F2 que este orden obliga a no saltarse: permisos por persona (F2-11) y sesión en
@@ -1816,7 +1820,9 @@ producto y el flujo más simple de validar en un turno.*
 
 ### FASE 6 · RESTAURANTE, COMANDAS Y COCINA
 
-- [~] **F6-01 · Zonas y plano de mesas** editable.
+- [~] **F6-01 · Zonas y plano de mesas** editable. *Plano espacial en `/mesas` y editor en Panel →
+  Restaurante → Plano del local, solo administración (V3, V4, D10, D11; 2026-09-14). Falta la capa de
+  estructura editable y el historial de versiones.*
   → *Criterio:* refleja la distribución real relevada en F0-03 (7-10 mesas de 4-6 sillas según DEC-7),
   y el número de mesas y sillas es **configurable**, no una constante del código.
 - [~] **F6-02 · Estados de mesa en tiempo real** (§6.5).
@@ -1825,7 +1831,9 @@ producto y el flujo más simple de validar en un turno.*
   → *Criterio:* objetivos de 48 px en tablet; un mesero nuevo toma un pedido sin entrenamiento previo.
 - [ ] **F6-04 · Modificadores de plato** con efecto en precio y en consumo de insumos.
   → *Criterio:* un modificador con costo altera el total y el escandallo de forma coherente.
-- [~] **F6-05 · Vinculación de pulseras del parque a una mesa** (R3).
+- [~] **F6-05 · Vinculación de pulseras del parque a una mesa** (R3). *Vincular mueve lo del parque a la
+  cuenta de la mesa (D2) y «Pide la cuenta» la manda a la cola de caja; al cobrar, la mesa queda por
+  limpiar (D3). 2026-09-14.*
   → *Criterio:* la cuenta maestra muestra platos **y** tiempo de parque en un solo total.
 - [ ] **F6-06 · Envío de comanda por WebSocket** (ADR-008).
   → *Criterio:* **aparece en el KDS en menos de 2 s**, medido; si el socket cae, la cola local reintenta
@@ -1843,9 +1851,11 @@ producto y el flujo más simple de validar en un turno.*
   → *Criterio:* cada ítem se imprime donde debe, según su categoría.
 - [ ] **F6-11 · Pre-cuenta no fiscal.**
   → *Criterio:* claramente marcada como no fiscal; no consume correlativo; no cierra la mesa.
-- [ ] **F6-12 · División de cuenta:** partes iguales, por ítems, y pago parcial.
+- [~] **F6-12 · División de cuenta:** partes iguales, por ítems, y pago parcial. *Partes iguales hechas
+  en la caja con reparto por mayor resto y un recibo por parte (2026-09-14). Falta por ítems.*
   → *Criterio:* la suma de las partes es **exactamente** el total (reparto por mayor resto, §5.1).
-- [ ] **F6-13 · Servicio y propina** (H-14), con la regla fiscal de DEC-6.
+- [ ] **F6-13 · Servicio y propina** (H-14), con la regla fiscal de DEC-6. *Decidido el 2026-09-14 (D8):
+  es un ajuste de Configuración, no un paso del cobro.*
   → *Criterio:* el servicio se calcula, se muestra separado, y el reparto entre personal es reportable.
 - [ ] **F6-14 · Cortesías y anulaciones** con motivo y autorización (§7.5).
   → *Criterio:* nada se borra; todo aparece en el reporte de excepciones del turno.

@@ -797,3 +797,14 @@ rechazar el vuelto, que no es ingreso del negocio (§5.6).
 
 Falta dividir **por ítems** («cada quien lo suyo»), que se hará si el cliente lo pide: con el reparto en
 partes iguales se resuelve la mayoría de las mesas.
+
+## Cierre del frontend: qué queda y en qué orden — 2026-09-14
+
+Con la caja de mesas terminada, las once primeras superficies del mapa de §11.4 tienen su interfaz:
+parque (monitor, entrada, salida), caja (cobro mixto, ventas, reimpresión, anulación, cuentas de mesa y
+división), mesas con su plano y su editor, y cocina. El plan se actualizó fila por fila y tarea por tarea;
+`docs/PENDIENTES.md` queda como la única lista de lo que falta.
+
+Lo siguiente es la **fila 12: el panel en vivo** (F9-08), que cierra DEC-22 y la interfaz completa. Después
+cambia el terreno: se acaba el frontend y empieza el backend, y ahí la CI, la base de datos con RLS y la
+auditoría dejan de ser deuda registrada para ser el trabajo.
