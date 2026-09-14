@@ -77,6 +77,7 @@ import { useVentas } from "./VentasProvider.tsx";
 import { useOperador } from "../identity/operador.ts";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import {
+  esDeMesa,
   esLineaDeMostrador,
   esVentaDirecta,
   lineasParaCobrar,
@@ -1248,6 +1249,10 @@ export function CajaScreen({
 
   function alCobrar(cuenta: FamilyAccountDto, r: Cobrado) {
     guardar(marcarCobrada(cuenta));
+    // Cobrada la mesa, queda por limpiar: el salón lo ve al momento (D7).
+    if (esDeMesa(cuenta) && cuenta.tableId) {
+      sim.emitir({ type: "mesa.por_limpiar", tableId: cuenta.tableId });
+    }
     setElegida(null);
     registrar({
       id: `v-${globalThis.crypto.randomUUID()}`,

@@ -76,3 +76,46 @@ describe("cuenta de la familia (DEC-21)", () => {
     assert.equal(r.success, false);
   });
 });
+
+describe("cuenta de mesa (F6-05, D2 y D3)", () => {
+  const plato = { id: "l-pizza", concept: "Pizza margarita", kind: "RESTAURANTE" as const, amount: { minor: "850", currency: "USD" as const }, paid: false };
+  const deMesa = {
+    id: "c-mesa-3",
+    family: "Mesa 3",
+    mode: "CUENTA_ABIERTA" as const,
+    status: "ABIERTA" as const,
+    openedAt: "2026-09-14T18:00:00.000Z",
+    sessionIds: [],
+    closedSessionIds: [],
+    tableId: "mesa-3",
+    tableLabel: "3",
+    lines: [plato],
+  };
+  const valido = (c: unknown) => FamilyAccountSchema.safeParse(c).success;
+
+  test("una cuenta anclada a una mesa no necesita niños", () => {
+    assert.equal(valido(deMesa), true);
+  });
+
+  test("sin niños y sin mesa, no es cuenta de nadie", () => {
+    assert.equal(valido({ ...deMesa, tableId: undefined, tableLabel: undefined }), false);
+  });
+
+  test("la mesa se cobra aunque sus niños sigan dentro (D3)", () => {
+    const conNinos = { ...deMesa, sessionIds: ["s1"], closedSessionIds: [] };
+    assert.equal(valido({ ...conNinos, status: "COBRADA", lines: [{ ...plato, paid: true }] }), true);
+    // Una cuenta de familia, en cambio, no se cierra con niños dentro.
+    assert.equal(
+      valido({ ...conNinos, tableId: undefined, tableLabel: undefined, status: "COBRADA", lines: [{ ...plato, paid: true }] }),
+      false,
+    );
+  });
+
+  test("una línea movida a otra cuenta ya no cuenta como pendiente (D2)", () => {
+    const movida = { ...plato, movedTo: "c-mesa-3" };
+    // Cobrada: lo único que quedaba se movió a la cuenta de la mesa.
+    assert.equal(valido({ ...deMesa, sessionIds: ["s1"], status: "COBRADA", lines: [movida], closedSessionIds: ["s1"] }), true);
+    // Por cobrar: si todo se movió, no hay nada que cobrar aquí.
+    assert.equal(valido({ ...deMesa, status: "POR_COBRAR", lines: [movida] }), false);
+  });
+});

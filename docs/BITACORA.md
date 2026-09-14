@@ -745,3 +745,33 @@ y el historial de versiones, que llegará con el servidor.
 cortada contra la pared y el lienzo se comía la pantalla. El local se dibuja ahora una sola vez
 (`piezas.tsx`) para el servicio y para el editor, y la pantalla usa el contenedor y la cabecera del
 back-office, con el lienzo acotado al alto de la ventana.
+
+## La cuenta de la mesa: una familia, un cobro — 2026-09-14
+
+Paso 4 de DEC-22, y las dos decisiones que lo trababan, cerradas por el cliente con un «lo más óptimo»:
+
+- **D2 — vincular MUEVE el parque a la mesa.** Cuando el mesero vincula las pulseras, las líneas de parque
+  de esa familia pasan a la cuenta de la mesa. Así la familia paga una vez y la cajera no suma dos cuentas
+  de cabeza. Nada se borra (regla 5): la línea se queda en la cuenta de la familia con `movedTo` diciendo
+  adónde fue, y deja de contar como pendiente.
+- **D3 — la mesa se cobra aunque los niños sigan jugando.** El contrato ya no exige que la familia entera
+  haya salido para cerrar una cuenta **de mesa**; para una cuenta de familia sigue exigiéndolo.
+
+**El circuito completo.** Cada pedido que el mesero envía a cocina entra en la cuenta de la mesa con el
+precio de carta de ese momento —no con el de mañana—; una línea por unidad, para poder cobrar o hacer
+cortesía de una sola. «Pide la cuenta» la manda a la cola de la caja con su número de orden, donde aparece
+con icono de mesa y su propio filtro. Al cobrarla, la caja emite `mesa.por_limpiar` y el salón lo ve al
+momento (D7 de FLUJOS §2).
+
+**Dos cosas que faltaban para que esto se sostuviera.** La entrada abría la cuenta pero **no avisaba al
+resto del local**: los niños registrados no aparecían en la sala ni se podían vincular a una mesa. Ahora la
+entrada emite `estancia.abierta` por cada niño, con el mismo catálogo de eventos que usará el servidor. Y
+lo que hacen las personas —abrir una mesa, enviar un pedido— **se perdía al recargar la página**, así que
+cambiar de usuario borraba la tarde a medias; ahora se guarda en la pestaña y se valida contra el contrato
+al recuperarlo, como lo que llega de otra pestaña.
+
+El contrato de cuenta admite ahora una cuenta anclada a una mesa (`tableId`, `tableLabel`) y sin niños, con
+la regla de que toda cuenta tiene que ser de alguien: de unos niños, de una mesa o del mostrador. Cuatro
+pruebas nuevas.
+
+Queda de la caja de mesas: **cobro dividido** (F6-12) y **propina explícita** (F6-13).

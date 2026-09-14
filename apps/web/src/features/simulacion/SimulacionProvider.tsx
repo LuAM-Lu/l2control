@@ -31,6 +31,14 @@ import { ahoraSimulado, arrancar, conVelocidad, pausar, reanudar, vencidos, type
  */
 
 const CANAL = "l2-simulacion";
+/**
+ * Lo que hicieron las personas, guardado en la pestaña.
+ *
+ * El guion se repite solo —es determinista—, pero abrir una mesa o enviar un
+ * pedido no: sin esto, cambiar de usuario (que recarga la página) borraba el
+ * trabajo de la tarde y la demostración se caía a la mitad.
+ */
+const CLAVE_PROPIOS = "l2:simulacion:propios:v1";
 const TIC_MS = 250;
 
 type Mensaje =
@@ -111,6 +119,15 @@ export function SimulacionProvider({ children }: { children: React.ReactNode }) 
   const canal = useRef<BroadcastChannel | null>(null);
   /** Eventos emitidos por personas, en orden de llegada. */
   const propios = useRef<OperationEventDto[]>([]);
+
+  /** Los guarda en la pestaña: sobreviven a una recarga y al cambio de usuario. */
+  const recordar = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(CLAVE_PROPIOS, JSON.stringify(propios.current));
+    } catch {
+      // Sin almacenamiento, la tarde vive solo mientras la página esté abierta.
+    }
+  }, []);
   /** Última hora simulada conocida, para sellar eventos en una pestaña que sigue. */
   const ultimoSimNow = useRef(0);
 
@@ -139,17 +156,43 @@ export function SimulacionProvider({ children }: { children: React.ReactNode }) 
     const nuevos = eventos.filter((e) => !vistos.has(e.id));
     if (nuevos.length === 0) return;
     propios.current = [...propios.current, ...nuevos];
+    recordar();
     setEstado((prev) => nuevos.reduce(aplicar, prev));
-  }, []);
+  }, [recordar]);
 
   const limpiar = useCallback(() => {
     reloj.current = null;
     actual.current = null;
     indice.current = 0;
     propios.current = [];
+    try {
+      window.sessionStorage.removeItem(CLAVE_PROPIOS);
+    } catch {
+      // Nada que limpiar si no hay almacenamiento.
+    }
     setControl(false);
     setEscenarioId(null);
     setEstado(ESTADO_VACIO);
+  }, []);
+
+  /* ── lo que hicieron las personas antes de esta recarga ── */
+  useEffect(() => {
+    let guardados: OperationEventDto[] = [];
+    try {
+      const crudo = window.sessionStorage.getItem(CLAVE_PROPIOS);
+      if (crudo) {
+        // Entrada no confiable aunque venga de esta misma pestaña: se valida
+        // contra el contrato, como lo que llega de otra (ADR-017).
+        const r = OperationEventSchema.array().safeParse(JSON.parse(crudo));
+        if (r.success) guardados = r.data;
+        else window.sessionStorage.removeItem(CLAVE_PROPIOS);
+      }
+    } catch {
+      // Almacenamiento bloqueado o JSON roto: se empieza sin ellos.
+    }
+    if (guardados.length === 0) return;
+    propios.current = guardados;
+    setEstado((prev) => guardados.reduce(aplicar, prev));
   }, []);
 
   /* ── el canal entre pestañas ── */

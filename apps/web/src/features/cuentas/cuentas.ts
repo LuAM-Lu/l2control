@@ -13,6 +13,7 @@
  */
 import {
   FamilyAccountSchema,
+  type AccountLineDto,
   type FamilyAccountDto,
   type MoneyDto,
   type PaymentMode,
@@ -21,12 +22,17 @@ import { sum, type Money } from "@l2/domain-money";
 import type { DocumentLine } from "@l2/domain-tax";
 import { toMoney } from "../park/mappers.ts";
 
-/** Lo que falta por cobrar de una cuenta. */
+/** Lo que falta por cobrar de una cuenta. Lo movido a otra cuenta ya no cuenta aquí. */
 export function pendiente(c: FamilyAccountDto): Money {
   return sum(
-    c.lines.filter((l) => !l.paid).map((l) => toMoney(l.amount)),
+    c.lines.filter((l) => !l.paid && !l.movedTo).map((l) => toMoney(l.amount)),
     "USD",
   );
+}
+
+/** Una cuenta abierta en el salón: se cobra cuando la mesa pide la cuenta (F6-05). */
+export function esDeMesa(c: FamilyAccountDto): boolean {
+  return c.tableId !== undefined;
 }
 
 /**
@@ -61,7 +67,7 @@ export function puedeDescartarse(c: FamilyAccountDto): boolean {
 /** Las líneas pendientes, en la forma que cobra la caja. */
 export function lineasParaCobrar(c: FamilyAccountDto): DocumentLine[] {
   return c.lines
-    .filter((l) => !l.paid)
+    .filter((l) => !l.paid && !l.movedTo)
     .map((l) => ({
       id: l.id,
       description: l.concept,
@@ -186,4 +192,91 @@ export function marcarCobrada(c: FamilyAccountDto): FamilyAccountDto {
     lines: c.lines.map((l) => ({ ...l, paid: true })),
     status: fuera ? "COBRADA" : "ABIERTA",
   });
+}
+
+/* ══════════════════════════════ la cuenta de la mesa — F6-05, D2, D3 ══ */
+
+/** Abre la cuenta de una mesa. Nace vacía y se llena con cada pedido. */
+export function abrirCuentaDeMesa({
+  tableId,
+  tableLabel,
+  abiertaEn,
+  ahora,
+}: {
+  tableId: string;
+  tableLabel: string;
+  /** Cuándo se abrió la mesa: separa esta familia de la anterior en la misma mesa. */
+  abiertaEn: string;
+  ahora: string;
+}): FamilyAccountDto {
+  return FamilyAccountSchema.parse({
+    id: `c-mesa-${tableId}-${Date.parse(abiertaEn)}`,
+    family: `Mesa ${tableLabel}`,
+    mode: "CUENTA_ABIERTA",
+    status: "ABIERTA",
+    openedAt: ahora,
+    sessionIds: [],
+    closedSessionIds: [],
+    tableId,
+    tableLabel,
+    lines: [],
+  });
+}
+
+/** Añade a la cuenta de la mesa lo que se acaba de enviar a cocina. */
+export function anadirPedido(
+  c: FamilyAccountDto,
+  orderId: string,
+  platos: readonly { concepto: string; cantidad: number; precio: MoneyDto }[],
+): FamilyAccountDto {
+  const lineas: AccountLineDto[] = platos.flatMap((p) =>
+    // Una línea por unidad: así se puede cobrar o cortesía una sola, y la caja
+    // ya sabe agrupar las iguales en una fila con su cantidad.
+    Array.from({ length: p.cantidad }, (_, i) => ({
+      id: `${c.id}-${orderId}-${i}-${p.concepto}`.slice(0, 64),
+      concept: p.concepto.slice(0, 80),
+      kind: "RESTAURANTE" as const,
+      amount: p.precio,
+      paid: false,
+    })),
+  );
+  return FamilyAccountSchema.parse({ ...c, lines: [...c.lines, ...lineas] });
+}
+
+/**
+ * Vincular niños a una mesa mueve lo suyo del parque a la cuenta de la mesa — D2.
+ *
+ * Así la familia paga UNA vez. Nada se borra (regla 5): la línea se queda en la
+ * cuenta de la familia diciendo adónde fue, y deja de contar como pendiente.
+ * Devuelve las dos cuentas ya validadas, o `null` si no había nada que mover.
+ */
+export function moverParqueALaMesa(
+  familia: FamilyAccountDto,
+  mesa: FamilyAccountDto,
+  sessionIds: readonly string[],
+): { familia: FamilyAccountDto; mesa: FamilyAccountDto } | null {
+  const ids = new Set(sessionIds);
+  const mueven = familia.lines.filter((l) => !l.paid && !l.movedTo && l.sessionId && ids.has(l.sessionId));
+  if (mueven.length === 0) return null;
+
+  const enLaMesa = mueven.map((l) => ({ ...l, id: `${mesa.id}-${l.id}`.slice(0, 64) }));
+  return {
+    familia: FamilyAccountSchema.parse({
+      ...familia,
+      lines: familia.lines.map((l) => (mueven.includes(l) ? { ...l, movedTo: mesa.id } : l)),
+      // Si ya no le queda nada propio, deja de estar en la cola de la caja.
+      status: familia.lines.some((l) => !l.paid && !mueven.includes(l)) ? familia.status : "ABIERTA",
+    }),
+    mesa: FamilyAccountSchema.parse({
+      ...mesa,
+      sessionIds: [...new Set([...mesa.sessionIds, ...sessionIds])],
+      lines: [...mesa.lines, ...enLaMesa],
+    }),
+  };
+}
+
+/** La mesa pidió la cuenta: pasa a la cola de la caja si hay algo que cobrar. */
+export function pasarACaja(c: FamilyAccountDto): FamilyAccountDto {
+  const hayPendiente = c.lines.some((l) => !l.paid && !l.movedTo);
+  return FamilyAccountSchema.parse({ ...c, status: hayPendiente ? "POR_COBRAR" : c.status });
 }

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, X } from "lucide-react";
+import { Baby, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
 import type { PointOfSale } from "@l2/domain-cash";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { MoneyDisplay, ScannerField, cn } from "@l2/ui";
-import { esVentaDirecta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
+import { esDeMesa, esVentaDirecta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 
 /**
@@ -25,11 +25,12 @@ import { PistaTecla } from "./AtajosDialog.tsx";
  * El estado se dice con icono + texto, nunca solo con color (§8.2).
  */
 
-export type FiltroCola = "TODAS" | "PARQUE" | "MOSTRADOR";
+export type FiltroCola = "TODAS" | "PARQUE" | "MESAS" | "MOSTRADOR";
 
 const FILTROS: readonly { id: FiltroCola; texto: string }[] = [
   { id: "TODAS", texto: "Todas" },
   { id: "PARQUE", texto: "Parque" },
+  { id: "MESAS", texto: "Mesas" },
   { id: "MOSTRADOR", texto: "Mostrador" },
 ];
 
@@ -52,7 +53,9 @@ export function filtrarCola(cuentas: readonly FamilyAccountDto[], texto: string,
   const q = sinAcentos(texto.trim()).replace(/^#/, "");
   return cuentas.filter((c) => {
     const directa = esVentaDirecta(c);
-    if (filtro === "PARQUE" && directa) return false;
+    const deMesa = esDeMesa(c);
+    if (filtro === "PARQUE" && (directa || deMesa)) return false;
+    if (filtro === "MESAS" && !deMesa) return false;
     if (filtro === "MOSTRADOR" && !directa) return false;
     if (q === "") return true;
     const numero = String(c.orderNumber ?? "");
@@ -257,7 +260,8 @@ export function ColaCuentas({
           {cuentas.map((c) => {
             const activa = c.id === actual && !ventaNueva;
             const esDirecta = esVentaDirecta(c);
-            const Origen = esDirecta ? ShoppingBag : Baby;
+            const deMesa = esDeMesa(c);
+            const Origen = esDirecta ? ShoppingBag : deMesa ? UtensilsCrossed : Baby;
             const minutos =
               ahora > 0 && c.pendingSince ? Math.max(0, Math.floor((ahora - Date.parse(c.pendingSince)) / 60_000)) : null;
             const larga = minutos !== null && minutos >= ESPERA_LARGA_MIN;
@@ -286,8 +290,9 @@ export function ColaCuentas({
                       <span className="tnum font-semibold text-ink-2">{numeroDeOrden(c)}</span>
                       <Origen size={12} className="ml-0.5 shrink-0" aria-hidden="true" />
                       <span className="truncate">
-                        {esDirecta ? "Mostrador" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
-                        {!esDirecta && ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
+                        {esDirecta ? "Mostrador" : deMesa ? "Mesa" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                        {!esDirecta && c.sessionIds.length > 0 &&
+                          ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
                       </span>
                     </span>
                     {minutos !== null && (

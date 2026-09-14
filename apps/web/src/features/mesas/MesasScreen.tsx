@@ -16,9 +16,18 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import type { MenuDto } from "@l2/contracts";
+import type { FamilyAccountDto, MenuDto } from "@l2/contracts";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import {
+  abrirCuentaDeMesa,
+  anadirPedido,
+  esDeMesa,
+  moverParqueALaMesa,
+  numeroDeOrden,
+  pasarACaja,
+} from "../cuentas/cuentas.ts";
 import type { Pedido } from "../simulacion/proyeccion.ts";
 import {
   loQuePideAtencion,
@@ -74,6 +83,8 @@ const ESTADO_PEDIDO: Readonly<Record<Pedido["estado"], { texto: string; tono: To
 export function MesasScreen({ carta }: { carta: MenuDto }) {
   // El plano lo publica administración desde el panel (V4); aquí solo se lee.
   const { plano } = usePlano();
+  // La cuenta de la mesa (F6-05, D2): los platos y el parque de esta familia.
+  const { cuentas, guardar } = useCuentas();
   const sim = useSimulacion();
   const ahora = useAhoraLocal();
   const { estado } = sim;
@@ -156,12 +167,47 @@ export function MesasScreen({ carta }: { carta: MenuDto }) {
     );
   }
 
+  /**
+   * La cuenta de esta ocupación de la mesa. Se crea al primer pedido o al
+   * primer vínculo, y muere con el cobro: la siguiente familia que se siente
+   * abre otra, porque el identificador lleva la hora de apertura.
+   */
+  function cuentaDeLaMesa(m: MesaVista): FamilyAccountDto {
+    if (!m.ocupacion) throw new Error("La mesa no está abierta");
+    const nueva = abrirCuentaDeMesa({
+      tableId: m.mesa.id,
+      tableLabel: m.mesa.label,
+      abiertaEn: m.ocupacion.abiertaEn,
+      ahora: new Date().toISOString(),
+    });
+    return cuentas.find((c) => c.id === nueva.id) ?? nueva;
+  }
+
   function vincular(m: MesaVista, ids: string[]) {
     if (!m.ocupacion || ids.length === 0) return;
-    emitir(
+    const ok = emitir(
       { type: "mesa.vinculada", tableId: m.mesa.id, sessionIds: ids },
       `${ids.length === 1 ? "1 niño vinculado" : `${ids.length} niños vinculados`} a la mesa ${m.mesa.label}`,
     );
+    if (!ok) return;
+
+    // D2: lo del parque pasa a la cuenta de la mesa, para que la familia pague
+    // UNA vez. La cuenta de la familia conserva el rastro de adónde fue cada línea.
+    let mesa = cuentaDeLaMesa(m);
+    let movidas = 0;
+    for (const familia of cuentas.filter((c) => c.sessionIds.some((id) => ids.includes(id)) && !esDeMesa(c))) {
+      const r = moverParqueALaMesa(familia, mesa, ids);
+      if (!r) continue;
+      movidas += r.mesa.lines.length - mesa.lines.length;
+      mesa = r.mesa;
+      guardar(r.familia);
+    }
+    guardar(mesa);
+    if (movidas > 0) {
+      avisar.info(`El parque de ${movidas === 1 ? "un niño" : "esos niños"} pasa a la cuenta de la mesa`, {
+        detalle: "La familia lo paga todo junto en caja.",
+      });
+    }
   }
 
   function enviar(m: MesaVista) {
@@ -180,9 +226,30 @@ export function MesasScreen({ carta }: { carta: MenuDto }) {
       `Pedido enviado a cocina · Mesa ${m.mesa.label}`,
     );
     if (ok) {
+      // Lo enviado a cocina ya es deuda de la mesa: entra en su cuenta con el
+      // precio de carta de hoy, no con el de mañana.
+      const platos = lineas.flatMap((l) => {
+        const it = carta.find((i) => i.id === l.itemId);
+        return it ? [{ concepto: it.name, cantidad: l.cantidad, precio: it.price }] : [];
+      });
+      guardar(anadirPedido(cuentaDeLaMesa(m), globalThis.crypto.randomUUID().slice(0, 8), platos));
       setBorradores((b) => ({ ...b, [m.mesa.id]: [] }));
       setVista("plano");
     }
+  }
+
+  /** La mesa pide la cuenta: el mesero no cobra (DEC-14), la manda a caja. */
+  function pedirLaCuenta(m: MesaVista) {
+    const cuenta = pasarACaja(cuentaDeLaMesa(m));
+    if (cuenta.status !== "POR_COBRAR") {
+      avisar.error(`La mesa ${m.mesa.label} no ha consumido nada todavía`);
+      return;
+    }
+    if (!emitir({ type: "mesa.pide_cuenta", tableId: m.mesa.id }, `Mesa ${m.mesa.label}: la cuenta pasa a caja`)) return;
+    guardar(cuenta);
+    avisar.info(`${numeroDeOrden(cuenta)} en la cola de la caja`, {
+      detalle: "La familia paga ahí: el mesero no toca dinero (DEC-14).",
+    });
   }
 
   const bloqueoEnvio = (m: MesaVista | null): string | null =>
@@ -365,12 +432,7 @@ export function MesasScreen({ carta }: { carta: MenuDto }) {
                     {elegida.estado === "OCUPADA" ? (
                       <Button
                         variant="neutral"
-                        onClick={() =>
-                          emitir(
-                            { type: "mesa.pide_cuenta", tableId: elegida.mesa.id },
-                            `Mesa ${elegida.mesa.label}: la cuenta pasa a caja`,
-                          )
-                        }
+                        onClick={() => pedirLaCuenta(elegida)}
                         className="w-full"
                       >
                         <Receipt size={16} aria-hidden="true" />

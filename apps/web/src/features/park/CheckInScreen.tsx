@@ -27,6 +27,7 @@ import { computeCapacity } from "@l2/domain-park";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { abrirCuenta } from "../cuentas/cuentas.ts";
+import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
@@ -75,6 +76,7 @@ export function CheckInScreen({
    */
   occupiedWristbands: readonly string[];
 }) {
+  const sim = useSimulacion();
   const defaultPackageId = packages.find((p) => p.id === "pkg-60")?.id ?? packages[0]?.id ?? "";
 
   const [entradas, setEntradas] = useState<Entrada[]>([]);
@@ -195,16 +197,29 @@ export function CheckInScreen({
     // Cada niño con su paquete. Un paquete que ya no existe en el catálogo
     // no se cobra «a cero»: se detiene el registro (fail-closed).
     const ninos = [];
+    const estancias = [];
+    const desde = new Date().toISOString();
     for (const e of entradas) {
       const p = packages.find((x) => x.id === e.packageId);
       if (!p) {
         setAviso(`El paquete de ${e.name.trim()} ya no existe en el catálogo`);
         return;
       }
+      const sessionId = `s-${e.uid}`;
       ninos.push({
-        sessionId: `s-${e.uid}`,
+        sessionId,
         concepto: `Paquete ${p.name} · ${e.nickname.trim() || e.name.trim()}`,
         precio: p.price,
+      });
+      estancias.push({
+        id: sessionId,
+        wristbandCode: e.wristbandCode,
+        kid: { id: `k-${e.uid}`, name: e.name.trim(), ...(e.nickname.trim() ? { nickname: e.nickname.trim() } : {}) },
+        mode: p.mode,
+        duration: p.duration,
+        startedAt: desde,
+        packageId: p.id,
+        packagePrice: p.price,
       });
     }
 
@@ -217,6 +232,15 @@ export function CheckInScreen({
       ninos,
     });
     guardar(cuenta);
+
+    // El resto del local se entera: la sala pinta al niño, el mesero puede
+    // vincular su pulsera a una mesa y la cocina sabe cuántos hay dentro.
+    // Mismo catálogo de eventos que usará el servidor (F1-20).
+    for (const session of estancias) {
+      const r = sim.emitir({ type: "estancia.abierta", session, family: cuenta.family });
+      if (!r.ok) avisar.aviso(`La sala no se enteró de ${session.kid.name}: ${r.motivo}`);
+    }
+
     setEntradas([]);
     setTelefono("");
     setNombreNuevo("");
