@@ -428,12 +428,14 @@ function Cabecera({
   return (
     <header className="border-b border-line">
       <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 py-3">
+        {/* El conmutador primero: es lo que más se toca, y en el borde
+            izquierdo cae donde ya está la mano al volver del plano. */}
         <div className="flex min-w-0 items-end gap-5">
+          {vista}
           <div className="min-w-0">
             <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">{titulo}</h1>
             <p className="mt-1.5 text-[13px] text-ink-3">{subtitulo}</p>
           </div>
-          {vista}
         </div>
         {cifras && <div className="flex items-end gap-6">{cifras}</div>}
       </Container>
