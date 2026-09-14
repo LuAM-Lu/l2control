@@ -224,7 +224,25 @@ export function MesasScreen({ carta }: { carta: MenuDto }) {
       <Cabecera
         titulo="Mesas"
         subtitulo="Toca una mesa para ver sus pedidos"
-       
+        vista={
+          <div role="radiogroup" aria-label="Cómo ver las mesas" className="flex gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1">
+            {([["PLANO", "Plano"], ["ATENDER", "Atender"]] as const).map(([id, texto]) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={modo === id}
+                onClick={() => setModo(id)}
+                className={cn(
+                  "min-h-11 cursor-pointer rounded-[0.4rem] px-4 text-[13.5px] transition-colors",
+                  modo === id ? "bg-brand text-on-brand font-semibold" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                )}
+              >
+                {texto}
+              </button>
+            ))}
+          </div>
+        }
         cifras={
           <>
             <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${plano.tables.length}`} />
@@ -263,26 +281,6 @@ export function MesasScreen({ carta }: { carta: MenuDto }) {
         className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[3fr_2fr] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
       >
         <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
-          {/* El plano se parece al local; la lista se lee mejor en móvil y con
-              lector de pantalla. Misma información, dos formas de mirarla. */}
-          <div role="radiogroup" aria-label="Cómo ver las mesas" className="flex gap-1 self-start rounded-[var(--radius-control)] bg-surface/70 p-1">
-            {([["PLANO", "Plano"], ["ATENDER", "Atender"]] as const).map(([id, texto]) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={modo === id}
-                onClick={() => setModo(id)}
-                className={cn(
-                  "min-h-12 cursor-pointer rounded-[0.4rem] px-4 text-[13.5px] transition-colors",
-                  modo === id ? "bg-brand text-on-brand font-semibold" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
-                )}
-              >
-                {texto}
-              </button>
-            ))}
-          </div>
-
           {modo === "PLANO" ? (
             <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion} onElegir={elegir} className="lg:min-h-0" />
           ) : (
@@ -418,18 +416,24 @@ function BannerSimulacion() {
 function Cabecera({
   titulo,
   subtitulo,
+  vista,
   cifras,
 }: {
   titulo: string;
   subtitulo: string;
+  /** Conmutador de la pantalla: va aquí arriba, no sobre el contenido. */
+  vista?: React.ReactNode;
   cifras?: React.ReactNode;
 }) {
   return (
     <header className="border-b border-line">
       <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 py-3">
-        <div className="min-w-0">
-          <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">{titulo}</h1>
-          <p className="mt-1.5 text-[13px] text-ink-3">{subtitulo}</p>
+        <div className="flex min-w-0 items-end gap-5">
+          <div className="min-w-0">
+            <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">{titulo}</h1>
+            <p className="mt-1.5 text-[13px] text-ink-3">{subtitulo}</p>
+          </div>
+          {vista}
         </div>
         {cifras && <div className="flex items-end gap-6">{cifras}</div>}
       </Container>

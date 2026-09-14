@@ -716,6 +716,9 @@ lista solo lo que pide acción, en el orden en que conviene hacerlo: platos list
 quiere pagar, mesas que bloquean por limpiar y mesas largas. En el teléfono es la vista de entrada, porque
 un plano de ocho metros ahí no se lee, y sigue siendo la alternativa para lector de pantalla.
 
+El conmutador acabó donde le toca: **en la fila del título**, no sobre el contenido. Es un control de la
+pantalla, no del plano, y así el dibujo recupera ese renglón.
+
 ## El editor del plano — 2026-09-14
 
 V4, y con él la respuesta a «¿dónde añado o quito una mesa?»: **Panel → Restaurante → Plano del local**,
