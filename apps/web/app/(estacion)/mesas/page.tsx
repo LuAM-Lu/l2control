@@ -1,5 +1,5 @@
 import { MesasScreen } from "../../../src/features/mesas/MesasScreen";
-import { CARTA_DEMO, PLANO_DEMO } from "../../../src/demo/restaurante";
+import { CARTA_DEMO } from "../../../src/demo/restaurante";
 
 /**
  * Estación del mesero: plano de mesas y pedidos (F6-01…F6-05, DEC-22).
@@ -10,5 +10,5 @@ import { CARTA_DEMO, PLANO_DEMO } from "../../../src/demo/restaurante";
  * forma ya es la del contrato.
  */
 export default function MesasPage() {
-  return <MesasScreen plano={PLANO_DEMO} carta={CARTA_DEMO} />;
+  return <MesasScreen carta={CARTA_DEMO} />;
 }

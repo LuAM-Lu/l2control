@@ -242,7 +242,7 @@ Orden propuesto. Cada paso deja la aplicación mejor que antes y no bloquea el s
 | **V2** ✔ | Roles en estaciones: pestañas y «Panel» filtrados, pantalla «Sin acceso», menú del panel por rol. **Hecho el 2026-09-12** | A3 | 1 sesión |
 | — | *DEC-22 paso 3: cocina (KDS)*, ya con toasts y roles | — | — |
 | **V3** ✔ | Plano espacial en `/mesas` con el local del dibujo, y vista Lista. **Hecho el 2026-09-14** | M4 | 1 sesión |
-| **V4** | Editor del plano en el panel: borrador, publicar, retirar, deshacer | F6-01 | 1-2 sesiones |
+| **V4** ✔ | Editor del plano en el panel: borrador, publicar, retirar, deshacer. **Hecho el 2026-09-14** | F6-01 | 1-2 sesiones |
 | **V5** ✔ | Caja: venta directa y adicionales (mostrador), catálogo táctil de snacks, formato bimoneda VE y montos grandes. **Hecho el 2026-09-12** | §5 | 1 sesión |
 | — | *DEC-22 paso 5: panel en vivo* | M3 | — |
 

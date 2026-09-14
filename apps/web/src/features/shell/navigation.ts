@@ -115,6 +115,16 @@ export const MODULOS: readonly Modulo[] = [
           "El plano de sala: qué mesa está ocupada, desde cuándo y qué pidió. Se vincula a las pulseras de los niños y el pedido se confirma antes de ir a cocina.",
       },
       {
+        id: "plano",
+        nombre: "Plano del local",
+        href: rutaSeccion("restaurante", "plano"),
+        // D10: mover mesas es configuración del local, no operación diaria.
+        accion: "catalogo.modificar",
+        proposito:
+          "Dónde está cada mesa, su número, su zona y sus sillas. Se edita en borrador y el salón lo ve al publicar.",
+        tarea: "F6-01",
+      },
+      {
         id: "carta",
         nombre: "Carta y precios",
         href: null,

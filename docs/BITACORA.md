@@ -715,3 +715,25 @@ Tenía razón en las tres.
 lista solo lo que pide acción, en el orden en que conviene hacerlo: platos listos que se enfrían, quien
 quiere pagar, mesas que bloquean por limpiar y mesas largas. En el teléfono es la vista de entrada, porque
 un plano de ocho metros ahí no se lee, y sigue siendo la alternativa para lector de pantalla.
+
+## El editor del plano — 2026-09-14
+
+V4, y con él la respuesta a «¿dónde añado o quito una mesa?»: **Panel → Restaurante → Plano del local**,
+solo para administración (D10).
+
+**Borrador y publicar, nunca en vivo.** Lo que se toca en el editor no sale de esa pantalla hasta pulsar
+«Publicar»; hasta entonces el salón sigue viendo el plano anterior. Cambiar la distribución a mitad de
+servicio dejaría a mesero, cocina y caja viendo cosas distintas. El plano publicado vive por encima de las
+dos cáscaras, así que el mesero ve la mesa nueva en cuanto se publica.
+
+**Lo que impide equivocarse.** Las mesas se ajustan a una rejilla de 10 cm al soltar; una mesa fuera de las
+paredes o encima de otra se marca en rojo y «Publicar» se niega, con el contrato repitiendo la comprobación
+al guardar. Una mesa nueva aparece en un hueco libre que no pisa el parque ni la cocina. Y se puede trabajar
+**sin arrastrar** (WCAG 2.5.7): las flechas mueven 10 cm y 50 con Mayús, o se teclea la posición.
+
+**Nada se borra** (regla 5): una mesa se **retira**, conserva su número y su historia —los pedidos y cobros
+de antes la nombran— y puede devolverse al salón. El contrato lo respalda: las retiradas no cuentan para la
+regla de números únicos ni para los solapes, y el servicio no las pinta.
+
+Falta la capa de estructura editable (paredes, puertas, barra, cocina), las guías de alineación entre mesas
+y el historial de versiones, que llegará con el servidor.

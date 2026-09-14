@@ -16,7 +16,7 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import type { MenuDto, PlanoLocalDto } from "@l2/contracts";
+import type { MenuDto } from "@l2/contracts";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import type { Pedido } from "../simulacion/proyeccion.ts";
@@ -29,6 +29,7 @@ import {
   type MesaVista,
 } from "./mesas.ts";
 import { PlanoLocal } from "./PlanoLocal.tsx";
+import { usePlano } from "./PlanoProvider.tsx";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
 
@@ -70,7 +71,9 @@ const ESTADO_PEDIDO: Readonly<Record<Pedido["estado"], { texto: string; tono: To
   ANULADO: { texto: "Anulado", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
 };
 
-export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: MenuDto }) {
+export function MesasScreen({ carta }: { carta: MenuDto }) {
+  // El plano lo publica administración desde el panel (V4); aquí solo se lee.
+  const { plano } = usePlano();
   const sim = useSimulacion();
   const ahora = useAhoraLocal();
   const { estado } = sim;
@@ -93,7 +96,11 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
   const [comensales, setComensales] = useState(2);
   const detalle = useRef<HTMLElement>(null);
 
-  const mesas = useMemo(() => vistaDelPlano(plano.tables, estado, ahora), [plano, estado, ahora]);
+  // Una mesa retirada ya no está en el salón: no se pinta ni se puede abrir.
+  const mesas = useMemo(
+    () => vistaDelPlano(plano.tables.filter((m) => !m.retiredAt), estado, ahora),
+    [plano, estado, ahora],
+  );
   const elegida = mesas.find((m) => m.mesa.id === seleccion) ?? null;
 
   const ocupadas = mesas.filter((m) => m.estado !== "LIBRE").length;

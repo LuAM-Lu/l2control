@@ -7,7 +7,7 @@
  * precios reales llegan con F0-04.
  */
 import { z } from "zod";
-import { IdSchema, MoneySchema } from "./primitives.ts";
+import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 /**
  * Dónde está una mesa **en el local**, no en la pantalla — V3, D11.
@@ -42,6 +42,12 @@ export const DiningTableSchema = z.object({
   height: Centimetros,
   /** Giro en grados. Solo cambia cómo se dibuja, nunca dónde está. */
   rotation: z.number().int().min(0).max(359).default(0),
+  /**
+   * Cuándo se retiró del salón. **Una mesa no se borra** (regla 5): los pedidos
+   * y los cobros del pasado la nombran, y sin ella ese historial diría «mesa
+   * desconocida». Retirada no se pinta en servicio ni se puede abrir.
+   */
+  retiredAt: TimestampSchema.optional(),
 });
 export type DiningTableDto = z.infer<typeof DiningTableSchema>;
 
@@ -50,8 +56,13 @@ export const FloorPlanSchema = z
   .min(1, "Un plano sin mesas no sirve para atender")
   .refine((mesas) => new Set(mesas.map((m) => m.id)).size === mesas.length, "Dos mesas con el mismo id")
   .refine(
-    (mesas) => new Set(mesas.map((m) => m.label)).size === mesas.length,
-    "Dos mesas con el mismo número: la cocina no sabría a cuál llevar el plato",
+    // Las retiradas conservan su número para el historial; solo las del salón
+    // tienen que ser distintas entre sí, o la cocina no sabría a cuál llevar el plato.
+    (mesas) => {
+      const enSalon = mesas.filter((m) => !m.retiredAt).map((m) => m.label);
+      return new Set(enSalon).size === enSalon.length;
+    },
+    "Dos mesas del salón con el mismo número: la cocina no sabría a cuál llevar el plato",
   );
 export type FloorPlanDto = z.infer<typeof FloorPlanSchema>;
 
@@ -110,21 +121,25 @@ export const PlanoLocalSchema = z
         }
       }
     });
-    plano.tables.forEach((m, i) => {
+    const enSalon = plano.tables.filter((m) => !m.retiredAt);
+    if (new Set(enSalon.map((m) => m.label)).size !== enSalon.length) {
+      ctx.addIssue({ code: "custom", path: ["tables"], message: "Dos mesas en el salón con el mismo número" });
+    }
+    enSalon.forEach((m, i) => {
       const c = caja(m);
       if (c.x1 < 0 || c.y1 < 0 || c.x2 > plano.width || c.y2 > plano.height) {
         ctx.addIssue({ code: "custom", path: ["tables", i], message: `La mesa ${m.label} se sale del local` });
       }
     });
-    for (let i = 0; i < plano.tables.length; i += 1) {
-      for (let j = i + 1; j < plano.tables.length; j += 1) {
-        const a = caja(plano.tables[i]!);
-        const b = caja(plano.tables[j]!);
+    for (let i = 0; i < enSalon.length; i += 1) {
+      for (let j = i + 1; j < enSalon.length; j += 1) {
+        const a = caja(enSalon[i]!);
+        const b = caja(enSalon[j]!);
         if (a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2) {
           ctx.addIssue({
             code: "custom",
             path: ["tables", j],
-            message: `Las mesas ${plano.tables[i]!.label} y ${plano.tables[j]!.label} están una encima de otra`,
+            message: `Las mesas ${enSalon[i]!.label} y ${enSalon[j]!.label} están una encima de otra`,
           });
         }
       }

@@ -3,6 +3,8 @@ import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
 import { PanelSimulacion } from "../src/features/simulacion/PanelSimulacion";
 import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvider";
+import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
+import { PLANO_DEMO } from "../src/demo/restaurante";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
    interfaz y datos. Quicksand NUNCA para cifras: sus numerales no sirven
@@ -39,8 +41,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* F1-19: por encima del panel y de las estaciones, para que las dos
             cáscaras vean la misma simulación. */}
         <SimulacionProvider>
-          {children}
-          <PanelSimulacion />
+          {/* V4: el plano publicado vive por encima de las dos cáscaras: lo
+              edita el panel y lo lee el salón. */}
+          <PlanoProvider inicial={PLANO_DEMO}>
+            {children}
+            <PanelSimulacion />
+          </PlanoProvider>
         </SimulacionProvider>
       </body>
     </html>

@@ -117,7 +117,9 @@ export function PlanoLocal({
         ))}
 
         {/* ── las mesas ── */}
-        {plano.tables.map((t) => (
+        {plano.tables
+          .filter((t) => !t.retiredAt)
+          .map((t) => (
           <Mesa
             key={t.id}
             t={t}
@@ -125,7 +127,7 @@ export function PlanoLocal({
             activa={t.id === elegida}
             onElegir={() => onElegir(t.id)}
           />
-        ))}
+          ))}
       </svg>
 
       {/* La leyenda dice lo mismo que el color, con palabras. */}

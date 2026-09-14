@@ -84,3 +84,31 @@ describe("plano del local con geometría (V3, D11)", () => {
     assert.equal(valido(plano([mesa("m1", "1", 120, 235), mesa("m2", "1", 400, 235)])), false);
   });
 });
+
+describe("una mesa se retira, no se borra (V4, regla 5)", () => {
+  const conGeo = (id: string, label: string, x: number, extra: object = {}) => ({
+    ...mesa(id, label),
+    x,
+    y: 240,
+    ...extra,
+  });
+  const plano = (tables: object[]) => ({ width: 800, height: 600, tables, fixtures: [] });
+
+  test("una retirada conserva su número aunque otra lo reutilice", () => {
+    const r = PlanoLocalSchema.safeParse(
+      plano([conGeo("m1", "3", 130, { retiredAt: "2026-09-14T12:00:00.000Z" }), conGeo("m2", "3", 400)]),
+    );
+    assert.equal(r.success, true);
+  });
+
+  test("dos mesas del salón con el mismo número siguen sin pasar", () => {
+    assert.equal(PlanoLocalSchema.safeParse(plano([conGeo("m1", "3", 130), conGeo("m2", "3", 400)])).success, false);
+  });
+
+  test("una retirada no estorba: puede quedar donde estaba otra", () => {
+    const r = PlanoLocalSchema.safeParse(
+      plano([conGeo("m1", "1", 130, { retiredAt: "2026-09-14T12:00:00.000Z" }), conGeo("m2", "2", 140)]),
+    );
+    assert.equal(r.success, true);
+  });
+});

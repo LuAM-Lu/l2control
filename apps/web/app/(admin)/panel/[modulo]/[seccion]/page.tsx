@@ -3,6 +3,7 @@ import { SeccionPendienteScreen } from "../../../../../src/features/shell/Seccio
 import { buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
 import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
 import { DEMO_USUARIOS } from "../../../../../src/demo/usuarios";
+import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -14,6 +15,7 @@ import { DEMO_USUARIOS } from "../../../../../src/demo/usuarios";
 const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
   // TODO(F2-11/backend): el directorio sale del servidor.
   "personas/usuarios": () => <UsuariosPage usuarios={DEMO_USUARIOS} />,
+  "restaurante/plano": () => <EditorPlano />,
 };
 
 /**

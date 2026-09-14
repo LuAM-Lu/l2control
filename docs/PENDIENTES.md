@@ -39,10 +39,10 @@
 
 1. ~~**Cocina (KDS)**~~ — hecha el 2026-09-14: `/cocina` con su rol, su pestaña y el escenario X5
    probado. Queda el servidor (tiempo real), el umbral de espera configurable y los modificadores.
-2. **V4, editor del plano** — ~~V3, el plano espacial, hecho el 2026-09-14~~. Falta el editor para
-   administración (D10): mover con rejilla y guías, girar, añadir y retirar, borrador y publicar,
-   con número y zona editables sin tocar lo ya cobrado. También la capa de estructura (paredes,
-   puertas, caja, cocina) y las medidas reales (F0-03).
+2. ~~**V3 y V4, plano del local**~~ — hechos el 2026-09-14: plano espacial en `/mesas` y editor en
+   Panel → Restaurante → Plano del local. Queda la **capa de estructura editable** (paredes, puertas,
+   barra, cocina), las guías de alineación entre mesas, el historial de versiones del plano y las
+   medidas reales del local (F0-03).
 3. **Caja de mesas** (paso 4) — cuenta maestra con platos y parque (D2), cobro dividido (F6-12),
    propina explícita (F6-13), mesa por limpiar al cobrar.
 4. **Panel en vivo** (paso 5).
