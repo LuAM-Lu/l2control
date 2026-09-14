@@ -299,6 +299,7 @@ export {
   can,
   isAllowedOutright,
   isReachable,
+  canAuthorize,
   visibleSurfaces,
   explainPermission,
   type Action,

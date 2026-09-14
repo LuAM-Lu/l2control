@@ -15,6 +15,7 @@ import {
   explainPermission,
   isAllowedOutright,
   isReachable,
+  canAuthorize,
   visibleSurfaces,
   type Action,
   type Actor,
@@ -124,6 +125,36 @@ describe("las operaciones sensibles exigen autorización, no se deniegan", () =>
       assert.equal(isAllowedOutright(actor(rol), accion), false);
     });
   }
+});
+
+describe("quién autoriza un 🔐 (DEC-24)", () => {
+  test("anular un cobro: la cajera lo pide, lo autoriza un supervisor o el administrador", () => {
+    const cajera = actor("CAJERO");
+    assert.equal(can(cajera, "cobro.anular"), "REQUIERE_AUTORIZACION");
+    assert.equal(canAuthorize(actor("SUPERVISOR"), cajera, "cobro.anular"), true);
+    assert.equal(canAuthorize(actor("ADMIN"), cajera, "cobro.anular"), true);
+  });
+
+  test("otra cajera, un mesero o la monitora no autorizan", () => {
+    const cajera = actor("CAJERO");
+    for (const rol of ["CAJERO", "MESERO", "MONITOR_PARQUE", "COCINA"] as Role[]) {
+      assert.equal(canAuthorize({ ...actor(rol), id: "otra" }, cajera, "cobro.anular"), false, rol);
+    }
+  });
+
+  test("lo que el solicitante no puede alcanzar, nadie se lo abre", () => {
+    assert.equal(canAuthorize(actor("ADMIN"), actor("MESERO"), "cobro.anular"), false);
+  });
+
+  test("un supervisor sin la acción tampoco la autoriza", () => {
+    const sinAnular = { ...actor("SUPERVISOR"), revokes: ["cobro.anular"] } as Actor;
+    assert.equal(canAuthorize(sinAnular, actor("CAJERO"), "cobro.anular"), false);
+  });
+
+  test("la sucursal manda también para quien autoriza", () => {
+    const supervisorB2 = actor("SUPERVISOR", ["b2"]);
+    assert.equal(canAuthorize(supervisorB2, actor("CAJERO", ["b1"]), "cobro.anular", { branchId: "b1" }), false);
+  });
 });
 
 describe("el administrador no necesita autorización para nada", () => {

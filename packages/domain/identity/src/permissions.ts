@@ -31,6 +31,7 @@ export type Action =
   | "documento.emitir"
   | "documento.notaCredito"
   | "documento.reimprimir"
+  | "cobro.anular"
   | "mesa.reabrir"
   | "kds.cambiarEstado"
   | "parque.checkIn"
@@ -101,6 +102,9 @@ export const MATRIZ: Matriz = Object.freeze({
   "documento.emitir": fila(P, P, P, D, P, D),
   "documento.notaCredito": fila(P, A, D, D, D, D),
   "documento.reimprimir": fila(P, A, A, D, A, D),
+  // DEC-24: anular un cobro ya cerrado. Lo pide quien cobra; lo autoriza un
+  // supervisor con su PIN o el administrador.
+  "cobro.anular": fila(P, A, A, D, A, D),
 
   "mesa.reabrir": fila(P, A, D, D, D, D),
   "kds.cambiarEstado": fila(P, P, D, D, D, P),
@@ -222,6 +226,32 @@ export function isReachable(
   context?: { branchId?: string },
 ): boolean {
   return can(actor, action, context) !== "DENEGADO";
+}
+
+/** Los roles que pueden dar la autorización de un 🔐 (§7.3, DEC-24). */
+const AUTORIZADORES: readonly Role[] = ["ADMIN", "SUPERVISOR"];
+
+/**
+ * ¿Puede `authorizer` autorizar que `requester` haga `action`?
+ *
+ * Solo un supervisor o el administrador, y solo si ellos mismos pueden
+ * alcanzar la acción en esa sucursal: una concesión que le quita la acción a
+ * un supervisor le quita también autorizarla. Si quien la pide ya la tiene
+ * permitida sin más, no hay nada que autorizar; si la tiene denegada, nadie
+ * se la abre.
+ *
+ * Un supervisor puede autorizarse a sí mismo: con dos personas en el turno
+ * no siempre hay un segundo. Queda igual el motivo y su PIN en auditoría.
+ */
+export function canAuthorize(
+  authorizer: Actor,
+  requester: Actor,
+  action: Action,
+  context?: { branchId?: string },
+): boolean {
+  if (!AUTORIZADORES.includes(authorizer.role)) return false;
+  if (can(requester, action, context) !== "REQUIERE_AUTORIZACION") return false;
+  return isReachable(authorizer, action, context);
 }
 
 /* ------------------------------------------------------- superficies */

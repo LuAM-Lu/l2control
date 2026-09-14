@@ -40,6 +40,7 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "cuenta.descuento": { etiqueta: "Aplicar descuento", area: "Cobro y cuenta" },
   "cuenta.cortesia": { etiqueta: "Dar cortesía", area: "Cobro y cuenta" },
   "documento.reimprimir": { etiqueta: "Reimprimir documento", area: "Cobro y cuenta" },
+  "cobro.anular": { etiqueta: "Anular un cobro", area: "Cobro y cuenta" },
   "documento.notaCredito": { etiqueta: "Emitir nota de crédito", area: "Cobro y cuenta" },
 
   "pedido.tomar": { etiqueta: "Tomar pedidos", area: "Pedidos y mesas" },

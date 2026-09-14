@@ -553,3 +553,17 @@ Tres observaciones del cliente sobre la caja, las tres ciertas:
 Quedan aprobadas, en este orden, la pantalla «Ventas» del turno (reimprimir como copia auditada) y anular
 un cobro con reversión, motivo y supervisor. Para anular faltan dos decisiones del cliente: quién autoriza
 y por qué medio se devuelve el dinero.
+
+## Anular un cobro: quién y cómo (DEC-24) — 2026-09-13
+
+El cliente decidió que un cobro ya cerrado lo **autoriza un supervisor con su PIN o el administrador**, y
+pidió «lo más óptimo» para devolver el dinero. Lo óptimo es **el mismo medio y la misma moneda**: el dinero
+vuelve a quien pagó y la devolución concilia sola. Devolver en efectivo lo que entró por Pago Móvil es la
+forma clásica de sacar dinero de una caja, así que el efectivo queda como alternativa con motivo, solo si
+la caja lo tiene y a la tasa congelada del cobro original. El punto de venta se anula en el terminal el
+mismo día; después, reverso bancario. Nada se borra: son asientos de reversión.
+
+En el dominio de identidad hay una acción nueva, `cobro.anular` (🔐 para cajero, supervisor y monitora),
+y una regla que faltaba: `canAuthorize`, quién puede dar la autorización de un 🔐. Solo supervisor o
+administrador, que alcancen la acción en esa sucursal; lo que el solicitante tiene denegado no se lo abre
+nadie. Cinco pruebas. La pantalla «Ventas» del turno, para reimprimir y anular, es el paso siguiente.

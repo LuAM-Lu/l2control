@@ -701,6 +701,7 @@ Leyenda: ✅ permitido · 🔐 permitido con autorización de supervisor y motiv
 | Emitir documento fiscal | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
 | **Emitir nota de crédito** | ✅ | 🔐 | ❌ | ❌ | ❌ | ❌ |
 | **Reimprimir documento** | ✅ | 🔐 | 🔐 | ❌ | 🔐 | ❌ |
+| **Anular un cobro** (DEC-24) | ✅ | 🔐 | 🔐 | ❌ | 🔐 | ❌ |
 | **Reabrir mesa cerrada** | ✅ | 🔐 | ❌ | ❌ | ❌ | ❌ |
 | Cambiar estado en KDS | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Check-in / check-out de niño | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
@@ -2010,7 +2011,7 @@ cuando el trámite esté listo.*
 
 ## 14. DECISIONES DEL CLIENTE
 
-**Las veintitres estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 y DEC-22 el 2026-09-11; DEC-23 el 2026-09-13.
+**Las veinticuatro estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 y DEC-22 el 2026-09-11; DEC-23 y DEC-24 el 2026-09-13.
 
 ### 14.1 Cerradas
 
@@ -2039,6 +2040,7 @@ cuando el trámite esté listo.*
 | **DEC-21** OK | Como paga una familia el parque | **Las dos, segun el cliente**: prepago o cuenta abierta, elegido en cada entrada | La cuenta de la familia enlaza entrada, salida y caja (§9.10.9). En prepago se cobra el paquete al entrar y solo el excedente al salir; en cuenta abierta, parque y restaurante se pagan juntos al irse. La caja pasa a ser una cola de cuentas por cobrar |
 | **DEC-22** OK | Restaurante y panel en vivo | **Se construye ya la interfaz de mesas, mesero, cocina y panel en vivo, sobre el simulador** (respuesta a D1 de [FLUJOS.md](FLUJOS.md)) | La interfaz de F6 y del panel en vivo entra en la fase de frontend (§11.4). Su backend sigue fuera de la Ruta A y llega despues del piloto del parque, cuya salida no se mueve. Base: FLUJOS.md y el simulador F1-19 |
 | **DEC-23** OK | A quien se factura | **Consumidor final por defecto; cedula o RIF y nombre cuando el cliente lo pide** (D14 de [UX-MEJORAS.md](UX-MEJORAS.md)) | En una caja con cola nadie teclea una cedula para un jugo. Contrato `ClienteFacturaSchema`: una factura identificada sin documento no se puede expresar. La direccion fiscal es opcional hasta que el contador confirme los requisitos (DEC-1) |
+| **DEC-24** OK | Anular un cobro ya cerrado: quien autoriza y como se devuelve | **Autoriza un supervisor con su PIN o el administrador** (`cobro.anular`, 🔐 para cajero, supervisor y monitora). **Se devuelve por el mismo medio y en la misma moneda**, por lo que entro en ese pago y nunca mas; el punto de venta se anula en el terminal el mismo dia (con su numero de aprobacion) y despues va como reverso bancario; Pago Movil, Zelle y USDT salen con su referencia de devolucion. **Efectivo solo como alternativa con motivo**, si la caja lo tiene en esa moneda (fail-closed) y a la tasa congelada del cobro original. El IGTF se revierte con su pago; con factura fiscal, nota de credito (F3); tras el corte Z, solo nota de credito | Anular es el primer vector de fraude interno (T1): devolver en efectivo lo que entro por transferencia es sacar dinero de la caja. Por el mismo medio el dinero vuelve a quien pago y concilia solo. Nada se borra: la anulacion son asientos de reversion (regla 5). Con dos personas por turno, un supervisor puede autorizarse a si mismo con motivo y PIN en auditoria |
 
 ### 14.3 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
 

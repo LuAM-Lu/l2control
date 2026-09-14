@@ -281,7 +281,7 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | C9 | Cobro dividido (F6-12) y propina explícita (F6-13) | Llegan con la caja de mesas (DEC-22 paso 4) |
 | C10 | «Cobrar exacto» en efectivo: casi nunca se entrega el monto justo, e invitaba a registrar lo que no se contó | ✔ 2026-09-13: solo en medios electrónicos; en efectivo «Cerrar cobro» ocupa la fila entera (mismo alto) y «+» no hace nada |
 | C11 | Faltaba el billete de $1, y la fila de billetes cambiaba con el monto («$57» no es un billete) | ✔ Fila fija $1 · $5 · $10 · $20 · $50 · $100; cada toque suma al mismo pago en efectivo |
-| C12 | Pantalla «Ventas» del turno para reimprimir (copia marcada y auditada) y anular un cobro con motivo y supervisor | Propuesta aprobada en orden; anular espera dos decisiones: quién autoriza y cómo se devuelve |
+| C12 | Pantalla «Ventas» del turno para reimprimir (copia marcada y auditada) y anular un cobro con motivo y supervisor | Aprobada. Decidido (DEC-24): autoriza supervisor con PIN o administrador; se devuelve por el mismo medio, efectivo solo como alternativa con motivo |
 
 ### 9.2 Visual
 
