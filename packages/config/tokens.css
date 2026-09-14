@@ -198,7 +198,26 @@
    a la capa. Sin JavaScript que olvide restaurarlo al cerrar. */
 html:has(dialog[open]) { overflow: hidden; }
 
+/* Algo acaba de llegar (una cuenta a la cola de caja): un destello de la marca
+   que se apaga solo. Dos pasadas y quieto: llamar la atención no es parpadear. */
+@keyframes l2-destello {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  30%, 70% { box-shadow: 0 0 0 3px var(--color-brand); }
+}
+.l2-destello { animation: l2-destello 1.2s var(--ease-salida) 2; }
+
+/* El recibo impreso: solo el recibo, al ancho de un ticket de 80 mm. */
+@media print {
+  body * { visibility: hidden; }
+  .l2-recibo, .l2-recibo * { visibility: visible; }
+  .l2-recibo {
+    position: fixed; inset: 0 auto auto 0; width: 80mm; max-width: none;
+    border: 0; border-radius: 0; background: white; color: black;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .l2-destello { animation: none; }
   .l2-pulse { animation: none; }
   .l2-entra { animation: none; }
   .l2-pagina-adelante, .l2-pagina-atras, .l2-pagina-lateral { animation: none; }

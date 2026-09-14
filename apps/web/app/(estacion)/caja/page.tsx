@@ -6,6 +6,7 @@ import {
   DEMO_TENDERS,
   DEMO_TERMINALES,
 } from "../../../src/features/cash/fixtures";
+import { demoSnapshot } from "../../../src/features/park/fixtures";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
@@ -26,10 +27,14 @@ export default async function CajaPage({
   searchParams: Promise<{ cuenta?: string; volver?: string }>;
 }) {
   const { cuenta, volver } = await searchParams;
+  // Pulsera → estancia, para abrir una cuenta pasando la pulsera por el lector.
+  // TODO(F4-03/backend): lo resuelve el servidor a partir del código.
+  const pulseras = Object.fromEntries(demoSnapshot(Date.now()).sessions.map((s) => [s.wristbandCode, s.id]));
   return (
     <CajaScreen
       cuentaInicial={cuenta ?? null}
       volver={volver ?? null}
+      pulseras={pulseras}
       rules={DEMO_TAX_RULES}
       tenders={DEMO_TENDERS}
       terminales={DEMO_TERMINALES}

@@ -27,12 +27,30 @@ import { BANCOS_VE, nombreBanco } from "./bancos.ts";
 
 export type Recordados = Readonly<{ bankCode?: string; terminalId?: string; network?: RedUsdt }>;
 
-const TITULO: Readonly<Record<TipoDeDatosDePago, string>> = {
+/** Qué se abre: los datos de un medio, o solo el monto de un pago sin datos (efectivo). */
+export type TipoDialogo = TipoDeDatosDePago | "SIN_DATOS";
+
+/** Corregir un pago que ya está en el cobro: monto y datos, prellenados. */
+export type Edicion = Readonly<{ monto: string; moneda: string; datos?: DatosDePagoDto }>;
+
+const TITULO: Readonly<Record<TipoDialogo, string>> = {
   PAGO_MOVIL: "Datos del Pago Móvil",
   ZELLE: "Datos del Zelle",
   USDT: "Datos del pago en USDT",
   PUNTO: "Datos del punto de venta",
+  SIN_DATOS: "Monto del pago",
 };
+
+/** Un monto tecleado por una persona: «1.000,50», «1000.5», «20». Devuelve «1000.50» o null. */
+export function normalizarMonto(texto: string): string | null {
+  const limpio = texto.trim().replace(/\s/g, "");
+  // Coma decimal venezolana, con o sin punto de miles.
+  const conPunto = /,\d{1,2}$/.test(limpio) ? limpio.replace(/\./g, "").replace(",", ".") : limpio.replace(/,/g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(conPunto)) return null;
+  const [entero = "0", dec = ""] = conPunto.split(".");
+  const normal = `${String(BigInt(entero))}.${dec.padEnd(2, "0")}`;
+  return /^0\.00$/.test(normal) ? null : normal;
+}
 
 const REDES: readonly { id: RedUsdt; nombre: string }[] = [
   { id: "TRC20", nombre: "TRC20" },
@@ -79,32 +97,51 @@ export function DatosPagoDialog({
   referenciasUsadas,
   onConfirmar,
   onCancelar,
+  edicion = null,
+  clave,
 }: {
   /** `null` = cerrado. */
-  tipo: TipoDeDatosDePago | null;
+  tipo: TipoDialogo | null;
   /** El monto ya formateado, para leerlo mientras se copian los datos. */
   monto: string;
   terminales: readonly PosTerminalDto[];
   recordados: Recordados;
   referenciasUsadas: readonly string[];
-  onConfirmar: (datos: DatosDePagoDto) => void;
+  /** Los datos del medio (`null` si no pide ninguno) y, al corregir, el monto nuevo. */
+  onConfirmar: (datos: DatosDePagoDto | null, monto: string | null) => void;
   onCancelar: () => void;
+  /** Si se corrige un pago existente: su monto y sus datos. */
+  edicion?: Edicion | null;
+  /** Identifica lo que se abre (el pago que se corrige): al cambiar, el formulario se rehace. */
+  clave?: string;
 }) {
   const formId = useId();
   const [campos, setCampos] = useState<Record<string, string>>({});
   const [errores, setErrores] = useState<Record<string, string>>({});
-  const [abiertoPara, setAbiertoPara] = useState<TipoDeDatosDePago | null>(null);
+  const [abiertoPara, setAbiertoPara] = useState<string | null>(null);
+  const aperturaActual = tipo === null ? null : `${tipo}|${clave ?? ""}`;
 
-  // Cada vez que se abre para un medio, el formulario empieza limpio, con lo
-  // recordado ya puesto. Se deriva durante el render, sin un efecto que pinte
-  // primero el formulario viejo.
-  if (tipo !== abiertoPara) {
-    setAbiertoPara(tipo);
+  // Cada vez que se abre, el formulario empieza limpio: con lo recordado si es
+  // un pago nuevo, o con los datos del pago si se corrige. Se deriva durante el
+  // render, sin un efecto que pinte primero el formulario viejo.
+  if (aperturaActual !== abiertoPara) {
+    setAbiertoPara(aperturaActual);
     setErrores({});
+    const d = edicion?.datos;
     setCampos({
       bankCode: recordados.bankCode ?? "",
       network: recordados.network ?? "TRC20",
       terminalId: recordados.terminalId ?? (terminales.length === 1 ? terminales[0]!.id : ""),
+      ...(edicion ? { monto: edicion.monto } : {}),
+      ...(d?.kind === "PAGO_MOVIL"
+        ? { reference: d.reference, bankCode: d.bankCode, payerPhone: d.payerPhone ?? "", payerDocument: d.payerDocument ?? "" }
+        : d?.kind === "ZELLE"
+          ? { holder: d.holder, confirmation: d.confirmation ?? "" }
+          : d?.kind === "USDT"
+            ? { txId: d.txId, network: d.network, holder: d.holder ?? "" }
+            : d?.kind === "PUNTO"
+              ? { terminalId: d.terminalId, reference: d.reference, lot: d.lot ?? "" }
+              : {}),
     });
   }
 
@@ -120,6 +157,18 @@ export function DatosPagoDialog({
 
   function confirmar() {
     if (!tipo) return;
+    let montoNuevo: string | null = null;
+    if (edicion) {
+      montoNuevo = normalizarMonto(campos.monto ?? "");
+      if (!montoNuevo) {
+        setErrores({ monto: "Escribe un monto mayor que cero, por ejemplo 1.000,50" });
+        return;
+      }
+    }
+    if (tipo === "SIN_DATOS") {
+      onConfirmar(null, montoNuevo);
+      return;
+    }
     const borrador =
       tipo === "PAGO_MOVIL"
         ? {
@@ -150,7 +199,7 @@ export function DatosPagoDialog({
       setErrores({ [r.data.kind === "USDT" ? "txId" : "reference"]: "Esta referencia ya está en este cobro" });
       return;
     }
-    onConfirmar(r.data);
+    onConfirmar(r.data, montoNuevo);
   }
 
   const grupoBotones = (
@@ -187,15 +236,15 @@ export function DatosPagoDialog({
     <Dialog
       abierto={tipo !== null}
       onCerrar={onCancelar}
-      titulo={tipo ? TITULO[tipo] : ""}
-      descripcion={`${monto} · el pago entra al cobro cuando confirmes los datos`}
+      titulo={tipo ? (edicion ? `Corregir el pago · ${monto}` : TITULO[tipo]) : ""}
+      descripcion={edicion ? "Cambia lo que se tecleó mal; el pago sigue en el cobro." : `${monto} · el pago entra al cobro cuando confirmes los datos`}
       pie={
         <div className="grid grid-cols-2 gap-2">
           <Button surface="pos" variant="neutral" onClick={onCancelar}>
             Cancelar
           </Button>
           <Button surface="pos" variant="primary" type="submit" form={formId}>
-            Añadir pago
+            {edicion ? "Guardar cambios" : "Añadir pago"}
           </Button>
         </div>
       }
@@ -208,6 +257,18 @@ export function DatosPagoDialog({
         }}
         className="flex flex-col gap-3"
       >
+        {edicion && (
+          <Input
+            label={`Monto recibido (${edicion.moneda})`}
+            surface="pos"
+            inputMode="decimal"
+            autoComplete="off"
+            autoFocus={tipo === "SIN_DATOS"}
+            value={campos.monto ?? ""}
+            onChange={(e) => poner("monto", e.target.value)}
+            error={errores.monto}
+          />
+        )}
         {tipo === "PUNTO" &&
           (terminales.length > 1 ? (
             grupoBotones(

@@ -274,10 +274,10 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | C2 | **Un cobro con USDT no se podía cerrar**: se convertía con la tasa de bolívares (fallo desde F4-03) | ✔ USDT a la par con el dólar, como ya asumía el IGTF (DEC-1, a confirmar con el contador) |
 | C3 | Con dos o más terminales de punto de venta no se sabía por cuál entró el pago | ✔ Se elige el terminal; con uno se asume. La lista se configurará en F4-02 |
 | C4 | El teclado se escondía y la columna cambiaba al usarlo | ✔ Columna fija: el teclado queda en el mismo píxel con cualquier medio |
-| C5 | El mostrador tiene teclado físico y no hay atajos | Propuesta: 1-6 elige medio, Enter añade, F2 cobrar exacto, F9 cerrar cobro, Esc cancela |
-| C6 | Una cuenta nueva llega a la cola sin avisar y sin decir cuánto lleva esperando | Propuesta: destello al llegar, minutos de espera y orden por antigüedad |
-| C7 | Con muchas cuentas no hay cómo buscar | Propuesta: buscar por nombre, número de orden o pulsera |
-| C8 | Tras cobrar no hay recibo | Propuesta: «Imprimir» y «Enviar por WhatsApp» en el aviso (F1-12) |
+| C5 | El mostrador tiene teclado físico y no hay atajos | ✔ Hecho el 2026-09-13. Los dígitos son el **monto** (no el medio, como decía la propuesta): E · B · P · T · Z · U eligen medio, Enter añade, «+» cobra exacto, **Ctrl+Enter** cierra (nada irreversible con una tecla), ↑↓ recorren la cola, «/» busca, N venta directa, I identificar, R recibo, «?» la chuleta. Nunca mientras se escribe ni con un diálogo abierto; una ráfaga del lector (< 45 ms entre teclas) se descarta entera. Pistas visibles solo con puntero fino |
+| C6 | Una cuenta nueva llega a la cola sin avisar y sin decir cuánto lleva esperando | ✔ La más antigua arriba (`pendingSince`, lo fija quien la pasa a «por cobrar»), minutos de espera con reloj ámbar desde los 10, destello y aviso al llegar (no para lo que crea la propia caja). Con cuentas por pestaña, la llegada «en vivo» se verá de verdad con el backend |
+| C7 | Con muchas cuentas no hay cómo buscar | ✔ Pasar la pulsera abre la cuenta del niño (o dice que sigue abierta o que no tiene); buscador por familia o número de orden con filtros Todas · Parque · Mostrador, a la vista con más de 5 cuentas o con «/» y la lupa. Enter con un resultado lo abre. Por mesa, con la caja de mesas |
+| C8 | Tras cobrar no hay recibo | ✔ Recibo **no fiscal** (lo dice arriba) tomado como foto al cerrar: «Ver recibo» en el aviso, franja «Último #…» en la cola y tecla R. Imprime solo el recibo a 80 mm; WhatsApp abre `wa.me` con el texto y el teléfono validado, solo si el cliente lo pide. Referencias y documento enmascarados. La térmica en red, en F1-12 |
 | C9 | Cobro dividido (F6-12) y propina explícita (F6-13) | Llegan con la caja de mesas (DEC-22 paso 4) |
 
 ### 9.2 Visual
@@ -287,8 +287,8 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | V1 | El IGTF usaba **ámbar y rojo**, colores reservados para «revisar» y «error»: el IGTF es un dato fiscal, no una alarma | ✔ Neutro en medios, pagos y totales; el aviso largo pasó a una línea |
 | V2 | Etiquetas de 9,5 px en los botones de medio | ✔ 11 y 13 px, sin cambiar el alto de 56 px |
 | V3 | Lo tecleado en bolívares se mostraba «1000.00» | ✔ «Bs. 1.000,00» |
-| V4 | «Venta directa» (amarillo punteado) compite con la cuenta elegida (amarillo) | Propuesta: botón neutro con icono; el amarillo solo para lo seleccionado |
-| V5 | La cola no dice de dónde viene cada cuenta | Propuesta: icono de origen (parque, mesa, mostrador) |
+| V4 | «Venta directa» (amarillo punteado) compite con la cuenta elegida (amarillo) | ✔ Botón neutro con icono; el amarillo queda para lo seleccionado |
+| V5 | La cola no dice de dónde viene cada cuenta | ✔ Icono + texto: niño para parque, bolsa para mostrador. Mesa, con la caja de mesas |
 
 ### 9.3 Facilidad de uso
 
@@ -296,7 +296,8 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 |---|---|---|
 | U1 | Quitar un pago: botón de 36 px | ✔ Objetivo de 56 px |
 | U2 | Los datos del pago en la lista, a la vista de la cola | ✔ Enmascarados: «Mercantil · Ref. ···1236» (§7.6) |
-| U3 | Corregir una referencia obliga a quitar el pago y añadirlo de nuevo | Propuesta: tocar el pago para editar sus datos |
+| U3 | Corregir una referencia obliga a quitar el pago y añadirlo de nuevo | ✔ Se toca el pago y se corrigen monto y datos en el mismo formulario; la referencia no choca consigo misma. Solo antes de cerrar: después, reversión con motivo (regla 5) |
+| U5 | En los medios, el nombre y la moneda con el IGTF se cortaban a 1280 px | ✔ Icono junto al nombre, moneda e IGTF debajo; columna de cobro de 352 px mínimo |
 | U4 | **La factura no identifica al cliente** (cédula o RIF, nombre) | ✔ Decidido (DEC-23) y hecho: fila «Factura a» con «Consumidor final» por defecto e «Identificar», que propone el nombre del representante |
 
 | # | Decisión | Propuesta |

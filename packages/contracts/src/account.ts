@@ -58,6 +58,12 @@ export const FamilyAccountSchema = z
      * momento: una cuenta sin número todavía no está registrada.
      */
     orderNumber: z.number().int().positive().optional(),
+    /**
+     * Desde cuándo espera en la cola de la caja: el instante en que pasó a
+     * POR_COBRAR. Ordena la cola por antigüedad y dice cuánto lleva esperando.
+     * Lo pone quien registra el cambio de estado, no la pantalla.
+     */
+    pendingSince: TimestampSchema.optional(),
     openedAt: TimestampSchema,
     sessionIds: z.array(IdSchema).min(1, "Una cuenta de parque tiene al menos un niño"),
     /** Estancias ya cerradas en la salida. */

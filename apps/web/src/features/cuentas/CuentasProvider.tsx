@@ -29,6 +29,8 @@ type Valor = Readonly<{
   guardar: (cuenta: FamilyAccountDto) => void;
   /** Descarta una venta directa sin cobrar. Cualquier otra cuenta se queda: fail-closed. */
   descartar: (id: string) => void;
+  /** Si ya se cargó lo guardado: antes, las cuentas son las de ejemplo. */
+  cargado: boolean;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
@@ -49,12 +51,19 @@ export function CuentasProvider({ children }: { children: React.ReactNode }) {
           // siguiente correlativo, en el orden en que se abrieron.
           let ultimo = r.data.reduce((max, c) => Math.max(max, c.orderNumber ?? 0), 0);
           setCuentas(r.data.map((c) => (c.orderNumber ? c : { ...c, orderNumber: ++ultimo })));
+        } else {
+          window.sessionStorage.removeItem(CLAVE);
         }
-        else window.sessionStorage.removeItem(CLAVE);
       }
     } catch {
       // Almacenamiento bloqueado o JSON roto: se sigue con los de ejemplo.
     }
+    // Lo que ya esperaba en la cola sin hora de llegada (datos de ejemplo o
+    // guardados antes de existir el campo) cuenta desde que se abre la caja.
+    const ahora = new Date().toISOString();
+    setCuentas((prev) =>
+      prev.map((c) => (c.status === "POR_COBRAR" && !c.pendingSince ? { ...c, pendingSince: ahora } : c)),
+    );
     setCargado(true);
   }, []);
 
@@ -71,15 +80,25 @@ export function CuentasProvider({ children }: { children: React.ReactNode }) {
     const valida = FamilyAccountSchema.parse(cuenta);
     setCuentas((prev) => {
       const previa = prev.find((c) => c.id === valida.id);
+      // Entrar a la cola tiene hora: la de este registro, si la cuenta acaba de
+      // pasar a POR_COBRAR. Si ya esperaba, conserva su hora; si salió, no tiene.
+      const pendingSince =
+        valida.status !== "POR_COBRAR"
+          ? undefined
+          : previa?.status === "POR_COBRAR"
+            ? (previa.pendingSince ?? valida.pendingSince)
+            : (valida.pendingSince ?? new Date().toISOString());
       if (previa) {
         // El número de orden no cambia nunca: se conserva el que ya tenía.
-        return prev.map((c) => (c.id === valida.id ? { ...valida, orderNumber: previa.orderNumber ?? valida.orderNumber } : c));
+        return prev.map((c) =>
+          c.id === valida.id ? { ...valida, orderNumber: previa.orderNumber ?? valida.orderNumber, pendingSince } : c,
+        );
       }
       // Cuenta nueva: recibe el siguiente correlativo de la sucursal. Se
       // calcula aquí, dentro de la actualización, para que dos altas seguidas
       // no reciban el mismo número.
       const siguiente = prev.reduce((max, c) => Math.max(max, c.orderNumber ?? 0), 0) + 1;
-      return [...prev, { ...valida, orderNumber: valida.orderNumber ?? siguiente }];
+      return [...prev, { ...valida, orderNumber: valida.orderNumber ?? siguiente, pendingSince }];
     });
   }, []);
 
@@ -87,7 +106,7 @@ export function CuentasProvider({ children }: { children: React.ReactNode }) {
     setCuentas((prev) => prev.filter((c) => c.id !== id || !puedeDescartarse(c)));
   }, []);
 
-  const valor = useMemo(() => ({ cuentas, guardar, descartar }), [cuentas, guardar, descartar]);
+  const valor = useMemo(() => ({ cuentas, guardar, descartar, cargado }), [cuentas, guardar, descartar, cargado]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

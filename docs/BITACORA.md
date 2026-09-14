@@ -503,3 +503,36 @@ aviso de cobro dice a nombre de quién salió la factura.
 De paso se corrigió una regresión de la tanda anterior: al agrandar las etiquetas de los medios de pago,
 «Punto débito» se cortaba y «+3 % IGTF» se partía en dos renglones. El icono pasó junto a la moneda y el
 nombre tiene su renglón entero; comprobado a 1366, 1280 y 1024.
+
+## Las seis propuestas de Caja — 2026-09-13
+
+El cliente aprobó las propuestas de la auditoría (§9 de UX-MEJORAS) y pidió hacerlas con las mejores
+prácticas. Quedaron así:
+
+- **La cola se atiende por antigüedad.** La cuenta guarda `pendingSince`, que fija quien la pasa a «por
+  cobrar» y conserva mientras sigue esperando. Cada fila dice cuántos minutos lleva; desde los 10, en ámbar y
+  con reloj. Una cuenta que llega con la caja abierta destella y se avisa, salvo la que crea la propia caja.
+- **Encontrar sin recorrer.** Pasar la pulsera abre la cuenta del niño, o dice que sigue abierta o que no
+  tiene. El buscador (familia o número de orden, con filtros Parque y Mostrador) solo ocupa sitio con más de
+  cinco cuentas o cuando se pide con «/» o la lupa.
+- **Corregir un pago tocándolo.** Monto y datos en el mismo formulario del alta, prellenado. Es un borrador:
+  una vez cerrado el cobro, corregir será una reversión con motivo.
+- **Atajos para el equipo del mostrador.** Los dígitos son el monto, así que los medios van por letra (E, B,
+  P, T, Z, U), no por número como decía la propuesta. Cerrar pide Ctrl+Enter. No actúan mientras se escribe
+  ni con un diálogo abierto, y una ráfaga del lector de pulseras se descarta entera: «AK-0158⏎» no elige
+  un medio ni añade un pago. Enter sobre un botón al que se llegó con Tab lo pulsa a él.
+- **Recibo no fiscal** tomado como foto al cerrar: impresión de solo el recibo a 80 mm y WhatsApp por
+  `wa.me`, sin servidor, solo si el cliente lo pide.
+- **«Venta directa» neutra** y el origen de cada cuenta con icono y texto. La pestaña «Cobrar» cuenta lo
+  que espera cuando se está en «Turno».
+
+Tres cosas aparecieron al probarlo en el navegador. Con dos oyentes de teclado (cola y cobro), el primero
+cancelaba la tecla y el segundo la ignoraba: ahora solo se ignora lo que canceló otro. En Tailwind 4
+`text-base` también se lee como color por el token `--color-base`: el nombre del recibo salía del color del
+fondo. Queda revisar sus otros usos, que hoy se salvan porque llevan un color explícito detrás. Y a 1280 px
+el chip «+3 % IGTF» del USDT se salía del botón: el icono pasó junto al nombre y la columna de cobro tiene
+352 px de mínimo.
+
+Límites honestos: sin backend, las cuentas viven por pestaña, así que la llegada «en vivo» se verá de verdad
+con el servidor; y la búsqueda por mesa y el teléfono del representante en el recibo llegan con la caja de
+mesas y la ficha de la familia.

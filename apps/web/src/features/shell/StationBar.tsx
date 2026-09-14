@@ -15,6 +15,7 @@ import { Initial, cn } from "@l2/ui";
 import { cerrarSesion, useOperador } from "../identity/operador.ts";
 import { actorDe, puedeAbrirRuta, puedeVerInicio } from "../identity/visibilidad.ts";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 
 /**
  * Barra permanente de las estaciones — §8.5 y §9.10.2.
@@ -94,6 +95,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   // Quién entró por el acceso (A2). Sin sesión se dice, en vez de mostrar a
   // otra persona: lo que se hace aquí quedaría a su nombre.
   const operador = useOperador();
+  // Desde «Turno», cuántas cuentas esperan en «Cobrar»: que no se olviden.
+  const porCobrar = useCuentas().cuentas.filter((c) => c.status === "POR_COBRAR").length;
 
   // La pantalla de acceso no lleva barra: todavía no se sabe quién entra, y
   // enseñar el turno o la tasa antes de autenticar no aporta nada.
@@ -170,6 +173,12 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
                       )}
                     >
                       {s.corto}
+                      {s.href === "/caja" && !activa && porCobrar > 0 && (
+                        <span className="tnum ml-2 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
+                          {porCobrar}
+                          <span className="sr-only"> por cobrar</span>
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );

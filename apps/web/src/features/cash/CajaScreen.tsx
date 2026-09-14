@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
   Check,
@@ -10,8 +10,8 @@ import {
   Copy,
   CreditCard,
   HandCoins,
+  Pencil,
   PiggyBank,
-  Plus,
   ShoppingBag,
   Smartphone,
   X,
@@ -22,6 +22,7 @@ import {
   type Money,
   add,
   convert,
+  fromMajor,
   invertRate,
   money,
   multiply,
@@ -65,13 +66,19 @@ import {
 } from "@l2/contracts";
 import { DatosPagoDialog, claveDeReferencia, resumenDatos, type Recordados } from "./DatosPagoDialog.tsx";
 import { ClienteFacturaDialog, documentoEnmascarado } from "./ClienteFacturaDialog.tsx";
+import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
+import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
+import { ColaCuentas, filtrarCola, ordenarCola, type FiltroCola } from "./ColaCuentas.tsx";
+import { ReciboDialog } from "./ReciboDialog.tsx";
+import type { Recibo } from "./recibo.ts";
+import { useOperador } from "../identity/operador.ts";
+import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import {
   esLineaDeMostrador,
   esVentaDirecta,
   lineasParaCobrar,
   numeroDeOrden,
   marcarCobrada,
-  pendiente,
   puedeDescartarse,
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
@@ -79,6 +86,11 @@ import { formatClock } from "../park/time-format.ts";
 
 /** USDT → USD a la par (DEC-1: cuestión abierta con el contador). */
 const PARIDAD_USDT: FrozenRate = { from: "USDT", to: "USD", numerator: 1n, denominator: 1n };
+
+/** Lo que la caja sabe al cerrar un cobro: para el aviso y para el recibo. */
+type Cobrado = Readonly<{ total: string; vuelto: string; cliente: ClienteFacturaDto; recibo: Recibo }>;
+
+const DESTINO_SOBRA = { VUELTO: "Vuelto entregado", PROPINA: "Propina", CAJA: "Redondeo a caja" } as const;
 
 const MEDIO_ICONS: Record<string, typeof Banknote> = {
   EFECTIVO_USD: Banknote,
@@ -119,7 +131,7 @@ function CobroCuenta({
   lines: readonly DocumentLine[];
   /** La cuenta que se cobra: su familia y su modo encabezan el ticket. */
   cuenta: FamilyAccountDto;
-  onCobrado: (r: { total: string; vuelto: string; cliente: ClienteFacturaDto }) => void;
+  onCobrado: (r: Cobrado) => void;
   rules: readonly TaxRule[];
   tenders: readonly MedioPago[];
   /** Terminales de punto de venta del local (F4-04). */
@@ -160,6 +172,10 @@ function CobroCuenta({
   );
   /** Fila de mostrador tocada: enseña su cantidad y «Eliminar». */
   const [filaAbierta, setFilaAbierta] = useState<string | null>(null);
+  /** El pago que se está corrigiendo. */
+  const [editando, setEditando] = useState<string | null>(null);
+  const pagoEditado = pagos.find((p) => p.uid === editando) ?? null;
+  const operador = useOperador();
 
   // Estilo factura: los ítems iguales de mostrador van en UNA fila con su
   // cantidad. Cada unidad sigue siendo su propia línea en la cuenta; aquí solo
@@ -260,9 +276,9 @@ function CobroCuenta({
     setMonto("");
   }
 
-  function confirmarDatos(datos: DatosDePagoDto) {
+  function confirmarDatos(datos: DatosDePagoDto | null) {
     const p = pendienteDeDatos;
-    if (!p) return;
+    if (!p || !datos) return;
     setPagos((prev) => [...prev, { uid: globalThis.crypto.randomUUID(), medio: p.medio, amount: p.amount, datos }]);
     setRecordados((r) => ({
       ...r,
@@ -272,6 +288,28 @@ function CobroCuenta({
     }));
     setPendienteDeDatos(null);
     setMonto("");
+  }
+
+  /**
+   * Corregir un pago mal tecleado: se toca y se cambian su monto o sus datos.
+   * El cobro aún no está cerrado, así que no hay nada asentado que revertir:
+   * el pago se sustituye en el borrador. Una vez cerrado, corregir es una
+   * reversión con motivo (regla 5), no esto.
+   */
+  function confirmarEdicion(datos: DatosDePagoDto | null, montoNuevo: string | null) {
+    const p = pagos.find((x) => x.uid === editando);
+    if (!p) return;
+    let amount = p.amount;
+    if (montoNuevo) {
+      try {
+        amount = fromMajor(montoNuevo, p.amount.currency);
+      } catch {
+        // `normalizarMonto` ya lo validó; si aun así no cabe, no se cambia nada.
+        return;
+      }
+    }
+    setPagos((prev) => prev.map((x) => (x.uid === p.uid ? { ...x, amount, ...(datos ? { datos } : {}) } : x)));
+    setEditando(null);
   }
 
   function agregarPago() {
@@ -310,11 +348,44 @@ function CobroCuenta({
         functional: FUNCIONAL,
         maxRetained,
       });
-      onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut), cliente });
+      onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(r.changeOut), cliente, recibo: armarRecibo() });
       setPagos([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cerrar el cobro");
     }
+  }
+
+  /** La foto del cobro para el recibo, con los textos ya formateados (recibo.ts). */
+  function armarRecibo(): Recibo {
+    const ahora = new Date();
+    const dinero = (m: Money) => formatMoneyVE(toMajor(m), m.currency);
+    const totalBs = aBolivares && aBolivares.from === aCobrar.currency ? convert(aCobrar, aBolivares) : null;
+    return {
+      orden: numeroDeOrden(cuenta),
+      cuenta: esVentaDirecta(cuenta) ? "Venta de mostrador" : cuenta.family,
+      cuando: `${ahora.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" })} · ${formatClock(ahora.getTime())}`,
+      facturaA:
+        cliente.kind === "CONSUMIDOR_FINAL" ? "Consumidor final" : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`,
+      lineas: filas.map((f) => ({ cantidad: f.cantidad, concepto: f.concepto, importe: dinero(multiply(f.precio, BigInt(f.cantidad))) })),
+      subtotal: dinero(doc.subtotal),
+      impuestos: [
+        ...doc.buckets.map((b) => ({ etiqueta: `IVA ${b.basisPoints / 100}%`, monto: dinero(b.tax) })),
+        ...(igtfTotal.amount > 0n ? [{ etiqueta: `IGTF ${igtfBasisPoints / 100}%`, monto: dinero(igtfTotal) }] : []),
+      ],
+      total: dinero(aCobrar),
+      totalBs: totalBs ? dinero(totalBs) : null,
+      tasa: tasaTexto,
+      pagos: pagos.map((p) => ({
+        medio: p.medio.label,
+        detalle: p.datos ? resumenDatos(p.datos, terminales) : null,
+        monto: dinero(p.amount),
+      })),
+      vuelto: sobra.amount > 0n ? dinero(sobra) : null,
+      destinoVuelto: sobra.amount > 0n ? DESTINO_SOBRA[destinoVuelto] : null,
+      cajera: operador?.nombre ?? null,
+      // TODO(F5-03/backend): el teléfono del representante vendrá con la cuenta.
+      telefono: null,
+    };
   }
 
   const puedeCobrar = balance !== null && falta.amount === 0n && pagos.length > 0;
@@ -371,6 +442,44 @@ function CobroCuenta({
   function agregarBilleteRapido(dolares: number) {
     registrarPago(medioActivo, multiply(money(100n, "USD"), BigInt(dolares)));
   }
+
+  // Atajos del cobro (atajos.ts): las mismas acciones que los botones, con las
+  // mismas condiciones. Lo que un botón deshabilitado no deja, la tecla tampoco.
+  useAtajos((t) => {
+    if (t.ctrl) {
+      if (t.key !== "Enter" || !puedeCobrar) return false;
+      cobrar();
+      return true;
+    }
+    if (/^\d$/.test(t.key)) {
+      if (cubierto) return false;
+      setMonto((m) => (m + t.key).slice(0, 9));
+      return true;
+    }
+    if (t.key === "Backspace") {
+      setMonto((m) => m.slice(0, -1));
+      return true;
+    }
+    if (t.key === "Enter") {
+      if (cubierto || digitos === "") return false;
+      agregarPago();
+      return true;
+    }
+    if (t.key === "+") {
+      if (cubierto || !montoExacto) return false;
+      cobrarMontoExacto();
+      return true;
+    }
+    const letra = t.key.toUpperCase();
+    if (letra === "I") {
+      setIdentificando(true);
+      return true;
+    }
+    const medio = mediosDisponibles.find((m) => TECLA_MEDIO[m.code] === letra);
+    if (!medio || (medio.currency !== FUNCIONAL && !rate)) return false;
+    setMedioActivo(medio);
+    return true;
+  });
 
   return (
     <>
@@ -500,8 +609,16 @@ function CobroCuenta({
                     return (
                       <li
                         key={p.uid}
-                        className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-base/60 px-3 py-2 text-sm"
+                        className="flex items-center gap-1 rounded-[var(--radius-control)] bg-base/60 pr-1 text-sm"
                       >
+                        {/* Toda la fila se toca para corregir: un monto o una
+                            referencia mal tecleados no obligan a borrar y repetir. */}
+                        <button
+                          type="button"
+                          onClick={() => setEditando(p.uid)}
+                          aria-label={`Corregir el pago de ${p.medio.label}, ${formatMoneyVE(toMajor(p.amount), p.amount.currency)}`}
+                          className="group flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-[var(--radius-control)] py-2 pl-3 text-left transition-colors hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:outline-brand"
+                        >
                         <span className="flex min-w-0 items-center gap-2">
                           <Icon size={14} className="text-ink-3 shrink-0" aria-hidden="true" />
                           <span className="min-w-0">
@@ -524,6 +641,9 @@ function CobroCuenta({
                             currency={p.amount.currency}
                             size="md"
                           />
+                          <Pencil size={13} className="text-ink-3 opacity-60 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+                        </span>
+                        </button>
                           <button
                             type="button"
                             onClick={() => setPagos((prev) => prev.filter((x) => x.uid !== p.uid))}
@@ -532,7 +652,6 @@ function CobroCuenta({
                           >
                             <X size={15} aria-hidden="true" />
                           </button>
-                        </span>
                       </li>
                     );
                   })}
@@ -554,6 +673,7 @@ function CobroCuenta({
                 </span>
                 <Button surface="tablet" variant="neutral" className="shrink-0 text-[13px]" onClick={() => setIdentificando(true)}>
                   {cliente.kind === "CONSUMIDOR_FINAL" ? "Identificar" : "Cambiar"}
+                  <PistaTecla tecla="I" />
                 </Button>
               </dd>
             </div>
@@ -676,9 +796,13 @@ function CobroCuenta({
                   aria-checked={activo}
                   disabled={bloqueado}
                   onClick={() => setMedioActivo(m)}
-                  title={bloqueado ? "Sin tasa del día no se puede cobrar en esta moneda" : m.label}
+                  title={
+                    bloqueado
+                      ? "Sin tasa del día no se puede cobrar en esta moneda"
+                      : `${m.label}${TECLA_MEDIO[m.code] ? ` (tecla ${TECLA_MEDIO[m.code]})` : ""}`
+                  }
                   className={cn(
-                    "flex h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-2 text-left",
+                    "flex h-14 cursor-pointer flex-col items-start justify-center overflow-hidden rounded-[var(--radius-control)] border px-1.5 text-left",
                     "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     "disabled:cursor-not-allowed disabled:opacity-35",
@@ -689,12 +813,15 @@ function CobroCuenta({
                 >
                   {/* El nombre ocupa todo el renglón: con el icono al lado, «Punto débito»
                       se cortaba. El icono acompaña a la moneda, debajo. */}
-                  <span className="w-full truncate text-[12px] leading-tight font-bold">{m.label}</span>
-                  <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10.5px] whitespace-nowrap">
-                    <span className={cn("flex items-center gap-1", m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3")}>
-                      <Icon size={12} className={activo ? "text-brand" : "text-ink-3"} aria-hidden="true" />
-                      {m.currency}
-                    </span>
+                  {/* Icono junto al nombre; debajo, moneda e IGTF. La letra del
+                      atajo va en el `title` y en la chuleta: en el botón le
+                      quitaba sitio al nombre («Punto dé…»). */}
+                  <span className="flex w-full min-w-0 items-center gap-1">
+                    <Icon size={12} className={cn("shrink-0", activo ? "text-brand" : "text-ink-3")} aria-hidden="true" />
+                    <span className="truncate text-[12px] leading-tight font-bold">{m.label}</span>
+                  </span>
+                  <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10px] whitespace-nowrap">
+                    <span className={cn(m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3")}>{m.currency}</span>
                     {m.triggersIgtf ? (
                       <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">+3% IGTF</span>
                     ) : (
@@ -837,6 +964,7 @@ function CobroCuenta({
               <span className="flex items-center gap-1.5 text-[13px] font-bold">
                 <Zap size={14} aria-hidden="true" className="text-brand" />
                 Cobrar exacto
+                <PistaTecla tecla="+" />
               </span>
               <span className="tnum text-[12px] font-semibold text-ink-2">
                 {montoExacto && !cubierto ? formatMoneyVE(toMajor(montoExacto), medioActivo.currency) : "—"}
@@ -855,6 +983,7 @@ function CobroCuenta({
               <span className="flex items-center gap-1.5 text-[14px] font-bold">
                 {puedeCobrar && <CircleCheckBig size={15} aria-hidden="true" />}
                 Cerrar cobro
+                <PistaTecla tecla="Ctrl ⏎" />
               </span>
               <span className="tnum text-[12px] font-semibold opacity-80">
                 {puedeCobrar ? formatMoneyVE(toMajor(aCobrar), "USD") : `Falta ${formatMoneyVE(toMajor(falta), "USD")}`}
@@ -883,6 +1012,28 @@ function CobroCuenta({
           onConfirmar={confirmarDatos}
           onCancelar={() => setPendienteDeDatos(null)}
         />
+
+        {/* Corregir un pago: el mismo formulario, prellenado, con su monto. Una
+            referencia no choca consigo misma, solo con los demás pagos. */}
+        <DatosPagoDialog
+          tipo={pagoEditado ? (pagoEditado.medio.datos ?? "SIN_DATOS") : null}
+          clave={pagoEditado?.uid ?? ""}
+          monto={pagoEditado ? pagoEditado.medio.label : ""}
+          edicion={
+            pagoEditado
+              ? {
+                  monto: toMajor(pagoEditado.amount).replace(".", ","),
+                  moneda: pagoEditado.amount.currency === "VES" ? "Bs." : pagoEditado.amount.currency,
+                  ...(pagoEditado.datos ? { datos: pagoEditado.datos } : {}),
+                }
+              : null
+          }
+          terminales={terminales}
+          recordados={recordados}
+          referenciasUsadas={pagos.flatMap((p) => (p.datos && p.uid !== editando ? [claveDeReferencia(p.datos)] : []))}
+          onConfirmar={confirmarEdicion}
+          onCancelar={() => setEditando(null)}
+        />
     </>
   );
 }
@@ -910,14 +1061,18 @@ type CobroProps = Parameters<typeof CobroCuenta>[0];
 export function CajaScreen({
   cuentaInicial,
   volver,
+  pulseras,
   ...cobro
 }: Omit<CobroProps, "lines" | "cuenta" | "onCobrado"> & {
   cuentaInicial: string | null;
   volver: string | null;
+  /** Código de pulsera → estancia, de la instantánea del servidor. */
+  pulseras: Readonly<Record<string, string>>;
 }) {
-  const { cuentas, guardar, descartar } = useCuentas();
+  const { cuentas, guardar, descartar, cargado } = useCuentas();
+  const sim = useSimulacion();
   const router = useRouter();
-  const porCobrar = cuentas.filter((c) => c.status === "POR_COBRAR");
+  const porCobrar = useMemo(() => ordenarCola(cuentas.filter((c) => c.status === "POR_COBRAR")), [cuentas]);
   const [elegida, setElegida] = useState<string | null>(cuentaInicial);
   const actual = porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
   const lineas = useMemo(() => (actual ? lineasParaCobrar(actual) : []), [actual]);
@@ -926,9 +1081,112 @@ export function CajaScreen({
   const [ventaNueva, setVentaNueva] = useState(false);
   const aBolivares = cobro.rate ? (cobro.rate.from === "USD" ? cobro.rate : invertRate(cobro.rate)) : null;
 
-  function alCobrar(cuenta: FamilyAccountDto, r: { total: string; vuelto: string; cliente: ClienteFacturaDto }) {
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<FiltroCola>("TODAS");
+  const [buscando, setBuscando] = useState(false);
+  const buscadorRef = useRef<HTMLInputElement>(null);
+  const visibles = useMemo(() => filtrarCola(porCobrar, busqueda, filtro), [porCobrar, busqueda, filtro]);
+
+  const [ultimoRecibo, setUltimoRecibo] = useState<Recibo | null>(null);
+  const [viendoRecibo, setViendoRecibo] = useState(false);
+  const [viendoAtajos, setViendoAtajos] = useState(false);
+
+  /* ── lo que llega a la cola ──────────────────────────────────────────
+     Una cuenta que aparece mientras la caja está abierta destella y se avisa.
+     Lo que había al abrir no es «nuevo», ni lo que crea la propia caja (una
+     venta directa): de eso ya sabe quien la creó. */
+  const conocidas = useRef<Set<string> | null>(null);
+  const creadasAqui = useRef(new Set<string>());
+  const [recientes, setRecientes] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    // Hasta que el proveedor carga lo guardado, la cola aún no es la real.
+    if (!cargado) return;
+    const ids = porCobrar.map((c) => c.id);
+    if (conocidas.current === null) {
+      conocidas.current = new Set(ids);
+      return;
+    }
+    const nuevas = porCobrar.filter((c) => !conocidas.current!.has(c.id) && !creadasAqui.current.has(c.id));
+    for (const id of ids) conocidas.current.add(id);
+    if (nuevas.length === 0) return;
+    setRecientes((prev) => new Set([...prev, ...nuevas.map((c) => c.id)]));
+    avisar.info(
+      nuevas.length === 1
+        ? `Llegó a la cola: ${numeroDeOrden(nuevas[0]!)} · ${esVentaDirecta(nuevas[0]!) ? "mostrador" : nuevas[0]!.family}`
+        : `Llegaron ${nuevas.length} cuentas a la cola`,
+    );
+    // Sin limpieza a propósito: si la cola cambia antes, el destello igual se apaga.
+    window.setTimeout(() => {
+      setRecientes((prev) => new Set([...prev].filter((x) => !nuevas.some((c) => c.id === x))));
+    }, 2600);
+  }, [porCobrar, cargado]);
+
+  function elegir(id: string) {
+    setVentaNueva(false);
+    setElegida(id);
+  }
+
+  /**
+   * Pasar una pulsera abre la cuenta de ese niño. La pulsera se busca en la
+   * instantánea del servidor y en lo que está pasando ahora en el local.
+   */
+  function alEscanear(codigo: string) {
+    const sesion = pulseras[codigo] ?? sim.estado.sesiones.find((s) => s.wristbandCode === codigo)?.id ?? null;
+    const cuenta = sesion ? cuentas.find((c) => c.sessionIds.includes(sesion)) : undefined;
+    if (!cuenta) {
+      avisar.error(`La pulsera ${codigo} no tiene cuenta en caja`, {
+        detalle: "Búscala por el nombre de la familia o el número de orden.",
+      });
+      return;
+    }
+    if (cuenta.status !== "POR_COBRAR") {
+      avisar.info(`${cuenta.family}: ${cuenta.status === "COBRADA" ? "la cuenta ya está cobrada" : "la cuenta sigue abierta"}`, {
+        detalle: cuenta.status === "COBRADA" ? `Orden ${numeroDeOrden(cuenta)}` : "Pasa a caja cuando salgan los niños.",
+      });
+      return;
+    }
+    setBusqueda("");
+    setFiltro("TODAS");
+    elegir(cuenta.id);
+  }
+
+  // Atajos de la cola (atajos.ts). Los del cobro viven en CobroCuenta.
+  useAtajos((t) => {
+    if (t.ctrl) return false;
+    if (t.key === "ArrowUp" || t.key === "ArrowDown") {
+      if (visibles.length === 0) return false;
+      const i = visibles.findIndex((c) => c.id === actual?.id);
+      const siguiente = t.key === "ArrowDown" ? Math.min(visibles.length - 1, i + 1) : Math.max(0, i - 1);
+      elegir(visibles[i < 0 ? 0 : siguiente]!.id);
+      return true;
+    }
+    if (t.key === "/") {
+      // Si el buscador ya está a la vista (cola larga), se enfoca aquí; si no,
+      // lo enfoca la cola al mostrarlo.
+      setBuscando(true);
+      buscadorRef.current?.focus();
+      return true;
+    }
+    if (t.key === "?") {
+      setViendoAtajos(true);
+      return true;
+    }
+    const letra = t.key.toUpperCase();
+    if (letra === "N") {
+      setVentaNueva(true);
+      return true;
+    }
+    if (letra === "R" && ultimoRecibo) {
+      setViendoRecibo(true);
+      return true;
+    }
+    return false;
+  });
+
+  function alCobrar(cuenta: FamilyAccountDto, r: Cobrado) {
     guardar(marcarCobrada(cuenta));
     setElegida(null);
+    setUltimoRecibo(r.recibo);
     avisar.ok(`Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`, {
       detalle: [
         r.cliente.kind === "CONSUMIDOR_FINAL" ? "Factura a consumidor final" : `Factura a ${r.cliente.name}`,
@@ -936,7 +1194,10 @@ export function CajaScreen({
       ]
         .filter(Boolean)
         .join(" · "),
-      ...(origen ? { accion: { texto: `Volver a ${origen.nombre}`, alPulsar: () => router.push(origen.ruta) } } : {}),
+      // Si se vino de otra pantalla, lo urgente es volver; si no, el recibo.
+      accion: origen
+        ? { texto: `Volver a ${origen.nombre}`, alPulsar: () => router.push(origen.ruta) }
+        : { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
     });
   }
 
@@ -973,6 +1234,7 @@ export function CajaScreen({
         },
       ],
     });
+    creadasAqui.current.add(nueva.id);
     guardar(nueva);
     setElegida(nueva.id);
     setVentaNueva(false);
@@ -1054,19 +1316,29 @@ export function CajaScreen({
           // En tablet vertical, dos columnas: la cola sobre la cuenta y el
           // cobro al lado, a todo el alto. En escritorio, tres.
           "md:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]",
-          "lg:min-h-0 lg:grid-cols-[15rem_minmax(0,1fr)_clamp(340px,26vw,400px)]",
+          "lg:min-h-0 lg:grid-cols-[15rem_minmax(0,1fr)_clamp(352px,26vw,400px)]",
         )}
       >
         <ColaCuentas
-          cuentas={porCobrar}
+          cuentas={visibles}
+          total={porCobrar.length}
           actual={actual?.id ?? null}
-          onElegir={(id) => {
-            setVentaNueva(false);
-            setElegida(id);
-          }}
+          onElegir={elegir}
           onNuevaVentaDirecta={onNuevaVentaDirecta}
           ventaNueva={ventaNueva}
           puntoDeCobro={cobro.puntoDeCobro}
+          recientes={recientes}
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          filtro={filtro}
+          onFiltro={setFiltro}
+          buscando={buscando}
+          onBuscando={setBuscando}
+          buscadorRef={buscadorRef}
+          onEscanear={alEscanear}
+          ultimoCobro={ultimoRecibo ? { orden: ultimoRecibo.orden, total: ultimoRecibo.total } : null}
+          onVerRecibo={() => setViendoRecibo(true)}
+          onVerAtajos={() => setViendoAtajos(true)}
         />
         {ventaNueva ? (
           <NuevaVentaDirecta
@@ -1088,91 +1360,9 @@ export function CajaScreen({
           <SinCuentas />
         )}
       </Container>
+      <ReciboDialog recibo={viendoRecibo ? ultimoRecibo : null} onCerrar={() => setViendoRecibo(false)} />
+      <AtajosDialog abierto={viendoAtajos} onCerrar={() => setViendoAtajos(false)} />
     </div>
-  );
-}
-
-function ColaCuentas({
-  cuentas,
-  actual,
-  onElegir,
-  onNuevaVentaDirecta,
-  ventaNueva,
-  puntoDeCobro,
-}: {
-  cuentas: readonly FamilyAccountDto[];
-  actual: string | null;
-  onElegir: (id: string) => void;
-  onNuevaVentaDirecta: () => void;
-  ventaNueva: boolean;
-  puntoDeCobro: PointOfSale;
-}) {
-  return (
-    <section
-      aria-label="Cuentas por cobrar"
-      className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:col-start-1 md:row-start-1 lg:col-start-1 lg:row-start-1"
-    >
-      <div className="flex items-baseline justify-between gap-2 border-b border-line px-4 py-3">
-        <h2 className="font-display text-base font-bold text-ink">
-          Por cobrar <span className="tnum ml-1 text-[13px] font-semibold text-ink-3">{cuentas.length}</span>
-        </h2>
-        <span className="text-[11.5px] text-ink-3">{puntoDeCobro === "TAQUILLA" ? "Taquilla" : "Mostrador"}</span>
-      </div>
-
-      <div className="border-b border-line/40 p-2">
-        <button
-          type="button"
-          onClick={onNuevaVentaDirecta}
-          aria-pressed={ventaNueva}
-          className={cn(
-            "flex min-h-12 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border border-dashed px-3 text-[13px] font-bold transition-all active:scale-[0.99]",
-            ventaNueva ? "border-brand bg-brand/20 text-brand" : "border-brand/50 bg-brand/10 text-brand hover:border-brand hover:bg-brand/20",
-          )}
-        >
-          <Plus size={15} aria-hidden="true" />
-          <span>Venta directa</span>
-        </button>
-      </div>
-
-      {cuentas.length === 0 ? (
-        <p className="px-4 py-4 text-[13px] text-ink-3">La cola está vacía.</p>
-      ) : (
-        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
-          {cuentas.map((c) => {
-            const activa = c.id === actual;
-            const esDirecta = esVentaDirecta(c);
-            return (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  aria-pressed={activa}
-                  onClick={() => onElegir(c.id)}
-                  className={cn(
-                    "flex min-h-14 w-full cursor-pointer flex-col gap-1 rounded-[var(--radius-control)] border px-3 py-2 text-left",
-                    "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    activa && !ventaNueva ? "border-brand bg-brand/12" : "border-transparent hover:bg-surface-2",
-                  )}
-                >
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-[13.5px] font-semibold text-ink">
-                      {esDirecta ? "Venta de mostrador" : c.family}
-                    </span>
-                    <MoneyDisplay value={toMajor(pendiente(c))} currency="USD" size="sm" />
-                  </span>
-                  <span className="text-[11.5px] text-ink-3">
-                    <span className="tnum font-semibold text-ink-2">{numeroDeOrden(c)}</span>
-                    {" · "}
-                    {esDirecta ? "Mostrador" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
-                    {!esDirecta && ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
   );
 }
 
