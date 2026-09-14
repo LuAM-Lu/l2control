@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { Plus, Redo2, RotateCw, Save, Trash2, TriangleAlert, Undo2, X } from "lucide-react";
 import { PlanoLocalSchema, type DiningTableDto, type PlanoLocalDto } from "@l2/contracts";
-import { Button, Input, avisar, cn } from "@l2/ui";
+import { Button, Container, Input, PageHeader, avisar, cn } from "@l2/ui";
+import { PiezaFija, Suelo, TramaParque } from "./piezas.tsx";
 import { usePlano } from "./PlanoProvider.tsx";
 import {
   PASO_CM,
@@ -141,15 +142,16 @@ export function EditorPlano() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-bold text-ink">Plano del local</h2>
-          <p className="text-[13px] text-ink-3">
-            Lo que cambies aquí es un borrador. El salón lo verá cuando publiques.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+    <Container ancho="panel" className="py-8">
+      <PageHeader
+        migas={[
+          { texto: "Restaurante", href: "/panel/restaurante" },
+          { texto: "Plano del local" },
+        ]}
+        titulo="Plano del local"
+        descripcion="Lo que cambies aquí es un borrador: el salón lo verá cuando publiques."
+        acciones={
+          <div className="flex flex-wrap items-center gap-2">
           <Button surface="admin" variant="ghost" onClick={() => setPaso((p) => Math.max(0, p - 1))} disabled={paso === 0}>
             <Undo2 size={15} aria-hidden="true" />
             Deshacer
@@ -174,8 +176,9 @@ export function EditorPlano() {
             <Save size={15} aria-hidden="true" />
             Publicar
           </Button>
-        </div>
-      </header>
+          </div>
+        }
+      />
 
       {problemas.size > 0 && (
         <p role="alert" className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[13px] text-state-crit">
@@ -198,7 +201,7 @@ export function EditorPlano() {
             viewBox={`0 0 ${borrador.width} ${borrador.height}`}
             role="group"
             aria-label="Plano en edición"
-            className="w-full touch-none rounded-[var(--radius-card)] border border-line bg-surface"
+            className="mx-auto max-h-[62vh] w-full touch-none rounded-[var(--radius-card)] border border-line bg-surface"
             style={{ aspectRatio: `${borrador.width} / ${borrador.height}` }}
             onPointerMove={(e) => {
               const a = arrastrando.current;
@@ -211,6 +214,7 @@ export function EditorPlano() {
             }}
           >
             <defs>
+              <TramaParque />
               <pattern id="l2-rejilla" width={REJILLA_CM * 5} height={REJILLA_CM * 5} patternUnits="userSpaceOnUse">
                 <path
                   d={`M ${REJILLA_CM * 5} 0 L 0 0 0 ${REJILLA_CM * 5}`}
@@ -220,45 +224,13 @@ export function EditorPlano() {
                 />
               </pattern>
             </defs>
+            {/* El mismo local que ve el salón, con la rejilla del editor encima. */}
+            <Suelo width={borrador.width} height={borrador.height} />
             <rect x="0" y="0" width={borrador.width} height={borrador.height} fill="url(#l2-rejilla)" />
 
             {/* La estructura está bloqueada: se edita en otro sitio (§2.3). */}
             {borrador.fixtures.map((f) => (
-              <g key={f.id} opacity={0.5}>
-                {f.points ? (
-                  <polygon
-                    points={f.points.map((q) => `${q.x},${q.y}`).join(" ")}
-                    fill="var(--color-surface-2)"
-                    stroke="var(--color-line-strong)"
-                    strokeWidth={2}
-                  />
-                ) : (
-                  <rect
-                    x={f.x}
-                    y={f.y}
-                    width={f.width}
-                    height={f.height}
-                    rx={8}
-                    fill="var(--color-surface-2)"
-                    stroke="var(--color-line-strong)"
-                    strokeWidth={2}
-                  />
-                )}
-                {f.label && (
-                  <text
-                    x={f.x + f.width / 2}
-                    y={f.y + (f.kind === "PARQUE" ? f.height / 2 : 22)}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={14}
-                    fontWeight={700}
-                    letterSpacing="2"
-                    fill="var(--color-ink-3)"
-                  >
-                    {f.label.toUpperCase()}
-                  </text>
-                )}
-              </g>
+              <PiezaFija key={f.id} f={f} atenuada />
             ))}
 
             {enSalon.map((m) => {
@@ -342,7 +314,7 @@ export function EditorPlano() {
         </div>
 
         {/* ── propiedades de la mesa elegida ── */}
-        <aside className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4">
+        <aside className="flex h-fit flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4">
           {mesa && !mesa.retiredAt ? (
             <>
               <h3 className="font-display text-[17px] font-bold text-ink">Mesa {mesa.label}</h3>
@@ -448,7 +420,7 @@ export function EditorPlano() {
           )}
         </aside>
       </div>
-    </div>
+    </Container>
   );
 }
 

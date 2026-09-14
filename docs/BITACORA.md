@@ -737,3 +737,8 @@ regla de números únicos ni para los solapes, y el servicio no las pinta.
 
 Falta la capa de estructura editable (paredes, puertas, barra, cocina), las guías de alineación entre mesas
 y el historial de versiones, que llegará con el servidor.
+
+**Corregido el mismo día:** el editor dibujaba las piezas fijas con su propio código, así que «Entrada» salía
+cortada contra la pared y el lienzo se comía la pantalla. El local se dibuja ahora una sola vez
+(`piezas.tsx`) para el servicio y para el editor, y la pantalla usa el contenedor y la cabecera del
+back-office, con el lienzo acotado al alto de la ventana.

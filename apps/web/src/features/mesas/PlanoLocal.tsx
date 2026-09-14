@@ -1,7 +1,8 @@
 "use client";
 
-import type { DiningTableDto, ElementoFijoDto, PlanoLocalDto } from "@l2/contracts";
+import type { DiningTableDto, PlanoLocalDto } from "@l2/contracts";
 import { cn } from "@l2/ui";
+import { PiezaFija, Suelo, TramaParque } from "./piezas.tsx";
 import type { EstadoVisible, MesaVista } from "./mesas.ts";
 
 /**
@@ -54,16 +55,6 @@ const TEXTO: Readonly<Record<EstadoVisible, string>> = {
   POR_LIMPIAR: "Limpiar",
 };
 
-/** Cómo se pinta cada pieza fija del local. */
-const FIJO: Readonly<Record<ElementoFijoDto["kind"], { fondo: string; opacidad: number; rayado?: boolean }>> = {
-  PARQUE: { fondo: "var(--color-brand)", opacidad: 1, rayado: true },
-  CAJA: { fondo: "var(--color-surface-2)", opacidad: 0.9 },
-  BARRA: { fondo: "var(--color-surface-2)", opacidad: 0.9 },
-  COCINA: { fondo: "var(--color-surface-2)", opacidad: 0.9 },
-  PUERTA: { fondo: "var(--color-base)", opacidad: 1 },
-  PARED: { fondo: "var(--color-line-strong)", opacidad: 1 },
-};
-
 export function PlanoLocal({
   plano,
   mesas,
@@ -89,31 +80,18 @@ export function PlanoLocal({
         style={{ aspectRatio: `${plano.width} / ${plano.height}` }}
       >
         <defs>
-          {/* El parque se raya en vez de rellenarse: es una zona, no un mueble. */}
-          <pattern id="l2-rayado" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="12" stroke="var(--color-brand)" strokeWidth="2" opacity="0.28" />
-          </pattern>
+          <TramaParque />
           {/* Sombra corta: da relieve sin convertir el plano en una maqueta. */}
           <filter id="l2-relieve" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.35" />
           </filter>
         </defs>
 
-        {/* El suelo del local */}
-        <rect
-          x="1"
-          y="1"
-          width={plano.width - 2}
-          height={plano.height - 2}
-          rx="14"
-          fill="var(--color-surface)"
-          stroke="var(--color-line)"
-          strokeWidth="2"
-        />
+        <Suelo width={plano.width} height={plano.height} />
 
         {/* ── la estructura: no se toca en servicio ── */}
         {plano.fixtures.map((f) => (
-          <Fijo key={f.id} f={f} />
+          <PiezaFija key={f.id} f={f} />
         ))}
 
         {/* ── las mesas ── */}
@@ -149,70 +127,6 @@ export function PlanoLocal({
         <li className="ml-auto hidden lg:block">Las sillas rellenas son las ocupadas</li>
       </ul>
     </div>
-  );
-}
-
-/** Parque, puertas, barra y cocina. Lo que tiene contorno propio se dibuja con él. */
-function Fijo({ f }: { f: ElementoFijoDto }) {
-  const p = FIJO[f.kind];
-  const relleno = p.rayado ? "url(#l2-rayado)" : p.fondo;
-  const esPuerta = f.kind === "PUERTA";
-  return (
-    <g>
-      {f.points ? (
-        <polygon
-          points={f.points.map((q) => `${q.x},${q.y}`).join(" ")}
-          fill={relleno}
-          fillOpacity={p.opacidad}
-          stroke="var(--color-line-strong)"
-          strokeOpacity={0.6}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-      ) : (
-        <rect
-          x={f.x}
-          y={f.y}
-          width={f.width}
-          height={f.height}
-          rx={esPuerta ? 3 : 10}
-          fill={relleno}
-          fillOpacity={p.opacidad}
-          stroke="var(--color-line-strong)"
-          strokeOpacity={0.6}
-          strokeWidth={2}
-        />
-      )}
-      {f.label &&
-        (esPuerta ? (
-          // El nombre de una puerta no cabe dentro de la puerta: va al lado,
-          // y hacia dentro de la zona que abre, donde no hay mesas ni sillas.
-          <text
-            x={f.width >= f.height ? f.x + f.width / 2 : f.x + f.width + 8}
-            y={f.width >= f.height ? f.y - 14 : f.y + f.height / 2}
-            textAnchor={f.width >= f.height ? "middle" : "start"}
-            dominantBaseline="central"
-            fontSize={12}
-            fontWeight={600}
-            fill="var(--color-ink-3)"
-          >
-            {f.label}
-          </text>
-        ) : (
-          <text
-            x={f.x + f.width / 2}
-            y={f.kind === "PARQUE" ? f.y + f.height / 2 : f.y + 24}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontSize={15}
-            fontWeight={700}
-            letterSpacing="2.5"
-            fill="var(--color-ink-3)"
-          >
-            {f.label.toUpperCase()}
-          </text>
-        ))}
-    </g>
   );
 }
 
