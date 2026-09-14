@@ -21,6 +21,7 @@ import {
   type Money,
   add,
   convert,
+  invertRate,
   money,
   multiply,
   subtract,
@@ -510,4 +511,67 @@ export function reconcile(counts: readonly CashCount[]): readonly Reconciliation
       }),
     ),
   );
+}
+
+/* ------------------------------------------------ anulación (DEC-24) */
+
+export class ExcessNotCoveredError extends Error {
+  constructor() {
+    super("El excedente del cobro es mayor que lo pagado: el cobro no cuadra y no se puede anular así.");
+    this.name = "ExcessNotCoveredError";
+  }
+}
+
+/**
+ * Cuánto de cada pago se devuelve al anular un cobro — DEC-24.
+ *
+ * Se devuelve **lo que quedó en la caja por esta venta**, no lo entregado: el
+ * vuelto ya salió de la gaveta, y la propina y el residuo tampoco eran de la
+ * venta (§5.6). Ese excedente (en moneda funcional) se descuenta primero del
+ * EFECTIVO, del último pago hacia el primero, porque el vuelto sale del billete
+ * que lo originó; si no alcanza, de los demás medios en el mismo orden.
+ *
+ * Cada pago se devuelve **en su moneda** (DEC-24: mismo medio, misma moneda),
+ * convirtiendo el excedente con la tasa congelada de ESE pago, la del cobro
+ * original: devolver con la tasa de hoy regalaría o quitaría dinero.
+ *
+ * Fail-closed: un excedente que no cabe en lo pagado es un cobro que no cuadró,
+ * y se niega en vez de inventar un reparto.
+ */
+export function refundableByTender(
+  tenders: readonly Tender[],
+  excess: Money,
+  functional: CurrencyCode,
+): Money[] {
+  if (excess.currency !== functional) {
+    throw new TypeError(`El excedente va en la moneda funcional (${functional}), no en ${excess.currency}.`);
+  }
+  const restante = tenders.map((t) => t.amount);
+  const orden = [
+    ...tenders.map((t, i) => [t, i] as const).filter(([t]) => t.method.canGiveChange).reverse(),
+    ...tenders.map((t, i) => [t, i] as const).filter(([t]) => !t.method.canGiveChange).reverse(),
+  ];
+
+  let porDescontar = excess;
+  for (const [t, i] of orden) {
+    if (porDescontar.amount <= 0n) break;
+    let enSuMoneda: Money;
+    if (t.amount.currency === functional) {
+      enSuMoneda = porDescontar;
+    } else {
+      if (!t.rate) throw new MissingRateError(t.method.code, t.amount.currency, functional);
+      enSuMoneda = convert(porDescontar, invertRate(t.rate));
+    }
+    const disponible = restante[i]!;
+    if (enSuMoneda.amount <= disponible.amount) {
+      restante[i] = subtract(disponible, enSuMoneda);
+      porDescontar = zero(functional);
+    } else {
+      restante[i] = zero(disponible.currency);
+      const cubierto = tenderInFunctional({ ...t, amount: disponible }, functional);
+      porDescontar = subtract(porDescontar, cubierto);
+    }
+  }
+  if (porDescontar.amount > 0n) throw new ExcessNotCoveredError();
+  return restante;
 }

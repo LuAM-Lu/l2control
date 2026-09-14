@@ -126,10 +126,16 @@ export {
 } from "./documento.ts";
 
 export {
+  AnulacionSchema,
   ImpresionSchema,
+  MotivoAnulacionSchema,
+  PagoDeVentaSchema,
   ReciboSchema,
   VentaCerradaSchema,
+  type AnulacionDto,
   type ImpresionDto,
+  type MotivoAnulacion,
+  type PagoDeVentaDto,
   type ReciboDto,
   type VentaCerradaDto,
 } from "./ventas.ts";

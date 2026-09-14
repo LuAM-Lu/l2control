@@ -32,6 +32,17 @@ const venta = {
   cashier: { id: "u-marisol", name: "Marisol Prieto" },
   total: { minor: "580", currency: "USD" },
   methods: ["Pago Móvil"],
+  payments: [
+    {
+      methodCode: "PAGO_MOVIL",
+      label: "Pago Móvil",
+      cash: false,
+      dataKind: "PAGO_MOVIL",
+      paid: { minor: "132478", currency: "VES" },
+      refundable: { minor: "132478", currency: "VES" },
+    },
+  ],
+  lineIds: ["c-rojas-s1"],
   recibo,
   prints: [],
 };
@@ -55,5 +66,45 @@ describe("venta cerrada (C12)", () => {
 
   test("el total viaja con su moneda", () => {
     assert.equal(valida({ ...venta, total: { minor: "580" } }), false);
+  });
+});
+
+describe("anular una venta (DEC-24)", () => {
+  const anulacion = {
+    at: "2026-09-11T19:00:00.000Z",
+    requestedBy: { id: "u-marisol", name: "Marisol Prieto" },
+    authorizedBy: { id: "u-luis", name: "Luis Guerrero", role: "SUPERVISOR" },
+    reason: "ERROR_EN_COBRO",
+    refunds: [{ paymentIndex: 0, via: "MISMO_MEDIO", amount: { minor: "132478", currency: "VES" }, reference: "004821" }],
+  };
+  const anulada = (a: object) => valida({ ...venta, voided: { ...anulacion, ...a } });
+
+  test("una anulación completa, autorizada y con referencia es válida", () => {
+    assert.equal(anulada({}), true);
+  });
+
+  test("autoriza un supervisor o el administrador, nunca una cajera", () => {
+    assert.equal(anulada({ authorizedBy: { id: "u-carla", name: "Carla", role: "CAJERO" } }), false);
+    assert.equal(anulada({ authorizedBy: { id: "u-abigail", name: "Abigail Karam", role: "ADMIN" } }), true);
+  });
+
+  test("devolver un Pago Móvil por el mismo medio exige la referencia de la devolución", () => {
+    assert.equal(anulada({ refunds: [{ ...anulacion.refunds[0], reference: null }] }), false);
+  });
+
+  test("devolverlo en efectivo exige explicarlo", () => {
+    const enEfectivo = [{ ...anulacion.refunds[0], via: "EFECTIVO", reference: null }];
+    assert.equal(anulada({ refunds: enEfectivo }), false);
+    assert.equal(anulada({ refunds: enEfectivo, note: "El cliente no tiene Pago Móvil activo" }), true);
+  });
+
+  test("se devuelve exactamente lo que quedó, en su moneda: ni más ni en otra", () => {
+    assert.equal(anulada({ refunds: [{ ...anulacion.refunds[0], amount: { minor: "200000", currency: "VES" } }] }), false);
+    assert.equal(anulada({ refunds: [{ ...anulacion.refunds[0], amount: { minor: "580", currency: "USD" } }] }), false);
+  });
+
+  test("«Otro» sin explicación no pasa, y ningún pago se queda sin devolver", () => {
+    assert.equal(anulada({ reason: "OTRO" }), false);
+    assert.equal(anulada({ refunds: [] }), false);
   });
 });

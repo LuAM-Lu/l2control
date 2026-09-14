@@ -588,3 +588,31 @@ al revisar un recibo apareció que **el IGTF se calcula sobre el billete entero,
 para $ 11,47 cargan $ 0,45. Queda anotado para el contador (DEC-1) antes de tocar el dominio fiscal.
 
 Sigue anular un cobro (DEC-24).
+
+## Anular un cobro — 2026-09-13
+
+DEC-24 ya se puede hacer desde «Ventas». «Anular cobro…» es un botón discreto, bajo imprimir y WhatsApp, y
+solo aparece para quien puede pedirlo. Abre una sola capa con tres bloques en el orden en que se piensa:
+
+1. **Por qué:** cuatro motivos de lista cerrada; «Otro» exige explicarlo.
+2. **Cómo vuelve el dinero, pago a pago.** Por el mismo medio y en su moneda, pidiendo la referencia de la
+   devolución (en el punto, la aprobación de la anulación en el terminal). El efectivo es la alternativa:
+   exige explicación y se niega si la gaveta no lo tiene en esa moneda.
+3. **Quién autoriza:** un supervisor o el administrador, con su PIN. Tres intentos y se bloquea con la misma
+   política del acceso. El administrador confirma igual con su PIN: una operación que devuelve dinero no se
+   hace con una sesión que alguien dejó abierta.
+
+Lo que no es obvio: **cuánto se devuelve de cada pago no se calcula al anular, sino al cobrar.** El
+dominio de caja tiene ahora `refundableByTender`: el excedente (vuelto, propina o residuo) no se devuelve,
+se descuenta primero del efectivo y se convierte con la tasa congelada de ese pago. La venta guarda ese
+«devolvible» junto a cada pago, así una anulación de mañana no depende de la tasa de mañana. Seis pruebas.
+
+La anulación se AÑADE a la venta una sola vez y el contrato la valida entera: autorizador con rol válido,
+cada pago con su devolución exacta, referencias y explicaciones donde tocan. Seis pruebas más. El orden de
+aplicación es fail-closed: primero se comprueba que la cuenta puede volver a «por cobrar», después se anota
+la anulación y solo entonces se guarda la cuenta. El recibo pasa a decir «ANULADA», no se reimprime ni se
+envía, y lo cobrado del turno deja de contarla. La cuenta vuelve a la cola de la caja: lo consumido se sigue
+debiendo, y si no hay que cobrarlo será una cortesía con motivo (F6-14), no una anulación.
+
+Pendiente y dicho: la gaveta se estima con las ventas de la sesión (sin fondo inicial, así que peca de negar),
+el PIN y la auditoría los hará el servidor, y con factura fiscal hará falta la nota de crédito (F3).

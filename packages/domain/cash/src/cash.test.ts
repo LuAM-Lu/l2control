@@ -20,6 +20,8 @@ import {
   SettlementImbalanceError,
   closeSettlement,
   computeBalance,
+  refundableByTender,
+  ExcessNotCoveredError,
   reconcile,
   type Tender,
   type MovementOrigin,
@@ -515,5 +517,41 @@ describe("punto de cobro (F4-01b, DEC-13)", () => {
     ]);
     assert.equal(t.byPoint.length, 0);
     assert.equal(toMajor(t.drawer[0]!.expected), "35.00");
+  });
+});
+
+describe("anular un cobro: cuánto se devuelve de cada pago (DEC-24)", () => {
+  const ZELLE: TenderMethod = { code: "ZELLE", label: "Zelle", currency: "USD", canGiveChange: false };
+
+  test("se devuelve lo que quedó, no el billete: $ 15 para $ 11,47 devuelven $ 11,47", () => {
+    const r = refundableByTender([pago(USD_EFECTIVO, usd("15.00"))], usd("3.53"), "USD");
+    assert.equal(toMajor(r[0]!), "11.47");
+  });
+
+  test("sin excedente se devuelve cada pago entero, en su moneda", () => {
+    const r = refundableByTender([pago(PAGO_MOVIL, bs("1324.78")), pago(USD_EFECTIVO, usd("2.00"))], zero("USD"), "USD");
+    assert.deepEqual(r.map(toMajor), ["1324.78", "2.00"]);
+    assert.equal(r[0]!.currency, "VES");
+  });
+
+  test("el vuelto sale del efectivo aunque el efectivo no sea el último pago", () => {
+    const r = refundableByTender([pago(USD_EFECTIVO, usd("10.00")), { method: ZELLE, amount: usd("5.00"), rate: null }], usd("2.00"), "USD");
+    assert.deepEqual(r.map(toMajor), ["8.00", "5.00"]);
+  });
+
+  test("si el efectivo no alcanza, el resto sale de los demás medios", () => {
+    const r = refundableByTender([pago(USD_EFECTIVO, usd("1.00")), { method: ZELLE, amount: usd("10.00"), rate: null }], usd("3.00"), "USD");
+    assert.deepEqual(r.map(toMajor), ["0.00", "8.00"]);
+  });
+
+  test("un excedente en dólares se descuenta de bolívares con la tasa del cobro", () => {
+    const EFECTIVO_BS: TenderMethod = { code: "EFECTIVO_VES", label: "Efectivo Bs", currency: "VES", canGiveChange: true };
+    // $ 1,00 a 228,41 Bs/$ son Bs. 228,41.
+    const r = refundableByTender([{ method: EFECTIVO_BS, amount: bs("1000.00"), rate: TASA }], usd("1.00"), "USD");
+    assert.equal(toMajor(r[0]!), "771.59");
+  });
+
+  test("un excedente mayor que lo pagado se niega", () => {
+    assert.throws(() => refundableByTender([pago(USD_EFECTIVO, usd("5.00"))], usd("6.00"), "USD"), ExcessNotCoveredError);
   });
 });

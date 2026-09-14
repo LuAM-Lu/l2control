@@ -39,6 +39,7 @@ import {
 import {
   closeSettlement,
   computeBalance,
+  refundableByTender,
   type ChangeDisposition,
   type PointOfSale,
   type Tender,
@@ -62,6 +63,7 @@ import {
   type ClienteFacturaDto,
   type DatosDePagoDto,
   type FamilyAccountDto,
+  type PagoDeVentaDto,
   type PosTerminalDto,
 } from "@l2/contracts";
 import { DatosPagoDialog, claveDeReferencia, resumenDatos, type Recordados } from "./DatosPagoDialog.tsx";
@@ -97,6 +99,10 @@ type Cobrado = Readonly<{
   cliente: ClienteFacturaDto;
   /** Los medios usados, sin repetir. */
   medios: readonly string[];
+  /** Cada pago con lo que se devolvería si se anula (DEC-24). */
+  pagosVenta: readonly PagoDeVentaDto[];
+  /** Las líneas de la cuenta que salda este cobro. */
+  lineIds: readonly string[];
   recibo: Recibo;
 }>;
 
@@ -364,6 +370,17 @@ function CobroCuenta({
         vuelto: toMajor(r.changeOut),
         cliente,
         medios: [...new Set(pagos.map((p) => p.medio.label))],
+        // Lo que se devolvería de cada pago, calculado AHORA con la tasa del
+        // cobro: el excedente (vuelto, propina o residuo) no se devuelve.
+        pagosVenta: refundableByTender(tenders, sobra, FUNCIONAL).map((devolvible, i) => ({
+          methodCode: pagos[i]!.medio.code,
+          label: pagos[i]!.medio.label,
+          cash: pagos[i]!.medio.canGiveChange,
+          dataKind: pagos[i]!.medio.datos ?? null,
+          paid: { minor: String(pagos[i]!.amount.amount), currency: pagos[i]!.amount.currency },
+          refundable: { minor: String(devolvible.amount), currency: devolvible.currency },
+        })),
+        lineIds: lines.map((l) => l.id),
         recibo: armarRecibo(),
       });
       setPagos([]);
@@ -1131,7 +1148,8 @@ export function CajaScreen({
   // El último cobro sale del registro de ventas: sobrevive a una recarga y
   // «Ventas» ve lo mismo.
   const { ventas, registrar, anotarImpresion } = useVentas();
-  const ultimaVenta = ventas[0] ?? null;
+  // Un cobro anulado ya no es «el último cobro»: su recibo no vale.
+  const ultimaVenta = ventas.find((v) => !v.voided) ?? null;
   const [viendoRecibo, setViendoRecibo] = useState(false);
   const operadorCaja = useOperador();
   const [viendoAtajos, setViendoAtajos] = useState(false);
@@ -1239,6 +1257,8 @@ export function CajaScreen({
       cashier: operadorCaja ? { id: operadorCaja.id, name: operadorCaja.nombre } : null,
       total: { minor: String(r.totalDinero.amount), currency: r.totalDinero.currency },
       methods: [...r.medios],
+      payments: [...r.pagosVenta],
+      lineIds: [...r.lineIds],
       recibo: r.recibo,
       prints: [],
     });

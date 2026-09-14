@@ -159,6 +159,21 @@ export function registrarSalida(
 }
 
 /**
+ * Se anuló el cobro que pagó estas líneas (DEC-24): vuelven a estar pendientes
+ * y la cuenta vuelve a la cola de la caja. No se borra nada: lo consumido se
+ * sigue debiendo, y si no hay que cobrarlo es una cortesía con motivo (F6-14),
+ * no una anulación.
+ */
+export function revertirCobro(c: FamilyAccountDto, lineIds: readonly string[]): FamilyAccountDto {
+  const ids = new Set(lineIds);
+  return FamilyAccountSchema.parse({
+    ...c,
+    lines: c.lines.map((l) => (ids.has(l.id) ? { ...l, paid: false } : l)),
+    status: "POR_COBRAR",
+  });
+}
+
+/**
  * La caja cobró todo lo pendiente.
  *
  * Si la familia ya se fue, la cuenta queda cobrada. Si quedan niños dentro

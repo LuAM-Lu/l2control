@@ -2,11 +2,19 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Printer, ReceiptText, Search, X } from "lucide-react";
+import { Ban, MessageCircle, Printer, ReceiptText, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
-import type { VentaCerradaDto } from "@l2/contracts";
+import type { AnulacionDto, VentaCerradaDto } from "@l2/contracts";
+import { can } from "@l2/domain-identity";
 import { Button, Container, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { useOperador } from "../identity/operador.ts";
+import { actorDe } from "../identity/visibilidad.ts";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { revertirCobro } from "../cuentas/cuentas.ts";
+import { AnularCobroDialog } from "./AnularCobroDialog.tsx";
+import { enmascarar, textoDinero, textoMotivo } from "./anulacion.ts";
 import { formatClock } from "../park/time-format.ts";
 import { useAtajos } from "./atajos.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
@@ -45,8 +53,12 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
 }
 
 export function VentasScreen() {
-  const { ventas, anotarImpresion } = useVentas();
+  const { ventas, anotarImpresion, anular } = useVentas();
+  const { cuentas, guardar } = useCuentas();
+  const router = useRouter();
   const operador = useOperador();
+  const [anulando, setAnulando] = useState(false);
+  const puedeAnular = operador !== null && can(actorDe(operador), "cobro.anular") !== "DENEGADO";
   const [texto, setTexto] = useState("");
   const [medio, setMedio] = useState<string | null>(null);
   const [elegida, setElegida] = useState<string | null>(null);
@@ -56,10 +68,36 @@ export function VentasScreen() {
   const medios = useMemo(() => [...new Set(ventas.flatMap((v) => v.methods))], [ventas]);
   const visibles = useMemo(() => filtrar(ventas, texto, medio), [ventas, texto, medio]);
   const actual = visibles.find((v) => v.id === elegida) ?? visibles[0] ?? null;
+  // Lo cobrado no cuenta lo anulado: ese dinero volvió al cliente.
   const total = useMemo(
-    () => sum(ventas.map((v) => money(BigInt(v.total.minor), "USD")), "USD"),
+    () => sum(ventas.filter((v) => !v.voided).map((v) => money(BigInt(v.total.minor), "USD")), "USD"),
     [ventas],
   );
+  const anuladas = ventas.filter((v) => v.voided).length;
+
+  /**
+   * Aplica la anulación (DEC-24). Orden fail-closed: primero se comprueba que
+   * la cuenta puede volver a «por cobrar», luego se añade la anulación a la
+   * venta (valida contra el contrato) y solo entonces se guarda la cuenta. Si
+   * algo lanza, no se aplica nada y el diálogo lo muestra.
+   */
+  function aplicarAnulacion(v: VentaCerradaDto, anulacion: AnulacionDto) {
+    const cuenta = cuentas.find((c) => c.id === v.accountId) ?? null;
+    const revertida = cuenta ? revertirCobro(cuenta, v.lineIds) : null;
+    anular(v.id, anulacion);
+    if (revertida) guardar(revertida);
+    setAnulando(false);
+    const devoluciones = anulacion.refunds
+      .map((r) => {
+        const p = v.payments[r.paymentIndex]!;
+        return `${textoDinero(r.amount)} ${p.cash || r.via === "EFECTIVO" ? "en efectivo" : `por ${p.label}`}`;
+      })
+      .join(" · ");
+    avisar.ok(`Orden ${v.recibo.orden} anulada`, {
+      detalle: `Devolver ${devoluciones}.${revertida ? " La cuenta volvió a «por cobrar»." : ""}`,
+      ...(revertida ? { accion: { texto: "Ir a cobrar", alPulsar: () => router.push(`/caja?cuenta=${revertida.id}` as Route) } } : {}),
+    });
+  }
 
   function imprimir(v: VentaCerradaDto) {
     const copia = v.prints.length > 0;
@@ -111,6 +149,7 @@ export function VentasScreen() {
             <p className="flex items-baseline gap-2 text-[12px] text-ink-3">
               Cobrado
               <MoneyDisplay value={toMajor(total)} currency="USD" size="md" />
+              {anuladas > 0 && <span className="tnum">· {anuladas} {anuladas === 1 ? "anulada" : "anuladas"}</span>}
             </p>
           </div>
 
@@ -221,9 +260,16 @@ export function VentasScreen() {
                         <td className="tnum text-ink-2">{formatClock(Date.parse(v.closedAt))}</td>
                         <td className="max-w-0 truncate pr-2 text-ink">{v.recibo.cuenta}</td>
                         <td className="hidden max-w-0 truncate pr-2 text-ink-3 md:table-cell">{v.methods.join(" · ")}</td>
-                        <td className="tnum text-right font-semibold text-ink">{formatMoneyVE(toMajor(money(BigInt(v.total.minor), "USD")), "USD")}</td>
+                        <td className={cn("tnum text-right font-semibold", v.voided ? "text-ink-3 line-through" : "text-ink")}>
+                          {formatMoneyVE(toMajor(money(BigInt(v.total.minor), "USD")), "USD")}
+                        </td>
                         <td className="pr-4 text-right">
-                          {v.prints.length > 1 && (
+                          {v.voided ? (
+                            <span className="ml-2 inline-flex items-center gap-1 rounded border border-line-strong px-1.5 text-[11px] font-semibold whitespace-nowrap text-ink-2">
+                              <Ban size={11} aria-hidden="true" />
+                              Anulada
+                            </span>
+                          ) : v.prints.length > 1 && (
                             <span className="tnum ml-2 inline-flex items-center gap-1 text-[11px] whitespace-nowrap text-ink-3" title="Copias impresas">
                               <Printer size={11} aria-hidden="true" />
                               {v.prints.length - 1} {v.prints.length === 2 ? "copia" : "copias"}
@@ -247,8 +293,33 @@ export function VentasScreen() {
           {actual ? (
             <>
               <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                <ReciboImpreso recibo={actual.recibo} copia={actual.prints.length > 0} className="max-w-none" />
+                <ReciboImpreso recibo={actual.recibo} copia={actual.prints.length > 0} anulada={Boolean(actual.voided)} className="max-w-none" />
               </div>
+              {/* La anulación, entera: por qué, quién y cómo volvió el dinero. */}
+              {actual.voided && (
+                <div className="border-t border-line px-4 py-2 text-[12px] text-ink-2">
+                  <p className="flex items-center gap-1.5 font-semibold text-ink">
+                    <Ban size={13} aria-hidden="true" />
+                    Anulada a las {formatClock(Date.parse(actual.voided.at))} · {textoMotivo(actual.voided.reason)}
+                  </p>
+                  <p className="text-ink-3">
+                    Autorizó {actual.voided.authorizedBy.name} ({actual.voided.authorizedBy.role === "ADMIN" ? "administración" : "supervisión"})
+                    {actual.voided.requestedBy ? ` · pidió ${actual.voided.requestedBy.name}` : ""}
+                    {actual.voided.note ? ` · «${actual.voided.note}»` : ""}
+                  </p>
+                  <ul className="tnum mt-0.5 text-ink-3">
+                    {actual.voided.refunds.map((r) => {
+                      const p = actual.payments[r.paymentIndex]!;
+                      return (
+                        <li key={r.paymentIndex}>
+                          {p.label}: {textoDinero(r.amount)} {p.cash || r.via === "EFECTIVO" ? "en efectivo" : `por ${p.label}`}
+                          {r.reference ? ` · Ref. ${enmascarar(r.reference)}` : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
               {/* El rastro, a la vista: quién imprimió y cuándo. */}
               <div className="border-t border-line px-4 py-2 text-[11.5px] text-ink-3">
                 {actual.prints.length === 0 ? (
@@ -269,22 +340,44 @@ export function VentasScreen() {
                   </details>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-2 border-t border-line p-3">
-                <Button surface="pos" variant="neutral" onClick={() => setEnviando(true)}>
-                  <MessageCircle size={17} aria-hidden="true" />
-                  WhatsApp
-                </Button>
-                <Button surface="pos" variant="primary" onClick={() => imprimir(actual)}>
-                  <Printer size={17} aria-hidden="true" />
-                  {actual.prints.length > 0 ? "Reimprimir" : "Imprimir"}
-                </Button>
-              </div>
+              {actual.voided ? (
+                <p className="border-t border-line px-4 py-3 text-[12.5px] text-ink-3">
+                  Un cobro anulado no se reimprime ni se envía: su recibo ya no vale.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 border-t border-line p-3">
+                  <Button surface="pos" variant="neutral" onClick={() => setEnviando(true)}>
+                    <MessageCircle size={17} aria-hidden="true" />
+                    WhatsApp
+                  </Button>
+                  <Button surface="pos" variant="primary" onClick={() => imprimir(actual)}>
+                    <Printer size={17} aria-hidden="true" />
+                    {actual.prints.length > 0 ? "Reimprimir" : "Imprimir"}
+                  </Button>
+                  {/* Destructivo y auditado: discreto, lejos del botón principal y
+                      con su propia confirmación. Solo para quien puede pedirlo. */}
+                  {puedeAnular && (
+                    <Button surface="tablet" variant="ghost" className="col-span-2 text-[13px]" onClick={() => setAnulando(true)}>
+                      <Ban size={15} aria-hidden="true" />
+                      Anular cobro…
+                    </Button>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <p className="m-auto px-6 py-10 text-center text-[13px] text-ink-3">Elige una venta para ver su recibo.</p>
           )}
         </aside>
       </Container>
+
+      <AnularCobroDialog
+        venta={anulando && actual && !actual.voided ? actual : null}
+        ventas={ventas}
+        operador={operador}
+        onAnular={aplicarAnulacion}
+        onCerrar={() => setAnulando(false)}
+      />
 
       <ReciboDialog
         recibo={enviando && actual ? actual.recibo : null}

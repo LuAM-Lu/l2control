@@ -15,7 +15,8 @@ const base = (
   cuando: string,
   concepto: string,
   precio: { usd: string; iva: string; total: string; minor: string; bs: string },
-  pago: { medio: string; detalle: string | null },
+  pago: { medio: string; detalle: string | null; code: string; cash: boolean; dataKind: "PAGO_MOVIL" | "PUNTO" | null; bsMinor: string },
+  lineId: string,
 ) => ({
   id,
   orderNumber: orden,
@@ -24,6 +25,17 @@ const base = (
   cashier: { id: "u-marisol", name: "Marisol Prieto" },
   total: { minor: precio.minor, currency: "USD" },
   methods: [pago.medio],
+  payments: [
+    {
+      methodCode: pago.code,
+      label: pago.medio,
+      cash: pago.cash,
+      dataKind: pago.dataKind,
+      paid: { minor: pago.bsMinor, currency: "VES" },
+      refundable: { minor: pago.bsMinor, currency: "VES" },
+    },
+  ],
+  lineIds: [lineId],
   recibo: {
     orden: `#${orden}`,
     cuenta: familia,
@@ -51,13 +63,25 @@ export const DEMO_VENTAS: readonly VentaCerradaDto[] = VentaCerradaSchema.array(
   base("v-1041", 1041, "c-rojas", "Ana Rojas", "2026-09-11T18:21:00.000Z", "11/09/2026 · 2:21 pm", "Paquete 1 hora · Vale", CINCO, {
     medio: "Pago Móvil",
     detalle: "Banesco · Ref. ···4821",
-  }),
+    code: "PAGO_MOVIL",
+    cash: false,
+    dataKind: "PAGO_MOVIL",
+    bsMinor: "132478",
+  }, "c-rojas-s1"),
   base("v-1042", 1042, "c-guerrero", "Luis Guerrero", "2026-09-11T18:26:00.000Z", "11/09/2026 · 2:26 pm", "Paquete 30 minutos · Mateo", TRES, {
     medio: "Efectivo Bs",
     detalle: null,
-  }),
+    code: "EFECTIVO_VES",
+    cash: true,
+    dataKind: null,
+    bsMinor: "79487",
+  }, "c-guerrero-s2"),
   base("v-1043", 1043, "c-prieto", "Marisol Prieto", "2026-09-11T18:34:00.000Z", "11/09/2026 · 2:34 pm", "Paquete 1 hora · Isa", CINCO, {
     medio: "Punto débito",
     detalle: "Punto Banesco · Ref. ···0932",
-  }),
+    code: "PDV_DEBITO",
+    cash: false,
+    dataKind: "PUNTO",
+    bsMinor: "132478",
+  }, "c-prieto-s3"),
 ]);

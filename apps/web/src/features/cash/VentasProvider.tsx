@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { VentaCerradaSchema, type ImpresionDto, type VentaCerradaDto } from "@l2/contracts";
+import { VentaCerradaSchema, type AnulacionDto, type ImpresionDto, type VentaCerradaDto } from "@l2/contracts";
 import { DEMO_VENTAS } from "./ventas-fixtures.ts";
 
 /**
@@ -20,7 +20,8 @@ import { DEMO_VENTAS } from "./ventas-fixtures.ts";
  * auditoría antes de devolver el recibo (§5.4).
  */
 
-const CLAVE = "l2:ventas:v1";
+// v2: la venta guarda sus pagos y líneas (DEC-24). Lo de v1 no se puede anular.
+const CLAVE = "l2:ventas:v2";
 
 type Valor = Readonly<{
   /** De la más reciente a la más antigua. */
@@ -28,6 +29,12 @@ type Valor = Readonly<{
   registrar: (venta: VentaCerradaDto) => void;
   /** Añade una impresión. Si la venta ya tenía alguna, esta fue una COPIA. */
   anotarImpresion: (id: string, impresion: ImpresionDto) => void;
+  /**
+   * Añade la anulación a una venta (DEC-24). Valida la venta ENTERA con su
+   * anulación contra el contrato y lanza si no cumple o si ya estaba anulada:
+   * quien llama no aplica nada más si esto falla (fail-closed).
+   */
+  anular: (id: string, anulacion: AnulacionDto) => VentaCerradaDto;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
@@ -69,11 +76,23 @@ export function VentasProvider({ children }: { children: React.ReactNode }) {
     setVentas((prev) => prev.map((v) => (v.id === id ? { ...v, prints: [...v.prints, impresion] } : v)));
   }, []);
 
+  const anular = useCallback(
+    (id: string, anulacion: AnulacionDto) => {
+      const venta = ventas.find((v) => v.id === id);
+      if (!venta) throw new Error("La venta no existe");
+      if (venta.voided) throw new Error(`La orden ${venta.recibo.orden} ya estaba anulada`);
+      const anulada = VentaCerradaSchema.parse({ ...venta, voided: anulacion });
+      setVentas((prev) => prev.map((v) => (v.id === id && !v.voided ? anulada : v)));
+      return anulada;
+    },
+    [ventas],
+  );
+
   // De la más reciente a la más antigua, sea cual sea el orden en que llegaron.
   const ordenadas = useMemo(() => [...ventas].sort((a, b) => Date.parse(b.closedAt) - Date.parse(a.closedAt)), [ventas]);
   const valor = useMemo(
-    () => ({ ventas: ordenadas, registrar, anotarImpresion }),
-    [ordenadas, registrar, anotarImpresion],
+    () => ({ ventas: ordenadas, registrar, anotarImpresion, anular }),
+    [ordenadas, registrar, anotarImpresion, anular],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
