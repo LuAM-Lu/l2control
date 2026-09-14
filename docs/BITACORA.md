@@ -536,3 +536,20 @@ el chip «+3 % IGTF» del USDT se salía del botón: el icono pasó junto al nom
 Límites honestos: sin backend, las cuentas viven por pestaña, así que la llegada «en vivo» se verá de verdad
 con el servidor; y la búsqueda por mesa y el teléfono del representante en el recibo llegan con la caja de
 mesas y la ficha de la familia.
+
+## El efectivo se cuenta — 2026-09-13
+
+Tres observaciones del cliente sobre la caja, las tres ciertas:
+
+- **«Cobrar exacto» no va con el efectivo.** En efectivo casi nunca se entrega el monto justo, y un botón
+  que registra el total de un toque invita a apuntar lo que no se contó. Queda para Pago Móvil, punto, Zelle
+  y USDT, donde el monto sí es exacto. En efectivo «Cerrar cobro» ocupa la fila entera, con el mismo alto.
+- **Faltaba el billete de $1**, el más usado aquí. La fila de billetes deja de ser «sugerida»: era distinta
+  según el monto y ofrecía cosas como «$57», que no es un billete. Ahora son seis fijos, siempre en su sitio,
+  y cada toque suma al mismo pago: tres de $1 y uno de $5 son un pago de $8, no cuatro renglones.
+- **El IGTF no existe en bolívares**, así que los medios en Bs ya no dicen «0% IGTF». El chip queda en los
+  medios en divisas y su porcentaje sale del dato, no del texto.
+
+Quedan aprobadas, en este orden, la pantalla «Ventas» del turno (reimprimir como copia auditada) y anular
+un cobro con reversión, motivo y supervisor. Para anular faltan dos decisiones del cliente: quién autoriza
+y por qué medio se devuelve el dinero.

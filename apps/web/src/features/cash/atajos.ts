@@ -120,7 +120,7 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "0 – 9", que: "Teclear el monto recibido" },
   { teclas: "⌫", que: "Borrar el último dígito" },
   { teclas: "Enter", que: "Añadir el pago tecleado" },
-  { teclas: "+", que: "Cobrar exacto con el medio elegido" },
+  { teclas: "+", que: "Cobrar exacto con el medio elegido (no en efectivo)" },
   { teclas: "Ctrl + Enter", que: "Cerrar el cobro (solo si está cubierto)" },
   { teclas: "E · B · P · T · Z · U", que: "Efectivo $ · Efectivo Bs · Pago Móvil · Tarjeta (punto) · Zelle · USDT" },
   { teclas: "↑ ↓", que: "Cuenta anterior o siguiente de la cola" },

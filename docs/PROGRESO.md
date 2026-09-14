@@ -97,7 +97,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F4-01 Apertura de turno | Parcial | Fondo inicial por moneda en los datos del turno; falta la pantalla de apertura |
 | F4-01b Punto de cobro | Parcial | Cada movimiento declara su punto y el cuadre lo desglosa; fail-closed sin punto |
 | F4-02 Medios de pago | Parcial | Catálogo en los datos, no `enum`; 6 medios con iconos y jerarquía financiera |
-| F4-03 Cobro mixto | Parcial | `/caja`: varias monedas y medios en un cobro, con tasa congelada. Rediseño ágil bimoneda: atajo 1-toque «Cobrar exacto», atajos fast-cash inteligentes (`calcularBilletesSugeridos`), datos de Pago Móvil con botón Copiar, hero apilado para montos grandes en Bs, y catálogo táctil de venta directa en mostrador (D6/V5) |
+| F4-03 Cobro mixto | Parcial | `/caja`: varias monedas y medios en un cobro, con tasa congelada. Rediseño ágil bimoneda: atajo 1-toque «Cobrar exacto», billetes fijos de $1 a $100 que suman al mismo pago (sin «Cobrar exacto» en efectivo), datos de Pago Móvil con botón Copiar, hero apilado para montos grandes en Bs, y catálogo táctil de venta directa en mostrador (D6/V5) |
 | F4-04b Vuelto y sus tres destinos | Parcial | Vuelto, propina o caja; la invariante de cierre no admite ajustes silenciosos |
 | F4-04c Umbral de residuo | Parcial | Por encima del umbral no se retiene; falta que lo configure el administrador |
 | F4-05 y F4-06 Cortes X y Z | Parcial | `/turno`: X repetible, Z irreversible con confirmación |

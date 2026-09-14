@@ -41,37 +41,12 @@ export const PRODUCTOS_MOSTRADOR: readonly ProductoMostrador[] = [
 ];
 
 /**
- * Genera sugerencias de billetes y redondeos superiores según la cantidad que falta.
- * Para cuentas pequeñas (<$50): billetes estándar $5, $10, $20, $50, $100.
- * Para cuentas grandes (>$50 o cientos de dólares): múltiplos lógicos y redondeos.
+ * Los billetes de dólar que se reciben en el mostrador, de menor a mayor.
+ *
+ * FIJOS, no «sugeridos» según la cuenta: la cajera los toca sin mirar y cada
+ * uno está siempre en el mismo sitio. Antes la fila cambiaba con el monto
+ * (`$20 · $50 · $57 · $100 · $150`) y un «$57» no es un billete. Cada toque
+ * SUMA al pago en efectivo que se está recibiendo: tres de $1 y uno de $5 son
+ * un pago de $8, no cuatro pagos. En Venezuela el de $1 es el más usado.
  */
-export function calcularBilletesSugeridos(faltaCents: bigint): number[] {
-  // Hacia arriba: sugerir $57 para una deuda de $57,40 dejaría 40 céntimos
-  // pendientes. Son billetes enteros, así que el número ya no es dinero.
-  const dolares = Number((faltaCents + 99n) / 100n);
-  if (dolares < 50) {
-    return [5, 10, 20, 50, 100];
-  }
-  if (dolares <= 100) {
-    return [20, 50, dolares, 100, 150]
-      .filter((v, i, a) => a.indexOf(v) === i && v > 0)
-      .sort((a, b) => a - b);
-  }
-  if (dolares <= 500) {
-    const redondo1 = Math.ceil(dolares / 50) * 50;
-    const redondo2 = Math.ceil(dolares / 100) * 100;
-    const redondo3 = redondo2 + 100;
-    return [100, dolares, redondo1, redondo2, redondo3]
-      .filter((v, i, a) => a.indexOf(v) === i && v > 0)
-      .sort((a, b) => a - b)
-      .slice(0, 5);
-  }
-  // Mayores a $500
-  const redondo1 = Math.ceil(dolares / 100) * 100;
-  const redondo2 = Math.ceil(dolares / 500) * 500;
-  const redondo3 = redondo2 + 500;
-  return [100, 500, dolares, redondo1, redondo2, redondo3]
-    .filter((v, i, a) => a.indexOf(v) === i && v > 0)
-    .sort((a, b) => a - b)
-    .slice(0, 5);
-}
+export const BILLETES_USD = [1, 5, 10, 20, 50, 100] as const;

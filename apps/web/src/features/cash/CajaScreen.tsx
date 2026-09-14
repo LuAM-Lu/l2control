@@ -50,7 +50,7 @@ import {
   CATEGORIAS_MOSTRADOR,
   type CategoriaMostrador,
   type ProductoMostrador,
-  calcularBilletesSugeridos,
+  BILLETES_USD,
 } from "./catalogo-mostrador.ts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -430,18 +430,36 @@ function CobroCuenta({
     return falta;
   }, [falta, medioActivo, aBolivares, igtfBasisPoints]);
 
-  const billetesSugeridos = useMemo(() => {
-    return calcularBilletesSugeridos(falta.amount);
-  }, [falta.amount]);
 
   function cobrarMontoExacto() {
     if (!montoExacto) return;
     registrarPago(medioActivo, montoExacto);
   }
 
+  /**
+   * Un billete recibido. Se SUMA al último pago si es del mismo efectivo y sin
+   * datos: los billetes de una misma entrega son un solo pago, y así el de $1
+   * sirve para completar sin llenar la lista de renglones.
+   */
   function agregarBilleteRapido(dolares: number) {
-    registrarPago(medioActivo, multiply(money(100n, "USD"), BigInt(dolares)));
+    setError(null);
+    const billete = multiply(money(100n, "USD"), BigInt(dolares));
+    setPagos((prev) => {
+      const ultimo = prev.at(-1);
+      if (ultimo && ultimo.medio.code === medioActivo.code && !ultimo.datos) {
+        return [...prev.slice(0, -1), { ...ultimo, amount: add(ultimo.amount, billete) }];
+      }
+      return [...prev, { uid: globalThis.crypto.randomUUID(), medio: medioActivo, amount: billete }];
+    });
+    setMonto("");
   }
+
+  /**
+   * En efectivo no hay «Cobrar exacto»: casi nunca se entrega el monto justo, y
+   * el botón invitaba a registrar lo que no se contó. Se cuentan billetes o se
+   * teclea lo recibido. En los medios electrónicos sí: el monto es exacto.
+   */
+  const esEfectivo = medioActivo.canGiveChange;
 
   // Atajos del cobro (atajos.ts): las mismas acciones que los botones, con las
   // mismas condiciones. Lo que un botón deshabilitado no deja, la tecla tampoco.
@@ -466,7 +484,7 @@ function CobroCuenta({
       return true;
     }
     if (t.key === "+") {
-      if (cubierto || !montoExacto) return false;
+      if (cubierto || !montoExacto || esEfectivo) return false;
       cobrarMontoExacto();
       return true;
     }
@@ -811,8 +829,6 @@ function CobroCuenta({
                       : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
                   )}
                 >
-                  {/* El nombre ocupa todo el renglón: con el icono al lado, «Punto débito»
-                      se cortaba. El icono acompaña a la moneda, debajo. */}
                   {/* Icono junto al nombre; debajo, moneda e IGTF. La letra del
                       atajo va en el `title` y en la chuleta: en el botón le
                       quitaba sitio al nombre («Punto dé…»). */}
@@ -822,10 +838,12 @@ function CobroCuenta({
                   </span>
                   <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10px] whitespace-nowrap">
                     <span className={cn(m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3")}>{m.currency}</span>
-                    {m.triggersIgtf ? (
-                      <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">+3% IGTF</span>
-                    ) : (
-                      <span className="text-ink-3">0% IGTF</span>
+                    {/* El IGTF solo existe en divisas: en bolívares no se dice
+                        nada, en vez de un «0% IGTF» que hay que leer para nada. */}
+                    {m.triggersIgtf && (
+                      <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
+                        +{igtfBasisPoints / 100}% IGTF
+                      </span>
                     )}
                   </div>
                 </button>
@@ -867,16 +885,16 @@ function CobroCuenta({
                 Lo cobrado cuadra con la cuenta: cierra el cobro.
               </p>
             ) : medioActivo.code === "EFECTIVO_USD" ? (
-              <div role="group" aria-label="Billetes rápidos" className="grid grid-cols-5 gap-1.5">
-                {billetesSugeridos.map((b) => (
+              <div role="group" aria-label="Billetes recibidos" className="grid grid-cols-6 gap-1.5">
+                {BILLETES_USD.map((b) => (
                   <button
                     key={b}
                     type="button"
                     onClick={() => agregarBilleteRapido(b)}
-                    aria-label={`Recibido un billete de $ ${b}`}
+                    aria-label={`Sumar un billete de $ ${b}`}
                     className={cn(
                       "flex min-h-14 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border border-line bg-base",
-                      "tnum text-[15px] font-bold text-ink transition-colors",
+                      "tnum text-[14px] font-bold text-ink transition-colors",
                       "hover:border-brand hover:bg-brand/15 hover:text-brand active:scale-95",
                     )}
                   >
@@ -911,7 +929,7 @@ function CobroCuenta({
               </div>
             ) : (
               <p className="flex h-14 items-center rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] leading-snug text-ink-3">
-                {INDICACION_MEDIO[medioActivo.code] ?? "Teclea lo recibido y pulsa «Añadir», o cobra el monto exacto."}
+                {INDICACION_MEDIO[medioActivo.code] ?? (esEfectivo ? "Teclea lo recibido y pulsa «Añadir»." : "Teclea lo recibido y pulsa «Añadir», o cobra el monto exacto.")}
               </p>
             )}
           </div>
@@ -948,8 +966,10 @@ function CobroCuenta({
             </p>
           )}
 
-          {/* ── una fila, dos columnas: cobrar exacto · cerrar cobro ── */}
+          {/* ── una fila: cobrar exacto · cerrar cobro. En efectivo, solo cerrar,
+              a todo el ancho: la fila no cambia de alto ni de sitio. ── */}
           <div className="mt-auto grid grid-cols-2 gap-2">
+            {!esEfectivo && (
             <button
               type="button"
               onClick={cobrarMontoExacto}
@@ -970,6 +990,7 @@ function CobroCuenta({
                 {montoExacto && !cubierto ? formatMoneyVE(toMajor(montoExacto), medioActivo.currency) : "—"}
               </span>
             </button>
+            )}
             <Button
               surface="pos"
               variant="primary"
@@ -977,6 +998,7 @@ function CobroCuenta({
               onClick={cobrar}
               className={cn(
                 "flex min-h-14 flex-col gap-0.5 px-2 leading-tight",
+                esEfectivo && "col-span-2",
                 puedeCobrar && "bg-state-ok text-on-brand hover:bg-state-ok/90",
               )}
             >

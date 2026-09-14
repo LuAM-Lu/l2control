@@ -279,6 +279,9 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | C7 | Con muchas cuentas no hay cómo buscar | ✔ Pasar la pulsera abre la cuenta del niño (o dice que sigue abierta o que no tiene); buscador por familia o número de orden con filtros Todas · Parque · Mostrador, a la vista con más de 5 cuentas o con «/» y la lupa. Enter con un resultado lo abre. Por mesa, con la caja de mesas |
 | C8 | Tras cobrar no hay recibo | ✔ Recibo **no fiscal** (lo dice arriba) tomado como foto al cerrar: «Ver recibo» en el aviso, franja «Último #…» en la cola y tecla R. Imprime solo el recibo a 80 mm; WhatsApp abre `wa.me` con el texto y el teléfono validado, solo si el cliente lo pide. Referencias y documento enmascarados. La térmica en red, en F1-12 |
 | C9 | Cobro dividido (F6-12) y propina explícita (F6-13) | Llegan con la caja de mesas (DEC-22 paso 4) |
+| C10 | «Cobrar exacto» en efectivo: casi nunca se entrega el monto justo, e invitaba a registrar lo que no se contó | ✔ 2026-09-13: solo en medios electrónicos; en efectivo «Cerrar cobro» ocupa la fila entera (mismo alto) y «+» no hace nada |
+| C11 | Faltaba el billete de $1, y la fila de billetes cambiaba con el monto («$57» no es un billete) | ✔ Fila fija $1 · $5 · $10 · $20 · $50 · $100; cada toque suma al mismo pago en efectivo |
+| C12 | Pantalla «Ventas» del turno para reimprimir (copia marcada y auditada) y anular un cobro con motivo y supervisor | Propuesta aprobada en orden; anular espera dos decisiones: quién autoriza y cómo se devuelve |
 
 ### 9.2 Visual
 
@@ -288,6 +291,7 @@ Revisada con cuatro criterios: **fluidez de compra**, **rapidez**, **visual** y 
 | V2 | Etiquetas de 9,5 px en los botones de medio | ✔ 11 y 13 px, sin cambiar el alto de 56 px |
 | V3 | Lo tecleado en bolívares se mostraba «1000.00» | ✔ «Bs. 1.000,00» |
 | V4 | «Venta directa» (amarillo punteado) compite con la cuenta elegida (amarillo) | ✔ Botón neutro con icono; el amarillo queda para lo seleccionado |
+| V6 | «0% IGTF» en los medios en bolívares: un dato que hay que leer para nada | ✔ En Bs solo la moneda; el chip de IGTF queda en divisas y su porcentaje sale del dato |
 | V5 | La cola no dice de dónde viene cada cuenta | ✔ Icono + texto: niño para parque, bolsa para mostrador. Mesa, con la caja de mesas |
 
 ### 9.3 Facilidad de uso
