@@ -179,6 +179,39 @@ export function revertirCobro(c: FamilyAccountDto, lineIds: readonly string[]): 
   });
 }
 
+/* ═════════════════════════════════ dividir la cuenta — F6-12 ══ */
+
+/** Divide la cuenta en partes iguales. Vuelve a empezar si ya estaba dividida y nadie pagó. */
+export function dividirEn(c: FamilyAccountDto, partes: number): FamilyAccountDto {
+  return FamilyAccountSchema.parse({ ...c, split: { parts: partes, paid: c.split?.paid ?? 0 } });
+}
+
+/** Deja de dividir: vuelve a cobrarse de una vez. Solo si no se cobró ninguna parte. */
+export function unirCuenta(c: FamilyAccountDto): FamilyAccountDto {
+  if (c.split && c.split.paid > 0) return c;
+  const { split: _, ...sinDividir } = c;
+  return FamilyAccountSchema.parse(sinDividir);
+}
+
+/**
+ * Se cobró una parte.
+ *
+ * Mientras queden partes, la cuenta sigue en la cola con lo que falta. Con la
+ * última se marca cobrada entera: las líneas se pagan una sola vez, aunque el
+ * dinero haya entrado en varios cobros.
+ */
+export function marcarParteCobrada(c: FamilyAccountDto): FamilyAccountDto {
+  const partes = c.split?.parts ?? 1;
+  const pagadas = (c.split?.paid ?? 0) + 1;
+  if (pagadas >= partes) return marcarCobrada(FamilyAccountSchema.parse({ ...c, split: { parts: partes, paid: partes } }));
+  return FamilyAccountSchema.parse({ ...c, split: { parts: partes, paid: pagadas }, status: "POR_COBRAR" });
+}
+
+/** Cuántas partes faltan por cobrar. 1 si la cuenta no está dividida. */
+export function partesQueFaltan(c: FamilyAccountDto): number {
+  return c.split ? c.split.parts - c.split.paid : 1;
+}
+
 /**
  * La caja cobró todo lo pendiente.
  *

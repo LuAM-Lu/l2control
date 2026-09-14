@@ -48,6 +48,26 @@ export const AccountLineSchema = z.object({
 });
 export type AccountLineDto = z.infer<typeof AccountLineSchema>;
 
+/**
+ * La cuenta se paga en partes — F6-12.
+ *
+ * «Pagamos entre tres»: el total del documento se reparte en partes iguales y
+ * cada una se cobra por separado, con su propio recibo. Se guarda **cuántas
+ * partes** y **cuántas van cobradas**, no importes: el reparto sale del total
+ * con la regla del mayor resto (`allocate`), así la suma de las partes es
+ * exactamente el total, al céntimo, y no hay un céntimo que se pierda.
+ *
+ * Dividir no cambia las líneas: lo que se come sigue siendo lo mismo. Por eso
+ * las líneas se marcan cobradas solo cuando se paga la última parte.
+ */
+export const DivisionCuentaSchema = z
+  .object({
+    parts: z.number().int().min(2, "Dividir es entre dos o más").max(12, "Más de doce partes no se cobra en una caja"),
+    paid: z.number().int().min(0),
+  })
+  .refine((d) => d.paid <= d.parts, "No se pueden cobrar más partes de las que hay");
+export type DivisionCuentaDto = z.infer<typeof DivisionCuentaSchema>;
+
 export const FamilyAccountSchema = z
   .object({
     id: IdSchema,
@@ -80,6 +100,8 @@ export const FamilyAccountSchema = z
     sessionIds: z.array(IdSchema),
     /** La mesa de la que es esta cuenta, si nació en el salón (F6-05, D2). */
     tableId: IdSchema.optional(),
+    /** Si se está pagando en partes (F6-12). Sin esto, se paga de una vez. */
+    split: DivisionCuentaSchema.optional(),
     /** El número de mesa tal como se leía ese día: «3». Renumerarla no reescribe esto. */
     tableLabel: z.string().trim().max(20).optional(),
     /** Estancias ya cerradas en la salida. */
@@ -122,6 +144,15 @@ export const FamilyAccountSchema = z
       }
     });
 
+    // Mientras queden partes por cobrar, la cuenta sigue en la cola: cerrarla
+    // dejaría sin cobrar lo que falta y sin rastro de que faltaba.
+    if (c.status === "COBRADA" && c.split && c.split.paid < c.split.parts) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["split"],
+        message: `Faltan ${c.split.parts - c.split.paid} partes por cobrar`,
+      });
+    }
     if (c.status === "COBRADA" && pendiente) {
       ctx.addIssue({
         code: "custom",

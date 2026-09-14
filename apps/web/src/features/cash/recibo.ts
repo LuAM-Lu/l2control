@@ -23,6 +23,7 @@ export function textoRecibo(r: Recibo, copia = false): string {
   const renglones = [
     `*Abby Kingdom* · Recibo no fiscal${copia ? " · COPIA" : ""}`,
     `Orden ${r.orden} · ${r.cuando}`,
+    ...(r.parte ? [`*${r.parte}*`] : []),
     `Factura a: ${r.facturaA}`,
     "",
     ...r.lineas.map((l) => `${l.cantidad} × ${l.concepto} — ${l.importe}`),

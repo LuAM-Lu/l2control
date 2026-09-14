@@ -14,6 +14,7 @@ import {
   PiggyBank,
   ShoppingBag,
   Smartphone,
+  Users,
   X,
   Zap,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import {
   type FrozenRate,
   type Money,
   add,
+  allocate,
   convert,
   fromMajor,
   invertRate,
@@ -80,10 +82,12 @@ import {
   esDeMesa,
   esLineaDeMostrador,
   esVentaDirecta,
+  dividirEn,
   lineasParaCobrar,
   numeroDeOrden,
-  marcarCobrada,
+  marcarParteCobrada,
   puedeDescartarse,
+  unirCuenta,
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
@@ -144,6 +148,7 @@ function CobroCuenta({
   serverNow,
   onAgregarProducto,
   onCambiarCantidad,
+  onDividir,
 }: {
   lines: readonly DocumentLine[];
   /** La cuenta que se cobra: su familia y su modo encabezan el ticket. */
@@ -168,6 +173,8 @@ function CobroCuenta({
   onAgregarProducto?: (producto: ProductoMostrador) => void;
   /** Deja un ítem de mostrador en esa cantidad; 0 lo elimina. */
   onCambiarCantidad?: (item: ItemDeMostrador, cantidad: number) => void;
+  /** Divide la cuenta en partes iguales, o la vuelve a unir con 1 (F6-12). */
+  onDividir?: (partes: number) => void;
 }) {
   const FUNCIONAL = "USD" as const;
 
@@ -258,8 +265,20 @@ function CobroCuenta({
     [igtf],
   );
 
-  /** Lo que realmente hay que cobrar: documento + IGTF de los pagos hechos. */
-  const aCobrar = add(doc.total, igtfTotal);
+  /**
+   * La parte que toca cobrar ahora (F6-12).
+   *
+   * El reparto sale del TOTAL del documento con la regla del mayor resto, así
+   * la suma de las partes es exactamente el total: el céntimo que sobra se le
+   * da a una parte, no se pierde ni se cobra dos veces. Sin dividir, la parte
+   * es el total entero.
+   */
+  const partes = cuenta.split?.parts ?? 1;
+  const parteActual = (cuenta.split?.paid ?? 0) + 1;
+  const porParte = partes > 1 ? allocate(doc.total, partes)[parteActual - 1]! : doc.total;
+
+  /** Lo que realmente hay que cobrar: la parte + el IGTF de los pagos hechos. */
+  const aCobrar = add(porParte, igtfTotal);
 
   /* --------------------------------------------------------- balance */
 
@@ -401,6 +420,7 @@ function CobroCuenta({
       cuando: `${ahora.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" })} · ${formatClock(ahora.getTime())}`,
       facturaA:
         cliente.kind === "CONSUMIDOR_FINAL" ? "Consumidor final" : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`,
+      parte: partes > 1 ? `Parte ${parteActual} de ${partes}` : null,
       lineas: filas.map((f) => ({ cantidad: f.cantidad, concepto: f.concepto, importe: dinero(multiply(f.precio, BigInt(f.cantidad))) })),
       subtotal: dinero(doc.subtotal),
       impuestos: [
@@ -760,8 +780,54 @@ function CobroCuenta({
               </div>
             )}
 
+            {/* Dividir: «pagamos entre tres» es lo que más se pide en una mesa.
+                Cada parte se cobra por separado y con su propio recibo; la
+                cuenta sigue en la cola hasta que se paga la última. */}
+            {onDividir && (pagos.length === 0 || partes > 1) && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-2">
+                <dt className="flex items-center gap-1.5 text-ink-2">
+                  <Users size={14} aria-hidden="true" />
+                  {partes > 1 ? (
+                    <>
+                      Parte <span className="tnum font-semibold text-ink">{parteActual}</span> de {partes}
+                      <span className="ml-1 text-[12px] text-ink-3">
+                        · total {formatMoneyVE(toMajor(doc.total), "USD")}
+                      </span>
+                    </>
+                  ) : (
+                    "Dividir la cuenta"
+                  )}
+                </dt>
+                <dd className="flex items-center gap-1" role="group" aria-label="Dividir la cuenta">
+                  {[1, 2, 3, 4, 5, 6].map((n) => {
+                    // Ya cobrada alguna parte: el reparto no se cambia a mitad
+                    // de camino, o alguien pagaría de más o de menos.
+                    const bloqueado = (cuenta.split?.paid ?? 0) > 0 || (pagos.length > 0 && n !== partes);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        aria-pressed={n === partes}
+                        disabled={bloqueado}
+                        title={n === 1 ? "Sin dividir" : `Entre ${n}`}
+                        onClick={() => onDividir(n)}
+                        className={cn(
+                          "tnum size-9 cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors",
+                          n === partes ? "border-brand bg-brand/15 text-ink" : "border-line text-ink-3 hover:text-ink",
+                          "disabled:cursor-not-allowed disabled:opacity-40",
+                        )}
+                      >
+                        {n === 1 ? "—" : n}
+                      </button>
+                    );
+                  })}
+                </dd>
+              </div>
+            )}
             <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-line pt-2.5">
-              <dt className="font-display text-base font-bold text-ink">Total a cobrar</dt>
+              <dt className="font-display text-base font-bold text-ink">
+                {partes > 1 ? `Esta parte (${parteActual} de ${partes})` : "Total a cobrar"}
+              </dt>
               <dd>
                 <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
               </dd>
@@ -1248,12 +1314,17 @@ export function CajaScreen({
   });
 
   function alCobrar(cuenta: FamilyAccountDto, r: Cobrado) {
-    guardar(marcarCobrada(cuenta));
-    // Cobrada la mesa, queda por limpiar: el salón lo ve al momento (D7).
-    if (esDeMesa(cuenta) && cuenta.tableId) {
+    // Con la cuenta dividida esto cierra UNA parte: vuelve a la cola con lo
+    // que falta y solo se cierra entera con la última (F6-12).
+    const despues = marcarParteCobrada(cuenta);
+    const faltan = (despues.split?.parts ?? 1) - (despues.split?.paid ?? 1);
+    guardar(despues);
+    // Cobrada del todo, la mesa queda por limpiar: el salón lo ve al momento (D7).
+    if (faltan === 0 && esDeMesa(cuenta) && cuenta.tableId) {
       sim.emitir({ type: "mesa.por_limpiar", tableId: cuenta.tableId });
     }
-    setElegida(null);
+    // Si quedan partes, la cuenta sigue elegida: la siguiente persona paga ya.
+    setElegida(faltan > 0 ? cuenta.id : null);
     registrar({
       id: `v-${globalThis.crypto.randomUUID()}`,
       ...(cuenta.orderNumber ? { orderNumber: cuenta.orderNumber } : {}),
@@ -1267,10 +1338,15 @@ export function CajaScreen({
       recibo: r.recibo,
       prints: [],
     });
-    avisar.ok(`Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`, {
+    avisar.ok(
+      faltan > 0
+        ? `${numeroDeOrden(cuenta)}: parte ${despues.split!.paid} de ${despues.split!.parts} cobrada`
+        : `Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`,
+      {
       detalle: [
         r.cliente.kind === "CONSUMIDOR_FINAL" ? "Factura a consumidor final" : `Factura a ${r.cliente.name}`,
         r.vuelto !== "0.00" ? `vuelto entregado: ${formatMoneyVE(r.vuelto, "USD")}` : null,
+        faltan > 0 ? `faltan ${faltan} ${faltan === 1 ? "parte" : "partes"} por cobrar` : null,
       ]
         .filter(Boolean)
         .join(" · "),
@@ -1278,7 +1354,8 @@ export function CajaScreen({
       accion: origen
         ? { texto: `Volver a ${origen.nombre}`, alPulsar: () => router.push(origen.ruta) }
         : { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
-    });
+      },
+    );
   }
 
   function onNuevaVentaDirecta() {
@@ -1435,6 +1512,7 @@ export function CajaScreen({
             onCobrado={(r) => alCobrar(actual, r)}
             onAgregarProducto={onAgregarProductoACuenta}
             onCambiarCantidad={onCambiarCantidadEnCuenta}
+            onDividir={(n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n))}
           />
         ) : (
           <SinCuentas />

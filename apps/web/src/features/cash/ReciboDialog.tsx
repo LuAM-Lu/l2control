@@ -137,6 +137,7 @@ export function ReciboImpreso({
         <p className="tnum mt-1 text-ink-2">
           Orden {recibo.orden} · {recibo.cuando}
         </p>
+        {recibo.parte && <p className="tnum font-semibold text-ink">{recibo.parte}</p>}
         <p className="text-ink-2">Factura a: {recibo.facturaA}</p>
       </header>
 

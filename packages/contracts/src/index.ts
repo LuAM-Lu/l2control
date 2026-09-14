@@ -81,10 +81,12 @@ export {
   PaymentModeSchema,
   AccountStatusSchema,
   AccountLineSchema,
+  DivisionCuentaSchema,
   FamilyAccountSchema,
   type PaymentMode,
   type AccountStatus,
   type AccountLineDto,
+  type DivisionCuentaDto,
   type FamilyAccountDto,
 } from "./account.ts";
 

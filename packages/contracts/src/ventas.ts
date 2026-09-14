@@ -28,6 +28,8 @@ export const ReciboSchema = z.object({
   cuenta: Texto(120),
   cuando: Texto(40),
   facturaA: Texto(160),
+  /** «Parte 2 de 3» cuando la cuenta se paga dividida (F6-12). */
+  parte: Texto(24).nullable().optional(),
   lineas: z.array(z.object({ cantidad: z.number().int().positive(), concepto: Texto(80), importe: Texto(24) })).min(1),
   subtotal: Texto(24),
   impuestos: z.array(z.object({ etiqueta: Texto(24), monto: Texto(24) })),

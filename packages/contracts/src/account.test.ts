@@ -119,3 +119,24 @@ describe("cuenta de mesa (F6-05, D2 y D3)", () => {
     assert.equal(valido({ ...deMesa, status: "POR_COBRAR", lines: [movida] }), false);
   });
 });
+
+describe("dividir la cuenta (F6-12)", () => {
+  const dividida = (split: object, extra: object = {}) => ({ ...cuenta, lines: [linea(false)], split, ...extra });
+  const valido = (c: unknown) => FamilyAccountSchema.safeParse(c).success;
+
+  test("se divide entre dos o más, y no en más de doce", () => {
+    assert.equal(valido(dividida({ parts: 3, paid: 0 }, { status: "POR_COBRAR" })), true);
+    assert.equal(valido(dividida({ parts: 1, paid: 0 }, { status: "POR_COBRAR" })), false);
+    assert.equal(valido(dividida({ parts: 13, paid: 0 }, { status: "POR_COBRAR" })), false);
+  });
+
+  test("no se cobran más partes de las que hay", () => {
+    assert.equal(valido(dividida({ parts: 3, paid: 4 }, { status: "POR_COBRAR" })), false);
+  });
+
+  test("con partes sin cobrar, la cuenta no se cierra", () => {
+    const cobrada = { status: "COBRADA" as const, closedSessionIds: ["s-1"], lines: [linea(true)] };
+    assert.equal(valido({ ...cuenta, ...cobrada, split: { parts: 3, paid: 2 } }), false);
+    assert.equal(valido({ ...cuenta, ...cobrada, split: { parts: 3, paid: 3 } }), true);
+  });
+});

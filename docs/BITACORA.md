@@ -775,3 +775,25 @@ la regla de que toda cuenta tiene que ser de alguien: de unos niños, de una mes
 pruebas nuevas.
 
 Queda de la caja de mesas: **cobro dividido** (F6-12) y **propina explícita** (F6-13).
+
+## Dividir la cuenta — 2026-09-14
+
+F6-12, lo último que faltaba de la caja de mesas. «Pagamos entre tres» es lo que más se pide en una mesa,
+así que la caja divide el **total del documento** en partes iguales, de dos a seis, con un toque.
+
+**El céntimo no se pierde.** El reparto usa `allocate` del dominio de dinero, que reparte por mayor resto:
+$ 11,02 entre tres son 3,68 + 3,67 + 3,67, y la suma es exactamente el total. Nada de redondear cada parte
+por su cuenta y que falte o sobre un céntimo al final.
+
+**Cada parte es un cobro completo**: su medio de pago, su IGTF si entra en divisas, su vuelto y su recibo,
+que dice «Parte 2 de 3». La cuenta no se cierra hasta la última: mientras queden partes sigue en la cola,
+elegida, para que la siguiente persona pague sin buscarla. El contrato lo impone —una cuenta con partes sin
+cobrar no puede estar COBRADA— y el reparto se bloquea en cuanto se cobra la primera parte: cambiarlo a
+mitad de camino haría que alguien pagara de más.
+
+**La propina se va a Configuración.** El cliente decidió que la propina explícita y el servicio del 10 %
+son un ajuste del local (DEC-6), no un paso del cobro. Queda la que ya existe: la que el cliente deja al
+rechazar el vuelto, que no es ingreso del negocio (§5.6).
+
+Falta dividir **por ítems** («cada quien lo suyo»), que se hará si el cliente lo pide: con el reparto en
+partes iguales se resuelve la mayoría de las mesas.

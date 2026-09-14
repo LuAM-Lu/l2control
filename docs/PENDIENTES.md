@@ -14,7 +14,8 @@
 | D12 | ¿El back-office puede desplazar? | Sí; lo urgente arriba. Las estaciones siguen sin desplazar | UX-MEJORAS §8 |
 | D13 | Número de orden continuo o diario | Hecho continuo (`#1049`); diario da números cortos pero obliga a decir la fecha | UX-MEJORAS §8 |
 | ~~D2, D3~~ | ~~Cuenta de mesa y cobrar con niños dentro~~ | **Cerradas el 2026-09-14**: vincular mueve el parque a la cuenta de la mesa; la mesa se cobra aunque los niños sigan jugando | [FLUJOS](FLUJOS.md) §7 |
-| D7, D8, D9 | Personas en vivo, servicio del 10 %, niño que sale sin su representante | Propuestas escritas | FLUJOS §7 |
+| D7, D9 | Personas en vivo, niño que sale sin su representante | Propuestas escritas | FLUJOS §7 |
+| ~~D8~~ | ~~Propina y servicio del 10 %~~ | **Decidido el 2026-09-14**: va a **Configuración** del local (F6-13, con DEC-6), no al flujo de cobro. Hoy solo existe la propina que sale del vuelto | FLUJOS §7 |
 | F0-09 | Firma formal del alcance | Las 24 decisiones están cerradas; falta firmarlo | PLAN §12 |
 
 ## 2. Lo que confirma el contador (DEC-1)
@@ -44,9 +45,9 @@
    Panel → Restaurante → Plano del local. Queda la **capa de estructura editable** (paredes, puertas,
    barra, cocina), las guías de alineación entre mesas, el historial de versiones del plano y las
    medidas reales del local (F0-03).
-3. **Caja de mesas** (paso 4) — ~~cuenta maestra con platos y parque (D2)~~ y ~~mesa por limpiar al
-   cobrar~~, hechos el 2026-09-14. Faltan el **cobro dividido** (F6-12: partes iguales, por ítems o
-   pago parcial) y la **propina explícita** (F6-13, con DEC-6).
+3. ~~**Caja de mesas** (paso 4)~~ — hecha el 2026-09-14: cuenta con platos y parque (D2), mesa por
+   limpiar al cobrar (D3) y **cobro dividido en partes iguales** (F6-12). Queda dividir **por ítems**
+   («cada quien lo suyo»), que se hará si el cliente lo pide.
 4. **Panel en vivo** (paso 5).
 5. **Cortesía con motivo** (F6-14): hoy, anular un cobro devuelve la cuenta a «por cobrar»; si no
    hay que cobrar lo consumido, hace falta la cortesía.
