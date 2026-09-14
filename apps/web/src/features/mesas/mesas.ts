@@ -56,6 +56,50 @@ export function vistaDelPlano(
   });
 }
 
+/** Cuántos minutos lleva ocupada una mesa antes de considerarla larga (§8.5). */
+export const MESA_LARGA_MIN = 75;
+
+export type Urgencia = Readonly<{
+  vista: MesaVista;
+  /** Qué pide esta mesa, en una línea. */
+  que: string;
+  tono: "ok" | "warn" | "idle";
+  /** Menor es antes. */
+  orden: number;
+}>;
+
+/**
+ * Lo que pide acción AHORA, en el orden en que conviene atenderlo — V3.
+ *
+ * Primero lo que ya está hecho y se enfría (platos listos), después quien
+ * quiere pagar, luego lo que bloquea una mesa (por limpiar) y por último las
+ * mesas que llevan mucho tiempo. Lo demás no sale: una lista que lo enumera
+ * todo se deja de mirar.
+ */
+export function loQuePideAtencion(mesas: readonly MesaVista[]): Urgencia[] {
+  const filas: Urgencia[] = [];
+  for (const v of mesas) {
+    if (v.listos > 0) {
+      filas.push({
+        vista: v,
+        que: v.listos === 1 ? "1 pedido listo para servir" : `${v.listos} pedidos listos para servir`,
+        tono: "ok",
+        orden: 0,
+      });
+    }
+    if (v.estado === "PIDE_CUENTA") {
+      filas.push({ vista: v, que: `Pide la cuenta · ${v.minutos ?? 0} min esperando`, tono: "warn", orden: 1 });
+    }
+    if (v.estado === "POR_LIMPIAR") {
+      filas.push({ vista: v, que: "Por limpiar", tono: "idle", orden: 2 });
+    }
+    if (v.estado === "OCUPADA" && (v.minutos ?? 0) >= MESA_LARGA_MIN && v.listos === 0) {
+      filas.push({ vista: v, que: `Lleva ${v.minutos} min sentada`, tono: "idle", orden: 3 });
+    }
+  }
+  return filas.sort((a, b) => a.orden - b.orden || (b.vista.minutos ?? 0) - (a.vista.minutos ?? 0));
+}
+
 /** Minutos desde un instante ISO; 0 si el reloj todavía no arrancó. */
 export function minutosDesde(iso: string, ahora: number): number {
   return ahora > 0 ? Math.max(0, Math.floor((ahora - Date.parse(iso)) / 60_000)) : 0;

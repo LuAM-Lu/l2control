@@ -20,7 +20,14 @@ import type { MenuDto, PlanoLocalDto } from "@l2/contracts";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import type { Pedido } from "../simulacion/proyeccion.ts";
-import { minutosDesde, vistaDelPlano, type EstadoVisible, type LineaBorrador, type MesaVista } from "./mesas.ts";
+import {
+  loQuePideAtencion,
+  minutosDesde,
+  vistaDelPlano,
+  type EstadoVisible,
+  type LineaBorrador,
+  type MesaVista,
+} from "./mesas.ts";
 import { PlanoLocal } from "./PlanoLocal.tsx";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
@@ -70,8 +77,17 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
 
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const [vista, setVista] = useState<"plano" | "pedido">("plano");
-  /** Plano espacial o lista por zonas (V3). La lista es la vista de móvil y de lector de pantalla. */
-  const [modo, setModo] = useState<"PLANO" | "LISTA">("PLANO");
+  /**
+   * Plano espacial o «Atender» (V3).
+   *
+   * «Atender» no repite el plano: enumera solo lo que pide acción, en el orden
+   * en que conviene hacerlo. En pantalla estrecha arranca ahí, porque un plano
+   * de 8 metros en un teléfono no se lee.
+   */
+  const [modo, setModo] = useState<"PLANO" | "ATENDER">("PLANO");
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 1023px)").matches) setModo("ATENDER");
+  }, []);
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
   const [vinculando, setVinculando] = useState(false);
   const [comensales, setComensales] = useState(2);
@@ -79,7 +95,6 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
 
   const mesas = useMemo(() => vistaDelPlano(plano.tables, estado, ahora), [plano, estado, ahora]);
   const elegida = mesas.find((m) => m.mesa.id === seleccion) ?? null;
-  const zonas = [...new Set(plano.tables.map((m) => m.zone))];
 
   const ocupadas = mesas.filter((m) => m.estado !== "LIBRE").length;
   const pidenCuenta = mesas.filter((m) => m.estado === "PIDE_CUENTA").length;
@@ -179,7 +194,7 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
         <Container
           as="main"
           ancho="operacion"
-          className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
+          className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[clamp(340px,34vw,480px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
         >
           <TomaPedido
             mesaLabel={elegida.mesa.label}
@@ -238,13 +253,13 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
       <Container
         as="main"
         ancho="operacion"
-        className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
+        className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[clamp(340px,34vw,480px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
       >
         <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
           {/* El plano se parece al local; la lista se lee mejor en móvil y con
               lector de pantalla. Misma información, dos formas de mirarla. */}
           <div role="radiogroup" aria-label="Cómo ver las mesas" className="flex gap-1 self-start rounded-[var(--radius-control)] bg-surface/70 p-1">
-            {([["PLANO", "Plano"], ["LISTA", "Lista"]] as const).map(([id, texto]) => (
+            {([["PLANO", "Plano"], ["ATENDER", "Atender"]] as const).map(([id, texto]) => (
               <button
                 key={id}
                 type="button"
@@ -264,22 +279,7 @@ export function MesasScreen({ plano, carta }: { plano: PlanoLocalDto; carta: Men
           {modo === "PLANO" ? (
             <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion} onElegir={elegir} className="lg:min-h-0" />
           ) : (
-          <div className="flex flex-col gap-4">
-          {zonas.map((zona) => (
-            <div key={zona}>
-              <h2 className="mb-2 text-[11px] font-semibold tracking-[0.09em] text-ink-3 uppercase">{zona}</h2>
-              <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
-                {mesas
-                  .filter((m) => m.mesa.zone === zona)
-                  .map((m) => (
-                    <li key={m.mesa.id}>
-                      <BaldosaMesa vista={m} elegida={m.mesa.id === seleccion} onElegir={() => elegir(m.mesa.id)} />
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          ))}
-          </div>
+            <Atender mesas={mesas} elegida={seleccion} onElegir={elegir} />
           )}
         </section>
 
@@ -430,76 +430,84 @@ function Cabecera({
   );
 }
 
-function BaldosaMesa({ vista, elegida, onElegir }: { vista: MesaVista; elegida: boolean; onElegir: () => void }) {
-  const e = ESTADO_MESA[vista.estado];
-  const libre = vista.estado === "LIBRE";
+/**
+ * «Atender»: solo lo que pide acción, en el orden en que conviene hacerlo.
+ *
+ * No es el plano en forma de lista —eso sería repetir lo mismo con más ruido—,
+ * sino la cola de trabajo del mesero: platos que se enfrían, quien quiere
+ * pagar, mesas que bloquean y mesas largas. En el teléfono es la vista de
+ * entrada, porque un plano de ocho metros ahí no se lee.
+ */
+function Atender({
+  mesas,
+  elegida,
+  onElegir,
+}: {
+  mesas: readonly MesaVista[];
+  elegida: string | null;
+  onElegir: (id: string) => void;
+}) {
+  const filas = loQuePideAtencion(mesas);
+  if (filas.length === 0) {
+    return (
+      <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/40 px-6 text-center">
+        <CircleCheckBig size={26} className="text-state-ok" aria-hidden="true" />
+        <p className="font-display text-lg font-bold text-ink">Nada que atender ahora</p>
+        <p className="text-[13px] text-ink-2">Aquí saldrán los platos listos, quien pida la cuenta y las mesas por limpiar.</p>
+      </div>
+    );
+  }
   return (
-    <button
-      type="button"
-      aria-pressed={elegida}
-      onClick={onElegir}
-      aria-label={`Mesa ${vista.mesa.label}, ${e.texto}${vista.listos > 0 ? `, ${vista.listos} para servir` : ""}`}
-      className={cn(
-        "flex min-h-[8.25rem] w-full cursor-pointer flex-col justify-between gap-2 rounded-[var(--radius-card)] border p-3 text-left",
-        "transition-[border-color,background-color,box-shadow] duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-        vista.estado === "PIDE_CUENTA"
-          ? "border-state-warn/50 bg-state-warn-bg"
-          : vista.estado === "POR_LIMPIAR"
-            ? "border-dashed border-line-strong bg-base/40"
-            : libre
-              ? "border-line bg-base/40 hover:border-line-strong"
-              : "border-line-strong bg-surface hover:border-ink-3",
-        elegida && "ring-2 ring-brand ring-offset-2 ring-offset-base",
-      )}
-    >
-      <span className="flex items-start justify-between gap-2">
-        <span className={cn("font-display text-3xl leading-none font-bold", libre ? "text-ink-3" : "text-ink")}>
-          {vista.mesa.label}
-        </span>
-        <span className="tnum flex flex-col items-end gap-0.5 text-[12px] text-ink-3">
-          <span className="flex items-center gap-1">
-            <Users size={12} aria-hidden="true" />
-            {vista.ocupacion ? `${vista.ocupacion.comensales}/${vista.mesa.seats}` : vista.mesa.seats}
-          </span>
-          {(vista.ocupacion?.sesiones.length ?? 0) > 0 && (
-            <span className="flex items-center gap-1">
-              <Baby size={12} aria-hidden="true" />
-              {vista.ocupacion!.sesiones.length === 1 ? "1 niño" : `${vista.ocupacion!.sesiones.length} niños`}
-            </span>
-          )}
-        </span>
-      </span>
-
-      <span className="flex flex-col gap-1.5">
-        <span
-          className={cn(
-            "flex items-center gap-1.5 text-[13px] font-medium",
-            e.tono === "warn" ? "text-state-warn" : libre ? "text-ink-3" : "text-ink-2",
-          )}
-        >
-          {e.icono}
-          <span className="truncate">
-            {e.texto}
-            {vista.minutos !== null && <span className="tnum font-normal text-ink-3"> · {vista.minutos} min</span>}
-          </span>
-        </span>
-        {(vista.listos > 0 || vista.enCocina > 0) && (
-          <span className="flex flex-wrap gap-1">
-            {vista.listos > 0 && (
-              <Badge tone="ok" icon={<BellRing size={11} aria-hidden="true" />}>
-                {vista.listos} para servir
-              </Badge>
-            )}
-            {vista.enCocina > 0 && (
-              <Badge tone="idle" icon={<ChefHat size={11} aria-hidden="true" />}>
-                {vista.enCocina} en cocina
-              </Badge>
-            )}
-          </span>
-        )}
-      </span>
-    </button>
+    <ul className="flex flex-col gap-2">
+      {filas.map((f) => {
+        const v = f.vista;
+        return (
+          <li key={`${v.mesa.id}-${f.orden}`}>
+            <button
+              type="button"
+              aria-pressed={v.mesa.id === elegida}
+              onClick={() => onElegir(v.mesa.id)}
+              className={cn(
+                "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left",
+                "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                f.tono === "ok"
+                  ? "border-state-ok/40 bg-state-ok-bg/40"
+                  : f.tono === "warn"
+                    ? "border-state-warn/40 bg-state-warn-bg/40"
+                    : "border-line bg-surface",
+                v.mesa.id === elegida && "ring-2 ring-brand",
+              )}
+            >
+              <span className="font-display w-10 shrink-0 text-center text-2xl leading-none font-bold text-ink">
+                {v.mesa.label}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span
+                  className={cn(
+                    "block truncate text-[14px] font-semibold",
+                    f.tono === "ok" ? "text-state-ok" : f.tono === "warn" ? "text-state-warn" : "text-ink",
+                  )}
+                >
+                  {f.que}
+                </span>
+                <span className="block truncate text-[12px] text-ink-3">
+                  {v.mesa.zone}
+                  {v.ocupacion ? ` · ${v.ocupacion.comensales} de ${v.mesa.seats} sillas` : ""}
+                </span>
+              </span>
+              {f.tono === "ok" ? (
+                <BellRing size={18} className="shrink-0 text-state-ok" aria-hidden="true" />
+              ) : f.tono === "warn" ? (
+                <Receipt size={18} className="shrink-0 text-state-warn" aria-hidden="true" />
+              ) : (
+                <Sparkles size={18} className="shrink-0 text-ink-3" aria-hidden="true" />
+              )}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

@@ -35,15 +35,15 @@ export const PLANO_DEMO: PlanoLocalDto = PlanoLocalSchema.parse({
   height: 600,
   tables: [
     // Junto al parque: la fila de arriba, de izquierda a derecha.
-    redonda(1, "Junto al parque", 130, 250),
-    redonda(2, "Junto al parque", 280, 250),
-    redonda(3, "Junto al parque", 430, 250),
-    redonda(4, "Junto al parque", 580, 250),
+    redonda(1, "Junto al parque", 130, 240),
+    redonda(2, "Junto al parque", 280, 240),
+    redonda(3, "Junto al parque", 430, 240),
+    redonda(4, "Junto al parque", 580, 240),
     // Salón: dos filas de dos hacia la calle.
-    redonda(5, "Salón", 130, 400),
-    redonda(6, "Salón", 280, 400),
-    redonda(7, "Salón", 130, 530),
-    redonda(8, "Salón", 280, 530),
+    redonda(5, "Salón", 130, 390),
+    redonda(6, "Salón", 280, 390),
+    redonda(7, "Salón", 130, 505),
+    redonda(8, "Salón", 280, 505),
   ],
   fixtures: [
     { id: "parque", kind: "PARQUE", x: 0, y: 0, width: 800, height: 170, label: "Parque" },
@@ -51,10 +51,26 @@ export const PLANO_DEMO: PlanoLocalDto = PlanoLocalSchema.parse({
     { id: "puerta-parque", kind: "PUERTA", x: 60, y: 160, width: 110, height: 20, label: "Paso al parque" },
     // La entrada de la calle, en la pared izquierda.
     { id: "entrada", kind: "PUERTA", x: 0, y: 300, width: 20, height: 130, label: "Entrada" },
-    // La caja: una barra en L, centro-derecha.
-    { id: "caja-h", kind: "CAJA", x: 470, y: 350, width: 250, height: 60, label: "Caja" },
-    { id: "caja-v", kind: "BARRA", x: 660, y: 350, width: 60, height: 150 },
-    { id: "cocina", kind: "COCINA", x: 470, y: 500, width: 330, height: 100, label: "Cocina" },
+    // La caja: UNA barra en L, con el brazo largo hacia el salón y el corto
+    // bajando por la izquierda, hacia la cocina.
+    {
+      id: "caja",
+      kind: "CAJA",
+      x: 470,
+      y: 360,
+      width: 260,
+      height: 140,
+      label: "Caja",
+      points: [
+        { x: 470, y: 360 },
+        { x: 730, y: 360 },
+        { x: 730, y: 420 },
+        { x: 530, y: 420 },
+        { x: 530, y: 500 },
+        { x: 470, y: 500 },
+      ],
+    },
+    { id: "cocina", kind: "COCINA", x: 470, y: 520, width: 330, height: 80, label: "Cocina" },
   ],
 });
 

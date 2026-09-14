@@ -86,7 +86,7 @@ siguen siendo trabajo de campo (F0-03).
 **En servicio**
 1. El plano cabe entero sin desplazar; la mesa elegida se abre a la derecha (maestro-detalle, como hoy).
 2. Estado con **color + icono + texto**; las sillas ocupadas se rellenan.
-3. Conmutador **Plano | Lista**: la lista es la vista para móvil y para lectores de pantalla.
+3. Conmutador **Plano | Atender**: «Atender» no repite el plano, lista solo lo que pide acción —platos listos, quien pide la cuenta, mesas por limpiar o largas— y es la vista de entrada en móvil, donde el plano no se lee.
 
 ### 2.4 Nombres para investigar
 

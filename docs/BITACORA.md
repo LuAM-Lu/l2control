@@ -694,3 +694,24 @@ no reescribe lo ya cobrado, porque la identidad de la mesa no cambia.
 
 De paso, el plano y la carta de ejemplo salieron de `features/mesas` a `src/demo`, que es donde va lo
 inventado desde el orden del repositorio.
+
+## El plano, rediseñado: sillas, barra de una pieza y «Atender» — 2026-09-14
+
+El cliente miró V3 y dijo tres cosas: no se veía premium, no se apegaba al mapa y ocupaba demasiado.
+Tenía razón en las tres.
+
+- **Se apega al mapa.** La barra era dos rectángulos pegados y miraba al lado contrario. Ahora una pieza
+  en L con su contorno propio —el contrato admite `points` para lo que no es un rectángulo— con el brazo
+  largo hacia el salón y el corto bajando hacia la cocina. El local es rectangular: la diagonal del dibujo
+  fue un trazo involuntario.
+- **Se lee mejor.** Cada mesa lleva sus cuatro sillas y las ocupadas se rellenan: de un vistazo se ve si
+  una mesa de cuatro tiene dos personas o está a tope, que es lo que mira el mesero al entrar al salón.
+  Suelo, relieve corto y rótulos espaciados; el color queda para lo que pide atención.
+- **Ocupa lo que debe.** El plano pasó de mandar en la pantalla a una columna de 340-480 px, y el detalle
+  de la mesa se quedó con el resto. Las mesas y la barra se recolocaron con números: ninguna silla pisa
+  otra pieza ni se sale del suelo.
+
+**La vista Lista desaparece y llega «Atender».** Repetir el plano en forma de lista no servía de nada. Ahora
+lista solo lo que pide acción, en el orden en que conviene hacerlo: platos listos que se enfrían, quien
+quiere pagar, mesas que bloquean por limpiar y mesas largas. En el teléfono es la vista de entrada, porque
+un plano de ocho metros ahí no se lee, y sigue siendo la alternativa para lector de pantalla.

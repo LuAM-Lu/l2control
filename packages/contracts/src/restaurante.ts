@@ -71,6 +71,12 @@ export const ElementoFijoSchema = z.object({
   height: Centimetros,
   /** Lo que se escribe encima, si lleva algo: «Parque», «Caja». */
   label: z.string().trim().max(40).optional(),
+  /**
+   * Contorno propio, en cm, para lo que no es un rectángulo: una barra en L es
+   * UNA pieza, no dos cajas pegadas. Si viene, manda sobre el rectángulo, que
+   * pasa a ser solo su caja envolvente (para colocar el rótulo).
+   */
+  points: z.array(z.object({ x: Centimetros, y: Centimetros })).min(3).max(24).optional(),
 });
 export type ElementoFijoDto = z.infer<typeof ElementoFijoSchema>;
 
@@ -95,6 +101,14 @@ export const PlanoLocalSchema = z
       y1: m.y - m.height / 2,
       x2: m.x + m.width / 2,
       y2: m.y + m.height / 2,
+    });
+    plano.fixtures.forEach((f, i) => {
+      for (const p of f.points ?? []) {
+        if (p.x > plano.width || p.y > plano.height) {
+          ctx.addIssue({ code: "custom", path: ["fixtures", i], message: `${f.label ?? f.kind} se sale del local` });
+          return;
+        }
+      }
     });
     plano.tables.forEach((m, i) => {
       const c = caja(m);
