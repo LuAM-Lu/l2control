@@ -2,12 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Banknote, ShieldCheck } from "lucide-react";
-import { AnulacionSchema, type AnulacionDto, type VentaCerradaDto } from "@l2/contracts";
+import { AnulacionSchema, type AnulacionDto, type UserSummaryDto, type VentaCerradaDto } from "@l2/contracts";
 import { DEFAULT_LOCKOUT_POLICY, can, canAuthorize, computeLockout, describeLockout, type Actor } from "@l2/domain-identity";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import type { OperadorEnSesion } from "../identity/operador.ts";
 import { toActor } from "../identity/permisos.ts";
-import { DEMO_USUARIOS } from "../identity/users-fixtures.ts";
 import { actorDe } from "../identity/visibilidad.ts";
 import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero } from "./anulacion.ts";
 
@@ -41,6 +40,7 @@ type Via = "MISMO_MEDIO" | "EFECTIVO";
 export function AnularCobroDialog({
   venta,
   ventas,
+  usuarios,
   operador,
   onAnular,
   onCerrar,
@@ -48,6 +48,8 @@ export function AnularCobroDialog({
   venta: VentaCerradaDto | null;
   /** Todas las ventas: para saber cuánto efectivo hay para devolver. */
   ventas: readonly VentaCerradaDto[];
+  /** El directorio de personas de la sucursal: de ahí salen los autorizadores. */
+  usuarios: readonly UserSummaryDto[];
   operador: OperadorEnSesion | null;
   /** Aplica la anulación. Lanza si no se puede: el diálogo lo muestra. */
   onAnular: (venta: VentaCerradaDto, anulacion: AnulacionDto) => void;
@@ -84,12 +86,12 @@ export function AnularCobroDialog({
   const autorizadores = useMemo(() => {
     if (!solicitante || !operador) return [];
     if (permiso === "PERMITIDO") return [{ id: operador.id, nombre: operador.nombre, role: operador.role }];
-    return DEMO_USUARIOS.filter((u) => u.active && canAuthorize(toActor(u), solicitante, "cobro.anular")).map((u) => ({
+    return usuarios.filter((u) => u.active && canAuthorize(toActor(u), solicitante, "cobro.anular")).map((u) => ({
       id: u.id,
       nombre: u.fullName,
       role: u.role,
     }));
-  }, [solicitante, operador, permiso]);
+  }, [solicitante, operador, permiso, usuarios]);
   const autorizador = autorizadores.find((a) => a.id === autorizadorId) ?? (autorizadores.length === 1 ? autorizadores[0]! : null);
 
   const bloqueo = computeLockout(fallos, ultimoFallo, ahora, DEFAULT_LOCKOUT_POLICY);

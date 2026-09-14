@@ -6,7 +6,7 @@ import { Ban, MessageCircle, Printer, ReceiptText, Search, X } from "lucide-reac
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
-import type { AnulacionDto, VentaCerradaDto } from "@l2/contracts";
+import type { AnulacionDto, UserSummaryDto, VentaCerradaDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Button, Container, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { useOperador } from "../identity/operador.ts";
@@ -52,7 +52,7 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
   });
 }
 
-export function VentasScreen() {
+export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[] }) {
   const { ventas, anotarImpresion, anular } = useVentas();
   const { cuentas, guardar } = useCuentas();
   const router = useRouter();
@@ -374,6 +374,7 @@ export function VentasScreen() {
       <AnularCobroDialog
         venta={anulando && actual && !actual.voided ? actual : null}
         ventas={ventas}
+        usuarios={usuarios}
         operador={operador}
         onAnular={aplicarAnulacion}
         onCerrar={() => setAnulando(false)}

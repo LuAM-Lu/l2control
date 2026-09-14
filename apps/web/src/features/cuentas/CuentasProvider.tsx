@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { FamilyAccountSchema, type FamilyAccountDto } from "@l2/contracts";
-import { DEMO_CUENTAS } from "./cuentas-fixtures.ts";
 import { puedeDescartarse } from "./cuentas.ts";
 
 /**
@@ -18,7 +17,7 @@ import { puedeDescartarse } from "./cuentas.ts";
  *
  * Todo lo que entra se valida contra el contrato. Un dato guardado que ya no
  * lo cumple —de una versión anterior, manipulado— se DESCARTA entero: usar
- * una cuenta a medias es peor que empezar de los datos de ejemplo.
+ * una cuenta a medias es peor que empezar de nuevo.
  */
 
 const CLAVE = "l2:cuentas:v1";
@@ -29,16 +28,23 @@ type Valor = Readonly<{
   guardar: (cuenta: FamilyAccountDto) => void;
   /** Descarta una venta directa sin cobrar. Cualquier otra cuenta se queda: fail-closed. */
   descartar: (id: string) => void;
-  /** Si ya se cargó lo guardado: antes, las cuentas son las de ejemplo. */
+  /** Si ya se cargó lo guardado: antes, las cuentas son las iniciales. */
   cargado: boolean;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
 
-export function CuentasProvider({ children }: { children: React.ReactNode }) {
-  // Arranca con los datos de ejemplo, que son fijos: servidor y navegador
+export function CuentasProvider({
+  inicial,
+  children,
+}: {
+  /** Cuentas con las que arranca: las de la demo, o ninguna. TODO(F5-14): del servidor. */
+  inicial: readonly FamilyAccountDto[];
+  children: React.ReactNode;
+}) {
+  // Arranca con `inicial`, que llega igual al servidor y al navegador: los dos
   // pintan lo mismo al hidratar. Lo guardado se carga después, en el efecto.
-  const [cuentas, setCuentas] = useState<readonly FamilyAccountDto[]>(DEMO_CUENTAS);
+  const [cuentas, setCuentas] = useState<readonly FamilyAccountDto[]>(inicial);
   const [cargado, setCargado] = useState(false);
 
   useEffect(() => {
@@ -56,7 +62,7 @@ export function CuentasProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch {
-      // Almacenamiento bloqueado o JSON roto: se sigue con los de ejemplo.
+      // Almacenamiento bloqueado o JSON roto: se sigue con las iniciales.
     }
     // Lo que ya esperaba en la cola sin hora de llegada (datos de ejemplo o
     // guardados antes de existir el campo) cuenta desde que se abre la caja.

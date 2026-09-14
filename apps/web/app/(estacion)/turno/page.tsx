@@ -1,5 +1,5 @@
 import { TurnoScreen } from "../../../src/features/cash/TurnoScreen";
-import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/features/cash/shift-fixtures";
+import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno";
 
 /**
  * Turno de caja: arqueo y cortes X/Z (F4-05 a F4-08).

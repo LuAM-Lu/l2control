@@ -7,12 +7,9 @@ import {
   type SaldoMoneda,
 } from "../../../src/features/shell/InicioScreen";
 import type { FilaPunto } from "../../../src/features/cash/PuntosDeCobro";
-import {
-  DEMO_EXCEPCIONES,
-  DEMO_SHIFT_MOVEMENTS,
-  MEDIO_LABEL,
-} from "../../../src/features/cash/shift-fixtures";
-import { demoSnapshot } from "../../../src/features/park/fixtures";
+import { MEDIO_LABEL } from "../../../src/features/cash/turno";
+import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno";
+import { demoSnapshot } from "../../../src/demo/parque";
 import { toMonitorModel } from "../../../src/features/park/view-model";
 
 /**

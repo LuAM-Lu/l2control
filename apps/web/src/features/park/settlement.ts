@@ -70,7 +70,7 @@ export function buildCheckoutPreview(
     zero("USD"),
   );
 
-  // Se valida contra el contrato igual que las fixtures: si el ensamblado
+  // Se valida contra el contrato igual que los datos de ejemplo: si el ensamblado
   // produce algo que el servidor no podría devolver, revienta aquí.
   return CheckoutPreviewSchema.parse({
     serverNow: snapshot.serverNow,

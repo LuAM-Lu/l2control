@@ -12,7 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { Container, MoneyDisplay, formatMoneyVE, cn } from "@l2/ui";
-import type { Excepcion } from "../cash/shift-fixtures.ts";
+import type { Excepcion } from "../cash/turno.ts";
 import { EntradasPorMedio, type PorMedio } from "../cash/EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "../cash/ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "../cash/PuntosDeCobro.tsx";

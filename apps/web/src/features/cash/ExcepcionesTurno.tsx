@@ -1,5 +1,5 @@
 import { cn } from "@l2/ui";
-import type { Excepcion } from "./shift-fixtures.ts";
+import type { Excepcion } from "./turno.ts";
 
 /**
  * Excepciones del turno — F4-08.

@@ -1,6 +1,6 @@
 # Progreso real
 
-> **Actualizado:** 2026-09-12 · Contrastado contra los criterios de aceptación de
+> **Actualizado:** 2026-09-13 · Contrastado contra los criterios de aceptación de
 > [PLAN.md §12](PLAN.md). Una tarea solo cuenta como hecha si su criterio se cumple y es
 > demostrable — «ya lo programé» no basta.
 >
@@ -13,14 +13,16 @@
 |---|---:|---:|---:|---|
 | F0 · Descubrimiento y decisiones | 4 | 1 | 5 | En curso — bloqueada por trabajo de campo |
 | F1 · Cimientos técnicos | 8 | 2 | 6 | En curso |
-| F2 · Identidad, permisos y auditoría | 2 | 4 | 6 | Permisos por persona y sesión compartida |
+| F2 · Identidad, permisos y auditoría | 2 | 4 | 6 | Permisos por persona, sesión compartida y quién autoriza |
 | F3 · Núcleo monetario y fiscal | 4 | 0 | 8 | Motor de impuestos listo |
-| F4 · Caja y cobro mixto | 0 | 10 | 2 | Interfaz completa; falta persistencia |
+| F4 · Caja y cobro mixto | 2 | 11 | 1 | Interfaz completa con ventas, reimpresión y anulación; falta persistencia |
 | F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
-| F6 · Restaurante (interfaz, DEC-22) | 0 | 4 | 10 | Mesas y mesero sobre el simulador |
+| F6 · Restaurante (interfaz, DEC-22) | 0 | 4 | 10 | Mesas y mesero sobre el simulador; cocina en la rama `wip/kds` |
 | F7-F12 | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
-**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/turno`, `/mesas`. El botón «Simulador» (abajo a la izquierda) reproduce una tarde del local. Back-office: `/panel`, con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**.
+**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel`, con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
+
+**Todo lo que falta, en una sola lista:** [PENDIENTES.md](PENDIENTES.md).
 
 > **Orden de ejecución cambiado el 2026-09-09** (§11.4): frontend → backend → producción.
 > La condición para que ese orden no genere retrabajo es contratos primero, y ya está en marcha.
@@ -48,13 +50,13 @@
 |---|---|---|
 | F1-01 Monorepo | ✅ Hecha | `pnpm build` en verde; cada paquete con su README |
 | F1-02 TypeScript estricto | ✅ Hecha | `exactOptionalPropertyTypes` ya atrapó un error real que el dev server no ve |
-| F1-03 Fronteras automatizadas | ✅ Hecha | `pnpm arch` 0 violaciones sobre 218 módulos; `pnpm arch:demo` prueba que muerde |
+| F1-03 Fronteras automatizadas | ✅ Hecha | `pnpm arch` 0 violaciones sobre 336 módulos; `pnpm arch:demo` prueba que muerde. Regla nueva: la demo solo entra por las rutas (`demo-solo-desde-las-rutas`) |
 | F1-04 Docker Compose | Pendiente | PostgreSQL 17 + Valkey 8 |
 | F1-05 Prisma + RLS forzada | Pendiente | **Es la siguiente pieza estructural** |
 | F1-06 Tokens de diseño | ✅ Hecha | `packages/config/tokens.css`; ningún color literal fuera |
 | F1-07 Tipografía | ✅ Hecha | Quicksand + Inter con numerales tabulares |
 | F1-08 Primitivos + Storybook | **Parcial** | Primitivos y patrones sí. **Storybook no** — diferido en la Ruta A |
-| F1-09 Contratos Zod | ✅ Hecha | `@l2/contracts`, 17 pruebas. Los datos de ejemplo se derivan del contrato (§11.4) |
+| F1-09 Contratos Zod | ✅ Hecha | `@l2/contracts`, 64 pruebas. Los datos de ejemplo se derivan del contrato (§11.4) |
 | F1-10 Puertos de hardware | **Parcial** | Escáner sí. **Impresora, gaveta y dispositivo fiscal, no** |
 | F1-11 Hook de escaneo | Parcial | Captura sin foco, valida formato, limita frecuencia y ya no pierde el primer carácter al navegar (un solo oyente para toda la app). Falta calibrar el umbral con el lector real |
 | F1-12 Plantillas de ticket | Pendiente | 58 y 80 mm; la impresora comprada admite ambos |
@@ -71,7 +73,7 @@
 |---|---|---|
 | F2-02 Registro de dispositivos | Parcial | El dominio distingue aprobado, pendiente, revocado y desconocido; falta el alta real |
 | F2-03 Acceso por PIN y dispositivo | Parcial | `/acceso`: el dispositivo es el primer factor y el bloqueo crece. Falta Better Auth |
-| F2-05 Motor de permisos `can()` | ✅ Hecha | Matriz de §7.3 como dato, deny-by-default; cada ❌ con prueba negativa |
+| F2-05 Motor de permisos `can()` | ✅ Hecha | Matriz de §7.3 como dato, deny-by-default; cada ❌ con prueba negativa. `cobro.anular` y `canAuthorize` (quién da un 🔐) desde DEC-24; 81 pruebas en `@l2/domain-identity` |
 | F2-06 Alcance por sucursal | ✅ Hecha | La sucursal es parte del permiso, no un `if` aparte |
 | F2-11 Permisos por persona | Parcial | Concesiones y revocaciones, auditadas, sin ampliar la sede; pantalla en `/panel/personas/usuarios`. Falta persistirlas |
 | F2-12 Sesión compartida | Parcial | Bloqueo por inactividad, cambio de usuario a un toque, el corte Z devuelve al acceso. La sesión (quién y con qué rol) sale del acceso y recorta barra, menú y pantallas por la matriz (V2). Vive en la pestaña: falta la sesión real del servidor |
@@ -105,8 +107,8 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F4-08 Excepciones del turno | Parcial | Visibles en turno e inicio en formato 12h; faltan las reales del libro |
 | DEC-23 Cliente de la factura | Parcial | `ClienteFacturaSchema` (3 pruebas); en caja, «Factura a: Consumidor final» con «Identificar» (cédula o RIF, nombre, dirección fiscal opcional), documento enmascarado. Falta llevarlo al documento fiscal (F3, F7) |
 | F4-04 Campos por medio de pago | Parcial | Contrato `DatosDePagoSchema` (5 pruebas): referencia y banco de Pago Móvil, titular de Zelle, TxID y red de USDT, terminal y referencia del punto. Se exigen al añadir el pago y se muestran enmascarados. Falta el cifrado en reposo y la redacción en logs, que son de servidor |
-| Ventas del turno (C12) | Hecho | `/ventas`: contrato `VentaCerradaSchema` con la foto del recibo y sus impresiones (4 pruebas); la caja registra cada cobro; reimprimir sale «COPIA» con rastro. Anular (DEC-24): `refundableByTender` en el dominio de caja (6 pruebas), `AnulacionSchema` en el contrato (6 pruebas), diálogo con motivo, devolución y PIN; la cuenta vuelve a «por cobrar». Falta: turno y gaveta reales, PIN y auditoría en servidor, nota de crédito (F3) |
-| UX Caja §9 (C5-C8, V4, V5, U3) | Hecho | Cola por antigüedad con espera y aviso de llegada, pulsera y buscador, corregir un pago tocándolo, atajos de teclado a prueba del lector, recibo no fiscal (imprimir, WhatsApp). Comprobado a 1366 y 1280 |
+| Ventas del turno (C12) | ✅ Hecha (interfaz) | `/ventas`: contrato `VentaCerradaSchema` con la foto del recibo y sus impresiones (4 pruebas); la caja registra cada cobro; reimprimir sale «COPIA» con rastro. Anular (DEC-24): `refundableByTender` en el dominio de caja (6 pruebas), `AnulacionSchema` en el contrato (6 pruebas), diálogo con motivo, devolución y PIN; la cuenta vuelve a «por cobrar». Falta: turno y gaveta reales, PIN y auditoría en servidor, nota de crédito (F3) |
+| UX Caja §9 (C5-C8, V4, V5, U3) | ✅ Hecha (interfaz) | Cola por antigüedad con espera y aviso de llegada, pulsera y buscador, corregir un pago tocándolo, atajos de teclado a prueba del lector, recibo no fiscal (imprimir, WhatsApp). Comprobado a 1366 y 1280 |
 | F4-09 | Pendiente | Gaveta asociada a operación |
 
 ## F6 · Restaurante — interfaz sobre el simulador (DEC-22)
@@ -140,27 +142,8 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 
 ---
 
-## Próximos pasos
+## Próximos pasos y deuda técnica
 
-0. **[UX-MEJORAS.md](UX-MEJORAS.md):** V1, V2 y V5 hechas (avisos, identidad, roles, formato VE, cobro rápido, venta directa y catálogo de mostrador). D6 cerrada. Sigue **la cocina (KDS)**, paso 3 de DEC-22, y luego V3 y V4 (plano del local). Decisiones del cliente pendientes: D10-D12.
-1. **DEC-22, paso a paso sobre el simulador:** simulador y eventos ✔ → mesas y mesero ✔ →
-   **cocina (KDS)** → caja con cuentas de mesa → panel en vivo. Orden de [FLUJOS.md](FLUJOS.md) §6.
-2. **F1-14, la CI.** `pnpm verify` comprueba tipos, fronteras y pruebas, pero nadie lo ejecuta
-   solo: las reglas muerden solo si alguien se acuerda de invocarlas.
-3. **El lint no existe.** `pnpm lint` no ejecuta nada, y `CLAUDE.md` promete una regla contra
-   `toFixed(2)` fuera de `@l2/ui` que nadie impone.
-4. **F1-05, Prisma con RLS.** Todo lo demás de la Ruta A depende de tener persistencia.
-5. **F0-03 y F0-04, trabajo de campo.** Hoy se prueba con tarifas inventadas; hasta que entren las
-   reales no se puede validar nada con el cliente.
-6. **Calibrar el lector.** El umbral de 55 ms entre pulsaciones depende del aparato real (F1-11).
-
-## Deuda técnica registrada
-
-| Qué | Por qué se aceptó | Cuándo se salda |
-|---|---|---|
-| Sin Storybook | Recorte de la Ruta A | Cuando entre un tercer consumidor de `@l2/ui` |
-| ~~Sin pruebas en `domain/park`~~ | Saldado el 2026-09-09: 20 pruebas | — |
-| Venta de mostrador guardada como cuenta de familia con una estancia ficticia (`s-mostrador`) | El contrato de cuenta exige al menos un niño y V5 lo necesitaba ya | Cuando la cuenta tenga su propio tipo «mostrador» en el contrato |
-| Datos de ejemplo en `features/park/fixtures.ts` | No hay backend. **Mitigado:** se validan contra el contrato al construirse, así que la forma ya es la definitiva | F1-05 + F0-04 |
-| Solo el puerto de escáner | La impresora no hacía falta para el monitor | F1-12 |
-| `apps/printer-agent` sin construir | DEC-8: la impresora admite red | No se construye salvo que aparezca una impresora solo-USB |
+Viven en **[PENDIENTES.md](PENDIENTES.md)**, agrupados por quién los desbloquea: el cliente, el
+contador, el trabajo de campo, el producto y el backend. Aquí solo queda el estado por tarea, para
+no contar lo mismo en dos sitios.

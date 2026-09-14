@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { VentaCerradaSchema, type AnulacionDto, type ImpresionDto, type VentaCerradaDto } from "@l2/contracts";
-import { DEMO_VENTAS } from "./ventas-fixtures.ts";
 
 /**
  * Las ventas cerradas del turno — UX-MEJORAS §9 (C12).
@@ -39,8 +38,15 @@ type Valor = Readonly<{
 
 const Contexto = createContext<Valor | null>(null);
 
-export function VentasProvider({ children }: { children: React.ReactNode }) {
-  const [ventas, setVentas] = useState<readonly VentaCerradaDto[]>(DEMO_VENTAS);
+export function VentasProvider({
+  inicial,
+  children,
+}: {
+  /** Ventas con las que arranca: las de la demo, o ninguna. TODO(F4-03): del servidor. */
+  inicial: readonly VentaCerradaDto[];
+  children: React.ReactNode;
+}) {
+  const [ventas, setVentas] = useState<readonly VentaCerradaDto[]>(inicial);
   const [cargado, setCargado] = useState(false);
 
   useEffect(() => {
@@ -52,7 +58,7 @@ export function VentasProvider({ children }: { children: React.ReactNode }) {
         else window.sessionStorage.removeItem(CLAVE);
       }
     } catch {
-      // Almacenamiento bloqueado o JSON roto: se sigue con los de ejemplo.
+      // Almacenamiento bloqueado o JSON roto: se sigue con las iniciales.
     }
     setCargado(true);
   }, []);

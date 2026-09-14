@@ -616,3 +616,32 @@ debiendo, y si no hay que cobrarlo será una cortesía con motivo (F6-14), no un
 
 Pendiente y dicho: la gaveta se estima con las ventas de la sesión (sin fondo inicial, así que peca de negar),
 el PIN y la auditoría los hará el servidor, y con factura fiscal hará falta la nota de crédito (F3).
+
+## Orden, demo aislada y el repositorio en GitHub — 2026-09-13
+
+Con un segundo desarrollador entrando al proyecto, se ordenó el repositorio antes de publicarlo en
+`github.com/LuAM-Lu/l2control`.
+
+**La demo, en su sitio.** Los datos de ejemplo estaban en seis archivos repartidos por las
+funcionalidades, y tres piezas de la aplicación los importaban directamente: los proveedores de cuentas
+y ventas, y el diálogo de anular (el directorio de personas). Eso significaba que conectar el backend
+obligaba a reescribir pantallas. Ahora:
+
+- Todos viven en `apps/web/src/demo`, con su README. Lo que en esos archivos era producto y no
+  ejemplo —el tipo `MedioPago`, las excepciones del turno, las denominaciones y los nombres de los
+  medios— volvió a su funcionalidad (`cash/medios.ts`, `cash/turno.ts`).
+- Solo las rutas importan la demo y la pasan por props. Una regla nueva de `pnpm arch`,
+  `demo-solo-desde-las-rutas`, rompe la construcción si una pantalla o un proveedor lo hace; se
+  comprobó inyectando la violación.
+- Un solo interruptor, `NEXT_PUBLIC_DEMO=off` (antes `NEXT_PUBLIC_SIMULADOR`), apaga el simulador y
+  las cuentas y ventas de ejemplo. Tarifas, medios, personas y la instantánea del parque siguen
+  saliendo de la demo hasta que los sirva el servidor.
+
+**El KDS, aparte.** La cocina estaba a medio hacer y sin commit; quedó en la rama `wip/kds` para que
+`main` suba limpio y en verde. `master` pasó a llamarse `main`.
+
+**La documentación, al día.** `README.md` describe lo que existe hoy; `CONTRIBUTING.md` explica ramas,
+commits, verificación y qué documento se toca en cada caso; `docs/PENDIENTES.md` junta en una lista todo
+lo que falta, agrupado por quién lo desbloquea (cliente, contador, campo, producto, backend), y
+`PROGRESO.md` se quedó con el estado por tarea. Se añadieron el README de `@l2/domain-identity` y el
+índice de contratos por área.

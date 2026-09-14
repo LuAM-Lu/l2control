@@ -5,6 +5,7 @@ import { cn } from "@l2/ui";
 import { describir } from "./describir.ts";
 import { ESCENARIOS } from "./escenarios.ts";
 import { useSimulacion } from "./SimulacionProvider.tsx";
+import { DEMO_ACTIVA } from "../../demo/modo.ts";
 
 /**
  * Mandos del simulador — F1-19.
@@ -25,7 +26,7 @@ const HORA = new Intl.DateTimeFormat("es-VE", {
 });
 const VELOCIDADES = [1, 10, 60] as const;
 
-const apagado = () => process.env.NEXT_PUBLIC_SIMULADOR === "off";
+const apagado = () => !DEMO_ACTIVA;
 
 /** El chip de las barras: dice si hay una tarde simulada y a qué hora va. */
 export function ChipSimulacion({ className }: { className?: string }) {

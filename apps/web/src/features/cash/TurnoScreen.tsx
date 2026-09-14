@@ -12,7 +12,7 @@ import {
   type ShiftStatus,
 } from "@l2/domain-cash";
 import { Badge, Button, Container, MoneyDisplay, Stepper, Tabs, cn } from "@l2/ui";
-import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./shift-fixtures.ts";
+import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./turno.ts";
 import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "./PuntosDeCobro.tsx";

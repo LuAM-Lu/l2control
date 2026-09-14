@@ -1,5 +1,5 @@
 import { ParkMonitor } from "../../../src/features/park/ParkMonitor";
-import { demoSnapshot } from "../../../src/features/park/fixtures";
+import { demoSnapshot } from "../../../src/demo/parque";
 import { toMonitorModel } from "../../../src/features/park/view-model";
 
 /**
