@@ -38,13 +38,24 @@ pnpm test         # pruebas de dominio
 ## Estructura
 
 ```
-apps/web                 Next.js 16 — todas las superficies
-packages/config          tokens de diseño + tsconfig base
-packages/domain/money    aritmética de dinero (puro)
-packages/domain/park     tiempo, gracia, penalización, aforo (puro)
-packages/ui              nivel 1 primitivos + nivel 2 patrones
-docs/adr/                las 17 decisiones, una por archivo
+apps/web                  Next.js 16 — todas las superficies
+  app/                    rutas; las únicas que importan src/demo
+  src/features/<dominio>  pantallas y lógica de aplicación, por dominio
+  src/demo/               datos de ejemplo e interruptor NEXT_PUBLIC_DEMO
+packages/contracts        contratos Zod: la forma de cada dato, una vez
+packages/domain/money     aritmética de dinero (puro)
+packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
+packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones (puro)
+packages/domain/park      tiempo, gracia, penalización, aforo (puro)
+packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
+packages/ui               nivel 1 primitivos + nivel 2 patrones
+packages/config           tokens de diseño + tsconfig base
+docs/adr/                 las 17 decisiones, una por archivo
 ```
+
+**Datos de ejemplo.** Viven solo en `apps/web/src/demo` y entran solo por las rutas (`app/**`),
+que los pasan a las pantallas por props. `pnpm arch` rompe si una pantalla o un proveedor los
+importa. Lo que falta está en `docs/PENDIENTES.md`; el flujo de trabajo, en `CONTRIBUTING.md`.
 
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.

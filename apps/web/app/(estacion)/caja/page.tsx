@@ -5,8 +5,8 @@ import {
   DEMO_TAX_RULES,
   DEMO_TENDERS,
   DEMO_TERMINALES,
-} from "../../../src/features/cash/fixtures";
-import { demoSnapshot } from "../../../src/features/park/fixtures";
+} from "../../../src/demo/caja";
+import { demoSnapshot } from "../../../src/demo/parque";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).

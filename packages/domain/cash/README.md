@@ -49,6 +49,18 @@ lo que hay que ver. Hay una prueba que lo fija.
 `reconcile` no decide si la diferencia es aceptable: eso es política configurable y una
 conversación con el administrador. Aquí solo se calcula.
 
+## Devolver al anular un cobro (DEC-24)
+
+`refundableByTender(pagos, excedente, funcional)` dice cuánto de cada pago se devuelve si el cobro
+se anula. Se devuelve **lo que quedó en la caja por la venta**, no lo entregado: el vuelto ya salió,
+y la propina y el residuo no eran de la venta. El excedente se descuenta primero del efectivo (del
+último pago hacia el primero, porque el vuelto sale del billete que lo originó) y se convierte con la
+**tasa congelada de ese pago**. Cada pago se devuelve en su moneda. Un excedente mayor que lo pagado
+lanza `ExcessNotCoveredError`: ese cobro no cuadró.
+
+La caja lo calcula **al cerrar el cobro** y la venta lo guarda, para que una anulación de mañana no
+dependa de la tasa de mañana.
+
 ## Qué NO le corresponde
 
 - **Los impuestos.** El total que recibe ya viene con IVA de `@l2/domain-tax`. El IGTF se

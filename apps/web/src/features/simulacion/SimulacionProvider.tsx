@@ -11,7 +11,7 @@ import { ahoraSimulado, arrancar, conVelocidad, pausar, reanudar, vencidos, type
  *
  * Reproduce una tarde del local como eventos del catálogo (F1-20) y mantiene
  * el estado del local para que las pantallas lo lean. Solo para demostración
- * y desarrollo: `NEXT_PUBLIC_SIMULADOR=off` lo apaga.
+ * y desarrollo: `NEXT_PUBLIC_DEMO=off` lo apaga (ver `src/demo/modo.ts`).
  *
  * VARIAS VENTANAS, UNA OPERACIÓN
  * La pestaña donde se pulsa «reproducir» lleva el reloj; las demás lo siguen

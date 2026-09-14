@@ -53,6 +53,20 @@ texto es para la persona.
 | Siempre hay a quién llamar | `CheckInCommand` exige representante nuevo **o** existente, nunca ninguno ni ambos |
 | El código de pulsera se valida una sola vez | `WristbandCodeSchema` — la misma regla para el lector, el formulario y el servidor |
 
+## Contratos por área
+
+| Archivo | Qué define |
+|---|---|
+| `primitives.ts` | Id, instante, moneda, dinero (`minor` en texto + moneda), clave de idempotencia |
+| `park.ts`, `checkout.ts` | Pulseras, estancias, tarifas, representantes, entrada, salida y liquidación |
+| `account.ts` | La cuenta de la familia (DEC-21), con número de orden y hora de entrada a la cola |
+| `pagos.ts` | Datos obligatorios por medio de pago: Pago Móvil, Zelle, USDT, punto (F4-04) |
+| `documento.ts` | A quién se factura: consumidor final o identificado (DEC-23) |
+| `ventas.ts` | La venta cerrada con la foto de su recibo, sus impresiones y su anulación (DEC-24) |
+| `restaurante.ts` | Plano de mesas y carta |
+| `eventos.ts` | Catálogo de eventos de operación que emiten el simulador y las pantallas (F1-20) |
+| `identity.ts` | Personas, roles y excepciones de permiso |
+
 ## Qué NO le corresponde
 
 - **Lógica de negocio.** Un contrato dice qué forma tiene un dato, no qué se hace con él. El

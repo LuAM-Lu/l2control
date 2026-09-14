@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { SeccionPendienteScreen } from "../../../../../src/features/shell/SeccionPendienteScreen";
 import { buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
 import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
+import { DEMO_USUARIOS } from "../../../../../src/demo/usuarios";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -11,7 +12,8 @@ import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage"
  * de encontrar la página del módulo. Añadir una pantalla es una línea.
  */
 const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
-  "personas/usuarios": UsuariosPage,
+  // TODO(F2-11/backend): el directorio sale del servidor.
+  "personas/usuarios": () => <UsuariosPage usuarios={DEMO_USUARIOS} />,
 };
 
 /**

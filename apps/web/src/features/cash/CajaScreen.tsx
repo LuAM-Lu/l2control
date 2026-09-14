@@ -45,7 +45,7 @@ import {
   type Tender,
 } from "@l2/domain-cash";
 import { Button, Container, MoneyDisplay, NumericKeypad, Stepper, avisar, cn, formatMoneyVE } from "@l2/ui";
-import type { MedioPago } from "./fixtures.ts";
+import type { MedioPago } from "./medios.ts";
 import {
   PRODUCTOS_MOSTRADOR,
   CATEGORIAS_MOSTRADOR,
