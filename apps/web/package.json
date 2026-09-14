@@ -12,6 +12,7 @@
   "dependencies": {
     "@l2/contracts": "workspace:*",
     "@l2/domain-cash": "workspace:*",
+    "@l2/domain-orders": "workspace:*",
     "@l2/domain-identity": "workspace:*",
     "@l2/domain-money": "workspace:*",
     "@l2/domain-park": "workspace:*",

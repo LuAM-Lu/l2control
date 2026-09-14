@@ -1,0 +1,20 @@
+{
+  "name": "@l2/domain-orders",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ciclo de vida de la comanda (§6.5, F6-08). Módulo puro.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "La comanda solo avanza hacia delante. Un evento que pide un salto imposible —servir lo que no está listo, aceptar lo ya servido— se rechaza con su motivo, nunca se aplica a medias.",
+  "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
+    "typescript": "7.0.2"
+  }
+}

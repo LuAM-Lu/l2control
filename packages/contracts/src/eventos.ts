@@ -17,6 +17,12 @@ import { ParkSessionSchema } from "./park.ts";
 
 const base = { id: IdSchema, at: TimestampSchema };
 const Texto = (max: number) => z.string().trim().min(1).max(max);
+/**
+ * Quién hizo el cambio (F6-08: «toda transición registra quién y cuándo»).
+ * El cuándo es `at`. Opcional porque los guiones del simulador reproducen una
+ * cocina sin personas; lo que emite una pantalla lo lleva siempre.
+ */
+const Quien = z.string().trim().min(2).max(80).optional();
 
 export const OrderItemSchema = z.object({
   name: Texto(60),
@@ -62,9 +68,9 @@ export const OperationEventSchema = z.discriminatedUnion("type", [
     tableId: IdSchema,
     items: z.array(OrderItemSchema).min(1, "Un pedido sin platos no se envía"),
   }),
-  z.object({ ...base, type: z.literal("pedido.aceptado"), orderId: IdSchema }),
-  z.object({ ...base, type: z.literal("pedido.listo"), orderId: IdSchema }),
-  z.object({ ...base, type: z.literal("pedido.entregado"), orderId: IdSchema }),
+  z.object({ ...base, type: z.literal("pedido.aceptado"), orderId: IdSchema, by: Quien }),
+  z.object({ ...base, type: z.literal("pedido.listo"), orderId: IdSchema, by: Quien }),
+  z.object({ ...base, type: z.literal("pedido.entregado"), orderId: IdSchema, by: Quien }),
   z.object({
     ...base,
     type: z.literal("pedido.anulado"),
@@ -72,6 +78,13 @@ export const OperationEventSchema = z.discriminatedUnion("type", [
     /** Anular lo que ya está en cocina exige motivo y autorización (§7.3). */
     reason: z.string().trim().min(3).max(120),
     authorizedBy: z.string().trim().min(2).max(80),
+  }),
+  /** La cocina confirma que vio la anulación de algo que ya estaba preparando (FLUJOS C5). */
+  z.object({
+    ...base,
+    type: z.literal("pedido.anulacion_vista"),
+    orderId: IdSchema,
+    by: z.string().trim().min(2).max(80),
   }),
 
   /* ── impresión (ADR-015) ── */

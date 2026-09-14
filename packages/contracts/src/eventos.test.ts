@@ -73,4 +73,9 @@ describe("catálogo de eventos (F1-20)", () => {
     const { at: _at, ...sinInstante } = estancia;
     assert.equal(OperationEventSchema.safeParse(sinInstante).success, false);
   });
+  test("confirmar que se vio una anulación exige decir quién (F6-08)", () => {
+    const vista = { id: "e-9", at, type: "pedido.anulacion_vista", orderId: "p-1" };
+    assert.equal(OperationEventSchema.safeParse(vista).success, false);
+    assert.equal(OperationEventSchema.safeParse({ ...vista, by: "Diego Salas" }).success, true);
+  });
 });
