@@ -1,11 +1,6 @@
 import { toMajor } from "@l2/domain-money";
 import { tallyShift } from "@l2/domain-cash";
-import {
-  InicioScreen,
-  type Atencion,
-  type PorMedio,
-  type SaldoMoneda,
-} from "../../../src/features/shell/InicioScreen";
+import { InicioScreen, type PorMedio, type SaldoMoneda } from "../../../src/features/shell/InicioScreen";
 import type { FilaPunto } from "../../../src/features/cash/PuntosDeCobro";
 import { MEDIO_LABEL } from "../../../src/features/cash/turno";
 import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno";
@@ -13,12 +8,19 @@ import { demoSnapshot } from "../../../src/demo/parque";
 import { toMonitorModel } from "../../../src/features/park/view-model";
 
 /**
- * Inicio del back-office (F9-00).
+ * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
  *
  * Las cifras del día **se calculan** del libro de movimientos con el mismo
- * dominio que usa el arqueo, y las atenciones salen del estado real del
- * parque. Lo único de ejemplo es la comparación con la semana pasada, que
- * necesita histórico — y la pantalla lo dice.
+ * dominio que usa el arqueo. Lo único de ejemplo es la comparación con la
+ * semana pasada, que necesita histórico — y la pantalla lo dice.
+ *
+ * Lo que pasa AHORA no se pasa por aquí: lo lee `EnVivo` de los eventos de la
+ * operación, en el navegador. De aquí solo salen las reglas con las que se
+ * juzga —política del parque, umbral de cocina, si hay turno y si hay tasa—,
+ * que es exactamente lo que el servidor entregará el día que exista.
+ *
+ * TODO(F9-08/backend): política, umbral y estado del turno vendrán de la
+ * configuración de la sucursal, por tiempo real (ADR-008).
  */
 export const dynamic = "force-dynamic";
 
@@ -31,44 +33,6 @@ const MESES = [
 export default function InicioPage() {
   const modelo = toMonitorModel(demoSnapshot(Date.now()));
   const tally = tallyShift(DEMO_SHIFT_MOVEMENTS);
-
-  const vencidas = modelo.cards.filter((c) => c.status === "VENCIDA").length;
-  const porVencer = modelo.cards.filter(
-    (c) => c.status === "POR_VENCER" || c.status === "EN_GRACIA",
-  ).length;
-
-  const atenciones: Atencion[] = [];
-
-  if (vencidas > 0) {
-    atenciones.push({
-      id: "vencidas",
-      titulo: `${vencidas} ${vencidas === 1 ? "niño" : "niños"} con tiempo cumplido`,
-      detalle: "Están en sala pasada su hora y todavía no se han liquidado.",
-      gravedad: "crit",
-      href: "/monitor",
-      accion: "Ver la sala",
-    });
-  }
-  if (porVencer > 0) {
-    atenciones.push({
-      id: "porvencer",
-      titulo: `${porVencer} por vencer en los próximos minutos`,
-      detalle: "Conviene avisar a los representantes antes de que entre el cobro por excedente.",
-      gravedad: "warn",
-      href: "/monitor",
-      accion: "Ver la sala",
-    });
-  }
-  if (!modelo.rateConfirmed) {
-    atenciones.push({
-      id: "tasa",
-      titulo: "La tasa del día no está confirmada",
-      detalle: "Sin tasa confirmada no se puede cobrar en bolívares.",
-      gravedad: "crit",
-      href: "/caja",
-      accion: "Confirmar",
-    });
-  }
 
   // «Lo que entró hoy» es LO COBRADO, no el movimiento neto del medio. Antes
   // se usaba el neto y el efectivo en dólares salía en 70,58: incluía los
@@ -99,17 +63,15 @@ export default function InicioPage() {
   }));
 
   const hoy = new Date();
+  const tasa = modelo.rateConfirmed && modelo.rateValue ? modelo.rateValue.replace(".", ",") : null;
 
   return (
     <InicioScreen
-      atenciones={atenciones}
       porMedio={porMedio}
       gaveta={gaveta}
       puntos={puntos}
       ninosHoy={modelo.cards.length}
       ninosSemanaPasada={11}
-      enSala={modelo.cards.length}
-      aforo={modelo.capacityLimit}
       ventaHoy="94.17"
       ventaSemanaPasada="108.40"
       excepciones={DEMO_EXCEPCIONES}
@@ -117,15 +79,10 @@ export default function InicioPage() {
       diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
       turnoDesde="2:00 pm"
       cajero="Marisol Prieto"
-      tasa={modelo.rateConfirmed && modelo.rateValue ? modelo.rateValue.replace(".", ",") : null}
-      mesasOcupadas={5}
-      mesasTotales={8}
-      comandasCocina={4}
-      comandasEnCola={2}
-      comandasEnPrep={2}
-      comandasListas={2}
-      esperaMaximaMin={18}
-      mesaEsperaCritica="Mesa 4"
+      tasa={tasa}
+      politica={demoSnapshot(Date.now()).policy}
+      umbral={{ avisoMin: 8, gritaMin: 15 }}
+      enServicio
     />
   );
 }

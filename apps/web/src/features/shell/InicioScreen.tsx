@@ -3,15 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import {
-  ArrowRight,
-  CircleCheckBig,
-  OctagonAlert,
-  TrendingDown,
-  TrendingUp,
-  TriangleAlert,
-} from "lucide-react";
+import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
+import type { ParkPolicyDto } from "@l2/contracts";
+import type { UmbralEspera } from "@l2/domain-orders";
 import { Container, MoneyDisplay, formatMoneyVE, cn } from "@l2/ui";
+import { EnVivo } from "./EnVivo.tsx";
 import type { Excepcion } from "../cash/turno.ts";
 import { EntradasPorMedio, type PorMedio } from "../cash/EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "../cash/ExcepcionesTurno.tsx";
@@ -33,37 +29,35 @@ export type { PorMedio };
  *
  * Ahora hay tres alturas, y solo tres:
  *
- *  1. **Las cuatro cifras del día**, grandes, con su comparación. Es lo que se
- *     mira desde la puerta. Conmutables entre [Parque & Caja] y [Mesas & Cocina].
- *  2. **Lo que exige atención**, si lo hay. Y cuando no lo hay se dice, para
- *     distinguir «todo bien» de «no he mirado».
+ *  1. **El local ahora** (`EnVivo`): lo que pide acción y las cinco zonas, que
+ *     se mueven solas con los eventos.
+ *  2. **El día**: lo acumulado, grande y comparado.
  *  3. **El detalle**: de dónde vino el dinero y qué se salió de lo normal.
  *
- * La comparación es siempre contra **el mismo día de la semana pasada**, nunca
- * contra ayer: comparar un sábado con un viernes en un parque infantil no dice
- * nada, y es el error más común de los paneles de negocio.
+ * DOS TABLEROS FUSIONADOS EN UNO — 2026-09-14
+ *
+ * Esta pantalla enseñaba «en sala», «mesas en servicio», «en cocina» y
+ * «requiere atención» por su cuenta, con cifras de mesas y cocina **escritas a
+ * mano en la ruta** (`mesasOcupadas={5}`), mientras `/panel/vivo` calculaba
+ * esas mismas cosas de verdad. Dos tableros que dicen lo mismo con números
+ * distintos son peores que ninguno: el de al lado se convirtió en el bloque de
+ * arriba de este, y aquellas cifras inventadas se borraron.
+ *
+ * El reparto que queda es de **horizonte temporal**, no de tema: arriba lo que
+ * se mueve ahora, abajo lo que ya pasó hoy. La comparación es siempre contra
+ * **el mismo día de la semana pasada**, nunca contra ayer: comparar un sábado
+ * con un viernes en un parque infantil no dice nada, y es el error más común de
+ * los paneles de negocio.
  */
-
-export type Atencion = {
-  id: string;
-  titulo: string;
-  detalle: string;
-  gravedad: "crit" | "warn";
-  href: Route | null;
-  accion: string;
-};
 
 export type SaldoMoneda = { moneda: string; total: string };
 
 export function InicioScreen({
-  atenciones,
   porMedio,
   gaveta,
   puntos,
   ninosHoy,
   ninosSemanaPasada,
-  enSala,
-  aforo,
   ventaHoy,
   ventaSemanaPasada,
   excepciones,
@@ -72,23 +66,15 @@ export function InicioScreen({
   turnoDesde,
   cajero,
   tasa,
-  mesasOcupadas = 5,
-  mesasTotales = 8,
-  comandasCocina = 4,
-  comandasEnCola = 2,
-  comandasEnPrep = 2,
-  comandasListas = 2,
-  esperaMaximaMin = 18,
-  mesaEsperaCritica = "Mesa 4",
+  politica,
+  umbral,
+  enServicio,
 }: {
-  atenciones: readonly Atencion[];
   porMedio: readonly PorMedio[];
   gaveta: readonly SaldoMoneda[];
   puntos: readonly FilaPunto[];
   ninosHoy: number;
   ninosSemanaPasada: number;
-  enSala: number;
-  aforo: number;
   ventaHoy: string;
   ventaSemanaPasada: string;
   excepciones: readonly Excepcion[];
@@ -98,23 +84,19 @@ export function InicioScreen({
   cajero: string;
   /** Tasa del día ya formateada («228,41»), o `null` si no hay tasa confirmada (ADR-005). */
   tasa: string | null;
-  mesasOcupadas?: number;
-  mesasTotales?: number;
-  comandasCocina?: number;
-  comandasEnCola?: number;
-  comandasEnPrep?: number;
-  comandasListas?: number;
-  esperaMaximaMin?: number;
-  mesaEsperaCritica?: string;
+  /** Reglas del parque, para que el bloque en vivo sepa qué estancia está vencida. */
+  politica: ParkPolicyDto;
+  /** Cuándo una comanda tarda y cuándo está atrasada. */
+  umbral: UmbralEspera;
+  /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
+  enServicio: boolean;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
-  const todoBien = atenciones.length === 0;
   const diaMinuscula = diaSemana.toLowerCase();
 
   const variacion = (hoy: number, antes: number) =>
     antes === 0 ? null : Math.round(((hoy - antes) / antes) * 100);
 
-  const ocupacion = aforo === 0 ? 0 : Math.round((enSala / aforo) * 100);
   const gavetaPrincipal = gaveta[0];
   const gavetaResto = gaveta.slice(1);
 
@@ -172,204 +154,57 @@ export function InicioScreen({
         </div>
       </header>
 
-      {/* ───────────────────────── 1 · las cifras del día ─────────────────── */}
-      <section aria-label="Cifras del día" className="mb-3 xl:mb-4 space-y-2">
-        {/* Fila 1: Parque y Caja */}
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-[9.5px] sm:text-[10px] font-bold tracking-[0.1em] text-ink-3 uppercase">
-              Parque y Caja
-            </span>
-          </div>
-          <div className="grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card grid-cols-2 lg:grid-cols-4">
-            <Cifra
-              etiqueta="Vendido"
-              valor={<MoneyDisplay value={ventaHoy} currency="USD" size="lg" />}
-              variacion={variacion(Number(ventaHoy), Number(ventaSemanaPasada))}
-              pie={`${ventaSemanaPasada} el ${diaMinuscula} pasado`}
-            />
-            <Cifra
-              etiqueta="Niños atendidos"
-              valor={<Numero>{ninosHoy}</Numero>}
-              variacion={variacion(ninosHoy, ninosSemanaPasada)}
-              pie={`${ninosSemanaPasada} el ${diaMinuscula} pasado`}
-            />
-            <Cifra
-              etiqueta="En sala ahora"
-              valor={
-                <span className="flex items-baseline gap-1.5">
-                  <Numero>{enSala}</Numero>
-                  <span className="tnum text-xs sm:text-sm text-ink-3">de {aforo}</span>
-                </span>
-              }
-              pie={`${ocupacion} % del aforo`}
-              barra={ocupacion}
-            />
-            <Cifra
-              etiqueta="En gaveta"
-              valor={
-                gavetaPrincipal ? (
-                  <MoneyDisplay
-                    value={gavetaPrincipal.total}
-                    currency={gavetaPrincipal.moneda}
-                    size="lg"
-                  />
-                ) : (
-                  <Numero>0</Numero>
-                )
-              }
-              pie={
-                gavetaResto.length > 0
-                  ? gavetaResto.map((g) => formatMoneyVE(g.total, g.moneda)).join(" · ")
-                  : "solo una moneda en gaveta"
-              }
-            />
-          </div>
-        </div>
+      {/* ──────────────────────────── 1 · el local ahora ─────────────────── */}
+      <EnVivo
+        politica={politica}
+        umbral={umbral}
+        enServicio={enServicio}
+        // Sin tasa formateada no hay tasa confirmada: es el mismo dato que
+        // pinta el chip del BCV, no una segunda versión de la verdad.
+        tasaConfirmada={tasa !== null}
+      />
 
-        {/* Fila 2: Mesas y Cocina */}
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-[9.5px] sm:text-[10px] font-bold tracking-[0.1em] text-ink-3 uppercase">
-              Mesas y Cocina
-            </span>
-          </div>
-
-          <div className="grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card grid-cols-2 lg:grid-cols-4">
-            <Cifra
-              etiqueta="Mesas en servicio"
-              valor={
-                <span className="flex items-baseline gap-1.5">
-                  <Numero>{mesasOcupadas}</Numero>
-                  <span className="tnum text-xs sm:text-sm text-ink-3">de {mesasTotales}</span>
-                </span>
-              }
-              pie={`${Math.round((mesasOcupadas / mesasTotales) * 100)} % del salón · ${mesasTotales - mesasOcupadas} libres`}
-              barra={Math.round((mesasOcupadas / mesasTotales) * 100)}
-            />
-            <Cifra
-              etiqueta="En cocina (KDS)"
-              valor={
-                <span className="flex items-baseline gap-1.5">
-                  <Numero>{comandasCocina}</Numero>
-                  <span className="text-xs sm:text-sm font-medium text-ink-3">comandas</span>
-                </span>
-              }
-              pie={`${comandasEnCola} en cola · ${comandasEnPrep} en preparación`}
-            />
-            <Cifra
-              etiqueta="Listas para servir"
-              valor={
-                <span className="flex items-center gap-2">
-                  <Numero>{comandasListas}</Numero>
-                  {comandasListas > 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-brand/15 border border-brand/40 px-2 py-0.5 text-[10px] font-bold text-brand leading-none">
-                      <span className="relative flex size-1.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
-                        <span className="relative inline-flex size-1.5 rounded-full bg-brand" />
-                      </span>
-                      <span>Por retirar</span>
-                    </span>
-                  ) : (
-                    <span className="text-xs sm:text-sm font-medium text-ink-3">al día</span>
-                  )}
-                </span>
-              }
-              pie={comandasListas > 0 ? "esperando retiro por mesero" : "sin platos pendientes"}
-            />
-            <Cifra
-              etiqueta="Espera máxima"
-              valor={
-                <span className="flex items-baseline gap-1">
-                  <Numero>{esperaMaximaMin}</Numero>
-                  <span className="text-xs sm:text-sm font-semibold text-ink-3">min</span>
-                </span>
-              }
-              pie={`${mesaEsperaCritica} · desde envío`}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ─────────────────────── 2 · lo que exige atención ───────────────── */}
-      <section className="mb-3.5 xl:mb-4">
-        <h2 className="mb-1.5 flex items-baseline gap-2 text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
-          Requiere atención
-          {!todoBien && (
-            <span
-              className={cn(
-                "tnum font-bold",
-                atenciones.some((a) => a.gravedad === "crit") ? "text-state-crit" : "text-state-warn",
-              )}
-            >
-              {atenciones.length}
-            </span>
-          )}
+      {/* ───────────────────────────── 2 · el día ────────────────────────── */}
+      <section aria-label="El día" className="mb-3 xl:mb-4">
+        <h2 className="mb-1.5 text-[10px] font-bold tracking-[0.1em] text-ink-3 uppercase">
+          El día · lo acumulado
         </h2>
-
-        {todoBien ? (
-          <div className="flex items-center gap-3 rounded-[var(--radius-card)] border border-state-ok/35 bg-state-ok-bg/40 px-4 py-3">
-            <CircleCheckBig size={18} className="shrink-0 text-state-ok" aria-hidden="true" />
-            <p className="text-[13px] text-ink">
-              Nada pendiente: sin tiempos cumplidos, sin diferencias de arqueo y con la tasa del día
-              confirmada.
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-2.5 lg:grid-cols-2">
-            {atenciones.map((a) => {
-              const Icon = a.gravedad === "crit" ? OctagonAlert : TriangleAlert;
-              const cuerpo = (
-                <div
-                  className={cn(
-                    "group flex min-h-[2.75rem] items-center gap-3 rounded-[var(--radius-card)] border px-3.5 py-2.5",
-                    "transition-[transform,border-color,background-color] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
-                    a.gravedad === "crit"
-                      ? "border-state-crit/40 bg-state-crit-bg/45 hover:border-state-crit/70"
-                      : "border-state-warn/40 bg-state-warn-bg/45 hover:border-state-warn/70",
-                    a.href && "hover:-translate-y-0.5 active:scale-[0.99] cursor-pointer",
-                  )}
-                >
-                  <Icon
-                    size={18}
-                    className={cn(
-                      "shrink-0",
-                      a.gravedad === "crit" ? "text-state-crit l2-pulse" : "text-state-warn",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-display leading-tight text-sm font-bold text-ink">{a.titulo}</p>
-                    <p className="mt-0.5 text-xs leading-snug text-ink-2 truncate">{a.detalle}</p>
-                  </div>
-                  {a.href && (
-                    <span className="flex shrink-0 items-center gap-1.5 self-center rounded-[var(--radius-control)] bg-surface/60 px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap text-brand transition-colors duration-[var(--dur-rapida)] group-hover:bg-surface group-hover:text-brand">
-                      {a.accion}
-                      <ArrowRight size={12} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
-                    </span>
-                  )}
-                </div>
-              );
-              return (
-                <li key={a.id}>
-                  {a.href ? (
-                    <Link
-                      href={a.href}
-                      className="block h-full no-underline focus-visible:outline-2 focus-visible:outline-brand focus-visible:rounded-[var(--radius-card)]"
-                    >
-                      {cuerpo}
-                    </Link>
-                  ) : (
-                    cuerpo
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-3">
+          <Cifra
+            etiqueta="Vendido"
+            valor={<MoneyDisplay value={ventaHoy} currency="USD" size="lg" />}
+            variacion={variacion(Number(ventaHoy), Number(ventaSemanaPasada))}
+            pie={`${ventaSemanaPasada} el ${diaMinuscula} pasado`}
+          />
+          <Cifra
+            etiqueta="Niños atendidos"
+            valor={<Numero>{ninosHoy}</Numero>}
+            variacion={variacion(ninosHoy, ninosSemanaPasada)}
+            pie={`${ninosSemanaPasada} el ${diaMinuscula} pasado`}
+          />
+          <Cifra
+            etiqueta="En gaveta"
+            valor={
+              gavetaPrincipal ? (
+                <MoneyDisplay
+                  value={gavetaPrincipal.total}
+                  currency={gavetaPrincipal.moneda}
+                  size="lg"
+                />
+              ) : (
+                <Numero>0</Numero>
+              )
+            }
+            pie={
+              gavetaResto.length > 0
+                ? gavetaResto.map((g) => formatMoneyVE(g.total, g.moneda)).join(" · ")
+                : "solo una moneda en gaveta"
+            }
+          />
+        </div>
       </section>
 
-      {/* ────────────────────────────── 3 · el detalle ───────────────────── */}
+      {/* ─────────────────────────── 3 · el detalle ──────────────────────── */}
       <section aria-label="Detalle operativo y financiero">
         {/* Selector segmentado en Tablet y Mobile (<1280px) para evitar scroll vertical excesivo */}
         <div className="mb-4 flex items-center rounded-[var(--radius-control)] border border-line bg-surface p-1 xl:hidden">

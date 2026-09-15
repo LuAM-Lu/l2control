@@ -1,5 +1,4 @@
 import {
-  Activity,
   Baby,
   CreditCard,
   House,
@@ -52,24 +51,17 @@ export type Modulo = {
   secciones: Seccion[];
 };
 
+/**
+ * Inicio es también el tablero de lo que pasa ahora (F9-08): vivió un día como
+ * `/panel/vivo` y se fusionó aquí, porque las dos pantallas enseñaban parque,
+ * mesas, cocina y caja, y las cifras de una estaban escritas a mano.
+ */
 export const INICIO = {
   id: "inicio",
   nombre: "Inicio",
   icon: House,
   accion: "reportes.verSucursal" as Action,
   href: "/panel" as Route,
-};
-
-/**
- * El tablero de lo que pasa ahora (F9-08). Va suelto, junto a Inicio, porque
- * cruza los cuatro módulos: parque, restaurante, caja y personas.
- */
-export const EN_VIVO = {
-  id: "vivo",
-  nombre: "En vivo",
-  icon: Activity,
-  accion: "reportes.verSucursal" as Action,
-  href: "/panel/vivo" as Route,
 };
 
 export const MODULOS: readonly Modulo[] = [
@@ -79,11 +71,11 @@ export const MODULOS: readonly Modulo[] = [
     icon: Baby,
     accion: "parque.checkIn",
     resumen:
-      "El tiempo que se cobra. Entrada, sala en vivo con su cronómetro, salida con el desglose y las tarifas que lo rigen.",
+      "El tiempo que se cobra. Entrada, monitor de sala con su cronómetro, salida con el desglose y las tarifas que lo rigen.",
     secciones: [
       {
         id: "sala",
-        nombre: "Sala en vivo",
+        nombre: "Monitor de sala",
         href: "/monitor",
         proposito:
           "Las estancias abiertas, ordenadas por urgencia, con el cronómetro contra el reloj del servidor.",
@@ -210,7 +202,7 @@ export const MODULOS: readonly Modulo[] = [
         nombre: "Insumos",
         href: null,
         proposito: "Existencias por insumo, con su mínimo y su unidad de compra.",
-        tarea: "F7-01",
+        tarea: "F8-01",
         necesita: "La carta del restaurante, para saber qué insumos existen.",
       },
       {
@@ -218,7 +210,7 @@ export const MODULOS: readonly Modulo[] = [
         nombre: "Recetas",
         href: null,
         proposito: "Cuánto insumo consume cada plato. Es lo que descuenta el stock al vender.",
-        tarea: "F7-02",
+        tarea: "F8-02",
         necesita: "Insumos y carta.",
       },
       {
@@ -227,7 +219,7 @@ export const MODULOS: readonly Modulo[] = [
         href: null,
         proposito:
           "Entradas por compra y salidas por merma, ambas como asientos: nada se edita, todo se corrige con otro movimiento.",
-        tarea: "F7-03",
+        tarea: "F8-07",
       },
     ],
   },

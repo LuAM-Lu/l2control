@@ -8,6 +8,7 @@
  * El criterio de F9-08 dice «todo cambia sin recargar»; el de aquí dice qué es
  * «todo»: lo que a la administración le haría levantarse de la silla.
  */
+import type { Route } from "next";
 import type { FamilyAccountDto, ParkPolicyDto } from "@l2/contracts";
 import { nivelEspera, type UmbralEspera } from "@l2/domain-orders";
 import { sum, type Money } from "@l2/domain-money";
@@ -16,8 +17,17 @@ import type { EstadoLocal } from "../simulacion/proyeccion.ts";
 import { pendiente } from "../cuentas/cuentas.ts";
 import { toEpochMs, toParkPolicy, toParkSession } from "../park/mappers.ts";
 
-/** Una zona en apuros se dice con palabras, no solo con color (§8.2). */
-export type Alerta = Readonly<{ texto: string; tono: "warn" | "crit" }>;
+/**
+ * Una zona en apuros se dice con palabras, no solo con color (§8.2), y **lleva
+ * a donde se resuelve**: un aviso que obliga a buscar la pantalla se ignora.
+ */
+export type Alerta = Readonly<{
+  texto: string;
+  tono: "warn" | "crit";
+  href: Route;
+  /** Qué se va a hacer allí, en imperativo corto: «Ver la sala», «Cobrar». */
+  accion: string;
+}>;
 
 export type ZonaParque = Readonly<{
   enSala: number;
@@ -89,6 +99,14 @@ export const PUESTOS_DE_SERVICIO: readonly { id: string; nombre: string }[] = [
   { id: "cocina", nombre: "Cocina" },
 ];
 
+/** Las rutas son literales: así las comprueba el tipado de rutas de Next. */
+const aviso = (texto: string, tono: "warn" | "crit", href: Route, accion: string): Alerta => ({
+  texto,
+  tono,
+  href,
+  accion,
+});
+
 const minutos = (desde: string, ahora: number) => (ahora > 0 ? Math.max(0, Math.floor((ahora - Date.parse(desde)) / 60_000)) : 0);
 
 export function panelVivo({
@@ -98,6 +116,7 @@ export function panelVivo({
   politica,
   umbral,
   enServicio,
+  tasaConfirmada,
 }: {
   estado: EstadoLocal;
   cuentas: readonly FamilyAccountDto[];
@@ -106,6 +125,8 @@ export function panelVivo({
   umbral: UmbralEspera;
   /** Si el local está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
+  /** Si hay tasa del día confirmada (ADR-005). Sin ella no se cobra en bolívares. */
+  tasaConfirmada: boolean;
 }): PanelVivo {
   /* ── parque ── */
   const reglas = toParkPolicy(politica);
@@ -120,9 +141,16 @@ export function panelVivo({
     vencidas,
     alertas: [
       ...(vencidas > 0
-        ? [{ texto: `${vencidas} ${vencidas === 1 ? "estancia cumplida" : "estancias cumplidas"} sin liquidar`, tono: "crit" as const }]
+        ? [aviso(`${vencidas} ${vencidas === 1 ? "estancia cumplida" : "estancias cumplidas"} sin liquidar`, "crit", "/monitor", "Ver la sala")]
         : []),
-      ...(estado.sesiones.length >= politica.capacityLimit ? [{ texto: "Aforo lleno", tono: "warn" as const }] : []),
+      // Solo mientras no haya ninguna cumplida: si ya se pasó el tiempo, el
+      // aviso de «va a pasar» es ruido encima del que importa.
+      ...(vencidas === 0 && porVencer > 0
+        ? [aviso(`${porVencer} por vencer en los próximos minutos`, "warn", "/monitor", "Ver la sala")]
+        : []),
+      ...(estado.sesiones.length >= politica.capacityLimit
+        ? [aviso("Aforo lleno", "warn", "/entrada", "Ver la entrada")]
+        : []),
     ],
   };
 
@@ -142,9 +170,9 @@ export function panelVivo({
     impresorasCaidas: caidas,
     alertas: [
       ...(vivas.length > 0 && nivelEspera(masAntiguaMs, umbral) === "ATRASADA"
-        ? [{ texto: `Una comanda lleva ${Math.floor(masAntiguaMs / 60_000)} min`, tono: "crit" as const }]
+        ? [aviso(`Una comanda lleva ${Math.floor(masAntiguaMs / 60_000)} min`, "crit", "/cocina", "Ver comandas")]
         : []),
-      ...caidas.map((n) => ({ texto: `Impresora de ${n.toLowerCase()} caída`, tono: "crit" as const })),
+      ...caidas.map((n) => aviso(`Impresora de ${n.toLowerCase()} caída`, "crit", "/cocina", "Ver comandas")),
     ],
   };
 
@@ -160,7 +188,7 @@ export function panelVivo({
     esperaCuentaMin,
     alertas:
       esperaCuentaMin >= 5
-        ? [{ texto: `Una mesa pidió la cuenta hace ${esperaCuentaMin} min`, tono: "warn" as const }]
+        ? [aviso(`Una mesa pidió la cuenta hace ${esperaCuentaMin} min`, "warn", "/mesas", "Ver el salón")]
         : [],
   };
 
@@ -174,10 +202,13 @@ export function panelVivo({
     familiasFuera: fuera.length,
     esperaMax,
     alertas: [
+      // Sin tasa confirmada no se cobra en bolívares (ADR-005): es lo primero
+      // que hay que resolver por la mañana, y antes vivía suelto en Inicio.
+      ...(tasaConfirmada ? [] : [aviso("La tasa del día no está confirmada", "crit", "/caja", "Confirmar")]),
       ...(fuera.length > 0
-        ? [{ texto: `${fuera.length} ${fuera.length === 1 ? "cuenta" : "cuentas"} con la familia ya fuera`, tono: "crit" as const }]
+        ? [aviso(`${fuera.length} ${fuera.length === 1 ? "cuenta" : "cuentas"} con la familia ya fuera`, "crit", "/caja", "Cobrar")]
         : []),
-      ...(esperaMax >= 10 ? [{ texto: `Alguien lleva ${esperaMax} min esperando en caja`, tono: "warn" as const }] : []),
+      ...(esperaMax >= 10 ? [aviso(`Alguien lleva ${esperaMax} min esperando en caja`, "warn", "/caja", "Cobrar")] : []),
     ],
   };
 
@@ -197,7 +228,7 @@ export function panelVivo({
     puestos,
     alertas:
       enServicio && vacios.length > 0
-        ? [{ texto: `Sin nadie en ${vacios.map((p) => p.nombre.toLowerCase()).join(", ")}`, tono: "warn" as const }]
+        ? [aviso(`Sin nadie en ${vacios.map((p) => p.nombre.toLowerCase()).join(", ")}`, "warn", "/acceso", "Ver dispositivos")]
         : [],
   };
 

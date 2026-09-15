@@ -7,7 +7,7 @@ import type { Route } from "next";
 import { ChevronDown, LogOut, Menu, X } from "lucide-react";
 import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
-import { EN_VIVO, INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
+import { INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { PageTransition } from "./PageTransition.tsx";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
@@ -224,18 +224,6 @@ function NavModulos({
               icono={<INICIO.icon size={18} aria-hidden="true" />}
               nombre={INICIO.nombre}
               activo={pathname === INICIO.href}
-              riel={riel}
-            />
-          </li>
-        )}
-
-        {inicioVisible && (
-          <li>
-            <Fila
-              href={EN_VIVO.href}
-              icono={<EN_VIVO.icon size={18} aria-hidden="true" />}
-              nombre={EN_VIVO.nombre}
-              activo={pathname === EN_VIVO.href}
               riel={riel}
             />
           </li>
