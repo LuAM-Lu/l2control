@@ -201,10 +201,12 @@ export function unirCuenta(c: FamilyAccountDto): FamilyAccountDto {
  * dinero haya entrado en varios cobros.
  */
 export function marcarParteCobrada(c: FamilyAccountDto): FamilyAccountDto {
-  const partes = c.split?.parts ?? 1;
-  const pagadas = (c.split?.paid ?? 0) + 1;
-  if (pagadas >= partes) return marcarCobrada(FamilyAccountSchema.parse({ ...c, split: { parts: partes, paid: partes } }));
-  return FamilyAccountSchema.parse({ ...c, split: { parts: partes, paid: pagadas }, status: "POR_COBRAR" });
+  // Sin dividir, un cobro cierra la cuenta entera: no hay partes que llevar.
+  if (!c.split) return marcarCobrada(c);
+  const { parts } = c.split;
+  const pagadas = c.split.paid + 1;
+  if (pagadas >= parts) return marcarCobrada({ ...c, split: { parts, paid: parts } });
+  return FamilyAccountSchema.parse({ ...c, split: { parts, paid: pagadas }, status: "POR_COBRAR" });
 }
 
 /** Cuántas partes faltan por cobrar. 1 si la cuenta no está dividida. */

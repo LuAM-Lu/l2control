@@ -12,9 +12,10 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Initial, cn } from "@l2/ui";
-import { cerrarSesion, useOperador } from "../identity/operador.ts";
+import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
 import { actorDe, puedeAbrirRuta, puedeVerInicio } from "../identity/visibilidad.ts";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
+import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 
 /**
@@ -100,6 +101,13 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const operador = useOperador();
   // Desde «Turno», cuántas cuentas esperan en «Cobrar»: que no se olviden.
   const porCobrar = useCuentas().cuentas.filter((c) => c.status === "POR_COBRAR").length;
+  const sim = useSimulacion();
+
+  /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
+  function salir() {
+    if (operador) sim.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
+    cerrarSesion();
+  }
 
   // La pantalla de acceso no lleva barra: todavía no se sabe quién entra, y
   // enseñar el turno o la tasa antes de autenticar no aporta nada.
@@ -239,7 +247,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             </span>
             <Link
               href="/acceso"
-              onClick={cerrarSesion}
+              onClick={salir}
               aria-label={operador ? `Cambiar de usuario (sesión de ${operador.nombre})` : "Entrar por el acceso"}
               title="Cambiar de usuario"
               className="grid size-12 place-content-center rounded-[0.45rem] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"

@@ -808,3 +808,40 @@ división), mesas con su plano y su editor, y cocina. El plan se actualizó fila
 Lo siguiente es la **fila 12: el panel en vivo** (F9-08), que cierra DEC-22 y la interfaz completa. Después
 cambia el terreno: se acaba el frontend y empieza el backend, y ahí la CI, la base de datos con RLS y la
 auditoría dejan de ser deuda registrada para ser el trabajo.
+
+## El local ahora mismo: panel en vivo — 2026-09-14 (F9-08)
+
+Última superficie del mapa. La administración no puede estar en las cinco pantallas a la vez, así que
+`/panel/vivo` responde a una sola pregunta —**¿qué está pasando y qué pide que me levante de la silla?**—
+con cinco zonas: parque, cocina, mesas, caja y personas conectadas.
+
+**Lo urgente va primero, arriba y con palabras.** Un tablero que solo enseña números se mira el primer día
+y se ignora el segundo, así que cada zona calcula también *por qué* está en apuros: una estancia cumplida
+sin liquidar, una comanda atrasada, una impresora caída, una mesa que pidió la cuenta hace rato, una cuenta
+en caja cuya familia **ya salió del parque** —dinero que se puede ir por la puerta— o un puesto sin nadie
+en hora de servicio. Si no hay nada, lo dice con todas sus letras. Estado con color, icono y texto (§8.2);
+cifras con `tnum`; y cada zona enlaza a su pantalla, porque saber que tres familias esperan no sirve si hay
+que buscar cómo llegar.
+
+**Esta pantalla no decide nada: solo lee.** Es la única del back-office sin un botón que cambie el estado
+del local. Todo el cálculo vive en `src/features/shell/vivo.ts`, puro: recibe el estado, las cuentas y el
+instante, y devuelve las zonas resueltas.
+
+**Personas conectadas (D7).** Cada acceso y cada salida emiten su evento, y el puesto sale del rol de quien
+entró: caja, taquilla, salón o cocina. Fuera de servicio un puesto vacío no es noticia; en hora de servicio
+sí, y se marca.
+
+**Nada se recarga.** Faltaba una pieza: cada estación abre su propia pestaña y las cuentas vivían aisladas
+en `sessionStorage`, de modo que la cajera cobraba y el panel seguía enseñando la cuenta en la cola. Ahora
+las cuentas viajan por `BroadcastChannel`, como ya hacía el simulador, y lo que llega por el canal se valida
+contra el contrato igual que cualquier entrada no confiable. Entre dos aparatos distintos sigue sin haber
+nada: eso es el servidor (F5-08, ADR-008). Los proveedores de cuentas y ventas subieron al `layout` raíz,
+porque el panel vive fuera del grupo de estaciones.
+
+**Un fallo grave que solo aparece probando en el navegador.** Cobrar una cuenta **sin dividir** no hacía
+nada: `marcarParteCobrada` intentaba escribir `partes: 1`, el contrato exige dos o más, y la excepción moría
+dentro del manejador del clic sin dejar rastro en pantalla. Sin división, un cobro cierra la cuenta entera
+y no hay partes que llevar. Corregido y las dos rutas comprobadas: cobro simple y cobro por partes.
+
+Con esto **la interfaz de la Ruta A está completa** y se cierra DEC-22. Lo que sigue cambia de terreno:
+el backend.

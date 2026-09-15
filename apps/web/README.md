@@ -22,6 +22,7 @@ pnpm dev     # http://localhost:3000 · PIN de prueba 1970
 | `/mesas` | Plano, pedido, vincular pulseras | F6-01 a F6-05 | Interfaz sobre el simulador |
 | `/cocina` | Cocina (KDS): comandas, cronómetro, anulaciones | F6-07, F6-08 | Interfaz sobre el simulador |
 | `/panel` | Inicio del back-office | F9-00 | Interfaz |
+| `/panel/vivo` | El local ahora: cinco zonas en vivo y personas conectadas | F9-08, D7 | Interfaz sobre el simulador |
 | `/panel/[modulo]/[seccion]` | Secciones del back-office (`personas/usuarios`, y las pendientes) | F2-11 | Interfaz |
 
 Las estaciones (`(estacion)`) van a pantalla completa con la barra de §8.5; el back-office
@@ -37,7 +38,7 @@ src/features/<dominio>   nivel 3: pantallas y lógica que SÍ conocen el dominio
   park/                  monitor, entrada, salida
   mesas/                 plano y pedido
   identity/              acceso, sesión, visibilidad por rol, usuarios
-  shell/                 barras, navegación, inicio del panel
+  shell/                 barras, navegación, inicio del panel y el local en vivo
   cocina/                KDS: vista de cocina y cronómetro
   simulacion/            simulador de operación (demo) y proyección del local
 src/demo/                datos de ejemplo e interruptor NEXT_PUBLIC_DEMO (ver su README)

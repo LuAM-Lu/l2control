@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FamilyAccountSchema, type FamilyAccountDto } from "@l2/contracts";
 import { puedeDescartarse } from "./cuentas.ts";
 
@@ -21,6 +21,19 @@ import { puedeDescartarse } from "./cuentas.ts";
  */
 
 const CLAVE = "l2:cuentas:v1";
+
+/**
+ * Las cuentas viajan entre pestañas — F9-08.
+ *
+ * Cada estación abre su propia pestaña, y el panel en vivo mira desde otra:
+ * sin esto, la cajera cobraba y el panel seguía enseñando la cuenta en la
+ * cola. Lo que viaja es la lista entera, que con unas decenas de cuentas es
+ * barato y no admite estados a medias.
+ *
+ * TODO(F5-14/backend): lo sustituye el tiempo real del servidor (ADR-008).
+ * Lo que llega por el canal es entrada NO confiable: se valida igual.
+ */
+const CANAL = "l2-cuentas";
 
 type Valor = Readonly<{
   cuentas: readonly FamilyAccountDto[];
@@ -73,8 +86,30 @@ export function CuentasProvider({
     setCargado(true);
   }, []);
 
+  /* ── el canal entre pestañas ── */
+  const canal = useRef<BroadcastChannel | null>(null);
+  const propio = useRef(false);
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const c = new BroadcastChannel(CANAL);
+    canal.current = c;
+    c.onmessage = (m: MessageEvent<unknown>) => {
+      const r = FamilyAccountSchema.array().safeParse(m.data);
+      if (!r.success) return;
+      propio.current = true;
+      setCuentas(r.data);
+    };
+    return () => {
+      c.close();
+      canal.current = null;
+    };
+  }, []);
+
   useEffect(() => {
     if (!cargado) return;
+    // Lo que llegó del canal no se reenvía: sería un eco sin fin.
+    if (propio.current) propio.current = false;
+    else canal.current?.postMessage(cuentas);
     try {
       window.sessionStorage.setItem(CLAVE, JSON.stringify(cuentas));
     } catch {

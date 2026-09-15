@@ -14,7 +14,7 @@
 | D12 | ¿El back-office puede desplazar? | Sí; lo urgente arriba. Las estaciones siguen sin desplazar | UX-MEJORAS §8 |
 | D13 | Número de orden continuo o diario | Hecho continuo (`#1049`); diario da números cortos pero obliga a decir la fecha | UX-MEJORAS §8 |
 | ~~D2, D3~~ | ~~Cuenta de mesa y cobrar con niños dentro~~ | **Cerradas el 2026-09-14**: vincular mueve el parque a la cuenta de la mesa; la mesa se cobra aunque los niños sigan jugando | [FLUJOS](FLUJOS.md) §7 |
-| D7, D9 | Personas en vivo, niño que sale sin su representante | Propuestas escritas | FLUJOS §7 |
+| ~~D7~~, D9 | ~~Personas en vivo~~ (hecha: puestos y quién los ocupa en `/panel/vivo`), niño que sale sin su representante | Falta confirmar D9 | FLUJOS §7 |
 | ~~D8~~ | ~~Propina y servicio del 10 %~~ | **Decidido el 2026-09-14**: va a **Configuración** del local (F6-13, con DEC-6), no al flujo de cobro. Hoy solo existe la propina que sale del vuelto | FLUJOS §7 |
 | F0-09 | Firma formal del alcance | Las 24 decisiones están cerradas; falta firmarlo | PLAN §12 |
 
@@ -48,9 +48,9 @@
 3. ~~**Caja de mesas** (paso 4)~~ — hecha el 2026-09-14: cuenta con platos y parque (D2), mesa por
    limpiar al cobrar (D3) y **cobro dividido en partes iguales** (F6-12). Queda dividir **por ítems**
    («cada quien lo suyo»), que se hará si el cliente lo pide.
-4. **Panel en vivo del local** (paso 5, F9-08) — **es lo siguiente**: qué pasa ahora mismo en parque,
-   mesas, cocina y caja, sin recargar, alimentado por los mismos eventos. Con él se cierra DEC-22 y la
-   interfaz entera.
+4. ~~**Panel en vivo del local**~~ (paso 5, F9-08) — hecho el 2026-09-14 en `/panel/vivo`: parque,
+   cocina, mesas, caja y personas conectadas, sin recargar y con lo urgente primero. **Con él se cierra
+   DEC-22 y la interfaz entera.** Queda el tiempo real del servidor.
 5. **Cortesía con motivo** (F6-14): hoy, anular un cobro devuelve la cuenta a «por cobrar»; si no
    hay que cobrar lo consumido, hace falta la cortesía.
 6. Detalles que se harán si el cliente los pide: dividir la cuenta **por ítems** (F6-12), modificadores
@@ -58,9 +58,10 @@
    versiones, umbral de espera de cocina configurable, y los escenarios que faltan del simulador
    (FLUJOS §5).
 
-**Después del panel, el orden cambia de terreno:** se acaba la interfaz y empieza el backend (§5 de este
-documento). Ahí es donde `pnpm verify` en CI, la base de datos y la auditoría dejan de ser deuda y pasan a
-ser el trabajo.
+**El terreno ya cambió.** Con el panel en vivo se acaba la interfaz de la Ruta A y empieza el backend
+(§5 de este documento): `pnpm verify` en CI, la base de datos y la auditoría dejan de ser deuda y pasan a
+ser el trabajo. Lo que queda arriba (cortesía, dividir por ítems, estructura editable) se hace cuando el
+cliente lo pida, no antes que el servidor.
 
 ## 5. Backend e infraestructura (Ruta A)
 
@@ -94,9 +95,9 @@ ser el trabajo.
 
 Ninguna es un fallo del producto: son consecuencias de no tener servidor todavía.
 
-- **Cada pestaña es un mundo.** Cuentas, ventas y sesión viven en `sessionStorage`; el simulador sí
-  sincroniza pestañas, pero las cuentas no. La llegada «en vivo» a la cola de caja se verá con el
-  servidor.
+- **Cada pestaña es un mundo, con dos excepciones.** Ventas y sesión viven en `sessionStorage`; el
+  simulador y **las cuentas** sí sincronizan pestañas por `BroadcastChannel`, que es lo que hace creíble
+  el panel en vivo. Entre dos aparatos distintos no hay nada todavía: eso llega con el servidor.
 - **Las ventas de ejemplo son del 11/09/2026** y se listan junto a las del día.
 - **El diálogo de anular necesita desplazar** para llegar al PIN a 1366×768.
 - **La búsqueda por mesa** en la cola de caja y el **teléfono del representante** en el recibo

@@ -18,6 +18,24 @@ import type { Role } from "@l2/domain-identity";
 
 export type OperadorEnSesion = Readonly<{ id: string; nombre: string; rol: string; role: Role }>;
 
+/**
+ * En qué puesto se sienta cada rol — F9-08, D7.
+ *
+ * El panel en vivo enseña quién está en cada puesto y marca el que se queda
+ * sin nadie en hora de servicio. Mientras el aparato no esté registrado
+ * (F2-02), el puesto se deduce del rol: es lo que hay en un local con cuatro
+ * equipos, uno por sitio.
+ * TODO(F2-02/backend): el puesto sale del registro del dispositivo, no del rol.
+ */
+export const PUESTO_DE_ROL: Readonly<Record<Role, string>> = {
+  CAJERO: "caja",
+  MONITOR_PARQUE: "taquilla",
+  MESERO: "salon",
+  COCINA: "cocina",
+  ADMIN: "administracion",
+  SUPERVISOR: "administracion",
+};
+
 const CLAVE = "l2-operador";
 const EVENTO = "l2-operador-cambio";
 

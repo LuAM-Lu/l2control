@@ -7,10 +7,11 @@ import type { Route } from "next";
 import { ChevronDown, LogOut, Menu, X } from "lucide-react";
 import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
-import { INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
+import { EN_VIVO, INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { PageTransition } from "./PageTransition.tsx";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
-import { cerrarSesion, useOperador } from "../identity/operador.ts";
+import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
 import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
 import {
   actorDe,
@@ -46,6 +47,13 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   // El menú se recorta con el rol de quien entró (V2). Sin sesión, vacío: la
   // guardia del contenido pide identificarse.
   const operador = useOperador();
+  const sim = useSimulacion();
+
+  /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
+  function salir() {
+    if (operador) sim.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
+    cerrarSesion();
+  }
   const actor = operador ? actorDe(operador) : null;
   const visibles = actor ? modulosVisibles(actor) : [];
   const inicioVisible = actor ? puedeVerInicio(actor) : false;
@@ -85,7 +93,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
         <div className="hidden px-3 pb-2 xl:block">
           <ChipSimulacion />
         </div>
-        <PieUsuario usuario={usuario} rol={rol} compacto />
+        <PieUsuario usuario={usuario} rol={rol} onSalir={salir} compacto />
       </aside>
 
       {/* ══════════ columna de contenido ══════════ */}
@@ -146,7 +154,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
               pathname={pathname}
               modo="cajon"
             />
-            <PieUsuario usuario={usuario} rol={rol} />
+            <PieUsuario usuario={usuario} rol={rol} onSalir={salir} />
           </aside>
         </div>
       )}
@@ -216,6 +224,18 @@ function NavModulos({
               icono={<INICIO.icon size={18} aria-hidden="true" />}
               nombre={INICIO.nombre}
               activo={pathname === INICIO.href}
+              riel={riel}
+            />
+          </li>
+        )}
+
+        {inicioVisible && (
+          <li>
+            <Fila
+              href={EN_VIVO.href}
+              icono={<EN_VIVO.icon size={18} aria-hidden="true" />}
+              nombre={EN_VIVO.nombre}
+              activo={pathname === EN_VIVO.href}
               riel={riel}
             />
           </li>
@@ -361,10 +381,13 @@ function Fila({
 function PieUsuario({
   usuario,
   rol,
+  onSalir,
   compacto = false,
 }: {
   usuario: string;
   rol: string;
+  /** Salir cierra la sesión y libera el puesto (F9-08, D7). */
+  onSalir: () => void;
   compacto?: boolean;
 }) {
   return (
@@ -381,7 +404,7 @@ function PieUsuario({
       </div>
       <Link
         href="/acceso"
-        onClick={cerrarSesion}
+        onClick={onSalir}
         aria-label="Salir"
         title="Salir"
         className={cn(

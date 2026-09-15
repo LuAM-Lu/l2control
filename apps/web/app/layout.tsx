@@ -4,7 +4,12 @@ import "./globals.css";
 import { PanelSimulacion } from "../src/features/simulacion/PanelSimulacion";
 import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvider";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
+import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
+import { VentasProvider } from "../src/features/cash/VentasProvider";
+import { DEMO_ACTIVA } from "../src/demo/modo";
 import { PLANO_DEMO } from "../src/demo/restaurante";
+import { DEMO_CUENTAS } from "../src/demo/cuentas";
+import { DEMO_VENTAS } from "../src/demo/ventas";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
    interfaz y datos. Quicksand NUNCA para cifras: sus numerales no sirven
@@ -43,9 +48,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SimulacionProvider>
           {/* V4: el plano publicado vive por encima de las dos cáscaras: lo
               edita el panel y lo lee el salón. */}
+          {/* El estado del local vive por encima de las dos cáscaras: lo
+              escriben las estaciones y lo lee el panel en vivo (F9-08).
+              Con la demo apagada, se arranca sin cuentas ni ventas. */}
           <PlanoProvider inicial={PLANO_DEMO}>
-            {children}
-            <PanelSimulacion />
+            <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
+              <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
+                {children}
+                <PanelSimulacion />
+              </VentasProvider>
+            </CuentasProvider>
           </PlanoProvider>
         </SimulacionProvider>
       </body>

@@ -1,10 +1,5 @@
 import { DEFAULT_STATION_IDLE } from "@l2/domain-identity";
 import { Avisos } from "@l2/ui";
-import { CuentasProvider } from "../../src/features/cuentas/CuentasProvider";
-import { VentasProvider } from "../../src/features/cash/VentasProvider";
-import { DEMO_ACTIVA } from "../../src/demo/modo";
-import { DEMO_CUENTAS } from "../../src/demo/cuentas";
-import { DEMO_VENTAS } from "../../src/demo/ventas";
 import { GuardiaEstacion } from "../../src/features/shell/GuardiaEstacion";
 import { IdleGuard } from "../../src/features/shell/IdleGuard";
 import { PageTransition } from "../../src/features/shell/PageTransition";
@@ -33,9 +28,6 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
     // lo esperado.
     // Las cuentas de las familias (DEC-21) viven por encima de las pantallas:
     // entrada, salida y caja trabajan sobre las mismas.
-    // Con la demo apagada, las estaciones arrancan sin cuentas ni ventas.
-    <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
-    <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
     <div className="flex min-h-dvh flex-col bg-base lg:h-dvh lg:overflow-hidden">
       <StationBar
         contexto={{
@@ -58,7 +50,6 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
           sucursal; la forma ya es la definitiva. */}
       <IdleGuard politica={DEFAULT_STATION_IDLE} />
     </div>
-    </VentasProvider>
-    </CuentasProvider>
+
   );
 }

@@ -1,4 +1,5 @@
 import {
+  Activity,
   Baby,
   CreditCard,
   House,
@@ -57,6 +58,18 @@ export const INICIO = {
   icon: House,
   accion: "reportes.verSucursal" as Action,
   href: "/panel" as Route,
+};
+
+/**
+ * El tablero de lo que pasa ahora (F9-08). Va suelto, junto a Inicio, porque
+ * cruza los cuatro módulos: parque, restaurante, caja y personas.
+ */
+export const EN_VIVO = {
+  id: "vivo",
+  nombre: "En vivo",
+  icon: Activity,
+  accion: "reportes.verSucursal" as Action,
+  href: "/panel/vivo" as Route,
 };
 
 export const MODULOS: readonly Modulo[] = [

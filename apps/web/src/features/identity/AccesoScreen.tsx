@@ -19,7 +19,8 @@ import {
   type Device,
   type Role,
 } from "@l2/domain-identity";
-import { iniciarSesion } from "./operador.ts";
+import { PUESTO_DE_ROL, iniciarSesion } from "./operador.ts";
+import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { Badge, Initial, NumericKeypad, cn } from "@l2/ui";
 
@@ -77,6 +78,7 @@ export function AccesoScreen({
   device: Device | null;
   operadores: readonly Operador[];
 }) {
+  const sim = useSimulacion();
   const [operador, setOperador] = useState<Operador | null>(null);
   const [pin, setPin] = useState("");
   const [fallos, setFallos] = useState(0);
@@ -120,6 +122,14 @@ export function AccesoScreen({
       setPin("");
       setEntrando(true);
       iniciarSesion({ id: operador!.id, nombre: operador!.nombre, rol: operador!.rol, role: operador!.role });
+      // El panel en vivo enseña quién está en cada puesto (F9-08, D7). Mismo
+      // catálogo de eventos que usará el servidor con las sesiones reales.
+      sim.emitir({
+        type: "sesion.iniciada",
+        userName: operador!.nombre,
+        role: operador!.rol,
+        device: PUESTO_DE_ROL[operador!.role],
+      });
       router.push(operador!.destino);
       return;
     }

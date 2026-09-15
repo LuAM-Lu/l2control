@@ -1560,11 +1560,11 @@ La neutralización no es opcional, es la condición para que este orden funcione
 | 9 | Mesas y mesero | F6-01…F6-05 (interfaz) | **Interfaz hecha** (2026-09-12) |
 | 10 | Cocina (KDS) | F6-06…F6-09 (interfaz) | **Interfaz hecha** (2026-09-14) |
 | 11 | Caja con cuentas de mesa, adicionales y división | F6-05, F6-12, F8-02 (interfaz) | **Interfaz hecha** (2026-09-14). La propina pasa a Configuración (D8) |
-| 12 | Panel en vivo del local | F9-08 | **Siguiente** |
+| 12 | Panel en vivo del local | F9-08 | **Interfaz hecha** (2026-09-14) |
 
-**Estado al 2026-09-14.** Las doce superficies de las filas 1 a 11 tienen su interfaz: parque, caja con
-ventas y anulación, mesas con su plano y su editor, cocina y caja de mesas. Queda la fila 12, el panel en
-vivo, y después el backend, que es lo que convierte todo esto en producto.
+**Estado al 2026-09-14.** **Las doce superficies tienen su interfaz**: parque, caja con ventas, anulación
+y cuentas de mesa, mesas con su plano y su editor, cocina y el panel en vivo. Con esto se cierra el
+frontend de DEC-22 y lo que sigue es el backend, que es lo que convierte todo esto en producto.
 
 **Estado al 2026-09-11.** Las seis superficies de la Ruta A tienen su interfaz, y con ellas las
 pantallas de F2 que este orden obliga a no saltarse: permisos por persona (F2-11) y sesión en
@@ -1922,8 +1922,9 @@ cuando el trámite esté listo.*
   → *Criterio:* se abre sin errores en la herramienta del contador; los números coinciden.
 - [ ] **F9-07 · Todo gráfico con vista de tabla equivalente** (§8.6).
   → *Criterio:* ninguna información depende solo del color; verificado en simulación de daltonismo.
-- [ ] **F9-08 · Panel en vivo del local** (DEC-22, FLUJOS flujo E): parque, cocina, mesas, caja y
-  personas conectadas.
+- [~] **F9-08 · Panel en vivo del local** (DEC-22, FLUJOS flujo E): parque, cocina, mesas, caja y
+  personas conectadas. *Hecho en `/panel/vivo` el 2026-09-14: cinco zonas que se mueven solas con los
+  eventos, lo urgente primero y un puesto sin nadie marcado (D7). Falta el tiempo real del servidor.*
   → *Criterio:* todo cambia sin recargar a partir de los eventos de F1-20; un puesto sin nadie en hora de
   servicio se señala.
 
