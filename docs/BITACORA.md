@@ -926,3 +926,57 @@ de administración y supervisión.
 
 Nada de esto es seguridad todavía: las tres guardias son del navegador. La puerta de verdad es F2-05,
 en el servidor, con esta misma matriz.
+
+## Una sola puerta al back-office, y editable — 2026-09-14 (N-05, F2-13)
+
+La auditoría dejó una pregunta que no se podía responder leyendo el código, porque el código decía dos
+cosas: `/panel` pedía ver reportes y `/panel/caja` solo la acción del módulo, así que la cajera se
+quedaba dentro de la cáscara del back-office, sin fila de Inicio y sin poder subir un nivel —las migas
+la llevaban a una pantalla que le negaba el paso—. La pregunta era del cliente: ¿el back-office es
+solo de administración y supervisión?
+
+La respuesta fue «lo más óptimo, y además editable en Configuración», y eso cambió el arreglo de sitio.
+Lo fácil era elegir una de las dos reglas y borrar la otra. Lo correcto resultó ser otra cosa: **una
+sola puerta** —`reportes.verSucursal` para todo `/panel*`— y que **quién la cruza deje de estar
+clavado en el código**.
+
+**La matriz de §7.3 es la base, no un dogma.** Lo de fábrica es lo sensato para un parque con
+restaurante; un local concreto decide que su caja cierra los domingos y necesita el resumen del día, y
+eso no debería exigir un despliegue ni repetirse persona por persona. Así que la sucursal ajusta la
+matriz desde Panel → Configuración → **Roles y accesos**, con motivo, autor y hora, y lo retira cuando
+deja de hacer falta.
+
+Lo que costó decidir bien fue **dónde poner esto sin montar un segundo sistema de permisos**. La
+tentación era un ajuste de configuración aparte, con su propia lógica, leído por la guardia del panel:
+dos fuentes de verdad sobre lo mismo, que es exactamente el hallazgo N-02 repetido. La solución fue
+meterlo en el mecanismo que ya existía: `explainPermission` gana un escalón entre la matriz y las
+excepciones por persona, y el orden queda **revocación de la persona → concesión de la persona →
+ajuste del rol → matriz**. Lo de la persona gana siempre, porque es lo que se decidió mirándola a
+ella (DEC-15).
+
+**El suelo que ninguna sucursal puede tocar**, y es lo que hace que esto no sea un agujero:
+
+- **La fila de administración.** Un local que se quita a sí mismo la administración se queda sin nadie
+  que pueda devolvérsela, y eso no se arregla desde dentro del producto.
+- **`usuarios.gestionar` y `catalogo.modificar`**, las dos llaves de la casa. La primera permite
+  concederse todo lo demás; la segunda abre *esta misma pantalla*. Si se pudieran regalar por rol,
+  cualquier ajuste sería el último que alguien necesita hacer.
+
+Un ajuste guardado sobre una celda intocable —por un dato viejo o manipulado— **se ignora**, no se
+obedece. Se comprueba en el dominio y otra vez al leerlo del almacén.
+
+Y una distinción que el arreglo de N-01 dejó clara: **dónde se trabaja y qué se alcanza no son lo
+mismo**. Al abrirle el panel a la caja, la cajera pasó a aterrizar en el panel al identificarse, que
+no es lo que nadie quiere a las nueve de la mañana. El puesto de trabajo es un dato del rol; lo que
+alcanza sale de la matriz y sus ajustes.
+
+Comprobado de punta a punta en el navegador: antes, la caja no entra por ninguna de las tres puertas;
+después de abrirla, la cajera entra al panel, **sigue aterrizando en la caja**, y sigue sin poder
+abrir «Roles y accesos».
+
+De la misma tanda salieron los otros dos graves: el destino de cada rol se decide ahora en un solo
+sitio —la pantalla de acceso dejó de traerlo escrito a mano— y «Dispositivos» dejó de apuntar a la
+pantalla de bloqueo.
+
+Nada de esto es seguridad todavía: son tres guardias del navegador. La puerta de verdad es F2-05, en
+el servidor, con esta misma matriz y estos mismos ajustes.

@@ -304,9 +304,11 @@ export {
 /* ------------------------------------------------------------ permisos */
 
 export {
+  ACCIONES_INTOCABLES,
   MATRIZ,
   SURFACE_ACTION,
   can,
+  esAjustable,
   isAllowedOutright,
   isReachable,
   canAuthorize,

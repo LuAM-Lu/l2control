@@ -1699,8 +1699,21 @@ Es la fase que v1 subestimaba.*
 - [~] **F2-12 · Sesión en dispositivo compartido** (DEC-17, §9.10.5).
   → *Criterio:* cambio de usuario a un toque; bloqueo por inactividad configurable; el corte Z
   devuelve el aparato a la pantalla de acceso.
-- [ ] **F2-10 · Pantalla de gestión de usuarios, roles y PIN.**
+- [~] **F2-10 · Pantalla de gestión de usuarios, roles y PIN.**
   → *Criterio:* dar de baja a un empleado revoca todo su acceso en menos de 5 segundos.
+  *Interfaz hecha el 2026-09-14: alta, baja, reingreso, cambio de rol y reposición de PIN, cada uno
+  con motivo obligatorio y su asiento. Las cinco puertas viven en el dominio (`revisarCambio`). El
+  «en menos de 5 segundos» necesita el servidor.*
+- [~] **F2-13 · Ajustes de la sucursal sobre la matriz de roles** (N-05 de la auditoría de
+  navegación). **Alcance añadido el 2026-09-14 a petición del cliente**: la matriz de §7.3 es la
+  base, no un dogma, y un local decide qué hace distinto —empezando por quién entra al back-office—
+  sin que haga falta un despliegue ni conceder lo mismo persona por persona.
+  → *Criterio:* el ajuste se lee **encima** de la matriz sin reescribirla, queda con motivo, autor y
+  hora, y se retira; lo decidido para una persona (F2-11) gana sobre lo decidido para su rol; y hay
+  un suelo que ninguna sucursal puede tocar —la fila de administración, `usuarios.gestionar` y
+  `catalogo.modificar`— porque regalarlas haría que ese fuera el último ajuste necesario.
+  *Interfaz hecha en Panel → Configuración → Roles y accesos; falta que lo imponga el servidor
+  (F2-05).*
 
 ### FASE 3 · NÚCLEO MONETARIO Y FISCAL
 *La fase de mayor riesgo. Se construye una vez, se prueba exhaustivamente, y todo lo demás la usa.

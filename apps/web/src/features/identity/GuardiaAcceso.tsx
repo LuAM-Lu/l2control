@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, KeyRound, LogOut, ShieldX } from "lucide-react";
 import { Button } from "@l2/ui";
 import { cerrarSesion, useOperador, type OperadorEnSesion } from "./operador.ts";
+import { useAjustes } from "./accesos.ts";
 import { actorDe, puestoDe } from "./visibilidad.ts";
 
 /**
@@ -85,7 +86,8 @@ function SinSesion({ destino }: { destino: string }) {
 
 function SinAcceso({ operador, destino }: { operador: OperadorEnSesion; destino: string }) {
   const router = useRouter();
-  const puesto = puestoDe(actorDe(operador));
+  const ajustes = useAjustes();
+  const puesto = puestoDe(actorDe(operador, ajustes));
   return (
     <Marco icono={<ShieldX size={24} aria-hidden="true" className="text-state-warn" />}>
       <h1 className="font-display text-2xl font-bold text-ink">

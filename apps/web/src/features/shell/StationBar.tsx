@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Initial, cn } from "@l2/ui";
 import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
+import { useAjustes } from "../identity/accesos.ts";
 import { actorDe, puedeAbrirRuta, puedeVerInicio } from "../identity/visibilidad.ts";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
@@ -109,13 +110,17 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
     cerrarSesion();
   }
 
+  // Los ganchos, antes de cualquier salida: en el acceso no hay barra, pero el
+  // orden de los ganchos no puede depender de la ruta.
+  const ajustes = useAjustes();
+
   // La pantalla de acceso no lleva barra: todavía no se sabe quién entra, y
   // enseñar el turno o la tasa antes de autenticar no aporta nada.
   if (pathname === "/acceso") return null;
 
   // V2: solo las pestañas que el rol puede abrir, y «Panel» solo para quien
   // ve informes. Sin sesión no hay a dónde ir más que al acceso.
-  const actor = operador ? actorDe(operador) : null;
+  const actor = operador ? actorDe(operador, ajustes) : null;
   const encontrado = PUESTOS.find((p) => p.superficies.some((s) => s.href === pathname));
   const pestanas = actor && encontrado ? encontrado.superficies.filter((s) => puedeAbrirRuta(actor, s.href)) : [];
   const puesto = encontrado && pestanas.length > 0 ? { ...encontrado, superficies: pestanas } : null;

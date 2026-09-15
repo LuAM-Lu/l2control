@@ -7,7 +7,7 @@ import { DEFAULT_LOCKOUT_POLICY, can, canAuthorize, computeLockout, describeLock
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import type { OperadorEnSesion } from "../identity/operador.ts";
 import { toActor } from "../identity/permisos.ts";
-import { actorDe } from "../identity/visibilidad.ts";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero } from "./anulacion.ts";
 
 /**
@@ -79,7 +79,7 @@ export function AnularCobroDialog({
     setErrores({});
   }
 
-  const solicitante: Actor | null = operador ? actorDe(operador) : null;
+  const solicitante: Actor | null = useActorEnSesion();
   const permiso = solicitante ? can(solicitante, "cobro.anular") : "DENEGADO";
 
   /** Quién puede dar la autorización: el propio administrador, o supervisores y administradores activos. */

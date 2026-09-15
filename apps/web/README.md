@@ -22,6 +22,7 @@ pnpm dev     # http://localhost:3000 · PIN de prueba 1970
 | `/mesas` | Plano, pedido, vincular pulseras | F6-01 a F6-05 | Interfaz sobre el simulador |
 | `/cocina` | Cocina (KDS): comandas, cronómetro, anulaciones | F6-07, F6-08 | Interfaz sobre el simulador |
 | `/panel` | Inicio: el local ahora (cinco zonas en vivo, D7) y el día | F9-00, F9-08 | Interfaz sobre el simulador |
+| `/panel/configuracion/accesos` | Roles y accesos: la matriz del local, editable | F2-13, F2-05 | Interfaz; vive en la pestaña |
 | `/panel/[modulo]/[seccion]` | Secciones del back-office (`personas/usuarios`, y las pendientes) | F2-11 | Interfaz |
 
 Las estaciones (`(estacion)`) van a pantalla completa con la barra de §8.5; el back-office

@@ -66,13 +66,20 @@ cliente lo pida, no antes que el servidor.
 ## 4b. Navegación y permisos (auditoría del 2026-09-14)
 
 Diez hallazgos con su evidencia y su propuesta en **[AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md)**.
-Los tres graves, en una línea:
+**Resueltos el 2026-09-14** los tres graves y, de paso, N-09: «Dispositivos» ya no lleva a la pantalla
+de bloqueo; el puesto de cada rol se decide en un solo sitio y la monitora vuelve a su sala; y el
+back-office tiene **una sola puerta**, `reportes.verSucursal`, que además **se edita** en Panel →
+Configuración → Roles y accesos (F2-13).
 
-- **N-03** «Dispositivos» del panel apunta a `/acceso`: parece que te cierran la sesión.
-- **N-01 + N-02** el puesto de un rol se calcula de dos maneras distintas y discrepan: a la monitora
-  de parque se la manda a la caja.
-- **N-05** la caja y la taquilla no pueden abrir `/panel` pero sí `/panel/caja`. **Decisión del
-  cliente**: ¿el back-office es solo de administración y supervisión?
+Quedan cinco:
+
+- **N-04** ocho secciones del panel abren estaciones a pantalla completa sin avisar, y solo quien ve
+  Inicio tiene botón para volver.
+- **N-06** el conmutador de la barra encierra por grupo: la cajera alcanza `/mesas` y no hay pestaña.
+- **N-07 + N-08** el acceso y el directorio son dos listas con identificadores distintos, así que una
+  baja no quita a nadie del acceso.
+- **N-10** *(decisión del cliente)* «Ventas del turno» comparte superficie con la caja, así que la
+  taquilla ve también las ventas del otro punto de cobro.
 
 ## 5. Backend e infraestructura (Ruta A)
 

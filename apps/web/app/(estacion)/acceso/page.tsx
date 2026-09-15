@@ -24,8 +24,17 @@ const DISPOSITIVOS: Record<string, Device | null> = {
 };
 
 /**
- * Cada rol entra directamente a su puesto (§7.3). Identificarse y tener que
- * buscar después dónde se trabaja son dos pasos donde debería haber uno.
+ * Las personas que pueden entrar en este equipo.
+ *
+ * Cada rol entra directamente a su puesto (§7.3) —identificarse y tener que
+ * buscar después dónde se trabaja son dos pasos donde debería haber uno—, pero
+ * **cuál es ese puesto ya no se declara aquí**: lo resuelve `puestoDe()`, la
+ * misma función que usan las guardias. Eran dos verdades sobre lo mismo y
+ * discrepaban (N-02 de la auditoría).
+ *
+ * TODO(F2-11/backend): esta lista sale del directorio de personas, filtrando
+ * las que están de baja. Hoy son dos listas distintas, con identificadores
+ * distintos, y Carla no aparece aquí por casualidad y no por regla (N-07).
  */
 const OPERADORES: Operador[] = [
   {
@@ -33,48 +42,36 @@ const OPERADORES: Operador[] = [
     nombre: "Abigail Karam",
     rol: "Administradora",
     role: "ADMIN",
-    destino: "/panel",
-    destinoNombre: "el panel",
   },
   {
     id: "u1",
     nombre: "Marisol Prieto",
     rol: "Cajera",
     role: "CAJERO",
-    destino: "/caja",
-    destinoNombre: "la caja",
   },
   {
     id: "u2",
     nombre: "Luis Guerrero",
     rol: "Supervisor",
     role: "SUPERVISOR",
-    destino: "/panel",
-    destinoNombre: "el panel",
   },
   {
     id: "u3",
     nombre: "Ana Rojas",
     rol: "Monitora de parque",
     role: "MONITOR_PARQUE",
-    destino: "/monitor",
-    destinoNombre: "la sala",
   },
   {
     id: "u5",
     nombre: "Jesús Mendoza",
     rol: "Mesero",
     role: "MESERO",
-    destino: "/mesas",
-    destinoNombre: "las mesas",
   },
   {
     id: "u4",
     nombre: "Diego Salas",
     rol: "Cocina",
     role: "COCINA",
-    destino: "/cocina",
-    destinoNombre: "la cocina",
   },
 ];
 

@@ -105,6 +105,70 @@ export const UserChangeSchema = z.discriminatedUnion("kind", [
 ]);
 export type UserChangeDto = z.infer<typeof UserChangeSchema>;
 
+/**
+ * Un ajuste de la sucursal sobre un ROL entero — N-05 de la auditoría.
+ *
+ * La matriz de §7.3 es la base sensata, no un dogma. Un local decide que su
+ * caja también ve los reportes, o que la taquilla no reimprime: eso no debería
+ * exigir un despliegue ni repetirse persona por persona.
+ *
+ * No reescribe la matriz: se lee **encima** de ella, con su motivo y su autor,
+ * y se puede retirar. Y no llega a todas las celdas: el dominio decide cuáles
+ * son intocables (`esAjustable`), porque hay dos permisos que, regalados, harían
+ * que este mismo ajuste fuera el último que alguien necesita hacer.
+ */
+export const RoleAdjustmentSchema = z.strictObject({
+  role: RoleSchema,
+  action: ActionNameSchema,
+  /** El nivel que pasa a dar el rol. `DENEGADO` le quita lo que la matriz daba. */
+  permission: PermissionSchema,
+  ...rastro,
+});
+export type RoleAdjustmentDto = z.infer<typeof RoleAdjustmentSchema>;
+
+/** Los accesos de una sucursal: su matriz de §7.3 más lo que haya ajustado. */
+export const BranchAccessSchema = z
+  .object({
+    branchId: IdSchema,
+    adjustments: z.array(RoleAdjustmentSchema).default([]),
+  })
+  .refine(
+    (a) =>
+      new Set(a.adjustments.map((x) => `${x.role}|${x.action}`)).size === a.adjustments.length,
+    {
+      // Dos ajustes sobre la misma celda no dicen cuál quiso decir quien los puso.
+      message: "Un rol no puede tener dos ajustes sobre la misma acción",
+      path: ["adjustments"],
+    },
+  );
+export type BranchAccessDto = z.infer<typeof BranchAccessSchema>;
+
+/**
+ * Pedir un ajuste de rol, o retirarlo.
+ *
+ * Sin autor ni hora, como los demás comandos: los pone el servidor. Retirar
+ * tampoco borra nada —el asiento de auditoría es del servidor—, solo deja de
+ * leerse encima de la matriz.
+ */
+export const RoleAdjustmentCommandSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("AJUSTAR"),
+    branchId: IdSchema,
+    role: RoleSchema,
+    action: ActionNameSchema,
+    permission: PermissionSchema,
+    reason: ReasonSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("RETIRAR"),
+    branchId: IdSchema,
+    role: RoleSchema,
+    action: ActionNameSchema,
+    reason: ReasonSchema,
+  }),
+]);
+export type RoleAdjustmentCommand = z.infer<typeof RoleAdjustmentCommandSchema>;
+
 export const UserSummarySchema = z
   .object({
     id: IdSchema,

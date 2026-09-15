@@ -142,15 +142,36 @@ export type Actor = Readonly<{
   grants?: Readonly<Partial<Record<Action, Permission>>>;
   /** Revocaciones sobre el rol: le quitan a una persona lo que su puesto da. */
   revokes?: readonly Action[];
+  /**
+   * Ajustes que la sucursal le ha hecho **al rol entero**, no a esta persona.
+   *
+   * La matriz de §7.3 es la base sensata, no un dogma: un local decide que su
+   * caja también ve los reportes, y eso no debería exigir un despliegue ni
+   * conceder lo mismo persona por persona. Se edita en Configuración, queda con
+   * motivo y autor, y **no toca la matriz**: se lee encima de ella.
+   *
+   * Orden de precedencia, de más específico a más general:
+   *   revocación de la persona → concesión de la persona → ajuste del rol → matriz.
+   * Lo de la persona gana siempre: es lo que se decidió mirándola a ella.
+   */
+  roleAdjustments?: Readonly<Partial<Record<Action, Permission>>>;
 }>;
 
 /** De dónde sale el permiso efectivo de una persona para una acción. */
-export type PermissionSource = "ROL" | "CONCESION" | "REVOCACION";
+export type PermissionSource = "ROL" | "AJUSTE_DE_ROL" | "CONCESION" | "REVOCACION";
 
 export type PermissionExplanation = Readonly<{
-  /** Lo que da el rol, según la matriz. */
+  /**
+   * Lo que da su rol HOY: la matriz con el ajuste de la sucursal aplicado.
+   *
+   * Es lo que la pantalla enseña tachado al lado de una excepción, y por eso
+   * incluye el ajuste: comparar contra una matriz que el local ya cambió sería
+   * comparar contra algo que nadie ve.
+   */
   base: Permission;
-  /** Lo que la persona tiene de verdad, con sus excepciones aplicadas. */
+  /** La celda original de la matriz, sin ajustar. */
+  matriz: Permission;
+  /** Lo que la persona tiene de verdad, con todo aplicado. */
   effective: Permission;
   source: PermissionSource;
 }>;
@@ -192,22 +213,55 @@ export function can(
 export function explainPermission(actor: Actor, action: Action): PermissionExplanation {
   const fila = MATRIZ[action];
   // Una acción que la matriz no conoce no existe, y una concesión no la crea.
-  if (!fila) return Object.freeze({ base: D, effective: D, source: "ROL" });
+  if (!fila) return Object.freeze({ base: D, matriz: D, effective: D, source: "ROL" });
 
-  const base = fila[actor.role] ?? D;
+  const matriz = fila[actor.role] ?? D;
+  // El ajuste de la sucursal solo se aplica donde se permite ajustar: un ajuste
+  // guardado sobre una celda intocable —por un dato viejo o manipulado— se
+  // ignora en vez de obedecerse (fail-closed).
+  const ajustado = esAjustable(actor.role, action) ? actor.roleAdjustments?.[action] : undefined;
+  const base = ajustado ?? matriz;
 
   // Revocación antes que concesión: si la misma acción aparece en las dos,
   // gana la que niega. Ante la duda, fail-closed (regla 4 del repositorio).
   if (actor.revokes?.includes(action)) {
-    return Object.freeze({ base, effective: D, source: "REVOCACION" });
+    return Object.freeze({ base, matriz, effective: D, source: "REVOCACION" });
   }
 
   const concedido = actor.grants?.[action];
   if (concedido !== undefined) {
-    return Object.freeze({ base, effective: concedido, source: "CONCESION" });
+    return Object.freeze({ base, matriz, effective: concedido, source: "CONCESION" });
   }
 
-  return Object.freeze({ base, effective: base, source: "ROL" });
+  return Object.freeze({
+    base,
+    matriz,
+    effective: base,
+    source: ajustado === undefined ? "ROL" : "AJUSTE_DE_ROL",
+  });
+}
+
+/**
+ * Acciones que ninguna sucursal puede ajustar, y por qué — el suelo del sistema.
+ *
+ * Son las dos llaves de la casa: quien gestiona personas puede concederse el
+ * resto, y quien modifica el catálogo abre **esta misma pantalla** de ajustes.
+ * Si se pudieran regalar por rol, cualquier ajuste sería el último que alguien
+ * necesita hacer.
+ */
+export const ACCIONES_INTOCABLES: readonly Action[] = ["usuarios.gestionar", "catalogo.modificar"];
+
+/**
+ * ¿Se puede ajustar esta celda de la matriz?
+ *
+ * La fila de administración tampoco: un local que se quita a sí mismo la
+ * administración se queda sin nadie que pueda devolvérsela, y eso no se arregla
+ * desde dentro del producto.
+ */
+export function esAjustable(role: Role, action: Action): boolean {
+  if (role === "ADMIN") return false;
+  if (ACCIONES_INTOCABLES.includes(action)) return false;
+  return Object.hasOwn(MATRIZ, action);
 }
 
 /** Atajo para el caso «¿puedo hacerlo sin pedir autorización?». */

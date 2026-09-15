@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Route } from "next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,7 +19,10 @@ import {
   type Device,
   type Role,
 } from "@l2/domain-identity";
+import type { RoleAdjustmentDto } from "@l2/contracts";
 import { PUESTO_DE_ROL, iniciarSesion } from "./operador.ts";
+import { useAjustes } from "./accesos.ts";
+import { actorDe, puestoDe } from "./visibilidad.ts";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { Badge, Initial, NumericKeypad, cn } from "@l2/ui";
@@ -48,15 +50,20 @@ export type Operador = Readonly<{
   rol: string;
   /** Rol de la matriz (§7.3): de él sale lo que esta persona puede ver. */
   role: Role;
-  /**
-   * Superficie a la que entra este rol (§7.3). La cajera abre caja, la
-   * monitora la sala, la administradora el panel: nadie debería tener que
-   * navegar hasta su puesto después de identificarse.
-   */
-  destino: Route;
-  /** Qué verá al entrar. Se muestra bajo el nombre al elegir persona. */
-  destinoNombre: string;
 }>;
+
+/**
+ * A dónde entra esta persona — N-02 de la auditoría.
+ *
+ * Antes cada persona traía su destino escrito a mano en la ruta, además de
+ * `puestoDe()`, que lo deriva. Coincidían en cinco de seis roles y discrepaban
+ * justo en la monitora de parque, así que entrar funcionaba bien y el rechazo
+ * de una pantalla la mandaba a la caja. Dos verdades sobre lo mismo siempre
+ * acaban así: una fuente, y la misma que usan las guardias.
+ */
+function destinoDe(o: Operador, ajustes: readonly RoleAdjustmentDto[]) {
+  return puestoDe(actorDe({ id: o.id, nombre: o.nombre, rol: o.rol, role: o.role }, ajustes));
+}
 
 const PIN_LENGTH = 4;
 
@@ -91,6 +98,7 @@ export function AccesoScreen({
   operadores: readonly Operador[];
 }) {
   const sim = useSimulacion();
+  const ajustes = useAjustes();
   const [operador, setOperador] = useState<Operador | null>(null);
   const [pin, setPin] = useState("");
   const [fallos, setFallos] = useState(0);
@@ -151,7 +159,7 @@ export function AccesoScreen({
         role: operador!.rol,
         device: PUESTO_DE_ROL[operador!.role],
       });
-      window.setTimeout(() => router.push(operador!.destino), MS_DEL_SELLO);
+      window.setTimeout(() => router.push(destinoDe(operador!, ajustes).ruta), MS_DEL_SELLO);
       return;
     }
 
@@ -343,7 +351,9 @@ export function AccesoScreen({
             <p role="status" className="text-[13.5px] font-semibold text-ink">
               Adelante, {operador.nombre.split(" ")[0]}
             </p>
-            <p className="text-[12.5px] text-ink-2">Abriendo {operador.destinoNombre}…</p>
+            <p className="text-[12.5px] text-ink-2">
+              Abriendo {destinoDe(operador, ajustes).nombre}…
+            </p>
             <span
               aria-hidden="true"
               className="mt-1 block h-0.5 w-32 overflow-hidden rounded-full bg-state-ok/20"

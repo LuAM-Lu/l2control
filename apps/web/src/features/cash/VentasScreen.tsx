@@ -10,7 +10,7 @@ import type { AnulacionDto, UserSummaryDto, VentaCerradaDto } from "@l2/contract
 import { can } from "@l2/domain-identity";
 import { Button, Container, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { useOperador } from "../identity/operador.ts";
-import { actorDe } from "../identity/visibilidad.ts";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { revertirCobro } from "../cuentas/cuentas.ts";
 import { AnularCobroDialog } from "./AnularCobroDialog.tsx";
@@ -58,7 +58,8 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
   const router = useRouter();
   const operador = useOperador();
   const [anulando, setAnulando] = useState(false);
-  const puedeAnular = operador !== null && can(actorDe(operador), "cobro.anular") !== "DENEGADO";
+  const actor = useActorEnSesion();
+  const puedeAnular = actor !== null && can(actor, "cobro.anular") !== "DENEGADO";
   const [texto, setTexto] = useState("");
   const [medio, setMedio] = useState<string | null>(null);
   const [elegida, setElegida] = useState<string | null>(null);

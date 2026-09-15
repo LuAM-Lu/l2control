@@ -9,6 +9,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  BranchAccessSchema,
+  RoleAdjustmentCommandSchema,
   UserChangeSchema,
   UserCommandSchema,
   PermissionExceptionCommandSchema,
@@ -181,5 +183,67 @@ describe("cambios sobre una persona (F2-11)", () => {
     const r = UserSummarySchema.safeParse(persona);
     assert.equal(r.success, true);
     if (r.success) assert.deepEqual(r.data.changes, []);
+  });
+});
+
+describe("ajustes de la sucursal sobre un rol (N-05)", () => {
+  const ajuste = {
+    role: "CAJERO",
+    action: "reportes.verSucursal",
+    permission: "PERMITIDO",
+    by: "u-abigail",
+    byName: "Abigail Karam",
+    reason: "La caja cierra el local los domingos y necesita ver el resumen del día.",
+    at: "2026-09-14T18:00:00.000Z",
+  } as const;
+
+  test("un ajuste con motivo, autor y hora es válido", () => {
+    assert.equal(BranchAccessSchema.safeParse({ branchId: "b1", adjustments: [ajuste] }).success, true);
+  });
+
+  test("una sucursal sin ajustes es válida y empieza vacía", () => {
+    const r = BranchAccessSchema.safeParse({ branchId: "b1" });
+    assert.equal(r.success, true);
+    if (r.success) assert.deepEqual(r.data.adjustments, []);
+  });
+
+  test("dos ajustes sobre la misma celda no dicen cuál vale", () => {
+    const otro = { ...ajuste, permission: "REQUIERE_AUTORIZACION" } as const;
+    assert.equal(
+      BranchAccessSchema.safeParse({ branchId: "b1", adjustments: [ajuste, otro] }).success,
+      false,
+    );
+    // La misma acción para OTRO rol sí: son celdas distintas.
+    assert.equal(
+      BranchAccessSchema.safeParse({
+        branchId: "b1",
+        adjustments: [ajuste, { ...ajuste, role: "MESERO" }],
+      }).success,
+      true,
+    );
+  });
+
+  test("ajustar y retirar exigen motivo; el cliente no declara autor ni hora", () => {
+    const mandar = {
+      kind: "AJUSTAR",
+      branchId: "b1",
+      role: "CAJERO",
+      action: "reportes.verSucursal",
+      permission: "PERMITIDO",
+      reason: "La caja cierra el local los domingos y ve el resumen del día.",
+    } as const;
+    assert.equal(RoleAdjustmentCommandSchema.safeParse(mandar).success, true);
+    assert.equal(RoleAdjustmentCommandSchema.safeParse({ ...mandar, reason: "ok" }).success, false);
+    assert.equal(RoleAdjustmentCommandSchema.safeParse({ ...mandar, by: "u-otra" }).success, false);
+
+    const retirar = { kind: "RETIRAR", branchId: "b1", role: "CAJERO", action: "reportes.verSucursal" };
+    assert.equal(RoleAdjustmentCommandSchema.safeParse(retirar).success, false);
+    assert.equal(
+      RoleAdjustmentCommandSchema.safeParse({
+        ...retirar,
+        reason: "Se vuelve a lo que dice la matriz: ya no cierra ella.",
+      }).success,
+      true,
+    );
   });
 });

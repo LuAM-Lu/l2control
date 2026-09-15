@@ -1,5 +1,7 @@
 import type { Route } from "next";
-import { SURFACE_ACTION, can, visibleSurfaces, type Action, type Actor, type SurfaceId } from "@l2/domain-identity";
+import type { RoleAdjustmentDto } from "@l2/contracts";
+import { SURFACE_ACTION, can, type Action, type Actor, type Role, type SurfaceId } from "@l2/domain-identity";
+import { ajustesDeRol } from "./accesos.ts";
 import { INICIO, MODULOS, buscarModulo, buscarSeccion, type Modulo, type Seccion } from "../shell/navigation.ts";
 import type { OperadorEnSesion } from "./operador.ts";
 
@@ -23,8 +25,19 @@ import type { OperadorEnSesion } from "./operador.ts";
 // TODO(F2-12/backend): la sucursal saldrá de la sesión del dispositivo.
 const SUCURSAL = "b1";
 
-export function actorDe(o: OperadorEnSesion): Actor {
-  return { id: o.id, role: o.role, branchIds: [SUCURSAL] };
+/**
+ * Persona con sesión → actor del dominio, con los ajustes de su sucursal.
+ *
+ * Los ajustes por rol (N-05) entran aquí y en ningún otro sitio: así el menú,
+ * la barra y las tres guardias los aplican por igual sin saber que existen.
+ */
+export function actorDe(o: OperadorEnSesion, ajustes: readonly RoleAdjustmentDto[] = []): Actor {
+  return {
+    id: o.id,
+    role: o.role,
+    branchIds: [SUCURSAL],
+    roleAdjustments: ajustesDeRol(o.role, ajustes),
+  };
 }
 
 const alcanza = (actor: Actor, accion: Action) => can(actor, accion) !== "DENEGADO";
@@ -83,10 +96,25 @@ export function puedeVerInicio(actor: Actor): boolean {
   return alcanza(actor, INICIO.accion);
 }
 
-/** ¿Puede abrir esta dirección del panel? `/panel`, `/panel/x` o `/panel/x/y`. */
+/**
+ * ¿Puede abrir esta dirección del panel? `/panel`, `/panel/x` o `/panel/x/y`.
+ *
+ * **Una sola puerta al back-office** — N-05 de la auditoría. Antes eran dos
+ * reglas escritas por separado: `/panel` pedía ver reportes y `/panel/caja`
+ * solo la acción del módulo, así que la caja se quedaba dentro de la cáscara,
+ * sin fila de Inicio y sin poder subir un nivel, porque las migas la llevaban a
+ * una pantalla que le negaba el paso.
+ *
+ * Los dos mundos de DEC-13 son dos mundos: la operación trabaja en estaciones a
+ * pantalla completa y el back-office es de administración y supervisión. Quién
+ * cuenta como tal **ya no está clavado aquí**: es la acción `reportes.verSucursal`,
+ * que la sucursal ajusta por rol en Configuración y la administración concede
+ * por persona en Usuarios (DEC-15).
+ */
 export function puedeAbrirPanel(actor: Actor, ruta: string): boolean {
+  if (!puedeVerInicio(actor)) return false;
   const [, , moduloId, seccionId] = ruta.split("/");
-  if (!moduloId) return puedeVerInicio(actor);
+  if (!moduloId) return true;
   const m = buscarModulo(moduloId);
   // Una dirección que no existe la resuelve la página con su 404: no se
   // disfraza de «sin acceso».
@@ -98,7 +126,6 @@ export function puedeAbrirPanel(actor: Actor, ruta: string): boolean {
 
 /* ── a dónde va cada uno ── */
 
-const ORDEN_PUESTOS: readonly SurfaceId[] = ["caja", "monitor", "mesas", "kds", "entrada", "salida", "turno"];
 const RUTA_DE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, Route>>> = {
   caja: "/caja",
   monitor: "/monitor",
@@ -110,13 +137,49 @@ const RUTA_DE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, Route>>> = {
 };
 
 /**
- * El puesto de trabajo de un rol: el panel para quien ve informes, si no su
- * primera estación. La cocina entra a la suya, `/cocina` (F6-07).
+ * Dónde se sienta cada rol — N-01 de la auditoría.
+ *
+ * Es un DATO, no un cálculo. Antes se tomaba la primera superficie que el rol
+ * alcanzaba de una lista que empezaba por `caja`, y como la taquilla cobra
+ * (DEC-16), a la monitora de parque se la mandaba a la caja: «Monitora de
+ * parque no tiene acceso al turno de caja · Ir a la caja». Alcanzar una
+ * pantalla y trabajar en ella no son lo mismo, y eso no se deduce de la matriz.
+ *
+ * Es el mismo reparto que `PUESTO_DE_ROL` en `operador.ts`, que dice en qué
+ * puesto aparece cada rol en el tablero en vivo.
+ */
+const PUESTO_DE_ROL: Readonly<Record<Role, SurfaceId | "panel">> = {
+  ADMIN: "panel",
+  SUPERVISOR: "panel",
+  CAJERO: "caja",
+  MONITOR_PARQUE: "monitor",
+  MESERO: "mesas",
+  COCINA: "kds",
+};
+
+/**
+ * El puesto de trabajo de una persona.
+ *
+ * **Dónde se trabaja y qué se alcanza no son lo mismo.** Si la sucursal le abre
+ * el back-office a la caja (N-05), la cajera pasa a poder mirar los reportes,
+ * pero su sitio sigue siendo la caja: al entrar por la mañana tiene que aparecer
+ * cobrando, no en un tablero. Por eso el puesto es un dato del rol y no «la
+ * primera pantalla que alcanza».
+ *
+ * Si su rol no alcanza su propia superficie —la sucursal se la cerró, o se la
+ * revocaron a ella— se cae al acceso en vez de mandarla a una pantalla que le va
+ * a negar el paso.
  */
 export function puestoDe(actor: Actor): { ruta: Route; nombre: string } {
-  if (puedeVerInicio(actor)) return { ruta: "/panel", nombre: "el panel" };
-  const primera = visibleSurfaces(actor, ORDEN_PUESTOS)[0];
-  const ruta = primera ? RUTA_DE_SUPERFICIE[primera] : undefined;
-  if (primera && ruta) return { ruta, nombre: NOMBRE_SUPERFICIE[primera] ?? "tu puesto" };
+  const suyo = PUESTO_DE_ROL[actor.role];
+  if (suyo === "panel") {
+    return puedeVerInicio(actor)
+      ? { ruta: "/panel", nombre: "el panel" }
+      : { ruta: "/acceso", nombre: "el acceso" };
+  }
+  const ruta = RUTA_DE_SUPERFICIE[suyo];
+  if (ruta && alcanza(actor, SURFACE_ACTION[suyo])) {
+    return { ruta, nombre: NOMBRE_SUPERFICIE[suyo] ?? "tu puesto" };
+  }
   return { ruta: "/acceso", nombre: "el acceso" };
 }

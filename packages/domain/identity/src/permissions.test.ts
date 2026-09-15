@@ -9,7 +9,9 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ACCIONES_INTOCABLES,
   MATRIZ,
+  esAjustable,
   SURFACE_ACTION,
   can,
   explainPermission,
@@ -267,17 +269,23 @@ describe("excepciones por persona (F2-11, DEC-15)", () => {
       grants: { "tasa.confirmar": "PERMITIDO" },
       revokes: ["documento.reimprimir"],
     } as Actor;
+    // Sin ajustes de sucursal, `base` y `matriz` dicen lo mismo.
     assert.deepEqual(
       { ...explainPermission(marisol, "tasa.confirmar") },
-      { base: "DENEGADO", effective: "PERMITIDO", source: "CONCESION" },
+      { base: "DENEGADO", matriz: "DENEGADO", effective: "PERMITIDO", source: "CONCESION" },
     );
     assert.deepEqual(
       { ...explainPermission(marisol, "documento.reimprimir") },
-      { base: "REQUIERE_AUTORIZACION", effective: "DENEGADO", source: "REVOCACION" },
+      {
+        base: "REQUIERE_AUTORIZACION",
+        matriz: "REQUIERE_AUTORIZACION",
+        effective: "DENEGADO",
+        source: "REVOCACION",
+      },
     );
     assert.deepEqual(
       { ...explainPermission(marisol, "turno.abrir") },
-      { base: "PERMITIDO", effective: "PERMITIDO", source: "ROL" },
+      { base: "PERMITIDO", matriz: "PERMITIDO", effective: "PERMITIDO", source: "ROL" },
     );
   });
 
@@ -286,5 +294,84 @@ describe("excepciones por persona (F2-11, DEC-15)", () => {
     const jesus = { ...actor("MESERO"), grants: { "documento.emitir": "PERMITIDO" } } as Actor;
     assert.deepEqual([...visibleSurfaces(actor("MESERO"), ["caja"])], []);
     assert.deepEqual([...visibleSurfaces(jesus, ["caja"])], ["caja"]);
+  });
+});
+
+describe("ajustes de la sucursal sobre un rol (N-05)", () => {
+  const cajera: Actor = { id: "u-mari", role: "CAJERO", branchIds: ["b1"] };
+
+  test("sin ajustes, todo sigue saliendo de la matriz", () => {
+    const x = explainPermission(cajera, "reportes.verSucursal");
+    assert.equal(x.effective, "DENEGADO");
+    assert.equal(x.source, "ROL");
+    assert.equal(x.base, x.matriz);
+  });
+
+  test("la sucursal abre el back-office a la caja sin tocar la matriz", () => {
+    const conAjuste: Actor = {
+      ...cajera,
+      roleAdjustments: { "reportes.verSucursal": "PERMITIDO" },
+    };
+    const x = explainPermission(conAjuste, "reportes.verSucursal");
+    assert.equal(x.effective, "PERMITIDO");
+    assert.equal(x.source, "AJUSTE_DE_ROL");
+    // La matriz sigue diciendo lo suyo: el ajuste se lee ENCIMA, no la reescribe.
+    assert.equal(x.matriz, "DENEGADO");
+    assert.equal(MATRIZ["reportes.verSucursal"]!["CAJERO"], "DENEGADO");
+  });
+
+  test("también sirve para quitar: la sucursal le cierra a la caja lo que la matriz le da", () => {
+    const x = explainPermission(
+      { ...cajera, roleAdjustments: { "turno.corteX": "DENEGADO" } },
+      "turno.corteX",
+    );
+    assert.equal(x.effective, "DENEGADO");
+    assert.equal(x.matriz, "PERMITIDO");
+  });
+
+  test("lo decidido para una persona gana sobre lo decidido para su rol", () => {
+    const base: Actor = { ...cajera, roleAdjustments: { "reportes.verSucursal": "PERMITIDO" } };
+    // Revocada a ella en concreto: se le quita, aunque su rol lo tenga abierto.
+    const revocada = explainPermission({ ...base, revokes: ["reportes.verSucursal"] }, "reportes.verSucursal");
+    assert.equal(revocada.effective, "DENEGADO");
+    assert.equal(revocada.source, "REVOCACION");
+    // Y al revés: concedida a ella con autorización, manda la concesión.
+    const concedida = explainPermission(
+      { ...base, grants: { "reportes.verSucursal": "REQUIERE_AUTORIZACION" } },
+      "reportes.verSucursal",
+    );
+    assert.equal(concedida.effective, "REQUIERE_AUTORIZACION");
+    assert.equal(concedida.source, "CONCESION");
+  });
+
+  test("las dos llaves de la casa no se ajustan por rol, y un ajuste guardado sobre ellas se ignora", () => {
+    for (const accion of ACCIONES_INTOCABLES) {
+      assert.equal(esAjustable("CAJERO", accion), false, accion);
+      const x = explainPermission({ ...cajera, roleAdjustments: { [accion]: "PERMITIDO" } }, accion);
+      assert.equal(x.effective, "DENEGADO", accion);
+      assert.equal(x.source, "ROL", accion);
+    }
+  });
+
+  test("la fila de administración no se toca: un local no puede quedarse sin quien gobierne", () => {
+    const admin: Actor = { id: "u-abi", role: "ADMIN", branchIds: ["b1"] };
+    assert.equal(esAjustable("ADMIN", "turno.corteZ"), false);
+    const x = explainPermission({ ...admin, roleAdjustments: { "turno.corteZ": "DENEGADO" } }, "turno.corteZ");
+    assert.equal(x.effective, "PERMITIDO");
+  });
+
+  test("un ajuste sobre una acción que no existe no la crea", () => {
+    const x = explainPermission(
+      { ...cajera, roleAdjustments: { ["tasa.inventada" as Action]: "PERMITIDO" } },
+      "tasa.inventada" as Action,
+    );
+    assert.equal(x.effective, "DENEGADO");
+  });
+
+  test("`can` respeta el ajuste, y la sucursal sigue mandando por encima de todo", () => {
+    const conAjuste: Actor = { ...cajera, roleAdjustments: { "reportes.verSucursal": "PERMITIDO" } };
+    assert.equal(can(conAjuste, "reportes.verSucursal", { branchId: "b1" }), "PERMITIDO");
+    // Otra sede: se niega sin mirar la matriz ni el ajuste (H-07).
+    assert.equal(can(conAjuste, "reportes.verSucursal", { branchId: "b2" }), "DENEGADO");
   });
 });

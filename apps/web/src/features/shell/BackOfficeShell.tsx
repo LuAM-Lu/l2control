@@ -13,6 +13,7 @@ import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
 import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
+import { useAjustes } from "../identity/accesos.ts";
 import {
   actorDe,
   modulosVisibles,
@@ -54,7 +55,8 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
     if (operador) sim.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
     cerrarSesion();
   }
-  const actor = operador ? actorDe(operador) : null;
+  const ajustes = useAjustes();
+  const actor = operador ? actorDe(operador, ajustes) : null;
   const visibles = actor ? modulosVisibles(actor) : [];
   const inicioVisible = actor ? puedeVerInicio(actor) : false;
   const usuario = operador?.nombre ?? "Sin identificar";
@@ -118,7 +120,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
           <PageTransition>
             <GuardiaAcceso
               destino={nombreEnPanel(pathname)}
-              permitido={(o) => puedeAbrirPanel(actorDe(o), pathname)}
+              permitido={(o) => puedeAbrirPanel(actorDe(o, ajustes), pathname)}
             >
               {children}
             </GuardiaAcceso>

@@ -1,5 +1,8 @@
 # Auditoría de navegación y permisos
 
+> **Estado:** cuatro de los diez hallazgos están resueltos (N-01, N-02, N-03, N-05 y, de paso, N-09),
+> cada uno anotado bajo su apartado. Quedan N-04, N-06, N-07, N-08 y la decisión de N-10.
+>
 > **Fecha:** 2026-09-14 · **Alcance:** las trece rutas de `apps/web/app`, la matriz de §7.3, el mapa de
 > módulos de `navigation.ts`, las dos cáscaras (estación y back-office) y las guardias de cada una.
 > **Método:** la matriz se recorrió con el dominio (`can` sobre las 27 acciones × 6 roles) y cada
@@ -68,11 +71,11 @@ Y **tres guardias**, todas del lado del cliente:
 | `GuardiaAcceso` | los tres estados: sin hidratar, sin sesión, sin permiso | `identity/GuardiaAcceso.tsx` |
 
 El punto débil no es que falten guardias: es que **el mapa de módulos cruza los dos mundos sin
-decirlo**. Nueve de las dieciocho secciones del panel apuntan a rutas de estación.
+decirlo**. Ocho de las diecinueve secciones del panel apuntan a rutas de estación.
 
 ## 3. Hallazgos
 
-### N-01 · La monitora de parque acaba en la caja — **grave**
+### ~~N-01~~ · La monitora de parque acaba en la caja — **resuelto el 2026-09-14**
 
 `puestoDe()` calcula el puesto de una persona tomando **la primera superficie que alcanza** de una
 lista que empieza por `caja` (`identity/visibilidad.ts`, `ORDEN_PUESTOS`). Como la taquilla cobra,
@@ -87,7 +90,13 @@ Aparece en todo lo que use `puestoDe`: el rechazo de una pantalla y el bloqueo p
 `identity/operador.ts`, y no el primero de una lista ordenada para otra cosa. Además une los dos
 sitios donde hoy se dice lo mismo de dos maneras (ver N-02).
 
-### N-02 · Dos verdades sobre a dónde va cada rol — **grave**
+> **Hecho.** `puestoDe` lee un `PUESTO_DE_ROL` propio en `visibilidad.ts`. De paso quedó clara una
+> distinción que el cálculo anterior confundía: **dónde se trabaja y qué se alcanza no son lo mismo**.
+> Si la sucursal le abre el back-office a la caja (N-05), la cajera pasa a poder mirar los reportes,
+> pero su sitio sigue siendo la caja y al entrar aparece cobrando. Comprobado: la monitora ve ahora
+> «Ir a la sala del parque».
+
+### ~~N-02~~ · Dos verdades sobre a dónde va cada rol — **resuelto el 2026-09-14**
 
 `app/(estacion)/acceso/page.tsx` trae el destino **escrito a mano por persona** (`destino: "/monitor"`),
 mientras `puestoDe()` lo **deriva**. Coinciden en cinco de seis roles y discrepan justo en la monitora,
@@ -95,7 +104,10 @@ que es como se descubrió N-01: por eso entrar funciona bien y el rechazo manda 
 
 **Propuesta:** una sola fuente. El acceso deja de declarar destinos y pregunta `puestoDe(actorDe(o))`.
 
-### N-03 · «Dispositivos» te saca de la sesión — **grave**
+> **Hecho.** `Operador` ya no lleva `destino` ni `destinoNombre`, y la pantalla de acceso llama a
+> `puestoDe`. Queda un solo sitio donde se decide a dónde entra cada quien.
+
+### ~~N-03~~ · «Dispositivos» te saca de la sesión — **resuelto el 2026-09-14**
 
 Panel → Personas → **Dispositivos** apunta a `/acceso` (`shell/navigation.ts`). `/acceso` es la
 pantalla de bloqueo del equipo.
@@ -108,11 +120,15 @@ hayan echado de la sesión.
 dispositivos, ADR-013) hasta que la pantalla exista. Una pantalla honesta que dice qué falta es mejor
 que un enlace que parece un cierre de sesión.
 
+> **Hecho.** Ahora abre `/panel/personas/dispositivos`, dentro del back-office, y explica qué hará y
+> qué falta antes.
+
 ### N-04 · Se sale del back-office sin avisar, y no todos pueden volver — **medio-grave**
 
-Nueve secciones del panel abren rutas de estación: Monitor de sala, Entrada, Salida, Mesas y pedidos,
-Comandas del día, Cobrar, Ventas del turno, Turnos y cortes, Dispositivos. Al pulsarlas desaparecen
-la barra lateral y las migas, y la pantalla pasa a ocupar todo.
+Ocho secciones del panel abren rutas de estación: Monitor de sala, Entrada, Salida, Mesas y pedidos,
+Comandas del día, Cobrar, Ventas del turno y Turnos y cortes. Al pulsarlas desaparecen la barra
+lateral y las migas, y la pantalla pasa a ocupar todo. (Eran nueve: «Dispositivos» era la peor de
+todas y se arregló en N-03.)
 
 **Reproducido:** Panel → Parque → «Monitor de sala» abre `/monitor` con **cero migas y cero barra
 lateral**.
@@ -124,7 +140,7 @@ Volver depende del rol: el botón «Panel» de la barra de estación solo se pin
 menú («se abre a pantalla completa»). Es un cambio de una línea en el tipo `Seccion` y resuelve la
 sorpresa sin romper los dos mundos.
 
-### N-05 · Módulos del panel para quien no puede entrar al panel — **medio**
+### ~~N-05~~ · Módulos del panel para quien no puede entrar al panel — **resuelto el 2026-09-14**
 
 `/panel` exige `reportes.verSucursal` (solo administración y supervisión), pero `/panel/<modulo>`
 exige solo la acción del módulo.
@@ -145,6 +161,22 @@ nivel: las migas la llevan a `/panel`, que le niega el paso.
 coherente con DEC-13: **el panel es de administración y supervisión**, y `puedeAbrirPanel` exige
 Inicio para cualquier ruta que empiece por `/panel`. Si en algún momento hay módulos para operación,
 entonces Inicio tiene que ser alcanzable para esos roles.
+
+> **Decidido y hecho el 2026-09-14**, con una vuelta de tuerca que pidió el cliente: **una sola
+> puerta** —`reportes.verSucursal`— para todo `/panel*`, y **quién la cruza deja de estar clavado en
+> el código**. Es un ajuste de la sucursal sobre la matriz, editable en Panel → Configuración →
+> **Roles y accesos**, con motivo, autor y hora, y retirable (F2-13).
+>
+> El ajuste se lee **encima** de la matriz sin reescribirla, y lo decidido para una persona (DEC-15)
+> gana sobre lo decidido para su rol. Hay un suelo que ninguna sucursal puede tocar, comprobado en el
+> dominio: la fila de administración —un local que se quita a sí mismo la administración se queda sin
+> nadie que pueda devolvérsela— y las dos llaves de la casa, `usuarios.gestionar` y
+> `catalogo.modificar`, porque la primera permite concederse el resto y la segunda abre esa misma
+> pantalla de ajustes.
+>
+> Comprobado de punta a punta: antes, la caja no entra por ninguna de las tres puertas; después de
+> abrirla, la cajera entra al panel, **sigue aterrizando en la caja** al identificarse, y sigue sin
+> poder abrir «Roles y accesos».
 
 ### N-06 · El conmutador de estación encierra por grupo — **medio**
 
@@ -173,11 +205,11 @@ así que hacerlo ya evita que la pantalla cambie después.
 Carla Benítez está de baja en el directorio y no aparece en el acceso **por casualidad**: son dos
 listas distintas. Con el directorio como fuente, sería por regla.
 
-### N-09 · Cocina «ve» el módulo Restaurante — **menor**
+### ~~N-09~~ · Cocina «ve» el módulo Restaurante — **resuelto con N-05**
 
 `puedeVerModulo` es cierto para Cocina en Restaurante, porque la sección «Comandas del día» pide
 `kds.cambiarEstado`. No llega a notarse porque Cocina no puede abrir el panel, pero es una promesa
-que el código hace y el producto no cumple. Se resuelve sola con N-05.
+que el código hace y el producto no cumple. Se resolvió sola con N-05: con una sola puerta, Cocina no llega al panel por ninguna vía.
 
 ### N-10 · `/ventas` comparte superficie con `/caja` — **a decidir, no es un fallo**
 
@@ -206,9 +238,9 @@ Para que la lista de arriba no se lea como que la navegación está rota:
 
 | # | Hallazgo | Coste | Cuándo |
 |---|---|---|---|
-| 1 | N-03 Dispositivos → `/acceso` | minutos | ya |
-| 2 | N-01 + N-02 el puesto de cada rol, una sola fuente | pequeño | ya |
-| 3 | N-05 quién entra al panel | pequeño, **decisión del cliente** | ya |
+| ~~1~~ | ~~N-03 Dispositivos → `/acceso`~~ | — | **hecho el 2026-09-14** |
+| ~~2~~ | ~~N-01 + N-02 el puesto de cada rol, una sola fuente~~ | — | **hecho el 2026-09-14** |
+| ~~3~~ | ~~N-05 quién entra al panel~~ | — | **hecho el 2026-09-14**, y editable (F2-13) |
 | 4 | N-04 avisar de que una sección abre a pantalla completa | pequeño | ya |
 | 5 | N-06 llegar a las demás superficies alcanzables | medio | con el rediseño de la barra |
 | 6 | N-07 + N-08 el acceso sale del directorio | medio | ya, o con F2-03 en servidor |

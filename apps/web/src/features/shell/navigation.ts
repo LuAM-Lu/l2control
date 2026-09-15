@@ -250,9 +250,15 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "dispositivos",
         nombre: "Dispositivos",
-        href: "/acceso",
+        // N-03: apuntaba a `/acceso`, que es la PANTALLA DE BLOQUEO del equipo.
+        // Desde el panel parecía que te cerraban la sesión. Mejor una pantalla
+        // honesta que diga qué falta que un enlace que asusta.
+        href: null,
         accion: "usuarios.gestionar",
-        proposito: "Los equipos autorizados y quién tiene sesión abierta en cada uno.",
+        proposito: "Los equipos autorizados, su sucursal y quién tiene sesión abierta en cada uno.",
+        tarea: "F2-02",
+        necesita:
+          "El registro de dispositivos en el servidor (ADR-013): hoy el aparato se simula con «?device=».",
       },
     ],
   },
@@ -263,6 +269,17 @@ export const MODULOS: readonly Modulo[] = [
     accion: "catalogo.modificar",
     resumen: "Los datos del negocio que casi nunca cambian, y que cambiarlos cambia todo.",
     secciones: [
+      {
+        id: "accesos",
+        nombre: "Roles y accesos",
+        href: rutaSeccion("configuracion", "accesos"),
+        // Quien edita esto puede abrirle el back-office a un rol entero: es de
+        // administración, y el dominio impide que se regale a sí mismo la llave.
+        accion: "usuarios.gestionar",
+        proposito:
+          "Qué alcanza cada rol en este local, sobre la matriz de fábrica. Aquí se decide quién entra al back-office.",
+        tarea: "F2-05",
+      },
       {
         id: "sucursal",
         nombre: "Sucursal",
