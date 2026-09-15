@@ -14,7 +14,7 @@
 | D12 | ¿El back-office puede desplazar? | Sí; lo urgente arriba. Las estaciones siguen sin desplazar | UX-MEJORAS §8 |
 | D13 | Número de orden continuo o diario | Hecho continuo (`#1049`); diario da números cortos pero obliga a decir la fecha | UX-MEJORAS §8 |
 | ~~D2, D3~~ | ~~Cuenta de mesa y cobrar con niños dentro~~ | **Cerradas el 2026-09-14**: vincular mueve el parque a la cuenta de la mesa; la mesa se cobra aunque los niños sigan jugando | [FLUJOS](FLUJOS.md) §7 |
-| ~~D7~~, D9 | ~~Personas en vivo~~ (hecha: puestos y quién los ocupa en `/panel/vivo`), niño que sale sin su representante | Falta confirmar D9 | FLUJOS §7 |
+| ~~D7~~, D9 | ~~Personas en vivo~~ (hecha: los puestos y quién los ocupa, en Inicio; **quién los asigna sigue sin decidirse**: hoy se deduce del rol, ver N-01), niño que sale sin su representante | Falta confirmar D9 | FLUJOS §7 |
 | ~~D8~~ | ~~Propina y servicio del 10 %~~ | **Decidido el 2026-09-14**: va a **Configuración** del local (F6-13, con DEC-6), no al flujo de cobro. Hoy solo existe la propina que sale del vuelto | FLUJOS §7 |
 | F0-09 | Firma formal del alcance | Las 24 decisiones están cerradas; falta firmarlo | PLAN §12 |
 
@@ -48,7 +48,7 @@
 3. ~~**Caja de mesas** (paso 4)~~ — hecha el 2026-09-14: cuenta con platos y parque (D2), mesa por
    limpiar al cobrar (D3) y **cobro dividido en partes iguales** (F6-12). Queda dividir **por ítems**
    («cada quien lo suyo»), que se hará si el cliente lo pide.
-4. ~~**Panel en vivo del local**~~ (paso 5, F9-08) — hecho el 2026-09-14 en `/panel/vivo`: parque,
+4. ~~**Panel en vivo del local**~~ (paso 5, F9-08) — hecho el 2026-09-14, **dentro de Inicio**: parque,
    cocina, mesas, caja y personas conectadas, sin recargar y con lo urgente primero. **Con él se cierra
    DEC-22 y la interfaz entera.** Queda el tiempo real del servidor.
 5. **Cortesía con motivo** (F6-14): hoy, anular un cobro devuelve la cuenta a «por cobrar»; si no
@@ -62,6 +62,17 @@
 (§5 de este documento): `pnpm verify` en CI, la base de datos y la auditoría dejan de ser deuda y pasan a
 ser el trabajo. Lo que queda arriba (cortesía, dividir por ítems, estructura editable) se hace cuando el
 cliente lo pida, no antes que el servidor.
+
+## 4b. Navegación y permisos (auditoría del 2026-09-14)
+
+Diez hallazgos con su evidencia y su propuesta en **[AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md)**.
+Los tres graves, en una línea:
+
+- **N-03** «Dispositivos» del panel apunta a `/acceso`: parece que te cierran la sesión.
+- **N-01 + N-02** el puesto de un rol se calcula de dos maneras distintas y discrepan: a la monitora
+  de parque se la manda a la caja.
+- **N-05** la caja y la taquilla no pueden abrir `/panel` pero sí `/panel/caja`. **Decisión del
+  cliente**: ¿el back-office es solo de administración y supervisión?
 
 ## 5. Backend e infraestructura (Ruta A)
 

@@ -21,7 +21,10 @@
 | F9 · Back-office y panel en vivo | 0 | 2 | — | Panel con sus módulos y **el local en vivo** (F9-08) |
 | F7-F12 (resto) | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
-**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`, `/cocina`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel`, con sus módulos, `/panel/personas/usuarios` y **`/panel/vivo`, el local ahora mismo**. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
+> **Auditoría de navegación y permisos (2026-09-14):** diez hallazgos con evidencia en
+> [AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md). Tres graves sin arreglar todavía.
+
+**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`, `/cocina`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel` —que **es** el tablero en vivo del local— con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
 
 **Todo lo que falta, en una sola lista:** [PENDIENTES.md](PENDIENTES.md).
 
@@ -150,7 +153,8 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 | Tarea | Estado | Evidencia o qué falta |
 |---|---|---|
 | F9-00 Inicio del back-office | Parcial | `/panel` con sus módulos por dominio y los permisos de cada uno; sin datos reales detrás |
-| F9-08 Panel en vivo del local | Parcial (interfaz) | `/panel/vivo`: cinco zonas —parque, cocina, mesas, caja y **personas conectadas** (D7)— calculadas en `vivo.ts`, puro, a partir de los mismos eventos que mueven las estaciones. Lo urgente va primero, con texto además de color (§8.2), y cada zona enlaza a su pantalla. **Nada se recarga**: las cuentas viajan entre pestañas por `BroadcastChannel` mientras no haya servidor. Comprobado en navegador con dos pestañas: el parque sube con el escenario, la caja baja al cobrar en la otra pestaña y un puesto queda «Sin nadie» al cerrar sesión. Falta el tiempo real del servidor (F5-08, ADR-008) |
+| F2-11 Usuarios y permisos | Parcial | `/panel/personas/usuarios`: lista densa con buscador y filtro por rol, permisos plegados con su resumen, excepciones en hoja aparte y los **cinco cambios reales** —alta, baja, reingreso, rol y reponer PIN—, cada uno con motivo obligatorio y su asiento en la historia de la persona. `revisarCambio` en `@l2/domain-identity` (11 pruebas) impone las cinco puertas; `UserChangeSchema` y `UserCommandSchema` en el contrato (6 pruebas). Falta el servidor: hoy nada persiste |
+| F9-08 Panel en vivo del local | Parcial (interfaz) | **Dentro de Inicio** (`/panel`), no en pantalla aparte: nació como `/panel/vivo` y duró un día, porque Inicio ya enseñaba sala, mesas y cocina con cifras escritas a mano. Cinco zonas —parque, cocina, mesas, caja y **personas conectadas** (D7)— calculadas en `vivo.ts`, puro, con los mismos eventos que mueven las estaciones. Franja de avisos que reparte el ancho de su fila, con lo crítico primero, cada aviso enlazado a donde se resuelve y movimiento por gravedad (lo crítico late; la advertencia entra y se queda quieta). **Nada se recarga**: las cuentas viajan entre pestañas por `BroadcastChannel`. Comprobado a 1366, 1280, 1024 y 420 px y con dos pestañas. Falta el tiempo real del servidor (F5-08, ADR-008) |
 
 ---
 

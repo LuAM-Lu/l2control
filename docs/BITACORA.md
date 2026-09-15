@@ -845,3 +845,84 @@ y no hay partes que llevar. Corregido y las dos rutas comprobadas: cobro simple 
 
 Con esto **la interfaz de la Ruta A está completa** y se cierra DEC-22. Lo que sigue cambia de terreno:
 el backend.
+
+## Inicio y el panel en vivo se fusionan — 2026-09-14
+
+El panel en vivo duró un día como pantalla propia. Al mirarlo al lado de Inicio se vio lo obvio: los
+dos enseñaban sala, mesas, cocina y «requiere atención», con la diferencia de que **las cifras de
+Inicio estaban escritas a mano en la ruta** (`mesasOcupadas={5}`, `comandasCocina={4}`,
+`esperaMaximaMin={18}`) mientras el otro las calculaba. Dos tableros que dicen lo mismo con números
+distintos son peores que ninguno.
+
+Ahora hay uno solo, y el reparto es de **horizonte temporal, no de tema**: arriba lo que se mueve
+ahora, abajo lo acumulado del día. De paso, las alertas dejaron de ser texto suelto y llevan a donde
+se resuelven, «la tasa del día no está confirmada» pasó a ser una alerta de la zona de caja en vez de
+vivir con lógica propia en Inicio, y el color de cada zona salió del aviso **más grave** y no de tener
+alguno: el parque se pintaba de rojo por una advertencia, y los colores de estado son reservados.
+
+La franja de avisos se rehízo después, a petición del cliente: una sola fila que reparte el ancho
+—`flex-wrap` con base mínima, de modo que no quede un hueco cuando son impares— y movimiento por
+gravedad. Lo crítico late sin parar; la advertencia entra y se queda quieta. Ninguno es la única
+señal, y con `prefers-reduced-motion` no se mueve nada.
+
+«Sala en vivo» pasó a llamarse **«Monitor de sala»**: era un tercer nombre para lo mismo y es la
+estación del monitor.
+
+## El acceso deja de ser mudo — 2026-09-14 (F2-03)
+
+Un teclado numérico se usa de pie, con prisa y sin mirar la pantalla. El PIN se acusaba solo con
+texto, y eso produce dos errores muy concretos: teclear de más o de menos, y volver a teclear el
+mismo PIN errado creyendo que no se registró.
+
+Cada dígito rebota al entrar; un PIN errado **sacude** la fila de puntos una vez, 320 ms, como una
+negación con la cabeza; un PIN correcto pone los puntos verdes y **hace desaparecer el teclado**, que
+deja su sitio al sello con «Adelante, <nombre>», a dónde se va y una barra que recorre mientras abre.
+Ese último detalle no es estético: un teclado apagado invita a volver a pulsar, y así es como se
+duplican las acciones.
+
+Detalle de implementación que costó encontrar: el segundo PIN errado no se notaba, porque la clase de
+la animación ya estaba puesta y el navegador no la repite. Se resuelve montando el elemento de nuevo
+con el contador de fallos como `key`.
+
+## Usuarios y permisos: de informe a gestión — 2026-09-14 (F2-11)
+
+La pantalla enseñaba permisos y dejaba añadir excepciones, y nada más. No se podía dar de alta a
+nadie, ni de baja, ni cambiar un rol, ni reponer un PIN: todo eso se hacía «hablando con quien
+programa». Era un informe con un formulario pegado.
+
+Los cinco cambios existen ahora, y lo primero que se escribió no fue la pantalla sino **las cinco
+puertas**, en el dominio y con su prueba negativa cada una: solo quien alcanza `usuarios.gestionar`
+en esa sucursal; nadie se da de baja ni se cambia el rol a sí mismo; el local no se queda sin
+administración —ni dándola de baja ni degradándola—; y administrador solo lo nombra un administrador,
+aunque a otro se le haya concedido gestionar personas por excepción. Todo lo que no encaje en una
+regla escrita se niega.
+
+Cada cambio deja su asiento en la historia de la persona, con quién, cuándo y **por qué**, incluido
+reponer un PIN: «¿por qué se le repuso el PIN a la cajera el día del descuadre?» es exactamente la
+pregunta que alguien hará. Y el cambio de rol guarda de dónde venía, porque «¿quién podía cobrar en
+agosto?» se pregunta después de que pase algo.
+
+En la disposición, tres decisiones: lista densa con buscador y filtro por rol (con siete personas
+sobra una pila de tarjetas; con veinte, no); los permisos empiezan plegados con su resumen en una
+línea, porque veintisiete filas seguidas no son jerarquía sino una pared; y el formulario de
+excepciones pasó a una hoja, que ocupaba media ficha aunque no se fuera a usar.
+
+## Auditoría de navegación y permisos — 2026-09-14
+
+Con la interfaz cerrada, tocaba mirarla entera antes de empezar el backend: las trece rutas, la
+matriz de §7.3 recorrida con el dominio, el mapa de módulos y las tres guardias. Está en
+`docs/AUDITORIA-NAVEGACION.md`, con la evidencia de cada hallazgo reproducida en el navegador.
+
+Tres graves. **La monitora de parque acaba en la caja**: su puesto se calcula tomando la primera
+superficie que alcanza de una lista que empieza por caja, y la taquilla cobra. **Hay dos verdades
+sobre a dónde va cada rol** —el acceso las trae escritas a mano y `puestoDe` las deriva— y discrepan
+justo en ese caso, que es como se encontró el primero. Y **«Dispositivos» del panel apunta a
+`/acceso`**, la pantalla de bloqueo: para la administradora es indistinguible de que la hayan echado
+de la sesión.
+
+El que necesita decisión del cliente es otro: la caja y la taquilla no pueden abrir `/panel` pero sí
+`/panel/caja`, porque son dos reglas escritas por separado. Hay que decidir si el back-office es solo
+de administración y supervisión.
+
+Nada de esto es seguridad todavía: las tres guardias son del navegador. La puerta de verdad es F2-05,
+en el servidor, con esta misma matriz.

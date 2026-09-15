@@ -45,8 +45,8 @@ de los datos, validada contra los contratos, y la persistencia llega después.
 | Turno | `/turno` | Cortes X y Z, arqueo por denominación, excepciones |
 | Mesas | `/mesas` | Plano, pedido con borrador y confirmación, vincular pulseras |
 | Cocina (KDS) | `/cocina` | Comandas por antigüedad con cronómetro, empezar y marcar lista, anulaciones a confirmar |
-| Back-office | `/panel` | Inicio con indicadores, módulos, usuarios y permisos por persona |
-| El local ahora | `/panel/vivo` | Parque, cocina, mesas, caja y quién está conectado, sin recargar y con lo urgente primero |
+| Back-office | `/panel` | **El local ahora** (parque, cocina, mesas, caja y quién está conectado, sin recargar) y el día: lo vendido, la gaveta y las excepciones |
+
 
 - Estado tarea por tarea: **[docs/PROGRESO.md](docs/PROGRESO.md)**
 - **Todo lo que falta: [docs/PENDIENTES.md](docs/PENDIENTES.md)**
