@@ -80,7 +80,18 @@ export function EnVivo({
     tasaConfirmada,
   });
 
-  const alertas = [v.parque, v.cocina, v.mesas, v.caja, v.personas].flatMap((z) => z.alertas);
+  /**
+   * El color de una zona sale de su aviso MÁS GRAVE, no de que tenga alguno.
+   * Los colores de estado son reservados (§8.2): pintar de crítico una zona con
+   * una advertencia le quita el significado al rojo justo donde más hace falta.
+   */
+  const tonoDe = (alertas: readonly Alerta[]): "idle" | "warn" | "crit" =>
+    alertas.some((a) => a.tono === "crit") ? "crit" : alertas.length > 0 ? "warn" : "idle";
+
+  // Lo crítico primero: dentro de la franja, el orden ES la prioridad.
+  const alertas = [v.parque, v.cocina, v.mesas, v.caja, v.personas]
+    .flatMap((z) => z.alertas)
+    .sort((a, b) => Number(b.tono === "crit") - Number(a.tono === "crit"));
 
   return (
     <section aria-label="El local ahora" className="mb-4">
@@ -105,9 +116,14 @@ export function EnVivo({
           Todo al día: nada pide atención ahora mismo.
         </p>
       ) : (
-        <ul className="mb-2 grid gap-1.5 lg:grid-cols-2">
+        /* Una sola franja. `flex-wrap` con `flex-1` y una base mínima hace que
+           los avisos REPARTAN el ancho de su fila en vez de dejar un hueco
+           cuando son impares, y que al no caber bajen a la siguiente y vuelvan
+           a repartirla. La base mínima es lo que garantiza que ninguno se
+           estreche hasta dejar de leerse. */
+        <ul className="mb-2 flex flex-wrap gap-1.5">
           {alertas.map((a) => (
-            <li key={a.texto}>
+            <li key={a.texto} className="min-w-[19rem] flex-1">
               <Aviso alerta={a} />
             </li>
           ))}
@@ -122,7 +138,7 @@ export function EnVivo({
           href="/monitor"
           principal={`${v.parque.enSala}`}
           unidad={`de ${v.parque.aforo}`}
-          tono={v.parque.alertas.length > 0 ? "crit" : "idle"}
+          tono={tonoDe(v.parque.alertas)}
           datos={[
             { etiqueta: "Por vencer", valor: v.parque.porVencer },
             {
@@ -139,7 +155,7 @@ export function EnVivo({
           href="/cocina"
           principal={`${v.cocina.enCola + v.cocina.enPreparacion}`}
           unidad="comandas"
-          tono={v.cocina.alertas.length > 0 ? "crit" : "idle"}
+          tono={tonoDe(v.cocina.alertas)}
           datos={[
             {
               etiqueta: "En cola · en fuego",
@@ -171,7 +187,7 @@ export function EnVivo({
           href="/mesas"
           principal={`${v.mesas.ocupadas}`}
           unidad="ocupadas"
-          tono={v.mesas.alertas.length > 0 ? "warn" : "idle"}
+          tono={tonoDe(v.mesas.alertas)}
           datos={[
             {
               etiqueta: "Piden la cuenta",
@@ -196,7 +212,7 @@ export function EnVivo({
           href="/caja"
           principal={`${v.caja.porCobrar}`}
           unidad="por cobrar"
-          tono={v.caja.alertas.length > 0 ? "crit" : "idle"}
+          tono={tonoDe(v.caja.alertas)}
           datos={[
             {
               etiqueta: "Pendiente",
@@ -253,27 +269,35 @@ export function EnVivo({
   );
 }
 
+/**
+ * Un aviso de la franja.
+ *
+ * Compacto —una línea, 44 px de alto— y **siempre legible**: el texto puede
+ * partirse en dos renglones antes que recortarse, porque un aviso cortado a la
+ * mitad obliga a abrir la pantalla para saber qué pasa, que es justo lo que la
+ * franja evita.
+ *
+ * El movimiento va por gravedad (§8.2): lo crítico late sin parar, la
+ * advertencia entra y se queda quieta. Ninguno de los dos es la única señal.
+ */
 function Aviso({ alerta }: { alerta: Alerta }) {
-  const Icono = alerta.tono === "crit" ? OctagonAlert : TriangleAlert;
+  const critica = alerta.tono === "crit";
+  const Icono = critica ? OctagonAlert : TriangleAlert;
   return (
     <Link
       href={alerta.href}
       role="status"
       className={cn(
-        "group flex min-h-11 items-center gap-2.5 rounded-[var(--radius-control)] border px-3 py-2 text-[12.5px] no-underline",
+        "l2-aparece group flex h-full min-h-11 items-center gap-2.5 rounded-[var(--radius-control)] border px-3 py-1.5 text-[12.5px] no-underline",
         "transition-[transform,border-color] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
         "hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-        alerta.tono === "crit"
-          ? "border-state-crit/40 bg-state-crit-bg/45 text-state-crit hover:border-state-crit/70"
-          : "border-state-warn/40 bg-state-warn-bg/45 text-state-warn hover:border-state-warn/70",
+        critica
+          ? "l2-late border-state-crit/45 bg-state-crit-bg/45 text-state-crit hover:border-state-crit/70"
+          : "border-state-warn/45 bg-state-warn-bg/45 text-state-warn hover:border-state-warn/70",
       )}
     >
-      <Icono
-        size={15}
-        className={cn("shrink-0", alerta.tono === "crit" && "l2-pulse")}
-        aria-hidden="true"
-      />
-      <span className="min-w-0 flex-1 font-medium">{alerta.texto}</span>
+      <Icono size={15} className="shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1 leading-tight font-medium text-pretty">{alerta.texto}</span>
       <span className="flex shrink-0 items-center gap-1 rounded-[var(--radius-control)] bg-surface/60 px-2 py-0.5 text-[11px] whitespace-nowrap transition-colors group-hover:bg-surface">
         {alerta.accion}
         <ArrowRight
