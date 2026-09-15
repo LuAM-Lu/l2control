@@ -6,6 +6,7 @@ import type { Route } from "next";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   Lock,
   MonitorSmartphone,
   ShieldAlert,
@@ -59,6 +60,17 @@ export type Operador = Readonly<{
 
 const PIN_LENGTH = 4;
 
+/**
+ * Lo que dura el sello verde antes de abrir el puesto.
+ *
+ * No es decoración: sin él, acertar el PIN y fallarlo se parecen —en los dos
+ * casos la pantalla se queda igual un instante— y el operador vuelve a pulsar.
+ * 420 ms bastan para leer el acuse sin que estorbe a quien tiene cola delante.
+ * Nada del estado depende de que termine: la navegación la dispara un
+ * temporizador, no el final de una animación (§8.5).
+ */
+const MS_DEL_SELLO = 420;
+
 const FORMATO_HORA = new Intl.DateTimeFormat("es-VE", {
   hour: "2-digit",
   minute: "2-digit",
@@ -85,6 +97,15 @@ export function AccesoScreen({
   const [ultimoFallo, setUltimoFallo] = useState<number | null>(null);
   const [ahora, setAhora] = useState(() => Date.now());
   const [entrando, setEntrando] = useState(false);
+  /**
+   * Cuántas veces se ha errado, para reiniciar la sacudida.
+   *
+   * Sin este contador, el segundo PIN errado no se nota: la clase ya está
+   * puesta y el navegador no vuelve a ejecutar la animación. Cambiar la `key`
+   * del elemento lo monta de nuevo y la sacudida se repite, que es justo lo
+   * que el error necesita.
+   */
+  const [sacudidas, setSacudidas] = useState(0);
   const router = useRouter();
 
   // Reloj de la pantalla de bloqueo. Se arranca en el cliente para no chocar
@@ -118,8 +139,8 @@ export function AccesoScreen({
     // Mientras tanto se simula: "1970" entra, cualquier otro falla.
     if (pin === "1970") {
       // Entrar es IR al puesto de trabajo. Una pantalla intermedia de
-      // «bienvenido» es un toque de más en un sitio donde hay cola.
-      setPin("");
+      // «bienvenido» es un toque de más en un sitio donde hay cola; el sello
+      // verde ocupa su lugar y dura lo que tarda en leerse.
       setEntrando(true);
       iniciarSesion({ id: operador!.id, nombre: operador!.nombre, rol: operador!.rol, role: operador!.role });
       // El panel en vivo enseña quién está en cada puesto (F9-08, D7). Mismo
@@ -130,13 +151,14 @@ export function AccesoScreen({
         role: operador!.rol,
         device: PUESTO_DE_ROL[operador!.role],
       });
-      router.push(operador!.destino);
+      window.setTimeout(() => router.push(operador!.destino), MS_DEL_SELLO);
       return;
     }
 
     setFallos((n) => n + 1);
     setUltimoFallo(Date.now());
     setAhora(Date.now());
+    setSacudidas((n) => n + 1);
     setPin("");
   }
 
@@ -245,14 +267,17 @@ export function AccesoScreen({
 
   return (
     <div className="grid flex-1 place-content-center bg-base px-6 py-10">
-      <div className="w-full max-w-xs">
+      {/* La tarjeta entra desde abajo: el salto de «¿Quién entra?» al teclado
+          es un paso adelante, y verlo llegar evita el corte seco. */}
+      <div className="l2-entra w-full max-w-xs">
         <button
           type="button"
+          disabled={entrando}
           onClick={() => {
             setOperador(null);
             setPin("");
           }}
-          className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-ink-3 transition-colors hover:text-ink"
+          className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-ink-3 transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ArrowLeft size={15} aria-hidden="true" />
           Cambiar de persona
@@ -266,25 +291,39 @@ export function AccesoScreen({
           </div>
         </div>
 
-        {/* El PIN se muestra como puntos: se teclea de cara al público. */}
-        <div className="mb-5 flex justify-center gap-3" aria-live="polite">
+        {/* El PIN se muestra como puntos: se teclea de cara al público.
+
+            Tres señales, ninguna sola: el punto REBOTA al entrar un dígito
+            (la mano sabe que contó), la fila SE SACUDE al errar (una negación
+            con la cabeza) y se pone VERDE al acertar. Debajo, siempre, el
+            texto que dice lo mismo (§8.2). */}
+        <div
+          key={sacudidas}
+          className={cn("mb-5 flex justify-center gap-3", fallos > 0 && "l2-sacudida")}
+          aria-live="polite"
+        >
           <span className="sr-only">
-            {pin.length} de {PIN_LENGTH} dígitos escritos
+            {entrando ? "PIN correcto" : `${pin.length} de ${PIN_LENGTH} dígitos escritos`}
           </span>
-          {Array.from({ length: PIN_LENGTH }, (_, i) => (
-            <span
-              key={i}
-              aria-hidden="true"
-              className={cn(
-                "size-3.5 rounded-full transition-colors",
-                i < pin.length ? "bg-brand" : "bg-line",
-              )}
-            />
-          ))}
+          {Array.from({ length: PIN_LENGTH }, (_, i) => {
+            const lleno = i < pin.length;
+            return (
+              <span
+                // Al llenarse, el punto se monta de nuevo y por eso rebota.
+                key={`${i}:${lleno}`}
+                aria-hidden="true"
+                className={cn(
+                  "size-3.5 rounded-full transition-colors",
+                  lleno && "l2-punto",
+                  entrando ? "bg-state-ok" : lleno ? "bg-brand" : "bg-line",
+                )}
+              />
+            );
+          })}
         </div>
 
         {bloqueo.locked ? (
-          <div className="rounded-[var(--radius-card)] border border-state-crit/40 bg-state-crit-bg p-5 text-center">
+          <div className="l2-entra rounded-[var(--radius-card)] border border-state-crit/40 bg-state-crit-bg p-5 text-center">
             <Lock size={24} className="mx-auto text-state-crit" aria-hidden="true" />
             <p className="mt-3 font-semibold text-ink">Demasiados intentos</p>
             <p className="tnum mt-1 text-sm text-state-crit">{describeLockout(bloqueo)}</p>
@@ -292,26 +331,36 @@ export function AccesoScreen({
               Cada intento fallido queda registrado en la auditoría, con la hora y el dispositivo.
             </p>
           </div>
+        ) : entrando ? (
+          /* PIN correcto. El teclado desaparece —ya no hay nada que teclear— y
+             en su sitio queda el acuse: sello, a dónde se va y una barra que
+             recorre mientras se abre. Que el teclado siga ahí, apagado, invita
+             a volver a pulsar; y así es como se duplican las acciones. */
+          <div className="flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-state-ok/40 bg-state-ok-bg/40 px-5 py-7 text-center">
+            <span className="l2-sello grid size-12 place-content-center rounded-full bg-state-ok text-base">
+              <Check size={26} className="text-on-brand" aria-hidden="true" strokeWidth={3} />
+            </span>
+            <p role="status" className="text-[13.5px] font-semibold text-ink">
+              Adelante, {operador.nombre.split(" ")[0]}
+            </p>
+            <p className="text-[12.5px] text-ink-2">Abriendo {operador.destinoNombre}…</p>
+            <span
+              aria-hidden="true"
+              className="mt-1 block h-0.5 w-32 overflow-hidden rounded-full bg-state-ok/20"
+            >
+              <span className="l2-recorre block h-full w-1/3 rounded-full bg-state-ok" />
+            </span>
+          </div>
         ) : (
           <>
-            {/* Mientras se abre la superficie, el teclado se desactiva y lo
-                dice. Sin esto, el operador vuelve a pulsar «Entrar» creyendo
-                que no funcionó, que es como se duplican las acciones. */}
             <NumericKeypad
               value={pin}
               onChange={setPin}
               maxLength={PIN_LENGTH}
               surface="pos"
-              disabled={entrando}
               onSubmit={intentar}
-              submitLabel={entrando ? "Entrando…" : "Entrar"}
+              submitLabel="Entrar"
             />
-
-            {entrando && (
-              <p role="status" className="mt-4 text-center text-[12.5px] text-ink-2">
-                Abriendo {operador.destinoNombre}…
-              </p>
-            )}
 
             {fallos > 0 && (
               <p

@@ -206,6 +206,48 @@ html:has(dialog[open]) { overflow: hidden; }
 }
 .l2-destello { animation: l2-destello 1.2s var(--ease-salida) 2; }
 
+/* ── El acceso: el PIN se siente, no solo se lee (F2-03) ──────────────────
+
+   Un teclado numérico se usa de pie, con prisa y sin mirar la pantalla. Si el
+   único acuse de un dígito es un punto que cambia de color, se teclea de más o
+   de menos; y si el único acuse de un PIN errado es una línea de texto debajo,
+   se vuelve a teclear el mismo PIN. Estas tres animaciones existen para que la
+   mano sepa lo que hizo antes de que el ojo lo lea. Ninguna comunica sola:
+   siempre hay texto y color detrás (§8.2). */
+
+/* Un dígito entró: el punto aparece con un rebote corto. */
+@keyframes l2-punto {
+  from { transform: scale(0.4); }
+  60%  { transform: scale(1.18); }
+  to   { transform: scale(1); }
+}
+.l2-punto { animation: l2-punto var(--dur-normal) var(--ease-salida); }
+
+/* PIN errado: una negación con la cabeza. Corta —320 ms— y una sola vez; un
+   temblor largo parece un fallo del sistema y no un error de quien teclea. */
+@keyframes l2-sacudida {
+  0%, 100% { transform: translateX(0); }
+  15%, 55% { transform: translateX(-7px); }
+  35%, 75% { transform: translateX(7px); }
+  90%      { transform: translateX(-2px); }
+}
+.l2-sacudida { animation: l2-sacudida 320ms var(--ease-salida); }
+
+/* PIN correcto: el sello que confirma antes de abrir el puesto. */
+@keyframes l2-sello {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.l2-sello { animation: l2-sello var(--dur-normal) var(--ease-salida) both; }
+
+/* Algo está en marcha y no se sabe cuánto falta: la barra recorre el carril.
+   Indeterminada a propósito — inventar un porcentaje es mentir. */
+@keyframes l2-recorre {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(300%); }
+}
+.l2-recorre { animation: l2-recorre 1.1s var(--ease-salida) infinite; }
+
 /* El recibo impreso: solo el recibo, al ancho de un ticket de 80 mm. */
 @media print {
   body * { visibility: hidden; }
@@ -222,6 +264,9 @@ html:has(dialog[open]) { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .l2-destello { animation: none; }
+  .l2-punto, .l2-sacudida, .l2-recorre { animation: none; }
+  /* El sello sí se queda, pero sin crecer: es el acuse de que el PIN entró. */
+  .l2-sello { animation: none; opacity: 1; }
   .l2-pulse { animation: none; }
   .l2-entra { animation: none; }
   .l2-pagina-adelante, .l2-pagina-atras, .l2-pagina-lateral { animation: none; }
