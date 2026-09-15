@@ -8,6 +8,10 @@
  *
  * Dos excepciones reales de las que habló el cliente: la cajera que abre los
  * sábados y confirma la tasa, y el inventario reservado a la administración.
+ *
+ * Y una historia: Carla entró en marzo y se fue en agosto. **No se borra**
+ * (regla 5): queda de baja, con su motivo y quién lo hizo, porque los cobros
+ * que hizo mientras trabajaba siguen apuntando a ella.
  */
 import { UsersDirectorySchema } from "@l2/contracts";
 
@@ -44,6 +48,15 @@ export const DEMO_USUARIOS = UsersDirectorySchema.parse({
       role: "CAJERO",
       branchIds: ["b1"],
       active: true,
+      changes: [
+        {
+          kind: "PIN",
+          by: "u-abigail",
+          byName: "Abigail Karam",
+          reason: "Olvidó el PIN después de las vacaciones y no podía abrir la caja.",
+          at: "2026-09-08T11:40:00.000Z",
+        },
+      ],
       exceptions: [
         {
           effect: "GRANT",
@@ -88,6 +101,23 @@ export const DEMO_USUARIOS = UsersDirectorySchema.parse({
       branchIds: ["b1"],
       active: false,
       exceptions: [],
+      changes: [
+        {
+          kind: "BAJA",
+          by: "u-abigail",
+          byName: "Abigail Karam",
+          reason: "Se muda de ciudad y deja el puesto a final de mes.",
+          at: "2026-08-29T21:00:00.000Z",
+        },
+        {
+          kind: "ALTA",
+          role: "CAJERO",
+          by: "u-abigail",
+          byName: "Abigail Karam",
+          reason: "Entra a caja para cubrir los turnos de la tarde entre semana.",
+          at: "2026-03-04T13:00:00.000Z",
+        },
+      ],
     },
   ],
 }).users;

@@ -8,6 +8,10 @@ import type { UserSummaryDto } from "@l2/contracts";
  * Decide QUIÉN puede cambiar permisos antes de pintar nada: la pantalla recibe
  * `puedeGestionar` ya resuelto por la matriz, con la sucursal como parte del
  * permiso. Sin él, se ve pero no se edita — fail-closed.
+ *
+ * El actor viaja entero además del booleano, porque cada cambio del equipo se
+ * vuelve a juzgar en el dominio (`revisarCambio`): que la pantalla enseñe el
+ * botón no es que la operación esté permitida.
  */
 export function UsuariosPage({ usuarios }: { usuarios: readonly UserSummaryDto[] }) {
   // TODO(F2-12/backend): el actor vendrá de la sesión. La forma ya es la
@@ -19,6 +23,8 @@ export function UsuariosPage({ usuarios }: { usuarios: readonly UserSummaryDto[]
     <UsuariosScreen
       usuarios={usuarios}
       autor={{ id: actor.id, nombre: "Abigail Karam" }}
+      actor={actor}
+      branchId="b1"
       puedeGestionar={puedeGestionar}
     />
   );

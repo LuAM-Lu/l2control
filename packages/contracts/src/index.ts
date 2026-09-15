@@ -66,15 +66,19 @@ export {
   RoleSchema,
   PermissionSchema,
   PermissionExceptionSchema,
+  UserChangeSchema,
   UserSummarySchema,
   UsersDirectorySchema,
   PermissionExceptionCommandSchema,
+  UserCommandSchema,
   type RoleDto,
   type PermissionDto,
   type PermissionExceptionDto,
+  type UserChangeDto,
   type UserSummaryDto,
   type UsersDirectoryDto,
   type PermissionExceptionCommand,
+  type UserCommand,
 } from "./identity.ts";
 
 export {

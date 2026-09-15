@@ -291,6 +291,16 @@ export function computeIdle(lastActivityAt: number, now: number, policy: IdlePol
   return Object.freeze({ state: "ACTIVO" });
 }
 
+/* -------------------------------------------------- gestión del equipo */
+
+export {
+  administradoresActivos,
+  revisarCambio,
+  type CambioDeEquipo,
+  type PersonaDelEquipo,
+  type Veredicto,
+} from "./gestion.ts";
+
 /* ------------------------------------------------------------ permisos */
 
 export {

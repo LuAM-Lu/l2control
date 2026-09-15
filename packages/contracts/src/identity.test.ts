@@ -9,6 +9,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  UserChangeSchema,
+  UserCommandSchema,
   PermissionExceptionCommandSchema,
   PermissionExceptionSchema,
   UserSummarySchema,
@@ -117,5 +119,67 @@ describe("comando para conceder o revocar", () => {
     const r = PermissionExceptionCommandSchema.safeParse({ ...comando, action: "" });
     assert.equal(r.success, false);
     if (!r.success) assert.equal(r.error.issues[0]?.message, "Elige una acción");
+  });
+});
+
+describe("cambios sobre una persona (F2-11)", () => {
+  const alta = {
+    kind: "ALTA",
+    fullName: "Rosa Medina",
+    role: "MESERO",
+    branchIds: ["b1"],
+    reason: "Entra al equipo de sala para los fines de semana de temporada alta.",
+  } as const;
+
+  test("dar de alta con nombre, rol, sucursal y motivo es válido", () => {
+    assert.equal(UserCommandSchema.safeParse(alta).success, true);
+  });
+
+  test("los cinco cambios exigen motivo con contenido, también reponer el PIN", () => {
+    for (const c of [
+      { kind: "BAJA", userId: "u-mari" },
+      { kind: "REINGRESO", userId: "u-carla" },
+      { kind: "ROL", userId: "u-mari", role: "SUPERVISOR" },
+      { kind: "PIN", userId: "u-mari" },
+    ]) {
+      assert.equal(UserCommandSchema.safeParse({ ...c, reason: "ok" }).success, false, c.kind);
+      assert.equal(
+        UserCommandSchema.safeParse({ ...c, reason: "Lo pidió la administración por escrito." })
+          .success,
+        true,
+        c.kind,
+      );
+    }
+  });
+
+  test("el cliente no declara autor ni hora: los pone el servidor", () => {
+    assert.equal(UserCommandSchema.safeParse({ ...alta, by: "u-otra" }).success, false);
+    assert.equal(UserCommandSchema.safeParse({ ...alta, at: "2026-01-01T00:00:00.000Z" }).success, false);
+  });
+
+  test("nadie entra sin sucursal ni con un rol inventado", () => {
+    assert.equal(UserCommandSchema.safeParse({ ...alta, branchIds: [] }).success, false);
+    assert.equal(UserCommandSchema.safeParse({ ...alta, role: "DUENO" }).success, false);
+  });
+
+  test("un cambio de rol guarda de dónde venía: es lo que responde «quién podía cobrar entonces»", () => {
+    const cambio = {
+      kind: "ROL",
+      from: "CAJERO",
+      to: "SUPERVISOR",
+      by: "u-abigail",
+      byName: "Abigail Karam",
+      reason: "Asume la supervisión de los sábados desde este mes.",
+      at: "2026-09-14T14:00:00.000Z",
+    };
+    assert.equal(UserChangeSchema.safeParse(cambio).success, true);
+    const { from: _sin, ...sinOrigen } = cambio;
+    assert.equal(UserChangeSchema.safeParse(sinOrigen).success, false);
+  });
+
+  test("una persona sin historia es válida: «changes» empieza vacío", () => {
+    const r = UserSummarySchema.safeParse(persona);
+    assert.equal(r.success, true);
+    if (r.success) assert.deepEqual(r.data.changes, []);
   });
 });
