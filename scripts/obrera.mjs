@@ -7,6 +7,7 @@
  * con la CLI de Antigravity (`agy`) sobre la suscripción Google AI Pro de quien
  * la usa, sin clave de API.
  *
+ *   node scripts/obrera.mjs programa <tarea> --encargo docs/encargos/<tarea>.md
  *   node scripts/obrera.mjs programa <tarea> "encargo"   escribe en una copia aislada
  *   node scripts/obrera.mjs diff <tarea>                 lo que escribió, para revisarlo
  *   node scripts/obrera.mjs limpia <tarea>               borra la copia y su rama
@@ -28,8 +29,8 @@
  *     y lo aplica ella en `main`. La obrera no tiene `git`: no puede hacer commit.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const RAIZ = join(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -74,6 +75,13 @@ function git(args, cwd = RAIZ) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (r.status !== 0) salir(`git ${args.join(" ")} falló:\n${r.stderr}`);
   return r.stdout;
+}
+
+function leerEncargo(ruta) {
+  if (!ruta) salir("falta la ruta del archivo después de --encargo.");
+  const completa = isAbsolute(ruta) ? ruta : join(RAIZ, ruta);
+  if (!existsSync(completa)) salir(`no encuentro el encargo: ${completa}`);
+  return readFileSync(completa, "utf8").trim();
 }
 
 const TAREA_VALIDA = /^[a-z0-9][a-z0-9-]{1,40}$/;
@@ -205,8 +213,18 @@ switch (oficio) {
 
   case "programa": {
     const tarea = nombreDeTarea(resto[0]);
-    const encargo = resto.slice(1).join(" ").trim();
-    if (!encargo) salir('falta el encargo. Uso: node scripts/obrera.mjs programa <tarea> "encargo"');
+    // El encargo largo vive en docs/encargos/<tarea>.md: se versiona con el
+    // código que produjo y no pasa por las comillas de la terminal.
+    const encargo =
+      resto[1] === "--encargo"
+        ? leerEncargo(resto[2])
+        : resto.slice(1).join(" ").trim();
+    if (!encargo) {
+      salir(
+        'falta el encargo. Uso: node scripts/obrera.mjs programa <tarea> --encargo docs/encargos/<tarea>.md\n' +
+          '                   o: node scripts/obrera.mjs programa <tarea> "encargo"',
+      );
+    }
     candadoEntrenamiento();
     prepararCopia(tarea);
     const codigo = await lanzar(
@@ -244,6 +262,7 @@ switch (oficio) {
     salir(
       [
         "oficio desconocido. Uso:",
+        "  node scripts/obrera.mjs programa <tarea> --encargo docs/encargos/<tarea>.md",
         '  node scripts/obrera.mjs programa <tarea> "encargo"',
         "  node scripts/obrera.mjs diff <tarea> [--completo]",
         "  node scripts/obrera.mjs limpia <tarea>",

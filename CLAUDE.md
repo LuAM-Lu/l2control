@@ -97,7 +97,7 @@ obrera**: programa lo que se le encarga, en una copia aislada. Todo pasa por `sc
 siempre: **no se fuerza**.
 
 ```bash
-node scripts/obrera.mjs programa <tarea> "encargo"   # escribe en ../<proyecto>-obrera, rama obrera/<tarea>
+node scripts/obrera.mjs programa <tarea> --encargo docs/encargos/<tarea>.md   # escribe en ../<proyecto>-obrera
 node scripts/obrera.mjs diff <tarea> --completo      # la maestra revisa
 node scripts/obrera.mjs limpia <tarea>               # tras aplicar o descartar
 node scripts/obrera.mjs revisa [--flash] "encargo"   # solo lee y opina
@@ -107,7 +107,8 @@ node scripts/obrera.mjs revisa [--flash] "encargo"   # solo lee y opina
   obrera no puede tocar: contratos (`packages/contracts`), dominio (`packages/domain/*`) y `@l2/ui`.
   La obrera solo escribe en `apps/`.
 - **El encargo es una especificación, no una idea**: qué archivos, qué patrón copiar, qué no hacer y
-  cuándo está terminado. Un encargo vago devuelve código que hay que rehacer.
+  cuándo está terminado. Se guarda en `docs/encargos/<tarea>.md` y se versiona con el código que produjo.
+  Un encargo vago devuelve código que hay que rehacer.
 - **No se delega**: arquitectura, contratos, dominio ni decisiones del plan.
 - **Qué puede salir del equipo.** A Gemini, el código del repo, **solo** si quien la usa desactivó el
   entrenamiento con sus datos (`L2_OBRERA_SIN_ENTRENAMIENTO=1`; el script lo exige). A DeepSeek (cuando

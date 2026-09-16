@@ -16,6 +16,7 @@ import {
   KidSchema,
   MoneySchema,
   ParkPolicySchema,
+  TarifarioSchema,
   WristbandCodeSchema,
 } from "./index.ts";
 
@@ -156,5 +157,90 @@ describe("registro de entrada (F5-02)", () => {
       guardianId: "g-1",
     });
     assert.equal(r.success, false);
+  });
+});
+
+describe("tarifario del parque (F5-04, F5-06)", () => {
+  const paquete = (id: string, nombre: string, minutos: number | null, minor = "500", activo = true) => ({
+    id,
+    name: nombre,
+    mode: minutos === null ? ("POSTPAGO" as const) : ("PREPAGO" as const),
+    duration: minutos === null ? { kind: "openEnded" as const } : { kind: "fixed" as const, minutes: minutos },
+    price: { minor, currency: "USD" as const },
+    active: activo,
+  });
+  const politica = {
+    graceMinutes: 5,
+    penaltyBlockMinutes: 15,
+    penaltyPricePerBlock: { minor: "150", currency: "USD" as const },
+    warnBeforeMinutes: 10,
+    capacityLimit: 30,
+  };
+  const valido = {
+    packages: [paquete("p30", "30 minutos", 30, "300"), paquete("libre", "Pase libre", null, "1200")],
+    policy: politica,
+  };
+  const falla = (t: unknown, patron: RegExp) => {
+    const r = TarifarioSchema.safeParse(t);
+    assert.equal(r.success, false);
+    if (!r.success) assert.ok(r.error.issues.some((i) => patron.test(i.message)), JSON.stringify(r.error.issues));
+  };
+
+  test("un tarifario coherente es válido", () => {
+    assert.equal(TarifarioSchema.safeParse(valido).success, true);
+  });
+
+  test("un paquete retirado se queda, pero tiene que quedar alguno a la venta", () => {
+    const retirado = paquete("p30", "30 minutos", 30, "300", false);
+    assert.equal(TarifarioSchema.safeParse({ ...valido, packages: [retirado, valido.packages[1]] }).success, true);
+    falla({ ...valido, packages: [retirado] }, /al menos un paquete a la venta/);
+  });
+
+  test("un paquete a precio cero no entra: eso es una cortesía", () => {
+    falla({ ...valido, packages: [paquete("p", "Gratis", 30, "0")] }, /mayor que cero/);
+  });
+
+  test("el parque cobra en dólares", () => {
+    const enBs = { ...paquete("p", "30 minutos", 30), price: { minor: "300", currency: "VES" } };
+    falla({ ...valido, packages: [enBs] }, /dólares/);
+  });
+
+  test("dos paquetes a la venta no se llaman igual, aunque cambien mayúsculas o acentos", () => {
+    falla(
+      { ...valido, packages: [paquete("a", "Media hora", 30), paquete("b", "  MEDIA  HORA", 45)] },
+      /Ya hay un paquete/,
+    );
+    // Retirado no cuenta: un paquete vuelve con otro precio.
+    assert.equal(
+      TarifarioSchema.safeParse({
+        ...valido,
+        packages: [paquete("a", "Media hora", 30, "300", false), paquete("b", "Media hora", 30, "350")],
+      }).success,
+      true,
+    );
+  });
+
+  test("un pase libre se cobra al salir", () => {
+    const mal = { ...paquete("libre", "Pase libre", null), mode: "PREPAGO" };
+    falla({ ...valido, packages: [valido.packages[0], mal] }, /se cobra al salir/);
+  });
+
+  test("el aviso de «por vencer» cabe en el paquete más corto", () => {
+    falla({ ...valido, policy: { ...politica, warnBeforeMinutes: 30 } }, /menor que el paquete más corto/);
+    // Un paquete retirado no cuenta para el más corto.
+    const conRetiradoCorto = { ...valido, packages: [...valido.packages, paquete("p5", "5 minutos", 5, "100", false)] };
+    assert.equal(TarifarioSchema.safeParse(conRetiradoCorto).success, true);
+  });
+
+  test("el excedente no puede ser negativo, y puede ser cero", () => {
+    falla({ ...valido, policy: { ...politica, penaltyPricePerBlock: { minor: "-1", currency: "USD" } } }, /negativo/);
+    assert.equal(
+      TarifarioSchema.safeParse({ ...valido, policy: { ...politica, penaltyPricePerBlock: { minor: "0", currency: "USD" } } }).success,
+      true,
+    );
+  });
+
+  test("dos paquetes con el mismo id se rechazan", () => {
+    falla({ ...valido, packages: [paquete("x", "Uno", 30), paquete("x", "Dos", 60)] }, /mismo id/);
   });
 });

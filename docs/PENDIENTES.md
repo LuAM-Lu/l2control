@@ -6,7 +6,9 @@
 > en la bitácora en el mismo commit.
 
 > **2026-09-16:** hecho el editor de **Carta y precios** (primer encargo de la orquesta, ver
-> [ORQUESTA.md](ORQUESTA.md)). Sigue **Tarifas y paquetes**.
+> [ORQUESTA.md](ORQUESTA.md)). **Lo siguiente es Tarifas y paquetes**: su contrato (`TarifarioSchema`)
+> ya está hecho y su encargo, escrito en [encargos/tarifas-editor.md](encargos/tarifas-editor.md); falta
+> lanzarlo a la obrera y revisarlo.
 
 ## 1. Lo que decide el cliente
 

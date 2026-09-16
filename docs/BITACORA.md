@@ -1021,3 +1021,18 @@ Antes del piloto, la obrera hizo una revisión de `equipo.ts` que encontró dos 
 `.parse` que dejaba un botón mudo si fallaba, y un sufijo de id que se repetía cada 28 minutos— y una
 que no lo era. La maestra aceptó dos, descartó una y encontró otra que la obrera no vio: un rango de
 expresión regular escrito con caracteres invisibles.
+
+## Relevo: Tarifas, preparada para la obrera — 2026-09-16
+
+Antes de cambiar de conversación se dejó hecha la parte de la maestra del siguiente encargo, para que la
+sesión nueva empiece lanzándolo. El contrato ya tenía paquetes y política por separado; faltaba decidir
+qué hace que **el conjunto** tenga sentido, porque se contradicen si se cambian por separado: un aviso de
+«por vencer» de 30 minutos con un paquete de 20 salta en la misma entrada. `TarifarioSchema` los valida
+juntos —al menos un paquete a la venta, precios en dólares y mayores que cero, sin nombres repetidos entre
+los activos, pase libre solo al salir, aviso menor que el paquete más corto— con 9 pruebas.
+
+El encargo quedó en `docs/encargos/tarifas-editor.md`, y `scripts/obrera.mjs` aprendió a leerlo con
+`--encargo`: un encargo largo no debe pasar por las comillas de la terminal, y versionado junto al código
+que produjo explica ese código mejor que cualquier comentario. Una decisión dentro del encargo: el
+monitor calcula su modelo en el servidor y no puede leer un proveedor del navegador, así que su política
+se queda para el backend, con su `TODO`.

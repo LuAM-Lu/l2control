@@ -100,6 +100,84 @@ export const ParkPolicySchema = z.object({
 });
 export type ParkPolicyDto = z.infer<typeof ParkPolicySchema>;
 
+/** Un nombre de paquete como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
+const nombrePaquete = (n: string) =>
+  n.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ");
+
+/**
+ * El tarifario del parque: sus paquetes y su política, que se editan y se
+ * publican juntos (F5-04, F5-06, §9.9).
+ *
+ * Van juntos porque se contradicen si se cambian por separado: un aviso de
+ * «por vencer» de 30 minutos con un paquete de 20 salta en el mismo momento de
+ * la entrada. El editor publica los dos a la vez, y este esquema decide si el
+ * conjunto tiene sentido.
+ *
+ * Un paquete **se retira con `active: false`, no se borra** (regla 5): las
+ * estancias y los cobros de ayer lo nombran por su id.
+ */
+export const TarifarioSchema = z
+  .object({
+    packages: z.array(PricePackageSchema).min(1, "El tarifario necesita al menos un paquete"),
+    policy: ParkPolicySchema,
+  })
+  .superRefine((t, ctx) => {
+    const activos = t.packages.filter((p) => p.active);
+    if (activos.length === 0) {
+      ctx.addIssue({ code: "custom", path: ["packages"], message: "Tiene que haber al menos un paquete a la venta" });
+    }
+
+    const ids = new Set<string>();
+    const nombres = new Set<string>();
+    t.packages.forEach((p, i) => {
+      if (ids.has(p.id)) {
+        ctx.addIssue({ code: "custom", path: ["packages", i, "id"], message: "Dos paquetes con el mismo id" });
+      }
+      ids.add(p.id);
+
+      // Un paquete a precio cero sería una cortesía, y eso exige autorización (F6-14).
+      if (BigInt(p.price.minor) <= 0n) {
+        ctx.addIssue({ code: "custom", path: ["packages", i, "price"], message: `«${p.name}» necesita un precio mayor que cero` });
+      }
+      // El parque cobra en la moneda funcional (ADR-004).
+      if (p.price.currency !== "USD") {
+        ctx.addIssue({ code: "custom", path: ["packages", i, "price"], message: `«${p.name}» se cobra en dólares` });
+      }
+      // Un pase libre se liquida al salir; uno de tiempo fijo se paga al entrar.
+      if (p.duration.kind === "openEnded" && p.mode !== "POSTPAGO") {
+        ctx.addIssue({ code: "custom", path: ["packages", i, "mode"], message: `«${p.name}» es de tiempo libre: se cobra al salir` });
+      }
+
+      if (!p.active) return;
+      const clave = nombrePaquete(p.name);
+      if (nombres.has(clave)) {
+        ctx.addIssue({ code: "custom", path: ["packages", i, "name"], message: `Ya hay un paquete «${p.name}» a la venta` });
+      }
+      nombres.add(clave);
+    });
+
+    const { policy } = t;
+    if (BigInt(policy.penaltyPricePerBlock.minor) < 0n) {
+      ctx.addIssue({ code: "custom", path: ["policy", "penaltyPricePerBlock"], message: "El precio del excedente no puede ser negativo" });
+    }
+    if (policy.penaltyPricePerBlock.currency !== "USD") {
+      ctx.addIssue({ code: "custom", path: ["policy", "penaltyPricePerBlock"], message: "El excedente se cobra en dólares" });
+    }
+
+    // El aviso de «por vencer» tiene que caber en el paquete más corto: si no,
+    // la estancia nace ya avisando y el aviso deja de significar nada.
+    const cortos = activos.flatMap((p) => (p.duration.kind === "fixed" ? [p.duration.minutes] : []));
+    const masCorto = cortos.length > 0 ? Math.min(...cortos) : null;
+    if (masCorto !== null && policy.warnBeforeMinutes >= masCorto) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["policy", "warnBeforeMinutes"],
+        message: `El aviso (${policy.warnBeforeMinutes} min) tiene que ser menor que el paquete más corto (${masCorto} min)`,
+      });
+    }
+  });
+export type TarifarioDto = z.infer<typeof TarifarioSchema>;
+
 /* ----------------------------------------------------------- estancia */
 
 export const SessionStatusSchema = z.enum([

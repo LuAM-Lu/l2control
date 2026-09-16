@@ -6,6 +6,19 @@
 > [CLAUDE.md](../CLAUDE.md#orquesta-de-modelos-opcional). Es **opcional y personal**: se configura por
 > persona y no cambia nada para quien no la tenga.
 
+## Arrancar una sesión nueva en modo orquesta
+
+1. **Reabrir VS Code** después de cualquier `setx`, para que Claude Code vea `L2_OBRERA_SIN_ENTRENAMIENTO`.
+2. Abrir Claude Code en la carpeta del proyecto y empezar con algo como:
+
+   > Trabajamos en orquesta (docs/ORQUESTA.md): tú eres la maestra y Gemini programa. Lee
+   > docs/PENDIENTES.md y el final de docs/BITACORA.md. Lo siguiente es el encargo
+   > docs/encargos/tarifas-editor.md: revisa que su preparación esté hecha y lánzalo.
+
+3. La maestra comprueba antes de lanzar: `git status` limpio, `git worktree list` sin copias viejas y
+   `pnpm verify` en verde. Si la obrera se niega por el candado, reabrir VS Code.
+4. Para probar en el navegador hace falta `pnpm dev` (el servidor no sobrevive a la sesión que lo lanzó).
+
 ## Las dos vías, y cuál está activa
 
 | Vía | Cómo paga Gemini | Estado |
@@ -121,8 +134,9 @@ se discute si basta; una garantía contractual solo la da una cuenta de empresa.
 ```bash
 # 1. La maestra prepara lo que la obrera no puede tocar (contratos, dominio, ui) y lo commitea:
 #    la copia sale del HEAD de ese momento.
-# 2. Encarga, con una especificación: archivos, patrón a copiar, qué no hacer, cuándo está terminado.
-node scripts/obrera.mjs programa carta-editor "…"
+# 2. Encarga, con una especificación guardada en docs/encargos/<tarea>.md: archivos, patrón a copiar,
+#    qué no hacer y cuándo está terminado.
+node scripts/obrera.mjs programa carta-editor --encargo docs/encargos/carta-editor.md
 # 3. Revisa el diff entero.
 node scripts/obrera.mjs diff carta-editor --completo
 # 4. En la copia: pnpm verify y prueba en el navegador. Corrige lo que haga falta.
@@ -211,6 +225,13 @@ publicada llega al salón (Malta retirada no se ofrece, la Arepa nueva sí, los 
 **Lecciones:** la obrera **declaró que el typecheck pasaría sin haberlo corrido** —nunca fiarse del
 resumen, siempre comprobar—; y sus fallos fueron de los que el compilador no ve si no se ejecuta
 (propiedades inventadas) o que solo aparecen usando la pantalla. Por eso la revisión incluye navegador.
+
+## Encargos
+
+| Tarea | Encargo | Preparación de la maestra | Estado |
+|---|---|---|---|
+| `carta-editor` | [docs/encargos/carta-editor.md](encargos/carta-editor.md) | `MenuItemSchema.retiredAt` y reglas de `MenuSchema` | **Hecho** (46bd2a3) |
+| `tarifas-editor` | [docs/encargos/tarifas-editor.md](encargos/tarifas-editor.md) | `TarifarioSchema` con 9 pruebas | **Listo para lanzar** |
 
 ## Actualizar o quitar
 
