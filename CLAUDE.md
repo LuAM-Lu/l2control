@@ -87,3 +87,20 @@ Venezuela: multimoneda (USD funcional, Bs de liquidación), IVA + IGTF del 3 % s
 divisas, cortes de luz e internet frecuentes. Aforo del local: 30 niños, 7-10 mesas.
 Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
+
+## Orquesta de modelos (opcional)
+
+Si la sesión tiene el servidor MCP `pal` (PAL MCP), Claude Code es **la maestra** y Gemini —y más
+adelante DeepSeek— son **obreras** que se llaman como herramientas. Instalación y detalles en
+[docs/ORQUESTA.md](docs/ORQUESTA.md). Sin `pal`, todo esto se ignora y se trabaja como siempre.
+
+- **Se delega** lo acotado y comprobable: generar pruebas (`testgen`), segunda opinión en una revisión
+  (`codereview`, `consensus`), revisión antes del commit (`precommit`), datos de ejemplo y documentación.
+- **No se delega**: arquitectura, contratos (`packages/contracts`), el dominio (`packages/domain/*`) ni
+  ninguna decisión del plan. La obrera opina; la maestra decide.
+- **Qué puede salir del equipo.** A Gemini, el código del repo. A DeepSeek (cuando se conecte), **solo**
+  pruebas, datos inventados e interfaz: nunca `domain/cash`, `domain/tax`, `domain/identity`, los
+  contratos de pagos y ventas, ni nada con datos reales. Nunca, a ninguna, secretos ni `.env`.
+- **Lo que devuelve una obrera no se aplica a ciegas**: se lee, se ajusta a las cinco reglas de arriba y
+  pasa `pnpm verify` antes de entrar.
+- **Solo la maestra hace commit**, y dice en el mensaje qué parte vino de una obrera.
