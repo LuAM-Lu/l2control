@@ -86,7 +86,7 @@ const plano = (s: string) =>
   s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+    .replace(/\p{M}/gu, "");
 
 export function UsuariosScreen({
   usuarios: iniciales,

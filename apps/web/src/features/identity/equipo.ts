@@ -39,12 +39,23 @@ function idDesde(nombre: string, ahora: number): string {
     .trim()
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 24);
-  return `u-${raiz || "persona"}-${ahora.toString(36).slice(-4)}`;
+  // El instante entero, no sus últimas cifras: recortado a cuatro, el sufijo se
+  // repetía cada 36⁴ ms (unos 28 minutos). Hallazgo de la obrera Gemini.
+  return `u-${raiz || "persona"}-${ahora.toString(36)}`;
 }
+
+/**
+ * Un resultado que no cumple el contrato se DEVUELVE como negativa, no se lanza.
+ *
+ * Quien llama es el clic de un botón, sin `try`: una excepción ahí deja la
+ * pantalla igual y sin decir nada, que es el error invisible que prohíbe §8.6
+ * (ya pasó con el cobro de una cuenta sin dividir). Hallazgo de la obrera Gemini.
+ */
+const SIN_CONTRATO = "El cambio no se pudo guardar: los datos resultantes no cumplen el contrato.";
 
 export function aplicarComando({
   usuarios,
@@ -83,7 +94,7 @@ export function aplicarComando({
   };
 
   if (comando.kind === "ALTA") {
-    const nueva = UserSummarySchema.parse({
+    const r = UserSummarySchema.safeParse({
       id: idDesde(comando.fullName, ahora),
       fullName: comando.fullName,
       role: comando.role,
@@ -92,6 +103,8 @@ export function aplicarComando({
       exceptions: [],
       changes: [{ kind: "ALTA", role: comando.role, ...rastro }],
     });
+    if (!r.success) return { ok: false, motivo: SIN_CONTRATO };
+    const nueva = r.data;
     return {
       ok: true,
       usuarios: [...usuarios, nueva],
@@ -108,12 +121,14 @@ export function aplicarComando({
     asiento: UserSummaryDto["changes"][number],
     mensaje: string,
   ): Resultado => {
-    const siguiente = UserSummarySchema.parse({
+    const r = UserSummarySchema.safeParse({
       ...previa,
       ...parche,
       // Lo más reciente primero: es lo que se lee.
       changes: [asiento, ...previa.changes],
     });
+    if (!r.success) return { ok: false, motivo: SIN_CONTRATO };
+    const siguiente = r.data;
     return {
       ok: true,
       usuarios: usuarios.map((u) => (u.id === siguiente.id ? siguiente : u)),
