@@ -56,7 +56,7 @@ TAREA:
 const ENCARGO_PROGRAMA = (tarea) => `Eres una obrera programadora en el repositorio L2 Control (Next.js 16, React 19, TypeScript estricto, Tailwind 4, pnpm).
 Trabajas en una COPIA AISLADA: ${COPIA.replaceAll("\\", "/")} (rama obrera/${tarea}). Todas las rutas que escribas deben estar dentro de esa carpeta.
 Solo puedes escribir dentro de apps/. No puedes tocar packages/ (contratos, dominio, ui): si la tarea lo necesitara, NO lo hagas y dilo al final.
-No puedes usar git ni borrar archivos. Los únicos comandos permitidos son: pnpm typecheck, pnpm test, pnpm arch, pnpm verify.
+No puedes usar git ni borrar archivos. Los únicos comandos permitidos son: pnpm typecheck, pnpm test, pnpm arch, pnpm verify, escritos exactamente así y con el directorio de trabajo ${COPIA.replaceAll("\\", "/")} (la raíz, donde está pnpm-workspace.yaml).
 ${REGLAS}
 Haz exactamente lo que pide el encargo, ni más ni menos. Si algo no está claro, toma la decisión más conservadora y anótala.
 Al terminar, ejecuta "pnpm typecheck" y corrige hasta que pase. Si no lo consigues, detente y explica el error.

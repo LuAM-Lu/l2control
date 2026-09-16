@@ -4,10 +4,11 @@ import "./globals.css";
 import { PanelSimulacion } from "../src/features/simulacion/PanelSimulacion";
 import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvider";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
+import { CartaProvider } from "../src/features/mesas/CartaProvider";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { DEMO_ACTIVA } from "../src/demo/modo";
-import { PLANO_DEMO } from "../src/demo/restaurante";
+import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { DEMO_CUENTAS } from "../src/demo/cuentas";
 import { DEMO_VENTAS } from "../src/demo/ventas";
 
@@ -52,12 +53,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               escriben las estaciones y lo lee el panel en vivo (F9-08).
               Con la demo apagada, se arranca sin cuentas ni ventas. */}
           <PlanoProvider inicial={PLANO_DEMO}>
-            <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
-              <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
-                {children}
-                <PanelSimulacion />
-              </VentasProvider>
-            </CuentasProvider>
+            <CartaProvider inicial={CARTA_DEMO}>
+              <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
+                <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
+                  {children}
+                  <PanelSimulacion />
+                </VentasProvider>
+              </CuentasProvider>
+            </CartaProvider>
           </PlanoProvider>
         </SimulacionProvider>
       </body>

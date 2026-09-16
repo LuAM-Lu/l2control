@@ -38,7 +38,8 @@ export function TomaPedido({
   /** Por qué no se puede enviar ahora, si hay algo que lo impide. */
   bloqueo: string | null;
 }) {
-  const categorias = [...new Set(carta.map((i) => i.category))];
+  const enVenta = carta.filter((i) => !i.retiredAt);
+  const categorias = [...new Set(enVenta.map((i) => i.category))];
   const [categoria, setCategoria] = useState<string>(categorias[0] ?? "");
   const [notaDe, setNotaDe] = useState<number | null>(null);
   const [notaTexto, setNotaTexto] = useState("");
@@ -85,7 +86,7 @@ export function TomaPedido({
         </div>
 
         <ul className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3 lg:min-h-0 lg:overflow-y-auto xl:grid-cols-4">
-          {carta
+          {enVenta
             .filter((i) => i.category === categoria)
             .map((i) => {
               const n = cantidadEn(i.id);

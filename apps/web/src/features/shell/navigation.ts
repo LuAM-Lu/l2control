@@ -132,12 +132,11 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "carta",
         nombre: "Carta y precios",
-        href: null,
+        href: rutaSeccion("restaurante", "carta"),
         accion: "catalogo.modificar",
         proposito:
-          "Productos, categorías, precios y modificadores («sin cebolla», «término medio»), con su tipo de IVA.",
+          "Platos, categorías y precios. Se edita en borrador y el salón la ve al publicar. Los modificadores llegan después (F6-04).",
         tarea: "F6-03",
-        necesita: "El menú real con precios (F0-04).",
       },
       {
         id: "comandas",

@@ -980,3 +980,44 @@ pantalla de bloqueo.
 
 Nada de esto es seguridad todavía: son tres guardias del navegador. La puerta de verdad es F2-05, en
 el servidor, con esta misma matriz y estos mismos ajustes.
+
+## La orquesta de modelos, y su primer encargo — 2026-09-16
+
+El usuario quería trabajar con varias IA: Claude como maestra y Gemini (y más adelante DeepSeek) como
+obreras. Se compararon las herramientas del momento y decidieron tres hechos: la suscripción Claude Pro
+solo vale dentro de Claude Code (los términos de Anthropic lo prohíben en herramientas de terceros desde
+febrero), Roo Code cerró en mayo, y la CLI de Gemini dejó de atender cuentas Pro en junio. Así que la
+maestra es Claude Code y la obrera, la CLI de Antigravity (`agy`) con la suscripción Google AI Pro del
+usuario, sin clave de API. PAL MCP quedó instalado para cuando haya clave.
+
+**Primero se montó mal, y el usuario lo corrigió.** La obrera nació como revisora de solo lectura; el
+usuario lo dijo sin rodeos —«Claude está programando, la idea es que Gemini lo haga»—. Rediseñada: la
+obrera **programa**, pero en una **copia aislada** (`git worktree` hermano), con permisos que solo le
+dejan escribir en `apps/` de esa copia y ejecutar `pnpm typecheck|test|arch|verify`. Ni `git`, ni
+borrar, ni el dominio, ni los contratos: eso lo prepara la maestra antes de encargar. Cada límite se
+comprobó por separado antes de confiarle nada.
+
+**Un candado antes de mandar código fuera.** Los términos de Antigravity dicen que Google entrena con
+lo que la herramienta lee, salvo que se desactive. El script se niega a trabajar hasta que quien lo usa
+declara que lo desactivó.
+
+**El piloto fue el editor de Carta y precios.** La maestra dejó el contrato listo (`retiredAt`, nombres
+repetidos, carta sin nada que vender) y escribió un encargo con archivos, patrón, prohibiciones y
+criterio de terminado. La obrera devolvió 8 archivos y 487 líneas en unos cinco minutos, con la
+arquitectura bien y el grueso correcto. La maestra corrigió unas 60 líneas: un fallo real (el botón
+«Editar» abría la hoja vacía, porque usaba una propiedad que no existe), un bucle que podía no terminar,
+dos errores de tipos, un `TODO` perdido y detalles de interfaz.
+
+**Dos lecciones que se quedan.** La obrera escribió en su resumen que el typecheck pasaría, sin haberlo
+podido correr: el resumen de una obrera es una declaración, no una prueba. Y el motivo por el que no
+pudo correrlo fue un permiso mal puesto por la maestra: en Windows la caja de arena de `agy` no aísla,
+todos los comandos cuentan como «sin aislar», y negar eso negaba también `pnpm`. Se corrigió y se
+comprobó que `pnpm` corre y `git` y `node` siguen negados.
+
+También se vio que el servidor de desarrollo no siempre recoge los archivos que escribe `git apply`:
+servía un 404 hasta que se tocaron. Queda anotado en el ciclo de la orquesta.
+
+Antes del piloto, la obrera hizo una revisión de `equipo.ts` que encontró dos cosas buenas —un
+`.parse` que dejaba un botón mudo si fallaba, y un sufijo de id que se repetía cada 28 minutos— y una
+que no lo era. La maestra aceptó dos, descartó una y encontró otra que la obrera no vio: un rango de
+expresión regular escrito con caracteres invisibles.

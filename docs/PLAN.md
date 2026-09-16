@@ -1841,6 +1841,7 @@ producto y el flujo más simple de validar en un turno.*
 - [~] **F6-02 · Estados de mesa en tiempo real** (§6.5).
   → *Criterio:* una mesa no tiene dos sesiones abiertas (I-05); los estados se ven a distancia.
 - [~] **F6-03 · Catálogo táctil por categorías** con `TouchGrid` (§8.4).
+  *Editor de la carta hecho el 2026-09-16 (Panel → Restaurante → Carta y precios): borrador y publicación, retirar sin borrar. Faltan modificadores (F6-04), IVA por plato y el servidor.*
   → *Criterio:* objetivos de 48 px en tablet; un mesero nuevo toma un pedido sin entrenamiento previo.
 - [ ] **F6-04 · Modificadores de plato** con efecto en precio y en consumo de insumos.
   → *Criterio:* un modificador con costo altera el total y el escandallo de forma coherente.

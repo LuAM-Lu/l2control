@@ -5,6 +5,9 @@
 > paso, en [BITACORA.md](BITACORA.md). Cuando algo de aquí se resuelve, se tacha aquí y se anota
 > en la bitácora en el mismo commit.
 
+> **2026-09-16:** hecho el editor de **Carta y precios** (primer encargo de la orquesta, ver
+> [ORQUESTA.md](ORQUESTA.md)). Sigue **Tarifas y paquetes**.
+
 ## 1. Lo que decide el cliente
 
 | # | Decisión | Propuesta sobre la mesa | Dónde |

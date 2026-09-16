@@ -4,6 +4,7 @@ import { buscarModulo, buscarSeccion } from "../../../../../src/features/shell/n
 import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
 import { DEMO_USUARIOS } from "../../../../../src/demo/usuarios";
 import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
+import { EditorCarta } from "../../../../../src/features/mesas/EditorCarta";
 import { AccesosScreen } from "../../../../../src/features/identity/AccesosScreen";
 
 /**
@@ -17,6 +18,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
   // TODO(F2-11/backend): el directorio sale del servidor.
   "personas/usuarios": () => <UsuariosPage usuarios={DEMO_USUARIOS} />,
   "restaurante/plano": () => <EditorPlano />,
+  "restaurante/carta": () => <EditorCarta />,
   // TODO(F2-05/backend): el autor sale de la sesión y la sucursal, del dispositivo.
   "configuracion/accesos": () => (
     <AccesosScreen autor={{ id: "u-abigail", nombre: "Abigail Karam" }} branchId="b1" />

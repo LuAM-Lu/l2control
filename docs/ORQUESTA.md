@@ -62,7 +62,9 @@ En modo sin interfaz, `agy` **deniega sin preguntar** todo lo que no esté permi
       "read_file(C:/Users/W11/Desktop/L2Control-obrera/)",
       "write_file(C:/Users/W11/Desktop/L2Control-obrera/apps/)",
       "command(regex:^pnpm (typecheck|test|arch|verify)$)",
-      "command(regex:^pnpm --filter [@a-z0-9/_.-]+ (typecheck|test)$)"
+      "command(regex:^pnpm --filter [@a-z0-9/_.-]+ (typecheck|test)$)",
+      "unsandboxed(regex:^pnpm (typecheck|test|arch|verify)$)",
+      "unsandboxed(regex:^pnpm --filter [@a-z0-9/_.-]+ (typecheck|test)$)"
     ],
     "deny": [
       "write_file(C:/Users/W11/Desktop/L2Control/)",
@@ -81,7 +83,6 @@ En modo sin interfaz, `agy` **deniega sin preguntar** todo lo que no esté permi
       "read_file(C:/Users/W11/.claude/)",
       "read_file(C:/Users/W11/.claude.json)",
       "command(git)",
-      "unsandboxed(*)",
       "execute_url(*)"
     ]
   }
@@ -89,8 +90,15 @@ En modo sin interfaz, `agy` **deniega sin preguntar** todo lo que no esté permi
 ```
 
 *Comprobado el 2026-09-16, límite por límite:* escribir en `apps/` de la copia funciona; escribir en el
-proyecto o en `packages/domain` de la copia se deniega; `git` y `Remove-Item` se deniegan; `pnpm
-typecheck` se ejecuta; pedirle `.claude.json` choca con la lista de prohibidos.
+proyecto o en `packages/domain` de la copia se deniega; `git`, `node -e` y `Remove-Item` se deniegan;
+`pnpm typecheck` se ejecuta y devuelve su salida; pedirle `.claude.json` choca con la lista de prohibidos.
+
+> **Por qué hay reglas `unsandboxed(...)`.** En Windows la caja de arena de `agy` no aísla los comandos,
+> así que **todos** cuentan como «sin aislar». Una primera versión negaba `unsandboxed(*)` y eso bloqueaba
+> también `pnpm typecheck`: la obrera del piloto no pudo comprobar su propio código. Ahora se permite
+> ejecutar sin aislar **solo** lo que ya está en la lista de comandos; todo lo demás sigue sin permiso.
+> Además, `agy` lanza los comandos desde otra carpeta si no se le dice: el encargo base le indica la raíz
+> de la copia.
 
 ### El candado del entrenamiento
 
@@ -118,8 +126,11 @@ node scripts/obrera.mjs programa carta-editor "…"
 # 3. Revisa el diff entero.
 node scripts/obrera.mjs diff carta-editor --completo
 # 4. En la copia: pnpm verify y prueba en el navegador. Corrige lo que haga falta.
-# 5. Lo lleva a main (git -C ../L2Control-obrera diff | git apply), commit diciendo qué escribió
-#    la obrera y qué corrigió la maestra.
+# 5. Lo lleva a main y commitea diciendo qué escribió la obrera y qué corrigió la maestra:
+git -C ../L2Control-obrera add -A -N
+git -C ../L2Control-obrera diff --binary > carta.patch && git apply carta.patch
+#    ⚠ El servidor de desarrollo (Turbopack) no siempre ve los archivos que escribe `git apply`
+#    y sirve la versión vieja —en el piloto, un 404—. Tocar los archivos (`touch`) lo resuelve.
 node scripts/obrera.mjs limpia carta-editor
 ```
 
@@ -171,11 +182,35 @@ Herramientas que quedan encendidas: `chat`, `thinkdeep`, `planner`, `consensus`,
 > CLI con `--yolo`, que aprueba sola cualquier edición o comando. Además, esa CLI ya no atiende cuentas
 > Pro. No usarla.
 
-## Piloto
+## Piloto: el editor de Carta y precios (2026-09-16)
 
-Primera tarea programada por la obrera: **el editor de Carta y precios** (F6-03), con el proveedor de la
-carta y `/mesas` leyendo la carta publicada. La maestra dejó antes el contrato listo (`retiredAt` y la
-regla de nombres). Se mide cuánto de lo que devuelve entra sin retoques.
+**Encargo:** el editor de Carta y precios (F6-03), su proveedor y `/mesas` leyendo la carta publicada.
+La maestra dejó antes el contrato listo (`retiredAt` y la regla de nombres repetidos, con 4 pruebas).
+
+**Lo que devolvió la obrera:** 8 archivos y 487 líneas en unos 5 minutos, con la arquitectura bien
+(`pnpm arch` limpio) y las reglas del encargo cumplidas: retirar no borra, el precio pasa por
+`fromMajor` sin `number` ni `toFixed`, el error de publicación se ve junto al botón, y `/mesas` usa la
+carta completa para los pedidos viejos y oculta los retirados solo al ofrecer. Añadió «Rehacer» sin que
+se le pidiera; encaja y se quedó.
+
+**Lo que corrigió la maestra** (unas 60 líneas):
+
+| Tipo | Qué |
+|---|---|
+| Fallo real | La hoja de edición usaba una propiedad inventada (`onAbierto`): **«Editar» abría vacío** |
+| Fallo latente | Id de un plato nuevo: el reintento leía otra vez `Date.now()`, que en el mismo milisegundo repite → bucle sin fin |
+| Tipos | Un `import` a mitad de archivo y otro sin usar (`pnpm typecheck` en rojo) |
+| Pérdida | Borró el `TODO` del backend de la ruta de `/mesas` sin llevarlo a otro sitio |
+| Interfaz | 16 botones rojos rellenos; «Agotado» tachaba el nombre; el error del precio no usaba el `error` del `Input` |
+| Estilo | Sin comentarios de cabecera; espacios sobrantes |
+
+**Comprobado en el navegador:** editar abre con los datos del plato; un precio no numérico da error junto
+al campo; publicar con un nombre repetido muestra el motivo del contrato; retirar no borra; la carta
+publicada llega al salón (Malta retirada no se ofrece, la Arepa nueva sí, los Tequeños a $ 5,50).
+
+**Lecciones:** la obrera **declaró que el typecheck pasaría sin haberlo corrido** —nunca fiarse del
+resumen, siempre comprobar—; y sus fallos fueron de los que el compilador no ve si no se ejecuta
+(propiedades inventadas) o que solo aparecen usando la pantalla. Por eso la revisión incluye navegador.
 
 ## Actualizar o quitar
 

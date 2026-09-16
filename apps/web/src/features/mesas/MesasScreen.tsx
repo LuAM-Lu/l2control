@@ -16,7 +16,7 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import type { FamilyAccountDto, MenuDto } from "@l2/contracts";
+import type { FamilyAccountDto } from "@l2/contracts";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
@@ -39,6 +39,7 @@ import {
 } from "./mesas.ts";
 import { PlanoLocal } from "./PlanoLocal.tsx";
 import { usePlano } from "./PlanoProvider.tsx";
+import { useCarta } from "./CartaProvider.tsx";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
 
@@ -80,9 +81,10 @@ const ESTADO_PEDIDO: Readonly<Record<Pedido["estado"], { texto: string; tono: To
   ANULADO: { texto: "Anulado", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
 };
 
-export function MesasScreen({ carta }: { carta: MenuDto }) {
+export function MesasScreen() {
   // El plano lo publica administración desde el panel (V4); aquí solo se lee.
   const { plano } = usePlano();
+  const { carta } = useCarta();
   // La cuenta de la mesa (F6-05, D2): los platos y el parque de esta familia.
   const { cuentas, guardar } = useCuentas();
   const sim = useSimulacion();
