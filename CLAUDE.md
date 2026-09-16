@@ -90,15 +90,18 @@ Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
 ## Orquesta de modelos (opcional)
 
-Si la sesión tiene el servidor MCP `pal` (PAL MCP), Claude Code es **la maestra** y Gemini —y más
-adelante DeepSeek— son **obreras** que se llaman como herramientas. Instalación y detalles en
-[docs/ORQUESTA.md](docs/ORQUESTA.md). Sin `pal`, todo esto se ignora y se trabaja como siempre.
+Claude Code es **la maestra** y Gemini es **la obrera**: se le encarga una tarea con
+`node scripts/obrera.mjs [--flash] "tarea"` (CLI de Antigravity, suscripción Google AI Pro, **solo
+lectura**), o con el servidor MCP `pal` si la sesión lo tiene (clave de API; ahí se sumará DeepSeek).
+Instalación y candados en [docs/ORQUESTA.md](docs/ORQUESTA.md). Si ninguna de las dos está disponible
+—o la obrera se niega—, se trabaja como siempre: **no se fuerza**.
 
 - **Se delega** lo acotado y comprobable: generar pruebas (`testgen`), segunda opinión en una revisión
   (`codereview`, `consensus`), revisión antes del commit (`precommit`), datos de ejemplo y documentación.
 - **No se delega**: arquitectura, contratos (`packages/contracts`), el dominio (`packages/domain/*`) ni
   ninguna decisión del plan. La obrera opina; la maestra decide.
-- **Qué puede salir del equipo.** A Gemini, el código del repo. A DeepSeek (cuando se conecte), **solo**
+- **Qué puede salir del equipo.** A Gemini, el código del repo, **solo** si quien la usa desactivó el
+  entrenamiento con sus datos (`L2_OBRERA_SIN_ENTRENAMIENTO=1`; el script lo exige). A DeepSeek (cuando se conecte), **solo**
   pruebas, datos inventados e interfaz: nunca `domain/cash`, `domain/tax`, `domain/identity`, los
   contratos de pagos y ventas, ni nada con datos reales. Nunca, a ninguna, secretos ni `.env`.
 - **Lo que devuelve una obrera no se aplica a ciegas**: se lee, se ajusta a las cinco reglas de arriba y
