@@ -1,7 +1,8 @@
 # Orquesta de modelos
 
-> **Montada el 2026-09-16.** Claude Code es **la maestra** (con el plan Pro de quien la usa) y le
-> encarga tareas acotadas a **una obrera Gemini**. Las reglas de qué se delega y qué no están en
+> **Montada el 2026-09-16.** Claude Code es **la maestra** (con el plan Pro de quien la usa):
+> planifica, prepara contratos y dominio, escribe el encargo, revisa y hace commit. **La obrera
+> Gemini programa** lo encargado en una copia aislada del proyecto. Las reglas de qué se delega y qué no están en
 > [CLAUDE.md](../CLAUDE.md#orquesta-de-modelos-opcional). Es **opcional y personal**: se configura por
 > persona y no cambia nada para quien no la tenga.
 
@@ -9,7 +10,7 @@
 
 | Vía | Cómo paga Gemini | Estado |
 |---|---|---|
-| **A · CLI de Antigravity** (`scripts/obrera.mjs`) | Con la suscripción **Google AI Pro**, sin clave de API | **Activa** — falta desactivar el entrenamiento (abajo) |
+| **A · CLI de Antigravity** (`scripts/obrera.mjs`) | Con la suscripción **Google AI Pro**, sin clave de API | **Activa** desde el 2026-09-16: programa en una copia aislada |
 | **B · PAL MCP** | Con una **clave de API** de Gemini (y DeepSeek después) | Instalada, **sin registrar**: no arranca sin clave |
 
 La vía A existe porque quien la usa tiene Google AI Pro y no clave de API. La B da más herramientas
@@ -37,60 +38,96 @@ irm https://antigravity.google/cli/install.ps1 | iex    # verifica SHA-512; qued
 agy                                                     # una vez, para iniciar sesión con la cuenta de Google
 ```
 
-### Los tres candados
+### Qué puede y qué no puede hacer
 
-**1. Solo lee.** El modo sin interfaz de `agy` **deniega sin preguntar** todo lo que no esté permitido.
-Se permite solo leer el proyecto, en `%USERPROFILE%\.gemini\antigravity-cli\settings.json`:
+La obrera trabaja en una **copia aislada**: un `git worktree` hermano del proyecto
+(`<proyecto>-obrera`, rama `obrera/<tarea>`), con sus propias dependencias. El proyecto de verdad no se
+toca nunca.
+
+| | Puede | No puede |
+|---|---|---|
+| Leer | el proyecto y la copia | `.env*`, `.git`, `~/.ssh`, `~/.claude`, `~/.claude.json` |
+| Escribir | **`apps/` de la copia** | el proyecto; `packages/` de la copia (contratos, dominio, ui) |
+| Ejecutar | `pnpm typecheck`, `pnpm test`, `pnpm arch`, `pnpm verify` | `git`, borrar, cualquier otro comando, internet |
+
+En modo sin interfaz, `agy` **deniega sin preguntar** todo lo que no esté permitido. La prioridad es
+**deny > ask > allow**. Permisos en `%USERPROFILE%\.gemini\antigravity-cli\settings.json`
+(ajustar las rutas a la carpeta de cada persona):
 
 ```json
 {
   "permissions": {
-    "allow": ["read_file(C:/Users/W11/Desktop/L2Control/)"],
+    "allow": [
+      "read_file(C:/Users/W11/Desktop/L2Control/)",
+      "read_file(C:/Users/W11/Desktop/L2Control-obrera/)",
+      "write_file(C:/Users/W11/Desktop/L2Control-obrera/apps/)",
+      "command(regex:^pnpm (typecheck|test|arch|verify)$)",
+      "command(regex:^pnpm --filter [@a-z0-9/_.-]+ (typecheck|test)$)"
+    ],
     "deny": [
+      "write_file(C:/Users/W11/Desktop/L2Control/)",
+      "write_file(C:/Users/W11/Desktop/L2Control-obrera/.git)",
+      "write_file(C:/Users/W11/Desktop/L2Control-obrera/packages/contracts/)",
+      "write_file(C:/Users/W11/Desktop/L2Control-obrera/packages/domain/)",
+      "write_file(C:/Users/W11/Desktop/L2Control-obrera/apps/web/src/demo/modo.ts)",
       "read_file(C:/Users/W11/Desktop/L2Control/.env)",
       "read_file(C:/Users/W11/Desktop/L2Control/.env.local)",
       "read_file(C:/Users/W11/Desktop/L2Control/apps/web/.env)",
       "read_file(C:/Users/W11/Desktop/L2Control/apps/web/.env.local)",
+      "read_file(C:/Users/W11/Desktop/L2Control-obrera/.env)",
+      "read_file(C:/Users/W11/Desktop/L2Control-obrera/apps/web/.env.local)",
       "read_file(C:/Users/W11/Desktop/L2Control/.git/)",
       "read_file(C:/Users/W11/.ssh/)",
       "read_file(C:/Users/W11/.claude/)",
       "read_file(C:/Users/W11/.claude.json)",
-      "write_file(*)", "command(*)", "unsandboxed(*)", "execute_url(*)"
+      "command(git)",
+      "unsandboxed(*)",
+      "execute_url(*)"
     ]
   }
 }
 ```
 
-La prioridad es **deny > ask > allow**. Ajustar las rutas a la carpeta de cada persona. Además, el script
-la lanza con `--mode plan` y `--sandbox`.
+*Comprobado el 2026-09-16, límite por límite:* escribir en `apps/` de la copia funciona; escribir en el
+proyecto o en `packages/domain` de la copia se deniega; `git` y `Remove-Item` se deniegan; `pnpm
+typecheck` se ejecuta; pedirle `.claude.json` choca con la lista de prohibidos.
 
-*Comprobado el 2026-09-16:* pedirle que edite un archivo lo deja intacto; pedirle `.claude.json` choca con
-la lista de prohibidos; leer `packages/domain/identity/src/gestion.ts` funciona y no cambia el repo.
+### El candado del entrenamiento
 
-**2. No arranca si Google puede entrenar con el código.** Los
-[términos de Antigravity](https://antigravity.google/terms/) dicen que Google usa las interacciones
+Los [términos de Antigravity](https://antigravity.google/terms/) dicen que Google usa las interacciones
 —código, prompts y respuestas— para mejorar sus productos, y que su personal puede revisarlas, **salvo
-que se cambie la preferencia en los ajustes**. Hasta que se haga:
+que se desactive**:
 
 ```powershell
-# 1. Antigravity → Settings → Advanced → desactivar el uso de los datos para entrenar.
-# 2. Declararlo (y reabrir VS Code):
+# 1. Antigravity → Settings → Account → desactivar «Enable Telemetry».
+# 2. Declararlo (y reabrir el editor):
 setx L2_OBRERA_SIN_ENTRENAMIENTO 1
 ```
 
-Sin esa variable, `scripts/obrera.mjs` se niega y explica por qué. Fail-closed (regla 4).
+Sin esa variable, `scripts/obrera.mjs` se niega y explica por qué. Fail-closed (regla 4). Ojo: no
+hay forma de comprobar el interruptor desde el equipo (se guarda en la cuenta), y en los foros de Google
+se discute si basta; una garantía contractual solo la da una cuenta de empresa.
 
-**3. Lo que devuelve es una opinión.** No escribe en disco: la maestra lee, decide, aplica y todo pasa
-`pnpm verify` antes de entrar.
-
-### Usarla
+### El ciclo de una tarea
 
 ```bash
-node scripts/obrera.mjs "Revisa apps/web/src/features/identity/equipo.ts contra CLAUDE.md"   # Gemini 3.1 Pro
-node scripts/obrera.mjs --flash "¿Qué exporta packages/domain/identity/src/index.ts?"         # Gemini 3.8 Flash
+# 1. La maestra prepara lo que la obrera no puede tocar (contratos, dominio, ui) y lo commitea:
+#    la copia sale del HEAD de ese momento.
+# 2. Encarga, con una especificación: archivos, patrón a copiar, qué no hacer, cuándo está terminado.
+node scripts/obrera.mjs programa carta-editor "…"
+# 3. Revisa el diff entero.
+node scripts/obrera.mjs diff carta-editor --completo
+# 4. En la copia: pnpm verify y prueba en el navegador. Corrige lo que haga falta.
+# 5. Lo lleva a main (git -C ../L2Control-obrera diff | git apply), commit diciendo qué escribió
+#    la obrera y qué corrigió la maestra.
+node scripts/obrera.mjs limpia carta-editor
 ```
 
-Usa la cuota de Google AI Pro. Los modelos disponibles salen con `agy models`.
+Solo hay una copia a la vez: `programa` se niega si está ocupada con otra tarea. Para opinar sin
+escribir: `node scripts/obrera.mjs revisa [--flash] "encargo"`.
+
+Usa la cuota de Google AI Pro. Los modelos disponibles salen con `agy models`; el script usa
+`gemini-3.1-pro-high` para programar.
 
 ## Vía B · PAL MCP (cuando haya clave de API)
 
@@ -136,9 +173,9 @@ Herramientas que quedan encendidas: `chat`, `thinkdeep`, `planner`, `consensus`,
 
 ## Piloto
 
-Primera tarea con obrera: **las pruebas de los editores de Carta y Tarifas** (F6-03, F5-06). Se mide
-cuánto de lo que devuelve entra sin retoques. Según el resultado, se suma DeepSeek por la vía B o se deja
-la orquesta solo para segundas opiniones.
+Primera tarea programada por la obrera: **el editor de Carta y precios** (F6-03), con el proveedor de la
+carta y `/mesas` leyendo la carta publicada. La maestra dejó antes el contrato listo (`retiredAt` y la
+regla de nombres). Se mide cuánto de lo que devuelve entra sin retoques.
 
 ## Actualizar o quitar
 

@@ -90,20 +90,31 @@ Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
 ## Orquesta de modelos (opcional)
 
-Claude Code es **la maestra** y Gemini es **la obrera**: se le encarga una tarea con
-`node scripts/obrera.mjs [--flash] "tarea"` (CLI de Antigravity, suscripción Google AI Pro, **solo
-lectura**), o con el servidor MCP `pal` si la sesión lo tiene (clave de API; ahí se sumará DeepSeek).
-Instalación y candados en [docs/ORQUESTA.md](docs/ORQUESTA.md). Si ninguna de las dos está disponible
-—o la obrera se niega—, se trabaja como siempre: **no se fuerza**.
+Claude Code es **la maestra**: planifica, escribe el encargo, revisa y hace commit. Gemini es **la
+obrera**: programa lo que se le encarga, en una copia aislada. Todo pasa por `scripts/obrera.mjs`
+(CLI de Antigravity, suscripción Google AI Pro). Instalación, permisos y candados en
+[docs/ORQUESTA.md](docs/ORQUESTA.md). Si la obrera no está disponible —o se niega—, se trabaja como
+siempre: **no se fuerza**.
 
-- **Se delega** lo acotado y comprobable: generar pruebas (`testgen`), segunda opinión en una revisión
-  (`codereview`, `consensus`), revisión antes del commit (`precommit`), datos de ejemplo y documentación.
-- **No se delega**: arquitectura, contratos (`packages/contracts`), el dominio (`packages/domain/*`) ni
-  ninguna decisión del plan. La obrera opina; la maestra decide.
+```bash
+node scripts/obrera.mjs programa <tarea> "encargo"   # escribe en ../<proyecto>-obrera, rama obrera/<tarea>
+node scripts/obrera.mjs diff <tarea> --completo      # la maestra revisa
+node scripts/obrera.mjs limpia <tarea>               # tras aplicar o descartar
+node scripts/obrera.mjs revisa [--flash] "encargo"   # solo lee y opina
+```
+
+- **La maestra prepara, la obrera construye.** Antes de encargar, la maestra deja hecho lo que la
+  obrera no puede tocar: contratos (`packages/contracts`), dominio (`packages/domain/*`) y `@l2/ui`.
+  La obrera solo escribe en `apps/`.
+- **El encargo es una especificación, no una idea**: qué archivos, qué patrón copiar, qué no hacer y
+  cuándo está terminado. Un encargo vago devuelve código que hay que rehacer.
+- **No se delega**: arquitectura, contratos, dominio ni decisiones del plan.
 - **Qué puede salir del equipo.** A Gemini, el código del repo, **solo** si quien la usa desactivó el
-  entrenamiento con sus datos (`L2_OBRERA_SIN_ENTRENAMIENTO=1`; el script lo exige). A DeepSeek (cuando se conecte), **solo**
-  pruebas, datos inventados e interfaz: nunca `domain/cash`, `domain/tax`, `domain/identity`, los
-  contratos de pagos y ventas, ni nada con datos reales. Nunca, a ninguna, secretos ni `.env`.
-- **Lo que devuelve una obrera no se aplica a ciegas**: se lee, se ajusta a las cinco reglas de arriba y
-  pasa `pnpm verify` antes de entrar.
-- **Solo la maestra hace commit**, y dice en el mensaje qué parte vino de una obrera.
+  entrenamiento con sus datos (`L2_OBRERA_SIN_ENTRENAMIENTO=1`; el script lo exige). A DeepSeek (cuando
+  se conecte), **solo** pruebas, datos inventados e interfaz: nunca `domain/cash`, `domain/tax`,
+  `domain/identity`, los contratos de pagos y ventas, ni nada con datos reales. Nunca, a ninguna,
+  secretos ni `.env`.
+- **Nada de la obrera entra sin revisión**: la maestra lee el diff entero, lo ajusta a las cinco reglas,
+  corre `pnpm verify`, lo prueba en el navegador y lo aplica ella en `main`.
+- **Solo la maestra hace commit** (la obrera no tiene `git`), y dice en el mensaje qué parte escribió la
+  obrera y qué corrigió la maestra.

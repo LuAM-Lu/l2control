@@ -28,7 +28,7 @@
  *     y lo aplica ella en `main`. La obrera no tiene `git`: no puede hacer commit.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -158,10 +158,13 @@ function prepararCopia(tarea) {
 
   if (!existsSync(join(COPIA, "node_modules"))) {
     process.stderr.write("obrera: instalando dependencias en la copia…\n");
-    const r = spawnSync("pnpm", ["install", "--frozen-lockfile", "--prefer-offline"], {
+    // Un texto fijo, sin nada que venga de fuera: en Windows `pnpm` es un .cmd
+    // y necesita shell, y pasarle una lista de argumentos con shell está
+    // desaconsejado (DEP0190).
+    const r = spawnSync("pnpm install --frozen-lockfile --prefer-offline", {
       cwd: COPIA,
       encoding: "utf8",
-      shell: process.platform === "win32",
+      shell: true,
     });
     if (r.status !== 0) salir(`pnpm install falló en la copia:\n${r.stderr || r.stdout}`);
   }
@@ -224,7 +227,14 @@ switch (oficio) {
 
   case "limpia": {
     const tarea = nombreDeTarea(resto[0]);
-    if (existsSync(COPIA)) git(["worktree", "remove", "--force", COPIA]);
+    // En Windows, `git worktree remove` no puede con los enlaces que deja pnpm
+    // en `node_modules` («Directory not empty»). Se borra la carpeta a mano y
+    // luego se le dice a git que la olvide.
+    if (existsSync(COPIA)) {
+      spawnSync("git", ["worktree", "remove", "--force", COPIA], { cwd: RAIZ });
+      if (existsSync(COPIA)) rmSync(COPIA, { recursive: true, force: true, maxRetries: 3 });
+    }
+    git(["worktree", "prune"]);
     spawnSync("git", ["branch", "-D", `obrera/${tarea}`], { cwd: RAIZ });
     process.stdout.write(`Copia y rama de «${tarea}» borradas.\n`);
     break;
