@@ -112,3 +112,32 @@ describe("una mesa se retira, no se borra (V4, regla 5)", () => {
     assert.equal(r.success, true);
   });
 });
+
+describe("un plato se retira, no se borra (F6-03, regla 5)", () => {
+  const retirado = (id: string, nombre = "Tequeños") => ({
+    ...plato(id, "450"),
+    name: nombre,
+    retiredAt: "2026-09-16T12:00:00.000Z",
+  });
+
+  test("un plato retirado sigue en la carta, con su fecha", () => {
+    const r = MenuSchema.safeParse([plato("a", "450"), { ...retirado("b"), name: "Pasta" }]);
+    assert.equal(r.success, true);
+  });
+
+  test("una carta con todos los platos retirados no sirve para vender", () => {
+    assert.equal(MenuSchema.safeParse([retirado("a")]).success, false);
+  });
+
+  test("dos platos en venta con el mismo nombre se rechazan, aunque cambien mayúsculas o acentos", () => {
+    const a = { ...plato("a", "450"), name: "Tequeños" };
+    const b = { ...plato("b", "500"), name: "  tequenos " };
+    const r = MenuSchema.safeParse([a, b]);
+    assert.equal(r.success, false);
+    if (!r.success) assert.match(r.error.issues[0]?.message ?? "", /Ya hay un plato/);
+  });
+
+  test("un plato puede volver con otro precio: el retirado no cuenta para el nombre", () => {
+    assert.equal(MenuSchema.safeParse([retirado("viejo"), plato("nuevo", "550")]).success, true);
+  });
+});
