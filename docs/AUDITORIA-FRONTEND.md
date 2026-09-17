@@ -66,8 +66,11 @@ Las pantallas de caja son superficie POS (56 px, §8.4), y varios controles no l
 táctil a 56 px con `after:-inset-2`. **Falso positivo**, descartado.
 
 ### F-05 · Objetivos táctiles por debajo de 48 px en mesas — **medio** · O, confirmado por M
-El conmutador «Plano | Atender» mide 44 px (`MesasScreen.tsx:306`) y el botón de nota de cada plato del
-borrador, 32 (`TomaPedido.tsx:178`). La superficie es tablet: 48.
+El conmutador «Plano | Atender» mide 44 px (`MesasScreen.tsx:306`). La superficie es tablet: 48.
+
+*Corrección del 2026-09-16:* la obrera también citó el botón de nota de cada plato del borrador
+(`TomaPedido.tsx:178`, `min-h-8`), pero ya ampliaba su zona a 48 px efectivos con
+`after:-inset-y-2`. **Falso positivo** — el segundo con ese mismo patrón.
 
 ### F-06 · Estaciones con scroll dentro en tablets de 1024×600 — **medio** · M
 | Estación | Lo que no cabe |
@@ -79,6 +82,9 @@ borrador, 32 (`TomaPedido.tsx:178`). La superficie es tablet: 48.
 | `/entrada`, `/salida` | +39 px |
 
 La preferencia del cliente es «sin scroll» a 1366×768 y 1280×800, y ahí se cumple. A 1024×600 no.
+
+*Tras la Ola 1 (objetivos de 56 px):* a 1024×600 el ticket de caja pasa de +56 a +184 y el turno de
++100 a +168, porque filas y botones son más altos. Esperado: lo resuelve la Ola 2.
 
 ### F-07 · Estaciones en tablet vertical estrecha — **medio** · M
 Por debajo de 1024 px de ancho las estaciones pasan al flujo normal y **la página desplaza**: a

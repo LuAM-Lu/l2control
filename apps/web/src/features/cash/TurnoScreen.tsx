@@ -179,6 +179,7 @@ export function TurnoScreen({
             etiqueta="Turno de caja"
             activa={pestana}
             onCambiar={setPestana}
+            surface="pos"
             className="min-w-0 lg:min-h-0"
             pestanas={[
               {
@@ -222,6 +223,7 @@ export function TurnoScreen({
                                   }
                                   label={`Billetes de ${toMajor(den)} ${d.currency}`}
                                   disabled={sellado}
+                                  surface="pos"
                                 />
                                 <span
                                   className={cn(

@@ -151,7 +151,7 @@ export function ColaCuentas({
               onClick={() => onBuscando(true)}
               aria-label="Buscar en la cola"
               title="Buscar (/)"
-              className="grid size-10 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+              className="grid size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
             >
               <Search size={16} aria-hidden="true" />
             </button>
@@ -162,7 +162,7 @@ export function ColaCuentas({
             onClick={onVerAtajos}
             aria-label="Atajos de teclado"
             title="Atajos de teclado (?)"
-            className="hidden size-10 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink pointer-fine:grid"
+            className="hidden size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink pointer-fine:grid"
           >
             <Keyboard size={16} aria-hidden="true" />
           </button>
@@ -224,7 +224,7 @@ export function ColaCuentas({
                   type="button"
                   onClick={cerrarBuscador}
                   aria-label="Cerrar la búsqueda"
-                  className="grid size-9 shrink-0 cursor-pointer place-content-center rounded text-ink-3 hover:text-ink"
+                  className="grid size-14 shrink-0 cursor-pointer place-content-center rounded text-ink-3 hover:text-ink"
                 >
                   <X size={15} aria-hidden="true" />
                 </button>
@@ -323,7 +323,7 @@ export function ColaCuentas({
           <button
             type="button"
             onClick={onVerRecibo}
-            className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-2.5 font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+            className="inline-flex min-h-14 shrink-0 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-2.5 font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
           >
             <Receipt size={14} aria-hidden="true" />
             Recibo

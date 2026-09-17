@@ -623,18 +623,19 @@ function CobroCuenta({
                 );
                 return (
                   <li key={f.clave} className={cn(abierta && "bg-surface-2/60")}>
+                    {/* Excepción: fila a todo el ancho, 48 px es suficiente y evita scroll. */}
                     {editable ? (
                       <button
                         type="button"
                         aria-expanded={abierta}
                         aria-label={`${f.concepto}, ${f.cantidad} ${f.cantidad === 1 ? "unidad" : "unidades"}, ${importe}. Cambiar cantidad`}
                         onClick={() => setFilaAbierta(abierta ? null : f.clave)}
-                        className={cn(COLUMNAS, "min-h-8 w-full cursor-pointer py-1 text-left text-[13px] transition-colors hover:bg-surface-2/50 focus-visible:outline-2 focus-visible:outline-brand")}
+                        className={cn(COLUMNAS, "min-h-12 w-full cursor-pointer py-1 text-left text-[13px] transition-colors hover:bg-surface-2/50 focus-visible:outline-2 focus-visible:outline-brand")}
                       >
                         {celdas}
                       </button>
                     ) : (
-                      <div className={cn(COLUMNAS, "min-h-8 py-1 text-[13px]")}>{celdas}</div>
+                      <div className={cn(COLUMNAS, "min-h-12 py-1 text-[13px]")}>{celdas}</div>
                     )}
                     {abierta && f.item && (
                       <div className="flex flex-wrap items-center gap-2 pb-2">
@@ -798,7 +799,7 @@ function CobroCuenta({
                     "Dividir la cuenta"
                   )}
                 </dt>
-                <dd className="flex items-center gap-1" role="group" aria-label="Dividir la cuenta">
+                <dd className="flex flex-wrap items-center gap-1" role="group" aria-label="Dividir la cuenta">
                   {[1, 2, 3, 4, 5, 6].map((n) => {
                     // Ya cobrada alguna parte: el reparto no se cambia a mitad
                     // de camino, o alguien pagaría de más o de menos.
@@ -812,7 +813,7 @@ function CobroCuenta({
                         title={n === 1 ? "Sin dividir" : `Entre ${n}`}
                         onClick={() => onDividir(n)}
                         className={cn(
-                          "tnum size-9 cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors",
+                          "tnum size-14 cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors",
                           n === partes ? "border-brand bg-brand/15 text-ink" : "border-line text-ink-3 hover:text-ink",
                           "disabled:cursor-not-allowed disabled:opacity-40",
                         )}

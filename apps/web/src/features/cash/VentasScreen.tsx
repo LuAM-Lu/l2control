@@ -180,7 +180,7 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
                   type="button"
                   onClick={() => setTexto("")}
                   aria-label="Borrar la búsqueda"
-                  className="grid size-9 shrink-0 cursor-pointer place-content-center rounded text-ink-3 hover:text-ink"
+                  className="grid size-14 shrink-0 cursor-pointer place-content-center rounded text-ink-3 hover:text-ink"
                 >
                   <X size={15} aria-hidden="true" />
                 </button>
@@ -195,7 +195,7 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
                   aria-checked={medio === m}
                   onClick={() => setMedio(m)}
                   className={cn(
-                    "min-h-12 shrink-0 cursor-pointer rounded-[var(--radius-control)] px-3 text-[12.5px] font-semibold whitespace-nowrap transition-colors",
+                    "min-h-14 shrink-0 cursor-pointer rounded-[var(--radius-control)] px-3 text-[12.5px] font-semibold whitespace-nowrap transition-colors",
                     medio === m ? "bg-surface-2 text-ink ring-1 ring-line-strong" : "text-ink-3 hover:text-ink",
                   )}
                 >
@@ -211,7 +211,7 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
               <p className="font-display text-lg font-bold text-ink">Aún no hay ventas en este turno</p>
               <Link
                 href="/caja"
-                className="flex min-h-12 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline hover:border-brand/45 hover:text-ink"
+                className="flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline hover:border-brand/45 hover:text-ink"
               >
                 Ir a cobrar
               </Link>

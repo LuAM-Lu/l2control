@@ -62,7 +62,7 @@ Cada punto se comprueba midiendo, no leyendo.
 |---|---|---|---|
 | App instalable: manifiesto, iconos, service worker mínimo, pantalla completa en estaciones, botón «Instalar», márgenes seguros | O1 · [pwa-base](encargos/pwa-base.md) | F-01 | **Hecha** (Chrome: instalable, 0 errores) |
 | Decidir la altura de la barra de estación en superficies POS | M + cliente | F-08 | **Decidido** (2026-09-16): se queda en 48, es navegación |
-| Objetivos táctiles de caja, ventas y turno a 56 px; mesas a 48 | O1 · [tactil-pos](encargos/tactil-pos.md) | F-04, F-05 | Encargada |
+| Objetivos táctiles de caja, ventas y turno a 56 px; mesas a 48 | O1 · [tactil-pos](encargos/tactil-pos.md) | F-04, F-05 | **Hecha**: sin scroll a 1366 y 1280 |
 | Comprobar que `Stepper` y `Tabs` de `@l2/ui` aceptan la superficie POS; si no, añadirlo | M | F-04 | **Hecha** (`Stepper` ya la tenía; `Tabs` la gana) |
 | Cierre de ola: medir de nuevo | M | — | — |
 

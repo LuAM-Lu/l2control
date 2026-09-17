@@ -303,7 +303,7 @@ export function MesasScreen() {
                 aria-checked={modo === id}
                 onClick={() => setModo(id)}
                 className={cn(
-                  "min-h-11 cursor-pointer rounded-[0.4rem] px-4 text-[13.5px] transition-colors",
+                  "min-h-12 cursor-pointer rounded-[0.4rem] px-4 text-[13.5px] transition-colors",
                   modo === id ? "bg-brand text-on-brand font-semibold" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
                 )}
               >
