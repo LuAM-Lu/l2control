@@ -2,6 +2,7 @@
 
 import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "../cn";
+import type { Surface } from "./Button";
 
 /**
  * Nivel 1 — primitivo (§9.4). Pestañas.
@@ -18,7 +19,17 @@ import { cn } from "../cn";
  * para los extremos, y solo la pestaña activa en el orden de tabulación. El
  * cambio de panel es un fundido, porque el contenido se sustituye en el mismo
  * sitio (Material: crossfade dentro del mismo contenedor).
+ *
+ * §8.4: cada pestaña mide lo que exige su superficie. Medían 44 px fijos, y
+ * en el turno de caja —superficie POS, 56— quedaban por debajo (F-04 de la
+ * auditoría del frontend).
  */
+const ALTO: Record<Surface, string> = {
+  kds: "min-h-16 text-base",
+  pos: "min-h-14 text-[14px]",
+  tablet: "min-h-12 text-[13.5px]",
+  admin: "min-h-8 text-[13px]",
+};
 
 export type Pestana = {
   id: string;
@@ -33,6 +44,7 @@ export function Tabs({
   activa,
   onCambiar,
   etiqueta,
+  surface = "tablet",
   className,
 }: {
   pestanas: readonly Pestana[];
@@ -40,6 +52,8 @@ export function Tabs({
   onCambiar: (id: string) => void;
   /** Nombre accesible del grupo de pestañas. */
   etiqueta: string;
+  /** Superficie donde se usa: decide el objetivo táctil (§8.4). */
+  surface?: Surface;
   className?: string;
 }) {
   const base = useId();
@@ -93,7 +107,8 @@ export function Tabs({
               tabIndex={seleccionada ? 0 : -1}
               onClick={() => onCambiar(p.id)}
               className={cn(
-                "flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-[0.4rem] px-4 text-[13.5px] whitespace-nowrap",
+                "flex shrink-0 cursor-pointer items-center gap-2 rounded-[0.4rem] px-4 whitespace-nowrap",
+                ALTO[surface],
                 "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                 seleccionada
