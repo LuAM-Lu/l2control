@@ -7,14 +7,18 @@ import {
   Clock,
   LayoutDashboard,
   LogOut,
+  Maximize,
+  Minimize,
   TrendingUp,
   TriangleAlert,
   WifiOff,
 } from "lucide-react";
 import { Initial, cn } from "@l2/ui";
+import { useEffect, useState } from "react";
 import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
 import { useAjustes } from "../identity/accesos.ts";
 import { actorDe, puedeAbrirRuta, puedeVerInicio } from "../identity/visibilidad.ts";
+import { pedirPantallaCompleta, salirDePantallaCompleta } from "./pantallaCompleta.ts";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
@@ -104,6 +108,16 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const porCobrar = useCuentas().cuentas.filter((c) => c.status === "POR_COBRAR").length;
   const sim = useSimulacion();
 
+  const [esPantallaCompleta, setEsPantallaCompleta] = useState(false);
+
+  useEffect(() => {
+    const alCambiar = () => setEsPantallaCompleta(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", alCambiar);
+    // Establecer estado inicial
+    setEsPantallaCompleta(!!document.fullscreenElement);
+    return () => document.removeEventListener("fullscreenchange", alCambiar);
+  }, []);
+
   /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
   function salir() {
     if (operador) sim.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
@@ -133,14 +147,14 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 border-b backdrop-blur-md",
+        "sticky top-0 z-30 border-b backdrop-blur-md pt-[var(--seguro-arriba)]",
         alerta ? "border-state-warn/25 bg-state-warn-bg/25" : "border-line bg-base/85",
       )}
       style={{ boxShadow: "var(--shadow-bar)" }}
     >
       {/* Envoltura: en móvil el conmutador baja a su propia fila (`w-full
           order-last`); a partir de sm todo cabe en una sola de 64 px. */}
-      <div className="flex flex-wrap items-center gap-2 px-2 py-2 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-0">
+      <div className="flex flex-wrap items-center gap-2 py-2 pl-[max(0.5rem,var(--seguro-izquierda))] pr-[max(0.5rem,var(--seguro-derecha))] sm:h-16 sm:flex-nowrap sm:gap-3 sm:py-0 sm:pl-[max(1rem,var(--seguro-izquierda))] sm:pr-[max(1rem,var(--seguro-derecha))]">
         {/* Volver: un solo destino, el panel. */}
         {verPanel && (
         <Link
@@ -237,6 +251,23 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
           <ChipSimulacion />
 
           <span className="mx-0.5 hidden h-6 w-px bg-line sm:block" aria-hidden="true" />
+
+          <button
+            type="button"
+            onClick={() => {
+              if (esPantallaCompleta) salirDePantallaCompleta();
+              else pedirPantallaCompleta();
+            }}
+            aria-label={esPantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa"}
+            title={esPantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa"}
+            className="l2-solo-instalada grid size-12 shrink-0 place-content-center rounded-[0.45rem] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            {esPantallaCompleta ? (
+              <Minimize size={18} aria-hidden="true" />
+            ) : (
+              <Maximize size={18} aria-hidden="true" />
+            )}
+          </button>
 
           <span className={cn(PILDORA, "h-12 gap-2 pr-1 pl-1 text-ink-2")}>
             <Initial

@@ -11,6 +11,7 @@ import { DEMO_ACTIVA } from "../src/demo/modo";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { DEMO_CUENTAS } from "../src/demo/cuentas";
 import { DEMO_VENTAS } from "../src/demo/ventas";
+import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
    interfaz y datos. Quicksand NUNCA para cifras: sus numerales no sirven
@@ -31,6 +32,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "L2 Control",
   description: "Gestión integral de parque infantil y restaurante",
+  applicationName: "L2 Control",
+  appleWebApp: { capable: true, title: "L2 Control", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -38,12 +42,14 @@ export const viewport: Viewport = {
   // §8.7: nunca se desactiva el zoom.
   initialScale: 1,
   width: "device-width",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
       <body>
+        <RegistroServiceWorker />
         {/* F1-19: por encima del panel y de las estaciones, para que las dos
             cáscaras vean la misma simulación. */}
         <SimulacionProvider>

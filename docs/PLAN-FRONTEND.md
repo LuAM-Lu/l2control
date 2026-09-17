@@ -60,10 +60,10 @@ Cada punto se comprueba midiendo, no leyendo.
 ### Ola 1 · Instalable y táctil — **en curso**
 | Tarea | Carril | Hallazgo | Estado |
 |---|---|---|---|
-| App instalable: manifiesto, iconos, service worker mínimo, pantalla completa en estaciones, botón «Instalar», márgenes seguros | O1 · [pwa-base](encargos/pwa-base.md) | F-01 | En curso |
+| App instalable: manifiesto, iconos, service worker mínimo, pantalla completa en estaciones, botón «Instalar», márgenes seguros | O1 · [pwa-base](encargos/pwa-base.md) | F-01 | **Hecha** (Chrome: instalable, 0 errores) |
 | Decidir la altura de la barra de estación en superficies POS | M + cliente | F-08 | Pendiente de decisión |
-| Objetivos táctiles de caja, ventas y turno a 56 px; mesas a 48 | O1 · `tactil-pos` (se escribe al cerrar la PWA) | F-04, F-05 | Por encargar |
-| Comprobar que `Stepper` y `Tabs` de `@l2/ui` aceptan la superficie POS; si no, añadirlo | M | F-04 | Por hacer |
+| Objetivos táctiles de caja, ventas y turno a 56 px; mesas a 48 | O1 · [tactil-pos](encargos/tactil-pos.md) | F-04, F-05 | Encargada |
+| Comprobar que `Stepper` y `Tabs` de `@l2/ui` aceptan la superficie POS; si no, añadirlo | M | F-04 | **Hecha** (`Stepper` ya la tenía; `Tabs` la gana) |
 | Cierre de ola: medir de nuevo | M | — | — |
 
 ### Ola 2 · Tablets pequeñas y verticales

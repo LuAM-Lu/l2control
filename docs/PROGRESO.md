@@ -33,6 +33,12 @@
 
 ---
 
+> **F1-21 Frontend adaptable e instalable** (alcance añadido el 2026-09-16): auditoría de 144
+> combinaciones de pantalla y tamaño en [AUDITORIA-FRONTEND.md](AUDITORIA-FRONTEND.md) y plan por olas en
+> [PLAN-FRONTEND.md](PLAN-FRONTEND.md). **La app ya es instalable** (Chrome: 0 errores de instalabilidad),
+> abre sin barra del navegador y las estaciones van a pantalla completa. Siguen los objetivos táctiles de
+> caja y las tablets pequeñas y verticales.
+
 ## F0 · Descubrimiento, cumplimiento y decisiones
 
 | Tarea | Estado | Nota |

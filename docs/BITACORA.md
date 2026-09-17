@@ -1036,3 +1036,30 @@ El encargo quedó en `docs/encargos/tarifas-editor.md`, y `scripts/obrera.mjs` a
 que produjo explica ese código mejor que cualquier comentario. Una decisión dentro del encargo: el
 monitor calcula su modelo en el servidor y no puede leer un proveedor del navegador, así que su política
 se queda para el backend, con su `TODO`.
+
+## Frontend adaptable e instalable: auditoría conjunta y la app se instala — 2026-09-16 (F1-21)
+
+El cliente pidió dos cosas que no estaban en el plan: que todo el frontend funcione en **cualquier**
+tablet y desktop —no se sabe qué equipos llegarán— y que se instale en Android sin barra del navegador.
+Se registró como F1-21 y se trabajó por primera vez con la orquesta en paralelo: skills compartidas por
+las dos (con las reglas de Vercel fijadas en local para que nadie las cambie desde fuera) y copias por
+tarea con permisos que el script pone y quita.
+
+**La auditoría conjunta enseñó para qué sirve cada una.** La maestra midió 144 combinaciones de pantalla
+y tamaño; la obrera leyó el código. La medición encontró los dos fallos graves —en una tablet de 1024×600
+**no se puede terminar de cobrar** porque el teclado se corta, y en vertical la barra de estación se
+monta—, y la obrera no vio ninguno de los dos: leyó unos 15 archivos para «todo el frontend» y devolvió
+cuatro hallazgos, con un falso positivo. Desde ahora sus auditorías se encargan por áreas acotadas y la
+medición, que es de la maestra, se repite al cerrar cada ola.
+
+**La PWA la escribió la obrera y la corrigió la maestra.** Bien: manifiesto, iconos generados, service
+worker que no cachea nada (la caché sin conexión es ADR-003 y llega con el backend; cachear ahora
+serviría pantallas viejas), pantalla completa pedida dentro del clic de «Entrar» y solo con la app
+instalada, botón «Instalar la app» y márgenes seguros. Corregido: los parámetros de la ruta de iconos
+leídos como objeto cuando en Next 16 son una promesa; una segunda lista de estaciones escrita a mano
+—el mismo error de «dos verdades» de N-02—; la barra móvil del panel con alto fijo, que se habría
+aplastado con la muesca; y la regla de huérfanos, que no conocía las convenciones de la PWA.
+
+Comprobado: Chrome la declara **instalable sin un solo error**; en el escritorio no cambia nada; y con la
+app simulada como instalada, entrar a la caja la pone a pantalla completa y el botón de la barra la quita
+y la vuelve a poner. Para instalarla en una tablet de verdad hace falta HTTPS, que llega con el despliegue.

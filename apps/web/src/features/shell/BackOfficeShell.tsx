@@ -21,6 +21,7 @@ import {
   puedeVerInicio,
   puedeVerSeccion,
 } from "../identity/visibilidad.ts";
+import { salirDePantallaCompleta } from "./pantallaCompleta.ts";
 
 /**
  * Cáscara del back-office — §9.10.2 y §9.10.3.
@@ -44,6 +45,11 @@ import {
 export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [cajon, setCajon] = useState(false);
+
+  // El panel conserva la barra de estado. Si venía de una estación, la quita.
+  useEffect(() => {
+    salirDePantallaCompleta();
+  }, []);
 
   // El menú se recorta con el rol de quien entró (V2). Sin sesión, vacío: la
   // guardia del contenido pide identificarse.
@@ -80,7 +86,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
       <aside
         className={cn(
           "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-surface/40",
-          "w-[4.5rem] md:flex xl:w-64 md:h-full",
+          "w-[4.5rem] md:flex xl:w-64 md:h-full pt-[var(--seguro-arriba)] pl-[var(--seguro-izquierda)]",
           "transition-[width] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
         )}
       >
@@ -102,7 +108,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col md:h-full md:overflow-hidden">
         {/* Barra superior solo en móvil: el botón de menú va donde se busca,
             arriba a la izquierda, no flotando sobre el contenido. */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-base/85 px-3 backdrop-blur-md md:hidden">
+        <header className="sticky top-0 z-30 flex h-[calc(3.5rem+var(--seguro-arriba))] items-center gap-3 border-b border-line bg-base/85 px-3 pt-[var(--seguro-arriba)] pl-[max(0.75rem,var(--seguro-izquierda))] pr-[max(0.75rem,var(--seguro-derecha))] backdrop-blur-md md:hidden">
           <button
             type="button"
             onClick={() => setCajon(true)}

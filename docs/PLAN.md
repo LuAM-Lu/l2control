@@ -1664,6 +1664,13 @@ Es la fase que v1 subestimaba.*
   ×1, ×10 y ×60; varias ventanas ven la misma operación; las pantallas no distinguen el simulador del backend.
 - [~] **F1-20 · Catálogo de eventos en tiempo real como contrato** (ADR-008, FLUJOS §4).
   → *Criterio:* cada evento se valida con Zod; un evento de tipo desconocido se rechaza.
+- [~] **F1-21 · Frontend adaptable e instalable** — **alcance añadido el 2026-09-16 a petición del
+  cliente**: todo el frontend en cualquier tamaño de desktop y tablet, horizontal y vertical, e
+  instalable en Android como app (PWA), sin barra del navegador y con las estaciones a pantalla completa.
+  → *Criterio:* los nueve de [PLAN-FRONTEND.md](PLAN-FRONTEND.md) §1 (medidos, no leídos). Se ejecuta
+  por olas en orquesta; la auditoría de partida está en [AUDITORIA-FRONTEND.md](AUDITORIA-FRONTEND.md).
+  *PWA hecha el 2026-09-16: Chrome la da por instalable sin errores. Falta HTTPS en el despliegue para
+  instalarla en tablets reales.*
 - [ ] **F1-14 · Canalización de CI** completa (§10.3).
   → *Criterio:* un *pull request* de ejemplo recorre las siete etapas y falla adecuadamente en cada una.
 - [ ] **F1-15 · Entorno de staging** desplegado.

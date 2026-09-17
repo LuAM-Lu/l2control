@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Download,
   Lock,
   MonitorSmartphone,
   ShieldAlert,
@@ -23,6 +24,7 @@ import type { RoleAdjustmentDto } from "@l2/contracts";
 import { PUESTO_DE_ROL, iniciarSesion } from "./operador.ts";
 import { useAjustes } from "./accesos.ts";
 import { actorDe, puestoDe } from "./visibilidad.ts";
+import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { Badge, Initial, NumericKeypad, cn } from "@l2/ui";
@@ -51,6 +53,15 @@ export type Operador = Readonly<{
   /** Rol de la matriz (§7.3): de él sale lo que esta persona puede ver. */
   role: Role;
 }>;
+
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
 
 /**
  * A dónde entra esta persona — N-02 de la auditoría.
@@ -105,6 +116,7 @@ export function AccesoScreen({
   const [ultimoFallo, setUltimoFallo] = useState<number | null>(null);
   const [ahora, setAhora] = useState(() => Date.now());
   const [entrando, setEntrando] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   /**
    * Cuántas veces se ha errado, para reiniciar la sacudida.
    *
@@ -115,6 +127,24 @@ export function AccesoScreen({
    */
   const [sacudidas, setSacudidas] = useState(0);
   const router = useRouter();
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
 
   // Reloj de la pantalla de bloqueo. Se arranca en el cliente para no chocar
   // con la hora del servidor al hidratar. Es solo presentación: el instante
@@ -159,7 +189,11 @@ export function AccesoScreen({
         role: operador!.rol,
         device: PUESTO_DE_ROL[operador!.role],
       });
-      window.setTimeout(() => router.push(destinoDe(operador!, ajustes).ruta), MS_DEL_SELLO);
+      const destino = destinoDe(operador!, ajustes);
+      if (esRutaDeEstacion(destino.ruta)) {
+        pedirPantallaCompleta();
+      }
+      window.setTimeout(() => router.push(destino.ruta), MS_DEL_SELLO);
       return;
     }
 
@@ -227,6 +261,20 @@ export function AccesoScreen({
               {device!.label} · autorizado
             </Badge>
             <ChipSimulacion />
+            {installPrompt && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await installPrompt.prompt();
+                  await installPrompt.userChoice;
+                  setInstallPrompt(null);
+                }}
+                className="l2-solo-navegador flex min-h-[48px] items-center gap-2 rounded-full border border-line bg-surface px-4 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                <Download size={15} aria-hidden="true" />
+                Instalar la app
+              </button>
+            )}
           </div>
         </section>
 

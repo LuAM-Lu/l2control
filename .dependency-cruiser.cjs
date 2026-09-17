@@ -99,6 +99,7 @@ module.exports = {
           // eso es correcto, no un módulo suelto.
           "apps/web/(next|postcss)\\.config\\.",
           "apps/web/app/.*(page|layout|route|loading|error|not-found)\\.tsx?$",
+          "apps/web/app/(manifest|apple-icon|icon)\\.tsx?$",
         ],
       },
       to: {},
