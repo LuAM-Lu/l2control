@@ -85,7 +85,7 @@ Por debajo de 1024 px de ancho las estaciones pasan al flujo normal y **la pági
 768×1024, `/monitor` +76, `/entrada` +80 y `/turno` +199. A 800×1280 no pasa. Hay que decidir si el
 vertical estrecho merece una disposición propia o si desplazar es aceptable ahí.
 
-### F-08 · La barra de estación mide 48 px también en las pantallas de cobro — **a decidir** · M
+### F-08 · La barra de estación mide 48 px también en las pantallas de cobro — **decidido: se queda** · M
 Sus pestañas y su botón de salir miden 48 (tablet) en todas las estaciones, también en caja (56).
 Propuesta: la barra es **navegación**, no operación, y se queda en 48; los controles de **operación**
 de cada pantalla sí cumplen su superficie.

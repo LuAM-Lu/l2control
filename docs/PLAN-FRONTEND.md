@@ -61,7 +61,7 @@ Cada punto se comprueba midiendo, no leyendo.
 | Tarea | Carril | Hallazgo | Estado |
 |---|---|---|---|
 | App instalable: manifiesto, iconos, service worker mínimo, pantalla completa en estaciones, botón «Instalar», márgenes seguros | O1 · [pwa-base](encargos/pwa-base.md) | F-01 | **Hecha** (Chrome: instalable, 0 errores) |
-| Decidir la altura de la barra de estación en superficies POS | M + cliente | F-08 | Pendiente de decisión |
+| Decidir la altura de la barra de estación en superficies POS | M + cliente | F-08 | **Decidido** (2026-09-16): se queda en 48, es navegación |
 | Objetivos táctiles de caja, ventas y turno a 56 px; mesas a 48 | O1 · [tactil-pos](encargos/tactil-pos.md) | F-04, F-05 | Encargada |
 | Comprobar que `Stepper` y `Tabs` de `@l2/ui` aceptan la superficie POS; si no, añadirlo | M | F-04 | **Hecha** (`Stepper` ya la tenía; `Tabs` la gana) |
 | Cierre de ola: medir de nuevo | M | — | — |
@@ -70,10 +70,10 @@ Cada punto se comprueba midiendo, no leyendo.
 | Tarea | Carril | Hallazgo |
 |---|---|---|
 | Caja a 1024×600: la columna de cobro entera a la vista (teclado plegable o pasos) y conceptos del ticket sin truncar | M diseña · O1 construye | F-02 |
-| Barra de estación que no se monta en vertical (pestañas en su propia fila, o chips de contexto plegados) | M diseña · O1 construye | F-03 |
+| Barra de estación que no se monta en vertical: dos filas hasta 1023 px | O2 · [barra-vertical](encargos/barra-vertical.md) (en paralelo, aprobado) | F-03 |
 | Arqueo de turno en vertical: una moneda debajo de la otra | O1 | F-03 |
 | Estaciones a 1024×600 sin scroll: entrada, salida, turno, ventas | O1 (y O2 si se aprueba) | F-06 |
-| Decidir qué hacer en vertical estrecho (768): disposición propia o desplazar | M + cliente | F-07 |
+| Disposición vertical propia en **caja y entrada**; en el resto se acepta desplazar en vertical | M diseña · O1 construye | F-07 (decidido el 2026-09-16) |
 
 ### Ola 3 · Navegación y lo que falta de producto
 | Tarea | Carril | Hallazgo |
@@ -99,8 +99,9 @@ encargadas pueden correr **en paralelo** si el cliente lo aprueba.
 
 | # | Decisión | Propuesta |
 |---|---|---|
-| F-08 | Altura de la barra de estación en caja | Se queda en 48 (es navegación); los controles de cobro, a 56 |
-| F-07 | Estaciones en tablet vertical estrecha | Disposición propia solo en caja y entrada; en el resto, desplazar es aceptable |
+| ~~F-08~~ | ~~Altura de la barra de estación en caja~~ | **Decidido el 2026-09-16:** se queda en 48 (es navegación); los controles de cobro, a 56 |
+| ~~F-07~~ | ~~Estaciones en tablet vertical estrecha~~ | **Decidido el 2026-09-16:** disposición propia solo en caja y entrada; en el resto, desplazar es aceptable |
+| ~~—~~ | ~~Segunda obrera en paralelo~~ | **Aprobado el 2026-09-16** para `barra-vertical`, junto a `tactil-pos` |
 | F-12 | Teléfono | Fuera del objetivo; revisar al cerrar el frontend |
 | — | HTTPS para instalar en tablets reales | Se resuelve con el despliegue (backend). Para probar antes: `chrome://flags` → «Insecure origins treated as secure» con la IP del equipo |
 | — | Playwright como dependencia de desarrollo para `pnpm audit:ui` | Sí, en la Ola 5 |
