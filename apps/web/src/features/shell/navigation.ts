@@ -35,6 +35,13 @@ export type Seccion = {
   accion?: Action;
   /** Qué resuelve. Se muestra en la página del módulo y en la pantalla vacía. */
   proposito: string;
+  /**
+   * `"estacion"`: al pulsarla se sale del back-office a una superficie de
+   * operación a pantalla completa, sin menú lateral ni migas. Se avisa antes
+   * de pulsar (N-04 de la auditoría de navegación); volver es el botón
+   * «Panel» de la barra de estación, que ve quien puede abrir el panel.
+   */
+  abre?: "estacion";
   /** Tarea del plan que la construye, ej. «F6-02». */
   tarea?: string;
   /** Qué bloquea su construcción hoy. */
@@ -77,6 +84,7 @@ export const MODULOS: readonly Modulo[] = [
         id: "sala",
         nombre: "Monitor de sala",
         href: "/monitor",
+        abre: "estacion",
         proposito:
           "Las estancias abiertas, ordenadas por urgencia, con el cronómetro contra el reloj del servidor.",
       },
@@ -84,12 +92,14 @@ export const MODULOS: readonly Modulo[] = [
         id: "entrada",
         nombre: "Entrada",
         href: "/entrada",
+        abre: "estacion",
         proposito: "Registrar niños con el lector de pulseras y su representante.",
       },
       {
         id: "salida",
         nombre: "Salida",
         href: "/salida",
+        abre: "estacion",
         proposito: "Cerrar la estancia y calcular el excedente con su desglose.",
       },
       {
@@ -115,6 +125,7 @@ export const MODULOS: readonly Modulo[] = [
         id: "mesas",
         nombre: "Mesas y pedidos",
         href: "/mesas",
+        abre: "estacion",
         proposito:
           "El plano de sala: qué mesa está ocupada, desde cuándo y qué pidió. Se vincula a las pulseras de los niños y el pedido se confirma antes de ir a cocina.",
       },
@@ -141,12 +152,12 @@ export const MODULOS: readonly Modulo[] = [
         id: "comandas",
         nombre: "Comandas del día",
         href: "/cocina",
+        abre: "estacion",
         // La cocina no toma pedidos, pero las comandas son su trabajo.
         accion: "kds.cambiarEstado",
         proposito:
           "Lo que se ha pedido, en qué estado va y cuánto lleva esperando. La cocina lo ve en su propia pantalla.",
         tarea: "F6-05",
-        necesita: "Mesas y carta primero.",
       },
     ],
   },
@@ -162,18 +173,21 @@ export const MODULOS: readonly Modulo[] = [
         id: "cobrar",
         nombre: "Cobrar",
         href: "/caja",
+        abre: "estacion",
         proposito: "Cobro mixto con IVA, IGTF sobre el medio de pago y destino del excedente.",
       },
       {
         id: "ventas",
         nombre: "Ventas del turno",
         href: "/ventas",
+        abre: "estacion",
         proposito: "Los cobros cerrados con su recibo: buscar, reimprimir como copia y enviar por WhatsApp.",
       },
       {
         id: "turnos",
         nombre: "Turnos y cortes",
         href: "/turno",
+        abre: "estacion",
         proposito: "Fondo inicial, arqueo a ciegas por moneda y corte Z irreversible.",
       },
       {
@@ -183,7 +197,7 @@ export const MODULOS: readonly Modulo[] = [
         accion: "tasa.confirmar",
         proposito:
           "Capturar la tasa del BCV, confirmarla y dejarla congelada en cada transacción. Sin tasa vigente no se cobra en bolívares.",
-        tarea: "F4-02",
+        tarea: "F3-04",
         necesita: "La fuente de la tasa y quién la confirma cada mañana.",
       },
     ],
@@ -208,7 +222,7 @@ export const MODULOS: readonly Modulo[] = [
         nombre: "Recetas",
         href: null,
         proposito: "Cuánto insumo consume cada plato. Es lo que descuenta el stock al vender.",
-        tarea: "F8-02",
+        tarea: "F8-03",
         necesita: "Insumos y carta.",
       },
       {
@@ -217,7 +231,7 @@ export const MODULOS: readonly Modulo[] = [
         href: null,
         proposito:
           "Entradas por compra y salidas por merma, ambas como asientos: nada se edita, todo se corrige con otro movimiento.",
-        tarea: "F8-07",
+        tarea: "F8-06",
       },
     ],
   },
@@ -234,7 +248,7 @@ export const MODULOS: readonly Modulo[] = [
         href: null,
         proposito:
           "El histórico mínimo: nombre, apodo, edad y una referencia de contacto. Nada más — es lo menos sensible que permite operar (DEC-9).",
-        tarea: "F5-07",
+        tarea: "F5-01",
       },
       {
         id: "usuarios",
@@ -282,8 +296,9 @@ export const MODULOS: readonly Modulo[] = [
         id: "sucursal",
         nombre: "Sucursal",
         href: null,
-        proposito: "Datos fiscales, horario, aforo y moneda funcional.",
-        tarea: "F2-03",
+        proposito:
+          "Datos fiscales, horario, moneda funcional, formato de hora y el umbral de vuelto que se puede dejar en caja. El aforo vive en Tarifas y paquetes.",
+        tarea: "F5-08b",
       },
       {
         id: "impuestos",
@@ -291,7 +306,7 @@ export const MODULOS: readonly Modulo[] = [
         href: null,
         proposito:
           "Tipos de IVA con su vigencia y el porcentaje de IGTF. Se versionan por fecha: un cambio no reescribe el pasado.",
-        tarea: "F3-05",
+        tarea: "F3-06",
       },
       {
         id: "impresoras",

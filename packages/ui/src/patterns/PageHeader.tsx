@@ -42,10 +42,13 @@ export function PageHeader({
               const ultima = i === migas.length - 1;
               return (
                 <li key={`${m.texto}-${i}`} className="flex items-center gap-1.5">
+                  {/* Superficie de administración: 32 px de zona táctil (§8.4). La
+                      zona se amplía con `after` para no alargar la fila de migas,
+                      que es orientación y no acción principal (F-09). */}
                   {m.href && !ultima ? (
                     <a
                       href={m.href}
-                      className="rounded text-ink-3 no-underline transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      className="relative rounded text-ink-3 no-underline transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
                       {m.texto}
                     </a>
