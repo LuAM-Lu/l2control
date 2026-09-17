@@ -44,19 +44,19 @@ Cada punto se comprueba midiendo o recorriendo, no leyendo.
 | T-3 | Toda estación es usable en vertical (768×1024 y 800×1280) | Medición y capturas | ✅ |
 | T-4 | Objetivos táctiles: KDS 64, POS 56, tablet 48, admin 32 | Medición | ✅ |
 | T-5 | Se instala en una tablet Android real, sin barra del navegador | Prueba del cliente | Pendiente (necesita HTTPS) |
-| T-6 | Navegación sin sorpresas: N-04, N-07 y N-08 resueltos | Recorrido por rol | Pendiente |
+| T-6 | Navegación sin sorpresas: N-04, N-07 y N-08 resueltos | Recorrido por rol | ✅ |
 | T-7 | **Ninguna sección del panel queda en «pendiente»** sin una decisión: está construida, o su espera está escrita y aprobada | Recorrido del menú | Pendiente (Ola 4) |
 | T-8 | Auditoría de accesibilidad e interfaz por módulos sin hallazgos altos abiertos | Auditorías por área, verificadas | Pendiente (Ola 5) |
 | T-9 | `pnpm verify` en verde y la medición repetible con un comando (`pnpm audit:ui`) | CI local | Parcial |
 
 ## 3. Lo que falta, por olas
 
-### Ola 3 · Navegación y panel en tablet — **en curso**
+### Ola 3 · Navegación y panel en tablet — **hecha** (2026-09-17)
 
 | # | Tarea | Carril | Origen | Criterio |
 |---|---|---|---|---|
 | 3.1 | Avisar en el menú y en las tarjetas de módulo de que una sección abre una estación a pantalla completa (`abre: "estacion"` en el tipo `Seccion`). De paso: quitar el «necesita» obsoleto de Comandas del día y corregir los códigos de tarea del mapa (Tasas → F3-04, Sucursal → F5-08b, Impuestos → F3-06, Representantes → F5-01, Recetas → F8-03, Compras y mermas → F8-06) | M (tipo) · O (menú y tarjetas) | N-04 | **Hecha**: las ocho lo dicen en el menú y en su tarjeta |
-| 3.2 | El acceso se alimenta del directorio de personas y no muestra a quien está de baja; «Usuarios y permisos» usa la persona en sesión | M | N-07, N-08 | Dar de baja en Usuarios la quita del acceso |
+| 3.2 | El acceso se alimenta del directorio de personas y no muestra a quien está de baja; «Usuarios y permisos» usa la persona en sesión | M · O · [acceso-desde-directorio](encargos/acceso-desde-directorio.md) | N-07, N-08 | **Hecha**: el acceso lista a las seis personas activas del directorio y quien usa el panel firma con su sesión |
 | 3.3 | Panel en tablet: migas de `PageHeader` a 32 px (M, `@l2/ui`); en Inicio, el enlace «Dispositivos» y la cifra del turno a 32 px y rejillas sin celdas vacías con dos columnas | M · O | F-09 | **Hecha**: migas, «Dispositivos» y la cifra del turno a 32 px; rejillas sin huecos a 2, 3 y 5 columnas |
 
 Hecho en esta ola: Tarifas y paquetes (T-7), otros puestos desde la barra (N-06), desplegables del menú

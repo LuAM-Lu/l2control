@@ -1,5 +1,7 @@
 import { AccesoScreen, type Operador } from "../../../src/features/identity/AccesoScreen";
 import type { Device } from "@l2/domain-identity";
+import { DEMO_USUARIOS } from "../../../src/demo/usuarios";
+import { NOMBRE_ROL } from "../../../src/features/identity/permisos";
 
 /**
  * Acceso por PIN atado a dispositivo (F2-03, ADR-013).
@@ -24,56 +26,25 @@ const DISPOSITIVOS: Record<string, Device | null> = {
 };
 
 /**
- * Las personas que pueden entrar en este equipo.
+ * Las personas que pueden entrar en este equipo — N-07 y N-08.
  *
- * Cada rol entra directamente a su puesto (§7.3) —identificarse y tener que
- * buscar después dónde se trabaja son dos pasos donde debería haber uno—, pero
- * **cuál es ese puesto ya no se declara aquí**: lo resuelve `puestoDe()`, la
- * misma función que usan las guardias. Eran dos verdades sobre lo mismo y
- * discrepaban (N-02 de la auditoría).
+ * **Salen del directorio de personas**, no de una lista propia: eran dos
+ * verdades con identificadores distintos, y quien daba de baja a alguien en
+ * «Usuarios y permisos» lo seguía viendo aquí. Ahora no aparecer es una regla
+ * (`active`), no una casualidad.
  *
- * TODO(F2-11/backend): esta lista sale del directorio de personas, filtrando
- * las que están de baja. Hoy son dos listas distintas, con identificadores
- * distintos, y Carla no aparece aquí por casualidad y no por regla (N-07).
+ * A qué puesto entra cada rol tampoco se declara aquí: lo resuelve `puestoDe()`,
+ * la misma función que usan las guardias (N-02).
+ *
+ * TODO(F2-03/backend): el directorio y la sesión vendrán del servidor; la forma
+ * ya es la definitiva, así que ese cambio no toca esta pantalla (§11.4).
  */
-const OPERADORES: Operador[] = [
-  {
-    id: "u0",
-    nombre: "Abigail Karam",
-    rol: "Administradora",
-    role: "ADMIN",
-  },
-  {
-    id: "u1",
-    nombre: "Marisol Prieto",
-    rol: "Cajera",
-    role: "CAJERO",
-  },
-  {
-    id: "u2",
-    nombre: "Luis Guerrero",
-    rol: "Supervisor",
-    role: "SUPERVISOR",
-  },
-  {
-    id: "u3",
-    nombre: "Ana Rojas",
-    rol: "Monitora de parque",
-    role: "MONITOR_PARQUE",
-  },
-  {
-    id: "u5",
-    nombre: "Jesús Mendoza",
-    rol: "Mesero",
-    role: "MESERO",
-  },
-  {
-    id: "u4",
-    nombre: "Diego Salas",
-    rol: "Cocina",
-    role: "COCINA",
-  },
-];
+const OPERADORES: Operador[] = DEMO_USUARIOS.filter((u) => u.active).map((u) => ({
+  id: u.id,
+  nombre: u.fullName,
+  rol: NOMBRE_ROL[u.role],
+  role: u.role,
+}));
 
 export default async function AccesoPage({
   searchParams,

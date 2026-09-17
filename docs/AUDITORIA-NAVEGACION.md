@@ -1,7 +1,7 @@
 # Auditoría de navegación y permisos
 
-> **Estado (2026-09-17):** ocho de los diez hallazgos están resueltos (N-01 a N-06, N-09 y N-10), cada
-> uno anotado bajo su apartado. **Quedan N-07 y N-08**, en la Ola 3 del
+> **Estado (2026-09-17): los diez hallazgos están resueltos**, cada uno anotado bajo su apartado. La
+> auditoría queda cerrada; lo que se construya de aquí en adelante se mide contra el
 > [plan final del frontend](PLAN-FRONTEND.md). La tabla de §1 es la del 2026-09-14: desde DEC-25 la
 > monitora ya no alcanza caja ni ventas.
 >
@@ -201,7 +201,7 @@ puestos» abre una hoja con las superficies de los demás puestos que el rol pue
 Comprobado: la cajera llega al parque y a mesas; la monitora, a cobrar y ventas; mesero y cocina no
 tienen otros puestos y no ven el botón.
 
-### N-07 · Las personas del acceso no son las del directorio — **medio**
+### ~~N-07~~ · Las personas del acceso no son las del directorio — **resuelto el 2026-09-17**
 
 El acceso usa ids `u0…u5` (`acceso/page.tsx`) y Usuarios y permisos usa `u-abigail`, `u-marisol`…
 (`demo/usuarios.ts`). La sesión guarda `u0`; `UsuariosPage` asume que el actor es `u-abigail`.
@@ -209,10 +209,13 @@ El acceso usa ids `u0…u5` (`acceso/page.tsx`) y Usuarios y permisos usa `u-abi
 Hoy solo ensucia la demostración, pero cuando exista auditoría **el mismo acto quedaría firmado por
 dos identidades distintas**, y una baja en Usuarios no quitaría a nadie del acceso.
 
-**Propuesta:** el acceso se alimenta del directorio, filtrando `active`. Es lo que hará el servidor,
-así que hacerlo ya evita que la pantalla cambie después.
+*Resuelto:* el acceso se alimenta del directorio filtrando `active`, con sus identificadores
+(`u-abigail`…) y el nombre del rol del catálogo. «Usuarios y permisos» y «Roles y accesos» firman con la
+persona en sesión en vez de con una constante; sin sesión no pintan nada, porque un asiento de auditoría
+con identidad inventada es peor que una pantalla vacía. Comprobado: entrar como cajera enseña «Caja no
+tiene acceso a Usuarios y permisos».
 
-### N-08 · El acceso no filtra a quien está de baja — **menor, consecuencia de N-07**
+### ~~N-08~~ · El acceso no filtra a quien está de baja — **resuelto con N-07**
 
 Carla Benítez está de baja en el directorio y no aparece en el acceso **por casualidad**: son dos
 listas distintas. Con el directorio como fuente, sería por regla.

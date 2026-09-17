@@ -6,7 +6,7 @@ import { DEMO_USUARIOS } from "../../../../../src/demo/usuarios";
 import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
 import { EditorCarta } from "../../../../../src/features/mesas/EditorCarta";
 import { EditorTarifario } from "../../../../../src/features/park/EditorTarifario";
-import { AccesosScreen } from "../../../../../src/features/identity/AccesosScreen";
+import { AccesosPage } from "../../../../../src/features/identity/AccesosPage";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -21,9 +21,9 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
   "restaurante/plano": () => <EditorPlano />,
   "restaurante/carta": () => <EditorCarta />,
   "parque/tarifas": () => <EditorTarifario />,
-  // TODO(F2-05/backend): el autor sale de la sesión y la sucursal, del dispositivo.
+  // TODO(F2-05/backend): la sucursal saldrá del dispositivo.
   "configuracion/accesos": () => (
-    <AccesosScreen autor={{ id: "u-abigail", nombre: "Abigail Karam" }} branchId="b1" />
+    <AccesosPage branchId="b1" />
   ),
 };
 

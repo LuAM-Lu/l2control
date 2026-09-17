@@ -1271,3 +1271,19 @@ panel en vivo seguía llevando a la pantalla de bloqueo del equipo; ahora lleva 
 Al revisar el mapa salieron seis códigos de tarea que no correspondían con el plan —«Tasas de cambio»
 apuntaba a los medios de pago y «Sucursal» al acceso por PIN—, y un bloqueo que ya no existía en
 «Comandas del día». Corregidos: el mapa es lo que la pantalla enseña cuando una sección todavía no está.
+
+## El acceso sale del directorio, y la auditoría de navegación queda cerrada — 2026-09-17 (N-07, N-08)
+
+Había dos listas de personas: la del acceso, escrita a mano con identificadores `u0…u5`, y la del
+directorio de «Usuarios y permisos», con `u-abigail`… La consecuencia no era cosmética: dar de baja a
+alguien no lo quitaba del acceso —Carla no aparecía por casualidad— y el mismo acto habría quedado
+firmado por dos identidades distintas el día que exista auditoría.
+
+Ahora el acceso lee el directorio y filtra `active`, y el nombre del rol sale del catálogo, que nombra la
+función y no a la persona. «Usuarios y permisos» y «Roles y accesos» firman con quien entró por el
+acceso; la obrera había dejado un actor «Anónimo» con rol de mesero para el caso sin sesión, y se
+cambió por no pintar nada: la cáscara del panel ya exige sesión, y firmar un cambio con una identidad
+inventada es peor que una pantalla vacía.
+
+Con esto se cierran los diez hallazgos de la auditoría de navegación y la Ola 3 del plan final. Sigue la
+Ola 4: las diez secciones que el panel todavía enseña como pendientes.
