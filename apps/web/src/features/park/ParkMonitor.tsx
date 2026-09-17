@@ -140,7 +140,7 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
                 "grid items-stretch",
                 compacta
                   ? "grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2.5"
-                  : "grid-cols-[repeat(auto-fill,minmax(248px,1fr))] gap-4 md:max-lg:grid-cols-3",
+                  : "grid-cols-[repeat(auto-fill,minmax(248px,1fr))] gap-4 md:max-lg:portrait:grid-cols-3",
               )}
             >
               {ordered.map((card) => (

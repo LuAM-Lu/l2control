@@ -66,7 +66,7 @@ Cada punto se comprueba midiendo, no leyendo.
 | Comprobar que `Stepper` y `Tabs` de `@l2/ui` aceptan la superficie POS; si no, añadirlo | M | F-04 | **Hecha** (`Stepper` ya la tenía; `Tabs` la gana) |
 | Cierre de ola: medir de nuevo | M | — | **Hecha**: ver el registro (§5) |
 
-### Ola 2 · Pantallas bajas y verticales — **en curso**
+### Ola 2 · Pantallas bajas y verticales — **hecha** (2026-09-17)
 *Reescrita el 2026-09-17 tras medir.* Dos hallazgos cambiaron la ola: el umbral de la caja no son las
 tablets de 600 px sino **cualquier ventana de menos de 760 px de alto** —incluido un portátil de
 1366×768 con la barra del navegador—, y en vertical el problema no era de cada pantalla sino del
@@ -82,17 +82,23 @@ tablets de 600 px sino **cualquier ventana de menos de 760 px de alto** —inclu
 | Entrada y salida: la lista desplaza sola y la acción principal queda fija; entrada con disposición vertical propia; quitar pulsera a 48 | O2 · [parque-tablet](encargos/parque-tablet.md) (en paralelo, aprobado) | F-06, F-07, F-13 | **Hecha**: acción a la vista de 1024×600 a 1920 y en 768×1024 |
 | Monitor: la tarjeta vencida no cabe en las 3 columnas de 768 px | M (`StatusCard`) + O2 | F-14 | **Hecha**: la causa era la columna implícita de `StatusCard` |
 | Ventas a 1024×600: se acepta (lo que desplaza es la vista previa del recibo, un documento) | M | F-06 | **Decidido** |
-| Tablets de 960×600: variante `apaisado:` y las estaciones la usan en lugar de `lg:` para sus columnas, y `md:max-lg:portrait:` en lugar de `md:max-lg:` para lo vertical (también la barra) | M prepara · O1 · [estaciones-apaisado](encargos/estaciones-apaisado.md) | F-15 | Variante hecha; el turno ya la usa; encargada |
-| Cierre de ola: medir de nuevo, con pantallas cargadas (niños en entrada y salida) | M | — | — |
+| Tablets de 960×600: variante `apaisado:` y las estaciones la usan en lugar de `lg:` para sus columnas, y `md:max-lg:portrait:` en lugar de `md:max-lg:` para lo vertical (también la barra) | M prepara · O1 · [estaciones-apaisado](encargos/estaciones-apaisado.md) | F-15 | **Hecha**: barra en una fila y columnas a 960×600 |
+| Cierre de ola: medir de nuevo, con pantallas cargadas (niños en entrada y salida) | M | — | **Hecha**: ver el registro (§5) |
 
-### Ola 3 · Navegación y lo que falta de producto
+### Ola 3 · Navegación y lo que falta de producto — **siguiente**
+*Reescrita el 2026-09-17 al cerrar la Ola 2.* Con N-05 resuelto (una sola puerta al panel), N-04 ya no
+deja a nadie sin camino de vuelta: quien abre una sección de estación desde el panel es quien ve el
+botón «Panel» de la barra. Queda solo **avisar** de que se sale a pantalla completa.
+
 | Tarea | Carril | Hallazgo |
 |---|---|---|
 | Tarifas y paquetes (el contrato ya está) | O1 · [tarifas-editor](encargos/tarifas-editor.md) | T-7 |
-| Avisar de que una sección abre a pantalla completa | M (tipo `Seccion`) · O1 (menú y tarjetas) | N-04 |
-| Llegar a las otras estaciones alcanzables desde la barra | M diseña · O1 construye | N-06 |
-| El acceso sale del directorio de personas | M | N-07, N-08 |
-| Panel en tablet: rejillas sin celdas vacías y objetivos de 32 px | O1 | F-09 |
+| Avisar de que una sección abre a pantalla completa | M (`abre` en el tipo `Seccion`) · O (menú y tarjetas) | N-04 |
+| Llegar a las otras estaciones alcanzables desde la barra | M diseña · O construye | N-06 |
+| El acceso sale del directorio de personas y filtra las bajas | M | N-07, N-08 |
+| Panel en tablet: desplegables, migas y enlaces a 32 px; rejillas sin celdas vacías | O | F-09 |
+| Chip DEMO a 48 px | O | F-10 |
+| Quién ve las ventas del turno | Cliente | N-10 |
 
 ### Ola 4 · Auditoría fina por módulos
 Una auditoría de obrera por área —parque, caja, restaurante, panel, acceso—, cada una con su lista de
@@ -115,10 +121,12 @@ encargadas pueden correr **en paralelo** si el cliente lo aprueba.
 | F-12 | Teléfono | Fuera del objetivo; revisar al cerrar el frontend |
 | — | HTTPS para instalar en tablets reales | Se resuelve con el despliegue (backend). Para probar antes: `chrome://flags` → «Insecure origins treated as secure» con la IP del equipo |
 | — | Playwright como dependencia de desarrollo para `pnpm audit:ui` | Sí, en la Ola 5 |
+| N-10 | ¿La taquilla (monitora) ve las ventas del turno de los dos puntos de cobro? | Pendiente |
 
 ## 5. Registro de olas
 
 | Ola | Cerrada | Resultado de la medición | Cambios al plan |
 |---|---|---|---|
 | 0 | 2026-09-16 | Línea base: 0 scroll horizontal; F-01 a F-12 | Plan creado |
+| 2 | 2026-09-17 | **192 combinaciones** (12 tamaños: se añadieron 1366×657, 1280×720 y 960×600): 0 fallos, 0 scroll horizontal, 0 errores, 0 textos cortados, **ninguna estación desplaza la página**. Con pantallas cargadas y en 10 tamaños: la caja se cobra entera en todos (flujo completo probado a 1024×600, 960×600 y 768×1024), los subtotales del arqueo se ven en todos, el botón principal de entrada y salida está a la vista en todo lo horizontal y ninguna tarjeta del monitor se corta. Solo desplazan por dentro listas (monitor, arqueo, recibo) y, en vertical, turno y salida (aceptado, F-07) | Variantes `bajo:` y `apaisado:`, marco fijo desde 768, `StatusCard` con columna acotada. Ola 3 reescrita; N-10 a decidir |
 | 1 | 2026-09-17 | 144 combinaciones: 0 fallos, 0 scroll horizontal, 0 errores, ningún texto cortado sin puntos suspensivos. Chrome: instalable sin errores. A 1024×600 la caja sigue sin dejar cobrar y su ticket pasa de +56 a +184 (objetivos de 56). En vertical desplazan la página caja (+167), entrada (+144), monitor (+140) y turno (+331). Con niños cargados, a 1024×600 entrada +245 y salida +163; a 1366×768, entrada +77. La columna de cobro pide 754 px de ventana | Ola 2 reescrita: variante `bajo:`, marco fijo desde 768, encargos por pantalla. Nuevos F-13 y F-14 |

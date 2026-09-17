@@ -264,13 +264,13 @@ export function MesasScreen() {
   /* ── vista de pedido: carta + ticket ── */
   if (vista === "pedido" && elegida) {
     return (
-      <div className="flex flex-1 flex-col lg:min-h-0">
+      <div className="flex flex-1 flex-col apaisado:min-h-0">
         <BannerSimulacion />
         <Cabecera titulo={`Pedido · Mesa ${elegida.mesa.label}`} subtitulo="Borrador: la cocina lo verá cuando lo envíes" />
         <Container
           as="main"
           ancho="operacion"
-          className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[3fr_2fr] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
+          className="grid flex-1 content-start gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[3fr_2fr] apaisado:grid-rows-[minmax(0,1fr)] apaisado:content-stretch"
         >
           <TomaPedido
             mesaLabel={elegida.mesa.label}
@@ -288,7 +288,7 @@ export function MesasScreen() {
 
   /* ── vista de plano: mesas + detalle ── */
   return (
-    <div className="flex flex-1 flex-col lg:min-h-0">
+    <div className="flex flex-1 flex-col apaisado:min-h-0">
       <BannerSimulacion />
       <Cabecera
         titulo="Mesas"
@@ -347,11 +347,11 @@ export function MesasScreen() {
       <Container
         as="main"
         ancho="operacion"
-        className="grid flex-1 content-start gap-5 py-4 lg:min-h-0 lg:grid-cols-[3fr_2fr] lg:grid-rows-[minmax(0,1fr)] lg:content-stretch"
+        className="grid flex-1 content-start gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[3fr_2fr] apaisado:grid-rows-[minmax(0,1fr)] apaisado:content-stretch"
       >
-        <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
+        <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 apaisado:min-h-0 apaisado:overflow-y-auto">
           {modo === "PLANO" ? (
-            <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion} onElegir={elegir} className="lg:min-h-0" />
+            <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion} onElegir={elegir} className="apaisado:min-h-0" />
           ) : (
             <Atender mesas={mesas} elegida={seleccion} onElegir={elegir} />
           )}
@@ -360,7 +360,7 @@ export function MesasScreen() {
         <aside
           ref={detalle}
           aria-label="Detalle de la mesa"
-          className="flex min-w-0 scroll-mt-20 flex-col rounded-[var(--radius-card)] border border-line bg-surface lg:min-h-0"
+          className="flex min-w-0 scroll-mt-20 flex-col rounded-[var(--radius-card)] border border-line bg-surface apaisado:min-h-0"
         >
           {!elegida ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
@@ -401,7 +401,7 @@ export function MesasScreen() {
           ) : (
             <>
               <CabeceraDetalle vista={elegida} ahora={ahora} />
-              <div className="flex flex-1 flex-col gap-4 px-4 py-3 lg:min-h-0 lg:overflow-y-auto">
+              <div className="flex flex-1 flex-col gap-4 px-4 py-3 apaisado:min-h-0 apaisado:overflow-y-auto">
                 <NinosDeLaMesa vista={elegida} onVincular={() => setVinculando(true)} />
                 <PedidosDeLaMesa
                   vista={elegida}

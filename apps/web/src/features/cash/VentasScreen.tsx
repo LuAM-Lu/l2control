@@ -136,7 +136,7 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
       <Container
         as="main"
         ancho="muro"
-        className="grid flex-1 gap-4 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_clamp(340px,28vw,420px)]"
+        className="grid flex-1 gap-4 py-4 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_clamp(340px,28vw,420px)]"
       >
         {/* ══════════════ la lista ══════════════ */}
         <section

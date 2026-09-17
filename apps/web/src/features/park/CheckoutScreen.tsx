@@ -257,8 +257,8 @@ export function CheckoutScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[minmax(0,1fr)] bajo:py-3">
-        <section className="flex min-w-0 flex-col gap-4 lg:min-h-0">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3">
+        <section className="flex min-w-0 flex-col gap-4 apaisado:min-h-0">
           <div className="shrink-0">
             <ScannerField
               onScan={handleScan}
@@ -277,7 +277,7 @@ export function CheckoutScreen({
             </p>
           )}
 
-          <div className="-m-1 p-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <div className="-m-1 p-1 apaisado:min-h-0 apaisado:flex-1 apaisado:overflow-y-auto">
             {!hayAlgo ? (
               <ScanPrompt
                 icon={<ScanLine size={40} aria-hidden="true" />}
@@ -382,8 +382,8 @@ export function CheckoutScreen({
           </div>
         </section>
 
-        <aside className="flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 bajo:gap-3 bajo:p-4 lg:min-h-0 lg:max-h-full lg:self-start">
-          <div className="-m-1 flex flex-col gap-4 p-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto bajo:gap-3">
+        <aside className="flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 bajo:gap-3 bajo:p-4 apaisado:min-h-0 apaisado:max-h-full apaisado:self-start">
+          <div className="-m-1 flex flex-col gap-4 p-1 apaisado:min-h-0 apaisado:flex-1 apaisado:overflow-y-auto bajo:gap-3">
             <h2 className="font-display text-lg font-bold text-ink">Liquidación</h2>
 
             {/* Las dos rutas del plan. Producen el mismo total; cambia a dónde

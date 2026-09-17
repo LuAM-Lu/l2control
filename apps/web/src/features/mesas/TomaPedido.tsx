@@ -64,7 +64,7 @@ export function TomaPedido({
   return (
     <>
       {/* ── la carta ── */}
-      <section aria-label="Carta" className="flex min-w-0 flex-col gap-3 lg:min-h-0">
+      <section aria-label="Carta" className="flex min-w-0 flex-col gap-3 apaisado:min-h-0">
         <div role="group" aria-label="Categorías" className="flex flex-wrap gap-1.5">
           {categorias.map((c) => (
             <button
@@ -85,7 +85,7 @@ export function TomaPedido({
           ))}
         </div>
 
-        <ul className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3 lg:min-h-0 lg:overflow-y-auto xl:grid-cols-4">
+        <ul className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3 apaisado:min-h-0 apaisado:overflow-y-auto xl:grid-cols-4">
           {enVenta
             .filter((i) => i.category === categoria)
             .map((i) => {
@@ -134,7 +134,7 @@ export function TomaPedido({
       {/* ── el ticket del borrador ── */}
       <aside
         aria-label={`Borrador de la mesa ${mesaLabel}`}
-        className="flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface lg:min-h-0"
+        className="flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface apaisado:min-h-0"
       >
         <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0">
@@ -144,7 +144,7 @@ export function TomaPedido({
           <Badge tone="idle">{unidades === 1 ? "1 plato" : `${unidades} platos`}</Badge>
         </header>
 
-        <div className="flex-1 px-4 py-2 lg:min-h-0 lg:overflow-y-auto">
+        <div className="flex-1 px-4 py-2 apaisado:min-h-0 apaisado:overflow-y-auto">
           {lineas.length === 0 ? (
             <p className="py-10 text-center text-[13px] text-ink-3">
               Toca los platos de la carta para añadirlos.

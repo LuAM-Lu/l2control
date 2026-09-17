@@ -36,8 +36,10 @@
 > **F1-21 Frontend adaptable e instalable** (alcance añadido el 2026-09-16): auditoría de 144
 > combinaciones de pantalla y tamaño en [AUDITORIA-FRONTEND.md](AUDITORIA-FRONTEND.md) y plan por olas en
 > [PLAN-FRONTEND.md](PLAN-FRONTEND.md). **La app ya es instalable** (Chrome: 0 errores de instalabilidad),
-> abre sin barra del navegador y las estaciones van a pantalla completa. Siguen los objetivos táctiles de
-> caja y las tablets pequeñas y verticales.
+> abre sin barra del navegador y las estaciones van a pantalla completa. **Olas 1 y 2 cerradas el
+> 2026-09-17:** objetivos táctiles de cobro, y todas las estaciones usables en 12 tamaños —de 1920×1080 a
+> tablets de 960×600 y 768×1024—: la caja se cobra entera en cualquiera de ellos. Sigue la Ola 3
+> (Tarifas y paquetes, navegación y panel en tablet).
 
 ## F0 · Descubrimiento, cumplimiento y decisiones
 

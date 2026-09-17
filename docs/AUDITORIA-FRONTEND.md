@@ -164,6 +164,9 @@ sus botones principales fuera de la ventana; y la barra de estación, en dos fil
 La caja lo resuelve su encargo (dos columnas desde 768). Para el resto hace falta una variante
 **apaisado** —1024 px o más, o 768 px o más en horizontal— que sustituya a `lg:` en las disposiciones
 de las estaciones.
+*Resuelto el 2026-09-17* ([estaciones-apaisado](encargos/estaciones-apaisado.md)): la barra y todas las
+estaciones deciden su disposición con `apaisado:`; lo que depende solo del ancho sigue con `lg:`/`xl:`.
+A 960×600, barra en una fila, columnas en todas las estaciones y la caja se cobra entera.
 
 ### F-12 · Teléfono — **fuera del objetivo** · M
 A 412 px las estaciones desplazan mucho (el monitor, +1662) y el panel es usable. El objetivo acordado
@@ -187,8 +190,16 @@ Conclusiones para el plan:
   lo que se rompe en un tamaño concreto.
 - Toda cita de la obrera se verifica antes de convertirse en tarea.
 
-## 4. Cómo repetir la medición
+## 4. Estado al cerrar la Ola 2 (2026-09-17)
 
-El script vive fuera del repo (`C:/tmp/pw_test/auditoria_responsive.js` y `auditoria_detalle.js`), con
-Playwright. Llevarlo al repo como `pnpm audit:ui` es una tarea del plan (añade una dependencia de
+Resueltos: F-01 a F-07, F-13, F-14 y F-15. F-08 decidido. Siguen F-09 y F-10 (Ola 3), F-11 como
+observación y F-12 fuera del objetivo. Medición de cierre: 192 combinaciones sin fallos, sin scroll
+horizontal, sin errores, sin textos cortados y sin estaciones que desplacen la página; el detalle está
+en el registro de [PLAN-FRONTEND.md](PLAN-FRONTEND.md) §5.
+
+## 5. Cómo repetir la medición
+
+El script vive fuera del repo (`C:/tmp/pw_test/auditoria_responsive.js`, `auditoria_detalle.js` y, desde
+la Ola 2, `ola2_medir.js`, que comprueba con las pantallas cargadas que las piezas clave están enteras a
+la vista), con Playwright. Llevarlo al repo como `pnpm audit:ui` es una tarea del plan (añade una dependencia de
 desarrollo).

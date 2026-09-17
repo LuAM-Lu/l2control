@@ -1145,3 +1145,19 @@ La obrera lo hizo tal como se pidió. La maestra corrigió dos detalles que solo
 relleno de la cabecera fija alargaba el arqueo 15 px y volvía a hacer desplazar la pantalla a 1366×768,
 donde el cliente pidió que no desplace; y los dos botones iguales de la confirmación partían «Sí, cerrar
 el turno» en dos renglones.
+
+## Cierre de la Ola 2: doce tamaños, ninguna estación desplaza — 2026-09-17 (F1-21)
+
+La última pieza fue la tablet de 960×600. Con `apaisado:` la obrera cambió 32 clases en ocho archivos,
+de forma mecánica y con una regla escrita en el encargo: lo que decide la disposición pasa a `apaisado:`,
+lo que depende solo del ancho se queda. No hubo nada que corregir.
+
+La medición de cierre creció a doce tamaños —se añadieron 1366×657 (un portátil con la barra del
+navegador), 1280×720 y 960×600— y a 192 combinaciones: ningún fallo, ningún scroll horizontal, ningún
+error, ningún texto cortado y **ninguna estación que desplace la página**. La medición con pantallas
+cargadas, nueva en esta ola, confirma lo que importa: se cobra entero en todos los tamaños, el arqueo
+enseña todos sus subtotales y el botón principal de entrada y salida no se va de la vista en horizontal.
+
+Lo que dejó la ola para la siguiente: la navegación (N-04, N-06, N-07/N-08), el panel en tablet (F-09),
+Tarifas y paquetes, y una decisión del cliente que la auditoría de navegación dejó escrita y nadie
+tomó: si la taquilla ve las ventas del turno de los dos puntos de cobro (N-10).

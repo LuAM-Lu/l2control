@@ -295,7 +295,7 @@ export function CheckInScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[minmax(0,1fr)] bajo:py-3">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3">
         {/* ------------------------------------------------------ niños */}
         <section className="flex min-h-0 min-w-0 flex-col gap-4">
           <div className="shrink-0">
@@ -393,8 +393,8 @@ export function CheckInScreen({
         </section>
 
         {/* ---------------------------------------------- representante */}
-        <aside className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 lg:max-h-full lg:self-start bajo:gap-3 bajo:p-4">
-          <div className="-m-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:gap-x-5 md:max-lg:overflow-visible bajo:gap-3">
+        <aside className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 apaisado:max-h-full apaisado:self-start bajo:gap-3 bajo:p-4">
+          <div className="-m-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 md:max-lg:portrait:grid md:max-lg:portrait:grid-cols-2 md:max-lg:portrait:gap-x-5 md:max-lg:portrait:overflow-visible bajo:gap-3">
             <div className="flex flex-col gap-4 bajo:gap-3">
               <h2 className="font-display text-lg font-bold text-ink">Representante</h2>
 
@@ -469,7 +469,7 @@ export function CheckInScreen({
             </div>
           </div>
 
-          <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 md:max-lg:flex-row md:max-lg:items-center md:max-lg:gap-4 bajo:mt-3 bajo:gap-3">
+          <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 md:max-lg:portrait:flex-row md:max-lg:portrait:items-center md:max-lg:portrait:gap-4 bajo:mt-3 bajo:gap-3">
             <div className="flex-1">
               <div className="flex items-baseline justify-between">
                 <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
@@ -484,7 +484,7 @@ export function CheckInScreen({
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 md:max-lg:w-1/2 md:max-lg:shrink-0">
+            <div className="flex flex-col gap-2 md:max-lg:portrait:w-1/2 md:max-lg:portrait:shrink-0">
               <Button
                 surface="pos"
                 variant="primary"

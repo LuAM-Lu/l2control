@@ -64,7 +64,7 @@ export function CocinaScreen({ umbral }: { umbral: UmbralEspera }) {
       <Container
         as="main"
         ancho="muro"
-        className="grid flex-1 gap-4 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_clamp(260px,24vw,360px)]"
+        className="grid flex-1 gap-4 py-4 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_clamp(260px,24vw,360px)]"
       >
         {/* ══════════════ lo que hay que cocinar ══════════════ */}
         <section aria-label="Comandas en cocina" className="flex min-h-0 min-w-0 flex-col gap-3">

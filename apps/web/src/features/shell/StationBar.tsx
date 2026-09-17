@@ -152,10 +152,10 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
       )}
       style={{ boxShadow: "var(--shadow-bar)" }}
     >
-      {/* Envoltura: en móvil el conmutador baja a su propia fila (`w-full
-          order-last`); a partir de lg todo cabe en una sola de 64 px.
+      {/* Envoltura: en móvil o en vertical estrecha el conmutador baja a su propia fila (`w-full
+          order-last`); en pantalla apaisada (F-15) todo cabe en una sola de 64 px.
           Entre 640 y 1023 px las pestañas y los chips no caben juntos (F-03). */}
-      <div className="flex flex-wrap items-center gap-2 py-2 pl-[max(0.5rem,var(--seguro-izquierda))] pr-[max(0.5rem,var(--seguro-derecha))] lg:h-16 lg:flex-nowrap lg:gap-3 lg:py-0 lg:pl-[max(1rem,var(--seguro-izquierda))] lg:pr-[max(1rem,var(--seguro-derecha))]">
+      <div className="flex flex-wrap items-center gap-2 py-2 pl-[max(0.5rem,var(--seguro-izquierda))] pr-[max(0.5rem,var(--seguro-derecha))] apaisado:h-16 apaisado:flex-nowrap apaisado:gap-3 apaisado:py-0 apaisado:pl-[max(1rem,var(--seguro-izquierda))] apaisado:pr-[max(1rem,var(--seguro-derecha))]">
         {/* Volver: un solo destino, el panel. */}
         {verPanel && (
         <Link
@@ -182,20 +182,20 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
         {puesto && (
           <nav
             aria-label={`Superficies de ${puesto.nombre}`}
-            className="order-last w-full min-w-0 lg:order-none lg:w-auto"
+            className="order-last w-full min-w-0 apaisado:order-none apaisado:w-auto"
           >
             <ul className="flex items-center gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1">
               {puesto.superficies.map((s) => {
                 const activa = s.href === pathname;
                 return (
-                  <li key={s.href} className="flex-1 lg:flex-none">
+                  <li key={s.href} className="flex-1 apaisado:flex-none">
                     <Link
                       href={s.href}
                       aria-current={activa ? "page" : undefined}
                       title={s.largo}
                       className={cn(
                         "flex h-12 flex-1 items-center justify-center rounded-[0.4rem] px-4 text-sm",
-                        "whitespace-nowrap no-underline lg:flex-none lg:justify-start",
+                        "whitespace-nowrap no-underline apaisado:flex-none apaisado:justify-start",
                         "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                         activa
@@ -251,7 +251,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
           <ChipSimulacion />
 
-          <span className="mx-0.5 hidden h-6 w-px bg-line lg:block" aria-hidden="true" />
+          <span className="mx-0.5 hidden h-6 w-px bg-line apaisado:block" aria-hidden="true" />
 
           <button
             type="button"
