@@ -1241,3 +1241,16 @@ apuntaba a los medios de pago; Sucursal, al PIN): se corrigen en la Ola 3.
 
 `PENDIENTES.md` dejó de repetir lo de interfaz y remite al plan final; `PROGRESO.md`, las auditorías, los
 README y el índice de `docs/` quedaron al día con DEC-25, DEC-26, la PWA y las 26 decisiones.
+
+## Inventario entra en el cierre del frontend — 2026-09-17 (cambio de alcance)
+
+Con el plan final sobre la mesa, la única decisión que quedaba era inventario: sus tres secciones
+—insumos, recetas, compras y mermas— estaban **fuera de la Ruta A** (§11.3), que es el recorte que hace
+realista el piloto con dos personas. El cliente decidió construirlas ahora.
+
+Se registra como lo que es: un **cambio de alcance aprobado**, con su contrapartida escrita —el backend
+empieza después de esa tanda—, porque la regla de §11.3 es que cada tarea nueva desplaza a otra. Entra
+solo la interfaz: insumos con su unidad y su mínimo, recetas que dicen cuánto gasta cada plato de la
+carta ya publicada, y compras y mermas como asientos (regla 5: nada se edita, todo se corrige con otro
+movimiento). Descontar stock con cada venta, costear y avisar de stock crítico siguen siendo del
+servidor.

@@ -80,7 +80,7 @@ queda con su `TODO` y su tarea.
 | 4.7 | Configuración → **Sucursal** | F5-08b, F4-04c, F6-13 | Nombre, RIF y dirección; horario; formato de hora 12 h o 24 h, que cambia **todas** las superficies; umbral de residuo retenido de la caja; servicio y propina (D8, DEC-6). El aforo ya vive en Tarifas | Persistencia |
 | 4.8 | Configuración → **Impuestos** | F3-06, F3-07 | Alícuotas de IVA con su vigencia e IGTF; programar un cambio con fecha, nunca reescribir el pasado. La caja calcula con lo publicado. Los valores los confirma el contador (DEC-1) | Persistencia |
 | 4.9 | Configuración → **Impresoras** | F1-12, F6-09b | Impresoras de red (IP y puerto), ancho de 58 u 80 mm por estación, qué imprime cada una, vista previa del recibo y de la comanda en los dos anchos y «Imprimir prueba» simulado | Imprimir de verdad (F1-10) |
-| 4.10 | Inventario → **Insumos, Recetas, Compras y mermas** | F8-01, F8-03, F8-06, F8-07 | **Fuera de la Ruta A** (§11.3). Se construye solo si el cliente lo aprueba como cambio de alcance (§4 de este plan); si no, las tres secciones quedan con su pendiente escrito | — |
+| 4.10 | Inventario → **Insumos, Recetas, Compras y mermas** | F8-01, F8-03, F8-06, F8-07 | **Aprobado el 2026-09-17** como cambio de alcance (estaba fuera de la Ruta A, §11.3). Insumos con su unidad de compra y su mínimo; recetas que dicen cuánto insumo gasta cada plato de la carta; compras y mermas como asientos, nunca ediciones. Solo interfaz: el descuento real de stock al vender es del servidor | Descontar stock con cada venta, costeo y alertas (F8-04, F8-08) |
 
 **Orden y paralelismo.** Una obrera por defecto; dos a la vez si el cliente lo aprueba, nunca sobre los
 mismos archivos:
@@ -88,7 +88,7 @@ mismos archivos:
 1. **Tanda A** (sin archivos compartidos): 4.7 Sucursal · 4.6 Dispositivos · 4.5 Representantes.
 2. **Tanda B** (tocan la caja, una detrás de otra): 4.1 Tasas → 4.2 Medios de pago → 4.4 Cortesía.
 3. **Tanda C**: 4.8 Impuestos · 4.9 Impresoras · 4.3 Apertura de turno.
-4. **Tanda D**, si se aprueba: 4.10 Inventario.
+4. **Tanda D** (aprobada el 2026-09-17): 4.10 Inventario, en tres encargos —insumos, recetas y movimientos— porque las recetas necesitan los insumos y la carta, y los movimientos necesitan los insumos.
 
 **Criterio de cada sección:** su contrato con pruebas; editor probado en el navegador (crear, editar,
 retirar, deshacer, publicar y un error del contrato visible); la estación que lo usa cambia al publicar;
@@ -117,7 +117,7 @@ encarga los arreglos. Ya anotado para esta ola:
 
 | # | Decisión | Propuesta |
 |---|---|---|
-| **Inventario** | ¿Se construye ahora la interfaz de inventario (Ola 4.10)? Está fuera de la Ruta A | Decidir antes de la Tanda D. Si entra, es un cambio de alcance: se escribe qué sale a cambio |
+| ~~Inventario~~ | ~~¿Se construye ahora la interfaz de inventario?~~ | **Aprobado el 2026-09-17**: entra en la Tanda D. A cambio, el cierre del frontend se alarga: el backend empieza después de esa tanda (§11.3: cada tarea nueva desplaza a otra) |
 | **Informes** | Los informes del panel ejecutivo (F9-01 a F9-07) también están fuera de la Ruta A y no tienen sección | Dejarlos para después del piloto; Inicio ya enseña el día |
 | D9 | Un niño que sale sin su representante | Pendiente desde FLUJOS §7 |
 | D7 | Quién asigna los puestos (hoy se deduce del rol) | Pendiente |

@@ -11,7 +11,6 @@
 
 | # | Decisión | Propuesta sobre la mesa | Dónde |
 |---|---|---|---|
-| **Inventario** | ¿Se construye ya la interfaz de inventario? Está fuera de la Ruta A | Decidir antes de la Tanda D del plan final | [PLAN-FRONTEND](PLAN-FRONTEND.md) §4 |
 | **Informes** | ¿Entran los informes del panel ejecutivo (F9-01 a F9-07)? Fuera de la Ruta A | Después del piloto; Inicio ya enseña el día | PLAN §11.3 |
 | D7 | Quién asigna los puestos de trabajo | Hoy se deducen del rol (`PUESTO_DE_ROL`) | [FLUJOS](FLUJOS.md) §7 |
 | D9 | Un niño que sale sin su representante | Sin propuesta todavía | FLUJOS §7 |
@@ -21,7 +20,9 @@
 | F0-09 | Firma formal del alcance | Las 26 decisiones están cerradas; falta firmarlo | PLAN §14 |
 
 Cerradas el 2026-09-14 a 17 y ya construidas: D2, D3, D8, D10, D11, **DEC-25 (solo la caja cobra)** y
-**DEC-26 (turnos genéricos)**. El detalle está en PLAN §14 y en la bitácora.
+**DEC-26 (turnos genéricos)**. El 2026-09-17 el cliente aprobó además **construir la interfaz de
+inventario** (F8) dentro del cierre del frontend, aunque esté fuera de la Ruta A: es un cambio de alcance
+y a cambio el backend empieza más tarde. El detalle está en PLAN §14 y en la bitácora.
 
 ## 2. Lo que confirma el contador (DEC-1)
 

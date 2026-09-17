@@ -1908,6 +1908,11 @@ cuando el trámite esté listo.*
 
 ### FASE 8 · INVENTARIO, RECETAS Y COMPRAS
 
+> **Alcance añadido el 2026-09-17:** el cliente aprobó construir **la interfaz** de F8 (insumos, recetas
+> y movimientos de compra y merma) dentro del cierre del frontend, aunque F8 siga fuera de la Ruta A
+> (§11.3). Solo pantallas y contratos: descontar stock al vender, costear y avisar de stock crítico
+> siguen esperando al servidor. A cambio, el backend empieza después de esa tanda.
+
 - [ ] **F8-01 · Catálogo de insumos** con unidades y conversiones (g, ml, unidad, empaque).
   → *Criterio:* comprar en cajas y consumir en gramos cuadra; hay prueba de conversión.
 - [ ] **F8-02 · Productos terminados de venta directa** (bebidas, snacks, juguetes).
