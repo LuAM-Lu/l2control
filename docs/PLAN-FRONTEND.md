@@ -94,10 +94,10 @@ botón «Panel» de la barra. Queda solo **avisar** de que se sale a pantalla co
 |---|---|---|
 | Tarifas y paquetes (el contrato ya está) | O1 · [tarifas-editor](encargos/tarifas-editor.md) | T-7 |
 | Avisar de que una sección abre a pantalla completa | M (`abre` en el tipo `Seccion`) · O (menú y tarjetas) | N-04 |
-| Llegar a las otras estaciones alcanzables desde la barra | M diseña · O construye | N-06 |
+| Llegar a las otras estaciones alcanzables desde la barra | M diseña · O2 · [barra-puestos](encargos/barra-puestos.md) | N-06 · **hecha** |
 | El acceso sale del directorio de personas y filtra las bajas | M | N-07, N-08 |
-| Panel en tablet: desplegables, migas y enlaces a 32 px; rejillas sin celdas vacías | O | F-09 |
-| Chip DEMO a 48 px | O | F-10 |
+| Panel en tablet: desplegables (**hecho**), migas y enlaces a 32 px; rejillas sin celdas vacías (tras Tarifas, que toca Inicio) | O2 · M (migas, @l2/ui) | F-09 |
+| Chip DEMO a 48 px | O2 | F-10 · **hecha** |
 | Quién ve las ventas del turno | Cliente | N-10 |
 
 ### Ola 4 · Auditoría fina por módulos

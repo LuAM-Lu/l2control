@@ -1161,3 +1161,12 @@ enseña todos sus subtotales y el botón principal de entrada y salida no se va 
 Lo que dejó la ola para la siguiente: la navegación (N-04, N-06, N-07/N-08), el panel en tablet (F-09),
 Tarifas y paquetes, y una decisión del cliente que la auditoría de navegación dejó escrita y nadie
 tomó: si la taquilla ve las ventas del turno de los dos puntos de cobro (N-10).
+
+## Otros puestos desde la barra — 2026-09-17 (F1-21, Ola 3, N-06)
+
+La barra de estación solo enseñaba las pestañas del puesto actual, así que una cajera que también
+atiende mesas —lo normal en un local de dos personas— no tenía cómo llegar a /mesas desde la caja. Ahora
+un botón al final de las pestañas abre «Ir a otro puesto», con lo que su rol puede abrir, agrupado. No
+cambia ninguna regla de quién ve qué: solo hace visible un camino que ya estaba permitido. Lo escribió la
+segunda obrera, en paralelo con la de Tarifas, junto con los desplegables del menú lateral a 32 px y el
+chip DEMO a 48; entró sin correcciones y se comprobó entrando con cinco roles.

@@ -130,12 +130,13 @@ de cada pantalla sí cumplen su superficie.
 
 ### F-09 · Panel del back-office en tablet — **bajo** · M
 - Los desplegables del menú lateral miden 28 px, las migas 19 y el enlace «Dispositivos» 20 (admin
-  pide 32).
+  pide 32). *2026-09-17: los desplegables ya miden 32.*
 - Con 2 columnas, las rejillas de Inicio dejan una celda vacía: las 5 zonas del local y las 3 cifras
   del día son impares.
 
-### F-10 · El chip DEMO mide 36 px — **bajo** · M
-Solo existe con la demostración encendida.
+### F-10 · El chip DEMO mide 36 px — **resuelto el 2026-09-17** · M
+Solo existe con la demostración encendida. Ahora mide 48 en las estaciones y en el acceso; en el panel
+(admin, 32) se queda en 36.
 
 ### F-11 · `min-w-[280px]` en la entrada — **no reproducido** · O
 `CheckInScreen.tsx:370`. La obrera predijo scroll horizontal en tablets verticales; la medición no lo

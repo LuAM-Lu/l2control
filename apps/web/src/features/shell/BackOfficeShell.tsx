@@ -264,7 +264,7 @@ function NavModulos({
                       setAbierto(desplegado ? "" : m.id);
                     }}
                     className={cn(
-                      "grid size-7 shrink-0 cursor-pointer place-content-center rounded text-ink-3",
+                      "grid size-8 shrink-0 cursor-pointer place-content-center rounded text-ink-3",
                       "transition-colors hover:bg-surface-2 hover:text-ink",
                       riel && "hidden xl:grid",
                     )}

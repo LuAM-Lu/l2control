@@ -260,7 +260,7 @@ export function AccesoScreen({
             <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
               {device!.label} · autorizado
             </Badge>
-            <ChipSimulacion />
+            <ChipSimulacion className="h-12" />
             {installPrompt && (
               <button
                 type="button"

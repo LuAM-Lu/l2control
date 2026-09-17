@@ -178,7 +178,7 @@ entonces Inicio tiene que ser alcanzable para esos roles.
 > abrirla, la cajera entra al panel, **sigue aterrizando en la caja** al identificarse, y sigue sin
 > poder abrir «Roles y accesos».
 
-### N-06 · El conmutador de estación encierra por grupo — **medio**
+### ~~N-06~~ · El conmutador de estación encierra por grupo — **resuelto el 2026-09-17**
 
 Las pestañas de la barra salen de tres grupos fijos (`PUESTOS` en `StationBar.tsx`): parque, caja y
 restaurante. Solo se ven las del grupo de la pantalla actual. Consecuencia: la cajera **alcanza**
@@ -188,6 +188,11 @@ desde `/monitor` tampoco. Solo se llega escribiendo la dirección.
 **Propuesta:** mantener las pestañas del grupo —son el conmutador del puesto, y está bien— y añadir
 un paso explícito a las demás superficies alcanzables, agrupadas, en el menú de la barra. En un local
 de dos personas, «la cajera también atiende mesas» es el caso normal, no la excepción.
+
+*Resuelto* ([barra-puestos](encargos/barra-puestos.md)): al final de las pestañas, un botón «Otros
+puestos» abre una hoja con las superficies de los demás puestos que el rol puede abrir, agrupadas.
+Comprobado: la cajera llega al parque y a mesas; la monitora, a cobrar y ventas; mesero y cocina no
+tienen otros puestos y no ven el botón.
 
 ### N-07 · Las personas del acceso no son las del directorio — **medio**
 

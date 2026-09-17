@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowLeftRight,
   ChevronLeft,
   Clock,
   LayoutDashboard,
@@ -13,7 +14,7 @@ import {
   TriangleAlert,
   WifiOff,
 } from "lucide-react";
-import { Initial, cn } from "@l2/ui";
+import { Initial, Sheet, cn } from "@l2/ui";
 import { useEffect, useState } from "react";
 import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
 import { useAjustes } from "../identity/accesos.ts";
@@ -46,6 +47,9 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
  *    operador no pierda de vista si hay turno y con qué tasa se cobra.
  *    Comprobado a 320, 375, 414, 768, 1024 y 1440: ninguna ruta desplaza en
  *    horizontal y todo lo pulsable mide 48 px.
+ *
+ * 4. **Navegación cruzada.** Un botón al final de las pestañas permite abrir
+ *    otros puestos a los que el rol tiene acceso (N-06).
  */
 
 type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/ventas" | "/turno" | "/mesas" | "/cocina";
@@ -109,6 +113,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const sim = useSimulacion();
 
   const [esPantallaCompleta, setEsPantallaCompleta] = useState(false);
+  const [otrosAbierto, setOtrosAbierto] = useState(false);
 
   useEffect(() => {
     const alCambiar = () => setEsPantallaCompleta(!!document.fullscreenElement);
@@ -138,6 +143,16 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const encontrado = PUESTOS.find((p) => p.superficies.some((s) => s.href === pathname));
   const pestanas = actor && encontrado ? encontrado.superficies.filter((s) => puedeAbrirRuta(actor, s.href)) : [];
   const puesto = encontrado && pestanas.length > 0 ? { ...encontrado, superficies: pestanas } : null;
+
+  const otros = actor
+    ? PUESTOS.filter((p) => p.id !== (encontrado ? encontrado.id : ""))
+        .map((p) => ({
+          ...p,
+          superficies: p.superficies.filter((s) => puedeAbrirRuta(actor, s.href)),
+        }))
+        .filter((p) => p.superficies.length > 0)
+    : [];
+
   const verPanel = actor !== null && puedeVerInicio(actor);
   const sinTasa = contexto.tasa === null;
   const sinTurno = contexto.turnoAbierto === null;
@@ -179,13 +194,13 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
         {/* Conmutador del puesto: pestañas, no navegación hacia atrás.
             Se desplaza en horizontal antes que comprimirse. */}
-        {puesto && (
+        {(puesto || otros.length > 0) && (
           <nav
-            aria-label={`Superficies de ${puesto.nombre}`}
+            aria-label={puesto ? `Superficies de ${puesto.nombre}` : "Otros puestos"}
             className="order-last w-full min-w-0 apaisado:order-none apaisado:w-auto"
           >
             <ul className="flex items-center gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1">
-              {puesto.superficies.map((s) => {
+              {puesto && puesto.superficies.map((s) => {
                 const activa = s.href === pathname;
                 return (
                   <li key={s.href} className="flex-1 apaisado:flex-none">
@@ -214,6 +229,21 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
                   </li>
                 );
               })}
+              {otros.length > 0 && (
+                <li className="flex-none">
+                  <button
+                    type="button"
+                    aria-label="Otros puestos"
+                    title="Otros puestos"
+                    aria-haspopup="dialog"
+                    aria-expanded={otrosAbierto}
+                    onClick={() => setOtrosAbierto(true)}
+                    className="grid size-12 shrink-0 place-content-center rounded-[0.4rem] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    <ArrowLeftRight size={18} aria-hidden="true" />
+                  </button>
+                </li>
+              )}
             </ul>
           </nav>
         )}
@@ -249,7 +279,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             <Pildora tono="warn" icono={<WifiOff size={14} />} texto="Sin internet" />
           )}
 
-          <ChipSimulacion />
+          <ChipSimulacion className="h-12" />
 
           <span className="mx-0.5 hidden h-6 w-px bg-line apaisado:block" aria-hidden="true" />
 
@@ -294,6 +324,41 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
           </span>
         </div>
       </div>
+      <Sheet
+        abierto={otrosAbierto}
+        onCerrar={() => setOtrosAbierto(false)}
+        titulo="Ir a otro puesto"
+        descripcion="Las superficies que tu rol puede abrir."
+      >
+        <div className="flex flex-col gap-6 py-4">
+          {otros.map((p) => (
+            <div key={p.id} className="flex flex-col gap-2">
+              <h3 className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                {p.nombre}
+              </h3>
+              <div className="flex flex-col gap-1.5">
+                {p.superficies.map((s) => (
+                  <Link
+                    key={s.href}
+                    href={s.href}
+                    onClick={() => setOtrosAbierto(false)}
+                    className="flex min-h-12 items-center rounded-[var(--radius-control)] border border-line bg-base/40 px-3 text-[13px] font-medium no-underline transition-colors hover:border-brand/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    <span className="text-ink">{s.largo}</span>
+                    <span className="ml-auto text-[13px] font-normal text-ink-3">{s.corto}</span>
+                    {s.href === "/caja" && porCobrar > 0 && (
+                      <span className="tnum ml-2 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
+                        {porCobrar}
+                        <span className="sr-only"> por cobrar</span>
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Sheet>
     </header>
   );
 }
