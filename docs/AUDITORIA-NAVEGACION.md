@@ -1,7 +1,9 @@
 # Auditoría de navegación y permisos
 
-> **Estado:** cuatro de los diez hallazgos están resueltos (N-01, N-02, N-03, N-05 y, de paso, N-09),
-> cada uno anotado bajo su apartado. Quedan N-04, N-06, N-07, N-08 y la decisión de N-10.
+> **Estado (2026-09-17):** siete de los diez hallazgos están resueltos (N-01, N-02, N-03, N-05, N-06,
+> N-09 y N-10), cada uno anotado bajo su apartado. **Quedan N-04, N-07 y N-08**, en la Ola 3 del
+> [plan final del frontend](PLAN-FRONTEND.md). La tabla de §1 es la del 2026-09-14: desde DEC-25 la
+> monitora ya no alcanza caja ni ventas.
 >
 > **Fecha:** 2026-09-14 · **Alcance:** las trece rutas de `apps/web/app`, la matriz de §7.3, el mapa de
 > módulos de `navigation.ts`, las dos cáscaras (estación y back-office) y las guardias de cada una.

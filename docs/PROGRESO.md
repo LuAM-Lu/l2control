@@ -1,6 +1,6 @@
 # Progreso real
 
-> **Actualizado:** 2026-09-14 · Contrastado contra los criterios de aceptación de
+> **Actualizado:** 2026-09-17 · Contrastado contra los criterios de aceptación de
 > [PLAN.md §12](PLAN.md). Una tarea solo cuenta como hecha si su criterio se cumple y es
 > demostrable — «ya lo programé» no basta.
 >
@@ -12,21 +12,21 @@
 | Fase | Hechas | Parciales | Pendientes | Estado |
 |---|---:|---:|---:|---|
 | F0 · Descubrimiento y decisiones | 4 | 1 | 5 | En curso — bloqueada por trabajo de campo |
-| F1 · Cimientos técnicos | 8 | 2 | 6 | En curso |
+| F1 · Cimientos técnicos | 8 | 3 | 6 | En curso · frontend adaptable e instalable (F1-21) con su [plan final](PLAN-FRONTEND.md) |
 | F2 · Identidad, permisos y auditoría | 2 | 4 | 6 | Permisos por persona, sesión compartida y quién autoriza |
 | F3 · Núcleo monetario y fiscal | 4 | 0 | 8 | Motor de impuestos listo |
 | F4 · Caja y cobro mixto | 2 | 11 | 1 | Interfaz completa: ventas, reimpresión, anulación y cuentas de mesa divididas; falta persistencia |
-| F5 · Parque | 4 | 4 | 8 | Tres superficies en pie |
+| F5 · Parque | 4 | 4 | 8 | Tres superficies en pie y el editor de tarifas |
 | F6 · Restaurante (interfaz, DEC-22) | 1 | 7 | 6 | Mesas con plano y editor, cocina (KDS) y caja de mesas con división |
 | F9 · Back-office y panel en vivo | 0 | 2 | — | Panel con sus módulos y **el local en vivo** (F9-08) |
 | F7-F12 (resto) | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
 > **Auditoría de navegación y permisos (2026-09-14):** diez hallazgos con evidencia en
-> [AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md). Tres graves sin arreglar todavía.
+> [AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md). Resueltos siete; quedan N-04, N-07 y N-08.
 
-**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`). Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`, `/cocina`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel` —que **es** el tablero en vivo del local— con sus módulos y `/panel/personas/usuarios`. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
+**Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`); la app se puede instalar desde Chrome. Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`, `/cocina`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel` —que **es** el tablero en vivo del local— con sus módulos y sus editores: tarifas, plano, carta, usuarios y roles. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
 
-**Todo lo que falta, en una sola lista:** [PENDIENTES.md](PENDIENTES.md).
+**Todo lo que falta, en una sola lista:** [PENDIENTES.md](PENDIENTES.md). **Lo que falta del frontend, con su orden:** [PLAN-FRONTEND.md](PLAN-FRONTEND.md).
 
 > **Orden de ejecución cambiado el 2026-09-09** (§11.4): frontend → backend → producción.
 > La condición para que ese orden no genere retrabajo es contratos primero, y ya está en marcha.
@@ -38,8 +38,9 @@
 > [PLAN-FRONTEND.md](PLAN-FRONTEND.md). **La app ya es instalable** (Chrome: 0 errores de instalabilidad),
 > abre sin barra del navegador y las estaciones van a pantalla completa. **Olas 1 y 2 cerradas el
 > 2026-09-17:** objetivos táctiles de cobro, y todas las estaciones usables en 12 tamaños —de 1920×1080 a
-> tablets de 960×600 y 768×1024—: la caja se cobra entera en cualquiera de ellos. Sigue la Ola 3
-> (Tarifas y paquetes, navegación y panel en tablet).
+> tablets de 960×600 y 768×1024—: la caja se cobra entera en cualquiera de ellos. **Ola 3 en curso**
+> (Tarifas y paquetes y N-06 hechos). El 2026-09-17 el plan se reescribió como **plan final**: quedan la
+> navegación, las diez secciones del panel en «pendiente», la auditoría por módulos y el cierre.
 
 ## F0 · Descubrimiento, cumplimiento y decisiones
 
@@ -53,7 +54,7 @@
 | F0-06 Tenencia y offline | ✅ Hecha | DEC-3 multi-tenant, DEC-4 topología C |
 | F0-07 Monedas y redondeo | ✅ Hecha | DEC-2 USD funcional; DEC-5 resolvió el vuelto (§5.6) |
 | F0-08 Datos de menores | ✅ Hecha | DEC-9: nombre, apodo, edad opcional y una referencia |
-| F0-09 Firma del alcance | Parcial | Las 12 decisiones están cerradas; falta la firma formal |
+| F0-09 Firma del alcance | Parcial | Las 26 decisiones (DEC-1 a DEC-26) están cerradas; falta la firma formal |
 | F0-10 ADRs escritos | ✅ Hecha | `docs/adr/`, 17 archivos, uno por decisión |
 
 ## F1 · Cimientos técnicos
@@ -78,6 +79,7 @@
 | F1-14 CI | **Pendiente** | **`pnpm verify` existe pero nada lo ejecuta solo. Ver abajo** |
 | F1-15 Staging | Pendiente | — |
 | F1-16 Semillas | Pendiente | Bloqueada por F0-04 |
+| F1-21 Frontend adaptable e instalable | Parcial | **Alcance añadido el 2026-09-16.** PWA instalable; estaciones medidas en 12 tamaños sin scroll de página ni horizontal; variantes `bajo:` y `apaisado:`. Sigue el [plan final](PLAN-FRONTEND.md) |
 
 ## F2 · Identidad, permisos y auditoría
 
@@ -85,7 +87,7 @@
 |---|---|---|
 | F2-02 Registro de dispositivos | Parcial | El dominio distingue aprobado, pendiente, revocado y desconocido; falta el alta real |
 | F2-03 Acceso por PIN y dispositivo | Parcial | `/acceso`: el dispositivo es el primer factor y el bloqueo crece. Falta Better Auth |
-| F2-05 Motor de permisos `can()` | ✅ Hecha | Matriz de §7.3 como dato, deny-by-default; cada ❌ con prueba negativa. `cobro.anular` y `canAuthorize` (quién da un 🔐) desde DEC-24; 81 pruebas en `@l2/domain-identity` |
+| F2-05 Motor de permisos `can()` | ✅ Hecha | Matriz de §7.3 como dato, deny-by-default; cada ❌ con prueba negativa. `cobro.anular` y `canAuthorize` (quién da un 🔐) desde DEC-24; DEC-25 quita a la monitora cobrar, reimprimir y anular; 103 pruebas en `@l2/domain-identity` |
 | F2-06 Alcance por sucursal | ✅ Hecha | La sucursal es parte del permiso, no un `if` aparte |
 | F2-11 Permisos por persona | Parcial | Concesiones y revocaciones, auditadas, sin ampliar la sede; pantalla en `/panel/personas/usuarios`. Falta persistirlas |
 | F2-12 Sesión compartida | Parcial | Bloqueo por inactividad, cambio de usuario a un toque, el corte Z devuelve al acceso. La sesión (quién y con qué rol) sale del acceso y recorta barra, menú y pantallas por la matriz (V2). Vive en la pestaña: falta la sesión real del servidor |
@@ -109,7 +111,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | Tarea | Estado | Evidencia o qué falta |
 |---|---|---|
 | F4-01 Apertura de turno | Parcial | Fondo inicial por moneda en los datos del turno; falta la pantalla de apertura |
-| F4-01b Punto de cobro | Parcial | Cada movimiento declara su punto y el cuadre lo desglosa; fail-closed sin punto |
+| F4-01b Punto de cobro | Parcial | Cada movimiento declara su punto y el cuadre lo desglosa; fail-closed sin punto. Con DEC-25 todo se cobra en la caja: la pestaña «Por punto de cobro» solo aparece si cobró más de un punto (DEC-26 deja los puntos genéricos) |
 | F4-02 Medios de pago | Parcial | Catálogo en los datos, no `enum`; 6 medios con iconos y jerarquía financiera |
 | F4-03 Cobro mixto | Parcial | `/caja`: varias monedas y medios en un cobro, con tasa congelada. Rediseño ágil bimoneda: atajo 1-toque «Cobrar exacto», billetes fijos de $1 a $100 que suman al mismo pago (sin «Cobrar exacto» en efectivo), datos de Pago Móvil con botón Copiar, hero apilado para montos grandes en Bs, y catálogo táctil de venta directa en mostrador (D6/V5) |
 | F4-04b Vuelto y sus tres destinos | Parcial | Vuelto, propina o caja; la invariante de cierre no admite ajustes silenciosos |
@@ -143,7 +145,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F5-03 Búsqueda de representante | ✅ Hecha | Por teléfono; si ya vino, no se teclea nada |
 | F5-03b Aforo con aviso | ✅ Hecha | Avisa antes de permitir un check-in de más; límite configurable |
 | F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato. **Contrato del tarifario listo** (2026-09-16, `TarifarioSchema`, 9 pruebas): paquetes y política se validan juntos —al menos uno a la venta, precios en dólares y mayores que cero, sin nombres repetidos, pase libre solo al salir, aviso menor que el paquete más corto—. **Editor hecho el 2026-09-17** (Panel → Parque → Tarifas y paquetes, [encargo](encargos/tarifas-editor.md)): borrador con deshacer, retirar sin borrar, reglas del parque con ejemplo calculado por el dominio; la entrada, la salida e Inicio usan el tarifario publicado. Falta el servidor |
-| F5-14 Salida y liquidación | ✅ Hecha (interfaz) | Pantalla en `/salida`. Varios niños en una salida, desglose paquete + excedente con minutos y bloques, y las dos rutas del plan: taquilla o cargo a mesa. Falta el backend |
+| F5-14 Salida y liquidación | ✅ Hecha (interfaz) | Pantalla en `/salida`. Varios niños en una salida, desglose paquete + excedente con minutos y bloques, y las dos rutas del plan: pagar en caja o cargar a una mesa. Quien no cobra (DEC-25) envía la cuenta a la caja sin abrirla. Falta el backend |
 | F5-08b Formato de hora comercial 12h | Parcial | La hora se muestra en formato comercial 12h con sufijo en minúsculas (`2:00 pm`, `10:30 am`); falta persistir preferencia por sucursal |
 | F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
 | DEC-21 Cuenta de la familia | Parcial | Entrada elige prepago o cuenta abierta; la salida dice qué pasa a caja; la caja es una cola de cuentas en maestro-detalle y devuelve a la pantalla de origen. Probado de punta a punta en navegador. Falta el backend |
@@ -170,5 +172,6 @@ Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son p
 ## Próximos pasos y deuda técnica
 
 Viven en **[PENDIENTES.md](PENDIENTES.md)**, agrupados por quién los desbloquea: el cliente, el
-contador, el trabajo de campo, el producto y el backend. Aquí solo queda el estado por tarea, para
-no contar lo mismo en dos sitios.
+contador, el trabajo de campo, el producto y el backend; lo del frontend, en su
+**[plan final](PLAN-FRONTEND.md)**. Aquí solo queda el estado por tarea, para no contar lo mismo en dos
+sitios.

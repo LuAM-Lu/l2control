@@ -23,10 +23,12 @@ pnpm dev     # http://localhost:3000 · PIN de prueba 1970
 | `/cocina` | Cocina (KDS): comandas, cronómetro, anulaciones | F6-07, F6-08 | Interfaz sobre el simulador |
 | `/panel` | Inicio: el local ahora (cinco zonas en vivo, D7) y el día | F9-00, F9-08 | Interfaz sobre el simulador |
 | `/panel/configuracion/accesos` | Roles y accesos: la matriz del local, editable | F2-13, F2-05 | Interfaz; vive en la pestaña |
-| `/panel/[modulo]/[seccion]` | Secciones del back-office (`personas/usuarios`, y las pendientes) | F2-11 | Interfaz |
+| `/panel/[modulo]/[seccion]` | Secciones del back-office: tarifas, plano, carta, usuarios; las demás enseñan qué les falta | F5-04, F6-01, F6-03, F2-11 | Interfaz |
+| `/manifest.webmanifest`, `/iconos/*` | La app instalable (PWA) | F1-21 | Hecho; instalar en una tablet necesita HTTPS |
 
 Las estaciones (`(estacion)`) van a pantalla completa con la barra de §8.5; el back-office
-(`(admin)`) lleva barra lateral. Cada ruta pide el rol de su superficie (`GuardiaEstacion`).
+(`(admin)`) lleva barra lateral. Cada ruta pide el rol de su superficie (`GuardiaEstacion`). Desde
+768 px el marco de las estaciones mide la ventana: cada pantalla reparte su alto por dentro.
 
 ## Organización interna
 
@@ -54,6 +56,8 @@ contextos parecen necesitar el mismo, lo que se comparte es el patrón de nivel 
 | Proveedor | Qué guarda | Dónde |
 |---|---|---|
 | `CuentasProvider` | Cuentas de familia | `sessionStorage` `l2:cuentas:v1` |
+| `TarifarioProvider` | Tarifario publicado (paquetes y reglas del parque) | `sessionStorage` `l2:tarifario:v1` |
+| `CartaProvider`, `PlanoProvider` | Carta y plano publicados | `sessionStorage` |
 | `VentasProvider` | Ventas cerradas, impresiones y anulaciones | `sessionStorage` `l2:ventas:v2` |
 | `identity/operador.ts` | Quién entró y con qué rol | `sessionStorage` |
 | `SimulacionProvider` | Eventos del local, sincronizados entre pestañas | `BroadcastChannel` |
@@ -85,7 +89,15 @@ solo existen en `@l2/ui` **no se generan** y el fallo es silencioso. Si se añad
 componentes, hay que añadir su `@source`.
 
 **Cuidado con `text-base`:** con el token `--color-base`, Tailwind 4 lo aplica también como color
-de texto. Para 16 px usa `text-[16px]` (ver [PENDIENTES §6](../../docs/PENDIENTES.md)).
+de texto. Para 16 px usa `text-[16px]` (ver [PENDIENTES §7](../../docs/PENDIENTES.md)).
+
+**Variantes propias** (en `packages/config/tokens.css`):
+
+- `bajo:` — ventana de menos de 760 px de alto (tablets de 600, portátiles con la barra del navegador).
+- `apaisado:` — 1024 px o más, o 768 px o más en horizontal. Las estaciones deciden sus columnas con
+  ella, no con `lg:`.
+- Orden en el CSS, comprobado: `md` → `lg` → `xl` → `apaisado` → todo lo `bajo:` → `apaisado:bajo:`.
+  Una propiedad puesta con `md:bajo:` pisa a `lg:`; para evitarlo, se repite con `lg:bajo:`.
 
 ## Archivos generados
 

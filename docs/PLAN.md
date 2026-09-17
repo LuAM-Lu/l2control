@@ -1,7 +1,7 @@
 # L2 CONTROL — PLAN MAESTRO DE DESARROLLO v2.0
 
 > **Estado:** Borrador para aprobación del cliente y del equipo técnico.
-> **Reemplaza a:** [`archivo/SPEC-v1.md`](archivo/SPEC-v1.md) (v1.0), conservado como referencia histórica.
+> **Reemplaza a:** la especificación v1.0 (`docs/archivo/SPEC-v1.md`), retirada del árbol el 2026-09-17; se recupera con `git show 6eda825:docs/archivo/SPEC-v1.md`.
 > **Fecha de revisión:** 2026-09-08.
 > **Cliente / caso piloto:** Abby Kingdom (Parque Infantil + Restaurante), Venezuela.
 
@@ -112,8 +112,9 @@ Una tarea está hecha cuando **todas** estas condiciones se cumplen:
 
 ## 1. DIAGNÓSTICO DEL PLAN v1
 
-Movido a **[archivo/diagnostico-plan-v1.md](archivo/diagnostico-plan-v1.md)** el 2026-09-11. Explica
-qué se conservó del plan original y por qué se reescribió; es historia, no especificación. La
+Movido a `docs/archivo/diagnostico-plan-v1.md` el 2026-09-11 y retirado del árbol el 2026-09-17 (se
+recupera con `git show 6eda825:docs/archivo/diagnostico-plan-v1.md`). Explicaba qué se conservó del plan
+original y por qué se reescribió; es historia, no especificación. La
 numeración de secciones se mantiene para que las referencias «§n» del código sigan valiendo.
 
 ---
@@ -1670,7 +1671,8 @@ Es la fase que v1 subestimaba.*
   → *Criterio:* los nueve de [PLAN-FRONTEND.md](PLAN-FRONTEND.md) §1 (medidos, no leídos). Se ejecuta
   por olas en orquesta; la auditoría de partida está en [AUDITORIA-FRONTEND.md](AUDITORIA-FRONTEND.md).
   *PWA hecha el 2026-09-16: Chrome la da por instalable sin errores. Falta HTTPS en el despliegue para
-  instalarla en tablets reales.*
+  instalarla en tablets reales. Olas 1 y 2 cerradas el 2026-09-17 (12 tamaños medidos); lo que queda,
+  en el plan final del frontend.*
 - [ ] **F1-14 · Canalización de CI** completa (§10.3).
   → *Criterio:* un *pull request* de ejemplo recorre las siete etapas y falla adecuadamente en cada una.
 - [ ] **F1-15 · Entorno de staging** desplegado.

@@ -1215,3 +1215,29 @@ mostrador. La maestra sacó a una constante con nombre la condición de esa pest
 la pantalla vacía («Registra y envía a caja»). Probado con dos roles en la misma tablet: la monitora
 registra un prepago y una salida con excedente sin salir de su puesto, y la cajera los encuentra en su
 cola.
+
+## Documentos ordenados y plan final del frontend — 2026-09-17
+
+El cliente pidió ordenar la documentación, quitar lo que sobra y un último plan para terminar el
+frontend.
+
+**Lo que se quitó.** La especificación v1 y su diagnóstico (`docs/archivo/`): los había superado el plan
+v2 hace días y solo el plan los citaba; siguen en la historia de git y el plan dice cómo recuperarlos.
+Nada más se borró, y no por pereza: `UX-MEJORAS.md` está cerrado, pero una veintena de comentarios del
+código citan sus secciones para explicar por qué las cosas son como son, así que se marcó como cerrado en
+vez de borrarlo; los encargos se versionan con el código que produjeron (regla de la orquesta); las dos
+auditorías son la fuente de los hallazgos F-nn y N-nn que usan el plan y los commits; y los `AGENTS.md` y
+`CLAUDE.md` de `apps/web` los vuelve a crear `next dev` cada vez que arranca.
+
+**Lo que se ordenó.** `PLAN-FRONTEND.md` pasó de plan por olas a **plan final**: dónde estamos, los nueve
+criterios de terminado con su estado, y lo que queda en cuatro olas. La Ola 4 es la pedida: las **diez
+secciones del panel que seguían en «pendiente»** —tasas de cambio; insumos, recetas, compras y mermas;
+representantes y niños; dispositivos; sucursal; impuestos e impresoras— más tres piezas de interfaz que
+no tenían sección (apertura de turno, cortesía y medios de pago, cuyos datos del local la caja traía
+fijos). Todas siguen el patrón que ya funcionó con tarifas y carta: contrato y proveedor de la maestra,
+editor de la obrera, la estación leyendo lo publicado. Inventario está fuera de la Ruta A, así que queda
+como decisión del cliente. Al repasar el menú aparecieron códigos de tarea que no correspondían (Tasas
+apuntaba a los medios de pago; Sucursal, al PIN): se corrigen en la Ola 3.
+
+`PENDIENTES.md` dejó de repetir lo de interfaz y remite al plan final; `PROGRESO.md`, las auditorías, los
+README y el índice de `docs/` quedaron al día con DEC-25, DEC-26, la PWA y las 26 decisiones.

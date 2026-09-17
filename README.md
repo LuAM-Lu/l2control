@@ -17,7 +17,8 @@ pnpm dev              # http://localhost:3000
 ```
 
 Requiere **Node 24 LTS** y **pnpm 12** (`npm i -g pnpm`). Entra con cualquier persona de la
-pantalla de acceso y el PIN de prueba **`1970`**.
+pantalla de acceso y el PIN de prueba **`1970`**. En Chrome, el botón «Instalar la app» del acceso la
+instala como aplicación (PWA): abre sin barra del navegador y las estaciones van a pantalla completa.
 
 | Comando | Qué hace |
 |---|---|
@@ -30,9 +31,11 @@ pantalla de acceso y el PIN de prueba **`1970`**.
 
 ## Estado
 
-**Fase actual: frontend completo sobre datos de ejemplo** (orden frontend → backend →
-producción, §11.4 del plan). No hay servidor todavía: cada pantalla consume ya la forma definitiva
-de los datos, validada contra los contratos, y la persistencia llega después.
+**Fase actual: cerrando el frontend sobre datos de ejemplo** (orden frontend → backend →
+producción, §11.4 del plan), con su **[plan final](docs/PLAN-FRONTEND.md)**. No hay servidor todavía:
+cada pantalla consume ya la forma definitiva de los datos, validada contra los contratos, y la
+persistencia llega después. Las estaciones funcionan en desktop y tablet, en horizontal y en vertical
+(medidas en 12 tamaños).
 
 | Superficie | Ruta | Qué hace |
 |---|---|---|
@@ -40,16 +43,17 @@ de los datos, validada contra los contratos, y la persistencia llega después.
 | Monitor de parque | `/monitor` | Estancias con cronómetro del servidor, aforo, lectura de pulsera |
 | Entrada | `/entrada` | Registro rápido, representante por teléfono, prepago o cuenta abierta |
 | Salida | `/salida` | Liquidación con excedente; pasa a caja lo pendiente |
-| Caja | `/caja` | Cola de cuentas, cobro mixto con IVA e IGTF, datos por medio de pago, atajos de teclado, recibo |
+| Caja | `/caja` | La única que cobra (DEC-25): cola de cuentas, cobro mixto con IVA e IGTF, datos por medio de pago, atajos de teclado, recibo |
 | Ventas del turno | `/ventas` | Cobros cerrados, reimpresión como copia auditada, anulación con PIN de supervisor |
 | Turno | `/turno` | Cortes X y Z, arqueo por denominación, excepciones |
 | Mesas | `/mesas` | Plano, pedido con borrador y confirmación, vincular pulseras |
 | Cocina (KDS) | `/cocina` | Comandas por antigüedad con cronómetro, empezar y marcar lista, anulaciones a confirmar |
-| Back-office | `/panel` | **El local ahora** (parque, cocina, mesas, caja y quién está conectado, sin recargar) y el día: lo vendido, la gaveta y las excepciones |
+| Back-office | `/panel` | **El local ahora** (parque, cocina, mesas, caja y quién está conectado, sin recargar) y el día: lo vendido, la gaveta y las excepciones. Editores de tarifas, plano, carta, usuarios y roles |
 
 
 - Estado tarea por tarea: **[docs/PROGRESO.md](docs/PROGRESO.md)**
-- **Todo lo que falta: [docs/PENDIENTES.md](docs/PENDIENTES.md)**
+- **Lo que falta del frontend: [docs/PLAN-FRONTEND.md](docs/PLAN-FRONTEND.md)**
+- **Todo lo demás que falta: [docs/PENDIENTES.md](docs/PENDIENTES.md)**
 
 ### Modo demostración
 
@@ -102,15 +106,18 @@ demuestra inyectando una violación real.
 |---|---|
 | **[CONTRIBUTING.md](CONTRIBUTING.md)** | Cómo trabajar en el repositorio: ramas, commits, verificación, documentación |
 | **[CLAUDE.md](CLAUDE.md)** | Reglas para quien programe aquí, humano o agente |
-| **[docs/PLAN.md](docs/PLAN.md)** | La especificación: 17 ADRs, 24 decisiones del cliente, 160 tareas con criterio de aceptación |
+| **[docs/PLAN.md](docs/PLAN.md)** | La especificación: 17 ADRs, 26 decisiones del cliente, 160 tareas con criterio de aceptación |
 | **[docs/PROGRESO.md](docs/PROGRESO.md)** | Qué está hecho de verdad, tarea por tarea |
 | **[docs/PENDIENTES.md](docs/PENDIENTES.md)** | Qué falta y quién lo desbloquea |
+| **[docs/PLAN-FRONTEND.md](docs/PLAN-FRONTEND.md)** | El plan final del frontend |
+| **[docs/ORQUESTA.md](docs/ORQUESTA.md)** | Cómo trabajan la maestra (Claude) y las obreras (Gemini) |
 | **[docs/BITACORA.md](docs/BITACORA.md)** | Qué se hizo, cuándo y por qué |
 | **[docs/FLUJOS.md](docs/FLUJOS.md)** | Cómo se mueven personas, pedidos y dinero en el local |
-| **[docs/UX-MEJORAS.md](docs/UX-MEJORAS.md)** | Auditorías de interfaz, propuestas y decisiones de UX |
+| [docs/README.md](docs/README.md) | El índice completo de la documentación, auditorías y encargos incluidos |
 | **[docs/adr/](docs/adr/)** | Las 17 decisiones de arquitectura, una por archivo |
 
 ## Ramas
 
 - `main` — siempre funcionando y con `pnpm verify` en verde.
-- `wip/kds` — la cocina (KDS) a medio hacer. Ver [PENDIENTES §4](docs/PENDIENTES.md).
+- `wip/kds` — histórica: la cocina (KDS) ya está en `main`.
+- `obrera/<tarea>` — efímeras, las crea y las borra `scripts/obrera.mjs` ([ORQUESTA](docs/ORQUESTA.md)).

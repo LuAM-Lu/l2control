@@ -21,7 +21,8 @@ En Windows, Git convierte finales de línea; no hace falta configurar nada más.
    Si lo que vas a hacer no está en el plan, es un **cambio de alcance**: se habla antes, no se
    hace en silencio.
 2. Mira [docs/PENDIENTES.md](docs/PENDIENTES.md): puede estar bloqueado por una decisión del
-   cliente o del contador.
+   cliente o del contador. Si es una pantalla, su lugar y su orden están en el
+   [plan final del frontend](docs/PLAN-FRONTEND.md).
 3. Si es una pantalla de operación, lee el flujo en [docs/FLUJOS.md](docs/FLUJOS.md).
 
 ## 3. Ramas y commits
@@ -69,7 +70,8 @@ rutas los importan**. Si tu pantalla necesita datos, llegan por props desde su `
 | Cuando… | Actualiza |
 |---|---|
 | Una tarea cambia de estado | [docs/PROGRESO.md](docs/PROGRESO.md) y su casilla en PLAN §12 |
-| Se resuelve o aparece algo pendiente | [docs/PENDIENTES.md](docs/PENDIENTES.md) |
+| Se resuelve o aparece algo pendiente | [docs/PENDIENTES.md](docs/PENDIENTES.md), o [docs/PLAN-FRONTEND.md](docs/PLAN-FRONTEND.md) si es de interfaz |
+| Una obrera recibe un encargo | Su archivo en [docs/encargos/](docs/encargos/), en el mismo commit que el código que produjo |
 | Se toma una decisión o se descubre algo no obvio | [docs/BITACORA.md](docs/BITACORA.md) |
 | El cliente cierra una decisión | PLAN (tabla DEC) y el recuento de [CLAUDE.md](CLAUDE.md) |
 | Cambia qué resuelve un paquete | Su `README.md` |

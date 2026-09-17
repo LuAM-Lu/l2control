@@ -191,12 +191,14 @@ Conclusiones para el plan:
   lo que se rompe en un tamaño concreto.
 - Toda cita de la obrera se verifica antes de convertirse en tarea.
 
-## 4. Estado al cerrar la Ola 2 (2026-09-17)
+## 4. Estado (2026-09-17)
 
-Resueltos: F-01 a F-07, F-13, F-14 y F-15. F-08 decidido. Siguen F-09 y F-10 (Ola 3), F-11 como
-observación y F-12 fuera del objetivo. Medición de cierre: 192 combinaciones sin fallos, sin scroll
+Resueltos: F-01 a F-07, F-10, F-13, F-14 y F-15. F-08 decidido. **Sigue F-09** a medias (los
+desplegables ya miden 32; faltan las migas, «Dispositivos», la cifra del turno y las rejillas de
+Inicio), F-11 como observación y F-12 fuera del objetivo. Lo que queda está en el
+[plan final del frontend](PLAN-FRONTEND.md). Medición de cierre: 192 combinaciones sin fallos, sin scroll
 horizontal, sin errores, sin textos cortados y sin estaciones que desplacen la página; el detalle está
-en el registro de [PLAN-FRONTEND.md](PLAN-FRONTEND.md) §5.
+en el registro de [PLAN-FRONTEND.md](PLAN-FRONTEND.md) §6.
 
 ## 5. Cómo repetir la medición
 
