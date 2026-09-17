@@ -59,6 +59,8 @@ F. Objetivos táctiles que faltaban en esta pantalla (superficie POS, 56):
    - Categorías de CartaMostrador (línea ~1597, min-h-10) → min-h-14.
    - Enlaces de SinCuentas (línea ~1708 y ~1714, min-h-11) → min-h-14.
 
+DÓNDE ESTÁ CADA COSA en CajaScreen.tsx (unas 1720 líneas; léelo por tramos): `function CobroCuenta` en la línea 138 (su JSX empieza en la 557), `export function CajaScreen` en la 1187 (su JSX en la 1462), `COLUMNAS` en la 1573, `CartaMostrador` en la 1575, `NuevaVentaDirecta` en la 1630 y `SinCuentas` en la 1696. ColaCuentas.tsx: `export function ColaCuentas` en la línea 67 y su `<section>` en la 136.
+
 ARCHIVOS QUE PUEDES TOCAR: apps/web/src/features/cash/CajaScreen.tsx y apps/web/src/features/cash/ColaCuentas.tsx. Nada más.
 
 NO HAGAS:
