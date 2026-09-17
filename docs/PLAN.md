@@ -1813,6 +1813,8 @@ producto y el flujo más simple de validar en un turno.*
   cambia desde configuración, sin desplegar.
 - [~] **F5-04 · Paquetes de tarifa como catálogo configurable,** con `Duration` semántico (ADR-011).
   → *Criterio:* «pase libre» se modela como `openEnded`, no como duración cero.
+  *Interfaz hecha el 2026-09-17: editor en Panel → Parque → Tarifas y paquetes (borrador, publicar,
+  retirar sin borrar) y la entrada, la salida e Inicio usan lo publicado. Falta el servidor.*
 - [ ] **F5-05 · Modalidad prepago** con cronómetro regresivo del servidor (ADR-010).
   → *Criterio:* cambiar el reloj de la tablet **no** altera el tiempo cobrado; hay prueba.
 - [ ] **F5-06 · Modalidad postpago** con cronómetro acumulativo y liquidación al salir.

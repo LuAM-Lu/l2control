@@ -27,6 +27,7 @@ import { pendiente, registrarSalida } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
 import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
+import { useTarifario } from "./TarifarioProvider";
 
 /**
  * Salida y liquidación del parque — F5-14.
@@ -62,11 +63,14 @@ export function CheckoutScreen({
       detalle: c.destino.charAt(0).toUpperCase() + c.destino.slice(1),
     });
   const { cuentas, guardar } = useCuentas();
+  const { tarifario } = useTarifario();
   const router = useRouter();
 
+  const snap = useMemo(() => ({ ...snapshot, policy: tarifario.policy }), [snapshot, tarifario.policy]);
+
   const preview = useMemo(
-    () => buildCheckoutPreview(snapshot, seleccionados),
-    [snapshot, seleccionados],
+    () => buildCheckoutPreview(snap, seleccionados),
+    [snap, seleccionados],
   );
 
   const itemRefs = useRef(new Map<string, HTMLLIElement | null>());

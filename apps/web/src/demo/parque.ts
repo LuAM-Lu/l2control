@@ -14,9 +14,13 @@ import {
   GuardianSchema,
   MonitorSnapshotSchema,
   PricePackageSchema,
+  ParkPolicySchema,
+  TarifarioSchema,
   type GuardianDto,
   type MonitorSnapshotDto,
   type PricePackageDto,
+  type ParkPolicyDto,
+  type TarifarioDto,
 } from "@l2/contracts";
 
 const MIN = 60_000;
@@ -71,6 +75,19 @@ export const DEMO_GUARDIANS: (GuardianDto & { id: string })[] = [
   { id: "g4", fullName: "Pedro Bermúdez", contactReference: "0416-9876543" },
 ].map((g) => ({ ...GuardianSchema.parse(g), id: g.id }));
 
+export const DEMO_POLICY: ParkPolicyDto = ParkPolicySchema.parse({
+  graceMinutes: 5,
+  penaltyBlockMinutes: 15,
+  penaltyPricePerBlock: { minor: "150", currency: "USD" },
+  warnBeforeMinutes: 10,
+  capacityLimit: 30,
+});
+
+export const TARIFARIO_DEMO: TarifarioDto = TarifarioSchema.parse({
+  packages: DEMO_PACKAGES,
+  policy: DEMO_POLICY,
+});
+
 /**
  * Instantánea del monitor. Es exactamente lo que devolverá el servidor.
  *
@@ -83,13 +100,7 @@ export function demoSnapshot(serverNow: number): MonitorSnapshotDto {
   const crudo = {
     serverNow: new Date(serverNow).toISOString(),
     shiftLabel: "Turno tarde · abierto 14:00",
-    policy: {
-      graceMinutes: 5,
-      penaltyBlockMinutes: 15,
-      penaltyPricePerBlock: { minor: "150", currency: "USD" },
-      warnBeforeMinutes: 10,
-      capacityLimit: 30,
-    },
+    policy: DEMO_POLICY,
     rate: {
       id: "rate-1",
       pair: "USD/VES",

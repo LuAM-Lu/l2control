@@ -1170,3 +1170,23 @@ un botón al final de las pestañas abre «Ir a otro puesto», con lo que su rol
 cambia ninguna regla de quién ve qué: solo hace visible un camino que ya estaba permitido. Lo escribió la
 segunda obrera, en paralelo con la de Tarifas, junto con los desplegables del menú lateral a 32 px y el
 chip DEMO a 48; entró sin correcciones y se comprobó entrando con cinco roles.
+
+## Tarifas y paquetes, el último editor del alcance de interfaz — 2026-09-17 (F5-04, Ola 3)
+
+La primera obrera de la Ola 3 construyó el editor con el patrón de la carta: borrador con deshacer y
+rehacer, «Publicar» que valida el conjunto con `TarifarioSchema`, paquetes que se retiran sin borrarse
+—las estancias de ayer los nombran por su id— y las reglas del parque. La entrada ofrece solo lo que está
+a la venta, y la salida e Inicio calculan con la política publicada. El monitor, que arma su modelo en
+el servidor, queda con su `TODO` hasta el backend.
+
+La maestra corrigió el formulario de reglas, que tenía un fallo de los que no se ven leyendo rápido: al
+teclear en un campo, el borrador recibía el valor **anterior** de ese mismo campo, porque la función leía
+el estado antes de que React lo actualizara; y cada tecla era un paso de deshacer. Ahora el error se
+enseña mientras se escribe, el borrador cambia al salir del campo y deshacer va campo a campo. El
+ejemplo del excedente («un niño que se pasa 20 minutos paga…») lo calcula ahora `@l2/domain-park`
+con una estancia de ejemplo, en vez de repetir la fórmula en la pantalla, y el monto sale con el formato
+del proyecto.
+
+Probado en el navegador: cambiar una regla, deshacer y rehacer, un bloque de 0 que se rechaza junto al
+campo, añadir «Hora y media» a 7,50, retirar «30 minutos», publicar y ver en la entrada exactamente los
+paquetes nuevos; y retirarlos todos, que el contrato no deja publicar y lo dice.

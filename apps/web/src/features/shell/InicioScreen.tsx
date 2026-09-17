@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
-import type { ParkPolicyDto } from "@l2/contracts";
 import type { UmbralEspera } from "@l2/domain-orders";
 import { Container, MoneyDisplay, formatMoneyVE, cn } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
@@ -66,7 +65,6 @@ export function InicioScreen({
   turnoDesde,
   cajero,
   tasa,
-  politica,
   umbral,
   enServicio,
 }: {
@@ -84,8 +82,6 @@ export function InicioScreen({
   cajero: string;
   /** Tasa del día ya formateada («228,41»), o `null` si no hay tasa confirmada (ADR-005). */
   tasa: string | null;
-  /** Reglas del parque, para que el bloque en vivo sepa qué estancia está vencida. */
-  politica: ParkPolicyDto;
   /** Cuándo una comanda tarda y cuándo está atrasada. */
   umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
@@ -156,7 +152,6 @@ export function InicioScreen({
 
       {/* ──────────────────────────── 1 · el local ahora ─────────────────── */}
       <EnVivo
-        politica={politica}
         umbral={umbral}
         enServicio={enServicio}
         // Sin tasa formateada no hay tasa confirmada: es el mismo dato que

@@ -18,13 +18,13 @@ import {
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
-import type { ParkPolicyDto } from "@l2/contracts";
 import type { UmbralEspera } from "@l2/domain-orders";
 import { toMajor } from "@l2/domain-money";
 import { MoneyDisplay, cn } from "@l2/ui";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { panelVivo, reloj, type Alerta } from "./vivo.ts";
+import { useTarifario } from "../park/TarifarioProvider";
 
 /**
  * El local ahora mismo — F9-08, FLUJOS flujo E, paso 5 de DEC-22.
@@ -55,12 +55,10 @@ import { panelVivo, reloj, type Alerta } from "./vivo.ts";
  * local.
  */
 export function EnVivo({
-  politica,
   umbral,
   enServicio,
   tasaConfirmada,
 }: {
-  politica: ParkPolicyDto;
   umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
@@ -70,11 +68,12 @@ export function EnVivo({
   const sim = useSimulacion();
   const { cuentas } = useCuentas();
   const ahora = useAhoraLocal();
+  const { tarifario } = useTarifario();
   const v = panelVivo({
     estado: sim.estado,
     cuentas,
     ahora,
-    politica,
+    politica: tarifario.policy,
     umbral,
     enServicio,
     tasaConfirmada,

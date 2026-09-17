@@ -1,5 +1,5 @@
 import { CheckInScreen } from "../../../src/features/park/CheckInScreen";
-import { DEMO_GUARDIANS, DEMO_PACKAGES, demoSnapshot } from "../../../src/demo/parque";
+import { DEMO_GUARDIANS, demoSnapshot } from "../../../src/demo/parque";
 
 /**
  * Registro de entrada al parque (F5-02, F5-03, F5-04).
@@ -16,10 +16,8 @@ export default function EntradaPage() {
 
   return (
     <CheckInScreen
-      packages={DEMO_PACKAGES}
       guardians={DEMO_GUARDIANS}
       activeSessions={snapshot.sessions.length}
-      capacityLimit={snapshot.policy.capacityLimit}
       occupiedWristbands={snapshot.sessions.map((s) => s.wristbandCode)}
     />
   );

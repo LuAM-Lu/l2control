@@ -92,7 +92,7 @@ botón «Panel» de la barra. Queda solo **avisar** de que se sale a pantalla co
 
 | Tarea | Carril | Hallazgo |
 |---|---|---|
-| Tarifas y paquetes (el contrato ya está) | O1 · [tarifas-editor](encargos/tarifas-editor.md) | T-7 |
+| Tarifas y paquetes (el contrato ya está) | O1 · [tarifas-editor](encargos/tarifas-editor.md) (en paralelo, aprobado) | T-7 · **hecha** |
 | Avisar de que una sección abre a pantalla completa | M (`abre` en el tipo `Seccion`) · O (menú y tarjetas) | N-04 |
 | Llegar a las otras estaciones alcanzables desde la barra | M diseña · O2 · [barra-puestos](encargos/barra-puestos.md) | N-06 · **hecha** |
 | El acceso sale del directorio de personas y filtra las bajas | M | N-07, N-08 |

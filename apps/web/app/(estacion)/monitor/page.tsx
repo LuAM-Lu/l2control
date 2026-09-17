@@ -12,6 +12,9 @@ import { toMonitorModel } from "../../../src/features/park/view-model";
  * `demoSnapshot` se sustituirá por la consulta real cuando exista el backend.
  * Devuelve exactamente la forma del contrato `MonitorSnapshotDto`, así que
  * ese cambio **no toca ninguna pantalla** (§11.4).
+ *
+ * TODO(F5-06/backend): la política publicada vendrá en ese mismo snapshot,
+ * entregada por el servidor.
  */
 export const dynamic = "force-dynamic";
 

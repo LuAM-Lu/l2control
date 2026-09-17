@@ -6,7 +6,6 @@ import {
   CheckInCommandSchema,
   type GuardianDto,
   type PaymentMode,
-  type PricePackageDto,
   WristbandCodeSchema,
 } from "@l2/contracts";
 import {
@@ -31,6 +30,7 @@ import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
+import { useTarifario } from "./TarifarioProvider";
 
 /**
  * Registro de entrada al parque — F5-02, F5-03, F5-04.
@@ -59,16 +59,12 @@ type Entrada = {
 const NUEVO_UID = () => globalThis.crypto.randomUUID();
 
 export function CheckInScreen({
-  packages,
   guardians,
   activeSessions,
-  capacityLimit,
   occupiedWristbands,
 }: {
-  packages: readonly PricePackageDto[];
   guardians: readonly (GuardianDto & { id: string })[];
   activeSessions: number;
-  capacityLimit: number;
   /**
    * Códigos con una estancia ya activa. Las pulseras son desechables (§6.6),
    * así que esto no impide «reutilizar» nada: impide escanear dos veces la
@@ -77,7 +73,10 @@ export function CheckInScreen({
   occupiedWristbands: readonly string[];
 }) {
   const sim = useSimulacion();
-  const defaultPackageId = packages.find((p) => p.id === "pkg-60")?.id ?? packages[0]?.id ?? "";
+  const { tarifario } = useTarifario();
+  const paquetesActivos = useMemo(() => tarifario.packages.filter(p => p.active), [tarifario.packages]);
+  const defaultPackageId = paquetesActivos.find((p) => p.id === "pkg-60")?.id ?? paquetesActivos[0]?.id ?? "";
+  const capacityLimit = tarifario.policy.capacityLimit;
 
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -163,11 +162,11 @@ export function CheckInScreen({
 
   const total = useMemo(() => {
     const precios = entradas.map((e) => {
-      const p = packages.find((x) => x.id === e.packageId);
+      const p = tarifario.packages.find((x) => x.id === e.packageId);
       return p ? toMoney(p.price) : zero("USD");
     });
     return sum(precios, "USD");
-  }, [entradas, packages]);
+  }, [entradas, tarifario.packages]);
 
   /* ------------------------------------------------------------- envío */
 
@@ -206,7 +205,7 @@ export function CheckInScreen({
     const estancias = [];
     const desde = new Date().toISOString();
     for (const e of entradas) {
-      const p = packages.find((x) => x.id === e.packageId);
+      const p = tarifario.packages.find((x) => x.id === e.packageId);
       if (!p) {
         setAviso(`El paquete de ${e.name.trim()} ya no existe en el catálogo`);
         return;
@@ -378,7 +377,7 @@ export function CheckInScreen({
                     </Badge>
                     <div className="min-w-[280px] flex-1">
                       <PackagePicker
-                        packages={packages}
+                        packages={paquetesActivos}
                         selectedId={e.packageId}
                         onSelect={(id) => actualizar(e.uid, { packageId: id })}
                         compact

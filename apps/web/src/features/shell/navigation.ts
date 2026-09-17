@@ -95,12 +95,11 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "tarifas",
         nombre: "Tarifas y paquetes",
-        href: null,
+        href: rutaSeccion("parque", "tarifas"),
         accion: "catalogo.modificar",
         proposito:
-          "Definir paquetes por tiempo, la gracia antes de penalizar y el bloque de cobro por excedente.",
-        tarea: "F5-06",
-        necesita: "Las tarifas reales del cliente (F0-04); hoy el prototipo usa cifras inventadas.",
+          "Paquetes por tiempo, gracia, excedente, aviso y aforo. Se edita en borrador y la entrada lo usa al publicar.",
+        tarea: "F5-04",
       },
     ],
   },

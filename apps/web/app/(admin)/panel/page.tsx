@@ -80,7 +80,6 @@ export default function InicioPage() {
       turnoDesde="2:00 pm"
       cajero="Marisol Prieto"
       tasa={tasa}
-      politica={demoSnapshot(Date.now()).policy}
       umbral={{ avisoMin: 8, gritaMin: 15 }}
       enServicio
     />

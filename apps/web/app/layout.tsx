@@ -5,10 +5,12 @@ import { PanelSimulacion } from "../src/features/simulacion/PanelSimulacion";
 import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvider";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
 import { CartaProvider } from "../src/features/mesas/CartaProvider";
+import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { DEMO_ACTIVA } from "../src/demo/modo";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
+import { TARIFARIO_DEMO } from "../src/demo/parque";
 import { DEMO_CUENTAS } from "../src/demo/cuentas";
 import { DEMO_VENTAS } from "../src/demo/ventas";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
@@ -60,12 +62,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Con la demo apagada, se arranca sin cuentas ni ventas. */}
           <PlanoProvider inicial={PLANO_DEMO}>
             <CartaProvider inicial={CARTA_DEMO}>
-              <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
-                <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
-                  {children}
-                  <PanelSimulacion />
-                </VentasProvider>
-              </CuentasProvider>
+              <TarifarioProvider inicial={TARIFARIO_DEMO}>
+                <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
+                  <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
+                    {children}
+                    <PanelSimulacion />
+                  </VentasProvider>
+                </CuentasProvider>
+              </TarifarioProvider>
             </CartaProvider>
           </PlanoProvider>
         </SimulacionProvider>

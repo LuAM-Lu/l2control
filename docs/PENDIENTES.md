@@ -5,10 +5,9 @@
 > paso, en [BITACORA.md](BITACORA.md). Cuando algo de aquí se resuelve, se tacha aquí y se anota
 > en la bitácora en el mismo commit.
 
-> **2026-09-16:** hecho el editor de **Carta y precios** (primer encargo de la orquesta, ver
-> [ORQUESTA.md](ORQUESTA.md)). **Lo siguiente es Tarifas y paquetes**: su contrato (`TarifarioSchema`)
-> ya está hecho y su encargo, escrito en [encargos/tarifas-editor.md](encargos/tarifas-editor.md); falta
-> lanzarlo a la obrera y revisarlo.
+> **2026-09-17:** hechos los editores de **Carta y precios** y de **Tarifas y paquetes** (orquesta, ver
+> [ORQUESTA.md](ORQUESTA.md)). El frontend sigue por olas en [PLAN-FRONTEND.md](PLAN-FRONTEND.md); las
+> tarifas y la carta reales del cliente (F0-04) siguen pendientes: hoy las cifras son inventadas.
 
 ## 1. Lo que decide el cliente
 
