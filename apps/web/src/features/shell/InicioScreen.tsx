@@ -136,7 +136,7 @@ export function InicioScreen({
           {/* Enlace al Turno */}
           <Link
             href={"/turno" as Route}
-            className="group inline-flex items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface/80 px-3 py-1.5 text-xs lg:text-[13px] text-ink-2 transition-all duration-[var(--dur-rapida)] hover:border-line-strong hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand shadow-sm"
+            className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface/80 px-3 py-1.5 text-xs lg:text-[13px] text-ink-2 transition-all duration-[var(--dur-rapida)] hover:border-line-strong hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand shadow-sm"
           >
             <span>
               Turno desde <span className="tnum font-medium text-ink">{turnoDesde}</span> · {cajero}
@@ -164,7 +164,7 @@ export function InicioScreen({
         <h2 className="mb-1.5 text-[10px] font-bold tracking-[0.1em] text-ink-3 uppercase">
           El día · lo acumulado
         </h2>
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-3 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
           <Cifra
             etiqueta="Vendido"
             valor={<MoneyDisplay value={ventaHoy} currency="USD" size="lg" />}

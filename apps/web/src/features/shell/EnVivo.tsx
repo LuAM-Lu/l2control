@@ -25,6 +25,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { panelVivo, reloj, type Alerta } from "./vivo.ts";
 import { useTarifario } from "../park/TarifarioProvider";
+import { rutaSeccion } from "./navigation.ts";
 
 /**
  * El local ahora mismo — F9-08, FLUJOS flujo E, paso 5 de DEC-22.
@@ -130,7 +131,7 @@ export function EnVivo({
       )}
 
       {/* ── las cinco zonas ── */}
-      <div className="grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 sm:[&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
         <Zona
           titulo="Parque"
           icono={<Baby size={13} aria-hidden="true" />}
@@ -256,8 +257,8 @@ export function EnVivo({
             ))}
           </ul>
           <Link
-            href="/acceso"
-            className="mt-auto flex items-center gap-1 pt-1 text-[10.5px] text-ink-3 no-underline transition-colors hover:text-brand"
+            href={rutaSeccion("personas", "dispositivos")}
+            className="relative mt-auto flex h-5 items-center gap-1 pt-1 text-[10.5px] text-ink-3 no-underline transition-colors hover:text-brand after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
           >
             Dispositivos
             <ChevronRight size={11} aria-hidden="true" />

@@ -1254,3 +1254,20 @@ solo la interfaz: insumos con su unidad y su mínimo, recetas que dicen cuánto 
 carta ya publicada, y compras y mermas como asientos (regla 5: nada se edita, todo se corrige con otro
 movimiento). Descontar stock con cada venta, costear y avisar de stock crítico siguen siendo del
 servidor.
+
+## El panel avisa antes de sacarte, y se termina en tablet — 2026-09-17 (N-04, F-09)
+
+Ocho secciones del back-office abren una estación a pantalla completa: al pulsarlas desaparecen el menú y
+las migas. Ahora lo dicen antes, en el menú y en la tarjeta del módulo, y el mapa lo declara una sola vez
+(`abre: "estacion"` en el tipo `Seccion`), que es lo que evita que la lista se desincronice. La otra mitad
+de N-04 —quién puede volver— la había resuelto N-05 sin que nadie lo notara: con una sola puerta al panel,
+quien llega por esas secciones es exactamente quien ve el botón «Panel» de la barra.
+
+Con ello se cierra F-09: migas, desplegables, «Dispositivos» y la cifra del turno llegan a los 32 px de la
+superficie de administración, y las dos rejillas de Inicio dejan de tener celdas vacías —la última zona
+ocupa lo que sobra— a 2, 3 y 5 columnas. De paso apareció un resto de N-03: el enlace «Dispositivos» del
+panel en vivo seguía llevando a la pantalla de bloqueo del equipo; ahora lleva a su sección.
+
+Al revisar el mapa salieron seis códigos de tarea que no correspondían con el plan —«Tasas de cambio»
+apuntaba a los medios de pago y «Sucursal» al acceso por PIN—, y un bloqueo que ya no existía en
+«Comandas del día». Corregidos: el mapa es lo que la pantalla enseña cuando una sección todavía no está.

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
-import { ChevronDown, LogOut, Menu, X } from "lucide-react";
+import { ChevronDown, LogOut, Maximize2, Menu, X } from "lucide-react";
 import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
@@ -296,6 +296,7 @@ function NavModulos({
                         <Link
                           href={href}
                           aria-current={activo ? "page" : undefined}
+                          title={s.abre === "estacion" ? "se abre a pantalla completa" : undefined}
                           className={cn(
                             "flex min-h-9 items-center gap-2 rounded-[var(--radius-control)] px-2.5 text-[13px] no-underline",
                             "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
@@ -305,6 +306,12 @@ function NavModulos({
                           )}
                         >
                           <span className="truncate">{s.nombre}</span>
+                          {s.abre === "estacion" && (
+                            <>
+                              <span className="sr-only">se abre a pantalla completa</span>
+                              <Maximize2 size={11} aria-hidden="true" className="ml-auto shrink-0" />
+                            </>
+                          )}
                           {s.href === null && (
                             <span className="ml-auto shrink-0 text-[10px] tracking-wide text-ink-3 uppercase">
                               pendiente

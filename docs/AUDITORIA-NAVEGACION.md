@@ -1,7 +1,7 @@
 # Auditoría de navegación y permisos
 
-> **Estado (2026-09-17):** siete de los diez hallazgos están resueltos (N-01, N-02, N-03, N-05, N-06,
-> N-09 y N-10), cada uno anotado bajo su apartado. **Quedan N-04, N-07 y N-08**, en la Ola 3 del
+> **Estado (2026-09-17):** ocho de los diez hallazgos están resueltos (N-01 a N-06, N-09 y N-10), cada
+> uno anotado bajo su apartado. **Quedan N-07 y N-08**, en la Ola 3 del
 > [plan final del frontend](PLAN-FRONTEND.md). La tabla de §1 es la del 2026-09-14: desde DEC-25 la
 > monitora ya no alcanza caja ni ventas.
 >
@@ -125,7 +125,7 @@ que un enlace que parece un cierre de sesión.
 > **Hecho.** Ahora abre `/panel/personas/dispositivos`, dentro del back-office, y explica qué hará y
 > qué falta antes.
 
-### N-04 · Se sale del back-office sin avisar, y no todos pueden volver — **medio-grave**
+### ~~N-04~~ · Se sale del back-office sin avisar — **resuelto el 2026-09-17**
 
 Ocho secciones del panel abren rutas de estación: Monitor de sala, Entrada, Salida, Mesas y pedidos,
 Comandas del día, Cobrar, Ventas del turno y Turnos y cortes. Al pulsarlas desaparecen la barra
@@ -138,7 +138,12 @@ lateral**.
 Volver depende del rol: el botón «Panel» de la barra de estación solo se pinta para quien ve Inicio
 —administración y supervisión— (`shell/StationBar.tsx`). Quien no, vuelve con el botón del navegador.
 
-**Propuesta:** marcar esas secciones en el mapa (`abre: "estacion"`) y decirlo en la tarjeta y en el
+*Resuelto:* el mapa las marca con `abre: "estacion"` y lo dicen el menú (icono con su texto para
+lectores de pantalla y en el `title`) y la tarjeta del módulo («Se abre a pantalla completa»). Lo de
+volver lo resolvió N-05: con una sola puerta al panel, quien entra por una de esas secciones es
+exactamente quien ve el botón «Panel» de la barra.
+
+**Propuesta original:** marcar esas secciones en el mapa (`abre: "estacion"`) y decirlo en la tarjeta y en el
 menú («se abre a pantalla completa»). Es un cambio de una línea en el tipo `Seccion` y resuelve la
 sorpresa sin romper los dos mundos.
 

@@ -57,8 +57,8 @@ los escenarios del simulador que faltan (FLUJOS §5).
 
 ## 5. Navegación y permisos
 
-Los hallazgos están en [AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md). Resueltos: N-01, N-02, N-03,
-N-05, N-06, N-09 y N-10. **Quedan N-04 y N-07 + N-08**, en la Ola 3 del plan final.
+Los hallazgos están en [AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md). Resueltos: N-01 a N-06, N-09
+y N-10. **Quedan N-07 y N-08**, en la Ola 3 del plan final.
 
 ## 6. Backend e infraestructura (Ruta A)
 

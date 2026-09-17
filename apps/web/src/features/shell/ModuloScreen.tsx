@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Clock3 } from "lucide-react";
+import { ArrowRight, Clock3, Maximize2 } from "lucide-react";
 import { useOperador } from "../identity/operador.ts";
 import { useAjustes } from "../identity/accesos.ts";
 import { actorDe, puedeVerSeccion } from "../identity/visibilidad.ts";
@@ -73,6 +73,12 @@ export function ModuloScreen({ moduloId }: { moduloId: string }) {
                   <span className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">
                     {s.proposito}
                   </span>
+                  {s.abre === "estacion" && (
+                    <span className="mt-3 flex items-center gap-1.5 text-[12px] text-ink-3">
+                      <Maximize2 size={12} aria-hidden="true" />
+                      Se abre a pantalla completa
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}

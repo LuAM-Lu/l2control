@@ -130,7 +130,8 @@ de cada pantalla sí cumplen su superficie.
 
 ### F-09 · Panel del back-office en tablet — **bajo** · M
 - Los desplegables del menú lateral miden 28 px, las migas 19 y el enlace «Dispositivos» 20 (admin
-  pide 32). *2026-09-17: los desplegables ya miden 32.*
+  pide 32). *Resuelto el 2026-09-17: desplegables, migas, «Dispositivos» y la cifra del turno a 32 px, y
+  las rejillas de Inicio sin celdas vacías a 2, 3 y 5 columnas (la última zona ocupa lo que sobra).*
 - Con 2 columnas, las rejillas de Inicio dejan una celda vacía: las 5 zonas del local y las 3 cifras
   del día son impares.
 
@@ -193,9 +194,8 @@ Conclusiones para el plan:
 
 ## 4. Estado (2026-09-17)
 
-Resueltos: F-01 a F-07, F-10, F-13, F-14 y F-15. F-08 decidido. **Sigue F-09** a medias (los
-desplegables ya miden 32; faltan las migas, «Dispositivos», la cifra del turno y las rejillas de
-Inicio), F-11 como observación y F-12 fuera del objetivo. Lo que queda está en el
+Resueltos: F-01 a F-07, F-09, F-10 y F-13 a F-15. F-08 decidido. F-11 queda como observación y F-12,
+fuera del objetivo. Lo que queda está en el
 [plan final del frontend](PLAN-FRONTEND.md). Medición de cierre: 192 combinaciones sin fallos, sin scroll
 horizontal, sin errores, sin textos cortados y sin estaciones que desplacen la página; el detalle está
 en el registro de [PLAN-FRONTEND.md](PLAN-FRONTEND.md) §6.
