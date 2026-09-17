@@ -65,6 +65,7 @@ export function filtrarCola(cuentas: readonly FamilyAccountDto[], texto: string,
 }
 
 export function ColaCuentas({
+  className,
   cuentas,
   total,
   actual,
@@ -85,6 +86,7 @@ export function ColaCuentas({
   onVerRecibo,
   onVerAtajos,
 }: {
+  className?: string;
   /** Ya ordenadas y filtradas. */
   cuentas: readonly FamilyAccountDto[];
   /** Cuántas esperan en total, sin filtro. */
@@ -135,7 +137,7 @@ export function ColaCuentas({
   return (
     <section
       aria-label="Cuentas por cobrar"
-      className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:col-start-1 md:row-start-1 lg:col-start-1 lg:row-start-1"
+      className={cn("flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card", className)}
     >
       <div className="flex items-center justify-between gap-2 border-b border-line py-2 pr-2 pl-4">
         <h2
@@ -177,7 +179,7 @@ export function ColaCuentas({
           onClick={onNuevaVentaDirecta}
           aria-pressed={ventaNueva}
           className={cn(
-            "flex min-h-12 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-colors",
+            "flex min-h-14 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-colors",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
             ventaNueva ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
           )}

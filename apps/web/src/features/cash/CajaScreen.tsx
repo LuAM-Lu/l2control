@@ -149,6 +149,7 @@ function CobroCuenta({
   onAgregarProducto,
   onCambiarCantidad,
   onDividir,
+  ocultoEnDosColumnas,
 }: {
   lines: readonly DocumentLine[];
   /** La cuenta que se cobra: su familia y su modo encabezan el ticket. */
@@ -175,6 +176,8 @@ function CobroCuenta({
   onCambiarCantidad?: (item: ItemDeMostrador, cantidad: number) => void;
   /** Divide la cuenta en partes iguales, o la vuelve a unir con 1 (F6-12). */
   onDividir?: (partes: number) => void;
+  /** Con la cola plegada (dos columnas), el ticket cede su sitio a la cola. El cobro no se oculta nunca. */
+  ocultoEnDosColumnas?: boolean;
 }) {
   const FUNCIONAL = "USD" as const;
 
@@ -557,7 +560,11 @@ function CobroCuenta({
   return (
     <>
         {/* ═══════════════════════ la cuenta ═══════════════════════════ */}
-        <section className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:col-start-1 md:row-start-2 lg:col-start-2 lg:row-start-1">
+        <section className={cn(
+          "flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card @container/ticket",
+          PLACEMENT_TICKET,
+          ocultoEnDosColumnas && OCULTA_SI_PLEGADA
+        )}>
           {/* Un solo renglón: qué orden es, de quién, cómo paga y desde cuándo. */}
           <div className="flex items-center gap-3 border-b border-line py-2 pr-2 pl-5">
             <h2 className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
@@ -575,7 +582,7 @@ function CobroCuenta({
                 type="button"
                 onClick={() => setMostrarCatalogo((prev) => !prev)}
                 className={cn(
-                  "inline-flex min-h-12 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-all",
+                  "inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-all",
                   mostrarCatalogo
                     ? "border-brand bg-brand/15 text-brand"
                     : "border-line bg-base text-ink-2 hover:border-brand/50 hover:text-ink",
@@ -602,7 +609,7 @@ function CobroCuenta({
             <div className={cn(COLUMNAS, "border-b border-line pb-1 text-[10px] font-semibold tracking-[0.09em] text-ink-3 uppercase")}>
               <span className="text-right">Cant.</span>
               <span>Concepto</span>
-              <span className="text-right">P. unit.</span>
+              <span className="hidden text-right @md/ticket:block">P. unit.</span>
               <span className="text-right">Importe</span>
             </div>
             <ul className="flex flex-col divide-y divide-dashed divide-line/60">
@@ -613,11 +620,18 @@ function CobroCuenta({
                 const celdas = (
                   <>
                     <span className="tnum text-right font-semibold text-ink">{f.cantidad}</span>
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate text-ink-2">{f.concepto}</span>
-                      {f.item && <ShoppingBag size={11} className="shrink-0 text-ink-3" aria-label="de mostrador" />}
+                    <span className="flex min-w-0 flex-col">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="line-clamp-2 break-words text-ink-2">{f.concepto}</span>
+                        {f.item && <ShoppingBag size={11} className="shrink-0 text-ink-3" aria-label="de mostrador" />}
+                      </span>
+                      {f.cantidad > 1 && (
+                        <span className="tnum mt-0.5 text-[11px] text-ink-3 @md/ticket:hidden">
+                          {f.cantidad} × {formatMoneyVE(toMajor(f.precio), f.precio.currency)}
+                        </span>
+                      )}
                     </span>
-                    <span className="tnum text-right text-ink-3">{formatMoneyVE(toMajor(f.precio), f.precio.currency)}</span>
+                    <span className="hidden tnum text-right text-ink-3 @md/ticket:block">{formatMoneyVE(toMajor(f.precio), f.precio.currency)}</span>
                     <span className="tnum text-right font-medium text-ink">{importe}</span>
                   </>
                 );
@@ -738,14 +752,14 @@ function CobroCuenta({
           <dl className="flex flex-col gap-1.5 border-t border-line bg-base/40 px-5 pt-2 pb-4 text-sm">
             {/* A quién se factura: un toque solo cuando el cliente lo pide (DEC-23). */}
             <div className="flex items-center justify-between gap-3 border-b border-line/60 pb-2">
-              <dt className="text-ink-2">Factura a</dt>
+              <dt className="shrink-0 whitespace-nowrap text-ink-2">Factura a</dt>
               <dd className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-semibold text-ink">
                   {cliente.kind === "CONSUMIDOR_FINAL"
                     ? "Consumidor final"
                     : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`}
                 </span>
-                <Button surface="tablet" variant="neutral" className="shrink-0 text-[13px]" onClick={() => setIdentificando(true)}>
+                <Button surface="pos" variant="neutral" className="shrink-0 text-[13px]" onClick={() => setIdentificando(true)}>
                   {cliente.kind === "CONSUMIDOR_FINAL" ? "Identificar" : "Cambiar"}
                   <PistaTecla tecla="I" />
                 </Button>
@@ -785,7 +799,7 @@ function CobroCuenta({
                 Cada parte se cobra por separado y con su propio recibo; la
                 cuenta sigue en la cola hasta que se paga la última. */}
             {onDividir && (pagos.length === 0 || partes > 1) && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-2">
+              <div className="flex flex-col gap-2 border-b border-line/60 pb-2 @md/ticket:flex-row @md/ticket:items-center @md/ticket:justify-between">
                 <dt className="flex items-center gap-1.5 text-ink-2">
                   <Users size={14} aria-hidden="true" />
                   {partes > 1 ? (
@@ -799,7 +813,8 @@ function CobroCuenta({
                     "Dividir la cuenta"
                   )}
                 </dt>
-                <dd className="flex flex-wrap items-center gap-1" role="group" aria-label="Dividir la cuenta">
+                {/* grupo a todo el ancho, 56 de alto, el ancho lo reparte la fila */}
+                <dd className="grid w-full grid-cols-6 gap-1 @md/ticket:flex @md/ticket:w-auto" role="group" aria-label="Dividir la cuenta">
                   {[1, 2, 3, 4, 5, 6].map((n) => {
                     // Ya cobrada alguna parte: el reparto no se cambia a mitad
                     // de camino, o alguien pagaría de más o de menos.
@@ -813,7 +828,7 @@ function CobroCuenta({
                         title={n === 1 ? "Sin dividir" : `Entre ${n}`}
                         onClick={() => onDividir(n)}
                         className={cn(
-                          "tnum size-14 cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors",
+                          "tnum h-14 w-full cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors @md/ticket:size-14",
                           n === partes ? "border-brand bg-brand/15 text-ink" : "border-line text-ink-3 hover:text-ink",
                           "disabled:cursor-not-allowed disabled:opacity-40",
                         )}
@@ -847,11 +862,15 @@ function CobroCuenta({
             alto fijo según el medio, el teclado siempre a la vista y una fila de
             dos columnas con «Cobrar exacto» y «Cerrar cobro». Cambiar de medio o
             teclear no mueve nada de sitio, y no hay que abrir nada para teclear. */}
-        <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card [&>*]:shrink-0 md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1">
+        <aside className={cn(
+          "flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card [&>*]:shrink-0",
+          PLACEMENT_COBRO,
+          "md:bajo:grid md:bajo:grid-cols-[minmax(0,1fr)_12rem] md:bajo:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] md:bajo:gap-x-3 md:bajo:overflow-hidden"
+        )}>
           {/* ── visor: lo que falta (o el vuelto) y lo que se está tecleando ── */}
           <div
             className={cn(
-              "rounded-[var(--radius-control)] border px-3 py-2.5",
+              "md:bajo:col-start-1 md:bajo:row-start-1 rounded-[var(--radius-control)] border px-3 py-2.5",
               "transition-colors duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
               cubierto ? "border-state-ok/40 bg-state-ok-bg/40" : "border-line-strong bg-base",
             )}
@@ -903,7 +922,7 @@ function CobroCuenta({
           </div>
 
           {/* ── medio de pago con iconos y jerarquía financiera ── */}
-          <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Medio de pago">
+          <div className="md:bajo:col-start-1 md:bajo:row-start-2 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Medio de pago">
             {mediosDisponibles.map((m) => {
               const activo = m.code === medioActivo.code;
               const bloqueado = m.currency !== FUNCIONAL && !rate;
@@ -954,7 +973,7 @@ function CobroCuenta({
           </div>
 
           {/* ── franja del medio: SIEMPRE 56 px, ni uno más ── */}
-          <div className="h-14 overflow-hidden">
+          <div className="md:bajo:col-start-1 md:bajo:row-start-3 h-14 overflow-hidden">
             {cubierto && sobra.amount > 0n ? (
               // El excedente exige una decisión: no se cierra solo (§5.6).
               <div role="radiogroup" aria-label="Destino del vuelto" className="grid grid-cols-3 gap-1.5">
@@ -1040,6 +1059,7 @@ function CobroCuenta({
 
           {/* ── el teclado, siempre en su sitio ── */}
           <NumericKeypad
+            className="md:bajo:col-start-2 md:bajo:row-span-5 md:bajo:row-start-1 md:bajo:auto-rows-fr"
             value={monto}
             onChange={setMonto}
             maxLength={9}
@@ -1050,29 +1070,31 @@ function CobroCuenta({
             submitLabel="Añadir"
           />
 
-          {faltaTasa && (
-            <p role="alert" className="text-[12px] text-state-crit">
-              Hay un pago en otra moneda sin tasa congelada. No se puede cobrar (ADR-005).
-            </p>
-          )}
-          {cubierto && destinoVuelto === "CAJA" && sobra.amount > maxRetained.amount && (
-            <p role="alert" className="text-[11.5px] text-state-crit">
-              Por encima del umbral ({formatMoneyVE(toMajor(maxRetained), "USD")}) no se puede dejar en caja: hay que dar
-              vuelto o marcarlo como propina.
-            </p>
-          )}
-          {error && (
-            <p
-              role="alert"
-              className="rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[12px] text-state-crit"
-            >
-              {error}
-            </p>
-          )}
+          <div className="md:bajo:col-start-1 md:bajo:row-start-4 flex flex-col gap-2 empty:hidden">
+            {faltaTasa && (
+              <p role="alert" className="text-[12px] text-state-crit">
+                Hay un pago en otra moneda sin tasa congelada. No se puede cobrar (ADR-005).
+              </p>
+            )}
+            {cubierto && destinoVuelto === "CAJA" && sobra.amount > maxRetained.amount && (
+              <p role="alert" className="text-[11.5px] text-state-crit">
+                Por encima del umbral ({formatMoneyVE(toMajor(maxRetained), "USD")}) no se puede dejar en caja: hay que dar
+                vuelto o marcarlo como propina.
+              </p>
+            )}
+            {error && (
+              <p
+                role="alert"
+                className="rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[12px] text-state-crit"
+              >
+                {error}
+              </p>
+            )}
+          </div>
 
           {/* ── una fila: cobrar exacto · cerrar cobro. En efectivo, solo cerrar,
               a todo el ancho: la fila no cambia de alto ni de sitio. ── */}
-          <div className="mt-auto grid grid-cols-2 gap-2">
+          <div className="md:bajo:col-start-1 md:bajo:row-start-5 mt-auto grid grid-cols-2 gap-2">
             {!esEfectivo && (
             <button
               type="button"
@@ -1182,6 +1204,18 @@ const ORIGEN: Readonly<Record<string, { ruta: Route; nombre: string }>> = {
   "/salida": { ruta: "/salida", nombre: "Salida" },
 };
 
+/* ── colocación en la rejilla de la caja ──────────────────────────────────
+   Tres columnas (cola | ticket | cobro) desde lg si la pantalla no es baja, y
+   desde xl si lo es. Dos columnas (cola PLEGADA tras un conmutador | cobro) de
+   md a lg, y de lg a xl en pantalla baja (F-02, F-07). Todo lo `*:bajo:` sale
+   en el CSS después de todo lo `lg:`/`xl:`: por eso cada propiedad se repite
+   con `lg:bajo:` y `xl:bajo:`. */
+const OCULTA_SI_PLEGADA = "md:hidden lg:flex lg:bajo:hidden xl:bajo:flex";
+const PLACEMENT_COLA = "md:col-start-1 md:row-start-2 lg:row-start-1 lg:bajo:row-start-2 xl:bajo:row-start-1";
+const PLACEMENT_TICKET = "md:col-start-1 md:row-start-2 lg:col-start-2 lg:row-start-1 lg:bajo:col-start-1 lg:bajo:row-start-2 xl:bajo:col-start-2 xl:bajo:row-start-1";
+const PLACEMENT_COBRO = "md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1 lg:bajo:col-start-2 lg:bajo:row-span-2 xl:bajo:col-start-3 xl:bajo:row-span-1";
+const PLACEMENT_SIN_CUENTAS = "md:col-start-2 md:col-span-1 md:row-span-2 md:row-start-1 lg:col-span-2 lg:row-span-1 lg:bajo:col-span-1 lg:bajo:row-span-2 xl:bajo:col-span-2 xl:bajo:row-span-1";
+
 type CobroProps = Parameters<typeof CobroCuenta>[0];
 
 export function CajaScreen({
@@ -1206,6 +1240,10 @@ export function CajaScreen({
   /** Venta directa en curso, antes de elegir el primer producto. */
   const [ventaNueva, setVentaNueva] = useState(false);
   const aBolivares = cobro.rate ? (cobro.rate.from === "USD" ? cobro.rate : invertRate(cobro.rate)) : null;
+
+  /** Con la cola plegada (dos columnas): qué ocupa la columna izquierda. */
+  const [vista, setVista] = useState<"cuenta" | "cola">(cuentaInicial ? "cuenta" : "cola");
+  const vistaEfectiva = !actual && !ventaNueva ? "cola" : vista;
 
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroCola>("TODAS");
@@ -1255,6 +1293,7 @@ export function CajaScreen({
   function elegir(id: string) {
     setVentaNueva(false);
     setElegida(id);
+    setVista("cuenta");
   }
 
   /**
@@ -1296,6 +1335,7 @@ export function CajaScreen({
       // lo enfoca la cola al mostrarlo.
       setBuscando(true);
       buscadorRef.current?.focus();
+      setVista("cola");
       return true;
     }
     if (t.key === "?") {
@@ -1305,6 +1345,7 @@ export function CajaScreen({
     const letra = t.key.toUpperCase();
     if (letra === "N") {
       setVentaNueva(true);
+      setVista("cuenta");
       return true;
     }
     if (letra === "R" && ultimaVenta) {
@@ -1326,6 +1367,7 @@ export function CajaScreen({
     }
     // Si quedan partes, la cuenta sigue elegida: la siguiente persona paga ya.
     setElegida(faltan > 0 ? cuenta.id : null);
+    if (faltan === 0) setVista("cola");
     registrar({
       id: `v-${globalThis.crypto.randomUUID()}`,
       ...(cuenta.orderNumber ? { orderNumber: cuenta.orderNumber } : {}),
@@ -1361,6 +1403,7 @@ export function CajaScreen({
 
   function onNuevaVentaDirecta() {
     setVentaNueva(true);
+    setVista("cuenta");
   }
 
   /**
@@ -1468,16 +1511,67 @@ export function CajaScreen({
         as="main"
         ancho="muro"
         className={cn(
-          "grid flex-1 gap-4 py-4",
+          "grid flex-1 gap-4 py-4 bajo:py-3",
           // Desde lg la caja se reparte el alto de la ventana y cada columna
           // se desplaza por dentro (§8.8). Por debajo, flujo normal.
           // En tablet vertical, dos columnas: la cola sobre la cuenta y el
           // cobro al lado, a todo el alto. En escritorio, tres.
-          "md:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]",
-          "lg:min-h-0 lg:grid-cols-[15rem_minmax(0,1fr)_clamp(352px,26vw,400px)]",
+          "md:min-h-0 md:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] md:grid-rows-[auto_minmax(0,1fr)]",
+          "md:bajo:grid-cols-[minmax(0,1fr)_minmax(30rem,35.5rem)]",
+          "lg:grid-cols-[15rem_minmax(0,1fr)_clamp(352px,26vw,400px)] lg:grid-rows-[minmax(0,1fr)]",
+          "lg:bajo:grid-cols-[minmax(0,1fr)_35.5rem] lg:bajo:grid-rows-[auto_minmax(0,1fr)]",
+          "xl:bajo:grid-cols-[15rem_minmax(0,1fr)_35.5rem] xl:bajo:grid-rows-[minmax(0,1fr)]",
         )}
       >
+        {/* Con la cola plegada (dos columnas), qué se ve a la izquierda: la cola
+            o la cuenta. El mismo aspecto que «Plano | Atender» de mesas, a 56 px. */}
+        <div
+          role="radiogroup"
+          aria-label="Qué ver"
+          className="col-start-1 row-start-1 hidden w-full gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1 md:flex lg:hidden lg:bajo:flex xl:bajo:hidden"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={vistaEfectiva === "cola"}
+            onClick={() => setVista("cola")}
+            className={cn(
+              "flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[0.4rem] px-4 text-[14px] transition-colors",
+              vistaEfectiva === "cola" ? "bg-brand font-semibold text-on-brand" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+            )}
+          >
+            <span>Por cobrar</span>
+            {/* Si llega una cuenta mientras se ve otra, el contador lo dice en color de marca. */}
+            <span
+              className={cn(
+                "tnum rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                vistaEfectiva === "cola"
+                  ? "bg-on-brand/15 text-on-brand"
+                  : recientes.size > 0
+                    ? "bg-brand text-on-brand"
+                    : "bg-base text-ink-3",
+              )}
+            >
+              {porCobrar.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={vistaEfectiva === "cuenta"}
+            disabled={!actual && !ventaNueva}
+            onClick={() => setVista("cuenta")}
+            className={cn(
+              "flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[0.4rem] px-4 text-[14px] transition-colors",
+              vistaEfectiva === "cuenta" ? "bg-brand font-semibold text-on-brand" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+              "disabled:cursor-not-allowed disabled:opacity-40",
+            )}
+          >
+            {ventaNueva ? "Venta directa" : actual ? `Cuenta ${numeroDeOrden(actual)}` : "Cuenta"}
+          </button>
+        </div>
         <ColaCuentas
+          className={cn(PLACEMENT_COLA, vistaEfectiva === "cuenta" && OCULTA_SI_PLEGADA)}
           cuentas={visibles}
           total={porCobrar.length}
           actual={actual?.id ?? null}
@@ -1502,7 +1596,11 @@ export function CajaScreen({
           <NuevaVentaDirecta
             aBolivares={aBolivares}
             onElegir={crearVentaDirecta}
-            onCancelar={() => setVentaNueva(false)}
+            onCancelar={() => {
+              setVentaNueva(false);
+              setVista("cola");
+            }}
+            ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
         ) : actual ? (
           <CobroCuenta
@@ -1514,6 +1612,7 @@ export function CajaScreen({
             onAgregarProducto={onAgregarProductoACuenta}
             onCambiarCantidad={onCambiarCantidadEnCuenta}
             onDividir={(n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n))}
+            ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
         ) : (
           <SinCuentas />
@@ -1570,7 +1669,7 @@ function BotonCopiar({ copiado, onCopiar, que }: { copiado: boolean; onCopiar: (
 }
 
 /** Columnas de la factura: cantidad, concepto, precio unitario e importe. */
-const COLUMNAS = "grid grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.75rem] items-baseline gap-x-3";
+const COLUMNAS = "grid grid-cols-[2.25rem_minmax(0,1fr)_5.75rem] @md/ticket:grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.75rem] items-baseline gap-x-3";
 
 function CartaMostrador({
   aBolivares,
@@ -1594,7 +1693,7 @@ function CartaMostrador({
             aria-pressed={categoria === cat}
             onClick={() => setCategoria(cat)}
             className={cn(
-              "min-h-10 cursor-pointer rounded-[var(--radius-control)] px-3 text-xs font-semibold transition-colors",
+              "min-h-14 cursor-pointer rounded-[var(--radius-control)] px-3 text-xs font-semibold transition-colors",
               categoria === cat ? "bg-brand text-on-brand" : "border border-line/60 bg-surface text-ink-2 hover:bg-surface-2",
             )}
           >
@@ -1631,16 +1730,22 @@ function NuevaVentaDirecta({
   aBolivares,
   onElegir,
   onCancelar,
+  ocultoEnDosColumnas,
 }: {
   aBolivares: FrozenRate | null;
   onElegir: (p: ProductoMostrador) => void;
   onCancelar: () => void;
+  ocultoEnDosColumnas?: boolean;
 }) {
   return (
     <>
       <section
         aria-label="Nueva venta directa"
-        className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-brand/40 bg-surface shadow-card md:col-start-1 md:row-start-2 lg:col-start-2 lg:row-start-1"
+        className={cn(
+          "flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-brand/40 bg-surface shadow-card @container/ticket",
+          PLACEMENT_TICKET,
+          ocultoEnDosColumnas && OCULTA_SI_PLEGADA
+        )}
       >
         <div className="border-b border-line px-5 py-3">
           <h2 className="font-display text-base font-bold text-ink">Venta directa</h2>
@@ -1650,7 +1755,10 @@ function NuevaVentaDirecta({
           <CartaMostrador aBolivares={aBolivares} onElegir={onElegir} alto="lg:max-h-none" />
         </div>
       </section>
-      <aside className="flex min-h-[12rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1">
+      <aside className={cn(
+        "flex min-h-[12rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center",
+        PLACEMENT_COBRO,
+      )}>
         <ShoppingBag size={28} className="text-ink-3" aria-hidden="true" />
         <p className="font-display text-lg font-bold text-ink">El cobro aparece al elegir</p>
         <p className="max-w-xs text-[13px] text-ink-2">Con el primer producto se abre la cuenta de mostrador y su cobro.</p>
@@ -1695,7 +1803,10 @@ function agruparFilas(lines: readonly DocumentLine[], cuenta: FamilyAccountDto):
 
 function SinCuentas() {
   return (
-    <section className="flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center md:col-span-2 md:row-start-2 lg:col-start-2 lg:row-start-1">
+    <section className={cn(
+      "flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center",
+      PLACEMENT_SIN_CUENTAS
+    )}>
       <CircleCheckBig size={32} className="text-state-ok" aria-hidden="true" />
       <p className="font-display text-xl font-bold text-ink">Nada por cobrar</p>
       <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
@@ -1705,13 +1816,13 @@ function SinCuentas() {
       <div className="mt-2 flex flex-wrap justify-center gap-2">
         <Link
           href="/entrada"
-          className="flex min-h-11 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+          className="flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
         >
           Ir a la entrada
         </Link>
         <Link
           href="/salida"
-          className="flex min-h-11 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+          className="flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
         >
           Ir a la salida
         </Link>

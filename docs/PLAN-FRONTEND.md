@@ -77,7 +77,7 @@ tablets de 600 px sino **cualquier ventana de menos de 760 px de alto** —inclu
 | Barra de estación que no se monta en vertical: dos filas hasta 1023 px | O2 · [barra-vertical](encargos/barra-vertical.md) | F-03 | **Hecha** (ed41744) |
 | Variante `bajo:` (menos de 760 px de alto) y su orden en el CSS comprobado | M | F-02, F-06 | **Hecha** |
 | El marco de las estaciones mide la ventana desde 768 px: la barra no se va con la página | M | F-07 | **Hecha** |
-| Caja: cobro en dos subcolumnas en pantalla baja, cola plegable tras un conmutador, ticket por container queries | M diseña · O1 · [caja-compacta](encargos/caja-compacta.md) | F-02, F-07 | Encargada |
+| Caja: cobro en dos subcolumnas en pantalla baja, cola plegable tras un conmutador, ticket por container queries | M diseña · O1 · [caja-compacta](encargos/caja-compacta.md) | F-02, F-07 | **Hecha**: se cobra entero en los 10 tamaños medidos, 960×600 incluido |
 | Turno: arqueo por container query (una moneda bajo la otra si no caben con su subtotal) y cortes siempre a la vista en pantalla baja | O1 · [turno-arqueo](encargos/turno-arqueo.md) | F-03, F-06 | Encargo escrito |
 | Entrada y salida: la lista desplaza sola y la acción principal queda fija; entrada con disposición vertical propia; quitar pulsera a 48 | O2 · [parque-tablet](encargos/parque-tablet.md) (en paralelo, aprobado) | F-06, F-07, F-13 | **Hecha**: acción a la vista de 1024×600 a 1920 y en 768×1024 |
 | Monitor: la tarjeta vencida no cabe en las 3 columnas de 768 px | M (`StatusCard`) + O2 | F-14 | **Hecha**: la causa era la columna implícita de `StatusCard` |

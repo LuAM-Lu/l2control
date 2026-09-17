@@ -1111,3 +1111,23 @@ que mide **960×600** y en horizontal recibe la disposición vertical (F-15). La
 existe; su primera versión, con dos consultas separadas por coma, hacía que Tailwind generara un
 selector inválido al combinarla con `bajo:` y tumbó el CSS de toda la app hasta pasarla a la forma de
 bloque. Quedó comprobado su orden: después de `lg:`/`xl:` y antes de todo lo `bajo:`.
+
+## La caja cobra en cualquier pantalla — 2026-09-17 (F1-21, Ola 2, F-02)
+
+El fallo más grave de la auditoría —en una tablet de 1024×600 no se podía terminar de cobrar— quedó
+resuelto sin tocar la estructura que pidió el cliente. Por debajo de 760 px de alto, la columna de cobro
+se parte en dos: visor, medios, franja y acciones a la izquierda, y el teclado entero a la derecha, con
+teclas que crecen hasta llenar el alto. Donde no caben tres columnas —tablets en vertical, 1024×600,
+960×600—, la cola se pliega tras un conmutador «Por cobrar | Cuenta» que cambia solo: tocar una cuenta o
+pasar una pulsera abre la cuenta; cobrarla entera vuelve a la cola. La cola nunca se desmonta, porque
+dentro vive el lector de pulseras.
+
+La obrera escribió casi todo bien. La maestra corrigió cuatro cosas: en dos columnas **ocultaba también
+el cobro** al ver la cola, lo que habría dejado media pantalla vacía; los botones del conmutador medían
+48 y no 56, porque el alto estaba en el contenedor con relleno; usaba un color literal en una sombra; y,
+al llegar con una cuenta ya elegida desde la entrada o la salida, abría la cola en vez de la cuenta.
+Además subió a 56 «Venta directa», «Añadir ítems» e «Identificar», y ajustó los anchos hasta que ningún
+medio de pago se truncara.
+
+Comprobado en diez tamaños, con el flujo entero —elegir, punto de venta, datos, cerrar— en los tres
+donde la cola se pliega. En escritorio no cambió nada.

@@ -47,6 +47,14 @@ tablets Android más baratas en horizontal.
 corta a 1280×720 y en un portátil de 1366×768 con la barra del navegador (unos 657 px útiles): no es
 solo cosa de tablets baratas. → Variante `bajo:` y [caja-compacta](encargos/caja-compacta.md).
 
+*Resuelto el 2026-09-17:* por debajo de 760 px de alto el cobro se parte en dos subcolumnas (el teclado
+entero a la derecha) y, donde no caben tres columnas, la cola se pliega tras un conmutador «Por cobrar |
+Cuenta». El ticket decide sus columnas por su propio ancho y los conceptos pasan a dos renglones en vez
+de truncarse. Medido en 10 tamaños (de 1920×1080 a 768×1024, con 1366×657, 1280×720 y 960×600): el 0,
+«Añadir», «Cerrar cobro», los billetes y los medios, siempre enteros a la vista; y el cobro completo
+—elegir la cuenta, punto de venta, datos, cerrar— probado a 1024×600, 960×600 y 768×1024. A 960×600 el
+total del ticket queda bajo el borde mientras la barra ocupe dos filas (F-15).
+
 ### F-03 · Turno en tablet vertical: barra montada y subtotales cortados — **alto** · M
 A 768×1024, la pestaña «Turno» se monta sobre el indicador del turno en la barra de estación: las
 pestañas y los chips de contexto no caben en una fila. Y en el arqueo físico, la columna de subtotales
