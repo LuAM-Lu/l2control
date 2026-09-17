@@ -278,6 +278,32 @@ html:has(dialog[open]) { overflow: hidden; }
 }
 .l2-aparece { animation: l2-aparece var(--dur-normal) var(--ease-salida) both; }
 
+/* ── La app instalada (PWA) ─────────────────────────────────────────────
+
+   Instalada en una tablet Android, la app abre sin la barra del navegador
+   (display: standalone) y las estaciones piden pantalla completa. Dos cosas
+   cambian entonces y las pantallas no deberían tener que adivinarlas:
+
+   · Los bordes. Con la barra de estado oculta, el contenido llega hasta la
+     muesca o las esquinas redondeadas. Las variables --seguro-* valen 0 en un
+     navegador normal y lo que haga falta en la tablet: usarlas no cuesta nada.
+   · Lo que sobra o falta. Un botón de «instalar» no tiene sentido dentro de la
+     app instalada, y uno de «pantalla completa» no lo tiene en el navegador de
+     escritorio. Las dos clases de abajo lo resuelven sin JavaScript. */
+:root {
+  --seguro-arriba: env(safe-area-inset-top, 0px);
+  --seguro-derecha: env(safe-area-inset-right, 0px);
+  --seguro-abajo: env(safe-area-inset-bottom, 0px);
+  --seguro-izquierda: env(safe-area-inset-left, 0px);
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .l2-solo-navegador { display: none !important; }
+}
+@media not ((display-mode: standalone) or (display-mode: fullscreen)) {
+  .l2-solo-instalada { display: none !important; }
+}
+
 /* El recibo impreso: solo el recibo, al ancho de un ticket de 80 mm. */
 @media print {
   body * { visibility: hidden; }
