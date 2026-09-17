@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheckBig, FileText, Lock, OctagonAlert, TriangleAlert } from "lucide-react";
 import { type CurrencyCode, type Money, multiply, toMajor, zero } from "@l2/domain-money";
@@ -49,6 +49,14 @@ export function TurnoScreen({
   const [conteo, setConteo] = useState<Record<string, string>>({});
   const [cortesX, setCortesX] = useState(0);
   const [confirmandoZ, setConfirmandoZ] = useState(false);
+  const confirmacionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (confirmandoZ && confirmacionRef.current) {
+      confirmacionRef.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [confirmandoZ]);
+
   const [pestana, setPestana] = useState("arqueo");
 
   const tally = useMemo(() => tallyShift(movements), [movements]);
@@ -144,11 +152,11 @@ export function TurnoScreen({
    *  · lo que dice el libro queda debajo, para quien lo quiera revisar.
    */
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-line">
         <Container
           ancho="operacion"
-          className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3"
+          className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3 apaisado:bajo:py-2"
         >
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
@@ -170,8 +178,8 @@ export function TurnoScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="flex flex-1 flex-col gap-5 py-4 lg:min-h-0">
-        <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <Container as="main" ancho="operacion" className="flex flex-1 flex-col gap-5 py-4 apaisado:min-h-0 apaisado:bajo:py-3 apaisado:bajo:gap-3">
+        <div className="grid gap-5 apaisado:min-h-0 apaisado:flex-1 apaisado:grid-cols-[minmax(0,1fr)_380px] apaisado:grid-rows-[minmax(0,1fr)]">
           {/* Divulgación progresiva (§8.8): lo que se HACE —contar— va al
               frente; lo que se consulta —el libro— queda a un toque. Antes
               iba todo apilado y la pantalla desbordaba 644 px. */}
@@ -180,13 +188,13 @@ export function TurnoScreen({
             activa={pestana}
             onCambiar={setPestana}
             surface="pos"
-            className="min-w-0 lg:min-h-0"
+            className="min-w-0 apaisado:min-h-0"
             pestanas={[
               {
                 id: "arqueo",
                 etiqueta: "Arqueo",
                 contenido: (
-              <section className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
+              <section className="@container/arqueo min-w-0 overflow-clip rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-5 py-3.5">
                   <h2 className="font-display text-base font-bold text-ink">Arqueo físico</h2>
                   <span className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
@@ -194,12 +202,14 @@ export function TurnoScreen({
                   </span>
                 </div>
 
-                <div className="grid gap-px bg-line md:grid-cols-2">
+                <div className="grid gap-px bg-line @min-[49rem]/arqueo:grid-cols-2">
                   {tally.drawer.map((d) => {
                     const contado = contadoPorMoneda.get(d.currency) ?? zero(d.currency);
                     return (
-                      <div key={d.currency} className="bg-surface px-5 py-4">
-                        <h3 className="mb-3 flex items-baseline justify-between gap-3">
+                      <div key={d.currency} className="bg-surface px-4 py-4">
+                        {/* Fija al desplazar (monedas apiladas). El relleno se compensa con
+                            margen para no alargar el arqueo: a 1366×768 no debe desplazar. */}
+                        <h3 className="sticky top-0 z-10 -mt-1 mb-2 flex items-baseline justify-between gap-3 bg-surface py-1">
                           <span className="font-display text-sm font-bold text-ink">
                             Efectivo en {d.currency}
                           </span>
@@ -212,8 +222,8 @@ export function TurnoScreen({
                             const cantidad = Number.parseInt(conteo[clave] ?? "0", 10) || 0;
                             const subtotal = multiply(den, BigInt(cantidad));
                             return (
-                              <li key={clave} className="flex items-center justify-between gap-3">
-                                <span className="tnum w-16 shrink-0 font-semibold text-ink">
+                              <li key={clave} className="flex items-center justify-between gap-2">
+                                <span className="tnum w-14 shrink-0 font-semibold text-ink">
                                   {toMajor(den)}
                                 </span>
                                 <Stepper
@@ -227,7 +237,7 @@ export function TurnoScreen({
                                 />
                                 <span
                                   className={cn(
-                                    "tnum w-24 shrink-0 text-right text-[13px]",
+                                    "tnum w-20 min-w-0 shrink-0 text-right text-[13px]",
                                     cantidad > 0 ? "text-ink-2" : "text-ink-3/60",
                                   )}
                                 >
@@ -264,9 +274,9 @@ export function TurnoScreen({
           />
 
           {/* ═══════════════════ cuadre y cortes ═══════════════════ */}
-          <aside className="flex h-fit min-w-0 flex-col gap-4 lg:sticky lg:top-20">
-            <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card">
-              <h2 className="font-display mb-3 text-base font-bold text-ink">Cuadre</h2>
+          <aside className="flex min-w-0 flex-col gap-4 apaisado:min-h-0 apaisado:overflow-y-auto apaisado:bajo:gap-3">
+            <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card apaisado:bajo:p-3">
+              <h2 className="font-display mb-3 text-base font-bold text-ink apaisado:bajo:mb-2">Cuadre</h2>
 
               <ul className="flex flex-col">
                 {tally.drawer.map((d) => {
@@ -279,7 +289,7 @@ export function TurnoScreen({
                   return (
                     <li
                       key={d.currency}
-                      className="flex flex-col gap-1 border-b border-line/60 py-3 first:pt-0 last:border-0 last:pb-0"
+                      className="flex flex-col gap-1 border-b border-line/60 py-3 first:pt-0 last:border-0 last:pb-0 apaisado:bajo:py-2"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-[11px] font-semibold tracking-[0.09em] text-ink-3 uppercase">
@@ -307,7 +317,7 @@ export function TurnoScreen({
                         )}
                       </div>
 
-                      <MoneyDisplay value={toMajor(contado)} currency={d.currency} size="xl" />
+                      <MoneyDisplay value={toMajor(contado)} currency={d.currency} size="xl" className="apaisado:bajo:text-2xl" />
 
                       {/* El teórico solo aparece cuando ya se contó: verlo antes
                           invita a «cuadrar» el conteo en lugar de contar. */}
@@ -322,7 +332,7 @@ export function TurnoScreen({
               </ul>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card">
+            <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card apaisado:bajo:p-3 apaisado:bajo:gap-2">
               <h2 className="font-display text-base font-bold text-ink">Cortes</h2>
 
               <Button
@@ -367,28 +377,30 @@ export function TurnoScreen({
               ) : (
                 // Acción irreversible: la confirmación dice exactamente qué pasa,
                 // y el botón de confirmar no está donde estaba el primero (§8.4).
-                <div className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg p-3">
+                <div ref={confirmacionRef} className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg p-3">
                   <p className="text-[13px] text-ink">
                     El corte Z es <strong>irreversible</strong>. Sella los correlativos y después
                     ninguna operación monetaria podrá tocar este turno.
                   </p>
                   <div className="flex gap-2">
                     <Button
-                      surface="tablet"
+                      surface="pos"
                       variant="ghost"
                       onClick={() => setConfirmandoZ(false)}
-                      className="flex-1"
+                      // A 56 px y en 380 de ancho, dos botones iguales partían
+                      // «Sí, cerrar el turno» en dos renglones.
+                      className="shrink-0 px-4"
                     >
                       Cancelar
                     </Button>
                     <Button
-                      surface="tablet"
+                      surface="pos"
                       variant="danger"
                       onClick={() => {
                         setStatus("CERRADO_Z");
                         setConfirmandoZ(false);
                       }}
-                      className="flex-1"
+                      className="flex-1 whitespace-nowrap"
                     >
                       Sí, cerrar el turno
                     </Button>
@@ -415,7 +427,7 @@ export function TurnoScreen({
                       El equipo vuelve a la pantalla de acceso en {regreso ?? 5} s.
                     </p>
                     <Button
-                      surface="tablet"
+                      surface="pos"
                       variant="neutral"
                       onClick={() => {
                         cerrarSesion();

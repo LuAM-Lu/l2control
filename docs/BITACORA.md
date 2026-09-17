@@ -1131,3 +1131,17 @@ medio de pago se truncara.
 
 Comprobado en diez tamaños, con el flujo entero —elegir, punto de venta, datos, cerrar— en los tres
 donde la cola se pliega. En escritorio no cambió nada.
+
+## El turno se cuenta entero — 2026-09-17 (F1-21, Ola 2, F-03)
+
+El arqueo ponía las dos monedas lado a lado desde 768 px de ventana, pero lo que importa es el ancho de
+la tarjeta: a 1024 en horizontal cada moneda tenía 288 px y el subtotal de cada billete quedaba fuera,
+recortado sin aviso. Ahora decide la propia tarjeta (lado a lado desde 784 px) y, apiladas, la cabecera
+de la moneda se queda fija al desplazar para saber qué se está contando. El turno es la primera pantalla
+que usa `apaisado:` (F-15). Los cortes quedan a la vista en pantalla baja y la confirmación del corte Z
+se desplaza sola hasta verse, con botones de 56.
+
+La obrera lo hizo tal como se pidió. La maestra corrigió dos detalles que solo se ven midiendo: el
+relleno de la cabecera fija alargaba el arqueo 15 px y volvía a hacer desplazar la pantalla a 1366×768,
+donde el cliente pidió que no desplace; y los dos botones iguales de la confirmación partían «Sí, cerrar
+el turno» en dos renglones.

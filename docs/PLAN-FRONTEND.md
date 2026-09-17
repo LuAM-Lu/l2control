@@ -78,11 +78,11 @@ tablets de 600 px sino **cualquier ventana de menos de 760 px de alto** —inclu
 | Variante `bajo:` (menos de 760 px de alto) y su orden en el CSS comprobado | M | F-02, F-06 | **Hecha** |
 | El marco de las estaciones mide la ventana desde 768 px: la barra no se va con la página | M | F-07 | **Hecha** |
 | Caja: cobro en dos subcolumnas en pantalla baja, cola plegable tras un conmutador, ticket por container queries | M diseña · O1 · [caja-compacta](encargos/caja-compacta.md) | F-02, F-07 | **Hecha**: se cobra entero en los 10 tamaños medidos, 960×600 incluido |
-| Turno: arqueo por container query (una moneda bajo la otra si no caben con su subtotal) y cortes siempre a la vista en pantalla baja | O1 · [turno-arqueo](encargos/turno-arqueo.md) | F-03, F-06 | Encargo escrito |
+| Turno: arqueo por container query (una moneda bajo la otra si no caben con su subtotal) y cortes siempre a la vista en pantalla baja | O1 · [turno-arqueo](encargos/turno-arqueo.md) | F-03, F-06 | **Hecha**: subtotales visibles en los 10 tamaños; «Corte Z» a la vista en horizontal desde 1024 |
 | Entrada y salida: la lista desplaza sola y la acción principal queda fija; entrada con disposición vertical propia; quitar pulsera a 48 | O2 · [parque-tablet](encargos/parque-tablet.md) (en paralelo, aprobado) | F-06, F-07, F-13 | **Hecha**: acción a la vista de 1024×600 a 1920 y en 768×1024 |
 | Monitor: la tarjeta vencida no cabe en las 3 columnas de 768 px | M (`StatusCard`) + O2 | F-14 | **Hecha**: la causa era la columna implícita de `StatusCard` |
 | Ventas a 1024×600: se acepta (lo que desplaza es la vista previa del recibo, un documento) | M | F-06 | **Decidido** |
-| Tablets de 960×600: variante `apaisado:` y las estaciones la usan en lugar de `lg:` para sus columnas, y `md:portrait:` en lugar de `md:max-lg:` para lo vertical (también la barra) | M prepara · O construye | F-15 | Variante hecha y ordenada; por encargar |
+| Tablets de 960×600: variante `apaisado:` y las estaciones la usan en lugar de `lg:` para sus columnas, y `md:max-lg:portrait:` en lugar de `md:max-lg:` para lo vertical (también la barra) | M prepara · O1 · [estaciones-apaisado](encargos/estaciones-apaisado.md) | F-15 | Variante hecha; el turno ya la usa; encargada |
 | Cierre de ola: medir de nuevo, con pantallas cargadas (niños en entrada y salida) | M | — | — |
 
 ### Ola 3 · Navegación y lo que falta de producto

@@ -63,6 +63,10 @@ de cada denominación se corta («0.»): las dos monedas lado a lado no caben en
 *2026-09-17:* la barra quedó resuelta (ed41744: dos filas hasta 1023 px). El subtotal de cada
 denominación **ya no se ve** —se sale de la tarjeta, que lo recorta— a 768×1024 y también **a 1024 en
 horizontal**: cada moneda necesita unos 420 px con su subtotal y ahí tiene 288.
+*Resuelto el 2026-09-17* ([turno-arqueo](encargos/turno-arqueo.md)): las monedas van lado a lado solo
+si la tarjeta mide 784 px o más (container query) y, apiladas, la cabecera de cada moneda queda fija al
+desplazar. Subtotales visibles en los 10 tamaños; «Corte Z» entero a la vista en horizontal desde 1024
+y su confirmación se desplaza sola a la vista. A 1366×768 y 1280×800, sin desplazar.
 
 ### F-04 · Objetivos táctiles por debajo de 56 px en las pantallas de cobro — **alto** · M+O
 Las pantallas de caja son superficie POS (56 px, §8.4), y varios controles no llegan:
