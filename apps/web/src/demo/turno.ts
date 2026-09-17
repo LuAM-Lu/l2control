@@ -9,8 +9,8 @@ import type { ShiftMovement } from "@l2/domain-cash";
 import type { Excepcion } from "../features/cash/turno.ts";
 
 /**
- * Una tarde con los dos puntos de cobro (DEC-13): la taquilla cobra entradas
- * y excedentes del parque; el mostrador, lo demás. Misma gaveta, mismo turno.
+ * Una tarde de operación con DEC-25 (solo la caja cobra): todas las
+ * entradas, salidas y consumos entran por el mostrador. Misma gaveta, mismo turno.
  */
 export const DEMO_SHIFT_MOVEMENTS: ShiftMovement[] = [
   // Fondo inicial declarado por moneda (F4-01). Es del turno, no de un punto.
@@ -19,16 +19,16 @@ export const DEMO_SHIFT_MOVEMENTS: ShiftMovement[] = [
 
   // Cobros de la tarde, cada uno con su punto
   { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: fromMajor("11.17", "USD"), inDrawer: true, origin: "MOSTRADOR" },
-  { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: fromMajor("24.00", "USD"), inDrawer: true, origin: "TAQUILLA" },
-  { kind: "PAYMENT", methodCode: "EFECTIVO_VES", amount: fromMajor("3426.15", "VES"), inDrawer: true, origin: "TAQUILLA" },
+  { kind: "PAYMENT", methodCode: "EFECTIVO_USD", amount: fromMajor("24.00", "USD"), inDrawer: true, origin: "MOSTRADOR" },
+  { kind: "PAYMENT", methodCode: "EFECTIVO_VES", amount: fromMajor("3426.15", "VES"), inDrawer: true, origin: "MOSTRADOR" },
   { kind: "PAYMENT", methodCode: "PAGO_MOVIL", amount: fromMajor("18272.80", "VES"), inDrawer: false, origin: "MOSTRADOR" },
-  { kind: "PAYMENT", methodCode: "PDV_DEBITO", amount: fromMajor("9136.40", "VES"), inDrawer: false, origin: "TAQUILLA" },
+  { kind: "PAYMENT", methodCode: "PDV_DEBITO", amount: fromMajor("9136.40", "VES"), inDrawer: false, origin: "MOSTRADOR" },
   { kind: "PAYMENT", methodCode: "ZELLE", amount: fromMajor("35.00", "USD"), inDrawer: false, origin: "MOSTRADOR" },
   { kind: "PAYMENT", methodCode: "USDT", amount: fromMajor("18.00", "USDT"), inDrawer: false, origin: "MOSTRADOR" },
 
   // Vueltos entregados: SALEN de la gaveta, desde el punto donde se dieron
   { kind: "CHANGE_OUT", methodCode: "EFECTIVO_USD", amount: fromMajor("2.59", "USD"), inDrawer: true, origin: "MOSTRADOR" },
-  { kind: "CHANGE_OUT", methodCode: "EFECTIVO_VES", amount: fromMajor("573.85", "VES"), inDrawer: true, origin: "TAQUILLA" },
+  { kind: "CHANGE_OUT", methodCode: "EFECTIVO_VES", amount: fromMajor("573.85", "VES"), inDrawer: true, origin: "MOSTRADOR" },
 
   // Propina en efectivo: está en la gaveta aunque no sea ingreso del negocio
   { kind: "TIP_IN_DRAWER", methodCode: "EFECTIVO_USD", amount: fromMajor("3.00", "USD"), inDrawer: true, origin: "MOSTRADOR" },

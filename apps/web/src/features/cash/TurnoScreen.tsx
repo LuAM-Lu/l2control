@@ -130,6 +130,12 @@ export function TurnoScreen({
       enGaveta: m.inDrawer,
     }));
 
+  // DEC-25/26: con solo la caja cobrando, lo normal es un único punto; la
+  // pestaña «Por punto de cobro» solo aparece si de verdad cobró más de uno.
+  const variosPuntos =
+    new Set(
+      tally.byPoint.filter((p) => p.charged.amount !== 0n || p.cashNet.amount !== 0n).map((p) => p.point),
+    ).size > 1;
   const puntos: FilaPunto[] = tally.byPoint.map((p) => ({
     punto: p.point,
     moneda: p.currency,
@@ -254,11 +260,11 @@ export function TurnoScreen({
               </section>
                 ),
               },
-              {
+              variosPuntos ? {
                 id: "puntos",
                 etiqueta: "Por punto de cobro",
                 contenido: <PuntosDeCobro filas={puntos} />,
-              },
+              } : null,
               {
                 id: "medios",
                 etiqueta: "Por medio",
@@ -270,7 +276,7 @@ export function TurnoScreen({
                 contador: excepciones.length,
                 contenido: <ExcepcionesTurno excepciones={excepciones} />,
               },
-            ]}
+            ].filter((p): p is NonNullable<typeof p> => p !== null)}
           />
 
           {/* ═══════════════════ cuadre y cortes ═══════════════════ */}

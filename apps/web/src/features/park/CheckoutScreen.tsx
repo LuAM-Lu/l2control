@@ -28,6 +28,8 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
 import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
 import { useTarifario } from "./TarifarioProvider";
+import { useActorEnSesion } from "../identity/sesion.ts";
+import { puedeAbrirRuta } from "../identity/visibilidad.ts";
 
 /**
  * Salida y liquidación del parque — F5-14.
@@ -41,8 +43,8 @@ import { useTarifario } from "./TarifarioProvider";
  *    6,50» sin explicación es una discusión; «5,00 del paquete más 1,50 por 7
  *    minutos de más» no lo es. El desglose es atención al cliente.
  *
- * Las dos rutas de liquidación producen **el mismo total** (F5-14): cobrar en
- * taquilla, o cargar a la cuenta de una mesa.
+ * Las dos rutas de liquidación producen **el mismo total** (F5-14): enviar a la caja,
+ * o cargar a la cuenta de una mesa.
  */
 export function CheckoutScreen({
   snapshot,
@@ -65,6 +67,9 @@ export function CheckoutScreen({
   const { cuentas, guardar } = useCuentas();
   const { tarifario } = useTarifario();
   const router = useRouter();
+
+  const actor = useActorEnSesion();
+  const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
 
   const snap = useMemo(() => ({ ...snapshot, policy: tarifario.policy }), [snapshot, tarifario.policy]);
 
@@ -225,11 +230,19 @@ export function CheckoutScreen({
 
     const unica = porCobrar[0];
     if (porCobrar.length === 1 && unica) {
-      router.push(`/caja?cuenta=${unica.id}&volver=/salida` as Route);
+      if (puedeCobrar) {
+        router.push(`/caja?cuenta=${unica.id}&volver=/salida` as Route);
+      } else {
+        anunciarCierre({ ninos, total: toMajor(aCobrar), destino: "enviado a caja" });
+      }
       return;
     }
     if (porCobrar.length > 1) {
-      router.push("/caja?volver=/salida" as Route);
+      if (puedeCobrar) {
+        router.push("/caja?volver=/salida" as Route);
+      } else {
+        anunciarCierre({ ninos, total: toMajor(aCobrar), destino: "enviado a caja" });
+      }
       return;
     }
     anunciarCierre({ ninos, total: "0.00", destino: "sin cargo: estaba todo pagado" });
@@ -287,7 +300,7 @@ export function CheckoutScreen({
                 icon={<ScanLine size={40} aria-hidden="true" />}
                 titulo="Pasa la pulsera de quien se va"
                 detalle="Si se va la familia entera, pasa todas seguidas: se liquidan juntas, con el desglose de cada niño, y se cobra una sola vez."
-                pasos={["Pasa las pulseras", "Revisa el desglose", "Cobra o carga a la mesa"]}
+                pasos={["Pasa las pulseras", "Revisa el desglose", puedeCobrar ? "Cobra o carga a la mesa" : "Envía a caja o carga a la mesa"]}
               />
             ) : (
               <ul className="flex flex-col gap-3">
@@ -448,7 +461,7 @@ export function CheckoutScreen({
               {porCobrar.length === 0
                 ? "Registrar salida sin cargo"
                 : porCobrar.length === 1
-                  ? `Cobrar ${formatMoneyVE(toMajor(aCobrar), "USD")} en caja`
+                  ? (puedeCobrar ? `Cobrar ${formatMoneyVE(toMajor(aCobrar), "USD")} en caja` : `Enviar ${formatMoneyVE(toMajor(aCobrar), "USD")} a caja`)
                   : `Enviar ${porCobrar.length} cuentas a caja`}
             </Button>
 

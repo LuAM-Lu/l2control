@@ -1,7 +1,7 @@
 /**
  * Datos de ejemplo de caja.
  *
- * La cuenta representa una liquidación de parque cobrada en taquilla, que es
+ * La cuenta representa una liquidación de parque cobrada en caja, que es
  * el caso que enlaza con la pantalla de salida.
  */
 import { fromMajor } from "@l2/domain-money";

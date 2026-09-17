@@ -20,6 +20,7 @@ import {
   StatTile,
   cn,
   avisar,
+  formatMoneyVE,
 } from "@l2/ui";
 import { sum, toMajor, zero } from "@l2/domain-money";
 import { computeCapacity } from "@l2/domain-park";
@@ -31,6 +32,8 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
 import { useTarifario } from "./TarifarioProvider";
+import { useActorEnSesion } from "../identity/sesion.ts";
+import { puedeAbrirRuta } from "../identity/visibilidad.ts";
 
 /**
  * Registro de entrada al parque — F5-02, F5-03, F5-04.
@@ -86,6 +89,9 @@ export function CheckInScreen({
   const [modo, setModo] = useState<PaymentMode>("PREPAGO");
   const router = useRouter();
   const { guardar } = useCuentas();
+  
+  const actor = useActorEnSesion();
+  const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
 
   const nameRefs = useRef(new Map<string, HTMLInputElement | null>());
 
@@ -254,7 +260,15 @@ export function CheckInScreen({
     if (modo === "PREPAGO") {
       // Prepago: el paquete se cobra ya. La caja recibe la cuenta y, al
       // cobrar, devuelve aquí para la siguiente familia (§9.10.9).
-      router.push(`/caja?cuenta=${cuenta.id}&volver=/entrada` as Route);
+      if (puedeCobrar) {
+        router.push(`/caja?cuenta=${cuenta.id}&volver=/entrada` as Route);
+      } else {
+        const totalConFormato = formatMoneyVE(toMajor(total), total.currency);
+        const n = cuenta.sessionIds.length;
+        avisar.ok(`Cuenta enviada a caja: ${cuenta.family}`, {
+          detalle: `${n} ${n === 1 ? "niño" : "niños"} · ${totalConFormato}. Se cobra en la caja.`,
+        });
+      }
       return;
     }
     const n = cuenta.sessionIds.length;
@@ -325,7 +339,7 @@ export function CheckInScreen({
                   "Pasa las pulseras",
                   "Escribe los nombres",
                   "Busca al representante",
-                  "Registra y cobra",
+                  puedeCobrar ? "Registra y cobra" : "Registra y envía a caja",
                 ]}
               />
             ) : (
@@ -491,7 +505,7 @@ export function CheckInScreen({
                 onClick={registrar}
                 className="w-full"
               >
-                {modo === "PREPAGO" ? "Registrar y cobrar" : "Registrar y abrir cuenta"}
+                {modo === "PREPAGO" ? (puedeCobrar ? "Registrar y cobrar" : "Registrar y enviar a caja") : "Registrar y abrir cuenta"}
               </Button>
 
               {/* §8.7: el motivo por el que un botón está deshabilitado se dice,

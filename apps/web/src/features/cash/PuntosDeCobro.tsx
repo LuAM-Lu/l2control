@@ -55,7 +55,7 @@ export function PuntosDeCobro({
         </div>
 
         <div className="grid grid-cols-1 min-[500px]:grid-cols-2 gap-2.5">
-          {PUNTOS.map(({ id, nombre, detalle, Icono }) => {
+          {PUNTOS.filter((p) => filas.some((f) => f.punto === p.id)).map(({ id, nombre, detalle, Icono }) => {
             const propias = filas.filter((f) => f.punto === id);
             const esTaquilla = id === "TAQUILLA";
 
@@ -89,40 +89,36 @@ export function PuntosDeCobro({
                   </span>
                 </div>
 
-                {propias.length === 0 ? (
-                  <p className="mt-2.5 text-xs text-ink-3">Sin cobros en este turno.</p>
-                ) : (
-                  <ul className="mt-2 flex flex-col gap-1.5">
-                    {propias.map((f) => (
-                      <li
-                        key={f.moneda}
-                        className="rounded-md border border-line/40 bg-base/50 p-1.5 transition-colors hover:border-line"
-                      >
-                        {/* Monto en su propio renglón si no cabe: una cifra en bolívares
-                            de 6 a 8 dígitos no se sale de la tarjeta (CLAUDE.md). */}
-                        <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <InsigniaMoneda moneda={f.moneda} />
-                            <span className="text-xs font-semibold text-ink-2">
-                              {f.moneda}
-                            </span>
-                          </div>
-                          <MoneyDisplay value={f.cobrado} currency={f.moneda} size="sm" className="ml-auto" />
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {propias.map((f) => (
+                    <li
+                      key={f.moneda}
+                      className="rounded-md border border-line/40 bg-base/50 p-1.5 transition-colors hover:border-line"
+                    >
+                      {/* Monto en su propio renglón si no cabe: una cifra en bolívares
+                          de 6 a 8 dígitos no se sale de la tarjeta (CLAUDE.md). */}
+                      <div className="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <InsigniaMoneda moneda={f.moneda} />
+                          <span className="text-xs font-semibold text-ink-2">
+                            {f.moneda}
+                          </span>
                         </div>
+                        <MoneyDisplay value={f.cobrado} currency={f.moneda} size="sm" className="ml-auto" />
+                      </div>
 
-                        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-1.5 border-t border-line/30 pt-0.5 text-[10px]">
-                          <span className="flex items-center gap-1 text-ink-3">
-                            <Banknote size={10} className="text-brand" aria-hidden="true" />
-                            <span>Cajón:</span>
-                          </span>
-                          <span className="tnum ml-auto font-medium text-ink-2">
-                            {formatMoneyVE(f.efectivoNeto, f.moneda)}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-1.5 border-t border-line/30 pt-0.5 text-[10px]">
+                        <span className="flex items-center gap-1 text-ink-3">
+                          <Banknote size={10} className="text-brand" aria-hidden="true" />
+                          <span>Cajón:</span>
+                        </span>
+                        <span className="tnum ml-auto font-medium text-ink-2">
+                          {formatMoneyVE(f.efectivoNeto, f.moneda)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             );
           })}

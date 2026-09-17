@@ -1207,5 +1207,11 @@ cobro del dominio de caja (`PointOfSale`) se queda como está, porque de los tur
 puede decir cómo serán: DEC-26 los deja genéricos —un turno por caja, como DEC-13— y ninguna pantalla
 depende de ello.
 
-Falta la parte de pantalla: la entrada y la salida siguen llevando a /caja al registrar, y la monitora
-ya no puede abrirla. Va en un encargo.
+La parte de pantalla la hizo la obrera ([solo-caja-cobra](encargos/solo-caja-cobra.md)): quien no puede
+abrir la caja registra en la entrada con «Registrar y enviar a caja», y en la salida con «Enviar $ X a
+caja»; la pantalla se queda lista para la siguiente familia y un aviso dice qué se envió. El turno ya no
+enseña «Por punto de cobro» cuando solo cobró un punto, y los datos de ejemplo cobran todo en el
+mostrador. La maestra sacó a una constante con nombre la condición de esa pestaña y adaptó los pasos de
+la pantalla vacía («Registra y envía a caja»). Probado con dos roles en la misma tablet: la monitora
+registra un prepago y una salida con excedente sin salir de su puesto, y la cajera los encuentra en su
+cola.
