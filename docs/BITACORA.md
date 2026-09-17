@@ -1091,3 +1091,23 @@ de quitar pulsera mide 36 px (F-13). Y una captura enseñó que en el monitor a 
 niño con el tiempo cumplido se corta (F-14): la medición automática buscaba texto recortado, y aquí el
 que recorta es la tarjeta. Las mediciones de cierre de ola se hacen desde ahora también con las
 pantallas cargadas.
+
+## El parque en tablet, con dos obreras a la vez — 2026-09-17 (F1-21, Ola 2)
+
+Con permiso del cliente, dos obreras en paralelo: una con la caja y otra con el parque. La del parque
+entregó primero y su diff era limpio y ceñido al encargo: la lista de niños desplaza sola, el panel del
+representante y el de liquidación se parten en cuerpo y pie —el botón principal ya no se va de la
+vista—, la entrada tiene en vertical su disposición propia (la lista arriba y el representante abajo,
+más ancho que alto) y «Quitar» mide 48.
+
+La medición encontró lo que el diff no dejaba ver. **La zona seguía desplazando entera**: el div raíz de
+las dos pantallas crecía con su contenido porque le faltaba `min-h-0`, así que la lista nunca llegaba a
+desplazar sola. Y **la tarjeta del monitor seguía cortada**: la causa no estaba donde apuntaba el
+encargo (el cronómetro), sino en `StatusCard`, cuya rejilla sin columnas declaradas medía lo que el
+nombre sin truncar. Las dos correcciones son de la maestra; la segunda, en @l2/ui, que es su carril.
+
+Mientras las obreras trabajaban apareció una tablet que nadie había medido: la de 7" con densidad 1,33,
+que mide **960×600** y en horizontal recibe la disposición vertical (F-15). La variante `apaisado:` ya
+existe; su primera versión, con dos consultas separadas por coma, hacía que Tailwind generara un
+selector inválido al combinarla con `bajo:` y tumbó el CSS de toda la app hasta pasarla a la forma de
+bloque. Quedó comprobado su orden: después de `lg:`/`xl:` y antes de todo lo `bajo:`.

@@ -138,7 +138,13 @@ export function CheckInScreen({
       ]);
       setAviso(null);
       // El foco salta solo: el operador escanea y escribe, sin tocar nada.
-      queueMicrotask(() => nameRefs.current.get(uid)?.focus());
+      queueMicrotask(() => {
+        const input = nameRefs.current.get(uid);
+        if (input) {
+          input.scrollIntoView({ block: "nearest" });
+          input.focus();
+        }
+      });
     },
     [entradas, occupiedWristbands, activeSessions, capacityLimit, defaultPackageId],
   );
@@ -262,15 +268,15 @@ export function CheckInScreen({
   /* ------------------------------------------------------------ pintado */
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-line">
-        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4">
+        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 bajo:py-2">
           <div>
             <div>
               <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
                 Entrada al parque
               </h1>
-              <p className="mt-1.5 text-[13px] text-ink-3">
+              <p className="mt-1.5 text-[13px] text-ink-3 bajo:hidden">
                 Pasa las pulseras por el lector para empezar
               </p>
             </div>
@@ -289,39 +295,42 @@ export function CheckInScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[minmax(0,1fr)] bajo:py-3">
         {/* ------------------------------------------------------ niños */}
-        <section className="flex flex-col gap-4 min-w-0">
-          <ScannerField
-            onScan={handleScan}
-            validate={validarPulsera}
-            placeholder="Pasa la pulsera por el lector…"
-          />
+        <section className="flex min-h-0 min-w-0 flex-col gap-4">
+          <div className="shrink-0">
+            <ScannerField
+              onScan={handleScan}
+              validate={validarPulsera}
+              placeholder="Pasa la pulsera por el lector…"
+            />
+          </div>
 
           {aviso && (
             <p
               role="alert"
-              className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-3 text-[13px] text-state-warn"
+              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-3 text-[13px] text-state-warn"
             >
               <TriangleAlert size={15} aria-hidden="true" />
               {aviso}
             </p>
           )}
 
-          {entradas.length === 0 ? (
-            <ScanPrompt
-              icon={<ScanLine size={40} aria-hidden="true" />}
-              titulo="Pasa la primera pulsera"
-              detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila y el cursor salta solo al nombre del niño."
-              pasos={[
-                "Pasa las pulseras",
-                "Escribe los nombres",
-                "Busca al representante",
-                "Registra y cobra",
-              ]}
-            />
-          ) : (
-            <ul className="flex flex-col gap-3">
+          <div className="-m-1 flex-1 min-h-0 overflow-y-auto p-1">
+            {entradas.length === 0 ? (
+              <ScanPrompt
+                icon={<ScanLine size={40} aria-hidden="true" />}
+                titulo="Pasa la primera pulsera"
+                detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila y el cursor salta solo al nombre del niño."
+                pasos={[
+                  "Pasa las pulseras",
+                  "Escribe los nombres",
+                  "Busca al representante",
+                  "Registra y cobra",
+                ]}
+              />
+            ) : (
+              <ul className="flex flex-col gap-3">
               {entradas.map((e, i) => (
                 <li
                   key={e.uid}
@@ -357,7 +366,7 @@ export function CheckInScreen({
                       type="button"
                       onClick={() => quitar(e.uid)}
                       aria-label={`Quitar la pulsera ${e.wristbandCode}`}
-                      className="grid size-9 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
+                      className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
                     >
                       <X size={16} aria-hidden="true" />
                     </button>
@@ -379,114 +388,126 @@ export function CheckInScreen({
                 </li>
               ))}
             </ul>
-          )}
+            )}
+          </div>
         </section>
 
         {/* ---------------------------------------------- representante */}
-        <aside className="flex h-fit min-w-0 flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 lg:sticky lg:top-20">
-          <h2 className="font-display text-lg font-bold text-ink">Representante</h2>
+        <aside className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 lg:max-h-full lg:self-start bajo:gap-3 bajo:p-4">
+          <div className="-m-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 md:max-lg:grid md:max-lg:grid-cols-2 md:max-lg:gap-x-5 md:max-lg:overflow-visible bajo:gap-3">
+            <div className="flex flex-col gap-4 bajo:gap-3">
+              <h2 className="font-display text-lg font-bold text-ink">Representante</h2>
 
-          <Input
-            label="Teléfono"
-            value={telefono}
-            onChange={(ev) => setTelefono(ev.target.value)}
-            placeholder="0412-1234567"
-            inputMode="tel"
-            autoComplete="off"
-            leading={<Phone size={16} aria-hidden="true" />}
-            hint="Si ya vino antes, aparecerá solo"
-          />
+              <Input
+                label="Teléfono"
+                value={telefono}
+                onChange={(ev) => setTelefono(ev.target.value)}
+                placeholder="0412-1234567"
+                inputMode="tel"
+                autoComplete="off"
+                leading={<Phone size={16} aria-hidden="true" />}
+                hint="Si ya vino antes, aparecerá solo"
+              />
 
-          {encontrado && (
-            <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-2.5">
-              <CircleCheckBig size={16} className="shrink-0 text-state-ok" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink">{encontrado.fullName}</p>
-                <p className="text-[12px] text-ink-2">Ya registrado · no hay que teclear nada</p>
-              </div>
+              {encontrado && (
+                <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-2.5">
+                  <CircleCheckBig size={16} className="shrink-0 text-state-ok" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-ink">{encontrado.fullName}</p>
+                    <p className="text-[12px] text-ink-2">Ya registrado · no hay que teclear nada</p>
+                  </div>
+                </div>
+              )}
+
+              {esNuevo && (
+                <Input
+                  label="Nombre del representante"
+                  value={nombreNuevo}
+                  onChange={(ev) => setNombreNuevo(ev.target.value)}
+                  placeholder="Nombre y apellido"
+                  autoComplete="off"
+                  hint="No lo tenemos registrado todavía"
+                />
+              )}
             </div>
-          )}
 
-          {esNuevo && (
-            <Input
-              label="Nombre del representante"
-              value={nombreNuevo}
-              onChange={(ev) => setNombreNuevo(ev.target.value)}
-              placeholder="Nombre y apellido"
-              autoComplete="off"
-              hint="No lo tenemos registrado todavía"
-            />
-          )}
-
-          {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. */}
-          <fieldset className="flex flex-col">
-            <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
-              Cómo paga
-            </legend>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(
-                [
-                  ["PREPAGO", "Pagar ahora", "Al salir, solo el tiempo de más"],
-                  ["CUENTA_ABIERTA", "Cuenta abierta", "Todo junto al salir"],
-                ] as const
-              ).map(([valor, nombre, detalle]) => (
-                <button
-                  key={valor}
-                  type="button"
-                  aria-pressed={modo === valor}
-                  onClick={() => setModo(valor)}
-                  className={cn(
-                    "flex min-h-12 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 py-2 text-left",
-                    "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    modo === valor
-                      ? "border-brand bg-brand/12 text-ink"
-                      : "border-line bg-base text-ink-2 hover:text-ink",
-                  )}
-                >
-                  <span className="text-[13px] font-semibold">{nombre}</span>
-                  <span className="text-[11px] leading-snug text-ink-3">{detalle}</span>
-                </button>
-              ))}
+            <div className="flex flex-col gap-4 bajo:gap-3">
+              {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. */}
+              <fieldset className="flex flex-col">
+                <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
+                  Cómo paga
+                </legend>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(
+                    [
+                      ["PREPAGO", "Pagar ahora", "Al salir, solo el tiempo de más"],
+                      ["CUENTA_ABIERTA", "Cuenta abierta", "Todo junto al salir"],
+                    ] as const
+                  ).map(([valor, nombre, detalle]) => (
+                    <button
+                      key={valor}
+                      type="button"
+                      aria-pressed={modo === valor}
+                      title={detalle}
+                      onClick={() => setModo(valor)}
+                      className={cn(
+                        "flex min-h-12 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 py-2 text-left",
+                        "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                        modo === valor
+                          ? "border-brand bg-brand/12 text-ink"
+                          : "border-line bg-base text-ink-2 hover:text-ink",
+                      )}
+                    >
+                      <span className="text-[13px] font-semibold">{nombre}</span>
+                      {/* En pantalla baja el detalle sobra: sigue en el `title`. */}
+                      <span className="text-[11px] leading-snug text-ink-3 bajo:hidden">{detalle}</span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-
-          <div className="mt-1 border-t border-line pt-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
-                Paquetes
-              </span>
-              <MoneyDisplay value={toMajor(total)} currency={total.currency} size="lg" />
-            </div>
-            <p className="mt-1 text-[12px] text-ink-3">
-              {entradas.length === 0
-                ? "Sin niños en la entrada"
-                : `${entradas.length} ${entradas.length === 1 ? "niño" : "niños"}`}
-            </p>
           </div>
 
-          <Button
-            surface="pos"
-            variant="primary"
-            disabled={!puedeEnviar}
-            onClick={registrar}
-            className="w-full"
-          >
-            {modo === "PREPAGO" ? "Registrar y cobrar" : "Registrar y abrir cuenta"}
-          </Button>
+          <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 md:max-lg:flex-row md:max-lg:items-center md:max-lg:gap-4 bajo:mt-3 bajo:gap-3">
+            <div className="flex-1">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
+                  Paquetes
+                </span>
+                <MoneyDisplay value={toMajor(total)} currency={total.currency} size="lg" />
+              </div>
+              <p className="mt-1 text-[12px] text-ink-3">
+                {entradas.length === 0
+                  ? "Sin niños en la entrada"
+                  : `${entradas.length} ${entradas.length === 1 ? "niño" : "niños"}`}
+              </p>
+            </div>
 
-          {/* §8.7: el motivo por el que un botón está deshabilitado se dice,
-              no se deja adivinar. */}
-          {!puedeEnviar && entradas.length > 0 && (
-            <p className="text-center text-[12px] text-ink-3">
-              {capacidad.isFull
-                ? "Aforo completo"
-                : faltanNombres
-                  ? "Falta el nombre de algún niño"
-                  : "Falta el representante"}
-            </p>
-          )}
+            <div className="flex flex-col gap-2 md:max-lg:w-1/2 md:max-lg:shrink-0">
+              <Button
+                surface="pos"
+                variant="primary"
+                disabled={!puedeEnviar}
+                onClick={registrar}
+                className="w-full"
+              >
+                {modo === "PREPAGO" ? "Registrar y cobrar" : "Registrar y abrir cuenta"}
+              </Button>
 
+              {/* §8.7: el motivo por el que un botón está deshabilitado se dice,
+                  no se deja adivinar. */}
+              {!puedeEnviar && entradas.length > 0 && (
+                <p className="text-center text-[12px] text-ink-3">
+                  {capacidad.isFull
+                    ? "Aforo completo"
+                    : faltanNombres
+                      ? "Falta el nombre de algún niño"
+                      : "Falta el representante"}
+                </p>
+              )}
+            </div>
+          </div>
         </aside>
       </Container>
     </div>

@@ -69,6 +69,8 @@ export function CheckoutScreen({
     [snapshot, seleccionados],
   );
 
+  const itemRefs = useRef(new Map<string, HTMLLIElement | null>());
+
   const handleScan = useCallback(
     (code: string) => {
       const parsed = WristbandCodeSchema.safeParse(code);
@@ -97,6 +99,10 @@ export function CheckoutScreen({
       }
       setSeleccionados((prev) => [...prev, sesion.id]);
       setAviso(null);
+      queueMicrotask(() => {
+        const item = itemRefs.current.get(sesion.id);
+        if (item) item.scrollIntoView({ block: "nearest" });
+      });
     },
     [snapshot.sessions, seleccionados, cuentas],
   );
@@ -226,15 +232,15 @@ export function CheckoutScreen({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-line">
-        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4">
+        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 bajo:py-2">
           <div>
             <div>
               <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
                 Salida del parque
               </h1>
-              <p className="mt-1.5 text-[13px] text-ink-3">
+              <p className="mt-1.5 text-[13px] text-ink-3 bajo:hidden">
                 Pasa las pulseras de quienes se van
               </p>
             </div>
@@ -251,40 +257,44 @@ export function CheckoutScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="flex flex-col gap-4 min-w-0">
-          <ScannerField
-            onScan={handleScan}
-            validate={validarPulsera}
-            placeholder="Pasa la pulsera de quien se va…"
-          />
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[minmax(0,1fr)] bajo:py-3">
+        <section className="flex min-w-0 flex-col gap-4 lg:min-h-0">
+          <div className="shrink-0">
+            <ScannerField
+              onScan={handleScan}
+              validate={validarPulsera}
+              placeholder="Pasa la pulsera de quien se va…"
+            />
+          </div>
 
           {aviso && (
             <p
               role="alert"
-              className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-3 text-[13px] text-state-warn"
+              className="flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-3 text-[13px] text-state-warn"
             >
               <TriangleAlert size={15} aria-hidden="true" />
               {aviso}
             </p>
           )}
 
-          {!hayAlgo ? (
-            <ScanPrompt
-              icon={<ScanLine size={40} aria-hidden="true" />}
-              titulo="Pasa la pulsera de quien se va"
-              detalle="Si se va la familia entera, pasa todas seguidas: se liquidan juntas, con el desglose de cada niño, y se cobra una sola vez."
-              pasos={["Pasa las pulseras", "Revisa el desglose", "Cobra o carga a la mesa"]}
-            />
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {preview.lines.map((l) => {
-                const conExcedente = l.penaltyBlocks > 0;
-                return (
-                  <li
-                    key={l.sessionId}
-                    className="rounded-[var(--radius-card)] border border-line bg-surface p-4"
-                  >
+          <div className="-m-1 p-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+            {!hayAlgo ? (
+              <ScanPrompt
+                icon={<ScanLine size={40} aria-hidden="true" />}
+                titulo="Pasa la pulsera de quien se va"
+                detalle="Si se va la familia entera, pasa todas seguidas: se liquidan juntas, con el desglose de cada niño, y se cobra una sola vez."
+                pasos={["Pasa las pulseras", "Revisa el desglose", "Cobra o carga a la mesa"]}
+              />
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {preview.lines.map((l) => {
+                  const conExcedente = l.penaltyBlocks > 0;
+                  return (
+                    <li
+                      key={l.sessionId}
+                      ref={(el) => { itemRefs.current.set(l.sessionId, el); }}
+                      className="rounded-[var(--radius-card)] border border-line bg-surface p-4"
+                    >
                     <div className="flex items-start gap-3">
                       <Initial
                         name={l.kid.nickname ?? l.kid.name}
@@ -309,7 +319,7 @@ export function CheckoutScreen({
                         type="button"
                         onClick={() => quitar(l.sessionId)}
                         aria-label={`Quitar a ${l.kid.name} de esta salida`}
-                        className="grid size-9 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
+                        className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
                       >
                         <X size={16} aria-hidden="true" />
                       </button>
@@ -368,94 +378,99 @@ export function CheckoutScreen({
                 );
               })}
             </ul>
-          )}
+            )}
+          </div>
         </section>
 
-        <aside className="flex h-fit min-w-0 flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 lg:sticky lg:top-20">
-          <h2 className="font-display text-lg font-bold text-ink">Liquidación</h2>
+        <aside className="flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 bajo:gap-3 bajo:p-4 lg:min-h-0 lg:max-h-full lg:self-start">
+          <div className="-m-1 flex flex-col gap-4 p-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto bajo:gap-3">
+            <h2 className="font-display text-lg font-bold text-ink">Liquidación</h2>
 
-          <div className="border-t border-line pt-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
-                A cobrar ahora
-              </span>
-              <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
-            </div>
-            <p className="mt-1 text-[12px] text-ink-3">
-              {preview.lines.length === 0
-                ? "Sin niños en esta salida"
-                : `${preview.lines.length} ${preview.lines.length === 1 ? "niño" : "niños"} · parque ${formatMoneyVE(moneyDtoToMajor(preview.total), "USD")}`}
-            </p>
+            {/* Las dos rutas del plan. Producen el mismo total; cambia a dónde
+                va la deuda. */}
+            {/* Qué le pasa a cada cuenta, antes de confirmar (DEC-21). */}
+            {plan.resultados.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {plan.resultados.map((c) => {
+                  const p = pendiente(c);
+                  return (
+                    <li
+                      key={c.id}
+                      className="rounded-[var(--radius-control)] border border-line bg-base/40 px-3 py-2.5 text-[13px]"
+                    >
+                      <p className="flex items-center justify-between gap-2">
+                        <span className="truncate font-semibold text-ink">{c.family}</span>
+                        <Badge tone={c.mode === "PREPAGO" ? "idle" : "brand"}>
+                          {c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                        </Badge>
+                      </p>
+                      <p className="tnum mt-1 text-ink-3">
+                        {p.amount === 0n
+                          ? "Todo pagado: sale sin cargo"
+                          : c.status === "POR_COBRAR"
+                            ? `A cobrar ahora: ${formatMoneyVE(toMajor(p), "USD")}`
+                            : `Se acumula ${formatMoneyVE(toMajor(p), "USD")} hasta que salga el resto`}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
-          {/* Las dos rutas del plan. Producen el mismo total; cambia a dónde
-              va la deuda. */}
-          {/* Qué le pasa a cada cuenta, antes de confirmar (DEC-21). */}
-          {plan.resultados.length > 0 && (
-            <ul className="flex flex-col gap-2">
-              {plan.resultados.map((c) => {
-                const p = pendiente(c);
-                return (
-                  <li
-                    key={c.id}
-                    className="rounded-[var(--radius-control)] border border-line bg-base/40 px-3 py-2.5 text-[13px]"
-                  >
-                    <p className="flex items-center justify-between gap-2">
-                      <span className="truncate font-semibold text-ink">{c.family}</span>
-                      <Badge tone={c.mode === "PREPAGO" ? "idle" : "brand"}>
-                        {c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
-                      </Badge>
-                    </p>
-                    <p className="tnum mt-1 text-ink-3">
-                      {p.amount === 0n
-                        ? "Todo pagado: sale sin cargo"
-                        : c.status === "POR_COBRAR"
-                          ? `A cobrar ahora: ${formatMoneyVE(toMajor(p), "USD")}`
-                          : `Se acumula ${formatMoneyVE(toMajor(p), "USD")} hasta que salga el resto`}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 bajo:mt-3 bajo:gap-3">
+            <div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
+                  A cobrar ahora
+                </span>
+                <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
+              </div>
+              <p className="mt-1 text-[12px] text-ink-3">
+                {preview.lines.length === 0
+                  ? "Sin niños en esta salida"
+                  : `${preview.lines.length} ${preview.lines.length === 1 ? "niño" : "niños"} · parque ${formatMoneyVE(moneyDtoToMajor(preview.total), "USD")}`}
+              </p>
+            </div>
 
-          <Button
-            surface="pos"
-            variant="primary"
-            disabled={!hayAlgo}
-            onClick={confirmarSalida}
-            className="w-full"
-          >
-            <Wallet size={17} aria-hidden="true" />
-            {porCobrar.length === 0
-              ? "Registrar salida sin cargo"
-              : porCobrar.length === 1
-                ? `Cobrar ${formatMoneyVE(toMajor(aCobrar), "USD")} en caja`
-                : `Enviar ${porCobrar.length} cuentas a caja`}
-          </Button>
+            <Button
+              surface="pos"
+              variant="primary"
+              disabled={!hayAlgo}
+              onClick={confirmarSalida}
+              className="w-full"
+            >
+              <Wallet size={17} aria-hidden="true" />
+              {porCobrar.length === 0
+                ? "Registrar salida sin cargo"
+                : porCobrar.length === 1
+                  ? `Cobrar ${formatMoneyVE(toMajor(aCobrar), "USD")} en caja`
+                  : `Enviar ${porCobrar.length} cuentas a caja`}
+            </Button>
 
-          <Button
-            surface="pos"
-            variant="neutral"
-            disabled={!hayAlgo}
-            onClick={() => liquidar("MESA")}
-            className="w-full"
-          >
-            <Utensils size={17} aria-hidden="true" />
-            Cargar a una mesa
-          </Button>
+            <Button
+              surface="pos"
+              variant="neutral"
+              disabled={!hayAlgo}
+              onClick={() => liquidar("MESA")}
+              className="w-full"
+              title="Cargar a una mesa une esta deuda con la cuenta del restaurante: el representante paga una sola vez al final."
+            >
+              <Utensils size={17} aria-hidden="true" />
+              Cargar a una mesa
+            </Button>
 
-          <p className="text-center text-[12px] text-ink-3">
-            Cargar a una mesa une esta deuda con la cuenta del restaurante: el representante paga
-            una sola vez al final.
-          </p>
+            <p className="text-center text-[12px] text-ink-3 bajo:hidden">
+              Cargar a una mesa une esta deuda con la cuenta del restaurante: el representante paga
+              una sola vez al final.
+            </p>
 
-
-          {!hayAlgo && (
-            <Badge tone="idle" icon={<PackageOpen size={13} aria-hidden="true" />}>
-              Esperando pulseras
-            </Badge>
-          )}
+            {!hayAlgo && (
+              <Badge tone="idle" icon={<PackageOpen size={13} aria-hidden="true" />}>
+                Esperando pulseras
+              </Badge>
+            )}
+          </div>
         </aside>
       </Container>
     </div>

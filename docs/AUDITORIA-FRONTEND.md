@@ -133,12 +133,25 @@ tarjeta se estrecha por debajo de 280 px, entonces sí.
 ### F-13 · «Quitar pulsera» mide 36 px en entrada y salida — **medio** · M
 `CheckInScreen.tsx:360` y `CheckoutScreen.tsx:312` (`size-9`). Superficie tablet: 48. La primera
 auditoría no lo vio porque midió las pantallas vacías; se encontró al medir con niños cargados.
+*Resuelto el 2026-09-17* ([parque-tablet](encargos/parque-tablet.md)): 48 px.
 
 ### F-14 · En el monitor a 768 px, la tarjeta vencida se corta — **medio** · M
 `ParkMonitor.tsx:143` fuerza tres columnas entre 768 y 1023 px (229 px cada una a 768), y la tarjeta
 de «tiempo cumplido» —cronómetro negativo, más ancho— no cabe: se cortan el nombre, «RESTANTE» y el
 porcentaje, sin puntos suspensivos. La medición automática no lo detectaba porque el recorte lo hace la
 tarjeta, no el texto; se vio en la captura.
+*Resuelto el 2026-09-17:* la causa no era el cronómetro sino `StatusCard` (@l2/ui): su rejilla no
+declaraba columnas y la implícita medía lo que el nombre **sin truncar**. Con `minmax(0,1fr)` el nombre
+se trunca con puntos suspensivos y nada se sale, a 768 y a 800.
+
+### F-15 · Tablets de 960×600 reciben la disposición vertical — **alto** · M
+Una tablet de 7" con densidad 1,33 (la Galaxy Tab A 7.0, por ejemplo) mide **960×600** en CSS: en
+horizontal no llega a los 1024 px donde las estaciones pasan a dos columnas, así que recibe la
+disposición pensada para vertical. Medido el 2026-09-17: salida +775, entrada +808 y turno +755, con
+sus botones principales fuera de la ventana; y la barra de estación, en dos filas (129 px de 600).
+La caja lo resuelve su encargo (dos columnas desde 768). Para el resto hace falta una variante
+**apaisado** —1024 px o más, o 768 px o más en horizontal— que sustituya a `lg:` en las disposiciones
+de las estaciones.
 
 ### F-12 · Teléfono — **fuera del objetivo** · M
 A 412 px las estaciones desplazan mucho (el monitor, +1662) y el panel es usable. El objetivo acordado

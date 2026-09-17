@@ -79,7 +79,10 @@ export function StatusCard({
       className={cn(
         // `h-full` + grid de filas hace que todas las tarjetas de una fila
         // midan lo mismo aunque un nombre ocupe dos líneas.
-        "group grid h-full grid-rows-[auto_auto_1fr_auto] overflow-hidden text-left",
+        // La columna, `minmax(0,1fr)`: sin ella mide lo que el nombre SIN
+        // truncar y, en una tarjeta estrecha (229 px en el monitor a 768),
+        // desborda y la tarjeta lo recorta sin puntos suspensivos (F-14).
+        "group grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_1fr_auto] overflow-hidden text-left",
         "rounded-[var(--radius-card)] border shadow-card",
         "transition-[transform,box-shadow,border-color] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
         SHELL[tone],

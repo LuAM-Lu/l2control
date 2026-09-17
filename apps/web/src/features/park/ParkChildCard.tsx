@@ -165,7 +165,7 @@ export function ParkChildCard({
         </div>
       }
     >
-      <div className="flex items-end justify-between gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-x-2 min-w-0">
         <CountdownDisplay
           now={now}
           targetMs={model.targetMs}
@@ -174,13 +174,13 @@ export function ParkChildCard({
           size="md"
           className={
             model.status === "VENCIDA"
-              ? "text-state-crit"
+              ? "text-state-crit min-w-0 shrink-0"
               : model.status === "POR_VENCER" || model.status === "EN_GRACIA"
-                ? "text-state-warn"
-                : "text-ink"
+                ? "text-state-warn min-w-0 shrink-0"
+                : "text-ink min-w-0 shrink-0"
           }
         />
-        <span className="pb-1 text-[10px] font-medium tracking-[0.09em] text-ink-3 uppercase">
+        <span className="pb-1 text-[10px] font-medium tracking-[0.09em] text-ink-3 uppercase min-w-0">
           {model.mode === "PREPAGO" ? "restante" : "acumulado"}
         </span>
       </div>

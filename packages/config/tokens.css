@@ -304,6 +304,25 @@ html:has(dialog[open]) { overflow: hidden; }
   .l2-solo-instalada { display: none !important; }
 }
 
+/* ── Pantallas apaisadas ────────────────────────────────────────────────
+
+   `apaisado:` aplica desde 1024 px de ancho, o desde 768 px si la pantalla
+   está en horizontal. Es donde una estación reparte su zona en columnas. No
+   basta con `lg:`: una tablet de 7" con densidad 1,33 mide 960×600 y, en
+   horizontal, recibía la disposición pensada para vertical (F-15).
+   Se declara ANTES que `bajo`: así, en el CSS, todo lo `bajo:` sale después y
+   gana en una pantalla apaisada y baja (`apaisado:bajo:`).
+   Forma de bloque a propósito: con las dos consultas separadas por coma en una
+   sola línea, Tailwind generaba un selector inválido al combinarla (`apaisado:bajo:`). */
+@custom-variant apaisado {
+  @media (min-width: 64rem) {
+    @slot;
+  }
+  @media (min-width: 48rem) and (orientation: landscape) {
+    @slot;
+  }
+}
+
 /* ── Pantallas bajas ────────────────────────────────────────────────────
 
    `bajo:` aplica por debajo de 760 px de alto de ventana: tablets de 1024×600,
