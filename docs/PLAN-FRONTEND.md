@@ -57,23 +57,32 @@ Cada punto se comprueba midiendo, no leyendo.
 - Auditoría conjunta y este plan.
 - Tokens de la PWA (`--seguro-*`, `l2-solo-navegador`, `l2-solo-instalada`).
 
-### Ola 1 · Instalable y táctil — **en curso**
+### Ola 1 · Instalable y táctil — **hecha** (2026-09-17)
 | Tarea | Carril | Hallazgo | Estado |
 |---|---|---|---|
 | App instalable: manifiesto, iconos, service worker mínimo, pantalla completa en estaciones, botón «Instalar», márgenes seguros | O1 · [pwa-base](encargos/pwa-base.md) | F-01 | **Hecha** (Chrome: instalable, 0 errores) |
 | Decidir la altura de la barra de estación en superficies POS | M + cliente | F-08 | **Decidido** (2026-09-16): se queda en 48, es navegación |
 | Objetivos táctiles de caja, ventas y turno a 56 px; mesas a 48 | O1 · [tactil-pos](encargos/tactil-pos.md) | F-04, F-05 | **Hecha**: sin scroll a 1366 y 1280 |
 | Comprobar que `Stepper` y `Tabs` de `@l2/ui` aceptan la superficie POS; si no, añadirlo | M | F-04 | **Hecha** (`Stepper` ya la tenía; `Tabs` la gana) |
-| Cierre de ola: medir de nuevo | M | — | — |
+| Cierre de ola: medir de nuevo | M | — | **Hecha**: ver el registro (§5) |
 
-### Ola 2 · Tablets pequeñas y verticales
-| Tarea | Carril | Hallazgo |
-|---|---|---|
-| Caja a 1024×600: la columna de cobro entera a la vista (teclado plegable o pasos) y conceptos del ticket sin truncar | M diseña · O1 construye | F-02 |
-| Barra de estación que no se monta en vertical: dos filas hasta 1023 px | O2 · [barra-vertical](encargos/barra-vertical.md) (en paralelo, aprobado) | F-03 |
-| Arqueo de turno en vertical: una moneda debajo de la otra | O1 | F-03 |
-| Estaciones a 1024×600 sin scroll: entrada, salida, turno, ventas | O1 (y O2 si se aprueba) | F-06 |
-| Disposición vertical propia en **caja y entrada**; en el resto se acepta desplazar en vertical | M diseña · O1 construye | F-07 (decidido el 2026-09-16) |
+### Ola 2 · Pantallas bajas y verticales — **en curso**
+*Reescrita el 2026-09-17 tras medir.* Dos hallazgos cambiaron la ola: el umbral de la caja no son las
+tablets de 600 px sino **cualquier ventana de menos de 760 px de alto** —incluido un portátil de
+1366×768 con la barra del navegador—, y en vertical el problema no era de cada pantalla sino del
+**marco**, que dejaba desplazar la página entera con la barra.
+
+| Tarea | Carril | Hallazgo | Estado |
+|---|---|---|---|
+| Barra de estación que no se monta en vertical: dos filas hasta 1023 px | O2 · [barra-vertical](encargos/barra-vertical.md) | F-03 | **Hecha** (ed41744) |
+| Variante `bajo:` (menos de 760 px de alto) y su orden en el CSS comprobado | M | F-02, F-06 | **Hecha** |
+| El marco de las estaciones mide la ventana desde 768 px: la barra no se va con la página | M | F-07 | **Hecha** |
+| Caja: cobro en dos subcolumnas en pantalla baja, cola plegable tras un conmutador, ticket por container queries | M diseña · O1 · [caja-compacta](encargos/caja-compacta.md) | F-02, F-07 | Encargada |
+| Turno: arqueo por container query (una moneda bajo la otra si no caben con su subtotal) y cortes siempre a la vista en pantalla baja | O · `turno-arqueo` | F-03, F-06 | Por encargar |
+| Entrada y salida: la lista desplaza sola y la acción principal queda fija; entrada con disposición vertical propia; quitar pulsera a 48 | O · `parque-tablet` | F-06, F-07, F-13 | Por encargar |
+| Monitor: la tarjeta vencida no cabe en las 3 columnas de 768 px | O · `parque-tablet` | F-14 | Por encargar |
+| Ventas a 1024×600: se acepta (lo que desplaza es la vista previa del recibo, un documento) | M | F-06 | **Decidido** |
+| Cierre de ola: medir de nuevo, con pantallas cargadas (niños en entrada y salida) | M | — | — |
 
 ### Ola 3 · Navegación y lo que falta de producto
 | Tarea | Carril | Hallazgo |
@@ -111,3 +120,4 @@ encargadas pueden correr **en paralelo** si el cliente lo aprueba.
 | Ola | Cerrada | Resultado de la medición | Cambios al plan |
 |---|---|---|---|
 | 0 | 2026-09-16 | Línea base: 0 scroll horizontal; F-01 a F-12 | Plan creado |
+| 1 | 2026-09-17 | 144 combinaciones: 0 fallos, 0 scroll horizontal, 0 errores, ningún texto cortado sin puntos suspensivos. Chrome: instalable sin errores. A 1024×600 la caja sigue sin dejar cobrar y su ticket pasa de +56 a +184 (objetivos de 56). En vertical desplazan la página caja (+167), entrada (+144), monitor (+140) y turno (+331). Con niños cargados, a 1024×600 entrada +245 y salida +163; a 1366×768, entrada +77. La columna de cobro pide 754 px de ventana | Ola 2 reescrita: variante `bajo:`, marco fijo desde 768, encargos por pantalla. Nuevos F-13 y F-14 |

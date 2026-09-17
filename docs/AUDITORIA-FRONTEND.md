@@ -43,10 +43,18 @@ La columna de cobro de `/caja` no cabe: el teclado se corta en la fila 7-8-9 y *
 botón de confirmar**. Además, el ticket central trunca los conceptos («Paqu…»). Es el tamaño de las
 tablets Android más baratas en horizontal.
 
+*Medido el 2026-09-17:* la columna pide **657 px** de alto, es decir **754 px de ventana**. También se
+corta a 1280×720 y en un portátil de 1366×768 con la barra del navegador (unos 657 px útiles): no es
+solo cosa de tablets baratas. → Variante `bajo:` y [caja-compacta](encargos/caja-compacta.md).
+
 ### F-03 · Turno en tablet vertical: barra montada y subtotales cortados — **alto** · M
 A 768×1024, la pestaña «Turno» se monta sobre el indicador del turno en la barra de estación: las
 pestañas y los chips de contexto no caben en una fila. Y en el arqueo físico, la columna de subtotales
 de cada denominación se corta («0.»): las dos monedas lado a lado no caben en vertical.
+
+*2026-09-17:* la barra quedó resuelta (ed41744: dos filas hasta 1023 px). El subtotal de cada
+denominación **ya no se ve** —se sale de la tarjeta, que lo recorta— a 768×1024 y también **a 1024 en
+horizontal**: cada moneda necesita unos 420 px con su subtotal y ahí tiene 288.
 
 ### F-04 · Objetivos táctiles por debajo de 56 px en las pantallas de cobro — **alto** · M+O
 Las pantallas de caja son superficie POS (56 px, §8.4), y varios controles no llegan:
@@ -86,10 +94,22 @@ La preferencia del cliente es «sin scroll» a 1366×768 y 1280×800, y ahí se 
 *Tras la Ola 1 (objetivos de 56 px):* a 1024×600 el ticket de caja pasa de +56 a +184 y el turno de
 +100 a +168, porque filas y botones son más altos. Esperado: lo resuelve la Ola 2.
 
+*Con la pantalla cargada (2026-09-17):* con tres niños, a 1024×600 la entrada desplaza +245 y la salida
++163, y a 1366×768 la entrada +77. Lo que desplaza es **toda la zona**, así que se van de la vista el
+lector y, en pantalla baja, el botón «Registrar y cobrar». En ventas lo que desplaza (+59) es la vista
+previa del recibo, que es un documento: se acepta. En el turno, además de desplazar, **«Corte Z» queda
+cortado** a 1024×600.
+
 ### F-07 · Estaciones en tablet vertical estrecha — **medio** · M
 Por debajo de 1024 px de ancho las estaciones pasan al flujo normal y **la página desplaza**: a
 768×1024, `/monitor` +76, `/entrada` +80 y `/turno` +199. A 800×1280 no pasa. Hay que decidir si el
 vertical estrecho merece una disposición propia o si desplazar es aceptable ahí.
+
+*Decidido el 2026-09-16:* disposición propia en caja y entrada; en el resto se acepta desplazar.
+*2026-09-17:* con la barra en dos filas los números crecieron (caja +167, entrada +144, monitor +140,
+turno +331) y la causa común era el **marco**: por debajo de 1024 px no medía la ventana y la página
+entera desplazaba, barra incluida. Desde ahora mide la ventana desde 768 px y cada pantalla desplaza
+dentro de su zona.
 
 ### F-08 · La barra de estación mide 48 px también en las pantallas de cobro — **decidido: se queda** · M
 Sus pestañas y su botón de salir miden 48 (tablet) en todas las estaciones, también en caja (56).
@@ -109,6 +129,16 @@ Solo existe con la demostración encendida.
 `CheckInScreen.tsx:370`. La obrera predijo scroll horizontal en tablets verticales; la medición no lo
 encuentra en ningún tamaño, porque el contenedor envuelve (`flex-wrap`). Se deja como observación: si la
 tarjeta se estrecha por debajo de 280 px, entonces sí.
+
+### F-13 · «Quitar pulsera» mide 36 px en entrada y salida — **medio** · M
+`CheckInScreen.tsx:360` y `CheckoutScreen.tsx:312` (`size-9`). Superficie tablet: 48. La primera
+auditoría no lo vio porque midió las pantallas vacías; se encontró al medir con niños cargados.
+
+### F-14 · En el monitor a 768 px, la tarjeta vencida se corta — **medio** · M
+`ParkMonitor.tsx:143` fuerza tres columnas entre 768 y 1023 px (229 px cada una a 768), y la tarjeta
+de «tiempo cumplido» —cronómetro negativo, más ancho— no cabe: se cortan el nombre, «RESTANTE» y el
+porcentaje, sin puntos suspensivos. La medición automática no lo detectaba porque el recorte lo hace la
+tarjeta, no el texto; se vio en la captura.
 
 ### F-12 · Teléfono — **fuera del objetivo** · M
 A 412 px las estaciones desplazan mucho (el monitor, +1662) y el panel es usable. El objetivo acordado

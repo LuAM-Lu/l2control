@@ -22,13 +22,14 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
   // compartido. La forma ya es la definitiva, así que ese cambio no toca las
   // pantallas (§11.4).
   return (
-    // Desde 1024 px la estación mide la ventana y NO desplaza la página: la
-    // barra queda quieta y cada pantalla reparte su alto por dentro (patrón
-    // de estructura fija). En móvil vuelve el flujo normal, donde el scroll es
-    // lo esperado.
+    // Desde 768 px (tablet, también en vertical) la estación mide la ventana y
+    // NO desplaza la página: la barra queda quieta y cada pantalla reparte su
+    // alto por dentro (patrón de estructura fija). Una pantalla que no lo hace
+    // desplaza dentro de su zona, bajo la barra (F-07). En móvil vuelve el
+    // flujo normal, donde el scroll es lo esperado.
     // Las cuentas de las familias (DEC-21) viven por encima de las pantallas:
     // entrada, salida y caja trabajan sobre las mismas.
-    <div className="flex min-h-dvh flex-col bg-base lg:h-dvh lg:overflow-hidden">
+    <div className="flex min-h-dvh flex-col bg-base md:h-dvh md:overflow-hidden">
       <StationBar
         contexto={{
           turnoAbierto: "2:00 pm",

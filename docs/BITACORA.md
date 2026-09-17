@@ -1063,3 +1063,31 @@ aplastado con la muesca; y la regla de huérfanos, que no conocía las convencio
 Comprobado: Chrome la declara **instalable sin un solo error**; en el escritorio no cambia nada; y con la
 app simulada como instalada, entrar a la caja la pone a pantalla completa y el botón de la barra la quita
 y la vuelve a poner. Para instalarla en una tablet de verdad hace falta HTTPS, que llega con el despliegue.
+
+## Cierre de la Ola 1 y una Ola 2 que no era la que se pensaba — 2026-09-17 (F1-21)
+
+La Ola 1 cerró con la medición completa: 144 combinaciones sin un fallo, sin scroll horizontal, sin
+errores y sin texto cortado a pelo. La app se instala. Pero medir de nuevo —que era la regla— cambió la
+ola siguiente en tres puntos.
+
+**El umbral de la caja no era de tablets.** La columna de cobro pide 657 px de alto en una sola
+columna: 754 px de ventana. Eso deja fuera a la tablet de 1024×600, pero también a 1280×720 y a un
+portátil corriente de 1366×768 con la barra del navegador. Apretar márgenes no alcanza —con controles de
+56 px la columna no baja de ~590—, así que la respuesta es de disposición: por debajo de 760 px de alto,
+el cobro se parte en dos subcolumnas (visor, medios, franja y acciones a un lado; el teclado entero al
+otro). La estructura que pidió el cliente se conserva pieza por pieza: el teclado sigue siempre a la
+vista. Para decirlo en CSS existe ahora la variante `bajo:`, y antes de encargar nada se comprobó en
+qué orden la emite Tailwind: **todo lo `*:bajo:` sale después de todo lo `lg:` y `xl:`**, un detalle
+que, sin comprobar, habría hecho que una clase de tablet pisara a una de escritorio.
+
+**En vertical, el fallo era del marco.** Caja, entrada, monitor y turno desplazaban la página entera,
+barra incluida, porque el marco de las estaciones solo medía la ventana desde 1024 px. Ahora la mide
+desde 768: la barra queda quieta y cada pantalla desplaza dentro de su zona. Solo con eso el monitor
+pasó a desplazar su lista y nada más, que es lo correcto.
+
+**Medir vacío no basta.** Con tres niños cargados aparecieron cosas que la auditoría no vio: en la
+entrada desplaza toda la zona —se van el lector y, en pantalla baja, «Registrar y cobrar»—, y el botón
+de quitar pulsera mide 36 px (F-13). Y una captura enseñó que en el monitor a 768 px la tarjeta de un
+niño con el tiempo cumplido se corta (F-14): la medición automática buscaba texto recortado, y aquí el
+que recorta es la tarjeta. Las mediciones de cierre de ola se hacen desde ahora también con las
+pantallas cargadas.
