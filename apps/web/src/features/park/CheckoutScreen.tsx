@@ -127,14 +127,14 @@ export function CheckoutScreen({
   const quitar = (id: string) =>
     setSeleccionados((prev) => prev.filter((x) => x !== id));
 
-  function liquidar(destino: "TAQUILLA" | "MESA") {
+  function liquidar(destino: "CAJA" | "MESA") {
     const comando = {
       idempotencyKey: globalThis.crypto.randomUUID(),
       sessionIds: seleccionados,
       // Unión discriminada: «cargar a mesa» sin mesa no se puede expresar.
       disposition:
-        destino === "TAQUILLA"
-          ? ({ kind: "TAQUILLA" } as const)
+        destino === "CAJA"
+          ? ({ kind: "CAJA" } as const)
           : ({ kind: "MESA", tableId: "mesa-12" } as const),
     };
 
@@ -149,7 +149,7 @@ export function CheckoutScreen({
     anunciarCierre({
       ninos: seleccionados.length,
       total: moneyDtoToMajor(preview.total),
-      destino: destino === "TAQUILLA" ? "cobrado en taquilla" : "cargado a la mesa 12",
+      destino: destino === "CAJA" ? "enviado a caja" : "cargado a la mesa 12",
     });
     setSeleccionados([]);
     setAviso(null);
@@ -210,7 +210,7 @@ export function CheckoutScreen({
     const r = CheckoutCommandSchema.safeParse({
       idempotencyKey: globalThis.crypto.randomUUID(),
       sessionIds: seleccionados,
-      disposition: { kind: "TAQUILLA" },
+      disposition: { kind: "CAJA" },
     });
     if (!r.success) {
       setAviso(r.error.issues[0]?.message ?? "No se puede cerrar la salida");

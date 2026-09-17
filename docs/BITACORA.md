@@ -1190,3 +1190,22 @@ del proyecto.
 Probado en el navegador: cambiar una regla, deshacer y rehacer, un bloque de 0 que se rechaza junto al
 campo, añadir «Hora y media» a 7,50, retirar «30 minutos», publicar y ver en la entrada exactamente los
 paquetes nuevos; y retirarlos todos, que el contrato no deja publicar y lo dice.
+
+## Solo la caja cobra — 2026-09-17 (DEC-25, DEC-26)
+
+Al explicar N-10 —la taquilla veía las ventas de todo el turno— el cliente aclaró algo más amplio: **la
+caja cobra todo**, lo del parque y lo del restaurante. La monitora registra entradas y salidas, y la
+cuenta pasa a la cola de la caja. Se escribió como DEC-25 y se llevó al dominio: en la matriz, la monitora
+deja de poder cobrar, reimprimir y anular (tres pruebas nuevas, y la que decía que «ve la caja» ahora dice
+lo contrario). No se pierde flexibilidad: `documento.emitir` es ajustable por rol, así que un local que
+la necesite cobrando se lo concede en Configuración sin programar. Con eso N-10 queda resuelto: Ventas es
+de quien opera la caja.
+
+El contrato de la salida llamaba `TAQUILLA` al destino «se paga ahora»; con DEC-25 el nombre decía lo
+contrario de lo que pasa, y como aún no hay servidor que dependa de él se renombró a `CAJA`. El punto de
+cobro del dominio de caja (`PointOfSale`) se queda como está, porque de los turnos el cliente todavía no
+puede decir cómo serán: DEC-26 los deja genéricos —un turno por caja, como DEC-13— y ninguna pantalla
+depende de ello.
+
+Falta la parte de pantalla: la entrada y la salida siguen llevando a /caja al registrar, y la monitora
+ya no puede abrirla. Va en un encargo.

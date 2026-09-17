@@ -216,12 +216,15 @@ listas distintas. Con el directorio como fuente, sería por regla.
 `kds.cambiarEstado`. No llega a notarse porque Cocina no puede abrir el panel, pero es una promesa
 que el código hace y el producto no cumple. Se resolvió sola con N-05: con una sola puerta, Cocina no llega al panel por ninguna vía.
 
-### N-10 · `/ventas` comparte superficie con `/caja` — **a decidir, no es un fallo**
+### ~~N-10~~ · `/ventas` comparte superficie con `/caja` — **decidido el 2026-09-17 (DEC-25)**
 
 `SUPERFICIE_DE_RUTA` mapea `/ventas` a la superficie `caja` (C12: quien cobra ve lo que cobró). Como
 la taquilla también cobra, **la monitora ve las ventas del turno completas**, incluidas las del otro
 punto de cobro. Puede ser exactamente lo que se quiere en un local de dos personas; conviene que sea
 una decisión escrita y no un efecto lateral.
+
+*Decidido:* **solo la caja cobra** (DEC-25). La monitora ya no alcanza la caja, así que Ventas la ven
+quienes operan la caja —cajera, supervisión y administración—, con todo lo cobrado del turno.
 
 ## 4. Lo que está bien y no hay que tocar
 

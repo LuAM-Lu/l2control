@@ -81,6 +81,10 @@ describe("pruebas NEGATIVAS: cada ❌ de la matriz devuelve DENEGADO", () => {
     ["MESERO", "cuenta.descuento"],
     ["MESERO", "cuenta.cortesia"],
     ["MESERO", "documento.emitir"],
+    // DEC-25: solo la caja cobra.
+    ["MONITOR_PARQUE", "documento.emitir"],
+    ["MONITOR_PARQUE", "documento.reimprimir"],
+    ["MONITOR_PARQUE", "cobro.anular"],
     ["CAJERO", "documento.notaCredito"],
     ["MESERO", "documento.reimprimir"],
     ["CAJERO", "mesa.reabrir"],
@@ -112,7 +116,7 @@ describe("las operaciones sensibles exigen autorización, no se deniegan", () =>
     ["SUPERVISOR", "pedido.anularEnProduccion"],
     ["CAJERO", "cuenta.descuento"],
     ["SUPERVISOR", "documento.notaCredito"],
-    ["MONITOR_PARQUE", "documento.reimprimir"],
+    ["CAJERO", "documento.reimprimir"],
     ["SUPERVISOR", "mesa.reabrir"],
     ["MONITOR_PARQUE", "parque.extenderSinCobro"],
     ["SUPERVISOR", "tasa.confirmar"],
@@ -186,9 +190,11 @@ describe("superficies visibles por rol", () => {
     assert.deepEqual([...visibleSurfaces(actor("COCINA"), ORDEN)], ["kds"]);
   });
 
-  test("el monitor de parque ve lo suyo y la caja, pero no la cocina", () => {
+  test("el monitor de parque ve lo suyo y nada de caja ni cocina (DEC-25)", () => {
     const v = visibleSurfaces(actor("MONITOR_PARQUE"), ORDEN);
     assert.ok(v.includes("monitor") && v.includes("entrada") && v.includes("salida"));
+    assert.equal(v.includes("caja"), false);
+    assert.equal(v.includes("turno"), false);
     assert.equal(v.includes("kds"), false);
     assert.equal(v.includes("usuarios"), false);
   });

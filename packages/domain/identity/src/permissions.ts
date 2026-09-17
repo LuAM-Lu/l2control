@@ -99,12 +99,16 @@ export const MATRIZ: Matriz = Object.freeze({
   "cuenta.descuento": fila(P, A, A, D, D, D),
   "cuenta.cortesia": fila(P, A, A, D, D, D),
 
-  "documento.emitir": fila(P, P, P, D, P, D),
+  // DEC-25: solo la caja cobra, lo del parque y lo del restaurante. La
+  // monitora registra entradas y salidas y la cuenta pasa a la cola de la
+  // caja; no cobra, no reimprime ni anula. Si un local la necesita cobrando,
+  // la administración se lo concede en Roles y accesos (F2-13), sin programar.
+  "documento.emitir": fila(P, P, P, D, D, D),
   "documento.notaCredito": fila(P, A, D, D, D, D),
-  "documento.reimprimir": fila(P, A, A, D, A, D),
+  "documento.reimprimir": fila(P, A, A, D, D, D),
   // DEC-24: anular un cobro ya cerrado. Lo pide quien cobra; lo autoriza un
   // supervisor con su PIN o el administrador.
-  "cobro.anular": fila(P, A, A, D, A, D),
+  "cobro.anular": fila(P, A, A, D, D, D),
 
   "mesa.reabrir": fila(P, A, D, D, D, D),
   "kds.cambiarEstado": fila(P, P, D, D, D, P),

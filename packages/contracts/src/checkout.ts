@@ -45,7 +45,8 @@ export const CheckoutPreviewSchema = z.object({
 export type CheckoutPreviewDto = z.infer<typeof CheckoutPreviewSchema>;
 
 /**
- * Destino de la deuda.
+ * Destino de la deuda: se paga en la CAJA o se carga a una mesa. Era
+ * `TAQUILLA`; con DEC-25 solo la caja cobra, y el nombre decía lo contrario.
  *
  * Unión discriminada y no un booleano `cargarAMesa`: con un booleano, el
  * identificador de la mesa queda como un campo suelto que puede venir vacío
@@ -53,7 +54,7 @@ export type CheckoutPreviewDto = z.infer<typeof CheckoutPreviewSchema>;
  * expresar (ADR-011, misma idea que la duración).
  */
 export const SettlementDispositionSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("TAQUILLA") }),
+  z.object({ kind: z.literal("CAJA") }),
   z.object({ kind: z.literal("MESA"), tableId: IdSchema }),
 ]);
 export type SettlementDisposition = z.infer<typeof SettlementDispositionSchema>;

@@ -98,7 +98,7 @@ botón «Panel» de la barra. Queda solo **avisar** de que se sale a pantalla co
 | El acceso sale del directorio de personas y filtra las bajas | M | N-07, N-08 |
 | Panel en tablet: desplegables (**hecho**), migas y enlaces a 32 px; rejillas sin celdas vacías (tras Tarifas, que toca Inicio) | O2 · M (migas, @l2/ui) | F-09 |
 | Chip DEMO a 48 px | O2 | F-10 · **hecha** |
-| Quién ve las ventas del turno | Cliente | N-10 |
+| Quién ve las ventas del turno: DEC-25 en el dominio (maestra) y entrada y salida envían a la caja sin abrirla (obrera) | Cliente · M · O | N-10 · decidido |
 
 ### Ola 4 · Auditoría fina por módulos
 Una auditoría de obrera por área —parque, caja, restaurante, panel, acceso—, cada una con su lista de
@@ -121,7 +121,7 @@ encargadas pueden correr **en paralelo** si el cliente lo aprueba.
 | F-12 | Teléfono | Fuera del objetivo; revisar al cerrar el frontend |
 | — | HTTPS para instalar en tablets reales | Se resuelve con el despliegue (backend). Para probar antes: `chrome://flags` → «Insecure origins treated as secure» con la IP del equipo |
 | — | Playwright como dependencia de desarrollo para `pnpm audit:ui` | Sí, en la Ola 5 |
-| N-10 | ¿La taquilla (monitora) ve las ventas del turno de los dos puntos de cobro? | Pendiente |
+| ~~N-10~~ | ~~¿La taquilla ve las ventas del turno?~~ | **Decidido el 2026-09-17 (DEC-25):** solo la caja cobra; Ventas es de la caja. Turnos genéricos (DEC-26) |
 
 ## 5. Registro de olas
 
