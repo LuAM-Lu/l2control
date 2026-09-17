@@ -276,3 +276,45 @@ export const CheckInResultSchema = z.object({
   charged: MoneySchema.nullable(),
 });
 export type CheckInResult = z.infer<typeof CheckInResultSchema>;
+
+/* ----------------------------------------- directorio de representantes */
+
+/**
+ * Una familia en el directorio — F5-01, DEC-9.
+ *
+ * Es el **histórico mínimo**: quién trae a quién y cómo llamarlo si hay una
+ * urgencia. Sin documento, sin dirección, sin foto; el esquema no los admite,
+ * así que añadirlos exige cambiar este contrato a la vista de todos (§7.6).
+ *
+ * Las visitas no son un dato que alguien teclee: las cuenta el servidor con
+ * las estancias, y por eso viajan como resumen y no como lista editable.
+ */
+export const RepresentanteSchema = z.object({
+  id: IdSchema,
+  fullName: z.string().trim().min(2, "Nombre demasiado corto").max(80),
+  contactReference: z.string().trim().min(4, "Contacto demasiado corto").max(40),
+  kids: z.array(KidSchema.extend({ id: IdSchema })),
+  /** Cuántas veces ha entrado la familia. Nunca negativo. */
+  visitas: z.number().int().min(0),
+  ultimaVisita: TimestampSchema.optional(),
+});
+export type RepresentanteDto = z.infer<typeof RepresentanteSchema>;
+
+export const DirectorioRepresentantesSchema = z
+  .object({ representantes: z.array(RepresentanteSchema) })
+  .refine(
+    (d) =>
+      new Set(d.representantes.map((r) => r.contactReference.replace(/\D/g, ""))).size ===
+      d.representantes.length,
+    {
+      // El contacto es la llave con la que la entrada encuentra a la familia
+      // en dos segundos (F5-03). Repetido, deja de encontrar a ninguna.
+      message: "Dos representantes no pueden compartir la referencia de contacto",
+      path: ["representantes"],
+    },
+  )
+  .refine((d) => d.representantes.every((r) => r.visitas > 0 || r.ultimaVisita === undefined), {
+    message: "Una familia sin visitas no puede tener fecha de última visita",
+    path: ["representantes"],
+  });
+export type DirectorioRepresentantesDto = z.infer<typeof DirectorioRepresentantesSchema>;

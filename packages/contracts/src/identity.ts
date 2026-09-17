@@ -244,3 +244,72 @@ export const PermissionExceptionCommandSchema = z.discriminatedUnion("effect", [
   }),
 ]);
 export type PermissionExceptionCommand = z.infer<typeof PermissionExceptionCommandSchema>;
+
+/* ------------------------------------------------------- dispositivos */
+
+/**
+ * Los equipos autorizados — F2-02, ADR-013.
+ *
+ * El dispositivo es el **primer factor** del acceso: el PIN solo abre sesión
+ * en un equipo aprobado, así que un PIN visto por encima del hombro no sirve
+ * desde otro aparato. Por eso el estado vive aquí y no en una lista suelta.
+ *
+ * `REVOCADO` no desaparece (regla 5): un equipo extraviado se revoca y queda,
+ * porque las sesiones que abrió mientras estaba aprobado lo nombran.
+ */
+export const DeviceStatusSchema = z.enum(["APROBADO", "PENDIENTE", "REVOCADO"]);
+export type DeviceStatusDto = z.infer<typeof DeviceStatusSchema>;
+
+export const DeviceSchema = z.object({
+  id: IdSchema,
+  /** Cómo lo llama el equipo: «Tablet taquilla», no un número de serie. */
+  label: z.string().trim().min(2, "Nombre demasiado corto").max(40),
+  branchId: IdSchema,
+  status: DeviceStatusSchema,
+  registeredAt: TimestampSchema,
+  /** Quién tiene sesión abierta ahora mismo, si hay alguien. */
+  session: z
+    .object({ userId: IdSchema, userName: z.string().trim().min(2).max(80), since: TimestampSchema })
+    .optional(),
+  /** Lo que le ha pasado, de lo más reciente a lo más antiguo. */
+  changes: z
+    .array(
+      z.discriminatedUnion("kind", [
+        z.strictObject({ kind: z.literal("ALTA"), ...rastro }),
+        z.strictObject({ kind: z.literal("APROBADO"), ...rastro }),
+        z.strictObject({ kind: z.literal("REVOCADO"), ...rastro }),
+        z.strictObject({ kind: z.literal("RENOMBRADO"), label: z.string().trim().min(2).max(40), ...rastro }),
+      ]),
+    )
+    .default([]),
+});
+export type DeviceDto = z.infer<typeof DeviceSchema>;
+
+export const DevicesDirectorySchema = z
+  .object({ devices: z.array(DeviceSchema) })
+  .refine((d) => new Set(d.devices.map((x) => x.label.toLowerCase())).size === d.devices.length, {
+    // Dos equipos con el mismo nombre convierten «revoca la tablet de mesero»
+    // en una pregunta.
+    message: "Dos dispositivos no pueden llamarse igual",
+    path: ["devices"],
+  });
+export type DevicesDirectoryDto = z.infer<typeof DevicesDirectorySchema>;
+
+/**
+ * Lo que se le puede pedir al servidor sobre un dispositivo.
+ *
+ * Aprobar y revocar exigen motivo: es lo que después explica por qué una
+ * tablet dejó de entrar. Renombrar también, porque cambia lo que la auditoría
+ * lee en los asientos anteriores.
+ */
+export const DeviceCommandSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("APROBAR"), deviceId: IdSchema, reason: ReasonSchema }),
+  z.strictObject({ kind: z.literal("REVOCAR"), deviceId: IdSchema, reason: ReasonSchema }),
+  z.strictObject({
+    kind: z.literal("RENOMBRAR"),
+    deviceId: IdSchema,
+    label: z.string().trim().min(2).max(40),
+    reason: ReasonSchema,
+  }),
+]);
+export type DeviceCommand = z.infer<typeof DeviceCommandSchema>;

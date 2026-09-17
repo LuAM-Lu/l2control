@@ -16,6 +16,9 @@ import {
   PermissionExceptionCommandSchema,
   PermissionExceptionSchema,
   UserSummarySchema,
+  DeviceSchema,
+  DevicesDirectorySchema,
+  DeviceCommandSchema,
 } from "./identity.ts";
 
 const concesion = {
@@ -245,5 +248,54 @@ describe("ajustes de la sucursal sobre un rol (N-05)", () => {
       }).success,
       true,
     );
+  });
+});
+
+describe("dispositivos (F2-02, ADR-013)", () => {
+  const AYER = "2026-09-16T12:00:00.000Z";
+  const tablet = {
+    id: "d1",
+    label: "Tablet taquilla",
+    branchId: "b1",
+    status: "APROBADO",
+    registeredAt: AYER,
+  };
+
+  test("un equipo aprobado, sin sesión y sin historia, es válido", () => {
+    const d = DeviceSchema.parse(tablet);
+    assert.deepEqual(d.changes, []);
+    assert.equal(d.session, undefined);
+  });
+
+  test("dos equipos no pueden llamarse igual: «revoca la tablet» dejaría de ser una orden", () => {
+    const r = DevicesDirectorySchema.safeParse({
+      devices: [tablet, { ...tablet, id: "d2", label: "tablet TAQUILLA" }],
+    });
+    assert.equal(r.success, false);
+  });
+
+  test("revocar exige motivo con contenido", () => {
+    assert.equal(
+      DeviceCommandSchema.safeParse({ kind: "REVOCAR", deviceId: "d1", reason: "x" }).success,
+      false,
+    );
+    assert.ok(
+      DeviceCommandSchema.safeParse({
+        kind: "REVOCAR",
+        deviceId: "d1",
+        reason: "La tablet se extravió en la mudanza del salón.",
+      }).success,
+    );
+  });
+
+  test("el cliente no puede firmar por otro: el mando no admite autor ni hora", () => {
+    const r = DeviceCommandSchema.safeParse({
+      kind: "APROBAR",
+      deviceId: "d1",
+      reason: "Equipo nuevo del mostrador, verificado con la administración.",
+      by: "u-marisol",
+      at: AYER,
+    });
+    assert.equal(r.success, false);
   });
 });

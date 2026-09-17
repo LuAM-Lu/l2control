@@ -13,6 +13,7 @@ import {
   CheckInCommandSchema,
   DurationSchema,
   GuardianSchema,
+  DirectorioRepresentantesSchema,
   KidSchema,
   MoneySchema,
   ParkPolicySchema,
@@ -242,5 +243,44 @@ describe("tarifario del parque (F5-04, F5-06)", () => {
 
   test("dos paquetes con el mismo id se rechazan", () => {
     falla({ ...valido, packages: [paquete("x", "Uno", 30), paquete("x", "Dos", 60)] }, /mismo id/);
+  });
+});
+
+describe("directorio de representantes (F5-01, DEC-9)", () => {
+  const familia = {
+    id: "g1",
+    fullName: "Pedro Bermúdez",
+    contactReference: "0416-9876543",
+    kids: [{ id: "k1", name: "Santiago Bermúdez", nickname: "Santi" }],
+    visitas: 3,
+    ultimaVisita: "2026-09-16T18:20:00.000Z",
+  };
+
+  test("una familia con sus niños y sus visitas es válida", () => {
+    const d = DirectorioRepresentantesSchema.parse({ representantes: [familia] });
+    assert.equal(d.representantes[0]?.kids[0]?.nickname, "Santi");
+  });
+
+  test("el contacto es la llave de búsqueda: no se repite, ni escrito distinto", () => {
+    const r = DirectorioRepresentantesSchema.safeParse({
+      representantes: [familia, { ...familia, id: "g2", contactReference: "04169876543" }],
+    });
+    assert.equal(r.success, false);
+  });
+
+  test("sin visitas no puede haber última visita", () => {
+    const r = DirectorioRepresentantesSchema.safeParse({
+      representantes: [{ ...familia, visitas: 0 }],
+    });
+    assert.equal(r.success, false);
+  });
+
+  test("sigue sin caber nada que DEC-9 no autorizó", () => {
+    const r = DirectorioRepresentantesSchema.safeParse({
+      representantes: [{ ...familia, kids: [{ id: "k1", name: "Santiago", cedula: "V-30111222" }] }],
+    });
+    // El esquema ignora lo que no declara; lo que importa es que no viaje.
+    assert.ok(r.success);
+    assert.equal("cedula" in (r.data?.representantes[0]?.kids[0] ?? {}), false);
   });
 });

@@ -35,6 +35,8 @@ export {
   MonitorSnapshotSchema,
   CheckInCommandSchema,
   CheckInResultSchema,
+  RepresentanteSchema,
+  DirectorioRepresentantesSchema,
   type WristbandCode,
   type GuardianDto,
   type KidDto,
@@ -48,6 +50,8 @@ export {
   type ExchangeRateDto,
   type MonitorSnapshotDto,
   type CheckInCommand,
+  type RepresentanteDto,
+  type DirectorioRepresentantesDto,
   type CheckInResult,
 } from "./park.ts";
 
@@ -76,6 +80,10 @@ export {
   UsersDirectorySchema,
   PermissionExceptionCommandSchema,
   UserCommandSchema,
+  DeviceStatusSchema,
+  DeviceSchema,
+  DevicesDirectorySchema,
+  DeviceCommandSchema,
   type RoleDto,
   type PermissionDto,
   type PermissionExceptionDto,
@@ -87,6 +95,10 @@ export {
   type UsersDirectoryDto,
   type PermissionExceptionCommand,
   type UserCommand,
+  type DeviceStatusDto,
+  type DeviceDto,
+  type DevicesDirectoryDto,
+  type DeviceCommand,
 } from "./identity.ts";
 
 export {
@@ -159,3 +171,16 @@ export {
   type ReciboDto,
   type VentaCerradaDto,
 } from "./ventas.ts";
+
+export {
+  HoraDelDiaSchema,
+  DiaSemanaSchema,
+  HorarioDelDiaSchema,
+  ServicioSchema,
+  AjustesSucursalSchema,
+  type HoraDelDia,
+  type DiaSemana,
+  type HorarioDelDiaDto,
+  type ServicioDto,
+  type AjustesSucursalDto,
+} from "./sucursal.ts";
