@@ -22,7 +22,7 @@ Hecho y medido:
   se teclea el teléfono; el nombre del niño se pone después, desde la sala, donde también se le vincula
   a una mesa sin esperar al mesero (DEC-29). Medido: dos niños entran sin teclear un solo nombre.
 
-El panel tiene 25 secciones. Siguen pendientes **siete**:
+El panel tiene 25 secciones. Siguen pendientes **seis**:
 
 | Módulo | Hechas | Abren una estación | **Pendientes** |
 |---|---|---|---|
@@ -30,10 +30,10 @@ El panel tiene 25 secciones. Siguen pendientes **siete**:
 | Restaurante | Plano del local, Carta y precios | Mesas y pedidos, Comandas del día | — |
 | Caja | — | Cobrar, Ventas del turno, Turnos y cortes | **Tasas de cambio** |
 | Inventario | — | — | **Insumos, Recetas, Compras y mermas** |
-| Personas | Usuarios y permisos, **Dispositivos** | — | **Representantes y niños** |
+| Personas | Usuarios y permisos, **Dispositivos**, **Representantes y niños** | — | — |
 | Configuración | Roles y accesos, **Sucursal** | — | **Impuestos, Impresoras** |
 
-Además de esas siete, falta la **apertura de turno**, la **cortesía** en caja y un lugar para
+Además de esas seis, falta la **apertura de turno**, la **cortesía** en caja y un lugar para
 configurar los **medios de pago** (hoy la caja trae fijos el banco del Pago Móvil y el correo de Zelle).
 
 ## 2. Cuándo está terminado el frontend
@@ -80,7 +80,7 @@ queda con su `TODO` y su tarea.
 | 4.4 | Caja → **Cortesía con motivo** *(en /caja)* | F6-14 | Marcar líneas como cortesía con motivo de lista cerrada y autorización (`cuenta.cortesia` 🔐); aparecen en las excepciones del turno | Auditoría |
 | 4.5 A ✅ | Parque → **Entrada en dos toques** ([entrada-rapida](encargos/entrada-rapida.md)) | F5-02 | Pasar pulseras, paquete por niño y teléfono del representante. En la puerta no se teclea ningún nombre (DEC-27, DEC-28) | El registro real de la estancia |
 | 4.5 B ✅ | Parque → **La sala nombra y vincula** ([sala-nombra-y-vincula](encargos/sala-nombra-y-vincula.md)) | F5-08, F6-05 | En la ficha del niño: ponerle nombre después, y vincularlo con sus hermanos a una mesa abierta sin esperar al mesero (DEC-28, DEC-29) | Persistir el nombre y la vinculación |
-| 4.5 C | Personas → **Representantes y niños** ([representantes](encargos/representantes.md)) | F5-01 | El directorio que hace rápida la visita siguiente: buscar por teléfono, ver niños y visitas, corregir y poner el nombre que faltó | Modelo `Guardian`/`Kid`, visitas calculadas con las estancias |
+| 4.5 C ✅ | Personas → **Representantes y niños** ([representantes](encargos/representantes.md)) | F5-01 | El directorio que hace rápida la visita siguiente: buscar por teléfono, ver niños y visitas, corregir y poner el nombre que faltó | Modelo `Guardian`/`Kid`, visitas calculadas con las estancias |
 | 4.6 ✅ | Personas → **Dispositivos** ([dispositivos](encargos/dispositivos.md)) | F2-02 | Equipos con su estado (aprobado, pendiente, revocado), aprobar y revocar con motivo, y quién tiene sesión en cada uno (lo que ya sabe el panel en vivo) | Registro real; revocar cierra sesiones |
 | 4.7 ✅ | Configuración → **Sucursal** ([sucursal-ajustes](encargos/sucursal-ajustes.md)) | F5-08b, F4-04c, F6-13 | Nombre, RIF y dirección; horario; formato de hora 12 h o 24 h, que cambia **todas** las superficies; umbral de residuo retenido de la caja; servicio y propina (D8, DEC-6). El aforo ya vive en Tarifas | Persistencia |
 | 4.8 | Configuración → **Impuestos** | F3-06, F3-07 | Alícuotas de IVA con su vigencia e IGTF; programar un cambio con fecha, nunca reescribir el pasado. La caja calcula con lo publicado. Los valores los confirma el contador (DEC-1) | Persistencia |
@@ -90,7 +90,7 @@ queda con su `TODO` y su tarea.
 **Orden y paralelismo.** Una obrera por defecto; dos a la vez si el cliente lo aprueba, nunca sobre los
 mismos archivos:
 
-1. **Tanda A** (sin archivos compartidos): 4.7 Sucursal ✅ · 4.6 Dispositivos ✅ · 4.5 A Entrada ✅ · 4.5 B Sala ✅ · **4.5 C Representantes (encargo escrito, sin lanzar: es lo siguiente)**.
+1. **Tanda A** (sin archivos compartidos): 4.7 Sucursal ✅ · 4.6 Dispositivos ✅ · 4.5 A Entrada ✅ · 4.5 B Sala ✅ · 4.5 C Representantes ✅. **Tanda A cerrada.**
 2. **Tanda B** (tocan la caja, una detrás de otra): 4.1 Tasas → 4.2 Medios de pago → 4.4 Cortesía.
 3. **Tanda C**: 4.8 Impuestos · 4.9 Impresoras · 4.3 Apertura de turno.
 4. **Tanda D** (aprobada el 2026-09-17): 4.10 Inventario, en tres encargos —insumos, recetas y movimientos— porque las recetas necesitan los insumos y la carta, y los movimientos necesitan los insumos.

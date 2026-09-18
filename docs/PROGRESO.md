@@ -9,14 +9,11 @@
 
 ## Por dónde seguir
 
-1. **Representantes y niños** (tarea 4.5 C del [plan del frontend](PLAN-FRONTEND.md)): el encargo está
-   escrito en [encargos/representantes.md](encargos/representantes.md) y la maestra ya dejó su contrato
-   con pruebas. Es lanzar la obrera y revisar.
-2. Después, la **tanda B** —Tasas de cambio, Medios de pago y Cortesía—, que se hacen una detrás de otra
-   porque tocan la caja.
-3. Luego la **tanda C** (Impuestos, Impresoras, Apertura de turno) y la **D** (Inventario, en tres
+1. La **tanda B** —Tasas de cambio, Medios de pago y Cortesía—, que se hacen una detrás de otra porque
+   tocan la caja. La maestra prepara primero el contrato de tasas y su proveedor.
+2. Luego la **tanda C** (Impuestos, Impresoras, Apertura de turno) y la **D** (Inventario, en tres
    encargos).
-4. Con las secciones cerradas, la **Ola 5** (auditoría por módulos) y la **Ola 6** (medición final,
+3. Con las secciones cerradas, la **Ola 5** (auditoría por módulos) y la **Ola 6** (medición final,
    `pnpm audit:ui`, tablet real y el plan del backend).
 
 Lo que falta y no es frontend está en [PENDIENTES.md](PENDIENTES.md).
@@ -165,7 +162,8 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | DEC-21 Cuenta de la familia | Parcial | Entrada elige prepago o cuenta abierta; la salida dice qué pasa a caja; la caja es una cola de cuentas en maestro-detalle y devuelve a la pantalla de origen. Probado de punta a punta en navegador. Falta el backend |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |
 | F5-12 Sesión única por pulsera | Parcial | La interfaz lo rechaza; la invariante real necesita base de datos |
-| F5-01, F5-05 a F5-14 (resto) | Pendiente | Necesitan persistencia |
+| F5-01 Directorio de representantes y niños | **Parcial** | Sección `/panel/personas/representantes`: buscar por nombre de familia, de niño o por teléfono (sin guiones ni acentos), familias ordenadas por última visita, y el detalle con sus niños. **Corregir** nombre y contacto, y **«Poner nombre»** al niño que entró solo con su pulsera (DEC-28). Fail-closed: el contrato rechaza un nombre de una letra y dos familias con el mismo contacto, con su mensaje junto al campo. No hay borrar (regla 5). Falta el servidor: las visitas se calcularán con las estancias |
+| F5-05 a F5-14 (resto) | Pendiente | Necesitan persistencia |
 
 Las reglas de tiempo, gracia, penalización y aforo **ya están escritas y son puras**
 (`@l2/domain-park`); lo que falta es conectarlas a datos reales.

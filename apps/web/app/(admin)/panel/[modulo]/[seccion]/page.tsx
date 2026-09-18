@@ -9,6 +9,7 @@ import { EditorTarifario } from "../../../../../src/features/park/EditorTarifari
 import { AccesosPage } from "../../../../../src/features/identity/AccesosPage";
 import { DispositivosPage } from "../../../../../src/features/identity/DispositivosPage";
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
+import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -24,6 +25,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
   "restaurante/carta": () => <EditorCarta />,
   "parque/tarifas": () => <EditorTarifario />,
   "personas/dispositivos": () => <DispositivosPage />,
+  "personas/representantes": () => <RepresentantesPage />,
   "configuracion/sucursal": () => <EditorSucursal />,
   // TODO(F2-05/backend): la sucursal saldrá del dispositivo.
   "configuracion/accesos": () => (

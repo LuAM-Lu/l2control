@@ -8,6 +8,7 @@ import { CartaProvider } from "../src/features/mesas/CartaProvider";
 import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
 import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
 import { DispositivosProvider } from "../src/features/identity/DispositivosProvider";
+import { RepresentantesProvider } from "../src/features/park/RepresentantesProvider";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { DEMO_ACTIVA } from "../src/demo/modo";
@@ -15,6 +16,7 @@ import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { TARIFARIO_DEMO } from "../src/demo/parque";
 import { AJUSTES_DEMO } from "../src/demo/sucursal";
 import { DEMO_DISPOSITIVOS } from "../src/demo/dispositivos";
+import { DIRECTORIO_DEMO } from "../src/demo/representantes";
 import { DEMO_CUENTAS } from "../src/demo/cuentas";
 import { DEMO_VENTAS } from "../src/demo/ventas";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
@@ -39,7 +41,11 @@ export const metadata: Metadata = {
   title: "L2 Control",
   description: "Gestión integral de parque infantil y restaurante",
   applicationName: "L2 Control",
-  appleWebApp: { capable: true, title: "L2 Control", statusBarStyle: "black-translucent" },
+  appleWebApp: {
+    capable: true,
+    title: "L2 Control",
+    statusBarStyle: "black-translucent",
+  },
   formatDetection: { telephone: false },
 };
 
@@ -51,7 +57,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
       <body>
@@ -69,18 +79,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               cualquier superficie (F5-08b, F4-04c, F2-02). */}
           <SucursalProvider inicial={AJUSTES_DEMO}>
             <DispositivosProvider inicial={DEMO_DISPOSITIVOS}>
-              <PlanoProvider inicial={PLANO_DEMO}>
-                <CartaProvider inicial={CARTA_DEMO}>
-                  <TarifarioProvider inicial={TARIFARIO_DEMO}>
-                    <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
-                      <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
-                        {children}
-                        <PanelSimulacion />
-                      </VentasProvider>
-                    </CuentasProvider>
-                  </TarifarioProvider>
-                </CartaProvider>
-              </PlanoProvider>
+              <RepresentantesProvider inicial={DIRECTORIO_DEMO}>
+                <PlanoProvider inicial={PLANO_DEMO}>
+                  <CartaProvider inicial={CARTA_DEMO}>
+                    <TarifarioProvider inicial={TARIFARIO_DEMO}>
+                      <CuentasProvider
+                        inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}
+                      >
+                        <VentasProvider
+                          inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}
+                        >
+                          {children}
+                          <PanelSimulacion />
+                        </VentasProvider>
+                      </CuentasProvider>
+                    </TarifarioProvider>
+                  </CartaProvider>
+                </PlanoProvider>
+              </RepresentantesProvider>
             </DispositivosProvider>
           </SucursalProvider>
         </SimulacionProvider>

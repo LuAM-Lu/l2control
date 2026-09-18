@@ -245,7 +245,7 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "representantes",
         nombre: "Representantes y niños",
-        href: null,
+        href: rutaSeccion("personas", "representantes"),
         proposito:
           "El histórico mínimo: nombre, apodo, edad y una referencia de contacto. Nada más — es lo menos sensible que permite operar (DEC-9).",
         tarea: "F5-01",

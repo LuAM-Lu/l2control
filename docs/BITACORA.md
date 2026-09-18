@@ -1353,3 +1353,21 @@ De la revisión salió un fallo que el compilador no ve: `can()` devuelve una pa
 cualquiera que hubiera entrado. Es la tercera vez que un permiso se lee así; queda anotado para la
 auditoría de la Ola 5. Lo demás fueron ajustes de sitio: «cómo paga» se quedaba medio tapado en una
 tablet de 600 px de alto y ahora va pegado al botón que decide.
+
+## El directorio de familias cierra la tanda A — 2026-09-18 (F5-01)
+
+La última de las tres pantallas del parque. Es la que hace rápida la visita siguiente: la puerta teclea
+un teléfono y la familia aparece sola, sin volver a pedir nada. Y es el segundo sitio —además de la
+sala— donde se le pone nombre al niño que entró solo con su pulsera: el mismo mando `CORREGIR_NINO`, con
+el botón diciendo «Poner nombre» cuando no lo tiene.
+
+Lo que más se nota al usarla es lo que **no** deja hacer: no hay borrar —una familia que no vuelve se
+queda, porque las estancias que ya pagó la nombran—, un nombre de una letra no se guarda, y darle a una
+familia el teléfono de otra devuelve el mensaje del contrato sin tocar el directorio. Eso último no es un
+error de campo sino del directorio entero, así que se dice arriba y no junto a un campo.
+
+De la revisión salieron tres cosas: un estado que no pintaba nada en el proveedor; un apodo borrado que
+se guardaba como cadena vacía en vez de desaparecer; y el número de niños de cada familia, que se cortaba
+en «1 niñ» porque recortaba la línea entera en lugar de solo el teléfono.
+
+Con esto la **tanda A de la Ola 4 queda cerrada**: sucursal, dispositivos, entrada, sala y directorio.
