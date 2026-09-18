@@ -37,6 +37,7 @@ export {
   CheckInResultSchema,
   RepresentanteSchema,
   DirectorioRepresentantesSchema,
+  RepresentanteCommandSchema,
   type WristbandCode,
   type GuardianDto,
   type KidDto,
@@ -52,6 +53,7 @@ export {
   type CheckInCommand,
   type RepresentanteDto,
   type DirectorioRepresentantesDto,
+  type RepresentanteCommand,
   type CheckInResult,
 } from "./park.ts";
 

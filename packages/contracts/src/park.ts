@@ -318,3 +318,31 @@ export const DirectorioRepresentantesSchema = z
     path: ["representantes"],
   });
 export type DirectorioRepresentantesDto = z.infer<typeof DirectorioRepresentantesSchema>;
+
+/**
+ * Corregir un dato del directorio.
+ *
+ * No lleva motivo, a diferencia de los cambios de personal: arreglar
+ * «Bermudez» por «Bermúdez» es una corrección de tecleo, no una decisión que
+ * haya que justificar. Lo que sí queda, del lado del servidor, es quién la
+ * hizo y cuándo (§7.4).
+ *
+ * Tampoco existe «borrar»: una familia que no vuelve se queda, porque las
+ * estancias que ya pagó la nombran (regla 5).
+ */
+export const RepresentanteCommandSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("CORREGIR_REPRESENTANTE"),
+    representanteId: IdSchema,
+    fullName: z.string().trim().min(2, "Nombre demasiado corto").max(80),
+    contactReference: z.string().trim().min(4, "Contacto demasiado corto").max(40),
+  }),
+  z.strictObject({
+    kind: z.literal("CORREGIR_NINO"),
+    representanteId: IdSchema,
+    kidId: IdSchema,
+    name: z.string().trim().min(2, "Nombre demasiado corto").max(60),
+    nickname: z.string().trim().max(30).optional(),
+  }),
+]);
+export type RepresentanteCommand = z.infer<typeof RepresentanteCommandSchema>;

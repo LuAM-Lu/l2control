@@ -14,6 +14,7 @@ import {
   DurationSchema,
   GuardianSchema,
   DirectorioRepresentantesSchema,
+  RepresentanteCommandSchema,
   KidSchema,
   MoneySchema,
   ParkPolicySchema,
@@ -282,5 +283,55 @@ describe("directorio de representantes (F5-01, DEC-9)", () => {
     // El esquema ignora lo que no declara; lo que importa es que no viaje.
     assert.ok(r.success);
     assert.equal("cedula" in (r.data?.representantes[0]?.kids[0] ?? {}), false);
+  });
+});
+
+describe("corregir el directorio", () => {
+  test("una corrección de tecleo no pide motivo, pero sí el dato entero", () => {
+    assert.ok(
+      RepresentanteCommandSchema.safeParse({
+        kind: "CORREGIR_REPRESENTANTE",
+        representanteId: "g1",
+        fullName: "Pedro Bermúdez",
+        contactReference: "0416-9876543",
+      }).success,
+    );
+  });
+
+  test("el apodo es opcional; el nombre del niño, no", () => {
+    assert.ok(
+      RepresentanteCommandSchema.safeParse({
+        kind: "CORREGIR_NINO",
+        representanteId: "g1",
+        kidId: "k1",
+        name: "Santiago Bermúdez",
+      }).success,
+    );
+    assert.equal(
+      RepresentanteCommandSchema.safeParse({
+        kind: "CORREGIR_NINO",
+        representanteId: "g1",
+        kidId: "k1",
+        name: "S",
+      }).success,
+      false,
+    );
+  });
+
+  test("no cabe nada más: ni borrar, ni campos que DEC-9 no autorizó", () => {
+    assert.equal(
+      RepresentanteCommandSchema.safeParse({ kind: "BORRAR", representanteId: "g1" }).success,
+      false,
+    );
+    assert.equal(
+      RepresentanteCommandSchema.safeParse({
+        kind: "CORREGIR_REPRESENTANTE",
+        representanteId: "g1",
+        fullName: "Pedro Bermúdez",
+        contactReference: "0416-9876543",
+        cedula: "V-12345678",
+      }).success,
+      false,
+    );
   });
 });
