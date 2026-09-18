@@ -1397,3 +1397,26 @@ de confirmar. Y el reloj colgando del pintado: `aplicar` se reconstruía cada se
 del contexto, repintando la caja entera mientras alguien cobra. Al arreglarlo apareció el detalle que
 solo se ve midiendo: redondear el minuto hacia abajo dejaba la tasa recién capturada «en el futuro» el
 resto del minuto, y la caja seguía cobrando con la anterior.
+
+## La tanda B, cerrada: la caja deja de traer nada escrito a mano — 2026-09-18
+
+Tres secciones seguidas sobre los mismos archivos, y al final la caja no tiene dentro ni la tasa, ni los
+medios de pago, ni los datos que se le enseñan al cliente. Antes estaban ahí: «228,41», «Banesco»,
+«0414-2345678», «pagos@parquel2.com».
+
+De las tres, la que más enseñó fue la cortesía, por cómo terminó la primera corrida: la obrera intentó
+modificar `packages/contracts` y el candado la detuvo, que es exactamente lo que el candado tiene que
+hacer. Pero al mirar **qué** quería cambiar, tenía razón: la invariante `pendiente` de la cuenta contaba
+una línea regalada como línea por cobrar, así que una cuenta con una cortesía no habría podido cerrarse
+nunca. Era un hueco de la preparación, no de ella. Se arregló donde tocaba —en el contrato, con tres
+pruebas— y el encargo se reescribió diciendo que ya estaba resuelto, para que no lo volviera a intentar.
+
+El patrón de fallos de la obrera se repite y ya es reconocible: cosas que el compilador no ve. Un
+`require()` dentro de un componente de cliente; `parseFloat` sobre una tasa que es texto decimal a
+propósito; `MoneyDisplay` alimentado con unidades menores, que enseña «500» donde van «$ 5,00»; y dos
+sitios detectando una cortesía por el texto del concepto. Ninguna la habría cazado `pnpm typecheck`, y
+todas se ven abriendo la pantalla.
+
+Queda dicho lo que no está: una cortesía **no aparece** todavía en las excepciones del turno. Esa lista
+es un dato de ejemplo fijo y las anulaciones tampoco llegan; hacerla de verdad necesita el turno real, y
+por eso se movió a la sección 4.3 en vez de fingirla aquí.

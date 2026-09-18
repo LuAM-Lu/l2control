@@ -75,8 +75,8 @@ queda con su `TODO` y su tarea.
 |---|---|---|---|---|
 | 4.1 ✅ | Caja → **Tasas de cambio** ([tasas-de-cambio](encargos/tasas-de-cambio.md)) | F3-03, F3-04, F3-05 | Tasa vigente y su historial (que no se reescribe); capturar la tasa del día y confirmarla (administración ✅, supervisión 🔐). La barra de estación y la caja leen la tasa confirmada, y sin ella la caja no cobra en bolívares (ADR-005) | Sincronizar con el BCV y guardar el historial |
 | 4.2 ✅ | Caja → **Medios de pago** ([medios-de-pago](encargos/medios-de-pago.md)) | F4-02, F4-04 | Activar y desactivar medios, terminales de punto de venta, y los datos que la caja enseña al cliente: banco, teléfono y RIF del Pago Móvil, correo de Zelle | Persistencia |
-| 4.3 | Caja → **Apertura de turno** *(en /turno)* | F4-01 | Sin turno abierto, declarar el fondo inicial por moneda; sin turno no se cobra | Un turno por dispositivo (I-06) |
-| 4.4 | Caja → **Cortesía con motivo** *(en /caja)* | F6-14 | Marcar líneas como cortesía con motivo de lista cerrada y autorización (`cuenta.cortesia` 🔐); aparecen en las excepciones del turno | Auditoría |
+| 4.3 | Caja → **Apertura de turno** *(en /turno)* | F4-01, F4-08 | Sin turno abierto, declarar el fondo inicial por moneda; sin turno no se cobra. **Y las excepciones del turno de verdad**: hoy son un dato de ejemplo fijo, así que ni las cortesías ni las anulaciones hechas en la caja llegan a esa lista. Con el turno real se derivan de las cuentas y las ventas | Un turno por dispositivo (I-06) |
+| 4.4 ✅ | Caja → **Cortesía con motivo** ([cortesia](encargos/cortesia.md)) | F6-14 | Marcar líneas como cortesía con motivo de lista cerrada y autorización (`cuenta.cortesia` 🔐); aparecen en las excepciones del turno | Auditoría |
 | 4.5 A ✅ | Parque → **Entrada en dos toques** ([entrada-rapida](encargos/entrada-rapida.md)) | F5-02 | Pasar pulseras, paquete por niño y teléfono del representante. En la puerta no se teclea ningún nombre (DEC-27, DEC-28) | El registro real de la estancia |
 | 4.5 B ✅ | Parque → **La sala nombra y vincula** ([sala-nombra-y-vincula](encargos/sala-nombra-y-vincula.md)) | F5-08, F6-05 | En la ficha del niño: ponerle nombre después, y vincularlo con sus hermanos a una mesa abierta sin esperar al mesero (DEC-28, DEC-29) | Persistir el nombre y la vinculación |
 | 4.5 C ✅ | Personas → **Representantes y niños** ([representantes](encargos/representantes.md)) | F5-01 | El directorio que hace rápida la visita siguiente: buscar por teléfono, ver niños y visitas, corregir y poner el nombre que faltó | Modelo `Guardian`/`Kid`, visitas calculadas con las estancias |
@@ -90,8 +90,8 @@ queda con su `TODO` y su tarea.
 mismos archivos:
 
 1. **Tanda A** (sin archivos compartidos): 4.7 Sucursal ✅ · 4.6 Dispositivos ✅ · 4.5 A Entrada ✅ · 4.5 B Sala ✅ · 4.5 C Representantes ✅. **Tanda A cerrada.**
-2. **Tanda B** (tocan la caja, una detrás de otra): 4.1 Tasas ✅ → 4.2 Medios de pago ✅ → **4.4 Cortesía (en curso)**.
-3. **Tanda C**: 4.8 Impuestos · 4.9 Impresoras · 4.3 Apertura de turno.
+2. **Tanda B** ✅ (tocaban la caja, una detrás de otra): 4.1 Tasas · 4.2 Medios de pago · 4.4 Cortesía.
+3. **Tanda C** (los tres contratos ya están hechos): 4.8 Impuestos · 4.9 Impresoras · 4.3 Apertura de turno.
 4. **Tanda D** (aprobada el 2026-09-17): 4.10 Inventario, en tres encargos —insumos, recetas y movimientos— porque las recetas necesitan los insumos y la carta, y los movimientos necesitan los insumos.
 
 **Criterio de cada sección:** su contrato con pruebas; editor probado en el navegador (crear, editar,
