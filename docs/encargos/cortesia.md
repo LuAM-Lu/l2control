@@ -31,9 +31,10 @@ QUÉ HACER, ARCHIVO POR ARCHIVO:
    - Quitar una cortesía antes de cerrar el cobro sí se puede —la cuenta todavía es un borrador—, y también pide autorización. Una vez cerrada la venta, no se toca nada.
    - El recibo (`apps/web/src/features/cash/recibo.ts`) nombra la cortesía en su línea: «Cortesía · error de cocina». El importe del recibo sigue siendo el que se cobró.
 
-4. `apps/web/src/features/cash/TurnoScreen.tsx` (o donde estén las excepciones del turno)
-   - Las cortesías del turno aparecen en las excepciones, junto a las anulaciones: cuánto, en qué cuenta, por qué y quién autorizó. Es el criterio de F6-14 — «todo aparece en el reporte de excepciones del turno»—, y sin eso la tarea no está hecha.
-   - Si esa pantalla todavía no tiene una zona de excepciones, créala siguiendo el estilo de las tarjetas que ya usa.
+4. Las excepciones del turno (F4-08) — **ya existen, no las inventes**
+   - `apps/web/src/features/cash/ExcepcionesTurno.tsx` pinta anulaciones, descuentos, cortesías y reimpresiones, y lo usan el inicio y el turno de caja. El tipo `Excepcion` está en `apps/web/src/features/cash/turno.ts` y **ya contempla `"CORTESÍA"`**.
+   - Lo que falta es que una cortesía dada en la caja **llegue ahí**: con su hora, la cuenta y la línea en `detalle`, quién la dio, el motivo en palabras y quién la autorizó. Es el criterio de F6-14 —«todo aparece en el reporte de excepciones del turno»— y sin eso la tarea no está hecha.
+   - Mira cómo llegan hoy las anulaciones a esa lista y haz lo mismo; no dupliques el componente.
 
 NO HAGAS:
 - No toques `packages/`. Si crees que falta algo en el contrato, **dilo en el resumen**.
