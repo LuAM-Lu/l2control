@@ -9,8 +9,8 @@
 
 ## Por dónde seguir
 
-1. Seguir la **tanda B**: hecha 4.1 Tasas de cambio, sigue **4.2 Medios de pago** y después 4.4
-   Cortesía. Van una detrás de otra porque las tres tocan la caja.
+1. Terminar la **tanda B**: hechas 4.1 Tasas de cambio y 4.2 Medios de pago; queda **4.4 Cortesía**,
+   con su contrato y su encargo ya escritos.
 2. Luego la **tanda C** (Impuestos, Impresoras, Apertura de turno) y la **D** (Inventario, en tres
    encargos).
 3. Con las secciones cerradas, la **Ola 5** (auditoría por módulos) y la **Ola 6** (medición final,
@@ -122,6 +122,8 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | Tarea | Estado | Evidencia o qué falta |
 |---|---|---|
 | F4-01 Apertura de turno | Parcial | Fondo inicial por moneda en los datos del turno; falta la pantalla de apertura |
+| F4-02 Medios de pago configurables | **Parcial** | Sección `/panel/caja/medios`: encender y apagar medios —no se borran, los pagos de ayer los nombran—, terminales del punto de venta, y el banco, el teléfono, el RIF y el correo que la caja le enseña al cliente. El contrato impide quedarse sin ningún medio activo, ofrecer Pago Móvil o Zelle sin sus datos y dejar el punto encendido sin terminales. Falta persistencia |
+| F3-03, F3-04, F3-05 Motor de tasas | **Parcial** | `packages/domain/rates` (puro, 19 pruebas) y la sección `/panel/caja/tasas`: vigente por par, captura pendiente, confirmación con doble verificación sobre el umbral, e historial que no se reescribe. Sin tasa confirmada la barra lo dice y la caja bloquea el cobro en bolívares (ADR-005), comprobado en el navegador. Falta el servidor y la sincronización con el BCV |
 | F4-01b Punto de cobro | Parcial | Cada movimiento declara su punto y el cuadre lo desglosa; fail-closed sin punto. Con DEC-25 todo se cobra en la caja: la pestaña «Por punto de cobro» solo aparece si cobró más de un punto (DEC-26 deja los puntos genéricos) |
 | F4-02 Medios de pago | Parcial | Catálogo en los datos, no `enum`; 6 medios con iconos y jerarquía financiera |
 | F4-03 Cobro mixto | Parcial | `/caja`: varias monedas y medios en un cobro, con tasa congelada. Rediseño ágil bimoneda: atajo 1-toque «Cobrar exacto», billetes fijos de $1 a $100 que suman al mismo pago (sin «Cobrar exacto» en efectivo), datos de Pago Móvil con botón Copiar, hero apilado para montos grandes en Bs, y catálogo táctil de venta directa en mostrador (D6/V5) |

@@ -247,6 +247,8 @@ orden de entrega; el que no se ha lanzado también, porque el encargo se escribe
 | `entrada-rapida` · `sala-nombra-y-vincula` | [entrada-rapida.md](encargos/entrada-rapida.md) · [sala-nombra-y-vincula.md](encargos/sala-nombra-y-vincula.md) | La entrada en dos toques y la sala que nombra y vincula (DEC-27 a DEC-29) | Hecho |
 | `representantes` | [representantes.md](encargos/representantes.md) | El directorio de familias (F5-01) | Hecho |
 | `tasas-de-cambio` | [tasas-de-cambio.md](encargos/tasas-de-cambio.md) | La tasa del día, su historial y su confirmación (F3-03 a F3-05) | Hecho |
+| `medios-de-pago` | [medios-de-pago.md](encargos/medios-de-pago.md) | Qué se cobra, por dónde y con qué datos (F4-02, F4-04) | Hecho |
+| `cortesia` | [cortesia.md](encargos/cortesia.md) | Regalar una línea con motivo y autorización (F6-14) | **En curso** |
 
 ## Actualizar o quitar
 

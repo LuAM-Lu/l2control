@@ -22,19 +22,18 @@ Hecho y medido:
   se teclea el teléfono; el nombre del niño se pone después, desde la sala, donde también se le vincula
   a una mesa sin esperar al mesero (DEC-29). Medido: dos niños entran sin teclear un solo nombre.
 
-El panel tiene 25 secciones. Siguen pendientes **cinco**:
+El panel tiene 25 secciones. Siguen pendientes **cuatro**:
 
 | Módulo | Hechas | Abren una estación | **Pendientes** |
 |---|---|---|---|
 | Parque | Tarifas y paquetes | Monitor de sala, **Entrada rediseñada**, Salida | — |
 | Restaurante | Plano del local, Carta y precios | Mesas y pedidos, Comandas del día | — |
-| Caja | **Tasas de cambio** | Cobrar, Ventas del turno, Turnos y cortes | — |
+| Caja | **Tasas de cambio**, **Medios de pago** | Cobrar, Ventas del turno, Turnos y cortes | — |
 | Inventario | — | — | **Insumos, Recetas, Compras y mermas** |
 | Personas | Usuarios y permisos, **Dispositivos**, **Representantes y niños** | — | — |
 | Configuración | Roles y accesos, **Sucursal** | — | **Impuestos, Impresoras** |
 
-Además de esas cinco, falta la **apertura de turno**, la **cortesía** en caja y un lugar para
-configurar los **medios de pago** (hoy la caja trae fijos el banco del Pago Móvil y el correo de Zelle).
+Además de esas cuatro, falta la **apertura de turno** y la **cortesía** en caja.
 
 ## 2. Cuándo está terminado el frontend
 
@@ -75,7 +74,7 @@ queda con su `TODO` y su tarea.
 | # | Sección | Tareas | Qué hace la pantalla | Queda para el servidor |
 |---|---|---|---|---|
 | 4.1 ✅ | Caja → **Tasas de cambio** ([tasas-de-cambio](encargos/tasas-de-cambio.md)) | F3-03, F3-04, F3-05 | Tasa vigente y su historial (que no se reescribe); capturar la tasa del día y confirmarla (administración ✅, supervisión 🔐). La barra de estación y la caja leen la tasa confirmada, y sin ella la caja no cobra en bolívares (ADR-005) | Sincronizar con el BCV y guardar el historial |
-| 4.2 | Caja → **Medios de pago** *(sección nueva)* | F4-02, F4-04 | Activar y desactivar medios, terminales de punto de venta, y los datos que la caja enseña al cliente: banco, teléfono y RIF del Pago Móvil, correo de Zelle | Persistencia |
+| 4.2 ✅ | Caja → **Medios de pago** ([medios-de-pago](encargos/medios-de-pago.md)) | F4-02, F4-04 | Activar y desactivar medios, terminales de punto de venta, y los datos que la caja enseña al cliente: banco, teléfono y RIF del Pago Móvil, correo de Zelle | Persistencia |
 | 4.3 | Caja → **Apertura de turno** *(en /turno)* | F4-01 | Sin turno abierto, declarar el fondo inicial por moneda; sin turno no se cobra | Un turno por dispositivo (I-06) |
 | 4.4 | Caja → **Cortesía con motivo** *(en /caja)* | F6-14 | Marcar líneas como cortesía con motivo de lista cerrada y autorización (`cuenta.cortesia` 🔐); aparecen en las excepciones del turno | Auditoría |
 | 4.5 A ✅ | Parque → **Entrada en dos toques** ([entrada-rapida](encargos/entrada-rapida.md)) | F5-02 | Pasar pulseras, paquete por niño y teléfono del representante. En la puerta no se teclea ningún nombre (DEC-27, DEC-28) | El registro real de la estancia |
@@ -91,7 +90,7 @@ queda con su `TODO` y su tarea.
 mismos archivos:
 
 1. **Tanda A** (sin archivos compartidos): 4.7 Sucursal ✅ · 4.6 Dispositivos ✅ · 4.5 A Entrada ✅ · 4.5 B Sala ✅ · 4.5 C Representantes ✅. **Tanda A cerrada.**
-2. **Tanda B** (tocan la caja, una detrás de otra): 4.1 Tasas ✅ → **4.2 Medios de pago (lo siguiente)** → 4.4 Cortesía.
+2. **Tanda B** (tocan la caja, una detrás de otra): 4.1 Tasas ✅ → 4.2 Medios de pago ✅ → **4.4 Cortesía (en curso)**.
 3. **Tanda C**: 4.8 Impuestos · 4.9 Impresoras · 4.3 Apertura de turno.
 4. **Tanda D** (aprobada el 2026-09-17): 4.10 Inventario, en tres encargos —insumos, recetas y movimientos— porque las recetas necesitan los insumos y la carta, y los movimientos necesitan los insumos.
 
