@@ -6,6 +6,7 @@ import { WristbandCodeSchema, type DiningTableDto } from "@l2/contracts";
 import { Button, ScannerField, Sheet, cn } from "@l2/ui";
 import type { EstadoLocal } from "../simulacion/proyeccion.ts";
 import { ninosSinMesa } from "./mesas.ts";
+import { nombreDeEstancia } from "../park/view-model.ts";
 
 /**
  * Vincular las pulseras de los niños a una mesa — F6-05, R3, paso B3.
@@ -37,7 +38,7 @@ export function VincularPulseras({
   const yaAqui = estado.mesas[mesa.id]?.sesiones ?? [];
   const nombre = (id: string) => {
     const s = estado.sesiones.find((x) => x.id === id);
-    return s ? (s.kid.nickname ?? s.kid.name) : (estado.nombres[id] ?? "un niño");
+    return s ? nombreDeEstancia(s) : (estado.nombres[id] ?? "un niño");
   };
 
   const alternar = (id: string) =>
@@ -52,7 +53,7 @@ export function VincularPulseras({
         return;
       }
       const otra = Object.values(estado.mesas).find((m) => m.sesiones.includes(sesion.id));
-      const quien = sesion.kid.nickname ?? sesion.kid.name;
+      const quien = nombreDeEstancia(sesion);
       if (otra) {
         setAviso(otra.id === mesa.id ? `${quien} ya está en esta mesa` : `${quien} ya está en la mesa ${otra.label}`);
         return;
@@ -152,7 +153,7 @@ export function VincularPulseras({
                           className="size-5 accent-[var(--color-brand)]"
                         />
                         <Baby size={16} aria-hidden="true" className="text-ink-3" />
-                        <span className="flex-1 text-[14px] font-medium text-ink">{n.kid.nickname ?? n.kid.name}</span>
+                        <span className="flex-1 text-[14px] font-medium text-ink">{nombreDeEstancia(n)}</span>
                         <span className="tnum font-mono text-[12px] text-ink-3">{n.wristbandCode}</span>
                       </label>
                     </li>

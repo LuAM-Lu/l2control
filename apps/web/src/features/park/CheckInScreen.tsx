@@ -1,9 +1,16 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CircleCheckBig, Phone, ScanLine, TriangleAlert, X } from "lucide-react";
+import {
+  CircleCheckBig,
+  Phone,
+  ScanLine,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import {
   CheckInCommandSchema,
+  GuardianSchema,
   type GuardianDto,
   type PaymentMode,
   WristbandCodeSchema,
@@ -43,19 +50,17 @@ import { puedeAbrirRuta } from "../identity/visibilidad.ts";
  *
  *  · Se escanea primero y lo demás sigue. La pulsera crea la fila; no hay un
  *    botón «añadir niño» que haya que buscar.
- *  · El foco salta solo al nombre del niño recién escaneado.
+ *  · El foco salta solo al teléfono tras la primera pulsera (si está vacío).
  *  · El paquete viene preseleccionado con el más común, y se cambia en un
  *    toque sobre un botón grande, no en un desplegable.
  *  · Al representante se le busca por teléfono; si ya vino, no se vuelve a
- *    teclear nada.
+ *    teclear nada. El nombre de los niños no se pide en la puerta para ahorrar tiempo.
  *  · Una sola pantalla. Ningún diálogo, ninguna navegación intermedia.
  */
 
 type Entrada = {
   uid: string;
   wristbandCode: string;
-  name: string;
-  nickname: string;
   packageId: string;
 };
 
@@ -77,8 +82,14 @@ export function CheckInScreen({
 }) {
   const sim = useSimulacion();
   const { tarifario } = useTarifario();
-  const paquetesActivos = useMemo(() => tarifario.packages.filter(p => p.active), [tarifario.packages]);
-  const defaultPackageId = paquetesActivos.find((p) => p.id === "pkg-60")?.id ?? paquetesActivos[0]?.id ?? "";
+  const paquetesActivos = useMemo(
+    () => tarifario.packages.filter((p) => p.active),
+    [tarifario.packages],
+  );
+  const defaultPackageId =
+    paquetesActivos.find((p) => p.id === "pkg-60")?.id ??
+    paquetesActivos[0]?.id ??
+    "";
   const capacityLimit = tarifario.policy.capacityLimit;
 
   const [entradas, setEntradas] = useState<Entrada[]>([]);
@@ -89,13 +100,16 @@ export function CheckInScreen({
   const [modo, setModo] = useState<PaymentMode>("PREPAGO");
   const router = useRouter();
   const { guardar } = useCuentas();
-  
+
   const actor = useActorEnSesion();
   const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
 
-  const nameRefs = useRef(new Map<string, HTMLInputElement | null>());
+  const phoneRef = useRef<HTMLInputElement>(null);
 
-  const capacidad = computeCapacity(activeSessions + entradas.length, capacityLimit);
+  const capacidad = computeCapacity(
+    activeSessions + entradas.length,
+    capacityLimit,
+  );
 
   /* ----------------------------------------------------- representante */
 
@@ -104,7 +118,9 @@ export function CheckInScreen({
     const limpio = telefono.replace(/\D/g, "");
     if (limpio.length < 4) return null;
     return (
-      guardians.find((g) => g.contactReference.replace(/\D/g, "").includes(limpio)) ?? null
+      guardians.find((g) =>
+        g.contactReference.replace(/\D/g, "").includes(limpio),
+      ) ?? null
     );
   }, [telefono, guardians]);
 
@@ -132,26 +148,33 @@ export function CheckInScreen({
       }
       if (activeSessions + entradas.length >= capacityLimit) {
         // F5-03b: el aforo avisa ANTES de permitir un check-in más.
-        setAviso(`Aforo completo (${capacityLimit}). No se puede registrar a nadie más`);
+        setAviso(
+          `Aforo completo (${capacityLimit}). No se puede registrar a nadie más`,
+        );
         return;
       }
 
       const uid = NUEVO_UID();
       setEntradas((prev) => [
         ...prev,
-        { uid, wristbandCode: limpio, name: "", nickname: "", packageId: defaultPackageId },
+        { uid, wristbandCode: limpio, packageId: defaultPackageId },
       ]);
       setAviso(null);
-      // El foco salta solo: el operador escanea y escribe, sin tocar nada.
-      queueMicrotask(() => {
-        const input = nameRefs.current.get(uid);
-        if (input) {
-          input.scrollIntoView({ block: "nearest" });
-          input.focus();
-        }
-      });
+      // El foco salta solo al teléfono tras la primera pulsera si está vacío.
+      if (entradas.length === 0 && !telefono) {
+        queueMicrotask(() => {
+          phoneRef.current?.focus();
+        });
+      }
     },
-    [entradas, occupiedWristbands, activeSessions, capacityLimit, defaultPackageId],
+    [
+      entradas,
+      occupiedWristbands,
+      activeSessions,
+      capacityLimit,
+      defaultPackageId,
+      telefono,
+    ],
   );
 
   const validarPulsera = useCallback(
@@ -160,9 +183,12 @@ export function CheckInScreen({
   );
 
   const actualizar = (uid: string, patch: Partial<Entrada>) =>
-    setEntradas((prev) => prev.map((e) => (e.uid === uid ? { ...e, ...patch } : e)));
+    setEntradas((prev) =>
+      prev.map((e) => (e.uid === uid ? { ...e, ...patch } : e)),
+    );
 
-  const quitar = (uid: string) => setEntradas((prev) => prev.filter((e) => e.uid !== uid));
+  const quitar = (uid: string) =>
+    setEntradas((prev) => prev.filter((e) => e.uid !== uid));
 
   /* -------------------------------------------------------------- total */
 
@@ -176,10 +202,14 @@ export function CheckInScreen({
 
   /* ------------------------------------------------------------- envío */
 
-  const faltanNombres = entradas.some((e) => e.name.trim().length < 2);
   const faltaRepresentante = !encontrado && nombreNuevo.trim().length < 2;
+  const telefonoValido =
+    GuardianSchema.shape.contactReference.safeParse(telefono).success;
   const puedeEnviar =
-    entradas.length > 0 && !faltanNombres && !faltaRepresentante && !capacidad.isFull;
+    entradas.length > 0 &&
+    telefonoValido &&
+    !faltaRepresentante &&
+    !capacidad.isFull;
 
   function registrar() {
     // El mismo contrato que validará el servidor. Si algo no cuadra, se ve
@@ -188,20 +218,24 @@ export function CheckInScreen({
       idempotencyKey: NUEVO_UID(),
       entries: entradas.map((e) => ({
         wristbandCode: e.wristbandCode,
-        kid: {
-          name: e.name.trim(),
-          ...(e.nickname.trim() ? { nickname: e.nickname.trim() } : {}),
-        },
+        kid: {},
         packageId: e.packageId,
       })),
       ...(encontrado
         ? { guardianId: encontrado.id }
-        : { guardian: { fullName: nombreNuevo.trim(), contactReference: telefono.trim() } }),
+        : {
+            guardian: {
+              fullName: nombreNuevo.trim(),
+              contactReference: telefono.trim(),
+            },
+          }),
     };
 
     const resultado = CheckInCommandSchema.safeParse(comando);
     if (!resultado.success) {
-      setAviso(resultado.error.issues[0]?.message ?? "Faltan datos por completar");
+      setAviso(
+        resultado.error.issues[0]?.message ?? "Faltan datos por completar",
+      );
       return;
     }
 
@@ -213,19 +247,21 @@ export function CheckInScreen({
     for (const e of entradas) {
       const p = tarifario.packages.find((x) => x.id === e.packageId);
       if (!p) {
-        setAviso(`El paquete de ${e.name.trim()} ya no existe en el catálogo`);
+        setAviso(
+          `El paquete de la pulsera ${e.wristbandCode} ya no existe en el catálogo`,
+        );
         return;
       }
       const sessionId = `s-${e.uid}`;
       ninos.push({
         sessionId,
-        concepto: `Paquete ${p.name} · ${e.nickname.trim() || e.name.trim()}`,
+        concepto: `Paquete ${p.name} · ${e.wristbandCode}`,
         precio: p.price,
       });
       estancias.push({
         id: sessionId,
         wristbandCode: e.wristbandCode,
-        kid: { id: `k-${e.uid}`, name: e.name.trim(), ...(e.nickname.trim() ? { nickname: e.nickname.trim() } : {}) },
+        kid: { id: `k-${e.uid}` },
         mode: p.mode,
         duration: p.duration,
         startedAt: desde,
@@ -248,8 +284,15 @@ export function CheckInScreen({
     // vincular su pulsera a una mesa y la cocina sabe cuántos hay dentro.
     // Mismo catálogo de eventos que usará el servidor (F1-20).
     for (const session of estancias) {
-      const r = sim.emitir({ type: "estancia.abierta", session, family: cuenta.family });
-      if (!r.ok) avisar.aviso(`La sala no se enteró de ${session.kid.name}: ${r.motivo}`);
+      const r = sim.emitir({
+        type: "estancia.abierta",
+        session,
+        family: cuenta.family,
+      });
+      if (!r.ok)
+        avisar.aviso(
+          `La sala no se enteró de la pulsera ${session.wristbandCode}: ${r.motivo}`,
+        );
     }
 
     setEntradas([]);
@@ -274,7 +317,10 @@ export function CheckInScreen({
     const n = cuenta.sessionIds.length;
     avisar.ok(`Cuenta abierta para ${cuenta.family}`, {
       detalle: `${n} ${n === 1 ? "niño" : "niños"}. Se cobra todo junto al salir.`,
-      accion: { texto: "Ver en la sala", alPulsar: () => router.push("/monitor") },
+      accion: {
+        texto: "Ver en la sala",
+        alPulsar: () => router.push("/monitor"),
+      },
     });
   }
 
@@ -283,7 +329,10 @@ export function CheckInScreen({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-line">
-        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 bajo:py-2">
+        <Container
+          ancho="operacion"
+          className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 bajo:py-2"
+        >
           <div>
             <div>
               <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
@@ -300,15 +349,29 @@ export function CheckInScreen({
               label="Aforo"
               value={capacidad.active}
               suffix={`/ ${capacityLimit}`}
-              tone={capacidad.isFull ? "crit" : capacidad.remaining <= 3 ? "warn" : "idle"}
+              tone={
+                capacidad.isFull
+                  ? "crit"
+                  : capacidad.remaining <= 3
+                    ? "warn"
+                    : "idle"
+              }
               urgent={capacidad.isFull}
             />
-            <StatTile label="En esta entrada" value={entradas.length} tone="brand" />
+            <StatTile
+              label="En esta entrada"
+              value={entradas.length}
+              tone="brand"
+            />
           </div>
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3">
+      <Container
+        as="main"
+        ancho="operacion"
+        className="grid flex-1 gap-5 py-4 md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3"
+      >
         {/* ------------------------------------------------------ niños */}
         <section className="flex min-h-0 min-w-0 flex-col gap-4">
           <div className="shrink-0">
@@ -334,82 +397,64 @@ export function CheckInScreen({
               <ScanPrompt
                 icon={<ScanLine size={40} aria-hidden="true" />}
                 titulo="Pasa la primera pulsera"
-                detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila y el cursor salta solo al nombre del niño."
+                detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila y el nombre del niño no hace falta aquí — se le pone después, desde la sala, si hace falta."
                 pasos={[
                   "Pasa las pulseras",
-                  "Escribe los nombres",
-                  "Busca al representante",
+                  "Elige el paquete",
+                  "Teléfono del representante",
                   puedeCobrar ? "Registra y cobra" : "Registra y envía a caja",
                 ]}
               />
             ) : (
               <ul className="flex flex-col gap-3">
-              {entradas.map((e, i) => (
-                <li
-                  key={e.uid}
-                  className="rounded-[var(--radius-card)] border border-line bg-surface p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <Initial name={e.name || String(i + 1)} tone="brand" />
+                {entradas.map((e, i) => (
+                  <li
+                    key={e.uid}
+                    className="rounded-[var(--radius-card)] border border-line bg-surface p-4"
+                  >
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Initial name={String(i + 1)} tone="brand" />
 
-                    <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                      <Input
-                        label="Nombre del niño"
-                        value={e.name}
-                        onChange={(ev) => actualizar(e.uid, { name: ev.target.value })}
-                        ref={(el: HTMLInputElement | null) => {
-                          nameRefs.current.set(e.uid, el);
-                        }}
-                        placeholder="Nombre y apellido"
-                        autoComplete="off"
-                        {...(e.name.trim().length > 0 && e.name.trim().length < 2
-                          ? { error: "Demasiado corto" }
-                          : {})}
-                      />
-                      <Input
-                        label="Apodo (opcional)"
-                        value={e.nickname}
-                        onChange={(ev) => actualizar(e.uid, { nickname: ev.target.value })}
-                        placeholder="Cómo lo llaman"
-                        autoComplete="off"
-                      />
+                      <Badge tone="idle" className="text-[15px] px-3 py-1.5">
+                        <span className="tnum font-mono">
+                          {e.wristbandCode}
+                        </span>
+                      </Badge>
+
+                      <div className="min-w-[200px] flex-1">
+                        <PackagePicker
+                          packages={paquetesActivos}
+                          selectedId={e.packageId}
+                          onSelect={(id) =>
+                            actualizar(e.uid, { packageId: id })
+                          }
+                          compact
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => quitar(e.uid)}
+                        aria-label={`Quitar la pulsera ${e.wristbandCode}`}
+                        className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
+                      >
+                        <X size={16} aria-hidden="true" />
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => quitar(e.uid)}
-                      aria-label={`Quitar la pulsera ${e.wristbandCode}`}
-                      className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
-                    >
-                      <X size={16} aria-hidden="true" />
-                    </button>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
-                    <Badge tone="idle">
-                      <span className="tnum font-mono">{e.wristbandCode}</span>
-                    </Badge>
-                    <div className="min-w-[280px] flex-1">
-                      <PackagePicker
-                        packages={paquetesActivos}
-                        selectedId={e.packageId}
-                        onSelect={(id) => actualizar(e.uid, { packageId: id })}
-                        compact
-                      />
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </section>
 
         {/* ---------------------------------------------- representante */}
         <aside className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 apaisado:max-h-full apaisado:self-start bajo:gap-3 bajo:p-4">
-          <div className="-m-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 md:max-lg:portrait:grid md:max-lg:portrait:grid-cols-2 md:max-lg:portrait:gap-x-5 md:max-lg:portrait:overflow-visible bajo:gap-3">
+          <div className="-m-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 bajo:gap-3">
             <div className="flex flex-col gap-4 bajo:gap-3">
-              <h2 className="font-display text-lg font-bold text-ink">Representante</h2>
+              <h2 className="font-display text-lg font-bold text-ink">
+                Representante
+              </h2>
 
               <Input
                 label="Teléfono"
@@ -418,16 +463,25 @@ export function CheckInScreen({
                 placeholder="0412-1234567"
                 inputMode="tel"
                 autoComplete="off"
+                ref={phoneRef}
                 leading={<Phone size={16} aria-hidden="true" />}
-                hint="Si ya vino antes, aparecerá solo"
+                hint="A quién llamamos si pasa algo. Si ya vino, aparece solo"
               />
 
               {encontrado && (
                 <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-2.5">
-                  <CircleCheckBig size={16} className="shrink-0 text-state-ok" aria-hidden="true" />
+                  <CircleCheckBig
+                    size={16}
+                    className="shrink-0 text-state-ok"
+                    aria-hidden="true"
+                  />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">{encontrado.fullName}</p>
-                    <p className="text-[12px] text-ink-2">Ya registrado · no hay que teclear nada</p>
+                    <p className="truncate text-sm font-semibold text-ink">
+                      {encontrado.fullName}
+                    </p>
+                    <p className="text-[12px] text-ink-2">
+                      Ya registrado · no hay que teclear nada
+                    </p>
                   </div>
                 </div>
               )}
@@ -443,82 +497,99 @@ export function CheckInScreen({
                 />
               )}
             </div>
-
-            <div className="flex flex-col gap-4 bajo:gap-3">
-              {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. */}
-              <fieldset className="flex flex-col">
-                <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
-                  Cómo paga
-                </legend>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(
-                    [
-                      ["PREPAGO", "Pagar ahora", "Al salir, solo el tiempo de más"],
-                      ["CUENTA_ABIERTA", "Cuenta abierta", "Todo junto al salir"],
-                    ] as const
-                  ).map(([valor, nombre, detalle]) => (
-                    <button
-                      key={valor}
-                      type="button"
-                      aria-pressed={modo === valor}
-                      title={detalle}
-                      onClick={() => setModo(valor)}
-                      className={cn(
-                        "flex min-h-12 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 py-2 text-left",
-                        "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                        modo === valor
-                          ? "border-brand bg-brand/12 text-ink"
-                          : "border-line bg-base text-ink-2 hover:text-ink",
-                      )}
-                    >
-                      <span className="text-[13px] font-semibold">{nombre}</span>
-                      {/* En pantalla baja el detalle sobra: sigue en el `title`. */}
-                      <span className="text-[11px] leading-snug text-ink-3 bajo:hidden">{detalle}</span>
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
           </div>
 
-          <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 md:max-lg:portrait:flex-row md:max-lg:portrait:items-center md:max-lg:portrait:gap-4 bajo:mt-3 bajo:gap-3">
-            <div className="flex-1">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
-                  Paquetes
-                </span>
-                <MoneyDisplay value={toMajor(total)} currency={total.currency} size="lg" />
+          {/* Lo que se decide justo antes de pulsar el botón va pegado al
+              botón, y fuera de lo que desplaza: en una tablet de 600 px de
+              alto, «cómo paga» se quedaba medio tapado abajo. */}
+          <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 bajo:mt-3 bajo:gap-3">
+            {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. */}
+            <fieldset className="flex flex-col">
+              <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
+                Cómo paga
+              </legend>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(
+                  [
+                    [
+                      "PREPAGO",
+                      "Pagar ahora",
+                      "Al salir, solo el tiempo de más",
+                    ],
+                    ["CUENTA_ABIERTA", "Cuenta abierta", "Todo junto al salir"],
+                  ] as const
+                ).map(([valor, nombre, detalle]) => (
+                  <button
+                    key={valor}
+                    type="button"
+                    aria-pressed={modo === valor}
+                    title={detalle}
+                    onClick={() => setModo(valor)}
+                    className={cn(
+                      "flex min-h-12 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 py-2 text-left",
+                      "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                      modo === valor
+                        ? "border-brand bg-brand/12 text-ink"
+                        : "border-line bg-base text-ink-2 hover:text-ink",
+                    )}
+                  >
+                    <span className="text-[13px] font-semibold">{nombre}</span>
+                    {/* En pantalla baja el detalle sobra: sigue en el `title`. */}
+                    <span className="text-[11px] leading-snug text-ink-3 bajo:hidden">
+                      {detalle}
+                    </span>
+                  </button>
+                ))}
               </div>
-              <p className="mt-1 text-[12px] text-ink-3">
-                {entradas.length === 0
-                  ? "Sin niños en la entrada"
-                  : `${entradas.length} ${entradas.length === 1 ? "niño" : "niños"}`}
-              </p>
-            </div>
+            </fieldset>
 
-            <div className="flex flex-col gap-2 md:max-lg:portrait:w-1/2 md:max-lg:portrait:shrink-0">
-              <Button
-                surface="pos"
-                variant="primary"
-                disabled={!puedeEnviar}
-                onClick={registrar}
-                className="w-full"
-              >
-                {modo === "PREPAGO" ? (puedeCobrar ? "Registrar y cobrar" : "Registrar y enviar a caja") : "Registrar y abrir cuenta"}
-              </Button>
-
-              {/* §8.7: el motivo por el que un botón está deshabilitado se dice,
-                  no se deja adivinar. */}
-              {!puedeEnviar && entradas.length > 0 && (
-                <p className="text-center text-[12px] text-ink-3">
-                  {capacidad.isFull
-                    ? "Aforo completo"
-                    : faltanNombres
-                      ? "Falta el nombre de algún niño"
-                      : "Falta el representante"}
+            <div className="flex flex-col gap-4 md:max-lg:portrait:flex-row md:max-lg:portrait:items-center md:max-lg:portrait:gap-4 bajo:gap-3">
+              <div className="flex-1">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
+                    Paquetes
+                  </span>
+                  <MoneyDisplay
+                    value={toMajor(total)}
+                    currency={total.currency}
+                    size="lg"
+                  />
+                </div>
+                <p className="mt-1 text-[12px] text-ink-3">
+                  {entradas.length === 0
+                    ? "Sin niños en la entrada"
+                    : `${entradas.length} ${entradas.length === 1 ? "niño" : "niños"}`}
                 </p>
-              )}
+              </div>
+
+              <div className="flex flex-col gap-2 md:max-lg:portrait:w-1/2 md:max-lg:portrait:shrink-0">
+                <Button
+                  surface="pos"
+                  variant="primary"
+                  disabled={!puedeEnviar}
+                  onClick={registrar}
+                  className="w-full"
+                >
+                  {modo === "PREPAGO"
+                    ? puedeCobrar
+                      ? "Registrar y cobrar"
+                      : "Registrar y enviar a caja"
+                    : "Registrar y abrir cuenta"}
+                </Button>
+
+                {/* §8.7: el motivo por el que un botón está deshabilitado se dice,
+                  no se deja adivinar. */}
+                {!puedeEnviar && entradas.length > 0 && (
+                  <p className="text-center text-[12px] text-ink-3">
+                    {capacidad.isFull
+                      ? "Aforo completo"
+                      : !telefonoValido
+                        ? "Falta el teléfono del representante"
+                        : "Falta el nombre del representante"}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </aside>

@@ -22,11 +22,27 @@ import { toEpochMs, toParkPolicy, toParkSession } from "./mappers.ts";
  * digan lo mismo.
  */
 export function nombreVisible(s: {
-  childNickname?: string | null;
-  childName?: string | null;
+  childNickname?: string | null | undefined;
+  childName?: string | null | undefined;
   wristbandCode: string;
 }): string {
   return s.childNickname ?? s.childName ?? s.wristbandCode;
+}
+
+/**
+ * Lo mismo, para una estancia tal como viaja en los eventos: el mesero y la
+ * sala la tienen en esa forma, y sin esto cada sitio se inventaba su propio
+ * `?? ""`, que es como cinco pantallas acaban llamando distinto al mismo niño.
+ */
+export function nombreDeEstancia(s: {
+  kid: { name?: string | undefined; nickname?: string | undefined };
+  wristbandCode: string;
+}): string {
+  return nombreVisible({
+    childNickname: s.kid.nickname,
+    childName: s.kid.name,
+    wristbandCode: s.wristbandCode,
+  });
 }
 
 export type SessionCardModel = Readonly<{

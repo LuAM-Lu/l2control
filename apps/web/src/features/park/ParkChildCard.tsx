@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert } from "lucide-react";
+import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert, NotebookPen } from "lucide-react";
 import {
   CountdownDisplay,
   Initial,
@@ -165,6 +165,12 @@ export function ParkChildCard({
         </div>
       }
     >
+      {!model.childName && !model.childNickname && (
+        <div className="flex items-center gap-1.5 text-[12px] text-ink-3 -mt-1 mb-1">
+          <NotebookPen size={12} aria-hidden="true" />
+          Falta nombre
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-x-2 min-w-0">
         <CountdownDisplay
           now={now}

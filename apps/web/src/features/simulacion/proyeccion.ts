@@ -148,6 +148,16 @@ export function aplicar(e: EstadoLocal, ev: OperationEventDto): EstadoLocal {
         nombres: { ...e.nombres, [s.id]: s.kid.nickname ?? s.kid.name ?? s.wristbandCode },
       };
     }
+    case "estancia.nombrada": {
+      const s = e.sesiones.find((x) => x.id === ev.sessionId);
+      if (!s) return base; // Si ya salió o llegó fuera de orden, se ignora.
+      const kid = { ...s.kid, name: ev.name, ...(ev.nickname ? { nickname: ev.nickname } : {}) };
+      return {
+        ...base,
+        sesiones: e.sesiones.map((x) => (x.id === ev.sessionId ? { ...x, kid } : x)),
+        nombres: { ...e.nombres, [ev.sessionId]: ev.nickname ?? ev.name },
+      };
+    }
     case "estancia.cerrada":
       return {
         ...base,

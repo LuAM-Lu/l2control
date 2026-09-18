@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Baby, OctagonAlert, TimerReset, Users } from "lucide-react";
+import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2 } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE } from "@l2/ui";
+import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button } from "@l2/ui";
 import Link from "next/link";
 import type { Route } from "next";
 import { toMajor } from "@l2/domain-money";
+import { can } from "@l2/domain-identity";
 import { pendiente } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock, DEFAULT_TIME_FORMAT } from "./time-format.ts";
@@ -15,6 +16,10 @@ import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
 import { nombreVisible, type MonitorModel } from "./view-model";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { useActorEnSesion } from "../identity/sesion.ts";
+import { usePlano } from "../mesas/PlanoProvider.tsx";
+import { PonerNombre } from "./PonerNombre.tsx";
+import { VincularAMesa } from "./VincularAMesa.tsx";
 
 /**
  * Monitor de parque — F5-08.
@@ -29,6 +34,13 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
   const model = useMemo(() => monitorSimulado(sim) ?? modeloServidor, [sim, modeloServidor]);
   const [selected, setSelected] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+
+  const actor = useActorEnSesion();
+  const puedeVincular = actor !== null && can(actor, "parque.vincularMesa") !== "DENEGADO";
+  const { plano } = usePlano();
+
+  const [poniendoNombre, setPoniendoNombre] = useState(false);
+  const [vinculandoAMesa, setVinculandoAMesa] = useState(false);
 
   // F5-10: pasar la pulsera abre el perfil del niño, desde cualquier pantalla
   // del monitor y sin foco previo en un campo.
@@ -77,6 +89,8 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
     ? (cuentas.find((c) => c.sessionIds.includes(ficha.id)) ?? null)
     : null;
   const familiaSimulada = ficha && sim.activa ? (sim.estado.familias[ficha.id] ?? null) : null;
+
+  const mesaActual = ficha && sim.activa ? Object.values(sim.estado.mesas).find((m) => m.sesiones.includes(ficha.id)) : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -166,7 +180,11 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
           desde aquí se baja un nivel, a su salida. */}
       <Sheet
         abierto={ficha !== null}
-        onCerrar={() => setSelected(null)}
+        onCerrar={() => {
+          setSelected(null);
+          setPoniendoNombre(false);
+          setVinculandoAMesa(false);
+        }}
         titulo={ficha ? nombreVisible(ficha) : ""}
         {...(ficha
           ? {
@@ -174,18 +192,60 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
             }
           : {})}
         pie={
-          ficha && (
-            <Link
-              href={`/salida?pulsera=${ficha.wristbandCode}` as Route}
-              className="flex min-h-14 w-full items-center justify-center rounded-[var(--radius-control)] bg-brand px-5 text-base font-semibold text-on-brand no-underline transition-colors hover:bg-brand-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              Registrar su salida
-            </Link>
+          ficha && !poniendoNombre && (
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="neutral"
+                  className="flex-1"
+                  onClick={() => setPoniendoNombre(true)}
+                >
+                  <NotebookPen size={17} aria-hidden="true" />
+                  {ficha.childName ? "Corregir el nombre" : "Poner nombre"}
+                </Button>
+
+                {puedeVincular && !mesaActual && (
+                  <Button
+                    variant="neutral"
+                    className="flex-1"
+                    onClick={() => setVinculandoAMesa(true)}
+                  >
+                    <Link2 size={17} aria-hidden="true" />
+                    Vincular a una mesa
+                  </Button>
+                )}
+              </div>
+              <Link
+                href={`/salida?pulsera=${ficha.wristbandCode}` as Route}
+                className="flex min-h-14 w-full items-center justify-center rounded-[var(--radius-control)] bg-brand px-5 text-base font-semibold text-on-brand no-underline transition-colors hover:bg-brand-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand mt-2"
+              >
+                Registrar su salida
+              </Link>
+            </div>
           )
         }
       >
-        {ficha && (
+        {ficha && poniendoNombre && (
+          <PonerNombre
+            sessionId={ficha.id}
+            nombreActual={ficha.childName}
+            apodoActual={ficha.childNickname}
+            onGuardar={(cmd) => {
+              const r = sim.emitir({ ...cmd, type: "estancia.nombrada" });
+              if (!r.ok) avisar.error(r.motivo);
+              else setPoniendoNombre(false);
+            }}
+            onCancelar={() => setPoniendoNombre(false)}
+          />
+        )}
+        {ficha && !poniendoNombre && (
           <dl className="flex flex-col gap-3 text-[14px]">
+            {mesaActual && (
+              <div className="flex items-baseline justify-between gap-3 mb-2">
+                <dt className="text-ink-3">En la mesa</dt>
+                <dd className="font-semibold text-ink">{mesaActual.label}</dd>
+              </div>
+            )}
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-ink-3">Tiempo</dt>
               <dd className="text-ink">
@@ -230,6 +290,21 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
           </dl>
         )}
       </Sheet>
+
+      {ficha && (
+        <VincularAMesa
+          abierto={vinculandoAMesa}
+          onCerrar={() => setVinculandoAMesa(false)}
+          sesionId={ficha.id}
+          estado={sim.estado}
+          plano={plano.tables}
+          onVincular={(tableId, sessionIds) => {
+            const r = sim.emitir({ type: "mesa.vinculada", tableId, sessionIds });
+            if (r.ok) avisar.ok(`${sessionIds.length === 1 ? "Niño vinculado" : "Niños vinculados"} a la mesa`);
+            else avisar.error(r.motivo);
+          }}
+        />
+      )}
     </div>
   );
 }

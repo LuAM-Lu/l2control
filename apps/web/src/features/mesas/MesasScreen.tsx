@@ -20,6 +20,7 @@ import type { FamilyAccountDto } from "@l2/contracts";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { nombreDeEstancia } from "../park/view-model.ts";
 import {
   abrirCuentaDeMesa,
   anadirPedido,
@@ -616,7 +617,7 @@ function NinosDeLaMesa({ vista, onVincular }: { vista: MesaVista; onVincular: ()
   const ids = vista.ocupacion?.sesiones ?? [];
   const nombre = (id: string) => {
     const s = sim.estado.sesiones.find((x) => x.id === id);
-    return s ? (s.kid.nickname ?? s.kid.name) : `${sim.estado.nombres[id] ?? "Niño"} (ya salió)`;
+    return s ? nombreDeEstancia(s) : `${sim.estado.nombres[id] ?? "Niño"} (ya salió)`;
   };
   return (
     <section aria-label="Niños vinculados">

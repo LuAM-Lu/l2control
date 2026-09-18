@@ -17,7 +17,9 @@ export function describir(ev: OperationEventDto, e: EstadoLocal): string {
 
   switch (ev.type) {
     case "estancia.abierta":
-      return `Entra ${ev.session.kid.nickname ?? ev.session.kid.name} · ${ev.family}`;
+      return `Entra ${ev.session.kid.nickname ?? ev.session.kid.name ?? ev.session.wristbandCode} · ${ev.family}`;
+    case "estancia.nombrada":
+      return `${e.nombres[ev.sessionId] ?? "Un niño"} ahora se llama ${ev.nickname ?? ev.name}`;
     case "estancia.cerrada":
       return `Sale ${e.nombres[ev.sessionId] ?? "un niño"}`;
     case "mesa.abierta":
