@@ -34,6 +34,19 @@ describe("catálogo de eventos (F1-20)", () => {
     assert.equal(OperationEventSchema.safeParse(estancia).success, true);
   });
 
+  test("una estancia entra sin nombre: la pulsera la identifica (DEC-28)", () => {
+    const sinNombre = { ...estancia, session: { ...estancia.session, kid: { id: "k-2" } } };
+    assert.equal(OperationEventSchema.safeParse(sinNombre).success, true);
+  });
+
+  test("ponerle nombre después es un evento, y no pide motivo (DEC-28)", () => {
+    const nombrada = { id: "e-9", at, type: "estancia.nombrada", sessionId: "s-1", name: "Valentina Rojas" };
+    assert.equal(OperationEventSchema.safeParse(nombrada).success, true);
+    assert.equal(OperationEventSchema.safeParse({ ...nombrada, nickname: "Vale" }).success, true);
+    // Una letra no es un nombre: se corrige, no se guarda a medias.
+    assert.equal(OperationEventSchema.safeParse({ ...nombrada, name: "V" }).success, false);
+  });
+
   test("un tipo de evento desconocido se rechaza", () => {
     const r = OperationEventSchema.safeParse({ id: "e-2", at, type: "pedido.teletransportado", orderId: "p-1" });
     assert.equal(r.success, false);

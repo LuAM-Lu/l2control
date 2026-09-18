@@ -41,6 +41,20 @@ export const OperationEventSchema = z.discriminatedUnion("type", [
     family: z.string().trim().min(2).max(80),
   }),
   z.object({ ...base, type: z.literal("estancia.cerrada"), sessionId: IdSchema }),
+  /**
+   * A una estancia que entró solo con su pulsera le ponen nombre (DEC-28).
+   *
+   * Llega después de `estancia.abierta` y sin motivo: completar un dato no es
+   * una decisión que haya que justificar. Lo emite la sala, y todas las
+   * pantallas que nombran a ese niño pasan a llamarlo igual.
+   */
+  z.object({
+    ...base,
+    type: z.literal("estancia.nombrada"),
+    sessionId: IdSchema,
+    name: z.string().trim().min(2, "Nombre demasiado corto").max(60),
+    nickname: z.string().trim().max(30).optional(),
+  }),
 
   /* ── mesas ── */
   z.object({
