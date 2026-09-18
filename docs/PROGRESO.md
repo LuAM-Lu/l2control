@@ -141,7 +141,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 
 | Tarea | Estado | Nota |
 |---|---|---|
-| F5-02 Registro rápido en entrada | **Parcial** | Pantalla completa en `/entrada`. Escaneo, foco automático, aforo, rechazo de pulsera ocupada. **Falta calibrar el umbral del lector con el aparato real** y el backend |
+| F5-02 Registro rápido en entrada | **Parcial** | Pantalla completa en `/entrada`. Escaneo, foco automático, aforo, rechazo de pulsera ocupada. **Rediseñada con DEC-27 y DEC-28** (2026-09-18): en la puerta se pasan las pulseras, se elige paquete y se teclea el teléfono del representante; el nombre del niño ya no se teclea ahí, porque la estancia la identifica su pulsera. El contrato, el dominio y las pantallas que nombran a un niño ya funcionan sin nombre. **Falta calibrar el umbral del lector con el aparato real** y el backend |
 | F5-03 Búsqueda de representante | ✅ Hecha | Por teléfono; si ya vino, no se teclea nada |
 | F5-03b Aforo con aviso | ✅ Hecha | Avisa antes de permitir un check-in de más; límite configurable |
 | F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato. **Contrato del tarifario listo** (2026-09-16, `TarifarioSchema`, 9 pruebas): paquetes y política se validan juntos —al menos uno a la venta, precios en dólares y mayores que cero, sin nombres repetidos, pase libre solo al salir, aviso menor que el paquete más corto—. **Editor hecho el 2026-09-17** (Panel → Parque → Tarifas y paquetes, [encargo](encargos/tarifas-editor.md)): borrador con deshacer, retirar sin borrar, reglas del parque con ejemplo calculado por el dominio; la entrada, la salida e Inicio usan el tarifario publicado. Falta el servidor |
