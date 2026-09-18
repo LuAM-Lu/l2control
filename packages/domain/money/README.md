@@ -24,8 +24,9 @@ allocate(fromMajor("1.00", "USD"), 3);      // [34n, 33n, 33n] — suma exacta
 
 ## Qué NO le corresponde
 
-- **Conversión entre monedas.** Necesita una tasa, y la tasa es un dato con vigencia que vive
-  en el módulo de tasas ([ADR-005](../../../docs/adr/005-tasa-congelada.md)).
+- **La tasa como dato con vigencia.** Vive en [`@l2/domain-rates`](../rates/README.md)
+  ([ADR-005](../../../docs/adr/005-tasa-congelada.md)). Aquí está `convert`, que **exige** una
+  fracción ya congelada: no existe una versión que la busque sola.
 - **Impuestos.** IVA e IGTF van en `@l2/domain-tax` cuando exista (F3-06, F3-07).
 - **Formato para pantalla.** Lo hace `MoneyDisplay` en `@l2/ui`.
 

@@ -139,6 +139,9 @@ importers:
       '@l2/domain-park':
         specifier: workspace:*
         version: link:../../packages/domain/park
+      '@l2/domain-rates':
+        specifier: workspace:*
+        version: link:../../packages/domain/rates
       '@l2/domain-tax':
         specifier: workspace:*
         version: link:../../packages/domain/tax
@@ -251,6 +254,22 @@ importers:
         version: 7.0.2
 
   packages/domain/park:
+    dependencies:
+      '@l2/domain-money':
+        specifier: workspace:*
+        version: link:../money
+    devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/domain/rates:
     dependencies:
       '@l2/domain-money':
         specifier: workspace:*

@@ -16,6 +16,7 @@
     "@l2/domain-identity": "workspace:*",
     "@l2/domain-money": "workspace:*",
     "@l2/domain-park": "workspace:*",
+    "@l2/domain-rates": "workspace:*",
     "@l2/domain-tax": "workspace:*",
     "@l2/ui": "workspace:*",
     "lucide-react": "1.43.0",

@@ -1,0 +1,23 @@
+{
+  "name": "@l2/domain-rates",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "El módulo de tasas (§5.2, ADR-005): qué tasa está vigente, la fracción con la que se convierte y el límite de cordura. Puro.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "Sin red: quien llama al proveedor del BCV es la capa de aplicación. Aquí solo entra el dato ya obtenido y el instante como argumento (ADR-010).",
+  "dependencies": {
+    "@l2/domain-money": "workspace:*"
+  },
+  "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
+    "typescript": "7.0.2"
+  }
+}

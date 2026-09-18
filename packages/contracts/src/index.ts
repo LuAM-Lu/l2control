@@ -31,7 +31,6 @@ export {
   TarifarioSchema,
   SessionStatusSchema,
   ParkSessionSchema,
-  ExchangeRateSchema,
   MonitorSnapshotSchema,
   CheckInCommandSchema,
   CheckInResultSchema,
@@ -49,7 +48,6 @@ export {
   type TarifarioDto,
   type SessionStatus,
   type ParkSessionDto,
-  type ExchangeRateDto,
   type MonitorSnapshotDto,
   type CheckInCommand,
   type RepresentanteDto,
@@ -58,6 +56,24 @@ export {
   type NombrarEstanciaCommand,
   type CheckInResult,
 } from "./park.ts";
+
+export {
+  RatePairSchema,
+  RateSourceSchema,
+  RateValueSchema,
+  ExchangeRateSchema,
+  HistorialTasasSchema,
+  CapturarTasaCommandSchema,
+  ConfirmarTasaCommandSchema,
+  TasaCommandSchema,
+  type RatePair,
+  type RateSource,
+  type ExchangeRateDto,
+  type HistorialTasasDto,
+  type CapturarTasaCommand,
+  type ConfirmarTasaCommand,
+  type TasaCommand,
+} from "./tasas.ts";
 
 export {
   SettlementLineSchema,

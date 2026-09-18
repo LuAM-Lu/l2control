@@ -2,7 +2,7 @@
 
 - **Estado:** Aceptada
 - **Fecha:** 2026-09-08
-- **Situación en el código:** Pendiente: llega con el motor de tasas en F3-03.
+- **Situación en el código:** `packages/domain/rates` desde el 2026-09-18 (F3-03 a F3-05, interfaz). Falta el servidor: persistir el historial y sincronizar con el BCV.
 
 > Para cambiar esta decisión se escribe un ADR nuevo que la supersede.
 > No se edita esta en silencio.

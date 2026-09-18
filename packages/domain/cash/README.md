@@ -65,7 +65,7 @@ dependa de la tasa de mañana.
 
 - **Los impuestos.** El total que recibe ya viene con IVA de `@l2/domain-tax`. El IGTF se
   calcula sobre los pagos, y quien orquesta ambas cosas es la capa de aplicación.
-- **La tasa como dato con vigencia.** Recibe una `FrozenRate` ya fijada (ADR-005).
+- **La tasa como dato con vigencia.** Vive en [`@l2/domain-rates`](../rates/README.md). Aquí llega una `FrozenRate` ya fijada por la transacción (ADR-005).
 - **Persistencia del libro.** Devuelve los asientos; guardarlos append-only es de la capa de datos.
 
 ```bash

@@ -8,6 +8,8 @@
  */
 import { z } from "zod";
 import { IdSchema, MoneySchema, TimestampSchema, IdempotencyKeySchema } from "./primitives.ts";
+// La tasa tiene su propio módulo (§5.2): aquí solo se usa para pintar el monitor.
+import { ExchangeRateSchema } from "./tasas.ts";
 
 /* ------------------------------------------------------------- pulsera */
 
@@ -208,25 +210,6 @@ export const ParkSessionSchema = z.object({
   packagePrice: MoneySchema,
 });
 export type ParkSessionDto = z.infer<typeof ParkSessionSchema>;
-
-/* --------------------------------------------------- tasa de cambio */
-
-/**
- * Tasa vigente. Viaja con su **origen y su hora de captura** porque ADR-005
- * exige que el operador vea con qué tasa está cobrando, y porque una tasa sin
- * procedencia no es auditable.
- */
-export const ExchangeRateSchema = z.object({
-  id: IdSchema,
-  pair: z.enum(["USD/VES", "USDT/VES"]),
-  /** Valor como texto por la misma razón que el dinero: precisión. */
-  value: z.string().regex(/^\d+(\.\d+)?$/),
-  source: z.enum(["BCV", "MANUAL", "COMERCIAL"]),
-  capturedAt: TimestampSchema,
-  /** Sin confirmar, no se puede cobrar con ella (§5.2, fail-closed). */
-  confirmed: z.boolean(),
-});
-export type ExchangeRateDto = z.infer<typeof ExchangeRateSchema>;
 
 /* -------------------------------------------------- vista del monitor */
 

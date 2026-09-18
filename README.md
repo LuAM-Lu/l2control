@@ -77,6 +77,7 @@ apps/web                  Next.js 16 — todas las superficies
   src/demo/               datos de ejemplo e interruptor de la demo
 packages/contracts        contratos Zod: la forma de cada dato, una sola vez
 packages/domain/money     aritmética de dinero en bigint — puro
+packages/domain/rates     tasa vigente y fracción de conversión (§5.2) — puro
 packages/domain/tax       IVA con vigencias e IGTF por medio de pago — puro
 packages/domain/cash      cobro mixto, vuelto, cuadre, turno y devoluciones — puro
 packages/domain/park      tiempo, gracia, penalización, aforo — puro

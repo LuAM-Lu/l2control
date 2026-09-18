@@ -44,6 +44,7 @@ apps/web                  Next.js 16 — todas las superficies
   src/demo/               datos de ejemplo e interruptor NEXT_PUBLIC_DEMO
 packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
+packages/domain/rates     tasa vigente, fracción de conversión y límite de cordura (puro)
 packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
 packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones (puro)
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
