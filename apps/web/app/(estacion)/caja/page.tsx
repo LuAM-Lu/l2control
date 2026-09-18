@@ -1,7 +1,6 @@
 import { CajaScreen } from "../../../src/features/cash/CajaScreen";
 import {
   DEMO_IGTF_BASIS_POINTS,
-  DEMO_MAX_RETAINED,
   DEMO_TAX_RULES,
   DEMO_TENDERS,
   DEMO_TERMINALES,
@@ -39,7 +38,6 @@ export default async function CajaPage({
       tenders={DEMO_TENDERS}
       terminales={DEMO_TERMINALES}
       igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}
-      maxRetained={DEMO_MAX_RETAINED}
       rate={{ from: "VES", to: "USD", numerator: 22841n, denominator: 100n }}
       // TODO(F2-12/backend): el punto sale del registro del dispositivo. El
       // equipo de caja es el del mostrador.

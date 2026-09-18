@@ -7,6 +7,8 @@ import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
 import { EditorCarta } from "../../../../../src/features/mesas/EditorCarta";
 import { EditorTarifario } from "../../../../../src/features/park/EditorTarifario";
 import { AccesosPage } from "../../../../../src/features/identity/AccesosPage";
+import { DispositivosPage } from "../../../../../src/features/identity/DispositivosPage";
+import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -21,6 +23,8 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
   "restaurante/plano": () => <EditorPlano />,
   "restaurante/carta": () => <EditorCarta />,
   "parque/tarifas": () => <EditorTarifario />,
+  "personas/dispositivos": () => <DispositivosPage />,
+  "configuracion/sucursal": () => <EditorSucursal />,
   // TODO(F2-05/backend): la sucursal saldrá del dispositivo.
   "configuracion/accesos": () => (
     <AccesosPage branchId="b1" />

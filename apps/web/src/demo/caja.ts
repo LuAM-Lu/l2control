@@ -23,7 +23,10 @@ export const DEMO_TAX_RULES: TaxRule[] = [
 /** IGTF en puntos básicos. 3 % = 300. Dato, no constante del código. */
 export const DEMO_IGTF_BASIS_POINTS = 300;
 
-/** Umbral máximo que puede quedarse en caja como residuo (§5.6). */
+/**
+ * Umbral máximo que puede quedarse en caja como residuo (§5.6).
+ * Ahora vive en los ajustes de la sucursal. Se deja aquí hasta F0-04 o hasta que se elimine.
+ */
 export const DEMO_MAX_RETAINED = fromMajor("0.05", "USD");
 
 export const DEMO_TENDERS: MedioPago[] = [

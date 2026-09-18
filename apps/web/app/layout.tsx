@@ -6,11 +6,15 @@ import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvide
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
 import { CartaProvider } from "../src/features/mesas/CartaProvider";
 import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
+import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
+import { DispositivosProvider } from "../src/features/identity/DispositivosProvider";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { DEMO_ACTIVA } from "../src/demo/modo";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { TARIFARIO_DEMO } from "../src/demo/parque";
+import { AJUSTES_DEMO } from "../src/demo/sucursal";
+import { DEMO_DISPOSITIVOS } from "../src/demo/dispositivos";
 import { DEMO_CUENTAS } from "../src/demo/cuentas";
 import { DEMO_VENTAS } from "../src/demo/ventas";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
@@ -60,18 +64,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* El estado del local vive por encima de las dos cáscaras: lo
               escriben las estaciones y lo lee el panel en vivo (F9-08).
               Con la demo apagada, se arranca sin cuentas ni ventas. */}
-          <PlanoProvider inicial={PLANO_DEMO}>
-            <CartaProvider inicial={CARTA_DEMO}>
-              <TarifarioProvider inicial={TARIFARIO_DEMO}>
-                <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
-                  <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
-                    {children}
-                    <PanelSimulacion />
-                  </VentasProvider>
-                </CuentasProvider>
-              </TarifarioProvider>
-            </CartaProvider>
-          </PlanoProvider>
+          {/* Los ajustes del local y los equipos autorizados envuelven a todo
+              lo demás: el formato de hora y el umbral de la caja los lee
+              cualquier superficie (F5-08b, F4-04c, F2-02). */}
+          <SucursalProvider inicial={AJUSTES_DEMO}>
+            <DispositivosProvider inicial={DEMO_DISPOSITIVOS}>
+              <PlanoProvider inicial={PLANO_DEMO}>
+                <CartaProvider inicial={CARTA_DEMO}>
+                  <TarifarioProvider inicial={TARIFARIO_DEMO}>
+                    <CuentasProvider inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}>
+                      <VentasProvider inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}>
+                        {children}
+                        <PanelSimulacion />
+                      </VentasProvider>
+                    </CuentasProvider>
+                  </TarifarioProvider>
+                </CartaProvider>
+              </PlanoProvider>
+            </DispositivosProvider>
+          </SucursalProvider>
         </SimulacionProvider>
       </body>
     </html>

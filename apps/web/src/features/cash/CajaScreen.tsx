@@ -91,6 +91,7 @@ import {
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 
 /** USDT → USD a la par (DEC-1: cuestión abierta con el contador). */
 const PARIDAD_USDT: FrozenRate = { from: "USDT", to: "USD", numerator: 1n, denominator: 1n };
@@ -1223,12 +1224,14 @@ export function CajaScreen({
   volver,
   pulseras,
   ...cobro
-}: Omit<CobroProps, "lines" | "cuenta" | "onCobrado"> & {
+}: Omit<CobroProps, "lines" | "cuenta" | "onCobrado" | "maxRetained"> & {
   cuentaInicial: string | null;
   volver: string | null;
   /** Código de pulsera → estancia, de la instantánea del servidor. */
   pulseras: Readonly<Record<string, string>>;
 }) {
+  const { ajustes } = useSucursal();
+  const maxRetained: Money = { amount: BigInt(ajustes.maxRetenido.minor), currency: ajustes.maxRetenido.currency };
   const { cuentas, guardar, descartar, cargado } = useCuentas();
   const sim = useSimulacion();
   const router = useRouter();
@@ -1606,6 +1609,7 @@ export function CajaScreen({
           <CobroCuenta
             key={actual.id}
             {...cobro}
+            maxRetained={maxRetained}
             cuenta={actual}
             lines={lineas}
             onCobrado={(r) => alCobrar(actual, r)}

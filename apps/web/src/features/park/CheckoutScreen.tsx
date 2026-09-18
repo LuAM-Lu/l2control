@@ -26,10 +26,11 @@ import { sum, toMajor } from "@l2/domain-money";
 import { pendiente, registrarSalida } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
-import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
+import { formatClock } from "./time-format.ts";
 import { useTarifario } from "./TarifarioProvider";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { puedeAbrirRuta } from "../identity/visibilidad.ts";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Salida y liquidación del parque — F5-14.
@@ -48,15 +49,15 @@ import { puedeAbrirRuta } from "../identity/visibilidad.ts";
  */
 export function CheckoutScreen({
   snapshot,
-  timeFormat = DEFAULT_TIME_FORMAT,
   pulseraInicial = null,
 }: {
   snapshot: MonitorSnapshotDto;
-  timeFormat?: TimeFormat;
   /** Desde la ficha del monitor: el niño ya viene elegido. Se valida igual
    *  que un escaneo, porque llega por la URL. */
   pulseraInicial?: string | null;
 }) {
+  const { ajustes } = useSucursal();
+  const timeFormat = ajustes.formatoHora;
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   /** Cerrar una salida es una acción terminada: se anuncia y la pantalla queda lista para la siguiente. */

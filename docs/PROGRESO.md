@@ -85,7 +85,7 @@
 
 | Tarea | Estado | Evidencia o qué falta |
 |---|---|---|
-| F2-02 Registro de dispositivos | Parcial | El dominio distingue aprobado, pendiente, revocado y desconocido; falta el alta real |
+| F2-02 Registro de dispositivos | Parcial | El dominio distingue aprobado, pendiente, revocado y desconocido. **Pantalla hecha el 2026-09-18** (Panel → Personas → Dispositivos): estado de cada equipo, quién tiene sesión, aprobar, revocar y renombrar con motivo obligatorio y su asiento; nada se borra. Contratos `DeviceSchema`, `DevicesDirectorySchema` y `DeviceCommandSchema` con 4 pruebas. Falta el alta real y que revocar cierre sesiones |
 | F2-03 Acceso por PIN y dispositivo | Parcial | `/acceso`: el dispositivo es el primer factor y el bloqueo crece. Falta Better Auth |
 | F2-05 Motor de permisos `can()` | ✅ Hecha | Matriz de §7.3 como dato, deny-by-default; cada ❌ con prueba negativa. `cobro.anular` y `canAuthorize` (quién da un 🔐) desde DEC-24; DEC-25 quita a la monitora cobrar, reimprimir y anular; 103 pruebas en `@l2/domain-identity` |
 | F2-06 Alcance por sucursal | ✅ Hecha | La sucursal es parte del permiso, no un `if` aparte |
@@ -146,7 +146,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F5-03b Aforo con aviso | ✅ Hecha | Avisa antes de permitir un check-in de más; límite configurable |
 | F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato. **Contrato del tarifario listo** (2026-09-16, `TarifarioSchema`, 9 pruebas): paquetes y política se validan juntos —al menos uno a la venta, precios en dólares y mayores que cero, sin nombres repetidos, pase libre solo al salir, aviso menor que el paquete más corto—. **Editor hecho el 2026-09-17** (Panel → Parque → Tarifas y paquetes, [encargo](encargos/tarifas-editor.md)): borrador con deshacer, retirar sin borrar, reglas del parque con ejemplo calculado por el dominio; la entrada, la salida e Inicio usan el tarifario publicado. Falta el servidor |
 | F5-14 Salida y liquidación | ✅ Hecha (interfaz) | Pantalla en `/salida`. Varios niños en una salida, desglose paquete + excedente con minutos y bloques, y las dos rutas del plan: pagar en caja o cargar a una mesa. Quien no cobra (DEC-25) envía la cuenta a la caja sin abrirla. Falta el backend |
-| F5-08b Formato de hora comercial 12h | Parcial | La hora se muestra en formato comercial 12h con sufijo en minúsculas (`2:00 pm`, `10:30 am`); falta persistir preferencia por sucursal |
+| F5-08b Formato de hora comercial 12h | Parcial | La hora se muestra en formato comercial 12h con sufijo en minúsculas (`2:00 pm`, `10:30 am`). **Configurable desde el 2026-09-18** en Panel → Configuración → Sucursal (12 h o 24 h): lo leen la salida, el monitor y los dispositivos. Falta persistirlo en el servidor |
 | F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
 | DEC-21 Cuenta de la familia | Parcial | Entrada elige prepago o cuenta abierta; la salida dice qué pasa a caja; la caja es una cola de cuentas en maestro-detalle y devuelve a la pantalla de origen. Probado de punta a punta en navegador. Falta el backend |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |

@@ -27,8 +27,8 @@ El panel tiene 25 secciones:
 | Restaurante | Plano del local, Carta y precios | Mesas y pedidos, Comandas del día | — |
 | Caja | — | Cobrar, Ventas del turno, Turnos y cortes | **Tasas de cambio** |
 | Inventario | — | — | **Insumos, Recetas, Compras y mermas** |
-| Personas | Usuarios y permisos | — | **Representantes y niños, Dispositivos** |
-| Configuración | Roles y accesos | — | **Sucursal, Impuestos, Impresoras** |
+| Personas | Usuarios y permisos, **Dispositivos** | — | **Representantes y niños** |
+| Configuración | Roles y accesos, **Sucursal** | — | **Impuestos, Impresoras** |
 
 Además de esas diez secciones, falta la **apertura de turno**, la **cortesía** en caja y un lugar para
 configurar los **medios de pago** (hoy la caja trae fijos el banco del Pago Móvil y el correo de Zelle).
@@ -76,8 +76,8 @@ queda con su `TODO` y su tarea.
 | 4.3 | Caja → **Apertura de turno** *(en /turno)* | F4-01 | Sin turno abierto, declarar el fondo inicial por moneda; sin turno no se cobra | Un turno por dispositivo (I-06) |
 | 4.4 | Caja → **Cortesía con motivo** *(en /caja)* | F6-14 | Marcar líneas como cortesía con motivo de lista cerrada y autorización (`cuenta.cortesia` 🔐); aparecen en las excepciones del turno | Auditoría |
 | 4.5 | Personas → **Representantes y niños** | F5-01 | Directorio mínimo de DEC-9: buscar por teléfono o nombre, ver niños y visitas, corregir nombre y apodo. El contacto se enmascara a quien no tiene `parque.verContacto` | Modelo `Guardian`/`Kid` |
-| 4.6 | Personas → **Dispositivos** | F2-02 | Equipos con su estado (aprobado, pendiente, revocado), aprobar y revocar con motivo, y quién tiene sesión en cada uno (lo que ya sabe el panel en vivo) | Registro real; revocar cierra sesiones |
-| 4.7 | Configuración → **Sucursal** | F5-08b, F4-04c, F6-13 | Nombre, RIF y dirección; horario; formato de hora 12 h o 24 h, que cambia **todas** las superficies; umbral de residuo retenido de la caja; servicio y propina (D8, DEC-6). El aforo ya vive en Tarifas | Persistencia |
+| 4.6 ✅ | Personas → **Dispositivos** ([dispositivos](encargos/dispositivos.md)) | F2-02 | Equipos con su estado (aprobado, pendiente, revocado), aprobar y revocar con motivo, y quién tiene sesión en cada uno (lo que ya sabe el panel en vivo) | Registro real; revocar cierra sesiones |
+| 4.7 ✅ | Configuración → **Sucursal** ([sucursal-ajustes](encargos/sucursal-ajustes.md)) | F5-08b, F4-04c, F6-13 | Nombre, RIF y dirección; horario; formato de hora 12 h o 24 h, que cambia **todas** las superficies; umbral de residuo retenido de la caja; servicio y propina (D8, DEC-6). El aforo ya vive en Tarifas | Persistencia |
 | 4.8 | Configuración → **Impuestos** | F3-06, F3-07 | Alícuotas de IVA con su vigencia e IGTF; programar un cambio con fecha, nunca reescribir el pasado. La caja calcula con lo publicado. Los valores los confirma el contador (DEC-1) | Persistencia |
 | 4.9 | Configuración → **Impresoras** | F1-12, F6-09b | Impresoras de red (IP y puerto), ancho de 58 u 80 mm por estación, qué imprime cada una, vista previa del recibo y de la comanda en los dos anchos y «Imprimir prueba» simulado | Imprimir de verdad (F1-10) |
 | 4.10 | Inventario → **Insumos, Recetas, Compras y mermas** | F8-01, F8-03, F8-06, F8-07 | **Aprobado el 2026-09-17** como cambio de alcance (estaba fuera de la Ruta A, §11.3). Insumos con su unidad de compra y su mínimo; recetas que dicen cuánto insumo gasta cada plato de la carta; compras y mermas como asientos, nunca ediciones. Solo interfaz: el descuento real de stock al vender es del servidor | Descontar stock con cada venta, costeo y alertas (F8-04, F8-08) |

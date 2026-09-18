@@ -1287,3 +1287,26 @@ inventada es peor que una pantalla vacía.
 
 Con esto se cierran los diez hallazgos de la auditoría de navegación y la Ola 3 del plan final. Sigue la
 Ola 4: las diez secciones que el panel todavía enseña como pendientes.
+
+## Sucursal y Dispositivos: dos secciones menos en «pendiente» — 2026-09-18 (Ola 4, tanda A)
+
+Dos obreras a la vez, en archivos que no se tocan, y con una regla nueva que evitó el choque: ninguna
+montó su proveedor ni su ruta —`layout.tsx`, el mapa de pantallas y el menú los conectó la maestra al
+integrar—, porque esos tres archivos los habrían escrito las dos.
+
+**Sucursal** (F5-08b, F4-04c, F6-13) saca del código lo que estaba clavado: nombre, RIF y dirección, el
+horario de los siete días, el formato de hora —que ahora cambia la salida, el monitor y los
+dispositivos—, el umbral de vuelto que puede quedarse en la caja y el servicio. Probado: publicar 24 h y
+verlo en la salida; subir el umbral a $2; y un lunes que cierra antes de abrir, que el contrato no deja
+publicar y lo dice con su mensaje.
+
+**Dispositivos** (F2-02) enseña los equipos con su estado, quién tiene sesión y su historia, y deja
+aprobar, revocar y renombrar con motivo obligatorio. Aquí la revisión encontró un fallo de los que no se
+ven leyendo: el proveedor validaba **dentro** del actualizador de estado de React, así que renombrar dos
+equipos igual habría reventado el pintado en vez de explicarse; el `try/catch` de la pantalla tampoco
+podía atraparlo. Ahora el cambio se calcula y se valida fuera, el error vuelve como texto y el diálogo se
+queda abierto con lo escrito. Comprobado: «Dos dispositivos no pueden llamarse igual» con el motivo
+intacto, y el renombrado válido a continuación.
+
+Además: los días de la semana salían sin tilde («Miercoles»), la hora de sesión se pintaba «06:00 a. m.»
+en vez de con el formato del proyecto, y «Ver historia» medía 18 px en una superficie de 32.

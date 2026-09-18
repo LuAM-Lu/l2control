@@ -262,15 +262,13 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "dispositivos",
         nombre: "Dispositivos",
+        href: rutaSeccion("personas", "dispositivos"),
         // N-03: apuntaba a `/acceso`, que es la PANTALLA DE BLOQUEO del equipo.
         // Desde el panel parecía que te cerraban la sesión. Mejor una pantalla
         // honesta que diga qué falta que un enlace que asusta.
-        href: null,
         accion: "usuarios.gestionar",
         proposito: "Los equipos autorizados, su sucursal y quién tiene sesión abierta en cada uno.",
         tarea: "F2-02",
-        necesita:
-          "El registro de dispositivos en el servidor (ADR-013): hoy el aparato se simula con «?device=».",
       },
     ],
   },
@@ -295,7 +293,7 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "sucursal",
         nombre: "Sucursal",
-        href: null,
+        href: rutaSeccion("configuracion", "sucursal"),
         proposito:
           "Datos fiscales, horario, moneda funcional, formato de hora y el umbral de vuelto que se puede dejar en caja. El aforo vive en Tarifas y paquetes.",
         tarea: "F5-08b",

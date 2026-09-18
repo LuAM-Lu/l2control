@@ -14,6 +14,7 @@ import { monitorSimulado } from "../simulacion/monitor.ts";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
 import type { MonitorModel } from "./view-model";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Monitor de parque — F5-08.
@@ -70,6 +71,7 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
 
   const { cuentas } = useCuentas();
   const compacta = ordered.length > 10;
+  const { ajustes } = useSucursal();
   const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
   const cuentaFicha = ficha
     ? (cuentas.find((c) => c.sessionIds.includes(ficha.id)) ?? null)
@@ -150,6 +152,7 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
                   serverNow={model.serverNow}
                   selected={selected === card.id}
                   densidad={compacta ? "compacta" : "normal"}
+                  timeFormat={ajustes.formatoHora}
                   onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
                 />
               ))}
