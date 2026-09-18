@@ -155,10 +155,14 @@ export function TasasScreen({
             </h3>
             <form onSubmit={handleCapturar} className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-semibold text-ink-2">
+                <label
+                  htmlFor="tasas-par"
+                  className="text-[13px] font-semibold text-ink-2"
+                >
                   Par
                 </label>
                 <select
+                  id="tasas-par"
                   className="flex min-h-10 w-full rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[14px] text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
                   value={pair}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -171,10 +175,14 @@ export function TasasScreen({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-semibold text-ink-2">
+                <label
+                  htmlFor="tasas-origen"
+                  className="text-[13px] font-semibold text-ink-2"
+                >
                   Origen
                 </label>
                 <select
+                  id="tasas-origen"
                   className="flex min-h-10 w-full rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[14px] text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
                   value={source}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>

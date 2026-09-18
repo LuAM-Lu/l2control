@@ -2,8 +2,6 @@ import { CajaScreen } from "../../../src/features/cash/CajaScreen";
 import {
   DEMO_IGTF_BASIS_POINTS,
   DEMO_TAX_RULES,
-  DEMO_TENDERS,
-  DEMO_TERMINALES,
 } from "../../../src/demo/caja";
 import { demoSnapshot } from "../../../src/demo/parque";
 
@@ -35,8 +33,6 @@ export default async function CajaPage({
       volver={volver ?? null}
       pulseras={pulseras}
       rules={DEMO_TAX_RULES}
-      tenders={DEMO_TENDERS}
-      terminales={DEMO_TERMINALES}
       igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}
       // TODO(F2-12/backend): el punto sale del registro del dispositivo. El
       // equipo de caja es el del mostrador.

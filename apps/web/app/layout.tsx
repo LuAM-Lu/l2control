@@ -10,6 +10,7 @@ import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
 import { DispositivosProvider } from "../src/features/identity/DispositivosProvider";
 import { RepresentantesProvider } from "../src/features/park/RepresentantesProvider";
 import { TasasProvider } from "../src/features/cash/TasasProvider";
+import { MediosProvider } from "../src/features/cash/MediosProvider";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { DEMO_ACTIVA } from "../src/demo/modo";
@@ -19,6 +20,7 @@ import { AJUSTES_DEMO } from "../src/demo/sucursal";
 import { DEMO_DISPOSITIVOS } from "../src/demo/dispositivos";
 import { DIRECTORIO_DEMO } from "../src/demo/representantes";
 import { HISTORIAL_DEMO } from "../src/demo/tasas";
+import { MEDIOS_DEMO } from "../src/demo/medios";
 import { DEMO_CUENTAS } from "../src/demo/cuentas";
 import { DEMO_VENTAS } from "../src/demo/ventas";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
@@ -83,22 +85,24 @@ export default function RootLayout({
             <DispositivosProvider inicial={DEMO_DISPOSITIVOS}>
               <RepresentantesProvider inicial={DIRECTORIO_DEMO}>
                 <TasasProvider inicial={HISTORIAL_DEMO}>
-                  <PlanoProvider inicial={PLANO_DEMO}>
-                    <CartaProvider inicial={CARTA_DEMO}>
-                      <TarifarioProvider inicial={TARIFARIO_DEMO}>
-                        <CuentasProvider
-                          inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}
-                        >
-                          <VentasProvider
-                            inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}
+                  <MediosProvider inicial={MEDIOS_DEMO}>
+                    <PlanoProvider inicial={PLANO_DEMO}>
+                      <CartaProvider inicial={CARTA_DEMO}>
+                        <TarifarioProvider inicial={TARIFARIO_DEMO}>
+                          <CuentasProvider
+                            inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}
                           >
-                            {children}
-                            <PanelSimulacion />
-                          </VentasProvider>
-                        </CuentasProvider>
-                      </TarifarioProvider>
-                    </CartaProvider>
-                  </PlanoProvider>
+                            <VentasProvider
+                              inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}
+                            >
+                              {children}
+                              <PanelSimulacion />
+                            </VentasProvider>
+                          </CuentasProvider>
+                        </TarifarioProvider>
+                      </CartaProvider>
+                    </PlanoProvider>
+                  </MediosProvider>
                 </TasasProvider>
               </RepresentantesProvider>
             </DispositivosProvider>

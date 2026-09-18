@@ -47,6 +47,8 @@ import {
   type Tender,
 } from "@l2/domain-cash";
 import { Button, Container, MoneyDisplay, NumericKeypad, Stepper, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { useMedios, useMediosActivos } from "./MediosProvider.tsx";
+import { nombreBanco } from "./bancos.ts";
 import type { MedioPago } from "./medios.ts";
 import {
   PRODUCTOS_MOSTRADOR,
@@ -66,7 +68,6 @@ import {
   type DatosDePagoDto,
   type FamilyAccountDto,
   type PagoDeVentaDto,
-  type PosTerminalDto,
 } from "@l2/contracts";
 import { DatosPagoDialog, claveDeReferencia, resumenDatos, type Recordados } from "./DatosPagoDialog.tsx";
 import { ClienteFacturaDialog, documentoEnmascarado } from "./ClienteFacturaDialog.tsx";
@@ -142,8 +143,6 @@ function CobroCuenta({
   cuenta,
   onCobrado,
   rules,
-  tenders: mediosDisponibles,
-  terminales,
   igtfBasisPoints,
   maxRetained,
   rate,
@@ -158,9 +157,6 @@ function CobroCuenta({
   cuenta: FamilyAccountDto;
   onCobrado: (r: Cobrado) => void;
   rules: readonly TaxRule[];
-  tenders: readonly MedioPago[];
-  /** Terminales de punto de venta del local (F4-04). */
-  terminales: readonly PosTerminalDto[];
   igtfBasisPoints: number;
   maxRetained: Money;
   /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs.
@@ -182,6 +178,10 @@ function CobroCuenta({
   ocultoEnDosColumnas?: boolean;
 }) {
   const FUNCIONAL = "USD" as const;
+
+  const mediosDisponibles = useMediosActivos();
+  const { config: mediosConfig } = useMedios();
+  const terminales = mediosConfig.terminales;
 
   const [pagos, setPagos] = useState<{ uid: string; medio: MedioPago; amount: Money; datos?: DatosDePagoDto }[]>([]);
   /** Pago esperando sus datos: no entra al cobro hasta confirmarlos (F4-04). */
@@ -1025,7 +1025,7 @@ function CobroCuenta({
                   </button>
                 ))}
               </div>
-            ) : medioActivo.code === "PAGO_MOVIL" ? (
+            ) : medioActivo.code === "PAGO_MOVIL" && mediosConfig.pagoMovil ? (
               // Compacto: sin icono (el medio ya está elegido arriba), el banco por
               // su nombre y el teléfono sin puntos. «Copiar» es solo el icono;
               // el código del banco va en lo que se copia.
@@ -1035,22 +1035,22 @@ function CobroCuenta({
               >
                 <dl className="grid min-w-0 flex-1 grid-flow-col grid-cols-[auto_auto_auto] grid-rows-2 justify-between gap-x-2">
                   <dt className="text-[9.5px] text-ink-3 uppercase">Banco</dt>
-                  <dd className="truncate font-bold text-ink">Banesco</dd>
+                  <dd className="truncate font-bold text-ink">{nombreBanco(mediosConfig.pagoMovil.bankCode)}</dd>
                   <dt className="text-[9.5px] text-ink-3 uppercase">Teléfono</dt>
-                  <dd className="tnum truncate font-bold text-ink">0414-2345678</dd>
+                  <dd className="tnum truncate font-bold text-ink">{mediosConfig.pagoMovil.phone}</dd>
                   <dt className="text-[9.5px] text-ink-3 uppercase">RIF</dt>
-                  <dd className="tnum truncate font-bold text-ink">J-40123456-7</dd>
+                  <dd className="tnum truncate font-bold text-ink">{mediosConfig.pagoMovil.document}</dd>
                 </dl>
-                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto("Banesco (0134) - 0414-2345678 - J-40123456-7")} que="los datos de Pago Móvil" />
+                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto(`${nombreBanco(mediosConfig.pagoMovil!.bankCode)} (${mediosConfig.pagoMovil!.bankCode}) - ${mediosConfig.pagoMovil!.phone} - ${mediosConfig.pagoMovil!.document}`)} que="los datos de Pago Móvil" />
               </div>
-            ) : medioActivo.code === "ZELLE" ? (
+            ) : medioActivo.code === "ZELLE" && mediosConfig.zelle ? (
               <div className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-line pl-2.5 text-[11.5px]">
                 <Zap size={14} className="shrink-0 text-ink-3" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
-                  <span className="block truncate text-[9.5px] text-ink-3 uppercase">Zelle · Parque Infantil L2 C.A.</span>
-                  <span className="block truncate font-bold text-ink">pagos@parquel2.com</span>
+                  <span className="block truncate text-[9.5px] text-ink-3 uppercase">Zelle · {mediosConfig.zelle.holder}</span>
+                  <span className="block truncate font-bold text-ink">{mediosConfig.zelle.email}</span>
                 </div>
-                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto("pagos@parquel2.com")} que="el correo de Zelle" />
+                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto(mediosConfig.zelle!.email)} que="el correo de Zelle" />
               </div>
             ) : (
               <p className="flex h-14 items-center rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] leading-snug text-ink-3">
