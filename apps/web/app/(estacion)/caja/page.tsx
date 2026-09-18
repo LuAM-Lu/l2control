@@ -4,6 +4,7 @@ import {
   DEMO_TAX_RULES,
 } from "../../../src/demo/caja";
 import { demoSnapshot } from "../../../src/demo/parque";
+import { DEMO_USUARIOS } from "../../../src/demo/usuarios";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
@@ -38,6 +39,7 @@ export default async function CajaPage({
       // equipo de caja es el del mostrador.
       puntoDeCobro="MOSTRADOR"
       serverNow={Date.now()}
+      usuarios={DEMO_USUARIOS}
     />
   );
 }

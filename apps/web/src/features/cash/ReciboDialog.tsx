@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle, Printer } from "lucide-react";
-import { Button, Dialog, Input } from "@l2/ui";
+import { Button, Dialog, Input, cn } from "@l2/ui";
 import { enlaceWhatsApp, textoRecibo, type Recibo } from "./recibo.ts";
 
 /**
@@ -142,13 +142,16 @@ export function ReciboImpreso({
       </header>
 
       <ul className="flex flex-col gap-0.5 border-y border-dashed border-line py-2">
-        {recibo.lineas.map((l, i) => (
-          <li key={i} className="flex items-baseline gap-2">
-            <span className="tnum w-5 shrink-0 text-right text-ink-2">{l.cantidad}</span>
-            <span className="min-w-0 flex-1">{l.concepto}</span>
-            <span className="tnum shrink-0">{l.importe}</span>
-          </li>
-        ))}
+        {recibo.lineas.map((l, i) => {
+          const cortesia = l.cortesia === true;
+          return (
+            <li key={i} className="flex items-baseline gap-2">
+              <span className="tnum w-5 shrink-0 text-right text-ink-2">{l.cantidad}</span>
+              <span className="min-w-0 flex-1">{l.concepto}</span>
+              <span className={cn("tnum shrink-0", cortesia && "line-through opacity-60")}>{l.importe}</span>
+            </li>
+          );
+        })}
       </ul>
 
       <dl className="flex flex-col gap-0.5">

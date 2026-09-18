@@ -22,12 +22,35 @@ import { sum, type Money } from "@l2/domain-money";
 import type { DocumentLine } from "@l2/domain-tax";
 import { toMoney } from "../park/mappers.ts";
 
-/** Lo que falta por cobrar de una cuenta. Lo movido a otra cuenta ya no cuenta aquí. */
+/** Lo que falta por cobrar de una cuenta. Lo movido a otra cuenta y lo regalado (cortesía) ya no cuenta aquí. */
 export function pendiente(c: FamilyAccountDto): Money {
   return sum(
-    c.lines.filter((l) => !l.paid && !l.movedTo).map((l) => toMoney(l.amount)),
+    c.lines
+      .filter((l) => !l.paid && !l.movedTo && !l.cortesia)
+      .map((l) => toMoney(l.amount)),
     "USD",
   );
+}
+
+/**
+ * Cuánto dinero en total se ha regalado en esta cuenta.
+ * El negocio necesita saber esto al final del turno (F6-14).
+ */
+export function cortesias(c: FamilyAccountDto): Money {
+  return sum(
+    c.lines.filter((l) => l.cortesia).map((l) => toMoney(l.amount)),
+    "USD",
+  );
+}
+
+/**
+ * Las líneas de la cuenta que se marcaron como cortesía.
+ * Tienen su importe intacto, pero no se cobran.
+ */
+export function lineasDeCortesia(
+  c: FamilyAccountDto,
+): FamilyAccountDto["lines"] {
+  return c.lines.filter((l) => l.cortesia);
 }
 
 /** Una cuenta abierta en el salón: se cobra cuando la mesa pide la cuenta (F6-05). */
@@ -42,13 +65,17 @@ export function esDeMesa(c: FamilyAccountDto): boolean {
  * cocina ya sirvió— no se toca desde aquí: corregirlo es una cortesía o una
  * anulación, con motivo y autorización (F6-14).
  */
-export function esLineaDeMostrador(l: FamilyAccountDto["lines"][number]): boolean {
+export function esLineaDeMostrador(
+  l: FamilyAccountDto["lines"][number],
+): boolean {
   return l.kind === "RESTAURANTE" && l.id.includes("-snk-") && !l.paid;
 }
 
 /** «#1042»: como se dice y se busca un número de orden. */
 export function numeroDeOrden(c: FamilyAccountDto): string {
-  return c.orderNumber ? `#${String(c.orderNumber).padStart(4, "0")}` : "Sin número";
+  return c.orderNumber
+    ? `#${String(c.orderNumber).padStart(4, "0")}`
+    : "Sin número";
 }
 
 /** Venta de mostrador: una cuenta sin familia, abierta en la caja. */
@@ -67,7 +94,7 @@ export function puedeDescartarse(c: FamilyAccountDto): boolean {
 /** Las líneas pendientes, en la forma que cobra la caja. */
 export function lineasParaCobrar(c: FamilyAccountDto): DocumentLine[] {
   return c.lines
-    .filter((l) => !l.paid && !l.movedTo)
+    .filter((l) => !l.paid && !l.movedTo && !l.cortesia)
     .map((l) => ({
       id: l.id,
       description: l.concept,
@@ -129,7 +156,11 @@ export function abrirCuenta({
 export function registrarSalida(
   c: FamilyAccountDto,
   salen: readonly string[],
-  excedentes: readonly { sessionId: string; concept: string; amount: MoneyDto }[],
+  excedentes: readonly {
+    sessionId: string;
+    concept: string;
+    amount: MoneyDto;
+  }[],
 ): FamilyAccountDto {
   const cerradas = [...new Set([...c.closedSessionIds, ...salen])];
   const lines = [
@@ -161,7 +192,12 @@ export function registrarSalida(
           : "COBRADA"
         : "ABIERTA";
 
-  return FamilyAccountSchema.parse({ ...c, closedSessionIds: cerradas, lines, status });
+  return FamilyAccountSchema.parse({
+    ...c,
+    closedSessionIds: cerradas,
+    lines,
+    status,
+  });
 }
 
 /**
@@ -170,7 +206,10 @@ export function registrarSalida(
  * sigue debiendo, y si no hay que cobrarlo es una cortesía con motivo (F6-14),
  * no una anulación.
  */
-export function revertirCobro(c: FamilyAccountDto, lineIds: readonly string[]): FamilyAccountDto {
+export function revertirCobro(
+  c: FamilyAccountDto,
+  lineIds: readonly string[],
+): FamilyAccountDto {
   const ids = new Set(lineIds);
   return FamilyAccountSchema.parse({
     ...c,
@@ -182,8 +221,14 @@ export function revertirCobro(c: FamilyAccountDto, lineIds: readonly string[]): 
 /* ═════════════════════════════════ dividir la cuenta — F6-12 ══ */
 
 /** Divide la cuenta en partes iguales. Vuelve a empezar si ya estaba dividida y nadie pagó. */
-export function dividirEn(c: FamilyAccountDto, partes: number): FamilyAccountDto {
-  return FamilyAccountSchema.parse({ ...c, split: { parts: partes, paid: c.split?.paid ?? 0 } });
+export function dividirEn(
+  c: FamilyAccountDto,
+  partes: number,
+): FamilyAccountDto {
+  return FamilyAccountSchema.parse({
+    ...c,
+    split: { parts: partes, paid: c.split?.paid ?? 0 },
+  });
 }
 
 /** Deja de dividir: vuelve a cobrarse de una vez. Solo si no se cobró ninguna parte. */
@@ -205,8 +250,13 @@ export function marcarParteCobrada(c: FamilyAccountDto): FamilyAccountDto {
   if (!c.split) return marcarCobrada(c);
   const { parts } = c.split;
   const pagadas = c.split.paid + 1;
-  if (pagadas >= parts) return marcarCobrada({ ...c, split: { parts, paid: parts } });
-  return FamilyAccountSchema.parse({ ...c, split: { parts, paid: pagadas }, status: "POR_COBRAR" });
+  if (pagadas >= parts)
+    return marcarCobrada({ ...c, split: { parts, paid: parts } });
+  return FamilyAccountSchema.parse({
+    ...c,
+    split: { parts, paid: pagadas },
+    status: "POR_COBRAR",
+  });
 }
 
 /** Cuántas partes faltan por cobrar. 1 si la cuenta no está dividida. */
@@ -291,16 +341,25 @@ export function moverParqueALaMesa(
   sessionIds: readonly string[],
 ): { familia: FamilyAccountDto; mesa: FamilyAccountDto } | null {
   const ids = new Set(sessionIds);
-  const mueven = familia.lines.filter((l) => !l.paid && !l.movedTo && l.sessionId && ids.has(l.sessionId));
+  const mueven = familia.lines.filter(
+    (l) => !l.paid && !l.movedTo && l.sessionId && ids.has(l.sessionId),
+  );
   if (mueven.length === 0) return null;
 
-  const enLaMesa = mueven.map((l) => ({ ...l, id: `${mesa.id}-${l.id}`.slice(0, 64) }));
+  const enLaMesa = mueven.map((l) => ({
+    ...l,
+    id: `${mesa.id}-${l.id}`.slice(0, 64),
+  }));
   return {
     familia: FamilyAccountSchema.parse({
       ...familia,
-      lines: familia.lines.map((l) => (mueven.includes(l) ? { ...l, movedTo: mesa.id } : l)),
+      lines: familia.lines.map((l) =>
+        mueven.includes(l) ? { ...l, movedTo: mesa.id } : l,
+      ),
       // Si ya no le queda nada propio, deja de estar en la cola de la caja.
-      status: familia.lines.some((l) => !l.paid && !mueven.includes(l)) ? familia.status : "ABIERTA",
+      status: familia.lines.some((l) => !l.paid && !mueven.includes(l))
+        ? familia.status
+        : "ABIERTA",
     }),
     mesa: FamilyAccountSchema.parse({
       ...mesa,
@@ -313,5 +372,8 @@ export function moverParqueALaMesa(
 /** La mesa pidió la cuenta: pasa a la cola de la caja si hay algo que cobrar. */
 export function pasarACaja(c: FamilyAccountDto): FamilyAccountDto {
   const hayPendiente = c.lines.some((l) => !l.paid && !l.movedTo);
-  return FamilyAccountSchema.parse({ ...c, status: hayPendiente ? "POR_COBRAR" : c.status });
+  return FamilyAccountSchema.parse({
+    ...c,
+    status: hayPendiente ? "POR_COBRAR" : c.status,
+  });
 }

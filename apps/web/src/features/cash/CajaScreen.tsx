@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  type CurrencyCode,
   type FrozenRate,
   type Money,
   add,
@@ -47,7 +48,16 @@ import {
   type PointOfSale,
   type Tender,
 } from "@l2/domain-cash";
-import { Button, Container, MoneyDisplay, NumericKeypad, Stepper, avisar, cn, formatMoneyVE } from "@l2/ui";
+import {
+  Button,
+  Container,
+  MoneyDisplay,
+  NumericKeypad,
+  Stepper,
+  avisar,
+  cn,
+  formatMoneyVE,
+} from "@l2/ui";
 import { useMedios, useMediosActivos } from "./MediosProvider.tsx";
 import { nombreBanco } from "./bancos.ts";
 import type { MedioPago } from "./medios.ts";
@@ -66,19 +76,37 @@ import {
   CONSUMIDOR_FINAL,
   type AccountLineDto,
   type ClienteFacturaDto,
+  type CortesiaDto,
   type DatosDePagoDto,
   type FamilyAccountDto,
+  type UserSummaryDto,
   type PagoDeVentaDto,
 } from "@l2/contracts";
-import { DatosPagoDialog, claveDeReferencia, resumenDatos, type Recordados } from "./DatosPagoDialog.tsx";
-import { ClienteFacturaDialog, documentoEnmascarado } from "./ClienteFacturaDialog.tsx";
+import {
+  DatosPagoDialog,
+  claveDeReferencia,
+  resumenDatos,
+  type Recordados,
+} from "./DatosPagoDialog.tsx";
+import {
+  ClienteFacturaDialog,
+  documentoEnmascarado,
+} from "./ClienteFacturaDialog.tsx";
 import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
-import { ColaCuentas, filtrarCola, ordenarCola, type FiltroCola } from "./ColaCuentas.tsx";
+import {
+  ColaCuentas,
+  filtrarCola,
+  ordenarCola,
+  type FiltroCola,
+} from "./ColaCuentas.tsx";
+import { CortesiaDialog, TEXTO_MOTIVO } from "./CortesiaDialog.tsx";
 import { ReciboDialog } from "./ReciboDialog.tsx";
 import type { Recibo } from "./recibo.ts";
 import { useVentas } from "./VentasProvider.tsx";
 import { useOperador } from "../identity/operador.ts";
+import { can } from "@l2/domain-identity";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import {
   esDeMesa,
@@ -97,7 +125,12 @@ import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useTasaVigente } from "./TasasProvider.tsx";
 
 /** USDT → USD a la par (DEC-1: cuestión abierta con el contador). */
-const PARIDAD_USDT: FrozenRate = { from: "USDT", to: "USD", numerator: 1n, denominator: 1n };
+const PARIDAD_USDT: FrozenRate = {
+  from: "USDT",
+  to: "USD",
+  numerator: 1n,
+  denominator: 1n,
+};
 
 /** Lo que la caja sabe al cerrar un cobro: para el aviso y para el recibo. */
 type Cobrado = Readonly<{
@@ -115,7 +148,11 @@ type Cobrado = Readonly<{
   recibo: Recibo;
 }>;
 
-const DESTINO_SOBRA = { VUELTO: "Vuelto entregado", PROPINA: "Propina", CAJA: "Redondeo a caja" } as const;
+const DESTINO_SOBRA = {
+  VUELTO: "Vuelto entregado",
+  PROPINA: "Propina",
+  CAJA: "Redondeo a caja",
+} as const;
 
 const MEDIO_ICONS: Record<string, typeof Banknote> = {
   EFECTIVO_USD: Banknote,
@@ -146,11 +183,13 @@ function CobroCuenta({
   rules,
   igtfBasisPoints,
   maxRetained,
+  usuarios,
   rate,
   serverNow,
   onAgregarProducto,
   onCambiarCantidad,
   onDividir,
+  onCortesia,
   ocultoEnDosColumnas,
 }: {
   lines: readonly DocumentLine[];
@@ -160,6 +199,7 @@ function CobroCuenta({
   rules: readonly TaxRule[];
   igtfBasisPoints: number;
   maxRetained: Money;
+  usuarios: readonly UserSummaryDto[];
   /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs.
    *  La tasa se MUESTRA en la barra de estación (§8.5); aquí solo se usa. */
   rate: FrozenRate | null;
@@ -175,6 +215,8 @@ function CobroCuenta({
   onCambiarCantidad?: (item: ItemDeMostrador, cantidad: number) => void;
   /** Divide la cuenta en partes iguales, o la vuelve a unir con 1 (F6-12). */
   onDividir?: (partes: number) => void;
+  /** Aplica o quita una cortesía en una línea de la cuenta (F6-14). */
+  onCortesia?: (lineId: string, cortesia?: CortesiaDto) => void;
   /** Con la cola plegada (dos columnas), el ticket cede su sitio a la cola. El cobro no se oculta nunca. */
   ocultoEnDosColumnas?: boolean;
 }) {
@@ -184,16 +226,23 @@ function CobroCuenta({
   const { config: mediosConfig } = useMedios();
   const terminales = mediosConfig.terminales;
 
-  const [pagos, setPagos] = useState<{ uid: string; medio: MedioPago; amount: Money; datos?: DatosDePagoDto }[]>([]);
+  const [pagos, setPagos] = useState<
+    { uid: string; medio: MedioPago; amount: Money; datos?: DatosDePagoDto }[]
+  >([]);
   /** Pago esperando sus datos: no entra al cobro hasta confirmarlos (F4-04). */
-  const [pendienteDeDatos, setPendienteDeDatos] = useState<{ medio: MedioPago; amount: Money } | null>(null);
+  const [pendienteDeDatos, setPendienteDeDatos] = useState<{
+    medio: MedioPago;
+    amount: Money;
+  } | null>(null);
   /** A nombre de quién sale la factura: consumidor final salvo que se pida (DEC-23). */
   const [cliente, setCliente] = useState<ClienteFacturaDto>(CONSUMIDOR_FINAL);
   const [identificando, setIdentificando] = useState(false);
   /** Último banco, terminal y red: la siguiente vez ya vienen puestos. */
   const [recordados, setRecordados] = useState<Recordados>({});
   // La lista nunca está vacía aquí: `CajaScreen` no pinta el cobro sin medios.
-  const [medioActivo, setMedioActivo] = useState<MedioPago>(mediosDisponibles[0]!);
+  const [medioActivo, setMedioActivo] = useState<MedioPago>(
+    mediosDisponibles[0]!,
+  );
 
   /**
    * Si apagan desde el panel el medio que estaba elegido, la caja pasa al
@@ -207,7 +256,9 @@ function CobroCuenta({
     }
   }, [mediosDisponibles, medioActivo.code]);
   const [monto, setMonto] = useState("");
-  const [destinoVuelto, setDestinoVuelto] = useState<"VUELTO" | "PROPINA" | "CAJA">("VUELTO");
+  const [destinoVuelto, setDestinoVuelto] = useState<
+    "VUELTO" | "PROPINA" | "CAJA"
+  >("VUELTO");
   const [error, setError] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [mostrarCatalogo, setMostrarCatalogo] = useState(
@@ -215,10 +266,17 @@ function CobroCuenta({
   );
   /** Fila de mostrador tocada: enseña su cantidad y «Eliminar». */
   const [filaAbierta, setFilaAbierta] = useState<string | null>(null);
+  /** La línea seleccionada para dar o quitar cortesía. */
+  const [lineaParaCortesia, setLineaParaCortesia] = useState<{
+    linea: AccountLineDto;
+    quitar: boolean;
+  } | null>(null);
   /** El pago que se está corrigiendo. */
   const [editando, setEditando] = useState<string | null>(null);
   const pagoEditado = pagos.find((p) => p.uid === editando) ?? null;
   const operador = useOperador();
+  const actor = useActorEnSesion();
+  const permisoCortesia = actor ? can(actor, "cuenta.cortesia") : "DENEGADO";
 
   // Estilo factura: los ítems iguales de mostrador van en UNA fila con su
   // cantidad. Cada unidad sigue siendo su propia línea en la cuenta; aquí solo
@@ -255,7 +313,12 @@ function CobroCuenta({
         // bolívares: la conversión fallaba y un cobro con USDT no se podía
         // cerrar nunca. El USDT va 1:1 con el dólar, la misma paridad que ya
         // usa el consolidado del IGTF, pendiente de confirmar con el contador.
-        rate: p.amount.currency === FUNCIONAL ? null : p.amount.currency === "USDT" ? PARIDAD_USDT : rate,
+        rate:
+          p.amount.currency === FUNCIONAL
+            ? null
+            : p.amount.currency === "USDT"
+              ? PARIDAD_USDT
+              : rate,
       })),
     [pagos, rate],
   );
@@ -294,7 +357,8 @@ function CobroCuenta({
    */
   const partes = cuenta.split?.parts ?? 1;
   const parteActual = (cuenta.split?.paid ?? 0) + 1;
-  const porParte = partes > 1 ? allocate(doc.total, partes)[parteActual - 1]! : doc.total;
+  const porParte =
+    partes > 1 ? allocate(doc.total, partes)[parteActual - 1]! : doc.total;
 
   /** Lo que realmente hay que cobrar: la parte + el IGTF de los pagos hechos. */
   const aCobrar = add(porParte, igtfTotal);
@@ -310,7 +374,9 @@ function CobroCuenta({
     }
   }, [aCobrar, tenders]);
 
-  const faltaTasa = tenders.some((t) => t.amount.currency !== FUNCIONAL && !t.rate);
+  const faltaTasa = tenders.some(
+    (t) => t.amount.currency !== FUNCIONAL && !t.rate,
+  );
   const sobra = balance?.surplus ?? zero(FUNCIONAL);
   const falta = balance?.outstanding ?? aCobrar;
 
@@ -327,14 +393,25 @@ function CobroCuenta({
       setPendienteDeDatos({ medio, amount });
       return;
     }
-    setPagos((prev) => [...prev, { uid: globalThis.crypto.randomUUID(), medio, amount }]);
+    setPagos((prev) => [
+      ...prev,
+      { uid: globalThis.crypto.randomUUID(), medio, amount },
+    ]);
     setMonto("");
   }
 
   function confirmarDatos(datos: DatosDePagoDto | null) {
     const p = pendienteDeDatos;
     if (!p || !datos) return;
-    setPagos((prev) => [...prev, { uid: globalThis.crypto.randomUUID(), medio: p.medio, amount: p.amount, datos }]);
+    setPagos((prev) => [
+      ...prev,
+      {
+        uid: globalThis.crypto.randomUUID(),
+        medio: p.medio,
+        amount: p.amount,
+        datos,
+      },
+    ]);
     setRecordados((r) => ({
       ...r,
       ...(datos.kind === "PAGO_MOVIL" ? { bankCode: datos.bankCode } : {}),
@@ -351,7 +428,10 @@ function CobroCuenta({
    * el pago se sustituye en el borrador. Una vez cerrado, corregir es una
    * reversión con motivo (regla 5), no esto.
    */
-  function confirmarEdicion(datos: DatosDePagoDto | null, montoNuevo: string | null) {
+  function confirmarEdicion(
+    datos: DatosDePagoDto | null,
+    montoNuevo: string | null,
+  ) {
     const p = pagos.find((x) => x.uid === editando);
     if (!p) return;
     let amount = p.amount;
@@ -363,14 +443,21 @@ function CobroCuenta({
         return;
       }
     }
-    setPagos((prev) => prev.map((x) => (x.uid === p.uid ? { ...x, amount, ...(datos ? { datos } : {}) } : x)));
+    setPagos((prev) =>
+      prev.map((x) =>
+        x.uid === p.uid ? { ...x, amount, ...(datos ? { datos } : {}) } : x,
+      ),
+    );
     setEditando(null);
   }
 
   function agregarPago() {
     setError(null);
     const digitos = monto.replace(/\D/g, "");
-    const valor: Money = money(BigInt(digitos === "" ? "0" : digitos), medioActivo.currency);
+    const valor: Money = money(
+      BigInt(digitos === "" ? "0" : digitos),
+      medioActivo.currency,
+    );
     if (valor.amount <= 0n) {
       setError("El monto debe ser mayor que cero");
       return;
@@ -411,14 +498,22 @@ function CobroCuenta({
         medios: [...new Set(pagos.map((p) => p.medio.label))],
         // Lo que se devolvería de cada pago, calculado AHORA con la tasa del
         // cobro: el excedente (vuelto, propina o residuo) no se devuelve.
-        pagosVenta: refundableByTender(tenders, sobra, FUNCIONAL).map((devolvible, i) => ({
-          methodCode: pagos[i]!.medio.code,
-          label: pagos[i]!.medio.label,
-          cash: pagos[i]!.medio.canGiveChange,
-          dataKind: pagos[i]!.medio.datos ?? null,
-          paid: { minor: String(pagos[i]!.amount.amount), currency: pagos[i]!.amount.currency },
-          refundable: { minor: String(devolvible.amount), currency: devolvible.currency },
-        })),
+        pagosVenta: refundableByTender(tenders, sobra, FUNCIONAL).map(
+          (devolvible, i) => ({
+            methodCode: pagos[i]!.medio.code,
+            label: pagos[i]!.medio.label,
+            cash: pagos[i]!.medio.canGiveChange,
+            dataKind: pagos[i]!.medio.datos ?? null,
+            paid: {
+              minor: String(pagos[i]!.amount.amount),
+              currency: pagos[i]!.amount.currency,
+            },
+            refundable: {
+              minor: String(devolvible.amount),
+              currency: devolvible.currency,
+            },
+          }),
+        ),
         lineIds: lines.map((l) => l.id),
         recibo: armarRecibo(),
       });
@@ -432,19 +527,45 @@ function CobroCuenta({
   function armarRecibo(): Recibo {
     const ahora = new Date();
     const dinero = (m: Money) => formatMoneyVE(toMajor(m), m.currency);
-    const totalBs = aBolivares && aBolivares.from === aCobrar.currency ? convert(aCobrar, aBolivares) : null;
+    const totalBs =
+      aBolivares && aBolivares.from === aCobrar.currency
+        ? convert(aCobrar, aBolivares)
+        : null;
     return {
       orden: numeroDeOrden(cuenta),
       cuenta: esVentaDirecta(cuenta) ? "Venta de mostrador" : cuenta.family,
       cuando: `${ahora.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" })} · ${formatClock(ahora.getTime())}`,
       facturaA:
-        cliente.kind === "CONSUMIDOR_FINAL" ? "Consumidor final" : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`,
+        cliente.kind === "CONSUMIDOR_FINAL"
+          ? "Consumidor final"
+          : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`,
       parte: partes > 1 ? `Parte ${parteActual} de ${partes}` : null,
-      lineas: filas.map((f) => ({ cantidad: f.cantidad, concepto: f.concepto, importe: dinero(multiply(f.precio, BigInt(f.cantidad))) })),
+      lineas: filas.map((f) => ({
+        cantidad: f.cantidad,
+        // El motivo, en palabras: el recibo lo lee una persona.
+        concepto: f.cortesia
+          ? `Cortesía · ${TEXTO_MOTIVO[f.cortesia.motivo]} · ${f.concepto}`.slice(
+              0,
+              80,
+            )
+          : f.concepto,
+        importe: dinero(multiply(f.precio, BigInt(f.cantidad))),
+        ...(f.cortesia ? { cortesia: true } : {}),
+      })),
       subtotal: dinero(doc.subtotal),
       impuestos: [
-        ...doc.buckets.map((b) => ({ etiqueta: `IVA ${b.basisPoints / 100}%`, monto: dinero(b.tax) })),
-        ...(igtfTotal.amount > 0n ? [{ etiqueta: `IGTF ${igtfBasisPoints / 100}%`, monto: dinero(igtfTotal) }] : []),
+        ...doc.buckets.map((b) => ({
+          etiqueta: `IVA ${b.basisPoints / 100}%`,
+          monto: dinero(b.tax),
+        })),
+        ...(igtfTotal.amount > 0n
+          ? [
+              {
+                etiqueta: `IGTF ${igtfBasisPoints / 100}%`,
+                monto: dinero(igtfTotal),
+              },
+            ]
+          : []),
       ],
       total: dinero(aCobrar),
       totalBs: totalBs ? dinero(totalBs) : null,
@@ -462,25 +583,45 @@ function CobroCuenta({
     };
   }
 
-  const puedeCobrar = balance !== null && falta.amount === 0n && pagos.length > 0;
+  const puedeCobrar =
+    balance !== null && falta.amount === 0n && pagos.length > 0;
 
   /* --------------------------------------------------------- conversiones y atajos */
 
   const digitos = monto.replace(/\D/g, "");
-  const tecleado = money(BigInt(digitos === "" ? "0" : digitos), medioActivo.currency);
+  const tecleado = money(
+    BigInt(digitos === "" ? "0" : digitos),
+    medioActivo.currency,
+  );
   const cubierto = balance !== null && falta.amount === 0n && pagos.length > 0;
 
-  const aBolivares = rate ? (rate.from === falta.currency ? rate : invertRate(rate)) : null;
+  const aBolivares = rate
+    ? rate.from === falta.currency
+      ? rate
+      : invertRate(rate)
+    : null;
   const faltaEnBsMoney =
-    aBolivares && aBolivares.from === falta.currency ? convert(falta, aBolivares) : null;
-  const faltaEnBs = faltaEnBsMoney ? formatMoneyVE(toMajor(faltaEnBsMoney), "VES") : null;
+    aBolivares && aBolivares.from === falta.currency
+      ? convert(falta, aBolivares)
+      : null;
+  const faltaEnBs = faltaEnBsMoney
+    ? formatMoneyVE(toMajor(faltaEnBsMoney), "VES")
+    : null;
 
-  const aBolivaresParaSobra = rate ? (rate.from === sobra.currency ? rate : invertRate(rate)) : null;
+  const aBolivaresParaSobra = rate
+    ? rate.from === sobra.currency
+      ? rate
+      : invertRate(rate)
+    : null;
   const sobraEnBsMoney =
-    aBolivaresParaSobra && aBolivaresParaSobra.from === sobra.currency && sobra.amount > 0n
+    aBolivaresParaSobra &&
+    aBolivaresParaSobra.from === sobra.currency &&
+    sobra.amount > 0n
       ? convert(sobra, aBolivaresParaSobra)
       : null;
-  const sobraEnBs = sobraEnBsMoney ? formatMoneyVE(toMajor(sobraEnBsMoney), "VES") : null;
+  const sobraEnBs = sobraEnBsMoney
+    ? formatMoneyVE(toMajor(sobraEnBsMoney), "VES")
+    : null;
 
   const tasaTexto = rate
     ? `${toMajor(money(rate.numerator, "VES")).replace(".", ",")} Bs/$`
@@ -498,12 +639,14 @@ function CobroCuenta({
     if (medioActivo.triggersIgtf) {
       // El pago cubre la deuda Y su propio IGTF. El USDT se trata 1:1 con el
       // dólar, como en el consolidado del IGTF (DEC-1).
-      return pagoQueCubreConIgtf(money(falta.amount, medioActivo.currency), igtfBasisPoints);
+      return pagoQueCubreConIgtf(
+        money(falta.amount, medioActivo.currency),
+        igtfBasisPoints,
+      );
     }
 
     return falta;
   }, [falta, medioActivo, aBolivares, igtfBasisPoints]);
-
 
   function cobrarMontoExacto() {
     if (!montoExacto) return;
@@ -521,9 +664,19 @@ function CobroCuenta({
     setPagos((prev) => {
       const ultimo = prev.at(-1);
       if (ultimo && ultimo.medio.code === medioActivo.code && !ultimo.datos) {
-        return [...prev.slice(0, -1), { ...ultimo, amount: add(ultimo.amount, billete) }];
+        return [
+          ...prev.slice(0, -1),
+          { ...ultimo, amount: add(ultimo.amount, billete) },
+        ];
       }
-      return [...prev, { uid: globalThis.crypto.randomUUID(), medio: medioActivo, amount: billete }];
+      return [
+        ...prev,
+        {
+          uid: globalThis.crypto.randomUUID(),
+          medio: medioActivo,
+          amount: billete,
+        },
+      ];
     });
     setMonto("");
   }
@@ -575,100 +728,165 @@ function CobroCuenta({
 
   return (
     <>
-        {/* ═══════════════════════ la cuenta ═══════════════════════════ */}
-        <section className={cn(
+      {/* ═══════════════════════ la cuenta ═══════════════════════════ */}
+      <section
+        className={cn(
           "flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card @container/ticket",
           PLACEMENT_TICKET,
-          ocultoEnDosColumnas && OCULTA_SI_PLEGADA
-        )}>
-          {/* Un solo renglón: qué orden es, de quién, cómo paga y desde cuándo. */}
-          <div className="flex items-center gap-3 border-b border-line py-2 pr-2 pl-5">
-            <h2 className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-              <span className="font-display tnum text-lg leading-none font-bold text-ink">{numeroDeOrden(cuenta)}</span>
-              <span className="truncate text-[14px] font-semibold text-ink-2">
-                {esVentaDirecta(cuenta) ? "Venta de mostrador" : cuenta.family}
-              </span>
-              <span className="text-[12px] text-ink-3">
-                {esVentaDirecta(cuenta) ? "Mostrador" : cuenta.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"} ·{" "}
-                {formatClock(Date.parse(cuenta.openedAt))}
-              </span>
-            </h2>
-            {onAgregarProducto && (
-              <button
-                type="button"
-                onClick={() => setMostrarCatalogo((prev) => !prev)}
-                className={cn(
-                  "inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-all",
-                  mostrarCatalogo
-                    ? "border-brand bg-brand/15 text-brand"
-                    : "border-line bg-base text-ink-2 hover:border-brand/50 hover:text-ink",
-                )}
-              >
-                <ShoppingBag size={13} />
-                <span>{mostrarCatalogo ? "Ocultar ítems" : "Añadir ítems"}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Catálogo táctil de mostrador (snacks, bebidas, golosinas) */}
-          {mostrarCatalogo && onAgregarProducto && (
-            <div className="border-b border-line bg-base/50 p-3">
-              <CartaMostrador aBolivares={aBolivares} onElegir={onAgregarProducto} alto="max-h-52" />
-            </div>
+          ocultoEnDosColumnas && OCULTA_SI_PLEGADA,
+        )}
+      >
+        {/* Un solo renglón: qué orden es, de quién, cómo paga y desde cuándo. */}
+        <div className="flex items-center gap-3 border-b border-line py-2 pr-2 pl-5">
+          <h2 className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            <span className="font-display tnum text-lg leading-none font-bold text-ink">
+              {numeroDeOrden(cuenta)}
+            </span>
+            <span className="truncate text-[14px] font-semibold text-ink-2">
+              {esVentaDirecta(cuenta) ? "Venta de mostrador" : cuenta.family}
+            </span>
+            <span className="text-[12px] text-ink-3">
+              {esVentaDirecta(cuenta)
+                ? "Mostrador"
+                : cuenta.mode === "PREPAGO"
+                  ? "Prepago"
+                  : "Cuenta abierta"}{" "}
+              · {formatClock(Date.parse(cuenta.openedAt))}
+            </span>
+          </h2>
+          {onAgregarProducto && (
+            <button
+              type="button"
+              onClick={() => setMostrarCatalogo((prev) => !prev)}
+              className={cn(
+                "inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-all",
+                mostrarCatalogo
+                  ? "border-brand bg-brand/15 text-brand"
+                  : "border-line bg-base text-ink-2 hover:border-brand/50 hover:text-ink",
+              )}
+            >
+              <ShoppingBag size={13} />
+              <span>{mostrarCatalogo ? "Ocultar ítems" : "Añadir ítems"}</span>
+            </button>
           )}
+        </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            {/* Estilo factura: concepto a la izquierda, importe alineado a la
+        {/* Catálogo táctil de mostrador (snacks, bebidas, golosinas) */}
+        {mostrarCatalogo && onAgregarProducto && (
+          <div className="border-b border-line bg-base/50 p-3">
+            <CartaMostrador
+              aBolivares={aBolivares}
+              onElegir={onAgregarProducto}
+              alto="max-h-52"
+            />
+          </div>
+        )}
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {/* Estilo factura: concepto a la izquierda, importe alineado a la
                 derecha, filas compactas y sin numerar. Lo que se añadió en
                 mostrador se toca para quitarlo: la fila crece y enseña el
                 botón, en vez de llevar una «x» diminuta en cada renglón. */}
-            <div className={cn(COLUMNAS, "border-b border-line pb-1 text-[10px] font-semibold tracking-[0.09em] text-ink-3 uppercase")}>
-              <span className="text-right">Cant.</span>
-              <span>Concepto</span>
-              <span className="hidden text-right @md/ticket:block">P. unit.</span>
-              <span className="text-right">Importe</span>
-            </div>
-            <ul className="flex flex-col divide-y divide-dashed divide-line/60">
-              {filas.map((f) => {
-                const importe = formatMoneyVE(toMajor(multiply(f.precio, BigInt(f.cantidad))), f.precio.currency);
-                const editable = f.item !== null && onCambiarCantidad !== undefined;
-                const abierta = editable && filaAbierta === f.clave;
-                const celdas = (
-                  <>
-                    <span className="tnum text-right font-semibold text-ink">{f.cantidad}</span>
-                    <span className="flex min-w-0 flex-col">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <span className="line-clamp-2 break-words text-ink-2">{f.concepto}</span>
-                        {f.item && <ShoppingBag size={11} className="shrink-0 text-ink-3" aria-label="de mostrador" />}
+          <div
+            className={cn(
+              COLUMNAS,
+              "border-b border-line pb-1 text-[10px] font-semibold tracking-[0.09em] text-ink-3 uppercase",
+            )}
+          >
+            <span className="text-right">Cant.</span>
+            <span>Concepto</span>
+            <span className="hidden text-right @md/ticket:block">P. unit.</span>
+            <span className="text-right">Importe</span>
+          </div>
+          <ul className="flex flex-col divide-y divide-dashed divide-line/60">
+            {filas.map((f) => {
+              const importe = formatMoneyVE(
+                toMajor(multiply(f.precio, BigInt(f.cantidad))),
+                f.precio.currency,
+              );
+              const esMostrador =
+                f.item !== null && onCambiarCantidad !== undefined;
+              const expandible =
+                esMostrador ||
+                (onCortesia !== undefined && permisoCortesia !== "DENEGADO");
+              const abierta = expandible && filaAbierta === f.clave;
+
+              // La línea base de la cuenta, para pasarla al diálogo de cortesía.
+              const lineaOriginal = cuenta.lines.find(
+                (l) => l.id === f.lineIds[0],
+              );
+
+              const celdas = (
+                <>
+                  <span className="tnum text-right font-semibold text-ink">
+                    {f.cantidad}
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="line-clamp-2 break-words text-ink-2">
+                        {f.concepto}
                       </span>
-                      {f.cantidad > 1 && (
-                        <span className="tnum mt-0.5 text-[11px] text-ink-3 @md/ticket:hidden">
-                          {f.cantidad} × {formatMoneyVE(toMajor(f.precio), f.precio.currency)}
-                        </span>
+                      {f.item && (
+                        <ShoppingBag
+                          size={11}
+                          className="shrink-0 text-ink-3"
+                          aria-label="de mostrador"
+                        />
                       )}
                     </span>
-                    <span className="hidden tnum text-right text-ink-3 @md/ticket:block">{formatMoneyVE(toMajor(f.precio), f.precio.currency)}</span>
-                    <span className="tnum text-right font-medium text-ink">{importe}</span>
-                  </>
-                );
-                return (
-                  <li key={f.clave} className={cn(abierta && "bg-surface-2/60")}>
-                    {/* Excepción: fila a todo el ancho, 48 px es suficiente y evita scroll. */}
-                    {editable ? (
-                      <button
-                        type="button"
-                        aria-expanded={abierta}
-                        aria-label={`${f.concepto}, ${f.cantidad} ${f.cantidad === 1 ? "unidad" : "unidades"}, ${importe}. Cambiar cantidad`}
-                        onClick={() => setFilaAbierta(abierta ? null : f.clave)}
-                        className={cn(COLUMNAS, "min-h-12 w-full cursor-pointer py-1 text-left text-[13px] transition-colors hover:bg-surface-2/50 focus-visible:outline-2 focus-visible:outline-brand")}
-                      >
-                        {celdas}
-                      </button>
-                    ) : (
-                      <div className={cn(COLUMNAS, "min-h-12 py-1 text-[13px]")}>{celdas}</div>
+                    {f.cantidad > 1 && !f.cortesia && (
+                      <span className="tnum mt-0.5 text-[11px] text-ink-3 @md/ticket:hidden">
+                        {f.cantidad} ×{" "}
+                        {formatMoneyVE(toMajor(f.precio), f.precio.currency)}
+                      </span>
                     )}
-                    {abierta && f.item && (
-                      <div className="flex flex-wrap items-center gap-2 pb-2">
+                    {f.cortesia && (
+                      <span className="mt-0.5 text-[11.5px] text-ink-3">
+                        Cortesía · {f.cortesia.autorizadaPor.name}
+                      </span>
+                    )}
+                  </span>
+                  <span className="hidden tnum text-right text-ink-3 @md/ticket:block">
+                    {f.cortesia ? (
+                      <span className="line-through opacity-60">
+                        {formatMoneyVE(toMajor(f.precio), f.precio.currency)}
+                      </span>
+                    ) : (
+                      formatMoneyVE(toMajor(f.precio), f.precio.currency)
+                    )}
+                  </span>
+                  <span className="tnum text-right font-medium text-ink">
+                    {f.cortesia ? (
+                      <span className="line-through opacity-60">{importe}</span>
+                    ) : (
+                      importe
+                    )}
+                  </span>
+                </>
+              );
+              return (
+                <li key={f.clave} className={cn(abierta && "bg-surface-2/60")}>
+                  {expandible ? (
+                    <button
+                      type="button"
+                      aria-expanded={abierta}
+                      aria-label={`${f.concepto}, ${f.cantidad} ${f.cantidad === 1 ? "unidad" : "unidades"}, ${importe}. ${esMostrador ? "Cambiar cantidad o cortesía" : "Opciones de cortesía"}`}
+                      onClick={() => setFilaAbierta(abierta ? null : f.clave)}
+                      className={cn(
+                        COLUMNAS,
+                        "min-h-12 w-full cursor-pointer py-1 text-left text-[13px] transition-colors hover:bg-surface-2/50 focus-visible:outline-2 focus-visible:outline-brand",
+                      )}
+                    >
+                      {celdas}
+                    </button>
+                  ) : (
+                    <div className={cn(COLUMNAS, "min-h-12 py-1 text-[13px]")}>
+                      {celdas}
+                    </div>
+                  )}
+                  {abierta && (
+                    <div className="flex flex-wrap items-center gap-2 pb-2 px-2">
+                      {esMostrador && f.item && !f.cortesia && (
                         <Stepper
                           value={f.cantidad}
                           onChange={(n) => onCambiarCantidad?.(f.item!, n)}
@@ -677,65 +895,102 @@ function CobroCuenta({
                           max={50}
                           surface="pos"
                         />
-                        <Button
-                          surface="pos"
-                          variant="danger"
-                          className="ml-auto text-[13px]"
-                          onClick={() => {
-                            onCambiarCantidad?.(f.item!, 0);
-                            setFilaAbierta(null);
-                          }}
-                        >
-                          <X size={15} aria-hidden="true" />
-                          Eliminar
-                        </Button>
+                      )}
+                      <div className="ml-auto flex gap-2">
+                        {onCortesia !== undefined &&
+                          permisoCortesia !== "DENEGADO" &&
+                          lineaOriginal && (
+                            <Button
+                              surface="pos"
+                              variant="neutral"
+                              className="text-[13px]"
+                              onClick={() =>
+                                setLineaParaCortesia({
+                                  linea: lineaOriginal,
+                                  quitar: f.cortesia !== undefined,
+                                })
+                              }
+                            >
+                              {f.cortesia ? "Quitar cortesía" : "Cortesía"}
+                            </Button>
+                          )}
+                        {esMostrador && f.item && !f.cortesia && (
+                          <Button
+                            surface="pos"
+                            variant="danger"
+                            className="text-[13px]"
+                            onClick={() => {
+                              onCambiarCantidad?.(f.item!, 0);
+                              setFilaAbierta(null);
+                            }}
+                          >
+                            <X size={15} aria-hidden="true" />
+                            Eliminar
+                          </Button>
+                        )}
                       </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
 
-            {/* Los pagos son parte del mismo documento, no una tarjeta aparte. */}
-            {pagos.length === 0 ? (
-              <p className="mt-3 border-t border-line/40 pt-3 text-[12.5px] text-ink-3">
-                Sin pagos todavía. Se pueden combinar medios: efectivo y punto, dólares y bolívares.
-              </p>
-            ) : (
-              <div className="mt-5">
-                <h3 className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
-                  Pagos recibidos
-                </h3>
-                <ul className="flex flex-col gap-1.5">
-                  {pagos.map((p) => {
-                    const linea = igtf.lines.find((l) => l.methodCode === p.medio.code);
-                    const Icon = MEDIO_ICONS[p.medio.code] ?? Banknote;
-                    return (
-                      <li
-                        key={p.uid}
-                        className="flex items-center gap-1 rounded-[var(--radius-control)] bg-base/60 pr-1 text-sm"
-                      >
-                        {/* Toda la fila se toca para corregir: un monto o una
+          {/* Los pagos son parte del mismo documento, no una tarjeta aparte. */}
+          {pagos.length === 0 ? (
+            <p className="mt-3 border-t border-line/40 pt-3 text-[12.5px] text-ink-3">
+              Sin pagos todavía. Se pueden combinar medios: efectivo y punto,
+              dólares y bolívares.
+            </p>
+          ) : (
+            <div className="mt-5">
+              <h3 className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                Pagos recibidos
+              </h3>
+              <ul className="flex flex-col gap-1.5">
+                {pagos.map((p) => {
+                  const linea = igtf.lines.find(
+                    (l) => l.methodCode === p.medio.code,
+                  );
+                  const Icon = MEDIO_ICONS[p.medio.code] ?? Banknote;
+                  return (
+                    <li
+                      key={p.uid}
+                      className="flex items-center gap-1 rounded-[var(--radius-control)] bg-base/60 pr-1 text-sm"
+                    >
+                      {/* Toda la fila se toca para corregir: un monto o una
                             referencia mal tecleados no obligan a borrar y repetir. */}
-                        <button
-                          type="button"
-                          onClick={() => setEditando(p.uid)}
-                          aria-label={`Corregir el pago de ${p.medio.label}, ${formatMoneyVE(toMajor(p.amount), p.amount.currency)}`}
-                          className="group flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-[var(--radius-control)] py-2 pl-3 text-left transition-colors hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:outline-brand"
-                        >
+                      <button
+                        type="button"
+                        onClick={() => setEditando(p.uid)}
+                        aria-label={`Corregir el pago de ${p.medio.label}, ${formatMoneyVE(toMajor(p.amount), p.amount.currency)}`}
+                        className="group flex min-h-12 min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-[var(--radius-control)] py-2 pl-3 text-left transition-colors hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:outline-brand"
+                      >
                         <span className="flex min-w-0 items-center gap-2">
-                          <Icon size={14} className="text-ink-3 shrink-0" aria-hidden="true" />
+                          <Icon
+                            size={14}
+                            className="text-ink-3 shrink-0"
+                            aria-hidden="true"
+                          />
                           <span className="min-w-0">
                             <span className="flex items-center gap-2">
-                              <span className="text-[13px] font-semibold text-ink">{p.medio.label}</span>
+                              <span className="text-[13px] font-semibold text-ink">
+                                {p.medio.label}
+                              </span>
                               {p.medio.triggersIgtf && linea && (
                                 <span className="tnum text-[11px] whitespace-nowrap text-ink-3">
-                                  + IGTF {formatMoneyVE(toMajor(linea.igtf), linea.igtf.currency)}
+                                  + IGTF{" "}
+                                  {formatMoneyVE(
+                                    toMajor(linea.igtf),
+                                    linea.igtf.currency,
+                                  )}
                                 </span>
                               )}
                             </span>
                             {p.datos && (
-                              <span className="tnum block truncate text-[11.5px] text-ink-3">{resumenDatos(p.datos, terminales)}</span>
+                              <span className="tnum block truncate text-[11.5px] text-ink-3">
+                                {resumenDatos(p.datos, terminales)}
+                              </span>
                             )}
                           </span>
                         </span>
@@ -745,373 +1000,504 @@ function CobroCuenta({
                             currency={p.amount.currency}
                             size="md"
                           />
-                          <Pencil size={13} className="text-ink-3 opacity-60 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+                          <Pencil
+                            size={13}
+                            className="text-ink-3 opacity-60 transition-opacity group-hover:opacity-100"
+                            aria-hidden="true"
+                          />
                         </span>
-                        </button>
-                          <button
-                            type="button"
-                            onClick={() => setPagos((prev) => prev.filter((x) => x.uid !== p.uid))}
-                            aria-label={`Quitar el pago de ${p.medio.label}`}
-                            className="relative grid size-10 cursor-pointer place-content-center rounded text-ink-3 transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-state-crit-bg hover:text-state-crit"
-                          >
-                            <X size={15} aria-hidden="true" />
-                          </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          {/* Los totales quedan CLAVADOS abajo */}
-          <dl className="flex flex-col gap-1.5 border-t border-line bg-base/40 px-5 pt-2 pb-4 text-sm">
-            {/* A quién se factura: un toque solo cuando el cliente lo pide (DEC-23). */}
-            <div className="flex items-center justify-between gap-3 border-b border-line/60 pb-2">
-              <dt className="shrink-0 whitespace-nowrap text-ink-2">Factura a</dt>
-              <dd className="flex min-w-0 items-center gap-2">
-                <span className="truncate font-semibold text-ink">
-                  {cliente.kind === "CONSUMIDOR_FINAL"
-                    ? "Consumidor final"
-                    : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`}
-                </span>
-                <Button surface="pos" variant="neutral" className="shrink-0 text-[13px]" onClick={() => setIdentificando(true)}>
-                  {cliente.kind === "CONSUMIDOR_FINAL" ? "Identificar" : "Cambiar"}
-                  <PistaTecla tecla="I" />
-                </Button>
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-ink-2">Subtotal</dt>
-              <dd>
-                <MoneyDisplay value={toMajor(doc.subtotal)} currency="USD" size="sm" tone="muted" />
-              </dd>
-            </div>
-            {doc.buckets.map((b) => (
-              <div key={b.code} className="flex items-baseline justify-between gap-3">
-                <dt className="text-ink-2">
-                  IVA {b.basisPoints / 100}%
-                  <span className="tnum ml-1.5 text-ink-3">sobre {toMajor(b.base)}</span>
-                </dt>
-                <dd>
-                  <MoneyDisplay value={toMajor(b.tax)} currency="USD" size="sm" tone="muted" />
-                </dd>
-              </div>
-            ))}
-
-            {igtfTotal.amount > 0n && (
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-ink-2">
-                  IGTF {igtfBasisPoints / 100}%
-                  <span className="ml-1.5 text-ink-3">solo sobre lo pagado en divisas</span>
-                </dt>
-                <dd>
-                  <MoneyDisplay value={toMajor(igtfTotal)} currency="USD" size="sm" tone="muted" />
-                </dd>
-              </div>
-            )}
-
-            {/* Dividir: «pagamos entre tres» es lo que más se pide en una mesa.
-                Cada parte se cobra por separado y con su propio recibo; la
-                cuenta sigue en la cola hasta que se paga la última. */}
-            {onDividir && (pagos.length === 0 || partes > 1) && (
-              <div className="flex flex-col gap-2 border-b border-line/60 pb-2 @md/ticket:flex-row @md/ticket:items-center @md/ticket:justify-between">
-                <dt className="flex items-center gap-1.5 text-ink-2">
-                  <Users size={14} aria-hidden="true" />
-                  {partes > 1 ? (
-                    <>
-                      Parte <span className="tnum font-semibold text-ink">{parteActual}</span> de {partes}
-                      <span className="ml-1 text-[12px] text-ink-3">
-                        · total {formatMoneyVE(toMajor(doc.total), "USD")}
-                      </span>
-                    </>
-                  ) : (
-                    "Dividir la cuenta"
-                  )}
-                </dt>
-                {/* grupo a todo el ancho, 56 de alto, el ancho lo reparte la fila */}
-                <dd className="grid w-full grid-cols-6 gap-1 @md/ticket:flex @md/ticket:w-auto" role="group" aria-label="Dividir la cuenta">
-                  {[1, 2, 3, 4, 5, 6].map((n) => {
-                    // Ya cobrada alguna parte: el reparto no se cambia a mitad
-                    // de camino, o alguien pagaría de más o de menos.
-                    const bloqueado = (cuenta.split?.paid ?? 0) > 0 || (pagos.length > 0 && n !== partes);
-                    return (
-                      <button
-                        key={n}
-                        type="button"
-                        aria-pressed={n === partes}
-                        disabled={bloqueado}
-                        title={n === 1 ? "Sin dividir" : `Entre ${n}`}
-                        onClick={() => onDividir(n)}
-                        className={cn(
-                          "tnum h-14 w-full cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors @md/ticket:size-14",
-                          n === partes ? "border-brand bg-brand/15 text-ink" : "border-line text-ink-3 hover:text-ink",
-                          "disabled:cursor-not-allowed disabled:opacity-40",
-                        )}
-                      >
-                        {n === 1 ? "—" : n}
                       </button>
-                    );
-                  })}
-                </dd>
-              </div>
-            )}
-            <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-line pt-2.5">
-              <dt className="font-display text-base font-bold text-ink">
-                {partes > 1 ? `Esta parte (${parteActual} de ${partes})` : "Total a cobrar"}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPagos((prev) =>
+                            prev.filter((x) => x.uid !== p.uid),
+                          )
+                        }
+                        aria-label={`Quitar el pago de ${p.medio.label}`}
+                        className="relative grid size-10 cursor-pointer place-content-center rounded text-ink-3 transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-state-crit-bg hover:text-state-crit"
+                      >
+                        <X size={15} aria-hidden="true" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Los totales quedan CLAVADOS abajo */}
+        <dl className="flex flex-col gap-1.5 border-t border-line bg-base/40 px-5 pt-2 pb-4 text-sm">
+          {/* A quién se factura: un toque solo cuando el cliente lo pide (DEC-23). */}
+          <div className="flex items-center justify-between gap-3 border-b border-line/60 pb-2">
+            <dt className="shrink-0 whitespace-nowrap text-ink-2">Factura a</dt>
+            <dd className="flex min-w-0 items-center gap-2">
+              <span className="truncate font-semibold text-ink">
+                {cliente.kind === "CONSUMIDOR_FINAL"
+                  ? "Consumidor final"
+                  : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`}
+              </span>
+              <Button
+                surface="pos"
+                variant="neutral"
+                className="shrink-0 text-[13px]"
+                onClick={() => setIdentificando(true)}
+              >
+                {cliente.kind === "CONSUMIDOR_FINAL"
+                  ? "Identificar"
+                  : "Cambiar"}
+                <PistaTecla tecla="I" />
+              </Button>
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-ink-2">Subtotal</dt>
+            <dd>
+              <MoneyDisplay
+                value={toMajor(doc.subtotal)}
+                currency="USD"
+                size="sm"
+                tone="muted"
+              />
+            </dd>
+          </div>
+          {doc.buckets.map((b) => (
+            <div
+              key={b.code}
+              className="flex items-baseline justify-between gap-3"
+            >
+              <dt className="text-ink-2">
+                IVA {b.basisPoints / 100}%
+                <span className="tnum ml-1.5 text-ink-3">
+                  sobre {toMajor(b.base)}
+                </span>
               </dt>
               <dd>
-                <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
+                <MoneyDisplay
+                  value={toMajor(b.tax)}
+                  currency="USD"
+                  size="sm"
+                  tone="muted"
+                />
               </dd>
             </div>
+          ))}
 
-            {igtfTotal.amount > 0n && (
-              <p className="mt-0.5 text-[11.5px] text-ink-3">
-                El IGTF grava el medio de pago, no la venta: solo lo pagado en divisas o cripto.
-              </p>
-            )}
-          </dl>
-        </section>
+          {igtfTotal.amount > 0n && (
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-ink-2">
+                IGTF {igtfBasisPoints / 100}%
+                <span className="ml-1.5 text-ink-3">
+                  solo sobre lo pagado en divisas
+                </span>
+              </dt>
+              <dd>
+                <MoneyDisplay
+                  value={toMajor(igtfTotal)}
+                  currency="USD"
+                  size="sm"
+                  tone="muted"
+                />
+              </dd>
+            </div>
+          )}
 
-        {/* ═══════════════════════ cobrar ══════════════════════════════
+          {/* Dividir: «pagamos entre tres» es lo que más se pide en una mesa.
+                Cada parte se cobra por separado y con su propio recibo; la
+                cuenta sigue en la cola hasta que se paga la última. */}
+          {onDividir && (pagos.length === 0 || partes > 1) && (
+            <div className="flex flex-col gap-2 border-b border-line/60 pb-2 @md/ticket:flex-row @md/ticket:items-center @md/ticket:justify-between">
+              <dt className="flex items-center gap-1.5 text-ink-2">
+                <Users size={14} aria-hidden="true" />
+                {partes > 1 ? (
+                  <>
+                    Parte{" "}
+                    <span className="tnum font-semibold text-ink">
+                      {parteActual}
+                    </span>{" "}
+                    de {partes}
+                    <span className="ml-1 text-[12px] text-ink-3">
+                      · total {formatMoneyVE(toMajor(doc.total), "USD")}
+                    </span>
+                  </>
+                ) : (
+                  "Dividir la cuenta"
+                )}
+              </dt>
+              {/* grupo a todo el ancho, 56 de alto, el ancho lo reparte la fila */}
+              <dd
+                className="grid w-full grid-cols-6 gap-1 @md/ticket:flex @md/ticket:w-auto"
+                role="group"
+                aria-label="Dividir la cuenta"
+              >
+                {[1, 2, 3, 4, 5, 6].map((n) => {
+                  // Ya cobrada alguna parte: el reparto no se cambia a mitad
+                  // de camino, o alguien pagaría de más o de menos.
+                  const bloqueado =
+                    (cuenta.split?.paid ?? 0) > 0 ||
+                    (pagos.length > 0 && n !== partes);
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={n === partes}
+                      disabled={bloqueado}
+                      title={n === 1 ? "Sin dividir" : `Entre ${n}`}
+                      onClick={() => onDividir(n)}
+                      className={cn(
+                        "tnum h-14 w-full cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors @md/ticket:size-14",
+                        n === partes
+                          ? "border-brand bg-brand/15 text-ink"
+                          : "border-line text-ink-3 hover:text-ink",
+                        "disabled:cursor-not-allowed disabled:opacity-40",
+                      )}
+                    >
+                      {n === 1 ? "—" : n}
+                    </button>
+                  );
+                })}
+              </dd>
+            </div>
+          )}
+          <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-line pt-2.5">
+            <dt className="font-display text-base font-bold text-ink">
+              {partes > 1
+                ? `Esta parte (${parteActual} de ${partes})`
+                : "Total a cobrar"}
+            </dt>
+            <dd>
+              <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
+            </dd>
+          </div>
+
+          {igtfTotal.amount > 0n && (
+            <p className="mt-0.5 text-[11.5px] text-ink-3">
+              El IGTF grava el medio de pago, no la venta: solo lo pagado en
+              divisas o cripto.
+            </p>
+          )}
+        </dl>
+      </section>
+
+      {/* ═══════════════════════ cobrar ══════════════════════════════
             Estructura FIJA, pedida por el cliente: visor, medios, una franja de
             alto fijo según el medio, el teclado siempre a la vista y una fila de
             dos columnas con «Cobrar exacto» y «Cerrar cobro». Cambiar de medio o
             teclear no mueve nada de sitio, y no hay que abrir nada para teclear. */}
-        <aside className={cn(
+      <aside
+        className={cn(
           "flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card [&>*]:shrink-0",
           PLACEMENT_COBRO,
-          "md:bajo:grid md:bajo:grid-cols-[minmax(0,1fr)_12rem] md:bajo:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] md:bajo:gap-x-3 md:bajo:overflow-hidden"
-        )}>
-          {/* ── visor: lo que falta (o el vuelto) y lo que se está tecleando ── */}
-          <div
-            className={cn(
-              "md:bajo:col-start-1 md:bajo:row-start-1 rounded-[var(--radius-control)] border px-3 py-2.5",
-              "transition-colors duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
-              cubierto ? "border-state-ok/40 bg-state-ok-bg/40" : "border-line-strong bg-base",
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.08em] text-ink uppercase">
-                  <span
-                    aria-hidden="true"
-                    className={cn("size-2 rounded-full", cubierto ? "bg-state-ok" : "bg-brand")}
-                  />
-                  {!cubierto ? "Falta por cobrar" : sobra.amount > 0n ? "Vuelto a entregar" : "Cubierto"}
-                </p>
-                <MoneyDisplay
-                  value={toMajor(!cubierto ? falta : sobra.amount > 0n ? sobra : aCobrar)}
-                  currency="USD"
-                  size="xl"
-                  tone={cubierto ? "positive" : "default"}
-                  className="mt-1 leading-none tracking-tight"
-                />
-              </div>
-              {!cubierto && (
-                <div className="shrink-0 text-right">
-                  <p className="text-[10px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
-                    Tecleado ({medioActivo.currency})
-                  </p>
-                  <p
-                    aria-live="polite"
-                    className={cn(
-                      "tnum mt-1 leading-none font-bold",
-                      tecleado.currency === "VES" ? "text-lg" : "text-2xl",
-                      digitos === "" ? "text-ink-3" : "text-ink",
-                    )}
-                  >
-                    {formatMoneyVE(toMajor(tecleado), tecleado.currency)}
-                  </p>
-                </div>
-              )}
-            </div>
-            {/* Los bolívares en su propio renglón: una cifra de 8 dígitos no cabe al lado. */}
-            {(cubierto ? sobraEnBs : faltaEnBs) && (
-              <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-line/40 pt-1.5">
-                <span className="text-[10px] font-semibold tracking-wider text-ink-3 uppercase">
-                  En bolívares{tasaTexto ? ` · ${tasaTexto}` : ""}
-                </span>
-                <span className="tnum text-lg font-bold text-ink-2">{cubierto ? sobraEnBs : faltaEnBs}</span>
-              </p>
-            )}
-          </div>
-
-          {/* ── medio de pago con iconos y jerarquía financiera ── */}
-          <div className="md:bajo:col-start-1 md:bajo:row-start-2 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Medio de pago">
-            {mediosDisponibles.map((m) => {
-              const activo = m.code === medioActivo.code;
-              const bloqueado = m.currency !== FUNCIONAL && !rate;
-              const Icon = MEDIO_ICONS[m.code] ?? Banknote;
-              return (
-                <button
-                  key={m.code}
-                  type="button"
-                  role="radio"
-                  aria-checked={activo}
-                  disabled={bloqueado}
-                  onClick={() => setMedioActivo(m)}
-                  title={
-                    bloqueado
-                      ? "Sin tasa del día no se puede cobrar en esta moneda"
-                      : `${m.label}${TECLA_MEDIO[m.code] ? ` (tecla ${TECLA_MEDIO[m.code]})` : ""}`
-                  }
+          "md:bajo:grid md:bajo:grid-cols-[minmax(0,1fr)_12rem] md:bajo:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] md:bajo:gap-x-3 md:bajo:overflow-hidden",
+        )}
+      >
+        {/* ── visor: lo que falta (o el vuelto) y lo que se está tecleando ── */}
+        <div
+          className={cn(
+            "md:bajo:col-start-1 md:bajo:row-start-1 rounded-[var(--radius-control)] border px-3 py-2.5",
+            "transition-colors duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
+            cubierto
+              ? "border-state-ok/40 bg-state-ok-bg/40"
+              : "border-line-strong bg-base",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.08em] text-ink uppercase">
+                <span
+                  aria-hidden="true"
                   className={cn(
-                    "flex h-14 cursor-pointer flex-col items-start justify-center overflow-hidden rounded-[var(--radius-control)] border px-1.5 text-left",
-                    "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    "disabled:cursor-not-allowed disabled:opacity-35",
-                    activo
-                      ? "border-brand bg-brand/12 text-ink ring-1 ring-brand/30"
-                      : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
+                    "size-2 rounded-full",
+                    cubierto ? "bg-state-ok" : "bg-brand",
+                  )}
+                />
+                {!cubierto
+                  ? "Falta por cobrar"
+                  : sobra.amount > 0n
+                    ? "Vuelto a entregar"
+                    : "Cubierto"}
+              </p>
+              <MoneyDisplay
+                value={toMajor(
+                  !cubierto ? falta : sobra.amount > 0n ? sobra : aCobrar,
+                )}
+                currency="USD"
+                size="xl"
+                tone={cubierto ? "positive" : "default"}
+                className="mt-1 leading-none tracking-tight"
+              />
+            </div>
+            {!cubierto && (
+              <div className="shrink-0 text-right">
+                <p className="text-[10px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                  Tecleado ({medioActivo.currency})
+                </p>
+                <p
+                  aria-live="polite"
+                  className={cn(
+                    "tnum mt-1 leading-none font-bold",
+                    tecleado.currency === "VES" ? "text-lg" : "text-2xl",
+                    digitos === "" ? "text-ink-3" : "text-ink",
                   )}
                 >
-                  {/* Icono junto al nombre; debajo, moneda e IGTF. La letra del
+                  {formatMoneyVE(toMajor(tecleado), tecleado.currency)}
+                </p>
+              </div>
+            )}
+          </div>
+          {/* Los bolívares en su propio renglón: una cifra de 8 dígitos no cabe al lado. */}
+          {(cubierto ? sobraEnBs : faltaEnBs) && (
+            <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-line/40 pt-1.5">
+              <span className="text-[10px] font-semibold tracking-wider text-ink-3 uppercase">
+                En bolívares{tasaTexto ? ` · ${tasaTexto}` : ""}
+              </span>
+              <span className="tnum text-lg font-bold text-ink-2">
+                {cubierto ? sobraEnBs : faltaEnBs}
+              </span>
+            </p>
+          )}
+        </div>
+
+        {/* ── medio de pago con iconos y jerarquía financiera ── */}
+        <div
+          className="md:bajo:col-start-1 md:bajo:row-start-2 grid grid-cols-3 gap-1.5"
+          role="radiogroup"
+          aria-label="Medio de pago"
+        >
+          {mediosDisponibles.map((m) => {
+            const activo = m.code === medioActivo.code;
+            const bloqueado = m.currency !== FUNCIONAL && !rate;
+            const Icon = MEDIO_ICONS[m.code] ?? Banknote;
+            return (
+              <button
+                key={m.code}
+                type="button"
+                role="radio"
+                aria-checked={activo}
+                disabled={bloqueado}
+                onClick={() => setMedioActivo(m)}
+                title={
+                  bloqueado
+                    ? "Sin tasa del día no se puede cobrar en esta moneda"
+                    : `${m.label}${TECLA_MEDIO[m.code] ? ` (tecla ${TECLA_MEDIO[m.code]})` : ""}`
+                }
+                className={cn(
+                  "flex h-14 cursor-pointer flex-col items-start justify-center overflow-hidden rounded-[var(--radius-control)] border px-1.5 text-left",
+                  "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  "disabled:cursor-not-allowed disabled:opacity-35",
+                  activo
+                    ? "border-brand bg-brand/12 text-ink ring-1 ring-brand/30"
+                    : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
+                )}
+              >
+                {/* Icono junto al nombre; debajo, moneda e IGTF. La letra del
                       atajo va en el `title` y en la chuleta: en el botón le
                       quitaba sitio al nombre («Punto dé…»). */}
-                  <span className="flex w-full min-w-0 items-center gap-1">
-                    <Icon size={12} className={cn("shrink-0", activo ? "text-brand" : "text-ink-3")} aria-hidden="true" />
-                    <span className="truncate text-[12px] leading-tight font-bold">{m.label}</span>
+                <span className="flex w-full min-w-0 items-center gap-1">
+                  <Icon
+                    size={12}
+                    className={cn(
+                      "shrink-0",
+                      activo ? "text-brand" : "text-ink-3",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate text-[12px] leading-tight font-bold">
+                    {m.label}
                   </span>
-                  <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10px] whitespace-nowrap">
-                    <span className={cn(m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3")}>{m.currency}</span>
-                    {/* El IGTF solo existe en divisas: en bolívares no se dice
+                </span>
+                <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10px] whitespace-nowrap">
+                  <span
+                    className={cn(
+                      m.currency === "VES"
+                        ? "font-semibold text-ink-2"
+                        : "text-ink-3",
+                    )}
+                  >
+                    {m.currency}
+                  </span>
+                  {/* El IGTF solo existe en divisas: en bolívares no se dice
                         nada, en vez de un «0% IGTF» que hay que leer para nada. */}
-                    {m.triggersIgtf && (
-                      <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
-                        +{igtfBasisPoints / 100}% IGTF
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ── franja del medio: SIEMPRE 56 px, ni uno más ── */}
-          <div className="md:bajo:col-start-1 md:bajo:row-start-3 h-14 overflow-hidden">
-            {cubierto && sobra.amount > 0n ? (
-              // El excedente exige una decisión: no se cierra solo (§5.6).
-              <div role="radiogroup" aria-label="Destino del vuelto" className="grid grid-cols-3 gap-1.5">
-                {(
-                  [
-                    ["VUELTO", "Vuelto", HandCoins],
-                    ["PROPINA", "Propina", Coins],
-                    ["CAJA", "A caja", PiggyBank],
-                  ] as const
-                ).map(([k, label, Icon]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="radio"
-                    aria-checked={destinoVuelto === k}
-                    onClick={() => setDestinoVuelto(k)}
-                    className={cn(
-                      "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border text-[12px]",
-                      "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                      destinoVuelto === k ? "border-brand bg-brand/15 font-semibold text-brand" : "border-line text-ink-2 hover:text-ink",
-                    )}
-                  >
-                    <Icon size={15} aria-hidden="true" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            ) : cubierto ? (
-              <p className="flex min-h-14 items-center justify-center rounded-[var(--radius-control)] border border-state-ok/30 text-[13px] text-state-ok">
-                Lo cobrado cuadra con la cuenta: cierra el cobro.
-              </p>
-            ) : medioActivo.code === "EFECTIVO_USD" ? (
-              <div role="group" aria-label="Billetes recibidos" className="grid grid-cols-6 gap-1.5">
-                {BILLETES_USD.map((b) => (
-                  <button
-                    key={b}
-                    type="button"
-                    onClick={() => agregarBilleteRapido(b)}
-                    aria-label={`Sumar un billete de $ ${b}`}
-                    className={cn(
-                      "flex min-h-14 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border border-line bg-base",
-                      "tnum text-[14px] font-bold text-ink transition-colors",
-                      "hover:border-brand hover:bg-brand/15 hover:text-brand active:scale-95",
-                    )}
-                  >
-                    ${b}
-                  </button>
-                ))}
-              </div>
-            ) : medioActivo.code === "PAGO_MOVIL" && mediosConfig.pagoMovil ? (
-              // Compacto: sin icono (el medio ya está elegido arriba), el banco por
-              // su nombre y el teléfono sin puntos. «Copiar» es solo el icono;
-              // el código del banco va en lo que se copia.
-              <div
-                aria-label="Datos de Pago Móvil del local"
-                className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-brand/30 pl-2.5 text-[11.5px]"
-              >
-                <dl className="grid min-w-0 flex-1 grid-flow-col grid-cols-[auto_auto_auto] grid-rows-2 justify-between gap-x-2">
-                  <dt className="text-[9.5px] text-ink-3 uppercase">Banco</dt>
-                  <dd className="truncate font-bold text-ink">{nombreBanco(mediosConfig.pagoMovil.bankCode)}</dd>
-                  <dt className="text-[9.5px] text-ink-3 uppercase">Teléfono</dt>
-                  <dd className="tnum truncate font-bold text-ink">{mediosConfig.pagoMovil.phone}</dd>
-                  <dt className="text-[9.5px] text-ink-3 uppercase">RIF</dt>
-                  <dd className="tnum truncate font-bold text-ink">{mediosConfig.pagoMovil.document}</dd>
-                </dl>
-                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto(`${nombreBanco(mediosConfig.pagoMovil!.bankCode)} (${mediosConfig.pagoMovil!.bankCode}) - ${mediosConfig.pagoMovil!.phone} - ${mediosConfig.pagoMovil!.document}`)} que="los datos de Pago Móvil" />
-              </div>
-            ) : medioActivo.code === "ZELLE" && mediosConfig.zelle ? (
-              <div className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-line pl-2.5 text-[11.5px]">
-                <Zap size={14} className="shrink-0 text-ink-3" aria-hidden="true" />
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-[9.5px] text-ink-3 uppercase">Zelle · {mediosConfig.zelle.holder}</span>
-                  <span className="block truncate font-bold text-ink">{mediosConfig.zelle.email}</span>
+                  {m.triggersIgtf && (
+                    <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
+                      +{igtfBasisPoints / 100}% IGTF
+                    </span>
+                  )}
                 </div>
-                <BotonCopiar copiado={copiado} onCopiar={() => copiarTexto(mediosConfig.zelle!.email)} que="el correo de Zelle" />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── franja del medio: SIEMPRE 56 px, ni uno más ── */}
+        <div className="md:bajo:col-start-1 md:bajo:row-start-3 h-14 overflow-hidden">
+          {cubierto && sobra.amount > 0n ? (
+            // El excedente exige una decisión: no se cierra solo (§5.6).
+            <div
+              role="radiogroup"
+              aria-label="Destino del vuelto"
+              className="grid grid-cols-3 gap-1.5"
+            >
+              {(
+                [
+                  ["VUELTO", "Vuelto", HandCoins],
+                  ["PROPINA", "Propina", Coins],
+                  ["CAJA", "A caja", PiggyBank],
+                ] as const
+              ).map(([k, label, Icon]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={destinoVuelto === k}
+                  onClick={() => setDestinoVuelto(k)}
+                  className={cn(
+                    "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border text-[12px]",
+                    "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                    destinoVuelto === k
+                      ? "border-brand bg-brand/15 font-semibold text-brand"
+                      : "border-line text-ink-2 hover:text-ink",
+                  )}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : cubierto ? (
+            <p className="flex min-h-14 items-center justify-center rounded-[var(--radius-control)] border border-state-ok/30 text-[13px] text-state-ok">
+              Lo cobrado cuadra con la cuenta: cierra el cobro.
+            </p>
+          ) : medioActivo.code === "EFECTIVO_USD" ? (
+            <div
+              role="group"
+              aria-label="Billetes recibidos"
+              className="grid grid-cols-6 gap-1.5"
+            >
+              {BILLETES_USD.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => agregarBilleteRapido(b)}
+                  aria-label={`Sumar un billete de $ ${b}`}
+                  className={cn(
+                    "flex min-h-14 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border border-line bg-base",
+                    "tnum text-[14px] font-bold text-ink transition-colors",
+                    "hover:border-brand hover:bg-brand/15 hover:text-brand active:scale-95",
+                  )}
+                >
+                  ${b}
+                </button>
+              ))}
+            </div>
+          ) : medioActivo.code === "PAGO_MOVIL" && mediosConfig.pagoMovil ? (
+            // Compacto: sin icono (el medio ya está elegido arriba), el banco por
+            // su nombre y el teléfono sin puntos. «Copiar» es solo el icono;
+            // el código del banco va en lo que se copia.
+            <div
+              aria-label="Datos de Pago Móvil del local"
+              className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-brand/30 pl-2.5 text-[11.5px]"
+            >
+              <dl className="grid min-w-0 flex-1 grid-flow-col grid-cols-[auto_auto_auto] grid-rows-2 justify-between gap-x-2">
+                <dt className="text-[9.5px] text-ink-3 uppercase">Banco</dt>
+                <dd className="truncate font-bold text-ink">
+                  {nombreBanco(mediosConfig.pagoMovil.bankCode)}
+                </dd>
+                <dt className="text-[9.5px] text-ink-3 uppercase">Teléfono</dt>
+                <dd className="tnum truncate font-bold text-ink">
+                  {mediosConfig.pagoMovil.phone}
+                </dd>
+                <dt className="text-[9.5px] text-ink-3 uppercase">RIF</dt>
+                <dd className="tnum truncate font-bold text-ink">
+                  {mediosConfig.pagoMovil.document}
+                </dd>
+              </dl>
+              <BotonCopiar
+                copiado={copiado}
+                onCopiar={() =>
+                  copiarTexto(
+                    `${nombreBanco(mediosConfig.pagoMovil!.bankCode)} (${mediosConfig.pagoMovil!.bankCode}) - ${mediosConfig.pagoMovil!.phone} - ${mediosConfig.pagoMovil!.document}`,
+                  )
+                }
+                que="los datos de Pago Móvil"
+              />
+            </div>
+          ) : medioActivo.code === "ZELLE" && mediosConfig.zelle ? (
+            <div className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-line pl-2.5 text-[11.5px]">
+              <Zap
+                size={14}
+                className="shrink-0 text-ink-3"
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-[9.5px] text-ink-3 uppercase">
+                  Zelle · {mediosConfig.zelle.holder}
+                </span>
+                <span className="block truncate font-bold text-ink">
+                  {mediosConfig.zelle.email}
+                </span>
               </div>
-            ) : (
-              <p className="flex h-14 items-center rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] leading-snug text-ink-3">
-                {INDICACION_MEDIO[medioActivo.code] ?? (esEfectivo ? "Teclea lo recibido y pulsa «Añadir»." : "Teclea lo recibido y pulsa «Añadir», o cobra el monto exacto.")}
-              </p>
-            )}
-          </div>
+              <BotonCopiar
+                copiado={copiado}
+                onCopiar={() => copiarTexto(mediosConfig.zelle!.email)}
+                que="el correo de Zelle"
+              />
+            </div>
+          ) : (
+            <p className="flex h-14 items-center rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] leading-snug text-ink-3">
+              {INDICACION_MEDIO[medioActivo.code] ??
+                (esEfectivo
+                  ? "Teclea lo recibido y pulsa «Añadir»."
+                  : "Teclea lo recibido y pulsa «Añadir», o cobra el monto exacto.")}
+            </p>
+          )}
+        </div>
 
-          {/* ── el teclado, siempre en su sitio ── */}
-          <NumericKeypad
-            className="md:bajo:col-start-2 md:bajo:row-span-5 md:bajo:row-start-1 md:bajo:auto-rows-fr"
-            value={monto}
-            onChange={setMonto}
-            maxLength={9}
-            // Filas de 56 px: el objetivo de POS de §8.4.
-            surface="tablet"
-            disabled={cubierto}
-            onSubmit={agregarPago}
-            submitLabel="Añadir"
-          />
+        {/* ── el teclado, siempre en su sitio ── */}
+        <NumericKeypad
+          className="md:bajo:col-start-2 md:bajo:row-span-5 md:bajo:row-start-1 md:bajo:auto-rows-fr"
+          value={monto}
+          onChange={setMonto}
+          maxLength={9}
+          // Filas de 56 px: el objetivo de POS de §8.4.
+          surface="tablet"
+          disabled={cubierto}
+          onSubmit={agregarPago}
+          submitLabel="Añadir"
+        />
 
-          <div className="md:bajo:col-start-1 md:bajo:row-start-4 flex flex-col gap-2 empty:hidden">
-            {faltaTasa && (
-              <p role="alert" className="text-[12px] text-state-crit">
-                Hay un pago en otra moneda sin tasa congelada. No se puede cobrar (ADR-005).
-              </p>
-            )}
-            {cubierto && destinoVuelto === "CAJA" && sobra.amount > maxRetained.amount && (
+        <div className="md:bajo:col-start-1 md:bajo:row-start-4 flex flex-col gap-2 empty:hidden">
+          {faltaTasa && (
+            <p role="alert" className="text-[12px] text-state-crit">
+              Hay un pago en otra moneda sin tasa congelada. No se puede cobrar
+              (ADR-005).
+            </p>
+          )}
+          {cubierto &&
+            destinoVuelto === "CAJA" &&
+            sobra.amount > maxRetained.amount && (
               <p role="alert" className="text-[11.5px] text-state-crit">
-                Por encima del umbral ({formatMoneyVE(toMajor(maxRetained), "USD")}) no se puede dejar en caja: hay que dar
-                vuelto o marcarlo como propina.
+                Por encima del umbral (
+                {formatMoneyVE(toMajor(maxRetained), "USD")}) no se puede dejar
+                en caja: hay que dar vuelto o marcarlo como propina.
               </p>
             )}
-            {error && (
-              <p
-                role="alert"
-                className="rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[12px] text-state-crit"
-              >
-                {error}
-              </p>
-            )}
-          </div>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[12px] text-state-crit"
+            >
+              {error}
+            </p>
+          )}
+        </div>
 
-          {/* ── una fila: cobrar exacto · cerrar cobro. En efectivo, solo cerrar,
+        {/* ── una fila: cobrar exacto · cerrar cobro. En efectivo, solo cerrar,
               a todo el ancho: la fila no cambia de alto ni de sitio. ── */}
-          <div className="md:bajo:col-start-1 md:bajo:row-start-5 mt-auto grid grid-cols-2 gap-2">
-            {!esEfectivo && (
+        <div className="md:bajo:col-start-1 md:bajo:row-start-5 mt-auto grid grid-cols-2 gap-2">
+          {!esEfectivo && (
             <button
               type="button"
               onClick={cobrarMontoExacto}
@@ -1129,75 +1515,104 @@ function CobroCuenta({
                 <PistaTecla tecla="+" />
               </span>
               <span className="tnum text-[12px] font-semibold text-ink-2">
-                {montoExacto && !cubierto ? formatMoneyVE(toMajor(montoExacto), medioActivo.currency) : "—"}
+                {montoExacto && !cubierto
+                  ? formatMoneyVE(toMajor(montoExacto), medioActivo.currency)
+                  : "—"}
               </span>
             </button>
+          )}
+          <Button
+            surface="pos"
+            variant="primary"
+            disabled={!puedeCobrar}
+            onClick={cobrar}
+            className={cn(
+              "flex min-h-14 flex-col gap-0.5 px-2 leading-tight",
+              esEfectivo && "col-span-2",
+              puedeCobrar && "bg-state-ok text-on-brand hover:bg-state-ok/90",
             )}
-            <Button
-              surface="pos"
-              variant="primary"
-              disabled={!puedeCobrar}
-              onClick={cobrar}
-              className={cn(
-                "flex min-h-14 flex-col gap-0.5 px-2 leading-tight",
-                esEfectivo && "col-span-2",
-                puedeCobrar && "bg-state-ok text-on-brand hover:bg-state-ok/90",
-              )}
-            >
-              <span className="flex items-center gap-1.5 text-[14px] font-bold">
-                {puedeCobrar && <CircleCheckBig size={15} aria-hidden="true" />}
-                Cerrar cobro
-                <PistaTecla tecla="Ctrl ⏎" />
-              </span>
-              <span className="tnum text-[12px] font-semibold opacity-80">
-                {puedeCobrar ? formatMoneyVE(toMajor(aCobrar), "USD") : `Falta ${formatMoneyVE(toMajor(falta), "USD")}`}
-              </span>
-            </Button>
-          </div>
-        </aside>
+          >
+            <span className="flex items-center gap-1.5 text-[14px] font-bold">
+              {puedeCobrar && <CircleCheckBig size={15} aria-hidden="true" />}
+              Cerrar cobro
+              <PistaTecla tecla="Ctrl ⏎" />
+            </span>
+            <span className="tnum text-[12px] font-semibold opacity-80">
+              {puedeCobrar
+                ? formatMoneyVE(toMajor(aCobrar), "USD")
+                : `Falta ${formatMoneyVE(toMajor(falta), "USD")}`}
+            </span>
+          </Button>
+        </div>
+      </aside>
 
-        <ClienteFacturaDialog
-          abierto={identificando}
-          actual={cliente}
-          nombrePropuesto={esVentaDirecta(cuenta) ? "" : cuenta.family}
-          onConfirmar={(c) => {
-            setCliente(c);
-            setIdentificando(false);
-          }}
-          onCerrar={() => setIdentificando(false)}
-        />
+      <ClienteFacturaDialog
+        abierto={identificando}
+        actual={cliente}
+        nombrePropuesto={esVentaDirecta(cuenta) ? "" : cuenta.family}
+        onConfirmar={(c) => {
+          setCliente(c);
+          setIdentificando(false);
+        }}
+        onCerrar={() => setIdentificando(false)}
+      />
 
-        <DatosPagoDialog
-          tipo={pendienteDeDatos?.medio.datos ?? null}
-          monto={pendienteDeDatos ? `${pendienteDeDatos.medio.label} · ${formatMoneyVE(toMajor(pendienteDeDatos.amount), pendienteDeDatos.amount.currency)}` : ""}
-          terminales={terminales}
-          recordados={recordados}
-          referenciasUsadas={pagos.flatMap((p) => (p.datos ? [claveDeReferencia(p.datos)] : []))}
-          onConfirmar={confirmarDatos}
-          onCancelar={() => setPendienteDeDatos(null)}
-        />
+      <DatosPagoDialog
+        tipo={pendienteDeDatos?.medio.datos ?? null}
+        monto={
+          pendienteDeDatos
+            ? `${pendienteDeDatos.medio.label} · ${formatMoneyVE(toMajor(pendienteDeDatos.amount), pendienteDeDatos.amount.currency)}`
+            : ""
+        }
+        terminales={terminales}
+        recordados={recordados}
+        referenciasUsadas={pagos.flatMap((p) =>
+          p.datos ? [claveDeReferencia(p.datos)] : [],
+        )}
+        onConfirmar={confirmarDatos}
+        onCancelar={() => setPendienteDeDatos(null)}
+      />
 
-        {/* Corregir un pago: el mismo formulario, prellenado, con su monto. Una
+      {/* Corregir un pago: el mismo formulario, prellenado, con su monto. Una
             referencia no choca consigo misma, solo con los demás pagos. */}
-        <DatosPagoDialog
-          tipo={pagoEditado ? (pagoEditado.medio.datos ?? "SIN_DATOS") : null}
-          clave={pagoEditado?.uid ?? ""}
-          monto={pagoEditado ? pagoEditado.medio.label : ""}
-          edicion={
-            pagoEditado
-              ? {
-                  monto: toMajor(pagoEditado.amount).replace(".", ","),
-                  moneda: pagoEditado.amount.currency === "VES" ? "Bs." : pagoEditado.amount.currency,
-                  ...(pagoEditado.datos ? { datos: pagoEditado.datos } : {}),
-                }
-              : null
-          }
-          terminales={terminales}
-          recordados={recordados}
-          referenciasUsadas={pagos.flatMap((p) => (p.datos && p.uid !== editando ? [claveDeReferencia(p.datos)] : []))}
-          onConfirmar={confirmarEdicion}
-          onCancelar={() => setEditando(null)}
+      <DatosPagoDialog
+        tipo={pagoEditado ? (pagoEditado.medio.datos ?? "SIN_DATOS") : null}
+        clave={pagoEditado?.uid ?? ""}
+        monto={pagoEditado ? pagoEditado.medio.label : ""}
+        edicion={
+          pagoEditado
+            ? {
+                monto: toMajor(pagoEditado.amount).replace(".", ","),
+                moneda:
+                  pagoEditado.amount.currency === "VES"
+                    ? "Bs."
+                    : pagoEditado.amount.currency,
+                ...(pagoEditado.datos ? { datos: pagoEditado.datos } : {}),
+              }
+            : null
+        }
+        terminales={terminales}
+        recordados={recordados}
+        referenciasUsadas={pagos.flatMap((p) =>
+          p.datos && p.uid !== editando ? [claveDeReferencia(p.datos)] : [],
+        )}
+        onConfirmar={confirmarEdicion}
+        onCancelar={() => setEditando(null)}
+      />
+      {lineaParaCortesia && onCortesia && (
+        <CortesiaDialog
+          linea={lineaParaCortesia.linea}
+          usuarios={usuarios}
+          operador={operador}
+          quitar={lineaParaCortesia.quitar}
+          onCortesia={(l, c) => {
+            onCortesia(l.id, c);
+            setLineaParaCortesia(null);
+            setFilaAbierta(null);
+          }}
+          onCerrar={() => setLineaParaCortesia(null)}
         />
+      )}
     </>
   );
 }
@@ -1227,10 +1642,14 @@ const ORIGEN: Readonly<Record<string, { ruta: Route; nombre: string }>> = {
    en el CSS después de todo lo `lg:`/`xl:`: por eso cada propiedad se repite
    con `lg:bajo:` y `xl:bajo:`. */
 const OCULTA_SI_PLEGADA = "md:hidden lg:flex lg:bajo:hidden xl:bajo:flex";
-const PLACEMENT_COLA = "md:col-start-1 md:row-start-2 lg:row-start-1 lg:bajo:row-start-2 xl:bajo:row-start-1";
-const PLACEMENT_TICKET = "md:col-start-1 md:row-start-2 lg:col-start-2 lg:row-start-1 lg:bajo:col-start-1 lg:bajo:row-start-2 xl:bajo:col-start-2 xl:bajo:row-start-1";
-const PLACEMENT_COBRO = "md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1 lg:bajo:col-start-2 lg:bajo:row-span-2 xl:bajo:col-start-3 xl:bajo:row-span-1";
-const PLACEMENT_SIN_CUENTAS = "md:col-start-2 md:col-span-1 md:row-span-2 md:row-start-1 lg:col-span-2 lg:row-span-1 lg:bajo:col-span-1 lg:bajo:row-span-2 xl:bajo:col-span-2 xl:bajo:row-span-1";
+const PLACEMENT_COLA =
+  "md:col-start-1 md:row-start-2 lg:row-start-1 lg:bajo:row-start-2 xl:bajo:row-start-1";
+const PLACEMENT_TICKET =
+  "md:col-start-1 md:row-start-2 lg:col-start-2 lg:row-start-1 lg:bajo:col-start-1 lg:bajo:row-start-2 xl:bajo:col-start-2 xl:bajo:row-start-1";
+const PLACEMENT_COBRO =
+  "md:col-start-2 md:row-span-2 md:row-start-1 lg:col-start-3 lg:row-span-1 lg:bajo:col-start-2 lg:bajo:row-span-2 xl:bajo:col-start-3 xl:bajo:row-span-1";
+const PLACEMENT_SIN_CUENTAS =
+  "md:col-start-2 md:col-span-1 md:row-span-2 md:row-start-1 lg:col-span-2 lg:row-span-1 lg:bajo:col-span-1 lg:bajo:row-span-2 xl:bajo:col-span-2 xl:bajo:row-span-1";
 
 type CobroProps = Parameters<typeof CobroCuenta>[0];
 
@@ -1239,14 +1658,20 @@ export function CajaScreen({
   volver,
   pulseras,
   ...cobro
-}: Omit<CobroProps, "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate"> & {
+}: Omit<
+  CobroProps,
+  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate"
+> & {
   cuentaInicial: string | null;
   volver: string | null;
   /** Código de pulsera → estancia, de la instantánea del servidor. */
   pulseras: Readonly<Record<string, string>>;
 }) {
   const { ajustes } = useSucursal();
-  const maxRetained: Money = { amount: BigInt(ajustes.maxRetenido.minor), currency: ajustes.maxRetenido.currency };
+  const maxRetained: Money = {
+    amount: BigInt(ajustes.maxRetenido.minor),
+    currency: ajustes.maxRetenido.currency,
+  };
   const { congelada: rate } = useTasaVigente("USD/VES");
   // Si no queda ningún medio que ofrecer —todos apagados, o al que quedaba le
   // faltan sus datos—, la caja lo dice. Antes entraba en el cobro y se caía al
@@ -1255,24 +1680,40 @@ export function CajaScreen({
   const { cuentas, guardar, descartar, cargado } = useCuentas();
   const sim = useSimulacion();
   const router = useRouter();
-  const porCobrar = useMemo(() => ordenarCola(cuentas.filter((c) => c.status === "POR_COBRAR")), [cuentas]);
+  const porCobrar = useMemo(
+    () => ordenarCola(cuentas.filter((c) => c.status === "POR_COBRAR")),
+    [cuentas],
+  );
   const [elegida, setElegida] = useState<string | null>(cuentaInicial);
-  const actual = porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
-  const lineas = useMemo(() => (actual ? lineasParaCobrar(actual) : []), [actual]);
+  const actual =
+    porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
+  const lineas = useMemo(
+    () => (actual ? lineasParaCobrar(actual) : []),
+    [actual],
+  );
   const origen = volver !== null ? (ORIGEN[volver] ?? null) : null;
   /** Venta directa en curso, antes de elegir el primer producto. */
   const [ventaNueva, setVentaNueva] = useState(false);
-  const aBolivares = rate ? (rate.from === "USD" ? rate : invertRate(rate)) : null;
+  const aBolivares = rate
+    ? rate.from === "USD"
+      ? rate
+      : invertRate(rate)
+    : null;
 
   /** Con la cola plegada (dos columnas): qué ocupa la columna izquierda. */
-  const [vista, setVista] = useState<"cuenta" | "cola">(cuentaInicial ? "cuenta" : "cola");
+  const [vista, setVista] = useState<"cuenta" | "cola">(
+    cuentaInicial ? "cuenta" : "cola",
+  );
   const vistaEfectiva = !actual && !ventaNueva ? "cola" : vista;
 
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroCola>("TODAS");
   const [buscando, setBuscando] = useState(false);
   const buscadorRef = useRef<HTMLInputElement>(null);
-  const visibles = useMemo(() => filtrarCola(porCobrar, busqueda, filtro), [porCobrar, busqueda, filtro]);
+  const visibles = useMemo(
+    () => filtrarCola(porCobrar, busqueda, filtro),
+    [porCobrar, busqueda, filtro],
+  );
 
   // El último cobro sale del registro de ventas: sobrevive a una recarga y
   // «Ventas» ve lo mismo.
@@ -1298,7 +1739,9 @@ export function CajaScreen({
       conocidas.current = new Set(ids);
       return;
     }
-    const nuevas = porCobrar.filter((c) => !conocidas.current!.has(c.id) && !creadasAqui.current.has(c.id));
+    const nuevas = porCobrar.filter(
+      (c) => !conocidas.current!.has(c.id) && !creadasAqui.current.has(c.id),
+    );
     for (const id of ids) conocidas.current.add(id);
     if (nuevas.length === 0) return;
     setRecientes((prev) => new Set([...prev, ...nuevas.map((c) => c.id)]));
@@ -1309,7 +1752,10 @@ export function CajaScreen({
     );
     // Sin limpieza a propósito: si la cola cambia antes, el destello igual se apaga.
     window.setTimeout(() => {
-      setRecientes((prev) => new Set([...prev].filter((x) => !nuevas.some((c) => c.id === x))));
+      setRecientes(
+        (prev) =>
+          new Set([...prev].filter((x) => !nuevas.some((c) => c.id === x))),
+      );
     }, 2600);
   }, [porCobrar, cargado]);
 
@@ -1324,8 +1770,13 @@ export function CajaScreen({
    * instantánea del servidor y en lo que está pasando ahora en el local.
    */
   function alEscanear(codigo: string) {
-    const sesion = pulseras[codigo] ?? sim.estado.sesiones.find((s) => s.wristbandCode === codigo)?.id ?? null;
-    const cuenta = sesion ? cuentas.find((c) => c.sessionIds.includes(sesion)) : undefined;
+    const sesion =
+      pulseras[codigo] ??
+      sim.estado.sesiones.find((s) => s.wristbandCode === codigo)?.id ??
+      null;
+    const cuenta = sesion
+      ? cuentas.find((c) => c.sessionIds.includes(sesion))
+      : undefined;
     if (!cuenta) {
       avisar.error(`La pulsera ${codigo} no tiene cuenta en caja`, {
         detalle: "Búscala por el nombre de la familia o el número de orden.",
@@ -1333,9 +1784,15 @@ export function CajaScreen({
       return;
     }
     if (cuenta.status !== "POR_COBRAR") {
-      avisar.info(`${cuenta.family}: ${cuenta.status === "COBRADA" ? "la cuenta ya está cobrada" : "la cuenta sigue abierta"}`, {
-        detalle: cuenta.status === "COBRADA" ? `Orden ${numeroDeOrden(cuenta)}` : "Pasa a caja cuando salgan los niños.",
-      });
+      avisar.info(
+        `${cuenta.family}: ${cuenta.status === "COBRADA" ? "la cuenta ya está cobrada" : "la cuenta sigue abierta"}`,
+        {
+          detalle:
+            cuenta.status === "COBRADA"
+              ? `Orden ${numeroDeOrden(cuenta)}`
+              : "Pasa a caja cuando salgan los niños.",
+        },
+      );
       return;
     }
     setBusqueda("");
@@ -1349,7 +1806,10 @@ export function CajaScreen({
     if (t.key === "ArrowUp" || t.key === "ArrowDown") {
       if (visibles.length === 0) return false;
       const i = visibles.findIndex((c) => c.id === actual?.id);
-      const siguiente = t.key === "ArrowDown" ? Math.min(visibles.length - 1, i + 1) : Math.max(0, i - 1);
+      const siguiente =
+        t.key === "ArrowDown"
+          ? Math.min(visibles.length - 1, i + 1)
+          : Math.max(0, i - 1);
       elegir(visibles[i < 0 ? 0 : siguiente]!.id);
       return true;
     }
@@ -1396,8 +1856,13 @@ export function CajaScreen({
       ...(cuenta.orderNumber ? { orderNumber: cuenta.orderNumber } : {}),
       accountId: cuenta.id,
       closedAt: new Date().toISOString(),
-      cashier: operadorCaja ? { id: operadorCaja.id, name: operadorCaja.nombre } : null,
-      total: { minor: String(r.totalDinero.amount), currency: r.totalDinero.currency },
+      cashier: operadorCaja
+        ? { id: operadorCaja.id, name: operadorCaja.nombre }
+        : null,
+      total: {
+        minor: String(r.totalDinero.amount),
+        currency: r.totalDinero.currency,
+      },
       methods: [...r.medios],
       payments: [...r.pagosVenta],
       lineIds: [...r.lineIds],
@@ -1409,17 +1874,26 @@ export function CajaScreen({
         ? `${numeroDeOrden(cuenta)}: parte ${despues.split!.paid} de ${despues.split!.parts} cobrada`
         : `Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`,
       {
-      detalle: [
-        r.cliente.kind === "CONSUMIDOR_FINAL" ? "Factura a consumidor final" : `Factura a ${r.cliente.name}`,
-        r.vuelto !== "0.00" ? `vuelto entregado: ${formatMoneyVE(r.vuelto, "USD")}` : null,
-        faltan > 0 ? `faltan ${faltan} ${faltan === 1 ? "parte" : "partes"} por cobrar` : null,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-      // Si se vino de otra pantalla, lo urgente es volver; si no, el recibo.
-      accion: origen
-        ? { texto: `Volver a ${origen.nombre}`, alPulsar: () => router.push(origen.ruta) }
-        : { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
+        detalle: [
+          r.cliente.kind === "CONSUMIDOR_FINAL"
+            ? "Factura a consumidor final"
+            : `Factura a ${r.cliente.name}`,
+          r.vuelto !== "0.00"
+            ? `vuelto entregado: ${formatMoneyVE(r.vuelto, "USD")}`
+            : null,
+          faltan > 0
+            ? `faltan ${faltan} ${faltan === 1 ? "parte" : "partes"} por cobrar`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        // Si se vino de otra pantalla, lo urgente es volver; si no, el recibo.
+        accion: origen
+          ? {
+              texto: `Volver a ${origen.nombre}`,
+              alPulsar: () => router.push(origen.ruta),
+            }
+          : { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
       },
     );
   }
@@ -1490,7 +1964,9 @@ export function CajaScreen({
   function onCambiarCantidadEnCuenta(item: ItemDeMostrador, cantidad: number) {
     if (!actual) return;
     const esDelItem = (l: AccountLineDto) =>
-      esLineaDeMostrador(l) && l.concept === item.concepto && l.amount.minor === item.priceMinor;
+      esLineaDeMostrador(l) &&
+      l.concept === item.concepto &&
+      l.amount.minor === item.priceMinor;
     const suyas = actual.lines.filter(esDelItem);
     const objetivo = Math.max(0, Math.min(50, Math.trunc(cantidad)));
     if (objetivo === suyas.length) return;
@@ -1500,29 +1976,49 @@ export function CajaScreen({
       const fuera = new Set(suyas.slice(objetivo).map((l) => l.id));
       lineas = actual.lines.filter((l) => !fuera.has(l.id));
     } else {
-      const producto = PRODUCTOS_MOSTRADOR.find((p) => p.name === item.concepto && p.priceMinor === item.priceMinor);
+      const producto = PRODUCTOS_MOSTRADOR.find(
+        (p) => p.name === item.concepto && p.priceMinor === item.priceMinor,
+      );
       // Fail-closed: si el producto ya no está en la carta, no se venden más.
       if (!producto) return;
-      const nuevas: AccountLineDto[] = Array.from({ length: objetivo - suyas.length }, () => ({
-        id: `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
-        concept: producto.name,
-        kind: "RESTAURANTE",
-        amount: { minor: producto.priceMinor, currency: "USD" },
-        paid: false,
-      }));
+      const nuevas: AccountLineDto[] = Array.from(
+        { length: objetivo - suyas.length },
+        () => ({
+          id: `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
+          concept: producto.name,
+          kind: "RESTAURANTE",
+          amount: { minor: producto.priceMinor, currency: "USD" },
+          paid: false,
+        }),
+      );
       const ultima = actual.lines.findLastIndex(esDelItem);
-      lineas = ultima < 0 ? [...actual.lines, ...nuevas] : [...actual.lines.slice(0, ultima + 1), ...nuevas, ...actual.lines.slice(ultima + 1)];
+      lineas =
+        ultima < 0
+          ? [...actual.lines, ...nuevas]
+          : [
+              ...actual.lines.slice(0, ultima + 1),
+              ...nuevas,
+              ...actual.lines.slice(ultima + 1),
+            ];
     }
 
     if (!lineas.some((l) => !l.paid)) {
       if (puedeDescartarse(actual)) {
         descartar(actual.id);
         setElegida(null);
-        avisar.info(`Orden ${numeroDeOrden(actual)} descartada: no quedaba nada por cobrar`);
+        avisar.info(
+          `Orden ${numeroDeOrden(actual)} descartada: no quedaba nada por cobrar`,
+        );
       }
       return;
     }
-    guardar(FamilyAccountSchema.parse({ ...actual, lines: lineas, status: "POR_COBRAR" }));
+    guardar(
+      FamilyAccountSchema.parse({
+        ...actual,
+        lines: lineas,
+        status: "POR_COBRAR",
+      }),
+    );
   }
 
   return (
@@ -1560,7 +2056,9 @@ export function CajaScreen({
             onClick={() => setVista("cola")}
             className={cn(
               "flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[0.4rem] px-4 text-[14px] transition-colors",
-              vistaEfectiva === "cola" ? "bg-brand font-semibold text-on-brand" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+              vistaEfectiva === "cola"
+                ? "bg-brand font-semibold text-on-brand"
+                : "text-ink-2 hover:bg-surface-2 hover:text-ink",
             )}
           >
             <span>Por cobrar</span>
@@ -1586,15 +2084,24 @@ export function CajaScreen({
             onClick={() => setVista("cuenta")}
             className={cn(
               "flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[0.4rem] px-4 text-[14px] transition-colors",
-              vistaEfectiva === "cuenta" ? "bg-brand font-semibold text-on-brand" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+              vistaEfectiva === "cuenta"
+                ? "bg-brand font-semibold text-on-brand"
+                : "text-ink-2 hover:bg-surface-2 hover:text-ink",
               "disabled:cursor-not-allowed disabled:opacity-40",
             )}
           >
-            {ventaNueva ? "Venta directa" : actual ? `Cuenta ${numeroDeOrden(actual)}` : "Cuenta"}
+            {ventaNueva
+              ? "Venta directa"
+              : actual
+                ? `Cuenta ${numeroDeOrden(actual)}`
+                : "Cuenta"}
           </button>
         </div>
         <ColaCuentas
-          className={cn(PLACEMENT_COLA, vistaEfectiva === "cuenta" && OCULTA_SI_PLEGADA)}
+          className={cn(
+            PLACEMENT_COLA,
+            vistaEfectiva === "cuenta" && OCULTA_SI_PLEGADA,
+          )}
           cuentas={visibles}
           total={porCobrar.length}
           actual={actual?.id ?? null}
@@ -1611,7 +2118,14 @@ export function CajaScreen({
           onBuscando={setBuscando}
           buscadorRef={buscadorRef}
           onEscanear={alEscanear}
-          ultimoCobro={ultimaVenta ? { orden: ultimaVenta.recibo.orden, total: ultimaVenta.recibo.total } : null}
+          ultimoCobro={
+            ultimaVenta
+              ? {
+                  orden: ultimaVenta.recibo.orden,
+                  total: ultimaVenta.recibo.total,
+                }
+              : null
+          }
           onVerRecibo={() => setViendoRecibo(true)}
           onVerAtajos={() => setViendoAtajos(true)}
         />
@@ -1638,7 +2152,20 @@ export function CajaScreen({
             onCobrado={(r) => alCobrar(actual, r)}
             onAgregarProducto={onAgregarProductoACuenta}
             onCambiarCantidad={onCambiarCantidadEnCuenta}
-            onDividir={(n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n))}
+            onDividir={(n) =>
+              guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n))
+            }
+            onCortesia={(lineId, cortesia) => {
+              const nueva = FamilyAccountSchema.parse({
+                ...actual,
+                lines: actual.lines.map((l) =>
+                  l.id === lineId
+                    ? { ...l, cortesia: cortesia ?? undefined }
+                    : l,
+                ),
+              });
+              guardar(nueva);
+            }}
             ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
         ) : (
@@ -1652,12 +2179,17 @@ export function CajaScreen({
           ultimaVenta &&
           anotarImpresion(ultimaVenta.id, {
             at: new Date().toISOString(),
-            by: operadorCaja ? { id: operadorCaja.id, name: operadorCaja.nombre } : null,
+            by: operadorCaja
+              ? { id: operadorCaja.id, name: operadorCaja.nombre }
+              : null,
           })
         }
         onCerrar={() => setViendoRecibo(false)}
       />
-      <AtajosDialog abierto={viendoAtajos} onCerrar={() => setViendoAtajos(false)} />
+      <AtajosDialog
+        abierto={viendoAtajos}
+        onCerrar={() => setViendoAtajos(false)}
+      />
     </div>
   );
 }
@@ -1669,7 +2201,8 @@ export function CajaScreen({
 /** Qué hacer con los medios que no traen datos que enseñar al cliente. */
 const INDICACION_MEDIO: Readonly<Record<string, string>> = {
   EFECTIVO_VES: "Cuenta los bolívares, teclea lo recibido y pulsa «Añadir».",
-  PDV_DEBITO: "Pasa la tarjeta por el monto exacto y confírmalo con «Cobrar exacto».",
+  PDV_DEBITO:
+    "Pasa la tarjeta por el monto exacto y confírmalo con «Cobrar exacto».",
   USDT: "Confirma la transferencia en la billetera antes de añadir el pago.",
 };
 
@@ -1678,7 +2211,15 @@ const INDICACION_MEDIO: Readonly<Record<string, string>> = {
  * con su nombre accesible y un `title`; al copiar pasa a un check verde y lo
  * anuncia a los lectores de pantalla.
  */
-function BotonCopiar({ copiado, onCopiar, que }: { copiado: boolean; onCopiar: () => void; que: string }) {
+function BotonCopiar({
+  copiado,
+  onCopiar,
+  que,
+}: {
+  copiado: boolean;
+  onCopiar: () => void;
+  que: string;
+}) {
   return (
     <button
       type="button"
@@ -1687,7 +2228,11 @@ function BotonCopiar({ copiado, onCopiar, que }: { copiado: boolean; onCopiar: (
       title={copiado ? "Copiado" : "Copiar"}
       className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-2 transition-colors hover:bg-surface-2 hover:text-brand"
     >
-      {copiado ? <Check size={16} className="text-state-ok" aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+      {copiado ? (
+        <Check size={16} className="text-state-ok" aria-hidden="true" />
+      ) : (
+        <Copy size={16} aria-hidden="true" />
+      )}
       <span aria-live="polite" className="sr-only">
         {copiado ? "Copiado" : ""}
       </span>
@@ -1696,7 +2241,8 @@ function BotonCopiar({ copiado, onCopiar, que }: { copiado: boolean; onCopiar: (
 }
 
 /** Columnas de la factura: cantidad, concepto, precio unitario e importe. */
-const COLUMNAS = "grid grid-cols-[2.25rem_minmax(0,1fr)_5.75rem] @md/ticket:grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.75rem] items-baseline gap-x-3";
+const COLUMNAS =
+  "grid grid-cols-[2.25rem_minmax(0,1fr)_5.75rem] @md/ticket:grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.75rem] items-baseline gap-x-3";
 
 function CartaMostrador({
   aBolivares,
@@ -1709,10 +2255,17 @@ function CartaMostrador({
   alto?: string;
 }) {
   const [categoria, setCategoria] = useState<CategoriaMostrador>("Todos");
-  const productos = categoria === "Todos" ? PRODUCTOS_MOSTRADOR : PRODUCTOS_MOSTRADOR.filter((p) => p.category === categoria);
+  const productos =
+    categoria === "Todos"
+      ? PRODUCTOS_MOSTRADOR
+      : PRODUCTOS_MOSTRADOR.filter((p) => p.category === categoria);
   return (
     <div className="flex min-h-0 flex-col gap-2">
-      <div role="group" aria-label="Categorías de mostrador" className="flex flex-wrap gap-1.5">
+      <div
+        role="group"
+        aria-label="Categorías de mostrador"
+        className="flex flex-wrap gap-1.5"
+      >
         {CATEGORIAS_MOSTRADOR.map((cat) => (
           <button
             key={cat}
@@ -1721,14 +2274,21 @@ function CartaMostrador({
             onClick={() => setCategoria(cat)}
             className={cn(
               "min-h-14 cursor-pointer rounded-[var(--radius-control)] px-3 text-xs font-semibold transition-colors",
-              categoria === cat ? "bg-brand text-on-brand" : "border border-line/60 bg-surface text-ink-2 hover:bg-surface-2",
+              categoria === cat
+                ? "bg-brand text-on-brand"
+                : "border border-line/60 bg-surface text-ink-2 hover:bg-surface-2",
             )}
           >
             {cat}
           </button>
         ))}
       </div>
-      <div className={cn("grid grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3", alto)}>
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3",
+          alto,
+        )}
+      >
         {productos.map((p) => {
           const usd = money(BigInt(p.priceMinor), "USD");
           const bs = aBolivares ? convert(usd, aBolivares) : null;
@@ -1739,10 +2299,18 @@ function CartaMostrador({
               onClick={() => onElegir(p)}
               className="flex min-h-14 cursor-pointer flex-col items-start justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-left transition-all hover:border-brand hover:bg-brand/10 active:scale-[0.98]"
             >
-              <span className="text-[12.5px] leading-tight font-bold text-ink">{p.name}</span>
+              <span className="text-[12.5px] leading-tight font-bold text-ink">
+                {p.name}
+              </span>
               <span className="mt-1 flex w-full flex-wrap items-baseline justify-between gap-x-2">
-                <span className="tnum text-xs font-bold text-brand">{formatMoneyVE(toMajor(usd), "USD")}</span>
-                {bs && <span className="tnum text-[10px] font-medium text-ink-3">{formatMoneyVE(toMajor(bs), "VES")}</span>}
+                <span className="tnum text-xs font-bold text-brand">
+                  {formatMoneyVE(toMajor(usd), "USD")}
+                </span>
+                {bs && (
+                  <span className="tnum text-[10px] font-medium text-ink-3">
+                    {formatMoneyVE(toMajor(bs), "VES")}
+                  </span>
+                )}
               </span>
             </button>
           );
@@ -1771,24 +2339,38 @@ function NuevaVentaDirecta({
         className={cn(
           "flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-brand/40 bg-surface shadow-card @container/ticket",
           PLACEMENT_TICKET,
-          ocultoEnDosColumnas && OCULTA_SI_PLEGADA
+          ocultoEnDosColumnas && OCULTA_SI_PLEGADA,
         )}
       >
         <div className="border-b border-line px-5 py-3">
-          <h2 className="font-display text-base font-bold text-ink">Venta directa</h2>
-          <p className="text-[12.5px] text-ink-3">Toca el primer producto: la venta nace con él. Nada se cobra antes.</p>
+          <h2 className="font-display text-base font-bold text-ink">
+            Venta directa
+          </h2>
+          <p className="text-[12.5px] text-ink-3">
+            Toca el primer producto: la venta nace con él. Nada se cobra antes.
+          </p>
         </div>
         <div className="min-h-0 flex-1 p-3">
-          <CartaMostrador aBolivares={aBolivares} onElegir={onElegir} alto="lg:max-h-none" />
+          <CartaMostrador
+            aBolivares={aBolivares}
+            onElegir={onElegir}
+            alto="lg:max-h-none"
+          />
         </div>
       </section>
-      <aside className={cn(
-        "flex min-h-[12rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center",
-        PLACEMENT_COBRO,
-      )}>
+      <aside
+        className={cn(
+          "flex min-h-[12rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center",
+          PLACEMENT_COBRO,
+        )}
+      >
         <ShoppingBag size={28} className="text-ink-3" aria-hidden="true" />
-        <p className="font-display text-lg font-bold text-ink">El cobro aparece al elegir</p>
-        <p className="max-w-xs text-[13px] text-ink-2">Con el primer producto se abre la cuenta de mostrador y su cobro.</p>
+        <p className="font-display text-lg font-bold text-ink">
+          El cobro aparece al elegir
+        </p>
+        <p className="max-w-xs text-[13px] text-ink-2">
+          Con el primer producto se abre la cuenta de mostrador y su cobro.
+        </p>
         <Button surface="pos" variant="neutral" onClick={onCancelar}>
           Cancelar la venta
         </Button>
@@ -1807,25 +2389,59 @@ type Fila = Readonly<{
   cantidad: number;
   /** El ítem editable, o `null` si la fila es algo ya consumido. */
   item: ItemDeMostrador | null;
+  lineIds: string[];
+  cortesia?: CortesiaDto;
 }>;
 
 /** Agrupa las líneas por ítem de mostrador, en el orden en que apareció cada uno. */
-function agruparFilas(lines: readonly DocumentLine[], cuenta: FamilyAccountDto): Fila[] {
+function agruparFilas(
+  lines: readonly DocumentLine[],
+  cuenta: FamilyAccountDto,
+): Fila[] {
   const filas = new Map<string, Fila>();
   for (const l of lines) {
     const linea = cuenta.lines.find((x) => x.id === l.id);
     const deMostrador = linea !== undefined && esLineaDeMostrador(linea);
-    const clave = deMostrador ? `mostrador|${l.description}|${l.unitPrice.amount}` : l.id;
+    const clave = deMostrador
+      ? `mostrador|${l.description}|${l.unitPrice.amount}`
+      : l.id;
     const previa = filas.get(clave);
     filas.set(clave, {
       clave,
       concepto: l.description,
       precio: l.unitPrice,
       cantidad: (previa?.cantidad ?? 0) + Number(l.quantity),
-      item: deMostrador ? { concepto: l.description, priceMinor: String(l.unitPrice.amount) } : null,
+      item: deMostrador
+        ? { concepto: l.description, priceMinor: String(l.unitPrice.amount) }
+        : null,
+      lineIds: [...(previa?.lineIds ?? []), l.id],
     });
   }
-  return [...filas.values()];
+
+  // Líneas regaladas: se muestran en el ticket con su importe tachado, no se agrupan.
+  for (const l of cuenta.lines) {
+    if (l.cortesia && !l.paid && !l.movedTo) {
+      filas.set(l.id, {
+        clave: l.id,
+        concepto: l.concept,
+        precio: money(
+          BigInt(l.amount.minor),
+          l.amount.currency as CurrencyCode,
+        ),
+        cantidad: 1,
+        item: null, // Una cortesía ya no se edita en cantidad
+        lineIds: [l.id],
+        cortesia: l.cortesia,
+      });
+    }
+  }
+
+  // Mantener el orden original en el que aparecen en la cuenta
+  return [...filas.values()].sort((a, b) => {
+    const idxA = cuenta.lines.findIndex((x) => x.id === a.lineIds[0]);
+    const idxB = cuenta.lines.findIndex((x) => x.id === b.lineIds[0]);
+    return idxA - idxB;
+  });
 }
 
 /**
@@ -1844,10 +2460,12 @@ function SinMediosDePago() {
       )}
     >
       <TriangleAlert size={32} className="text-state-warn" aria-hidden="true" />
-      <p className="font-display text-xl font-bold text-ink">No hay medios de pago</p>
+      <p className="font-display text-xl font-bold text-ink">
+        No hay medios de pago
+      </p>
       <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
-        Están todos apagados, o al que queda le faltan sus datos. Sin un medio que ofrecer no se puede
-        cobrar nada.
+        Están todos apagados, o al que queda le faltan sus datos. Sin un medio
+        que ofrecer no se puede cobrar nada.
       </p>
       <Link
         href="/panel/caja/medios"
@@ -1861,15 +2479,17 @@ function SinMediosDePago() {
 
 function SinCuentas() {
   return (
-    <section className={cn(
-      "flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center",
-      PLACEMENT_SIN_CUENTAS
-    )}>
+    <section
+      className={cn(
+        "flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center",
+        PLACEMENT_SIN_CUENTAS,
+      )}
+    >
       <CircleCheckBig size={32} className="text-state-ok" aria-hidden="true" />
       <p className="font-display text-xl font-bold text-ink">Nada por cobrar</p>
       <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
-        Las cuentas llegan aquí desde la entrada, cuando la familia paga al entrar, y desde la
-        salida, cuando queda algo pendiente.
+        Las cuentas llegan aquí desde la entrada, cuando la familia paga al
+        entrar, y desde la salida, cuando queda algo pendiente.
       </p>
       <div className="mt-2 flex flex-wrap justify-center gap-2">
         <Link

@@ -30,7 +30,21 @@ export const ReciboSchema = z.object({
   facturaA: Texto(160),
   /** «Parte 2 de 3» cuando la cuenta se paga dividida (F6-12). */
   parte: Texto(24).nullable().optional(),
-  lineas: z.array(z.object({ cantidad: z.number().int().positive(), concepto: Texto(80), importe: Texto(24) })).min(1),
+  lineas: z
+    .array(
+      z.object({
+        cantidad: z.number().int().positive(),
+        concepto: Texto(80),
+        importe: Texto(24),
+        /**
+         * Si esa línea se regaló (F6-14). Es un dato, no algo que se deduzca
+         * leyendo el concepto: un recibo que adivina por el texto se rompe el
+         * día que alguien cambia una palabra.
+         */
+        cortesia: z.boolean().optional(),
+      }),
+    )
+    .min(1),
   subtotal: Texto(24),
   impuestos: z.array(z.object({ etiqueta: Texto(24), monto: Texto(24) })),
   total: Texto(24),

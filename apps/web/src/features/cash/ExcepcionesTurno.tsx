@@ -51,7 +51,9 @@ export function ExcepcionesTurno({
                       "inline-flex items-center px-2 py-0.5 rounded-[var(--radius-control)] border text-[10.5px] font-mono font-medium tracking-wide",
                       e.tipo === "ANULACIÓN"
                         ? "border-state-crit/30 bg-state-crit-bg text-state-crit"
-                        : "border-state-warn/30 bg-state-warn-bg text-state-warn",
+                        : e.tipo === "CORTESÍA"
+                          ? "border-line bg-surface-2 text-ink-2"
+                          : "border-state-warn/30 bg-state-warn-bg text-state-warn",
                     )}
                   >
                     {e.tipo}

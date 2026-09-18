@@ -26,7 +26,13 @@ export function textoRecibo(r: Recibo, copia = false): string {
     ...(r.parte ? [`*${r.parte}*`] : []),
     `Factura a: ${r.facturaA}`,
     "",
-    ...r.lineas.map((l) => `${l.cantidad} × ${l.concepto} — ${l.importe}`),
+    // Lo regalado va tachado, y se sabe por su bandera: leer el concepto para
+    // adivinarlo se rompe el día que alguien cambia una palabra.
+    ...r.lineas.map((l) =>
+      l.cortesia
+        ? `${l.cantidad} × ${l.concepto} — ~${l.importe}~`
+        : `${l.cantidad} × ${l.concepto} — ${l.importe}`,
+    ),
     "",
     `Subtotal: ${r.subtotal}`,
     ...r.impuestos.map((i) => `${i.etiqueta}: ${i.monto}`),
