@@ -9,12 +9,23 @@
 
 ## Por dónde seguir
 
-1. **Tanda C**, con los tres contratos ya hechos (`impuestos.ts`, `impresoras.ts`, `turno.ts`): 4.8
-   Impuestos · 4.9 Impresoras · 4.3 Apertura de turno. Falta escribir sus encargos.
-2. Luego la **tanda C** (Impuestos, Impresoras, Apertura de turno) y la **D** (Inventario, en tres
-   encargos).
-3. Con las secciones cerradas, la **Ola 5** (auditoría por módulos) y la **Ola 6** (medición final,
+La **tanda C** está preparada del todo: los tres contratos escritos y probados, y los tres encargos
+redactados. Lo único que falta es lanzarlos y revisarlos, **uno detrás de otro** —impuestos y turno
+tocan la caja—:
+
+1. `node scripts/obrera.mjs programa impuestos --encargo docs/encargos/impuestos.md`
+   (§4.8 · contrato `impuestos.ts`, 14 pruebas). Se lanzó una vez y se detuvo al cambiar de sesión:
+   **empieza de cero, no hay nada a medias**.
+2. `node scripts/obrera.mjs programa impresoras --encargo docs/encargos/impresoras.md` (§4.9).
+3. `node scripts/obrera.mjs programa apertura-turno --encargo docs/encargos/apertura-turno.md` (§4.3).
+   Este además convierte las excepciones del turno en algo de verdad: hoy son un dato de ejemplo fijo.
+4. Después, la **tanda D** (Inventario, en tres encargos: insumos → recetas → movimientos).
+5. Con las secciones cerradas, la **Ola 5** (auditoría por módulos) y la **Ola 6** (medición final,
    `pnpm audit:ui`, tablet real y el plan del backend).
+
+Cada encargo se revisa igual: leer el diff entero, ajustarlo, montarlo en `main` —proveedor en
+`app/layout.tsx`, ruta en el mapa de pantallas y enlace del menú, que la obrera no toca—, `pnpm verify`
+y medirlo en el navegador antes de hacer commit.
 
 Lo que falta y no es frontend está en [PENDIENTES.md](PENDIENTES.md).
 

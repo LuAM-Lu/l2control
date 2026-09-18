@@ -148,7 +148,11 @@ function ajustarPermisos(tarea, poner) {
   const allow = ajustes.permissions?.allow;
   if (!Array.isArray(allow)) salir("los permisos de agy no tienen la forma esperada (permissions.allow).");
   const suyas = reglasDeCopia(tarea);
-  const resto = allow.filter((r) => !suyas.includes(r));
+  // Sin distinguir mayúsculas: Windows da la misma ruta como «C:/…» o «c:/…»
+  // según desde dónde se lance, y una regla que no se quita es un permiso de
+  // escritura que sobrevive a la copia que lo justificaba.
+  const iguales = new Set(suyas.map((r) => r.toLowerCase()));
+  const resto = allow.filter((r) => !iguales.has(r.toLowerCase()));
   ajustes.permissions.allow = poner ? [...resto, ...suyas] : resto;
   writeFileSync(AJUSTES_AGY, JSON.stringify(ajustes, null, 2) + "\n", "utf8");
 }
