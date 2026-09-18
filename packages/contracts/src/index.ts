@@ -119,6 +119,21 @@ export {
 } from "./impresoras.ts";
 
 export {
+  EstadoTurnoSchema,
+  FondoInicialSchema,
+  TurnoSchema,
+  TurnosSchema,
+  AbrirTurnoCommandSchema,
+  TurnoCommandSchema,
+  type EstadoTurno,
+  type FondoInicialDto,
+  type TurnoDto,
+  type TurnosDto,
+  type AbrirTurnoCommand,
+  type TurnoCommand,
+} from "./turno.ts";
+
+export {
   SettlementLineSchema,
   CheckoutPreviewSchema,
   SettlementDispositionSchema,
