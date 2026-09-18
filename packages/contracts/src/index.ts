@@ -105,6 +105,20 @@ export {
 } from "./impuestos.ts";
 
 export {
+  OficioImpresoraSchema,
+  AnchoPapelSchema,
+  IpLocalSchema,
+  ImpresoraSchema,
+  ImpresorasSchema,
+  ImpresoraCommandSchema,
+  type OficioImpresora,
+  type AnchoPapel,
+  type ImpresoraDto,
+  type ImpresorasDto,
+  type ImpresoraCommand,
+} from "./impresoras.ts";
+
+export {
   SettlementLineSchema,
   CheckoutPreviewSchema,
   SettlementDispositionSchema,
