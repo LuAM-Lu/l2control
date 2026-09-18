@@ -89,6 +89,22 @@ export {
 } from "./medios.ts";
 
 export {
+  TaxCodeSchema,
+  BasisPointsSchema,
+  VigenciaIvaSchema,
+  ImpuestosSchema,
+  ProgramarIvaCommandSchema,
+  ProgramarIgtfCommandSchema,
+  ImpuestoCommandSchema,
+  type TaxCode,
+  type VigenciaIvaDto,
+  type ImpuestosDto,
+  type ProgramarIvaCommand,
+  type ProgramarIgtfCommand,
+  type ImpuestoCommand,
+} from "./impuestos.ts";
+
+export {
   SettlementLineSchema,
   CheckoutPreviewSchema,
   SettlementDispositionSchema,
