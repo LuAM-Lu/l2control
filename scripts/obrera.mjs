@@ -70,11 +70,12 @@ TAREA:
 
 const ENCARGO_PROGRAMA = (tarea) => {
   const copia = barras(copiaDe(tarea));
-  return `Eres una obrera programadora en el repositorio L2 Control (Next.js 16, React 19, TypeScript estricto, Tailwind 4, pnpm).
+  return `REGLA NÚMERO UNO, ANTES QUE NADA: para leer o buscar cualquier archivo usa SOLO tus herramientas de archivos (ver archivo, buscar en archivos). La terminal está BLOQUEADA para eso —Get-Content, cat, type, Select-String, findstr, grep, dir, ls, head, tail— y basta UN comando bloqueado para que tu trabajo entero se pierda: la ejecución se aborta y no entregas nada. Si tu búsqueda no encuentra algo, ábrelo con ver archivo por tramos (línea inicial y final). No hay ningún archivo que necesites leer con la terminal.
+
+Eres una obrera programadora en el repositorio L2 Control (Next.js 16, React 19, TypeScript estricto, Tailwind 4, pnpm).
 Trabajas en una COPIA AISLADA: ${copia} (rama obrera/${tarea}). Todas las rutas que escribas deben estar dentro de esa carpeta.
 Solo puedes escribir dentro de ${copia}/apps/. No puedes tocar packages/ (contratos, dominio, ui): si la tarea lo necesitara, NO lo hagas y dilo al final.
 No puedes usar git ni borrar archivos. Los únicos comandos permitidos son: pnpm typecheck, pnpm test, pnpm arch, pnpm verify, escritos exactamente así y con el directorio de trabajo ${copia} (la raíz, donde está pnpm-workspace.yaml).
-Para leer y buscar usa SOLO tus herramientas de archivos (ver archivo, buscar en archivos). NUNCA la terminal (Select-String, findstr, grep, cat, type, Get-Content, dir, ls…): está bloqueada, y un comando negado aborta TODO tu trabajo sin entregar nada. Si la búsqueda no encuentra algo, lee el archivo por tramos (línea inicial y final).
 ${REGLAS}
 Haz exactamente lo que pide el encargo, ni más ni menos. Si algo no está claro, toma la decisión más conservadora y anótala.
 Al terminar, ejecuta "pnpm typecheck" y corrige hasta que pase. Si no lo consigues, detente y explica el error. No digas que pasa si no lo ejecutaste.
