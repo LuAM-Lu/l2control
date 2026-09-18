@@ -76,6 +76,19 @@ export {
 } from "./tasas.ts";
 
 export {
+  MedioDePagoSchema,
+  MediosDePagoSchema,
+  DatosPagoMovilSchema,
+  DatosZelleSchema,
+  MedioCommandSchema,
+  type MedioDePagoDto,
+  type MediosDePagoDto,
+  type DatosPagoMovilDto,
+  type DatosZelleDto,
+  type MedioCommand,
+} from "./medios.ts";
+
+export {
   SettlementLineSchema,
   CheckoutPreviewSchema,
   SettlementDispositionSchema,

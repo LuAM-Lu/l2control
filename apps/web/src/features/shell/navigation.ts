@@ -191,6 +191,15 @@ export const MODULOS: readonly Modulo[] = [
         proposito: "Fondo inicial, arqueo a ciegas por moneda y corte Z irreversible.",
       },
       {
+        id: "medios",
+        nombre: "Medios de pago",
+        href: rutaSeccion("caja", "medios"),
+        accion: "catalogo.modificar",
+        proposito:
+          "Qué se puede cobrar y con qué datos: medios activos, terminales del punto de venta, y el banco, el teléfono y el correo que la caja le enseña al cliente.",
+        tarea: "F4-02",
+      },
+      {
         id: "tasas",
         nombre: "Tasas de cambio",
         href: rutaSeccion("caja", "tasas"),
