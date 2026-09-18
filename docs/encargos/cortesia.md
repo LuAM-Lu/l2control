@@ -3,7 +3,12 @@ Añade la **cortesía** al cobro: marcar una línea de la cuenta como regalada, 
 QUÉ ES UNA CORTESÍA, EXACTAMENTE: un ítem que se entrega y **no se cobra** —una invitación, un plato que salió mal de la cocina, lo que consume el personal—. No es un descuento ni un precio distinto: es lo mismo, sin cobrar. Por eso **la línea se queda con su importe**: el negocio tiene que poder ver al final del turno cuánto regaló. Lo que cambia es que deja de sumar al total a cobrar.
 
 LO QUE YA HIZO LA MAESTRA (no lo cambies, y léelo antes de empezar):
-- `packages/contracts/src/account.ts` (siete pruebas nuevas):
+- `packages/contracts/src/account.ts` (diez pruebas nuevas). **Ya está hecho también lo que la
+  invariante de la cuenta necesitaba**: `pendiente` deja fuera las líneas regaladas, y una cuenta donde
+  se regaló todo puede seguir estando `POR_COBRAR` —pasa por la caja igual, para cerrarla y dejar la
+  cortesía en las excepciones—. No hace falta tocar el contrato: si crees que falta algo más, **dilo en
+  el resumen**.
+- Lo que hay en el contrato:
   · `MotivoCortesiaSchema`: lista cerrada — `INVITACION`, `ERROR_DE_COCINA`, `CONSUMO_DE_PERSONAL`, `OTRO`. Nada de texto libre como motivo.
   · `CortesiaSchema`: motivo, `detalle` (obligatorio solo con «Otro»), `autorizadaPor` —con su **rol**, que solo puede ser `ADMIN` o `SUPERVISOR`— y `en`.
   · `AccountLineSchema.cortesia`, opcional. Una cuenta sin cortesías sigue siendo válida.
