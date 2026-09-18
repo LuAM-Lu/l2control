@@ -1371,3 +1371,29 @@ se guardaba como cadena vacía en vez de desaparecer; y el número de niños de 
 en «1 niñ» porque recortaba la línea entera en lugar de solo el teléfono.
 
 Con esto la **tanda A de la Ola 4 queda cerrada**: sucursal, dispositivos, entrada, sala y directorio.
+
+## La tasa sale de una pantalla — 2026-09-18 (F3-03, F3-04, F3-05)
+
+Estaba escrita a mano en tres sitios: el «228,41» de la barra de las estaciones, la fracción de la ruta
+de la caja y la del snapshot del monitor. Lo que faltaba no era la pantalla sino **el módulo de tasas**
+que `@l2/domain-money` y `@l2/domain-cash` llevaban señalando en sus READMEs desde que se escribieron:
+cuál está vigente, con qué fracción se convierte y cuánto se aparta de la anterior. Ahora existe,
+`packages/domain/rates`, puro y con 19 pruebas.
+
+La regla que más se nota al usarlo es que `currentRate` devuelve `null` cuando no hay ninguna tasa
+confirmada. No hay una versión que se las arregle con la de ayer, así que el camino fail-closed de
+ADR-005 dejó de ser un comentario: sin tasa confirmada, la píldora de la barra se pone roja y en la caja
+los medios en bolívares quedan bloqueados mientras los de divisas siguen disponibles. Está comprobado en
+el navegador, no deducido del código.
+
+Del contrato salió una regla nueva: **una tasa confirmada dice quién la confirmó y cuándo, o no está
+confirmada**. Apretarla rompió el panel en caliente —la tasa de los datos de ejemplo decía `confirmed:
+true` y nada más—, que es la contrapartida de validar la demostración con el mismo contrato que usará el
+servidor: cuando el contrato se aprieta, los datos de ejemplo tienen que ponerse al día.
+
+De la revisión del trabajo de la obrera salieron dos cosas que el compilador no ve. Un
+`require("@l2/domain-rates")` dentro de un componente de cliente, que habría reventado al abrir la hoja
+de confirmar. Y el reloj colgando del pintado: `aplicar` se reconstruía cada segundo y con él el valor
+del contexto, repintando la caja entera mientras alguien cobra. Al arreglarlo apareció el detalle que
+solo se ve midiendo: redondear el minuto hacia abajo dejaba la tasa recién capturada «en el futuro» el
+resto del minuto, y la caja seguía cobrando con la anterior.

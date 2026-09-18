@@ -9,8 +9,8 @@
 
 ## Por dónde seguir
 
-1. La **tanda B** —Tasas de cambio, Medios de pago y Cortesía—, que se hacen una detrás de otra porque
-   tocan la caja. La maestra prepara primero el contrato de tasas y su proveedor.
+1. Seguir la **tanda B**: hecha 4.1 Tasas de cambio, sigue **4.2 Medios de pago** y después 4.4
+   Cortesía. Van una detrás de otra porque las tres tocan la caja.
 2. Luego la **tanda C** (Impuestos, Impresoras, Apertura de turno) y la **D** (Inventario, en tres
    encargos).
 3. Con las secciones cerradas, la **Ola 5** (auditoría por módulos) y la **Ola 6** (medición final,

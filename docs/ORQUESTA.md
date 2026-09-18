@@ -246,6 +246,7 @@ orden de entrega; el que no se ha lanzado también, porque el encargo se escribe
 | `sucursal-ajustes` · `dispositivos` | [sucursal-ajustes.md](encargos/sucursal-ajustes.md) · [dispositivos.md](encargos/dispositivos.md) | Ola 4, tanda A: ajustes del local y equipos autorizados | Hecho |
 | `entrada-rapida` · `sala-nombra-y-vincula` | [entrada-rapida.md](encargos/entrada-rapida.md) · [sala-nombra-y-vincula.md](encargos/sala-nombra-y-vincula.md) | La entrada en dos toques y la sala que nombra y vincula (DEC-27 a DEC-29) | Hecho |
 | `representantes` | [representantes.md](encargos/representantes.md) | El directorio de familias (F5-01) | Hecho |
+| `tasas-de-cambio` | [tasas-de-cambio.md](encargos/tasas-de-cambio.md) | La tasa del día, su historial y su confirmación (F3-03 a F3-05) | Hecho |
 
 ## Actualizar o quitar
 
