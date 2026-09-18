@@ -27,6 +27,42 @@ export type PaymentMode = z.infer<typeof PaymentModeSchema>;
 export const AccountStatusSchema = z.enum(["ABIERTA", "POR_COBRAR", "COBRADA"]);
 export type AccountStatus = z.infer<typeof AccountStatusSchema>;
 
+/**
+ * Por qué se regala algo. Lista cerrada (§7.5): un campo libre acaba siendo
+ * «varios» en el ochenta por ciento de los casos y el reporte de excepciones
+ * deja de servir para nada.
+ */
+export const MotivoCortesiaSchema = z.enum(
+  ["INVITACION", "ERROR_DE_COCINA", "CONSUMO_DE_PERSONAL", "OTRO"],
+  { error: "Elige el motivo de la cortesía" },
+);
+export type MotivoCortesia = z.infer<typeof MotivoCortesiaSchema>;
+
+/**
+ * Una cortesía dada: por qué, quién la autorizó y cuándo.
+ *
+ * Autorizar es de `cuenta.cortesia` (§7.3): la cajera la pide y un supervisor
+ * o la administración la concede con su PIN. Por eso quien autoriza lleva su
+ * rol: una cortesía autorizada por quien no puede no es una cortesía.
+ */
+export const CortesiaSchema = z
+  .strictObject({
+    motivo: MotivoCortesiaSchema,
+    /** Obligatorio con «Otro»: sin explicación, «Otro» no dice nada. */
+    detalle: z.string().trim().min(3, "Explica la cortesía").max(120).optional(),
+    autorizadaPor: z.object({
+      id: IdSchema,
+      name: z.string().trim().min(2).max(80),
+      role: z.enum(["ADMIN", "SUPERVISOR"]),
+    }),
+    en: TimestampSchema,
+  })
+  .refine((c) => c.motivo !== "OTRO" || c.detalle !== undefined, {
+    message: "Con «Otro» hay que explicar la cortesía",
+    path: ["detalle"],
+  });
+export type CortesiaDto = z.infer<typeof CortesiaSchema>;
+
 export const AccountLineSchema = z.object({
   id: IdSchema,
   /** Lo que lee el representante en el recibo: «Paquete 1 hora · Vale». */
@@ -45,6 +81,17 @@ export const AccountLineSchema = z.object({
    * queda aquí diciendo adónde fue, y deja de contar para lo pendiente.
    */
   movedTo: IdSchema.optional(),
+  /**
+   * Cortesía — F6-14, §7.5.
+   *
+   * La línea **se queda con su importe**: lo que se entregó se entregó, y el
+   * negocio tiene que poder ver cuánto regaló. Lo que cambia es que deja de
+   * sumar al total a cobrar y entra en las excepciones del turno.
+   *
+   * No es un descuento ni un precio distinto: es lo mismo, sin cobrar, con
+   * nombre y apellido de quien lo autorizó (regla 5).
+   */
+  cortesia: CortesiaSchema.optional(),
 });
 export type AccountLineDto = z.infer<typeof AccountLineSchema>;
 

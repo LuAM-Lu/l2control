@@ -135,6 +135,8 @@ export {
 } from "./identity.ts";
 
 export {
+  MotivoCortesiaSchema,
+  CortesiaSchema,
   PaymentModeSchema,
   AccountStatusSchema,
   AccountLineSchema,
@@ -145,6 +147,8 @@ export {
   type AccountLineDto,
   type DivisionCuentaDto,
   type FamilyAccountDto,
+  type MotivoCortesia,
+  type CortesiaDto,
 } from "./account.ts";
 
 export {

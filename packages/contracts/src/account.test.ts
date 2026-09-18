@@ -8,7 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { FamilyAccountSchema } from "./account.ts";
+import { CortesiaSchema, FamilyAccountSchema } from "./account.ts";
 
 const linea = (paid: boolean, amount = "500") => ({
   id: `l-${amount}-${paid}`,
@@ -138,5 +138,61 @@ describe("dividir la cuenta (F6-12)", () => {
     const cobrada = { status: "COBRADA" as const, closedSessionIds: ["s-1"], lines: [linea(true)] };
     assert.equal(valido({ ...cuenta, ...cobrada, split: { parts: 3, paid: 2 } }), false);
     assert.equal(valido({ ...cuenta, ...cobrada, split: { parts: 3, paid: 3 } }), true);
+  });
+});
+
+describe("cortesías (F6-14, §7.5)", () => {
+  const autoriza = { id: "u-2", name: "Luis Guerrero", role: "SUPERVISOR" as const };
+  const cortesia = {
+    motivo: "ERROR_DE_COCINA",
+    autorizadaPor: autoriza,
+    en: "2026-09-18T19:00:00.000Z",
+  };
+
+  test("una cortesía dice por qué y quién la autorizó", () => {
+    assert.equal(CortesiaSchema.safeParse(cortesia).success, true);
+  });
+
+  test("el motivo es de lista cerrada: nada de texto libre", () => {
+    assert.equal(CortesiaSchema.safeParse({ ...cortesia, motivo: "porque sí" }).success, false);
+    assert.equal(CortesiaSchema.safeParse({ ...cortesia, motivo: "CUMPLEANOS" }).success, false);
+  });
+
+  test("«Otro» sin explicación no dice nada, así que no pasa", () => {
+    assert.equal(CortesiaSchema.safeParse({ ...cortesia, motivo: "OTRO" }).success, false);
+    assert.equal(
+      CortesiaSchema.safeParse({ ...cortesia, motivo: "OTRO", detalle: "Cumpleaños del hijo de un vecino" })
+        .success,
+      true,
+    );
+  });
+
+  test("autoriza quien puede: una cajera no concede cortesías (§7.3)", () => {
+    const r = CortesiaSchema.safeParse({
+      ...cortesia,
+      autorizadaPor: { ...autoriza, role: "CAJERO" },
+    });
+    assert.equal(r.success, false);
+  });
+
+  test("sin quién la autorizó, o sin cuándo, no es auditable", () => {
+    const { autorizadaPor: _fuera, ...sinQuien } = cortesia;
+    assert.equal(CortesiaSchema.safeParse(sinQuien).success, false);
+    const { en: _tampoco, ...sinCuando } = cortesia;
+    assert.equal(CortesiaSchema.safeParse(sinCuando).success, false);
+  });
+
+  test("la línea se queda con su importe: el negocio ve cuánto regaló", () => {
+    const conCortesia = {
+      ...cuenta,
+      lines: [{ ...linea(false), cortesia }],
+    };
+    const r = FamilyAccountSchema.safeParse(conCortesia);
+    assert.equal(r.success, true);
+    assert.equal(r.success && r.data.lines[0]?.amount.minor, "500");
+  });
+
+  test("una cuenta sin cortesías sigue siendo válida: el campo es opcional", () => {
+    assert.equal(FamilyAccountSchema.safeParse(cuenta).success, true);
   });
 });
