@@ -195,4 +195,34 @@ describe("cortesías (F6-14, §7.5)", () => {
   test("una cuenta sin cortesías sigue siendo válida: el campo es opcional", () => {
     assert.equal(FamilyAccountSchema.safeParse(cuenta).success, true);
   });
+
+  test("una cuenta cobrada puede tener una línea regalada sin cobrar", () => {
+    // Sin excluir la cortesía de «lo pendiente», esta cuenta no se podría
+    // cerrar nunca: la línea regalada parecería estar esperando cobro.
+    const r = FamilyAccountSchema.safeParse({
+      ...cuenta,
+      status: "COBRADA",
+      closedSessionIds: ["s-1"],
+      lines: [linea(true), { ...linea(false, "300"), cortesia }],
+    });
+    assert.equal(r.success, true);
+  });
+
+  test("una cuenta donde se regaló todo también pasa por la caja", () => {
+    const r = FamilyAccountSchema.safeParse({
+      ...cuenta,
+      status: "POR_COBRAR",
+      lines: [{ ...linea(false), cortesia }],
+    });
+    assert.equal(r.success, true);
+  });
+
+  test("pero una cuenta por cobrar sin nada pendiente ni regalado, no", () => {
+    const r = FamilyAccountSchema.safeParse({
+      ...cuenta,
+      status: "POR_COBRAR",
+      lines: [linea(true)],
+    });
+    assert.equal(r.success, false);
+  });
 });

@@ -14,6 +14,7 @@ import {
   PiggyBank,
   ShoppingBag,
   Smartphone,
+  TriangleAlert,
   Users,
   X,
   Zap,
@@ -191,7 +192,20 @@ function CobroCuenta({
   const [identificando, setIdentificando] = useState(false);
   /** Último banco, terminal y red: la siguiente vez ya vienen puestos. */
   const [recordados, setRecordados] = useState<Recordados>({});
+  // La lista nunca está vacía aquí: `CajaScreen` no pinta el cobro sin medios.
   const [medioActivo, setMedioActivo] = useState<MedioPago>(mediosDisponibles[0]!);
+
+  /**
+   * Si apagan desde el panel el medio que estaba elegido, la caja pasa al
+   * primero que quede. Sin esto se seguiría cobrando por un medio que el local
+   * ya no ofrece.
+   */
+  useEffect(() => {
+    if (!mediosDisponibles.some((m) => m.code === medioActivo.code)) {
+      const primero = mediosDisponibles[0];
+      if (primero) setMedioActivo(primero);
+    }
+  }, [mediosDisponibles, medioActivo.code]);
   const [monto, setMonto] = useState("");
   const [destinoVuelto, setDestinoVuelto] = useState<"VUELTO" | "PROPINA" | "CAJA">("VUELTO");
   const [error, setError] = useState<string | null>(null);
@@ -1234,6 +1248,10 @@ export function CajaScreen({
   const { ajustes } = useSucursal();
   const maxRetained: Money = { amount: BigInt(ajustes.maxRetenido.minor), currency: ajustes.maxRetenido.currency };
   const { congelada: rate } = useTasaVigente("USD/VES");
+  // Si no queda ningún medio que ofrecer —todos apagados, o al que quedaba le
+  // faltan sus datos—, la caja lo dice. Antes entraba en el cobro y se caía al
+  // buscar el primer medio de una lista vacía.
+  const mediosDisponibles = useMediosActivos();
   const { cuentas, guardar, descartar, cargado } = useCuentas();
   const sim = useSimulacion();
   const router = useRouter();
@@ -1607,6 +1625,8 @@ export function CajaScreen({
             }}
             ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
+        ) : actual && mediosDisponibles.length === 0 ? (
+          <SinMediosDePago />
         ) : actual ? (
           <CobroCuenta
             key={actual.id}
@@ -1806,6 +1826,37 @@ function agruparFilas(lines: readonly DocumentLine[], cuenta: FamilyAccountDto):
     });
   }
   return [...filas.values()];
+}
+
+/**
+ * Sin medios de pago no se cobra — F4-02, fail-closed.
+ *
+ * Pasa cuando se apagan todos desde el panel o cuando al único que queda le
+ * faltan sus datos. Es una situación de configuración, así que la pantalla
+ * dice dónde se arregla en vez de dejar a la cajera mirando una columna vacía.
+ */
+function SinMediosDePago() {
+  return (
+    <section
+      className={cn(
+        "flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-state-warn/50 bg-surface/50 px-6 py-10 text-center",
+        PLACEMENT_SIN_CUENTAS,
+      )}
+    >
+      <TriangleAlert size={32} className="text-state-warn" aria-hidden="true" />
+      <p className="font-display text-xl font-bold text-ink">No hay medios de pago</p>
+      <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
+        Están todos apagados, o al que queda le faltan sus datos. Sin un medio que ofrecer no se puede
+        cobrar nada.
+      </p>
+      <Link
+        href="/panel/caja/medios"
+        className="mt-2 flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+      >
+        Configurar los medios de pago
+      </Link>
+    </section>
+  );
 }
 
 function SinCuentas() {

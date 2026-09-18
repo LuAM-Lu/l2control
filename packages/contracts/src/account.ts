@@ -156,7 +156,11 @@ export const FamilyAccountSchema = z
     lines: z.array(AccountLineSchema),
   })
   .superRefine((c, ctx) => {
-    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo);
+    // Lo que queda por cobrar. Una línea regalada NO cuenta: se entregó y no
+    // se cobra (F6-14). Sin esta exclusión, una cuenta con una cortesía no
+    // podría cerrarse nunca, porque siempre parecería tener algo pendiente.
+    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia);
+    const regalado = c.lines.some((l) => l.cortesia);
 
     // Una cuenta tiene que ser de ALGUIEN: de unos niños, de una mesa, o de
     // una venta de mostrador (que no tiene ni lo uno ni lo otro, y lo dice su
@@ -217,7 +221,10 @@ export const FamilyAccountSchema = z
         message: "Una cuenta se cobra del todo cuando la familia entera se ha ido",
       });
     }
-    if (c.status === "POR_COBRAR" && !pendiente) {
+    // Una cuenta donde se regaló todo también pasa por la caja: hay que
+    // cerrarla y dejar la cortesía en las excepciones del turno, aunque el
+    // total a cobrar sea cero.
+    if (c.status === "POR_COBRAR" && !pendiente && !regalado) {
       ctx.addIssue({
         code: "custom",
         path: ["status"],
