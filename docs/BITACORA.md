@@ -284,7 +284,7 @@ El cliente pidió una revisión de diseño con mirada de UX sénior y pasó un d
 revisaron las diez pantallas a 1366×768 y salieron doce hallazgos. Los cuatro altos: el botón del
 simulador tapa la operación, la barra de estación dice siempre «Marisol Prieto · Cajera», las
 estaciones no filtran por rol y hay cinco formas distintas de avisar. Todo está en
-[UX-MEJORAS.md](UX-MEJORAS.md), con maquetas en `docs/diseno/` y un orden propuesto (V1-V5).
+[UX-MEJORAS.md](cerrados/UX-MEJORAS.md), con maquetas en `docs/cerrados/diseno/` y un orden propuesto (V1-V5).
 **No se construyó nada: es una propuesta para aprobar.**
 
 El dibujo corrige al prototipo: son 8 mesas redondas de **4 sillas**, cuatro junto al parque y dos
@@ -296,7 +296,7 @@ venta directa en caja (D6) y si el back-office puede desplazar (D12).
 
 ## V1: avisos, identidad y salidas animadas — 2026-09-12
 
-El cliente aprobó el mini plan de [UX-MEJORAS.md](UX-MEJORAS.md) y se hizo V1:
+El cliente aprobó el mini plan de [UX-MEJORAS.md](cerrados/UX-MEJORAS.md) y se hizo V1:
 
 - **Una forma de avisar para cada caso.** Toasts con Sonner, vestidos con los tokens: arriba al centro en
   las estaciones, bajo la barra, y arriba a la derecha en el panel. Pasaron a toast los avisos de acción
@@ -321,7 +321,7 @@ desbordar de 390 a 1366 px.
 ## V2: cada rol ve su puesto — 2026-09-12
 
 Segundo paso del mini plan. Hasta hoy el panel usaba una administradora fija y las estaciones enseñaban
-todo a todos. Ahora las cuatro reglas de [UX-MEJORAS.md](UX-MEJORAS.md) §3 salen de la matriz de §7.3,
+todo a todos. Ahora las cuatro reglas de [UX-MEJORAS.md](cerrados/UX-MEJORAS.md) §3 salen de la matriz de §7.3,
 escritas una sola vez en `identity/visibilidad.ts`:
 
 - **La barra** muestra solo las pestañas que el rol puede abrir, y «Panel» solo a quien ve informes. La
@@ -486,7 +486,7 @@ La prueba de punta a punta con los cuatro medios destapó un fallo que venía de
 nunca se podía cerrar**, porque se convertía con la tasa de bolívares. Va a la par con el dólar, como ya
 asumía el IGTF, a confirmar con el contador.
 
-La auditoría de Caja quedó en [UX-MEJORAS.md](UX-MEJORAS.md) §9. Además de lo anterior, se corrigieron el
+La auditoría de Caja quedó en [UX-MEJORAS.md](cerrados/UX-MEJORAS.md) §9. Además de lo anterior, se corrigieron el
 IGTF pintado con colores de alarma, las etiquetas de 9,5 px y el formato de lo tecleado en bolívares.
 Quedan propuestas (atajos de teclado, avisos de cola, búsqueda, recibo) y una decisión nueva: D14,
 identificar al cliente en la factura.
@@ -911,7 +911,7 @@ excepciones pasó a una hoja, que ocupaba media ficha aunque no se fuera a usar.
 
 Con la interfaz cerrada, tocaba mirarla entera antes de empezar el backend: las trece rutas, la
 matriz de §7.3 recorrida con el dominio, el mapa de módulos y las tres guardias. Está en
-`docs/AUDITORIA-NAVEGACION.md`, con la evidencia de cada hallazgo reproducida en el navegador.
+`docs/cerrados/AUDITORIA-NAVEGACION.md`, con la evidencia de cada hallazgo reproducida en el navegador.
 
 Tres graves. **La monitora de parque acaba en la caja**: su puesto se calcula tomando la primera
 superficie que alcanza de una lista que empieza por caja, y la taquilla cobra. **Hay dos verdades
@@ -1331,3 +1331,25 @@ motivo: poner un nombre es completar un dato, no una decisión que justificar. E
 `ParkSession.childName` es opcional. Y en la interfaz hay ahora un solo sitio que decide cómo se llama
 una estancia en pantalla —apodo, nombre o pulsera—, para que las cinco pantallas que la muestran digan lo
 mismo. Cuatro pruebas nuevas (contracts: 127).
+
+## La puerta en dos toques y la sala que completa — 2026-09-18
+
+Lo que las tres decisiones del día pedían ya está en pantalla, hecho por dos obreras en paralelo sobre
+archivos que no se tocan.
+
+**La entrada** perdió los campos de nombre. Ahora la pantalla tiene un solo campo de texto —el teléfono
+del representante— y todo lo demás son pulseras que entran por el lector y paquetes que se eligen con el
+dedo. Medido a 1280×800 y a 1024×600: dos pulseras hacen dos filas, la familia conocida aparece sola, y
+la cuenta que llega a la caja se llama por sus pulseras. El teléfono ya no es opcional y el botón apagado
+dice cuál de las dos cosas falta.
+
+**La sala** gana lo que la puerta ya no hace: en la ficha del niño, «Poner nombre» —que si escribes una
+letra deja el error junto al campo y no guarda nada— y «Vincular a una mesa», que trae marcados a los
+hermanos que aún no tienen mesa, ofrece solo las mesas abiertas y dice a cuál va. Probado con un guion
+en marcha: dos hermanos a la mesa 1, y la ficha pasa a decir «En la mesa 1».
+
+De la revisión salió un fallo que el compilador no ve: `can()` devuelve una palabra —`PERMITIDO`,
+`REQUIERE_AUTORIZACION`, `DENEGADO`—, no un booleano, así que `actor ? can(...) : false` era cierto para
+cualquiera que hubiera entrado. Es la tercera vez que un permiso se lee así; queda anotado para la
+auditoría de la Ola 5. Lo demás fueron ajustes de sitio: «cómo paga» se quedaba medio tapado en una
+tablet de 600 px de alto y ahora va pegado al botón que decide.

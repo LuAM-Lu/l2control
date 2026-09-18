@@ -14,9 +14,9 @@
 | **Informes** | ¿Entran los informes del panel ejecutivo (F9-01 a F9-07)? Fuera de la Ruta A | Después del piloto; Inicio ya enseña el día | PLAN §11.3 |
 | D7 | Quién asigna los puestos de trabajo | Hoy se deducen del rol (`PUESTO_DE_ROL`) | [FLUJOS](FLUJOS.md) §7 |
 | D9 | Un niño que sale sin su representante | Sin propuesta todavía | FLUJOS §7 |
-| D12 | ¿El back-office puede desplazar? | Sí, con lo urgente arriba; las estaciones no desplazan (así está hecho) | [UX-MEJORAS](UX-MEJORAS.md) §8 |
+| D12 | ¿El back-office puede desplazar? | Sí, con lo urgente arriba; las estaciones no desplazan (así está hecho) | [UX-MEJORAS](cerrados/UX-MEJORAS.md) §8 |
 | D13 | Número de orden continuo o diario | Hoy continuo (`#1049`); diario da números cortos pero obliga a decir la fecha | UX-MEJORAS §8 |
-| F-12 | ¿El teléfono entra en el objetivo del frontend? | Revisarlo al cerrar el frontend | [AUDITORIA-FRONTEND](AUDITORIA-FRONTEND.md) |
+| F-12 | ¿El teléfono entra en el objetivo del frontend? | Revisarlo al cerrar el frontend | [AUDITORIA-FRONTEND](cerrados/AUDITORIA-FRONTEND.md) |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas; falta firmarlo | PLAN §14 |
 
 Cerradas el 2026-09-14 a 17 y ya construidas: D2, D3, D8, D10, D11, **DEC-25 (solo la caja cobra)** y
@@ -60,7 +60,7 @@ los escenarios del simulador que faltan (FLUJOS §5).
 
 ## 5. Navegación y permisos
 
-Los diez hallazgos de [AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md) están **resueltos** (el último,
+Los diez hallazgos de [AUDITORIA-NAVEGACION.md](cerrados/AUDITORIA-NAVEGACION.md) están **resueltos** (el último,
 N-07/N-08, el 2026-09-17). La auditoría queda cerrada.
 
 ## 6. Backend e infraestructura (Ruta A)

@@ -1,4 +1,4 @@
-Dos arreglos del back-office: avisar de que una sección abre una estación a pantalla completa (N-04 de docs/AUDITORIA-NAVEGACION.md) y terminar el panel en tablet (F-09 de docs/AUDITORIA-FRONTEND.md).
+Dos arreglos del back-office: avisar de que una sección abre una estación a pantalla completa (N-04 de docs/cerrados/AUDITORIA-NAVEGACION.md) y terminar el panel en tablet (F-09 de docs/cerrados/AUDITORIA-FRONTEND.md).
 
 LO QUE YA HIZO LA MAESTRA (no lo cambies):
 - El tipo `Seccion` de apps/web/src/features/shell/navigation.ts tiene ahora `abre?: "estacion"`, y las OCHO secciones que salen del panel ya lo declaran: Monitor de sala, Entrada, Salida, Mesas y pedidos, Comandas del día, Cobrar, Ventas del turno y Turnos y cortes.

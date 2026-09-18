@@ -1,4 +1,4 @@
-Haz que el acceso saque sus personas del directorio de «Usuarios y permisos» en vez de tener su propia lista. Hallazgos N-07 y N-08 de docs/AUDITORIA-NAVEGACION.md.
+Haz que el acceso saque sus personas del directorio de «Usuarios y permisos» en vez de tener su propia lista. Hallazgos N-07 y N-08 de docs/cerrados/AUDITORIA-NAVEGACION.md.
 
 EL PROBLEMA: hoy son DOS listas con identificadores distintos. El acceso (apps/web/app/(estacion)/acceso/page.tsx) usa `u0…u5` escritos a mano; el directorio (apps/web/src/demo/usuarios.ts, validado con `UsersDirectorySchema`) usa `u-abigail`, `u-marisol`… Consecuencias:
 - Dar de baja a alguien en Usuarios **no la quita del acceso**. Carla Benítez no aparece por casualidad, no por regla (N-08).

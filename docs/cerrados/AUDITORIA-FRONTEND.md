@@ -2,14 +2,14 @@
 
 > **Fecha:** 2026-09-16 · **Pedido del cliente:** que todo el frontend funcione en cualquier tamaño de
 > desktop y tablet (horizontal y vertical) y que se pueda instalar en Android sin barras.
-> **Plan que sale de aquí:** [PLAN-FRONTEND.md](PLAN-FRONTEND.md).
+> **Plan que sale de aquí:** [PLAN-FRONTEND.md](../PLAN-FRONTEND.md).
 >
-> Auditoría **conjunta** de la orquesta ([ORQUESTA.md](ORQUESTA.md)), con dos miradas que no se pisan:
+> Auditoría **conjunta** de la orquesta ([ORQUESTA.md](../ORQUESTA.md)), con dos miradas que no se pisan:
 >
 > | Quién | Qué miró | Cómo |
 > |---|---|---|
 > | **Maestra** (Claude) | La app **funcionando** | 16 pantallas × 9 tamaños = 144 combinaciones en el navegador, entrando como administración. Mide scroll horizontal y vertical (de página y dentro de cada panel), texto cortado, objetivos táctiles por superficie, elementos fuera de pantalla y errores, con captura de cada una |
-> | **Obrera** (Gemini 3.1 Pro, esfuerzo alto) | El **código** | Lectura de `apps/web` y `packages/ui` contra las skills `web-design-guidelines`, `vercel-react-best-practices` y `frontend-design` ([encargo](encargos/auditoria-frontend-codigo.md)) |
+> | **Obrera** (Gemini 3.1 Pro, esfuerzo alto) | El **código** | Lectura de `apps/web` y `packages/ui` contra las skills `web-design-guidelines`, `vercel-react-best-practices` y `frontend-design` ([encargo](../encargos/auditoria-frontend-codigo.md)) |
 >
 > Todo hallazgo de la obrera se **verificó** contra el código y contra la medición antes de entrar aquí.
 
@@ -35,7 +35,7 @@ Tamaños medidos: desktop 1920×1080, 1440×900 y 1366×768; tablet horizontal 1
 ### F-01 · La app no se puede instalar — **crítico** · M+O
 No hay manifiesto, iconos, `apple-touch-icon`, `viewport-fit=cover`, márgenes seguros, service worker
 ni petición de pantalla completa. Hoy solo se puede abrir como página web, con la barra del navegador.
-→ **Encargo [pwa-base](encargos/pwa-base.md)**. La parte de la maestra (tokens `--seguro-*` y clases
+→ **Encargo [pwa-base](../encargos/pwa-base.md)**. La parte de la maestra (tokens `--seguro-*` y clases
 `l2-solo-navegador` / `l2-solo-instalada`) ya está hecha.
 
 ### F-02 · En una tablet de 1024×600 no se puede terminar de cobrar — **crítico** · M
@@ -45,7 +45,7 @@ tablets Android más baratas en horizontal.
 
 *Medido el 2026-09-17:* la columna pide **657 px** de alto, es decir **754 px de ventana**. También se
 corta a 1280×720 y en un portátil de 1366×768 con la barra del navegador (unos 657 px útiles): no es
-solo cosa de tablets baratas. → Variante `bajo:` y [caja-compacta](encargos/caja-compacta.md).
+solo cosa de tablets baratas. → Variante `bajo:` y [caja-compacta](../encargos/caja-compacta.md).
 
 *Resuelto el 2026-09-17:* por debajo de 760 px de alto el cobro se parte en dos subcolumnas (el teclado
 entero a la derecha) y, donde no caben tres columnas, la cola se pliega tras un conmutador «Por cobrar |
@@ -63,7 +63,7 @@ de cada denominación se corta («0.»): las dos monedas lado a lado no caben en
 *2026-09-17:* la barra quedó resuelta (ed41744: dos filas hasta 1023 px). El subtotal de cada
 denominación **ya no se ve** —se sale de la tarjeta, que lo recorta— a 768×1024 y también **a 1024 en
 horizontal**: cada moneda necesita unos 420 px con su subtotal y ahí tiene 288.
-*Resuelto el 2026-09-17* ([turno-arqueo](encargos/turno-arqueo.md)): las monedas van lado a lado solo
+*Resuelto el 2026-09-17* ([turno-arqueo](../encargos/turno-arqueo.md)): las monedas van lado a lado solo
 si la tarjeta mide 784 px o más (container query) y, apiladas, la cabecera de cada moneda queda fija al
 desplazar. Subtotales visibles en los 10 tamaños; «Corte Z» entero a la vista en horizontal desde 1024
 y su confirmación se desplaza sola a la vista. A 1366×768 y 1280×800, sin desplazar.
@@ -147,7 +147,7 @@ tarjeta se estrecha por debajo de 280 px, entonces sí.
 ### F-13 · «Quitar pulsera» mide 36 px en entrada y salida — **medio** · M
 `CheckInScreen.tsx:360` y `CheckoutScreen.tsx:312` (`size-9`). Superficie tablet: 48. La primera
 auditoría no lo vio porque midió las pantallas vacías; se encontró al medir con niños cargados.
-*Resuelto el 2026-09-17* ([parque-tablet](encargos/parque-tablet.md)): 48 px.
+*Resuelto el 2026-09-17* ([parque-tablet](../encargos/parque-tablet.md)): 48 px.
 
 ### F-14 · En el monitor a 768 px, la tarjeta vencida se corta — **medio** · M
 `ParkMonitor.tsx:143` fuerza tres columnas entre 768 y 1023 px (229 px cada una a 768), y la tarjeta
@@ -166,7 +166,7 @@ sus botones principales fuera de la ventana; y la barra de estación, en dos fil
 La caja lo resuelve su encargo (dos columnas desde 768). Para el resto hace falta una variante
 **apaisado** —1024 px o más, o 768 px o más en horizontal— que sustituya a `lg:` en las disposiciones
 de las estaciones.
-*Resuelto el 2026-09-17* ([estaciones-apaisado](encargos/estaciones-apaisado.md)): la barra y todas las
+*Resuelto el 2026-09-17* ([estaciones-apaisado](../encargos/estaciones-apaisado.md)): la barra y todas las
 estaciones deciden su disposición con `apaisado:`; lo que depende solo del ancho sigue con `lg:`/`xl:`.
 A 960×600, barra en una fila, columnas en todas las estaciones y la caja se cobra entera.
 
@@ -196,9 +196,9 @@ Conclusiones para el plan:
 
 Resueltos: F-01 a F-07, F-09, F-10 y F-13 a F-15. F-08 decidido. F-11 queda como observación y F-12,
 fuera del objetivo. Lo que queda está en el
-[plan final del frontend](PLAN-FRONTEND.md). Medición de cierre: 192 combinaciones sin fallos, sin scroll
+[plan final del frontend](../PLAN-FRONTEND.md). Medición de cierre: 192 combinaciones sin fallos, sin scroll
 horizontal, sin errores, sin textos cortados y sin estaciones que desplacen la página; el detalle está
-en el registro de [PLAN-FRONTEND.md](PLAN-FRONTEND.md) §6.
+en el registro de [PLAN-FRONTEND.md](../PLAN-FRONTEND.md) §6.
 
 ## 5. Cómo repetir la medición
 

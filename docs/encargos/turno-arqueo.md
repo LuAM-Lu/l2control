@@ -1,4 +1,4 @@
-Arregla el turno de caja (apps/web/src/features/cash/TurnoScreen.tsx) para que el arqueo se lea entero en cualquier ancho y los cortes estén siempre a la vista en pantallas bajas. Hallazgos F-03, F-04 y F-06 de docs/AUDITORIA-FRONTEND.md.
+Arregla el turno de caja (apps/web/src/features/cash/TurnoScreen.tsx) para que el arqueo se lea entero en cualquier ancho y los cortes estén siempre a la vista en pantallas bajas. Hallazgos F-03, F-04 y F-06 de docs/cerrados/AUDITORIA-FRONTEND.md.
 
 EL PROBLEMA, MEDIDO:
 - El subtotal de cada denominación del arqueo NO SE VE a 768×1024 ni a 1024 px en horizontal: las dos monedas van lado a lado (`md:grid-cols-2`, línea ~197) y cada una necesita unos 390 px con su subtotal; a 1024 tiene 288. La tarjeta (`overflow-hidden`) lo recorta sin avisar.

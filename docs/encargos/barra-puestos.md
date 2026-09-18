@@ -1,4 +1,4 @@
-Tres arreglos de navegación y objetivos táctiles: llegar a los otros puestos desde la barra de estación (N-06 de docs/AUDITORIA-NAVEGACION.md), los desplegables del menú lateral del panel a 32 px (F-09) y el chip DEMO a 48 px en las estaciones y el acceso (F-10 de docs/AUDITORIA-FRONTEND.md).
+Tres arreglos de navegación y objetivos táctiles: llegar a los otros puestos desde la barra de estación (N-06 de docs/cerrados/AUDITORIA-NAVEGACION.md), los desplegables del menú lateral del panel a 32 px (F-09) y el chip DEMO a 48 px en las estaciones y el acceso (F-10 de docs/cerrados/AUDITORIA-FRONTEND.md).
 
 ARCHIVOS QUE PUEDES TOCAR: apps/web/src/features/shell/StationBar.tsx, apps/web/src/features/shell/BackOfficeShell.tsx y apps/web/src/features/identity/AccesoScreen.tsx. Nada más (otra obrera trabaja a la vez en Inicio, EnVivo, navigation.ts, layout.tsx y las pantallas del parque: no los toques).
 

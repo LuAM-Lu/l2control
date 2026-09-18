@@ -5,7 +5,7 @@ ALCANCE (lee todo esto):
 - apps/web/src/features/**    pantallas y lógica de aplicación
 - packages/ui/src/**          primitivos y patrones
 - packages/config/tokens.css  tokens de diseño
-Contexto obligatorio antes de empezar: CLAUDE.md, docs/PLAN.md §8 (diseño) y §9.10 (cáscaras), docs/UX-MEJORAS.md y docs/AUDITORIA-NAVEGACION.md (no repitas lo que ya dicen).
+Contexto obligatorio antes de empezar: CLAUDE.md, docs/PLAN.md §8 (diseño) y §9.10 (cáscaras), docs/cerrados/UX-MEJORAS.md y docs/cerrados/AUDITORIA-NAVEGACION.md (no repitas lo que ya dicen).
 
 QUÉ BUSCAR, EN ESTE ORDEN DE IMPORTANCIA:
 

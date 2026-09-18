@@ -2,7 +2,7 @@
 
 > **Estado (2026-09-17): los diez hallazgos están resueltos**, cada uno anotado bajo su apartado. La
 > auditoría queda cerrada; lo que se construya de aquí en adelante se mide contra el
-> [plan final del frontend](PLAN-FRONTEND.md). La tabla de §1 es la del 2026-09-14: desde DEC-25 la
+> [plan final del frontend](../PLAN-FRONTEND.md). La tabla de §1 es la del 2026-09-14: desde DEC-25 la
 > monitora ya no alcanza caja ni ventas.
 >
 > **Fecha:** 2026-09-14 · **Alcance:** las trece rutas de `apps/web/app`, la matriz de §7.3, el mapa de
@@ -196,7 +196,7 @@ desde `/monitor` tampoco. Solo se llega escribiendo la dirección.
 un paso explícito a las demás superficies alcanzables, agrupadas, en el menú de la barra. En un local
 de dos personas, «la cajera también atiende mesas» es el caso normal, no la excepción.
 
-*Resuelto* ([barra-puestos](encargos/barra-puestos.md)): al final de las pestañas, un botón «Otros
+*Resuelto* ([barra-puestos](../encargos/barra-puestos.md)): al final de las pestañas, un botón «Otros
 puestos» abre una hoja con las superficies de los demás puestos que el rol puede abrir, agrupadas.
 Comprobado: la cajera llega al parque y a mesas; la monitora, a cobrar y ventas; mesero y cocina no
 tienen otros puestos y no ven el botón.

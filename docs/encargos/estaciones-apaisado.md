@@ -1,4 +1,4 @@
-Haz que las estaciones usen su disposición en columnas en toda pantalla APAISADA, no solo desde 1024 px. Hallazgo F-15 de docs/AUDITORIA-FRONTEND.md.
+Haz que las estaciones usen su disposición en columnas en toda pantalla APAISADA, no solo desde 1024 px. Hallazgo F-15 de docs/cerrados/AUDITORIA-FRONTEND.md.
 
 EL PROBLEMA, MEDIDO:
 - Una tablet de 7" con densidad 1,33 (Galaxy Tab A 7.0, por ejemplo) mide 960×600 en CSS. En horizontal no llega a `lg:` (1024 px), así que recibe la disposición pensada para vertical: salida +717 y entrada +603 de scroll, con sus botones principales fuera de la ventana, y la barra de estación en dos filas (129 de 600 px).

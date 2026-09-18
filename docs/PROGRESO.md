@@ -1,11 +1,25 @@
 # Progreso real
 
-> **Actualizado:** 2026-09-17 · Contrastado contra los criterios de aceptación de
+> **Actualizado:** 2026-09-18 · Contrastado contra los criterios de aceptación de
 > [PLAN.md §12](PLAN.md). Una tarea solo cuenta como hecha si su criterio se cumple y es
 > demostrable — «ya lo programé» no basta.
 >
 > Aquí está **el estado**, tarea por tarea. **Qué se hizo y por qué**, con fecha, está en
 > [BITACORA.md](BITACORA.md).
+
+## Por dónde seguir
+
+1. **Representantes y niños** (tarea 4.5 C del [plan del frontend](PLAN-FRONTEND.md)): el encargo está
+   escrito en [encargos/representantes.md](encargos/representantes.md) y la maestra ya dejó su contrato
+   con pruebas. Es lanzar la obrera y revisar.
+2. Después, la **tanda B** —Tasas de cambio, Medios de pago y Cortesía—, que se hacen una detrás de otra
+   porque tocan la caja.
+3. Luego la **tanda C** (Impuestos, Impresoras, Apertura de turno) y la **D** (Inventario, en tres
+   encargos).
+4. Con las secciones cerradas, la **Ola 5** (auditoría por módulos) y la **Ola 6** (medición final,
+   `pnpm audit:ui`, tablet real y el plan del backend).
+
+Lo que falta y no es frontend está en [PENDIENTES.md](PENDIENTES.md).
 
 ## Resumen
 
@@ -22,7 +36,7 @@
 | F7-F12 (resto) | 0 | 0 | — | Fuera de la Ruta A o sin empezar |
 
 > **Auditoría de navegación y permisos (2026-09-14):** diez hallazgos con evidencia en
-> [AUDITORIA-NAVEGACION.md](AUDITORIA-NAVEGACION.md). Resueltos siete; quedan N-04, N-07 y N-08.
+> [AUDITORIA-NAVEGACION.md](cerrados/AUDITORIA-NAVEGACION.md). Resueltos siete; quedan N-04, N-07 y N-08.
 
 **Se puede ver funcionando:** entra por `/` (acceso por PIN `1970`); la app se puede instalar desde Chrome. Estaciones: `/monitor`, `/entrada`, `/salida`, `/caja`, `/ventas`, `/turno`, `/mesas`, `/cocina`. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local. Back-office: `/panel` —que **es** el tablero en vivo del local— con sus módulos y sus editores: tarifas, plano, carta, usuarios y roles. Todo con datos de ejemplo **derivados del contrato**, aislados en `apps/web/src/demo` y apagables con `NEXT_PUBLIC_DEMO=off`.
 
@@ -34,7 +48,7 @@
 ---
 
 > **F1-21 Frontend adaptable e instalable** (alcance añadido el 2026-09-16): auditoría de 144
-> combinaciones de pantalla y tamaño en [AUDITORIA-FRONTEND.md](AUDITORIA-FRONTEND.md) y plan por olas en
+> combinaciones de pantalla y tamaño en [AUDITORIA-FRONTEND.md](cerrados/AUDITORIA-FRONTEND.md) y plan por olas en
 > [PLAN-FRONTEND.md](PLAN-FRONTEND.md). **La app ya es instalable** (Chrome: 0 errores de instalabilidad),
 > abre sin barra del navegador y las estaciones van a pantalla completa. **Olas 1 y 2 cerradas el
 > 2026-09-17:** objetivos táctiles de cobro, y todas las estaciones usables en 12 tamaños —de 1920×1080 a
@@ -135,7 +149,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F6-04 Modificadores | Pendiente | Hoy solo nota libre por plato |
 | F6-07 KDS | Parcial | `/cocina`: comandas por antigüedad con cronómetro y nivel de espera (a tiempo, tarda, atrasada), «Empezar» y «Lista» de 64 px, columna de listas para servir, chip «sin ticket» y anulaciones en rojo que solo se van cuando la cocina confirma que las vio (FLUJOS C5). Comprobado a 1366, 1280 y 1024 con el escenario X5. Falta el servidor y el umbral configurable |
 | F6-08 Máquina de estados de la comanda | ✅ Hecha | `@l2/domain-orders` (11 pruebas): solo avanza hacia delante, un evento repetido o retrasado no hace retroceder, anular tras LISTO exige revertir inventario y el nivel de espera es puro |
-| F6-05 Vincular pulseras y cuenta de mesa | Parcial | Hoja con lector y lista por familia; un niño de otra mesa no se ofrece y al escanearlo se dice dónde está. **Cuenta de mesa hecha (D2, D3)**: cada pedido enviado entra en ella con el precio de carta, vincular mueve el parque desde la cuenta de la familia (la línea queda con `movedTo`, nada se borra), «Pide la cuenta» la manda a la cola de caja y al cobrar la mesa queda por limpiar. **Cobro dividido** (F6-12): la cuenta se divide en 2 a 6 partes iguales sobre el total del documento con la regla del mayor resto, cada parte se cobra por separado con su recibo («Parte 2 de 3») y la cuenta sigue en la cola hasta la última. Falta dividir por ítems; la propina explícita (F6-13) pasa a Configuración |
+| F6-05 Vincular pulseras y cuenta de mesa | Parcial | **Dos caminos desde DEC-29**: la pantalla de mesas (el mesero) y la ficha del niño en la sala (la puerta). Hoja con lector y lista por familia; un niño de otra mesa no se ofrece y al escanearlo se dice dónde está. **Cuenta de mesa hecha (D2, D3)**: cada pedido enviado entra en ella con el precio de carta, vincular mueve el parque desde la cuenta de la familia (la línea queda con `movedTo`, nada se borra), «Pide la cuenta» la manda a la cola de caja y al cobrar la mesa queda por limpiar. **Cobro dividido** (F6-12): la cuenta se divide en 2 a 6 partes iguales sobre el total del documento con la regla del mayor resto, cada parte se cobra por separado con su recibo («Parte 2 de 3») y la cuenta sigue en la cola hasta la última. Falta dividir por ítems; la propina explícita (F6-13) pasa a Configuración |
 
 ## F5 · Parque — prototipo de interfaz
 
@@ -147,7 +161,7 @@ Se construyó antes de tiempo porque el monitor de parque necesita mostrar el ex
 | F5-04 Paquetes de tarifa | Parcial | Selector con botones grandes sobre el catálogo del contrato. **Contrato del tarifario listo** (2026-09-16, `TarifarioSchema`, 9 pruebas): paquetes y política se validan juntos —al menos uno a la venta, precios en dólares y mayores que cero, sin nombres repetidos, pase libre solo al salir, aviso menor que el paquete más corto—. **Editor hecho el 2026-09-17** (Panel → Parque → Tarifas y paquetes, [encargo](encargos/tarifas-editor.md)): borrador con deshacer, retirar sin borrar, reglas del parque con ejemplo calculado por el dominio; la entrada, la salida e Inicio usan el tarifario publicado. Falta el servidor |
 | F5-14 Salida y liquidación | ✅ Hecha (interfaz) | Pantalla en `/salida`. Varios niños en una salida, desglose paquete + excedente con minutos y bloques, y las dos rutas del plan: pagar en caja o cargar a una mesa. Quien no cobra (DEC-25) envía la cuenta a la caja sin abrirla. Falta el backend |
 | F5-08b Formato de hora comercial 12h | Parcial | La hora se muestra en formato comercial 12h con sufijo en minúsculas (`2:00 pm`, `10:30 am`). **Configurable desde el 2026-09-18** en Panel → Configuración → Sucursal (12 h o 24 h): lo leen la salida, el monitor y los dispositivos. Falta persistirlo en el servidor |
-| F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. **Falta el WebSocket**: hoy no se actualiza solo |
+| F5-08 Tablero en tiempo real | **Parcial** | La interfaz está y se lee a distancia. La ficha del niño trae ahora **«Poner nombre»** —valida con el contrato y no guarda a medias (DEC-28)— y **«Vincular a una mesa»**, que marca de entrada a los hermanos sin mesa y ofrece solo las mesas abiertas (DEC-29). Una estancia sin nombre lo dice en su tarjeta, en tono neutro: no es un error. **Falta el WebSocket**: hoy no se actualiza solo |
 | DEC-21 Cuenta de la familia | Parcial | Entrada elige prepago o cuenta abierta; la salida dice qué pasa a caja; la caja es una cola de cuentas en maestro-detalle y devuelve a la pantalla de origen. Probado de punta a punta en navegador. Falta el backend |
 | F5-10 Filtro por escaneo | ✅ Hecha | Pasar la pulsera resalta al niño, sin foco previo |
 | F5-12 Sesión única por pulsera | Parcial | La interfaz lo rechaza; la invariante real necesita base de datos |

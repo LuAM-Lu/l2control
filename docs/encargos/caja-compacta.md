@@ -1,4 +1,4 @@
-Reorganiza la caja para que se pueda COBRAR ENTERO en pantallas bajas (1024×600, 960×600, 1280×720 y un portátil de 1366×768 con la barra del navegador) y para que tenga disposición propia en tablet vertical (768×1024, 800×1280). Hallazgos F-02 y F-07 de docs/AUDITORIA-FRONTEND.md.
+Reorganiza la caja para que se pueda COBRAR ENTERO en pantallas bajas (1024×600, 960×600, 1280×720 y un portátil de 1366×768 con la barra del navegador) y para que tenga disposición propia en tablet vertical (768×1024, 800×1280). Hallazgos F-02 y F-07 de docs/cerrados/AUDITORIA-FRONTEND.md.
 
 EL PROBLEMA, MEDIDO:
 - La columna de cobro (visor, medios, franja, teclado, fila de acciones) necesita 657 px de alto en una sola columna: 754 px de ventana. Por debajo, el teclado se corta: a 1024×600 no se ven el 0, «Añadir» ni «Cerrar cobro». No se puede terminar de cobrar.

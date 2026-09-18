@@ -1,4 +1,4 @@
-Arregla la barra de estación para que NO se monte en tablets verticales (hallazgo F-03 de docs/AUDITORIA-FRONTEND.md). A 768×1024, la pestaña «Turno» queda encima del indicador del turno: las pestañas y los chips de contexto no caben en una sola fila.
+Arregla la barra de estación para que NO se monte en tablets verticales (hallazgo F-03 de docs/cerrados/AUDITORIA-FRONTEND.md). A 768×1024, la pestaña «Turno» queda encima del indicador del turno: las pestañas y los chips de contexto no caben en una sola fila.
 
 CAUSA: en apps/web/src/features/shell/StationBar.tsx la barra pasa a UNA fila desde el punto de corte sm (640 px). Entre 640 y 1023 px no cabe todo.
 

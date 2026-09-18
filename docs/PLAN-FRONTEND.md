@@ -1,7 +1,7 @@
 # Plan final del frontend
 
 > **Tarea F1-21** del [plan](PLAN.md). Creado el 2026-09-16 como plan por olas a partir de la
-> [auditoría del frontend](AUDITORIA-FRONTEND.md); **reescrito el 2026-09-17 como plan final**: lo que
+> [auditoría del frontend](cerrados/AUDITORIA-FRONTEND.md); **reescrito el 2026-09-17 como plan final**: lo que
 > falta para dar el frontend por terminado y abrir el backend.
 >
 > Se ejecuta **en orquesta** ([ORQUESTA.md](ORQUESTA.md)): la maestra (Claude) prepara contratos,
@@ -18,21 +18,22 @@ Hecho y medido:
   cualquiera de ellos. Objetivos táctiles de cada superficie cumplidos.
 - **Tarifas y paquetes**, con su editor; **otros puestos** desde la barra (N-06); **solo la caja cobra**
   (DEC-25) y **turnos genéricos** (DEC-26).
-- **La estancia se identifica por su pulsera** (DEC-28): contrato, dominio y las cinco pantallas que la
-  nombran funcionan sin nombre de niño. Falta la entrada rediseñada, que es la tarea 4.5.
+- **La entrada en dos toques** (DEC-27, DEC-28): en la puerta se pasan las pulseras, se elige paquete y
+  se teclea el teléfono; el nombre del niño se pone después, desde la sala, donde también se le vincula
+  a una mesa sin esperar al mesero (DEC-29). Medido: dos niños entran sin teclear un solo nombre.
 
-El panel tiene 25 secciones:
+El panel tiene 25 secciones. Siguen pendientes **siete**:
 
 | Módulo | Hechas | Abren una estación | **Pendientes** |
 |---|---|---|---|
-| Parque | Tarifas y paquetes | Monitor de sala, Entrada, Salida | — |
+| Parque | Tarifas y paquetes | Monitor de sala, **Entrada rediseñada**, Salida | — |
 | Restaurante | Plano del local, Carta y precios | Mesas y pedidos, Comandas del día | — |
 | Caja | — | Cobrar, Ventas del turno, Turnos y cortes | **Tasas de cambio** |
 | Inventario | — | — | **Insumos, Recetas, Compras y mermas** |
 | Personas | Usuarios y permisos, **Dispositivos** | — | **Representantes y niños** |
 | Configuración | Roles y accesos, **Sucursal** | — | **Impuestos, Impresoras** |
 
-Además de esas diez secciones, falta la **apertura de turno**, la **cortesía** en caja y un lugar para
+Además de esas siete, falta la **apertura de turno**, la **cortesía** en caja y un lugar para
 configurar los **medios de pago** (hoy la caja trae fijos el banco del Pago Móvil y el correo de Zelle).
 
 ## 2. Cuándo está terminado el frontend
@@ -77,7 +78,9 @@ queda con su `TODO` y su tarea.
 | 4.2 | Caja → **Medios de pago** *(sección nueva)* | F4-02, F4-04 | Activar y desactivar medios, terminales de punto de venta, y los datos que la caja enseña al cliente: banco, teléfono y RIF del Pago Móvil, correo de Zelle | Persistencia |
 | 4.3 | Caja → **Apertura de turno** *(en /turno)* | F4-01 | Sin turno abierto, declarar el fondo inicial por moneda; sin turno no se cobra | Un turno por dispositivo (I-06) |
 | 4.4 | Caja → **Cortesía con motivo** *(en /caja)* | F6-14 | Marcar líneas como cortesía con motivo de lista cerrada y autorización (`cuenta.cortesia` 🔐); aparecen en las excepciones del turno | Auditoría |
-| 4.5 | **Entrada en dos toques** y el directorio que la acelera | F5-02, F5-01 | Rediseño con DEC-27, DEC-28 y DEC-29: pasar pulseras, paquete por niño y teléfono del representante —sin teclear nombres—; la familia conocida trae sus niños de la última visita; poner nombre después y vincular a una mesa, desde la sala; y el directorio de familias (buscar, ver niños y visitas, corregir) | Modelo `Guardian`/`Kid`, visitas calculadas con las estancias |
+| 4.5 A ✅ | Parque → **Entrada en dos toques** ([entrada-rapida](encargos/entrada-rapida.md)) | F5-02 | Pasar pulseras, paquete por niño y teléfono del representante. En la puerta no se teclea ningún nombre (DEC-27, DEC-28) | El registro real de la estancia |
+| 4.5 B ✅ | Parque → **La sala nombra y vincula** ([sala-nombra-y-vincula](encargos/sala-nombra-y-vincula.md)) | F5-08, F6-05 | En la ficha del niño: ponerle nombre después, y vincularlo con sus hermanos a una mesa abierta sin esperar al mesero (DEC-28, DEC-29) | Persistir el nombre y la vinculación |
+| 4.5 C | Personas → **Representantes y niños** ([representantes](encargos/representantes.md)) | F5-01 | El directorio que hace rápida la visita siguiente: buscar por teléfono, ver niños y visitas, corregir y poner el nombre que faltó | Modelo `Guardian`/`Kid`, visitas calculadas con las estancias |
 | 4.6 ✅ | Personas → **Dispositivos** ([dispositivos](encargos/dispositivos.md)) | F2-02 | Equipos con su estado (aprobado, pendiente, revocado), aprobar y revocar con motivo, y quién tiene sesión en cada uno (lo que ya sabe el panel en vivo) | Registro real; revocar cierra sesiones |
 | 4.7 ✅ | Configuración → **Sucursal** ([sucursal-ajustes](encargos/sucursal-ajustes.md)) | F5-08b, F4-04c, F6-13 | Nombre, RIF y dirección; horario; formato de hora 12 h o 24 h, que cambia **todas** las superficies; umbral de residuo retenido de la caja; servicio y propina (D8, DEC-6). El aforo ya vive en Tarifas | Persistencia |
 | 4.8 | Configuración → **Impuestos** | F3-06, F3-07 | Alícuotas de IVA con su vigencia e IGTF; programar un cambio con fecha, nunca reescribir el pasado. La caja calcula con lo publicado. Los valores los confirma el contador (DEC-1) | Persistencia |
@@ -87,7 +90,7 @@ queda con su `TODO` y su tarea.
 **Orden y paralelismo.** Una obrera por defecto; dos a la vez si el cliente lo aprueba, nunca sobre los
 mismos archivos:
 
-1. **Tanda A** (sin archivos compartidos): 4.7 Sucursal · 4.6 Dispositivos · 4.5 Representantes.
+1. **Tanda A** (sin archivos compartidos): 4.7 Sucursal ✅ · 4.6 Dispositivos ✅ · 4.5 A Entrada ✅ · 4.5 B Sala ✅ · **4.5 C Representantes (encargo escrito, sin lanzar: es lo siguiente)**.
 2. **Tanda B** (tocan la caja, una detrás de otra): 4.1 Tasas → 4.2 Medios de pago → 4.4 Cortesía.
 3. **Tanda C**: 4.8 Impuestos · 4.9 Impresoras · 4.3 Apertura de turno.
 4. **Tanda D** (aprobada el 2026-09-17): 4.10 Inventario, en tres encargos —insumos, recetas y movimientos— porque las recetas necesitan los insumos y la carta, y los movimientos necesitan los insumos.
@@ -105,6 +108,9 @@ encarga los arreglos. Ya anotado para esta ola:
 - El diálogo de anular un cobro desplaza para llegar al PIN a 1366×768.
 - El token `--color-base` choca con la clase `text-base` de Tailwind.
 - F-11 (tarjeta de la entrada con `min-w-[280px]`), en observación.
+- **Cómo se leen los permisos en las pantallas**: `can()` devuelve una palabra, no un booleano, y ya van
+  tres veces que alguien escribe `actor ? can(...) : false`, que es cierto siempre. Revisar todos los
+  sitios que llaman a `can` y considerar un ayudante con nombre (`alcanza(actor, accion)`).
 
 ### Ola 6 · Cierre del frontend
 

@@ -1,4 +1,4 @@
-Sube los objetivos táctiles de las pantallas de cobro (superficie POS, 56 px) y de mesas (superficie tablet, 48 px) a su mínimo, sin romper que esas pantallas quepan sin scroll a 1366×768 y 1280×800. Hallazgos F-04 y F-05 de docs/AUDITORIA-FRONTEND.md.
+Sube los objetivos táctiles de las pantallas de cobro (superficie POS, 56 px) y de mesas (superficie tablet, 48 px) a su mínimo, sin romper que esas pantallas quepan sin scroll a 1366×768 y 1280×800. Hallazgos F-04 y F-05 de docs/cerrados/AUDITORIA-FRONTEND.md.
 
 DECISIONES YA TOMADAS (no las cambies):
 - Botones de icono, filtros, chips, pestañas y contadores de las pantallas de cobro: 56 px (size-14 o min-h-14).

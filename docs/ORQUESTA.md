@@ -228,10 +228,24 @@ resumen, siempre comprobar—; y sus fallos fueron de los que el compilador no v
 
 ## Encargos
 
-| Tarea | Encargo | Preparación de la maestra | Estado |
+Cada encargo se guarda en `docs/encargos/` y se versiona con el código que produjo. Están todos, en
+orden de entrega; el que no se ha lanzado también, porque el encargo se escribe antes.
+
+| Tarea | Encargo | Qué salió de ahí | Estado |
 |---|---|---|---|
-| `carta-editor` | [docs/encargos/carta-editor.md](encargos/carta-editor.md) | `MenuItemSchema.retiredAt` y reglas de `MenuSchema` | **Hecho** (46bd2a3) |
-| `tarifas-editor` | [docs/encargos/tarifas-editor.md](encargos/tarifas-editor.md) | `TarifarioSchema` con 9 pruebas | **Listo para lanzar** |
+| `carta-editor` | [carta-editor.md](encargos/carta-editor.md) | El editor de la carta (F6-14) | Hecho |
+| `tarifas-editor` | [tarifas-editor.md](encargos/tarifas-editor.md) | Tarifas y paquetes del parque (F5-04) | Hecho |
+| `auditoria-frontend-codigo` | [auditoria-frontend-codigo.md](encargos/auditoria-frontend-codigo.md) | La mirada al código de la auditoría de tablet | Hecho |
+| `pwa-base` | [pwa-base.md](encargos/pwa-base.md) | Manifiesto, iconos y service worker | Hecho |
+| `tactil-pos` | [tactil-pos.md](encargos/tactil-pos.md) | Objetivos táctiles por superficie | Hecho |
+| `barra-vertical` · `barra-puestos` | [barra-vertical.md](encargos/barra-vertical.md) · [barra-puestos.md](encargos/barra-puestos.md) | La barra de estación en tablet vertical y el paso a otro puesto (N-06) | Hecho |
+| `panel-avisa` | [panel-avisa.md](encargos/panel-avisa.md) | El panel avisa de lo que pasa en el local (F9-08) | Hecho |
+| `acceso-desde-directorio` | [acceso-desde-directorio.md](encargos/acceso-desde-directorio.md) | Entrar eligiendo a la persona (N-03) | Hecho |
+| `caja-compacta` · `turno-arqueo` · `parque-tablet` · `estaciones-apaisado` | [caja-compacta.md](encargos/caja-compacta.md) · [turno-arqueo.md](encargos/turno-arqueo.md) · [parque-tablet.md](encargos/parque-tablet.md) · [estaciones-apaisado.md](encargos/estaciones-apaisado.md) | Las olas 1 y 2 del plan del frontend: todas las estaciones en 12 tamaños | Hecho |
+| `solo-caja-cobra` | [solo-caja-cobra.md](encargos/solo-caja-cobra.md) | DEC-25 en las pantallas | Hecho |
+| `sucursal-ajustes` · `dispositivos` | [sucursal-ajustes.md](encargos/sucursal-ajustes.md) · [dispositivos.md](encargos/dispositivos.md) | Ola 4, tanda A: ajustes del local y equipos autorizados | Hecho |
+| `entrada-rapida` · `sala-nombra-y-vincula` | [entrada-rapida.md](encargos/entrada-rapida.md) · [sala-nombra-y-vincula.md](encargos/sala-nombra-y-vincula.md) | La entrada en dos toques y la sala que nombra y vincula (DEC-27 a DEC-29) | Hecho |
+| `representantes` | [representantes.md](encargos/representantes.md) | El directorio de familias (F5-01) | **Escrito, sin lanzar** |
 
 ## Actualizar o quitar
 

@@ -1,4 +1,4 @@
-Arregla las tres pantallas del parque para tablets: entrada y salida (la lista desplaza sola y la acción principal queda siempre a la vista), una disposición vertical propia para la entrada, y el monitor a 768 px. Hallazgos F-06, F-07, F-13 y F-14 de docs/AUDITORIA-FRONTEND.md.
+Arregla las tres pantallas del parque para tablets: entrada y salida (la lista desplaza sola y la acción principal queda siempre a la vista), una disposición vertical propia para la entrada, y el monitor a 768 px. Hallazgos F-06, F-07, F-13 y F-14 de docs/cerrados/AUDITORIA-FRONTEND.md.
 
 EL PROBLEMA, MEDIDO (con tres niños cargados):
 - Entrada: a 1024×600 desplaza TODA la zona (+245) y a 1366×768 también (+77). Al desplazar se van de la vista el lector y, en pantalla baja, «Registrar y cobrar». Vacía, a 1024×600 el aviso de espera no cabe (+39).

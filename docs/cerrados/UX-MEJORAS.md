@@ -1,15 +1,15 @@
 # Mejoras de experiencia: auditoría y mini plan
 
 > **Cerrado el 2026-09-17.** Todo lo de aquí está hecho (V1 a V5, la auditoría de caja) o trasladado:
-> las decisiones abiertas y lo que queda, a [PENDIENTES.md](PENDIENTES.md); el trabajo de interfaz que
-> falta, al [plan final del frontend](PLAN-FRONTEND.md). Se conserva porque el código cita sus
+> las decisiones abiertas y lo que queda, a [PENDIENTES.md](../PENDIENTES.md); el trabajo de interfaz que
+> falta, al [plan final del frontend](../PLAN-FRONTEND.md). Se conserva porque el código cita sus
 > secciones («UX-MEJORAS §4.2») para explicar por qué las cosas son como son. No se añade nada nuevo.
 
 > **Qué es.** Una auditoría de las pantallas tal como están el 2026-09-12 (capturas a 1366×768) y un
 > plan corto de mejoras visuales y de uso. Nada de esto está construido todavía: **es una propuesta
 > para aprobar**. Lo que toca el alcance o una decisión del cliente se marca como decisión (§8).
 >
-> Las maquetas están en `docs/diseno/`: son dibujos de la propuesta, no pantallas construidas.
+> Las maquetas están en `docs/cerrados/diseno/`: son dibujos de la propuesta, no pantallas construidas.
 >
 > Lo que ya manda sigue mandando: tokens de `packages/config/tokens.css`, estados reservados con color +
 > icono + texto (§8.2), objetivos táctiles por superficie (§8.4) y fail-closed.
