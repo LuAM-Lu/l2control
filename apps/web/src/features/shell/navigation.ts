@@ -193,12 +193,11 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "tasas",
         nombre: "Tasas de cambio",
-        href: null,
+        href: rutaSeccion("caja", "tasas"),
         accion: "tasa.confirmar",
         proposito:
           "Capturar la tasa del BCV, confirmarla y dejarla congelada en cada transacción. Sin tasa vigente no se cobra en bolívares.",
         tarea: "F3-04",
-        necesita: "La fuente de la tasa y quién la confirma cada mañana.",
       },
     ],
   },

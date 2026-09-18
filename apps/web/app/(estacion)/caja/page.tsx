@@ -38,7 +38,6 @@ export default async function CajaPage({
       tenders={DEMO_TENDERS}
       terminales={DEMO_TERMINALES}
       igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}
-      rate={{ from: "VES", to: "USD", numerator: 22841n, denominator: 100n }}
       // TODO(F2-12/backend): el punto sale del registro del dispositivo. El
       // equipo de caja es el del mostrador.
       puntoDeCobro="MOSTRADOR"

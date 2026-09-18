@@ -16,13 +16,28 @@ import {
 } from "lucide-react";
 import { Initial, Sheet, cn } from "@l2/ui";
 import { useEffect, useState } from "react";
-import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
+import {
+  PUESTO_DE_ROL,
+  cerrarSesion,
+  useOperador,
+} from "../identity/operador.ts";
 import { useAjustes } from "../identity/accesos.ts";
-import { actorDe, puedeAbrirRuta, puedeVerInicio } from "../identity/visibilidad.ts";
-import { pedirPantallaCompleta, salirDePantallaCompleta } from "./pantallaCompleta.ts";
+import {
+  actorDe,
+  puedeAbrirRuta,
+  puedeVerInicio,
+} from "../identity/visibilidad.ts";
+import {
+  pedirPantallaCompleta,
+  salirDePantallaCompleta,
+} from "./pantallaCompleta.ts";
 import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { useTasaVigente } from "../cash/TasasProvider.tsx";
+import { formatTasaVE } from "../cash/tasa-format.ts";
+import { formatClock } from "../park/time-format.ts";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Barra permanente de las estaciones — §8.5 y §9.10.2.
@@ -52,7 +67,15 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
  *    otros puestos a los que el rol tiene acceso (N-06).
  */
 
-type Ruta = "/monitor" | "/entrada" | "/salida" | "/caja" | "/ventas" | "/turno" | "/mesas" | "/cocina";
+type Ruta =
+  | "/monitor"
+  | "/entrada"
+  | "/salida"
+  | "/caja"
+  | "/ventas"
+  | "/turno"
+  | "/mesas"
+  | "/cocina";
 
 type Puesto = {
   id: string;
@@ -91,8 +114,6 @@ const PUESTOS: Puesto[] = [
 
 export type ContextoEstacion = {
   turnoAbierto: string | null;
-  tasa: string | null;
-  tasaHora: string | null;
   /** Nivel de degradación de ADR-003. */
   conexion: "N0" | "N1" | "N2" | "N3";
 };
@@ -109,8 +130,14 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   // otra persona: lo que se hace aquí quedaría a su nombre.
   const operador = useOperador();
   // Desde «Turno», cuántas cuentas esperan en «Cobrar»: que no se olviden.
-  const porCobrar = useCuentas().cuentas.filter((c) => c.status === "POR_COBRAR").length;
+  const porCobrar = useCuentas().cuentas.filter(
+    (c) => c.status === "POR_COBRAR",
+  ).length;
   const sim = useSimulacion();
+  const { tasa: tasaVigente } = useTasaVigente("USD/VES");
+  // El formato de hora es el que fijó la sucursal (F5-08b): 12 h o 24 h en
+  // TODAS las superficies, también en esta píldora.
+  const { ajustes: sucursal } = useSucursal();
 
   const [esPantallaCompleta, setEsPantallaCompleta] = useState(false);
   const [otrosAbierto, setOtrosAbierto] = useState(false);
@@ -125,7 +152,11 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
   /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
   function salir() {
-    if (operador) sim.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
+    if (operador)
+      sim.emitir({
+        type: "sesion.cerrada",
+        device: PUESTO_DE_ROL[operador.role],
+      });
     cerrarSesion();
   }
 
@@ -140,21 +171,31 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   // V2: solo las pestañas que el rol puede abrir, y «Panel» solo para quien
   // ve informes. Sin sesión no hay a dónde ir más que al acceso.
   const actor = operador ? actorDe(operador, ajustes) : null;
-  const encontrado = PUESTOS.find((p) => p.superficies.some((s) => s.href === pathname));
-  const pestanas = actor && encontrado ? encontrado.superficies.filter((s) => puedeAbrirRuta(actor, s.href)) : [];
-  const puesto = encontrado && pestanas.length > 0 ? { ...encontrado, superficies: pestanas } : null;
+  const encontrado = PUESTOS.find((p) =>
+    p.superficies.some((s) => s.href === pathname),
+  );
+  const pestanas =
+    actor && encontrado
+      ? encontrado.superficies.filter((s) => puedeAbrirRuta(actor, s.href))
+      : [];
+  const puesto =
+    encontrado && pestanas.length > 0
+      ? { ...encontrado, superficies: pestanas }
+      : null;
 
   const otros = actor
     ? PUESTOS.filter((p) => p.id !== (encontrado ? encontrado.id : ""))
         .map((p) => ({
           ...p,
-          superficies: p.superficies.filter((s) => puedeAbrirRuta(actor, s.href)),
+          superficies: p.superficies.filter((s) =>
+            puedeAbrirRuta(actor, s.href),
+          ),
         }))
         .filter((p) => p.superficies.length > 0)
     : [];
 
   const verPanel = actor !== null && puedeVerInicio(actor);
-  const sinTasa = contexto.tasa === null;
+  const sinTasa = tasaVigente === null;
   const sinTurno = contexto.turnoAbierto === null;
   const offline = contexto.conexion !== "N0";
   const alerta = sinTasa || sinTurno || offline;
@@ -163,7 +204,9 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
     <header
       className={cn(
         "sticky top-0 z-30 border-b backdrop-blur-md pt-[var(--seguro-arriba)]",
-        alerta ? "border-state-warn/25 bg-state-warn-bg/25" : "border-line bg-base/85",
+        alerta
+          ? "border-state-warn/25 bg-state-warn-bg/25"
+          : "border-line bg-base/85",
       )}
       style={{ boxShadow: "var(--shadow-bar)" }}
     >
@@ -173,62 +216,65 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
       <div className="flex flex-wrap items-center gap-2 py-2 pl-[max(0.5rem,var(--seguro-izquierda))] pr-[max(0.5rem,var(--seguro-derecha))] apaisado:h-16 apaisado:flex-nowrap apaisado:gap-3 apaisado:py-0 apaisado:pl-[max(1rem,var(--seguro-izquierda))] apaisado:pr-[max(1rem,var(--seguro-derecha))]">
         {/* Volver: un solo destino, el panel. */}
         {verPanel && (
-        <Link
-          href="/panel"
-          title="Volver al panel"
-          className={cn(
-            PILDORA,
-            "h-12 shrink-0 px-3 text-ink-3 no-underline",
-            "group hover:bg-surface-2 hover:text-ink",
-          )}
-        >
-          <ChevronLeft
-            size={17}
-            aria-hidden="true"
-            className="transition-transform duration-[var(--dur-rapida)] group-hover:-translate-x-0.5"
-          />
-          <LayoutDashboard size={15} aria-hidden="true" />
-          <span className="hidden text-[13px] md:inline">Panel</span>
-        </Link>
+          <Link
+            href="/panel"
+            title="Volver al panel"
+            className={cn(
+              PILDORA,
+              "h-12 shrink-0 px-3 text-ink-3 no-underline",
+              "group hover:bg-surface-2 hover:text-ink",
+            )}
+          >
+            <ChevronLeft
+              size={17}
+              aria-hidden="true"
+              className="transition-transform duration-[var(--dur-rapida)] group-hover:-translate-x-0.5"
+            />
+            <LayoutDashboard size={15} aria-hidden="true" />
+            <span className="hidden text-[13px] md:inline">Panel</span>
+          </Link>
         )}
 
         {/* Conmutador del puesto: pestañas, no navegación hacia atrás.
             Se desplaza en horizontal antes que comprimirse. */}
         {(puesto || otros.length > 0) && (
           <nav
-            aria-label={puesto ? `Superficies de ${puesto.nombre}` : "Otros puestos"}
+            aria-label={
+              puesto ? `Superficies de ${puesto.nombre}` : "Otros puestos"
+            }
             className="order-last w-full min-w-0 apaisado:order-none apaisado:w-auto"
           >
             <ul className="flex items-center gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1">
-              {puesto && puesto.superficies.map((s) => {
-                const activa = s.href === pathname;
-                return (
-                  <li key={s.href} className="flex-1 apaisado:flex-none">
-                    <Link
-                      href={s.href}
-                      aria-current={activa ? "page" : undefined}
-                      title={s.largo}
-                      className={cn(
-                        "flex h-12 flex-1 items-center justify-center rounded-[0.4rem] px-4 text-sm",
-                        "whitespace-nowrap no-underline apaisado:flex-none apaisado:justify-start",
-                        "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                        activa
-                          ? "bg-brand text-on-brand font-semibold shadow-sm"
-                          : "text-ink-2 hover:bg-surface-2 hover:text-ink",
-                      )}
-                    >
-                      {s.corto}
-                      {s.href === "/caja" && !activa && porCobrar > 0 && (
-                        <span className="tnum ml-2 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
-                          {porCobrar}
-                          <span className="sr-only"> por cobrar</span>
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
+              {puesto &&
+                puesto.superficies.map((s) => {
+                  const activa = s.href === pathname;
+                  return (
+                    <li key={s.href} className="flex-1 apaisado:flex-none">
+                      <Link
+                        href={s.href}
+                        aria-current={activa ? "page" : undefined}
+                        title={s.largo}
+                        className={cn(
+                          "flex h-12 flex-1 items-center justify-center rounded-[0.4rem] px-4 text-sm",
+                          "whitespace-nowrap no-underline apaisado:flex-none apaisado:justify-start",
+                          "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                          activa
+                            ? "bg-brand text-on-brand font-semibold shadow-sm"
+                            : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                        )}
+                      >
+                        {s.corto}
+                        {s.href === "/caja" && !activa && porCobrar > 0 && (
+                          <span className="tnum ml-2 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
+                            {porCobrar}
+                            <span className="sr-only"> por cobrar</span>
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
               {otros.length > 0 && (
                 <li className="flex-none">
                   <button
@@ -251,7 +297,11 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
         {/* ── contexto: píldoras de la misma altura ─────────────────────── */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           {sinTurno ? (
-            <Pildora tono="crit" icono={<TriangleAlert size={14} />} texto="Turno sin abrir" />
+            <Pildora
+              tono="crit"
+              icono={<TriangleAlert size={14} />}
+              texto="Turno sin abrir"
+            />
           ) : (
             <Pildora
               tono="tenue"
@@ -264,24 +314,35 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
           {/* ADR-005: con qué tasa se está cobrando, siempre visible. */}
           {sinTasa ? (
-            <Pildora tono="crit" icono={<TriangleAlert size={14} />} texto="Sin tasa" />
+            <Pildora
+              tono="crit"
+              icono={<TriangleAlert size={14} />}
+              texto="Sin tasa"
+            />
           ) : (
             <Pildora
               tono="tenue"
               icono={<TrendingUp size={14} />}
-              texto={`Bs. ${contexto.tasa}`}
+              texto={`Bs. ${formatTasaVE(tasaVigente.value)}`}
               ocultarTextoHasta="sm"
-              titulo={`Tasa BCV Bs. ${contexto.tasa}, capturada a las ${contexto.tasaHora}`}
+              titulo={`Tasa ${tasaVigente.source} Bs. ${formatTasaVE(tasaVigente.value)}, capturada a las ${formatClock(Date.parse(tasaVigente.capturedAt), sucursal.formatoHora)}`}
             />
           )}
 
           {offline && (
-            <Pildora tono="warn" icono={<WifiOff size={14} />} texto="Sin internet" />
+            <Pildora
+              tono="warn"
+              icono={<WifiOff size={14} />}
+              texto="Sin internet"
+            />
           )}
 
           <ChipSimulacion className="h-12" />
 
-          <span className="mx-0.5 hidden h-6 w-px bg-line apaisado:block" aria-hidden="true" />
+          <span
+            className="mx-0.5 hidden h-6 w-px bg-line apaisado:block"
+            aria-hidden="true"
+          />
 
           <button
             type="button"
@@ -289,8 +350,16 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
               if (esPantallaCompleta) salirDePantallaCompleta();
               else pedirPantallaCompleta();
             }}
-            aria-label={esPantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa"}
-            title={esPantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa"}
+            aria-label={
+              esPantallaCompleta
+                ? "Salir de pantalla completa"
+                : "Pantalla completa"
+            }
+            title={
+              esPantallaCompleta
+                ? "Salir de pantalla completa"
+                : "Pantalla completa"
+            }
             className="l2-solo-instalada grid size-12 shrink-0 place-content-center rounded-[0.45rem] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             {esPantallaCompleta ? (
@@ -307,15 +376,26 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
               className="size-8 rounded-[0.45rem] text-[11.5px]"
             />
             <span className="hidden leading-tight xl:block">
-              <span className={cn("block text-[12.5px] font-medium", operador ? "text-ink" : "text-state-warn")}>
+              <span
+                className={cn(
+                  "block text-[12.5px] font-medium",
+                  operador ? "text-ink" : "text-state-warn",
+                )}
+              >
                 {operador?.nombre ?? "Sin identificar"}
               </span>
-              <span className="block text-[11px] text-ink-3">{operador?.rol ?? "Entra por el acceso"}</span>
+              <span className="block text-[11px] text-ink-3">
+                {operador?.rol ?? "Entra por el acceso"}
+              </span>
             </span>
             <Link
               href="/acceso"
               onClick={salir}
-              aria-label={operador ? `Cambiar de usuario (sesión de ${operador.nombre})` : "Entrar por el acceso"}
+              aria-label={
+                operador
+                  ? `Cambiar de usuario (sesión de ${operador.nombre})`
+                  : "Entrar por el acceso"
+              }
               title="Cambiar de usuario"
               className="grid size-12 place-content-center rounded-[0.45rem] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
@@ -345,7 +425,9 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
                     className="flex min-h-12 items-center rounded-[var(--radius-control)] border border-line bg-base/40 px-3 text-[13px] font-medium no-underline transition-colors hover:border-brand/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                   >
                     <span className="text-ink">{s.largo}</span>
-                    <span className="ml-auto text-[13px] font-normal text-ink-3">{s.corto}</span>
+                    <span className="ml-auto text-[13px] font-normal text-ink-3">
+                      {s.corto}
+                    </span>
                     {s.href === "/caja" && porCobrar > 0 && (
                       <span className="tnum ml-2 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
                         {porCobrar}
@@ -395,7 +477,11 @@ function Pildora({
   return (
     <span
       title={titulo ?? texto}
-      className={cn(PILDORA, "shrink-0 text-[13px] whitespace-nowrap", TONO[tono])}
+      className={cn(
+        PILDORA,
+        "shrink-0 text-[13px] whitespace-nowrap",
+        TONO[tono],
+      )}
     >
       <span aria-hidden="true" className="shrink-0">
         {icono}
@@ -408,7 +494,9 @@ function Pildora({
         )}
       >
         {texto}
-        {sufijo && <span className="ml-1 text-[11px] opacity-70">{sufijo}</span>}
+        {sufijo && (
+          <span className="ml-1 text-[11px] opacity-70">{sufijo}</span>
+        )}
       </span>
     </span>
   );

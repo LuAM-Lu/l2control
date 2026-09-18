@@ -33,8 +33,6 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
       <StationBar
         contexto={{
           turnoAbierto: "2:00 pm",
-          tasa: "228,41",
-          tasaHora: "8:00 am",
           conexion: "N0",
         }}
       />
