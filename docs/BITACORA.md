@@ -1310,3 +1310,24 @@ intacto, y el renombrado válido a continuación.
 
 Además: los días de la semana salían sin tilde («Miercoles»), la hora de sesión se pintaba «06:00 a. m.»
 en vez de con el formato del proyecto, y «Ver historia» medía 18 px en una superficie de 32.
+
+## La entrada se rediseña: la pulsera es el nombre — 2026-09-18 (DEC-27, DEC-28, DEC-29)
+
+Antes de construir el directorio de familias, el cliente pidió estudiar el flujo del parque. Cinco
+preguntas sobre cómo se comporta la gente en el local dieron tres datos que cambian el diseño: se puede
+entrar **con la pulsera y el representante**, y el nombre del niño ponerse después; los adultos **dejan a
+los niños y se sientan**, así que vincular la pulsera a la mesa debería poder hacerlo quien está en la
+puerta; y **las tablets no tienen teclado**, con cola en las horas buenas.
+
+Eso convierte lo que parecía una pantalla más —«Representantes y niños»— en un rediseño de la entrada.
+Teclear dos nombres de niño en una tablet era lo que más tardaba de un registro que el plan quiere en
+menos de 90 segundos, y ninguna regla de tiempo ni de dinero depende de ese nombre: **la estancia se
+identifica por la pulsera, que el niño lleva puesta**. Se cerraron tres decisiones: el contacto del
+representante es obligatorio (DEC-27), el nombre del niño es opcional de principio a fin (DEC-28), y
+vincular a una mesa lo pueden hacer la puerta y el mesero (DEC-29).
+
+En el contrato, `KidSchema.name` pasa a opcional y aparece `NombrarEstanciaCommandSchema`, que no pide
+motivo: poner un nombre es completar un dato, no una decisión que justificar. En el dominio,
+`ParkSession.childName` es opcional. Y en la interfaz hay ahora un solo sitio que decide cómo se llama
+una estancia en pantalla —apodo, nombre o pulsera—, para que las cinco pantallas que la muestran digan lo
+mismo. Cuatro pruebas nuevas (contracts: 127).

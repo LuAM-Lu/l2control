@@ -111,7 +111,12 @@ export type SessionStatus = "ACTIVA" | "POR_VENCER" | "EN_GRACIA" | "VENCIDA";
 
 export type ParkSession = Readonly<{
   id: string;
-  childName: string;
+  /**
+   * Cómo se llama el niño, si alguien lo escribió. **Puede faltar** (DEC-28):
+   * lo que identifica la estancia es `wristbandCode`, que el niño lleva
+   * puesto. Ninguna regla de tiempo ni de dinero depende del nombre.
+   */
+  childName?: string;
   childNickname?: string;
   wristbandCode: string;
   mode: SessionMode;

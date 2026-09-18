@@ -106,7 +106,7 @@ demuestra inyectando una violación real.
 |---|---|
 | **[CONTRIBUTING.md](CONTRIBUTING.md)** | Cómo trabajar en el repositorio: ramas, commits, verificación, documentación |
 | **[CLAUDE.md](CLAUDE.md)** | Reglas para quien programe aquí, humano o agente |
-| **[docs/PLAN.md](docs/PLAN.md)** | La especificación: 17 ADRs, 26 decisiones del cliente, 160 tareas con criterio de aceptación |
+| **[docs/PLAN.md](docs/PLAN.md)** | La especificación: 17 ADRs, 29 decisiones del cliente, 160 tareas con criterio de aceptación |
 | **[docs/PROGRESO.md](docs/PROGRESO.md)** | Qué está hecho de verdad, tarea por tarea |
 | **[docs/PENDIENTES.md](docs/PENDIENTES.md)** | Qué falta y quién lo desbloquea |
 | **[docs/PLAN-FRONTEND.md](docs/PLAN-FRONTEND.md)** | El plan final del frontend |

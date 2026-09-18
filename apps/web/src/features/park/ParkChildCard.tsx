@@ -12,7 +12,7 @@ import {
   cn,
 } from "@l2/ui";
 import { formatDuration, type SessionStatus } from "@l2/domain-park";
-import type { SessionCardModel } from "./view-model";
+import { nombreVisible, type SessionCardModel } from "./view-model";
 import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
 
 /**
@@ -89,7 +89,7 @@ export function ParkChildCard({
         />
         <span className="min-w-0 flex-1">
           <span className="font-display block truncate text-[15px] leading-tight font-bold text-ink">
-            {model.childNickname ?? model.childName}
+            {nombreVisible(model)}
           </span>
           <span
             className={cn(
@@ -128,9 +128,9 @@ export function ParkChildCard({
       statusLabel={status.label}
       statusIcon={<Icon size={12} aria-hidden="true" />}
       urgent={status.urgent}
-      leading={<Initial name={model.childNickname ?? model.childName} tone={status.tone} />}
-      title={model.childNickname ?? model.childName}
-      subtitle={model.childNickname ? model.childName : model.wristbandCode}
+      leading={<Initial name={nombreVisible(model)} tone={status.tone} />}
+      title={nombreVisible(model)}
+      subtitle={model.childNickname && model.childName ? model.childName : model.wristbandCode}
       // `exactOptionalPropertyTypes` distingue «ausente» de «explícitamente
       // undefined»: una tarjeta está seleccionada o no lo está, no hay un
       // tercer estado.

@@ -49,10 +49,18 @@ export const GuardianSchema = z.object({
 });
 export type GuardianDto = z.infer<typeof GuardianSchema>;
 
-/** Niño. Igual que arriba: solo lo que DEC-9 autorizó. */
+/**
+ * Niño. Igual que arriba: solo lo que DEC-9 autorizó.
+ *
+ * **El nombre es opcional** (DEC-28). En la puerta, con cola delante, teclear
+ * dos nombres en una tablet sin teclado es lo que más tarda; lo que identifica
+ * la estancia es la pulsera, que el niño lleva puesta. El nombre se pone
+ * después —desde la sala o desde el directorio— o no se pone nunca: la
+ * estancia se cobra igual, y el recibo nombra la pulsera.
+ */
 export const KidSchema = z.object({
   id: IdSchema.optional(),
-  name: z.string().trim().min(2, "Nombre demasiado corto").max(60),
+  name: z.string().trim().min(2, "Nombre demasiado corto").max(60).optional(),
   nickname: z.string().trim().max(30).optional(),
   /** Solo se pide si alguna tarifa depende de la edad. */
   ageYears: z.number().int().min(0).max(17).optional(),
@@ -245,7 +253,11 @@ export type MonitorSnapshotDto = z.infer<typeof MonitorSnapshotSchema>;
  * El representante puede ser uno ya conocido (`guardianId`) o nuevo
  * (`guardian`), y **exactamente uno de los dos**: el `refine` lo impone, para
  * que no exista un estado a medias donde no se sabe a quién llamar si pasa
- * algo con el niño.
+ * algo con el niño. Su **contacto es obligatorio** (DEC-27) y por eso vive en
+ * `GuardianSchema`: es la llave que reconoce a la familia en la visita
+ * siguiente y el teléfono al que se llama si pasa algo.
+ *
+ * El nombre del niño, en cambio, puede faltar (DEC-28).
  */
 export const CheckInCommandSchema = z
   .object({
@@ -346,3 +358,16 @@ export const RepresentanteCommandSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type RepresentanteCommand = z.infer<typeof RepresentanteCommandSchema>;
+
+/**
+ * Poner nombre a una estancia que entró solo con su pulsera (DEC-28).
+ *
+ * Es una corrección de datos, no una operación de dinero: no pide motivo. Lo
+ * hace quien está en la puerta, con los niños ya jugando y sin cola delante.
+ */
+export const NombrarEstanciaCommandSchema = z.strictObject({
+  sessionId: IdSchema,
+  name: z.string().trim().min(2, "Nombre demasiado corto").max(60),
+  nickname: z.string().trim().max(30).optional(),
+});
+export type NombrarEstanciaCommand = z.infer<typeof NombrarEstanciaCommandSchema>;

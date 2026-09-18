@@ -2,7 +2,7 @@
 
 | Documento | Para qué sirve | Cuándo abrirlo |
 |---|---|---|
-| **[PLAN.md](PLAN.md)** | La especificación: 17 ADRs, 26 decisiones del cliente y las tareas con su criterio de aceptación | Antes de construir cualquier cosa: busca su tarea `Fn-nn` en §12 |
+| **[PLAN.md](PLAN.md)** | La especificación: 17 ADRs, 29 decisiones del cliente y las tareas con su criterio de aceptación | Antes de construir cualquier cosa: busca su tarea `Fn-nn` en §12 |
 | **[PROGRESO.md](PROGRESO.md)** | El estado real, tarea por tarea, con evidencia | Para saber qué está hecho de verdad |
 | **[PENDIENTES.md](PENDIENTES.md)** | Todo lo que falta, agrupado por quién lo desbloquea: cliente, contador, campo, producto, backend | Antes de planificar o de prometer una fecha |
 | **[PLAN-FRONTEND.md](PLAN-FRONTEND.md)** | **El plan final del frontend**: criterios de terminado, las olas que quedan y las secciones pendientes | Antes de tocar cualquier pantalla |

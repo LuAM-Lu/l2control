@@ -67,12 +67,12 @@ sequenceDiagram
 
 | # | Quién · pantalla | Qué ocurre | Evento | Qué cambia en vivo |
 |---|---|---|---|---|
-| A1 | Monitora · Entrada | Escanea dos pulseras, escribe los nombres, busca al representante por teléfono | — | — |
+| A1 | Monitora · Entrada | Escanea dos pulseras, elige el paquete de cada niño y busca al representante por teléfono. **Los nombres no se teclean en la puerta** (DEC-28): se ponen después desde la sala | — | — |
 | A2 | Monitora · Entrada | Elige **cómo paga** (DEC-21) y registra | `estancia.abierta` ×2 | Sala: dos tarjetas nuevas. Panel: aforo +2 |
 | A3a | Monitora → Caja | *Prepago*: la cuenta pasa a la cola de caja; se cobra el paquete | `cuenta.por_cobrar`, `cuenta.cobrada` | Caja: la cuenta entra y sale de la cola |
 | A3b | Monitora · Entrada | *Cuenta abierta*: se abre la cuenta sin cobrar | `cuenta.abierta` | Panel: cuentas abiertas +1 |
 | A4 | Mesero · Mesas | Abre la **mesa 3** | `mesa.abierta` | Panel y caja: mesa 3 ocupada |
-| A5 | Mesero · Mesa 3 | **Vincula** las pulseras de los niños a la mesa (R3, F6-05) | `mesa.vinculada` | Caja: el parque de esos niños se cobrará en la mesa 3 |
+| A5 | Puerta o mesero | **Vincula** las pulseras de los niños a la mesa (R3, F6-05). Desde la sala o desde la pantalla de mesas: en el local los adultos se sientan mientras dejan a los niños (DEC-29) | `mesa.vinculada` | Caja: el parque de esos niños se cobrará en la mesa 3 |
 | A6 | Mesero · Pedido | Toma el pedido en borrador y lo **confirma** | `pedido.enviado` | Cocina: comanda nueva. Impresora: ticket |
 | A7 | Cocina · KDS | Acepta y prepara | `pedido.aceptado` | Mesero: «en preparación» |
 | A8 | Cocina · KDS | Termina | `pedido.listo` | Mesero: aviso en su tablet |

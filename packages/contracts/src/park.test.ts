@@ -15,6 +15,8 @@ import {
   GuardianSchema,
   DirectorioRepresentantesSchema,
   RepresentanteCommandSchema,
+  NombrarEstanciaCommandSchema,
+  ParkSessionSchema,
   KidSchema,
   MoneySchema,
   ParkPolicySchema,
@@ -333,5 +335,42 @@ describe("corregir el directorio", () => {
       }).success,
       false,
     );
+  });
+});
+
+describe("una estancia puede entrar sin nombre (DEC-28)", () => {
+  const base = {
+    id: "s1",
+    wristbandCode: "AK-0301",
+    mode: "PREPAGO",
+    duration: { kind: "fixed", minutes: 60 },
+    startedAt: "2026-09-18T14:00:00.000Z",
+    packageId: "pkg-60",
+    packagePrice: { minor: "500", currency: "USD" },
+  };
+
+  test("la pulsera basta: el niño puede no tener nombre", () => {
+    const r = ParkSessionSchema.safeParse({ ...base, kid: {} });
+    assert.ok(r.success);
+    assert.equal(r.data?.kid.name, undefined);
+  });
+
+  test("si se escribe, sigue teniendo que ser un nombre y no una letra", () => {
+    assert.equal(ParkSessionSchema.safeParse({ ...base, kid: { name: "S" } }).success, false);
+    assert.ok(ParkSessionSchema.safeParse({ ...base, kid: { name: "Santiago" } }).success);
+  });
+
+  test("ponerle nombre después no pide motivo, pero sí un nombre de verdad", () => {
+    assert.ok(NombrarEstanciaCommandSchema.safeParse({ sessionId: "s1", name: "Santiago", nickname: "Santi" }).success);
+    assert.equal(NombrarEstanciaCommandSchema.safeParse({ sessionId: "s1", name: "S" }).success, false);
+    assert.equal(
+      NombrarEstanciaCommandSchema.safeParse({ sessionId: "s1", name: "Santiago", motivo: "porque sí" }).success,
+      false,
+    );
+  });
+
+  test("el representante sigue siendo obligatorio con su contacto (DEC-27)", () => {
+    const sinContacto = GuardianSchema.safeParse({ fullName: "Pedro Bermúdez" });
+    assert.equal(sinContacto.success, false);
   });
 });

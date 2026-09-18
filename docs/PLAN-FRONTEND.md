@@ -18,6 +18,8 @@ Hecho y medido:
   cualquiera de ellos. Objetivos táctiles de cada superficie cumplidos.
 - **Tarifas y paquetes**, con su editor; **otros puestos** desde la barra (N-06); **solo la caja cobra**
   (DEC-25) y **turnos genéricos** (DEC-26).
+- **La estancia se identifica por su pulsera** (DEC-28): contrato, dominio y las cinco pantallas que la
+  nombran funcionan sin nombre de niño. Falta la entrada rediseñada, que es la tarea 4.5.
 
 El panel tiene 25 secciones:
 
@@ -75,7 +77,7 @@ queda con su `TODO` y su tarea.
 | 4.2 | Caja → **Medios de pago** *(sección nueva)* | F4-02, F4-04 | Activar y desactivar medios, terminales de punto de venta, y los datos que la caja enseña al cliente: banco, teléfono y RIF del Pago Móvil, correo de Zelle | Persistencia |
 | 4.3 | Caja → **Apertura de turno** *(en /turno)* | F4-01 | Sin turno abierto, declarar el fondo inicial por moneda; sin turno no se cobra | Un turno por dispositivo (I-06) |
 | 4.4 | Caja → **Cortesía con motivo** *(en /caja)* | F6-14 | Marcar líneas como cortesía con motivo de lista cerrada y autorización (`cuenta.cortesia` 🔐); aparecen en las excepciones del turno | Auditoría |
-| 4.5 | Personas → **Representantes y niños** | F5-01 | Directorio mínimo de DEC-9: buscar por teléfono o nombre, ver niños y visitas, corregir nombre y apodo. El contacto se enmascara a quien no tiene `parque.verContacto` | Modelo `Guardian`/`Kid` |
+| 4.5 | **Entrada en dos toques** y el directorio que la acelera | F5-02, F5-01 | Rediseño con DEC-27, DEC-28 y DEC-29: pasar pulseras, paquete por niño y teléfono del representante —sin teclear nombres—; la familia conocida trae sus niños de la última visita; poner nombre después y vincular a una mesa, desde la sala; y el directorio de familias (buscar, ver niños y visitas, corregir) | Modelo `Guardian`/`Kid`, visitas calculadas con las estancias |
 | 4.6 ✅ | Personas → **Dispositivos** ([dispositivos](encargos/dispositivos.md)) | F2-02 | Equipos con su estado (aprobado, pendiente, revocado), aprobar y revocar con motivo, y quién tiene sesión en cada uno (lo que ya sabe el panel en vivo) | Registro real; revocar cierra sesiones |
 | 4.7 ✅ | Configuración → **Sucursal** ([sucursal-ajustes](encargos/sucursal-ajustes.md)) | F5-08b, F4-04c, F6-13 | Nombre, RIF y dirección; horario; formato de hora 12 h o 24 h, que cambia **todas** las superficies; umbral de residuo retenido de la caja; servicio y propina (D8, DEC-6). El aforo ya vive en Tarifas | Persistencia |
 | 4.8 | Configuración → **Impuestos** | F3-06, F3-07 | Alícuotas de IVA con su vigencia e IGTF; programar un cambio con fecha, nunca reescribir el pasado. La caja calcula con lo publicado. Los valores los confirma el contador (DEC-1) | Persistencia |
@@ -127,7 +129,9 @@ encarga los arreglos. Ya anotado para esta ola:
 
 Decididas el 2026-09-16 y 17: la barra de estación se queda en 48 px (F-08); disposición vertical propia
 solo en caja y entrada (F-07); solo la caja cobra (DEC-25); turnos genéricos (DEC-26); dos obreras en
-paralelo cuando el cliente lo aprueba en cada caso.
+paralelo cuando el cliente lo aprueba en cada caso. El 2026-09-18, estudiando cómo se comporta la gente en
+el local: contacto del representante obligatorio (DEC-27), nombre del niño opcional (DEC-28) y vinculación
+a mesa desde la puerta además del mesero (DEC-29).
 
 ## 5. Cómo se trabaja
 

@@ -17,12 +17,15 @@
 | D12 | ¿El back-office puede desplazar? | Sí, con lo urgente arriba; las estaciones no desplazan (así está hecho) | [UX-MEJORAS](UX-MEJORAS.md) §8 |
 | D13 | Número de orden continuo o diario | Hoy continuo (`#1049`); diario da números cortos pero obliga a decir la fecha | UX-MEJORAS §8 |
 | F-12 | ¿El teléfono entra en el objetivo del frontend? | Revisarlo al cerrar el frontend | [AUDITORIA-FRONTEND](AUDITORIA-FRONTEND.md) |
-| F0-09 | Firma formal del alcance | Las 26 decisiones están cerradas; falta firmarlo | PLAN §14 |
+| F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas; falta firmarlo | PLAN §14 |
 
 Cerradas el 2026-09-14 a 17 y ya construidas: D2, D3, D8, D10, D11, **DEC-25 (solo la caja cobra)** y
 **DEC-26 (turnos genéricos)**. El 2026-09-17 el cliente aprobó además **construir la interfaz de
 inventario** (F8) dentro del cierre del frontend, aunque esté fuera de la Ruta A: es un cambio de alcance
-y a cambio el backend empieza más tarde. El detalle está en PLAN §14 y en la bitácora.
+y a cambio el backend empieza más tarde. El 2026-09-18, estudiando la entrada del parque con el cliente,
+se cerraron tres más: **DEC-27** (el contacto del representante es obligatorio), **DEC-28** (el nombre del
+niño es opcional: la pulsera identifica la estancia) y **DEC-29** (vincular a una mesa lo hacen la puerta
+y el mesero). El detalle está en PLAN §14 y en la bitácora.
 
 ## 2. Lo que confirma el contador (DEC-1)
 

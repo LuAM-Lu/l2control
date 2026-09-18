@@ -54,7 +54,7 @@
 | F0-06 Tenencia y offline | ✅ Hecha | DEC-3 multi-tenant, DEC-4 topología C |
 | F0-07 Monedas y redondeo | ✅ Hecha | DEC-2 USD funcional; DEC-5 resolvió el vuelto (§5.6) |
 | F0-08 Datos de menores | ✅ Hecha | DEC-9: nombre, apodo, edad opcional y una referencia |
-| F0-09 Firma del alcance | Parcial | Las 26 decisiones (DEC-1 a DEC-26) están cerradas; falta la firma formal |
+| F0-09 Firma del alcance | Parcial | Las 29 decisiones (DEC-1 a DEC-29) están cerradas; falta la firma formal |
 | F0-10 ADRs escritos | ✅ Hecha | `docs/adr/`, 17 archivos, uno por decisión |
 
 ## F1 · Cimientos técnicos

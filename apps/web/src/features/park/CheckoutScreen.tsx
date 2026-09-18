@@ -182,7 +182,8 @@ export function CheckoutScreen({
       const c = cuentas.find(
         (x) => x.sessionIds.includes(l.sessionId) && !x.closedSessionIds.includes(l.sessionId),
       );
-      const nombre = l.kid.nickname ?? l.kid.name;
+      // Sin nombre, la pulsera es el nombre: es lo que el niño lleva puesto.
+      const nombre = l.kid.nickname ?? l.kid.name ?? l.wristbandCode;
       if (!c) {
         sinCuenta.push(nombre);
         continue;
@@ -315,7 +316,7 @@ export function CheckoutScreen({
                     >
                     <div className="flex items-start gap-3">
                       <Initial
-                        name={l.kid.nickname ?? l.kid.name}
+                        name={l.kid.nickname ?? l.kid.name ?? l.wristbandCode}
                         tone={conExcedente ? "crit" : "ok"}
                       />
                       <div className="min-w-0 flex-1">

@@ -1808,6 +1808,8 @@ producto y el flujo más simple de validar en un turno.*
   admite** campos de identidad, foto ni dirección; la edad solo se pide si alguna tarifa depende de ella.
 - [~] **F5-02 · Registro rápido en entrada** por escaneo de pulsera pre-impresa.
   → *Criterio:* **R1 en menos de 90 segundos** con dos niños, medido con cronómetro sobre hardware real.
+  *Rediseñado el 2026-09-18 con DEC-27 y DEC-28: pasar las pulseras, elegir paquete y el teléfono del
+  representante. El nombre del niño ya no se teclea en la puerta; se pone después, desde la sala.*
 - [x] **F5-03 · Búsqueda de representante recurrente** por teléfono.
   → *Criterio:* un representante que ya vino no se vuelve a registrar; el acceso a su contacto se audita.
 - [x] **F5-03b · Aforo configurable con aviso al alcanzarlo** (30 niños según DEC-7).
@@ -2052,7 +2054,7 @@ cuando el trámite esté listo.*
 
 ## 14. DECISIONES DEL CLIENTE
 
-**Las veintiseis estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 y DEC-22 el 2026-09-11; DEC-23 y DEC-24 el 2026-09-13; DEC-25 y DEC-26 el 2026-09-17.
+**Las veintinueve estan cerradas.** Las doce primeras el 2026-09-08; las ocho de arquitectura de aplicacion el 2026-09-09; DEC-21 y DEC-22 el 2026-09-11; DEC-23 y DEC-24 el 2026-09-13; DEC-25 y DEC-26 el 2026-09-17; DEC-27 a DEC-29 el 2026-09-18.
 
 ### 14.1 Cerradas
 
@@ -2084,6 +2086,9 @@ cuando el trámite esté listo.*
 | **DEC-24** OK | Anular un cobro ya cerrado: quien autoriza y como se devuelve | **Autoriza un supervisor con su PIN o el administrador** (`cobro.anular`, 🔐 para cajero, supervisor y monitora). **Se devuelve por el mismo medio y en la misma moneda**, por lo que entro en ese pago y nunca mas; el punto de venta se anula en el terminal el mismo dia (con su numero de aprobacion) y despues va como reverso bancario; Pago Movil, Zelle y USDT salen con su referencia de devolucion. **Efectivo solo como alternativa con motivo**, si la caja lo tiene en esa moneda (fail-closed) y a la tasa congelada del cobro original. El IGTF se revierte con su pago; con factura fiscal, nota de credito (F3); tras el corte Z, solo nota de credito | Anular es el primer vector de fraude interno (T1): devolver en efectivo lo que entro por transferencia es sacar dinero de la caja. Por el mismo medio el dinero vuelve a quien pago y concilia solo. Nada se borra: la anulacion son asientos de reversion (regla 5). Con dos personas por turno, un supervisor puede autorizarse a si mismo con motivo y PIN en auditoria |
 | **DEC-25** OK | Quien cobra | **Solo la caja cobra**, lo del parque y lo del restaurante. La monitora (taquilla) registra entradas y salidas y la cuenta pasa a la cola de la caja: no cobra, no reimprime ni anula, y no ve Ventas ni Turno. Si un local la necesita cobrando, la administracion se lo concede en Roles y accesos (F2-13), sin programar | Afina DEC-13 (una sola caja): el cobro tiene un solo sitio y una sola persona responsable del arqueo. Resuelve N-10 (quien ve las ventas del turno): las ve quien opera la caja. El destino «pagar ahora» de la salida pasa a llamarse `CAJA` en el contrato |
 | **DEC-26** OK | Turnos | **Generico por ahora: un turno, una gaveta, un arqueo y un corte Z por caja**, como fija DEC-13. Ninguna pantalla depende de que haya uno solo: turnos por persona, por horario o por punto de cobro se deciden con el backend | El cliente aun no puede precisar como trabajara los turnos. Dejarlo generico evita rehacer la interfaz cuando se decida; el dominio de caja ya distingue puntos de cobro (`PointOfSale`) |
+| **DEC-27** OK | Datos mínimos para entrar al parque | **El contacto del representante es obligatorio**; el nombre del niño, no (ver DEC-28). Con teléfono se reconoce a la familia en la visita siguiente y hay a quién llamar si pasa algo con un niño | El teléfono se teclea con teclado numérico: tres segundos en una tablet. Es además la llave de búsqueda de F5-03, así que cada visita hace más rápida la siguiente |
+| **DEC-28** OK | Nombre del niño en la entrada | **Opcional, de principio a fin**: la estancia se identifica por su **pulsera**, que el niño lleva puesta. Se puede jugar, salir y cobrar sin nombre; el recibo nombra la pulsera. El nombre se pone después desde la sala o desde el directorio | En la puerta, con cola, teclear dos nombres en una tablet sin teclado era lo que más tardaba del registro (F5-02 pide menos de 90 s con dos niños). Ninguna regla de tiempo ni de dinero depende del nombre |
+| **DEC-29** OK | Quién vincula las pulseras a una mesa | **La puerta del parque y el mesero**, los dos. La acción aparece en la sala, además de en la pantalla de mesas | En el local los adultos se sientan mientras dejan a los niños: quien está en la puerta es quien sabe de qué familia son. El permiso `parque.vincularMesa` ya lo tenían ambos (§7.3); lo que faltaba era el camino en pantalla |
 
 ### 14.3 Consecuencia de DEC-1: como se difiere la fiscalidad sin quedar atrapado
 

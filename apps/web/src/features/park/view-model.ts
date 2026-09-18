@@ -14,9 +14,25 @@ import { toMajor } from "@l2/domain-money";
 import { computeOverdueCharge, computeSessionView, type SessionStatus } from "@l2/domain-park";
 import { toEpochMs, toParkPolicy, toParkSession } from "./mappers.ts";
 
+/**
+ * Cómo se llama una estancia en pantalla: el apodo, el nombre o —si nadie se
+ * lo puso todavía (DEC-28)— su pulsera, que es lo que el niño lleva puesto.
+ *
+ * Vive aquí y no en cada tarjeta para que las cinco pantallas que lo muestran
+ * digan lo mismo.
+ */
+export function nombreVisible(s: {
+  childNickname?: string | null;
+  childName?: string | null;
+  wristbandCode: string;
+}): string {
+  return s.childNickname ?? s.childName ?? s.wristbandCode;
+}
+
 export type SessionCardModel = Readonly<{
   id: string;
-  childName: string;
+  /** `null` mientras nadie le haya puesto nombre (DEC-28). */
+  childName: string | null;
   childNickname: string | null;
   wristbandCode: string;
   mode: "PREPAGO" | "POSTPAGO";
@@ -74,7 +90,7 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
 
     return {
       id: session.id,
-      childName: session.childName,
+      childName: session.childName ?? null,
       childNickname: session.childNickname ?? null,
       wristbandCode: session.wristbandCode,
       mode: session.mode,

@@ -58,7 +58,9 @@ export function toParkPolicy(dto: ParkPolicyDto): ParkPolicy {
 export function toParkSession(dto: ParkSessionDto): ParkSession {
   return {
     id: dto.id,
-    childName: dto.kid.name,
+    // DEC-28: una estancia puede no tener nombre. Se omite la propiedad en vez
+    // de ponerla en `undefined` (`exactOptionalPropertyTypes`).
+    ...(dto.kid.name ? { childName: dto.kid.name } : {}),
     // `exactOptionalPropertyTypes`: la propiedad se omite si no hay apodo,
     // en lugar de estar presente con valor `undefined`.
     ...(dto.kid.nickname ? { childNickname: dto.kid.nickname } : {}),

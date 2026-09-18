@@ -13,7 +13,7 @@ import { formatClock, DEFAULT_TIME_FORMAT } from "./time-format.ts";
 import { monitorSimulado } from "../simulacion/monitor.ts";
 import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
-import type { MonitorModel } from "./view-model";
+import { nombreVisible, type MonitorModel } from "./view-model";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 
 /**
@@ -167,10 +167,10 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
       <Sheet
         abierto={ficha !== null}
         onCerrar={() => setSelected(null)}
-        titulo={ficha ? (ficha.childNickname ?? ficha.childName) : ""}
+        titulo={ficha ? nombreVisible(ficha) : ""}
         {...(ficha
           ? {
-              descripcion: `${ficha.childNickname ? `${ficha.childName} · ` : ""}${ficha.wristbandCode} · entró ${formatClock(ficha.startedAt, DEFAULT_TIME_FORMAT)}`,
+              descripcion: `${ficha.childNickname && ficha.childName ? `${ficha.childName} · ` : ""}${ficha.wristbandCode} · entró ${formatClock(ficha.startedAt, DEFAULT_TIME_FORMAT)}`,
             }
           : {})}
         pie={

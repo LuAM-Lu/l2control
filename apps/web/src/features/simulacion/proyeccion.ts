@@ -145,7 +145,7 @@ export function aplicar(e: EstadoLocal, ev: OperationEventDto): EstadoLocal {
         ...base,
         sesiones: [...e.sesiones, s],
         familias: { ...e.familias, [s.id]: ev.family },
-        nombres: { ...e.nombres, [s.id]: s.kid.nickname ?? s.kid.name },
+        nombres: { ...e.nombres, [s.id]: s.kid.nickname ?? s.kid.name ?? s.wristbandCode },
       };
     }
     case "estancia.cerrada":
