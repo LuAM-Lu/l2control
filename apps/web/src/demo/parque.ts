@@ -107,7 +107,12 @@ export function demoSnapshot(serverNow: number): MonitorSnapshotDto {
       value: "228.41",
       source: "BCV",
       capturedAt: new Date(serverNow - 6 * 60 * MIN).toISOString(),
+      capturedBy: "Sincronización BCV",
+      // Confirmada por una persona, con su firma: el contrato ya no admite una
+      // tasa confirmada que no diga quién la confirmó y cuándo (§5.2, §7.4).
       confirmed: true,
+      confirmedBy: "Abigail Karam",
+      confirmedAt: new Date(serverNow - 5 * 60 * MIN).toISOString(),
     },
     sessions: [
       {
