@@ -20,6 +20,7 @@ pnpm dev          # levanta apps/web en http://localhost:3000
 pnpm infra:up     # PostgreSQL 17 + Valkey 8 en Docker (una vez: cp .env.example .env)
 pnpm db:migrar    # migraciones · pnpm db:semilla deja el local de desarrollo listo (PIN 1970)
 pnpm equipos      # la consola de equipos: pnpm equipos aprobar "<nombre>" aprueba el primero
+pnpm totp         # código TOTP de la administración de desarrollo (contraseña: abby-kingdom-desarrollo)
 pnpm verify       # arquitectura + demostración de que muerde + pruebas
 pnpm verify:db    # lo anterior + pruebas contra la base (aislamiento por tenant); antes de cada commit de backend
 pnpm lint         # reglas de la casa: toFixed, parseFloat, colores, reloj en el dominio, emojis

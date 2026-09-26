@@ -3,6 +3,7 @@ import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
 import { OperacionProvider } from "../src/features/operacion/OperacionProvider";
 import { SesionProvider } from "../src/features/identity/operador";
+import { ElevacionProvider } from "../src/features/identity/ElevacionProvider";
 import { NOMBRE_ROL } from "../src/features/identity/permisos";
 import { sesionActual } from "../src/servidor/sesion";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
@@ -77,6 +78,7 @@ export default async function RootLayout({
         {/* La operación del local (bus de eventos) por encima de las dos cáscaras:
             lo que emiten las estaciones lo leen el panel y las demás estaciones. */}
         <SesionProvider operador={operador} sesionId={sesion?.id ?? null}>
+        <ElevacionProvider>
         <OperacionProvider>
           {/* V4: el plano publicado vive por encima de las dos cáscaras: lo
               edita el panel y lo lee el salón. */}
@@ -106,6 +108,7 @@ export default async function RootLayout({
               </RepresentantesProvider>
           </SucursalProvider>
         </OperacionProvider>
+        </ElevacionProvider>
         </SesionProvider>
       </body>
     </html>

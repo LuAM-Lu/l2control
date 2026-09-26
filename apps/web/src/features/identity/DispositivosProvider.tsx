@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { DeviceCommand, DevicesDirectoryDto } from "@l2/contracts";
 import { ordenarDispositivo } from "./dispositivos.acciones";
+import { useConElevacion } from "./ElevacionProvider";
 
 /**
  * Los equipos de la sucursal — F2-02, en el servidor desde B1-3.
@@ -28,13 +29,17 @@ export function DispositivosProvider({ inicial, children }: { inicial: DevicesDi
   // Si el servidor vuelve a pintar la sección con otro directorio, se adopta.
   useEffect(() => setDispositivos(inicial), [inicial]);
 
-  const aplicar = useCallback(async (cmd: DeviceCommand): Promise<string | null> => {
-    const r = await ordenarDispositivo(cmd).catch(() => null);
-    if (!r) return "El servidor no respondió. El cambio no se guardó; inténtalo de nuevo.";
-    if (!r.ok) return r.problemas?.[0]?.message ?? r.mensaje;
-    setDispositivos((d) => ({ devices: d.devices.map((x) => (x.id === r.valor.id ? r.valor : x)) }));
-    return null;
-  }, []);
+  const conElevacion = useConElevacion();
+  const aplicar = useCallback(
+    async (cmd: DeviceCommand): Promise<string | null> => {
+      const r = await conElevacion(() => ordenarDispositivo(cmd)).catch(() => null);
+      if (!r) return "El servidor no respondió. El cambio no se guardó; inténtalo de nuevo.";
+      if (!r.ok) return r.problemas?.[0]?.message ?? r.mensaje;
+      setDispositivos((d) => ({ devices: d.devices.map((x) => (x.id === r.valor.id ? r.valor : x)) }));
+      return null;
+    },
+    [conElevacion],
+  );
 
   const valor = useMemo(() => ({ dispositivos, aplicar }), [dispositivos, aplicar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

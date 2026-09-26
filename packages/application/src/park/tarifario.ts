@@ -13,7 +13,7 @@ import {
 import { errorDeBase, type Base, type ParkTariffVersion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
-import { permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
+import { exigirPermiso } from "../identidad/actor.ts";
 
 export interface CasosTarifario {
   /** El tarifario vigente de la sucursal, o `null` si nunca se publicó ninguno. */
@@ -47,9 +47,9 @@ export function casosTarifario(base: Base): CasosTarifario {
 
       try {
         const fila = await base.conTenant(ctx.tenantId, async (tx) => {
-          // Cambiar precios es de administración (§7.3, catalogo.modificar).
-          const permiso = await permisoEn(tx, ctx, "catalogo.modificar");
-          if (permiso !== "PERMITIDO") return rechazoDePermiso(permiso);
+          // Cambiar precios es de administración (§7.3, catalogo.modificar), con elevación (F2-04).
+          const rechazo = await exigirPermiso(tx, ctx, "catalogo.modificar");
+          if (rechazo) return rechazo;
           const vigente = await tx.parkTariffVersion.findFirst({
             where: { branchId: ctx.branchId },
             orderBy: { version: "desc" },
@@ -78,7 +78,10 @@ export function casosTarifario(base: Base): CasosTarifario {
           return nueva;
         });
         if ("ok" in fila) {
-          await auditarRechazo(base, ctx, { action: "tarifario.publicar", reason: fila.mensaje });
+          // Pedir la elevación no es un intento indebido; un permiso que falta, sí.
+          if (fila.motivo === "NO_PERMITIDO") {
+            await auditarRechazo(base, ctx, { action: "tarifario.publicar", reason: fila.mensaje });
+          }
           return fila;
         }
         return { ok: true, valor: publicado(fila) };

@@ -19,8 +19,11 @@ export interface LocalDePrueba {
   cerrar(): Promise<void>;
 }
 
+/** Clave de cifrado de las pruebas: fija y sin valor fuera de ellas. */
+export const CLAVE_DE_PRUEBA = Buffer.alloc(32, 9).toString("base64");
+
 export async function abrirLocalDePrueba(url: string, nombre: string): Promise<LocalDePrueba> {
-  const app = await conectar(url);
+  const app = await conectar(url, { claveCifrado: CLAVE_DE_PRUEBA });
   const base = await abrirBase(url);
   const tenantId = randomUUID();
   const sistema: Contexto = { tenantId, branchId: randomUUID(), sistema: true };

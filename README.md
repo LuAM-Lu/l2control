@@ -17,8 +17,11 @@ pnpm verify           # tipos + lint + fronteras + pruebas; pnpm verify:db añad
 
 **La app necesita su base de datos** (sección siguiente): no hay modo demo. La primera vez, el
 navegador es un **equipo desconocido**: ponle nombre y pide su registro en `/acceso`, apruébalo con
-`pnpm equipos aprobar "<ese nombre>"` y entra con cualquier persona y el PIN **`1970`**. En Chrome,
-«Instalar la app» la instala como PWA.
+`pnpm equipos aprobar "<ese nombre>"` y entra con cualquier persona y el PIN **`1970`**. Para
+configuración, precios y personas la app pide además **confirmar identidad**: en desarrollo, la
+contraseña `abby-kingdom-desarrollo` y el código que da `pnpm totp`. En un local de verdad las
+credenciales se dan con `pnpm credenciales "<nombre>"`. En Chrome, «Instalar la app» la instala
+como PWA.
 
 ## Base de datos local
 

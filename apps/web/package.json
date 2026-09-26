@@ -9,7 +9,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "semilla": "node --experimental-strip-types scripts/semilla.mts",
-    "equipos": "node --experimental-strip-types scripts/equipos.mts"
+    "equipos": "node --experimental-strip-types scripts/equipos.mts",
+    "totp": "node --experimental-strip-types scripts/totp.mts",
+    "credenciales": "node --experimental-strip-types scripts/credenciales.mts"
   },
   "dependencies": {
     "@l2/application": "workspace:*",
@@ -25,6 +27,7 @@
     "@l2/ui": "workspace:*",
     "lucide-react": "1.43.0",
     "next": "16.3.4",
+    "otpauth": "9.5.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1",

@@ -30,7 +30,14 @@ before(async () => {
   const userId = await crearPersona(local, { nombre: "Abigail Prueba", role: "ADMIN" });
   const deviceId = (await crearEquipo(local, "Tablet auditoría")).split(".")[1]!;
   quien = { userId, deviceId };
-  A = { tenantId: local.sistema.tenantId, branchId: local.sistema.branchId, quien, ip: "10.0.0.7" };
+  // Sesión ya elevada (F2-04): aquí se prueba el asiento, no la elevación (eso, en identidad).
+  A = {
+    tenantId: local.sistema.tenantId,
+    branchId: local.sistema.branchId,
+    quien,
+    ip: "10.0.0.7",
+    elevadaHasta: new Date(Date.now() + 10 * 60_000).toISOString(),
+  };
   await app.sucursal.asegurar(B, { tenant: "Auditoría B", sucursal: "Principal" });
 });
 

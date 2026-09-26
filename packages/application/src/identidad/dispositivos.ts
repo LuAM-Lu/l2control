@@ -17,7 +17,7 @@ import {
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
-import { nombreDe, permisoEn, rechazoDePermiso } from "./actor.ts";
+import { exigirPermiso, nombreDe } from "./actor.ts";
 import { coincide, componer, huella, leerCredencial, nuevoSecreto } from "./credenciales.ts";
 import { SESION_INACTIVA_MS } from "./plazos.ts";
 
@@ -139,8 +139,8 @@ export function casosDispositivos(base: Base): CasosDispositivos {
 
     async listar(ctx) {
       return base.conTenant(ctx.tenantId, async (tx) => {
-        const p = await permisoEn(tx, ctx, "usuarios.gestionar");
-        if (p !== "PERMITIDO") return rechazoDePermiso(p);
+        const rechazo = await exigirPermiso(tx, ctx, "usuarios.gestionar");
+        if (rechazo) return rechazo;
         return { ok: true, valor: { devices: await directorio(tx, ctx.branchId) } };
       });
     },
@@ -155,8 +155,8 @@ export function casosDispositivos(base: Base): CasosDispositivos {
 
       try {
         const r = await base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<DeviceDto>> => {
-          const p = await permisoEn(tx, ctx, "usuarios.gestionar");
-          if (p !== "PERMITIDO") return rechazoDePermiso(p);
+          const rechazo = await exigirPermiso(tx, ctx, "usuarios.gestionar");
+          if (rechazo) return rechazo;
 
           const d = await tx.device.findUnique({ where: { id: c.deviceId } });
           if (!d || d.branchId !== ctx.branchId) {

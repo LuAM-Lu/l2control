@@ -49,7 +49,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **La primera pantalla con servidor** (B0-5): el **tarifario** se publica y se lee de la base, y la
   sala calcula el excedente con la política publicada. Lo demás, provisional hasta su paso.
 
-**Siguiente paso:** B1-2, la elevación con contraseña y TOTP para administración (§3). B0-4 espera un push para comprobarse en GitHub.
+**Siguiente paso:** B1-5, permisos, usuarios y accesos en el servidor (§3). B0-4 espera un push para comprobarse en GitHub.
 
 ---
 
@@ -124,9 +124,16 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   *Hecho el 2026-09-27: tabla `audit_log` (RLS y solo-agregar), `auditar(tx, ctx, asiento)` en la misma
   transacción que la operación, con `before`/`after` redactados, y catálogo `AccionAuditada`. Publicar
   el tarifario ya deja su asiento. Pendiente de B7: enviarlo fuera de la máquina (§7.4).*
-- [ ] **B1-2 · Sesión en el servidor** con cookie `httpOnly`; administración con contraseña y segundo
+- [x] **B1-2 · Sesión en el servidor** con cookie `httpOnly`; administración con contraseña y segundo
   factor como elevación (F2-01, F2-04). **Sesión propia en vez de Better Auth: [ADR-018](adr/018-sesion-propia.md)**,
   porque Better Auth no puede vivir bajo la RLS forzada; los controles de ADR-013 se mantienen.
+  *Hecho el 2026-09-27: `catalogo.modificar`, `usuarios.gestionar` y `reportes.verTodas` exigen,
+  además del permiso, confirmar identidad con contraseña (Argon2id) y código TOTP; vale 15 minutos
+  en esa sesión. El servidor responde `ELEVACION_REQUERIDA` y la pantalla abre el diálogo y
+  reintenta. Secreto TOTP cifrado con AES-256-GCM (`L2_CLAVE_CIFRADO`); sin clave, no hay elevación.
+  Los fallos cuentan para el mismo bloqueo que el PIN. Credenciales con `pnpm credenciales
+  "<nombre>"`; en desarrollo, `pnpm totp`. 9 pruebas. Pendiente: dar credenciales desde el panel
+  con QR (hoy, consola) y protección contra reutilizar el mismo código dentro de su ventana.*
 - [x] **B1-3 · Dispositivos**: alta, aprobación y revocación, y revocar cierra sus sesiones (F2-02).
   *Hecho el 2026-09-27: un equipo nuevo pide su registro desde el acceso (credencial en cookie
   `httpOnly`, solo su SHA-256 en la base); se aprueba en Panel → Personas → Dispositivos o, el

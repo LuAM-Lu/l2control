@@ -3,6 +3,7 @@
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { Secret, TOTP } from "otpauth";
 import { DEFAULT_LOCKOUT_POLICY } from "@l2/domain-identity";
 import { abrirLocalDePrueba, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 import { contextoDeSesion, SESION_INACTIVA_MS } from "./sesiones.ts";
@@ -13,6 +14,7 @@ let local: LocalDePrueba;
 let admin: string;
 let cajera: string;
 let equipo: string;
+let secretoAdmin: string;
 const T0 = Date.parse("2026-09-27T18:00:00.000Z");
 
 before(async () => {
@@ -23,6 +25,9 @@ before(async () => {
   await crearPersona(local, { nombre: "Sin PIN todavía", role: "MESERO", pin: null });
   await crearPersona(local, { nombre: "De la otra sede", role: "CAJERO", sucursales: [local.otraSucursal] });
   equipo = await crearEquipo(local, "Tablet caja");
+  const c = await local.app.elevacion.credenciales(local.sistema, { nombre: "Abigail Karam", contrasena: "contraseña-de-prueba" });
+  if (!c.ok) throw new Error(c.mensaje);
+  secretoAdmin = c.valor.secretoBase32;
 });
 
 after(() => local.cerrar());
@@ -152,7 +157,7 @@ describe("la sesión vive en el servidor", () => {
     const tablet = await crearEquipo(local, "Tablet que se pierde");
     const r = await entrar(cajera, "7391", T0, tablet);
     assert.ok(r.ok);
-    const ctxAdmin = await sesionDe(admin, "4826");
+    const ctxAdmin = await sesionElevadaDeAdmin();
     const revocar = await local.app.dispositivos.ordenar(ctxAdmin, {
       kind: "REVOCAR",
       deviceId: leerCredencial(tablet)!.id,
@@ -171,6 +176,18 @@ async function sesionDe(userId: string, pin: string) {
   return contextoDeSesion(r.sesion, "10.0.0.9");
 }
 
+/** Igual, pero además confirmada con contraseña y código TOTP (F2-04), como haría la pantalla. */
+async function sesionElevadaDeAdmin() {
+  const ahora = Date.now();
+  const r = await entrar(admin, "4826", ahora);
+  if (!r.ok) throw new Error(r.mensaje);
+  const codigo = new TOTP({ secret: Secret.fromBase32(secretoAdmin) }).generate({ timestamp: ahora });
+  const e = await local.app.elevacion.elevar({ sesion: r.credencial, contrasena: "contraseña-de-prueba", codigo, ip: null, ahora });
+  if (!e.ok) throw new Error(e.mensaje);
+  const s = await local.app.sesiones.consultar(r.credencial, ahora);
+  return contextoDeSesion(s!, "10.0.0.9");
+}
+
 describe("los permisos los decide el servidor con la matriz", () => {
   const tarifario = {
     packages: [{ id: "p30", name: "30 minutos", mode: "PREPAGO", duration: { kind: "fixed", minutes: 30 }, price: { minor: "300", currency: "USD" }, active: true }],
@@ -186,8 +203,13 @@ describe("los permisos los decide el servidor con la matriz", () => {
     assert.equal(asiento?.outcome, "NEGADO");
   });
 
-  test("la administradora sí", async () => {
+  test("la administradora, sin confirmar identidad, recibe ELEVACION_REQUERIDA (F2-04)", async () => {
     const r = await local.app.tarifario.publicar(await sesionDe(admin, "4826"), tarifario);
+    assert.equal(r.ok ? "ok" : r.motivo, "ELEVACION_REQUERIDA");
+  });
+
+  test("la administradora con la sesión elevada sí publica", async () => {
+    const r = await local.app.tarifario.publicar(await sesionElevadaDeAdmin(), tarifario);
     assert.ok(r.ok, JSON.stringify(r));
   });
 

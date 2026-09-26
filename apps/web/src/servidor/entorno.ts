@@ -14,6 +14,8 @@ const EsquemaEntorno = z.object({
   L2_LOG_LEVEL: nivelLog,
   L2_TENANT_ID: z.uuid(),
   L2_BRANCH_ID: z.uuid(),
+  /** 32 bytes en base64: sin ella no hay elevación con TOTP ni cifrado en reposo (§7.6). */
+  L2_CLAVE_CIFRADO: z.base64().refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes en base64"),
 });
 
 export type EntornoWeb = z.infer<typeof EsquemaEntorno>;

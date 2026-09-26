@@ -16,7 +16,7 @@ export function log(): Logger {
 
 export function aplicacion(): Promise<Aplicacion> {
   const e = entorno();
-  global.__l2Aplicacion ??= conectar(e.L2_DB_APP_URL).catch((error: unknown) => {
+  global.__l2Aplicacion ??= conectar(e.L2_DB_APP_URL, { claveCifrado: e.L2_CLAVE_CIFRADO }).catch((error: unknown) => {
     // Sin esto, un arranque con la base caída dejaría la promesa rota para siempre.
     global.__l2Aplicacion = undefined;
     throw error;

@@ -61,6 +61,29 @@ export async function permisoEn(tx: Transaccion, ctx: Contexto, accion: Action):
   return actor ? can(actor, accion, { branchId: ctx.branchId }) : "DENEGADO";
 }
 
+/**
+ * Lo que además del permiso exige confirmar identidad con contraseña y código TOTP (F2-04):
+ * configuración, precios, personas y reportes globales. Vale para leer y para escribir.
+ */
+export const ACCIONES_ELEVADAS: readonly Action[] = ["catalogo.modificar", "usuarios.gestionar", "reportes.verTodas"];
+
+/**
+ * El permiso completo de una operación, en un solo sitio: la matriz y, si la acción lo exige,
+ * la elevación vigente. `null` = adelante; si no, el rechazo que hay que devolver.
+ */
+export async function exigirPermiso(tx: Transaccion, ctx: Contexto, accion: Action): Promise<Rechazo | null> {
+  const p = await permisoEn(tx, ctx, accion);
+  if (p !== "PERMITIDO") return rechazoDePermiso(p);
+  if (ctx.sistema || !ACCIONES_ELEVADAS.includes(accion)) return null;
+  const hasta = ctx.elevadaHasta ? Date.parse(ctx.elevadaHasta) : Number.NaN;
+  if (Number.isFinite(hasta) && hasta > Date.now()) return null;
+  return {
+    ok: false,
+    motivo: "ELEVACION_REQUERIDA",
+    mensaje: "Confirma que eres tú: tu contraseña y el código de tu autenticador.",
+  };
+}
+
 /** El rechazo que corresponde a un permiso que no es PERMITIDO, con palabras. */
 export function rechazoDePermiso(p: Exclude<Permission, "PERMITIDO">): Rechazo {
   return p === "REQUIERE_AUTORIZACION"

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Resultado, TarifarioDto, TarifarioPublicadoDto } from "@l2/contracts";
 import { publicarTarifario } from "./tarifario.acciones";
+import { useConElevacion } from "../identity/ElevacionProvider";
 
 /**
  * El tarifario publicado — F5-04, F5-06, en el servidor desde B0-5.
@@ -33,11 +34,16 @@ export function TarifarioProvider({ inicial, children }: { inicial: TarifarioPub
     setVigente(inicial);
   }, [inicial.version]);
 
-  const publicar = useCallback(async (nuevo: TarifarioDto) => {
-    const r = await publicarTarifario(nuevo);
-    if (r.ok) setVigente(r.valor);
-    return r;
-  }, []);
+  // Publicar precios exige confirmar identidad (F2-04): si el servidor la pide, se pide y se reintenta.
+  const conElevacion = useConElevacion();
+  const publicar = useCallback(
+    async (nuevo: TarifarioDto) => {
+      const r = await conElevacion(() => publicarTarifario(nuevo));
+      if (r.ok) setVigente(r.valor);
+      return r;
+    },
+    [conElevacion],
+  );
 
   const valor = useMemo(
     () => ({ tarifario: vigente.tarifario, version: vigente.version, publicar }),

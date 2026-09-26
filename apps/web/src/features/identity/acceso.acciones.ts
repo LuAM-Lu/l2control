@@ -62,3 +62,19 @@ export async function salir(motivo: "SALIDA" | "CORTE_Z" = "SALIDA"): Promise<vo
   await borrarCookieSesion();
   refresh();
 }
+
+/**
+ * Confirmar identidad con contraseña y código TOTP (F2-04): eleva ESTA sesión durante un rato
+ * para configuración, precios, personas y reportes globales. Nada de lo tecleado se registra.
+ */
+export async function elevar(contrasena: unknown, codigo: unknown): Promise<Resultado<{ elevadaHasta: string }> & { bloqueo?: Bloqueo }> {
+  const r = await (await aplicacion()).elevacion.elevar({
+    sesion: await credencialSesion(),
+    contrasena,
+    codigo,
+    ip: await ipDeLaPeticion(),
+    ahora: Date.now(),
+  });
+  if (r.ok) refresh();
+  return r;
+}

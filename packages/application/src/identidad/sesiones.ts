@@ -69,7 +69,13 @@ export interface CasosSesiones {
 
 /** El contexto de una operación hecha por quien tiene esta sesión. */
 export function contextoDeSesion(s: SesionActiva, ip: string | null): Contexto {
-  return { tenantId: s.tenantId, branchId: s.branchId, quien: { userId: s.userId, deviceId: s.deviceId }, ip };
+  return {
+    tenantId: s.tenantId,
+    branchId: s.branchId,
+    quien: { userId: s.userId, deviceId: s.deviceId },
+    ip,
+    elevadaHasta: s.elevadaHasta,
+  };
 }
 
 const PIN = /^\d{4,8}$/;

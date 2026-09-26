@@ -14,6 +14,11 @@ export const MotivoDeRechazoSchema = z.enum([
   "CONFLICTO",
   /** Quien lo pide no tiene permiso. */
   "NO_PERMITIDO",
+  /**
+   * Tiene permiso, pero la acción exige confirmar identidad con contraseña y código TOTP
+   * (F2-04: configuración, precios, personas y reportes globales). La pantalla lo pide y reintenta.
+   */
+  "ELEVACION_REQUERIDA",
   /** El servidor no puede hacerlo ahora (falta configuración, la sucursal no existe…). */
   "NO_DISPONIBLE",
 ]);

@@ -14,6 +14,11 @@ export interface Contexto {
   /** Desde dónde llegó la petición, para la auditoría. */
   readonly ip?: string | null;
   /**
+   * Hasta cuándo vale la elevación de la sesión con contraseña y TOTP (F2-04). Lo pone el
+   * servidor desde la sesión, nunca el navegador.
+   */
+  readonly elevadaHasta?: string | null;
+  /**
    * Operación del sistema, no de una persona: semillas y consola del servidor. No pasa por la
    * matriz de permisos. Sin `quien` y sin esto, todo se niega (deny-by-default).
    */
