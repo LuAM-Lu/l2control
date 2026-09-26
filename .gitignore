@@ -18,3 +18,6 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 .idea/
+
+# Cliente de Prisma: se genera con `prisma generate` (turbo lo hace antes de typecheck y test).
+packages/database/src/generated/

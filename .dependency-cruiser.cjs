@@ -46,6 +46,16 @@ module.exports = {
       to: { path: `${DOMAIN}|^(@l2/database|packages/database/)` },
     },
     {
+      name: "las-apps-no-tocan-la-base",
+      severity: "error",
+      comment:
+        "§9.2 regla 2: apps nunca importa database directamente; pasa por application, que " +
+        "es donde viven la transacción, el tenant y la auditoría. Una pantalla que habla con " +
+        "Prisma se salta las tres.",
+      from: { path: "^apps/" },
+      to: { path: "^(@l2/database|packages/database/|@prisma/)" },
+    },
+    {
       name: "sin-importaciones-relativas-entre-paquetes",
       severity: "error",
       comment:
@@ -100,6 +110,10 @@ module.exports = {
           "apps/web/(next|postcss)\\.config\\.",
           "apps/web/app/.*(page|layout|route|loading|error|not-found)\\.tsx?$",
           "apps/web/app/(manifest|apple-icon|icon)\\.tsx?$",
+          // Los cargan la CLI de Prisma y node --test, no un import.
+          "packages/database/prisma\\.config\\.ts$",
+          "packages/database/scripts/",
+          "\\.test(-db)?\\.ts$",
         ],
       },
       to: {},
@@ -107,7 +121,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "(node_modules|\\.next|dist|\\.turbo)" },
+    // El cliente de Prisma es código generado: no se versiona ni se juzga.
+    exclude: { path: "(node_modules|\\.next|dist|\\.turbo|packages/database/src/generated)" },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
       extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json"],

@@ -1,0 +1,32 @@
+{
+  "name": "@l2/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Persistencia (§9.2 ❸): esquema Prisma, migraciones y RLS forzada por tenant (ADR-002, ADR-007).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts",
+    "test:db": "node --experimental-strip-types scripts/test-db.ts",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status"
+  },
+  "comment": "Solo lo importa packages/application (§9.2 regla 2). Las apps nunca hablan con la base directamente.",
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0"
+  },
+  "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
+    "@types/pg": "8.23.1",
+    "pg": "8.23.0",
+    "prisma": "7.10.0",
+    "typescript": "7.0.2"
+  }
+}

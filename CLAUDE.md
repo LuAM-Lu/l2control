@@ -17,7 +17,9 @@ maestro, hacer commit y entregar en el chat el bloque para pegar en una sesión 
 
 ```bash
 pnpm dev          # levanta apps/web en http://localhost:3000
+pnpm infra:up     # PostgreSQL 17 + Valkey 8 en Docker (una vez: cp .env.example .env)
 pnpm verify       # arquitectura + demostración de que muerde + pruebas
+pnpm verify:db    # lo anterior + pruebas contra la base (aislamiento por tenant); antes de cada commit de backend
 pnpm arch         # solo las reglas de frontera
 pnpm arch:demo    # comprueba que las reglas detectan una violación real
 pnpm test         # pruebas de dominio
@@ -37,7 +39,8 @@ pnpm test         # pruebas de dominio
 5. **Nada se borra.** Pagos, documentos fiscales y movimientos de stock son append-only. Un
    error se corrige con un asiento de reversión, no con un `UPDATE`.
 
-`pnpm arch` impone las reglas 1 y 2 y **rompe la construcción** si se violan. No es decorativo:
+`pnpm arch` impone las reglas 1 y 2 (y que las apps no importen `@l2/database`) y **rompe la
+construcción** si se violan. No es decorativo:
 `pnpm arch:demo` lo demuestra inyectando una violación real.
 
 ## Estructura
@@ -54,6 +57,7 @@ packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
 packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones (puro)
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
+packages/database         Prisma, migraciones y RLS forzada; solo lo importa application
 packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)

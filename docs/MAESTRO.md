@@ -40,8 +40,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
   están en `apps/web/src/demo`.
 - **Base de datos local en marcha** (B0-1): `pnpm infra:up` levanta PostgreSQL y Valkey con Docker.
   En esta máquina ya hay otro PostgreSQL en el 5432 (ajeno al proyecto); el nuestro usa el 5433.
+- **Persistencia base** (B0-2): `@l2/database` con `tenant` y `branch`, RLS forzada y su prueba
+  negativa. Para trabajo de backend, la puerta es `pnpm verify:db`.
 
-**Siguiente paso:** B0-2 (§3).
+**Siguiente paso:** B0-3 (§3).
 
 ---
 
@@ -73,10 +75,13 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   → `docker compose up -d` deja el entorno listo en una máquina limpia; documentado en el README.
   *Hecho el 2026-09-26: `pnpm infra:up` con PostgreSQL 17.11 y Valkey 8.1.10 fijos, puertos solo en
   127.0.0.1 y tres papeles en la base (el de la aplicación no crea tablas ni se salta la RLS).*
-- [ ] **B0-2 · `packages/database`**: Prisma 7.4+, `tenant_id` en toda tabla y RLS `FORCE` (F1-05,
+- [x] **B0-2 · `packages/database`**: Prisma 7.4+, `tenant_id` en toda tabla y RLS `FORCE` (F1-05,
   ADR-002, ADR-007), sin `FLOAT` para montos (F3-02).
   → Pasan la prueba negativa de aislamiento (el tenant A no lee filas de B) y la prueba que falla ante
   una columna `Float` de dinero.
+  *Hecho el 2026-09-26: Prisma 7.10, `abrirBase()` → `conTenant()` como única puerta, que se niega a
+  arrancar con un usuario que se salte la RLS. `l2_aislar_por_tenant()` aísla una tabla en una línea.
+  19 pruebas (4 estáticas y 15 contra `l2control_test`) que fallan si se apaga la RLS (comprobado).*
 - [ ] **B0-3 · Configuración validada al arrancar y logger con redacción** (`packages/observability`,
   F1-13, §10.3).
   → Si falta una variable, el proceso no arranca. Una prueba demuestra que un PIN o una referencia de

@@ -2,5 +2,10 @@ packages:
   - "apps/*"
   - "packages/*"
   - "packages/domain/*"
+# pnpm no ejecuta scripts de instalación salvo que se autoricen aquí (cadena de suministro).
+# Prisma los necesita para descargar su motor de migraciones.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
 minimumReleaseAgeExclude:
   - lucide-react@1.43.0

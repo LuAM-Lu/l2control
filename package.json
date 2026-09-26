@@ -17,9 +17,11 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:db": "turbo run test:db",
     "arch": "depcruise \"packages/**/*.{ts,tsx}\" \"apps/**/*.{ts,tsx}\" --config .dependency-cruiser.cjs",
     "arch:demo": "node scripts/arch-demo.mjs",
-    "verify": "pnpm typecheck && pnpm arch && pnpm arch:demo && pnpm test"
+    "verify": "pnpm typecheck && pnpm arch && pnpm arch:demo && pnpm test",
+    "verify:db": "pnpm verify && pnpm test:db"
   },
   "devDependencies": {
     "dependency-cruiser": "17.0.1",

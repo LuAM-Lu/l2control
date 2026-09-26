@@ -1,0 +1,45 @@
+// Esquema de L2 Control — B0-2 (F1-05, ADR-002, ADR-007).
+//
+// Reglas que este archivo NO puede expresar y viven en las migraciones SQL:
+//   · RLS forzada en toda tabla con tenant_id: `SELECT l2_aislar_por_tenant('tabla');`
+//   · disparadores append-only (pagos, auditoría, movimientos de stock).
+// Reglas que sí se comprueban leyendo este archivo (src/esquema.test.ts):
+//   · ningún `Float`: el dinero es BigInt en unidades menores (I-01, F3-02);
+//   · todo modelo de negocio lleva `tenantId`, y es la primera columna de cada índice compuesto.
+//
+// Nombres: modelos en inglés como el ERD del plan (§6); tablas y columnas en snake_case.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Un cliente del SaaS (DEC-3). Hoy hay uno: Abby Kingdom.
+model Tenant {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  branches Branch[]
+
+  @@map("tenant")
+}
+
+/// Una sucursal. El permiso incluye la sucursal (F2-06): nada opera sin saber en cuál.
+model Branch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, name])
+  @@map("branch")
+}
