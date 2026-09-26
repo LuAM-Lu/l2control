@@ -12,6 +12,7 @@ import {
 } from "@l2/contracts";
 import { errorDeBase, type Base, type ParkTariffVersion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
+import { auditar } from "../auditoria/auditar.ts";
 
 export interface CasosTarifario {
   /** El tarifario vigente de la sucursal, o `null` si nunca se publicó ninguno. */
@@ -50,14 +51,27 @@ export function casosTarifario(base: Base): CasosTarifario {
             orderBy: { version: "desc" },
             select: { version: true },
           });
-          return tx.parkTariffVersion.create({
+          const nueva = await tx.parkTariffVersion.create({
             data: {
               tenantId: ctx.tenantId,
               branchId: ctx.branchId,
               version: (vigente?.version ?? 0) + 1,
               content: validado.data,
+              publishedBy: ctx.quien?.userId ?? null,
             },
           });
+          // §7.4: todo cambio de tarifa se audita, con lo que había y lo que queda.
+          const anterior = vigente
+            ? await tx.parkTariffVersion.findFirst({ where: { branchId: ctx.branchId, version: vigente.version } })
+            : null;
+          await auditar(tx, ctx, {
+            action: "tarifario.publicar",
+            entityType: "park_tariff_version",
+            entityId: nueva.id,
+            before: anterior ? { version: anterior.version, tarifario: anterior.content } : null,
+            after: { version: nueva.version, tarifario: nueva.content },
+          });
+          return nueva;
         });
         return { ok: true, valor: publicado(fila) };
       } catch (e) {

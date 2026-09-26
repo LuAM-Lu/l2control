@@ -41,6 +41,7 @@ model Branch {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   tariffVersions ParkTariffVersion[]
+  auditEntries   AuditEntry[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -68,4 +69,40 @@ model ParkTariffVersion {
 
   @@unique([tenantId, branchId, version])
   @@map("park_tariff_version")
+}
+
+/// El registro de auditoría (§7.4, F2-07). Solo se añaden filas: ni el dueño de la tabla puede
+/// editar o borrar un asiento. Se escribe en la MISMA transacción que la operación y ANTES de
+/// ella: si el asiento no entra, la operación no ocurre (fail-closed).
+model AuditEntry {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  /// Nula en lo que no es de una sucursal (p. ej., un intento de acceso sin dispositivo conocido).
+  branchId     String?   @map("branch_id") @db.Uuid
+  occurredAt   DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  /// Día de negocio (ADR-009). Nulo hasta que exista el turno (B2-4).
+  businessDate DateTime? @map("business_date") @db.Date
+  /// Quién. Nulo = el sistema, o alguien sin identificar (un PIN fallido de quien no existe).
+  actorId      String?   @map("actor_id") @db.Uuid
+  deviceId     String?   @map("device_id") @db.Uuid
+  ip           String?   @db.Inet
+  /// Qué, como `tarifario.publicar` o `sesion.pin_fallido`. Catálogo en @l2/application.
+  action       String
+  /// HECHO o NEGADO: los rechazos también se registran (§7.4: éxito y fallo).
+  outcome      String
+  entityType   String?   @map("entity_type")
+  entityId     String?   @map("entity_id")
+  /// Estado antes y después, ya redactados (sin PIN, contactos ni referencias de pago).
+  before       Json?
+  after        Json?
+  reason       String?
+  /// Quien autorizó un 🔐 (F2-08), si lo hubo.
+  authorizedBy String?   @map("authorized_by") @db.Uuid
+
+  branch Branch? @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, actorId, occurredAt])
+  @@map("audit_log")
 }

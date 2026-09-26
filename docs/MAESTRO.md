@@ -8,7 +8,8 @@
 > - [PLAN.md](PLAN.md): la especificación. ADRs, decisiones del cliente (DEC-n) y tareas `Fn-nn` con su
 >   criterio de aceptación en §12. Sus casillas y sus enlaces a documentos retirados están congelados.
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
-> - [adr/](adr/): las 17 decisiones de arquitectura, una por archivo.
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (18; ADR-018 supersede la biblioteca
+>   de ADR-013).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -48,7 +49,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **La primera pantalla con servidor** (B0-5): el **tarifario** se publica y se lee de la base, y la
   sala calcula el excedente con la política publicada. Lo demás, provisional hasta su paso.
 
-**Siguiente paso:** Etapa 1, B1-1 (§3). B0-4 espera un push para comprobarse en GitHub.
+**Siguiente paso:** B1-2 a B1-4, la sesión en el servidor (§3). B0-4 espera un push para comprobarse en GitHub.
 
 ---
 
@@ -119,9 +120,13 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 ### Etapa 1 · Identidad y auditoría (F2 completa, no se recorta)
 
-- [ ] **B1-1 · `AuditLog` append-only**: un disparador rechaza `UPDATE` y `DELETE` (F2-07).
-- [ ] **B1-2 · Better Auth** con cookie `httpOnly`; administración con contraseña y segundo factor
-  (F2-01, F2-04, ADR-013).
+- [x] **B1-1 · `AuditLog` append-only**: un disparador rechaza `UPDATE` y `DELETE` (F2-07).
+  *Hecho el 2026-09-27: tabla `audit_log` (RLS y solo-agregar), `auditar(tx, ctx, asiento)` en la misma
+  transacción que la operación, con `before`/`after` redactados, y catálogo `AccionAuditada`. Publicar
+  el tarifario ya deja su asiento. Pendiente de B7: enviarlo fuera de la máquina (§7.4).*
+- [ ] **B1-2 · Sesión en el servidor** con cookie `httpOnly`; administración con contraseña y segundo
+  factor como elevación (F2-01, F2-04). **Sesión propia en vez de Better Auth: [ADR-018](adr/018-sesion-propia.md)**,
+  porque Better Auth no puede vivir bajo la RLS forzada; los controles de ADR-013 se mantienen.
 - [ ] **B1-3 · Dispositivos**: alta, aprobación y revocación, y revocar cierra sus sesiones (F2-02).
 - [ ] **B1-4 · PIN con Argon2** y bloqueo creciente registrado; sesión compartida en el servidor
   (F2-03, F2-12).

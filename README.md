@@ -59,6 +59,6 @@ ruta hasta producción y lo que bloquea viven en un solo sitio: **[docs/MAESTRO.
 | **[CLAUDE.md](CLAUDE.md)** | Reglas para quien programe aquí, humano o agente, y el flujo de trabajo |
 | [docs/PLAN.md](docs/PLAN.md) | La especificación: ADRs, decisiones del cliente y tareas con criterio de aceptación |
 | [docs/FLUJOS.md](docs/FLUJOS.md) | Cómo se mueven personas, pedidos y dinero en el local |
-| [docs/adr/](docs/adr/) | Las 17 decisiones de arquitectura, una por archivo |
+| [docs/adr/](docs/adr/) | Las 18 decisiones de arquitectura, una por archivo |
 
 Cada paquete tiene su `README.md` con qué resuelve y qué **no** le corresponde.
