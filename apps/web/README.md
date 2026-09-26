@@ -89,7 +89,7 @@ solo existen en `@l2/ui` **no se generan** y el fallo es silencioso. Si se añad
 componentes, hay que añadir su `@source`.
 
 **Cuidado con `text-base`:** con el token `--color-base`, Tailwind 4 lo aplica también como color
-de texto. Para 16 px usa `text-[16px]` (ver [PENDIENTES §7](../../docs/PENDIENTES.md)).
+de texto. Para 16 px usa `text-[16px]` (ver [MAESTRO §5](../../docs/MAESTRO.md)).
 
 **Variantes propias** (en `packages/config/tokens.css`):
 

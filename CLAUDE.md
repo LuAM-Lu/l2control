@@ -2,11 +2,16 @@
 
 Sistema de gestión para parque infantil + restaurante (Abby Kingdom, Venezuela).
 
-**El plan manda.** `docs/PLAN.md` es la especificación: 17 ADRs, 29 decisiones del
-cliente cerradas y 160 tareas con criterio de aceptación. El estado real está en `docs/PROGRESO.md`
-y el porqué de cada paso en `docs/BITACORA.md`. Antes de construir algo, busca su
-tarea `Fn-nn` en §12. Si lo que vas a hacer no está en el plan, es un cambio de alcance: dilo,
-no lo hagas en silencio.
+**Un solo documento vivo: [`docs/MAESTRO.md`](docs/MAESTRO.md).** Ahí están el estado, la ruta
+hasta producción (etapas B0 a B8), lo que bloquea y el handoff. Empieza siempre por su §1.
+
+**El plan manda.** `docs/PLAN.md` es la especificación congelada: 17 ADRs, 29 decisiones del cliente y
+las tareas `Fn-nn` con su criterio de aceptación en §12. Antes de construir algo, busca su paso en
+MAESTRO §3 y su tarea en el plan. Si lo que vas a hacer no está en ninguno de los dos, es un cambio de
+alcance: dilo, no lo hagas en silencio.
+
+**Handoff.** Cuando el usuario escribe «handoff», se sigue el protocolo de MAESTRO §8: actualizar el
+maestro, hacer commit y entregar en el chat el bloque para pegar en una sesión nueva.
 
 ## Comandos
 
@@ -51,12 +56,14 @@ packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
 packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
+docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)
+docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
 docs/adr/                 las 17 decisiones, una por archivo
 ```
 
 **Datos de ejemplo.** Viven solo en `apps/web/src/demo` y entran solo por las rutas (`app/**`),
 que los pasan a las pantallas por props. `pnpm arch` rompe si una pantalla o un proveedor los
-importa. Lo que falta está en `docs/PENDIENTES.md`; el flujo de trabajo, en `CONTRIBUTING.md`.
+importa.
 
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
@@ -88,35 +95,14 @@ Venezuela: multimoneda (USD funcional, Bs de liquidación), IVA + IGTF del 3 % s
 divisas, cortes de luz e internet frecuentes. Aforo del local: 30 niños, 7-10 mesas.
 Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
+## Flujo de trabajo
 
-## Orquesta de modelos (opcional)
-
-Claude Code es **la maestra**: planifica, escribe el encargo, revisa y hace commit. Gemini es **la
-obrera**: programa lo que se le encarga, en una copia aislada. Todo pasa por `scripts/obrera.mjs`
-(CLI de Antigravity, suscripción Google AI Pro). Instalación, permisos y candados en
-[docs/ORQUESTA.md](docs/ORQUESTA.md). Si la obrera no está disponible —o se niega—, se trabaja como
-siempre: **no se fuerza**.
-
-```bash
-node scripts/obrera.mjs programa <tarea> --encargo docs/encargos/<tarea>.md   # escribe en ../<proyecto>-obrera
-node scripts/obrera.mjs diff <tarea> --completo      # la maestra revisa
-node scripts/obrera.mjs limpia <tarea>               # tras aplicar o descartar
-node scripts/obrera.mjs revisa [--flash] "encargo"   # solo lee y opina
-```
-
-- **La maestra prepara, la obrera construye.** Antes de encargar, la maestra deja hecho lo que la
-  obrera no puede tocar: contratos (`packages/contracts`), dominio (`packages/domain/*`) y `@l2/ui`.
-  La obrera solo escribe en `apps/`.
-- **El encargo es una especificación, no una idea**: qué archivos, qué patrón copiar, qué no hacer y
-  cuándo está terminado. Se guarda en `docs/encargos/<tarea>.md` y se versiona con el código que produjo.
-  Un encargo vago devuelve código que hay que rehacer.
-- **No se delega**: arquitectura, contratos, dominio ni decisiones del plan.
-- **Qué puede salir del equipo.** A Gemini, el código del repo, **solo** si quien la usa desactivó el
-  entrenamiento con sus datos (`L2_OBRERA_SIN_ENTRENAMIENTO=1`; el script lo exige). A DeepSeek (cuando
-  se conecte), **solo** pruebas, datos inventados e interfaz: nunca `domain/cash`, `domain/tax`,
-  `domain/identity`, los contratos de pagos y ventas, ni nada con datos reales. Nunca, a ninguna,
-  secretos ni `.env`.
-- **Nada de la obrera entra sin revisión**: la maestra lee el diff entero, lo ajusta a las cinco reglas,
-  corre `pnpm verify`, lo prueba en el navegador y lo aplica ella en `main`.
-- **Solo la maestra hace commit** (la obrera no tiene `git`), y dice en el mensaje qué parte escribió la
-  obrera y qué corrigió la maestra.
+- `main` está **siempre en verde**: nada que rompa `pnpm verify` entra en `main`. Para trabajo largo,
+  una rama `feat/<tema>` o `fix/<tema>`; no se reescribe historia compartida.
+- **Un commit por paso**, con título en español que diga qué cambia para quien usa el sistema, y un
+  cuerpo con el porqué. El mismo commit marca el paso en `docs/MAESTRO.md` §3.
+- Una pantalla no está hecha hasta que se abre en el navegador: los errores que más se repiten aquí no
+  los caza `pnpm typecheck` (lista en MAESTRO §5).
+- **Nada de secretos en el repositorio.** `.env*` está ignorado: se documenta el nombre de la variable,
+  nunca su valor. Referencias de pago, documentos y PIN no aparecen en logs ni en la URL (PLAN §7.6).
+- Nada de datos personales reales en los datos de ejemplo.

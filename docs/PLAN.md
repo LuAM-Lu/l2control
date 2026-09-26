@@ -4,6 +4,10 @@
 > **Reemplaza a:** la especificación v1.0 (`docs/archivo/SPEC-v1.md`), retirada del árbol el 2026-09-17; se recupera con `git show 6eda825:docs/archivo/SPEC-v1.md`.
 > **Fecha de revisión:** 2026-09-08.
 > **Cliente / caso piloto:** Abby Kingdom (Parque Infantil + Restaurante), Venezuela.
+>
+> **Congelado como referencia el 2026-09-26.** El estado, la ruta a producción y las decisiones de esa
+> fecha (frontend congelado, nada fiscal, local → VPS) viven en [MAESTRO.md](MAESTRO.md). Aquí no se
+> actualizan casillas. Los enlaces a documentos retirados se leen con `git show e250c54:docs/<ruta>`.
 
 ---
 
