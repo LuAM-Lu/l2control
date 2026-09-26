@@ -1,0 +1,24 @@
+{
+  "name": "@l2/observability",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Saber qué pasa en el servidor sin filtrar datos sensibles (§9.2 ❽, §10.2, §7.6): logs JSON con redacción y arranque con el entorno validado.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "comment": "Solo servidor. El dominio no lo importa (recibe lo que necesita como argumento) y @l2/ui tampoco.",
+  "dependencies": {
+    "pino": "10.3.1",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
+    "typescript": "7.0.2"
+  }
+}

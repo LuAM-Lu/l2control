@@ -20,7 +20,7 @@
 /** Paquetes de dominio, en sus dos formas posibles. */
 const DOMAIN = "^(@l2/domain-|packages/domain/)";
 /** Infraestructura que el dominio no puede tocar. */
-const INFRA = "^(react|react-dom|next(/|$)|@prisma/|prisma|axios|@l2/ui|@l2/database)";
+const INFRA = "^(react|react-dom|next(/|$)|@prisma/|prisma|axios|pino|@l2/ui|@l2/database|@l2/observability)";
 
 module.exports = {
   forbidden: [
@@ -43,7 +43,7 @@ module.exports = {
         "una comanda ni una estancia. Si necesita saberlo, pertenece a " +
         "apps/web/src/features/<contexto>.",
       from: { path: "^packages/ui/" },
-      to: { path: `${DOMAIN}|^(@l2/database|packages/database/)` },
+      to: { path: `${DOMAIN}|^(@l2/database|packages/database/|@l2/observability|packages/observability/)` },
     },
     {
       name: "las-apps-no-tocan-la-base",

@@ -43,7 +43,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **Persistencia base** (B0-2): `@l2/database` con `tenant` y `branch`, RLS forzada y su prueba
   negativa. Para trabajo de backend, la puerta es `pnpm verify:db`.
 
-**Siguiente paso:** B0-3 (§3).
+**Siguiente paso:** B0-4 (§3).
 
 ---
 
@@ -82,10 +82,15 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   *Hecho el 2026-09-26: Prisma 7.10, `abrirBase()` → `conTenant()` como única puerta, que se niega a
   arrancar con un usuario que se salte la RLS. `l2_aislar_por_tenant()` aísla una tabla en una línea.
   19 pruebas (4 estáticas y 15 contra `l2control_test`) que fallan si se apaga la RLS (comprobado).*
-- [ ] **B0-3 · Configuración validada al arrancar y logger con redacción** (`packages/observability`,
+- [x] **B0-3 · Configuración validada al arrancar y logger con redacción** (`packages/observability`,
   F1-13, §10.3).
   → Si falta una variable, el proceso no arranca. Una prueba demuestra que un PIN o una referencia de
   pago no aparece en el log.
+  *Hecho el 2026-09-26: `@l2/observability` con `crearLogger()` (pino 10, JSON), `redactar()` por
+  nombre de campo y por forma del texto (URL con contraseña, `Bearer`, móviles venezolanos) y
+  `leerEntorno()`, que lista todos los problemas sin enseñar un solo valor. 20 pruebas; cazaron dos
+  filtraciones reales (`txId` y el contexto de `child()`). **Se engancha al arranque de Next en B0-5**,
+  que es cuando la app empieza a necesitar variables.*
 - [ ] **B0-4 · CI en GitHub Actions** con `pnpm verify` y un lint que sí haga algo: `toFixed` fuera de
   `@l2/ui`, colores literales y `parseFloat` sobre dinero (F1-14).
   → Un PR con una violación sale en rojo.

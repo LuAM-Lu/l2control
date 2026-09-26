@@ -58,6 +58,7 @@ packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones (puro
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
 packages/database         Prisma, migraciones y RLS forzada; solo lo importa application
+packages/observability    logger JSON con redacción y entorno validado al arrancar (solo servidor)
 packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)
