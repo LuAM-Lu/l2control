@@ -49,7 +49,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **La primera pantalla con servidor** (B0-5): el **tarifario** se publica y se lee de la base, y la
   sala calcula el excedente con la política publicada. Lo demás, provisional hasta su paso.
 
-**Siguiente paso:** B1-2 a B1-4, la sesión en el servidor (§3). B0-4 espera un push para comprobarse en GitHub.
+**Siguiente paso:** B1-2, la elevación con contraseña y TOTP para administración (§3). B0-4 espera un push para comprobarse en GitHub.
 
 ---
 
@@ -127,10 +127,19 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 - [ ] **B1-2 · Sesión en el servidor** con cookie `httpOnly`; administración con contraseña y segundo
   factor como elevación (F2-01, F2-04). **Sesión propia en vez de Better Auth: [ADR-018](adr/018-sesion-propia.md)**,
   porque Better Auth no puede vivir bajo la RLS forzada; los controles de ADR-013 se mantienen.
-- [ ] **B1-3 · Dispositivos**: alta, aprobación y revocación, y revocar cierra sus sesiones (F2-02).
-- [ ] **B1-4 · PIN con Argon2** y bloqueo creciente registrado; sesión compartida en el servidor
+- [x] **B1-3 · Dispositivos**: alta, aprobación y revocación, y revocar cierra sus sesiones (F2-02).
+  *Hecho el 2026-09-27: un equipo nuevo pide su registro desde el acceso (credencial en cookie
+  `httpOnly`, solo su SHA-256 en la base); se aprueba en Panel → Personas → Dispositivos o, el
+  primero de un local, con `pnpm equipos aprobar "<nombre>"`. Revocar cierra sus sesiones en el
+  acto (comprobado en el navegador con dos equipos).*
+- [x] **B1-4 · PIN con Argon2** y bloqueo creciente registrado; sesión compartida en el servidor
   (F2-03, F2-12).
   → Un PIN nunca viaja ni se guarda en claro. Un dispositivo desconocido no entra con PIN.
+  *Hecho el 2026-09-27: Argon2id, bloqueo de `@l2/domain-identity` decidido en el servidor, sesión en
+  cookie `httpOnly` con su hash en la base, una por equipo, caduca a los 30 min sin actividad y
+  muere al salir, al revocar el equipo o al dar de baja a la persona. Cada intento, bueno o malo,
+  queda en la auditoría. Publicar el tarifario ya exige la sesión y `catalogo.modificar`. Se retira
+  el «solo en desarrollo» de B0-5. 18 pruebas de identidad contra la base.*
 - [ ] **B1-5 · Permisos en el servidor**: usuarios, roles, excepciones por persona y ajustes de la
   sucursal persistidos. `can()` se evalúa en cada acción, y la autorización de supervisor se registra
   **antes** de ejecutar (F2-05, F2-08, F2-10, F2-11, F2-13).

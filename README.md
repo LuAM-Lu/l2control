@@ -15,8 +15,10 @@ pnpm dev              # http://localhost:3000 · PIN de prueba 1970 (antes, la b
 pnpm verify           # tipos + lint + fronteras + pruebas; pnpm verify:db añade las de la base
 ```
 
-Entra con cualquier persona de la pantalla de acceso y el PIN **`1970`**. En Chrome, «Instalar la app»
-la instala como PWA. **La app necesita su base de datos** (sección siguiente): no hay modo demo.
+**La app necesita su base de datos** (sección siguiente): no hay modo demo. La primera vez, el
+navegador es un **equipo desconocido**: ponle nombre y pide su registro en `/acceso`, apruébalo con
+`pnpm equipos aprobar "<ese nombre>"` y entra con cualquier persona y el PIN **`1970`**. En Chrome,
+«Instalar la app» la instala como PWA.
 
 ## Base de datos local
 
@@ -27,7 +29,7 @@ Docker (hace falta Docker Desktop encendido).
 cp .env.example .env  # una vez; contraseñas de juguete solo para tu máquina
 pnpm infra:up         # levanta los dos y espera a que estén sanos
 pnpm db:migrar        # aplica las migraciones
-pnpm db:semilla       # crea el local de desarrollo y su tarifario de ejemplo (idempotente)
+pnpm db:semilla       # crea el local de desarrollo, su equipo (PIN 1970) y su tarifario (idempotente)
 pnpm dev              # lee y escribe en la base
 pnpm infra:down       # los apaga; los datos se conservan
 pnpm infra:reset      # borra los datos y arranca de cero

@@ -8,6 +8,7 @@ import { EditorCarta } from "../../../../../src/features/mesas/EditorCarta";
 import { EditorTarifario } from "../../../../../src/features/park/EditorTarifario";
 import { AccesosPage } from "../../../../../src/features/identity/AccesosPage";
 import { DispositivosPage } from "../../../../../src/features/identity/DispositivosPage";
+import { dispositivosDelLocal } from "../../../../../src/features/identity/dispositivos.servidor";
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
@@ -20,13 +21,13 @@ import { MediosPage } from "../../../../../src/features/cash/MediosPage";
  * carpeta `personas/` junto a `[modulo]/` haría que `/panel/personas` dejara
  * de encontrar la página del módulo. Añadir una pantalla es una línea.
  */
-const PANTALLAS: Readonly<Record<string, () => React.ReactNode>> = {
+const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.ReactNode>>> = {
   // TODO(F2-11/backend): el directorio sale del servidor.
   "personas/usuarios": () => <UsuariosPage usuarios={DEMO_USUARIOS} />,
   "restaurante/plano": () => <EditorPlano />,
   "restaurante/carta": () => <EditorCarta />,
   "parque/tarifas": () => <EditorTarifario />,
-  "personas/dispositivos": () => <DispositivosPage />,
+  "personas/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
   "personas/representantes": () => <RepresentantesPage />,
   "caja/tasas": () => <TasasPage />,
   "caja/medios": () => <MediosPage />,
@@ -55,7 +56,7 @@ export default async function SeccionPage({
   if (!modulo) notFound();
 
   const Pantalla = PANTALLAS[`${moduloId}/${seccionId}`];
-  if (Pantalla) return <Pantalla />;
+  if (Pantalla) return await Pantalla();
 
   const seccion = buscarSeccion(modulo, seccionId);
   if (!seccion || seccion.href !== null) notFound();

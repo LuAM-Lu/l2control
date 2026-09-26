@@ -156,7 +156,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
         type: "sesion.cerrada",
         device: PUESTO_DE_ROL[operador.role],
       });
-    cerrarSesion();
+    void cerrarSesion();
   }
 
   // Los ganchos, antes de cualquier salida: en el acceso no hay barra, pero el

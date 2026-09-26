@@ -6,8 +6,16 @@
 export interface Contexto {
   readonly tenantId: string;
   readonly branchId: string;
-  /** Quién opera. Ausente = el sistema (semillas, trabajos programados). */
-  readonly quien?: Readonly<{ userId: string; deviceId: string | null }>;
+  /**
+   * Quién opera y desde qué equipo. `userId` nulo = alguien sin identificar desde un equipo
+   * conocido (un PIN de una persona que no existe): se audita, pero no puede nada.
+   */
+  readonly quien?: Readonly<{ userId: string | null; deviceId: string | null }>;
   /** Desde dónde llegó la petición, para la auditoría. */
   readonly ip?: string | null;
+  /**
+   * Operación del sistema, no de una persona: semillas y consola del servidor. No pasa por la
+   * matriz de permisos. Sin `quien` y sin esto, todo se niega (deny-by-default).
+   */
+  readonly sistema?: true;
 }

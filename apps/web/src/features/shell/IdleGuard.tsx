@@ -81,7 +81,7 @@ export function IdleGuard({ politica }: { politica: IdlePolicy }) {
       if (s.state === "BLOQUEADO") {
         window.clearInterval(id);
         // Bloquear es cerrar la sesión: quien vuelva tendrá que identificarse.
-        cerrarSesion();
+        void cerrarSesion();
         router.replace("/acceso");
       }
     }, 1000);

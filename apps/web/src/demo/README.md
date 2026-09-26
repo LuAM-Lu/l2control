@@ -10,8 +10,7 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 
 | Archivo | Qué inventa | Se va con |
 |---|---|---|
-| `usuarios.ts` | El equipo del acceso y sus roles | B1-5 |
-| `dispositivos.ts` | Los equipos autorizados | B1-3 |
+| `usuarios.ts` | El directorio de la pantalla de usuarios (el acceso ya lee la base) | B1-5 |
 | `tasas.ts` | El historial de tasas de cambio | B2-1 |
 | `medios.ts` | Medios de pago y datos que ve el cliente | B3-2 |
 | `turno.ts` | Movimientos y excepciones del turno | B3-1 y B3-5 |
@@ -22,7 +21,7 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 | `restaurante.ts` | Plano y carta | B6-1 |
 
 Ya se fueron: el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
-`scripts/semilla/tarifario.mts`), las cuentas y ventas de ejemplo, el interruptor `NEXT_PUBLIC_DEMO` y el
+`scripts/semilla/tarifario.mts`), los dispositivos (B1-3), las cuentas y ventas de ejemplo, el interruptor `NEXT_PUBLIC_DEMO` y el
 simulador de operación con sus escenarios.
 
 ## Reglas mientras existan

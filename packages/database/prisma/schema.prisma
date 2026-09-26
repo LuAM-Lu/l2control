@@ -40,8 +40,12 @@ model Branch {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
-  tariffVersions ParkTariffVersion[]
-  auditEntries   AuditEntry[]
+  tariffVersions  ParkTariffVersion[]
+  auditEntries    AuditEntry[]
+  staff           StaffUserBranch[]
+  devices         Device[]
+  roleAdjustments RoleAdjustment[]
+  sessions        StaffSession[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -105,4 +109,176 @@ model AuditEntry {
   @@index([tenantId, entityType, entityId])
   @@index([tenantId, actorId, occurredAt])
   @@map("audit_log")
+}
+
+/**
+ * ─────────────────────────────── identidad (Etapa 1, ADR-013 y ADR-018) ──
+ */
+
+/// Una persona del equipo (F2-10). Nada se borra: dar de baja es `active = false` más su
+/// asiento en `staff_user_change`. Credenciales: solo hashes y, el TOTP, cifrado.
+model StaffUser {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  fullName         String    @map("full_name")
+  /// Rol de la matriz §7.3 (CHECK en la migración).
+  role             String
+  active           Boolean   @default(true)
+  /// Argon2id del PIN (ADR-013). Nulo = aún no tiene PIN: no puede entrar.
+  pinHash          String?   @map("pin_hash")
+  /// Bloqueo creciente (`computeLockout` del dominio): fallos seguidos y el último.
+  pinFailures      Int       @default(0) @map("pin_failures")
+  pinLastFailureAt DateTime? @map("pin_last_failure_at") @db.Timestamptz(3)
+  /// Administración (F2-04): contraseña Argon2id y secreto TOTP cifrado (AES-256-GCM).
+  passwordHash     String?   @map("password_hash")
+  totpSecretEnc    String?   @map("totp_secret_enc")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  branches   StaffUserBranch[]
+  changes    StaffUserChange[]
+  exceptions PermissionException[]
+  sessions   StaffSession[]
+
+  @@unique([tenantId, id])
+  @@map("staff_user")
+}
+
+/// Dónde opera cada persona (F2-06). Una excepción de permiso nunca amplía esto (§9.10.6).
+model StaffUserBranch {
+  tenantId String @map("tenant_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+  branchId String @map("branch_id") @db.Uuid
+
+  user   StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch Branch    @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([tenantId, userId, branchId])
+  @@map("staff_user_branch")
+}
+
+/// Lo que le pasó a una persona: ALTA, BAJA, REINGRESO, ROL o PIN (`UserChangeSchema`). Solo se añade.
+model StaffUserChange {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  tenantId String   @map("tenant_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  kind     String
+  fromRole String?  @map("from_role")
+  toRole   String?  @map("to_role")
+  reason   String
+  byUserId String?  @map("by_user_id") @db.Uuid
+  byName   String   @map("by_name")
+  at       DateTime @default(now()) @db.Timestamptz(3)
+
+  user StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, userId, at])
+  @@map("staff_user_change")
+}
+
+/// Una concesión o revocación sobre el rol de una persona (DEC-15, F2-11). Retirarla no la
+/// borra: pone `retired_at`. Solo una vigente por persona y acción (índice parcial).
+model PermissionException {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  action        String
+  /// GRANT o REVOKE.
+  effect        String
+  /// Para GRANT: PERMITIDO o REQUIERE_AUTORIZACION.
+  permission    String?
+  reason        String
+  grantedBy     String?   @map("granted_by") @db.Uuid
+  grantedByName String    @map("granted_by_name")
+  at            DateTime  @default(now()) @db.Timestamptz(3)
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
+
+  user StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, userId])
+  @@map("permission_exception")
+}
+
+/// Un ajuste de la sucursal sobre un rol entero (F2-13). Retirar pone `retired_at`.
+model RoleAdjustment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  branchId   String    @map("branch_id") @db.Uuid
+  role       String
+  action     String
+  permission String
+  reason     String
+  byUserId   String?   @map("by_user_id") @db.Uuid
+  byName     String    @map("by_name")
+  at         DateTime  @default(now()) @db.Timestamptz(3)
+  retiredAt  DateTime? @map("retired_at") @db.Timestamptz(3)
+
+  branch Branch @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, branchId])
+  @@map("role_adjustment")
+}
+
+/// Un equipo del local (F2-02). Primer factor del acceso: su secreto vive en una cookie
+/// `httpOnly` y aquí solo su SHA-256. Revocar no lo borra (regla 5): las sesiones que abrió lo nombran.
+model Device {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  branchId     String    @map("branch_id") @db.Uuid
+  label        String
+  /// PENDIENTE, APROBADO o REVOCADO.
+  status       String
+  secretHash   String    @unique @map("secret_hash")
+  registeredAt DateTime  @default(now()) @map("registered_at") @db.Timestamptz(3)
+  lastSeenAt   DateTime? @map("last_seen_at") @db.Timestamptz(3)
+
+  branch   Branch         @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  changes  DeviceChange[]
+  sessions StaffSession[]
+
+  @@unique([tenantId, id])
+  @@map("device")
+}
+
+/// Lo que le pasó a un equipo: ALTA, APROBADO, REVOCADO o RENOMBRADO. Solo se añade.
+model DeviceChange {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  tenantId String   @map("tenant_id") @db.Uuid
+  deviceId String   @map("device_id") @db.Uuid
+  kind     String
+  label    String?
+  reason   String
+  byUserId String?  @map("by_user_id") @db.Uuid
+  byName   String   @map("by_name")
+  at       DateTime @default(now()) @db.Timestamptz(3)
+
+  device Device @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, deviceId, at])
+  @@map("device_change")
+}
+
+/// Una sesión de una persona en un equipo (F2-12). El token vive en una cookie `httpOnly`;
+/// aquí, su SHA-256. Se cierra de verdad en el servidor (`closed_at`) y no se reabre.
+model StaffSession {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  branchId      String    @map("branch_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  deviceId      String    @map("device_id") @db.Uuid
+  tokenHash     String    @unique @map("token_hash")
+  openedAt      DateTime  @default(now()) @map("opened_at") @db.Timestamptz(3)
+  lastSeenAt    DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  /// Hasta cuándo vale la elevación con contraseña y TOTP (F2-04). Nulo = sin elevar.
+  elevatedUntil DateTime? @map("elevated_until") @db.Timestamptz(3)
+  closedAt      DateTime? @map("closed_at") @db.Timestamptz(3)
+  /// SALIDA, INACTIVIDAD, DISPOSITIVO_REVOCADO, BAJA, CORTE_Z, OTRA_SESION.
+  closedReason  String?   @map("closed_reason")
+
+  user   StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  device Device    @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch Branch    @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, deviceId, closedAt])
+  @@index([tenantId, userId, closedAt])
+  @@map("staff_session")
 }

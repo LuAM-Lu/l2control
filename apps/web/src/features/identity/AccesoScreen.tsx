@@ -12,33 +12,24 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from "lucide-react";
-import {
-  DEFAULT_LOCKOUT_POLICY,
-  checkDevice,
-  computeLockout,
-  describeLockout,
-  type Device,
-  type Role,
-} from "@l2/domain-identity";
+import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
 import type { RoleAdjustmentDto } from "@l2/contracts";
-import { PUESTO_DE_ROL, iniciarSesion } from "./operador.ts";
+import { PUESTO_DE_ROL } from "./operador.ts";
+import { entrar, solicitarRegistro } from "./acceso.acciones";
 import { useAjustes } from "./accesos.ts";
 import { actorDe, puestoDe } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
-import { Badge, Initial, NumericKeypad, cn } from "@l2/ui";
+import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
 
 /**
  * Acceso por PIN atado a dispositivo — F2-03, ADR-013.
  *
  * ⚠️ LO QUE ESTA PANTALLA **NO** ES
- * El límite de intentos que ves aquí es **experiencia de usuario, no
- * seguridad**. Quien controle el navegador puede saltárselo. El límite que
- * cuenta lo impone el servidor con Better Auth, y este componente solo lo
- * explica para que el operador entienda por qué está esperando.
- *
- * Está escrito así a propósito: hacer creer que un contador en React protege
- * algo es peor que no tenerlo.
+ * El PIN, los intentos y el bloqueo los decide el SERVIDOR (B1-4, ADR-018):
+ * esta pantalla envía el PIN y enseña lo que el servidor responde, con la
+ * cuenta atrás del bloqueo. No hay contador en React que proteja nada, y no
+ * se finge que lo haya.
  *
  * LO QUE SÍ IMPONE EL DISEÑO
  * El dispositivo es el PRIMER FACTOR. Se comprueba **antes** de mostrar
@@ -103,7 +94,7 @@ export function AccesoScreen({
   device,
   operadores,
 }: {
-  /** `null` simula un dispositivo no registrado. */
+  /** `null` = equipo desconocido: la pantalla ofrece pedir su registro. */
   device: Device | null;
   operadores: readonly Operador[];
 }) {
@@ -111,8 +102,9 @@ export function AccesoScreen({
   const ajustes = useAjustes();
   const [operador, setOperador] = useState<Operador | null>(null);
   const [pin, setPin] = useState("");
-  const [fallos, setFallos] = useState(0);
-  const [ultimoFallo, setUltimoFallo] = useState<number | null>(null);
+  /** Lo último que dijo el servidor al rechazar un PIN, con su bloqueo si lo hay. */
+  const [rechazo, setRechazo] = useState<{ mensaje: string; hasta: number | null; intentosRestantes: number | null } | null>(null);
+  const [enviando, setEnviando] = useState(false);
   const [ahora, setAhora] = useState(() => Date.now());
   const [entrando, setEntrando] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -158,7 +150,13 @@ export function AccesoScreen({
   const fecha = reloj === null ? null : FORMATO_FECHA.format(reloj);
 
   const revision = useMemo(() => checkDevice(device), [device]);
-  const bloqueo = computeLockout(fallos, ultimoFallo, ahora, DEFAULT_LOCKOUT_POLICY);
+  const hasta = rechazo?.hasta ?? null;
+  const bloqueo: LockoutState = {
+    locked: hasta !== null && ahora < hasta,
+    lockedUntil: hasta,
+    attemptsRemaining: rechazo?.intentosRestantes ?? 0,
+    secondsRemaining: hasta !== null && ahora < hasta ? Math.ceil((hasta - ahora) / 1000) : 0,
+  };
 
   // Late el reloj solo mientras hay un bloqueo que contar hacia atrás.
   useEffect(() => {
@@ -167,43 +165,45 @@ export function AccesoScreen({
     return () => clearInterval(id);
   }, [bloqueo.locked]);
 
-  function intentar() {
-    if (bloqueo.locked || pin.length !== PIN_LENGTH) return;
+  async function intentar() {
+    if (bloqueo.locked || enviando || pin.length !== PIN_LENGTH || !operador) return;
+    setEnviando(true);
+    // El PIN va por POST en el cuerpo de la acción: nunca en la URL, en un log ni en el
+    // estado que se persiste (§7.6). Lo comprueba el servidor con Argon2id.
+    const r = await entrar(operador.id, pin).catch(() => null);
+    setEnviando(false);
 
-    // TODO(F2-03/backend): aquí va la llamada a Better Auth. El PIN se envía
-    // por POST sobre TLS y NUNCA aparece en la URL, en un log ni en el estado
-    // que se persiste (§7.6).
-    // Mientras tanto se simula: "1970" entra, cualquier otro falla.
-    if (pin === "1970") {
-      // Entrar es IR al puesto de trabajo. Una pantalla intermedia de
-      // «bienvenido» es un toque de más en un sitio donde hay cola; el sello
-      // verde ocupa su lugar y dura lo que tarda en leerse.
+    if (r?.ok) {
+      // Entrar es IR al puesto de trabajo. El sello verde ocupa el lugar de una pantalla de
+      // «bienvenido» y dura lo que tarda en leerse.
       setEntrando(true);
-      iniciarSesion({ id: operador!.id, nombre: operador!.nombre, rol: operador!.rol, role: operador!.role });
-      // El panel en vivo enseña quién está en cada puesto (F9-08, D7). Mismo
-      // catálogo de eventos que usará el servidor con las sesiones reales.
+      setRechazo(null);
+      // El panel en vivo enseña quién está en cada puesto (F9-08, D7).
       op.emitir({
         type: "sesion.iniciada",
-        userName: operador!.nombre,
-        role: operador!.rol,
-        device: PUESTO_DE_ROL[operador!.role],
+        userName: operador.nombre,
+        role: operador.rol,
+        device: PUESTO_DE_ROL[operador.role],
       });
-      const destino = destinoDe(operador!, ajustes);
-      if (esRutaDeEstacion(destino.ruta)) {
-        pedirPantallaCompleta();
-      }
+      const destino = destinoDe(operador, ajustes);
+      if (esRutaDeEstacion(destino.ruta)) pedirPantallaCompleta();
       window.setTimeout(() => router.push(destino.ruta), MS_DEL_SELLO);
       return;
     }
 
-    setFallos((n) => n + 1);
-    setUltimoFallo(Date.now());
+    setRechazo({
+      mensaje: r ? r.mensaje : "No se pudo comprobar el PIN: el servidor no respondió. Inténtalo de nuevo.",
+      hasta: r?.bloqueo?.hasta ? Date.parse(r.bloqueo.hasta) : null,
+      intentosRestantes: r?.bloqueo ? r.bloqueo.intentosRestantes : null,
+    });
     setAhora(Date.now());
     setSacudidas((n) => n + 1);
     setPin("");
   }
 
   /* ------------------------------------- dispositivo no autorizado */
+
+  if (!revision.ok && device === null) return <PedirRegistro />;
 
   if (!revision.ok) {
     return (
@@ -353,7 +353,7 @@ export function AccesoScreen({
             texto que dice lo mismo (§8.2). */}
         <div
           key={sacudidas}
-          className={cn("mb-5 flex justify-center gap-3", fallos > 0 && "l2-sacudida")}
+          className={cn("mb-5 flex justify-center gap-3", rechazo !== null && "l2-sacudida")}
           aria-live="polite"
         >
           <span className="sr-only">
@@ -414,27 +414,88 @@ export function AccesoScreen({
               onChange={setPin}
               maxLength={PIN_LENGTH}
               surface="pos"
-              onSubmit={intentar}
+              onSubmit={() => void intentar()}
               submitLabel="Entrar"
             />
 
-            {fallos > 0 && (
+            {enviando && (
+              <p role="status" className="mt-4 text-center text-[12.5px] text-ink-3">
+                Comprobando…
+              </p>
+            )}
+            {rechazo && !enviando && (
               <p
                 role="alert"
-                className="mt-4 flex items-center justify-center gap-2 text-[12.5px] text-state-warn"
+                className="mt-4 flex items-center justify-center gap-2 text-center text-[12.5px] text-state-warn"
               >
                 <TriangleAlert size={14} aria-hidden="true" />
-                PIN incorrecto · quedan {bloqueo.attemptsRemaining}{" "}
-                {bloqueo.attemptsRemaining === 1 ? "intento" : "intentos"}
+                {rechazo.intentosRestantes !== null && rechazo.intentosRestantes > 0
+                  ? `PIN incorrecto · quedan ${rechazo.intentosRestantes} ${rechazo.intentosRestantes === 1 ? "intento" : "intentos"}`
+                  : rechazo.mensaje}
               </p>
             )}
           </>
         )}
 
         <p className="mt-6 text-center text-[11.5px] text-ink-3">
-          Prototipo: el PIN de prueba es 1970. En producción lo verifica el servidor con Argon2 y
-          nunca viaja en la URL ni aparece en un log.
+          El PIN lo comprueba el servidor y nunca viaja en la URL ni aparece en un log. Cada intento
+          queda registrado con la hora y el equipo.
         </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Un equipo que el servidor no conoce: pide su registro (F2-02). Queda PENDIENTE hasta que
+ * administración lo apruebe en Panel → Personas → Dispositivos; hasta entonces, ningún PIN
+ * sirve desde él.
+ */
+function PedirRegistro() {
+  const router = useRouter();
+  const [nombre, setNombre] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function pedir() {
+    setEnviando(true);
+    setError(null);
+    const r = await solicitarRegistro(nombre).catch(() => null);
+    setEnviando(false);
+    if (!r) return setError("El servidor no respondió. Inténtalo de nuevo.");
+    if (!r.ok) return setError(r.problemas?.[0]?.message ?? r.mensaje);
+    router.refresh();
+  }
+
+  return (
+    <div className="grid flex-1 place-content-center bg-base px-6">
+      <div className="w-full max-w-md rounded-[var(--radius-card)] border border-line bg-surface p-8 shadow-card">
+        <MonitorSmartphone size={32} className="text-ink-2" aria-hidden="true" />
+        <h1 className="font-display mt-4 text-2xl font-bold text-ink">Este equipo no está registrado</h1>
+        <p className="mt-2 text-sm text-ink-2">
+          El equipo es el primer factor de acceso: sin registrarlo, un PIN correcto tampoco sirve. Ponle
+          un nombre que diga dónde está y pide el registro; administración lo aprueba desde el panel.
+        </p>
+        <form
+          className="mt-6 flex flex-col gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void pedir();
+          }}
+        >
+          <Input
+            label="Nombre del equipo"
+            surface="tablet"
+            placeholder="Tablet taquilla"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            error={error ?? undefined}
+            maxLength={40}
+          />
+          <Button type="submit" surface="tablet" variant="primary" disabled={enviando || nombre.trim().length < 2}>
+            {enviando ? "Pidiendo…" : "Pedir registro"}
+          </Button>
+        </form>
       </div>
     </div>
   );

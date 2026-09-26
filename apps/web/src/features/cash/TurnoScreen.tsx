@@ -104,7 +104,7 @@ export function TurnoScreen({
   }, [sellado]);
   useEffect(() => {
     if (regreso === 0) {
-      cerrarSesion();
+      void cerrarSesion("CORTE_Z");
       router.replace("/acceso");
     }
   }, [regreso, router]);
@@ -436,7 +436,7 @@ export function TurnoScreen({
                       surface="pos"
                       variant="neutral"
                       onClick={() => {
-                        cerrarSesion();
+                        void cerrarSesion("CORTE_Z");
                         router.replace("/acceso");
                       }}
                       className="mt-2 w-full"

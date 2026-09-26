@@ -11,8 +11,9 @@ import { conectar, type Aplicacion, type Contexto } from "../index.ts";
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 
 let app: Aplicacion;
-const A: Contexto = { tenantId: randomUUID(), branchId: randomUUID() };
-const B: Contexto = { tenantId: randomUUID(), branchId: randomUUID() };
+// Contexto de sistema: aquí se prueba el tarifario, no los permisos (eso, en identidad).
+const A: Contexto = { tenantId: randomUUID(), branchId: randomUUID(), sistema: true };
+const B: Contexto = { tenantId: randomUUID(), branchId: randomUUID(), sistema: true };
 
 const paquete = (id: string, nombre: string, minutos: number | null, minor: string) => ({
   id,
@@ -101,13 +102,13 @@ describe("aislamiento", () => {
   });
 
   test("A no puede publicar en la sucursal de B", async () => {
-    const r = await app.tarifario.publicar({ tenantId: A.tenantId, branchId: B.branchId }, tarifario("1"));
+    const r = await app.tarifario.publicar({ tenantId: A.tenantId, branchId: B.branchId, sistema: true }, tarifario("1"));
     assert.equal(r.ok ? "ok" : r.motivo, "NO_DISPONIBLE");
     assert.equal((await app.tarifario.leer(B))?.tarifario.packages[0]?.price.minor, "999");
   });
 
   test("A tampoco puede leer el tarifario de B citando su sucursal", async () => {
-    assert.equal(await app.tarifario.leer({ tenantId: A.tenantId, branchId: B.branchId }), null);
+    assert.equal(await app.tarifario.leer({ tenantId: A.tenantId, branchId: B.branchId, sistema: true }), null);
   });
 });
 

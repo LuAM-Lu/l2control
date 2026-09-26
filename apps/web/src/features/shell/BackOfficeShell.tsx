@@ -58,7 +58,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
   function salir() {
     if (operador) op.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
-    cerrarSesion();
+    void cerrarSesion();
   }
   const ajustes = useAjustes();
   const actor = operador ? actorDe(operador, ajustes) : null;

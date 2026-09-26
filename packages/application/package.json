@@ -9,13 +9,17 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test:db": "node --env-file-if-exists=../../.env --test --test-concurrency=1 --experimental-strip-types \"src/**/*.test-db.ts\""
+    "test:db": "node --env-file-if-exists=../../.env --test --test-concurrency=1 --experimental-strip-types \"src/**/*.test-db.ts\"",
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
   },
   "comment": "Es la única puerta de las apps al servidor: apps → application → database (§9.2 regla 2).",
   "dependencies": {
     "@l2/contracts": "workspace:*",
     "@l2/database": "workspace:*",
-    "@l2/observability": "workspace:*"
+    "@l2/domain-identity": "workspace:*",
+    "@l2/observability": "workspace:*",
+    "@node-rs/argon2": "2.2.1",
+    "otpauth": "9.5.2"
   },
   "devDependencies": {
     "@l2/config": "workspace:*",

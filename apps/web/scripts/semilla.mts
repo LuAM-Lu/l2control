@@ -1,13 +1,16 @@
 /**
- * `pnpm db:semilla` — deja la base de DESARROLLO lista para abrir la app en modo servidor:
- * el local (tenant y sucursal de L2_TENANT_ID / L2_BRANCH_ID) y, si no tiene, el tarifario de
+ * `pnpm db:semilla` — deja la base de DESARROLLO lista para abrir la app: el local (tenant y
+ * sucursal de L2_TENANT_ID / L2_BRANCH_ID), su equipo con PIN y, si no tiene, el tarifario de
  * ejemplo como versión 1. Idempotente: correrlo otra vez no cambia nada.
  *
- * Los datos son inventados (scripts/semilla). Los reales llegan con F0-04 y B7-2.
+ * Los datos son inventados (scripts/semilla). Los reales llegan con F0-04 y B7-2. El equipo
+ * nuevo desde el que se abra la app pide su registro en el acceso; se aprueba con
+ * `pnpm equipos aprobar "<nombre>"` (la consola del servidor).
  */
 import { existsSync } from "node:fs";
-import { conectar } from "@l2/application";
+import { conectar, type Contexto } from "@l2/application";
 import { TARIFARIO_DESARROLLO } from "./semilla/tarifario.mts";
+import { EQUIPO_DESARROLLO } from "./semilla/equipo.mts";
 
 const raiz = new URL("../../../.env", import.meta.url);
 if (existsSync(raiz)) process.loadEnvFile(raiz);
@@ -24,9 +27,15 @@ if (L2_ENTORNO !== "desarrollo") {
 
 const app = await conectar(L2_DB_APP_URL);
 try {
-  const ctx = { tenantId: L2_TENANT_ID, branchId: L2_BRANCH_ID };
+  const ctx: Contexto = { tenantId: L2_TENANT_ID, branchId: L2_BRANCH_ID, sistema: true };
   const { creada } = await app.sucursal.asegurar(ctx, { tenant: "Abby Kingdom", sucursal: "Principal" });
   console.log(creada ? "✓ Local creado: Abby Kingdom · Principal" : "· El local ya existía");
+
+  for (const persona of EQUIPO_DESARROLLO) {
+    const r = await app.equipo.asegurar(ctx, persona);
+    if (!r.ok) throw new Error(`${persona.nombre}: ${r.mensaje}`);
+    console.log(r.creada ? `✓ ${persona.nombre} (${persona.role})` : `· ${persona.nombre} ya existía`);
+  }
 
   if (await app.tarifario.leer(ctx)) {
     console.log("· Ya hay tarifario publicado: no se toca");
@@ -35,6 +44,7 @@ try {
     if (!r.ok) throw new Error(`El tarifario de ejemplo no pasó el contrato: ${r.mensaje}`);
     console.log(`✓ Tarifario de ejemplo publicado (versión ${r.valor.version})`);
   }
+  console.log("\nEl PIN de todo el equipo de desarrollo es 1970.");
 } finally {
   await app.cerrar();
 }

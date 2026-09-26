@@ -108,7 +108,7 @@ function SinAcceso({ operador, destino }: { operador: OperadorEnSesion; destino:
           variant="neutral"
           className="flex-1"
           onClick={() => {
-            cerrarSesion();
+            void cerrarSesion();
             router.push("/acceso");
           }}
         >

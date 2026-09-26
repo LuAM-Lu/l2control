@@ -4,17 +4,19 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { abrirBase, errorDeBase, type Base } from "@l2/database";
+import { errorDeBase, type Base } from "@l2/database";
 import { borrarTenantsDePrueba } from "@l2/database/para-pruebas";
-import { conectar, type Aplicacion, type Contexto } from "../index.ts";
+import type { Aplicacion, Contexto } from "../index.ts";
+import { abrirLocalDePrueba, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 import { auditar } from "./auditar.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
+let local: LocalDePrueba;
 let app: Aplicacion;
 let base: Base;
-const quien = { userId: randomUUID(), deviceId: randomUUID() };
-const A: Contexto = { tenantId: randomUUID(), branchId: randomUUID(), quien, ip: "10.0.0.7" };
-const B: Contexto = { tenantId: randomUUID(), branchId: randomUUID() };
+let quien: { userId: string; deviceId: string };
+let A: Contexto;
+const B: Contexto = { tenantId: randomUUID(), branchId: randomUUID(), sistema: true };
 
 const tarifario = (precio: string) => ({
   packages: [{ id: "p30", name: "30 minutos", mode: "PREPAGO", duration: { kind: "fixed", minutes: 30 }, price: { minor: precio, currency: "USD" }, active: true }],
@@ -22,15 +24,19 @@ const tarifario = (precio: string) => ({
 });
 
 before(async () => {
-  app = await conectar(URL_APP);
-  base = await abrirBase(URL_APP);
-  await app.sucursal.asegurar(A, { tenant: "Auditoría A", sucursal: "Principal" });
+  local = await abrirLocalDePrueba(URL_APP, "Auditoría A");
+  ({ app, base } = local);
+  // Una administradora de verdad, en un equipo aprobado: el asiento tiene que nombrarla.
+  const userId = await crearPersona(local, { nombre: "Abigail Prueba", role: "ADMIN" });
+  const deviceId = (await crearEquipo(local, "Tablet auditoría")).split(".")[1]!;
+  quien = { userId, deviceId };
+  A = { tenantId: local.sistema.tenantId, branchId: local.sistema.branchId, quien, ip: "10.0.0.7" };
   await app.sucursal.asegurar(B, { tenant: "Auditoría B", sucursal: "Principal" });
 });
 
 after(async () => {
-  await borrarTenantsDePrueba(URL_APP, [A.tenantId, B.tenantId]);
-  await Promise.all([app.cerrar(), base.cerrar()]);
+  await borrarTenantsDePrueba(URL_APP, [B.tenantId]);
+  await local.cerrar();
 });
 
 test("publicar el tarifario deja su asiento: quién, desde dónde, antes y después", async () => {

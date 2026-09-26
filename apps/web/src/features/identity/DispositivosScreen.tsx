@@ -80,11 +80,11 @@ export function DispositivosScreen({
         comando={comando}
         autor={autor}
         onCerrar={() => setComando(null)}
-        onAplicar={(cmd) => {
+        onAplicar={async (cmd) => {
           // El error vuelve como texto y el diálogo se queda abierto con lo
           // escrito: reescribir el motivo por un nombre repetido es peor que
           // el error.
-          const error = aplicar(cmd, autor);
+          const error = await aplicar(cmd);
           if (error) return error;
           avisar.ok("Cambio guardado");
           setComando(null);
@@ -273,14 +273,22 @@ function DialogoDispositivo({
   comando: { kind: "APROBAR" | "REVOCAR" | "RENOMBRAR"; dev: DeviceDto } | null;
   autor: { id: string; nombre: string } | null;
   onCerrar: () => void;
-  onAplicar: (cmd: DeviceCommand) => string | null;
+  onAplicar: (cmd: DeviceCommand) => Promise<string | null>;
 }) {
   const [motivo, setMotivo] = useState("");
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
 
   if (!comando || !autor) return null;
   const t = TEXTO_DIALOGO[comando.kind];
+
+  // El servidor tarda: se espera su respuesta y el botón no admite un segundo toque.
+  const enviar = async (cmd: DeviceCommand) => {
+    setGuardando(true);
+    setError(await onAplicar(cmd));
+    setGuardando(false);
+  };
 
   const confirmar = () => {
     const reason = motivo.trim();
@@ -295,11 +303,11 @@ function DialogoDispositivo({
         setError("El nombre debe tener al menos 2 caracteres.");
         return;
       }
-      setError(onAplicar({ kind: "RENOMBRAR", deviceId: comando.dev.id, label, reason }));
+      void enviar({ kind: "RENOMBRAR", deviceId: comando.dev.id, label, reason });
       return;
     }
 
-    setError(onAplicar({ kind: comando.kind, deviceId: comando.dev.id, reason }));
+    void enviar({ kind: comando.kind, deviceId: comando.dev.id, reason });
   };
 
   return (
@@ -317,9 +325,10 @@ function DialogoDispositivo({
             surface="tablet"
             variant={comando.kind === "REVOCAR" ? "danger" : "primary"}
             onClick={confirmar}
+            disabled={guardando}
             className="flex-1"
           >
-            {t.boton}
+            {guardando ? "Guardando…" : t.boton}
           </Button>
         </div>
       }

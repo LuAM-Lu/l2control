@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "semilla": "node --experimental-strip-types scripts/semilla.mts"
+    "semilla": "node --experimental-strip-types scripts/semilla.mts",
+    "equipos": "node --experimental-strip-types scripts/equipos.mts"
   },
   "dependencies": {
     "@l2/application": "workspace:*",
