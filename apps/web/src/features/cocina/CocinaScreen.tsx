@@ -3,7 +3,7 @@
 import { Bell, ChefHat, CircleCheckBig, Clock, Eye, Printer, TriangleAlert, Utensils } from "lucide-react";
 import type { NivelEspera, UmbralEspera } from "@l2/domain-orders";
 import { Badge, Button, Container, avisar, cn, type Tone } from "@l2/ui";
-import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useOperador } from "../identity/operador.ts";
 import { cronometro, vistaCocina, type Comanda, type VistaCocina } from "./kds.ts";
 
@@ -45,14 +45,14 @@ const TONO_RELOJ: Readonly<Record<NivelEspera, string>> = {
 };
 
 export function CocinaScreen({ umbral }: { umbral: UmbralEspera }) {
-  const sim = useSimulacion();
+  const op = useOperacion();
   const ahora = useAhoraLocal();
   const operador = useOperador();
-  const vista = vistaCocina(sim.estado, ahora, umbral);
+  const vista = vistaCocina(op.estado, ahora, umbral);
 
   /** Cada acción de la cocina sale como evento del catálogo (F1-20). */
-  const emitir = (ev: Parameters<typeof sim.emitir>[0], exito: string) => {
-    const r = sim.emitir(ev);
+  const emitir = (ev: Parameters<typeof op.emitir>[0], exito: string) => {
+    const r = op.emitir(ev);
     if (r.ok) avisar.ok(exito);
     else avisar.error(r.motivo);
   };

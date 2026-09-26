@@ -13,7 +13,7 @@ import type { FamilyAccountDto, ParkPolicyDto } from "@l2/contracts";
 import { nivelEspera, type UmbralEspera } from "@l2/domain-orders";
 import { sum, type Money } from "@l2/domain-money";
 import { computeSessionView } from "@l2/domain-park";
-import type { EstadoLocal } from "../simulacion/proyeccion.ts";
+import type { EstadoLocal } from "../operacion/proyeccion.ts";
 import { pendiente } from "../cuentas/cuentas.ts";
 import { toEpochMs, toParkPolicy, toParkSession } from "../park/mappers.ts";
 

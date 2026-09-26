@@ -53,7 +53,7 @@ Una excepción se escribe `lint-permitido: <regla> — <motivo>`, y sin motivo n
 apps/web                  Next.js 16 — todas las superficies
   app/                    rutas; las únicas que importan src/demo
   src/features/<dominio>  pantallas y lógica de aplicación, por dominio
-  src/demo/               datos de ejemplo e interruptor NEXT_PUBLIC_DEMO
+  src/demo/               datos provisionales; cada paso de backend borra el suyo (M-6)
   src/servidor/           entorno validado, conexión a application y logger (solo servidor)
 packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
@@ -72,15 +72,17 @@ docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se 
 docs/adr/                 las 17 decisiones, una por archivo
 ```
 
-**Datos de ejemplo.** Viven solo en `apps/web/src/demo` y entran solo por las rutas (`app/**`),
-que los pasan a las pantallas por props. `pnpm arch` rompe si una pantalla o un proveedor los
-importa.
+**No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su
+servidor. Lo que aún no tiene backend usa datos provisionales de `apps/web/src/demo`, que entran solo
+por las rutas (`app/**`) y se pasan por props (`pnpm arch` lo impone). **Nada nuevo entra ahí**, y el
+paso de backend que sustituye un archivo lo borra en el mismo commit.
 
-**Del ejemplo al servidor (B0-5).** `L2_FUENTE_DE_DATOS` (`demo` | `servidor`) lo decide el servidor,
-nunca el navegador. Una pantalla pasa a la base así: caso de uso en `@l2/application` con su
+**Del provisional al servidor (B0-5).** Una pantalla pasa a la base así: caso de uso en `@l2/application` con su
 `*.test-db.ts`; lectura en `features/<dominio>/<x>.servidor.ts` (con `connection()`); escritura en
-`<x>.acciones.ts` (`"use server"`, recibe `unknown`, devuelve `Resultado`); el layout elige la fuente
-y el proveedor publica con la acción. El modelo es el tarifario.
+`<x>.acciones.ts` (`"use server"`, recibe `unknown`, devuelve `Resultado`); la ruta o el layout lee
+en el servidor, el proveedor escribe con la acción y se borra su archivo de `src/demo`. El modelo es
+el tarifario. Lo que las estaciones se cuentan entre sí va por el bus de `features/operacion` (eventos
+del catálogo), que en B5-1 viaja por el servidor.
 
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.

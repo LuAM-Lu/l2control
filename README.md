@@ -11,13 +11,12 @@ multimoneda adaptada a economías mixtas.
 
 ```bash
 pnpm install          # Node 24 LTS y pnpm 12
-pnpm dev              # http://localhost:3000 · PIN de prueba 1970
-pnpm verify           # tipos + fronteras + demostración de que muerden + pruebas; antes de cada push
+pnpm dev              # http://localhost:3000 · PIN de prueba 1970 (antes, la base: ver abajo)
+pnpm verify           # tipos + lint + fronteras + pruebas; pnpm verify:db añade las de la base
 ```
 
 Entra con cualquier persona de la pantalla de acceso y el PIN **`1970`**. En Chrome, «Instalar la app»
-la instala como PWA. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local;
-`NEXT_PUBLIC_DEMO=off pnpm dev` lo apaga.
+la instala como PWA. **La app necesita su base de datos** (sección siguiente): no hay modo demo.
 
 ## Base de datos local
 
@@ -29,15 +28,14 @@ cp .env.example .env  # una vez; contraseñas de juguete solo para tu máquina
 pnpm infra:up         # levanta los dos y espera a que estén sanos
 pnpm db:migrar        # aplica las migraciones
 pnpm db:semilla       # crea el local de desarrollo y su tarifario de ejemplo (idempotente)
-pnpm dev              # con L2_FUENTE_DE_DATOS=servidor lee y escribe en la base
+pnpm dev              # lee y escribe en la base
 pnpm infra:down       # los apaga; los datos se conservan
 pnpm infra:reset      # borra los datos y arranca de cero
 ```
 
-**Dos modos**, que decide `L2_FUENTE_DE_DATOS`: `servidor` (la base de verdad) o `demo` (datos de
-ejemplo, sin Docker; es el valor si no hay `.env`). Hoy solo el **tarifario** sale de la base; el
-resto de pantallas sigue en la demo hasta su paso de la ruta. Si falta o sobra una variable, el
-servidor **no arranca** y dice cuál.
+Hoy el **tarifario** sale de la base; el resto de pantallas usa datos provisionales que se van paso a
+paso ([src/demo](apps/web/src/demo/README.md)). Si falta o sobra una variable, el servidor **no
+arranca** y dice cuál.
 
 | Servicio | En tu máquina | Para qué |
 |---|---|---|

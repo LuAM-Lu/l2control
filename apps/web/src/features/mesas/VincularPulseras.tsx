@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Baby, Link2, TriangleAlert } from "lucide-react";
 import { WristbandCodeSchema, type DiningTableDto } from "@l2/contracts";
 import { Button, ScannerField, Sheet, cn } from "@l2/ui";
-import type { EstadoLocal } from "../simulacion/proyeccion.ts";
+import type { EstadoLocal } from "../operacion/proyeccion.ts";
 import { ninosSinMesa } from "./mesas.ts";
 import { nombreDeEstancia } from "../park/view-model.ts";
 

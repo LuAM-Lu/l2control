@@ -13,53 +13,12 @@
 import {
   GuardianSchema,
   MonitorSnapshotSchema,
-  PricePackageSchema,
-  ParkPolicySchema,
-  TarifarioSchema,
   type GuardianDto,
   type MonitorSnapshotDto,
-  type PricePackageDto,
   type ParkPolicyDto,
-  type TarifarioDto,
 } from "@l2/contracts";
 
 const MIN = 60_000;
-
-/** Catálogo de tarifas. En producción es configuración editable (§9.9). */
-export const DEMO_PACKAGES: PricePackageDto[] = [
-  {
-    id: "pkg-30",
-    name: "30 minutos",
-    mode: "PREPAGO",
-    duration: { kind: "fixed", minutes: 30 },
-    price: { minor: "300", currency: "USD" },
-    active: true,
-  },
-  {
-    id: "pkg-60",
-    name: "1 hora",
-    mode: "PREPAGO",
-    duration: { kind: "fixed", minutes: 60 },
-    price: { minor: "500", currency: "USD" },
-    active: true,
-  },
-  {
-    id: "pkg-120",
-    name: "2 horas",
-    mode: "PREPAGO",
-    duration: { kind: "fixed", minutes: 120 },
-    price: { minor: "900", currency: "USD" },
-    active: true,
-  },
-  {
-    id: "pkg-libre",
-    name: "Pase libre",
-    mode: "POSTPAGO",
-    duration: { kind: "openEnded" },
-    price: { minor: "1200", currency: "USD" },
-    active: true,
-  },
-].map((p) => PricePackageSchema.parse(p));
 
 /**
  * Representantes ya conocidos, para la búsqueda de F5-03.
@@ -75,32 +34,23 @@ export const DEMO_GUARDIANS: (GuardianDto & { id: string })[] = [
   { id: "g4", fullName: "Pedro Bermúdez", contactReference: "0416-9876543" },
 ].map((g) => ({ ...GuardianSchema.parse(g), id: g.id }));
 
-export const DEMO_POLICY: ParkPolicyDto = ParkPolicySchema.parse({
-  graceMinutes: 5,
-  penaltyBlockMinutes: 15,
-  penaltyPricePerBlock: { minor: "150", currency: "USD" },
-  warnBeforeMinutes: 10,
-  capacityLimit: 30,
-});
-
-export const TARIFARIO_DEMO: TarifarioDto = TarifarioSchema.parse({
-  packages: DEMO_PACKAGES,
-  policy: DEMO_POLICY,
-});
-
 /**
  * Instantánea del monitor. Es exactamente lo que devolverá el servidor.
+ *
+ * Los niños son inventados y se van con B4 (estancias en el servidor). La política YA es la
+ * publicada: la pasa la ruta desde el tarifario vigente, así que el excedente se calcula con
+ * las reglas que publicó el administrador y no con unas de ejemplo.
  *
  * `serverNow` se pasa como argumento —no se lee el reloj aquí— para que
  * esta función siga siendo determinista, igual que el dominio (ADR-010).
  */
-export function demoSnapshot(serverNow: number): MonitorSnapshotDto {
+export function demoSnapshot(serverNow: number, policy: ParkPolicyDto): MonitorSnapshotDto {
   const iso = (msAgo: number) => new Date(serverNow - msAgo * MIN).toISOString();
 
   const crudo = {
     serverNow: new Date(serverNow).toISOString(),
     shiftLabel: "Turno tarde · abierto 14:00",
-    policy: DEMO_POLICY,
+    policy,
     rate: {
       id: "rate-1",
       pair: "USD/VES",

@@ -9,8 +9,7 @@ import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { PageTransition } from "./PageTransition.tsx";
-import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
-import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
 import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
 import { useAjustes } from "../identity/accesos.ts";
@@ -54,11 +53,11 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   // El menú se recorta con el rol de quien entró (V2). Sin sesión, vacío: la
   // guardia del contenido pide identificarse.
   const operador = useOperador();
-  const sim = useSimulacion();
+  const op = useOperacion();
 
   /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
   function salir() {
-    if (operador) sim.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
+    if (operador) op.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
     cerrarSesion();
   }
   const ajustes = useAjustes();
@@ -99,7 +98,6 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
           modo="lateral"
         />
         <div className="hidden px-3 pb-2 xl:block">
-          <ChipSimulacion />
         </div>
         <PieUsuario usuario={usuario} rol={rol} onSalir={salir} compacto />
       </aside>
@@ -119,7 +117,6 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
             <Menu size={20} aria-hidden="true" />
           </button>
           <span className="font-display truncate font-bold text-ink">Abby Kingdom</span>
-          <ChipSimulacion className="ml-auto" />
         </header>
 
         <main className="flex min-w-0 flex-1 flex-col md:h-full md:overflow-hidden">

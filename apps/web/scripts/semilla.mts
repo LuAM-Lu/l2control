@@ -3,11 +3,11 @@
  * el local (tenant y sucursal de L2_TENANT_ID / L2_BRANCH_ID) y, si no tiene, el tarifario de
  * ejemplo como versión 1. Idempotente: correrlo otra vez no cambia nada.
  *
- * Los datos son inventados (src/demo). Los reales llegan con F0-04 y B7-2.
+ * Los datos son inventados (scripts/semilla). Los reales llegan con F0-04 y B7-2.
  */
 import { existsSync } from "node:fs";
 import { conectar } from "@l2/application";
-import { TARIFARIO_DEMO } from "../src/demo/parque.ts";
+import { TARIFARIO_DESARROLLO } from "./semilla/tarifario.mts";
 
 const raiz = new URL("../../../.env", import.meta.url);
 if (existsSync(raiz)) process.loadEnvFile(raiz);
@@ -31,7 +31,7 @@ try {
   if (await app.tarifario.leer(ctx)) {
     console.log("· Ya hay tarifario publicado: no se toca");
   } else {
-    const r = await app.tarifario.publicar(ctx, TARIFARIO_DEMO);
+    const r = await app.tarifario.publicar(ctx, TARIFARIO_DESARROLLO);
     if (!r.ok) throw new Error(`El tarifario de ejemplo no pasó el contrato: ${r.mensaje}`);
     console.log(`✓ Tarifario de ejemplo publicado (versión ${r.valor.version})`);
   }

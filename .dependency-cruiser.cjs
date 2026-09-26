@@ -88,11 +88,11 @@ module.exports = {
         "Los datos de ejemplo viven en apps/web/src/demo y entran SOLO por las rutas " +
         "(app/**), que se los pasan a las pantallas por props. Una pantalla o un proveedor " +
         "que importa la demo no se puede conectar al backend sin reescribirlo, y la demo " +
-        "acaba en producción sin que nadie lo decida. Única excepción: el simulador, que " +
-        "lee el interruptor NEXT_PUBLIC_DEMO (src/demo/modo.ts).",
+        "acaba en producción sin que nadie lo decida. Lo que queda en src/demo se vacía " +
+        "paso a paso del backend (MAESTRO, M-6).",
       from: {
         path: "^(apps/web/src/|packages/)",
-        pathNot: ["^apps/web/src/demo/", "^apps/web/src/features/simulacion/"],
+        pathNot: ["^apps/web/src/demo/"],
       },
       to: { path: "^apps/web/src/demo/" },
     },

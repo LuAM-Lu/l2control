@@ -34,7 +34,7 @@ import { computeCapacity } from "@l2/domain-park";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { abrirCuenta } from "../cuentas/cuentas.ts";
-import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
@@ -80,7 +80,7 @@ export function CheckInScreen({
    */
   occupiedWristbands: readonly string[];
 }) {
-  const sim = useSimulacion();
+  const op = useOperacion();
   const { tarifario } = useTarifario();
   const paquetesActivos = useMemo(
     () => tarifario.packages.filter((p) => p.active),
@@ -284,7 +284,7 @@ export function CheckInScreen({
     // vincular su pulsera a una mesa y la cocina sabe cuántos hay dentro.
     // Mismo catálogo de eventos que usará el servidor (F1-20).
     for (const session of estancias) {
-      const r = sim.emitir({
+      const r = op.emitir({
         type: "estancia.abierta",
         session,
         family: cuenta.family,

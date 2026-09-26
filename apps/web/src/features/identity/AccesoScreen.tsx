@@ -25,8 +25,7 @@ import { PUESTO_DE_ROL, iniciarSesion } from "./operador.ts";
 import { useAjustes } from "./accesos.ts";
 import { actorDe, puestoDe } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
-import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
-import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
+import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { Badge, Initial, NumericKeypad, cn } from "@l2/ui";
 
 /**
@@ -108,7 +107,7 @@ export function AccesoScreen({
   device: Device | null;
   operadores: readonly Operador[];
 }) {
-  const sim = useSimulacion();
+  const op = useOperacion();
   const ajustes = useAjustes();
   const [operador, setOperador] = useState<Operador | null>(null);
   const [pin, setPin] = useState("");
@@ -183,7 +182,7 @@ export function AccesoScreen({
       iniciarSesion({ id: operador!.id, nombre: operador!.nombre, rol: operador!.rol, role: operador!.role });
       // El panel en vivo enseña quién está en cada puesto (F9-08, D7). Mismo
       // catálogo de eventos que usará el servidor con las sesiones reales.
-      sim.emitir({
+      op.emitir({
         type: "sesion.iniciada",
         userName: operador!.nombre,
         role: operador!.rol,
@@ -260,7 +259,6 @@ export function AccesoScreen({
             <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
               {device!.label} · autorizado
             </Badge>
-            <ChipSimulacion className="h-12" />
             {installPrompt && (
               <button
                 type="button"

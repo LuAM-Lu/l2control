@@ -19,9 +19,9 @@ pnpm dev     # http://localhost:3000 · PIN de prueba 1970
 | `/caja` | Cola de cuentas y cobro mixto | F4-03, F4-04, DEC-23 | Interfaz |
 | `/ventas` | Ventas del turno: reimprimir y anular | C12, DEC-24 | Interfaz |
 | `/turno` | Cortes X y Z, arqueo, excepciones | F4-05 a F4-08 | Interfaz |
-| `/mesas` | Plano, pedido, vincular pulseras | F6-01 a F6-05 | Interfaz sobre el simulador |
-| `/cocina` | Cocina (KDS): comandas, cronómetro, anulaciones | F6-07, F6-08 | Interfaz sobre el simulador |
-| `/panel` | Inicio: el local ahora (cinco zonas en vivo, D7) y el día | F9-00, F9-08 | Interfaz sobre el simulador |
+| `/mesas` | Plano, pedido, vincular pulseras | F6-01 a F6-05 | Interfaz; entre pestañas por el bus de operación |
+| `/cocina` | Cocina (KDS): comandas, cronómetro, anulaciones | F6-07, F6-08 | Interfaz; entre pestañas por el bus de operación |
+| `/panel` | Inicio: el local ahora (cinco zonas en vivo, D7) y el día | F9-00, F9-08 | Interfaz; entre pestañas por el bus de operación |
 | `/panel/configuracion/accesos` | Roles y accesos: la matriz del local, editable | F2-13, F2-05 | Interfaz; vive en la pestaña |
 | `/panel/[modulo]/[seccion]` | Secciones del back-office: tarifas, plano, carta, usuarios; las demás enseñan qué les falta | F5-04, F6-01, F6-03, F2-11 | Interfaz |
 | `/manifest.webmanifest`, `/iconos/*` | La app instalable (PWA) | F1-21 | Hecho; instalar en una tablet necesita HTTPS |
@@ -42,8 +42,9 @@ src/features/<dominio>   nivel 3: pantallas y lógica que SÍ conocen el dominio
   identity/              acceso, sesión, visibilidad por rol, usuarios
   shell/                 barras, navegación, inicio del panel y el local en vivo
   cocina/                KDS: vista de cocina y cronómetro
-  simulacion/            simulador de operación (demo) y proyección del local
-src/demo/                datos de ejemplo e interruptor NEXT_PUBLIC_DEMO (ver su README)
+  operacion/             bus de eventos del local y su proyección (en B5-1, por el servidor)
+src/demo/                datos provisionales, cada uno con el paso que lo borra (ver su README)
+src/servidor/            entorno validado, conexión a @l2/application y logger (solo servidor)
 ```
 
 **Por qué el nivel 3 vive aquí y no en `@l2/ui`:** un `ParkChildCard` sabe qué es una estancia,
@@ -60,7 +61,7 @@ contextos parecen necesitar el mismo, lo que se comparte es el patrón de nivel 
 | `CartaProvider`, `PlanoProvider` | Carta y plano publicados | `sessionStorage` |
 | `VentasProvider` | Ventas cerradas, impresiones y anulaciones | `sessionStorage` `l2:ventas:v2` |
 | `identity/operador.ts` | Quién entró y con qué rol | `sessionStorage` |
-| `SimulacionProvider` | Eventos del local, sincronizados entre pestañas | `BroadcastChannel` |
+| `OperacionProvider` | Eventos del local, sincronizados entre pestañas (hasta B5-1) | `BroadcastChannel` |
 
 Todo lo que se carga se valida contra `@l2/contracts`; lo que no cumple se descarta entero. Cada
 proveedor tiene su `TODO(backend)` con la tarea que lo sustituye.

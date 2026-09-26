@@ -1,13 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
-import { PanelSimulacion } from "../src/features/simulacion/PanelSimulacion";
-import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvider";
+import { OperacionProvider } from "../src/features/operacion/OperacionProvider";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
 import { CartaProvider } from "../src/features/mesas/CartaProvider";
 import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
 import { tarifarioVigente } from "../src/features/park/tarifario.servidor";
-import { entorno } from "../src/servidor/entorno";
 import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
 import { DispositivosProvider } from "../src/features/identity/DispositivosProvider";
 import { RepresentantesProvider } from "../src/features/park/RepresentantesProvider";
@@ -15,16 +13,12 @@ import { TasasProvider } from "../src/features/cash/TasasProvider";
 import { MediosProvider } from "../src/features/cash/MediosProvider";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
-import { DEMO_ACTIVA } from "../src/demo/modo";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
-import { TARIFARIO_DEMO } from "../src/demo/parque";
 import { AJUSTES_DEMO } from "../src/demo/sucursal";
 import { DEMO_DISPOSITIVOS } from "../src/demo/dispositivos";
 import { DIRECTORIO_DEMO } from "../src/demo/representantes";
 import { HISTORIAL_DEMO } from "../src/demo/tasas";
 import { MEDIOS_DEMO } from "../src/demo/medios";
-import { DEMO_CUENTAS } from "../src/demo/cuentas";
-import { DEMO_VENTAS } from "../src/demo/ventas";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
@@ -68,25 +62,22 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // B0-5: el tarifario es lo primero que sale de la base; lo demás sigue en la demo hasta
-  // su paso de la ruta (MAESTRO §3). La fuente la decide el servidor, no el navegador.
-  const tarifario =
-    entorno().L2_FUENTE_DE_DATOS === "servidor"
-      ? ({ fuente: "servidor", inicial: await tarifarioVigente() } as const)
-      : ({ fuente: "demo", inicial: TARIFARIO_DEMO } as const);
+  // Lo que ya tiene servidor sale de la base; lo demás, de `src/demo`, que se vacía paso a
+  // paso de la ruta (MAESTRO §3 y M-6). El tarifario fue el primero (B0-5).
+  const tarifario = await tarifarioVigente();
 
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
       <body>
         <RegistroServiceWorker />
-        {/* F1-19: por encima del panel y de las estaciones, para que las dos
-            cáscaras vean la misma simulación. */}
-        <SimulacionProvider>
+        {/* La operación del local (bus de eventos) por encima de las dos cáscaras:
+            lo que emiten las estaciones lo leen el panel y las demás estaciones. */}
+        <OperacionProvider>
           {/* V4: el plano publicado vive por encima de las dos cáscaras: lo
               edita el panel y lo lee el salón. */}
           {/* El estado del local vive por encima de las dos cáscaras: lo
               escriben las estaciones y lo lee el panel en vivo (F9-08).
-              Con la demo apagada, se arranca sin cuentas ni ventas. */}
+              Cuentas y ventas arrancan vacías: no hay ninguna inventada. */}
           {/* Los ajustes del local y los equipos autorizados envuelven a todo
               lo demás: el formato de hora y el umbral de la caja los lee
               cualquier superficie (F5-08b, F4-04c, F2-02). */}
@@ -97,15 +88,10 @@ export default async function RootLayout({
                   <MediosProvider inicial={MEDIOS_DEMO}>
                     <PlanoProvider inicial={PLANO_DEMO}>
                       <CartaProvider inicial={CARTA_DEMO}>
-                        <TarifarioProvider {...tarifario}>
-                          <CuentasProvider
-                            inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}
-                          >
-                            <VentasProvider
-                              inicial={DEMO_ACTIVA ? DEMO_VENTAS : []}
-                            >
+                        <TarifarioProvider inicial={tarifario}>
+                          <CuentasProvider inicial={[]}>
+                            <VentasProvider inicial={[]}>
                               {children}
-                              <PanelSimulacion />
                             </VentasProvider>
                           </CuentasProvider>
                         </TarifarioProvider>
@@ -116,7 +102,7 @@ export default async function RootLayout({
               </RepresentantesProvider>
             </DispositivosProvider>
           </SucursalProvider>
-        </SimulacionProvider>
+        </OperacionProvider>
       </body>
     </html>
   );

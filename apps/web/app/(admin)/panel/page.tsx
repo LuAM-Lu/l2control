@@ -6,6 +6,7 @@ import { MEDIO_LABEL } from "../../../src/features/cash/turno";
 import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno";
 import { demoSnapshot } from "../../../src/demo/parque";
 import { toMonitorModel } from "../../../src/features/park/view-model";
+import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -30,8 +31,9 @@ const MESES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-export default function InicioPage() {
-  const modelo = toMonitorModel(demoSnapshot(Date.now()));
+export default async function InicioPage() {
+  const { tarifario } = await tarifarioVigente();
+  const modelo = toMonitorModel(demoSnapshot(Date.now(), tarifario.policy));
   const tally = tallyShift(DEMO_SHIFT_MOVEMENTS);
 
   // «Lo que entró hoy» es LO COBRADO, no el movimiento neto del medio. Antes

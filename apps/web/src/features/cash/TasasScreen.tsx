@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, CheckCircle2, History, AlertTriangle } from "lucide-react";
 import { useTasas, useTasaVigente } from "./TasasProvider.tsx";
 import { formatTasaVE } from "./tasa-format.ts";
-import { useAhoraLocal } from "../simulacion/SimulacionProvider.tsx";
+import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { currentRate, needsDoubleCheck } from "@l2/domain-rates";

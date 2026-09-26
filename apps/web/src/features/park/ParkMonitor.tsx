@@ -11,8 +11,7 @@ import { can } from "@l2/domain-identity";
 import { pendiente } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock, DEFAULT_TIME_FORMAT } from "./time-format.ts";
-import { monitorSimulado } from "../simulacion/monitor.ts";
-import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
 import { nombreVisible, type MonitorModel } from "./view-model";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -28,10 +27,8 @@ import { VincularAMesa } from "./VincularAMesa.tsx";
  * manos ocupadas, y el estado se comunica por color + icono + texto.
  */
 export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) {
-  // F1-19: con una simulación en marcha, el monitor pinta la sala simulada con
-  // el mismo traductor que usa para los datos del servidor.
-  const sim = useSimulacion();
-  const model = useMemo(() => monitorSimulado(sim) ?? modeloServidor, [sim, modeloServidor]);
+  const op = useOperacion();
+  const model = modeloServidor;
   const [selected, setSelected] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -88,9 +85,9 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
   const cuentaFicha = ficha
     ? (cuentas.find((c) => c.sessionIds.includes(ficha.id)) ?? null)
     : null;
-  const familiaSimulada = ficha && sim.activa ? (sim.estado.familias[ficha.id] ?? null) : null;
+  const familiaRegistrada = ficha ? (op.estado.familias[ficha.id] ?? null) : null;
 
-  const mesaActual = ficha && sim.activa ? Object.values(sim.estado.mesas).find((m) => m.sesiones.includes(ficha.id)) : null;
+  const mesaActual = ficha ? Object.values(op.estado.mesas).find((m) => m.sesiones.includes(ficha.id)) : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -99,13 +96,6 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
           ya dice dónde estás, y el título ocupaba el sitio de las cifras. */}
       <header className="border-b border-line">
         <h1 className="sr-only">Monitor de parque</h1>
-        {sim.activa && (
-          // Una pantalla con datos simulados lo dice: nadie debe confundirla
-          // con la sala real.
-          <p className="border-b border-brand/30 bg-brand/10 py-1 text-center text-[12px] font-semibold tracking-wide text-brand uppercase">
-            Simulación · {model.shiftLabel.replace("Simulación · ", "")}
-          </p>
-        )}
         <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-2.5">
           <Contador
             etiqueta="En sala"
@@ -231,7 +221,7 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
             nombreActual={ficha.childName}
             apodoActual={ficha.childNickname}
             onGuardar={(cmd) => {
-              const r = sim.emitir({ ...cmd, type: "estancia.nombrada" });
+              const r = op.emitir({ ...cmd, type: "estancia.nombrada" });
               if (!r.ok) avisar.error(r.motivo);
               else setPoniendoNombre(false);
             }}
@@ -277,10 +267,10 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
                   <dd className="tnum text-ink">{formatMoneyVE(toMajor(pendiente(cuentaFicha)), "USD")}</dd>
                 </div>
               </>
-            ) : familiaSimulada ? (
+            ) : familiaRegistrada ? (
               <div className="flex items-baseline justify-between gap-3 border-t border-line pt-3">
                 <dt className="text-ink-3">Representante</dt>
-                <dd className="text-ink">{familiaSimulada} · simulado</dd>
+                <dd className="text-ink">{familiaRegistrada}</dd>
               </div>
             ) : (
               <p className="border-t border-line pt-3 text-[13px] text-state-warn">
@@ -296,10 +286,10 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
           abierto={vinculandoAMesa}
           onCerrar={() => setVinculandoAMesa(false)}
           sesionId={ficha.id}
-          estado={sim.estado}
+          estado={op.estado}
           plano={plano.tables}
           onVincular={(tableId, sessionIds) => {
-            const r = sim.emitir({ type: "mesa.vinculada", tableId, sessionIds });
+            const r = op.emitir({ type: "mesa.vinculada", tableId, sessionIds });
             if (r.ok) avisar.ok(`${sessionIds.length === 1 ? "Niño vinculado" : "Niños vinculados"} a la mesa`);
             else avisar.error(r.motivo);
           }}

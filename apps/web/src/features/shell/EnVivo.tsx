@@ -22,7 +22,7 @@ import type { UmbralEspera } from "@l2/domain-orders";
 import { toMajor } from "@l2/domain-money";
 import { MoneyDisplay, cn } from "@l2/ui";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
-import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { panelVivo, reloj, type Alerta } from "./vivo.ts";
 import { useTarifario } from "../park/TarifarioProvider";
 import { rutaSeccion } from "./navigation.ts";
@@ -66,12 +66,12 @@ export function EnVivo({
   /** Si hay tasa del día confirmada (ADR-005). */
   tasaConfirmada: boolean;
 }) {
-  const sim = useSimulacion();
+  const op = useOperacion();
   const { cuentas } = useCuentas();
   const ahora = useAhoraLocal();
   const { tarifario } = useTarifario();
   const v = panelVivo({
-    estado: sim.estado,
+    estado: op.estado,
     cuentas,
     ahora,
     politica: tarifario.policy,
@@ -100,12 +100,12 @@ export function EnVivo({
           aria-hidden="true"
           className={cn(
             "size-1.5 rounded-full",
-            sim.activa ? "bg-state-ok l2-pulse" : "bg-line-strong",
+            op.hayActividad ? "bg-state-ok l2-pulse" : "bg-line-strong",
           )}
         />
         El local ahora
         <span className="text-[10px] font-medium tracking-normal text-ink-3/80 normal-case">
-          {sim.activa ? "se actualiza solo" : "sin actividad"}
+          {op.hayActividad ? "se actualiza solo" : "sin actividad todavía"}
         </span>
       </h2>
 

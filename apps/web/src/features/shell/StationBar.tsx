@@ -31,8 +31,7 @@ import {
   pedirPantallaCompleta,
   salirDePantallaCompleta,
 } from "./pantallaCompleta.ts";
-import { ChipSimulacion } from "../simulacion/PanelSimulacion.tsx";
-import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { formatTasaVE } from "../cash/tasa-format.ts";
@@ -133,7 +132,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const porCobrar = useCuentas().cuentas.filter(
     (c) => c.status === "POR_COBRAR",
   ).length;
-  const sim = useSimulacion();
+  const op = useOperacion();
   const { tasa: tasaVigente } = useTasaVigente("USD/VES");
   // El formato de hora es el que fijó la sucursal (F5-08b): 12 h o 24 h en
   // TODAS las superficies, también en esta píldora.
@@ -153,7 +152,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
   function salir() {
     if (operador)
-      sim.emitir({
+      op.emitir({
         type: "sesion.cerrada",
         device: PUESTO_DE_ROL[operador.role],
       });
@@ -337,7 +336,6 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             />
           )}
 
-          <ChipSimulacion className="h-12" />
 
           <span
             className="mx-0.5 hidden h-6 w-px bg-line apaisado:block"

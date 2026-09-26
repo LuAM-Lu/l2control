@@ -1,5 +1,6 @@
 import { CheckoutScreen } from "../../../src/features/park/CheckoutScreen";
 import { demoSnapshot } from "../../../src/demo/parque";
+import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 
 /**
  * Salida y liquidación del parque (F5-14).
@@ -16,5 +17,5 @@ export default async function SalidaPage({
   searchParams: Promise<{ pulsera?: string }>;
 }) {
   const { pulsera } = await searchParams;
-  return <CheckoutScreen snapshot={demoSnapshot(Date.now())} pulseraInicial={pulsera ?? null} />;
+  return <CheckoutScreen snapshot={demoSnapshot(Date.now(), (await tarifarioVigente()).tarifario.policy)} pulseraInicial={pulsera ?? null} />;
 }

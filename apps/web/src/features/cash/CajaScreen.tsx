@@ -107,7 +107,7 @@ import { useVentas } from "./VentasProvider.tsx";
 import { useOperador } from "../identity/operador.ts";
 import { can } from "@l2/domain-identity";
 import { useActorEnSesion } from "../identity/sesion.ts";
-import { useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import {
   esDeMesa,
   esLineaDeMostrador,
@@ -1678,7 +1678,7 @@ export function CajaScreen({
   // buscar el primer medio de una lista vacía.
   const mediosDisponibles = useMediosActivos();
   const { cuentas, guardar, descartar, cargado } = useCuentas();
-  const sim = useSimulacion();
+  const op = useOperacion();
   const router = useRouter();
   const porCobrar = useMemo(
     () => ordenarCola(cuentas.filter((c) => c.status === "POR_COBRAR")),
@@ -1772,7 +1772,7 @@ export function CajaScreen({
   function alEscanear(codigo: string) {
     const sesion =
       pulseras[codigo] ??
-      sim.estado.sesiones.find((s) => s.wristbandCode === codigo)?.id ??
+      op.estado.sesiones.find((s) => s.wristbandCode === codigo)?.id ??
       null;
     const cuenta = sesion
       ? cuentas.find((c) => c.sessionIds.includes(sesion))
@@ -1846,7 +1846,7 @@ export function CajaScreen({
     guardar(despues);
     // Cobrada del todo, la mesa queda por limpiar: el salón lo ve al momento (D7).
     if (faltan === 0 && esDeMesa(cuenta) && cuenta.tableId) {
-      sim.emitir({ type: "mesa.por_limpiar", tableId: cuenta.tableId });
+      op.emitir({ type: "mesa.por_limpiar", tableId: cuenta.tableId });
     }
     // Si quedan partes, la cuenta sigue elegida: la siguiente persona paga ya.
     setElegida(faltan > 0 ? cuenta.id : null);

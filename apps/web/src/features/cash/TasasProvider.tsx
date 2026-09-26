@@ -19,7 +19,7 @@ import {
 } from "@l2/contracts";
 import { currentRate, frozenRateOf, needsDoubleCheck } from "@l2/domain-rates";
 import type { FrozenRate } from "@l2/domain-money";
-import { useAhoraLocal } from "../simulacion/SimulacionProvider.tsx";
+import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 
 const CLAVE = "l2:tasas:v1";
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Baby, Link2, TriangleAlert } from "lucide-react";
 import type { DiningTableDto } from "@l2/contracts";
 import { Button, Sheet, cn } from "@l2/ui";
-import type { EstadoLocal } from "../simulacion/proyeccion.ts";
+import type { EstadoLocal } from "../operacion/proyeccion.ts";
 import { ninosSinMesa } from "../mesas/mesas.ts";
 import { nombreDeEstancia } from "./view-model.ts";
 

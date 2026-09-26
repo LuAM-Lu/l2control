@@ -5,6 +5,7 @@ import {
 } from "../../../src/demo/caja";
 import { demoSnapshot } from "../../../src/demo/parque";
 import { DEMO_USUARIOS } from "../../../src/demo/usuarios";
+import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
@@ -27,7 +28,7 @@ export default async function CajaPage({
   const { cuenta, volver } = await searchParams;
   // Pulsera → estancia, para abrir una cuenta pasando la pulsera por el lector.
   // TODO(F4-03/backend): lo resuelve el servidor a partir del código.
-  const pulseras = Object.fromEntries(demoSnapshot(Date.now()).sessions.map((s) => [s.wristbandCode, s.id]));
+  const pulseras = Object.fromEntries(demoSnapshot(Date.now(), (await tarifarioVigente()).tarifario.policy).sessions.map((s) => [s.wristbandCode, s.id]));
   return (
     <CajaScreen
       cuentaInicial={cuenta ?? null}

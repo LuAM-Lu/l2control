@@ -7,7 +7,7 @@
  */
 import type { DiningTableDto, MenuDto, MenuItemDto, ParkSessionDto } from "@l2/contracts";
 import { money, multiply, sum, type Money } from "@l2/domain-money";
-import type { EstadoLocal, Mesa, Pedido } from "../simulacion/proyeccion.ts";
+import type { EstadoLocal, Mesa, Pedido } from "../operacion/proyeccion.ts";
 
 export type EstadoVisible = "LIBRE" | Mesa["estado"];
 

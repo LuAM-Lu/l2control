@@ -35,17 +35,18 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **Núcleo puro y probado:** `@l2/contracts` (Zod) y el dominio `money`, `rates`, `tax`, `cash`, `park`,
   `identity` y `orders`. Los contratos `impuestos.ts`, `impresoras.ts` y `turno.ts` ya existen, aunque
   sus pantallas no.
-- **Lo que aún no tiene servidor:** todo lo demás vive por pestaña (`sessionStorage`), y solo el simulador y las cuentas cruzan
-  pestañas (`BroadcastChannel`). Entre dos equipos no se comparte nada. Los datos son inventados y
-  están en `apps/web/src/demo`.
+- **Lo que aún no tiene servidor** vive por pestaña (`sessionStorage`); el bus de operación y las
+  cuentas cruzan pestañas (`BroadcastChannel`). Entre dos equipos no se comparte nada. Sus datos
+  iniciales son provisionales, en `apps/web/src/demo`, y cada paso borra el suyo (M-6).
+- **Sin modo demo ni simulador** (M-6): la app corre siempre contra su base.
 - **Base de datos local en marcha** (B0-1): `pnpm infra:up` levanta PostgreSQL y Valkey con Docker.
   En esta máquina ya hay otro PostgreSQL en el 5432 (ajeno al proyecto); el nuestro usa el 5433.
 - **Persistencia base** (B0-2): `@l2/database` con `tenant` y `branch`, RLS forzada y su prueba
   negativa. Para trabajo de backend, la puerta es `pnpm verify:db`.
 - **Logs, entorno, lint y CI** (B0-3, B0-4): `@l2/observability`, `pnpm lint` y
   `.github/workflows/ci.yml`, que no se ha visto correr en GitHub porque no hay push.
-- **La primera pantalla con servidor** (B0-5): el **tarifario** se publica y se lee de la base, con
-  `L2_FUENTE_DE_DATOS=servidor`. Todo lo demás sigue en la demo hasta su paso.
+- **La primera pantalla con servidor** (B0-5): el **tarifario** se publica y se lee de la base, y la
+  sala calcula el excedente con la política publicada. Lo demás, provisional hasta su paso.
 
 **Siguiente paso:** Etapa 1, B1-1 (§3). B0-4 espera un push para comprobarse en GitHub.
 
@@ -60,6 +61,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 | **M-3** | **Nada fiscal por ahora** | F7 queda fuera, igual que el hito M1 (F3-08, las 20 facturas), la máquina fiscal y la nota de crédito. El recibo es **no fiscal**. IVA e IGTF **se siguen calculando** en el ticket, porque ya están hechos y cambian lo que se cobra |
 | **M-4** | **Entornos: primero local (Docker), luego VPS** | ⚠ **Choca con ADR-003**, que pide un servidor en el local y usa la nube solo como réplica. Con solo un VPS, un corte de internet detiene los cobros y la cocina. **Propuesta:** el VPS sirve de staging y para el piloto en paralelo, donde el método anterior hace de respaldo (F11-04). La topología final (D-INF, §4) se decide antes de retirar ese método. El servidor se empaqueta en Docker para que la misma imagen corra en el VPS o en un mini-PC sin cambios |
 | **M-5** | **Un solo documento vivo y handoff a petición** | Este archivo. El protocolo está en §8 |
+| **M-6** | **Fuera el modo demo y el simulador** (2026-09-26), y **todo el backend según esta ruta** | Se retiran el chip «DEMO», su panel, los escenarios, el reloj acelerado, `NEXT_PUBLIC_DEMO` y `L2_FUENTE_DE_DATOS`: la app corre siempre contra su servidor. Queda el bus de eventos (`features/operacion`), que no era simulado y en B5-1 viaja por el servidor. Lo que aún no tiene backend usa datos provisionales de `src/demo`; **cada paso borra el suyo** (tabla en su README). Cambio de alcance sobre F1-19 (DEC-22), pedido por el cliente |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance: parque y caja primero. Las cinco reglas de CLAUDE.md
 no se relajan.
@@ -107,11 +109,9 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   acción de servidor → contrato Zod → dominio → repositorio en transacción con `SET LOCAL app.tenant_id`.
   El primer caso vertical es el **tarifario**: leer y publicar.
   → Una tarifa publicada se ve desde otro navegador y sobrevive a reiniciar el servidor.
-  `NEXT_PUBLIC_DEMO` sigue sirviendo para enseñar la demo.
   *Hecho el 2026-09-26. `@l2/application` (`conectar()`, `tarifario.leer/publicar`,
   `sucursal.asegurar`), tabla `park_tariff_version` de solo-agregar con FK compuesta, contratos
-  `TarifarioPublicadoSchema` y `Resultado`. En la web, `L2_FUENTE_DE_DATOS` (demo | servidor), el
-  entorno validado en `instrumentation.ts`, `publicarTarifario` como server action y
+  `TarifarioPublicadoSchema` y `Resultado`. En la web, el entorno validado en `instrumentation.ts`, `publicarTarifario` como server action y
   `pnpm db:semilla`. Comprobado en el navegador: publicar $ 7,25 en una sesión, leerlo en otra
   independiente, en la entrada, y tras reiniciar el servidor; con el entorno roto el servidor no
   arranca y no enseña la contraseña. 33 pruebas contra la base. **Hasta B1 solo se escribe con

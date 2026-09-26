@@ -1,102 +1,48 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { TarifarioSchema, type Resultado, type TarifarioDto, type TarifarioPublicadoDto } from "@l2/contracts";
+import type { Resultado, TarifarioDto, TarifarioPublicadoDto } from "@l2/contracts";
 import { publicarTarifario } from "./tarifario.acciones";
 
 /**
- * El tarifario publicado — F5-04, F5-06.
+ * El tarifario publicado — F5-04, F5-06, en el servidor desde B0-5.
  *
  * Vive por encima de las dos cáscaras: lo escribe el back-office (el editor, solo
  * administración) y lo lee la estación (la entrada). **Solo se guarda lo PUBLICADO**: el
- * borrador del editor no sale de su pantalla.
- *
- * Dos fuentes, que decide el servidor (`L2_FUENTE_DE_DATOS`):
- *   servidor  publicar va a la base como versión nueva (B0-5). Otra estación lo ve al
- *             navegar; en vivo, sin navegar, llega con el tiempo real (B5-1).
- *   demo      se guarda en esta pestaña (`sessionStorage`), como antes.
+ * borrador del editor no sale de su pantalla. Publicar crea una versión nueva en la base;
+ * otra estación la ve al navegar, y en vivo, sin navegar, con el tiempo real (B5-1).
  */
-
-const CLAVE = "l2:tarifario:v1";
 
 type Valor = Readonly<{
   tarifario: TarifarioDto;
-  /** Versión vigente en el servidor; `null` con datos de ejemplo. */
-  version: number | null;
+  /** Versión vigente en el servidor. */
+  version: number;
   /** Sustituye el tarifario en servicio. Nunca lanza por un rechazo: lo devuelve. */
   publicar: (tarifario: TarifarioDto) => Promise<Resultado<TarifarioPublicadoDto>>;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
 
-type Props = {
-  children: React.ReactNode;
-} & (
-  | { fuente: "servidor"; inicial: TarifarioPublicadoDto }
-  | { fuente: "demo"; inicial: TarifarioDto }
-);
+export function TarifarioProvider({ inicial, children }: { inicial: TarifarioPublicadoDto; children: React.ReactNode }) {
+  const [vigente, setVigente] = useState<TarifarioPublicadoDto>(inicial);
 
-export function TarifarioProvider(props: Props) {
-  const { fuente, children } = props;
-  const desdeServidor = props.fuente === "servidor" ? props.inicial : null;
-  const inicial = props.fuente === "servidor" ? props.inicial.tarifario : props.inicial;
-
-  const [tarifario, setTarifario] = useState<TarifarioDto>(inicial);
-  const [version, setVersion] = useState<number | null>(desdeServidor?.version ?? null);
-
-  // Servidor: cuando el layout se vuelve a pintar con otra versión (esta u otra estación
-  // publicó y se navegó), se adopta. `useState` solo mira su valor inicial una vez.
-  const versionDelServidor = desdeServidor?.version;
+  // Cuando el layout se vuelve a pintar con otra versión (esta u otra estación publicó y se
+  // navegó), se adopta: `useState` solo mira su valor inicial una vez. Depende solo de la
+  // versión, que identifica el contenido; el objeto cambia en cada pintado.
   useEffect(() => {
-    if (desdeServidor && versionDelServidor !== undefined) {
-      setTarifario(desdeServidor.tarifario);
-      setVersion(versionDelServidor);
-    }
-    // Depende solo de la versión: identifica el contenido, y el objeto cambia en cada pintado.
-  }, [versionDelServidor]);
+    setVigente(inicial);
+  }, [inicial.version]);
 
-  // Demo: lo publicado en esta pestaña sobrevive a recargar.
-  useEffect(() => {
-    if (fuente !== "demo") return;
-    try {
-      const crudo = window.sessionStorage.getItem(CLAVE);
-      if (crudo) {
-        const r = TarifarioSchema.safeParse(JSON.parse(crudo));
-        if (r.success) setTarifario(r.data);
-        else window.sessionStorage.removeItem(CLAVE);
-      }
-    } catch {
-      // Almacenamiento bloqueado o JSON roto: se sigue con el inicial.
-    }
-  }, [fuente]);
+  const publicar = useCallback(async (nuevo: TarifarioDto) => {
+    const r = await publicarTarifario(nuevo);
+    if (r.ok) setVigente(r.valor);
+    return r;
+  }, []);
 
-  const publicar = useCallback(
-    async (nuevo: TarifarioDto): Promise<Resultado<TarifarioPublicadoDto>> => {
-      if (fuente === "servidor") {
-        const r = await publicarTarifario(nuevo);
-        if (r.ok) {
-          setTarifario(r.valor.tarifario);
-          setVersion(r.valor.version);
-        }
-        return r;
-      }
-
-      const valido = TarifarioSchema.safeParse(nuevo);
-      if (!valido.success) {
-        return { ok: false, motivo: "INVALIDO", mensaje: valido.error.issues[0]?.message ?? "Datos inválidos" };
-      }
-      setTarifario(valido.data);
-      try {
-        window.sessionStorage.setItem(CLAVE, JSON.stringify(valido.data));
-      } catch {
-        // Sin almacenamiento, el tarifario vive en memoria hasta recargar.
-      }
-      return { ok: true, valor: { version: 1, publishedAt: new Date().toISOString(), tarifario: valido.data } };
-    },
-    [fuente],
+  const valor = useMemo(
+    () => ({ tarifario: vigente.tarifario, version: vigente.version, publicar }),
+    [vigente, publicar],
   );
-
-  const valor = useMemo(() => ({ tarifario, version, publicar }), [tarifario, version, publicar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

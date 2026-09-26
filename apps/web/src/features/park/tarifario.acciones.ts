@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import type { Resultado, TarifarioPublicadoDto } from "@l2/contracts";
 import { aplicacion, contextoDelLocal, escrituraSinSesion, log } from "../../servidor/aplicacion";
-import { entorno } from "../../servidor/entorno";
 
 /**
  * Publicar el tarifario — la primera escritura real del sistema (B0-5, F5-04).
@@ -12,9 +11,6 @@ import { entorno } from "../../servidor/entorno";
  * revalida con el contrato antes de tocar la base (ADR-017).
  */
 export async function publicarTarifario(entrada: unknown): Promise<Resultado<TarifarioPublicadoDto>> {
-  if (entorno().L2_FUENTE_DE_DATOS !== "servidor") {
-    return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Este servidor usa datos de ejemplo: no guarda nada." };
-  }
   const bloqueo = escrituraSinSesion();
   if (bloqueo) return bloqueo;
 

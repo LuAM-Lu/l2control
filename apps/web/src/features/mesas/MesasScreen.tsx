@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { FamilyAccountDto } from "@l2/contracts";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
-import { useAhoraLocal, useSimulacion } from "../simulacion/SimulacionProvider.tsx";
+import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
 import {
@@ -29,7 +29,7 @@ import {
   numeroDeOrden,
   pasarACaja,
 } from "../cuentas/cuentas.ts";
-import type { Pedido } from "../simulacion/proyeccion.ts";
+import type { Pedido } from "../operacion/proyeccion.ts";
 import {
   loQuePideAtencion,
   minutosDesde,
@@ -88,9 +88,9 @@ export function MesasScreen() {
   const { carta } = useCarta();
   // La cuenta de la mesa (F6-05, D2): los platos y el parque de esta familia.
   const { cuentas, guardar } = useCuentas();
-  const sim = useSimulacion();
+  const op = useOperacion();
   const ahora = useAhoraLocal();
-  const { estado } = sim;
+  const { estado } = op;
 
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const [vista, setVista] = useState<"plano" | "pedido">("plano");
@@ -149,8 +149,8 @@ export function MesasScreen() {
     }
   };
 
-  const emitir = (ev: Parameters<typeof sim.emitir>[0], exito: string): boolean => {
-    const r = sim.emitir(ev);
+  const emitir = (ev: Parameters<typeof op.emitir>[0], exito: string): boolean => {
+    const r = op.emitir(ev);
     if (r.ok) avisar.ok(exito);
     else avisar.error(r.motivo);
     return r.ok;
@@ -266,7 +266,6 @@ export function MesasScreen() {
   if (vista === "pedido" && elegida) {
     return (
       <div className="flex flex-1 flex-col apaisado:min-h-0">
-        <BannerSimulacion />
         <Cabecera titulo={`Pedido · Mesa ${elegida.mesa.label}`} subtitulo="Borrador: la cocina lo verá cuando lo envíes" />
         <Container
           as="main"
@@ -290,7 +289,6 @@ export function MesasScreen() {
   /* ── vista de plano: mesas + detalle ── */
   return (
     <div className="flex flex-1 flex-col apaisado:min-h-0">
-      <BannerSimulacion />
       <Cabecera
         titulo="Mesas"
         subtitulo="Toca una mesa para ver sus pedidos"
@@ -467,17 +465,6 @@ export function MesasScreen() {
 
 /* ───────────────────────────────────────────────────── piezas ── */
 
-function BannerSimulacion() {
-  const sim = useSimulacion();
-  if (!sim.activa || !sim.escenario) return null;
-  return (
-    // Nunca se confunde una tarde simulada con el local de verdad.
-    <p className="border-b border-brand/30 bg-brand/10 py-1 text-center text-[12px] font-semibold tracking-wide text-brand uppercase">
-      Simulación · {sim.escenario.nombre}
-    </p>
-  );
-}
-
 function Cabecera({
   titulo,
   subtitulo,
@@ -613,11 +600,11 @@ function CabeceraDetalle({ vista, ahora }: { vista: MesaVista; ahora: number }) 
 }
 
 function NinosDeLaMesa({ vista, onVincular }: { vista: MesaVista; onVincular: () => void }) {
-  const sim = useSimulacion();
+  const op = useOperacion();
   const ids = vista.ocupacion?.sesiones ?? [];
   const nombre = (id: string) => {
-    const s = sim.estado.sesiones.find((x) => x.id === id);
-    return s ? nombreDeEstancia(s) : `${sim.estado.nombres[id] ?? "Niño"} (ya salió)`;
+    const s = op.estado.sesiones.find((x) => x.id === id);
+    return s ? nombreDeEstancia(s) : `${op.estado.nombres[id] ?? "Niño"} (ya salió)`;
   };
   return (
     <section aria-label="Niños vinculados">

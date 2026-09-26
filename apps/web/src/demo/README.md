@@ -1,37 +1,37 @@
-# Demo
+# Datos provisionales (`src/demo`)
 
-Todo lo que es **demostración** vive aquí, y solo aquí: los datos con los que arrancan las pantallas
-mientras no hay backend, y el interruptor que la apaga.
+**El modo demo y el simulador se retiraron el 2026-09-26** (MAESTRO, decisión M-6). La app corre
+siempre contra su servidor: sin base de datos no arranca.
 
-| Archivo | Qué trae | Lo usa |
+Lo que queda aquí son datos **inventados** para las pantallas cuyo backend todavía no existe. No son un
+modo: se van **archivo por archivo**, cada uno en el paso de la ruta que lo sustituye por la base. El
+paso que lo sustituye **borra el archivo en el mismo commit**. Cuando esta carpeta quede vacía, se borra
+también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
+
+| Archivo | Qué inventa | Se va con |
 |---|---|---|
-| `modo.ts` | `DEMO_ACTIVA`: `NEXT_PUBLIC_DEMO=off` apaga el simulador y las cuentas y ventas de ejemplo | Layout de estaciones, simulador |
-| `parque.ts` | Tarifas, representantes conocidos y la instantánea del monitor (8 niños en sala) | Monitor, entrada, salida, caja, panel |
-| `cuentas.ts` | Cuentas de familia: prepagos pagados, cuentas abiertas y una en la cola de caja | Layout de estaciones |
-| `caja.ts` | Alícuotas, IGTF, umbral de residuo, 6 medios de pago y 2 terminales | Caja |
-| `turno.ts` | Movimientos de una tarde y excepciones del turno | Turno, panel |
-| `ventas.ts` | Tres ventas cerradas (#1041 a #1043) para que «Ventas» no arranque vacía | Layout de estaciones |
-| `usuarios.ts` | Siete personas con sus roles y excepciones de permiso | Usuarios, anular un cobro |
+| `usuarios.ts` | El equipo del acceso y sus roles | B1-5 |
+| `dispositivos.ts` | Los equipos autorizados | B1-3 |
+| `tasas.ts` | El historial de tasas de cambio | B2-1 |
+| `medios.ts` | Medios de pago y datos que ve el cliente | B3-2 |
+| `turno.ts` | Movimientos y excepciones del turno | B3-1 y B3-5 |
+| `caja.ts` | Reglas de IVA e IGTF, medios y terminales del cobro | B2-2 y B3-2 |
+| `parque.ts` | Niños en sala (`demoSnapshot`) y representantes conocidos | B4-1 y B4-2 |
+| `representantes.ts` | El directorio de familias | B4-1 |
+| `sucursal.ts` | Ajustes del local | B4-4 |
+| `restaurante.ts` | Plano y carta | B6-1 |
 
-## Tres reglas
+Ya se fueron: el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
+`scripts/semilla/tarifario.mts`), las cuentas y ventas de ejemplo, el interruptor `NEXT_PUBLIC_DEMO` y el
+simulador de operación con sus escenarios.
 
-1. **Solo las rutas importan la demo.** `app/**` la pasa a las pantallas por props. Una pantalla o
-   un proveedor que la importa no se puede conectar al backend sin reescribirlo. Lo impone la
-   regla `demo-solo-desde-las-rutas` de `pnpm arch`; la única excepción es el simulador, que lee
-   `modo.ts`.
-2. **Todo se valida contra el contrato al construirse.** Si un dato de ejemplo tiene una forma que
-   el servidor nunca devolverá, la aplicación falla al arrancar, no meses después.
-3. **Nada de aquí es real.** Tarifas, carta, precios y personas son inventados hasta F0-04. Los
-   tipos que sí son del producto (`MedioPago`, `Excepcion`, denominaciones) viven en su
-   funcionalidad, no aquí.
+## Reglas mientras existan
 
-## El simulador
-
-El motor que reproduce una tarde del local está en `src/features/simulacion`: sus eventos son los
-del catálogo real (F1-20) y las pantallas lo leen como leerán el tiempo real del servidor. Con la
-demo apagada no se muestra ni se puede iniciar.
-
-## Cuando llegue el backend
-
-Cada importación de este directorio en `app/**` se sustituye por la llamada al servidor, y el
-directorio se borra. Las pantallas no cambian: ya reciben la forma definitiva.
+- **Solo las rutas (`app/**`) importan de aquí** y pasan los datos a las pantallas por props. Una
+  pantalla o un proveedor que los importe no se podría conectar al servidor sin reescribirse.
+  `pnpm arch` lo impide.
+- **Se validan contra el contrato al construirse.** Si un dato inventado no cumple el esquema, revienta
+  aquí y no cuando llegue el backend.
+- **Nada nuevo entra aquí.** Una pantalla nueva nace contra el servidor (patrón del tarifario, CLAUDE.md
+  «Del ejemplo al servidor»).
+- Nada de datos personales reales.

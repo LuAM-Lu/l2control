@@ -5,7 +5,7 @@
  * solo pinta lo que sale de aquí.
  */
 import { nivelEspera, type NivelEspera, type UmbralEspera } from "@l2/domain-orders";
-import type { EstadoLocal, Pedido } from "../simulacion/proyeccion.ts";
+import type { EstadoLocal, Pedido } from "../operacion/proyeccion.ts";
 
 export type Comanda = Readonly<{
   pedido: Pedido;

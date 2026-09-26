@@ -1,5 +1,6 @@
 import { CheckInScreen } from "../../../src/features/park/CheckInScreen";
 import { DEMO_GUARDIANS, demoSnapshot } from "../../../src/demo/parque";
+import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 
 /**
  * Registro de entrada al parque (F5-02, F5-03, F5-04).
@@ -11,8 +12,9 @@ import { DEMO_GUARDIANS, demoSnapshot } from "../../../src/demo/parque";
  */
 export const dynamic = "force-dynamic";
 
-export default function EntradaPage() {
-  const snapshot = demoSnapshot(Date.now());
+export default async function EntradaPage() {
+  const { tarifario } = await tarifarioVigente();
+  const snapshot = demoSnapshot(Date.now(), tarifario.policy);
 
   return (
     <CheckInScreen
