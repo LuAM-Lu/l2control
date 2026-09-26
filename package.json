@@ -9,6 +9,10 @@
   },
   "scripts": {
     "dev": "turbo run dev",
+    "infra:up": "docker compose up -d --wait",
+    "infra:down": "docker compose down",
+    "infra:reset": "docker compose down -v && docker compose up -d --wait",
+    "infra:logs": "docker compose logs -f --tail=100",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

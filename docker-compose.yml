@@ -1,0 +1,58 @@
+# Entorno LOCAL de L2 Control (B0-1 · F1-04): PostgreSQL 17 y Valkey 8.
+#
+#   cp .env.example .env      # una vez
+#   pnpm infra:up             # levanta y espera a que ambos estén sanos
+#
+# Versiones exactas, como en el lockfile (PLAN §4): subirlas es una tarea, no un efecto
+# colateral de hacer `pull`. Los puertos se abren solo en 127.0.0.1: nada de esto se ve
+# desde la red del local.
+
+name: l2control
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      # `:?` = fail-closed: sin la variable, compose no arranca (§10.3).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copia .env.example a .env}
+      L2_MIGRATOR_PASSWORD: ${L2_MIGRATOR_PASSWORD:?copia .env.example a .env}
+      L2_APP_PASSWORD: ${L2_APP_PASSWORD:?copia .env.example a .env}
+      # Orden de texto determinista e independiente del sistema (proveedor «builtin» de PG 17).
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8
+      # La base guarda instantes en UTC; el día de negocio lo decide la aplicación (ADR-009).
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "127.0.0.1:${L2_PG_PORT:-5433}:5432"
+    volumes:
+      - l2-postgres:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d l2control"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8.1.10-alpine
+    restart: unless-stopped
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?copia .env.example a .env}
+    # AOF: lo que esté en Valkey sobrevive a un reinicio. Aun así Valkey no guarda nada
+    # que no pueda perderse; lo que importa vive en PostgreSQL.
+    command: ["sh", "-c", 'exec valkey-server --appendonly yes --requirepass "$$VALKEY_PASSWORD"']
+    ports:
+      - "127.0.0.1:${L2_VALKEY_PORT:-6379}:6379"
+    volumes:
+      - l2-valkey:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'valkey-cli -a "$$VALKEY_PASSWORD" --no-auth-warning ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  l2-postgres:
+  l2-valkey:

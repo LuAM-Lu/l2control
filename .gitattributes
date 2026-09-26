@@ -1,0 +1,5 @@
+# Los scripts que corren dentro de los contenedores (Linux) se guardan SIEMPRE con LF.
+# Con core.autocrlf=true en Windows saldrían con CRLF y el contenedor fallaría con
+# «/bin/sh^M: not found», un error que no dice nada de los finales de línea.
+*.sh   text eol=lf
+*.sql  text eol=lf

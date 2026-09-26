@@ -19,6 +19,27 @@ Entra con cualquier persona de la pantalla de acceso y el PIN **`1970`**. En Chr
 la instala como PWA. El chip «DEMO» de cada barra abre el simulador, que reproduce una tarde del local;
 `NEXT_PUBLIC_DEMO=off pnpm dev` lo apaga.
 
+## Base de datos local
+
+Desde la Etapa 0 del backend hacen falta PostgreSQL 17 y Valkey 8. No se instalan: los levanta
+Docker (hace falta Docker Desktop encendido).
+
+```bash
+cp .env.example .env  # una vez; contraseñas de juguete solo para tu máquina
+pnpm infra:up         # levanta los dos y espera a que estén sanos
+pnpm infra:down       # los apaga; los datos se conservan
+pnpm infra:reset      # borra los datos y arranca de cero
+```
+
+| Servicio | En tu máquina | Para qué |
+|---|---|---|
+| PostgreSQL 17 | `127.0.0.1:5433` | Donde vive todo lo que importa: cobros, estancias, turnos. Bases `l2control` y `l2control_test` |
+| Valkey 8 | `127.0.0.1:6379` | Mensajería en tiempo real entre equipos y datos de consulta rápida. Si se pierde, no se pierde nada importante |
+
+El puerto es 5433 para no chocar con un PostgreSQL instalado. PostgreSQL tiene tres usuarios con
+papeles distintos (`postgres`, `l2_migrator` y `l2_app`); por qué, en
+[infra/postgres/init](infra/postgres/init/01-roles-y-bases.sh).
+
 ## Estado
 
 El frontend está terminado **sobre datos de ejemplo** y el backend está en construcción. El estado, la

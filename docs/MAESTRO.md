@@ -38,9 +38,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **Sin servidor:** todo vive por pestaña (`sessionStorage`), y solo el simulador y las cuentas cruzan
   pestañas (`BroadcastChannel`). Entre dos equipos no se comparte nada. Los datos son inventados y
   están en `apps/web/src/demo`.
-- **Infraestructura disponible en esta máquina:** Node 24 y Docker 29 con Compose v5.
+- **Base de datos local en marcha** (B0-1): `pnpm infra:up` levanta PostgreSQL y Valkey con Docker.
+  En esta máquina ya hay otro PostgreSQL en el 5432 (ajeno al proyecto); el nuestro usa el 5433.
 
-**Siguiente paso:** B0-1 (§3).
+**Siguiente paso:** B0-2 (§3).
 
 ---
 
@@ -68,8 +69,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 ### Etapa 0 · Cimientos del servidor (local)
 
-- [ ] **B0-1 · Docker Compose** con PostgreSQL 17 y Valkey 8 (F1-04).
+- [x] **B0-1 · Docker Compose** con PostgreSQL 17 y Valkey 8 (F1-04).
   → `docker compose up -d` deja el entorno listo en una máquina limpia; documentado en el README.
+  *Hecho el 2026-09-26: `pnpm infra:up` con PostgreSQL 17.11 y Valkey 8.1.10 fijos, puertos solo en
+  127.0.0.1 y tres papeles en la base (el de la aplicación no crea tablas ni se salta la RLS).*
 - [ ] **B0-2 · `packages/database`**: Prisma 7.4+, `tenant_id` en toda tabla y RLS `FORCE` (F1-05,
   ADR-002, ADR-007), sin `FLOAT` para montos (F3-02).
   → Pasan la prueba negativa de aislamiento (el tenant A no lee filas de B) y la prueba que falla ante
