@@ -38,8 +38,34 @@ model Branch {
   name      String
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  tariffVersions ParkTariffVersion[]
 
   @@unique([tenantId, name])
+  /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
+  /// Las comprobaciones de FK no pasan por la RLS, así que sin esto A podría citar la sucursal de B.
+  @@unique([tenantId, id])
   @@map("branch")
+}
+
+/// Una publicación del tarifario del parque (F5-04): sus paquetes y su política, juntos.
+/// Solo se añaden filas: publicar es una versión nueva y el pasado no se reescribe (regla 5).
+/// El vigente es la versión más alta de la sucursal.
+model ParkTariffVersion {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  version     Int
+  /// `TarifarioDto` de @l2/contracts. Se valida al escribir y otra vez al leer: una fila que ya
+  /// no cumple el contrato se niega en vez de venderse (fail-closed).
+  content     Json
+  publishedAt DateTime @default(now()) @map("published_at") @db.Timestamptz(3)
+  /// Quién publicó. Nulo hasta que exista la sesión en el servidor (B1).
+  publishedBy String?  @map("published_by") @db.Uuid
+
+  branch Branch @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, branchId, version])
+  @@map("park_tariff_version")
 }

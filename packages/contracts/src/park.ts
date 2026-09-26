@@ -188,6 +188,18 @@ export const TarifarioSchema = z
   });
 export type TarifarioDto = z.infer<typeof TarifarioSchema>;
 
+/**
+ * Un tarifario ya publicado: lo que el servidor devuelve al leer y al publicar (B0-5).
+ * La versión la asigna el servidor —una más que la vigente— y el cliente nunca la propone:
+ * así dos personas que publican a la vez no se pisan, una de las dos recibe CONFLICTO.
+ */
+export const TarifarioPublicadoSchema = z.object({
+  version: z.number().int().positive(),
+  publishedAt: TimestampSchema,
+  tarifario: TarifarioSchema,
+});
+export type TarifarioPublicadoDto = z.infer<typeof TarifarioPublicadoSchema>;
+
 /* ----------------------------------------------------------- estancia */
 
 export const SessionStatusSchema = z.enum([

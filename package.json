@@ -13,6 +13,8 @@
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v && docker compose up -d --wait",
     "infra:logs": "docker compose logs -f --tail=100",
+    "db:migrar": "pnpm --filter @l2/database db:deploy",
+    "db:semilla": "pnpm --filter @l2/web semilla",
     "build": "turbo run build",
     "lint": "node scripts/lint.mjs",
     "typecheck": "turbo run typecheck",

@@ -35,15 +35,19 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **Núcleo puro y probado:** `@l2/contracts` (Zod) y el dominio `money`, `rates`, `tax`, `cash`, `park`,
   `identity` y `orders`. Los contratos `impuestos.ts`, `impresoras.ts` y `turno.ts` ya existen, aunque
   sus pantallas no.
-- **Sin servidor:** todo vive por pestaña (`sessionStorage`), y solo el simulador y las cuentas cruzan
+- **Lo que aún no tiene servidor:** todo lo demás vive por pestaña (`sessionStorage`), y solo el simulador y las cuentas cruzan
   pestañas (`BroadcastChannel`). Entre dos equipos no se comparte nada. Los datos son inventados y
   están en `apps/web/src/demo`.
 - **Base de datos local en marcha** (B0-1): `pnpm infra:up` levanta PostgreSQL y Valkey con Docker.
   En esta máquina ya hay otro PostgreSQL en el 5432 (ajeno al proyecto); el nuestro usa el 5433.
 - **Persistencia base** (B0-2): `@l2/database` con `tenant` y `branch`, RLS forzada y su prueba
   negativa. Para trabajo de backend, la puerta es `pnpm verify:db`.
+- **Logs, entorno, lint y CI** (B0-3, B0-4): `@l2/observability`, `pnpm lint` y
+  `.github/workflows/ci.yml`, que no se ha visto correr en GitHub porque no hay push.
+- **La primera pantalla con servidor** (B0-5): el **tarifario** se publica y se lee de la base, con
+  `L2_FUENTE_DE_DATOS=servidor`. Todo lo demás sigue en la demo hasta su paso.
 
-**Siguiente paso:** B0-5 (§3). B0-4 espera un push para comprobarse en GitHub.
+**Siguiente paso:** Etapa 1, B1-1 (§3). B0-4 espera un push para comprobarse en GitHub.
 
 ---
 
@@ -99,11 +103,19 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   que muerden: `toFixed` fuera de `@l2/ui`, `parseFloat`, colores literales, reloj en el dominio y
   emojis en pantalla. Excepciones solo con `lint-permitido: <regla> — <motivo>`. **Falta verlo en
   rojo en GitHub: necesita un push.***
-- [ ] **B0-5 · La costura entre demo y servidor** (`packages/application`). Se fija un patrón único:
+- [x] **B0-5 · La costura entre demo y servidor** (`packages/application`). Se fija un patrón único:
   acción de servidor → contrato Zod → dominio → repositorio en transacción con `SET LOCAL app.tenant_id`.
   El primer caso vertical es el **tarifario**: leer y publicar.
   → Una tarifa publicada se ve desde otro navegador y sobrevive a reiniciar el servidor.
   `NEXT_PUBLIC_DEMO` sigue sirviendo para enseñar la demo.
+  *Hecho el 2026-09-26. `@l2/application` (`conectar()`, `tarifario.leer/publicar`,
+  `sucursal.asegurar`), tabla `park_tariff_version` de solo-agregar con FK compuesta, contratos
+  `TarifarioPublicadoSchema` y `Resultado`. En la web, `L2_FUENTE_DE_DATOS` (demo | servidor), el
+  entorno validado en `instrumentation.ts`, `publicarTarifario` como server action y
+  `pnpm db:semilla`. Comprobado en el navegador: publicar $ 7,25 en una sesión, leerlo en otra
+  independiente, en la entrada, y tras reiniciar el servidor; con el entorno roto el servidor no
+  arranca y no enseña la contraseña. 33 pruebas contra la base. **Hasta B1 solo se escribe con
+  `L2_ENTORNO=desarrollo`.***
 
 ### Etapa 1 · Identidad y auditoría (F2 completa, no se recorta)
 
@@ -291,6 +303,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-26** · Se consolida la documentación en este archivo y se retira la orquesta con Gemini
   (M-2). El frontend queda congelado (M-1), lo fiscal queda fuera (M-3) y se fija la ruta local → VPS
   (M-4). Empieza la Etapa 0.
+- **2026-09-26** · Etapa 0 hecha en local (B0-1 a B0-5): Docker, Prisma con RLS forzada, logs con
+  redacción, lint y CI, y el tarifario como primera escritura real. B0-4 queda a falta de ver el CI
+  en GitHub.
 
 ---
 
@@ -304,16 +319,17 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-26):**
+**Último handoff (2026-09-26, al cerrar la Etapa 0):**
 
 ```text
 Proyecto L2 Control. Lee docs/MAESTRO.md (único documento vivo) y CLAUDE.md antes de nada.
 Rol: desarrollador full-stack senior; programas tú todo (ya no hay obrera Gemini).
-Estado: frontend congelado sobre datos de ejemplo; backend sin empezar. main limpio.
-Siguiente: Etapa 0, paso B0-1 — docker-compose.yml con PostgreSQL 17 y Valkey 8.
-  Criterio: `docker compose up -d` deja el entorno listo en una máquina limpia y el README lo explica.
-Luego B0-2 (packages/database: Prisma 7.4+, tenant_id, RLS FORCE, prueba negativa de aislamiento).
-A medias: nada.
-Cuidado: D-INF está abierta (VPS solo o servidor en el local, ADR-003): empaqueta todo en Docker para
-que sirva en ambos casos. Nada fiscal (M-3). Marca cada paso en MAESTRO §3 en el mismo commit.
+Estado: Etapa 0 hecha en local (B0-1 a B0-5). El tarifario ya se guarda en PostgreSQL; el resto, demo.
+Arrancar: Docker Desktop encendido → pnpm infra:up → pnpm db:migrar → pnpm db:semilla → pnpm dev.
+Siguiente: B1-1 — AuditLog append-only (reusa l2_solo_agregar() y l2_aislar_por_tenant()).
+  Criterio: un disparador rechaza UPDATE/DELETE; prueba en *.test-db.ts. Luego B1-2 (Better Auth).
+A medias: B0-4 — el CI nunca corrió en GitHub; pide permiso antes de hacer push.
+Cuidado: hasta B1-5 las escrituras solo corren con L2_ENTORNO=desarrollo. Patrón a copiar para
+pasar una pantalla a la base: el tarifario (CLAUDE.md, «Del ejemplo al servidor»). Nada fiscal.
+Puerta antes de cada commit de backend: pnpm verify:db.
 ```

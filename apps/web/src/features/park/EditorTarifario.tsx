@@ -33,6 +33,7 @@ export function EditorTarifario() {
   const [historial, setHistorial] = useState<Borrador[]>([publicado]);
   const [paso, setPaso] = useState(0);
   const [errores, setErrores] = useState<readonly string[]>([]);
+  const [publicando, setPublicando] = useState(false);
   const [retiradosAbiertos, setRetiradosAbiertos] = useState(false);
   const [editando, setEditando] = useState<PricePackageDto | "nuevo" | null>(null);
   const [paqueteARetirar, setPaqueteARetirar] = useState<PricePackageDto | null>(null);
@@ -49,17 +50,29 @@ export function EditorTarifario() {
     setErrores([]);
   }
 
-  function alPublicar() {
+  async function alPublicar() {
     const r = TarifarioSchema.safeParse(borrador);
     if (!r.success) {
       setErrores([r.error.issues[0]?.message ?? "Error de validación"]);
       return;
     }
-    publicar(r.data);
-    setHistorial([r.data]);
-    setPaso(0);
-    setErrores([]);
-    avisar.ok("Tarifario publicado", { detalle: "La entrada ya usa los nuevos paquetes y reglas." });
+    setPublicando(true);
+    try {
+      const resultado = await publicar(r.data);
+      if (!resultado.ok) {
+        // El servidor revalida y puede decir otra cosa (CONFLICTO, NO_PERMITIDO…): se enseña.
+        setErrores([resultado.problemas?.[0]?.message ?? resultado.mensaje]);
+        return;
+      }
+      setHistorial([resultado.valor.tarifario]);
+      setPaso(0);
+      setErrores([]);
+      avisar.ok("Tarifario publicado", { detalle: "La entrada ya usa los nuevos paquetes y reglas." });
+    } catch {
+      setErrores(["No se pudo publicar: el servidor no respondió. El borrador sigue aquí; inténtalo de nuevo."]);
+    } finally {
+      setPublicando(false);
+    }
   }
 
   function descartar() {
@@ -115,9 +128,9 @@ export function EditorTarifario() {
             <Button surface="admin" variant="ghost" onClick={descartar} disabled={!sucio}>
               Descartar cambios
             </Button>
-            <Button surface="admin" variant="primary" onClick={alPublicar} disabled={!sucio}>
+            <Button surface="admin" variant="primary" onClick={() => void alPublicar()} disabled={!sucio || publicando}>
               <Save size={15} aria-hidden="true" />
-              Publicar
+              {publicando ? "Publicando…" : "Publicar"}
             </Button>
           </div>
         }

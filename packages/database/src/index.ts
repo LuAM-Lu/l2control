@@ -14,7 +14,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type Prisma } from "./generated/client.ts";
 
 export type Transaccion = Prisma.TransactionClient;
-export type { Branch, Tenant } from "./generated/client.ts";
+export type { Branch, ParkTariffVersion, Tenant } from "./generated/client.ts";
+export { errorDeBase, type ErrorDeBase, type MotivoDeBase } from "./errores.ts";
 
 export interface Base {
   /** Ejecuta `trabajo` en una transacción que solo ve y solo escribe filas de `tenantId`. */

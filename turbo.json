@@ -41,7 +41,8 @@
     "test:db": {
       "dependsOn": [
         "^generate",
-        "generate"
+        "generate",
+        "^test:db"
       ],
       "cache": false
     }

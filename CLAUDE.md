@@ -18,6 +18,7 @@ maestro, hacer commit y entregar en el chat el bloque para pegar en una sesión 
 ```bash
 pnpm dev          # levanta apps/web en http://localhost:3000
 pnpm infra:up     # PostgreSQL 17 + Valkey 8 en Docker (una vez: cp .env.example .env)
+pnpm db:migrar    # migraciones · pnpm db:semilla deja el local de desarrollo listo
 pnpm verify       # arquitectura + demostración de que muerde + pruebas
 pnpm verify:db    # lo anterior + pruebas contra la base (aislamiento por tenant); antes de cada commit de backend
 pnpm lint         # reglas de la casa: toFixed, parseFloat, colores, reloj en el dominio, emojis
@@ -53,6 +54,7 @@ apps/web                  Next.js 16 — todas las superficies
   app/                    rutas; las únicas que importan src/demo
   src/features/<dominio>  pantallas y lógica de aplicación, por dominio
   src/demo/               datos de ejemplo e interruptor NEXT_PUBLIC_DEMO
+  src/servidor/           entorno validado, conexión a application y logger (solo servidor)
 packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
 packages/domain/rates     tasa vigente, fracción de conversión y límite de cordura (puro)
@@ -60,6 +62,7 @@ packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
 packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones (puro)
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
+packages/application      casos de uso: contrato + dominio + base en la transacción del tenant
 packages/database         Prisma, migraciones y RLS forzada; solo lo importa application
 packages/observability    logger JSON con redacción y entorno validado al arrancar (solo servidor)
 packages/ui               nivel 1 primitivos + nivel 2 patrones
@@ -72,6 +75,12 @@ docs/adr/                 las 17 decisiones, una por archivo
 **Datos de ejemplo.** Viven solo en `apps/web/src/demo` y entran solo por las rutas (`app/**`),
 que los pasan a las pantallas por props. `pnpm arch` rompe si una pantalla o un proveedor los
 importa.
+
+**Del ejemplo al servidor (B0-5).** `L2_FUENTE_DE_DATOS` (`demo` | `servidor`) lo decide el servidor,
+nunca el navegador. Una pantalla pasa a la base así: caso de uso en `@l2/application` con su
+`*.test-db.ts`; lectura en `features/<dominio>/<x>.servidor.ts` (con `connection()`); escritura en
+`<x>.acciones.ts` (`"use server"`, recibe `unknown`, devuelve `Resultado`); el layout elige la fuente
+y el proveedor publica con la acción. El modelo es el tarifario.
 
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.

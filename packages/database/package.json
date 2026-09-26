@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Persistencia (§9.2 ❸): esquema Prisma, migraciones y RLS forzada por tenant (ADR-002, ADR-007).",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./para-pruebas": "./src/para-pruebas.ts"
   },
   "scripts": {
     "generate": "prisma generate",

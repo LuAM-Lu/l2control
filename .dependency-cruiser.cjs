@@ -113,6 +113,8 @@ module.exports = {
           // Los cargan la CLI de Prisma y node --test, no un import.
           "packages/database/prisma\\.config\\.ts$",
           "packages/database/scripts/",
+          "apps/web/scripts/",
+          "apps/web/instrumentation\\.ts$",
           "\\.test(-db)?\\.ts$",
         ],
       },

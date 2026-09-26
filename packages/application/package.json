@@ -1,0 +1,24 @@
+{
+  "name": "@l2/application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Casos de uso (§9.2 ❹): orquestan contrato, dominio y persistencia dentro de la transacción del tenant.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:db": "node --env-file-if-exists=../../.env --test --test-concurrency=1 --experimental-strip-types \"src/**/*.test-db.ts\""
+  },
+  "comment": "Es la única puerta de las apps al servidor: apps → application → database (§9.2 regla 2).",
+  "dependencies": {
+    "@l2/contracts": "workspace:*",
+    "@l2/database": "workspace:*"
+  },
+  "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
+    "typescript": "7.0.2"
+  }
+}

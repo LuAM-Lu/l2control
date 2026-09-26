@@ -6,6 +6,8 @@ import { SimulacionProvider } from "../src/features/simulacion/SimulacionProvide
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
 import { CartaProvider } from "../src/features/mesas/CartaProvider";
 import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
+import { tarifarioVigente } from "../src/features/park/tarifario.servidor";
+import { entorno } from "../src/servidor/entorno";
 import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
 import { DispositivosProvider } from "../src/features/identity/DispositivosProvider";
 import { RepresentantesProvider } from "../src/features/park/RepresentantesProvider";
@@ -61,11 +63,18 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // B0-5: el tarifario es lo primero que sale de la base; lo demás sigue en la demo hasta
+  // su paso de la ruta (MAESTRO §3). La fuente la decide el servidor, no el navegador.
+  const tarifario =
+    entorno().L2_FUENTE_DE_DATOS === "servidor"
+      ? ({ fuente: "servidor", inicial: await tarifarioVigente() } as const)
+      : ({ fuente: "demo", inicial: TARIFARIO_DEMO } as const);
+
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
       <body>
@@ -88,7 +97,7 @@ export default function RootLayout({
                   <MediosProvider inicial={MEDIOS_DEMO}>
                     <PlanoProvider inicial={PLANO_DEMO}>
                       <CartaProvider inicial={CARTA_DEMO}>
-                        <TarifarioProvider inicial={TARIFARIO_DEMO}>
+                        <TarifarioProvider {...tarifario}>
                           <CuentasProvider
                             inicial={DEMO_ACTIVA ? DEMO_CUENTAS : []}
                           >

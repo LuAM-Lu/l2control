@@ -21,6 +21,7 @@ import {
   MoneySchema,
   ParkPolicySchema,
   TarifarioSchema,
+  TarifarioPublicadoSchema,
   WristbandCodeSchema,
 } from "./index.ts";
 
@@ -192,6 +193,13 @@ describe("tarifario del parque (F5-04, F5-06)", () => {
 
   test("un tarifario coherente es válido", () => {
     assert.equal(TarifarioSchema.safeParse(valido).success, true);
+  });
+
+  test("uno publicado lleva la versión que puso el servidor, siempre positiva (B0-5)", () => {
+    const publicado = { version: 3, publishedAt: "2026-09-26T21:41:26.388Z", tarifario: valido };
+    assert.equal(TarifarioPublicadoSchema.safeParse(publicado).success, true);
+    assert.equal(TarifarioPublicadoSchema.safeParse({ ...publicado, version: 0 }).success, false);
+    assert.equal(TarifarioPublicadoSchema.safeParse({ ...publicado, tarifario: { ...valido, packages: [] } }).success, false);
   });
 
   test("un paquete retirado se queda, pero tiene que quedar alguno a la venta", () => {

@@ -121,6 +121,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@l2/application':
+        specifier: workspace:*
+        version: link:../../packages/application
       '@l2/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -145,6 +148,9 @@ importers:
       '@l2/domain-tax':
         specifier: workspace:*
         version: link:../../packages/domain/tax
+      '@l2/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@l2/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -160,6 +166,12 @@ importers:
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
+      server-only:
+        specifier: 0.0.1
+        version: 0.0.1
+      zod:
+        specifier: 4.5.4
+        version: 4.5.4
     devDependencies:
       '@l2/config':
         specifier: workspace:*
@@ -179,6 +191,25 @@ importers:
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/application:
+    dependencies:
+      '@l2/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@l2/database':
+        specifier: workspace:*
+        version: link:../database
+    devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -1771,6 +1802,9 @@ packages:
   seq-queue@0.0.5:
     resolution: {integrity: sha512-hr3Wtp/GZIc/6DAGPDcV4/9WoZhjrkXsi5B/07QgX8tsdc6ilr7BFM6PM6rbdAX1kFSDYeZGLipIZZKyQP0O5Q==}
 
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
+
   sharp@0.35.4:
     resolution: {integrity: sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==}
     engines: {node: '>=20.9.0'}
@@ -3120,6 +3154,8 @@ snapshots:
   semver@7.8.5: {}
 
   seq-queue@0.0.5: {}
+
+  server-only@0.0.1: {}
 
   sharp@0.35.4(@types/node@24.10.1):
     dependencies:

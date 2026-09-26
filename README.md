@@ -27,9 +27,17 @@ Docker (hace falta Docker Desktop encendido).
 ```bash
 cp .env.example .env  # una vez; contraseñas de juguete solo para tu máquina
 pnpm infra:up         # levanta los dos y espera a que estén sanos
+pnpm db:migrar        # aplica las migraciones
+pnpm db:semilla       # crea el local de desarrollo y su tarifario de ejemplo (idempotente)
+pnpm dev              # con L2_FUENTE_DE_DATOS=servidor lee y escribe en la base
 pnpm infra:down       # los apaga; los datos se conservan
 pnpm infra:reset      # borra los datos y arranca de cero
 ```
+
+**Dos modos**, que decide `L2_FUENTE_DE_DATOS`: `servidor` (la base de verdad) o `demo` (datos de
+ejemplo, sin Docker; es el valor si no hay `.env`). Hoy solo el **tarifario** sale de la base; el
+resto de pantallas sigue en la demo hasta su paso de la ruta. Si falta o sobra una variable, el
+servidor **no arranca** y dice cuál.
 
 | Servicio | En tu máquina | Para qué |
 |---|---|---|

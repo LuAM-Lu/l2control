@@ -46,6 +46,8 @@ export {
   type PricePackageDto,
   type ParkPolicyDto,
   type TarifarioDto,
+  TarifarioPublicadoSchema,
+  type TarifarioPublicadoDto,
   type SessionStatus,
   type ParkSessionDto,
   type MonitorSnapshotDto,
@@ -266,3 +268,13 @@ export {
   type ServicioDto,
   type AjustesSucursalDto,
 } from "./sucursal.ts";
+
+export {
+  MotivoDeRechazoSchema,
+  ProblemaSchema,
+  problemasDe,
+  type MotivoDeRechazo,
+  type Problema,
+  type Rechazo,
+  type Resultado,
+} from "./resultado.ts";
