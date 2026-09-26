@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import { ShieldMinus, ShieldPlus } from "lucide-react";
 import {
   PermissionExceptionCommandSchema,
-  type PermissionExceptionDto,
+  type PermissionExceptionCommand,
   type UserSummaryDto,
 } from "@l2/contracts";
 import { explainPermission, type Action, type Permission } from "@l2/domain-identity";
 import { Button, Sheet, avisar, cn } from "@l2/ui";
 import { ACCIONES, AREAS, ETIQUETAS, toActor } from "./permisos.ts";
-import type { Autor } from "./equipo.ts";
+import type { Autor } from "./operador.ts";
 
 /**
  * Conceder o revocar un permiso a una persona — F2-11, DEC-15.
@@ -41,7 +41,8 @@ export function SheetExcepcion({
   usuario: UserSummaryDto;
   autor: Autor;
   onCerrar: () => void;
-  onRegistrar: (userId: string, excepcion: PermissionExceptionDto) => void;
+  /** Envía el comando al servidor; devuelve el error, o `null` si quedó registrada. */
+  onRegistrar: (comando: PermissionExceptionCommand) => Promise<string | null>;
 }) {
   const actor = useMemo(() => toActor(usuario), [usuario]);
   const [accion, setAccion] = useState<Action | "">("");
@@ -50,7 +51,7 @@ export function SheetExcepcion({
   const [motivo, setMotivo] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
 
-  function enviar() {
+  async function enviar() {
     // El mismo contrato que validará el servidor (ADR-017).
     const r = PermissionExceptionCommandSchema.safeParse(
       efecto === "GRANT"
@@ -85,21 +86,13 @@ export function SheetExcepcion({
       return;
     }
 
-    // TODO(F2-11/backend): el autor y la hora los pone el servidor al
-    // registrarla; el comando no los lleva (ver el contrato).
-    const auditoria = {
-      action: nombre,
-      grantedBy: autor.id,
-      grantedByName: autor.nombre,
-      reason: r.data.reason,
-      at: new Date().toISOString(),
-    };
-    onRegistrar(
-      usuario.id,
-      r.data.effect === "GRANT"
-        ? { effect: "GRANT", permission: r.data.permission, ...auditoria }
-        : { effect: "REVOKE", ...auditoria },
-    );
+    // El autor y la hora los pone el servidor al registrarla; aquí solo se envía el comando.
+    void autor;
+    const error = await onRegistrar(r.data);
+    if (error) {
+      setErrores({ action: error });
+      return;
+    }
 
     avisar.ok(
       `${r.data.effect === "GRANT" ? "Concesión" : "Revocación"} registrada: «${ETIQUETAS[nombre].etiqueta}».`,

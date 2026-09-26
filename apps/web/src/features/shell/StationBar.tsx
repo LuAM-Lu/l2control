@@ -21,9 +21,8 @@ import {
   cerrarSesion,
   useOperador,
 } from "../identity/operador.ts";
-import { useAjustes } from "../identity/accesos.ts";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import {
-  actorDe,
   puedeAbrirRuta,
   puedeVerInicio,
 } from "../identity/visibilidad.ts";
@@ -161,7 +160,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
   // Los ganchos, antes de cualquier salida: en el acceso no hay barra, pero el
   // orden de los ganchos no puede depender de la ruta.
-  const ajustes = useAjustes();
+  const actorDeSesion = useActorEnSesion();
 
   // La pantalla de acceso no lleva barra: todavía no se sabe quién entra, y
   // enseñar el turno o la tasa antes de autenticar no aporta nada.
@@ -169,7 +168,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
   // V2: solo las pestañas que el rol puede abrir, y «Panel» solo para quien
   // ve informes. Sin sesión no hay a dónde ir más que al acceso.
-  const actor = operador ? actorDe(operador, ajustes) : null;
+  const actor = operador ? actorDeSesion : null;
   const encontrado = PUESTOS.find((p) =>
     p.superficies.some((s) => s.href === pathname),
   );

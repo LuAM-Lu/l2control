@@ -12,6 +12,7 @@
 import { hash, verify } from "@node-rs/argon2";
 import {
   DEFAULT_LOCKOUT_POLICY,
+  checkNewPin,
   computeLockout,
   describeLockout,
   type Actor,
@@ -56,12 +57,23 @@ export type Bloqueo = Readonly<{ bloqueado: boolean; hasta: string | null; inten
 
 export type ResultadoEntrada =
   | Readonly<{ ok: true; credencial: string; sesion: SesionActiva }>
-  | (Rechazo & Readonly<{ bloqueo?: Bloqueo }>);
+  | (Rechazo & Readonly<{ bloqueo?: Bloqueo; debeElegirPin?: true }>);
 
 export interface CasosSesiones {
   /** Quién puede entrar en este equipo: las personas activas, con PIN, de su sucursal. */
   personas(dispositivo: string | undefined | null): Promise<PersonaParaAcceso[]>;
-  entrar(p: { dispositivo: string | undefined | null; userId: string; pin: string; ip: string | null; ahora: number }): Promise<ResultadoEntrada>;
+  /**
+   * Entrar con PIN. Si el PIN es TEMPORAL (alta o reposición), no se abre sesión hasta que la
+   * persona elija el suyo: sin `pinNuevo` responde `debeElegirPin`; con él, lo guarda y entra.
+   */
+  entrar(p: {
+    dispositivo: string | undefined | null;
+    userId: string;
+    pin: string;
+    pinNuevo?: string | undefined;
+    ip: string | null;
+    ahora: number;
+  }): Promise<ResultadoEntrada>;
   /** La sesión de esta credencial, si sigue viva. La refresca; si caducó, la cierra. */
   consultar(credencial: string | undefined | null, ahora: number): Promise<SesionActiva | null>;
   salir(credencial: string | undefined | null, motivo: "SALIDA" | "CORTE_Z", ip: string | null): Promise<void>;
@@ -105,7 +117,7 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
       return filas.flatMap((u) => (esRol(u.role) ? [{ id: u.id, nombre: u.fullName, role: u.role }] : []));
     },
 
-    async entrar({ dispositivo, userId, pin, ip, ahora }) {
+    async entrar({ dispositivo, userId, pin, pinNuevo, ip, ahora }) {
       const d = await dispositivos.identificar(dispositivo);
       if (d.estado !== "APROBADO") {
         return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Este equipo no está autorizado para entrar." };
@@ -157,6 +169,21 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
         return { ...noEntra, mensaje: describeLockout(tras) ?? "PIN incorrecto.", bloqueo: bloqueoDe(tras) };
       }
 
+      // PIN temporal: primero elige el suyo. El PIN correcto ya se comprobó, así que decirle
+      // que tiene que cambiarlo no le da nada a nadie que no lo supiera.
+      let pinPropio: string | null = null;
+      if (u.pinMustChange) {
+        if (pinNuevo === undefined) {
+          return { ok: false, motivo: "INVALIDO", mensaje: "Es tu primer acceso con este PIN: elige el tuyo.", debeElegirPin: true };
+        }
+        const revision = checkNewPin(pinNuevo);
+        if (!revision.ok) return { ok: false, motivo: "INVALIDO", mensaje: revision.message, debeElegirPin: true };
+        if (pinNuevo === pin) {
+          return { ok: false, motivo: "INVALIDO", mensaje: "Elige un PIN distinto del temporal.", debeElegirPin: true };
+        }
+        pinPropio = await hash(pinNuevo);
+      }
+
       // Entra. Un equipo, una sesión: la que hubiera abierta en él se cierra.
       const secreto = nuevoSecreto();
       const sesion = await base.conTenant(d.tenantId, async (tx) => {
@@ -164,7 +191,16 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
           where: { deviceId: d.id, closedAt: null },
           data: { closedAt: new Date(ahora), closedReason: "OTRA_SESION" },
         });
-        await tx.staffUser.update({ where: { id: u.id }, data: { pinFailures: 0, pinLastFailureAt: null } });
+        await tx.staffUser.update({
+          where: { id: u.id },
+          data: { pinFailures: 0, pinLastFailureAt: null, ...(pinPropio ? { pinHash: pinPropio, pinMustChange: false } : {}) },
+        });
+        if (pinPropio) {
+          await tx.staffUserChange.create({
+            data: { tenantId: d.tenantId, userId: u.id, kind: "PIN", reason: "Eligió su PIN al entrar con el temporal", byUserId: u.id, byName: u.fullName },
+          });
+          await auditar(tx, ctxPersona, { action: "usuario.pin", entityType: "staff_user", entityId: u.id, reason: "Eligió su PIN al entrar con el temporal" });
+        }
         await tx.device.update({ where: { id: d.id }, data: { lastSeenAt: new Date(ahora) } });
         const s = await tx.staffSession.create({
           data: {

@@ -2,13 +2,13 @@ import { notFound } from "next/navigation";
 import { SeccionPendienteScreen } from "../../../../../src/features/shell/SeccionPendienteScreen";
 import { buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
 import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
-import { DEMO_USUARIOS } from "../../../../../src/demo/usuarios";
 import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
 import { EditorCarta } from "../../../../../src/features/mesas/EditorCarta";
 import { EditorTarifario } from "../../../../../src/features/park/EditorTarifario";
 import { AccesosPage } from "../../../../../src/features/identity/AccesosPage";
 import { DispositivosPage } from "../../../../../src/features/identity/DispositivosPage";
 import { dispositivosDelLocal } from "../../../../../src/features/identity/dispositivos.servidor";
+import { accesosDelLocal, directorioDelLocal } from "../../../../../src/features/identity/identidad.servidor";
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
@@ -22,8 +22,7 @@ import { MediosPage } from "../../../../../src/features/cash/MediosPage";
  * de encontrar la página del módulo. Añadir una pantalla es una línea.
  */
 const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.ReactNode>>> = {
-  // TODO(F2-11/backend): el directorio sale del servidor.
-  "personas/usuarios": () => <UsuariosPage usuarios={DEMO_USUARIOS} />,
+  "personas/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} />,
   "restaurante/plano": () => <EditorPlano />,
   "restaurante/carta": () => <EditorCarta />,
   "parque/tarifas": () => <EditorTarifario />,
@@ -32,10 +31,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "caja/tasas": () => <TasasPage />,
   "caja/medios": () => <MediosPage />,
   "configuracion/sucursal": () => <EditorSucursal />,
-  // TODO(F2-05/backend): la sucursal saldrá del dispositivo.
-  "configuracion/accesos": () => (
-    <AccesosPage branchId="b1" />
-  ),
+  "configuracion/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
 };
 
 /**

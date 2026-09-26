@@ -129,6 +129,9 @@ model StaffUser {
   /// Bloqueo creciente (`computeLockout` del dominio): fallos seguidos y el último.
   pinFailures      Int       @default(0) @map("pin_failures")
   pinLastFailureAt DateTime? @map("pin_last_failure_at") @db.Timestamptz(3)
+  /// El PIN actual es temporal (alta o reposición): al entrar con él, la persona elige el suyo
+  /// antes de tener sesión.
+  pinMustChange    Boolean   @default(false) @map("pin_must_change")
   /// Administración (F2-04): contraseña Argon2id y secreto TOTP cifrado (AES-256-GCM).
   passwordHash     String?   @map("password_hash")
   totpSecretEnc    String?   @map("totp_secret_enc")

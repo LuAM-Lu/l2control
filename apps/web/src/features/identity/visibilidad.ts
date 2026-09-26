@@ -1,9 +1,6 @@
 import type { Route } from "next";
-import type { RoleAdjustmentDto } from "@l2/contracts";
 import { SURFACE_ACTION, can, type Action, type Actor, type Role, type SurfaceId } from "@l2/domain-identity";
-import { ajustesDeRol } from "./accesos.ts";
 import { INICIO, MODULOS, buscarModulo, buscarSeccion, type Modulo, type Seccion } from "../shell/navigation.ts";
-import type { OperadorEnSesion } from "./operador.ts";
 
 /**
  * Qué ve cada rol — V2 de UX-MEJORAS §3, sobre la matriz de §7.3.
@@ -21,24 +18,6 @@ import type { OperadorEnSesion } from "./operador.ts";
  * se lo salta. La puerta de verdad la pondrá el servidor con la misma matriz
  * (F2-05); por eso la regla vive en el dominio y aquí solo se consulta.
  */
-
-// TODO(F2-12/backend): la sucursal saldrá de la sesión del dispositivo.
-const SUCURSAL = "b1";
-
-/**
- * Persona con sesión → actor del dominio, con los ajustes de su sucursal.
- *
- * Los ajustes por rol (N-05) entran aquí y en ningún otro sitio: así el menú,
- * la barra y las tres guardias los aplican por igual sin saber que existen.
- */
-export function actorDe(o: OperadorEnSesion, ajustes: readonly RoleAdjustmentDto[] = []): Actor {
-  return {
-    id: o.id,
-    role: o.role,
-    branchIds: [SUCURSAL],
-    roleAdjustments: ajustesDeRol(o.role, ajustes),
-  };
-}
 
 const alcanza = (actor: Actor, accion: Action) => can(actor, accion) !== "DENEGADO";
 

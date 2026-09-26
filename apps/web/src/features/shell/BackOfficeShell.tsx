@@ -12,9 +12,8 @@ import { PageTransition } from "./PageTransition.tsx";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
 import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
-import { useAjustes } from "../identity/accesos.ts";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import {
-  actorDe,
   modulosVisibles,
   puedeAbrirPanel,
   puedeVerInicio,
@@ -60,8 +59,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
     if (operador) op.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
     void cerrarSesion();
   }
-  const ajustes = useAjustes();
-  const actor = operador ? actorDe(operador, ajustes) : null;
+  const actor = useActorEnSesion();
   const visibles = actor ? modulosVisibles(actor) : [];
   const inicioVisible = actor ? puedeVerInicio(actor) : false;
   const usuario = operador?.nombre ?? "Sin identificar";
@@ -123,7 +121,7 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
           <PageTransition>
             <GuardiaAcceso
               destino={nombreEnPanel(pathname)}
-              permitido={(o) => puedeAbrirPanel(actorDe(o, ajustes), pathname)}
+              permitido={(a) => puedeAbrirPanel(a, pathname)}
             >
               {children}
             </GuardiaAcceso>

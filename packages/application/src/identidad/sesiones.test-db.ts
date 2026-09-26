@@ -76,8 +76,10 @@ describe("el PIN", () => {
   test("se guarda con Argon2id y nunca en claro, ni en la auditoría", async () => {
     const u = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.staffUser.findUnique({ where: { id: cajera } }));
     assert.match(u!.pinHash!, /^\$argon2id\$/);
-    const todo = JSON.stringify(await local.app.auditoria.listar(local.sistema, { limite: 500 }));
-    assert.ok(!todo.includes("7391") && !todo.includes("4826"));
+    // Solo lo que puede llevar un dato filtrado: los ids y las horas contienen cifras al azar.
+    const asientos = await local.app.auditoria.listar(local.sistema, { limite: 500 });
+    const contenido = JSON.stringify(asientos.map((a) => [a.before, a.after, a.reason]));
+    assert.ok(!contenido.includes("7391") && !contenido.includes("4826"), contenido);
   });
 
   test("tres fallos se toleran; el cuarto bloquea, y bloqueada ni el PIN correcto entra", async () => {

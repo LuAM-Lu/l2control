@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { PermissionExceptionCommand } from "@l2/contracts";
 import {
   Ban,
   CircleCheckBig,
@@ -24,9 +25,11 @@ import {
   type Permission,
   type Role,
 } from "@l2/domain-identity";
-import { Badge, Button, Container, Initial, Input, PageHeader, avisar, cn } from "@l2/ui";
+import { Badge, Button, Container, Dialog, Initial, Input, PageHeader, avisar, cn } from "@l2/ui";
 import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL, etiquetaDe, toActor } from "./permisos.ts";
-import { aplicarComando, type Autor } from "./equipo.ts";
+import type { Autor } from "./operador.ts";
+import { cambiarPersona, registrarExcepcion } from "./identidad.acciones";
+import { useConElevacion } from "./ElevacionProvider";
 import { DialogoCambio, type Cambio } from "./DialogoCambio.tsx";
 import { SheetExcepcion } from "./SheetExcepcion.tsx";
 
@@ -91,14 +94,11 @@ const plano = (s: string) =>
 export function UsuariosScreen({
   usuarios: iniciales,
   autor,
-  actor,
   branchId,
   puedeGestionar,
 }: {
   usuarios: readonly UserSummaryDto[];
   autor: Autor;
-  /** Quién está haciendo los cambios, para que el dominio los juzgue. */
-  actor: Actor;
   branchId: string;
   puedeGestionar: boolean;
 }) {
@@ -113,6 +113,9 @@ export function UsuariosScreen({
   const [conBajas, setConBajas] = useState(false);
   const [cambio, setCambio] = useState<Cambio | null>(null);
   const [excepcionPara, setExcepcionPara] = useState<UserSummaryDto | null>(null);
+  /** El PIN temporal de un alta o una reposición: se enseña UNA vez y no se guarda en ningún sitio. */
+  const [pinParaEntregar, setPinParaEntregar] = useState<{ nombre: string; pin: string } | null>(null);
+  const conElevacion = useConElevacion();
 
   const usuario = usuarios.find((u) => u.id === seleccion) ?? null;
   const activas = usuarios.filter((u) => u.active).length;
@@ -127,33 +130,42 @@ export function UsuariosScreen({
     });
   }, [usuarios, busqueda, filtroRol, conBajas]);
 
-  /** Ejecuta un comando ya formado: valida, pregunta al dominio y aplica. */
-  function ejecutar(comando: UserCommand): boolean {
+  /**
+   * Envía un comando al SERVIDOR, que lo valida con el contrato, lo juzga con las cinco puertas
+   * del dominio sobre el equipo real y lo guarda con su asiento. Aquí solo se refleja la respuesta.
+   */
+  async function ejecutar(comando: UserCommand): Promise<boolean> {
     const r = UserCommandSchema.safeParse(comando);
     if (!r.success) {
       avisar.error(r.error.issues[0]?.message ?? "Ese cambio no es válido.");
       return false;
     }
-    const salida = aplicarComando({
-      usuarios,
-      comando: r.data,
-      autor,
-      actor,
-      branchId,
-      ahora: Date.now(),
-    });
-    if (!salida.ok) {
-      avisar.error(salida.motivo);
+    const salida = await conElevacion(() => cambiarPersona(r.data)).catch(() => null);
+    if (!salida) {
+      avisar.error("El servidor no respondió. El cambio no se guardó; inténtalo de nuevo.");
       return false;
     }
-    setUsuarios(salida.usuarios);
-    // Tras un alta, la persona nueva es lo que se quiere mirar.
-    if (r.data.kind === "ALTA") {
-      const nueva = salida.usuarios.at(-1);
-      if (nueva) setSeleccion(nueva.id);
+    if (!salida.ok) {
+      avisar.error(salida.problemas?.[0]?.message ?? salida.mensaje);
+      return false;
     }
-    avisar.ok(salida.mensaje);
+    const u = salida.valor.usuario;
+    setUsuarios((prev) => (prev.some((x) => x.id === u.id) ? prev.map((x) => (x.id === u.id ? u : x)) : [...prev, u]));
+    // Tras un alta, la persona nueva es lo que se quiere mirar.
+    if (r.data.kind === "ALTA") setSeleccion(u.id);
+    if (salida.valor.pinTemporal) setPinParaEntregar({ nombre: u.fullName, pin: salida.valor.pinTemporal });
+    avisar.ok(salida.valor.mensaje);
     return true;
+  }
+
+  /** Una concesión o revocación, al servidor. Devuelve el error para la hoja, o `null`. */
+  async function registrar(cmd: PermissionExceptionCommand): Promise<string | null> {
+    const r = await conElevacion(() => registrarExcepcion(cmd)).catch(() => null);
+    if (!r) return "El servidor no respondió. No se guardó; inténtalo de nuevo.";
+    if (!r.ok) return r.problemas?.[0]?.message ?? r.mensaje;
+    setUsuarios((prev) => prev.map((u) => (u.id === r.valor.id ? r.valor : u)));
+    setExcepcionPara(null);
+    return null;
   }
 
   return (
@@ -292,8 +304,9 @@ export function UsuariosScreen({
         cambio={cambio}
         usuarios={usuarios}
         onCerrar={() => setCambio(null)}
-        onConfirmar={(comando) => {
-          if (ejecutar(comando)) setCambio(null);
+        branchId={branchId}
+        onConfirmar={async (comando) => {
+          if (await ejecutar(comando)) setCambio(null);
         }}
       />
 
@@ -302,13 +315,24 @@ export function UsuariosScreen({
           usuario={usuarios.find((u) => u.id === excepcionPara.id) ?? excepcionPara}
           autor={autor}
           onCerrar={() => setExcepcionPara(null)}
-          onRegistrar={(id, nueva) => {
-            setUsuarios((prev) =>
-              prev.map((u) => (u.id === id ? { ...u, exceptions: [...u.exceptions, nueva] } : u)),
-            );
-            setExcepcionPara(null);
-          }}
+          onRegistrar={registrar}
         />
+      )}
+
+      {pinParaEntregar && (
+        <Dialog
+          abierto
+          onCerrar={() => setPinParaEntregar(null)}
+          titulo={`PIN temporal de ${pinParaEntregar.nombre}`}
+          descripcion="Dáselo en mano. Se muestra solo esta vez: al entrar con él elegirá el suyo, y el temporal deja de servir."
+          pie={
+            <Button surface="admin" variant="primary" className="w-full" onClick={() => setPinParaEntregar(null)}>
+              Ya lo entregué
+            </Button>
+          }
+        >
+          <p className="tnum font-display py-4 text-center text-5xl font-bold tracking-[0.4em] text-ink">{pinParaEntregar.pin}</p>
+        </Dialog>
       )}
     </Container>
   );

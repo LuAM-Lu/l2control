@@ -77,7 +77,12 @@ export default async function RootLayout({
         <RegistroServiceWorker />
         {/* La operación del local (bus de eventos) por encima de las dos cáscaras:
             lo que emiten las estaciones lo leen el panel y las demás estaciones. */}
-        <SesionProvider operador={operador} sesionId={sesion?.id ?? null}>
+        <SesionProvider
+          operador={operador}
+          sesionId={sesion?.id ?? null}
+          actor={sesion?.actor ?? null}
+          branchId={sesion?.branchId ?? null}
+        >
         <ElevacionProvider>
         <OperacionProvider>
           {/* V4: el plano publicado vive por encima de las dos cáscaras: lo

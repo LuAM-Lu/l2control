@@ -10,7 +10,7 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 
 | Archivo | Qué inventa | Se va con |
 |---|---|---|
-| `usuarios.ts` | El directorio de la pantalla de usuarios (el acceso ya lee la base) | B1-5 |
+| `usuarios.ts` | Quién autoriza en los diálogos de anular y cortesía de la caja (usuarios, acceso y permisos ya son de la base) | B3-4 |
 | `tasas.ts` | El historial de tasas de cambio | B2-1 |
 | `medios.ts` | Medios de pago y datos que ve el cliente | B3-2 |
 | `turno.ts` | Movimientos y excepciones del turno | B3-1 y B3-5 |

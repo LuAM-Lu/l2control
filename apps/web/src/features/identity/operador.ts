@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, createElement, useContext, useEffect, useSyncExternalStore } from "react";
-import type { Role } from "@l2/domain-identity";
+import type { Actor, Role } from "@l2/domain-identity";
 import { salir } from "./acceso.acciones";
 
 /**
@@ -13,6 +13,9 @@ import { salir } from "./acceso.acciones";
  */
 
 export type OperadorEnSesion = Readonly<{ id: string; nombre: string; rol: string; role: Role }>;
+
+/** Quién firma un cambio en una pantalla (para mostrarlo; el servidor lo pone de verdad). */
+export type Autor = Readonly<{ id: string; nombre: string }>;
 
 /**
  * En qué puesto se sienta cada rol — F9-08, D7.
@@ -29,10 +32,16 @@ export const PUESTO_DE_ROL: Readonly<Record<Role, string>> = {
   SUPERVISOR: "administracion",
 };
 
-const Contexto = createContext<Readonly<{ operador: OperadorEnSesion | null; sesionId: string | null }>>({
-  operador: null,
-  sesionId: null,
-});
+type Sesion = Readonly<{
+  operador: OperadorEnSesion | null;
+  sesionId: string | null;
+  /** El actor COMPLETO que calculó el servidor: rol, sucursales, excepciones y ajustes. */
+  actor: Actor | null;
+  /** La sucursal de la sesión (la del equipo). */
+  branchId: string | null;
+}>;
+
+const Contexto = createContext<Sesion>({ operador: null, sesionId: null, actor: null, branchId: null });
 
 /**
  * Al salir, la persona deja de verse EN EL ACTO, sin esperar a que el servidor responda: una
@@ -51,12 +60,10 @@ const suscribir = (o: () => void) => {
 export function SesionProvider({
   operador,
   sesionId,
+  actor,
+  branchId,
   children,
-}: {
-  operador: OperadorEnSesion | null;
-  sesionId: string | null;
-  children: React.ReactNode;
-}) {
+}: Sesion & { children: React.ReactNode }) {
   useEffect(() => {
     vigente = sesionId;
     if (anulada !== null && anulada !== sesionId) {
@@ -64,7 +71,7 @@ export function SesionProvider({
       avisar();
     }
   }, [sesionId]);
-  return createElement(Contexto.Provider, { value: { operador, sesionId } }, children);
+  return createElement(Contexto.Provider, { value: { operador, sesionId, actor, branchId } }, children);
 }
 
 /** La persona con sesión, o `null` si nadie entró (o acaba de salir). */
@@ -72,6 +79,21 @@ export function useOperador(): OperadorEnSesion | null {
   const { operador, sesionId } = useContext(Contexto);
   const cerrada = useSyncExternalStore(suscribir, () => anulada !== null && anulada === sesionId, () => false);
   return cerrada ? null : operador;
+}
+
+/**
+ * El actor de la sesión, tal como lo calculó el servidor (B1-5): la web no lo reconstruye, así que
+ * el menú, las guardias y las pantallas ven exactamente lo que el servidor va a exigir.
+ */
+export function useActorDelServidor(): Actor | null {
+  const { actor, sesionId } = useContext(Contexto);
+  const cerrada = useSyncExternalStore(suscribir, () => anulada !== null && anulada === sesionId, () => false);
+  return cerrada ? null : actor;
+}
+
+/** La sucursal de la sesión, o `null` sin sesión. */
+export function useSucursalDeSesion(): string | null {
+  return useContext(Contexto).branchId;
 }
 
 /**

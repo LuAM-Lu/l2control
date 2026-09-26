@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-09-26**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-09-27**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay tres referencias que **no se editan** y se citan por sección:
@@ -26,30 +26,24 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**El frontend está terminado sobre datos de ejemplo y congelado. El backend no existe todavía.**
+**Etapa 0 hecha. Etapa 1 (identidad) hecha salvo comprobar B1-5 en el navegador. Sin modo demo.**
 
-- **Interfaz hecha:** acceso por PIN (`1970`), monitor, entrada, salida, caja (cobro mixto, vuelto,
-  cortesía, división de cuentas de mesa), ventas (reimpresión y anulación), turno (cortes X/Z y arqueo),
-  mesas con plano, cocina (KDS) y el panel. El panel incluye el local en vivo y los editores de tarifas,
-  plano, carta, tasas, medios de pago, sucursal, usuarios, roles, dispositivos y representantes.
-  Es instalable como PWA y está medida en 12 tamaños de desktop y tablet.
-- **Núcleo puro y probado:** `@l2/contracts` (Zod) y el dominio `money`, `rates`, `tax`, `cash`, `park`,
-  `identity` y `orders`. Los contratos `impuestos.ts`, `impresoras.ts` y `turno.ts` ya existen, aunque
-  sus pantallas no.
-- **Lo que aún no tiene servidor** vive por pestaña (`sessionStorage`); el bus de operación y las
-  cuentas cruzan pestañas (`BroadcastChannel`). Entre dos equipos no se comparte nada. Sus datos
-  iniciales son provisionales, en `apps/web/src/demo`, y cada paso borra el suyo (M-6).
-- **Sin modo demo ni simulador** (M-6): la app corre siempre contra su base.
-- **Base de datos local en marcha** (B0-1): `pnpm infra:up` levanta PostgreSQL y Valkey con Docker.
-  En esta máquina ya hay otro PostgreSQL en el 5432 (ajeno al proyecto); el nuestro usa el 5433.
-- **Persistencia base** (B0-2): `@l2/database` con `tenant` y `branch`, RLS forzada y su prueba
-  negativa. Para trabajo de backend, la puerta es `pnpm verify:db`.
-- **Logs, entorno, lint y CI** (B0-3, B0-4): `@l2/observability`, `pnpm lint` y
-  `.github/workflows/ci.yml`, que no se ha visto correr en GitHub porque no hay push.
-- **La primera pantalla con servidor** (B0-5): el **tarifario** se publica y se lee de la base, y la
-  sala calcula el excedente con la política publicada. Lo demás, provisional hasta su paso.
+- **Infraestructura local:** `pnpm infra:up` (PostgreSQL 17 en el 5433, Valkey 8), `pnpm db:migrar`,
+  `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
+- **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
+  auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐),
+  `@l2/observability` (logs redactados, entorno validado). La web lee la sesión de cookies `httpOnly`
+  y recibe el actor COMPLETO del servidor: menús y guardias ya no lo calculan en el navegador.
+- **Ya van contra la base:** acceso (equipo + PIN), tarifario, Dispositivos, Usuarios y permisos, Roles
+  y accesos. **Todo lo demás sigue en datos provisionales** (`apps/web/src/demo`, cada archivo con el
+  paso que lo borra) y en el bus de operación entre pestañas (`features/operacion`).
+- **Entrar en local:** navegador nuevo = equipo desconocido → «Pedir registro» en `/acceso` →
+  `pnpm equipos aprobar "<nombre>"` → persona → PIN 1970. Configuración, precios y personas piden
+  confirmar identidad: contraseña `abby-kingdom-desarrollo` + código de `pnpm totp`.
+- **Pruebas:** `pnpm verify:db` en verde (23 de base, 63 de aplicación). CI escrito, nunca visto en
+  GitHub: hay commits sin subir (no se ha hecho push).
 
-**Siguiente paso:** B1-5, permisos, usuarios y accesos en el servidor (§3). B0-4 espera un push para comprobarse en GitHub.
+**Siguiente paso:** comprobar B1-5 en el navegador; después, Etapa 2 (B2-1, tasas).
 
 ---
 
@@ -147,11 +141,20 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   muere al salir, al revocar el equipo o al dar de baja a la persona. Cada intento, bueno o malo,
   queda en la auditoría. Publicar el tarifario ya exige la sesión y `catalogo.modificar`. Se retira
   el «solo en desarrollo» de B0-5. 18 pruebas de identidad contra la base.*
-- [ ] **B1-5 · Permisos en el servidor**: usuarios, roles, excepciones por persona y ajustes de la
+- [~] **B1-5 · Permisos en el servidor**: usuarios, roles, excepciones por persona y ajustes de la
   sucursal persistidos. `can()` se evalúa en cada acción, y la autorización de supervisor se registra
   **antes** de ejecutar (F2-05, F2-08, F2-10, F2-11, F2-13).
   → Cada ❌ de la matriz tiene su prueba y devuelve 403. Dar de baja a alguien revoca su acceso en
   menos de 5 s.
+  *Código hecho el 2026-09-27, con 19 pruebas contra la base y `pnpm verify:db` en verde: directorio,
+  alta/baja/reingreso/rol/PIN con las cinco puertas del dominio sobre el equipo real (la baja cierra
+  sus sesiones en el acto), PIN temporal que se muestra una vez y obliga a elegir uno propio al
+  entrar, excepciones (sin llaves de la casa ni a uno mismo), ajustes de sucursal con su suelo
+  intocable, y `exigirPermisoOAutorizacion()` para los 🔐 (PIN del autorizador, `canAuthorize`,
+  asiento antes de ejecutar). La web recibe el actor del servidor; se borran `equipo.ts` y
+  `accesos.ts` del cliente. **Falta comprobarlo en el navegador** (alta con PIN temporal y primer
+  acceso eligiendo PIN, una excepción, un ajuste que cambie el menú de otro rol). Los 🔐 de la caja
+  se conectan en B3-4.*
 
 ### Etapa 2 · Dinero (F3, sin lo fiscal)
 
@@ -327,6 +330,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-26** · Etapa 0 hecha en local (B0-1 a B0-5): Docker, Prisma con RLS forzada, logs con
   redacción, lint y CI, y el tarifario como primera escritura real. B0-4 queda a falta de ver el CI
   en GitHub.
+- **2026-09-26** · Pedido del cliente: fuera el modo demo y el simulador (M-6) y todo el backend según
+  la ruta. Se retiran; queda el bus de operación. ADR-018: sesión propia en vez de Better Auth.
+- **2026-09-27** · Etapa 1: auditoría (B1-1), equipos y sesiones (B1-3, B1-4), elevación con TOTP
+  (B1-2) y personas/permisos/accesos/autorización (B1-5, falta el navegador).
 
 ---
 
@@ -340,17 +347,19 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-26, al cerrar la Etapa 0):**
+**Último handoff (2026-09-27, Etapa 1 casi cerrada):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (único documento vivo) y CLAUDE.md antes de nada.
-Rol: desarrollador full-stack senior; programas tú todo (ya no hay obrera Gemini).
-Estado: Etapa 0 hecha en local (B0-1 a B0-5). El tarifario ya se guarda en PostgreSQL; el resto, demo.
-Arrancar: Docker Desktop encendido → pnpm infra:up → pnpm db:migrar → pnpm db:semilla → pnpm dev.
-Siguiente: B1-1 — AuditLog append-only (reusa l2_solo_agregar() y l2_aislar_por_tenant()).
-  Criterio: un disparador rechaza UPDATE/DELETE; prueba en *.test-db.ts. Luego B1-2 (Better Auth).
-A medias: B0-4 — el CI nunca corrió en GitHub; pide permiso antes de hacer push.
-Cuidado: hasta B1-5 las escrituras solo corren con L2_ENTORNO=desarrollo. Patrón a copiar para
-pasar una pantalla a la base: el tarifario (CLAUDE.md, «Del ejemplo al servidor»). Nada fiscal.
-Puerta antes de cada commit de backend: pnpm verify:db.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1 y §3) y CLAUDE.md antes de nada. Responde en español.
+Rol: desarrollador full-stack senior; programas tú todo. No hay modo demo (M-6).
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm db:semilla → pnpm dev.
+Entrar: navegador nuevo pide registro en /acceso → pnpm equipos aprobar "<nombre>" → PIN 1970.
+Confirmar identidad (panel): contraseña abby-kingdom-desarrollo + código de `pnpm totp`.
+A medias: B1-5 — código y 63 pruebas en verde, falta el navegador: en Usuarios dar un alta
+  (sale PIN temporal una vez), entrar con él en otro navegador y elegir PIN; conceder una
+  excepción; en Roles y accesos ajustar una celda y ver que cambia el menú de ese rol.
+Siguiente: Etapa 2, B2-1 (tasas en la base, carga manual con confirmación, fail-closed).
+Cuidado: todo caso de uso usa exigirPermiso()/exigirPermisoOAutorizacion() y auditar() en la
+  misma transacción; el patrón a copiar es el tarifario. Cada paso borra su archivo de src/demo.
+Puerta antes de cada commit: pnpm verify:db. Hay commits sin push: pide permiso antes de subir.
 ```

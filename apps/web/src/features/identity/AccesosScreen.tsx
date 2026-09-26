@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { BranchAccessDto } from "@l2/contracts";
 import {
   Ban,
   CircleCheckBig,
@@ -25,8 +26,9 @@ import {
 } from "@l2/domain-identity";
 import { Badge, Button, Container, Dialog, PageHeader, avisar, cn } from "@l2/ui";
 import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL } from "./permisos.ts";
-import { guardarAjustes, useAjustes } from "./accesos.ts";
-import type { Autor } from "./equipo.ts";
+import type { Autor } from "./operador.ts";
+import { ordenarAcceso } from "./identidad.acciones";
+import { useConElevacion } from "./ElevacionProvider";
 
 /**
  * Roles y accesos de este local — N-05 de la auditoría, sobre §7.3.
@@ -104,8 +106,20 @@ type Pendiente = Readonly<{
   permission: Permission | null;
 }>;
 
-export function AccesosScreen({ autor, branchId }: { autor: Autor; branchId: string }) {
-  const ajustes = useAjustes();
+export function AccesosScreen({
+  autor,
+  branchId,
+  inicial,
+}: {
+  autor: Autor;
+  branchId: string;
+  /** Los ajustes vigentes, del servidor. */
+  inicial: BranchAccessDto;
+}) {
+  const [ajustes, setAjustes] = useState<readonly RoleAdjustmentDto[]>(inicial.adjustments);
+  const [guardando, setGuardando] = useState(false);
+  const conElevacion = useConElevacion();
+  void autor;
   const [rol, setRol] = useState<Role>("CAJERO");
   const [pendiente, setPendiente] = useState<Pendiente | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -130,8 +144,8 @@ export function AccesosScreen({ autor, branchId }: { autor: Autor; branchId: str
     setError(null);
   }
 
-  function confirmar() {
-    if (!pendiente) return;
+  async function confirmar() {
+    if (!pendiente || guardando) return;
     const reason = motivo.trim();
     const comando: RoleAdjustmentCommand =
       pendiente.permission === null
@@ -156,28 +170,25 @@ export function AccesosScreen({ autor, branchId }: { autor: Autor; branchId: str
       return;
     }
 
-    const resto = ajustes.filter(
-      (a) => !(a.role === pendiente.role && a.action === pendiente.action),
-    );
     const etiqueta = ETIQUETAS[pendiente.action].etiqueta;
-
-    if (r.data.kind === "RETIRAR") {
-      guardarAjustes(branchId, resto);
-      avisar.ok(`«${etiqueta}» vuelve a lo que dice la matriz para ${NOMBRE_ROL[pendiente.role]}.`);
-    } else {
-      // TODO(F2-05/backend): el autor y la hora los pone el servidor.
-      const nuevo: RoleAdjustmentDto = {
-        role: r.data.role,
-        action: r.data.action,
-        permission: r.data.permission,
-        by: autor.id,
-        byName: autor.nombre,
-        reason: r.data.reason,
-        at: new Date().toISOString(),
-      };
-      guardarAjustes(branchId, [...resto, nuevo]);
-      avisar.ok(`${NOMBRE_ROL[pendiente.role]}: «${etiqueta}» → ${NIVEL[r.data.permission].texto}.`);
+    // El servidor decide y guarda (con su motivo, autor y hora) y devuelve los ajustes vigentes.
+    setGuardando(true);
+    const salida = await conElevacion(() => ordenarAcceso(r.data)).catch(() => null);
+    setGuardando(false);
+    if (!salida) {
+      setError("El servidor no respondió. El ajuste no se guardó; inténtalo de nuevo.");
+      return;
     }
+    if (!salida.ok) {
+      setError(salida.problemas?.[0]?.message ?? salida.mensaje);
+      return;
+    }
+    setAjustes(salida.valor.adjustments);
+    avisar.ok(
+      r.data.kind === "RETIRAR"
+        ? `«${etiqueta}» vuelve a lo que dice la matriz para ${NOMBRE_ROL[pendiente.role]}.`
+        : `${NOMBRE_ROL[pendiente.role]}: «${etiqueta}» → ${NIVEL[r.data.permission].texto}.`,
+    );
     setPendiente(null);
   }
 

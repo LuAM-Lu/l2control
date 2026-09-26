@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, KeyRound, LogOut, ShieldX } from "lucide-react";
 import { Button } from "@l2/ui";
+import type { Actor } from "@l2/domain-identity";
 import { cerrarSesion, useOperador, type OperadorEnSesion } from "./operador.ts";
-import { useAjustes } from "./accesos.ts";
-import { actorDe, puestoDe } from "./visibilidad.ts";
+import { useActorEnSesion } from "./sesion.ts";
+import { puestoDe } from "./visibilidad.ts";
 
 /**
  * La guardia de cada pantalla — regla 4 de UX-MEJORAS §3: la dirección no es
@@ -33,18 +34,19 @@ export function GuardiaAcceso({
   destino,
   children,
 }: {
-  /** Si la persona con sesión puede abrir esta pantalla. */
-  permitido: (o: OperadorEnSesion) => boolean;
+  /** Si la persona con sesión puede abrir esta pantalla (con su actor del servidor). */
+  permitido: (actor: Actor) => boolean;
   /** Cómo se llama lo que se intentó abrir: «la caja», «Usuarios y permisos». */
   destino: string;
   children: React.ReactNode;
 }) {
   const hidratado = useHidratado();
   const operador = useOperador();
+  const actor = useActorEnSesion();
 
   if (!hidratado) return <div className="flex-1" aria-busy="true" />;
-  if (!operador) return <SinSesion destino={destino} />;
-  if (!permitido(operador)) return <SinAcceso operador={operador} destino={destino} />;
+  if (!operador || !actor) return <SinSesion destino={destino} />;
+  if (!permitido(actor)) return <SinAcceso operador={operador} actor={actor} destino={destino} />;
   return <>{children}</>;
 }
 
@@ -84,10 +86,9 @@ function SinSesion({ destino }: { destino: string }) {
   );
 }
 
-function SinAcceso({ operador, destino }: { operador: OperadorEnSesion; destino: string }) {
+function SinAcceso({ operador, actor, destino }: { operador: OperadorEnSesion; actor: Actor; destino: string }) {
   const router = useRouter();
-  const ajustes = useAjustes();
-  const puesto = puestoDe(actorDe(operador, ajustes));
+  const puesto = puestoDe(actor);
   return (
     <Marco icono={<ShieldX size={24} aria-hidden="true" className="text-state-warn" />}>
       <h1 className="font-display text-2xl font-bold text-ink">

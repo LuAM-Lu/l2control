@@ -19,7 +19,8 @@
     "@l2/domain-identity": "workspace:*",
     "@l2/observability": "workspace:*",
     "@node-rs/argon2": "2.2.1",
-    "otpauth": "9.5.2"
+    "otpauth": "9.5.2",
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@l2/config": "workspace:*",

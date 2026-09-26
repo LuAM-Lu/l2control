@@ -71,6 +71,7 @@ const TEXTO = {
 } as const;
 
 export function DialogoCambio({
+  branchId,
   cambio,
   usuarios,
   onCerrar,
@@ -79,7 +80,9 @@ export function DialogoCambio({
   cambio: Cambio | null;
   usuarios: readonly UserSummaryDto[];
   onCerrar: () => void;
-  onConfirmar: (comando: UserCommand) => void;
+  /** La sucursal de la sesión: un alta entra en ella. */
+  branchId: string;
+  onConfirmar: (comando: UserCommand) => void | Promise<void>;
 }) {
   const [nombre, setNombre] = useState("");
   const [rol, setRol] = useState<Role>("CAJERO");
@@ -121,7 +124,7 @@ export function DialogoCambio({
       }
       // TODO(F2-11/backend): la sucursal saldrá de la sesión y del catálogo de
       // sedes; con una sola sucursal, elegirla sería un paso vacío.
-      onConfirmar({ kind: "ALTA", fullName: limpio, role: rol, branchIds: ["b1"], reason });
+      onConfirmar({ kind: "ALTA", fullName: limpio, role: rol, branchIds: [branchId], reason });
       return;
     }
 

@@ -1,23 +1,16 @@
 "use client";
 
 import type { Actor } from "@l2/domain-identity";
-import { useAjustes } from "./accesos.ts";
-import { useOperador } from "./operador.ts";
-import { actorDe } from "./visibilidad.ts";
+import { useActorDelServidor } from "./operador.ts";
 
 /**
  * Quién está operando este equipo, en la forma que entiende el dominio.
  *
- * Junta las dos mitades —la sesión y los ajustes que la sucursal le ha hecho a
- * su rol— en un solo sitio, para que ninguna pantalla se olvide de una de
- * ellas. Devuelve `null` si no ha entrado nadie.
- *
- * Vive en su propio archivo y no en `accesos.ts` para no cerrar un ciclo:
- * `visibilidad` necesita los ajustes, así que no puede depender de quien los
- * junta con la sesión.
+ * Desde B1-5 es el actor que calculó el SERVIDOR al leer la sesión: rol, sucursales,
+ * concesiones y revocaciones de la persona y ajustes de su rol en la sucursal. La web ya no lo
+ * reconstruye con datos propios, así que lo que se pinta coincide con lo que el servidor exigirá.
+ * Devuelve `null` si no ha entrado nadie.
  */
 export function useActorEnSesion(): Actor | null {
-  const operador = useOperador();
-  const ajustes = useAjustes();
-  return operador ? actorDe(operador, ajustes) : null;
+  return useActorDelServidor();
 }

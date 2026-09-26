@@ -80,3 +80,33 @@ export async function crearEquipo(local: LocalDePrueba, label: string, aprobar =
   }
   return r.valor.credencial;
 }
+
+/**
+ * El contexto de una persona que entra con su PIN en `equipo` y confirma identidad con
+ * contraseña y TOTP (F2-04), como haría la pantalla. Da credenciales si no las tenía.
+ */
+export async function contextoElevado(
+  local: LocalDePrueba,
+  equipo: string,
+  persona: { id: string; nombre: string; pin: string },
+): Promise<Contexto> {
+  const { Secret, TOTP } = await import("otpauth");
+  const { contextoDeSesion } = await import("./identidad/sesiones.ts");
+  const c = await local.app.elevacion.credenciales(local.sistema, { nombre: persona.nombre, contrasena: "contraseña-de-prueba" });
+  if (!c.ok) throw new Error(c.mensaje);
+  const ahora = Date.now();
+  const r = await local.app.sesiones.entrar({ dispositivo: equipo, userId: persona.id, pin: persona.pin, ip: null, ahora });
+  if (!r.ok) throw new Error(r.mensaje);
+  const codigo = new TOTP({ secret: Secret.fromBase32(c.valor.secretoBase32) }).generate({ timestamp: ahora });
+  const e = await local.app.elevacion.elevar({ sesion: r.credencial, contrasena: "contraseña-de-prueba", codigo, ip: null, ahora });
+  if (!e.ok) throw new Error(e.mensaje);
+  return contextoDeSesion((await local.app.sesiones.consultar(r.credencial, ahora))!, null);
+}
+
+/** El contexto de una persona que entra con su PIN (sin elevar). */
+export async function contextoDe(local: LocalDePrueba, equipo: string, userId: string, pin: string): Promise<Contexto> {
+  const { contextoDeSesion } = await import("./identidad/sesiones.ts");
+  const r = await local.app.sesiones.entrar({ dispositivo: equipo, userId, pin, ip: null, ahora: Date.now() });
+  if (!r.ok) throw new Error(r.mensaje);
+  return contextoDeSesion(r.sesion, null);
+}

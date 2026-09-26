@@ -13,11 +13,9 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
-import type { RoleAdjustmentDto } from "@l2/contracts";
 import { PUESTO_DE_ROL } from "./operador.ts";
 import { entrar, solicitarRegistro } from "./acceso.acciones";
-import { useAjustes } from "./accesos.ts";
-import { actorDe, puestoDe } from "./visibilidad.ts";
+import { puestoDe } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
@@ -53,18 +51,6 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-/**
- * A dónde entra esta persona — N-02 de la auditoría.
- *
- * Antes cada persona traía su destino escrito a mano en la ruta, además de
- * `puestoDe()`, que lo deriva. Coincidían en cinco de seis roles y discrepaban
- * justo en la monitora de parque, así que entrar funcionaba bien y el rechazo
- * de una pantalla la mandaba a la caja. Dos verdades sobre lo mismo siempre
- * acaban así: una fuente, y la misma que usan las guardias.
- */
-function destinoDe(o: Operador, ajustes: readonly RoleAdjustmentDto[]) {
-  return puestoDe(actorDe({ id: o.id, nombre: o.nombre, rol: o.rol, role: o.role }, ajustes));
-}
 
 const PIN_LENGTH = 4;
 
@@ -99,7 +85,14 @@ export function AccesoScreen({
   operadores: readonly Operador[];
 }) {
   const op = useOperacion();
-  const ajustes = useAjustes();
+  /**
+   * A dónde entra: lo decide `puestoDe()` con el actor que devolvió el SERVIDOR al entrar
+   * (N-02: una sola fuente, la misma que usan las guardias).
+   */
+  const [destino, setDestino] = useState<{ ruta: string; nombre: string } | null>(null);
+  /** PIN temporal ya aceptado: ahora la persona elige el suyo, dos veces. */
+  const [temporal, setTemporal] = useState<string | null>(null);
+  const [primerNuevo, setPrimerNuevo] = useState<string | null>(null);
   const [operador, setOperador] = useState<Operador | null>(null);
   const [pin, setPin] = useState("");
   /** Lo último que dijo el servidor al rechazar un PIN, con su bloqueo si lo hay. */
@@ -167,15 +160,33 @@ export function AccesoScreen({
 
   async function intentar() {
     if (bloqueo.locked || enviando || pin.length !== PIN_LENGTH || !operador) return;
+
+    // Eligiendo PIN propio: primero se teclea, luego se repite.
+    if (temporal !== null && primerNuevo === null) {
+      setPrimerNuevo(pin);
+      setPin("");
+      setRechazo(null);
+      return;
+    }
+    if (temporal !== null && primerNuevo !== pin) {
+      setPrimerNuevo(null);
+      setPin("");
+      setRechazo({ mensaje: "Los dos PIN no coinciden. Escríbelo otra vez.", hasta: null, intentosRestantes: null });
+      setSacudidas((n) => n + 1);
+      return;
+    }
+
     setEnviando(true);
     // El PIN va por POST en el cuerpo de la acción: nunca en la URL, en un log ni en el
     // estado que se persiste (§7.6). Lo comprueba el servidor con Argon2id.
-    const r = await entrar(operador.id, pin).catch(() => null);
+    const r = await (temporal !== null ? entrar(operador.id, temporal, pin) : entrar(operador.id, pin)).catch(() => null);
     setEnviando(false);
 
     if (r?.ok) {
       // Entrar es IR al puesto de trabajo. El sello verde ocupa el lugar de una pantalla de
       // «bienvenido» y dura lo que tarda en leerse.
+      const puesto = puestoDe(r.valor.actor);
+      setDestino(puesto);
       setEntrando(true);
       setRechazo(null);
       // El panel en vivo enseña quién está en cada puesto (F9-08, D7).
@@ -185,9 +196,17 @@ export function AccesoScreen({
         role: operador.rol,
         device: PUESTO_DE_ROL[operador.role],
       });
-      const destino = destinoDe(operador, ajustes);
-      if (esRutaDeEstacion(destino.ruta)) pedirPantallaCompleta();
-      window.setTimeout(() => router.push(destino.ruta), MS_DEL_SELLO);
+      if (esRutaDeEstacion(puesto.ruta)) pedirPantallaCompleta();
+      window.setTimeout(() => router.push(puesto.ruta), MS_DEL_SELLO);
+      return;
+    }
+
+    // PIN temporal correcto: antes de entrar, elige el suyo (alta o reposición).
+    if (r && !r.ok && r.debeElegirPin) {
+      if (temporal === null) setTemporal(pin);
+      setPrimerNuevo(null);
+      setPin("");
+      setRechazo(temporal === null ? null : { mensaje: r.mensaje, hasta: null, intentosRestantes: null });
       return;
     }
 
@@ -330,6 +349,9 @@ export function AccesoScreen({
           onClick={() => {
             setOperador(null);
             setPin("");
+            setTemporal(null);
+            setPrimerNuevo(null);
+            setRechazo(null);
           }}
           className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-ink-3 transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -341,7 +363,9 @@ export function AccesoScreen({
           <Initial name={operador.nombre} tone="idle" />
           <div className="min-w-0">
             <p className="font-display truncate font-bold text-ink">{operador.nombre}</p>
-            <p className="text-[12px] text-ink-3">{operador.rol}</p>
+            <p className="text-[12px] text-ink-3">
+              {temporal === null ? operador.rol : primerNuevo === null ? "Elige tu PIN nuevo" : "Repite tu PIN nuevo"}
+            </p>
           </div>
         </div>
 
@@ -398,7 +422,7 @@ export function AccesoScreen({
               Adelante, {operador.nombre.split(" ")[0]}
             </p>
             <p className="text-[12.5px] text-ink-2">
-              Abriendo {destinoDe(operador, ajustes).nombre}…
+              Abriendo {destino?.nombre ?? "tu puesto"}…
             </p>
             <span
               aria-hidden="true"

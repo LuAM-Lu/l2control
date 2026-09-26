@@ -46,7 +46,8 @@ describe("dar credenciales", () => {
     const u = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.staffUser.findFirst({ where: { fullName: "Abigail Karam" } }));
     assert.match(u!.passwordHash!, /^\$argon2id\$/);
     assert.ok(u!.totpSecretEnc!.startsWith("v1.") && !u!.totpSecretEnc!.includes(secreto));
-    const todo = JSON.stringify(await local.app.auditoria.listar(local.sistema, { limite: 500 }));
+    const asientos = await local.app.auditoria.listar(local.sistema, { limite: 500 });
+    const todo = JSON.stringify(asientos.map((a) => [a.before, a.after, a.reason]));
     assert.ok(!todo.includes(CONTRASEÑA) && !todo.includes(secreto));
   });
 

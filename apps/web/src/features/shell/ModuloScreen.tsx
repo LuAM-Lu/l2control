@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { ArrowRight, Clock3, Maximize2 } from "lucide-react";
-import { useOperador } from "../identity/operador.ts";
-import { useAjustes } from "../identity/accesos.ts";
-import { actorDe, puedeVerSeccion } from "../identity/visibilidad.ts";
+import { useActorEnSesion } from "../identity/sesion.ts";
+import { puedeVerSeccion } from "../identity/visibilidad.ts";
 import { Container, PageHeader, cn } from "@l2/ui";
 import { buscarModulo, rutaSeccion } from "./navigation.ts";
 
@@ -25,9 +24,7 @@ export function ModuloScreen({ moduloId }: { moduloId: string }) {
   // y una función no cruza del servidor al cliente.
   const modulo = buscarModulo(moduloId)!;
   // Solo se llega con sesión: la guardia del panel ya lo comprobó.
-  const operador = useOperador();
-  const ajustes = useAjustes();
-  const actor = operador ? actorDe(operador, ajustes) : null;
+  const actor = useActorEnSesion();
   const secciones = modulo.secciones.filter((s) => actor !== null && puedeVerSeccion(actor, modulo, s));
   const listas = secciones.filter((s) => s.href !== null);
   const pendientes = secciones.filter((s) => s.href === null);

@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import type { Bloqueo } from "@l2/application";
+import type { Actor } from "@l2/domain-identity";
 import type { Rechazo, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { entorno } from "../../servidor/entorno";
@@ -35,25 +36,29 @@ export async function solicitarRegistro(nombre: unknown): Promise<Resultado<{ es
 }
 
 export type ResultadoEntrar =
-  | Readonly<{ ok: true; valor: { nombre: string } }>
-  | (Rechazo & Readonly<{ bloqueo?: Bloqueo }>);
+  | Readonly<{ ok: true; valor: { nombre: string; actor: Actor } }>
+  | (Rechazo & Readonly<{ bloqueo?: Bloqueo; debeElegirPin?: true }>);
 
-/** Entrar con PIN. El PIN viaja en el cuerpo del POST (nunca en la URL) y no se registra. */
-export async function entrar(userId: unknown, pin: unknown): Promise<ResultadoEntrar> {
-  if (typeof userId !== "string" || typeof pin !== "string") {
+/**
+ * Entrar con PIN. El PIN viaja en el cuerpo del POST (nunca en la URL) y no se registra. Con un
+ * PIN temporal, el servidor pide `pinNuevo` antes de abrir la sesión.
+ */
+export async function entrar(userId: unknown, pin: unknown, pinNuevo?: unknown): Promise<ResultadoEntrar> {
+  if (typeof userId !== "string" || typeof pin !== "string" || (pinNuevo !== undefined && typeof pinNuevo !== "string")) {
     return { ok: false, motivo: "INVALIDO", mensaje: "Datos de acceso incompletos." };
   }
   const r = await (await aplicacion()).sesiones.entrar({
     dispositivo: await credencialEquipo(),
     userId,
     pin,
+    pinNuevo,
     ip: await ipDeLaPeticion(),
     ahora: Date.now(),
   });
   if (!r.ok) return r;
   await guardarCookieSesion(r.credencial);
   refresh();
-  return { ok: true, valor: { nombre: r.sesion.nombre } };
+  return { ok: true, valor: { nombre: r.sesion.nombre, actor: r.sesion.actor } };
 }
 
 /** Salir: cierra la sesión EN EL SERVIDOR y borra la cookie. El corte Z también la cierra. */

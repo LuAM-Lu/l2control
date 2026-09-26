@@ -1,26 +1,20 @@
 "use client";
 
+import type { BranchAccessDto, Resultado } from "@l2/contracts";
 import { useActorEnSesion } from "./sesion.ts";
 import { useOperador } from "./operador.ts";
 import { AccesosScreen } from "./AccesosScreen.tsx";
+import { SinDatos } from "./ConfirmarIdentidad";
 
 /**
- * Roles y accesos (F2-05, F2-13), envuelta para el cliente.
- *
- * Existe para que el mapa de pantallas del panel siga siendo de servidor: los
- * ganchos de sesión solo se pueden llamar en el cliente, y meterlos en el mapa
- * obligaría a convertir la ruta entera.
- *
- * Quien ajusta los roles del local firma cada cambio, así que el autor sale de
- * la sesión y nunca de una constante. La cáscara del panel ya exige sesión
- * (GuardiaAcceso): si no la hubiera, no se pinta nada — una identidad
- * inventada en un asiento de auditoría es peor que una pantalla vacía.
+ * Roles y accesos (F2-05, F2-13). Los ajustes los manda el servidor, que también los impone:
+ * guardar un ajuste cambia el actor de quien lo tenga en su siguiente petición. Sin sesión no
+ * se pinta nada.
  */
-export function AccesosPage({ branchId }: { branchId: string }) {
+export function AccesosPage({ accesos }: { accesos: Resultado<BranchAccessDto> }) {
   const actor = useActorEnSesion();
   const operador = useOperador();
-
   if (!actor || !operador) return null;
-
-  return <AccesosScreen autor={{ id: actor.id, nombre: operador.nombre }} branchId={branchId} />;
+  if (!accesos.ok) return <SinDatos rechazo={accesos} />;
+  return <AccesosScreen autor={{ id: actor.id, nombre: operador.nombre }} branchId={accesos.valor.branchId} inicial={accesos.valor} />;
 }
