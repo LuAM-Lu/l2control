@@ -24,7 +24,6 @@
         "generate"
       ]
     },
-    "lint": {},
     "test": {
       "dependsOn": [
         "^generate",

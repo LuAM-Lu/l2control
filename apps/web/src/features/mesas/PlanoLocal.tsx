@@ -83,6 +83,7 @@ export function PlanoLocal({
           <TramaParque />
           {/* Sombra corta: da relieve sin convertir el plano en una maqueta. */}
           <filter id="l2-relieve" x="-20%" y="-20%" width="140%" height="140%">
+            {/* lint-permitido: colores-solo-desde-tokens — el negro de las sombras de tokens.css; un atributo SVG no lee var() */}
             <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.35" />
           </filter>
         </defs>

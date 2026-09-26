@@ -14,14 +14,15 @@
     "infra:reset": "docker compose down -v && docker compose up -d --wait",
     "infra:logs": "docker compose logs -f --tail=100",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "node scripts/lint.mjs",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:db": "turbo run test:db",
     "arch": "depcruise \"packages/**/*.{ts,tsx}\" \"apps/**/*.{ts,tsx}\" --config .dependency-cruiser.cjs",
     "arch:demo": "node scripts/arch-demo.mjs",
-    "verify": "pnpm typecheck && pnpm arch && pnpm arch:demo && pnpm test",
-    "verify:db": "pnpm verify && pnpm test:db"
+    "verify": "pnpm typecheck && pnpm lint && pnpm lint:prueba && pnpm arch && pnpm arch:demo && pnpm test",
+    "verify:db": "pnpm verify && pnpm test:db",
+    "lint:prueba": "node --test scripts/lint.test.mjs"
   },
   "devDependencies": {
     "dependency-cruiser": "17.0.1",

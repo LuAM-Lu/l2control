@@ -43,7 +43,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **Persistencia base** (B0-2): `@l2/database` con `tenant` y `branch`, RLS forzada y su prueba
   negativa. Para trabajo de backend, la puerta es `pnpm verify:db`.
 
-**Siguiente paso:** B0-4 (§3).
+**Siguiente paso:** B0-5 (§3). B0-4 espera un push para comprobarse en GitHub.
 
 ---
 
@@ -91,9 +91,14 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   `leerEntorno()`, que lista todos los problemas sin enseñar un solo valor. 20 pruebas; cazaron dos
   filtraciones reales (`txId` y el contexto de `child()`). **Se engancha al arranque de Next en B0-5**,
   que es cuando la app empieza a necesitar variables.*
-- [ ] **B0-4 · CI en GitHub Actions** con `pnpm verify` y un lint que sí haga algo: `toFixed` fuera de
+- [~] **B0-4 · CI en GitHub Actions** con `pnpm verify` y un lint que sí haga algo: `toFixed` fuera de
   `@l2/ui`, colores literales y `parseFloat` sobre dinero (F1-14).
   → Un PR con una violación sale en rojo.
+  *Hecho en local el 2026-09-26: `.github/workflows/ci.yml` (acciones fijadas por hash, Node 24,
+  mismo `docker-compose.yml`, `pnpm verify:db`) y `pnpm lint` con 5 reglas y 9 pruebas que demuestran
+  que muerden: `toFixed` fuera de `@l2/ui`, `parseFloat`, colores literales, reloj en el dominio y
+  emojis en pantalla. Excepciones solo con `lint-permitido: <regla> — <motivo>`. **Falta verlo en
+  rojo en GitHub: necesita un push.***
 - [ ] **B0-5 · La costura entre demo y servidor** (`packages/application`). Se fija un patrón único:
   acción de servidor → contrato Zod → dominio → repositorio en transacción con `SET LOCAL app.tenant_id`.
   El primer caso vertical es el **tarifario**: leer y publicar.

@@ -20,6 +20,7 @@ pnpm dev          # levanta apps/web en http://localhost:3000
 pnpm infra:up     # PostgreSQL 17 + Valkey 8 en Docker (una vez: cp .env.example .env)
 pnpm verify       # arquitectura + demostración de que muerde + pruebas
 pnpm verify:db    # lo anterior + pruebas contra la base (aislamiento por tenant); antes de cada commit de backend
+pnpm lint         # reglas de la casa: toFixed, parseFloat, colores, reloj en el dominio, emojis
 pnpm arch         # solo las reglas de frontera
 pnpm arch:demo    # comprueba que las reglas detectan una violación real
 pnpm test         # pruebas de dominio
@@ -40,7 +41,9 @@ pnpm test         # pruebas de dominio
    error se corrige con un asiento de reversión, no con un `UPDATE`.
 
 `pnpm arch` impone las reglas 1 y 2 (y que las apps no importen `@l2/database`) y **rompe la
-construcción** si se violan. No es decorativo:
+construcción** si se violan. `pnpm lint` impone lo que no es una importación: sin `toFixed` fuera de
+`@l2/ui`, sin `parseFloat`, colores solo desde tokens, el dominio sin reloj y sin emojis en pantalla.
+Una excepción se escribe `lint-permitido: <regla> — <motivo>`, y sin motivo no vale. No es decorativo:
 `pnpm arch:demo` lo demuestra inyectando una violación real.
 
 ## Estructura
