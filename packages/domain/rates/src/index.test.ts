@@ -18,6 +18,8 @@ import {
   missingNextBusinessDayRate,
   nextBusinessDay,
   calendarDay,
+  coversDay,
+  holidayProblem,
   startOfDay,
   currenciesOf,
   currentRate,
@@ -346,5 +348,39 @@ describe("el comienzo del día en la zona del local", () => {
   test("con horario de verano mide el desfase de ese día (Madrid: +2 en verano, +1 en invierno)", () => {
     assert.equal(new Date(startOfDay("2026-07-01", "Europe/Madrid")).toISOString(), "2026-06-30T22:00:00.000Z");
     assert.equal(new Date(startOfDay("2026-12-01", "Europe/Madrid")).toISOString(), "2026-11-30T23:00:00.000Z");
+  });
+});
+
+describe("feriados bancarios (B2-4, D-FER)", () => {
+  // Martes 13 de octubre de 2026, feriado de prueba entre semana.
+  const FERIADO = "2026-10-13";
+  const feriados = [FERIADO];
+  const zona = "America/Caracas";
+  const lunes = tasa({ id: "lun", value: "860.00", capturedAt: "2026-10-09T20:00:00.000Z", effectiveDate: "2026-10-12" });
+
+  test("un feriado entre semana no es día hábil", () => {
+    assert.equal(isBusinessDay(FERIADO), true);
+    assert.equal(isBusinessDay(FERIADO, feriados), false);
+    assert.equal(nextBusinessDay("2026-10-12", feriados), "2026-10-14");
+  });
+
+  test("el feriado cobra con la tasa del día hábil anterior, sin carga manual", () => {
+    assert.equal(coversDay("2026-10-12", FERIADO), false);
+    assert.equal(coversDay("2026-10-12", FERIADO, feriados), true);
+    assert.equal(rateOfDay([lunes], "USD/VES", FERIADO, "2026-10-13T14:00:00.000Z", feriados)?.id, "lun");
+    // Pasado el feriado, el miércoles exige la suya.
+    assert.equal(rateOfDay([lunes], "USD/VES", "2026-10-14", "2026-10-14T14:00:00.000Z", feriados), null);
+  });
+
+  test("la víspera de un feriado se avisa por la del día hábil siguiente, no por la del feriado", () => {
+    assert.equal(missingNextBusinessDayRate([lunes], "USD/VES", "2026-10-12T23:30:00.000Z", zona, 18, feriados), "2026-10-14");
+    // El feriado mismo no es día hábil: no se avisa.
+    assert.equal(missingNextBusinessDayRate([], "USD/VES", "2026-10-13T23:30:00.000Z", zona, 18, feriados), null);
+  });
+
+  test("qué vale como feriado", () => {
+    assert.equal(holidayProblem(FERIADO), null);
+    assert.equal(holidayProblem("2026-10-17"), "FIN_DE_SEMANA");
+    for (const d of ["2026-02-30", "2026-13-01", "13/10/2026", ""]) assert.equal(holidayProblem(d), "DIA_INVALIDO", d);
   });
 });

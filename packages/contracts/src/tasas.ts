@@ -113,10 +113,16 @@ export const HistorialTasasSchema = z
     umbralVariacionBasisPoints: z.number().int().positive().max(10_000),
     /**
      * La zona horaria que decide qué día es «hoy» para la tasa (IANA, p. ej. `America/Caracas`).
-     * La manda el servidor para que la estación y él cambien de día a la vez. Hasta B2-4 el día
-     * es el del calendario del local; después, el que declare el turno (ADR-009).
+     * La manda el servidor para que la estación y él cambien de día a la vez. La tasa sigue el día
+     * de CALENDARIO del local, porque la fecha valor del BCV es una fecha de calendario; el día de
+     * negocio del turno (ADR-009) agrupa el dinero, no elige la tasa (B2-4).
      */
     zonaHoraria: z.string().min(3).max(64),
+    /**
+     * Los feriados bancarios del local (B2-4, D-FER): no son días hábiles, así que la tasa del día
+     * hábil anterior los cubre, como cubre el fin de semana.
+     */
+    feriados: z.array(FechaSchema).default([]),
     /** Lo que alguien tiene que mirar, calculado por el servidor en el instante de leer. */
     alertas: z.array(AlertaTasaSchema).default([]),
   })

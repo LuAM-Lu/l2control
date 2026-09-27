@@ -12,6 +12,20 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.19.0] — 2026-09-27 · Etapa 2 · Dinero
+
+B2-4 · Día de negocio y feriados bancarios. Se cierra la Etapa 2.
+
+### Añadido
+- Panel → Configuración → Feriados bancarios: se registran por año, copiados del calendario de
+  SUDEBAN, y se retiran si hubo un error (no se borran; quedan en la auditoría). Pide confirmar
+  identidad.
+- Un feriado entre semana cobra con la tasa del día hábil anterior, como un fin de semana, sin
+  cargarla a mano. Tasas dice «feriado bancario» cuando lo es, y el aviso de la tasa que falta se
+  salta los feriados.
+- Cada asiento del libro de pagos lleva el día de negocio de su turno: lo cobrado a la 1:30 am
+  cuenta en el día del turno que lo cobró.
+
 ## [0.18.0] — 2026-09-27 · Etapa 3 · Caja
 
 B3-1 · Turno real. Se adelanta a B2-4 porque el turno es quien fija el día de negocio (ADR-009).

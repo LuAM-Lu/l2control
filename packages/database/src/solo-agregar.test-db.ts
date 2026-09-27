@@ -290,6 +290,7 @@ const asiento = (t: { tenant: string; sucursal: string }, extra: Record<string, 
   currency: "USD",
   amountMinor: 580n,
   igtfMinor: 17n,
+  businessDate: new Date("2026-09-27T00:00:00.000Z"),
   recordedByName: "Marisol Prieto",
   ...extra,
 });
@@ -400,4 +401,34 @@ test("el fondo inicial es por moneda de la gaveta, no negativo, y no se edita", 
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShiftFloat.update({ where: { id: f.id }, data: { amountMinor: 1n } })), SOLO_AGREGAR);
   const t2 = await abrirTurno(A);
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShiftFloat.create({ data: { tenantId: A.tenant, shiftId: t2.id, currency: "VES", amountMinor: -1n } })), por("RESTRICCION"));
+});
+
+/* ── Día de negocio y feriados (B2-4, ADR-009, D-FER) ───────────────────────── */
+
+test("un asiento lleva el día de negocio de su turno, no otro (I-13)", async () => {
+  await assert.rejects(crearAsiento(A, { businessDate: new Date("2026-09-28T00:00:00.000Z") }), por("RESTRICCION"));
+  const p = await crearAsiento(A);
+  assert.equal(p.businessDate.toISOString().slice(0, 10), "2026-09-27");
+});
+
+const feriado = (t: string, day: string, name = "Resistencia Indígena") =>
+  app.conTenant(t, (tx) => tx.bankHoliday.create({ data: { tenantId: t, day: new Date(`${day}T00:00:00.000Z`), name, createdByName: "Abigail Karam" } }));
+
+test("un feriado es un día entre semana, uno por día", async () => {
+  await assert.rejects(feriado(A.tenant, "2026-10-17"), por("RESTRICCION")); // sábado
+  await feriado(A.tenant, "2026-10-12");
+  await assert.rejects(feriado(A.tenant, "2026-10-12", "Otro nombre"), por("DUPLICADO"));
+  // Otro tenant tiene su propio calendario.
+  await feriado(B.tenant, "2026-10-12");
+});
+
+test("un feriado no se borra ni se reescribe: se retira una vez, y después se puede volver a registrar", async () => {
+  const f = await feriado(A.tenant, "2026-12-24", "Víspera de Navidad");
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.bankHoliday.delete({ where: { id: f.id } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.bankHoliday.update({ where: { id: f.id }, data: { name: "Otro" } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.bankHoliday.update({ where: { id: f.id }, data: { retiredAt: new Date() } })), por("RESTRICCION"));
+  const retiro = { retiredAt: new Date(), retiredByName: "Abigail Karam" };
+  await app.conTenant(A.tenant, (tx) => tx.bankHoliday.update({ where: { id: f.id }, data: retiro }));
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.bankHoliday.update({ where: { id: f.id }, data: { retiredByName: "Otra persona" } })), SOLO_AGREGAR);
+  await feriado(A.tenant, "2026-12-24", "Víspera de Navidad");
 });

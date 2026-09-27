@@ -26,11 +26,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.18.0 · 18 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1). Etapa 2 (dinero) casi cerrada: las tasas
+**Versión 0.19.0 · 19 de 45 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
-servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3). Falta B2-4. Etapa 3 (caja)
-empezada: **el turno es real (B3-1)** y sin él no se cobra. Sin modo demo; lo provisional y lo simulado que queda está
+servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
+feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -38,16 +38,16 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia, libro de pagos, turnos de caja), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio), Impuestos (Configuración y el ticket de la caja) y el turno (apertura, barra, caja e Inicio). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  Inicio), Impuestos y Feriados bancarios (Configuración) y el turno (apertura, barra, caja e Inicio). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
   «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (40 de base, 157 de aplicación; en el dominio, 50 de tasas,
+- **Pruebas:** `pnpm verify:db` en verde (43 de base, 166 de aplicación; en el dominio, 54 de tasas,
   44 de impuestos y 55 de caja). **Subido a GitHub el
   2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
 
@@ -67,9 +67,10 @@ B22 Caja» revocados.
 ($ 20,00 y Bs. 1.500,00) y el equipo se revocó después. Un turno no se borra ni se cierra sin corte Z,
 así que Inicio lo enseña hasta B3-5, que debe permitir cerrar un turno huérfano desde otro equipo.
 
-**Siguiente paso:** B2-4 (`businessDate` del turno en cada asiento y feriados bancarios cargados desde
-el panel, D-FER decidido). Después, a pedido del cliente, **rediseño del acceso** (T-3). Luego, el
-orden de §3.
+**Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
+carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
+
+**Siguiente paso:** **T-3, rediseño del acceso** (pedido del cliente). Luego, el orden de §3: B3-2.
 
 ---
 
@@ -126,7 +127,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
 
-1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1~~ → **B2-4** (se cierra Dinero) → **T-3**.
+1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1 → B2-4 (se cierra Dinero)~~ → **T-3**.
    B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
    (ADR-009), así que el turno tenía que existir antes.
 2. B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
@@ -389,10 +390,32 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   simultáneo se resuelve con la unicidad de la base), `revertir` (`cobro.anular`, 🔐 registrado antes
   de ejecutar; idempotente; una sola vez) y `libro` (saldo calculado). Asientos `pago.asentar` y
   `pago.revertir`. 17 pruebas.*
-- [ ] **B2-4 · `businessDate` en toda fila de dinero** (F3-11, ADR-009), y **calendario de feriados
+- [x] **B2-4 · `businessDate` en toda fila de dinero** (F3-11, ADR-009), y **calendario de feriados
   bancarios** (lo usa la vigencia de la tasa).
   → Una venta a la 1:30 am cuenta en el día del turno que la generó. Un feriado entre semana sigue
   cobrando con la tasa del día hábil anterior, sin carga manual.
+  *Hecho el 2026-09-27 (v0.19.0), después de B3-1 (el turno fija el día):*
+  *· Dominio (`@l2/domain-rates`): `isBusinessDay`, `nextBusinessDay`, `coversDay`, `rateOfDay`,
+  `heldRates` y `missingNextBusinessDayRate` reciben los feriados (un feriado no es día hábil: lo
+  cubre la tasa del día hábil anterior) y `holidayProblem` (un día real entre semana). 4 pruebas.*
+  *· Contrato: `feriados.ts` (registrar con día y nombre, retirar por id); el historial de tasas lleva
+  `feriados`; el asiento del libro, `businessDate`.*
+  *· Base: migración `20261003000000_dia_de_negocio_y_feriados`: `payment.business_date` NOT NULL y el
+  disparador exige que sea el de su turno; `bank_holiday` con RLS, entre semana, uno vigente por día,
+  y un disparador que solo deja retirarlo una vez (ni borrar ni reescribir). 3 pruebas.*
+  *· Aplicación: `feriados` (`listar` sin persona; `registrar` y `retirar` con `catalogo.modificar` y
+  elevación, auditados); las tasas usan los feriados al leer, capturar, confirmar, sincronizar y
+  avisar; el libro pone el día de negocio del turno. 8 pruebas de feriados (con el criterio: en el
+  feriado rige la del lunes sin carga manual, y la víspera se avisa por la del miércoles) y 1 en el
+  libro (un cobro a la 1:30 am del lunes cuenta el domingo, día de su turno).*
+  *· Web: Configuración → Feriados bancarios (por año, registrar con día y nombre, retirar en dos
+  pasos); `useTasaVigente` y Tasas usan los feriados, y Tasas dice «feriado bancario» ese día.*
+  *· **Decisión:** la tasa sigue el día de calendario, no el de negocio (ver ADR-009): la fecha valor
+  del BCV es de calendario. Resuelve la deuda que decía lo contrario.*
+  *· Comprobado en el navegador: sábado rechazado en el campo; registrar el 12 oct con elevación; el
+  mismo día otra vez, rechazado; retirarlo; Tasas intacta; a 1366×768, 1280×800 y 800×1280 sin
+  desplazar el documento; sin errores de consola. El criterio del feriado no se ve en el navegador
+  (haría falta que hoy fuera un feriado con tasa del día hábil anterior); lo demuestran las pruebas.*
 
 ### Etapa 3 · Caja (F4)
 
@@ -577,12 +600,10 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
 | El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | D-CORD (umbral) y B4-4 (zona) |
-| El «día» de la tasa es el del calendario del local, no el que declara el turno (ADR-009) | B2-4 |
-| Los feriados entre semana no se conocen: ese día exige capturar la tasa a mano (aunque el BCV no publique) | B2-4 (D-FER) |
+| Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a SALTO), el texto de la alerta no lo dice | B5-1 |
 | El documento del libro (`payment.document_id`) no tiene FK: la tabla de cuentas y ventas llega con B3-3 | B3-3 |
-| El libro no tiene `businessDate` todavía (sí su turno, desde B3-1) | B2-4 |
 | Qué medios disparan IGTF en el libro es el trato por defecto (divisas y cripto), no la configuración del local | B3-2 |
 | Un asiento del libro no guarda la referencia del pago (Pago Móvil, punto, TxID): se añade cifrada | B3-2 |
 | El libro no comprueba que el cobro cuadre con el total del documento ni que la tasa citada sea la vigente | B3-3 |
@@ -646,7 +667,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
-| F3 · Dinero | Tasas en la base, traídas del BCV, aplicadas solas y en vivo (B2-1, B2-1b, B2-1c); impuestos con vigencia (B2-2); libro de pagos (B2-3) | `businessDate` y feriados (B2-4). **Sin F3-08** (M-3) |
+| F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | Interfaz completa; turno real (B3-1) | Medios, cobro en el servidor, ventas, cortes y excepciones reales (Etapa 3) |
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
@@ -695,6 +716,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-27** · Decisiones del cliente: B3-1 antes que B2-4 (el turno fija el día de negocio), los
   feriados se cargan desde el panel (D-FER) y el acceso se rediseña (T-3). B3-1 entregado (v0.18.0):
   sin turno abierto no se cobra, y el punto de cobro es el equipo.
+- **2026-09-27** · B2-4 entregado (v0.19.0): se cierra la Etapa 2. Feriados bancarios desde el panel y
+  el día de negocio del turno en cada asiento; la tasa sigue el calendario (ADR-009 aclarado). Sigue T-3.
 
 ---
 

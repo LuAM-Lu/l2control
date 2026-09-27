@@ -7,7 +7,7 @@
  * red devuelven los mismos asientos, nunca unos nuevos (I-11).
  */
 import { z } from "zod";
-import { IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
+import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 import { MotivoAnulacionSchema } from "./ventas.ts";
 
 export const TipoAsientoSchema = z.enum(["COBRO", "VUELTO", "PROPINA", "RESIDUO"]);
@@ -91,6 +91,11 @@ export const AsientoSchema = z.object({
   motivo: MotivoAnulacionSchema.nullable(),
   detalle: z.string().nullable(),
   recordedAt: TimestampSchema,
+  /**
+   * El día de negocio del turno en que se asentó (ADR-009, F3-11): un cobro a la 1:30 am cuenta en
+   * el día del turno que lo generó. Los reportes agrupan por él, nunca por la fecha de `recordedAt`.
+   */
+  businessDate: FechaSchema,
   recordedBy: z.string().trim().min(2).max(80),
   authorizedBy: z.string().trim().min(2).max(80).nullable(),
 });

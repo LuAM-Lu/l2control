@@ -124,8 +124,8 @@ export function TasasScreen({
   );
   /** Fechas valor pasadas que todavía rigen hoy: el fin de semana, la del viernes. */
   const pasadasVigentes = useMemo(
-    () => (hoy ? [1, 2, 3].map((i) => addDays(hoy, -i)).filter((d) => coversDay(d, hoy)) : []),
-    [hoy],
+    () => (hoy ? [1, 2, 3, 4, 5].map((i) => addDays(hoy, -i)).filter((d) => coversDay(d, hoy, historial.feriados)) : []),
+    [hoy, historial.feriados],
   );
   const diaElegido = dia ?? hoy;
 
@@ -191,7 +191,10 @@ export function TasasScreen({
         descripcion="La caja cobra con la tasa vigente: la de la fecha valor de hoy (la del viernes cubre el fin de semana). La del BCV se aplica sola y llega a todas las pantallas en menos de un minuto. Sin tasa vigente no se cobra en bolívares: nunca con la de ayer ni con un valor por defecto."
         meta={
           hoy && (
-            <span className="tnum text-[12.5px] text-ink-3">Hoy es {enPalabras(hoy)} (hora de Venezuela)</span>
+            <span className="tnum text-[12.5px] text-ink-3">
+              Hoy es {enPalabras(hoy)} (hora de Venezuela)
+              {historial.feriados.includes(hoy) ? " · feriado bancario: rige la tasa del día hábil anterior" : ""}
+            </span>
           )
         }
       />
@@ -381,7 +384,7 @@ export function TasasScreen({
           ) : (
             <ul className="flex flex-col gap-2">
               {historialOrdenado.map((t) => {
-                const vencida = !t.confirmed && hoy !== null && t.effectiveDate < hoy && !coversDay(t.effectiveDate, hoy);
+                const vencida = !t.confirmed && hoy !== null && t.effectiveDate < hoy && !coversDay(t.effectiveDate, hoy, historial.feriados);
                 return (
                   <li
                     key={t.id}
@@ -486,7 +489,9 @@ export function TasasScreen({
 function TarjetaVigente({ pair, hoy, hora }: { pair: RatePair; hoy: string | null; hora: (iso: string) => string }) {
   const { historial } = useTasas();
   const { tasa } = useTasaVigente(pair);
-  const pendienteDeHoy = historial.tasas.some((t) => t.pair === pair && !t.confirmed && hoy !== null && coversDay(t.effectiveDate, hoy));
+  const pendienteDeHoy = historial.tasas.some(
+    (t) => t.pair === pair && !t.confirmed && hoy !== null && coversDay(t.effectiveDate, hoy, historial.feriados),
+  );
 
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">

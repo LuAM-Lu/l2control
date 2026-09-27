@@ -315,6 +315,14 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "F3-06",
       },
       {
+        id: "feriados",
+        nombre: "Feriados bancarios",
+        href: rutaSeccion("configuracion", "feriados"),
+        proposito:
+          "Los feriados bancarios de cada año, copiados del calendario de SUDEBAN. Un feriado no es día hábil: lo cubre la tasa del día hábil anterior.",
+        tarea: "B2-4",
+      },
+      {
         id: "impresoras",
         nombre: "Impresoras",
         href: null,

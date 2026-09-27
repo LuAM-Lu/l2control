@@ -34,6 +34,7 @@ import {
   needsDoubleCheck,
   variationBasisPoints,
   type HeldReason,
+  type Holidays,
   type RateRecord,
 } from "@l2/domain-rates";
 import type { Prisma } from "@l2/database";
@@ -43,6 +44,7 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { autorizadoresPara, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { FUENTES_REALES, type Lector, type LecturaDeTasa } from "./fuentes.ts";
+import { diasFeriados } from "./feriados.ts";
 
 /**
  * Cuánto puede saltar una tasa respecto de la última confirmada antes de exigir que se teclee
@@ -111,16 +113,18 @@ type Fila = ExchangeRate & { confirmation: ExchangeRateConfirmation | null };
 export function casosTasas(base: Base): CasosTasas {
   return {
     async leer(ctx, ahora = Date.now()) {
-      const filas = await base.conTenant(ctx.tenantId, (tx) =>
-        tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS }),
-      );
+      const [filas, feriados] = await base.conTenant(ctx.tenantId, async (tx) => [
+        await tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS }),
+        await diasFeriados(tx),
+      ] as const);
       // Se revalida al salir: si lo guardado no cumple el contrato, se niega en vez de cobrar
       // con una tasa que el sistema no entiende (fail-closed).
       return HistorialTasasSchema.parse({
         tasas: filas.map(dto),
         umbralVariacionBasisPoints: UMBRAL_VARIACION_BPS,
         zonaHoraria: ZONA_DEL_LOCAL,
-        alertas: alertasDe(filas.map(registro), ahora),
+        feriados,
+        alertas: alertasDe(filas.map(registro), ahora, feriados),
       });
     },
 
@@ -131,9 +135,11 @@ export function casosTasas(base: Base): CasosTasas {
       }
       const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
       const dia = v.data.effectiveDate;
+      const feriados = await base.conTenant(ctx.tenantId, diasFeriados);
       let negada = null as string | null;
-      // Hacia atrás solo si todavía rige hoy (el sábado se puede cargar la del viernes).
-      if ((dia < hoy && !coversDay(dia, hoy)) || dia > addDays(hoy, DIAS_POR_ADELANTADO)) {
+      // Hacia atrás solo si todavía rige hoy (el sábado se puede cargar la del viernes; en un
+      // feriado, la del día hábil anterior).
+      if ((dia < hoy && !coversDay(dia, hoy, feriados)) || dia > addDays(hoy, DIAS_POR_ADELANTADO)) {
         return {
           ok: false,
           motivo: "INVALIDO",
@@ -253,7 +259,7 @@ export function casosTasas(base: Base): CasosTasas {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa tasa ya estaba confirmada." };
           }
           const dia = diaDe(tasa.effectiveDate);
-          if (dia < hoy && !coversDay(dia, hoy)) {
+          if (dia < hoy && !coversDay(dia, hoy, await diasFeriados(tx))) {
             negada = "Tasa de un día que ya pasó";
             return { ok: false, motivo: "INVALIDO", mensaje: "Esa tasa era para un día que ya no rige. Captura la de hoy." };
           }
@@ -369,10 +375,11 @@ export function casosTasas(base: Base): CasosTasas {
       // Solo interesa lo que rige hoy o lo que regirá en los próximos días.
       const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
       const hasta = addDays(hoy, DIAS_POR_ADELANTADO);
+      const feriados = await base.conTenant(ctx.tenantId, diasFeriados);
       const avisos: string[] = [];
       const porDia = new Map<string, LecturaDeTasa[]>();
       for (const l of buenas) {
-        if (!coversDay(l.effectiveDate, hoy) && !(l.effectiveDate > hoy && l.effectiveDate <= hasta)) continue;
+        if (!coversDay(l.effectiveDate, hoy, feriados) && !(l.effectiveDate > hoy && l.effectiveDate <= hasta)) continue;
         porDia.set(l.effectiveDate, [...(porDia.get(l.effectiveDate) ?? []), l]);
       }
 
@@ -517,16 +524,16 @@ const diaLegible = (dia: string) => DIA_LEGIBLE.format(new Date(`${dia}T12:00:00
  * aplicó sola y todavía importa (crítica) y, a la hora habitual, la del siguiente día hábil que
  * no ha llegado (aviso). La decisión es del dominio; aquí solo se pone en palabras.
  */
-function alertasDe(tasas: readonly RateRecord[], ahora: number): HistorialTasasDto["alertas"] {
+function alertasDe(tasas: readonly RateRecord[], ahora: number, feriados: Holidays): HistorialTasasDto["alertas"] {
   const instante = new Date(ahora).toISOString();
   const hoy = calendarDay(instante, ZONA_DEL_LOCAL);
-  const alertas: HistorialTasasDto["alertas"] = heldRates(tasas, "USD/VES", hoy).map((t) => ({
+  const alertas: HistorialTasasDto["alertas"] = heldRates(tasas, "USD/VES", hoy, feriados).map((t) => ({
     tipo: "RETENIDA",
     tono: "crit",
     rateId: t.id,
     mensaje: `La tasa del BCV del ${diaLegible(t.effectiveDate)} no se aplicó sola: ${MOTIVO_RETENIDA[t.heldBack!]}. Revísala y confírmala.`,
   }));
-  const falta = missingNextBusinessDayRate(tasas, "USD/VES", instante, ZONA_DEL_LOCAL, HORA_AVISO_SIGUIENTE);
+  const falta = missingNextBusinessDayRate(tasas, "USD/VES", instante, ZONA_DEL_LOCAL, HORA_AVISO_SIGUIENTE, feriados);
   if (falta) {
     alertas.push({
       tipo: "FALTA_SIGUIENTE",

@@ -25,7 +25,12 @@ const SONDEO_MS = 60_000;
 
 /** Lo que distingue un historial de otro para no repintar si nada cambió. */
 const huellaDe = (h: HistorialTasasDto) =>
-  [...h.tasas.map((t) => `${t.id}:${t.confirmed ? 1 : 0}`), ...h.alertas.map((a) => `${a.tipo}:${a.rateId ?? ""}:${a.mensaje}`)].join("|");
+  [
+    ...h.tasas.map((t) => `${t.id}:${t.confirmed ? 1 : 0}`),
+    ...h.alertas.map((a) => `${a.tipo}:${a.rateId ?? ""}:${a.mensaje}`),
+    // Un feriado registrado cambia qué tasa rige hoy (B2-4): también cuenta como cambio.
+    `feriados:${h.feriados.join(",")}`,
+  ].join("|");
 
 type Valor = Readonly<{
   historial: HistorialTasasDto;
@@ -165,7 +170,8 @@ export function useTasaVigente(pair: RatePair): {
 
   const vigente = useMemo(() => {
     if (!dia) return null;
-    const registro = rateOfDay(historial.tasas, pair, dia, new Date(minuto).toISOString());
+    // Un feriado bancario lo cubre la tasa del día hábil anterior (B2-4).
+    const registro = rateOfDay(historial.tasas, pair, dia, new Date(minuto).toISOString(), historial.feriados);
     return registro ? (historial.tasas.find((t) => t.id === registro.id) ?? null) : null;
   }, [historial, pair, dia, minuto]);
 

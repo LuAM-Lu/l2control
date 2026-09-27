@@ -167,6 +167,14 @@ describe("asentar un cobro (F3-09)", () => {
     assert.match(!sin.ok ? sin.mensaje : "", /turno/);
   });
 
+  test("un cobro a la 1:30 am cuenta en el día del turno que lo generó (ADR-009, F3-11)", async () => {
+    // El turno de la caja se abrió el domingo 27; el cobro llega el lunes 28 a la 1:30 am.
+    const madrugada = Date.parse("2026-09-28T05:30:00.000Z");
+    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("2.00")], randomUUID()), madrugada));
+    assert.equal(libro.asientos[0]!.recordedAt, new Date(madrugada).toISOString());
+    assert.equal(libro.asientos[0]!.businessDate, "2026-09-27");
+  });
+
   test("el asiento dice en qué turno entró", async () => {
     const turno = (await local.app.turnos.delEquipo(ctxCajera))!;
     const libro = valor(await local.app.pagos.libro(ctxAdmin, DOC));

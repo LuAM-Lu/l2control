@@ -27,6 +27,8 @@ export type AccionAuditada =
   | "pago.asentar"
   | "pago.revertir"
   | "turno.abrir"
+  | "feriado.registrar"
+  | "feriado.retirar"
   | "sesion.abrir"
   | "sesion.cerrar"
   | "sesion.pin_fallido"

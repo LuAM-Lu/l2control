@@ -29,6 +29,7 @@ model Tenant {
   branches      Branch[]
   exchangeRates ExchangeRate[]
   taxRates      TaxRate[]
+  bankHolidays  BankHoliday[]
 
   @@map("tenant")
 }
@@ -405,6 +406,8 @@ model Payment {
   documentId       String   @map("document_id") @db.Uuid
   /// El turno en el que se asentó: sin turno abierto no se cobra (F4-01, B3-1).
   shiftId          String   @map("shift_id") @db.Uuid
+  /// El día de negocio del turno (ADR-009, F3-11): igual al de su turno (disparador).
+  businessDate     DateTime @map("business_date") @db.Date
   /// La clave de idempotencia de la operación (un cobro, una reversión) y la línea dentro de ella.
   operationKey     String   @map("operation_key") @db.Uuid
   line             Int      @db.SmallInt
@@ -444,6 +447,7 @@ model Payment {
   /// I-11: la misma operación no se asienta dos veces.
   @@unique([tenantId, operationKey, line])
   @@index([tenantId, documentId])
+  @@index([tenantId, businessDate])
   @@map("payment")
 }
 
@@ -493,4 +497,25 @@ model CashShiftFloat {
 
   @@unique([tenantId, shiftId, currency])
   @@map("cash_shift_float")
+}
+
+/// Un feriado bancario del local (B2-4, D-FER): no es día hábil, y la tasa del día hábil anterior
+/// lo cubre. No se borra: uno registrado por error se retira, una vez, con quién y cuándo.
+model BankHoliday {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  day             DateTime  @db.Date
+  name            String
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdBy       String?   @map("created_by") @db.Uuid
+  createdByName   String    @map("created_by_name")
+  retiredAt       DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredBy       String?   @map("retired_by") @db.Uuid
+  retiredByName   String?   @map("retired_by_name")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, day])
+  @@map("bank_holiday")
 }

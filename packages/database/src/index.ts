@@ -22,6 +22,7 @@ export type {
   TaxRate,
   Payment,
   CashShift,
+  BankHoliday,
   ParkTariffVersion,
   Prisma,
   Tenant,

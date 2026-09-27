@@ -193,8 +193,8 @@ const DIA = /^\d{4}-\d{2}-\d{2}$/;
  * que la vigente es la última confirmada con fecha valor hasta `day`, **siempre que no haya
  * pasado ningún día hábil (lunes a viernes) desde su fecha valor**. El lunes ya no vale la del
  * viernes: exige la del lunes. Es la regla que §5.2 repite porque se olvida, nunca la de ayer en
- * silencio, sin dejar al parque sin cobrar los fines de semana. Un feriado entre semana también
- * exige la suya: se captura a mano, con el mismo valor si el BCV no publicó otro.
+ * silencio, sin dejar al parque sin cobrar los fines de semana. Un feriado bancario (`holidays`,
+ * B2-4) no es día hábil: la del día hábil anterior lo cubre, como cubre el fin de semana.
  *
  * Entre las que valen gana la de fecha valor más reciente y, a igual fecha, la capturada más
  * tarde: capturar otra es la única forma de corregir una tasa (regla 5).
@@ -204,9 +204,10 @@ export function rateOfDay(
   pair: RatePair,
   day: string,
   now: string,
+  holidays: Holidays = SIN_FERIADOS,
 ): RateRecord | null {
   if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
-  const validas = history.filter((t) => coversDay(t.effectiveDate, day));
+  const validas = history.filter((t) => coversDay(t.effectiveDate, day, holidays));
   // `currentRate` pone el resto: confirmada, del par, ya capturada en `now`, la más nueva.
   // Si la de fecha más reciente no está confirmada todavía, vale la anterior que siga cubriendo.
   const porFecha = [...new Set(validas.map((t) => t.effectiveDate))].sort().reverse();
@@ -222,36 +223,41 @@ export function rateOfDay(
 }
 
 /**
- * ¿Una tasa con fecha valor `effectiveDate` rige el día `day`? Desde su fecha valor y hasta que
- * pase un día hábil: la del viernes cubre sábado y domingo; la de hoy, hoy.
+ * Los feriados bancarios del local (B2-4, D-FER), como días `AAAA-MM-DD`. Los carga
+ * administración por año desde el calendario de SUDEBAN; aquí solo se consultan.
  */
-export function coversDay(effectiveDate: string, day: string): boolean {
+export type Holidays = readonly string[];
+const SIN_FERIADOS: Holidays = Object.freeze([]);
+
+/**
+ * ¿Una tasa con fecha valor `effectiveDate` rige el día `day`? Desde su fecha valor y hasta que
+ * pase un día hábil: la del viernes cubre sábado y domingo; la de hoy, hoy; y la del día hábil
+ * anterior cubre un feriado.
+ */
+export function coversDay(effectiveDate: string, day: string, holidays: Holidays = SIN_FERIADOS): boolean {
   if (!DIA.test(effectiveDate) || !DIA.test(day)) return false;
-  return effectiveDate <= day && !hayDiaHabilEntre(effectiveDate, day);
+  return effectiveDate <= day && !hayDiaHabilEntre(effectiveDate, day, holidays);
 }
 
-/** ¿Hay algún día hábil (lunes a viernes) después de `desde` y hasta `hasta`, incluido? */
-function hayDiaHabilEntre(desde: string, hasta: string): boolean {
+/** ¿Hay algún día hábil después de `desde` y hasta `hasta`, incluido? */
+function hayDiaHabilEntre(desde: string, hasta: string, holidays: Holidays): boolean {
   for (let d = addDays(desde, 1); d <= hasta; d = addDays(d, 1)) {
-    if (isBusinessDay(d)) return true;
+    if (isBusinessDay(d, holidays)) return true;
   }
   return false;
 }
 
-/**
- * ¿Es día hábil bancario? De lunes a viernes. Los feriados llegan con su calendario (B2-4): hasta
- * entonces, un feriado entre semana cuenta como hábil.
- */
-export function isBusinessDay(day: string): boolean {
+/** ¿Es día hábil bancario? De lunes a viernes, salvo que sea feriado bancario. */
+export function isBusinessDay(day: string, holidays: Holidays = SIN_FERIADOS): boolean {
   if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
   const semana = new Date(`${day}T12:00:00.000Z`).getUTCDay();
-  return semana >= 1 && semana <= 5;
+  return semana >= 1 && semana <= 5 && !holidays.includes(day);
 }
 
-/** El siguiente día hábil después de `day`: del viernes, el lunes. */
-export function nextBusinessDay(day: string): string {
+/** El siguiente día hábil después de `day`: del viernes, el lunes; y se salta los feriados. */
+export function nextBusinessDay(day: string, holidays: Holidays = SIN_FERIADOS): string {
   let d = addDays(day, 1);
-  while (!isBusinessDay(d)) d = addDays(d, 1);
+  while (!isBusinessDay(d, holidays)) d = addDays(d, 1);
   return d;
 }
 
@@ -383,11 +389,16 @@ export function autoApplyDecision(input: {
  * confirmar, de un día que rige `day` o que viene, y sin otra confirmada para el mismo día
  * capturada después (que ya la habría sustituido). Son las alertas críticas de Inicio y de Tasas.
  */
-export function heldRates(history: readonly RateRecord[], pair: RatePair, day: string): RateRecord[] {
+export function heldRates(
+  history: readonly RateRecord[],
+  pair: RatePair,
+  day: string,
+  holidays: Holidays = SIN_FERIADOS,
+): RateRecord[] {
   if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
   return history
     .filter((t) => t.pair === pair && !t.confirmed && t.heldBack !== undefined)
-    .filter((t) => t.effectiveDate > day || coversDay(t.effectiveDate, day))
+    .filter((t) => t.effectiveDate > day || coversDay(t.effectiveDate, day, holidays))
     .filter(
       (t) =>
         !history.some(
@@ -413,16 +424,31 @@ export function missingNextBusinessDayRate(
   now: string,
   timeZone: string,
   fromHour: number,
+  holidays: Holidays = SIN_FERIADOS,
 ): string | null {
   if (!Number.isInteger(fromHour) || fromHour < 0 || fromHour > 23) {
     throw new InvalidRateError(`La hora del aviso va de 0 a 23; llegó ${fromHour}.`);
   }
   const day = calendarDay(now, timeZone);
-  if (!isBusinessDay(day)) return null;
+  if (!isBusinessDay(day, holidays)) return null;
   const hora = Number(
     new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(Date.parse(now)),
   );
   if (hora < fromHour) return null;
-  const siguiente = nextBusinessDay(day);
+  const siguiente = nextBusinessDay(day, holidays);
   return history.some((t) => t.pair === pair && t.effectiveDate === siguiente) ? null : siguiente;
+}
+
+/** Por qué un feriado no se puede registrar. */
+export type HolidayProblem = "DIA_INVALIDO" | "FIN_DE_SEMANA";
+
+/**
+ * ¿Vale como feriado bancario? Un día de calendario real, entre semana: un sábado o un domingo ya
+ * no es hábil, y marcarlo como feriado no cambia nada salvo confundir a quien lo lee.
+ */
+export function holidayProblem(day: string): HolidayProblem | null {
+  if (!DIA.test(day) || Number.isNaN(Date.parse(`${day}T00:00:00.000Z`)) || addDays(day, 0) !== day) return "DIA_INVALIDO";
+  const semana = new Date(`${day}T12:00:00.000Z`).getUTCDay();
+  if (semana === 0 || semana === 6) return "FIN_DE_SEMANA";
+  return null;
 }

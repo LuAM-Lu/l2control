@@ -149,6 +149,8 @@ export function casosPagos(base: Base): CasosPagos {
                   branchId: ctx.branchId,
                   documentId: cmd.documentId,
                   shiftId: turno.id,
+                  // ADR-009: el día de negocio lo pone el turno, no la hora del cobro.
+                  businessDate: turno.businessDate,
                   operationKey: cmd.idempotencyKey,
                   line: i,
                   kind: n.kind,
@@ -236,6 +238,7 @@ export function casosPagos(base: Base): CasosPagos {
               branchId: original.branchId,
               documentId: original.documentId,
               shiftId: turno.id,
+              businessDate: turno.businessDate,
               operationKey: cmd.idempotencyKey,
               line: 0,
               kind: rev.kind,
@@ -365,6 +368,7 @@ function libroDe(documentId: string, filas: readonly Payment[]): LibroDocumentoD
     motivo: (f.reason as AsientoDto["motivo"]) ?? null,
     detalle: f.reasonDetail,
     recordedAt: f.recordedAt.toISOString(),
+    businessDate: f.businessDate.toISOString().slice(0, 10),
     recordedBy: f.recordedByName,
     authorizedBy: f.authorizedByName,
   }));

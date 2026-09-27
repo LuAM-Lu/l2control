@@ -16,6 +16,8 @@ import { autorizadoresDeTasa } from "../../../../../src/features/cash/tasas.serv
 import { MediosPage } from "../../../../../src/features/cash/MediosPage";
 import { ImpuestosScreen } from "../../../../../src/features/cash/ImpuestosScreen";
 import { impuestosDelLocal } from "../../../../../src/features/cash/impuestos.servidor";
+import { FeriadosScreen } from "../../../../../src/features/cash/FeriadosScreen";
+import { feriadosDelLocal } from "../../../../../src/features/cash/feriados.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -35,6 +37,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "caja/medios": () => <MediosPage />,
   "configuracion/sucursal": () => <EditorSucursal />,
   "configuracion/impuestos": async () => <ImpuestosScreen impuestos={await impuestosDelLocal()} />,
+  "configuracion/feriados": async () => <FeriadosScreen feriados={await feriadosDelLocal()} />,
   "configuracion/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
 };
 

@@ -281,6 +281,17 @@ export {
 } from "./libro.ts";
 
 export {
+  FeriadoSchema,
+  FeriadosSchema,
+  RegistrarFeriadoCommandSchema,
+  RetirarFeriadoCommandSchema,
+  type FeriadoDto,
+  type FeriadosDto,
+  type RegistrarFeriadoCommand,
+  type RetirarFeriadoCommand,
+} from "./feriados.ts";
+
+export {
   HoraDelDiaSchema,
   DiaSemanaSchema,
   HorarioDelDiaSchema,
