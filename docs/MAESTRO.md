@@ -26,7 +26,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.13.0 · 13 de 45 pasos.** Etapas 0 y 1 hechas; Etapa 2 (dinero) en curso: las tasas ya
+**Versión 0.14.0 · 14 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas ya
 son de la base y se traen del BCV. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
@@ -50,17 +50,16 @@ número del medio cuenta los pasos entregados.
 **La tasa todavía no funciona bien en todo el sistema.** Diagnóstico del 2026-09-26, y todo se
 resuelve en B2-1c:
 
-1. En la base local hay tasas de prueba (Bs. 228,41 y 229,05) con fecha valor de hoy, que mandan
-   sobre la real del BCV (855,66 del viernes, 857,01 del lunes). **Primero se limpia la base local**
-   (pedido del cliente) y se siembra de cero.
+1. ~~En la base local había tasas de prueba (Bs. 228,41 y 229,05) que mandaban sobre la real del
+   BCV.~~ **Base local vaciada y sembrada de cero el 2026-09-27** (pedido del cliente): los equipos
+   se vuelven a aprobar.
 2. Lo traído del BCV entra pendiente y espera a una persona; el cliente pide que se aplique sola (M-8).
 3. Las estaciones solo ven una tasa nueva al navegar: no hay actualización en vivo.
 4. La alerta de Inicio «La tasa del día no está confirmada» lleva a `/caja` y no a la pantalla de tasas.
 5. La consulta al BCV es cada hora; el cliente quiere el cambio en el momento.
 6. Un cobro abierto en la caja no congela su tasa: si cambia a mitad del cobro, los bolívares cambian.
 
-**Siguiente paso:** limpiar la base local; después T-1 (versión visible) y B2-1c (tasa automática y en
-vivo). Luego, el orden de §3.
+**Siguiente paso:** B2-1c (tasa automática y en vivo). Luego, el orden de §3.
 
 ---
 
@@ -117,7 +116,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
 
-1. Limpiar la base local → **T-1** → **B2-1c** → B2-2 → B2-3 → B2-4 (se cierra Dinero).
+1. ~~Limpiar la base local → T-1~~ → **B2-1c** → B2-2 → B2-3 → B2-4 (se cierra Dinero).
 2. B3-1 → B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
@@ -127,11 +126,20 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 ### Transversal
 
-- [ ] **T-1 · Versión visible** (M-10).
+- [x] **T-1 · Versión visible** (M-10).
   → El acceso y Configuración dicen «v0.13.0 · Etapa 2 · Dinero» (con la versión que toque), el log de
   arranque la repite, y `pnpm verify` falla si `CHANGELOG.md` no tiene la versión del `package.json`.
   Incluye `CHANGELOG.md` reconstruido desde el historial (0.1.0 = B0-1 … 0.13.0 = B2-1b) y las
   etiquetas `vX.Y.Z` en los commits de cada paso.
+  *Hecho el 2026-09-27 (v0.14.0): `version` y `l2.etapa`/`l2.pasos` en el `package.json` raíz;
+  `next.config.ts` incrusta solo esos tres datos (el navegador no recibe el `package.json`). Se ven
+  en los tres estados del acceso (desconocido, pendiente y «¿Quién entra?») y en Panel →
+  Configuración → Sistema, con «14 de 45 pasos» y su barra; el log «servidor web conectado a la
+  base» lleva `version` y `etapa`. `pnpm version:comprobar` entra en `pnpm verify` y falla si
+  CHANGELOG.md no abre con la versión del `package.json`; 6 pruebas demuestran que muerde.
+  CHANGELOG reconstruido de 0.1.0 a 0.13.0 (B1-3 y B1-4 salieron juntos: no hay 0.7.0) y etiquetas
+  en el commit de cada paso. Comprobado con Playwright a 1366×768, 1280×800 y 800×1280, sin errores
+  de consola ni desplazamiento del documento.*
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
   suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -474,7 +482,6 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | Cifras de Inicio sin fuente (venta, semana pasada) | `app/(admin)/panel/page.tsx` | B2-3, B3-5 y B4-2 |
 | Plano y carta del restaurante guardados en el navegador | `src/demo/restaurante.ts`, `PlanoProvider`, `CartaProvider` | B6-1 |
 | Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
-| Datos de prueba en la base local de desarrollo (equipos, personas «Prueba Navegador», tasas 228/229) | base `l2control` local | Limpieza antes de B2-1c |
 
 **Trampas del código.** Ninguna la caza `pnpm typecheck`; todas se ven abriendo la pantalla.
 
@@ -550,6 +557,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   semana. Evolución del plan a pedido del cliente: tasa automática y en vivo (M-8, ADR-019), el
   inventario vuelve (M-9, Etapa 9), versionado semántico visible (M-10, desde 0.13.0), cero código
   simulado (M-11, T-2), definición de hecho de un paso y orden de ejecución.
+- **2026-09-27** · Base local vaciada y sembrada de cero (las tasas de prueba tapaban la del BCV).
+  T-1: la versión se ve en el acceso y en Configuración (v0.14.0), con CHANGELOG y etiquetas.
 
 ---
 

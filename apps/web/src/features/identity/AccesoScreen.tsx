@@ -20,6 +20,7 @@ import { aprobarEsteEquipo, entrar, renovarSolicitud, solicitarRegistro } from "
 import { puestoDe } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
+import { RotuloVersion } from "../shell/RotuloVersion.tsx";
 import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
 
 /**
@@ -300,6 +301,7 @@ export function AccesoScreen({
                 Instalar la app
               </button>
             )}
+            <RotuloVersion className="basis-full" />
           </div>
         </section>
 
@@ -529,6 +531,7 @@ function PedirRegistro() {
           </Button>
         </form>
       </div>
+      <RotuloVersion className="mt-4 text-center" />
     </div>
   );
 }
@@ -661,6 +664,7 @@ function EquipoPendiente({ nombre, codigo, caducada }: { nombre: string; codigo:
           </>
         )}
       </div>
+      <RotuloVersion className="mt-4 text-center" />
     </div>
   );
 }

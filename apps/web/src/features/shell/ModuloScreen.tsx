@@ -6,6 +6,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { puedeVerSeccion } from "../identity/visibilidad.ts";
 import { Container, PageHeader, cn } from "@l2/ui";
 import { buscarModulo, rutaSeccion } from "./navigation.ts";
+import { VERSION, rotuloDeVersion } from "./version.ts";
 
 /**
  * Página de un módulo del back-office — §9.10.3.
@@ -113,6 +114,53 @@ export function ModuloScreen({ moduloId }: { moduloId: string }) {
           </ul>
         </section>
       )}
+
+      {modulo.id === "configuracion" && <SistemaSeccion />}
     </Container>
+  );
+}
+
+/**
+ * Qué versión corre y cuánto va de la ruta a producción (M-10). El número del medio cuenta los
+ * pasos entregados; 1.0.0 es la puesta en marcha.
+ */
+function SistemaSeccion() {
+  const { entregados, pasos } = VERSION;
+  const avance = entregados !== null && pasos ? Math.min(100, Math.round((entregados / pasos) * 100)) : null;
+  return (
+    <section className="mt-10" aria-labelledby="titulo-sistema">
+      <h2
+        id="titulo-sistema"
+        className="mb-3 text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase"
+      >
+        Sistema
+      </h2>
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
+        <div className="min-w-0">
+          <p className="text-[12.5px] text-ink-3">Versión</p>
+          <p className="tnum font-display text-xl font-bold text-ink" data-version="">
+            {rotuloDeVersion()}
+          </p>
+        </div>
+        {avance !== null && (
+          <div className="min-w-[14rem] flex-1">
+            <p className="tnum text-[13px] text-ink-2">
+              {entregados} de {pasos} pasos de la ruta a producción entregados
+            </p>
+            <div
+              role="progressbar"
+              aria-label="Pasos de la ruta a producción entregados"
+              aria-valuemin={0}
+              aria-valuemax={pasos ?? 0}
+              aria-valuenow={entregados ?? 0}
+              className="mt-2 h-1.5 overflow-hidden rounded-full bg-line"
+            >
+              <span className="block h-full rounded-full bg-brand" style={{ width: `${avance}%` }} />
+            </div>
+            <p className="mt-1.5 text-[12px] text-ink-3">La versión 1.0.0 es la puesta en marcha.</p>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

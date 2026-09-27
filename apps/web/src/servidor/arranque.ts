@@ -2,6 +2,7 @@ import "server-only";
 import { entorno } from "./entorno";
 import { aplicacion, log } from "./aplicacion";
 import { programarSincronizacionDeTasa } from "./sincronizacion-tasa";
+import { VERSION } from "../features/shell/version";
 
 /**
  * Lo que el servidor comprueba antes de atender la primera petición (desde
@@ -13,7 +14,13 @@ export async function arrancar(): Promise<void> {
   // Abre la base y comprueba que el usuario no se salte la RLS.
   await aplicacion();
   log().info(
-    { entorno: e.L2_ENTORNO, tenantId: e.L2_TENANT_ID, branchId: e.L2_BRANCH_ID },
+    {
+      version: VERSION.numero || null,
+      etapa: VERSION.etapa || null,
+      entorno: e.L2_ENTORNO,
+      tenantId: e.L2_TENANT_ID,
+      branchId: e.L2_BRANCH_ID,
+    },
     "servidor web conectado a la base",
   );
   if (e.L2_SINCRONIZAR_TASA === "si") programarSincronizacionDeTasa();

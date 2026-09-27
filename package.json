@@ -1,8 +1,12 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.14.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
+  "l2": {
+    "etapa": "Etapa 2 · Dinero",
+    "pasos": 45
+  },
   "packageManager": "pnpm@12.3.4",
   "engines": {
     "node": ">=24.0.0"
@@ -25,9 +29,10 @@
     "test:db": "turbo run test:db",
     "arch": "depcruise \"packages/**/*.{ts,tsx}\" \"apps/**/*.{ts,tsx}\" --config .dependency-cruiser.cjs",
     "arch:demo": "node scripts/arch-demo.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm lint:prueba && pnpm arch && pnpm arch:demo && pnpm test",
+    "verify": "pnpm typecheck && pnpm lint && pnpm lint:prueba && pnpm version:comprobar && pnpm arch && pnpm arch:demo && pnpm test",
     "verify:db": "pnpm verify && pnpm test:db",
-    "lint:prueba": "node --test scripts/lint.test.mjs"
+    "lint:prueba": "node --test scripts/lint.test.mjs scripts/version.test.mjs",
+    "version:comprobar": "node scripts/version.mjs"
   },
   "devDependencies": {
     "dependency-cruiser": "17.0.1",
