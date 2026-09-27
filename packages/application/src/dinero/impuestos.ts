@@ -92,7 +92,7 @@ export function casosImpuestos(base: Base): CasosImpuestos {
               .map((p) => `${p.basisPoints}@${p.effectiveFrom}-${p.effectiveTo ?? ""}`)
               .join("|");
           const nueva: ScheduledTaxRate = { id: "nueva", kind: impuesto, code, basisPoints, effectiveFrom: desde, scheduledAt: ahora };
-          if (calendario(antes.map(programada)) === calendario([...antes.map(programada), nueva])) {
+          if (calendario(antes.map(programadaDeFila)) === calendario([...antes.map(programadaDeFila), nueva])) {
             return {
               ok: false,
               motivo: "INVALIDO",
@@ -114,7 +114,7 @@ export function casosImpuestos(base: Base): CasosImpuestos {
             },
           });
           // §7.4: lo que regía en ese instante y lo que regirá.
-          const previa = rigeEn(taxTimeline(antes.map(programada)), impuesto, code, desde);
+          const previa = rigeEn(taxTimeline(antes.map(programadaDeFila)), impuesto, code, desde);
           await auditar(tx, ctx, {
             action: "impuesto.programar",
             entityType: "tax_rate",
@@ -145,7 +145,7 @@ export function casosImpuestos(base: Base): CasosImpuestos {
 }
 
 /** La fila, como la entiende el dominio. */
-function programada(f: TaxRate): ScheduledTaxRate {
+export function programadaDeFila(f: TaxRate): ScheduledTaxRate {
   return {
     id: f.id,
     kind: f.tax === "IGTF" ? "IGTF" : "IVA",
@@ -164,7 +164,7 @@ function rigeEn(tramos: readonly TaxPeriod[], impuesto: string, code: string | n
 /** El calendario resuelto, en la forma del contrato, con quién programó cada tramo. */
 function vigenciasDe(filas: readonly TaxRate[]): VigenciaImpuestoDto[] {
   const porId = new Map(filas.map((f) => [f.id, f]));
-  return taxTimeline(filas.map(programada)).map((p) => {
+  return taxTimeline(filas.map(programadaDeFila)).map((p) => {
     const f = porId.get(p.id)!;
     return {
       id: p.id,

@@ -575,3 +575,7 @@ export function refundableByTender(
   if (porDescontar.amount > 0n) throw new ExcessNotCoveredError();
   return restante;
 }
+
+/* ------------------------------------------------------- libro de pagos */
+
+export * from "./libro.ts";

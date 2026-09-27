@@ -61,6 +61,16 @@ lanza `ExcessNotCoveredError`: ese cobro no cuadró.
 La caja lo calcula **al cerrar el cobro** y la venta lo guarda, para que una anulación de mañana no
 dependa de la tasa de mañana.
 
+## El libro de pagos (B2-3, §5.5)
+
+`libro.ts`: el asiento (`LedgerEntry`) y sus reglas. Un asiento nuevo es positivo, en la moneda de
+su medio y, si es en bolívares, con su tasa congelada (`entryProblem`); el vuelto solo sale en
+efectivo. Un error se corrige con `reversalOf`: el mismo asiento con el signo contrario, apuntando
+al original, que no cambia; `reversalProblem` impide revertir dos veces o revertir una reversión.
+`ledgerBalance` suma el libro de un documento en la moneda funcional, cada asiento con SU tasa.
+El USDT va a la par (`USDT_AT_PAR`, DEC-1). Qué medios disparan IGTF por defecto está en
+`LEDGER_METHODS`, hasta que los medios sean configurables (B3-2).
+
 ## Qué NO le corresponde
 
 - **Los impuestos.** El total que recibe ya viene con IVA de `@l2/domain-tax`. El IGTF se
@@ -69,5 +79,5 @@ dependa de la tasa de mañana.
 - **Persistencia del libro.** Devuelve los asientos; guardarlos append-only es de la capa de datos.
 
 ```bash
-pnpm test    # 18 pruebas
+pnpm test    # 51 pruebas
 ```

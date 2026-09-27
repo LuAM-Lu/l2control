@@ -21,6 +21,7 @@ escribe en la base dentro de la transacción del tenant. **Es la única puerta d
 | Sucursal | `sucursal.asegurar` (semillas; idempotente) | B0-5 |
 | Dinero | `tasas.leer`, `capturar`, `confirmar`, `sincronizar` (la del BCV se aplica sola con salvaguardas) | B2-1, B2-1b, B2-1c |
 | Dinero | `impuestos.leer`, `impuestos.programar` (desde un día; hoy, desde ya; nunca hacia atrás) | B2-2 |
+| Dinero | `pagos.asentar` (todo o nada, idempotente), `pagos.revertir` (asiento de signo contrario, 🔐), `pagos.libro` (saldo calculado) | B2-3 |
 
 ## Qué NO le corresponde
 

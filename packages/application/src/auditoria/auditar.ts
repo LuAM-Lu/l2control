@@ -24,6 +24,8 @@ export type AccionAuditada =
   | "tasa.aplicar"
   | "tasa.sincronizar"
   | "impuesto.programar"
+  | "pago.asentar"
+  | "pago.revertir"
   | "sesion.abrir"
   | "sesion.cerrar"
   | "sesion.pin_fallido"

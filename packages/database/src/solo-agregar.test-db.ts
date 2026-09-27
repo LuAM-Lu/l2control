@@ -244,3 +244,81 @@ test("dos programaciones del mismo impuesto en el mismo instante no se ordenan: 
   // El general y el reducido sí pueden programarse en el mismo instante.
   await app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data: alicuota(A.tenant, 30, { code: "REDUCIDA", basisPoints: 800 }) }));
 });
+
+/* ── El libro de pagos (B2-3, §5.5, I-09, I-11) ─────────────────────────────── */
+
+const DOC = randomUUID();
+let lineaLibre = 0;
+/** Un asiento de `t` en efectivo en dólares; `extra` cambia lo que haga falta. */
+const asiento = (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) => ({
+  tenantId: t.tenant,
+  branchId: t.sucursal,
+  documentId: DOC,
+  operationKey: randomUUID(),
+  line: lineaLibre++ % 20,
+  kind: "COBRO",
+  method: "EFECTIVO_USD",
+  currency: "USD",
+  amountMinor: 580n,
+  igtfMinor: 17n,
+  recordedByName: "Marisol Prieto",
+  ...extra,
+});
+const crearAsiento = (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) => tx.payment.create({ data: asiento(t, extra) }));
+
+test("un asiento del libro no se edita ni se borra (I-09)", async () => {
+  const p = await crearAsiento(A);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.payment.update({ where: { id: p.id }, data: { amountMinor: 1n } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.payment.deleteMany({})), SOLO_AGREGAR);
+});
+
+test("la misma operación no se asienta dos veces (I-11)", async () => {
+  const clave = randomUUID();
+  await crearAsiento(A, { operationKey: clave, line: 0 });
+  await assert.rejects(crearAsiento(A, { operationKey: clave, line: 0 }), por("DUPLICADO"));
+});
+
+test("la base rechaza un asiento mal formado aunque el código se equivoque", async () => {
+  const tasaA = await app.conTenant(A.tenant, (tx) => tx.exchangeRate.create({ data: tasa(A.tenant, "855.6625", 50) }));
+  const malos: Record<string, unknown>[] = [
+    { amountMinor: 0n }, // un original es positivo
+    { amountMinor: -580n, igtfMinor: -17n }, // negativo sin ser reversión
+    { method: "ZELLE", currency: "VES", rateId: tasaA.id, rateValue: "855.6625" }, // moneda que no es la del medio
+    { method: "PAGO_MOVIL", currency: "VES", amountMinor: 427831n, igtfMinor: 0n }, // bolívares sin tasa
+    { rateId: tasaA.id, rateValue: "855.6625" }, // dólares con tasa
+    { method: "PAGO_MOVIL", currency: "VES", rateId: tasaA.id, rateValue: null, igtfMinor: 0n }, // tasa sin su valor
+    { kind: "VUELTO", igtfMinor: 17n }, // IGTF en un vuelto
+    { kind: "VUELTO", method: "ZELLE", igtfMinor: 0n }, // vuelto que no es efectivo
+    { reason: "ERROR_EN_COBRO" }, // motivo en un original
+    { kind: "REGALO" },
+  ];
+  for (const [i, extra] of malos.entries()) {
+    await assert.rejects(crearAsiento(A, extra), por("RESTRICCION"), String(i));
+  }
+});
+
+test("una reversión es el original con el signo contrario, una sola vez (F3-10)", async () => {
+  const o = await crearAsiento(A);
+  const rev = { reversesId: o.id, reason: "ERROR_EN_COBRO", amountMinor: -580n, igtfMinor: -17n };
+  // Otro importe, otro medio u otro documento: no es una reversión.
+  for (const extra of [{ amountMinor: -500n }, { method: "ZELLE" }, { documentId: randomUUID() }, { igtfMinor: 0n }]) {
+    await assert.rejects(crearAsiento(A, { ...rev, ...extra }), por("RESTRICCION"), JSON.stringify(extra, (_, v) => (typeof v === "bigint" ? String(v) : v)));
+  }
+  // «Otro» sin explicar, tampoco.
+  await assert.rejects(crearAsiento(A, { ...rev, reason: "OTRO" }), por("RESTRICCION"));
+  const r = await crearAsiento(A, rev);
+  // Dos veces, no; y una reversión no se revierte.
+  await assert.rejects(crearAsiento(A, rev), por("DUPLICADO"));
+  await assert.rejects(crearAsiento(A, { reversesId: r.id, reason: "ERROR_EN_COBRO", amountMinor: 580n, igtfMinor: 17n }), por("RESTRICCION"));
+});
+
+test("A no cita la tasa de B ni revierte un asiento de B", async () => {
+  const tasaB = await app.conTenant(B.tenant, (tx) => tx.exchangeRate.create({ data: tasa(B.tenant, "855.6625", 51) }));
+  await assert.rejects(
+    crearAsiento(A, { method: "PAGO_MOVIL", currency: "VES", amountMinor: 427831n, igtfMinor: 0n, rateId: tasaB.id, rateValue: "855.6625" }),
+    por("REFERENCIA_INVALIDA"),
+  );
+  const deB = await crearAsiento(B);
+  await assert.rejects(crearAsiento(A, { reversesId: deB.id, reason: "ERROR_EN_COBRO", amountMinor: -580n, igtfMinor: -17n }), por("REFERENCIA_INVALIDA"));
+});

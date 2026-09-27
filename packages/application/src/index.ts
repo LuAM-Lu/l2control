@@ -18,6 +18,7 @@ import { crearCifrador } from "./identidad/cifrado.ts";
 import { casosAccesos, type CasosAccesos } from "./identidad/accesos.ts";
 import { casosTasas, type CasosTasas } from "./dinero/tasas.ts";
 import { casosImpuestos, type CasosImpuestos } from "./dinero/impuestos.ts";
+import { casosPagos, type CasosPagos } from "./dinero/pagos.ts";
 
 export type { Contexto } from "./contexto.ts";
 export type { CasosTarifario } from "./park/tarifario.ts";
@@ -29,6 +30,7 @@ export type { CambioHecho, CasosEquipo, PersonaASembrar } from "./identidad/equi
 export type { CasosAccesos } from "./identidad/accesos.ts";
 export { DIAS_POR_ADELANTADO, UMBRAL_VARIACION_BPS, ZONA_DEL_LOCAL, type CasosTasas } from "./dinero/tasas.ts";
 export { DIAS_POR_ADELANTADO_IMPUESTOS, type CasosImpuestos } from "./dinero/impuestos.ts";
+export type { CasosPagos } from "./dinero/pagos.ts";
 export { AutorizacionSchema, exigirPermisoOAutorizacion, type Autorizacion } from "./identidad/autorizacion.ts";
 export { ELEVACION_MS, type CasosElevacion, type CredencialesNuevas } from "./identidad/elevacion.ts";
 export {
@@ -52,6 +54,7 @@ export interface Aplicacion {
   readonly accesos: CasosAccesos;
   readonly tasas: CasosTasas;
   readonly impuestos: CasosImpuestos;
+  readonly pagos: CasosPagos;
   cerrar(): Promise<void>;
 }
 
@@ -80,6 +83,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     accesos: casosAccesos(base),
     tasas: casosTasas(base),
     impuestos: casosImpuestos(base),
+    pagos: casosPagos(base),
     cerrar: () => base.cerrar(),
   };
 }

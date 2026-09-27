@@ -49,6 +49,7 @@ model Branch {
   roleAdjustments RoleAdjustment[]
   sessions        StaffSession[]
 
+  payments        Payment[]
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
   /// Las comprobaciones de FK no pasan por la RLS, así que sin esto A podría citar la sucursal de B.
@@ -144,6 +145,8 @@ model StaffUser {
   exceptions PermissionException[]
   sessions   StaffSession[]
 
+  paymentsRecorded   Payment[] @relation("PaymentRecordedBy")
+  paymentsAuthorized Payment[] @relation("PaymentAuthorizedBy")
   @@unique([tenantId, id])
   @@map("staff_user")
 }
@@ -246,6 +249,7 @@ model Device {
   changes  DeviceChange[]
   sessions StaffSession[]
 
+  payments Payment[]
   @@unique([tenantId, id])
   @@map("device")
 }
@@ -327,6 +331,7 @@ model ExchangeRate {
   tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   confirmation ExchangeRateConfirmation?
 
+  payments     Payment[]
   @@unique([tenantId, id])
   /// Dos capturas del mismo par en el mismo instante serían una reescritura disfrazada.
   @@unique([tenantId, pair, capturedAt])
@@ -383,4 +388,54 @@ model TaxRate {
   @@unique([tenantId, id])
   @@index([tenantId, tax, effectiveFrom])
   @@map("tax_rate")
+}
+
+/// Un asiento del libro de pagos (B2-3, §5.5, F3-09, F3-10). Solo-agregar (I-09): un error se
+/// corrige con una reversión que apunta al original, con el signo contrario. El saldo de un
+/// documento es la suma de sus asientos, calculada; nunca se guarda.
+model Payment {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  /// El documento (cuenta o venta) al que se aplica. Su tabla y su FK llegan con B3-3.
+  documentId       String   @map("document_id") @db.Uuid
+  /// La clave de idempotencia de la operación (un cobro, una reversión) y la línea dentro de ella.
+  operationKey     String   @map("operation_key") @db.Uuid
+  line             Int      @db.SmallInt
+  /// COBRO, VUELTO, PROPINA o RESIDUO (§5.6).
+  kind             String
+  /// EFECTIVO_USD, EFECTIVO_VES, PAGO_MOVIL, PDV_DEBITO, PDV_CREDITO, USDT o ZELLE (§5.5).
+  method           String
+  currency         String
+  /// Unidades menores, con signo: negativo solo en una reversión. Nunca Float (I-01).
+  amountMinor      BigInt   @map("amount_minor")
+  /// IGTF de ESTE asiento, en su moneda y con el mismo signo (§5.5).
+  igtfMinor        BigInt   @map("igtf_minor")
+  /// La tasa congelada (ADR-005): cuál y con qué valor, copiado al asentar.
+  rateId           String?  @map("rate_id") @db.Uuid
+  rateValue        String?  @map("rate_value")
+  reversesId       String?  @map("reverses_id") @db.Uuid
+  /// Solo en una reversión: motivo de la lista cerrada (DEC-24) y su explicación.
+  reason           String?
+  reasonDetail     String?  @map("reason_detail")
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  recordedBy       String?  @map("recorded_by") @db.Uuid
+  recordedByName   String   @map("recorded_by_name")
+  deviceId         String?  @map("device_id") @db.Uuid
+  authorizedBy     String?  @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+
+  branch       Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  rate         ExchangeRate? @relation(fields: [tenantId, rateId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  reverses     Payment?      @relation("PaymentReversal", fields: [tenantId, reversesId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  reversedBy   Payment[]     @relation("PaymentReversal")
+  recorder     StaffUser?    @relation("PaymentRecordedBy", fields: [tenantId, recordedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  authorizer   StaffUser?    @relation("PaymentAuthorizedBy", fields: [tenantId, authorizedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  device       Device?       @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  /// I-11: la misma operación no se asienta dos veces.
+  @@unique([tenantId, operationKey, line])
+  @@index([tenantId, documentId])
+  @@map("payment")
 }

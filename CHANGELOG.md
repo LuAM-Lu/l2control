@@ -12,6 +12,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.17.0] — 2026-09-27 · Etapa 2 · Dinero
+
+B2-3 · Libro de pagos de solo-agregar con idempotencia. Es la base del cobro en el servidor: la caja
+lo usará en B3-3, así que en pantalla todavía no cambia nada.
+
+### Añadido
+- Cada pago, vuelto, propina o residuo es un asiento del libro que no se edita ni se borra, con su
+  medio, su moneda, la tasa con la que se cobró (copiada de la base) y su IGTF, que calcula el
+  servidor con la alícuota del instante.
+- Un doble clic o un reintento tras un corte de red devuelven el mismo cobro: nunca se cobra dos
+  veces. Los asientos de un cobro entran todos o ninguno.
+- Anular un pago es un asiento con el signo contrario que apunta al original, una sola vez, con
+  motivo de la lista; la caja lo hace con la autorización de supervisión (DEC-24). El original queda
+  intacto y el saldo se recalcula solo.
+
 ## [0.16.0] — 2026-09-27 · Etapa 2 · Dinero
 
 B2-2 · Impuestos con vigencia.

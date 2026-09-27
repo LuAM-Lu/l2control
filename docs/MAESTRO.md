@@ -26,9 +26,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.16.0 · 16 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas
+**Versión 0.17.0 · 17 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
-(B2-1c), y **los impuestos son de la base con su vigencia (B2-2)**. Sin modo demo; lo provisional y lo simulado que queda está
+(B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
+servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3). Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -36,7 +37,7 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia, libro de pagos), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
@@ -45,8 +46,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (31 de base, 128 de aplicación, 50 de tasas y 44 de impuestos
-  en el dominio). **Subido a GitHub el
+- **Pruebas:** `pnpm verify:db` en verde (36 de base, 145 de aplicación; en el dominio, 50 de tasas,
+  44 de impuestos y 51 de caja). **Subido a GitHub el
   2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
 
 **La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
@@ -61,7 +62,8 @@ B2-2 se programó el IVA general al 15 % (hoy y el 27 oct) y se devolvió al 16 
 27 oct y se canceló: rige 16 %, 8 % y 3 %, sin nada programado. Equipos «Prueba B22 Admin» y «Prueba
 B22 Caja» revocados.
 
-**Siguiente paso:** B2-3 (libro de pagos de solo-agregar con idempotencia). Luego, el orden de §3.
+**Siguiente paso:** B2-4 (`businessDate` en toda fila de dinero y feriados bancarios; necesita D-FER).
+Luego, el orden de §3.
 
 ---
 
@@ -118,7 +120,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
 
-1. ~~Limpiar la base local → T-1 → B2-1c → B2-2~~ → **B2-3** → B2-4 (se cierra Dinero).
+1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3~~ → **B2-4** (se cierra Dinero).
 2. B3-1 → B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
@@ -351,9 +353,30 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   oct y luego al 3 %: «se cancela el cambio». Impuestos a 1366×768, 1280×800 y 800×1280 sin desplazar
   el documento ni desbordar; sin errores de consola. No se vio en el navegador la caja sin impuestos
   (la base local los tiene): lo cubren `missingTaxesAt` y su prueba.*
-- [ ] **B2-3 · Libro de pagos append-only con idempotencia**, y la reversión como asiento (F3-09,
+- [x] **B2-3 · Libro de pagos append-only con idempotencia**, y la reversión como asiento (F3-09,
   F3-10, §5.5).
   → Un doble clic produce un solo cobro. Al revertir quedan los dos asientos y el original intacto.
+  *Hecho el 2026-09-27 (v0.17.0). **Alcance acordado con el cliente:** el libro en el servidor; la
+  caja cobra contra él en B3-3, así que este paso no tiene pantalla ni se comprueba en el navegador
+  (DoD 7 y 9 no aplican; el criterio se demuestra contra la base).*
+  *· Dominio (`@l2/domain-cash`, `libro.ts`): tipos COBRO, VUELTO, PROPINA y RESIDUO (§5.6), los siete
+  medios de §5.5 con su moneda, `entryProblem`, `reversalOf`, `reversalProblem` y `ledgerBalance`
+  (cada asiento con su tasa congelada; USDT a la par). 9 pruebas.*
+  *· Contrato (`libro.ts`): `AsentarPagosCommandSchema` (clave de la operación, documento y asientos;
+  el navegador no manda ni el valor de la tasa, ni el IGTF, ni quién), `RevertirPagoCommandSchema`
+  (motivo de la lista; «Otro» exige explicarlo) y `LibroDocumentoSchema`. 8 pruebas.*
+  *· Base: migración `20261001000000_libro_de_pagos`: `payment` de solo-agregar con RLS, FK compuestas
+  (sucursal, tasa, persona, equipo, asiento revertido), única `(operation_key, line)` (I-11) y una
+  reversión por asiento; CHECK de tipo, medio y moneda del medio, signo (original positivo, reversión
+  negativa con motivo), IGTF solo en cobros, vuelto solo en efectivo y bolívares con su tasa; y un
+  disparador que exige que la reversión sea el original con el signo contrario (mismo documento,
+  medio, tasa e IGTF) y que no se revierta una reversión. 5 pruebas.*
+  *· Aplicación (`pagos`): `asentar` (`documento.emitir`; tasa citada y confirmada, su valor copiado
+  de la base; IGTF del instante con la alícuota de la base, y sin ella no se cobra en divisas; todo o
+  nada; la misma clave devuelve lo asentado y con otro contenido es CONFLICTO; el doble clic
+  simultáneo se resuelve con la unicidad de la base), `revertir` (`cobro.anular`, 🔐 registrado antes
+  de ejecutar; idempotente; una sola vez) y `libro` (saldo calculado). Asientos `pago.asentar` y
+  `pago.revertir`. 17 pruebas.*
 - [ ] **B2-4 · `businessDate` en toda fila de dinero** (F3-11, ADR-009), y **calendario de feriados
   bancarios** (lo usa la vigencia de la tasa).
   → Una venta a la 1:30 am cuenta en el día del turno que la generó. Un feriado entre semana sigue
@@ -520,6 +543,11 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Los feriados entre semana no se conocen: ese día exige capturar la tasa a mano (aunque el BCV no publique) | B2-4 (D-FER) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a SALTO), el texto de la alerta no lo dice | B5-1 |
+| El documento del libro (`payment.document_id`) no tiene FK: la tabla de cuentas y ventas llega con B3-3 | B3-3 |
+| El libro no tiene turno ni `businessDate` todavía | B2-4 (`businessDate`) y B3-1 (turno) |
+| Qué medios disparan IGTF en el libro es el trato por defecto (divisas y cripto), no la configuración del local | B3-2 |
+| Un asiento del libro no guarda la referencia del pago (Pago Móvil, punto, TxID): se añade cifrada | B3-2 |
+| El libro no comprueba que el cobro cuadre con el total del documento ni que la tasa citada sea la vigente | B3-3 |
 | Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | B3-4 (D-AUT) |
 
 **Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
@@ -580,7 +608,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
-| F3 · Dinero | Tasas en la base, traídas del BCV, aplicadas solas y en vivo (B2-1, B2-1b, B2-1c); impuestos con vigencia (B2-2) | Libro y `businessDate`. **Sin F3-08** (M-3) |
+| F3 · Dinero | Tasas en la base, traídas del BCV, aplicadas solas y en vivo (B2-1, B2-1b, B2-1c); impuestos con vigencia (B2-2); libro de pagos (B2-3) | `businessDate` y feriados (B2-4). **Sin F3-08** (M-3) |
 | F4 · Caja | Interfaz completa | Turno, libro, cortes y excepciones reales (Etapa 3) |
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
@@ -624,6 +652,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   pasa a la franja fija de la caja con «Mantener» y «Usar la nueva». Sigue B2-2.
 - **2026-09-27** · B2-2 entregado (v0.16.0): los impuestos se programan con fecha en Configuración →
   Impuestos y la caja cobra con los del instante. Sigue B2-3.
+- **2026-09-27** · B2-3 entregado (v0.17.0): el libro de pagos en el servidor, idempotente y con la
+  reversión como asiento; la caja lo usará en B3-3 (alcance acordado con el cliente). Sigue B2-4.
 
 ---
 

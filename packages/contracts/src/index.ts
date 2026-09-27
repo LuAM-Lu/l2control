@@ -264,6 +264,23 @@ export {
 } from "./ventas.ts";
 
 export {
+  TipoAsientoSchema,
+  MetodoLibroSchema,
+  AsientoNuevoSchema,
+  AsentarPagosCommandSchema,
+  RevertirPagoCommandSchema,
+  AsientoSchema,
+  LibroDocumentoSchema,
+  type TipoAsiento,
+  type MetodoLibro,
+  type AsientoNuevoDto,
+  type AsentarPagosCommand,
+  type RevertirPagoCommand,
+  type AsientoDto,
+  type LibroDocumentoDto,
+} from "./libro.ts";
+
+export {
   HoraDelDiaSchema,
   DiaSemanaSchema,
   HorarioDelDiaSchema,

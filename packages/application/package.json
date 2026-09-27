@@ -16,7 +16,9 @@
   "dependencies": {
     "@l2/contracts": "workspace:*",
     "@l2/database": "workspace:*",
+    "@l2/domain-cash": "workspace:*",
     "@l2/domain-identity": "workspace:*",
+    "@l2/domain-money": "workspace:*",
     "@l2/domain-rates": "workspace:*",
     "@l2/domain-tax": "workspace:*",
     "@l2/observability": "workspace:*",
@@ -26,7 +28,6 @@
   },
   "devDependencies": {
     "@l2/config": "workspace:*",
-    "@l2/domain-money": "workspace:*",
     "@types/node": "24.10.1",
     "typescript": "7.0.2"
   }
