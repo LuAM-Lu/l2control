@@ -108,3 +108,61 @@ test("A no puede publicar en la sucursal de B aunque firme con su propio tenant"
     por("REFERENCIA_INVALIDA"),
   );
 });
+
+/* ── tasas de cambio (B2-1, F3-03): la tasa y su confirmación tampoco se reescriben ── */
+
+const tasa = (tenantId: string, value: string, minuto: number) => ({
+  tenantId,
+  pair: "USD/VES",
+  value,
+  source: "MANUAL",
+  effectiveDate: new Date("2026-09-18T00:00:00.000Z"),
+  capturedAt: new Date(Date.UTC(2026, 8, 18, 12, minuto)),
+  capturedByName: "Prueba",
+});
+
+test("una tasa y su confirmación no se editan ni se borran", async () => {
+  const t = await app.conTenant(A.tenant, async (tx) => {
+    const r = await tx.exchangeRate.create({ data: tasa(A.tenant, "228.41", 0) });
+    await tx.exchangeRateConfirmation.create({
+      data: { tenantId: A.tenant, rateId: r.id, confirmedByName: "Prueba", doubleChecked: true },
+    });
+    return r;
+  });
+  await assert.rejects(
+    app.conTenant(A.tenant, (tx) => tx.exchangeRate.update({ where: { id: t.id }, data: { value: "300.00" } })),
+    SOLO_AGREGAR,
+  );
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.exchangeRateConfirmation.deleteMany({})), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.exchangeRate.deleteMany({})), SOLO_AGREGAR);
+});
+
+test("la base rechaza una tasa cero o con coma, aunque el código se equivoque (I-03)", async () => {
+  for (const [i, value] of ["0", "0.000", "228,41", "-5", "2.2841e2"].entries()) {
+    await assert.rejects(
+      app.conTenant(A.tenant, (tx) => tx.exchangeRate.create({ data: tasa(A.tenant, value, 10 + i) })),
+      por("RESTRICCION"),
+      value,
+    );
+  }
+});
+
+test("A no confirma una tasa de B ni la confirma dos veces", async () => {
+  const deB = await app.conTenant(B.tenant, (tx) => tx.exchangeRate.create({ data: tasa(B.tenant, "228.41", 0) }));
+  await assert.rejects(
+    app.conTenant(A.tenant, (tx) =>
+      tx.exchangeRateConfirmation.create({
+        data: { tenantId: A.tenant, rateId: deB.id, confirmedByName: "Prueba", doubleChecked: false },
+      }),
+    ),
+    por("REFERENCIA_INVALIDA"),
+  );
+  const confirmar = () =>
+    app.conTenant(B.tenant, (tx) =>
+      tx.exchangeRateConfirmation.create({
+        data: { tenantId: B.tenant, rateId: deB.id, confirmedByName: "Prueba", doubleChecked: false },
+      }),
+    );
+  await confirmar();
+  await assert.rejects(confirmar(), por("DUPLICADO"));
+});

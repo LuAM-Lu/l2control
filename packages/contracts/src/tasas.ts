@@ -11,7 +11,7 @@
  * que es puro y tiene sus pruebas. Aquí solo está **la forma**.
  */
 import { z } from "zod";
-import { IdSchema, TimestampSchema } from "./primitives.ts";
+import { FechaSchema, IdSchema, TimestampSchema } from "./primitives.ts";
 
 export const RatePairSchema = z.enum(["USD/VES", "USDT/VES"]);
 export type RatePair = z.infer<typeof RatePairSchema>;
@@ -46,6 +46,11 @@ export const ExchangeRateSchema = z.object({
   value: RateValueSchema,
   source: RateSourceSchema,
   capturedAt: TimestampSchema,
+  /**
+   * El día para el que vale («fecha valor», el `effectiveFrom` de §5.2). Se cobra solo con la
+   * del día en curso: la de ayer bloquea el cobro aunque sea la última confirmada (F3-05).
+   */
+  effectiveDate: FechaSchema,
   /** Quién la cargó, o el proceso que la trajo (§5.2). */
   capturedBy: z.string().trim().min(2).max(80).optional(),
   /** Sin confirmar, no se puede cobrar con ella (§5.2, fail-closed). */
@@ -53,6 +58,8 @@ export const ExchangeRateSchema = z.object({
   /** Quién la confirmó y cuándo. Van juntos o no van (§7.4). */
   confirmedBy: z.string().trim().min(2).max(80).optional(),
   confirmedAt: TimestampSchema.optional(),
+  /** Si quien confirmó necesitaba autorización (🔐 de supervisión, §7.3), quién la dio. */
+  authorizedBy: z.string().trim().min(2).max(80).optional(),
 })
   .refine((r) => r.confirmed === (r.confirmedBy !== undefined && r.confirmedAt !== undefined), {
     // Una tasa confirmada sin firma no se puede auditar, y una firma sobre una
@@ -75,6 +82,12 @@ export const HistorialTasasSchema = z
     tasas: z.array(ExchangeRateSchema),
     /** En puntos básicos: 100 = 1 %. */
     umbralVariacionBasisPoints: z.number().int().positive().max(10_000),
+    /**
+     * La zona horaria que decide qué día es «hoy» para la tasa (IANA, p. ej. `America/Caracas`).
+     * La manda el servidor para que la estación y él cambien de día a la vez. Hasta B2-4 el día
+     * es el del calendario del local; después, el que declare el turno (ADR-009).
+     */
+    zonaHoraria: z.string().min(3).max(64),
   })
   .refine((h) => new Set(h.tasas.map((t) => t.id)).size === h.tasas.length, {
     message: "Dos tasas no pueden compartir identificador",
@@ -93,18 +106,23 @@ export const HistorialTasasSchema = z
 export type HistorialTasasDto = z.infer<typeof HistorialTasasSchema>;
 
 /**
- * Capturar la tasa del día (F3-04).
+ * Capturar la tasa de un día (F3-04). Los dos únicos mandos del historial son este y confirmar:
+ * **no se edita ni se borra una tasa**; corregir una mal tecleada es capturar otra.
  *
  * Entra **sin confirmar, siempre**, venga del BCV o de un dedo: un proveedor
  * de terceros es una entrada no confiable (§7.5) y nadie debería poder mover
  * los precios del negocio sin que un administrador lo vea. Por eso el mando no
- * admite `confirmed`: el estado inicial no es negociable.
+ * admite `confirmed`: el estado inicial no es negociable. Tampoco dice quién la
+ * carga: eso lo sabe el servidor por la sesión, no lo declara el navegador.
+ *
+ * `effectiveDate` es el día para el que vale: hoy, o uno de los próximos (el BCV publica
+ * por la tarde la del día hábil siguiente). El servidor rechaza un día pasado.
  */
 export const CapturarTasaCommandSchema = z.strictObject({
   pair: RatePairSchema,
   value: RateValueSchema,
   source: RateSourceSchema,
-  capturedBy: z.string().trim().min(2).max(80),
+  effectiveDate: FechaSchema,
 });
 export type CapturarTasaCommand = z.infer<typeof CapturarTasaCommandSchema>;
 
@@ -113,23 +131,12 @@ export type CapturarTasaCommand = z.infer<typeof CapturarTasaCommandSchema>;
  *
  * `valorVerificado` es el valor tecleado otra vez. Se exige cuando el salto
  * pasa del umbral o cuando no hay ninguna anterior con la que comparar
- * —`needsDoubleCheck` de `@l2/domain-rates` lo decide—, y quien aplica el
- * mando comprueba que coincida. Es la defensa contra la amenaza T2: mover la
+ * —`needsDoubleCheck` de `@l2/domain-rates` lo decide—, y el servidor
+ * comprueba que coincida. Es la defensa contra la amenaza T2: mover la
  * tasa para beneficiarse, o un dedo de más en el teclado.
  */
 export const ConfirmarTasaCommandSchema = z.strictObject({
   rateId: IdSchema,
-  confirmadaPor: z.string().trim().min(2).max(80),
   valorVerificado: RateValueSchema.optional(),
 });
 export type ConfirmarTasaCommand = z.infer<typeof ConfirmarTasaCommandSchema>;
-
-/**
- * Los dos mandos del historial. No hay un tercero: **no se edita ni se borra
- * una tasa**. Corregir una tasa mal tecleada es capturar otra.
- */
-export const TasaCommandSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("CAPTURAR"), ...CapturarTasaCommandSchema.shape }),
-  z.strictObject({ kind: z.literal("CONFIRMAR"), ...ConfirmarTasaCommandSchema.shape }),
-]);
-export type TasaCommand = z.infer<typeof TasaCommandSchema>;

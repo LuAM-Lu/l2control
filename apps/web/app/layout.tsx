@@ -13,13 +13,13 @@ import { tarifarioVigente } from "../src/features/park/tarifario.servidor";
 import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
 import { RepresentantesProvider } from "../src/features/park/RepresentantesProvider";
 import { TasasProvider } from "../src/features/cash/TasasProvider";
+import { historialDeTasas } from "../src/features/cash/tasas.servidor";
 import { MediosProvider } from "../src/features/cash/MediosProvider";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { AJUSTES_DEMO } from "../src/demo/sucursal";
 import { DIRECTORIO_DEMO } from "../src/demo/representantes";
-import { HISTORIAL_DEMO } from "../src/demo/tasas";
 import { MEDIOS_DEMO } from "../src/demo/medios";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
 
@@ -67,6 +67,8 @@ export default async function RootLayout({
   // Lo que ya tiene servidor sale de la base; lo demás, de `src/demo`, que se vacía paso a
   // paso de la ruta (MAESTRO §3 y M-6). El tarifario fue el primero (B0-5).
   const tarifario = await tarifarioVigente();
+  // Las tasas, de la base (B2-1): la caja solo cobra con la del día, confirmada.
+  const tasas = await historialDeTasas();
   // Quién opera, leído de su cookie en el servidor (B1-4). El navegador no lo decide.
   const sesion = await sesionActual();
   const operador = sesion ? { id: sesion.userId, nombre: sesion.nombre, rol: NOMBRE_ROL[sesion.role], role: sesion.role } : null;
@@ -95,7 +97,7 @@ export default async function RootLayout({
               cualquier superficie (F5-08b, F4-04c, F2-02). */}
           <SucursalProvider inicial={AJUSTES_DEMO}>
               <RepresentantesProvider inicial={DIRECTORIO_DEMO}>
-                <TasasProvider inicial={HISTORIAL_DEMO}>
+                <TasasProvider inicial={tasas}>
                   <MediosProvider inicial={MEDIOS_DEMO}>
                     <PlanoProvider inicial={PLANO_DEMO}>
                       <CartaProvider inicial={CARTA_DEMO}>

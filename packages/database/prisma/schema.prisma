@@ -26,7 +26,8 @@ model Tenant {
   name      String
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  branches Branch[]
+  branches      Branch[]
+  exchangeRates ExchangeRate[]
 
   @@map("tenant")
 }
@@ -284,4 +285,60 @@ model StaffSession {
   @@index([tenantId, deviceId, closedAt])
   @@index([tenantId, userId, closedAt])
   @@map("staff_session")
+}
+
+/**
+ * ──────────────────────────────────────────────── dinero (Etapa 2, §5) ──
+ */
+
+/// Una tasa de cambio capturada (§5.2, F3-03). Registro histórico: solo se añade, y corregir una
+/// mal tecleada es capturar otra (regla 5). Es del tenant y no de una sucursal: el BCV publica
+/// una sola para todo el país. Cada pago citará la suya por `id` (ADR-005).
+model ExchangeRate {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  /// USD/VES o USDT/VES (CHECK en la migración).
+  pair           String
+  /// Texto decimal exacto, como en el contrato; CHECK de formato y de valor distinto de cero.
+  /// Nunca Float (F3-02): el error se multiplicaría por todo lo que se cobre en bolívares.
+  value          String
+  /// BCV, MANUAL o COMERCIAL: sin procedencia, una tasa no es auditable.
+  source         String
+  /// Fecha valor: el día para el que vale (el `effectiveFrom` de §5.2).
+  effectiveDate  DateTime @map("effective_date") @db.Date
+  capturedAt     DateTime @default(now()) @map("captured_at") @db.Timestamptz(3)
+  /// Quién la cargó. Nulo = un proceso (la sincronización del BCV, F3-04).
+  capturedBy     String?  @map("captured_by") @db.Uuid
+  capturedByName String   @map("captured_by_name")
+
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  confirmation ExchangeRateConfirmation?
+
+  @@unique([tenantId, id])
+  /// Dos capturas del mismo par en el mismo instante serían una reescritura disfrazada.
+  @@unique([tenantId, pair, capturedAt])
+  @@index([tenantId, pair, effectiveDate])
+  @@map("exchange_rate")
+}
+
+/// La confirmación humana de una tasa (§5.2): sin ella no se cobra con la tasa. Es una fila
+/// aparte, y no una columna de la tasa, porque la tasa no se reescribe: confirmar AÑADE un hecho.
+model ExchangeRateConfirmation {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  rateId           String   @map("rate_id") @db.Uuid
+  confirmedAt      DateTime @default(now()) @map("confirmed_at") @db.Timestamptz(3)
+  confirmedBy      String?  @map("confirmed_by") @db.Uuid
+  confirmedByName  String   @map("confirmed_by_name")
+  /// Si se tecleó el valor otra vez: salto sobre el umbral, o la primera tasa del par.
+  doubleChecked    Boolean  @map("double_checked")
+  /// Quién autorizó el 🔐 de supervisión (§7.3, F2-08), si hizo falta.
+  authorizedBy     String?  @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+
+  rate ExchangeRate @relation(fields: [tenantId, rateId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  /// Una tasa se confirma una vez.
+  @@unique([tenantId, rateId])
+  @@map("exchange_rate_confirmation")
 }

@@ -27,6 +27,13 @@ export type Id = z.infer<typeof IdSchema>;
 export const TimestampSchema = z.iso.datetime();
 export type Timestamp = z.infer<typeof TimestampSchema>;
 
+/**
+ * Un día, sin hora ni zona (`AAAA-MM-DD`): el día de negocio de ADR-009 o el día para el que
+ * vale una tasa. Es una fecha de calendario, no un instante: no se convierte de zona.
+ */
+export const FechaSchema = z.iso.date();
+export type Fecha = z.infer<typeof FechaSchema>;
+
 /* --------------------------------------------------------------- dinero */
 
 export const CurrencySchema = z.enum(["USD", "VES", "USDT"]);

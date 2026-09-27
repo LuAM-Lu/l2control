@@ -1,21 +1,20 @@
 "use client";
 
-import { useActorEnSesion } from "../identity/sesion.ts";
-import { useOperador } from "../identity/operador.ts";
-import { TasasScreen } from "./TasasScreen.tsx";
 import { can } from "@l2/domain-identity";
+import { useActorEnSesion } from "../identity/sesion.ts";
+import { useSucursalDeSesion } from "../identity/operador.ts";
+import { TasasScreen } from "./TasasScreen.tsx";
 
 /**
- * Página de administración de tasas de cambio (F3-03, F3-04, F3-05).
+ * Tasas de cambio (F3-03 a F3-05), en el servidor desde B2-1. El permiso que se pinta aquí es
+ * solo para no ofrecer lo que no se puede: quien decide al capturar y al confirmar es el servidor.
  */
-export function TasasPage() {
+export function TasasPage({ autorizadores }: { autorizadores: { id: string; nombre: string }[] }) {
   const actor = useActorEnSesion();
-  const operador = useOperador();
+  const branchId = useSucursalDeSesion();
+  if (!actor || !branchId) return null;
 
-  if (!actor || !operador) return null;
-
-  const permiso = can(actor, "tasa.confirmar");
-  const puedeConfirmar = permiso !== "DENEGADO";
-
-  return <TasasScreen puedeConfirmar={puedeConfirmar} actorName={operador.nombre} />;
+  return (
+    <TasasScreen permiso={can(actor, "tasa.confirmar", { branchId })} autorizadores={autorizadores} />
+  );
 }

@@ -26,7 +26,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Etapas 0 y 1 hechas (identidad comprobada en el navegador). Sin modo demo.**
+**Etapas 0 y 1 hechas. Etapa 2 empezada: las tasas ya son de la base (B2-1). Sin modo demo.**
 
 - **Infraestructura local:** `pnpm infra:up` (PostgreSQL 17 en el 5433, Valkey 8), `pnpm db:migrar`,
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
@@ -35,15 +35,16 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
   `@l2/observability` (logs redactados, entorno validado). La web lee la sesión de cookies `httpOnly`
   y recibe el actor COMPLETO del servidor: menús y guardias ya no lo calculan en el navegador.
 - **Ya van contra la base:** acceso (equipo + PIN), tarifario, Dispositivos, Usuarios y permisos, Roles
-  y accesos. **Todo lo demás sigue en datos provisionales** (`apps/web/src/demo`, cada archivo con el
+  y accesos, Tasas de cambio (y la tasa de la barra, la caja e Inicio). **Sin tasa del día
+  confirmada, la caja no cobra en bolívares:** en local, cargarla cada día en Panel → Caja → Tasas. **Todo lo demás sigue en datos provisionales** (`apps/web/src/demo`, cada archivo con el
   paso que lo borra) y en el bus de operación entre pestañas (`features/operacion`).
 - **Entrar en local:** navegador nuevo = equipo desconocido → «Pedir registro» en `/acceso` →
   `pnpm equipos aprobar "<nombre>"` → persona → PIN 1970. Configuración, precios y personas piden
   confirmar identidad: contraseña `abby-kingdom-desarrollo` + código de `pnpm totp`.
-- **Pruebas:** `pnpm verify:db` en verde (23 de base, 63 de aplicación). CI escrito, nunca visto en
+- **Pruebas:** `pnpm verify:db` en verde (26 de base, 83 de aplicación). CI escrito, nunca visto en
   GitHub: hay commits sin subir (no se ha hecho push).
 
-**Siguiente paso:** Etapa 2, B2-1 (tasas).
+**Siguiente paso:** B2-2 (impuestos con vigencia y la pantalla Configuración → Impuestos).
 
 ---
 
@@ -160,9 +161,20 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 ### Etapa 2 · Dinero (F3, sin lo fiscal)
 
-- [ ] **B2-1 · Tasas** (`ExchangeRate`): historial inmutable, carga manual con confirmación y doble
+- [x] **B2-1 · Tasas** (`ExchangeRate`): historial inmutable, carga manual con confirmación y doble
   verificación sobre el umbral, y fail-closed sin tasa del día (F3-03, F3-05, ADR-005). La
   sincronización con el BCV (F3-04) puede llegar después: para el piloto basta la carga manual.
+  *Hecho el 2026-09-26: tablas `exchange_rate` y `exchange_rate_confirmation`, las dos de
+  solo-agregar y con RLS (confirmar AÑADE un hecho; el valor es texto exacto con CHECK distinto de
+  cero). Cada tasa lleva su **fecha valor** (`effectiveDate`, el `effectiveFrom` de §5.2): se captura
+  para hoy o hasta 7 días por delante, y la caja cobra solo con `rateOfDay`, la del día confirmada;
+  la de ayer bloquea. Capturan administración y supervisión (quien cobra, no); confirma
+  administración, y supervisión con autorización 🔐 (PIN de quien autoriza, antes de ejecutar).
+  Salto de más del 10 % o primera tasa del par: se teclea otra vez y debe coincidir. Quién captura
+  y confirma lo pone el servidor, no el navegador. 20 pruebas de aplicación y 3 de base. Comprobado
+  en el navegador con tres equipos: caja «Sin tasa» → capturar → confirmar (un valor mal tecleado
+  se rechaza) → la caja cobra con Bs. 228,41 → supervisión confirma otra con autorización. Inicio
+  del panel lee la misma tasa. Se borra `src/demo/tasas.ts`.*
 - [ ] **B2-2 · Impuestos con vigencia** persistidos, más la pantalla **Configuración → Impuestos**
   (contrato `impuestos.ts`).
   → Programar una alícuota con fecha de hoy cambia el ticket; con fecha del mes que viene, no.
@@ -286,6 +298,9 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | El diálogo de anular un cobro desplaza para llegar al PIN a 1366×768 | B3-4 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
+| El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | B4-4 (ajustes del local) |
+| El «día» de la tasa es el del calendario del local, no el que declara el turno (ADR-009) | B2-4 |
+| Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | Confirmar con el cliente |
 
 **Trampas del código.** Ninguna la caza `pnpm typecheck`; todas se ven abriendo la pantalla.
 
@@ -336,6 +351,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   la ruta. Se retiran; queda el bus de operación. ADR-018: sesión propia en vez de Better Auth.
 - **2026-09-27** · Etapa 1: auditoría (B1-1), equipos y sesiones (B1-3, B1-4), elevación con TOTP
   (B1-2) y personas/permisos/accesos/autorización (B1-5, falta el navegador).
+- **2026-09-26** · B1-5 comprobado en el navegador: Etapa 1 cerrada. B2-1: tasas en la base con
+  fecha valor; la caja cobra solo con la del día confirmada.
 
 ---
 

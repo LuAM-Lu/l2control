@@ -13,7 +13,6 @@ import {
   ConfirmarTasaCommandSchema,
   ExchangeRateSchema,
   HistorialTasasSchema,
-  TasaCommandSchema,
 } from "./tasas.ts";
 
 const capturada = {
@@ -22,6 +21,7 @@ const capturada = {
   value: "228.41",
   source: "BCV",
   capturedAt: "2026-09-18T12:00:00.000Z",
+  effectiveDate: "2026-09-18",
   capturedBy: "Sincronización BCV",
   confirmed: false,
 } as const;
@@ -63,6 +63,14 @@ describe("una tasa capturada (F3-03)", () => {
     assert.equal(ExchangeRateSchema.safeParse(sinCuando).success, false);
   });
 
+  test("dice para qué día vale, como fecha de calendario", () => {
+    const { effectiveDate: _fuera, ...sinDia } = capturada;
+    assert.equal(ExchangeRateSchema.safeParse(sinDia).success, false);
+    for (const effectiveDate of ["18/09/2026", "2026-09-18T00:00:00.000Z", "2026-02-30"]) {
+      assert.equal(ExchangeRateSchema.safeParse({ ...capturada, effectiveDate }).success, false);
+    }
+  });
+
   test("una firma sobre una tasa sin confirmar tampoco: es un estado a medias", () => {
     const r = ExchangeRateSchema.safeParse({ ...confirmada, confirmed: false });
     assert.equal(r.success, false);
@@ -70,7 +78,7 @@ describe("una tasa capturada (F3-03)", () => {
 });
 
 describe("el historial (F3-03: inmutable)", () => {
-  const historial = { tasas: [capturada, confirmada], umbralVariacionBasisPoints: 1000 };
+  const historial = { tasas: [capturada, confirmada], umbralVariacionBasisPoints: 1000, zonaHoraria: "America/Caracas" };
 
   test("un historial con su umbral es válido", () => {
     assert.equal(HistorialTasasSchema.safeParse(historial).success, true);
@@ -108,59 +116,33 @@ describe("el historial (F3-03: inmutable)", () => {
 });
 
 describe("los mandos: capturar y confirmar (F3-04)", () => {
-  test("capturar dice el par, el valor, la fuente y quién", () => {
-    const r = CapturarTasaCommandSchema.safeParse({
-      pair: "USD/VES",
-      value: "228.41",
-      source: "MANUAL",
-      capturedBy: "Abigail Karam",
-    });
-    assert.equal(r.success, true);
+  const captura = { pair: "USD/VES", value: "228.41", source: "MANUAL", effectiveDate: "2026-09-18" };
+
+  test("capturar dice el par, el valor, la fuente y el día", () => {
+    assert.equal(CapturarTasaCommandSchema.safeParse(captura).success, true);
+    const { effectiveDate: _fuera, ...sinDia } = captura;
+    assert.equal(CapturarTasaCommandSchema.safeParse(sinDia).success, false);
   });
 
   test("capturar NO puede traer la tasa ya confirmada: eso lo decide una persona", () => {
-    const r = CapturarTasaCommandSchema.safeParse({
-      pair: "USD/VES",
-      value: "228.41",
-      source: "BCV",
-      capturedBy: "Sincronización BCV",
-      confirmed: true,
-    });
-    assert.equal(r.success, false);
+    assert.equal(CapturarTasaCommandSchema.safeParse({ ...captura, confirmed: true }).success, false);
+  });
+
+  test("ningún mando dice quién lo da: el navegador no declara identidades", () => {
+    assert.equal(CapturarTasaCommandSchema.safeParse({ ...captura, capturedBy: "Abigail Karam" }).success, false);
+    assert.equal(
+      ConfirmarTasaCommandSchema.safeParse({ rateId: "r1", confirmadaPor: "Abigail Karam" }).success,
+      false,
+    );
   });
 
   test("confirmar puede llevar el valor tecleado de nuevo (doble verificación)", () => {
-    assert.equal(
-      ConfirmarTasaCommandSchema.safeParse({
-        rateId: "r1",
-        confirmadaPor: "Abigail Karam",
-        valorVerificado: "228.41",
-      }).success,
-      true,
-    );
-    assert.equal(
-      ConfirmarTasaCommandSchema.safeParse({ rateId: "r1", confirmadaPor: "Abigail Karam" }).success,
-      true,
-    );
+    assert.equal(ConfirmarTasaCommandSchema.safeParse({ rateId: "r1", valorVerificado: "228.41" }).success, true);
+    assert.equal(ConfirmarTasaCommandSchema.safeParse({ rateId: "r1" }).success, true);
   });
 
-  test("confirmar sin decir quién no pasa", () => {
-    assert.equal(ConfirmarTasaCommandSchema.safeParse({ rateId: "r1" }).success, false);
-  });
-
-  test("no existe un mando para editar ni para borrar una tasa (regla 5)", () => {
-    for (const kind of ["EDITAR", "BORRAR", "ANULAR"]) {
-      assert.equal(TasaCommandSchema.safeParse({ kind, rateId: "r1" }).success, false);
-    }
-    assert.equal(
-      TasaCommandSchema.safeParse({
-        kind: "CAPTURAR",
-        pair: "USD/VES",
-        value: "228.41",
-        source: "MANUAL",
-        capturedBy: "Abigail Karam",
-      }).success,
-      true,
-    );
+  test("no hay mando para editar ni borrar una tasa (regla 5): ni el valor ni el día se cambian al confirmar", () => {
+    assert.equal(ConfirmarTasaCommandSchema.safeParse({ rateId: "r1", value: "300.00" }).success, false);
+    assert.equal(ConfirmarTasaCommandSchema.safeParse({ rateId: "r1", effectiveDate: "2026-09-19" }).success, false);
   });
 });

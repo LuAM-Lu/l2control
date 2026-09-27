@@ -209,6 +209,9 @@ importers:
       '@l2/domain-identity':
         specifier: workspace:*
         version: link:../domain/identity
+      '@l2/domain-rates':
+        specifier: workspace:*
+        version: link:../domain/rates
       '@l2/observability':
         specifier: workspace:*
         version: link:../observability

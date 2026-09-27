@@ -12,7 +12,8 @@
  *  1. Una tasa es un registro histórico: no se corrige, se captura otra. Nada
  *     de lo que hay aquí modifica un historial.
  *  2. Sin tasa confirmada, `currentRate` devuelve `null`. Nunca cero, nunca la
- *     de ayer en silencio, nunca un valor por defecto (regla fail-closed).
+ *     de ayer en silencio, nunca un valor por defecto (regla fail-closed). Para
+ *     cobrar se usa `rateOfDay`, que además exige que valga para el día en curso.
  *  3. El instante entra como argumento (ADR-010): una tasa capturada para
  *     mañana no está vigente hoy, y este módulo no tiene reloj para saberlo.
  *  4. La aritmética es exacta y entera. Una tasa con ocho decimales no se
@@ -41,6 +42,12 @@ export type RateRecord = Readonly<{
   source: RateSource;
   /** Cuándo se capturó, en ISO. */
   capturedAt: string;
+  /**
+   * El día para el que vale («fecha valor», `AAAA-MM-DD`): el `effectiveFrom` de §5.2. El BCV
+   * publica por la tarde la tasa del día hábil siguiente, así que capturar no es lo mismo que
+   * entrar en vigor. Se cobra solo con la del día en curso (ADR-005).
+   */
+  effectiveDate: string;
   /** Sin confirmar no se cobra con ella (§5.2, ADR-005). */
   confirmed: boolean;
 }>;
@@ -160,6 +167,52 @@ export function currentRate(
     }
   }
   return vigente;
+}
+
+const DIA = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * La tasa con la que se cobra: la **del día** `day`, confirmada.
+ *
+ * Es `currentRate` con una condición más, la que §5.2 repite porque se olvida: la tasa tiene que
+ * valer para el día de negocio en curso. La de ayer no sirve aunque sea la última confirmada: el
+ * cobro se bloquea (`null`) hasta que alguien confirme la de hoy. Nunca la de ayer en silencio.
+ *
+ * Si hay varias confirmadas para ese día, gana la capturada más tarde: capturar otra es la única
+ * forma de corregir una tasa (regla 5).
+ */
+export function rateOfDay(
+  history: readonly RateRecord[],
+  pair: RatePair,
+  day: string,
+  now: string,
+): RateRecord | null {
+  if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
+  return currentRate(
+    history.filter((t) => t.effectiveDate === day),
+    pair,
+    now,
+  );
+}
+
+/**
+ * El día de calendario (`AAAA-MM-DD`) de un instante en la zona horaria del local.
+ *
+ * Hasta que el turno declare su día de negocio (B2-4, ADR-009), el día de la tasa es el del
+ * calendario del local. Sin reloj: el instante entra como argumento.
+ */
+export function calendarDay(instant: string, timeZone: string): string {
+  const t = Date.parse(instant);
+  if (Number.isNaN(t)) throw new InvalidRateError(`Instante no válido: "${instant}".`);
+  // `en-CA` escribe las fechas como AAAA-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
+}
+
+/** `day` más `n` días, sin zonas horarias de por medio: es aritmética de calendario. */
+export function addDays(day: string, n: number): string {
+  if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
+  const t = Date.parse(`${day}T00:00:00.000Z`) + n * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
 }
 
 /**

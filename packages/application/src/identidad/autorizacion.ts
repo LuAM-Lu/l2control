@@ -69,3 +69,31 @@ export async function exigirPermisoOAutorizacion(
   await auditar(tx, ctx, { action: "autorizacion.conceder", authorizedBy: autorizadorId, reason: motivo, after: { accion } });
   return { ok: true, autorizadoPor: autorizadorId };
 }
+
+/**
+ * Quiénes pueden autorizar a quien opera en `ctx` a hacer `accion`: lo que la pantalla ofrece en
+ * «Quién autoriza». Vacío si no le hace falta autorización (o si no puede ni pidiéndola). Es una
+ * lista para elegir, no un permiso: el que decide es `exigirPermisoOAutorizacion` al ejecutar.
+ */
+export async function autorizadoresPara(
+  tx: Transaccion,
+  ctx: Contexto,
+  accion: Action,
+): Promise<{ id: string; nombre: string }[]> {
+  if (!ctx.quien?.userId) return [];
+  const solicitante = await cargarActor(tx, ctx.quien.userId, ctx.branchId);
+  if (!solicitante) return [];
+  const personas = await tx.staffUser.findMany({
+    where: { active: true, branches: { some: { branchId: ctx.branchId } } },
+    select: { id: true, fullName: true },
+    orderBy: { fullName: "asc" },
+  });
+  const lista: { id: string; nombre: string }[] = [];
+  for (const p of personas) {
+    const actor = await cargarActor(tx, p.id, ctx.branchId);
+    if (actor && canAuthorize(actor, solicitante, accion, { branchId: ctx.branchId })) {
+      lista.push({ id: p.id, nombre: p.fullName });
+    }
+  }
+  return lista;
+}

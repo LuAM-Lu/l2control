@@ -8,12 +8,14 @@
 export {
   IdSchema,
   TimestampSchema,
+  FechaSchema,
   CurrencySchema,
   MoneySchema,
   IdempotencyKeySchema,
   ApiErrorSchema,
   type Id,
   type Timestamp,
+  type Fecha,
   type Currency,
   type MoneyDto,
   type IdempotencyKey,
@@ -67,14 +69,12 @@ export {
   HistorialTasasSchema,
   CapturarTasaCommandSchema,
   ConfirmarTasaCommandSchema,
-  TasaCommandSchema,
   type RatePair,
   type RateSource,
   type ExchangeRateDto,
   type HistorialTasasDto,
   type CapturarTasaCommand,
   type ConfirmarTasaCommand,
-  type TasaCommand,
 } from "./tasas.ts";
 
 export {

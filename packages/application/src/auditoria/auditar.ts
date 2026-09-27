@@ -19,6 +19,8 @@ import type { Contexto } from "../contexto.ts";
  */
 export type AccionAuditada =
   | "tarifario.publicar"
+  | "tasa.capturar"
+  | "tasa.confirmar"
   | "sesion.abrir"
   | "sesion.cerrar"
   | "sesion.pin_fallido"

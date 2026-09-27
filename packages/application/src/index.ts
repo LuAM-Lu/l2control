@@ -16,6 +16,7 @@ import { casosEquipo, type CasosEquipo } from "./identidad/equipo.ts";
 import { casosElevacion, type CasosElevacion } from "./identidad/elevacion.ts";
 import { crearCifrador } from "./identidad/cifrado.ts";
 import { casosAccesos, type CasosAccesos } from "./identidad/accesos.ts";
+import { casosTasas, type CasosTasas } from "./dinero/tasas.ts";
 
 export type { Contexto } from "./contexto.ts";
 export type { CasosTarifario } from "./park/tarifario.ts";
@@ -25,6 +26,7 @@ export type { AccionAuditada } from "./auditoria/auditar.ts";
 export type { CasosDispositivos, EstadoDispositivo, Lugar } from "./identidad/dispositivos.ts";
 export type { CambioHecho, CasosEquipo, PersonaASembrar } from "./identidad/equipo.ts";
 export type { CasosAccesos } from "./identidad/accesos.ts";
+export { DIAS_POR_ADELANTADO, UMBRAL_VARIACION_BPS, ZONA_DEL_LOCAL, type CasosTasas } from "./dinero/tasas.ts";
 export { AutorizacionSchema, exigirPermisoOAutorizacion, type Autorizacion } from "./identidad/autorizacion.ts";
 export { ELEVACION_MS, type CasosElevacion, type CredencialesNuevas } from "./identidad/elevacion.ts";
 export {
@@ -46,6 +48,7 @@ export interface Aplicacion {
   readonly equipo: CasosEquipo;
   readonly elevacion: CasosElevacion;
   readonly accesos: CasosAccesos;
+  readonly tasas: CasosTasas;
   cerrar(): Promise<void>;
 }
 
@@ -72,6 +75,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     equipo: casosEquipo(base),
     elevacion: casosElevacion(base, sesiones, cifrador),
     accesos: casosAccesos(base),
+    tasas: casosTasas(base),
     cerrar: () => base.cerrar(),
   };
 }

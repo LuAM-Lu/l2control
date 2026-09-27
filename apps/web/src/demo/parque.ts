@@ -51,19 +51,9 @@ export function demoSnapshot(serverNow: number, policy: ParkPolicyDto): MonitorS
     serverNow: new Date(serverNow).toISOString(),
     shiftLabel: "Turno tarde · abierto 14:00",
     policy,
-    rate: {
-      id: "rate-1",
-      pair: "USD/VES",
-      value: "228.41",
-      source: "BCV",
-      capturedAt: new Date(serverNow - 6 * 60 * MIN).toISOString(),
-      capturedBy: "Sincronización BCV",
-      // Confirmada por una persona, con su firma: el contrato ya no admite una
-      // tasa confirmada que no diga quién la confirmó y cuándo (§5.2, §7.4).
-      confirmed: true,
-      confirmedBy: "Abigail Karam",
-      confirmedAt: new Date(serverNow - 5 * 60 * MIN).toISOString(),
-    },
+    // La tasa ya es de la base (B2-1): quien la necesite la lee de `TasasProvider` o de
+    // `historialDeTasas()`. Aquí no se inventa una.
+    rate: null,
     sessions: [
       {
         id: "s1",

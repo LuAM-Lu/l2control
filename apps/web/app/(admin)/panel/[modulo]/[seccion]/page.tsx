@@ -12,6 +12,7 @@ import { accesosDelLocal, directorioDelLocal } from "../../../../../src/features
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
+import { autorizadoresDeTasa } from "../../../../../src/features/cash/tasas.servidor";
 import { MediosPage } from "../../../../../src/features/cash/MediosPage";
 
 /**
@@ -28,7 +29,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "parque/tarifas": () => <EditorTarifario />,
   "personas/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
   "personas/representantes": () => <RepresentantesPage />,
-  "caja/tasas": () => <TasasPage />,
+  "caja/tasas": async () => <TasasPage autorizadores={await autorizadoresDeTasa()} />,
   "caja/medios": () => <MediosPage />,
   "configuracion/sucursal": () => <EditorSucursal />,
   "configuracion/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
