@@ -554,6 +554,9 @@ function EquipoPendiente({ nombre, codigo, caducada }: { nombre: string; codigo:
     setEnviando(false);
     if (!r) return setError("El servidor no respondió. Inténtalo de nuevo.");
     if (!r.ok) {
+      // Se vacían los dos: una contraseña mala que se queda en el campo (oculta tras los puntos)
+      // hace fallar también el siguiente intento, y cada fallo acerca el bloqueo del equipo.
+      setContrasena("");
       setTotp("");
       return setError(r.mensaje);
     }
