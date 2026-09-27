@@ -301,6 +301,9 @@ importers:
       '@l2/domain-money':
         specifier: workspace:*
         version: link:../money
+      '@l2/domain-tax':
+        specifier: workspace:*
+        version: link:../tax
     devDependencies:
       '@l2/config':
         specifier: workspace:*

@@ -13,7 +13,8 @@
   },
   "comment": "Aquí vive la invariante de cierre: si lo pagado no cuadra con lo debido más vuelto, propina y residuo, el cobro NO se confirma. Nunca se ajusta la diferencia en silencio.",
   "dependencies": {
-    "@l2/domain-money": "workspace:*"
+    "@l2/domain-money": "workspace:*",
+    "@l2/domain-tax": "workspace:*"
   },
   "devDependencies": {
     "@l2/config": "workspace:*",
