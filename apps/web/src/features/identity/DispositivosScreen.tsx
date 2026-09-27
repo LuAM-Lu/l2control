@@ -53,7 +53,7 @@ export function DispositivosScreen({
       <PageHeader
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
-          { texto: "Personas", href: "/panel/personas" },
+          { texto: "Ajustes", href: "/panel/ajustes" },
           { texto: "Dispositivos" },
         ]}
         titulo="Dispositivos"

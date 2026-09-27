@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { SeccionPendienteScreen } from "../../../../../src/features/shell/SeccionPendienteScreen";
-import { buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
+import { RUTAS_MOVIDAS, buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
 import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
 import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
 import { EditorCarta } from "../../../../../src/features/mesas/EditorCarta";
@@ -23,22 +23,22 @@ import { feriadosDelLocal } from "../../../../../src/features/cash/feriados.serv
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
  *
  * Viven aquí, bajo la ruta dinámica, y no en carpetas estáticas hermanas: una
- * carpeta `personas/` junto a `[modulo]/` haría que `/panel/personas` dejara
+ * carpeta `ajustes/` junto a `[modulo]/` haría que `/panel/ajustes` dejara
  * de encontrar la página del módulo. Añadir una pantalla es una línea.
  */
 const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.ReactNode>>> = {
-  "personas/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} />,
-  "restaurante/plano": () => <EditorPlano />,
-  "restaurante/carta": () => <EditorCarta />,
-  "parque/tarifas": () => <EditorTarifario />,
-  "personas/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
-  "personas/representantes": () => <RepresentantesPage />,
-  "caja/tasas": async () => <TasasPage autorizadores={await autorizadoresDeTasa()} />,
-  "caja/medios": () => <MediosPage />,
-  "configuracion/sucursal": () => <EditorSucursal />,
-  "configuracion/impuestos": async () => <ImpuestosScreen impuestos={await impuestosDelLocal()} />,
-  "configuracion/feriados": async () => <FeriadosScreen feriados={await feriadosDelLocal()} />,
-  "configuracion/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
+  "parque/representantes": () => <RepresentantesPage />,
+  "ajustes/tarifas": () => <EditorTarifario />,
+  "ajustes/carta": () => <EditorCarta />,
+  "ajustes/plano": () => <EditorPlano />,
+  "ajustes/medios": () => <MediosPage />,
+  "ajustes/tasas": async () => <TasasPage autorizadores={await autorizadoresDeTasa()} />,
+  "ajustes/impuestos": async () => <ImpuestosScreen impuestos={await impuestosDelLocal()} />,
+  "ajustes/feriados": async () => <FeriadosScreen feriados={await feriadosDelLocal()} />,
+  "ajustes/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} />,
+  "ajustes/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
+  "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
+  "ajustes/sucursal": () => <EditorSucursal />,
 };
 
 /**
@@ -55,6 +55,9 @@ export default async function SeccionPage({
   params: Promise<{ modulo: string; seccion: string }>;
 }) {
   const { modulo: moduloId, seccion: seccionId } = await params;
+  // Lo que se mudó con M-13 (Ajustes, Turno) lleva a su sitio nuevo.
+  const movida = RUTAS_MOVIDAS[`${moduloId}/${seccionId}`];
+  if (movida) redirect(movida);
   const modulo = buscarModulo(moduloId);
   if (!modulo) notFound();
 

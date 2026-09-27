@@ -86,7 +86,7 @@ export function EditorCarta() {
       <PageHeader
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
-          { texto: "Restaurante", href: "/panel/restaurante" },
+          { texto: "Ajustes", href: "/panel/ajustes" },
           { texto: "Carta y precios" },
         ]}
         titulo="Carta y precios"

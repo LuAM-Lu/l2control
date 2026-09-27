@@ -173,7 +173,7 @@ export function UsuariosScreen({
       <PageHeader
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
-          { texto: "Personas", href: "/panel/personas" },
+          { texto: "Ajustes", href: "/panel/ajustes" },
           { texto: "Usuarios y permisos" },
         ]}
         titulo="Usuarios y permisos"

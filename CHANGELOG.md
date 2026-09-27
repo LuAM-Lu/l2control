@@ -12,6 +12,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.22.0] — 2026-09-27 · Etapa 3 · Caja
+
+T-6 · Menú por operación (M-13). La ruta pasa a 48 pasos.
+
+### Cambiado
+- El menú del panel pone arriba lo que se opera: Inicio, Parque, Restaurante, Caja e Inventario. Todo
+  lo que se configura de vez en cuando está abajo, en **Ajustes**, agrupado: Parque y restaurante
+  (tarifas, carta, plano), Dinero (medios de pago, tasas, impuestos, feriados), Equipo (usuarios,
+  dispositivos, roles y accesos) y El local (sucursal, impresoras). Representantes y niños pasa a
+  Parque.
+- La caja tiene dos pestañas: **Cobrar | Turno**. Turno reúne lo que antes eran «Ventas del turno» y
+  «Turnos y cortes»: el resumen del turno (fondo, lo cobrado por medio, excepciones), las ventas con
+  su recibo y, al pie, «Cerrar turno», que lleva al arqueo.
+- Las direcciones viejas (Configuración, Personas, las secciones que se movieron y `/ventas`) llevan
+  solas a su sitio nuevo.
+
 ## [0.21.0] — 2026-09-27 · Etapa 3 · Caja
 
 B3-2 · Medios de pago, terminales y datos de cobro en el servidor.

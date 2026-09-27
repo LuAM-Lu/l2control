@@ -10,7 +10,8 @@
 > cocina y caja ya está en [FLUJOS.md](FLUJOS.md) (flujos A a E) y no se repite: aquí se añade lo
 > que la jornada exige alrededor. Las decisiones que salen de aquí se registran en
 > [MAESTRO.md](MAESTRO.md) §2 (M-13) y sus pasos en §3. Como FLUJOS, este documento es de
-> referencia: se corrige después del día simulado (§8) y no se edita en cada sesión.
+> referencia: se corrige cuando un paso de la ruta resuelve algo de su §7, y no se edita en cada
+> sesión.
 >
 > Escrito el 2026-09-27, tras tres rondas de preguntas con el cliente.
 
@@ -24,8 +25,9 @@
    ocurren, nunca en medio del recorrido.
 3. **Fail-closed sin paralizar.** Lo que falta bloquea **solo lo que depende de ello** y lo dice con
    un enlace para arreglarlo: sin tasa no se cobra en bolívares, pero en dólares sí.
-4. **Se valida recorriéndolo.** Un día simulado de principio a fin, juntos (§8); después, cada
-   momento es una prueba de punta a punta con Playwright.
+4. **Se valida con el sistema real.** Sin ensayos en papel (decisión del cliente, 2026-09-27): cada
+   momento es una prueba de punta a punta con Playwright en cuanto su paso existe (§8), y lo abierto
+   se decide con el cliente cuando su paso llega.
 
 ```mermaid
 flowchart LR
@@ -185,7 +187,7 @@ con su autorización y el mismo arqueo.
 
 ---
 
-## 7. Abierto, para el día simulado
+## 7. Abierto: se pregunta al cliente cuando llegue su paso
 
 1. **Una familia se va sin pagar**, o una cuenta no se puede cobrar al cierre: ¿cuenta incobrable
    con motivo y 🔐, que sale en las excepciones?
@@ -199,9 +201,7 @@ con su autorización y el mismo arqueo.
 
 ## 8. Cómo se valida
 
-1. **Día simulado, en papel y juntos:** un domingo cualquiera, de la apertura al cierre, con una
-   familia del flujo A, un relevo de caja a mediodía y un cierre con un niño todavía en sala. Cada
-   paso que no encaje se anota como hallazgo y se corrige aquí.
-2. **Pruebas de punta a punta** (Playwright): *instalar* (P1–P6), *abrir* (A1–A6), *relevo* (R1–R5)
+1. **Pruebas de punta a punta** (Playwright): *instalar* (P1–P6), *abrir* (A1–A6), *relevo* (R1–R5)
    y *cerrar* (C1–C7), cada una en cuanto su paso de la ruta exista. La de cerrar crece con cada
    módulo que añade pendientes.
+2. **Lo que no encaje** al construir un momento se corrige aquí y se registra en MAESTRO.

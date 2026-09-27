@@ -8,7 +8,7 @@ import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
 import type { AnulacionDto, UserSummaryDto, VentaCerradaDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { Button, Container, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { Button, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { useOperador } from "../identity/operador.ts";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
@@ -22,7 +22,8 @@ import { ReciboDialog, ReciboImpreso } from "./ReciboDialog.tsx";
 import { useVentas } from "./VentasProvider.tsx";
 
 /**
- * Ventas del turno — UX-MEJORAS §9 (C12).
+ * Ventas del turno — UX-MEJORAS §9 (C12). Desde M-13 viven dentro de la sección Turno, entre el
+ * resumen del turno y su cierre: esta pieza no tiene página propia.
  *
  * Maestro-detalle, como la caja: a la izquierda los cobros cerrados, del más
  * reciente al más antiguo; a la derecha el recibo de la elegida, tal como sale
@@ -52,7 +53,7 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
   });
 }
 
-export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[] }) {
+export function VentasDelTurno({ usuarios, className }: { usuarios: readonly UserSummaryDto[]; className?: string }) {
   const { ventas, anotarImpresion, anular } = useVentas();
   const { cuentas, guardar } = useCuentas();
   const router = useRouter();
@@ -131,13 +132,8 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <h1 className="sr-only">Ventas del turno</h1>
-      <Container
-        as="main"
-        ancho="muro"
-        className="grid flex-1 gap-4 py-4 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_clamp(340px,28vw,420px)]"
-      >
+    <>
+      <div className={cn("grid min-w-0 gap-4 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_clamp(300px,26vw,400px)]", className)}>
         {/* ══════════════ la lista ══════════════ */}
         <section
           aria-label="Ventas cerradas"
@@ -370,7 +366,7 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
             <p className="m-auto px-6 py-10 text-center text-[13px] text-ink-3">Elige una venta para ver su recibo.</p>
           )}
         </aside>
-      </Container>
+      </div>
 
       <AnularCobroDialog
         venta={anulando && actual && !actual.voided ? actual : null}
@@ -393,6 +389,6 @@ export function VentasScreen({ usuarios }: { usuarios: readonly UserSummaryDto[]
         }
         onCerrar={() => setEnviando(false)}
       />
-    </div>
+    </>
   );
 }

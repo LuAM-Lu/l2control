@@ -18,7 +18,7 @@ export async function tarifarioVigente(): Promise<TarifarioPublicadoDto> {
   if (!vigente) {
     throw new Error(
       "Esta sucursal no tiene tarifario publicado. En desarrollo: `pnpm db:semilla`. " +
-        "En un local nuevo, publícalo desde Panel → Parque → Tarifas y paquetes.",
+        "En un local nuevo, publícalo desde Panel → Ajustes → Tarifas y paquetes.",
     );
   }
   return vigente;

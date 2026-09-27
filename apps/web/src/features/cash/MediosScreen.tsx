@@ -53,7 +53,7 @@ export function MediosScreen({ puedeModificar }: { puedeModificar: boolean }) {
 
   const cabecera = (
     <PageHeader
-      migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Caja", href: "/panel/caja" }, { texto: "Medios de pago" }]}
+      migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Medios de pago" }]}
       titulo="Medios de pago"
       descripcion="Qué se cobra en caja, con qué datos del local y por qué terminales. Los cambios llegan a la caja al navegar y piden confirmar tu identidad."
     />

@@ -28,8 +28,6 @@ export const SUPERFICIE_DE_RUTA: Readonly<Record<string, SurfaceId>> = {
   "/entrada": "entrada",
   "/salida": "salida",
   "/caja": "caja",
-  // Ventas del turno: quien cobra ve lo que cobró (C12).
-  "/ventas": "caja",
   "/turno": "turno",
   "/mesas": "mesas",
   "/cocina": "kds",

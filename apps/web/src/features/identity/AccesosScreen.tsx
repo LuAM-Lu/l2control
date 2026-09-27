@@ -197,7 +197,7 @@ export function AccesosScreen({
       <PageHeader
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
-          { texto: "Configuración", href: "/panel/configuracion" },
+          { texto: "Ajustes", href: "/panel/ajustes" },
           { texto: "Roles y accesos" },
         ]}
         titulo="Roles y accesos"

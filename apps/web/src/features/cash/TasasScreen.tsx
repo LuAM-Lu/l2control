@@ -186,7 +186,7 @@ export function TasasScreen({
   return (
     <Container ancho="panel" className="py-8">
       <PageHeader
-        migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Caja" }, { texto: "Tasas de cambio" }]}
+        migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Tasas de cambio" }]}
         titulo="Tasas de cambio"
         descripcion="La caja cobra con la tasa vigente: la de la fecha valor de hoy (la del viernes cubre el fin de semana). La del BCV se aplica sola y llega a todas las pantallas en menos de un minuto. Sin tasa vigente no se cobra en bolívares: nunca con la de ayer ni con un valor por defecto."
         meta={

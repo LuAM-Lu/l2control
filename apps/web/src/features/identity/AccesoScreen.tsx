@@ -526,7 +526,7 @@ function PanelMarca({ estado, extra }: { estado: ReactNode; extra?: ReactNode })
 
 /**
  * El alta de un equipo (F2-02, M-7, T-3): sin registrar, pide su registro; pendiente, enseña su
- * código de emparejamiento, que quien aprueba compara en Panel → Personas → Dispositivos. Nunca
+ * código de emparejamiento, que quien aprueba compara en Panel → Ajustes → Dispositivos. Nunca
  * enseña nombres de personas: el equipo aún no es de confianza.
  *
  * «Soy de administración» está desde la primera pantalla: quien estrena el primer equipo de un
@@ -721,8 +721,8 @@ function AltaDeEquipo({
             )}
             <p className="text-[12.5px] text-ink-3">
               {registrado
-                ? "Desde un equipo ya aprobado: Panel → Personas → Dispositivos, comprobando que el código coincide."
-                : "Después verás el código del equipo: quien lo apruebe lo compara en Panel → Personas → Dispositivos."}
+                ? "Desde un equipo ya aprobado: Panel → Ajustes → Dispositivos, comprobando que el código coincide."
+                : "Después verás el código del equipo: quien lo apruebe lo compara en Panel → Ajustes → Dispositivos."}
             </p>
           </>
         )}

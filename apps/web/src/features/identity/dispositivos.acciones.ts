@@ -13,6 +13,6 @@ export async function ordenarDispositivo(orden: unknown): Promise<Resultado<Devi
   const ctx = await contextoActual();
   if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar." };
   const r = await (await aplicacion()).dispositivos.ordenar(ctx, orden);
-  if (r.ok) revalidatePath("/panel/personas/dispositivos");
+  if (r.ok) revalidatePath("/panel/ajustes/dispositivos");
   return r;
 }

@@ -5,7 +5,6 @@ import {
   LayoutGrid,
   Package,
   Settings,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { Route } from "next";
@@ -46,6 +45,8 @@ export type Seccion = {
   tarea?: string;
   /** Qué bloquea su construcción hoy. */
   necesita?: string;
+  /** Subtítulo que agrupa secciones dentro de un módulo largo (Ajustes). */
+  grupo?: string;
 };
 
 export type Modulo = {
@@ -53,6 +54,8 @@ export type Modulo = {
   nombre: string;
   icon: LucideIcon;
   accion: Action;
+  /** «ajustes» va abajo del menú, separado de lo que se opera (M-13). Sin ella, arriba. */
+  zona?: "ajustes";
   /** Resumen de una línea; se lee en la página del módulo, bajo el título. */
   resumen: string;
   secciones: Seccion[];
@@ -71,6 +74,14 @@ export const INICIO = {
   href: "/panel" as Route,
 };
 
+/**
+ * Los módulos, en el orden del menú — M-13 (JORNADA.md §1).
+ *
+ * Arriba, lo que se OPERA durante la jornada: parque, restaurante, caja e inventario. Abajo, en
+ * «Ajustes», lo que se configura de vez en cuando (tarifas, carta, medios, tasas, impuestos,
+ * feriados, personas, equipos). Antes eran siete módulos al mismo nivel y los impuestos pesaban
+ * tanto como la caja; la app es para operar el local, y el menú lo dice.
+ */
 export const MODULOS: readonly Modulo[] = [
   {
     id: "parque",
@@ -78,7 +89,7 @@ export const MODULOS: readonly Modulo[] = [
     icon: Baby,
     accion: "parque.checkIn",
     resumen:
-      "El tiempo que se cobra. Entrada, monitor de sala con su cronómetro, salida con el desglose y las tarifas que lo rigen.",
+      "El tiempo que se cobra. Entrada, monitor de sala con su cronómetro, salida con el desglose y las familias que vuelven.",
     secciones: [
       {
         id: "sala",
@@ -103,13 +114,14 @@ export const MODULOS: readonly Modulo[] = [
         proposito: "Cerrar la estancia y calcular el excedente con su desglose.",
       },
       {
-        id: "tarifas",
-        nombre: "Tarifas y paquetes",
-        href: rutaSeccion("parque", "tarifas"),
-        accion: "catalogo.modificar",
+        id: "representantes",
+        nombre: "Representantes y niños",
+        href: rutaSeccion("parque", "representantes"),
+        // Ver el contacto de una familia es un permiso propio (§7.6).
+        accion: "parque.verContacto",
         proposito:
-          "Paquetes por tiempo, gracia, excedente, aviso y aforo. Se edita en borrador y la entrada lo usa al publicar.",
-        tarea: "F5-04",
+          "El histórico mínimo: nombre, apodo, edad y una referencia de contacto. Nada más — es lo menos sensible que permite operar (DEC-9).",
+        tarea: "F5-01",
       },
     ],
   },
@@ -130,25 +142,6 @@ export const MODULOS: readonly Modulo[] = [
           "El plano de sala: qué mesa está ocupada, desde cuándo y qué pidió. Se vincula a las pulseras de los niños y el pedido se confirma antes de ir a cocina.",
       },
       {
-        id: "plano",
-        nombre: "Plano del local",
-        href: rutaSeccion("restaurante", "plano"),
-        // D10: mover mesas es configuración del local, no operación diaria.
-        accion: "catalogo.modificar",
-        proposito:
-          "Dónde está cada mesa, su número, su zona y sus sillas. Se edita en borrador y el salón lo ve al publicar.",
-        tarea: "F6-01",
-      },
-      {
-        id: "carta",
-        nombre: "Carta y precios",
-        href: rutaSeccion("restaurante", "carta"),
-        accion: "catalogo.modificar",
-        proposito:
-          "Platos, categorías y precios. Se edita en borrador y el salón la ve al publicar. Los modificadores llegan después (F6-04).",
-        tarea: "F6-03",
-      },
-      {
         id: "comandas",
         nombre: "Comandas del día",
         href: "/cocina",
@@ -166,8 +159,7 @@ export const MODULOS: readonly Modulo[] = [
     nombre: "Caja",
     icon: CreditCard,
     accion: "documento.emitir",
-    resumen:
-      "El dinero. Cobro mixto multimoneda, turnos con su arqueo, y la tasa del día que lo gobierna todo.",
+    resumen: "El dinero. Cobro mixto multimoneda y el turno de caja, con sus ventas y su cierre.",
     secciones: [
       {
         id: "cobrar",
@@ -177,36 +169,12 @@ export const MODULOS: readonly Modulo[] = [
         proposito: "Cobro mixto con IVA, IGTF sobre el medio de pago y destino del excedente.",
       },
       {
-        id: "ventas",
-        nombre: "Ventas del turno",
-        href: "/ventas",
-        abre: "estacion",
-        proposito: "Los cobros cerrados con su recibo: buscar, reimprimir como copia y enviar por WhatsApp.",
-      },
-      {
-        id: "turnos",
-        nombre: "Turnos y cortes",
+        id: "turno",
+        nombre: "Turno",
         href: "/turno",
         abre: "estacion",
-        proposito: "Fondo inicial, arqueo a ciegas por moneda y corte Z irreversible.",
-      },
-      {
-        id: "medios",
-        nombre: "Medios de pago",
-        href: rutaSeccion("caja", "medios"),
-        accion: "catalogo.modificar",
         proposito:
-          "Qué se puede cobrar y con qué datos: medios activos, terminales del punto de venta, y el banco, el teléfono y el correo que la caja le enseña al cliente.",
-        tarea: "F4-02",
-      },
-      {
-        id: "tasas",
-        nombre: "Tasas de cambio",
-        href: rutaSeccion("caja", "tasas"),
-        accion: "tasa.confirmar",
-        proposito:
-          "Capturar la tasa del BCV, confirmarla y dejarla congelada en cada transacción. Sin tasa vigente no se cobra en bolívares.",
-        tarea: "F3-04",
+          "El turno de principio a fin: lo que hay en la gaveta y lo cobrado por medio, las ventas con su recibo (reimprimir, anular) y el cierre con su arqueo.",
       },
     ],
   },
@@ -244,24 +212,84 @@ export const MODULOS: readonly Modulo[] = [
     ],
   },
   {
-    id: "personas",
-    nombre: "Personas",
-    icon: Users,
-    accion: "parque.verContacto",
-    resumen: "Quién entra al parque, quién lo atiende y desde qué dispositivo.",
+    id: "ajustes",
+    nombre: "Ajustes",
+    icon: Settings,
+    zona: "ajustes",
+    accion: "catalogo.modificar",
+    resumen:
+      "Lo que se configura de vez en cuando y cambia cómo trabaja el local: precios, cobro, impuestos, personas y equipos.",
     secciones: [
       {
-        id: "representantes",
-        nombre: "Representantes y niños",
-        href: rutaSeccion("personas", "representantes"),
+        id: "tarifas",
+        grupo: "Parque y restaurante",
+        nombre: "Tarifas y paquetes",
+        href: rutaSeccion("ajustes", "tarifas"),
         proposito:
-          "El histórico mínimo: nombre, apodo, edad y una referencia de contacto. Nada más — es lo menos sensible que permite operar (DEC-9).",
-        tarea: "F5-01",
+          "Paquetes por tiempo, gracia, excedente, aviso y aforo. Se edita en borrador y la entrada lo usa al publicar.",
+        tarea: "F5-04",
+      },
+      {
+        id: "carta",
+        grupo: "Parque y restaurante",
+        nombre: "Carta y precios",
+        href: rutaSeccion("ajustes", "carta"),
+        proposito:
+          "Platos, categorías y precios. Se edita en borrador y el salón la ve al publicar. Los modificadores llegan después (F6-04).",
+        tarea: "F6-03",
+      },
+      {
+        id: "plano",
+        grupo: "Parque y restaurante",
+        nombre: "Plano del local",
+        href: rutaSeccion("ajustes", "plano"),
+        // D10: mover mesas es configuración del local, no operación diaria.
+        proposito:
+          "Dónde está cada mesa, su número, su zona y sus sillas. Se edita en borrador y el salón lo ve al publicar.",
+        tarea: "F6-01",
+      },
+      {
+        id: "medios",
+        grupo: "Dinero",
+        nombre: "Medios de pago",
+        href: rutaSeccion("ajustes", "medios"),
+        proposito:
+          "Qué se puede cobrar y con qué datos: medios activos, terminales del punto de venta, y el banco, el teléfono y el correo que la caja le enseña al cliente.",
+        tarea: "F4-02",
+      },
+      {
+        id: "tasas",
+        grupo: "Dinero",
+        nombre: "Tasas de cambio",
+        href: rutaSeccion("ajustes", "tasas"),
+        accion: "tasa.confirmar",
+        proposito:
+          "La tasa del BCV se aplica sola; aquí se ve su historial, se confirma la que quedó retenida y se carga a mano si la fuente falla.",
+        tarea: "F3-04",
+      },
+      {
+        id: "impuestos",
+        grupo: "Dinero",
+        nombre: "Impuestos",
+        href: rutaSeccion("ajustes", "impuestos"),
+        proposito:
+          "Tipos de IVA con su vigencia y el porcentaje de IGTF. Se versionan por fecha: un cambio no reescribe el pasado.",
+        tarea: "F3-06",
+      },
+      {
+        id: "feriados",
+        grupo: "Dinero",
+        nombre: "Feriados bancarios",
+        href: rutaSeccion("ajustes", "feriados"),
+        proposito:
+          "Los feriados bancarios de cada año, copiados del calendario de SUDEBAN. Un feriado no es día hábil: lo cubre la tasa del día hábil anterior.",
+        tarea: "B2-4",
       },
       {
         id: "usuarios",
+        grupo: "Equipo",
         nombre: "Usuarios y permisos",
-        href: rutaSeccion("personas", "usuarios"),
+        href: rutaSeccion("ajustes", "usuarios"),
         accion: "usuarios.gestionar",
         proposito:
           "Cada persona con su rol fijo, y los permisos adicionales que se le concedan uno a uno (DEC-15).",
@@ -269,28 +297,18 @@ export const MODULOS: readonly Modulo[] = [
       },
       {
         id: "dispositivos",
+        grupo: "Equipo",
         nombre: "Dispositivos",
-        href: rutaSeccion("personas", "dispositivos"),
-        // N-03: apuntaba a `/acceso`, que es la PANTALLA DE BLOQUEO del equipo.
-        // Desde el panel parecía que te cerraban la sesión. Mejor una pantalla
-        // honesta que diga qué falta que un enlace que asusta.
+        href: rutaSeccion("ajustes", "dispositivos"),
         accion: "usuarios.gestionar",
         proposito: "Los equipos autorizados, su sucursal y quién tiene sesión abierta en cada uno.",
         tarea: "F2-02",
       },
-    ],
-  },
-  {
-    id: "configuracion",
-    nombre: "Configuración",
-    icon: Settings,
-    accion: "catalogo.modificar",
-    resumen: "Los datos del negocio que casi nunca cambian, y que cambiarlos cambia todo.",
-    secciones: [
       {
         id: "accesos",
+        grupo: "Equipo",
         nombre: "Roles y accesos",
-        href: rutaSeccion("configuracion", "accesos"),
+        href: rutaSeccion("ajustes", "accesos"),
         // Quien edita esto puede abrirle el back-office a un rol entero: es de
         // administración, y el dominio impide que se regale a sí mismo la llave.
         accion: "usuarios.gestionar",
@@ -300,30 +318,16 @@ export const MODULOS: readonly Modulo[] = [
       },
       {
         id: "sucursal",
+        grupo: "El local",
         nombre: "Sucursal",
-        href: rutaSeccion("configuracion", "sucursal"),
+        href: rutaSeccion("ajustes", "sucursal"),
         proposito:
           "Datos fiscales, horario, moneda funcional, formato de hora y el umbral de vuelto que se puede dejar en caja. El aforo vive en Tarifas y paquetes.",
         tarea: "F5-08b",
       },
       {
-        id: "impuestos",
-        nombre: "Impuestos",
-        href: rutaSeccion("configuracion", "impuestos"),
-        proposito:
-          "Tipos de IVA con su vigencia y el porcentaje de IGTF. Se versionan por fecha: un cambio no reescribe el pasado.",
-        tarea: "F3-06",
-      },
-      {
-        id: "feriados",
-        nombre: "Feriados bancarios",
-        href: rutaSeccion("configuracion", "feriados"),
-        proposito:
-          "Los feriados bancarios de cada año, copiados del calendario de SUDEBAN. Un feriado no es día hábil: lo cubre la tasa del día hábil anterior.",
-        tarea: "B2-4",
-      },
-      {
         id: "impresoras",
+        grupo: "El local",
         nombre: "Impresoras",
         href: null,
         proposito: "Impresora fiscal, comandas de cocina y tickets de 58 u 80 mm.",
@@ -333,6 +337,35 @@ export const MODULOS: readonly Modulo[] = [
     ],
   },
 ];
+
+/**
+ * Direcciones que se mudaron con M-13 y adónde van ahora. Un enlace guardado, un favorito o una
+ * pestaña abierta no se rompen: la página los lleva a su sitio nuevo.
+ */
+export const RUTAS_MOVIDAS: Readonly<Record<string, Route>> = {
+  personas: rutaModulo("ajustes"),
+  configuracion: rutaModulo("ajustes"),
+  "personas/representantes": rutaSeccion("parque", "representantes"),
+  "personas/usuarios": rutaSeccion("ajustes", "usuarios"),
+  "personas/dispositivos": rutaSeccion("ajustes", "dispositivos"),
+  "configuracion/accesos": rutaSeccion("ajustes", "accesos"),
+  "configuracion/sucursal": rutaSeccion("ajustes", "sucursal"),
+  "configuracion/impuestos": rutaSeccion("ajustes", "impuestos"),
+  "configuracion/feriados": rutaSeccion("ajustes", "feriados"),
+  "configuracion/impresoras": rutaSeccion("ajustes", "impresoras"),
+  "caja/medios": rutaSeccion("ajustes", "medios"),
+  "caja/tasas": rutaSeccion("ajustes", "tasas"),
+  "caja/ventas": "/turno",
+  "caja/turnos": "/turno",
+  "parque/tarifas": rutaSeccion("ajustes", "tarifas"),
+  "restaurante/plano": rutaSeccion("ajustes", "plano"),
+  "restaurante/carta": rutaSeccion("ajustes", "carta"),
+};
+
+/** Lo de arriba del menú (operar) y lo de abajo (Ajustes), en ese orden. */
+export function modulosDeZona(modulos: readonly Modulo[], zona: "operar" | "ajustes"): Modulo[] {
+  return modulos.filter((m) => (m.zona ?? "operar") === zona);
+}
 
 /** Busca un módulo por su identificador de ruta. */
 export function buscarModulo(id: string): Modulo | undefined {

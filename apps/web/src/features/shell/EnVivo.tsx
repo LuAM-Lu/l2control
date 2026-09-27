@@ -259,7 +259,7 @@ export function EnVivo({
             ))}
           </ul>
           <Link
-            href={rutaSeccion("personas", "dispositivos")}
+            href={rutaSeccion("ajustes", "dispositivos")}
             className="relative mt-auto flex h-5 items-center gap-1 pt-1 text-[10.5px] text-ink-3 no-underline transition-colors hover:text-brand after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
           >
             Dispositivos

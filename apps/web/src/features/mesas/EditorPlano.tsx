@@ -145,7 +145,7 @@ export function EditorPlano() {
     <Container ancho="panel" className="py-8">
       <PageHeader
         migas={[
-          { texto: "Restaurante", href: "/panel/restaurante" },
+          { texto: "Ajustes", href: "/panel/ajustes" },
           { texto: "Plano del local" },
         ]}
         titulo="Plano del local"

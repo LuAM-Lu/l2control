@@ -100,7 +100,7 @@ export function FeriadosScreen({ feriados }: { feriados: FeriadosDto }) {
   return (
     <Container ancho="panel" className="py-8">
       <PageHeader
-        migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Configuración" }, { texto: "Feriados bancarios" }]}
+        migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Feriados bancarios" }]}
         titulo="Feriados bancarios"
         descripcion="Un feriado bancario no es día hábil: el BCV no publica tasa y la caja cobra con la del día hábil anterior, como en un fin de semana. Sin registrarlo, ese día exigiría cargar la tasa a mano."
       />

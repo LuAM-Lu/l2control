@@ -19,7 +19,7 @@ import { toEpochMs, toParkPolicy, toParkSession } from "../park/mappers.ts";
 import { rutaSeccion } from "./navigation.ts";
 
 /** Donde se resuelve todo lo de la tasa: la pantalla de tasas, no la caja (B2-1c). */
-const TASAS = rutaSeccion("caja", "tasas");
+const TASAS = rutaSeccion("ajustes", "tasas");
 
 /**
  * Una zona en apuros se dice con palabras, no solo con color (§8.2), y **lleva

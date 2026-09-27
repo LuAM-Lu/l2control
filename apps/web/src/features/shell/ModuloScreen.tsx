@@ -5,7 +5,7 @@ import { ArrowRight, Clock3, Maximize2 } from "lucide-react";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { puedeVerSeccion } from "../identity/visibilidad.ts";
 import { Container, PageHeader, cn } from "@l2/ui";
-import { buscarModulo, rutaSeccion } from "./navigation.ts";
+import { buscarModulo, rutaSeccion, type Seccion } from "./navigation.ts";
 import { VERSION, rotuloDeVersion } from "./version.ts";
 
 /**
@@ -44,13 +44,13 @@ export function ModuloScreen({ moduloId }: { moduloId: string }) {
         }
       />
 
-      {listas.length > 0 && (
-        <section className="mb-10">
+      {grupos(listas).map(([grupo, delGrupo]) => (
+        <section key={grupo} className="mb-10">
           <h2 className="mb-3 text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
-            Disponible
+            {grupo}
           </h2>
           <ul className="grid gap-3 sm:grid-cols-2">
-            {listas.map((s) => (
+            {delGrupo.map((s) => (
               <li key={s.id}>
                 <Link
                   href={s.href!}
@@ -82,7 +82,7 @@ export function ModuloScreen({ moduloId }: { moduloId: string }) {
             ))}
           </ul>
         </section>
-      )}
+      ))}
 
       {pendientes.length > 0 && (
         <section>
@@ -115,9 +115,21 @@ export function ModuloScreen({ moduloId }: { moduloId: string }) {
         </section>
       )}
 
-      {modulo.id === "configuracion" && <SistemaSeccion />}
+      {modulo.id === "ajustes" && <SistemaSeccion />}
     </Container>
   );
+}
+
+/**
+ * Las secciones listas, por su grupo (Ajustes) o todas bajo «Disponible», en el orden del mapa.
+ */
+function grupos(secciones: readonly Seccion[]): [string, Seccion[]][] {
+  const out = new Map<string, Seccion[]>();
+  for (const s of secciones) {
+    const g = s.grupo ?? "Disponible";
+    out.set(g, [...(out.get(g) ?? []), s]);
+  }
+  return [...out.entries()];
 }
 
 /**

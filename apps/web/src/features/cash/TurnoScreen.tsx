@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, CircleCheckBig, Lock, OctagonAlert, TriangleAlert, Wallet } from "lucide-react";
-import type { TurnoDto } from "@l2/contracts";
-import { type CurrencyCode, type Money, fromMajor, money, multiply, toMajor, zero } from "@l2/domain-money";
+import { ArrowLeft, CalendarClock, CircleCheckBig, Lock, OctagonAlert, TriangleAlert, Wallet } from "lucide-react";
+import type { TurnoDto, UserSummaryDto } from "@l2/contracts";
+import { type CurrencyCode, type Money, add, fromMajor, money, multiply, sum, toMajor, zero } from "@l2/domain-money";
 import { countDenominations, openingMovements, reconcile, tallyShift, type ShiftMovement } from "@l2/domain-cash";
 import { Badge, Button, Container, Input, MoneyDisplay, Stepper, Tabs, avisar, cn } from "@l2/ui";
 import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./turno.ts";
@@ -12,6 +12,8 @@ import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "./PuntosDeCobro.tsx";
 import { abrirTurno } from "./turno.acciones";
+import { VentasDelTurno } from "./VentasDelTurno.tsx";
+import { useVentas } from "./VentasProvider.tsx";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 
@@ -34,19 +36,23 @@ import { formatClock } from "../park/time-format.ts";
  */
 /**
  * El turno de caja del equipo (B3-1). Sin turno abierto, la pantalla es la apertura: se declara el
- * fondo de la gaveta por moneda y el servidor pone lo demás. Con turno, el arqueo; los cortes X y
- * Z guardados llegan con B3-5.
+ * fondo de la gaveta por moneda y el servidor pone lo demás. Con turno, una sola sección (M-13,
+ * JORNADA.md): el resumen, las ventas del turno y «Cerrar turno», que lleva al arqueo. Los cortes
+ * X y Z guardados llegan con B3-5.
  */
 export function TurnoScreen({
   turno,
   movements,
   excepciones,
+  usuarios,
 }: {
   /** El turno del equipo, del servidor; `null` si no hay ninguno abierto. */
   turno: TurnoDto | null;
   /** Lo cobrado en el turno, del libro (B3-5). El fondo inicial sale del propio turno. */
   movements: readonly ShiftMovement[];
   excepciones: readonly Excepcion[];
+  /** Quién puede autorizar anular un cobro (hasta B3-4, de `src/demo`). */
+  usuarios: readonly UserSummaryDto[];
 }) {
   const todos = useMemo(
     () =>
@@ -56,7 +62,7 @@ export function TurnoScreen({
     [turno, movements],
   );
   if (!turno) return <AperturaTurno />;
-  return <TurnoAbierto turno={turno} movements={todos} excepciones={excepciones} />;
+  return <TurnoAbierto turno={turno} movements={todos} excepciones={excepciones} usuarios={usuarios} />;
 }
 
 /**
@@ -172,17 +178,189 @@ function TurnoAbierto({
   turno,
   movements,
   excepciones,
+  usuarios,
 }: {
   turno: TurnoDto;
   movements: readonly ShiftMovement[];
   excepciones: readonly Excepcion[];
-  // El turno, la hora de apertura y quién está en caja los muestra la barra
-  // de estación (§8.5): repetirlos aquí era la duplicación que hacía que cada
-  // pantalla se viera distinta.
+  usuarios: readonly UserSummaryDto[];
+}) {
+  const { ajustes } = useSucursal();
+  /** «Cerrar turno» cambia la vista al arqueo; «Volver al turno» la devuelve (M-13). */
+  const [cerrando, setCerrando] = useState(false);
+  // El servidor solo devuelve el turno sin corte Z; el corte llega con B3-5.
+  const sellado = turno.estado === "CERRADO_Z";
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="border-b border-line">
+        <Container
+          ancho="muro"
+          className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3 apaisado:bajo:py-2"
+        >
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
+              {cerrando ? "Cerrar el turno" : "Turno de caja"}
+            </h1>
+            <p className="tnum flex items-center gap-1.5 text-[13px] text-ink-3">
+              <CalendarClock size={14} aria-hidden="true" />
+              Día de negocio {diaEnPalabras(turno.businessDate)} · {turno.punto} · abierto por {turno.abiertoPor.name} a las{" "}
+              {formatClock(Date.parse(turno.abiertoEn), ajustes.formatoHora)}
+            </p>
+          </div>
+          {cerrando ? (
+            <Button surface="tablet" variant="neutral" className="gap-1.5" onClick={() => setCerrando(false)}>
+              <ArrowLeft size={16} aria-hidden="true" />
+              Volver al turno
+            </Button>
+          ) : sellado ? (
+            <Badge tone="crit" icon={<Lock size={13} aria-hidden="true" />}>
+              Sellado con corte Z
+            </Badge>
+          ) : (
+            <Badge tone="ok" icon={<CircleCheckBig size={13} aria-hidden="true" />}>
+              Abierto
+            </Badge>
+          )}
+        </Container>
+      </header>
+
+      {cerrando ? (
+        <CierreTurno movements={movements} excepciones={excepciones} sellado={sellado} />
+      ) : (
+        /* De arriba abajo y de izquierda a derecha: cómo va el turno, qué se vendió y, al final
+           del resumen, cerrarlo. Una sola sección en vez de «Ventas» y «Turno» por separado. */
+        <Container
+          as="main"
+          ancho="muro"
+          className="grid flex-1 gap-4 py-4 apaisado:min-h-0 apaisado:grid-cols-[clamp(250px,21vw,290px)_minmax(0,1fr)] apaisado:grid-rows-[minmax(0,1fr)] apaisado:bajo:py-3"
+        >
+          <ResumenTurno turno={turno} excepciones={excepciones} sellado={sellado} onCerrar={() => setCerrando(true)} />
+          <VentasDelTurno usuarios={usuarios} className="apaisado:grid-rows-[minmax(0,1fr)]" />
+        </Container>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Cómo va el turno: el fondo con que se abrió, lo cobrado por medio y las excepciones. Al final,
+ * «Cerrar turno»: el botón queda siempre a la vista, aunque la lista de medios crezca.
+ */
+function ResumenTurno({
+  turno,
+  excepciones,
+  sellado,
+  onCerrar,
+}: {
+  turno: TurnoDto;
+  excepciones: readonly Excepcion[];
+  sellado: boolean;
+  onCerrar: () => void;
+}) {
+  const { ventas } = useVentas();
+  const vivas = ventas.filter((v) => !v.voided);
+  const anuladas = ventas.length - vivas.length;
+  /**
+   * Lo cobrado por medio y moneda: lo que QUEDÓ en caja por cada venta (lo entregado menos el
+   * vuelto), no el billete que dio el cliente. Sin lo anulado: ese dinero volvió al cliente.
+   */
+  const porMedio = useMemo(() => {
+    const out = new Map<string, { medio: string; total: Money }>();
+    for (const v of vivas) {
+      for (const p of v.payments) {
+        const pagado = money(BigInt(p.refundable.minor), p.refundable.currency as CurrencyCode);
+        const clave = `${p.label}|${pagado.currency}`;
+        const antes = out.get(clave);
+        out.set(clave, { medio: p.label, total: antes ? add(antes.total, pagado) : pagado });
+      }
+    }
+    return [...out.values()];
+  }, [vivas]);
+  const cobrado = sum(vivas.map((v) => money(BigInt(v.total.minor), "USD")), "USD");
+
+  return (
+    <aside
+      aria-label="Resumen del turno"
+      className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 apaisado:bajo:gap-3 apaisado:bajo:p-3">
+        <section aria-labelledby="resumen-fondo">
+          <h2 id="resumen-fondo" className={TITULO}>
+            En la gaveta al abrir
+          </h2>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {turno.fondos.map((f) => (
+              <li key={f.currency} className="flex items-baseline justify-between gap-2">
+                <span className="text-[12.5px] text-ink-3">{f.currency === "VES" ? "Bolívares" : "Dólares"}</span>
+                <MoneyDisplay value={toMajor(money(BigInt(f.amount.minor), f.amount.currency))} currency={f.currency} size="sm" />
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section aria-labelledby="resumen-cobrado">
+          <h2 id="resumen-cobrado" className={TITULO}>
+            Cobrado · {vivas.length} {vivas.length === 1 ? "venta" : "ventas"}
+          </h2>
+          <MoneyDisplay value={toMajor(cobrado)} currency="USD" size="lg" className="mt-1" />
+          {porMedio.length === 0 ? (
+            <p className="mt-1 text-[12.5px] text-ink-3">Todavía no se ha cobrado nada en este turno.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1 border-t border-line/60 pt-2">
+              {porMedio.map((m) => (
+                <li key={`${m.medio}|${m.total.currency}`} className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 truncate text-[12.5px] text-ink-2">{m.medio}</span>
+                  <MoneyDisplay value={toMajor(m.total)} currency={m.total.currency} size="sm" />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section aria-labelledby="resumen-excepciones">
+          <h2 id="resumen-excepciones" className={TITULO}>
+            Excepciones
+          </h2>
+          <p className="mt-1 text-[12.5px] text-ink-2">
+            {excepciones.length === 0 && anuladas === 0
+              ? "Ninguna: sin anulaciones, cortesías ni descuentos."
+              : [
+                  anuladas > 0 ? `${anuladas} ${anuladas === 1 ? "cobro anulado" : "cobros anulados"}` : null,
+                  excepciones.length > 0 ? `${excepciones.length} ${excepciones.length === 1 ? "excepción" : "excepciones"}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+          </p>
+        </section>
+      </div>
+
+      <div className="border-t border-line p-3">
+        <Button surface="pos" variant="primary" className="w-full gap-2" onClick={onCerrar} disabled={sellado}>
+          <Lock size={17} aria-hidden="true" />
+          Cerrar turno
+        </Button>
+      </div>
+    </aside>
+  );
+}
+
+const TITULO = "text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase";
+
+/**
+ * El cierre: el arqueo por billetes, lo que dice el libro y los cortes. Hasta B3-5 se cuenta aquí
+ * pero no se guarda ni sella nada.
+ */
+function CierreTurno({
+  movements,
+  excepciones,
+  sellado,
+}: {
+  movements: readonly ShiftMovement[];
+  excepciones: readonly Excepcion[];
+  sellado: boolean;
 }) {
   const [conteo, setConteo] = useState<Record<string, string>>({});
-  const { ajustes } = useSucursal();
-
   const [pestana, setPestana] = useState("arqueo");
 
   const tally = useMemo(() => tallyShift(movements), [movements]);
@@ -211,9 +389,6 @@ function TurnoAbierto({
       ),
     [tally.drawer, contadoPorMoneda],
   );
-
-  // El servidor solo devuelve el turno sin corte Z; el corte llega con B3-5.
-  const sellado = turno.estado === "CERRADO_Z";
 
   /** Si el cajero ya empezó a contar alguna moneda. */
   const contadoAlgo = [...contadoPorMoneda.values()].some((m) => m.amount !== 0n);
@@ -264,35 +439,7 @@ function TurnoAbierto({
    *  · lo que dice el libro queda debajo, para quien lo quiera revisar.
    */
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-b border-line">
-        <Container
-          ancho="operacion"
-          className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3 apaisado:bajo:py-2"
-        >
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
-              Turno de caja
-            </h1>
-            <p className="tnum flex items-center gap-1.5 text-[13px] text-ink-3">
-              <CalendarClock size={14} aria-hidden="true" />
-              Día de negocio {diaEnPalabras(turno.businessDate)} · {turno.punto} · abierto por {turno.abiertoPor.name} a las{" "}
-              {formatClock(Date.parse(turno.abiertoEn), ajustes.formatoHora)}
-            </p>
-          </div>
-          {sellado ? (
-            <Badge tone="crit" icon={<Lock size={13} aria-hidden="true" />}>
-              Sellado con corte Z
-            </Badge>
-          ) : (
-            <Badge tone="ok" icon={<CircleCheckBig size={13} aria-hidden="true" />}>
-              Abierto
-            </Badge>
-          )}
-        </Container>
-      </header>
-
-      <Container as="main" ancho="operacion" className="flex flex-1 flex-col gap-5 py-4 apaisado:min-h-0 apaisado:bajo:py-3 apaisado:bajo:gap-3">
+      <Container as="main" ancho="muro" className="flex flex-1 flex-col gap-5 py-4 apaisado:min-h-0 apaisado:bajo:py-3 apaisado:bajo:gap-3">
         <div className="grid gap-5 apaisado:min-h-0 apaisado:flex-1 apaisado:grid-cols-[minmax(0,1fr)_380px] apaisado:grid-rows-[minmax(0,1fr)]">
           {/* Divulgación progresiva (§8.8): lo que se HACE —contar— va al
               frente; lo que se consulta —el libro— queda a un toque. Antes
@@ -467,9 +614,7 @@ function TurnoAbierto({
             </div>
           </aside>
         </div>
-
       </Container>
-    </div>
   );
 }
 

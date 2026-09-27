@@ -9,7 +9,7 @@
 >   criterio de aceptación en §12. Sus casillas y sus enlaces a documentos retirados están congelados.
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
 > - [JORNADA.md](JORNADA.md): el día completo en cuatro momentos (primer encendido, apertura, jornada y
->   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige después del día simulado.
+>   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige cuando un paso resuelve algo suyo.
 > - [adr/](adr/): las decisiones de arquitectura, una por archivo (20; ADR-018 supersede la biblioteca
 >   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2 y ADR-020 cambia el TOTP
 >   de ADR-018 por llaves de acceso).
@@ -29,7 +29,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.21.0 · 21 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.22.0 · 22 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -67,8 +67,9 @@ B2-2 se programó el IVA general al 15 % (hoy y el 27 oct) y se devolvió al 16 
 B22 Caja» revocados.
 
 **Turnos de prueba abiertos en la base local.** Al comprobar B3-1 se abrió un turno en «Prueba B31
-Caja» ($ 20,00 y Bs. 1.500,00), y al comprobar B3-2 otro en «Prueba B32» ($ 0 y Bs. 0,00, a nombre de
-Abigail Karam); los dos equipos están revocados. Un turno no se borra ni se cierra sin corte Z, así
+Caja» ($ 20,00 y Bs. 1.500,00), al comprobar B3-2 otro en «Prueba B32» ($ 0 y Bs. 0,00) y al comprobar
+T-6 otro en «Prueba T6» ($ 10,00 y Bs. 0,00), los dos últimos a nombre de Abigail Karam; los tres
+equipos están revocados. Un turno no se borra ni se cierra sin corte Z, así
 que Inicio los enseña hasta B3-5, que debe permitir cerrar un turno huérfano desde otro equipo.
 
 **Medios de pago en la base local.** La migración de B3-2 dio a cada local los siete medios de §5.5
@@ -88,12 +89,12 @@ staging: instalación inicial desde el navegador y llaves de acceso (ADR-020).
 **El día completo, en cuatro momentos (M-13).** Con el cliente se fijó el 2026-09-27 cómo es la
 jornada: primer encendido, apertura, jornada y cierre, en [JORNADA.md](JORNADA.md). Lo que exige a
 la ruta está en su §6 y ya está en §3: un paso nuevo (T-6, el menú por operación) y criterios más
-completos en T-4, B3-4, B3-5, B4-4 y B8-2. Queda abierto lo de su §7, que se resuelve en el **día
-simulado** (su §8), por hacer con el cliente.
+completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el menú es por operación
+y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
+(sin día simulado: decisión del cliente, 2026-09-27).
 
-**Siguiente paso:** T-6 (menú por operación: operar arriba, Ajustes abajo, y la estación de caja en
-Cobrar | Turno). Luego B9-1 (catálogo de productos), B3-3 (la caja cobra contra el libro) y el
-orden de §3.
+**Siguiente paso:** B9-1 (catálogo de productos en la base, que el cobro en servidor necesita).
+Luego B3-3 (la caja cobra contra el libro) y el orden de §3.
 
 ---
 
@@ -155,7 +156,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1 → B2-4 (se cierra Dinero) → T-3~~.
    B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
    (ADR-009), así que el turno tenía que existir antes.
-2. ~~B3-2~~ → **T-6** (menú por operación, M-13) → **B9-1** (catálogo, que el cobro necesita) →
+2. ~~B3-2 → T-6~~ → **B9-1** (catálogo, que el cobro necesita) →
    B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
@@ -206,13 +207,34 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   enseña la **Puesta a punto** de JORNADA §2 (personas, equipos, tarifas, impuestos, tasa, medios,
   catálogo, impresoras, feriados, carta y plano, segunda administración), que se tacha sola cuando
   el dato existe; cada punto dice qué puesto bloquea.
-- [ ] **T-6 · Menú por operación** (M-13, JORNADA §1).
+- [x] **T-6 · Menú por operación** (M-13, JORNADA §1).
   → El menú del panel pone arriba Inicio, Parque, Restaurante y Caja, y abajo «Ajustes» con
   impuestos, feriados bancarios, medios de pago, tasas, tarifas, carta, plano, personas y equipos.
   La estación de caja queda en **Cobrar | Turno**: Turno se lee de arriba abajo (resumen del turno,
   ventas con reimprimir y anular, «Cerrar turno»). Las rutas viejas (`/ventas`, las secciones
   movidas) redirigen, ningún enlace se rompe, y la alerta de la tasa sigue llevando a su pantalla.
   Comprobado en el navegador en los tres tamaños.
+  *Hecho el 2026-09-27 (v0.22.0):*
+  *· Menú (`navigation.ts`): arriba Parque (sala, entrada, salida, representantes), Restaurante (mesas,
+  comandas), Caja (Cobrar, Turno) e Inventario; abajo, separado y fijo al pie, **Ajustes** con cuatro
+  grupos: Parque y restaurante (tarifas, carta, plano), Dinero (medios, tasas, impuestos, feriados),
+  Equipo (usuarios, dispositivos, roles y accesos) y El local (sucursal, impresoras). Personas y
+  Configuración dejan de ser módulos; cada sección conserva su permiso (supervisión ve Ajustes solo
+  con Tasas). La versión del sistema se ve en Ajustes.*
+  *· `RUTAS_MOVIDAS`: `/panel/configuracion/*`, `/panel/personas/*`, `/panel/caja/medios`, `…/tasas`,
+  `/panel/parque/tarifas`, `/panel/restaurante/plano` y `…/carta` redirigen a su sitio nuevo;
+  `/ventas` y `/panel/caja/turnos`, a `/turno`. Migas, enlaces de la caja, del acceso y de Inicio,
+  al día.*
+  *· Estación de caja: **Cobrar | Turno**. Turno con el turno abierto es una sola sección: a la
+  izquierda el resumen (fondo al abrir, lo cobrado y por medio —lo que quedó en caja, no el billete
+  entregado—, excepciones) con **«Cerrar turno»** siempre a la vista al pie; al lado las ventas del
+  turno con su recibo (`VentasDelTurno`, antes `VentasScreen`). «Cerrar turno» lleva al arqueo, con
+  «Volver al turno»; el Z sigue siendo de B3-5.*
+  *· Comprobado en el navegador: el menú con Ajustes al pie y sus grupos; seis redirecciones; `/ventas`
+  → `/turno`; la barra con Cobrar | Turno; una venta de mostrador en efectivo aparece en el resumen
+  y en la lista; «Cerrar turno» → arqueo → «Volver al turno». Inicio, Ajustes, Turno y el cierre a
+  1366×768, 1280×800 y 800×1280 sin desplazar el documento y con «Cerrar turno» a la vista; sin
+  errores de consola.*
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
   suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -661,7 +683,7 @@ antes del cobro en servidor (orden de ejecución).
 | # | Decisión | Propuesta | Hace falta antes de |
 |---|---|---|---|
 | **D-INF** | Producción solo en un VPS, o servidor en el local con el VPS como réplica (ADR-003) | Servidor en el local: con cortes de internet frecuentes, un VPS solo deja sin caja y sin cocina. **El cliente aún no lo sabe (2026-09-27):** hasta decidir, piloto en el VPS con contingencia en papel | B8-1 |
-| **D-JOR** | Lo abierto de la jornada (JORNADA §7): cuenta incobrable al cierre, qué deja la cajera en el relevo, el equivalente de $ 1,00 y la carga del papel | Se resuelve en el día simulado con el cliente | B3-5 |
+| **D-JOR** | Lo abierto de la jornada (JORNADA §7): cuenta incobrable al cierre, qué deja la cajera en el relevo, el equivalente de $ 1,00 y la carga del papel | Se pregunta al cliente al empezar B3-5 (sin día simulado) | B3-5 |
 | **D-RES** | ¿El piloto incluye el restaurante en el sistema? | No: primero el parque (DEC-12, Ruta A). El restaurante sigue como hoy durante el piloto | Etapa 6 |
 | F0-04 | Datos maestros reales: tarifas, carta, precios y personas | Los editores ya existen para cargarlos | B7-2 |
 | F0-03 | Medidas reales del local para el plano | — | B6-1 |
@@ -841,6 +863,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   momentos queda en JORNADA.md (M-13). Menú por operación con «Ajustes» abajo, una sola sección
   Turno, relevo con corte, arqueo a ciegas con firma por umbral y ninguna jornada cerrada con
   pendientes. Nuevo paso T-6, que va antes de B9-1; la ruta pasa a 48 pasos.
+- **2026-09-27** · Sin día simulado (decisión del cliente): lo abierto de la jornada se pregunta cuando
+  llega su paso. T-6 entregado (v0.22.0): menú por operación con Ajustes al pie y la caja en Cobrar |
+  Turno, con las ventas dentro de Turno. Sigue B9-1.
 
 ---
 

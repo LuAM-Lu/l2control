@@ -120,7 +120,7 @@ export function EditorSucursal() {
       <PageHeader
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
-          { texto: "Configuración", href: "/panel/configuracion" },
+          { texto: "Ajustes", href: "/panel/ajustes" },
           { texto: "Sucursal" },
         ]}
         titulo="Sucursal"

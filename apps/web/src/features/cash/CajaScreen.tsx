@@ -2712,7 +2712,7 @@ function SinImpuestos({ faltan }: { faltan: readonly string[] }) {
         supone un 0 %.
       </p>
       <Link
-        href="/panel/configuracion/impuestos"
+        href="/panel/ajustes/impuestos"
         className="mt-2 flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
       >
         Configurar los impuestos
@@ -2745,7 +2745,7 @@ function SinMediosDePago() {
         que ofrecer no se puede cobrar nada.
       </p>
       <Link
-        href="/panel/caja/medios"
+        href="/panel/ajustes/medios"
         className="mt-2 flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
       >
         Configurar los medios de pago

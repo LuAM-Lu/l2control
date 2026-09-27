@@ -7,7 +7,7 @@ import type { Route } from "next";
 import { ChevronDown, LogOut, Maximize2, Menu, X } from "lucide-react";
 import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
-import { INICIO, buscarModulo, buscarSeccion, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
+import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { PageTransition } from "./PageTransition.tsx";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
@@ -218,31 +218,15 @@ function NavModulos({
   const [abierto, setAbierto] = useState<string | null>(null);
   const riel = modo === "lateral";
 
-  return (
-    <nav
-      aria-label="Módulos"
-      className={cn("min-h-0 flex-1 overflow-y-auto px-2 pb-4", modo === "cajon" && "px-3")}
-    >
-      <ul className="flex flex-col gap-0.5">
-        {inicioVisible && (
-          <li>
-            <Fila
-              href={INICIO.href}
-              icono={<INICIO.icon size={18} aria-hidden="true" />}
-              nombre={INICIO.nombre}
-              activo={pathname === INICIO.href}
-              riel={riel}
-            />
-          </li>
-        )}
+  const operar = modulosDeZona(modulos, "operar");
+  const ajustes = modulosDeZona(modulos, "ajustes");
 
-        {modulos.map((m) => {
-          const enModulo = pathname.startsWith(rutaModulo(m.id));
-          const secciones = m.secciones.filter((s) => actor !== null && puedeVerSeccion(actor, m, s));
-          const seccionActiva = secciones.some((s) => s.href === pathname);
-          const desplegado = abierto === m.id || enModulo;
-
-          return (
+  const pintarModulo = (m: Modulo) => {
+    const enModulo = pathname.startsWith(rutaModulo(m.id));
+    const secciones = m.secciones.filter((s) => actor !== null && puedeVerSeccion(actor, m, s));
+    const seccionActiva = secciones.some((s) => s.href === pathname);
+    const desplegado = abierto === m.id || enModulo;
+    return (
             <li key={m.id}>
               {/* La fila del módulo SIEMPRE navega a su página. Un encabezado
                   que solo despliega obliga a dos toques para llegar a algo. */}
@@ -287,11 +271,18 @@ function NavModulos({
                     riel && "hidden xl:flex",
                   )}
                 >
-                  {secciones.map((s) => {
+                  {secciones.map((s, i) => {
                     const href = s.href ?? rutaSeccion(m.id, s.id);
                     const activo = pathname === href;
+                    // Ajustes es largo: sus secciones van por grupos (Dinero, Equipo…).
+                    const grupoNuevo = s.grupo && s.grupo !== secciones[i - 1]?.grupo;
                     return (
                       <li key={s.id}>
+                        {grupoNuevo && (
+                          <p className="px-2.5 pt-2 pb-0.5 text-[10px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                            {s.grupo}
+                          </p>
+                        )}
                         <Link
                           href={href}
                           aria-current={activo ? "page" : undefined}
@@ -323,9 +314,33 @@ function NavModulos({
                 </ul>
               )}
             </li>
-          );
-        })}
+    );
+  };
+
+  return (
+    <nav
+      aria-label="Módulos"
+      className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-4", modo === "cajon" && "px-3")}
+    >
+      <ul className="flex flex-col gap-0.5">
+        {inicioVisible && (
+          <li>
+            <Fila
+              href={INICIO.href}
+              icono={<INICIO.icon size={18} aria-hidden="true" />}
+              nombre={INICIO.nombre}
+              activo={pathname === INICIO.href}
+              riel={riel}
+            />
+          </li>
+        )}
+
+        {operar.map(pintarModulo)}
       </ul>
+      {/* Lo que se configura, abajo y aparte: el menú es para operar (M-13). */}
+      {ajustes.length > 0 && (
+        <ul className="mt-auto flex flex-col gap-0.5 border-t border-line pt-2">{ajustes.map(pintarModulo)}</ul>
+      )}
     </nav>
   );
 }

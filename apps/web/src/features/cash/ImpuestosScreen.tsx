@@ -118,7 +118,7 @@ export function ImpuestosScreen({ impuestos }: { impuestos: ImpuestosDto }) {
   return (
     <Container ancho="panel" className="py-8">
       <PageHeader
-        migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Configuración" }, { texto: "Impuestos" }]}
+        migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Impuestos" }]}
         titulo="Impuestos"
         descripcion="Las alícuotas son datos con fecha: un cambio se programa y cierra la anterior el día que empieza, sin reescribir lo ya vendido. Los valores los confirma el contador."
         meta={hoy && <span className="tnum text-[12.5px] text-ink-3">Hoy es {diaEnPalabras(Date.parse(`${hoy}T12:00:00.000Z`), "UTC")} (hora de Venezuela)</span>}

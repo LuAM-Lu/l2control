@@ -101,7 +101,7 @@ export function EditorTarifario() {
       <PageHeader
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
-          { texto: "Parque", href: "/panel/parque" },
+          { texto: "Ajustes", href: "/panel/ajustes" },
           { texto: "Tarifas y paquetes" },
         ]}
         titulo="Tarifas y paquetes"

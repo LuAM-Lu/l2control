@@ -70,7 +70,6 @@ type Ruta =
   | "/entrada"
   | "/salida"
   | "/caja"
-  | "/ventas"
   | "/turno"
   | "/mesas"
   | "/cocina";
@@ -96,7 +95,6 @@ const PUESTOS: Puesto[] = [
     nombre: "Caja",
     superficies: [
       { href: "/caja", corto: "Cobrar", largo: "Caja" },
-      { href: "/ventas", corto: "Ventas", largo: "Ventas del turno" },
       { href: "/turno", corto: "Turno", largo: "Turno de caja" },
     ],
   },

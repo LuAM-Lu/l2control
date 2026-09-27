@@ -119,7 +119,7 @@ export function RepresentantesScreen({
       <PageHeader
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
-          { texto: "Personas", href: "/panel/personas" },
+          { texto: "Parque", href: "/panel/parque" },
           { texto: "Representantes y niños" },
         ]}
         titulo="Representantes y niños"
