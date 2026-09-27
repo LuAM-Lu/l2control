@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, CircleCheckBig, Clock, KeyRound, MonitorSmartphone, MonitorX, Pencil, SmartphoneNfc } from "lucide-react";
+import { Ban, CircleCheckBig, Clock, KeyRound, MonitorSmartphone, MonitorX, Pencil, SmartphoneNfc, TriangleAlert } from "lucide-react";
 import { type DeviceCommand, type DeviceDto } from "@l2/contracts";
 import { Button, Container, Dialog, Input, PageHeader, avisar, cn } from "@l2/ui";
 import { useDispositivos } from "./DispositivosProvider.tsx";
@@ -148,6 +148,26 @@ function DispositivoCard({
                 </>
               )}
             </div>
+            {dev.status === "PENDIENTE" && (
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-ink-2">
+                <span>Código</span>
+                <span className="tnum rounded-[0.35rem] border border-line bg-base px-2 py-0.5 font-mono text-[13px] font-bold tracking-[0.12em] text-ink">
+                  {dev.pairingCode}
+                </span>
+                {caducada(dev) ? (
+                  <span className="flex items-center gap-1 font-medium text-state-crit">
+                    <TriangleAlert size={12} aria-hidden="true" />
+                    Solicitud caducada: el equipo debe renovarla desde su pantalla
+                  </span>
+                ) : (
+                  <span className="text-ink-3">
+                    Compruébalo en la pantalla del equipo antes de aprobar. Vale hasta{" "}
+                    {FECHA.format(new Date(dev.requestExpiresAt!))},{" "}
+                    {formatClock(Date.parse(dev.requestExpiresAt!), ajustes.formatoHora)}.
+                  </span>
+                )}
+              </p>
+            )}
             {dev.session && dev.status !== "REVOCADO" && (
               <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-ink-2">
                 <span className="flex size-4 items-center justify-center rounded-full bg-brand/10 text-brand">
@@ -166,7 +186,7 @@ function DispositivoCard({
               <Pencil size={13} aria-hidden="true" />
               Renombrar
             </Accion>
-            {dev.status === "PENDIENTE" && (
+            {dev.status === "PENDIENTE" && !caducada(dev) && (
               <Accion onClick={() => onAction("APROBAR")} destacado>
                 <CircleCheckBig size={13} aria-hidden="true" />
                 Aprobar
@@ -198,7 +218,7 @@ function DispositivoCard({
               {dev.changes.map((c, i) => (
                 <li key={i} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px]">
                   <span className="font-semibold text-ink">
-                    {c.kind === "ALTA" ? "Registrado" : c.kind === "APROBADO" ? "Aprobado" : c.kind === "REVOCADO" ? "Revocado" : "Renombrado"}
+                    {c.kind === "ALTA" ? "Registrado" : c.kind === "RENOVADO" ? "Solicitud renovada" : c.kind === "APROBADO" ? "Aprobado" : c.kind === "REVOCADO" ? "Revocado" : "Renombrado"}
                   </span>
                   {c.kind === "RENOMBRADO" && <span className="text-ink-2">a «{c.label}»</span>}
                   <span className="text-ink-2">«{c.reason}»</span>
@@ -249,7 +269,7 @@ function Accion({
 const TEXTO_DIALOGO = {
   APROBAR: {
     titulo: "Aprobar dispositivo",
-    desc: "Permitirá abrir sesión con PIN desde este equipo.",
+    desc: "Permitirá abrir sesión con PIN desde este equipo. Comprueba antes que su pantalla enseña este mismo código.",
     boton: "Aprobar",
   },
   REVOCAR: {
@@ -334,8 +354,13 @@ function DialogoDispositivo({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="rounded-[var(--radius-control)] border border-line bg-base/50 px-3.5 py-2.5 text-[13.5px] font-semibold text-ink">
+        <p className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] border border-line bg-base/50 px-3.5 py-2.5 text-[13.5px] font-semibold text-ink">
           {comando.dev.label}
+          {comando.kind === "APROBAR" && (
+            <span className="tnum font-mono text-[15px] tracking-[0.12em]" aria-label={`Código ${comando.dev.pairingCode}`}>
+              {comando.dev.pairingCode}
+            </span>
+          )}
         </p>
 
         {comando.kind === "RENOMBRAR" && (
@@ -390,4 +415,9 @@ function DialogoDispositivo({
       </div>
     </Dialog>
   );
+}
+
+/** Una solicitud pendiente que pasó su plazo (M-7): ya no se aprueba; el equipo la renueva. */
+function caducada(dev: DeviceDto): boolean {
+  return dev.status === "PENDIENTE" && dev.requestExpiresAt !== undefined && Date.parse(dev.requestExpiresAt) <= Date.now();
 }

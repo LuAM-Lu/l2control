@@ -39,7 +39,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
   confirmada, la caja no cobra en bolívares:** en local, cargarla cada día en Panel → Caja → Tasas. **Todo lo demás sigue en datos provisionales** (`apps/web/src/demo`, cada archivo con el
   paso que lo borra) y en el bus de operación entre pestañas (`features/operacion`).
 - **Entrar en local:** navegador nuevo = equipo desconocido → «Pedir registro» en `/acceso` →
-  `pnpm equipos aprobar "<nombre>"` → persona → PIN 1970. Configuración, precios y personas piden
+  «Soy de administración» con contraseña + `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`) →
+  persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección. Configuración, precios y personas piden
   confirmar identidad: contraseña `abby-kingdom-desarrollo` + código de `pnpm totp`.
 - **Pruebas:** `pnpm verify:db` en verde (26 de base, 83 de aplicación). CI escrito, nunca visto en
   GitHub: hay commits sin subir (no se ha hecho push).
@@ -57,6 +58,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 | **M-3** | **Nada fiscal por ahora** | F7 queda fuera, igual que el hito M1 (F3-08, las 20 facturas), la máquina fiscal y la nota de crédito. El recibo es **no fiscal**. IVA e IGTF **se siguen calculando** en el ticket, porque ya están hechos y cambian lo que se cobra |
 | **M-4** | **Entornos: primero local (Docker), luego VPS** | ⚠ **Choca con ADR-003**, que pide un servidor en el local y usa la nube solo como réplica. Con solo un VPS, un corte de internet detiene los cobros y la cocina. **Propuesta:** el VPS sirve de staging y para el piloto en paralelo, donde el método anterior hace de respaldo (F11-04). La topología final (D-INF, §4) se decide antes de retirar ese método. El servidor se empaqueta en Docker para que la misma imagen corra en el VPS o en un mini-PC sin cambios |
 | **M-5** | **Un solo documento vivo y handoff a petición** | Este archivo. El protocolo está en §8 |
+| **M-7** | **Alta de equipos con buenas prácticas** (2026-09-26, pedido del cliente) | Amplía F2-02. El primer equipo de un local, o el que sustituye a uno perdido, se aprueba **desde él mismo con la contraseña y el TOTP** de quien gestiona personas (nunca con un PIN, y sin enseñar nombres en un equipo no aprobado); la consola `pnpm equipos` queda como puerta de emergencia. Cada equipo enseña un **código de emparejamiento** que quien aprueba compara. Una solicitud **caduca a las 24 h** y se renueva desde el equipo. Tope de 10 solicitudes por hora y dirección y de 20 pendientes por sucursal. Regla de operación (runbook, B8-2): **siempre dos equipos de administración aprobados** |
 | **M-6** | **Fuera el modo demo y el simulador** (2026-09-26), y **todo el backend según esta ruta** | Se retiran el chip «DEMO», su panel, los escenarios, el reloj acelerado, `NEXT_PUBLIC_DEMO` y `L2_FUENTE_DE_DATOS`: la app corre siempre contra su servidor. Queda el bus de eventos (`features/operacion`), que no era simulado y en B5-1 viaja por el servidor. Lo que aún no tiene backend usa datos provisionales de `src/demo`; **cada paso borra el suyo** (tabla en su README). Cambio de alcance sobre F1-19 (DEC-22), pedido por el cliente |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance: parque y caja primero. Las cinco reglas de CLAUDE.md
@@ -158,6 +160,21 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   elige el suyo antes de llegar a su puesto; una concesión aparece en su ficha; ajustar «Reportes de
   la sucursal» para Caja le abre el panel en el otro equipo y retirarlo se lo cierra. Los 🔐 de la
   caja se conectan en B3-4.*
+
+- [x] **B1-6 · Alta de equipos con buenas prácticas** (M-7, amplía F2-02).
+  → Un local nuevo aprueba su primer equipo sin consola; aprobar exige comparar el código; una
+  solicitud vieja no se aprueba.
+  *Hecho el 2026-09-26: `elevacion.aprobarEquipo` (la contraseña identifica a la persona entre
+  quienes tienen credenciales en la sucursal; exige `usuarios.gestionar`; los fallos bloquean al
+  EQUIPO con el bloqueo creciente y, si la contraseña era de alguien, también a esa persona);
+  código de emparejamiento derivado del id (sin 0/O ni 1/I) en la pantalla del equipo, en Panel →
+  Dispositivos, en el diálogo de aprobar y en `pnpm equipos`; caducidad a las 24 h con renovación
+  (`RENOVADO` en su historia); topes contados sobre la auditoría y la tabla (valen con varios
+  procesos). Se corrige `ipDeLaPeticion`: tomaba la PRIMERA dirección de `x-forwarded-for`, que
+  inventa el cliente; ahora la última, la del proxy más cercano. 13 pruebas contra la base.
+  Comprobado en el navegador: tope por dirección, código igual en pantalla y consola, contraseña
+  mala rechazada y buena aprobando, panel con el código, caducada en los dos lados y renovada; sin
+  desplazar la página a 1366×768, 1280×800 y 800×1280.*
 
 ### Etapa 2 · Dinero (F3, sin lo fiscal)
 
@@ -296,6 +313,9 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | El dominio de caja conserva `PointOfSale` con taquilla y mostrador (DEC-25/26 los dejan genéricos) | B3-1 |
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
 | El diálogo de anular un cobro desplaza para llegar al PIN a 1366×768 | B3-4 |
+| Aprobar un equipo no avisa en vivo a la administración (queda en la auditoría y en su historia) | B5-1 |
+| Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos) | B7-5 |
+| La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
 | El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | B4-4 (ajustes del local) |
@@ -315,6 +335,10 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
   cliente. Los relojes (`useAhoraLocal`) no deben colgar del pintado de un proveedor. Un dato se decide
   con una bandera, no leyendo el texto.
 - Las raíces de pantalla necesitan `min-h-0` para que desplace la lista y no toda la zona.
+- La web guarda la conexión con `@l2/application` en `globalThis`: tras añadir un caso de uso o un
+  método, **reiniciar `pnpm dev`**, o sale «Cannot read properties of undefined».
+- Un dato provisional de `src/demo` que se valida contra un contrato (p. ej. el monitor lleva una
+  tasa) revienta al abrir la pantalla si el contrato cambia: `pnpm typecheck` no lo ve.
 
 ---
 
@@ -353,6 +377,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   (B1-2) y personas/permisos/accesos/autorización (B1-5, falta el navegador).
 - **2026-09-26** · B1-5 comprobado en el navegador: Etapa 1 cerrada. B2-1: tasas en la base con
   fecha valor; la caja cobra solo con la del día confirmada.
+- **2026-09-26** · M-7: el alta de equipos sigue buenas prácticas (aprobar desde el propio equipo con
+  credenciales de administración, código de emparejamiento, caducidad y topes). Se corrige la IP de
+  la auditoría, que se podía falsear.
 
 ---
 

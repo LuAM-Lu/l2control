@@ -225,15 +225,21 @@ model RoleAdjustment {
 /// Un equipo del local (F2-02). Primer factor del acceso: su secreto vive en una cookie
 /// `httpOnly` y aquí solo su SHA-256. Revocar no lo borra (regla 5): las sesiones que abrió lo nombran.
 model Device {
-  id           String    @id @default(uuid(7)) @db.Uuid
-  tenantId     String    @map("tenant_id") @db.Uuid
-  branchId     String    @map("branch_id") @db.Uuid
-  label        String
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  tenantId              String    @map("tenant_id") @db.Uuid
+  branchId              String    @map("branch_id") @db.Uuid
+  label                 String
   /// PENDIENTE, APROBADO o REVOCADO.
-  status       String
-  secretHash   String    @unique @map("secret_hash")
-  registeredAt DateTime  @default(now()) @map("registered_at") @db.Timestamptz(3)
-  lastSeenAt   DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  status                String
+  secretHash            String    @unique @map("secret_hash")
+  registeredAt          DateTime  @default(now()) @map("registered_at") @db.Timestamptz(3)
+  /// Cuándo pidió (o renovó) su registro. Una solicitud PENDIENTE caduca a las 24 h (M-7).
+  requestedAt           DateTime  @default(now()) @map("requested_at") @db.Timestamptz(3)
+  lastSeenAt            DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  /// Intentos fallidos de aprobarlo desde él mismo con credenciales de administración (M-7):
+  /// bloqueo creciente del EQUIPO, porque quien teclea todavía no tiene identidad.
+  approvalFailures      Int       @default(0) @map("approval_failures")
+  approvalLastFailureAt DateTime? @map("approval_last_failure_at") @db.Timestamptz(3)
 
   branch   Branch         @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   changes  DeviceChange[]
@@ -243,7 +249,7 @@ model Device {
   @@map("device")
 }
 
-/// Lo que le pasó a un equipo: ALTA, APROBADO, REVOCADO o RENOMBRADO. Solo se añade.
+/// Lo que le pasó a un equipo: ALTA, RENOVADO, APROBADO, REVOCADO o RENOMBRADO. Solo se añade.
 model DeviceChange {
   id       String   @id @default(uuid(7)) @db.Uuid
   tenantId String   @map("tenant_id") @db.Uuid

@@ -83,3 +83,33 @@ export async function elevar(contrasena: unknown, codigo: unknown): Promise<Resu
   if (r.ok) refresh();
   return r;
 }
+
+/**
+ * Aprobar ESTE equipo con las credenciales de administración (M-7): la contraseña y el código del
+ * autenticador de quien gestiona personas. Resuelve el primer equipo de un local sin la consola.
+ * El equipo sale de su cookie; nada de lo tecleado se registra.
+ */
+export async function aprobarEsteEquipo(
+  contrasena: unknown,
+  codigo: unknown,
+): Promise<Resultado<{ label: string; aprobadoPor: string }> & { bloqueo?: Bloqueo }> {
+  const r = await (await aplicacion()).elevacion.aprobarEquipo({
+    dispositivo: await credencialEquipo(),
+    contrasena,
+    codigo,
+    ip: await ipDeLaPeticion(),
+    ahora: Date.now(),
+  });
+  if (r.ok) {
+    log().info({ aprobadoPor: "credenciales de administración" }, "equipo aprobado desde sí mismo");
+    refresh();
+  }
+  return r;
+}
+
+/** Renovar la solicitud de registro de ESTE equipo cuando caducó (M-7). */
+export async function renovarSolicitud(): Promise<Resultado<{ estado: "PENDIENTE" }>> {
+  const r = await (await aplicacion()).dispositivos.renovar(await credencialEquipo(), await ipDeLaPeticion());
+  if (r.ok) refresh();
+  return r;
+}

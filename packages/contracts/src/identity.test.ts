@@ -17,6 +17,7 @@ import {
   PermissionExceptionSchema,
   UserSummarySchema,
   DeviceSchema,
+  CodigoEmparejamientoSchema,
   DevicesDirectorySchema,
   DeviceCommandSchema,
 } from "./identity.ts";
@@ -259,7 +260,15 @@ describe("dispositivos (F2-02, ADR-013)", () => {
     branchId: "b1",
     status: "APROBADO",
     registeredAt: AYER,
+    pairingCode: "K7F-2QX",
   };
+
+  test("el código de emparejamiento no usa caracteres que se confunden (M-7)", () => {
+    for (const bueno of ["K7F-2QX", "ABC-234"]) assert.ok(CodigoEmparejamientoSchema.safeParse(bueno).success, bueno);
+    for (const malo of ["K7F2QX", "K0F-2QX", "KIF-2QX", "k7f-2qx", "K7F-2Q1"]) {
+      assert.equal(CodigoEmparejamientoSchema.safeParse(malo).success, false, malo);
+    }
+  });
 
   test("un equipo aprobado, sin sesión y sin historia, es válido", () => {
     const d = DeviceSchema.parse(tablet);

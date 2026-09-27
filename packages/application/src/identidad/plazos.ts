@@ -5,3 +5,15 @@
  * compartan sin depender uno del otro.
  */
 export const SESION_INACTIVA_MS = 30 * 60_000;
+
+/**
+ * Lo que vale una solicitud de registro de un equipo (M-7). Pasado el plazo no se aprueba: el
+ * equipo la renueva desde su pantalla. Así la lista no acumula solicitudes que nadie reconoce.
+ */
+export const SOLICITUD_EQUIPO_MS = 24 * 60 * 60_000;
+
+/** Cuántas solicitudes de registro admite una misma dirección en una hora (M-7). */
+export const SOLICITUDES_POR_HORA = 10;
+
+/** Cuántas solicitudes vigentes puede haber a la vez en una sucursal (M-7). */
+export const PENDIENTES_MAXIMAS = 20;

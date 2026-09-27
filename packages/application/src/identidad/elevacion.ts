@@ -13,13 +13,16 @@
 import { randomBytes } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
 import { Secret, TOTP } from "otpauth";
-import { DEFAULT_LOCKOUT_POLICY, computeLockout, describeLockout } from "@l2/domain-identity";
+import { DEFAULT_LOCKOUT_POLICY, can, computeLockout, describeLockout } from "@l2/domain-identity";
 import type { Rechazo, Resultado } from "@l2/contracts";
 import type { Base } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar } from "../auditoria/auditar.ts";
 import type { Cifrador } from "./cifrado.ts";
 import type { Bloqueo, CasosSesiones } from "./sesiones.ts";
+import { cargarActor } from "./actor.ts";
+import { codigoDeEmparejamiento, coincide, leerCredencial } from "./credenciales.ts";
+import { SOLICITUD_CADUCADA, solicitudCaducada } from "./dispositivos.ts";
 
 /** Lo que dura una elevación. Corto: es para hacer el cambio, no para quedarse. */
 export const ELEVACION_MS = 15 * 60_000;
@@ -45,6 +48,19 @@ export interface CasosElevacion {
     ip: string | null;
     ahora: number;
   }): Promise<Resultado<{ elevadaHasta: string }> & Readonly<{ bloqueo?: Bloqueo }>>;
+  /**
+   * Aprueba el equipo de la credencial desde él mismo, con la contraseña y el código TOTP de
+   * alguien que puede gestionar personas en su sucursal (M-7). Resuelve el primer equipo de un
+   * local y el «perdí el único PC aprobado» sin pasar por la consola. Quien teclea no dice quién
+   * es: sus credenciales lo identifican, y un equipo sin aprobar nunca enseña nombres.
+   */
+  aprobarEquipo(p: {
+    dispositivo: string | undefined | null;
+    contrasena: unknown;
+    codigo: unknown;
+    ip: string | null;
+    ahora: number;
+  }): Promise<Resultado<{ label: string; aprobadoPor: string }> & Readonly<{ bloqueo?: Bloqueo }>>;
   /**
    * Da (o repone) contraseña y autenticador a una persona. Solo el sistema: la consola del
    * servidor, o la semilla de desarrollo con valores fijos.
@@ -124,6 +140,110 @@ export function casosElevacion(base: Base, sesiones: CasosSesiones, cifrador: Ci
         await tx.staffSession.update({ where: { id: s.id }, data: { elevatedUntil: hasta } });
         await auditar(tx, ctx, { action: "sesion.elevar", entityType: "staff_session", entityId: s.id, after: { hasta: hasta.toISOString() } });
         return { ok: true as const, valor: { elevadaHasta: hasta.toISOString() } };
+      });
+    },
+
+    async aprobarEquipo({ dispositivo, contrasena, codigo, ip, ahora }) {
+      if (!cifrador) return noDisponible;
+      const cred = leerCredencial(dispositivo);
+      const desconocido = { ok: false as const, motivo: "NO_PERMITIDO" as const, mensaje: "Este equipo no está registrado." };
+      if (!cred) return desconocido;
+      if (typeof contrasena !== "string" || typeof codigo !== "string" || !CODIGO.test(codigo.trim())) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "Escribe la contraseña y los 6 números del autenticador." };
+      }
+
+      return base.conTenant(cred.tenantId, async (tx) => {
+        const d = await tx.device.findUnique({ where: { id: cred.id } });
+        if (!d || !coincide(cred.secreto, d.secretHash)) return desconocido;
+        if (d.status !== "PENDIENTE") {
+          return { ok: false as const, motivo: "INVALIDO" as const, mensaje: "Solo se aprueba un equipo pendiente." };
+        }
+        if (solicitudCaducada(d, ahora)) return { ok: false as const, motivo: "INVALIDO" as const, mensaje: SOLICITUD_CADUCADA };
+
+        const ctxEquipo: Contexto = { tenantId: d.tenantId, branchId: d.branchId, quien: { userId: null, deviceId: d.id }, ip };
+        const aBloqueo = (l: ReturnType<typeof computeLockout>): Bloqueo => ({
+          bloqueado: l.locked,
+          hasta: l.lockedUntil === null ? null : new Date(l.lockedUntil).toISOString(),
+          intentosRestantes: l.attemptsRemaining,
+          texto: describeLockout(l),
+        });
+
+        // El bloqueo es del EQUIPO: quien teclea todavía no tiene identidad.
+        const bloqueo = computeLockout(d.approvalFailures, d.approvalLastFailureAt?.getTime() ?? null, ahora, DEFAULT_LOCKOUT_POLICY);
+        if (bloqueo.locked) {
+          await auditar(tx, ctxEquipo, { action: "dispositivo.aprobar", outcome: "NEGADO", entityType: "device", entityId: d.id, reason: describeLockout(bloqueo) ?? "Bloqueado" });
+          return { ok: false as const, motivo: "NO_PERMITIDO" as const, mensaje: describeLockout(bloqueo) ?? "Bloqueado.", bloqueo: aBloqueo(bloqueo) };
+        }
+
+        // La contraseña identifica a la persona entre quienes tienen credenciales en esta sucursal.
+        const candidatas = await tx.staffUser.findMany({
+          where: { active: true, passwordHash: { not: null }, totpSecretEnc: { not: null }, branches: { some: { branchId: d.branchId } } },
+        });
+        let persona: (typeof candidatas)[number] | null = null;
+        for (const u of candidatas) {
+          if (await verify(u.passwordHash!, contrasena).catch(() => false)) {
+            persona = u;
+            break;
+          }
+        }
+        const personaBloqueada =
+          persona !== null && computeLockout(persona.pinFailures, persona.pinLastFailureAt?.getTime() ?? null, ahora, DEFAULT_LOCKOUT_POLICY).locked;
+        const codigoBien =
+          persona !== null &&
+          !personaBloqueada &&
+          totpDe(cifrador.descifrar(persona.totpSecretEnc!), persona.fullName).validate({ token: codigo.trim(), timestamp: ahora, window: 1 }) !== null;
+
+        if (!persona || !codigoBien) {
+          const f = await tx.device.update({
+            where: { id: d.id },
+            data: { approvalFailures: { increment: 1 }, approvalLastFailureAt: new Date(ahora) },
+            select: { approvalFailures: true },
+          });
+          // Si la contraseña era de alguien, el fallo cuenta también para su bloqueo (como elevar).
+          if (persona && !personaBloqueada) {
+            await tx.staffUser.update({ where: { id: persona.id }, data: { pinFailures: { increment: 1 }, pinLastFailureAt: new Date(ahora) } });
+          }
+          await auditar(tx, { ...ctxEquipo, quien: { userId: persona?.id ?? null, deviceId: d.id } }, {
+            action: "dispositivo.aprobar",
+            outcome: "NEGADO",
+            entityType: "device",
+            entityId: d.id,
+            reason: "Credenciales de administración incorrectas en el propio equipo",
+            after: { fallosSeguidos: f.approvalFailures },
+          });
+          const tras = computeLockout(f.approvalFailures, ahora, ahora, DEFAULT_LOCKOUT_POLICY);
+          // No se dice cuál falló, ni si la contraseña era de alguien.
+          return {
+            ok: false as const,
+            motivo: "NO_PERMITIDO" as const,
+            mensaje: describeLockout(tras) ?? "Contraseña o código incorrectos.",
+            bloqueo: aBloqueo(tras),
+          };
+        }
+
+        const ctx: Contexto = { ...ctxEquipo, quien: { userId: persona.id, deviceId: d.id } };
+        const actor = await cargarActor(tx, persona.id, d.branchId);
+        if (!actor || can(actor, "usuarios.gestionar", { branchId: d.branchId }) !== "PERMITIDO") {
+          // Credenciales buenas de alguien que no aprueba equipos: se registra, no se cuenta como ataque.
+          await auditar(tx, ctx, { action: "dispositivo.aprobar", outcome: "NEGADO", entityType: "device", entityId: d.id, reason: "Sin permiso para aprobar equipos" });
+          return { ok: false as const, motivo: "NO_PERMITIDO" as const, mensaje: "Tu puesto no permite aprobar equipos. Pídeselo a administración." };
+        }
+
+        const motivo = `Aprobado en el propio equipo con la contraseña y el autenticador de ${persona.fullName} (código ${codigoDeEmparejamiento(d.id)})`;
+        await tx.device.update({ where: { id: d.id }, data: { status: "APROBADO", approvalFailures: 0, approvalLastFailureAt: null } });
+        await tx.deviceChange.create({
+          data: { tenantId: d.tenantId, deviceId: d.id, kind: "APROBADO", reason: motivo, byUserId: persona.id, byName: persona.fullName },
+        });
+        await tx.staffUser.update({ where: { id: persona.id }, data: { pinFailures: 0, pinLastFailureAt: null } });
+        await auditar(tx, ctx, {
+          action: "dispositivo.aprobar",
+          entityType: "device",
+          entityId: d.id,
+          before: { status: "PENDIENTE", label: d.label },
+          after: { status: "APROBADO", label: d.label },
+          reason: motivo,
+        });
+        return { ok: true as const, valor: { label: d.label, aprobadoPor: persona.fullName } };
       });
     },
 

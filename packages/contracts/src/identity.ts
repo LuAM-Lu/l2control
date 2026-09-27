@@ -260,6 +260,13 @@ export type PermissionExceptionCommand = z.infer<typeof PermissionExceptionComma
 export const DeviceStatusSchema = z.enum(["APROBADO", "PENDIENTE", "REVOCADO"]);
 export type DeviceStatusDto = z.infer<typeof DeviceStatusSchema>;
 
+/**
+ * El código de emparejamiento de un equipo (M-7): seis caracteres sin los que se confunden
+ * (0/O, 1/I), como «K7F-2QX». Lo enseña el equipo pendiente y lo enseña la lista de aprobación:
+ * quien aprueba comprueba que coinciden, así no aprueba a otro aparato que se puso el mismo nombre.
+ */
+export const CodigoEmparejamientoSchema = z.string().regex(/^[2-9A-HJ-NP-Z]{3}-[2-9A-HJ-NP-Z]{3}$/);
+
 export const DeviceSchema = z.object({
   id: IdSchema,
   /** Cómo lo llama el equipo: «Tablet taquilla», no un número de serie. */
@@ -267,6 +274,12 @@ export const DeviceSchema = z.object({
   branchId: IdSchema,
   status: DeviceStatusSchema,
   registeredAt: TimestampSchema,
+  pairingCode: CodigoEmparejamientoSchema,
+  /**
+   * Solo si está PENDIENTE: hasta cuándo se puede aprobar. Pasada esa hora la solicitud caduca y
+   * el equipo la renueva desde su pantalla (M-7), para que la lista no acumule solicitudes viejas.
+   */
+  requestExpiresAt: TimestampSchema.optional(),
   /** Quién tiene sesión abierta ahora mismo, si hay alguien. */
   session: z
     .object({ userId: IdSchema, userName: z.string().trim().min(2).max(80), since: TimestampSchema })
@@ -276,6 +289,7 @@ export const DeviceSchema = z.object({
     .array(
       z.discriminatedUnion("kind", [
         z.strictObject({ kind: z.literal("ALTA"), ...rastro }),
+        z.strictObject({ kind: z.literal("RENOVADO"), ...rastro }),
         z.strictObject({ kind: z.literal("APROBADO"), ...rastro }),
         z.strictObject({ kind: z.literal("REVOCADO"), ...rastro }),
         z.strictObject({ kind: z.literal("RENOMBRADO"), label: z.string().trim().min(2).max(40), ...rastro }),

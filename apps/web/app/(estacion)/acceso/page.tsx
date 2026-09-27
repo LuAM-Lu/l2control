@@ -34,5 +34,9 @@ export default async function AccesoPage() {
     role: p.role,
   }));
 
-  return <AccesoScreen device={device} operadores={operadores} />;
+  // Un equipo pendiente enseña su código de emparejamiento y si su solicitud caducó (M-7).
+  const pendiente =
+    equipo.estado === "PENDIENTE" ? { codigo: equipo.codigo, caducada: equipo.caducada } : null;
+
+  return <AccesoScreen device={device} operadores={operadores} pendiente={pendiente} />;
 }

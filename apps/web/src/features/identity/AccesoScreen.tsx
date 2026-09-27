@@ -9,12 +9,14 @@ import {
   Download,
   Lock,
   MonitorSmartphone,
+  RefreshCw,
+  ShieldCheck,
   ShieldAlert,
   TriangleAlert,
 } from "lucide-react";
 import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
 import { PUESTO_DE_ROL } from "./operador.ts";
-import { entrar, solicitarRegistro } from "./acceso.acciones";
+import { aprobarEsteEquipo, entrar, renovarSolicitud, solicitarRegistro } from "./acceso.acciones";
 import { puestoDe } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
@@ -79,10 +81,13 @@ const FORMATO_FECHA = new Intl.DateTimeFormat("es-VE", {
 export function AccesoScreen({
   device,
   operadores,
+  pendiente = null,
 }: {
   /** `null` = equipo desconocido: la pantalla ofrece pedir su registro. */
   device: Device | null;
   operadores: readonly Operador[];
+  /** Solo si el equipo espera aprobación: su código de emparejamiento y si la solicitud caducó (M-7). */
+  pendiente?: { codigo: string; caducada: boolean } | null;
 }) {
   const op = useOperacion();
   /**
@@ -223,6 +228,9 @@ export function AccesoScreen({
   /* ------------------------------------- dispositivo no autorizado */
 
   if (!revision.ok && device === null) return <PedirRegistro />;
+  if (!revision.ok && device?.status === "PENDIENTE" && pendiente) {
+    return <EquipoPendiente nombre={device.label} {...pendiente} />;
+  }
 
   if (!revision.ok) {
     return (
@@ -520,6 +528,135 @@ function PedirRegistro() {
             {enviando ? "Pidiendo…" : "Pedir registro"}
           </Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Un equipo que pidió su registro y espera (F2-02, M-7). Enseña su código de emparejamiento, que
+ * quien lo aprueba compara en su lista, y ofrece aprobarlo aquí mismo con las credenciales de
+ * administración: así el primer equipo de un local, o el que sustituye a uno perdido, no depende
+ * de la consola del servidor. Nunca enseña nombres de personas: el equipo aún no es de confianza.
+ */
+function EquipoPendiente({ nombre, codigo, caducada }: { nombre: string; codigo: string; caducada: boolean }) {
+  const router = useRouter();
+  const [abierto, setAbierto] = useState(false);
+  const [contrasena, setContrasena] = useState("");
+  const [totp, setTotp] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function aprobar() {
+    setEnviando(true);
+    setError(null);
+    const r = await aprobarEsteEquipo(contrasena, totp).catch(() => null);
+    setEnviando(false);
+    if (!r) return setError("El servidor no respondió. Inténtalo de nuevo.");
+    if (!r.ok) {
+      setTotp("");
+      return setError(r.mensaje);
+    }
+    router.refresh();
+  }
+
+  async function renovar() {
+    setEnviando(true);
+    setError(null);
+    const r = await renovarSolicitud().catch(() => null);
+    setEnviando(false);
+    if (!r) return setError("El servidor no respondió. Inténtalo de nuevo.");
+    if (!r.ok) return setError(r.mensaje);
+    router.refresh();
+  }
+
+  return (
+    <div className="grid flex-1 place-content-center bg-base px-6 py-8">
+      <div className="w-full max-w-md rounded-[var(--radius-card)] border border-line bg-surface p-7 shadow-card">
+        <MonitorSmartphone size={30} className="text-ink-2" aria-hidden="true" />
+        <h1 className="font-display mt-3 text-2xl font-bold text-ink">Este equipo espera su aprobación</h1>
+        <p className="mt-2 text-sm text-ink-2">
+          «{nombre}» pidió su registro. Hasta que lo aprueben, ningún PIN sirve desde aquí: el equipo es el primer
+          factor de acceso.
+        </p>
+
+        <div className="mt-5 rounded-[var(--radius-control)] border border-line bg-base px-4 py-3 text-center">
+          <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Código de este equipo</p>
+          <p className="tnum mt-1 font-mono text-3xl font-bold tracking-[0.18em] text-ink">{codigo}</p>
+        </div>
+
+        {caducada ? (
+          <div className="mt-5 flex flex-col gap-3">
+            <p role="status" className="flex items-start gap-2 rounded-[var(--radius-control)] bg-state-warn-bg p-3 text-[13px] text-state-warn">
+              <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              La solicitud caducó: pasaron más de 24 horas sin aprobarla. Renuévala y pide que la aprueben.
+            </p>
+            {error && <p role="alert" className="text-[13px] text-state-crit">{error}</p>}
+            <Button surface="tablet" variant="primary" onClick={renovar} disabled={enviando}>
+              <RefreshCw size={16} aria-hidden="true" />
+              {enviando ? "Renovando…" : "Renovar la solicitud"}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <p className="mt-5 text-[13px] text-ink-2">
+              Desde un equipo ya aprobado: Panel → Personas → Dispositivos, comprobando que el código coincide.
+            </p>
+
+            {abierto ? (
+              <form
+                className="mt-4 flex flex-col gap-3 border-t border-line pt-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void aprobar();
+                }}
+              >
+                <p className="flex items-center gap-2 text-[13px] font-medium text-ink">
+                  <ShieldCheck size={15} aria-hidden="true" />
+                  Aprobarlo aquí con tus credenciales de administración
+                </p>
+                <Input
+                  label="Contraseña"
+                  surface="tablet"
+                  type="password"
+                  autoComplete="current-password"
+                  value={contrasena}
+                  onChange={(e) => setContrasena(e.target.value)}
+                  autoFocus
+                />
+                <Input
+                  label="Código del autenticador"
+                  surface="tablet"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={totp}
+                  onChange={(e) => setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  error={error ?? undefined}
+                />
+                <Button
+                  type="submit"
+                  surface="tablet"
+                  variant="primary"
+                  disabled={enviando || contrasena.length === 0 || totp.length !== 6}
+                >
+                  {enviando ? "Comprobando…" : "Aprobar este equipo"}
+                </Button>
+              </form>
+            ) : (
+              <div className="mt-4 flex flex-col gap-2">
+                <Button surface="tablet" variant="primary" onClick={() => setAbierto(true)}>
+                  <ShieldCheck size={16} aria-hidden="true" />
+                  Soy de administración
+                </Button>
+                <Button surface="tablet" variant="ghost" onClick={() => router.refresh()}>
+                  <RefreshCw size={16} aria-hidden="true" />
+                  Ya lo aprobaron
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

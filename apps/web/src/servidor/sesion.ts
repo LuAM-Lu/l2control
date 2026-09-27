@@ -50,10 +50,17 @@ export async function credencialSesion(): Promise<string | undefined> {
   return (await cookies()).get(COOKIE_SESION)?.value;
 }
 
-/** La IP de quien pide, si es una IP. Detrás del proxy del VPS llega en `x-forwarded-for`. */
+/**
+ * La IP de quien pide, si es una IP. Va a la auditoría y decide el tope de solicitudes (M-7).
+ *
+ * Se toma la ÚLTIMA dirección de `x-forwarded-for`, la que añadió el proxy más cercano (Caddy o
+ * nginx delante de la app, B7-1), y no la primera: la primera la escribe el cliente y se puede
+ * inventar. Next solo pone la del socket si el cliente no mandó la cabecera, así que sin proxy
+ * delante (en desarrollo) la dirección no es de fiar; en staging y producción siempre hay uno.
+ */
 export async function ipDeLaPeticion(): Promise<string | null> {
   const h = await headers();
-  const ip = (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip") ?? "").trim();
+  const ip = (h.get("x-forwarded-for")?.split(",").at(-1) ?? h.get("x-real-ip") ?? "").trim();
   return isIP(ip) ? ip : null;
 }
 

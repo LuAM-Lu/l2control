@@ -50,3 +50,18 @@ export function leerCredencial(texto: string | undefined | null): Credencial | n
   if (!UUID.test(tenantId) || !UUID.test(id) || !SECRETO.test(secreto)) return null;
   return { tenantId, id, secreto };
 }
+
+/** Sin 0/O ni 1/I: se leen en voz alta y se comparan de un vistazo. 32 símbolos, 5 bits cada uno. */
+const SIMBOLOS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+/**
+ * El código de emparejamiento de un equipo (M-7), «K7F-2QX». Sale de su id y siempre es el mismo,
+ * así que lo pueden enseñar a la vez el equipo pendiente, el panel y la consola sin guardarlo.
+ * No es secreto ni da acceso: sirve para comprobar que se aprueba el aparato que se tiene delante.
+ */
+export function codigoDeEmparejamiento(deviceId: string): string {
+  const h = createHash("sha256").update(`l2-emparejamiento:${deviceId}`, "utf8").digest();
+  let texto = "";
+  for (let i = 0; i < 6; i++) texto += SIMBOLOS[h[i]! & 31];
+  return `${texto.slice(0, 3)}-${texto.slice(3)}`;
+}

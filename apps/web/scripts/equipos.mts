@@ -7,8 +7,12 @@
  *
  * Resuelve el huevo y la gallina de un local nuevo: para aprobar un equipo desde el panel
  * hace falta entrar, y para entrar hace falta un equipo aprobado. El primero se aprueba aquí,
- * desde la máquina del servidor; lo demás, desde el panel. Todo queda auditado como
- * «Consola del servidor». Está en el runbook de la instalación (F10-10).
+ * desde la máquina del servidor, o desde el propio equipo con las credenciales de administración
+ * (M-7); lo demás, desde el panel. Es también la puerta de emergencia si se pierden todos los
+ * equipos de administración. Todo queda auditado como «Consola del servidor». Está en el runbook
+ * de la instalación (F10-10).
+ *
+ * Antes de aprobar, compara el código que enseña la lista con el de la pantalla del equipo.
  */
 import { existsSync } from "node:fs";
 import { conectar, type Contexto } from "@l2/application";
@@ -35,7 +39,8 @@ try {
     if (equipos.length === 0) console.log("No hay equipos registrados. Abre la app en uno y pide su registro.");
     for (const d of equipos) {
       const quien = d.session ? ` · con sesión de ${d.session.userName}` : "";
-      console.log(`${d.status.padEnd(10)} ${d.label}${quien}`);
+      const caducada = d.requestExpiresAt && Date.parse(d.requestExpiresAt) <= Date.now() ? " · SOLICITUD CADUCADA" : "";
+      console.log(`${d.status.padEnd(10)} ${d.pairingCode}  ${d.label}${quien}${caducada}`);
     }
   } else if (orden === "aprobar" || orden === "revocar") {
     const d = equipos.find((x) => x.label.toLowerCase() === (nombre ?? "").toLowerCase());
@@ -46,7 +51,7 @@ try {
       reason: orden === "aprobar" ? "Aprobado desde la consola del servidor" : "Revocado desde la consola del servidor",
     });
     if (!r.ok) throw new Error(r.mensaje);
-    console.log(`✓ ${r.valor.label}: ${r.valor.status}`);
+    console.log(`✓ ${r.valor.label} (código ${r.valor.pairingCode}): ${r.valor.status}`);
   } else {
     throw new Error(`Orden desconocida «${orden}». Usa: pnpm equipos [aprobar|revocar "<nombre>"]`);
   }

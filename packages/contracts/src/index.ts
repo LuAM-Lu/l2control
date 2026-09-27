@@ -162,6 +162,7 @@ export {
   UserCommandSchema,
   DeviceStatusSchema,
   DeviceSchema,
+  CodigoEmparejamientoSchema,
   DevicesDirectorySchema,
   DeviceCommandSchema,
   type RoleDto,
