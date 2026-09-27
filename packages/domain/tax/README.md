@@ -55,6 +55,18 @@ números: 1,60 de diferencia en una cuenta de 200.
 **Que un medio de pago tribute es un dato, no se deduce de la moneda.** `triggersIgtf` se
 configura; el motor obedece. El día que cambie la norma se corrige sin desplegar.
 
+## Vigencias programadas (B2-2)
+
+Lo que se guarda es «desde tal instante, tal alícuota» (`ScheduledTaxRate`), de solo-agregar. El
+calendario sale de ahí con `taxTimeline`: el fin de un tramo es el comienzo del siguiente del mismo
+impuesto; con el mismo comienzo manda la programación más reciente, y una que no cambia la alícuota
+no abre tramo (programar la vigente para un día cancela el cambio de ese día).
+
+- `ivaRulesOf(tramos)` da las reglas para `computeDocument`, con lo exento (0 %, siempre) incluido.
+- `igtfAt(tramos, at)` da el IGTF del instante; `missingTaxesAt` dice qué falta para poder cobrar.
+- `scheduleProblem` dice si algo se puede programar: nunca hacia atrás.
+- `basisPointsFromPercent` / `percentFromBasisPoints`: «16,5» ↔ 1650, sin coma flotante.
+
 ## Fail-closed
 
 Sin alícuota vigente para el instante de la factura, `findRule` **lanza**. Suponer 0 % «porque
@@ -62,12 +74,14 @@ no hay regla» sería emitir facturas sin IVA en silencio — el peor error posi
 
 ## Qué NO le corresponde
 
-- **Persistencia y vigencias.** Recibe las reglas ya cargadas; no sabe de base de datos.
+- **Persistencia.** Recibe lo programado ya cargado; no sabe de base de datos (`@l2/application`).
+- **Qué día es hoy.** El instante en que empieza un día del local lo pone quien llama (`startOfDay` de
+  `@l2/domain-rates`).
 - **Conversión entre monedas.** Necesita una tasa, y la tasa es dato de la transacción (ADR-005).
 - **Emitir el documento fiscal.** Eso es el puerto `FiscalDevice` (§5.4).
 
 ```bash
-pnpm test    # 26 pruebas, incluidos los 8 casos límite de §5.3
+pnpm test    # 44 pruebas, incluidos los 8 casos límite de §5.3 y las vigencias
 ```
 
 Cuando lleguen las 20 facturas reales del contador (F0-05) se añaden aquí como casos de

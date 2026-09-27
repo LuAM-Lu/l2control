@@ -5,23 +5,8 @@
  * el caso que enlaza con la pantalla de salida.
  */
 import { fromMajor } from "@l2/domain-money";
-import type { TaxRule } from "@l2/domain-tax";
 import { PosTerminalSchema, type PosTerminalDto } from "@l2/contracts";
 import type { MedioPago } from "../features/cash/medios.ts";
-
-/**
- * Alícuotas de trabajo. **No son una afirmación sobre la normativa vigente**:
- * las confirma el contador (DEC-1). Van con vigencia desde el principio para
- * que cambiarlas no reescriba el pasado (F3-06).
- */
-export const DEMO_TAX_RULES: TaxRule[] = [
-  { code: "GENERAL", basisPoints: 1600, effectiveFrom: 0, effectiveTo: null },
-  { code: "REDUCIDA", basisPoints: 800, effectiveFrom: 0, effectiveTo: null },
-  { code: "EXENTA", basisPoints: 0, effectiveFrom: 0, effectiveTo: null },
-];
-
-/** IGTF en puntos básicos. 3 % = 300. Dato, no constante del código. */
-export const DEMO_IGTF_BASIS_POINTS = 300;
 
 /**
  * Umbral máximo que puede quedarse en caja como residuo (§5.6).

@@ -309,7 +309,7 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "impuestos",
         nombre: "Impuestos",
-        href: null,
+        href: rutaSeccion("configuracion", "impuestos"),
         proposito:
           "Tipos de IVA con su vigencia y el porcentaje de IGTF. Se versionan por fecha: un cambio no reescribe el pasado.",
         tarea: "F3-06",

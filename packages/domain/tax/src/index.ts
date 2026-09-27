@@ -355,3 +355,138 @@ export function pagoQueCubreConIgtf(
   while (!cubre(pago)) pago = add(pago, money(1n, deuda.currency));
   return pago;
 }
+
+/* ------------------------------------------------ vigencias programadas (B2-2) */
+
+/** Los dos impuestos que se programan: no comparten forma (§5.3), pero sí calendario. */
+export type TaxKind = "IVA" | "IGTF";
+
+/**
+ * Lo que se programó: «desde tal instante, tal alícuota». Es lo que se guarda, de solo-agregar.
+ *
+ * No lleva fin: el fin de una vigencia es el comienzo de la siguiente del mismo impuesto. Así
+ * programar un cambio nunca reescribe la fila anterior (regla 5). Lo exento no se programa: es
+ * cero por definición y `ivaRulesOf` lo añade siempre.
+ */
+export type ScheduledTaxRate = Readonly<{
+  id: string;
+  kind: TaxKind;
+  /** GENERAL o REDUCIDA en el IVA; `null` en el IGTF, que grava el medio y no el producto. */
+  code: Exclude<TaxCode, "EXENTA"> | null;
+  basisPoints: number;
+  effectiveFrom: number;
+  /** Cuándo se programó. Entre dos programaciones con el mismo comienzo, manda la última. */
+  scheduledAt: number;
+}>;
+
+/** Una vigencia resuelta: la programación que manda en su tramo, con su fin. */
+export type TaxPeriod = ScheduledTaxRate & Readonly<{ effectiveTo: number | null }>;
+
+/** Por qué no se puede programar algo. */
+export type ScheduleProblem = "EN_EL_PASADO" | "SIN_CODIGO" | "CODIGO_EN_IGTF" | "FUERA_DE_RANGO";
+
+/**
+ * ¿Se puede programar esto ahora? Nunca hacia atrás: el cálculo de lo ya vendido no cambia (F3-06).
+ * `null` si se puede.
+ */
+export function scheduleProblem(
+  s: Pick<ScheduledTaxRate, "kind" | "code" | "basisPoints" | "effectiveFrom">,
+  now: number,
+): ScheduleProblem | null {
+  if (!Number.isInteger(s.basisPoints) || s.basisPoints < 0 || BigInt(s.basisPoints) > BASIS) return "FUERA_DE_RANGO";
+  // El IGTF grava el pago: una alícuota del 100 % no tendría pago que la cubra.
+  if (s.kind === "IGTF" && BigInt(s.basisPoints) >= BASIS) return "FUERA_DE_RANGO";
+  if (s.kind === "IVA" && s.code === null) return "SIN_CODIGO";
+  if (s.kind === "IGTF" && s.code !== null) return "CODIGO_EN_IGTF";
+  if (s.effectiveFrom < now) return "EN_EL_PASADO";
+  return null;
+}
+
+/**
+ * El calendario de cada impuesto a partir de lo programado.
+ *
+ * Por impuesto (y trato, en el IVA): cada comienzo distinto abre un tramo que dura hasta el
+ * siguiente. Si dos programaciones tienen el mismo comienzo, manda la programada después: así
+ * se corrige un cambio futuro sin borrar nada. Una que no cambia la alícuota no abre tramo: el
+ * anterior sigue; así, programar la alícuota vigente para un día cancela el cambio que había
+ * programado. Ordenado por impuesto, trato y comienzo.
+ */
+export function taxTimeline(scheduled: readonly ScheduledTaxRate[]): TaxPeriod[] {
+  const grupos = new Map<string, Map<number, ScheduledTaxRate>>();
+  for (const s of scheduled) {
+    const clave = `${s.kind}:${s.code ?? ""}`;
+    const porComienzo = grupos.get(clave) ?? new Map<number, ScheduledTaxRate>();
+    const previa = porComienzo.get(s.effectiveFrom);
+    if (!previa || s.scheduledAt > previa.scheduledAt || (s.scheduledAt === previa.scheduledAt && s.id > previa.id)) {
+      porComienzo.set(s.effectiveFrom, s);
+    }
+    grupos.set(clave, porComienzo);
+  }
+  const tramos: TaxPeriod[] = [];
+  for (const clave of [...grupos.keys()].sort()) {
+    const ordenadas = [...grupos.get(clave)!.values()].sort((a, b) => a.effectiveFrom - b.effectiveFrom);
+    const cambios = ordenadas.filter((s, i) => i === 0 || s.basisPoints !== ordenadas[i - 1]!.basisPoints);
+    cambios.forEach((s, i) => tramos.push(Object.freeze({ ...s, effectiveTo: cambios[i + 1]?.effectiveFrom ?? null })));
+  }
+  return tramos;
+}
+
+/** Lo exento vale cero desde siempre y para siempre: no es un dato que se programe. */
+const EXENTA_SIEMPRE: TaxRule = Object.freeze({ code: "EXENTA", basisPoints: 0, effectiveFrom: 0, effectiveTo: null });
+
+/** Las reglas del IVA para `computeDocument`, con lo exento incluido. */
+export function ivaRulesOf(periods: readonly TaxPeriod[]): TaxRule[] {
+  return [
+    ...periods
+      .filter((p) => p.kind === "IVA" && p.code !== null)
+      .map((p) => ({ code: p.code!, basisPoints: p.basisPoints, effectiveFrom: p.effectiveFrom, effectiveTo: p.effectiveTo })),
+    EXENTA_SIEMPRE,
+  ];
+}
+
+export class NoIgtfRuleError extends Error {
+  constructor(at: number) {
+    super(`No hay alícuota de IGTF vigente en ${new Date(at).toISOString()}. Sin regla no se cobra: fail-closed.`);
+    this.name = "NoIgtfRuleError";
+  }
+}
+
+/** La alícuota del IGTF en `at`. Lanza si no hay ninguna: suponer 0 % sería no retener en silencio. */
+export function igtfAt(periods: readonly TaxPeriod[], at: number): number {
+  const p = periods.find((x) => x.kind === "IGTF" && x.effectiveFrom <= at && (x.effectiveTo === null || at < x.effectiveTo));
+  if (!p) throw new NoIgtfRuleError(at);
+  return p.basisPoints;
+}
+
+/**
+ * ¿Hay con qué cobrar en `at`? Hace falta IVA general, IVA reducida e IGTF vigentes. Devuelve
+ * lo que falta (vacío si nada): la caja no cobra con un impuesto supuesto.
+ */
+export function missingTaxesAt(periods: readonly TaxPeriod[], at: number): string[] {
+  const rige = (kind: TaxKind, code: TaxCode | null) =>
+    periods.some((p) => p.kind === kind && p.code === code && p.effectiveFrom <= at && (p.effectiveTo === null || at < p.effectiveTo));
+  const faltan: string[] = [];
+  if (!rige("IVA", "GENERAL")) faltan.push("IVA general");
+  if (!rige("IVA", "REDUCIDA")) faltan.push("IVA reducido");
+  if (!rige("IGTF", null)) faltan.push("IGTF");
+  return faltan;
+}
+
+/**
+ * Un porcentaje como lo teclea una persona («16», «16,5», «3.25») en puntos básicos, sin pasar por
+ * decimales de coma flotante. `null` si no es un porcentaje entre 0 y 100 con hasta dos decimales.
+ */
+export function basisPointsFromPercent(texto: string): number | null {
+  const m = /^(\d{1,3})(?:[.,](\d{1,2}))?$/.exec(texto.trim().replace(/\s*%$/, ""));
+  if (!m) return null;
+  const bps = Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
+  return bps <= 10_000 ? bps : null;
+}
+
+/** Puntos básicos como porcentaje para leer: 1600 → «16», 1650 → «16,5», 825 → «8,25». */
+export function percentFromBasisPoints(bps: number): string {
+  const entero = Math.trunc(bps / 100);
+  const resto = bps % 100;
+  if (resto === 0) return String(entero);
+  return `${entero},${String(resto).padStart(2, "0").replace(/0$/, "")}`;
+}

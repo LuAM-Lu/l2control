@@ -19,6 +19,8 @@ escribe en la base dentro de la transacción del tenant. **Es la única puerta d
 |---|---|---|
 | Parque | `tarifario.leer`, `tarifario.publicar` (versión nueva; dos a la vez → `CONFLICTO`) | B0-5 |
 | Sucursal | `sucursal.asegurar` (semillas; idempotente) | B0-5 |
+| Dinero | `tasas.leer`, `capturar`, `confirmar`, `sincronizar` (la del BCV se aplica sola con salvaguardas) | B2-1, B2-1b, B2-1c |
+| Dinero | `impuestos.leer`, `impuestos.programar` (desde un día; hoy, desde ya; nunca hacia atrás) | B2-2 |
 
 ## Qué NO le corresponde
 

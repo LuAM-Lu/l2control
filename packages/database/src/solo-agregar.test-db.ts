@@ -193,3 +193,54 @@ test("una confirmación automática no tiene persona, autorizador ni doble tecle
     );
   }
 });
+
+/** Una alícuota programada de `tenant` (B2-2), `n` segundos después de una hora fija. */
+const alicuota = (tenant: string, n: number, extra: Partial<{ tax: string; code: string | null; basisPoints: number; retraso: number }> = {}) => {
+  const programada = new Date(Date.UTC(2026, 8, 27, 14, 0, n));
+  return {
+    tenantId: tenant,
+    tax: extra.tax ?? "IVA",
+    code: extra.code === undefined ? "GENERAL" : extra.code,
+    basisPoints: extra.basisPoints ?? 1600,
+    scheduledAt: programada,
+    effectiveFrom: new Date(programada.getTime() + (extra.retraso ?? 0)),
+    scheduledByName: "Semilla",
+  };
+};
+
+test("una alícuota programada no se edita ni se borra (B2-2)", async () => {
+  const f = await app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data: alicuota(A.tenant, 0) }));
+  await assert.rejects(
+    app.conTenant(A.tenant, (tx) => tx.taxRate.update({ where: { id: f.id }, data: { basisPoints: 1500 } })),
+    SOLO_AGREGAR,
+  );
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.taxRate.deleteMany({})), SOLO_AGREGAR);
+});
+
+test("la base no deja programar hacia atrás, ni lo exento, ni un IGTF con trato (F3-06)", async () => {
+  const malas = [
+    alicuota(A.tenant, 10, { retraso: -1 }),
+    alicuota(A.tenant, 11, { code: "EXENTA", basisPoints: 0 }),
+    alicuota(A.tenant, 12, { code: null }),
+    alicuota(A.tenant, 13, { tax: "IGTF", code: "GENERAL", basisPoints: 300 }),
+    alicuota(A.tenant, 14, { tax: "IGTF", code: null, basisPoints: 10_000 }),
+    alicuota(A.tenant, 15, { basisPoints: 10_001 }),
+    alicuota(A.tenant, 16, { tax: "ISLR" }),
+  ];
+  for (const [i, data] of malas.entries()) {
+    await assert.rejects(app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data })), por("RESTRICCION"), String(i));
+  }
+  // Para el futuro y el IGTF sin trato, sí.
+  await app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data: alicuota(A.tenant, 20, { retraso: 86_400_000 }) }));
+  await app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data: alicuota(A.tenant, 21, { tax: "IGTF", code: null, basisPoints: 300 }) }));
+});
+
+test("dos programaciones del mismo impuesto en el mismo instante no se ordenan: la segunda se rechaza", async () => {
+  await app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data: alicuota(A.tenant, 30, { tax: "IGTF", code: null, basisPoints: 300 }) }));
+  await assert.rejects(
+    app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data: alicuota(A.tenant, 30, { tax: "IGTF", code: null, basisPoints: 200 }) })),
+    por("DUPLICADO"),
+  );
+  // El general y el reducido sí pueden programarse en el mismo instante.
+  await app.conTenant(A.tenant, (tx) => tx.taxRate.create({ data: alicuota(A.tenant, 30, { code: "REDUCIDA", basisPoints: 800 }) }));
+});

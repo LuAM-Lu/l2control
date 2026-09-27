@@ -98,18 +98,18 @@ export {
 
 export {
   TaxCodeSchema,
+  TratoProgramableSchema,
+  ImpuestoSchema,
   BasisPointsSchema,
-  VigenciaIvaSchema,
+  VigenciaImpuestoSchema,
   ImpuestosSchema,
-  ProgramarIvaCommandSchema,
-  ProgramarIgtfCommandSchema,
-  ImpuestoCommandSchema,
+  ProgramarImpuestoCommandSchema,
   type TaxCode,
-  type VigenciaIvaDto,
+  type TratoProgramable,
+  type Impuesto,
+  type VigenciaImpuestoDto,
   type ImpuestosDto,
-  type ProgramarIvaCommand,
-  type ProgramarIgtfCommand,
-  type ImpuestoCommand,
+  type ProgramarImpuestoCommand,
 } from "./impuestos.ts";
 
 export {

@@ -19,6 +19,7 @@ export type {
   Branch,
   ExchangeRate,
   ExchangeRateConfirmation,
+  TaxRate,
   ParkTariffVersion,
   Prisma,
   Tenant,

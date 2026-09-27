@@ -212,6 +212,9 @@ importers:
       '@l2/domain-rates':
         specifier: workspace:*
         version: link:../domain/rates
+      '@l2/domain-tax':
+        specifier: workspace:*
+        version: link:../domain/tax
       '@l2/observability':
         specifier: workspace:*
         version: link:../observability
@@ -228,6 +231,9 @@ importers:
       '@l2/config':
         specifier: workspace:*
         version: link:../config
+      '@l2/domain-money':
+        specifier: workspace:*
+        version: link:../domain/money
       '@types/node':
         specifier: 24.10.1
         version: 24.10.1

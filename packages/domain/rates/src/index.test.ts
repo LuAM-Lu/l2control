@@ -18,6 +18,7 @@ import {
   missingNextBusinessDayRate,
   nextBusinessDay,
   calendarDay,
+  startOfDay,
   currenciesOf,
   currentRate,
   rateOfDay,
@@ -328,5 +329,22 @@ describe("aviso si el BCV no publicó la del siguiente día hábil (ADR-019 §8)
   test("la hora es la del local, no la de UTC", () => {
     // 23:30 UTC del jueves son las 7:30 pm en Caracas: ya toca.
     assert.equal(missingNextBusinessDayRate([], "USD/VES", "2026-09-24T23:30:00.000Z", zona, 18), "2026-09-25");
+  });
+});
+
+describe("el comienzo del día en la zona del local", () => {
+  test("la medianoche de Caracas es a las 4:00 UTC", () => {
+    assert.equal(new Date(startOfDay("2026-10-01", "America/Caracas")).toISOString(), "2026-10-01T04:00:00.000Z");
+  });
+
+  test("es el primer instante que ya pertenece a ese día", () => {
+    const t = startOfDay("2026-09-27", "America/Caracas");
+    assert.equal(calendarDay(new Date(t).toISOString(), "America/Caracas"), "2026-09-27");
+    assert.equal(calendarDay(new Date(t - 1).toISOString(), "America/Caracas"), "2026-09-26");
+  });
+
+  test("con horario de verano mide el desfase de ese día (Madrid: +2 en verano, +1 en invierno)", () => {
+    assert.equal(new Date(startOfDay("2026-07-01", "Europe/Madrid")).toISOString(), "2026-06-30T22:00:00.000Z");
+    assert.equal(new Date(startOfDay("2026-12-01", "Europe/Madrid")).toISOString(), "2026-11-30T23:00:00.000Z");
   });
 });

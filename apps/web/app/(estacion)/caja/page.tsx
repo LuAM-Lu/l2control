@@ -1,11 +1,8 @@
 import { CajaScreen } from "../../../src/features/cash/CajaScreen";
-import {
-  DEMO_IGTF_BASIS_POINTS,
-  DEMO_TAX_RULES,
-} from "../../../src/demo/caja";
 import { demoSnapshot } from "../../../src/demo/parque";
 import { DEMO_USUARIOS } from "../../../src/demo/usuarios";
 import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
+import { impuestosDelLocal } from "../../../src/features/cash/impuestos.servidor";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
@@ -34,8 +31,8 @@ export default async function CajaPage({
       cuentaInicial={cuenta ?? null}
       volver={volver ?? null}
       pulseras={pulseras}
-      rules={DEMO_TAX_RULES}
-      igtfBasisPoints={DEMO_IGTF_BASIS_POINTS}
+      // Las alícuotas, de la base con su vigencia (B2-2): la caja elige las del instante.
+      impuestos={await impuestosDelLocal()}
       // TODO(F2-12/backend): el punto sale del registro del dispositivo. El
       // equipo de caja es el del mostrador.
       puntoDeCobro="MOSTRADOR"

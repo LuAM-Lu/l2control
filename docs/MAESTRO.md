@@ -26,9 +26,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.15.0 · 15 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas
-son de la base, se traen del BCV, **se aplican solas con salvaguardas y llegan en vivo a toda pantalla
-(B2-1c)**. Sin modo demo; lo provisional y lo simulado que queda está
+**Versión 0.16.0 · 16 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas
+son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
+(B2-1c), y **los impuestos son de la base con su vigencia (B2-2)**. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -36,16 +36,17 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  Inicio) e Impuestos (Configuración y el ticket de la caja). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
   «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (28 de base, 113 de aplicación, 47 de tasas en el dominio). **Subido a GitHub el
+- **Pruebas:** `pnpm verify:db` en verde (31 de base, 128 de aplicación, 50 de tasas y 44 de impuestos
+  en el dominio). **Subido a GitHub el
   2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
 
 **La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
@@ -55,7 +56,12 @@ vigente. Para probar el aviso de la caja se aplicaron a mano para el domingo 27,
 luego 855,6625: la vigente de ese día quedó en 855,6625, el valor del BCV. Equipos de prueba «Verif Caja» y «Verif
 Admin» revocados.
 
-**Siguiente paso:** B2-2 (impuestos con vigencia y Configuración → Impuestos). Luego, el orden de §3.
+**Los impuestos en la base local.** La semilla programó 16 %, 8 % y 3 % el 2026-09-27. Al comprobar
+B2-2 se programó el IVA general al 15 % (hoy y el 27 oct) y se devolvió al 16 %, y el IGTF al 2 % el
+27 oct y se canceló: rige 16 %, 8 % y 3 %, sin nada programado. Equipos «Prueba B22 Admin» y «Prueba
+B22 Caja» revocados.
+
+**Siguiente paso:** B2-3 (libro de pagos de solo-agregar con idempotencia). Luego, el orden de §3.
 
 ---
 
@@ -112,7 +118,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
 
-1. ~~Limpiar la base local → T-1 → B2-1c~~ → **B2-2** → B2-3 → B2-4 (se cierra Dinero).
+1. ~~Limpiar la base local → T-1 → B2-1c → B2-2~~ → **B2-3** → B2-4 (se cierra Dinero).
 2. B3-1 → B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
@@ -315,9 +321,36 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   desbordar a lo ancho, con «Cerrar cobro» siempre a la vista; sin errores de consola.*
   *Queda para después: el rechazo en el servidor de un cobro con una tasa que ya no rige (B3-3), el
   empuje en menos de 2 s (B5-1) y el umbral configurable (D-CORD).*
-- [ ] **B2-2 · Impuestos con vigencia** persistidos, más la pantalla **Configuración → Impuestos**
+- [x] **B2-2 · Impuestos con vigencia** persistidos, más la pantalla **Configuración → Impuestos**
   (contrato `impuestos.ts`).
   → Programar una alícuota con fecha de hoy cambia el ticket; con fecha del mes que viene, no.
+  *Hecho el 2026-09-27 (v0.16.0):*
+  *· Dominio (`@l2/domain-tax`): `taxTimeline` arma el calendario de lo programado (el fin de un tramo
+  es el comienzo del siguiente; con el mismo comienzo manda la última; lo que no cambia la alícuota no
+  abre tramo, y así programar la vigente cancela un cambio), `ivaRulesOf` (lo exento, 0 % siempre),
+  `igtfAt`, `missingTaxesAt`, `scheduleProblem` (nunca hacia atrás) y porcentajes sin coma flotante.
+  `startOfDay` en `@l2/domain-rates`. 18 pruebas nuevas.*
+  *· Contrato: `VigenciaImpuestoSchema`, `ImpuestosSchema` (vacío vale: local nuevo) y
+  `ProgramarImpuestoCommandSchema` con el DÍA; el instante y quién lo pone el servidor (se retira el
+  `por` que mandaba el navegador).*
+  *· Base: migraciones `20260930000000_impuestos` y `…010000_impuestos_trato_obligatorio`: `tax_rate`
+  de solo-agregar con RLS, CHECK de impuesto, trato (lo exento no se guarda), rango y
+  `effective_from >= scheduled_at` (el pasado no se reescribe), y una sola programación por impuesto e
+  instante. La segunda corrige un CHECK que dejaba pasar un IVA sin trato (ver §5). 3 pruebas.*
+  *· Aplicación: `impuestos.leer` (sin persona: la caja lo necesita) e `impuestos.programar`
+  (`catalogo.modificar` con elevación; hoy rige desde ya, otro día desde su medianoche en Caracas;
+  hasta 366 días; lo que no cambia nada se rechaza; asiento `impuesto.programar` con lo que regía y lo
+  que regirá; el rechazo por permiso, auditado). La semilla programa 16 %, 8 % y 3 %. 15 pruebas.*
+  *· Web: Configuración → Impuestos (rige ahora, calendario por impuesto con «Rige ahora»,
+  «Programado» y «Terminó», y «Programar un cambio»). La caja lee el calendario en el servidor y
+  elige las alícuotas del instante (hora del servidor que avanza con el reloj); sin alguna vigente no
+  cobra y enlaza a Impuestos. Se borran las alícuotas de `src/demo/caja.ts`.*
+  *· Comprobado en el navegador con dos equipos: ticket de $ 5,00 → total $ 5,80; programar el IVA
+  general al 15 % para el 27 oct no lo cambia; al 15 % para hoy, $ 5,75 (IVA 15 %); devuelto al 16 %,
+  $ 5,80. Programar el 16 % que ya rige: «Ese día ya rige esa alícuota» en el campo; IGTF al 2 % el 27
+  oct y luego al 3 %: «se cancela el cambio». Impuestos a 1366×768, 1280×800 y 800×1280 sin desplazar
+  el documento ni desbordar; sin errores de consola. No se vio en el navegador la caja sin impuestos
+  (la base local los tiene): lo cubren `missingTaxesAt` y su prueba.*
 - [ ] **B2-3 · Libro de pagos append-only con idempotencia**, y la reversión como asiento (F3-09,
   F3-10, §5.5).
   → Un doble clic produce un solo cobro. Al revertir quedan los dos asientos y el original intacto.
@@ -494,7 +527,6 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 
 | Qué | Dónde | Se va con |
 |---|---|---|
-| Reglas de IVA 16 %/8 %/exento e IGTF 3 % | `src/demo/caja.ts` | B2-2 |
 | Medios de pago, datos que ve el cliente y terminales | `src/demo/medios.ts`, `caja.ts`, `MediosProvider` (en el navegador) | B3-2 |
 | Movimientos y excepciones del turno (vacíos), turno «sin abrir» fijo en la barra, punto de cobro fijo | `src/demo/turno.ts`, layout de estación, página de caja | B3-1 y B3-5 |
 | Catálogo de mostrador (agua, maltas, tequeños…) | `features/cash/catalogo-mostrador.ts` | B9-1 |
@@ -534,6 +566,8 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
   da otra cosa según el día de la semana (la del viernes vale el sábado).
 - Una fracción de `@l2/domain-rates` está **reducida** (229,05 = 4581/20): para escribir una tasa se usa
   el valor capturado con `formatTasaVE`, nunca el numerador.
+- Un CHECK con `columna IN (...)` sobre una columna que admite nulos **deja pasar el nulo** (`NULL IN`
+  es desconocido, y un CHECK desconocido pasa). Se escribe `columna IS NOT NULL AND columna IN (...)`.
 - El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
   (`certificado-bcv.ts`, vence en 2036). Nunca se apaga la verificación.
 
@@ -546,7 +580,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
-| F3 · Dinero | Tasas en la base, traídas del BCV, aplicadas solas y en vivo (B2-1, B2-1b, B2-1c) | Impuestos, libro y `businessDate`. **Sin F3-08** (M-3) |
+| F3 · Dinero | Tasas en la base, traídas del BCV, aplicadas solas y en vivo (B2-1, B2-1b, B2-1c); impuestos con vigencia (B2-2) | Libro y `businessDate`. **Sin F3-08** (M-3) |
 | F4 · Caja | Interfaz completa | Turno, libro, cortes y excepciones reales (Etapa 3) |
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
@@ -588,6 +622,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   congela la tasa del cobro); falta verlo en el navegador.
 - **2026-09-27** · B2-1c comprobado en el navegador y entregado (v0.15.0): el aviso de tasa cambiada
   pasa a la franja fija de la caja con «Mantener» y «Usar la nueva». Sigue B2-2.
+- **2026-09-27** · B2-2 entregado (v0.16.0): los impuestos se programan con fecha en Configuración →
+  Impuestos y la caja cobra con los del instante. Sigue B2-3.
 
 ---
 

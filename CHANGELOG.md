@@ -12,6 +12,23 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.16.0] — 2026-09-27 · Etapa 2 · Dinero
+
+B2-2 · Impuestos con vigencia.
+
+### Añadido
+- Panel → Configuración → Impuestos: lo que rige ahora (IVA general, reducido, exento e IGTF), el
+  calendario de cada impuesto y «Programar un cambio». Un cambio para hoy rige desde que se guarda;
+  para otro día, desde su medianoche. Nunca hacia atrás: lo ya vendido se queda como se vendió.
+- Corregir un cambio programado es programar otro para el mismo día; programar la alícuota que rige
+  lo cancela. Programar lo que ya rige se rechaza en el campo.
+- Programar pide confirmar identidad y queda en la auditoría con lo que regía y lo que regirá.
+
+### Cambiado
+- La caja calcula el ticket con las alícuotas de la base, las del instante: un cambio programado para
+  mañana entra a la medianoche sin recargar. Sin alguna alícuota vigente, la caja no cobra y dice
+  dónde se configura (antes, 16 %, 8 % y 3 % fijos en el código).
+
 ## [0.15.0] — 2026-09-27 · Etapa 2 · Dinero
 
 B2-1c · Tasa automática y en vivo.

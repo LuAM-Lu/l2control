@@ -37,7 +37,11 @@ import {
 import {
   computeDocument,
   computeIgtf,
+  igtfAt,
+  ivaRulesOf,
+  missingTaxesAt,
   pagoQueCubreConIgtf,
+  taxTimeline,
   type DocumentLine,
   type TaxRule,
 } from "@l2/domain-tax";
@@ -80,6 +84,7 @@ import {
   type CortesiaDto,
   type DatosDePagoDto,
   type FamilyAccountDto,
+  type ImpuestosDto,
   type UserSummaryDto,
   type PagoDeVentaDto,
 } from "@l2/contracts";
@@ -108,7 +113,7 @@ import { useVentas } from "./VentasProvider.tsx";
 import { useOperador } from "../identity/operador.ts";
 import { can } from "@l2/domain-identity";
 import { useActorEnSesion } from "../identity/sesion.ts";
-import { useOperacion } from "../operacion/OperacionProvider.tsx";
+import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import {
   esDeMesa,
   esLineaDeMostrador,
@@ -188,7 +193,7 @@ function CobroCuenta({
   usuarios,
   rate: rateVivo,
   tasaValor: tasaValorViva,
-  serverNow,
+  instanteFiscal,
   onAgregarProducto,
   onCambiarCantidad,
   onDividir,
@@ -221,7 +226,8 @@ function CobroCuenta({
    * cobro: pedírselo a mano es garantizar que un día se equivoque.
    */
   puntoDeCobro: PointOfSale;
-  serverNow: number;
+  /** El instante con el que se eligen las alícuotas: el del servidor, que avanza con el reloj. */
+  instanteFiscal: number;
   onAgregarProducto?: (producto: ProductoMostrador) => void;
   /** Deja un ítem de mostrador en esa cantidad; 0 lo elimina. */
   onCambiarCantidad?: (item: ItemDeMostrador, cantidad: number) => void;
@@ -341,8 +347,8 @@ function CobroCuenta({
   /* ------------------------------------------------- documento (IVA) */
 
   const doc = useMemo(
-    () => computeDocument({ lines, rules, at: serverNow, currency: FUNCIONAL }),
-    [lines, rules, serverNow],
+    () => computeDocument({ lines, rules, at: instanteFiscal, currency: FUNCIONAL }),
+    [lines, rules, instanteFiscal],
   );
 
   /* ------------------------------------------------------ IGTF */
@@ -1734,11 +1740,17 @@ export function CajaScreen({
   cuentaInicial,
   volver,
   pulseras,
+  impuestos,
+  serverNow,
   ...cobro
 }: Omit<
   CobroProps,
-  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate" | "tasaValor"
+  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate" | "tasaValor" | "rules" | "igtfBasisPoints" | "instanteFiscal"
 > & {
+  /** El calendario de los impuestos, leído en el servidor (B2-2). */
+  impuestos: ImpuestosDto;
+  /** La hora del servidor al pintar: de ella avanza el instante con que se eligen las alícuotas. */
+  serverNow: number;
   cuentaInicial: string | null;
   volver: string | null;
   /** Código de pulsera → estancia, de la instantánea del servidor. */
@@ -1750,6 +1762,7 @@ export function CajaScreen({
     currency: ajustes.maxRetenido.currency,
   };
   const { congelada: rate, tasa: tasaVigente } = useTasaVigente("USD/VES");
+  const fiscal = useImpuestosVigentes(impuestos, serverNow);
   // Si no queda ningún medio que ofrecer —todos apagados, o al que quedaba le
   // faltan sus datos—, la caja lo dice. Antes entraba en el cobro y se caía al
   // buscar el primer medio de una lista vacía.
@@ -2216,12 +2229,17 @@ export function CajaScreen({
             }}
             ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
+        ) : actual && fiscal.faltan.length > 0 ? (
+          <SinImpuestos faltan={fiscal.faltan} />
         ) : actual && mediosDisponibles.length === 0 ? (
           <SinMediosDePago />
         ) : actual ? (
           <CobroCuenta
             key={actual.id}
             {...cobro}
+            rules={fiscal.rules}
+            igtfBasisPoints={fiscal.igtfBasisPoints}
+            instanteFiscal={fiscal.instante}
             rate={rate}
             tasaValor={tasaVigente?.value ?? null}
             maxRetained={maxRetained}
@@ -2520,6 +2538,71 @@ function agruparFilas(
     const idxB = cuenta.lines.findIndex((x) => x.id === b.lineIds[0]);
     return idxA - idxB;
   });
+}
+
+/**
+ * Las alícuotas con las que se cobra ahora (B2-2), del calendario que manda el servidor.
+ *
+ * El instante sale de la hora del servidor y avanza con el reloj del equipo, redondeado al minuto
+ * hacia arriba: un cambio programado para hoy rige desde que se programa, y uno programado para
+ * mañana entra a la medianoche sin recargar. Si falta alguno, `faltan` lo dice y no se cobra.
+ */
+function useImpuestosVigentes(impuestos: ImpuestosDto, serverNow: number) {
+  const periodos = useMemo(
+    () =>
+      taxTimeline(
+        impuestos.vigencias.map((v) => ({
+          id: v.id,
+          kind: v.impuesto,
+          code: v.code,
+          basisPoints: v.basisPoints,
+          effectiveFrom: Date.parse(v.desde),
+          scheduledAt: Date.parse(v.programadaEl),
+        })),
+      ),
+    [impuestos],
+  );
+  const [desfase] = useState(() => serverNow - Date.now());
+  const ahora = useAhoraLocal();
+  const instante = ahora === 0 ? serverNow : Math.ceil((ahora + desfase) / 60_000) * 60_000;
+  return useMemo(() => {
+    const faltan = missingTaxesAt(periodos, instante);
+    return {
+      faltan,
+      rules: ivaRulesOf(periodos),
+      igtfBasisPoints: faltan.length > 0 ? 0 : igtfAt(periodos, instante),
+      instante,
+    };
+  }, [periodos, instante]);
+}
+
+/**
+ * Sin impuestos vigentes no se cobra — B2-2, fail-closed. Suponer un 0 % sería vender sin IVA o
+ * sin retener el IGTF en silencio. Es configuración: la pantalla dice dónde se arregla.
+ */
+function SinImpuestos({ faltan }: { faltan: readonly string[] }) {
+  return (
+    <section
+      role="alert"
+      className={cn(
+        "flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-state-crit/50 bg-surface/50 px-6 py-10 text-center",
+        PLACEMENT_SIN_CUENTAS,
+      )}
+    >
+      <TriangleAlert size={32} className="text-state-crit" aria-hidden="true" />
+      <p className="font-display text-xl font-bold text-ink">La caja no cobra: faltan impuestos</p>
+      <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
+        No hay alícuota vigente de {faltan.join(", ")}. Sin ella no se calcula el ticket: nunca se
+        supone un 0 %.
+      </p>
+      <Link
+        href="/panel/configuracion/impuestos"
+        className="mt-2 flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+      >
+        Configurar los impuestos
+      </Link>
+    </section>
+  );
 }
 
 /**

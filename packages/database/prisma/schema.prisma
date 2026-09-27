@@ -28,6 +28,7 @@ model Tenant {
 
   branches      Branch[]
   exchangeRates ExchangeRate[]
+  taxRates      TaxRate[]
 
   @@map("tenant")
 }
@@ -356,4 +357,30 @@ model ExchangeRateConfirmation {
   /// Una tasa se confirma una vez.
   @@unique([tenantId, rateId])
   @@map("exchange_rate_confirmation")
+}
+
+/// Una alícuota programada (B2-2, F3-06): «desde tal instante, tal alícuota». Solo-agregar: su
+/// fin es el comienzo de la siguiente del mismo impuesto, que el dominio calcula (`taxTimeline`).
+/// Lo exento no se guarda: es cero por definición. Del local entero (tenant), como la tasa.
+model TaxRate {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  /// IVA o IGTF (CHECK en la migración).
+  tax             String
+  /// GENERAL o REDUCIDA en el IVA; nulo en el IGTF (CHECK).
+  code            String?
+  /// Puntos básicos: 16 % = 1600. Entero, nunca Float (F3-02).
+  basisPoints     Int      @map("basis_points")
+  /// Desde cuándo rige. Nunca antes de programarse (CHECK): el pasado no se reescribe.
+  effectiveFrom   DateTime @map("effective_from") @db.Timestamptz(3)
+  scheduledAt     DateTime @default(now()) @map("scheduled_at") @db.Timestamptz(3)
+  /// Quién la programó. Nulo = un proceso (la semilla).
+  scheduledBy     String?  @map("scheduled_by") @db.Uuid
+  scheduledByName String   @map("scheduled_by_name")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, tax, effectiveFrom])
+  @@map("tax_rate")
 }

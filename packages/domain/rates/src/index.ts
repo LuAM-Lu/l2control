@@ -268,6 +268,37 @@ export function calendarDay(instant: string, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
 }
 
+/**
+ * El instante en que empieza el día `day` en `timeZone`: la medianoche del local, en UTC.
+ *
+ * Sin suponer un desfase fijo: se mide el de la zona en ese día (Venezuela no cambia de hora,
+ * pero el cálculo no depende de eso) y se corrige una vez por si la medianoche cae en un cambio.
+ */
+export function startOfDay(day: string, timeZone: string): number {
+  if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
+  const medianocheUtc = Date.parse(`${day}T00:00:00.000Z`);
+  let t = medianocheUtc - desfase(medianocheUtc, timeZone);
+  t = medianocheUtc - desfase(t, timeZone);
+  return t;
+}
+
+/** Cuánto va la hora de `timeZone` por delante de UTC en el instante `t`, en milisegundos. */
+function desfase(t: number, timeZone: string): number {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(t);
+  const de = (tipo: Intl.DateTimeFormatPartTypes) => Number(partes.find((p) => p.type === tipo)?.value);
+  const comoUtc = Date.UTC(de("year"), de("month") - 1, de("day"), de("hour"), de("minute"), de("second"));
+  return comoUtc - (t - (t % 1000));
+}
+
 /** `day` más `n` días, sin zonas horarias de por medio: es aritmética de calendario. */
 export function addDays(day: string, n: number): string {
   if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
