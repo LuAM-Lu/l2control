@@ -51,8 +51,9 @@ número del medio cuenta los pasos entregados.
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
 - **Pruebas:** `pnpm verify:db` en verde (50 de base, 189 de aplicación; en el dominio, 54 de tasas,
-  44 de impuestos y 67 de caja). **Subido a GitHub el
-  2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
+  44 de impuestos y 67 de caja). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+  v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
+  prueba.
 
 **La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
 viernes 25 (855,6625, solo DolarApi) y la del lunes 28 (857,0058, web del BCV), retenidas las dos. La
@@ -866,6 +867,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-27** · Sin día simulado (decisión del cliente): lo abierto de la jornada se pregunta cuando
   llega su paso. T-6 entregado (v0.22.0): menú por operación con Ajustes al pie y la caja en Cobrar |
   Turno, con las ventas dentro de Turno. Sigue B9-1.
+- **2026-09-27** · Handoff (v0.22.0): subidos a GitHub `main` y las etiquetas v0.1.0…v0.22.0.
 
 ---
 
@@ -879,21 +881,21 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-27, v0.20.0, Etapa 2 cerrada, Etapa 3 empezada):**
+**Último handoff (2026-09-27, v0.22.0, Etapa 3 en curso, M-13):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-12 y §3 con su DoD y orden) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Versión 0.20.0 · 20 de 47 pasos. Etiquetas v0.15.0…v0.20.0 locales, sin subir.
-Hecho en esta tanda: B2-1c (tasa en vivo), B2-2 (impuestos con vigencia), B2-3 (libro de pagos, sin pantalla hasta B3-3),
-  B3-1 (turno real: sin turno no se cobra), B2-4 (día de negocio y feriados; la tasa sigue el calendario, ADR-009), T-3 (acceso).
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-13 y §3 con su DoD y orden), docs/JORNADA.md y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. Versión 0.22.0 · 22 de 48 pasos. Subido a GitHub: main y etiquetas hasta v0.22.0.
+Hecho en esta tanda: B3-2 (medios de pago en la base: el libro cita el catálogo, datos del pago cifrados, referencia repetida
+  rechazada), M-13 (la app se ordena por la jornada, JORNADA.md) y T-6 (menú por operación con Ajustes al pie; caja en Cobrar | Turno).
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application, reinicia pnpm dev.
 Entrar: /acceso → nombre del equipo → «Soy de administración» → contraseña abby-kingdom-desarrollo + código de `pnpm totp`
   → «Registrar y aprobar» → Abigail Karam → PIN 1970. Todos los equipos de la base local están revocados.
-Base local: tasa vigente 855,6625 (dom 27); sin feriados; queda un turno abierto de prueba («Prueba B31 Caja») hasta B3-5.
-Siguiente: B3-2 (medios de pago, terminales y datos de cobro en el servidor, cifrados; borra src/demo/medios.ts y caja.ts).
-Luego: B9-1 → B3-3 (la caja cobra contra el libro) → B3-4 → B3-5 … Antes de staging: T-2 y T-4 (ADR-020: instalación
-  inicial desde el navegador y llaves de acceso en vez de TOTP; producción arranca vacía).
-Cuidado: DoD de §3 en cada paso; CHECK con IN sobre columnas con nulos (trampa de §5); heredocs grandes fallan: scripts
-  con Write; guiones de Playwright en el scratchpad de la sesión 5208ef98 (comun.cjs, pasoN.cjs). Push solo si se pide.
+Base local: tasa 855,6625; medios con datos inventados (Biopago añadido y apagado); tres turnos huérfanos de prueba hasta B3-5.
+Siguiente: B9-1 (catálogo de productos en la base; borra features/cash/catalogo-mostrador.ts) → B3-3 → B3-4 → B3-5.
+  Al empezar B3-5, pregunta lo abierto de JORNADA §7 (D-JOR). Nada de días simulados: se valida con el sistema real.
+Cuidado: DoD de §3; CHECK con IN y nulos (§5); $queryRaw no lee void (castear); heredocs grandes fallan: scripts con Write;
+  guiones de Playwright en el scratchpad de la sesión 5740a2f5 (comun.cjs, medios1.cjs, medios2.cjs, t6.cjs); las ventas viven
+  en sessionStorage hasta B3-4 (probar Turno en la misma pestaña). Push solo si se pide.
 Puerta: pnpm verify:db.
 ```
