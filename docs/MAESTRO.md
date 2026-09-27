@@ -26,7 +26,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Etapa 0 hecha. Etapa 1 (identidad) hecha salvo comprobar B1-5 en el navegador. Sin modo demo.**
+**Etapas 0 y 1 hechas (identidad comprobada en el navegador). Sin modo demo.**
 
 - **Infraestructura local:** `pnpm infra:up` (PostgreSQL 17 en el 5433, Valkey 8), `pnpm db:migrar`,
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
@@ -43,7 +43,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 - **Pruebas:** `pnpm verify:db` en verde (23 de base, 63 de aplicación). CI escrito, nunca visto en
   GitHub: hay commits sin subir (no se ha hecho push).
 
-**Siguiente paso:** comprobar B1-5 en el navegador; después, Etapa 2 (B2-1, tasas).
+**Siguiente paso:** Etapa 2, B2-1 (tasas).
 
 ---
 
@@ -141,7 +141,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   muere al salir, al revocar el equipo o al dar de baja a la persona. Cada intento, bueno o malo,
   queda en la auditoría. Publicar el tarifario ya exige la sesión y `catalogo.modificar`. Se retira
   el «solo en desarrollo» de B0-5. 18 pruebas de identidad contra la base.*
-- [~] **B1-5 · Permisos en el servidor**: usuarios, roles, excepciones por persona y ajustes de la
+- [x] **B1-5 · Permisos en el servidor**: usuarios, roles, excepciones por persona y ajustes de la
   sucursal persistidos. `can()` se evalúa en cada acción, y la autorización de supervisor se registra
   **antes** de ejecutar (F2-05, F2-08, F2-10, F2-11, F2-13).
   → Cada ❌ de la matriz tiene su prueba y devuelve 403. Dar de baja a alguien revoca su acceso en
@@ -152,9 +152,11 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   entrar, excepciones (sin llaves de la casa ni a uno mismo), ajustes de sucursal con su suelo
   intocable, y `exigirPermisoOAutorizacion()` para los 🔐 (PIN del autorizador, `canAuthorize`,
   asiento antes de ejecutar). La web recibe el actor del servidor; se borran `equipo.ts` y
-  `accesos.ts` del cliente. **Falta comprobarlo en el navegador** (alta con PIN temporal y primer
-  acceso eligiendo PIN, una excepción, un ajuste que cambie el menú de otro rol). Los 🔐 de la caja
-  se conectan en B3-4.*
+  `accesos.ts` del cliente. Comprobado en el navegador el 2026-09-26 con dos equipos: el alta
+  enseña el PIN temporal una vez (al recargar ya no está), con él la persona entra en otro equipo y
+  elige el suyo antes de llegar a su puesto; una concesión aparece en su ficha; ajustar «Reportes de
+  la sucursal» para Caja le abre el panel en el otro equipo y retirarlo se lo cierra. Los 🔐 de la
+  caja se conectan en B3-4.*
 
 ### Etapa 2 · Dinero (F3, sin lo fiscal)
 
