@@ -14,8 +14,9 @@ const URL_MIGRADOR = process.env.L2_DB_TEST_MIGRATOR_URL!;
 
 let app: Base;
 let migrador: Base;
-const A = { tenant: randomUUID(), sucursal: randomUUID() };
-const B = { tenant: randomUUID(), sucursal: randomUUID() };
+/** Cada local con dos cuentas: el libro solo cita cuentas de su local (B3-3). */
+const A = { tenant: randomUUID(), sucursal: randomUUID(), doc: randomUUID(), doc2: randomUUID() };
+const B = { tenant: randomUUID(), sucursal: randomUUID(), doc: randomUUID(), doc2: randomUUID() };
 const contenido = { packages: [], policy: {} };
 /** El catálogo de medios de las pruebas (B3-2): el libro solo cita medios del local. */
 const MEDIOS = [
@@ -40,6 +41,9 @@ before(async () => {
       });
       await tx.paymentMethod.createMany({
         data: MEDIOS.map((m, position) => ({ tenantId: t.tenant, ...m, position, createdByName: "Preparación de la prueba" })),
+      });
+      await tx.account.createMany({
+        data: [t.doc, t.doc2].map((id, i) => ({ id, tenantId: t.tenant, branchId: t.sucursal, kind: "MOSTRADOR", orderNumber: i + 1, openedAt: new Date(), openedByName: "Preparación de la prueba" })),
       });
     });
   }
@@ -260,7 +264,6 @@ test("dos programaciones del mismo impuesto en el mismo instante no se ordenan: 
 
 /* ── El libro de pagos (B2-3, §5.5, I-09, I-11) ─────────────────────────────── */
 
-const DOC = randomUUID();
 let lineaLibre = 0;
 let equiposCreados = 0;
 
@@ -292,10 +295,10 @@ const turnoDe = async (t: { tenant: string; sucursal: string }) => {
   return turnos.get(t.tenant)!;
 };
 /** Un asiento de `t` en efectivo en dólares; `extra` cambia lo que haga falta. */
-const asiento = (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) => ({
+const asiento = (t: { tenant: string; sucursal: string; doc: string }, extra: Record<string, unknown> = {}) => ({
   tenantId: t.tenant,
   branchId: t.sucursal,
-  documentId: DOC,
+  documentId: t.doc,
   operationKey: randomUUID(),
   line: lineaLibre++ % 20,
   kind: "COBRO",
@@ -307,7 +310,7 @@ const asiento = (t: { tenant: string; sucursal: string }, extra: Record<string, 
   recordedByName: "Marisol Prieto",
   ...extra,
 });
-const crearAsiento = async (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) => {
+const crearAsiento = async (t: { tenant: string; sucursal: string; doc: string }, extra: Record<string, unknown> = {}) => {
   const shiftId = await turnoDe(t);
   return app.conTenant(t.tenant, (tx) => tx.payment.create({ data: { shiftId, ...asiento(t, extra) } }));
 };
@@ -346,7 +349,7 @@ test("una reversión es el original con el signo contrario, una sola vez (F3-10)
   const o = await crearAsiento(A);
   const rev = { reversesId: o.id, reason: "ERROR_EN_COBRO", amountMinor: -580n, igtfMinor: -17n };
   // Otro importe, otro medio u otro documento: no es una reversión.
-  for (const extra of [{ amountMinor: -500n }, { method: "ZELLE" }, { documentId: randomUUID() }, { igtfMinor: 0n }]) {
+  for (const extra of [{ amountMinor: -500n }, { method: "ZELLE" }, { documentId: A.doc2 }, { igtfMinor: 0n }]) {
     await assert.rejects(crearAsiento(A, { ...rev, ...extra }), por("RESTRICCION"), JSON.stringify(extra, (_, v) => (typeof v === "bigint" ? String(v) : v)));
   }
   // «Otro» sin explicar, tampoco.
@@ -611,4 +614,63 @@ test("un precio es de solo-agregar, en dólares, mayor que cero y nunca hacia at
 test("A no pone precio a un producto de B", async () => {
   const deB = await producto(B, "Tequeños");
   await assert.rejects(precioDe(A, deB.id, 500n), por("REFERENCIA_INVALIDA"));
+});
+
+/* ── Las cuentas (B3-3) ───────────────────────────────────────────────────────── */
+
+const cuenta = (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.account.create({ data: { id: randomUUID(), tenantId: t.tenant, branchId: t.sucursal, kind: "FAMILIA", orderNumber: 100 + lineaLibre++, openedAt: new Date(), openedByName: "Marisol Prieto", ...extra } as never }),
+  );
+const version = (t: { tenant: string }, accountId: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.accountVersion.create({
+      data: { tenantId: t.tenant, accountId, version: 1, status: "ABIERTA", content: { id: accountId, status: "ABIERTA" }, cause: "GUARDAR", savedAt: new Date(), savedByName: "Marisol Prieto", ...extra } as never,
+    }),
+  );
+
+test("el libro cita una cuenta de su local", async () => {
+  await assert.rejects(crearAsiento(A, { documentId: randomUUID() }), por("REFERENCIA_INVALIDA"));
+  await assert.rejects(crearAsiento(A, { documentId: B.doc }), por("REFERENCIA_INVALIDA"));
+});
+
+test("una cuenta no se reescribe ni se borra; su número de orden no se repite en la sucursal", async () => {
+  const c = await cuenta(A);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.account.update({ where: { id: c.id }, data: { kind: "MESA" } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.account.delete({ where: { id: c.id } })), SOLO_AGREGAR);
+  await assert.rejects(cuenta(A, { orderNumber: c.orderNumber }), por("DUPLICADO"));
+  await cuenta(B, { orderNumber: c.orderNumber }); // otro local, su propia serie
+  for (const extra of [{ kind: "CAFETERIA" }, { orderNumber: 0 }, { openedByName: " " }]) {
+    await assert.rejects(cuenta(A, extra), por("RESTRICCION"), JSON.stringify(extra));
+  }
+});
+
+test("cada cambio de una cuenta es una versión nueva; ninguna se reescribe", async () => {
+  const c = await cuenta(A);
+  const v1 = await version(A, c.id);
+  await assert.rejects(version(A, c.id), por("DUPLICADO")); // dos cambios sobre la misma versión
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.accountVersion.update({ where: { id: v1.id }, data: { status: "COBRADA" } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.accountVersion.delete({ where: { id: v1.id } })), SOLO_AGREGAR);
+});
+
+test("una versión dice lo mismo en su columna y en su JSON, y un cobro cita su operación una vez", async () => {
+  const c = await cuenta(A);
+  const malos: Record<string, unknown>[] = [
+    { status: "POR_COBRAR" }, // la columna dice otra cosa que el JSON
+    { content: { id: randomUUID(), status: "ABIERTA" } }, // el JSON es de otra cuenta
+    { cause: "COBRO" }, // un cobro sin su operación
+    { operationKey: randomUUID() }, // un «guardar» con operación
+    { version: 0 },
+  ];
+  for (const [i, extra] of malos.entries()) {
+    await assert.rejects(version(A, c.id, extra), por("RESTRICCION"), String(i));
+  }
+  const op = randomUUID();
+  await version(A, c.id, { cause: "COBRO", operationKey: op });
+  await assert.rejects(version(A, c.id, { version: 2, cause: "COBRO", operationKey: op }), por("DUPLICADO"));
+});
+
+test("A no guarda versiones de una cuenta de B", async () => {
+  const deB = await cuenta(B);
+  await assert.rejects(version(A, deB.id), por("REFERENCIA_INVALIDA"));
 });

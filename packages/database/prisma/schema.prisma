@@ -56,6 +56,7 @@ model Branch {
   payments        Payment[]
   cashShifts      CashShift[]
   posTerminals    PosTerminal[]
+  accounts        Account[]
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
   /// Las comprobaciones de FK no pasan por la RLS, así que sin esto A podría citar la sucursal de B.
@@ -457,6 +458,8 @@ model Payment {
   authorizer   StaffUser?    @relation("PaymentAuthorizedBy", fields: [tenantId, authorizedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   device       Device?       @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   shift        CashShift     @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  /// El documento es la cuenta que se cobra (B3-3): un asiento no cita una cuenta de otro local.
+  account      Account       @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   /// I-11: la misma operación no se asienta dos veces.
@@ -662,4 +665,57 @@ model ProductPrice {
   @@unique([tenantId, productId, scheduledAt])
   @@index([tenantId, productId, effectiveFrom])
   @@map("product_price")
+}
+
+/// Una cuenta (B3-3, DEC-21): de una familia, de una mesa o de una venta de mostrador. La fila dice
+/// lo que no cambia (de quién es, su número de orden, cuándo se abrió); lo que cambia vive en sus
+/// versiones. Solo-agregar las dos: nada se reescribe, cada cambio añade una versión (regla 5).
+model Account {
+  /// Lo genera la pantalla (UUID) para que un reintento no abra dos cuentas.
+  id           String   @id @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  /// FAMILIA, MESA o MOSTRADOR (CHECK).
+  kind         String
+  /// El correlativo de la sucursal que se dice en voz alta (D13: continuo). Lo pone el servidor.
+  orderNumber  Int      @map("order_number")
+  openedAt     DateTime @map("opened_at") @db.Timestamptz(3)
+  openedBy     String?  @map("opened_by") @db.Uuid
+  openedByName String   @map("opened_by_name")
+  deviceId     String?  @map("device_id") @db.Uuid
+
+  branch   Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  versions AccountVersion[]
+  payments Payment[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, branchId, orderNumber])
+  @@map("account")
+}
+
+/// Una versión de una cuenta (B3-3): la cuenta entera como quedó tras un cambio, validada con el
+/// contrato. La vigente es la de número más alto. `cause` dice qué la produjo: un «guardar» de una
+/// pantalla, un cobro o una anulación (estos dos, con la clave de su operación en el libro).
+model AccountVersion {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  accountId    String   @map("account_id") @db.Uuid
+  version      Int
+  /// ABIERTA, POR_COBRAR o COBRADA (CHECK), fuera del JSON para leer la cola sin abrirlo.
+  status       String
+  content      Json
+  /// GUARDAR, COBRO o ANULACION (CHECK).
+  cause        String
+  operationKey String?  @map("operation_key") @db.Uuid
+  savedAt      DateTime @map("saved_at") @db.Timestamptz(3)
+  savedBy      String?  @map("saved_by") @db.Uuid
+  savedByName  String   @map("saved_by_name")
+  deviceId     String?  @map("device_id") @db.Uuid
+
+  account Account @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  /// Dos cambios a la vez sobre la misma versión: el segundo tropieza aquí y se le dice CONFLICTO.
+  @@unique([tenantId, accountId, version])
+  @@map("account_version")
 }
