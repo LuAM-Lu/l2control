@@ -44,8 +44,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (26 de base, 105 de aplicación). CI escrito, nunca visto en
-  GitHub: 20 commits sin subir.
+- **Pruebas:** `pnpm verify:db` en verde (26 de base, 105 de aplicación). **Subido a GitHub el
+  2026-09-26** (`main`); el CI corre allí por primera vez: comprobar su resultado cierra B0-4.
 
 **La tasa todavía no funciona bien en todo el sistema.** Diagnóstico del 2026-09-26, y todo se
 resuelve en B2-1c:
@@ -576,5 +576,5 @@ Siguiente: T-1 (versión visible en acceso y Configuración, CHANGELOG, etiqueta
   aplicada sola con salvaguardas, en vivo cada 60 s, cobro en curso conserva su tasa; ADR-019).
 Luego el orden de §3: B2-2 → B2-3 → B2-4 → B3-1 → B3-2 → B9-1 → B3-3 … Inventario = Etapa 9 (M-9).
 Cuidado: cada paso cumple la DoD de §3 y borra lo suyo del inventario de simulación de §5 (M-11).
-Puerta: pnpm verify:db. 20 commits sin push: pide permiso antes de subir.
+Puerta: pnpm verify:db. Todo subido a GitHub (main); mira el CI allí (cierra B0-4). Push solo si se pide.
 ```
