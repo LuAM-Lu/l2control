@@ -166,3 +166,30 @@ test("A no confirma una tasa de B ni la confirma dos veces", async () => {
   await confirmar();
   await assert.rejects(confirmar(), por("DUPLICADO"));
 });
+
+test("una tasa retenida la trajo un proceso, y con un motivo de la lista (ADR-019)", async () => {
+  const persona = randomUUID();
+  for (const [i, data] of [
+    { ...tasa(A.tenant, "230.00", 30), heldBack: "SALTO", capturedBy: persona },
+    { ...tasa(A.tenant, "230.00", 31), heldBack: "PORQUE_SI" },
+  ].entries()) {
+    await assert.rejects(app.conTenant(A.tenant, (tx) => tx.exchangeRate.create({ data })), por("RESTRICCION"), String(i));
+  }
+  await app.conTenant(A.tenant, (tx) => tx.exchangeRate.create({ data: { ...tasa(A.tenant, "230.00", 32), heldBack: "SOLO_TERCERO" } }));
+});
+
+test("una confirmación automática no tiene persona, autorizador ni doble tecleo (ADR-019)", async () => {
+  const persona = randomUUID();
+  for (const [i, extra] of [{ confirmedBy: persona }, { doubleChecked: true }, { authorizedBy: persona, authorizedByName: "Otra" }].entries()) {
+    const t = await app.conTenant(A.tenant, (tx) => tx.exchangeRate.create({ data: tasa(A.tenant, "231.00", 40 + i) }));
+    await assert.rejects(
+      app.conTenant(A.tenant, (tx) =>
+        tx.exchangeRateConfirmation.create({
+          data: { tenantId: A.tenant, rateId: t.id, confirmedByName: "Aplicada automáticamente (BCV)", doubleChecked: false, automatic: true, ...extra },
+        }),
+      ),
+      por("RESTRICCION"),
+      JSON.stringify(extra),
+    );
+  }
+});

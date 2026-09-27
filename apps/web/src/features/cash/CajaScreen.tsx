@@ -185,8 +185,8 @@ function CobroCuenta({
   igtfBasisPoints,
   maxRetained,
   usuarios,
-  rate,
-  tasaValor,
+  rate: rateVivo,
+  tasaValor: tasaValorViva,
   serverNow,
   onAgregarProducto,
   onCambiarCantidad,
@@ -202,8 +202,11 @@ function CobroCuenta({
   igtfBasisPoints: number;
   maxRetained: Money;
   usuarios: readonly UserSummaryDto[];
-  /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs.
-   *  La tasa se MUESTRA en la barra de estación (§8.5); aquí solo se usa. */
+  /**
+   * La tasa VIGENTE, en vivo (B2-1c). El cobro la congela con su primer pago (ADR-005): ver
+   * `tasaDelCobro`. `null` bloquea el cobro en Bs. La tasa se MUESTRA en la barra de estación
+   * (§8.5); aquí solo se usa.
+   */
   rate: FrozenRate | null;
   /**
    * La misma tasa tal como se capturó («229.05»), para ESCRIBIRLA: en la línea «En bolívares» y
@@ -242,6 +245,25 @@ function CobroCuenta({
     medio: MedioPago;
     amount: Money;
   } | null>(null);
+  /**
+   * La tasa de ESTE cobro (ADR-005, ADR-019 §7). Mientras no hay ningún pago sigue a la vigente;
+   * con el primero se congela, y el cobro en curso la conserva aunque la vigente cambie. Si
+   * cambia, se avisa y se ofrece pasar a la nueva: los bolívares se vuelven a convertir con ella,
+   * nunca en silencio. Si deja de haber vigente, no se cobra en bolívares (fail-closed); el
+   * servidor rechazará además una tasa que ya no rige (B3-3).
+   */
+  const [tasaDelCobro, setTasaDelCobro] = useState<{ rate: FrozenRate; valor: string } | null>(null);
+  const cobroEnCurso = pagos.length > 0 || pendienteDeDatos !== null;
+  useEffect(() => {
+    if (!cobroEnCurso) setTasaDelCobro(null);
+    else setTasaDelCobro((t) => t ?? (rateVivo && tasaValorViva ? { rate: rateVivo, valor: tasaValorViva } : null));
+  }, [cobroEnCurso, rateVivo, tasaValorViva]);
+  const congelada = cobroEnCurso && rateVivo !== null ? tasaDelCobro : null;
+  const rate = rateVivo === null ? null : (congelada?.rate ?? rateVivo);
+  const tasaValor = rateVivo === null ? null : (congelada?.valor ?? tasaValorViva);
+  /** La vigente ya no es la de este cobro: se avisa y se ofrece cambiar. */
+  const tasaCambio = congelada !== null && tasaValorViva !== null && tasaValorViva !== congelada.valor;
+
   /** A nombre de quién sale la factura: consumidor final salvo que se pida (DEC-23). */
   const [cliente, setCliente] = useState<ClienteFacturaDto>(CONSUMIDOR_FINAL);
   const [identificando, setIdentificando] = useState(false);
@@ -1262,6 +1284,28 @@ function CobroCuenta({
                 {cubierto ? sobraEnBs : faltaEnBs}
               </span>
             </p>
+          )}
+          {tasaCambio && congelada && tasaValorViva && rateVivo && (
+            <div
+              role="status"
+              className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-2.5 py-1.5"
+            >
+              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-medium text-state-warn">
+                <TriangleAlert size={14} className="shrink-0" aria-hidden="true" />
+                <span className="tnum">
+                  La tasa cambió a {formatTasaVE(tasaValorViva)}. Este cobro sigue con {formatTasaVE(congelada.valor)}.
+                </span>
+              </p>
+              <Button
+                type="button"
+                surface="pos"
+                variant="secondary"
+                className="shrink-0"
+                onClick={() => setTasaDelCobro({ rate: rateVivo, valor: tasaValorViva })}
+              >
+                Usar la nueva
+              </Button>
+            </div>
           )}
         </div>
 

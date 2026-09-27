@@ -16,6 +16,10 @@ import { computeSessionView } from "@l2/domain-park";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
 import { pendiente } from "../cuentas/cuentas.ts";
 import { toEpochMs, toParkPolicy, toParkSession } from "../park/mappers.ts";
+import { rutaSeccion } from "./navigation.ts";
+
+/** Donde se resuelve todo lo de la tasa: la pantalla de tasas, no la caja (B2-1c). */
+const TASAS = rutaSeccion("caja", "tasas");
 
 /**
  * Una zona en apuros se dice con palabras, no solo con color (§8.2), y **lleva
@@ -117,6 +121,7 @@ export function panelVivo({
   umbral,
   enServicio,
   tasaConfirmada,
+  alertasDeTasa = [],
 }: {
   estado: EstadoLocal;
   cuentas: readonly FamilyAccountDto[];
@@ -125,8 +130,10 @@ export function panelVivo({
   umbral: UmbralEspera;
   /** Si el local está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
-  /** Si hay tasa del día confirmada (ADR-005). Sin ella no se cobra en bolívares. */
+  /** Si hay tasa vigente (ADR-005). Sin ella no se cobra en bolívares. */
   tasaConfirmada: boolean;
+  /** Lo que el servidor dice de la tasa: una del BCV que no se aplicó sola, o la que falta (ADR-019). */
+  alertasDeTasa?: readonly { mensaje: string; tono: "warn" | "crit" }[];
 }): PanelVivo {
   /* ── parque ── */
   const reglas = toParkPolicy(politica);
@@ -202,9 +209,10 @@ export function panelVivo({
     familiasFuera: fuera.length,
     esperaMax,
     alertas: [
-      // Sin tasa confirmada no se cobra en bolívares (ADR-005): es lo primero
-      // que hay que resolver por la mañana, y antes vivía suelto en Inicio.
-      ...(tasaConfirmada ? [] : [aviso("La tasa del día no está confirmada", "crit", "/caja", "Confirmar")]),
+      // Sin tasa vigente no se cobra en bolívares (ADR-005): es lo primero que hay que resolver,
+      // y se resuelve en la pantalla de tasas, no en la caja (B2-1c).
+      ...(tasaConfirmada ? [] : [aviso("Sin tasa vigente: la caja no cobra en bolívares", "crit", TASAS, "Ver tasas")]),
+      ...alertasDeTasa.map((a) => aviso(a.mensaje, a.tono, TASAS, "Revisar")),
       ...(fuera.length > 0
         ? [aviso(`${fuera.length} ${fuera.length === 1 ? "cuenta" : "cuentas"} con la familia ya fuera`, "crit", "/caja", "Cobrar")]
         : []),

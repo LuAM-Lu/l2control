@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Check, CheckCircle2, Clock3, CloudDownload, History, ShieldCheck } from "lucide-react";
-import type { ExchangeRateDto, RatePair, RateSource } from "@l2/contracts";
+import { AlertTriangle, Check, CheckCircle2, Clock3, CloudDownload, History, ShieldCheck, Zap } from "lucide-react";
+import type { ExchangeRateDto, HeldReason, RatePair, RateSource } from "@l2/contracts";
 import { addDays, calendarDay, coversDay, currentRate, needsDoubleCheck } from "@l2/domain-rates";
 import type { Permission } from "@l2/domain-identity";
 import { Button, Container, Input, PageHeader, Sheet, avisar, cn } from "@l2/ui";
@@ -25,6 +25,22 @@ function enPalabras(dia: string): string {
 }
 
 const ORIGEN: Readonly<Record<RateSource, string>> = { BCV: "BCV", MANUAL: "Manual", COMERCIAL: "Comercial" };
+
+/** Por qué una traída del BCV no se aplicó sola (ADR-019), en palabras de quien la revisa. */
+const RETENIDA: Readonly<Record<HeldReason, string>> = {
+  PRIMERA: "es la primera del local",
+  SALTO: "se aparta más del límite de la vigente",
+  SOLO_TERCERO: "solo la dio DolarApi, no la web del BCV",
+};
+
+/** ¿Hace falta teclearla dos veces? Como el servidor; con un valor a medio escribir, todavía no. */
+function pideVerificar(anterior: Parameters<typeof needsDoubleCheck>[0], value: string, umbral: number): boolean {
+  try {
+    return needsDoubleCheck(anterior, { value }, umbral);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * La tasa como se teclea en Venezuela, al formato del contrato. Con coma, la coma es el decimal
@@ -58,10 +74,12 @@ export function TasasScreen({
       const r = await traer();
       if (!r.ok) return avisar.error(r.mensaje);
       const caidas = r.valor.fuentes.filter((f) => !f.ok);
-      for (const t of r.valor.capturadas) {
-        avisar.ok(`Traída del BCV: Bs. ${formatTasaVE(t.value)} para el ${enPalabras(t.effectiveDate)}. Falta confirmarla.`);
+      for (const t of [...r.valor.capturadas, ...r.valor.aplicadas]) {
+        const que = `Bs. ${formatTasaVE(t.value)} para el ${enPalabras(t.effectiveDate)}`;
+        if (t.automatic) avisar.ok(`Aplicada sola: ${que}.`);
+        else avisar.aviso(`Traída del BCV: ${que}. No se aplicó sola${t.heldBack ? `: ${RETENIDA[t.heldBack]}` : ""}. Revísala.`);
       }
-      if (r.valor.capturadas.length === 0 && r.valor.avisos.length === 0) {
+      if (r.valor.capturadas.length === 0 && r.valor.aplicadas.length === 0 && r.valor.avisos.length === 0) {
         avisar.info(
           r.valor.yaEstaban.length > 0
             ? "El BCV no ha publicado nada nuevo: lo que publica ya está en el historial."
@@ -86,8 +104,19 @@ export function TasasScreen({
   const [valor, setValor] = useState("");
   const [dia, setDia] = useState<string | null>(null);
   const [errorValor, setErrorValor] = useState<string | undefined>();
+  const [verificado, setVerificado] = useState("");
+  const [errorVerificado, setErrorVerificado] = useState<string | undefined>();
+  /** El servidor pidió teclearla dos veces aunque aquí no se viera venir (otra estación cambió la vigente). */
+  const [servidorPideVerificar, setServidorPideVerificar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [confirmando, setConfirmando] = useState<ExchangeRateDto | null>(null);
+  const ahora = useAhoraLocal();
+
+  /** Administración la aplica al guardarla (ADR-019 §5); supervisión la deja pendiente de su 🔐. */
+  const aplica = permiso === "PERMITIDO";
+  const anterior = ahora ? currentRate(historial.tasas, pair, new Date(ahora).toISOString()) : null;
+  const verificar =
+    aplica && (servidorPideVerificar || pideVerificar(anterior, normalizar(valor), historial.umbralVariacionBasisPoints));
 
   const dias = useMemo(
     () => (hoy ? Array.from({ length: DIAS_POR_ADELANTADO + 1 }, (_, i) => addDays(hoy, i)) : []),
@@ -108,17 +137,39 @@ export function TasasScreen({
       return;
     }
     if (!diaElegido) return;
+    if (verificar && !verificado.trim()) {
+      setErrorVerificado("Teclea el valor otra vez");
+      return;
+    }
     setEnviando(true);
     try {
-      const r = await capturar({ pair, source, value, effectiveDate: diaElegido });
+      const r = await capturar({
+        pair,
+        source,
+        value,
+        effectiveDate: diaElegido,
+        ...(verificar ? { valorVerificado: normalizar(verificado) } : {}),
+      });
       if (r.ok) {
-        avisar.ok(`Tasa capturada para el ${enPalabras(diaElegido)}: falta confirmarla`);
+        avisar.ok(
+          r.valor.confirmed
+            ? `Tasa aplicada para el ${enPalabras(diaElegido)}: desde ese día la caja cobra con ella`
+            : `Tasa capturada para el ${enPalabras(diaElegido)}: falta confirmarla con autorización`,
+        );
         setValor("");
+        setVerificado("");
         setErrorValor(undefined);
+        setErrorVerificado(undefined);
+        setServidorPideVerificar(false);
       } else {
         const campo = r.problemas?.find((p) => p.path[0] === "value");
+        const otraVez = r.problemas?.find((p) => p.path[0] === "valorVerificado");
         if (campo) setErrorValor("Solo dígitos, con coma o punto para los decimales, y distinta de cero");
-        else avisar.error(r.mensaje);
+        else if (otraVez) {
+          setServidorPideVerificar(true);
+          setVerificado("");
+          setErrorVerificado(otraVez.message === "No coincide" ? "No coincide con el valor de arriba" : "Teclea el valor otra vez");
+        } else avisar.error(r.mensaje);
       }
     } catch {
       avisar.error("No se pudo hablar con el servidor. La tasa no se capturó.");
@@ -137,13 +188,49 @@ export function TasasScreen({
       <PageHeader
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Caja" }, { texto: "Tasas de cambio" }]}
         titulo="Tasas de cambio"
-        descripcion="La caja cobra con la tasa vigente, confirmada: la de la fecha valor de hoy (la del viernes cubre el fin de semana). Sin ella no se cobra en bolívares: nunca con la de ayer ni con un valor por defecto."
+        descripcion="La caja cobra con la tasa vigente: la de la fecha valor de hoy (la del viernes cubre el fin de semana). La del BCV se aplica sola y llega a todas las pantallas en menos de un minuto. Sin tasa vigente no se cobra en bolívares: nunca con la de ayer ni con un valor por defecto."
         meta={
           hoy && (
             <span className="tnum text-[12.5px] text-ink-3">Hoy es {enPalabras(hoy)} (hora de Venezuela)</span>
           )
         }
       />
+
+      {historial.alertas.length > 0 && (
+        <section aria-label="Alertas de la tasa" className="mb-5 flex flex-col gap-2">
+          {historial.alertas.map((a) => {
+            const tasa = a.rateId ? historial.tasas.find((t) => t.id === a.rateId) : undefined;
+            return (
+              <div
+                key={`${a.tipo}:${a.rateId ?? a.mensaje}`}
+                role={a.tono === "crit" ? "alert" : "status"}
+                className={cn(
+                  "flex flex-col gap-3 rounded-[var(--radius-card)] border p-4 sm:flex-row sm:items-center",
+                  a.tono === "crit" ? "border-state-crit/40 bg-state-crit-bg" : "border-state-warn/40 bg-state-warn-bg",
+                )}
+              >
+                <p
+                  className={cn(
+                    "flex flex-1 items-start gap-2 text-[13.5px] font-medium",
+                    a.tono === "crit" ? "text-state-crit" : "text-state-warn",
+                  )}
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  <span>
+                    {a.mensaje}
+                    {tasa ? <span className="tnum"> (Bs. {formatTasaVE(tasa.value)})</span> : null}
+                  </span>
+                </p>
+                {tasa && puede && (
+                  <Button type="button" variant="primary" surface="admin" className="shrink-0" onClick={() => setConfirmando(tasa)}>
+                    Revisar y confirmar
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
         <section aria-label="Tasas del día" className="flex min-w-0 flex-col gap-4">
@@ -165,8 +252,9 @@ export function TasasScreen({
                   {trayendo ? "Consultando el BCV…" : "Traer del BCV"}
                 </Button>
                 <p className="text-[12px] text-ink-3">
-                  El servidor también la trae solo cada hora. Entra pendiente: alguien la confirma antes de cobrar
-                  con ella.
+                  El servidor la consulta solo cada 15 minutos. La de la web del BCV se aplica sola; si es la
+                  primera, salta más del {historial.umbralVariacionBasisPoints / 100} % o solo la dio otra fuente,
+                  queda pendiente con una alerta.
                 </p>
               </div>
               <h2 className="font-display mb-4 text-[14px] font-bold text-ink">Capturar a mano</h2>
@@ -246,11 +334,34 @@ export function TasasScreen({
                   }}
                 />
 
+                {verificar && (
+                  <Input
+                    surface="admin"
+                    label="Teclea el valor de nuevo"
+                    placeholder="228,41"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={verificado}
+                    error={errorVerificado}
+                    hint={
+                      anterior
+                        ? `Se aparta más del ${historial.umbralVariacionBasisPoints / 100} % de la vigente (Bs. ${formatTasaVE(anterior.value)}).`
+                        : "Es la primera del par: no hay otra con la que compararla."
+                    }
+                    onChange={(e) => {
+                      setVerificado(e.target.value);
+                      setErrorVerificado(undefined);
+                    }}
+                  />
+                )}
+
                 <Button type="submit" variant="primary" surface="admin" className="mt-1 w-full" disabled={enviando || !hoy}>
-                  {enviando ? "Capturando…" : "Capturar"}
+                  {enviando ? "Guardando…" : aplica ? "Guardar y aplicar" : "Capturar"}
                 </Button>
                 <p className="text-[12px] text-ink-3">
-                  Entra sin confirmar. Hasta que alguien la confirme, la caja no la usa.
+                  {aplica
+                    ? "Se aplica al guardarla: desde su fecha valor, la caja cobra con ella."
+                    : "Queda pendiente: se confirma con la autorización de administración."}
                 </p>
               </form>
             </div>
@@ -304,7 +415,15 @@ export function TasasScreen({
                         ) : null}
                       </p>
 
-                      {t.confirmed ? (
+                      {t.confirmed && t.automatic ? (
+                        <p className="mt-1 flex items-center gap-1.5 text-[12.5px] text-state-ok">
+                          <Zap size={14} aria-hidden="true" />
+                          <span>
+                            Aplicada sola desde la web del BCV
+                            {t.confirmedAt ? ` a las ${hora(t.confirmedAt)}` : ""}
+                          </span>
+                        </p>
+                      ) : t.confirmed ? (
                         <p className="mt-1 flex items-center gap-1.5 text-[12.5px] text-state-ok">
                           <CheckCircle2 size={14} aria-hidden="true" />
                           <span>
@@ -321,7 +440,9 @@ export function TasasScreen({
                       ) : (
                         <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-state-warn">
                           <AlertTriangle size={14} aria-hidden="true" />
-                          <span>Pendiente por confirmar</span>
+                          <span>
+                            {t.heldBack ? `No se aplicó sola: ${RETENIDA[t.heldBack]}` : "Pendiente por confirmar"}
+                          </span>
                         </p>
                       )}
                     </div>
@@ -365,7 +486,7 @@ export function TasasScreen({
 function TarjetaVigente({ pair, hoy, hora }: { pair: RatePair; hoy: string | null; hora: (iso: string) => string }) {
   const { historial } = useTasas();
   const { tasa } = useTasaVigente(pair);
-  const pendienteDeHoy = historial.tasas.some((t) => t.pair === pair && !t.confirmed && t.effectiveDate === hoy);
+  const pendienteDeHoy = historial.tasas.some((t) => t.pair === pair && !t.confirmed && hoy !== null && coversDay(t.effectiveDate, hoy));
 
   return (
     <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
@@ -392,8 +513,8 @@ function TarjetaVigente({ pair, hoy, hora }: { pair: RatePair; hoy: string | nul
         >
           <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
-            Sin tasa del día confirmada: la caja no cobra en bolívares.{" "}
-            {pendienteDeHoy ? "Hay una pendiente: confírmala en el historial." : "Captura la de hoy y confírmala."}
+            Sin tasa vigente: la caja no cobra en bolívares.{" "}
+            {pendienteDeHoy ? "Hay una pendiente: revísala y confírmala." : "Tráela del BCV o cárgala a mano."}
           </span>
         </div>
       )}
@@ -461,9 +582,11 @@ function HojaConfirmar({
       onCerrar={onCerrar}
       titulo="Confirmar tasa de cambio"
       descripcion={
-        requiere
-          ? "Se aparta mucho de la anterior, o es la primera del par. Por seguridad, teclea el valor otra vez."
-          : `Desde que la confirmes, la caja cobra con ella el ${enPalabras(tasa.effectiveDate)}.`
+        tasa.heldBack
+          ? `No se aplicó sola: ${RETENIDA[tasa.heldBack]}. Compárala con la que publica el BCV antes de confirmarla.`
+          : requiere
+            ? "Se aparta mucho de la anterior, o es la primera del par. Por seguridad, teclea el valor otra vez."
+            : `Desde que la confirmes, la caja cobra con ella el ${enPalabras(tasa.effectiveDate)}.`
       }
       pie={
         <div className="flex gap-2">

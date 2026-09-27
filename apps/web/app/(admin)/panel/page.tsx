@@ -7,9 +7,6 @@ import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno"
 import { demoSnapshot } from "../../../src/demo/parque";
 import { toMonitorModel } from "../../../src/features/park/view-model";
 import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
-import { historialDeTasas } from "../../../src/features/cash/tasas.servidor";
-import { formatTasaVE } from "../../../src/features/cash/tasa-format";
-import { calendarDay, rateOfDay } from "@l2/domain-rates";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -68,10 +65,6 @@ export default async function InicioPage() {
   }));
 
   const hoy = new Date();
-  // La tasa con la que cobra hoy la caja (B2-1): la del día, confirmada, o ninguna.
-  const tasas = await historialDeTasas();
-  const vigente = rateOfDay(tasas.tasas, "USD/VES", calendarDay(hoy.toISOString(), tasas.zonaHoraria), hoy.toISOString());
-  const tasa = vigente ? formatTasaVE(vigente.value) : null;
 
   return (
     <InicioScreen
@@ -90,7 +83,6 @@ export default async function InicioPage() {
       // El turno real llega con B3-1.
       turnoDesde={null}
       cajero={null}
-      tasa={tasa}
       umbral={{ avisoMin: 8, gritaMin: 15 }}
       enServicio={false}
     />

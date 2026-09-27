@@ -11,6 +11,8 @@ import type { Excepcion } from "../cash/turno.ts";
 import { EntradasPorMedio, type PorMedio } from "../cash/EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "../cash/ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "../cash/PuntosDeCobro.tsx";
+import { useTasaVigente } from "../cash/TasasProvider.tsx";
+import { formatTasaVE } from "../cash/tasa-format.ts";
 
 // El tipo vive con su componente; se reexporta porque la página lo importa
 // desde aquí.
@@ -64,7 +66,6 @@ export function InicioScreen({
   diaSemana,
   turnoDesde,
   cajero,
-  tasa,
   umbral,
   enServicio,
 }: {
@@ -83,14 +84,16 @@ export function InicioScreen({
   /** `null` = no hay turno abierto (el turno real llega con B3-1). */
   turnoDesde: string | null;
   cajero: string | null;
-  /** Tasa del día ya formateada («228,41»), o `null` si no hay tasa confirmada (ADR-005). */
-  tasa: string | null;
   /** Cuándo una comanda tarda y cuándo está atrasada. */
   umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
+  // La tasa vigente, de la misma fuente que la caja y la barra de las estaciones (B2-1c): llega
+  // sola cuando el BCV publica, sin recargar la página.
+  const { tasa: vigente } = useTasaVigente("USD/VES");
+  const tasa = vigente ? formatTasaVE(vigente.value) : null;
   const diaMinuscula = diaSemana.toLowerCase();
 
   const variacion = (hoy: number, antes: number | null) =>
@@ -116,7 +119,8 @@ export function InicioScreen({
           {/* Componente Tasa Oficial BCV */}
           <div className="flex items-center gap-2.5 rounded-[var(--radius-control)] border border-line bg-surface/80 px-3 py-1.5 text-xs text-ink-2 shadow-sm">
             <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-state-ok l2-pulse" aria-hidden="true" />
+              {/* El punto dice lo mismo que el chip: verde solo con tasa vigente (§8.2). */}
+              <span className={cn("size-2 rounded-full", tasa ? "bg-state-ok l2-pulse" : "bg-state-crit")} aria-hidden="true" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-3">BCV</span>
             </div>
             <div className="flex items-baseline gap-1 border-l border-line pl-2.5">
@@ -164,9 +168,6 @@ export function InicioScreen({
       <EnVivo
         umbral={umbral}
         enServicio={enServicio}
-        // Sin tasa formateada no hay tasa confirmada: es el mismo dato que
-        // pinta el chip del BCV, no una segunda versión de la verdad.
-        tasaConfirmada={tasa !== null}
       />
 
       {/* ───────────────────────────── 2 · el día ────────────────────────── */}

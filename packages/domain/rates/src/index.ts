@@ -51,7 +51,20 @@ export type RateRecord = Readonly<{
   effectiveDate: string;
   /** Sin confirmar no se cobra con ella (§5.2, ADR-005). */
   confirmed: boolean;
+  /**
+   * Solo en una tasa traída automáticamente que NO se aplicó sola: por qué (ADR-019). Se decide
+   * al traerla y no cambia; una persona la revisa y la confirma, o captura otra.
+   */
+  heldBack?: HeldReason | undefined;
 }>;
+
+/**
+ * Por qué una tasa traída automáticamente espera a una persona (ADR-019):
+ *  · `SOLO_TERCERO`: no la dio la web oficial del BCV, solo un tercero que la republica (T6);
+ *  · `PRIMERA`: no hay ninguna confirmada con la que compararla;
+ *  · `SALTO`: se aparta de la vigente más que el límite de cordura.
+ */
+export type HeldReason = "PRIMERA" | "SALTO" | "SOLO_TERCERO";
 
 export class InvalidRateError extends Error {
   constructor(message: string) {
@@ -220,10 +233,26 @@ export function coversDay(effectiveDate: string, day: string): boolean {
 /** ¿Hay algún día hábil (lunes a viernes) después de `desde` y hasta `hasta`, incluido? */
 function hayDiaHabilEntre(desde: string, hasta: string): boolean {
   for (let d = addDays(desde, 1); d <= hasta; d = addDays(d, 1)) {
-    const semana = new Date(`${d}T12:00:00.000Z`).getUTCDay();
-    if (semana >= 1 && semana <= 5) return true;
+    if (isBusinessDay(d)) return true;
   }
   return false;
+}
+
+/**
+ * ¿Es día hábil bancario? De lunes a viernes. Los feriados llegan con su calendario (B2-4): hasta
+ * entonces, un feriado entre semana cuenta como hábil.
+ */
+export function isBusinessDay(day: string): boolean {
+  if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
+  const semana = new Date(`${day}T12:00:00.000Z`).getUTCDay();
+  return semana >= 1 && semana <= 5;
+}
+
+/** El siguiente día hábil después de `day`: del viernes, el lunes. */
+export function nextBusinessDay(day: string): string {
+  let d = addDays(day, 1);
+  while (!isBusinessDay(d)) d = addDays(d, 1);
+  return d;
 }
 
 /**
@@ -283,4 +312,86 @@ export function needsDoubleCheck(
   }
   if (!anterior) return true;
   return variationBasisPoints(anterior.value, nueva.value) > BigInt(umbralBasisPoints);
+}
+
+/** Lo que decide `autoApplyDecision`: aplicarla sola, o dejarla para una persona y por qué. */
+export type AutoApplyDecision = Readonly<{ apply: true }> | Readonly<{ apply: false; reason: HeldReason }>;
+
+/**
+ * ¿Se aplica sola una tasa traída automáticamente? (ADR-019, que cambia §5.2.)
+ *
+ * Solo cuando nada indica un problema: la dio la web oficial del BCV (`official`), hay una
+ * vigente con la que compararla y no se aparta de ella más que el límite de cordura. Cualquier
+ * otra cosa vuelve a pedir a una persona, que es la defensa contra una fuente manipulada (T6) o
+ * una respuesta basura. El orden importa para el motivo: sin fuente oficial no se mira el resto.
+ */
+export function autoApplyDecision(input: {
+  previous: Pick<RateRecord, "value"> | null;
+  candidate: Pick<RateRecord, "value">;
+  official: boolean;
+  thresholdBasisPoints: number;
+}): AutoApplyDecision {
+  if (!input.official) return { apply: false, reason: "SOLO_TERCERO" };
+  if (!input.previous) return { apply: false, reason: "PRIMERA" };
+  // `needsDoubleCheck` valida el umbral y mide el salto con enteros.
+  const previo: RateRecord = {
+    id: "-",
+    pair: "USD/VES",
+    value: input.previous.value,
+    source: "BCV",
+    capturedAt: "1970-01-01T00:00:00.000Z",
+    effectiveDate: "1970-01-01",
+    confirmed: true,
+  };
+  if (needsDoubleCheck(previo, input.candidate, input.thresholdBasisPoints)) return { apply: false, reason: "SALTO" };
+  return { apply: true };
+}
+
+/**
+ * Las tasas traídas automáticamente que no se aplicaron solas y todavía importan (ADR-019): sin
+ * confirmar, de un día que rige `day` o que viene, y sin otra confirmada para el mismo día
+ * capturada después (que ya la habría sustituido). Son las alertas críticas de Inicio y de Tasas.
+ */
+export function heldRates(history: readonly RateRecord[], pair: RatePair, day: string): RateRecord[] {
+  if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
+  return history
+    .filter((t) => t.pair === pair && !t.confirmed && t.heldBack !== undefined)
+    .filter((t) => t.effectiveDate > day || coversDay(t.effectiveDate, day))
+    .filter(
+      (t) =>
+        !history.some(
+          (o) =>
+            o.pair === pair &&
+            o.confirmed &&
+            o.effectiveDate === t.effectiveDate &&
+            Date.parse(o.capturedAt) >= Date.parse(t.capturedAt),
+        ),
+    )
+    .sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+}
+
+/**
+ * El siguiente día hábil si, a estas horas de un día hábil, todavía no hay ninguna tasa para él
+ * (ADR-019 §8). El BCV publica por la tarde la del día hábil siguiente; pasada `fromHour` (hora
+ * local, 0-23) sin ella, hay que avisar para que no se note el lunes a primera hora. `null` si
+ * no toca avisar. Sin reloj: el instante entra como argumento.
+ */
+export function missingNextBusinessDayRate(
+  history: readonly RateRecord[],
+  pair: RatePair,
+  now: string,
+  timeZone: string,
+  fromHour: number,
+): string | null {
+  if (!Number.isInteger(fromHour) || fromHour < 0 || fromHour > 23) {
+    throw new InvalidRateError(`La hora del aviso va de 0 a 23; llegó ${fromHour}.`);
+  }
+  const day = calendarDay(now, timeZone);
+  if (!isBusinessDay(day)) return null;
+  const hora = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(Date.parse(now)),
+  );
+  if (hora < fromHour) return null;
+  const siguiente = nextBusinessDay(day);
+  return history.some((t) => t.pair === pair && t.effectiveDate === siguiente) ? null : siguiente;
 }

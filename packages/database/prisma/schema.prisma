@@ -319,6 +319,9 @@ model ExchangeRate {
   /// Lo que respondió la fuente automática (§5.2 `rawPayload`), recortado a lo que importa. Nulo
   /// en una carga manual.
   rawPayload     Json?    @map("raw_payload")
+  /// Solo en una traída automáticamente que NO se aplicó sola (ADR-019): PRIMERA, SALTO o
+  /// SOLO_TERCERO. Se decide al traerla y no cambia (la tabla es de solo-agregar).
+  heldBack       String?  @map("held_back")
 
   tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   confirmation ExchangeRateConfirmation?
@@ -344,6 +347,9 @@ model ExchangeRateConfirmation {
   /// Quién autorizó el 🔐 de supervisión (§7.3, F2-08), si hizo falta.
   authorizedBy     String?  @map("authorized_by") @db.Uuid
   authorizedByName String?  @map("authorized_by_name")
+  /// Aplicada sola por la sincronización del BCV (ADR-019), sin persona detrás. La bandera, y
+  /// no el nombre, es lo que dice que fue automática.
+  automatic        Boolean  @default(false)
 
   rate ExchangeRate @relation(fields: [tenantId, rateId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 

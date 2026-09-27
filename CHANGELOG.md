@@ -14,6 +14,21 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+B2-1c · Tasa automática y en vivo (a falta de comprobarla en el navegador).
+
+### Añadido
+- La tasa de la web del BCV se aplica sola si no salta más del 10 % de la vigente. Si es la primera
+  del local, salta más o solo la dio DolarApi, queda pendiente y sale una alerta crítica en Inicio y
+  en Tasas con «Revisar y confirmar».
+- Todas las pantallas ven la tasa nueva en menos de un minuto, sin navegar.
+- Un cobro en curso conserva su tasa; si cambia, la caja lo avisa y ofrece «Usar la nueva».
+- Aviso si a las 6:00 pm de un día hábil el BCV no ha publicado la del día hábil siguiente.
+
+### Cambiado
+- Lo que teclea administración se aplica al guardarlo (dos veces si salta o es la primera).
+- El servidor consulta el BCV al arrancar y cada 15 minutos (antes, cada hora).
+- La alerta de Inicio dice «Sin tasa vigente» y lleva a Tasas, no a la caja.
+
 ## [0.14.0] — 2026-09-26 · Etapa 2 · Dinero
 
 T-1 · Versión visible.

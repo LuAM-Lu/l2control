@@ -24,6 +24,7 @@ import { MoneyDisplay, cn } from "@l2/ui";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { panelVivo, reloj, type Alerta } from "./vivo.ts";
+import { useTasas, useTasaVigente } from "../cash/TasasProvider.tsx";
 import { useTarifario } from "../park/TarifarioProvider";
 import { rutaSeccion } from "./navigation.ts";
 
@@ -58,14 +59,14 @@ import { rutaSeccion } from "./navigation.ts";
 export function EnVivo({
   umbral,
   enServicio,
-  tasaConfirmada,
 }: {
   umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
-  /** Si hay tasa del día confirmada (ADR-005). */
-  tasaConfirmada: boolean;
 }) {
+  // La tasa, de la misma fuente con la que cobra la caja (B2-1c): se actualiza sola.
+  const { tasa } = useTasaVigente("USD/VES");
+  const { historial } = useTasas();
   const op = useOperacion();
   const { cuentas } = useCuentas();
   const ahora = useAhoraLocal();
@@ -77,7 +78,8 @@ export function EnVivo({
     politica: tarifario.policy,
     umbral,
     enServicio,
-    tasaConfirmada,
+    tasaConfirmada: tasa !== null,
+    alertasDeTasa: historial.alertas,
   });
 
   /**

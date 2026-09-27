@@ -20,6 +20,28 @@ export const RateSourceSchema = z.enum(["BCV", "MANUAL", "COMERCIAL"]);
 export type RateSource = z.infer<typeof RateSourceSchema>;
 
 /**
+ * Por qué una tasa traída automáticamente no se aplicó sola (ADR-019): no la dio la web oficial
+ * del BCV, es la primera del local o se aparta de la vigente más que el límite de cordura.
+ */
+export const HeldReasonSchema = z.enum(["PRIMERA", "SALTO", "SOLO_TERCERO"]);
+export type HeldReason = z.infer<typeof HeldReasonSchema>;
+
+/**
+ * Un aviso sobre la tasa que el servidor calcula al leer (ADR-019): una traída que espera a una
+ * persona (`RETENIDA`, crítica) o que, a la hora habitual, el BCV no haya publicado la del
+ * siguiente día hábil (`FALTA_SIGUIENTE`, aviso). No tener tasa vigente no viaja aquí: cada
+ * pantalla lo sabe con `useTasaVigente`, la misma fuente con la que cobra.
+ */
+export const AlertaTasaSchema = z.object({
+  tipo: z.enum(["RETENIDA", "FALTA_SIGUIENTE"]),
+  tono: z.enum(["warn", "crit"]),
+  mensaje: z.string().min(5).max(300),
+  /** La tasa de la que habla, si es una. */
+  rateId: IdSchema.optional(),
+});
+export type AlertaTasaDto = z.infer<typeof AlertaTasaSchema>;
+
+/**
  * El valor de una tasa: texto decimal, no `number`.
  *
  * Por lo mismo que el dinero (ADR-004): un flotante pierde precisión y aquí el
@@ -60,6 +82,13 @@ export const ExchangeRateSchema = z.object({
   confirmedAt: TimestampSchema.optional(),
   /** Si quien confirmó necesitaba autorización (🔐 de supervisión, §7.3), quién la dio. */
   authorizedBy: z.string().trim().min(2).max(80).optional(),
+  /** Aplicada sola por la sincronización del BCV, sin persona detrás (ADR-019). */
+  automatic: z.boolean().optional(),
+  /**
+   * Traída automáticamente y NO aplicada sola: por qué (ADR-019). Espera a una persona, que la
+   * confirma (tecleándola otra vez) o captura otra.
+   */
+  heldBack: HeldReasonSchema.optional(),
 })
   .refine((r) => r.confirmed === (r.confirmedBy !== undefined && r.confirmedAt !== undefined), {
     // Una tasa confirmada sin firma no se puede auditar, y una firma sobre una
@@ -88,6 +117,8 @@ export const HistorialTasasSchema = z
      * es el del calendario del local; después, el que declare el turno (ADR-009).
      */
     zonaHoraria: z.string().min(3).max(64),
+    /** Lo que alguien tiene que mirar, calculado por el servidor en el instante de leer. */
+    alertas: z.array(AlertaTasaSchema).default([]),
   })
   .refine((h) => new Set(h.tasas.map((t) => t.id)).size === h.tasas.length, {
     message: "Dos tasas no pueden compartir identificador",
@@ -109,11 +140,13 @@ export type HistorialTasasDto = z.infer<typeof HistorialTasasSchema>;
  * Capturar la tasa de un día (F3-04). Los dos únicos mandos del historial son este y confirmar:
  * **no se edita ni se borra una tasa**; corregir una mal tecleada es capturar otra.
  *
- * Entra **sin confirmar, siempre**, venga del BCV o de un dedo: un proveedor
- * de terceros es una entrada no confiable (§7.5) y nadie debería poder mover
- * los precios del negocio sin que un administrador lo vea. Por eso el mando no
- * admite `confirmed`: el estado inicial no es negociable. Tampoco dice quién la
- * carga: eso lo sabe el servidor por la sesión, no lo declara el navegador.
+ * Quien la aplica lo decide el servidor, no el mando (ADR-019): si quien la teclea es
+ * administración, se aplica al guardarla; si es supervisión, queda pendiente hasta confirmarla
+ * con autorización (🔐). Por eso el mando no admite `confirmed`, ni dice quién la carga: eso lo
+ * sabe el servidor por la sesión, no lo declara el navegador.
+ *
+ * `valorVerificado` es el valor tecleado otra vez. Lo pide el servidor cuando se aplicaría al
+ * guardarla y salta más del umbral o es la primera (`needsDoubleCheck`); debe coincidir.
  *
  * `effectiveDate` es el día para el que vale: hoy, o uno de los próximos (el BCV publica
  * por la tarde la del día hábil siguiente). El servidor rechaza un día pasado.
@@ -123,6 +156,7 @@ export const CapturarTasaCommandSchema = z.strictObject({
   value: RateValueSchema,
   source: RateSourceSchema,
   effectiveDate: FechaSchema,
+  valorVerificado: RateValueSchema.optional(),
 });
 export type CapturarTasaCommand = z.infer<typeof CapturarTasaCommandSchema>;
 
@@ -142,14 +176,16 @@ export const ConfirmarTasaCommandSchema = z.strictObject({
 export type ConfirmarTasaCommand = z.infer<typeof ConfirmarTasaCommandSchema>;
 
 /**
- * Lo que devuelve traer la tasa del BCV (F3-04). Lo traído entra **pendiente**: una persona lo
- * confirma antes de cobrar con ello (amenaza T6). Cada fuente dice si respondió; si dos hablan del
- * mismo día y no coinciden, no se captura nada de ese día y se avisa.
+ * Lo que devuelve traer la tasa del BCV (F3-04, ADR-019). Lo que dio la web oficial y pasa el
+ * límite de cordura se aplica solo (`automatic`); lo demás queda pendiente con su `heldBack`.
+ * Cada fuente dice si respondió; si dos hablan del mismo día y no coinciden, no se captura nada de
+ * ese día y se avisa. `aplicadas` son las que ya estaban pendientes y se aplicaron ahora.
  */
 export const SincronizacionTasaSchema = z.object({
   capturadas: z.array(ExchangeRateSchema),
   /** Lo que la fuente dijo y ya estaba en el historial con el mismo valor: no se repite. */
   yaEstaban: z.array(z.object({ effectiveDate: FechaSchema, value: RateValueSchema })),
+  aplicadas: z.array(ExchangeRateSchema).default([]),
   fuentes: z.array(
     z.object({ fuente: z.enum(["BCV", "DOLARAPI"]), ok: z.boolean(), detalle: z.string().max(200) }),
   ),

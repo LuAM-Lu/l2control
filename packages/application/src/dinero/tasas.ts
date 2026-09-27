@@ -1,13 +1,14 @@
 /**
- * Las tasas de cambio en el servidor — B2-1, F3-03 a F3-05, §5.2, ADR-005.
+ * Las tasas de cambio en el servidor — B2-1, B2-1c, F3-03 a F3-05, §5.2, ADR-005 y ADR-019.
  *
- * Capturar añade una tasa sin confirmar; confirmar añade su confirmación. Ninguna de las dos
+ * Capturar añade una tasa; confirmar (o aplicarla) añade su confirmación. Ninguna de las dos
  * tablas se reescribe (regla 5): corregir una tasa mal tecleada es capturar otra.
  *
  * Quién decide qué:
- *  · el dominio (`@l2/domain-rates`): cuál es la del día, si el salto exige teclearla otra vez;
- *  · la matriz (`tasa.confirmar`): administración confirma; supervisión, con autorización (🔐);
- *    capturar lo puede quien puede confirmar, porque una tasa pendiente no cobra nada;
+ *  · el dominio (`@l2/domain-rates`): cuál es la del día, si el salto exige teclearla otra vez y
+ *    si una traída automáticamente se aplica sola (`autoApplyDecision`);
+ *  · la matriz (`tasa.confirmar`): administración aplica lo que teclea al guardarlo; supervisión
+ *    captura y confirma con autorización (🔐); quien cobra no toca la tasa;
  *  · este archivo: que todo eso ocurra en una transacción, con su asiento.
  */
 import {
@@ -23,12 +24,16 @@ import {
 } from "@l2/contracts";
 import {
   addDays,
+  autoApplyDecision,
   calendarDay,
   coversDay,
   currentRate,
   frozenRateOf,
+  heldRates,
+  missingNextBusinessDayRate,
   needsDoubleCheck,
   variationBasisPoints,
+  type HeldReason,
   type RateRecord,
 } from "@l2/domain-rates";
 import type { Prisma } from "@l2/database";
@@ -61,15 +66,27 @@ const TOLERANCIA_ENTRE_FUENTES_BPS = 1n;
 /** Lo que se lee del historial: bastante para ver semanas, sin crecer para siempre. */
 const TASAS_LEIDAS = 120;
 
+/**
+ * A partir de qué hora (local, 24 h) se avisa de que el BCV no publicó la del siguiente día hábil
+ * (ADR-019 §8). Suele publicarla entre las 3:00 y las 5:00 pm; a las 6:00 pm ya es tarde.
+ */
+export const HORA_AVISO_SIGUIENTE = 18;
+
+/** A nombre de quién queda una tasa aplicada sola (ADR-019 §4). La bandera es `automatic`. */
+export const APLICADA_AUTOMATICAMENTE = "Aplicada automáticamente (BCV)";
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface CasosTasas {
   /**
-   * El historial del local con su política. No exige persona: la barra de toda estación enseña
-   * con qué tasa se cobra (§5.2), también antes de entrar.
+   * El historial del local con su política y sus alertas en `ahora`. No exige persona: la barra
+   * de toda estación enseña con qué tasa se cobra (§5.2), también antes de entrar.
    */
-  leer(ctx: Contexto): Promise<HistorialTasasDto>;
-  /** Captura una tasa, siempre sin confirmar. */
+  leer(ctx: Contexto, ahora?: number): Promise<HistorialTasasDto>;
+  /**
+   * Captura una tasa. La de administración se aplica al guardarla (ADR-019 §5), tecleada dos
+   * veces si salta o es la primera; la de supervisión queda pendiente de confirmar con 🔐.
+   */
   capturar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ExchangeRateDto>>;
   /**
    * Confirma una tasa para que se pueda cobrar con ella. `autorizacion` es la del 🔐 cuando
@@ -79,8 +96,9 @@ export interface CasosTasas {
   /** Quiénes pueden autorizar a quien opera a confirmar una tasa (vacío si no le hace falta). */
   autorizadores(ctx: Contexto): Promise<{ id: string; nombre: string }[]>;
   /**
-   * Trae la tasa del BCV de sus fuentes y la deja capturada, PENDIENTE (F3-04). Lo pide una
-   * persona con el botón de la pantalla o el propio servidor a su hora (`ctx.sistema`).
+   * Trae la tasa del BCV de sus fuentes (F3-04) y la aplica sola si nada indica un problema
+   * (ADR-019): la dio la web oficial, hay vigente y no salta más del umbral. Si no, queda
+   * pendiente con su motivo. Lo pide una persona con el botón o el servidor a su hora.
    */
   sincronizar(
     ctx: Contexto,
@@ -92,7 +110,7 @@ type Fila = ExchangeRate & { confirmation: ExchangeRateConfirmation | null };
 
 export function casosTasas(base: Base): CasosTasas {
   return {
-    async leer(ctx) {
+    async leer(ctx, ahora = Date.now()) {
       const filas = await base.conTenant(ctx.tenantId, (tx) =>
         tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS }),
       );
@@ -102,6 +120,7 @@ export function casosTasas(base: Base): CasosTasas {
         tasas: filas.map(dto),
         umbralVariacionBasisPoints: UMBRAL_VARIACION_BPS,
         zonaHoraria: ZONA_DEL_LOCAL,
+        alertas: alertasDe(filas.map(registro), ahora),
       });
     },
 
@@ -112,6 +131,7 @@ export function casosTasas(base: Base): CasosTasas {
       }
       const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
       const dia = v.data.effectiveDate;
+      let negada = null as string | null;
       // Hacia atrás solo si todavía rige hoy (el sábado se puede cargar la del viernes).
       if ((dia < hoy && !coversDay(dia, hoy)) || dia > addDays(hoy, DIAS_POR_ADELANTADO)) {
         return {
@@ -131,6 +151,31 @@ export function casosTasas(base: Base): CasosTasas {
           // de funciones de §7.5 pide que quien cobra no mueva la tasa.
           const p = await permisoEn(tx, ctx, "tasa.confirmar");
           if (p === "DENEGADO") return rechazoDePermiso(p);
+
+          // Quien confirma sin autorización (administración) la aplica al guardarla (ADR-019 §5):
+          // el límite de cordura se cumple en el mismo formulario, tecleándola dos veces.
+          const aplica = p === "PERMITIDO";
+          const anterior = aplica ? await ultimaConfirmada(tx, v.data.pair, new Date(ahora).toISOString()) : null;
+          const requiere = aplica && needsDoubleCheck(anterior, { value: v.data.value }, UMBRAL_VARIACION_BPS);
+          const tecleado = v.data.valorVerificado;
+          if (requiere && tecleado === undefined) {
+            return {
+              ok: false,
+              motivo: "INVALIDO",
+              mensaje: "Esta tasa se aparta mucho de la vigente, o es la primera: teclea el valor otra vez.",
+              problemas: [{ path: ["valorVerificado"], message: "Hace falta teclearlo de nuevo" }],
+            };
+          }
+          if (aplica && tecleado !== undefined && !mismoValor(v.data.pair, v.data.value, tecleado)) {
+            negada = "El valor tecleado de nuevo no coincide";
+            return {
+              ok: false,
+              motivo: "INVALIDO",
+              mensaje: "Los dos valores no coinciden. Escríbelos otra vez.",
+              problemas: [{ path: ["valorVerificado"], message: "No coincide" }],
+            };
+          }
+
           const quien = await nombreDe(tx, ctx);
           const fila = await tx.exchangeRate.create({
             data: {
@@ -150,10 +195,31 @@ export function casosTasas(base: Base): CasosTasas {
             entityId: fila.id,
             after: { pair: fila.pair, value: fila.value, source: fila.source, effectiveDate: dia },
           });
-          return { ...fila, confirmation: null };
+          if (!aplica) return { ...fila, confirmation: null };
+
+          const confirmacion = await tx.exchangeRateConfirmation.create({
+            data: {
+              tenantId: ctx.tenantId,
+              rateId: fila.id,
+              confirmedAt: new Date(ahora),
+              confirmedBy: ctx.quien?.userId ?? null,
+              confirmedByName: quien.nombre,
+              doubleChecked: requiere,
+            },
+          });
+          await auditar(tx, ctx, {
+            action: "tasa.confirmar",
+            entityType: "exchange_rate",
+            entityId: fila.id,
+            before: { confirmada: false, anterior: anterior ? { id: anterior.id, value: anterior.value } : null },
+            after: { confirmada: true, alGuardar: true, pair: fila.pair, value: fila.value, effectiveDate: dia, doubleChecked: requiere },
+          });
+          return { ...fila, confirmation: confirmacion };
         });
         if ("ok" in r) {
-          await auditarRechazo(base, ctx, { action: "tasa.capturar", reason: r.mensaje });
+          if (r.motivo === "NO_PERMITIDO" || negada) {
+            await auditarRechazo(base, ctx, { action: "tasa.capturar", reason: negada ?? r.mensaje });
+          }
           return r;
         }
         return { ok: true, valor: dto(r) };
@@ -327,15 +393,37 @@ export function casosTasas(base: Base): CasosTasas {
 
       const r = await base.conTenant(ctx.tenantId, async (tx) => {
         const capturadas: Fila[] = [];
+        const aplicadas: Fila[] = [];
         const yaEstaban: { effectiveDate: string; value: string }[] = [];
         for (const [i, { lectura, confirmadaPor }] of elegidas.entries()) {
+          // Un milisegundo por tasa: dos del mismo par no comparten instante de captura, y cada
+          // una se compara con lo que ya estaba confirmado en su instante (también la anterior
+          // de esta misma consulta: la del lunes contra la del viernes).
+          const instante = new Date(ahora + i);
+          // ADR-019 §1: solo se aplica sola la que dio la web oficial del BCV.
+          const oficial = confirmadaPor.some((l) => l.fuente === "BCV");
           const existentes = await tx.exchangeRate.findMany({
             where: { pair: lectura.pair, effectiveDate: new Date(`${lectura.effectiveDate}T00:00:00.000Z`) },
+            include: { confirmation: true },
+            orderBy: { capturedAt: "desc" },
           });
-          if (existentes.some((e) => mismoValor(lectura.pair, e.value, lectura.value))) {
+          const igual = existentes.find((e) => mismoValor(lectura.pair, e.value, lectura.value));
+          if (igual) {
             yaEstaban.push({ effectiveDate: lectura.effectiveDate, value: lectura.value });
+            // La trajo antes un proceso y quedó retenida (p. ej. solo respondía DolarApi, o era la
+            // primera y ya hay vigente): se vuelve a mirar con lo que se sabe ahora. Una pendiente
+            // tecleada por alguien no se toca: espera su confirmación con 🔐.
+            const otraConfirmada = existentes.some((e) => e.confirmation && e.capturedAt >= igual.capturedAt);
+            if (!igual.confirmation && igual.capturedBy === null && !otraConfirmada) {
+              const anterior = await ultimaConfirmada(tx, lectura.pair, instante.toISOString());
+              const decision = autoApplyDecision({ previous: anterior, candidate: lectura, official: oficial, thresholdBasisPoints: UMBRAL_VARIACION_BPS });
+              if (decision.apply) aplicadas.push(await aplicarSola(tx, ctx, igual, anterior, instante));
+            }
             continue;
           }
+
+          const anterior = await ultimaConfirmada(tx, lectura.pair, instante.toISOString());
+          const decision = autoApplyDecision({ previous: anterior, candidate: lectura, official: oficial, thresholdBasisPoints: UMBRAL_VARIACION_BPS });
           const canal =
             confirmadaPor.length > 1 ? "Sincronización BCV (2 fuentes)" : `Sincronización ${lectura.fuente === "BCV" ? "BCV" : "DolarApi"}`;
           const fila = await tx.exchangeRate.create({
@@ -346,34 +434,107 @@ export function casosTasas(base: Base): CasosTasas {
               // El valor es el oficial del BCV, lo traiga su web o quien la republica.
               source: "BCV",
               effectiveDate: new Date(`${lectura.effectiveDate}T00:00:00.000Z`),
-              // Un milisegundo por tasa: dos del mismo par no comparten instante de captura.
-              capturedAt: new Date(ahora + i),
+              capturedAt: instante,
               capturedBy: null,
               capturedByName: canal,
               rawPayload: { lecturas: confirmadaPor.map((l) => ({ fuente: l.fuente, ...l.crudo })) } as Prisma.InputJsonValue,
+              heldBack: decision.apply ? null : decision.reason,
             },
           });
-          capturadas.push({ ...fila, confirmation: null });
+          capturadas.push(decision.apply ? await aplicarSola(tx, ctx, { ...fila, confirmation: null }, anterior, instante) : { ...fila, confirmation: null });
         }
         await auditar(tx, ctx, {
           action: "tasa.sincronizar",
           entityType: "exchange_rate",
           after: {
-            capturadas: capturadas.map((c) => ({ id: c.id, value: c.value, effectiveDate: diaDe(c.effectiveDate) })),
+            capturadas: capturadas.map((c) => ({
+              id: c.id,
+              value: c.value,
+              effectiveDate: diaDe(c.effectiveDate),
+              aplicada: c.confirmation !== null,
+              ...(c.heldBack ? { retenida: c.heldBack } : {}),
+            })),
+            aplicadas: aplicadas.map((c) => ({ id: c.id, value: c.value, effectiveDate: diaDe(c.effectiveDate) })),
             yaEstaban,
             fuentes: informe,
             avisos,
           },
         });
-        return { capturadas, yaEstaban };
+        return { capturadas, aplicadas, yaEstaban };
       });
 
       return {
         ok: true,
-        valor: { capturadas: r.capturadas.map(dto), yaEstaban: r.yaEstaban, fuentes: informe, avisos },
+        valor: {
+          capturadas: r.capturadas.map(dto),
+          aplicadas: r.aplicadas.map(dto),
+          yaEstaban: r.yaEstaban,
+          fuentes: informe,
+          avisos,
+        },
       };
     },
   };
+}
+
+/**
+ * Aplica sola una tasa traída del BCV (ADR-019): añade su confirmación automática, sin persona
+ * detrás, y su asiento. Solo la llama `sincronizar` después de que `autoApplyDecision` lo permita.
+ */
+async function aplicarSola(tx: Transaccion, ctx: Contexto, tasa: Fila, anterior: RateRecord | null, instante: Date): Promise<Fila> {
+  const confirmacion = await tx.exchangeRateConfirmation.create({
+    data: {
+      tenantId: ctx.tenantId,
+      rateId: tasa.id,
+      confirmedAt: instante,
+      confirmedBy: null,
+      confirmedByName: APLICADA_AUTOMATICAMENTE,
+      doubleChecked: false,
+      automatic: true,
+    },
+  });
+  await auditar(tx, ctx, {
+    action: "tasa.aplicar",
+    entityType: "exchange_rate",
+    entityId: tasa.id,
+    before: { confirmada: false, anterior: anterior ? { id: anterior.id, value: anterior.value } : null },
+    after: { confirmada: true, automatica: true, pair: tasa.pair, value: tasa.value, effectiveDate: diaDe(tasa.effectiveDate) },
+  });
+  return { ...tasa, confirmation: confirmacion };
+}
+
+const MOTIVO_RETENIDA: Readonly<Record<HeldReason, string>> = {
+  PRIMERA: "es la primera del local y no hay otra con la que compararla",
+  SALTO: `se aparta más del ${UMBRAL_VARIACION_BPS / 100} % de la vigente`,
+  SOLO_TERCERO: "solo la dio DolarApi, no la web del BCV",
+};
+
+const DIA_LEGIBLE = new Intl.DateTimeFormat("es-VE", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const diaLegible = (dia: string) => DIA_LEGIBLE.format(new Date(`${dia}T12:00:00.000Z`));
+
+/**
+ * Lo que alguien tiene que mirar (ADR-019), en el instante `ahora`: cada tasa del BCV que no se
+ * aplicó sola y todavía importa (crítica) y, a la hora habitual, la del siguiente día hábil que
+ * no ha llegado (aviso). La decisión es del dominio; aquí solo se pone en palabras.
+ */
+function alertasDe(tasas: readonly RateRecord[], ahora: number): HistorialTasasDto["alertas"] {
+  const instante = new Date(ahora).toISOString();
+  const hoy = calendarDay(instante, ZONA_DEL_LOCAL);
+  const alertas: HistorialTasasDto["alertas"] = heldRates(tasas, "USD/VES", hoy).map((t) => ({
+    tipo: "RETENIDA",
+    tono: "crit",
+    rateId: t.id,
+    mensaje: `La tasa del BCV del ${diaLegible(t.effectiveDate)} no se aplicó sola: ${MOTIVO_RETENIDA[t.heldBack!]}. Revísala y confírmala.`,
+  }));
+  const falta = missingNextBusinessDayRate(tasas, "USD/VES", instante, ZONA_DEL_LOCAL, HORA_AVISO_SIGUIENTE);
+  if (falta) {
+    alertas.push({
+      tipo: "FALTA_SIGUIENTE",
+      tono: "warn",
+      mensaje: `El BCV no ha publicado la tasa del ${diaLegible(falta)}. Si no llega, cárgala a mano.`,
+    });
+  }
+  return alertas;
 }
 
 /** La última tasa confirmada del par capturada hasta `instante`, en la forma del dominio. */
@@ -410,8 +571,11 @@ function registro(f: Fila): RateRecord {
     capturedAt: f.capturedAt.toISOString(),
     effectiveDate: diaDe(f.effectiveDate),
     confirmed: f.confirmation !== null,
+    ...(esRetenida(f.heldBack) ? { heldBack: f.heldBack } : {}),
   };
 }
+
+const esRetenida = (v: string | null): v is HeldReason => v === "PRIMERA" || v === "SALTO" || v === "SOLO_TERCERO";
 
 function dto(f: Fila): ExchangeRateDto {
   const c = f.confirmation;
@@ -429,7 +593,9 @@ function dto(f: Fila): ExchangeRateDto {
           confirmedBy: c.confirmedByName,
           confirmedAt: c.confirmedAt.toISOString(),
           ...(c.authorizedByName ? { authorizedBy: c.authorizedByName } : {}),
+          ...(c.automatic ? { automatic: true } : {}),
         }
       : {}),
+    ...(esRetenida(f.heldBack) ? { heldBack: f.heldBack } : {}),
   };
 }

@@ -5,15 +5,27 @@ import type { ExchangeRateDto, HistorialTasasDto, RatePair, Resultado, Sincroniz
 import { calendarDay, frozenRateOf, rateOfDay } from "@l2/domain-rates";
 import type { FrozenRate } from "@l2/domain-money";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
-import { capturarTasa, confirmarTasa, traerTasaDelBcv } from "./tasas.acciones";
+import { capturarTasa, confirmarTasa, leerTasas, traerTasaDelBcv } from "./tasas.acciones";
 
 /**
- * Las tasas de cambio — F3-03 a F3-05, en el servidor desde B2-1.
+ * Las tasas de cambio — F3-03 a F3-05, en el servidor desde B2-1, en vivo desde B2-1c.
  *
  * El historial lo manda el layout desde la base. Capturar y confirmar son acciones del servidor:
  * él decide quién puede, si el salto exige teclear otra vez y deja el asiento. Aquí solo se
- * adopta lo que devuelve. Otra estación lo ve al navegar, y en vivo con el tiempo real (B5-1).
+ * adopta lo que devuelve.
+ *
+ * EN VIVO (ADR-019 §6): toda pantalla que muestra o usa bolívares lee la tasa de aquí, y aquí se
+ * pregunta al servidor cada 60 s y al volver el foco. Así una tasa que el BCV publica, o que otra
+ * estación aplica, llega a la caja en menos de un minuto sin navegar. El tiempo real (B5-1) lo
+ * empujará en menos de 2 s y retirará el sondeo.
  */
+
+/** Cada cuánto se pregunta al servidor por la tasa. */
+const SONDEO_MS = 60_000;
+
+/** Lo que distingue un historial de otro para no repintar si nada cambió. */
+const huellaDe = (h: HistorialTasasDto) =>
+  [...h.tasas.map((t) => `${t.id}:${t.confirmed ? 1 : 0}`), ...h.alertas.map((a) => `${a.tipo}:${a.rateId ?? ""}:${a.mensaje}`)].join("|");
 
 type Valor = Readonly<{
   historial: HistorialTasasDto;
@@ -31,10 +43,51 @@ export function TasasProvider({ inicial, children }: { inicial: HistorialTasasDt
 
   // Cuando el layout se vuelve a pintar con otro historial (esta u otra estación capturó o
   // confirmó y se navegó), se adopta. La huella dice si cambió algo: el objeto es nuevo en cada pintado.
-  const huella = inicial.tasas.map((t) => `${t.id}:${t.confirmed ? 1 : 0}`).join("|");
+  const huella = huellaDe(inicial);
   useEffect(() => {
     setHistorial(inicial);
   }, [huella]);
+
+  // El sondeo. Un fallo de red no borra la tasa que ya se tenía: se sigue con ella y se vuelve a
+  // preguntar en el siguiente turno. Cuánto vale esa tasa lo decide `useTasaVigente` con el día,
+  // no el sondeo: una del viernes deja de valer el lunes aunque no se pueda preguntar.
+  useEffect(() => {
+    let vivo = true;
+    let enCurso = false;
+    const preguntar = async () => {
+      if (enCurso || document.visibilityState === "hidden") return;
+      enCurso = true;
+      try {
+        const nuevo = await leerTasas();
+        if (vivo) setHistorial((h) => (huellaDe(h) === huellaDe(nuevo) ? h : nuevo));
+      } catch {
+        // Sin servidor se sigue con lo que había; la barra de estación dice si hay conexión.
+      } finally {
+        enCurso = false;
+      }
+    };
+    const id = window.setInterval(() => void preguntar(), SONDEO_MS);
+    const alVolver = () => {
+      if (document.visibilityState === "visible") void preguntar();
+    };
+    window.addEventListener("focus", alVolver);
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      vivo = false;
+      window.clearInterval(id);
+      window.removeEventListener("focus", alVolver);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, []);
+
+  /**
+   * Vuelve a leer el historial tras escribir: las alertas (una retenida que se confirmó, la que ya
+   * no falta) las calcula el servidor, y aquí no se adivinan. Si falla, queda lo adoptado.
+   */
+  const refrescar = useCallback(async () => {
+    const nuevo = await leerTasas().catch(() => null);
+    if (nuevo) setHistorial(nuevo);
+  }, []);
 
   /** Sustituye o añade la tasa que devolvió el servidor, sin esperar a que el layout se repinte. */
   const adoptar = useCallback((t: ExchangeRateDto) => {
@@ -44,26 +97,33 @@ export function TasasProvider({ inicial, children }: { inicial: HistorialTasasDt
   const capturar = useCallback(
     async (entrada: unknown) => {
       const r = await capturarTasa(entrada);
-      if (r.ok) adoptar(r.valor);
+      if (r.ok) {
+        adoptar(r.valor);
+        await refrescar();
+      }
       return r;
     },
-    [adoptar],
+    [adoptar, refrescar],
   );
 
   const confirmar = useCallback(
     async (entrada: unknown, autorizacion?: unknown) => {
       const r = await confirmarTasa(entrada, autorizacion);
-      if (r.ok) adoptar(r.valor);
+      if (r.ok) {
+        adoptar(r.valor);
+        await refrescar();
+      }
       return r;
     },
-    [adoptar],
+    [adoptar, refrescar],
   );
 
   const traer = useCallback(async () => {
     const r = await traerTasaDelBcv();
-    if (r.ok) for (const t of r.valor.capturadas) adoptar(t);
+    if (r.ok) for (const t of [...r.valor.capturadas, ...r.valor.aplicadas]) adoptar(t);
+    if (r.ok) await refrescar();
     return r;
-  }, [adoptar]);
+  }, [adoptar, refrescar]);
 
   const valor = useMemo(() => ({ historial, capturar, confirmar, traer }), [historial, capturar, confirmar, traer]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

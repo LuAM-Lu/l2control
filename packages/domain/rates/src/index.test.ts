@@ -12,6 +12,11 @@ import { convert, invertRate, money, toMajor } from "@l2/domain-money";
 import {
   InvalidRateError,
   addDays,
+  autoApplyDecision,
+  heldRates,
+  isBusinessDay,
+  missingNextBusinessDayRate,
+  nextBusinessDay,
   calendarDay,
   currenciesOf,
   currentRate,
@@ -210,5 +215,118 @@ describe("el límite de cordura (§5.2, amenaza T2)", () => {
     const anterior = tasa({ id: "r1", value: "228.41", capturedAt: "2026-09-18T12:00:00.000Z" });
     assert.throws(() => needsDoubleCheck(anterior, { value: "230.00" }, 0), InvalidRateError);
     assert.throws(() => needsDoubleCheck(anterior, { value: "230.00" }, -5), InvalidRateError);
+  });
+});
+
+describe("la tasa del BCV se aplica sola solo si nada indica un problema (ADR-019)", () => {
+  const umbral = 1000; // 10 %
+  const vigente = { value: "855.6625" };
+
+  test("de la web oficial, con vigente y un salto pequeño: se aplica", () => {
+    assert.deepEqual(
+      autoApplyDecision({ previous: vigente, candidate: { value: "857.0100" }, official: true, thresholdBasisPoints: umbral }),
+      { apply: true },
+    );
+  });
+
+  test("solo de un tercero: espera, aunque el valor sea razonable (T6)", () => {
+    assert.deepEqual(
+      autoApplyDecision({ previous: vigente, candidate: { value: "857.01" }, official: false, thresholdBasisPoints: umbral }),
+      { apply: false, reason: "SOLO_TERCERO" },
+    );
+  });
+
+  test("la primera del local: espera, no hay con qué compararla", () => {
+    assert.deepEqual(
+      autoApplyDecision({ previous: null, candidate: { value: "857.01" }, official: true, thresholdBasisPoints: umbral }),
+      { apply: false, reason: "PRIMERA" },
+    );
+  });
+
+  test("un salto de más del 10 %, hacia arriba o hacia abajo: espera", () => {
+    for (const value of ["950.00", "760.00"]) {
+      assert.deepEqual(
+        autoApplyDecision({ previous: vigente, candidate: { value }, official: true, thresholdBasisPoints: umbral }),
+        { apply: false, reason: "SALTO" },
+        value,
+      );
+    }
+  });
+
+  test("exactamente en el 10 % todavía se aplica; un punto básico más, no", () => {
+    const base = { value: "100.00" };
+    assert.equal(autoApplyDecision({ previous: base, candidate: { value: "110.00" }, official: true, thresholdBasisPoints: umbral }).apply, true);
+    assert.equal(autoApplyDecision({ previous: base, candidate: { value: "110.02" }, official: true, thresholdBasisPoints: umbral }).apply, false);
+  });
+
+  test("un umbral que no es un entero positivo se rechaza", () => {
+    assert.throws(
+      () => autoApplyDecision({ previous: vigente, candidate: vigente, official: true, thresholdBasisPoints: 0 }),
+      InvalidRateError,
+    );
+  });
+});
+
+describe("días hábiles", () => {
+  test("de lunes a viernes; el sábado y el domingo no", () => {
+    assert.equal(isBusinessDay("2026-09-25"), true); // viernes
+    assert.equal(isBusinessDay("2026-09-26"), false); // sábado
+    assert.equal(isBusinessDay("2026-09-27"), false); // domingo
+    assert.equal(isBusinessDay("2026-09-28"), true); // lunes
+  });
+
+  test("el siguiente del viernes es el lunes; del lunes, el martes", () => {
+    assert.equal(nextBusinessDay("2026-09-25"), "2026-09-28");
+    assert.equal(nextBusinessDay("2026-09-26"), "2026-09-28");
+    assert.equal(nextBusinessDay("2026-09-28"), "2026-09-29");
+  });
+});
+
+describe("las retenidas que piden a una persona (ADR-019)", () => {
+  const retenida = tasa({ id: "h1", value: "950.00", capturedAt: "2026-09-25T21:00:00.000Z", effectiveDate: "2026-09-28", confirmed: false, heldBack: "SALTO" });
+
+  test("una retenida para un día que viene es alerta", () => {
+    assert.deepEqual(heldRates([retenida], "USD/VES", "2026-09-26").map((t) => t.id), ["h1"]);
+  });
+
+  test("deja de serlo si alguien confirma otra para ese día después", () => {
+    const otra = tasa({ id: "c1", value: "857.01", capturedAt: "2026-09-25T22:00:00.000Z", effectiveDate: "2026-09-28" });
+    assert.deepEqual(heldRates([retenida, otra], "USD/VES", "2026-09-26"), []);
+  });
+
+  test("y cuando su día ya no rige", () => {
+    assert.deepEqual(heldRates([retenida], "USD/VES", "2026-09-29"), []);
+  });
+
+  test("una pendiente capturada a mano no es retenida", () => {
+    const manual = tasa({ id: "m1", value: "857.01", capturedAt: "2026-09-25T21:00:00.000Z", effectiveDate: "2026-09-28", confirmed: false, source: "MANUAL" });
+    assert.deepEqual(heldRates([manual], "USD/VES", "2026-09-26"), []);
+  });
+});
+
+describe("aviso si el BCV no publicó la del siguiente día hábil (ADR-019 §8)", () => {
+  const zona = "America/Caracas";
+  const viernes = tasa({ id: "v", value: "855.66", capturedAt: "2026-09-24T21:00:00.000Z", effectiveDate: "2026-09-25" });
+
+  test("viernes a las 6:30 pm sin la del lunes: avisa con el lunes", () => {
+    assert.equal(missingNextBusinessDayRate([viernes], "USD/VES", "2026-09-25T22:30:00.000Z", zona, 18), "2026-09-28");
+  });
+
+  test("antes de la hora habitual no avisa", () => {
+    assert.equal(missingNextBusinessDayRate([viernes], "USD/VES", "2026-09-25T20:30:00.000Z", zona, 18), null);
+  });
+
+  test("con la del lunes ya traída, aunque esté pendiente, no avisa", () => {
+    const lunes = tasa({ id: "l", value: "857.01", capturedAt: "2026-09-25T21:00:00.000Z", effectiveDate: "2026-09-28", confirmed: false });
+    assert.equal(missingNextBusinessDayRate([viernes, lunes], "USD/VES", "2026-09-25T22:30:00.000Z", zona, 18), null);
+  });
+
+  test("el fin de semana no avisa: el BCV no publica", () => {
+    assert.equal(missingNextBusinessDayRate([viernes], "USD/VES", "2026-09-26T23:00:00.000Z", zona, 18), null);
+  });
+
+  test("la hora es la del local, no la de UTC", () => {
+    // 23:30 UTC del jueves son las 7:30 pm en Caracas: ya toca.
+    assert.equal(missingNextBusinessDayRate([], "USD/VES", "2026-09-24T23:30:00.000Z", zona, 18), "2026-09-25");
   });
 });
