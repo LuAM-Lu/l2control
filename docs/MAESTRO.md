@@ -26,7 +26,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.19.0 · 19 de 45 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.20.0 · 20 de 46 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -70,7 +70,8 @@ así que Inicio lo enseña hasta B3-5, que debe permitir cerrar un turno huérfa
 **Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
 carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
 
-**Siguiente paso:** **T-3, rediseño del acceso** (pedido del cliente). Luego, el orden de §3: B3-2.
+**Siguiente paso:** B3-2 (medios de pago, terminales y datos de cobro persistidos, con los datos de
+pago cifrados). Luego, el orden de §3.
 
 ---
 
@@ -127,10 +128,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
 
-1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1 → B2-4 (se cierra Dinero)~~ → **T-3**.
+1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1 → B2-4 (se cierra Dinero) → T-3~~.
    B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
    (ADR-009), así que el turno tenía que existir antes.
-2. B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
+2. **B3-2** → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
@@ -153,10 +154,21 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   CHANGELOG reconstruido de 0.1.0 a 0.13.0 (B1-3 y B1-4 salieron juntos: no hay 0.7.0) y etiquetas
   en el commit de cada paso. Comprobado con Playwright a 1366×768, 1280×800 y 800×1280, sin errores
   de consola ni desplazamiento del documento.*
-- [ ] **T-3 · Rediseño del acceso** (pedido del cliente el 2026-09-27).
+- [x] **T-3 · Rediseño del acceso** (pedido del cliente el 2026-09-27; la ruta pasa a 46 pasos).
   → La pantalla de acceso da protagonismo al producto: marca y nombre a la izquierda, el formulario a
   la derecha. «Soy de administración» (aprobar el equipo con contraseña y TOTP, M-7) se ve desde la
   primera pantalla de un equipo desconocido, no solo después de «Pedir registro».
+  *Hecho el 2026-09-27 (v0.20.0): `PantallaAcceso` y `PanelMarca` en `AccesoScreen`, la misma
+  estructura para equipo sin registrar, pendiente, no autorizado, «¿Quién entra?» y el PIN: «L2
+  Control», «Abby Kingdom · Parque y restaurante», la hora grande, el estado del equipo (sin registrar,
+  esperando aprobación, autorizado, no autorizado) y la versión; en vertical, una franja arriba. Sin
+  registrar y pendiente son un mismo componente (`AltaDeEquipo`): al registrarse, el servidor repinta
+  el acceso y el formulario conserva lo que hacía. «Soy de administración» registra y aprueba de una
+  vez (dos acciones del servidor, sin cambiar el backend de M-7); si la aprobación falla, queda
+  pendiente con el error en el campo y el siguiente intento solo aprueba. Comprobado con Playwright:
+  sin registrar (con y sin la opción de administración), contraseña mala → pendiente con «Contraseña o
+  código incorrectos» y su código, aprobar → «¿Quién entra?» → PIN → panel, y pendiente; los cinco a
+  1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
   suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -718,6 +730,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   sin turno abierto no se cobra, y el punto de cobro es el equipo.
 - **2026-09-27** · B2-4 entregado (v0.19.0): se cierra la Etapa 2. Feriados bancarios desde el panel y
   el día de negocio del turno en cada asiento; la tasa sigue el calendario (ADR-009 aclarado). Sigue T-3.
+- **2026-09-27** · T-3 entregado (v0.20.0): el acceso da protagonismo a «L2 Control» y el admin
+  registra y aprueba un equipo nuevo desde la primera pantalla. La ruta pasa a 46 pasos. Sigue B3-2.
 
 ---
 

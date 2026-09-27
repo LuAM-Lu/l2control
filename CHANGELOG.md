@@ -5,12 +5,25 @@ Qué cambia en cada versión, para quien usa el sistema. Formato de
 según M-10 (docs/MAESTRO.md §2):
 
 - **MINOR** +1 por cada paso de la ruta a producción entregado: el número del medio dice cuántos van
-  (de 45). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
+  (de 46). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
 - La fuente es `version` del `package.json` raíz, con su etapa en `l2.etapa`. `pnpm verify` falla si
   este archivo no abre con esa versión. Cada versión lleva su etiqueta git `vX.Y.Z`.
 
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
+
+## [0.20.0] — 2026-09-27 · Etapa 3 · Caja
+
+T-3 · Rediseño del acceso (pedido del cliente). La ruta pasa de 45 a 46 pasos.
+
+### Cambiado
+- Todo el acceso comparte una estructura: a la izquierda, «L2 Control» con el local, la hora grande,
+  el estado del equipo y la versión; a la derecha, lo que hay que hacer. En vertical, la marca es una
+  franja arriba.
+- Un equipo sin registrar ofrece «Soy de administración» desde la primera pantalla: el nombre del
+  equipo, la contraseña y el código del autenticador, y queda registrado y aprobado de una vez. Si la
+  contraseña o el código fallan, el equipo queda pendiente con su código y el error a la vista, y el
+  siguiente intento solo lo aprueba.
 
 ## [0.19.0] — 2026-09-27 · Etapa 2 · Dinero
 

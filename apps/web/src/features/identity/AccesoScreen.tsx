@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -136,18 +136,6 @@ export function AccesoScreen({
     };
   }, []);
 
-  // Reloj de la pantalla de bloqueo. Se arranca en el cliente para no chocar
-  // con la hora del servidor al hidratar. Es solo presentación: el instante
-  // que cuenta para cobrar sigue viniendo del servidor (ADR-010).
-  const [reloj, setReloj] = useState<number | null>(null);
-  useEffect(() => {
-    setReloj(Date.now());
-    const id = setInterval(() => setReloj(Date.now()), 15_000);
-    return () => clearInterval(id);
-  }, []);
-  const hora = reloj === null ? null : FORMATO_HORA.format(reloj);
-  const fecha = reloj === null ? null : FORMATO_FECHA.format(reloj);
-
   const revision = useMemo(() => checkDevice(device), [device]);
   const hasta = rechazo?.hasta ?? null;
   const bloqueo: LockoutState = {
@@ -228,26 +216,31 @@ export function AccesoScreen({
 
   /* ------------------------------------- dispositivo no autorizado */
 
-  if (!revision.ok && device === null) return <PedirRegistro />;
-  if (!revision.ok && device?.status === "PENDIENTE" && pendiente) {
-    return <EquipoPendiente nombre={device.label} {...pendiente} />;
+  // Sin registrar y pendiente son el MISMO componente: al registrarse, el servidor repinta el
+  // acceso como pendiente, y así el formulario conserva lo que estaba haciendo (y su error).
+  if (!revision.ok && (device === null || (device.status === "PENDIENTE" && pendiente))) {
+    return <AltaDeEquipo nombreEquipo={device?.label ?? null} pendiente={device ? pendiente : null} />;
   }
 
   if (!revision.ok) {
     return (
-      <div className="grid flex-1 place-content-center bg-base px-6">
-        <div className="max-w-md rounded-[var(--radius-card)] border border-state-crit/40 bg-state-crit-bg p-8 text-center">
-          <ShieldAlert size={36} className="mx-auto text-state-crit" aria-hidden="true" />
-          <h1 className="font-display mt-4 text-2xl font-bold text-ink">
-            Este dispositivo no puede entrar
-          </h1>
+      <PantallaAcceso
+        estado={
+          <Badge tone="crit" icon={<ShieldAlert size={13} aria-hidden="true" />}>
+            {device?.label ?? "Este equipo"} · no autorizado
+          </Badge>
+        }
+      >
+        <div className="max-w-md rounded-[var(--radius-card)] border border-state-crit/40 bg-state-crit-bg p-8">
+          <ShieldAlert size={32} className="text-state-crit" aria-hidden="true" />
+          <h1 className="font-display mt-4 text-2xl font-bold text-ink">Este equipo no puede entrar</h1>
           <p className="mt-3 text-sm text-ink-2">{revision.message}</p>
           <p className="mt-5 border-t border-state-crit/25 pt-4 text-[12.5px] text-ink-3">
-            El dispositivo es el primer factor de acceso. Sin él, un PIN correcto tampoco sirve —
-            así, un PIN visto por encima del hombro no abre nada desde otro aparato.
+            El equipo es el primer factor de acceso. Sin él, un PIN correcto tampoco sirve: un PIN visto por encima del
+            hombro no abre nada desde otro aparato.
           </p>
         </div>
-      </div>
+      </PantallaAcceso>
     );
   }
 
@@ -264,95 +257,79 @@ export function AccesoScreen({
    */
   if (!operador) {
     return (
-      <div className="grid flex-1 bg-base lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <section className="flex flex-col justify-between gap-10 border-b border-line bg-surface/30 px-8 py-10 lg:border-r lg:border-b-0 lg:px-12 lg:py-14">
-          <div className="flex items-center gap-3">
-            <span className="font-display grid size-10 place-content-center rounded-[0.65rem] bg-brand text-base font-bold text-on-brand">
-              L2
-            </span>
-            <span>
-              <span className="font-display block font-bold text-ink">Abby Kingdom</span>
-              <span className="block text-[12px] text-ink-3">Parque y restaurante</span>
-            </span>
-          </div>
+      <PantallaAcceso
+        estado={
+          <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
+            {device!.label} · autorizado
+          </Badge>
+        }
+        extra={
+          installPrompt && (
+            <button
+              type="button"
+              onClick={async () => {
+                await installPrompt.prompt();
+                await installPrompt.userChoice;
+                setInstallPrompt(null);
+              }}
+              className="l2-solo-navegador flex min-h-[48px] items-center gap-2 rounded-full border border-line bg-surface px-4 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <Download size={15} aria-hidden="true" />
+              Instalar la app
+            </button>
+          )
+        }
+      >
+        <div className="mx-auto w-full max-w-xl">
+          <h1 className="font-display text-3xl font-bold text-ink">¿Quién entra?</h1>
+          <p className="mt-1.5 text-[15px] text-ink-2">Toca tu nombre y escribe tu PIN.</p>
 
-          <div>
-            <p className="tnum font-display text-[clamp(4rem,9vw,7rem)] leading-none font-bold tracking-tight text-ink">
-              {hora ?? "--:--"}
-            </p>
-            <p className="mt-3 text-lg text-ink-2 first-letter:uppercase">{fecha ?? " "}</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
-              {device!.label} · autorizado
-            </Badge>
-            {installPrompt && (
-              <button
-                type="button"
-                onClick={async () => {
-                  await installPrompt.prompt();
-                  await installPrompt.userChoice;
-                  setInstallPrompt(null);
-                }}
-                className="l2-solo-navegador flex min-h-[48px] items-center gap-2 rounded-full border border-line bg-surface px-4 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                <Download size={15} aria-hidden="true" />
-                Instalar la app
-              </button>
-            )}
-            <RotuloVersion className="basis-full" />
-          </div>
-        </section>
-
-        <section className="flex flex-col justify-center px-6 py-10 lg:px-14">
-          <div className="mx-auto w-full max-w-xl">
-            <h1 className="font-display text-3xl font-bold text-ink">¿Quién entra?</h1>
-            <p className="mt-1.5 text-[15px] text-ink-2">Toca tu nombre y escribe tu PIN.</p>
-
-            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-              {operadores.map((o) => (
-                <li key={o.id}>
-                  <button
-                    type="button"
-                    onClick={() => setOperador(o)}
-                    className={cn(
-                      "group flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-[var(--radius-card)]",
-                      "border border-line bg-surface px-5 text-left shadow-card",
-                      "transition-[transform,border-color,box-shadow] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
-                      "hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-lift",
-                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    )}
-                  >
-                    <Initial name={o.nombre} tone="idle" className="size-12 text-lg" />
-                    <span className="min-w-0 flex-1">
-                      <span className="font-display block truncate text-[17px] font-bold text-ink">
-                        {o.nombre}
-                      </span>
-                      <span className="block text-[13px] text-ink-3">{o.rol}</span>
-                    </span>
-                    <ArrowRight
-                      size={17}
-                      aria-hidden="true"
-                      className="shrink-0 text-ink-3 transition-[transform,color] duration-[var(--dur-rapida)] group-hover:translate-x-0.5 group-hover:text-brand"
-                    />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      </div>
+          <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+            {operadores.map((o) => (
+              <li key={o.id}>
+                <button
+                  type="button"
+                  onClick={() => setOperador(o)}
+                  className={cn(
+                    "group flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-[var(--radius-card)]",
+                    "border border-line bg-surface px-5 text-left shadow-card",
+                    "transition-[transform,border-color,box-shadow] duration-[var(--dur-normal)] ease-[var(--ease-salida)]",
+                    "hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-lift",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  )}
+                >
+                  <Initial name={o.nombre} tone="idle" className="size-12 text-lg" />
+                  <span className="min-w-0 flex-1">
+                    <span className="font-display block truncate text-[17px] font-bold text-ink">{o.nombre}</span>
+                    <span className="block text-[13px] text-ink-3">{o.rol}</span>
+                  </span>
+                  <ArrowRight
+                    size={17}
+                    aria-hidden="true"
+                    className="shrink-0 text-ink-3 transition-[transform,color] duration-[var(--dur-rapida)] group-hover:translate-x-0.5 group-hover:text-brand"
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </PantallaAcceso>
     );
   }
 
   /* ------------------------------------------------------- el PIN */
 
   return (
-    <div className="grid flex-1 place-content-center bg-base px-6 py-10">
+    <PantallaAcceso
+      estado={
+        <Badge tone="ok" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
+          {device!.label} · autorizado
+        </Badge>
+      }
+    >
       {/* La tarjeta entra desde abajo: el salto de «¿Quién entra?» al teclado
           es un paso adelante, y verlo llegar evita el corte seco. */}
-      <div className="l2-entra w-full max-w-xs">
+      <div className="l2-entra mx-auto w-full max-w-xs">
         <button
           type="button"
           disabled={entrando}
@@ -476,94 +453,129 @@ export function AccesoScreen({
           queda registrado con la hora y el equipo.
         </p>
       </div>
-    </div>
+    </PantallaAcceso>
   );
 }
 
 /**
- * Un equipo que el servidor no conoce: pide su registro (F2-02). Queda PENDIENTE hasta que
- * administración lo apruebe en Panel → Personas → Dispositivos; hasta entonces, ningún PIN
- * sirve desde él.
+ * La estructura de TODO el acceso (T-3): a la izquierda, la marca —el producto, el local, la hora
+ * y el estado del equipo—; a la derecha, lo que hay que hacer. Un equipo compartido pasa buena
+ * parte del día aquí: es su pantalla de bloqueo, y es lo primero que ve quien estrena un equipo.
+ * En vertical (tablet o móvil) la marca se vuelve una franja arriba y la tarea queda debajo.
  */
-function PedirRegistro() {
-  const router = useRouter();
-  const [nombre, setNombre] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function PantallaAcceso({ estado, extra, children }: { estado: ReactNode; extra?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid flex-1 grid-rows-[auto_minmax(0,1fr)] bg-base lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:grid-rows-1">
+      <PanelMarca estado={estado} extra={extra} />
+      <section className="flex flex-col justify-center px-6 py-8 lg:px-14 lg:py-10">{children}</section>
+    </div>
+  );
+}
 
-  async function pedir() {
-    setEnviando(true);
-    setError(null);
-    const r = await solicitarRegistro(nombre).catch(() => null);
-    setEnviando(false);
-    if (!r) return setError("El servidor no respondió. Inténtalo de nuevo.");
-    if (!r.ok) return setError(r.problemas?.[0]?.message ?? r.mensaje);
-    router.refresh();
-  }
+function PanelMarca({ estado, extra }: { estado: ReactNode; extra?: ReactNode }) {
+  // Reloj de la pantalla de bloqueo. Se arranca en el cliente para no chocar con la hora del
+  // servidor al hidratar. Es solo presentación: el instante que cuenta para cobrar sigue viniendo
+  // del servidor (ADR-010).
+  const [reloj, setReloj] = useState<number | null>(null);
+  useEffect(() => {
+    setReloj(Date.now());
+    const id = setInterval(() => setReloj(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, []);
+  const hora = reloj === null ? null : FORMATO_HORA.format(reloj);
+  const fecha = reloj === null ? null : FORMATO_FECHA.format(reloj);
 
   return (
-    <div className="grid flex-1 place-content-center bg-base px-6">
-      <div className="w-full max-w-md rounded-[var(--radius-card)] border border-line bg-surface p-8 shadow-card">
-        <MonitorSmartphone size={32} className="text-ink-2" aria-hidden="true" />
-        <h1 className="font-display mt-4 text-2xl font-bold text-ink">Este equipo no está registrado</h1>
-        <p className="mt-2 text-sm text-ink-2">
-          El equipo es el primer factor de acceso: sin registrarlo, un PIN correcto tampoco sirve. Ponle
-          un nombre que diga dónde está y pide el registro; administración lo aprueba desde el panel.
-        </p>
-        <form
-          className="mt-6 flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void pedir();
-          }}
-        >
-          <Input
-            label="Nombre del equipo"
-            surface="tablet"
-            placeholder="Tablet taquilla"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            error={error ?? undefined}
-            maxLength={40}
-          />
-          <Button type="submit" surface="tablet" variant="primary" disabled={enviando || nombre.trim().length < 2}>
-            {enviando ? "Pidiendo…" : "Pedir registro"}
-          </Button>
-        </form>
+    <section
+      aria-label="L2 Control"
+      className="relative flex flex-col justify-between gap-6 overflow-hidden border-b border-line bg-surface/40 px-6 py-6 lg:gap-10 lg:border-r lg:border-b-0 lg:px-12 lg:py-14"
+    >
+      {/* Un halo del color de la marca, detrás de todo: da presencia sin competir con la hora. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-40 -left-40 size-[28rem] rounded-full bg-brand/8 blur-3xl"
+      />
+
+      <div className="relative flex items-center gap-4">
+        <span className="font-display grid size-14 shrink-0 place-content-center rounded-[0.9rem] bg-brand text-xl font-bold text-on-brand shadow-lift lg:size-16 lg:text-2xl">
+          L2
+        </span>
+        <span className="min-w-0">
+          <span className="font-display block text-2xl leading-tight font-bold tracking-tight text-ink lg:text-[2rem]">
+            L2 Control
+          </span>
+          <span className="block text-[13px] text-ink-2 lg:text-[14px]">Abby Kingdom · Parque y restaurante</span>
+        </span>
       </div>
-      <RotuloVersion className="mt-4 text-center" />
-    </div>
+
+      <div className="relative flex items-baseline gap-4 lg:block">
+        <p className="tnum font-display text-5xl leading-none font-bold tracking-tight text-ink lg:text-[clamp(4rem,9vw,7rem)]">
+          {hora ?? "--:--"}
+        </p>
+        <p className="text-[15px] text-ink-2 first-letter:uppercase lg:mt-3 lg:text-lg">{fecha ?? " "}</p>
+      </div>
+
+      <div className="relative flex flex-wrap items-center gap-3">
+        {estado}
+        {extra}
+        <RotuloVersion className="basis-full" />
+      </div>
+    </section>
   );
 }
 
 /**
- * Un equipo que pidió su registro y espera (F2-02, M-7). Enseña su código de emparejamiento, que
- * quien lo aprueba compara en su lista, y ofrece aprobarlo aquí mismo con las credenciales de
- * administración: así el primer equipo de un local, o el que sustituye a uno perdido, no depende
- * de la consola del servidor. Nunca enseña nombres de personas: el equipo aún no es de confianza.
+ * El alta de un equipo (F2-02, M-7, T-3): sin registrar, pide su registro; pendiente, enseña su
+ * código de emparejamiento, que quien aprueba compara en Panel → Personas → Dispositivos. Nunca
+ * enseña nombres de personas: el equipo aún no es de confianza.
+ *
+ * «Soy de administración» está desde la primera pantalla: quien estrena el primer equipo de un
+ * local, o sustituye uno perdido, lo registra y lo aprueba de una vez con su contraseña y su código.
+ * Son dos pasos del servidor (pedir y aprobar); si el segundo falla, el equipo queda pendiente, el
+ * error se ve aquí y el siguiente intento solo aprueba.
  */
-function EquipoPendiente({ nombre, codigo, caducada }: { nombre: string; codigo: string; caducada: boolean }) {
+function AltaDeEquipo({
+  nombreEquipo,
+  pendiente,
+}: {
+  nombreEquipo: string | null;
+  pendiente: { codigo: string; caducada: boolean } | null;
+}) {
   const router = useRouter();
-  const [abierto, setAbierto] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [comoAdmin, setComoAdmin] = useState(false);
   const [contrasena, setContrasena] = useState("");
   const [totp, setTotp] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorAprobar, setErrorAprobar] = useState<string | null>(null);
+  const registrado = nombreEquipo !== null;
 
-  async function aprobar() {
+  async function aprobar(): Promise<boolean> {
+    const a = await aprobarEsteEquipo(contrasena, totp).catch(() => null);
+    if (a?.ok) return true;
+    // Se vacían los dos: una contraseña mala oculta tras los puntos haría fallar el siguiente
+    // intento, y cada fallo acerca el bloqueo del equipo.
+    setContrasena("");
+    setTotp("");
+    setErrorAprobar(!a ? "El servidor no respondió al aprobarlo. Inténtalo de nuevo." : a.mensaje);
+    return false;
+  }
+
+  async function enviar() {
     setEnviando(true);
     setError(null);
-    const r = await aprobarEsteEquipo(contrasena, totp).catch(() => null);
-    setEnviando(false);
-    if (!r) return setError("El servidor no respondió. Inténtalo de nuevo.");
-    if (!r.ok) {
-      // Se vacían los dos: una contraseña mala que se queda en el campo (oculta tras los puntos)
-      // hace fallar también el siguiente intento, y cada fallo acerca el bloqueo del equipo.
-      setContrasena("");
-      setTotp("");
-      return setError(r.mensaje);
+    setErrorAprobar(null);
+    if (!registrado) {
+      const r = await solicitarRegistro(nombre).catch(() => null);
+      if (!r || !r.ok) {
+        setEnviando(false);
+        return setError(!r ? "El servidor no respondió. Inténtalo de nuevo." : (r.problemas?.[0]?.message ?? r.mensaje));
+      }
     }
-    router.refresh();
+    const listo = comoAdmin ? await aprobar() : true;
+    setEnviando(false);
+    if (listo) router.refresh();
   }
 
   async function renovar() {
@@ -576,95 +588,145 @@ function EquipoPendiente({ nombre, codigo, caducada }: { nombre: string; codigo:
     router.refresh();
   }
 
+  const credencialesListas = contrasena.length > 0 && totp.length === 6;
+  const puedeEnviar = registrado ? comoAdmin && credencialesListas : nombre.trim().length >= 2 && (!comoAdmin || credencialesListas);
+
+  const credenciales = comoAdmin && (
+    <div className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line bg-surface/60 p-3">
+      <p className="text-[12.5px] text-ink-2">Con tu contraseña y el código de tu autenticador. Queda en la auditoría a tu nombre.</p>
+      <Input
+        label="Contraseña"
+        surface="tablet"
+        type="password"
+        autoComplete="current-password"
+        value={contrasena}
+        onChange={(e) => setContrasena(e.target.value)}
+      />
+      <Input
+        label="Código del autenticador"
+        surface="tablet"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={6}
+        value={totp}
+        onChange={(e) => setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        error={errorAprobar ?? undefined}
+      />
+    </div>
+  );
+
+  const quienAprueba = (
+    <div role="radiogroup" aria-label="Quién lo aprueba" className="grid grid-cols-2 gap-2">
+      {(
+        [
+          [false, registrado ? "Lo aprueban" : "Pedir aprobación", "Desde el panel"],
+          [true, "Soy de administración", "Lo apruebo ahora"],
+        ] as const
+      ).map(([valor, titulo, detalle]) => (
+        <button
+          key={titulo}
+          type="button"
+          role="radio"
+          aria-checked={comoAdmin === valor}
+          onClick={() => {
+            setComoAdmin(valor);
+            setErrorAprobar(null);
+          }}
+          className={cn(
+            "flex min-h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 text-left",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+            comoAdmin === valor ? "border-brand bg-brand/12 text-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
+          )}
+        >
+          <span className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+            {valor && <ShieldCheck size={14} aria-hidden="true" />}
+            {titulo}
+          </span>
+          <span className="text-[12px] text-ink-3">{detalle}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="grid flex-1 place-content-center bg-base px-6 py-8">
-      <div className="w-full max-w-md rounded-[var(--radius-card)] border border-line bg-surface p-7 shadow-card">
-        <MonitorSmartphone size={30} className="text-ink-2" aria-hidden="true" />
-        <h1 className="font-display mt-3 text-2xl font-bold text-ink">Este equipo espera su aprobación</h1>
-        <p className="mt-2 text-sm text-ink-2">
-          «{nombre}» pidió su registro. Hasta que lo aprueben, ningún PIN sirve desde aquí: el equipo es el primer
-          factor de acceso.
+    <PantallaAcceso
+      estado={
+        <Badge tone="warn" icon={<MonitorSmartphone size={13} aria-hidden="true" />}>
+          {registrado ? `${nombreEquipo} · esperando aprobación` : "Equipo sin registrar"}
+        </Badge>
+      }
+    >
+      <form
+        className="mx-auto flex w-full max-w-md flex-col gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void enviar();
+        }}
+      >
+        <h1 className="font-display text-3xl font-bold text-ink">
+          {registrado ? "Este equipo espera su aprobación" : "Registrar este equipo"}
+        </h1>
+        <p className="text-[14.5px] text-ink-2">
+          {registrado
+            ? `«${nombreEquipo}» pidió su registro. Hasta que lo aprueben, ningún PIN sirve desde aquí: el equipo es el primer factor de acceso.`
+            : "El equipo es el primer factor de acceso: sin registrarlo, un PIN correcto tampoco sirve. Ponle un nombre que diga dónde está."}
         </p>
 
-        <div className="mt-5 rounded-[var(--radius-control)] border border-line bg-base px-4 py-3 text-center">
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Código de este equipo</p>
-          <p className="tnum mt-1 font-mono text-3xl font-bold tracking-[0.18em] text-ink">{codigo}</p>
-        </div>
+        {registrado ? (
+          <div className="rounded-[var(--radius-control)] border border-line bg-surface px-4 py-3 text-center">
+            <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Código de este equipo</p>
+            <p className="tnum mt-1 font-mono text-3xl font-bold tracking-[0.18em] text-ink">{pendiente?.codigo}</p>
+          </div>
+        ) : (
+          <Input
+            label="Nombre del equipo"
+            surface="tablet"
+            placeholder="Tablet taquilla"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            error={error ?? undefined}
+            maxLength={40}
+          />
+        )}
 
-        {caducada ? (
-          <div className="mt-5 flex flex-col gap-3">
+        {registrado && pendiente?.caducada ? (
+          <>
             <p role="status" className="flex items-start gap-2 rounded-[var(--radius-control)] bg-state-warn-bg p-3 text-[13px] text-state-warn">
               <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
               La solicitud caducó: pasaron más de 24 horas sin aprobarla. Renuévala y pide que la aprueben.
             </p>
-            {error && <p role="alert" className="text-[13px] text-state-crit">{error}</p>}
-            <Button surface="tablet" variant="primary" onClick={renovar} disabled={enviando}>
+            {error && (
+              <p role="alert" className="text-[13px] text-state-crit">
+                {error}
+              </p>
+            )}
+            <Button type="button" surface="tablet" variant="primary" onClick={renovar} disabled={enviando}>
               <RefreshCw size={16} aria-hidden="true" />
               {enviando ? "Renovando…" : "Renovar la solicitud"}
             </Button>
-          </div>
+          </>
         ) : (
           <>
-            <p className="mt-5 text-[13px] text-ink-2">
-              Desde un equipo ya aprobado: Panel → Personas → Dispositivos, comprobando que el código coincide.
-            </p>
-
-            {abierto ? (
-              <form
-                className="mt-4 flex flex-col gap-3 border-t border-line pt-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void aprobar();
-                }}
-              >
-                <p className="flex items-center gap-2 text-[13px] font-medium text-ink">
-                  <ShieldCheck size={15} aria-hidden="true" />
-                  Aprobarlo aquí con tus credenciales de administración
-                </p>
-                <Input
-                  label="Contraseña"
-                  surface="tablet"
-                  type="password"
-                  autoComplete="current-password"
-                  value={contrasena}
-                  onChange={(e) => setContrasena(e.target.value)}
-                  autoFocus
-                />
-                <Input
-                  label="Código del autenticador"
-                  surface="tablet"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={totp}
-                  onChange={(e) => setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  error={error ?? undefined}
-                />
-                <Button
-                  type="submit"
-                  surface="tablet"
-                  variant="primary"
-                  disabled={enviando || contrasena.length === 0 || totp.length !== 6}
-                >
-                  {enviando ? "Comprobando…" : "Aprobar este equipo"}
-                </Button>
-              </form>
+            {quienAprueba}
+            {credenciales}
+            {registrado && !comoAdmin ? (
+              <Button type="button" surface="tablet" variant="ghost" onClick={() => router.refresh()}>
+                <RefreshCw size={16} aria-hidden="true" />
+                Ya lo aprobaron
+              </Button>
             ) : (
-              <div className="mt-4 flex flex-col gap-2">
-                <Button surface="tablet" variant="primary" onClick={() => setAbierto(true)}>
-                  <ShieldCheck size={16} aria-hidden="true" />
-                  Soy de administración
-                </Button>
-                <Button surface="tablet" variant="ghost" onClick={() => router.refresh()}>
-                  <RefreshCw size={16} aria-hidden="true" />
-                  Ya lo aprobaron
-                </Button>
-              </div>
+              <Button type="submit" surface="tablet" variant="primary" disabled={enviando || !puedeEnviar}>
+                {enviando ? "Comprobando…" : registrado ? "Aprobar este equipo" : comoAdmin ? "Registrar y aprobar" : "Pedir registro"}
+              </Button>
             )}
+            <p className="text-[12.5px] text-ink-3">
+              {registrado
+                ? "Desde un equipo ya aprobado: Panel → Personas → Dispositivos, comprobando que el código coincide."
+                : "Después verás el código del equipo: quien lo apruebe lo compara en Panel → Personas → Dispositivos."}
+            </p>
           </>
         )}
-      </div>
-      <RotuloVersion className="mt-4 text-center" />
-    </div>
+      </form>
+    </PantallaAcceso>
   );
 }
