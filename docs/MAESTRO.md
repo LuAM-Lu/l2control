@@ -8,8 +8,8 @@
 > - [PLAN.md](PLAN.md): la especificación. ADRs, decisiones del cliente (DEC-n) y tareas `Fn-nn` con su
 >   criterio de aceptación en §12. Sus casillas y sus enlaces a documentos retirados están congelados.
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
-> - [adr/](adr/): las decisiones de arquitectura, una por archivo (18; ADR-018 supersede la biblioteca
->   de ADR-013).
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (19; ADR-018 supersede la biblioteca
+>   de ADR-013 y ADR-019 cambia la confirmación de la tasa automática de §5.2).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -26,29 +26,41 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Etapas 0 y 1 hechas. Etapa 2 empezada: las tasas ya son de la base (B2-1). Sin modo demo.**
+**Versión 0.13.0 · 13 de 45 pasos.** Etapas 0 y 1 hechas; Etapa 2 (dinero) en curso: las tasas ya
+son de la base y se traen del BCV. Sin modo demo; lo provisional y lo simulado que queda está
+inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
+número del medio cuenta los pasos entregados.
 
 - **Infraestructura local:** `pnpm infra:up` (PostgreSQL 17 en el 5433, Valkey 8), `pnpm db:migrar`,
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
-  auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐),
-  `@l2/observability` (logs redactados, entorno validado). La web lee la sesión de cookies `httpOnly`
-  y recibe el actor COMPLETO del servidor: menús y guardias ya no lo calculan en el navegador.
-- **Ya van contra la base:** acceso (equipo + PIN), tarifario, Dispositivos, Usuarios y permisos, Roles
-  y accesos, Tasas de cambio (y la tasa de la barra, la caja e Inicio). **Desde el 2026-09-26 no se
-  enseña nada inventado:** sala, familias, turno y las cifras de Inicio están vacíos o dicen «Sin
-  datos» / «Sin turno abierto» hasta su paso; lo provisional que queda es configuración (IVA/IGTF,
-  medios, ajustes, plano, carta y el catálogo de mostrador), con su paso en `src/demo/README`. **Sin tasa del día
-  confirmada, la caja no cobra en bolívares:** en local, cargarla cada día en Panel → Caja → Tasas. **Todo lo demás sigue en datos provisionales** (`apps/web/src/demo`, cada archivo con el
-  paso que lo borra) y en el bus de operación entre pestañas (`features/operacion`).
-- **Entrar en local:** navegador nuevo = equipo desconocido → «Pedir registro» en `/acceso` →
-  «Soy de administración» con contraseña + `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`) →
-  persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección. Configuración, precios y personas piden
-  confirmar identidad: contraseña `abby-kingdom-desarrollo` + código de `pnpm totp`.
-- **Pruebas:** `pnpm verify:db` en verde (26 de base, 83 de aplicación). CI escrito, nunca visto en
-  GitHub: hay commits sin subir (no se ha hecho push).
+  auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
+  su sincronización con el BCV), `@l2/observability` (logs redactados, entorno validado). La web lee
+  la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
+- **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
+  tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
+  Inicio). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
+- **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
+  contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
+  → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
+- **Pruebas:** `pnpm verify:db` en verde (26 de base, 105 de aplicación). CI escrito, nunca visto en
+  GitHub: 20 commits sin subir.
 
-**Siguiente paso:** B2-2 (impuestos con vigencia y la pantalla Configuración → Impuestos).
+**La tasa todavía no funciona bien en todo el sistema.** Diagnóstico del 2026-09-26, y todo se
+resuelve en B2-1c:
+
+1. En la base local hay tasas de prueba (Bs. 228,41 y 229,05) con fecha valor de hoy, que mandan
+   sobre la real del BCV (855,66 del viernes, 857,01 del lunes). **Primero se limpia la base local**
+   (pedido del cliente) y se siembra de cero.
+2. Lo traído del BCV entra pendiente y espera a una persona; el cliente pide que se aplique sola (M-8).
+3. Las estaciones solo ven una tasa nueva al navegar: no hay actualización en vivo.
+4. La alerta de Inicio «La tasa del día no está confirmada» lleva a `/caja` y no a la pantalla de tasas.
+5. La consulta al BCV es cada hora; el cliente quiere el cambio en el momento.
+6. Un cobro abierto en la caja no congela su tasa: si cambia a mitad del cobro, los bolívares cambian.
+
+**Siguiente paso:** limpiar la base local; después T-1 (versión visible) y B2-1c (tasa automática y en
+vivo). Luego, el orden de §3.
 
 ---
 
@@ -64,8 +76,13 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 | **M-7** | **Alta de equipos con buenas prácticas** (2026-09-26, pedido del cliente) | Amplía F2-02. El primer equipo de un local, o el que sustituye a uno perdido, se aprueba **desde él mismo con la contraseña y el TOTP** de quien gestiona personas (nunca con un PIN, y sin enseñar nombres en un equipo no aprobado); la consola `pnpm equipos` queda como puerta de emergencia. Cada equipo enseña un **código de emparejamiento** que quien aprueba compara. Una solicitud **caduca a las 24 h** y se renueva desde el equipo. Tope de 10 solicitudes por hora y dirección y de 20 pendientes por sucursal. Regla de operación (runbook, B8-2): **siempre dos equipos de administración aprobados** |
 | **M-6** | **Fuera el modo demo y el simulador** (2026-09-26), y **todo el backend según esta ruta** | Se retiran el chip «DEMO», su panel, los escenarios, el reloj acelerado, `NEXT_PUBLIC_DEMO` y `L2_FUENTE_DE_DATOS`: la app corre siempre contra su servidor. Queda el bus de eventos (`features/operacion`), que no era simulado y en B5-1 viaja por el servidor. Lo que aún no tiene backend usa datos provisionales de `src/demo`; **cada paso borra el suyo** (tabla en su README). Cambio de alcance sobre F1-19 (DEC-22), pedido por el cliente |
 
-La Ruta A (PLAN §11.3) sigue siendo el alcance: parque y caja primero. Las cinco reglas de CLAUDE.md
-no se relajan.
+| **M-8** | **La tasa del BCV se aplica sola y llega en vivo a todas las pantallas** (2026-09-26, pedido del cliente, [ADR-019](adr/019-tasa-automatica.md)) | Cambia §5.2 y F3-04 (confirmación humana de toda tasa automática). Salvaguardas: solo se aplica sola la de la web oficial del BCV con TLS verificado; si salta más del 10 % respecto de la vigente, si es la primera o si solo respondió un tercero, **no** se aplica y sale alerta crítica; si dos fuentes discrepan para el mismo día, no se captura. Todo queda auditado como «Aplicada automáticamente». La carga manual de administración también se aplica al guardarla (supervisión sigue con 🔐). En vivo: sondeo de 60 s hasta B5-1, push después. Un cobro en curso conserva su tasa y avisa si cambió (ADR-005) |
+| **M-9** | **El inventario vuelve al plan** (2026-09-26, pedido del cliente; revierte esa parte de M-1) | Nueva **Etapa 9** (catálogo de productos, movimientos de solo-agregar, compras con costo promedio, ajustes con motivo y 🔐, alertas y conteo físico). Su primer paso, el catálogo, va antes del cobro en servidor (B3-3), que lo necesita. Recetas, descarga al marcar LISTO y merma (F8-03, F8-04, F8-09) van con el restaurante (B6-4), porque dependen de las comandas |
+| **M-10** | **Versionado semántico visible** (2026-09-26, pedido del cliente) | SemVer 2.0.0. **MAJOR** 0 hasta producción; **1.0.0 = puesta en marcha** (B8-4). **MINOR** +1 por cada paso de la ruta entregado: la versión dice cuántos van. **PATCH** +1 por cada corrección entre pasos. Staging publica `-rc.N`. Fuente única: `version` del `package.json` raíz; `CHANGELOG.md` por versión (Keep a Changelog, en español) y etiqueta git `vX.Y.Z` en cada entrega. Se ve en el acceso y en Configuración con su etapa: «v0.14.0 · Etapa 2 · Dinero». Punto de partida: **0.13.0** |
+| **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
+
+La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario de mostrador** (M-9): parque y caja
+primero. Las cinco reglas de CLAUDE.md no se relajan.
 
 ---
 
@@ -75,6 +92,50 @@ El orden es por dependencia: **nada cobra sin identidad y auditoría debajo** (H
 como hecho solo si su criterio se cumple y se puede demostrar, y se marca aquí en el mismo commit.
 Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `auth`, `observability`,
 `hardware` y `apps/worker`), y `pnpm arch` incorpora sus fronteras al crearlos.
+
+**Definición de hecho de un paso de backend.** Un paso cuenta como hecho solo si cumple todo esto:
+
+1. **Contrato** Zod de entrada y salida en `@l2/contracts`. El servidor revalida lo que llega (ADR-017)
+   y nada del navegador declara identidades ni instantes.
+2. **Dominio** puro con sus pruebas. Las reglas de negocio viven ahí, no en la acción ni en la pantalla.
+3. **Caso de uso** en `@l2/application`, dentro de la transacción del tenant: `exigirPermiso…` antes de
+   tocar nada, `auditar()` en la misma transacción y rechazos auditados.
+4. **Base:** migración versionada y nunca editada una vez aplicada, `l2_aislar_por_tenant`, solo-agregar
+   donde haya dinero, stock o historia, CHECKs, FK compuestas con el tenant, sin `Float` e índices con
+   el tenant primero.
+5. **Dinero:** clave de idempotencia en toda escritura de dinero y tasa congelada en el asiento (ADR-005).
+6. **Pruebas:** unitarias del dominio, `*.test-db.ts` contra la base con reloj fijo si depende del día,
+   y negativas de permiso y de aislamiento.
+7. **Web:** lectura en `*.servidor.ts` con `connection()`, escritura en `*.acciones.ts` (`unknown` →
+   `Resultado`) y el proveedor adopta lo que devuelve. Nada de negocio en el almacenamiento del navegador.
+8. **Limpieza:** se borra lo provisional o simulado del paso, tanto el archivo de `src/demo` como su
+   fila de §5 (M-11).
+9. **Navegador:** el flujo real, con Playwright, a 1366×768, 1280×800 y 800×1280; sin errores de
+   consola; estados de carga, vacío y error visibles.
+10. **Cierre:** `pnpm verify:db` en verde, versión +1 MINOR con su entrada en `CHANGELOG.md` y su
+    etiqueta (M-10), y la casilla de este archivo marcada en el mismo commit.
+
+**Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
+
+1. Limpiar la base local → **T-1** → **B2-1c** → B2-2 → B2-3 → B2-4 (se cierra Dinero).
+2. B3-1 → B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
+3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
+   B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
+4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
+5. **T-2** (cero simulación) → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
+6. Etapa 6 (restaurante), según D-RES.
+
+### Transversal
+
+- [ ] **T-1 · Versión visible** (M-10).
+  → El acceso y Configuración dicen «v0.13.0 · Etapa 2 · Dinero» (con la versión que toque), el log de
+  arranque la repite, y `pnpm verify` falla si `CHANGELOG.md` no tiene la versión del `package.json`.
+  Incluye `CHANGELOG.md` reconstruido desde el historial (0.1.0 = B0-1 … 0.13.0 = B2-1b) y las
+  etiquetas `vX.Y.Z` en los commits de cada paso.
+- [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
+  → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
+  suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
+  literales y listas de ejemplo en `features/`. El CI sale en rojo con una violación.
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -208,27 +269,47 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   exigía fecha valor = hoy y el parque no habría cobrado en bolívares los fines de semana. Las
   pruebas de tasas corren con un reloj fijo. 9 pruebas nuevas de aplicación, 4 de lectores y 5 de
   dominio. La caja escribía «45,81 Bs/$» con 229,05 (leía la fracción como /100): corregido.*
+- [ ] **B2-1c · Tasa automática y en vivo** (M-8, ADR-019).
+  → Un cambio de la tasa del BCV llega a todas las pantallas sin navegar, en menos de 1 minuto (menos
+  de 2 s tras B5-1), y la caja cobra con él sin que nadie lo confirme. Un salto de más del 10 %, la
+  primera tasa o un valor solo de un tercero no se aplican solos: salen como alerta crítica. Un cobro
+  en curso conserva su tasa y avisa si cambió.
+  Incluye:
+  - la confirmación automática como asiento de solo-agregar («Aplicada automáticamente (BCV)»);
+  - consulta cada 15 min y al arrancar, alejándose si la fuente falla, y aviso si falta la tasa del
+    siguiente día hábil a la hora habitual;
+  - carga manual de administración que se aplica al guardar (tecleada dos veces si salta);
+  - sondeo de 60 s y al volver el foco en `TasasProvider`;
+  - una sola fuente de tasa para toda pantalla que muestre bolívares (entrada, salida, caja, recibo,
+    ventas, Inicio);
+  - la alerta de Inicio llevando a Tasas y diciendo «Sin tasa vigente».
 - [ ] **B2-2 · Impuestos con vigencia** persistidos, más la pantalla **Configuración → Impuestos**
   (contrato `impuestos.ts`).
   → Programar una alícuota con fecha de hoy cambia el ticket; con fecha del mes que viene, no.
 - [ ] **B2-3 · Libro de pagos append-only con idempotencia**, y la reversión como asiento (F3-09,
   F3-10, §5.5).
   → Un doble clic produce un solo cobro. Al revertir quedan los dos asientos y el original intacto.
-- [ ] **B2-4 · `businessDate` en toda fila de dinero** (F3-11, ADR-009).
-  → Una venta a la 1:30 am cuenta en el día del turno que la generó.
+- [ ] **B2-4 · `businessDate` en toda fila de dinero** (F3-11, ADR-009), y **calendario de feriados
+  bancarios** (lo usa la vigencia de la tasa).
+  → Una venta a la 1:30 am cuenta en el día del turno que la generó. Un feriado entre semana sigue
+  cobrando con la tasa del día hábil anterior, sin carga manual.
 
 ### Etapa 3 · Caja (F4)
 
 - [ ] **B3-1 · Turno real**: la pantalla de **apertura** con fondo por moneda en `/turno` (contrato
-  `turno.ts`) y un turno por dispositivo (I-06) (F4-01).
-  → Sin turno abierto no se cobra.
-- [ ] **B3-2 · Medios de pago y datos de cobro** persistidos; los datos de pago, **cifrados en reposo**
-  (F4-02, F4-04).
+  `turno.ts`) y un turno por dispositivo (I-06) (F4-01). El punto de cobro sale del equipo, no fijo.
+  → Sin turno abierto no se cobra. La barra deja de decir «Turno sin abrir» fijo: lee el turno real.
+- [ ] **B3-2 · Medios de pago, terminales y datos de cobro** persistidos; los datos de pago, **cifrados
+  en reposo** (F4-02, F4-04). Se borran `src/demo/medios.ts` y la parte de medios de `caja.ts`.
 - [ ] **B3-3 · Cobro mixto y vuelto en el servidor** contra el libro, con la tasa congelada (F4-03,
-  F4-04b, F4-04c, §5.6).
-  → Un cobro que no cuadra al céntimo no se confirma.
+  F4-04b, F4-04c, §5.6). Necesita B9-1: la venta de mostrador vende del catálogo de la base y tiene su
+  tipo de cuenta «mostrador». Las cuentas dejan de vivir en el almacenamiento del navegador.
+  → Un cobro que no cuadra al céntimo no se confirma. Un cobro con una tasa que ya no es la vigente se
+  rechaza fuera de un margen corto (ADR-019).
 - [ ] **B3-4 · Ventas del turno**: reimprimir queda como copia auditada y anular es una reversión
-  (DEC-24).
+  (DEC-24). Las autorizaciones 🔐 de la caja (anular, cortesía, descuento) van al servidor con
+  `exigirPermisoOAutorizacion`: se quitan los PIN «1970» comprobados en el navegador y se borra
+  `src/demo/usuarios.ts`.
 - [ ] **B3-5 · Cortes X y Z, arqueo y excepciones reales** derivadas del libro, cortesías y
   anulaciones incluidas (F4-05 a F4-08). Hoy las excepciones son un dato fijo.
   → Después del Z, ninguna operación toca ese turno.
@@ -249,12 +330,41 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
 - [ ] **B5-1 · Socket.io con adaptador Valkey** y autorización en el handshake (F2-09, ADR-008). El
-  monitor, la cola de caja y el panel en vivo se actualizan solos, y esto sustituye a `BroadcastChannel`.
-  → El cambio llega a otro equipo en menos de 2 s. Una sucursal no recibe eventos de otra.
+  monitor, la cola de caja, la tasa y el panel en vivo se actualizan solos, y esto sustituye a
+  `BroadcastChannel` y al sondeo de la tasa. Los eventos salen de una **tabla outbox** escrita en la
+  misma transacción que la operación: ninguno se pierde ni se publica uno de una operación que no
+  ocurrió. Nace `apps/worker`, con los trabajos programados: la sincronización del BCV se muda allí.
+  → El cambio llega a otro equipo en menos de 2 s. Una sucursal no recibe eventos de otra. Con el
+  worker caído, la operación sigue y los eventos se entregan al volver.
 - [ ] **B5-2 · Cola de impresión por TCP 9100** y plantillas de 58 y 80 mm, más la pantalla
   **Configuración → Impresoras** (contrato `impresoras.ts`) (F1-10, F1-12, ADR-015).
   → El recibo no fiscal sale en papel real en los dos anchos. Sin confirmación de impresión, nada avanza.
 - [ ] **B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09).
+
+### Etapa 9 · Catálogo e inventario (F8, M-9)
+
+Número nuevo para no renumerar las etapas que el código ya cita. Va antes del staging; su primer paso,
+antes del cobro en servidor (orden de ejecución).
+
+- [ ] **B9-1 · Catálogo de productos** de venta directa y de consumo en cuenta: nombre, categoría,
+  precio en USD con vigencia, código de IVA y si lleva control de stock (F8-02). Pantalla Panel →
+  Inventario → Productos.
+  → La caja vende del catálogo de la base y se borra `features/cash/catalogo-mostrador.ts`. Cambiar un
+  precio no altera una venta ya hecha.
+- [ ] **B9-2 · Movimientos de stock de solo-agregar** (F8-05, I-10): la existencia es la suma de
+  movimientos. Una venta de mostrador descuenta en la misma transacción que el cobro, y anular es un
+  movimiento de reversión.
+  → Toda diferencia de existencia tiene un movimiento que la explica. Un doble clic no descuenta dos veces.
+- [ ] **B9-3 · Compras y costo promedio ponderado** (F8-06), con insumos y conversiones de unidad
+  (F8-01).
+  → El costo tras dos compras a precios distintos coincide con el cálculo del contador; comprar por caja
+  y vender por unidad cuadra.
+- [ ] **B9-4 · Ajustes con motivo de lista cerrada y 🔐, y conteo físico** (F8-07): se cuenta, se ve la
+  diferencia y se ajusta con autorización.
+  → Ningún ajuste sin motivo ni asiento. El conteo deja la existencia igual a lo contado.
+- [ ] **B9-5 · Alertas de stock crítico** con antelación por producto (F8-08), en Inicio y en el
+  inventario.
+  → Avisa antes de quedarse sin producto.
 
 ### Etapa 6 · Restaurante en el servidor (fuera de la Ruta A, depende de D-RES)
 
@@ -262,6 +372,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 - [ ] **B6-2** Comandas y KDS sobre el servidor, con la máquina de estados de `@l2/domain-orders`
   (F6-06 a F6-09).
 - [ ] **B6-3** Cuenta de mesa, vinculación de pulseras y división (F6-05, F6-12, F6-14).
+- [ ] **B6-4** Recetas con subrecetas, descarga de stock al marcar LISTO (idempotente, ADR-012) y reporte
+  de merma (F8-03, F8-04, F8-09).
 
 ### Etapa 7 · Staging en VPS
 
@@ -285,7 +397,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   F11-06).
   → Los totales de los dos sistemas coinciden todos los días del período.
 - [ ] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). Si D-INF es un servidor en el local,
-  también el equipo en espera ensayado (F11-07b).
+  también el equipo en espera ensayado (F11-07b). **Es la versión 1.0.0** (M-10).
 
 ---
 
@@ -305,6 +417,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 | — | Informes del panel ejecutivo (F9-01 a F9-07) | Después del piloto; Inicio ya enseña el día | — |
 | F-12 | ¿El teléfono entra en el objetivo? | Revisarlo en B7-3 | B7-3 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
+| D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente | B2-1c |
+| D-FER | Calendario de feriados bancarios de Venezuela | Cargarlo por año desde el panel, con los de ley precargados | B2-4 |
+| D-INV | Alcance del inventario en el piloto | Solo productos de mostrador (bebidas, snacks); los insumos de cocina con el restaurante | B9-1 |
+| D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? (hoy sí, `canAuthorize`) | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona | B3-4 |
 
 **Confirma el contador** (lo fiscal queda fuera, pero esto cambia lo que se cobra)
 
@@ -334,10 +450,30 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
-| El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | B4-4 (ajustes del local) |
+| El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | B2-1c (umbral, D-CORD) y B4-4 (zona) |
 | El «día» de la tasa es el del calendario del local, no el que declara el turno (ADR-009) | B2-4 |
-| Los feriados entre semana no se conocen: ese día exige capturar la tasa a mano (aunque el BCV no publique) | Tabla de feriados, con B2-4 |
-| Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | Confirmar con el cliente |
+| Los feriados entre semana no se conocen: ese día exige capturar la tasa a mano (aunque el BCV no publique) | B2-4 (D-FER) |
+| Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | B3-4 (D-AUT) |
+
+**Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
+aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
+
+| Qué | Dónde | Se va con |
+|---|---|---|
+| Reglas de IVA 16 %/8 %/exento e IGTF 3 % | `src/demo/caja.ts` | B2-2 |
+| Medios de pago, datos que ve el cliente y terminales | `src/demo/medios.ts`, `caja.ts`, `MediosProvider` (en el navegador) | B3-2 |
+| Movimientos y excepciones del turno (vacíos), turno «sin abrir» fijo en la barra, punto de cobro fijo | `src/demo/turno.ts`, layout de estación, página de caja | B3-1 y B3-5 |
+| Catálogo de mostrador (agua, maltas, tequeños…) | `features/cash/catalogo-mostrador.ts` | B9-1 |
+| Cuentas y ventas guardadas en el navegador | `CuentasProvider`, `VentasProvider` | B3-3 y B3-4 |
+| PIN del autorizador comprobado en el navegador (`"1970"`) y la lista de autorizadores | `AnularCobroDialog`, `CortesiaDialog`, `src/demo/usuarios.ts` | B3-4 |
+| Sala y representantes (vacíos) y el mapa pulsera → estancia de la caja | `src/demo/parque.ts`, página de caja | B4-2 y B4-3 |
+| Directorio de familias (vacío) guardado en el navegador | `src/demo/representantes.ts`, `RepresentantesProvider` | B4-1 |
+| Ajustes del local guardados en el navegador | `src/demo/sucursal.ts`, `SucursalProvider` | B4-4 |
+| Bus de operación entre pestañas del mismo navegador y estado de conexión fijo («N0») | `OperacionProvider`, layout de estación | B5-1 |
+| Cifras de Inicio sin fuente (venta, semana pasada) | `app/(admin)/panel/page.tsx` | B2-3, B3-5 y B4-2 |
+| Plano y carta del restaurante guardados en el navegador | `src/demo/restaurante.ts`, `PlanoProvider`, `CartaProvider` | B6-1 |
+| Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
+| Datos de prueba en la base local de desarrollo (equipos, personas «Prueba Navegador», tasas 228/229) | base `l2control` local | Limpieza antes de B2-1c |
 
 **Trampas del código.** Ninguna la caza `pnpm typecheck`; todas se ven abriendo la pantalla.
 
@@ -361,6 +497,12 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
   método, **reiniciar `pnpm dev`**, o sale «Cannot read properties of undefined».
 - Un dato provisional de `src/demo` que se valida contra un contrato (p. ej. el monitor lleva una
   tasa) revienta al abrir la pantalla si el contrato cambia: `pnpm typecheck` no lo ve.
+- Una prueba que depende del día (la tasa, el día de negocio) corre con **reloj fijo**; con la hora real
+  da otra cosa según el día de la semana (la del viernes vale el sábado).
+- Una fracción de `@l2/domain-rates` está **reducida** (229,05 = 4581/20): para escribir una tasa se usa
+  el valor capturado con `formatTasaVE`, nunca el numerador.
+- El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
+  (`certificado-bcv.ts`, vence en 2036). Nunca se apaga la verificación.
 
 ---
 
@@ -370,13 +512,13 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 |---|---|---|
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
-| F2 · Identidad | `can()` y alcance por sucursal hechos; el resto solo en interfaz | Todo lo de servidor (Etapa 1) |
-| F3 · Dinero | Dinero, IVA, IGTF y el dominio de tasas hechos | Persistencia, libro y `businessDate` (Etapa 2). **Sin F3-08** (M-3) |
+| F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
+| F3 · Dinero | Tasas en la base y traídas del BCV (B2-1, B2-1b) | Tasa automática y en vivo (B2-1c), impuestos, libro y `businessDate`. **Sin F3-08** (M-3) |
 | F4 · Caja | Interfaz completa | Turno, libro, cortes y excepciones reales (Etapa 3) |
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | **Después del piloto** (M-1) | — |
+| F8 · Inventario | Interfaz de insumos y recetas por hacer; **vuelve al plan** (M-9) | Etapa 9 (mostrador) y B6-4 (recetas) |
 | F9 · Panel | Inicio y el local en vivo, en interfaz | Tiempo real (B5-1); los informes, después del piloto |
 | F10 y F11 | Sin empezar | Etapas 7 y 8 |
 
@@ -402,6 +544,11 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-26** · M-7: el alta de equipos sigue buenas prácticas (aprobar desde el propio equipo con
   credenciales de administración, código de emparejamiento, caducidad y topes). Se corrige la IP de
   la auditoría, que se podía falsear.
+- **2026-09-26** · Una sola barra de desplazamiento en todo el proyecto; fuera los datos inventados de
+  sala, familias, turno e Inicio; la tasa se trae del BCV (B2-1b) y la del viernes cubre el fin de
+  semana. Evolución del plan a pedido del cliente: tasa automática y en vivo (M-8, ADR-019), el
+  inventario vuelve (M-9, Etapa 9), versionado semántico visible (M-10, desde 0.13.0), cero código
+  simulado (M-11, T-2), definición de hecho de un paso y orden de ejecución.
 
 ---
 
@@ -415,19 +562,19 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-27, Etapa 1 casi cerrada):**
+**Último handoff (2026-09-26, v0.13.0, plan evolucionado):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1 y §3) y CLAUDE.md antes de nada. Responde en español.
-Rol: desarrollador full-stack senior; programas tú todo. No hay modo demo (M-6).
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-11 y §3 con su DoD y orden) y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. Versión 0.13.0 (M-10: MINOR = pasos entregados, 13 de 45).
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm db:semilla → pnpm dev.
-Entrar: navegador nuevo pide registro en /acceso → pnpm equipos aprobar "<nombre>" → PIN 1970.
-Confirmar identidad (panel): contraseña abby-kingdom-desarrollo + código de `pnpm totp`.
-A medias: B1-5 — código y 63 pruebas en verde, falta el navegador: en Usuarios dar un alta
-  (sale PIN temporal una vez), entrar con él en otro navegador y elegir PIN; conceder una
-  excepción; en Roles y accesos ajustar una celda y ver que cambia el menú de ese rol.
-Siguiente: Etapa 2, B2-1 (tasas en la base, carga manual con confirmación, fail-closed).
-Cuidado: todo caso de uso usa exigirPermiso()/exigirPermisoOAutorizacion() y auditar() en la
-  misma transacción; el patrón a copiar es el tarifario. Cada paso borra su archivo de src/demo.
-Puerta antes de cada commit: pnpm verify:db. Hay commits sin push: pide permiso antes de subir.
+Entrar: /acceso → «Pedir registro» → «Soy de administración» (contraseña abby-kingdom-desarrollo +
+  código de `pnpm totp`) → persona → PIN 1970. Tras cambiar @l2/application, reinicia pnpm dev.
+Primero: limpiar la base local de desarrollo (pedido del cliente: tasas de prueba 228/229 tapan la real)
+  con `docker compose down -v` + infra:up + migrar + semilla; el cliente vuelve a aprobar su «Pc Admin».
+Siguiente: T-1 (versión visible en acceso y Configuración, CHANGELOG, etiquetas) y B2-1c (tasa del BCV
+  aplicada sola con salvaguardas, en vivo cada 60 s, cobro en curso conserva su tasa; ADR-019).
+Luego el orden de §3: B2-2 → B2-3 → B2-4 → B3-1 → B3-2 → B9-1 → B3-3 … Inventario = Etapa 9 (M-9).
+Cuidado: cada paso cumple la DoD de §3 y borra lo suyo del inventario de simulación de §5 (M-11).
+Puerta: pnpm verify:db. 20 commits sin push: pide permiso antes de subir.
 ```
