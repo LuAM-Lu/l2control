@@ -123,6 +123,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useTasaVigente } from "./TasasProvider.tsx";
+import { formatTasaVE } from "./tasa-format.ts";
 
 /** USDT → USD a la par (DEC-1: cuestión abierta con el contador). */
 const PARIDAD_USDT: FrozenRate = {
@@ -185,6 +186,7 @@ function CobroCuenta({
   maxRetained,
   usuarios,
   rate,
+  tasaValor,
   serverNow,
   onAgregarProducto,
   onCambiarCantidad,
@@ -203,6 +205,12 @@ function CobroCuenta({
   /** Tasa congelada de esta transacción (ADR-005). `null` bloquea el cobro en Bs.
    *  La tasa se MUESTRA en la barra de estación (§8.5); aquí solo se usa. */
   rate: FrozenRate | null;
+  /**
+   * La misma tasa tal como se capturó («229.05»), para ESCRIBIRLA: en la línea «En bolívares» y
+   * en el recibo. No se reconstruye desde `rate`, que es una fracción reducida (229,05 = 4581/20)
+   * y leerla como «algo/100» pintaba 45,81.
+   */
+  tasaValor: string | null;
   /**
    * Desde qué punto cobra este equipo (DEC-13). Sale del dispositivo —el
    * aparato es del puesto (DEC-17)—, no de una elección del cajero en cada
@@ -623,9 +631,7 @@ function CobroCuenta({
     ? formatMoneyVE(toMajor(sobraEnBsMoney), "VES")
     : null;
 
-  const tasaTexto = rate
-    ? `${toMajor(money(rate.numerator, "VES")).replace(".", ",")} Bs/$`
-    : null;
+  const tasaTexto = rate && tasaValor ? `${formatTasaVE(tasaValor)} Bs/$` : null;
 
   // Monto exacto para cubrir 100% de la deuda con el medio activo en 1 toque
   const montoExacto: Money | null = useMemo(() => {
@@ -1660,7 +1666,7 @@ export function CajaScreen({
   ...cobro
 }: Omit<
   CobroProps,
-  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate"
+  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate" | "tasaValor"
 > & {
   cuentaInicial: string | null;
   volver: string | null;
@@ -1672,7 +1678,7 @@ export function CajaScreen({
     amount: BigInt(ajustes.maxRetenido.minor),
     currency: ajustes.maxRetenido.currency,
   };
-  const { congelada: rate } = useTasaVigente("USD/VES");
+  const { congelada: rate, tasa: tasaVigente } = useTasaVigente("USD/VES");
   // Si no queda ningún medio que ofrecer —todos apagados, o al que quedaba le
   // faltan sus datos—, la caja lo dice. Antes entraba en el cobro y se caía al
   // buscar el primer medio de una lista vacía.
@@ -2146,6 +2152,7 @@ export function CajaScreen({
             key={actual.id}
             {...cobro}
             rate={rate}
+            tasaValor={tasaVigente?.value ?? null}
             maxRetained={maxRetained}
             cuenta={actual}
             lines={lineas}
