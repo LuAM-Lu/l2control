@@ -13,6 +13,7 @@
  * para las tres y para el servidor (ADR-017).
  */
 import { z } from "zod";
+import { TaxCodeSchema } from "./impuestos.ts";
 import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 export const PaymentModeSchema = z.enum(["PREPAGO", "CUENTA_ABIERTA"]);
@@ -73,6 +74,13 @@ export const AccountLineSchema = z.object({
   paid: z.boolean(),
   /** Estancia de la que sale la línea, si es del parque. */
   sessionId: IdSchema.optional(),
+  /**
+   * El producto del catálogo del que sale la línea (B9-1), si es de mostrador. El concepto y el
+   * importe se COPIAN al venderse: cambiar el precio del catálogo no altera lo ya vendido.
+   */
+  productId: IdSchema.optional(),
+  /** El trato del IVA con que se vendió, copiado del producto. Sin él, IVA general. */
+  taxCode: TaxCodeSchema.optional(),
   /**
    * A qué cuenta se movió esta línea — D2.
    *

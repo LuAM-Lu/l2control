@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarClock, CircleCheckBig, Lock, OctagonAlert, TriangleAlert, Wallet } from "lucide-react";
 import type { TurnoDto, UserSummaryDto } from "@l2/contracts";
-import { type CurrencyCode, type Money, add, fromMajor, money, multiply, sum, toMajor, zero } from "@l2/domain-money";
+import { type CurrencyCode, type Money, add, money, multiply, sum, toMajor, zero } from "@l2/domain-money";
 import { countDenominations, openingMovements, reconcile, tallyShift, type ShiftMovement } from "@l2/domain-cash";
 import { Badge, Button, Container, Input, MoneyDisplay, Stepper, Tabs, avisar, cn } from "@l2/ui";
 import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./turno.ts";
@@ -12,6 +12,7 @@ import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "./PuntosDeCobro.tsx";
 import { abrirTurno } from "./turno.acciones";
+import { importeTecleado } from "./importe.ts";
 import { VentasDelTurno } from "./VentasDelTurno.tsx";
 import { useVentas } from "./VentasProvider.tsx";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -65,21 +66,6 @@ export function TurnoScreen({
   return <TurnoAbierto turno={turno} movements={todos} excepciones={excepciones} usuarios={usuarios} />;
 }
 
-/**
- * Un importe como lo teclea una persona en Venezuela, en unidades menores. Con coma, la coma es
- * el decimal y los puntos son miles («1.500,50»); sin coma, el punto es el decimal. Vacío = cero.
- */
-function importe(texto: string, moneda: "USD" | "VES"): Money | null {
-  const t = texto.trim().replace(/\s/g, "");
-  if (t === "") return zero(moneda);
-  if (!/^[\d.,]+$/.test(t)) return null;
-  try {
-    return fromMajor(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t, moneda);
-  } catch {
-    return null;
-  }
-}
-
 /** Abrir el turno (F4-01): el fondo de la gaveta por moneda. Cero vale y se dice. */
 function AperturaTurno() {
   const router = useRouter();
@@ -90,8 +76,8 @@ function AperturaTurno() {
 
   const abrir = async (e: React.FormEvent) => {
     e.preventDefault();
-    const fondoUsd = importe(usd, "USD");
-    const fondoBs = importe(bs, "VES");
+    const fondoUsd = importeTecleado(usd, "USD");
+    const fondoBs = importeTecleado(bs, "VES");
     if (!fondoUsd || !fondoBs) {
       setErrores({
         ...(fondoUsd ? {} : { USD: "Un importe en dólares, con hasta dos decimales" }),

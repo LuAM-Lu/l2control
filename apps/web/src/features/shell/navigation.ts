@@ -183,8 +183,17 @@ export const MODULOS: readonly Modulo[] = [
     nombre: "Inventario",
     icon: Package,
     accion: "inventario.ajustar",
-    resumen: "Qué se gasta con cada plato vendido, qué hay que comprar y qué se perdió.",
+    resumen:
+      "Lo que se vende en el mostrador con su precio, y después qué se gasta con cada plato, qué hay que comprar y qué se perdió.",
     secciones: [
+      {
+        id: "productos",
+        nombre: "Productos",
+        href: rutaSeccion("inventario", "productos"),
+        proposito:
+          "Lo que la caja vende en el mostrador o añade a una cuenta: categoría, IVA y precio con su día. Cambiar un precio no altera lo ya vendido.",
+        tarea: "F8-02",
+      },
       {
         id: "insumos",
         nombre: "Insumos",

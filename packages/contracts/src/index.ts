@@ -118,6 +118,22 @@ export {
 } from "./impuestos.ts";
 
 export {
+  NombreProductoSchema,
+  CategoriaProductoSchema,
+  PrecioMinorSchema,
+  TramoPrecioSchema,
+  ProductoSchema,
+  CatalogoSchema,
+  ProductoNuevoSchema,
+  ProductoCommandSchema,
+  type TramoPrecioDto,
+  type ProductoDto,
+  type CatalogoDto,
+  type ProductoNuevoDto,
+  type ProductoCommand,
+} from "./productos.ts";
+
+export {
   OficioImpresoraSchema,
   AnchoPapelSchema,
   IpLocalSchema,

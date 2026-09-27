@@ -29,11 +29,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.22.0 · 22 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.23.0 · 23 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
-feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Sin modo demo; lo provisional y lo simulado que queda está
+feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Etapa 9 empezada: **el catálogo de productos es de la base (B9-1)**, con el precio programado por día, y la caja vende de él. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -41,17 +41,17 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago, catálogo de productos), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) y los medios de pago (Caja → Medios de pago y los medios que ofrece la caja). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) y el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
   «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (50 de base, 189 de aplicación; en el dominio, 54 de tasas,
-  44 de impuestos y 67 de caja). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (55 de base, 203 de aplicación; en el dominio, 54 de tasas,
+  44 de impuestos, 67 de caja y 18 de inventario). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -80,6 +80,12 @@ Banesco y Punto Mercantil), con Pago Móvil, Punto débito y Zelle encendidos. A
 añadió el medio «Biopago» (se queda apagado: un medio no se borra) y se añadió y retiró el terminal
 «Punto BNC». Punto crédito sigue apagado.
 
+**Productos en la base local.** `pnpm db:semilla` cargó doce de ejemplo (bebidas, snacks, golosinas
+y café). Al comprobar B9-1 se creó «Pirulín» ($ 2,50) y se dejó exento, se apartó «Gomitas», el agua
+subió a $ 1,20 desde el domingo 27 y la malta tiene $ 1,75 programado para el miércoles 30. Se abrió
+un cuarto turno de prueba en «Prueba B91» ($ 10,00 y Bs. 0,00, con una venta de $ 1,31); el equipo
+está revocado.
+
 **Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
 carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
 
@@ -94,8 +100,8 @@ completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el 
 y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
 (sin día simulado: decisión del cliente, 2026-09-27).
 
-**Siguiente paso:** B9-1 (catálogo de productos en la base, que el cobro en servidor necesita).
-Luego B3-3 (la caja cobra contra el libro) y el orden de §3.
+**Siguiente paso:** B3-3 (la caja cobra contra el libro, con la venta de mostrador como su propio tipo
+de cuenta y vendiendo del catálogo de B9-1). Luego B3-4, B3-5 y el orden de §3.
 
 ---
 
@@ -157,8 +163,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1 → B2-4 (se cierra Dinero) → T-3~~.
    B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
    (ADR-009), así que el turno tenía que existir antes.
-2. ~~B3-2 → T-6~~ → **B9-1** (catálogo, que el cobro necesita) →
-   B3-3 → B3-4 → B3-5 (se cierra Caja).
+2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
+   **B3-3** → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
@@ -621,11 +627,45 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 Número nuevo para no renumerar las etapas que el código ya cita. Va antes del staging; su primer paso,
 antes del cobro en servidor (orden de ejecución).
 
-- [ ] **B9-1 · Catálogo de productos** de venta directa y de consumo en cuenta: nombre, categoría,
+- [x] **B9-1 · Catálogo de productos** de venta directa y de consumo en cuenta: nombre, categoría,
   precio en USD con vigencia, código de IVA y si lleva control de stock (F8-02). Pantalla Panel →
   Inventario → Productos.
   → La caja vende del catálogo de la base y se borra `features/cash/catalogo-mostrador.ts`. Cambiar un
   precio no altera una venta ya hecha.
+  *Hecho el 2026-09-27 (v0.23.0), con D-INV como la propuesta (solo productos de mostrador):*
+  *· Dominio: paquete nuevo **`@l2/domain-inventory`** (PLAN §9.2). `priceTimeline` (el precio es un
+  calendario, como las alícuotas: con el mismo comienzo manda el último y un precio igual no abre
+  tramo, así se cancela un cambio), `priceAt`, `changesTimeline`, `priceProblem` (mayor que cero,
+  hasta $ 10.000,00 y nunca hacia atrás), `nameKey`/`nameClash` (sin mayúsculas, acentos ni espacios
+  de más, contando los apartados), `sellableAt` y `categoriesOf`. 18 pruebas.*
+  *· Contrato (`productos.ts`): `CatalogoSchema` (vacío vale), `ProductoCommandSchema` (CREAR con su
+  primer precio, EDITAR, ACTIVAR y PROGRAMAR_PRECIO con el DÍA; sin «borrar» ni instantes del
+  navegador). La línea de la cuenta lleva `productId` y `taxCode` copiados al venderse. 9 pruebas.*
+  *· Base: migración `20261005000000_catalogo_de_productos`: `product` (se edita y se aparta; no se
+  borra ni cambia quién lo creó; nombre único sin mayúsculas ni espacios de más; CHECK de nombre,
+  categoría y trato) y `product_price` de solo-agregar (USD, `amount_minor` BIGINT entre 1 y
+  1.000.000, `effective_from >= scheduled_at`, uno por producto e instante, FK compuesta con el
+  tenant), las dos con RLS. Nada se siembra: producción nace sin productos (M-12). 5 pruebas.*
+  *· Aplicación (`productos`): `leer` (sin persona: la caja vende con él) y `aplicar`
+  (`catalogo.modificar` con elevación; hoy rige desde ya y otro día desde su medianoche en Caracas,
+  hasta 366 días; lo que no cambia nada se rechaza; asientos `producto.crear|editar|activar|apartar`
+  y `precio.programar` con el precio que regía; el rechazo por permiso, auditado). 14 pruebas con
+  reloj fijo, con la negativa de permiso, de elevación y de aislamiento.*
+  *· Web: `productos.servidor.ts` y `productos.acciones.ts`; Inventario → Productos (a la venta y
+  apartados, búsqueda, por categoría con el precio en $ y Bs., «Nuevo producto» y la ficha con el
+  calendario de precios, «Programar precio», los datos y «Apartar de la venta»). La caja recibe el
+  catálogo del servidor y calcula lo que vende con el mismo instante que las alícuotas; sus pestañas
+  salen de las categorías; cada línea copia precio, nombre e IVA, y `lineasParaCobrar` usa el IVA de
+  la línea (se retira el «GENERAL» fijo). `importeTecleado` sale de TurnoScreen para compartirse, y
+  los billetes, a `billetes.ts`. Se borra `features/cash/catalogo-mostrador.ts`; `pnpm db:semilla`
+  carga doce productos de ejemplo en desarrollo.*
+  *· Comprobado en el navegador: Productos con los doce; crear «Pirulín» con elevación; «agua
+  mineral» repetida y un precio cero, señalados en su campo; apartar «Gomitas» (la caja deja de
+  ofrecerla); la malta a $ 1,75 para el miércoles sale «Programado» y hoy sigue en $ 1,50. En la caja,
+  una venta de agua a $ 1,00 cobrada ($ 1,31) y otra a medias; al subir el agua a $ 1,20 hoy, la
+  venta cobrada sigue en $ 1,31 en Turno, la de a medias conserva su $ 1,00 y la carta ofrece el agua
+  a $ 1,20. «Pirulín» exento se cobra sin IVA. Productos, la ficha y la carta de la caja a 1366×768,
+  1280×800 y 800×1280 sin desplazar el documento ni desbordar; sin errores de consola.*
 - [ ] **B9-2 · Movimientos de stock de solo-agregar** (F8-05, I-10): la existencia es la suma de
   movimientos. Una venta de mostrador descuenta en la misma transacción que el cobro, y anular es un
   movimiento de reversión.
@@ -696,7 +736,7 @@ antes del cobro en servidor (orden de ejecución).
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente (hoy fijo en el código) | B7-2 |
 | ~~D-FER~~ | Calendario de feriados bancarios de Venezuela | **Decidido el 2026-09-27:** se carga por año desde el panel copiando el calendario de SUDEBAN (cambia cada año: Carnaval, Semana Santa y feriados trasladados) | B2-4 |
-| D-INV | Alcance del inventario en el piloto | Solo productos de mostrador (bebidas, snacks); los insumos de cocina con el restaurante | B9-1 |
+| D-INV | Alcance del inventario en el piloto | Solo productos de mostrador (bebidas, snacks); los insumos de cocina con el restaurante. **B9-1 se hizo así** (el catálogo de productos hace falta en los dos casos); se confirma antes de los insumos | B9-3 |
 | D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? (hoy sí, `canAuthorize`) | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona | B3-4 |
 
 **Confirma el contador** (lo fiscal queda fuera, pero esto cambia lo que se cobra)
@@ -737,6 +777,8 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | El documento del libro (`payment.document_id`) no tiene FK: la tabla de cuentas y ventas llega con B3-3 | B3-3 |
 | La caja guarda los datos de cada pago con la venta en el navegador: el libro los cifra, pero la caja aún no cobra contra él | B3-3 |
 | Un cambio de medios en el panel llega a la caja al navegar, no en vivo | B5-1 |
+| Un cambio del catálogo de productos llega a la caja al volver a abrir su pantalla, no en vivo (un precio ya programado sí entra solo a su hora) | B5-1 |
+| El precio que la caja pone en una línea no lo revalida el servidor: las cuentas viven en el navegador | B3-3 |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El libro no comprueba que el cobro cuadre con el total del documento ni que la tasa citada sea la vigente | B3-3 |
@@ -748,7 +790,6 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | Qué | Dónde | Se va con |
 |---|---|---|
 | Movimientos y excepciones del turno (vacíos; el fondo ya es real) | `src/demo/turno.ts` | B3-5 |
-| Catálogo de mostrador (agua, maltas, tequeños…) | `features/cash/catalogo-mostrador.ts` | B9-1 |
 | Cuentas y ventas guardadas en el navegador | `CuentasProvider`, `VentasProvider` | B3-3 y B3-4 |
 | PIN del autorizador comprobado en el navegador (`"1970"`) y la lista de autorizadores | `AnularCobroDialog`, `CortesiaDialog`, `src/demo/usuarios.ts` | B3-4 |
 | Sala y representantes (vacíos) y el mapa pulsera → estancia de la caja | `src/demo/parque.ts`, página de caja | B4-2 y B4-3 |
@@ -806,7 +847,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | Interfaz de insumos y recetas por hacer; **vuelve al plan** (M-9) | Etapa 9 (mostrador) y B6-4 (recetas) |
+| F8 · Inventario | **Catálogo de productos en el servidor** (B9-1); insumos y recetas por hacer | Stock, compras, ajustes y alertas (B9-2 a B9-5) y B6-4 (recetas) |
 | F9 · Panel | Inicio y el local en vivo, en interfaz | Tiempo real (B5-1); los informes, después del piloto |
 | F10 y F11 | Sin empezar | Etapas 7 y 8 |
 
@@ -868,6 +909,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   llega su paso. T-6 entregado (v0.22.0): menú por operación con Ajustes al pie y la caja en Cobrar |
   Turno, con las ventas dentro de Turno. Sigue B9-1.
 - **2026-09-27** · Handoff (v0.22.0): subidos a GitHub `main` y las etiquetas v0.1.0…v0.22.0.
+- **2026-09-27** · B9-1 entregado (v0.23.0): el catálogo de productos es de la base, con el precio
+  programado por día (nace `@l2/domain-inventory`); la caja vende de él, cada línea copia su precio y
+  su IVA, y cambiar un precio no altera lo vendido. Sigue B3-3.
 
 ---
 

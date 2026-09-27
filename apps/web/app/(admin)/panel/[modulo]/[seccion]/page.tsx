@@ -18,6 +18,8 @@ import { ImpuestosScreen } from "../../../../../src/features/cash/ImpuestosScree
 import { impuestosDelLocal } from "../../../../../src/features/cash/impuestos.servidor";
 import { FeriadosScreen } from "../../../../../src/features/cash/FeriadosScreen";
 import { feriadosDelLocal } from "../../../../../src/features/cash/feriados.servidor";
+import { ProductosScreen } from "../../../../../src/features/inventario/ProductosScreen";
+import { catalogoDelLocal } from "../../../../../src/features/inventario/productos.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -39,6 +41,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
   "ajustes/sucursal": () => <EditorSucursal />,
+  "inventario/productos": async () => <ProductosScreen catalogo={await catalogoDelLocal()} />,
 };
 
 /**

@@ -100,8 +100,8 @@ export function lineasParaCobrar(c: FamilyAccountDto): DocumentLine[] {
       description: l.concept,
       unitPrice: toMoney(l.amount),
       quantity: 1n,
-      // TODO(F3-06): el tipo de IVA saldrá del catálogo de cada concepto.
-      taxCode: "GENERAL" as const,
+      // El trato que copió la línea al venderse (B9-1); lo del parque, IVA general.
+      taxCode: l.taxCode ?? "GENERAL",
     }));
 }
 

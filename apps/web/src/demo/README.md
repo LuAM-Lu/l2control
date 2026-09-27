@@ -17,13 +17,10 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 | `sucursal.ts` | Ajustes del local | B4-4 |
 | `restaurante.ts` | Plano y carta | B6-1 |
 
-Ya se fueron: los medios de pago, sus terminales y los datos que ve el cliente (`medios.ts` y `caja.ts`, B3-2), las tasas de cambio (B2-1), el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
+Ya se fueron: el catálogo de mostrador de la caja (`features/cash/catalogo-mostrador.ts`, B9-1; lo de
+desarrollo lo siembra `scripts/semilla/productos.mts`), los medios de pago, sus terminales y los datos que ve el cliente (`medios.ts` y `caja.ts`, B3-2), las tasas de cambio (B2-1), el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
 `scripts/semilla/tarifario.mts`), los dispositivos (B1-3), las cuentas y ventas de ejemplo, el interruptor `NEXT_PUBLIC_DEMO` y el
 simulador de operación con sus escenarios.
-
-Además, fuera de esta carpeta queda un dato inventado que incumple la regla y se mueve con B3-3:
-el **catálogo de mostrador** de la caja (`features/cash/catalogo-mostrador.ts`: agua, maltas,
-tequeños…), que es la carta real del local cuando llegue F0-04.
 
 ## Reglas mientras existan
 

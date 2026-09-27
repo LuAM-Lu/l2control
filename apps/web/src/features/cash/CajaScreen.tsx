@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
   Check,
@@ -67,13 +67,9 @@ import {
 import { useMedios, useMediosActivos } from "./MediosProvider.tsx";
 import { nombreBanco } from "./bancos.ts";
 import type { MedioPago } from "./medios.ts";
-import {
-  PRODUCTOS_MOSTRADOR,
-  CATEGORIAS_MOSTRADOR,
-  type CategoriaMostrador,
-  type ProductoMostrador,
-  BILLETES_USD,
-} from "./catalogo-mostrador.ts";
+import { BILLETES_USD } from "./billetes.ts";
+import { categoriesOf, nameKey } from "@l2/domain-inventory";
+import { productosALaVenta, type ProductoALaVenta } from "../inventario/catalogo.ts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -81,6 +77,7 @@ import {
   FamilyAccountSchema,
   CONSUMIDOR_FINAL,
   type AccountLineDto,
+  type CatalogoDto,
   type ClienteFacturaDto,
   type CortesiaDto,
   type DatosDePagoDto,
@@ -228,7 +225,7 @@ function CobroCuenta({
   tasaValor: string | null;
   /** El instante con el que se eligen las alícuotas: el del servidor, que avanza con el reloj. */
   instanteFiscal: number;
-  onAgregarProducto?: (producto: ProductoMostrador) => void;
+  onAgregarProducto?: (producto: ProductoALaVenta) => void;
   /** Deja un ítem de mostrador en esa cantidad; 0 lo elimina. */
   onCambiarCantidad?: (item: ItemDeMostrador, cantidad: number) => void;
   /** Divide la cuenta en partes iguales, o la vuelve a unir con 1 (F6-12). */
@@ -1821,6 +1818,7 @@ export function CajaScreen({
   volver,
   pulseras,
   impuestos,
+  catalogo,
   serverNow,
   turno,
   ...cobro
@@ -1830,6 +1828,8 @@ export function CajaScreen({
 > & {
   /** El calendario de los impuestos, leído en el servidor (B2-2). */
   impuestos: ImpuestosDto;
+  /** El catálogo de productos con sus precios con vigencia, leído en el servidor (B9-1). */
+  catalogo: CatalogoDto;
   /** La hora del servidor al pintar: de ella avanza el instante con que se eligen las alícuotas. */
   serverNow: number;
   /**
@@ -1849,6 +1849,8 @@ export function CajaScreen({
   };
   const { congelada: rate, tasa: tasaVigente } = useTasaVigente("USD/VES");
   const fiscal = useImpuestosVigentes(impuestos, serverNow);
+  // Lo que se vende ahora, con el precio de ahora (B9-1): el mismo instante que las alícuotas.
+  const aLaVenta = useMemo(() => productosALaVenta(catalogo, fiscal.instante), [catalogo, fiscal.instante]);
   // Si no queda ningún medio que ofrecer —todos apagados, o al que quedaba le
   // faltan sus datos—, la caja lo dice. Antes entraba en el cobro y se caía al
   // buscar el primer medio de una lista vacía.
@@ -2088,7 +2090,7 @@ export function CajaScreen({
    * `FamilyAccountSchema` y una estancia ficticia `s-mostrador` porque el
    * contrato exige un niño; necesita su propio tipo de cuenta en el contrato.
    */
-  function crearVentaDirecta(producto: ProductoMostrador) {
+  function crearVentaDirecta(producto: ProductoALaVenta) {
     const id = `c-dir-${globalThis.crypto.randomUUID().slice(0, 6)}`;
     const nueva: FamilyAccountDto = FamilyAccountSchema.parse({
       id,
@@ -2099,13 +2101,7 @@ export function CajaScreen({
       sessionIds: ["s-mostrador"],
       closedSessionIds: ["s-mostrador"],
       lines: [
-        {
-          id: `${id}-snk-1`,
-          concept: producto.name,
-          kind: "RESTAURANTE",
-          amount: { minor: producto.priceMinor, currency: "USD" },
-          paid: false,
-        },
+        lineaDeProducto(`${id}-snk-1`, producto),
       ],
     });
     creadasAqui.current.add(nueva.id);
@@ -2114,15 +2110,12 @@ export function CajaScreen({
     setVentaNueva(false);
   }
 
-  function onAgregarProductoACuenta(producto: ProductoMostrador) {
+  function onAgregarProductoACuenta(producto: ProductoALaVenta) {
     if (!actual) return;
-    const nuevaLinea: AccountLineDto = {
-      id: `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
-      concept: producto.name,
-      kind: "RESTAURANTE",
-      amount: { minor: producto.priceMinor, currency: "USD" },
-      paid: false,
-    };
+    const nuevaLinea = lineaDeProducto(
+      `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
+      producto,
+    );
     const actualizada = FamilyAccountSchema.parse({
       ...actual,
       lines: [...actual.lines, nuevaLinea],
@@ -2152,20 +2145,25 @@ export function CajaScreen({
       const fuera = new Set(suyas.slice(objetivo).map((l) => l.id));
       lineas = actual.lines.filter((l) => !fuera.has(l.id));
     } else {
-      const producto = PRODUCTOS_MOSTRADOR.find(
-        (p) => p.name === item.concepto && p.priceMinor === item.priceMinor,
+      const producto = aLaVenta.find(
+        (p) =>
+          (item.productId ? p.id === item.productId : p.nombre === item.concepto) &&
+          String(p.precio.amount) === item.priceMinor,
       );
-      // Fail-closed: si el producto ya no está en la carta, no se venden más.
-      if (!producto) return;
+      // Fail-closed: si ya no se vende, o su precio cambió, no se venden más a ESE precio.
+      if (!producto) {
+        avisar.info(
+          `«${item.concepto}» cambió de precio o ya no se vende: añádelo desde la carta`,
+        );
+        return;
+      }
       const nuevas: AccountLineDto[] = Array.from(
         { length: objetivo - suyas.length },
-        () => ({
-          id: `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
-          concept: producto.name,
-          kind: "RESTAURANTE",
-          amount: { minor: producto.priceMinor, currency: "USD" },
-          paid: false,
-        }),
+        () =>
+          lineaDeProducto(
+            `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
+            producto,
+          ),
       );
       const ultima = actual.lines.findLastIndex(esDelItem);
       lineas =
@@ -2198,6 +2196,7 @@ export function CajaScreen({
   }
 
   return (
+    <ALaVenta.Provider value={aLaVenta}>
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Sin cabecera visible: lo que decía («2 por cobrar · mostrador») ya está en
           la cola. El título sigue para los lectores de pantalla. */}
@@ -2375,6 +2374,7 @@ export function CajaScreen({
         onCerrar={() => setViendoAtajos(false)}
       />
     </div>
+    </ALaVenta.Provider>
   );
 }
 
@@ -2434,15 +2434,32 @@ function CartaMostrador({
   alto,
 }: {
   aBolivares: FrozenRate | null;
-  onElegir: (p: ProductoMostrador) => void;
+  onElegir: (p: ProductoALaVenta) => void;
   /** Alto máximo de la rejilla, que se desplaza por dentro si no cabe. */
   alto?: string;
 }) {
-  const [categoria, setCategoria] = useState<CategoriaMostrador>("Todos");
+  const aLaVenta = useContext(ALaVenta);
+  // Las pestañas salen de lo que se vende: una categoría existe si hay algo en ella (B9-1).
+  const categorias = useMemo(
+    () => ["Todos", ...categoriesOf(aLaVenta.map((p) => ({ category: p.categoria })))],
+    [aLaVenta],
+  );
+  const [elegida, setCategoria] = useState("Todos");
+  const categoria = categorias.includes(elegida) ? elegida : "Todos";
   const productos =
     categoria === "Todos"
-      ? PRODUCTOS_MOSTRADOR
-      : PRODUCTOS_MOSTRADOR.filter((p) => p.category === categoria);
+      ? aLaVenta
+      : aLaVenta.filter((p) => nameKey(p.categoria) === nameKey(categoria));
+  if (aLaVenta.length === 0) {
+    return (
+      <p
+        role="status"
+        className="rounded-[var(--radius-control)] border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-2"
+      >
+        No hay productos a la venta. Se cargan en Panel → Inventario → Productos.
+      </p>
+    );
+  }
   return (
     <div className="flex min-h-0 flex-col gap-2">
       <div
@@ -2450,7 +2467,7 @@ function CartaMostrador({
         aria-label="Categorías de mostrador"
         className="flex flex-wrap gap-1.5"
       >
-        {CATEGORIAS_MOSTRADOR.map((cat) => (
+        {categorias.map((cat) => (
           <button
             key={cat}
             type="button"
@@ -2474,7 +2491,7 @@ function CartaMostrador({
         )}
       >
         {productos.map((p) => {
-          const usd = money(BigInt(p.priceMinor), "USD");
+          const usd = p.precio;
           const bs = aBolivares ? convert(usd, aBolivares) : null;
           return (
             <button
@@ -2484,7 +2501,7 @@ function CartaMostrador({
               className="flex min-h-14 cursor-pointer flex-col items-start justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-left transition-all hover:border-brand hover:bg-brand/10 active:scale-[0.98]"
             >
               <span className="text-[12.5px] leading-tight font-bold text-ink">
-                {p.name}
+                {p.nombre}
               </span>
               <span className="mt-1 flex w-full flex-wrap items-baseline justify-between gap-x-2">
                 <span className="tnum text-xs font-bold text-brand">
@@ -2512,7 +2529,7 @@ function NuevaVentaDirecta({
   ocultoEnDosColumnas,
 }: {
   aBolivares: FrozenRate | null;
-  onElegir: (p: ProductoMostrador) => void;
+  onElegir: (p: ProductoALaVenta) => void;
   onCancelar: () => void;
   ocultoEnDosColumnas?: boolean;
 }) {
@@ -2563,8 +2580,27 @@ function NuevaVentaDirecta({
   );
 }
 
-/** La clave de un ítem de mostrador: lo que se vende y a qué precio. */
-type ItemDeMostrador = Readonly<{ concepto: string; priceMinor: string }>;
+/** La clave de un ítem de mostrador: lo que se vende, a qué precio y de qué producto. */
+type ItemDeMostrador = Readonly<{ concepto: string; priceMinor: string; productId?: string }>;
+
+/** Lo que la caja vende ahora (B9-1), para la carta y para sumar unidades a una fila. */
+const ALaVenta = createContext<readonly ProductoALaVenta[]>([]);
+
+/**
+ * Una línea de mostrador para la cuenta. COPIA el concepto, el precio y el trato del IVA del
+ * producto: si mañana cambia el precio del catálogo, lo vendido hoy no cambia (B9-1).
+ */
+function lineaDeProducto(id: string, producto: ProductoALaVenta): AccountLineDto {
+  return {
+    id,
+    concept: producto.nombre,
+    kind: "RESTAURANTE",
+    amount: { minor: String(producto.precio.amount), currency: "USD" },
+    paid: false,
+    productId: producto.id,
+    taxCode: producto.taxCode,
+  };
+}
 
 type Fila = Readonly<{
   clave: string;
@@ -2596,7 +2632,11 @@ function agruparFilas(
       precio: l.unitPrice,
       cantidad: (previa?.cantidad ?? 0) + Number(l.quantity),
       item: deMostrador
-        ? { concepto: l.description, priceMinor: String(l.unitPrice.amount) }
+        ? {
+            concepto: l.description,
+            priceMinor: String(l.unitPrice.amount),
+            ...(linea.productId ? { productId: linea.productId } : {}),
+          }
         : null,
       lineIds: [...(previa?.lineIds ?? []), l.id],
     });

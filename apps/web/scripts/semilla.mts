@@ -1,7 +1,8 @@
 /**
  * `pnpm db:semilla` — deja la base de DESARROLLO lista para abrir la app: el local (tenant y
  * sucursal de L2_TENANT_ID / L2_BRANCH_ID), su equipo con PIN y, si no tiene, el tarifario de
- * ejemplo como versión 1, los impuestos de trabajo y los datos de cobro inventados. Idempotente:
+ * ejemplo como versión 1, los impuestos de trabajo, los datos de cobro inventados y un catálogo de
+ * mostrador de ejemplo. Idempotente:
  * correrlo otra vez no cambia nada.
  *
  * Los datos son inventados (scripts/semilla). Los reales llegan con F0-04 y B7-2. El equipo
@@ -15,6 +16,7 @@ import { TARIFARIO_DESARROLLO } from "./semilla/tarifario.mts";
 import { ADMIN_DESARROLLO, EQUIPO_DESARROLLO } from "./semilla/equipo.mts";
 import { IMPUESTOS_DE_TRABAJO } from "./semilla/impuestos.mts";
 import { MEDIOS_DE_DESARROLLO } from "./semilla/medios.mts";
+import { PRODUCTOS_DE_DESARROLLO } from "./semilla/productos.mts";
 
 const raiz = new URL("../../../.env", import.meta.url);
 if (existsSync(raiz)) process.loadEnvFile(raiz);
@@ -74,6 +76,15 @@ try {
       if (!r.ok) throw new Error(`Medios de pago (${cambio.kind}): ${r.mensaje}`);
     }
     console.log("✓ Datos de cobro inventados: Pago Móvil, Zelle y dos terminales, encendidos");
+  }
+  if ((await app.productos.leer(ctx)).productos.length > 0) {
+    console.log("· Ya hay productos: no se tocan");
+  } else {
+    for (const producto of PRODUCTOS_DE_DESARROLLO) {
+      const r = await app.productos.aplicar(ctx, { kind: "CREAR", producto });
+      if (!r.ok) throw new Error(`${producto.nombre}: ${r.mensaje}`);
+    }
+    console.log(`✓ Catálogo de mostrador de ejemplo: ${PRODUCTOS_DE_DESARROLLO.length} productos`);
   }
   console.log("\nEl PIN de todo el equipo de desarrollo es 1970.");
   console.log(`Para confirmar identidad: contraseña «${ADMIN_DESARROLLO.contrasena}» y el código de \`pnpm totp\`.`);

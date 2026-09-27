@@ -24,6 +24,8 @@ export type {
   CashShift,
   BankHoliday,
   ParkTariffVersion,
+  Product,
+  ProductPrice,
   Prisma,
   Tenant,
 } from "./generated/client.ts";

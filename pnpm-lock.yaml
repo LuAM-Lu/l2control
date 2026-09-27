@@ -133,6 +133,9 @@ importers:
       '@l2/domain-identity':
         specifier: workspace:*
         version: link:../../packages/domain/identity
+      '@l2/domain-inventory':
+        specifier: workspace:*
+        version: link:../../packages/domain/inventory
       '@l2/domain-money':
         specifier: workspace:*
         version: link:../../packages/domain/money
@@ -212,6 +215,9 @@ importers:
       '@l2/domain-identity':
         specifier: workspace:*
         version: link:../domain/identity
+      '@l2/domain-inventory':
+        specifier: workspace:*
+        version: link:../domain/inventory
       '@l2/domain-money':
         specifier: workspace:*
         version: link:../domain/money
@@ -307,6 +313,22 @@ importers:
         version: 7.0.2
 
   packages/domain/identity:
+    devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/domain/inventory:
+    dependencies:
+      '@l2/domain-money':
+        specifier: workspace:*
+        version: link:../money
     devDependencies:
       '@l2/config':
         specifier: workspace:*

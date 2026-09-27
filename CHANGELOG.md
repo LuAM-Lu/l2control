@@ -12,6 +12,33 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.23.0] — 2026-09-27 · Etapa 3 · Caja
+
+B9-1 · Catálogo de productos en el servidor (F8-02).
+
+### Añadido
+- Panel → Inventario → **Productos**: lo que la caja vende en el mostrador o añade a una cuenta, con
+  su categoría, su trato del IVA (general, reducido o exento), si lleva existencia y su precio en
+  dólares. «Nuevo producto» lo pone a la venta al guardarlo; cada cambio pide confirmar identidad.
+- El precio se **programa con su día**: hoy rige desde que se guarda; otro día, desde su medianoche.
+  La ficha del producto enseña su calendario (rige ahora, programado, terminó) y quién puso cada
+  precio. Para cancelar un cambio se programa ese día el precio que rige.
+- Un producto que ya no se vende se **aparta** (no se borra) y vuelve a la venta cuando haga falta.
+  Dos productos no pueden llamarse igual, aunque cambien mayúsculas, acentos o espacios.
+
+### Cambiado
+- La caja vende del catálogo de la base: sus pestañas salen de las categorías que hay a la venta, y
+  un precio programado para mañana entra a la medianoche sin recargar. Sin productos lo dice y dice
+  dónde se cargan.
+- **Cambiar un precio no altera lo ya vendido**: cada línea copia el precio, el nombre y el IVA del
+  producto al venderse. Una cuenta a medias conserva el precio con que se añadió; sumar unidades a
+  esa fila a un precio que ya no rige se niega con un aviso.
+- El IVA de cada producto llega al ticket: un producto exento se cobra sin IVA (antes todo lo del
+  mostrador pagaba el general).
+
+### Retirado
+- La lista de productos escrita en el código (`catalogo-mostrador.ts`).
+
 ## [0.22.0] — 2026-09-27 · Etapa 3 · Caja
 
 T-6 · Menú por operación (M-13). La ruta pasa a 48 pasos.

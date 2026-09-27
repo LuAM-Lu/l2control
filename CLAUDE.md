@@ -64,6 +64,7 @@ packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
 packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones (puro)
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
+packages/domain/inventory catálogo de productos con precio por día; stock y costeo después (puro)
 packages/application      casos de uso: contrato + dominio + base en la transacción del tenant
 packages/database         Prisma, migraciones y RLS forzada; solo lo importa application
 packages/observability    logger JSON con redacción y entorno validado al arrancar (solo servidor)

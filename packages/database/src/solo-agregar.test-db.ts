@@ -547,3 +547,68 @@ test("los datos del local se guardan cifrados y no se reescriben (§7.6)", async
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.collectionDetails.update({ where: { id: d.id }, data: { dataCipher: CIFRADO } })), SOLO_AGREGAR);
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.collectionDetails.delete({ where: { id: d.id } })), SOLO_AGREGAR);
 });
+
+/* ── Catálogo de productos (B9-1, F8-02) ─────────────────────────────────────── */
+
+const producto = (t: { tenant: string }, name: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.product.create({ data: { tenantId: t.tenant, name, category: "Bebidas", taxCode: "GENERAL", tracksStock: true, active: true, createdByName: "Abigail Karam", ...extra } as never }),
+  );
+const precioDe = (t: { tenant: string }, productId: string, amountMinor: bigint, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) => {
+    const ahora = new Date();
+    return tx.productPrice.create({
+      data: { tenantId: t.tenant, productId, amountMinor, effectiveFrom: ahora, scheduledAt: ahora, scheduledByName: "Abigail Karam", ...extra } as never,
+    });
+  });
+
+test("un producto no se borra; se edita y se aparta, pero quién lo creó no cambia", async () => {
+  const p = await producto(A, "Agua mineral");
+  await app.conTenant(A.tenant, (tx) => tx.product.update({ where: { id: p.id }, data: { name: "Agua mineral 600 ml", taxCode: "EXENTA", active: false } }));
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.product.update({ where: { id: p.id }, data: { createdByName: "Otra persona" } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.product.delete({ where: { id: p.id } })), SOLO_AGREGAR);
+  await assert.rejects(migrador.conTenant(A.tenant, (tx) => tx.$executeRawUnsafe("TRUNCATE product CASCADE")));
+});
+
+test("un nombre, un producto, sin mayúsculas ni espacios de más; en otro local, otro", async () => {
+  await producto(A, "Malta");
+  await assert.rejects(producto(A, "  MALTA "), por("DUPLICADO"));
+  await producto(B, "Malta");
+});
+
+test("un producto mal definido no entra, aunque el código se equivoque", async () => {
+  const malos: [string, Record<string, unknown>][] = [
+    ["X", {}], // nombre de una letra
+    ["Refresco", { category: "B" }],
+    ["Refresco", { taxCode: "SUPER" }],
+    ["Refresco", { createdByName: " " }],
+  ];
+  for (const [i, [name, extra]] of malos.entries()) {
+    await assert.rejects(producto(A, name, extra), por("RESTRICCION"), String(i));
+  }
+});
+
+test("un precio es de solo-agregar, en dólares, mayor que cero y nunca hacia atrás", async () => {
+  const p = await producto(A, "Jugo natural");
+  const ahora = new Date();
+  const malos: [bigint, Record<string, unknown>][] = [
+    [0n, {}],
+    [-100n, {}],
+    [1_000_001n, {}], // más de $ 10.000,00: se tecleó otra moneda
+    [250n, { currency: "VES" }],
+    [250n, { effectiveFrom: new Date(ahora.getTime() - 60_000), scheduledAt: ahora }],
+  ];
+  for (const [i, [monto, extra]] of malos.entries()) {
+    await assert.rejects(precioDe(A, p.id, monto, extra), por("RESTRICCION"), String(i));
+  }
+  const bueno = await precioDe(A, p.id, 250n);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.productPrice.update({ where: { id: bueno.id }, data: { amountMinor: 300n } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.productPrice.delete({ where: { id: bueno.id } })), SOLO_AGREGAR);
+  // Dos en el mismo instante no se ordenan.
+  await assert.rejects(precioDe(A, p.id, 300n, { effectiveFrom: bueno.effectiveFrom, scheduledAt: bueno.scheduledAt }), por("DUPLICADO"));
+});
+
+test("A no pone precio a un producto de B", async () => {
+  const deB = await producto(B, "Tequeños");
+  await assert.rejects(precioDe(A, deB.id, 500n), por("REFERENCIA_INVALIDA"));
+});

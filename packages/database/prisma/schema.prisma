@@ -32,6 +32,7 @@ model Tenant {
   bankHolidays  BankHoliday[]
   paymentMethods    PaymentMethod[]
   collectionDetails CollectionDetails[]
+  products          Product[]
 
   @@map("tenant")
 }
@@ -609,4 +610,56 @@ model BankHoliday {
   @@unique([tenantId, id])
   @@index([tenantId, day])
   @@map("bank_holiday")
+}
+
+/// Un producto del catálogo del local (B9-1, F8-02): lo que se vende en el mostrador o se añade a
+/// una cuenta abierta. No se borra (lo vendido lo nombra): se aparta con `active`. Se edita el
+/// nombre, la categoría, el trato del IVA y si lleva stock, con asiento de auditoría; quién lo creó
+/// y cuándo no cambia (disparador). El precio no vive aquí: es un calendario (`ProductPrice`).
+model Product {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  category      String
+  /// GENERAL, REDUCIDA o EXENTA (CHECK): el trato del IVA, la alícuota es del calendario.
+  taxCode       String   @map("tax_code")
+  /// Si su existencia se lleva por movimientos (B9-2).
+  tracksStock   Boolean  @map("tracks_stock")
+  active        Boolean
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  prices ProductPrice[]
+
+  /// Destino de la FK compuesta de los precios: un precio es de un producto de SU tenant.
+  @@unique([tenantId, id])
+  @@map("product")
+}
+
+/// Un precio programado (B9-1, F8-02). Solo-agregar: cambiar el precio programa la fila siguiente
+/// con su comienzo, y el calendario lo arma `priceTimeline` de @l2/domain-inventory. Lo vendido
+/// copió su precio: nada de esto lo reescribe. En dólares y en unidades menores (nunca Float).
+model ProductPrice {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  amountMinor     BigInt   @map("amount_minor")
+  /// USD (CHECK): la moneda funcional (DEC-1).
+  currency        String   @default("USD")
+  /// Desde cuándo rige. Nunca antes de programarse (CHECK): el pasado no se reescribe.
+  effectiveFrom   DateTime @map("effective_from") @db.Timestamptz(3)
+  scheduledAt     DateTime @default(now()) @map("scheduled_at") @db.Timestamptz(3)
+  /// Quién lo programó. Nulo = un proceso (la semilla).
+  scheduledBy     String?  @map("scheduled_by") @db.Uuid
+  scheduledByName String   @map("scheduled_by_name")
+
+  product Product @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  /// Dos programaciones del mismo producto en el mismo instante no se ordenan: la segunda se rechaza.
+  @@unique([tenantId, productId, scheduledAt])
+  @@index([tenantId, productId, effectiveFrom])
+  @@map("product_price")
 }

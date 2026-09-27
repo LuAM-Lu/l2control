@@ -18,6 +18,7 @@
     "@l2/database": "workspace:*",
     "@l2/domain-cash": "workspace:*",
     "@l2/domain-identity": "workspace:*",
+    "@l2/domain-inventory": "workspace:*",
     "@l2/domain-money": "workspace:*",
     "@l2/domain-rates": "workspace:*",
     "@l2/domain-tax": "workspace:*",
