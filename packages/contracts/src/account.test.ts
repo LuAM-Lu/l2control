@@ -21,6 +21,7 @@ const linea = (paid: boolean, amount = "500") => ({
 
 const cuenta = {
   id: "c-1",
+  kind: "FAMILIA",
   family: "Carolina Rojas",
   mode: "PREPAGO",
   status: "ABIERTA",
@@ -81,6 +82,7 @@ describe("cuenta de mesa (F6-05, D2 y D3)", () => {
   const plato = { id: "l-pizza", concept: "Pizza margarita", kind: "RESTAURANTE" as const, amount: { minor: "850", currency: "USD" as const }, paid: false };
   const deMesa = {
     id: "c-mesa-3",
+    kind: "MESA" as const,
     family: "Mesa 3",
     mode: "CUENTA_ABIERTA" as const,
     status: "ABIERTA" as const,
@@ -117,6 +119,25 @@ describe("cuenta de mesa (F6-05, D2 y D3)", () => {
     assert.equal(valido({ ...deMesa, sessionIds: ["s1"], status: "COBRADA", lines: [movida], closedSessionIds: ["s1"] }), true);
     // Por cobrar: si todo se movió, no hay nada que cobrar aquí.
     assert.equal(valido({ ...deMesa, status: "POR_COBRAR", lines: [movida] }), false);
+  });
+});
+
+describe("venta de mostrador (B3-3)", () => {
+  const agua = { id: "l-agua", concept: "Agua mineral", kind: "RESTAURANTE" as const, amount: { minor: "120", currency: "USD" as const }, paid: false, productId: "p-agua", taxCode: "GENERAL" as const };
+  const venta = { ...cuenta, kind: "MOSTRADOR", family: "Mostrador", status: "POR_COBRAR", sessionIds: [], closedSessionIds: [], lines: [agua] };
+
+  test("su tipo la ancla: ni niños ni mesa", () => {
+    assert.equal(FamilyAccountSchema.safeParse(venta).success, true);
+    assert.equal(FamilyAccountSchema.safeParse({ ...venta, sessionIds: ["s-1"] }).success, false);
+    assert.equal(FamilyAccountSchema.safeParse({ ...venta, tableId: "mesa-1" }).success, false);
+  });
+
+  test("cobrada, se cierra aunque no tenga niños que salgan", () => {
+    assert.equal(FamilyAccountSchema.safeParse({ ...venta, status: "COBRADA", lines: [{ ...agua, paid: true }] }).success, true);
+  });
+
+  test("una línea recuerda su producto y su IVA", () => {
+    assert.equal(FamilyAccountSchema.safeParse({ ...venta, lines: [{ ...agua, taxCode: "SUPER" }] }).success, false);
   });
 });
 

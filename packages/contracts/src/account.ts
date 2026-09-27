@@ -29,6 +29,14 @@ export const AccountStatusSchema = z.enum(["ABIERTA", "POR_COBRAR", "COBRADA"]);
 export type AccountStatus = z.infer<typeof AccountStatusSchema>;
 
 /**
+ * De quién es la cuenta (B3-3). Una **familia** (sus niños), una **mesa** del salón o una venta de
+ * **mostrador**: consumo del catálogo, sin niños ni mesa. Antes el mostrador se disfrazaba de familia
+ * con una estancia ficticia; ahora lo dice su tipo, y el servidor le exige vender del catálogo.
+ */
+export const AccountKindSchema = z.enum(["FAMILIA", "MESA", "MOSTRADOR"]);
+export type AccountKind = z.infer<typeof AccountKindSchema>;
+
+/**
  * Por qué se regala algo. Lista cerrada (§7.5): un campo libre acaba siendo
  * «varios» en el ochenta por ciento de los casos y el reporte de excepciones
  * deja de servir para nada.
@@ -126,6 +134,13 @@ export type DivisionCuentaDto = z.infer<typeof DivisionCuentaSchema>;
 export const FamilyAccountSchema = z
   .object({
     id: IdSchema,
+    kind: AccountKindSchema,
+    /**
+     * La versión que guarda el servidor (B3-3): cada cambio añade una. La pantalla la devuelve al
+     * guardar; si otro equipo guardó antes, el servidor lo dice en vez de pisarlo. Sin ella, la
+     * cuenta todavía no está registrada.
+     */
+    version: z.number().int().positive().optional(),
     /** Nombre del representante: es a quien se cobra y a quien se llama. */
     family: z.string().trim().min(2).max(80),
     mode: PaymentModeSchema,
@@ -170,15 +185,17 @@ export const FamilyAccountSchema = z
     const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia);
     const regalado = c.lines.some((l) => l.cortesia);
 
-    // Una cuenta tiene que ser de ALGUIEN: de unos niños, de una mesa, o de
-    // una venta de mostrador (que no tiene ni lo uno ni lo otro, y lo dice su
-    // modo). Sin ancla, nadie sabría a quién cobrarle.
-    if (c.sessionIds.length === 0 && !c.tableId && !c.id.startsWith("c-dir-")) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["sessionIds"],
-        message: "Una cuenta necesita al menos un niño o una mesa",
-      });
+    // Una cuenta tiene que ser de ALGUIEN, y su tipo dice de quién: de unos
+    // niños, de una mesa, o de una venta de mostrador (que no tiene ni lo uno
+    // ni lo otro). Sin ancla, nadie sabría a quién cobrarle.
+    if (c.kind === "FAMILIA" && (c.sessionIds.length === 0 || c.tableId)) {
+      ctx.addIssue({ code: "custom", path: ["sessionIds"], message: "La cuenta de una familia es de sus niños" });
+    }
+    if (c.kind === "MESA" && !c.tableId) {
+      ctx.addIssue({ code: "custom", path: ["tableId"], message: "La cuenta de una mesa dice su mesa" });
+    }
+    if (c.kind === "MOSTRADOR" && (c.sessionIds.length > 0 || c.tableId)) {
+      ctx.addIssue({ code: "custom", path: ["kind"], message: "Una venta de mostrador no tiene niños ni mesa" });
     }
 
     for (const id of c.closedSessionIds) {
@@ -222,7 +239,7 @@ export const FamilyAccountSchema = z
     // Una cuenta de familia se cierra cuando la familia entera se ha ido. Una
     // cuenta de MESA no: se cobra cuando piden la cuenta, aunque los niños
     // sigan jugando (D3). Lo que quede de parque después se cobra aparte.
-    if (c.status === "COBRADA" && !c.tableId && c.closedSessionIds.length !== c.sessionIds.length) {
+    if (c.status === "COBRADA" && c.kind === "FAMILIA" && c.closedSessionIds.length !== c.sessionIds.length) {
       ctx.addIssue({
         code: "custom",
         path: ["status"],

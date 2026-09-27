@@ -214,17 +214,36 @@ export {
   CortesiaSchema,
   PaymentModeSchema,
   AccountStatusSchema,
+  AccountKindSchema,
   AccountLineSchema,
   DivisionCuentaSchema,
   FamilyAccountSchema,
   type PaymentMode,
   type AccountStatus,
+  type AccountKind,
   type AccountLineDto,
   type DivisionCuentaDto,
   type FamilyAccountDto,
   type MotivoCortesia,
   type CortesiaDto,
 } from "./account.ts";
+
+export {
+  CuentasDelLocalSchema,
+  GuardarCuentaCommandSchema,
+  DestinoSobraSchema,
+  PagoDelCobroSchema,
+  CobrarCuentaCommandSchema,
+  CuentaYLibroSchema,
+  AnularCobroCommandSchema,
+  type CuentasDelLocalDto,
+  type GuardarCuentaCommand,
+  type DestinoSobra,
+  type PagoDelCobroDto,
+  type CobrarCuentaCommand,
+  type CuentaYLibroDto,
+  type AnularCobroCommand,
+} from "./cuentas.ts";
 
 export {
   OperationEventSchema,
