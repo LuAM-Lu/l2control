@@ -69,12 +69,14 @@ export {
   HistorialTasasSchema,
   CapturarTasaCommandSchema,
   ConfirmarTasaCommandSchema,
+  SincronizacionTasaSchema,
   type RatePair,
   type RateSource,
   type ExchangeRateDto,
   type HistorialTasasDto,
   type CapturarTasaCommand,
   type ConfirmarTasaCommand,
+  type SincronizacionTasaDto,
 } from "./tasas.ts";
 
 export {

@@ -12,23 +12,34 @@ import type { ExchangeRateDto } from "@l2/contracts";
 import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 import type { Contexto } from "../contexto.ts";
 import { ZONA_DEL_LOCAL } from "./tasas.ts";
+import type { Lector } from "./fuentes.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 let local: LocalDePrueba;
 let admin: string;
 let ctxAdmin: Contexto, ctxSupervisor: Contexto, ctxCajera: Contexto;
 
-const hoy = () => calendarDay(new Date().toISOString(), ZONA_DEL_LOCAL);
+/**
+ * Reloj fijo: miércoles 23 de septiembre de 2026, 10:00 am en Caracas. Con la hora real, que la
+ * tasa del viernes cubra el fin de semana haría que estas pruebas dieran otra cosa según el día
+ * de la semana en que corran. Cada llamada avanza un segundo: dos capturas no comparten instante.
+ */
+let reloj = Date.parse("2026-09-23T14:00:00.000Z");
+const ahora = () => (reloj += 1000);
+const hoy = () => calendarDay(new Date(reloj).toISOString(), ZONA_DEL_LOCAL);
+const capturar = (ctx: Contexto, entrada: unknown, instante = ahora()) => local.app.tasas.capturar(ctx, entrada, instante);
+const confirmar = (ctx: Contexto, entrada: unknown, aut?: unknown, instante = ahora()) =>
+  local.app.tasas.confirmar(ctx, entrada, aut, instante);
 const captura = (value: string, effectiveDate = hoy(), pair = "USD/VES") => ({ pair, value, source: "BCV", effectiveDate });
 
 /** La tasa con la que cobraría la caja ahora mismo, leída del servidor. */
 async function tasaDelDia(pair: "USD/VES" | "USDT/VES" = "USD/VES"): Promise<RateRecord | null> {
   const h = await local.app.tasas.leer(local.sistema);
-  return rateOfDay(h.tasas, pair, hoy(), new Date(Date.now() + 1000).toISOString());
+  return rateOfDay(h.tasas, pair, hoy(), new Date(reloj + 1000).toISOString());
 }
 
 async function capturada(ctx: Contexto, value: string, dia?: string): Promise<ExchangeRateDto> {
-  const r = await local.app.tasas.capturar(ctx, captura(value, dia));
+  const r = await capturar(ctx, captura(value, dia));
   assert.ok(r.ok, JSON.stringify(r));
   return r.valor;
 }
@@ -56,10 +67,10 @@ describe("sin tasa del día no se cobra (F3-05)", () => {
 
   test("la de ayer, aunque se confirmara, no sirve hoy", async () => {
     const ayer = addDays(hoy(), -1);
-    const ahoraAyer = Date.now() - 86_400_000;
-    const c = await local.app.tasas.capturar(ctxAdmin, captura("220.00", ayer), ahoraAyer);
+    const ahoraAyer = reloj - 86_400_000;
+    const c = await capturar(ctxAdmin, captura("220.00", ayer), ahoraAyer);
     assert.ok(c.ok, JSON.stringify(c));
-    const r = await local.app.tasas.confirmar(ctxAdmin, { rateId: c.valor.id, valorVerificado: "220.00" }, undefined, ahoraAyer + 60_000);
+    const r = await confirmar(ctxAdmin, { rateId: c.valor.id, valorVerificado: "220.00" }, undefined, ahoraAyer + 60_000);
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(await tasaDelDia(), null);
   });
@@ -67,7 +78,7 @@ describe("sin tasa del día no se cobra (F3-05)", () => {
 
 describe("capturar (F3-04)", () => {
   test("quien cobra no mueve la tasa (§7.5): la cajera no captura, y queda el intento", async () => {
-    const r = await local.app.tasas.capturar(ctxCajera, captura("228.41"));
+    const r = await capturar(ctxCajera, captura("228.41"));
     assert.equal(r.ok ? "ok" : r.motivo, "NO_PERMITIDO");
     const asientos = await local.app.auditoria.listar(local.sistema, { actorId: ctxCajera.quien!.userId! });
     assert.ok(asientos.some((a) => a.action === "tasa.capturar" && a.outcome === "NEGADO"));
@@ -83,7 +94,7 @@ describe("capturar (F3-04)", () => {
 
   test("ni para un día pasado ni con más de una semana de adelanto", async () => {
     for (const dia of [addDays(hoy(), -1), addDays(hoy(), 8)]) {
-      const r = await local.app.tasas.capturar(ctxAdmin, captura("228.41", dia));
+      const r = await capturar(ctxAdmin, captura("228.41", dia));
       assert.equal(r.ok ? "ok" : r.motivo, "INVALIDO", dia);
     }
   });
@@ -95,7 +106,7 @@ describe("capturar (F3-04)", () => {
       { ...captura("228.41"), capturedBy: "Otra persona" },
       { ...captura("228.41"), confirmed: true },
     ]) {
-      const r = await local.app.tasas.capturar(ctxAdmin, entrada);
+      const r = await capturar(ctxAdmin, entrada);
       assert.equal(r.ok ? "ok" : r.motivo, "INVALIDO", JSON.stringify(entrada));
     }
   });
@@ -106,22 +117,22 @@ describe("confirmar (F3-04) y la doble verificación (§5.2, T2)", () => {
 
   test("la primera de hoy tras la de ayer, dentro del umbral, se confirma de una vez", async () => {
     primera = await capturada(ctxAdmin, "228.41");
-    const r = await local.app.tasas.confirmar(ctxAdmin, { rateId: primera.id });
+    const r = await confirmar(ctxAdmin, { rateId: primera.id });
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(r.valor.confirmedBy, "Abigail Karam");
     assert.equal((await tasaDelDia())?.value, "228.41");
   });
 
   test("confirmar dos veces no se puede", async () => {
-    const r = await local.app.tasas.confirmar(ctxAdmin, { rateId: primera.id });
+    const r = await confirmar(ctxAdmin, { rateId: primera.id });
     assert.equal(r.ok ? "ok" : r.motivo, "CONFLICTO");
   });
 
   test("un dedo de más (×10) exige teclearla otra vez, y que coincida", async () => {
     const mala = await capturada(ctxAdmin, "2284.10");
-    const sinTeclear = await local.app.tasas.confirmar(ctxAdmin, { rateId: mala.id });
+    const sinTeclear = await confirmar(ctxAdmin, { rateId: mala.id });
     assert.equal(sinTeclear.ok ? "ok" : sinTeclear.problemas?.[0]?.path[0], "valorVerificado");
-    const distinta = await local.app.tasas.confirmar(ctxAdmin, { rateId: mala.id, valorVerificado: "228.41" });
+    const distinta = await confirmar(ctxAdmin, { rateId: mala.id, valorVerificado: "228.41" });
     assert.equal(distinta.ok, false);
     // Mientras tanto, la caja sigue con la buena.
     assert.equal((await tasaDelDia())?.value, "228.41");
@@ -129,7 +140,7 @@ describe("confirmar (F3-04) y la doble verificación (§5.2, T2)", () => {
 
   test("teclearla con otra escritura del mismo valor sí vale («2300.500»)", async () => {
     const otra = await capturada(ctxAdmin, "2300.5");
-    const r = await local.app.tasas.confirmar(ctxAdmin, { rateId: otra.id, valorVerificado: "2300.500" });
+    const r = await confirmar(ctxAdmin, { rateId: otra.id, valorVerificado: "2300.500" });
     assert.ok(r.ok, JSON.stringify(r));
   });
 
@@ -137,7 +148,7 @@ describe("confirmar (F3-04) y la doble verificación (§5.2, T2)", () => {
     const antes = (await local.app.tasas.leer(local.sistema)).tasas.find((t) => t.id === primera.id);
     // Contra 2300,5 la vuelta a 228,90 es otro salto grande: se teclea.
     const buena = await capturada(ctxAdmin, "228.90");
-    const r = await local.app.tasas.confirmar(ctxAdmin, { rateId: buena.id, valorVerificado: "228.90" });
+    const r = await confirmar(ctxAdmin, { rateId: buena.id, valorVerificado: "228.90" });
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal((await tasaDelDia())?.id, buena.id);
     const despues = (await local.app.tasas.leer(local.sistema)).tasas.find((t) => t.id === primera.id);
@@ -145,23 +156,23 @@ describe("confirmar (F3-04) y la doble verificación (§5.2, T2)", () => {
   });
 
   test("una tasa de un día que pasó sin confirmar ya no se confirma", async () => {
-    const ahoraAyer = Date.now() - 86_400_000;
-    const c = await local.app.tasas.capturar(ctxAdmin, captura("221.00", addDays(hoy(), -1)), ahoraAyer + 1000);
+    const ahoraAyer = reloj - 86_400_000;
+    const c = await capturar(ctxAdmin, captura("221.00", addDays(hoy(), -1)), ahoraAyer + 1000);
     assert.ok(c.ok, JSON.stringify(c));
-    const r = await local.app.tasas.confirmar(ctxAdmin, { rateId: c.valor.id, valorVerificado: "221.00" });
+    const r = await confirmar(ctxAdmin, { rateId: c.valor.id, valorVerificado: "221.00" });
     assert.equal(r.ok ? "ok" : r.motivo, "INVALIDO");
   });
 
   test("la de mañana se confirma hoy, pero la caja no la usa hasta mañana", async () => {
     const manana = await capturada(ctxAdmin, "229.10", addDays(hoy(), 1));
-    const r = await local.app.tasas.confirmar(ctxAdmin, { rateId: manana.id });
+    const r = await confirmar(ctxAdmin, { rateId: manana.id });
     assert.ok(r.ok, JSON.stringify(r));
     assert.notEqual((await tasaDelDia())?.id, manana.id);
   });
 
   test("una tasa que no existe, o un id que no es de la base, no se confirma", async () => {
     for (const rateId of ["0199a0c0-0000-7000-8000-000000000000", "no-es-un-uuid"]) {
-      const r = await local.app.tasas.confirmar(ctxAdmin, { rateId });
+      const r = await confirmar(ctxAdmin, { rateId });
       assert.equal(r.ok ? "ok" : r.motivo, "NO_DISPONIBLE");
     }
   });
@@ -180,12 +191,12 @@ describe("supervisión confirma con autorización (🔐, §7.3)", () => {
   });
 
   test("la cajera no confirma ni con autorización", async () => {
-    const r = await local.app.tasas.confirmar(ctxCajera, { rateId: pendiente.id }, { autorizadorId: admin, pin: "4826", motivo });
+    const r = await confirmar(ctxCajera, { rateId: pendiente.id }, { autorizadorId: admin, pin: "4826", motivo });
     assert.equal(r.ok ? "ok" : r.motivo, "NO_PERMITIDO");
   });
 
   test("sin autorización, supervisión no confirma", async () => {
-    const r = await local.app.tasas.confirmar(ctxSupervisor, { rateId: pendiente.id });
+    const r = await confirmar(ctxSupervisor, { rateId: pendiente.id });
     assert.equal(r.ok ? "ok" : r.motivo, "NO_PERMITIDO");
   });
 
@@ -196,18 +207,104 @@ describe("supervisión confirma con autorización (🔐, §7.3)", () => {
   });
 
   test("con un PIN equivocado se niega, y la tasa sigue pendiente", async () => {
-    const r = await local.app.tasas.confirmar(ctxSupervisor, { rateId: pendiente.id }, { autorizadorId: admin, pin: "0000", motivo });
+    const r = await confirmar(ctxSupervisor, { rateId: pendiente.id }, { autorizadorId: admin, pin: "0000", motivo });
     assert.equal(r.ok ? "ok" : r.motivo, "NO_PERMITIDO");
     const t = (await local.app.tasas.leer(local.sistema)).tasas.find((x) => x.id === pendiente.id);
     assert.equal(t?.confirmed, false);
   });
 
   test("con el PIN de la administración queda confirmada, y dice quién autorizó", async () => {
-    const r = await local.app.tasas.confirmar(ctxSupervisor, { rateId: pendiente.id }, { autorizadorId: admin, pin: "4826", motivo });
+    const r = await confirmar(ctxSupervisor, { rateId: pendiente.id }, { autorizadorId: admin, pin: "4826", motivo });
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(r.valor.confirmedBy, "Luis Guerrero");
     assert.equal(r.valor.authorizedBy, "Abigail Karam");
     const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "exchange_rate", entityId: pendiente.id });
     assert.ok(asientos.some((a) => a.action === "tasa.confirmar" && a.outcome === "HECHO" && a.authorizedBy === admin));
+  });
+});
+
+/* ── traer la tasa del BCV (F3-04), con fuentes simuladas ── */
+
+type Fuente = "BCV" | "DOLARAPI";
+const lector = (fuente: Fuente, value: string, effectiveDate: string) => async () => ({
+  ok: true as const,
+  lectura: { fuente, pair: "USD/VES" as const, value, effectiveDate, crudo: { prueba: "sí" } },
+});
+const caido = (fuente: Fuente) => async () => ({ ok: false as const, fuente, error: `${fuente} no respondió a tiempo.` });
+const sincronizar = (ctx: Contexto, fuentes: readonly Lector[]) => local.app.tasas.sincronizar(ctx, { fuentes, ahora: ahora() });
+
+describe("traer la tasa del BCV (F3-04)", () => {
+  // El reloj va por el miércoles 23; el jueves 24 es «mañana».
+  test("dos fuentes que coinciden: se captura una, PENDIENTE, y dice que la verificaron dos", async () => {
+    const r = await sincronizar(ctxAdmin, [lector("BCV", "300.50000000", "2026-09-24"), lector("DOLARAPI", "300.5", "2026-09-24")]);
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.valor.capturadas.length, 1);
+    const t = r.valor.capturadas[0]!;
+    assert.equal(t.confirmed, false);
+    assert.equal(t.source, "BCV");
+    assert.equal(t.capturedBy, "Sincronización BCV (2 fuentes)");
+    assert.equal(t.effectiveDate, "2026-09-24");
+  });
+
+  test("traerla otra vez no la repite", async () => {
+    const r = await sincronizar(ctxAdmin, [lector("BCV", "300.50000000", "2026-09-24"), lector("DOLARAPI", "300.5", "2026-09-24")]);
+    assert.ok(r.ok);
+    assert.equal(r.valor.capturadas.length, 0);
+    assert.deepEqual(r.valor.yaEstaban.map((y) => y.effectiveDate), ["2026-09-24"]);
+  });
+
+  test("si dos fuentes dicen cosas distintas del mismo día, no se captura nada de ese día (T6)", async () => {
+    const r = await sincronizar(ctxAdmin, [lector("BCV", "310.00", "2026-09-25"), lector("DOLARAPI", "320.00", "2026-09-25")]);
+    assert.ok(r.ok);
+    assert.equal(r.valor.capturadas.length, 0);
+    assert.match(r.valor.avisos[0] ?? "", /no coinciden/);
+  });
+
+  test("si una fuente cae, se sigue con la otra y se dice cuál cayó", async () => {
+    const r = await sincronizar(ctxSupervisor, [caido("BCV"), lector("DOLARAPI", "305.25", "2026-09-28")]);
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.valor.capturadas[0]?.capturedBy, "Sincronización DolarApi");
+    assert.deepEqual(r.valor.fuentes.map((f) => [f.fuente, f.ok]), [["BCV", false], ["DOLARAPI", true]]);
+  });
+
+  test("si ninguna responde, se pide cargarla a mano (una comodidad, nunca una dependencia)", async () => {
+    const r = await sincronizar(ctxAdmin, [caido("BCV"), caido("DOLARAPI")]);
+    assert.equal(r.ok ? "ok" : r.motivo, "NO_DISPONIBLE");
+    if (!r.ok) assert.match(r.mensaje, /a mano/);
+  });
+
+  test("lo que ya no rige o queda muy lejos se ignora", async () => {
+    // El domingo 20 ya no rige el miércoles (el lunes 21 fue día hábil); el 10 de octubre queda lejos.
+    const r = await sincronizar(ctxAdmin, [lector("BCV", "290.00", "2026-09-20"), lector("DOLARAPI", "400.00", "2026-10-10")]);
+    assert.ok(r.ok);
+    assert.equal(r.valor.capturadas.length, 0);
+  });
+
+  test("quien cobra no la trae", async () => {
+    const r = await sincronizar(ctxCajera, [lector("BCV", "300.50", "2026-09-24")]);
+    assert.equal(r.ok ? "ok" : r.motivo, "NO_PERMITIDO");
+  });
+
+  test("lo traído no cobra hasta que alguien lo confirma", async () => {
+    const antes = await tasaDelDia();
+    const r = await sincronizar(ctxAdmin, [lector("BCV", "299.99", hoy())]);
+    assert.ok(r.ok);
+    assert.equal((await tasaDelDia())?.id, antes?.id);
+  });
+});
+
+describe("el fin de semana cobra con la del viernes", () => {
+  test("la del viernes, confirmada el sábado, rige sábado y domingo; el lunes, no", async () => {
+    reloj = Date.parse("2026-09-25T20:00:00.000Z"); // viernes 25, 4:00 pm
+    const c = await capturar(ctxAdmin, captura("301.00", "2026-09-25"));
+    assert.ok(c.ok, JSON.stringify(c));
+    reloj = Date.parse("2026-09-26T14:00:00.000Z"); // sábado 26
+    const r = await confirmar(ctxAdmin, { rateId: c.valor.id, valorVerificado: "301.00" });
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal((await tasaDelDia())?.id, c.valor.id);
+    reloj = Date.parse("2026-09-27T14:00:00.000Z"); // domingo 27
+    assert.equal((await tasaDelDia())?.id, c.valor.id);
+    reloj = Date.parse("2026-09-28T14:00:00.000Z"); // lunes 28: la del lunes sigue pendiente (la trajo DolarApi)
+    assert.notEqual((await tasaDelDia())?.id, c.valor.id);
   });
 });

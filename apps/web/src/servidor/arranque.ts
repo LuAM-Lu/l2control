@@ -1,6 +1,7 @@
 import "server-only";
 import { entorno } from "./entorno";
 import { aplicacion, log } from "./aplicacion";
+import { programarSincronizacionDeTasa } from "./sincronizacion-tasa";
 
 /**
  * Lo que el servidor comprueba antes de atender la primera petición (desde
@@ -15,4 +16,5 @@ export async function arrancar(): Promise<void> {
     { entorno: e.L2_ENTORNO, tenantId: e.L2_TENANT_ID, branchId: e.L2_BRANCH_ID },
     "servidor web conectado a la base",
   );
+  if (e.L2_SINCRONIZAR_TASA === "si") programarSincronizacionDeTasa();
 }

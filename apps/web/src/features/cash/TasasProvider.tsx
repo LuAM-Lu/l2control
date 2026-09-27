@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import type { ExchangeRateDto, HistorialTasasDto, RatePair, Resultado } from "@l2/contracts";
+import type { ExchangeRateDto, HistorialTasasDto, RatePair, Resultado, SincronizacionTasaDto } from "@l2/contracts";
 import { calendarDay, frozenRateOf, rateOfDay } from "@l2/domain-rates";
 import type { FrozenRate } from "@l2/domain-money";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
-import { capturarTasa, confirmarTasa } from "./tasas.acciones";
+import { capturarTasa, confirmarTasa, traerTasaDelBcv } from "./tasas.acciones";
 
 /**
  * Las tasas de cambio — F3-03 a F3-05, en el servidor desde B2-1.
@@ -20,6 +20,8 @@ type Valor = Readonly<{
   /** Nunca lanza por un rechazo: lo devuelve para que la pantalla lo pinte. */
   capturar: (entrada: unknown) => Promise<Resultado<ExchangeRateDto>>;
   confirmar: (entrada: unknown, autorizacion?: unknown) => Promise<Resultado<ExchangeRateDto>>;
+  /** Trae la tasa del BCV de sus fuentes (F3-04). Lo traído entra pendiente. */
+  traer: () => Promise<Resultado<SincronizacionTasaDto>>;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
@@ -57,7 +59,13 @@ export function TasasProvider({ inicial, children }: { inicial: HistorialTasasDt
     [adoptar],
   );
 
-  const valor = useMemo(() => ({ historial, capturar, confirmar }), [historial, capturar, confirmar]);
+  const traer = useCallback(async () => {
+    const r = await traerTasaDelBcv();
+    if (r.ok) for (const t of r.valor.capturadas) adoptar(t);
+    return r;
+  }, [adoptar]);
+
+  const valor = useMemo(() => ({ historial, capturar, confirmar, traer }), [historial, capturar, confirmar, traer]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

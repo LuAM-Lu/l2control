@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { ExchangeRateDto, Resultado } from "@l2/contracts";
+import type { ExchangeRateDto, Resultado, SincronizacionTasaDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -38,6 +38,23 @@ export async function confirmarTasa(entrada: unknown, autorizacion?: unknown): P
     revalidatePath("/", "layout");
   } else {
     log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "tasa no confirmada");
+  }
+  return r;
+}
+
+/**
+ * Traer la tasa del BCV (F3-04). Lo traído entra PENDIENTE: alguien la confirma antes de cobrar.
+ * Si ninguna fuente responde, lo dice y la carga manual sigue disponible.
+ */
+export async function traerTasaDelBcv(): Promise<Resultado<SincronizacionTasaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).tasas.sincronizar(ctx);
+  if (r.ok) {
+    log().info({ tenantId: ctx.tenantId, capturadas: r.valor.capturadas.length, avisos: r.valor.avisos.length }, "tasa traída del BCV");
+    if (r.valor.capturadas.length > 0) revalidatePath("/", "layout");
+  } else {
+    log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "tasa del BCV no traída");
   }
   return r;
 }

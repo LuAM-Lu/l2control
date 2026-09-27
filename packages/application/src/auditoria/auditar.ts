@@ -21,6 +21,7 @@ export type AccionAuditada =
   | "tarifario.publicar"
   | "tasa.capturar"
   | "tasa.confirmar"
+  | "tasa.sincronizar"
   | "sesion.abrir"
   | "sesion.cerrar"
   | "sesion.pin_fallido"

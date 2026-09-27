@@ -13,7 +13,8 @@
  *     de lo que hay aquí modifica un historial.
  *  2. Sin tasa confirmada, `currentRate` devuelve `null`. Nunca cero, nunca la
  *     de ayer en silencio, nunca un valor por defecto (regla fail-closed). Para
- *     cobrar se usa `rateOfDay`, que además exige que valga para el día en curso.
+ *     cobrar se usa `rateOfDay`, que además exige que cubra el día en curso: la
+ *     del viernes vale el fin de semana; el lunes, no.
  *  3. El instante entra como argumento (ADR-010): una tasa capturada para
  *     mañana no está vigente hoy, y este módulo no tiene reloj para saberlo.
  *  4. La aritmética es exacta y entera. Una tasa con ocho decimales no se
@@ -172,14 +173,18 @@ export function currentRate(
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * La tasa con la que se cobra: la **del día** `day`, confirmada.
+ * La tasa con la que se cobra el día `day`: la **vigente** ese día, confirmada.
  *
- * Es `currentRate` con una condición más, la que §5.2 repite porque se olvida: la tasa tiene que
- * valer para el día de negocio en curso. La de ayer no sirve aunque sea la última confirmada: el
- * cobro se bloquea (`null`) hasta que alguien confirme la de hoy. Nunca la de ayer en silencio.
+ * El BCV publica una tasa por día hábil con su **fecha valor**, y esa tasa rige hasta la
+ * siguiente: la del viernes vale el sábado y el domingo, que no tienen publicación propia. Así
+ * que la vigente es la última confirmada con fecha valor hasta `day`, **siempre que no haya
+ * pasado ningún día hábil (lunes a viernes) desde su fecha valor**. El lunes ya no vale la del
+ * viernes: exige la del lunes. Es la regla que §5.2 repite porque se olvida, nunca la de ayer en
+ * silencio, sin dejar al parque sin cobrar los fines de semana. Un feriado entre semana también
+ * exige la suya: se captura a mano, con el mismo valor si el BCV no publicó otro.
  *
- * Si hay varias confirmadas para ese día, gana la capturada más tarde: capturar otra es la única
- * forma de corregir una tasa (regla 5).
+ * Entre las que valen gana la de fecha valor más reciente y, a igual fecha, la capturada más
+ * tarde: capturar otra es la única forma de corregir una tasa (regla 5).
  */
 export function rateOfDay(
   history: readonly RateRecord[],
@@ -188,11 +193,37 @@ export function rateOfDay(
   now: string,
 ): RateRecord | null {
   if (!DIA.test(day)) throw new InvalidRateError(`Día no válido: "${day}". Se espera AAAA-MM-DD.`);
-  return currentRate(
-    history.filter((t) => t.effectiveDate === day),
-    pair,
-    now,
-  );
+  const validas = history.filter((t) => coversDay(t.effectiveDate, day));
+  // `currentRate` pone el resto: confirmada, del par, ya capturada en `now`, la más nueva.
+  // Si la de fecha más reciente no está confirmada todavía, vale la anterior que siga cubriendo.
+  const porFecha = [...new Set(validas.map((t) => t.effectiveDate))].sort().reverse();
+  for (const fecha of porFecha) {
+    const r = currentRate(
+      validas.filter((t) => t.effectiveDate === fecha),
+      pair,
+      now,
+    );
+    if (r) return r;
+  }
+  return null;
+}
+
+/**
+ * ¿Una tasa con fecha valor `effectiveDate` rige el día `day`? Desde su fecha valor y hasta que
+ * pase un día hábil: la del viernes cubre sábado y domingo; la de hoy, hoy.
+ */
+export function coversDay(effectiveDate: string, day: string): boolean {
+  if (!DIA.test(effectiveDate) || !DIA.test(day)) return false;
+  return effectiveDate <= day && !hayDiaHabilEntre(effectiveDate, day);
+}
+
+/** ¿Hay algún día hábil (lunes a viernes) después de `desde` y hasta `hasta`, incluido? */
+function hayDiaHabilEntre(desde: string, hasta: string): boolean {
+  for (let d = addDays(desde, 1); d <= hasta; d = addDays(d, 1)) {
+    const semana = new Date(`${d}T12:00:00.000Z`).getUTCDay();
+    if (semana >= 1 && semana <= 5) return true;
+  }
+  return false;
 }
 
 /**

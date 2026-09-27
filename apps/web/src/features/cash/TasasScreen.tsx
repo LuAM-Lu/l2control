@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Check, CheckCircle2, Clock3, History, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Clock3, CloudDownload, History, ShieldCheck } from "lucide-react";
 import type { ExchangeRateDto, RatePair, RateSource } from "@l2/contracts";
-import { addDays, calendarDay, currentRate, needsDoubleCheck } from "@l2/domain-rates";
+import { addDays, calendarDay, coversDay, currentRate, needsDoubleCheck } from "@l2/domain-rates";
 import type { Permission } from "@l2/domain-identity";
 import { Button, Container, Input, PageHeader, Sheet, avisar, cn } from "@l2/ui";
 import { useDiaDeTasas, useTasas, useTasaVigente } from "./TasasProvider.tsx";
@@ -48,7 +48,34 @@ export function TasasScreen({
   permiso: Permission;
   autorizadores: { id: string; nombre: string }[];
 }) {
-  const { historial, capturar } = useTasas();
+  const { historial, capturar, traer } = useTasas();
+  const [trayendo, setTrayendo] = useState(false);
+
+  /** Trae la del BCV (F3-04) y cuenta lo que pasó, fuente por fuente si alguna falló. */
+  const traerDelBcv = async () => {
+    setTrayendo(true);
+    try {
+      const r = await traer();
+      if (!r.ok) return avisar.error(r.mensaje);
+      const caidas = r.valor.fuentes.filter((f) => !f.ok);
+      for (const t of r.valor.capturadas) {
+        avisar.ok(`Traída del BCV: Bs. ${formatTasaVE(t.value)} para el ${enPalabras(t.effectiveDate)}. Falta confirmarla.`);
+      }
+      if (r.valor.capturadas.length === 0 && r.valor.avisos.length === 0) {
+        avisar.info(
+          r.valor.yaEstaban.length > 0
+            ? "El BCV no ha publicado nada nuevo: lo que publica ya está en el historial."
+            : "El BCV no tiene publicada ninguna tasa que rija hoy o en los próximos días.",
+        );
+      }
+      for (const a of r.valor.avisos) avisar.aviso(a);
+      if (caidas.length > 0) avisar.info(`No respondió: ${caidas.map((f) => f.detalle).join(" ")}`);
+    } catch {
+      avisar.error("No se pudo hablar con el servidor. Carga la tasa a mano.");
+    } finally {
+      setTrayendo(false);
+    }
+  };
   const hoy = useDiaDeTasas();
   const { ajustes } = useSucursal();
   const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora);
@@ -64,6 +91,11 @@ export function TasasScreen({
 
   const dias = useMemo(
     () => (hoy ? Array.from({ length: DIAS_POR_ADELANTADO + 1 }, (_, i) => addDays(hoy, i)) : []),
+    [hoy],
+  );
+  /** Fechas valor pasadas que todavía rigen hoy: el fin de semana, la del viernes. */
+  const pasadasVigentes = useMemo(
+    () => (hoy ? [1, 2, 3].map((i) => addDays(hoy, -i)).filter((d) => coversDay(d, hoy)) : []),
     [hoy],
   );
   const diaElegido = dia ?? hoy;
@@ -105,7 +137,7 @@ export function TasasScreen({
       <PageHeader
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Caja" }, { texto: "Tasas de cambio" }]}
         titulo="Tasas de cambio"
-        descripcion="La caja cobra solo con la tasa del día, confirmada. Sin ella no se cobra en bolívares: nunca con la de ayer ni con un valor por defecto."
+        descripcion="La caja cobra con la tasa vigente, confirmada: la de la fecha valor de hoy (la del viernes cubre el fin de semana). Sin ella no se cobra en bolívares: nunca con la de ayer ni con un valor por defecto."
         meta={
           hoy && (
             <span className="tnum text-[12.5px] text-ink-3">Hoy es {enPalabras(hoy)} (hora de Venezuela)</span>
@@ -120,7 +152,24 @@ export function TasasScreen({
 
           {puede && (
             <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
-              <h2 className="font-display mb-4 text-[14px] font-bold text-ink">Capturar una tasa</h2>
+              <div className="mb-4 flex flex-col gap-2 border-b border-line pb-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  surface="admin"
+                  className="w-full gap-1.5"
+                  onClick={traerDelBcv}
+                  disabled={trayendo}
+                >
+                  <CloudDownload size={15} aria-hidden="true" />
+                  {trayendo ? "Consultando el BCV…" : "Traer del BCV"}
+                </Button>
+                <p className="text-[12px] text-ink-3">
+                  El servidor también la trae solo cada hora. Entra pendiente: alguien la confirma antes de cobrar
+                  con ella.
+                </p>
+              </div>
+              <h2 className="font-display mb-4 text-[14px] font-bold text-ink">Capturar a mano</h2>
               <form onSubmit={handleCapturar} className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1.5">
@@ -174,6 +223,11 @@ export function TasasScreen({
                         {enPalabras(d)}
                       </option>
                     ))}
+                    {pasadasVigentes.map((d) => (
+                      <option key={d} value={d}>
+                        {enPalabras(d)} (aún rige hoy)
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -216,7 +270,7 @@ export function TasasScreen({
           ) : (
             <ul className="flex flex-col gap-2">
               {historialOrdenado.map((t) => {
-                const vencida = !t.confirmed && hoy !== null && t.effectiveDate < hoy;
+                const vencida = !t.confirmed && hoy !== null && t.effectiveDate < hoy && !coversDay(t.effectiveDate, hoy);
                 return (
                   <li
                     key={t.id}

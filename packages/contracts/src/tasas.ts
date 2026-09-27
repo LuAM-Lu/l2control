@@ -140,3 +140,19 @@ export const ConfirmarTasaCommandSchema = z.strictObject({
   valorVerificado: RateValueSchema.optional(),
 });
 export type ConfirmarTasaCommand = z.infer<typeof ConfirmarTasaCommandSchema>;
+
+/**
+ * Lo que devuelve traer la tasa del BCV (F3-04). Lo traído entra **pendiente**: una persona lo
+ * confirma antes de cobrar con ello (amenaza T6). Cada fuente dice si respondió; si dos hablan del
+ * mismo día y no coinciden, no se captura nada de ese día y se avisa.
+ */
+export const SincronizacionTasaSchema = z.object({
+  capturadas: z.array(ExchangeRateSchema),
+  /** Lo que la fuente dijo y ya estaba en el historial con el mismo valor: no se repite. */
+  yaEstaban: z.array(z.object({ effectiveDate: FechaSchema, value: RateValueSchema })),
+  fuentes: z.array(
+    z.object({ fuente: z.enum(["BCV", "DOLARAPI"]), ok: z.boolean(), detalle: z.string().max(200) }),
+  ),
+  avisos: z.array(z.string().max(300)),
+});
+export type SincronizacionTasaDto = z.infer<typeof SincronizacionTasaSchema>;

@@ -316,6 +316,9 @@ model ExchangeRate {
   /// Quién la cargó. Nulo = un proceso (la sincronización del BCV, F3-04).
   capturedBy     String?  @map("captured_by") @db.Uuid
   capturedByName String   @map("captured_by_name")
+  /// Lo que respondió la fuente automática (§5.2 `rawPayload`), recortado a lo que importa. Nulo
+  /// en una carga manual.
+  rawPayload     Json?    @map("raw_payload")
 
   tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   confirmation ExchangeRateConfirmation?

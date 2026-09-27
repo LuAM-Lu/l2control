@@ -16,6 +16,11 @@ const EsquemaEntorno = z.object({
   L2_BRANCH_ID: z.uuid(),
   /** 32 bytes en base64: sin ella no hay elevación con TOTP ni cifrado en reposo (§7.6). */
   L2_CLAVE_CIFRADO: z.base64().refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes en base64"),
+  /**
+   * Traer sola la tasa del BCV cada hora (F3-04). `no` en un servidor sin salida a internet o en
+   * las pruebas; lo traído siempre entra pendiente de confirmar.
+   */
+  L2_SINCRONIZAR_TASA: z.enum(["si", "no"]).default("si"),
 });
 
 export type EntornoWeb = z.infer<typeof EsquemaEntorno>;

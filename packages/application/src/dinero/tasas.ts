@@ -17,15 +17,27 @@ import {
   problemasDe,
   type ExchangeRateDto,
   type HistorialTasasDto,
+  type SincronizacionTasaDto,
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
-import { addDays, calendarDay, currentRate, frozenRateOf, needsDoubleCheck, type RateRecord } from "@l2/domain-rates";
+import {
+  addDays,
+  calendarDay,
+  coversDay,
+  currentRate,
+  frozenRateOf,
+  needsDoubleCheck,
+  variationBasisPoints,
+  type RateRecord,
+} from "@l2/domain-rates";
+import type { Prisma } from "@l2/database";
 import { errorDeBase, type Base, type ExchangeRate, type ExchangeRateConfirmation, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { autorizadoresPara, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
+import { FUENTES_REALES, type Lector, type LecturaDeTasa } from "./fuentes.ts";
 
 /**
  * Cuánto puede saltar una tasa respecto de la última confirmada antes de exigir que se teclee
@@ -38,6 +50,13 @@ export const ZONA_DEL_LOCAL = "America/Caracas";
 
 /** Cuántos días por delante se puede capturar: el BCV publica el viernes la del lunes. */
 export const DIAS_POR_ADELANTADO = 7;
+
+/**
+ * Cuánto pueden diferir dos fuentes que hablan del mismo día para darlas por iguales: 1 punto
+ * básico (0,01 %). Cubre que una redondee a 4 decimales lo que la otra publica con 8; no cubre
+ * un valor distinto.
+ */
+const TOLERANCIA_ENTRE_FUENTES_BPS = 1n;
 
 /** Lo que se lee del historial: bastante para ver semanas, sin crecer para siempre. */
 const TASAS_LEIDAS = 120;
@@ -59,6 +78,14 @@ export interface CasosTasas {
   confirmar(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<ExchangeRateDto>>;
   /** Quiénes pueden autorizar a quien opera a confirmar una tasa (vacío si no le hace falta). */
   autorizadores(ctx: Contexto): Promise<{ id: string; nombre: string }[]>;
+  /**
+   * Trae la tasa del BCV de sus fuentes y la deja capturada, PENDIENTE (F3-04). Lo pide una
+   * persona con el botón de la pantalla o el propio servidor a su hora (`ctx.sistema`).
+   */
+  sincronizar(
+    ctx: Contexto,
+    opciones?: { fuentes?: readonly Lector[]; ahora?: number },
+  ): Promise<Resultado<SincronizacionTasaDto>>;
 }
 
 type Fila = ExchangeRate & { confirmation: ExchangeRateConfirmation | null };
@@ -85,13 +112,14 @@ export function casosTasas(base: Base): CasosTasas {
       }
       const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
       const dia = v.data.effectiveDate;
-      if (dia < hoy || dia > addDays(hoy, DIAS_POR_ADELANTADO)) {
+      // Hacia atrás solo si todavía rige hoy (el sábado se puede cargar la del viernes).
+      if ((dia < hoy && !coversDay(dia, hoy)) || dia > addDays(hoy, DIAS_POR_ADELANTADO)) {
         return {
           ok: false,
           motivo: "INVALIDO",
           mensaje:
             dia < hoy
-              ? "Ese día ya pasó: una tasa se captura para hoy o para un día que viene."
+              ? "Esa fecha valor ya no rige: una tasa se captura para hoy o para un día que viene."
               : `Solo se captura con hasta ${DIAS_POR_ADELANTADO} días de adelanto.`,
           problemas: [{ path: ["effectiveDate"], message: "Día fuera de rango" }],
         };
@@ -159,9 +187,9 @@ export function casosTasas(base: Base): CasosTasas {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa tasa ya estaba confirmada." };
           }
           const dia = diaDe(tasa.effectiveDate);
-          if (dia < hoy) {
+          if (dia < hoy && !coversDay(dia, hoy)) {
             negada = "Tasa de un día que ya pasó";
-            return { ok: false, motivo: "INVALIDO", mensaje: "Esa tasa era para un día que ya pasó. Captura la de hoy." };
+            return { ok: false, motivo: "INVALIDO", mensaje: "Esa tasa era para un día que ya no rige. Captura la de hoy." };
           }
 
           // El límite de cordura se mide contra la última confirmada del par, de cualquier día.
@@ -239,6 +267,111 @@ export function casosTasas(base: Base): CasosTasas {
 
     async autorizadores(ctx) {
       return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, "tasa.confirmar"));
+    },
+
+    async sincronizar(ctx, { fuentes = FUENTES_REALES, ahora = Date.now() } = {}) {
+      // Traer una tasa es capturarla: lo puede quien captura (administración o supervisión).
+      if (!ctx.sistema) {
+        const p = await base.conTenant(ctx.tenantId, (tx) => permisoEn(tx, ctx, "tasa.confirmar"));
+        if (p === "DENEGADO") {
+          const r = rechazoDePermiso(p);
+          await auditarRechazo(base, ctx, { action: "tasa.sincronizar", reason: r.mensaje });
+          return r;
+        }
+      }
+
+      // Cada fuente por su lado: una que falla o se cuelga no tumba a la otra.
+      const lecturas = await Promise.all(
+        fuentes.map((leer) =>
+          leer().catch(() => ({ ok: false as const, fuente: "BCV" as const, error: "La fuente falló de forma inesperada." })),
+        ),
+      );
+      const informe = lecturas.map((l) =>
+        l.ok
+          ? { fuente: l.lectura.fuente, ok: true, detalle: `${l.lectura.value} Bs/$ con fecha valor ${l.lectura.effectiveDate}` }
+          : { fuente: l.fuente, ok: false, detalle: l.error },
+      );
+      const buenas = lecturas.flatMap((l) => (l.ok ? [l.lectura] : []));
+      if (buenas.length === 0) {
+        return {
+          ok: false,
+          motivo: "NO_DISPONIBLE",
+          mensaje: `Ninguna fuente respondió (${informe.map((f) => f.detalle).join(" ")}). Carga la tasa a mano.`,
+        };
+      }
+
+      // Solo interesa lo que rige hoy o lo que regirá en los próximos días.
+      const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+      const hasta = addDays(hoy, DIAS_POR_ADELANTADO);
+      const avisos: string[] = [];
+      const porDia = new Map<string, LecturaDeTasa[]>();
+      for (const l of buenas) {
+        if (!coversDay(l.effectiveDate, hoy) && !(l.effectiveDate > hoy && l.effectiveDate <= hasta)) continue;
+        porDia.set(l.effectiveDate, [...(porDia.get(l.effectiveDate) ?? []), l]);
+      }
+
+      // Dos fuentes que hablan del mismo día tienen que decir lo mismo; si no, algo anda mal
+      // (una fuente manipulada, amenaza T6) y ese día no se captura.
+      const elegidas: { lectura: LecturaDeTasa; confirmadaPor: LecturaDeTasa[] }[] = [];
+      for (const [dia, delDia] of [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+        const oficial = delDia.find((l) => l.fuente === "BCV") ?? delDia[0]!;
+        const discrepan = delDia.filter((l) => variationBasisPoints(oficial.value, l.value) > TOLERANCIA_ENTRE_FUENTES_BPS);
+        if (discrepan.length > 0) {
+          avisos.push(
+            `Las fuentes no coinciden para el ${dia} (${delDia.map((l) => `${l.fuente}: ${l.value}`).join(", ")}): no se capturó. Revísala y cárgala a mano.`,
+          );
+          continue;
+        }
+        elegidas.push({ lectura: oficial, confirmadaPor: delDia });
+      }
+
+      const r = await base.conTenant(ctx.tenantId, async (tx) => {
+        const capturadas: Fila[] = [];
+        const yaEstaban: { effectiveDate: string; value: string }[] = [];
+        for (const [i, { lectura, confirmadaPor }] of elegidas.entries()) {
+          const existentes = await tx.exchangeRate.findMany({
+            where: { pair: lectura.pair, effectiveDate: new Date(`${lectura.effectiveDate}T00:00:00.000Z`) },
+          });
+          if (existentes.some((e) => mismoValor(lectura.pair, e.value, lectura.value))) {
+            yaEstaban.push({ effectiveDate: lectura.effectiveDate, value: lectura.value });
+            continue;
+          }
+          const canal =
+            confirmadaPor.length > 1 ? "Sincronización BCV (2 fuentes)" : `Sincronización ${lectura.fuente === "BCV" ? "BCV" : "DolarApi"}`;
+          const fila = await tx.exchangeRate.create({
+            data: {
+              tenantId: ctx.tenantId,
+              pair: lectura.pair,
+              value: lectura.value,
+              // El valor es el oficial del BCV, lo traiga su web o quien la republica.
+              source: "BCV",
+              effectiveDate: new Date(`${lectura.effectiveDate}T00:00:00.000Z`),
+              // Un milisegundo por tasa: dos del mismo par no comparten instante de captura.
+              capturedAt: new Date(ahora + i),
+              capturedBy: null,
+              capturedByName: canal,
+              rawPayload: { lecturas: confirmadaPor.map((l) => ({ fuente: l.fuente, ...l.crudo })) } as Prisma.InputJsonValue,
+            },
+          });
+          capturadas.push({ ...fila, confirmation: null });
+        }
+        await auditar(tx, ctx, {
+          action: "tasa.sincronizar",
+          entityType: "exchange_rate",
+          after: {
+            capturadas: capturadas.map((c) => ({ id: c.id, value: c.value, effectiveDate: diaDe(c.effectiveDate) })),
+            yaEstaban,
+            fuentes: informe,
+            avisos,
+          },
+        });
+        return { capturadas, yaEstaban };
+      });
+
+      return {
+        ok: true,
+        valor: { capturadas: r.capturadas.map(dto), yaEstaban: r.yaEstaban, fuentes: informe, avisos },
+      };
     },
   };
 }

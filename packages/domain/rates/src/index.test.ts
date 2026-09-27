@@ -111,7 +111,7 @@ describe("la tasa del día: con la que se cobra (F3-05)", () => {
   const ayer = tasa({ id: "r1", value: "220.00", capturedAt: "2026-09-17T12:00:00.000Z" });
   const ahora = "2026-09-18T14:00:00.000Z";
 
-  test("la de ayer no sirve hoy aunque sea la última confirmada: se bloquea", () => {
+  test("la de ayer no sirve hoy aunque sea la última confirmada: se bloquea (jueves → viernes)", () => {
     assert.equal(currentRate([ayer], "USD/VES", ahora)?.id, "r1");
     assert.equal(rateOfDay([ayer], "USD/VES", "2026-09-18", ahora), null);
   });
@@ -141,6 +141,28 @@ describe("la tasa del día: con la que se cobra (F3-05)", () => {
     const mala = tasa({ id: "r4", value: "2284.10", capturedAt: "2026-09-18T12:00:00.000Z" });
     const buena = tasa({ id: "r5", value: "228.41", capturedAt: "2026-09-18T12:05:00.000Z" });
     assert.equal(rateOfDay([buena, mala], "USD/VES", "2026-09-18", ahora)?.id, "r5");
+  });
+
+  test("la del viernes vale el sábado y el domingo, que el BCV no publica", () => {
+    // 2026-09-25 es viernes.
+    const viernes = tasa({ id: "v", value: "855.66", capturedAt: "2026-09-24T21:00:00.000Z", effectiveDate: "2026-09-25" });
+    assert.equal(rateOfDay([viernes], "USD/VES", "2026-09-26", "2026-09-26T15:00:00.000Z")?.id, "v");
+    assert.equal(rateOfDay([viernes], "USD/VES", "2026-09-27", "2026-09-27T15:00:00.000Z")?.id, "v");
+  });
+
+  test("el lunes ya no vale la del viernes: exige la del lunes", () => {
+    const viernes = tasa({ id: "v", value: "855.66", capturedAt: "2026-09-24T21:00:00.000Z", effectiveDate: "2026-09-25" });
+    assert.equal(rateOfDay([viernes], "USD/VES", "2026-09-28", "2026-09-28T15:00:00.000Z"), null);
+    const lunes = tasa({ id: "l", value: "857.0058", capturedAt: "2026-09-25T21:00:00.000Z", effectiveDate: "2026-09-28" });
+    assert.equal(rateOfDay([viernes, lunes], "USD/VES", "2026-09-28", "2026-09-28T15:00:00.000Z")?.id, "l");
+    // Y el sábado anterior sigue cobrando con la del viernes, aunque la del lunes ya esté confirmada.
+    assert.equal(rateOfDay([viernes, lunes], "USD/VES", "2026-09-26", "2026-09-26T15:00:00.000Z")?.id, "v");
+  });
+
+  test("si la del lunes sigue pendiente, el lunes se bloquea (no cae a la del viernes)", () => {
+    const viernes = tasa({ id: "v", value: "855.66", capturedAt: "2026-09-24T21:00:00.000Z", effectiveDate: "2026-09-25" });
+    const lunes = tasa({ id: "l", value: "857.0058", capturedAt: "2026-09-25T21:00:00.000Z", effectiveDate: "2026-09-28", confirmed: false });
+    assert.equal(rateOfDay([viernes, lunes], "USD/VES", "2026-09-28", "2026-09-28T15:00:00.000Z"), null);
   });
 
   test("un día mal escrito se rechaza: no se adivina", () => {

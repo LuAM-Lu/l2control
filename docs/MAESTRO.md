@@ -195,6 +195,19 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   en el navegador con tres equipos: caja «Sin tasa» → capturar → confirmar (un valor mal tecleado
   se rechaza) → la caja cobra con Bs. 228,41 → supervisión confirma otra con autorización. Inicio
   del panel lee la misma tasa. Se borra `src/demo/tasas.ts`.*
+- [x] **B2-1b · Tasa traída del BCV** (F3-04) y **vigencia por días hábiles**.
+  → Lo traído entra pendiente y no cobra hasta confirmarlo; si la fuente cae, la carga manual sigue.
+  *Hecho el 2026-09-26: dos lectores, la web del BCV (valor y fecha valor) y DolarApi (respaldo y
+  contraste), probados en vivo. El servidor del BCV manda incompleta su cadena TLS: se añade el
+  intermediario público de Sectigo solo a esa conexión, sin apagar la verificación (un certificado
+  caducado se sigue rechazando). `tasas.sincronizar` captura PENDIENTE lo que rige hoy o en los
+  próximos 7 días, no repite, y si dos fuentes discrepan para el mismo día no captura ese día (T6).
+  Botón «Traer del BCV» y consulta automática cada hora (`L2_SINCRONIZAR_TASA`, se muda a
+  `apps/worker` en B5). **Se corrige la regla de B2-1:** la tasa rige desde su fecha valor hasta el
+  siguiente día hábil (la del viernes cubre el fin de semana; el lunes exige la del lunes); antes
+  exigía fecha valor = hoy y el parque no habría cobrado en bolívares los fines de semana. Las
+  pruebas de tasas corren con un reloj fijo. 9 pruebas nuevas de aplicación, 4 de lectores y 5 de
+  dominio. La caja escribía «45,81 Bs/$» con 229,05 (leía la fracción como /100): corregido.*
 - [ ] **B2-2 · Impuestos con vigencia** persistidos, más la pantalla **Configuración → Impuestos**
   (contrato `impuestos.ts`).
   → Programar una alícuota con fecha de hoy cambia el ticket; con fecha del mes que viene, no.
@@ -323,6 +336,7 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
 | El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | B4-4 (ajustes del local) |
 | El «día» de la tasa es el del calendario del local, no el que declara el turno (ADR-009) | B2-4 |
+| Los feriados entre semana no se conocen: ese día exige capturar la tasa a mano (aunque el BCV no publique) | Tabla de feriados, con B2-4 |
 | Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | Confirmar con el cliente |
 
 **Trampas del código.** Ninguna la caza `pnpm typecheck`; todas se ven abriendo la pantalla.
