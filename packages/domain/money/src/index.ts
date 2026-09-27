@@ -255,6 +255,15 @@ export function invertRate(rate: FrozenRate): FrozenRate {
   });
 }
 
+/**
+ * ¿Dos tasas congeladas dicen lo mismo? Por valor, no por cómo se escribieron: «857,0058» y
+ * «857,00580000» (como la publica el BCV) son la misma tasa, y 4581/20 es 45810/200. Sirve para
+ * saber si la tasa vigente cambió respecto de la de un cobro en curso (ADR-019 §7).
+ */
+export function sameRate(a: FrozenRate, b: FrozenRate): boolean {
+  return a.from === b.from && a.to === b.to && a.numerator * b.denominator === b.numerator * a.denominator;
+}
+
 export function compare(a: Money, b: Money): -1 | 0 | 1 {
   assertSameCurrency(a, b);
   if (a.amount < b.amount) return -1;

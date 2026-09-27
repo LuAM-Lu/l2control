@@ -26,9 +26,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.14.0 · 14 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas ya
-son de la base y se traen del BCV. **B2-1c (tasa automática y en vivo) tiene el código hecho y probado
-contra la base; falta verlo en el navegador** (ver su casilla en §3). Sin modo demo; lo provisional y lo simulado que queda está
+**Versión 0.15.0 · 15 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas
+son de la base, se traen del BCV, **se aplican solas con salvaguardas y llegan en vivo a toda pantalla
+(B2-1c)**. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -48,20 +48,14 @@ número del medio cuenta los pasos entregados.
 - **Pruebas:** `pnpm verify:db` en verde (28 de base, 113 de aplicación, 47 de tasas en el dominio). **Subido a GitHub el
   2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
 
-**La tasa: diagnóstico del 2026-09-26.** Todo se resuelve en B2-1c; el código ya lo cubre (2 a 6)
-y falta comprobarlo en el navegador:
+**La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
+viernes 25 (855,6625, solo DolarApi) y la del lunes 28 (857,0058, web del BCV), retenidas las dos. La
+del viernes la confirmó Abigail Karam al comprobar B2-1c; la del lunes se aplicó sola en cuanto hubo
+vigente. Para probar el aviso de la caja se aplicaron a mano para el domingo 27, dos veces, 860,00 y
+luego 855,6625: la vigente de ese día quedó en 855,6625, el valor del BCV. Equipos de prueba «Verif Caja» y «Verif
+Admin» revocados.
 
-1. ~~En la base local había tasas de prueba (Bs. 228,41 y 229,05) que mandaban sobre la real del
-   BCV.~~ **Base local vaciada y sembrada de cero el 2026-09-27** (pedido del cliente): los equipos
-   se vuelven a aprobar.
-2. Lo traído del BCV entra pendiente y espera a una persona; el cliente pide que se aplique sola (M-8).
-3. Las estaciones solo ven una tasa nueva al navegar: no hay actualización en vivo.
-4. La alerta de Inicio «La tasa del día no está confirmada» lleva a `/caja` y no a la pantalla de tasas.
-5. La consulta al BCV es cada hora; el cliente quiere el cambio en el momento.
-6. Un cobro abierto en la caja no congela su tasa: si cambia a mitad del cobro, los bolívares cambian.
-
-**Siguiente paso:** terminar B2-1c en el navegador (lo que falta está en su casilla de §3). Luego, el
-orden de §3.
+**Siguiente paso:** B2-2 (impuestos con vigencia y Configuración → Impuestos). Luego, el orden de §3.
 
 ---
 
@@ -118,7 +112,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
 
-1. ~~Limpiar la base local → T-1~~ → **B2-1c** → B2-2 → B2-3 → B2-4 (se cierra Dinero).
+1. ~~Limpiar la base local → T-1 → B2-1c~~ → **B2-2** → B2-3 → B2-4 (se cierra Dinero).
 2. B3-1 → B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
@@ -280,7 +274,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   exigía fecha valor = hoy y el parque no habría cobrado en bolívares los fines de semana. Las
   pruebas de tasas corren con un reloj fijo. 9 pruebas nuevas de aplicación, 4 de lectores y 5 de
   dominio. La caja escribía «45,81 Bs/$» con 229,05 (leía la fracción como /100): corregido.*
-- [~] **B2-1c · Tasa automática y en vivo** (M-8, ADR-019).
+- [x] **B2-1c · Tasa automática y en vivo** (M-8, ADR-019).
   → Un cambio de la tasa del BCV llega a todas las pantallas sin navegar, en menos de 1 minuto (menos
   de 2 s tras B5-1), y la caja cobra con él sin que nadie lo confirme. Un salto de más del 10 %, la
   primera tasa o un valor solo de un tercero no se aplican solos: salen como alerta crítica. Un cobro
@@ -295,34 +289,32 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
     ventas, Inicio);
   - la alerta de Inicio llevando a Tasas y diciendo «Sin tasa vigente».
 
-  *Código hecho el 2026-09-27, sin versión todavía (falta el navegador):*
+  *Hecho el 2026-09-27 (v0.15.0):*
   *· Dominio: `autoApplyDecision` (SOLO_TERCERO → PRIMERA → SALTO), `heldRates`,
-  `missingNextBusinessDayRate`, `isBusinessDay`/`nextBusinessDay`; 13 pruebas nuevas.*
+  `missingNextBusinessDayRate`, `isBusinessDay`/`nextBusinessDay`; 13 pruebas nuevas. En
+  `@l2/domain-money`, `sameRate`: dos tasas se comparan por valor (857,0058 = 857,00580000).*
   *· Base: migración `20260929000000_tasa_automatica`: `exchange_rate.held_back` (solo si la trajo un
   proceso) y `exchange_rate_confirmation.automatic` (sin persona, autorizador ni doble tecleo), con
   CHECK y 2 pruebas.*
   *· Aplicación: `sincronizar` aplica sola con asiento `tasa.aplicar` y a nombre de «Aplicada
-  automáticamente (BCV)», y vuelve a mirar las pendientes que trajo un proceso (la del lunes, retenida
-  por ser la primera, se aplica sola en cuanto hay vigente); `capturar` de administración se aplica al
-  guardar (tecleada dos veces si salta o es la primera), la de supervisión sigue con 🔐; `leer(ctx,
-  ahora)` devuelve `alertas` (RETENIDA crítica, FALTA_SIGUIENTE aviso desde las 6:00 pm de un día
-  hábil). 113 pruebas de aplicación.*
-  *· Web: acción `leerTasas` y sondeo de 60 s y al volver el foco en `TasasProvider`; Tasas con
-  alertas arriba, «Revisar y confirmar», «Guardar y aplicar» con segundo tecleo, «Aplicada sola» y el
-  motivo de la retenida en el historial; Inicio y su franja leen `useTasaVigente` (se retira el
-  cálculo del servidor en `panel/page.tsx`) y la alerta dice «Sin tasa vigente» y lleva a Tasas; la
-  caja congela la tasa con el primer pago y avisa «La tasa cambió… Usar la nueva» (sin vigente, no
-  cobra en Bs.); consulta al arrancar (5 s) y cada 15 min, alejándose 30/60 min si ninguna fuente
-  responde.*
-  *· Visto en vivo con la base vacía: la del viernes (855,6625) solo la dio DolarApi → retenida
-  SOLO_TERCERO; la del lunes (857,0058, web del BCV) → retenida PRIMERA; Inicio y Tasas lo enseñan
-  bien a 1366×768 y sin errores de consola.*
-  *Falta: (1) confirmar la del viernes en Tasas y ver que la barra de otro equipo la recibe en menos
-  de 60 s sin navegar; (2) «Traer del BCV» aplica sola la del lunes; (3) en la caja, venta directa →
-  pago en Bs. → cambiar la tasa desde administración → aviso y «Usar la nueva»; (4) medir Tasas,
-  Inicio y caja a 1366×768, 1280×800 y 800×1280; (5) actualizar «Situación en el código» de ADR-019;
-  (6) cerrar: CHANGELOG 0.15.0, versión y etiqueta. Guiones de Playwright: `comun.cjs` y `explorar.cjs`
-  en el scratchpad de la sesión del 2026-09-27.*
+  automáticamente (BCV)», y vuelve a mirar las pendientes que trajo un proceso; `capturar` de
+  administración se aplica al guardar (tecleada dos veces si salta o es la primera), la de supervisión
+  sigue con 🔐; `leer(ctx, ahora)` devuelve `alertas` (RETENIDA crítica, FALTA_SIGUIENTE aviso desde
+  las 6:00 pm de un día hábil).*
+  *· Web: sondeo de 60 s y al volver el foco en `TasasProvider`; Tasas con alertas, «Revisar y
+  confirmar», «Guardar y aplicar» y «Aplicada sola»; Inicio lee `useTasaVigente` y su alerta dice «Sin
+  tasa vigente» y lleva a Tasas; consulta al BCV al arrancar y cada 15 min, alejándose si no responde.
+  La caja congela la tasa con el primer pago y, si la vigente cambia, lo dice en la franja del medio
+  (56 px fijos): «Tasa nueva» con «Mantener» y «Usar la nueva». La primera versión del aviso iba
+  dentro del visor, ocupaba cuatro renglones y sacaba «Cerrar cobro» de la pantalla a 1366×768.*
+  *· Comprobado en el navegador con dos equipos: confirmar la del viernes en Tasas llega a la barra de
+  la caja a los 57 s sin navegar; «Traer del BCV» aplica sola la del lunes («Aplicada sola: …») y se
+  va la alerta; con un pago en Bs. a medias, aplicar otra tasa desde administración saca el aviso en
+  la caja a los 55 s, «Usar la nueva» reconvierte (Bs. 4.954,29 → 4.979,40) y «Mantener» sigue con la
+  del cobro. Tasas, Inicio y caja a 1366×768, 1280×800 y 800×1280 sin desplazar el documento ni
+  desbordar a lo ancho, con «Cerrar cobro» siempre a la vista; sin errores de consola.*
+  *Queda para después: el rechazo en el servidor de un cobro con una tasa que ya no rige (B3-3), el
+  empuje en menos de 2 s (B5-1) y el umbral configurable (D-CORD).*
 - [ ] **B2-2 · Impuestos con vigencia** persistidos, más la pantalla **Configuración → Impuestos**
   (contrato `impuestos.ts`).
   → Programar una alícuota con fecha de hoy cambia el ticket; con fecha del mes que viene, no.
@@ -457,7 +449,7 @@ antes del cobro en servidor (orden de ejecución).
 | — | Informes del panel ejecutivo (F9-01 a F9-07) | Después del piloto; Inicio ya enseña el día | — |
 | F-12 | ¿El teléfono entra en el objetivo? | Revisarlo en B7-3 | B7-3 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
-| D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente | B2-1c |
+| D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente (hoy fijo en el código) | B7-2 |
 | D-FER | Calendario de feriados bancarios de Venezuela | Cargarlo por año desde el panel, con los de ley precargados | B2-4 |
 | D-INV | Alcance del inventario en el piloto | Solo productos de mostrador (bebidas, snacks); los insumos de cocina con el restaurante | B9-1 |
 | D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? (hoy sí, `canAuthorize`) | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona | B3-4 |
@@ -490,7 +482,7 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
-| El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | B2-1c (umbral, D-CORD) y B4-4 (zona) |
+| El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | D-CORD (umbral) y B4-4 (zona) |
 | El «día» de la tasa es el del calendario del local, no el que declara el turno (ADR-009) | B2-4 |
 | Los feriados entre semana no se conocen: ese día exige capturar la tasa a mano (aunque el BCV no publique) | B2-4 (D-FER) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
@@ -554,7 +546,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
-| F3 · Dinero | Tasas en la base y traídas del BCV (B2-1, B2-1b) | Tasa automática y en vivo (B2-1c), impuestos, libro y `businessDate`. **Sin F3-08** (M-3) |
+| F3 · Dinero | Tasas en la base, traídas del BCV, aplicadas solas y en vivo (B2-1, B2-1b, B2-1c) | Impuestos, libro y `businessDate`. **Sin F3-08** (M-3) |
 | F4 · Caja | Interfaz completa | Turno, libro, cortes y excepciones reales (Etapa 3) |
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
@@ -594,6 +586,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   T-1: la versión se ve en el acceso y en Configuración (v0.14.0), con CHANGELOG y etiquetas.
   B2-1c con el código hecho (la tasa del BCV se aplica sola con salvaguardas, sondeo de 60 s, la caja
   congela la tasa del cobro); falta verlo en el navegador.
+- **2026-09-27** · B2-1c comprobado en el navegador y entregado (v0.15.0): el aviso de tasa cambiada
+  pasa a la franja fija de la caja con «Mantener» y «Usar la nueva». Sigue B2-2.
 
 ---
 

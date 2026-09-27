@@ -4,7 +4,20 @@
   un punto: la tasa traída automáticamente ya no espera siempre la confirmación de una persona.
   ADR-005 (la tasa se congela en cada transacción) sigue entero.
 - **Fecha:** 2026-09-26
-- **Situación en el código:** pendiente, paso B2-1c del MAESTRO. Hoy lo traído entra pendiente (B2-1b).
+- **Situación en el código:** hecha en B2-1c (v0.15.0, 2026-09-27), salvo lo que depende de pasos
+  posteriores:
+  - Puntos 1 a 5 y 8: `autoApplyDecision`, `heldRates` y `missingNextBusinessDayRate` en
+    `@l2/domain-rates`; `tasas.sincronizar` y `tasas.capturar` en `@l2/application`; columnas
+    `exchange_rate.held_back` y `exchange_rate_confirmation.automatic` con su CHECK. La respuesta cruda
+    de la fuente va en `rawPayload` de la tasa; el umbral es fijo (`UMBRAL_VARIACION_BPS`, 10 %)
+    hasta que se decida D-CORD.
+  - Punto 6: sondeo de 60 s y al volver el foco en `TasasProvider`. Medido en el navegador: la barra de
+    otro equipo recibió la tasa confirmada a los 57 s, sin navegar. El empuje en menos de 2 s llega con
+    B5-1, que también muda la consulta al BCV a `apps/worker`.
+  - Punto 7: la caja congela la tasa con el primer pago; si la vigente cambia, la franja del medio
+    dice «Tasa nueva» con «Mantener» y «Usar la nueva», sin mover el teclado. Las tasas se comparan
+    por valor (`sameRate`), no por cómo se escribieron. **Falta el rechazo en el servidor** de un cobro
+    con una tasa que ya no rige: llega con el cobro en el servidor (B3-3).
 
 > Para cambiar esta decisión se escribe un ADR nuevo que la supersede.
 > No se edita esta en silencio.

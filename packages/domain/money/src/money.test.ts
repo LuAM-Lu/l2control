@@ -22,6 +22,7 @@ import {
   convert,
   invertRate,
   RateMismatchError,
+  sameRate,
   type FrozenRate,
   subtract,
   sum,
@@ -148,6 +149,16 @@ describe("conversión con tasa congelada (ADR-005)", () => {
     assert.deepEqual({ ...vuelta }, { ...TASA });
     // Y el importe sobrevive el viaje de ida y vuelta.
     assert.equal(toMajor(convert(convert(fromMajor("228.41", "VES"), TASA), ida)), "228.41");
+  });
+
+  test("dos tasas son la misma por su valor, no por cómo se escribieron", () => {
+    // 857,0058 y 857,00580000: el BCV publica con ocho decimales, una persona teclea menos.
+    const bcv: FrozenRate = { from: "VES", to: "USD", numerator: 85700580000n, denominator: 100000000n };
+    const tecleada: FrozenRate = { from: "VES", to: "USD", numerator: 8570058n, denominator: 10000n };
+    assert.equal(sameRate(bcv, tecleada), true);
+    assert.equal(sameRate(TASA, { ...TASA, numerator: 22842n }), false);
+    // La misma fracción en el otro sentido no es la misma tasa.
+    assert.equal(sameRate(TASA, { ...TASA, from: "USD", to: "VES" }), false);
   });
 
   test("una tasa de cero tampoco se puede invertir", () => {

@@ -30,6 +30,7 @@ import {
   invertRate,
   money,
   multiply,
+  sameRate,
   toMajor,
   zero,
 } from "@l2/domain-money";
@@ -253,16 +254,28 @@ function CobroCuenta({
    * servidor rechazará además una tasa que ya no rige (B3-3).
    */
   const [tasaDelCobro, setTasaDelCobro] = useState<{ rate: FrozenRate; valor: string } | null>(null);
+  /** La vigente que la cajera decidió no usar en este cobro («Mantener»). Si cambia otra vez, se vuelve a avisar. */
+  const [tasaMantenida, setTasaMantenida] = useState<string | null>(null);
   const cobroEnCurso = pagos.length > 0 || pendienteDeDatos !== null;
   useEffect(() => {
-    if (!cobroEnCurso) setTasaDelCobro(null);
-    else setTasaDelCobro((t) => t ?? (rateVivo && tasaValorViva ? { rate: rateVivo, valor: tasaValorViva } : null));
+    if (!cobroEnCurso) {
+      setTasaDelCobro(null);
+      setTasaMantenida(null);
+    } else setTasaDelCobro((t) => t ?? (rateVivo && tasaValorViva ? { rate: rateVivo, valor: tasaValorViva } : null));
   }, [cobroEnCurso, rateVivo, tasaValorViva]);
   const congelada = cobroEnCurso && rateVivo !== null ? tasaDelCobro : null;
   const rate = rateVivo === null ? null : (congelada?.rate ?? rateVivo);
   const tasaValor = rateVivo === null ? null : (congelada?.valor ?? tasaValorViva);
-  /** La vigente ya no es la de este cobro: se avisa y se ofrece cambiar. */
-  const tasaCambio = congelada !== null && tasaValorViva !== null && tasaValorViva !== congelada.valor;
+  /**
+   * La vigente ya no es la de este cobro y nadie ha decidido: se avisa en la franja del medio,
+   * que mide siempre lo mismo, para que el teclado y «Cerrar cobro» no se muevan.
+   */
+  const tasaCambio =
+    congelada !== null &&
+    rateVivo !== null &&
+    tasaValorViva !== null &&
+    !sameRate(rateVivo, congelada.rate) &&
+    tasaValorViva !== tasaMantenida;
 
   /** A nombre de quién sale la factura: consumidor final salvo que se pida (DEC-23). */
   const [cliente, setCliente] = useState<ClienteFacturaDto>(CONSUMIDOR_FINAL);
@@ -1285,28 +1298,6 @@ function CobroCuenta({
               </span>
             </p>
           )}
-          {tasaCambio && congelada && tasaValorViva && rateVivo && (
-            <div
-              role="status"
-              className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-2.5 py-1.5"
-            >
-              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-medium text-state-warn">
-                <TriangleAlert size={14} className="shrink-0" aria-hidden="true" />
-                <span className="tnum">
-                  La tasa cambió a {formatTasaVE(tasaValorViva)}. Este cobro sigue con {formatTasaVE(congelada.valor)}.
-                </span>
-              </p>
-              <Button
-                type="button"
-                surface="pos"
-                variant="secondary"
-                className="shrink-0"
-                onClick={() => setTasaDelCobro({ rate: rateVivo, valor: tasaValorViva })}
-              >
-                Usar la nueva
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* ── medio de pago con iconos y jerarquía financiera ── */}
@@ -1383,7 +1374,43 @@ function CobroCuenta({
 
         {/* ── franja del medio: SIEMPRE 56 px, ni uno más ── */}
         <div className="md:bajo:col-start-1 md:bajo:row-start-3 h-14 overflow-hidden">
-          {cubierto && sobra.amount > 0n ? (
+          {tasaCambio && congelada && tasaValorViva && rateVivo ? (
+            // La tasa cambió con el cobro en curso (ADR-019 §7): el cobro sigue con la suya hasta
+            // que se decida. Va primero porque cambia los bolívares de todo lo demás.
+            <div role="group" aria-label="La tasa cambió" className="grid h-14 grid-cols-[minmax(0,1fr)_auto_auto] gap-1.5">
+              <p
+                role="status"
+                className="flex min-w-0 items-center gap-1.5 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-2 text-state-warn"
+              >
+                <TriangleAlert size={14} className="shrink-0" aria-hidden="true" />
+                {/* La del cobro ya se lee arriba («En bolívares · 860,00 Bs/$»): aquí, solo la nueva. */}
+                <span className="tnum flex min-w-0 flex-col text-[11.5px] leading-tight">
+                  <span className="truncate font-bold">Tasa nueva</span>
+                  <span className="truncate">Bs. {formatTasaVE(tasaValorViva)}</span>
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setTasaMantenida(tasaValorViva)}
+                className={cn(
+                  "min-h-14 cursor-pointer rounded-[var(--radius-control)] border border-line bg-base px-2.5 text-[12px] font-semibold text-ink-2",
+                  "hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                )}
+              >
+                Mantener
+              </button>
+              <button
+                type="button"
+                onClick={() => setTasaDelCobro({ rate: rateVivo, valor: tasaValorViva })}
+                className={cn(
+                  "min-h-14 cursor-pointer rounded-[var(--radius-control)] border border-brand bg-brand/15 px-2.5 text-[12px] font-bold text-brand",
+                  "hover:bg-brand/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                )}
+              >
+                Usar la nueva
+              </button>
+            </div>
+          ) : cubierto && sobra.amount > 0n ? (
             // El excedente exige una decisión: no se cierra solo (§5.6).
             <div
               role="radiogroup"

@@ -12,16 +12,18 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.15.0] — 2026-09-27 · Etapa 2 · Dinero
 
-B2-1c · Tasa automática y en vivo (a falta de comprobarla en el navegador).
+B2-1c · Tasa automática y en vivo.
 
 ### Añadido
 - La tasa de la web del BCV se aplica sola si no salta más del 10 % de la vigente. Si es la primera
   del local, salta más o solo la dio DolarApi, queda pendiente y sale una alerta crítica en Inicio y
   en Tasas con «Revisar y confirmar».
 - Todas las pantallas ven la tasa nueva en menos de un minuto, sin navegar.
-- Un cobro en curso conserva su tasa; si cambia, la caja lo avisa y ofrece «Usar la nueva».
+- Un cobro en curso conserva su tasa. Si cambia, la caja lo dice en la franja de encima del teclado
+  («Tasa nueva») y la cajera elige «Mantener» o «Usar la nueva»; el teclado y «Cerrar cobro» no se
+  mueven de sitio. Una tasa escrita con más decimales, pero con el mismo valor, no cuenta como cambio.
 - Aviso si a las 6:00 pm de un día hábil el BCV no ha publicado la del día hábil siguiente.
 
 ### Cambiado
