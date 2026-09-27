@@ -45,7 +45,7 @@ número del medio cuenta los pasos entregados.
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
 - **Pruebas:** `pnpm verify:db` en verde (26 de base, 105 de aplicación). **Subido a GitHub el
-  2026-09-26** (`main`); el CI corre allí por primera vez: comprobar su resultado cierra B0-4.
+  2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
 
 **La tasa todavía no funciona bien en todo el sistema.** Diagnóstico del 2026-09-26, y todo se
 resuelve en B2-1c:
@@ -165,8 +165,9 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   *Hecho en local el 2026-09-26: `.github/workflows/ci.yml` (acciones fijadas por hash, Node 24,
   mismo `docker-compose.yml`, `pnpm verify:db`) y `pnpm lint` con 5 reglas y 9 pruebas que demuestran
   que muerden: `toFixed` fuera de `@l2/ui`, `parseFloat`, colores literales, reloj en el dominio y
-  emojis en pantalla. Excepciones solo con `lint-permitido: <regla> — <motivo>`. **Falta verlo en
-  rojo en GitHub: necesita un push.***
+  emojis en pantalla. Excepciones solo con `lint-permitido: <regla> — <motivo>`. **Visto en verde en
+  GitHub el 2026-09-26** (primer push, `verify:db` completo con la base en el runner). Falta ver en
+  rojo un PR con una violación a propósito (una rama de prueba que no se fusiona).*
 - [x] **B0-5 · La costura entre demo y servidor** (`packages/application`). Se fija un patrón único:
   acción de servidor → contrato Zod → dominio → repositorio en transacción con `SET LOCAL app.tenant_id`.
   El primer caso vertical es el **tarifario**: leer y publicar.
@@ -576,5 +577,5 @@ Siguiente: T-1 (versión visible en acceso y Configuración, CHANGELOG, etiqueta
   aplicada sola con salvaguardas, en vivo cada 60 s, cobro en curso conserva su tasa; ADR-019).
 Luego el orden de §3: B2-2 → B2-3 → B2-4 → B3-1 → B3-2 → B9-1 → B3-3 … Inventario = Etapa 9 (M-9).
 Cuidado: cada paso cumple la DoD de §3 y borra lo suyo del inventario de simulación de §5 (M-11).
-Puerta: pnpm verify:db. Todo subido a GitHub (main); mira el CI allí (cierra B0-4). Push solo si se pide.
+Puerta: pnpm verify:db. Todo subido a GitHub (main) y CI en verde; push solo si se pide.
 ```
