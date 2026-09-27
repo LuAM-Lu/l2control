@@ -64,12 +64,20 @@ dependa de la tasa de mañana.
 ## El libro de pagos (B2-3, §5.5)
 
 `libro.ts`: el asiento (`LedgerEntry`) y sus reglas. Un asiento nuevo es positivo, en la moneda de
-su medio y, si es en bolívares, con su tasa congelada (`entryProblem`); el vuelto solo sale en
-efectivo. Un error se corrige con `reversalOf`: el mismo asiento con el signo contrario, apuntando
+su medio y, si es en bolívares, con su tasa congelada (`entryProblem`, que recibe el medio del
+catálogo); el vuelto solo sale de un medio que da vuelto, y un cobro trae los datos que su medio
+pide, y solo esos. Un error se corrige con `reversalOf`: el mismo asiento con el signo contrario, apuntando
 al original, que no cambia; `reversalProblem` impide revertir dos veces o revertir una reversión.
 `ledgerBalance` suma el libro de un documento en la moneda funcional, cada asiento con SU tasa.
-El USDT va a la par (`USDT_AT_PAR`, DEC-1). Qué medios disparan IGTF por defecto está en
-`LEDGER_METHODS`, hasta que los medios sean configurables (B3-2).
+El USDT va a la par (`USDT_AT_PAR`, DEC-1).
+
+## El catálogo de medios (B3-2, F4-02, §9.9)
+
+`medios.ts`: un medio es un dato (`LedgerMethodSpec`), no una constante. `DEFAULT_LEDGER_METHODS`
+son los siete de §5.5 con los que nace un local (los que piden datos del local, apagados).
+`methodDefinitionProblem` dice si un medio nuevo tiene sentido (solo da vuelto el efectivo de la
+gaveta, que no pide referencia); `offerProblem` y `offeredMethods`, qué puede ofrecer la caja:
+encendido y con los datos del local que el cliente necesita.
 
 ## Qué NO le corresponde
 

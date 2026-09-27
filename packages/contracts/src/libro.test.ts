@@ -1,8 +1,10 @@
 /**
  * Pruebas del libro de pagos en el cable — B2-3, §5.5.
  *
- * Lo que no se puede expresar: un importe cero o negativo, la moneda que no es la del medio,
- * bolívares sin tasa, quién cobra o el IGTF declarados por el navegador, y un «Otro» sin explicar.
+ * Lo que no se puede expresar: un importe cero o negativo, un medio que no es un código,
+ * bolívares sin tasa, quién cobra o el IGTF declarados por el navegador, datos de pago fuera de un
+ * cobro y un «Otro» sin explicar. La moneda del medio la comprueba el servidor contra el catálogo
+ * del local (B3-2).
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -24,8 +26,19 @@ describe("un asiento", () => {
     for (const minor of ["0", "-580"]) assert.equal(AsientoNuevoSchema.safeParse(usd(minor)).success, false, minor);
   });
 
-  test("en la moneda del medio", () => {
-    assert.equal(AsientoNuevoSchema.safeParse({ ...usd("580"), amount: { minor: "580", currency: "VES" }, rateId: TASA }).success, false);
+  test("el medio es un código del catálogo, no un nombre", () => {
+    for (const method of ["efectivo", "Pago Móvil", "PM"]) {
+      assert.equal(AsientoNuevoSchema.safeParse({ ...usd("580"), method }).success, false, method);
+    }
+    // Un medio que el local añadió sin desplegar (F4-02) es un código como cualquier otro.
+    assert.equal(AsientoNuevoSchema.safeParse({ ...usd("580"), method: "BIOPAGO" }).success, true);
+  });
+
+  test("el cobro lleva los datos del pago; el vuelto, no", () => {
+    const datos = { kind: "PAGO_MOVIL", reference: "123456", bankCode: "0102" };
+    assert.equal(AsientoNuevoSchema.safeParse({ ...bs("427831", TASA), datos }).success, true);
+    assert.equal(AsientoNuevoSchema.safeParse({ ...bs("427831", TASA), kind: "VUELTO", datos }).success, false);
+    assert.equal(AsientoNuevoSchema.safeParse({ ...bs("427831", TASA), datos: { ...datos, reference: "12" } }).success, false);
   });
 
   test("bolívares sin tasa, o dólares con tasa, no", () => {

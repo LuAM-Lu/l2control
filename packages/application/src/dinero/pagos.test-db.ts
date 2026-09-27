@@ -1,5 +1,6 @@
 /**
- * El libro de pagos en el servidor, contra l2control_test — B2-3, §5.5, F3-09, F3-10.
+ * El libro de pagos en el servidor, contra l2control_test — B2-3, §5.5, F3-09, F3-10; y desde
+ * B3-2, el medio del catálogo del local y los datos de cada pago, cifrados (F4-04, §7.6).
  *
  * Con reloj fijo (domingo 27 de septiembre de 2026, 10:00 am en Caracas): la tasa del día y el
  * IGTF vigente dependen de él. Corre con `pnpm test:db`.
@@ -32,7 +33,15 @@ const FONDO = {
   ],
 };
 const usd = (major: string) => ({ kind: "COBRO", method: "EFECTIVO_USD", amount: { minor: major.replace(".", ""), currency: "USD" } });
-const pagoMovil = (major: string, rateId: string) => ({ kind: "COBRO", method: "PAGO_MOVIL", amount: { minor: major.replace(".", ""), currency: "VES" }, rateId });
+let referencias = 400000;
+/** Un Pago Móvil con su referencia (F4-04); cada uno, una distinta salvo que se diga. */
+const pagoMovil = (major: string, rateId: string, reference = String(++referencias)) => ({
+  kind: "COBRO",
+  method: "PAGO_MOVIL",
+  amount: { minor: major.replace(".", ""), currency: "VES" },
+  rateId,
+  datos: { kind: "PAGO_MOVIL", reference, bankCode: "0102" },
+});
 const cobro = (asientos: unknown[], documentId = DOC, idempotencyKey: string = randomUUID()) => ({ idempotencyKey, documentId, asientos });
 const valor = <T,>(r: { ok: true; valor: T } | { ok: false; mensaje: string }): T => {
   assert.ok(r.ok, JSON.stringify(r));
@@ -65,6 +74,9 @@ before(async () => {
   ]) {
     valor(await local.app.impuestos.programar(local.sistema, cmd, AHORA - 60_000));
   }
+  // El Pago Móvil del local, con sus datos y encendido (B3-2).
+  valor(await local.app.medios.aplicar(local.sistema, { kind: "DATOS_PAGO_MOVIL", datos: { bankCode: "0134", phone: "0414-2345678", document: "J-40123456-7" } }));
+  valor(await local.app.medios.aplicar(local.sistema, { kind: "ACTIVAR", code: "PAGO_MOVIL", activo: true }));
 });
 
 after(async () => {
@@ -263,6 +275,71 @@ describe("revertir (F3-10)", () => {
     const rev = asientos.find((a) => a.action === "pago.revertir")!;
     assert.equal(rev.reason, "ERROR_EN_COBRO");
     assert.equal((rev.before as { amountMinor?: string }).amountMinor, "300");
+  });
+});
+
+describe("el medio y los datos del pago (B3-2, F4-04, §7.6)", () => {
+  test("un Pago Móvil sin su referencia no se asienta: no se podría conciliar", async () => {
+    const { datos: _sin, ...sinDatos } = pagoMovil("100.00", tasa);
+    const r = await local.app.pagos.asentar(ctxCajera, cobro([sinDatos]), AHORA);
+    assert.equal(!r.ok && r.motivo, "INVALIDO");
+    assert.match(JSON.stringify(r), /FALTAN_DATOS/);
+  });
+
+  test("la referencia se guarda cifrada, sale enmascarada y no llega a la auditoría", async () => {
+    const doc = randomUUID();
+    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "0987654321")], doc), AHORA));
+    assert.equal(libro.asientos[0]!.referencia, "Banco 0102 · Ref. ···4321");
+    const fila = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.payment.findUniqueOrThrow({ where: { id: libro.asientos[0]!.id } }));
+    assert.ok(fila.referenceCipher && !fila.referenceCipher.includes("0987654321"));
+    assert.match(fila.referenceDigest ?? "", /^[0-9a-f]{64}$/);
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "payment", entityId: fila.id });
+    assert.ok(!JSON.stringify(asientos).includes("0987654321"));
+    assert.ok(!JSON.stringify(asientos).includes(fila.referenceCipher));
+  });
+
+  test("una referencia ya cobrada no se cobra otra vez; revertido el cobro, sí", async () => {
+    const primero = valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], randomUUID()), AHORA));
+    const otraVez = await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], randomUUID()), AHORA);
+    assert.equal(!otraVez.ok && otraVez.motivo, "CONFLICTO");
+    assert.match(!otraVez.ok ? otraVez.mensaje : "", /ya se cobró el 2026-09-27/);
+    // Dos veces en el mismo cobro, tampoco.
+    const doble = await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("100.00", tasa, "7778889"), pagoMovil("100.00", tasa, "7778889")]), AHORA);
+    assert.equal(!doble.ok && doble.motivo, "INVALIDO");
+    // Otro banco de origen con el mismo número es otro pago.
+    const deOtroBanco = pagoMovil("855.66", tasa, "5551234");
+    valor(await local.app.pagos.asentar(ctxCajera, cobro([{ ...deOtroBanco, datos: { ...deOtroBanco.datos, bankCode: "0105" } }], randomUUID()), AHORA));
+    valor(await local.app.pagos.revertir(ctxAdmin, { idempotencyKey: randomUUID(), paymentId: primero.asientos[0]!.id, motivo: "ERROR_EN_COBRO" }, undefined, AHORA));
+    valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], randomUUID()), AHORA));
+  });
+
+  test("un medio apagado no cobra, ni uno que el local no tiene", async () => {
+    const zelle = { kind: "COBRO", method: "ZELLE", amount: { minor: "500", currency: "USD" }, datos: { kind: "ZELLE", holder: "Cliente de prueba" } };
+    const r = await local.app.pagos.asentar(ctxCajera, cobro([zelle]), AHORA);
+    assert.equal(!r.ok && r.motivo, "INVALIDO");
+    assert.match(!r.ok ? r.mensaje : "", /apagado/);
+    const noExiste = await local.app.pagos.asentar(ctxCajera, cobro([{ ...usd("5.00"), method: "CHEQUE" }]), AHORA);
+    assert.equal(!noExiste.ok && noExiste.motivo, "INVALIDO");
+  });
+
+  test("el IGTF lo decide el catálogo: un medio en dólares añadido sin IGTF no lo lleva (F4-02)", async () => {
+    valor(await local.app.medios.aplicar(local.sistema, { kind: "AÑADIR_MEDIO", medio: { code: "DOLAR_EXENTO", label: "Dólar exento", currency: "USD", triggersIgtf: false, canGiveChange: false } }));
+    valor(await local.app.medios.aplicar(local.sistema, { kind: "ACTIVAR", code: "DOLAR_EXENTO", activo: true }));
+    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([{ ...usd("5.00"), method: "DOLAR_EXENTO" }], randomUUID()), AHORA));
+    assert.deepEqual(libro.asientos[0]!.igtf, { minor: "0", currency: "USD" });
+    // El efectivo en dólares, en cambio, sí.
+    const efectivo = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("5.00")], randomUUID()), AHORA));
+    assert.deepEqual(efectivo.asientos[0]!.igtf, { minor: "15", currency: "USD" });
+  });
+
+  test("el punto de venta dice su terminal vigente", async () => {
+    const terminal = valor(await local.app.medios.aplicar(local.sistema, { kind: "AÑADIR_TERMINAL", terminal: { name: "Punto Libro", bank: "Banesco" } })).terminales[0]!;
+    valor(await local.app.medios.aplicar(local.sistema, { kind: "ACTIVAR", code: "PDV_DEBITO", activo: true }));
+    const punto = (terminalId: string) => ({ kind: "COBRO", method: "PDV_DEBITO", amount: { minor: "50000", currency: "VES" }, rateId: tasa, datos: { kind: "PUNTO", terminalId, reference: String(++referencias) } });
+    const r = await local.app.pagos.asentar(ctxCajera, cobro([punto(randomUUID())]), AHORA);
+    assert.equal(!r.ok && r.motivo, "INVALIDO");
+    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([punto(terminal.id)], randomUUID()), AHORA));
+    assert.match(libro.asientos[0]!.referencia ?? "", /^Punto · Ref\. ···/);
   });
 });
 

@@ -11,15 +11,13 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 | Archivo | Qué inventa | Se va con |
 |---|---|---|
 | `usuarios.ts` | Quién autoriza en los diálogos de anular y cortesía de la caja (usuarios, acceso y permisos ya son de la base) | B3-4 |
-| `medios.ts` | Medios de pago y datos que ve el cliente | B3-2 |
 | `turno.ts` | Nada: movimientos y excepciones **vacíos** desde el 2026-09-26 (la forma sigue aquí) | B3-1 y B3-5 |
-| `caja.ts` | Medios y terminales del cobro (las alícuotas son de la base desde B2-2) | B3-2 |
 | `parque.ts` | Nada: sala y representantes **vacíos** desde el 2026-09-26 (la forma sigue aquí) | B4-1 y B4-2 |
 | `representantes.ts` | Nada: directorio **vacío** desde el 2026-09-26 | B4-1 |
 | `sucursal.ts` | Ajustes del local | B4-4 |
 | `restaurante.ts` | Plano y carta | B6-1 |
 
-Ya se fueron: las tasas de cambio (B2-1), el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
+Ya se fueron: los medios de pago, sus terminales y los datos que ve el cliente (`medios.ts` y `caja.ts`, B3-2), las tasas de cambio (B2-1), el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
 `scripts/semilla/tarifario.mts`), los dispositivos (B1-3), las cuentas y ventas de ejemplo, el interruptor `NEXT_PUBLIC_DEMO` y el
 simulador de operación con sus escenarios.
 

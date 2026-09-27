@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import {
   DatosDePagoSchema,
+  claveDeReferencia as claveDelPago,
   type DatosDePagoDto,
   type PosTerminalDto,
   type RedUsdt,
@@ -59,18 +60,12 @@ const REDES: readonly { id: RedUsdt; nombre: string }[] = [
   { id: "BINANCE_PAY", nombre: "Binance Pay" },
 ];
 
-/** Clave para detectar una referencia repetida dentro del mismo cobro. */
+/**
+ * Clave para detectar una referencia repetida dentro del mismo cobro: la misma con la que el
+ * servidor reconoce una ya cobrada (B3-2). Un Zelle sin confirmación no tiene con qué repetirse.
+ */
 export function claveDeReferencia(d: DatosDePagoDto): string {
-  switch (d.kind) {
-    case "PAGO_MOVIL":
-      return `PM:${d.bankCode}:${d.reference}`;
-    case "PUNTO":
-      return `PDV:${d.terminalId}:${d.reference}`;
-    case "USDT":
-      return `USDT:${d.txId.toLowerCase()}`;
-    case "ZELLE":
-      return d.confirmation ? `ZELLE:${d.confirmation}` : `ZELLE:${d.holder}:${globalThis.crypto.randomUUID()}`;
-  }
+  return claveDelPago(d) ?? `ZELLE:${globalThis.crypto.randomUUID()}`;
 }
 
 const cola = (texto: string, n = 4) => `···${texto.slice(-n)}`;

@@ -22,9 +22,9 @@ const PALABRAS_SENSIBLES = new Set([
   "pin", "password", "contrasena", "clave", "secret", "secreto", "token", "authorization",
   "cookie", "apikey", "otp",
   // referencias de pago y datos financieros identificables (F4-04)
-  "referencia", "reference", "txid", "titular", "iban", "tarjeta",
+  "referencia", "reference", "txid", "titular", "holder", "iban", "tarjeta",
   // contacto e identidad (§7.6: contacto del representante; DEC-23: documento del cliente)
-  "telefono", "phone", "contacto", "contact", "correo", "email", "cedula", "documento", "rif",
+  "telefono", "phone", "contacto", "contact", "correo", "email", "cedula", "documento", "document", "rif",
 ]);
 
 /** `pinHash` → [pin, hash]; `referencia_pago` → [referencia, pago]; `Teléfono` → [telefono]. */
@@ -38,8 +38,15 @@ function palabras(clave: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Identificadores que contienen una palabra sensible sin serlo: `documentId` señala una cuenta del
+ * libro de pagos (§5.5), no una cédula. Lista cerrada y explícita: ante la duda, se tapa.
+ */
+const IDENTIFICADORES = new Set(["documentid", "documentoid"]);
+
 export function esClaveSensible(clave: string): boolean {
   const partes = palabras(clave);
+  if (IDENTIFICADORES.has(partes.join(""))) return false;
   // Cada palabra, y cada par seguido: `txId` → «tx» + «id» = «txid»; `api_key` → «apikey».
   const candidatas = [...partes, ...partes.slice(1).map((p, i) => partes[i] + p)];
   return candidatas.some((p) => PALABRAS_SENSIBLES.has(p));

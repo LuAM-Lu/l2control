@@ -60,7 +60,9 @@ texto es para la persona.
 | `primitives.ts` | Id, instante, moneda, dinero (`minor` en texto + moneda), clave de idempotencia |
 | `park.ts`, `checkout.ts` | Pulseras, estancias, tarifas, representantes, entrada, salida y liquidación |
 | `account.ts` | La cuenta de la familia (DEC-21), con número de orden y hora de entrada a la cola |
-| `pagos.ts` | Datos obligatorios por medio de pago: Pago Móvil, Zelle, USDT, punto (F4-04) |
+| `pagos.ts` | Datos obligatorios por medio de pago: Pago Móvil, Zelle, USDT, punto (F4-04); su clave y su máscara |
+| `medios.ts` | Los medios del local, sus terminales y los datos que ve el cliente; los cambios posibles (F4-02) |
+| `libro.ts` | El libro de pagos: asentar (con los datos del pago), revertir y leer (§5.5) |
 | `documento.ts` | A quién se factura: consumidor final o identificado (DEC-23) |
 | `ventas.ts` | La venta cerrada con la foto de su recibo, sus impresiones y su anulación (DEC-24) |
 | `restaurante.ts` | Plano de mesas y carta |

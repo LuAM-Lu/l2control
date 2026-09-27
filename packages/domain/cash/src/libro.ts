@@ -10,24 +10,17 @@
  * la moneda funcional con SU tasa congelada (ADR-005), no con la de hoy.
  */
 import { type CurrencyCode, type FrozenRate, type Money, add, convert, money, sum, zero } from "@l2/domain-money";
+import type { LedgerMethodSpec, PaymentDataKind } from "./medios.ts";
 
 /** Qué es el asiento (§5.6): el vuelto, la propina y el residuo son asientos, no restas. */
 export type LedgerKind = "COBRO" | "VUELTO" | "PROPINA" | "RESIDUO";
 
-/** Los medios del libro (§5.5). La moneda es del medio, no se elige. */
-export type LedgerMethod = "EFECTIVO_USD" | "EFECTIVO_VES" | "PAGO_MOVIL" | "PDV_DEBITO" | "PDV_CREDITO" | "USDT" | "ZELLE";
-
-export const LEDGER_METHODS: Readonly<
-  Record<LedgerMethod, Readonly<{ currency: CurrencyCode; cash: boolean; triggersIgtfByDefault: boolean }>>
-> = Object.freeze({
-  EFECTIVO_USD: { currency: "USD", cash: true, triggersIgtfByDefault: true },
-  EFECTIVO_VES: { currency: "VES", cash: true, triggersIgtfByDefault: false },
-  PAGO_MOVIL: { currency: "VES", cash: false, triggersIgtfByDefault: false },
-  PDV_DEBITO: { currency: "VES", cash: false, triggersIgtfByDefault: false },
-  PDV_CREDITO: { currency: "VES", cash: false, triggersIgtfByDefault: false },
-  USDT: { currency: "USDT", cash: false, triggersIgtfByDefault: true },
-  ZELLE: { currency: "USD", cash: false, triggersIgtfByDefault: true },
-});
+/**
+ * El medio de un asiento: el código de un medio del catálogo del local (`medios.ts`). Ya no es una
+ * lista cerrada del código (B3-2, §9.9): lo que el libro necesita saber del medio (su moneda, si
+ * da vuelto, qué datos pide) lo recibe con él.
+ */
+export type LedgerMethod = string;
 
 /** USDT → USD a la par (DEC-1, a confirmar con el contador). No es una tasa del BCV. */
 export const USDT_AT_PAR: FrozenRate = Object.freeze({ from: "USDT", to: "USD", numerator: 1n, denominator: 1n });
@@ -51,18 +44,33 @@ export type EntryProblem =
   | "MONEDA_DEL_MEDIO"
   | "FALTA_TASA"
   | "TASA_SOBRANTE"
-  | "VUELTO_SOLO_EN_EFECTIVO";
+  | "VUELTO_SOLO_EN_EFECTIVO"
+  | "FALTAN_DATOS"
+  | "DATOS_DE_OTRO_MEDIO"
+  | "DATOS_SOBRANTES";
 
-/** ¿Se puede asentar esto como original? Solo importes positivos, en la moneda del medio. */
-export function entryProblem(e: Pick<LedgerEntry, "kind" | "method" | "amount" | "rate">): EntryProblem | null {
-  const medio = LEDGER_METHODS[e.method];
+/**
+ * ¿Se puede asentar esto como original, en este medio? Solo importes positivos, en la moneda del
+ * medio, y un cobro con los datos que el medio pide para conciliarlo (F4-04): un Pago Móvil sin
+ * referencia no se puede cuadrar al cerrar el día. `dataKind` es la clase de los datos que trae el
+ * asiento, o `null` si no trae.
+ */
+export function entryProblem(
+  e: Pick<LedgerEntry, "kind" | "amount" | "rate"> & Readonly<{ dataKind: PaymentDataKind | null }>,
+  medio: Pick<LedgerMethodSpec, "currency" | "givesChange" | "dataKind">,
+): EntryProblem | null {
   if (e.amount.amount <= 0n) return "IMPORTE_NO_POSITIVO";
   if (e.amount.currency !== medio.currency) return "MONEDA_DEL_MEDIO";
   // Los bolívares siempre con la tasa congelada; el dólar nunca; el USDT va a la par.
   if (medio.currency === "VES" && !e.rate) return "FALTA_TASA";
   if (medio.currency !== "VES" && e.rate) return "TASA_SOBRANTE";
   // El vuelto es efectivo que sale de la gaveta (§5.6): no se «devuelve» por Pago Móvil.
-  if (e.kind === "VUELTO" && !medio.cash) return "VUELTO_SOLO_EN_EFECTIVO";
+  if (e.kind === "VUELTO" && !medio.givesChange) return "VUELTO_SOLO_EN_EFECTIVO";
+  // Solo el cobro lleva la referencia: el vuelto, la propina y el residuo no vienen de un banco.
+  const pide = e.kind === "COBRO" ? medio.dataKind : null;
+  if (pide !== null && e.dataKind === null) return "FALTAN_DATOS";
+  if (pide !== null && e.dataKind !== pide) return "DATOS_DE_OTRO_MEDIO";
+  if (pide === null && e.dataKind !== null) return "DATOS_SOBRANTES";
   return null;
 }
 

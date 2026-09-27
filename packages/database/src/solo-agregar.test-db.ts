@@ -17,6 +17,16 @@ let migrador: Base;
 const A = { tenant: randomUUID(), sucursal: randomUUID() };
 const B = { tenant: randomUUID(), sucursal: randomUUID() };
 const contenido = { packages: [], policy: {} };
+/** El catálogo de medios de las pruebas (B3-2): el libro solo cita medios del local. */
+const MEDIOS = [
+  { code: "EFECTIVO_USD", label: "Efectivo $", currency: "USD", givesChange: true, triggersIgtf: true, dataKind: null, active: true },
+  { code: "PAGO_MOVIL", label: "Pago Móvil", currency: "VES", givesChange: false, triggersIgtf: false, dataKind: "PAGO_MOVIL", active: true },
+  { code: "PDV_DEBITO", label: "Punto débito", currency: "VES", givesChange: false, triggersIgtf: false, dataKind: "PUNTO", active: true },
+  { code: "PDV_CREDITO", label: "Punto crédito", currency: "VES", givesChange: false, triggersIgtf: false, dataKind: "PUNTO", active: false },
+  { code: "ZELLE", label: "Zelle", currency: "USD", givesChange: false, triggersIgtf: true, dataKind: "ZELLE", active: true },
+];
+/** Algo con la forma del cifrado de @l2/application (`v1.<iv>.<etiqueta>.<datos>`). */
+const CIFRADO = `v1.${"a".repeat(16)}.${"b".repeat(22)}.cGFnbw`;
 
 before(async () => {
   app = await abrirBase(URL_APP);
@@ -27,6 +37,9 @@ before(async () => {
       await tx.branch.create({ data: { id: t.sucursal, tenantId: t.tenant, name: "Principal" } });
       await tx.parkTariffVersion.create({
         data: { tenantId: t.tenant, branchId: t.sucursal, version: 1, content: contenido },
+      });
+      await tx.paymentMethod.createMany({
+        data: MEDIOS.map((m, position) => ({ tenantId: t.tenant, ...m, position, createdByName: "Preparación de la prueba" })),
       });
     });
   }
@@ -316,10 +329,9 @@ test("la base rechaza un asiento mal formado aunque el código se equivoque", as
   const malos: Record<string, unknown>[] = [
     { amountMinor: 0n }, // un original es positivo
     { amountMinor: -580n, igtfMinor: -17n }, // negativo sin ser reversión
-    { method: "ZELLE", currency: "VES", rateId: tasaA.id, rateValue: "855.6625" }, // moneda que no es la del medio
-    { method: "PAGO_MOVIL", currency: "VES", amountMinor: 427831n, igtfMinor: 0n }, // bolívares sin tasa
+    { method: "PAGO_MOVIL", currency: "VES", amountMinor: 427831n, igtfMinor: 0n, referenceCipher: CIFRADO }, // bolívares sin tasa
     { rateId: tasaA.id, rateValue: "855.6625" }, // dólares con tasa
-    { method: "PAGO_MOVIL", currency: "VES", rateId: tasaA.id, rateValue: null, igtfMinor: 0n }, // tasa sin su valor
+    { method: "PAGO_MOVIL", currency: "VES", rateId: tasaA.id, rateValue: null, igtfMinor: 0n, referenceCipher: CIFRADO }, // tasa sin su valor
     { kind: "VUELTO", igtfMinor: 17n }, // IGTF en un vuelto
     { kind: "VUELTO", method: "ZELLE", igtfMinor: 0n }, // vuelto que no es efectivo
     { reason: "ERROR_EN_COBRO" }, // motivo en un original
@@ -348,7 +360,7 @@ test("una reversión es el original con el signo contrario, una sola vez (F3-10)
 test("A no cita la tasa de B ni revierte un asiento de B", async () => {
   const tasaB = await app.conTenant(B.tenant, (tx) => tx.exchangeRate.create({ data: tasa(B.tenant, "855.6625", 51) }));
   await assert.rejects(
-    crearAsiento(A, { method: "PAGO_MOVIL", currency: "VES", amountMinor: 427831n, igtfMinor: 0n, rateId: tasaB.id, rateValue: "855.6625" }),
+    crearAsiento(A, { method: "PAGO_MOVIL", currency: "VES", amountMinor: 427831n, igtfMinor: 0n, rateId: tasaB.id, rateValue: "855.6625", referenceCipher: CIFRADO }),
     por("REFERENCIA_INVALIDA"),
   );
   const deB = await crearAsiento(B);
@@ -431,4 +443,107 @@ test("un feriado no se borra ni se reescribe: se retira una vez, y después se p
   await app.conTenant(A.tenant, (tx) => tx.bankHoliday.update({ where: { id: f.id }, data: retiro }));
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.bankHoliday.update({ where: { id: f.id }, data: { retiredByName: "Otra persona" } })), SOLO_AGREGAR);
   await feriado(A.tenant, "2026-12-24", "Víspera de Navidad");
+});
+
+/* ── Medios de pago, terminales y datos del local (B3-2, F4-02, F4-04, §7.6) ─── */
+
+const terminal = (t: { tenant: string; sucursal: string }, name: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) => tx.posTerminal.create({ data: { tenantId: t.tenant, branchId: t.sucursal, name, bank: "Banesco", createdByName: "Abigail Karam", ...extra } }));
+const tasaDe = async (t: { tenant: string }, minuto: number) =>
+  (await app.conTenant(t.tenant, (tx) => tx.exchangeRate.create({ data: tasa(t.tenant, "855.6625", minuto) }))).id;
+
+test("el medio de un asiento es del catálogo del local, con su moneda", async () => {
+  // Un medio que el local no tiene, o el de otro local, no se cita.
+  await assert.rejects(crearAsiento(A, { method: "BIOPAGO" }), por("REFERENCIA_INVALIDA"));
+  await app.conTenant(B.tenant, (tx) =>
+    tx.paymentMethod.create({ data: { tenantId: B.tenant, code: "SOLO_DE_B", label: "Solo de B", currency: "USD", givesChange: false, triggersIgtf: false, dataKind: null, active: true, position: 9, createdByName: "Abigail Karam" } }),
+  );
+  await assert.rejects(crearAsiento(A, { method: "SOLO_DE_B" }), por("REFERENCIA_INVALIDA"));
+  // Un Zelle en bolívares no existe: el Zelle del local es en dólares.
+  const tasaA = await tasaDe(A, 52);
+  await assert.rejects(crearAsiento(A, { method: "ZELLE", currency: "VES", rateId: tasaA, rateValue: "855.6625", igtfMinor: 0n, referenceCipher: CIFRADO }), por("REFERENCIA_INVALIDA"));
+});
+
+test("un cobro lleva los datos que su medio pide, cifrados, y solo un cobro los lleva (F4-04)", async () => {
+  const tasaA = await tasaDe(A, 53);
+  const movil = { method: "PAGO_MOVIL", currency: "VES", amountMinor: 427831n, igtfMinor: 0n, rateId: tasaA, rateValue: "855.6625" };
+  const malos: Record<string, unknown>[] = [
+    movil, // un Pago Móvil sin referencia no se concilia
+    { referenceCipher: CIFRADO }, // el efectivo no trae referencia
+    { ...movil, referenceCipher: "0987654321" }, // en claro, no
+    { ...movil, referenceCipher: CIFRADO, referenceDigest: "no-es-una-huella" },
+    { kind: "VUELTO", igtfMinor: 0n, referenceCipher: CIFRADO }, // el vuelto no viene de un banco
+  ];
+  for (const [i, extra] of malos.entries()) {
+    await assert.rejects(crearAsiento(A, extra), por("RESTRICCION"), String(i));
+  }
+  const p = await crearAsiento(A, { ...movil, referenceCipher: CIFRADO, referenceDigest: "f".repeat(64) });
+  assert.equal(p.referenceCipher, CIFRADO);
+  // Su reversión no repite la referencia.
+  await assert.rejects(crearAsiento(A, { ...movil, amountMinor: -427831n, reversesId: p.id, reason: "ERROR_EN_COBRO", referenceCipher: CIFRADO }), por("RESTRICCION"));
+  await crearAsiento(A, { ...movil, amountMinor: -427831n, reversesId: p.id, reason: "ERROR_EN_COBRO" });
+});
+
+test("un medio apagado no cobra; el punto de venta dice su terminal vigente, de su sucursal", async () => {
+  const tasaA = await tasaDe(A, 54);
+  const punto = { method: "PDV_DEBITO", currency: "VES", amountMinor: 50000n, igtfMinor: 0n, rateId: tasaA, rateValue: "855.6625", referenceCipher: CIFRADO };
+  const vigente = await terminal(A, "Punto Banesco A");
+  const retirado = await terminal(A, "Punto Viejo A");
+  await app.conTenant(A.tenant, (tx) => tx.posTerminal.update({ where: { id: retirado.id }, data: { retiredAt: new Date(), retiredByName: "Abigail Karam" } }));
+  const deB = await terminal(B, "Punto Banesco B");
+  await assert.rejects(crearAsiento(A, { ...punto, method: "PDV_CREDITO", terminalId: vigente.id }), por("RESTRICCION")); // apagado
+  await assert.rejects(crearAsiento(A, punto), por("RESTRICCION")); // sin terminal
+  await assert.rejects(crearAsiento(A, { ...punto, terminalId: retirado.id }), por("RESTRICCION"));
+  await assert.rejects(crearAsiento(A, { ...punto, terminalId: deB.id }), por("REFERENCIA_INVALIDA"));
+  await assert.rejects(crearAsiento(A, { method: "PAGO_MOVIL", currency: "VES", amountMinor: 50000n, igtfMinor: 0n, rateId: tasaA, rateValue: "855.6625", referenceCipher: CIFRADO, terminalId: vigente.id }), por("RESTRICCION"));
+  await crearAsiento(A, { ...punto, terminalId: vigente.id });
+});
+
+test("un medio no se borra ni se redefine: se enciende, se apaga y se renombra", async () => {
+  const m = await app.conTenant(A.tenant, (tx) => tx.paymentMethod.findUniqueOrThrow({ where: { tenantId_code: { tenantId: A.tenant, code: "ZELLE" } } }));
+  await app.conTenant(A.tenant, (tx) => tx.paymentMethod.update({ where: { id: m.id }, data: { active: false, label: "Zelle local" } }));
+  for (const data of [{ currency: "USDT" }, { code: "ZELLE_2" }, { dataKind: null }, { givesChange: true }]) {
+    await assert.rejects(app.conTenant(A.tenant, (tx) => tx.paymentMethod.update({ where: { id: m.id }, data })), SOLO_AGREGAR, JSON.stringify(data));
+  }
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.paymentMethod.delete({ where: { id: m.id } })), SOLO_AGREGAR);
+  // Vaciarlo tampoco: lo niega la FK del libro antes que su disparador.
+  await assert.rejects(migrador.conTenant(A.tenant, (tx) => tx.$executeRawUnsafe("TRUNCATE payment_method")));
+  await app.conTenant(A.tenant, (tx) => tx.paymentMethod.update({ where: { id: m.id }, data: { active: true, label: "Zelle" } }));
+});
+
+test("un medio mal definido no entra, aunque el código se equivoque", async () => {
+  const medio = { tenantId: A.tenant, label: "Nuevo", currency: "VES", givesChange: false, triggersIgtf: false, dataKind: null, active: false, position: 20, createdByName: "Abigail Karam" };
+  const malos: Record<string, unknown>[] = [
+    { code: "biopago" }, // el código es estable y en mayúsculas
+    { code: "USDT_VUELTO", currency: "USDT", givesChange: true }, // en la gaveta no hay USDT
+    { code: "EFECTIVO_REF", givesChange: true, dataKind: "PAGO_MOVIL" }, // el efectivo no pide referencia
+    { code: "RARO", dataKind: "CHEQUE" },
+    { code: "EUROS", currency: "EUR" },
+  ];
+  for (const [i, extra] of malos.entries()) {
+    await assert.rejects(app.conTenant(A.tenant, (tx) => tx.paymentMethod.create({ data: { ...medio, ...extra } as never })), por("RESTRICCION"), String(i));
+  }
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.paymentMethod.create({ data: { ...medio, code: "ZELLE" } })), por("DUPLICADO"));
+});
+
+test("un terminal no se borra ni se reescribe: se retira una vez; dos vigentes no se llaman igual", async () => {
+  const t = await terminal(A, "Punto Mercantil A");
+  await assert.rejects(terminal(A, "punto mercantil a "), por("DUPLICADO"));
+  await terminal(B, "Punto Mercantil A"); // otro local, otro nombre
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.posTerminal.update({ where: { id: t.id }, data: { name: "Otro" } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.posTerminal.delete({ where: { id: t.id } })), SOLO_AGREGAR);
+  await app.conTenant(A.tenant, (tx) => tx.posTerminal.update({ where: { id: t.id }, data: { retiredAt: new Date(), retiredByName: "Abigail Karam" } }));
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.posTerminal.update({ where: { id: t.id }, data: { retiredByName: "Otra persona" } })), SOLO_AGREGAR);
+  // Retirado, el nombre queda libre.
+  await terminal(A, "Punto Mercantil A");
+});
+
+test("los datos del local se guardan cifrados y no se reescriben (§7.6)", async () => {
+  const datos = (dataCipher: string, kind = "PAGO_MOVIL") =>
+    app.conTenant(A.tenant, (tx) => tx.collectionDetails.create({ data: { tenantId: A.tenant, kind, dataCipher, recordedByName: "Abigail Karam" } }));
+  await assert.rejects(datos('{"phone":"0414-2345678"}'), por("RESTRICCION"));
+  await assert.rejects(datos(CIFRADO, "USDT"), por("RESTRICCION"));
+  const d = await datos(CIFRADO);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.collectionDetails.update({ where: { id: d.id }, data: { dataCipher: CIFRADO } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.collectionDetails.delete({ where: { id: d.id } })), SOLO_AGREGAR);
 });

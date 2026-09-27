@@ -13,29 +13,40 @@
  *
  * Todo asiento entra en el turno abierto del equipo (B3-1): sin él no se cobra ni se revierte.
  *
+ * El medio de cada asiento es del catálogo del local (B3-2): de él salen su moneda, si da vuelto,
+ * si lleva IGTF y qué datos pide. Un cobro con un medio apagado, o al que le faltan los datos del
+ * local, no se asienta. Los datos del pago (referencia, TxID, titular) se guardan cifrados, con una
+ * huella que reconoce una referencia ya cobrada, y al leer el libro solo salen enmascarados (§7.6).
+ *
  * Lo que aún no hace, y hace B3-3: comprobar que el cobro cuadra contra el total del documento y
  * que la tasa citada es la vigente (hasta entonces basta con que esté confirmada).
  */
 import {
   AsentarPagosCommandSchema,
+  DatosDePagoSchema,
   LibroDocumentoSchema,
   RevertirPagoCommandSchema,
+  claveDeReferencia,
+  enmascararDatos,
   problemasDe,
   type AsentarPagosCommand,
   type AsientoDto,
+  type DatosDePagoDto,
   type LibroDocumentoDto,
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
 import {
-  LEDGER_METHODS,
   entryProblem,
   ledgerBalance,
+  offerProblem,
   reversalOf,
   reversalProblem,
+  type CollectionReadiness,
   type LedgerEntry,
   type LedgerKind,
-  type LedgerMethod,
+  type LedgerMethodSpec,
+  type PaymentDataKind,
 } from "@l2/domain-cash";
 import { money, zero, type CurrencyCode, type FrozenRate, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
@@ -47,6 +58,7 @@ import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identid
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { programadaDeFila } from "./impuestos.ts";
 import { turnoParaCobrar } from "../caja/turnos.ts";
+import type { Cifrador } from "../identidad/cifrado.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
@@ -74,10 +86,16 @@ const invalido = (mensaje: string, path: (string | number)[], message: string): 
   problemas: [{ path, message }],
 });
 
-export function casosPagos(base: Base): CasosPagos {
+const sinClave: Rechazo = {
+  ok: false,
+  motivo: "NO_DISPONIBLE",
+  mensaje: "Este servidor no puede guardar los datos del pago (falta L2_CLAVE_CIFRADO): cobra con un medio que no los pida.",
+};
+
+export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
   /** El libro de un documento, dentro de una transacción ya abierta. */
   const leerLibro = async (tx: Transaccion, documentId: string): Promise<LibroDocumentoDto> =>
-    libroDe(documentId, await tx.payment.findMany({ where: { documentId }, orderBy: [{ recordedAt: "asc" }, { line: "asc" }] }));
+    libroDe(documentId, await tx.payment.findMany({ where: { documentId }, orderBy: [{ recordedAt: "asc" }, { line: "asc" }] }), cifrador);
 
   /** Lo ya asentado con esta clave, si lo hay. */
   const yaAsentado = (tx: Transaccion, operationKey: string) =>
@@ -90,6 +108,17 @@ export function casosPagos(base: Base): CasosPagos {
         return { ok: false, motivo: "INVALIDO", mensaje: "El cobro no se asentó: hay datos que corregir.", problemas: problemasDe(v.error) };
       }
       const cmd = v.data;
+      // Los datos del pago se guardan cifrados y se reconocen por su huella (§7.6): sin clave no se
+      // cobra con un medio que los pida.
+      if (cmd.asientos.some((a) => a.datos) && !cifrador) return sinClave;
+      const huellas = cmd.asientos.map((a) => {
+        const clave = a.datos ? claveDeReferencia(a.datos) : null;
+        return clave && cifrador ? cifrador.huella(clave) : null;
+      });
+      const repetida = huellas.findIndex((h, i) => h !== null && huellas.indexOf(h) !== i);
+      if (repetida >= 0) {
+        return invalido("La misma referencia está dos veces en este cobro.", ["asientos", repetida, "datos"], "Referencia repetida");
+      }
 
       const intentar = () =>
         base.conTenant(ctx.tenantId, async (tx): Promise<LibroDocumentoDto | Rechazo> => {
@@ -97,7 +126,7 @@ export function casosPagos(base: Base): CasosPagos {
           if (rechazo) return rechazo;
 
           const previas = await yaAsentado(tx, cmd.idempotencyKey);
-          if (previas.length > 0) return mismaOperacion(previas, cmd) ? leerLibro(tx, cmd.documentId) : conflictoDeClave;
+          if (previas.length > 0) return mismaOperacion(previas, cmd, huellas) ? leerLibro(tx, cmd.documentId) : conflictoDeClave;
 
           // Sin turno abierto en el equipo no se cobra (F4-01); el asiento dice en qué turno entró.
           const turno = await turnoParaCobrar(tx, ctx);
@@ -114,21 +143,55 @@ export function casosPagos(base: Base): CasosPagos {
             tasas.set(a.rateId, { value: t.value, frozen: frozenRateOf({ pair: "USD/VES", value: t.value }) });
           }
 
-          const nuevos = cmd.asientos.map((a) => ({
-            kind: a.kind as LedgerKind,
-            method: a.method as LedgerMethod,
-            amount: money(BigInt(a.amount.minor), a.amount.currency),
-            rate: a.rateId ? tasas.get(a.rateId)! : null,
-          }));
+          // El medio de cada asiento, del catálogo del local; y lo que la caja puede ofrecer hoy.
+          const catalogo = await catalogoDe(tx, ctx.branchId);
+          const nuevos: Nuevo[] = [];
+          for (const [i, a] of cmd.asientos.entries()) {
+            const medio = catalogo.medios.get(a.method);
+            if (!medio) return invalido("Ese medio no existe en este local.", ["asientos", i, "method"], "Medio desconocido");
+            nuevos.push({
+              kind: a.kind as LedgerKind,
+              medio,
+              amount: money(BigInt(a.amount.minor), a.amount.currency),
+              rate: a.rateId ? tasas.get(a.rateId)! : null,
+              datos: a.datos ?? null,
+            });
+          }
           for (const [i, n] of nuevos.entries()) {
-            const problema = entryProblem({ ...n, rate: n.rate?.frozen ?? null });
+            const problema = entryProblem({ kind: n.kind, amount: n.amount, rate: n.rate?.frozen ?? null, dataKind: n.datos?.kind ?? null }, n.medio);
             if (problema) return invalido("El cobro no se asentó: hay un asiento que no vale.", ["asientos", i], problema);
+            if (n.kind === "COBRO") {
+              const oferta = offerProblem(n.medio, catalogo.listo);
+              if (oferta) {
+                const mensaje = oferta === "APAGADO" ? `«${n.medio.label}» está apagado: no se cobra con él.` : `A «${n.medio.label}» le faltan los datos del local: no se cobra con él.`;
+                return invalido(mensaje, ["asientos", i, "method"], oferta);
+              }
+            }
+            if (n.datos?.kind === "PUNTO" && !catalogo.terminales.has(n.datos.terminalId)) {
+              return invalido("Ese terminal no está vigente en esta sucursal.", ["asientos", i, "datos", "terminalId"], "Terminal desconocido");
+            }
           }
 
-          // El IGTF de cada cobro en divisas (§5.5), con la alícuota del instante. Sin ella no se
-          // cobra en divisas: suponer 0 % sería no retener en silencio.
+          // Una referencia ya cobrada no se cobra otra vez: el mismo capture de Pago Móvil enseñado
+          // en dos cobros. El candado por huella ordena a dos cajas que lo intenten a la vez.
+          for (const [i, h] of huellas.entries()) {
+            if (!h) continue;
+            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${h}, 0))::text AS candado`;
+            const ya = await tx.payment.findFirst({ where: { referenceDigest: h, reversesId: null, reversedBy: { none: {} } }, select: { businessDate: true } });
+            if (ya) {
+              return {
+                ok: false,
+                motivo: "CONFLICTO",
+                mensaje: `Esa referencia ya se cobró el ${ya.businessDate.toISOString().slice(0, 10)}. Revisa el pago con el cliente.`,
+                problemas: [{ path: ["asientos", i, "datos"], message: "Referencia ya cobrada" }],
+              };
+            }
+          }
+
+          // El IGTF de cada cobro en un medio que lo lleva (§5.5), con la alícuota del instante. Sin
+          // ella no se cobra en esos medios: suponer 0 % sería no retener en silencio.
           let igtfBps: number | null = null;
-          if (nuevos.some((n) => n.kind === "COBRO" && LEDGER_METHODS[n.method].triggersIgtfByDefault)) {
+          if (nuevos.some((n) => n.kind === "COBRO" && n.medio.triggersIgtf)) {
             const periodos = taxTimeline((await tx.taxRate.findMany({ where: { tax: "IGTF" } })).map(programadaDeFila));
             try {
               igtfBps = igtfAt(periodos, ahora);
@@ -141,7 +204,7 @@ export function casosPagos(base: Base): CasosPagos {
           const quien = await nombreDe(tx, ctx);
           const filas: Payment[] = [];
           for (const [i, n] of nuevos.entries()) {
-            const igtf = igtfDe(n.kind, n.method, n.amount, igtfBps);
+            const igtf = igtfDe(n.kind, n.medio, n.amount, igtfBps);
             filas.push(
               await tx.payment.create({
                 data: {
@@ -154,12 +217,16 @@ export function casosPagos(base: Base): CasosPagos {
                   operationKey: cmd.idempotencyKey,
                   line: i,
                   kind: n.kind,
-                  method: n.method,
+                  method: n.medio.code,
                   currency: n.amount.currency,
                   amountMinor: n.amount.amount,
                   igtfMinor: igtf.amount,
                   rateId: cmd.asientos[i]!.rateId ?? null,
                   rateValue: n.rate?.value ?? null,
+                  // §7.6: cifrados; la huella reconoce la referencia sin guardarla en claro.
+                  referenceCipher: n.datos ? cifrador!.cifrar(JSON.stringify(n.datos)) : null,
+                  referenceDigest: huellas[i] ?? null,
+                  terminalId: n.datos?.kind === "PUNTO" ? n.datos.terminalId : null,
                   recordedAt: new Date(ahora),
                   recordedBy: ctx.quien?.userId ?? null,
                   recordedByName: quien.nombre,
@@ -305,8 +372,49 @@ const conflictoDeClave: Rechazo = {
   mensaje: "Esa clave ya se usó para otra operación. Vuelve a intentarlo desde la pantalla.",
 };
 
+/** Un asiento por asentar, con su medio del catálogo. */
+type Nuevo = {
+  kind: LedgerKind;
+  medio: LedgerMethodSpec;
+  amount: Money;
+  rate: { value: string; frozen: FrozenRate } | null;
+  datos: DatosDePagoDto | null;
+};
+
+/** El catálogo del local, los terminales vigentes de la sucursal y qué datos del local hay. */
+async function catalogoDe(tx: Transaccion, branchId: string) {
+  const [medios, terminales, datos] = await Promise.all([
+    tx.paymentMethod.findMany(),
+    tx.posTerminal.findMany({ where: { branchId, retiredAt: null }, select: { id: true } }),
+    tx.collectionDetails.findMany({ select: { kind: true }, distinct: ["kind"] }),
+  ]);
+  const listo: CollectionReadiness = {
+    pagoMovil: datos.some((d) => d.kind === "PAGO_MOVIL"),
+    zelle: datos.some((d) => d.kind === "ZELLE"),
+    terminals: terminales.length,
+  };
+  return {
+    medios: new Map<string, LedgerMethodSpec>(
+      medios.map((m) => [
+        m.code,
+        {
+          code: m.code,
+          label: m.label,
+          currency: m.currency as CurrencyCode,
+          givesChange: m.givesChange,
+          triggersIgtf: m.triggersIgtf,
+          dataKind: m.dataKind as PaymentDataKind | null,
+          active: m.active,
+        },
+      ]),
+    ),
+    terminales: new Set(terminales.map((t) => t.id)),
+    listo,
+  };
+}
+
 /** ¿Lo ya asentado con la clave es exactamente lo que se pide ahora? */
-function mismaOperacion(filas: readonly Payment[], cmd: AsentarPagosCommand): boolean {
+function mismaOperacion(filas: readonly Payment[], cmd: AsentarPagosCommand, huellas: readonly (string | null)[]): boolean {
   return (
     filas.length === cmd.asientos.length &&
     filas.every((f, i) => {
@@ -318,17 +426,19 @@ function mismaOperacion(filas: readonly Payment[], cmd: AsentarPagosCommand): bo
         f.method === a.method &&
         f.currency === a.amount.currency &&
         f.amountMinor === BigInt(a.amount.minor) &&
-        f.rateId === (a.rateId ?? null)
+        f.rateId === (a.rateId ?? null) &&
+        (f.referenceCipher !== null) === (a.datos !== undefined) &&
+        f.referenceDigest === (huellas[i] ?? null) &&
+        f.terminalId === (a.datos?.kind === "PUNTO" ? a.datos.terminalId : null)
       );
     })
   );
 }
 
-/** El IGTF de un asiento: solo un cobro en un medio que lo dispara (§5.5). */
-function igtfDe(kind: LedgerKind, method: LedgerMethod, amount: Money, bps: number | null): Money {
-  const m = LEDGER_METHODS[method];
-  if (kind !== "COBRO" || !m.triggersIgtfByDefault || bps === null) return zero(amount.currency);
-  const r = computeIgtf([{ method: { code: method, label: method, currency: m.currency, triggersIgtf: true }, amount }], bps, amount.currency);
+/** El IGTF de un asiento: solo un cobro en un medio que lo lleva (§5.5), según el catálogo. */
+function igtfDe(kind: LedgerKind, medio: LedgerMethodSpec, amount: Money, bps: number | null): Money {
+  if (kind !== "COBRO" || !medio.triggersIgtf || bps === null) return zero(amount.currency);
+  const r = computeIgtf([{ method: { code: medio.code, label: medio.label, currency: medio.currency, triggersIgtf: true }, amount }], bps, amount.currency);
   return r.lines[0]?.igtf ?? zero(amount.currency);
 }
 
@@ -337,7 +447,7 @@ function entrada_(f: Payment): LedgerEntry {
   return {
     id: f.id,
     kind: f.kind as LedgerKind,
-    method: f.method as LedgerMethod,
+    method: f.method,
     amount: money(f.amountMinor, f.currency as CurrencyCode),
     igtf: money(f.igtfMinor, f.currency as CurrencyCode),
     rate: f.rateValue ? frozenRateOf({ pair: "USD/VES", value: f.rateValue }) : null,
@@ -345,24 +455,42 @@ function entrada_(f: Payment): LedgerEntry {
   };
 }
 
-/** Lo que va a la auditoría de un asiento: sin datos sensibles (no hay referencias aquí). */
+/** Lo que va a la auditoría de un asiento: sin los datos del pago, ni cifrados (§7.6). */
 function resumen(f: Payment) {
-  return { id: f.id, kind: f.kind, method: f.method, amountMinor: String(f.amountMinor), currency: f.currency, igtfMinor: String(f.igtfMinor), rateValue: f.rateValue };
+  return {
+    id: f.id,
+    kind: f.kind,
+    method: f.method,
+    amountMinor: String(f.amountMinor),
+    currency: f.currency,
+    igtfMinor: String(f.igtfMinor),
+    rateValue: f.rateValue,
+    conDatos: f.referenceCipher !== null,
+    terminalId: f.terminalId,
+  };
+}
+
+/** Los datos del pago enmascarados: lo único de una referencia que sale del servidor (§7.6). */
+function referenciaDe(f: Payment, cifrador: Cifrador | null): string | null {
+  if (!f.referenceCipher) return null;
+  if (!cifrador) return "Datos cifrados";
+  return enmascararDatos(DatosDePagoSchema.parse(JSON.parse(cifrador.descifrar(f.referenceCipher))));
 }
 
 const dinero = (m: Money) => ({ minor: String(m.amount), currency: m.currency });
 
 /** El libro de un documento en la forma del contrato, con su saldo calculado. */
-function libroDe(documentId: string, filas: readonly Payment[]): LibroDocumentoDto {
+function libroDe(documentId: string, filas: readonly Payment[], cifrador: Cifrador | null): LibroDocumentoDto {
   const saldo = ledgerBalance(filas.map(entrada_), FUNCIONAL);
   const asientos: AsientoDto[] = filas.map((f) => ({
     id: f.id,
     documentId: f.documentId,
     kind: f.kind as AsientoDto["kind"],
-    method: f.method as AsientoDto["method"],
+    method: f.method,
     amount: { minor: String(f.amountMinor), currency: f.currency as AsientoDto["amount"]["currency"] },
     igtf: { minor: String(f.igtfMinor), currency: f.currency as AsientoDto["igtf"]["currency"] },
     rate: f.rateId && f.rateValue ? { id: f.rateId, value: f.rateValue } : null,
+    referencia: referenciaDe(f, cifrador),
     reversesId: f.reversesId,
     reversedById: filas.find((x) => x.reversesId === f.id)?.id ?? null,
     motivo: (f.reason as AsientoDto["motivo"]) ?? null,

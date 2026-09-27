@@ -5,12 +5,34 @@ Qué cambia en cada versión, para quien usa el sistema. Formato de
 según M-10 (docs/MAESTRO.md §2):
 
 - **MINOR** +1 por cada paso de la ruta a producción entregado: el número del medio dice cuántos van
-  (de 46). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
+  (de 47). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
 - La fuente es `version` del `package.json` raíz, con su etapa en `l2.etapa`. `pnpm verify` falla si
   este archivo no abre con esa versión. Cada versión lleva su etiqueta git `vX.Y.Z`.
 
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
+
+## [0.21.0] — 2026-09-27 · Etapa 3 · Caja
+
+B3-2 · Medios de pago, terminales y datos de cobro en el servidor.
+
+### Añadido
+- Caja → Medios de pago, en tres pestañas: los medios (encender y apagar), los datos que ve el
+  cliente (Pago Móvil y Zelle del local) y los terminales de punto de venta. Todo se guarda en el
+  servidor y cada cambio pide confirmar identidad.
+- «Añadir medio»: un medio nuevo (Biopago, por ejemplo) se crea desde el panel, sin actualizar el
+  sistema. Nace apagado; lo que lo define (código, moneda, si es efectivo y qué datos pide) no cambia
+  después, porque los cobros lo citan.
+- Con más de seis medios, la caja agrupa los que no caben en «Otros medios» y «Cerrar cobro» sigue a
+  la vista.
+- El libro de pagos guarda los datos de cada pago (referencia, TxID, titular, terminal) cifrados, y
+  rechaza una referencia que ya se cobró: el mismo capture de Pago Móvil no paga dos cuentas.
+
+### Cambiado
+- La caja ofrece los medios encendidos en el servidor y con los datos del local completos. Un medio
+  no se borra: se apaga. Un terminal se retira y queda en el historial.
+- Un local nuevo nace con los siete medios habituales; los que piden datos del local, apagados.
+- Los logs tapan también el RIF, la cédula de quien paga y el titular de un Zelle.
 
 ## [0.20.0] — 2026-09-27 · Etapa 3 · Caja
 

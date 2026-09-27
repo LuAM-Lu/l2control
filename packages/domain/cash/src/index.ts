@@ -620,3 +620,4 @@ export function refundableByTender(
 /* ------------------------------------------------------- libro de pagos */
 
 export * from "./libro.ts";
+export * from "./medios.ts";

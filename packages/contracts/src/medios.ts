@@ -16,13 +16,18 @@
  *    reglas que ya usa el cobro.
  */
 import { z } from "zod";
-import { IdSchema } from "./primitives.ts";
 import { DocumentoVeSchema, TelefonoVeSchema, PosTerminalSchema } from "./pagos.ts";
 
 /** Qué datos exige un medio antes de aceptar el pago. El mismo catálogo que F4-04. */
 export const TipoDatosSchema = z.enum(["PAGO_MOVIL", "ZELLE", "USDT", "PUNTO"]);
 
 export const MonedaSchema = z.enum(["USD", "VES", "USDT"]);
+
+/** Código estable de un medio: lo citan los asientos del libro para siempre (§5.5). */
+export const CodigoMedioSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Z][A-Z0-9_]{2,31}$/, "El código va en mayúsculas, sin espacios, de 3 a 32");
 
 /**
  * Un medio de pago configurado.
@@ -33,10 +38,7 @@ export const MonedaSchema = z.enum(["USD", "VES", "USDT"]);
 export const MedioDePagoSchema = z
   .object({
     /** Código estable: lo referencian los pagos ya cobrados. */
-    code: z
-      .string()
-      .trim()
-      .regex(/^[A-Z][A-Z0-9_]{2,31}$/, "El código va en mayúsculas, sin espacios"),
+    code: CodigoMedioSchema,
     label: z.string().trim().min(2, "Nombre demasiado corto").max(24),
     currency: MonedaSchema,
     triggersIgtf: z.boolean(),
@@ -50,6 +52,11 @@ export const MedioDePagoSchema = z
     // El vuelto sale de la gaveta, y en la gaveta no hay USDT.
     message: "Un medio en USDT no puede dar vuelto",
     path: ["canGiveChange"],
+  })
+  .refine((m) => !m.canGiveChange || m.datos === undefined, {
+    // Un billete no trae número de aprobación: pedirlo bloquearía el cobro en efectivo.
+    message: "Un medio que da vuelto es efectivo: no pide datos",
+    path: ["datos"],
   });
 export type MedioDePagoDto = z.infer<typeof MedioDePagoSchema>;
 
@@ -117,19 +124,46 @@ export const MediosDePagoSchema = z
   });
 export type MediosDePagoDto = z.infer<typeof MediosDePagoSchema>;
 
+/** Un medio nuevo (F4-02): nace apagado, y quien lo crea lo enciende cuando esté listo. */
+export const MedioNuevoSchema = z
+  .strictObject({
+    code: CodigoMedioSchema,
+    label: z.string().trim().min(2, "Nombre demasiado corto").max(24, "Hasta 24 caracteres"),
+    currency: MonedaSchema,
+    triggersIgtf: z.boolean(),
+    canGiveChange: z.boolean(),
+    datos: TipoDatosSchema.optional(),
+  })
+  .refine((m) => !m.canGiveChange || m.currency !== "USDT", {
+    message: "En la gaveta no hay USDT: un medio en USDT no da vuelto",
+    path: ["canGiveChange"],
+  })
+  .refine((m) => !m.canGiveChange || m.datos === undefined, {
+    message: "Un medio que da vuelto es efectivo: no pide datos",
+    path: ["datos"],
+  });
+export type MedioNuevoDto = z.infer<typeof MedioNuevoSchema>;
+
+/** Un terminal nuevo: su identificador lo pone el servidor (ADR-017). */
+export const TerminalNuevoSchema = z.strictObject({
+  name: z.string().trim().min(2, "Escribe el nombre del terminal").max(40),
+  bank: z.string().trim().min(2, "Escribe el banco").max(40),
+});
+
 /**
  * Los cambios posibles.
  *
- * No hay «borrar un medio»: se apaga, porque los pagos ya cobrados lo
- * nombran. Un terminal sí se retira —no referencia dinero por sí mismo—, pero
- * retirar el último mientras el punto de venta está encendido lo impide la
- * regla de arriba, no un `if` de la pantalla.
+ * No hay «borrar un medio»: se apaga, porque los pagos ya cobrados lo nombran. Un medio nuevo se
+ * añade sin desplegar (F4-02, §9.9). Un terminal se retira —queda en la base, porque un pago con
+ * punto dice por cuál pasó—, pero retirar el último mientras el punto de venta está encendido lo
+ * impide la regla de arriba, no un `if` de la pantalla.
  */
 export const MedioCommandSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("ACTIVAR"), code: z.string(), activo: z.boolean() }),
+  z.strictObject({ kind: z.literal("ACTIVAR"), code: CodigoMedioSchema, activo: z.boolean() }),
+  z.strictObject({ kind: z.literal("AÑADIR_MEDIO"), medio: MedioNuevoSchema }),
   z.strictObject({ kind: z.literal("DATOS_PAGO_MOVIL"), datos: DatosPagoMovilSchema }),
   z.strictObject({ kind: z.literal("DATOS_ZELLE"), datos: DatosZelleSchema }),
-  z.strictObject({ kind: z.literal("AÑADIR_TERMINAL"), terminal: PosTerminalSchema }),
-  z.strictObject({ kind: z.literal("RETIRAR_TERMINAL"), terminalId: IdSchema }),
+  z.strictObject({ kind: z.literal("AÑADIR_TERMINAL"), terminal: TerminalNuevoSchema }),
+  z.strictObject({ kind: z.literal("RETIRAR_TERMINAL"), terminalId: z.uuid("Terminal desconocido") }),
 ]);
 export type MedioCommand = z.infer<typeof MedioCommandSchema>;

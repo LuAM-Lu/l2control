@@ -18,6 +18,7 @@ import {
   Users,
   X,
   Zap,
+  ChevronDown,
 } from "lucide-react";
 import {
   type CurrencyCode,
@@ -55,6 +56,7 @@ import {
 import {
   Button,
   Container,
+  Dialog,
   MoneyDisplay,
   NumericKeypad,
   Stepper,
@@ -87,6 +89,7 @@ import {
   type TurnoDto,
   type UserSummaryDto,
   type PagoDeVentaDto,
+  type PosTerminalDto,
 } from "@l2/contracts";
 import {
   DatosPagoDialog,
@@ -154,6 +157,9 @@ type Cobrado = Readonly<{
   lineIds: readonly string[];
   recibo: Recibo;
 }>;
+
+/** Sin configuración de medios no hay terminales (una sola referencia: no rehace el cobro). */
+const SIN_TERMINALES: readonly PosTerminalDto[] = [];
 
 const DESTINO_SOBRA = {
   VUELTO: "Vuelto entregado",
@@ -236,7 +242,10 @@ function CobroCuenta({
 
   const mediosDisponibles = useMediosActivos();
   const { config: mediosConfig } = useMedios();
-  const terminales = mediosConfig.terminales;
+  // Sin configuración (nadie en sesión o el servidor no la leyó), nada: la caja no llega a cobrar.
+  const terminales = mediosConfig?.terminales ?? SIN_TERMINALES;
+  const pagoMovilLocal = mediosConfig?.pagoMovil;
+  const zelleLocal = mediosConfig?.zelle;
 
   const [pagos, setPagos] = useState<
     { uid: string; medio: MedioPago; amount: Money; datos?: DatosDePagoDto }[]
@@ -286,6 +295,18 @@ function CobroCuenta({
   const [medioActivo, setMedioActivo] = useState<MedioPago>(
     mediosDisponibles[0]!,
   );
+
+  /**
+   * La columna de cobro cabe en 1366×768 con dos filas de medios de 56 px (§8.4). Con más de seis
+   * (el local los añade sin desplegar, F4-02), la sexta casilla es «Otros medios»: abre la lista
+   * con los que no caben, y enseña el elegido cuando es uno de ellos.
+   */
+  const CASILLAS_DE_MEDIOS = 6;
+  const hayOtros = mediosDisponibles.length > CASILLAS_DE_MEDIOS;
+  const fijos = hayOtros ? mediosDisponibles.slice(0, CASILLAS_DE_MEDIOS - 1) : mediosDisponibles;
+  const otros = hayOtros ? mediosDisponibles.slice(CASILLAS_DE_MEDIOS - 1) : [];
+  const otroElegido = otros.find((m) => m.code === medioActivo.code);
+  const [eligiendoOtro, setEligiendoOtro] = useState(false);
 
   /**
    * Si apagan desde el panel el medio que estaba elegido, la caja pasa al
@@ -766,6 +787,75 @@ function CobroCuenta({
     setMedioActivo(medio);
     return true;
   });
+
+
+  /** Un medio en la cuadrícula; `alPulsar` lo cambia por abrir «Otros medios». */
+  const pintarMedio = (m: MedioPago, alPulsar?: () => void) => {
+            const activo = m.code === medioActivo.code;
+            const bloqueado = m.currency !== FUNCIONAL && !rate;
+            const Icon = MEDIO_ICONS[m.code] ?? Banknote;
+            return (
+              <button
+                key={m.code}
+                type="button"
+                role="radio"
+                aria-checked={activo}
+                aria-haspopup={alPulsar ? "dialog" : undefined}
+                disabled={bloqueado}
+                onClick={alPulsar ?? (() => setMedioActivo(m))}
+                title={
+                  bloqueado
+                    ? "Sin tasa del día no se puede cobrar en esta moneda"
+                    : `${m.label}${TECLA_MEDIO[m.code] ? ` (tecla ${TECLA_MEDIO[m.code]})` : ""}`
+                }
+                className={cn(
+                  "flex h-14 cursor-pointer flex-col items-start justify-center overflow-hidden rounded-[var(--radius-control)] border px-1.5 text-left",
+                  "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  "disabled:cursor-not-allowed disabled:opacity-35",
+                  activo
+                    ? "border-brand bg-brand/12 text-ink ring-1 ring-brand/30"
+                    : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
+                )}
+              >
+                {/* Icono junto al nombre; debajo, moneda e IGTF. La letra del
+                      atajo va en el `title` y en la chuleta: en el botón le
+                      quitaba sitio al nombre («Punto dé…»). */}
+                <span className="flex w-full min-w-0 items-center gap-1">
+                  <Icon
+                    size={12}
+                    className={cn(
+                      "shrink-0",
+                      activo ? "text-brand" : "text-ink-3",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate text-[12px] leading-tight font-bold">
+                    {m.label}
+                  </span>
+                  {alPulsar && <ChevronDown size={12} className="ml-auto shrink-0 text-ink-3" aria-hidden="true" />}
+                </span>
+                <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10px] whitespace-nowrap">
+                  <span
+                    className={cn(
+                      m.currency === "VES"
+                        ? "font-semibold text-ink-2"
+                        : "text-ink-3",
+                    )}
+                  >
+                    {m.currency}
+                  </span>
+                  {/* El IGTF solo existe en divisas: en bolívares no se dice
+                        nada, en vez de un «0% IGTF» que hay que leer para nada. */}
+                  {m.triggersIgtf && (
+                    <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
+                      +{igtfBasisPoints / 100}% IGTF
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+  };
 
   return (
     <>
@@ -1306,70 +1396,29 @@ function CobroCuenta({
           role="radiogroup"
           aria-label="Medio de pago"
         >
-          {mediosDisponibles.map((m) => {
-            const activo = m.code === medioActivo.code;
-            const bloqueado = m.currency !== FUNCIONAL && !rate;
-            const Icon = MEDIO_ICONS[m.code] ?? Banknote;
-            return (
+          {fijos.map((m) => pintarMedio(m))}
+          {otros.length > 0 &&
+            (otroElegido ? (
+              pintarMedio(otroElegido, () => setEligiendoOtro(true))
+            ) : (
               <button
-                key={m.code}
                 type="button"
-                role="radio"
-                aria-checked={activo}
-                disabled={bloqueado}
-                onClick={() => setMedioActivo(m)}
-                title={
-                  bloqueado
-                    ? "Sin tasa del día no se puede cobrar en esta moneda"
-                    : `${m.label}${TECLA_MEDIO[m.code] ? ` (tecla ${TECLA_MEDIO[m.code]})` : ""}`
-                }
+                aria-haspopup="dialog"
+                onClick={() => setEligiendoOtro(true)}
                 className={cn(
-                  "flex h-14 cursor-pointer flex-col items-start justify-center overflow-hidden rounded-[var(--radius-control)] border px-1.5 text-left",
-                  "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                  "disabled:cursor-not-allowed disabled:opacity-35",
-                  activo
-                    ? "border-brand bg-brand/12 text-ink ring-1 ring-brand/30"
-                    : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
+                  "flex h-14 cursor-pointer flex-col items-start justify-center overflow-hidden rounded-[var(--radius-control)] border border-dashed border-line-strong bg-base px-1.5 text-left text-ink-2",
+                  "transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                 )}
               >
-                {/* Icono junto al nombre; debajo, moneda e IGTF. La letra del
-                      atajo va en el `title` y en la chuleta: en el botón le
-                      quitaba sitio al nombre («Punto dé…»). */}
                 <span className="flex w-full min-w-0 items-center gap-1">
-                  <Icon
-                    size={12}
-                    className={cn(
-                      "shrink-0",
-                      activo ? "text-brand" : "text-ink-3",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className="truncate text-[12px] leading-tight font-bold">
-                    {m.label}
-                  </span>
+                  <ChevronDown size={12} className="shrink-0 text-ink-3" aria-hidden="true" />
+                  <span className="truncate text-[12px] leading-tight font-bold">Otros medios</span>
                 </span>
-                <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10px] whitespace-nowrap">
-                  <span
-                    className={cn(
-                      m.currency === "VES"
-                        ? "font-semibold text-ink-2"
-                        : "text-ink-3",
-                    )}
-                  >
-                    {m.currency}
-                  </span>
-                  {/* El IGTF solo existe en divisas: en bolívares no se dice
-                        nada, en vez de un «0% IGTF» que hay que leer para nada. */}
-                  {m.triggersIgtf && (
-                    <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
-                      +{igtfBasisPoints / 100}% IGTF
-                    </span>
-                  )}
-                </div>
+                <span className="mt-0.5 truncate text-[10px] text-ink-3">
+                  {otros.map((m) => m.label).join(" · ")}
+                </span>
               </button>
-            );
-          })}
+            ))}
         </div>
 
         {/* ── franja del medio: SIEMPRE 56 px, ni uno más ── */}
@@ -1469,7 +1518,7 @@ function CobroCuenta({
                 </button>
               ))}
             </div>
-          ) : medioActivo.code === "PAGO_MOVIL" && mediosConfig.pagoMovil ? (
+          ) : medioActivo.datos === "PAGO_MOVIL" && pagoMovilLocal ? (
             // Compacto: sin icono (el medio ya está elegido arriba), el banco por
             // su nombre y el teléfono sin puntos. «Copiar» es solo el icono;
             // el código del banco va en lo que se copia.
@@ -1480,28 +1529,28 @@ function CobroCuenta({
               <dl className="grid min-w-0 flex-1 grid-flow-col grid-cols-[auto_auto_auto] grid-rows-2 justify-between gap-x-2">
                 <dt className="text-[9.5px] text-ink-3 uppercase">Banco</dt>
                 <dd className="truncate font-bold text-ink">
-                  {nombreBanco(mediosConfig.pagoMovil.bankCode)}
+                  {nombreBanco(pagoMovilLocal.bankCode)}
                 </dd>
                 <dt className="text-[9.5px] text-ink-3 uppercase">Teléfono</dt>
                 <dd className="tnum truncate font-bold text-ink">
-                  {mediosConfig.pagoMovil.phone}
+                  {pagoMovilLocal.phone}
                 </dd>
                 <dt className="text-[9.5px] text-ink-3 uppercase">RIF</dt>
                 <dd className="tnum truncate font-bold text-ink">
-                  {mediosConfig.pagoMovil.document}
+                  {pagoMovilLocal.document}
                 </dd>
               </dl>
               <BotonCopiar
                 copiado={copiado}
                 onCopiar={() =>
                   copiarTexto(
-                    `${nombreBanco(mediosConfig.pagoMovil!.bankCode)} (${mediosConfig.pagoMovil!.bankCode}) - ${mediosConfig.pagoMovil!.phone} - ${mediosConfig.pagoMovil!.document}`,
+                    `${nombreBanco(pagoMovilLocal.bankCode)} (${pagoMovilLocal.bankCode}) - ${pagoMovilLocal.phone} - ${pagoMovilLocal.document}`,
                   )
                 }
                 que="los datos de Pago Móvil"
               />
             </div>
-          ) : medioActivo.code === "ZELLE" && mediosConfig.zelle ? (
+          ) : medioActivo.datos === "ZELLE" && zelleLocal ? (
             <div className="flex h-14 items-center gap-1 rounded-[var(--radius-control)] border border-line pl-2.5 text-[11.5px]">
               <Zap
                 size={14}
@@ -1510,21 +1559,22 @@ function CobroCuenta({
               />
               <div className="min-w-0 flex-1">
                 <span className="block truncate text-[9.5px] text-ink-3 uppercase">
-                  Zelle · {mediosConfig.zelle.holder}
+                  Zelle · {zelleLocal.holder}
                 </span>
                 <span className="block truncate font-bold text-ink">
-                  {mediosConfig.zelle.email}
+                  {zelleLocal.email}
                 </span>
               </div>
               <BotonCopiar
                 copiado={copiado}
-                onCopiar={() => copiarTexto(mediosConfig.zelle!.email)}
+                onCopiar={() => copiarTexto(zelleLocal.email)}
                 que="el correo de Zelle"
               />
             </div>
           ) : (
             <p className="flex h-14 items-center rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] leading-snug text-ink-3">
               {INDICACION_MEDIO[medioActivo.code] ??
+                (medioActivo.datos === "PUNTO" ? INDICACION_MEDIO["PDV_DEBITO"] : undefined) ??
                 (esEfectivo
                   ? "Teclea lo recibido y pulsa «Añadir»."
                   : "Teclea lo recibido y pulsa «Añadir», o cobra el monto exacto.")}
@@ -1634,6 +1684,42 @@ function CobroCuenta({
         onCerrar={() => setIdentificando(false)}
       />
 
+      <Dialog
+        abierto={eligiendoOtro}
+        onCerrar={() => setEligiendoOtro(false)}
+        titulo="Otros medios de pago"
+        descripcion="Los que no caben en la cuadrícula. El elegido ocupa la sexta casilla."
+      >
+        <div role="radiogroup" aria-label="Otros medios de pago" className="grid grid-cols-2 gap-1.5">
+          {otros.map((m) => {
+            const bloqueado = m.currency !== FUNCIONAL && !rate;
+            return (
+              <button
+                key={m.code}
+                type="button"
+                role="radio"
+                aria-checked={m.code === medioActivo.code}
+                disabled={bloqueado}
+                onClick={() => {
+                  setMedioActivo(m);
+                  setEligiendoOtro(false);
+                }}
+                className={cn(
+                  "flex min-h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 text-left",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35",
+                  m.code === medioActivo.code ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:text-ink",
+                )}
+              >
+                <span className="text-[14px] font-bold">{m.label}</span>
+                <span className="text-[11px] text-ink-3">
+                  {m.currency}
+                  {m.triggersIgtf ? ` · +${igtfBasisPoints / 100}% IGTF` : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Dialog>
       <DatosPagoDialog
         tipo={pendienteDeDatos?.medio.datos ?? null}
         monto={

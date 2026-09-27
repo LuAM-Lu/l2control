@@ -84,6 +84,10 @@ export {
 } from "./tasas.ts";
 
 export {
+  CodigoMedioSchema,
+  MedioNuevoSchema,
+  TerminalNuevoSchema,
+  TipoDatosSchema,
   MedioDePagoSchema,
   MediosDePagoSchema,
   DatosPagoMovilSchema,
@@ -94,6 +98,7 @@ export {
   type DatosPagoMovilDto,
   type DatosZelleDto,
   type MedioCommand,
+  type MedioNuevoDto,
 } from "./medios.ts";
 
 export {
@@ -232,6 +237,8 @@ export {
 
 export {
   DatosDePagoSchema,
+  claveDeReferencia,
+  enmascararDatos,
   PosTerminalSchema,
   RedUsdtSchema,
   TelefonoVeSchema,
@@ -265,14 +272,12 @@ export {
 
 export {
   TipoAsientoSchema,
-  MetodoLibroSchema,
   AsientoNuevoSchema,
   AsentarPagosCommandSchema,
   RevertirPagoCommandSchema,
   AsientoSchema,
   LibroDocumentoSchema,
   type TipoAsiento,
-  type MetodoLibro,
   type AsientoNuevoDto,
   type AsentarPagosCommand,
   type RevertirPagoCommand,

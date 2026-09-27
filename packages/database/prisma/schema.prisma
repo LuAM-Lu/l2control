@@ -30,6 +30,8 @@ model Tenant {
   exchangeRates ExchangeRate[]
   taxRates      TaxRate[]
   bankHolidays  BankHoliday[]
+  paymentMethods    PaymentMethod[]
+  collectionDetails CollectionDetails[]
 
   @@map("tenant")
 }
@@ -52,6 +54,7 @@ model Branch {
 
   payments        Payment[]
   cashShifts      CashShift[]
+  posTerminals    PosTerminal[]
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
   /// Las comprobaciones de FK no pasan por la RLS, así que sin esto A podría citar la sucursal de B.
@@ -413,7 +416,8 @@ model Payment {
   line             Int      @db.SmallInt
   /// COBRO, VUELTO, PROPINA o RESIDUO (§5.6).
   kind             String
-  /// EFECTIVO_USD, EFECTIVO_VES, PAGO_MOVIL, PDV_DEBITO, PDV_CREDITO, USDT o ZELLE (§5.5).
+  /// El código de un medio del catálogo del local (B3-2, §9.9). La FK lleva la moneda: la del
+  /// asiento es la de su medio.
   method           String
   currency         String
   /// Unidades menores, con signo: negativo solo en una reversión. Nunca Float (I-01).
@@ -433,8 +437,18 @@ model Payment {
   deviceId         String?  @map("device_id") @db.Uuid
   authorizedBy     String?  @map("authorized_by") @db.Uuid
   authorizedByName String?  @map("authorized_by_name")
+  /// Los datos del pago (F4-04: referencia, TxID, titular), cifrados con AES-256-GCM (§7.6). Solo
+  /// en un cobro original, y siempre que su medio los pida (disparador).
+  referenceCipher  String?  @map("reference_cipher")
+  /// HMAC de lo que identifica el pago en su banco: reconoce una referencia ya cobrada sin
+  /// guardarla en claro. Nulo si no hay nada que la identifique (un Zelle sin confirmación).
+  referenceDigest  String?  @map("reference_digest")
+  /// El terminal por el que pasó la tarjeta, de esta misma sucursal (FK compuesta).
+  terminalId       String?  @map("terminal_id") @db.Uuid
 
   branch       Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  medio        PaymentMethod @relation(fields: [tenantId, method, currency], references: [tenantId, code, currency], onDelete: Restrict, onUpdate: Restrict)
+  terminal     PosTerminal?  @relation(fields: [tenantId, branchId, terminalId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
   rate         ExchangeRate? @relation(fields: [tenantId, rateId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   reverses     Payment?      @relation("PaymentReversal", fields: [tenantId, reversesId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   reversedBy   Payment[]     @relation("PaymentReversal")
@@ -448,7 +462,84 @@ model Payment {
   @@unique([tenantId, operationKey, line])
   @@index([tenantId, documentId])
   @@index([tenantId, businessDate])
+  @@index([tenantId, referenceDigest])
   @@map("payment")
+}
+
+/// Un medio de pago del catálogo del local (B3-2, F4-02, §9.9): un dato, no una constante del
+/// código, y añadir uno no exige desplegar. No se borra (los asientos lo citan) y lo que lo define
+/// no cambia: código, moneda, si da vuelto y qué datos pide (disparador). Se enciende y se apaga.
+model PaymentMethod {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  code          String
+  label         String
+  /// USD, VES o USDT (CHECK).
+  currency      String
+  /// Efectivo de la gaveta: el único que da vuelto (§5.6).
+  givesChange   Boolean  @map("gives_change")
+  triggersIgtf  Boolean  @map("triggers_igtf")
+  /// PAGO_MOVIL, ZELLE, USDT o PUNTO: los datos que pide para conciliar (F4-04). Nulo, ninguno.
+  dataKind      String?  @map("data_kind")
+  active        Boolean
+  /// El orden en la caja y en la configuración.
+  position      Int      @db.SmallInt
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdByName String   @map("created_by_name")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payments Payment[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  /// Destino de la FK del libro: el asiento cita el medio CON su moneda.
+  @@unique([tenantId, code, currency])
+  @@map("payment_method")
+}
+
+/// Un terminal de punto de venta de la sucursal (B3-2, F4-02). No se borra: un pago con punto dice
+/// por cuál pasó la tarjeta. Uno retirado se retira una vez, con quién y cuándo.
+model PosTerminal {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  branchId      String    @map("branch_id") @db.Uuid
+  name          String
+  bank          String
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdByName String    @map("created_by_name")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredBy     String?   @map("retired_by") @db.Uuid
+  retiredByName String?   @map("retired_by_name")
+
+  branch   Branch    @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  payments Payment[]
+
+  @@unique([tenantId, id])
+  /// Destino de la FK del libro: el terminal de un pago es de SU sucursal.
+  @@unique([tenantId, branchId, id])
+  @@index([tenantId, branchId])
+  @@map("pos_terminal")
+}
+
+/// Los datos que la caja enseña al cliente para que pague (B3-2, F4-04): el Pago Móvil y el Zelle
+/// del local. Solo-agregar: cambiarlos añade una fila y rige la última. Cifrados (§7.6): un Zelle
+/// puede ser la cuenta personal de quien lleva el negocio.
+model CollectionDetails {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  /// PAGO_MOVIL o ZELLE (CHECK).
+  kind           String
+  dataCipher     String   @map("data_cipher")
+  recordedAt     DateTime @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  recordedBy     String?  @map("recorded_by") @db.Uuid
+  recordedByName String   @map("recorded_by_name")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, kind, recordedAt])
+  @@map("collection_details")
 }
 
 /// Un turno de caja (B3-1, F4-01, ADR-009, I-06): un equipo, un turno abierto. No se borra y solo

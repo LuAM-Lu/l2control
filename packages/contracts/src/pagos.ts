@@ -75,10 +75,47 @@ export type DatosDePagoDto = z.infer<typeof DatosDePagoSchema>;
 export type TipoDeDatosDePago = DatosDePagoDto["kind"];
 
 /**
+ * Lo que identifica un pago en su banco o su red: con esto se reconoce una referencia que ya se
+ * cobró (el mismo capture de Pago Móvil enseñado dos veces). Un Zelle sin número de confirmación
+ * no tiene nada que lo identifique: `null`.
+ */
+export function claveDeReferencia(d: DatosDePagoDto): string | null {
+  switch (d.kind) {
+    case "PAGO_MOVIL":
+      return `PM:${d.bankCode}:${d.reference}`;
+    case "PUNTO":
+      return `PDV:${d.terminalId}:${d.reference}`;
+    case "USDT":
+      return `USDT:${d.txId.toLowerCase()}`;
+    case "ZELLE":
+      return d.confirmation ? `ZELLE:${d.confirmation.toLowerCase()}` : null;
+  }
+}
+
+const cola = (texto: string, n = 4) => `···${texto.slice(-n)}`;
+
+/**
+ * Los datos de un pago enmascarados (§7.6): lo justo para reconocerlo en una lista sin enseñarlo.
+ * Es lo único de una referencia que sale del servidor al leer el libro.
+ */
+export function enmascararDatos(d: DatosDePagoDto): string {
+  switch (d.kind) {
+    case "PAGO_MOVIL":
+      return `Banco ${d.bankCode} · Ref. ${cola(d.reference)}`;
+    case "ZELLE":
+      return `Titular ${d.holder.slice(0, 3)}···${d.confirmation ? ` · Conf. ${cola(d.confirmation)}` : ""}`;
+    case "USDT":
+      return `${d.network === "BINANCE_PAY" ? "Binance Pay" : d.network} · TxID ${cola(d.txId, 6)}`;
+    case "PUNTO":
+      return `Punto · Ref. ${cola(d.reference)}`;
+  }
+}
+
+/**
  * Terminal de punto de venta bancario. No es el «punto de cobro» de DEC-13
  * (taquilla o mostrador): un mismo mostrador puede tener dos terminales de
- * bancos distintos.
- * TODO(F4-02): se configuran en Configuración; hoy son datos de ejemplo.
+ * bancos distintos. Se configuran en Caja → Medios de pago (B3-2); el
+ * identificador lo pone el servidor.
  */
 export const PosTerminalSchema = z.object({
   id: IdSchema,

@@ -9,6 +9,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { fromMajor, toMajor, zero, type FrozenRate } from "@l2/domain-money";
 import { entryProblem, ledgerBalance, reversalOf, reversalProblem, type LedgerEntry } from "./libro.ts";
+import { DEFAULT_LEDGER_METHODS } from "./medios.ts";
 
 /** 855,6625 Bs/$ y 860,00 Bs/$, como las congela un asiento (de bolívares a dólares). */
 const TASA_VIERNES: FrozenRate = { from: "VES", to: "USD", numerator: 8556625n, denominator: 10000n };
@@ -24,23 +25,42 @@ const asiento = (p: Partial<LedgerEntry> & Pick<LedgerEntry, "method" | "amount"
   ...p,
 });
 
+/** Tres medios del catálogo con el que nace un local. */
+const medio = (code: string) => DEFAULT_LEDGER_METHODS.find((m) => m.code === code)!;
+const EFECTIVO = medio("EFECTIVO_USD");
+const MOVIL = medio("PAGO_MOVIL");
+const USDT = medio("USDT");
+
 describe("un asiento nuevo (F3-09)", () => {
   test("positivo, en la moneda de su medio, con tasa solo si es en bolívares", () => {
-    assert.equal(entryProblem({ kind: "COBRO", method: "EFECTIVO_USD", amount: fromMajor("5.00", "USD"), rate: null }), null);
-    assert.equal(entryProblem({ kind: "COBRO", method: "PAGO_MOVIL", amount: fromMajor("4278.31", "VES"), rate: TASA_VIERNES }), null);
-    assert.equal(entryProblem({ kind: "COBRO", method: "USDT", amount: fromMajor("5.00", "USDT"), rate: null }), null);
+    assert.equal(entryProblem({ kind: "COBRO", amount: fromMajor("5.00", "USD"), rate: null, dataKind: null }, EFECTIVO), null);
+    assert.equal(entryProblem({ kind: "COBRO", amount: fromMajor("4278.31", "VES"), rate: TASA_VIERNES, dataKind: "PAGO_MOVIL" }, MOVIL), null);
+    assert.equal(entryProblem({ kind: "COBRO", amount: fromMajor("5.00", "USDT"), rate: null, dataKind: "USDT" }, USDT), null);
   });
 
   test("lo que no se asienta", () => {
-    const casos: [Parameters<typeof entryProblem>[0], string][] = [
-      [{ kind: "COBRO", method: "EFECTIVO_USD", amount: fromMajor("0.00", "USD"), rate: null }, "IMPORTE_NO_POSITIVO"],
-      [{ kind: "COBRO", method: "EFECTIVO_USD", amount: fromMajor("-1.00", "USD"), rate: null }, "IMPORTE_NO_POSITIVO"],
-      [{ kind: "COBRO", method: "ZELLE", amount: fromMajor("5.00", "VES"), rate: TASA_VIERNES }, "MONEDA_DEL_MEDIO"],
-      [{ kind: "COBRO", method: "PAGO_MOVIL", amount: fromMajor("100.00", "VES"), rate: null }, "FALTA_TASA"],
-      [{ kind: "COBRO", method: "EFECTIVO_USD", amount: fromMajor("5.00", "USD"), rate: TASA_VIERNES }, "TASA_SOBRANTE"],
-      [{ kind: "VUELTO", method: "PAGO_MOVIL", amount: fromMajor("100.00", "VES"), rate: TASA_VIERNES }, "VUELTO_SOLO_EN_EFECTIVO"],
+    const casos: [Parameters<typeof entryProblem>[0], typeof EFECTIVO, string][] = [
+      [{ kind: "COBRO", amount: fromMajor("0.00", "USD"), rate: null, dataKind: null }, EFECTIVO, "IMPORTE_NO_POSITIVO"],
+      [{ kind: "COBRO", amount: fromMajor("-1.00", "USD"), rate: null, dataKind: null }, EFECTIVO, "IMPORTE_NO_POSITIVO"],
+      [{ kind: "COBRO", amount: fromMajor("5.00", "VES"), rate: TASA_VIERNES, dataKind: "ZELLE" }, medio("ZELLE"), "MONEDA_DEL_MEDIO"],
+      [{ kind: "COBRO", amount: fromMajor("100.00", "VES"), rate: null, dataKind: "PAGO_MOVIL" }, MOVIL, "FALTA_TASA"],
+      [{ kind: "COBRO", amount: fromMajor("5.00", "USD"), rate: TASA_VIERNES, dataKind: null }, EFECTIVO, "TASA_SOBRANTE"],
+      [{ kind: "VUELTO", amount: fromMajor("100.00", "VES"), rate: TASA_VIERNES, dataKind: null }, MOVIL, "VUELTO_SOLO_EN_EFECTIVO"],
     ];
-    for (const [e, problema] of casos) assert.equal(entryProblem(e), problema, problema);
+    for (const [e, m, problema] of casos) assert.equal(entryProblem(e, m), problema, problema);
+  });
+
+  test("un cobro trae los datos que su medio pide para conciliarlo, y solo esos (F4-04)", () => {
+    const bs = { kind: "COBRO", amount: fromMajor("100.00", "VES"), rate: TASA_VIERNES } as const;
+    assert.equal(entryProblem({ ...bs, dataKind: null }, MOVIL), "FALTAN_DATOS");
+    assert.equal(entryProblem({ ...bs, dataKind: "PUNTO" }, MOVIL), "DATOS_DE_OTRO_MEDIO");
+    assert.equal(entryProblem({ ...bs, dataKind: "PAGO_MOVIL" }, medio("EFECTIVO_VES")), "DATOS_SOBRANTES");
+  });
+
+  test("el vuelto, la propina y el residuo no llevan referencia: no vienen de un banco", () => {
+    const vuelto = { kind: "VUELTO", amount: fromMajor("1.00", "USD"), rate: null } as const;
+    assert.equal(entryProblem({ ...vuelto, dataKind: null }, EFECTIVO), null);
+    assert.equal(entryProblem({ kind: "PROPINA", amount: fromMajor("1.00", "USD"), rate: null, dataKind: "ZELLE" }, medio("ZELLE")), "DATOS_SOBRANTES");
   });
 });
 

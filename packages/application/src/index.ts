@@ -20,6 +20,7 @@ import { casosTasas, type CasosTasas } from "./dinero/tasas.ts";
 import { casosImpuestos, type CasosImpuestos } from "./dinero/impuestos.ts";
 import { casosPagos, type CasosPagos } from "./dinero/pagos.ts";
 import { casosTurnos, type CasosTurnos } from "./caja/turnos.ts";
+import { casosMedios, type CasosMedios } from "./caja/medios.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 
 export type { Contexto } from "./contexto.ts";
@@ -34,6 +35,7 @@ export { DIAS_POR_ADELANTADO, UMBRAL_VARIACION_BPS, ZONA_DEL_LOCAL, type CasosTa
 export { DIAS_POR_ADELANTADO_IMPUESTOS, type CasosImpuestos } from "./dinero/impuestos.ts";
 export type { CasosPagos } from "./dinero/pagos.ts";
 export type { CasosTurnos } from "./caja/turnos.ts";
+export type { CasosMedios } from "./caja/medios.ts";
 export type { CasosFeriados } from "./dinero/feriados.ts";
 export { AutorizacionSchema, exigirPermisoOAutorizacion, type Autorizacion } from "./identidad/autorizacion.ts";
 export { ELEVACION_MS, type CasosElevacion, type CredencialesNuevas } from "./identidad/elevacion.ts";
@@ -60,14 +62,16 @@ export interface Aplicacion {
   readonly impuestos: CasosImpuestos;
   readonly pagos: CasosPagos;
   readonly turnos: CasosTurnos;
+  readonly medios: CasosMedios;
   readonly feriados: CasosFeriados;
   cerrar(): Promise<void>;
 }
 
 export interface OpcionesDeConexion {
   /**
-   * Clave AES-256 en base64 (L2_CLAVE_CIFRADO) para lo que se guarda cifrado: el secreto TOTP y,
-   * en B3-2, las referencias de pago. Sin ella, esas funciones responden NO_DISPONIBLE.
+   * Clave AES-256 en base64 (L2_CLAVE_CIFRADO) para lo que se guarda cifrado: el secreto TOTP, los
+   * datos de cada pago y los datos de cobro del local (B3-2). Sin ella, esas funciones responden
+   * NO_DISPONIBLE.
    */
   claveCifrado?: string | undefined;
 }
@@ -89,8 +93,9 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     accesos: casosAccesos(base),
     tasas: casosTasas(base),
     impuestos: casosImpuestos(base),
-    pagos: casosPagos(base),
+    pagos: casosPagos(base, cifrador),
     turnos: casosTurnos(base),
+    medios: casosMedios(base, cifrador),
     feriados: casosFeriados(base),
     cerrar: () => base.cerrar(),
   };

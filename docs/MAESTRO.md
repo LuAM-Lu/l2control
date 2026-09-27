@@ -27,11 +27,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.20.0 · 20 de 47 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.21.0 · 21 de 47 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
-feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra. Sin modo demo; lo provisional y lo simulado que queda está
+feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -39,17 +39,17 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio), Impuestos y Feriados bancarios (Configuración) y el turno (apertura, barra, caja e Inicio). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) y los medios de pago (Caja → Medios de pago y los medios que ofrece la caja). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
   «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (43 de base, 166 de aplicación; en el dominio, 54 de tasas,
-  44 de impuestos y 55 de caja). **Subido a GitHub el
+- **Pruebas:** `pnpm verify:db` en verde (50 de base, 189 de aplicación; en el dominio, 54 de tasas,
+  44 de impuestos y 67 de caja). **Subido a GitHub el
   2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
 
 **La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
@@ -64,9 +64,17 @@ B2-2 se programó el IVA general al 15 % (hoy y el 27 oct) y se devolvió al 16 
 27 oct y se canceló: rige 16 %, 8 % y 3 %, sin nada programado. Equipos «Prueba B22 Admin» y «Prueba
 B22 Caja» revocados.
 
-**Turno de prueba abierto en la base local.** Al comprobar B3-1 se abrió un turno en «Prueba B31 Caja»
-($ 20,00 y Bs. 1.500,00) y el equipo se revocó después. Un turno no se borra ni se cierra sin corte Z,
-así que Inicio lo enseña hasta B3-5, que debe permitir cerrar un turno huérfano desde otro equipo.
+**Turnos de prueba abiertos en la base local.** Al comprobar B3-1 se abrió un turno en «Prueba B31
+Caja» ($ 20,00 y Bs. 1.500,00), y al comprobar B3-2 otro en «Prueba B32» ($ 0 y Bs. 0,00, a nombre de
+Abigail Karam); los dos equipos están revocados. Un turno no se borra ni se cierra sin corte Z, así
+que Inicio los enseña hasta B3-5, que debe permitir cerrar un turno huérfano desde otro equipo.
+
+**Medios de pago en la base local.** La migración de B3-2 dio a cada local los siete medios de §5.5
+(los que piden datos del local, apagados) y `pnpm db:semilla` cargó datos inventados: Pago Móvil
+(Banesco, 0414-2345678, J-40123456-7), Zelle (Parque Infantil L2 C.A.) y dos terminales (Punto
+Banesco y Punto Mercantil), con Pago Móvil, Punto débito y Zelle encendidos. Al comprobar B3-2 se
+añadió el medio «Biopago» (se queda apagado: un medio no se borra) y se añadió y retiró el terminal
+«Punto BNC». Punto crédito sigue apagado.
 
 **Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
 carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
@@ -75,8 +83,8 @@ carga los de 2026 desde Configuración → Feriados bancarios con el calendario 
 se crean por consola, y el segundo factor es un TOTP de una app de terceros. T-4 lo resuelve antes de
 staging: instalación inicial desde el navegador y llaves de acceso (ADR-020).
 
-**Siguiente paso:** B3-2 (medios de pago, terminales y datos de cobro persistidos, con los datos de
-pago cifrados). Luego, el orden de §3.
+**Siguiente paso:** B9-1 (catálogo de productos en la base, que el cobro en servidor necesita).
+Luego B3-3 (la caja cobra contra el libro) y el orden de §3.
 
 ---
 
@@ -137,7 +145,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1 → B2-4 (se cierra Dinero) → T-3~~.
    B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
    (ADR-009), así que el turno tenía que existir antes.
-2. **B3-2** → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
+2. ~~B3-2~~ → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
@@ -473,8 +481,51 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   barra «Turno desde 2:14 pm»; la caja cobra desde ese equipo; Inicio «Turno desde 2:14 pm · Marisol
   Prieto» y en gaveta $ 20,00 / Bs. 1.500,00. Caja sin turno, apertura y turno abierto a 1366×768,
   1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
-- [ ] **B3-2 · Medios de pago, terminales y datos de cobro** persistidos; los datos de pago, **cifrados
+- [x] **B3-2 · Medios de pago, terminales y datos de cobro** persistidos; los datos de pago, **cifrados
   en reposo** (F4-02, F4-04). Se borran `src/demo/medios.ts` y la parte de medios de `caja.ts`.
+  → Añadir un medio no requiere desplegar (F4-02). El dato obligatorio de cada medio se exige y no
+  aparece en ningún log (F4-04).
+  *Hecho el 2026-09-27 (v0.21.0):*
+  *· Decisión: el medio del libro deja de ser la lista cerrada de §5.5 y pasa a ser un código del
+  catálogo del local (§9.9 manda sobre el «enum tipado» de §5.5); los siete de §5.5 son el catálogo
+  con el que nace un local. La FK del libro lleva la moneda, así que un asiento sigue sin poder ir en
+  otra moneda que la de su medio.*
+  *· Dominio (`@l2/domain-cash`, `medios.ts`): `DEFAULT_LEDGER_METHODS`, `methodDefinitionProblem`
+  (solo da vuelto el efectivo de la gaveta, que no pide referencia), `offerProblem` y
+  `offeredMethods` (encendido y con los datos del local). `entryProblem` recibe el medio y exige los
+  datos que pide (FALTAN_DATOS, DATOS_DE_OTRO_MEDIO, DATOS_SOBRANTES). 12 pruebas nuevas.*
+  *· Contrato: `CodigoMedioSchema`; mandos `AÑADIR_MEDIO` (nace apagado) y `AÑADIR_TERMINAL` sin
+  identificador (lo pone el servidor); el asiento lleva `datos` (solo en un cobro) y el libro los
+  devuelve enmascarados (`enmascararDatos`); `claveDeReferencia` es la misma en la caja y en el
+  servidor. 4 pruebas nuevas.*
+  *· Base: migración `20261004000000_medios_de_pago`: `payment_method` (sin borrar ni redefinir;
+  se enciende, se apaga y se renombra), `pos_terminal` (se retira una vez; dos vigentes no se llaman
+  igual) y `collection_details` (solo-agregar, cifrada), con RLS. El libro cita el medio con su
+  moneda (FK compuesta; se retiran los CHECK de la lista cerrada) y guarda `reference_cipher` (con
+  la forma del cifrado: un dato en claro no entra), `reference_digest` y `terminal_id` (de su
+  sucursal); un disparador exige vuelto de un medio que lo da, cobro de un medio encendido, los datos
+  que pide y un terminal vigente. La migración siembra los siete medios en cada local existente. 7
+  pruebas nuevas.*
+  *· Aplicación: `medios.leer` (con persona en sesión) y `medios.aplicar` (`catalogo.modificar` con
+  elevación; valida la configuración resultante antes de guardar; asientos `medio.*` y `terminal.*`
+  sin los datos). `pagos.asentar` toma el medio del catálogo (IGTF según su `triggersIgtf`), rechaza
+  uno apagado o sin los datos del local, cifra los datos del pago y rechaza una referencia ya cobrada
+  y no revertida (huella HMAC con clave derivada y candado por huella). Un local nuevo nace con los
+  siete medios (`sucursal.asegurar`). 17 pruebas de medios y 6 más en el libro.*
+  *· Web: `medios.servidor.ts` (solo con sesión: la pantalla de acceso no recibe los datos de cobro) y
+  `medios.acciones.ts`; `MediosProvider` sin `sessionStorage`. Caja → Medios de pago en tres pestañas
+  (Medios, Datos para el cliente, Terminales) con «Añadir medio» en una hoja. La caja ofrece
+  `offeredMethods` y, con más de seis, la sexta casilla es «Otros medios» (con siete, «Cerrar cobro»
+  se salía de la pantalla a 1366×768). Se borran `src/demo/medios.ts` y `src/demo/caja.ts`.*
+  *· Logs: la redacción no tapaba `document` ni `holder` (el RIF del Pago Móvil del local, la cédula de
+  quien paga y el titular de un Zelle viajan con esos nombres); ahora sí, con `documentId` como
+  excepción explícita.*
+  *· Comprobado en el navegador: apagar y encender Pago Móvil con elevación; un teléfono mal escrito,
+  señalado; añadir y retirar un terminal (dos pasos); «Añadir medio» normaliza el código y rechaza
+  un efectivo que pide referencia; Biopago añadido nace apagado, se enciende y la caja lo ofrece en
+  «Otros medios»; Punto crédito (apagado) no sale en la caja; Pago Móvil enseña los datos del local
+  leídos del servidor. Medios, Datos, Terminales y caja a 1366×768, 1280×800 y 800×1280 sin desplazar
+  el documento, con «Cerrar cobro» a la vista; sin errores de consola.*
 - [ ] **B3-3 · Cobro mixto y vuelto en el servidor** contra el libro, con la tasa congelada (F4-03,
   F4-04b, F4-04c, §5.6). Necesita B9-1: la venta de mostrador vende del catálogo de la base y tiene su
   tipo de cuenta «mostrador». Las cuentas dejan de vivir en el almacenamiento del navegador.
@@ -632,8 +683,10 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a SALTO), el texto de la alerta no lo dice | B5-1 |
 | El documento del libro (`payment.document_id`) no tiene FK: la tabla de cuentas y ventas llega con B3-3 | B3-3 |
-| Qué medios disparan IGTF en el libro es el trato por defecto (divisas y cripto), no la configuración del local | B3-2 |
-| Un asiento del libro no guarda la referencia del pago (Pago Móvil, punto, TxID): se añade cifrada | B3-2 |
+| La caja guarda los datos de cada pago con la venta en el navegador: el libro los cifra, pero la caja aún no cobra contra él | B3-3 |
+| Un cambio de medios en el panel llega a la caja al navegar, no en vivo | B5-1 |
+| La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
+| Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El libro no comprueba que el cobro cuadre con el total del documento ni que la tasa citada sea la vigente | B3-3 |
 | Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | B3-4 (D-AUT) |
 
@@ -642,7 +695,6 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 
 | Qué | Dónde | Se va con |
 |---|---|---|
-| Medios de pago, datos que ve el cliente y terminales | `src/demo/medios.ts`, `caja.ts`, `MediosProvider` (en el navegador) | B3-2 |
 | Movimientos y excepciones del turno (vacíos; el fondo ya es real) | `src/demo/turno.ts` | B3-5 |
 | Catálogo de mostrador (agua, maltas, tequeños…) | `features/cash/catalogo-mostrador.ts` | B9-1 |
 | Cuentas y ventas guardadas en el navegador | `CuentasProvider`, `VentasProvider` | B3-3 y B3-4 |
@@ -683,6 +735,8 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
   el valor capturado con `formatTasaVE`, nunca el numerador.
 - Un CHECK con `columna IN (...)` sobre una columna que admite nulos **deja pasar el nulo** (`NULL IN`
   es desconocido, y un CHECK desconocido pasa). Se escribe `columna IS NOT NULL AND columna IN (...)`.
+- `$queryRaw` de Prisma no sabe leer una columna `void`: `SELECT pg_advisory_xact_lock(...)` revienta
+  al volver. Se castea (`::text`).
 - El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
   (`certificado-bcv.ts`, vence en 2036). Nunca se apaga la verificación.
 
@@ -696,7 +750,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | Interfaz completa; turno real (B3-1) | Medios, cobro en el servidor, ventas, cortes y excepciones reales (Etapa 3) |
+| F4 · Caja | Interfaz completa; turno real (B3-1) y medios de pago (B3-2) | Medios, cobro en el servidor, ventas, cortes y excepciones reales (Etapa 3) |
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
 | F7 · Fiscal | **Fuera** (M-3) | — |
@@ -751,6 +805,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-27** · Pedido del cliente: producción arranca vacía y sin apps de terceros (M-12). Se
   decide ADR-020 (llaves de acceso en vez de TOTP, códigos de recuperación, instalación inicial y
   credenciales desde el panel) y se añade T-4 antes de staging. La ruta pasa a 47 pasos.
+- **2026-09-27** · B3-2 entregado (v0.21.0): los medios de pago son un catálogo de la base (se añade
+  uno sin desplegar), los datos del local y los de cada pago van cifrados, y el libro rechaza una
+  referencia ya cobrada. Sigue B9-1.
 
 ---
 

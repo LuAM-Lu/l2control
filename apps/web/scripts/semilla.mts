@@ -1,7 +1,8 @@
 /**
  * `pnpm db:semilla` — deja la base de DESARROLLO lista para abrir la app: el local (tenant y
  * sucursal de L2_TENANT_ID / L2_BRANCH_ID), su equipo con PIN y, si no tiene, el tarifario de
- * ejemplo como versión 1 y los impuestos de trabajo. Idempotente: correrlo otra vez no cambia nada.
+ * ejemplo como versión 1, los impuestos de trabajo y los datos de cobro inventados. Idempotente:
+ * correrlo otra vez no cambia nada.
  *
  * Los datos son inventados (scripts/semilla). Los reales llegan con F0-04 y B7-2. El equipo
  * nuevo desde el que se abra la app pide su registro en el acceso; se aprueba con
@@ -13,6 +14,7 @@ import { calendarDay } from "@l2/domain-rates";
 import { TARIFARIO_DESARROLLO } from "./semilla/tarifario.mts";
 import { ADMIN_DESARROLLO, EQUIPO_DESARROLLO } from "./semilla/equipo.mts";
 import { IMPUESTOS_DE_TRABAJO } from "./semilla/impuestos.mts";
+import { MEDIOS_DE_DESARROLLO } from "./semilla/medios.mts";
 
 const raiz = new URL("../../../.env", import.meta.url);
 if (existsSync(raiz)) process.loadEnvFile(raiz);
@@ -61,6 +63,17 @@ try {
       if (!r.ok) throw new Error(`${i.impuesto} ${i.code ?? ""}: ${r.mensaje}`);
     }
     console.log("✓ Impuestos de trabajo: IVA 16 % y 8 %, IGTF 3 % (a confirmar con el contador)");
+  }
+  const medios = await app.medios.leer(ctx);
+  if (!medios.ok) throw new Error(`Medios de pago: ${medios.mensaje}`);
+  if (medios.valor.pagoMovil || medios.valor.terminales.length > 0) {
+    console.log("· Ya hay datos de cobro: no se tocan");
+  } else {
+    for (const cambio of MEDIOS_DE_DESARROLLO) {
+      const r = await app.medios.aplicar(ctx, cambio);
+      if (!r.ok) throw new Error(`Medios de pago (${cambio.kind}): ${r.mensaje}`);
+    }
+    console.log("✓ Datos de cobro inventados: Pago Móvil, Zelle y dos terminales, encendidos");
   }
   console.log("\nEl PIN de todo el equipo de desarrollo es 1970.");
   console.log(`Para confirmar identidad: contraseña «${ADMIN_DESARROLLO.contrasena}» y el código de \`pnpm totp\`.`);

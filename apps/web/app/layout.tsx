@@ -15,12 +15,12 @@ import { RepresentantesProvider } from "../src/features/park/RepresentantesProvi
 import { TasasProvider } from "../src/features/cash/TasasProvider";
 import { historialDeTasas } from "../src/features/cash/tasas.servidor";
 import { MediosProvider } from "../src/features/cash/MediosProvider";
+import { mediosDelLocal } from "../src/features/cash/medios.servidor";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { AJUSTES_DEMO } from "../src/demo/sucursal";
 import { DIRECTORIO_DEMO } from "../src/demo/representantes";
-import { MEDIOS_DEMO } from "../src/demo/medios";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
@@ -72,6 +72,9 @@ export default async function RootLayout({
   // Quién opera, leído de su cookie en el servidor (B1-4). El navegador no lo decide.
   const sesion = await sesionActual();
   const operador = sesion ? { id: sesion.userId, nombre: sesion.nombre, rol: NOMBRE_ROL[sesion.role], role: sesion.role } : null;
+  // Los medios de pago, de la base (B3-2), y solo con alguien en sesión: los datos de cobro del
+  // local no se mandan a la pantalla de acceso.
+  const medios = sesion ? await mediosDelLocal() : null;
 
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
@@ -98,7 +101,7 @@ export default async function RootLayout({
           <SucursalProvider inicial={AJUSTES_DEMO}>
               <RepresentantesProvider inicial={DIRECTORIO_DEMO}>
                 <TasasProvider inicial={tasas}>
-                  <MediosProvider inicial={MEDIOS_DEMO}>
+                  <MediosProvider inicial={medios}>
                     <PlanoProvider inicial={PLANO_DEMO}>
                       <CartaProvider inicial={CARTA_DEMO}>
                         <TarifarioProvider inicial={tarifario}>

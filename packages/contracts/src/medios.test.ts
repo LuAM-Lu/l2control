@@ -194,17 +194,32 @@ describe("los cambios posibles", () => {
     );
   });
 
-  test("un terminal se añade y se retira", () => {
+  test("un terminal se añade sin identificador (lo pone el servidor) y se retira por el suyo", () => {
+    assert.equal(
+      MedioCommandSchema.safeParse({ kind: "AÑADIR_TERMINAL", terminal: { name: "Punto BNC", bank: "BNC" } }).success,
+      true,
+    );
     assert.equal(
       MedioCommandSchema.safeParse({
         kind: "AÑADIR_TERMINAL",
         terminal: { id: "pdv-bnc", name: "Punto BNC", bank: "BNC" },
       }).success,
-      true,
+      false,
     );
     assert.equal(
-      MedioCommandSchema.safeParse({ kind: "RETIRAR_TERMINAL", terminalId: "pdv-bnc" }).success,
+      MedioCommandSchema.safeParse({ kind: "RETIRAR_TERMINAL", terminalId: "01a0e11b-879b-75dd-bb18-70f1c287e118" }).success,
       true,
     );
+  });
+
+  test("un medio nuevo se añade sin desplegar (F4-02), con las reglas del efectivo", () => {
+    const biopago = { code: "BIOPAGO", label: "Biopago", currency: "VES", triggersIgtf: false, canGiveChange: false, datos: "PUNTO" };
+    assert.equal(MedioCommandSchema.safeParse({ kind: "AÑADIR_MEDIO", medio: biopago }).success, true);
+    // Nace apagado: no se declara encendido al crearlo.
+    assert.equal(MedioCommandSchema.safeParse({ kind: "AÑADIR_MEDIO", medio: { ...biopago, activo: true } }).success, false);
+    const efectivoConReferencia = { ...biopago, code: "EFECTIVO_EUR", canGiveChange: true };
+    assert.equal(MedioCommandSchema.safeParse({ kind: "AÑADIR_MEDIO", medio: efectivoConReferencia }).success, false);
+    const usdtConVuelto = { ...biopago, code: "USDT_TRON", currency: "USDT", canGiveChange: true, datos: undefined };
+    assert.equal(MedioCommandSchema.safeParse({ kind: "AÑADIR_MEDIO", medio: usdtConVuelto }).success, false);
   });
 });

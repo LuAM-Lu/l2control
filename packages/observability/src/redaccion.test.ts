@@ -5,7 +5,9 @@ import { esClaveSensible, redactar, REDACTADO } from "./redaccion.ts";
 test("reconoce los nombres sensibles por palabra, en cualquier estilo", () => {
   for (const clave of ["pin", "pinHash", "PIN", "nuevo_pin", "referencia", "referenciaPago", "txId",
     "telefono", "Teléfono", "telefonoOrigen", "contacto", "correo", "cedula", "rif", "documento",
-    "password", "apiKey", "api_key", "authorization", "titular", "sessionToken"]) {
+    "password", "apiKey", "api_key", "authorization", "titular", "sessionToken",
+    // Los datos de un pago tal como viajan desde B3-2 (DatosDePagoSchema) y los del local.
+    "holder", "payerPhone", "payerDocument", "phone", "email", "document"]) {
     assert.ok(esClaveSensible(clave), clave);
   }
 });
@@ -42,4 +44,10 @@ test("un error conserva su tipo y su mensaje, sin secretos", () => {
   const r = redactar(e) as Record<string, unknown>;
   assert.equal(r.tipo, "TypeError");
   assert.ok(String(r.mensaje).includes(`postgres://a:${REDACTADO}@h/d`));
+});
+
+test("el identificador de un documento del libro no es un documento de identidad", () => {
+  assert.equal(esClaveSensible("documentId"), false);
+  assert.equal(esClaveSensible("document_id"), false);
+  assert.deepEqual(redactar({ documentId: "01a0e11b", payerDocument: "V-12345678" }), { documentId: "01a0e11b", payerDocument: REDACTADO });
 });
