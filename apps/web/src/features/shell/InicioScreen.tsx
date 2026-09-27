@@ -72,14 +72,17 @@ export function InicioScreen({
   gaveta: readonly SaldoMoneda[];
   puntos: readonly FilaPunto[];
   ninosHoy: number;
-  ninosSemanaPasada: number;
-  ventaHoy: string;
-  ventaSemanaPasada: string;
+  /** `null` = sin histórico con el que comparar: no se pinta variación. */
+  ninosSemanaPasada: number | null;
+  /** `null` = todavía no hay libro de pagos del que sumarla (B2-3). */
+  ventaHoy: string | null;
+  ventaSemanaPasada: string | null;
   excepciones: readonly Excepcion[];
   fecha: string;
   diaSemana: string;
-  turnoDesde: string;
-  cajero: string;
+  /** `null` = no hay turno abierto (el turno real llega con B3-1). */
+  turnoDesde: string | null;
+  cajero: string | null;
   /** Tasa del día ya formateada («228,41»), o `null` si no hay tasa confirmada (ADR-005). */
   tasa: string | null;
   /** Cuándo una comanda tarda y cuándo está atrasada. */
@@ -90,8 +93,8 @@ export function InicioScreen({
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
   const diaMinuscula = diaSemana.toLowerCase();
 
-  const variacion = (hoy: number, antes: number) =>
-    antes === 0 ? null : Math.round(((hoy - antes) / antes) * 100);
+  const variacion = (hoy: number, antes: number | null) =>
+    antes === null || antes === 0 ? null : Math.round(((hoy - antes) / antes) * 100);
 
   const gavetaPrincipal = gaveta[0];
   const gavetaResto = gaveta.slice(1);
@@ -139,7 +142,14 @@ export function InicioScreen({
             className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface/80 px-3 py-1.5 text-xs lg:text-[13px] text-ink-2 transition-all duration-[var(--dur-rapida)] hover:border-line-strong hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand shadow-sm"
           >
             <span>
-              Turno desde <span className="tnum font-medium text-ink">{turnoDesde}</span> · {cajero}
+              {turnoDesde ? (
+                <>
+                  Turno desde <span className="tnum font-medium text-ink">{turnoDesde}</span>
+                  {cajero ? ` · ${cajero}` : ""}
+                </>
+              ) : (
+                "Sin turno abierto"
+              )}
             </span>
             <ArrowRight
               size={13}
@@ -167,15 +177,35 @@ export function InicioScreen({
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-3 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
           <Cifra
             etiqueta="Vendido"
-            valor={<MoneyDisplay value={ventaHoy} currency="USD" size="lg" />}
-            variacion={variacion(Number(ventaHoy), Number(ventaSemanaPasada))}
-            pie={`${ventaSemanaPasada} el ${diaMinuscula} pasado`}
+            valor={
+              ventaHoy === null ? (
+                <span className="text-sm font-medium text-ink-3">Sin datos</span>
+              ) : (
+                <MoneyDisplay value={ventaHoy} currency="USD" size="lg" />
+              )
+            }
+            variacion={
+              ventaHoy === null || ventaSemanaPasada === null
+                ? null
+                : variacion(Number(ventaHoy), Number(ventaSemanaPasada))
+            }
+            pie={
+              ventaHoy === null
+                ? "Llega con los cobros en el servidor"
+                : ventaSemanaPasada === null
+                  ? "Sin histórico con qué comparar"
+                  : `${ventaSemanaPasada} el ${diaMinuscula} pasado`
+            }
           />
           <Cifra
             etiqueta="Niños atendidos"
             valor={<Numero>{ninosHoy}</Numero>}
             variacion={variacion(ninosHoy, ninosSemanaPasada)}
-            pie={`${ninosSemanaPasada} el ${diaMinuscula} pasado`}
+            pie={
+              ninosSemanaPasada === null
+                ? "Sin histórico con qué comparar"
+                : `${ninosSemanaPasada} el ${diaMinuscula} pasado`
+            }
           />
           <Cifra
             etiqueta="En gaveta"
@@ -250,7 +280,8 @@ export function InicioScreen({
 
       <p className="mt-6 border-t border-line pt-3 text-[11px] text-ink-3">
         Las cifras del día salen del libro de movimientos, con el mismo dominio que usa el arqueo.
-        La comparación con la semana pasada necesita histórico y hoy es de ejemplo.
+        Hasta que los cobros y las estancias vivan en el servidor, lo que no existe se dice («Sin
+        datos»), no se inventa.
       </p>
     </Container>
   );

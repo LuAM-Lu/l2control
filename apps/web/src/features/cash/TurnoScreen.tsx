@@ -11,7 +11,7 @@ import {
   type ShiftMovement,
   type ShiftStatus,
 } from "@l2/domain-cash";
-import { Badge, Button, Container, MoneyDisplay, Stepper, Tabs, cn } from "@l2/ui";
+import { Badge, Button, Container, EmptyState, MoneyDisplay, Stepper, Tabs, cn } from "@l2/ui";
 import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./turno.ts";
 import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
@@ -35,7 +35,37 @@ import { cerrarSesion } from "../identity/operador.ts";
  * a cuadrarlo «a ojo» contra lo que el sistema espera, que es lo que un
  * arqueo debe impedir.
  */
+/**
+ * El turno de caja. Sin turno abierto no hay nada que arquear ni que cortar, y la pantalla lo
+ * dice en vez de enseñar un turno «Abierto» sin movimientos (la apertura real llega con B3-1).
+ */
 export function TurnoScreen({
+  abierto,
+  movements,
+  excepciones,
+}: {
+  abierto: boolean;
+  movements: readonly ShiftMovement[];
+  excepciones: readonly Excepcion[];
+}) {
+  if (!abierto) return <SinTurno />;
+  return <TurnoAbierto movements={movements} excepciones={excepciones} />;
+}
+
+function SinTurno() {
+  return (
+    <Container ancho="operacion" className="py-8">
+      <h1 className="sr-only">Turno de caja</h1>
+      <EmptyState
+        icon={<Lock size={28} aria-hidden="true" />}
+        title="No hay turno abierto"
+        hint="La apertura con su fondo por moneda, los cortes X y Z y el arqueo llegan con el turno en el servidor. Hasta entonces no hay nada que arquear ni que cerrar."
+      />
+    </Container>
+  );
+}
+
+function TurnoAbierto({
   movements,
   excepciones,
 }: {

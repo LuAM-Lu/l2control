@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 export default function TurnoPage() {
   return (
     <TurnoScreen
+      // El turno real (apertura, B3-1) todavía no existe: no se finge uno abierto.
+      abierto={false}
       movements={DEMO_SHIFT_MOVEMENTS}
       excepciones={DEMO_EXCEPCIONES}
     />

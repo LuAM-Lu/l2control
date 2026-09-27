@@ -79,17 +79,20 @@ export default async function InicioPage() {
       gaveta={gaveta}
       puntos={puntos}
       ninosHoy={modelo.cards.length}
-      ninosSemanaPasada={11}
-      ventaHoy="94.17"
-      ventaSemanaPasada="108.40"
+      // Sin libro de pagos ni histórico de estancias todavía (B2-3, B4-2) no hay con qué
+      // comparar ni venta que sumar: se dice, no se inventa.
+      ninosSemanaPasada={null}
+      ventaHoy={null}
+      ventaSemanaPasada={null}
       excepciones={DEMO_EXCEPCIONES}
       fecha={`${hoy.getDate()} de ${MESES[hoy.getMonth()]}`}
       diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
-      turnoDesde="2:00 pm"
-      cajero="Marisol Prieto"
+      // El turno real llega con B3-1.
+      turnoDesde={null}
+      cajero={null}
       tasa={tasa}
       umbral={{ avisoMin: 8, gritaMin: 15 }}
-      enServicio
+      enServicio={false}
     />
   );
 }

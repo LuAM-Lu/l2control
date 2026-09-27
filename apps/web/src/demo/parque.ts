@@ -1,14 +1,11 @@
 /**
- * Datos de ejemplo del parque — DERIVADOS DEL CONTRATO.
+ * El parque hasta que tenga servidor (B4-1 y B4-2): **vacío**, no inventado.
  *
- * §11.4: el orden frontend → backend solo funciona si los datos de ejemplo
- * salen del contrato y no al revés. Por eso cada objeto de este archivo se
- * **valida contra su esquema al construirse**: si alguien inventa un campo
- * que el contrato no declara, o se salta uno obligatorio, esto revienta aquí
- * y no meses después cuando llegue el backend.
- *
- * Cuando exista el servidor, se sustituye la fuente y **las pantallas no
- * cambian**: ya consumen la forma definitiva.
+ * Hasta el 2026-09-26 aquí había niños, pulseras y familias de ejemplo. Se quitaron a pedido del
+ * cliente: una sala con niños que no existen confunde más de lo que enseña, y una pantalla vacía
+ * dice la verdad (hoy nadie ha entrado por el sistema). La forma se sigue validando contra el
+ * contrato, así que las pantallas ya consumen la definitiva y el paso B4-2 solo cambia la fuente
+ * y borra este archivo.
  */
 import {
   GuardianSchema,
@@ -18,127 +15,23 @@ import {
   type ParkPolicyDto,
 } from "@l2/contracts";
 
-const MIN = 60_000;
+/** Representantes conocidos para la búsqueda de la entrada (F5-03). Ninguno hasta B4-1. */
+export const DEMO_GUARDIANS: (GuardianDto & { id: string })[] = GuardianSchema.array()
+  .parse([])
+  .map((g, i) => ({ ...g, id: `g${i}` }));
 
 /**
- * Representantes ya conocidos, para la búsqueda de F5-03.
- *
- * Que un representante recurrente no se vuelva a registrar es la mitad de los
- * 90 segundos que exige F5-02: teclear un nombre y un teléfono en una tablet,
- * con cola detrás, es lo que se lleva el tiempo.
- */
-export const DEMO_GUARDIANS: (GuardianDto & { id: string })[] = [
-  { id: "g1", fullName: "Ana Rojas", contactReference: "0412-1234567" },
-  { id: "g2", fullName: "Luis Guerrero", contactReference: "0414-7654321" },
-  { id: "g3", fullName: "Marisol Prieto", contactReference: "0424-5551234" },
-  { id: "g4", fullName: "Pedro Bermúdez", contactReference: "0416-9876543" },
-].map((g) => ({ ...GuardianSchema.parse(g), id: g.id }));
-
-/**
- * Instantánea del monitor. Es exactamente lo que devolverá el servidor.
- *
- * Los niños son inventados y se van con B4 (estancias en el servidor). La política YA es la
- * publicada: la pasa la ruta desde el tarifario vigente, así que el excedente se calcula con
- * las reglas que publicó el administrador y no con unas de ejemplo.
- *
- * `serverNow` se pasa como argumento —no se lee el reloj aquí— para que
- * esta función siga siendo determinista, igual que el dominio (ADR-010).
+ * La sala: vacía hasta B4-2. La política YA es la publicada (la pasa la ruta desde el tarifario
+ * vigente). `serverNow` entra como argumento, sin leer el reloj aquí (ADR-010).
  */
 export function demoSnapshot(serverNow: number, policy: ParkPolicyDto): MonitorSnapshotDto {
-  const iso = (msAgo: number) => new Date(serverNow - msAgo * MIN).toISOString();
-
-  const crudo = {
+  return MonitorSnapshotSchema.parse({
     serverNow: new Date(serverNow).toISOString(),
-    shiftLabel: "Turno tarde · abierto 14:00",
+    // El turno real llega con B3-1; no se inventa uno.
+    shiftLabel: "Sin turno abierto",
     policy,
-    // La tasa ya es de la base (B2-1): quien la necesite la lee de `TasasProvider` o de
-    // `historialDeTasas()`. Aquí no se inventa una.
+    // La tasa es de la base (B2-1): quien la necesita la lee de `TasasProvider`.
     rate: null,
-    sessions: [
-      {
-        id: "s1",
-        wristbandCode: "AK-0142",
-        kid: { id: "k1", name: "Valentina Rojas", nickname: "Vale", ageYears: 7 },
-        mode: "PREPAGO",
-        duration: { kind: "fixed", minutes: 60 },
-        startedAt: iso(12),
-        packageId: "pkg-60",
-        packagePrice: { minor: "500", currency: "USD" },
-      },
-      {
-        id: "s2",
-        wristbandCode: "AK-0143",
-        kid: { id: "k2", name: "Mateo Guerrero", ageYears: 5 },
-        mode: "PREPAGO",
-        duration: { kind: "fixed", minutes: 30 },
-        startedAt: iso(24),
-        packageId: "pkg-30",
-        packagePrice: { minor: "300", currency: "USD" },
-      },
-      {
-        id: "s3",
-        wristbandCode: "AK-0147",
-        kid: { id: "k3", name: "Isabella Prieto", nickname: "Isa", ageYears: 9 },
-        mode: "PREPAGO",
-        duration: { kind: "fixed", minutes: 60 },
-        startedAt: iso(58),
-        packageId: "pkg-60",
-        packagePrice: { minor: "500", currency: "USD" },
-      },
-      {
-        id: "s4",
-        wristbandCode: "AK-0151",
-        kid: { id: "k4", name: "Santiago Bermúdez", ageYears: 6 },
-        mode: "PREPAGO",
-        duration: { kind: "fixed", minutes: 30 },
-        startedAt: iso(37),
-        packageId: "pkg-30",
-        packagePrice: { minor: "300", currency: "USD" },
-      },
-      {
-        id: "s5",
-        wristbandCode: "AK-0158",
-        kid: { id: "k5", name: "Camila Nieves", ageYears: 8 },
-        mode: "POSTPAGO",
-        duration: { kind: "openEnded" },
-        startedAt: iso(41),
-        packageId: "pkg-libre",
-        packagePrice: { minor: "1200", currency: "USD" },
-      },
-      {
-        id: "s6",
-        wristbandCode: "AK-0160",
-        kid: { id: "k6", name: "Diego Alcántara", nickname: "Dieguito", ageYears: 4 },
-        mode: "PREPAGO",
-        duration: { kind: "fixed", minutes: 120 },
-        startedAt: iso(8),
-        packageId: "pkg-120",
-        packagePrice: { minor: "900", currency: "USD" },
-      },
-      {
-        id: "s7",
-        wristbandCode: "AK-0163",
-        kid: { id: "k7", name: "Antonella Salas", ageYears: 10 },
-        mode: "PREPAGO",
-        duration: { kind: "fixed", minutes: 60 },
-        startedAt: iso(52),
-        packageId: "pkg-60",
-        packagePrice: { minor: "500", currency: "USD" },
-      },
-      {
-        id: "s8",
-        wristbandCode: "AK-0171",
-        kid: { id: "k8", name: "Emiliano Paredes", ageYears: 6 },
-        mode: "POSTPAGO",
-        duration: { kind: "openEnded" },
-        startedAt: iso(6),
-        packageId: "pkg-libre",
-        packagePrice: { minor: "1200", currency: "USD" },
-      },
-    ],
-  };
-
-  // La validación no es ceremonia: es lo que garantiza que estas pantallas
-  // consuman hoy la misma forma que consumirán del servidor mañana.
-  return MonitorSnapshotSchema.parse(crudo);
+    sessions: [],
+  });
 }

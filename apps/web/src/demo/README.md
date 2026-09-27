@@ -12,16 +12,20 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 |---|---|---|
 | `usuarios.ts` | Quién autoriza en los diálogos de anular y cortesía de la caja (usuarios, acceso y permisos ya son de la base) | B3-4 |
 | `medios.ts` | Medios de pago y datos que ve el cliente | B3-2 |
-| `turno.ts` | Movimientos y excepciones del turno | B3-1 y B3-5 |
+| `turno.ts` | Nada: movimientos y excepciones **vacíos** desde el 2026-09-26 (la forma sigue aquí) | B3-1 y B3-5 |
 | `caja.ts` | Reglas de IVA e IGTF, medios y terminales del cobro | B2-2 y B3-2 |
-| `parque.ts` | Niños en sala (`demoSnapshot`) y representantes conocidos | B4-1 y B4-2 |
-| `representantes.ts` | El directorio de familias | B4-1 |
+| `parque.ts` | Nada: sala y representantes **vacíos** desde el 2026-09-26 (la forma sigue aquí) | B4-1 y B4-2 |
+| `representantes.ts` | Nada: directorio **vacío** desde el 2026-09-26 | B4-1 |
 | `sucursal.ts` | Ajustes del local | B4-4 |
 | `restaurante.ts` | Plano y carta | B6-1 |
 
 Ya se fueron: las tasas de cambio (B2-1), el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
 `scripts/semilla/tarifario.mts`), los dispositivos (B1-3), las cuentas y ventas de ejemplo, el interruptor `NEXT_PUBLIC_DEMO` y el
 simulador de operación con sus escenarios.
+
+Además, fuera de esta carpeta queda un dato inventado que incumple la regla y se mueve con B3-3:
+el **catálogo de mostrador** de la caja (`features/cash/catalogo-mostrador.ts`: agua, maltas,
+tequeños…), que es la carta real del local cuando llegue F0-04.
 
 ## Reglas mientras existan
 

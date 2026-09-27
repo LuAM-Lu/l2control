@@ -34,7 +34,8 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
     <div className="flex min-h-dvh flex-col bg-base md:fixed md:inset-0 md:min-h-0 md:overflow-hidden">
       <StationBar
         contexto={{
-          turnoAbierto: "2:00 pm",
+          // El turno real llega con B3-1: hasta entonces la barra dice la verdad, no «2:00 pm».
+          turnoAbierto: null,
           conexion: "N0",
         }}
       />

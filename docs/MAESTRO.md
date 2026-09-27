@@ -35,7 +35,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
   `@l2/observability` (logs redactados, entorno validado). La web lee la sesión de cookies `httpOnly`
   y recibe el actor COMPLETO del servidor: menús y guardias ya no lo calculan en el navegador.
 - **Ya van contra la base:** acceso (equipo + PIN), tarifario, Dispositivos, Usuarios y permisos, Roles
-  y accesos, Tasas de cambio (y la tasa de la barra, la caja e Inicio). **Sin tasa del día
+  y accesos, Tasas de cambio (y la tasa de la barra, la caja e Inicio). **Desde el 2026-09-26 no se
+  enseña nada inventado:** sala, familias, turno y las cifras de Inicio están vacíos o dicen «Sin
+  datos» / «Sin turno abierto» hasta su paso; lo provisional que queda es configuración (IVA/IGTF,
+  medios, ajustes, plano, carta y el catálogo de mostrador), con su paso en `src/demo/README`. **Sin tasa del día
   confirmada, la caja no cobra en bolívares:** en local, cargarla cada día en Panel → Caja → Tasas. **Todo lo demás sigue en datos provisionales** (`apps/web/src/demo`, cada archivo con el
   paso que lo borra) y en el bus de operación entre pestañas (`features/operacion`).
 - **Entrar en local:** navegador nuevo = equipo desconocido → «Pedir registro» en `/acceso` →
