@@ -8,8 +8,9 @@
 > - [PLAN.md](PLAN.md): la especificación. ADRs, decisiones del cliente (DEC-n) y tareas `Fn-nn` con su
 >   criterio de aceptación en §12. Sus casillas y sus enlaces a documentos retirados están congelados.
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
-> - [adr/](adr/): las decisiones de arquitectura, una por archivo (19; ADR-018 supersede la biblioteca
->   de ADR-013 y ADR-019 cambia la confirmación de la tasa automática de §5.2).
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (20; ADR-018 supersede la biblioteca
+>   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2 y ADR-020 cambia el TOTP
+>   de ADR-018 por llaves de acceso).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -26,7 +27,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.20.0 · 20 de 46 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.20.0 · 20 de 47 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -70,6 +71,10 @@ así que Inicio lo enseña hasta B3-5, que debe permitir cerrar un turno huérfa
 **Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
 carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
 
+**Producción arranca con la base vacía (M-12).** Hoy el primer administrador y su primer equipo solo
+se crean por consola, y el segundo factor es un TOTP de una app de terceros. T-4 lo resuelve antes de
+staging: instalación inicial desde el navegador y llaves de acceso (ADR-020).
+
 **Siguiente paso:** B3-2 (medios de pago, terminales y datos de cobro persistidos, con los datos de
 pago cifrados). Luego, el orden de §3.
 
@@ -90,6 +95,7 @@ pago cifrados). Luego, el orden de §3.
 | **M-8** | **La tasa del BCV se aplica sola y llega en vivo a todas las pantallas** (2026-09-26, pedido del cliente, [ADR-019](adr/019-tasa-automatica.md)) | Cambia §5.2 y F3-04 (confirmación humana de toda tasa automática). Salvaguardas: solo se aplica sola la de la web oficial del BCV con TLS verificado; si salta más del 10 % respecto de la vigente, si es la primera o si solo respondió un tercero, **no** se aplica y sale alerta crítica; si dos fuentes discrepan para el mismo día, no se captura. Todo queda auditado como «Aplicada automáticamente». La carga manual de administración también se aplica al guardarla (supervisión sigue con 🔐). En vivo: sondeo de 60 s hasta B5-1, push después. Un cobro en curso conserva su tasa y avisa si cambió (ADR-005) |
 | **M-9** | **El inventario vuelve al plan** (2026-09-26, pedido del cliente; revierte esa parte de M-1) | Nueva **Etapa 9** (catálogo de productos, movimientos de solo-agregar, compras con costo promedio, ajustes con motivo y 🔐, alertas y conteo físico). Su primer paso, el catálogo, va antes del cobro en servidor (B3-3), que lo necesita. Recetas, descarga al marcar LISTO y merma (F8-03, F8-04, F8-09) van con el restaurante (B6-4), porque dependen de las comandas |
 | **M-10** | **Versionado semántico visible** (2026-09-26, pedido del cliente) | SemVer 2.0.0. **MAJOR** 0 hasta producción; **1.0.0 = puesta en marcha** (B8-4). **MINOR** +1 por cada paso de la ruta entregado: la versión dice cuántos van. **PATCH** +1 por cada corrección entre pasos. Staging publica `-rc.N`. Fuente única: `version` del `package.json` raíz; `CHANGELOG.md` por versión (Keep a Changelog, en español) y etiqueta git `vX.Y.Z` en cada entrega. Se ve en el acceso y en Configuración con su etapa: «v0.14.0 · Etapa 2 · Dinero». Punto de partida: **0.13.0** |
+| **M-12** | **Puesta en marcha sin consola y sin apps de terceros** (2026-09-27, pedido del cliente; [ADR-020](adr/020-llaves-de-acceso.md)) | Producción arranca vacía: el primer administrador y su equipo se crean desde el navegador con un código de instalación de un solo uso. El segundo factor pasa de TOTP a **llaves de acceso** (Windows Hello, el bloqueo del teléfono), dos por administrador, más diez códigos de recuperación impresos. Las credenciales de administración se dan desde el panel con un enlace de alta (QR). Paso **T-4**, antes de staging |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario de mostrador** (M-9): parque y caja
@@ -135,7 +141,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
-5. **T-2** (cero simulación) → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
+5. **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso) → Etapa 7 (staging) →
+   Etapa 8 (producción, 1.0.0).
 6. Etapa 6 (restaurante), según D-RES.
 
 ### Transversal
@@ -169,6 +176,14 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   sin registrar (con y sin la opción de administración), contraseña mala → pendiente con «Contraseña o
   código incorrectos» y su código, aprobar → «¿Quién entra?» → PIN → panel, y pendiente; los cinco a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
+- [ ] **T-4 · Instalación inicial y llaves de acceso** (M-12, ADR-020), antes de B7-1.
+  → Con la base vacía, el acceso ofrece «Instalar L2 Control» (código de instalación de un solo uso que
+  el servidor escribe en su registro): local, primer administrador con contraseña, PIN y llave de
+  acceso, diez códigos de recuperación y este equipo aprobado; después la pantalla no vuelve a
+  existir. La elevación y la aprobación de equipos piden contraseña + llave (o un código de
+  recuperación). Administración da credenciales a otra desde Panel → Personas con un enlace de alta
+  de 24 h con QR. Se retiran el TOTP y `pnpm totp`. Una base vacía queda operativa sin tocar la
+  consola; las pruebas de navegador usan el autenticador virtual de Chromium.
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
   suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -607,7 +622,8 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
 | El diálogo de anular un cobro desplaza para llegar al PIN a 1366×768 | B3-4 |
 | Aprobar un equipo no avisa en vivo a la administración (queda en la auditoría y en su historia) | B5-1 |
-| Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos) | B7-5 |
+| Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos) | T-4 (se retira el TOTP, ADR-020) |
+| El primer administrador y sus credenciales solo se crean por consola (`pnpm credenciales`): una base vacía no arranca sin ella | T-4 (instalación inicial y enlace de alta, M-12) |
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
@@ -732,6 +748,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   el día de negocio del turno en cada asiento; la tasa sigue el calendario (ADR-009 aclarado). Sigue T-3.
 - **2026-09-27** · T-3 entregado (v0.20.0): el acceso da protagonismo a «L2 Control» y el admin
   registra y aprueba un equipo nuevo desde la primera pantalla. La ruta pasa a 46 pasos. Sigue B3-2.
+- **2026-09-27** · Pedido del cliente: producción arranca vacía y sin apps de terceros (M-12). Se
+  decide ADR-020 (llaves de acceso en vez de TOTP, códigos de recuperación, instalación inicial y
+  credenciales desde el panel) y se añade T-4 antes de staging. La ruta pasa a 47 pasos.
 
 ---
 
@@ -745,21 +764,21 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-27, v0.14.0, B2-1c a medias):**
+**Último handoff (2026-09-27, v0.20.0, Etapa 2 cerrada, Etapa 3 empezada):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-11 y §3 con su DoD y orden) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Versión 0.14.0 (T-1 hecho: versión visible, CHANGELOG, etiquetas v0.1.0…v0.14.0 locales).
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (la base local ya está limpia y sembrada).
-Entrar: /acceso → «Pedir registro» → «Soy de administración» (contraseña abby-kingdom-desarrollo +
-  código de `pnpm totp`) → persona → PIN 1970. Tras cambiar @l2/application, reinicia pnpm dev.
-Estado de la base: vaciada el 2026-09-27; el servidor trajo del BCV las reales y las dejó RETENIDAS (viernes 855,6625
-  solo DolarApi; lunes 857,0058 primera del local). El cliente las revisa en Tasas y aprueba su «Pc Admin».
-A medias: B2-1c. Código y pruebas hechos (verify:db en verde); falta el navegador: lista (1)-(6) en su casilla de §3
-  (en vivo < 60 s en otro equipo, «Traer del BCV» aplica la del lunes, aviso de tasa cambiada en la caja, 3 tamaños,
-  ADR-019, cierre con 0.15.0 y etiqueta).
-Luego el orden de §3: B2-2 → B2-3 → B2-4 → B3-1 → B3-2 → B9-1 → B3-3 … Inventario = Etapa 9 (M-9).
-Cuidado: cada paso cumple la DoD de §3 y borra lo suyo del inventario de §5 (M-11). Heredocs grandes en bash fallan:
-  escribe scripts con Write. Etiquetas y commits sin subir: push solo si se pide (con --tags).
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-12 y §3 con su DoD y orden) y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. Versión 0.20.0 · 20 de 47 pasos. Etiquetas v0.15.0…v0.20.0 locales, sin subir.
+Hecho en esta tanda: B2-1c (tasa en vivo), B2-2 (impuestos con vigencia), B2-3 (libro de pagos, sin pantalla hasta B3-3),
+  B3-1 (turno real: sin turno no se cobra), B2-4 (día de negocio y feriados; la tasa sigue el calendario, ADR-009), T-3 (acceso).
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application, reinicia pnpm dev.
+Entrar: /acceso → nombre del equipo → «Soy de administración» → contraseña abby-kingdom-desarrollo + código de `pnpm totp`
+  → «Registrar y aprobar» → Abigail Karam → PIN 1970. Todos los equipos de la base local están revocados.
+Base local: tasa vigente 855,6625 (dom 27); sin feriados; queda un turno abierto de prueba («Prueba B31 Caja») hasta B3-5.
+Siguiente: B3-2 (medios de pago, terminales y datos de cobro en el servidor, cifrados; borra src/demo/medios.ts y caja.ts).
+Luego: B9-1 → B3-3 (la caja cobra contra el libro) → B3-4 → B3-5 … Antes de staging: T-2 y T-4 (ADR-020: instalación
+  inicial desde el navegador y llaves de acceso en vez de TOTP; producción arranca vacía).
+Cuidado: DoD de §3 en cada paso; CHECK con IN sobre columnas con nulos (trampa de §5); heredocs grandes fallan: scripts
+  con Write; guiones de Playwright en el scratchpad de la sesión 5208ef98 (comun.cjs, pasoN.cjs). Push solo si se pide.
 Puerta: pnpm verify:db.
 ```
