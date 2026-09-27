@@ -11,6 +11,8 @@
  *  · este archivo: la tasa congelada y el IGTF los pone el servidor, la clave de idempotencia hace
  *    que un doble clic devuelva lo mismo (I-11), y todo va en una transacción con su asiento.
  *
+ * Todo asiento entra en el turno abierto del equipo (B3-1): sin él no se cobra ni se revierte.
+ *
  * Lo que aún no hace, y hace B3-3: comprobar que el cobro cuadra contra el total del documento y
  * que la tasa citada es la vigente (hasta entonces basta con que esté confirmada).
  */
@@ -44,6 +46,7 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { programadaDeFila } from "./impuestos.ts";
+import { turnoParaCobrar } from "../caja/turnos.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
@@ -96,6 +99,10 @@ export function casosPagos(base: Base): CasosPagos {
           const previas = await yaAsentado(tx, cmd.idempotencyKey);
           if (previas.length > 0) return mismaOperacion(previas, cmd) ? leerLibro(tx, cmd.documentId) : conflictoDeClave;
 
+          // Sin turno abierto en el equipo no se cobra (F4-01); el asiento dice en qué turno entró.
+          const turno = await turnoParaCobrar(tx, ctx);
+          if ("ok" in turno) return turno;
+
           // La tasa congelada: la cita quien cobra; su valor lo copia el servidor de la base.
           const tasas = new Map<string, { value: string; frozen: FrozenRate }>();
           for (const [i, a] of cmd.asientos.entries()) {
@@ -141,6 +148,7 @@ export function casosPagos(base: Base): CasosPagos {
                   tenantId: ctx.tenantId,
                   branchId: ctx.branchId,
                   documentId: cmd.documentId,
+                  shiftId: turno.id,
                   operationKey: cmd.idempotencyKey,
                   line: i,
                   kind: n.kind,
@@ -202,6 +210,9 @@ export function casosPagos(base: Base): CasosPagos {
             return previas[0]!.reversesId === cmd.paymentId ? leerLibro(tx, previas[0]!.documentId) : conflictoDeClave;
           }
           // DEC-24: la autorización se comprueba y se registra ANTES de tocar el libro.
+          // El dinero vuelve desde la gaveta de este equipo: hace falta su turno abierto.
+          const turno = await turnoParaCobrar(tx, ctx);
+          if ("ok" in turno) return turno;
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cobro.anular", autorizacion, ahora);
           if (!permiso.ok) return permiso;
 
@@ -224,6 +235,7 @@ export function casosPagos(base: Base): CasosPagos {
               tenantId: ctx.tenantId,
               branchId: original.branchId,
               documentId: original.documentId,
+              shiftId: turno.id,
               operationKey: cmd.idempotencyKey,
               line: 0,
               kind: rev.kind,

@@ -13,6 +13,8 @@ import { ExcepcionesTurno } from "../cash/ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "../cash/PuntosDeCobro.tsx";
 import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { formatTasaVE } from "../cash/tasa-format.ts";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { formatClock } from "../park/time-format.ts";
 
 // El tipo vive con su componente; se reexporta porque la página lo importa
 // desde aquí.
@@ -64,8 +66,7 @@ export function InicioScreen({
   excepciones,
   fecha,
   diaSemana,
-  turnoDesde,
-  cajero,
+  turnos,
   umbral,
   enServicio,
 }: {
@@ -81,9 +82,8 @@ export function InicioScreen({
   excepciones: readonly Excepcion[];
   fecha: string;
   diaSemana: string;
-  /** `null` = no hay turno abierto (el turno real llega con B3-1). */
-  turnoDesde: string | null;
-  cajero: string | null;
+  /** Los turnos abiertos de la sucursal, del servidor (B3-1). Vacío = ninguno. */
+  turnos: readonly { abiertoEn: string; abiertoPor: string; punto: string }[];
   /** Cuándo una comanda tarda y cuándo está atrasada. */
   umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
@@ -95,6 +95,9 @@ export function InicioScreen({
   const { tasa: vigente } = useTasaVigente("USD/VES");
   const tasa = vigente ? formatTasaVE(vigente.value) : null;
   const diaMinuscula = diaSemana.toLowerCase();
+  const { ajustes } = useSucursal();
+  const primero = turnos[0] ?? null;
+  const turnoDesde = primero ? formatClock(Date.parse(primero.abiertoEn), ajustes.formatoHora) : null;
 
   const variacion = (hoy: number, antes: number | null) =>
     antes === null || antes === 0 ? null : Math.round(((hoy - antes) / antes) * 100);
@@ -146,10 +149,14 @@ export function InicioScreen({
             className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface/80 px-3 py-1.5 text-xs lg:text-[13px] text-ink-2 transition-all duration-[var(--dur-rapida)] hover:border-line-strong hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand shadow-sm"
           >
             <span>
-              {turnoDesde ? (
+              {primero && turnos.length > 1 ? (
                 <>
-                  Turno desde <span className="tnum font-medium text-ink">{turnoDesde}</span>
-                  {cajero ? ` · ${cajero}` : ""}
+                  <span className="tnum font-medium text-ink">{turnos.length}</span> turnos abiertos · desde{" "}
+                  <span className="tnum font-medium text-ink">{turnoDesde}</span>
+                </>
+              ) : primero ? (
+                <>
+                  Turno desde <span className="tnum font-medium text-ink">{turnoDesde}</span> · {primero.abiertoPor}
                 </>
               ) : (
                 "Sin turno abierto"

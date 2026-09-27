@@ -8,7 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { TurnoCommandSchema, TurnoSchema, TurnosSchema } from "./turno.ts";
+import { AbrirTurnoCommandSchema, TurnoCommandSchema, TurnoSchema, TurnosSchema } from "./turno.ts";
 
 const persona = { id: "u-1", name: "Marisol Prieto" };
 
@@ -20,6 +20,8 @@ const fondos = [
 const abierto = {
   id: "t-1",
   deviceId: "dev-mostrador",
+  punto: "Caja mostrador",
+  businessDate: "2026-09-18",
   estado: "ABIERTO",
   abiertoPor: persona,
   abiertoEn: "2026-09-18T14:00:00.000Z",
@@ -111,35 +113,28 @@ describe("los turnos del local (I-06)", () => {
 });
 
 describe("los mandos del turno", () => {
-  test("abrir declara el equipo, quién y los fondos", () => {
-    const r = TurnoCommandSchema.safeParse({
-      kind: "ABRIR",
-      deviceId: "dev-mostrador",
-      abiertoPor: persona,
-      fondos,
-    });
-    assert.equal(r.success, true);
+  test("abrir declara solo el fondo en dólares y en bolívares", () => {
+    assert.equal(TurnoCommandSchema.safeParse({ kind: "ABRIR", fondos }).success, true);
+    assert.equal(AbrirTurnoCommandSchema.safeParse({ fondos }).success, true);
+    assert.equal(AbrirTurnoCommandSchema.safeParse({ fondos: [fondos[0]] }).success, false);
+    assert.equal(AbrirTurnoCommandSchema.safeParse({ fondos: [fondos[0], fondos[0]] }).success, false);
   });
 
-  test("abrir no puede traer el estado ni la hora: los pone quien lo aplica", () => {
-    for (const extra of [{ estado: "CERRADO_Z" }, { abiertoEn: "2020-01-01T00:00:00.000Z" }]) {
-      const r = TurnoCommandSchema.safeParse({
-        kind: "ABRIR",
-        deviceId: "dev-mostrador",
-        abiertoPor: persona,
-        fondos,
-        ...extra,
-      });
-      assert.equal(r.success, false);
+  test("abrir no trae equipo, persona, estado ni hora: los pone el servidor (ADR-017)", () => {
+    for (const extra of [
+      { deviceId: "dev-mostrador" },
+      { abiertoPor: persona },
+      { estado: "CERRADO_Z" },
+      { abiertoEn: "2020-01-01T00:00:00.000Z" },
+      { businessDate: "2020-01-01" },
+    ]) {
+      assert.equal(AbrirTurnoCommandSchema.safeParse({ fondos, ...extra }).success, false, Object.keys(extra)[0]);
     }
   });
 
-  test("el corte Z dice quién lo firma", () => {
-    assert.equal(TurnoCommandSchema.safeParse({ kind: "CORTE_Z", turnoId: "t-1" }).success, false);
-    assert.equal(
-      TurnoCommandSchema.safeParse({ kind: "CORTE_Z", turnoId: "t-1", por: persona }).success,
-      true,
-    );
+  test("el corte Z no declara quién lo firma: sale de la sesión", () => {
+    assert.equal(TurnoCommandSchema.safeParse({ kind: "CORTE_Z", turnoId: "t-1" }).success, true);
+    assert.equal(TurnoCommandSchema.safeParse({ kind: "CORTE_Z", turnoId: "t-1", por: persona }).success, false);
   });
 
   test("no existe reabrir un turno cerrado (F4-06)", () => {

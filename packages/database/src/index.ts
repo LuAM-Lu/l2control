@@ -21,6 +21,7 @@ export type {
   ExchangeRateConfirmation,
   TaxRate,
   Payment,
+  CashShift,
   ParkTariffVersion,
   Prisma,
   Tenant,

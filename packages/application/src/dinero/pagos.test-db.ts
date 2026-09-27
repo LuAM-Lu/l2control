@@ -25,6 +25,12 @@ let tasa: string;
 let pendiente: string;
 
 const DOC = randomUUID();
+const FONDO = {
+  fondos: [
+    { currency: "USD", amount: { minor: "0", currency: "USD" } },
+    { currency: "VES", amount: { minor: "0", currency: "VES" } },
+  ],
+};
 const usd = (major: string) => ({ kind: "COBRO", method: "EFECTIVO_USD", amount: { minor: major.replace(".", ""), currency: "USD" } });
 const pagoMovil = (major: string, rateId: string) => ({ kind: "COBRO", method: "PAGO_MOVIL", amount: { minor: major.replace(".", ""), currency: "VES" }, rateId });
 const cobro = (asientos: unknown[], documentId = DOC, idempotencyKey: string = randomUUID()) => ({ idempotencyKey, documentId, asientos });
@@ -46,6 +52,8 @@ before(async () => {
   ctxCajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), cajera, "7391");
   ctxMonitora = await contextoDe(local, await crearEquipo(local, "Entrada"), monitora, "6284");
   const ctxSupervisor = await contextoDe(local, await crearEquipo(local, "Supervisión"), supervisor, "5937");
+  // Sin turno abierto no se cobra (B3-1): la caja y la oficina abren el suyo.
+  for (const ctx of [ctxCajera, ctxAdmin]) valor(await local.app.turnos.abrir(ctx, FONDO, AHORA - 120_000));
 
   // La tasa del día, aplicada; y otra que supervisión deja pendiente.
   tasa = valor(await local.app.tasas.capturar(local.sistema, { pair: "USD/VES", source: "BCV", value: "855.6625", effectiveDate: HOY, valorVerificado: "855.6625" }, AHORA)).id;
@@ -149,9 +157,30 @@ describe("asentar un cobro (F3-09)", () => {
     assert.ok(asientos.some((a) => a.action === "pago.asentar" && a.outcome === "NEGADO"));
   });
 
+  test("sin turno abierto en el equipo no se cobra (F4-01)", async () => {
+    const r = await local.app.pagos.asentar(ctxMonitora, cobro([usd("3.00")]), AHORA);
+    // La monitora ni siquiera cobra; quien sí cobra, sin turno, tampoco:
+    assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
+    const cajeraSinTurno = await contextoDe(local, await crearEquipo(local, "Caja sin turno"), ctxCajera.quien!.userId!, "7391");
+    const sin = await local.app.pagos.asentar(cajeraSinTurno, cobro([usd("3.00")]), AHORA);
+    assert.equal(!sin.ok && sin.motivo, "NO_DISPONIBLE");
+    assert.match(!sin.ok ? sin.mensaje : "", /turno/);
+  });
+
+  test("el asiento dice en qué turno entró", async () => {
+    const turno = (await local.app.turnos.delEquipo(ctxCajera))!;
+    const libro = valor(await local.app.pagos.libro(ctxAdmin, DOC));
+    const filas = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.payment.findMany({ where: { id: { in: libro.asientos.map((a) => a.id) } } }));
+    assert.ok(filas.every((f) => f.shiftId === turno.id));
+  });
+
   test("sin IGTF vigente no se cobra en divisas", async () => {
-    const r = await otro.app.pagos.asentar(otro.sistema, cobro([usd("3.00")]), AHORA);
+    const persona = await crearPersona(otro, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
+    const ctx = await contextoDe(otro, await crearEquipo(otro, "Caja"), persona, "7391");
+    valor(await otro.app.turnos.abrir(ctx, FONDO, AHORA));
+    const r = await otro.app.pagos.asentar(ctx, cobro([usd("3.00")]), AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
+    assert.match(!r.ok ? r.mensaje : "", /IGTF/);
   });
 });
 
@@ -233,7 +262,12 @@ describe("aislamiento", () => {
   test("otro local no ve el libro de este ni revierte sus asientos", async () => {
     assert.deepEqual(valor(await otro.app.pagos.libro(otro.sistema, DOC)).asientos, []);
     const id = valor(await local.app.pagos.libro(ctxAdmin, DOC)).asientos[0]!.id;
-    const r = await otro.app.pagos.revertir(otro.sistema, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, undefined, AHORA);
+    // Con su propio turno abierto, para que el rechazo sea por no ver el asiento y no por otra cosa.
+    const admin = await crearPersona(otro, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
+    const ctx = await contextoDe(otro, await crearEquipo(otro, "Oficina"), admin, "4826");
+    valor(await otro.app.turnos.abrir(ctx, FONDO, AHORA));
+    const r = await otro.app.pagos.revertir(ctx, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, undefined, AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
+    assert.match(!r.ok ? r.mensaje : "", /no existe/);
   });
 });

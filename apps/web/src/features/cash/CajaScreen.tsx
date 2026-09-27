@@ -50,7 +50,6 @@ import {
   computeBalance,
   refundableByTender,
   type ChangeDisposition,
-  type PointOfSale,
   type Tender,
 } from "@l2/domain-cash";
 import {
@@ -85,6 +84,7 @@ import {
   type DatosDePagoDto,
   type FamilyAccountDto,
   type ImpuestosDto,
+  type TurnoDto,
   type UserSummaryDto,
   type PagoDeVentaDto,
 } from "@l2/contracts";
@@ -220,12 +220,6 @@ function CobroCuenta({
    * y leerla como «algo/100» pintaba 45,81.
    */
   tasaValor: string | null;
-  /**
-   * Desde qué punto cobra este equipo (DEC-13). Sale del dispositivo —el
-   * aparato es del puesto (DEC-17)—, no de una elección del cajero en cada
-   * cobro: pedírselo a mano es garantizar que un día se equivoque.
-   */
-  puntoDeCobro: PointOfSale;
   /** El instante con el que se eligen las alícuotas: el del servidor, que avanza con el reloj. */
   instanteFiscal: number;
   onAgregarProducto?: (producto: ProductoMostrador) => void;
@@ -1742,6 +1736,7 @@ export function CajaScreen({
   pulseras,
   impuestos,
   serverNow,
+  turno,
   ...cobro
 }: Omit<
   CobroProps,
@@ -1751,6 +1746,11 @@ export function CajaScreen({
   impuestos: ImpuestosDto;
   /** La hora del servidor al pintar: de ella avanza el instante con que se eligen las alícuotas. */
   serverNow: number;
+  /**
+   * El turno del equipo, del servidor (B3-1). Sin él no se cobra. Su punto de cobro es el propio
+   * equipo (DEC-13): sale del aparato, no de una elección del cajero en cada cobro.
+   */
+  turno: TurnoDto | null;
   cuentaInicial: string | null;
   volver: string | null;
   /** Código de pulsera → estancia, de la instantánea del servidor. */
@@ -2198,7 +2198,7 @@ export function CajaScreen({
           onElegir={elegir}
           onNuevaVentaDirecta={onNuevaVentaDirecta}
           ventaNueva={ventaNueva}
-          puntoDeCobro={cobro.puntoDeCobro}
+          puntoDeCobro={turno?.punto ?? null}
           recientes={recientes}
           busqueda={busqueda}
           onBusqueda={setBusqueda}
@@ -2229,6 +2229,8 @@ export function CajaScreen({
             }}
             ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
+        ) : actual && !turno ? (
+          <SinTurno />
         ) : actual && fiscal.faltan.length > 0 ? (
           <SinImpuestos faltan={fiscal.faltan} />
         ) : actual && mediosDisponibles.length === 0 ? (
@@ -2574,6 +2576,34 @@ function useImpuestosVigentes(impuestos: ImpuestosDto, serverNow: number) {
       instante,
     };
   }, [periodos, instante]);
+}
+
+/**
+ * Sin turno abierto no se cobra — F4-01, B3-1, fail-closed. El servidor también lo exige al
+ * asentar el cobro; aquí se dice antes de que la cajera teclee nada, y dónde se arregla.
+ */
+function SinTurno() {
+  return (
+    <section
+      role="alert"
+      className={cn(
+        "flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-state-crit/50 bg-surface/50 px-6 py-10 text-center",
+        PLACEMENT_SIN_CUENTAS,
+      )}
+    >
+      <TriangleAlert size={32} className="text-state-crit" aria-hidden="true" />
+      <p className="font-display text-xl font-bold text-ink">La caja no cobra: no hay turno abierto</p>
+      <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
+        Abre el turno de este equipo con el fondo de la gaveta. Todo lo que se cobre queda en ese turno y en su día.
+      </p>
+      <Link
+        href="/turno"
+        className="mt-2 flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+      >
+        Abrir el turno
+      </Link>
+    </section>
+  );
 }
 
 /**

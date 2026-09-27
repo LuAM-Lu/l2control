@@ -4,6 +4,7 @@ import { GuardiaEstacion } from "../../src/features/shell/GuardiaEstacion";
 import { IdleGuard } from "../../src/features/shell/IdleGuard";
 import { PageTransition } from "../../src/features/shell/PageTransition";
 import { StationBar } from "../../src/features/shell/StationBar";
+import { turnoDelEquipo } from "../../src/features/cash/turno.servidor";
 
 /**
  * Cáscara de las estaciones de operación — §9.10.2.
@@ -17,10 +18,9 @@ import { StationBar } from "../../src/features/shell/StationBar";
  * el operador no debe tener que buscar: turno, tasa vigente, conexión y quién
  * es. Antes cada pantalla lo repetía a su manera.
  */
-export default function EstacionLayout({ children }: { children: React.ReactNode }) {
-  // TODO(F2-12/backend): el contexto vendrá de la sesión del dispositivo
-  // compartido. La forma ya es la definitiva, así que ese cambio no toca las
-  // pantallas (§11.4).
+export default async function EstacionLayout({ children }: { children: React.ReactNode }) {
+  // El turno del equipo, del servidor (B3-1). La conexión real llega con B5-1.
+  const turno = await turnoDelEquipo();
   return (
     // Desde 768 px (tablet, también en vertical) la estación mide la ventana y
     // NO desplaza la página: la barra queda quieta y cada pantalla reparte su
@@ -34,8 +34,7 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
     <div className="flex min-h-dvh flex-col bg-base md:fixed md:inset-0 md:min-h-0 md:overflow-hidden">
       <StationBar
         contexto={{
-          // El turno real llega con B3-1: hasta entonces la barra dice la verdad, no «2:00 pm».
-          turnoAbierto: null,
+          turno: turno && { abiertoEn: turno.abiertoEn, punto: turno.punto },
           conexion: "N0",
         }}
       />

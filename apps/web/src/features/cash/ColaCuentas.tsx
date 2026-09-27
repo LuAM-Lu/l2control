@@ -3,7 +3,6 @@
 import { useEffect, useState, type RefObject } from "react";
 import { Baby, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
-import type { PointOfSale } from "@l2/domain-cash";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { MoneyDisplay, ScannerField, cn } from "@l2/ui";
 import { esDeMesa, esVentaDirecta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
@@ -95,7 +94,8 @@ export function ColaCuentas({
   onElegir: (id: string) => void;
   onNuevaVentaDirecta: () => void;
   ventaNueva: boolean;
-  puntoDeCobro: PointOfSale;
+  /** El equipo desde el que se cobra (su turno, B3-1); `null` sin turno abierto. */
+  puntoDeCobro: string | null;
   /** Cuentas que acaban de llegar: destellan una vez. */
   recientes: ReadonlySet<string>;
   busqueda: string;
@@ -142,7 +142,7 @@ export function ColaCuentas({
       <div className="flex items-center justify-between gap-2 border-b border-line py-2 pr-2 pl-4">
         <h2
           className="font-display text-base font-bold whitespace-nowrap text-ink"
-          title={`Cobrando desde ${puntoDeCobro === "TAQUILLA" ? "la taquilla" : "el mostrador"}`}
+          title={puntoDeCobro ? `Cobrando desde ${puntoDeCobro}` : "Sin turno abierto en este equipo"}
         >
           Por cobrar <span className="tnum ml-1 text-[13px] font-semibold text-ink-3">{total}</span>
         </h2>

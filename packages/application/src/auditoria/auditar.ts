@@ -26,6 +26,7 @@ export type AccionAuditada =
   | "impuesto.programar"
   | "pago.asentar"
   | "pago.revertir"
+  | "turno.abrir"
   | "sesion.abrir"
   | "sesion.cerrar"
   | "sesion.pin_fallido"

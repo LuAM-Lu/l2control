@@ -26,10 +26,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.17.0 · 17 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1); Etapa 2 (dinero) en curso: las tasas
+**Versión 0.18.0 · 18 de 45 pasos.** Etapas 0 y 1 hechas, y la versión ya se ve (T-1). Etapa 2 (dinero) casi cerrada: las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
-servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3). Sin modo demo; lo provisional y lo simulado que queda está
+servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3). Falta B2-4. Etapa 3 (caja)
+empezada: **el turno es real (B3-1)** y sin él no se cobra. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -37,17 +38,17 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia, libro de pagos), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia, libro de pagos, turnos de caja), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio) e Impuestos (Configuración y el ticket de la caja). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  Inicio), Impuestos (Configuración y el ticket de la caja) y el turno (apertura, barra, caja e Inicio). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
   «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (36 de base, 145 de aplicación; en el dominio, 50 de tasas,
-  44 de impuestos y 51 de caja). **Subido a GitHub el
+- **Pruebas:** `pnpm verify:db` en verde (40 de base, 157 de aplicación; en el dominio, 50 de tasas,
+  44 de impuestos y 55 de caja). **Subido a GitHub el
   2026-09-26** (`main`) y el CI pasó en verde allí; para cerrar B0-4 falta verlo en rojo con un PR de prueba.
 
 **La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
@@ -62,8 +63,13 @@ B2-2 se programó el IVA general al 15 % (hoy y el 27 oct) y se devolvió al 16 
 27 oct y se canceló: rige 16 %, 8 % y 3 %, sin nada programado. Equipos «Prueba B22 Admin» y «Prueba
 B22 Caja» revocados.
 
-**Siguiente paso:** B2-4 (`businessDate` en toda fila de dinero y feriados bancarios; necesita D-FER).
-Luego, el orden de §3.
+**Turno de prueba abierto en la base local.** Al comprobar B3-1 se abrió un turno en «Prueba B31 Caja»
+($ 20,00 y Bs. 1.500,00) y el equipo se revocó después. Un turno no se borra ni se cierra sin corte Z,
+así que Inicio lo enseña hasta B3-5, que debe permitir cerrar un turno huérfano desde otro equipo.
+
+**Siguiente paso:** B2-4 (`businessDate` del turno en cada asiento y feriados bancarios cargados desde
+el panel, D-FER decidido). Después, a pedido del cliente, **rediseño del acceso** (T-3). Luego, el
+orden de §3.
 
 ---
 
@@ -120,8 +126,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
 
-1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3~~ → **B2-4** (se cierra Dinero).
-2. B3-1 → B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
+1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1~~ → **B2-4** (se cierra Dinero) → **T-3**.
+   B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
+   (ADR-009), así que el turno tenía que existir antes.
+2. B3-2 → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
@@ -144,6 +152,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   CHANGELOG reconstruido de 0.1.0 a 0.13.0 (B1-3 y B1-4 salieron juntos: no hay 0.7.0) y etiquetas
   en el commit de cada paso. Comprobado con Playwright a 1366×768, 1280×800 y 800×1280, sin errores
   de consola ni desplazamiento del documento.*
+- [ ] **T-3 · Rediseño del acceso** (pedido del cliente el 2026-09-27).
+  → La pantalla de acceso da protagonismo al producto: marca y nombre a la izquierda, el formulario a
+  la derecha. «Soy de administración» (aprobar el equipo con contraseña y TOTP, M-7) se ve desde la
+  primera pantalla de un equipo desconocido, no solo después de «Pedir registro».
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
   suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -384,9 +396,33 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 
 ### Etapa 3 · Caja (F4)
 
-- [ ] **B3-1 · Turno real**: la pantalla de **apertura** con fondo por moneda en `/turno` (contrato
+- [x] **B3-1 · Turno real**: la pantalla de **apertura** con fondo por moneda en `/turno` (contrato
   `turno.ts`) y un turno por dispositivo (I-06) (F4-01). El punto de cobro sale del equipo, no fijo.
   → Sin turno abierto no se cobra. La barra deja de decir «Turno sin abrir» fijo: lee el turno real.
+  *Hecho el 2026-09-27 (v0.18.0), adelantado a B2-4 (ver el orden):*
+  *· Dominio (`@l2/domain-cash`): `openingFloatProblem` (un fondo por moneda de la gaveta, USD y VES,
+  cero vale, negativo no), `chargeProblem` (sin turno o con corte Z no se cobra) y `openingMovements`
+  (el fondo entra en la gaveta como movimiento del turno). 4 pruebas.*
+  *· Contrato: el turno lleva `punto` (el equipo) y `businessDate`; abrir manda SOLO el fondo (se
+  retiran `deviceId` y `abiertoPor`, que declaraba el navegador) y el corte Z ya no trae `por`.*
+  *· Base: migración `20261002000000_turno_de_caja`: `cash_shift` con RLS, índice único parcial por
+  equipo sin corte Z (I-06) y un disparador que no deja borrar, reescribir la apertura, retroceder de
+  estado ni cambiar un cierre firmado; `cash_shift_float` de solo-agregar; `payment.shift_id` NOT
+  NULL y un disparador que rechaza cobrar en un turno con corte Z o de otra sucursal (I-14). 4
+  pruebas.*
+  *· Aplicación (`turnos`): `abrir` (`turno.abrir`; equipo aprobado de la sesión; día de negocio =
+  día del local al abrir, ADR-009; dos aperturas a la vez dejan una), `delEquipo` y `abiertos` (para
+  Inicio, con `reportes.verSucursal`). El libro exige el turno abierto del equipo para asentar y
+  revertir, y guarda en cuál entró. 10 pruebas nuevas y 2 más en el libro.*
+  *· Web: `/turno` abre el turno (fondo en $ y Bs., importes a la venezolana) y, abierto, enseña día de
+  negocio, punto, quién y a qué hora, con el arqueo; el corte Z simulado en el navegador se retira
+  (los cortes guardados son de B3-5). La barra lee el turno del equipo; la caja no cobra sin turno
+  («Abrir el turno») y dice «Cobrando desde <equipo>»; Inicio enseña el turno y su fondo en la gaveta.*
+  *· Comprobado en el navegador con dos equipos: caja sin turno bloqueada con aviso; importe mal
+  escrito señalado en el campo; apertura con $ 20 y Bs. 1.500,00 → «Turno abierto en Prueba B31 Caja»,
+  barra «Turno desde 2:14 pm»; la caja cobra desde ese equipo; Inicio «Turno desde 2:14 pm · Marisol
+  Prieto» y en gaveta $ 20,00 / Bs. 1.500,00. Caja sin turno, apertura y turno abierto a 1366×768,
+  1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [ ] **B3-2 · Medios de pago, terminales y datos de cobro** persistidos; los datos de pago, **cifrados
   en reposo** (F4-02, F4-04). Se borran `src/demo/medios.ts` y la parte de medios de `caja.ts`.
 - [ ] **B3-3 · Cobro mixto y vuelto en el servidor** contra el libro, con la tasa congelada (F4-03,
@@ -506,7 +542,7 @@ antes del cobro en servidor (orden de ejecución).
 | F-12 | ¿El teléfono entra en el objetivo? | Revisarlo en B7-3 | B7-3 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente (hoy fijo en el código) | B7-2 |
-| D-FER | Calendario de feriados bancarios de Venezuela | Cargarlo por año desde el panel, con los de ley precargados | B2-4 |
+| ~~D-FER~~ | Calendario de feriados bancarios de Venezuela | **Decidido el 2026-09-27:** se carga por año desde el panel copiando el calendario de SUDEBAN (cambia cada año: Carnaval, Semana Santa y feriados trasladados) | B2-4 |
 | D-INV | Alcance del inventario en el piloto | Solo productos de mostrador (bebidas, snacks); los insumos de cocina con el restaurante | B9-1 |
 | D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? (hoy sí, `canAuthorize`) | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona | B3-4 |
 
@@ -530,7 +566,9 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 |---|---|
 | La venta de mostrador se guarda como cuenta de familia con una estancia ficticia (`s-mostrador`) | B3-3: la cuenta tendrá su tipo «mostrador» |
 | Las pulseras de la entrada no quedan en la cuenta: en caja, «no tiene cuenta» | B4-3 |
-| El dominio de caja conserva `PointOfSale` con taquilla y mostrador (DEC-25/26 los dejan genéricos) | B3-1 |
+| El dominio de caja conserva `PointOfSale` con taquilla y mostrador en `tallyShift`; desde B3-1 el punto es el equipo del turno | B3-5 (cortes derivados del libro) |
+| Un turno no se cierra todavía: el de un equipo revocado o perdido queda abierto | B3-5 (cerrar un turno huérfano desde otro equipo, con 🔐) |
+| Quién está en cada puesto viaja por el bus entre pestañas de un navegador: Inicio no avisa «Sin nadie en caja» aunque haya turno | B5-1 |
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
 | El diálogo de anular un cobro desplaza para llegar al PIN a 1366×768 | B3-4 |
 | Aprobar un equipo no avisa en vivo a la administración (queda en la auditoría y en su historia) | B5-1 |
@@ -544,7 +582,7 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a SALTO), el texto de la alerta no lo dice | B5-1 |
 | El documento del libro (`payment.document_id`) no tiene FK: la tabla de cuentas y ventas llega con B3-3 | B3-3 |
-| El libro no tiene turno ni `businessDate` todavía | B2-4 (`businessDate`) y B3-1 (turno) |
+| El libro no tiene `businessDate` todavía (sí su turno, desde B3-1) | B2-4 |
 | Qué medios disparan IGTF en el libro es el trato por defecto (divisas y cripto), no la configuración del local | B3-2 |
 | Un asiento del libro no guarda la referencia del pago (Pago Móvil, punto, TxID): se añade cifrada | B3-2 |
 | El libro no comprueba que el cobro cuadre con el total del documento ni que la tasa citada sea la vigente | B3-3 |
@@ -556,7 +594,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | Qué | Dónde | Se va con |
 |---|---|---|
 | Medios de pago, datos que ve el cliente y terminales | `src/demo/medios.ts`, `caja.ts`, `MediosProvider` (en el navegador) | B3-2 |
-| Movimientos y excepciones del turno (vacíos), turno «sin abrir» fijo en la barra, punto de cobro fijo | `src/demo/turno.ts`, layout de estación, página de caja | B3-1 y B3-5 |
+| Movimientos y excepciones del turno (vacíos; el fondo ya es real) | `src/demo/turno.ts` | B3-5 |
 | Catálogo de mostrador (agua, maltas, tequeños…) | `features/cash/catalogo-mostrador.ts` | B9-1 |
 | Cuentas y ventas guardadas en el navegador | `CuentasProvider`, `VentasProvider` | B3-3 y B3-4 |
 | PIN del autorizador comprobado en el navegador (`"1970"`) y la lista de autorizadores | `AnularCobroDialog`, `CortesiaDialog`, `src/demo/usuarios.ts` | B3-4 |
@@ -609,7 +647,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
 | F3 · Dinero | Tasas en la base, traídas del BCV, aplicadas solas y en vivo (B2-1, B2-1b, B2-1c); impuestos con vigencia (B2-2); libro de pagos (B2-3) | `businessDate` y feriados (B2-4). **Sin F3-08** (M-3) |
-| F4 · Caja | Interfaz completa | Turno, libro, cortes y excepciones reales (Etapa 3) |
+| F4 · Caja | Interfaz completa; turno real (B3-1) | Medios, cobro en el servidor, ventas, cortes y excepciones reales (Etapa 3) |
 | F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
 | F7 · Fiscal | **Fuera** (M-3) | — |
@@ -654,6 +692,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   Impuestos y la caja cobra con los del instante. Sigue B2-3.
 - **2026-09-27** · B2-3 entregado (v0.17.0): el libro de pagos en el servidor, idempotente y con la
   reversión como asiento; la caja lo usará en B3-3 (alcance acordado con el cliente). Sigue B2-4.
+- **2026-09-27** · Decisiones del cliente: B3-1 antes que B2-4 (el turno fija el día de negocio), los
+  feriados se cargan desde el panel (D-FER) y el acceso se rediseña (T-3). B3-1 entregado (v0.18.0):
+  sin turno abierto no se cobra, y el punto de cobro es el equipo.
 
 ---
 

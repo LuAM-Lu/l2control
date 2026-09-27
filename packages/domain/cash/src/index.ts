@@ -229,6 +229,47 @@ export function assertShiftAcceptsMoney(status: ShiftStatus, action: string): vo
   if (status === "CERRADO_Z") throw new ShiftClosedError(action);
 }
 
+/** Las monedas que tiene la gaveta: el USDT y lo electrónico no están en el cajón (§5.6). */
+export const DRAWER_CURRENCIES: readonly CurrencyCode[] = ["USD", "VES"];
+
+export type OpeningFloatProblem = "FALTA_MONEDA" | "MONEDA_REPETIDA" | "MONEDA_SIN_GAVETA" | "FONDO_NEGATIVO";
+
+/**
+ * ¿Vale este fondo inicial (F4-01)? Uno por cada moneda de la gaveta, ni más ni menos, y ninguno
+ * negativo: una gaveta no empieza debiendo. Cero sí vale y es explícito (se empieza sin cambio).
+ */
+export function openingFloatProblem(fondos: readonly Money[]): OpeningFloatProblem | null {
+  const monedas = fondos.map((f) => f.currency);
+  if (monedas.some((m) => !DRAWER_CURRENCIES.includes(m))) return "MONEDA_SIN_GAVETA";
+  if (new Set(monedas).size !== monedas.length) return "MONEDA_REPETIDA";
+  if (DRAWER_CURRENCIES.some((m) => !monedas.includes(m))) return "FALTA_MONEDA";
+  if (fondos.some((f) => f.amount < 0n)) return "FONDO_NEGATIVO";
+  return null;
+}
+
+export type ChargeProblem = "SIN_TURNO" | "TURNO_CERRADO";
+
+/**
+ * ¿Se puede cobrar en este turno? Sin turno abierto no se cobra (F4-01, fail-closed), y después
+ * del corte Z tampoco (F4-06). Es la versión que no lanza de `assertShiftAcceptsMoney`.
+ */
+export function chargeProblem(shift: Readonly<{ status: ShiftStatus }> | null): ChargeProblem | null {
+  if (!shift) return "SIN_TURNO";
+  if (shift.status === "CERRADO_Z") return "TURNO_CERRADO";
+  return null;
+}
+
+/** El fondo inicial como movimientos del turno: está en la gaveta y no es de ningún punto. */
+export function openingMovements(fondos: readonly Money[]): ShiftMovement[] {
+  return fondos.map((f) => ({
+    kind: "OPENING_FLOAT",
+    methodCode: f.currency === "VES" ? "EFECTIVO_VES" : "EFECTIVO_USD",
+    amount: f,
+    inDrawer: true,
+    origin: "TURNO",
+  }));
+}
+
 /* ------------------------------------------------- punto de cobro */
 
 /**

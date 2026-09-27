@@ -1,5 +1,6 @@
 import { toMajor } from "@l2/domain-money";
-import { tallyShift } from "@l2/domain-cash";
+import { money } from "@l2/domain-money";
+import { openingMovements, tallyShift } from "@l2/domain-cash";
 import { InicioScreen, type PorMedio, type SaldoMoneda } from "../../../src/features/shell/InicioScreen";
 import type { FilaPunto } from "../../../src/features/cash/PuntosDeCobro";
 import { MEDIO_LABEL } from "../../../src/features/cash/turno";
@@ -7,6 +8,7 @@ import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno"
 import { demoSnapshot } from "../../../src/demo/parque";
 import { toMonitorModel } from "../../../src/features/park/view-model";
 import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
+import { turnosAbiertos } from "../../../src/features/cash/turno.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -34,7 +36,10 @@ const MESES = [
 export default async function InicioPage() {
   const { tarifario } = await tarifarioVigente();
   const modelo = toMonitorModel(demoSnapshot(Date.now(), tarifario.policy));
-  const tally = tallyShift(DEMO_SHIFT_MOVEMENTS);
+  // Los turnos abiertos (B3-1): su fondo está en la gaveta. Lo cobrado sale del libro con B3-5.
+  const turnos = await turnosAbiertos();
+  const fondos = openingMovements(turnos.flatMap((t) => t.fondos.map((f) => money(BigInt(f.amount.minor), f.amount.currency))));
+  const tally = tallyShift([...fondos, ...DEMO_SHIFT_MOVEMENTS]);
 
   // «Lo que entró hoy» es LO COBRADO, no el movimiento neto del medio. Antes
   // se usaba el neto y el efectivo en dólares salía en 70,58: incluía los
@@ -80,10 +85,10 @@ export default async function InicioPage() {
       excepciones={DEMO_EXCEPCIONES}
       fecha={`${hoy.getDate()} de ${MESES[hoy.getMonth()]}`}
       diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
-      // El turno real llega con B3-1.
-      turnoDesde={null}
-      cajero={null}
+      turnos={turnos.map((t) => ({ abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto }))}
       umbral={{ avisoMin: 8, gritaMin: 15 }}
+      // Quién está en cada puesto viaja todavía por el bus entre pestañas de UN navegador (B5-1):
+      // con el turno abierto en otro equipo, «Sin nadie en caja» sería una alarma falsa.
       enServicio={false}
     />
   );

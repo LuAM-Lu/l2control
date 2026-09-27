@@ -15,7 +15,7 @@
  * hay que ver (§5.6).
  */
 import { z } from "zod";
-import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
+import { FechaSchema, IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 export const EstadoTurnoSchema = z.enum(["ABIERTO", "EN_CIERRE", "CERRADO_Z"]);
 export type EstadoTurno = z.infer<typeof EstadoTurnoSchema>;
@@ -48,6 +48,13 @@ export const TurnoSchema = z
     id: IdSchema,
     /** El equipo en el que se abrió. Un equipo, un turno abierto (I-06). */
     deviceId: IdSchema,
+    /** El punto de cobro: el nombre del equipo al abrir (DEC-13, B3-1). */
+    punto: z.string().trim().min(2).max(40),
+    /**
+     * El día de negocio que declara el turno (ADR-009): el del local al abrirlo. Todo lo que se
+     * cobre en él cuenta en ese día, aunque sea a la 1:30 am.
+     */
+    businessDate: FechaSchema,
     estado: EstadoTurnoSchema,
     abiertoPor: Persona,
     abiertoEn: TimestampSchema,
@@ -103,15 +110,17 @@ export type TurnosDto = z.infer<typeof TurnosSchema>;
 /**
  * Abrir el turno (F4-01).
  *
- * No admite `estado`: un turno nace abierto y no hay otra forma de nacer. Y
- * no admite `id` ni `abiertoEn`: los pone quien lo aplica, para que nadie
- * pueda declarar que abrió a otra hora.
+ * Solo el fondo: el equipo, quién abre, la hora y el día de negocio los pone el servidor desde la
+ * sesión (ADR-017), para que nadie pueda declarar que abrió en otro equipo, a otra hora o a nombre
+ * de otra persona. Un turno nace abierto: no hay `estado` que declarar.
  */
-export const AbrirTurnoCommandSchema = z.strictObject({
-  deviceId: IdSchema,
-  abiertoPor: Persona,
+const AbrirTurnoBase = z.strictObject({
   fondos: z.array(FondoInicialSchema).min(1, "Declara el fondo de cada moneda"),
 });
+export const AbrirTurnoCommandSchema = AbrirTurnoBase.refine(
+  (c) => c.fondos.length === 2 && new Set(c.fondos.map((f) => f.currency)).size === 2,
+  { message: "Declara el fondo en dólares y en bolívares, una vez cada uno (cero vale)", path: ["fondos"] },
+);
 export type AbrirTurnoCommand = z.infer<typeof AbrirTurnoCommandSchema>;
 
 /**
@@ -119,8 +128,9 @@ export type AbrirTurnoCommand = z.infer<typeof AbrirTurnoCommandSchema>;
  * mando para reabrir un turno cerrado, y esa ausencia es la decisión.
  */
 export const TurnoCommandSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("ABRIR"), ...AbrirTurnoCommandSchema.shape }),
+  z.strictObject({ kind: z.literal("ABRIR"), ...AbrirTurnoBase.shape }),
   z.strictObject({ kind: z.literal("INICIAR_CIERRE"), turnoId: IdSchema }),
-  z.strictObject({ kind: z.literal("CORTE_Z"), turnoId: IdSchema, por: Persona }),
+  // Quién hace el corte lo pone el servidor desde la sesión (ADR-017), como al abrir.
+  z.strictObject({ kind: z.literal("CORTE_Z"), turnoId: IdSchema }),
 ]);
 export type TurnoCommand = z.infer<typeof TurnoCommandSchema>;

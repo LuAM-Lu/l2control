@@ -3,6 +3,7 @@ import { demoSnapshot } from "../../../src/demo/parque";
 import { DEMO_USUARIOS } from "../../../src/demo/usuarios";
 import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 import { impuestosDelLocal } from "../../../src/features/cash/impuestos.servidor";
+import { turnoDelEquipo } from "../../../src/features/cash/turno.servidor";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
@@ -33,9 +34,8 @@ export default async function CajaPage({
       pulseras={pulseras}
       // Las alícuotas, de la base con su vigencia (B2-2): la caja elige las del instante.
       impuestos={await impuestosDelLocal()}
-      // TODO(F2-12/backend): el punto sale del registro del dispositivo. El
-      // equipo de caja es el del mostrador.
-      puntoDeCobro="MOSTRADOR"
+      // El turno del equipo (B3-1): sin él no se cobra, y su equipo es el punto de cobro.
+      turno={await turnoDelEquipo()}
       serverNow={Date.now()}
       usuarios={DEMO_USUARIOS}
     />

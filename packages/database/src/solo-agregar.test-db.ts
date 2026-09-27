@@ -249,6 +249,35 @@ test("dos programaciones del mismo impuesto en el mismo instante no se ordenan: 
 
 const DOC = randomUUID();
 let lineaLibre = 0;
+let equiposCreados = 0;
+
+/** Un turno abierto de `t`, con su equipo y su persona (el libro exige turno desde B3-1). */
+async function abrirTurno(t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) {
+  return app.conTenant(t.tenant, async (tx) => {
+    const persona = await tx.staffUser.create({ data: { tenantId: t.tenant, fullName: "Marisol Prieto", role: "CAJERO" } });
+    const equipo = await tx.device.create({
+      data: { tenantId: t.tenant, branchId: t.sucursal, label: `Caja ${++equiposCreados}`, status: "APROBADO", secretHash: randomUUID() },
+    });
+    return tx.cashShift.create({
+      data: {
+        tenantId: t.tenant,
+        branchId: t.sucursal,
+        deviceId: equipo.id,
+        pointLabel: equipo.label,
+        businessDate: new Date("2026-09-27T00:00:00.000Z"),
+        status: "ABIERTO",
+        openedBy: persona.id,
+        openedByName: persona.fullName,
+        ...extra,
+      },
+    });
+  });
+}
+const turnos = new Map<string, string>();
+const turnoDe = async (t: { tenant: string; sucursal: string }) => {
+  if (!turnos.has(t.tenant)) turnos.set(t.tenant, (await abrirTurno(t)).id);
+  return turnos.get(t.tenant)!;
+};
 /** Un asiento de `t` en efectivo en dólares; `extra` cambia lo que haga falta. */
 const asiento = (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) => ({
   tenantId: t.tenant,
@@ -264,8 +293,10 @@ const asiento = (t: { tenant: string; sucursal: string }, extra: Record<string, 
   recordedByName: "Marisol Prieto",
   ...extra,
 });
-const crearAsiento = (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) =>
-  app.conTenant(t.tenant, (tx) => tx.payment.create({ data: asiento(t, extra) }));
+const crearAsiento = async (t: { tenant: string; sucursal: string }, extra: Record<string, unknown> = {}) => {
+  const shiftId = await turnoDe(t);
+  return app.conTenant(t.tenant, (tx) => tx.payment.create({ data: { shiftId, ...asiento(t, extra) } }));
+};
 
 test("un asiento del libro no se edita ni se borra (I-09)", async () => {
   const p = await crearAsiento(A);
@@ -321,4 +352,52 @@ test("A no cita la tasa de B ni revierte un asiento de B", async () => {
   );
   const deB = await crearAsiento(B);
   await assert.rejects(crearAsiento(A, { reversesId: deB.id, reason: "ERROR_EN_COBRO", amountMinor: -580n, igtfMinor: -17n }), por("REFERENCIA_INVALIDA"));
+});
+
+/* ── El turno de caja (B3-1, I-06, I-14) ────────────────────────────────────── */
+
+test("un equipo no tiene dos turnos sin corte Z (I-06)", async () => {
+  const t = await abrirTurno(A);
+  await assert.rejects(
+    app.conTenant(A.tenant, (tx) =>
+      tx.cashShift.create({
+        data: { tenantId: A.tenant, branchId: A.sucursal, deviceId: t.deviceId, pointLabel: t.pointLabel, businessDate: t.businessDate, status: "ABIERTO", openedBy: t.openedBy, openedByName: t.openedByName },
+      }),
+    ),
+    por("DUPLICADO"),
+  );
+});
+
+test("un turno no se borra, no reescribe su apertura y no retrocede (F4-06)", async () => {
+  const t = await abrirTurno(A);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShift.delete({ where: { id: t.id } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShift.update({ where: { id: t.id }, data: { businessDate: new Date("2026-01-01") } })), SOLO_AGREGAR);
+  await app.conTenant(A.tenant, (tx) => tx.cashShift.update({ where: { id: t.id }, data: { status: "EN_CIERRE" } }));
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShift.update({ where: { id: t.id }, data: { status: "ABIERTO" } })), SOLO_AGREGAR);
+  // El corte Z sin firma no se acepta; con firma, sí, y ya no se reabre.
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShift.update({ where: { id: t.id }, data: { status: "CERRADO_Z" } })), por("RESTRICCION"));
+  await app.conTenant(A.tenant, (tx) =>
+    tx.cashShift.update({ where: { id: t.id }, data: { status: "CERRADO_Z", closedAt: new Date(), closedBy: t.openedBy, closedByName: t.openedByName } }),
+  );
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShift.update({ where: { id: t.id }, data: { status: "ABIERTO", closedAt: null, closedBy: null, closedByName: null } })), SOLO_AGREGAR);
+});
+
+test("no se cobra en un turno con corte Z (I-14)", async () => {
+  const t = await abrirTurno(A);
+  await app.conTenant(A.tenant, (tx) =>
+    tx.cashShift.update({ where: { id: t.id }, data: { status: "CERRADO_Z", closedAt: new Date(), closedBy: t.openedBy, closedByName: t.openedByName } }),
+  );
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.payment.create({ data: { shiftId: t.id, ...asiento(A) } })), por("RESTRICCION"));
+});
+
+test("el fondo inicial es por moneda de la gaveta, no negativo, y no se edita", async () => {
+  const t = await abrirTurno(A);
+  const fondo = (currency: string, amountMinor: bigint) => app.conTenant(A.tenant, (tx) => tx.cashShiftFloat.create({ data: { tenantId: A.tenant, shiftId: t.id, currency, amountMinor } }));
+  const f = await fondo("USD", 2000n);
+  await fondo("VES", 0n);
+  await assert.rejects(fondo("USDT", 100n), por("RESTRICCION"));
+  await assert.rejects(fondo("USD", 100n), por("DUPLICADO"));
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShiftFloat.update({ where: { id: f.id }, data: { amountMinor: 1n } })), SOLO_AGREGAR);
+  const t2 = await abrirTurno(A);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.cashShiftFloat.create({ data: { tenantId: A.tenant, shiftId: t2.id, currency: "VES", amountMinor: -1n } })), por("RESTRICCION"));
 });

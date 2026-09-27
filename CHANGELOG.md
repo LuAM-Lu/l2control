@@ -12,6 +12,25 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.18.0] — 2026-09-27 · Etapa 3 · Caja
+
+B3-1 · Turno real. Se adelanta a B2-4 porque el turno es quien fija el día de negocio (ADR-009).
+
+### Añadido
+- «Turno» abre el turno del equipo con el fondo de la gaveta en dólares y en bolívares (cero vale).
+  El turno queda a nombre de quien lo abre, en ese equipo y con el día de hoy como día de negocio:
+  lo que se cobre a la 1:30 am sigue contando en ese día.
+- Un equipo no puede tener dos turnos abiertos, ni aunque se pulse dos veces.
+- La barra de las estaciones dice «Turno desde …» con la hora real, e Inicio enseña el turno abierto,
+  quién lo abrió y el fondo en la gaveta.
+
+### Cambiado
+- Sin turno abierto, la caja no cobra: lo dice en la columna de cobro y lleva a abrirlo. El servidor
+  tampoco asienta un cobro sin turno, y cada asiento del libro dice en qué turno entró.
+- El punto de cobro es el equipo (su nombre), no el «mostrador» fijo.
+- La pantalla de turno ya no simula el corte Z: el conteo de la gaveta se hace, pero los cortes X y Z
+  se guardan en el servidor con B3-5.
+
 ## [0.17.0] — 2026-09-27 · Etapa 2 · Dinero
 
 B2-3 · Libro de pagos de solo-agregar con idempotencia. Es la base del cobro en el servidor: la caja

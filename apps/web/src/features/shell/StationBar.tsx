@@ -111,7 +111,8 @@ const PUESTOS: Puesto[] = [
 ];
 
 export type ContextoEstacion = {
-  turnoAbierto: string | null;
+  /** El turno del equipo, del servidor (B3-1); `null` si no hay ninguno abierto. */
+  turno: { abiertoEn: string; punto: string } | null;
   /** Nivel de degradación de ADR-003. */
   conexion: "N0" | "N1" | "N2" | "N3";
 };
@@ -194,7 +195,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
   const verPanel = actor !== null && puedeVerInicio(actor);
   const sinTasa = tasaVigente === null;
-  const sinTurno = contexto.turnoAbierto === null;
+  const sinTurno = contexto.turno === null;
+  const turnoDesde = contexto.turno ? formatClock(Date.parse(contexto.turno.abiertoEn), sucursal.formatoHora) : null;
   const offline = contexto.conexion !== "N0";
   const alerta = sinTasa || sinTurno || offline;
 
@@ -304,9 +306,9 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             <Pildora
               tono="tenue"
               icono={<Clock size={14} />}
-              texto={`Turno desde ${contexto.turnoAbierto!}`}
+              texto={`Turno desde ${turnoDesde}`}
               ocultarTextoHasta="lg"
-              titulo={`Turno abierto desde las ${contexto.turnoAbierto}`}
+              titulo={`Turno de ${contexto.turno!.punto} abierto desde las ${turnoDesde}`}
             />
           )}
 

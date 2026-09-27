@@ -1,5 +1,6 @@
 import { TurnoScreen } from "../../../src/features/cash/TurnoScreen";
 import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno";
+import { turnoDelEquipo } from "../../../src/features/cash/turno.servidor";
 
 /**
  * Turno de caja: arqueo y cortes X/Z (F4-05 a F4-08).
@@ -10,11 +11,11 @@ import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno"
  */
 export const dynamic = "force-dynamic";
 
-export default function TurnoPage() {
+export default async function TurnoPage() {
   return (
     <TurnoScreen
-      // El turno real (apertura, B3-1) todavía no existe: no se finge uno abierto.
-      abierto={false}
+      // El turno del equipo, del servidor (B3-1). Lo cobrado sale del libro con B3-5.
+      turno={await turnoDelEquipo()}
       movements={DEMO_SHIFT_MOVEMENTS}
       excepciones={DEMO_EXCEPCIONES}
     />

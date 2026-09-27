@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleCheckBig, FileText, Lock, OctagonAlert, TriangleAlert } from "lucide-react";
-import { type CurrencyCode, type Money, multiply, toMajor, zero } from "@l2/domain-money";
-import {
-  countDenominations,
-  reconcile,
-  tallyShift,
-  type ShiftMovement,
-  type ShiftStatus,
-} from "@l2/domain-cash";
-import { Badge, Button, Container, EmptyState, MoneyDisplay, Stepper, Tabs, cn } from "@l2/ui";
+import { CalendarClock, CircleCheckBig, Lock, OctagonAlert, TriangleAlert, Wallet } from "lucide-react";
+import type { TurnoDto } from "@l2/contracts";
+import { type CurrencyCode, type Money, fromMajor, money, multiply, toMajor, zero } from "@l2/domain-money";
+import { countDenominations, openingMovements, reconcile, tallyShift, type ShiftMovement } from "@l2/domain-cash";
+import { Badge, Button, Container, Input, MoneyDisplay, Stepper, Tabs, avisar, cn } from "@l2/ui";
 import { DENOMINACIONES, MEDIO_LABEL, type Excepcion } from "./turno.ts";
 import { EntradasPorMedio, type PorMedio } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { PuntosDeCobro, type FilaPunto } from "./PuntosDeCobro.tsx";
-import { cerrarSesion } from "../identity/operador.ts";
+import { abrirTurno } from "./turno.acciones";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { formatClock } from "../park/time-format.ts";
 
 /**
  * Turno de caja: arqueo y cortes X/Z — F4-05, F4-06, F4-07, F4-08.
@@ -36,56 +33,155 @@ import { cerrarSesion } from "../identity/operador.ts";
  * arqueo debe impedir.
  */
 /**
- * El turno de caja. Sin turno abierto no hay nada que arquear ni que cortar, y la pantalla lo
- * dice en vez de enseñar un turno «Abierto» sin movimientos (la apertura real llega con B3-1).
+ * El turno de caja del equipo (B3-1). Sin turno abierto, la pantalla es la apertura: se declara el
+ * fondo de la gaveta por moneda y el servidor pone lo demás. Con turno, el arqueo; los cortes X y
+ * Z guardados llegan con B3-5.
  */
 export function TurnoScreen({
-  abierto,
+  turno,
   movements,
   excepciones,
 }: {
-  abierto: boolean;
+  /** El turno del equipo, del servidor; `null` si no hay ninguno abierto. */
+  turno: TurnoDto | null;
+  /** Lo cobrado en el turno, del libro (B3-5). El fondo inicial sale del propio turno. */
   movements: readonly ShiftMovement[];
   excepciones: readonly Excepcion[];
 }) {
-  if (!abierto) return <SinTurno />;
-  return <TurnoAbierto movements={movements} excepciones={excepciones} />;
+  const todos = useMemo(
+    () =>
+      turno
+        ? [...openingMovements(turno.fondos.map((f) => money(BigInt(f.amount.minor), f.amount.currency))), ...movements]
+        : [],
+    [turno, movements],
+  );
+  if (!turno) return <AperturaTurno />;
+  return <TurnoAbierto turno={turno} movements={todos} excepciones={excepciones} />;
 }
 
-function SinTurno() {
+/**
+ * Un importe como lo teclea una persona en Venezuela, en unidades menores. Con coma, la coma es
+ * el decimal y los puntos son miles («1.500,50»); sin coma, el punto es el decimal. Vacío = cero.
+ */
+function importe(texto: string, moneda: "USD" | "VES"): Money | null {
+  const t = texto.trim().replace(/\s/g, "");
+  if (t === "") return zero(moneda);
+  if (!/^[\d.,]+$/.test(t)) return null;
+  try {
+    return fromMajor(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t, moneda);
+  } catch {
+    return null;
+  }
+}
+
+/** Abrir el turno (F4-01): el fondo de la gaveta por moneda. Cero vale y se dice. */
+function AperturaTurno() {
+  const router = useRouter();
+  const [usd, setUsd] = useState("");
+  const [bs, setBs] = useState("");
+  const [errores, setErrores] = useState<{ USD?: string | undefined; VES?: string | undefined }>({});
+  const [enviando, setEnviando] = useState(false);
+
+  const abrir = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fondoUsd = importe(usd, "USD");
+    const fondoBs = importe(bs, "VES");
+    if (!fondoUsd || !fondoBs) {
+      setErrores({
+        ...(fondoUsd ? {} : { USD: "Un importe en dólares, con hasta dos decimales" }),
+        ...(fondoBs ? {} : { VES: "Un importe en bolívares, con hasta dos decimales" }),
+      });
+      return;
+    }
+    setEnviando(true);
+    try {
+      const r = await abrirTurno({
+        fondos: [fondoUsd, fondoBs].map((f) => ({ currency: f.currency, amount: { minor: String(f.amount), currency: f.currency } })),
+      });
+      if (r.ok) {
+        avisar.ok(`Turno abierto en ${r.valor.punto}: ya se puede cobrar`);
+        router.refresh();
+      } else {
+        avisar.error(r.mensaje);
+        // Otro toque ya lo abrió (o se abrió en otra pestaña): se enseña el que hay.
+        if (r.motivo === "CONFLICTO") router.refresh();
+      }
+    } catch {
+      avisar.error("No se pudo hablar con el servidor. El turno no se abrió.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   return (
-    <Container ancho="operacion" className="py-8">
-      <h1 className="sr-only">Turno de caja</h1>
-      <EmptyState
-        icon={<Lock size={28} aria-hidden="true" />}
-        title="No hay turno abierto"
-        hint="La apertura con su fondo por moneda, los cortes X y Z y el arqueo llegan con el turno en el servidor. Hasta entonces no hay nada que arquear ni que cerrar."
-      />
+    <Container ancho="operacion" className="flex min-h-0 flex-1 items-start justify-center py-8">
+      <form
+        onSubmit={abrir}
+        className="flex w-full max-w-md flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-card"
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand/12 text-brand">
+            <Wallet size={20} aria-hidden="true" />
+          </span>
+          <div>
+            <h1 className="font-display text-xl font-bold text-ink">Abrir el turno</h1>
+            <p className="mt-1 text-[13.5px] text-ink-2">
+              Cuenta el fondo que hay en la gaveta antes de empezar. Sin turno abierto, la caja no cobra.
+            </p>
+          </div>
+        </div>
+        <Input
+          surface="pos"
+          label="Fondo en dólares"
+          placeholder="0,00"
+          inputMode="decimal"
+          autoComplete="off"
+          value={usd}
+          error={errores.USD}
+          onChange={(e) => {
+            setUsd(e.target.value);
+            setErrores((x) => ({ ...x, USD: undefined }));
+          }}
+        />
+        <Input
+          surface="pos"
+          label="Fondo en bolívares"
+          placeholder="0,00"
+          inputMode="decimal"
+          autoComplete="off"
+          value={bs}
+          error={errores.VES}
+          hint="Vacío o cero si se empieza sin cambio."
+          onChange={(e) => {
+            setBs(e.target.value);
+            setErrores((x) => ({ ...x, VES: undefined }));
+          }}
+        />
+        <Button type="submit" surface="pos" variant="primary" className="w-full text-base" disabled={enviando}>
+          {enviando ? "Abriendo…" : "Abrir turno"}
+        </Button>
+        <p className="text-[12px] text-ink-3">
+          El turno queda a tu nombre, en este equipo y con el día de hoy como día de negocio.
+        </p>
+      </form>
     </Container>
   );
 }
 
 function TurnoAbierto({
+  turno,
   movements,
   excepciones,
 }: {
+  turno: TurnoDto;
   movements: readonly ShiftMovement[];
   excepciones: readonly Excepcion[];
   // El turno, la hora de apertura y quién está en caja los muestra la barra
   // de estación (§8.5): repetirlos aquí era la duplicación que hacía que cada
   // pantalla se viera distinta.
 }) {
-  const [status, setStatus] = useState<ShiftStatus>("ABIERTO");
   const [conteo, setConteo] = useState<Record<string, string>>({});
-  const [cortesX, setCortesX] = useState(0);
-  const [confirmandoZ, setConfirmandoZ] = useState(false);
-  const confirmacionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (confirmandoZ && confirmacionRef.current) {
-      confirmacionRef.current.scrollIntoView({ block: "nearest" });
-    }
-  }, [confirmandoZ]);
+  const { ajustes } = useSucursal();
 
   const [pestana, setPestana] = useState("arqueo");
 
@@ -116,28 +212,8 @@ function TurnoAbierto({
     [tally.drawer, contadoPorMoneda],
   );
 
-  const sellado = status === "CERRADO_Z";
-
-  // F2-12: «la sesión no sobrevive al cierre del turno». Tras el corte Z el
-  // equipo vuelve al acceso. Se dejan unos segundos para leer la
-  // confirmación, y el botón permite irse ya.
-  const router = useRouter();
-  const [regreso, setRegreso] = useState<number | null>(null);
-  useEffect(() => {
-    if (!sellado) return;
-    setRegreso(5);
-    const id = window.setInterval(
-      () => setRegreso((n) => (n === null ? null : Math.max(0, n - 1))),
-      1000,
-    );
-    return () => window.clearInterval(id);
-  }, [sellado]);
-  useEffect(() => {
-    if (regreso === 0) {
-      void cerrarSesion("CORTE_Z");
-      router.replace("/acceso");
-    }
-  }, [regreso, router]);
+  // El servidor solo devuelve el turno sin corte Z; el corte llega con B3-5.
+  const sellado = turno.estado === "CERRADO_Z";
 
   /** Si el cajero ya empezó a contar alguna moneda. */
   const contadoAlgo = [...contadoPorMoneda.values()].some((m) => m.amount !== 0n);
@@ -198,8 +274,10 @@ function TurnoAbierto({
             <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
               Turno de caja
             </h1>
-            <p className="tnum text-[13px] text-ink-3">
-              {cortesX} {cortesX === 1 ? "corte X" : "cortes X"} en este turno
+            <p className="tnum flex items-center gap-1.5 text-[13px] text-ink-3">
+              <CalendarClock size={14} aria-hidden="true" />
+              Día de negocio {diaEnPalabras(turno.businessDate)} · {turno.punto} · abierto por {turno.abiertoPor.name} a las{" "}
+              {formatClock(Date.parse(turno.abiertoEn), ajustes.formatoHora)}
             </p>
           </div>
           {sellado ? (
@@ -368,113 +446,23 @@ function TurnoAbierto({
               </ul>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card apaisado:bajo:p-3 apaisado:bajo:gap-2">
+            <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card apaisado:bajo:p-3">
               <h2 className="font-display text-base font-bold text-ink">Cortes</h2>
-
-              <Button
-                surface="pos"
-                variant="neutral"
-                disabled={sellado}
-                onClick={() => setCortesX((n) => n + 1)}
-                className="w-full text-base"
-              >
-                <FileText size={16} aria-hidden="true" />
-                Corte X · arqueo parcial
-              </Button>
-              <p className="-mt-1 text-[12px] text-ink-3">
-                Se repite las veces que haga falta. <strong>No cierra el turno.</strong>
+              <p className="flex items-start gap-2 text-[13px] text-ink-2">
+                <Lock size={14} className="mt-0.5 shrink-0 text-ink-3" aria-hidden="true" />
+                Los cortes X y Z se guardan en el servidor con el libro de pagos (B3-5). Hasta entonces la gaveta se
+                cuenta aquí, pero el conteo no se guarda y el turno sigue abierto.
               </p>
-
-              {!sellado && !contadoAlgo && (
+              {!contadoAlgo && (
                 <p className="rounded-[var(--radius-control)] border border-line bg-base/50 px-3 py-2 text-[12.5px] text-ink-2">
-                  Cuenta la gaveta antes del corte Z.
+                  Cuenta la gaveta para ver si cuadra con el fondo y lo cobrado.
                 </p>
               )}
-
-              {!sellado && hayDiferencia && (
+              {hayDiferencia && (
                 <p className="flex items-start gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2 text-[12.5px] text-state-warn">
                   <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-                  Hay diferencia. El corte Z la dejará registrada con tu nombre y hará falta
-                  justificarla.
+                  Hay diferencia entre lo contado y lo que dice el libro. Vuelve a contar antes de cerrar.
                 </p>
-              )}
-
-              {!confirmandoZ ? (
-                <Button
-                  surface="pos"
-                  variant="danger"
-                  disabled={sellado}
-                  onClick={() => setConfirmandoZ(true)}
-                  className="w-full text-base"
-                >
-                  <Lock size={16} aria-hidden="true" />
-                  Corte Z · cerrar el turno
-                </Button>
-              ) : (
-                // Acción irreversible: la confirmación dice exactamente qué pasa,
-                // y el botón de confirmar no está donde estaba el primero (§8.4).
-                <div ref={confirmacionRef} className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg p-3">
-                  <p className="text-[13px] text-ink">
-                    El corte Z es <strong>irreversible</strong>. Sella los correlativos y después
-                    ninguna operación monetaria podrá tocar este turno.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      surface="pos"
-                      variant="ghost"
-                      onClick={() => setConfirmandoZ(false)}
-                      // A 56 px y en 380 de ancho, dos botones iguales partían
-                      // «Sí, cerrar el turno» en dos renglones.
-                      className="shrink-0 px-4"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      surface="pos"
-                      variant="danger"
-                      onClick={() => {
-                        setStatus("CERRADO_Z");
-                        setConfirmandoZ(false);
-                      }}
-                      className="flex-1 whitespace-nowrap"
-                    >
-                      Sí, cerrar el turno
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {sellado && (
-                <div
-                  role="status"
-                  className="flex items-start gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-3"
-                >
-                  <CircleCheckBig
-                    size={16}
-                    className="mt-0.5 shrink-0 text-state-ok"
-                    aria-hidden="true"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] text-ink">
-                      Turno cerrado con corte Z. Los correlativos quedaron sellados y no admite más
-                      operaciones.
-                    </p>
-                    <p className="tnum mt-2 text-[12.5px] text-ink-2">
-                      El equipo vuelve a la pantalla de acceso en {regreso ?? 5} s.
-                    </p>
-                    <Button
-                      surface="pos"
-                      variant="neutral"
-                      onClick={() => {
-                        void cerrarSesion("CORTE_Z");
-                        router.replace("/acceso");
-                      }}
-                      className="mt-2 w-full"
-                    >
-                      Ir al acceso ahora
-                    </Button>
-                  </div>
-                </div>
               )}
             </div>
           </aside>
@@ -483,4 +471,13 @@ function TurnoAbierto({
       </Container>
     </div>
   );
+}
+
+/** «dom 27 sept»: un día de calendario en palabras. Es fecha, no instante: se pinta en UTC. */
+function diaEnPalabras(dia: string): string {
+  const partes = new Intl.DateTimeFormat("es-VE", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).formatToParts(
+    Date.parse(`${dia}T12:00:00.000Z`),
+  );
+  const de = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((p) => p.type === tipo)?.value.replace(".", "") ?? "";
+  return `${de("weekday")} ${de("day")} ${de("month")}`;
 }
