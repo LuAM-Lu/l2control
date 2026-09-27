@@ -5,7 +5,7 @@ Qué cambia en cada versión, para quien usa el sistema. Formato de
 según M-10 (docs/MAESTRO.md §2):
 
 - **MINOR** +1 por cada paso de la ruta a producción entregado: el número del medio dice cuántos van
-  (de 47). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
+  (de 48). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
 - La fuente es `version` del `package.json` raíz, con su etapa en `l2.etapa`. `pnpm verify` falla si
   este archivo no abre con esa versión. Cada versión lleva su etiqueta git `vX.Y.Z`.
 

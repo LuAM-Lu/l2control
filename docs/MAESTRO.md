@@ -3,11 +3,13 @@
 > **El único documento vivo del proyecto.** Actualizado: **2026-09-27**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
-> en otro sitio. Hay tres referencias que **no se editan** y se citan por sección:
+> en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
 >
 > - [PLAN.md](PLAN.md): la especificación. ADRs, decisiones del cliente (DEC-n) y tareas `Fn-nn` con su
 >   criterio de aceptación en §12. Sus casillas y sus enlaces a documentos retirados están congelados.
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
+> - [JORNADA.md](JORNADA.md): el día completo en cuatro momentos (primer encendido, apertura, jornada y
+>   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige después del día simulado.
 > - [adr/](adr/): las decisiones de arquitectura, una por archivo (20; ADR-018 supersede la biblioteca
 >   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2 y ADR-020 cambia el TOTP
 >   de ADR-018 por llaves de acceso).
@@ -27,7 +29,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.21.0 · 21 de 47 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.21.0 · 21 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -83,8 +85,15 @@ carga los de 2026 desde Configuración → Feriados bancarios con el calendario 
 se crean por consola, y el segundo factor es un TOTP de una app de terceros. T-4 lo resuelve antes de
 staging: instalación inicial desde el navegador y llaves de acceso (ADR-020).
 
-**Siguiente paso:** B9-1 (catálogo de productos en la base, que el cobro en servidor necesita).
-Luego B3-3 (la caja cobra contra el libro) y el orden de §3.
+**El día completo, en cuatro momentos (M-13).** Con el cliente se fijó el 2026-09-27 cómo es la
+jornada: primer encendido, apertura, jornada y cierre, en [JORNADA.md](JORNADA.md). Lo que exige a
+la ruta está en su §6 y ya está en §3: un paso nuevo (T-6, el menú por operación) y criterios más
+completos en T-4, B3-4, B3-5, B4-4 y B8-2. Queda abierto lo de su §7, que se resuelve en el **día
+simulado** (su §8), por hacer con el cliente.
+
+**Siguiente paso:** T-6 (menú por operación: operar arriba, Ajustes abajo, y la estación de caja en
+Cobrar | Turno). Luego B9-1 (catálogo de productos), B3-3 (la caja cobra contra el libro) y el
+orden de §3.
 
 ---
 
@@ -104,6 +113,7 @@ Luego B3-3 (la caja cobra contra el libro) y el orden de §3.
 | **M-9** | **El inventario vuelve al plan** (2026-09-26, pedido del cliente; revierte esa parte de M-1) | Nueva **Etapa 9** (catálogo de productos, movimientos de solo-agregar, compras con costo promedio, ajustes con motivo y 🔐, alertas y conteo físico). Su primer paso, el catálogo, va antes del cobro en servidor (B3-3), que lo necesita. Recetas, descarga al marcar LISTO y merma (F8-03, F8-04, F8-09) van con el restaurante (B6-4), porque dependen de las comandas |
 | **M-10** | **Versionado semántico visible** (2026-09-26, pedido del cliente) | SemVer 2.0.0. **MAJOR** 0 hasta producción; **1.0.0 = puesta en marcha** (B8-4). **MINOR** +1 por cada paso de la ruta entregado: la versión dice cuántos van. **PATCH** +1 por cada corrección entre pasos. Staging publica `-rc.N`. Fuente única: `version` del `package.json` raíz; `CHANGELOG.md` por versión (Keep a Changelog, en español) y etiqueta git `vX.Y.Z` en cada entrega. Se ve en el acceso y en Configuración con su etapa: «v0.14.0 · Etapa 2 · Dinero». Punto de partida: **0.13.0** |
 | **M-12** | **Puesta en marcha sin consola y sin apps de terceros** (2026-09-27, pedido del cliente; [ADR-020](adr/020-llaves-de-acceso.md)) | Producción arranca vacía: el primer administrador y su equipo se crean desde el navegador con un código de instalación de un solo uso. El segundo factor pasa de TOTP a **llaves de acceso** (Windows Hello, el bloqueo del teléfono), dos por administrador, más diez códigos de recuperación impresos. Las credenciales de administración se dan desde el panel con un enlace de alta (QR). Paso **T-4**, antes de staging |
+| **M-13** | **La app se ordena por la jornada** (2026-09-27, pedido del cliente; [JORNADA.md](JORNADA.md)) | El objetivo es operar el parque y el restaurante con un camino feliz. El menú pone arriba lo que se opera (Inicio, Parque, Restaurante, Caja) y abajo, en «Ajustes», lo que se configura (impuestos, feriados, medios, tasas, tarifas, carta, plano, personas, equipos). Turnos y Ventas del turno son **una sección, Turno**. Primer uso con asistente corto y «Puesta a punto» en Inicio; la cajera abre el turno y el sistema comprueba; relevo con corte, arqueo a ciegas, Z por umbral ($ 1,00, firma de supervisión por encima) y **ninguna jornada se cierra con pendientes**; ticket de corte impreso y resumen del día en Inicio. Nuevo paso **T-6**; la ruta pasa a 48 pasos |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario de mostrador** (M-9): parque y caja
@@ -145,7 +155,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 1. ~~Limpiar la base local → T-1 → B2-1c → B2-2 → B2-3 → B3-1 → B2-4 (se cierra Dinero) → T-3~~.
    B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
    (ADR-009), así que el turno tenía que existir antes.
-2. ~~B3-2~~ → **B9-1** (catálogo, que el cobro necesita) → B3-3 → B3-4 → B3-5 (se cierra Caja).
+2. ~~B3-2~~ → **T-6** (menú por operación, M-13) → **B9-1** (catálogo, que el cobro necesita) →
+   B3-3 → B3-4 → B3-5 (se cierra Caja).
 3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
    B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
@@ -191,7 +202,17 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   existir. La elevación y la aprobación de equipos piden contraseña + llave (o un código de
   recuperación). Administración da credenciales a otra desde Panel → Personas con un enlace de alta
   de 24 h con QR. Se retiran el TOTP y `pnpm totp`. Una base vacía queda operativa sin tocar la
-  consola; las pruebas de navegador usan el autenticador virtual de Chromium.
+  consola; las pruebas de navegador usan el autenticador virtual de Chromium. Al terminar, Inicio
+  enseña la **Puesta a punto** de JORNADA §2 (personas, equipos, tarifas, impuestos, tasa, medios,
+  catálogo, impresoras, feriados, carta y plano, segunda administración), que se tacha sola cuando
+  el dato existe; cada punto dice qué puesto bloquea.
+- [ ] **T-6 · Menú por operación** (M-13, JORNADA §1).
+  → El menú del panel pone arriba Inicio, Parque, Restaurante y Caja, y abajo «Ajustes» con
+  impuestos, feriados bancarios, medios de pago, tasas, tarifas, carta, plano, personas y equipos.
+  La estación de caja queda en **Cobrar | Turno**: Turno se lee de arriba abajo (resumen del turno,
+  ventas con reimprimir y anular, «Cerrar turno»). Las rutas viejas (`/ventas`, las secciones
+  movidas) redirigen, ningún enlace se rompe, y la alerta de la tasa sigue llevando a su pantalla.
+  Comprobado en el navegador en los tres tamaños.
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
   suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -531,13 +552,19 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   tipo de cuenta «mostrador». Las cuentas dejan de vivir en el almacenamiento del navegador.
   → Un cobro que no cuadra al céntimo no se confirma. Un cobro con una tasa que ya no es la vigente se
   rechaza fuera de un margen corto (ADR-019).
-- [ ] **B3-4 · Ventas del turno**: reimprimir queda como copia auditada y anular es una reversión
-  (DEC-24). Las autorizaciones 🔐 de la caja (anular, cortesía, descuento) van al servidor con
+- [ ] **B3-4 · Ventas del turno**, dentro de la sección Turno (M-13): reimprimir queda como copia
+  auditada y anular es una reversión (DEC-24). Las autorizaciones 🔐 de la caja (anular, cortesía, descuento) van al servidor con
   `exigirPermisoOAutorizacion`: se quitan los PIN «1970» comprobados en el navegador y se borra
   `src/demo/usuarios.ts`.
 - [ ] **B3-5 · Cortes X y Z, arqueo y excepciones reales** derivadas del libro, cortesías y
-  anulaciones incluidas (F4-05 a F4-08). Hoy las excepciones son un dato fijo.
-  → Después del Z, ninguna operación toca ese turno.
+  anulaciones incluidas (F4-05 a F4-08). Hoy las excepciones son un dato fijo. Según JORNADA §3 a §5
+  (M-13): abrir turno comprueba tasa, impuestos, medios, tarifario e impresora y lista lo que falta;
+  **relevo** («Cambiar de cajera») con arqueo y Z de quien sale; **arqueo a ciegas** por moneda y
+  denominación; el Z lo firma la cajera si la diferencia no pasa del umbral y supervisión (🔐) si lo
+  pasa; supervisión cierra un turno ajeno desde otro equipo; «Cerrar la jornada» lista los
+  pendientes (cuentas por cobrar; niños en sala con B4-3; mesas y comandas con la Etapa 6) y no
+  ofrece el Z hasta resolverlos; el resumen del día en Inicio sale del libro.
+  → Después del Z, ninguna operación toca ese turno. Ninguna jornada se cierra con pendientes.
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -549,8 +576,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 - [ ] **B4-3 · Salida y liquidación**: cobrar en caja o cargar a una mesa sin cobrar dos veces. Incluye
   la recarga de tiempo, las estancias huérfanas y el paso pulsera → cuenta en caja (F5-11, F5-13,
   F5-14).
-- [ ] **B4-4 · Ajustes de la sucursal** persistidos: formato de hora, umbral de residuo y servicio
-  (F5-08b).
+- [ ] **B4-4 · Ajustes de la sucursal** persistidos: formato de hora, umbral de residuo, servicio y
+  umbral de diferencia del arqueo ($ 1,00 o su equivalente, M-13) (F5-08b).
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -617,7 +644,8 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B8-1 · Decidir D-INF** (§4) y, si es servidor en el local, montarlo con su runbook (F10-03,
   F10-03b).
 - [ ] **B8-2 · Runbooks, contingencia en papel, manual y capacitación por rol** (F10-10, F11-02,
-  F11-03, F11-08).
+  F11-03, F11-08). Incluye la **carga de lo anotado en papel** al volver la luz o internet (JORNADA
+  §4 y §7), mientras D-INF no se decida.
 - [ ] **B8-3 · Operación en paralelo** con el método anterior, piloto de un turno y ajustes (F11-04 a
   F11-06).
   → Los totales de los dos sistemas coinciden todos los días del período.
@@ -632,7 +660,8 @@ antes del cobro en servidor (orden de ejecución).
 
 | # | Decisión | Propuesta | Hace falta antes de |
 |---|---|---|---|
-| **D-INF** | Producción solo en un VPS, o servidor en el local con el VPS como réplica (ADR-003) | Servidor en el local: con cortes de internet frecuentes, un VPS solo deja sin caja y sin cocina | B8-1 |
+| **D-INF** | Producción solo en un VPS, o servidor en el local con el VPS como réplica (ADR-003) | Servidor en el local: con cortes de internet frecuentes, un VPS solo deja sin caja y sin cocina. **El cliente aún no lo sabe (2026-09-27):** hasta decidir, piloto en el VPS con contingencia en papel | B8-1 |
+| **D-JOR** | Lo abierto de la jornada (JORNADA §7): cuenta incobrable al cierre, qué deja la cajera en el relevo, el equivalente de $ 1,00 y la carga del papel | Se resuelve en el día simulado con el cliente | B3-5 |
 | **D-RES** | ¿El piloto incluye el restaurante en el sistema? | No: primero el parque (DEC-12, Ruta A). El restaurante sigue como hoy durante el piloto | Etapa 6 |
 | F0-04 | Datos maestros reales: tarifas, carta, precios y personas | Los editores ya existen para cargarlos | B7-2 |
 | F0-03 | Medidas reales del local para el plano | — | B6-1 |
@@ -808,6 +837,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-27** · B3-2 entregado (v0.21.0): los medios de pago son un catálogo de la base (se añade
   uno sin desplegar), los datos del local y los de cada pago van cifrados, y el libro rechaza una
   referencia ya cobrada. Sigue B9-1.
+- **2026-09-27** · Tres rondas de preguntas con el cliente sobre la jornada: el día completo en cuatro
+  momentos queda en JORNADA.md (M-13). Menú por operación con «Ajustes» abajo, una sola sección
+  Turno, relevo con corte, arqueo a ciegas con firma por umbral y ninguna jornada cerrada con
+  pendientes. Nuevo paso T-6, que va antes de B9-1; la ruta pasa a 48 pasos.
 
 ---
 
