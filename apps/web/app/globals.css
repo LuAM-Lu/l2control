@@ -23,6 +23,21 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Desde 768 px la app es una cáscara del tamaño de la ventana: la barra y el menú quedan
+     quietos y solo desplazan sus zonas (el contenido, la lista del menú). El DOCUMENTO no
+     desplaza nunca: si algo ajeno a la cáscara lo alarga —una extensión del navegador que cuelga
+     un elemento de <body>, una capa que se queda—, no aparece una segunda barra ni se lleva la
+     cáscara consigo. `overscroll-behavior` evita además que llegar al final de una zona arrastre
+     a la página. Solo en pantalla: la impresión del recibo tiene sus propias reglas. */
+  @media screen and (min-width: 48rem) {
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+  }
+
   /* §8.7: el foco de teclado siempre visible. Nunca se quita el outline. */
   :focus-visible {
     outline: 2px solid var(--color-brand);

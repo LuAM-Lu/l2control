@@ -335,6 +335,11 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
   cliente. Los relojes (`useAhoraLocal`) no deben colgar del pintado de un proveedor. Un dato se decide
   con una bandera, no leyendo el texto.
 - Las raíces de pantalla necesitan `min-h-0` para que desplace la lista y no toda la zona.
+- **El documento no desplaza nunca desde 768 px.** Las dos cáscaras (panel y estación) van con
+  `md:fixed md:inset-0` y `html`/`body` con `overflow: hidden`: solo desplazan sus zonas. Una
+  pantalla nueva NO pone `h-dvh` ni `min-h-screen` propios; reparte su alto dentro de la zona de
+  contenido (`min-h-0` + `overflow-y-auto` donde toque). Sin esto, cualquier cosa colgada de
+  `<body>` (una extensión del navegador, p. ej.) daba doble barra y se llevaba el menú.
 - La web guarda la conexión con `@l2/application` en `globalThis`: tras añadir un caso de uso o un
   método, **reiniciar `pnpm dev`**, o sale «Cannot read properties of undefined».
 - Un dato provisional de `src/demo` que se valida contra un contrato (p. ej. el monitor lleva una

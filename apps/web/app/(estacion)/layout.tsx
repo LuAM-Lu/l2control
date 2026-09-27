@@ -29,7 +29,9 @@ export default function EstacionLayout({ children }: { children: React.ReactNode
     // flujo normal, donde el scroll es lo esperado.
     // Las cuentas de las familias (DEC-21) viven por encima de las pantallas:
     // entrada, salida y caja trabajan sobre las mismas.
-    <div className="flex min-h-dvh flex-col bg-base md:h-dvh md:overflow-hidden">
+    // Desde md se FIJA a la ventana (`fixed inset-0`), igual que el panel: la barra de la
+    // estación no se va aunque algo alargue el documento.
+    <div className="flex min-h-dvh flex-col bg-base md:fixed md:inset-0 md:min-h-0 md:overflow-hidden">
       <StationBar
         contexto={{
           turnoAbierto: "2:00 pm",

@@ -78,7 +78,11 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   }, [cajon]);
 
   return (
-    <div className="flex min-h-dvh md:h-dvh md:overflow-hidden bg-base">
+    // Desde md la cáscara se FIJA a la ventana (`fixed inset-0`), no solo mide su alto: aunque el
+    // documento se alargue o se desplace por código, la barra y el menú no se mueven. Desplaza
+    // solo el contenido (PageTransition) y la lista del menú. En móvil, flujo normal con la
+    // barra superior pegada arriba.
+    <div className="flex min-h-dvh bg-base md:fixed md:inset-0 md:min-h-0 md:overflow-hidden">
       {/* ══════════ riel (md) y barra completa (xl) ══════════ */}
       <aside
         className={cn(
