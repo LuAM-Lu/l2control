@@ -452,3 +452,31 @@ export function holidayProblem(day: string): HolidayProblem | null {
   if (semana === 0 || semana === 6) return "FIN_DE_SEMANA";
   return null;
 }
+
+/**
+ * Cuánto sigue valiendo para cerrar un cobro la tasa con la que empezó (ADR-019 §7, B3-3): diez
+ * minutos. Un cobro en curso conserva su tasa (ADR-005) y la caja avisa si cambió; pasado este
+ * margen, el servidor no lo cierra con la vieja.
+ */
+export const COBRO_GRACE_MS = 10 * 60_000;
+
+/**
+ * ¿Se puede cerrar ahora un cobro con la tasa `citedId`? Sí si es la vigente en `now`, o si lo era
+ * hace `graceMs` (se aplicó otra hace un momento, con el cobro a medias). Una tasa de ayer, una sin
+ * confirmar o una de otro par, no.
+ */
+export function citedRateValid(
+  history: readonly RateRecord[],
+  pair: RatePair,
+  citedId: string,
+  now: number,
+  timeZone: string,
+  holidays: Holidays = SIN_FERIADOS,
+  graceMs: number = COBRO_GRACE_MS,
+): boolean {
+  for (const t of [now, now - graceMs]) {
+    const iso = new Date(t).toISOString();
+    if (rateOfDay(history, pair, calendarDay(iso, timeZone), iso, holidays)?.id === citedId) return true;
+  }
+  return false;
+}

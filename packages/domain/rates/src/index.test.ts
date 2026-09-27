@@ -24,6 +24,8 @@ import {
   currenciesOf,
   currentRate,
   rateOfDay,
+  citedRateValid,
+  COBRO_GRACE_MS,
   frozenRateOf,
   needsDoubleCheck,
   variationBasisPoints,
@@ -382,5 +384,29 @@ describe("feriados bancarios (B2-4, D-FER)", () => {
     assert.equal(holidayProblem(FERIADO), null);
     assert.equal(holidayProblem("2026-10-17"), "FIN_DE_SEMANA");
     for (const d of ["2026-02-30", "2026-13-01", "13/10/2026", ""]) assert.equal(holidayProblem(d), "DIA_INVALIDO", d);
+  });
+});
+
+describe("la tasa de un cobro en curso (ADR-019 §7, B3-3)", () => {
+  // Lunes 28 sep 2026: rige la de las 9:00 am («v») hasta que se corrige a las 10:00 am («l»).
+  const viernes = tasa({ id: "v", value: "860.00", capturedAt: "2026-09-28T13:00:00.000Z", effectiveDate: "2026-09-28" });
+  const lunes = tasa({ id: "l", value: "855.6625", capturedAt: "2026-09-28T14:00:00.000Z", effectiveDate: "2026-09-28" });
+  const historia = [viernes, lunes];
+  const zona = "America/Caracas";
+  const aplicada = Date.parse(lunes.capturedAt);
+
+  test("la vigente siempre cierra el cobro", () => {
+    assert.equal(citedRateValid(historia, "USD/VES", "l", aplicada + 60_000, zona), true);
+  });
+
+  test("la anterior, solo dentro del margen", () => {
+    assert.equal(citedRateValid(historia, "USD/VES", "v", aplicada + COBRO_GRACE_MS - 60_000, zona), true);
+    assert.equal(citedRateValid(historia, "USD/VES", "v", aplicada + COBRO_GRACE_MS + 60_000, zona), false);
+  });
+
+  test("una que no existe o no está confirmada, nunca", () => {
+    assert.equal(citedRateValid(historia, "USD/VES", "otra", aplicada, zona), false);
+    const sinConfirmar = [viernes, { ...lunes, confirmed: false }];
+    assert.equal(citedRateValid(sinConfirmar, "USD/VES", "l", aplicada + 60_000, zona), false);
   });
 });

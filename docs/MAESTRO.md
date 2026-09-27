@@ -100,8 +100,10 @@ completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el 
 y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
 (sin día simulado: decisión del cliente, 2026-09-27).
 
-**Siguiente paso:** B3-3 (la caja cobra contra el libro, con la venta de mostrador como su propio tipo
-de cuenta y vendiendo del catálogo de B9-1). Luego B3-4, B3-5 y el orden de §3.
+**Siguiente paso:** B3-3, **en curso en la rama `feat/b3-3`** (`main` sigue en v0.23.0, en verde).
+Alcance decidido con el cliente el 2026-09-27: **todas las cuentas** (familia, mesa y mostrador) pasan
+a la base, no solo el mostrador. Lo hecho y lo que falta está en la casilla de B3-3 (§3). Luego B3-4,
+B3-5 y el orden de §3.
 
 ---
 
@@ -581,6 +583,56 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   tipo de cuenta «mostrador». Las cuentas dejan de vivir en el almacenamiento del navegador.
   → Un cobro que no cuadra al céntimo no se confirma. Un cobro con una tasa que ya no es la vigente se
   rechaza fuera de un margen corto (ADR-019).
+  *En curso en `feat/b3-3` (2026-09-27). **Alcance acordado con el cliente: todas las cuentas**
+  (familia, mesa y mostrador) salen del navegador; el importe del parque y de la mesa sigue llegando
+  de la pantalla hasta B4-2 y B6-1 (deuda a anotar en §5). Anular un cobro pasa al servidor en este
+  paso (el libro lo exige), con la autorización 🔐 comprobada allí; cortesía y descuento siguen en B3-4.*
+  *Hecho en la rama (cuatro commits):*
+  *· Dominio `@l2/domain-cash` (`cuenta.ts`, depende ahora de `@l2/domain-tax`): `chargeableLines`,
+  `documentLinesOf` (cada línea con su IVA), `markPaid`, `markPartPaid`, `revertPaid` y
+  `accountChangeProblem`, que dice qué cambio de una pantalla acepta el servidor: marcar pagado es del
+  cobro, una línea pagada no se toca, lo consumido no se quita (solo lo de mostrador sin pagar), lo
+  movido no se mueve otra vez, las partes cobradas las cuenta el cobro y una línea nueva de un
+  producto lleva el precio, el nombre y el IVA del catálogo de ese instante. 19 pruebas.*
+  *· Dominio `@l2/domain-rates`: `citedRateValid` y `COBRO_GRACE_MS` (10 min): la tasa de un cobro
+  vale para cerrarlo si rige ahora o regía hace menos de 10 min. 3 pruebas.*
+  *· Contrato: la cuenta lleva `kind` (FAMILIA, MESA, MOSTRADOR; se retira el truco del id `c-dir-`)
+  y `version`; `cuentas.ts` con `GuardarCuentaCommandSchema` (UUID que genera la pantalla),
+  `CobrarCuentaCommandSchema` (clave, cuenta, versión, `lineIds`, el `total` que veía la pantalla,
+  pagos sin IGTF ni tasa, `rateId`, destino de lo que sobra), `AnularCobroCommandSchema` (con
+  `cobroKey`) y `CuentaYLibroSchema`. 8 pruebas.*
+  *· Base: migración `20261006000000_cuentas`: `account` (tipo, número de orden único por sucursal,
+  quién la abrió) y `account_version` (la cuenta entera en JSON; su `status` en columna igual al del
+  JSON; `cause` GUARDAR, COBRO o ANULACION, estos dos con su `operation_key`, una vez cada una), las
+  dos de solo-agregar y con RLS; **`payment.document_id` pasa a ser FK a la cuenta** (salda la deuda
+  de §5). 5 pruebas nuevas y las del libro ajustadas.*
+  *Falta, en este orden:*
+  *1. Aplicación `caja/cuentas.ts`: `leer` (con persona en sesión; abiertas y cobradas del día, la
+  versión más alta por cuenta), `guardar` (permiso según el tipo: familia con checkIn, checkOut,
+  vincularMesa o emitir; mesa con pedido.tomar, vincularMesa o emitir; mostrador con emitir;
+  `accountChangeProblem` contra el catálogo del instante; número de orden, `openedAt` y
+  `pendingSince` los pone el servidor; versión distinta → CONFLICTO), `cobrar` (en una
+  transacción: la versión y las líneas coinciden; IVA del instante; parte con `allocate`; IGTF con
+  `computeIgtf`; USDT a la par; `citedRateValid` con la tasa citada; el total recalculado igual al
+  de la pantalla o CONFLICTO; `computeBalance` + `closeSettlement` con `maxRetained` por defecto
+  hasta B4-4; asientos COBRO por pago y lo que sobra como VUELTO, PROPINA o RESIDUO en el efectivo
+  en dólares del catálogo; versión COBRO con `markPartPaid`) y `anular` (`cobro.anular` o 🔐 una sola
+  vez; reversión de cada asiento de `cobroKey`; versión ANULACION con `revertPaid`) y
+  `autorizadores`. Para reutilizar el libro dentro de esa transacción, sacar de `dinero/pagos.ts` el
+  cuerpo de `asentar` y de `revertir` a funciones que reciban el `tx`. Exportar `historialParaCobrar`
+  (registros y feriados) de `tasas.ts`.*
+  *2. Ajustar `pagos.test-db.ts` y las demás pruebas del libro: hoy asientan con documentos
+  inventados y la FK los rechaza (`pnpm test:db` de aplicación falla en la rama).*
+  *3. Ajustar `revertPaid` para una cuenta dividida: anular un cobro de una parte resta esa parte
+  (`split.paid - 1`) en vez de quitar la división.*
+  *4. Web: `CuentasProvider` contra el servidor (lectura en el layout, sondeo de 5 s y al volver el
+  foco, `guardar` con la acción y adopción de lo devuelto; fuera `sessionStorage` y el canal entre
+  pestañas); las pantallas crean cuentas con `kind` y UUID (entrada, salida, mesas y caja; hoy
+  revientan en ejecución al validar sin `kind`); `esVentaDirecta` y `esLineaDeMostrador` por el tipo
+  y el producto; el id de una línea movida a la mesa sin truncar (`${mesa.id}-${l.id}` se corta a 64
+  y colisiona); la caja cobra con la acción y registra la venta con lo que confirma el servidor; el
+  diálogo de anular pide los autorizadores al servidor y le manda el PIN.*
+  *5. Navegador (entrada → caja, mostrador, mesa, cobro mixto con Bs, anular), §5 y cierre (v0.24.0).*
 - [ ] **B3-4 · Ventas del turno**, dentro de la sección Turno (M-13): reimprimir queda como copia
   auditada y anular es una reversión (DEC-24). Las autorizaciones 🔐 de la caja (anular, cortesía, descuento) van al servidor con
   `exigirPermisoOAutorizacion`: se quitan los PIN «1970» comprobados en el navegador y se borra
@@ -909,6 +961,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   llega su paso. T-6 entregado (v0.22.0): menú por operación con Ajustes al pie y la caja en Cobrar |
   Turno, con las ventas dentro de Turno. Sigue B9-1.
 - **2026-09-27** · Handoff (v0.22.0): subidos a GitHub `main` y las etiquetas v0.1.0…v0.22.0.
+- **2026-09-27** · B3-3 empezado en la rama `feat/b3-3` con el alcance «todas las cuentas» (decisión
+  del cliente): dominio de la cuenta, margen de la tasa, contrato y base hechos; faltan la
+  aplicación, la web y el navegador (lista en la casilla de B3-3).
 - **2026-09-27** · B9-1 entregado (v0.23.0): el catálogo de productos es de la base, con el precio
   programado por día (nace `@l2/domain-inventory`); la caja vende de él, cada línea copia su precio y
   su IVA, y cambiar un precio no altera lo vendido. Sigue B3-3.
@@ -925,21 +980,20 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-27, v0.22.0, Etapa 3 en curso, M-13):**
+**Último handoff (2026-09-27, v0.23.0 en `main`; B3-3 a medias en `feat/b3-3`):**
 
 ```text
 Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-13 y §3 con su DoD y orden), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Versión 0.22.0 · 22 de 48 pasos. Subido a GitHub: main y etiquetas hasta v0.22.0.
-Hecho en esta tanda: B3-2 (medios de pago en la base: el libro cita el catálogo, datos del pago cifrados, referencia repetida
-  rechazada), M-13 (la app se ordena por la jornada, JORNADA.md) y T-6 (menú por operación con Ajustes al pie; caja en Cobrar | Turno).
+Rol: full-stack senior; programas tú todo. main: v0.23.0 · 23 de 48 pasos, en verde (B9-1 hecho: catálogo de productos en la base).
+EN CURSO: B3-3 en la rama feat/b3-3 (git checkout feat/b3-3). Alcance del cliente: TODAS las cuentas (familia, mesa, mostrador)
+  pasan a la base. Hechos: dominio de la cuenta (accountChangeProblem…), citedRateValid (10 min), contrato (kind, version,
+  mandos guardar/cobrar/anular) y base (account + account_version, FK del libro a la cuenta). La lista de lo que falta, en
+  orden, está en la casilla de B3-3 de §3: aplicación → pruebas del libro → revertPaid dividida → web → navegador.
+  La rama NO funciona aún en ejecución (las pantallas crean cuentas sin kind) y test:db de aplicación falla (FK): normal a medias.
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application, reinicia pnpm dev.
-Entrar: /acceso → nombre del equipo → «Soy de administración» → contraseña abby-kingdom-desarrollo + código de `pnpm totp`
-  → «Registrar y aprobar» → Abigail Karam → PIN 1970. Todos los equipos de la base local están revocados.
-Base local: tasa 855,6625; medios con datos inventados (Biopago añadido y apagado); tres turnos huérfanos de prueba hasta B3-5.
-Siguiente: B9-1 (catálogo de productos en la base; borra features/cash/catalogo-mostrador.ts) → B3-3 → B3-4 → B3-5.
-  Al empezar B3-5, pregunta lo abierto de JORNADA §7 (D-JOR). Nada de días simulados: se valida con el sistema real.
-Cuidado: DoD de §3; CHECK con IN y nulos (§5); $queryRaw no lee void (castear); heredocs grandes fallan: scripts con Write;
-  guiones de Playwright en el scratchpad de la sesión 5740a2f5 (comun.cjs, medios1.cjs, medios2.cjs, t6.cjs); las ventas viven
-  en sessionStorage hasta B3-4 (probar Turno en la misma pestaña). Push solo si se pide.
-Puerta: pnpm verify:db.
+Entrar: /acceso → nombre del equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` → Abigail Karam → PIN 1970.
+Base local: tasa 855,6625; 12 productos (Pirulín exento, Gomitas apartada, Malta $1,75 el 30 sept); cuatro turnos huérfanos
+  de prueba hasta B3-5; migración de cuentas aplicada. Todos los equipos revocados.
+Cuidado: DoD de §3; CHECK con IN y nulos; $queryRaw no lee void; heredocs grandes fallan (scripts con Write); Playwright en el
+  scratchpad de la sesión 504ab605 (comun.cjs, b91.cjs). Merge a main solo con verify:db verde, v0.24.0. Push solo si se pide.
 ```
