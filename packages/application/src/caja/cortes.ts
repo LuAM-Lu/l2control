@@ -44,17 +44,15 @@ import {
   ledgerMovements,
   leftInDrawerProblem,
   offeredMethods,
-  openingMovements,
   reconcile,
   tallyShift,
   withdrawn,
   zSigner,
-  type LedgerKind,
   type PaymentDataKind,
   type ShiftLedgerEntry,
   type ZSigner,
 } from "@l2/domain-cash";
-import { add, money, zero, type CurrencyCode, type Money } from "@l2/domain-money";
+import { add, money, zero, type CurrencyCode } from "@l2/domain-money";
 import { calendarDay, frozenRateOf, rateOfDay } from "@l2/domain-rates";
 import { missingTaxesAt, taxTimeline } from "@l2/domain-tax";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
@@ -69,9 +67,9 @@ import { historialParaCobrar, ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
 import { estanciasActivas } from "../park/parque.ts";
 import { pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
 import { turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
+import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
 
 const FUNCIONAL: CurrencyCode = "USD";
-const GAVETA: readonly ("USD" | "VES")[] = ["USD", "VES"];
 
 export interface CasosCortes {
   /** Cómo va el turno (el del equipo, u otro para quien ve la sucursal), sin la gaveta: el arqueo es a ciegas. */
@@ -105,7 +103,6 @@ const noExiste = (turnoId?: string): Rechazo => ({
 });
 const sellado: Rechazo = { ok: false, motivo: "CONFLICTO", mensaje: "Ese turno ya tiene corte Z: nada lo toca." };
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({ ok: false, motivo: "INVALIDO", mensaje, problemas: [{ path, message }] });
-const dinero = (m: Money): MoneyDto => ({ minor: String(m.amount), currency: m.currency });
 
 const TEXTO_CORTESIA: Record<string, string> = {
   INVITACION: "Invitación de la casa",
@@ -147,26 +144,6 @@ async function puedeSobre(tx: Transaccion, ctx: Contexto, accion: Action, propio
   return null;
 }
 
-/** El libro del turno como lo ve el dominio: cada asiento con su medio y si vive en la gaveta. */
-async function libroDelTurno(tx: Transaccion, shiftId: string) {
-  const [pagos, medios] = await Promise.all([
-    tx.payment.findMany({ where: { shiftId }, orderBy: [{ recordedAt: "asc" }, { line: "asc" }] }),
-    tx.paymentMethod.findMany({ select: { code: true, label: true, givesChange: true } }),
-  ]);
-  const medio = new Map(medios.map((m) => [m.code, m]));
-  const entradas: ShiftLedgerEntry[] = pagos.map((p) => ({
-    kind: p.kind as LedgerKind,
-    methodCode: p.method,
-    amount: money(p.amountMinor, p.currency as CurrencyCode),
-    inDrawer: medio.get(p.method)?.givesChange ?? false,
-  }));
-  const igtf = pagos
-    .filter((p) => p.kind === "COBRO" && (p.currency === "USD" || p.currency === "USDT"))
-    .reduce<Money>((acc, p) => add(acc, money(p.igtfMinor, FUNCIONAL)), zero(FUNCIONAL));
-  return { entradas, medio, igtf };
-}
-
-type Libro = Awaited<ReturnType<typeof libroDelTurno>>;
 
 function porMedioDe(libro: Libro): MovimientoPorMedioDto[] {
   return tallyShift(ledgerMovements(libro.entradas)).byMethod.map((m) => ({
@@ -179,22 +156,6 @@ function porMedioDe(libro: Libro): MovimientoPorMedioDto[] {
   }));
 }
 
-/** Lo que debería haber en la gaveta, por moneda: el fondo más lo que entró menos lo que salió. */
-function gavetaDe(t: ConFondos, libro: Libro) {
-  const fondos = t.floats.map((f) => money(f.amountMinor, f.currency as CurrencyCode));
-  const drawer = tallyShift([...openingMovements(fondos), ...ledgerMovements(libro.entradas)]).drawer;
-  return GAVETA.map((currency) => {
-    const d = drawer.find((x) => x.currency === currency);
-    const z = zero(currency);
-    return {
-      currency,
-      fondo: dinero(d?.openingFloat ?? z),
-      entradas: dinero(d?.cashIn ?? z),
-      salidas: dinero(d?.cashOut ?? z),
-      esperado: dinero(d?.expected ?? z),
-    };
-  });
-}
 
 /** Las ventas del turno y sus excepciones (F4-08), con quién, cuándo, por qué y quién autorizó. */
 async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
@@ -412,7 +373,10 @@ export function casosCortes(base: Base): CasosCortes {
         if (rechazo) return rechazo;
         if (o.turno.status === "CERRADO_Z") return sellado;
         const quien = await nombreDe(tx, ctx);
-        const corte = CorteSchema.parse(await foto(tx, o.turno, "X", true, quien.nombre, ahora));
+        // Lo que debería haber en la gaveta solo lo ve quien ve la sucursal: la cajera lo sabe después
+        // de contar, o el arqueo deja de ser a ciegas (JORNADA §1).
+        const conGaveta = (await permisoEn(tx, ctx, "reportes.verSucursal")) !== "DENEGADO";
+        const corte = CorteSchema.parse(await foto(tx, o.turno, "X", conGaveta, quien.nombre, ahora));
         const fila = await tx.shiftCut.create({
           data: {
             tenantId: ctx.tenantId,

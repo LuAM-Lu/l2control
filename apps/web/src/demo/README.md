@@ -10,7 +10,6 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 
 | Archivo | Qué inventa | Se va con |
 |---|---|---|
-| `turno.ts` | Nada: movimientos y excepciones **vacíos** desde el 2026-09-26 (la forma sigue aquí) | B3-1 y B3-5 |
 | `sucursal.ts` | Ajustes del local | B4-4 |
 | `restaurante.ts` | Plano y carta | B6-1 |
 

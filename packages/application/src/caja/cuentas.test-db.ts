@@ -359,9 +359,10 @@ describe("anular un cobro (DEC-24)", () => {
   test("anular una parte resta esa parte; la división sigue", async () => {
     const c = await abrir(mostrador([lineaDeAgua(), lineaDeAgua(), lineaDeAgua()], { split: { parts: 2, paid: 0 } }));
     const p1 = enBolivares(c, "148885", "174");
-    const primera = valor(await local.app.cuentas.cobrar(ctxCajera, p1, AHORA));
+    // Cobrada en la oficina, que es desde donde se anula: los bolívares a devolver están en su gaveta.
+    const primera = valor(await local.app.cuentas.cobrar(ctxAdmin, p1, AHORA));
     const p2 = enBolivares(primera.cuenta, "148885", "174");
-    valor(await local.app.cuentas.cobrar(ctxCajera, p2, AHORA));
+    valor(await local.app.cuentas.cobrar(ctxAdmin, p2, AHORA));
     // Con la cuenta completa, anular la primera parte devuelve a la cola lo que pagó la última.
     const devoluciones = [{ paymentIndex: 0, via: "MISMO_MEDIO" }];
     const anulada = valor(
@@ -372,7 +373,7 @@ describe("anular un cobro (DEC-24)", () => {
     assert.ok(anulada.cuenta.lines.every((l) => !l.paid));
     assert.deepEqual(anulada.libro.aplicado, usd("174"));
     // Y la parte que falta se cobra otra vez.
-    const otra = valor(await local.app.cuentas.cobrar(ctxCajera, enBolivares(anulada.cuenta, "148885", "174"), AHORA));
+    const otra = valor(await local.app.cuentas.cobrar(ctxAdmin, enBolivares(anulada.cuenta, "148885", "174"), AHORA));
     assert.equal(otra.cuenta.status, "COBRADA");
   });
 
@@ -454,7 +455,8 @@ describe("la venta de cada cobro (B3-4, C12)", () => {
   test("la administración anula sin autorización ajena, pero confirma con su propio PIN", async () => {
     const c = await abrir(mostrador([lineaDeAgua()]));
     const cobro = enEfectivo(c, "500", "131");
-    valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA));
+    // Cobrado en la oficina: lo que se devuelve en efectivo sale de esa gaveta (B3-5).
+    valor(await local.app.cuentas.cobrar(ctxAdmin, cobro, AHORA));
     const pedido = { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: cobro.idempotencyKey, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] };
     const sinPin = await local.app.cuentas.anular(ctxAdmin, pedido, undefined, AHORA);
     assert.equal(!sinPin.ok && sinPin.mensaje, "Confirma con tu PIN.");

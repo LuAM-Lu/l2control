@@ -1,19 +1,8 @@
 /**
- * Piezas del turno de caja que no son datos de ejemplo — F4-05 a F4-08.
- *
- * TODO(F4-02): denominaciones y nombres de medios saldrán de la configuración
- * de la sucursal; la forma ya es la definitiva.
+ * Las denominaciones del arqueo — F4-07. Lo demás del turno (lo cobrado, las excepciones, el nombre
+ * de cada medio) sale del libro del servidor desde B3-5.
  */
 import { fromMajor, type Money } from "@l2/domain-money";
-
-export type Excepcion = Readonly<{
-  hora: string;
-  tipo: "ANULACIÓN" | "DESCUENTO" | "CORTESÍA" | "REIMPRESIÓN";
-  detalle: string;
-  usuario: string;
-  motivo: string;
-  autorizadoPor: string | null;
-}>;
 
 /** Denominaciones que circulan, para el conteo del arqueo (F4-07). */
 export const DENOMINACIONES: Record<"USD" | "VES", Money[]> = {
@@ -34,14 +23,4 @@ export const DENOMINACIONES: Record<"USD" | "VES", Money[]> = {
     fromMajor("20.00", "VES"),
     fromMajor("10.00", "VES"),
   ],
-};
-
-/** Etiquetas legibles de cada medio. */
-export const MEDIO_LABEL: Record<string, string> = {
-  EFECTIVO_USD: "Efectivo $",
-  EFECTIVO_VES: "Efectivo Bs",
-  PAGO_MOVIL: "Pago Móvil",
-  PDV_DEBITO: "Punto débito",
-  ZELLE: "Zelle",
-  USDT: "USDT",
 };

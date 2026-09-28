@@ -17,15 +17,20 @@ import { autorizadoresDeCaja } from "../cuentas/cuentas.acciones";
  * con la sesión que alguien dejó abierta.
  */
 
-export type AccionConPin = "cobro.anular" | "cuenta.cortesia";
+export type AccionConPin = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "turno.corteZ";
 const PIN_LONGITUD = 4;
 
 type Autorizador = { id: string; nombre: string; rol: string };
 
-export function useAutorizacion(accion: AccionConPin, abierto: boolean) {
+/**
+ * `propio`: quien opera firma con su propio PIN, sin pedírselo a nadie (la cajera firma su corte Z
+ * dentro del umbral, JORNADA §1). El servidor rechaza el PIN de otra persona.
+ */
+export function useAutorizacion(accion: AccionConPin, abierto: boolean, { propio = false }: { propio?: boolean } = {}) {
   const actor = useActorEnSesion();
   const operador = useOperador();
-  const permiso = actor ? can(actor, accion) : "DENEGADO";
+  const segunMatriz = actor ? can(actor, accion) : "DENEGADO";
+  const permiso = propio && segunMatriz !== "DENEGADO" ? "PERMITIDO" : segunMatriz;
   const pide = permiso === "REQUIERE_AUTORIZACION";
   const [lista, setLista] = useState<Autorizador[] | null>(null);
   const [autorizadorId, setAutorizadorId] = useState<string | null>(null);
@@ -56,6 +61,7 @@ export function useAutorizacion(accion: AccionConPin, abierto: boolean) {
 
   return {
     permiso,
+    propio,
     cargando: pide && lista === null,
     autorizadores,
     autorizador,
@@ -112,7 +118,9 @@ export function CampoAutorizacion({
       ) : (
         <>
           {a.permiso === "PERMITIDO" ? (
-            <p className="text-[12.5px] text-ink-2">Autorizas tú, como administración: confirma con tu PIN.</p>
+            <p className="text-[12.5px] text-ink-2">
+              {a.propio ? "Firmas tú: confirma con tu PIN." : "Autorizas tú: confirma con tu PIN."}
+            </p>
           ) : (
             <div role="radiogroup" aria-label="Quién autoriza" className="flex flex-wrap gap-1.5">
               {a.autorizadores.map((x) => (
@@ -133,7 +141,7 @@ export function CampoAutorizacion({
               ))}
             </div>
           )}
-          {errores.autorizador && <p className="text-[12px] text-state-crit">{errores.autorizador}</p>}
+          {errores.autorizador && !a.autorizador && <p className="text-[12px] text-state-crit">{errores.autorizador}</p>}
           <Input
             label={a.autorizador ? `PIN de ${a.autorizador.nombre}` : "PIN de quien autoriza"}
             surface="tablet"

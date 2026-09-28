@@ -178,7 +178,8 @@ export function MesasScreen() {
   function cuentaDeLaMesa(m: MesaVista): FamilyAccountDto {
     if (!m.ocupacion) throw new Error("La mesa no está abierta");
     return (
-      cuentas.find((c) => c.kind === "MESA" && c.tableId === m.mesa.id && c.status !== "COBRADA") ??
+      // Una incobrable (D-JOR) ya se cerró, como una cobrada: la mesa abre otra.
+      cuentas.find((c) => c.kind === "MESA" && c.tableId === m.mesa.id && (c.status === "ABIERTA" || c.status === "POR_COBRAR")) ??
       abrirCuentaDeMesa({ tableId: m.mesa.id, tableLabel: m.mesa.label, ahora: new Date().toISOString() })
     );
   }

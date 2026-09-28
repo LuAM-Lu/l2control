@@ -96,6 +96,7 @@ import {
 } from "../dinero/pagos.ts";
 import { historialParaCobrar, ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
 import { turnoParaCobrar } from "./turnos.ts";
+import { esperadoEnGaveta } from "./gaveta.ts";
 import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
@@ -641,6 +642,27 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           // vuelve desde la gaveta de este equipo: hace falta su turno abierto.
           const turno = await turnoParaCobrar(tx, ctx);
           if ("ok" in turno) return turno;
+          // Lo que se devuelve en efectivo sale de ESTA gaveta: no se devuelve lo que no tiene (fail-closed).
+          const enEfectivo = new Map<"USD" | "VES", bigint>();
+          for (const d of devoluciones) {
+            const pago = venta.payments[d.paymentIndex]!;
+            if ((pago.cash || d.via === "EFECTIVO") && (d.currency === "USD" || d.currency === "VES")) {
+              enEfectivo.set(d.currency, (enEfectivo.get(d.currency) ?? 0n) + BigInt(d.amountMinor));
+            }
+          }
+          if (enEfectivo.size > 0) {
+            const hay = await esperadoEnGaveta(tx, turno.id);
+            for (const [moneda, falta] of enEfectivo) {
+              const tiene = hay.get(moneda)?.amount ?? 0n;
+              if (tiene < falta) {
+                return {
+                  ok: false,
+                  motivo: "CONFLICTO",
+                  mensaje: `En la gaveta de este turno no hay ${moneda === "USD" ? "dólares" : "bolívares"} suficientes para devolverlo en efectivo.`,
+                };
+              }
+            }
+          }
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cobro.anular", autorizacion, ahora, CON_PIN);
           if (!permiso.ok) return permiso;
           const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { fullName: true, role: true } });

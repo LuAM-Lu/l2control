@@ -29,11 +29,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.28.1 · 28 de 48 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+**Versión 0.29.0 · 29 de 48 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
-huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-4 (ajustes) para cerrar el Parque. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-4 (ajustes) para cerrar el Parque. **La caja cierra en el servidor (B3-5): Etapa 3 hecha.** Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -49,14 +49,14 @@ número del medio cuenta los pasos entregados.
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja) y las cuentas (entrada, mesas, caja, cobrar y anular), y **el parque** (entrada, sala, salida, directorio de familias y
-  los niños atendidos de Inicio). No se enseña nada inventado: el turno y la venta de Inicio dicen «Sin datos» o
-  «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
+  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja) y las cuentas (entrada, mesas, caja, cobrar y anular), los cortes del turno y el resumen del día de Inicio, y **el parque** (entrada, sala, salida, directorio de familias y
+  los niños atendidos de Inicio). No se enseña nada inventado: lo que no existe dice «Sin datos» o «Sin turno
+  abierto». Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (76 de base, 254 de aplicación; en el dominio, 57 de tasas,
-  44 de impuestos, 91 de caja, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (76 de base, 272 de aplicación; en el dominio, 57 de tasas,
+  44 de impuestos, 104 de caja, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -125,12 +125,20 @@ Guerrero. #0015 (Luis Morandin, cobrada) es del cliente. Sala vacía; equipos «
 **Limpieza para probar de cero (2026-09-28, pedido del cliente).** Todas las cuentas pendientes de prueba
 (#0002–#0005 abiertas de B3-3 y #0007–#0010, #0012–#0014 y #0016–#0019 por cobrar) se marcaron
 **incobrables** con el caso de uso de B3-5, motivo «Otro: datos de prueba», autorizadas por Abigail
-Karam con su PIN: nada se borró. No queda ninguna cuenta pendiente ni niños en sala. Siguen abiertos
-los siete turnos huérfanos de prueba (los cierra B3-5).
+Karam con su PIN: nada se borró. No queda ninguna cuenta pendiente ni niños en sala. Los turnos
+huérfanos de prueba se cerraron al comprobar B3-5 (abajo).
 
-**Siguiente paso (M-14):** retomar **B3-5**, cuyo dominio, contrato, base y caso de uso ya están en `main`
-sin pruebas ni pantalla (lista en su casilla, §3); «Cerrar la jornada» ya puede listar los niños en sala y
-las huérfanas. Luego B5-1 (sustituye el sondeo de 5 s de la sala y de las cuentas) y B4-4.
+**Cortes en la base local (2026-09-28, al comprobar B3-5).** Supervisión (Luis Guerrero) cerró desde Inicio, con
+conteo en cero y justificación, los turnos de prueba que seguían abiertos (B31, B32, T6, B91, B33 ×2, B34 ×2 y B4
+Caja). **Por error, el mismo guion selló también el turno de «PC admin»**, el equipo del cliente (abierto por Abigail
+Karam a las 12:29 pm, con #0015 y #0020 cobradas): su Z dice $ 12,00 de diferencia y «Turno de prueba…», y un Z
+no se deshace. Hay que decírselo al cliente; su cuadre real, si lo quiere, se anota aparte. En «Prueba B35 Caja»,
+tres turnos: un relevo que cuadra (Z de la cajera), otro con $ 5,00 de faltante (Z de supervisión) y uno con
+la «Familia Prueba Jornada» (#0023), que entró, salió y se marcó incobrable. **Quedan pendientes del cliente**
+#0021 (mostrador, $ 2,78) y #0022 (Mesa 8): la jornada del local no se cerró. Equipos «Prueba B35 …» revocados.
+
+**Siguiente paso:** **B5-1** (tiempo real: sustituye el sondeo de 5 s de la sala y de las cuentas y el bus entre
+pestañas) y después **B4-4** (ajustes del local: umbral de huérfanas y del arqueo, zona horaria).
 
 ---
 
@@ -195,7 +203,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
    **B3-3** → B3-4 → B3-5 (se cierra Caja).
-3. ~~B4-1 → B4-2 → B4-3~~ → **B3-5** → B5-1 → B4-4 (se cierran Caja y Parque). M-14 adelantó el parque
+3. ~~B4-1 → B4-2 → B4-3 → B3-5~~ (se cierra Caja) → **B5-1** → B4-4 (se cierra Parque). M-14 adelantó el parque
    a B3-5 y a B5-1: mientras no haya tiempo real, la sala viaja por sondeo de 5 s.
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
 5. **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso) → Etapa 7 (staging) →
@@ -711,7 +719,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   y cortesía a 1366×768, 1280×800 y 800×1280 sin desplazar; sin errores de consola.*
   *· El descuento (`cuenta.descuento` en la matriz) no tiene pantalla ni tarea propia: no hay nada que
   mover al servidor. Anotado en §5.*
-- [ ] **B3-5 · Cortes X y Z, arqueo y excepciones reales** derivadas del libro, cortesías y
+- [x] **B3-5 · Cortes X y Z, arqueo y excepciones reales** derivadas del libro, cortesías y
   anulaciones incluidas (F4-05 a F4-08). Hoy las excepciones son un dato fijo. Según JORNADA §3 a §5
   (M-13): abrir turno comprueba tasa, impuestos, medios, tarifario e impresora y lista lo que falta;
   **relevo** («Cambiar de cajera») con arqueo y Z de quien sale; **arqueo a ciegas** por moneda y
@@ -720,41 +728,47 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   pendientes (cuentas por cobrar; niños en sala con B4-3; mesas y comandas con la Etapa 6) y no
   ofrece el Z hasta resolverlos; el resumen del día en Inicio sale del libro.
   → Después del Z, ninguna operación toca ese turno. Ninguna jornada se cierra con pendientes.
-  *En curso en `feat/b3-5` (2026-09-28). D-JOR decidido: incobrable con 🔐, relevo que deja el fondo,
-  umbral con la tasa del turno.*
-  *Hecho en la rama:*
-  *· Dominio (`corte.ts`): `ledgerMovements` (el libro del turno como movimientos, reversiones con su
-  signo), `countDifferenceInUsd` (cada moneda en absoluto, Bs a $ con la tasa del turno; `null` sin
-  tasa), `zSigner` (CAJERA hasta `COUNT_THRESHOLD` $ 1,00; si no, SUPERVISION), `leftInDrawerProblem` y
-  `withdrawn`. `tallyShift` pierde el punto de cobro (salda la deuda de §5: el punto es el equipo).
-  Cuenta: estado INCOBRABLE, `isPendingAtClose`, `markUncollectible`; `accountChangeProblem` no deja
-  a una pantalla marcarla ni tocarla. Matriz: `cuenta.incobrable` (P, 🔐, 🔐). 94 pruebas de caja.*
-  *· Contrato (`cortes.ts`): arqueo por billetes, `ArqueoSchema`, `ExcepcionSchema`, `CorteSchema`
-  (VISTA sin gaveta, X, Z con arqueo y cierre), `CorteZCommandSchema`, `PendientesDelCierreSchema`,
-  `IncobrableCommandSchema`, `ComprobacionAperturaSchema`, `ResumenDelDiaSchema`. 4 pruebas.*
-  *· Base: `20261008000000_cortes` (`shift_count` y `shift_cut` de solo-agregar; un Z por turno; nada
-  se cuenta ni se corta en un turno sellado; una venta de un turno con Z no se anula; estado y causa
-  INCOBRABLE) y `20261008010000_cortes_disparador` (corrige el disparador: PL/pgSQL no deja leer
-  NEW.count_id en la tabla que no lo tiene). 4 pruebas.*
-  *· Aplicación: `cuentas.incobrable` (🔐, versión INCOBRABLE, auditado) y `caja/cortes.ts` escrito y
-  cableado (`vista`, `corteX`, `arquear`, `corteZ`, `ultimoZ`, `pendientes`, `comprobarApertura`,
-  `resumenDelDia`); `confirmarPinPropio` en `autorizacion.ts` (la cajera firma su Z). Compila; **sin
-  pruebas todavía**.*
-  *Falta, en este orden:*
-  *1. `caja/cortes.test-db.ts`: arqueo a ciegas y su diferencia; Z dentro del umbral con PIN propio y
-  por encima con supervisión y justificación; Z negado si entró dinero tras contar o si no es el último
-  conteo; jornada negada con cuentas pendientes u otros turnos abiertos; turno ajeno solo supervisión;
-  incobrable; excepciones del corte; resumen del día; comprobación al abrir.*
-  *2. Web: acción `autorizadoresDeCaja` con `turno.corteZ` y `cuenta.incobrable`; TurnoScreen con la
-  vista del servidor, «Cambiar de cajera» y «Cerrar la jornada» (pendientes con cobrar e incobrable),
-  arqueo a ciegas → diferencia → firma (PIN o supervisión + justificación) → Z sellado con lo retirado;
-  corte X; `?turno=` para que supervisión cierre uno ajeno desde Inicio; apertura con la comprobación;
-  Inicio con `resumenDelDia`. Se borran `src/demo/turno.ts`, el tipo `Excepcion` de `turno.ts` y
-  `PuntosDeCobro` (hoy vacío en Inicio y Turno); fila de §5 de Inicio.*
-  *3. Navegador (relevo, jornada con pendientes e incobrable, Z por encima del umbral, turno ajeno,
-  los siete turnos huérfanos de la base local), §5 y cierre (con el número que toque: M-14 entregó
-  antes B4-1 y B4-2). Lo hecho de B3-5 entró en `main` con el parque; «Cerrar la jornada» ya puede
-  listar los niños en sala: la sala es de la base.*
+  *Hecho el 2026-09-28 (v0.29.0). D-JOR decidido: incobrable con 🔐, relevo que deja el fondo, umbral con la
+  tasa del turno.*
+  *· Dominio (`corte.ts`): `ledgerMovements` (solo el cobro y el vuelto mueven la gaveta: la propina y el residuo
+  dicen de quién es una parte de lo cobrado, y antes se sumaban dos veces), `countDifferenceInUsd`, `zSigner`
+  ($ 1,00), `leftInDrawerProblem` y `withdrawn`. Cuenta: estado INCOBRABLE, `isPendingAtClose`, `markUncollectible`
+  y `uncollectibleProblem` (una familia con niños dentro no se da por incobrable: primero su salida). `tallyShift`
+  pierde el punto de cobro (el punto es el equipo).*
+  *· Contrato (`cortes.ts`): arqueo por billetes, `ArqueoSchema`, `ExcepcionSchema`, `CorteSchema` (VISTA sin
+  gaveta, X, Z con arqueo y cierre), `CorteZCommandSchema`, `PendientesDelCierreSchema` (cuentas, niños en sala,
+  huérfanas y turnos de otros equipos), `IncobrableCommandSchema`, `ComprobacionAperturaSchema` y
+  `ResumenDelDiaSchema`.*
+  *· Base: `20261008000000_cortes` y `20261008010000_cortes_disparador`: `shift_count` y `shift_cut` de
+  solo-agregar, un Z por turno, nada se cuenta ni se corta en un turno sellado y una venta de un turno con Z no se
+  anula. 4 pruebas.*
+  *· Aplicación: `caja/cortes.ts` (vista a ciegas; corte X con la gaveta solo para quien ve la sucursal; arqueo;
+  Z con el último conteo y sin dinero nuevo desde él, primero la foto y después el sello, en una transacción; un
+  turno ajeno lo cierra solo supervisión; la jornada, negada con pendientes; comprobación al abrir; resumen del
+  día), `caja/gaveta.ts` (lo que debería haber en la gaveta según el libro), `cuentas.incobrable` (🔐) y
+  `pendienteDe` con el IVA del instante y las partes que faltan. Anular devuelve en efectivo solo lo que la gaveta
+  del turno tiene (salda la deuda de §5), y anular una venta de un turno con Z es CONFLICTO (antes, el error de la
+  base). Auditoría `turno.arqueo`, `turno.corte_x` y `turno.corte_z` (el CHECK de `audit_log` no admite
+  mayúsculas). `confirmarPinPropio`: la cajera firma su Z. 18 pruebas contra la base (`cortes.test-db.ts`); cazaron
+  cinco fallos (el Z no sellaba, la propina doble, la auditoría en camelCase, el X de otra caja y la anulación de
+  un turno sellado).*
+  *· Web: `cortes.servidor.ts` y `cortes.acciones.ts`. `/turno` con la vista del libro, «Corte X», «Cambiar de
+  cajera» y «Cerrar la jornada» (`CierreTurno`: pendientes → contar a ciegas → diferencia, qué se deja y firma →
+  Z sellado); `PendientesDelCierre` con «Incobrable» (motivo y 🔐) y enlaces para cobrar, dar la salida, cerrar la
+  huérfana o el turno ajeno; `?turno=` para que supervisión cierre el de otro equipo («Cerrar este turno»). La
+  apertura comprueba tasa, impuestos, medios y tarifario, enseña los turnos que quedaron de días anteriores y
+  propone el fondo del último Z. Inicio lee el resumen del día: vendido, cobrado por medio (lo que quedó, no el
+  billete entregado), turnos del día con su diferencia y quién firmó, y las excepciones del día. `useAutorizacion`
+  firma con el PIN propio. El salón ya no toma una cuenta de mesa incobrable por la vigente. Se borran
+  `src/demo/turno.ts`, `PuntosDeCobro` y el tipo `Excepcion`.*
+  *· Comprobado en el navegador (Playwright, local): apertura con la comprobación y los turnos de días
+  anteriores; relevo que cuadra (a ciegas, PIN malo rechazado, Z de la cajera, el fondo propuesto al entrar); Z
+  con $ 5,00 de faltante firmado por supervisión con justificación; supervisión cerrando desde Inicio los turnos
+  de otros equipos; «Cerrar la jornada» con cuentas y un niño en sala y sin conteo ofrecido; la salida del niño y
+  su cuenta incobrable (PIN malo rechazado), con su excepción en el turno. Apertura, turno, conteo, revisión,
+  pendientes, incobrable e Inicio a 1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de
+  consola. La jornada completa hasta su Z se prueba contra la base: el local tiene cuentas vivas del cliente, que
+  no se tocaron.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -989,7 +1003,6 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 
 | Qué | Se salda en |
 |---|---|
-| Un turno no se cierra todavía: el de un equipo revocado o perdido queda abierto | B3-5 (cerrar un turno huérfano desde otro equipo, con 🔐) |
 | Quién está en cada puesto viaja por el bus entre pestañas de un navegador: Inicio no avisa «Sin nadie en caja» aunque haya turno | B5-1 |
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
 | Aprobar un equipo no avisa en vivo a la administración (queda en la auditoría y en su historia) | B5-1 |
@@ -1016,7 +1029,12 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
 | Las cuentas llegan a las otras estaciones por sondeo de 5 s, no en vivo | B5-1 |
 | El descuento (`cuenta.descuento`, 🔐 en la matriz) no existe en la caja: ni pantalla ni tarea del PLAN | Cuando el cliente lo pida (va al servidor con `exigirPermisoOAutorizacion`) |
-| Si hay efectivo para devolver al anular lo comprueba solo la pantalla, con las ventas del turno (cota baja) | B3-5 (la gaveta sale del libro del turno) |
+| Devolver en efectivo lo que entró por otro medio (Pago Móvil, punto) saca de la gaveta un efectivo que el libro no apunta: el arqueo lo verá como faltante | Un asiento de salida de caja en el libro, cuando el cliente lo necesite |
+| El ticket de corte no se imprime (el Z queda sellado y se ve en pantalla) | B5-2 |
+| El umbral del arqueo ($ 1,00) está en el dominio, no en los ajustes del local | B4-4 |
+| El resumen del día no separa lo vendido del parque y del restaurante (JORNADA §5) | Cuando el cliente lo pida |
+| Los pendientes del cierre no traen mesas ni comandas del restaurante (una mesa abierta sale como cuenta) | Etapa 6 |
+| Los pendientes del cierre se leen al abrirlos, al volver el foco o con «Volver a comprobar», no en vivo | B5-1 |
 | La venta guarda el documento del cliente enmascarado: una factura fiscal necesitará el completo | F3 (fuera por M-3) |
 
 **Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
@@ -1024,10 +1042,8 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 
 | Qué | Dónde | Se va con |
 |---|---|---|
-| Movimientos y excepciones del turno (vacíos; el fondo ya es real) | `src/demo/turno.ts` | B3-5 |
 | Ajustes del local guardados en el navegador | `src/demo/sucursal.ts`, `SucursalProvider` | B4-4 |
 | Bus de operación entre pestañas del mismo navegador y estado de conexión fijo («N0») | `OperacionProvider`, layout de estación | B5-1 |
-| Cifras de Inicio sin fuente (la venta; los niños atendidos ya salen de la base) | `app/(admin)/panel/page.tsx` | B3-5 |
 | Plano y carta del restaurante guardados en el navegador | `src/demo/restaurante.ts`, `PlanoProvider`, `CartaProvider` | B6-1 |
 | Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
 
@@ -1074,12 +1090,12 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | Interfaz completa; turno real (B3-1) y medios de pago (B3-2) | Medios, cobro en el servidor, ventas, cortes y excepciones reales (Etapa 3) |
+| F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Ticket de corte impreso (B5-2) y tiempo real (B5-1) |
 | F5 · Parque | **En el servidor** (B4-1 a B4-3): estancias, directorio, cronómetro, recarga, salida con D9 y huérfanas | Ajustes (B4-4) y tiempo real (B5-1) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Catálogo de productos en el servidor** (B9-1); insumos y recetas por hacer | Stock, compras, ajustes y alertas (B9-2 a B9-5) y B6-4 (recetas) |
-| F9 · Panel | Inicio y el local en vivo, en interfaz | Tiempo real (B5-1); los informes, después del piloto |
+| F9 · Panel | Inicio con el día del libro (B3-5); el local en vivo, en interfaz | Tiempo real (B5-1); los informes, después del piloto |
 | F10 y F11 | Sin empezar | Etapas 7 y 8 |
 
 ---
@@ -1163,6 +1179,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   el niño, huérfanas cerradas por la dirección y el nombre opcional en la entrada. Sigue B3-5.
 - **2026-09-28** · Base local limpia para probar de cero (las cuentas de prueba, incobrables). El menú
   del panel ya deja plegar Ajustes estando dentro (v0.28.1). Handoff.
+- **2026-09-28** · B3-5 hecho (v0.29.0): cortes X y Z, arqueo a ciegas, relevo, cierre de la jornada sin
+  pendientes, incobrables y el día en Inicio; se cierra la Etapa 3. Las pruebas cazaron cinco fallos del caso de
+  uso. Al comprobarlo en el navegador se selló por error el turno de «PC admin» del cliente (§1).
 
 ---
 

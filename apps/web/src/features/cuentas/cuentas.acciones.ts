@@ -59,12 +59,26 @@ export async function darCortesia(entrada: unknown, autorizacion?: unknown): Pro
   return r;
 }
 
+/** Marca incobrable una cuenta (D-JOR). `autorizacion` lleva quién autoriza, su PIN y el motivo (🔐). */
+export async function marcarIncobrable(entrada: unknown, autorizacion?: unknown): Promise<Resultado<FamilyAccountDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cuentas.incobrable(ctx, entrada, autorizacion);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id }, "cuenta incobrable");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "incobrable rechazada");
+  return r;
+}
+
+/** Las acciones de la caja con 🔐 cuya lista de autorizadores puede pedir la pantalla. */
+const CON_AUTORIZADORES = ["cobro.anular", "cuenta.cortesia", "cuenta.incobrable", "turno.corteZ"] as const;
+
 /**
- * Quiénes pueden autorizar a quien opera a anular un cobro o a regalar (vacío si no le hace falta).
- * Solo esas dos: la acción llega del navegador y aquí no se abre otra.
+ * Quiénes pueden autorizar a quien opera una acción de la caja (vacío si no le hace falta). Solo las
+ * de la lista: la acción llega del navegador y aquí no se abre otra.
  */
 export async function autorizadoresDeCaja(accion: unknown): Promise<{ id: string; nombre: string; rol: string }[]> {
   const ctx = await contextoActual();
-  if (!ctx || (accion !== "cobro.anular" && accion !== "cuenta.cortesia")) return [];
-  return (await aplicacion()).cuentas.autorizadores(ctx, accion);
+  const a = CON_AUTORIZADORES.find((x) => x === accion);
+  if (!ctx || !a) return [];
+  return (await aplicacion()).cuentas.autorizadores(ctx, a);
 }

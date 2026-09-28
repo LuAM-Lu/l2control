@@ -7,6 +7,8 @@ import {
   Wallet,
   Zap,
 } from "lucide-react";
+import type { MovimientoPorMedioDto } from "@l2/contracts";
+import { money, toMajor } from "@l2/domain-money";
 import { MoneyDisplay, cn } from "@l2/ui";
 
 /**
@@ -26,6 +28,23 @@ export type PorMedio = {
   /** Si entra en el arqueo de efectivo o se concilia contra su estado de cuenta. */
   enGaveta: boolean;
 };
+
+/**
+ * Lo cobrado por cada medio, desde el libro del servidor (B3-5): lo que QUEDÓ por ese medio (lo
+ * entregado menos el vuelto, sin lo anulado), no el billete que dio el cliente, ni el fondo, que no
+ * es venta. Lo que no dejó nada no sale.
+ */
+export function porMedioDelLibro(movimientos: readonly MovimientoPorMedioDto[]): PorMedio[] {
+  return movimientos
+    .filter((m) => BigInt(m.neto.minor) > 0n)
+    .map((m) => ({
+      medio: m.label,
+      moneda: m.currency,
+      total: toMajor(money(BigInt(m.neto.minor), m.currency)),
+      minor: m.neto.minor,
+      enGaveta: m.enGaveta,
+    }));
+}
 
 export function EntradasPorMedio({
   porMedio,

@@ -4,21 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
+import type { ResumenDelDiaDto } from "@l2/contracts";
 import type { UmbralEspera } from "@l2/domain-orders";
-import { Container, MoneyDisplay, formatMoneyVE, cn } from "@l2/ui";
+import { add, money, toMajor, zero } from "@l2/domain-money";
+import { Container, MoneyDisplay, cn } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
-import type { Excepcion } from "../cash/turno.ts";
-import { EntradasPorMedio, type PorMedio } from "../cash/EntradasPorMedio.tsx";
+import { TurnosDelDia } from "../cash/TurnosDelDia.tsx";
+import { EntradasPorMedio, porMedioDelLibro } from "../cash/EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "../cash/ExcepcionesTurno.tsx";
-import { PuntosDeCobro, type FilaPunto } from "../cash/PuntosDeCobro.tsx";
 import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { formatTasaVE } from "../cash/tasa-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
-
-// El tipo vive con su componente; se reexporta porque la página lo importa
-// desde aquí.
-export type { PorMedio };
 
 /**
  * Inicio del back-office — F9-00, §9.10.4.
@@ -53,33 +50,21 @@ export type { PorMedio };
  * los paneles de negocio.
  */
 
-export type SaldoMoneda = { moneda: string; total: string };
-
 export function InicioScreen({
-  porMedio,
-  gaveta,
-  puntos,
+  resumen,
   ninosHoy,
   ninosSemanaPasada,
-  ventaHoy,
-  ventaSemanaPasada,
-  excepciones,
   fecha,
   diaSemana,
   turnos,
   umbral,
   enServicio,
 }: {
-  porMedio: readonly PorMedio[];
-  gaveta: readonly SaldoMoneda[];
-  puntos: readonly FilaPunto[];
+  /** El día según el libro (B3-5); `null` sin permiso de ver la sucursal o sin servidor. */
+  resumen: ResumenDelDiaDto | null;
   ninosHoy: number;
   /** `null` = sin histórico con el que comparar: no se pinta variación. */
   ninosSemanaPasada: number | null;
-  /** `null` = todavía no hay libro de pagos del que sumarla (B2-3). */
-  ventaHoy: string | null;
-  ventaSemanaPasada: string | null;
-  excepciones: readonly Excepcion[];
   fecha: string;
   diaSemana: string;
   /** Los turnos abiertos de la sucursal, del servidor (B3-1). Vacío = ninguno. */
@@ -102,8 +87,13 @@ export function InicioScreen({
   const variacion = (hoy: number, antes: number | null) =>
     antes === null || antes === 0 ? null : Math.round(((hoy - antes) / antes) * 100);
 
-  const gavetaPrincipal = gaveta[0];
-  const gavetaResto = gaveta.slice(1);
+  const excepciones = resumen?.excepciones ?? [];
+  const porMedio = resumen ? porMedioDelLibro(resumen.porMedio) : [];
+  // Las diferencias de arqueo de los turnos cerrados hoy, en dólares con la tasa de cada turno.
+  const cerrados = resumen?.turnos.filter((t) => t.turno.estado === "CERRADO_Z") ?? [];
+  const diferencia = cerrados.reduce((acc, t) => (t.diferenciaEnDolares ? add(acc, money(BigInt(t.diferenciaEnDolares.minor), "USD")) : acc), zero("USD"));
+  const firmoSupervision = cerrados.filter((t) => t.firma === "SUPERVISION").length;
+  const vendidas = resumen ? resumen.ventas.cantidad - resumen.ventas.anuladas : 0;
 
   return (
     <Container ancho="operacion" className="max-w-[1600px] py-3 xl:py-3.5 pb-6">
@@ -186,23 +176,16 @@ export function InicioScreen({
           <Cifra
             etiqueta="Vendido"
             valor={
-              ventaHoy === null ? (
+              resumen === null ? (
                 <span className="text-sm font-medium text-ink-3">Sin datos</span>
               ) : (
-                <MoneyDisplay value={ventaHoy} currency="USD" size="lg" />
+                <MoneyDisplay value={toMajor(money(BigInt(resumen.ventas.total.minor), "USD"))} currency="USD" size="lg" />
               )
             }
-            variacion={
-              ventaHoy === null || ventaSemanaPasada === null
-                ? null
-                : variacion(Number(ventaHoy), Number(ventaSemanaPasada))
-            }
             pie={
-              ventaHoy === null
-                ? "Llega con los cobros en el servidor"
-                : ventaSemanaPasada === null
-                  ? "Sin histórico con qué comparar"
-                  : `${ventaSemanaPasada} el ${diaMinuscula} pasado`
+              resumen === null
+                ? "Sin acceso al libro del día"
+                : `${vendidas} ${vendidas === 1 ? "venta" : "ventas"}${resumen.ventas.anuladas > 0 ? ` · ${resumen.ventas.anuladas} anuladas` : ""}`
             }
           />
           <Cifra
@@ -216,22 +199,18 @@ export function InicioScreen({
             }
           />
           <Cifra
-            etiqueta="En gaveta"
+            etiqueta="Diferencias de arqueo"
             valor={
-              gavetaPrincipal ? (
-                <MoneyDisplay
-                  value={gavetaPrincipal.total}
-                  currency={gavetaPrincipal.moneda}
-                  size="lg"
-                />
+              cerrados.length === 0 ? (
+                <span className="text-sm font-medium text-ink-3">Sin cortes Z</span>
               ) : (
-                <Numero>0</Numero>
+                <MoneyDisplay value={toMajor(diferencia)} currency="USD" size="lg" />
               )
             }
             pie={
-              gavetaResto.length > 0
-                ? gavetaResto.map((g) => formatMoneyVE(g.total, g.moneda)).join(" · ")
-                : "solo una moneda en gaveta"
+              cerrados.length === 0
+                ? "Salen al cerrar cada turno"
+                : `${cerrados.length} ${cerrados.length === 1 ? "turno cerrado" : "turnos cerrados"}${firmoSupervision > 0 ? ` · ${firmoSupervision} con firma de supervisión` : ""}`
             }
           />
         </div>
@@ -263,7 +242,7 @@ export function InicioScreen({
                 : "text-ink-3 hover:text-ink-2",
             )}
           >
-            <span>Excepciones del turno</span>
+            <span>Excepciones del día</span>
             {excepciones.length > 0 && (
               <span className="tnum rounded-full bg-surface-2/80 px-2 py-0.5 text-[11px] font-medium text-ink-2">
                 {excepciones.length}
@@ -275,21 +254,20 @@ export function InicioScreen({
         {/* En Desktop (xl:): 3 columnas paralelas perfectamente balanceadas. En Tablet/Mobile: selector segmentado */}
         <div className="xl:grid xl:grid-cols-3 xl:gap-4 2xl:gap-5">
           <div className={cn(tabDetalle !== "caja" && "hidden xl:block")}>
-            <PuntosDeCobro filas={puntos} className="h-full" />
+            <TurnosDelDia turnos={resumen?.turnos ?? []} hoy={resumen?.dia ?? null} className="h-full" />
           </div>
           <div className={cn(tabDetalle !== "caja" && "mt-4 xl:mt-0 hidden xl:block")}>
-            <EntradasPorMedio porMedio={porMedio} className="h-full" />
+            <EntradasPorMedio porMedio={porMedio} titulo="Cobrado hoy" className="h-full" />
           </div>
           <div className={cn(tabDetalle !== "excepciones" && "mt-4 xl:mt-0 hidden xl:block")}>
-            <ExcepcionesTurno excepciones={excepciones} className="h-full" />
+            <ExcepcionesTurno excepciones={excepciones} titulo="Excepciones del día" className="h-full xl:max-h-[420px]" />
           </div>
         </div>
       </section>
 
       <p className="mt-6 border-t border-line pt-3 text-[11px] text-ink-3">
-        Las cifras del día salen del libro de movimientos, con el mismo dominio que usa el arqueo.
-        Hasta que los cobros y las estancias vivan en el servidor, lo que no existe se dice («Sin
-        datos»), no se inventa.
+        Las cifras del día salen del libro de pagos y de las estancias del servidor, con el mismo dominio
+        que usa el arqueo. Lo que no existe se dice («Sin datos»), no se inventa.
       </p>
     </Container>
   );

@@ -12,6 +12,34 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.29.0] — 2026-09-28 · Etapa 4 · Parque
+
+B3-5 · Cortes X y Z, arqueo a ciegas, relevo y cierre de la jornada. Se cierra la Etapa 3 (Caja).
+
+### Añadido
+- **Turno** sale del libro de pagos del servidor: lo cobrado por medio (lo que quedó, sin el vuelto),
+  el IGTF y las excepciones del turno (anulaciones, cortesías, reimpresiones, redondeos, incobrables y
+  diferencias de arqueo), con quién, por qué y quién autorizó.
+- **Cambiar de cajera** y **Cerrar la jornada**: se cuenta la gaveta **a ciegas** por billetes, el
+  servidor dice después lo que esperaba y la diferencia en dólares con la tasa del turno. Hasta
+  $ 1,00, la cajera firma el **corte Z** con su PIN; por encima, supervisión revisa, justifica y firma.
+  Se dice qué se deja en la gaveta (el fondo, en un relevo) y lo demás se retira. Después del Z, ese
+  turno no se toca: ni cobros, ni anulaciones, ni otro conteo.
+- **La jornada no se cierra con pendientes**: cuentas por cobrar, niños en sala, estancias huérfanas y
+  turnos abiertos en otros equipos, cada uno con su enlace para resolverlo. Una cuenta que no se va a
+  cobrar se marca **incobrable** con motivo y la autorización de supervisión (nada se borra).
+- **Corte X** desde el resumen del turno; lo que debería haber en la gaveta solo lo ve supervisión.
+- **Supervisión cierra el turno de otro equipo** desde Inicio (la cajera se fue o el equipo falló), con
+  el mismo arqueo.
+- **Abrir el turno comprueba** tasa, impuestos, medios y tarifario y lista lo que falta; enseña antes
+  que nada los turnos que quedaron abiertos de días anteriores y propone el fondo que dejó el último Z.
+- **Inicio** enseña el día desde el libro: lo vendido, lo cobrado por medio, los turnos del día con su
+  diferencia y quién firmó, y las excepciones del día.
+
+### Corregido
+- Al anular, no se devuelve en efectivo lo que la gaveta del turno no tiene.
+- Una cuenta de mesa incobrable ya no se toma por la cuenta abierta de la mesa.
+
 ## [0.28.1] — 2026-09-28 · Etapa 4 · Parque
 
 ### Corregido

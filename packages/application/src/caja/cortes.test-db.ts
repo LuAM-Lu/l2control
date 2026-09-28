@@ -80,15 +80,15 @@ async function montar(nombre: string, conDatos = true): Promise<Montado> {
 }
 
 /** Un equipo de caja nuevo con su turno abierto: $ 20,00 y Bs. 1.500,00 de fondo. */
-async function caja(m: Montado, nombre: string, persona = m.cajera, pin: string = PIN.cajera): Promise<{ ctx: Contexto; turno: TurnoDto }> {
+async function caja(m: Montado, nombre: string, persona = m.cajera, pin: string = PIN.cajera, fondo = { usd: "2000", ves: "150000" }): Promise<{ ctx: Contexto; turno: TurnoDto }> {
   const ctx = await contextoDe(m.l, await crearEquipo(m.l, nombre), persona, pin);
   const turno = valor(
     await m.l.app.turnos.abrir(
       ctx,
       {
         fondos: [
-          { currency: "USD", amount: usd("2000") },
-          { currency: "VES", amount: ves("150000") },
+          { currency: "USD", amount: usd(fondo.usd) },
+          { currency: "VES", amount: ves(fondo.ves) },
         ],
       },
       AHORA - 30 * MIN,
@@ -194,13 +194,16 @@ describe("cómo va el turno: la vista y el corte X (F4-05)", () => {
     );
   });
 
-  test("el corte X enseña la gaveta: fondo más lo que entró menos el vuelto, y se guarda", async () => {
+  test("el corte X enseña la gaveta a supervisión: fondo más lo que entró menos el vuelto, y se guarda", async () => {
     const { ctx, turno } = await caja(m, "Caja X");
     await vender(m, ctx);
     await vender(m, ctx, "EFECTIVO_USD", "PROPINA");
     await vender(m, ctx, "EFECTIVO_VES", "RESIDUO");
-    const x = valor(await m.l.app.cortes.corteX(ctx, {}, AHORA));
-    assert.equal(x.tipo, "X");
+    // La cajera saca su X sin lo que debería haber en la gaveta: el arqueo sigue siendo a ciegas.
+    const suyo = valor(await m.l.app.cortes.corteX(ctx, {}, AHORA));
+    assert.equal(suyo.tipo, "X");
+    assert.equal(suyo.gaveta, null);
+    const x = valor(await m.l.app.cortes.corteX(m.ctxSupervisor, { turnoId: turno.id }, AHORA));
     assert.ok(x.id);
     const gaveta = Object.fromEntries(x.gaveta!.map((g) => [g.currency, [g.fondo.minor, g.entradas.minor, g.salidas.minor, g.esperado.minor]]));
     // Dólares: $ 20 + $ 5 + $ 5 − $ 3,69 de vuelto (la propina se quedó en los $ 5). Bolívares: Bs. 1.500 + 1.000.
@@ -209,7 +212,7 @@ describe("cómo va el turno: la vista y el corte X (F4-05)", () => {
     const otraX = valor(await m.l.app.cortes.corteX(ctx, { turnoId: turno.id }, AHORA + MIN));
     assert.notEqual(otraX.id, x.id);
     assert.equal((await m.l.app.turnos.delEquipo(ctx))!.estado, "ABIERTO");
-    assert.equal((await asientosDe(m, "turno.corte_x")).filter((a) => a.entityId === turno.id).length, 2);
+    assert.equal((await asientosDe(m, "turno.corte_x")).filter((a) => a.entityId === turno.id).length, 3);
   });
 
   test("la vista y el X de otro equipo son de quien ve la sucursal; la monitora no ve ninguno", async () => {
@@ -278,7 +281,7 @@ describe("cómo va el turno: la vista y el corte X (F4-05)", () => {
         AHORA + 2 * MIN,
       ),
     );
-    const x = valor(await m.l.app.cortes.corteX(ctx, {}, AHORA + 3 * MIN));
+    const x = valor(await m.l.app.cortes.corteX(m.ctxSupervisor, { turnoId: (await m.l.app.turnos.delEquipo(ctx))!.id }, AHORA + 3 * MIN));
     assert.deepEqual(
       x.excepciones.map((e) => [e.tipo, e.usuario, e.autorizadoPor]),
       [
@@ -425,6 +428,25 @@ describe("el arqueo a ciegas y el corte Z (F4-06, F4-07)", () => {
     const [asiento] = (await asientosDe(m, "turno.corte_z")).filter((x) => x.entityId === turno.id);
     assert.equal(asiento!.authorizedBy, m.supervisor);
     assert.equal(asiento!.reason, "Se dio vuelto en dólares por falta de bolívares");
+  });
+
+  test("al anular no se devuelve en efectivo lo que la gaveta del turno no tiene", async () => {
+    const { ctx } = await caja(m, "Caja con venta");
+    const venta = await vender(m, ctx);
+    // Supervisión anula desde otra caja, abierta sin fondo: el dinero saldría de una gaveta vacía.
+    const vacia = await caja(m, "Caja vacía", m.supervisor, PIN.supervisor, { usd: "0", ves: "0" });
+    const pedido = {
+      idempotencyKey: randomUUID(),
+      accountId: venta.cuenta.id,
+      cobroKey: venta.clave,
+      motivo: "ERROR_EN_COBRO",
+      devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }],
+    };
+    const r = await m.l.app.cuentas.anular(vacia.ctx, pedido, pinDe(m.supervisor, PIN.supervisor, "Cobro repetido"), AHORA);
+    assert.equal(!r.ok && r.motivo, "CONFLICTO");
+    assert.match(!r.ok ? r.mensaje : "", /no hay dólares suficientes/);
+    // Desde la caja que cobró, sí: ahí está el dinero.
+    valor(await m.l.app.cuentas.anular(ctx, pedido, pinDe(m.supervisor, PIN.supervisor, "Cobro repetido"), AHORA));
   });
 
   test("el Z se niega si entró dinero después de contar, o si no es el último conteo", async () => {
