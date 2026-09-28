@@ -7,6 +7,7 @@ import {
   WristbandCodeSchema,
   type FamilyAccountDto,
   type MonitorSnapshotDto,
+  type RecogidaDto,
 } from "@l2/contracts";
 import {
   Badge,
@@ -76,6 +77,11 @@ export function CheckoutScreen({
   const [enviando, setEnviando] = useState(false);
   /** Una clave por familia y por intento: un reintento tras un corte no liquida dos veces (I-11). */
   const claves = useRef(new Map<string, string>());
+  /**
+   * A quién se entrega cada familia (D9): su representante u otra persona, con su nombre. No se da
+   * por supuesto: quien atiende lo marca, y queda constancia en la salida.
+   */
+  const [recogidas, setRecogidas] = useState<Record<string, { kind: "REPRESENTANTE" } | { kind: "OTRA_PERSONA"; nombre: string }>>({});
 
   const actor = useActorEnSesion();
   const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
@@ -86,7 +92,7 @@ export function CheckoutScreen({
     () =>
       sala
         ? { ...sala, serverNow: new Date(Math.max(ahora, Date.parse(sala.serverNow))).toISOString() }
-        : { serverNow: new Date(0).toISOString(), policy: { graceMinutes: 0, penaltyBlockMinutes: 1, penaltyPricePerBlock: { minor: "0", currency: "USD" }, warnBeforeMinutes: 0, capacityLimit: 1 }, rate: null, shiftLabel: "", sessions: [] },
+        : { serverNow: new Date(0).toISOString(), policy: { graceMinutes: 0, penaltyBlockMinutes: 1, penaltyPricePerBlock: { minor: "0", currency: "USD" }, warnBeforeMinutes: 0, capacityLimit: 1 }, rate: null, shiftLabel: "", sessions: [], huerfanas: [] },
     [sala, ahora],
   );
   const snap = snapshot;
@@ -187,9 +193,18 @@ export function CheckoutScreen({
   }, [preview.lines, cuentas, snapshot.sessions]);
 
   const porCobrar = plan.resultados.filter((c) => c.status === "POR_COBRAR");
+  // D9: cada familia de la salida dice a quién se entrega; «otra persona», con su nombre.
+  const faltaRecogida = plan.grupos.some((g) => {
+    const r = recogidas[g.cuenta.id];
+    return !r || (r.kind === "OTRA_PERSONA" && r.nombre.trim().length < 2);
+  });
   const aCobrar = sum(porCobrar.map(pendiente), "USD");
 
   async function confirmarSalida() {
+    if (faltaRecogida) {
+      setAviso("Marca a quién se entrega cada familia antes de registrar la salida.");
+      return;
+    }
     if (plan.sinCuenta.length > 0) {
       // Fail-closed: sin cuenta no se sabe quién paga ni qué se pagó ya.
       setAviso(`Sin cuenta: ${plan.sinCuenta.join(", ")}. No se puede cerrar su salida.`);
@@ -204,7 +219,8 @@ export function CheckoutScreen({
     for (const g of plan.grupos) {
       const clave = claves.current.get(g.cuenta.id) ?? globalThis.crypto.randomUUID();
       claves.current.set(g.cuenta.id, clave);
-      const cmd = CheckoutCommandSchema.parse({ idempotencyKey: clave, sessionIds: g.salen, disposition: { kind: "CAJA" } });
+      const recogida: RecogidaDto = recogidas[g.cuenta.id] ?? { kind: "REPRESENTANTE" };
+      const cmd = CheckoutCommandSchema.parse({ idempotencyKey: clave, sessionIds: g.salen, disposition: { kind: "CAJA" }, recogida });
       const r = await registrarSalida(cmd).catch(() => null);
       if (!r) {
         fallo = "Sin conexión con el servidor: la salida no se registró. Vuelve a intentarlo.";
@@ -224,6 +240,7 @@ export function CheckoutScreen({
     for (const c of hechas) adoptarCuenta(c);
     quitarDeLaSala(cerradas);
     setSeleccionados((prev) => prev.filter((id) => !cerradas.includes(id)));
+    setRecogidas((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !hechas.some((c) => c.id === id))));
     if (fallo) {
       setAviso(fallo);
       return;
@@ -437,6 +454,14 @@ export function CheckoutScreen({
                             ? `A cobrar ahora: ${formatMoneyVE(toMajor(p), "USD")}`
                             : `Se acumula ${formatMoneyVE(toMajor(p), "USD")} hasta que salga el resto`}
                       </p>
+                      <Recogida
+                        representante={c.family}
+                        valor={recogidas[c.id] ?? null}
+                        onCambio={(v) => {
+                          setRecogidas((prev) => ({ ...prev, [c.id]: v }));
+                          setAviso(null);
+                        }}
+                      />
                     </li>
                   );
                 })}
@@ -462,7 +487,7 @@ export function CheckoutScreen({
             <Button
               surface="pos"
               variant="primary"
-              disabled={!hayAlgo || enviando}
+              disabled={!hayAlgo || enviando || faltaRecogida}
               onClick={() => void confirmarSalida()}
               className="w-full"
             >
@@ -476,6 +501,10 @@ export function CheckoutScreen({
                   : `Enviar ${porCobrar.length} cuentas a caja`}
             </Button>
 
+            {hayAlgo && faltaRecogida && !enviando && (
+              <p className="text-center text-[12px] text-ink-3">Falta marcar a quién se entrega</p>
+            )}
+
             {!hayAlgo && (
               <Badge tone="idle" icon={<PackageOpen size={13} aria-hidden="true" />}>
                 Esperando pulseras
@@ -485,5 +514,53 @@ export function CheckoutScreen({
         </aside>
       </Container>
     </div>
+  );
+}
+
+/**
+ * A quién se entrega (D9): el representante registrado u otra persona. Dos botones grandes y, con
+ * «otra persona», su nombre. Color + texto: la elección se lee sin depender del color (§8.2).
+ */
+function Recogida({
+  representante,
+  valor,
+  onCambio,
+}: {
+  representante: string;
+  valor: { kind: "REPRESENTANTE" } | { kind: "OTRA_PERSONA"; nombre: string } | null;
+  onCambio: (v: { kind: "REPRESENTANTE" } | { kind: "OTRA_PERSONA"; nombre: string }) => void;
+}) {
+  const opcion = (activo: boolean) =>
+    `flex min-h-11 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border px-2 text-[12.5px] font-semibold transition-colors ${
+      activo ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:text-ink"
+    }`;
+  return (
+    <fieldset className="mt-2.5 flex flex-col gap-1.5">
+      <legend className="mb-1 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">Lo recoge</legend>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button type="button" aria-pressed={valor?.kind === "REPRESENTANTE"} onClick={() => onCambio({ kind: "REPRESENTANTE" })} className={opcion(valor?.kind === "REPRESENTANTE")}>
+          <span className="truncate">{representante}</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={valor?.kind === "OTRA_PERSONA"}
+          onClick={() => onCambio({ kind: "OTRA_PERSONA", nombre: valor?.kind === "OTRA_PERSONA" ? valor.nombre : "" })}
+          className={opcion(valor?.kind === "OTRA_PERSONA")}
+        >
+          Otra persona
+        </button>
+      </div>
+      {valor?.kind === "OTRA_PERSONA" && (
+        <input
+          aria-label="Nombre de quien lo recoge"
+          value={valor.nombre}
+          onChange={(e) => onCambio({ kind: "OTRA_PERSONA", nombre: e.target.value })}
+          placeholder="Nombre y parentesco"
+          autoComplete="off"
+          maxLength={80}
+          className="min-h-11 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-brand"
+        />
+      )}
+    </fieldset>
   );
 }

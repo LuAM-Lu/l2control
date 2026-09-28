@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert } from "lucide-react";
+import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button } from "@l2/ui";
 import Link from "next/link";
@@ -16,6 +16,9 @@ import { ParkChildCard } from "./ParkChildCard";
 import { nombreVisible, toMonitorModel } from "./view-model";
 import { useSala } from "./SalaProvider.tsx";
 import { nombrarEstancia } from "./parque.acciones";
+import { RecargarTiempo } from "./RecargarTiempo.tsx";
+import { EstanciasARevisar } from "./EstanciasARevisar.tsx";
+import { useTarifario } from "./TarifarioProvider";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
@@ -36,12 +39,17 @@ const SALA_VACIA = { serverNow: 0, capacityLimit: 1, shiftLabel: "", rateValue: 
 export function ParkMonitor() {
   const op = useOperacion();
   const { sala, sinConexion, refrescar } = useSala();
+  const { tarifario } = useTarifario();
+  const [recargando, setRecargando] = useState(false);
+  const [revisando, setRevisando] = useState(false);
+  const huerfanas = sala?.huerfanas ?? [];
   const model = useMemo(() => (sala ? toMonitorModel(sala) : SALA_VACIA), [sala]);
   const [selected, setSelected] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
   const actor = useActorEnSesion();
   const puedeVincular = actor !== null && can(actor, "parque.vincularMesa") !== "DENEGADO";
+  const puedeCerrarHuerfanas = actor !== null && can(actor, "parque.cerrarHuerfana") === "PERMITIDO";
   const { plano } = usePlano();
 
   const [poniendoNombre, setPoniendoNombre] = useState(false);
@@ -86,12 +94,13 @@ export function ParkMonitor() {
     );
   }, [model.cards]);
 
-  const { cuentas } = useCuentas();
+  const { cuentas, adoptar: adoptarCuenta } = useCuentas();
   const compacta = ordered.length > 10;
   const { ajustes } = useSucursal();
   const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
   const cuentaFicha = ficha ? (cuentas.find((c) => c.id === ficha.accountId) ?? null) : null;
   const familiaRegistrada = ficha?.guardianName ?? null;
+  const estanciaFicha = ficha ? (sala?.sessions.find((s) => s.id === ficha.id) ?? null) : null;
 
   const mesaActual = ficha ? Object.values(op.estado.mesas).find((m) => m.sesiones.includes(ficha.id)) : null;
 
@@ -137,6 +146,17 @@ export function ParkMonitor() {
           )}
         </div>
 
+        {huerfanas.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setRevisando(true)}
+            className="mb-3 flex w-full shrink-0 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-2.5 text-left text-[13px] text-state-warn"
+          >
+            <ClipboardList size={15} aria-hidden="true" />
+            {huerfanas.length === 1 ? "1 estancia a revisar" : `${huerfanas.length} estancias a revisar`}: abiertas desde otro día o con más de 8 horas. No cuentan en el aforo.
+            <span className="ml-auto font-semibold underline">Ver</span>
+          </button>
+        )}
         {sinConexion && sala && (
           <p role="status" className="mb-3 flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-2.5 text-[13px] text-state-warn">
             <WifiOff size={15} aria-hidden="true" />
@@ -192,6 +212,7 @@ export function ParkMonitor() {
           setSelected(null);
           setPoniendoNombre(false);
           setVinculandoAMesa(false);
+          setRecargando(false);
         }}
         titulo={ficha ? nombreVisible(ficha) : ""}
         {...(ficha
@@ -200,9 +221,15 @@ export function ParkMonitor() {
             }
           : {})}
         pie={
-          ficha && !poniendoNombre && (
+          ficha && !poniendoNombre && !recargando && (
             <div className="flex flex-col gap-2 w-full">
               <div className="flex gap-2 flex-wrap">
+                {ficha.contractedMinutes !== null && (
+                  <Button variant="neutral" className="flex-1" onClick={() => setRecargando(true)}>
+                    <Plus size={17} aria-hidden="true" />
+                    Recargar tiempo
+                  </Button>
+                )}
                 <Button
                   variant="neutral"
                   className="flex-1"
@@ -250,7 +277,19 @@ export function ParkMonitor() {
             onCancelar={() => setPoniendoNombre(false)}
           />
         )}
-        {ficha && !poniendoNombre && (
+        {ficha && recargando && (
+          <RecargarTiempo
+            sessionId={ficha.id}
+            paquetes={tarifario.packages}
+            onCancelar={() => setRecargando(false)}
+            onHecha={(cuenta) => {
+              adoptarCuenta(cuenta);
+              setRecargando(false);
+              void refrescar();
+            }}
+          />
+        )}
+        {ficha && !poniendoNombre && !recargando && (
           <dl className="flex flex-col gap-3 text-[14px]">
             {mesaActual && (
               <div className="flex items-baseline justify-between gap-3 mb-2">
@@ -264,6 +303,14 @@ export function ParkMonitor() {
                 {ficha.packageName} · {ficha.contractedMinutes ? `${ficha.contractedMinutes} min` : "tiempo abierto"}
               </dd>
             </div>
+            {(estanciaFicha?.recargas.length ?? 0) > 0 && (
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-ink-3">Recargas</dt>
+                <dd className="tnum text-right text-ink">
+                  {estanciaFicha!.recargas.map((r) => `+${r.minutes} min`).join(" · ")}
+                </dd>
+              </div>
+            )}
             {ficha.hasOverdueCharge && (
               <div className="flex items-baseline justify-between gap-3">
                 <dt className="text-state-warn">Excedente hasta ahora</dt>
@@ -302,6 +349,15 @@ export function ParkMonitor() {
           </dl>
         )}
       </Sheet>
+
+      <EstanciasARevisar
+        abierto={revisando && huerfanas.length > 0}
+        onCerrar={() => setRevisando(false)}
+        huerfanas={huerfanas}
+        puedeCerrar={puedeCerrarHuerfanas}
+        formatoHora={ajustes.formatoHora}
+        onCerrada={() => void refrescar()}
+      />
 
       {ficha && (
         <VincularAMesa

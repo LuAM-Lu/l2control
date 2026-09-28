@@ -22,6 +22,7 @@ import {
   courtesyProblem,
   withCourtesy,
   registerExit,
+  registerRecharge,
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
@@ -304,5 +305,19 @@ describe("la salida de una familia (B4-3)", () => {
   test("la misma salida dos veces no duplica el excedente", () => {
     const uno = registerExit(abierta(), ["s1"], [exceso("s1", 150n)]);
     assert.equal(registerExit(uno, ["s1"], [exceso("s1", 300n)]).lines.length, 3);
+  });
+});
+
+describe("la recarga de tiempo (B4-3, F5-11)", () => {
+  const linea = { id: "rec-1", concept: "Recarga 30 minutos · AK-1", sessionId: "s1", amountMinor: 300n };
+  test("en prepago se cobra ya: la cuenta vuelve a la cola", () => {
+    const c = registerRecharge({ ...familia({ lines: [] }), mode: "PREPAGO" as const }, linea);
+    assert.equal(c.status, "POR_COBRAR");
+    assert.deepEqual(c.lines.at(-1), { id: "rec-1", concept: "Recarga 30 minutos · AK-1", kind: "PAQUETE", amount: usd("300"), paid: false, sessionId: "s1" });
+  });
+  test("en cuenta abierta se acumula, y la misma recarga no se añade dos veces", () => {
+    const c = registerRecharge({ ...familia(), mode: "CUENTA_ABIERTA" as const }, linea);
+    assert.equal(c.status, "ABIERTA");
+    assert.equal(registerRecharge(c, linea).lines.length, 3);
   });
 });

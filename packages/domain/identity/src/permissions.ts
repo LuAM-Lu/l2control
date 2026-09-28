@@ -40,6 +40,7 @@ export type Action =
   | "parque.extenderSinCobro"
   | "parque.vincularMesa"
   | "parque.verContacto"
+  | "parque.cerrarHuerfana"
   | "tasa.confirmar"
   | "catalogo.modificar"
   | "inventario.ajustar"
@@ -121,6 +122,9 @@ export const MATRIZ: Matriz = Object.freeze({
   "parque.extenderSinCobro": fila(P, A, D, D, A, D),
   "parque.vincularMesa": fila(P, P, P, P, P, D),
   "parque.verContacto": fila(P, P, D, D, P, D),
+  // F5-13, H-19: una estancia huérfana (el niño se fue sin registrar la salida) la cierra la
+  // dirección del local con un motivo, sin cobrar tiempo de más.
+  "parque.cerrarHuerfana": fila(P, P, D, D, D, D),
 
   "tasa.confirmar": fila(P, A, D, D, D, D),
   "catalogo.modificar": fila(P, D, D, D, D, D),

@@ -918,46 +918,79 @@ model Kid {
 /// quien ya está dentro. Solo avanza de ACTIVA a CERRADA; una pulsera tiene una estancia activa a la
 /// vez (I-04).
 model ParkSession {
-  id              String    @id @default(uuid(7)) @db.Uuid
-  tenantId        String    @map("tenant_id") @db.Uuid
-  branchId        String    @map("branch_id") @db.Uuid
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  branchId           String    @map("branch_id") @db.Uuid
   /// La cuenta de la familia que la paga (DEC-21).
-  accountId       String    @map("account_id") @db.Uuid
-  guardianId      String    @map("guardian_id") @db.Uuid
+  accountId          String    @map("account_id") @db.Uuid
+  guardianId         String    @map("guardian_id") @db.Uuid
   /// Nulo hasta que alguien lo nombra (DEC-28).
-  kidId           String?   @map("kid_id") @db.Uuid
-  wristbandCode   String    @map("wristband_code")
-  packageId       String    @map("package_id")
-  packageName     String    @map("package_name")
+  kidId              String?   @map("kid_id") @db.Uuid
+  wristbandCode      String    @map("wristband_code")
+  packageId          String    @map("package_id")
+  packageName        String    @map("package_name")
   /// PREPAGO o POSTPAGO (CHECK).
-  mode            String
+  mode               String
   /// Nulo = tiempo abierto (ADR-011: nunca cero).
-  durationMinutes Int?      @map("duration_minutes")
-  priceMinor      BigInt    @map("price_minor")
-  currency        String
+  durationMinutes    Int?      @map("duration_minutes")
+  priceMinor         BigInt    @map("price_minor")
+  currency           String
   /// Gracia, bloque, precio del bloque y aviso, como regían al entrar.
-  terms           Json
-  tariffVersion   Int       @map("tariff_version")
-  startedAt       DateTime  @map("started_at") @db.Timestamptz(3)
-  openedBy        String?   @map("opened_by") @db.Uuid
-  openedByName    String    @map("opened_by_name")
-  deviceId        String?   @map("device_id") @db.Uuid
-  checkInKey      String    @map("check_in_key") @db.Uuid
+  terms              Json
+  tariffVersion      Int       @map("tariff_version")
+  startedAt          DateTime  @map("started_at") @db.Timestamptz(3)
+  openedBy           String?   @map("opened_by") @db.Uuid
+  openedByName       String    @map("opened_by_name")
+  deviceId           String?   @map("device_id") @db.Uuid
+  checkInKey         String    @map("check_in_key") @db.Uuid
   /// ACTIVA o CERRADA (CHECK).
-  status          String
-  endedAt         DateTime? @map("ended_at") @db.Timestamptz(3)
-  closedBy        String?   @map("closed_by") @db.Uuid
-  closedByName    String?   @map("closed_by_name")
-  checkOutKey     String?   @map("check_out_key") @db.Uuid
+  status             String
+  endedAt            DateTime? @map("ended_at") @db.Timestamptz(3)
+  closedBy           String?   @map("closed_by") @db.Uuid
+  closedByName       String?   @map("closed_by_name")
+  checkOutKey        String?   @map("check_out_key") @db.Uuid
+  /// SALIDA (la registró la salida) o ADMINISTRATIVA (huérfana cerrada por la dirección, F5-13).
+  closureKind        String?   @map("closure_kind")
+  /// Por qué se cerró administrativamente.
+  closureReason      String?   @map("closure_reason")
+  /// D9: si lo recogió su representante (nulo en las cerradas antes de preguntarlo).
+  pickedUpByGuardian Boolean?  @map("picked_up_by_guardian")
+  /// D9: quién lo recogió, si no fue su representante.
+  pickedUpByName     String?   @map("picked_up_by_name")
 
-  branch   Branch   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  account  Account  @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  guardian Guardian @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  kid      Kid?     @relation(fields: [tenantId, kidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch     Branch                 @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account    Account                @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  guardian   Guardian               @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  kid        Kid?                   @relation(fields: [tenantId, kidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  extensions ParkSessionExtension[]
 
   @@unique([tenantId, id])
   @@index([tenantId, branchId, status])
   @@index([tenantId, accountId])
   @@index([tenantId, guardianId])
   @@map("park_session")
+}
+
+/// Una recarga de tiempo (F5-11, R2): un paquete de tiempo fijo comprado para una estancia en sala.
+/// Solo se añaden: la estancia conserva sus tramos y cada uno su cobro, en la cuenta de la familia.
+model ParkSessionExtension {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  sessionId     String   @map("session_id") @db.Uuid
+  minutes       Int
+  packageId     String   @map("package_id")
+  packageName   String   @map("package_name")
+  priceMinor    BigInt   @map("price_minor")
+  currency      String
+  operationKey  String   @map("operation_key") @db.Uuid
+  createdAt     DateTime @map("created_at") @db.Timestamptz(3)
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+
+  session ParkSession @relation(fields: [tenantId, sessionId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, sessionId])
+  @@map("park_session_extension")
 }

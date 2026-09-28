@@ -12,6 +12,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.28.0] — 2026-09-28 · Etapa 4 · Parque
+
+B4-3 · Salida y liquidación: recarga de tiempo, a quién se entrega el niño y estancias huérfanas.
+
+### Añadido
+- **Recargar tiempo** desde la ficha del niño en la sala: se elige un paquete de tiempo fijo, la
+  tarjeta vuelve a estar en tiempo y la recarga entra en la cuenta de la familia (en prepago, a la caja).
+  La ficha enseña sus recargas.
+- La salida pregunta **quién recoge** a cada familia: su representante u otra persona, con su nombre.
+  Sin marcarlo, la salida no se registra; queda constancia en la estancia.
+- **Estancias a revisar**: las que siguen abiertas desde un día anterior o llevan más de 8 horas salen
+  aparte en la sala y en Inicio, no cuentan en el aforo y la dirección (supervisión o administración)
+  las cierra con un motivo, **sin cobrar tiempo de más**.
+- En la entrada se puede poner **el nombre de cada niño** (opcional). Si la familia ya vino, se
+  proponen sus niños conocidos.
+
 ## [0.27.1] — 2026-09-28 · Etapa 4 · Parque
 
 ### Cambiado

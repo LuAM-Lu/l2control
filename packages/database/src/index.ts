@@ -26,6 +26,7 @@ export type {
   Guardian,
   Kid,
   ParkSession,
+  ParkSessionExtension,
   ParkTariffVersion,
   Product,
   ProductPrice,

@@ -29,10 +29,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.27.0 · 27 de 48 pasos.** **El parque funciona contra el servidor (B4-1 y B4-2, M-14):**
-la entrada registra en la base, la sala de cualquier equipo ve a los niños con el reloj del servidor,
-la salida liquida el tiempo de más en el servidor y la caja recibe la cuenta; B4-3 va a medias (falta
-la recarga de tiempo y las estancias huérfanas). Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.28.0 · 28 de 48 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
+a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
+servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
+huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-4 (ajustes) para cerrar el Parque. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -54,7 +55,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (74 de base, 249 de aplicación; en el dominio, 57 de tasas,
+- **Pruebas:** `pnpm verify:db` en verde (76 de base, 254 de aplicación; en el dominio, 57 de tasas,
   44 de impuestos, 91 de caja, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
@@ -116,11 +117,14 @@ y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuan
 **El parque en la base local (2026-09-28).** Al comprobar B4-1 y B4-2 entraron tres familias de prueba:
 Carolina Méndez en prepago (#0011, cobrada con $ 20; #0013, por cobrar) y Pedro Álvarez en cuenta
 abierta (#0012 y #0014, por cobrar). Salieron todos: la sala está vacía (seis estancias cerradas). Se abrió un turno más en «Prueba B4 Caja» ($ 10,00);
-equipos «Prueba B4 Entrada», «Prueba B4 Sala» y «Prueba B4 Caja» revocados.
+equipos «Prueba B4 Entrada», «Prueba B4 Sala» y «Prueba B4 Caja» revocados. Al comprobar B4-3: Laura Pérez
+tres veces en cuenta abierta (#0017 a #0019, por cobrar; una con una recarga de 1 hora) y la
+«Familia Olvido» (#0016, por cobrar), una huérfana de ayer creada con el caso de uso y cerrada por Luis
+Guerrero. #0015 (Luis Morandin, cobrada) es del cliente. Sala vacía; equipos «Prueba B43 …» revocados.
 
-**Siguiente paso (M-14):** terminar **B4-3** (recarga de tiempo, estancias huérfanas y D9, que se pregunta al
-cliente) y retomar **B3-5**, cuyo dominio, contrato, base y caso de uso ya están en `main` sin pruebas ni
-pantalla (lista en su casilla, §3). B5-1 sustituye después el sondeo de 5 s de la sala y de las cuentas.
+**Siguiente paso (M-14):** retomar **B3-5**, cuyo dominio, contrato, base y caso de uso ya están en `main`
+sin pruebas ni pantalla (lista en su casilla, §3); «Cerrar la jornada» ya puede listar los niños en sala y
+las huérfanas. Luego B5-1 (sustituye el sondeo de 5 s de la sala y de las cuentas) y B4-4.
 
 ---
 
@@ -185,7 +189,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
    **B3-3** → B3-4 → B3-5 (se cierra Caja).
-3. ~~B4-1 → B4-2~~ → **B4-3** → B3-5 → B5-1 → B4-4 (se cierran Caja y Parque). M-14 adelantó el parque
+3. ~~B4-1 → B4-2 → B4-3~~ → **B3-5** → B5-1 → B4-4 (se cierran Caja y Parque). M-14 adelantó el parque
    a B3-5 y a B5-1: mientras no haya tiempo real, la sala viaja por sondeo de 5 s.
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
 5. **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso) → Etapa 7 (staging) →
@@ -793,14 +797,40 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   la caja de otro equipo recibe las cuentas y abre la de la familia al pasar su pulsera, cobro con
   $ 20, y salida de tres familias a la vez (la ya pagada sale sin cargo). Entrada, sala y salida a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
-- [ ] **B4-3 · Salida y liquidación**: cobrar en caja o cargar a una mesa sin cobrar dos veces. Incluye
+- [x] **B4-3 · Salida y liquidación**: cobrar en caja o cargar a una mesa sin cobrar dos veces. Incluye
   la recarga de tiempo, las estancias huérfanas y el paso pulsera → cuenta en caja (F5-11, F5-13,
   F5-14).
-  *Empezado con B4-2 (2026-09-28): la salida liquida en el servidor con su reloj y las condiciones de la
+  *Hecho el 2026-09-28 (v0.28.0). La salida liquida en el servidor con su reloj y las condiciones de la
   entrada, cada familia con su operación y su clave (un reintento no cobra dos veces), y la caja abre la
-  cuenta por la pulsera. Falta: la **recarga de tiempo** (F5-11), las **estancias huérfanas** (F5-13:
-  una estancia de ayer sin salida, sin fingir que salió hoy) y D9 (un niño que sale sin su
-  representante), que se pregunta al cliente. Cargar a una mesa espera al restaurante (Etapa 6, D-RES).*
+  cuenta por la pulsera (con B4-2). **Cargar a una mesa espera al restaurante** (Etapa 6, D-RES): el
+  servidor responde NO_DISPONIBLE y la salida no lo ofrece. D9 y el umbral de las huérfanas, decididos
+  con el cliente (§4).*
+  *· Base: `20261010000000_parque_recarga_y_cierre`. `park_session_extension` (una recarga: minutos,
+  paquete, precio y su clave; solo-agregar, solo de una estancia ACTIVA de tiempo fijo). La estancia
+  dice cómo se cerró (`closure_kind` SALIDA o ADMINISTRATIVA, con motivo) y a quién se entregó
+  (`picked_up_by_guardian`, `picked_up_by_name`), y el cierre entero no se reescribe. Causas RECARGA y
+  CIERRE_ADMINISTRATIVO en la cuenta. El relleno de las cerradas suspende la RLS forzada solo mientras
+  escribe (un primer intento sin eso falló en la base local y se deshizo antes de marcarlo revertido).
+  2 pruebas nuevas.*
+  *· Dominio: `withRecharges`, `isOrphan` (de un día anterior o más de 8 horas, `ORPHAN_AFTER_MS`) y
+  `registerRecharge` (en prepago vuelve a la cola). Matriz: `parque.cerrarHuerfana` (administración y
+  supervisión).*
+  *· Contrato: la estancia con sus `recargas` (la duración ya las suma), la sala con sus `huerfanas`,
+  la salida con `recogida` (REPRESENTANTE u OTRA_PERSONA con nombre), `RecargaCommandSchema` y
+  `CierreHuerfanaCommandSchema`.*
+  *· Aplicación: `recargar` (paquete de tiempo fijo a la venta, línea `rec-…` en la cuenta, auditada),
+  `cerrarHuerfana` (sin tiempo de más; lo contratado se sigue debiendo; con motivo y auditado), la sala
+  separa las huérfanas, que no cuentan en el aforo ni se liquidan ni se recargan, y la salida guarda a
+  quién se entregó. 5 pruebas nuevas (25 del parque).*
+  *· Web: «Recargar tiempo» en la ficha del niño (y sus recargas), aviso «estancias a revisar» en la
+  sala y en Inicio con su hoja para cerrarlas con motivo, «Lo recoge: su representante u otra persona»
+  por familia en la salida (sin marcarlo no se registra), y el **nombre del niño opcional en la
+  entrada** (pedido del cliente): si la familia ya vino, se proponen sus niños conocidos.*
+  *· Comprobado con Playwright en dos equipos: entrada con un nombre, familia que vuelve con su niña
+  propuesta, recarga de 1 hora desde la sala de supervisión (la ficha dice +60 min y 120 min), la
+  huérfana de ayer cerrada con motivo, salida con «otra persona» (el botón no se habilita sin
+  marcarlo) y dos familias en la misma salida ($ 25,00 con la recarga). Entrada, sala y salida a
+  1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [ ] **B4-4 · Ajustes de la sucursal** persistidos: formato de hora, umbral de residuo, servicio y
   umbral de diferencia del arqueo ($ 1,00 o su equivalente, M-13) (F5-08b).
 
@@ -925,7 +955,7 @@ antes del cobro en servidor (orden de ejecución).
 | F0-04 | Datos maestros reales: tarifas, carta, precios y personas | Los editores ya existen para cargarlos | B7-2 |
 | F0-03 | Medidas reales del local para el plano | — | B6-1 |
 | D7 | Quién asigna los puestos de trabajo | Hoy se deducen del rol (`PUESTO_DE_ROL`) | B1-5 |
-| D9 | Un niño que sale sin su representante | Sin propuesta todavía | B4-3 |
+| ~~D9~~ | Un niño que sale sin su representante | **Decidido el 2026-09-28:** la salida pregunta «Lo recoge: su representante u otra persona» y, si es otra, su nombre; no bloquea, pero queda constancia. Y una estancia es **huérfana** si sigue abierta desde un día anterior o lleva más de 8 horas: no cuenta en el aforo y la dirección la cierra con motivo, sin tiempo de más | B4-3 |
 | D13 | Número de orden continuo o diario | Hoy es continuo (`#1049`). **B3-4 lo deja así** (el servidor lo da por sucursal); se confirma con el cliente | B3-4 |
 | — | Informes del panel ejecutivo (F9-01 a F9-07) | Después del piloto; Inicio ya enseña el día | — |
 | F-12 | ¿El teléfono entra en el objetivo? | Revisarlo en B7-3 | B7-3 |
@@ -974,6 +1004,8 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | La sala llega a los demás equipos por sondeo de 5 s, no en vivo; el monitor recalcula el estado de cada niño con cada sondeo | B5-1 |
 | «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
 | Un niño sin nombre sale en la tarjeta de la sala con su pulsera dos veces (título y subtítulo) | Al pasar por la sala |
+| El umbral de las huérfanas (8 horas) está en el dominio, no en los ajustes del local | B4-4 |
+| La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
 | Las cuentas llegan a las otras estaciones por sondeo de 5 s, no en vivo | B5-1 |
@@ -1037,7 +1069,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | Interfaz completa; turno real (B3-1) y medios de pago (B3-2) | Medios, cobro en el servidor, ventas, cortes y excepciones reales (Etapa 3) |
-| F5 · Parque | **Estancias, directorio y cronómetro en el servidor** (B4-1, B4-2); la salida liquida allí | Recarga, huérfanas y D9 (B4-3), ajustes (B4-4) y tiempo real (B5-1) |
+| F5 · Parque | **En el servidor** (B4-1 a B4-3): estancias, directorio, cronómetro, recarga, salida con D9 y huérfanas | Ajustes (B4-4) y tiempo real (B5-1) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Catálogo de productos en el servidor** (B9-1); insumos y recetas por hacer | Stock, compras, ajustes y alertas (B9-2 a B9-5) y B6-4 (recetas) |
@@ -1120,6 +1152,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   delante de B5-1. B4-1 y B4-2 hechos (v0.27.0): estancias, familias y cronómetro en el servidor; la
   entrada, la sala, la salida y la caja trabajan sobre la misma base desde equipos distintos. B4-3 a
   medias (recarga y huérfanas). Lo hecho de B3-5 entra en `main` con él.
+- **2026-09-28** · Tasa con dos decimales en todas las pantallas (v0.27.1, pedido del cliente). D9 y el
+  umbral de las huérfanas decididos con el cliente. B4-3 hecho (v0.28.0): recarga, a quién se entrega
+  el niño, huérfanas cerradas por la dirección y el nombre opcional en la entrada. Sigue B3-5.
 
 ---
 

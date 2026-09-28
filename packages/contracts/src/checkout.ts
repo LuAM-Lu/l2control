@@ -31,6 +31,7 @@ export const SettlementLineSchema = z.object({
   billableOverdueMinutes: z.number().int().min(0),
   /** Bloques de penalización iniciados que se cobran. */
   penaltyBlocks: z.number().int().min(0),
+  /** Lo contratado: el paquete y sus recargas. */
   packagePrice: MoneySchema,
   overdue: MoneySchema,
   total: MoneySchema,
@@ -66,6 +67,19 @@ export type SettlementDisposition = z.infer<typeof SettlementDispositionSchema>;
  * `idempotencyKey` no es opcional: cerrar dos veces la misma salida cobraría
  * dos veces (I-11). Es la misma protección que en la entrada.
  */
+/**
+ * A quién se entregó el niño (D9, decidido el 2026-09-28): su representante registrado u otra
+ * persona, con su nombre. No bloquea la salida, pero queda constancia.
+ */
+export const RecogidaSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("REPRESENTANTE") }),
+  z.strictObject({
+    kind: z.literal("OTRA_PERSONA"),
+    nombre: z.string().trim().min(2, "Escribe quién lo recoge").max(80),
+  }),
+]);
+export type RecogidaDto = z.infer<typeof RecogidaSchema>;
+
 export const CheckoutCommandSchema = z.object({
   idempotencyKey: IdempotencyKeySchema,
   /** Los niños de UNA familia (una cuenta): otra familia es otra salida, con su propia clave. */
@@ -75,6 +89,8 @@ export const CheckoutCommandSchema = z.object({
     .max(10, "Demasiados niños en una misma salida")
     .refine((ids) => new Set(ids).size === ids.length, "Un niño sale una vez"),
   disposition: SettlementDispositionSchema,
+  /** Quién recoge a los niños de esta familia (D9). */
+  recogida: RecogidaSchema,
 });
 export type CheckoutCommand = z.infer<typeof CheckoutCommandSchema>;
 

@@ -288,6 +288,27 @@ export function registerExit<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_
   return { ...c, closedSessionIds: cerradas, lines, status };
 }
 
+/**
+ * La cuenta después de una recarga de tiempo (F5-11): una línea más de paquete, sin pagar. En prepago
+ * se cobra ya (vuelve a la cola); en cuenta abierta se acumula como lo demás.
+ */
+export function registerRecharge<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_ABIERTA" }>(
+  c: A,
+  line: Readonly<{ id: string; concept: string; sessionId: string; amountMinor: bigint }>,
+): A {
+  if (c.lines.some((l) => l.id === line.id)) return c;
+  const nueva = {
+    id: line.id,
+    concept: line.concept.slice(0, 80),
+    kind: "PAQUETE" as const,
+    amount: { minor: String(line.amountMinor), currency: "USD" },
+    paid: false,
+    sessionId: line.sessionId,
+  };
+  const status: AccountStatus = c.mode === "PREPAGO" || c.status === "POR_COBRAR" ? "POR_COBRAR" : "ABIERTA";
+  return { ...c, lines: [...c.lines, nueva], status };
+}
+
 /* ────────────────────────────────────────────── la cortesía (F6-14, B3-4) */
 
 export type CourtesyProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_REGALADA" | "NO_REGALADA";

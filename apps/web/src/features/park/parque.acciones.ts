@@ -5,7 +5,9 @@ import type {
   CheckoutResult,
   DirectorioRepresentantesDto,
   EstanciaDto,
+  FamilyAccountDto,
   MonitorSnapshotDto,
+  RecargaResult,
   RepresentanteEncontradoDto,
   Resultado,
 } from "@l2/contracts";
@@ -66,4 +68,23 @@ export async function corregirDirectorio(entrada: unknown): Promise<Resultado<Di
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).representantes.corregir(ctx, entrada);
+}
+
+/** Recarga tiempo a un niño en sala (F5-11): un paquete de tiempo fijo más, a su cuenta. */
+export async function recargarEstancia(entrada: unknown): Promise<Resultado<RecargaResult>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).parque.recargar(ctx, entrada);
+  if (!r.ok) log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "recarga rechazada");
+  return r;
+}
+
+/** La dirección cierra una estancia huérfana con su motivo (F5-13): sin tiempo de más. */
+export async function cerrarEstanciaHuerfana(entrada: unknown): Promise<Resultado<{ account: FamilyAccountDto }>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).parque.cerrarHuerfana(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.account.id }, "estancia huérfana cerrada");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cierre de huérfana rechazado");
+  return r;
 }

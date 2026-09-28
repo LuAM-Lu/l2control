@@ -14,6 +14,9 @@ import assert from "node:assert/strict";
 
 import { fromMajor, toMajor } from "@l2/domain-money";
 import {
+  ORPHAN_AFTER_MS,
+  isOrphan,
+  withRecharges,
   admits,
   computeCapacity,
   contactKey,
@@ -281,5 +284,28 @@ describe("la entrada (B4-2)", () => {
     }
     assert.equal(contactKey("12a"), null);
     assert.equal(contactKey("1".repeat(21)), null);
+  });
+});
+
+describe("recarga y huérfanas (B4-3)", () => {
+  test("una recarga suma sus minutos al paquete; el tiempo abierto no cambia", () => {
+    assert.deepEqual(withRecharges(fixed(60), [30, 30]), fixed(120));
+    assert.equal(withRecharges(openEnded, [30]), openEnded);
+    assert.throws(() => withRecharges(fixed(60), [-5]), RangeError);
+  });
+
+  test("con la recarga, la tarjeta vuelve a estar en tiempo (F5-11)", () => {
+    const vencida = computeSessionView(sesion(), POLICY, epochMs(T0 + 63 * MIN));
+    assert.equal(vencida.status, "EN_GRACIA");
+    const recargada = computeSessionView(sesion({ duration: withRecharges(fixed(60), [30]) }), POLICY, epochMs(T0 + 63 * MIN));
+    assert.equal(recargada.status, "ACTIVA");
+  });
+
+  test("huérfana: abierta desde un día anterior, o más de 8 horas dentro", () => {
+    const hoy = epochMs(T0 + 60 * MIN);
+    assert.equal(isOrphan(epochMs(T0), epochMs(T0 + 2 * 60 * MIN), hoy), true); // de ayer
+    assert.equal(isOrphan(epochMs(T0 + 2 * 60 * MIN), epochMs(T0 + 3 * 60 * MIN), hoy), false);
+    assert.equal(isOrphan(hoy, epochMs(hoy + ORPHAN_AFTER_MS), hoy), false);
+    assert.equal(isOrphan(hoy, epochMs(hoy + ORPHAN_AFTER_MS + 1), hoy), true);
   });
 });

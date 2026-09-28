@@ -22,6 +22,7 @@ let ctxMonitora: Contexto;
 let ctxCajera: Contexto;
 let ctxMesero: Contexto;
 let ctxCocina: Contexto;
+let ctxSupervisor: Contexto;
 
 const usd = (minor: string) => ({ minor, currency: "USD" as const });
 const valor = <T,>(r: { ok: true; valor: T } | { ok: false; mensaje: string }): T => {
@@ -56,13 +57,17 @@ const salida = (sessionIds: string[], extra: Record<string, unknown> = {}) => ({
   idempotencyKey: randomUUID(),
   sessionIds,
   disposition: { kind: "CAJA" },
+  recogida: { kind: "REPRESENTANTE" },
   ...extra,
 });
-/** Deja la sala vacía, sacando a todos (entre pruebas, para que el aforo no se arrastre). */
+/** Deja la sala vacía, sacando a todos y cerrando las huérfanas (entre pruebas, para que nada se arrastre). */
 const vaciarSala = async (ahora = AHORA) => {
-  const { sessions } = valor(await local.app.parque.sala(ctxMonitora, ahora));
+  const { sessions, huerfanas } = valor(await local.app.parque.sala(ctxMonitora, ahora));
   for (const cuenta of new Set(sessions.map((s) => s.accountId))) {
     valor(await local.app.parque.salir(ctxMonitora, salida(sessions.filter((s) => s.accountId === cuenta).map((s) => s.id)), ahora));
+  }
+  for (const h of huerfanas) {
+    valor(await local.app.parque.cerrarHuerfana(local.sistema, { idempotencyKey: randomUUID(), sessionId: h.id, motivo: "Limpieza de la prueba" }, ahora));
   }
 };
 
@@ -77,6 +82,8 @@ before(async () => {
   ctxCajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), cajera, "7391");
   ctxMesero = await contextoDe(local, await crearEquipo(local, "Salón"), mesero, "3175");
   ctxCocina = await contextoDe(local, await crearEquipo(local, "Cocina"), cocinera, "8462");
+  const supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
+  ctxSupervisor = await contextoDe(local, await crearEquipo(local, "Oficina"), supervisor, "5937");
   valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
   valor(await otro.app.tarifario.publicar(otro.sistema, TARIFARIO));
 });
@@ -320,5 +327,92 @@ describe("la sala, los permisos y el aislamiento", () => {
     assert.equal(!ajena.ok && ajena.motivo, "NO_DISPONIBLE");
     assert.equal(valor(await otro.app.representantes.buscar(otro.sistema, { contacto: "0424-555-1234" })), null);
     await vaciarSala();
+  });
+});
+
+describe("la recarga de tiempo (B4-3, F5-11)", () => {
+  test("suma su tramo a la estancia y su precio a la cuenta; en prepago vuelve a la caja", async () => {
+    const r = await entrar(entrada([{}], { paymentMode: "PREPAGO" }));
+    const s = r.sessions[0]!;
+    const cmd = { idempotencyKey: randomUUID(), sessionId: s.id, packageId: "pkg-60" };
+    const rec = valor(await local.app.parque.recargar(ctxMonitora, cmd, AHORA + 55 * MIN));
+    assert.deepEqual(rec.session.duration, { kind: "fixed", minutes: 120 });
+    assert.deepEqual(rec.session.recargas.map((x) => [x.minutes, x.price.minor]), [[60, "500"]]);
+    assert.equal(rec.account.status, "POR_COBRAR");
+    assert.deepEqual(rec.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"], ["PAQUETE", "500"]]);
+    // Un reintento no recarga dos veces.
+    const otra = valor(await local.app.parque.recargar(ctxMonitora, cmd, AHORA + 56 * MIN));
+    assert.equal(otra.account.version, rec.account.version);
+    // Con la recarga, a los 125 min está en su gracia: sale sin tiempo de más, y lo contratado son $ 10,00.
+    const fuera = valor(await local.app.parque.salir(ctxMonitora, salida([s.id]), AHORA + 125 * MIN));
+    assert.equal(fuera.lines[0]!.overdue.minor, "0");
+    assert.equal(fuera.lines[0]!.packagePrice.minor, "1000");
+  });
+
+  test("el tiempo abierto no se recarga, ni con un paquete de tiempo abierto; lo que ya salió, tampoco", async () => {
+    const libre = await entrar(entrada([{ packageId: "libre" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const r1 = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: libre.sessions[0]!.id, packageId: "pkg-60" }, AHORA);
+    assert.equal(!r1.ok && r1.problemas?.[0]?.message, "TIEMPO_ABIERTO");
+    const fija = await entrar(entrada([{}]));
+    const r2 = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: fija.sessions[0]!.id, packageId: "libre" }, AHORA);
+    assert.equal(!r2.ok && r2.problemas?.[0]?.message, "PAQUETE_QUE_NO_SE_RECARGA");
+    await vaciarSala();
+    const r3 = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: fija.sessions[0]!.id, packageId: "pkg-60" }, AHORA);
+    assert.equal(!r3.ok && r3.motivo, "CONFLICTO");
+  });
+});
+
+describe("a quién se entrega el niño (B4-3, D9)", () => {
+  test("la salida deja constancia de quién lo recogió", async () => {
+    const r = await entrar(entrada([{}, {}]));
+    valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + MIN));
+    valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[1]!.id], { recogida: { kind: "OTRA_PERSONA", nombre: "Rosa Díaz (tía)" } }), AHORA + MIN));
+    const filas = await local.base.conTenant(local.sistema.tenantId, (tx) =>
+      tx.parkSession.findMany({ where: { accountId: r.account.id }, select: { id: true, pickedUpByGuardian: true, pickedUpByName: true, closureKind: true } }),
+    );
+    const de = (id: string) => filas.find((f) => f.id === id)!;
+    assert.deepEqual([de(r.sessions[0]!.id).pickedUpByGuardian, de(r.sessions[0]!.id).pickedUpByName], [true, null]);
+    assert.deepEqual([de(r.sessions[1]!.id).pickedUpByGuardian, de(r.sessions[1]!.id).pickedUpByName], [false, "Rosa Díaz (tía)"]);
+    assert.ok(filas.every((f) => f.closureKind === "SALIDA"));
+    const sinDecir = await local.app.parque.salir(ctxMonitora, { ...salida([r.sessions[0]!.id]), recogida: undefined }, AHORA);
+    assert.equal(!sinDecir.ok && sinDecir.motivo, "INVALIDO");
+  });
+});
+
+describe("las estancias huérfanas (B4-3, F5-13, H-19)", () => {
+  const AYER = AHORA - 24 * 60 * MIN;
+
+  test("una de ayer, o de más de 8 horas, sale aparte: no cuenta en el aforo ni se liquida por la salida", async () => {
+    const deAyer = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA" }), ctxMonitora, AYER);
+    const larga = await entrar(entrada([{}]), ctxMonitora, AHORA - 9 * 60 * MIN);
+    const hoy = await entrar(entrada([{}]));
+    const sala = valor(await local.app.parque.sala(ctxMonitora, AHORA + MIN));
+    assert.deepEqual(sala.sessions.map((s) => s.id), [hoy.sessions[0]!.id]);
+    assert.deepEqual(new Set(sala.huerfanas.map((s) => s.id)), new Set([deAyer.sessions[0]!.id, larga.sessions[0]!.id]));
+    // El aforo (4) solo cuenta a quien está de verdad: caben tres más.
+    await entrar(entrada([{}, {}, {}]), ctxMonitora, AHORA + 2 * MIN);
+    const salir = await local.app.parque.salir(ctxMonitora, salida([deAyer.sessions[0]!.id]), AHORA + 3 * MIN);
+    assert.equal(!salir.ok && salir.motivo, "CONFLICTO");
+    const recargar = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: larga.sessions[0]!.id, packageId: "pkg-60" }, AHORA);
+    assert.equal(!recargar.ok && recargar.motivo, "CONFLICTO");
+  });
+
+  test("la dirección la cierra con un motivo, sin tiempo de más; la monitora no puede, y una de hoy no se cierra así", async () => {
+    const { huerfanas, sessions } = valor(await local.app.parque.sala(ctxMonitora, AHORA + 5 * MIN));
+    const deAyer = huerfanas.find((h) => Date.parse(h.startedAt) < AHORA - 12 * 60 * MIN)!;
+    const cmd = { idempotencyKey: randomUUID(), sessionId: deAyer.id, motivo: "Se fue ayer sin registrar la salida" };
+    const monitora = await local.app.parque.cerrarHuerfana(ctxMonitora, cmd, AHORA + 5 * MIN);
+    assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
+    const deHoy = await local.app.parque.cerrarHuerfana(ctxSupervisor, { ...cmd, idempotencyKey: randomUUID(), sessionId: sessions[0]!.id }, AHORA + 5 * MIN);
+    assert.equal(!deHoy.ok && deHoy.motivo, "CONFLICTO");
+    const r = valor(await local.app.parque.cerrarHuerfana(ctxSupervisor, cmd, AHORA + 5 * MIN));
+    // Lo contratado ($ 5,00) se sigue debiendo; más de 24 horas «dentro» no suman ni un bloque.
+    assert.deepEqual(r.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"]]);
+    assert.equal(r.account.status, "POR_COBRAR");
+    const fila = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.parkSession.findUniqueOrThrow({ where: { id: deAyer.id } }));
+    assert.deepEqual([fila.closureKind, fila.closureReason, fila.pickedUpByGuardian], ["ADMINISTRATIVA", "Se fue ayer sin registrar la salida", null]);
+    // El reintento devuelve lo mismo.
+    assert.equal(valor(await local.app.parque.cerrarHuerfana(ctxSupervisor, cmd, AHORA + 6 * MIN)).account.version, r.account.version);
+    await vaciarSala(AHORA + 6 * MIN);
   });
 });

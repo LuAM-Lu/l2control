@@ -320,6 +320,30 @@ export function contactKey(reference: string): string | null {
   return digitos.length >= 4 && digitos.length <= 20 ? digitos : null;
 }
 
+/* -------------------------------------------------------- recarga y huérfanas */
+
+/**
+ * La duración de una estancia con sus recargas (F5-11): el paquete más cada tramo comprado. El tiempo
+ * abierto no se recarga (no tiene minutos que sumar): se devuelve tal cual.
+ */
+export function withRecharges(duration: Duration, rechargeMinutes: readonly number[]): Duration {
+  if (duration.kind === "openEnded") return duration;
+  return fixed(rechargeMinutes.reduce((total, m) => total + minutes(m), duration.minutes as number));
+}
+
+/** Pasadas estas horas dentro, una estancia es huérfana aunque sea del día (decisión del cliente, 2026-09-28). */
+export const ORPHAN_AFTER_MS = 8 * 60 * MS_PER_MINUTE;
+
+/**
+ * ¿Es huérfana (F5-13, H-19)? Una estancia que sigue abierta desde un día anterior (`startOfToday`,
+ * el inicio del día del local) o que lleva más de `ORPHAN_AFTER_MS` dentro: casi seguro el niño se
+ * fue sin que se registrara la salida. Pasa a revisión de la dirección y deja de contar en el aforo;
+ * nunca se le cobra tiempo de más por estar olvidada.
+ */
+export function isOrphan(startedAt: EpochMs, now: EpochMs, startOfToday: EpochMs): boolean {
+  return startedAt < startOfToday || now - startedAt > ORPHAN_AFTER_MS;
+}
+
 /* ------------------------------------------------------------------ formato */
 
 /** Formatea una duración como HH:MM:SS o MM:SS. Solo presentación. */

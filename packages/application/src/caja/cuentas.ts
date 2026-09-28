@@ -900,7 +900,7 @@ export async function guardarVersion(
   ctx: Contexto,
   cuenta: FamilyAccountDto,
   v: Readonly<{
-    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA";
+    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA" | "RECARGA" | "CIERRE_ADMINISTRATIVO";
     operationKey: string | null;
     ahora: number;
     quien: string;

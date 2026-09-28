@@ -12,7 +12,9 @@
  *  · **La salida** calcula el excedente con el reloj del servidor y las condiciones de la entrada
  *    (`settleAtExit`), lo añade a la cuenta (`registerExit`) y cierra las estancias.
  *  · **La sala** es la foto de los niños dentro con la hora del servidor, de la que la pantalla solo
- *    interpola (ADR-010).
+ *    interpola (ADR-010). Las **huérfanas** (de un día anterior o de más de 8 horas, F5-13) van
+ *    aparte: no cuentan en el aforo, no se cobran por olvidadas y las cierra la dirección.
+ *  · **La recarga** suma un tramo de tiempo a una estancia y su precio a la cuenta (F5-11).
  *
  * La entrada y la salida llevan su clave: un reintento devuelve lo que ya se hizo, no lo repite.
  */
@@ -20,6 +22,8 @@ import { randomUUID } from "node:crypto";
 import {
   CheckInCommandSchema,
   CheckoutCommandSchema,
+  CierreHuerfanaCommandSchema,
+  RecargaCommandSchema,
   EstanciaSchema,
   FamilyAccountSchema,
   MonitorSnapshotSchema,
@@ -34,15 +38,28 @@ import {
   type MonitorSnapshotDto,
   type ParkTermsDto,
   type PricePackageDto,
+  type RecargaResult,
   type Rechazo,
   type Resultado,
   type SettlementLineDto,
   type TarifarioDto,
 } from "@l2/contracts";
-import { registerExit } from "@l2/domain-cash";
+import { registerExit, registerRecharge } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
-import { admits, epochMs, fixed, openEnded, parkPolicy, settleAtExit, type ParkPolicy, type ParkSession as SesionDelDominio } from "@l2/domain-park";
+import {
+  admits,
+  epochMs,
+  fixed,
+  isOrphan,
+  openEnded,
+  parkPolicy,
+  settleAtExit,
+  withRecharges,
+  type Duration,
+  type ParkPolicy,
+  type ParkSession as SesionDelDominio,
+} from "@l2/domain-park";
 import type { Action } from "@l2/domain-identity";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
@@ -62,6 +79,10 @@ export interface CasosParque {
   salir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CheckoutResult>>;
   /** Pone o corrige el nombre del niño de una estancia en sala (`NombrarEstanciaCommandSchema`, DEC-28). */
   nombrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstanciaDto>>;
+  /** Recarga tiempo a una estancia en sala (`RecargaCommandSchema`, F5-11). */
+  recargar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<RecargaResult>>;
+  /** Cierra una estancia huérfana (`CierreHuerfanaCommandSchema`, F5-13): sin tiempo de más, con motivo. */
+  cerrarHuerfana(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<{ account: FamilyAccountDto }>>;
   /** Niños que entraron hoy y el mismo día de la semana pasada, en el día del local (Inicio). */
   atendidos(ctx: Contexto, ahora?: number): Promise<Resultado<{ hoy: number; semanaPasada: number }>>;
 }
@@ -81,8 +102,16 @@ const sinTarifario: Rechazo = {
   mensaje: "Esta sucursal no tiene tarifario publicado: publícalo en Ajustes → Tarifas y paquetes.",
 };
 
-/** Una estancia con lo que hace falta para contarla: su familia y su niño, si tiene nombre. */
-const CON_FAMILIA = { guardian: { select: { fullName: true } }, kid: { select: { id: true, name: true, nickname: true } } } as const;
+/** Una estancia con lo que hace falta para contarla: su familia, su niño (si tiene nombre) y sus recargas. */
+const CON_FAMILIA = {
+  guardian: { select: { fullName: true } },
+  kid: { select: { id: true, name: true, nickname: true } },
+  extensions: { select: { minutes: true, packageName: true, priceMinor: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+} as const;
+
+/** El inicio del día del local en `ahora`: lo que empezó antes es de un día anterior. */
+const inicioDelDia = (ahora: number) => startOfDay(calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL), ZONA_DEL_LOCAL);
+const huerfana = (f: { startedAt: Date }, ahora: number) => isOrphan(epochMs(f.startedAt.getTime()), epochMs(ahora), epochMs(inicioDelDia(ahora)));
 
 export function casosParque(base: Base): CasosParque {
   return {
@@ -103,7 +132,8 @@ export function casosParque(base: Base): CasosParque {
           policy: vigente.tarifario.policy,
           rate: null,
           shiftLabel: "",
-          sessions: filas.map(estanciaDe),
+          sessions: filas.filter((f) => !huerfana(f, ahora)).map(estanciaDe),
+          huerfanas: filas.filter((f) => huerfana(f, ahora)).map(estanciaDe),
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };
@@ -139,16 +169,18 @@ export function casosParque(base: Base): CasosParque {
 
           // El candado ordena dos entradas a la vez: el aforo y las pulseras se miran y se ocupan juntos.
           await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`parque:${ctx.branchId}`}, 0))::text AS candado`;
-          const activas = await tx.parkSession.findMany({ where: { branchId: ctx.branchId, status: "ACTIVA" }, select: { wristbandCode: true } });
+          const activas = await tx.parkSession.findMany({ where: { branchId: ctx.branchId, status: "ACTIVA" }, select: { wristbandCode: true, startedAt: true } });
           const ocupadas = new Set(activas.map((a) => a.wristbandCode));
           const ocupada = cmd.entries.findIndex((e) => ocupadas.has(e.wristbandCode));
           if (ocupada >= 0) {
-            // I-04: una pulsera, una estancia activa.
+            // I-04: una pulsera, una estancia activa (también una huérfana, hasta que la dirección la cierre).
             return invalido(`La pulsera ${cmd.entries[ocupada]!.wristbandCode} ya está activa en sala.`, ["entries", ocupada, "wristbandCode"], "PULSERA_ACTIVA");
           }
           const aforo = vigente.tarifario.policy.capacityLimit;
-          if (!admits(activas.length, cmd.entries.length, aforo)) {
-            const libres = Math.max(0, aforo - activas.length);
+          // Una huérfana no ocupa sitio: casi seguro ese niño ya no está (F5-13).
+          const dentro = activas.filter((a) => !huerfana(a, ahora)).length;
+          if (!admits(dentro, cmd.entries.length, aforo)) {
+            const libres = Math.max(0, aforo - dentro);
             return {
               ok: false,
               motivo: "CONFLICTO",
@@ -291,6 +323,11 @@ export function casosParque(base: Base): CasosParque {
           const enOrden = cmd.sessionIds.map((id) => porId.get(id)!);
           const salida = enOrden.find((f) => f.status !== "ACTIVA");
           if (salida) return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(salida)} ya salió.` };
+          // Una huérfana no se liquida por la salida: se le cobraría el tiempo que estuvo olvidada.
+          const olvidada = enOrden.find((f) => huerfana(f, ahora));
+          if (olvidada) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: `La estancia de ${nombreDeFila(olvidada)} está a revisar: la cierra la dirección desde Inicio.` };
+          }
           if (new Set(enOrden.map((f) => f.accountId)).size > 1) {
             return invalido("Cada familia sale por separado: registra primero una y luego la otra.", ["sessionIds"], "VARIAS_FAMILIAS");
           }
@@ -329,6 +366,10 @@ export function casosParque(base: Base): CasosParque {
               closedBy: ctx.quien?.userId ?? null,
               closedByName: quien.nombre,
               checkOutKey: cmd.idempotencyKey,
+              closureKind: "SALIDA",
+              // D9: a quién se entregó; si no fue su representante, quién.
+              pickedUpByGuardian: cmd.recogida.kind === "REPRESENTANTE",
+              pickedUpByName: cmd.recogida.kind === "OTRA_PERSONA" ? cmd.recogida.nombre : null,
             },
           });
           const excedente = lineas.reduce((acc, l) => add(acc, money(BigInt(l.overdue.minor), "USD")), money(0n, "USD"));
@@ -342,6 +383,8 @@ export function casosParque(base: Base): CasosParque {
               status: nueva.status,
               pulseras: enOrden.map((f) => f.wristbandCode),
               excedente: { minor: String(excedente.amount), currency: "USD" },
+              // El nombre de quien lo recogió queda en la estancia, no en el asiento (§7.6).
+              recogidoPorOtraPersona: cmd.recogida.kind === "OTRA_PERSONA",
             },
           });
           return { lines: lineas, account: nueva };
@@ -357,6 +400,165 @@ export function casosParque(base: Base): CasosParque {
       } catch (e) {
         // Otra operación cambió la cuenta a la vez (la caja la cobró, otra salida de un hermano): se
         // vuelve a mirar con su versión nueva.
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
+    async recargar(ctx, entrada, ahora = Date.now()) {
+      const v = RecargaCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "La recarga no se registró: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<RecargaResult | Rechazo> => {
+          const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
+          if (rechazo) return rechazo;
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.cause !== "RECARGA") return conflictoDeClave;
+            const f = await tx.parkSession.findUniqueOrThrow({ where: { id: cmd.sessionId }, include: CON_FAMILIA });
+            return { session: estanciaDe(f), account: (await vigenteDe(tx, previa.accountId))!.cuenta };
+          }
+          const f = await tx.parkSession.findFirst({ where: { id: cmd.sessionId, branchId: ctx.branchId }, include: CON_FAMILIA });
+          if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
+          if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió.` };
+          if (huerfana(f, ahora)) return { ok: false, motivo: "CONFLICTO", mensaje: "Esa estancia está a revisar: la cierra la dirección." };
+          if (f.durationMinutes === null) {
+            return invalido("El tiempo abierto no se recarga: se cobra entero al salir.", ["sessionId"], "TIEMPO_ABIERTO");
+          }
+          const vigente = await tarifarioDe(tx, ctx);
+          if (!vigente) return sinTarifario;
+          const p = vigente.tarifario.packages.find((x) => x.id === cmd.packageId && x.active);
+          if (!p || p.duration.kind !== "fixed") {
+            return invalido("Ese paquete no sirve para recargar: elige uno de tiempo fijo que esté a la venta.", ["packageId"], "PAQUETE_QUE_NO_SE_RECARGA");
+          }
+          const actual = (await vigenteDe(tx, f.accountId))!;
+          if (actual.cuenta.status === "INCOBRABLE") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de esta familia se dio por incobrable: no admite recargas." };
+          }
+          const quien = await nombreDe(tx, ctx);
+          const extension = await tx.parkSessionExtension.create({
+            data: {
+              tenantId: ctx.tenantId,
+              sessionId: f.id,
+              minutes: p.duration.minutes,
+              packageId: p.id,
+              packageName: p.name,
+              priceMinor: BigInt(p.price.minor),
+              currency: "USD",
+              operationKey: cmd.idempotencyKey,
+              createdAt: new Date(ahora),
+              createdBy: ctx.quien?.userId ?? null,
+              createdByName: quien.nombre,
+            },
+          });
+          const despues = registerRecharge(actual.cuenta, {
+            id: `rec-${extension.id}`,
+            concept: `Recarga ${p.name} · ${f.wristbandCode}`,
+            sessionId: f.id,
+            amountMinor: BigInt(p.price.minor),
+          });
+          const instante = new Date(ahora).toISOString();
+          const { pendingSince: _, ...sinEspera } = despues;
+          const nueva = FamilyAccountSchema.parse({
+            ...sinEspera,
+            version: actual.version + 1,
+            ...(despues.status === "POR_COBRAR"
+              ? { pendingSince: actual.cuenta.status === "POR_COBRAR" ? (actual.cuenta.pendingSince ?? instante) : instante }
+              : {}),
+          });
+          await guardarVersion(tx, ctx, nueva, { cause: "RECARGA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await auditar(tx, ctx, {
+            action: "parque.recarga",
+            entityType: "park_session",
+            entityId: f.id,
+            after: { minutos: p.duration.minutes, paquete: p.name, precio: p.price, cuenta: nueva.orderNumber ?? null },
+          });
+          const recargada = await tx.parkSession.findUniqueOrThrow({ where: { id: f.id }, include: CON_FAMILIA });
+          return { session: estanciaDe(recargada), account: nueva };
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "parque.recarga", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        // Otra operación cambió la cuenta a la vez: se vuelve a mirar con su versión nueva.
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
+    async cerrarHuerfana(ctx, entrada, ahora = Date.now()) {
+      const v = CierreHuerfanaCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "No se cerró: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<{ account: FamilyAccountDto } | Rechazo> => {
+          const rechazo = await exigirPermiso(tx, ctx, "parque.cerrarHuerfana");
+          if (rechazo) return rechazo;
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) return previa.cause === "CIERRE_ADMINISTRATIVO" ? { account: (await vigenteDe(tx, previa.accountId))!.cuenta } : conflictoDeClave;
+          const f = await tx.parkSession.findFirst({ where: { id: cmd.sessionId, branchId: ctx.branchId }, include: CON_FAMILIA });
+          if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
+          if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió.` };
+          if (!huerfana(f, ahora)) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa estancia no está a revisar: si el niño se va, se registra su salida." };
+          }
+          const actual = (await vigenteDe(tx, f.accountId))!;
+          // Sin tiempo de más: nadie sabe cuándo se fue (H-19). Lo contratado se sigue debiendo.
+          const despues = actual.cuenta.status === "INCOBRABLE" ? actual.cuenta : registerExit(actual.cuenta, [f.id], []);
+          const instante = new Date(ahora).toISOString();
+          const { pendingSince: _, ...sinEspera } = despues;
+          const nueva = FamilyAccountSchema.parse({
+            ...sinEspera,
+            version: actual.version + 1,
+            ...(despues.status === "POR_COBRAR"
+              ? { pendingSince: actual.cuenta.status === "POR_COBRAR" ? (actual.cuenta.pendingSince ?? instante) : instante }
+              : {}),
+          });
+          const quien = await nombreDe(tx, ctx);
+          await guardarVersion(tx, ctx, nueva, { cause: "CIERRE_ADMINISTRATIVO", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await tx.parkSession.update({
+            where: { id: f.id },
+            data: {
+              status: "CERRADA",
+              endedAt: new Date(ahora),
+              closedBy: ctx.quien?.userId ?? null,
+              closedByName: quien.nombre,
+              checkOutKey: cmd.idempotencyKey,
+              closureKind: "ADMINISTRATIVA",
+              closureReason: cmd.motivo,
+            },
+          });
+          await auditar(tx, ctx, {
+            action: "parque.cierre_administrativo",
+            entityType: "park_session",
+            entityId: f.id,
+            reason: cmd.motivo,
+            before: { entro: f.startedAt.toISOString(), pulsera: f.wristbandCode },
+            after: { cuenta: nueva.orderNumber ?? null, status: nueva.status },
+          });
+          return { account: nueva };
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "parque.cierre_administrativo", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
         if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
         const r = await intentar();
         return "ok" in r ? r : { ok: true, valor: r };
@@ -418,7 +620,13 @@ export function casosParque(base: Base): CasosParque {
 type FilaDeEstancia = Awaited<ReturnType<Transaccion["parkSession"]["findFirstOrThrow"]>> & {
   guardian: { fullName: string };
   kid: { id: string; name: string; nickname: string | null } | null;
+  extensions: { minutes: number; packageName: string; priceMinor: bigint; createdAt: Date }[];
 };
+
+/** Lo contratado: el paquete y sus recargas (F5-11). */
+function duracionDe(f: FilaDeEstancia): Duration {
+  return withRecharges(f.durationMinutes === null ? openEnded : fixed(f.durationMinutes), f.extensions.map((e) => e.minutes));
+}
 
 /** El tarifario vigente de la sucursal, revalidado; `null` si nunca se publicó (o ya no se entiende). */
 async function tarifarioDe(tx: Transaccion, ctx: Contexto): Promise<{ version: number; tarifario: TarifarioDto } | null> {
@@ -434,7 +642,7 @@ function estanciaDe(f: FilaDeEstancia): EstanciaDto {
     wristbandCode: f.wristbandCode,
     kid: f.kid ? { id: f.kid.id, name: f.kid.name, ...(f.kid.nickname ? { nickname: f.kid.nickname } : {}) } : {},
     mode: f.mode,
-    duration: f.durationMinutes === null ? { kind: "openEnded" } : { kind: "fixed", minutes: f.durationMinutes },
+    duration: duracionDe(f),
     startedAt: f.startedAt.toISOString(),
     packageId: f.packageId,
     packagePrice: { minor: String(f.priceMinor), currency: "USD" },
@@ -443,6 +651,12 @@ function estanciaDe(f: FilaDeEstancia): EstanciaDto {
     guardianName: f.guardian.fullName,
     packageName: f.packageName,
     terms: f.terms,
+    recargas: f.extensions.map((e) => ({
+      minutes: e.minutes,
+      packageName: e.packageName,
+      price: { minor: String(e.priceMinor), currency: "USD" },
+      at: e.createdAt.toISOString(),
+    })),
   });
 }
 
@@ -459,7 +673,7 @@ function paraMedir(f: FilaDeEstancia): { sesion: SesionDelDominio; politica: Par
       id: f.id,
       wristbandCode: f.wristbandCode,
       mode: f.mode as "PREPAGO" | "POSTPAGO",
-      duration: f.durationMinutes === null ? openEnded : fixed(f.durationMinutes),
+      duration: duracionDe(f),
       startedAt: epochMs(f.startedAt.getTime()),
     },
     politica: parkPolicy({
@@ -475,7 +689,8 @@ function paraMedir(f: FilaDeEstancia): { sesion: SesionDelDominio; politica: Par
 function liquidacionDe(f: FilaDeEstancia, hasta: number): SettlementLineDto {
   const { sesion, politica } = paraMedir(f);
   const s = settleAtExit(sesion, politica, epochMs(hasta));
-  const paquete = money(f.priceMinor, "USD");
+  // Lo contratado: el paquete y cada recarga, que ya están en la cuenta como líneas propias.
+  const paquete = f.extensions.reduce((acc, e) => add(acc, money(e.priceMinor, "USD")), money(f.priceMinor, "USD"));
   return {
     sessionId: f.id,
     wristbandCode: f.wristbandCode,

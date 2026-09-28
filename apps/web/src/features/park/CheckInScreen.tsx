@@ -54,7 +54,9 @@ import { puedeAbrirRuta } from "../identity/visibilidad.ts";
  *  · El paquete viene preseleccionado con el más común, y se cambia en un
  *    toque sobre un botón grande, no en un desplegable.
  *  · Al representante se le busca por teléfono; si ya vino, no se vuelve a
- *    teclear nada. El nombre de los niños no se pide en la puerta para ahorrar tiempo.
+ *    teclear nada. El nombre de cada niño es **opcional** (DEC-28): se puede
+ *    poner aquí mismo si hay tiempo, y si la familia ya vino se proponen sus
+ *    niños conocidos; si no, se pone después desde la sala.
  *  · Una sola pantalla. Ningún diálogo, ninguna navegación intermedia.
  *
  * Desde B4-2 registra en el servidor: él abre las estancias con su hora, pone el precio del tarifario
@@ -66,7 +68,13 @@ type Entrada = {
   uid: string;
   wristbandCode: string;
   packageId: string;
+  /** Opcional (DEC-28): vacío, el niño entra solo con su pulsera. */
+  nombre: string;
 };
+
+/** Un nombre como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
+const claveDeNombre = (n: string) =>
+  n.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ");
 
 const NUEVO_UID = () => globalThis.crypto.randomUUID();
 
@@ -168,7 +176,7 @@ export function CheckInScreen() {
       const uid = NUEVO_UID();
       setEntradas((prev) => [
         ...prev,
-        { uid, wristbandCode: limpio, packageId: defaultPackageId },
+        { uid, wristbandCode: limpio, packageId: defaultPackageId, nombre: "" },
       ]);
       setAviso(null);
       // El foco salta solo al teléfono tras la primera pulsera si está vacío.
@@ -223,6 +231,19 @@ export function CheckInScreen() {
     !capacidad.isFull &&
     !enviando;
 
+  /**
+   * El niño de una fila: uno que la familia ya tiene en el directorio (por su nombre), uno nuevo con
+   * el nombre escrito, o ninguno todavía (DEC-28).
+   */
+  function ninoDe(nombre: string): { id: string } | { name: string } | Record<string, never> {
+    const limpio = nombre.trim();
+    if (!limpio) return {};
+    const conocido = encontrado?.kids.find(
+      (k) => claveDeNombre(k.name) === claveDeNombre(limpio) || (k.nickname && claveDeNombre(k.nickname) === claveDeNombre(limpio)),
+    );
+    return conocido ? { id: conocido.id } : { name: limpio };
+  }
+
   async function registrar() {
     clave.current ??= NUEVO_UID();
     // El mismo contrato que validará el servidor. Si algo no cuadra, se ve
@@ -232,7 +253,7 @@ export function CheckInScreen() {
       paymentMode: modo,
       entries: entradas.map((e) => ({
         wristbandCode: e.wristbandCode,
-        kid: {},
+        kid: ninoDe(e.nombre),
         packageId: e.packageId,
       })),
       ...(encontrado
@@ -375,7 +396,7 @@ export function CheckInScreen() {
               <ScanPrompt
                 icon={<ScanLine size={40} aria-hidden="true" />}
                 titulo="Pasa la primera pulsera"
-                detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila y el nombre del niño no hace falta aquí — se le pone después, desde la sala, si hace falta."
+                detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila; el nombre del niño es opcional: se puede poner aquí o después, desde la sala."
                 pasos={[
                   "Pasa las pulseras",
                   "Elige el paquete",
@@ -385,6 +406,13 @@ export function CheckInScreen() {
               />
             ) : (
               <ul className="flex flex-col gap-3">
+                {encontrado && encontrado.kids.length > 0 && (
+                  <datalist id="ninos-de-la-familia">
+                    {encontrado.kids.map((k) => (
+                      <option key={k.id} value={k.name} />
+                    ))}
+                  </datalist>
+                )}
                 {entradas.map((e, i) => (
                   <li
                     key={e.uid}
@@ -419,6 +447,17 @@ export function CheckInScreen() {
                         <X size={16} aria-hidden="true" />
                       </button>
                     </div>
+                    {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. */}
+                    <input
+                      aria-label={`Nombre del niño de la pulsera ${e.wristbandCode} (opcional)`}
+                      value={e.nombre}
+                      onChange={(ev) => actualizar(e.uid, { nombre: ev.target.value })}
+                      placeholder={encontrado && encontrado.kids.length > 0 ? `Nombre (opcional): ${encontrado.kids.map((k) => k.nickname ?? k.name).join(", ")}` : "Nombre del niño (opcional)"}
+                      list={encontrado && encontrado.kids.length > 0 ? "ninos-de-la-familia" : undefined}
+                      autoComplete="off"
+                      maxLength={60}
+                      className="mt-3 min-h-12 w-full rounded-[var(--radius-control)] border border-line bg-base px-3 text-[14px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-brand"
+                    />
                   </li>
                 ))}
               </ul>

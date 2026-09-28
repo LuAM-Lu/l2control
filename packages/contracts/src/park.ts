@@ -241,6 +241,18 @@ export const EstanciaSchema = ParkSessionSchema.extend({
   guardianName: z.string().trim().min(2).max(80),
   packageName: z.string().trim().min(1).max(40),
   terms: ParkTermsSchema,
+  /**
+   * Las recargas de tiempo (F5-11), en orden. `duration` ya las incluye: es lo contratado entero. Se
+   * listan porque la estancia conserva sus tramos y cada uno su cobro.
+   */
+  recargas: z.array(
+    z.object({
+      minutes: z.number().int().positive(),
+      packageName: z.string().trim().min(1).max(40),
+      price: MoneySchema,
+      at: TimestampSchema,
+    }),
+  ),
 });
 export type EstanciaDto = z.infer<typeof EstanciaSchema>;
 
@@ -258,6 +270,11 @@ export const MonitorSnapshotSchema = z.object({
   rate: ExchangeRateSchema.nullable(),
   /** Los niños en sala, con su cuenta y sus condiciones (B4-2). */
   sessions: z.array(EstanciaSchema),
+  /**
+   * Estancias huérfanas (F5-13, H-19): siguen abiertas desde un día anterior o llevan más de 8 horas.
+   * No cuentan en el aforo ni se les cobra tiempo de más: esperan la revisión de la dirección.
+   */
+  huerfanas: z.array(EstanciaSchema),
   shiftLabel: z.string(),
 });
 export type MonitorSnapshotDto = z.infer<typeof MonitorSnapshotSchema>;
@@ -409,3 +426,31 @@ export const RepresentanteEncontradoSchema = z.object({
   kids: z.array(KidSchema.extend({ id: IdSchema, name: z.string().trim().min(2).max(60) })),
 });
 export type RepresentanteEncontradoDto = z.infer<typeof RepresentanteEncontradoSchema>;
+
+/**
+ * Recargar tiempo a un niño en sala (F5-11, R2): un paquete de tiempo fijo más. La estancia conserva
+ * sus tramos y la recarga entra en la cuenta de la familia; en prepago, a la caja.
+ */
+export const RecargaCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  sessionId: IdSchema,
+  packageId: IdSchema,
+});
+export type RecargaCommand = z.infer<typeof RecargaCommandSchema>;
+
+export const RecargaResultSchema = z.object({
+  session: EstanciaSchema,
+  account: FamilyAccountSchema,
+});
+export type RecargaResult = z.infer<typeof RecargaResultSchema>;
+
+/**
+ * Cerrar una estancia huérfana (F5-13, H-19): la dirección la da por terminada con un motivo. No se
+ * cobra tiempo de más (nadie sabe cuándo se fue) y no se dice quién lo recogió (nadie lo vio salir).
+ */
+export const CierreHuerfanaCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  sessionId: IdSchema,
+  motivo: z.string().trim().min(5, "Explica qué pasó (al menos 5 letras)").max(200),
+});
+export type CierreHuerfanaCommand = z.infer<typeof CierreHuerfanaCommandSchema>;

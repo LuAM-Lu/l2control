@@ -46,7 +46,8 @@ export function buildCheckoutPreview(
       const terms = toParkTerms(dto.terms);
       const view = computeSessionView(session, terms, now);
       const desglose = computeOverdueBreakdown(view, terms);
-      const packagePrice = toMoney(dto.packagePrice);
+      // Lo contratado: el paquete y sus recargas (F5-11), como lo liquida el servidor.
+      const packagePrice = dto.recargas.reduce((acc, r) => add(acc, toMoney(r.price)), toMoney(dto.packagePrice));
 
       return {
         sessionId: dto.id,

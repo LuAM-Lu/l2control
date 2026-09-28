@@ -389,3 +389,22 @@ describe("una estancia puede entrar sin nombre (DEC-28)", () => {
     assert.equal(sinContacto.success, false);
   });
 });
+
+describe("salida, recarga y huérfanas (B4-3)", () => {
+  test("D9: la salida dice a quién se entrega; otra persona, con su nombre", async () => {
+    const { CheckoutCommandSchema } = await import("./checkout.ts");
+    const base = { idempotencyKey: UUID, sessionIds: ["s1"], disposition: { kind: "CAJA" } };
+    assert.equal(CheckoutCommandSchema.safeParse(base).success, false);
+    assert.ok(CheckoutCommandSchema.safeParse({ ...base, recogida: { kind: "REPRESENTANTE" } }).success);
+    assert.equal(CheckoutCommandSchema.safeParse({ ...base, recogida: { kind: "OTRA_PERSONA" } }).success, false);
+    assert.ok(CheckoutCommandSchema.safeParse({ ...base, recogida: { kind: "OTRA_PERSONA", nombre: "Rosa Díaz" } }).success);
+    assert.equal(CheckoutCommandSchema.safeParse({ ...base, sessionIds: ["s1", "s1"], recogida: { kind: "REPRESENTANTE" } }).success, false);
+  });
+
+  test("cerrar una huérfana exige explicar qué pasó", async () => {
+    const { CierreHuerfanaCommandSchema, RecargaCommandSchema } = await import("./park.ts");
+    assert.equal(CierreHuerfanaCommandSchema.safeParse({ idempotencyKey: UUID, sessionId: "s1", motivo: "ok" }).success, false);
+    assert.ok(CierreHuerfanaCommandSchema.safeParse({ idempotencyKey: UUID, sessionId: "s1", motivo: "Se fue sin registrar la salida" }).success);
+    assert.equal(RecargaCommandSchema.safeParse({ idempotencyKey: UUID, sessionId: "s1" }).success, false);
+  });
+});

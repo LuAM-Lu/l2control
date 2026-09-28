@@ -24,6 +24,7 @@ import { MoneyDisplay, cn } from "@l2/ui";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { panelVivo, reloj, type Alerta } from "./vivo.ts";
+import { useSala } from "../park/SalaProvider.tsx";
 import { useTasas, useTasaVigente } from "../cash/TasasProvider.tsx";
 import { useTarifario } from "../park/TarifarioProvider";
 import { rutaSeccion } from "./navigation.ts";
@@ -71,6 +72,7 @@ export function EnVivo({
   const { cuentas } = useCuentas();
   const ahora = useAhoraLocal();
   const { tarifario } = useTarifario();
+  const { sala } = useSala();
   const v = panelVivo({
     estado: op.estado,
     cuentas,
@@ -80,6 +82,7 @@ export function EnVivo({
     enServicio,
     tasaConfirmada: tasa !== null,
     alertasDeTasa: historial.alertas,
+    huerfanas: sala?.huerfanas.length ?? 0,
   });
 
   /**

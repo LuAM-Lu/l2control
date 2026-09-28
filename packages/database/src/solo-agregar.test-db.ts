@@ -928,7 +928,7 @@ test("una pulsera tiene una estancia activa a la vez; cerrada, el código se lib
   const s = await estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" });
   await assert.rejects(estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" }), por("DUPLICADO"));
   await app.conTenant(A.tenant, (tx) =>
-    tx.parkSession.update({ where: { id: s.id }, data: { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID() } }),
+    tx.parkSession.update({ where: { id: s.id }, data: { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID(), closureKind: "SALIDA", pickedUpByGuardian: true } }),
   );
   await estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" });
 });
@@ -949,9 +949,10 @@ test("una estancia solo se nombra y se cierra: lo contratado y el cierre no se r
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { kidId: otro.id } })), SOLO_AGREGAR);
   // Cerrar a medias no vale; cerrada, no se reabre ni cambia su cierre.
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { status: "CERRADA" } })), por("RESTRICCION"));
-  const fin = { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID() };
+  const fin = { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID(), closureKind: "SALIDA", pickedUpByGuardian: true };
   await app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: fin }));
-  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { status: "ACTIVA", endedAt: null, closedByName: null, checkOutKey: null } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { status: "ACTIVA", endedAt: null, closedByName: null, checkOutKey: null, closureKind: null, pickedUpByGuardian: null } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { pickedUpByGuardian: false, pickedUpByName: "Otra persona" } })), SOLO_AGREGAR);
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { endedAt: new Date(Date.now() + 5000) } })), SOLO_AGREGAR);
 });
 
@@ -981,4 +982,67 @@ test("la entrada y la salida cambian la cuenta con su operación", async () => {
   await version(A, c.id, { cause: "ENTRADA", operationKey: randomUUID() });
   await version(A, c.id, { version: 2, cause: "SALIDA", operationKey: randomUUID() });
   await assert.rejects(version(A, c.id, { version: 3, cause: "SALIDA" }), por("RESTRICCION")); // sin su operación
+});
+
+const cerrar = (t: { tenant: string }, id: string, extra: Record<string, unknown>) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.parkSession.update({
+      where: { id },
+      data: { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID(), ...extra } as never,
+    }),
+  );
+
+test("D9: una salida dice quién recogió al niño; un cierre administrativo dice por qué y nada más (B4-3)", async () => {
+  const g = await representante(A, "04161230010");
+  const c = await cuenta(A);
+  const malos: Record<string, unknown>[] = [
+    {}, // cerrada sin decir cómo
+    { closureKind: "PERDIDA" },
+    { closureKind: "SALIDA", pickedUpByGuardian: false }, // otra persona, sin nombre
+    { closureKind: "SALIDA", pickedUpByGuardian: true, pickedUpByName: "Tía Rosa" }, // su representante no lleva otro nombre
+    { closureKind: "ADMINISTRATIVA" }, // sin motivo
+    { closureKind: "ADMINISTRATIVA", closureReason: "Se fue sin avisar", pickedUpByGuardian: true }, // nadie lo vio salir
+    { closureKind: "SALIDA", pickedUpByGuardian: true, closureReason: "Motivo de más" },
+  ];
+  for (const extra of malos) {
+    const s = await estancia(A, c.id, g.id);
+    await assert.rejects(cerrar(A, s.id, extra), por("RESTRICCION"), JSON.stringify(extra));
+  }
+  for (const extra of [
+    { closureKind: "SALIDA", pickedUpByGuardian: true },
+    { closureKind: "SALIDA", pickedUpByGuardian: false, pickedUpByName: "Rosa Díaz (tía)" },
+    { closureKind: "ADMINISTRATIVA", closureReason: "Se fue sin registrar la salida" },
+  ]) {
+    await cerrar(A, (await estancia(A, c.id, g.id)).id, extra);
+  }
+  // Activa, no dice quién la recogió.
+  await assert.rejects(estancia(A, c.id, g.id, { pickedUpByGuardian: true }), por("RESTRICCION"));
+});
+
+test("una recarga es un tramo más de una estancia activa de tiempo fijo, y no se reescribe (F5-11)", async () => {
+  const g = await representante(A, "04161230011");
+  const c = await cuenta(A);
+  const recarga = (sessionId: string, extra: Record<string, unknown> = {}) =>
+    app.conTenant(A.tenant, (tx) =>
+      tx.parkSessionExtension.create({
+        data: {
+          tenantId: A.tenant, sessionId, minutes: 30, packageId: "p30", packageName: "30 minutos", priceMinor: 300n, currency: "USD",
+          operationKey: randomUUID(), createdAt: new Date(), createdByName: "Ana Rojas", ...extra,
+        } as never,
+      }),
+    );
+  const s = await estancia(A, c.id, g.id);
+  const r = await recarga(s.id);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSessionExtension.update({ where: { id: r.id }, data: { minutes: 90 } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSessionExtension.delete({ where: { id: r.id } })), SOLO_AGREGAR);
+  await assert.rejects(recarga(s.id, { operationKey: r.operationKey }), por("DUPLICADO"));
+  for (const extra of [{ minutes: 0 }, { priceMinor: 0n }, { currency: "VES" }]) {
+    await assert.rejects(recarga(s.id, extra), por("RESTRICCION"), Object.keys(extra)[0]);
+  }
+  const libre = await estancia(A, c.id, g.id, { durationMinutes: null, mode: "POSTPAGO" });
+  await assert.rejects(recarga(libre.id), por("RESTRICCION")); // el tiempo abierto no se recarga
+  await cerrar(A, s.id, { closureKind: "SALIDA", pickedUpByGuardian: true });
+  await assert.rejects(recarga(s.id), por("RESTRICCION")); // ya salió
+  const deB = await estancia(B, (await cuenta(B)).id, (await representante(B, "04161230011")).id);
+  await assert.rejects(recarga(deB.id), por("REFERENCIA_INVALIDA"));
 });

@@ -122,6 +122,7 @@ export function panelVivo({
   enServicio,
   tasaConfirmada,
   alertasDeTasa = [],
+  huerfanas = 0,
 }: {
   estado: EstadoLocal;
   cuentas: readonly FamilyAccountDto[];
@@ -134,6 +135,8 @@ export function panelVivo({
   tasaConfirmada: boolean;
   /** Lo que el servidor dice de la tasa: una del BCV que no se aplicó sola, o la que falta (ADR-019). */
   alertasDeTasa?: readonly { mensaje: string; tono: "warn" | "crit" }[];
+  /** Estancias a revisar (F5-13): abiertas desde otro día o con más de 8 horas. */
+  huerfanas?: number;
 }): PanelVivo {
   /* ── parque ── */
   const reglas = toParkPolicy(politica);
@@ -154,6 +157,9 @@ export function panelVivo({
       // aviso de «va a pasar» es ruido encima del que importa.
       ...(vencidas === 0 && porVencer > 0
         ? [aviso(`${porVencer} por vencer en los próximos minutos`, "warn", "/monitor", "Ver la sala")]
+        : []),
+      ...(huerfanas > 0
+        ? [aviso(`${huerfanas} ${huerfanas === 1 ? "estancia" : "estancias"} a revisar: sin salida registrada`, "warn", "/monitor", "Revisar")]
         : []),
       ...(estado.sesiones.length >= politica.capacityLimit
         ? [aviso("Aforo lleno", "warn", "/entrada", "Ver la entrada")]
