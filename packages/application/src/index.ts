@@ -8,6 +8,8 @@
  */
 import { abrirBase } from "@l2/database";
 import { casosTarifario, type CasosTarifario } from "./park/tarifario.ts";
+import { casosParque, type CasosParque } from "./park/parque.ts";
+import { casosRepresentantes, type CasosRepresentantes } from "./park/representantes.ts";
 import { casosSucursal, type CasosSucursal } from "./sucursal/sucursal.ts";
 import { casosAuditoria, type CasosAuditoria } from "./auditoria/consultas.ts";
 import { casosDispositivos, type CasosDispositivos } from "./identidad/dispositivos.ts";
@@ -29,6 +31,8 @@ import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
 
 export type { Contexto } from "./contexto.ts";
 export type { CasosTarifario } from "./park/tarifario.ts";
+export type { CasosParque } from "./park/parque.ts";
+export type { CasosRepresentantes } from "./park/representantes.ts";
 export type { CasosSucursal } from "./sucursal/sucursal.ts";
 export type { CasosAuditoria, FiltroAuditoria } from "./auditoria/consultas.ts";
 export type { AccionAuditada } from "./auditoria/auditar.ts";
@@ -59,6 +63,8 @@ export {
 
 export interface Aplicacion {
   readonly tarifario: CasosTarifario;
+  readonly parque: CasosParque;
+  readonly representantes: CasosRepresentantes;
   readonly sucursal: CasosSucursal;
   readonly auditoria: CasosAuditoria;
   readonly dispositivos: CasosDispositivos;
@@ -96,6 +102,8 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
   const sesiones = casosSesiones(base, dispositivos);
   return {
     tarifario: casosTarifario(base),
+    parque: casosParque(base),
+    representantes: casosRepresentantes(base),
     sucursal: casosSucursal(base),
     auditoria: casosAuditoria(base),
     dispositivos,

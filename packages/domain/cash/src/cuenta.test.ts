@@ -21,6 +21,7 @@ import {
   markUncollectible,
   courtesyProblem,
   withCourtesy,
+  registerExit,
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
@@ -229,7 +230,10 @@ describe("qué cambio acepta el servidor", () => {
     const c = familia();
     assert.equal(accountChangeProblem(c, { ...c, kind: "MESA" }, productAt)?.problem, "TIPO_CAMBIADO");
     assert.equal(accountChangeProblem(c, { ...c, sessionIds: ["s1"] }, productAt)?.problem, "ESTANCIA_QUITADA");
-    assert.equal(accountChangeProblem(c, { ...c, sessionIds: ["s1", "s2", "s3"] }, productAt), null);
+    // A una familia los niños los mete la entrada (B4-2); a una mesa se le vinculan desde el salón.
+    assert.equal(accountChangeProblem(c, { ...c, sessionIds: ["s1", "s2", "s3"] }, productAt)?.problem, "ESTANCIAS_DESDE_LA_PANTALLA");
+    const mesa: AccountDoc = { kind: "MESA", status: "ABIERTA", tableId: "m1", sessionIds: [], closedSessionIds: [], lines: [] };
+    assert.equal(accountChangeProblem(mesa, { ...mesa, sessionIds: ["s1"] }, productAt), null);
   });
 });
 
@@ -249,5 +253,56 @@ describe("el cierre de la jornada (B3-5, D-JOR)", () => {
     assert.deepEqual(incobrable.lines, c.lines);
     assert.equal(accountChangeProblem(c, incobrable, productAt)?.problem, "CUENTA_INCOBRABLE");
     assert.equal(accountChangeProblem(incobrable, { ...incobrable, status: "ABIERTA" }, productAt)?.problem, "CUENTA_INCOBRABLE");
+  });
+});
+
+describe("el parque es del parque (B4-2, B4-3)", () => {
+  test("una pantalla no abre la cuenta de una familia", () => {
+    assert.equal(accountChangeProblem(null, familia(), productAt)?.problem, "FAMILIA_DESDE_LA_PANTALLA");
+  });
+
+  test("ni mete ni saca niños de ella", () => {
+    const c = familia();
+    assert.equal(accountChangeProblem(c, { ...c, closedSessionIds: ["s1"] }, productAt)?.problem, "ESTANCIAS_DESDE_LA_PANTALLA");
+    assert.equal(accountChangeProblem(c, { ...c, sessionIds: [...c.sessionIds, "s3"] }, productAt)?.problem, "ESTANCIAS_DESDE_LA_PANTALLA");
+  });
+
+  test("ni le pone paquete ni tiempo de más; lo de mostrador, sí", () => {
+    const c = familia();
+    const conExcedente = { ...c, lines: [...c.lines, linea("exc-s1", { kind: "EXCEDENTE", sessionId: "s1", amount: usd("1") })] };
+    assert.equal(accountChangeProblem(c, conExcedente, productAt)?.problem, "PARQUE_DESDE_LA_PANTALLA");
+    assert.equal(accountChangeProblem(c, { ...c, lines: [...c.lines, agua("x")] }, productAt), null);
+  });
+});
+
+describe("la salida de una familia (B4-3)", () => {
+  const prepago = (extra: Partial<AccountDoc> = {}) => ({ ...familia(extra), mode: "PREPAGO" as const });
+  const abierta = (extra: Partial<AccountDoc> = {}) => ({ ...familia(extra), mode: "CUENTA_ABIERTA" as const });
+  const pagadas = [linea("l1", { sessionId: "s1", paid: true }), linea("l2", { sessionId: "s2", paid: true })];
+  const exceso = (sessionId: string, amountMinor: bigint) => ({ sessionId, concept: `Tiempo de más · ${sessionId}`, amountMinor });
+
+  test("prepago sin excedente: sale sin cargo y queda cobrada con el último", () => {
+    const uno = registerExit(prepago({ lines: pagadas }), ["s1"], []);
+    assert.equal(uno.status, "ABIERTA");
+    assert.equal(registerExit(uno, ["s2"], [exceso("s2", 0n)]).status, "COBRADA");
+  });
+
+  test("prepago con excedente: se cobra ya, aunque el hermano siga dentro", () => {
+    const c = registerExit(prepago({ lines: pagadas }), ["s1"], [exceso("s1", 150n)]);
+    assert.equal(c.status, "POR_COBRAR");
+    assert.deepEqual(c.lines.at(-1), { id: "exc-s1", concept: "Tiempo de más · s1", kind: "EXCEDENTE", amount: usd("150"), paid: false, sessionId: "s1" });
+  });
+
+  test("cuenta abierta: se acumula y pasa a la caja con el último", () => {
+    const uno = registerExit(abierta(), ["s1"], [exceso("s1", 150n)]);
+    assert.equal(uno.status, "ABIERTA");
+    const dos = registerExit(uno, ["s2"], []);
+    assert.equal(dos.status, "POR_COBRAR");
+    assert.equal(chargeableLines(dos).length, 3);
+  });
+
+  test("la misma salida dos veces no duplica el excedente", () => {
+    const uno = registerExit(abierta(), ["s1"], [exceso("s1", 150n)]);
+    assert.equal(registerExit(uno, ["s1"], [exceso("s1", 300n)]).lines.length, 3);
   });
 });

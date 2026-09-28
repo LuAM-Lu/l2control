@@ -14,7 +14,10 @@ import assert from "node:assert/strict";
 
 import { fromMajor, toMajor } from "@l2/domain-money";
 import {
+  admits,
   computeCapacity,
+  contactKey,
+  settleAtExit,
   computeOverdueBreakdown,
   computeOverdueCharge,
   computeSessionView,
@@ -238,5 +241,45 @@ describe("formato de duración", () => {
 
   test("nunca devuelve tiempos negativos", () => {
     assert.equal(formatDuration(-5000), "00:00");
+  });
+});
+
+describe("la salida (B4-3)", () => {
+  test("sin pasarse, sale sin excedente y con sus minutos redondeados hacia arriba", () => {
+    const r = settleAtExit(sesion(), POLICY, epochMs(T0 + 59 * MIN + 1));
+    assert.equal(r.consumedMinutes, 60);
+    assert.equal(r.penaltyBlocks, 0);
+    assert.equal(toMajor(r.overdue), "0.00");
+  });
+
+  test("dentro de la gracia no se cobra; pasada, un bloque iniciado se cobra entero", () => {
+    assert.equal(settleAtExit(sesion(), POLICY, epochMs(T0 + 65 * MIN)).penaltyBlocks, 0);
+    const r = settleAtExit(sesion(), POLICY, epochMs(T0 + 72 * MIN));
+    assert.equal(r.billableOverdueMinutes, 7);
+    assert.equal(r.penaltyBlocks, 1);
+    assert.equal(toMajor(r.overdue), "1.50");
+  });
+
+  test("el tiempo abierto no tiene excedente", () => {
+    const r = settleAtExit(sesion({ duration: openEnded }), POLICY, epochMs(T0 + 300 * MIN));
+    assert.equal(r.consumedMinutes, 300);
+    assert.equal(toMajor(r.overdue), "0.00");
+  });
+});
+
+describe("la entrada (B4-2)", () => {
+  test("el aforo se puede llenar, no pasar; una entrada no entra a medias", () => {
+    assert.equal(admits(28, 2, 30), true);
+    assert.equal(admits(29, 2, 30), false);
+    assert.equal(admits(30, 1, 30), false);
+    assert.throws(() => admits(0, 0, 30), RangeError);
+  });
+
+  test("un teléfono escrito de cualquier manera es la misma familia", () => {
+    for (const t of ["0412-1234567", "0412 123.45.67", "+58 412 1234567", "(0412)1234567"]) {
+      assert.equal(contactKey(t), "04121234567", t);
+    }
+    assert.equal(contactKey("12a"), null);
+    assert.equal(contactKey("1".repeat(21)), null);
   });
 });

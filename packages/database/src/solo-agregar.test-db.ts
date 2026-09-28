@@ -882,3 +882,103 @@ test("una venta de un turno con corte Z no se anula; una cuenta puede quedar inc
   const content = { id: c.id, status: "INCOBRABLE" };
   await version(A, c.id, { version: 2, status: "INCOBRABLE", content, cause: "INCOBRABLE", operationKey: randomUUID() });
 });
+
+/* ── El parque (B4-1, B4-2) ───────────────────────────────────────────────────── */
+
+const representante = (t: { tenant: string }, contactKey: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.guardian.create({
+      data: { tenantId: t.tenant, fullName: "María Pérez", contactReference: "0412-1234567", contactKey, createdAt: new Date(), ...extra } as never,
+    }),
+  );
+const nino = (t: { tenant: string }, guardianId: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) => tx.kid.create({ data: { tenantId: t.tenant, guardianId, name: "Santiago", createdAt: new Date(), ...extra } as never }));
+const estancia = (t: { tenant: string; sucursal: string }, accountId: string, guardianId: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.parkSession.create({
+      data: {
+        tenantId: t.tenant, branchId: t.sucursal, accountId, guardianId, wristbandCode: `P-${lineaLibre++}`,
+        packageId: "p60", packageName: "1 hora", mode: "PREPAGO", durationMinutes: 60, priceMinor: 500n, currency: "USD",
+        terms: { graceMinutes: 5 }, tariffVersion: 1, startedAt: new Date(), openedByName: "Ana Rojas",
+        checkInKey: randomUUID(), status: "ACTIVA", ...extra,
+      } as never,
+    }),
+  );
+
+test("el directorio se corrige pero no se borra, y un contacto es una familia por local", async () => {
+  const g = await representante(A, "04121234567");
+  await assert.rejects(representante(A, "04121234567"), por("DUPLICADO"));
+  await representante(B, "04121234567"); // otro local, su propio directorio
+  for (const extra of [{ contactKey: "0412-1234567" }, { fullName: " " }, { contactReference: "12" }]) {
+    await assert.rejects(representante(A, "0414000000", extra), por("RESTRICCION"), JSON.stringify(extra));
+  }
+  await app.conTenant(A.tenant, (tx) => tx.guardian.update({ where: { id: g.id }, data: { fullName: "María Pérez de Díaz" } }));
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.guardian.delete({ where: { id: g.id } })), SOLO_AGREGAR);
+  const k = await nino(A, g.id);
+  await app.conTenant(A.tenant, (tx) => tx.kid.update({ where: { id: k.id }, data: { nickname: "Santi" } }));
+  const otro = await representante(A, "04241112233");
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.kid.update({ where: { id: k.id }, data: { guardianId: otro.id } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.kid.delete({ where: { id: k.id } })), SOLO_AGREGAR);
+  await assert.rejects(nino(A, g.id, { name: "S" }), por("RESTRICCION"));
+});
+
+test("una pulsera tiene una estancia activa a la vez; cerrada, el código se libera", async () => {
+  const g = await representante(A, "04161230001");
+  const c = await cuenta(A);
+  const s = await estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" });
+  await assert.rejects(estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" }), por("DUPLICADO"));
+  await app.conTenant(A.tenant, (tx) =>
+    tx.parkSession.update({ where: { id: s.id }, data: { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID() } }),
+  );
+  await estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" });
+});
+
+test("una estancia solo se nombra y se cierra: lo contratado y el cierre no se reescriben", async () => {
+  const g = await representante(A, "04161230002");
+  const c = await cuenta(A);
+  const s = await estancia(A, c.id, g.id);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { priceMinor: 1n } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { startedAt: new Date(0) } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.delete({ where: { id: s.id } })), SOLO_AGREGAR);
+  // El niño es de su familia, y se nombra una vez.
+  const ajeno = await nino(A, (await representante(A, "04161230003")).id);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { kidId: ajeno.id } })), por("RESTRICCION"));
+  const suyo = await nino(A, g.id);
+  await app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { kidId: suyo.id } }));
+  const otro = await nino(A, g.id, { name: "Valentina" });
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { kidId: otro.id } })), SOLO_AGREGAR);
+  // Cerrar a medias no vale; cerrada, no se reabre ni cambia su cierre.
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { status: "CERRADA" } })), por("RESTRICCION"));
+  const fin = { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID() };
+  await app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: fin }));
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { status: "ACTIVA", endedAt: null, closedByName: null, checkOutKey: null } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSession.update({ where: { id: s.id }, data: { endedAt: new Date(Date.now() + 5000) } })), SOLO_AGREGAR);
+});
+
+test("una estancia cobra en dólares un paquete de verdad, con su pulsera bien escrita", async () => {
+  const g = await representante(A, "04161230004");
+  const c = await cuenta(A);
+  const malos: Record<string, unknown>[] = [
+    { priceMinor: 0n }, { currency: "VES" }, { durationMinutes: 0 }, { mode: "GRATIS" }, { status: "PAUSADA" },
+    { wristbandCode: "abc 1" }, { tariffVersion: 0 }, { terms: [] }, { openedByName: "" },
+    { endedAt: new Date() }, // cerrada a medias
+  ];
+  for (const extra of malos) await assert.rejects(estancia(A, c.id, g.id, extra), por("RESTRICCION"), JSON.stringify(extra, (_, v) => (typeof v === "bigint" ? String(v) : v)));
+  await estancia(A, c.id, g.id, { durationMinutes: null, mode: "POSTPAGO" }); // tiempo abierto
+});
+
+test("A no abre una estancia en la cuenta ni con el representante de B", async () => {
+  const gA = await representante(A, "04161230005");
+  const gB = await representante(B, "04161230005");
+  const cA = await cuenta(A);
+  const cB = await cuenta(B);
+  await assert.rejects(estancia(A, cB.id, gA.id), por("REFERENCIA_INVALIDA"));
+  await assert.rejects(estancia(A, cA.id, gB.id), por("REFERENCIA_INVALIDA"));
+});
+
+test("la entrada y la salida cambian la cuenta con su operación", async () => {
+  const c = await cuenta(A);
+  await version(A, c.id, { cause: "ENTRADA", operationKey: randomUUID() });
+  await version(A, c.id, { version: 2, cause: "SALIDA", operationKey: randomUUID() });
+  await assert.rejects(version(A, c.id, { version: 3, cause: "SALIDA" }), por("RESTRICCION")); // sin su operación
+});

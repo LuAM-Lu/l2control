@@ -33,6 +33,7 @@ model Tenant {
   paymentMethods    PaymentMethod[]
   collectionDetails CollectionDetails[]
   products          Product[]
+  guardians         Guardian[]
 
   @@map("tenant")
 }
@@ -58,6 +59,7 @@ model Branch {
   posTerminals PosTerminal[]
   accounts     Account[]
   sales        Sale[]
+  parkSessions ParkSession[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -692,10 +694,11 @@ model Account {
   openedByName String   @map("opened_by_name")
   deviceId     String?  @map("device_id") @db.Uuid
 
-  branch   Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  versions AccountVersion[]
-  payments Payment[]
-  sales    Sale[]
+  branch       Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  versions     AccountVersion[]
+  payments     Payment[]
+  sales        Sale[]
+  parkSessions ParkSession[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -867,4 +870,94 @@ model ShiftCut {
   @@unique([tenantId, id])
   @@index([tenantId, shiftId, madeAt])
   @@map("shift_cut")
+}
+
+/// Un representante del directorio (B4-1, F5-01, DEC-9): a quién se entrega el niño y a quién se
+/// llama si pasa algo. Solo nombre y contacto, por decisión (sin documento, dirección ni foto).
+/// `contactKey` es el contacto en dígitos normalizados: la llave con la que la entrada reconoce a la
+/// familia, única en el local. Se corrige con auditoría; no se borra (sus estancias lo nombran).
+model Guardian {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  fullName         String   @map("full_name")
+  contactReference String   @map("contact_reference")
+  contactKey       String   @map("contact_key")
+  createdAt        DateTime @map("created_at") @db.Timestamptz(3)
+  createdBy        String?  @map("created_by") @db.Uuid
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  kids     Kid[]
+  sessions ParkSession[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, contactKey])
+  @@map("guardian")
+}
+
+/// Un niño de una familia, con nombre (DEC-28: en la puerta no se pide; nace cuando alguien lo
+/// nombra desde la sala o el directorio). Se corrige con auditoría; no se borra.
+model Kid {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  guardianId String   @map("guardian_id") @db.Uuid
+  name       String
+  nickname   String?
+  createdAt  DateTime @map("created_at") @db.Timestamptz(3)
+
+  guardian Guardian      @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  sessions ParkSession[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, guardianId])
+  @@map("kid")
+}
+
+/// Una estancia en el parque (B4-2, F5-02, ADR-010): una pulsera, un niño, un paquete. El reloj es
+/// del servidor: `startedAt` y `endedAt` los pone él. El paquete y sus condiciones (gracia, bloque y
+/// precio del excedente) se COPIAN al entrar: publicar otro tarifario no cambia lo que se cobra a
+/// quien ya está dentro. Solo avanza de ACTIVA a CERRADA; una pulsera tiene una estancia activa a la
+/// vez (I-04).
+model ParkSession {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  branchId        String    @map("branch_id") @db.Uuid
+  /// La cuenta de la familia que la paga (DEC-21).
+  accountId       String    @map("account_id") @db.Uuid
+  guardianId      String    @map("guardian_id") @db.Uuid
+  /// Nulo hasta que alguien lo nombra (DEC-28).
+  kidId           String?   @map("kid_id") @db.Uuid
+  wristbandCode   String    @map("wristband_code")
+  packageId       String    @map("package_id")
+  packageName     String    @map("package_name")
+  /// PREPAGO o POSTPAGO (CHECK).
+  mode            String
+  /// Nulo = tiempo abierto (ADR-011: nunca cero).
+  durationMinutes Int?      @map("duration_minutes")
+  priceMinor      BigInt    @map("price_minor")
+  currency        String
+  /// Gracia, bloque, precio del bloque y aviso, como regían al entrar.
+  terms           Json
+  tariffVersion   Int       @map("tariff_version")
+  startedAt       DateTime  @map("started_at") @db.Timestamptz(3)
+  openedBy        String?   @map("opened_by") @db.Uuid
+  openedByName    String    @map("opened_by_name")
+  deviceId        String?   @map("device_id") @db.Uuid
+  checkInKey      String    @map("check_in_key") @db.Uuid
+  /// ACTIVA o CERRADA (CHECK).
+  status          String
+  endedAt         DateTime? @map("ended_at") @db.Timestamptz(3)
+  closedBy        String?   @map("closed_by") @db.Uuid
+  closedByName    String?   @map("closed_by_name")
+  checkOutKey     String?   @map("check_out_key") @db.Uuid
+
+  branch   Branch   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account  Account  @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  guardian Guardian @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  kid      Kid?     @relation(fields: [tenantId, kidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, accountId])
+  @@index([tenantId, guardianId])
+  @@map("park_session")
 }

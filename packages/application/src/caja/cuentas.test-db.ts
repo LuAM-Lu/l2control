@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CuentaYLibroDto, FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -187,13 +187,13 @@ describe("guardar una cuenta", () => {
     assert.equal(!barata.ok && barata.problemas?.[0]?.message, "PRECIO_DISTINTO");
     const apartada = await local.app.cuentas.guardar(ctxCajera, { cuenta: mostrador([{ ...lineaDeAgua(), concept: "Gomitas", amount: usd("150"), productId: gomitas }]) }, AHORA);
     assert.equal(!apartada.ok && apartada.problemas?.[0]?.message, "PRODUCTO_QUE_NO_SE_VENDE");
-    const f = await abrir(familia(), ctxMonitora);
+    const f = await familiaDePrueba(local, ctxMonitora, AHORA);
     const sinPaquete = await local.app.cuentas.guardar(ctxMonitora, { cuenta: { ...f, lines: [] } }, AHORA);
     assert.equal(!sinPaquete.ok && sinPaquete.problemas?.[0]?.message, "LINEA_QUITADA");
   });
 
   test("cada estación guarda las cuentas que le tocan", async () => {
-    await abrir(familia(), ctxMonitora);
+    await familiaDePrueba(local, ctxMonitora, AHORA);
     const mesa = await abrir({ ...familia(), kind: "MESA", family: "Mesa 3", sessionIds: [], lines: [], tableId: "mesa-3", tableLabel: "3" }, ctxMesero);
     assert.equal(mesa.kind, "MESA");
     const r = await local.app.cuentas.guardar(ctxMonitora, { cuenta: mostrador([lineaDeAgua()]) }, AHORA);
@@ -290,7 +290,7 @@ describe("cobrar una cuenta (F4-03, §5.6)", () => {
     assert.equal(!vieja.ok && vieja.motivo, "CONFLICTO");
     const otrasLineas = await local.app.cuentas.cobrar(ctxCajera, { ...enEfectivo(v2, "500", "131"), lineIds: [c.lines[0]!.id] }, AHORA);
     assert.equal(!otrasLineas.ok && otrasLineas.motivo, "CONFLICTO");
-    const abierta = await abrir(familia(), ctxMonitora);
+    const abierta = await familiaDePrueba(local, ctxMonitora, AHORA);
     const r = await local.app.cuentas.cobrar(ctxCajera, enEfectivo(abierta, "1000", "1160"), AHORA);
     assert.equal(!r.ok && r.motivo, "CONFLICTO");
     const yaCobrada = await local.app.cuentas.cobrar(ctxCajera, enEfectivo(cobrada.cuenta, "500", "131"), AHORA);

@@ -127,3 +127,35 @@ export async function crearCuenta(local: LocalDePrueba, kind: "FAMILIA" | "MESA"
   );
   return id;
 }
+
+/**
+ * La cuenta de una familia, abierta como en el local: por la entrada del parque (B4-2), con un niño
+ * en un paquete de 1 hora a $ 10,00. Publica ese tarifario si el local todavía no tiene uno.
+ */
+export async function familiaDePrueba(
+  local: LocalDePrueba,
+  ctx: Contexto,
+  ahora: number,
+  paymentMode: "PREPAGO" | "CUENTA_ABIERTA" = "CUENTA_ABIERTA",
+): Promise<import("@l2/contracts").FamilyAccountDto> {
+  if (!(await local.app.tarifario.leer(local.sistema))) {
+    const r = await local.app.tarifario.publicar(local.sistema, {
+      packages: [{ id: "pkg-60", name: "1 hora", mode: "PREPAGO", duration: { kind: "fixed", minutes: 60 }, price: { minor: "1000", currency: "USD" }, active: true }],
+      policy: { graceMinutes: 5, penaltyBlockMinutes: 15, penaltyPricePerBlock: { minor: "150", currency: "USD" }, warnBeforeMinutes: 10, capacityLimit: 30 },
+    });
+    if (!r.ok) throw new Error(r.mensaje);
+  }
+  const n = ++ordenDePrueba;
+  const r = await local.app.parque.entrar(
+    ctx,
+    {
+      idempotencyKey: randomUUID(),
+      paymentMode,
+      entries: [{ wristbandCode: `PRUEBA-${n}`, kid: {}, packageId: "pkg-60" }],
+      guardian: { fullName: "Familia Pérez", contactReference: `0412-${String(2_000_000 + n)}` },
+    },
+    ahora,
+  );
+  if (!r.ok) throw new Error(r.mensaje);
+  return r.valor.account;
+}

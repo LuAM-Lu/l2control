@@ -167,6 +167,9 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   CUENTA_INCOBRABLE: "Una cuenta incobrable no se cambia: la marca supervisión con su autorización.",
   PRODUCTO_QUE_NO_SE_VENDE: "Ese producto ya no se vende.",
   PRECIO_DISTINTO: "El precio de ese producto cambió: vuelve a añadirlo desde la carta.",
+  FAMILIA_DESDE_LA_PANTALLA: "La cuenta de una familia la abre la entrada del parque.",
+  ESTANCIAS_DESDE_LA_PANTALLA: "Quién entra y quién sale lo registran la entrada y la salida del parque.",
+  PARQUE_DESDE_LA_PANTALLA: "El paquete y el tiempo de más los pone el parque con su tarifario.",
 };
 
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({
@@ -879,7 +882,7 @@ function deVersion(content: unknown, version: number): FamilyAccountDto {
 }
 
 /** La última versión de una cuenta que existe, dentro de la transacción. */
-async function vigenteDe(tx: Transaccion, accountId: string): Promise<Vigente | null> {
+export async function vigenteDe(tx: Transaccion, accountId: string): Promise<Vigente | null> {
   const v = await tx.accountVersion.findFirst({ where: { accountId }, orderBy: { version: "desc" } });
   return v ? { cuenta: deVersion(v.content, v.version), version: v.version } : null;
 }
@@ -892,11 +895,16 @@ async function cuentaYLibro(tx: Transaccion, accountId: string, cobroKey: string
 }
 
 /** Añade una versión de la cuenta. La base rechaza dos con el mismo número (CONFLICTO al reintentar). */
-async function guardarVersion(
+export async function guardarVersion(
   tx: Transaccion,
   ctx: Contexto,
   cuenta: FamilyAccountDto,
-  v: Readonly<{ cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE"; operationKey: string | null; ahora: number; quien: string }>,
+  v: Readonly<{
+    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA";
+    operationKey: string | null;
+    ahora: number;
+    quien: string;
+  }>,
 ): Promise<void> {
   // El número de versión vive en su columna: el contenido es la cuenta sin él.
   const { version, ...contenido } = cuenta;
@@ -918,7 +926,7 @@ async function guardarVersion(
 }
 
 /** El siguiente número de orden de la sucursal (D13: continuo). El candado ordena dos altas a la vez. */
-async function siguienteNumero(tx: Transaccion, ctx: Contexto): Promise<number> {
+export async function siguienteNumero(tx: Transaccion, ctx: Contexto): Promise<number> {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`orden:${ctx.branchId}`}, 0))::text AS candado`;
   const r = await tx.account.aggregate({ where: { branchId: ctx.branchId }, _max: { orderNumber: true } });
   return (r._max.orderNumber ?? 0) + 1;

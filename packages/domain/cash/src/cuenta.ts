@@ -147,7 +147,10 @@ export type AccountChangeProblem =
   | "MOSTRADOR_SIN_PRODUCTO"
   | "CUENTA_INCOBRABLE"
   | "PRODUCTO_QUE_NO_SE_VENDE"
-  | "PRECIO_DISTINTO";
+  | "PRECIO_DISTINTO"
+  | "FAMILIA_DESDE_LA_PANTALLA"
+  | "ESTANCIAS_DESDE_LA_PANTALLA"
+  | "PARQUE_DESDE_LA_PANTALLA";
 
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
@@ -182,6 +185,9 @@ export function accountChangeProblem(
   // Marcar incobrable es de supervisión con su 🔐 (D-JOR), y una incobrable ya no se toca.
   if (after.status === "INCOBRABLE" || before?.status === "INCOBRABLE") return { problem: "CUENTA_INCOBRABLE" };
   if (!before) {
+    // La cuenta de una familia la abre la entrada del parque (B4-2), con sus estancias y el precio
+    // del tarifario: una pantalla no la inventa.
+    if (after.kind === "FAMILIA") return { problem: "FAMILIA_DESDE_LA_PANTALLA" };
     if (after.status === "COBRADA" || (after.split?.paid ?? 0) > 0) return { problem: "NUEVA_CON_PAGOS" };
   } else {
     if (after.kind !== before.kind) return { problem: "TIPO_CAMBIADO" };
@@ -190,6 +196,10 @@ export function accountChangeProblem(
     const cerradas = new Set(after.closedSessionIds);
     if (before.sessionIds.some((s) => !sesiones.has(s)) || before.closedSessionIds.some((s) => !cerradas.has(s))) {
       return { problem: "ESTANCIA_QUITADA" };
+    }
+    // Quién entra y quién sale de una familia lo dicen la entrada y la salida del parque (B4-2, B4-3).
+    if (after.kind === "FAMILIA" && (sesiones.size !== before.sessionIds.length || cerradas.size !== before.closedSessionIds.length)) {
+      return { problem: "ESTANCIAS_DESDE_LA_PANTALLA" };
     }
     // Dividir o unir solo mientras no se cobró ninguna parte; las partes cobradas las cuenta el cobro.
     if ((after.split?.paid ?? 0) !== (before.split?.paid ?? 0)) return { problem: "DIVISION_ALTERADA" };
@@ -218,6 +228,8 @@ export function accountChangeProblem(
     if (l.paid) return { problem: "PAGO_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.cortesia !== undefined) return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
     if (after.kind === "MOSTRADOR" && l.productId === undefined) return { problem: "MOSTRADOR_SIN_PRODUCTO", lineId: l.id };
+    // El paquete y el tiempo de más de una familia los pone el parque con su tarifario y su reloj.
+    if (after.kind === "FAMILIA" && (l.kind === "PAQUETE" || l.kind === "EXCEDENTE")) return { problem: "PARQUE_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.productId !== undefined) {
       const p = productAt(l.productId);
       if (!p) return { problem: "PRODUCTO_QUE_NO_SE_VENDE", lineId: l.id };
@@ -232,6 +244,48 @@ export function accountChangeProblem(
     }
   }
   return null;
+}
+
+/* ─────────────────────────────────────────── la salida del parque (B4-3) */
+
+/** El tiempo de más de un niño que sale, como lo calculó el parque (en dólares, unidades menores). */
+export type ExitOverdue = Readonly<{ sessionId: string; concept: string; amountMinor: bigint }>;
+
+/**
+ * La cuenta de la familia después de que salen `leaving` (DEC-21, F5-14). Cada excedente mayor que
+ * cero entra como una línea pendiente (una por niño: la misma salida registrada dos veces no la
+ * duplica). El estado sale del modo de pago:
+ *
+ *  · PREPAGO: si hay algo pendiente se cobra ya, aunque sus hermanos sigan dentro; si no, sigue
+ *    abierta mientras quede alguien y queda cobrada cuando sale el último.
+ *  · CUENTA_ABIERTA: se acumula mientras quede alguien dentro; con el último fuera pasa a la caja
+ *    (o queda cobrada si no hay nada que cobrar).
+ */
+export function registerExit<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_ABIERTA" }>(
+  c: A,
+  leaving: readonly string[],
+  overdue: readonly ExitOverdue[],
+): A {
+  const cerradas = [...new Set([...c.closedSessionIds, ...leaving])];
+  const previas = new Set(c.lines.map((l) => l.id));
+  const nuevas = overdue
+    .filter((e) => e.amountMinor > 0n && !previas.has(`exc-${e.sessionId}`))
+    .map((e) => ({
+      id: `exc-${e.sessionId}`,
+      concept: e.concept.slice(0, 80),
+      kind: "EXCEDENTE" as const,
+      amount: { minor: String(e.amountMinor), currency: "USD" },
+      paid: false,
+      sessionId: e.sessionId,
+    }));
+  const lines = [...c.lines, ...nuevas];
+  const todos = cerradas.length === c.sessionIds.length;
+  const hayPendiente = chargeableLines({ lines }).length > 0;
+  const status: AccountStatus =
+    c.mode === "PREPAGO"
+      ? hayPendiente ? "POR_COBRAR" : todos ? "COBRADA" : "ABIERTA"
+      : todos ? (hayPendiente ? "POR_COBRAR" : "COBRADA") : "ABIERTA";
+  return { ...c, closedSessionIds: cerradas, lines, status };
 }
 
 /* ────────────────────────────────────────────── la cortesía (F6-14, B3-4) */

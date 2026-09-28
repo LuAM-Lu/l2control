@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { IdSchema, MoneySchema, TimestampSchema, IdempotencyKeySchema } from "./primitives.ts";
 import { KidSchema, WristbandCodeSchema } from "./park.ts";
+import { FamilyAccountSchema } from "./account.ts";
 
 /**
  * Desglose de una estancia al salir.
@@ -67,15 +68,22 @@ export type SettlementDisposition = z.infer<typeof SettlementDispositionSchema>;
  */
 export const CheckoutCommandSchema = z.object({
   idempotencyKey: IdempotencyKeySchema,
-  sessionIds: z.array(IdSchema).min(1, "Hay que cerrar al menos una estancia"),
+  /** Los niños de UNA familia (una cuenta): otra familia es otra salida, con su propia clave. */
+  sessionIds: z
+    .array(IdSchema)
+    .min(1, "Hay que cerrar al menos una estancia")
+    .max(10, "Demasiados niños en una misma salida")
+    .refine((ids) => new Set(ids).size === ids.length, "Un niño sale una vez"),
   disposition: SettlementDispositionSchema,
 });
 export type CheckoutCommand = z.infer<typeof CheckoutCommandSchema>;
 
+/**
+ * Lo que devuelve la salida (B4-3): el desglose de cada niño con la hora del servidor y la cuenta de
+ * la familia como quedó (con el excedente y, si toca cobrar, en la cola de la caja).
+ */
 export const CheckoutResultSchema = z.object({
-  closedSessionIds: z.array(IdSchema),
-  charged: MoneySchema.nullable(),
-  /** Presente solo si la deuda se cargó a una mesa. */
-  chargedToTableId: IdSchema.nullable(),
+  lines: z.array(SettlementLineSchema),
+  account: FamilyAccountSchema,
 });
 export type CheckoutResult = z.infer<typeof CheckoutResultSchema>;

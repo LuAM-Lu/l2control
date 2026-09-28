@@ -115,6 +115,7 @@ describe("dinero en el cable", () => {
 describe("registro de entrada (F5-02)", () => {
   const entrada = {
     idempotencyKey: UUID,
+    paymentMode: "PREPAGO",
     entries: [
       { wristbandCode: "AK-0142", kid: { name: "Valentina Rojas" }, packageId: "pkg-60" },
     ],
@@ -155,9 +156,15 @@ describe("registro de entrada (F5-02)", () => {
     assert.equal(r.success, false);
   });
 
+  test("exige decir cómo paga la familia (DEC-21)", () => {
+    const { paymentMode: _omitido, ...sinModo } = entrada;
+    assert.equal(CheckInCommandSchema.safeParse({ ...sinModo, guardianId: "g-1" }).success, false);
+  });
+
   test("exige al menos un niño", () => {
     const r = CheckInCommandSchema.safeParse({
       idempotencyKey: UUID,
+      paymentMode: "PREPAGO",
       entries: [],
       guardianId: "g-1",
     });

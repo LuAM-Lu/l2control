@@ -10,6 +10,7 @@ import { z } from "zod";
 import { IdSchema, MoneySchema, TimestampSchema, IdempotencyKeySchema } from "./primitives.ts";
 // La tasa tiene su propio módulo (§5.2): aquí solo se usa para pintar el monitor.
 import { ExchangeRateSchema } from "./tasas.ts";
+import { FamilyAccountSchema, PaymentModeSchema } from "./account.ts";
 
 /* ------------------------------------------------------------- pulsera */
 
@@ -223,6 +224,26 @@ export const ParkSessionSchema = z.object({
 });
 export type ParkSessionDto = z.infer<typeof ParkSessionSchema>;
 
+/**
+ * Las condiciones de una estancia: gracia, bloque y precio del excedente y aviso, **como regían al
+ * entrar** (B4-2). Publicar otro tarifario no cambia lo que se cobra a quien ya está dentro.
+ */
+export const ParkTermsSchema = ParkPolicySchema.omit({ capacityLimit: true });
+export type ParkTermsDto = z.infer<typeof ParkTermsSchema>;
+
+/**
+ * Una estancia tal como la entrega el servidor (B4-2): la del contrato, más de quién es la cuenta que
+ * la paga, a quién se entrega el niño, qué paquete compró y con qué condiciones.
+ */
+export const EstanciaSchema = ParkSessionSchema.extend({
+  accountId: z.uuid(),
+  guardianId: IdSchema,
+  guardianName: z.string().trim().min(2).max(80),
+  packageName: z.string().trim().min(1).max(40),
+  terms: ParkTermsSchema,
+});
+export type EstanciaDto = z.infer<typeof EstanciaSchema>;
+
 /* -------------------------------------------------- vista del monitor */
 
 /**
@@ -235,7 +256,8 @@ export const MonitorSnapshotSchema = z.object({
   serverNow: TimestampSchema,
   policy: ParkPolicySchema,
   rate: ExchangeRateSchema.nullable(),
-  sessions: z.array(ParkSessionSchema),
+  /** Los niños en sala, con su cuenta y sus condiciones (B4-2). */
+  sessions: z.array(EstanciaSchema),
   shiftLabel: z.string(),
 });
 export type MonitorSnapshotDto = z.infer<typeof MonitorSnapshotSchema>;
@@ -258,6 +280,8 @@ export const CheckInCommandSchema = z
   .object({
     /** Impide que un doble clic cree dos estancias (I-11). */
     idempotencyKey: IdempotencyKeySchema,
+    /** Cómo paga la familia (DEC-21): el paquete ahora, o todo junto al salir. */
+    paymentMode: PaymentModeSchema,
     entries: z
       .array(
         z.object({
@@ -277,10 +301,13 @@ export const CheckInCommandSchema = z
   });
 export type CheckInCommand = z.infer<typeof CheckInCommandSchema>;
 
+/**
+ * Lo que devuelve la entrada: las estancias abiertas, con la hora del servidor, y la cuenta de la
+ * familia que las paga (en prepago, ya en la cola de la caja).
+ */
 export const CheckInResultSchema = z.object({
-  sessions: z.array(ParkSessionSchema),
-  /** Total cobrado en taquilla, o null si se cargó a una mesa. */
-  charged: MoneySchema.nullable(),
+  sessions: z.array(EstanciaSchema),
+  account: FamilyAccountSchema,
 });
 export type CheckInResult = z.infer<typeof CheckInResultSchema>;
 
@@ -366,3 +393,19 @@ export const NombrarEstanciaCommandSchema = z.strictObject({
   nickname: z.string().trim().max(30).optional(),
 });
 export type NombrarEstanciaCommand = z.infer<typeof NombrarEstanciaCommandSchema>;
+
+/**
+ * Buscar a una familia por su contacto en la entrada (F5-03). El servidor compara el contacto
+ * entero, en dígitos: no hay búsqueda por pedazos que enseñe el directorio a quien teclea.
+ */
+export const BuscarRepresentanteSchema = z.strictObject({
+  contacto: z.string().trim().min(4).max(40),
+});
+
+/** La familia encontrada: su nombre y sus niños con nombre. Sin el contacto, que ya se tecleó. */
+export const RepresentanteEncontradoSchema = z.object({
+  id: IdSchema,
+  fullName: z.string().trim().min(2).max(80),
+  kids: z.array(KidSchema.extend({ id: IdSchema, name: z.string().trim().min(2).max(60) })),
+});
+export type RepresentanteEncontradoDto = z.infer<typeof RepresentanteEncontradoSchema>;

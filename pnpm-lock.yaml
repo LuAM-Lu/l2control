@@ -221,6 +221,9 @@ importers:
       '@l2/domain-money':
         specifier: workspace:*
         version: link:../domain/money
+      '@l2/domain-park':
+        specifier: workspace:*
+        version: link:../domain/park
       '@l2/domain-rates':
         specifier: workspace:*
         version: link:../domain/rates

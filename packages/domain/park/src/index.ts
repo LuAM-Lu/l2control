@@ -266,6 +266,60 @@ export function computeCapacity(activeSessions: number, limit: number): Capacity
   });
 }
 
+/* ---------------------------------------------------------------- salida */
+
+export type ExitSettlement = Readonly<{
+  /** Minutos en sala, redondeados hacia arriba como el cobro. */
+  consumedMinutes: number;
+  /** Minutos cobrables por encima de lo contratado, ya descontada la gracia. */
+  billableOverdueMinutes: number;
+  /** Bloques de penalización iniciados que se cobran. */
+  penaltyBlocks: number;
+  overdue: Money;
+}>;
+
+/**
+ * Lo que se liquida de una estancia al salir en `now` (F5-14): el excedente con su desglose, con las
+ * condiciones que regían AL ENTRAR (`policy`). Es la misma cuenta que enseña la sala; la hace el
+ * servidor con su reloj (ADR-010) y la pantalla solo la anticipa.
+ */
+export function settleAtExit(session: ParkSession, policy: ParkPolicy, now: EpochMs): ExitSettlement {
+  const view = computeSessionView(session, policy, now);
+  const desglose = computeOverdueBreakdown(view, policy);
+  return Object.freeze({
+    // Se redondea hacia arriba igual que el cobro: «59 min» cuando se cobró una hora sería explicar mal el recibo.
+    consumedMinutes: Math.ceil(view.elapsedMs / MS_PER_MINUTE),
+    billableOverdueMinutes: desglose.billableMinutes,
+    penaltyBlocks: desglose.blocks,
+    overdue: desglose.charge,
+  });
+}
+
+/* ---------------------------------------------------------------- entrada */
+
+/**
+ * ¿Caben `incoming` niños más con `active` dentro? El aforo es un tope (DEC-7): se puede llegar a él,
+ * no pasarlo. Una entrada de tres con dos plazas libres no entra a medias: no entra.
+ */
+export function admits(active: number, incoming: number, limit: number): boolean {
+  if (!Number.isInteger(incoming) || incoming < 1) {
+    throw new RangeError(`Una entrada registra uno o más niños, recibido: ${incoming}`);
+  }
+  return computeCapacity(active, limit).active + incoming <= limit;
+}
+
+/**
+ * La llave de un contacto (F5-03): el teléfono en dígitos, para reconocer a la familia escriba como
+ * escriba el número. «0412-123.45.67», «0412 1234567» y «+58 412 1234567» son la misma familia.
+ * `null` si no hay dígitos suficientes para distinguir a nadie (menos de 4) o son demasiados.
+ */
+export function contactKey(reference: string): string | null {
+  let digitos = reference.replace(/\D/g, "");
+  // El prefijo del país (58) se escribe en lugar del cero de la operadora.
+  if (digitos.length === 12 && digitos.startsWith("58")) digitos = `0${digitos.slice(2)}`;
+  return digitos.length >= 4 && digitos.length <= 20 ? digitos : null;
+}
+
 /* ------------------------------------------------------------------ formato */
 
 /** Formatea una duración como HH:MM:SS o MM:SS. Solo presentación. */
