@@ -123,6 +123,7 @@ import {
   unirCuenta,
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { useSala } from "../park/SalaProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useTasaVigente } from "./TasasProvider.tsx";
@@ -1752,7 +1753,6 @@ type CobroProps = Parameters<typeof CobroCuenta>[0];
 export function CajaScreen({
   cuentaInicial,
   volver,
-  pulseras,
   impuestos,
   catalogo,
   serverNow,
@@ -1775,8 +1775,6 @@ export function CajaScreen({
   turno: TurnoDto | null;
   cuentaInicial: string | null;
   volver: string | null;
-  /** Código de pulsera → estancia, de la instantánea del servidor. */
-  pulseras: Readonly<Record<string, string>>;
 }) {
   const { ajustes } = useSucursal();
   const maxRetained: Money = {
@@ -1793,6 +1791,7 @@ export function CajaScreen({
   const mediosDisponibles = useMediosActivos();
   const { cuentas, guardar, descartar, cargado } = useCuentas();
   const op = useOperacion();
+  const { sala } = useSala();
   const router = useRouter();
   const porCobrar = useMemo(
     () => ordenarCola(cuentas.filter((c) => c.status === "POR_COBRAR")),
@@ -1882,15 +1881,12 @@ export function CajaScreen({
 
   /**
    * Pasar una pulsera abre la cuenta de ese niño. La pulsera se busca en la
-   * instantánea del servidor y en lo que está pasando ahora en el local.
+   * sala del servidor (B4-2), que dice de qué cuenta es cada estancia.
    */
   function alEscanear(codigo: string) {
-    const sesion =
-      pulseras[codigo] ??
-      op.estado.sesiones.find((s) => s.wristbandCode === codigo)?.id ??
-      null;
-    const cuenta = sesion
-      ? cuentas.find((c) => c.sessionIds.includes(sesion))
+    const estancia = sala?.sessions.find((s) => s.wristbandCode === codigo) ?? null;
+    const cuenta = estancia
+      ? cuentas.find((c) => c.id === estancia.accountId)
       : undefined;
     if (!cuenta) {
       avisar.error(`La pulsera ${codigo} no tiene cuenta en caja`, {

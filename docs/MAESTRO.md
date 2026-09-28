@@ -29,7 +29,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.25.0 · 25 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.27.0 · 27 de 48 pasos.** **El parque funciona contra el servidor (B4-1 y B4-2, M-14):**
+la entrada registra en la base, la sala de cualquier equipo ve a los niños con el reloj del servidor,
+la salida liquida el tiempo de más en el servidor y la caja recibe la cuenta; B4-3 va a medias (falta
+la recarga de tiempo y las estancias huérfanas). Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -41,16 +44,17 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago, catálogo de productos, cuentas), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago, catálogo de productos, cuentas, parque y directorio de familias), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja) y las cuentas (entrada, mesas, caja, cobrar y anular). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja) y las cuentas (entrada, mesas, caja, cobrar y anular), y **el parque** (entrada, sala, salida, directorio de familias y
+  los niños atendidos de Inicio). No se enseña nada inventado: el turno y la venta de Inicio dicen «Sin datos» o
   «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (64 de base, 229 de aplicación; en el dominio, 57 de tasas,
+- **Pruebas:** `pnpm verify:db` en verde (74 de base, 249 de aplicación; en el dominio, 57 de tasas,
   44 de impuestos, 91 de caja, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
@@ -109,9 +113,14 @@ completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el 
 y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
 (sin día simulado: decisión del cliente, 2026-09-27).
 
-**Siguiente paso:** B3-5, **en curso en la rama `feat/b3-5`** (`main` sigue en v0.25.0, en verde). D-JOR ya
-decidido con el cliente (§4). Lo hecho y lo que falta está en la casilla de B3-5 (§3). Con él se cierra la
-Caja; luego el orden de §3.
+**El parque en la base local (2026-09-28).** Al comprobar B4-1 y B4-2 entraron tres familias de prueba:
+Carolina Méndez en prepago (#0011, cobrada con $ 20; #0013, por cobrar) y Pedro Álvarez en cuenta
+abierta (#0012 y #0014, por cobrar). Salieron todos: la sala está vacía (seis estancias cerradas). Se abrió un turno más en «Prueba B4 Caja» ($ 10,00);
+equipos «Prueba B4 Entrada», «Prueba B4 Sala» y «Prueba B4 Caja» revocados.
+
+**Siguiente paso (M-14):** terminar **B4-3** (recarga de tiempo, estancias huérfanas y D9, que se pregunta al
+cliente) y retomar **B3-5**, cuyo dominio, contrato, base y caso de uso ya están en `main` sin pruebas ni
+pantalla (lista en su casilla, §3). B5-1 sustituye después el sondeo de 5 s de la sala y de las cuentas.
 
 ---
 
@@ -132,6 +141,7 @@ Caja; luego el orden de §3.
 | **M-10** | **Versionado semántico visible** (2026-09-26, pedido del cliente) | SemVer 2.0.0. **MAJOR** 0 hasta producción; **1.0.0 = puesta en marcha** (B8-4). **MINOR** +1 por cada paso de la ruta entregado: la versión dice cuántos van. **PATCH** +1 por cada corrección entre pasos. Staging publica `-rc.N`. Fuente única: `version` del `package.json` raíz; `CHANGELOG.md` por versión (Keep a Changelog, en español) y etiqueta git `vX.Y.Z` en cada entrega. Se ve en el acceso y en Configuración con su etapa: «v0.14.0 · Etapa 2 · Dinero». Punto de partida: **0.13.0** |
 | **M-12** | **Puesta en marcha sin consola y sin apps de terceros** (2026-09-27, pedido del cliente; [ADR-020](adr/020-llaves-de-acceso.md)) | Producción arranca vacía: el primer administrador y su equipo se crean desde el navegador con un código de instalación de un solo uso. El segundo factor pasa de TOTP a **llaves de acceso** (Windows Hello, el bloqueo del teléfono), dos por administrador, más diez códigos de recuperación impresos. Las credenciales de administración se dan desde el panel con un enlace de alta (QR). Paso **T-4**, antes de staging |
 | **M-13** | **La app se ordena por la jornada** (2026-09-27, pedido del cliente; [JORNADA.md](JORNADA.md)) | El objetivo es operar el parque y el restaurante con un camino feliz. El menú pone arriba lo que se opera (Inicio, Parque, Restaurante, Caja) y abajo, en «Ajustes», lo que se configura (impuestos, feriados, medios, tasas, tarifas, carta, plano, personas, equipos). Turnos y Ventas del turno son **una sección, Turno**. Primer uso con asistente corto y «Puesta a punto» en Inicio; la cajera abre el turno y el sistema comprueba; relevo con corte, arqueo a ciegas, Z por umbral ($ 1,00, firma de supervisión por encima) y **ninguna jornada se cierra con pendientes**; ticket de corte impreso y resumen del día en Inicio. Nuevo paso **T-6**; la ruta pasa a 48 pasos |
+| **M-14** | **El parque primero** (2026-09-28, pedido del cliente: «hacer funcional parque, urgente») | B3-5 queda en pausa a medias (dominio, contrato, base y caso de uso, sin pruebas ni pantalla) y el parque (B4-1 a B4-3) pasa delante, **sin esperar a B5-1**: la sala llega a los demás equipos por sondeo de 5 s, como las cuentas desde B3-3, y B5-1 la empujará en vivo. Las estancias, las familias y el precio del parque salen del navegador |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario de mostrador** (M-9): parque y caja
@@ -175,8 +185,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
    **B3-3** → B3-4 → B3-5 (se cierra Caja).
-3. **B5-1** (tiempo real, antes del parque: la entrada y el monitor viven en equipos distintos) →
-   B4-1 → B4-2 → B4-3 → B4-4 (se cierra Parque).
+3. ~~B4-1 → B4-2~~ → **B4-3** → B3-5 → B5-1 → B4-4 (se cierran Caja y Parque). M-14 adelantó el parque
+   a B3-5 y a B5-1: mientras no haya tiempo real, la sala viaja por sondeo de 5 s.
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
 5. **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso) → Etapa 7 (staging) →
    Etapa 8 (producción, 1.0.0).
@@ -732,18 +742,65 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   Inicio con `resumenDelDia`. Se borran `src/demo/turno.ts`, el tipo `Excepcion` de `turno.ts` y
   `PuntosDeCobro` (hoy vacío en Inicio y Turno); fila de §5 de Inicio.*
   *3. Navegador (relevo, jornada con pendientes e incobrable, Z por encima del umbral, turno ajeno,
-  los seis turnos huérfanos de la base local), §5 y cierre (v0.26.0).*
+  los siete turnos huérfanos de la base local), §5 y cierre (con el número que toque: M-14 entregó
+  antes B4-1 y B4-2). Lo hecho de B3-5 entró en `main` con el parque; «Cerrar la jornada» ya puede
+  listar los niños en sala: la sala es de la base.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
-- [ ] **B4-1 · `Guardian`, `Kid` y `ParkSession`**, sin entidad pulsera. El código solo es único entre
+- [x] **B4-1 · `Guardian`, `Kid` y `ParkSession`**, sin entidad pulsera. El código solo es único entre
   estancias activas (F5-01, F5-12, I-04). El directorio de representantes se persiste.
-- [ ] **B4-2 · Entrada y estancias con cronómetro del servidor**: prepago y postpago, gracia y
+- [x] **B4-2 · Entrada y estancias con cronómetro del servidor**: prepago y postpago, gracia y
   penalización. El monitor usa el tarifario publicado (F5-02, F5-05 a F5-07, ADR-010).
   → Cambiar el reloj de la tablet no altera el tiempo cobrado.
+  *B4-1 y B4-2 hechos juntos el 2026-09-28 (v0.27.0; no hay 0.26.0), antes que B3-5 y B5-1 (M-14), en
+  `feat/parque`:*
+  *· Base: `20261009000000_parque` (y `…010000_parque_disparador`, que corrige un disparador: PL/pgSQL no
+  deja leer `NEW.guardian_id` en `guardian`). `guardian` (contacto en dígitos normalizados, único por
+  local), `kid` (nace al nombrarlo, DEC-28) y `park_session` (cuenta, familia, niño, pulsera, paquete y
+  **condiciones copiadas al entrar**, versión del tarifario, hora del servidor, clave de la entrada y de
+  la salida). Índice parcial: una pulsera, una estancia ACTIVA (I-04). La estancia solo avanza de
+  ACTIVA a CERRADA, se nombra una vez y su niño es de su familia; el directorio se corrige pero no se
+  borra. La versión de una cuenta admite las causas ENTRADA y SALIDA. RLS en las tres. 6 pruebas.*
+  *· Dominio: `settleAtExit` (el excedente con su desglose), `admits` (el aforo se llena, no se pasa, y
+  una entrada no entra a medias) y `contactKey` (0412-1234567 y +58 412 1234567 son la misma familia);
+  en la cuenta, `registerExit`, y `accountChangeProblem` rechaza que una pantalla abra una familia
+  (FAMILIA_DESDE_LA_PANTALLA), meta o saque niños (ESTANCIAS_DESDE_LA_PANTALLA) o ponga paquete o tiempo
+  de más (PARQUE_DESDE_LA_PANTALLA): **salda la deuda del importe del parque que llegaba de la pantalla**.*
+  *· Contrato: `EstanciaSchema` (la estancia con su cuenta, su familia, su paquete y sus condiciones), la
+  sala con estancias, la entrada con `paymentMode` y su resultado con la cuenta, la salida (una familia,
+  hasta 10 niños) con el desglose y la cuenta, y `BuscarRepresentanteSchema`.*
+  *· Aplicación `park/parque.ts` y `park/representantes.ts`: `sala` (quien trabaja con el parque o sus
+  cuentas), `entrar` (una transacción: precio y condiciones del tarifario vigente, candado por sucursal
+  para aforo y pulseras, familia reconocida por su contacto, cuenta con número de orden y, en prepago,
+  en la cola), `salir` (reloj del servidor y condiciones de la entrada; cargar a una mesa responde
+  NO_DISPONIBLE hasta el restaurante), `nombrar`, `atendidos` (niños de hoy contra el mismo día de la
+  semana pasada), `buscar` (contacto entero), `directorio` y `corregir` (`parque.verContacto`). Todo
+  auditado (`parque.entrada`, `parque.salida`, `parque.nombrar`, `representante.corregir`,
+  `nino.corregir`) y la entrada y la salida con reintento idempotente. 20 pruebas; las de cuentas abren
+  la familia por la entrada (`familiaDePrueba`).*
+  *· Web: `SalaProvider` (sala del layout y sondeo de 5 s y al volver el foco; `adoptar` y `quitar` para
+  lo que hace este equipo) y la proyección de la operación toma de ella los niños, así salón, caja e
+  Inicio ven los mismos. Entrada con la acción (clave estable por intento, busca a la familia con el
+  teléfono completo), monitor con cada niño medido con sus condiciones y nombre en el servidor, salida
+  con una operación por familia y la cuenta adoptada, la caja encuentra la cuenta por la pulsera en la
+  sala, Inicio cuenta los niños atendidos y el directorio de familias se lee y corrige en el servidor.
+  Se borran `src/demo/parque.ts`, `src/demo/representantes.ts` y `RepresentantesProvider` (y su
+  `sessionStorage`); fuera «Cargar a una mesa» de la salida, que anunciaba una carga que no hacía.*
+  *· Comprobado en el navegador con tres equipos: prepago de dos niños enviada a caja, cuenta abierta de
+  uno, pulsera ya activa rechazada, familia reconocida al volver con el teléfono escrito de otra manera,
+  la sala de OTRO equipo ve a los niños por el sondeo, nombrar desde la ficha, salida con envío a caja,
+  la caja de otro equipo recibe las cuentas y abre la de la familia al pasar su pulsera, cobro con
+  $ 20, y salida de tres familias a la vez (la ya pagada sale sin cargo). Entrada, sala y salida a
+  1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [ ] **B4-3 · Salida y liquidación**: cobrar en caja o cargar a una mesa sin cobrar dos veces. Incluye
   la recarga de tiempo, las estancias huérfanas y el paso pulsera → cuenta en caja (F5-11, F5-13,
   F5-14).
+  *Empezado con B4-2 (2026-09-28): la salida liquida en el servidor con su reloj y las condiciones de la
+  entrada, cada familia con su operación y su clave (un reintento no cobra dos veces), y la caja abre la
+  cuenta por la pulsera. Falta: la **recarga de tiempo** (F5-11), las **estancias huérfanas** (F5-13:
+  una estancia de ayer sin salida, sin fingir que salió hoy) y D9 (un niño que sale sin su
+  representante), que se pregunta al cliente. Cargar a una mesa espera al restaurante (Etapa 6, D-RES).*
 - [ ] **B4-4 · Ajustes de la sucursal** persistidos: formato de hora, umbral de residuo, servicio y
   umbral de diferencia del arqueo ($ 1,00 o su equivalente, M-13) (F5-08b).
 
@@ -896,7 +953,6 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 
 | Qué | Se salda en |
 |---|---|
-| Las pulseras de la entrada no quedan en la cuenta: en caja, «no tiene cuenta» | B4-3 |
 | Un turno no se cierra todavía: el de un equipo revocado o perdido queda abierto | B3-5 (cerrar un turno huérfano desde otro equipo, con 🔐) |
 | Quién está en cada puesto viaja por el bus entre pestañas de un navegador: Inicio no avisa «Sin nadie en caja» aunque haya turno | B5-1 |
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
@@ -914,8 +970,10 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Un cambio del catálogo de productos llega a la caja al volver a abrir su pantalla, no en vivo (un precio ya programado sí entra solo a su hora) | B5-1 |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
-| El importe del parque (paquete, excedente) y el de la carta de la mesa llegan de la pantalla: el servidor solo revalida el precio de lo que es del catálogo de productos | B4-2 (parque) y B6-1 (carta) |
-| La salida no ve a los niños que entraron: lee la sala del servidor, vacía hasta B4-2 (la cuenta de familia en cuenta abierta no llega a caja por la salida) | B4-2 |
+| El importe de la carta de la mesa llega de la pantalla (el del parque ya lo pone el servidor, B4-2), y lo que se mueve del parque a una mesa también | B6-1 (carta y mesas) |
+| La sala llega a los demás equipos por sondeo de 5 s, no en vivo; el monitor recalcula el estado de cada niño con cada sondeo | B5-1 |
+| «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
+| Un niño sin nombre sale en la tarjeta de la sala con su pulsera dos veces (título y subtítulo) | Al pasar por la sala |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
 | Las cuentas llegan a las otras estaciones por sondeo de 5 s, no en vivo | B5-1 |
@@ -929,11 +987,9 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | Qué | Dónde | Se va con |
 |---|---|---|
 | Movimientos y excepciones del turno (vacíos; el fondo ya es real) | `src/demo/turno.ts` | B3-5 |
-| Sala y representantes (vacíos) y el mapa pulsera → estancia de la caja | `src/demo/parque.ts`, página de caja | B4-2 y B4-3 |
-| Directorio de familias (vacío) guardado en el navegador | `src/demo/representantes.ts`, `RepresentantesProvider` | B4-1 |
 | Ajustes del local guardados en el navegador | `src/demo/sucursal.ts`, `SucursalProvider` | B4-4 |
 | Bus de operación entre pestañas del mismo navegador y estado de conexión fijo («N0») | `OperacionProvider`, layout de estación | B5-1 |
-| Cifras de Inicio sin fuente (venta, semana pasada) | `app/(admin)/panel/page.tsx` | B2-3, B3-5 y B4-2 |
+| Cifras de Inicio sin fuente (la venta; los niños atendidos ya salen de la base) | `app/(admin)/panel/page.tsx` | B3-5 |
 | Plano y carta del restaurante guardados en el navegador | `src/demo/restaurante.ts`, `PlanoProvider`, `CartaProvider` | B6-1 |
 | Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
 
@@ -981,7 +1037,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | Interfaz completa; turno real (B3-1) y medios de pago (B3-2) | Medios, cobro en el servidor, ventas, cortes y excepciones reales (Etapa 3) |
-| F5 · Parque | Interfaz completa, con el dominio de tiempo puro | Estancias y cronómetro en el servidor (Etapa 4) |
+| F5 · Parque | **Estancias, directorio y cronómetro en el servidor** (B4-1, B4-2); la salida liquida allí | Recarga, huérfanas y D9 (B4-3), ajustes (B4-4) y tiempo real (B5-1) |
 | F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Catálogo de productos en el servidor** (B9-1); insumos y recetas por hacer | Stock, compras, ajustes y alertas (B9-2 a B9-5) y B6-4 (recetas) |
@@ -1060,6 +1116,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   propuesta, a confirmar con el cliente. Sigue B3-5.
 - **2026-09-28** · D-JOR decidido con el cliente. B3-5 empezado en `feat/b3-5`: dominio, contrato,
   base y el caso de uso del corte escritos; faltan sus pruebas, la web y el navegador. Handoff.
+- **2026-09-28** · El cliente pide el parque funcional con urgencia (M-14): B3-5 en pausa y el parque
+  delante de B5-1. B4-1 y B4-2 hechos (v0.27.0): estancias, familias y cronómetro en el servidor; la
+  entrada, la sala, la salida y la caja trabajan sobre la misma base desde equipos distintos. B4-3 a
+  medias (recarga y huérfanas). Lo hecho de B3-5 entra en `main` con él.
 
 ---
 

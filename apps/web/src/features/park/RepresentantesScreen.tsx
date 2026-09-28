@@ -59,7 +59,7 @@ export function RepresentantesScreen({
   corregir,
 }: {
   directorio: DirectorioRepresentantesDto;
-  corregir: (cmd: RepresentanteCommand) => string | null;
+  corregir: (cmd: RepresentanteCommand) => Promise<string | null>;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [seleccionId, setSeleccionId] = useState<string | null>(
@@ -104,8 +104,8 @@ export function RepresentantesScreen({
   const seleccion =
     directorio.representantes.find((r) => r.id === seleccionId) ?? null;
 
-  function manejarEdicion(cmd: RepresentanteCommand) {
-    const err = corregir(cmd);
+  async function manejarEdicion(cmd: RepresentanteCommand) {
+    const err = await corregir(cmd);
     if (err) {
       return err;
     }
@@ -361,7 +361,7 @@ function HojaRepresentante({
 }: {
   representante: RepresentanteDto;
   onCerrar: () => void;
-  onGuardar: (cmd: RepresentanteCommand) => string | null;
+  onGuardar: (cmd: RepresentanteCommand) => Promise<string | null>;
 }) {
   const [fullName, setFullName] = useState(representante.fullName);
   const [contactReference, setContactReference] = useState(
@@ -370,7 +370,7 @@ function HojaRepresentante({
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [campos, setCampos] = useState<Record<string, string>>({});
 
-  function guardar() {
+  async function guardar() {
     const cmd: RepresentanteCommand = {
       kind: "CORREGIR_REPRESENTANTE",
       representanteId: representante.id,
@@ -384,7 +384,7 @@ function HojaRepresentante({
       return;
     }
     setCampos({});
-    const error = onGuardar(cmd);
+    const error = await onGuardar(cmd);
     setErrorGlobal(error);
   }
 
@@ -467,14 +467,14 @@ function HojaNino({
   representanteId: string;
   kid: NinoDelDirectorio;
   onCerrar: () => void;
-  onGuardar: (cmd: RepresentanteCommand) => string | null;
+  onGuardar: (cmd: RepresentanteCommand) => Promise<string | null>;
 }) {
   const [name, setName] = useState(kid.name ?? "");
   const [nickname, setNickname] = useState(kid.nickname ?? "");
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [campos, setCampos] = useState<Record<string, string>>({});
 
-  function guardar() {
+  async function guardar() {
     const cmd: RepresentanteCommand = {
       kind: "CORREGIR_NINO",
       representanteId,
@@ -490,7 +490,7 @@ function HojaNino({
       return;
     }
     setCampos({});
-    const error = onGuardar(cmd);
+    const error = await onGuardar(cmd);
     setErrorGlobal(error);
   }
 

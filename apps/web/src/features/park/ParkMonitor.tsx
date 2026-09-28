@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2 } from "lucide-react";
+import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button } from "@l2/ui";
 import Link from "next/link";
@@ -13,7 +13,9 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { formatClock, DEFAULT_TIME_FORMAT } from "./time-format.ts";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
-import { nombreVisible, type MonitorModel } from "./view-model";
+import { nombreVisible, toMonitorModel } from "./view-model";
+import { useSala } from "./SalaProvider.tsx";
+import { nombrarEstancia } from "./parque.acciones";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
@@ -25,10 +27,16 @@ import { VincularAMesa } from "./VincularAMesa.tsx";
  *
  * Nivel 3 (§9.4): conoce el dominio. Se lee a distancia, se opera con las
  * manos ocupadas, y el estado se comunica por color + icono + texto.
+ *
+ * La sala es del servidor (B4-2): cada niño, su familia y su cuenta llegan de la base con la hora del
+ * servidor, y los ve igual cualquier equipo.
  */
-export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) {
+const SALA_VACIA = { serverNow: 0, capacityLimit: 1, shiftLabel: "", rateValue: null, rateSource: null, rateCapturedAt: null, rateConfirmed: false, cards: [] };
+
+export function ParkMonitor() {
   const op = useOperacion();
-  const model = modeloServidor;
+  const { sala, sinConexion, refrescar } = useSala();
+  const model = useMemo(() => (sala ? toMonitorModel(sala) : SALA_VACIA), [sala]);
   const [selected, setSelected] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -82,10 +90,8 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
   const compacta = ordered.length > 10;
   const { ajustes } = useSucursal();
   const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
-  const cuentaFicha = ficha
-    ? (cuentas.find((c) => c.sessionIds.includes(ficha.id)) ?? null)
-    : null;
-  const familiaRegistrada = ficha ? (op.estado.familias[ficha.id] ?? null) : null;
+  const cuentaFicha = ficha ? (cuentas.find((c) => c.id === ficha.accountId) ?? null) : null;
+  const familiaRegistrada = ficha?.guardianName ?? null;
 
   const mesaActual = ficha ? Object.values(op.estado.mesas).find((m) => m.sesiones.includes(ficha.id)) : null;
 
@@ -131,11 +137,23 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
           )}
         </div>
 
-        {ordered.length === 0 ? (
+        {sinConexion && sala && (
+          <p role="status" className="mb-3 flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-2.5 text-[13px] text-state-warn">
+            <WifiOff size={15} aria-hidden="true" />
+            Sin conexión con el servidor: la sala puede estar atrasada. Se vuelve a intentar sola.
+          </p>
+        )}
+        {!sala ? (
+          <EmptyState
+            icon={<TriangleAlert size={32} aria-hidden="true" />}
+            title="No se pudo leer la sala"
+            hint="El servidor no respondió o no hay tarifario publicado. Se vuelve a intentar sola; si sigue así, avisa a administración."
+          />
+        ) : ordered.length === 0 ? (
           <EmptyState
             icon={<Baby size={32} aria-hidden="true" />}
             title="No hay niños en sala"
-            hint="Al escanear una pulsera en la entrada, la estancia aparecerá aquí con su cronómetro."
+            hint="Al registrar una entrada, la estancia aparecerá aquí con su cronómetro, en cualquier equipo."
           />
         ) : (
           // La rejilla se desplaza por dentro si hiciera falta; con la sala
@@ -220,10 +238,14 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
             sessionId={ficha.id}
             nombreActual={ficha.childName}
             apodoActual={ficha.childNickname}
-            onGuardar={(cmd) => {
-              const r = op.emitir({ ...cmd, type: "estancia.nombrada" });
-              if (!r.ok) avisar.error(r.motivo);
-              else setPoniendoNombre(false);
+            onGuardar={async (cmd) => {
+              const r = await nombrarEstancia(cmd).catch(() => null);
+              if (!r) avisar.error("Sin conexión con el servidor: el nombre no se guardó.");
+              else if (!r.ok) avisar.error(r.mensaje);
+              else {
+                setPoniendoNombre(false);
+                void refrescar();
+              }
             }}
             onCancelar={() => setPoniendoNombre(false)}
           />
@@ -239,7 +261,7 @@ export function ParkMonitor({ model: modeloServidor }: { model: MonitorModel }) 
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-ink-3">Tiempo</dt>
               <dd className="text-ink">
-                {ficha.contractedMinutes ? `${ficha.contractedMinutes} min contratados` : "Tiempo abierto"}
+                {ficha.packageName} · {ficha.contractedMinutes ? `${ficha.contractedMinutes} min` : "tiempo abierto"}
               </dd>
             </div>
             {ficha.hasOverdueCharge && (

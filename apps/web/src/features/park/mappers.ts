@@ -15,6 +15,7 @@ import type {
   MoneyDto,
   ParkPolicyDto,
   ParkSessionDto,
+  ParkTermsDto,
 } from "@l2/contracts";
 import { money, type Money } from "@l2/domain-money";
 import {
@@ -44,6 +45,16 @@ export function toMoney(dto: MoneyDto): Money {
 
 export function toDuration(dto: DurationDto): Duration {
   return dto.kind === "openEnded" ? openEnded : fixed(dto.minutes);
+}
+
+/** Las condiciones con que entró una estancia (B4-2): gracia, bloque, su precio y el aviso. */
+export function toParkTerms(dto: ParkTermsDto): ParkPolicy {
+  return parkPolicy({
+    graceMinutes: dto.graceMinutes,
+    penaltyBlockMinutes: dto.penaltyBlockMinutes,
+    penaltyPricePerBlock: toMoney(dto.penaltyPricePerBlock),
+    warnBeforeMinutes: dto.warnBeforeMinutes,
+  });
 }
 
 export function toParkPolicy(dto: ParkPolicyDto): ParkPolicy {

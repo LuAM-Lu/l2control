@@ -12,6 +12,35 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.27.0] — 2026-09-28 · Etapa 4 · Parque
+
+B4-1 y B4-2 · Familias, niños y estancias en el servidor, con su cronómetro. Salen juntos: no hay 0.26.0.
+
+### Añadido
+- **El parque funciona entre equipos.** Lo que registra la entrada lo ve la sala de cualquier otra
+  tablet, la salida y la caja, con el reloj del servidor: cambiar la hora de una tablet no cambia el
+  tiempo que se cobra.
+- La entrada **reconoce a la familia que vuelve** por su teléfono, lo escriba como lo escriba
+  (0412-1234567, +58 412 1234567…), y no la duplica.
+- La salida **liquida en el servidor** el tiempo de más, con las condiciones que regían cuando el niño
+  entró: publicar otro tarifario no cambia lo que se le cobra a quien ya está dentro. Si se van varias
+  familias juntas, cada una sale con su propia cuenta.
+- La caja abre la cuenta de una familia **pasando la pulsera** de cualquiera de sus niños.
+- Inicio cuenta los **niños atendidos** hoy contra el mismo día de la semana pasada.
+- El directorio de familias (Parque → Representantes y niños) es de la base: se corrige con registro
+  de quién lo hizo, y un niño nombrado en la sala aparece en su familia.
+
+### Cambiado
+- El precio del paquete lo pone el servidor con el tarifario vigente, y el aforo y las pulseras en uso
+  los comprueba él: dos entradas a la vez no cuelan un niño de más.
+- Una pantalla ya no puede abrir la cuenta de una familia, sacar niños de ella ni ponerle paquete o
+  tiempo de más: eso lo hacen la entrada y la salida del parque.
+- Un niño sin nombre se ve por su pulsera también en la salida.
+
+### Quitado
+- «Cargar a una mesa» en la salida: anunciaba una carga que no hacía. Vuelve con el restaurante.
+- El directorio y la sala guardados en el navegador.
+
 ## [0.25.0] — 2026-09-28 · Etapa 3 · Caja
 
 B3-4 · Ventas del turno, reimpresión, anulación y cortesía en el servidor.

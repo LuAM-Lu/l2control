@@ -11,6 +11,7 @@ import { dispositivosDelLocal } from "../../../../../src/features/identity/dispo
 import { accesosDelLocal, directorioDelLocal } from "../../../../../src/features/identity/identidad.servidor";
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
+import { directorioDeFamilias } from "../../../../../src/features/park/parque.servidor";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
 import { autorizadoresDeTasa } from "../../../../../src/features/cash/tasas.servidor";
 import { MediosPage } from "../../../../../src/features/cash/MediosPage";
@@ -29,7 +30,7 @@ import { catalogoDelLocal } from "../../../../../src/features/inventario/product
  * de encontrar la página del módulo. Añadir una pantalla es una línea.
  */
 const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.ReactNode>>> = {
-  "parque/representantes": () => <RepresentantesPage />,
+  "parque/representantes": async () => <RepresentantesPage inicial={await directorioDeFamilias()} />,
   "ajustes/tarifas": () => <EditorTarifario />,
   "ajustes/carta": () => <EditorCarta />,
   "ajustes/plano": () => <EditorPlano />,

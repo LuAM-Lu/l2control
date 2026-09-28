@@ -41,6 +41,7 @@ import {
 } from "@l2/contracts";
 import { registerExit } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
+import { calendarDay, startOfDay } from "@l2/domain-rates";
 import { admits, epochMs, fixed, openEnded, parkPolicy, settleAtExit, type ParkPolicy, type ParkSession as SesionDelDominio } from "@l2/domain-park";
 import type { Action } from "@l2/domain-identity";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
@@ -48,6 +49,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
+import { ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
 import { guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
 
@@ -60,6 +62,8 @@ export interface CasosParque {
   salir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CheckoutResult>>;
   /** Pone o corrige el nombre del niño de una estancia en sala (`NombrarEstanciaCommandSchema`, DEC-28). */
   nombrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstanciaDto>>;
+  /** Niños que entraron hoy y el mismo día de la semana pasada, en el día del local (Inicio). */
+  atendidos(ctx: Contexto, ahora?: number): Promise<Resultado<{ hoy: number; semanaPasada: number }>>;
 }
 
 /** Quién ve la sala: quien trabaja con el parque o con sus cuentas (entrada, salida, salón y caja). */
@@ -357,6 +361,21 @@ export function casosParque(base: Base): CasosParque {
         const r = await intentar();
         return "ok" in r ? r : { ok: true, valor: r };
       }
+    },
+
+    async atendidos(ctx, ahora = Date.now()) {
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<{ hoy: number; semanaPasada: number } | Rechazo> => {
+        let ve = false;
+        for (const a of VEN_LA_SALA) if ((await permisoEn(tx, ctx, a)) !== "DENEGADO") ve = true;
+        if (!ve) return rechazoDePermiso("DENEGADO");
+        const dia = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+        const desde = startOfDay(dia, ZONA_DEL_LOCAL);
+        const hace7 = startOfDay(calendarDay(new Date(desde - 7 * 86_400_000 + 12 * 3_600_000).toISOString(), ZONA_DEL_LOCAL), ZONA_DEL_LOCAL);
+        const cuantos = (de: number, a: number) =>
+          tx.parkSession.count({ where: { branchId: ctx.branchId, startedAt: { gte: new Date(de), lt: new Date(a) } } });
+        return { hoy: await cuantos(desde, ahora + 1), semanaPasada: await cuantos(hace7, hace7 + (ahora + 1 - desde)) };
+      });
+      return "ok" in r ? r : { ok: true, valor: r };
     },
 
     async nombrar(ctx, entrada, ahora = Date.now()) {

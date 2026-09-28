@@ -1,6 +1,4 @@
 import { CajaScreen } from "../../../src/features/cash/CajaScreen";
-import { demoSnapshot } from "../../../src/demo/parque";
-import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 import { impuestosDelLocal } from "../../../src/features/cash/impuestos.servidor";
 import { turnoDelEquipo } from "../../../src/features/cash/turno.servidor";
 import { catalogoDelLocal } from "../../../src/features/inventario/productos.servidor";
@@ -24,14 +22,10 @@ export default async function CajaPage({
   searchParams: Promise<{ cuenta?: string; volver?: string }>;
 }) {
   const { cuenta, volver } = await searchParams;
-  // Pulsera → estancia, para abrir una cuenta pasando la pulsera por el lector.
-  // TODO(F4-03/backend): lo resuelve el servidor a partir del código.
-  const pulseras = Object.fromEntries(demoSnapshot(Date.now(), (await tarifarioVigente()).tarifario.policy).sessions.map((s) => [s.wristbandCode, s.id]));
   return (
     <CajaScreen
       cuentaInicial={cuenta ?? null}
       volver={volver ?? null}
-      pulseras={pulseras}
       // Las alícuotas, de la base con su vigencia (B2-2): la caja elige las del instante.
       impuestos={await impuestosDelLocal()}
       // El catálogo de productos con sus precios con vigencia (B9-1): la carta de mostrador.

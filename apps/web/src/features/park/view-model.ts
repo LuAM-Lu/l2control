@@ -12,7 +12,7 @@
 import type { MonitorSnapshotDto } from "@l2/contracts";
 import { toMajor } from "@l2/domain-money";
 import { computeOverdueCharge, computeSessionView, type SessionStatus } from "@l2/domain-park";
-import { toEpochMs, toParkPolicy, toParkSession } from "./mappers.ts";
+import { toEpochMs, toParkSession, toParkTerms } from "./mappers.ts";
 
 /**
  * Cómo se llama una estancia en pantalla: el apodo, el nombre o —si nadie se
@@ -65,6 +65,11 @@ export type SessionCardModel = Readonly<{
   overdueAmount: string;
   overdueCurrency: string;
   hasOverdueCharge: boolean;
+  /** La cuenta de la familia que la paga (B4-2). */
+  accountId: string;
+  /** A quién se entrega el niño. */
+  guardianName: string;
+  packageName: string;
 }>;
 
 export type MonitorModel = Readonly<{
@@ -89,12 +94,13 @@ function horaCorta(iso: string): string {
 
 export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
   const now = toEpochMs(snapshot.serverNow);
-  const policy = toParkPolicy(snapshot.policy);
 
   const cards = snapshot.sessions.map((dto) => {
     const session = toParkSession(dto);
-    const view = computeSessionView(session, policy, now);
-    const overdue = computeOverdueCharge(view, policy);
+    // Cada estancia se mide con las condiciones con que entró: así la sala dice lo mismo que cobrará la salida.
+    const terms = toParkTerms(dto.terms);
+    const view = computeSessionView(session, terms, now);
+    const overdue = computeOverdueCharge(view, terms);
 
     const isFixed = session.duration.kind === "fixed";
     const contractedMinutes = isFixed ? session.duration.minutes : null;
@@ -119,6 +125,9 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
       overdueAmount: toMajor(overdue),
       overdueCurrency: overdue.currency,
       hasOverdueCharge: overdue.amount > 0n,
+      accountId: dto.accountId,
+      guardianName: dto.guardianName,
+      packageName: dto.packageName,
     };
   });
 

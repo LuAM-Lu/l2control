@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CircleCheckBig,
   Phone,
@@ -11,8 +11,8 @@ import {
 import {
   CheckInCommandSchema,
   GuardianSchema,
-  type GuardianDto,
   type PaymentMode,
+  type RepresentanteEncontradoDto,
   WristbandCodeSchema,
 } from "@l2/contracts";
 import {
@@ -30,12 +30,12 @@ import {
   formatMoneyVE,
 } from "@l2/ui";
 import { sum, toMajor, zero } from "@l2/domain-money";
-import { computeCapacity } from "@l2/domain-park";
+import { computeCapacity, contactKey } from "@l2/domain-park";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { abrirCuenta } from "../cuentas/cuentas.ts";
-import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { buscarRepresentante, registrarEntrada } from "./parque.acciones";
+import { useSala } from "./SalaProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
 import { useTarifario } from "./TarifarioProvider";
@@ -56,6 +56,10 @@ import { puedeAbrirRuta } from "../identity/visibilidad.ts";
  *  · Al representante se le busca por teléfono; si ya vino, no se vuelve a
  *    teclear nada. El nombre de los niños no se pide en la puerta para ahorrar tiempo.
  *  · Una sola pantalla. Ningún diálogo, ninguna navegación intermedia.
+ *
+ * Desde B4-2 registra en el servidor: él abre las estancias con su hora, pone el precio del tarifario
+ * vigente, comprueba el aforo y las pulseras con lo que hay de verdad en sala y abre la cuenta de la
+ * familia. Lo que esta pantalla calcula (total, aforo) es un anticipo para quien atiende.
  */
 
 type Entrada = {
@@ -66,21 +70,18 @@ type Entrada = {
 
 const NUEVO_UID = () => globalThis.crypto.randomUUID();
 
-export function CheckInScreen({
-  guardians,
-  activeSessions,
-  occupiedWristbands,
-}: {
-  guardians: readonly (GuardianDto & { id: string })[];
-  activeSessions: number;
+/** Dígitos que hacen falta para buscar a una familia: un teléfono entero, no un pedazo. */
+const DIGITOS_PARA_BUSCAR = 7;
+
+export function CheckInScreen() {
+  const { sala, adoptar: adoptarEstancias } = useSala();
+  const activeSessions = sala?.sessions.length ?? 0;
   /**
    * Códigos con una estancia ya activa. Las pulseras son desechables (§6.6),
    * así que esto no impide «reutilizar» nada: impide escanear dos veces la
-   * misma pulsera que ya está puesta a un niño en sala (I-04).
+   * misma pulsera que ya está puesta a un niño en sala (I-04). El servidor lo vuelve a mirar.
    */
-  occupiedWristbands: readonly string[];
-}) {
-  const op = useOperacion();
+  const occupiedWristbands = useMemo(() => sala?.sessions.map((s) => s.wristbandCode) ?? [], [sala]);
   const { tarifario } = useTarifario();
   const paquetesActivos = useMemo(
     () => tarifario.packages.filter((p) => p.active),
@@ -99,7 +100,10 @@ export function CheckInScreen({
   // DEC-21: cómo paga esta familia. Se elige en cada entrada.
   const [modo, setModo] = useState<PaymentMode>("PREPAGO");
   const router = useRouter();
-  const { guardar } = useCuentas();
+  const { adoptar: adoptarCuenta } = useCuentas();
+  const [enviando, setEnviando] = useState(false);
+  /** La clave de este intento: un reintento tras un corte no registra dos veces (I-11). */
+  const clave = useRef<string | null>(null);
 
   const actor = useActorEnSesion();
   const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
@@ -113,18 +117,25 @@ export function CheckInScreen({
 
   /* ----------------------------------------------------- representante */
 
-  // F5-03: se busca por teléfono, que es lo que el representante recuerda.
-  const encontrado = useMemo(() => {
-    const limpio = telefono.replace(/\D/g, "");
-    if (limpio.length < 4) return null;
-    return (
-      guardians.find((g) =>
-        g.contactReference.replace(/\D/g, "").includes(limpio),
-      ) ?? null
-    );
-  }, [telefono, guardians]);
-
-  const esNuevo = telefono.replace(/\D/g, "").length >= 4 && !encontrado;
+  // F5-03: se busca por teléfono, que es lo que el representante recuerda. Lo busca el servidor
+  // con el número entero: nadie recorre el directorio tecleando pedazos.
+  const llave = contactKey(telefono);
+  const buscable = llave !== null && llave.length >= DIGITOS_PARA_BUSCAR;
+  const [busqueda, setBusqueda] = useState<{ llave: string; familia: RepresentanteEncontradoDto | null } | null>(null);
+  useEffect(() => {
+    if (!buscable || busqueda?.llave === llave) return;
+    const id = window.setTimeout(() => {
+      void buscarRepresentante({ contacto: telefono })
+        .then((r) => {
+          if (r.ok) setBusqueda({ llave: llave!, familia: r.valor });
+        })
+        .catch(() => undefined);
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [buscable, llave, telefono, busqueda?.llave]);
+  const buscada = buscable && busqueda?.llave === llave ? busqueda : null;
+  const encontrado = buscada?.familia ?? null;
+  const esNuevo = buscada !== null && !encontrado;
 
   /* ------------------------------------------------------------ escaneo */
 
@@ -202,20 +213,23 @@ export function CheckInScreen({
 
   /* ------------------------------------------------------------- envío */
 
-  const faltaRepresentante = !encontrado && nombreNuevo.trim().length < 2;
+  const faltaRepresentante = !encontrado && (!esNuevo || nombreNuevo.trim().length < 2);
   const telefonoValido =
     GuardianSchema.shape.contactReference.safeParse(telefono).success;
   const puedeEnviar =
     entradas.length > 0 &&
     telefonoValido &&
     !faltaRepresentante &&
-    !capacidad.isFull;
+    !capacidad.isFull &&
+    !enviando;
 
-  function registrar() {
+  async function registrar() {
+    clave.current ??= NUEVO_UID();
     // El mismo contrato que validará el servidor. Si algo no cuadra, se ve
     // aquí y no en un 400 sin explicación (ADR-017).
     const comando = {
-      idempotencyKey: NUEVO_UID(),
+      idempotencyKey: clave.current,
+      paymentMode: modo,
       entries: entradas.map((e) => ({
         wristbandCode: e.wristbandCode,
         kid: {},
@@ -239,67 +253,33 @@ export function CheckInScreen({
       return;
     }
 
-    // Cada niño con su paquete. Un paquete que ya no existe en el catálogo
-    // no se cobra «a cero»: se detiene el registro (fail-closed).
-    const ninos = [];
-    const estancias = [];
-    const desde = new Date().toISOString();
-    for (const e of entradas) {
-      const p = tarifario.packages.find((x) => x.id === e.packageId);
-      if (!p) {
-        setAviso(
-          `El paquete de la pulsera ${e.wristbandCode} ya no existe en el catálogo`,
-        );
-        return;
-      }
-      const sessionId = `s-${e.uid}`;
-      ninos.push({
-        sessionId,
-        concepto: `Paquete ${p.name} · ${e.wristbandCode}`,
-        precio: p.price,
-      });
-      estancias.push({
-        id: sessionId,
-        wristbandCode: e.wristbandCode,
-        kid: { id: `k-${e.uid}` },
-        mode: p.mode,
-        duration: p.duration,
-        startedAt: desde,
-        packageId: p.id,
-        packagePrice: p.price,
-      });
+    setEnviando(true);
+    const r = await registrarEntrada(resultado.data).catch(() => null);
+    setEnviando(false);
+    if (!r) {
+      // La clave se guarda: al reintentar, si el servidor ya la registró, devuelve la misma.
+      setAviso("Sin conexión con el servidor: la entrada no se registró. Vuelve a intentarlo.");
+      return;
+    }
+    if (!r.ok) {
+      clave.current = null;
+      setAviso(r.mensaje);
+      return;
     }
 
-    // TODO(F5-02/backend): aquí irá la llamada real; el servidor abrirá las
-    // estancias y la cuenta con estas mismas reglas (§11.4).
-    const cuenta = abrirCuenta({
-      familia: encontrado?.fullName ?? nombreNuevo.trim(),
-      modo,
-      ahora: new Date().toISOString(),
-      ninos,
-    });
-    guardar(cuenta);
-
-    // El resto del local se entera: la sala pinta al niño, el mesero puede
-    // vincular su pulsera a una mesa y la cocina sabe cuántos hay dentro.
-    // Mismo catálogo de eventos que usará el servidor (F1-20).
-    for (const session of estancias) {
-      const r = op.emitir({
-        type: "estancia.abierta",
-        session,
-        family: cuenta.family,
-      });
-      if (!r.ok)
-        avisar.aviso(
-          `La sala no se enteró de la pulsera ${session.wristbandCode}: ${r.motivo}`,
-        );
-    }
+    clave.current = null;
+    const { account: cuenta, sessions } = r.valor;
+    // La sala y la caja lo ven al momento en este equipo; los demás, con su sondeo.
+    adoptarEstancias(sessions);
+    adoptarCuenta(cuenta);
 
     setEntradas([]);
     setTelefono("");
     setNombreNuevo("");
+    setBusqueda(null);
     setAviso(null);
 
+    const n = sessions.length;
     if (modo === "PREPAGO") {
       // Prepago: el paquete se cobra ya. La caja recibe la cuenta y, al
       // cobrar, devuelve aquí para la siguiente familia (§9.10.9).
@@ -307,14 +287,12 @@ export function CheckInScreen({
         router.push(`/caja?cuenta=${cuenta.id}&volver=/entrada` as Route);
       } else {
         const totalConFormato = formatMoneyVE(toMajor(total), total.currency);
-        const n = cuenta.sessionIds.length;
         avisar.ok(`Cuenta enviada a caja: ${cuenta.family}`, {
           detalle: `${n} ${n === 1 ? "niño" : "niños"} · ${totalConFormato}. Se cobra en la caja.`,
         });
       }
       return;
     }
-    const n = cuenta.sessionIds.length;
     avisar.ok(`Cuenta abierta para ${cuenta.family}`, {
       detalle: `${n} ${n === 1 ? "niño" : "niños"}. Se cobra todo junto al salir.`,
       accion: {
@@ -568,10 +546,12 @@ export function CheckInScreen({
                   surface="pos"
                   variant="primary"
                   disabled={!puedeEnviar}
-                  onClick={registrar}
+                  onClick={() => void registrar()}
                   className="w-full"
                 >
-                  {modo === "PREPAGO"
+                  {enviando
+                    ? "Registrando…"
+                    : modo === "PREPAGO"
                     ? puedeCobrar
                       ? "Registrar y cobrar"
                       : "Registrar y enviar a caja"
@@ -580,13 +560,17 @@ export function CheckInScreen({
 
                 {/* §8.7: el motivo por el que un botón está deshabilitado se dice,
                   no se deja adivinar. */}
-                {!puedeEnviar && entradas.length > 0 && (
+                {!puedeEnviar && !enviando && entradas.length > 0 && (
                   <p className="text-center text-[12px] text-ink-3">
                     {capacidad.isFull
                       ? "Aforo completo"
                       : !telefonoValido
                         ? "Falta el teléfono del representante"
-                        : "Falta el nombre del representante"}
+                        : !buscable
+                          ? "Escribe el teléfono completo"
+                          : !buscada
+                            ? "Buscando a la familia…"
+                            : "Falta el nombre del representante"}
                   </p>
                 )}
               </div>

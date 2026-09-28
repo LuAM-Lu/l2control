@@ -295,6 +295,17 @@ describe("la sala, los permisos y el aislamiento", () => {
     await vaciarSala();
   });
 
+  test("Inicio cuenta los niños atendidos hoy y el mismo día de la semana pasada, hasta esta hora", async () => {
+    const antes = valor(await local.app.parque.atendidos(ctxMonitora, AHORA + 2 * MIN));
+    await entrar(entrada([{}, {}]), ctxMonitora, AHORA + MIN);
+    await entrar(entrada([{}]), ctxMonitora, AHORA - 7 * 24 * 60 * MIN); // domingo pasado, a la misma hora
+    await entrar(entrada([{}]), ctxMonitora, AHORA - 7 * 24 * 60 * MIN + 60 * MIN); // más tarde: aún no cuenta
+    const r = valor(await local.app.parque.atendidos(ctxMonitora, AHORA + 2 * MIN));
+    assert.equal(r.hoy - antes.hoy, 2);
+    assert.equal(r.semanaPasada - antes.semanaPasada, 1);
+    await vaciarSala(AHORA + 2 * MIN);
+  });
+
   test("ni la cocina ni el mesero registran entradas o salidas", async () => {
     for (const ctx of [ctxCocina, ctxMesero]) {
       const r = await local.app.parque.entrar(ctx, entrada([{}]), AHORA);

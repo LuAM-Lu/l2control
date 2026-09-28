@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { OperationEventSchema, type OperationEventDto } from "@l2/contracts";
 import { ESTADO_VACIO, aplicar, type EstadoLocal, type EventoSinSello } from "./proyeccion.ts";
+import { useSala } from "../park/SalaProvider.tsx";
 
 /**
  * La operación del local — el bus de eventos (F1-20, ADR-008).
@@ -14,6 +15,10 @@ import { ESTADO_VACIO, aplicar, type EstadoLocal, type EventoSinSello } from "./
  *
  * Sustituye al simulador de operación (F1-19), retirado el 2026-09-26 (MAESTRO, M-6): ya
  * no hay escenarios, reloj acelerado ni panel «DEMO». Queda lo que no era simulado.
+ *
+ * LOS NIÑOS EN SALA SON DEL SERVIDOR (B4-2): la proyección toma las estancias de la sala
+ * (`SalaProvider`), que las lee de la base, y no de eventos de este navegador. Así el salón, la caja
+ * e Inicio ven a los mismos niños que el monitor, estén en el equipo que estén.
  *
  * HASTA B5-1 el transporte es de este navegador: los eventos viven en la pestaña
  * (`sessionStorage`) y viajan a las demás pestañas por un `BroadcastChannel`, donde se
@@ -126,7 +131,22 @@ export function OperacionProvider({ children }: { children: React.ReactNode }) {
     [incorporar],
   );
 
-  const valor = useMemo<Operacion>(() => ({ estado, hayActividad, emitir }), [estado, hayActividad, emitir]);
+  const { sala } = useSala();
+  const conSala = useMemo<EstadoLocal>(() => {
+    if (!sala) return estado;
+    const nombres = Object.fromEntries(sala.sessions.map((s) => [s.id, s.kid.nickname ?? s.kid.name ?? s.wristbandCode]));
+    return {
+      ...estado,
+      sesiones: sala.sessions,
+      familias: Object.fromEntries(sala.sessions.map((s) => [s.id, s.guardianName])),
+      nombres: { ...estado.nombres, ...nombres },
+    };
+  }, [estado, sala]);
+
+  const valor = useMemo<Operacion>(
+    () => ({ estado: conSala, hayActividad: hayActividad || (sala?.sessions.length ?? 0) > 0, emitir }),
+    [conSala, hayActividad, sala, emitir],
+  );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

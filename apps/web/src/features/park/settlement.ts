@@ -13,7 +13,7 @@ import {
 } from "@l2/contracts";
 import { add, toMajor, zero, type Money } from "@l2/domain-money";
 import { computeOverdueBreakdown, computeSessionView } from "@l2/domain-park";
-import { toEpochMs, toMoney, toParkPolicy, toParkSession } from "./mappers.ts";
+import { toEpochMs, toMoney, toParkSession, toParkTerms } from "./mappers.ts";
 
 function toMoneyDto(m: Money) {
   return { minor: m.amount.toString(), currency: m.currency };
@@ -22,16 +22,14 @@ function toMoneyDto(m: Money) {
 /**
  * Liquidación de las estancias indicadas, en el instante del servidor.
  *
- * Cuando exista el backend, este cálculo lo hará el servidor con **este mismo
- * código de dominio**, y esta función se sustituye por la llamada. La forma
- * del resultado ya es la definitiva (§11.4).
+ * Es un ANTICIPO para quien atiende: el servidor liquida con este mismo dominio y
+ * su propio reloj al confirmar (B4-3), y lo que cobra es lo suyo.
  */
 export function buildCheckoutPreview(
   snapshot: MonitorSnapshotDto,
   sessionIds: readonly string[],
 ): CheckoutPreviewDto {
   const now = toEpochMs(snapshot.serverNow);
-  const policy = toParkPolicy(snapshot.policy);
   const endedAt = snapshot.serverNow;
 
   // Se respeta el ORDEN DE ESCANEO, no el del snapshot: el operador acaba de
@@ -44,8 +42,10 @@ export function buildCheckoutPreview(
     .filter((s): s is NonNullable<typeof s> => s !== undefined)
     .map((dto) => {
       const session = toParkSession(dto);
-      const view = computeSessionView(session, policy, now);
-      const desglose = computeOverdueBreakdown(view, policy);
+      // Las condiciones con que entró (B4-2): las mismas con que liquida el servidor.
+      const terms = toParkTerms(dto.terms);
+      const view = computeSessionView(session, terms, now);
+      const desglose = computeOverdueBreakdown(view, terms);
       const packagePrice = toMoney(dto.packagePrice);
 
       return {

@@ -11,7 +11,8 @@ import { CartaProvider } from "../src/features/mesas/CartaProvider";
 import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
 import { tarifarioVigente } from "../src/features/park/tarifario.servidor";
 import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
-import { RepresentantesProvider } from "../src/features/park/RepresentantesProvider";
+import { SalaProvider } from "../src/features/park/SalaProvider";
+import { salaDelLocal } from "../src/features/park/parque.servidor";
 import { TasasProvider } from "../src/features/cash/TasasProvider";
 import { historialDeTasas } from "../src/features/cash/tasas.servidor";
 import { MediosProvider } from "../src/features/cash/MediosProvider";
@@ -22,7 +23,6 @@ import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { ventasDelTurno } from "../src/features/cash/ventas.servidor";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { AJUSTES_DEMO } from "../src/demo/sucursal";
-import { DIRECTORIO_DEMO } from "../src/demo/representantes";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
@@ -81,6 +81,8 @@ export default async function RootLayout({
   const cuentas = sesion ? await cuentasDelLocal() : [];
   // Las ventas del turno de este equipo, de la base (B3-4).
   const ventas = sesion ? await ventasDelTurno() : [];
+  // Los niños en sala, de la base con la hora del servidor (B4-2). Sin sesión, ninguno.
+  const sala = sesion ? await salaDelLocal() : null;
 
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
@@ -95,6 +97,7 @@ export default async function RootLayout({
           branchId={sesion?.branchId ?? null}
         >
         <ElevacionProvider>
+        <SalaProvider inicial={sala}>
         <OperacionProvider>
           {/* V4: el plano publicado vive por encima de las dos cáscaras: lo
               edita el panel y lo lee el salón. */}
@@ -105,7 +108,6 @@ export default async function RootLayout({
               lo demás: el formato de hora y el umbral de la caja los lee
               cualquier superficie (F5-08b, F4-04c, F2-02). */}
           <SucursalProvider inicial={AJUSTES_DEMO}>
-              <RepresentantesProvider inicial={DIRECTORIO_DEMO}>
                 <TasasProvider inicial={tasas}>
                   <MediosProvider inicial={medios}>
                     <PlanoProvider inicial={PLANO_DEMO}>
@@ -121,9 +123,9 @@ export default async function RootLayout({
                     </PlanoProvider>
                   </MediosProvider>
                 </TasasProvider>
-              </RepresentantesProvider>
           </SucursalProvider>
         </OperacionProvider>
+        </SalaProvider>
         </ElevacionProvider>
         </SesionProvider>
       </body>

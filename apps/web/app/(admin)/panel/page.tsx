@@ -5,9 +5,7 @@ import { InicioScreen, type PorMedio, type SaldoMoneda } from "../../../src/feat
 import type { FilaPunto } from "../../../src/features/cash/PuntosDeCobro";
 import { MEDIO_LABEL } from "../../../src/features/cash/turno";
 import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno";
-import { demoSnapshot } from "../../../src/demo/parque";
-import { toMonitorModel } from "../../../src/features/park/view-model";
-import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
+import { ninosAtendidos } from "../../../src/features/park/parque.servidor";
 import { turnosAbiertos } from "../../../src/features/cash/turno.servidor";
 
 /**
@@ -34,8 +32,8 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const { tarifario } = await tarifarioVigente();
-  const modelo = toMonitorModel(demoSnapshot(Date.now(), tarifario.policy));
+  // Los niños atendidos, de las estancias de la base (B4-2), contra el mismo día de la semana pasada.
+  const atendidos = await ninosAtendidos();
   // Los turnos abiertos (B3-1): su fondo está en la gaveta. Lo cobrado sale del libro con B3-5.
   const turnos = await turnosAbiertos();
   const fondos = openingMovements(turnos.flatMap((t) => t.fondos.map((f) => money(BigInt(f.amount.minor), f.amount.currency))));
@@ -73,10 +71,9 @@ export default async function InicioPage() {
       porMedio={porMedio}
       gaveta={gaveta}
       puntos={puntos}
-      ninosHoy={modelo.cards.length}
-      // Sin libro de pagos ni histórico de estancias todavía (B2-3, B4-2) no hay con qué
-      // comparar ni venta que sumar: se dice, no se inventa.
-      ninosSemanaPasada={null}
+      ninosHoy={atendidos?.hoy ?? 0}
+      // Sin estancias de hace una semana no hay con qué comparar: se dice, no se inventa un cero.
+      ninosSemanaPasada={atendidos && atendidos.semanaPasada > 0 ? atendidos.semanaPasada : null}
       ventaHoy={null}
       ventaSemanaPasada={null}
       excepciones={DEMO_EXCEPCIONES}

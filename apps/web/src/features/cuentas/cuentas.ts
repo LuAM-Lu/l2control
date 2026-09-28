@@ -16,9 +16,9 @@ import {
   type AccountLineDto,
   type FamilyAccountDto,
   type MoneyDto,
-  type PaymentMode,
 } from "@l2/contracts";
 import { sum, type Money } from "@l2/domain-money";
+import { registerExit } from "@l2/domain-cash";
 import type { DocumentLine } from "@l2/domain-tax";
 import { toMoney } from "../park/mappers.ts";
 
@@ -107,55 +107,11 @@ export function lineasParaCobrar(c: FamilyAccountDto): DocumentLine[] {
 }
 
 /**
- * La entrada abre la cuenta.
- *
- * En PREPAGO nace «por cobrar»: el paquete se paga ya. En CUENTA_ABIERTA
- * nace «abierta»: se acumula y se paga al salir.
+ * Cómo quedará la cuenta si salen `salen` con sus excedentes (DEC-21). Es un ANTICIPO para enseñar
+ * antes de confirmar qué pasa con cada cuenta; la salida la registra el servidor (B4-3) con la misma
+ * regla del dominio (`registerExit`) y su propio reloj.
  */
-export function abrirCuenta({
-  familia,
-  modo,
-  ahora,
-  ninos,
-}: {
-  familia: string;
-  modo: PaymentMode;
-  ahora: string;
-  ninos: readonly { sessionId: string; concepto: string; precio: MoneyDto }[];
-}): FamilyAccountDto {
-  // Un UUID que genera la pantalla: si el alta se reintenta, el servidor reconoce la misma cuenta.
-  return FamilyAccountSchema.parse({
-    id: globalThis.crypto.randomUUID(),
-    kind: "FAMILIA",
-    family: familia,
-    mode: modo,
-    status: modo === "PREPAGO" ? "POR_COBRAR" : "ABIERTA",
-    openedAt: ahora,
-    sessionIds: ninos.map((n) => n.sessionId),
-    closedSessionIds: [],
-    lines: ninos.map((n) => ({
-      id: `paq-${n.sessionId}`,
-      concept: n.concepto.slice(0, 80),
-      kind: "PAQUETE",
-      amount: n.precio,
-      paid: false,
-      sessionId: n.sessionId,
-    })),
-  });
-}
-
-/**
- * Registra que unos niños de la cuenta se van.
- *
- * El excedente de cada uno entra como línea pendiente. Y el estado sale del
- * modo de pago:
- *
- *  · PREPAGO — si alguien se pasó, su excedente se cobra YA, aunque sus
- *    hermanos sigan dentro. Si no hay nada pendiente, la salida no cobra.
- *  · CUENTA_ABIERTA — se sigue acumulando mientras quede alguien dentro; la
- *    cuenta entera pasa a caja cuando sale el último.
- */
-export function registrarSalida(
+export function previsualizarSalida(
   c: FamilyAccountDto,
   salen: readonly string[],
   excedentes: readonly {
@@ -164,43 +120,13 @@ export function registrarSalida(
     amount: MoneyDto;
   }[],
 ): FamilyAccountDto {
-  const cerradas = [...new Set([...c.closedSessionIds, ...salen])];
-  const lines = [
-    ...c.lines,
-    ...excedentes
-      .filter((e) => BigInt(e.amount.minor) > 0n)
-      .map((e) => ({
-        // Un excedente por niño: el mismo id si la salida se registra dos veces.
-        id: `exc-${e.sessionId}`,
-        concept: e.concept.slice(0, 80),
-        kind: "EXCEDENTE" as const,
-        amount: e.amount,
-        paid: false,
-        sessionId: e.sessionId,
-      })),
-  ];
-  const todosFuera = cerradas.length === c.sessionIds.length;
-  const hayPendiente = lines.some((l) => !l.paid);
-
-  const status =
-    c.mode === "PREPAGO"
-      ? hayPendiente
-        ? "POR_COBRAR"
-        : todosFuera
-          ? "COBRADA"
-          : "ABIERTA"
-      : todosFuera
-        ? hayPendiente
-          ? "POR_COBRAR"
-          : "COBRADA"
-        : "ABIERTA";
-
-  return FamilyAccountSchema.parse({
-    ...c,
-    closedSessionIds: cerradas,
-    lines,
-    status,
-  });
+  return FamilyAccountSchema.parse(
+    registerExit(
+      c,
+      salen,
+      excedentes.map((e) => ({ sessionId: e.sessionId, concept: e.concept, amountMinor: BigInt(e.amount.minor) })),
+    ),
+  );
 }
 
 /* ═════════════════════════════════ dividir la cuenta — F6-12 ══ */

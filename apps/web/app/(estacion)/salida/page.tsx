@@ -1,13 +1,12 @@
 import { CheckoutScreen } from "../../../src/features/park/CheckoutScreen";
-import { demoSnapshot } from "../../../src/demo/parque";
-import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 
 /**
  * Salida y liquidación del parque (F5-14).
  *
  * `?pulsera=` llega desde la ficha del niño en el monitor y lo deja elegido.
  * Es un dato de la URL: la pantalla lo valida con el mismo contrato que un
- * escaneo antes de usarlo.
+ * escaneo antes de usarlo. La sala y su hora son del servidor (B4-2), y la
+ * salida la liquida el servidor (B4-3).
  */
 export const dynamic = "force-dynamic";
 
@@ -17,5 +16,5 @@ export default async function SalidaPage({
   searchParams: Promise<{ pulsera?: string }>;
 }) {
   const { pulsera } = await searchParams;
-  return <CheckoutScreen snapshot={demoSnapshot(Date.now(), (await tarifarioVigente()).tarifario.policy)} pulseraInicial={pulsera ?? null} />;
+  return <CheckoutScreen pulseraInicial={pulsera ?? null} />;
 }
