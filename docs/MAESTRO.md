@@ -122,6 +122,12 @@ tres veces en cuenta abierta (#0017 a #0019, por cobrar; una con una recarga de 
 «Familia Olvido» (#0016, por cobrar), una huérfana de ayer creada con el caso de uso y cerrada por Luis
 Guerrero. #0015 (Luis Morandin, cobrada) es del cliente. Sala vacía; equipos «Prueba B43 …» revocados.
 
+**Limpieza para probar de cero (2026-09-28, pedido del cliente).** Todas las cuentas pendientes de prueba
+(#0002–#0005 abiertas de B3-3 y #0007–#0010, #0012–#0014 y #0016–#0019 por cobrar) se marcaron
+**incobrables** con el caso de uso de B3-5, motivo «Otro: datos de prueba», autorizadas por Abigail
+Karam con su PIN: nada se borró. No queda ninguna cuenta pendiente ni niños en sala. Siguen abiertos
+los siete turnos huérfanos de prueba (los cierra B3-5).
+
 **Siguiente paso (M-14):** retomar **B3-5**, cuyo dominio, contrato, base y caso de uso ya están en `main`
 sin pruebas ni pantalla (lista en su casilla, §3); «Cerrar la jornada» ya puede listar los niños en sala y
 las huérfanas. Luego B5-1 (sustituye el sondeo de 5 s de la sala y de las cuentas) y B4-4.
