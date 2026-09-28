@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-09-27**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-09-28**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -29,11 +29,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.23.0 · 23 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.24.0 · 24 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
-feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Etapa 9 empezada: **el catálogo de productos es de la base (B9-1)**, con el precio programado por día, y la caja vende de él. Sin modo demo; lo provisional y lo simulado que queda está
+feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Etapa 9 empezada: **el catálogo de productos es de la base (B9-1)**, con el precio programado por día, y la caja vende de él. **Las cuentas son de la base (B3-3)**: familia, mesa y mostrador; la caja cobra y anula contra el libro en una transacción, con el total, la tasa y la autorización comprobados en el servidor. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -41,17 +41,17 @@ número del medio cuenta los pasos entregados.
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
   auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago, catálogo de productos), `@l2/observability` (logs redactados, entorno validado). La web lee
+  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago, catálogo de productos, cuentas), `@l2/observability` (logs redactados, entorno validado). La web lee
   la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
 - **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
   tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) y el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
+  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja) y las cuentas (entrada, mesas, caja, cobrar y anular). No se enseña nada inventado: sala, familias, turno y cifras de Inicio dicen «Sin datos» o
   «Sin turno abierto» hasta su paso. Lo demás es configuración provisional o simulación, en §5.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (55 de base, 203 de aplicación; en el dominio, 54 de tasas,
-  44 de impuestos, 67 de caja y 18 de inventario). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (60 de base, 222 de aplicación; en el dominio, 57 de tasas,
+  44 de impuestos, 90 de caja y 18 de inventario). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -80,6 +80,13 @@ Banesco y Punto Mercantil), con Pago Móvil, Punto débito y Zelle encendidos. A
 añadió el medio «Biopago» (se queda apagado: un medio no se borra) y se añadió y retiró el terminal
 «Punto BNC». Punto crédito sigue apagado.
 
+**Cuentas en la base local (2026-09-28).** Al comprobar B3-3 se abrieron ocho: #0001 (mostrador, cobrada
+mixta), #0002 a #0004 (familias en cuenta abierta, se quedan abiertas: la salida no ve la sala hasta
+B4-2), #0005 (familia en prepago, cobrada; sigue abierta con el niño dentro), #0006 (mesa 1, cobrada
+en dos partes) y #0007 y #0008 (mostrador, cobradas y anuladas: vuelven a estar por cobrar). Dos turnos
+de prueba más, en «Prueba B33 Caja» ($ 10,00) y «Prueba B33 Admin» ($ 20,00); equipos «Prueba B33
+Caja», «Prueba B33 Admin» y «Prueba B33 Salón» revocados.
+
 **Productos en la base local.** `pnpm db:semilla` cargó doce de ejemplo (bebidas, snacks, golosinas
 y café). Al comprobar B9-1 se creó «Pirulín» ($ 2,50) y se dejó exento, se apartó «Gomitas», el agua
 subió a $ 1,20 desde el domingo 27 y la malta tiene $ 1,75 programado para el miércoles 30. Se abrió
@@ -100,10 +107,8 @@ completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el 
 y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
 (sin día simulado: decisión del cliente, 2026-09-27).
 
-**Siguiente paso:** B3-3, **en curso en la rama `feat/b3-3`** (`main` sigue en v0.23.0, en verde).
-Alcance decidido con el cliente el 2026-09-27: **todas las cuentas** (familia, mesa y mostrador) pasan
-a la base, no solo el mostrador. Lo hecho y lo que falta está en la casilla de B3-3 (§3). Luego B3-4,
-B3-5 y el orden de §3.
+**Siguiente paso:** B3-4 (ventas del turno y las autorizaciones de la caja en el servidor), luego B3-5
+y el orden de §3.
 
 ---
 
@@ -578,16 +583,15 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   «Otros medios»; Punto crédito (apagado) no sale en la caja; Pago Móvil enseña los datos del local
   leídos del servidor. Medios, Datos, Terminales y caja a 1366×768, 1280×800 y 800×1280 sin desplazar
   el documento, con «Cerrar cobro» a la vista; sin errores de consola.*
-- [ ] **B3-3 · Cobro mixto y vuelto en el servidor** contra el libro, con la tasa congelada (F4-03,
+- [x] **B3-3 · Cobro mixto y vuelto en el servidor** contra el libro, con la tasa congelada (F4-03,
   F4-04b, F4-04c, §5.6). Necesita B9-1: la venta de mostrador vende del catálogo de la base y tiene su
   tipo de cuenta «mostrador». Las cuentas dejan de vivir en el almacenamiento del navegador.
   → Un cobro que no cuadra al céntimo no se confirma. Un cobro con una tasa que ya no es la vigente se
   rechaza fuera de un margen corto (ADR-019).
-  *En curso en `feat/b3-3` (2026-09-27). **Alcance acordado con el cliente: todas las cuentas**
+  *Hecho el 2026-09-28 (v0.24.0), en `feat/b3-3`. **Alcance acordado con el cliente: todas las cuentas**
   (familia, mesa y mostrador) salen del navegador; el importe del parque y de la mesa sigue llegando
   de la pantalla hasta B4-2 y B6-1 (deuda a anotar en §5). Anular un cobro pasa al servidor en este
   paso (el libro lo exige), con la autorización 🔐 comprobada allí; cortesía y descuento siguen en B3-4.*
-  *Hecho en la rama:*
   *· Dominio `@l2/domain-cash` (`cuenta.ts`, depende ahora de `@l2/domain-tax`): `chargeableLines`,
   `documentLinesOf` (cada línea con su IVA), `markPaid`, `markPartPaid`, `revertPaid` y
   `accountChangeProblem`, que dice qué cambio de una pantalla acepta el servidor: marcar pagado es del
@@ -623,15 +627,29 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   *· Pruebas del libro: cada documento es una cuenta real (`crearCuenta` en `para-pruebas.ts`).*
   *· `revertPaid` con cuenta dividida: anular una parte resta esa parte y la división sigue; si la
   cuenta estaba completa, vuelve a deberse lo que marcó pagado la última parte. 4 pruebas nuevas.*
-  *Falta, en este orden:*
-  *1. Web: `CuentasProvider` contra el servidor (lectura en el layout, sondeo de 5 s y al volver el
-  foco, `guardar` con la acción y adopción de lo devuelto; fuera `sessionStorage` y el canal entre
-  pestañas); las pantallas crean cuentas con `kind` y UUID (entrada, salida, mesas y caja; hoy
-  revientan en ejecución al validar sin `kind`); `esVentaDirecta` y `esLineaDeMostrador` por el tipo
-  y el producto; el id de una línea movida a la mesa sin truncar (`${mesa.id}-${l.id}` se corta a 64
-  y colisiona); la caja cobra con la acción y registra la venta con lo que confirma el servidor; el
-  diálogo de anular pide los autorizadores al servidor y le manda el PIN.*
-  *2. Navegador (entrada → caja, mostrador, mesa, cobro mixto con Bs, anular), §5 y cierre (v0.24.0).*
+  *· Web: `CuentasProvider` contra el servidor: lectura en el layout (`cuentas.servidor.ts`), sondeo
+  de 5 s y al volver el foco, `cuentas.acciones.ts` (leer, guardar, cobrar, anular, autorizadores).
+  Guardar es optimista y en cola por cuenta: el cambio que sigue a otro de ESTE equipo lleva la
+  versión que el servidor dio al primero; uno hecho sobre lo que otro equipo cambió recibe CONFLICTO;
+  un rechazo se avisa y se vuelve a lo de la base. Fuera `sessionStorage` y el canal entre pestañas.
+  Entrada, mesas y caja crean cuentas con tipo y UUID; `esVentaDirecta` y `esLineaDeMostrador` van
+  por el tipo y el producto; los ids de línea ya no se truncan. Se quitan `marcarCobrada`,
+  `marcarParteCobrada` y `revertirCobro` de la pantalla. La caja cobra con la acción (clave estable
+  por intento: un reintento no cobra dos veces), cita el id de la tasa del cobro y registra la venta
+  con la cuenta que devuelve el servidor y la clave del cobro (`cobroKey`, nuevo en
+  `VentaCerradaSchema`). El diálogo de anular pide los autorizadores al servidor (con su rol) y le
+  manda el PIN; la administración anula sin PIN; el Turno ya no recibe el directorio de ejemplo.*
+  *· Logs: Next escribía en su registro los argumentos de cada acción del servidor (el PIN de
+  `entrar`, y con este paso el de quien autoriza y las referencias de pago). `logging.serverFunctions:
+  false` en `next.config.ts`; comprobado: cero PIN en el registro tras anular con PIN malo y bueno.*
+  *· Comprobado en el navegador (Playwright, local de desarrollo): venta de mostrador #0001 cobrada con
+  $ 1,00 en efectivo (IGTF 0,03) y Bs. 359,94 a 857,0058, dos asientos en el libro; entrada en
+  prepago → caja → $ 20 con vuelto $ 15,92 (la familia sigue dentro: la cuenta queda abierta); mesa 1:
+  el mesero pide y manda la cuenta, la cajera la ve llegar en otro equipo por el sondeo y la cobra
+  dividida en dos partes de Bs. 7.953,01; anular desde Turno como cajera: lista de autorizadores del
+  servidor, PIN malo → «PIN de autorización incorrecto.», PIN de Luis Guerrero → dos reversiones
+  autorizadas por él y la cuenta a «por cobrar», todo auditado. Caja, Turno, Mesas y Entrada a
+  1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [ ] **B3-4 · Ventas del turno**, dentro de la sección Turno (M-13): reimprimir queda como copia
   auditada y anular es una reversión (DEC-24). Las autorizaciones 🔐 de la caja (anular, cortesía, descuento) van al servidor con
   `exigirPermisoOAutorizacion`: se quitan los PIN «1970» comprobados en el navegador y se borra
@@ -808,7 +826,6 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 
 | Qué | Se salda en |
 |---|---|
-| La venta de mostrador se guarda como cuenta de familia con una estancia ficticia (`s-mostrador`) | B3-3: la cuenta tendrá su tipo «mostrador» |
 | Las pulseras de la entrada no quedan en la cuenta: en caja, «no tiene cuenta» | B4-3 |
 | El dominio de caja conserva `PointOfSale` con taquilla y mostrador en `tallyShift`; desde B3-1 el punto es el equipo del turno | B3-5 (cortes derivados del libro) |
 | Un turno no se cierra todavía: el de un equipo revocado o perdido queda abierto | B3-5 (cerrar un turno huérfano desde otro equipo, con 🔐) |
@@ -825,15 +842,18 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a SALTO), el texto de la alerta no lo dice | B5-1 |
-| El documento del libro (`payment.document_id`) no tiene FK: la tabla de cuentas y ventas llega con B3-3 | B3-3 |
-| La caja guarda los datos de cada pago con la venta en el navegador: el libro los cifra, pero la caja aún no cobra contra él | B3-3 |
 | Un cambio de medios en el panel llega a la caja al navegar, no en vivo | B5-1 |
 | Un cambio del catálogo de productos llega a la caja al volver a abrir su pantalla, no en vivo (un precio ya programado sí entra solo a su hora) | B5-1 |
-| El precio que la caja pone en una línea no lo revalida el servidor: las cuentas viven en el navegador | B3-3 |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
-| El libro no comprueba que el cobro cuadre con el total del documento ni que la tasa citada sea la vigente | B3-3 |
 | Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | B3-4 (D-AUT) |
+| El importe del parque (paquete, excedente) y el de la carta de la mesa llegan de la pantalla: el servidor solo revalida el precio de lo que es del catálogo de productos | B4-2 (parque) y B6-1 (carta) |
+| La cortesía la guarda la pantalla con quién la autorizó; el servidor solo niega a quien tiene `cuenta.cortesia` denegado | B3-4 |
+| La salida no ve a los niños que entraron: lee la sala del servidor, vacía hasta B4-2 (la cuenta de familia en cuenta abierta no llega a caja por la salida) | B4-2 |
+| Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
+| Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
+| La administración anula un cobro sin confirmar con su PIN (el servidor no lo pide a quien puede por sí mismo) | B3-4 (D-AUT) |
+| Las cuentas llegan a las otras estaciones por sondeo de 5 s, no en vivo | B5-1 |
 
 **Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
 aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
@@ -841,8 +861,8 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | Qué | Dónde | Se va con |
 |---|---|---|
 | Movimientos y excepciones del turno (vacíos; el fondo ya es real) | `src/demo/turno.ts` | B3-5 |
-| Cuentas y ventas guardadas en el navegador | `CuentasProvider`, `VentasProvider` | B3-3 y B3-4 |
-| PIN del autorizador comprobado en el navegador (`"1970"`) y la lista de autorizadores | `AnularCobroDialog`, `CortesiaDialog`, `src/demo/usuarios.ts` | B3-4 |
+| Ventas del turno (con su recibo y su anulación) guardadas en el navegador | `VentasProvider` | B3-4 |
+| PIN del autorizador de una cortesía comprobado en el navegador (`"1970"`) y su lista de autorizadores (anular ya va al servidor) | `CortesiaDialog`, `src/demo/usuarios.ts` | B3-4 |
 | Sala y representantes (vacíos) y el mapa pulsera → estancia de la caja | `src/demo/parque.ts`, página de caja | B4-2 y B4-3 |
 | Directorio de familias (vacío) guardado en el navegador | `src/demo/representantes.ts`, `RepresentantesProvider` | B4-1 |
 | Ajustes del local guardados en el navegador | `src/demo/sucursal.ts`, `SucursalProvider` | B4-4 |
@@ -966,6 +986,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-27** · B9-1 entregado (v0.23.0): el catálogo de productos es de la base, con el precio
   programado por día (nace `@l2/domain-inventory`); la caja vende de él, cada línea copia su precio y
   su IVA, y cambiar un precio no altera lo vendido. Sigue B3-3.
+- **2026-09-28** · B3-3 hecho (v0.24.0): todas las cuentas en la base, cobro y anulación contra el
+  libro en una transacción. Se corrige que Next escribiera en su registro los argumentos de las
+  acciones (PIN y referencias).
 
 ---
 

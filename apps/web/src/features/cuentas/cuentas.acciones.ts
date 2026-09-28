@@ -1,0 +1,57 @@
+"use server";
+
+import type { CuentaYLibroDto, CuentasDelLocalDto, FamilyAccountDto, Resultado } from "@l2/contracts";
+import { aplicacion, log } from "../../servidor/aplicacion";
+import { contextoActual } from "../../servidor/sesion";
+
+/**
+ * Las cuentas en el servidor (B3-3). Todo opera como la persona de la sesión: el caso de uso decide
+ * quién puede y deja el asiento a su nombre. Lo que llega es `unknown` a propósito: el caso de uso
+ * lo revalida con el contrato (ADR-017). Al log van el identificador y el motivo, nunca los datos
+ * de un pago ni el PIN de quien autoriza (§7.6).
+ */
+
+const sinSesion = { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar." } as const;
+
+/** La cola de la sucursal, para que cada estación vea lo que cambian las demás sin navegar. */
+export async function leerCuentas(): Promise<Resultado<CuentasDelLocalDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).cuentas.leer(ctx);
+}
+
+/** Abre o cambia una cuenta. Devuelve cómo la dejó el servidor (versión, número de orden). */
+export async function guardarCuenta(entrada: unknown): Promise<Resultado<FamilyAccountDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cuentas.guardar(ctx, entrada);
+  if (!r.ok) log().warn({ tenantId: ctx.tenantId, motivo: r.motivo, problemas: r.problemas?.map((p) => p.message) }, "cuenta no guardada");
+  return r;
+}
+
+/** Cobra una cuenta (o una parte) contra el libro. */
+export async function cobrarCuenta(entrada: unknown): Promise<Resultado<CuentaYLibroDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cuentas.cobrar(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.cuenta.id, version: r.valor.cuenta.version }, "cuenta cobrada");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo, problemas: r.problemas?.map((p) => p.message) }, "cobro rechazado");
+  return r;
+}
+
+/** Anula un cobro. `autorizacion` lleva quién autoriza, su PIN y el motivo (🔐, DEC-24). */
+export async function anularCobro(entrada: unknown, autorizacion?: unknown): Promise<Resultado<CuentaYLibroDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cuentas.anular(ctx, entrada, autorizacion);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.cuenta.id }, "cobro anulado");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "anulación rechazada");
+  return r;
+}
+
+/** Quiénes pueden autorizar a quien opera a anular un cobro (vacío si no le hace falta). */
+export async function autorizadoresParaAnular(): Promise<{ id: string; nombre: string; rol: string }[]> {
+  const ctx = await contextoActual();
+  if (!ctx) return [];
+  return (await aplicacion()).cuentas.autorizadores(ctx);
+}

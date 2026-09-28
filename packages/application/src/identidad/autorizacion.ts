@@ -79,20 +79,20 @@ export async function autorizadoresPara(
   tx: Transaccion,
   ctx: Contexto,
   accion: Action,
-): Promise<{ id: string; nombre: string }[]> {
+): Promise<{ id: string; nombre: string; rol: string }[]> {
   if (!ctx.quien?.userId) return [];
   const solicitante = await cargarActor(tx, ctx.quien.userId, ctx.branchId);
   if (!solicitante) return [];
   const personas = await tx.staffUser.findMany({
     where: { active: true, branches: { some: { branchId: ctx.branchId } } },
-    select: { id: true, fullName: true },
+    select: { id: true, fullName: true, role: true },
     orderBy: { fullName: "asc" },
   });
-  const lista: { id: string; nombre: string }[] = [];
+  const lista: { id: string; nombre: string; rol: string }[] = [];
   for (const p of personas) {
     const actor = await cargarActor(tx, p.id, ctx.branchId);
     if (actor && canAuthorize(actor, solicitante, accion, { branchId: ctx.branchId })) {
-      lista.push({ id: p.id, nombre: p.fullName });
+      lista.push({ id: p.id, nombre: p.fullName, rol: p.role });
     }
   }
   return lista;

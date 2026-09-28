@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarClock, CircleCheckBig, Lock, OctagonAlert, TriangleAlert, Wallet } from "lucide-react";
-import type { TurnoDto, UserSummaryDto } from "@l2/contracts";
+import type { TurnoDto } from "@l2/contracts";
 import { type CurrencyCode, type Money, add, money, multiply, sum, toMajor, zero } from "@l2/domain-money";
 import { countDenominations, openingMovements, reconcile, tallyShift, type ShiftMovement } from "@l2/domain-cash";
 import { Badge, Button, Container, Input, MoneyDisplay, Stepper, Tabs, avisar, cn } from "@l2/ui";
@@ -45,15 +45,12 @@ export function TurnoScreen({
   turno,
   movements,
   excepciones,
-  usuarios,
 }: {
   /** El turno del equipo, del servidor; `null` si no hay ninguno abierto. */
   turno: TurnoDto | null;
   /** Lo cobrado en el turno, del libro (B3-5). El fondo inicial sale del propio turno. */
   movements: readonly ShiftMovement[];
   excepciones: readonly Excepcion[];
-  /** Quién puede autorizar anular un cobro (hasta B3-4, de `src/demo`). */
-  usuarios: readonly UserSummaryDto[];
 }) {
   const todos = useMemo(
     () =>
@@ -63,7 +60,7 @@ export function TurnoScreen({
     [turno, movements],
   );
   if (!turno) return <AperturaTurno />;
-  return <TurnoAbierto turno={turno} movements={todos} excepciones={excepciones} usuarios={usuarios} />;
+  return <TurnoAbierto turno={turno} movements={todos} excepciones={excepciones} />;
 }
 
 /** Abrir el turno (F4-01): el fondo de la gaveta por moneda. Cero vale y se dice. */
@@ -164,12 +161,10 @@ function TurnoAbierto({
   turno,
   movements,
   excepciones,
-  usuarios,
 }: {
   turno: TurnoDto;
   movements: readonly ShiftMovement[];
   excepciones: readonly Excepcion[];
-  usuarios: readonly UserSummaryDto[];
 }) {
   const { ajustes } = useSucursal();
   /** «Cerrar turno» cambia la vista al arqueo; «Volver al turno» la devuelve (M-13). */
@@ -222,7 +217,7 @@ function TurnoAbierto({
           className="grid flex-1 gap-4 py-4 apaisado:min-h-0 apaisado:grid-cols-[clamp(250px,21vw,290px)_minmax(0,1fr)] apaisado:grid-rows-[minmax(0,1fr)] apaisado:bajo:py-3"
         >
           <ResumenTurno turno={turno} excepciones={excepciones} sellado={sellado} onCerrar={() => setCerrando(true)} />
-          <VentasDelTurno usuarios={usuarios} className="apaisado:grid-rows-[minmax(0,1fr)]" />
+          <VentasDelTurno className="apaisado:grid-rows-[minmax(0,1fr)]" />
         </Container>
       )}
     </div>

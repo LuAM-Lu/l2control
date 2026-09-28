@@ -1,153 +1,212 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { FamilyAccountSchema, type FamilyAccountDto } from "@l2/contracts";
+import {
+  FamilyAccountSchema,
+  type AnularCobroCommand,
+  type CobrarCuentaCommand,
+  type CuentaYLibroDto,
+  type FamilyAccountDto,
+  type Rechazo,
+  type Resultado,
+} from "@l2/contracts";
+import { isDiscardedDraft } from "@l2/domain-cash";
+import { avisar } from "@l2/ui";
 import { puedeDescartarse } from "./cuentas.ts";
+import { anularCobro, cobrarCuenta, guardarCuenta, leerCuentas } from "./cuentas.acciones";
 
 /**
- * Las cuentas de las familias, compartidas por las estaciones — DEC-21.
+ * Las cuentas de la sucursal, compartidas por las estaciones — DEC-21, en el servidor desde B3-3.
  *
- * Entrada abre la cuenta, salida la actualiza y caja la cierra: las tres
- * necesitan ver la misma. Mientras no hay backend, este proveedor hace de
- * servidor de juguete y guarda las cuentas en la sesión del navegador, para
- * que sobrevivan a una recarga y el flujo se pueda enseñar de punta a punta.
+ * Entrada abre la cuenta, salida la actualiza, el salón la llena y la caja la cobra: todas leen la
+ * misma, la de la base. El layout la lee en el servidor; aquí se pregunta cada 5 s y al volver el
+ * foco, hasta que el tiempo real (B5-1) lo empuje. Nada se guarda en el navegador.
  *
- * TODO(F5-14/backend): se sustituye por las llamadas reales. Las pantallas no
- * cambian: siguen pidiendo `cuentas` y llamando a `guardar` (§11.4).
- *
- * Todo lo que entra se valida contra el contrato. Un dato guardado que ya no
- * lo cumple —de una versión anterior, manipulado— se DESCARTA entero: usar
- * una cuenta a medias es peor que empezar de nuevo.
+ * GUARDAR ES OPTIMISTA Y EN ORDEN. La pantalla ve su cambio al momento y el servidor lo confirma
+ * (con su número de orden y su versión) o lo rechaza, y entonces se avisa y se vuelve a lo que
+ * tiene la base. Los cambios de una misma cuenta salen de uno en uno: el segundo se hizo sobre el
+ * primero, así que lleva la versión que el servidor dio al primero. Si la versión la dio OTRO
+ * equipo, no: esa pantalla no la vio, y el servidor responde CONFLICTO en vez de pisarla.
  */
 
-const CLAVE = "l2:cuentas:v1";
+/** Cada cuánto se pregunta al servidor por las cuentas. */
+const SONDEO_MS = 5_000;
 
-/**
- * Las cuentas viajan entre pestañas — F9-08.
- *
- * Cada estación abre su propia pestaña, y el panel en vivo mira desde otra:
- * sin esto, la cajera cobraba y el panel seguía enseñando la cuenta en la
- * cola. Lo que viaja es la lista entera, que con unas decenas de cuentas es
- * barato y no admite estados a medias.
- *
- * TODO(F5-14/backend): lo sustituye el tiempo real del servidor (ADR-008).
- * Lo que llega por el canal es entrada NO confiable: se valida igual.
- */
-const CANAL = "l2-cuentas";
+const sinConexion: Rechazo = { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: el cambio no se guardó." };
 
 type Valor = Readonly<{
+  /** Las cuentas vigentes: las no cobradas y las cobradas hoy. */
   cuentas: readonly FamilyAccountDto[];
-  /** Crea o sustituye una cuenta. Rechaza la que no cumpla el contrato. */
-  guardar: (cuenta: FamilyAccountDto) => void;
-  /** Descarta una venta directa sin cobrar. Cualquier otra cuenta se queda: fail-closed. */
+  /**
+   * Crea o cambia una cuenta: se ve al momento y el servidor la confirma. Lanza si la cuenta no
+   * cumple el contrato (un error de la pantalla, no del servidor); un rechazo lo avisa y lo devuelve.
+   */
+  guardar: (cuenta: FamilyAccountDto) => Promise<Resultado<FamilyAccountDto>>;
+  /** Descarta una venta de mostrador sin cobrar. Cualquier otra cuenta se queda: fail-closed. */
   descartar: (id: string) => void;
-  /** Si ya se cargó lo guardado: antes, las cuentas son las iniciales. */
+  /** Cobra en el servidor y adopta la cuenta como quedó. */
+  cobrar: (cmd: CobrarCuentaCommand) => Promise<Resultado<CuentaYLibroDto>>;
+  /** Anula un cobro en el servidor (🔐 comprobado allí) y adopta la cuenta como quedó. */
+  anular: (cmd: AnularCobroCommand, autorizacion?: unknown) => Promise<Resultado<CuentaYLibroDto>>;
+  /** Siempre `true`: las cuentas llegan del servidor con la página. Se mantiene para quien lo mira. */
   cargado: boolean;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
 
-export function CuentasProvider({
-  inicial,
-  children,
-}: {
-  /** Cuentas con las que arranca: las de la demo, o ninguna. TODO(F5-14): del servidor. */
-  inicial: readonly FamilyAccountDto[];
-  children: React.ReactNode;
-}) {
-  // Arranca con `inicial`, que llega igual al servidor y al navegador: los dos
-  // pintan lo mismo al hidratar. Lo guardado se carga después, en el efecto.
+/** Sustituye o añade una cuenta, sin cambiar el orden de las demás. */
+const conCuenta = (lista: readonly FamilyAccountDto[], c: FamilyAccountDto) =>
+  lista.some((x) => x.id === c.id) ? lista.map((x) => (x.id === c.id ? c : x)) : [...lista, c];
+
+export function CuentasProvider({ inicial, children }: { inicial: readonly FamilyAccountDto[]; children: React.ReactNode }) {
   const [cuentas, setCuentas] = useState<readonly FamilyAccountDto[]>(inicial);
-  const [cargado, setCargado] = useState(false);
 
-  useEffect(() => {
-    try {
-      const crudo = window.sessionStorage.getItem(CLAVE);
-      if (crudo) {
-        const r = FamilyAccountSchema.array().safeParse(JSON.parse(crudo));
-        if (r.success) {
-          // Cuentas guardadas antes de existir el número de orden: reciben el
-          // siguiente correlativo, en el orden en que se abrieron.
-          let ultimo = r.data.reduce((max, c) => Math.max(max, c.orderNumber ?? 0), 0);
-          setCuentas(r.data.map((c) => (c.orderNumber ? c : { ...c, orderNumber: ++ultimo })));
-        } else {
-          window.sessionStorage.removeItem(CLAVE);
-        }
-      }
-    } catch {
-      // Almacenamiento bloqueado o JSON roto: se sigue con las iniciales.
-    }
-    // Lo que ya esperaba en la cola sin hora de llegada (datos de ejemplo o
-    // guardados antes de existir el campo) cuenta desde que se abre la caja.
-    const ahora = new Date().toISOString();
-    setCuentas((prev) =>
-      prev.map((c) => (c.status === "POR_COBRAR" && !c.pendingSince ? { ...c, pendingSince: ahora } : c)),
-    );
-    setCargado(true);
-  }, []);
+  /** Cuántos cambios de cada cuenta van camino del servidor: mientras tanto, manda lo de la pantalla. */
+  const enVuelo = useRef(new Map<string, number>());
+  /** La cola de cada cuenta: sus cambios salen de uno en uno. */
+  const colas = useRef(new Map<string, Promise<unknown>>());
+  /** Qué versión dio el servidor a un cambio de ESTE equipo hecho sobre otra: id → (base → nueva). */
+  const sucesoras = useRef(new Map<string, Map<number, number>>());
 
-  /* ── el canal entre pestañas ── */
-  const canal = useRef<BroadcastChannel | null>(null);
-  const propio = useRef(false);
-  useEffect(() => {
-    if (typeof BroadcastChannel === "undefined") return;
-    const c = new BroadcastChannel(CANAL);
-    canal.current = c;
-    c.onmessage = (m: MessageEvent<unknown>) => {
-      const r = FamilyAccountSchema.array().safeParse(m.data);
-      if (!r.success) return;
-      propio.current = true;
-      setCuentas(r.data);
-    };
-    return () => {
-      c.close();
-      canal.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!cargado) return;
-    // Lo que llegó del canal no se reenvía: sería un eco sin fin.
-    if (propio.current) propio.current = false;
-    else canal.current?.postMessage(cuentas);
-    try {
-      window.sessionStorage.setItem(CLAVE, JSON.stringify(cuentas));
-    } catch {
-      // Sin almacenamiento la sesión sigue funcionando en memoria.
-    }
-  }, [cuentas, cargado]);
-
-  const guardar = useCallback((cuenta: FamilyAccountDto) => {
-    const valida = FamilyAccountSchema.parse(cuenta);
+  /** Lo del servidor, salvo las cuentas con cambios de esta pantalla todavía en camino. */
+  const adoptarLista = useCallback((delServidor: readonly FamilyAccountDto[]) => {
     setCuentas((prev) => {
-      const previa = prev.find((c) => c.id === valida.id);
-      // Entrar a la cola tiene hora: la de este registro, si la cuenta acaba de
-      // pasar a POR_COBRAR. Si ya esperaba, conserva su hora; si salió, no tiene.
-      const pendingSince =
-        valida.status !== "POR_COBRAR"
-          ? undefined
-          : previa?.status === "POR_COBRAR"
-            ? (previa.pendingSince ?? valida.pendingSince)
-            : (valida.pendingSince ?? new Date().toISOString());
-      if (previa) {
-        // El número de orden no cambia nunca: se conserva el que ya tenía.
-        return prev.map((c) =>
-          c.id === valida.id ? { ...valida, orderNumber: previa.orderNumber ?? valida.orderNumber, pendingSince } : c,
-        );
-      }
-      // Cuenta nueva: recibe el siguiente correlativo de la sucursal. Se
-      // calcula aquí, dentro de la actualización, para que dos altas seguidas
-      // no reciban el mismo número.
-      const siguiente = prev.reduce((max, c) => Math.max(max, c.orderNumber ?? 0), 0) + 1;
-      return [...prev, { ...valida, orderNumber: valida.orderNumber ?? siguiente, pendingSince }];
+      const locales = prev.filter((c) => (enVuelo.current.get(c.id) ?? 0) > 0);
+      const ids = new Set(locales.map((c) => c.id));
+      const nueva = [...delServidor.filter((c) => !ids.has(c.id)), ...locales];
+      return JSON.stringify(nueva) === JSON.stringify(prev) ? prev : nueva;
     });
   }, []);
 
-  const descartar = useCallback((id: string) => {
-    setCuentas((prev) => prev.filter((c) => c.id !== id || !puedeDescartarse(c)));
+  // Cuando el layout se vuelve a pintar con otras cuentas (se navegó), se adoptan.
+  const huella = JSON.stringify(inicial);
+  useEffect(() => {
+    adoptarLista(inicial);
+  }, [huella]);
+
+  const refrescar = useCallback(async () => {
+    const r = await leerCuentas().catch(() => null);
+    if (r?.ok) adoptarLista(r.valor.cuentas);
+  }, [adoptarLista]);
+
+  // El sondeo. Un fallo de red no borra lo que se tenía: se vuelve a preguntar en el siguiente turno.
+  useEffect(() => {
+    let enCurso = false;
+    const preguntar = async () => {
+      if (enCurso || document.visibilityState === "hidden") return;
+      enCurso = true;
+      try {
+        await refrescar();
+      } finally {
+        enCurso = false;
+      }
+    };
+    const id = window.setInterval(() => void preguntar(), SONDEO_MS);
+    const alVolver = () => {
+      if (document.visibilityState === "visible") void preguntar();
+    };
+    window.addEventListener("focus", alVolver);
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", alVolver);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [refrescar]);
+
+  /** La versión con que sale un cambio hecho sobre `base`: la última que este equipo encadenó. */
+  const versionPara = (id: string, base: number | undefined): number | undefined => {
+    const cadena = sucesoras.current.get(id);
+    let v = base ?? 0;
+    while (cadena?.has(v)) v = cadena.get(v)!;
+    return v === 0 ? undefined : v;
+  };
+  const encadenar = (id: string, base: number | undefined, nueva: number | undefined) => {
+    if (nueva === undefined) return;
+    const cadena = sucesoras.current.get(id) ?? new Map<number, number>();
+    cadena.set(base ?? 0, nueva);
+    sucesoras.current.set(id, cadena);
+  };
+
+  /** Pone `trabajo` en la cola de la cuenta `id` y lleva la cuenta de lo que va en camino. */
+  const enCola = useCallback(<T,>(id: string, trabajo: () => Promise<T>): Promise<T> => {
+    enVuelo.current.set(id, (enVuelo.current.get(id) ?? 0) + 1);
+    const hecho = (colas.current.get(id) ?? Promise.resolve()).then(trabajo).finally(() => {
+      const quedan = (enVuelo.current.get(id) ?? 1) - 1;
+      if (quedan > 0) enVuelo.current.set(id, quedan);
+      else enVuelo.current.delete(id);
+    });
+    colas.current.set(id, hecho.catch(() => undefined));
+    return hecho;
   }, []);
 
-  const valor = useMemo(() => ({ cuentas, guardar, descartar, cargado }), [cuentas, guardar, descartar, cargado]);
+  const guardar = useCallback(
+    (cuenta: FamilyAccountDto) => {
+      const valida = FamilyAccountSchema.parse(cuenta);
+      setCuentas((prev) => conCuenta(prev, valida));
+      return enCola(valida.id, async (): Promise<Resultado<FamilyAccountDto>> => {
+        const version = versionPara(valida.id, valida.version);
+        const { version: _, ...sinVersion } = valida;
+        const r = await guardarCuenta({ cuenta: version === undefined ? sinVersion : { ...valida, version } }).catch(() => sinConexion);
+        if (r.ok) {
+          encadenar(valida.id, valida.version, r.valor.version);
+          encadenar(valida.id, version, r.valor.version);
+          // Si detrás viene otro cambio de esta cuenta, la pantalla ya enseña ese: no se retrocede.
+          if ((enVuelo.current.get(valida.id) ?? 0) <= 1) setCuentas((prev) => conCuenta(prev, r.valor));
+        } else {
+          avisar.error(r.mensaje, { detalle: "Se vuelve a lo que tiene el servidor." });
+          // Lo que no se guardó no se queda en pantalla: se vuelve a lo de la base.
+          if ((enVuelo.current.get(valida.id) ?? 0) <= 1) {
+            enVuelo.current.delete(valida.id);
+            setCuentas((prev) => prev.filter((c) => c.id !== valida.id));
+            void refrescar();
+          }
+        }
+        return r;
+      });
+    },
+    [enCola, refrescar],
+  );
+
+  const descartar = useCallback(
+    (id: string) => {
+      const c = cuentas.find((x) => x.id === id);
+      if (!c || !puedeDescartarse(c)) return;
+      // Nada se borra (regla 5): la venta se vacía y el servidor deja de enseñarla.
+      const { split: _, ...sinDividir } = c;
+      void guardar({ ...sinDividir, lines: [], status: "ABIERTA" });
+    },
+    [cuentas, guardar],
+  );
+
+  const cobrar = useCallback(
+    (cmd: CobrarCuentaCommand) =>
+      // Detrás de los cambios de esa cuenta que van en camino: se cobra la versión que quedó.
+      enCola(cmd.accountId, async (): Promise<Resultado<CuentaYLibroDto>> => {
+        const r = await cobrarCuenta({ ...cmd, version: versionPara(cmd.accountId, cmd.version) ?? cmd.version }).catch(() => sinConexion);
+        if (r.ok) setCuentas((prev) => conCuenta(prev, r.valor.cuenta));
+        else if (r.motivo === "CONFLICTO") void refrescar();
+        return r;
+      }),
+    [enCola, refrescar],
+  );
+
+  const anular = useCallback(
+    (cmd: AnularCobroCommand, autorizacion?: unknown) =>
+      enCola(cmd.accountId, async (): Promise<Resultado<CuentaYLibroDto>> => {
+        const r = await anularCobro(cmd, autorizacion).catch(() => sinConexion);
+        if (r.ok) setCuentas((prev) => conCuenta(prev, r.valor.cuenta));
+        return r;
+      }),
+    [enCola],
+  );
+
+  // Una venta de mostrador vaciada no es una cuenta: no sale en ninguna estación.
+  const vigentes = useMemo(() => cuentas.filter((c) => !isDiscardedDraft(c)), [cuentas]);
+  const valor = useMemo(
+    () => ({ cuentas: vigentes, guardar, descartar, cobrar, anular, cargado: true }),
+    [vigentes, guardar, descartar, cobrar, anular],
+  );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

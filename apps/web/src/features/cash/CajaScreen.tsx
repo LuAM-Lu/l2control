@@ -121,7 +121,6 @@ import {
   dividirEn,
   lineasParaCobrar,
   numeroDeOrden,
-  marcarParteCobrada,
   puedeDescartarse,
   unirCuenta,
 } from "../cuentas/cuentas.ts";
@@ -153,6 +152,10 @@ type Cobrado = Readonly<{
   /** Las líneas de la cuenta que salda este cobro. */
   lineIds: readonly string[];
   recibo: Recibo;
+  /** La clave con que el servidor asentó el cobro: anularlo es anular esa operación (B3-3). */
+  cobroKey: string;
+  /** La cuenta como la dejó el servidor al cobrar. */
+  cuenta: FamilyAccountDto;
 }>;
 
 /** Sin configuración de medios no hay terminales (una sola referencia: no rehace el cobro). */
@@ -196,6 +199,7 @@ function CobroCuenta({
   usuarios,
   rate: rateVivo,
   tasaValor: tasaValorViva,
+  tasaId: tasaIdViva,
   instanteFiscal,
   onAgregarProducto,
   onCambiarCantidad,
@@ -223,6 +227,8 @@ function CobroCuenta({
    * y leerla como «algo/100» pintaba 45,81.
    */
   tasaValor: string | null;
+  /** El identificador de la tasa vigente: el cobro cita el de la suya y el servidor lo comprueba. */
+  tasaId: string | null;
   /** El instante con el que se eligen las alícuotas: el del servidor, que avanza con el reloj. */
   instanteFiscal: number;
   onAgregarProducto?: (producto: ProductoALaVenta) => void;
@@ -259,7 +265,7 @@ function CobroCuenta({
    * nunca en silencio. Si deja de haber vigente, no se cobra en bolívares (fail-closed); el
    * servidor rechazará además una tasa que ya no rige (B3-3).
    */
-  const [tasaDelCobro, setTasaDelCobro] = useState<{ rate: FrozenRate; valor: string } | null>(null);
+  const [tasaDelCobro, setTasaDelCobro] = useState<{ rate: FrozenRate; valor: string; id: string } | null>(null);
   /** La vigente que la cajera decidió no usar en este cobro («Mantener»). Si cambia otra vez, se vuelve a avisar. */
   const [tasaMantenida, setTasaMantenida] = useState<string | null>(null);
   const cobroEnCurso = pagos.length > 0 || pendienteDeDatos !== null;
@@ -267,11 +273,12 @@ function CobroCuenta({
     if (!cobroEnCurso) {
       setTasaDelCobro(null);
       setTasaMantenida(null);
-    } else setTasaDelCobro((t) => t ?? (rateVivo && tasaValorViva ? { rate: rateVivo, valor: tasaValorViva } : null));
-  }, [cobroEnCurso, rateVivo, tasaValorViva]);
+    } else setTasaDelCobro((t) => t ?? (rateVivo && tasaValorViva && tasaIdViva ? { rate: rateVivo, valor: tasaValorViva, id: tasaIdViva } : null));
+  }, [cobroEnCurso, rateVivo, tasaValorViva, tasaIdViva]);
   const congelada = cobroEnCurso && rateVivo !== null ? tasaDelCobro : null;
   const rate = rateVivo === null ? null : (congelada?.rate ?? rateVivo);
   const tasaValor = rateVivo === null ? null : (congelada?.valor ?? tasaValorViva);
+  const tasaId = rateVivo === null ? null : (congelada?.id ?? tasaIdViva);
   /**
    * La vigente ya no es la de este cobro y nadie ha decidido: se avisa en la franja del medio,
    * que mide siempre lo mismo, para que el teclado y «Cerrar cobro» no se muevan.
@@ -280,6 +287,7 @@ function CobroCuenta({
     congelada !== null &&
     rateVivo !== null &&
     tasaValorViva !== null &&
+    tasaIdViva !== null &&
     !sameRate(rateVivo, congelada.rate) &&
     tasaValorViva !== tasaMantenida;
 
@@ -322,9 +330,7 @@ function CobroCuenta({
   >("VUELTO");
   const [error, setError] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
-  const [mostrarCatalogo, setMostrarCatalogo] = useState(
-    cuenta.id.startsWith("c-dir-") || cuenta.family.startsWith("Mostrador"),
-  );
+  const [mostrarCatalogo, setMostrarCatalogo] = useState(esVentaDirecta(cuenta));
   /** Fila de mostrador tocada: enseña su cantidad y «Eliminar». */
   const [filaAbierta, setFilaAbierta] = useState<string | null>(null);
   /** La línea seleccionada para dar o quitar cortesía. */
@@ -530,7 +536,18 @@ function CobroCuenta({
     registrarPago(medioActivo, valor);
   }
 
-  function cobrar() {
+  const { cobrar: cobrarEnServidor } = useCuentas();
+  const [enviando, setEnviando] = useState(false);
+  /** La clave del intento en curso: un reintento de lo mismo (se cayó la red) no cobra dos veces. */
+  const intento = useRef<{ huella: string; clave: string } | null>(null);
+
+  /**
+   * Cierra el cobro EN EL SERVIDOR (B3-3): él recalcula el total con el IVA y el IGTF del instante,
+   * comprueba la tasa y lo asienta en el libro. Aquí se comprueba antes lo que ya se sabe (§5.6)
+   * para decirlo sin ir y volver; lo que decide es su respuesta.
+   */
+  async function cobrar() {
+    if (enviando) return;
     setError(null);
     const dispositions: ChangeDisposition[] = [];
     if (sobra.amount > 0n) {
@@ -542,46 +559,71 @@ function CobroCuenta({
         dispositions.push({ kind: "ROUNDING_RETAINED", amount: sobra });
       }
     }
-
+    let cambio: Money;
     try {
-      const r = closeSettlement({
-        due: aCobrar,
-        tenders,
-        dispositions,
-        functional: FUNCIONAL,
-        maxRetained,
-      });
-      onCobrado({
-        total: toMajor(aCobrar),
-        totalDinero: aCobrar,
-        vuelto: toMajor(r.changeOut),
-        cliente,
-        medios: [...new Set(pagos.map((p) => p.medio.label))],
-        // Lo que se devolvería de cada pago, calculado AHORA con la tasa del
-        // cobro: el excedente (vuelto, propina o residuo) no se devuelve.
-        pagosVenta: refundableByTender(tenders, sobra, FUNCIONAL).map(
-          (devolvible, i) => ({
-            methodCode: pagos[i]!.medio.code,
-            label: pagos[i]!.medio.label,
-            cash: pagos[i]!.medio.canGiveChange,
-            dataKind: pagos[i]!.medio.datos ?? null,
-            paid: {
-              minor: String(pagos[i]!.amount.amount),
-              currency: pagos[i]!.amount.currency,
-            },
-            refundable: {
-              minor: String(devolvible.amount),
-              currency: devolvible.currency,
-            },
-          }),
-        ),
-        lineIds: lines.map((l) => l.id),
-        recibo: armarRecibo(),
-      });
-      setPagos([]);
+      cambio = closeSettlement({ due: aCobrar, tenders, dispositions, functional: FUNCIONAL, maxRetained }).changeOut;
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cerrar el cobro");
+      return;
     }
+
+    const cuerpo = {
+      accountId: cuenta.id,
+      version: cuenta.version ?? 0,
+      lineIds: lines.map((l) => l.id),
+      total: { minor: String(aCobrar.amount), currency: FUNCIONAL },
+      pagos: pagos.map((p) => ({
+        method: p.medio.code,
+        amount: { minor: String(p.amount.amount), currency: p.amount.currency },
+        ...(p.datos ? { datos: p.datos } : {}),
+      })),
+      ...(pagos.some((p) => p.amount.currency === "VES") && tasaId ? { rateId: tasaId } : {}),
+      destinoSobra: destinoVuelto === "CAJA" ? ("RESIDUO" as const) : destinoVuelto,
+    };
+    const huella = JSON.stringify(cuerpo);
+    if (intento.current?.huella !== huella) intento.current = { huella, clave: globalThis.crypto.randomUUID() };
+    const clave = intento.current.clave;
+    // La foto del recibo es la de lo que se manda: se arma antes de esperar.
+    const recibo = armarRecibo();
+
+    setEnviando(true);
+    const r = await cobrarEnServidor({ idempotencyKey: clave, ...cuerpo });
+    setEnviando(false);
+    if (!r.ok) {
+      setError(r.mensaje);
+      return;
+    }
+    intento.current = null;
+    onCobrado({
+      total: toMajor(aCobrar),
+      totalDinero: aCobrar,
+      vuelto: toMajor(cambio),
+      cliente,
+      medios: [...new Set(pagos.map((p) => p.medio.label))],
+      // Lo que se devolvería de cada pago, calculado AHORA con la tasa del
+      // cobro: el excedente (vuelto, propina o residuo) no se devuelve.
+      pagosVenta: refundableByTender(tenders, sobra, FUNCIONAL).map(
+        (devolvible, i) => ({
+          methodCode: pagos[i]!.medio.code,
+          label: pagos[i]!.medio.label,
+          cash: pagos[i]!.medio.canGiveChange,
+          dataKind: pagos[i]!.medio.datos ?? null,
+          paid: {
+            minor: String(pagos[i]!.amount.amount),
+            currency: pagos[i]!.amount.currency,
+          },
+          refundable: {
+            minor: String(devolvible.amount),
+            currency: devolvible.currency,
+          },
+        }),
+      ),
+      lineIds: lines.map((l) => l.id),
+      recibo,
+      cobroKey: clave,
+      cuenta: r.valor.cuenta,
+    });
+    setPagos([]);
   }
 
   /** La foto del cobro para el recibo, con los textos ya formateados (recibo.ts). */
@@ -751,8 +793,8 @@ function CobroCuenta({
   // mismas condiciones. Lo que un botón deshabilitado no deja, la tecla tampoco.
   useAtajos((t) => {
     if (t.ctrl) {
-      if (t.key !== "Enter" || !puedeCobrar) return false;
-      cobrar();
+      if (t.key !== "Enter" || !puedeCobrar || enviando) return false;
+      void cobrar();
       return true;
     }
     if (/^\d$/.test(t.key)) {
@@ -1447,7 +1489,7 @@ function CobroCuenta({
               </button>
               <button
                 type="button"
-                onClick={() => setTasaDelCobro({ rate: rateVivo, valor: tasaValorViva })}
+                onClick={() => setTasaDelCobro({ rate: rateVivo, valor: tasaValorViva, id: tasaIdViva })}
                 className={cn(
                   "min-h-14 cursor-pointer rounded-[var(--radius-control)] border border-brand bg-brand/15 px-2.5 text-[12px] font-bold text-brand",
                   "hover:bg-brand/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
@@ -1648,8 +1690,8 @@ function CobroCuenta({
           <Button
             surface="pos"
             variant="primary"
-            disabled={!puedeCobrar}
-            onClick={cobrar}
+            disabled={!puedeCobrar || enviando}
+            onClick={() => void cobrar()}
             className={cn(
               "flex min-h-14 flex-col gap-0.5 px-2 leading-tight",
               esEfectivo && "col-span-2",
@@ -1658,7 +1700,7 @@ function CobroCuenta({
           >
             <span className="flex items-center gap-1.5 text-[14px] font-bold">
               {puedeCobrar && <CircleCheckBig size={15} aria-hidden="true" />}
-              Cerrar cobro
+              {enviando ? "Cobrando…" : "Cerrar cobro"}
               <PistaTecla tecla="Ctrl ⏎" />
             </span>
             <span className="tnum text-[12px] font-semibold opacity-80">
@@ -1824,7 +1866,7 @@ export function CajaScreen({
   ...cobro
 }: Omit<
   CobroProps,
-  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate" | "tasaValor" | "rules" | "igtfBasisPoints" | "instanteFiscal"
+  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate" | "tasaValor" | "tasaId" | "rules" | "igtfBasisPoints" | "instanteFiscal"
 > & {
   /** El calendario de los impuestos, leído en el servidor (B2-2). */
   impuestos: ImpuestosDto;
@@ -2018,10 +2060,10 @@ export function CajaScreen({
 
   function alCobrar(cuenta: FamilyAccountDto, r: Cobrado) {
     // Con la cuenta dividida esto cierra UNA parte: vuelve a la cola con lo
-    // que falta y solo se cierra entera con la última (F6-12).
-    const despues = marcarParteCobrada(cuenta);
-    const faltan = (despues.split?.parts ?? 1) - (despues.split?.paid ?? 1);
-    guardar(despues);
+    // que falta y solo se cierra entera con la última (F6-12). Cómo quedó lo
+    // dice el servidor, que la marcó en la misma transacción del cobro.
+    const despues = r.cuenta;
+    const faltan = despues.status === "COBRADA" || !despues.split ? 0 : despues.split.parts - despues.split.paid;
     // Cobrada del todo, la mesa queda por limpiar: el salón lo ve al momento (D7).
     if (faltan === 0 && esDeMesa(cuenta) && cuenta.tableId) {
       op.emitir({ type: "mesa.por_limpiar", tableId: cuenta.tableId });
@@ -2033,6 +2075,7 @@ export function CajaScreen({
       id: `v-${globalThis.crypto.randomUUID()}`,
       ...(cuenta.orderNumber ? { orderNumber: cuenta.orderNumber } : {}),
       accountId: cuenta.id,
+      cobroKey: r.cobroKey,
       closedAt: new Date().toISOString(),
       cashier: operadorCaja
         ? { id: operadorCaja.id, name: operadorCaja.nombre }
@@ -2086,36 +2129,30 @@ export function CajaScreen({
    * «Agua mineral» ya cargado: si la cajera no lo quitaba, se cobraba algo que
    * nadie pidió (fail-closed: no se cobra nada que no se haya elegido).
    *
-   * ⚠ DEUDA: una venta de mostrador no es una cuenta de familia. Se modela con
-   * `FamilyAccountSchema` y una estancia ficticia `s-mostrador` porque el
-   * contrato exige un niño; necesita su propio tipo de cuenta en el contrato.
+   * Es una cuenta de tipo MOSTRADOR (B3-3): sin niños ni mesa, y el servidor le
+   * exige vender del catálogo con el precio de ese instante.
    */
   function crearVentaDirecta(producto: ProductoALaVenta) {
-    const id = `c-dir-${globalThis.crypto.randomUUID().slice(0, 6)}`;
     const nueva: FamilyAccountDto = FamilyAccountSchema.parse({
-      id,
+      id: globalThis.crypto.randomUUID(),
+      kind: "MOSTRADOR",
       family: "Mostrador",
       mode: "PREPAGO",
       status: "POR_COBRAR",
       openedAt: new Date().toISOString(),
-      sessionIds: ["s-mostrador"],
-      closedSessionIds: ["s-mostrador"],
-      lines: [
-        lineaDeProducto(`${id}-snk-1`, producto),
-      ],
+      sessionIds: [],
+      closedSessionIds: [],
+      lines: [lineaDeProducto(globalThis.crypto.randomUUID(), producto)],
     });
     creadasAqui.current.add(nueva.id);
-    guardar(nueva);
+    void guardar(nueva);
     setElegida(nueva.id);
     setVentaNueva(false);
   }
 
   function onAgregarProductoACuenta(producto: ProductoALaVenta) {
     if (!actual) return;
-    const nuevaLinea = lineaDeProducto(
-      `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
-      producto,
-    );
+    const nuevaLinea = lineaDeProducto(globalThis.crypto.randomUUID(), producto);
     const actualizada = FamilyAccountSchema.parse({
       ...actual,
       lines: [...actual.lines, nuevaLinea],
@@ -2160,10 +2197,7 @@ export function CajaScreen({
       const nuevas: AccountLineDto[] = Array.from(
         { length: objetivo - suyas.length },
         () =>
-          lineaDeProducto(
-            `${actual.id}-snk-${globalThis.crypto.randomUUID().slice(0, 6)}`,
-            producto,
-          ),
+          lineaDeProducto(globalThis.crypto.randomUUID(), producto),
       );
       const ultima = actual.lines.findLastIndex(esDelItem);
       lineas =
@@ -2329,6 +2363,7 @@ export function CajaScreen({
             instanteFiscal={fiscal.instante}
             rate={rate}
             tasaValor={tasaVigente?.value ?? null}
+            tasaId={tasaVigente?.id ?? null}
             maxRetained={maxRetained}
             cuenta={actual}
             lines={lineas}

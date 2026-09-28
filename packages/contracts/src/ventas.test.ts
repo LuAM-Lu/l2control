@@ -28,6 +28,7 @@ const venta = {
   id: "v-1",
   orderNumber: 1041,
   accountId: "c-rojas",
+  cobroKey: "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
   closedAt: "2026-09-11T18:21:00.000Z",
   cashier: { id: "u-marisol", name: "Marisol Prieto" },
   total: { minor: "580", currency: "USD" },

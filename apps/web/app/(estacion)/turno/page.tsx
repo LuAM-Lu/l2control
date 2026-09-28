@@ -1,6 +1,5 @@
 import { TurnoScreen } from "../../../src/features/cash/TurnoScreen";
 import { DEMO_EXCEPCIONES, DEMO_SHIFT_MOVEMENTS } from "../../../src/demo/turno";
-import { DEMO_USUARIOS } from "../../../src/demo/usuarios";
 import { turnoDelEquipo } from "../../../src/features/cash/turno.servidor";
 
 /**
@@ -20,8 +19,6 @@ export default async function TurnoPage() {
       turno={await turnoDelEquipo()}
       movements={DEMO_SHIFT_MOVEMENTS}
       excepciones={DEMO_EXCEPCIONES}
-      // Quién autoriza anular un cobro, hasta B3-4.
-      usuarios={DEMO_USUARIOS}
     />
   );
 }

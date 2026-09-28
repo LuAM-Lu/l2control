@@ -6,13 +6,12 @@ import { Ban, MessageCircle, Printer, ReceiptText, Search, X } from "lucide-reac
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
-import type { AnulacionDto, UserSummaryDto, VentaCerradaDto } from "@l2/contracts";
+import type { AnulacionDto, Rechazo, VentaCerradaDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Button, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { useOperador } from "../identity/operador.ts";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
-import { revertirCobro } from "../cuentas/cuentas.ts";
 import { AnularCobroDialog } from "./AnularCobroDialog.tsx";
 import { enmascarar, textoDinero, textoMotivo } from "./anulacion.ts";
 import { formatClock } from "../park/time-format.ts";
@@ -53,9 +52,11 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
   });
 }
 
-export function VentasDelTurno({ usuarios, className }: { usuarios: readonly UserSummaryDto[]; className?: string }) {
+export function VentasDelTurno({ className }: { className?: string }) {
   const { ventas, anotarImpresion, anular } = useVentas();
-  const { cuentas, guardar } = useCuentas();
+  const { anular: anularEnServidor } = useCuentas();
+  /** La clave de la anulación en curso de cada venta: un reintento (un PIN mal tecleado) no anula dos veces. */
+  const claves = useRef(new Map<string, string>());
   const router = useRouter();
   const operador = useOperador();
   const [anulando, setAnulando] = useState(false);
@@ -78,27 +79,40 @@ export function VentasDelTurno({ usuarios, className }: { usuarios: readonly Use
   const anuladas = ventas.filter((v) => v.voided).length;
 
   /**
-   * Aplica la anulación (DEC-24). Orden fail-closed: primero se comprueba que
-   * la cuenta puede volver a «por cobrar», luego se añade la anulación a la
-   * venta (valida contra el contrato) y solo entonces se guarda la cuenta. Si
-   * algo lanza, no se aplica nada y el diálogo lo muestra.
+   * Anula el cobro en el servidor (DEC-24, B3-3): él comprueba la autorización, revierte cada
+   * asiento del libro y devuelve a la cola lo que pagó. Solo si lo confirma se anota la anulación
+   * en la venta, con cómo volvió el dinero de cada pago.
    */
-  function aplicarAnulacion(v: VentaCerradaDto, anulacion: AnulacionDto) {
-    const cuenta = cuentas.find((c) => c.id === v.accountId) ?? null;
-    const revertida = cuenta ? revertirCobro(cuenta, v.lineIds) : null;
+  async function aplicarAnulacion(v: VentaCerradaDto, anulacion: AnulacionDto, autorizacion?: unknown): Promise<Rechazo | null> {
+    const clave = claves.current.get(v.id) ?? globalThis.crypto.randomUUID();
+    claves.current.set(v.id, clave);
+    const r = await anularEnServidor(
+      {
+        idempotencyKey: clave,
+        accountId: v.accountId,
+        cobroKey: v.cobroKey,
+        motivo: anulacion.reason,
+        ...(anulacion.note ? { detalle: anulacion.note } : {}),
+      },
+      autorizacion,
+    );
+    if (!r.ok) return r;
+    claves.current.delete(v.id);
     anular(v.id, anulacion);
-    if (revertida) guardar(revertida);
     setAnulando(false);
+    const cuenta = r.valor.cuenta;
     const devoluciones = anulacion.refunds
-      .map((r) => {
-        const p = v.payments[r.paymentIndex]!;
-        return `${textoDinero(r.amount)} ${p.cash || r.via === "EFECTIVO" ? "en efectivo" : `por ${p.label}`}`;
+      .map((x) => {
+        const p = v.payments[x.paymentIndex]!;
+        return `${textoDinero(x.amount)} ${p.cash || x.via === "EFECTIVO" ? "en efectivo" : `por ${p.label}`}`;
       })
       .join(" · ");
+    const enCola = cuenta.status === "POR_COBRAR";
     avisar.ok(`Orden ${v.recibo.orden} anulada`, {
-      detalle: `Devolver ${devoluciones}.${revertida ? " La cuenta volvió a «por cobrar»." : ""}`,
-      ...(revertida ? { accion: { texto: "Ir a cobrar", alPulsar: () => router.push(`/caja?cuenta=${revertida.id}` as Route) } } : {}),
+      detalle: `Devolver ${devoluciones}.${enCola ? " La cuenta volvió a «por cobrar»." : ""}`,
+      ...(enCola ? { accion: { texto: "Ir a cobrar", alPulsar: () => router.push(`/caja?cuenta=${cuenta.id}` as Route) } } : {}),
     });
+    return null;
   }
 
   function imprimir(v: VentaCerradaDto) {
@@ -371,7 +385,6 @@ export function VentasDelTurno({ usuarios, className }: { usuarios: readonly Use
       <AnularCobroDialog
         venta={anulando && actual && !actual.voided ? actual : null}
         ventas={ventas}
-        usuarios={usuarios}
         operador={operador}
         onAnular={aplicarAnulacion}
         onCerrar={() => setAnulando(false)}

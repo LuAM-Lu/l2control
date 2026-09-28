@@ -101,7 +101,7 @@ export interface CasosCuentas {
    */
   anular(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<CuentaYLibroDto>>;
   /** Quiénes pueden autorizar a quien opera a anular un cobro (vacío si no le hace falta). */
-  autorizadores(ctx: Contexto): Promise<{ id: string; nombre: string }[]>;
+  autorizadores(ctx: Contexto): Promise<{ id: string; nombre: string; rol: string }[]>;
 }
 
 /** Quién puede ver las cuentas: quien trabaja con alguna (entrada, salida, mesas o caja). */

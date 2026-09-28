@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Banknote, ShieldCheck } from "lucide-react";
-import { AnulacionSchema, type AnulacionDto, type UserSummaryDto, type VentaCerradaDto } from "@l2/contracts";
-import { DEFAULT_LOCKOUT_POLICY, can, canAuthorize, computeLockout, describeLockout, type Actor } from "@l2/domain-identity";
+import { AnulacionSchema, type AnulacionDto, type Rechazo, type VentaCerradaDto } from "@l2/contracts";
+import { can, type Actor } from "@l2/domain-identity";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import type { OperadorEnSesion } from "../identity/operador.ts";
-import { toActor } from "../identity/permisos.ts";
 import { useActorEnSesion } from "../identity/sesion.ts";
-import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero } from "./anulacion.ts";
+import { autorizadoresParaAnular } from "../cuentas/cuentas.acciones";
+import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero, textoMotivo } from "./anulacion.ts";
 
 /**
  * Anular un cobro ya cerrado — DEC-24.
@@ -21,16 +21,14 @@ import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero } from "./an
  *     pago electrónico pide la referencia de su devolución; el punto, la
  *     aprobación de la anulación en el terminal. El efectivo es la alternativa
  *     con explicación, y solo si la gaveta lo tiene en esa moneda.
- *  3. **Quién autoriza.** Un supervisor con su PIN o el administrador. Quien
- *     ya puede anular sin autorización confirma igual con su PIN: una
- *     operación que devuelve dinero no se hace con la sesión que alguien dejó
- *     abierta.
+ *  3. **Quién autoriza.** Quien no puede anular por sí mismo elige a un
+ *     supervisor o a la administración, que teclea su PIN. La lista y el PIN
+ *     son del servidor (B3-3): él dice quién puede autorizar, comprueba el PIN
+ *     con su bloqueo creciente y deja la autorización en la auditoría ANTES de
+ *     revertir el libro (DEC-24). La administración anula sin autorización.
  *
- * El contrato valida la anulación entera antes de aplicarla; si algo no
- * cumple, no se aplica nada (fail-closed).
- *
- * TODO(F2-03/backend): el PIN lo verifica el servidor y la anulación queda en
- * auditoría antes de ejecutarse. Hoy se simula como en el acceso: «1970».
+ * El contrato valida la anulación entera antes de enviarla; si algo no
+ * cumple, no se envía nada (fail-closed).
  */
 
 const PIN_LONGITUD = 4;
@@ -40,7 +38,6 @@ type Via = "MISMO_MEDIO" | "EFECTIVO";
 export function AnularCobroDialog({
   venta,
   ventas,
-  usuarios,
   operador,
   onAnular,
   onCerrar,
@@ -48,11 +45,12 @@ export function AnularCobroDialog({
   venta: VentaCerradaDto | null;
   /** Todas las ventas: para saber cuánto efectivo hay para devolver. */
   ventas: readonly VentaCerradaDto[];
-  /** El directorio de personas de la sucursal: de ahí salen los autorizadores. */
-  usuarios: readonly UserSummaryDto[];
   operador: OperadorEnSesion | null;
-  /** Aplica la anulación. Lanza si no se puede: el diálogo lo muestra. */
-  onAnular: (venta: VentaCerradaDto, anulacion: AnulacionDto) => void;
+  /**
+   * Anula en el servidor. `autorizacion` es la del 🔐 (quién, su PIN y el motivo) cuando quien opera
+   * no puede anular por sí mismo. Devuelve el rechazo, si lo hay, para enseñarlo aquí.
+   */
+  onAnular: (venta: VentaCerradaDto, anulacion: AnulacionDto, autorizacion?: unknown) => Promise<Rechazo | null>;
   onCerrar: () => void;
 }) {
   const [motivo, setMotivo] = useState<AnulacionDto["reason"] | null>(null);
@@ -61,10 +59,10 @@ export function AnularCobroDialog({
   const [refs, setRefs] = useState<Record<number, string>>({});
   const [autorizadorId, setAutorizadorId] = useState<string | null>(null);
   const [pin, setPin] = useState("");
-  const [fallos, setFallos] = useState(0);
-  const [ultimoFallo, setUltimoFallo] = useState<number | null>(null);
-  const [ahora, setAhora] = useState(() => Date.now());
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [enviando, setEnviando] = useState(false);
+  /** Quiénes pueden autorizar, según el servidor. `null` mientras se pregunta. */
+  const [lista, setLista] = useState<{ id: string; nombre: string; rol: string }[] | null>(null);
   const [para, setPara] = useState<string | null>(null);
 
   // Cada venta abre el formulario limpio. Derivado en el render, sin efecto.
@@ -81,25 +79,29 @@ export function AnularCobroDialog({
 
   const solicitante: Actor | null = useActorEnSesion();
   const permiso = solicitante ? can(solicitante, "cobro.anular") : "DENEGADO";
+  const pideAutorizacion = permiso === "REQUIERE_AUTORIZACION";
 
-  /** Quién puede dar la autorización: el propio administrador, o supervisores y administradores activos. */
-  const autorizadores = useMemo(() => {
-    if (!solicitante || !operador) return [];
-    if (permiso === "PERMITIDO") return [{ id: operador.id, nombre: operador.nombre, role: operador.role }];
-    return usuarios.filter((u) => u.active && canAuthorize(toActor(u), solicitante, "cobro.anular")).map((u) => ({
-      id: u.id,
-      nombre: u.fullName,
-      role: u.role,
-    }));
-  }, [solicitante, operador, permiso, usuarios]);
-  const autorizador = autorizadores.find((a) => a.id === autorizadorId) ?? (autorizadores.length === 1 ? autorizadores[0]! : null);
-
-  const bloqueo = computeLockout(fallos, ultimoFallo, ahora, DEFAULT_LOCKOUT_POLICY);
+  // Quién puede autorizar lo dice el servidor, cada vez que se abre para anular.
+  const abierto = venta !== null;
   useEffect(() => {
-    if (!bloqueo.locked) return;
-    const id = window.setInterval(() => setAhora(Date.now()), 500);
-    return () => window.clearInterval(id);
-  }, [bloqueo.locked]);
+    if (!abierto || !pideAutorizacion) return;
+    let vivo = true;
+    setLista(null);
+    autorizadoresParaAnular()
+      .then((l) => vivo && setLista(l))
+      .catch(() => vivo && setLista([]));
+    return () => {
+      vivo = false;
+    };
+  }, [abierto, pideAutorizacion]);
+
+  /** Quién firma la anulación: quien la autoriza o, si puede por sí mismo, quien opera. */
+  const autorizadores = useMemo(() => {
+    if (!operador) return [];
+    if (permiso === "PERMITIDO") return [{ id: operador.id, nombre: operador.nombre, rol: operador.role as string }];
+    return lista ?? [];
+  }, [operador, permiso, lista]);
+  const autorizador = autorizadores.find((a) => a.id === autorizadorId) ?? (autorizadores.length === 1 ? autorizadores[0]! : null);
 
   if (!venta) return null;
 
@@ -120,19 +122,18 @@ export function AnularCobroDialog({
     return null;
   })();
 
-  function confirmar() {
-    if (!venta || !operador) return;
+  async function confirmar() {
+    if (!venta || !operador || enviando) return;
     const nuevos: Record<string, string> = {};
     if (!motivo) nuevos.motivo = "Elige el motivo";
     if (!autorizador) nuevos.autorizador = "Elige quién autoriza";
-    if (bloqueo.locked) nuevos.pin = describeLockout(bloqueo) ?? "PIN bloqueado";
-    else if (pin.length !== PIN_LONGITUD) nuevos.pin = "Escribe el PIN de 4 dígitos";
+    if (pideAutorizacion && pin.length !== PIN_LONGITUD) nuevos.pin = "Escribe el PIN de 4 dígitos";
     if (faltaEfectivo) nuevos.efectivo = `En la gaveta no hay efectivo en ${faltaEfectivo} suficiente para devolver`;
 
     const anulacion = {
       at: new Date().toISOString(),
       requestedBy: { id: operador.id, name: operador.nombre },
-      authorizedBy: autorizador ? { id: autorizador.id, name: autorizador.nombre, role: autorizador.role } : null,
+      authorizedBy: autorizador ? { id: autorizador.id, name: autorizador.nombre, role: autorizador.rol } : null,
       reason: motivo,
       ...(nota.trim() ? { note: nota.trim() } : {}),
       refunds: conDevolucion.map(([p, i]) => ({
@@ -166,20 +167,20 @@ export function AnularCobroDialog({
       return;
     }
 
-    // TODO(F2-03/backend): verificación real del PIN del autorizador.
-    if (pin !== "1970") {
-      setFallos((f) => f + 1);
-      setUltimoFallo(Date.now());
-      setAhora(Date.now());
+    // El PIN lo comprueba el servidor, con su bloqueo, antes de tocar el libro.
+    const autorizacion =
+      pideAutorizacion && autorizador
+        ? { autorizadorId: autorizador.id, pin, motivo: `${textoMotivo(motivo!)}${nota.trim() ? ` · ${nota.trim()}` : ""}`.slice(0, 280) }
+        : undefined;
+    setEnviando(true);
+    const rechazo = await onAnular(venta, forma.data!, autorizacion).catch(() => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: no se anuló nada." }) as Rechazo);
+    setEnviando(false);
+    if (!rechazo) return;
+    if (pideAutorizacion && /PIN|bloquead|autorizar/i.test(rechazo.mensaje)) {
       setPin("");
-      setErrores({ pin: "PIN incorrecto" });
-      return;
-    }
-
-    try {
-      onAnular(venta, forma.data!);
-    } catch (e) {
-      setErrores({ general: e instanceof Error ? e.message : "No se pudo anular el cobro" });
+      setErrores({ pin: rechazo.mensaje });
+    } else {
+      setErrores({ general: rechazo.mensaje });
     }
   }
 
@@ -194,8 +195,8 @@ export function AnularCobroDialog({
           <Button surface="pos" variant="neutral" onClick={onCerrar}>
             Cancelar
           </Button>
-          <Button surface="pos" variant="danger" onClick={confirmar} disabled={permiso === "DENEGADO"}>
-            Anular y devolver
+          <Button surface="pos" variant="danger" onClick={() => void confirmar()} disabled={permiso === "DENEGADO" || enviando}>
+            {enviando ? "Anulando…" : "Anular y devolver"}
           </Button>
         </div>
       }
@@ -310,35 +311,37 @@ export function AnularCobroDialog({
           </legend>
           {permiso === "DENEGADO" ? (
             <p className="text-[12.5px] text-state-crit">Tu puesto no puede anular cobros.</p>
+          ) : permiso === "PERMITIDO" ? (
+            <p className="text-[12.5px] text-ink-2">Autorizas tú, como administración: queda a tu nombre.</p>
+          ) : lista === null ? (
+            <p className="text-[12.5px] text-ink-3" role="status">
+              Buscando quién puede autorizar…
+            </p>
           ) : autorizadores.length === 0 ? (
             <p className="text-[12.5px] text-state-crit">No hay un supervisor ni un administrador activo que pueda autorizarlo.</p>
           ) : (
             <>
-              {permiso === "PERMITIDO" ? (
-                <p className="text-[12.5px] text-ink-2">Autorizas tú, como administración. Confirma con tu PIN.</p>
-              ) : (
-                <div role="radiogroup" aria-label="Quién autoriza" className="flex flex-wrap gap-1.5">
-                  {autorizadores.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={autorizador?.id === a.id}
-                      onClick={() => {
-                        setAutorizadorId(a.id);
-                        setPin("");
-                      }}
-                      className={cn(
-                        "flex min-h-12 cursor-pointer flex-col justify-center rounded-[var(--radius-control)] border px-3 text-left transition-colors",
-                        autorizador?.id === a.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
-                      )}
-                    >
-                      <span className="text-[13px] font-semibold">{a.nombre}</span>
-                      <span className="text-[11px] text-ink-3">{a.role === "ADMIN" ? "Administración" : "Supervisión"}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div role="radiogroup" aria-label="Quién autoriza" className="flex flex-wrap gap-1.5">
+                {autorizadores.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={autorizador?.id === a.id}
+                    onClick={() => {
+                      setAutorizadorId(a.id);
+                      setPin("");
+                    }}
+                    className={cn(
+                      "flex min-h-12 cursor-pointer flex-col justify-center rounded-[var(--radius-control)] border px-3 text-left transition-colors",
+                      autorizador?.id === a.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+                    )}
+                  >
+                    <span className="text-[13px] font-semibold">{a.nombre}</span>
+                    <span className="text-[11px] text-ink-3">{a.rol === "ADMIN" ? "Administración" : "Supervisión"}</span>
+                  </button>
+                ))}
+              </div>
               {errores.autorizador && <p className="text-[12px] text-state-crit">{errores.autorizador}</p>}
               <Input
                 label={autorizador ? `PIN de ${autorizador.nombre}` : "PIN de quien autoriza"}
@@ -348,22 +351,15 @@ export function AnularCobroDialog({
                 autoComplete="off"
                 maxLength={PIN_LONGITUD}
                 value={pin}
-                disabled={!autorizador || bloqueo.locked}
+                disabled={!autorizador || enviando}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LONGITUD))}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    confirmar();
+                    void confirmar();
                   }
                 }}
-                error={
-                  bloqueo.locked
-                    ? (describeLockout(bloqueo) ?? "Bloqueado")
-                    : errores.pin
-                      ? `${errores.pin}${fallos > 0 ? ` · quedan ${bloqueo.attemptsRemaining} intentos` : ""}`
-                      : undefined
-                }
-                hint="Prototipo: el PIN de prueba es 1970."
+                error={errores.pin || undefined}
               />
             </>
           )}

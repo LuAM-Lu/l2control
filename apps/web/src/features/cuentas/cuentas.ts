@@ -1,15 +1,15 @@
 /**
- * Reglas de la cuenta de la familia — DEC-21, §9.10.9.
+ * Lo que las pantallas hacen con una cuenta — DEC-21, §9.10.9.
  *
- * Tres transiciones y nada más: abrir en la entrada, registrar una salida y
- * marcar como cobrada. Cada una devuelve la cuenta ya validada contra el
- * contrato: si una transición produjera una cuenta imposible —cobrada con
- * algo pendiente, por cobrar sin nada que cobrar—, revienta aquí y no en la
- * caja delante del cliente.
+ * Abrir en la entrada o en el salón, registrar una salida, llenar una mesa,
+ * dividir. Cada transición devuelve la cuenta ya validada contra el contrato:
+ * si produjera una cuenta imposible —cobrada con algo pendiente, por cobrar
+ * sin nada que cobrar—, revienta aquí y no en la caja delante del cliente.
  *
- * Son funciones puras sobre datos del contrato. Cuando exista el backend, el
- * servidor aplicará estas mismas reglas y la pantalla recibirá el resultado;
- * la forma ya es la definitiva (§11.4).
+ * Lo que solo hace el servidor (B3-3) no está aquí: marcar pagado lo hace el
+ * cobro y devolver a la cola lo hace la anulación. El servidor compara cada
+ * cuenta que se guarda con la que tiene y rechaza lo que no le toca a una
+ * pantalla (`accountChangeProblem` del dominio).
  */
 import {
   FamilyAccountSchema,
@@ -55,7 +55,7 @@ export function lineasDeCortesia(
 
 /** Una cuenta abierta en el salón: se cobra cuando la mesa pide la cuenta (F6-05). */
 export function esDeMesa(c: FamilyAccountDto): boolean {
-  return c.tableId !== undefined;
+  return c.kind === "MESA";
 }
 
 /**
@@ -68,7 +68,8 @@ export function esDeMesa(c: FamilyAccountDto): boolean {
 export function esLineaDeMostrador(
   l: FamilyAccountDto["lines"][number],
 ): boolean {
-  return l.kind === "RESTAURANTE" && l.id.includes("-snk-") && !l.paid;
+  // La vendió el mostrador si es un producto del catálogo (B9-1); el servidor tampoco deja quitar otra.
+  return l.productId !== undefined && !l.paid && !l.movedTo;
 }
 
 /** «#1042»: como se dice y se busca un número de orden. */
@@ -78,9 +79,9 @@ export function numeroDeOrden(c: FamilyAccountDto): string {
     : "Sin número";
 }
 
-/** Venta de mostrador: una cuenta sin familia, abierta en la caja. */
+/** Venta de mostrador: una cuenta sin familia ni mesa, abierta en la caja (su tipo lo dice, B3-3). */
 export function esVentaDirecta(c: FamilyAccountDto): boolean {
-  return c.id.startsWith("c-dir-");
+  return c.kind === "MOSTRADOR";
 }
 
 /**
@@ -122,9 +123,10 @@ export function abrirCuenta({
   ahora: string;
   ninos: readonly { sessionId: string; concepto: string; precio: MoneyDto }[];
 }): FamilyAccountDto {
-  const id = `c-${globalThis.crypto.randomUUID().slice(0, 8)}`;
+  // Un UUID que genera la pantalla: si el alta se reintenta, el servidor reconoce la misma cuenta.
   return FamilyAccountSchema.parse({
-    id,
+    id: globalThis.crypto.randomUUID(),
+    kind: "FAMILIA",
     family: familia,
     mode: modo,
     status: modo === "PREPAGO" ? "POR_COBRAR" : "ABIERTA",
@@ -132,7 +134,7 @@ export function abrirCuenta({
     sessionIds: ninos.map((n) => n.sessionId),
     closedSessionIds: [],
     lines: ninos.map((n) => ({
-      id: `${id}-${n.sessionId}`,
+      id: `paq-${n.sessionId}`,
       concept: n.concepto.slice(0, 80),
       kind: "PAQUETE",
       amount: n.precio,
@@ -168,7 +170,8 @@ export function registrarSalida(
     ...excedentes
       .filter((e) => BigInt(e.amount.minor) > 0n)
       .map((e) => ({
-        id: `${c.id}-exc-${e.sessionId}`.slice(0, 64),
+        // Un excedente por niño: el mismo id si la salida se registra dos veces.
+        id: `exc-${e.sessionId}`,
         concept: e.concept.slice(0, 80),
         kind: "EXCEDENTE" as const,
         amount: e.amount,
@@ -200,24 +203,6 @@ export function registrarSalida(
   });
 }
 
-/**
- * Se anuló el cobro que pagó estas líneas (DEC-24): vuelven a estar pendientes
- * y la cuenta vuelve a la cola de la caja. No se borra nada: lo consumido se
- * sigue debiendo, y si no hay que cobrarlo es una cortesía con motivo (F6-14),
- * no una anulación.
- */
-export function revertirCobro(
-  c: FamilyAccountDto,
-  lineIds: readonly string[],
-): FamilyAccountDto {
-  const ids = new Set(lineIds);
-  return FamilyAccountSchema.parse({
-    ...c,
-    lines: c.lines.map((l) => (ids.has(l.id) ? { ...l, paid: false } : l)),
-    status: "POR_COBRAR",
-  });
-}
-
 /* ═════════════════════════════════ dividir la cuenta — F6-12 ══ */
 
 /** Divide la cuenta en partes iguales. Vuelve a empezar si ya estaba dividida y nadie pagó. */
@@ -238,45 +223,9 @@ export function unirCuenta(c: FamilyAccountDto): FamilyAccountDto {
   return FamilyAccountSchema.parse(sinDividir);
 }
 
-/**
- * Se cobró una parte.
- *
- * Mientras queden partes, la cuenta sigue en la cola con lo que falta. Con la
- * última se marca cobrada entera: las líneas se pagan una sola vez, aunque el
- * dinero haya entrado en varios cobros.
- */
-export function marcarParteCobrada(c: FamilyAccountDto): FamilyAccountDto {
-  // Sin dividir, un cobro cierra la cuenta entera: no hay partes que llevar.
-  if (!c.split) return marcarCobrada(c);
-  const { parts } = c.split;
-  const pagadas = c.split.paid + 1;
-  if (pagadas >= parts)
-    return marcarCobrada({ ...c, split: { parts, paid: parts } });
-  return FamilyAccountSchema.parse({
-    ...c,
-    split: { parts, paid: pagadas },
-    status: "POR_COBRAR",
-  });
-}
-
 /** Cuántas partes faltan por cobrar. 1 si la cuenta no está dividida. */
 export function partesQueFaltan(c: FamilyAccountDto): number {
   return c.split ? c.split.parts - c.split.paid : 1;
-}
-
-/**
- * La caja cobró todo lo pendiente.
- *
- * Si la familia ya se fue, la cuenta queda cobrada. Si quedan niños dentro
- * —un prepago que pagó el excedente de uno—, vuelve a «abierta».
- */
-export function marcarCobrada(c: FamilyAccountDto): FamilyAccountDto {
-  const fuera = c.closedSessionIds.length === c.sessionIds.length;
-  return FamilyAccountSchema.parse({
-    ...c,
-    lines: c.lines.map((l) => ({ ...l, paid: true })),
-    status: fuera ? "COBRADA" : "ABIERTA",
-  });
 }
 
 /* ══════════════════════════════ la cuenta de la mesa — F6-05, D2, D3 ══ */
@@ -285,17 +234,15 @@ export function marcarCobrada(c: FamilyAccountDto): FamilyAccountDto {
 export function abrirCuentaDeMesa({
   tableId,
   tableLabel,
-  abiertaEn,
   ahora,
 }: {
   tableId: string;
   tableLabel: string;
-  /** Cuándo se abrió la mesa: separa esta familia de la anterior en la misma mesa. */
-  abiertaEn: string;
   ahora: string;
 }): FamilyAccountDto {
   return FamilyAccountSchema.parse({
-    id: `c-mesa-${tableId}-${Date.parse(abiertaEn)}`,
+    id: globalThis.crypto.randomUUID(),
+    kind: "MESA",
     family: `Mesa ${tableLabel}`,
     mode: "CUENTA_ABIERTA",
     status: "ABIERTA",
@@ -311,14 +258,13 @@ export function abrirCuentaDeMesa({
 /** Añade a la cuenta de la mesa lo que se acaba de enviar a cocina. */
 export function anadirPedido(
   c: FamilyAccountDto,
-  orderId: string,
   platos: readonly { concepto: string; cantidad: number; precio: MoneyDto }[],
 ): FamilyAccountDto {
   const lineas: AccountLineDto[] = platos.flatMap((p) =>
     // Una línea por unidad: así se puede cobrar o cortesía una sola, y la caja
     // ya sabe agrupar las iguales en una fila con su cantidad.
-    Array.from({ length: p.cantidad }, (_, i) => ({
-      id: `${c.id}-${orderId}-${i}-${p.concepto}`.slice(0, 64),
+    Array.from({ length: p.cantidad }, () => ({
+      id: globalThis.crypto.randomUUID(),
       concept: p.concepto.slice(0, 80),
       kind: "RESTAURANTE" as const,
       amount: p.precio,
@@ -346,9 +292,10 @@ export function moverParqueALaMesa(
   );
   if (mueven.length === 0) return null;
 
+  // Una línea nueva en la mesa, con su propio id: juntar los dos se cortaba a 64 y chocaba.
   const enLaMesa = mueven.map((l) => ({
     ...l,
-    id: `${mesa.id}-${l.id}`.slice(0, 64),
+    id: globalThis.crypto.randomUUID(),
   }));
   return {
     familia: FamilyAccountSchema.parse({

@@ -320,8 +320,8 @@ describe("anular un cobro (DEC-24)", () => {
     const sin = await local.app.cuentas.anular(ctxCajera, pedido, undefined, AHORA);
     assert.equal(!sin.ok && sin.motivo, "NO_PERMITIDO");
     assert.deepEqual(await local.app.cuentas.autorizadores(ctxCajera), [
-      { id: (await local.base.conTenant(local.sistema.tenantId, (tx) => tx.staffUser.findFirstOrThrow({ where: { role: "ADMIN" } }))).id, nombre: "Abigail Karam" },
-      { id: supervisor, nombre: "Luis Guerrero" },
+      { id: (await local.base.conTenant(local.sistema.tenantId, (tx) => tx.staffUser.findFirstOrThrow({ where: { role: "ADMIN" } }))).id, nombre: "Abigail Karam", rol: "ADMIN" },
+      { id: supervisor, nombre: "Luis Guerrero", rol: "SUPERVISOR" },
     ]);
 
     const anulada = valor(await local.app.cuentas.anular(ctxCajera, pedido, { autorizadorId: supervisor, pin: "5937", motivo: "Cobro repetido" }, AHORA));

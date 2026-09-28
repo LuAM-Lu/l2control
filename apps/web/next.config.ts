@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
   // operación y de las capturas (hallazgo B1). Los errores de compilación
   // siguen saliendo en su pantalla completa.
   devIndicators: false,
+  // Next escribe en su registro cada acción del servidor con sus argumentos: el PIN de quien entra
+  // o autoriza y las referencias de un pago salían en claro (PLAN §7.6). Lo que se registra lo
+  // escribe el logger de la casa, con redacción.
+  logging: { serverFunctions: false },
 };
 
 export default nextConfig;

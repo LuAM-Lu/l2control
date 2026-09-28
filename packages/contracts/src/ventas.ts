@@ -17,7 +17,7 @@
  * ya enmascarados.
  */
 import { z } from "zod";
-import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
+import { IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 const Persona = z.object({ id: IdSchema, name: z.string().max(80) });
 
@@ -140,6 +140,8 @@ export const VentaCerradaSchema = z.object({
   id: IdSchema,
   orderNumber: z.number().int().positive().optional(),
   accountId: IdSchema,
+  /** La clave con que el servidor asentó el cobro (B3-3): anularlo es anular esa operación del libro. */
+  cobroKey: IdempotencyKeySchema,
   closedAt: TimestampSchema,
   cashier: z.object({ id: IdSchema, name: Texto(80) }).nullable(),
   total: MoneySchema,

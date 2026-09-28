@@ -171,19 +171,16 @@ export function MesasScreen() {
   }
 
   /**
-   * La cuenta de esta ocupación de la mesa. Se crea al primer pedido o al
-   * primer vínculo, y muere con el cobro: la siguiente familia que se siente
-   * abre otra, porque el identificador lleva la hora de apertura.
+   * La cuenta de esta ocupación de la mesa: la de la mesa que no se ha cobrado.
+   * Se crea al primer pedido o al primer vínculo, y muere con el cobro: la
+   * siguiente familia que se siente abre otra.
    */
   function cuentaDeLaMesa(m: MesaVista): FamilyAccountDto {
     if (!m.ocupacion) throw new Error("La mesa no está abierta");
-    const nueva = abrirCuentaDeMesa({
-      tableId: m.mesa.id,
-      tableLabel: m.mesa.label,
-      abiertaEn: m.ocupacion.abiertaEn,
-      ahora: new Date().toISOString(),
-    });
-    return cuentas.find((c) => c.id === nueva.id) ?? nueva;
+    return (
+      cuentas.find((c) => c.kind === "MESA" && c.tableId === m.mesa.id && c.status !== "COBRADA") ??
+      abrirCuentaDeMesa({ tableId: m.mesa.id, tableLabel: m.mesa.label, ahora: new Date().toISOString() })
+    );
   }
 
   function vincular(m: MesaVista, ids: string[]) {
@@ -235,7 +232,7 @@ export function MesasScreen() {
         const it = carta.find((i) => i.id === l.itemId);
         return it ? [{ concepto: it.name, cantidad: l.cantidad, precio: it.price }] : [];
       });
-      guardar(anadirPedido(cuentaDeLaMesa(m), globalThis.crypto.randomUUID().slice(0, 8), platos));
+      void guardar(anadirPedido(cuentaDeLaMesa(m), platos));
       setBorradores((b) => ({ ...b, [m.mesa.id]: [] }));
       setVista("plano");
     }

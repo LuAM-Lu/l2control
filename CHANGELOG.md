@@ -12,6 +12,32 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.24.0] — 2026-09-28 · Etapa 3 · Caja
+
+B3-3 · Cobro mixto y vuelto en el servidor, y todas las cuentas en la base (F4-03, F4-04b, F4-04c).
+
+### Añadido
+- Las cuentas de las familias, de las mesas y del mostrador se guardan en el servidor: la entrada, el
+  salón y la caja ven la misma cuenta desde cualquier equipo, y una cuenta nueva llega a la cola de
+  la caja de otro equipo en unos segundos. El número de orden lo da el servidor.
+- Cerrar un cobro lo decide el servidor: recalcula el total con el IVA y el IGTF de ese instante, exige
+  la tasa vigente (o la que regía hace menos de 10 minutos) y rechaza un cobro que no cuadra al
+  céntimo o cuyo total no es el que vio el cliente. Los pagos, el vuelto, la propina o el residuo
+  quedan en el libro en la misma operación que marca la cuenta pagada.
+- Anular un cobro lo hace el servidor: la lista de quién puede autorizar y el PIN de supervisión se
+  comprueban allí, con su bloqueo, y cada pago se revierte en el libro con su motivo y quién lo
+  autorizó. Anular una parte de una cuenta dividida resta solo esa parte.
+
+### Cambiado
+- Una venta de mostrador es una cuenta de mostrador (ya no una familia inventada), y vende solo del
+  catálogo con el precio del momento.
+- Si otro equipo cambió la cuenta mientras se tenía abierta, se avisa y se vuelve a lo que tiene el
+  servidor en vez de pisar su cambio.
+
+### Seguridad
+- El registro del servidor ya no escribe los datos que recibe cada acción: el PIN de quien entra o
+  autoriza y las referencias de un pago salían en claro.
+
 ## [0.23.0] — 2026-09-27 · Etapa 3 · Caja
 
 B9-1 · Catálogo de productos en el servidor (F8-02).
