@@ -66,9 +66,15 @@ export async function crearPersona(
   return id;
 }
 
-/** Un equipo registrado (y aprobado, salvo que se diga lo contrario). Devuelve su credencial. */
+let equiposDePrueba = 0;
+
+/**
+ * Un equipo registrado (y aprobado, salvo que se diga lo contrario). Devuelve su credencial. Cada uno
+ * pide desde su propia dirección: el tope de solicitudes por red (M-7) es de las pruebas del alta.
+ */
 export async function crearEquipo(local: LocalDePrueba, label: string, aprobar = true): Promise<string> {
-  const r = await local.app.dispositivos.solicitar(local.sistema, label, "10.0.0.1");
+  const n = ++equiposDePrueba;
+  const r = await local.app.dispositivos.solicitar(local.sistema, label, `10.0.${n >> 8}.${n & 255}`);
   if (!r.ok) throw new Error(`No se pudo registrar el equipo: ${r.mensaje}`);
   if (aprobar) {
     const a = await local.app.dispositivos.ordenar(local.sistema, {

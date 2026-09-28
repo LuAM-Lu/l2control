@@ -11,6 +11,7 @@
  */
 import { z } from "zod";
 import { AccountKindSchema, AccountStatusSchema } from "./account.ts";
+import { EstanciaSchema } from "./park.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 import { TurnoSchema } from "./turno.ts";
 
@@ -156,7 +157,10 @@ export type CorteZCommand = z.infer<typeof CorteZCommandSchema>;
 
 /* ─────────────────────────────────────────────── la jornada y sus pendientes */
 
-/** Lo que impide cerrar la jornada (JORNADA §5, C2): cuentas por cobrar y turnos de otros equipos abiertos. */
+/**
+ * Lo que impide cerrar la jornada (JORNADA §5, C2): cuentas por cobrar, niños en sala (B4-3), estancias
+ * huérfanas sin cerrar (D9) y turnos de otros equipos abiertos.
+ */
 export const PendientesDelCierreSchema = z.object({
   cuentas: z.array(
     z.object({
@@ -169,6 +173,8 @@ export const PendientesDelCierreSchema = z.object({
       version: z.number().int().positive(),
     }),
   ),
+  ninos: z.array(EstanciaSchema),
+  huerfanas: z.array(EstanciaSchema),
   turnos: z.array(TurnoSchema),
 });
 export type PendientesDelCierreDto = z.infer<typeof PendientesDelCierreSchema>;

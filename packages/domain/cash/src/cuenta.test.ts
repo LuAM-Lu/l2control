@@ -19,6 +19,7 @@ import {
   isDiscardedDraft,
   isPendingAtClose,
   markUncollectible,
+  uncollectibleProblem,
   courtesyProblem,
   withCourtesy,
   registerExit,
@@ -254,6 +255,15 @@ describe("el cierre de la jornada (B3-5, D-JOR)", () => {
     assert.deepEqual(incobrable.lines, c.lines);
     assert.equal(accountChangeProblem(c, incobrable, productAt)?.problem, "CUENTA_INCOBRABLE");
     assert.equal(accountChangeProblem(incobrable, { ...incobrable, status: "ABIERTA" }, productAt)?.problem, "CUENTA_INCOBRABLE");
+  });
+
+  test("se da por incobrable lo pendiente, y una familia solo cuando sus niños ya salieron", () => {
+    assert.equal(uncollectibleProblem(familia()), "NINOS_EN_SALA");
+    assert.equal(uncollectibleProblem(familia({ closedSessionIds: ["s1"] })), "NINOS_EN_SALA");
+    assert.equal(uncollectibleProblem(familia({ status: "POR_COBRAR", closedSessionIds: ["s1", "s2"] })), null);
+    assert.equal(uncollectibleProblem(mostrador([agua("x")])), null);
+    assert.equal(uncollectibleProblem(markPaid(mostrador([agua("x")]))), "NO_PENDIENTE");
+    assert.equal(uncollectibleProblem(markUncollectible(mostrador([agua("x")]))), "NO_PENDIENTE");
   });
 });
 

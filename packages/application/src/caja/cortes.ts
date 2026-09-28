@@ -66,7 +66,8 @@ import { confirmarPinPropio, exigirPermisoOAutorizacion } from "../identidad/aut
 import { programadaDeFila } from "../dinero/impuestos.ts";
 import { catalogoDe, conflictoDeClave } from "../dinero/pagos.ts";
 import { historialParaCobrar, ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
-import { pendienteDe } from "./cuentas.ts";
+import { estanciasActivas } from "../park/parque.ts";
+import { pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
 import { turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
 
 const FUNCIONAL: CurrencyCode = "USD";
@@ -86,8 +87,11 @@ export interface CasosCortes {
   corteZ(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<CorteDto>>;
   /** El último corte Z de este equipo, para enseñarlo después de cerrar. */
   ultimoZ(ctx: Contexto): Promise<CorteDto | null>;
-  /** Lo que impide cerrar la jornada: cuentas por cobrar y turnos de otros equipos abiertos. */
-  pendientes(ctx: Contexto): Promise<Resultado<PendientesDelCierreDto>>;
+  /**
+   * Lo que impide cerrar la jornada: cuentas por cobrar, niños en sala, huérfanas y turnos de otros
+   * equipos abiertos. `turnoId` es el que se va a cerrar (el del equipo si no se dice).
+   */
+  pendientes(ctx: Contexto, turnoId?: string, ahora?: number): Promise<Resultado<PendientesDelCierreDto>>;
   /** Lo que falta para trabajar al abrir el turno (JORNADA §3, A3). */
   comprobarApertura(ctx: Contexto, ahora?: number): Promise<ComprobacionAperturaDto>;
   /** El resumen del día de negocio de hoy, para Inicio (JORNADA §5, C6). */
@@ -131,12 +135,15 @@ async function turnoObjetivo(tx: Transaccion, ctx: Contexto, turnoId?: string): 
 
 /**
  * Quien puede hacer `accion` sobre ese turno: en el suyo, sin denegar; en el de otro equipo, solo
- * quien la tiene permitida sin autorización (cerrar un turno ajeno es de supervisión, JORNADA §5).
+ * quien ve la sucursal y la tiene permitida sin autorización (cerrar un turno ajeno es de
+ * supervisión, JORNADA §5; una cajera tampoco saca el X de otra caja).
  */
 async function puedeSobre(tx: Transaccion, ctx: Contexto, accion: Action, propio: boolean): Promise<Rechazo | null> {
   const p = await permisoEn(tx, ctx, accion);
   if (p === "DENEGADO") return rechazoDePermiso(p);
-  if (!propio && p !== "PERMITIDO") return { ok: false, motivo: "NO_PERMITIDO", mensaje: "El turno de otro equipo lo cierra supervisión." };
+  if (!propio && (p !== "PERMITIDO" || (await permisoEn(tx, ctx, "reportes.verSucursal")) === "DENEGADO")) {
+    return { ok: false, motivo: "NO_PERMITIDO", mensaje: "El turno de otro equipo lo ve y lo cierra supervisión." };
+  }
   return null;
 }
 
@@ -331,8 +338,11 @@ function arqueoDto(c: {
   });
 }
 
-/** Las cuentas pendientes de la sucursal y los turnos abiertos de otros equipos (JORNADA §5, C2). */
-async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | null): Promise<PendientesDelCierreDto> {
+/**
+ * Lo que impide cerrar la jornada (JORNADA §5, C2): las cuentas pendientes de la sucursal, los niños
+ * en sala, las huérfanas sin cerrar y los turnos abiertos de otros equipos.
+ */
+async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | null, ahora: number): Promise<PendientesDelCierreDto> {
   const filas = await tx.$queryRaw<{ version: number; content: unknown }[]>`
     SELECT ultima.version, ultima.content FROM (
       SELECT DISTINCT ON (v.account_id) v.version, v.content, v.status
@@ -342,6 +352,7 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
       ORDER BY v.account_id, v.version DESC
     ) ultima
     WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')`;
+  const periodos = await periodosDeImpuestos(tx);
   const cuentas = filas
     .map((f) => FamilyAccountSchema.parse({ ...(f.content as object), version: f.version }))
     .filter(isPendingAtClose)
@@ -351,7 +362,7 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
       kind: c.kind,
       family: c.family,
       status: c.status,
-      pendiente: dinero(pendienteDe(c)),
+      pendiente: dinero(pendienteDe(c, periodos, ahora)),
       version: c.version!,
     }))
     .sort((a, b) => a.orderNumber - b.orderNumber);
@@ -360,7 +371,21 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
     include: { floats: true },
     orderBy: { openedAt: "asc" },
   });
-  return PendientesDelCierreSchema.parse({ cuentas, turnos: turnos.map(turnoDto) });
+  const { enSala, huerfanas } = await estanciasActivas(tx, ctx.branchId, ahora);
+  return PendientesDelCierreSchema.parse({ cuentas, ninos: enSala, huerfanas, turnos: turnos.map(turnoDto) });
+}
+
+/** «2 cuentas pendientes y 1 niño en sala»: lo que falta, para el rechazo del cierre. */
+function textoDePendientes(p: PendientesDelCierreDto): string | null {
+  const cuantos = (n: number, uno: string, varios: string) => (n === 0 ? null : `${n} ${n === 1 ? uno : varios}`);
+  const partes = [
+    cuantos(p.cuentas.length, "cuenta pendiente", "cuentas pendientes"),
+    cuantos(p.ninos.length, "niño en sala", "niños en sala"),
+    cuantos(p.huerfanas.length, "estancia huérfana sin cerrar", "estancias huérfanas sin cerrar"),
+    cuantos(p.turnos.length, "turno abierto en otro equipo", "turnos abiertos en otros equipos"),
+  ].filter((x): x is string => x !== null);
+  if (partes.length === 0) return null;
+  return partes.length === 1 ? partes[0]! : `${partes.slice(0, -1).join(", ")} y ${partes.at(-1)}`;
 }
 
 export function casosCortes(base: Base): CasosCortes {
@@ -400,11 +425,11 @@ export function casosCortes(base: Base): CasosCortes {
             content: corte,
           },
         });
-        await auditar(tx, ctx, { action: "turno.corteX", entityType: "cash_shift", entityId: o.turno.id, after: { corte: fila.id, ventas: corte.ventas.cantidad } });
+        await auditar(tx, ctx, { action: "turno.corte_x", entityType: "cash_shift", entityId: o.turno.id, after: { corte: fila.id, ventas: corte.ventas.cantidad } });
         return { ...corte, id: fila.id };
       });
       if ("ok" in r) {
-        if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.corteX", reason: r.mensaje });
+        if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.corte_x", reason: r.mensaje });
         return r;
       }
       return { ok: true, valor: r };
@@ -503,14 +528,8 @@ export function casosCortes(base: Base): CasosCortes {
 
           // La jornada no se cierra con pendientes (JORNADA §5, C2).
           if (cmd.cierre === "JORNADA") {
-            const p = await pendientesEn(tx, ctx, o.turno.id);
-            if (p.cuentas.length > 0 || p.turnos.length > 0) {
-              const partes = [
-                p.cuentas.length > 0 ? `${p.cuentas.length} ${p.cuentas.length === 1 ? "cuenta pendiente" : "cuentas pendientes"}` : null,
-                p.turnos.length > 0 ? `${p.turnos.length} ${p.turnos.length === 1 ? "turno abierto" : "turnos abiertos"} en otros equipos` : null,
-              ].filter(Boolean);
-              return { ok: false, motivo: "CONFLICTO", mensaje: `La jornada no se cierra con pendientes: ${partes.join(" y ")}.` };
-            }
+            const falta = textoDePendientes(await pendientesEn(tx, ctx, o.turno.id, ahora));
+            if (falta) return { ok: false, motivo: "CONFLICTO", mensaje: `La jornada no se cierra con pendientes: ${falta}.` };
           }
 
           // Quién firma (JORNADA §1): dentro del umbral, quien cierra con su PIN; por encima, supervisión
@@ -549,15 +568,12 @@ export function casosCortes(base: Base): CasosCortes {
               ]
             : base0.excepciones;
 
-          // El sello: se cierra el turno y se guarda su foto, en la misma transacción.
-          await tx.cashShift.update({
-            where: { id: o.turno.id },
-            data: { status: "CERRADO_Z", closedAt: new Date(ahora), closedBy: ctx.quien!.userId!, closedByName: quien.nombre },
-          });
-          const cerrado = (await tx.cashShift.findUnique({ where: { id: o.turno.id }, include: { floats: true } }))!;
+          // El sello, en una transacción: primero la foto del Z (la base no admite nada en un turno ya
+          // sellado) y después el turno cerrado, tal como la foto lo enseña.
+          const sello = { status: "CERRADO_Z", closedAt: new Date(ahora), closedBy: ctx.quien!.userId!, closedByName: quien.nombre };
           const corte = CorteSchema.parse({
             ...base0,
-            turno: turnoDto(cerrado),
+            turno: turnoDto({ ...o.turno, ...sello }),
             excepciones,
             arqueo,
             cierre: {
@@ -589,8 +605,9 @@ export function casosCortes(base: Base): CasosCortes {
               operationKey: cmd.idempotencyKey,
             },
           });
+          await tx.cashShift.update({ where: { id: o.turno.id }, data: sello });
           await auditar(tx, ctx, {
-            action: "turno.corteZ",
+            action: "turno.corte_z",
             entityType: "cash_shift",
             entityId: o.turno.id,
             ...(firma === "SUPERVISION" && permiso.autorizadoPor ? { authorizedBy: permiso.autorizadoPor } : {}),
@@ -603,7 +620,7 @@ export function casosCortes(base: Base): CasosCortes {
       try {
         const r = await intentar();
         if ("ok" in r) {
-          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.corteZ", reason: r.mensaje });
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.corte_z", reason: r.mensaje });
           return r;
         }
         return { ok: true, valor: r };
@@ -624,12 +641,13 @@ export function casosCortes(base: Base): CasosCortes {
       });
     },
 
-    async pendientes(ctx) {
+    async pendientes(ctx, turnoId, ahora = Date.now()) {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<PendientesDelCierreDto | Rechazo> => {
         const p = await permisoEn(tx, ctx, "turno.corteZ");
         if (p === "DENEGADO") return rechazoDePermiso(p);
-        const propio = ctx.quien?.deviceId ? await turnoSinCorteDe(tx, ctx.quien.deviceId) : null;
-        return pendientesEn(tx, ctx, propio?.id ?? null);
+        // El turno que se va a cerrar no cuenta como pendiente: el suyo, o el ajeno que cierra supervisión.
+        const objetivo = turnoId ?? (ctx.quien?.deviceId ? (await turnoSinCorteDe(tx, ctx.quien.deviceId))?.id : undefined);
+        return pendientesEn(tx, ctx, objetivo ?? null, ahora);
       });
       return "ok" in r ? r : { ok: true, valor: r };
     },

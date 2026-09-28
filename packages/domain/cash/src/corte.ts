@@ -37,12 +37,16 @@ export type ShiftLedgerEntry = Readonly<{
   inDrawer: boolean;
 }>;
 
-const MOVIMIENTO: Readonly<Record<LedgerKind, MovimientoDelTurno["kind"]>> = {
+/**
+ * Solo mueven dinero el cobro (lo entregado entero) y el vuelto. La propina y el residuo no son
+ * dinero que entra: dicen de quién es una parte de lo que ya entró con el cobro, y sumarlos otra vez
+ * inventaría efectivo en la gaveta (§5.6).
+ */
+const MOVIMIENTO: Readonly<Record<LedgerKind, MovimientoDelTurno["kind"] | null>> = {
   COBRO: "PAYMENT",
   VUELTO: "CHANGE_OUT",
-  // Lo que el cliente dejó de propina o de redondeo se quedó en el efectivo de la gaveta.
-  PROPINA: "TIP_IN_DRAWER",
-  RESIDUO: "RETAINED",
+  PROPINA: null,
+  RESIDUO: null,
 };
 
 /**
@@ -50,7 +54,10 @@ const MOVIMIENTO: Readonly<Record<LedgerKind, MovimientoDelTurno["kind"]>> = {
  * efectivo resta de la gaveta lo que sumó, y anular su vuelto devuelve lo que salió.
  */
 export function ledgerMovements(entries: readonly ShiftLedgerEntry[]): MovimientoDelTurno[] {
-  return entries.map((e) => ({ kind: MOVIMIENTO[e.kind], methodCode: e.methodCode, amount: e.amount, inDrawer: e.inDrawer }));
+  return entries.flatMap((e) => {
+    const kind = MOVIMIENTO[e.kind];
+    return kind ? [{ kind, methodCode: e.methodCode, amount: e.amount, inDrawer: e.inDrawer }] : [];
+  });
 }
 
 const absoluto = (m: Money) => money(m.amount < 0n ? -m.amount : m.amount, m.currency);

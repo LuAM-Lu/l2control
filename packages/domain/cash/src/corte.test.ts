@@ -33,8 +33,10 @@ describe("el turno desde su libro", () => {
       ]),
     ]);
     const gaveta = Object.fromEntries(t.drawer.map((d) => [d.currency, toMajor(d.expected)]));
-    // 20 + 5 − 3,46 + 0,50: el Pago Móvil no está en la gaveta.
-    assert.deepEqual(gaveta, { USD: "22.04", VES: "0.00" });
+    // 20 + 5 − 3,46: la propina ya estaba en los $ 5 entregados, y el Pago Móvil no está en la gaveta.
+    assert.deepEqual(gaveta, { USD: "21.54", VES: "0.00" });
+    const efectivo = t.byMethod.find((m) => m.methodCode === "EFECTIVO_USD")!;
+    assert.equal(toMajor(efectivo.total), "21.54");
     const movil = t.byMethod.find((m) => m.methodCode === "PAGO_MOVIL")!;
     assert.equal(toMajor(movil.charged), "992.57");
   });

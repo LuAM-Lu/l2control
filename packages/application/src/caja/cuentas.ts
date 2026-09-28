@@ -45,8 +45,8 @@ import {
   computeBalance,
   courtesyProblem,
   documentLinesOf,
-  isPendingAtClose,
   markUncollectible,
+  uncollectibleProblem,
   isDiscardedDraft,
   linesPaidBetween,
   markPartPaid,
@@ -604,6 +604,11 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           // explicándolo.
           const venta = await ventaDelCobro(tx, cmd.cobroKey, cifrador);
           if (!venta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay venta de ese cobro." };
+          // El corte Z ya la contó: después del Z nada toca ese turno (F4-06; la base también lo impone).
+          const suTurno = await tx.sale.findFirst({ where: { operationKey: cmd.cobroKey }, select: { shift: { select: { status: true } } } });
+          if (suTurno?.shift.status === "CERRADO_Z") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa venta es de un turno con corte Z: ya no se anula." };
+          }
           const devoluciones: DevolucionGuardada[] = [];
           for (const [k, pago] of venta.payments.entries()) {
             const d = cmd.devoluciones.find((x) => x.paymentIndex === k);
@@ -806,8 +811,12 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           if (!fila || fila.branchId !== ctx.branchId) return noExiste;
           const actual = (await vigenteDe(tx, cmd.accountId))!;
           if (actual.version !== cmd.version) return cuentaCambiada;
-          if (!isPendingAtClose(actual.cuenta)) {
+          const problema = uncollectibleProblem(actual.cuenta);
+          if (problema === "NO_PENDIENTE") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta no está pendiente: no hay nada que dar por incobrable." };
+          }
+          if (problema === "NINOS_EN_SALA") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Hay niños de esa familia en sala: registra primero su salida." };
           }
           // La autorización se comprueba y se registra antes de tocar la cuenta (§7.3).
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cuenta.incobrable", autorizacion, ahora, CON_PIN);
@@ -818,7 +827,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           const nueva = FamilyAccountSchema.parse({ ...sinEspera, version: actual.version + 1 });
           const quien = await nombreDe(tx, ctx);
           await guardarVersion(tx, ctx, nueva, { cause: "INCOBRABLE", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
-          const debe = pendienteDe(actual.cuenta);
+          const debe = pendienteDe(actual.cuenta, await periodosDeImpuestos(tx), ahora);
           await auditar(tx, ctx, {
             action: "cuenta.incobrable",
             entityType: "account",
@@ -966,10 +975,27 @@ async function catalogoEn(tx: Transaccion, ahora: number): Promise<(productId: s
   };
 }
 
-/** Lo que se debe de una cuenta: lo cobrable, en dólares. */
-export function pendienteDe(c: FamilyAccountDto): Money {
-  return chargeableLines(c).reduce<Money>((acc, l) => add(acc, money(BigInt(l.amount.minor), FUNCIONAL)), zero(FUNCIONAL));
+/**
+ * Lo que se debe de una cuenta en `ahora`, en dólares: lo cobrable con el IVA de ese instante y, si
+ * está dividida, las partes que faltan. Sin el IGTF, que depende de cómo se pague. Sin IVA vigente
+ * (no se podría cobrar), lo cobrable sin impuesto: la cifra es para enseñar, no para cobrar.
+ */
+export function pendienteDe(c: FamilyAccountDto, periodos: TaxPeriods, ahora: number): Money {
+  const lineas = documentLinesOf(c);
+  if (lineas.length === 0) return zero(FUNCIONAL);
+  try {
+    const total = computeDocument({ lines: lineas, rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL }).total;
+    if (!c.split || c.split.paid >= c.split.parts) return total;
+    return allocate(total, c.split.parts).slice(c.split.paid).reduce<Money>((acc, p) => add(acc, p), zero(FUNCIONAL));
+  } catch (e) {
+    if (!(e instanceof NoApplicableRuleError)) throw e;
+    return chargeableLines(c).reduce<Money>((acc, l) => add(acc, money(BigInt(l.amount.minor), FUNCIONAL)), zero(FUNCIONAL));
+  }
 }
+
+/** Los periodos de impuestos de la base, como los lee el dominio. */
+export type TaxPeriods = ReturnType<typeof taxTimeline>;
+export const periodosDeImpuestos = async (tx: Transaccion): Promise<TaxPeriods> => taxTimeline((await tx.taxRate.findMany()).map(programadaDeFila));
 
 /** Lo que va a la auditoría de una cuenta: su forma, no su contenido entero. */
 function resumenDe(c: FamilyAccountDto) {

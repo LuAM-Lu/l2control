@@ -363,3 +363,16 @@ export function isPendingAtClose(c: Pick<AccountDoc, "kind" | "lines" | "status"
 export function markUncollectible<A extends AccountDoc>(c: A): A {
   return { ...c, status: "INCOBRABLE" };
 }
+
+/** Por qué una cuenta no se puede dar por incobrable. */
+export type UncollectibleProblem = "NO_PENDIENTE" | "NINOS_EN_SALA";
+
+/**
+ * ¿Se puede dar por incobrable? Solo lo que impide cerrar, y una familia con niños dentro todavía no:
+ * primero se registra su salida (que liquida el tiempo de más), y después se decide si se cobra.
+ */
+export function uncollectibleProblem(c: Pick<AccountDoc, "kind" | "lines" | "status" | "sessionIds" | "closedSessionIds">): UncollectibleProblem | null {
+  if (!isPendingAtClose(c)) return "NO_PENDIENTE";
+  if (c.kind === "FAMILIA" && c.closedSessionIds.length < c.sessionIds.length) return "NINOS_EN_SALA";
+  return null;
+}

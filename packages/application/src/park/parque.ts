@@ -122,18 +122,14 @@ export function casosParque(base: Base): CasosParque {
         if (!ve) return rechazoDePermiso("DENEGADO");
         const vigente = await tarifarioDe(tx, ctx);
         if (!vigente) return sinTarifario;
-        const filas = await tx.parkSession.findMany({
-          where: { branchId: ctx.branchId, status: "ACTIVA" },
-          include: CON_FAMILIA,
-          orderBy: { startedAt: "asc" },
-        });
+        const { enSala, huerfanas } = await estanciasActivas(tx, ctx.branchId, ahora);
         return MonitorSnapshotSchema.parse({
           serverNow: new Date(ahora).toISOString(),
           policy: vigente.tarifario.policy,
           rate: null,
           shiftLabel: "",
-          sessions: filas.filter((f) => !huerfana(f, ahora)).map(estanciaDe),
-          huerfanas: filas.filter((f) => huerfana(f, ahora)).map(estanciaDe),
+          sessions: enSala,
+          huerfanas,
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };
@@ -622,6 +618,18 @@ type FilaDeEstancia = Awaited<ReturnType<Transaccion["parkSession"]["findFirstOr
   kid: { id: string; name: string; nickname: string | null } | null;
   extensions: { minutes: number; packageName: string; priceMinor: bigint; createdAt: Date }[];
 };
+
+/**
+ * Las estancias abiertas de la sucursal en `ahora`: los niños en sala y, aparte, las huérfanas (D9).
+ * La sala las enseña y el cierre de la jornada no se hace mientras quede alguna (JORNADA §5, C2).
+ */
+export async function estanciasActivas(tx: Transaccion, branchId: string, ahora: number): Promise<{ enSala: EstanciaDto[]; huerfanas: EstanciaDto[] }> {
+  const filas = await tx.parkSession.findMany({ where: { branchId, status: "ACTIVA" }, include: CON_FAMILIA, orderBy: { startedAt: "asc" } });
+  return {
+    enSala: filas.filter((f) => !huerfana(f, ahora)).map(estanciaDe),
+    huerfanas: filas.filter((f) => huerfana(f, ahora)).map(estanciaDe),
+  };
+}
 
 /** Lo contratado: el paquete y sus recargas (F5-11). */
 function duracionDe(f: FilaDeEstancia): Duration {
