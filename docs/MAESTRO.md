@@ -829,7 +829,7 @@ antes del cobro en servidor (orden de ejecución).
 | # | Decisión | Propuesta | Hace falta antes de |
 |---|---|---|---|
 | **D-INF** | Producción solo en un VPS, o servidor en el local con el VPS como réplica (ADR-003) | Servidor en el local: con cortes de internet frecuentes, un VPS solo deja sin caja y sin cocina. **El cliente aún no lo sabe (2026-09-27):** hasta decidir, piloto en el VPS con contingencia en papel | B8-1 |
-| **D-JOR** | Lo abierto de la jornada (JORNADA §7): cuenta incobrable al cierre, qué deja la cajera en el relevo, el equivalente de $ 1,00 y la carga del papel | Se pregunta al cliente al empezar B3-5 (sin día simulado) | B3-5 |
+| ~~D-JOR~~ | Lo abierto de la jornada (JORNADA §7) | **Decidido el 2026-09-28:** una cuenta que no se puede cobrar se marca **incobrable** con motivo y 🔐 de supervisión (sale en las excepciones y deja cerrar la jornada; nada se borra); en el **relevo** la que sale retira lo vendido y deja solo el fondo, que la que entra declara al abrir; la diferencia en bolívares se lleva a dólares **con la tasa del turno** y cuenta contra un solo umbral de $ 1,00. Queda abierta la carga del papel (B8-2) | B3-5 |
 | **D-RES** | ¿El piloto incluye el restaurante en el sistema? | No: primero el parque (DEC-12, Ruta A). El restaurante sigue como hoy durante el piloto | Etapa 6 |
 | F0-04 | Datos maestros reales: tarifas, carta, precios y personas | Los editores ya existen para cargarlos | B7-2 |
 | F0-03 | Medidas reales del local para el plano | — | B6-1 |

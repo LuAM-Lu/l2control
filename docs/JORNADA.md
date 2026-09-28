@@ -189,11 +189,12 @@ con su autorización y el mismo arqueo.
 
 ## 7. Abierto: se pregunta al cliente cuando llegue su paso
 
-1. **Una familia se va sin pagar**, o una cuenta no se puede cobrar al cierre: ¿cuenta incobrable
-   con motivo y 🔐, que sale en las excepciones?
-2. **En el relevo**, ¿la que sale retira lo vendido y deja solo el fondo, o entrega la gaveta
-   completa y la que entra la cuenta como su fondo?
-3. **El equivalente de $ 1,00** en bolívares, ¿con la tasa del turno?
+1. ~~**Una familia se va sin pagar**~~ — **decidido el 2026-09-28:** la cuenta se marca incobrable
+   con motivo y 🔐 de supervisión; sale en las excepciones y deja cerrar la jornada.
+2. ~~**En el relevo**~~ — **decidido:** la que sale retira lo vendido y deja solo el fondo; la que
+   entra lo declara al abrir su turno.
+3. ~~**El equivalente de $ 1,00** en bolívares~~ — **decidido:** con la tasa del turno, contra un
+   solo umbral.
 4. **La carga de lo anotado en papel**: ¿quién la hace, cuándo, y cómo se distingue en los reportes?
 5. **D-INF**: servidor en el local o solo VPS (MAESTRO §4).
 
