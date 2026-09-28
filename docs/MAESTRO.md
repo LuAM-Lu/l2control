@@ -29,7 +29,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.28.0 · 28 de 48 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+**Versión 0.28.1 · 28 de 48 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
@@ -1161,6 +1161,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-28** · Tasa con dos decimales en todas las pantallas (v0.27.1, pedido del cliente). D9 y el
   umbral de las huérfanas decididos con el cliente. B4-3 hecho (v0.28.0): recarga, a quién se entrega
   el niño, huérfanas cerradas por la dirección y el nombre opcional en la entrada. Sigue B3-5.
+- **2026-09-28** · Base local limpia para probar de cero (las cuentas de prueba, incobrables). El menú
+  del panel ya deja plegar Ajustes estando dentro (v0.28.1). Handoff.
 
 ---
 
@@ -1174,22 +1176,24 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-28, v0.25.0 en `main`; B3-5 a medias en `feat/b3-5`):**
+**Último handoff (2026-09-28, v0.28.1 en `main`, sin subir a GitHub):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-13, §3 con su DoD y orden, §4 D-JOR), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.25.0 · 25 de 48 pasos, en verde (B3-3 cuentas en la base; B3-4 ventas,
-  reimpresión, anulación y cortesía en el servidor, fuera src/demo/usuarios.ts).
-EN CURSO: B3-5 (cortes X y Z, arqueo a ciegas, relevo, cerrar la jornada, incobrable) en feat/b3-5 (git checkout feat/b3-5).
-  D-JOR decidido: incobrable con 🔐; en el relevo se deja el fondo y se retira lo vendido; diferencia en Bs con la tasa del turno,
-  un umbral de $ 1,00. Hecho: dominio (corte.ts), contrato (cortes.ts), base (migraciones cortes y cortes_disparador) y
-  application/src/caja/cortes.ts escrito y cableado, SIN pruebas. Falta, en orden (casilla de B3-5): cortes.test-db.ts → web
-  (TurnoScreen, Inicio, apertura, ?turno= para turnos ajenos) → navegador → §5 → v0.26.0. verify en verde en la rama.
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application o next.config, reinicia pnpm dev.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-14, §3 con su DoD y orden, §4 D-JOR y D9), docs/JORNADA.md y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. main: v0.28.1 · 28 de 48 pasos, en verde. Nada subido a GitHub (main va ~17 commits por delante).
+HECHO (M-14, el cliente pidió el parque urgente): B4-1, B4-2 y B4-3 en el servidor: entrada (nombre opcional, familia reconocida
+  por teléfono), sala por sondeo de 5 s (SalaProvider), recarga, salida con «quién lo recoge» (D9) y huérfanas (día anterior o >8 h,
+  las cierra supervisión/administración sin tiempo de más). Tasa con 2 decimales en pantalla (v0.27.1).
+SIGUIENTE: B3-5 (cortes X y Z, arqueo a ciegas, relevo, cerrar la jornada, incobrable). Ya en main SIN pruebas ni pantalla: dominio
+  (corte.ts), contrato (cortes.ts), base (cortes, cortes_disparador) y application/src/caja/cortes.ts. Falta, en orden (casilla de B3-5):
+  cortes.test-db.ts → web (TurnoScreen, Inicio con resumenDelDia, apertura con comprobación, ?turno= para turnos ajenos; la jornada lista
+  niños en sala y huérfanas) → navegador → §5 → v0.29.0. Ojo: el salón trata una cuenta de mesa INCOBRABLE como vigente (arreglar ahí).
+  Luego B5-1 (tiempo real, sustituye los sondeos) y B4-4 (ajustes del local, umbral de huérfanas).
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application, next.config o la versión, reinicia pnpm dev.
 Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Base local: seis turnos huérfanos de prueba (B3-5 debe poder cerrarlos), cuentas #0002–#0004 abiertas y #0007–#0010 por cobrar
-  (anuladas; sirven para probar pendientes e incobrable). Todos los equipos revocados.
-Cuidado: DoD de §3; CHECK con IN y nulos; migración aplicada no se edita; corte.ts no importa de index.ts (ciclo); heredocs grandes
-  fallan (scripts con Write); Next ya no registra argumentos de acciones. Playwright: comun.cjs y b33*/b34*.cjs en el scratchpad
-  de la sesión 01b91024. Merge a main solo con verify:db verde. Push solo si se pide.
+Base local: sin cuentas pendientes (las de prueba, incobrables) y sala vacía; siete turnos huérfanos de prueba (B3-5 los cierra); #0015 es del
+  cliente. Todos los equipos de prueba revocados.
+Cuidado: DoD de §3; CHECK con IN y nulos; migración aplicada no se edita; un relleno en migración suspende la RLS forzada (NO FORCE … FORCE);
+  PL/pgSQL no lee NEW.col de otra tabla; heredocs grandes fallan (scripts con Write, commit -F); Python en Windows escribe CRLF (normalizar).
+  Playwright: comun.cjs y parque1..5.cjs en el scratchpad de la sesión 489ade6f. Merge a main solo con verify:db verde. Push solo si se pide.
 ```
