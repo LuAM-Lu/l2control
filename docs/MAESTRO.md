@@ -30,7 +30,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.29.0 · 29 de 56 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+**Versión 0.29.0 · 29 de 55 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
@@ -139,15 +139,22 @@ la «Familia Prueba Jornada» (#0023), que entró, salió y se marcó incobrable
 #0021 (mostrador, $ 2,78) y #0022 (Mesa 8): la jornada del local no se cerró. Equipos «Prueba B35 …» revocados.
 
 **Visita técnica (2026-09-28, M-15).** El cliente fijó cómo se trabajará en el local, y la ruta pasa de 48 a
-**56 pasos**: la monitora en un **teléfono** que lee pulseras **preimpresas y de un solo uso** con la cámara;
+**55 pasos** (56 con lo nuevo, menos la gaveta, que no hay): la monitora en un **teléfono** que lee pulseras **preimpresas y de un solo uso** con la cámara;
 la caja en una **laptop**; el mesero en una **tablet**; la **cocina sin pantalla**, con la comanda impresa;
 **una impresora**, en caja, por red; el **restaurante entra en el piloto**; un **inventario mínimo y real**
 (lo que no hay no se vende); **descuentos configurables** (por medio de pago, VIP, manual y de
 administración); **reservas de cumpleaños** con anticipo; **todo en tiempo real**; y **un solo servidor en la
-nube con internet de respaldo** en el local. El detalle, en §2 (M-15); los pasos nuevos, en §3.
+nube con internet de respaldo** en el local. El detalle, en §2 (M-15); los pasos nuevos, en §3. El mismo día
+se respondieron **todas las preguntas abiertas de §4** (descuentos, eventos, pulseras, gaveta, número de orden,
+autorizarse a sí mismo, puestos, umbral de la tasa e IGTF): ya no queda ninguna del cliente para la Ruta A,
+salvo los datos maestros (F0-04) y la firma del alcance (F0-09).
 
-**Siguiente paso:** **B5-1** (todo en tiempo real: sustituye los sondeos y el bus entre pestañas), después
-**B4-4** y **B4-5** (la monitora en el teléfono y las pulseras de un solo uso).
+**Pendiente de hacer en la base del cliente (preguntar antes de tocarla):** programar el **IGTF al 0 %** desde
+hoy en Ajustes → Impuestos (V-13). Y **contarle al cliente** lo del turno de «PC admin» (arriba).
+
+**Siguiente paso:** **B5-1** (todo en tiempo real: sustituye los sondeos y el bus entre pestañas; la
+sincronización del BCV se muda al worker y pierde el umbral de salto, V-14), después **B4-4** y **B4-5** (la
+monitora en el teléfono y las pulseras de un solo uso).
 
 ---
 
@@ -169,7 +176,7 @@ nube con internet de respaldo** en el local. El detalle, en §2 (M-15); los paso
 | **M-12** | **Puesta en marcha sin consola y sin apps de terceros** (2026-09-27, pedido del cliente; [ADR-020](adr/020-llaves-de-acceso.md)) | Producción arranca vacía: el primer administrador y su equipo se crean desde el navegador con un código de instalación de un solo uso. El segundo factor pasa de TOTP a **llaves de acceso** (Windows Hello, el bloqueo del teléfono), dos por administrador, más diez códigos de recuperación impresos. Las credenciales de administración se dan desde el panel con un enlace de alta (QR). Paso **T-4**, antes de staging |
 | **M-13** | **La app se ordena por la jornada** (2026-09-27, pedido del cliente; [JORNADA.md](JORNADA.md)) | El objetivo es operar el parque y el restaurante con un camino feliz. El menú pone arriba lo que se opera (Inicio, Parque, Restaurante, Caja) y abajo, en «Ajustes», lo que se configura (impuestos, feriados, medios, tasas, tarifas, carta, plano, personas, equipos). Turnos y Ventas del turno son **una sección, Turno**. Primer uso con asistente corto y «Puesta a punto» en Inicio; la cajera abre el turno y el sistema comprueba; relevo con corte, arqueo a ciegas, Z por umbral ($ 1,00, firma de supervisión por encima) y **ninguna jornada se cierra con pendientes**; ticket de corte impreso y resumen del día en Inicio. Nuevo paso **T-6**; la ruta pasa a 48 pasos |
 | **M-14** | **El parque primero** (2026-09-28, pedido del cliente: «hacer funcional parque, urgente») | B3-5 queda en pausa a medias (dominio, contrato, base y caso de uso, sin pruebas ni pantalla) y el parque (B4-1 a B4-3) pasa delante, **sin esperar a B5-1**: la sala llega a los demás equipos por sondeo de 5 s, como las cuentas desde B3-3, y B5-1 la empujará en vivo. Las estancias, las familias y el precio del parque salen del navegador |
-| **M-15** | **Lo decidido en la visita técnica** (2026-09-28, con el cliente) | Dispositivos, pulseras, cocina, impresión, inventario, descuentos, eventos, tiempo real y servidor: detalle abajo (V-1 a V-12). Cierra D-INF, D-RES, D-INV y F-12; cambia DEC-8 (en parte), DEC-18 y DEC-19; ADR-021, ADR-022 y ADR-023. La ruta pasa a **56 pasos**: entran B4-5, B3-6, B3-7, la Etapa 6 (B6-1 a B6-3, sin recetas) y la Etapa 10 (B10-1 y B10-2) |
+| **M-15** | **Lo decidido en la visita técnica** (2026-09-28, con el cliente) | Dispositivos, pulseras, cocina, impresión, inventario, descuentos, eventos, tiempo real y servidor: detalle abajo (V-1 a V-12). Cierra D-INF, D-RES, D-INV y F-12; cambia DEC-8 (en parte), DEC-18 y DEC-19; ADR-021, ADR-022 y ADR-023. La ruta pasa a **55 pasos**: entran B4-5, B3-6, B3-7, la Etapa 6 (B6-1 a B6-3, sin recetas) y la Etapa 10 (B10-1 y B10-2), y sale B5-3 (no hay gaveta electrónica, D-GAV) |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
@@ -192,6 +199,8 @@ cinco reglas de CLAUDE.md no se relajan.
 | **V-10** | **Cumpleaños: reserva con fecha y anticipo.** Horario, cliente, **niños invitados** (sus pulseras cuentan en el aforo), **paquete con productos** (descuenta existencias el día del evento), anticipo al reservar y saldo el día. Sin política de cancelación: devolver un anticipo es anular su cobro (DEC-24) | B10-1, B10-2 |
 | **V-11** | **Un solo servidor en la nube (VPS)** con **internet de respaldo 4G** y UPS en la red del local ([ADR-021](adr/021-servidor-en-la-nube.md), cierra D-INF; supersede la topología de ADR-003 y DEC-4/DEC-10 en lo que pedían un equipo en el local) | B7-1, B8-1 |
 | **V-12** | **Papel**: si caen los dos enlaces, se anota en formularios; al volver, **la cajera lo carga en su turno**, marcado «desde papel» con la hora real anotada, y **supervisión lo revisa** en el cierre (cierra JORNADA §7.4) | B3-7 |
+| **V-13** | **No se cobra IGTF por ahora** (el cliente, 2026-09-28): se programa al 0 % en Ajustes → Impuestos y el motor se queda para cuando vuelva. Con el IGTF al 0 %, la caja y el recibo no enseñan su línea. Cambia lo que M-3 decía del IGTF; el IVA sigue | Ajustes (hoy); B3-6 (la línea) |
+| **V-14** | **La tasa del BCV es siempre la que trae la API**: se retira el umbral de salto de ADR-019 (D-CORD). Si la API falla, administración (o supervisión con 🔐) la carga a mano en Ajustes → Tasas y se aplica al guardarla, como ya hace; en dólares se cobra siempre. Cuando la API trae la del día, la reemplaza | B5-1 |
 
 ---
 
@@ -234,13 +243,12 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5~~ → **B5-1** (todo en tiempo real, V-8) → B4-4 → B4-5 (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas) →
-   B5-3.
+4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
-Fuera de la cuenta de 56: B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -809,7 +817,9 @@ Fuera de la cuenta de 56: B6-4 (recetas e insumos de cocina), después del pilot
   toda la cuenta vaya por ese medio y la 🔐 de supervisión o administración; el manual, motivo de lista
   cerrada y 🔐; administración aplica cualquiera con su PIN y un motivo escrito. Lo calcula el servidor,
   antes del IVA y del IGTF; sale en el recibo y en las excepciones del turno y del día, y anular el cobro
-  lo revierte.
+  lo revierte. **Uno por cuenta**: la caja propone el mayor y quien autoriza puede elegir otro (D-DESC).
+  **Tope de supervisión en el manual: 20 %**, configurable; administración no tiene tope. Con el IGTF al 0 %
+  (V-13), la caja y el recibo no enseñan su línea.
   → Ningún descuento sin regla o autorización en la auditoría; el total con descuento cuadra al céntimo
   con el libro.
 - [ ] **B3-7 · Carga de lo anotado en papel** (M-15, V-12; JORNADA §4 y §7).
@@ -910,7 +920,9 @@ Fuera de la cuenta de 56: B6-4 (recetas e insumos de cocina), después del pilot
   lee con la **cámara** (QR y código de barras, con el lector del navegador y una biblioteca de respaldo
   si el teléfono no lo trae) o con un **lector Bluetooth** en modo teclado. Un código ya usado en una
   estancia anterior se rechaza, y el formato de la serie (prefijo y longitud) es un ajuste del local. Se
-  retira la pantalla de pared del monitor (DEC-18).
+  retira la pantalla de pared del monitor (DEC-18). Se empieza con la cámara; el lector Bluetooth se
+  compra si con cola hace falta, y el formato se fija con el primer lote (D-PUL): hasta entonces vale
+  cualquier código legible.
   → Una entrada de dos niños en menos de 90 s en un teléfono real (F5-02); una pulsera usada ayer no
   entra hoy.
 
@@ -921,6 +933,8 @@ Fuera de la cuenta de 56: B6-4 (recetas e insumos de cocina), después del pilot
   `BroadcastChannel` y al sondeo de la tasa. Con M-15 (V-8), **todo**: la sala, las cuentas y la cola,
   las existencias, el turno y sus pendientes, las comandas y su impresión, las reservas, la tasa, el
   catálogo, los medios y los equipos; se retiran los sondeos de 5 s (sala y cuentas) y de 60 s (tasa).
+  Al mudarse al worker, la sincronización del BCV **deja de retener un salto grande** (V-14, D-CORD), con
+  un ADR que supersede esa salvaguarda de ADR-019.
   Los eventos salen de una **tabla outbox** escrita en la
   misma transacción que la operación: ninguno se pierde ni se publica uno de una operación que no
   ocurrió. Nace `apps/worker`, con los trabajos programados: la sincronización del BCV se muda allí.
@@ -931,8 +945,8 @@ Fuera de la cuenta de 56: B6-4 (recetas e insumos de cocina), después del pilot
   una sola impresora, en la caja, por red, para el recibo, el **ticket de corte** (JORNADA §5) y las
   **comandas**; la **impresora de comandas** es un ajuste (hoy la de caja, mañana una en la cocina).
   → El recibo no fiscal sale en papel real en los dos anchos. Sin confirmación de impresión, nada avanza.
-- [ ] **B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09), si la impresora de caja la lleva
-  (se confirma al instalar, §4).
+- ~~**B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09)~~. **Retirado el 2026-09-28
+  (D-GAV):** la impresora de caja no lleva gaveta electrónica; la gaveta es manual. No cuenta en la ruta.
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 
@@ -1015,7 +1029,8 @@ antes del cobro en servidor (orden de ejecución).
 
 - [ ] **B10-1 · Reservas con agenda y anticipo**: fecha y horario, cliente (del directorio de familias),
   número de niños invitados y paquete (el alquiler como servicio y los productos que incluye) con su
-  precio. El anticipo se cobra en la caja contra la **cuenta del evento** (en el libro y con su venta) y
+  precio; cada paquete lo carga administración con su **mínimo y máximo de invitados** (nunca por encima
+  del aforo). El **anticipo es el 50 % del paquete**, configurable (D-EVT), y se cobra en la caja contra la **cuenta del evento** (en el libro y con su venta) y
   el saldo queda para el día. Parque → Eventos; Inicio y la apertura del turno avisan «Hoy hay un evento».
   → Un anticipo cobrado sale en el turno en que se cobró; devolverlo es anular su cobro (DEC-24).
 - [ ] **B10-2 · El día del evento**: los invitados entran con pulseras a la cuenta del evento (cuentan en
@@ -1063,27 +1078,28 @@ antes del cobro en servidor (orden de ejecución).
 | ~~D-RES~~ | ¿El piloto incluye el restaurante en el sistema? | **Decidido el 2026-09-28 (M-15):** sí, sin pantalla de cocina (ADR-022) | Etapa 6 |
 | F0-04 | Datos maestros reales: tarifas, carta, precios y personas | Los editores ya existen para cargarlos | B7-2 |
 | F0-03 | Medidas reales del local para el plano | — | B6-1 |
-| D7 | Quién asigna los puestos de trabajo | Hoy se deducen del rol (`PUESTO_DE_ROL`) | B1-5 |
+| ~~D7~~ | Quién asigna los puestos de trabajo | **Decidido el 2026-09-28:** salen del rol y del equipo aprobado (`PUESTO_DE_ROL`), sin pantalla de asignación | B1-5 |
 | ~~D9~~ | Un niño que sale sin su representante | **Decidido el 2026-09-28:** la salida pregunta «Lo recoge: su representante u otra persona» y, si es otra, su nombre; no bloquea, pero queda constancia. Y una estancia es **huérfana** si sigue abierta desde un día anterior o lleva más de 8 horas: no cuenta en el aforo y la dirección la cierra con motivo, sin tiempo de más | B4-3 |
-| D13 | Número de orden continuo o diario | Hoy es continuo (`#1049`). **B3-4 lo deja así** (el servidor lo da por sucursal); se confirma con el cliente | B3-4 |
+| ~~D13~~ | Número de orden continuo o diario | **Decidido el 2026-09-28:** continuo, por sucursal (como está) | B3-4 |
 | — | Informes del panel ejecutivo (F9-01 a F9-07) | Después del piloto; Inicio ya enseña el día | — |
 | ~~F-12~~ | ¿El teléfono entra en el objetivo? | **Sí (M-15):** la monitora trabaja en un teléfono | B4-5 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
-| D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente (hoy fijo en el código) | B7-2 |
+| ~~D-CORD~~ | Umbral de cordura de la tasa automática (M-8) | **Decidido el 2026-09-28 (V-14):** sin umbral; la del BCV se aplica siempre, y si la API falla se carga a mano | B5-1 |
 | ~~D-FER~~ | Calendario de feriados bancarios de Venezuela | **Decidido el 2026-09-27:** se carga por año desde el panel copiando el calendario de SUDEBAN (cambia cada año: Carnaval, Semana Santa y feriados trasladados) | B2-4 |
 | ~~D-INV~~ | Alcance del inventario en el piloto | **Decidido el 2026-09-28 (M-15, V-7):** lo que se vende tal cual y los servicios, con costo promedio; lo que no hay no se vende; insumos y recetas después del piloto | B9-2 |
-| D-DESC | Si una cuenta tiene derecho a dos descuentos (p. ej. VIP y Zelle), ¿se suman? | No: uno por cuenta, el que elija quien autoriza (el mayor, por defecto). Y ¿hay un tope para el manual de supervisión? Propuesta: 20 %, configurable | B3-6 |
-| D-EVT | Qué incluye cada paquete de cumpleaños, cuánto es el anticipo y si hay un mínimo de invitados | Paquetes como productos de servicio con sus componentes; anticipo configurable (propuesta: 50 %) | B10-1 |
-| D-PUL | El formato real de las pulseras (prefijo, longitud, QR o barras) y si compran lector Bluetooth | Se fija con las primeras pulseras impresas; hasta entonces se acepta cualquier código legible | B4-5 |
-| D-GAV | ¿La impresora de caja lleva gaveta de dinero? | Se confirma al instalar; sin gaveta, B5-3 se retira | B5-3 |
-| D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona. **B3-4 lo aplicó así** (y la administración confirma con su PIN al anular o regalar); se confirma con el cliente | B3-4 |
+| ~~D-DESC~~ | ¿Se suman dos descuentos? ¿Tope del manual de supervisión? | **Decidido el 2026-09-28:** uno por cuenta, el mayor (quien autoriza puede elegir otro); tope de supervisión 20 %, configurable | B3-6 |
+| ~~D-EVT~~ | Anticipo e invitados de un cumpleaños | **Decidido el 2026-09-28:** anticipo del 50 % del paquete, configurable; mínimo y máximo de invitados por paquete, que carga administración con lo que incluye | B10-1 |
+| ~~D-PUL~~ | Formato de las pulseras y lector Bluetooth | **Decidido el 2026-09-28:** el formato se fija con el primer lote (hasta entonces, cualquier código legible); se empieza con la cámara y el lector se compra si hace falta | B4-5 |
+| ~~D-GAV~~ | ¿La impresora de caja lleva gaveta de dinero? | **Decidido el 2026-09-28:** no; la gaveta es manual y B5-3 sale de la ruta | — |
+| ~~D-AUT~~ | ¿Supervisión puede autorizarse a sí misma un 🔐? | **Decidido el 2026-09-28:** sí en la caja (con PIN y motivo, en la auditoría); no en tasas ni en ajustes de inventario. Como lo aplicó B3-4 | B3-4 |
 
 **Confirma el contador** (lo fiscal queda fuera, pero esto cambia lo que se cobra)
 
-- **IGTF sobre el vuelto (C13).** Hoy se grava todo lo entregado en divisas: para una cuenta de
-  $ 11,47 pagada con $ 15 se cobran $ 0,45 de IGTF, no $ 0,34. **Hay que confirmarlo antes del piloto.**
+- ~~**IGTF sobre el vuelto (C13).**~~ **El cliente decidió no cobrar IGTF por ahora** (2026-09-28, V-13): se
+  programa al 0 %. Si vuelve, esta pregunta se le hace al contador antes de encenderlo.
 - USDT a la par con el dólar para el cobro y para el IGTF.
-- Alícuotas vigentes: IVA 16 %, 8 % y exento, e IGTF 3 %. Con B2-2 se cambian sin desplegar.
+- Alícuotas vigentes: IVA 16 %, 8 % y exento; IGTF al 0 % por decisión del cliente (V-13). Con B2-2 se
+  cambian sin desplegar.
 
 **Trabajo de campo:** probar la cámara del teléfono con las pulseras reales y, si lo compran, calibrar el
 lector Bluetooth (umbrales de 55 y 45 ms) (B4-5); probar la impresora y la gaveta reales (B5-2); instalar la
@@ -1105,7 +1121,9 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
-| El umbral de variación de la tasa es fijo (10 %) y la zona horaria, `America/Caracas` en el código | D-CORD (umbral) y B4-4 (zona) |
+| La tasa automática todavía se retiene si salta más del 10 %, aunque el cliente decidió aplicarla siempre (V-14) | B5-1 |
+| La zona horaria es `America/Caracas` en el código | B4-4 |
+| El IGTF sigue programado al 3 % en la base del cliente (decidió no cobrarlo, V-13), y con 0 % la caja enseñaría su línea en cero | Ajustes → Impuestos (preguntar antes) y B3-6 |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a SALTO), el texto de la alerta no lo dice | B5-1 |
@@ -1282,6 +1300,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   uso, laptop en caja, tablet del mesero, cocina con comanda impresa, una impresora en caja, restaurante
   en el piloto, inventario mínimo y real, descuentos configurables, cumpleaños con anticipo, todo en
   tiempo real y un solo VPS con internet de respaldo. ADR-021 a ADR-023; la ruta pasa a 56 pasos.
+- **2026-09-28** · Respondidas todas las preguntas abiertas (D-DESC, D-EVT, D-PUL, D-GAV, D13, D-AUT, D7,
+  D-CORD e IGTF): sin gaveta (B5-3 fuera, 55 pasos), sin IGTF por ahora y la tasa de la API siempre. Handoff.
 
 ---
 
@@ -1295,24 +1315,23 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-28, v0.28.1 en `main`, sin subir a GitHub):**
+**Último handoff (2026-09-28, v0.29.0 en `main`, sin subir a GitHub):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-14, §3 con su DoD y orden, §4 D-JOR y D9), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.28.1 · 28 de 48 pasos, en verde. Nada subido a GitHub (main va ~17 commits por delante).
-HECHO (M-14, el cliente pidió el parque urgente): B4-1, B4-2 y B4-3 en el servidor: entrada (nombre opcional, familia reconocida
-  por teléfono), sala por sondeo de 5 s (SalaProvider), recarga, salida con «quién lo recoge» (D9) y huérfanas (día anterior o >8 h,
-  las cierra supervisión/administración sin tiempo de más). Tasa con 2 decimales en pantalla (v0.27.1).
-SIGUIENTE: B3-5 (cortes X y Z, arqueo a ciegas, relevo, cerrar la jornada, incobrable). Ya en main SIN pruebas ni pantalla: dominio
-  (corte.ts), contrato (cortes.ts), base (cortes, cortes_disparador) y application/src/caja/cortes.ts. Falta, en orden (casilla de B3-5):
-  cortes.test-db.ts → web (TurnoScreen, Inicio con resumenDelDia, apertura con comprobación, ?turno= para turnos ajenos; la jornada lista
-  niños en sala y huérfanas) → navegador → §5 → v0.29.0. Ojo: el salón trata una cuenta de mesa INCOBRABLE como vigente (arreglar ahí).
-  Luego B5-1 (tiempo real, sustituye los sondeos) y B4-4 (ajustes del local, umbral de huérfanas).
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application, next.config o la versión, reinicia pnpm dev.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-14 y M-15 con V-1 a V-14, §3 con su DoD y orden, §4), docs/JORNADA.md y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. main: v0.29.0 · 29 de 55 pasos, en verde. Nada subido a GitHub (main ~22 commits por delante).
+HECHO: B3-5 (arqueo a ciegas, cortes X y Z, relevo, jornada sin pendientes, incobrables, el día en Inicio). Visita técnica = M-15:
+  teléfono para la monitora (pulseras preimpresas de un solo uso, cámara), laptop en caja, tablet del mesero, cocina con comanda impresa
+  (ADR-022), una impresora en caja, restaurante en el piloto, inventario mínimo (ADR-023: sale al entrar en la cuenta; sin existencia no se
+  vende), descuentos, cumpleaños, todo en tiempo real y solo VPS + 4G (ADR-021). Todas las preguntas de §4 respondidas; sin gaveta, sin IGTF.
+SIGUIENTE: B5-1 (Socket.io + adaptador Valkey + outbox + apps/worker): TODO en tiempo real, fuera los sondeos (5 s sala y cuentas, 60 s tasa)
+  y el bus entre pestañas; la sincronización del BCV pasa al worker y deja de retener saltos (V-14, ADR nuevo sobre ADR-019). Luego B4-4 → B4-5.
+Pendiente con el cliente (preguntar antes de tocar su base): IGTF al 0 % desde hoy en Ajustes → Impuestos (V-13); contarle que el turno de
+  «PC admin» se selló por error con un Z de prueba (§1).
+Base local CON DATOS DEL CLIENTE («PC admin», cuentas #0021 y #0022 vivas): un guion solo toca lo que se llama «Prueba …».
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (500 por next/font: parar, borrar apps/web/.next y relanzar).
 Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Base local: sin cuentas pendientes (las de prueba, incobrables) y sala vacía; siete turnos huérfanos de prueba (B3-5 los cierra); #0015 es del
-  cliente. Todos los equipos de prueba revocados.
-Cuidado: DoD de §3; CHECK con IN y nulos; migración aplicada no se edita; un relleno en migración suspende la RLS forzada (NO FORCE … FORCE);
-  PL/pgSQL no lee NEW.col de otra tabla; heredocs grandes fallan (scripts con Write, commit -F); Python en Windows escribe CRLF (normalizar).
-  Playwright: comun.cjs y parque1..5.cjs en el scratchpad de la sesión 489ade6f. Merge a main solo con verify:db verde. Push solo si se pide.
+Cuidado: DoD de §3; acciones de audit_log en minúsculas y _ (CHECK); migración aplicada no se edita; heredocs grandes fallan (Write + commit -F);
+  el árbol está en CRLF (Edit o Python normalizando). Playwright: comun.cjs y cortes1..4.cjs en el scratchpad de la sesión d1bda75e.
+  Merge a main solo con verify:db verde. Push solo si se pide.
 ```

@@ -5,7 +5,7 @@
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Etapa 4 · Parque",
-    "pasos": 56
+    "pasos": 55
   },
   "packageManager": "pnpm@12.3.4",
   "engines": {

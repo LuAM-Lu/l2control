@@ -114,8 +114,9 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
 
 ## Contexto del cliente
 
-Venezuela: multimoneda (USD funcional, Bs de liquidación), IVA + IGTF del 3 % sobre pagos en
-divisas, cortes de luz e internet frecuentes. Aforo del local: 30 niños, 7-10 mesas.
+Venezuela: multimoneda (USD funcional, Bs de liquidación), IVA + IGTF sobre pagos en divisas (el IGTF,
+al 0 % por decisión del cliente, V-13; el motor se queda), cortes de luz e internet frecuentes. Aforo
+del local: 30 niños, 7-10 mesas.
 Equipos (visita técnica, M-15): la monitora en un teléfono (pulseras preimpresas de un solo uso, cámara
 o lector Bluetooth), la caja en una laptop, el mesero en una tablet, la cocina con comanda impresa y una
 sola impresora en caja, por red. Un solo servidor en la nube con internet de respaldo (ADR-021).
