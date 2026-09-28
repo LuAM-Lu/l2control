@@ -55,7 +55,8 @@ flowchart LR
 | **Cierre** | **No se cierra la jornada con pendientes** (niños en sala, cuentas o mesas abiertas): el cierre los lista y lleva a resolver cada uno |
 | **Arqueo y corte Z** | La cajera **cuenta a ciegas**. Si la diferencia no pasa de **$ 1,00 o su equivalente**, ella misma cierra el Z; si lo pasa, supervisión revisa y firma (🔐). Supervisión puede cerrar un turno ajeno (la cajera se fue, el equipo falló). El umbral se cambia en Ajustes |
 | **Qué queda para administración** | El **resumen del día en Inicio** y el **ticket de corte impreso** |
-| **Cortes de luz e internet** | **D-INF sigue abierta.** Hasta decidirla: el piloto en el VPS, con contingencia en papel y carga posterior |
+| **Cortes de luz e internet** | **Decidido en la visita técnica (2026-09-28, M-15, ADR-021):** un solo servidor en la nube, con internet de respaldo 4G y UPS en el local. Si caen los dos enlaces, papel; al volver, la cajera carga lo anotado y supervisión lo revisa (B3-7) |
+| **Equipos** | **Decidido en la visita técnica (M-15):** la monitora trabaja en un teléfono del local (pulseras preimpresas de un solo uso, leídas con la cámara o un lector Bluetooth), la caja en una laptop, el mesero en una tablet y la cocina con la comanda impresa, sin pantalla (ADR-022). Una sola impresora, en caja |
 
 ---
 
@@ -86,7 +87,9 @@ trabajar sin ella; lo demás es recomendable pero no detiene nada.
 | Catálogo de mostrador | La venta directa | B9-1 |
 | Impresoras | Comandas y ticket de corte | B5-2 |
 | Feriados bancarios del año | — | Recordatorio: sin ellos, ese día pide la tasa a mano |
-| Carta y plano del restaurante | Mesas y cocina | Según D-RES |
+| Carta y plano del restaurante | Mesas y comandas | El restaurante entra en el piloto (M-15) |
+| Existencias iniciales del inventario | Vender lo que lleva existencia | Sin existencia no se vende (ADR-023, B9-3) |
+| Descuentos y familias VIP | — | Opcional (B3-6) |
 | Segunda administración con su llave | — | Regla de operación: siempre dos (M-7) |
 
 **Objetivo:** de la base vacía al primer cobro en una tarde, sin consola ni ayuda externa.
@@ -100,8 +103,8 @@ trabajar sin ella; lo demás es recomendable pero no detiene nada.
 | A1 | Cajera · equipo de caja | Entra con su PIN; la caja ofrece «Abrir turno» | — | Equipo no aprobado: lo aprueba administración desde ese equipo (M-7) |
 | A2 | Cajera · Turno | **Teclea el fondo** de cada moneda de la gaveta y abre | Inicio: «Turno desde 10:02 am · Marisol Prieto» y el fondo en gaveta | Un importe mal escrito se señala en su campo |
 | A3 | Sistema | **Comprueba al abrir**: tasa vigente, impuestos vigentes, al menos un medio que ofrecer, tarifario publicado e impresora de caja | Si todo está, «Listo para cobrar» | Lo que falte sale como lista, con enlace, y bloquea solo lo suyo |
-| A4 | Monitora · taquilla | Entra con su PIN: Entrada lista | — | El lector de pulseras avisa si no responde |
-| A5 | Mesero y cocina · sus tablets | Entran con su PIN | — | La impresora de cocina avisa si no responde (F6-09) |
+| A4 | Monitora · su teléfono | Entra con su PIN: Entrada lista | — | Si la cámara o el lector Bluetooth no leen, lo dice su pantalla |
+| A5 | Mesero · su tablet | Entra con su PIN; la cocina no entra: trabaja con la comanda impresa (ADR-022) | — | Si una comanda no se imprime, lo avisan la tablet del mesero y la caja |
 | A6 | Administración · Inicio, en el local o fuera | Ve el local abierto: turno, tasa del día, puestos conectados | — | — |
 
 **Si quedó algo de ayer.** No debería (el cierre no deja pendientes), pero un corte de luz o un
@@ -139,9 +142,10 @@ Todo lo demás espera en Inicio.
 **Una tasa nueva a mitad del día** se aplica sola; un cobro en curso conserva la suya y avisa
 (B2-1c).
 
-**Un corte de luz o de internet**, mientras D-INF no se decida: se sigue en **papel** con los
-formularios impresos (entrada y cobro) y, al volver, se **carga lo anotado** antes de seguir. Cómo
-se carga, y quién lo revisa, está abierto (§7).
+**Un corte de internet** pasa solo al 4G de respaldo (ADR-021). Si caen los dos enlaces, o la luz sin
+UPS, se sigue en **papel** con los formularios impresos (entrada y cobro) y, al volver, **la cajera carga
+lo anotado en su turno**, marcado «desde papel» con la hora real, antes de seguir; **supervisión lo
+revisa** en el cierre (B3-7).
 
 ---
 
@@ -183,7 +187,7 @@ con su autorización y el mismo arqueo.
 | Ticket de corte impreso | **B5-2** | Plantilla de 58 y 80 mm |
 | Resumen del día en Inicio | **B3-5** (caja) y **B4-2** (parque) | Sustituye las cifras sin fuente de Inicio |
 | Puesta a punto en Inicio | **T-4** | Amplía la instalación inicial |
-| Contingencia en papel y carga posterior | **B8-2** y D-INF | Abierto (§7) |
+| Contingencia en papel y carga posterior | **B3-7** y B8-2 | Decidido (M-15) |
 
 ---
 
@@ -195,8 +199,9 @@ con su autorización y el mismo arqueo.
    entra lo declara al abrir su turno.
 3. ~~**El equivalente de $ 1,00** en bolívares~~ — **decidido:** con la tasa del turno, contra un
    solo umbral.
-4. **La carga de lo anotado en papel**: ¿quién la hace, cuándo, y cómo se distingue en los reportes?
-5. **D-INF**: servidor en el local o solo VPS (MAESTRO §4).
+4. ~~**La carga de lo anotado en papel**~~ — **decidido el 2026-09-28 (M-15):** la cajera, al volver y en
+   su turno, marcado «desde papel» con la hora real; supervisión lo revisa en el cierre (B3-7).
+5. ~~**D-INF**~~ — **decidido el 2026-09-28 (M-15, ADR-021):** solo VPS, con internet de respaldo 4G.
 
 ---
 

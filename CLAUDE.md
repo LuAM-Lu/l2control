@@ -72,7 +72,7 @@ packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)
 docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
-docs/adr/                 las 20 decisiones, una por archivo
+docs/adr/                 las 23 decisiones, una por archivo
 ```
 
 **No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su
@@ -100,7 +100,8 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
   siempre lo mismo y nunca se usan como decoración.
 - El estado se comunica por **color + icono + texto**, nunca solo por color (§8.2).
 - Cifras que se comparan o suman: clase `tnum`.
-- Objetivos táctiles por superficie: KDS 64 px, POS 56 px, tablet 48 px, admin 32 px (§8.4).
+- Objetivos táctiles por superficie: POS 56 px, tablet y teléfono 48 px, admin 32 px (§8.4). El KDS de
+  64 px se retira con ADR-022: la cocina trabaja con la comanda impresa.
 - Estados de carga, vacío y **error visibles**. Los errores ocultos son antipatrón explícito.
 - **Formato monetario de Venezuela:** Mostrar importes con `MoneyDisplay` o `formatMoneyVE` desde `@l2/ui`.
   Bolívares: `Bs. ` a la izquierda, miles con punto (`.`) y decimales con coma (`,`). Dólares: `$` y dos decimales.
@@ -115,6 +116,9 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
 
 Venezuela: multimoneda (USD funcional, Bs de liquidación), IVA + IGTF del 3 % sobre pagos en
 divisas, cortes de luz e internet frecuentes. Aforo del local: 30 niños, 7-10 mesas.
+Equipos (visita técnica, M-15): la monitora en un teléfono (pulseras preimpresas de un solo uso, cámara
+o lector Bluetooth), la caja en una laptop, el mesero en una tablet, la cocina con comanda impresa y una
+sola impresora en caja, por red. Un solo servidor en la nube con internet de respaldo (ADR-021).
 Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
 ## Flujo de trabajo

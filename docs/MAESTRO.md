@@ -10,9 +10,10 @@
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
 > - [JORNADA.md](JORNADA.md): el día completo en cuatro momentos (primer encendido, apertura, jornada y
 >   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige cuando un paso resuelve algo suyo.
-> - [adr/](adr/): las decisiones de arquitectura, una por archivo (20; ADR-018 supersede la biblioteca
->   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2 y ADR-020 cambia el TOTP
->   de ADR-018 por llaves de acceso).
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (23; ADR-018 supersede la biblioteca
+>   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2, ADR-020 cambia el TOTP
+>   de ADR-018 por llaves de acceso, ADR-021 supersede la topología de ADR-003, ADR-022 retira la
+>   pantalla de cocina de DEC-19 y ADR-023 supersede ADR-012).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -29,11 +30,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.29.0 · 29 de 48 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+**Versión 0.29.0 · 29 de 56 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
-huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-4 (ajustes) para cerrar el Parque. **La caja cierra en el servidor (B3-5): Etapa 3 hecha.** Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-4 (ajustes) para cerrar el Parque. **La caja cierra en el servidor (B3-5): lo previsto de la Etapa 3, hecho** (la visita técnica le suma B3-6 y B3-7). Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -137,8 +138,16 @@ tres turnos: un relevo que cuadra (Z de la cajera), otro con $ 5,00 de faltante 
 la «Familia Prueba Jornada» (#0023), que entró, salió y se marcó incobrable. **Quedan pendientes del cliente**
 #0021 (mostrador, $ 2,78) y #0022 (Mesa 8): la jornada del local no se cerró. Equipos «Prueba B35 …» revocados.
 
-**Siguiente paso:** **B5-1** (tiempo real: sustituye el sondeo de 5 s de la sala y de las cuentas y el bus entre
-pestañas) y después **B4-4** (ajustes del local: umbral de huérfanas y del arqueo, zona horaria).
+**Visita técnica (2026-09-28, M-15).** El cliente fijó cómo se trabajará en el local, y la ruta pasa de 48 a
+**56 pasos**: la monitora en un **teléfono** que lee pulseras **preimpresas y de un solo uso** con la cámara;
+la caja en una **laptop**; el mesero en una **tablet**; la **cocina sin pantalla**, con la comanda impresa;
+**una impresora**, en caja, por red; el **restaurante entra en el piloto**; un **inventario mínimo y real**
+(lo que no hay no se vende); **descuentos configurables** (por medio de pago, VIP, manual y de
+administración); **reservas de cumpleaños** con anticipo; **todo en tiempo real**; y **un solo servidor en la
+nube con internet de respaldo** en el local. El detalle, en §2 (M-15); los pasos nuevos, en §3.
+
+**Siguiente paso:** **B5-1** (todo en tiempo real: sustituye los sondeos y el bus entre pestañas), después
+**B4-4** y **B4-5** (la monitora en el teléfono y las pulseras de un solo uso).
 
 ---
 
@@ -149,7 +158,7 @@ pestañas) y después **B4-4** (ajustes del local: umbral de huérfanas y del ar
 | **M-1** | **Se congela el frontend.** No se construyen más pantallas sobre datos de ejemplo | Las tres que faltaban (apertura de turno, impuestos, impresoras) se hacen **directamente contra el servidor**, en su etapa. Así cada pantalla se construye una sola vez. El inventario (tanda D) pasa a después del piloto, porque está fuera de la Ruta A. Los hallazgos de la antigua Ola 5 se corrigen al pasar por cada pantalla (§5), y la medición final se hace en staging (B7-3) |
 | **M-2** | **Claude programa todo.** Se retira la orquesta con Gemini | Se borran `scripts/obrera.mjs`, ORQUESTA y los encargos. Los comentarios del código que dicen «escrito por la obrera» se quedan: son historia |
 | **M-3** | **Nada fiscal por ahora** | F7 queda fuera, igual que el hito M1 (F3-08, las 20 facturas), la máquina fiscal y la nota de crédito. El recibo es **no fiscal**. IVA e IGTF **se siguen calculando** en el ticket, porque ya están hechos y cambian lo que se cobra |
-| **M-4** | **Entornos: primero local (Docker), luego VPS** | ⚠ **Choca con ADR-003**, que pide un servidor en el local y usa la nube solo como réplica. Con solo un VPS, un corte de internet detiene los cobros y la cocina. **Propuesta:** el VPS sirve de staging y para el piloto en paralelo, donde el método anterior hace de respaldo (F11-04). La topología final (D-INF, §4) se decide antes de retirar ese método. El servidor se empaqueta en Docker para que la misma imagen corra en el VPS o en un mini-PC sin cambios |
+| **M-4** | **Entornos: primero local (Docker), luego VPS** | ⚠ **Choca con ADR-003**, que pide un servidor en el local y usa la nube solo como réplica. Con solo un VPS, un corte de internet detiene los cobros y la cocina. **Propuesta:** el VPS sirve de staging y para el piloto en paralelo, donde el método anterior hace de respaldo (F11-04). La topología final (D-INF, §4) se decide antes de retirar ese método. El servidor se empaqueta en Docker para que la misma imagen corra en el VPS o en un mini-PC sin cambios. **Resuelto por M-15 ([ADR-021](adr/021-servidor-en-la-nube.md)):** un solo VPS, con internet de respaldo en el local |
 | **M-5** | **Un solo documento vivo y handoff a petición** | Este archivo. El protocolo está en §8 |
 | **M-7** | **Alta de equipos con buenas prácticas** (2026-09-26, pedido del cliente) | Amplía F2-02. El primer equipo de un local, o el que sustituye a uno perdido, se aprueba **desde él mismo con la contraseña y el TOTP** de quien gestiona personas (nunca con un PIN, y sin enseñar nombres en un equipo no aprobado); la consola `pnpm equipos` queda como puerta de emergencia. Cada equipo enseña un **código de emparejamiento** que quien aprueba compara. Una solicitud **caduca a las 24 h** y se renueva desde el equipo. Tope de 10 solicitudes por hora y dirección y de 20 pendientes por sucursal. Regla de operación (runbook, B8-2): **siempre dos equipos de administración aprobados** |
 | **M-6** | **Fuera el modo demo y el simulador** (2026-09-26), y **todo el backend según esta ruta** | Se retiran el chip «DEMO», su panel, los escenarios, el reloj acelerado, `NEXT_PUBLIC_DEMO` y `L2_FUENTE_DE_DATOS`: la app corre siempre contra su servidor. Queda el bus de eventos (`features/operacion`), que no era simulado y en B5-1 viaja por el servidor. Lo que aún no tiene backend usa datos provisionales de `src/demo`; **cada paso borra el suyo** (tabla en su README). Cambio de alcance sobre F1-19 (DEC-22), pedido por el cliente |
@@ -160,10 +169,29 @@ pestañas) y después **B4-4** (ajustes del local: umbral de huérfanas y del ar
 | **M-12** | **Puesta en marcha sin consola y sin apps de terceros** (2026-09-27, pedido del cliente; [ADR-020](adr/020-llaves-de-acceso.md)) | Producción arranca vacía: el primer administrador y su equipo se crean desde el navegador con un código de instalación de un solo uso. El segundo factor pasa de TOTP a **llaves de acceso** (Windows Hello, el bloqueo del teléfono), dos por administrador, más diez códigos de recuperación impresos. Las credenciales de administración se dan desde el panel con un enlace de alta (QR). Paso **T-4**, antes de staging |
 | **M-13** | **La app se ordena por la jornada** (2026-09-27, pedido del cliente; [JORNADA.md](JORNADA.md)) | El objetivo es operar el parque y el restaurante con un camino feliz. El menú pone arriba lo que se opera (Inicio, Parque, Restaurante, Caja) y abajo, en «Ajustes», lo que se configura (impuestos, feriados, medios, tasas, tarifas, carta, plano, personas, equipos). Turnos y Ventas del turno son **una sección, Turno**. Primer uso con asistente corto y «Puesta a punto» en Inicio; la cajera abre el turno y el sistema comprueba; relevo con corte, arqueo a ciegas, Z por umbral ($ 1,00, firma de supervisión por encima) y **ninguna jornada se cierra con pendientes**; ticket de corte impreso y resumen del día en Inicio. Nuevo paso **T-6**; la ruta pasa a 48 pasos |
 | **M-14** | **El parque primero** (2026-09-28, pedido del cliente: «hacer funcional parque, urgente») | B3-5 queda en pausa a medias (dominio, contrato, base y caso de uso, sin pruebas ni pantalla) y el parque (B4-1 a B4-3) pasa delante, **sin esperar a B5-1**: la sala llega a los demás equipos por sondeo de 5 s, como las cuentas desde B3-3, y B5-1 la empujará en vivo. Las estancias, las familias y el precio del parque salen del navegador |
+| **M-15** | **Lo decidido en la visita técnica** (2026-09-28, con el cliente) | Dispositivos, pulseras, cocina, impresión, inventario, descuentos, eventos, tiempo real y servidor: detalle abajo (V-1 a V-12). Cierra D-INF, D-RES, D-INV y F-12; cambia DEC-8 (en parte), DEC-18 y DEC-19; ADR-021, ADR-022 y ADR-023. La ruta pasa a **56 pasos**: entran B4-5, B3-6, B3-7, la Etapa 6 (B6-1 a B6-3, sin recetas) y la Etapa 10 (B10-1 y B10-2) |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
-La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario de mostrador** (M-9): parque y caja
-primero. Las cinco reglas de CLAUDE.md no se relajan.
+La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
+(M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
+cinco reglas de CLAUDE.md no se relajan.
+
+**M-15 en detalle.** Cada fila, con el paso que la construye.
+
+| # | Decidido | Paso |
+|---|---|---|
+| **V-1** | **Pulseras preimpresas por lote y desechables: un código por visita.** Un código ya usado en otra estancia se rechaza; el formato de la serie (prefijo y longitud) es un ajuste | B4-5 |
+| **V-2** | **La monitora trabaja en un teléfono del local** (entrada, sala y salida). Lee con la **cámara** (QR y código de barras) y, si lo compran, con un **lector Bluetooth** en modo teclado (lo que DEC-8 ya resolvía). **Sin pantalla de pared** (cambia DEC-18): la sala se ve en el teléfono y en el panel | B4-5 |
+| **V-3** | **Caja en una laptop; mesero en una tablet.** Equipos del local, aprobados como del puesto (DEC-17); cada persona entra con su PIN | B7-3 |
+| **V-4** | **La cocina trabaja con la comanda impresa, sin pantalla** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), cambia DEC-19). El sistema sabe el pedido y la cuenta, no «listo» ni «entregado». La comanda sale en la **impresora de comandas**, un ajuste: hoy la de caja (alguien la lleva), mañana una en la cocina | B5-2, B6-2 |
+| **V-5** | **Una sola impresora térmica, en la caja, por red** (TCP 9100): recibo, ticket de corte y comandas | B5-2 |
+| **V-6** | **El restaurante entra en el piloto** (cierra D-RES): mesas, carta, pedidos del mesero y cuenta de mesa en el servidor | B6-1 a B6-3 |
+| **V-7** | **Inventario mínimo y real** (cierra D-INV): lo que se vende tal cual (refrescos, golosinas, juguetes) y servicios sin existencia (alquiler por cumpleaños, paquetes). Entradas de **varias líneas de una vez** o de un producto, con **costo promedio** y margen. **Lo que no hay no se vende** ([ADR-023](adr/023-existencia-al-entrar-en-la-cuenta.md)). Insumos y recetas de cocina, después del piloto | B9-2 a B9-5 |
+| **V-8** | **Todo sincronizado en tiempo real**: sala, cuentas, existencias, turnos y pendientes, comandas, reservas, tasa, catálogo, medios y equipos | B5-1 |
+| **V-9** | **Descuentos configurables** por administración (porcentaje o monto; a toda la cuenta, al parque, al restaurante o a categorías; con vigencia), **siempre antes del IVA**. Por **medio de pago** (p. ej. Zelle): la caja lo propone y se aplica solo con la 🔐 de supervisión o administración, y solo si **toda la cuenta** va por ese medio. **Cliente VIP**: administración marca a la familia con su porcentaje. **Manual** con motivo de lista cerrada y 🔐. **Administración** aplica cualquiera con su PIN y un motivo escrito. Todos, en el recibo y en las excepciones | B3-6 |
+| **V-10** | **Cumpleaños: reserva con fecha y anticipo.** Horario, cliente, **niños invitados** (sus pulseras cuentan en el aforo), **paquete con productos** (descuenta existencias el día del evento), anticipo al reservar y saldo el día. Sin política de cancelación: devolver un anticipo es anular su cobro (DEC-24) | B10-1, B10-2 |
+| **V-11** | **Un solo servidor en la nube (VPS)** con **internet de respaldo 4G** y UPS en la red del local ([ADR-021](adr/021-servidor-en-la-nube.md), cierra D-INF; supersede la topología de ADR-003 y DEC-4/DEC-10 en lo que pedían un equipo en el local) | B7-1, B8-1 |
+| **V-12** | **Papel**: si caen los dos enlaces, se anota en formularios; al volver, **la cajera lo carga en su turno**, marcado «desde papel» con la hora real anotada, y **supervisión lo revisa** en el cierre (cierra JORNADA §7.4) | B3-7 |
 
 ---
 
@@ -203,12 +231,16 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
    **B3-3** → B3-4 → B3-5 (se cierra Caja).
-3. ~~B4-1 → B4-2 → B4-3 → B3-5~~ (se cierra Caja) → **B5-1** → B4-4 (se cierra Parque). M-14 adelantó el parque
-   a B3-5 y a B5-1: mientras no haya tiempo real, la sala viaja por sondeo de 5 s.
-4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B5-2 → B5-3.
-5. **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso) → Etapa 7 (staging) →
-   Etapa 8 (producción, 1.0.0).
-6. Etapa 6 (restaurante), según D-RES.
+3. ~~B4-1 → B4-2 → B4-3 → B3-5~~ → **B5-1** (todo en tiempo real, V-8) → B4-4 → B4-5 (la monitora en el
+   teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
+   sala viaja por sondeo de 5 s.
+4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas) →
+   B5-3.
+5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
+6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
+   → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
+
+Fuera de la cuenta de 56: B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -770,6 +802,25 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   consola. La jornada completa hasta su Z se prueba contra la base: el local tiene cuentas vivas del cliente, que
   no se tocaron.*
 
+- [ ] **B3-6 · Descuentos configurables** (M-15, V-9; `cuenta.descuento`, que ya estaba en la matriz).
+  → Administración crea las reglas en Ajustes → Descuentos (tipo: medio de pago, VIP o manual;
+  porcentaje o monto; alcance: toda la cuenta, el parque, el restaurante o categorías; vigencia) y marca
+  familias VIP en el directorio. Al cobrar, la caja ve los que aplican: el de medio de pago exige que
+  toda la cuenta vaya por ese medio y la 🔐 de supervisión o administración; el manual, motivo de lista
+  cerrada y 🔐; administración aplica cualquiera con su PIN y un motivo escrito. Lo calcula el servidor,
+  antes del IVA y del IGTF; sale en el recibo y en las excepciones del turno y del día, y anular el cobro
+  lo revierte.
+  → Ningún descuento sin regla o autorización en la auditoría; el total con descuento cuadra al céntimo
+  con el libro.
+- [ ] **B3-7 · Carga de lo anotado en papel** (M-15, V-12; JORNADA §4 y §7).
+  → Tras un corte de los dos enlaces (ADR-021, N2), la cajera carga en su turno las entradas y los
+  cobros anotados, cada uno marcado «desde papel» con la hora real que se anotó: la única hora que
+  declara la pantalla, acotada a la ventana del corte y auditada (excepción explícita a ADR-017, con su
+  ADR al construirla); el servidor guarda además cuándo se cargó. Los formularios salen impresos de la
+  app. Los pendientes del cierre listan lo cargado sin revisar y supervisión lo revisa antes del Z.
+  → Lo cargado desde papel se distingue en el turno, en Inicio y en la auditoría; ninguna jornada se
+  cierra con cargas sin revisar.
+
 ### Etapa 4 · Parque (F5, es el producto)
 
 - [x] **B4-1 · `Guardian`, `Kid` y `ParkSession`**, sin entidad pulsera. El código solo es único entre
@@ -853,20 +904,35 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [ ] **B4-4 · Ajustes de la sucursal** persistidos: formato de hora, umbral de residuo, servicio y
   umbral de diferencia del arqueo ($ 1,00 o su equivalente, M-13) (F5-08b).
+- [ ] **B4-5 · La monitora en el teléfono y las pulseras de un solo uso** (M-15, V-1 y V-2).
+  → Entrada, sala y salida en el teléfono del local (360×800 y 390×844, objetivos de 48 px, sin desplazar
+  el documento), instalable como aplicación (PWA; la cámara pide HTTPS, que da el staging). La pulsera se
+  lee con la **cámara** (QR y código de barras, con el lector del navegador y una biblioteca de respaldo
+  si el teléfono no lo trae) o con un **lector Bluetooth** en modo teclado. Un código ya usado en una
+  estancia anterior se rechaza, y el formato de la serie (prefijo y longitud) es un ajuste del local. Se
+  retira la pantalla de pared del monitor (DEC-18).
+  → Una entrada de dos niños en menos de 90 s en un teléfono real (F5-02); una pulsera usada ayer no
+  entra hoy.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
 - [ ] **B5-1 · Socket.io con adaptador Valkey** y autorización en el handshake (F2-09, ADR-008). El
   monitor, la cola de caja, la tasa y el panel en vivo se actualizan solos, y esto sustituye a
-  `BroadcastChannel` y al sondeo de la tasa. Los eventos salen de una **tabla outbox** escrita en la
+  `BroadcastChannel` y al sondeo de la tasa. Con M-15 (V-8), **todo**: la sala, las cuentas y la cola,
+  las existencias, el turno y sus pendientes, las comandas y su impresión, las reservas, la tasa, el
+  catálogo, los medios y los equipos; se retiran los sondeos de 5 s (sala y cuentas) y de 60 s (tasa).
+  Los eventos salen de una **tabla outbox** escrita en la
   misma transacción que la operación: ninguno se pierde ni se publica uno de una operación que no
   ocurrió. Nace `apps/worker`, con los trabajos programados: la sincronización del BCV se muda allí.
   → El cambio llega a otro equipo en menos de 2 s. Una sucursal no recibe eventos de otra. Con el
   worker caído, la operación sigue y los eventos se entregan al volver.
 - [ ] **B5-2 · Cola de impresión por TCP 9100** y plantillas de 58 y 80 mm, más la pantalla
-  **Configuración → Impresoras** (contrato `impresoras.ts`) (F1-10, F1-12, ADR-015).
+  **Configuración → Impresoras** (contrato `impresoras.ts`) (F1-10, F1-12, ADR-015). Con M-15 (V-4 y V-5):
+  una sola impresora, en la caja, por red, para el recibo, el **ticket de corte** (JORNADA §5) y las
+  **comandas**; la **impresora de comandas** es un ajuste (hoy la de caja, mañana una en la cocina).
   → El recibo no fiscal sale en papel real en los dos anchos. Sin confirmación de impresión, nada avanza.
-- [ ] **B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09).
+- [ ] **B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09), si la impresora de caja la lleva
+  (se confirma al instalar, §4).
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 
@@ -912,29 +978,50 @@ antes del cobro en servidor (orden de ejecución).
   venta cobrada sigue en $ 1,31 en Turno, la de a medias conserva su $ 1,00 y la carta ofrece el agua
   a $ 1,20. «Pirulín» exento se cobra sin IVA. Productos, la ficha y la carta de la caja a 1366×768,
   1280×800 y 800×1280 sin desplazar el documento ni desbordar; sin errores de consola.*
-- [ ] **B9-2 · Movimientos de stock de solo-agregar** (F8-05, I-10): la existencia es la suma de
-  movimientos. Una venta de mostrador descuenta en la misma transacción que el cobro, y anular es un
-  movimiento de reversión.
-  → Toda diferencia de existencia tiene un movimiento que la explica. Un doble clic no descuenta dos veces.
-- [ ] **B9-3 · Compras y costo promedio ponderado** (F8-06), con insumos y conversiones de unidad
-  (F8-01).
+- [ ] **B9-2 · Existencias en tiempo real, de solo-agregar** (F8-05, I-10, [ADR-023](adr/023-existencia-al-entrar-en-la-cuenta.md)):
+  la existencia es la suma de movimientos. La línea que entra en una cuenta (mostrador, mesa, evento) la
+  descuenta en la misma transacción, y quitarla o anular lo no entregado la devuelve. **Sin existencia no
+  se vende**, ni en la caja ni en la tablet del mesero; los servicios no llevan existencia.
+  → Toda diferencia de existencia tiene un movimiento que la explica. Un doble clic no descuenta dos veces
+  y dos ventas a la vez no venden la última unidad dos veces.
+- [ ] **B9-3 · Entradas de mercancía y costo promedio ponderado** (F8-06, F8-01): una carga de **varias
+  líneas** (compra o reposición, con proveedor y factura opcionales) o de un producto suelto, cada línea
+  con cantidad y costo en $, y conversiones de unidad (se compra la caja de 24, se vende la unidad). El
+  margen de lo vendido sale del costo promedio. Sin insumos de cocina (después del piloto, M-15).
   → El costo tras dos compras a precios distintos coincide con el cálculo del contador; comprar por caja
   y vender por unidad cuadra.
-- [ ] **B9-4 · Ajustes con motivo de lista cerrada y 🔐, y conteo físico** (F8-07): se cuenta, se ve la
-  diferencia y se ajusta con autorización.
+- [ ] **B9-4 · Salidas y ajustes con motivo de lista cerrada y 🔐, y conteo físico** (F8-07): merma o
+  daño, consumo interno, regalo y devolución al proveedor; se cuenta, se ve la diferencia y se ajusta con
+  autorización.
   → Ningún ajuste sin motivo ni asiento. El conteo deja la existencia igual a lo contado.
 - [ ] **B9-5 · Alertas de stock crítico** con antelación por producto (F8-08), en Inicio y en el
   inventario.
   → Avisa antes de quedarse sin producto.
 
-### Etapa 6 · Restaurante en el servidor (fuera de la Ruta A, depende de D-RES)
+### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
-- [ ] **B6-1** Mesas, plano y carta persistidos (F6-01 a F6-03).
-- [ ] **B6-2** Comandas y KDS sobre el servidor, con la máquina de estados de `@l2/domain-orders`
-  (F6-06 a F6-09).
-- [ ] **B6-3** Cuenta de mesa, vinculación de pulseras y división (F6-05, F6-12, F6-14).
-- [ ] **B6-4** Recetas con subrecetas, descarga de stock al marcar LISTO (idempotente, ADR-012) y reporte
-  de merma (F8-03, F8-04, F8-09).
+- [ ] **B6-1 · Mesas, plano y carta** persistidos (F6-01 a F6-03). Se borra `src/demo/restaurante.ts`.
+- [ ] **B6-2 · Pedidos del mesero y comanda impresa** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), F6-06,
+  F6-07 y F6-09, sin F6-08): el pedido confirmado en la tablet crea su trabajo de impresión en la
+  impresora de comandas; la comanda queda «enviada» e «impresa», y si falla, la tablet del mesero y la caja
+  lo avisan y se reimprime. Se retiran la estación de cocina (KDS) y los estados «en fuego» y «listo».
+  → Ningún pedido confirmado se queda sin comanda sin que alguien lo vea.
+- [ ] **B6-3 · Cuenta de mesa**, vinculación de pulseras y división (F6-05, F6-12, F6-14), con los
+  productos del mesero descontando existencias (ADR-023).
+- [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
+  cuenta en la ruta. ADR-023 supersede la descarga al marcar LISTO de ADR-012: su disparador será otro ADR.
+
+### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
+
+- [ ] **B10-1 · Reservas con agenda y anticipo**: fecha y horario, cliente (del directorio de familias),
+  número de niños invitados y paquete (el alquiler como servicio y los productos que incluye) con su
+  precio. El anticipo se cobra en la caja contra la **cuenta del evento** (en el libro y con su venta) y
+  el saldo queda para el día. Parque → Eventos; Inicio y la apertura del turno avisan «Hoy hay un evento».
+  → Un anticipo cobrado sale en el turno en que se cobró; devolverlo es anular su cobro (DEC-24).
+- [ ] **B10-2 · El día del evento**: los invitados entran con pulseras a la cuenta del evento (cuentan en
+  el aforo), el paquete descuenta sus productos (ADR-023) y el saldo se cobra en la caja; la cuenta del
+  evento sale en los pendientes del cierre hasta cobrarse.
+  → Un evento de punta a punta en el sistema real: reserva, anticipo, entrada de invitados y saldo.
 
 ### Etapa 7 · Staging en VPS
 
@@ -943,23 +1030,25 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B7-2 · Datos maestros reales** cargados con semillas (`pnpm db:seed`) (F0-04, F1-16).
   **Bloqueado por el cliente.**
 - [ ] **B7-3 · Medición con red real**: carga, error y degradación con latencia de verdad (RIE-13); la
-  app instalada en una tablet Android real (T-5); los 12 tamaños otra vez.
+  app en el teléfono de la monitora, la tablet del mesero y la laptop de caja reales, también por el 4G
+  de respaldo (T-5, M-15); los 12 tamaños otra vez.
 - [ ] **B7-4 · Respaldos**: volcado diario cifrado fuera del VPS y una **restauración ensayada**
   (F10-04, F10-05).
 - [ ] **B7-5 · Revisión de seguridad** contra PLAN §7 y auditoría de dependencias (F10-06, F10-09).
 
 ### Etapa 8 · Producción
 
-- [ ] **B8-1 · Decidir D-INF** (§4) y, si es servidor en el local, montarlo con su runbook (F10-03,
-  F10-03b).
+- [ ] **B8-1 · La red del local** ([ADR-021](adr/021-servidor-en-la-nube.md), D-INF decidido en M-15): internet
+  principal y router 4G de respaldo con conmutación automática, UPS en router, módem y WiFi, y los equipos
+  del local aprobados (F10-03).
+  → Con el enlace principal desconectado, la caja cobra y la sala se actualiza por el 4G.
 - [ ] **B8-2 · Runbooks, contingencia en papel, manual y capacitación por rol** (F10-10, F11-02,
-  F11-03, F11-08). Incluye la **carga de lo anotado en papel** al volver la luz o internet (JORNADA
-  §4 y §7), mientras D-INF no se decida.
+  F11-03, F11-08). Incluye los formularios de papel y su procedimiento para cuando caigan los dos
+  enlaces (la carga es B3-7).
 - [ ] **B8-3 · Operación en paralelo** con el método anterior, piloto de un turno y ajustes (F11-04 a
   F11-06).
   → Los totales de los dos sistemas coinciden todos los días del período.
-- [ ] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). Si D-INF es un servidor en el local,
-  también el equipo en espera ensayado (F11-07b). **Es la versión 1.0.0** (M-10).
+- [ ] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). **Es la versión 1.0.0** (M-10).
 
 ---
 
@@ -969,20 +1058,24 @@ antes del cobro en servidor (orden de ejecución).
 
 | # | Decisión | Propuesta | Hace falta antes de |
 |---|---|---|---|
-| **D-INF** | Producción solo en un VPS, o servidor en el local con el VPS como réplica (ADR-003) | Servidor en el local: con cortes de internet frecuentes, un VPS solo deja sin caja y sin cocina. **El cliente aún no lo sabe (2026-09-27):** hasta decidir, piloto en el VPS con contingencia en papel | B8-1 |
+| ~~D-INF~~ | Producción solo en un VPS, o servidor en el local | **Decidido el 2026-09-28 (M-15, ADR-021):** un solo VPS, con internet de respaldo 4G y UPS en el local; si caen los dos enlaces, papel (B3-7) | B8-1 |
 | ~~D-JOR~~ | Lo abierto de la jornada (JORNADA §7) | **Decidido el 2026-09-28:** una cuenta que no se puede cobrar se marca **incobrable** con motivo y 🔐 de supervisión (sale en las excepciones y deja cerrar la jornada; nada se borra); en el **relevo** la que sale retira lo vendido y deja solo el fondo, que la que entra declara al abrir; la diferencia en bolívares se lleva a dólares **con la tasa del turno** y cuenta contra un solo umbral de $ 1,00. Queda abierta la carga del papel (B8-2) | B3-5 |
-| **D-RES** | ¿El piloto incluye el restaurante en el sistema? | No: primero el parque (DEC-12, Ruta A). El restaurante sigue como hoy durante el piloto | Etapa 6 |
+| ~~D-RES~~ | ¿El piloto incluye el restaurante en el sistema? | **Decidido el 2026-09-28 (M-15):** sí, sin pantalla de cocina (ADR-022) | Etapa 6 |
 | F0-04 | Datos maestros reales: tarifas, carta, precios y personas | Los editores ya existen para cargarlos | B7-2 |
 | F0-03 | Medidas reales del local para el plano | — | B6-1 |
 | D7 | Quién asigna los puestos de trabajo | Hoy se deducen del rol (`PUESTO_DE_ROL`) | B1-5 |
 | ~~D9~~ | Un niño que sale sin su representante | **Decidido el 2026-09-28:** la salida pregunta «Lo recoge: su representante u otra persona» y, si es otra, su nombre; no bloquea, pero queda constancia. Y una estancia es **huérfana** si sigue abierta desde un día anterior o lleva más de 8 horas: no cuenta en el aforo y la dirección la cierra con motivo, sin tiempo de más | B4-3 |
 | D13 | Número de orden continuo o diario | Hoy es continuo (`#1049`). **B3-4 lo deja así** (el servidor lo da por sucursal); se confirma con el cliente | B3-4 |
 | — | Informes del panel ejecutivo (F9-01 a F9-07) | Después del piloto; Inicio ya enseña el día | — |
-| F-12 | ¿El teléfono entra en el objetivo? | Revisarlo en B7-3 | B7-3 |
+| ~~F-12~~ | ¿El teléfono entra en el objetivo? | **Sí (M-15):** la monitora trabaja en un teléfono | B4-5 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente (hoy fijo en el código) | B7-2 |
 | ~~D-FER~~ | Calendario de feriados bancarios de Venezuela | **Decidido el 2026-09-27:** se carga por año desde el panel copiando el calendario de SUDEBAN (cambia cada año: Carnaval, Semana Santa y feriados trasladados) | B2-4 |
-| D-INV | Alcance del inventario en el piloto | Solo productos de mostrador (bebidas, snacks); los insumos de cocina con el restaurante. **B9-1 se hizo así** (el catálogo de productos hace falta en los dos casos); se confirma antes de los insumos | B9-3 |
+| ~~D-INV~~ | Alcance del inventario en el piloto | **Decidido el 2026-09-28 (M-15, V-7):** lo que se vende tal cual y los servicios, con costo promedio; lo que no hay no se vende; insumos y recetas después del piloto | B9-2 |
+| D-DESC | Si una cuenta tiene derecho a dos descuentos (p. ej. VIP y Zelle), ¿se suman? | No: uno por cuenta, el que elija quien autoriza (el mayor, por defecto). Y ¿hay un tope para el manual de supervisión? Propuesta: 20 %, configurable | B3-6 |
+| D-EVT | Qué incluye cada paquete de cumpleaños, cuánto es el anticipo y si hay un mínimo de invitados | Paquetes como productos de servicio con sus componentes; anticipo configurable (propuesta: 50 %) | B10-1 |
+| D-PUL | El formato real de las pulseras (prefijo, longitud, QR o barras) y si compran lector Bluetooth | Se fija con las primeras pulseras impresas; hasta entonces se acepta cualquier código legible | B4-5 |
+| D-GAV | ¿La impresora de caja lleva gaveta de dinero? | Se confirma al instalar; sin gaveta, B5-3 se retira | B5-3 |
 | D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona. **B3-4 lo aplicó así** (y la administración confirma con su PIN al anular o regalar); se confirma con el cliente | B3-4 |
 
 **Confirma el contador** (lo fiscal queda fuera, pero esto cambia lo que se cobra)
@@ -992,8 +1085,9 @@ antes del cobro en servidor (orden de ejecución).
 - USDT a la par con el dólar para el cobro y para el IGTF.
 - Alícuotas vigentes: IVA 16 %, 8 % y exento, e IGTF 3 %. Con B2-2 se cambian sin desplegar.
 
-**Trabajo de campo:** calibrar el lector de pulseras (umbrales de 55 y 45 ms), probar la impresora y la
-gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTTPS).
+**Trabajo de campo:** probar la cámara del teléfono con las pulseras reales y, si lo compran, calibrar el
+lector Bluetooth (umbrales de 55 y 45 ms) (B4-5); probar la impresora y la gaveta reales (B5-2); instalar la
+app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el paso al 4G (B8-1).
 
 ---
 
@@ -1021,6 +1115,8 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El importe de la carta de la mesa llega de la pantalla (el del parque ya lo pone el servidor, B4-2), y lo que se mueve del parque a una mesa también | B6-1 (carta y mesas) |
 | La sala llega a los demás equipos por sondeo de 5 s, no en vivo; el monitor recalcula el estado de cada niño con cada sondeo | B5-1 |
+| La estación de cocina (KDS) y los estados «en fuego» y «listo» siguen en la app, sobre el bus del navegador | B6-2 (ADR-022) |
+| El teléfono no lee pulseras con la cámara (solo lectores en modo teclado), y un código ya usado puede volver a entrar | B4-5 |
 | «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
 | Un niño sin nombre sale en la tarjeta de la sala con su pulsera dos veces (título y subtítulo) | Al pasar por la sala |
 | El umbral de las huérfanas (8 horas) está en el dominio, no en los ajustes del local | B4-4 |
@@ -1090,13 +1186,13 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Ticket de corte impreso (B5-2) y tiempo real (B5-1) |
-| F5 · Parque | **En el servidor** (B4-1 a B4-3): estancias, directorio, cronómetro, recarga, salida con D9 y huérfanas | Ajustes (B4-4) y tiempo real (B5-1) |
-| F6 · Restaurante | Interfaz completa (DEC-22) | Etapa 6, según D-RES |
+| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Descuentos (B3-6), carga desde papel (B3-7), ticket de corte impreso (B5-2) y tiempo real (B5-1) |
+| F5 · Parque | **En el servidor** (B4-1 a B4-3): estancias, directorio, cronómetro, recarga, salida con D9 y huérfanas | Ajustes (B4-4), el teléfono y las pulseras (B4-5), tiempo real (B5-1) y eventos (Etapa 10) |
+| F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | **Catálogo de productos en el servidor** (B9-1); insumos y recetas por hacer | Stock, compras, ajustes y alertas (B9-2 a B9-5) y B6-4 (recetas) |
+| F8 · Inventario | **Catálogo de productos en el servidor** (B9-1) | Existencias, entradas con costo, salidas y alertas (B9-2 a B9-5); recetas después del piloto (B6-4) |
 | F9 · Panel | Inicio con el día del libro (B3-5); el local en vivo, en interfaz | Tiempo real (B5-1); los informes, después del piloto |
-| F10 y F11 | Sin empezar | Etapas 7 y 8 |
+| F10 y F11 | Sin empezar | Etapas 7 y 8: VPS con internet de respaldo en el local (ADR-021) |
 
 ---
 
@@ -1182,6 +1278,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-28** · B3-5 hecho (v0.29.0): cortes X y Z, arqueo a ciegas, relevo, cierre de la jornada sin
   pendientes, incobrables y el día en Inicio; se cierra la Etapa 3. Las pruebas cazaron cinco fallos del caso de
   uso. Al comprobarlo en el navegador se selló por error el turno de «PC admin» del cliente (§1).
+- **2026-09-28** · Visita técnica (M-15): teléfono para la monitora con pulseras preimpresas de un solo
+  uso, laptop en caja, tablet del mesero, cocina con comanda impresa, una impresora en caja, restaurante
+  en el piloto, inventario mínimo y real, descuentos configurables, cumpleaños con anticipo, todo en
+  tiempo real y un solo VPS con internet de respaldo. ADR-021 a ADR-023; la ruta pasa a 56 pasos.
 
 ---
 
