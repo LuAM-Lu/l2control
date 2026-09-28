@@ -17,6 +17,8 @@ import {
   revertPaid,
   linesPaidBetween,
   isDiscardedDraft,
+  courtesyProblem,
+  withCourtesy,
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
@@ -184,12 +186,28 @@ describe("qué cambio acepta el servidor", () => {
     assert.equal(accountChangeProblem(c, alterada, productAt)?.problem, "LINEA_ALTERADA");
   });
 
-  test("una línea pagada no se regala después; una sin pagar, sí", () => {
-    const pagada = markPaid(familia({ closedSessionIds: ["s1", "s2"] }));
-    const regalada = { ...pagada, lines: pagada.lines.map((l) => ({ ...l, cortesia: { motivo: "INVITACION" } })) };
-    assert.equal(accountChangeProblem(pagada, regalada, productAt)?.problem, "CORTESIA_EN_PAGADA");
+  test("un «guardar» no da ni quita cortesías: tienen su propio mando", () => {
     const c = familia();
-    assert.equal(accountChangeProblem(c, { ...c, lines: c.lines.map((l) => ({ ...l, cortesia: { motivo: "INVITACION" } })) }, productAt), null);
+    const regalada = { ...c, lines: c.lines.map((l) => ({ ...l, cortesia: { motivo: "INVITACION" } })) };
+    assert.equal(accountChangeProblem(c, regalada, productAt)?.problem, "CORTESIA_DESDE_LA_PANTALLA");
+    assert.equal(accountChangeProblem(regalada, c, productAt)?.problem, "CORTESIA_DESDE_LA_PANTALLA");
+    assert.equal(accountChangeProblem(null, mostrador([agua("x", { cortesia: { motivo: "INVITACION" } })]), productAt)?.problem, "CORTESIA_DESDE_LA_PANTALLA");
+  });
+
+  test("se regala lo que se debe todavía, y se quita lo regalado", () => {
+    const c = familia({ lines: [linea("a"), linea("b", { paid: true }), linea("c", { movedTo: "mesa" })] });
+    assert.equal(courtesyProblem(c, "a", false), null);
+    assert.equal(courtesyProblem(c, "b", false), "LINEA_PAGADA");
+    assert.equal(courtesyProblem(c, "c", false), "LINEA_MOVIDA");
+    assert.equal(courtesyProblem(c, "z", false), "LINEA_DESCONOCIDA");
+    assert.equal(courtesyProblem(c, "a", true), "NO_REGALADA");
+    const regalada = withCourtesy(c, "a", { motivo: "INVITACION" });
+    assert.deepEqual(regalada.lines[0]!.cortesia, { motivo: "INVITACION" });
+    assert.equal(courtesyProblem(regalada, "a", false), "YA_REGALADA");
+    assert.equal("cortesia" in withCourtesy(regalada, "a", null).lines[0]!, false);
+    // Lo regalado deja de cobrarse, pero conserva su importe.
+    assert.deepEqual(chargeableLines(regalada).map((l) => l.id), []);
+    assert.deepEqual(regalada.lines[0]!.amount, c.lines[0]!.amount);
   });
 
   test("lo movido a una mesa no se mueve otra vez", () => {

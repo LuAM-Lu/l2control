@@ -15,12 +15,13 @@
  *    servidor) y devuelve las líneas a la cola.
  */
 import { z } from "zod";
-import { FamilyAccountSchema } from "./account.ts";
+import { FamilyAccountSchema, MotivoCortesiaSchema } from "./account.ts";
+import { ClienteFacturaSchema } from "./documento.ts";
 import { LibroDocumentoSchema } from "./libro.ts";
 import { CodigoMedioSchema } from "./medios.ts";
 import { DatosDePagoSchema } from "./pagos.ts";
 import { IdSchema, IdempotencyKeySchema, MoneySchema } from "./primitives.ts";
-import { MotivoAnulacionSchema } from "./ventas.ts";
+import { DestinoSobraSchema, DevolucionSchema, MotivoAnulacionSchema, VentaCerradaSchema } from "./ventas.ts";
 
 /** Las cuentas que ve una estación: las abiertas y las cobradas del día. */
 export const CuentasDelLocalSchema = z.object({
@@ -40,10 +41,6 @@ export const GuardarCuentaCommandSchema = z.strictObject({
   }),
 });
 export type GuardarCuentaCommand = z.infer<typeof GuardarCuentaCommandSchema>;
-
-/** Qué se hace con lo que el cliente entregó de más (§5.6). */
-export const DestinoSobraSchema = z.enum(["VUELTO", "PROPINA", "RESIDUO"]);
-export type DestinoSobra = z.infer<typeof DestinoSobraSchema>;
 
 /** Un pago del cobro, como lo tecleó la caja. Su IGTF y su tasa los pone el servidor. */
 export const PagoDelCobroSchema = z.strictObject({
@@ -71,6 +68,8 @@ export const CobrarCuentaCommandSchema = z
     pagos: z.array(PagoDelCobroSchema).max(20),
     rateId: z.uuid().optional(),
     destinoSobra: DestinoSobraSchema,
+    /** A quién sale la factura (DEC-23); sin decirlo, consumidor final. */
+    cliente: ClienteFacturaSchema.optional(),
   })
   .refine((c) => !c.pagos.some((p) => p.amount.currency === "VES") || c.rateId !== undefined, {
     message: "Un cobro en bolívares cita su tasa",
@@ -78,10 +77,11 @@ export const CobrarCuentaCommandSchema = z
   });
 export type CobrarCuentaCommand = z.infer<typeof CobrarCuentaCommandSchema>;
 
-/** Lo que devuelve un cobro o una anulación: la cuenta como quedó y su libro. */
+/** Lo que devuelve un cobro o una anulación: la cuenta como quedó, su libro y la venta (B3-4). */
 export const CuentaYLibroSchema = z.object({
   cuenta: FamilyAccountSchema,
   libro: LibroDocumentoSchema,
+  venta: VentaCerradaSchema,
 });
 export type CuentaYLibroDto = z.infer<typeof CuentaYLibroSchema>;
 
@@ -96,9 +96,33 @@ export const AnularCobroCommandSchema = z
     cobroKey: IdempotencyKeySchema,
     motivo: MotivoAnulacionSchema,
     detalle: z.string().trim().max(280).optional(),
+    /** Cómo vuelve el dinero de cada pago con algo que devolver (DEC-24). */
+    devoluciones: z.array(DevolucionSchema).max(20),
   })
   .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, {
     message: "«Otro» exige explicarlo",
     path: ["detalle"],
+  })
+  .refine((c) => new Set(c.devoluciones.map((d) => d.paymentIndex)).size === c.devoluciones.length, {
+    message: "Cada pago se devuelve una vez",
+    path: ["devoluciones"],
   });
 export type AnularCobroCommand = z.infer<typeof AnularCobroCommandSchema>;
+
+/**
+ * Regalar una línea de la cuenta, o dejar de regalarla (F6-14, B3-4). Lo autoriza quien puede dar
+ * cortesías, con su PIN, y el servidor pone quién y cuándo: la pantalla ya no lo declara.
+ */
+export const CortesiaCommandSchema = z
+  .strictObject({
+    idempotencyKey: IdempotencyKeySchema,
+    accountId: z.uuid("Cuenta desconocida"),
+    version: z.number().int().positive(),
+    lineId: IdSchema,
+    quitar: z.boolean(),
+    motivo: MotivoCortesiaSchema.optional(),
+    detalle: z.string().trim().max(120).optional(),
+  })
+  .refine((c) => c.quitar || c.motivo !== undefined, { message: "Elige el motivo de la cortesía", path: ["motivo"] })
+  .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, { message: "Con «Otro» hay que explicar la cortesía", path: ["detalle"] });
+export type CortesiaCommand = z.infer<typeof CortesiaCommandSchema>;

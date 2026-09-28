@@ -26,10 +26,10 @@ model Tenant {
   name      String
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  branches      Branch[]
-  exchangeRates ExchangeRate[]
-  taxRates      TaxRate[]
-  bankHolidays  BankHoliday[]
+  branches          Branch[]
+  exchangeRates     ExchangeRate[]
+  taxRates          TaxRate[]
+  bankHolidays      BankHoliday[]
   paymentMethods    PaymentMethod[]
   collectionDetails CollectionDetails[]
   products          Product[]
@@ -53,10 +53,12 @@ model Branch {
   roleAdjustments RoleAdjustment[]
   sessions        StaffSession[]
 
-  payments        Payment[]
-  cashShifts      CashShift[]
-  posTerminals    PosTerminal[]
-  accounts        Account[]
+  payments     Payment[]
+  cashShifts   CashShift[]
+  posTerminals PosTerminal[]
+  accounts     Account[]
+  sales        Sale[]
+
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
   /// Las comprobaciones de FK no pasan por la RLS, así que sin esto A podría citar la sucursal de B.
@@ -152,10 +154,11 @@ model StaffUser {
   exceptions PermissionException[]
   sessions   StaffSession[]
 
-  paymentsRecorded   Payment[] @relation("PaymentRecordedBy")
-  paymentsAuthorized Payment[] @relation("PaymentAuthorizedBy")
+  paymentsRecorded   Payment[]   @relation("PaymentRecordedBy")
+  paymentsAuthorized Payment[]   @relation("PaymentAuthorizedBy")
   shiftsOpened       CashShift[] @relation("ShiftOpenedBy")
   shiftsClosed       CashShift[] @relation("ShiftClosedBy")
+
   @@unique([tenantId, id])
   @@map("staff_user")
 }
@@ -258,8 +261,9 @@ model Device {
   changes  DeviceChange[]
   sessions StaffSession[]
 
-  payments Payment[]
+  payments   Payment[]
   cashShifts CashShift[]
+
   @@unique([tenantId, id])
   @@map("device")
 }
@@ -341,7 +345,8 @@ model ExchangeRate {
   tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   confirmation ExchangeRateConfirmation?
 
-  payments     Payment[]
+  payments Payment[]
+
   @@unique([tenantId, id])
   /// Dos capturas del mismo par en el mismo instante serían una reescritura disfrazada.
   @@unique([tenantId, pair, capturedAt])
@@ -448,18 +453,18 @@ model Payment {
   /// El terminal por el que pasó la tarjeta, de esta misma sucursal (FK compuesta).
   terminalId       String?  @map("terminal_id") @db.Uuid
 
-  branch       Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  medio        PaymentMethod @relation(fields: [tenantId, method, currency], references: [tenantId, code, currency], onDelete: Restrict, onUpdate: Restrict)
-  terminal     PosTerminal?  @relation(fields: [tenantId, branchId, terminalId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
-  rate         ExchangeRate? @relation(fields: [tenantId, rateId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  reverses     Payment?      @relation("PaymentReversal", fields: [tenantId, reversesId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  reversedBy   Payment[]     @relation("PaymentReversal")
-  recorder     StaffUser?    @relation("PaymentRecordedBy", fields: [tenantId, recordedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  authorizer   StaffUser?    @relation("PaymentAuthorizedBy", fields: [tenantId, authorizedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  device       Device?       @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  shift        CashShift     @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch     Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  medio      PaymentMethod @relation(fields: [tenantId, method, currency], references: [tenantId, code, currency], onDelete: Restrict, onUpdate: Restrict)
+  terminal   PosTerminal?  @relation(fields: [tenantId, branchId, terminalId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
+  rate       ExchangeRate? @relation(fields: [tenantId, rateId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  reverses   Payment?      @relation("PaymentReversal", fields: [tenantId, reversesId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  reversedBy Payment[]     @relation("PaymentReversal")
+  recorder   StaffUser?    @relation("PaymentRecordedBy", fields: [tenantId, recordedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  authorizer StaffUser?    @relation("PaymentAuthorizedBy", fields: [tenantId, authorizedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  device     Device?       @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  shift      CashShift     @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   /// El documento es la cuenta que se cobra (B3-3): un asiento no cita una cuenta de otro local.
-  account      Account       @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account    Account       @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   /// I-11: la misma operación no se asienta dos veces.
@@ -572,6 +577,7 @@ model CashShift {
   closer   StaffUser?       @relation("ShiftClosedBy", fields: [tenantId, closedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   floats   CashShiftFloat[]
   payments Payment[]
+  sales    Sale[]
 
   @@unique([tenantId, id])
   @@index([tenantId, branchId, businessDate])
@@ -597,16 +603,16 @@ model CashShiftFloat {
 /// Un feriado bancario del local (B2-4, D-FER): no es día hábil, y la tasa del día hábil anterior
 /// lo cubre. No se borra: uno registrado por error se retira, una vez, con quién y cuándo.
 model BankHoliday {
-  id              String    @id @default(uuid(7)) @db.Uuid
-  tenantId        String    @map("tenant_id") @db.Uuid
-  day             DateTime  @db.Date
-  name            String
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  createdBy       String?   @map("created_by") @db.Uuid
-  createdByName   String    @map("created_by_name")
-  retiredAt       DateTime? @map("retired_at") @db.Timestamptz(3)
-  retiredBy       String?   @map("retired_by") @db.Uuid
-  retiredByName   String?   @map("retired_by_name")
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  day           DateTime  @db.Date
+  name          String
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdByName String    @map("created_by_name")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredBy     String?   @map("retired_by") @db.Uuid
+  retiredByName String?   @map("retired_by_name")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
@@ -687,6 +693,7 @@ model Account {
   branch   Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   versions AccountVersion[]
   payments Payment[]
+  sales    Sale[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -718,4 +725,83 @@ model AccountVersion {
   /// Dos cambios a la vez sobre la misma versión: el segundo tropieza aquí y se le dice CONFLICTO.
   @@unique([tenantId, accountId, version])
   @@map("account_version")
+}
+
+/// Una venta (B3-4, C12, DEC-24): la foto de un cobro de una cuenta, con sus datos (líneas, IVA,
+/// IGTF, tasa, pagos con lo que se devolvería, lo que sobró). Nace en la transacción del cobro y no
+/// se toca: sus impresiones y su anulación se añaden en tablas propias.
+model Sale {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  accountId    String   @map("account_id") @db.Uuid
+  /// La clave del cobro en el libro: una venta por cobro.
+  operationKey String   @map("operation_key") @db.Uuid
+  shiftId      String   @map("shift_id") @db.Uuid
+  businessDate DateTime @map("business_date") @db.Date
+  closedAt     DateTime @map("closed_at") @db.Timestamptz(3)
+  cashierId    String?  @map("cashier_id") @db.Uuid
+  cashierName  String   @map("cashier_name")
+  deviceId     String?  @map("device_id") @db.Uuid
+  orderNumber  Int      @map("order_number")
+  totalMinor   BigInt   @map("total_minor")
+  currency     String
+  /// Lo cobrado, con la forma de `VentaCerradaSchema` sin impresiones ni anulación.
+  content      Json
+
+  branch  Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account Account     @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  shift   CashShift   @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  prints  SalePrint[]
+  voids   SaleVoid[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, shiftId, closedAt])
+  @@map("sale")
+}
+
+/// Una impresión del recibo de una venta (§5.4): la primera es el original; las demás, copias.
+model SalePrint {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  saleId        String   @map("sale_id") @db.Uuid
+  printedAt     DateTime @map("printed_at") @db.Timestamptz(3)
+  printedBy     String?  @map("printed_by") @db.Uuid
+  printedByName String   @map("printed_by_name")
+  deviceId      String?  @map("device_id") @db.Uuid
+  copy          Boolean
+
+  sale Sale @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, saleId, printedAt])
+  @@map("sale_print")
+}
+
+/// La anulación de una venta (DEC-24): una por venta, con quién la pidió y autorizó, el motivo y
+/// cómo volvió el dinero de cada pago (las referencias de devolución, cifradas).
+model SaleVoid {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  saleId           String   @map("sale_id") @db.Uuid
+  /// La clave de la anulación en el libro (sus reversiones).
+  operationKey     String   @map("operation_key") @db.Uuid
+  voidedAt         DateTime @map("voided_at") @db.Timestamptz(3)
+  requestedBy      String?  @map("requested_by") @db.Uuid
+  requestedByName  String   @map("requested_by_name")
+  authorizedBy     String   @map("authorized_by") @db.Uuid
+  authorizedByName String   @map("authorized_by_name")
+  authorizedByRole String   @map("authorized_by_role")
+  reason           String
+  note             String?
+  /// [{ paymentIndex, via, amountMinor, currency, referenceCipher }]
+  refunds          Json
+
+  sale Sale @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, saleId])
+  @@unique([tenantId, operationKey])
+  @@map("sale_void")
 }

@@ -6,7 +6,7 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { AnularCobroCommandSchema, CobrarCuentaCommandSchema, GuardarCuentaCommandSchema } from "./cuentas.ts";
+import { AnularCobroCommandSchema, CobrarCuentaCommandSchema, CortesiaCommandSchema, GuardarCuentaCommandSchema } from "./cuentas.ts";
 
 const UUID = "0192f0a0-0000-7000-8000-000000000001";
 const UUID2 = "0192f0a0-0000-7000-8000-000000000002";
@@ -57,8 +57,18 @@ describe("cobrar", () => {
 
 describe("anular", () => {
   test("«Otro» exige explicarlo", () => {
-    const anular = { idempotencyKey: UUID2, accountId: UUID, cobroKey: UUID, motivo: "OTRO" };
+    const anular = { idempotencyKey: UUID2, accountId: UUID, cobroKey: UUID, motivo: "OTRO", devoluciones: [] };
     assert.equal(AnularCobroCommandSchema.safeParse(anular).success, false);
     assert.equal(AnularCobroCommandSchema.safeParse({ ...anular, detalle: "Se cobró dos veces" }).success, true);
+    const dos = [{ paymentIndex: 0, via: "EFECTIVO" }, { paymentIndex: 0, via: "EFECTIVO" }];
+    assert.equal(AnularCobroCommandSchema.safeParse({ ...anular, detalle: "Se cobró dos veces", devoluciones: dos }).success, false);
+  });
+
+  test("una cortesía lleva su motivo; quitarla, no", () => {
+    const c = { idempotencyKey: UUID2, accountId: UUID, version: 2, lineId: "l1", quitar: false };
+    assert.equal(CortesiaCommandSchema.safeParse(c).success, false);
+    assert.equal(CortesiaCommandSchema.safeParse({ ...c, motivo: "INVITACION" }).success, true);
+    assert.equal(CortesiaCommandSchema.safeParse({ ...c, motivo: "OTRO" }).success, false);
+    assert.equal(CortesiaCommandSchema.safeParse({ ...c, quitar: true }).success, true);
   });
 });

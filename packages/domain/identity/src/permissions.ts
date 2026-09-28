@@ -289,6 +289,9 @@ export function isReachable(
 /** Los roles que pueden dar la autorización de un 🔐 (§7.3, DEC-24). */
 const AUTORIZADORES: readonly Role[] = ["ADMIN", "SUPERVISOR"];
 
+/** Lo que nadie se autoriza a sí mismo (D-AUT): la tasa y los ajustes de inventario. */
+export const SIN_AUTORIZARSE_A_SI_MISMO: readonly Action[] = ["tasa.confirmar", "inventario.ajustar"];
+
 /**
  * ¿Puede `authorizer` autorizar que `requester` haga `action`?
  *
@@ -298,8 +301,10 @@ const AUTORIZADORES: readonly Role[] = ["ADMIN", "SUPERVISOR"];
  * permitida sin más, no hay nada que autorizar; si la tiene denegada, nadie
  * se la abre.
  *
- * Un supervisor puede autorizarse a sí mismo: con dos personas en el turno
- * no siempre hay un segundo. Queda igual el motivo y su PIN en auditoría.
+ * Un supervisor puede autorizarse a sí mismo en la caja: con dos personas en
+ * el turno no siempre hay un segundo (DEC-24). Queda igual el motivo y su PIN
+ * en auditoría. Donde no hay prisa y mueve lo que cobra todo el local —la
+ * tasa, el inventario—, no (D-AUT, B3-4): lo autoriza otra persona.
  */
 export function canAuthorize(
   authorizer: Actor,
@@ -308,6 +313,7 @@ export function canAuthorize(
   context?: { branchId?: string },
 ): boolean {
   if (!AUTORIZADORES.includes(authorizer.role)) return false;
+  if (authorizer.id === requester.id && SIN_AUTORIZARSE_A_SI_MISMO.includes(action)) return false;
   if (can(requester, action, context) !== "REQUIERE_AUTORIZACION") return false;
   return isReachable(authorizer, action, context);
 }

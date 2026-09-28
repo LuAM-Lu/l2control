@@ -11,7 +11,8 @@
  *  · **qué cambio acepta el servidor** de una pantalla (`accountChangeProblem`). La pantalla arma
  *    la cuenta nueva con sus transiciones; el servidor la compara con la que tiene y rechaza lo que
  *    solo él puede hacer. La regla que lo ordena: **una línea pagada no se toca, y marcar pagado
- *    es del cobro**, nunca de un «guardar».
+ *    es del cobro**, nunca de un «guardar»; regalar es de la cortesía (`courtesyProblem`,
+ *    `withCourtesy`), con su autorización.
  *
  * Los tipos son estructurales: la forma del contrato (`FamilyAccountSchema`) encaja sin que el
  * dominio lo importe. Validarla contra el contrato es de quien llama.
@@ -141,7 +142,7 @@ export type AccountChangeProblem =
   | "LINEA_ALTERADA"
   | "PAGO_DESDE_LA_PANTALLA"
   | "MOVIDA_OTRA_VEZ"
-  | "CORTESIA_EN_PAGADA"
+  | "CORTESIA_DESDE_LA_PANTALLA"
   | "DIVISION_ALTERADA"
   | "MOSTRADOR_SIN_PRODUCTO"
   | "PRODUCTO_QUE_NO_SE_VENDE"
@@ -203,14 +204,16 @@ export function accountChangeProblem(
       if (!mismoContenido(antes, l)) return { problem: "LINEA_ALTERADA", lineId: l.id };
       if (antes.paid !== l.paid) return { problem: "PAGO_DESDE_LA_PANTALLA", lineId: l.id };
       if (antes.movedTo !== undefined && l.movedTo !== antes.movedTo) return { problem: "MOVIDA_OTRA_VEZ", lineId: l.id };
-      if (antes.paid && JSON.stringify(antes.cortesia ?? null) !== JSON.stringify(l.cortesia ?? null)) {
-        return { problem: "CORTESIA_EN_PAGADA", lineId: l.id };
+      // Regalar es un mando propio, con su autorización (B3-4): un «guardar» no da ni quita cortesías.
+      if (JSON.stringify(antes.cortesia ?? null) !== JSON.stringify(l.cortesia ?? null)) {
+        return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
       }
       if (antes.paid && l.movedTo !== antes.movedTo) return { problem: "MOVIDA_OTRA_VEZ", lineId: l.id };
       continue;
     }
-    // Una línea nueva nace sin pagar: lo pagado lo marca el cobro.
+    // Una línea nueva nace sin pagar y sin regalar: lo uno lo marca el cobro y lo otro la cortesía.
     if (l.paid) return { problem: "PAGO_DESDE_LA_PANTALLA", lineId: l.id };
+    if (l.cortesia !== undefined) return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
     if (after.kind === "MOSTRADOR" && l.productId === undefined) return { problem: "MOSTRADOR_SIN_PRODUCTO", lineId: l.id };
     if (l.productId !== undefined) {
       const p = productAt(l.productId);
@@ -226,4 +229,39 @@ export function accountChangeProblem(
     }
   }
   return null;
+}
+
+/* ────────────────────────────────────────────── la cortesía (F6-14, B3-4) */
+
+export type CourtesyProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_REGALADA" | "NO_REGALADA";
+
+/**
+ * ¿Se puede regalar (o dejar de regalar, con `quitar`) esta línea? Solo lo que se debe todavía: una
+ * línea pagada se corrige anulando el cobro, y una movida a otra cuenta se regala allí.
+ */
+export function courtesyProblem(c: Pick<AccountDoc, "lines">, lineId: string, quitar: boolean): CourtesyProblem | null {
+  const l = c.lines.find((x) => x.id === lineId);
+  if (!l) return "LINEA_DESCONOCIDA";
+  if (l.paid) return "LINEA_PAGADA";
+  if (l.movedTo) return "LINEA_MOVIDA";
+  if (!quitar && l.cortesia) return "YA_REGALADA";
+  if (quitar && !l.cortesia) return "NO_REGALADA";
+  return null;
+}
+
+/**
+ * La cuenta con esa línea regalada (`cortesia`) o cobrable otra vez (`null`). Lo regalado se queda
+ * con su importe (F6-14): deja de sumar, pero se sabe cuánto se dio. El estado no cambia: una cuenta
+ * en la cola sigue en ella, aunque ya no se deba nada, para cerrarla en la caja.
+ */
+export function withCourtesy<A extends AccountDoc>(c: A, lineId: string, cortesia: unknown | null): A {
+  return {
+    ...c,
+    lines: c.lines.map((l) => {
+      if (l.id !== lineId) return l;
+      if (cortesia !== null) return { ...l, cortesia };
+      const { cortesia: _, ...sin } = l;
+      return sin;
+    }),
+  };
 }

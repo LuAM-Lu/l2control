@@ -674,3 +674,100 @@ test("A no guarda versiones de una cuenta de B", async () => {
   const deB = await cuenta(B);
   await assert.rejects(version(A, deB.id), por("REFERENCIA_INVALIDA"));
 });
+
+/* ── Las ventas (B3-4) ──────────────────────────────────────────────────────── */
+
+const venta = async (t: { tenant: string; sucursal: string; doc: string }, extra: Record<string, unknown> = {}) => {
+  const shiftId = await turnoDe(t);
+  const operationKey = randomUUID();
+  return app.conTenant(t.tenant, (tx) =>
+    tx.sale.create({
+      data: {
+        tenantId: t.tenant,
+        branchId: t.sucursal,
+        accountId: t.doc,
+        operationKey,
+        shiftId,
+        businessDate: new Date("2026-09-27"),
+        closedAt: new Date(),
+        cashierName: "Marisol Prieto",
+        orderNumber: 1,
+        totalMinor: 116n,
+        currency: "USD",
+        content: { accountId: t.doc, cobroKey: operationKey, total: { minor: "116", currency: "USD" } },
+        ...extra,
+      } as never,
+    }),
+  );
+};
+
+test("una venta no se reescribe ni se borra, y su contenido es el de su fila", async () => {
+  const v = await venta(A);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.sale.update({ where: { id: v.id }, data: { totalMinor: 1n } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.sale.delete({ where: { id: v.id } })), SOLO_AGREGAR);
+  const malos: Record<string, unknown>[] = [
+    { totalMinor: 117n }, // el total de la columna no es el del contenido
+    { content: { accountId: A.doc2, cobroKey: randomUUID(), total: { minor: "116", currency: "USD" } } }, // otra cuenta
+    { currency: "VES" },
+    { cashierName: " " },
+  ];
+  for (const [i, extra] of malos.entries()) {
+    await assert.rejects(venta(A, extra), por("RESTRICCION"), String(i));
+  }
+  // Una venta por cobro.
+  await assert.rejects(venta(A, { operationKey: v.operationKey, content: { accountId: A.doc, cobroKey: v.operationKey, total: { minor: "116", currency: "USD" } } }), por("DUPLICADO"));
+});
+
+test("una venta entra en un turno de su sucursal y cita una cuenta de su local", async () => {
+  await assert.rejects(venta(A, { shiftId: await turnoDe(B) }), por("REFERENCIA_INVALIDA"));
+  await assert.rejects(venta({ ...A, doc: B.doc }), por("REFERENCIA_INVALIDA"));
+});
+
+test("las impresiones y la anulación se añaden; la referencia de una devolución nunca va en claro", async () => {
+  const v = await venta(A);
+  const imprimir = (extra: Record<string, unknown> = {}) =>
+    app.conTenant(A.tenant, (tx) =>
+      tx.salePrint.create({ data: { tenantId: A.tenant, saleId: v.id, printedAt: new Date(), printedByName: "Marisol Prieto", copy: false, ...extra } as never }),
+    );
+  const p = await imprimir();
+  await imprimir({ copy: true });
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.salePrint.update({ where: { id: p.id }, data: { copy: true } })), SOLO_AGREGAR);
+
+  const anular = (extra: Record<string, unknown> = {}) =>
+    app.conTenant(A.tenant, (tx) =>
+      tx.saleVoid.create({
+        data: {
+          tenantId: A.tenant,
+          saleId: v.id,
+          operationKey: randomUUID(),
+          voidedAt: new Date(),
+          requestedByName: "Marisol Prieto",
+          authorizedBy: randomUUID(),
+          authorizedByName: "Luis Guerrero",
+          authorizedByRole: "SUPERVISOR",
+          reason: "ERROR_EN_COBRO",
+          refunds: [{ paymentIndex: 0, via: "MISMO_MEDIO", amountMinor: "116", currency: "USD", referenceCipher: CIFRADO }],
+          ...extra,
+        } as never,
+      }),
+    );
+  const malos: Record<string, unknown>[] = [
+    { refunds: [{ paymentIndex: 0, reference: "004821" }] }, // la referencia en claro
+    { reason: "OTRO" }, // «Otro» sin explicarlo
+    { authorizedByRole: "CAJERO" },
+    { reason: "PORQUE_SI" },
+  ];
+  for (const [i, extra] of malos.entries()) {
+    await assert.rejects(anular(extra), por("RESTRICCION"), String(i));
+  }
+  const a = await anular();
+  await assert.rejects(anular(), por("DUPLICADO")); // una anulación por venta
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.saleVoid.delete({ where: { id: a.id } })), SOLO_AGREGAR);
+});
+
+test("una cortesía es un cambio de la cuenta con su operación", async () => {
+  const c = await cuenta(A);
+  await version(A, c.id);
+  await version(A, c.id, { version: 2, cause: "CORTESIA", operationKey: randomUUID() });
+  await assert.rejects(version(A, c.id, { version: 3, cause: "CORTESIA" }), por("RESTRICCION"));
+});

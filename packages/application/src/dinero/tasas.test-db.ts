@@ -46,10 +46,11 @@ async function capturada(ctx: Contexto, value: string, dia?: string): Promise<Ex
   return r.valor;
 }
 
+let supervisor: string;
 before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Tasas");
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
-  const supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
+  supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   const cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
   // Un equipo por persona: un equipo tiene una sola sesión abierta (DEC-17).
   ctxAdmin = await contextoDe(local, await crearEquipo(local, "Oficina"), admin, "4826");
@@ -239,9 +240,15 @@ describe("supervisión confirma con autorización (🔐, §7.3)", () => {
     assert.equal(r.ok ? "ok" : r.motivo, "NO_PERMITIDO");
   });
 
-  test("la lista de quién autoriza incluye a la administración; la administración no necesita a nadie", async () => {
+  test("supervisión no se autoriza a sí misma una tasa (D-AUT): la confirma otra persona", async () => {
+    const r = await confirmar(ctxSupervisor, { rateId: pendiente.id }, { autorizadorId: supervisor, pin: "5937", motivo });
+    assert.equal(r.ok ? "ok" : r.mensaje, "Esa persona no puede autorizar esto.");
+  });
+
+  test("la lista de quién autoriza incluye a la administración, no a quien pide; la administración no necesita a nadie", async () => {
     const lista = await local.app.tasas.autorizadores(ctxSupervisor);
     assert.ok(lista.some((p) => p.nombre === "Abigail Karam"), JSON.stringify(lista));
+    assert.ok(!lista.some((p) => p.nombre === "Luis Guerrero"), JSON.stringify(lista));
     assert.deepEqual(await local.app.tasas.autorizadores(ctxAdmin), []);
   });
 

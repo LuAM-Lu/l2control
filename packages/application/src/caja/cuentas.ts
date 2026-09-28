@@ -19,10 +19,12 @@
 import {
   AnularCobroCommandSchema,
   CobrarCuentaCommandSchema,
+  CortesiaCommandSchema,
   CuentaYLibroSchema,
   CuentasDelLocalSchema,
   FamilyAccountSchema,
   GuardarCuentaCommandSchema,
+  enmascararDocumento,
   problemasDe,
   type AsentarPagosCommand,
   type CuentaYLibroDto,
@@ -30,6 +32,7 @@ import {
   type FamilyAccountDto,
   type Rechazo,
   type Resultado,
+  type VentaCerradaDto,
 } from "@l2/contracts";
 import {
   RetainedAboveThresholdError,
@@ -39,12 +42,16 @@ import {
   chargeableLines,
   closeSettlement,
   computeBalance,
+  courtesyProblem,
   documentLinesOf,
   isDiscardedDraft,
   linesPaidBetween,
   markPartPaid,
+  refundableByTender,
   revertPaid,
+  withCourtesy,
   type AccountChangeProblem,
+  type CourtesyProblem,
   type AccountKind,
   type ChangeDisposition,
   type ProductAtNow,
@@ -53,7 +60,17 @@ import {
 } from "@l2/domain-cash";
 import { add, allocate, money, zero, type CurrencyCode, type Money } from "@l2/domain-money";
 import { calendarDay, citedRateValid, frozenRateOf, startOfDay } from "@l2/domain-rates";
-import { NoApplicableRuleError, NoIgtfRuleError, computeDocument, computeIgtf, igtfAt, ivaRulesOf, taxTimeline, type TaxCode } from "@l2/domain-tax";
+import {
+  NoApplicableRuleError,
+  NoIgtfRuleError,
+  computeDocument,
+  computeIgtf,
+  igtfAt,
+  ivaRulesOf,
+  taxTimeline,
+  type DocumentTotals,
+  type TaxCode,
+} from "@l2/domain-tax";
 import { periodAt, priceTimeline } from "@l2/domain-inventory";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Action } from "@l2/domain-identity";
@@ -70,11 +87,13 @@ import {
   huellasDe,
   leerLibroEn,
   problemaDeReversion,
+  referenciaDe,
   revertirAsientoEn,
   yaAsentado,
 } from "../dinero/pagos.ts";
 import { historialParaCobrar, ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
 import { turnoParaCobrar } from "./turnos.ts";
+import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
@@ -100,9 +119,17 @@ export interface CasosCuentas {
    * cola. `autorizacion` es la del 🔐 cuando quien lo pide no puede anular por sí mismo.
    */
   anular(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<CuentaYLibroDto>>;
-  /** Quiénes pueden autorizar a quien opera a anular un cobro (vacío si no le hace falta). */
-  autorizadores(ctx: Contexto): Promise<{ id: string; nombre: string; rol: string }[]>;
+  /**
+   * Regala una línea o deja de regalarla (`CortesiaCommandSchema`, F6-14). `autorizacion` es la del
+   * 🔐 de quien la concede, o el PIN de quien puede darla por sí mismo.
+   */
+  cortesia(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
+  /** Quiénes pueden autorizar a quien opera a anular o a regalar (vacío si no le hace falta). */
+  autorizadores(ctx: Contexto, accion?: "cobro.anular" | "cuenta.cortesia"): Promise<{ id: string; nombre: string; rol: string }[]>;
 }
+
+/** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
+const CON_PIN = { confirmarConPin: true } as const;
 
 /** Quién puede ver las cuentas: quien trabaja con alguna (entrada, salida, mesas o caja). */
 const VEN_CUENTAS: readonly Action[] = ["parque.checkIn", "parque.checkOut", "parque.vincularMesa", "pedido.tomar", "documento.emitir"];
@@ -123,7 +150,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   LINEA_ALTERADA: "Una línea de la cuenta no se cambia: se quita o se añade otra.",
   PAGO_DESDE_LA_PANTALLA: "Marcar pagado es de la caja al cobrar.",
   MOVIDA_OTRA_VEZ: "Esa línea ya se movió a otra cuenta.",
-  CORTESIA_EN_PAGADA: "Lo ya cobrado no se regala: se anula el cobro.",
+  CORTESIA_DESDE_LA_PANTALLA: "Una cortesía se da con su autorización, no al guardar la cuenta.",
   DIVISION_ALTERADA: "Con partes cobradas, la división no se cambia.",
   MOSTRADOR_SIN_PRODUCTO: "Una venta de mostrador vende del catálogo.",
   PRODUCTO_QUE_NO_SE_VENDE: "Ese producto ya no se vende.",
@@ -200,10 +227,6 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           if (cambio) {
             const i = cambio.lineId ? enviada.lines.findIndex((l) => l.id === cambio.lineId) : -1;
             return invalido(MENSAJE_CAMBIO[cambio.problem], i >= 0 ? ["cuenta", "lines", i] : ["cuenta"], cambio.problem);
-          }
-          // Regalar es de quien puede dar cortesías (la autorización 🔐 en el servidor llega con B3-4).
-          if (cambiaCortesia(antes, enviada) && (await permisoEn(tx, ctx, "cuenta.cortesia")) === "DENEGADO") {
-            return rechazoDePermiso("DENEGADO");
           }
           // Guardar lo mismo no añade versión: el sondeo de una pantalla no llena el historial.
           if (antes && mismaCuenta(antes, enviada)) return antes;
@@ -282,7 +305,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
           if (previa) {
             if (previa.accountId !== cmd.accountId || previa.cause !== "COBRO") return conflictoDeClave;
-            return cuentaYLibro(tx, cmd.accountId, cifrador);
+            return cuentaYLibro(tx, cmd.accountId, cmd.idempotencyKey, cifrador);
           }
 
           const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
@@ -303,9 +326,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
 
           // El IVA y el IGTF del instante (B2-2): sin ellos no se cobra con un impuesto supuesto.
           const periodos = taxTimeline((await tx.taxRate.findMany()).map(programadaDeFila));
-          let total: Money;
+          let doc: DocumentTotals;
           try {
-            total = computeDocument({ lines: documentLinesOf(cuenta), rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL }).total;
+            doc = computeDocument({ lines: documentLinesOf(cuenta), rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL });
           } catch (e) {
             if (!(e instanceof NoApplicableRuleError)) throw e;
             return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay IVA vigente para lo que se cobra: configúralo en Impuestos." };
@@ -313,7 +336,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           // La parte que toca (F6-12): el reparto del total con el mayor resto; sin dividir (o con
           // todas las partes ya cobradas y algo nuevo que cobrar), el total.
           const split = cuenta.split && cuenta.split.paid < cuenta.split.parts ? cuenta.split : null;
-          const parte = split ? allocate(total, split.parts)[split.paid]! : total;
+          const parte = split ? allocate(doc.total, split.parts)[split.paid]! : doc.total;
 
           // Cada pago con su medio del catálogo y, en bolívares, la tasa que cita.
           const catalogo = await catalogoDe(tx, ctx.branchId);
@@ -325,6 +348,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             medios.push(medio);
           }
           let tasa: ReturnType<typeof frozenRateOf> | null = null;
+          let valorDeLaTasa: string | null = null;
           if (cmd.rateId) {
             const { registros, feriados } = await historialParaCobrar(tx);
             const citada = registros.find((r) => r.id === cmd.rateId);
@@ -338,6 +362,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               };
             }
             tasa = frozenRateOf(citada);
+            valorDeLaTasa = citada.value;
           }
           const tenders: Tender[] = cmd.pagos.map((p, i) => ({
             method: { code: medios[i]!.code, label: medios[i]!.label, currency: medios[i]!.currency, canGiveChange: medios[i]!.givesChange },
@@ -416,8 +441,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               ? [{ kind: TIPO_DE_SOBRA[cmd.destinoSobra], method: MEDIO_DE_LO_QUE_SOBRA, amount: { minor: String(sobra.amount), currency: FUNCIONAL } }]
               : []),
           ];
+          let filas: Awaited<ReturnType<typeof asentarEn>> = [];
           if (asientos.length > 0) {
-            const filas = await asentarEn(
+            filas = await asentarEn(
               tx,
               ctx,
               { idempotencyKey: cmd.idempotencyKey, documentId: cmd.accountId, asientos },
@@ -451,7 +477,62 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               sobra: { minor: String(sobra.amount), currency: FUNCIONAL, destino: sobra.amount > 0n ? cmd.destinoSobra : null },
             },
           });
-          return { cuenta: nueva, libro: await leerLibroEn(tx, cmd.accountId, cifrador) };
+
+          // La venta: la foto de lo cobrado (C12). El recibo sale de aquí, no de la pantalla.
+          const devolvible = refundableByTender(tenders, sobra, FUNCIONAL);
+          const conDinero = (m: Money) => ({ minor: String(m.amount), currency: m.currency });
+          const venta = {
+            orderNumber: cuenta.orderNumber!,
+            accountId: cuenta.id,
+            cobroKey: cmd.idempotencyKey,
+            closedAt: new Date(ahora).toISOString(),
+            businessDate: turno.businessDate.toISOString().slice(0, 10),
+            cashier: quien.nombre,
+            cuenta: { kind: cuenta.kind, family: cuenta.family, tableLabel: cuenta.tableLabel ?? null },
+            parte: split ? { n: split.paid + 1, de: split.parts } : null,
+            cliente:
+              cmd.cliente?.kind === "IDENTIFICADO"
+                ? { kind: "IDENTIFICADO", name: cmd.cliente.name, document: enmascararDocumento(cmd.cliente.document) }
+                : { kind: "CONSUMIDOR_FINAL" },
+            // Lo que se cobra y lo que se regala en este cobro (lo regalado, con su motivo).
+            lineas: cuenta.lines
+              .filter((l) => !l.paid && !l.movedTo)
+              .map((l) => ({ lineId: l.id, concept: l.concept, amount: l.amount, cortesia: l.cortesia?.motivo ?? null })),
+            subtotal: conDinero(doc.subtotal),
+            impuestos: doc.buckets.map((b) => ({ basisPoints: b.basisPoints, tax: conDinero(b.tax) })),
+            igtf: { basisPoints: igtfBps, amount: conDinero(igtfTotal) },
+            total: conDinero(aCobrar),
+            tasa: cmd.rateId && valorDeLaTasa ? { id: cmd.rateId, value: valorDeLaTasa } : null,
+            payments: tenders.map((t, i) => ({
+              methodCode: medios[i]!.code,
+              label: medios[i]!.label,
+              cash: medios[i]!.givesChange,
+              dataKind: medios[i]!.dataKind,
+              paid: conDinero(t.amount),
+              refundable: conDinero(devolvible[i]!),
+              referencia: filas[i] ? referenciaDe(filas[i]!, cifrador) : null,
+            })),
+            sobra: sobra.amount > 0n ? { amount: conDinero(sobra), destino: cmd.destinoSobra } : null,
+          };
+          await tx.sale.create({
+            data: {
+              tenantId: ctx.tenantId,
+              branchId: ctx.branchId,
+              accountId: cuenta.id,
+              operationKey: cmd.idempotencyKey,
+              shiftId: turno.id,
+              businessDate: turno.businessDate,
+              closedAt: new Date(ahora),
+              cashierId: ctx.quien?.userId ?? null,
+              cashierName: quien.nombre,
+              deviceId: ctx.quien?.deviceId ?? null,
+              orderNumber: venta.orderNumber,
+              totalMinor: aCobrar.amount,
+              currency: FUNCIONAL,
+              content: venta,
+            },
+          });
+          return cuentaYLibro(tx, cmd.accountId, cmd.idempotencyKey, cifrador);
         });
 
       try {
@@ -486,7 +567,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
           if (previa) {
             if (previa.accountId !== cmd.accountId || previa.cause !== "ANULACION") return conflictoDeClave;
-            return cuentaYLibro(tx, cmd.accountId, cifrador);
+            return cuentaYLibro(tx, cmd.accountId, cmd.cobroKey, cifrador);
           }
 
           const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
@@ -503,12 +584,46 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             if (problema) return invalido("Ese cobro no se puede anular.", ["cobroKey"], problema);
           }
 
+          // Cómo vuelve el dinero de cada pago (DEC-24): el que tiene algo que devolver, una vez, y lo
+          // que no entró en efectivo, por su medio con la referencia de la devolución o en efectivo
+          // explicándolo.
+          const venta = await ventaDelCobro(tx, cmd.cobroKey, cifrador);
+          if (!venta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay venta de ese cobro." };
+          const devoluciones: DevolucionGuardada[] = [];
+          for (const [k, pago] of venta.payments.entries()) {
+            const d = cmd.devoluciones.find((x) => x.paymentIndex === k);
+            if (BigInt(pago.refundable.minor) === 0n) {
+              if (d) return invalido("De ese pago no queda nada que devolver.", ["devoluciones"], "Sin devolución");
+              continue;
+            }
+            if (!d) return invalido(`Falta decir cómo se devuelve ${pago.label}.`, ["devoluciones"], "Falta la devolución");
+            if (pago.cash && d.via !== "MISMO_MEDIO") return invalido("El efectivo se devuelve en efectivo.", ["devoluciones"], "Vía del efectivo");
+            if (!pago.cash && d.via === "MISMO_MEDIO" && !d.reference) {
+              return invalido(pago.dataKind === "PUNTO" ? "Escribe la aprobación de la anulación en el terminal." : "Escribe la referencia de la devolución.", ["devoluciones"], "Falta la referencia");
+            }
+            if (!pago.cash && d.via === "EFECTIVO" && (cmd.detalle?.length ?? 0) < 5) {
+              return invalido("Devolver en efectivo lo que no entró en efectivo exige explicarlo.", ["detalle"], "Falta explicarlo");
+            }
+            if (d.reference && !cifrador) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Este servidor no puede guardar referencias (falta L2_CLAVE_CIFRADO)." };
+            devoluciones.push({
+              paymentIndex: k,
+              via: d.via,
+              amountMinor: pago.refundable.minor,
+              currency: pago.refundable.currency,
+              referenceCipher: d.reference && !pago.cash ? cifrador!.cifrar(d.reference) : null,
+            });
+          }
+          if (cmd.devoluciones.some((d) => d.paymentIndex >= venta.payments.length)) {
+            return invalido("Una devolución apunta a un pago que no existe.", ["devoluciones"], "Pago desconocido");
+          }
+
           // DEC-24: la autorización se comprueba y se registra ANTES de tocar el libro. El dinero
           // vuelve desde la gaveta de este equipo: hace falta su turno abierto.
           const turno = await turnoParaCobrar(tx, ctx);
           if ("ok" in turno) return turno;
-          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cobro.anular", autorizacion, ahora);
+          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cobro.anular", autorizacion, ahora, CON_PIN);
           if (!permiso.ok) return permiso;
+          const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { fullName: true, role: true } });
 
           for (const [linea, original] of asientos.entries()) {
             await revertirAsientoEn(tx, ctx, {
@@ -554,7 +669,23 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             before: resumenDe(vigente),
             after: { ...resumenDe(nueva), cobroKey: cmd.cobroKey, detalle: cmd.detalle ?? null },
           });
-          return { cuenta: nueva, libro: await leerLibroEn(tx, cmd.accountId, cifrador) };
+          await tx.saleVoid.create({
+            data: {
+              tenantId: ctx.tenantId,
+              saleId: venta.id,
+              operationKey: cmd.idempotencyKey,
+              voidedAt: new Date(ahora),
+              requestedBy: ctx.quien?.userId ?? null,
+              requestedByName: quien.nombre,
+              authorizedBy: permiso.autorizadoPor!,
+              authorizedByName: autorizador.fullName,
+              authorizedByRole: autorizador.role,
+              reason: cmd.motivo,
+              note: cmd.detalle ?? null,
+              refunds: devoluciones,
+            },
+          });
+          return cuentaYLibro(tx, cmd.accountId, cmd.cobroKey, cifrador);
         });
 
       try {
@@ -573,11 +704,86 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       }
     },
 
-    async autorizadores(ctx) {
-      return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, "cobro.anular"));
+    async cortesia(ctx, entrada, autorizacion, ahora = Date.now()) {
+      const v = CortesiaCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "La cortesía no se aplicó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<FamilyAccountDto | Rechazo> => {
+          const p = await permisoEn(tx, ctx, "cuenta.cortesia");
+          if (p === "DENEGADO") return rechazoDePermiso(p);
+          // Un doble clic devuelve la cuenta como quedó, sin volver a pedir el PIN.
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.accountId !== cmd.accountId || previa.cause !== "CORTESIA") return conflictoDeClave;
+            return (await vigenteDe(tx, cmd.accountId))!.cuenta;
+          }
+
+          const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
+          if (!fila || fila.branchId !== ctx.branchId) return noExiste;
+          const actual = (await vigenteDe(tx, cmd.accountId))!;
+          if (actual.version !== cmd.version) return cuentaCambiada;
+          const problema = courtesyProblem(actual.cuenta, cmd.lineId, cmd.quitar);
+          if (problema) return invalido(MENSAJE_CORTESIA[problema], ["lineId"], problema);
+
+          // La autorización se comprueba y se registra ANTES de regalar nada (§7.3).
+          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cuenta.cortesia", autorizacion, ahora, CON_PIN);
+          if (!permiso.ok) return permiso;
+          const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { id: true, fullName: true, role: true } });
+
+          const cortesia = cmd.quitar
+            ? null
+            : {
+                motivo: cmd.motivo!,
+                ...(cmd.detalle ? { detalle: cmd.detalle } : {}),
+                autorizadaPor: { id: autorizador.id, name: autorizador.fullName, role: autorizador.role },
+                en: new Date(ahora).toISOString(),
+              };
+          const nueva = FamilyAccountSchema.parse({ ...withCourtesy(actual.cuenta, cmd.lineId, cortesia), version: actual.version + 1 });
+          const quien = await nombreDe(tx, ctx);
+          await guardarVersion(tx, ctx, nueva, { cause: "CORTESIA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          const linea = actual.cuenta.lines.find((l) => l.id === cmd.lineId)!;
+          await auditar(tx, ctx, {
+            action: cmd.quitar ? "cuenta.quitar_cortesia" : "cuenta.cortesia",
+            entityType: "account",
+            entityId: nueva.id,
+            authorizedBy: autorizador.id,
+            ...(cmd.motivo ? { reason: cmd.motivo } : {}),
+            after: { lineId: cmd.lineId, concepto: linea.concept, importe: linea.amount, detalle: cmd.detalle ?? null, version: nueva.version },
+          });
+          return nueva;
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "cuenta.cortesia", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
+    async autorizadores(ctx, accion = "cobro.anular") {
+      return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, accion));
     },
   };
 }
+
+const MENSAJE_CORTESIA: Record<CourtesyProblem, string> = {
+  LINEA_DESCONOCIDA: "Esa línea no está en la cuenta.",
+  LINEA_PAGADA: "Lo ya cobrado no se regala: se anula el cobro.",
+  LINEA_MOVIDA: "Esa línea se movió a otra cuenta: se regala allí.",
+  YA_REGALADA: "Esa línea ya está regalada.",
+  NO_REGALADA: "Esa línea no está regalada.",
+};
 
 /** Qué asiento es lo que sobra, según su destino (§5.6). */
 const TIPO_DE_SOBRA = { VUELTO: "VUELTO", PROPINA: "PROPINA", RESIDUO: "RESIDUO" } as const;
@@ -602,10 +808,11 @@ async function vigenteDe(tx: Transaccion, accountId: string): Promise<Vigente | 
   return v ? { cuenta: deVersion(v.content, v.version), version: v.version } : null;
 }
 
-/** La cuenta vigente y su libro: la respuesta de un cobro o de una anulación. */
-async function cuentaYLibro(tx: Transaccion, accountId: string, cifrador: Cifrador | null): Promise<CuentaYLibroDto> {
+/** La cuenta vigente, su libro y la venta del cobro: la respuesta de un cobro o de una anulación. */
+async function cuentaYLibro(tx: Transaccion, accountId: string, cobroKey: string, cifrador: Cifrador | null): Promise<CuentaYLibroDto> {
   const vigente = (await vigenteDe(tx, accountId))!;
-  return { cuenta: vigente.cuenta, libro: await leerLibroEn(tx, accountId, cifrador) };
+  const venta: VentaCerradaDto = (await ventaDelCobro(tx, cobroKey, cifrador))!;
+  return { cuenta: vigente.cuenta, libro: await leerLibroEn(tx, accountId, cifrador), venta };
 }
 
 /** Añade una versión de la cuenta. La base rechaza dos con el mismo número (CONFLICTO al reintentar). */
@@ -613,7 +820,7 @@ async function guardarVersion(
   tx: Transaccion,
   ctx: Contexto,
   cuenta: FamilyAccountDto,
-  v: Readonly<{ cause: "GUARDAR" | "COBRO" | "ANULACION"; operationKey: string | null; ahora: number; quien: string }>,
+  v: Readonly<{ cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA"; operationKey: string | null; ahora: number; quien: string }>,
 ): Promise<void> {
   // El número de versión vive en su columna: el contenido es la cuenta sin él.
   const { version, ...contenido } = cuenta;
@@ -656,12 +863,6 @@ function mismaCuenta(a: FamilyAccountDto, b: FamilyAccountDto): boolean {
 function hayProductosNuevos(antes: FamilyAccountDto | null, despues: FamilyAccountDto): boolean {
   const previas = new Set((antes?.lines ?? []).map((l) => l.id));
   return despues.lines.some((l) => !previas.has(l.id) && l.productId !== undefined);
-}
-
-/** ¿Se da o se quita alguna cortesía? */
-function cambiaCortesia(antes: FamilyAccountDto | null, despues: FamilyAccountDto): boolean {
-  const previas = new Map((antes?.lines ?? []).map((l) => [l.id, JSON.stringify(l.cortesia ?? null)]));
-  return despues.lines.some((l) => (previas.get(l.id) ?? "null") !== JSON.stringify(l.cortesia ?? null));
 }
 
 /** Lo que el catálogo vende en `ahora`: su nombre, su precio y su trato del IVA (B9-1). */

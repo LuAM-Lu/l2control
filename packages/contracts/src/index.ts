@@ -231,14 +231,14 @@ export {
 export {
   CuentasDelLocalSchema,
   GuardarCuentaCommandSchema,
-  DestinoSobraSchema,
   PagoDelCobroSchema,
   CobrarCuentaCommandSchema,
   CuentaYLibroSchema,
   AnularCobroCommandSchema,
+  CortesiaCommandSchema,
+  type CortesiaCommand,
   type CuentasDelLocalDto,
   type GuardarCuentaCommand,
-  type DestinoSobra,
   type PagoDelCobroDto,
   type CobrarCuentaCommand,
   type CuentaYLibroDto,
@@ -287,22 +287,33 @@ export {
 export {
   ClienteFacturaSchema,
   CONSUMIDOR_FINAL,
+  enmascararDocumento,
   type ClienteFacturaDto,
 } from "./documento.ts";
 
 export {
   AnulacionSchema,
+  ClienteDeLaVentaSchema,
+  DestinoSobraSchema,
+  DevolucionSchema,
   ImpresionSchema,
+  ImprimirVentaCommandSchema,
   MotivoAnulacionSchema,
   PagoDeVentaSchema,
   ReciboSchema,
   VentaCerradaSchema,
+  VentasDelTurnoSchema,
   type AnulacionDto,
+  type ClienteDeLaVentaDto,
+  type DestinoSobra,
+  type DevolucionDto,
   type ImpresionDto,
+  type ImprimirVentaCommand,
   type MotivoAnulacion,
   type PagoDeVentaDto,
   type ReciboDto,
   type VentaCerradaDto,
+  type VentasDelTurnoDto,
 } from "./ventas.ts";
 
 export {

@@ -157,6 +157,15 @@ describe("quién autoriza un 🔐 (DEC-24)", () => {
     assert.equal(canAuthorize(sinAnular, actor("CAJERO"), "cobro.anular"), false);
   });
 
+  test("supervisión se autoriza a sí misma en la caja, no en la tasa ni en el inventario (D-AUT)", () => {
+    const sup = actor("SUPERVISOR");
+    assert.equal(canAuthorize(sup, sup, "cobro.anular"), true);
+    assert.equal(canAuthorize(sup, sup, "cuenta.cortesia"), true);
+    assert.equal(canAuthorize(sup, sup, "tasa.confirmar"), false);
+    assert.equal(canAuthorize(sup, sup, "inventario.ajustar"), false);
+    assert.equal(canAuthorize(actor("ADMIN"), sup, "tasa.confirmar"), true);
+  });
+
   test("la sucursal manda también para quien autoriza", () => {
     const supervisorB2 = actor("SUPERVISOR", ["b2"]);
     assert.equal(canAuthorize(supervisorB2, actor("CAJERO", ["b1"]), "cobro.anular", { branchId: "b1" }), false);

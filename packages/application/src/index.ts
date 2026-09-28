@@ -22,6 +22,7 @@ import { casosPagos, type CasosPagos } from "./dinero/pagos.ts";
 import { casosTurnos, type CasosTurnos } from "./caja/turnos.ts";
 import { casosMedios, type CasosMedios } from "./caja/medios.ts";
 import { casosCuentas, type CasosCuentas } from "./caja/cuentas.ts";
+import { casosVentas, type CasosVentas } from "./caja/ventas.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
 
@@ -39,6 +40,7 @@ export type { CasosPagos } from "./dinero/pagos.ts";
 export type { CasosTurnos } from "./caja/turnos.ts";
 export type { CasosMedios } from "./caja/medios.ts";
 export { MAX_RESIDUO, type CasosCuentas } from "./caja/cuentas.ts";
+export type { CasosVentas } from "./caja/ventas.ts";
 export type { CasosFeriados } from "./dinero/feriados.ts";
 export { DIAS_POR_ADELANTADO_PRECIOS, type CasosProductos } from "./inventario/productos.ts";
 export { AutorizacionSchema, exigirPermisoOAutorizacion, type Autorizacion } from "./identidad/autorizacion.ts";
@@ -68,6 +70,7 @@ export interface Aplicacion {
   readonly turnos: CasosTurnos;
   readonly medios: CasosMedios;
   readonly cuentas: CasosCuentas;
+  readonly ventas: CasosVentas;
   readonly feriados: CasosFeriados;
   readonly productos: CasosProductos;
   cerrar(): Promise<void>;
@@ -103,6 +106,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     turnos: casosTurnos(base),
     medios: casosMedios(base, cifrador),
     cuentas: casosCuentas(base, cifrador),
+    ventas: casosVentas(base, cifrador),
     feriados: casosFeriados(base),
     productos: casosProductos(base),
     cerrar: () => base.cerrar(),

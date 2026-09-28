@@ -27,3 +27,9 @@ export const ClienteFacturaSchema = z.discriminatedUnion("kind", [
 export type ClienteFacturaDto = z.infer<typeof ClienteFacturaSchema>;
 
 export const CONSUMIDOR_FINAL: ClienteFacturaDto = Object.freeze({ kind: "CONSUMIDOR_FINAL" });
+
+/** «V-12···678»: un documento a la vista (§7.6). El recibo viaja por WhatsApp y se reenvía. */
+export function enmascararDocumento(documento: string): string {
+  const limpio = documento.replace(/\s/g, "");
+  return limpio.length <= 6 ? limpio : `${limpio.slice(0, 4)}···${limpio.slice(-3)}`;
+}

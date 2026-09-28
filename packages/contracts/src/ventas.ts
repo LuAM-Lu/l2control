@@ -1,28 +1,27 @@
 /**
- * Una venta cerrada y su recibo — UX-MEJORAS §9 (C8, C12), DEC-24.
+ * Una venta cerrada — UX-MEJORAS §9 (C8, C12), DEC-24, en el servidor desde B3-4.
  *
- * El recibo NO fiscal se guarda como FOTO del momento del cobro, con los
- * textos ya formateados: si mañana cambia una tasa, un precio o un nombre del
- * catálogo, la copia sigue diciendo lo que se cobró. Por eso son cadenas y no
- * montos que se recalculan.
+ * Cada cobro de una cuenta deja una venta: la FOTO de lo que se cobró en ese instante (las líneas
+ * con su concepto e importe, el IVA por alícuota, el IGTF, la tasa, cada pago con lo que se
+ * devolvería y lo que sobró). La guarda el servidor en la misma transacción que el cobro, con sus
+ * datos, no con textos: si mañana cambia un precio, una tasa o un nombre, la venta sigue diciendo lo
+ * que se cobró. El recibo (`ReciboSchema`) es la forma de enseñarla y la arma la pantalla desde aquí.
  *
- * La venta sí guarda su total como dinero, para sumar el turno.
+ * APPEND-ONLY (regla 5): cada impresión es una entrada nueva en `prints` —la primera es el original,
+ * las siguientes, copias (§5.4: reimprimir es vector de fraude)— y la anulación se AÑADE una vez.
  *
- * APPEND-ONLY (regla 5): cada impresión es una entrada nueva en `prints`,
- * nunca un contador que se sobrescribe. La primera es el original; las
- * siguientes, copias. Reimprimir es vector de fraude (§5.4): queda quién y
- * cuándo.
- *
- * ⚠ §7.6: `recibo` lleva las referencias de pago y el documento del cliente
- * ya enmascarados.
+ * ⚠ §7.6: las referencias de pago, las de devolución y el documento del cliente salen enmascarados.
  */
 import { z } from "zod";
-import { IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
-
-const Persona = z.object({ id: IdSchema, name: z.string().max(80) });
+import { AccountKindSchema, MotivoCortesiaSchema } from "./account.ts";
+import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 const Texto = (max: number) => z.string().max(max);
 
+/**
+ * El recibo como se enseña y se imprime, con los textos ya formateados. Lo arma la pantalla desde la
+ * venta del servidor (`reciboDeVenta`); no se guarda.
+ */
 export const ReciboSchema = z.object({
   orden: Texto(16),
   cuenta: Texto(120),
@@ -36,11 +35,7 @@ export const ReciboSchema = z.object({
         cantidad: z.number().int().positive(),
         concepto: Texto(80),
         importe: Texto(24),
-        /**
-         * Si esa línea se regaló (F6-14). Es un dato, no algo que se deduzca
-         * leyendo el concepto: un recibo que adivina por el texto se rompe el
-         * día que alguien cambia una palabra.
-         */
+        /** Si esa línea se regaló (F6-14): un dato, no algo que se deduzca leyendo el concepto. */
         cortesia: z.boolean().optional(),
       }),
     )
@@ -50,7 +45,7 @@ export const ReciboSchema = z.object({
   total: Texto(24),
   totalBs: Texto(32).nullable(),
   tasa: Texto(24).nullable(),
-  pagos: z.array(z.object({ medio: Texto(40), detalle: Texto(80).nullable(), monto: Texto(32) })).min(1),
+  pagos: z.array(z.object({ medio: Texto(40), detalle: Texto(80).nullable(), monto: Texto(32) })),
   vuelto: Texto(24).nullable(),
   destinoVuelto: Texto(24).nullable(),
   cajera: Texto(80).nullable(),
@@ -58,19 +53,22 @@ export const ReciboSchema = z.object({
 });
 export type ReciboDto = z.infer<typeof ReciboSchema>;
 
+/** Qué se hace con lo que el cliente entregó de más (§5.6). */
+export const DestinoSobraSchema = z.enum(["VUELTO", "PROPINA", "RESIDUO"]);
+export type DestinoSobra = z.infer<typeof DestinoSobraSchema>;
+
+/** Una impresión del recibo: cuándo, quién y si fue una copia. */
 export const ImpresionSchema = z.object({
   at: TimestampSchema,
-  /** Quién imprimió. `null` si no había sesión identificada. */
-  by: z.object({ id: IdSchema, name: Texto(80) }).nullable(),
+  by: Texto(80),
+  copia: z.boolean(),
 });
 export type ImpresionDto = z.infer<typeof ImpresionSchema>;
 
 /**
- * Un pago de la venta, con lo que se devolvería si se anula (DEC-24).
- *
- * `refundable` lo calcula el dominio al CERRAR el cobro (`refundableByTender`),
- * con la tasa congelada de ese momento: el vuelto, la propina y el residuo no
- * se devuelven. Guardarlo aquí evita recalcular mañana con otra tasa.
+ * Un pago de la venta, con lo que se devolvería si se anula (DEC-24). `refundable` lo calcula el
+ * dominio al cerrar el cobro (`refundableByTender`) con la tasa congelada de ese momento: el vuelto,
+ * la propina y el residuo no se devuelven.
  */
 export const PagoDeVentaSchema = z.object({
   methodCode: IdSchema,
@@ -81,6 +79,8 @@ export const PagoDeVentaSchema = z.object({
   dataKind: z.enum(["PAGO_MOVIL", "ZELLE", "USDT", "PUNTO"]).nullable(),
   paid: MoneySchema,
   refundable: MoneySchema,
+  /** Los datos del pago enmascarados (§7.6), o `null` si el medio no los pide. */
+  referencia: Texto(80).nullable(),
 });
 export type PagoDeVentaDto = z.infer<typeof PagoDeVentaSchema>;
 
@@ -91,69 +91,76 @@ export const MotivoAnulacionSchema = z.enum(["ERROR_EN_COBRO", "CLIENTE_DESISTIO
 export type MotivoAnulacion = z.infer<typeof MotivoAnulacionSchema>;
 
 /**
- * La anulación de un cobro — DEC-24.
- *
- * No borra ni cambia la venta: se le AÑADE, una sola vez, como asiento de
- * reversión (regla 5). Dice quién la pidió, quién la autorizó, por qué y cómo
- * volvió el dinero de cada pago.
- *
- * Reglas de forma, para que una anulación incompleta no se pueda expresar:
- *  · autoriza un supervisor o el administrador;
- *  · devolver por el mismo medio un pago electrónico exige su referencia (la
- *    aprobación de la anulación en el terminal, en el punto);
- *  · devolver en efectivo lo que no entró en efectivo exige explicarlo, igual
- *    que el motivo «Otro».
+ * Cómo vuelve el dinero de un pago al anular (lo que manda la pantalla). Por el mismo medio, un pago
+ * electrónico lleva la referencia de su devolución (en el punto, la aprobación de la anulación en el
+ * terminal); en efectivo, lo que no entró en efectivo exige explicarlo en la anulación.
  */
-export const AnulacionSchema = z
-  .object({
-    at: TimestampSchema,
-    requestedBy: Persona.nullable(),
-    authorizedBy: Persona.extend({ role: z.enum(["ADMIN", "SUPERVISOR"]) }),
-    reason: MotivoAnulacionSchema,
-    note: z.string().trim().max(200).optional(),
-    refunds: z
-      .array(
-        z.object({
-          /** Índice del pago en `payments`. */
-          paymentIndex: z.number().int().nonnegative(),
-          via: z.enum(["MISMO_MEDIO", "EFECTIVO"]),
-          amount: MoneySchema,
-          reference: z.string().trim().max(40).nullable(),
-        }),
-      )
-      .min(1),
-  })
-  .superRefine((a, ctx) => {
-    const nota = (a.note ?? "").length >= 5;
-    if (a.reason === "OTRO" && !nota) {
-      ctx.addIssue({ code: "custom", path: ["note"], message: "Explica el motivo en unas palabras" });
-    }
-    a.refunds.forEach((r, i) => {
-      if (r.via === "MISMO_MEDIO" && r.reference !== null && r.reference.length < 4) {
-        ctx.addIssue({ code: "custom", path: ["refunds", i, "reference"], message: "Referencia demasiado corta" });
-      }
-    });
-  });
+export const DevolucionSchema = z.strictObject({
+  /** Índice del pago en `payments` de la venta. */
+  paymentIndex: z.number().int().nonnegative(),
+  via: z.enum(["MISMO_MEDIO", "EFECTIVO"]),
+  reference: z.string().trim().min(4, "Referencia demasiado corta").max(40).optional(),
+});
+export type DevolucionDto = z.infer<typeof DevolucionSchema>;
+
+/**
+ * La anulación de una venta, como la guardó el servidor — DEC-24. Quién la pidió, quién la autorizó,
+ * por qué y cómo volvió el dinero de cada pago (la referencia de devolución, enmascarada).
+ */
+export const AnulacionSchema = z.object({
+  at: TimestampSchema,
+  requestedBy: Texto(80),
+  authorizedBy: z.object({ name: Texto(80), role: z.enum(["ADMIN", "SUPERVISOR"]) }),
+  reason: MotivoAnulacionSchema,
+  note: Texto(280).nullable(),
+  refunds: z.array(
+    z.object({
+      paymentIndex: z.number().int().nonnegative(),
+      via: z.enum(["MISMO_MEDIO", "EFECTIVO"]),
+      amount: MoneySchema,
+      reference: Texto(20).nullable(),
+    }),
+  ),
+});
 export type AnulacionDto = z.infer<typeof AnulacionSchema>;
 
-export const VentaCerradaSchema = z.object({
-  id: IdSchema,
-  orderNumber: z.number().int().positive().optional(),
-  accountId: IdSchema,
-  /** La clave con que el servidor asentó el cobro (B3-3): anularlo es anular esa operación del libro. */
-  cobroKey: IdempotencyKeySchema,
-  closedAt: TimestampSchema,
-  cashier: z.object({ id: IdSchema, name: Texto(80) }).nullable(),
-  total: MoneySchema,
-  /** Nombres de los medios usados, para buscar y filtrar sin abrir el recibo. */
-  methods: z.array(Texto(40)).min(1),
-  payments: z.array(PagoDeVentaSchema).min(1),
-  /** Las líneas de la cuenta que pagó esta venta: vuelven a «por cobrar» si se anula. */
-  lineIds: z.array(IdSchema).min(1),
-  recibo: ReciboSchema,
-  prints: z.array(ImpresionSchema),
-  voided: AnulacionSchema.optional(),
-})
+/** A quién sale la factura, con el documento enmascarado (§7.6). */
+export const ClienteDeLaVentaSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("CONSUMIDOR_FINAL") }),
+  z.object({ kind: z.literal("IDENTIFICADO"), name: Texto(120), document: Texto(20) }),
+]);
+export type ClienteDeLaVentaDto = z.infer<typeof ClienteDeLaVentaSchema>;
+
+export const VentaCerradaSchema = z
+  .object({
+    id: IdSchema,
+    orderNumber: z.number().int().positive(),
+    accountId: IdSchema,
+    /** La clave con que el servidor asentó el cobro: anular es anular esa operación del libro. */
+    cobroKey: IdempotencyKeySchema,
+    closedAt: TimestampSchema,
+    businessDate: FechaSchema,
+    cashier: Texto(80),
+    /** De quién era la cuenta: la familia, la mesa o el mostrador. */
+    cuenta: z.object({ kind: AccountKindSchema, family: Texto(80), tableLabel: Texto(20).nullable() }),
+    /** La parte cobrada si la cuenta se pagó dividida (F6-12). */
+    parte: z.object({ n: z.number().int().positive(), de: z.number().int().min(2) }).nullable(),
+    cliente: ClienteDeLaVentaSchema,
+    /** Lo que se cobró y lo que se regaló en el cobro, línea a línea, con su importe. */
+    lineas: z
+      .array(z.object({ lineId: IdSchema, concept: Texto(80), amount: MoneySchema, cortesia: MotivoCortesiaSchema.nullable() }))
+      .min(1),
+    subtotal: MoneySchema,
+    impuestos: z.array(z.object({ basisPoints: z.number().int().nonnegative(), tax: MoneySchema })),
+    igtf: z.object({ basisPoints: z.number().int().nonnegative(), amount: MoneySchema }),
+    total: MoneySchema,
+    /** La tasa congelada del cobro, si se pagó algo en bolívares. */
+    tasa: z.object({ id: IdSchema, value: Texto(24) }).nullable(),
+    payments: z.array(PagoDeVentaSchema),
+    sobra: z.object({ amount: MoneySchema, destino: DestinoSobraSchema }).nullable(),
+    prints: z.array(ImpresionSchema),
+    voided: AnulacionSchema.nullable(),
+  })
   .superRefine((v, ctx) => {
     const a = v.voided;
     if (!a) return;
@@ -166,27 +173,19 @@ export const VentaCerradaSchema = z.object({
         ctx.addIssue({ code: "custom", path: ruta, message: "La devolución apunta a un pago que no existe" });
         return;
       }
-      if (vistos.has(r.paymentIndex)) {
-        ctx.addIssue({ code: "custom", path: ruta, message: "Ese pago ya tiene su devolución" });
-      }
+      if (vistos.has(r.paymentIndex)) ctx.addIssue({ code: "custom", path: ruta, message: "Ese pago ya tiene su devolución" });
       vistos.add(r.paymentIndex);
       if (r.amount.currency !== p.refundable.currency || r.amount.minor !== p.refundable.minor) {
         ctx.addIssue({ code: "custom", path: ruta, message: "Se devuelve exactamente lo que quedó de ese pago, en su moneda" });
       }
-      if (!p.cash && r.via === "MISMO_MEDIO" && !r.reference) {
-        ctx.addIssue({
-          code: "custom",
-          path: [...ruta, "reference"],
-          message: p.dataKind === "PUNTO" ? "Escribe la aprobación de la anulación en el terminal" : "Escribe la referencia de la devolución",
-        });
-      }
-      if (!p.cash && r.via === "EFECTIVO" && (a.note ?? "").length < 5) {
-        ctx.addIssue({ code: "custom", path: ["voided", "note"], message: "Devolver en efectivo lo que no entró en efectivo exige explicarlo" });
-      }
     });
-    const conDevolucion = v.payments.filter((p) => BigInt(p.refundable.minor) > 0n).length;
-    if (vistos.size !== conDevolucion) {
-      ctx.addIssue({ code: "custom", path: ["voided", "refunds"], message: "Cada pago con algo que devolver necesita su devolución" });
-    }
   });
 export type VentaCerradaDto = z.infer<typeof VentaCerradaSchema>;
+
+/** Las ventas del turno abierto del equipo, de la más reciente a la más antigua. */
+export const VentasDelTurnoSchema = z.object({ ventas: z.array(VentaCerradaSchema) });
+export type VentasDelTurnoDto = z.infer<typeof VentasDelTurnoSchema>;
+
+/** Imprimir el recibo de una venta: el servidor anota quién y cuándo, y si ya era una copia. */
+export const ImprimirVentaCommandSchema = z.strictObject({ saleId: z.uuid("Venta desconocida") });
+export type ImprimirVentaCommand = z.infer<typeof ImprimirVentaCommandSchema>;

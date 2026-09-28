@@ -27,6 +27,9 @@ export type {
   Product,
   ProductPrice,
   Prisma,
+  Sale,
+  SalePrint,
+  SaleVoid,
   Tenant,
 } from "./generated/client.ts";
 export { errorDeBase, type ErrorDeBase, type MotivoDeBase } from "./errores.ts";

@@ -25,6 +25,8 @@ let ctxMesero: Contexto;
 let ctxCocina: Contexto;
 let ctxSinTurno: Contexto;
 let supervisor: string;
+let admin: string;
+let cajera: string;
 let tasa: string;
 let agua: string;
 let gomitas: string;
@@ -105,9 +107,9 @@ const asientosCon = (operationKey: string) =>
 before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
-  const admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
+  admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
-  const cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
+  cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
   const monitora = await crearPersona(local, { nombre: "Ana Rojas", role: "MONITOR_PARQUE", pin: "6284" });
   const mesero = await crearPersona(local, { nombre: "Pedro Díaz", role: "MESERO", pin: "3175" });
   const cocinera = await crearPersona(local, { nombre: "Rosa Mata", role: "COCINA", pin: "8462" });
@@ -133,7 +135,13 @@ before(async () => {
   const conGomitas = valor(await local.app.productos.aplicar(local.sistema, producto("Gomitas", "150"), AHORA - 5 * MIN));
   gomitas = conGomitas.productos.find((p) => p.nombre === "Gomitas")!.id;
   valor(await local.app.productos.aplicar(local.sistema, { kind: "ACTIVAR", productId: gomitas, activo: false }, AHORA - 4 * MIN));
+  // El Pago Móvil del local, con sus datos y encendido (B3-2): sus devoluciones llevan referencia.
+  valor(await local.app.medios.aplicar(local.sistema, { kind: "DATOS_PAGO_MOVIL", datos: { bankCode: "0134", phone: "0414-2345678", document: "J-40123456-7" } }));
+  valor(await local.app.medios.aplicar(local.sistema, { kind: "ACTIVAR", code: "PAGO_MOVIL", activo: true }));
 });
+
+/** La administración anula y regala sin autorización ajena, pero confirma con su PIN (B3-4). */
+const pinDeAdmin = () => ({ autorizadorId: admin, pin: "4826", motivo: "Confirmo yo" });
 
 after(async () => {
   await Promise.all([local.cerrar(), otro.cerrar()]);
@@ -315,7 +323,13 @@ describe("anular un cobro (DEC-24)", () => {
     const c = await abrir(mostrador([lineaDeAgua()]));
     const cobro = enEfectivo(c, "500", "131");
     valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA));
-    const pedido = { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: cobro.idempotencyKey, motivo: "ERROR_EN_COBRO" };
+    const pedido = {
+      idempotencyKey: randomUUID(),
+      accountId: c.id,
+      cobroKey: cobro.idempotencyKey,
+      motivo: "ERROR_EN_COBRO",
+      devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }],
+    };
 
     const sin = await local.app.cuentas.anular(ctxCajera, pedido, undefined, AHORA);
     assert.equal(!sin.ok && sin.motivo, "NO_PERMITIDO");
@@ -349,7 +363,10 @@ describe("anular un cobro (DEC-24)", () => {
     const p2 = enBolivares(primera.cuenta, "148885", "174");
     valor(await local.app.cuentas.cobrar(ctxCajera, p2, AHORA));
     // Con la cuenta completa, anular la primera parte devuelve a la cola lo que pagó la última.
-    const anulada = valor(await local.app.cuentas.anular(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: p1.idempotencyKey, motivo: "CLIENTE_DESISTIO" }, undefined, AHORA));
+    const devoluciones = [{ paymentIndex: 0, via: "MISMO_MEDIO" }];
+    const anulada = valor(
+      await local.app.cuentas.anular(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: p1.idempotencyKey, motivo: "CLIENTE_DESISTIO", devoluciones }, pinDeAdmin(), AHORA),
+    );
     assert.deepEqual(anulada.cuenta.split, { parts: 2, paid: 1 });
     assert.equal(anulada.cuenta.status, "POR_COBRAR");
     assert.ok(anulada.cuenta.lines.every((l) => !l.paid));
@@ -363,10 +380,130 @@ describe("anular un cobro (DEC-24)", () => {
     const c = await abrir(mostrador([lineaDeAgua()]));
     const cobro = enEfectivo(c, "500", "131");
     valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA));
-    const r = await otro.app.cuentas.anular(otro.sistema, { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: cobro.idempotencyKey, motivo: "ERROR_EN_COBRO" }, undefined, AHORA);
+    const r = await otro.app.cuentas.anular(otro.sistema, { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: cobro.idempotencyKey, motivo: "ERROR_EN_COBRO", devoluciones: [] }, undefined, AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
     const g = await otro.app.cuentas.guardar(otro.sistema, { cuenta: { ...c, family: "Otra" } }, AHORA);
     assert.equal(!g.ok && g.motivo, "NO_DISPONIBLE");
+  });
+});
+
+describe("la venta de cada cobro (B3-4, C12)", () => {
+  test("el cobro deja su venta: lo cobrado, el IVA, el IGTF, cada pago y lo que se devolvería", async () => {
+    const c = await abrir(mostrador([lineaDeAgua(), { ...lineaDeAgua(), id: randomUUID() }]));
+    const cliente = { kind: "IDENTIFICADO", document: "V-12345678", name: "Pedro Pérez" };
+    const { venta } = valor(await local.app.cuentas.cobrar(ctxCajera, { ...enEfectivo(c, "500", "247"), cliente }, AHORA));
+    assert.equal(venta.orderNumber, c.orderNumber);
+    assert.equal(venta.cashier, "Marisol Prieto");
+    assert.deepEqual(venta.subtotal, usd("200"));
+    assert.deepEqual(venta.impuestos, [{ basisPoints: 1600, tax: usd("32") }]);
+    // $ 5,00 en efectivo: 0,15 de IGTF; se cobran 2,47 y el vuelto es 2,53 (y no se devuelve).
+    assert.deepEqual(venta.igtf, { basisPoints: 300, amount: usd("15") });
+    assert.deepEqual(venta.total, usd("247"));
+    assert.deepEqual(venta.sobra, { amount: usd("253"), destino: "VUELTO" });
+    assert.deepEqual(venta.payments[0]!.refundable, usd("247"));
+    assert.equal(venta.lineas.length, 2);
+    // El documento del cliente, enmascarado (§7.6).
+    assert.deepEqual(venta.cliente, { kind: "IDENTIFICADO", name: "Pedro Pérez", document: "V-12···678" });
+    assert.deepEqual(venta.prints, []);
+    assert.equal(venta.voided, null);
+  });
+
+  test("las ventas del turno del equipo; imprimir anota el original y después copias", async () => {
+    const c = await abrir(mostrador([lineaDeAgua()]));
+    const { venta } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(c, "500", "131"), AHORA));
+    const { ventas } = valor(await local.app.ventas.delTurno(ctxCajera));
+    assert.equal(ventas[0]!.id, venta.id);
+    // La oficina tiene su propio turno: no ve las ventas de la caja.
+    assert.ok(!valor(await local.app.ventas.delTurno(ctxAdmin)).ventas.some((v) => v.id === venta.id));
+    const original = valor(await local.app.ventas.imprimir(ctxCajera, { saleId: venta.id }, AHORA + MIN));
+    assert.deepEqual(original.prints.map((x) => x.copia), [false]);
+    const copia = valor(await local.app.ventas.imprimir(ctxCajera, { saleId: venta.id }, AHORA + 2 * MIN));
+    assert.deepEqual(copia.prints.map((x) => [x.copia, x.by]), [[false, "Marisol Prieto"], [true, "Marisol Prieto"]]);
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "sale", entityId: venta.id });
+    assert.deepEqual(asientos.map((a) => a.action).sort(), ["venta.imprimir", "venta.reimprimir"]);
+    const monitora = await local.app.ventas.imprimir(ctxMonitora, { saleId: venta.id }, AHORA);
+    assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
+  });
+
+  test("la anulación queda en la venta: quién autorizó y cómo volvió cada pago, con la referencia enmascarada", async () => {
+    const c = await abrir(mostrador([lineaDeAgua()]));
+    // $ 1,16 = Bs. 992,57 por Pago Móvil (sin IGTF).
+    const cobro = {
+      ...enEfectivo(c, "0", "116"),
+      pagos: [{ method: "PAGO_MOVIL", amount: { minor: "99257", currency: "VES" }, datos: { kind: "PAGO_MOVIL", reference: "55501234", bankCode: "0102" } }],
+      rateId: tasa,
+    };
+    const { venta } = valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA));
+    assert.match(venta.payments[0]!.referencia ?? "", /···1234/);
+    const pedido = { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: cobro.idempotencyKey, motivo: "ERROR_EN_COBRO" };
+    // Por el mismo medio, un Pago Móvil pide la referencia de la devolución.
+    const sinReferencia = await local.app.cuentas.anular(ctxAdmin, { ...pedido, devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] }, pinDeAdmin(), AHORA);
+    assert.equal(!sinReferencia.ok && sinReferencia.motivo, "INVALIDO");
+    // En efectivo, lo que no entró en efectivo exige explicarlo.
+    const sinExplicar = await local.app.cuentas.anular(ctxAdmin, { ...pedido, devoluciones: [{ paymentIndex: 0, via: "EFECTIVO" }] }, pinDeAdmin(), AHORA);
+    assert.equal(!sinExplicar.ok && sinExplicar.motivo, "INVALIDO");
+    const sinDecir = await local.app.cuentas.anular(ctxAdmin, { ...pedido, devoluciones: [] }, pinDeAdmin(), AHORA);
+    assert.equal(!sinDecir.ok && sinDecir.motivo, "INVALIDO");
+
+    const r = valor(await local.app.cuentas.anular(ctxAdmin, { ...pedido, devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO", reference: "77884821" }] }, pinDeAdmin(), AHORA));
+    assert.deepEqual(r.venta.voided?.authorizedBy, { name: "Abigail Karam", role: "ADMIN" });
+    assert.equal(r.venta.voided?.requestedBy, "Abigail Karam");
+    assert.deepEqual(r.venta.voided?.refunds, [{ paymentIndex: 0, via: "MISMO_MEDIO", amount: { minor: "99257", currency: "VES" }, reference: "···4821" }]);
+  });
+
+  test("la administración anula sin autorización ajena, pero confirma con su propio PIN", async () => {
+    const c = await abrir(mostrador([lineaDeAgua()]));
+    const cobro = enEfectivo(c, "500", "131");
+    valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA));
+    const pedido = { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: cobro.idempotencyKey, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] };
+    const sinPin = await local.app.cuentas.anular(ctxAdmin, pedido, undefined, AHORA);
+    assert.equal(!sinPin.ok && sinPin.mensaje, "Confirma con tu PIN.");
+    const conOtro = await local.app.cuentas.anular(ctxAdmin, pedido, { autorizadorId: supervisor, pin: "5937", motivo: "Por otro" }, AHORA);
+    assert.equal(!conOtro.ok && conOtro.mensaje, "Confirma con tu propio PIN.");
+    const malo = await local.app.cuentas.anular(ctxAdmin, pedido, { ...pinDeAdmin(), pin: "0000" }, AHORA);
+    assert.equal(!malo.ok && malo.mensaje, "PIN incorrecto.");
+    valor(await local.app.cuentas.anular(ctxAdmin, pedido, pinDeAdmin(), AHORA));
+  });
+});
+
+describe("la cortesía (F6-14, B3-4)", () => {
+  test("se regala con la autorización comprobada en el servidor, que pone quién y cuándo", async () => {
+    const c = await abrir(mostrador([lineaDeAgua(), lineaDeAgua()]));
+    const linea = c.lines[0]!.id;
+    const cmd = { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea, quitar: false, motivo: "INVITACION" };
+    const sin = await local.app.cuentas.cortesia(ctxCajera, cmd, undefined, AHORA);
+    assert.equal(!sin.ok && sin.motivo, "NO_PERMITIDO");
+    const malo = await local.app.cuentas.cortesia(ctxCajera, cmd, { autorizadorId: supervisor, pin: "0000", motivo: "Invitación" }, AHORA);
+    assert.equal(!malo.ok && malo.mensaje, "PIN de autorización incorrecto.");
+    const r = valor(await local.app.cuentas.cortesia(ctxCajera, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "Invitación" }, AHORA));
+    const regalada = r.lines.find((l) => l.id === linea)!;
+    assert.deepEqual(regalada.cortesia, {
+      motivo: "INVITACION",
+      autorizadaPor: { id: supervisor, name: "Luis Guerrero", role: "SUPERVISOR" },
+      en: new Date(AHORA).toISOString(),
+    });
+    assert.deepEqual(regalada.amount, usd("100")); // conserva su importe
+    // Un doble clic no la aplica dos veces.
+    assert.deepEqual(valor(await local.app.cuentas.cortesia(ctxCajera, cmd, undefined, AHORA)), r);
+    // Lo regalado no se cobra: queda una agua, $ 1,16.
+    const { venta } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(r, "500", "131"), AHORA));
+    assert.deepEqual(venta.lineas.map((l) => l.cortesia), ["INVITACION", null]);
+  });
+
+  test("una pantalla ya no regala al guardar; se quita con el mismo mando", async () => {
+    const c = await abrir(mostrador([lineaDeAgua()]));
+    const linea = c.lines[0]!;
+    const aMano = await local.app.cuentas.guardar(ctxCajera, {
+      cuenta: { ...c, lines: [{ ...linea, cortesia: { motivo: "INVITACION", autorizadaPor: { id: cajera, name: "Marisol Prieto", role: "SUPERVISOR" }, en: new Date(AHORA).toISOString() } }] },
+    }, AHORA);
+    assert.equal(!aMano.ok && aMano.problemas?.[0]?.message, "CORTESIA_DESDE_LA_PANTALLA");
+    const dada = valor(await local.app.cuentas.cortesia(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea.id, quitar: false, motivo: "CONSUMO_DE_PERSONAL" }, pinDeAdmin(), AHORA));
+    const quitada = valor(await local.app.cuentas.cortesia(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, version: dada.version, lineId: linea.id, quitar: true }, pinDeAdmin(), AHORA));
+    assert.equal(quitada.lines[0]!.cortesia, undefined);
+    const otraVez = await local.app.cuentas.cortesia(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, version: quitada.version, lineId: linea.id, quitar: true }, pinDeAdmin(), AHORA);
+    assert.equal(!otraVez.ok && otraVez.problemas?.[0]?.message, "NO_REGALADA");
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "account", entityId: c.id });
+    assert.ok(asientos.some((a) => a.action === "cuenta.cortesia" && a.authorizedBy === admin));
   });
 });
 

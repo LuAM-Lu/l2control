@@ -545,7 +545,7 @@ function resumen(f: Payment) {
 }
 
 /** Los datos del pago enmascarados: lo único de una referencia que sale del servidor (§7.6). */
-function referenciaDe(f: Payment, cifrador: Cifrador | null): string | null {
+export function referenciaDe(f: Payment, cifrador: Cifrador | null): string | null {
   if (!f.referenceCipher) return null;
   if (!cifrador) return "Datos cifrados";
   return enmascararDatos(DatosDePagoSchema.parse(JSON.parse(cifrador.descifrar(f.referenceCipher))));
