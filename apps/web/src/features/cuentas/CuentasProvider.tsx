@@ -5,6 +5,7 @@ import {
   FamilyAccountSchema,
   type AnularCobroCommand,
   type CobrarCuentaCommand,
+  type CortesiaCommand,
   type CuentaYLibroDto,
   type FamilyAccountDto,
   type Rechazo,
@@ -13,7 +14,7 @@ import {
 import { isDiscardedDraft } from "@l2/domain-cash";
 import { avisar } from "@l2/ui";
 import { puedeDescartarse } from "./cuentas.ts";
-import { anularCobro, cobrarCuenta, guardarCuenta, leerCuentas } from "./cuentas.acciones";
+import { anularCobro, cobrarCuenta, darCortesia, guardarCuenta, leerCuentas } from "./cuentas.acciones";
 
 /**
  * Las cuentas de la sucursal, compartidas por las estaciones — DEC-21, en el servidor desde B3-3.
@@ -48,6 +49,8 @@ type Valor = Readonly<{
   cobrar: (cmd: CobrarCuentaCommand) => Promise<Resultado<CuentaYLibroDto>>;
   /** Anula un cobro en el servidor (🔐 comprobado allí) y adopta la cuenta como quedó. */
   anular: (cmd: AnularCobroCommand, autorizacion?: unknown) => Promise<Resultado<CuentaYLibroDto>>;
+  /** Regala una línea (o deja de regalarla) en el servidor, con su autorización, y adopta la cuenta. */
+  cortesia: (cmd: CortesiaCommand, autorizacion?: unknown) => Promise<Resultado<FamilyAccountDto>>;
   /** Siempre `true`: las cuentas llegan del servidor con la página. Se mantiene para quien lo mira. */
   cargado: boolean;
 }>;
@@ -201,11 +204,22 @@ export function CuentasProvider({ inicial, children }: { inicial: readonly Famil
     [enCola],
   );
 
+  const cortesia = useCallback(
+    (cmd: CortesiaCommand, autorizacion?: unknown) =>
+      enCola(cmd.accountId, async (): Promise<Resultado<FamilyAccountDto>> => {
+        const r = await darCortesia({ ...cmd, version: versionPara(cmd.accountId, cmd.version) ?? cmd.version }, autorizacion).catch(() => sinConexion);
+        if (r.ok) setCuentas((prev) => conCuenta(prev, r.valor));
+        else if (r.motivo === "CONFLICTO") void refrescar();
+        return r;
+      }),
+    [enCola, refrescar],
+  );
+
   // Una venta de mostrador vaciada no es una cuenta: no sale en ninguna estación.
   const vigentes = useMemo(() => cuentas.filter((c) => !isDiscardedDraft(c)), [cuentas]);
   const valor = useMemo(
-    () => ({ cuentas: vigentes, guardar, descartar, cobrar, anular, cargado: true }),
-    [vigentes, guardar, descartar, cobrar, anular],
+    () => ({ cuentas: vigentes, guardar, descartar, cobrar, anular, cortesia, cargado: true }),
+    [vigentes, guardar, descartar, cobrar, anular, cortesia],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

@@ -29,11 +29,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.24.0 · 24 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+**Versión 0.25.0 · 25 de 48 pasos.** Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
-feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Etapa 9 empezada: **el catálogo de productos es de la base (B9-1)**, con el precio programado por día, y la caja vende de él. **Las cuentas son de la base (B3-3)**: familia, mesa y mostrador; la caja cobra y anula contra el libro en una transacción, con el total, la tasa y la autorización comprobados en el servidor. Sin modo demo; lo provisional y lo simulado que queda está
+feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Etapa 9 empezada: **el catálogo de productos es de la base (B9-1)**, con el precio programado por día, y la caja vende de él. **Las cuentas son de la base (B3-3)**: familia, mesa y mostrador; la caja cobra y anula contra el libro en una transacción, con el total, la tasa y la autorización comprobados en el servidor; **cada cobro deja su venta (B3-4)** con la foto de lo cobrado, y reimprimir, anular y regalar quedan en el servidor con su autorización. Sin modo demo; lo provisional y lo simulado que queda está
 inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
 número del medio cuenta los pasos entregados.
 
@@ -50,8 +50,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (60 de base, 222 de aplicación; en el dominio, 57 de tasas,
-  44 de impuestos, 90 de caja y 18 de inventario). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (64 de base, 229 de aplicación; en el dominio, 57 de tasas,
+  44 de impuestos, 91 de caja, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -85,7 +85,9 @@ mixta), #0002 a #0004 (familias en cuenta abierta, se quedan abiertas: la salida
 B4-2), #0005 (familia en prepago, cobrada; sigue abierta con el niño dentro), #0006 (mesa 1, cobrada
 en dos partes) y #0007 y #0008 (mostrador, cobradas y anuladas: vuelven a estar por cobrar). Dos turnos
 de prueba más, en «Prueba B33 Caja» ($ 10,00) y «Prueba B33 Admin» ($ 20,00); equipos «Prueba B33
-Caja», «Prueba B33 Admin» y «Prueba B33 Salón» revocados.
+Caja», «Prueba B33 Admin» y «Prueba B33 Salón» revocados. Al comprobar B3-4, #0009 (mostrador con una
+cortesía, cobrada, impresa dos veces y anulada) y #0010 (cobrada y anulada por administración), y dos
+turnos más en «Prueba B34 Caja» y «Prueba B34 Admin» ($ 20,00 cada uno); equipos revocados.
 
 **Productos en la base local.** `pnpm db:semilla` cargó doce de ejemplo (bebidas, snacks, golosinas
 y café). Al comprobar B9-1 se creó «Pirulín» ($ 2,50) y se dejó exento, se apartó «Gomitas», el agua
@@ -107,8 +109,8 @@ completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el 
 y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
 (sin día simulado: decisión del cliente, 2026-09-27).
 
-**Siguiente paso:** B3-4 (ventas del turno y las autorizaciones de la caja en el servidor), luego B3-5
-y el orden de §3.
+**Siguiente paso:** B3-5 (cortes X y Z, arqueo, relevo y cierre de la jornada; antes se pregunta D-JOR
+al cliente), con el que se cierra la Caja. Luego el orden de §3.
 
 ---
 
@@ -650,10 +652,44 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   servidor, PIN malo → «PIN de autorización incorrecto.», PIN de Luis Guerrero → dos reversiones
   autorizadas por él y la cuenta a «por cobrar», todo auditado. Caja, Turno, Mesas y Entrada a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
-- [ ] **B3-4 · Ventas del turno**, dentro de la sección Turno (M-13): reimprimir queda como copia
+- [x] **B3-4 · Ventas del turno**, dentro de la sección Turno (M-13): reimprimir queda como copia
   auditada y anular es una reversión (DEC-24). Las autorizaciones 🔐 de la caja (anular, cortesía, descuento) van al servidor con
   `exigirPermisoOAutorizacion`: se quitan los PIN «1970» comprobados en el navegador y se borra
   `src/demo/usuarios.ts`.
+  *Hecho el 2026-09-28 (v0.25.0):*
+  *· Dominio: D-AUT con su propuesta (`canAuthorize`): supervisión se autoriza a sí misma en la caja,
+  no en `tasa.confirmar` ni en `inventario.ajustar` (`SIN_AUTORIZARSE_A_SI_MISMO`). La cortesía sale
+  del «guardar»: `accountChangeProblem` rechaza darla o quitarla desde la pantalla
+  (CORTESIA_DESDE_LA_PANTALLA) y nacen `courtesyProblem` y `withCourtesy`. 7 pruebas nuevas.*
+  *· Contrato: `VentaCerradaSchema` es la venta del servidor, con datos y no textos (líneas, IVA por
+  alícuota, IGTF, tasa, pagos con lo que se devolvería y su referencia enmascarada, lo que sobró,
+  cliente con el documento enmascarado, impresiones y anulación); `ReciboSchema` queda como forma de
+  presentación. El cobro lleva `cliente`; anular lleva `devoluciones`; nacen `CortesiaCommandSchema`,
+  `VentasDelTurnoSchema`, `ImprimirVentaCommandSchema` y `enmascararDocumento`.*
+  *· Base: migración `20261007000000_ventas`: `sale` (una por cobro, su contenido cita su cuenta, su
+  clave y su total; solo en un turno abierto de su sucursal), `sale_print` y `sale_void` (una por
+  venta, la referencia de devolución solo cifrada: un CHECK rechaza la clave `reference` en claro),
+  las tres de solo-agregar con RLS; la versión de una cuenta admite la causa CORTESIA. 4 pruebas.*
+  *· Aplicación: el cobro crea la venta en su transacción (`CuentaYLibro` la devuelve); `anular`
+  exige una devolución por cada pago con algo que devolver (por su medio con referencia, o en
+  efectivo explicándolo) y guarda la anulación; `cortesia` (🔐 comprobado, el servidor pone quién y
+  cuándo, versión CORTESIA con su clave); `ventas.delTurno` e `imprimir` (original y copias,
+  auditadas `venta.imprimir`/`venta.reimprimir`). `exigirPermisoOAutorizacion` acepta
+  `confirmarConPin`: anular y regalar piden el PIN también a quien puede por sí mismo. 11 pruebas
+  nuevas en la caja y una en tasas.*
+  *· Web: `VentasProvider` y las ventas del turno del servidor (`ventas.servidor.ts`,
+  `ventas.acciones.ts`), sin `sessionStorage`; el recibo lo arma `reciboDeVenta` desde la venta; la
+  caja ya no compone el recibo. `Autorizacion.tsx` (lista y PIN del servidor) en anular y cortesía;
+  el diálogo de anular, a dos columnas desde tablet, ya no desplaza a 1366×768. Se borra
+  `src/demo/usuarios.ts`: no queda ningún PIN «1970» en el navegador. Lo regalado no se mueve a una
+  mesa.*
+  *· Comprobado en el navegador: cortesía como cajera (Luis Guerrero la autoriza; PIN malo rechazado),
+  el recibo la enseña tachada con su motivo; cobro con vuelto; recibo desde la venta; imprimir y
+  reimprimir (original y copia anotados); anular como cajera con supervisión y como administración con
+  su propio PIN (sin PIN y con PIN malo, rechazado en su campo). Caja, Turno y los diálogos de anular
+  y cortesía a 1366×768, 1280×800 y 800×1280 sin desplazar; sin errores de consola.*
+  *· El descuento (`cuenta.descuento` en la matriz) no tiene pantalla ni tarea propia: no hay nada que
+  mover al servidor. Anotado en §5.*
 - [ ] **B3-5 · Cortes X y Z, arqueo y excepciones reales** derivadas del libro, cortesías y
   anulaciones incluidas (F4-05 a F4-08). Hoy las excepciones son un dato fijo. Según JORNADA §3 a §5
   (M-13): abrir turno comprueba tasa, impuestos, medios, tarifario e impresora y lista lo que falta;
@@ -799,14 +835,14 @@ antes del cobro en servidor (orden de ejecución).
 | F0-03 | Medidas reales del local para el plano | — | B6-1 |
 | D7 | Quién asigna los puestos de trabajo | Hoy se deducen del rol (`PUESTO_DE_ROL`) | B1-5 |
 | D9 | Un niño que sale sin su representante | Sin propuesta todavía | B4-3 |
-| D13 | Número de orden continuo o diario | Hoy es continuo (`#1049`) | B3-4 |
+| D13 | Número de orden continuo o diario | Hoy es continuo (`#1049`). **B3-4 lo deja así** (el servidor lo da por sucursal); se confirma con el cliente | B3-4 |
 | — | Informes del panel ejecutivo (F9-01 a F9-07) | Después del piloto; Inicio ya enseña el día | — |
 | F-12 | ¿El teléfono entra en el objetivo? | Revisarlo en B7-3 | B7-3 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | D-CORD | Umbral de cordura de la tasa automática (M-8) | 10 % respecto de la vigente (hoy fijo en el código) | B7-2 |
 | ~~D-FER~~ | Calendario de feriados bancarios de Venezuela | **Decidido el 2026-09-27:** se carga por año desde el panel copiando el calendario de SUDEBAN (cambia cada año: Carnaval, Semana Santa y feriados trasladados) | B2-4 |
 | D-INV | Alcance del inventario en el piloto | Solo productos de mostrador (bebidas, snacks); los insumos de cocina con el restaurante. **B9-1 se hizo así** (el catálogo de productos hace falta en los dos casos); se confirma antes de los insumos | B9-3 |
-| D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? (hoy sí, `canAuthorize`) | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona | B3-4 |
+| D-AUT | ¿Supervisión puede autorizarse a sí misma un 🔐? | No en tasas ni ajustes de inventario; sí en la caja cuando no hay otra persona. **B3-4 lo aplicó así** (y la administración confirma con su PIN al anular o regalar); se confirma con el cliente | B3-4 |
 
 **Confirma el contador** (lo fiscal queda fuera, pero esto cambia lo que se cobra)
 
@@ -831,7 +867,6 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Un turno no se cierra todavía: el de un equipo revocado o perdido queda abierto | B3-5 (cerrar un turno huérfano desde otro equipo, con 🔐) |
 | Quién está en cada puesto viaja por el bus entre pestañas de un navegador: Inicio no avisa «Sin nadie en caja» aunque haya turno | B5-1 |
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
-| El diálogo de anular un cobro desplaza para llegar al PIN a 1366×768 | B3-4 |
 | Aprobar un equipo no avisa en vivo a la administración (queda en la auditoría y en su historia) | B5-1 |
 | Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos) | T-4 (se retira el TOTP, ADR-020) |
 | El primer administrador y sus credenciales solo se crean por consola (`pnpm credenciales`): una base vacía no arranca sin ella | T-4 (instalación inicial y enlace de alta, M-12) |
@@ -846,14 +881,14 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Un cambio del catálogo de productos llega a la caja al volver a abrir su pantalla, no en vivo (un precio ya programado sí entra solo a su hora) | B5-1 |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
-| Supervisión puede autorizarse a sí misma un 🔐 (regla del dominio, `canAuthorize`): en la tasa, confirma con su propio PIN | B3-4 (D-AUT) |
 | El importe del parque (paquete, excedente) y el de la carta de la mesa llegan de la pantalla: el servidor solo revalida el precio de lo que es del catálogo de productos | B4-2 (parque) y B6-1 (carta) |
-| La cortesía la guarda la pantalla con quién la autorizó; el servidor solo niega a quien tiene `cuenta.cortesia` denegado | B3-4 |
 | La salida no ve a los niños que entraron: lee la sala del servidor, vacía hasta B4-2 (la cuenta de familia en cuenta abierta no llega a caja por la salida) | B4-2 |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
-| La administración anula un cobro sin confirmar con su PIN (el servidor no lo pide a quien puede por sí mismo) | B3-4 (D-AUT) |
 | Las cuentas llegan a las otras estaciones por sondeo de 5 s, no en vivo | B5-1 |
+| El descuento (`cuenta.descuento`, 🔐 en la matriz) no existe en la caja: ni pantalla ni tarea del PLAN | Cuando el cliente lo pida (va al servidor con `exigirPermisoOAutorizacion`) |
+| Si hay efectivo para devolver al anular lo comprueba solo la pantalla, con las ventas del turno (cota baja) | B3-5 (la gaveta sale del libro del turno) |
+| La venta guarda el documento del cliente enmascarado: una factura fiscal necesitará el completo | F3 (fuera por M-3) |
 
 **Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
 aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
@@ -861,8 +896,6 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | Qué | Dónde | Se va con |
 |---|---|---|
 | Movimientos y excepciones del turno (vacíos; el fondo ya es real) | `src/demo/turno.ts` | B3-5 |
-| Ventas del turno (con su recibo y su anulación) guardadas en el navegador | `VentasProvider` | B3-4 |
-| PIN del autorizador de una cortesía comprobado en el navegador (`"1970"`) y su lista de autorizadores (anular ya va al servidor) | `CortesiaDialog`, `src/demo/usuarios.ts` | B3-4 |
 | Sala y representantes (vacíos) y el mapa pulsera → estancia de la caja | `src/demo/parque.ts`, página de caja | B4-2 y B4-3 |
 | Directorio de familias (vacío) guardado en el navegador | `src/demo/representantes.ts`, `RepresentantesProvider` | B4-1 |
 | Ajustes del local guardados en el navegador | `src/demo/sucursal.ts`, `SucursalProvider` | B4-4 |
@@ -989,6 +1022,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-28** · B3-3 hecho (v0.24.0): todas las cuentas en la base, cobro y anulación contra el
   libro en una transacción. Se corrige que Next escribiera en su registro los argumentos de las
   acciones (PIN y referencias).
+- **2026-09-28** · B3-4 hecho (v0.25.0): la venta de cada cobro, su impresión, su anulación y la
+  cortesía en el servidor; fuera `src/demo/usuarios.ts` y los PIN «1970». D-AUT y D13 aplicados con su
+  propuesta, a confirmar con el cliente. Sigue B3-5.
 
 ---
 

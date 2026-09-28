@@ -19,6 +19,7 @@ import { mediosDelLocal } from "../src/features/cash/medios.servidor";
 import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { cuentasDelLocal } from "../src/features/cuentas/cuentas.servidor";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
+import { ventasDelTurno } from "../src/features/cash/ventas.servidor";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { AJUSTES_DEMO } from "../src/demo/sucursal";
 import { DIRECTORIO_DEMO } from "../src/demo/representantes";
@@ -78,6 +79,8 @@ export default async function RootLayout({
   const medios = sesion ? await mediosDelLocal() : null;
   // Las cuentas, de la base (B3-3): las que no están cobradas y las cobradas hoy. Sin sesión, ninguna.
   const cuentas = sesion ? await cuentasDelLocal() : [];
+  // Las ventas del turno de este equipo, de la base (B3-4).
+  const ventas = sesion ? await ventasDelTurno() : [];
 
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
@@ -97,7 +100,7 @@ export default async function RootLayout({
               edita el panel y lo lee el salón. */}
           {/* El estado del local vive por encima de las dos cáscaras: lo
               escriben las estaciones y lo lee el panel en vivo (F9-08).
-              Las cuentas son de la base; las ventas del turno, de B3-4. */}
+              Las cuentas y las ventas del turno son de la base. */}
           {/* Los ajustes del local y los equipos autorizados envuelven a todo
               lo demás: el formato de hora y el umbral de la caja los lee
               cualquier superficie (F5-08b, F4-04c, F2-02). */}
@@ -109,7 +112,7 @@ export default async function RootLayout({
                       <CartaProvider inicial={CARTA_DEMO}>
                         <TarifarioProvider inicial={tarifario}>
                           <CuentasProvider inicial={cuentas}>
-                            <VentasProvider inicial={[]}>
+                            <VentasProvider inicial={ventas}>
                               {children}
                             </VentasProvider>
                           </CuentasProvider>

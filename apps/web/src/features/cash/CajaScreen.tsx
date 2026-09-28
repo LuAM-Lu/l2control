@@ -49,7 +49,6 @@ import {
 import {
   closeSettlement,
   computeBalance,
-  refundableByTender,
   type ChangeDisposition,
   type Tender,
 } from "@l2/domain-cash";
@@ -84,8 +83,8 @@ import {
   type FamilyAccountDto,
   type ImpuestosDto,
   type TurnoDto,
-  type UserSummaryDto,
-  type PagoDeVentaDto,
+  type Rechazo,
+  type VentaCerradaDto,
   type PosTerminalDto,
 } from "@l2/contracts";
 import {
@@ -106,11 +105,10 @@ import {
   ordenarCola,
   type FiltroCola,
 } from "./ColaCuentas.tsx";
-import { CortesiaDialog, TEXTO_MOTIVO } from "./CortesiaDialog.tsx";
+import { CortesiaDialog } from "./CortesiaDialog.tsx";
 import { ReciboDialog } from "./ReciboDialog.tsx";
-import type { Recibo } from "./recibo.ts";
+import { reciboDeVenta } from "./recibo.ts";
 import { useVentas } from "./VentasProvider.tsx";
-import { useOperador } from "../identity/operador.ts";
 import { can } from "@l2/domain-identity";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
@@ -138,34 +136,19 @@ const PARIDAD_USDT: FrozenRate = {
   denominator: 1n,
 };
 
-/** Lo que la caja sabe al cerrar un cobro: para el aviso y para el recibo. */
+/** Lo que la caja sabe al cerrar un cobro: para el aviso. El recibo sale de la venta del servidor. */
 type Cobrado = Readonly<{
   total: string;
-  /** El total como dinero, para la venta registrada (regla 3). */
-  totalDinero: Money;
   vuelto: string;
   cliente: ClienteFacturaDto;
-  /** Los medios usados, sin repetir. */
-  medios: readonly string[];
-  /** Cada pago con lo que se devolvería si se anula (DEC-24). */
-  pagosVenta: readonly PagoDeVentaDto[];
-  /** Las líneas de la cuenta que salda este cobro. */
-  lineIds: readonly string[];
-  recibo: Recibo;
-  /** La clave con que el servidor asentó el cobro: anularlo es anular esa operación (B3-3). */
-  cobroKey: string;
+  /** La venta que dejó el cobro en el servidor (B3-4): de ella sale el recibo. */
+  venta: VentaCerradaDto;
   /** La cuenta como la dejó el servidor al cobrar. */
   cuenta: FamilyAccountDto;
 }>;
 
 /** Sin configuración de medios no hay terminales (una sola referencia: no rehace el cobro). */
 const SIN_TERMINALES: readonly PosTerminalDto[] = [];
-
-const DESTINO_SOBRA = {
-  VUELTO: "Vuelto entregado",
-  PROPINA: "Propina",
-  CAJA: "Redondeo a caja",
-} as const;
 
 const MEDIO_ICONS: Record<string, typeof Banknote> = {
   EFECTIVO_USD: Banknote,
@@ -196,7 +179,6 @@ function CobroCuenta({
   rules,
   igtfBasisPoints,
   maxRetained,
-  usuarios,
   rate: rateVivo,
   tasaValor: tasaValorViva,
   tasaId: tasaIdViva,
@@ -214,7 +196,6 @@ function CobroCuenta({
   rules: readonly TaxRule[];
   igtfBasisPoints: number;
   maxRetained: Money;
-  usuarios: readonly UserSummaryDto[];
   /**
    * La tasa VIGENTE, en vivo (B2-1c). El cobro la congela con su primer pago (ADR-005): ver
    * `tasaDelCobro`. `null` bloquea el cobro en Bs. La tasa se MUESTRA en la barra de estación
@@ -237,7 +218,11 @@ function CobroCuenta({
   /** Divide la cuenta en partes iguales, o la vuelve a unir con 1 (F6-12). */
   onDividir?: (partes: number) => void;
   /** Aplica o quita una cortesía en una línea de la cuenta (F6-14). */
-  onCortesia?: (lineId: string, cortesia?: CortesiaDto) => void;
+  /**
+   * Regala una línea o se la quita (F6-14), en el servidor y con su autorización. Devuelve el rechazo,
+   * si lo hay, para que el diálogo lo enseñe.
+   */
+  onCortesia?: (linea: AccountLineDto, motivo: CortesiaDto["motivo"] | null, detalle: string | undefined, autorizacion: unknown) => Promise<Rechazo | null>;
   /** Con la cola plegada (dos columnas), el ticket cede su sitio a la cola. El cobro no se oculta nunca. */
   ocultoEnDosColumnas?: boolean;
 }) {
@@ -341,7 +326,6 @@ function CobroCuenta({
   /** El pago que se está corrigiendo. */
   const [editando, setEditando] = useState<string | null>(null);
   const pagoEditado = pagos.find((p) => p.uid === editando) ?? null;
-  const operador = useOperador();
   const actor = useActorEnSesion();
   const permisoCortesia = actor ? can(actor, "cuenta.cortesia") : "DENEGADO";
 
@@ -580,110 +564,19 @@ function CobroCuenta({
       ...(pagos.some((p) => p.amount.currency === "VES") && tasaId ? { rateId: tasaId } : {}),
       destinoSobra: destinoVuelto === "CAJA" ? ("RESIDUO" as const) : destinoVuelto,
     };
-    const huella = JSON.stringify(cuerpo);
+    const huella = JSON.stringify({ ...cuerpo, cliente });
     if (intento.current?.huella !== huella) intento.current = { huella, clave: globalThis.crypto.randomUUID() };
     const clave = intento.current.clave;
-    // La foto del recibo es la de lo que se manda: se arma antes de esperar.
-    const recibo = armarRecibo();
-
     setEnviando(true);
-    const r = await cobrarEnServidor({ idempotencyKey: clave, ...cuerpo });
+    const r = await cobrarEnServidor({ idempotencyKey: clave, ...cuerpo, ...(cliente.kind === "IDENTIFICADO" ? { cliente } : {}) });
     setEnviando(false);
     if (!r.ok) {
       setError(r.mensaje);
       return;
     }
     intento.current = null;
-    onCobrado({
-      total: toMajor(aCobrar),
-      totalDinero: aCobrar,
-      vuelto: toMajor(cambio),
-      cliente,
-      medios: [...new Set(pagos.map((p) => p.medio.label))],
-      // Lo que se devolvería de cada pago, calculado AHORA con la tasa del
-      // cobro: el excedente (vuelto, propina o residuo) no se devuelve.
-      pagosVenta: refundableByTender(tenders, sobra, FUNCIONAL).map(
-        (devolvible, i) => ({
-          methodCode: pagos[i]!.medio.code,
-          label: pagos[i]!.medio.label,
-          cash: pagos[i]!.medio.canGiveChange,
-          dataKind: pagos[i]!.medio.datos ?? null,
-          paid: {
-            minor: String(pagos[i]!.amount.amount),
-            currency: pagos[i]!.amount.currency,
-          },
-          refundable: {
-            minor: String(devolvible.amount),
-            currency: devolvible.currency,
-          },
-        }),
-      ),
-      lineIds: lines.map((l) => l.id),
-      recibo,
-      cobroKey: clave,
-      cuenta: r.valor.cuenta,
-    });
+    onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(cambio), cliente, venta: r.valor.venta, cuenta: r.valor.cuenta });
     setPagos([]);
-  }
-
-  /** La foto del cobro para el recibo, con los textos ya formateados (recibo.ts). */
-  function armarRecibo(): Recibo {
-    const ahora = new Date();
-    const dinero = (m: Money) => formatMoneyVE(toMajor(m), m.currency);
-    const totalBs =
-      aBolivares && aBolivares.from === aCobrar.currency
-        ? convert(aCobrar, aBolivares)
-        : null;
-    return {
-      orden: numeroDeOrden(cuenta),
-      cuenta: esVentaDirecta(cuenta) ? "Venta de mostrador" : cuenta.family,
-      cuando: `${ahora.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" })} · ${formatClock(ahora.getTime())}`,
-      facturaA:
-        cliente.kind === "CONSUMIDOR_FINAL"
-          ? "Consumidor final"
-          : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`,
-      parte: partes > 1 ? `Parte ${parteActual} de ${partes}` : null,
-      lineas: filas.map((f) => ({
-        cantidad: f.cantidad,
-        // El motivo, en palabras: el recibo lo lee una persona.
-        concepto: f.cortesia
-          ? `Cortesía · ${TEXTO_MOTIVO[f.cortesia.motivo]} · ${f.concepto}`.slice(
-              0,
-              80,
-            )
-          : f.concepto,
-        importe: dinero(multiply(f.precio, BigInt(f.cantidad))),
-        ...(f.cortesia ? { cortesia: true } : {}),
-      })),
-      subtotal: dinero(doc.subtotal),
-      impuestos: [
-        ...doc.buckets.map((b) => ({
-          etiqueta: `IVA ${b.basisPoints / 100}%`,
-          monto: dinero(b.tax),
-        })),
-        ...(igtfTotal.amount > 0n
-          ? [
-              {
-                etiqueta: `IGTF ${igtfBasisPoints / 100}%`,
-                monto: dinero(igtfTotal),
-              },
-            ]
-          : []),
-      ],
-      total: dinero(aCobrar),
-      totalBs: totalBs ? dinero(totalBs) : null,
-      tasa: tasaTexto,
-      pagos: pagos.map((p) => ({
-        medio: p.medio.label,
-        detalle: p.datos ? resumenDatos(p.datos, terminales) : null,
-        monto: dinero(p.amount),
-      })),
-      vuelto: sobra.amount > 0n ? dinero(sobra) : null,
-      destinoVuelto: sobra.amount > 0n ? DESTINO_SOBRA[destinoVuelto] : null,
-      cajera: operador?.nombre ?? null,
-      // TODO(F5-03/backend): el teléfono del representante vendrá con la cuenta.
-      telefono: null,
-    };
   }
 
   const puedeCobrar =
@@ -1804,13 +1697,14 @@ function CobroCuenta({
       {lineaParaCortesia && onCortesia && (
         <CortesiaDialog
           linea={lineaParaCortesia.linea}
-          usuarios={usuarios}
-          operador={operador}
           quitar={lineaParaCortesia.quitar}
-          onCortesia={(l, c) => {
-            onCortesia(l.id, c);
-            setLineaParaCortesia(null);
-            setFilaAbierta(null);
+          onAplicar={async (motivo, detalle, autorizacion) => {
+            const rechazo = await onCortesia(lineaParaCortesia.linea, motivo, detalle, autorizacion);
+            if (!rechazo) {
+              setLineaParaCortesia(null);
+              setFilaAbierta(null);
+            }
+            return rechazo;
           }}
           onCerrar={() => setLineaParaCortesia(null)}
         />
@@ -1937,11 +1831,12 @@ export function CajaScreen({
 
   // El último cobro sale del registro de ventas: sobrevive a una recarga y
   // «Ventas» ve lo mismo.
-  const { ventas, registrar, anotarImpresion } = useVentas();
+  const { ventas, adoptar, imprimir } = useVentas();
+  const { cortesia: cortesiaEnServidor } = useCuentas();
   // Un cobro anulado ya no es «el último cobro»: su recibo no vale.
   const ultimaVenta = ventas.find((v) => !v.voided) ?? null;
+  const ultimoRecibo = useMemo(() => (ultimaVenta ? reciboDeVenta(ultimaVenta) : null), [ultimaVenta]);
   const [viendoRecibo, setViendoRecibo] = useState(false);
-  const operadorCaja = useOperador();
   const [viendoAtajos, setViendoAtajos] = useState(false);
 
   /* ── lo que llega a la cola ──────────────────────────────────────────
@@ -2071,25 +1966,7 @@ export function CajaScreen({
     // Si quedan partes, la cuenta sigue elegida: la siguiente persona paga ya.
     setElegida(faltan > 0 ? cuenta.id : null);
     if (faltan === 0) setVista("cola");
-    registrar({
-      id: `v-${globalThis.crypto.randomUUID()}`,
-      ...(cuenta.orderNumber ? { orderNumber: cuenta.orderNumber } : {}),
-      accountId: cuenta.id,
-      cobroKey: r.cobroKey,
-      closedAt: new Date().toISOString(),
-      cashier: operadorCaja
-        ? { id: operadorCaja.id, name: operadorCaja.nombre }
-        : null,
-      total: {
-        minor: String(r.totalDinero.amount),
-        currency: r.totalDinero.currency,
-      },
-      methods: [...r.medios],
-      payments: [...r.pagosVenta],
-      lineIds: [...r.lineIds],
-      recibo: r.recibo,
-      prints: [],
-    });
+    adoptar(r.venta);
     avisar.ok(
       faltan > 0
         ? `${numeroDeOrden(cuenta)}: parte ${despues.split!.paid} de ${despues.split!.parts} cobrada`
@@ -2328,10 +2205,10 @@ export function CajaScreen({
           buscadorRef={buscadorRef}
           onEscanear={alEscanear}
           ultimoCobro={
-            ultimaVenta
+            ultimoRecibo
               ? {
-                  orden: ultimaVenta.recibo.orden,
-                  total: ultimaVenta.recibo.total,
+                  orden: ultimoRecibo.orden,
+                  total: ultimoRecibo.total,
                 }
               : null
           }
@@ -2373,16 +2250,20 @@ export function CajaScreen({
             onDividir={(n) =>
               guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n))
             }
-            onCortesia={(lineId, cortesia) => {
-              const nueva = FamilyAccountSchema.parse({
-                ...actual,
-                lines: actual.lines.map((l) =>
-                  l.id === lineId
-                    ? { ...l, cortesia: cortesia ?? undefined }
-                    : l,
-                ),
-              });
-              guardar(nueva);
+            onCortesia={async (linea, motivo, detalle, autorizacion) => {
+              const r = await cortesiaEnServidor(
+                {
+                  idempotencyKey: globalThis.crypto.randomUUID(),
+                  accountId: actual.id,
+                  version: actual.version ?? 0,
+                  lineId: linea.id,
+                  quitar: motivo === null,
+                  ...(motivo ? { motivo } : {}),
+                  ...(detalle ? { detalle } : {}),
+                },
+                autorizacion,
+              );
+              return r.ok ? null : r;
             }}
             ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
@@ -2391,17 +2272,11 @@ export function CajaScreen({
         )}
       </Container>
       <ReciboDialog
-        recibo={viendoRecibo && ultimaVenta ? ultimaVenta.recibo : null}
+        recibo={viendoRecibo ? ultimoRecibo : null}
         copia={ultimaVenta ? ultimaVenta.prints.length > 0 : false}
-        onImprimir={() =>
-          ultimaVenta &&
-          anotarImpresion(ultimaVenta.id, {
-            at: new Date().toISOString(),
-            by: operadorCaja
-              ? { id: operadorCaja.id, name: operadorCaja.nombre }
-              : null,
-          })
-        }
+        onImprimir={() => {
+          if (ultimaVenta) void imprimir(ultimaVenta.id);
+        }}
         onCerrar={() => setViendoRecibo(false)}
       />
       <AtajosDialog

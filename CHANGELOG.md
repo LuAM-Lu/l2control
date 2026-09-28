@@ -12,6 +12,29 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.25.0] — 2026-09-28 · Etapa 3 · Caja
+
+B3-4 · Ventas del turno, reimpresión, anulación y cortesía en el servidor.
+
+### Añadido
+- Cada cobro deja su **venta** en el servidor: lo cobrado y lo regalado, el IVA, el IGTF, la tasa,
+  cada pago con lo que se devolvería y el vuelto. El recibo sale de ella: la caja ya no lo compone.
+- Turno → ventas: se ven desde cualquier pestaña de la caja y sobreviven a cerrarla. Imprimir queda
+  anotado con quién y cuándo; desde la segunda, el recibo sale como **COPIA**.
+- La anulación queda en la venta: quién la pidió, quién la autorizó y cómo volvió el dinero de cada
+  pago, con la referencia de la devolución guardada cifrada.
+
+### Cambiado
+- La **cortesía** la autoriza el servidor: supervisión o administración con su PIN, y queda a su
+  nombre con la hora. Una pantalla ya no puede regalar por su cuenta.
+- La administración confirma con su **PIN** al anular un cobro o regalar algo.
+- Supervisión puede autorizarse a sí misma en la caja, pero no una tasa ni un ajuste de inventario:
+  eso lo autoriza otra persona.
+- El diálogo de anular cabe entero a 1366×768: ya no hay que desplazarse para llegar al PIN.
+
+### Quitado
+- El PIN de prueba «1970» y el directorio de ejemplo con que la caja decidía quién autorizaba.
+
 ## [0.24.0] — 2026-09-28 · Etapa 3 · Caja
 
 B3-3 · Cobro mixto y vuelto en el servidor, y todas las cuentas en la base (F4-03, F4-04b, F4-04c).

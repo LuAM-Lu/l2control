@@ -288,7 +288,8 @@ export function moverParqueALaMesa(
 ): { familia: FamilyAccountDto; mesa: FamilyAccountDto } | null {
   const ids = new Set(sessionIds);
   const mueven = familia.lines.filter(
-    (l) => !l.paid && !l.movedTo && l.sessionId && ids.has(l.sessionId),
+    // Lo regalado no se mueve: no se debe, y su cortesía se quedó en esta cuenta.
+    (l) => !l.paid && !l.movedTo && !l.cortesia && l.sessionId && ids.has(l.sessionId),
   );
   if (mueven.length === 0) return null;
 

@@ -10,7 +10,6 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 
 | Archivo | Qué inventa | Se va con |
 |---|---|---|
-| `usuarios.ts` | Quién autoriza en los diálogos de anular y cortesía de la caja (usuarios, acceso y permisos ya son de la base) | B3-4 |
 | `turno.ts` | Nada: movimientos y excepciones **vacíos** desde el 2026-09-26 (la forma sigue aquí) | B3-1 y B3-5 |
 | `parque.ts` | Nada: sala y representantes **vacíos** desde el 2026-09-26 (la forma sigue aquí) | B4-1 y B4-2 |
 | `representantes.ts` | Nada: directorio **vacío** desde el 2026-09-26 | B4-1 |

@@ -1,7 +1,7 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Etapa 3 · Caja",

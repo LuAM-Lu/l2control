@@ -1,6 +1,5 @@
 import { CajaScreen } from "../../../src/features/cash/CajaScreen";
 import { demoSnapshot } from "../../../src/demo/parque";
-import { DEMO_USUARIOS } from "../../../src/demo/usuarios";
 import { tarifarioVigente } from "../../../src/features/park/tarifario.servidor";
 import { impuestosDelLocal } from "../../../src/features/cash/impuestos.servidor";
 import { turnoDelEquipo } from "../../../src/features/cash/turno.servidor";
@@ -40,7 +39,6 @@ export default async function CajaPage({
       // El turno del equipo (B3-1): sin él no se cobra, y su equipo es el punto de cobro.
       turno={await turnoDelEquipo()}
       serverNow={Date.now()}
-      usuarios={DEMO_USUARIOS}
     />
   );
 }

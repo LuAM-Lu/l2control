@@ -49,9 +49,22 @@ export async function anularCobro(entrada: unknown, autorizacion?: unknown): Pro
   return r;
 }
 
-/** Quiénes pueden autorizar a quien opera a anular un cobro (vacío si no le hace falta). */
-export async function autorizadoresParaAnular(): Promise<{ id: string; nombre: string; rol: string }[]> {
+/** Regala una línea o deja de regalarla (F6-14). `autorizacion` lleva quién, su PIN y el motivo. */
+export async function darCortesia(entrada: unknown, autorizacion?: unknown): Promise<Resultado<FamilyAccountDto>> {
   const ctx = await contextoActual();
-  if (!ctx) return [];
-  return (await aplicacion()).cuentas.autorizadores(ctx);
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cuentas.cortesia(ctx, entrada, autorizacion);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id }, "cortesía aplicada");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cortesía rechazada");
+  return r;
+}
+
+/**
+ * Quiénes pueden autorizar a quien opera a anular un cobro o a regalar (vacío si no le hace falta).
+ * Solo esas dos: la acción llega del navegador y aquí no se abre otra.
+ */
+export async function autorizadoresDeCaja(accion: unknown): Promise<{ id: string; nombre: string; rol: string }[]> {
+  const ctx = await contextoActual();
+  if (!ctx || (accion !== "cobro.anular" && accion !== "cuenta.cortesia")) return [];
+  return (await aplicacion()).cuentas.autorizadores(ctx, accion);
 }

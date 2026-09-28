@@ -1,105 +1,71 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { VentaCerradaSchema, type AnulacionDto, type ImpresionDto, type VentaCerradaDto } from "@l2/contracts";
+import type { Rechazo, Resultado, VentaCerradaDto } from "@l2/contracts";
+import { imprimirVenta, leerVentas } from "./ventas.acciones";
 
 /**
- * Las ventas cerradas del turno — UX-MEJORAS §9 (C12).
+ * Las ventas del turno de este equipo — UX-MEJORAS §9 (C12), en el servidor desde B3-4.
  *
- * La caja registra aquí cada cobro con la foto de su recibo, y «Ventas» las
- * lista para reimprimir. Como `CuentasProvider`, hace de servidor de juguete en
- * la sesión del navegador y valida todo lo que carga contra el contrato: un
- * dato guardado que no lo cumple se descarta entero.
- *
- * APPEND-ONLY (regla 5): no hay «editar» ni «borrar». Una venta entra una vez;
- * una impresión se AÑADE a su lista. La anulación (DEC-24) será otra entrada,
- * no un cambio de esta.
- *
- * TODO(F4-03/backend): el servidor guarda la venta y registra la impresión en
- * auditoría antes de devolver el recibo (§5.4).
+ * Cada cobro deja su venta en el servidor, en la misma transacción. Aquí se adopta la que devuelve el
+ * cobro o la anulación, y se vuelve a leer al volver el foco. Imprimir se anota en el servidor antes
+ * de sacar el papel: la primera impresión es el original y las demás, copias (§5.4). Nada se guarda
+ * en el navegador.
  */
 
-// v2: la venta guarda sus pagos y líneas (DEC-24). Lo de v1 no se puede anular.
-const CLAVE = "l2:ventas:v2";
+const sinConexion: Rechazo = { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: no se anotó la impresión." };
 
 type Valor = Readonly<{
   /** De la más reciente a la más antigua. */
   ventas: readonly VentaCerradaDto[];
-  registrar: (venta: VentaCerradaDto) => void;
-  /** Añade una impresión. Si la venta ya tenía alguna, esta fue una COPIA. */
-  anotarImpresion: (id: string, impresion: ImpresionDto) => void;
-  /**
-   * Añade la anulación a una venta (DEC-24). Valida la venta ENTERA con su
-   * anulación contra el contrato y lanza si no cumple o si ya estaba anulada:
-   * quien llama no aplica nada más si esto falla (fail-closed).
-   */
-  anular: (id: string, anulacion: AnulacionDto) => VentaCerradaDto;
+  /** Sustituye o añade la venta que devolvió el servidor (un cobro, una anulación). */
+  adoptar: (venta: VentaCerradaDto) => void;
+  /** Anota una impresión en el servidor y adopta la venta como quedó. */
+  imprimir: (id: string) => Promise<Resultado<VentaCerradaDto>>;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
 
-export function VentasProvider({
-  inicial,
-  children,
-}: {
-  /** Ventas con las que arranca: las de la demo, o ninguna. TODO(F4-03): del servidor. */
-  inicial: readonly VentaCerradaDto[];
-  children: React.ReactNode;
-}) {
+const ordenar = (lista: readonly VentaCerradaDto[]) => [...lista].sort((a, b) => Date.parse(b.closedAt) - Date.parse(a.closedAt));
+
+export function VentasProvider({ inicial, children }: { inicial: readonly VentaCerradaDto[]; children: React.ReactNode }) {
   const [ventas, setVentas] = useState<readonly VentaCerradaDto[]>(inicial);
-  const [cargado, setCargado] = useState(false);
 
+  // Cuando el layout se vuelve a pintar con otras ventas (se navegó), se adoptan.
+  const huella = JSON.stringify(inicial);
   useEffect(() => {
-    try {
-      const crudo = window.sessionStorage.getItem(CLAVE);
-      if (crudo) {
-        const r = VentaCerradaSchema.array().safeParse(JSON.parse(crudo));
-        if (r.success) setVentas(r.data);
-        else window.sessionStorage.removeItem(CLAVE);
-      }
-    } catch {
-      // Almacenamiento bloqueado o JSON roto: se sigue con las iniciales.
-    }
-    setCargado(true);
-  }, []);
+    setVentas(inicial);
+  }, [huella]);
 
+  // Al volver el foco se leen otra vez: otra pestaña de este equipo pudo cobrar o anular.
   useEffect(() => {
-    if (!cargado) return;
-    try {
-      window.sessionStorage.setItem(CLAVE, JSON.stringify(ventas));
-    } catch {
-      // Sin almacenamiento, la sesión sigue en memoria.
-    }
-  }, [ventas, cargado]);
-
-  const registrar = useCallback((venta: VentaCerradaDto) => {
-    const valida = VentaCerradaSchema.parse(venta);
-    // Una venta entra una sola vez: un doble registro no la duplica.
-    setVentas((prev) => (prev.some((v) => v.id === valida.id) ? prev : [valida, ...prev]));
+    const alVolver = () => {
+      if (document.visibilityState !== "visible") return;
+      void leerVentas()
+        .then((r) => {
+          if (r.ok) setVentas(r.valor.ventas);
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener("focus", alVolver);
+    return () => window.removeEventListener("focus", alVolver);
   }, []);
 
-  const anotarImpresion = useCallback((id: string, impresion: ImpresionDto) => {
-    setVentas((prev) => prev.map((v) => (v.id === id ? { ...v, prints: [...v.prints, impresion] } : v)));
+  const adoptar = useCallback((venta: VentaCerradaDto) => {
+    setVentas((prev) => (prev.some((v) => v.id === venta.id) ? prev.map((v) => (v.id === venta.id ? venta : v)) : [venta, ...prev]));
   }, []);
 
-  const anular = useCallback(
-    (id: string, anulacion: AnulacionDto) => {
-      const venta = ventas.find((v) => v.id === id);
-      if (!venta) throw new Error("La venta no existe");
-      if (venta.voided) throw new Error(`La orden ${venta.recibo.orden} ya estaba anulada`);
-      const anulada = VentaCerradaSchema.parse({ ...venta, voided: anulacion });
-      setVentas((prev) => prev.map((v) => (v.id === id && !v.voided ? anulada : v)));
-      return anulada;
+  const imprimir = useCallback(
+    async (id: string) => {
+      const r = await imprimirVenta({ saleId: id }).catch(() => sinConexion);
+      if (r.ok) adoptar(r.valor);
+      return r;
     },
-    [ventas],
+    [adoptar],
   );
 
-  // De la más reciente a la más antigua, sea cual sea el orden en que llegaron.
-  const ordenadas = useMemo(() => [...ventas].sort((a, b) => Date.parse(b.closedAt) - Date.parse(a.closedAt)), [ventas]);
-  const valor = useMemo(
-    () => ({ ventas: ordenadas, registrar, anotarImpresion, anular }),
-    [ordenadas, registrar, anotarImpresion, anular],
-  );
+  const ordenadas = useMemo(() => ordenar(ventas), [ventas]);
+  const valor = useMemo(() => ({ ventas: ordenadas, adoptar, imprimir }), [ordenadas, adoptar, imprimir]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

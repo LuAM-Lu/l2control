@@ -6,22 +6,25 @@ import { Ban, MessageCircle, Printer, ReceiptText, Search, X } from "lucide-reac
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
-import type { AnulacionDto, Rechazo, VentaCerradaDto } from "@l2/contracts";
+import type { Rechazo, VentaCerradaDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Button, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
-import { useOperador } from "../identity/operador.ts";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
-import { AnularCobroDialog } from "./AnularCobroDialog.tsx";
-import { enmascarar, textoDinero, textoMotivo } from "./anulacion.ts";
+import { AnularCobroDialog, type PedidoDeAnulacion } from "./AnularCobroDialog.tsx";
+import { textoDinero, textoMotivo } from "./anulacion.ts";
+import { reciboDeVenta, ordenDe } from "./recibo.ts";
 import { formatClock } from "../park/time-format.ts";
 import { useAtajos } from "./atajos.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 import { ReciboDialog, ReciboImpreso } from "./ReciboDialog.tsx";
 import { useVentas } from "./VentasProvider.tsx";
 
+/** Los medios usados en una venta, sin repetir. */
+const mediosDe = (v: VentaCerradaDto) => [...new Set(v.payments.map((p) => p.label))];
+
 /**
- * Ventas del turno — UX-MEJORAS §9 (C12). Desde M-13 viven dentro de la sección Turno, entre el
+ * Ventas del turno — UX-MEJORAS §9 (C12), en el servidor desde B3-4. Desde M-13 viven dentro de la sección Turno, entre el
  * resumen del turno y su cierre: esta pieza no tiene página propia.
  *
  * Maestro-detalle, como la caja: a la izquierda los cobros cerrados, del más
@@ -36,8 +39,8 @@ import { useVentas } from "./VentasProvider.tsx";
  * Sin atajo de teclado para reimprimir, a propósito: una impresión auditada no
  * debe salir por una tecla pulsada sin querer.
  *
- * TODO(F4-05/backend): las ventas son las del turno abierto; la cajera ve las
- * suyas y el supervisor las de todos. Hoy son las de esta sesión.
+ * Las ventas son las del turno abierto de este equipo (la cajera ve las suyas);
+ * lo cobrado en el día entero sale en Inicio con B3-5.
  */
 
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -45,20 +48,19 @@ const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, 
 function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: string | null) {
   const q = sinAcentos(texto.trim()).replace(/^#/, "");
   return ventas.filter((v) => {
-    if (medio && !v.methods.includes(medio)) return false;
+    if (medio && !mediosDe(v).includes(medio)) return false;
     if (q === "") return true;
     const numero = String(v.orderNumber ?? "");
-    return sinAcentos(v.recibo.cuenta).includes(q) || (/^\d+$/.test(q) && numero.includes(q));
+    return sinAcentos(v.cuenta.family).includes(q) || (/^\d+$/.test(q) && numero.includes(q));
   });
 }
 
 export function VentasDelTurno({ className }: { className?: string }) {
-  const { ventas, anotarImpresion, anular } = useVentas();
+  const { ventas, imprimir: imprimirEnServidor, adoptar } = useVentas();
   const { anular: anularEnServidor } = useCuentas();
   /** La clave de la anulación en curso de cada venta: un reintento (un PIN mal tecleado) no anula dos veces. */
   const claves = useRef(new Map<string, string>());
   const router = useRouter();
-  const operador = useOperador();
   const [anulando, setAnulando] = useState(false);
   const actor = useActorEnSesion();
   const puedeAnular = actor !== null && can(actor, "cobro.anular") !== "DENEGADO";
@@ -68,7 +70,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
   const [enviando, setEnviando] = useState(false);
   const buscadorRef = useRef<HTMLInputElement>(null);
 
-  const medios = useMemo(() => [...new Set(ventas.flatMap((v) => v.methods))], [ventas]);
+  const medios = useMemo(() => [...new Set(ventas.flatMap(mediosDe))], [ventas]);
   const visibles = useMemo(() => filtrar(ventas, texto, medio), [ventas, texto, medio]);
   const actual = visibles.find((v) => v.id === elegida) ?? visibles[0] ?? null;
   // Lo cobrado no cuenta lo anulado: ese dinero volvió al cliente.
@@ -83,48 +85,42 @@ export function VentasDelTurno({ className }: { className?: string }) {
    * asiento del libro y devuelve a la cola lo que pagó. Solo si lo confirma se anota la anulación
    * en la venta, con cómo volvió el dinero de cada pago.
    */
-  async function aplicarAnulacion(v: VentaCerradaDto, anulacion: AnulacionDto, autorizacion?: unknown): Promise<Rechazo | null> {
+  async function aplicarAnulacion(v: VentaCerradaDto, pedido: PedidoDeAnulacion, autorizacion: unknown): Promise<Rechazo | null> {
     const clave = claves.current.get(v.id) ?? globalThis.crypto.randomUUID();
     claves.current.set(v.id, clave);
-    const r = await anularEnServidor(
-      {
-        idempotencyKey: clave,
-        accountId: v.accountId,
-        cobroKey: v.cobroKey,
-        motivo: anulacion.reason,
-        ...(anulacion.note ? { detalle: anulacion.note } : {}),
-      },
-      autorizacion,
-    );
+    const r = await anularEnServidor({ idempotencyKey: clave, accountId: v.accountId, cobroKey: v.cobroKey, ...pedido }, autorizacion);
     if (!r.ok) return r;
     claves.current.delete(v.id);
-    anular(v.id, anulacion);
+    adoptar(r.valor.venta);
     setAnulando(false);
     const cuenta = r.valor.cuenta;
-    const devoluciones = anulacion.refunds
+    const devoluciones = (r.valor.venta.voided?.refunds ?? [])
       .map((x) => {
         const p = v.payments[x.paymentIndex]!;
         return `${textoDinero(x.amount)} ${p.cash || x.via === "EFECTIVO" ? "en efectivo" : `por ${p.label}`}`;
       })
       .join(" · ");
     const enCola = cuenta.status === "POR_COBRAR";
-    avisar.ok(`Orden ${v.recibo.orden} anulada`, {
-      detalle: `Devolver ${devoluciones}.${enCola ? " La cuenta volvió a «por cobrar»." : ""}`,
+    avisar.ok(`Orden ${ordenDe(v.orderNumber)} anulada`, {
+      detalle: `${devoluciones ? `Devolver ${devoluciones}.` : ""}${enCola ? " La cuenta volvió a «por cobrar»." : ""}`.trim(),
       ...(enCola ? { accion: { texto: "Ir a cobrar", alPulsar: () => router.push(`/caja?cuenta=${cuenta.id}` as Route) } } : {}),
     });
     return null;
   }
 
-  function imprimir(v: VentaCerradaDto) {
+  /**
+   * Imprime y lo anota en el servidor, que dice si fue el original o una copia (§5.4). El papel sale
+   * primero y dice lo que ya se sabía: si ya se había impreso, es COPIA.
+   */
+  async function imprimir(v: VentaCerradaDto) {
     const copia = v.prints.length > 0;
-    // Primero el papel, después el rastro: así el papel dice si ya se había
-    // impreso, no la impresión que se está haciendo.
     window.print();
-    anotarImpresion(v.id, {
-      at: new Date().toISOString(),
-      by: operador ? { id: operador.id, name: operador.nombre } : null,
-    });
-    avisar.info(copia ? `Copia del recibo ${v.recibo.orden} impresa` : `Recibo ${v.recibo.orden} impreso`, {
+    const r = await imprimirEnServidor(v.id);
+    if (!r.ok) {
+      avisar.error(r.mensaje, { detalle: "La impresión no quedó anotada." });
+      return;
+    }
+    avisar.info(copia ? `Copia del recibo ${ordenDe(v.orderNumber)} impresa` : `Recibo ${ordenDe(v.orderNumber)} impreso`, {
       detalle: "Queda anotada con tu nombre y la hora.",
     });
   }
@@ -262,15 +258,15 @@ export function VentasDelTurno({ className }: { className?: string }) {
                             type="button"
                             onClick={() => setElegida(v.id)}
                             aria-pressed={activa}
-                            aria-label={`Orden ${v.recibo.orden}, ${v.recibo.cuenta}, ${v.recibo.total}`}
+                            aria-label={`Orden ${ordenDe(v.orderNumber)}, ${v.cuenta.family}, ${textoDinero(v.total)}`}
                             className="tnum min-h-12 cursor-pointer font-bold text-ink focus-visible:outline-2 focus-visible:outline-brand"
                           >
-                            {v.recibo.orden}
+                            {ordenDe(v.orderNumber)}
                           </button>
                         </td>
                         <td className="tnum text-ink-2">{formatClock(Date.parse(v.closedAt))}</td>
-                        <td className="max-w-0 truncate pr-2 text-ink">{v.recibo.cuenta}</td>
-                        <td className="hidden max-w-0 truncate pr-2 text-ink-3 md:table-cell">{v.methods.join(" · ")}</td>
+                        <td className="max-w-0 truncate pr-2 text-ink">{v.cuenta.kind === "MOSTRADOR" ? "Venta de mostrador" : v.cuenta.family}</td>
+                        <td className="hidden max-w-0 truncate pr-2 text-ink-3 md:table-cell">{mediosDe(v).join(" · ")}</td>
                         <td className={cn("tnum text-right font-semibold", v.voided ? "text-ink-3 line-through" : "text-ink")}>
                           {formatMoneyVE(toMajor(money(BigInt(v.total.minor), "USD")), "USD")}
                         </td>
@@ -304,7 +300,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
           {actual ? (
             <>
               <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                <ReciboImpreso recibo={actual.recibo} copia={actual.prints.length > 0} anulada={Boolean(actual.voided)} className="max-w-none" />
+                <ReciboImpreso recibo={reciboDeVenta(actual)} copia={actual.prints.length > 0} anulada={Boolean(actual.voided)} className="max-w-none" />
               </div>
               {/* La anulación, entera: por qué, quién y cómo volvió el dinero. */}
               {actual.voided && (
@@ -315,7 +311,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                   </p>
                   <p className="text-ink-3">
                     Autorizó {actual.voided.authorizedBy.name} ({actual.voided.authorizedBy.role === "ADMIN" ? "administración" : "supervisión"})
-                    {actual.voided.requestedBy ? ` · pidió ${actual.voided.requestedBy.name}` : ""}
+                    {` · pidió ${actual.voided.requestedBy}`}
                     {actual.voided.note ? ` · «${actual.voided.note}»` : ""}
                   </p>
                   <ul className="tnum mt-0.5 text-ink-3">
@@ -324,7 +320,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                       return (
                         <li key={r.paymentIndex}>
                           {p.label}: {textoDinero(r.amount)} {p.cash || r.via === "EFECTIVO" ? "en efectivo" : `por ${p.label}`}
-                          {r.reference ? ` · Ref. ${enmascarar(r.reference)}` : ""}
+                          {r.reference ? ` · Ref. ${r.reference}` : ""}
                         </li>
                       );
                     })}
@@ -344,7 +340,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                     <ol className="flex flex-col gap-0.5 pb-1">
                       {actual.prints.map((p, i) => (
                         <li key={i} className="tnum">
-                          {i === 0 ? "Original" : `Copia ${i}`} · {formatClock(Date.parse(p.at))} · {p.by?.name ?? "sin sesión"}
+                          {i === 0 ? "Original" : `Copia ${i}`} · {formatClock(Date.parse(p.at))} · {p.by}
                         </li>
                       ))}
                     </ol>
@@ -361,7 +357,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                     <MessageCircle size={17} aria-hidden="true" />
                     WhatsApp
                   </Button>
-                  <Button surface="pos" variant="primary" onClick={() => imprimir(actual)}>
+                  <Button surface="pos" variant="primary" onClick={() => void imprimir(actual)}>
                     <Printer size={17} aria-hidden="true" />
                     {actual.prints.length > 0 ? "Reimprimir" : "Imprimir"}
                   </Button>
@@ -385,21 +381,16 @@ export function VentasDelTurno({ className }: { className?: string }) {
       <AnularCobroDialog
         venta={anulando && actual && !actual.voided ? actual : null}
         ventas={ventas}
-        operador={operador}
         onAnular={aplicarAnulacion}
         onCerrar={() => setAnulando(false)}
       />
 
       <ReciboDialog
-        recibo={enviando && actual ? actual.recibo : null}
+        recibo={enviando && actual ? reciboDeVenta(actual) : null}
         copia={actual ? actual.prints.length > 0 : false}
-        onImprimir={() =>
-          actual &&
-          anotarImpresion(actual.id, {
-            at: new Date().toISOString(),
-            by: operador ? { id: operador.id, name: operador.nombre } : null,
-          })
-        }
+        onImprimir={() => {
+          if (actual) void imprimirEnServidor(actual.id);
+        }}
         onCerrar={() => setEnviando(false)}
       />
     </>
