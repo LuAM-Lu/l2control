@@ -215,7 +215,11 @@ function NavModulos({
 }) {
   // En el riel no hay sitio para desplegar: el módulo entero es un icono y su
   // página lista las secciones. Solo la barra ancha y el cajón despliegan.
-  const [abierto, setAbierto] = useState<string | null>(null);
+  // Lo que la persona abrió o plegó a mano, por módulo. Sin elegir nada, se despliega el módulo en el
+  // que está. Antes, estando dentro de un módulo (p. ej. en una pantalla de Ajustes) no se podía
+  // plegar: «estar dentro» lo volvía a abrir en el acto. Al navegar se vuelve a lo automático.
+  const [eleccion, setEleccion] = useState<Readonly<Record<string, boolean>>>({});
+  useEffect(() => setEleccion({}), [pathname]);
   const riel = modo === "lateral";
 
   const operar = modulosDeZona(modulos, "operar");
@@ -225,7 +229,7 @@ function NavModulos({
     const enModulo = pathname.startsWith(rutaModulo(m.id));
     const secciones = m.secciones.filter((s) => actor !== null && puedeVerSeccion(actor, m, s));
     const seccionActiva = secciones.some((s) => s.href === pathname);
-    const desplegado = abierto === m.id || enModulo;
+    const desplegado = eleccion[m.id] ?? enModulo;
     return (
             <li key={m.id}>
               {/* La fila del módulo SIEMPRE navega a su página. Un encabezado
@@ -244,7 +248,7 @@ function NavModulos({
                     aria-expanded={desplegado}
                     onClick={(e) => {
                       e.preventDefault();
-                      setAbierto(desplegado ? "" : m.id);
+                      setEleccion((prev) => ({ ...prev, [m.id]: !desplegado }));
                     }}
                     className={cn(
                       "grid size-8 shrink-0 cursor-pointer place-content-center rounded text-ink-3",

@@ -12,6 +12,12 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.28.1] — 2026-09-28 · Etapa 4 · Parque
+
+### Corregido
+- En el menú del panel, **Ajustes** (o cualquier módulo) se puede plegar aunque estés en una de sus
+  pantallas: antes se volvía a abrir solo. Al navegar, se despliega el módulo donde estás.
+
 ## [0.28.0] — 2026-09-28 · Etapa 4 · Parque
 
 B4-3 · Salida y liquidación: recarga de tiempo, a quién se entrega el niño y estancias huérfanas.
