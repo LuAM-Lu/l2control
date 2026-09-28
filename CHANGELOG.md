@@ -12,6 +12,13 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.27.1] — 2026-09-28 · Etapa 4 · Parque
+
+### Cambiado
+- La tasa de cambio se enseña con **dos decimales** en todas las pantallas y en el recibo
+  («Bs. 857,01» en lugar de «Bs. 857,00580000»), redondeada hacia arriba desde la mitad. El cobro
+  sigue convirtiendo con la tasa completa que publicó el BCV.
+
 ## [0.27.0] — 2026-09-28 · Etapa 4 · Parque
 
 B4-1 y B4-2 · Familias, niños y estancias en el servidor, con su cronómetro. Salen juntos: no hay 0.26.0.
