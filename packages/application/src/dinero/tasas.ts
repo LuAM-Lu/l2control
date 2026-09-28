@@ -544,6 +544,18 @@ function alertasDe(tasas: readonly RateRecord[], ahora: number, feriados: Holida
   return alertas;
 }
 
+/**
+ * Lo que decide con qué tasa se puede cerrar un cobro (B3-3): el historial reciente del local, en la
+ * forma del dominio, y sus feriados bancarios. Lo usa `citedRateValid`.
+ */
+export async function historialParaCobrar(tx: Transaccion): Promise<{ registros: RateRecord[]; feriados: Holidays }> {
+  const [filas, feriados] = await Promise.all([
+    tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS }),
+    diasFeriados(tx),
+  ]);
+  return { registros: filas.map(registro), feriados };
+}
+
 /** La última tasa confirmada del par capturada hasta `instante`, en la forma del dominio. */
 async function ultimaConfirmada(tx: Transaccion, pair: string, instante: string): Promise<RateRecord | null> {
   const filas = await tx.exchangeRate.findMany({

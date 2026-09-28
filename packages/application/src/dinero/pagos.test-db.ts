@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { LibroDocumentoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearCuenta, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -25,7 +25,7 @@ let supervisor: string;
 let tasa: string;
 let pendiente: string;
 
-const DOC = randomUUID();
+let DOC: string;
 const FONDO = {
   fondos: [
     { currency: "USD", amount: { minor: "0", currency: "USD" } },
@@ -53,6 +53,8 @@ const filasDe = (clave: string) =>
 before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Libro");
   otro = await abrirLocalDePrueba(URL_APP, "Libro de otro");
+  // El libro cita la cuenta que cobra (B3-3): cada documento de estas pruebas es una cuenta real.
+  DOC = await crearCuenta(local);
   const admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   const cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
@@ -103,7 +105,7 @@ describe("asentar un cobro (F3-09)", () => {
 
   test("un doble clic produce un solo cobro (I-11)", async () => {
     const clave = randomUUID();
-    const doc = randomUUID();
+    const doc = await crearCuenta(local);
     const [a, b] = await Promise.all([
       local.app.pagos.asentar(ctxCajera, cobro([usd("10.00")], doc, clave), AHORA),
       local.app.pagos.asentar(ctxCajera, cobro([usd("10.00")], doc, clave), AHORA),
@@ -114,7 +116,7 @@ describe("asentar un cobro (F3-09)", () => {
 
   test("un reintento con la misma clave devuelve lo asentado, sin asentar ni auditar otra vez", async () => {
     const clave = randomUUID();
-    const doc = randomUUID();
+    const doc = await crearCuenta(local);
     const primero = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("7.00")], doc, clave), AHORA));
     const segundo = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("7.00")], doc, clave), AHORA + 5000));
     assert.deepEqual(segundo, primero);
@@ -124,7 +126,7 @@ describe("asentar un cobro (F3-09)", () => {
 
   test("la misma clave con otro contenido es un conflicto, no un segundo cobro", async () => {
     const clave = randomUUID();
-    const doc = randomUUID();
+    const doc = await crearCuenta(local);
     valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("7.00")], doc, clave), AHORA));
     const r = await local.app.pagos.asentar(ctxCajera, cobro([usd("8.00")], doc, clave), AHORA);
     assert.equal(!r.ok && r.motivo, "CONFLICTO");
@@ -133,7 +135,7 @@ describe("asentar un cobro (F3-09)", () => {
 
   test("todo o nada: si un asiento no vale, no se asienta ninguno", async () => {
     const clave = randomUUID();
-    const r = await local.app.pagos.asentar(ctxCajera, cobro([usd("3.00"), pagoMovil("100.00", pendiente)], randomUUID(), clave), AHORA);
+    const r = await local.app.pagos.asentar(ctxCajera, cobro([usd("3.00"), pagoMovil("100.00", pendiente)], await crearCuenta(local), clave), AHORA);
     assert.equal(!r.ok && r.motivo, "INVALIDO");
     assert.equal(await filasDe(clave), 0);
   });
@@ -182,7 +184,7 @@ describe("asentar un cobro (F3-09)", () => {
   test("un cobro a la 1:30 am cuenta en el día del turno que lo generó (ADR-009, F3-11)", async () => {
     // El turno de la caja se abrió el domingo 27; el cobro llega el lunes 28 a la 1:30 am.
     const madrugada = Date.parse("2026-09-28T05:30:00.000Z");
-    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("2.00")], randomUUID()), madrugada));
+    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("2.00")], await crearCuenta(local)), madrugada));
     assert.equal(libro.asientos[0]!.recordedAt, new Date(madrugada).toISOString());
     assert.equal(libro.asientos[0]!.businessDate, "2026-09-27");
   });
@@ -243,7 +245,7 @@ describe("revertir (F3-10)", () => {
   });
 
   test("la caja revierte solo con la autorización de supervisión (DEC-24)", async () => {
-    const doc = randomUUID();
+    const doc = await crearCuenta(local);
     const id = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("4.00")], doc), AHORA)).asientos[0]!.id;
     const sin = await local.app.pagos.revertir(ctxCajera, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, undefined, AHORA);
     assert.equal(!sin.ok && sin.motivo, "NO_PERMITIDO");
@@ -258,7 +260,7 @@ describe("revertir (F3-10)", () => {
   });
 
   test("un doble clic al revertir deja una sola reversión", async () => {
-    const doc = randomUUID();
+    const doc = await crearCuenta(local);
     const id = valor(await local.app.pagos.asentar(ctxAdmin, cobro([usd("6.00")], doc), AHORA)).asientos[0]!.id;
     const clave = randomUUID();
     const cmd = { idempotencyKey: clave, paymentId: id, motivo: "ERROR_EN_COBRO" };
@@ -287,7 +289,7 @@ describe("el medio y los datos del pago (B3-2, F4-04, §7.6)", () => {
   });
 
   test("la referencia se guarda cifrada, sale enmascarada y no llega a la auditoría", async () => {
-    const doc = randomUUID();
+    const doc = await crearCuenta(local);
     const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "0987654321")], doc), AHORA));
     assert.equal(libro.asientos[0]!.referencia, "Banco 0102 · Ref. ···4321");
     const fila = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.payment.findUniqueOrThrow({ where: { id: libro.asientos[0]!.id } }));
@@ -299,8 +301,8 @@ describe("el medio y los datos del pago (B3-2, F4-04, §7.6)", () => {
   });
 
   test("una referencia ya cobrada no se cobra otra vez; revertido el cobro, sí", async () => {
-    const primero = valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], randomUUID()), AHORA));
-    const otraVez = await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], randomUUID()), AHORA);
+    const primero = valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], await crearCuenta(local)), AHORA));
+    const otraVez = await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], await crearCuenta(local)), AHORA);
     assert.equal(!otraVez.ok && otraVez.motivo, "CONFLICTO");
     assert.match(!otraVez.ok ? otraVez.mensaje : "", /ya se cobró el 2026-09-27/);
     // Dos veces en el mismo cobro, tampoco.
@@ -308,9 +310,9 @@ describe("el medio y los datos del pago (B3-2, F4-04, §7.6)", () => {
     assert.equal(!doble.ok && doble.motivo, "INVALIDO");
     // Otro banco de origen con el mismo número es otro pago.
     const deOtroBanco = pagoMovil("855.66", tasa, "5551234");
-    valor(await local.app.pagos.asentar(ctxCajera, cobro([{ ...deOtroBanco, datos: { ...deOtroBanco.datos, bankCode: "0105" } }], randomUUID()), AHORA));
+    valor(await local.app.pagos.asentar(ctxCajera, cobro([{ ...deOtroBanco, datos: { ...deOtroBanco.datos, bankCode: "0105" } }], await crearCuenta(local)), AHORA));
     valor(await local.app.pagos.revertir(ctxAdmin, { idempotencyKey: randomUUID(), paymentId: primero.asientos[0]!.id, motivo: "ERROR_EN_COBRO" }, undefined, AHORA));
-    valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], randomUUID()), AHORA));
+    valor(await local.app.pagos.asentar(ctxCajera, cobro([pagoMovil("855.66", tasa, "5551234")], await crearCuenta(local)), AHORA));
   });
 
   test("un medio apagado no cobra, ni uno que el local no tiene", async () => {
@@ -325,10 +327,10 @@ describe("el medio y los datos del pago (B3-2, F4-04, §7.6)", () => {
   test("el IGTF lo decide el catálogo: un medio en dólares añadido sin IGTF no lo lleva (F4-02)", async () => {
     valor(await local.app.medios.aplicar(local.sistema, { kind: "AÑADIR_MEDIO", medio: { code: "DOLAR_EXENTO", label: "Dólar exento", currency: "USD", triggersIgtf: false, canGiveChange: false } }));
     valor(await local.app.medios.aplicar(local.sistema, { kind: "ACTIVAR", code: "DOLAR_EXENTO", activo: true }));
-    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([{ ...usd("5.00"), method: "DOLAR_EXENTO" }], randomUUID()), AHORA));
+    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([{ ...usd("5.00"), method: "DOLAR_EXENTO" }], await crearCuenta(local)), AHORA));
     assert.deepEqual(libro.asientos[0]!.igtf, { minor: "0", currency: "USD" });
     // El efectivo en dólares, en cambio, sí.
-    const efectivo = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("5.00")], randomUUID()), AHORA));
+    const efectivo = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("5.00")], await crearCuenta(local)), AHORA));
     assert.deepEqual(efectivo.asientos[0]!.igtf, { minor: "15", currency: "USD" });
   });
 
@@ -338,7 +340,7 @@ describe("el medio y los datos del pago (B3-2, F4-04, §7.6)", () => {
     const punto = (terminalId: string) => ({ kind: "COBRO", method: "PDV_DEBITO", amount: { minor: "50000", currency: "VES" }, rateId: tasa, datos: { kind: "PUNTO", terminalId, reference: String(++referencias) } });
     const r = await local.app.pagos.asentar(ctxCajera, cobro([punto(randomUUID())]), AHORA);
     assert.equal(!r.ok && r.motivo, "INVALIDO");
-    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([punto(terminal.id)], randomUUID()), AHORA));
+    const libro = valor(await local.app.pagos.asentar(ctxCajera, cobro([punto(terminal.id)], await crearCuenta(local)), AHORA));
     assert.match(libro.asientos[0]!.referencia ?? "", /^Punto · Ref\. ···/);
   });
 });

@@ -110,3 +110,20 @@ export async function contextoDe(local: LocalDePrueba, equipo: string, userId: s
   if (!r.ok) throw new Error(r.mensaje);
   return contextoDeSesion(r.sesion, null);
 }
+
+let ordenDePrueba = 0;
+
+/**
+ * Una cuenta registrada (B3-3), sin versiones: basta para que el libro de pagos la cite. Las pruebas
+ * de las cuentas en sí las abren con `app.cuentas.guardar`.
+ */
+export async function crearCuenta(local: LocalDePrueba, kind: "FAMILIA" | "MESA" | "MOSTRADOR" = "MOSTRADOR"): Promise<string> {
+  const id = randomUUID();
+  const { tenantId, branchId } = local.sistema;
+  await local.base.conTenant(tenantId, (tx) =>
+    tx.account.create({
+      data: { id, tenantId, branchId, kind, orderNumber: 10_000 + ++ordenDePrueba, openedAt: new Date(), openedByName: "Prueba del libro" },
+    }),
+  );
+  return id;
+}

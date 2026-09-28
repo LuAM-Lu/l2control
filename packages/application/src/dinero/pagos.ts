@@ -18,8 +18,9 @@
  * local, no se asienta. Los datos del pago (referencia, TxID, titular) se guardan cifrados, con una
  * huella que reconoce una referencia ya cobrada, y al leer el libro solo salen enmascarados (§7.6).
  *
- * Lo que aún no hace, y hace B3-3: comprobar que el cobro cuadra contra el total del documento y
- * que la tasa citada es la vigente (hasta entonces basta con que esté confirmada).
+ * El documento es una cuenta (B3-3, la base lo impone). Que el cobro cuadre contra su total y que
+ * la tasa citada siga rigiendo lo comprueba el cobro de la cuenta (`caja/cuentas.ts`), que asienta
+ * con `asentarEn` y revierte con `revertirAsientoEn` dentro de su propia transacción.
  */
 import {
   AsentarPagosCommandSchema,
@@ -51,7 +52,7 @@ import {
 import { money, zero, type CurrencyCode, type FrozenRate, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { NoIgtfRuleError, computeIgtf, igtfAt, taxTimeline } from "@l2/domain-tax";
-import { errorDeBase, type Base, type Payment, type Transaccion } from "@l2/database";
+import { errorDeBase, type Base, type CashShift, type Payment, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
@@ -93,13 +94,7 @@ const sinClave: Rechazo = {
 };
 
 export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
-  /** El libro de un documento, dentro de una transacción ya abierta. */
-  const leerLibro = async (tx: Transaccion, documentId: string): Promise<LibroDocumentoDto> =>
-    libroDe(documentId, await tx.payment.findMany({ where: { documentId }, orderBy: [{ recordedAt: "asc" }, { line: "asc" }] }), cifrador);
-
-  /** Lo ya asentado con esta clave, si lo hay. */
-  const yaAsentado = (tx: Transaccion, operationKey: string) =>
-    tx.payment.findMany({ where: { operationKey }, orderBy: { line: "asc" } });
+  const leerLibro = (tx: Transaccion, documentId: string) => leerLibroEn(tx, documentId, cifrador);
 
   return {
     async asentar(ctx, entrada, ahora = Date.now()) {
@@ -108,17 +103,8 @@ export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
         return { ok: false, motivo: "INVALIDO", mensaje: "El cobro no se asentó: hay datos que corregir.", problemas: problemasDe(v.error) };
       }
       const cmd = v.data;
-      // Los datos del pago se guardan cifrados y se reconocen por su huella (§7.6): sin clave no se
-      // cobra con un medio que los pida.
-      if (cmd.asientos.some((a) => a.datos) && !cifrador) return sinClave;
-      const huellas = cmd.asientos.map((a) => {
-        const clave = a.datos ? claveDeReferencia(a.datos) : null;
-        return clave && cifrador ? cifrador.huella(clave) : null;
-      });
-      const repetida = huellas.findIndex((h, i) => h !== null && huellas.indexOf(h) !== i);
-      if (repetida >= 0) {
-        return invalido("La misma referencia está dos veces en este cobro.", ["asientos", repetida, "datos"], "Referencia repetida");
-      }
+      const huellas = huellasDe(cmd.asientos, cifrador);
+      if ("ok" in huellas) return huellas;
 
       const intentar = () =>
         base.conTenant(ctx.tenantId, async (tx): Promise<LibroDocumentoDto | Rechazo> => {
@@ -128,119 +114,8 @@ export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
           const previas = await yaAsentado(tx, cmd.idempotencyKey);
           if (previas.length > 0) return mismaOperacion(previas, cmd, huellas) ? leerLibro(tx, cmd.documentId) : conflictoDeClave;
 
-          // Sin turno abierto en el equipo no se cobra (F4-01); el asiento dice en qué turno entró.
-          const turno = await turnoParaCobrar(tx, ctx);
-          if ("ok" in turno) return turno;
-
-          // La tasa congelada: la cita quien cobra; su valor lo copia el servidor de la base.
-          const tasas = new Map<string, { value: string; frozen: FrozenRate }>();
-          for (const [i, a] of cmd.asientos.entries()) {
-            if (!a.rateId || tasas.has(a.rateId)) continue;
-            const t = await tx.exchangeRate.findUnique({ where: { id: a.rateId }, include: { confirmation: true } });
-            if (!t || t.pair !== "USD/VES") return invalido("Esa tasa no existe en este local.", ["asientos", i, "rateId"], "Tasa desconocida");
-            // ADR-005 y F3-05: con una tasa sin confirmar no se cobra.
-            if (!t.confirmation) return invalido("Esa tasa no está confirmada: con ella no se cobra.", ["asientos", i, "rateId"], "Tasa sin confirmar");
-            tasas.set(a.rateId, { value: t.value, frozen: frozenRateOf({ pair: "USD/VES", value: t.value }) });
-          }
-
-          // El medio de cada asiento, del catálogo del local; y lo que la caja puede ofrecer hoy.
-          const catalogo = await catalogoDe(tx, ctx.branchId);
-          const nuevos: Nuevo[] = [];
-          for (const [i, a] of cmd.asientos.entries()) {
-            const medio = catalogo.medios.get(a.method);
-            if (!medio) return invalido("Ese medio no existe en este local.", ["asientos", i, "method"], "Medio desconocido");
-            nuevos.push({
-              kind: a.kind as LedgerKind,
-              medio,
-              amount: money(BigInt(a.amount.minor), a.amount.currency),
-              rate: a.rateId ? tasas.get(a.rateId)! : null,
-              datos: a.datos ?? null,
-            });
-          }
-          for (const [i, n] of nuevos.entries()) {
-            const problema = entryProblem({ kind: n.kind, amount: n.amount, rate: n.rate?.frozen ?? null, dataKind: n.datos?.kind ?? null }, n.medio);
-            if (problema) return invalido("El cobro no se asentó: hay un asiento que no vale.", ["asientos", i], problema);
-            if (n.kind === "COBRO") {
-              const oferta = offerProblem(n.medio, catalogo.listo);
-              if (oferta) {
-                const mensaje = oferta === "APAGADO" ? `«${n.medio.label}» está apagado: no se cobra con él.` : `A «${n.medio.label}» le faltan los datos del local: no se cobra con él.`;
-                return invalido(mensaje, ["asientos", i, "method"], oferta);
-              }
-            }
-            if (n.datos?.kind === "PUNTO" && !catalogo.terminales.has(n.datos.terminalId)) {
-              return invalido("Ese terminal no está vigente en esta sucursal.", ["asientos", i, "datos", "terminalId"], "Terminal desconocido");
-            }
-          }
-
-          // Una referencia ya cobrada no se cobra otra vez: el mismo capture de Pago Móvil enseñado
-          // en dos cobros. El candado por huella ordena a dos cajas que lo intenten a la vez.
-          for (const [i, h] of huellas.entries()) {
-            if (!h) continue;
-            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${h}, 0))::text AS candado`;
-            const ya = await tx.payment.findFirst({ where: { referenceDigest: h, reversesId: null, reversedBy: { none: {} } }, select: { businessDate: true } });
-            if (ya) {
-              return {
-                ok: false,
-                motivo: "CONFLICTO",
-                mensaje: `Esa referencia ya se cobró el ${ya.businessDate.toISOString().slice(0, 10)}. Revisa el pago con el cliente.`,
-                problemas: [{ path: ["asientos", i, "datos"], message: "Referencia ya cobrada" }],
-              };
-            }
-          }
-
-          // El IGTF de cada cobro en un medio que lo lleva (§5.5), con la alícuota del instante. Sin
-          // ella no se cobra en esos medios: suponer 0 % sería no retener en silencio.
-          let igtfBps: number | null = null;
-          if (nuevos.some((n) => n.kind === "COBRO" && n.medio.triggersIgtf)) {
-            const periodos = taxTimeline((await tx.taxRate.findMany({ where: { tax: "IGTF" } })).map(programadaDeFila));
-            try {
-              igtfBps = igtfAt(periodos, ahora);
-            } catch (e) {
-              if (!(e instanceof NoIgtfRuleError)) throw e;
-              return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay IGTF vigente: no se cobra en divisas hasta configurarlo en Impuestos." };
-            }
-          }
-
-          const quien = await nombreDe(tx, ctx);
-          const filas: Payment[] = [];
-          for (const [i, n] of nuevos.entries()) {
-            const igtf = igtfDe(n.kind, n.medio, n.amount, igtfBps);
-            filas.push(
-              await tx.payment.create({
-                data: {
-                  tenantId: ctx.tenantId,
-                  branchId: ctx.branchId,
-                  documentId: cmd.documentId,
-                  shiftId: turno.id,
-                  // ADR-009: el día de negocio lo pone el turno, no la hora del cobro.
-                  businessDate: turno.businessDate,
-                  operationKey: cmd.idempotencyKey,
-                  line: i,
-                  kind: n.kind,
-                  method: n.medio.code,
-                  currency: n.amount.currency,
-                  amountMinor: n.amount.amount,
-                  igtfMinor: igtf.amount,
-                  rateId: cmd.asientos[i]!.rateId ?? null,
-                  rateValue: n.rate?.value ?? null,
-                  // §7.6: cifrados; la huella reconoce la referencia sin guardarla en claro.
-                  referenceCipher: n.datos ? cifrador!.cifrar(JSON.stringify(n.datos)) : null,
-                  referenceDigest: huellas[i] ?? null,
-                  terminalId: n.datos?.kind === "PUNTO" ? n.datos.terminalId : null,
-                  recordedAt: new Date(ahora),
-                  recordedBy: ctx.quien?.userId ?? null,
-                  recordedByName: quien.nombre,
-                  deviceId: ctx.quien?.deviceId ?? null,
-                },
-              }),
-            );
-          }
-          await auditar(tx, ctx, {
-            action: "pago.asentar",
-            entityType: "payment",
-            entityId: filas[0]!.id,
-            after: { documentId: cmd.documentId, operationKey: cmd.idempotencyKey, asientos: filas.map(resumen) },
-          });
+          const filas = await asentarEn(tx, ctx, cmd, huellas, cifrador, ahora);
+          if ("ok" in filas) return filas;
           return leerLibro(tx, cmd.documentId);
         });
 
@@ -287,53 +162,21 @@ export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
 
           const original = await tx.payment.findUnique({ where: { id: cmd.paymentId } });
           if (!original) return noExiste;
-          const delDocumento = await tx.payment.findMany({ where: { documentId: original.documentId } });
-          const problema = reversalProblem(entrada_(original), delDocumento.map(entrada_));
+          const problema = await problemaDeReversion(tx, original);
           if (problema === "YA_REVERTIDO") return { ok: false, motivo: "CONFLICTO", mensaje: "Ese asiento ya se revirtió." };
           if (problema === "ES_UNA_REVERSION") {
             return invalido("Una reversión no se revierte: si hay que volver a cobrar, es un cobro nuevo.", ["paymentId"], problema);
           }
 
-          const rev = reversalOf(entrada_(original));
-          const quien = await nombreDe(tx, ctx);
-          const autorizador = permiso.autorizadoPor
-            ? await tx.staffUser.findUnique({ where: { id: permiso.autorizadoPor }, select: { fullName: true } })
-            : null;
-          const fila = await tx.payment.create({
-            data: {
-              tenantId: ctx.tenantId,
-              branchId: original.branchId,
-              documentId: original.documentId,
-              shiftId: turno.id,
-              businessDate: turno.businessDate,
-              operationKey: cmd.idempotencyKey,
-              line: 0,
-              kind: rev.kind,
-              method: rev.method,
-              currency: rev.amount.currency,
-              amountMinor: rev.amount.amount,
-              igtfMinor: rev.igtf.amount,
-              rateId: original.rateId,
-              rateValue: original.rateValue,
-              reversesId: original.id,
-              reason: cmd.motivo,
-              reasonDetail: cmd.detalle ?? null,
-              recordedAt: new Date(ahora),
-              recordedBy: ctx.quien?.userId ?? null,
-              recordedByName: quien.nombre,
-              deviceId: ctx.quien?.deviceId ?? null,
-              authorizedBy: permiso.autorizadoPor,
-              authorizedByName: autorizador?.fullName ?? null,
-            },
-          });
-          await auditar(tx, ctx, {
-            action: "pago.revertir",
-            entityType: "payment",
-            entityId: original.id,
-            ...(permiso.autorizadoPor ? { authorizedBy: permiso.autorizadoPor } : {}),
-            reason: cmd.motivo,
-            before: resumen(original),
-            after: { reversion: resumen(fila), detalle: cmd.detalle ?? null },
+          await revertirAsientoEn(tx, ctx, {
+            original,
+            turno,
+            operationKey: cmd.idempotencyKey,
+            line: 0,
+            motivo: cmd.motivo,
+            detalle: cmd.detalle ?? null,
+            autorizadoPor: permiso.autorizadoPor,
+            ahora,
           });
           return leerLibro(tx, original.documentId);
         });
@@ -366,7 +209,238 @@ export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
   };
 }
 
-const conflictoDeClave: Rechazo = {
+/**
+ * Las huellas de los datos de cada asiento (§7.6), o el rechazo: sin clave no se cobra con un medio
+ * que pida datos, y la misma referencia no puede ir dos veces en un cobro.
+ */
+export function huellasDe(
+  asientos: readonly Readonly<{ datos?: DatosDePagoDto | undefined }>[],
+  cifrador: Cifrador | null,
+): (string | null)[] | Rechazo {
+  // Los datos del pago se guardan cifrados y se reconocen por su huella (§7.6): sin clave no se
+  // cobra con un medio que los pida.
+  if (asientos.some((a) => a.datos) && !cifrador) return sinClave;
+  const huellas = asientos.map((a) => {
+    const clave = a.datos ? claveDeReferencia(a.datos) : null;
+    return clave && cifrador ? cifrador.huella(clave) : null;
+  });
+  const repetida = huellas.findIndex((h, i) => h !== null && huellas.indexOf(h) !== i);
+  if (repetida >= 0) {
+    return invalido("La misma referencia está dos veces en este cobro.", ["asientos", repetida, "datos"], "Referencia repetida");
+  }
+  return huellas;
+}
+
+/**
+ * Asienta los asientos de una operación dentro de `tx`, todos o ninguno: el turno abierto del
+ * equipo, la tasa congelada, el medio del catálogo, la referencia no cobrada antes y el IGTF del
+ * instante. El permiso y la idempotencia los pone quien llama (el libro o el cobro de una cuenta).
+ */
+export async function asentarEn(
+  tx: Transaccion,
+  ctx: Contexto,
+  cmd: AsentarPagosCommand,
+  huellas: readonly (string | null)[],
+  cifrador: Cifrador | null,
+  ahora: number,
+): Promise<Payment[] | Rechazo> {
+  // Sin turno abierto en el equipo no se cobra (F4-01); el asiento dice en qué turno entró.
+  const turno = await turnoParaCobrar(tx, ctx);
+  if ("ok" in turno) return turno;
+
+  // La tasa congelada: la cita quien cobra; su valor lo copia el servidor de la base.
+  const tasas = new Map<string, { value: string; frozen: FrozenRate }>();
+  for (const [i, a] of cmd.asientos.entries()) {
+    if (!a.rateId || tasas.has(a.rateId)) continue;
+    const t = await tx.exchangeRate.findUnique({ where: { id: a.rateId }, include: { confirmation: true } });
+    if (!t || t.pair !== "USD/VES") return invalido("Esa tasa no existe en este local.", ["asientos", i, "rateId"], "Tasa desconocida");
+    // ADR-005 y F3-05: con una tasa sin confirmar no se cobra.
+    if (!t.confirmation) return invalido("Esa tasa no está confirmada: con ella no se cobra.", ["asientos", i, "rateId"], "Tasa sin confirmar");
+    tasas.set(a.rateId, { value: t.value, frozen: frozenRateOf({ pair: "USD/VES", value: t.value }) });
+  }
+
+  // El medio de cada asiento, del catálogo del local; y lo que la caja puede ofrecer hoy.
+  const catalogo = await catalogoDe(tx, ctx.branchId);
+  const nuevos: Nuevo[] = [];
+  for (const [i, a] of cmd.asientos.entries()) {
+    const medio = catalogo.medios.get(a.method);
+    if (!medio) return invalido("Ese medio no existe en este local.", ["asientos", i, "method"], "Medio desconocido");
+    nuevos.push({
+      kind: a.kind as LedgerKind,
+      medio,
+      amount: money(BigInt(a.amount.minor), a.amount.currency),
+      rate: a.rateId ? tasas.get(a.rateId)! : null,
+      datos: a.datos ?? null,
+    });
+  }
+  for (const [i, n] of nuevos.entries()) {
+    const problema = entryProblem({ kind: n.kind, amount: n.amount, rate: n.rate?.frozen ?? null, dataKind: n.datos?.kind ?? null }, n.medio);
+    if (problema) return invalido("El cobro no se asentó: hay un asiento que no vale.", ["asientos", i], problema);
+    if (n.kind === "COBRO") {
+      const oferta = offerProblem(n.medio, catalogo.listo);
+      if (oferta) {
+        const mensaje = oferta === "APAGADO" ? `«${n.medio.label}» está apagado: no se cobra con él.` : `A «${n.medio.label}» le faltan los datos del local: no se cobra con él.`;
+        return invalido(mensaje, ["asientos", i, "method"], oferta);
+      }
+    }
+    if (n.datos?.kind === "PUNTO" && !catalogo.terminales.has(n.datos.terminalId)) {
+      return invalido("Ese terminal no está vigente en esta sucursal.", ["asientos", i, "datos", "terminalId"], "Terminal desconocido");
+    }
+  }
+
+  // Una referencia ya cobrada no se cobra otra vez: el mismo capture de Pago Móvil enseñado
+  // en dos cobros. El candado por huella ordena a dos cajas que lo intenten a la vez.
+  for (const [i, h] of huellas.entries()) {
+    if (!h) continue;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${h}, 0))::text AS candado`;
+    const ya = await tx.payment.findFirst({ where: { referenceDigest: h, reversesId: null, reversedBy: { none: {} } }, select: { businessDate: true } });
+    if (ya) {
+      return {
+        ok: false,
+        motivo: "CONFLICTO",
+        mensaje: `Esa referencia ya se cobró el ${ya.businessDate.toISOString().slice(0, 10)}. Revisa el pago con el cliente.`,
+        problemas: [{ path: ["asientos", i, "datos"], message: "Referencia ya cobrada" }],
+      };
+    }
+  }
+
+  // El IGTF de cada cobro en un medio que lo lleva (§5.5), con la alícuota del instante. Sin
+  // ella no se cobra en esos medios: suponer 0 % sería no retener en silencio.
+  let igtfBps: number | null = null;
+  if (nuevos.some((n) => n.kind === "COBRO" && n.medio.triggersIgtf)) {
+    const periodos = taxTimeline((await tx.taxRate.findMany({ where: { tax: "IGTF" } })).map(programadaDeFila));
+    try {
+      igtfBps = igtfAt(periodos, ahora);
+    } catch (e) {
+      if (!(e instanceof NoIgtfRuleError)) throw e;
+      return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay IGTF vigente: no se cobra en divisas hasta configurarlo en Impuestos." };
+    }
+  }
+
+  const quien = await nombreDe(tx, ctx);
+  const filas: Payment[] = [];
+  for (const [i, n] of nuevos.entries()) {
+    const igtf = igtfDe(n.kind, n.medio, n.amount, igtfBps);
+    filas.push(
+      await tx.payment.create({
+        data: {
+          tenantId: ctx.tenantId,
+          branchId: ctx.branchId,
+          documentId: cmd.documentId,
+          shiftId: turno.id,
+          // ADR-009: el día de negocio lo pone el turno, no la hora del cobro.
+          businessDate: turno.businessDate,
+          operationKey: cmd.idempotencyKey,
+          line: i,
+          kind: n.kind,
+          method: n.medio.code,
+          currency: n.amount.currency,
+          amountMinor: n.amount.amount,
+          igtfMinor: igtf.amount,
+          rateId: cmd.asientos[i]!.rateId ?? null,
+          rateValue: n.rate?.value ?? null,
+          // §7.6: cifrados; la huella reconoce la referencia sin guardarla en claro.
+          referenceCipher: n.datos ? cifrador!.cifrar(JSON.stringify(n.datos)) : null,
+          referenceDigest: huellas[i] ?? null,
+          terminalId: n.datos?.kind === "PUNTO" ? n.datos.terminalId : null,
+          recordedAt: new Date(ahora),
+          recordedBy: ctx.quien?.userId ?? null,
+          recordedByName: quien.nombre,
+          deviceId: ctx.quien?.deviceId ?? null,
+        },
+      }),
+    );
+  }
+  await auditar(tx, ctx, {
+    action: "pago.asentar",
+    entityType: "payment",
+    entityId: filas[0]!.id,
+    after: { documentId: cmd.documentId, operationKey: cmd.idempotencyKey, asientos: filas.map(resumen) },
+  });
+  return filas;
+}
+
+/** El libro de un documento con su saldo, dentro de una transacción ya abierta. */
+export async function leerLibroEn(tx: Transaccion, documentId: string, cifrador: Cifrador | null): Promise<LibroDocumentoDto> {
+  return libroDe(documentId, await tx.payment.findMany({ where: { documentId }, orderBy: [{ recordedAt: "asc" }, { line: "asc" }] }), cifrador);
+}
+
+/** Lo ya asentado con esta clave, si lo hay. */
+export function yaAsentado(tx: Transaccion, operationKey: string) {
+  return tx.payment.findMany({ where: { operationKey }, orderBy: { line: "asc" } });
+}
+
+/** Por qué no se puede revertir `original` en este libro, o `null`. */
+export async function problemaDeReversion(tx: Transaccion, original: Payment) {
+  const delDocumento = await tx.payment.findMany({ where: { documentId: original.documentId } });
+  return reversalProblem(entrada_(original), delDocumento.map(entrada_));
+}
+
+/**
+ * Añade la reversión de `original` (F3-10) dentro de `tx`: lo mismo con el signo contrario, en el
+ * turno de este equipo, con su motivo y quién la autorizó. Lo que decide si se puede (el permiso,
+ * la autorización, `problemaDeReversion`) lo comprueba quien llama.
+ */
+export async function revertirAsientoEn(
+  tx: Transaccion,
+  ctx: Contexto,
+  r: Readonly<{
+    original: Payment;
+    turno: CashShift;
+    operationKey: string;
+    line: number;
+    motivo: string;
+    detalle: string | null;
+    autorizadoPor: string | null;
+    ahora: number;
+  }>,
+): Promise<Payment> {
+  const { original, turno } = r;
+  const rev = reversalOf(entrada_(original));
+  const quien = await nombreDe(tx, ctx);
+  const autorizador = r.autorizadoPor
+    ? await tx.staffUser.findUnique({ where: { id: r.autorizadoPor }, select: { fullName: true } })
+    : null;
+  const fila = await tx.payment.create({
+    data: {
+      tenantId: ctx.tenantId,
+      branchId: original.branchId,
+      documentId: original.documentId,
+      shiftId: turno.id,
+      businessDate: turno.businessDate,
+      operationKey: r.operationKey,
+      line: r.line,
+      kind: rev.kind,
+      method: rev.method,
+      currency: rev.amount.currency,
+      amountMinor: rev.amount.amount,
+      igtfMinor: rev.igtf.amount,
+      rateId: original.rateId,
+      rateValue: original.rateValue,
+      reversesId: original.id,
+      reason: r.motivo,
+      reasonDetail: r.detalle,
+      recordedAt: new Date(r.ahora),
+      recordedBy: ctx.quien?.userId ?? null,
+      recordedByName: quien.nombre,
+      deviceId: ctx.quien?.deviceId ?? null,
+      authorizedBy: r.autorizadoPor,
+      authorizedByName: autorizador?.fullName ?? null,
+    },
+  });
+  await auditar(tx, ctx, {
+    action: "pago.revertir",
+    entityType: "payment",
+    entityId: original.id,
+    ...(r.autorizadoPor ? { authorizedBy: r.autorizadoPor } : {}),
+    reason: r.motivo,
+    before: resumen(original),
+    after: { reversion: resumen(fila), detalle: r.detalle },
+  });
+  return fila;
+}
+
+export const conflictoDeClave: Rechazo = {
   ok: false,
   motivo: "CONFLICTO",
   mensaje: "Esa clave ya se usó para otra operación. Vuelve a intentarlo desde la pantalla.",
@@ -382,7 +456,7 @@ type Nuevo = {
 };
 
 /** El catálogo del local, los terminales vigentes de la sucursal y qué datos del local hay. */
-async function catalogoDe(tx: Transaccion, branchId: string) {
+export async function catalogoDe(tx: Transaccion, branchId: string) {
   const [medios, terminales, datos] = await Promise.all([
     tx.paymentMethod.findMany(),
     tx.posTerminal.findMany({ where: { branchId, retiredAt: null }, select: { id: true } }),

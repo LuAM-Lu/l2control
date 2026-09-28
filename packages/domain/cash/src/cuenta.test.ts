@@ -15,6 +15,8 @@ import {
   markPaid,
   markPartPaid,
   revertPaid,
+  linesPaidBetween,
+  isDiscardedDraft,
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
@@ -91,12 +93,47 @@ describe("cobrar y anular", () => {
     assert.deepEqual(c.split, { parts: 3, paid: 3 });
   });
 
-  test("anular devuelve las líneas a la cola y la cuenta se cobra de una vez", () => {
-    const cobrada = markPaid({ ...mostrador([agua("x")]), split: { parts: 2, paid: 2 } });
+  test("anular un cobro entero devuelve sus líneas a la cola", () => {
+    const cobrada = markPaid(mostrador([agua("x"), agua("y")]));
     const c = revertPaid(cobrada, ["x"]);
     assert.equal(c.status, "POR_COBRAR");
-    assert.equal(c.lines[0]!.paid, false);
+    assert.deepEqual(c.lines.map((l) => l.paid), [false, true]);
     assert.equal(c.split, undefined);
+  });
+
+  test("anular una parte resta esa parte y la división sigue", () => {
+    const dividida = { ...mostrador([agua("x")]), split: { parts: 3, paid: 0 } };
+    const unaParte = markPartPaid(dividida);
+    const c = revertPaid(unaParte, [], true);
+    assert.deepEqual(c.split, { parts: 3, paid: 0 });
+    assert.equal(c.status, "POR_COBRAR");
+    assert.equal(c.lines[0]!.paid, false);
+  });
+
+  test("anular una parte de una cuenta completa devuelve a la cola lo que pagó la última", () => {
+    let c: AccountDoc = { ...mostrador([agua("x")]), split: { parts: 2, paid: 0 } };
+    c = markPartPaid(c);
+    const antesDeLaUltima = c;
+    c = markPartPaid(c);
+    assert.equal(c.status, "COBRADA");
+    const pagoLaUltima = linesPaidBetween(antesDeLaUltima, c);
+    assert.deepEqual(pagoLaUltima, ["x"]);
+    const anulada = revertPaid(c, pagoLaUltima, true);
+    assert.deepEqual(anulada.split, { parts: 2, paid: 1 });
+    assert.equal(anulada.lines[0]!.paid, false);
+    assert.equal(anulada.status, "POR_COBRAR");
+  });
+
+  test("qué pagó un cobro sale de comparar la versión de antes con la suya", () => {
+    const antes = mostrador([agua("x"), agua("y", { paid: true })]);
+    assert.deepEqual(linesPaidBetween(antes, markPaid(antes)), ["x"]);
+    assert.deepEqual(linesPaidBetween(null, antes), ["y"]);
+  });
+
+  test("una venta de mostrador vacía es un borrador descartado", () => {
+    assert.equal(isDiscardedDraft(mostrador([])), true);
+    assert.equal(isDiscardedDraft(mostrador([agua("x")])), false);
+    assert.equal(isDiscardedDraft({ ...familia(), lines: [] }), false);
   });
 });
 

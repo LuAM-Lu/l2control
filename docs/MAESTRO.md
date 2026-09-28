@@ -587,7 +587,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   (familia, mesa y mostrador) salen del navegador; el importe del parque y de la mesa sigue llegando
   de la pantalla hasta B4-2 y B6-1 (deuda a anotar en §5). Anular un cobro pasa al servidor en este
   paso (el libro lo exige), con la autorización 🔐 comprobada allí; cortesía y descuento siguen en B3-4.*
-  *Hecho en la rama (cuatro commits):*
+  *Hecho en la rama:*
   *· Dominio `@l2/domain-cash` (`cuenta.ts`, depende ahora de `@l2/domain-tax`): `chargeableLines`,
   `documentLinesOf` (cada línea con su IVA), `markPaid`, `markPartPaid`, `revertPaid` y
   `accountChangeProblem`, que dice qué cambio de una pantalla acepta el servidor: marcar pagado es del
@@ -606,33 +606,32 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   JSON; `cause` GUARDAR, COBRO o ANULACION, estos dos con su `operation_key`, una vez cada una), las
   dos de solo-agregar y con RLS; **`payment.document_id` pasa a ser FK a la cuenta** (salda la deuda
   de §5). 5 pruebas nuevas y las del libro ajustadas.*
+  *· Aplicación `caja/cuentas.ts` (quinto commit): `leer` (quien trabaja con cuentas; las no cobradas
+  y las cobradas hoy, en su última versión; sin las ventas de mostrador vaciadas, `isDiscardedDraft`),
+  `guardar` (permiso según el tipo; `accountChangeProblem` contra el catálogo del instante; número de
+  orden con candado por sucursal, apertura y entrada en la cola del servidor; reintento de un alta y
+  guardar lo mismo no añaden versión; otra versión → CONFLICTO; dar o quitar cortesía exige no tener
+  `cuenta.cortesia` DENEGADO), `cobrar` (en UNA transacción: versión y líneas iguales a las de la
+  pantalla, IVA e IGTF del instante, la parte con `allocate`, USDT a la par, `citedRateValid`, el
+  total igual al de la pantalla o CONFLICTO, `closeSettlement` con `MAX_RESIDUO` $ 0,05 hasta B4-4,
+  asientos COBRO y lo que sobra como VUELTO, PROPINA o RESIDUO en `EFECTIVO_USD`, versión COBRO),
+  `anular` (`cobro.anular` o 🔐; reversión de cada asiento del cobro; qué vuelve a deberse sale de
+  comparar versiones con `linesPaidBetween`; versión ANULACION) y `autorizadores`. `pagos.ts` expone
+  `asentarEn`, `revertirAsientoEn`, `leerLibroEn`, `huellasDe` y `catalogoDe` para usarlos dentro de
+  esa transacción; `tasas.ts`, `historialParaCobrar`. Auditoría: `cuenta.abrir`, `cuenta.guardar`,
+  `cuenta.cobrar` y `cuenta.anular_cobro`. 19 pruebas contra la base.*
+  *· Pruebas del libro: cada documento es una cuenta real (`crearCuenta` en `para-pruebas.ts`).*
+  *· `revertPaid` con cuenta dividida: anular una parte resta esa parte y la división sigue; si la
+  cuenta estaba completa, vuelve a deberse lo que marcó pagado la última parte. 4 pruebas nuevas.*
   *Falta, en este orden:*
-  *1. Aplicación `caja/cuentas.ts`: `leer` (con persona en sesión; abiertas y cobradas del día, la
-  versión más alta por cuenta), `guardar` (permiso según el tipo: familia con checkIn, checkOut,
-  vincularMesa o emitir; mesa con pedido.tomar, vincularMesa o emitir; mostrador con emitir;
-  `accountChangeProblem` contra el catálogo del instante; número de orden, `openedAt` y
-  `pendingSince` los pone el servidor; versión distinta → CONFLICTO), `cobrar` (en una
-  transacción: la versión y las líneas coinciden; IVA del instante; parte con `allocate`; IGTF con
-  `computeIgtf`; USDT a la par; `citedRateValid` con la tasa citada; el total recalculado igual al
-  de la pantalla o CONFLICTO; `computeBalance` + `closeSettlement` con `maxRetained` por defecto
-  hasta B4-4; asientos COBRO por pago y lo que sobra como VUELTO, PROPINA o RESIDUO en el efectivo
-  en dólares del catálogo; versión COBRO con `markPartPaid`) y `anular` (`cobro.anular` o 🔐 una sola
-  vez; reversión de cada asiento de `cobroKey`; versión ANULACION con `revertPaid`) y
-  `autorizadores`. Para reutilizar el libro dentro de esa transacción, sacar de `dinero/pagos.ts` el
-  cuerpo de `asentar` y de `revertir` a funciones que reciban el `tx`. Exportar `historialParaCobrar`
-  (registros y feriados) de `tasas.ts`.*
-  *2. Ajustar `pagos.test-db.ts` y las demás pruebas del libro: hoy asientan con documentos
-  inventados y la FK los rechaza (`pnpm test:db` de aplicación falla en la rama).*
-  *3. Ajustar `revertPaid` para una cuenta dividida: anular un cobro de una parte resta esa parte
-  (`split.paid - 1`) en vez de quitar la división.*
-  *4. Web: `CuentasProvider` contra el servidor (lectura en el layout, sondeo de 5 s y al volver el
+  *1. Web: `CuentasProvider` contra el servidor (lectura en el layout, sondeo de 5 s y al volver el
   foco, `guardar` con la acción y adopción de lo devuelto; fuera `sessionStorage` y el canal entre
   pestañas); las pantallas crean cuentas con `kind` y UUID (entrada, salida, mesas y caja; hoy
   revientan en ejecución al validar sin `kind`); `esVentaDirecta` y `esLineaDeMostrador` por el tipo
   y el producto; el id de una línea movida a la mesa sin truncar (`${mesa.id}-${l.id}` se corta a 64
   y colisiona); la caja cobra con la acción y registra la venta con lo que confirma el servidor; el
   diálogo de anular pide los autorizadores al servidor y le manda el PIN.*
-  *5. Navegador (entrada → caja, mostrador, mesa, cobro mixto con Bs, anular), §5 y cierre (v0.24.0).*
+  *2. Navegador (entrada → caja, mostrador, mesa, cobro mixto con Bs, anular), §5 y cierre (v0.24.0).*
 - [ ] **B3-4 · Ventas del turno**, dentro de la sección Turno (M-13): reimprimir queda como copia
   auditada y anular es una reversión (DEC-24). Las autorizaciones 🔐 de la caja (anular, cortesía, descuento) van al servidor con
   `exigirPermisoOAutorizacion`: se quitan los PIN «1970» comprobados en el navegador y se borra

@@ -7,7 +7,7 @@
  * Aquí viven las reglas que comparten la pantalla y el servidor:
  *
  *  · qué se cobra ahora (`chargeableLines`, `documentLinesOf`) y cómo queda la cuenta al cobrar una
- *    parte o al anular el cobro (`markPartPaid`, `revertPaid`);
+ *    parte o al anular el cobro (`markPartPaid`, `revertPaid`, `linesPaidBetween`);
  *  · **qué cambio acepta el servidor** de una pantalla (`accountChangeProblem`). La pantalla arma
  *    la cuenta nueva con sus transiciones; el servidor la compara con la que tiene y rechaza lo que
  *    solo él puede hacer. La regla que lo ordena: **una línea pagada no se toca, y marcar pagado
@@ -93,14 +93,38 @@ export function markPartPaid<A extends AccountDoc>(c: A): A {
 }
 
 /**
- * Se anuló el cobro que pagó estas líneas (DEC-24): vuelven a estar pendientes y la cuenta vuelve a
- * la cola. Lo consumido se sigue debiendo; si no hay que cobrarlo es una cortesía, no una anulación.
- * Una cuenta dividida vuelve a cobrarse de una vez.
+ * Se anuló un cobro (DEC-24): las líneas que pagó (`lineIds`) vuelven a estar pendientes y la cuenta
+ * vuelve a la cola. Lo consumido se sigue debiendo; si no hay que cobrarlo es una cortesía, no una
+ * anulación.
+ *
+ * Si el cobro era una **parte** de una cuenta dividida (`wasPart`), se resta esa parte y la división
+ * sigue: las demás partes cobradas siguen cobradas. Si con ella se había completado la cuenta,
+ * `lineIds` son las líneas que marcó pagadas la última parte, y vuelven a deberse.
  */
-export function revertPaid<A extends AccountDoc>(c: A, lineIds: readonly string[]): A {
+export function revertPaid<A extends AccountDoc>(c: A, lineIds: readonly string[], wasPart = false): A {
   const ids = new Set(lineIds);
-  const { split: _, ...sinDividir } = c;
-  return { ...(sinDividir as A), lines: c.lines.map((l) => (ids.has(l.id) ? { ...l, paid: false } : l)), status: "POR_COBRAR" };
+  const lines = c.lines.map((l) => (ids.has(l.id) ? { ...l, paid: false } : l));
+  if (wasPart && c.split) {
+    return { ...c, lines, split: { parts: c.split.parts, paid: Math.max(0, c.split.paid - 1) }, status: "POR_COBRAR" };
+  }
+  return { ...c, lines, status: "POR_COBRAR" };
+}
+
+/**
+ * Las líneas que un cambio marcó pagadas: las que en `before` no lo estaban y en `after` sí. De la
+ * versión anterior a un cobro y la del cobro sale qué pagó ese cobro, sin guardarlo aparte.
+ */
+export function linesPaidBetween(before: Readonly<{ lines: readonly AccountLineDoc[] }> | null, after: Readonly<{ lines: readonly AccountLineDoc[] }>): string[] {
+  const antes = new Map((before?.lines ?? []).map((l) => [l.id, l.paid]));
+  return after.lines.filter((l) => l.paid && antes.get(l.id) !== true).map((l) => l.id);
+}
+
+/**
+ * Una venta de mostrador que se vació antes de cobrarse: la caja la descarta. No se borra (regla 5:
+ * sus versiones dicen qué se quitó y quién), pero no es una cuenta pendiente ni sale en la cola.
+ */
+export function isDiscardedDraft(c: Pick<AccountDoc, "kind" | "lines">): boolean {
+  return c.kind === "MOSTRADOR" && c.lines.length === 0;
 }
 
 /* ───────────────────────────────────────── qué cambio acepta el servidor */
