@@ -30,6 +30,8 @@ export type {
   Sale,
   SalePrint,
   SaleVoid,
+  ShiftCount,
+  ShiftCut,
   Tenant,
 } from "./generated/client.ts";
 export { errorDeBase, type ErrorDeBase, type MotivoDeBase } from "./errores.ts";

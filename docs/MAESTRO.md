@@ -109,8 +109,9 @@ completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el 
 y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
 (sin día simulado: decisión del cliente, 2026-09-27).
 
-**Siguiente paso:** B3-5 (cortes X y Z, arqueo, relevo y cierre de la jornada; antes se pregunta D-JOR
-al cliente), con el que se cierra la Caja. Luego el orden de §3.
+**Siguiente paso:** B3-5, **en curso en la rama `feat/b3-5`** (`main` sigue en v0.25.0, en verde). D-JOR ya
+decidido con el cliente (§4). Lo hecho y lo que falta está en la casilla de B3-5 (§3). Con él se cierra la
+Caja; luego el orden de §3.
 
 ---
 
@@ -699,6 +700,39 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
   pendientes (cuentas por cobrar; niños en sala con B4-3; mesas y comandas con la Etapa 6) y no
   ofrece el Z hasta resolverlos; el resumen del día en Inicio sale del libro.
   → Después del Z, ninguna operación toca ese turno. Ninguna jornada se cierra con pendientes.
+  *En curso en `feat/b3-5` (2026-09-28). D-JOR decidido: incobrable con 🔐, relevo que deja el fondo,
+  umbral con la tasa del turno.*
+  *Hecho en la rama:*
+  *· Dominio (`corte.ts`): `ledgerMovements` (el libro del turno como movimientos, reversiones con su
+  signo), `countDifferenceInUsd` (cada moneda en absoluto, Bs a $ con la tasa del turno; `null` sin
+  tasa), `zSigner` (CAJERA hasta `COUNT_THRESHOLD` $ 1,00; si no, SUPERVISION), `leftInDrawerProblem` y
+  `withdrawn`. `tallyShift` pierde el punto de cobro (salda la deuda de §5: el punto es el equipo).
+  Cuenta: estado INCOBRABLE, `isPendingAtClose`, `markUncollectible`; `accountChangeProblem` no deja
+  a una pantalla marcarla ni tocarla. Matriz: `cuenta.incobrable` (P, 🔐, 🔐). 94 pruebas de caja.*
+  *· Contrato (`cortes.ts`): arqueo por billetes, `ArqueoSchema`, `ExcepcionSchema`, `CorteSchema`
+  (VISTA sin gaveta, X, Z con arqueo y cierre), `CorteZCommandSchema`, `PendientesDelCierreSchema`,
+  `IncobrableCommandSchema`, `ComprobacionAperturaSchema`, `ResumenDelDiaSchema`. 4 pruebas.*
+  *· Base: `20261008000000_cortes` (`shift_count` y `shift_cut` de solo-agregar; un Z por turno; nada
+  se cuenta ni se corta en un turno sellado; una venta de un turno con Z no se anula; estado y causa
+  INCOBRABLE) y `20261008010000_cortes_disparador` (corrige el disparador: PL/pgSQL no deja leer
+  NEW.count_id en la tabla que no lo tiene). 4 pruebas.*
+  *· Aplicación: `cuentas.incobrable` (🔐, versión INCOBRABLE, auditado) y `caja/cortes.ts` escrito y
+  cableado (`vista`, `corteX`, `arquear`, `corteZ`, `ultimoZ`, `pendientes`, `comprobarApertura`,
+  `resumenDelDia`); `confirmarPinPropio` en `autorizacion.ts` (la cajera firma su Z). Compila; **sin
+  pruebas todavía**.*
+  *Falta, en este orden:*
+  *1. `caja/cortes.test-db.ts`: arqueo a ciegas y su diferencia; Z dentro del umbral con PIN propio y
+  por encima con supervisión y justificación; Z negado si entró dinero tras contar o si no es el último
+  conteo; jornada negada con cuentas pendientes u otros turnos abiertos; turno ajeno solo supervisión;
+  incobrable; excepciones del corte; resumen del día; comprobación al abrir.*
+  *2. Web: acción `autorizadoresDeCaja` con `turno.corteZ` y `cuenta.incobrable`; TurnoScreen con la
+  vista del servidor, «Cambiar de cajera» y «Cerrar la jornada» (pendientes con cobrar e incobrable),
+  arqueo a ciegas → diferencia → firma (PIN o supervisión + justificación) → Z sellado con lo retirado;
+  corte X; `?turno=` para que supervisión cierre uno ajeno desde Inicio; apertura con la comprobación;
+  Inicio con `resumenDelDia`. Se borran `src/demo/turno.ts`, el tipo `Excepcion` de `turno.ts` y
+  `PuntosDeCobro` (hoy vacío en Inicio y Turno); fila de §5 de Inicio.*
+  *3. Navegador (relevo, jornada con pendientes e incobrable, Z por encima del umbral, turno ajeno,
+  los seis turnos huérfanos de la base local), §5 y cierre (v0.26.0).*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -863,7 +897,6 @@ gaveta reales (B5-2) e instalar la app en una tablet Android (B7-3, necesita HTT
 | Qué | Se salda en |
 |---|---|
 | Las pulseras de la entrada no quedan en la cuenta: en caja, «no tiene cuenta» | B4-3 |
-| El dominio de caja conserva `PointOfSale` con taquilla y mostrador en `tallyShift`; desde B3-1 el punto es el equipo del turno | B3-5 (cortes derivados del libro) |
 | Un turno no se cierra todavía: el de un equipo revocado o perdido queda abierto | B3-5 (cerrar un turno huérfano desde otro equipo, con 🔐) |
 | Quién está en cada puesto viaja por el bus entre pestañas de un navegador: Inicio no avisa «Sin nadie en caja» aunque haya turno | B5-1 |
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
@@ -1025,6 +1058,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-28** · B3-4 hecho (v0.25.0): la venta de cada cobro, su impresión, su anulación y la
   cortesía en el servidor; fuera `src/demo/usuarios.ts` y los PIN «1970». D-AUT y D13 aplicados con su
   propuesta, a confirmar con el cliente. Sigue B3-5.
+- **2026-09-28** · D-JOR decidido con el cliente. B3-5 empezado en `feat/b3-5`: dominio, contrato,
+  base y el caso de uso del corte escritos; faltan sus pruebas, la web y el navegador. Handoff.
 
 ---
 
@@ -1038,20 +1073,22 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-27, v0.23.0 en `main`; B3-3 a medias en `feat/b3-3`):**
+**Último handoff (2026-09-28, v0.25.0 en `main`; B3-5 a medias en `feat/b3-5`):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-13 y §3 con su DoD y orden), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.23.0 · 23 de 48 pasos, en verde (B9-1 hecho: catálogo de productos en la base).
-EN CURSO: B3-3 en la rama feat/b3-3 (git checkout feat/b3-3). Alcance del cliente: TODAS las cuentas (familia, mesa, mostrador)
-  pasan a la base. Hechos: dominio de la cuenta (accountChangeProblem…), citedRateValid (10 min), contrato (kind, version,
-  mandos guardar/cobrar/anular) y base (account + account_version, FK del libro a la cuenta). La lista de lo que falta, en
-  orden, está en la casilla de B3-3 de §3: aplicación → pruebas del libro → revertPaid dividida → web → navegador.
-  La rama NO funciona aún en ejecución (las pantallas crean cuentas sin kind) y test:db de aplicación falla (FK): normal a medias.
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application, reinicia pnpm dev.
-Entrar: /acceso → nombre del equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` → Abigail Karam → PIN 1970.
-Base local: tasa 855,6625; 12 productos (Pirulín exento, Gomitas apartada, Malta $1,75 el 30 sept); cuatro turnos huérfanos
-  de prueba hasta B3-5; migración de cuentas aplicada. Todos los equipos revocados.
-Cuidado: DoD de §3; CHECK con IN y nulos; $queryRaw no lee void; heredocs grandes fallan (scripts con Write); Playwright en el
-  scratchpad de la sesión 504ab605 (comun.cjs, b91.cjs). Merge a main solo con verify:db verde, v0.24.0. Push solo si se pide.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-8 a M-13, §3 con su DoD y orden, §4 D-JOR), docs/JORNADA.md y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. main: v0.25.0 · 25 de 48 pasos, en verde (B3-3 cuentas en la base; B3-4 ventas,
+  reimpresión, anulación y cortesía en el servidor, fuera src/demo/usuarios.ts).
+EN CURSO: B3-5 (cortes X y Z, arqueo a ciegas, relevo, cerrar la jornada, incobrable) en feat/b3-5 (git checkout feat/b3-5).
+  D-JOR decidido: incobrable con 🔐; en el relevo se deja el fondo y se retira lo vendido; diferencia en Bs con la tasa del turno,
+  un umbral de $ 1,00. Hecho: dominio (corte.ts), contrato (cortes.ts), base (migraciones cortes y cortes_disparador) y
+  application/src/caja/cortes.ts escrito y cableado, SIN pruebas. Falta, en orden (casilla de B3-5): cortes.test-db.ts → web
+  (TurnoScreen, Inicio, apertura, ?turno= para turnos ajenos) → navegador → §5 → v0.26.0. verify en verde en la rama.
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Tras cambiar @l2/application o next.config, reinicia pnpm dev.
+Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
+Base local: seis turnos huérfanos de prueba (B3-5 debe poder cerrarlos), cuentas #0002–#0004 abiertas y #0007–#0010 por cobrar
+  (anuladas; sirven para probar pendientes e incobrable). Todos los equipos revocados.
+Cuidado: DoD de §3; CHECK con IN y nulos; migración aplicada no se edita; corte.ts no importa de index.ts (ciclo); heredocs grandes
+  fallan (scripts con Write); Next ya no registra argumentos de acciones. Playwright: comun.cjs y b33*/b34*.cjs en el scratchpad
+  de la sesión 01b91024. Merge a main solo con verify:db verde. Push solo si se pide.
 ```

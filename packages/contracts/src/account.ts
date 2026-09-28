@@ -24,8 +24,10 @@ export type PaymentMode = z.infer<typeof PaymentModeSchema>;
  * · POR_COBRAR  — hay algo pendiente y está en la cola de la caja.
  * · COBRADA     — se fue y no debe nada. Una cuenta cobrada no se reabre ni se
  *                 borra: un error se corrige con otro asiento (regla 5).
+ * · INCOBRABLE  — no se va a cobrar (D-JOR): supervisión la marcó con motivo y
+ *                 su 🔐. Lo que se debía sigue en sus líneas: nada se borra.
  */
-export const AccountStatusSchema = z.enum(["ABIERTA", "POR_COBRAR", "COBRADA"]);
+export const AccountStatusSchema = z.enum(["ABIERTA", "POR_COBRAR", "COBRADA", "INCOBRABLE"]);
 export type AccountStatus = z.infer<typeof AccountStatusSchema>;
 
 /**

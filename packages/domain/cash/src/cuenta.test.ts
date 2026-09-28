@@ -17,6 +17,8 @@ import {
   revertPaid,
   linesPaidBetween,
   isDiscardedDraft,
+  isPendingAtClose,
+  markUncollectible,
   courtesyProblem,
   withCourtesy,
   type AccountDoc,
@@ -228,5 +230,24 @@ describe("qué cambio acepta el servidor", () => {
     assert.equal(accountChangeProblem(c, { ...c, kind: "MESA" }, productAt)?.problem, "TIPO_CAMBIADO");
     assert.equal(accountChangeProblem(c, { ...c, sessionIds: ["s1"] }, productAt)?.problem, "ESTANCIA_QUITADA");
     assert.equal(accountChangeProblem(c, { ...c, sessionIds: ["s1", "s2", "s3"] }, productAt), null);
+  });
+});
+
+describe("el cierre de la jornada (B3-5, D-JOR)", () => {
+  test("lo que se debe o sigue abierto impide cerrar; lo cobrado, lo incobrable y lo vaciado, no", () => {
+    assert.equal(isPendingAtClose(familia()), true);
+    assert.equal(isPendingAtClose({ ...mostrador([agua("x")]), status: "POR_COBRAR" }), true);
+    assert.equal(isPendingAtClose(markPaid(mostrador([agua("x")]))), false);
+    assert.equal(isPendingAtClose(markUncollectible(familia())), false);
+    assert.equal(isPendingAtClose({ ...mostrador([]), status: "ABIERTA" }), false);
+  });
+
+  test("marcar incobrable no borra lo que se debía, y ninguna pantalla lo hace ni lo deshace", () => {
+    const c = familia();
+    const incobrable = markUncollectible(c);
+    assert.equal(incobrable.status, "INCOBRABLE");
+    assert.deepEqual(incobrable.lines, c.lines);
+    assert.equal(accountChangeProblem(c, incobrable, productAt)?.problem, "CUENTA_INCOBRABLE");
+    assert.equal(accountChangeProblem(incobrable, { ...incobrable, status: "ABIERTA" }, productAt)?.problem, "CUENTA_INCOBRABLE");
   });
 });

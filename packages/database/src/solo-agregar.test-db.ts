@@ -771,3 +771,114 @@ test("una cortesía es un cambio de la cuenta con su operación", async () => {
   await version(A, c.id, { version: 2, cause: "CORTESIA", operationKey: randomUUID() });
   await assert.rejects(version(A, c.id, { version: 3, cause: "CORTESIA" }), por("RESTRICCION"));
 });
+
+/* ── El arqueo y los cortes (B3-5) ──────────────────────────────────────────── */
+
+const sellar = (t: { tenant: string }, turno: { id: string; openedBy: string; openedByName: string }) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.cashShift.update({ where: { id: turno.id }, data: { status: "CERRADO_Z", closedAt: new Date(), closedBy: turno.openedBy, closedByName: turno.openedByName } }),
+  );
+const conteo = (t: { tenant: string }, shiftId: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.shiftCount.create({
+      data: {
+        tenantId: t.tenant,
+        shiftId,
+        countedAt: new Date(),
+        countedByName: "Marisol Prieto",
+        counts: [],
+        counted: [],
+        expected: [],
+        differences: [],
+        differenceUsdMinor: 0n,
+        signer: "CAJERA",
+        ...extra,
+      } as never,
+    }),
+  );
+const corte = (t: { tenant: string }, shiftId: string, extra: Record<string, unknown> = {}) =>
+  app.conTenant(t.tenant, (tx) =>
+    tx.shiftCut.create({ data: { tenantId: t.tenant, shiftId, kind: "X", madeAt: new Date(), madeByName: "Marisol Prieto", content: {}, ...extra } as never }),
+  );
+
+test("un conteo no se reescribe; sin diferencia medible firma supervisión", async () => {
+  const t = await abrirTurno(A);
+  const c = await conteo(A, t.id);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.shiftCount.update({ where: { id: c.id }, data: { signer: "SUPERVISION" } })), SOLO_AGREGAR);
+  for (const [i, extra] of [
+    { differenceUsdMinor: null }, // sin medida, la cajera no firma
+    { signer: "NADIE" },
+    { rateId: randomUUID() }, // la tasa sin su valor
+    { differenceUsdMinor: -1n },
+  ].entries()) {
+    await assert.rejects(conteo(A, t.id, extra), por("RESTRICCION"), String(i));
+  }
+  await conteo(A, t.id, { differenceUsdMinor: null, signer: "SUPERVISION" });
+});
+
+test("el corte X se repite; el Z es uno, con su arqueo, y supervisión firma con justificación", async () => {
+  const t = await abrirTurno(A);
+  const c = await conteo(A, t.id);
+  await corte(A, t.id);
+  await corte(A, t.id);
+  const z = (extra: Record<string, unknown> = {}) =>
+    corte(A, t.id, { kind: "Z", countId: c.id, closing: "RELEVO", signer: "CAJERA", operationKey: randomUUID(), ...extra });
+  for (const [i, extra] of [
+    { countId: null }, // un Z sin arqueo
+    { closing: null }, // sin decir qué cierre (el IN no deja pasar el nulo)
+    { signer: null },
+    { closing: "CUALQUIERA" },
+    { signer: "SUPERVISION" }, // supervisión sin nombre ni justificación
+    { signer: "SUPERVISION", authorizedBy: randomUUID(), authorizedByName: "Luis Guerrero", justification: "no" },
+  ].entries()) {
+    await assert.rejects(z(extra), por("RESTRICCION"), String(i));
+  }
+  await assert.rejects(corte(A, t.id, { countId: c.id }), por("RESTRICCION")); // un X no lleva arqueo
+  const hecho = await z();
+  await assert.rejects(z(), por("DUPLICADO")); // un Z por turno
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.shiftCut.delete({ where: { id: hecho.id } })), SOLO_AGREGAR);
+});
+
+test("después del corte Z nada toca el turno: ni conteos, ni cortes (F4-06)", async () => {
+  const t = await abrirTurno(A);
+  const c = await conteo(A, t.id);
+  const otro = await abrirTurno(A);
+  // El arqueo de un Z es del mismo turno.
+  await assert.rejects(
+    corte(A, otro.id, { kind: "Z", countId: c.id, closing: "RELEVO", signer: "CAJERA", operationKey: randomUUID() }),
+    por("RESTRICCION"),
+  );
+  await sellar(A, t);
+  await assert.rejects(conteo(A, t.id), por("RESTRICCION"));
+  await assert.rejects(corte(A, t.id), por("RESTRICCION"));
+});
+
+test("una venta de un turno con corte Z no se anula; una cuenta puede quedar incobrable", async () => {
+  const t = await abrirTurno(A);
+  const operationKey = randomUUID();
+  const v = await app.conTenant(A.tenant, (tx) =>
+    tx.sale.create({
+      data: {
+        tenantId: A.tenant, branchId: A.sucursal, accountId: A.doc, operationKey, shiftId: t.id, businessDate: new Date("2026-09-27"),
+        closedAt: new Date(), cashierName: "Marisol Prieto", orderNumber: 1, totalMinor: 116n, currency: "USD",
+        content: { accountId: A.doc, cobroKey: operationKey, total: { minor: "116", currency: "USD" } },
+      } as never,
+    }),
+  );
+  await sellar(A, t);
+  await assert.rejects(
+    app.conTenant(A.tenant, (tx) =>
+      tx.saleVoid.create({
+        data: {
+          tenantId: A.tenant, saleId: v.id, operationKey: randomUUID(), voidedAt: new Date(), requestedByName: "Marisol Prieto",
+          authorizedBy: randomUUID(), authorizedByName: "Luis Guerrero", authorizedByRole: "SUPERVISOR", reason: "ERROR_EN_COBRO", refunds: [],
+        } as never,
+      }),
+    ),
+    por("RESTRICCION"),
+  );
+  const c = await cuenta(A);
+  await version(A, c.id);
+  const content = { id: c.id, status: "INCOBRABLE" };
+  await version(A, c.id, { version: 2, status: "INCOBRABLE", content, cause: "INCOBRABLE", operationKey: randomUUID() });
+});

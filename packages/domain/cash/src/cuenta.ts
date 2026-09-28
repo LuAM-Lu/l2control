@@ -21,7 +21,7 @@ import { money, type CurrencyCode } from "@l2/domain-money";
 import type { DocumentLine, TaxCode } from "@l2/domain-tax";
 
 export type AccountKind = "FAMILIA" | "MESA" | "MOSTRADOR";
-export type AccountStatus = "ABIERTA" | "POR_COBRAR" | "COBRADA";
+export type AccountStatus = "ABIERTA" | "POR_COBRAR" | "COBRADA" | "INCOBRABLE";
 
 export type AccountLineDoc = Readonly<{
   id: string;
@@ -145,6 +145,7 @@ export type AccountChangeProblem =
   | "CORTESIA_DESDE_LA_PANTALLA"
   | "DIVISION_ALTERADA"
   | "MOSTRADOR_SIN_PRODUCTO"
+  | "CUENTA_INCOBRABLE"
   | "PRODUCTO_QUE_NO_SE_VENDE"
   | "PRECIO_DISTINTO";
 
@@ -178,6 +179,8 @@ export function accountChangeProblem(
 ): AccountChange | null {
   const previas = new Map((before?.lines ?? []).map((l) => [l.id, l]));
 
+  // Marcar incobrable es de supervisión con su 🔐 (D-JOR), y una incobrable ya no se toca.
+  if (after.status === "INCOBRABLE" || before?.status === "INCOBRABLE") return { problem: "CUENTA_INCOBRABLE" };
   if (!before) {
     if (after.status === "COBRADA" || (after.split?.paid ?? 0) > 0) return { problem: "NUEVA_CON_PAGOS" };
   } else {
@@ -264,4 +267,24 @@ export function withCourtesy<A extends AccountDoc>(c: A, lineId: string, cortesi
       return sin;
     }),
   };
+}
+
+/* ─────────────────────────────────────── el cierre de la jornada (B3-5) */
+
+/**
+ * ¿Impide cerrar la jornada? Una cuenta que se debe todavía, o que sigue abierta (JORNADA §5, C2): la
+ * jornada no se cierra con pendientes. Una venta de mostrador vaciada no cuenta, ni lo cobrado, ni
+ * lo que supervisión marcó incobrable.
+ */
+export function isPendingAtClose(c: Pick<AccountDoc, "kind" | "lines" | "status">): boolean {
+  return (c.status === "ABIERTA" || c.status === "POR_COBRAR") && !isDiscardedDraft(c);
+}
+
+/**
+ * Una cuenta que no se va a cobrar (D-JOR): la familia se fue sin pagar o no puede pagar. Se marca
+ * incobrable con motivo y la autorización de supervisión; lo que se debía sigue en sus líneas (nada
+ * se borra) y sale en las excepciones del día.
+ */
+export function markUncollectible<A extends AccountDoc>(c: A): A {
+  return { ...c, status: "INCOBRABLE" };
 }

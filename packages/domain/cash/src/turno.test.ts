@@ -24,11 +24,10 @@ describe("el fondo inicial (F4-01)", () => {
     assert.equal(openingFloatProblem([usd("-1.00"), bs("0.00")]), "FONDO_NEGATIVO");
   });
 
-  test("el fondo entra en la gaveta como movimiento del turno, no de un punto", () => {
+  test("el fondo entra en la gaveta como movimiento del turno", () => {
     const t = tallyShift(openingMovements([usd("20.00"), bs("1500.00")]));
     const gaveta = Object.fromEntries(t.drawer.map((d) => [d.currency, toMajor(d.expected)]));
     assert.deepEqual(gaveta, { USD: "20.00", VES: "1500.00" });
-    assert.deepEqual(t.byPoint, []);
   });
 });
 

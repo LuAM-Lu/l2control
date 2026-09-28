@@ -28,6 +28,7 @@ export type Action =
   | "pedido.anularEnProduccion"
   | "cuenta.descuento"
   | "cuenta.cortesia"
+  | "cuenta.incobrable"
   | "documento.emitir"
   | "documento.notaCredito"
   | "documento.reimprimir"
@@ -98,6 +99,8 @@ export const MATRIZ: Matriz = Object.freeze({
 
   "cuenta.descuento": fila(P, A, A, D, D, D),
   "cuenta.cortesia": fila(P, A, A, D, D, D),
+  // D-JOR: una cuenta que no se va a cobrar se marca incobrable con motivo y 🔐 de supervisión.
+  "cuenta.incobrable": fila(P, A, A, D, D, D),
 
   // DEC-25: solo la caja cobra, lo del parque y lo del restaurante. La
   // monitora registra entradas y salidas y la cuenta pasa a la cola de la

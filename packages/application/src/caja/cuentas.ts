@@ -21,6 +21,7 @@ import {
   CobrarCuentaCommandSchema,
   CortesiaCommandSchema,
   CuentaYLibroSchema,
+  IncobrableCommandSchema,
   CuentasDelLocalSchema,
   FamilyAccountSchema,
   GuardarCuentaCommandSchema,
@@ -44,6 +45,8 @@ import {
   computeBalance,
   courtesyProblem,
   documentLinesOf,
+  isPendingAtClose,
+  markUncollectible,
   isDiscardedDraft,
   linesPaidBetween,
   markPartPaid,
@@ -124,9 +127,17 @@ export interface CasosCuentas {
    * 🔐 de quien la concede, o el PIN de quien puede darla por sí mismo.
    */
   cortesia(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
-  /** Quiénes pueden autorizar a quien opera a anular o a regalar (vacío si no le hace falta). */
-  autorizadores(ctx: Contexto, accion?: "cobro.anular" | "cuenta.cortesia"): Promise<{ id: string; nombre: string; rol: string }[]>;
+  /**
+   * Marca incobrable una cuenta que no se va a cobrar (`IncobrableCommandSchema`, D-JOR), con motivo y
+   * la 🔐 de supervisión. Nada se borra: lo que se debía sigue en la cuenta y sale en las excepciones.
+   */
+  incobrable(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
+  /** Quiénes pueden autorizar a quien opera una acción de la caja con 🔐 (vacío si no le hace falta). */
+  autorizadores(ctx: Contexto, accion?: AccionDeCaja): Promise<{ id: string; nombre: string; rol: string }[]>;
 }
+
+/** Las acciones de la caja que se autorizan con 🔐 y cuya lista de autorizadores pide la pantalla. */
+export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "turno.corteZ";
 
 /** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
 const CON_PIN = { confirmarConPin: true } as const;
@@ -153,6 +164,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   CORTESIA_DESDE_LA_PANTALLA: "Una cortesía se da con su autorización, no al guardar la cuenta.",
   DIVISION_ALTERADA: "Con partes cobradas, la división no se cambia.",
   MOSTRADOR_SIN_PRODUCTO: "Una venta de mostrador vende del catálogo.",
+  CUENTA_INCOBRABLE: "Una cuenta incobrable no se cambia: la marca supervisión con su autorización.",
   PRODUCTO_QUE_NO_SE_VENDE: "Ese producto ya no se vende.",
   PRECIO_DISTINTO: "El precio de ese producto cambió: vuelve a añadirlo desde la carta.",
 };
@@ -178,7 +190,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
     async leer(ctx, ahora = Date.now()) {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CuentasDelLocalDto | Rechazo> => {
         if (!(await puedeAlguna(tx, ctx, VEN_CUENTAS))) return rechazoDePermiso("DENEGADO");
-        // Las cobradas se enseñan el día en que se cobraron; las demás, hasta que se cobran.
+        // Las cobradas (y las incobrables) se enseñan el día en que se cerraron; las demás, hasta que se cobran.
         const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL), ZONA_DEL_LOCAL));
         const filas = await tx.$queryRaw<{ version: number; content: unknown }[]>`
           SELECT ultima.version, ultima.content FROM (
@@ -188,7 +200,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             WHERE a.branch_id = ${ctx.branchId}::uuid
             ORDER BY v.account_id, v.version DESC
           ) ultima
-          WHERE ultima.status <> 'COBRADA' OR ultima.saved_at >= ${desde}
+          WHERE ultima.status NOT IN ('COBRADA', 'INCOBRABLE') OR ultima.saved_at >= ${desde}
           ORDER BY ultima.saved_at`;
         // Se revalida al salir: lo que no cumple el contrato no llega a ninguna estación (fail-closed).
         const cuentas = filas.map((f) => deVersion(f.content, f.version)).filter((c) => !isDiscardedDraft(c));
@@ -771,6 +783,70 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       }
     },
 
+    async incobrable(ctx, entrada, autorizacion, ahora = Date.now()) {
+      const v = IncobrableCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "La cuenta no se marcó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<FamilyAccountDto | Rechazo> => {
+          const p = await permisoEn(tx, ctx, "cuenta.incobrable");
+          if (p === "DENEGADO") return rechazoDePermiso(p);
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.accountId !== cmd.accountId || previa.cause !== "INCOBRABLE") return conflictoDeClave;
+            return (await vigenteDe(tx, cmd.accountId))!.cuenta;
+          }
+          const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
+          if (!fila || fila.branchId !== ctx.branchId) return noExiste;
+          const actual = (await vigenteDe(tx, cmd.accountId))!;
+          if (actual.version !== cmd.version) return cuentaCambiada;
+          if (!isPendingAtClose(actual.cuenta)) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta no está pendiente: no hay nada que dar por incobrable." };
+          }
+          // La autorización se comprueba y se registra antes de tocar la cuenta (§7.3).
+          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cuenta.incobrable", autorizacion, ahora, CON_PIN);
+          if (!permiso.ok) return permiso;
+          const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { fullName: true } });
+
+          const { pendingSince: _, ...sinEspera } = markUncollectible(actual.cuenta);
+          const nueva = FamilyAccountSchema.parse({ ...sinEspera, version: actual.version + 1 });
+          const quien = await nombreDe(tx, ctx);
+          await guardarVersion(tx, ctx, nueva, { cause: "INCOBRABLE", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          const debe = pendienteDe(actual.cuenta);
+          await auditar(tx, ctx, {
+            action: "cuenta.incobrable",
+            entityType: "account",
+            entityId: nueva.id,
+            authorizedBy: permiso.autorizadoPor!,
+            reason: cmd.motivo,
+            after: {
+              orderNumber: nueva.orderNumber ?? null,
+              family: nueva.family,
+              pendiente: { minor: String(debe.amount), currency: debe.currency },
+              detalle: cmd.detalle ?? null,
+              autorizadoPor: autorizador.fullName,
+            },
+          });
+          return nueva;
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "cuenta.incobrable", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
     async autorizadores(ctx, accion = "cobro.anular") {
       return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, accion));
     },
@@ -820,7 +896,7 @@ async function guardarVersion(
   tx: Transaccion,
   ctx: Contexto,
   cuenta: FamilyAccountDto,
-  v: Readonly<{ cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA"; operationKey: string | null; ahora: number; quien: string }>,
+  v: Readonly<{ cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE"; operationKey: string | null; ahora: number; quien: string }>,
 ): Promise<void> {
   // El número de versión vive en su columna: el contenido es la cuenta sin él.
   const { version, ...contenido } = cuenta;
@@ -880,6 +956,11 @@ async function catalogoEn(tx: Transaccion, ahora: number): Promise<(productId: s
     const tramo = p?.active ? periodAt(tramos, productId, ahora) : undefined;
     return p && tramo ? { name: p.name, amountMinor: tramo.amountMinor, taxCode: p.taxCode as TaxCode } : null;
   };
+}
+
+/** Lo que se debe de una cuenta: lo cobrable, en dólares. */
+export function pendienteDe(c: FamilyAccountDto): Money {
+  return chargeableLines(c).reduce<Money>((acc, l) => add(acc, money(BigInt(l.amount.minor), FUNCIONAL)), zero(FUNCIONAL));
 }
 
 /** Lo que va a la auditoría de una cuenta: su forma, no su contenido entero. */

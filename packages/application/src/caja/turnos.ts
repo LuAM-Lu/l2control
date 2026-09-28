@@ -27,7 +27,7 @@ export interface CasosTurnos {
   abiertos(ctx: Contexto): Promise<TurnoDto[]>;
 }
 
-type ConFondos = CashShift & { floats: { currency: string; amountMinor: bigint }[] };
+export type ConFondos = CashShift & { floats: { currency: string; amountMinor: bigint }[] };
 
 /** El turno sin corte Z de un equipo, dentro de una transacción ya abierta. */
 export function turnoSinCorteDe(tx: Transaccion, deviceId: string) {
@@ -107,7 +107,7 @@ export function casosTurnos(base: Base): CasosTurnos {
           if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.abrir", reason: r.mensaje });
           return r;
         }
-        return { ok: true, valor: dto(r) };
+        return { ok: true, valor: turnoDto(r) };
       } catch (e) {
         // Dos aperturas a la vez en el mismo equipo: la base deja una (I-06).
         if (errorDeBase(e)?.motivo === "DUPLICADO") return { ok: false, motivo: "CONFLICTO", mensaje: "Este equipo ya tiene un turno abierto." };
@@ -124,20 +124,20 @@ export function casosTurnos(base: Base): CasosTurnos {
           orderBy: { openedAt: "asc" },
         });
       });
-      return filas.map(dto);
+      return filas.map(turnoDto);
     },
 
     async delEquipo(ctx) {
       const deviceId = ctx.quien?.deviceId;
       if (!deviceId) return null;
       const t = await base.conTenant(ctx.tenantId, (tx) => turnoSinCorteDe(tx, deviceId));
-      return t ? dto(t) : null;
+      return t ? turnoDto(t) : null;
     },
   };
 }
 
 /** El turno en la forma del contrato, revalidado al salir (fail-closed). */
-function dto(t: ConFondos): TurnoDto {
+export function turnoDto(t: ConFondos): TurnoDto {
   return TurnoSchema.parse({
     id: t.id,
     deviceId: t.deviceId,

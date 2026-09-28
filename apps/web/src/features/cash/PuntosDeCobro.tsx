@@ -1,5 +1,4 @@
 import { Banknote, Store, Ticket } from "lucide-react";
-import type { PointOfSale } from "@l2/domain-cash";
 import { MoneyDisplay, formatMoneyVE, cn } from "@l2/ui";
 
 /**
@@ -12,7 +11,7 @@ import { MoneyDisplay, formatMoneyVE, cn } from "@l2/ui";
  */
 
 export type FilaPunto = {
-  punto: PointOfSale;
+  punto: string;
   moneda: string;
   /** Todo lo cobrado en ese punto, por cualquier medio. Unidades mayores. */
   cobrado: string;
@@ -21,7 +20,7 @@ export type FilaPunto = {
 };
 
 type DefPunto = Readonly<{
-  id: PointOfSale;
+  id: string;
   nombre: string;
   detalle: string;
   Icono: typeof Ticket;

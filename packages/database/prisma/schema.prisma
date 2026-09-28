@@ -578,6 +578,8 @@ model CashShift {
   floats   CashShiftFloat[]
   payments Payment[]
   sales    Sale[]
+  counts   ShiftCount[]
+  cuts     ShiftCut[]
 
   @@unique([tenantId, id])
   @@index([tenantId, branchId, businessDate])
@@ -804,4 +806,65 @@ model SaleVoid {
   @@unique([tenantId, saleId])
   @@unique([tenantId, operationKey])
   @@map("sale_void")
+}
+
+/// Un conteo de la gaveta de un turno (F4-07, B3-5): billetes por denominación, lo que decía el libro
+/// en ese momento y la diferencia. A ciegas: la cajera ve lo esperado después de registrarlo.
+model ShiftCount {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  shiftId            String   @map("shift_id") @db.Uuid
+  countedAt          DateTime @map("counted_at") @db.Timestamptz(3)
+  countedBy          String?  @map("counted_by") @db.Uuid
+  countedByName      String   @map("counted_by_name")
+  deviceId           String?  @map("device_id") @db.Uuid
+  /// [{ currency, billetes: [{ denominacion, cantidad }] }]
+  counts             Json
+  /// [{ minor, currency }] por moneda: lo contado, lo esperado y la diferencia.
+  counted            Json
+  expected           Json
+  differences        Json
+  /// La diferencia en dólares con la tasa del turno; NULL si no hubo tasa para medirla.
+  differenceUsdMinor BigInt?  @map("difference_usd_minor")
+  rateId             String?  @map("rate_id") @db.Uuid
+  rateValue          String?  @map("rate_value")
+  /// CAJERA o SUPERVISION (CHECK).
+  signer             String
+
+  shift CashShift  @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  cuts  ShiftCut[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, shiftId, countedAt])
+  @@map("shift_count")
+}
+
+/// Un corte del turno (F4-05, F4-06): X, repetible, o Z, uno por turno y con su arqueo. El contenido
+/// es la foto del turno en ese instante (`CorteSchema`).
+model ShiftCut {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  shiftId          String   @map("shift_id") @db.Uuid
+  /// X o Z (CHECK).
+  kind             String
+  madeAt           DateTime @map("made_at") @db.Timestamptz(3)
+  madeBy           String?  @map("made_by") @db.Uuid
+  madeByName       String   @map("made_by_name")
+  deviceId         String?  @map("device_id") @db.Uuid
+  content          Json
+  /// Solo en el Z: su arqueo, qué cierre fue, quién firmó y con qué.
+  countId          String?  @map("count_id") @db.Uuid
+  closing          String?
+  signer           String?
+  authorizedBy     String?  @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+  justification    String?
+  operationKey     String?  @map("operation_key") @db.Uuid
+
+  shift CashShift   @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  count ShiftCount? @relation(fields: [tenantId, countId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, shiftId, madeAt])
+  @@map("shift_cut")
 }

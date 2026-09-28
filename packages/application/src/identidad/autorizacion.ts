@@ -59,34 +59,53 @@ export async function exigirPermisoOAutorizacion(
       ? { ok: false, motivo: "NO_PERMITIDO", mensaje: "Confirma con tu PIN." }
       : rechazoDePermiso("REQUIERE_AUTORIZACION");
   }
-  const { autorizadorId, pin, motivo } = aut.data;
-  const negar = async (mensaje: string, extra?: object): Promise<Rechazo> => {
-    await auditar(tx, ctx, { action: "autorizacion.negar", outcome: "NEGADO", reason: mensaje, after: { accion, autorizador: autorizadorId, ...extra } });
-    return { ok: false, motivo: "NO_PERMITIDO", mensaje };
-  };
+  if (p === "PERMITIDO") return confirmarPinPropio(tx, ctx, accion, aut.data, ahora);
 
-  if (p === "PERMITIDO") {
-    // Confirma quien opera, con su propio PIN: nadie confirma por otro.
-    if (autorizadorId !== ctx.quien?.userId) return negar("Confirma con tu propio PIN.");
-  } else {
-    const solicitante = ctx.quien?.userId ? await cargarActor(tx, ctx.quien.userId, ctx.branchId) : null;
-    const autorizador = await cargarActor(tx, autorizadorId, ctx.branchId);
-    if (!solicitante || !autorizador || !canAuthorize(autorizador, solicitante, accion, { branchId: ctx.branchId })) {
-      return negar("Esa persona no puede autorizar esto.");
-    }
+  const { autorizadorId } = aut.data;
+  const solicitante = ctx.quien?.userId ? await cargarActor(tx, ctx.quien.userId, ctx.branchId) : null;
+  const autorizador = await cargarActor(tx, autorizadorId, ctx.branchId);
+  if (!solicitante || !autorizador || !canAuthorize(autorizador, solicitante, accion, { branchId: ctx.branchId })) {
+    return negarAutorizacion(tx, ctx, accion, autorizadorId, "Esa persona no puede autorizar esto.");
   }
+  return comprobarPin(tx, ctx, accion, aut.data, ahora, "PIN de autorización incorrecto.");
+}
 
-  const u = await tx.staffUser.findUniqueOrThrow({ where: { id: autorizadorId } });
+/**
+ * Quien opera confirma con su propio PIN (B3-4, B3-5): la cajera firma su corte Z, la administración
+ * anula o regala. Nadie confirma por otro. Queda como autorizado por esa misma persona.
+ */
+export async function confirmarPinPropio(
+  tx: Transaccion,
+  ctx: Contexto,
+  accion: Action,
+  entrada: unknown,
+  ahora: number = Date.now(),
+): Promise<Adelante | Rechazo> {
+  const aut = AutorizacionSchema.safeParse(entrada);
+  if (!aut.success) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Confirma con tu PIN." };
+  if (!ctx.quien?.userId || aut.data.autorizadorId !== ctx.quien.userId) {
+    return negarAutorizacion(tx, ctx, accion, aut.data.autorizadorId, "Confirma con tu propio PIN.");
+  }
+  return comprobarPin(tx, ctx, accion, aut.data, ahora, "PIN incorrecto.");
+}
+
+async function negarAutorizacion(tx: Transaccion, ctx: Contexto, accion: Action, autorizadorId: string, mensaje: string, extra?: object): Promise<Rechazo> {
+  await auditar(tx, ctx, { action: "autorizacion.negar", outcome: "NEGADO", reason: mensaje, after: { accion, autorizador: autorizadorId, ...extra } });
+  return { ok: false, motivo: "NO_PERMITIDO", mensaje };
+}
+
+/** El PIN de quien autoriza, con su bloqueo creciente; cada negativa y cada concesión, auditadas. */
+async function comprobarPin(tx: Transaccion, ctx: Contexto, accion: Action, a: Autorizacion, ahora: number, mensajeMalo: string): Promise<Adelante | Rechazo> {
+  const u = await tx.staffUser.findUniqueOrThrow({ where: { id: a.autorizadorId } });
   const bloqueo = computeLockout(u.pinFailures, u.pinLastFailureAt?.getTime() ?? null, ahora, DEFAULT_LOCKOUT_POLICY);
-  if (bloqueo.locked) return negar(describeLockout(bloqueo) ?? "Bloqueado.");
-  if (!u.pinHash || u.pinMustChange || !(await verify(u.pinHash, pin).catch(() => false))) {
+  if (bloqueo.locked) return negarAutorizacion(tx, ctx, accion, a.autorizadorId, describeLockout(bloqueo) ?? "Bloqueado.");
+  if (!u.pinHash || u.pinMustChange || !(await verify(u.pinHash, a.pin).catch(() => false))) {
     await tx.staffUser.update({ where: { id: u.id }, data: { pinFailures: { increment: 1 }, pinLastFailureAt: new Date(ahora) } });
-    return negar(p === "PERMITIDO" ? "PIN incorrecto." : "PIN de autorización incorrecto.");
+    return negarAutorizacion(tx, ctx, accion, a.autorizadorId, mensajeMalo);
   }
-
   await tx.staffUser.update({ where: { id: u.id }, data: { pinFailures: 0, pinLastFailureAt: null } });
-  await auditar(tx, ctx, { action: "autorizacion.conceder", authorizedBy: autorizadorId, reason: motivo, after: { accion } });
-  return { ok: true, autorizadoPor: autorizadorId };
+  await auditar(tx, ctx, { action: "autorizacion.conceder", authorizedBy: a.autorizadorId, reason: a.motivo, after: { accion } });
+  return { ok: true, autorizadoPor: a.autorizadorId };
 }
 
 /**

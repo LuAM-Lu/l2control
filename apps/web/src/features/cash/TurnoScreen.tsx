@@ -392,18 +392,9 @@ function CierreTurno({
       enGaveta: m.inDrawer,
     }));
 
-  // DEC-25/26: con solo la caja cobrando, lo normal es un único punto; la
-  // pestaña «Por punto de cobro» solo aparece si de verdad cobró más de uno.
-  const variosPuntos =
-    new Set(
-      tally.byPoint.filter((p) => p.charged.amount !== 0n || p.cashNet.amount !== 0n).map((p) => p.point),
-    ).size > 1;
-  const puntos: FilaPunto[] = tally.byPoint.map((p) => ({
-    punto: p.point,
-    moneda: p.currency,
-    cobrado: toMajor(p.charged),
-    efectivoNeto: toMajor(p.cashNet),
-  }));
+  // El punto de cobro es el equipo del turno (B3-1): ya no hay desglose por taquilla y mostrador.
+  const variosPuntos = false;
+  const puntos: FilaPunto[] = [];
 
   /**
    * DENSIDAD Y JERARQUÍA — la tarea manda.

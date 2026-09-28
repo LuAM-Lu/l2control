@@ -62,12 +62,9 @@ export default async function InicioPage() {
     .map((d) => ({ moneda: d.currency, total: toMajor(d.expected) }))
     .sort((a, b) => (a.moneda === "USD" ? -1 : b.moneda === "USD" ? 1 : 0));
 
-  const puntos: FilaPunto[] = tally.byPoint.map((p) => ({
-    punto: p.point,
-    moneda: p.currency,
-    cobrado: toMajor(p.charged),
-    efectivoNeto: toMajor(p.cashNet),
-  }));
+  // El punto de cobro es el equipo del turno desde B3-1: el desglose por taquilla y mostrador se
+  // retiró del dominio (B3-5). Inicio pasa a leer el resumen del día del servidor en B3-5.
+  const puntos: FilaPunto[] = [];
 
   const hoy = new Date();
 
