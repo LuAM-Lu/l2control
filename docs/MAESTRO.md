@@ -156,8 +156,12 @@ se respondieron **todas las preguntas abiertas de §4** (descuentos, eventos, pu
 autorizarse a sí mismo, puestos, umbral de la tasa e IGTF): ya no queda ninguna del cliente para la Ruta A,
 salvo los datos maestros (F0-04) y la firma del alcance (F0-09).
 
-**Pendiente de hacer en la base del cliente (preguntar antes de tocarla):** programar el **IGTF al 0 %** desde
-hoy en Ajustes → Impuestos (V-13). Y **contarle al cliente** lo del turno de «PC admin» (arriba).
+**El IGTF ya no se cobra (V-13).** Con el visto bueno del cliente, el 2026-09-29 se programó en Ajustes →
+Impuestos el IGTF al **0 %**, rigiendo desde ese momento, a nombre de Abigail Karam (equipo «Prueba IGTF
+Admin», revocado). Lo cobrado antes se queda como se cobró; el IVA sigue en 16 % y 8 %. La caja y el recibo
+enseñan todavía la línea del IGTF en cero hasta B3-6.
+
+**Pendiente con el cliente:** **contarle** lo del turno de «PC admin» (arriba).
 
 **El tiempo real en la base local (2026-09-29, al comprobar B5-1).** Entraron y salieron dos familias de
 prueba, «Prueba Vivo B51» (#0025) y «Prueba Caida B51» (registrada con el worker caído); sus cuentas
@@ -211,7 +215,7 @@ cinco reglas de CLAUDE.md no se relajan.
 | **V-10** | **Cumpleaños: reserva con fecha y anticipo.** Horario, cliente, **niños invitados** (sus pulseras cuentan en el aforo), **paquete con productos** (descuenta existencias el día del evento), anticipo al reservar y saldo el día. Sin política de cancelación: devolver un anticipo es anular su cobro (DEC-24) | B10-1, B10-2 |
 | **V-11** | **Un solo servidor en la nube (VPS)** con **internet de respaldo 4G** y UPS en la red del local ([ADR-021](adr/021-servidor-en-la-nube.md), cierra D-INF; supersede la topología de ADR-003 y DEC-4/DEC-10 en lo que pedían un equipo en el local) | B7-1, B8-1 |
 | **V-12** | **Papel**: si caen los dos enlaces, se anota en formularios; al volver, **la cajera lo carga en su turno**, marcado «desde papel» con la hora real anotada, y **supervisión lo revisa** en el cierre (cierra JORNADA §7.4) | B3-7 |
-| **V-13** | **No se cobra IGTF por ahora** (el cliente, 2026-09-28): se programa al 0 % en Ajustes → Impuestos y el motor se queda para cuando vuelva. Con el IGTF al 0 %, la caja y el recibo no enseñan su línea. Cambia lo que M-3 decía del IGTF; el IVA sigue | Ajustes (hoy); B3-6 (la línea) |
+| **V-13** | **No se cobra IGTF por ahora** (el cliente, 2026-09-28): se programa al 0 % en Ajustes → Impuestos y el motor se queda para cuando vuelva. Con el IGTF al 0 %, la caja y el recibo no enseñan su línea. Cambia lo que M-3 decía del IGTF; el IVA sigue | ~~Ajustes~~ (hecho el 2026-09-29); B3-6 (la línea) |
 | **V-14** | **La tasa del BCV es siempre la que trae la API**: se retira el umbral de salto de ADR-019 (D-CORD). Si la API falla, administración (o supervisión con 🔐) la carga a mano en Ajustes → Tasas y se aplica al guardarla, como ya hace; en dólares se cobra siempre. Cuando la API trae la del día, la reemplaza | B5-1 |
 
 ---
@@ -1165,7 +1169,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
 | La zona horaria es `America/Caracas` en el código | B4-4 |
-| El IGTF sigue programado al 3 % en la base del cliente (decidió no cobrarlo, V-13), y con 0 % la caja enseñaría su línea en cero | Ajustes → Impuestos (preguntar antes) y B3-6 |
+| Con el IGTF al 0 % (V-13, programado el 2026-09-29) la caja y el recibo enseñan su línea en cero | B3-6 |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
@@ -1375,7 +1379,7 @@ HECHO: B3-5 (arqueo a ciegas, cortes X y Z, relevo, jornada sin pendientes, inco
   vende), descuentos, cumpleaños, todo en tiempo real y solo VPS + 4G (ADR-021). Todas las preguntas de §4 respondidas; sin gaveta, sin IGTF.
 SIGUIENTE: B5-1 (Socket.io + adaptador Valkey + outbox + apps/worker): TODO en tiempo real, fuera los sondeos (5 s sala y cuentas, 60 s tasa)
   y el bus entre pestañas; la sincronización del BCV pasa al worker y deja de retener saltos (V-14, ADR nuevo sobre ADR-019). Luego B4-4 → B4-5.
-Pendiente con el cliente (preguntar antes de tocar su base): IGTF al 0 % desde hoy en Ajustes → Impuestos (V-13); contarle que el turno de
+Pendiente con el cliente: contarle que el turno de
   «PC admin» se selló por error con un Z de prueba (§1).
 Base local CON DATOS DEL CLIENTE («PC admin», cuentas #0021 y #0022 vivas): un guion solo toca lo que se llama «Prueba …».
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (500 por next/font: parar, borrar apps/web/.next y relanzar).
