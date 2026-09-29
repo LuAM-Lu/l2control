@@ -19,11 +19,11 @@ import {
   type LockoutState,
   type Role,
 } from "@l2/domain-identity";
-import type { Rechazo } from "@l2/contracts";
+import { SesionEnCursoSchema, type Rechazo, type Resultado, type SesionEnCursoDto } from "@l2/contracts";
 import type { Base } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar } from "../auditoria/auditar.ts";
-import { cargarActor, esRol } from "./actor.ts";
+import { cargarActor, esRol, permisoEn, rechazoDePermiso } from "./actor.ts";
 import { coincide, componer, huella, leerCredencial, nuevoSecreto } from "./credenciales.ts";
 import type { CasosDispositivos } from "./dispositivos.ts";
 
@@ -77,6 +77,11 @@ export interface CasosSesiones {
   /** La sesión de esta credencial, si sigue viva. La refresca; si caducó, la cierra. */
   consultar(credencial: string | undefined | null, ahora: number): Promise<SesionActiva | null>;
   salir(credencial: string | undefined | null, motivo: "SALIDA" | "CORTE_Z", ip: string | null): Promise<void>;
+  /**
+   * Quién está en sesión ahora en la sucursal, y en qué equipo (F9-08, D7, B5-1): lo que Inicio
+   * enseña por puesto. Lo ve quien ve el resumen de la sucursal.
+   */
+  enCurso(ctx: Contexto, ahora: number): Promise<Resultado<SesionEnCursoDto[]>>;
 }
 
 /** El contexto de una operación hecha por quien tiene esta sesión. */
@@ -275,6 +280,30 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
           elevadaHasta: s.elevatedUntil && s.elevatedUntil.getTime() > ahora ? s.elevatedUntil.toISOString() : null,
         } satisfies SesionActiva;
       });
+    },
+
+    async enCurso(ctx, ahora) {
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<SesionEnCursoDto[] | Rechazo> => {
+        const p = await permisoEn(tx, ctx, "reportes.verSucursal");
+        if (p === "DENEGADO") return rechazoDePermiso(p);
+        const filas = await tx.staffSession.findMany({
+          where: {
+            branchId: ctx.branchId,
+            closedAt: null,
+            lastSeenAt: { gte: new Date(ahora - SESION_INACTIVA_MS) },
+            device: { status: "APROBADO" },
+            user: { active: true },
+          },
+          include: { user: true, device: true },
+          orderBy: { openedAt: "asc" },
+        });
+        return filas.flatMap((s) =>
+          esRol(s.user.role)
+            ? [SesionEnCursoSchema.parse({ userName: s.user.fullName, role: s.user.role, deviceLabel: s.device.label, desde: s.openedAt.toISOString() })]
+            : [],
+        );
+      });
+      return Array.isArray(r) ? { ok: true, valor: r } : r;
     },
 
     async salir(texto, motivo, ip) {

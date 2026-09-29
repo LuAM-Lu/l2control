@@ -9,8 +9,7 @@ import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { PageTransition } from "./PageTransition.tsx";
-import { useOperacion } from "../operacion/OperacionProvider.tsx";
-import { PUESTO_DE_ROL, cerrarSesion, useOperador } from "../identity/operador.ts";
+import { cerrarSesion, useOperador } from "../identity/operador.ts";
 import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import {
@@ -52,11 +51,9 @@ export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   // El menú se recorta con el rol de quien entró (V2). Sin sesión, vacío: la
   // guardia del contenido pide identificarse.
   const operador = useOperador();
-  const op = useOperacion();
 
-  /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
+  /** Salir cierra la sesión en el servidor: Inicio marca el puesto vacío en vivo (F9-08, D7). */
   function salir() {
-    if (operador) op.emitir({ type: "sesion.cerrada", device: PUESTO_DE_ROL[operador.role] });
     void cerrarSesion();
   }
   const actor = useActorEnSesion();

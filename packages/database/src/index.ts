@@ -11,6 +11,7 @@
  * Solo lo importa `packages/application` (§9.2 regla 2).
  */
 import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 import { PrismaClient, type Prisma } from "./generated/client.ts";
 
 export type Transaccion = Prisma.TransactionClient;
@@ -27,6 +28,7 @@ export type {
   Kid,
   ParkSession,
   ParkSessionExtension,
+  OutboxEvent,
   ParkTariffVersion,
   Product,
   ProductPrice,
@@ -43,8 +45,18 @@ export { errorDeBase, type ErrorDeBase, type MotivoDeBase } from "./errores.ts";
 export interface Base {
   /** Ejecuta `trabajo` en una transacción que solo ve y solo escribe filas de `tenantId`. */
   conTenant<T>(tenantId: string, trabajo: (tx: Transaccion) => Promise<T>): Promise<T>;
+  /**
+   * Escucha los avisos de la base en `canal` (`LISTEN`, B5-1) con una conexión propia, fuera de
+   * toda transacción: un aviso llega al confirmarse la transacción que lo dio. No lleva datos ni
+   * pasa por la RLS; quien lo recibe lee lo que toque con `conTenant`. `alCaer` avisa si la
+   * conexión se pierde (entonces hay que volver a escuchar). Devuelve cómo dejar de escuchar.
+   */
+  escuchar(canal: string, alAviso: (carga: string) => void, alCaer?: (error: Error) => void): Promise<() => Promise<void>>;
   cerrar(): Promise<void>;
 }
+
+/** Un canal de `LISTEN` es un identificador: nunca texto libre concatenado en SQL. */
+const CANAL = /^[a-z_][a-z0-9_]{0,62}$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -78,6 +90,26 @@ export async function abrirBase(url: string | undefined): Promise<Base> {
         await tx.$queryRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
         return trabajo(tx);
       });
+    },
+    async escuchar(canal, alAviso, alCaer) {
+      if (!CANAL.test(canal)) throw new Error(`escuchar: «${canal}» no es un canal válido.`);
+      const oyente = new pg.Client({ connectionString: url });
+      let cerrado = false;
+      oyente.on("notification", (n) => {
+        if (n.channel === canal) alAviso(n.payload ?? "");
+      });
+      oyente.on("error", (e) => {
+        if (!cerrado) alCaer?.(e);
+      });
+      oyente.on("end", () => {
+        if (!cerrado) alCaer?.(new Error("escuchar: la conexión con la base se cerró."));
+      });
+      await oyente.connect();
+      await oyente.query(`LISTEN ${canal}`);
+      return async () => {
+        cerrado = true;
+        await oyente.end().catch(() => undefined);
+      };
     },
     cerrar: () => cliente.$disconnect(),
   };

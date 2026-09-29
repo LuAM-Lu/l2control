@@ -15,11 +15,9 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
-import { PUESTO_DE_ROL } from "./operador.ts";
 import { aprobarEsteEquipo, entrar, renovarSolicitud, solicitarRegistro } from "./acceso.acciones";
 import { puestoDe } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
-import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { RotuloVersion } from "../shell/RotuloVersion.tsx";
 import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
 
@@ -90,7 +88,6 @@ export function AccesoScreen({
   /** Solo si el equipo espera aprobación: su código de emparejamiento y si la solicitud caducó (M-7). */
   pendiente?: { codigo: string; caducada: boolean } | null;
 }) {
-  const op = useOperacion();
   /**
    * A dónde entra: lo decide `puestoDe()` con el actor que devolvió el SERVIDOR al entrar
    * (N-02: una sola fuente, la misma que usan las guardias).
@@ -183,13 +180,7 @@ export function AccesoScreen({
       setDestino(puesto);
       setEntrando(true);
       setRechazo(null);
-      // El panel en vivo enseña quién está en cada puesto (F9-08, D7).
-      op.emitir({
-        type: "sesion.iniciada",
-        userName: operador.nombre,
-        role: operador.rol,
-        device: PUESTO_DE_ROL[operador.role],
-      });
+      // Quién está en cada puesto lo dice la sesión que acaba de abrir el servidor (F9-08, B5-1).
       if (esRutaDeEstacion(puesto.ruta)) pedirPantallaCompleta();
       window.setTimeout(() => router.push(puesto.ruta), MS_DEL_SELLO);
       return;

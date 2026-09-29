@@ -95,12 +95,14 @@ export type PanelVivo = Readonly<{
   urgencias: number;
 }>;
 
-/** Los puestos que deberían tener a alguien en hora de servicio (D7). */
+/**
+ * Los puestos que deberían tener a alguien en hora de servicio (D7). La cocina no: trabaja con la
+ * comanda impresa y no entra en el sistema (ADR-022), así que «sin nadie en cocina» sería siempre falso.
+ */
 export const PUESTOS_DE_SERVICIO: readonly { id: string; nombre: string }[] = [
   { id: "caja", nombre: "Caja" },
   { id: "taquilla", nombre: "Taquilla" },
   { id: "salon", nombre: "Salón" },
-  { id: "cocina", nombre: "Cocina" },
 ];
 
 /** Las rutas son literales: así las comprueba el tipado de rutas de Next. */

@@ -20,13 +20,13 @@
   "comment": "Solo lo importa packages/application (§9.2 regla 2). Las apps nunca hablan con la base directamente.",
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
-    "@prisma/client": "7.10.0"
+    "@prisma/client": "7.10.0",
+    "pg": "8.23.0"
   },
   "devDependencies": {
     "@l2/config": "workspace:*",
     "@types/node": "24.10.1",
     "@types/pg": "8.23.1",
-    "pg": "8.23.0",
     "prisma": "7.10.0",
     "typescript": "7.0.2"
   }

@@ -290,7 +290,7 @@ export function CheckInScreen() {
 
     clave.current = null;
     const { account: cuenta, sessions } = r.valor;
-    // La sala y la caja lo ven al momento en este equipo; los demás, con su sondeo.
+    // La sala y la caja lo ven al momento en este equipo; los demás, por el canal en vivo (B5-1).
     adoptarEstancias(sessions);
     adoptarCuenta(cuenta);
 

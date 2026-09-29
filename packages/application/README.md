@@ -22,6 +22,7 @@ escribe en la base dentro de la transacción del tenant. **Es la única puerta d
 | Dinero | `tasas.leer`, `capturar`, `confirmar`, `sincronizar` (la del BCV se aplica sola con salvaguardas) | B2-1, B2-1b, B2-1c |
 | Dinero | `impuestos.leer`, `impuestos.programar` (desde un día; hoy, desde ya; nunca hacia atrás) | B2-2 |
 | Dinero | `pagos.asentar` (todo o nada, idempotente), `pagos.revertir` (asiento de signo contrario, 🔐), `pagos.libro` (saldo calculado) | B2-3 |
+| Tiempo real | `tiempoReal.ticket` (lo firma la web para una sesión), `abrir` (firma, plazo y sesión viva), `latido`, `despachar` (outbox → temas por sucursal), `escuchar`; `sesiones.enCurso` (quién está en cada puesto). `temasDe` traduce cada acción auditada a lo que invalida | B5-1 |
 | Caja | `medios.leer`, `medios.aplicar` (encender y apagar, añadir un medio, datos del local cifrados, terminales); el libro cita el medio del catálogo, cifra los datos de cada pago y rechaza una referencia ya cobrada | B3-2 |
 
 ## Qué NO le corresponde

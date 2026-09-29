@@ -22,7 +22,7 @@ import { contextoActual } from "../../servidor/sesion";
 
 const sinSesion = { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar." } as const;
 
-/** La sala con la hora del servidor, para el sondeo de las estaciones. */
+/** La sala con la hora del servidor: la vuelven a leer las estaciones cuando cambia (B5-1). */
 export async function leerSala(): Promise<Resultado<MonitorSnapshotDto>> {
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;

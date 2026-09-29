@@ -17,10 +17,13 @@ const EsquemaEntorno = z.object({
   /** 32 bytes en base64: sin ella no hay elevación con TOTP ni cifrado en reposo (§7.6). */
   L2_CLAVE_CIFRADO: z.base64().refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes en base64"),
   /**
-   * Traer sola la tasa del BCV cada hora (F3-04). `no` en un servidor sin salida a internet o en
-   * las pruebas; lo traído siempre entra pendiente de confirmar.
+   * A dónde se conectan los navegadores para el canal en vivo (`apps/worker`, B5-1). Vacío = la
+   * misma máquina que sirve la página, en `L2_TIEMPO_REAL_PUERTO`; en producción, la dirección
+   * pública, que el proxy lleva al worker. La consulta al BCV ya no la hace este proceso: la hace
+   * el worker (B5-1).
    */
-  L2_SINCRONIZAR_TASA: z.enum(["si", "no"]).default("si"),
+  L2_TIEMPO_REAL_URL: z.union([z.literal(""), z.url({ protocol: /^https?$/ })]).default(""),
+  L2_TIEMPO_REAL_PUERTO: z.coerce.number().int().min(1).max(65535).default(3001),
 });
 
 export type EntornoWeb = z.infer<typeof EsquemaEntorno>;

@@ -52,19 +52,20 @@ qué significa «en gracia» y qué color le toca. Eso es dominio, y `@l2/ui` no
 (§9.2 regla 4). Los componentes de nivel 3 **no se comparten entre contextos**: si dos
 contextos parecen necesitar el mismo, lo que se comparte es el patrón de nivel 2.
 
-## Estado en el navegador, mientras no hay backend
+## Estado en el navegador
 
-| Proveedor | Qué guarda | Dónde |
-|---|---|---|
-| `CuentasProvider` | Cuentas de familia | `sessionStorage` `l2:cuentas:v1` |
-| `TarifarioProvider` | Tarifario publicado (paquetes y reglas del parque) | `sessionStorage` `l2:tarifario:v1` |
-| `CartaProvider`, `PlanoProvider` | Carta y plano publicados | `sessionStorage` |
-| `VentasProvider` | Ventas cerradas, impresiones y anulaciones | `sessionStorage` `l2:ventas:v2` |
-| `identity/operador.ts` | Quién entró y con qué rol | `sessionStorage` |
-| `OperacionProvider` | Eventos del local, sincronizados entre pestañas (hasta B5-1) | `BroadcastChannel` |
+Nada de negocio se guarda en el navegador. El layout raíz lee en el servidor (tarifario, tasas, medios,
+cuentas, ventas, sala y quién está en sesión) y los proveedores lo reparten. Desde B5-1 se mantienen al
+día por el **canal en vivo** del worker (`features/operacion/TiempoRealProvider.tsx`):
 
-Todo lo que se carga se valida contra `@l2/contracts`; lo que no cumple se descarta entero. Cada
-proveedor tiene su `TODO(backend)` con la tarea que lo sustituye.
+| Tema que cambia | Quién vuelve a leer |
+|---|---|
+| `sala`, `cuentas`, `tasas` | Su proveedor, con su acción (`useAlCambiar`) |
+| Los demás (turno, ventas, medios, catálogo, impuestos, tarifario, equipos, personal, sesiones) | `router.refresh()`: repinta las lecturas del servidor y los proveedores adoptan lo nuevo |
+| Lo que una página lee en el servidor de un tema con lectura propia (Inicio) | `<RefrescarAlCambiar temas={…}>` |
+
+Sin canal, la barra dice «Sin conexión en vivo» y se vuelve a leer todo cada 30 s. Lo provisional que
+queda (ajustes del local, plano y carta del restaurante) está en `src/demo` y en MAESTRO §5.
 
 ## Fronteras
 

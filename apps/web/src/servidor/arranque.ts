@@ -1,7 +1,6 @@
 import "server-only";
 import { entorno } from "./entorno";
 import { aplicacion, log } from "./aplicacion";
-import { programarSincronizacionDeTasa } from "./sincronizacion-tasa";
 import { VERSION } from "../features/shell/version";
 
 /**
@@ -23,5 +22,5 @@ export async function arrancar(): Promise<void> {
     },
     "servidor web conectado a la base",
   );
-  if (e.L2_SINCRONIZAR_TASA === "si") programarSincronizacionDeTasa();
+  // La consulta automática al BCV vive en el worker desde B5-1 (ADR-025): este proceso solo sirve páginas.
 }

@@ -1,6 +1,7 @@
 # ADR-019 · La tasa oficial del BCV se aplica sola, con salvaguardas, y llega en vivo
 
-- **Estado:** Aceptada (pedido del cliente, 2026-09-26). **Cambia PLAN §5.2 y el criterio de F3-04** en
+- **Estado:** Aceptada (pedido del cliente, 2026-09-26). **El punto 2 (límite de cordura) lo supersede
+  [ADR-024](024-tasa-del-bcv-sin-umbral.md)** (V-14): la del BCV se aplica salte lo que salte. **Cambia PLAN §5.2 y el criterio de F3-04** en
   un punto: la tasa traída automáticamente ya no espera siempre la confirmación de una persona.
   ADR-005 (la tasa se congela en cada transacción) sigue entero.
 - **Fecha:** 2026-09-26
@@ -11,9 +12,8 @@
     `exchange_rate.held_back` y `exchange_rate_confirmation.automatic` con su CHECK. La respuesta cruda
     de la fuente va en `rawPayload` de la tasa; el umbral es fijo (`UMBRAL_VARIACION_BPS`, 10 %)
     hasta que se decida D-CORD.
-  - Punto 6: sondeo de 60 s y al volver el foco en `TasasProvider`. Medido en el navegador: la barra de
-    otro equipo recibió la tasa confirmada a los 57 s, sin navegar. El empuje en menos de 2 s llega con
-    B5-1, que también muda la consulta al BCV a `apps/worker`.
+  - Punto 6: desde B5-1, por el canal en vivo (ADR-025) en menos de 2 s; antes, sondeo de 60 s. La
+    consulta al BCV vive en `apps/worker`.
   - Punto 7: la caja congela la tasa con el primer pago; si la vigente cambia, la franja del medio
     dice «Tasa nueva» con «Mantener» y «Usar la nueva», sin mover el teclado. Las tasas se comparan
     por valor (`sameRate`), no por cómo se escribieron. **Falta el rechazo en el servidor** de un cobro

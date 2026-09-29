@@ -1,7 +1,7 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.29.1",
+  "version": "0.30.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Etapa 4 · Parque",
@@ -27,7 +27,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:db": "turbo run test:db",
-    "arch": "depcruise \"packages/**/*.{ts,tsx}\" \"apps/**/*.{ts,tsx}\" --config .dependency-cruiser.cjs",
+    "arch": "depcruise \"packages/*/src/**/*.{ts,tsx}\" \"packages/domain/*/src/**/*.ts\" \"packages/*/*.ts\" \"packages/database/scripts/**/*.ts\" \"apps/web/{app,src}/**/*.{ts,tsx}\" \"apps/web/*.ts\" \"apps/worker/src/**/*.ts\" --config .dependency-cruiser.cjs",
     "arch:demo": "node scripts/arch-demo.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm lint:prueba && pnpm version:comprobar && pnpm arch && pnpm arch:demo && pnpm test",
     "verify:db": "pnpm verify && pnpm test:db",

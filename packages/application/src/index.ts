@@ -28,6 +28,8 @@ import { casosVentas, type CasosVentas } from "./caja/ventas.ts";
 import { casosCortes, type CasosCortes } from "./caja/cortes.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
+import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
+import { crearFirmante } from "./tiempo-real/ticket.ts";
 
 export type { Contexto } from "./contexto.ts";
 export type { CasosTarifario } from "./park/tarifario.ts";
@@ -49,6 +51,9 @@ export type { CasosVentas } from "./caja/ventas.ts";
 export type { CasosCortes } from "./caja/cortes.ts";
 export type { CasosFeriados } from "./dinero/feriados.ts";
 export { DIAS_POR_ADELANTADO_PRECIOS, type CasosProductos } from "./inventario/productos.ts";
+export type { Aviso, CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
+export { TICKET_MS, type DatosDelTicket } from "./tiempo-real/ticket.ts";
+export { TEMAS_DE_ACCION, temasDe } from "./tiempo-real/temas.ts";
 export { AutorizacionSchema, exigirPermisoOAutorizacion, type Autorizacion } from "./identidad/autorizacion.ts";
 export { ELEVACION_MS, type CasosElevacion, type CredencialesNuevas } from "./identidad/elevacion.ts";
 export {
@@ -82,6 +87,7 @@ export interface Aplicacion {
   readonly cortes: CasosCortes;
   readonly feriados: CasosFeriados;
   readonly productos: CasosProductos;
+  readonly tiempoReal: CasosTiempoReal;
   cerrar(): Promise<void>;
 }
 
@@ -89,7 +95,7 @@ export interface OpcionesDeConexion {
   /**
    * Clave AES-256 en base64 (L2_CLAVE_CIFRADO) para lo que se guarda cifrado: el secreto TOTP, los
    * datos de cada pago y los datos de cobro del local (B3-2). Sin ella, esas funciones responden
-   * NO_DISPONIBLE.
+   * NO_DISPONIBLE, y el canal en vivo no firma ni abre tickets (B5-1).
    */
   claveCifrado?: string | undefined;
 }
@@ -121,6 +127,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     cortes: casosCortes(base),
     feriados: casosFeriados(base),
     productos: casosProductos(base),
+    tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     cerrar: () => base.cerrar(),
   };
 }

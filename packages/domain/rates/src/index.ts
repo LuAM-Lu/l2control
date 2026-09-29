@@ -62,7 +62,8 @@ export type RateRecord = Readonly<{
  * Por qué una tasa traída automáticamente espera a una persona (ADR-019):
  *  · `SOLO_TERCERO`: no la dio la web oficial del BCV, solo un tercero que la republica (T6);
  *  · `PRIMERA`: no hay ninguna confirmada con la que compararla;
- *  · `SALTO`: se aparta de la vigente más que el límite de cordura.
+ *  · `SALTO`: se apartaba de la vigente más que el límite de cordura. Ya no se decide (V-14,
+ *    ADR-024): queda para leer las retenidas antiguas, que la siguiente consulta aplica.
  */
 export type HeldReason = "PRIMERA" | "SALTO" | "SOLO_TERCERO";
 
@@ -355,32 +356,20 @@ export function needsDoubleCheck(
 export type AutoApplyDecision = Readonly<{ apply: true }> | Readonly<{ apply: false; reason: HeldReason }>;
 
 /**
- * ¿Se aplica sola una tasa traída automáticamente? (ADR-019, que cambia §5.2.)
+ * ¿Se aplica sola una tasa traída automáticamente? (ADR-019, con ADR-024.)
  *
- * Solo cuando nada indica un problema: la dio la web oficial del BCV (`official`), hay una
- * vigente con la que compararla y no se aparta de ella más que el límite de cordura. Cualquier
- * otra cosa vuelve a pedir a una persona, que es la defensa contra una fuente manipulada (T6) o
- * una respuesta basura. El orden importa para el motivo: sin fuente oficial no se mira el resto.
+ * Cuando la dio la web oficial del BCV (`official`) y hay una vigente: la tasa del BCV es siempre la
+ * que trae la API (V-14), sin límite de cordura, aunque salte mucho. Espera a una persona solo si no
+ * la dio la fuente oficial (un tercero manipulado, T6) o si es la primera del local. El orden
+ * importa para el motivo: sin fuente oficial no se mira el resto.
  */
 export function autoApplyDecision(input: {
   previous: Pick<RateRecord, "value"> | null;
   candidate: Pick<RateRecord, "value">;
   official: boolean;
-  thresholdBasisPoints: number;
 }): AutoApplyDecision {
   if (!input.official) return { apply: false, reason: "SOLO_TERCERO" };
   if (!input.previous) return { apply: false, reason: "PRIMERA" };
-  // `needsDoubleCheck` valida el umbral y mide el salto con enteros.
-  const previo: RateRecord = {
-    id: "-",
-    pair: "USD/VES",
-    value: input.previous.value,
-    source: "BCV",
-    capturedAt: "1970-01-01T00:00:00.000Z",
-    effectiveDate: "1970-01-01",
-    confirmed: true,
-  };
-  if (needsDoubleCheck(previo, input.candidate, input.thresholdBasisPoints)) return { apply: false, reason: "SALTO" };
   return { apply: true };
 }
 

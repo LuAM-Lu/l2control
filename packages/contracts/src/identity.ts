@@ -327,3 +327,15 @@ export const DeviceCommandSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type DeviceCommand = z.infer<typeof DeviceCommandSchema>;
+
+/**
+ * Una sesión abierta ahora en la sucursal: quién está en qué equipo (F9-08, D7, B5-1). La dice el
+ * servidor, no el equipo: Inicio avisa «Sin nadie en caja» aunque la caja esté en otro aparato.
+ */
+export const SesionEnCursoSchema = z.object({
+  userName: z.string().min(1).max(120),
+  role: RoleSchema,
+  deviceLabel: z.string().min(1).max(120),
+  desde: TimestampSchema,
+});
+export type SesionEnCursoDto = z.infer<typeof SesionEnCursoSchema>;

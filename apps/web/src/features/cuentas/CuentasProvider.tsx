@@ -13,6 +13,7 @@ import {
 } from "@l2/contracts";
 import { isDiscardedDraft } from "@l2/domain-cash";
 import { avisar } from "@l2/ui";
+import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { puedeDescartarse } from "./cuentas.ts";
 import { anularCobro, cobrarCuenta, darCortesia, guardarCuenta, leerCuentas } from "./cuentas.acciones";
 
@@ -20,8 +21,8 @@ import { anularCobro, cobrarCuenta, darCortesia, guardarCuenta, leerCuentas } fr
  * Las cuentas de la sucursal, compartidas por las estaciones — DEC-21, en el servidor desde B3-3.
  *
  * Entrada abre la cuenta, salida la actualiza, el salón la llena y la caja la cobra: todas leen la
- * misma, la de la base. El layout la lee en el servidor; aquí se pregunta cada 5 s y al volver el
- * foco, hasta que el tiempo real (B5-1) lo empuje. Nada se guarda en el navegador.
+ * misma, la de la base. El layout la lee en el servidor; aquí se vuelve a leer cuando el canal en
+ * vivo dice que cambiaron (B5-1), en menos de 2 s, sin sondeo. Nada se guarda en el navegador.
  *
  * GUARDAR ES OPTIMISTA Y EN ORDEN. La pantalla ve su cambio al momento y el servidor lo confirma
  * (con su número de orden y su versión) o lo rechaza, y entonces se avisa y se vuelve a lo que
@@ -29,9 +30,6 @@ import { anularCobro, cobrarCuenta, darCortesia, guardarCuenta, leerCuentas } fr
  * primero, así que lleva la versión que el servidor dio al primero. Si la versión la dio OTRO
  * equipo, no: esa pantalla no la vio, y el servidor responde CONFLICTO en vez de pisarla.
  */
-
-/** Cada cuánto se pregunta al servidor por las cuentas. */
-const SONDEO_MS = 5_000;
 
 const sinConexion: Rechazo = { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: el cambio no se guardó." };
 
@@ -94,30 +92,8 @@ export function CuentasProvider({ inicial, children }: { inicial: readonly Famil
     if (r?.ok) adoptarLista(r.valor.cuentas);
   }, [adoptarLista]);
 
-  // El sondeo. Un fallo de red no borra lo que se tenía: se vuelve a preguntar en el siguiente turno.
-  useEffect(() => {
-    let enCurso = false;
-    const preguntar = async () => {
-      if (enCurso || document.visibilityState === "hidden") return;
-      enCurso = true;
-      try {
-        await refrescar();
-      } finally {
-        enCurso = false;
-      }
-    };
-    const id = window.setInterval(() => void preguntar(), SONDEO_MS);
-    const alVolver = () => {
-      if (document.visibilityState === "visible") void preguntar();
-    };
-    window.addEventListener("focus", alVolver);
-    document.addEventListener("visibilitychange", alVolver);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener("focus", alVolver);
-      document.removeEventListener("visibilitychange", alVolver);
-    };
-  }, [refrescar]);
+  // En vivo (B5-1). Un fallo de red no borra lo que se tenía: se vuelve a leer con el siguiente cambio.
+  useAlCambiar(["cuentas"], () => void refrescar());
 
   /** La versión con que sale un cambio hecho sobre `base`: la última que este equipo encadenó. */
   const versionPara = (id: string, base: number | undefined): number | undefined => {

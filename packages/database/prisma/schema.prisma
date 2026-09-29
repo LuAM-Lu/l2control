@@ -60,6 +60,7 @@ model Branch {
   accounts     Account[]
   sales        Sale[]
   parkSessions ParkSession[]
+  outbox       OutboxEvent[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -993,4 +994,30 @@ model ParkSessionExtension {
   @@unique([tenantId, operationKey])
   @@index([tenantId, sessionId])
   @@map("park_session_extension")
+}
+
+/**
+ * ──────────────────────────────────────────────── tiempo real (Etapa 5) ──
+ */
+
+/// Lo que el worker tiene que contar en vivo (B5-1, ADR-025). No lo escribe nadie a mano: un
+/// disparador de `audit_log` añade una fila por cada asiento HECHO, en la MISMA transacción que la
+/// operación. Así no se pierde ningún evento ni sale uno de una operación que no ocurrió. El worker
+/// la publica y la marca (`publishedAt`, una sola vez); no lleva datos, solo qué cambió.
+model OutboxEvent {
+  id          BigInt    @id @default(autoincrement())
+  tenantId    String    @map("tenant_id") @db.Uuid
+  /// Nula en lo que no es de una sucursal (p. ej., un equipo que pide su registro sin sesión).
+  branchId    String?   @map("branch_id") @db.Uuid
+  /// El asiento que lo produjo.
+  auditId     String    @map("audit_id") @db.Uuid
+  /// La acción del asiento (`cuenta.cobrar`): de ella salen los temas que se invalidan.
+  action      String
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+
+  branch Branch? @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, publishedAt, id])
+  @@map("outbox_event")
 }

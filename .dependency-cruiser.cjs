@@ -115,6 +115,8 @@ module.exports = {
           "packages/database/scripts/",
           "apps/web/scripts/",
           "apps/web/instrumentation\\.ts$",
+          // El proceso del worker arranca por aquí (`node src/main.ts`).
+          "apps/worker/src/main\\.ts$",
           "\\.test(-db)?\\.ts$",
         ],
       },

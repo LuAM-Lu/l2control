@@ -207,6 +207,7 @@ export {
   CodigoEmparejamientoSchema,
   DevicesDirectorySchema,
   DeviceCommandSchema,
+  SesionEnCursoSchema,
   type RoleDto,
   type PermissionDto,
   type PermissionExceptionDto,
@@ -222,6 +223,7 @@ export {
   type DeviceDto,
   type DevicesDirectoryDto,
   type DeviceCommand,
+  type SesionEnCursoDto,
 } from "./identity.ts";
 
 export {
@@ -267,6 +269,17 @@ export {
   type OperationEventType,
   type OrderItemDto,
 } from "./eventos.ts";
+
+export {
+  CambioSchema,
+  EventoDelNavegadorSchema,
+  TemaSchema,
+  TicketTiempoRealSchema,
+  TIPOS_DEL_NAVEGADOR,
+  type CambioDto,
+  type Tema,
+  type TicketTiempoRealDto,
+} from "./tiempo-real.ts";
 
 export {
   DiningTableSchema,

@@ -343,22 +343,25 @@ describe("traer la tasa del BCV y aplicarla sola (F3-04, ADR-019)", () => {
     assert.equal((await alertas()).some((x) => x.rateId === delLunes.id), false);
   });
 
-  test("un salto de más del 10 % no se aplica solo: la caja sigue con la vigente y sale alerta", async () => {
-    const antes = await tasaDelDia();
+  test("un salto de más del 10 % se aplica solo y sustituye a la de hoy, aunque fuera a mano (V-14)", async () => {
     const r = await sincronizar(ctxAdmin, [lector("BCV", "300.00", hoy())]);
     assert.ok(r.ok, JSON.stringify(r));
     const t = r.valor.capturadas[0]!;
-    assert.equal(t.confirmed, false);
-    assert.equal(t.heldBack, "SALTO");
-    assert.equal((await tasaDelDia())?.id, antes?.id);
-    assert.match((await alertas()).find((x) => x.rateId === t.id)?.mensaje ?? "", /más del 10 %/);
+    assert.equal(t.confirmed, true);
+    assert.equal(t.automatic, true);
+    assert.equal(t.heldBack, undefined);
+    assert.equal((await tasaDelDia())?.id, t.id);
+    assert.equal((await alertas()).some((x) => x.rateId === t.id), false);
   });
 
-  test("una persona la revisa y la confirma tecleándola: deja de ser alerta", async () => {
+  test("una retenida la revisa una persona y la confirma tecleándola: deja de ser alerta", async () => {
+    const r0 = await sincronizar(ctxAdmin, [caido("BCV"), lector("DOLARAPI", "301.00", hoy())]);
+    assert.ok(r0.ok, JSON.stringify(r0));
     const retenida = (await alertas()).find((x) => x.tipo === "RETENIDA")!;
-    const r = await confirmar(ctxAdmin, { rateId: retenida.rateId, valorVerificado: "300.00" });
+    assert.equal(retenida.rateId, r0.valor.capturadas[0]?.id);
+    const r = await confirmar(ctxAdmin, { rateId: retenida.rateId, valorVerificado: "301.00" });
     assert.ok(r.ok, JSON.stringify(r));
-    assert.equal((await tasaDelDia())?.value, "300.00");
+    assert.equal((await tasaDelDia())?.value, "301.00");
     assert.equal((await alertas()).some((x) => x.tipo === "RETENIDA"), false);
     // Se vuelve a la buena para lo que sigue.
     assert.ok((await capturar(ctxAdmin, { ...captura("229.00"), valorVerificado: "229.00" })).ok);

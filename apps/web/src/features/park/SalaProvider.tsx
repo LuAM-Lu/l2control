@@ -2,28 +2,26 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { EstanciaDto, MonitorSnapshotDto } from "@l2/contracts";
+import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { leerSala } from "./parque.acciones";
 
 /**
  * La sala del parque, compartida por las estaciones — en el servidor desde B4-2.
  *
  * Los niños dentro los dice el servidor, con su hora (ADR-010): entrada, sala, salida, caja, salón e
- * Inicio leen la misma. El layout la lee en el servidor; aquí se pregunta cada 5 s y al volver el
- * foco, hasta que el tiempo real (B5-1) la empuje. Nada se guarda en el navegador.
+ * Inicio leen la misma. El layout la lee en el servidor; aquí se vuelve a leer cuando el canal en
+ * vivo dice que la sala cambió (B5-1), en menos de 2 s, sin sondeo. Nada se guarda en el navegador.
  *
- * Una entrada o una salida de ESTE equipo se ven al momento (`adoptar`, `quitar`) sin esperar al
- * sondeo; lo de los demás equipos llega con él.
+ * Una entrada o una salida de ESTE equipo se ven al momento (`adoptar`, `quitar`); lo de los demás
+ * equipos llega por el canal.
  */
-
-/** Cada cuánto se pregunta al servidor por la sala. */
-const SONDEO_MS = 5_000;
 
 type Valor = Readonly<{
   /** La sala con la hora del servidor, o `null` si no se tiene: sin permiso o sin servidor. */
   sala: MonitorSnapshotDto | null;
-  /** El último sondeo no llegó: lo que se enseña puede estar atrasado. */
+  /** La última lectura no llegó: lo que se enseña puede estar atrasado. */
   sinConexion: boolean;
-  /** Pregunta ya, sin esperar al sondeo. */
+  /** Pregunta ya al servidor. */
   refrescar: () => Promise<void>;
   /** Añade las estancias que acaba de abrir este equipo (o sustituye las que ya estaban). */
   adoptar: (estancias: readonly EstanciaDto[]) => void;
@@ -65,30 +63,11 @@ export function SalaProvider({ inicial, children }: { inicial: MonitorSnapshotDt
     }
   }, []);
 
-  // El sondeo. Un fallo de red no borra lo que se tenía: se dice, y se vuelve a preguntar.
-  useEffect(() => {
-    let enCurso = false;
-    const preguntar = async () => {
-      if (enCurso || vetada.current || document.visibilityState === "hidden") return;
-      enCurso = true;
-      try {
-        await refrescar();
-      } finally {
-        enCurso = false;
-      }
-    };
-    const id = window.setInterval(() => void preguntar(), SONDEO_MS);
-    const alVolver = () => {
-      if (document.visibilityState === "visible") void preguntar();
-    };
-    window.addEventListener("focus", alVolver);
-    document.addEventListener("visibilitychange", alVolver);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener("focus", alVolver);
-      document.removeEventListener("visibilitychange", alVolver);
-    };
-  }, [refrescar]);
+  // En vivo (B5-1). Un fallo de red no borra lo que se tenía: se dice, y se vuelve a leer con el
+  // siguiente cambio o al reconectarse.
+  useAlCambiar(["sala"], () => {
+    if (!vetada.current) void refrescar();
+  });
 
   const adoptar = useCallback((estancias: readonly EstanciaDto[]) => {
     const ids = new Set(estancias.map((e) => e.id));

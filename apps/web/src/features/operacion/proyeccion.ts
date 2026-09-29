@@ -79,7 +79,7 @@ export type EstadoLocal = Readonly<{
   mesas: Readonly<Record<string, Mesa>>;
   pedidos: Readonly<Record<string, Pedido>>;
   impresoras: Readonly<Record<string, Impresora>>;
-  /** Una sesión por dispositivo. */
+  /** Quién está en cada puesto: lo pone `OperacionProvider` desde las sesiones del servidor (B5-1). */
   conectados: Readonly<Record<string, Conectado>>;
   /** Nombres que sobreviven a la salida, para contar lo que pasó. */
   nombres: Readonly<Record<string, string>>;
@@ -249,17 +249,6 @@ export function aplicar(e: EstadoLocal, ev: OperationEventDto): EstadoLocal {
         ...base,
         impresoras: { ...e.impresoras, [ev.printer]: { estado: "OK", detalle: null, desde: ev.at } },
       };
-
-    case "sesion.iniciada":
-      return {
-        ...base,
-        conectados: {
-          ...e.conectados,
-          [ev.device]: { userName: ev.userName, role: ev.role, device: ev.device, desde: ev.at },
-        },
-      };
-    case "sesion.cerrada":
-      return { ...base, conectados: sin(e.conectados, ev.device) };
 
     default: {
       // Si el contrato gana un tipo y aquí no se trata, deja de compilar.

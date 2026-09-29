@@ -48,7 +48,8 @@ import { diasFeriados } from "./feriados.ts";
 
 /**
  * Cuánto puede saltar una tasa respecto de la última confirmada antes de exigir que se teclee
- * otra vez (§5.2): 10 %. Fijo hasta que los ajustes del local sean de la base (B4-4).
+ * otra vez (§5.2): 10 %. Solo para lo que teclea una persona: la que trae el BCV se aplica sin
+ * mirar el salto (V-14, ADR-024). Fijo hasta que los ajustes del local sean de la base (B4-4).
  */
 export const UMBRAL_VARIACION_BPS = 1000;
 
@@ -424,14 +425,14 @@ export function casosTasas(base: Base): CasosTasas {
             const otraConfirmada = existentes.some((e) => e.confirmation && e.capturedAt >= igual.capturedAt);
             if (!igual.confirmation && igual.capturedBy === null && !otraConfirmada) {
               const anterior = await ultimaConfirmada(tx, lectura.pair, instante.toISOString());
-              const decision = autoApplyDecision({ previous: anterior, candidate: lectura, official: oficial, thresholdBasisPoints: UMBRAL_VARIACION_BPS });
+              const decision = autoApplyDecision({ previous: anterior, candidate: lectura, official: oficial });
               if (decision.apply) aplicadas.push(await aplicarSola(tx, ctx, igual, anterior, instante));
             }
             continue;
           }
 
           const anterior = await ultimaConfirmada(tx, lectura.pair, instante.toISOString());
-          const decision = autoApplyDecision({ previous: anterior, candidate: lectura, official: oficial, thresholdBasisPoints: UMBRAL_VARIACION_BPS });
+          const decision = autoApplyDecision({ previous: anterior, candidate: lectura, official: oficial });
           const canal =
             confirmadaPor.length > 1 ? "Sincronización BCV (2 fuentes)" : `Sincronización ${lectura.fuente === "BCV" ? "BCV" : "DolarApi"}`;
           const fila = await tx.exchangeRate.create({

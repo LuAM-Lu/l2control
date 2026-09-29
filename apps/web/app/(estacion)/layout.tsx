@@ -19,7 +19,7 @@ import { turnoDelEquipo } from "../../src/features/cash/turno.servidor";
  * es. Antes cada pantalla lo repetía a su manera.
  */
 export default async function EstacionLayout({ children }: { children: React.ReactNode }) {
-  // El turno del equipo, del servidor (B3-1). La conexión real llega con B5-1.
+  // El turno del equipo, del servidor (B3-1). La conexión la dice el canal en vivo (B5-1).
   const turno = await turnoDelEquipo();
   return (
     // Desde 768 px (tablet, también en vertical) la estación mide la ventana y
@@ -35,7 +35,6 @@ export default async function EstacionLayout({ children }: { children: React.Rea
       <StationBar
         contexto={{
           turno: turno && { abiertoEn: turno.abiertoEn, punto: turno.punto },
-          conexion: "N0",
         }}
       />
       {/* V2: la dirección no es una puerta. Cada pantalla pide el rol de su

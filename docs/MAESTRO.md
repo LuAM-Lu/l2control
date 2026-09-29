@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-09-28**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-09-29**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -10,10 +10,11 @@
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
 > - [JORNADA.md](JORNADA.md): el día completo en cuatro momentos (primer encendido, apertura, jornada y
 >   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige cuando un paso resuelve algo suyo.
-> - [adr/](adr/): las decisiones de arquitectura, una por archivo (23; ADR-018 supersede la biblioteca
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (25; ADR-018 supersede la biblioteca
 >   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2, ADR-020 cambia el TOTP
 >   de ADR-018 por llaves de acceso, ADR-021 supersede la topología de ADR-003, ADR-022 retira la
->   pantalla de cocina de DEC-19 y ADR-023 supersede ADR-012).
+>   pantalla de cocina de DEC-19, ADR-023 supersede ADR-012, ADR-024 retira el límite de cordura de
+>   ADR-019 y ADR-025 concreta el tiempo real de ADR-008).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -30,7 +31,13 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.29.1 · 29 de 55 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+**Versión 0.30.0 · 30 de 55 pasos.** **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
+demás en menos de 2 s, sin sondeos. Toda escritura audita, y el asiento deja su evento en un outbox en la
+misma transacción; nace `apps/worker`, que lo publica por Socket.io con adaptador Valkey a la sala de cada
+sucursal (autorización con ticket en el apretón de manos), y cada pantalla vuelve a leer lo suyo con sus
+permisos (ADR-025). Quién está en cada puesto sale de las sesiones de la base, el bus del restaurante viaja
+por el worker y la barra dice si hay canal. La tasa del BCV se aplica siempre, salte lo que salte, y su
+consulta vive en el worker (V-14, ADR-024). **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
@@ -56,7 +63,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (76 de base, 272 de aplicación; en el dominio, 57 de tasas,
+- **Pruebas:** `pnpm verify:db` en verde (76 de base, 286 de aplicación, 9 del worker; en el dominio, 55 de tasas,
   44 de impuestos, 104 de caja, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
@@ -152,9 +159,14 @@ salvo los datos maestros (F0-04) y la firma del alcance (F0-09).
 **Pendiente de hacer en la base del cliente (preguntar antes de tocarla):** programar el **IGTF al 0 %** desde
 hoy en Ajustes → Impuestos (V-13). Y **contarle al cliente** lo del turno de «PC admin» (arriba).
 
-**Siguiente paso:** **B5-1** (todo en tiempo real: sustituye los sondeos y el bus entre pestañas; la
-sincronización del BCV se muda al worker y pierde el umbral de salto, V-14), después **B4-4** y **B4-5** (la
-monitora en el teléfono y las pulseras de un solo uso).
+**El tiempo real en la base local (2026-09-29, al comprobar B5-1).** Entraron y salieron dos familias de
+prueba, «Prueba Vivo B51» (#0025) y «Prueba Caida B51» (registrada con el worker caído); sus cuentas
+quedaron **incobrables** («Otro: datos de prueba», autorizadas por Abigail Karam). Equipos «Prueba B51 …»
+revocados. La migración del outbox se aplicó a la base del cliente (solo añade una tabla y un disparador).
+El turno de «PC admin» abierto el 28/09 a las 7:27 pm es del cliente: no se tocó.
+
+**Siguiente paso:** **B4-4** (ajustes del local en la base: zona horaria, umbrales de huérfanas y arqueo) y
+**B4-5** (la monitora en el teléfono y las pulseras de un solo uso).
 
 ---
 
@@ -240,7 +252,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
    **B3-3** → B3-4 → B3-5 (se cierra Caja).
-3. ~~B4-1 → B4-2 → B4-3 → B3-5~~ → **B5-1** (todo en tiempo real, V-8) → B4-4 → B4-5 (la monitora en el
+3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → **B4-4** → B4-5 (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
@@ -928,7 +940,7 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
-- [ ] **B5-1 · Socket.io con adaptador Valkey** y autorización en el handshake (F2-09, ADR-008). El
+- [x] **B5-1 · Socket.io con adaptador Valkey** y autorización en el handshake (F2-09, ADR-008). El
   monitor, la cola de caja, la tasa y el panel en vivo se actualizan solos, y esto sustituye a
   `BroadcastChannel` y al sondeo de la tasa. Con M-15 (V-8), **todo**: la sala, las cuentas y la cola,
   las existencias, el turno y sus pendientes, las comandas y su impresión, las reservas, la tasa, el
@@ -940,6 +952,39 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   ocurrió. Nace `apps/worker`, con los trabajos programados: la sincronización del BCV se muda allí.
   → El cambio llega a otro equipo en menos de 2 s. Una sucursal no recibe eventos de otra. Con el
   worker caído, la operación sigue y los eventos se entregan al volver.
+  *Hecho el 2026-09-29 (v0.30.0), con [ADR-025](adr/025-tiempo-real-por-outbox.md) y [ADR-024](adr/024-tasa-del-bcv-sin-umbral.md):*
+  *· Base: migración `20261011000000_outbox`: `outbox_event` con RLS, que llena un disparador de
+  `audit_log` por cada asiento HECHO en la misma transacción, con `pg_notify('l2_outbox')`; la aplicación
+  solo marca lo publicado (una vez) y no borra. `escuchar()` en `@l2/database` (LISTEN).*
+  *· Contratos: `TemaSchema` (12 temas), `CambioSchema`, `TicketTiempoRealSchema`,
+  `EventoDelNavegadorSchema` (solo `mesa.*` y `pedido.*`) y `SesionEnCursoSchema`; fuera `sesion.*` del bus.*
+  *· Aplicación: `temasDe` con una tabla exhaustiva sobre `AccionAuditada` (una acción nueva no compila
+  sin decidir qué invalida); `tiempoReal.ticket/abrir` (HMAC con clave HKDF de `L2_CLAVE_CIFRADO`, 60 s,
+  sesión viva), `latido`, `despachar` (FOR UPDATE SKIP LOCKED, por sucursal, marca con el reloj de la base)
+  y `escuchar`; `sesiones.enCurso`. V-14: `autoApplyDecision` sin umbral (siguen SOLO_TERCERO y PRIMERA).
+  14 pruebas contra la base (evento en la misma transacción, nada si se deshace o se niega, se republica
+  si publicar falla, cada tenant lo suyo, publicado inmutable, el aviso llega al confirmar, ticket tocado,
+  caducado o de otro tenant, latido y presencia) y las de tasas al día.*
+  *· `apps/worker`: canal Socket.io en `/tiempo-real` con adaptador Valkey, salas por tenant y sucursal,
+  vuelta del outbox (aviso + barrido de 5 s), latido de 60 s que cierra el canal de sesiones muertas (al
+  momento con una salida, revocación o baja), bus del restaurante revalidado, con la hora del servidor,
+  tope de 30 eventos por 10 s y lista por sucursal en Valkey, y la consulta del BCV (fuera del arranque de
+  la web). 9 pruebas con un servidor y clientes reales (apretón de manos, F2-09, bus y tope).*
+  *· Web: `TiempoRealProvider` (ticket por acción del servidor, reconexión de 0,5 a 2 s, al reconectar se
+  relee todo, sin canal se relee cada 30 s y la barra dice «Sin conexión en vivo»); sala, cuentas y tasas
+  con `useAlCambiar` y el resto con `router.refresh()`; pendientes del cierre e Inicio en vivo; el bus sin
+  `sessionStorage` ni `BroadcastChannel`; quién está en cada puesto, de la base (Inicio avisa «Sin nadie
+  en …» con el turno abierto; la cocina ya no cuenta, ADR-022). Fuera los sondeos de 5 s y 60 s.*
+  *· Comprobado en el navegador con cuatro equipos: la sala hace 0 peticiones en 12 s sin cambios; una
+  entrada llega a la sala de otro equipo a los 1,6 s del clic (con la acción de la entrada incluida); una
+  salida saca al niño de otra sala y lo pone en la cola de la caja a los 0,9 s; al salir la cajera, Inicio
+  marca la caja vacía a los 48 ms, y al entrar la ve a los 2,3 s del clic (con la verificación Argon2 del
+  PIN); con el worker parado la entrada registra, la sala dice «Sin conexión en vivo» y no lo ve, y al
+  relanzarlo lo recibe sola (5,6 s con el retroceso por defecto, que se bajó a 2 s). Inicio, sala,
+  entrada, caja y turno a 1366×768, 1280×800 y 800×1280 con el canal abierto, sin desplazar el documento y
+  sin errores de consola (con el worker caído, el navegador anota que no conecta). Tasas, medios, catálogo
+  y equipos usan el mismo camino pero no se vieron cambiar en el navegador (no se tocaron los datos del
+  cliente). Las existencias, las comandas y las reservas lo usarán al nacer.*
 - [ ] **B5-2 · Cola de impresión por TCP 9100** y plantillas de 58 y 80 mm, más la pantalla
   **Configuración → Impresoras** (contrato `impresoras.ts`) (F1-10, F1-12, ADR-015). Con M-15 (V-4 y V-5):
   una sola impresora, en la caja, por red, para el recibo, el **ticket de corte** (JORNADA §5) y las
@@ -1113,26 +1158,20 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 
 | Qué | Se salda en |
 |---|---|
-| Quién está en cada puesto viaja por el bus entre pestañas de un navegador: Inicio no avisa «Sin nadie en caja» aunque haya turno | B5-1 |
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
-| Aprobar un equipo no avisa en vivo a la administración (queda en la auditoría y en su historia) | B5-1 |
 | Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos) | T-4 (se retira el TOTP, ADR-020) |
 | El primer administrador y sus credenciales solo se crean por consola (`pnpm credenciales`): una base vacía no arranca sin ella | T-4 (instalación inicial y enlace de alta, M-12) |
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
-| La tasa automática todavía se retiene si salta más del 10 %, aunque el cliente decidió aplicarla siempre (V-14) | B5-1 |
 | La zona horaria es `America/Caracas` en el código | B4-4 |
 | El IGTF sigue programado al 3 % en la base del cliente (decidió no cobrarlo, V-13), y con 0 % la caja enseñaría su línea en cero | Ajustes → Impuestos (preguntar antes) y B3-6 |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
-| El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a SALTO), el texto de la alerta no lo dice | B5-1 |
-| Un cambio de medios en el panel llega a la caja al navegar, no en vivo | B5-1 |
-| Un cambio del catálogo de productos llega a la caja al volver a abrir su pantalla, no en vivo (un precio ya programado sí entra solo a su hora) | B5-1 |
+| El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El importe de la carta de la mesa llega de la pantalla (el del parque ya lo pone el servidor, B4-2), y lo que se mueve del parque a una mesa también | B6-1 (carta y mesas) |
-| La sala llega a los demás equipos por sondeo de 5 s, no en vivo; el monitor recalcula el estado de cada niño con cada sondeo | B5-1 |
 | La estación de cocina (KDS) y los estados «en fuego» y «listo» siguen en la app, sobre el bus del navegador | B6-2 (ADR-022) |
 | El teléfono no lee pulseras con la cámara (solo lectores en modo teclado), y un código ya usado puede volver a entrar | B4-5 |
 | «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
@@ -1141,15 +1180,17 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
-| Las cuentas llegan a las otras estaciones por sondeo de 5 s, no en vivo | B5-1 |
 | El descuento (`cuenta.descuento`, 🔐 en la matriz) no existe en la caja: ni pantalla ni tarea del PLAN | Cuando el cliente lo pida (va al servidor con `exigirPermisoOAutorizacion`) |
 | Devolver en efectivo lo que entró por otro medio (Pago Móvil, punto) saca de la gaveta un efectivo que el libro no apunta: el arqueo lo verá como faltante | Un asiento de salida de caja en el libro, cuando el cliente lo necesite |
 | El ticket de corte no se imprime (el Z queda sellado y se ve en pantalla) | B5-2 |
 | El umbral del arqueo ($ 1,00) está en el dominio, no en los ajustes del local | B4-4 |
 | El resumen del día no separa lo vendido del parque y del restaurante (JORNADA §5) | Cuando el cliente lo pida |
 | Los pendientes del cierre no traen mesas ni comandas del restaurante (una mesa abierta sale como cuenta) | Etapa 6 |
-| Los pendientes del cierre se leen al abrirlos, al volver el foco o con «Volver a comprobar», no en vivo | B5-1 |
 | La venta guarda el documento del cliente enmascarado: una factura fiscal necesitará el completo | F3 (fuera por M-3) |
+| Lo que cambia solo con el reloj no produce evento: una estancia que pasa a huérfana a las 8 horas se ve con el siguiente cambio de la sala o al navegar (el estado de cada niño y la tasa del día sí se calculan en la pantalla) | B4-4 |
+| `outbox_event` crece con cada asiento; purgar lo publicado de más de unos días (con el migrador) no está escrito | Runbook (B8-2) |
+| En `pnpm dev`, turbo para todo si una tarea se cae: sin Valkey el worker no arranca y la web tampoco queda | Aceptado (en producción son dos procesos) |
+| El bus del restaurante declara nombres de quien autoriza o ve una anulación (`pedido.*`), como antes | B6-2 |
 
 **Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
 aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
@@ -1157,7 +1198,6 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | Qué | Dónde | Se va con |
 |---|---|---|
 | Ajustes del local guardados en el navegador | `src/demo/sucursal.ts`, `SucursalProvider` | B4-4 |
-| Bus de operación entre pestañas del mismo navegador y estado de conexión fijo («N0») | `OperacionProvider`, layout de estación | B5-1 |
 | Plano y carta del restaurante guardados en el navegador | `src/demo/restaurante.ts`, `PlanoProvider`, `CartaProvider` | B6-1 |
 | Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
 
@@ -1208,14 +1248,14 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 |---|---|---|
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
-| F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7) | Tiempo real en el handshake (B5-1) |
+| F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Descuentos (B3-6), carga desde papel (B3-7), ticket de corte impreso (B5-2) y tiempo real (B5-1) |
-| F5 · Parque | **En el servidor** (B4-1 a B4-3): estancias, directorio, cronómetro, recarga, salida con D9 y huérfanas | Ajustes (B4-4), el teléfono y las pulseras (B4-5), tiempo real (B5-1) y eventos (Etapa 10) |
+| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Descuentos (B3-6), carga desde papel (B3-7) y ticket de corte impreso (B5-2) |
+| F5 · Parque | **En el servidor** (B4-1 a B4-3): estancias, directorio, cronómetro, recarga, salida con D9 y huérfanas | Ajustes (B4-4), el teléfono y las pulseras (B4-5) y eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Catálogo de productos en el servidor** (B9-1) | Existencias, entradas con costo, salidas y alertas (B9-2 a B9-5); recetas después del piloto (B6-4) |
-| F9 · Panel | Inicio con el día del libro (B3-5); el local en vivo, en interfaz | Tiempo real (B5-1); los informes, después del piloto |
+| F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1) | Los informes, después del piloto |
 | F10 y F11 | Sin empezar | Etapas 7 y 8: VPS con internet de respaldo en el local (ADR-021) |
 
 ---
@@ -1308,6 +1348,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   tiempo real y un solo VPS con internet de respaldo. ADR-021 a ADR-023; la ruta pasa a 56 pasos.
 - **2026-09-28** · Respondidas todas las preguntas abiertas (D-DESC, D-EVT, D-PUL, D-GAV, D13, D-AUT, D7,
   D-CORD e IGTF): sin gaveta (B5-3 fuera, 55 pasos), sin IGTF por ahora y la tasa de la API siempre. Handoff.
+- **2026-09-29** · B5-1 hecho (v0.30.0): todo en tiempo real por un outbox que escribe la auditoría y un
+  worker con Socket.io y Valkey (ADR-025); fuera los sondeos y el bus entre pestañas; la tasa del BCV sin
+  umbral de salto (ADR-024). Sigue B4-4.
 
 ---
 

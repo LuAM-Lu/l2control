@@ -1,0 +1,28 @@
+{
+  "name": "@l2/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Proceso aparte del servidor web (ADR-006): el canal en vivo (Socket.io con adaptador Valkey), el outbox y los trabajos programados.",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env --experimental-strip-types --watch src/main.ts",
+    "start": "node --experimental-strip-types src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@l2/application": "workspace:*",
+    "@l2/contracts": "workspace:*",
+    "@l2/observability": "workspace:*",
+    "@socket.io/redis-adapter": "8.3.0",
+    "ioredis": "6.0.0",
+    "socket.io": "4.8.4",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
+    "socket.io-client": "4.8.4",
+    "typescript": "7.0.2"
+  }
+}

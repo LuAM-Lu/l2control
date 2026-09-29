@@ -5,6 +5,7 @@ import type { ExchangeRateDto, HistorialTasasDto, RatePair, Resultado, Sincroniz
 import { calendarDay, frozenRateOf, rateOfDay } from "@l2/domain-rates";
 import type { FrozenRate } from "@l2/domain-money";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
+import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { capturarTasa, confirmarTasa, leerTasas, traerTasaDelBcv } from "./tasas.acciones";
 
 /**
@@ -15,13 +16,9 @@ import { capturarTasa, confirmarTasa, leerTasas, traerTasaDelBcv } from "./tasas
  * adopta lo que devuelve.
  *
  * EN VIVO (ADR-019 §6): toda pantalla que muestra o usa bolívares lee la tasa de aquí, y aquí se
- * pregunta al servidor cada 60 s y al volver el foco. Así una tasa que el BCV publica, o que otra
- * estación aplica, llega a la caja en menos de un minuto sin navegar. El tiempo real (B5-1) lo
- * empujará en menos de 2 s y retirará el sondeo.
+ * vuelve a leer cuando el canal en vivo dice que las tasas cambiaron (B5-1). Así una tasa que el
+ * BCV publica, o que otra estación aplica, llega a la caja en menos de 2 s sin navegar.
  */
-
-/** Cada cuánto se pregunta al servidor por la tasa. */
-const SONDEO_MS = 60_000;
 
 /** Lo que distingue un historial de otro para no repintar si nada cambió. */
 const huellaDe = (h: HistorialTasasDto) =>
@@ -53,46 +50,19 @@ export function TasasProvider({ inicial, children }: { inicial: HistorialTasasDt
     setHistorial(inicial);
   }, [huella]);
 
-  // El sondeo. Un fallo de red no borra la tasa que ya se tenía: se sigue con ella y se vuelve a
-  // preguntar en el siguiente turno. Cuánto vale esa tasa lo decide `useTasaVigente` con el día,
-  // no el sondeo: una del viernes deja de valer el lunes aunque no se pueda preguntar.
-  useEffect(() => {
-    let vivo = true;
-    let enCurso = false;
-    const preguntar = async () => {
-      if (enCurso || document.visibilityState === "hidden") return;
-      enCurso = true;
-      try {
-        const nuevo = await leerTasas();
-        if (vivo) setHistorial((h) => (huellaDe(h) === huellaDe(nuevo) ? h : nuevo));
-      } catch {
-        // Sin servidor se sigue con lo que había; la barra de estación dice si hay conexión.
-      } finally {
-        enCurso = false;
-      }
-    };
-    const id = window.setInterval(() => void preguntar(), SONDEO_MS);
-    const alVolver = () => {
-      if (document.visibilityState === "visible") void preguntar();
-    };
-    window.addEventListener("focus", alVolver);
-    document.addEventListener("visibilitychange", alVolver);
-    return () => {
-      vivo = false;
-      window.clearInterval(id);
-      window.removeEventListener("focus", alVolver);
-      document.removeEventListener("visibilitychange", alVolver);
-    };
-  }, []);
-
   /**
    * Vuelve a leer el historial tras escribir: las alertas (una retenida que se confirmó, la que ya
    * no falta) las calcula el servidor, y aquí no se adivinan. Si falla, queda lo adoptado.
    */
   const refrescar = useCallback(async () => {
     const nuevo = await leerTasas().catch(() => null);
-    if (nuevo) setHistorial(nuevo);
+    if (nuevo) setHistorial((h) => (huellaDe(h) === huellaDe(nuevo) ? h : nuevo));
   }, []);
+
+  // En vivo (B5-1). Un fallo de red no borra la tasa que ya se tenía: se sigue con ella. Cuánto vale
+  // esa tasa lo decide `useTasaVigente` con el día, no el canal: una del viernes deja de valer el
+  // lunes aunque no se pueda preguntar.
+  useAlCambiar(["tasas"], () => void refrescar());
 
   /** Sustituye o añade la tasa que devolvió el servidor, sin esperar a que el layout se repinte. */
   const adoptar = useCallback((t: ExchangeRateDto) => {

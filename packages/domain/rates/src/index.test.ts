@@ -223,52 +223,31 @@ describe("el límite de cordura (§5.2, amenaza T2)", () => {
   });
 });
 
-describe("la tasa del BCV se aplica sola solo si nada indica un problema (ADR-019)", () => {
-  const umbral = 1000; // 10 %
+describe("la tasa del BCV se aplica sola salvo que no sea oficial o sea la primera (ADR-019, ADR-024)", () => {
   const vigente = { value: "855.6625" };
 
-  test("de la web oficial, con vigente y un salto pequeño: se aplica", () => {
-    assert.deepEqual(
-      autoApplyDecision({ previous: vigente, candidate: { value: "857.0100" }, official: true, thresholdBasisPoints: umbral }),
-      { apply: true },
-    );
+  test("de la web oficial, con vigente: se aplica", () => {
+    assert.deepEqual(autoApplyDecision({ previous: vigente, candidate: { value: "857.0100" }, official: true }), { apply: true });
   });
 
   test("solo de un tercero: espera, aunque el valor sea razonable (T6)", () => {
     assert.deepEqual(
-      autoApplyDecision({ previous: vigente, candidate: { value: "857.01" }, official: false, thresholdBasisPoints: umbral }),
+      autoApplyDecision({ previous: vigente, candidate: { value: "857.01" }, official: false }),
       { apply: false, reason: "SOLO_TERCERO" },
     );
   });
 
   test("la primera del local: espera, no hay con qué compararla", () => {
     assert.deepEqual(
-      autoApplyDecision({ previous: null, candidate: { value: "857.01" }, official: true, thresholdBasisPoints: umbral }),
+      autoApplyDecision({ previous: null, candidate: { value: "857.01" }, official: true }),
       { apply: false, reason: "PRIMERA" },
     );
   });
 
-  test("un salto de más del 10 %, hacia arriba o hacia abajo: espera", () => {
-    for (const value of ["950.00", "760.00"]) {
-      assert.deepEqual(
-        autoApplyDecision({ previous: vigente, candidate: { value }, official: true, thresholdBasisPoints: umbral }),
-        { apply: false, reason: "SALTO" },
-        value,
-      );
+  test("un salto grande, hacia arriba o hacia abajo, se aplica igual: la del BCV manda (V-14)", () => {
+    for (const value of ["950.00", "760.00", "1711.325"]) {
+      assert.deepEqual(autoApplyDecision({ previous: vigente, candidate: { value }, official: true }), { apply: true }, value);
     }
-  });
-
-  test("exactamente en el 10 % todavía se aplica; un punto básico más, no", () => {
-    const base = { value: "100.00" };
-    assert.equal(autoApplyDecision({ previous: base, candidate: { value: "110.00" }, official: true, thresholdBasisPoints: umbral }).apply, true);
-    assert.equal(autoApplyDecision({ previous: base, candidate: { value: "110.02" }, official: true, thresholdBasisPoints: umbral }).apply, false);
-  });
-
-  test("un umbral que no es un entero positivo se rechaza", () => {
-    assert.throws(
-      () => autoApplyDecision({ previous: vigente, candidate: vigente, official: true, thresholdBasisPoints: 0 }),
-      InvalidRateError,
-    );
   });
 });
 

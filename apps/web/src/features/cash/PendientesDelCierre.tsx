@@ -13,6 +13,7 @@ import { marcarIncobrable } from "../cuentas/cuentas.acciones";
 import { nombreDeEstancia } from "../park/view-model.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
+import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 
 /**
  * Lo que impide cerrar la jornada — JORNADA §5, C2, B3-5.
@@ -48,14 +49,13 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
   useEffect(() => {
     vivo.current = true;
     void leer();
-    // Al volver de cobrar o de registrar una salida en otra pestaña, se comprueba otra vez.
-    const alVolver = () => document.visibilityState === "visible" && void leer();
-    window.addEventListener("focus", alVolver);
     return () => {
       vivo.current = false;
-      window.removeEventListener("focus", alVolver);
     };
   }, [leer]);
+  // En vivo (B5-1): se cobra una cuenta, sale un niño o se cierra otro turno en cualquier equipo, y
+  // la lista se comprueba otra vez sola.
+  useAlCambiar(["cuentas", "sala", "turno"], () => void leer());
 
   const total = p ? p.cuentas.length + p.ninos.length + p.huerfanas.length + p.turnos.length : 0;
   const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora);

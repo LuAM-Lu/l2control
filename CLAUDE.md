@@ -16,7 +16,7 @@ maestro, hacer commit y entregar en el chat el bloque para pegar en una sesión 
 ## Comandos
 
 ```bash
-pnpm dev          # levanta apps/web en http://localhost:3000
+pnpm dev          # apps/web en http://localhost:3000 y apps/worker (canal en vivo) en :3001
 pnpm infra:up     # PostgreSQL 17 + Valkey 8 en Docker (una vez: cp .env.example .env)
 pnpm db:migrar    # migraciones · pnpm db:semilla deja el local de desarrollo listo (PIN 1970)
 pnpm equipos      # la consola de equipos: pnpm equipos aprobar "<nombre>" aprueba el primero
@@ -57,6 +57,7 @@ apps/web                  Next.js 16 — todas las superficies
   src/features/<dominio>  pantallas y lógica de aplicación, por dominio
   src/demo/               datos provisionales; cada paso de backend borra el suyo (M-6)
   src/servidor/           entorno validado, conexión a application y logger (solo servidor)
+apps/worker               canal en vivo (Socket.io + Valkey), outbox y trabajos programados (B5-1)
 packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
 packages/domain/rates     tasa vigente, fracción de conversión y límite de cordura (puro)
@@ -72,7 +73,7 @@ packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)
 docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
-docs/adr/                 las 23 decisiones, una por archivo
+docs/adr/                 las 25 decisiones, una por archivo
 ```
 
 **No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su
@@ -84,8 +85,10 @@ paso de backend que sustituye un archivo lo borra en el mismo commit.
 `*.test-db.ts`; lectura en `features/<dominio>/<x>.servidor.ts` (con `connection()`); escritura en
 `<x>.acciones.ts` (`"use server"`, recibe `unknown`, devuelve `Resultado`); la ruta o el layout lee
 en el servidor, el proveedor escribe con la acción y se borra su archivo de `src/demo`. El modelo es
-el tarifario. Lo que las estaciones se cuentan entre sí va por el bus de `features/operacion` (eventos
-del catálogo), que en B5-1 viaja por el servidor.
+el tarifario. **En vivo (B5-1, ADR-025):** toda escritura audita, y el asiento deja su evento en el
+outbox en la misma transacción; el worker cuenta a cada sucursal qué temas cambiaron y cada pantalla
+vuelve a leer lo suyo (`useAlCambiar` o `router.refresh()`). Nada de sondeos. El bus del restaurante
+(`features/operacion`) viaja por el worker hasta la Etapa 6.
 
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.

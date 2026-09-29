@@ -16,7 +16,7 @@ export async function registrarFeriado(entrada: unknown): Promise<Resultado<Feri
   const r = await (await aplicacion()).feriados.registrar(ctx, entrada);
   if (r.ok) {
     log().info({ tenantId: ctx.tenantId, dia: r.valor.dia }, "feriado registrado");
-    // Cambia qué tasa rige ese día: las pantallas que naveguen lo leen ya; las demás, en su sondeo.
+    // Cambia qué tasa rige ese día: el canal en vivo lo cuenta a todas las pantallas (B5-1).
     revalidatePath("/", "layout");
   }
   return r;

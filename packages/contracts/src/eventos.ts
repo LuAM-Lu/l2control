@@ -109,16 +109,8 @@ export const OperationEventSchema = z.discriminatedUnion("type", [
     detail: Texto(120),
   }),
   z.object({ ...base, type: z.literal("impresora.recuperada"), printer: Texto(40) }),
-
-  /* ── personas conectadas (F9-08) ── */
-  z.object({
-    ...base,
-    type: z.literal("sesion.iniciada"),
-    userName: z.string().trim().min(2).max(80),
-    role: Texto(40),
-    device: Texto(40),
-  }),
-  z.object({ ...base, type: z.literal("sesion.cerrada"), device: Texto(40) }),
+  // Quién está en cada puesto (F9-08) ya no es un evento que declare una pantalla: lo dicen las
+  // sesiones abiertas en el servidor (B5-1, `SesionEnCursoSchema`).
 ]);
 export type OperationEventDto = z.infer<typeof OperationEventSchema>;
 export type OperationEventType = OperationEventDto["type"];

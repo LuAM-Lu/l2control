@@ -13,6 +13,9 @@ tenant con RLS forzada (ADR-002, ADR-007).
   tenant A, las filas de B no existen.
 - **Se niega a arrancar mal configurada.** `abrirBase` rechaza un usuario que se salte la RLS
   (superusuario o `BYPASSRLS`): conectarse así apagaría el aislamiento sin que nadie lo notara.
+- **El outbox del tiempo real (B5-1, ADR-025).** Un disparador de `audit_log` añade a `outbox_event`
+  una fila por cada asiento `HECHO`, en la misma transacción, y avisa con `pg_notify('l2_outbox')`.
+  `escuchar(canal, …)` abre la única conexión fuera de `conTenant`: un `LISTEN`, sin datos ni RLS.
 
 ## Qué NO le corresponde
 

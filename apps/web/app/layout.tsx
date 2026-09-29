@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
 import { OperacionProvider } from "../src/features/operacion/OperacionProvider";
+import { TiempoRealProvider } from "../src/features/operacion/TiempoRealProvider";
+import { sesionesEnCurso } from "../src/features/operacion/operacion.servidor";
 import { SesionProvider } from "../src/features/identity/operador";
 import { ElevacionProvider } from "../src/features/identity/ElevacionProvider";
 import { NOMBRE_ROL } from "../src/features/identity/permisos";
@@ -83,13 +85,16 @@ export default async function RootLayout({
   const ventas = sesion ? await ventasDelTurno() : [];
   // Los niños en sala, de la base con la hora del servidor (B4-2). Sin sesión, ninguno.
   const sala = sesion ? await salaDelLocal() : null;
+  // Quién está en cada puesto, de las sesiones de la base (B5-1). Solo para quien ve Inicio.
+  const enCurso = sesion ? await sesionesEnCurso() : [];
 
   return (
     <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
       <body>
         <RegistroServiceWorker />
         {/* La operación del local (bus de eventos) por encima de las dos cáscaras:
-            lo que emiten las estaciones lo leen el panel y las demás estaciones. */}
+            lo que emiten las estaciones lo leen el panel y las demás estaciones, por el
+            canal en vivo del worker (B5-1). */}
         <SesionProvider
           operador={operador}
           sesionId={sesion?.id ?? null}
@@ -97,8 +102,10 @@ export default async function RootLayout({
           branchId={sesion?.branchId ?? null}
         >
         <ElevacionProvider>
+        {/* El canal en vivo (B5-1): por encima de todo lo que vuelve a leer cuando algo cambia. */}
+        <TiempoRealProvider sesionId={sesion?.id ?? null}>
         <SalaProvider inicial={sala}>
-        <OperacionProvider>
+        <OperacionProvider sesiones={enCurso}>
           {/* V4: el plano publicado vive por encima de las dos cáscaras: lo
               edita el panel y lo lee el salón. */}
           {/* El estado del local vive por encima de las dos cáscaras: lo
@@ -126,6 +133,7 @@ export default async function RootLayout({
           </SucursalProvider>
         </OperacionProvider>
         </SalaProvider>
+        </TiempoRealProvider>
         </ElevacionProvider>
         </SesionProvider>
       </body>

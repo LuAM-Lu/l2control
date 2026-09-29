@@ -12,6 +12,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.30.0] — 2026-09-29 · Etapa 4 · Parque
+
+B5-1 · Todo en tiempo real.
+
+### Añadido
+- **Lo que pasa en un equipo se ve en los demás en menos de 2 segundos**, sin recargar: la sala, las
+  cuentas y la cola de la caja, el turno y lo que falta para cerrar la jornada, las ventas, la tasa, los
+  medios de pago, el catálogo, los impuestos, el tarifario, los equipos y las personas. Una entrada en la
+  taquilla aparece en la sala de otro equipo, y una salida pone la cuenta en la cola de la caja al momento.
+- **Inicio sabe quién está en cada puesto** aunque esté en otro aparato, y con el turno abierto avisa
+  «Sin nadie en caja» (o en taquilla o salón). La cocina ya no cuenta: trabaja con la comanda impresa.
+- **La barra dice si hay conexión en vivo.** Sin ella («Sin conexión en vivo») se sigue trabajando, lo de
+  los demás equipos se ve cada 30 s, y al volver todo se pone al día solo.
+- Las mesas y los pedidos que se cuentan el salón y la caja viajan por el servidor, no solo entre
+  pestañas de un mismo navegador.
+
+### Cambiado
+- **La tasa del BCV se aplica siempre**, aunque salte mucho respecto de la vigente (decisión del cliente,
+  V-14). Siguen esperando a una persona la que solo dio DolarApi y la primera del local.
+- La consulta automática al BCV la hace un proceso aparte (el worker), no el servidor de páginas.
+- Las pantallas ya no preguntan al servidor cada 5 o 60 segundos: el servidor avisa cuando algo cambia.
+
 ## [0.29.1] — 2026-09-29 · Etapa 4 · Parque
 
 ### Corregido

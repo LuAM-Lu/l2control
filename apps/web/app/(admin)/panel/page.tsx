@@ -2,13 +2,15 @@ import { InicioScreen } from "../../../src/features/shell/InicioScreen";
 import { ninosAtendidos } from "../../../src/features/park/parque.servidor";
 import { turnosAbiertos } from "../../../src/features/cash/turno.servidor";
 import { resumenDelDia } from "../../../src/features/cash/cortes.servidor";
+import { RefrescarAlCambiar } from "../../../src/features/operacion/RefrescarAlCambiar";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
  *
  * Las cifras del día salen del servidor: el resumen del día del libro de pagos (B3-5: lo vendido,
  * lo cobrado por medio, los turnos con su arqueo y las excepciones) y los niños atendidos de las
- * estancias (B4-2). Lo que pasa AHORA lo lee `EnVivo` de los eventos de la operación.
+ * estancias (B4-2). Lo que pasa AHORA lo lee `EnVivo` de los eventos de la operación. Todo se
+ * actualiza solo por el canal en vivo (B5-1).
  *
  * TODO(F9-08/backend): política y umbral de cocina vendrán de la configuración de la sucursal, por
  * tiempo real (ADR-008).
@@ -31,6 +33,9 @@ export default async function InicioPage() {
   const hoy = new Date();
 
   return (
+    <>
+    {/* Los niños atendidos y el día salen de la sala y de las cuentas: al cambiar, se vuelven a leer. */}
+    <RefrescarAlCambiar temas={["sala", "cuentas"]} />
     <InicioScreen
       resumen={resumen ? { ...resumen, turnos: [...deAntes, ...resumen.turnos] } : null}
       ninosHoy={atendidos?.hoy ?? 0}
@@ -40,9 +45,10 @@ export default async function InicioPage() {
       diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
       turnos={turnos.map((t) => ({ abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto }))}
       umbral={{ avisoMin: 8, gritaMin: 15 }}
-      // Quién está en cada puesto viaja todavía por el bus entre pestañas de UN navegador (B5-1):
-      // con el turno abierto en otro equipo, «Sin nadie en caja» sería una alarma falsa.
-      enServicio={false}
+      // Quién está en cada puesto sale de las sesiones de la base (B5-1): con un turno abierto, un
+      // puesto sin nadie es noticia.
+      enServicio={turnos.length > 0}
     />
+    </>
   );
 }

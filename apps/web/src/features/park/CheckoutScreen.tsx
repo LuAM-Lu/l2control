@@ -86,7 +86,7 @@ export function CheckoutScreen({
   const actor = useActorEnSesion();
   const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
 
-  // La hora del servidor, interpolada entre sondeos (ADR-010): el anticipo corre con ella.
+  // La hora del servidor, interpolada entre lecturas (ADR-010): el anticipo corre con ella.
   const ahora = useServerClock(sala ? Date.parse(sala.serverNow) : 0);
   const snapshot: MonitorSnapshotDto = useMemo(
     () =>

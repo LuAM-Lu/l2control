@@ -2,7 +2,9 @@
 
 - **Estado:** Aceptada
 - **Fecha:** 2026-09-08
-- **Situación en el código:** Pendiente: F6-06.
+- **Situación en el código:** hecha en B5-1 (v0.30.0) con el diseño de [ADR-025](025-tiempo-real-por-outbox.md):
+  `apps/worker`, autorización con ticket en el apretón de manos y una sala por sucursal. El envío de
+  comandas (F6-06) lo usará en la Etapa 6.
 
 > Para cambiar esta decisión se escribe un ADR nuevo que la supersede.
 > No se edita esta en silencio.

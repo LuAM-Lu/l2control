@@ -17,7 +17,6 @@ import {
 import { Initial, Sheet, cn } from "@l2/ui";
 import { useEffect, useState } from "react";
 import {
-  PUESTO_DE_ROL,
   cerrarSesion,
   useOperador,
 } from "../identity/operador.ts";
@@ -30,7 +29,7 @@ import {
   pedirPantallaCompleta,
   salirDePantallaCompleta,
 } from "./pantallaCompleta.ts";
-import { useOperacion } from "../operacion/OperacionProvider.tsx";
+import { useTiempoReal } from "../operacion/TiempoRealProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { formatTasaVE } from "../cash/tasa-format.ts";
@@ -111,8 +110,6 @@ const PUESTOS: Puesto[] = [
 export type ContextoEstacion = {
   /** El turno del equipo, del servidor (B3-1); `null` si no hay ninguno abierto. */
   turno: { abiertoEn: string; punto: string } | null;
-  /** Nivel de degradación de ADR-003. */
-  conexion: "N0" | "N1" | "N2" | "N3";
 };
 
 /** Píldora informativa: no se toca, así que no necesita objetivo táctil. */
@@ -130,7 +127,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const porCobrar = useCuentas().cuentas.filter(
     (c) => c.status === "POR_COBRAR",
   ).length;
-  const op = useOperacion();
+  const canal = useTiempoReal();
   const { tasa: tasaVigente } = useTasaVigente("USD/VES");
   // El formato de hora es el que fijó la sucursal (F5-08b): 12 h o 24 h en
   // TODAS las superficies, también en esta píldora.
@@ -147,13 +144,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
     return () => document.removeEventListener("fullscreenchange", alCambiar);
   }, []);
 
-  /** Salir libera el puesto: el panel en vivo lo marca vacío (F9-08, D7). */
+  /** Salir cierra la sesión en el servidor: Inicio marca el puesto vacío en vivo (F9-08, D7). */
   function salir() {
-    if (operador)
-      op.emitir({
-        type: "sesion.cerrada",
-        device: PUESTO_DE_ROL[operador.role],
-      });
     void cerrarSesion();
   }
 
@@ -195,7 +187,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const sinTasa = tasaVigente === null;
   const sinTurno = contexto.turno === null;
   const turnoDesde = contexto.turno ? formatClock(Date.parse(contexto.turno.abiertoEn), sucursal.formatoHora) : null;
-  const offline = contexto.conexion !== "N0";
+  // El canal en vivo (B5-1). «Conectando» al abrir la página no es una alerta; perderlo, sí.
+  const offline = canal.estado === "sin-conexion";
   const alerta = sinTasa || sinTurno || offline;
 
   return (
@@ -331,7 +324,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             <Pildora
               tono="warn"
               icono={<WifiOff size={14} />}
-              texto="Sin internet"
+              texto="Sin conexión en vivo"
+              titulo="Sin canal con el servidor: lo que hagan los demás equipos se ve cada 30 s hasta que vuelva"
             />
           )}
 

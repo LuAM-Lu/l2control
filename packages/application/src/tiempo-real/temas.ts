@@ -1,0 +1,109 @@
+/**
+ * Qué cambia en las pantallas cuando ocurre cada cosa — B5-1, ADR-025.
+ *
+ * Cada asiento HECHO de la auditoría deja su fila en el outbox (lo hace la base, en la misma
+ * transacción). Aquí se traduce su acción a los temas que las pantallas deben volver a leer. La
+ * tabla cubre TODO el catálogo de `AccionAuditada`: una acción nueva no compila hasta que alguien
+ * decide qué invalida, aunque sea nada.
+ */
+import type { Tema } from "@l2/contracts";
+import type { AccionAuditada } from "../auditoria/auditar.ts";
+
+const NADA: readonly Tema[] = [];
+/** Un cobro mueve la cuenta, la venta que deja y lo cobrado del turno. */
+const DINERO: readonly Tema[] = ["cuentas", "ventas", "turno"];
+/** La entrada y la salida del parque abren y actualizan la cuenta de la familia. */
+const PARQUE: readonly Tema[] = ["sala", "cuentas"];
+
+export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> = {
+  "tarifario.publicar": ["tarifario"],
+
+  "tasa.capturar": ["tasas"],
+  "tasa.confirmar": ["tasas"],
+  "tasa.aplicar": ["tasas"],
+  // La consulta al BCV deja su asiento aunque no traiga nada; lo que sí trae lo aplica
+  // `tasa.aplicar` o queda pendiente, y las dos cosas cambian el historial.
+  "tasa.sincronizar": ["tasas"],
+  // Un feriado cambia qué tasa rige ese día (B2-4).
+  "feriado.registrar": ["tasas"],
+  "feriado.retirar": ["tasas"],
+  "impuesto.programar": ["impuestos"],
+
+  "pago.asentar": DINERO,
+  "pago.revertir": DINERO,
+  "cuenta.abrir": ["cuentas"],
+  "cuenta.guardar": ["cuentas"],
+  "cuenta.cobrar": DINERO,
+  "cuenta.anular_cobro": DINERO,
+  "cuenta.cortesia": ["cuentas", "ventas"],
+  "cuenta.quitar_cortesia": ["cuentas", "ventas"],
+  // Una incobrable sale de los pendientes del cierre.
+  "cuenta.incobrable": ["cuentas", "turno"],
+  "venta.imprimir": ["ventas"],
+  "venta.reimprimir": ["ventas"],
+
+  "turno.abrir": ["turno"],
+  "turno.arqueo": ["turno"],
+  "turno.corte_x": ["turno"],
+  // El Z cierra el turno: la caja deja de cobrar en ese equipo y los pendientes cambian.
+  "turno.corte_z": ["turno", "cuentas"],
+
+  "parque.entrada": PARQUE,
+  "parque.salida": PARQUE,
+  "parque.nombrar": ["sala"],
+  "parque.recarga": PARQUE,
+  "parque.cierre_administrativo": PARQUE,
+  "representante.corregir": PARQUE,
+  "nino.corregir": ["sala"],
+
+  "medio.crear": ["medios"],
+  "medio.encender": ["medios"],
+  "medio.apagar": ["medios"],
+  "medio.datos": ["medios"],
+  "terminal.crear": ["medios"],
+  "terminal.retirar": ["medios"],
+
+  "producto.crear": ["catalogo"],
+  "producto.editar": ["catalogo"],
+  "producto.activar": ["catalogo"],
+  "producto.apartar": ["catalogo"],
+  "precio.programar": ["catalogo"],
+
+  "sesion.abrir": ["sesiones"],
+  "sesion.cerrar": ["sesiones"],
+  // Un PIN fallido, un bloqueo o una elevación no cambian lo que enseña ninguna pantalla ajena.
+  "sesion.pin_fallido": NADA,
+  "sesion.bloqueada": NADA,
+  "sesion.elevar": NADA,
+  "sesion.elevar_fallido": NADA,
+
+  "dispositivo.solicitar": ["equipos"],
+  "dispositivo.aprobar": ["equipos"],
+  // Revocar un equipo cierra sus sesiones en el acto (B1-3).
+  "dispositivo.revocar": ["equipos", "sesiones"],
+  "dispositivo.renombrar": ["equipos", "sesiones"],
+
+  "usuario.alta": ["personal"],
+  // La baja cierra sus sesiones.
+  "usuario.baja": ["personal", "sesiones"],
+  "usuario.reingreso": ["personal"],
+  "usuario.rol": ["personal", "sesiones"],
+  "usuario.pin": ["personal"],
+  "usuario.contrasena": ["personal"],
+  "permiso.conceder": ["personal"],
+  "permiso.revocar": ["personal"],
+  "permiso.retirar": ["personal"],
+  "acceso.ajustar": ["personal"],
+  "acceso.retirar": ["personal"],
+
+  // Una autorización acompaña a otra operación, que es la que cuenta el cambio.
+  "autorizacion.conceder": NADA,
+  "autorizacion.negar": NADA,
+};
+
+const esAccion = (a: string): a is AccionAuditada => Object.hasOwn(TEMAS_DE_ACCION, a);
+
+/** Los temas que invalida una acción. Una que no está en el catálogo no invalida nada. */
+export function temasDe(accion: string): readonly Tema[] {
+  return esAccion(accion) ? TEMAS_DE_ACCION[accion] : NADA;
+}
