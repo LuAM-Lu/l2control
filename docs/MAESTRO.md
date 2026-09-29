@@ -1361,7 +1361,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   worker con Socket.io y Valkey (ADR-025); fuera los sondeos y el bus entre pestañas; la tasa del BCV sin
   umbral de salto (ADR-024). Sigue B4-4.
 - **2026-09-29** · Con el cliente: IGTF al 0 % en su base (V-13) y fuera el IVA reducido de las pantallas y
-  del catálogo (v0.30.1), porque el local no lo usa.
+  del catálogo (v0.30.1), porque el local no lo usa. Handoff.
 
 ---
 
@@ -1375,23 +1375,21 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-29, v0.29.1 en `main`, sin subir a GitHub):**
+**Último handoff (2026-09-29, v0.30.1 en `main`, sin subir a GitHub):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-14 y M-15 con V-1 a V-14, §3 con su DoD y orden, §4), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.29.1 · 29 de 55 pasos, en verde. Nada subido a GitHub (main ~23 commits por delante).
-HECHO: B3-5 (arqueo a ciegas, cortes X y Z, relevo, jornada sin pendientes, incobrables, el día en Inicio). Visita técnica = M-15:
-  teléfono para la monitora (pulseras preimpresas de un solo uso, cámara), laptop en caja, tablet del mesero, cocina con comanda impresa
-  (ADR-022), una impresora en caja, restaurante en el piloto, inventario mínimo (ADR-023: sale al entrar en la cuenta; sin existencia no se
-  vende), descuentos, cumpleaños, todo en tiempo real y solo VPS + 4G (ADR-021). Todas las preguntas de §4 respondidas; sin gaveta, sin IGTF.
-SIGUIENTE: B5-1 (Socket.io + adaptador Valkey + outbox + apps/worker): TODO en tiempo real, fuera los sondeos (5 s sala y cuentas, 60 s tasa)
-  y el bus entre pestañas; la sincronización del BCV pasa al worker y deja de retener saltos (V-14, ADR nuevo sobre ADR-019). Luego B4-4 → B4-5.
-Pendiente con el cliente: contarle que el turno de
-  «PC admin» se selló por error con un Z de prueba (§1).
-Base local CON DATOS DEL CLIENTE («PC admin», cuentas #0021 y #0022 vivas): un guion solo toca lo que se llama «Prueba …».
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (500 por next/font: parar, borrar apps/web/.next y relanzar).
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-15 con V-1 a V-14, §3 con su DoD y orden, §4, §5), docs/JORNADA.md y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. main: v0.30.1 · 30 de 55 pasos, en verde. Nada subido a GitHub (main ~27 commits por delante).
+HECHO: B5-1 = todo en tiempo real: outbox_event lo llena un disparador de audit_log en la misma transacción; apps/worker (Socket.io + Valkey,
+  ticket HMAC en el apretón de manos, latido de sesiones, bus del restaurante, consulta del BCV) publica TEMAS; la web relee con useAlCambiar
+  o router.refresh() (ADR-025). V-14: la tasa del BCV sin umbral (ADR-024). Con el cliente: IGTF al 0 % en su base; fuera el IVA reducido (v0.30.1).
+SIGUIENTE: B4-4 (ajustes de la sucursal en la base y su pantalla en Ajustes: nombre, RIF, dirección, horario, formato de hora, residuo, servicio,
+  umbral del arqueo $ 1,00, umbral de huérfanas 8 h y zona horaria, hoy en el código); se borra src/demo/sucursal.ts. Luego B4-5 (teléfono y pulseras).
+Pendiente con el cliente: contarle que el turno de «PC admin» se selló por error con un Z de prueba (§1).
+Base local CON DATOS DEL CLIENTE («PC admin» y su turno del 28/09 abierto): un guion solo toca lo que se llama «Prueba …» y revoca sus equipos.
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (web :3000 + worker :3001; si uno cae, turbo tumba los dos).
 Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Cuidado: DoD de §3; en una transacción nunca dos consultas a la vez (ni Promise.all con tx ni include de 3 relaciones, §5); audit_log en minúsculas y _; migración aplicada no se edita; heredocs grandes fallan (Write + commit -F);
-  el árbol está en CRLF (Edit o Python normalizando). Playwright: comun.cjs y cortes1..4.cjs en el scratchpad de la sesión d1bda75e.
-  Merge a main solo con verify:db verde. Push solo si se pide.
+Cuidado: DoD de §3; en una transacción nunca dos consultas a la vez (§5); toda acción auditada nueva exige su fila en TEMAS_DE_ACCION;
+  migración aplicada no se edita; heredocs grandes fallan (Write + python / commit -F). Playwright: comun.cjs y vivo1..5.cjs en el
+  scratchpad de la sesión b6cf4f88. Merge a main solo con verify:db verde. Push solo si se pide.
 ```
