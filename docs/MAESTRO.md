@@ -31,7 +31,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.30.0 · 30 de 55 pasos.** **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
+**Versión 0.30.1 · 30 de 55 pasos.** **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
 demás en menos de 2 s, sin sondeos. Toda escritura audita, y el asiento deja su evento en un outbox en la
 misma transacción; nace `apps/worker`, que lo publica por Socket.io con adaptador Valkey a la sala de cada
 sucursal (autorización con ticket en el apretón de manos), y cada pantalla vuelve a leer lo suyo con sus
@@ -160,6 +160,10 @@ salvo los datos maestros (F0-04) y la firma del alcance (F0-09).
 Impuestos el IGTF al **0 %**, rigiendo desde ese momento, a nombre de Abigail Karam (equipo «Prueba IGTF
 Admin», revocado). Lo cobrado antes se queda como se cobró; el IVA sigue en 16 % y 8 %. La caja y el recibo
 enseñan todavía la línea del IGTF en cero hasta B3-6.
+
+**El IVA reducido no se usa en el local** (el cliente, 2026-09-29; v0.30.1): no se ofrece ni se acepta al
+crear o editar un producto, Ajustes → Impuestos no lo enseña y la caja no lo exige para cobrar. El 8 %
+programado en la base local se queda (nada se borra) pero no lo usa ningún producto; el motor lo conserva.
 
 **Pendiente con el cliente:** **contarle** lo del turno de «PC admin» (arriba).
 
@@ -1147,7 +1151,8 @@ antes del cobro en servidor (orden de ejecución).
 - ~~**IGTF sobre el vuelto (C13).**~~ **El cliente decidió no cobrar IGTF por ahora** (2026-09-28, V-13): se
   programa al 0 %. Si vuelve, esta pregunta se le hace al contador antes de encenderlo.
 - USDT a la par con el dólar para el cobro y para el IGTF.
-- Alícuotas vigentes: IVA 16 %, 8 % y exento; IGTF al 0 % por decisión del cliente (V-13). Con B2-2 se
+- Alícuotas vigentes: IVA general 16 % y exento; el reducido no se usa en el local (v0.30.1); IGTF al 0 %
+  por decisión del cliente (V-13). Con B2-2 se
   cambian sin desplegar.
 
 **Trabajo de campo:** probar la cámara del teléfono con las pulseras reales y, si lo compran, calibrar el
@@ -1355,6 +1360,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-29** · B5-1 hecho (v0.30.0): todo en tiempo real por un outbox que escribe la auditoría y un
   worker con Socket.io y Valkey (ADR-025); fuera los sondeos y el bus entre pestañas; la tasa del BCV sin
   umbral de salto (ADR-024). Sigue B4-4.
+- **2026-09-29** · Con el cliente: IGTF al 0 % en su base (V-13) y fuera el IVA reducido de las pantallas y
+  del catálogo (v0.30.1), porque el local no lo usa.
 
 ---
 

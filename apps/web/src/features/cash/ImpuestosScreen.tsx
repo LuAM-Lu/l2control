@@ -23,7 +23,6 @@ import { programarImpuesto } from "./impuestos.acciones";
 /** Lo que se programa, en palabras de quien lo configura. */
 const OPCIONES: readonly { clave: string; impuesto: Impuesto; code: TratoProgramable | null; nombre: string }[] = [
   { clave: "IVA:GENERAL", impuesto: "IVA", code: "GENERAL", nombre: "IVA general" },
-  { clave: "IVA:REDUCIDA", impuesto: "IVA", code: "REDUCIDA", nombre: "IVA reducido" },
   { clave: "IGTF", impuesto: "IGTF", code: null, nombre: "IGTF (pagos en divisas)" },
 ];
 
@@ -230,8 +229,8 @@ export function ImpuestosScreen({ impuestos }: { impuestos: ImpuestosDto }) {
 
           {impuestos.vigencias.length === 0 ? (
             <p className="rounded-[var(--radius-card)] border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-3">
-              Este local todavía no tiene impuestos programados. Programa el IVA general, el reducido y el IGTF para
-              poder cobrar.
+              Este local todavía no tiene impuestos programados. Programa el IVA general y el IGTF para poder
+              cobrar.
             </p>
           ) : (
             grupos

@@ -5,6 +5,7 @@
  */
 export const IMPUESTOS_DE_TRABAJO = [
   { impuesto: "IVA", code: "GENERAL", basisPoints: 1600 },
-  { impuesto: "IVA", code: "REDUCIDA", basisPoints: 800 },
-  { impuesto: "IGTF", code: null, basisPoints: 300 },
+  // El IVA reducido no se usa en el local (v0.30.1) y el IGTF no se cobra por ahora (V-13): al 0 %,
+  // con el motor listo para cuando vuelva.
+  { impuesto: "IGTF", code: null, basisPoints: 0 },
 ] as const;

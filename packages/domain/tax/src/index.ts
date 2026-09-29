@@ -459,15 +459,18 @@ export function igtfAt(periods: readonly TaxPeriod[], at: number): number {
 }
 
 /**
- * ¿Hay con qué cobrar en `at`? Hace falta IVA general, IVA reducida e IGTF vigentes. Devuelve
- * lo que falta (vacío si nada): la caja no cobra con un impuesto supuesto.
+ * ¿Hay con qué cobrar en `at`? Hace falta IVA general e IGTF vigentes. Devuelve lo que falta (vacío
+ * si nada): la caja no cobra con un impuesto supuesto.
+ *
+ * El IVA reducido no se exige: el local no lo usa (v0.30.1) y ningún producto nuevo puede llevarlo.
+ * Si uno viejo lo llevara sin alícuota vigente, esa línea sigue sin cobrarse: `computeDocument`
+ * lanza `NoApplicableRuleError` antes que suponer un 0 %.
  */
 export function missingTaxesAt(periods: readonly TaxPeriod[], at: number): string[] {
   const rige = (kind: TaxKind, code: TaxCode | null) =>
     periods.some((p) => p.kind === kind && p.code === code && p.effectiveFrom <= at && (p.effectiveTo === null || at < p.effectiveTo));
   const faltan: string[] = [];
   if (!rige("IVA", "GENERAL")) faltan.push("IVA general");
-  if (!rige("IVA", "REDUCIDA")) faltan.push("IVA reducido");
   if (!rige("IGTF", null)) faltan.push("IGTF");
   return faltan;
 }

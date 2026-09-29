@@ -27,8 +27,14 @@ describe("los cambios del catálogo", () => {
     assert.equal(ProductoCommandSchema.safeParse({ kind: "CREAR", producto: { ...nuevo, nombre: "x".repeat(41) } }).success, false);
   });
 
-  test("el trato del IVA es uno de los tres", () => {
+  test("el trato del IVA es general o exento: el reducido no se usa en el local (v0.30.1)", () => {
     assert.equal(ProductoCommandSchema.safeParse({ kind: "CREAR", producto: { ...nuevo, taxCode: "SUPER" } }).success, false);
+    assert.equal(ProductoCommandSchema.safeParse({ kind: "CREAR", producto: { ...nuevo, taxCode: "EXENTA" } }).success, true);
+    const r = ProductoCommandSchema.safeParse({ kind: "CREAR", producto: { ...nuevo, taxCode: "REDUCIDA" } });
+    assert.equal(r.success, false);
+    assert.match(r.error?.issues[0]?.message ?? "", /no usa el IVA reducido/);
+    const editar = { kind: "EDITAR", productId: ID, nombre: "Agua", categoria: "Bebidas", taxCode: "REDUCIDA", controlaStock: true };
+    assert.equal(ProductoCommandSchema.safeParse(editar).success, false);
   });
 
   test("un precio se programa con su DÍA; el instante no lo dice el navegador", () => {

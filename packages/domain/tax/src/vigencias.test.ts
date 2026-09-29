@@ -119,8 +119,13 @@ describe("lo que se cobra (F3-06)", () => {
 
   test("dice qué falta para poder cobrar", () => {
     assert.deepEqual(missingTaxesAt(taxTimeline(BASE), HOY), []);
-    assert.deepEqual(missingTaxesAt(taxTimeline(BASE), INICIO - 1), ["IVA general", "IVA reducido", "IGTF"]);
+    assert.deepEqual(missingTaxesAt(taxTimeline(BASE), INICIO - 1), ["IVA general", "IGTF"]);
     assert.deepEqual(missingTaxesAt(taxTimeline(BASE.slice(0, 2)), HOY), ["IGTF"]);
+  });
+
+  test("sin IVA reducido se cobra: el local no lo usa (v0.30.1)", () => {
+    const sinReducido = BASE.filter((p) => p.code !== "REDUCIDA");
+    assert.deepEqual(missingTaxesAt(taxTimeline(sinReducido), HOY), []);
   });
 });
 

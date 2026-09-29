@@ -14,7 +14,7 @@
  * Todo precio va en dólares (la moneda funcional, DEC-1), en unidades menores y como texto.
  */
 import { z } from "zod";
-import { TaxCodeSchema } from "./impuestos.ts";
+import { TaxCodeDelCatalogoSchema, TaxCodeSchema } from "./impuestos.ts";
 import { FechaSchema, IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 export const NombreProductoSchema = z
@@ -95,7 +95,7 @@ export type CatalogoDto = z.infer<typeof CatalogoSchema>;
 export const ProductoNuevoSchema = z.strictObject({
   nombre: NombreProductoSchema,
   categoria: CategoriaProductoSchema,
-  taxCode: TaxCodeSchema,
+  taxCode: TaxCodeDelCatalogoSchema,
   controlaStock: z.boolean(),
   precioMinor: PrecioMinorSchema,
 });
@@ -115,7 +115,7 @@ export const ProductoCommandSchema = z.discriminatedUnion("kind", [
     productId: z.uuid("Producto desconocido"),
     nombre: NombreProductoSchema,
     categoria: CategoriaProductoSchema,
-    taxCode: TaxCodeSchema,
+    taxCode: TaxCodeDelCatalogoSchema,
     controlaStock: z.boolean(),
   }),
   z.strictObject({ kind: z.literal("ACTIVAR"), productId: z.uuid("Producto desconocido"), activo: z.boolean() }),

@@ -23,6 +23,16 @@ export const TaxCodeSchema = z.enum(["GENERAL", "REDUCIDA", "EXENTA"]);
 export type TaxCode = z.infer<typeof TaxCodeSchema>;
 
 /**
+ * Los tratos que se eligen al crear o editar un producto (v0.30.1, pedido del cliente): el IVA
+ * reducido no se usa en el local, así que no se ofrece ni se acepta. Sigue en `TaxCodeSchema` y en el
+ * motor para leer lo que ya exista y por si algún día hiciera falta.
+ */
+export const TaxCodeDelCatalogoSchema = z.enum(["GENERAL", "EXENTA"], {
+  error: "Este local no usa el IVA reducido: elige IVA general o exento",
+});
+export type TaxCodeDelCatalogo = z.infer<typeof TaxCodeDelCatalogoSchema>;
+
+/**
  * Los tratos que se programan. Lo exento no: es cero por definición, y el
  * dominio lo añade siempre. Un «exento al 8 %» es una contradicción que
  * acabaría cobrándose.

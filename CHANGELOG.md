@@ -12,6 +12,15 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.30.1] — 2026-09-29 · Etapa 4 · Parque
+
+### Cambiado
+- **El IVA reducido (8 %) ya no aparece**: el local no lo usa (decisión del cliente). Al crear o editar
+  un producto solo se elige «IVA general» o «Exento de IVA», y el servidor rechaza el reducido.
+  Ajustes → Impuestos enseña el IVA general, el IGTF y el exento, y la caja ya no exige el reducido
+  para cobrar. El cálculo sigue dentro por si algún día hiciera falta, y lo ya vendido no cambia.
+- Un local nuevo arranca con el IVA general al 16 % y el IGTF al 0 % (V-13).
+
 ## [0.30.0] — 2026-09-29 · Etapa 4 · Parque
 
 B5-1 · Todo en tiempo real.

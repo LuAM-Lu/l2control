@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarClock, CheckCircle2, History, PackageOpen, Plus, Search } from "lucide-react";
-import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCode } from "@l2/contracts";
+import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCode, TaxCodeDelCatalogo } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { categoriesOf, nameKey, periodAt } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
@@ -30,12 +30,13 @@ const CAMPO =
   "flex min-h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[14px] text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50";
 
-const TRATOS: readonly { code: TaxCode; nombre: string }[] = [
+/** Lo que se elige: el IVA reducido no se usa en el local (v0.30.1) y el servidor no lo acepta. */
+const TRATOS: readonly { code: TaxCodeDelCatalogo; nombre: string }[] = [
   { code: "GENERAL", nombre: "IVA general" },
-  { code: "REDUCIDA", nombre: "IVA reducido" },
   { code: "EXENTA", nombre: "Exento de IVA" },
 ];
-const nombreTrato = (code: TaxCode) => TRATOS.find((t) => t.code === code)!.nombre;
+/** Lo que se lee: un producto viejo con el reducido se sigue nombrando bien. */
+const nombreTrato = (code: TaxCode) => (code === "REDUCIDA" ? "IVA reducido" : TRATOS.find((t) => t.code === code)!.nombre);
 
 const usd = (m: Money) => formatMoneyVE(toMajor(m), "USD");
 const precioDe = (minor: string) => money(BigInt(minor), "USD");
@@ -283,8 +284,8 @@ function CamposDelProducto({
   setNombre: (v: string) => void;
   categoria: string;
   setCategoria: (v: string) => void;
-  taxCode: TaxCode;
-  setTaxCode: (v: TaxCode) => void;
+  taxCode: TaxCodeDelCatalogo;
+  setTaxCode: (v: TaxCodeDelCatalogo) => void;
   controlaStock: boolean;
   setControlaStock: (v: boolean) => void;
   categorias: readonly string[];
@@ -316,7 +317,7 @@ function CamposDelProducto({
           <label htmlFor={`${prefijo}-iva`} className={ETIQUETA}>
             IVA
           </label>
-          <select id={`${prefijo}-iva`} className={CAMPO} value={taxCode} disabled={deshabilitado} onChange={(e) => setTaxCode(e.target.value as TaxCode)}>
+          <select id={`${prefijo}-iva`} className={CAMPO} value={taxCode} disabled={deshabilitado} onChange={(e) => setTaxCode(e.target.value as TaxCodeDelCatalogo)}>
             {TRATOS.map((t) => (
               <option key={t.code} value={t.code}>
                 {t.nombre}
@@ -352,7 +353,7 @@ function ProductoNuevo({
 }) {
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [taxCode, setTaxCode] = useState<TaxCode>("GENERAL");
+  const [taxCode, setTaxCode] = useState<TaxCodeDelCatalogo>("GENERAL");
   const [controlaStock, setControlaStock] = useState(true);
   const [precio, setPrecio] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -466,7 +467,7 @@ function FichaProducto({
 
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [taxCode, setTaxCode] = useState<TaxCode>("GENERAL");
+  const [taxCode, setTaxCode] = useState<TaxCodeDelCatalogo>("GENERAL");
   const [controlaStock, setControlaStock] = useState(true);
   const [precio, setPrecio] = useState("");
   const [dia, setDia] = useState<string | null>(null);
@@ -479,7 +480,9 @@ function FichaProducto({
     if (!producto) return;
     setNombre(producto.nombre);
     setCategoria(producto.categoria);
-    setTaxCode(producto.taxCode);
+    // Uno viejo con el IVA reducido (el local ya no lo usa) se abre con el general, a la vista: guardar
+    // es decidirlo, y el servidor no acepta el reducido.
+    setTaxCode(producto.taxCode === "REDUCIDA" ? "GENERAL" : producto.taxCode);
     setControlaStock(producto.controlaStock);
     setPrecio("");
     setDia(null);

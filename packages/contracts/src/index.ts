@@ -116,6 +116,8 @@ export {
 
 export {
   TaxCodeSchema,
+  TaxCodeDelCatalogoSchema,
+  type TaxCodeDelCatalogo,
   TratoProgramableSchema,
   ImpuestoSchema,
   BasisPointsSchema,
