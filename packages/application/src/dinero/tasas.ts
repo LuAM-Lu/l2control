@@ -353,6 +353,7 @@ export function casosTasas(base: Base): CasosTasas {
       }
 
       // Cada fuente por su lado: una que falla o se cuelga no tumba a la otra.
+      // lint-permitido: transaccion-sin-consultas-a-la-vez — son peticiones de red a las fuentes, fuera de la transacción
       const lecturas = await Promise.all(
         fuentes.map((leer) =>
           leer().catch(() => ({ ok: false as const, fuente: "BCV" as const, error: "La fuente falló de forma inesperada." })),
@@ -549,10 +550,8 @@ function alertasDe(tasas: readonly RateRecord[], ahora: number, feriados: Holida
  * forma del dominio, y sus feriados bancarios. Lo usa `citedRateValid`.
  */
 export async function historialParaCobrar(tx: Transaccion): Promise<{ registros: RateRecord[]; feriados: Holidays }> {
-  const [filas, feriados] = await Promise.all([
-    tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS }),
-    diasFeriados(tx),
-  ]);
+  const filas = await tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS });
+  const feriados = await diasFeriados(tx);
   return { registros: filas.map(registro), feriados };
 }
 

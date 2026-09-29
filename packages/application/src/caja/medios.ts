@@ -58,11 +58,9 @@ const invalido = (mensaje: string, path: (string | number)[], message: string): 
 export function casosMedios(base: Base, cifrador: Cifrador | null): CasosMedios {
   /** La configuración tal como está en la base, dentro de una transacción ya abierta. */
   const cargar = async (tx: Transaccion, ctx: Contexto, c: Cifrador): Promise<MediosDePagoDto> => {
-    const [medios, terminales, datos] = await Promise.all([
-      tx.paymentMethod.findMany({ orderBy: [{ position: "asc" }, { code: "asc" }] }),
-      tx.posTerminal.findMany({ where: { branchId: ctx.branchId, retiredAt: null }, orderBy: { createdAt: "asc" } }),
-      tx.collectionDetails.findMany({ orderBy: { recordedAt: "desc" } }),
-    ]);
+    const medios = await tx.paymentMethod.findMany({ orderBy: [{ position: "asc" }, { code: "asc" }] });
+    const terminales = await tx.posTerminal.findMany({ where: { branchId: ctx.branchId, retiredAt: null }, orderBy: { createdAt: "asc" } });
+    const datos = await tx.collectionDetails.findMany({ orderBy: { recordedAt: "desc" } });
     // Rige la última fila de cada clase: cambiar los datos añade una, no reescribe (regla 5).
     const ultimo = (kind: string) => {
       const fila = datos.find((d) => d.kind === kind);

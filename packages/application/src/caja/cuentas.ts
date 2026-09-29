@@ -982,10 +982,8 @@ function hayProductosNuevos(antes: FamilyAccountDto | null, despues: FamilyAccou
 
 /** Lo que el catálogo vende en `ahora`: su nombre, su precio y su trato del IVA (B9-1). */
 async function catalogoEn(tx: Transaccion, ahora: number): Promise<(productId: string) => ProductAtNow | null> {
-  const [productos, precios] = await Promise.all([
-    tx.product.findMany({ select: { id: true, name: true, active: true, taxCode: true } }),
-    tx.productPrice.findMany(),
-  ]);
+  const productos = await tx.product.findMany({ select: { id: true, name: true, active: true, taxCode: true } });
+  const precios = await tx.productPrice.findMany();
   const tramos = priceTimeline(
     precios.map((f) => ({ id: f.id, productId: f.productId, amountMinor: f.amountMinor, effectiveFrom: f.effectiveFrom.getTime(), scheduledAt: f.scheduledAt.getTime() })),
   );

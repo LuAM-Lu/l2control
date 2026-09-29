@@ -30,7 +30,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.29.0 · 29 de 55 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+**Versión 0.29.1 · 29 de 55 pasos.** **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
@@ -1189,6 +1189,12 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
   el valor capturado con `formatTasaVE`, nunca el numerador.
 - Un CHECK con `columna IN (...)` sobre una columna que admite nulos **deja pasar el nulo** (`NULL IN`
   es desconocido, y un CHECK desconocido pasa). Se escribe `columna IS NOT NULL AND columna IN (...)`.
+- **Dentro de una transacción, nunca dos consultas a la vez.** Tiene una sola conexión: `pg` avisa
+  («Calling client.query() when the client is already executing a query», en el registro y en el
+  aviso de Next) y en `pg@9` será un error. Dos formas de provocarlo: `Promise.all` con `tx` (la regla
+  `transaccion-sin-consultas-a-la-vez` de `pnpm lint` lo caza) y un **`include` con tres relaciones al
+  mismo nivel**, que Prisma 7 resuelve en paralelo (el lint no lo ve): con dos, o con una anidada, no
+  pasa. La tercera relación va en su propia consulta (así `estancias()` en el parque).
 - `$queryRaw` de Prisma no sabe leer una columna `void`: `SELECT pg_advisory_xact_lock(...)` revienta
   al volver. Se castea (`::text`).
 - El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
@@ -1315,11 +1321,11 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-28, v0.29.0 en `main`, sin subir a GitHub):**
+**Último handoff (2026-09-29, v0.29.1 en `main`, sin subir a GitHub):**
 
 ```text
 Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-14 y M-15 con V-1 a V-14, §3 con su DoD y orden, §4), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.29.0 · 29 de 55 pasos, en verde. Nada subido a GitHub (main ~22 commits por delante).
+Rol: full-stack senior; programas tú todo. main: v0.29.1 · 29 de 55 pasos, en verde. Nada subido a GitHub (main ~23 commits por delante).
 HECHO: B3-5 (arqueo a ciegas, cortes X y Z, relevo, jornada sin pendientes, incobrables, el día en Inicio). Visita técnica = M-15:
   teléfono para la monitora (pulseras preimpresas de un solo uso, cámara), laptop en caja, tablet del mesero, cocina con comanda impresa
   (ADR-022), una impresora en caja, restaurante en el piloto, inventario mínimo (ADR-023: sale al entrar en la cuenta; sin existencia no se
@@ -1331,7 +1337,7 @@ Pendiente con el cliente (preguntar antes de tocar su base): IGTF al 0 % desde h
 Base local CON DATOS DEL CLIENTE («PC admin», cuentas #0021 y #0022 vivas): un guion solo toca lo que se llama «Prueba …».
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (500 por next/font: parar, borrar apps/web/.next y relanzar).
 Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Cuidado: DoD de §3; acciones de audit_log en minúsculas y _ (CHECK); migración aplicada no se edita; heredocs grandes fallan (Write + commit -F);
+Cuidado: DoD de §3; en una transacción nunca dos consultas a la vez (ni Promise.all con tx ni include de 3 relaciones, §5); audit_log en minúsculas y _; migración aplicada no se edita; heredocs grandes fallan (Write + commit -F);
   el árbol está en CRLF (Edit o Python normalizando). Playwright: comun.cjs y cortes1..4.cjs en el scratchpad de la sesión d1bda75e.
   Merge a main solo con verify:db verde. Push solo si se pide.
 ```

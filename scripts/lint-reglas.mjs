@@ -47,6 +47,14 @@ export const REGLAS = [
     busca: /\bDate\.now\(|new Date\(\s*\)|performance\.now\(/,
   },
   {
+    nombre: "transaccion-sin-consultas-a-la-vez",
+    explica:
+      "En @l2/application casi todo corre en la transacción del tenant, con UNA conexión: dos consultas a la vez son un aviso de pg hoy y un error en pg@9. Una tras otra; si no toca la base, lint-permitido con su motivo.",
+    // Las pruebas y sus utilidades (`para-pruebas.ts`) abren y cierran conexiones propias.
+    aplica: (ruta) => ruta.startsWith("packages/application/src/") && esCodigo(ruta) && !/(\.test(-db)?|\/para-pruebas)\.ts$/.test(ruta),
+    busca: /\bPromise\.(all|allSettled|any|race)\(/,
+  },
+  {
     nombre: "sin-emojis-en-pantalla",
     explica: "Ningún emoji en la interfaz: iconos SVG, chips y barras con los tokens (CLAUDE.md, sobriedad profesional).",
     aplica: (ruta) => /\.(tsx|ts)$/.test(ruta) && (ruta.startsWith("apps/") || ruta.startsWith("packages/ui/")),

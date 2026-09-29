@@ -457,11 +457,9 @@ type Nuevo = {
 
 /** El catálogo del local, los terminales vigentes de la sucursal y qué datos del local hay. */
 export async function catalogoDe(tx: Transaccion, branchId: string) {
-  const [medios, terminales, datos] = await Promise.all([
-    tx.paymentMethod.findMany(),
-    tx.posTerminal.findMany({ where: { branchId, retiredAt: null }, select: { id: true } }),
-    tx.collectionDetails.findMany({ select: { kind: true }, distinct: ["kind"] }),
-  ]);
+  const medios = await tx.paymentMethod.findMany();
+  const terminales = await tx.posTerminal.findMany({ where: { branchId, retiredAt: null }, select: { id: true } });
+  const datos = await tx.collectionDetails.findMany({ select: { kind: true }, distinct: ["kind"] });
   const listo: CollectionReadiness = {
     pagoMovil: datos.some((d) => d.kind === "PAGO_MOVIL"),
     zelle: datos.some((d) => d.kind === "ZELLE"),

@@ -12,6 +12,14 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.29.1] — 2026-09-29 · Etapa 4 · Parque
+
+### Corregido
+- El servidor ya no avisa «Calling client.query() when the client is already executing a
+  query» (lo enseñaba el aviso de Next en el navegador): dentro de una transacción se lanzaban
+  consultas a la vez. Era un aviso; con la próxima versión de la biblioteca de PostgreSQL, sería un
+  error. `pnpm lint` impide volver a hacerlo con `Promise.all`.
+
 ## [0.29.0] — 2026-09-28 · Etapa 4 · Parque
 
 B3-5 · Cortes X y Z, arqueo a ciegas, relevo y cierre de la jornada. Se cierra la Etapa 3 (Caja).

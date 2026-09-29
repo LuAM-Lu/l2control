@@ -18,10 +18,8 @@ export const dinero = (m: Money): MoneyDto => ({ minor: String(m.amount), curren
 
 /** El libro del turno como lo ve el dominio: cada asiento con su medio y si vive en la gaveta. */
 export async function libroDelTurno(tx: Transaccion, shiftId: string) {
-  const [pagos, medios] = await Promise.all([
-    tx.payment.findMany({ where: { shiftId }, orderBy: [{ recordedAt: "asc" }, { line: "asc" }] }),
-    tx.paymentMethod.findMany({ select: { code: true, label: true, givesChange: true } }),
-  ]);
+  const pagos = await tx.payment.findMany({ where: { shiftId }, orderBy: [{ recordedAt: "asc" }, { line: "asc" }] });
+  const medios = await tx.paymentMethod.findMany({ select: { code: true, label: true, givesChange: true } });
   const medio = new Map(medios.map((m) => [m.code, m]));
   const entradas: ShiftLedgerEntry[] = pagos.map((p) => ({
     kind: p.kind as LedgerKind,

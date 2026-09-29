@@ -71,14 +71,13 @@ function pinTemporal(): string {
 }
 
 async function resumen(tx: Transaccion, userId: string): Promise<UserSummaryDto> {
-  const u = await tx.staffUser.findUniqueOrThrow({
+  // Tres relaciones en un `include` hacen que Prisma lance sus consultas a la vez sobre la única
+  // conexión de la transacción (aviso de pg; error en pg@9): los cambios van en su propia consulta.
+  const persona = await tx.staffUser.findUniqueOrThrow({
     where: { id: userId },
-    include: {
-      branches: true,
-      exceptions: { where: { retiredAt: null }, orderBy: { at: "desc" } },
-      changes: { orderBy: { at: "desc" } },
-    },
+    include: { branches: true, exceptions: { where: { retiredAt: null }, orderBy: { at: "desc" } } },
   });
+  const u = { ...persona, changes: await tx.staffUserChange.findMany({ where: { userId }, orderBy: { at: "desc" } }) };
   return UserSummarySchema.parse({
     id: u.id,
     fullName: u.fullName,
@@ -141,7 +140,9 @@ export function casosEquipo(base: Base): CasosEquipo {
           orderBy: [{ active: "desc" }, { fullName: "asc" }],
           select: { id: true },
         });
-        return { ok: true, valor: { users: await Promise.all(ids.map((u) => resumen(tx, u.id))) } };
+        const users = [];
+        for (const u of ids) users.push(await resumen(tx, u.id));
+        return { ok: true, valor: { users } };
       });
     },
 

@@ -67,10 +67,8 @@ const MENSAJE_PRECIO: Record<PriceProblem, string> = {
 
 export function casosProductos(base: Base): CasosProductos {
   const cargar = async (tx: Transaccion): Promise<CatalogoDto> => {
-    const [productos, precios] = await Promise.all([
-      tx.product.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] }),
-      tx.productPrice.findMany({ orderBy: { scheduledAt: "asc" } }),
-    ]);
+    const productos = await tx.product.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
+    const precios = await tx.productPrice.findMany({ orderBy: { scheduledAt: "asc" } });
     // Se revalida al salir: lo que no cumple el contrato no llega a la caja (fail-closed).
     return CatalogoSchema.parse({
       productos: productos.map((p) => ({

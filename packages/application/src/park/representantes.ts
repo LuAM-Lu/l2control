@@ -159,15 +159,13 @@ export async function representanteDeLaEntrada(
 
 /** El directorio: cada familia con sus niños nombrados, sus visitas (entradas) y la última. */
 async function leerDirectorio(tx: Transaccion): Promise<DirectorioRepresentantesDto> {
-  const [familias, visitas] = await Promise.all([
-    tx.guardian.findMany({
-      include: { kids: { select: { id: true, name: true, nickname: true }, orderBy: { createdAt: "asc" } } },
-      orderBy: { fullName: "asc" },
-    }),
-    tx.$queryRaw<{ guardian_id: string; visitas: bigint; ultima: Date }[]>`
-      SELECT guardian_id, count(DISTINCT check_in_key) AS visitas, max(started_at) AS ultima
-      FROM park_session GROUP BY guardian_id`,
-  ]);
+  const familias = await tx.guardian.findMany({
+    include: { kids: { select: { id: true, name: true, nickname: true }, orderBy: { createdAt: "asc" } } },
+    orderBy: { fullName: "asc" },
+  });
+  const visitas = await tx.$queryRaw<{ guardian_id: string; visitas: bigint; ultima: Date }[]>`
+    SELECT guardian_id, count(DISTINCT check_in_key) AS visitas, max(started_at) AS ultima
+    FROM park_session GROUP BY guardian_id`;
   const porFamilia = new Map(visitas.map((v) => [v.guardian_id, v]));
   return DirectorioRepresentantesSchema.parse({
     representantes: familias.map((g) => {

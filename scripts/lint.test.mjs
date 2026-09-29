@@ -42,6 +42,15 @@ test("el dominio no lee el reloj; sus pruebas y el resto sí pueden", () => {
   assert.deepEqual(reglas("apps/web/src/x.ts", "Date.now()"), []);
 });
 
+test("en la aplicación no se lanzan consultas a la vez; en sus pruebas y en la web, sí se puede", () => {
+  const r = "packages/application/src/caja/x.ts";
+  assert.deepEqual(reglas(r, "const [a, b] = await Promise.all([tx.a.findMany(), tx.b.findMany()]);"), ["transaccion-sin-consultas-a-la-vez"]);
+  assert.deepEqual(reglas(r, "await Promise.allSettled(xs)"), ["transaccion-sin-consultas-a-la-vez"]);
+  assert.deepEqual(reglas(r, "// lint-permitido: transaccion-sin-consultas-a-la-vez — son peticiones de red\nawait Promise.all(fuentes)"), []);
+  assert.deepEqual(reglas("packages/application/src/caja/x.test-db.ts", "await Promise.all([a(), b()])"), []);
+  assert.deepEqual(reglas("apps/web/src/features/x.ts", "await Promise.all([a(), b()])"), []);
+});
+
 test("un emoji en una pantalla se rechaza; en un comentario, no", () => {
   assert.deepEqual(reglas("apps/web/src/features/x.tsx", "<span>✅ Pagado</span>"), ["sin-emojis-en-pantalla"]);
   assert.deepEqual(reglas("apps/web/src/features/x.tsx", " * ⚠ DEUDA: esto es un comentario"), []);

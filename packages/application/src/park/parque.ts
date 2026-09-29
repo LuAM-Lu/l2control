@@ -102,12 +102,41 @@ const sinTarifario: Rechazo = {
   mensaje: "Esta sucursal no tiene tarifario publicado: publícalo en Ajustes → Tarifas y paquetes.",
 };
 
-/** Una estancia con lo que hace falta para contarla: su familia, su niño (si tiene nombre) y sus recargas. */
+/** Una estancia con su familia y su niño (si tiene nombre). Las recargas van aparte: ver `estancias`. */
 const CON_FAMILIA = {
   guardian: { select: { fullName: true } },
   kid: { select: { id: true, name: true, nickname: true } },
-  extensions: { select: { minutes: true, packageName: true, priceMinor: true, createdAt: true }, orderBy: { createdAt: "asc" } },
 } as const;
+
+type BusquedaDeEstancias = Omit<NonNullable<Parameters<Transaccion["parkSession"]["findMany"]>[0]>, "include" | "select">;
+
+/**
+ * Las estancias con lo que hace falta para contarlas: su familia, su niño y sus recargas en orden.
+ * Las recargas van en su propia consulta: con tres relaciones en un `include`, Prisma lanza sus
+ * consultas a la vez sobre la única conexión de la transacción (aviso de pg hoy, error en pg@9).
+ */
+async function estancias(tx: Transaccion, busqueda: BusquedaDeEstancias): Promise<FilaDeEstancia[]> {
+  const filas = await tx.parkSession.findMany({ ...busqueda, include: CON_FAMILIA });
+  if (filas.length === 0) return [];
+  const recargas = await tx.parkSessionExtension.findMany({
+    where: { sessionId: { in: filas.map((f) => f.id) } },
+    select: { sessionId: true, minutes: true, packageName: true, priceMinor: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return filas.map((f) => ({ ...f, extensions: recargas.filter((r) => r.sessionId === f.id).map(({ sessionId: _, ...r }) => r) }));
+}
+
+/** Una estancia, o `null`. */
+async function estancia(tx: Transaccion, where: NonNullable<BusquedaDeEstancias["where"]>): Promise<FilaDeEstancia | null> {
+  return (await estancias(tx, { where, take: 1 }))[0] ?? null;
+}
+
+/** Una estancia que tiene que existir (la acaba de leer o de escribir la misma transacción). */
+async function estanciaQueExiste(tx: Transaccion, where: NonNullable<BusquedaDeEstancias["where"]>): Promise<FilaDeEstancia> {
+  const f = await estancia(tx, where);
+  if (!f) throw new Error("La estancia que se acaba de leer ya no está en la transacción.");
+  return f;
+}
 
 /** El inicio del día del local en `ahora`: lo que empezó antes es de un día anterior. */
 const inicioDelDia = (ahora: number) => startOfDay(calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL), ZONA_DEL_LOCAL);
@@ -311,7 +340,7 @@ export function casosParque(base: Base): CasosParque {
           const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
           if (previa) return previa.cause === "SALIDA" ? salidaHecha(tx, cmd.idempotencyKey, previa.accountId) : conflictoDeClave;
 
-          const filas = await tx.parkSession.findMany({ where: { id: { in: cmd.sessionIds }, branchId: ctx.branchId }, include: CON_FAMILIA });
+          const filas = await estancias(tx, { where: { id: { in: cmd.sessionIds }, branchId: ctx.branchId } });
           if (filas.length !== cmd.sessionIds.length) {
             return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Una de esas estancias no está en esta sucursal." };
           }
@@ -415,10 +444,10 @@ export function casosParque(base: Base): CasosParque {
           const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
           if (previa) {
             if (previa.cause !== "RECARGA") return conflictoDeClave;
-            const f = await tx.parkSession.findUniqueOrThrow({ where: { id: cmd.sessionId }, include: CON_FAMILIA });
+            const f = await estanciaQueExiste(tx, { id: cmd.sessionId });
             return { session: estanciaDe(f), account: (await vigenteDe(tx, previa.accountId))!.cuenta };
           }
-          const f = await tx.parkSession.findFirst({ where: { id: cmd.sessionId, branchId: ctx.branchId }, include: CON_FAMILIA });
+          const f = await estancia(tx, { id: cmd.sessionId, branchId: ctx.branchId });
           if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
           if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió.` };
           if (huerfana(f, ahora)) return { ok: false, motivo: "CONFLICTO", mensaje: "Esa estancia está a revisar: la cierra la dirección." };
@@ -473,7 +502,7 @@ export function casosParque(base: Base): CasosParque {
             entityId: f.id,
             after: { minutos: p.duration.minutes, paquete: p.name, precio: p.price, cuenta: nueva.orderNumber ?? null },
           });
-          const recargada = await tx.parkSession.findUniqueOrThrow({ where: { id: f.id }, include: CON_FAMILIA });
+          const recargada = await estanciaQueExiste(tx, { id: f.id });
           return { session: estanciaDe(recargada), account: nueva };
         });
 
@@ -504,7 +533,7 @@ export function casosParque(base: Base): CasosParque {
           if (rechazo) return rechazo;
           const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
           if (previa) return previa.cause === "CIERRE_ADMINISTRATIVO" ? { account: (await vigenteDe(tx, previa.accountId))!.cuenta } : conflictoDeClave;
-          const f = await tx.parkSession.findFirst({ where: { id: cmd.sessionId, branchId: ctx.branchId }, include: CON_FAMILIA });
+          const f = await estancia(tx, { id: cmd.sessionId, branchId: ctx.branchId });
           if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
           if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió.` };
           if (!huerfana(f, ahora)) {
@@ -604,7 +633,7 @@ export function casosParque(base: Base): CasosParque {
           await tx.parkSession.update({ where: { id: f.id }, data: { kidId } });
         }
         await auditar(tx, ctx, { action: "parque.nombrar", entityType: "park_session", entityId: f.id, after: { kidId } });
-        return estanciaDe(await tx.parkSession.findUniqueOrThrow({ where: { id: f.id }, include: CON_FAMILIA }));
+        return estanciaDe(await estanciaQueExiste(tx, { id: f.id }));
       });
       return "ok" in r ? r : { ok: true, valor: r };
     },
@@ -624,7 +653,7 @@ type FilaDeEstancia = Awaited<ReturnType<Transaccion["parkSession"]["findFirstOr
  * La sala las enseña y el cierre de la jornada no se hace mientras quede alguna (JORNADA §5, C2).
  */
 export async function estanciasActivas(tx: Transaccion, branchId: string, ahora: number): Promise<{ enSala: EstanciaDto[]; huerfanas: EstanciaDto[] }> {
-  const filas = await tx.parkSession.findMany({ where: { branchId, status: "ACTIVA" }, include: CON_FAMILIA, orderBy: { startedAt: "asc" } });
+  const filas = await estancias(tx, { where: { branchId, status: "ACTIVA" }, orderBy: { startedAt: "asc" } });
   return {
     enSala: filas.filter((f) => !huerfana(f, ahora)).map(estanciaDe),
     huerfanas: filas.filter((f) => huerfana(f, ahora)).map(estanciaDe),
@@ -716,7 +745,7 @@ function liquidacionDe(f: FilaDeEstancia, hasta: number): SettlementLineDto {
 
 /** Lo que dejó una entrada: sus estancias y la cuenta de la familia como está ahora. */
 async function entradaHecha(tx: Transaccion, clave: string, accountId: string): Promise<CheckInResult> {
-  const filas = await tx.parkSession.findMany({ where: { checkInKey: clave }, include: CON_FAMILIA, orderBy: { wristbandCode: "asc" } });
+  const filas = await estancias(tx, { where: { checkInKey: clave }, orderBy: { wristbandCode: "asc" } });
   const cuenta: FamilyAccountDto = (await vigenteDe(tx, accountId))!.cuenta;
   const orden = new Map(cuenta.sessionIds.map((id, i) => [id, i]));
   filas.sort((a, b) => (orden.get(a.id) ?? 0) - (orden.get(b.id) ?? 0));
@@ -725,7 +754,7 @@ async function entradaHecha(tx: Transaccion, clave: string, accountId: string): 
 
 /** Lo que dejó una salida: su desglose (con la hora en que se cerró) y la cuenta como está ahora. */
 async function salidaHecha(tx: Transaccion, clave: string, accountId: string): Promise<CheckoutResult> {
-  const filas = await tx.parkSession.findMany({ where: { checkOutKey: clave }, include: CON_FAMILIA });
+  const filas = await estancias(tx, { where: { checkOutKey: clave } });
   return {
     lines: filas.map((f) => liquidacionDe(f, f.endedAt!.getTime())),
     account: (await vigenteDe(tx, accountId))!.cuenta,
