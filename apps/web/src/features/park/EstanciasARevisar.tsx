@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import type { EstanciaDto } from "@l2/contracts";
 import { Button, Input, Sheet, avisar } from "@l2/ui";
-import { formatClock, type TimeFormat } from "./time-format.ts";
+import { useSucursal } from "../sucursal/SucursalProvider";
 import { nombreDeEstancia } from "./view-model";
 import { cerrarEstanciaHuerfana } from "./parque.acciones";
 
@@ -20,7 +20,7 @@ export function EstanciasARevisar({
   onCerrar,
   huerfanas,
   puedeCerrar,
-  formatoHora,
+  hora,
   onCerrada,
 }: {
   abierto: boolean;
@@ -28,10 +28,13 @@ export function EstanciasARevisar({
   huerfanas: readonly EstanciaDto[];
   /** Si quien opera puede cerrarlas (`parque.cerrarHuerfana`); si no, solo las ve. */
   puedeCerrar: boolean;
-  formatoHora: TimeFormat;
+  /** La hora como la quiere el local (F5-08b): `useHora()` de la sucursal. */
+  hora: (epochMs: number) => string;
   onCerrada: () => void;
 }) {
   const [cerrando, setCerrando] = useState<string | null>(null);
+  const { zonaHoraria } = useSucursal().ajustes;
+  const dia = (t: number) => new Intl.DateTimeFormat("es-VE", { day: "numeric", month: "short", timeZone: zonaHoraria }).format(t);
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -73,8 +76,7 @@ export function EstanciasARevisar({
               <span className="tnum font-mono text-[12px] text-ink-3">{h.wristbandCode}</span>
             </p>
             <p className="tnum mt-1 text-ink-3">
-              {h.guardianName} · entró el {new Date(h.startedAt).toLocaleDateString("es-VE", { day: "numeric", month: "short" })} a las{" "}
-              {formatClock(Date.parse(h.startedAt), formatoHora)} · {h.packageName}
+              {h.guardianName} · entró el {dia(Date.parse(h.startedAt))} a las {hora(Date.parse(h.startedAt))} · {h.packageName}
             </p>
             {puedeCerrar &&
               (cerrando === h.id ? (

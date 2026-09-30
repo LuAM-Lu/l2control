@@ -5,7 +5,6 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { fromMajor, toMajor, type FrozenRate } from "@l2/domain-money";
 import {
-  COUNT_THRESHOLD,
   countDifferenceInUsd,
   ledgerMovements,
   leftInDrawerProblem,
@@ -67,15 +66,24 @@ describe("la diferencia del arqueo (D-JOR)", () => {
     assert.equal(toMajor(countDifferenceInUsd(lineas("0.50", "-30.00"), aDolares)!), "0.80");
   });
 
-  test("hasta $ 1,00 firma la cajera; más, supervisión", () => {
-    assert.equal(zSigner(countDifferenceInUsd(lineas("1.00", "0.00"), aDolares)), "CAJERA");
-    assert.equal(zSigner(countDifferenceInUsd(lineas("0.60", "50.00"), aDolares)), "SUPERVISION");
-    assert.equal(COUNT_THRESHOLD.amount, 100n);
+  test("hasta el umbral del local firma la cajera; más, supervisión", () => {
+    assert.equal(zSigner(countDifferenceInUsd(lineas("1.00", "0.00"), aDolares), usd("1.00")), "CAJERA");
+    assert.equal(zSigner(countDifferenceInUsd(lineas("0.60", "50.00"), aDolares), usd("1.00")), "SUPERVISION");
+    // El umbral es del local (B4-4): con $ 0,25, los mismos $ 0,50 ya los firma supervisión.
+    assert.equal(zSigner(countDifferenceInUsd(lineas("0.50", "0.00"), aDolares), usd("0.25")), "SUPERVISION");
+    assert.equal(zSigner(countDifferenceInUsd(lineas("0.50", "0.00"), aDolares), usd("0.50")), "CAJERA");
+    // Con umbral cero, solo un arqueo exacto lo firma la cajera.
+    assert.equal(zSigner(countDifferenceInUsd(lineas("0.00", "0.00"), aDolares), usd("0.00")), "CAJERA");
+    assert.equal(zSigner(countDifferenceInUsd(lineas("0.01", "0.00"), aDolares), usd("0.00")), "SUPERVISION");
+  });
+
+  test("un umbral en otra moneda es un error, no una comparación", () => {
+    assert.throws(() => zSigner(usd("0.50"), bs("1.00")));
   });
 
   test("una diferencia en bolívares sin tasa del turno no se sabe medir: firma supervisión", () => {
     assert.equal(countDifferenceInUsd(lineas("0.00", "1.00"), null), null);
-    assert.equal(zSigner(null), "SUPERVISION");
+    assert.equal(zSigner(null, usd("1.00")), "SUPERVISION");
     // Sin diferencia en bolívares, la tasa no hace falta.
     assert.equal(toMajor(countDifferenceInUsd(lineas("0.25", "0.00"), null)!), "0.25");
   });

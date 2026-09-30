@@ -54,14 +54,14 @@ contextos parecen necesitar el mismo, lo que se comparte es el patrón de nivel 
 
 ## Estado en el navegador
 
-Nada de negocio se guarda en el navegador. El layout raíz lee en el servidor (tarifario, tasas, medios,
+Nada de negocio se guarda en el navegador. El layout raíz lee en el servidor (ajustes de la sucursal, tarifario, tasas, medios,
 cuentas, ventas, sala y quién está en sesión) y los proveedores lo reparten. Desde B5-1 se mantienen al
 día por el **canal en vivo** del worker (`features/operacion/TiempoRealProvider.tsx`):
 
 | Tema que cambia | Quién vuelve a leer |
 |---|---|
 | `sala`, `cuentas`, `tasas` | Su proveedor, con su acción (`useAlCambiar`) |
-| Los demás (turno, ventas, medios, catálogo, impuestos, tarifario, equipos, personal, sesiones) | `router.refresh()`: repinta las lecturas del servidor y los proveedores adoptan lo nuevo |
+| Los demás (turno, ventas, medios, catálogo, impuestos, tarifario, ajustes de la sucursal, equipos, personal, sesiones) | `router.refresh()`: repinta las lecturas del servidor y los proveedores adoptan lo nuevo |
 | Lo que una página lee en el servidor de un tema con lectura propia (Inicio) | `<RefrescarAlCambiar temas={…}>` |
 
 Sin canal, la barra dice «Sin conexión en vivo» y se vuelve a leer todo cada 30 s. Lo provisional que

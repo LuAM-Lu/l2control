@@ -463,7 +463,7 @@ function FichaProducto({
   const { ajustes } = useSucursal();
   const zona = catalogo.zonaHoraria;
   const hoy = ahora === null ? null : calendarDay(new Date(ahora).toISOString(), zona);
-  const cuando = (iso: string) => `${diaEnPalabras(Date.parse(iso), zona)}, ${formatClock(Date.parse(iso), ajustes.formatoHora)}`;
+  const cuando = (iso: string) => `${diaEnPalabras(Date.parse(iso), zona)}, ${formatClock(Date.parse(iso), ajustes.formatoHora, ajustes.zonaHoraria)}`;
 
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");

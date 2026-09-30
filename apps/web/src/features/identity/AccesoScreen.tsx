@@ -20,6 +20,7 @@ import { puestoDe } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { RotuloVersion } from "../shell/RotuloVersion.tsx";
 import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
+import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Acceso por PIN atado a dispositivo — F2-03, ADR-013.
@@ -66,16 +67,6 @@ const PIN_LENGTH = 4;
  */
 const MS_DEL_SELLO = 420;
 
-const FORMATO_HORA = new Intl.DateTimeFormat("es-VE", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-const FORMATO_FECHA = new Intl.DateTimeFormat("es-VE", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-});
 
 export function AccesoScreen({
   device,
@@ -473,8 +464,12 @@ function PanelMarca({ estado, extra }: { estado: ReactNode; extra?: ReactNode })
     const id = setInterval(() => setReloj(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
-  const hora = reloj === null ? null : FORMATO_HORA.format(reloj);
-  const fecha = reloj === null ? null : FORMATO_FECHA.format(reloj);
+  // La hora y la fecha del local, con su formato y su zona (F5-08b), no las del navegador.
+  const deLocal = useReloj();
+  const { zonaHoraria } = useSucursal().ajustes;
+  const hora = reloj === null ? null : deLocal.hora(reloj);
+  const fecha =
+    reloj === null ? null : new Intl.DateTimeFormat("es-VE", { weekday: "long", day: "numeric", month: "long", timeZone: zonaHoraria }).format(reloj);
 
   return (
     <section

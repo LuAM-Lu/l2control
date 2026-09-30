@@ -87,7 +87,7 @@ function AperturaTurno({
   const [bs, setBs] = useState(() => dejado("VES"));
   const [errores, setErrores] = useState<{ USD?: string | undefined; VES?: string | undefined }>({});
   const [enviando, setEnviando] = useState(false);
-  const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });
+  const hoy = new Date().toLocaleDateString("en-CA", { timeZone: ajustes.zonaHoraria });
   const deAntes = otrosAbiertos.filter((t) => t.businessDate < hoy);
 
   const abrir = async (e: React.FormEvent) => {
@@ -225,7 +225,7 @@ function AperturaTurno({
 
         {ultimoZ?.cierre && (
           <p className="px-1 text-[12px] text-ink-3">
-            Último corte Z de este equipo: {ultimoZ.cierre.firmadoPor}, {formatClock(Date.parse(ultimoZ.hechoEn), ajustes.formatoHora)} del{" "}
+            Último corte Z de este equipo: {ultimoZ.cierre.firmadoPor}, {formatClock(Date.parse(ultimoZ.hechoEn), ajustes.formatoHora, ajustes.zonaHoraria)} del{" "}
             {ultimoZ.turno.businessDate.split("-").reverse().join("/")}.
           </p>
         )}
@@ -269,7 +269,7 @@ function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaIn
             <p className="tnum flex items-center gap-1.5 text-[13px] text-ink-3">
               <CalendarClock size={14} aria-hidden="true" />
               Día de negocio {diaEnPalabras(turno.businessDate)} · {turno.punto} · abierto por {turno.abiertoPor.name} a las{" "}
-              {formatClock(Date.parse(turno.abiertoEn), ajustes.formatoHora)}
+              {formatClock(Date.parse(turno.abiertoEn), ajustes.formatoHora, ajustes.zonaHoraria)}
             </p>
           </div>
           {cierre ? (
@@ -482,7 +482,7 @@ function CorteXDialog({ corte, onCerrar }: { corte: CorteDto | null; onCerrar: (
       abierto
       onCerrar={onCerrar}
       titulo="Corte X"
-      descripcion={`${corte.turno.punto} · hecho por ${corte.hechoPor} a las ${formatClock(Date.parse(corte.hechoEn), ajustes.formatoHora)}. Quedó guardado; el turno sigue abierto.`}
+      descripcion={`${corte.turno.punto} · hecho por ${corte.hechoPor} a las ${formatClock(Date.parse(corte.hechoEn), ajustes.formatoHora, ajustes.zonaHoraria)}. Quedó guardado; el turno sigue abierto.`}
       pie={
         <Button surface="pos" variant="neutral" className="w-full" onClick={onCerrar}>
           Cerrar

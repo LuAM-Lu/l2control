@@ -121,7 +121,9 @@ export function ReciboImpreso({
       <header className="text-center">
         {/* `text-[16px]` y no `text-base`: con el token `--color-base`, Tailwind
             también lo lee como color y el nombre salía del color del fondo. */}
-        <p className="font-display text-[16px] font-bold text-ink">Abby Kingdom</p>
+        <p className="font-display text-[16px] font-bold text-ink">{recibo.local.nombre}</p>
+        {recibo.local.rif && <p className="tnum text-[11px] text-ink-2">RIF {recibo.local.rif}</p>}
+        {recibo.local.direccion && <p className="text-[11px] text-ink-2">{recibo.local.direccion}</p>}
         <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-2 uppercase">Recibo no fiscal</p>
         {anulada ? (
           <p className="mx-auto mt-1 w-fit rounded border-2 border-state-crit px-2 text-[13px] font-bold tracking-[0.2em] text-state-crit">

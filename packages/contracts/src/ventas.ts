@@ -23,6 +23,8 @@ const Texto = (max: number) => z.string().max(max);
  * venta del servidor (`reciboDeVenta`); no se guarda.
  */
 export const ReciboSchema = z.object({
+  /** Quién lo emite: el nombre del local y, si ya los declaró, su RIF y su dirección (B4-4). */
+  local: z.object({ nombre: Texto(80), rif: Texto(16).nullable(), direccion: Texto(160).nullable() }),
   orden: Texto(16),
   cuenta: Texto(120),
   cuando: Texto(40),

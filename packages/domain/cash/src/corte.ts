@@ -11,7 +11,7 @@
  *    si no se puede saber (una diferencia en bolívares sin tasa del turno: fail-closed);
  *  · lo que queda en la gaveta al cerrar (en un relevo, el fondo) y lo que se retira.
  */
-import { type FrozenRate, type Money, add, convert, money, subtract, zero } from "@l2/domain-money";
+import { type FrozenRate, type Money, CurrencyMismatchError, add, convert, money, subtract, zero } from "@l2/domain-money";
 import type { LedgerKind } from "./libro.ts";
 
 /*
@@ -20,12 +20,6 @@ import type { LedgerKind } from "./libro.ts";
  */
 type MovimientoDelTurno = Readonly<{ kind: "PAYMENT" | "CHANGE_OUT" | "TIP_IN_DRAWER" | "RETAINED"; methodCode: string; amount: Money; inDrawer: boolean }>;
 type LineaDeCuadre = Readonly<{ difference: Money }>;
-
-/**
- * Cuánto puede diferir el arqueo para que lo cierre la propia cajera: $ 1,00 (JORNADA §1). Pasa a
- * los ajustes de la sucursal con B4-4.
- */
-export const COUNT_THRESHOLD: Money = Object.freeze(money(100n, "USD"));
 
 /** Un asiento del libro visto desde el turno: su tipo, su medio, su importe con signo y si es de la gaveta. */
 export type ShiftLedgerEntry = Readonly<{
@@ -82,7 +76,14 @@ export function countDifferenceInUsd(lines: readonly LineaDeCuadre[], vesToUsd: 
 /** Quién firma el corte Z (JORNADA §1): la cajera dentro del umbral; si no, supervisión con 🔐. */
 export type ZSigner = "CAJERA" | "SUPERVISION";
 
-export function zSigner(differenceUsd: Money | null, threshold: Money = COUNT_THRESHOLD): ZSigner {
+/**
+ * `threshold` es el umbral del arqueo de la sucursal (B4-4; $ 1,00 por decisión del cliente, M-13),
+ * en la misma moneda que la diferencia. Un umbral en otra moneda es un error de programación.
+ */
+export function zSigner(differenceUsd: Money | null, threshold: Money): ZSigner {
+  if (differenceUsd !== null && differenceUsd.currency !== threshold.currency) {
+    throw new CurrencyMismatchError(differenceUsd.currency, threshold.currency);
+  }
   return differenceUsd !== null && differenceUsd.amount <= threshold.amount ? "CAJERA" : "SUPERVISION";
 }
 

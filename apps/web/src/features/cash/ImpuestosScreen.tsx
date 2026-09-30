@@ -52,7 +52,7 @@ export function ImpuestosScreen({ impuestos }: { impuestos: ImpuestosDto }) {
   const hoy = ahora === null ? null : calendarDay(new Date(ahora).toISOString(), zona);
   const cuando = (iso: string) => {
     const t = Date.parse(iso);
-    return `${diaEnPalabras(t, zona)}, ${formatClock(t, ajustes.formatoHora)}`;
+    return `${diaEnPalabras(t, zona)}, ${formatClock(t, ajustes.formatoHora, ajustes.zonaHoraria)}`;
   };
 
   const [clave, setClave] = useState(OPCIONES[0]!.clave);

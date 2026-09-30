@@ -2,7 +2,10 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { EstanciaDto, MonitorSnapshotDto } from "@l2/contracts";
+import { becomesOrphanAt, epochMs, orphanAfterMs } from "@l2/domain-park";
+import { addDays, calendarDay, startOfDay } from "@l2/domain-rates";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
+import { useSucursal } from "../sucursal/SucursalProvider";
 import { leerSala } from "./parque.acciones";
 
 /**
@@ -14,7 +17,29 @@ import { leerSala } from "./parque.acciones";
  *
  * Una entrada o una salida de ESTE equipo se ven al momento (`adoptar`, `quitar`); lo de los demás
  * equipos llega por el canal.
+ *
+ * Lo único que cambia sin que nadie haga nada es que una estancia pase a huérfana (D9): nada lo avisa,
+ * solo pasa el tiempo. Así que se vuelve a leer una vez, justo en ese instante (B4-4), con las horas y
+ * la zona de los ajustes de la sucursal y el reloj del servidor. Un temporizador, no un sondeo.
  */
+
+/** Margen tras el instante en que pasa a huérfana: que el servidor ya lo vea al preguntarle. */
+const MARGEN_MS = 1_000;
+/** Nunca antes de esto, aunque el reloj del equipo vaya adelantado: no se pregunta en bucle. */
+const MINIMO_MS = 5_000;
+
+/** El primer instante (del servidor) en que alguna de estas estancias pasa a huérfana. */
+export function proximaHuerfana(sesiones: readonly EstanciaDto[], horas: number, zona: string): number | null {
+  const umbral = orphanAfterMs(horas);
+  let primera: number | null = null;
+  for (const s of sesiones) {
+    const desde = Date.parse(s.startedAt);
+    const manana = startOfDay(addDays(calendarDay(s.startedAt, zona), 1), zona);
+    const t = becomesOrphanAt(epochMs(desde), umbral, epochMs(manana));
+    if (primera === null || t < primera) primera = t;
+  }
+  return primera;
+}
 
 type Valor = Readonly<{
   /** La sala con la hora del servidor, o `null` si no se tiene: sin permiso o sin servidor. */
@@ -62,6 +87,20 @@ export function SalaProvider({ inicial, children }: { inicial: MonitorSnapshotDt
       setSala(null);
     }
   }, []);
+
+  // Cuándo pasa a huérfana la primera estancia (D9, B4-4): se relee justo entonces. El desfase entre
+  // el reloj del equipo y el del servidor se mide con la hora que trajo la lectura.
+  const { ajustes } = useSucursal();
+  useEffect(() => {
+    if (!sala || vetada.current) return;
+    const t = proximaHuerfana(sala.sessions, ajustes.horasHuerfana, ajustes.zonaHoraria);
+    if (t === null) return;
+    const desfase = Date.parse(sala.serverNow) - Date.now();
+    const espera = Math.max(MINIMO_MS, t - (Date.now() + desfase) + MARGEN_MS);
+    // setTimeout no admite más de ~24,8 días; una estancia pasa a huérfana mucho antes.
+    const id = window.setTimeout(() => void refrescar(), Math.min(espera, 2 ** 31 - 1));
+    return () => window.clearTimeout(id);
+  }, [sala, ajustes.horasHuerfana, ajustes.zonaHoraria, refrescar]);
 
   // En vivo (B5-1). Un fallo de red no borra lo que se tenía: se dice, y se vuelve a leer con el
   // siguiente cambio o al reconectarse.

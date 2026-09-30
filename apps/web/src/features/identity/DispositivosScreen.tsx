@@ -5,18 +5,12 @@ import { Ban, CircleCheckBig, Clock, KeyRound, MonitorSmartphone, MonitorX, Penc
 import { type DeviceCommand, type DeviceDto } from "@l2/contracts";
 import { Button, Container, Dialog, Input, PageHeader, avisar, cn } from "@l2/ui";
 import { useDispositivos } from "./DispositivosProvider.tsx";
-import { formatClock } from "../park/time-format.ts";
-import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { useReloj } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Dispositivos del local (F2-02, ADR-013).
  */
 
-const FECHA = new Intl.DateTimeFormat("es-VE", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
 
 /**
  * La hora sale de `formatClock`, que es la que usa todo el producto: 12 o 24
@@ -107,7 +101,7 @@ function DispositivoCard({
   const [verHistoria, setVerHistoria] = useState(false);
   const est = ESTADOS[dev.status];
   // La hora se pinta con el formato publicado en los ajustes del local (F5-08b).
-  const { ajustes } = useSucursal();
+  const reloj = useReloj();
 
   return (
     <div
@@ -140,7 +134,7 @@ function DispositivoCard({
                 {est.texto}
               </span>
               <span className="text-ink-3" aria-hidden="true">·</span>
-              <span className="text-ink-2 tnum">Registrado {FECHA.format(new Date(dev.registeredAt))}</span>
+              <span className="text-ink-2 tnum">Registrado {reloj.diaConAnio(Date.parse(dev.registeredAt))}</span>
               {dev.status === "REVOCADO" && (
                 <>
                   <span className="text-ink-3" aria-hidden="true">·</span>
@@ -162,8 +156,8 @@ function DispositivoCard({
                 ) : (
                   <span className="text-ink-3">
                     Compruébalo en la pantalla del equipo antes de aprobar. Vale hasta{" "}
-                    {FECHA.format(new Date(dev.requestExpiresAt!))},{" "}
-                    {formatClock(Date.parse(dev.requestExpiresAt!), ajustes.formatoHora)}.
+                    {reloj.diaConAnio(Date.parse(dev.requestExpiresAt!))},{" "}
+                    {reloj.hora(Date.parse(dev.requestExpiresAt!))}.
                   </span>
                 )}
               </p>
@@ -174,7 +168,7 @@ function DispositivoCard({
                   <span className="size-1.5 rounded-full bg-brand" />
                 </span>
                 Sesión abierta: <strong className="font-medium">{dev.session.userName}</strong>
-                <span className="tnum text-ink-3">desde {formatClock(Date.parse(dev.session.since), ajustes.formatoHora)}</span>
+                <span className="tnum text-ink-3">desde {reloj.hora(Date.parse(dev.session.since))}</span>
               </p>
             )}
           </div>
@@ -223,7 +217,7 @@ function DispositivoCard({
                   {c.kind === "RENOMBRADO" && <span className="text-ink-2">a «{c.label}»</span>}
                   <span className="text-ink-2">«{c.reason}»</span>
                   <span className="tnum ml-auto text-[11px] text-ink-3">
-                    {c.byName} · {FECHA.format(new Date(c.at))} {formatClock(Date.parse(c.at), ajustes.formatoHora)}
+                    {c.byName} · {reloj.diaConAnio(Date.parse(c.at))} {reloj.hora(Date.parse(c.at))}
                   </span>
                 </li>
               ))}

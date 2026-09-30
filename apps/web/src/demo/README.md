@@ -10,10 +10,9 @@ también, y con ella la regla `demo-solo-desde-las-rutas` de `pnpm arch`.
 
 | Archivo | Qué inventa | Se va con |
 |---|---|---|
-| `sucursal.ts` | Ajustes del local | B4-4 |
 | `restaurante.ts` | Plano y carta | B6-1 |
 
-Ya se fueron: la sala del parque y el directorio de familias (`parque.ts` y `representantes.ts`,
+Ya se fueron: los ajustes del local (`sucursal.ts`, B4-4: son de la base, y sin publicar rigen los de fábrica), la sala del parque y el directorio de familias (`parque.ts` y `representantes.ts`,
 B4-1 y B4-2: estancias, representantes y niños son de la base), el catálogo de mostrador de la caja (`features/cash/catalogo-mostrador.ts`, B9-1; lo de
 desarrollo lo siembra `scripts/semilla/productos.mts`), los medios de pago, sus terminales y los datos que ve el cliente (`medios.ts` y `caja.ts`, B3-2), las tasas de cambio (B2-1), el tarifario (B0-5, ahora en la base; lo de desarrollo lo siembra
 `scripts/semilla/tarifario.mts`), los dispositivos (B1-3), las cuentas y ventas de ejemplo, el interruptor `NEXT_PUBLIC_DEMO` y el

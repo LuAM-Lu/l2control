@@ -9,6 +9,7 @@ import { Button, Container, Input, PageHeader, avisar, cn } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { registrarFeriado, retirarFeriado } from "./feriados.acciones";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Configuración → Feriados bancarios (B2-4, D-FER). Un feriado no es día hábil: el BCV no publica
@@ -16,7 +17,6 @@ import { registrarFeriado, retirarFeriado } from "./feriados.acciones";
  * que cambia cada año; nada se precarga de memoria. Registrar y retirar piden confirmar identidad.
  */
 
-const ZONA = "America/Caracas";
 const ETIQUETA = "text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase";
 const CAMPO =
   "flex min-h-10 w-full rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[14px] text-ink " +
@@ -30,7 +30,8 @@ export function FeriadosScreen({ feriados }: { feriados: FeriadosDto }) {
   const router = useRouter();
   const conElevacion = useConElevacion();
   const ahora = useAhoraLocal();
-  const hoy = ahora === 0 ? null : calendarDay(new Date(ahora).toISOString(), ZONA);
+  const zona = useSucursal().ajustes.zonaHoraria;
+  const hoy = ahora === 0 ? null : calendarDay(new Date(ahora).toISOString(), zona);
   const anio = hoy?.slice(0, 4) ?? null;
 
   const [dia, setDia] = useState("");

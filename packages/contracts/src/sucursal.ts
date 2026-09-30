@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IdSchema, MoneySchema } from "./primitives.ts";
+import { MoneySchema, TimestampSchema } from "./primitives.ts";
 
 /**
  * Los ajustes de la sucursal — F2-03, F5-08b, F4-04c y F6-13 (D8).
@@ -82,14 +82,35 @@ export type ServicioDto = z.infer<typeof ServicioSchema>;
 
 const RIF = /^[JGVEP]-\d{8}-\d$/;
 
+/** ¿La conoce el motor de fechas? Una zona mal escrita movería el día de negocio sin avisar. */
+function zonaConocida(zona: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zona });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Lo más que la caja puede quedarse sin dar vuelto: por encima ya es vuelto, no residuo. */
+export const MAX_RESIDUO_MINOR = 100n;
+/** Lo más que puede valer el umbral del arqueo: por encima pide una decisión, no un ajuste. */
+export const MAX_UMBRAL_ARQUEO_MINOR = 2000n;
+
+/**
+ * Lo que se ajusta de una sucursal (B4-4). Se publica entero como una versión nueva; no lleva la
+ * sucursal: la pone el servidor desde la sesión, nunca el navegador.
+ *
+ * RIF, dirección, teléfono y horario pueden faltar («sin declarar»): son datos del cliente (F0-04)
+ * y no se inventan. Lo que decide cómo opera la caja o el parque no puede faltar nunca.
+ */
 export const AjustesSucursalSchema = z
   .object({
-    branchId: IdSchema,
-    nombre: z.string().trim().min(2, "Nombre demasiado corto").max(80),
+    nombre: z.string().trim().min(2, "Nombre demasiado corto").max(80, "Nombre demasiado largo"),
     /** RIF venezolano: letra, ocho dígitos y dígito verificador. */
-    rif: z.string().trim().regex(RIF, "RIF con formato J-12345678-9"),
-    direccionFiscal: z.string().trim().min(8, "Dirección demasiado corta").max(160),
-    telefono: z.string().trim().min(7).max(20).optional(),
+    rif: z.string().trim().regex(RIF, "RIF con formato J-12345678-9").nullable(),
+    direccionFiscal: z.string().trim().min(8, "Dirección demasiado corta").max(160, "Dirección demasiado larga").nullable(),
+    telefono: z.string().trim().min(7, "Teléfono demasiado corto").max(20, "Teléfono demasiado largo").nullable(),
     /**
      * DEC-2: la moneda funcional es el dólar. Se declara en vez de darse por
      * supuesta, para que el día que cambie se vea en un contrato y no en
@@ -98,26 +119,82 @@ export const AjustesSucursalSchema = z
     monedaFuncional: z.literal("USD"),
     /** Afecta a TODAS las superficies a la vez (F5-08b). */
     formatoHora: z.enum(["12h", "24h"]),
-    horario: z.array(HorarioDelDiaSchema).length(7, "El horario declara los siete días"),
+    /**
+     * La zona que decide qué día es hoy (IANA, ADR-009): el día de negocio, la tasa que rige, el
+     * precio del día y las huérfanas. Venezuela: `America/Caracas`.
+     */
+    zonaHoraria: z.string().trim().min(3).max(64).refine(zonaConocida, "Zona horaria desconocida"),
+    /** Sin declarar hasta que el cliente lo dé (F0-04). Hoy no bloquea nada. */
+    horario: z.array(HorarioDelDiaSchema).length(7, "El horario declara los siete días").nullable(),
     /**
      * Residuo que la caja puede quedarse cuando no hay vuelto exacto (F4-04c).
      * Por encima, hay que dar vuelto o marcarlo como propina.
      */
     maxRetenido: MoneySchema,
+    /**
+     * Hasta cuánta diferencia del arqueo firma la cajera su corte Z; por encima firma supervisión
+     * con 🔐 (JORNADA §1, M-13). En la moneda funcional: lo que falte o sobre en bolívares se mide
+     * con la tasa del turno contra este mismo umbral (D-JOR).
+     */
+    umbralArqueo: MoneySchema,
+    /**
+     * Pasadas estas horas dentro, una estancia es huérfana aunque sea del día (D9, F5-13): deja de
+     * contar en el aforo y la cierra la dirección.
+     */
+    horasHuerfana: z
+      .number()
+      .int("Horas enteras")
+      .min(2, "Menos de 2 horas marcaría como olvidado a un niño que sigue jugando")
+      .max(16, "Más de 16 horas: la del día anterior ya la marca el cambio de día"),
     servicio: ServicioSchema,
   })
-  .refine((a) => new Set(a.horario.map((h) => h.dia)).size === 7, {
+  .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",
     path: ["horario"],
   })
   .refine((a) => a.maxRetenido.currency === a.monedaFuncional, {
-    message: "El umbral de residuo va en la moneda funcional",
+    message: "El residuo va en la moneda funcional",
     path: ["maxRetenido"],
   })
   .refine((a) => BigInt(a.maxRetenido.minor) > 0n, {
     // Un umbral de cero deja la caja sin salida cuando falta un centavo: no
     // se puede retener, no se puede dar vuelto exacto y el cobro se traba.
-    message: "El umbral de residuo tiene que ser mayor que cero",
+    message: "El residuo tiene que ser mayor que cero",
     path: ["maxRetenido"],
+  })
+  .refine((a) => BigInt(a.maxRetenido.minor) <= MAX_RESIDUO_MINOR, {
+    message: "Un residuo de más de $ 1,00 es vuelto: se da o se marca como propina",
+    path: ["maxRetenido"],
+  })
+  .refine((a) => a.umbralArqueo.currency === a.monedaFuncional, {
+    message: "El umbral del arqueo va en la moneda funcional",
+    path: ["umbralArqueo"],
+  })
+  .refine((a) => BigInt(a.umbralArqueo.minor) >= 0n && BigInt(a.umbralArqueo.minor) <= MAX_UMBRAL_ARQUEO_MINOR, {
+    // Cero es válido: toda diferencia, por pequeña que sea, la firma supervisión.
+    message: "El umbral del arqueo va de $ 0,00 a $ 20,00",
+    path: ["umbralArqueo"],
   });
 export type AjustesSucursalDto = z.infer<typeof AjustesSucursalSchema>;
+
+/**
+ * Los ajustes vigentes de la sucursal. `version` 0 = nunca se publicaron: son los valores de
+ * fábrica (los que el código usaba y el cliente decidió), no datos inventados.
+ */
+export const AjustesPublicadosSchema = z.object({
+  version: z.number().int().min(0),
+  publicadoEn: TimestampSchema.nullable(),
+  publicadoPor: z.string().nullable(),
+  ajustes: AjustesSucursalSchema,
+});
+export type AjustesPublicadosDto = z.infer<typeof AjustesPublicadosSchema>;
+
+/**
+ * Publicar ajustes. `versionBase` es la versión sobre la que se editó: si alguien publicó otra
+ * mientras tanto, se rechaza en vez de pisarla sin verla.
+ */
+export const PublicarAjustesCommandSchema = z.object({
+  versionBase: z.number().int().min(0),
+  ajustes: AjustesSucursalSchema,
+});
+export type PublicarAjustesCommand = z.infer<typeof PublicarAjustesCommandSchema>;

@@ -52,6 +52,7 @@ import {
   epochMs,
   fixed,
   isOrphan,
+  orphanAfterMs,
   openEnded,
   parkPolicy,
   settleAtExit,
@@ -66,7 +67,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
-import { ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
+import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
 
@@ -138,9 +139,18 @@ async function estanciaQueExiste(tx: Transaccion, where: NonNullable<BusquedaDeE
   return f;
 }
 
+/** Cómo decide la sucursal qué estancia es huérfana: su zona (qué día es hoy) y sus horas (D9, B4-4). */
+type ReglaDeHuerfanas = Readonly<{ zona: string; afterMs: number }>;
+
+async function reglaDeHuerfanas(tx: Transaccion, branchId: string): Promise<ReglaDeHuerfanas> {
+  const a = await ajustesDe(tx, branchId);
+  return { zona: a.zonaHoraria, afterMs: orphanAfterMs(a.horasHuerfana) };
+}
+
 /** El inicio del día del local en `ahora`: lo que empezó antes es de un día anterior. */
-const inicioDelDia = (ahora: number) => startOfDay(calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL), ZONA_DEL_LOCAL);
-const huerfana = (f: { startedAt: Date }, ahora: number) => isOrphan(epochMs(f.startedAt.getTime()), epochMs(ahora), epochMs(inicioDelDia(ahora)));
+const inicioDelDia = (ahora: number, zona: string) => startOfDay(calendarDay(new Date(ahora).toISOString(), zona), zona);
+const huerfana = (f: { startedAt: Date }, ahora: number, regla: ReglaDeHuerfanas) =>
+  isOrphan(epochMs(f.startedAt.getTime()), epochMs(ahora), epochMs(inicioDelDia(ahora, regla.zona)), regla.afterMs);
 
 export function casosParque(base: Base): CasosParque {
   return {
@@ -203,7 +213,8 @@ export function casosParque(base: Base): CasosParque {
           }
           const aforo = vigente.tarifario.policy.capacityLimit;
           // Una huérfana no ocupa sitio: casi seguro ese niño ya no está (F5-13).
-          const dentro = activas.filter((a) => !huerfana(a, ahora)).length;
+          const regla = await reglaDeHuerfanas(tx, ctx.branchId);
+          const dentro = activas.filter((a) => !huerfana(a, ahora, regla)).length;
           if (!admits(dentro, cmd.entries.length, aforo)) {
             const libres = Math.max(0, aforo - dentro);
             return {
@@ -349,7 +360,8 @@ export function casosParque(base: Base): CasosParque {
           const salida = enOrden.find((f) => f.status !== "ACTIVA");
           if (salida) return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(salida)} ya salió.` };
           // Una huérfana no se liquida por la salida: se le cobraría el tiempo que estuvo olvidada.
-          const olvidada = enOrden.find((f) => huerfana(f, ahora));
+          const regla = await reglaDeHuerfanas(tx, ctx.branchId);
+          const olvidada = enOrden.find((f) => huerfana(f, ahora, regla));
           if (olvidada) {
             return { ok: false, motivo: "CONFLICTO", mensaje: `La estancia de ${nombreDeFila(olvidada)} está a revisar: la cierra la dirección desde Inicio.` };
           }
@@ -450,7 +462,9 @@ export function casosParque(base: Base): CasosParque {
           const f = await estancia(tx, { id: cmd.sessionId, branchId: ctx.branchId });
           if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
           if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió.` };
-          if (huerfana(f, ahora)) return { ok: false, motivo: "CONFLICTO", mensaje: "Esa estancia está a revisar: la cierra la dirección." };
+          if (huerfana(f, ahora, await reglaDeHuerfanas(tx, ctx.branchId))) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa estancia está a revisar: la cierra la dirección." };
+          }
           if (f.durationMinutes === null) {
             return invalido("El tiempo abierto no se recarga: se cobra entero al salir.", ["sessionId"], "TIEMPO_ABIERTO");
           }
@@ -536,7 +550,7 @@ export function casosParque(base: Base): CasosParque {
           const f = await estancia(tx, { id: cmd.sessionId, branchId: ctx.branchId });
           if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
           if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió.` };
-          if (!huerfana(f, ahora)) {
+          if (!huerfana(f, ahora, await reglaDeHuerfanas(tx, ctx.branchId))) {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa estancia no está a revisar: si el niño se va, se registra su salida." };
           }
           const actual = (await vigenteDe(tx, f.accountId))!;
@@ -595,9 +609,10 @@ export function casosParque(base: Base): CasosParque {
         let ve = false;
         for (const a of VEN_LA_SALA) if ((await permisoEn(tx, ctx, a)) !== "DENEGADO") ve = true;
         if (!ve) return rechazoDePermiso("DENEGADO");
-        const dia = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
-        const desde = startOfDay(dia, ZONA_DEL_LOCAL);
-        const hace7 = startOfDay(calendarDay(new Date(desde - 7 * 86_400_000 + 12 * 3_600_000).toISOString(), ZONA_DEL_LOCAL), ZONA_DEL_LOCAL);
+        const zona = await zonaDe(tx, ctx.branchId);
+        const dia = calendarDay(new Date(ahora).toISOString(), zona);
+        const desde = startOfDay(dia, zona);
+        const hace7 = startOfDay(calendarDay(new Date(desde - 7 * 86_400_000 + 12 * 3_600_000).toISOString(), zona), zona);
         const cuantos = (de: number, a: number) =>
           tx.parkSession.count({ where: { branchId: ctx.branchId, startedAt: { gte: new Date(de), lt: new Date(a) } } });
         return { hoy: await cuantos(desde, ahora + 1), semanaPasada: await cuantos(hace7, hace7 + (ahora + 1 - desde)) };
@@ -654,9 +669,10 @@ type FilaDeEstancia = Awaited<ReturnType<Transaccion["parkSession"]["findFirstOr
  */
 export async function estanciasActivas(tx: Transaccion, branchId: string, ahora: number): Promise<{ enSala: EstanciaDto[]; huerfanas: EstanciaDto[] }> {
   const filas = await estancias(tx, { where: { branchId, status: "ACTIVA" }, orderBy: { startedAt: "asc" } });
+  const regla = await reglaDeHuerfanas(tx, branchId);
   return {
-    enSala: filas.filter((f) => !huerfana(f, ahora)).map(estanciaDe),
-    huerfanas: filas.filter((f) => huerfana(f, ahora)).map(estanciaDe),
+    enSala: filas.filter((f) => !huerfana(f, ahora, regla)).map(estanciaDe),
+    huerfanas: filas.filter((f) => huerfana(f, ahora, regla)).map(estanciaDe),
   };
 }
 

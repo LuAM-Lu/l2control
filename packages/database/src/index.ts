@@ -18,6 +18,7 @@ export type Transaccion = Prisma.TransactionClient;
 export type {
   AuditEntry,
   Branch,
+  BranchSettingsVersion,
   ExchangeRate,
   ExchangeRateConfirmation,
   TaxRate,

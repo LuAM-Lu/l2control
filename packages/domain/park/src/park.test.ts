@@ -14,7 +14,8 @@ import assert from "node:assert/strict";
 
 import { fromMajor, toMajor } from "@l2/domain-money";
 import {
-  ORPHAN_AFTER_MS,
+  orphanAfterMs,
+  becomesOrphanAt,
   isOrphan,
   withRecharges,
   admits,
@@ -301,11 +302,39 @@ describe("recarga y huérfanas (B4-3)", () => {
     assert.equal(recargada.status, "ACTIVA");
   });
 
-  test("huérfana: abierta desde un día anterior, o más de 8 horas dentro", () => {
+  test("huérfana: abierta desde un día anterior, o más horas dentro de las del local", () => {
     const hoy = epochMs(T0 + 60 * MIN);
-    assert.equal(isOrphan(epochMs(T0), epochMs(T0 + 2 * 60 * MIN), hoy), true); // de ayer
-    assert.equal(isOrphan(epochMs(T0 + 2 * 60 * MIN), epochMs(T0 + 3 * 60 * MIN), hoy), false);
-    assert.equal(isOrphan(hoy, epochMs(hoy + ORPHAN_AFTER_MS), hoy), false);
-    assert.equal(isOrphan(hoy, epochMs(hoy + ORPHAN_AFTER_MS + 1), hoy), true);
+    const ocho = orphanAfterMs(8);
+    assert.equal(isOrphan(epochMs(T0), epochMs(T0 + 2 * 60 * MIN), hoy, ocho), true); // de ayer
+    assert.equal(isOrphan(epochMs(T0 + 2 * 60 * MIN), epochMs(T0 + 3 * 60 * MIN), hoy, ocho), false);
+    assert.equal(isOrphan(hoy, epochMs(hoy + ocho), hoy, ocho), false);
+    assert.equal(isOrphan(hoy, epochMs(hoy + ocho + 1), hoy, ocho), true);
+  });
+
+  test("las horas de una huérfana son del local: con 3, a las 3 horas y un instante ya lo es", () => {
+    const hoy = epochMs(T0);
+    const tres = orphanAfterMs(3);
+    assert.equal(tres, 3 * 60 * MIN);
+    assert.equal(isOrphan(hoy, epochMs(hoy + 3 * 60 * MIN + 1), hoy, tres), true);
+    assert.equal(isOrphan(hoy, epochMs(hoy + 3 * 60 * MIN + 1), hoy, orphanAfterMs(8)), false);
+    assert.throws(() => orphanAfterMs(0), RangeError);
+    assert.throws(() => orphanAfterMs(2.5), RangeError);
+  });
+
+  test("cuándo pasa a huérfana: el umbral, o el cambio de día si llega antes", () => {
+    const manana = epochMs(T0 + 24 * 60 * MIN);
+    const ocho = orphanAfterMs(8);
+    // Entra a primera hora: la alcanza el umbral.
+    const temprano = epochMs(T0 + 60 * MIN);
+    assert.equal(becomesOrphanAt(temprano, ocho, manana), temprano + ocho + 1);
+    // Entra de noche: la alcanza el cambio de día.
+    const noche = epochMs(T0 + 20 * 60 * MIN);
+    assert.equal(becomesOrphanAt(noche, ocho, manana), manana);
+    // Y en ese instante, `isOrphan` ya dice que sí; un milisegundo antes, que no.
+    const t = becomesOrphanAt(temprano, ocho, manana);
+    assert.equal(isOrphan(temprano, t, epochMs(T0), ocho), true);
+    assert.equal(isOrphan(temprano, epochMs(t - 1), epochMs(T0), ocho), false);
+    assert.equal(isOrphan(noche, manana, manana, ocho), true);
+    assert.equal(isOrphan(noche, epochMs(manana - 1), epochMs(T0), ocho), false);
   });
 });

@@ -45,16 +45,14 @@ import { nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { autorizadoresPara, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { FUENTES_REALES, type Lector, type LecturaDeTasa } from "./fuentes.ts";
 import { diasFeriados } from "./feriados.ts";
+import { zonaDe } from "../sucursal/ajustes.ts";
 
 /**
  * Cuánto puede saltar una tasa respecto de la última confirmada antes de exigir que se teclee
  * otra vez (§5.2): 10 %. Solo para lo que teclea una persona: la que trae el BCV se aplica sin
- * mirar el salto (V-14, ADR-024). Fijo hasta que los ajustes del local sean de la base (B4-4).
+ * mirar el salto (V-14, ADR-024). Fijo: el cliente no lo ha pedido como ajuste del local.
  */
 export const UMBRAL_VARIACION_BPS = 1000;
-
-/** La zona que decide qué día es hoy. Venezuela: UTC−4 todo el año (ADR-009). */
-export const ZONA_DEL_LOCAL = "America/Caracas";
 
 /** Cuántos días por delante se puede capturar: el BCV publica el viernes la del lunes. */
 export const DIAS_POR_ADELANTADO = 7;
@@ -114,18 +112,19 @@ type Fila = ExchangeRate & { confirmation: ExchangeRateConfirmation | null };
 export function casosTasas(base: Base): CasosTasas {
   return {
     async leer(ctx, ahora = Date.now()) {
-      const [filas, feriados] = await base.conTenant(ctx.tenantId, async (tx) => [
+      const [filas, feriados, zona] = await base.conTenant(ctx.tenantId, async (tx) => [
         await tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS }),
         await diasFeriados(tx),
+        await zonaDe(tx, ctx.branchId),
       ] as const);
       // Se revalida al salir: si lo guardado no cumple el contrato, se niega en vez de cobrar
       // con una tasa que el sistema no entiende (fail-closed).
       return HistorialTasasSchema.parse({
         tasas: filas.map(dto),
         umbralVariacionBasisPoints: UMBRAL_VARIACION_BPS,
-        zonaHoraria: ZONA_DEL_LOCAL,
+        zonaHoraria: zona,
         feriados,
-        alertas: alertasDe(filas.map(registro), ahora, feriados),
+        alertas: alertasDe(filas.map(registro), ahora, feriados, zona),
       });
     },
 
@@ -134,9 +133,9 @@ export function casosTasas(base: Base): CasosTasas {
       if (!v.success) {
         return { ok: false, motivo: "INVALIDO", mensaje: "La tasa no se capturó: hay datos que corregir.", problemas: problemasDe(v.error) };
       }
-      const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+      const { feriados, zona } = await base.conTenant(ctx.tenantId, (tx) => calendarioDe(tx, ctx.branchId));
+      const hoy = calendarDay(new Date(ahora).toISOString(), zona);
       const dia = v.data.effectiveDate;
-      const feriados = await base.conTenant(ctx.tenantId, diasFeriados);
       let negada = null as string | null;
       // Hacia atrás solo si todavía rige hoy (el sábado se puede cargar la del viernes; en un
       // feriado, la del día hábil anterior).
@@ -246,7 +245,6 @@ export function casosTasas(base: Base): CasosTasas {
       const noExiste: Rechazo = { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa tasa no existe en este local." };
       if (!UUID.test(v.data.rateId)) return noExiste;
       const instante = new Date(ahora).toISOString();
-      const hoy = calendarDay(instante, ZONA_DEL_LOCAL);
 
       // Lo que se niega por el estado de la tasa se anota fuera de la transacción: la
       // operación no llegó a existir. El PIN fallido de un autorizador, en cambio, lo registra
@@ -260,6 +258,7 @@ export function casosTasas(base: Base): CasosTasas {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa tasa ya estaba confirmada." };
           }
           const dia = diaDe(tasa.effectiveDate);
+          const hoy = calendarDay(instante, await zonaDe(tx, ctx.branchId));
           if (dia < hoy && !coversDay(dia, hoy, await diasFeriados(tx))) {
             negada = "Tasa de un día que ya pasó";
             return { ok: false, motivo: "INVALIDO", mensaje: "Esa tasa era para un día que ya no rige. Captura la de hoy." };
@@ -375,9 +374,9 @@ export function casosTasas(base: Base): CasosTasas {
       }
 
       // Solo interesa lo que rige hoy o lo que regirá en los próximos días.
-      const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+      const { feriados, zona } = await base.conTenant(ctx.tenantId, (tx) => calendarioDe(tx, ctx.branchId));
+      const hoy = calendarDay(new Date(ahora).toISOString(), zona);
       const hasta = addDays(hoy, DIAS_POR_ADELANTADO);
-      const feriados = await base.conTenant(ctx.tenantId, diasFeriados);
       const avisos: string[] = [];
       const porDia = new Map<string, LecturaDeTasa[]>();
       for (const l of buenas) {
@@ -526,16 +525,16 @@ const diaLegible = (dia: string) => DIA_LEGIBLE.format(new Date(`${dia}T12:00:00
  * aplicó sola y todavía importa (crítica) y, a la hora habitual, la del siguiente día hábil que
  * no ha llegado (aviso). La decisión es del dominio; aquí solo se pone en palabras.
  */
-function alertasDe(tasas: readonly RateRecord[], ahora: number, feriados: Holidays): HistorialTasasDto["alertas"] {
+function alertasDe(tasas: readonly RateRecord[], ahora: number, feriados: Holidays, zona: string): HistorialTasasDto["alertas"] {
   const instante = new Date(ahora).toISOString();
-  const hoy = calendarDay(instante, ZONA_DEL_LOCAL);
+  const hoy = calendarDay(instante, zona);
   const alertas: HistorialTasasDto["alertas"] = heldRates(tasas, "USD/VES", hoy, feriados).map((t) => ({
     tipo: "RETENIDA",
     tono: "crit",
     rateId: t.id,
     mensaje: `La tasa del BCV del ${diaLegible(t.effectiveDate)} no se aplicó sola: ${MOTIVO_RETENIDA[t.heldBack!]}. Revísala y confírmala.`,
   }));
-  const falta = missingNextBusinessDayRate(tasas, "USD/VES", instante, ZONA_DEL_LOCAL, HORA_AVISO_SIGUIENTE, feriados);
+  const falta = missingNextBusinessDayRate(tasas, "USD/VES", instante, zona, HORA_AVISO_SIGUIENTE, feriados);
   if (falta) {
     alertas.push({
       tipo: "FALTA_SIGUIENTE",
@@ -550,6 +549,12 @@ function alertasDe(tasas: readonly RateRecord[], ahora: number, feriados: Holida
  * Lo que decide con qué tasa se puede cerrar un cobro (B3-3): el historial reciente del local, en la
  * forma del dominio, y sus feriados bancarios. Lo usa `citedRateValid`.
  */
+/** Lo que decide qué día es hoy y qué tasa lo cubre: los feriados bancarios y la zona de la sucursal. */
+async function calendarioDe(tx: Transaccion, branchId: string): Promise<{ feriados: Holidays; zona: string }> {
+  const feriados = await diasFeriados(tx);
+  return { feriados, zona: await zonaDe(tx, branchId) };
+}
+
 export async function historialParaCobrar(tx: Transaccion): Promise<{ registros: RateRecord[]; feriados: Holidays }> {
   const filas = await tx.exchangeRate.findMany({ include: { confirmation: true }, orderBy: { capturedAt: "desc" }, take: TASAS_LEIDAS });
   const feriados = await diasFeriados(tx);

@@ -37,7 +37,7 @@ import { errorDeBase, type Base, type Product, type ProductPrice, type Transacci
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo, type AccionAuditada, type Asiento } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
-import { ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
+import { zonaDe } from "../sucursal/ajustes.ts";
 
 /** Hasta cuántos días por delante se programa un precio: una lista nueva llega con semanas. */
 export const DIAS_POR_ADELANTADO_PRECIOS = 366;
@@ -66,7 +66,7 @@ const MENSAJE_PRECIO: Record<PriceProblem, string> = {
 };
 
 export function casosProductos(base: Base): CasosProductos {
-  const cargar = async (tx: Transaccion): Promise<CatalogoDto> => {
+  const cargar = async (tx: Transaccion, branchId: string): Promise<CatalogoDto> => {
     const productos = await tx.product.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
     const precios = await tx.productPrice.findMany({ orderBy: { scheduledAt: "asc" } });
     // Se revalida al salir: lo que no cumple el contrato no llega a la caja (fail-closed).
@@ -80,14 +80,14 @@ export function casosProductos(base: Base): CasosProductos {
         activo: p.active,
         precios: tramosDe(precios.filter((x) => x.productId === p.id)),
       })),
-      zonaHoraria: ZONA_DEL_LOCAL,
+      zonaHoraria: await zonaDe(tx, branchId),
       diasPorAdelantado: DIAS_POR_ADELANTADO_PRECIOS,
     });
   };
 
   return {
     async leer(ctx) {
-      return base.conTenant(ctx.tenantId, cargar);
+      return base.conTenant(ctx.tenantId, (tx) => cargar(tx, ctx.branchId));
     },
 
     async aplicar(ctx, entrada, ahora = Date.now()) {
@@ -97,16 +97,17 @@ export function casosProductos(base: Base): CasosProductos {
       }
       const cmd = v.data;
 
-      // El precio se comprueba antes de abrir la transacción: no depende de la base.
+      // El precio se comprueba antes de abrir la transacción: solo depende de la zona del local.
       let desde = ahora;
       if (cmd.kind === "PROGRAMAR_PRECIO") {
-        const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+        const zona = await base.conTenant(ctx.tenantId, (tx) => zonaDe(tx, ctx.branchId));
+        const hoy = calendarDay(new Date(ahora).toISOString(), zona);
         if (cmd.dia < hoy) return invalido("Un precio no se programa hacia atrás: lo ya vendido se queda con el que tenía.", ["dia"], "Día pasado");
         if (cmd.dia > addDays(hoy, DIAS_POR_ADELANTADO_PRECIOS)) {
           return invalido(`Solo se programa con hasta ${DIAS_POR_ADELANTADO_PRECIOS} días de adelanto.`, ["dia"], "Día fuera de rango");
         }
         // Hoy, desde ya: lo vendido esta mañana se queda como se vendió. Otro día, desde su comienzo.
-        desde = cmd.dia === hoy ? ahora : startOfDay(cmd.dia, ZONA_DEL_LOCAL);
+        desde = cmd.dia === hoy ? ahora : startOfDay(cmd.dia, zona);
       }
       if (cmd.kind === "CREAR" || cmd.kind === "PROGRAMAR_PRECIO") {
         const precioMinor = cmd.kind === "CREAR" ? cmd.producto.precioMinor : cmd.precioMinor;
@@ -125,7 +126,7 @@ export function casosProductos(base: Base): CasosProductos {
           const asiento = await guardar(tx, ctx, cmd, quien.nombre, ahora, desde);
           if ("ok" in asiento) return asiento;
           if (asiento.cambio) await auditar(tx, ctx, asiento.cambio);
-          return cargar(tx);
+          return cargar(tx, ctx.branchId);
         });
         if ("ok" in r) {
           if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: accionDe(cmd), reason: r.mensaje });

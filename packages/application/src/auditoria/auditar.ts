@@ -19,6 +19,7 @@ import type { Contexto } from "../contexto.ts";
  */
 export type AccionAuditada =
   | "tarifario.publicar"
+  | "sucursal.ajustar"
   | "tasa.capturar"
   | "tasa.confirmar"
   | "tasa.aplicar"

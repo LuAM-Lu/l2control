@@ -10,7 +10,7 @@
  * `pnpm equipos aprobar "<nombre>"` (la consola del servidor).
  */
 import { existsSync } from "node:fs";
-import { conectar, ZONA_DEL_LOCAL, type Contexto } from "@l2/application";
+import { conectar, type Contexto } from "@l2/application";
 import { calendarDay } from "@l2/domain-rates";
 import { TARIFARIO_DESARROLLO } from "./semilla/tarifario.mts";
 import { ADMIN_DESARROLLO, EQUIPO_DESARROLLO } from "./semilla/equipo.mts";
@@ -58,8 +58,8 @@ try {
   if ((await app.impuestos.leer(ctx)).vigencias.length > 0) {
     console.log("· Ya hay impuestos programados: no se tocan");
   } else {
-    // Rigen desde este instante: «hoy» en el local.
-    const hoy = calendarDay(new Date().toISOString(), ZONA_DEL_LOCAL);
+    // Rigen desde este instante: «hoy» en el local, con la zona de sus ajustes (B4-4).
+    const hoy = calendarDay(new Date().toISOString(), (await app.ajustes.leer(ctx)).ajustes.zonaHoraria);
     for (const i of IMPUESTOS_DE_TRABAJO) {
       const r = await app.impuestos.programar(ctx, { ...i, dia: hoy });
       if (!r.ok) throw new Error(`${i.impuesto} ${i.code ?? ""}: ${r.mensaje}`);

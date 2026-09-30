@@ -94,19 +94,14 @@ import {
   revertirAsientoEn,
   yaAsentado,
 } from "../dinero/pagos.ts";
-import { historialParaCobrar, ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
+import { historialParaCobrar } from "../dinero/tasas.ts";
+import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
-
-/**
- * Lo más que puede quedarse en caja como residuo de un cobro (§5.6): $ 0,05, lo que usaba la caja.
- * Pasa a los ajustes de la sucursal con B4-4.
- */
-export const MAX_RESIDUO: Money = money(5n, "USD");
 
 /** El medio en que se asienta lo que sobra de un cobro (vuelto, propina, residuo): el efectivo en dólares. */
 const MEDIO_DE_LO_QUE_SOBRA = "EFECTIVO_USD";
@@ -195,7 +190,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CuentasDelLocalDto | Rechazo> => {
         if (!(await puedeAlguna(tx, ctx, VEN_CUENTAS))) return rechazoDePermiso("DENEGADO");
         // Las cobradas (y las incobrables) se enseñan el día en que se cerraron; las demás, hasta que se cobran.
-        const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL), ZONA_DEL_LOCAL));
+        const zona = await zonaDe(tx, ctx.branchId);
+        const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), zona), zona));
         const filas = await tx.$queryRaw<{ version: number; content: unknown }[]>`
           SELECT ultima.version, ultima.content FROM (
             SELECT DISTINCT ON (v.account_id) v.version, v.content, v.status, v.saved_at
@@ -339,6 +335,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           // Sin turno abierto en el equipo no se cobra (F4-01).
           const turno = await turnoParaCobrar(tx, ctx);
           if ("ok" in turno) return turno;
+          // La zona que decide qué tasa rige y el residuo que la caja puede quedarse (B4-4).
+          const ajustes = await ajustesDe(tx, ctx.branchId);
 
           // El IVA y el IGTF del instante (B2-2): sin ellos no se cobra con un impuesto supuesto.
           const periodos = taxTimeline((await tx.taxRate.findMany()).map(programadaDeFila));
@@ -369,7 +367,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             const { registros, feriados } = await historialParaCobrar(tx);
             const citada = registros.find((r) => r.id === cmd.rateId);
             // ADR-019 §7: la tasa del cobro vale si rige ahora o regía hace un momento.
-            if (!citada || !citedRateValid(registros, "USD/VES", cmd.rateId, ahora, ZONA_DEL_LOCAL, feriados)) {
+            if (!citada || !citedRateValid(registros, "USD/VES", cmd.rateId, ahora, ajustes.zonaHoraria, feriados)) {
               return {
                 ok: false,
                 motivo: "CONFLICTO",
@@ -433,7 +431,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
                       : { kind: "ROUNDING_RETAINED", amount: sobra },
                 ];
           try {
-            closeSettlement({ due: aCobrar, tenders, dispositions: destino, functional: FUNCIONAL, maxRetained: MAX_RESIDUO });
+            closeSettlement({ due: aCobrar, tenders, dispositions: destino, functional: FUNCIONAL, maxRetained: money(BigInt(ajustes.maxRetenido.minor), FUNCIONAL) });
           } catch (e) {
             if (e instanceof SettlementImbalanceError) {
               return invalido("El cobro no cuadra: falta dinero por recibir.", ["pagos"], "No cuadra");

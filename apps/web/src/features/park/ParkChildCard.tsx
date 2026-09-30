@@ -13,7 +13,6 @@ import {
 } from "@l2/ui";
 import { formatDuration, type SessionStatus } from "@l2/domain-park";
 import { nombreVisible, type SessionCardModel } from "./view-model";
-import { formatClock, DEFAULT_TIME_FORMAT, type TimeFormat } from "./time-format.ts";
 
 /**
  * Nivel 3 — funcionalidad (§9.4). Conoce el dominio del parque y por eso vive
@@ -39,7 +38,7 @@ export function ParkChildCard({
   serverNow,
   selected,
   onSelect,
-  timeFormat = DEFAULT_TIME_FORMAT,
+  hora,
   densidad = "normal",
 }: {
   model: SessionCardModel;
@@ -47,7 +46,8 @@ export function ParkChildCard({
   selected?: boolean;
   onSelect: (id: string) => void;
   /** Configurable por sucursal (F5-08b); 24 h por defecto. */
-  timeFormat?: TimeFormat;
+  /** La hora como la quiere el local (F5-08b): `useHora()` de la sucursal. */
+  hora: (epochMs: number) => string;
   /**
    * Con la sala llena la tarjeta completa no cabe: treinta niños a 1366×768
    * piden una baldosa de una línea (§8.8). Lo esencial —quién, en qué estado
@@ -145,7 +145,7 @@ export function ParkChildCard({
             <span aria-hidden="true">·</span>
             {/* Hora de entrada, discreta: responde «¿desde cuándo está?» sin
                 competir con el cronómetro, que es el dato principal. */}
-            <span className="tnum">entró {formatClock(model.startedAt, timeFormat)}</span>
+            <span className="tnum">entró {hora(model.startedAt)}</span>
           </span>
           {model.hasOverdueCharge ? (
             <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">

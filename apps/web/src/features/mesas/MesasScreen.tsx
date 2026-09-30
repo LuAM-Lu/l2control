@@ -43,6 +43,7 @@ import { usePlano } from "./PlanoProvider.tsx";
 import { useCarta } from "./CartaProvider.tsx";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
+import { useHora } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Estación del mesero: mesas y pedidos — F6-01, F6-02, F6-05, DEC-22.
@@ -60,12 +61,6 @@ import { VincularPulseras } from "./VincularPulseras.tsx";
  * familia paga en caja.
  */
 
-const HORA = new Intl.DateTimeFormat("es-VE", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: "America/Caracas",
-});
 
 const ESTADO_MESA: Readonly<Record<EstadoVisible, { texto: string; tono: Tone; icono: React.ReactNode }>> = {
   LIBRE: { texto: "Libre", tono: "idle", icono: <Sparkles size={14} aria-hidden="true" /> },
@@ -575,6 +570,7 @@ function Atender({
 }
 
 function CabeceraDetalle({ vista, ahora }: { vista: MesaVista; ahora: number }) {
+  const hora = useHora();
   const e = ESTADO_MESA[vista.estado];
   return (
     <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
@@ -584,7 +580,7 @@ function CabeceraDetalle({ vista, ahora }: { vista: MesaVista; ahora: number }) 
           {vista.mesa.zone} · {vista.mesa.seats} sillas
           {vista.ocupacion && ahora > 0 && (
             <>
-              {" "}· abierta a las {HORA.format(Date.parse(vista.ocupacion.abiertaEn))} ·{" "}
+              {" "}· abierta a las {hora(Date.parse(vista.ocupacion.abiertaEn))} ·{" "}
               {vista.ocupacion.comensales} {vista.ocupacion.comensales === 1 ? "persona" : "personas"}
             </>
           )}

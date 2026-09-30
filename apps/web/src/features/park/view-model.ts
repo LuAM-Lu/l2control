@@ -78,19 +78,10 @@ export type MonitorModel = Readonly<{
   shiftLabel: string;
   rateValue: string | null;
   rateSource: string | null;
-  rateCapturedAt: string | null;
   rateConfirmed: boolean;
   cards: readonly SessionCardModel[];
 }>;
 
-/** Hora local en formato corto, para la barra permanente. */
-function horaCorta(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-VE", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
 
 export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
   const now = toEpochMs(snapshot.serverNow);
@@ -139,7 +130,6 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
     // interfaz tiene que poder decirlo, así que el modelo lo transporta.
     rateValue: snapshot.rate?.value ?? null,
     rateSource: snapshot.rate?.source ?? null,
-    rateCapturedAt: snapshot.rate ? horaCorta(snapshot.rate.capturedAt) : null,
     rateConfirmed: snapshot.rate?.confirmed ?? false,
     cards,
   };

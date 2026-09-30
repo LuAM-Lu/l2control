@@ -18,6 +18,7 @@ import {
   Initial,
   avisar,
 } from "@l2/ui";
+import { useReloj } from "../sucursal/SucursalProvider.tsx";
 
 const sinAcentos = (s: string) =>
   s
@@ -47,12 +48,6 @@ function erroresDelMando(cmd: RepresentanteCommand): Record<string, string> {
   return fallos;
 }
 
-const FECHA = new Intl.DateTimeFormat("es-VE", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  timeZone: "America/Caracas",
-});
 
 export function RepresentantesScreen({
   directorio,
@@ -61,6 +56,7 @@ export function RepresentantesScreen({
   directorio: DirectorioRepresentantesDto;
   corregir: (cmd: RepresentanteCommand) => Promise<string | null>;
 }) {
+  const reloj = useReloj();
   const [busqueda, setBusqueda] = useState("");
   const [seleccionId, setSeleccionId] = useState<string | null>(
     directorio.representantes.length > 0
@@ -196,7 +192,7 @@ export function RepresentantesScreen({
                         </span>
                         {r.ultimaVisita && (
                           <span className="tnum text-[10.5px] text-ink-3">
-                            última el {FECHA.format(Date.parse(r.ultimaVisita))}
+                            última el {reloj.diaNumerico(Date.parse(r.ultimaVisita))}
                           </span>
                         )}
                       </span>

@@ -96,7 +96,7 @@ export function TasasScreen({
   };
   const hoy = useDiaDeTasas();
   const { ajustes } = useSucursal();
-  const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora);
+  const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora, ajustes.zonaHoraria);
   const puede = permiso !== "DENEGADO";
 
   const [pair, setPair] = useState<RatePair>("USD/VES");

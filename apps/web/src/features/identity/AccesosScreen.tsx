@@ -29,6 +29,7 @@ import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL } from "./permisos.ts";
 import type { Autor } from "./operador.ts";
 import { ordenarAcceso } from "./identidad.acciones";
 import { useConElevacion } from "./ElevacionProvider";
+import { useReloj } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Roles y accesos de este local — N-05 de la auditoría, sobre §7.3.
@@ -90,14 +91,6 @@ const NIVEL = Object.fromEntries(NIVELES.map((n) => [n.valor, n])) as Record<
 /** La acción que abre el back-office: es la que trae a la administración aquí. */
 const ACCION_PANEL: Action = "reportes.verSucursal";
 
-const FECHA = new Intl.DateTimeFormat("es-VE", {
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: "America/Caracas",
-});
 
 type Pendiente = Readonly<{
   role: Role;
@@ -116,6 +109,7 @@ export function AccesosScreen({
   /** Los ajustes vigentes, del servidor. */
   inicial: BranchAccessDto;
 }) {
+  const reloj = useReloj();
   const [ajustes, setAjustes] = useState<readonly RoleAdjustmentDto[]>(inicial.adjustments);
   const [guardando, setGuardando] = useState(false);
   const conElevacion = useConElevacion();
@@ -318,7 +312,7 @@ export function AccesosScreen({
                 </p>
                 <p className="mt-1 text-ink-2">«{a.reason}»</p>
                 <p className="tnum mt-0.5 text-[11.5px] text-ink-3">
-                  {a.byName} · {FECHA.format(Date.parse(a.at))}
+                  {a.byName} · {reloj.diaYHora(Date.parse(a.at))}
                 </p>
               </li>
             ))}

@@ -13,7 +13,6 @@ import { addDays, calendarDay, rateOfDay, type RateRecord } from "@l2/domain-rat
 import type { ExchangeRateDto } from "@l2/contracts";
 import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 import type { Contexto } from "../contexto.ts";
-import { ZONA_DEL_LOCAL } from "./tasas.ts";
 import type { Lector } from "./fuentes.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
@@ -28,7 +27,8 @@ let ctxAdmin: Contexto, ctxSupervisor: Contexto, ctxCajera: Contexto;
  */
 let reloj = Date.parse("2026-09-23T14:00:00.000Z");
 const ahora = () => (reloj += 1000);
-const hoy = () => calendarDay(new Date(reloj).toISOString(), ZONA_DEL_LOCAL);
+/** El local de las pruebas no publica ajustes: rige la zona de fábrica, Venezuela. */
+const hoy = () => calendarDay(new Date(reloj).toISOString(), "America/Caracas");
 const capturar = (ctx: Contexto, entrada: unknown, instante = ahora()) => local.app.tasas.capturar(ctx, entrada, instante);
 const confirmar = (ctx: Contexto, entrada: unknown, aut?: unknown, instante = ahora()) =>
   local.app.tasas.confirmar(ctx, entrada, aut, instante);

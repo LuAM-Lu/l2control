@@ -24,7 +24,7 @@ import { errorDeBase, type Base, type TaxRate } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
-import { ZONA_DEL_LOCAL } from "./tasas.ts";
+import { zonaDe } from "../sucursal/ajustes.ts";
 
 /** Hasta cuántos días por delante se programa: una gaceta llega con semanas, no con años. */
 export const DIAS_POR_ADELANTADO_IMPUESTOS = 366;
@@ -45,12 +45,15 @@ export interface CasosImpuestos {
 export function casosImpuestos(base: Base): CasosImpuestos {
   return {
     async leer(ctx) {
-      const filas = await base.conTenant(ctx.tenantId, (tx) => tx.taxRate.findMany({ orderBy: { scheduledAt: "asc" } }));
+      const [filas, zona] = await base.conTenant(ctx.tenantId, async (tx) => [
+        await tx.taxRate.findMany({ orderBy: { scheduledAt: "asc" } }),
+        await zonaDe(tx, ctx.branchId),
+      ] as const);
       // Se revalida al salir: si lo guardado no cumple el contrato, se niega en vez de cobrar con
       // un impuesto que el sistema no entiende (fail-closed).
       return ImpuestosSchema.parse({
         vigencias: vigenciasDe(filas),
-        zonaHoraria: ZONA_DEL_LOCAL,
+        zonaHoraria: zona,
         diasPorAdelantado: DIAS_POR_ADELANTADO_IMPUESTOS,
       });
     },
@@ -60,7 +63,9 @@ export function casosImpuestos(base: Base): CasosImpuestos {
       if (!v.success) {
         return { ok: false, motivo: "INVALIDO", mensaje: "El impuesto no se programó: hay datos que corregir.", problemas: problemasDe(v.error) };
       }
-      const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+      // El día lo decide la zona del local (B4-4).
+      const zona = await base.conTenant(ctx.tenantId, (tx) => zonaDe(tx, ctx.branchId));
+      const hoy = calendarDay(new Date(ahora).toISOString(), zona);
       const { impuesto, code, basisPoints, dia } = v.data;
       if (dia < hoy || dia > addDays(hoy, DIAS_POR_ADELANTADO_IMPUESTOS)) {
         return {
@@ -74,7 +79,7 @@ export function casosImpuestos(base: Base): CasosImpuestos {
         };
       }
       // Hoy, desde ya: lo cobrado esta mañana se queda como se cobró. Otro día, desde su comienzo.
-      const desde = dia === hoy ? ahora : startOfDay(dia, ZONA_DEL_LOCAL);
+      const desde = dia === hoy ? ahora : startOfDay(dia, zona);
       const problema = scheduleProblem({ kind: impuesto, code, basisPoints, effectiveFrom: desde }, ahora);
       if (problema) {
         return { ok: false, motivo: "INVALIDO", mensaje: "El impuesto no se programó: hay datos que corregir.", problemas: [{ path: ["dia"], message: problema }] };

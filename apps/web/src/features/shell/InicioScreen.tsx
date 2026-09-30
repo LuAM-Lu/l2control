@@ -82,7 +82,7 @@ export function InicioScreen({
   const diaMinuscula = diaSemana.toLowerCase();
   const { ajustes } = useSucursal();
   const primero = turnos[0] ?? null;
-  const turnoDesde = primero ? formatClock(Date.parse(primero.abiertoEn), ajustes.formatoHora) : null;
+  const turnoDesde = primero ? formatClock(Date.parse(primero.abiertoEn), ajustes.formatoHora, ajustes.zonaHoraria) : null;
 
   const variacion = (hoy: number, antes: number | null) =>
     antes === null || antes === 0 ? null : Math.round(((hoy - antes) / antes) * 100);

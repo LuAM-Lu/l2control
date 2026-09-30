@@ -32,6 +32,7 @@ import { cambiarPersona, registrarExcepcion } from "./identidad.acciones";
 import { useConElevacion } from "./ElevacionProvider";
 import { DialogoCambio, type Cambio } from "./DialogoCambio.tsx";
 import { SheetExcepcion } from "./SheetExcepcion.tsx";
+import { useReloj } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Usuarios y permisos — F2-11, DEC-15, §9.10.6.
@@ -73,14 +74,6 @@ const ESTADO: Record<Permission, { texto: string; clase: string; Icono: typeof B
 
 // La zona se fija: el servidor y el navegador deben escribir la misma hora,
 // o la hidratación encuentra dos textos distintos.
-const FECHA = new Intl.DateTimeFormat("es-VE", {
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: "America/Caracas",
-});
 
 const ROLES: readonly Role[] = ["ADMIN", "SUPERVISOR", "CAJERO", "MESERO", "MONITOR_PARQUE", "COCINA"];
 
@@ -351,6 +344,7 @@ function Detalle({
   onCambio: (c: Cambio) => void;
   onExcepcion: () => void;
 }) {
+  const reloj = useReloj();
   const actor = useMemo(() => toActor(usuario), [usuario]);
   const [verTodos, setVerTodos] = useState(false);
 
@@ -478,7 +472,7 @@ function Detalle({
                 </p>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">«{e.reason}»</p>
                 <p className="tnum mt-1 text-[11.5px] text-ink-3">
-                  {e.grantedByName} · {FECHA.format(Date.parse(e.at))}
+                  {e.grantedByName} · {reloj.diaYHora(Date.parse(e.at))}
                 </p>
               </li>
             ))}
@@ -539,7 +533,7 @@ function Detalle({
                 <span className="font-semibold text-ink">{TITULO_CAMBIO(c)}</span>
                 <span className="text-ink-2">«{c.reason}»</span>
                 <span className="tnum ml-auto text-[11.5px] whitespace-nowrap text-ink-3">
-                  {c.byName} · {FECHA.format(Date.parse(c.at))}
+                  {c.byName} · {reloj.diaYHora(Date.parse(c.at))}
                 </span>
               </li>
             ))}

@@ -11,7 +11,7 @@ import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autoriza
 import { leerPendientesDelCierre } from "./cortes.acciones";
 import { marcarIncobrable } from "../cuentas/cuentas.acciones";
 import { nombreDeEstancia } from "../park/view-model.ts";
-import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 
@@ -29,6 +29,7 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
   const [cargando, setCargando] = useState(true);
   const [incobrable, setIncobrable] = useState<PendientesDelCierreDto["cuentas"][number] | null>(null);
   const { ajustes } = useSucursal();
+  const reloj = useReloj();
   const vivo = useRef(true);
 
   const leer = useCallback(async () => {
@@ -58,7 +59,7 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
   useAlCambiar(["cuentas", "sala", "turno"], () => void leer());
 
   const total = p ? p.cuentas.length + p.ninos.length + p.huerfanas.length + p.turnos.length : 0;
-  const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora);
+  const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora, ajustes.zonaHoraria);
 
   return (
     <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto p-4 md:px-6">
@@ -140,7 +141,7 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
                   <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
                     <span className="min-w-0 flex-1 truncate">
                       <span className="font-semibold text-ink">{nombreDeEstancia(s)}</span>
-                      <span className="text-ink-3"> · {s.guardianName} · abierta desde {new Date(s.startedAt).toLocaleDateString("es-VE")}</span>
+                      <span className="text-ink-3"> · {s.guardianName} · abierta desde {reloj.diaNumerico(Date.parse(s.startedAt))}</span>
                     </span>
                     <Link
                       href={"/monitor" as Route}

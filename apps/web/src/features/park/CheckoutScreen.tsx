@@ -29,13 +29,12 @@ import { sum, toMajor } from "@l2/domain-money";
 import { pendiente, previsualizarSalida } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
-import { formatClock } from "./time-format.ts";
 import { useSala } from "./SalaProvider.tsx";
 import { nombreDeEstancia } from "./view-model";
 import { registrarSalida } from "./parque.acciones";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { puedeAbrirRuta } from "../identity/visibilidad.ts";
-import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { useHora } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * Salida y liquidación del parque — F5-14.
@@ -62,8 +61,7 @@ export function CheckoutScreen({
    *  que un escaneo, porque llega por la URL. */
   pulseraInicial?: string | null;
 }) {
-  const { ajustes } = useSucursal();
-  const timeFormat = ajustes.formatoHora;
+  const hora = useHora();
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   /** Cerrar una salida es una acción terminada: se anuncia y la pantalla queda lista para la siguiente. */
@@ -351,8 +349,8 @@ export function CheckoutScreen({
                           <span className="tnum font-mono">{l.wristbandCode}</span>
                           <span aria-hidden="true">·</span>
                           <span className="tnum">
-                            {formatClock(Date.parse(l.startedAt), timeFormat)} →{" "}
-                            {formatClock(Date.parse(l.endedAt), timeFormat)}
+                            {hora(Date.parse(l.startedAt))} →{" "}
+                            {hora(Date.parse(l.endedAt))}
                           </span>
                           <span aria-hidden="true">·</span>
                           <span className="tnum">{l.consumedMinutes} min en sala</span>

@@ -186,7 +186,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const verPanel = actor !== null && puedeVerInicio(actor);
   const sinTasa = tasaVigente === null;
   const sinTurno = contexto.turno === null;
-  const turnoDesde = contexto.turno ? formatClock(Date.parse(contexto.turno.abiertoEn), sucursal.formatoHora) : null;
+  const turnoDesde = contexto.turno ? formatClock(Date.parse(contexto.turno.abiertoEn), sucursal.formatoHora, sucursal.zonaHoraria) : null;
   // El canal en vivo (B5-1). «Conectando» al abrir la página no es una alerta; perderlo, sí.
   const offline = canal.estado === "sin-conexion";
   const alerta = sinTasa || sinTurno || offline;
@@ -316,7 +316,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
               icono={<TrendingUp size={14} />}
               texto={`Bs. ${formatTasaVE(tasaVigente.value)}`}
               ocultarTextoHasta="sm"
-              titulo={`Tasa ${tasaVigente.source} Bs. ${formatTasaVE(tasaVigente.value)}, capturada a las ${formatClock(Date.parse(tasaVigente.capturedAt), sucursal.formatoHora)}`}
+              titulo={`Tasa ${tasaVigente.source} Bs. ${formatTasaVE(tasaVigente.value)}, capturada a las ${formatClock(Date.parse(tasaVigente.capturedAt), sucursal.formatoHora, sucursal.zonaHoraria)}`}
             />
           )}
 

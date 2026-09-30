@@ -271,7 +271,8 @@ export const MonitorSnapshotSchema = z.object({
   /** Los niños en sala, con su cuenta y sus condiciones (B4-2). */
   sessions: z.array(EstanciaSchema),
   /**
-   * Estancias huérfanas (F5-13, H-19): siguen abiertas desde un día anterior o llevan más de 8 horas.
+   * Estancias huérfanas (F5-13, H-19): siguen abiertas desde un día anterior o llevan dentro más de las
+   * horas que dicen los ajustes de la sucursal (8 de fábrica, B4-4).
    * No cuentan en el aforo ni se les cobra tiempo de más: esperan la revisión de la dirección.
    */
   huerfanas: z.array(EstanciaSchema),

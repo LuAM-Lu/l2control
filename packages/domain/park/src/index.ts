@@ -331,17 +331,32 @@ export function withRecharges(duration: Duration, rechargeMinutes: readonly numb
   return fixed(rechargeMinutes.reduce((total, m) => total + minutes(m), duration.minutes as number));
 }
 
-/** Pasadas estas horas dentro, una estancia es huérfana aunque sea del día (decisión del cliente, 2026-09-28). */
-export const ORPHAN_AFTER_MS = 8 * 60 * MS_PER_MINUTE;
+/**
+ * Cuántos milisegundos dentro hacen huérfana a una estancia del día. Las horas son un ajuste del
+ * local (B4-4; el cliente decidió 8 el 2026-09-28), no una constante del dominio.
+ */
+export function orphanAfterMs(hours: number): number {
+  if (!Number.isInteger(hours) || hours <= 0) throw new RangeError(`Horas de una huérfana no válidas: ${hours}`);
+  return hours * 60 * MS_PER_MINUTE;
+}
 
 /**
  * ¿Es huérfana (F5-13, H-19)? Una estancia que sigue abierta desde un día anterior (`startOfToday`,
- * el inicio del día del local) o que lleva más de `ORPHAN_AFTER_MS` dentro: casi seguro el niño se
- * fue sin que se registrara la salida. Pasa a revisión de la dirección y deja de contar en el aforo;
- * nunca se le cobra tiempo de más por estar olvidada.
+ * el inicio del día del local) o que lleva más de `afterMs` dentro: casi seguro el niño se fue sin
+ * que se registrara la salida. Pasa a revisión de la dirección y deja de contar en el aforo; nunca
+ * se le cobra tiempo de más por estar olvidada.
  */
-export function isOrphan(startedAt: EpochMs, now: EpochMs, startOfToday: EpochMs): boolean {
-  return startedAt < startOfToday || now - startedAt > ORPHAN_AFTER_MS;
+export function isOrphan(startedAt: EpochMs, now: EpochMs, startOfToday: EpochMs, afterMs: number): boolean {
+  return startedAt < startOfToday || now - startedAt > afterMs;
+}
+
+/**
+ * El primer instante en que esa estancia ya es huérfana: pasado el umbral o al empezar el día
+ * siguiente al de su entrada (`startOfNextDay`), lo que llegue antes. Nada lo avisa desde el
+ * servidor (solo pasa el tiempo), así que la sala vuelve a leer justo entonces, sin sondear.
+ */
+export function becomesOrphanAt(startedAt: EpochMs, afterMs: number, startOfNextDay: EpochMs): EpochMs {
+  return epochMs(Math.min(startedAt + afterMs + 1, startOfNextDay));
 }
 
 /* ------------------------------------------------------------------ formato */

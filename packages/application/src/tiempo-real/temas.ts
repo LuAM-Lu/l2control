@@ -17,6 +17,9 @@ const PARQUE: readonly Tema[] = ["sala", "cuentas"];
 
 export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> = {
   "tarifario.publicar": ["tarifario"],
+  // El formato de hora, la zona y los umbrales los lee toda pantalla (B4-4). La zona decide además
+  // qué tasa y qué precio rigen hoy.
+  "sucursal.ajustar": ["sucursal", "tasas", "impuestos", "catalogo", "sala"],
 
   "tasa.capturar": ["tasas"],
   "tasa.confirmar": ["tasas"],

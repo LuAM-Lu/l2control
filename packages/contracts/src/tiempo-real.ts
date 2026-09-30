@@ -38,6 +38,8 @@ export const TemaSchema = z.enum([
   "personal",
   /** Quién está en sesión y en qué puesto (F9-08, D7). */
   "sesiones",
+  /** Los ajustes de la sucursal: formato de hora, zona, umbrales (B4-4). */
+  "sucursal",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 

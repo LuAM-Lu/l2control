@@ -14,7 +14,7 @@
  * ⚠ §7.6: las referencias de pago y el documento del cliente llegan ya
  * enmascarados. Un recibo viaja por WhatsApp y se reenvía.
  */
-import { TelefonoVeSchema, type MoneyDto, type ReciboDto, type VentaCerradaDto } from "@l2/contracts";
+import { TelefonoVeSchema, type AjustesSucursalDto, type MoneyDto, type ReciboDto, type VentaCerradaDto } from "@l2/contracts";
 import { convert, invertRate, money, multiply, toMajor, type CurrencyCode, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { formatMoneyVE } from "@l2/ui";
@@ -37,12 +37,16 @@ const DESTINO: Record<NonNullable<VentaCerradaDto["sobra"]>["destino"], string> 
 /** «#0042»: como se dice y se busca un número de orden. */
 export const ordenDe = (n: number) => `#${String(n).padStart(4, "0")}`;
 
+/** «27/09/2026»: el día de un instante en la zona del local. */
+const diaNumerico = (instante: number, zona: string) =>
+  new Intl.DateTimeFormat("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: zona }).format(instante);
+
 /**
- * El recibo de una venta, con los textos del local. Las unidades iguales van en una fila con su
- * cantidad, como en el ticket de la caja; lo regalado, en la suya y marcado.
+ * El recibo de una venta, con los datos y el formato del local (B4-4). Las unidades iguales van en
+ * una fila con su cantidad, como en el ticket de la caja; lo regalado, en la suya y marcado.
  */
-export function reciboDeVenta(v: VentaCerradaDto): Recibo {
-  const cuando = new Date(v.closedAt);
+export function reciboDeVenta(v: VentaCerradaDto, local: AjustesSucursalDto): Recibo {
+  const cuando = Date.parse(v.closedAt);
   const filas = new Map<string, { cantidad: number; concepto: string; precio: Money; cortesia: string | null }>();
   for (const l of v.lineas) {
     const clave = `${l.concept}|${l.amount.minor}|${l.cortesia ?? ""}`;
@@ -55,9 +59,10 @@ export function reciboDeVenta(v: VentaCerradaDto): Recibo {
   const aBolivares = v.tasa ? invertRate(frozenRateOf({ pair: "USD/VES", value: v.tasa.value })) : null;
   const igtf = aDinero(v.igtf.amount);
   return {
+    local: { nombre: local.nombre, rif: local.rif, direccion: local.direccionFiscal },
     orden: ordenDe(v.orderNumber),
     cuenta: v.cuenta.kind === "MOSTRADOR" ? "Venta de mostrador" : v.cuenta.family,
-    cuando: `${cuando.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" })} · ${formatClock(cuando.getTime())}`,
+    cuando: `${diaNumerico(cuando, local.zonaHoraria)} · ${formatClock(cuando, local.formatoHora, local.zonaHoraria)}`,
     facturaA: v.cliente.kind === "CONSUMIDOR_FINAL" ? "Consumidor final" : `${v.cliente.name} · ${v.cliente.document}`,
     parte: v.parte ? `Parte ${v.parte.n} de ${v.parte.de}` : null,
     lineas: [...filas.values()].map((f) => ({
@@ -86,7 +91,8 @@ export function reciboDeVenta(v: VentaCerradaDto): Recibo {
 /** El recibo como texto de WhatsApp: corto, con negritas de WhatsApp y sin datos sensibles. */
 export function textoRecibo(r: Recibo, copia = false): string {
   const renglones = [
-    `*Abby Kingdom* · Recibo no fiscal${copia ? " · COPIA" : ""}`,
+    `*${r.local.nombre}* · Recibo no fiscal${copia ? " · COPIA" : ""}`,
+    ...(r.local.rif ? [`RIF ${r.local.rif}`] : []),
     `Orden ${r.orden} · ${r.cuando}`,
     ...(r.parte ? [`*${r.parte}*`] : []),
     `Factura a: ${r.facturaA}`,

@@ -688,3 +688,87 @@ describe("al abrir el turno se comprueba lo necesario (JORNADA §3, A3)", () => 
     assert.deepEqual((await m.l.app.cortes.comprobarApertura(m.ctxAdmin, AHORA)).faltan, []);
   });
 });
+
+describe("los umbrales de la caja son del local (B4-4)", () => {
+  /** Publica en el local de `u` los ajustes vigentes con `cambio` encima. */
+  const ajustar = async (u: Montado, cambio: Record<string, unknown>) => {
+    const v = await u.l.app.ajustes.leer(u.l.sistema);
+    valor(await u.l.app.ajustes.publicar(u.l.sistema, { versionBase: v.version, ajustes: { ...v.ajustes, ...cambio } }));
+  };
+
+  test("el arqueo firma con el umbral del local, y el conteo guarda con cuál se decidió", async () => {
+    const u = await montar("Cortes con umbral");
+    try {
+      await ajustar(u, { umbralArqueo: usd("25") });
+      const { ctx, turno } = await caja(u, "Caja umbral");
+      await vender(u, ctx);
+      // Sobran $ 0,50: con $ 1,00 lo firmaría la cajera; con $ 0,25, supervisión.
+      const a = await arquear(u, ctx, turno.id, 2181n, 150000n);
+      assert.deepEqual(a.diferenciaEnDolares, usd("50"));
+      assert.deepEqual(a.umbral, usd("25"));
+      assert.equal(a.firma, "SUPERVISION");
+
+      // Subir el umbral después no cambia lo que ya se contó.
+      await ajustar(u, { umbralArqueo: usd("100") });
+      const fila = await u.l.base.conTenant(u.l.sistema.tenantId, (tx) => tx.shiftCount.findUniqueOrThrow({ where: { id: a.id } }));
+      assert.equal(fila.thresholdUsdMinor, 25n);
+      assert.equal(fila.signer, "SUPERVISION");
+      const otraVez = await arquear(u, ctx, turno.id, 2181n, 150000n);
+      assert.deepEqual(otraVez.umbral, usd("100"));
+      assert.equal(otraVez.firma, "CAJERA");
+    } finally {
+      await u.l.cerrar();
+    }
+  });
+
+  test("lo que la caja puede quedarse de residuo es lo del local", async () => {
+    const u = await montar("Cortes con residuo");
+    try {
+      const { ctx } = await caja(u, "Caja residuo");
+      // Un agua ($ 1,16) pagada con Bs. 1.050,00 (≈ $ 1,23): sobran unos $ 0,07.
+      const cobrar = async () => {
+        const c = valor(
+          await u.l.app.cuentas.guardar(
+            ctx,
+            {
+              cuenta: {
+                id: randomUUID(),
+                kind: "MOSTRADOR",
+                family: "Mostrador",
+                mode: "PREPAGO",
+                status: "POR_COBRAR",
+                openedAt: new Date(AHORA).toISOString(),
+                sessionIds: [],
+                closedSessionIds: [],
+                lines: [{ id: randomUUID(), concept: "Agua mineral", kind: "RESTAURANTE", amount: usd("100"), paid: false, productId: u.agua, taxCode: "GENERAL" }],
+              },
+            },
+            AHORA,
+          ),
+        );
+        return u.l.app.cuentas.cobrar(
+          ctx,
+          {
+            idempotencyKey: randomUUID(),
+            accountId: c.id,
+            version: c.version,
+            lineIds: c.lines.map((x) => x.id),
+            destinoSobra: "RESIDUO",
+            total: usd("116"),
+            pagos: [{ method: "EFECTIVO_VES", amount: ves("105000") }],
+            rateId: u.tasa,
+          },
+          AHORA,
+        );
+      };
+      // De fábrica, $ 0,05: no cabe.
+      const conCinco = await cobrar();
+      assert.equal(!conCinco.ok && conCinco.problemas?.[0]?.path[0], "destinoSobra", JSON.stringify(conCinco));
+      // El local lo sube a $ 0,10: cabe.
+      await ajustar(u, { maxRetenido: usd("10") });
+      valor(await cobrar());
+    } finally {
+      await u.l.cerrar();
+    }
+  });
+});

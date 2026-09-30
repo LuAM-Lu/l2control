@@ -1,38 +1,37 @@
 /**
  * Formato de hora — F5-08b.
  *
- * En Venezuela conviven las dos costumbres: «14:32» y «2:32 p. m.». Cuál usa
- * el negocio no es una decisión de programación, así que **es configuración**
- * (§9.9), no una constante repartida por los componentes.
- *
- * Hoy vive aquí con un valor por defecto. Cuando exista el módulo de ajustes,
- * el valor pasa a venir de la configuración de la sucursal y **este archivo no
- * cambia**: solo deja de exportar el valor por defecto y lo recibe.
+ * En Venezuela conviven las dos costumbres: «14:32» y «2:32 p. m.». Cuál usa el negocio no es una
+ * decisión de programación, así que **es configuración** (§9.9): el formato y la zona salen de los
+ * ajustes de la sucursal (B4-4), y quien pinta una hora los pasa. Desde un componente, `useHora()`
+ * de la sucursal ya los pone. No hay valor por defecto: una pantalla que lo olvidara pintaría la
+ * hora del navegador, que puede estar en otra zona.
  */
 export type TimeFormat = "24h" | "12h";
 
-/**
- * Valor por defecto para Venezuela (§9.9): reloj de 12 horas con indicador am/pm.
- * (ej. "2:00 pm", "10:30 am").
- */
-export const DEFAULT_TIME_FORMAT: TimeFormat = "12h";
+/** Un formateador por zona: construirlos cuesta y la zona casi nunca cambia. */
+const RELOJES = new Map<string, Intl.DateTimeFormat>();
+
+function relojDe(timeZone: string): Intl.DateTimeFormat {
+  let f = RELOJES.get(timeZone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hourCycle: "h23", timeZone });
+    RELOJES.set(timeZone, f);
+  }
+  return f;
+}
 
 /**
- * Hora corta de un instante. Formatea EN EL BORDE, igual que el dinero: el
- * dominio trabaja con instantes, la pantalla con texto.
+ * Hora corta de un instante en la zona del local: «2:00 pm» o «14:00». Formatea EN EL BORDE, igual
+ * que el dinero: el dominio trabaja con instantes, la pantalla con texto.
  */
-export function formatClock(epochMs: number, format: TimeFormat = DEFAULT_TIME_FORMAT): string {
-  const d = new Date(epochMs);
-  if (format === "24h") {
-    const h = d.getHours().toString().padStart(2, "0");
-    const m = d.getMinutes().toString().padStart(2, "0");
-    return `${h}:${m}`;
-  }
-  const h = d.getHours();
-  const m = d.getMinutes().toString().padStart(2, "0");
-  const ampm = h >= 12 ? "pm" : "am";
+export function formatClock(epochMs: number, format: TimeFormat, timeZone: string): string {
+  const partes = relojDe(timeZone).formatToParts(epochMs);
+  const h = Number(partes.find((p) => p.type === "hour")?.value ?? "0") % 24;
+  const m = partes.find((p) => p.type === "minute")?.value ?? "00";
+  if (format === "24h") return `${String(h).padStart(2, "0")}:${m}`;
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${m} ${ampm}`;
+  return `${h12}:${m} ${h >= 12 ? "pm" : "am"}`;
 }
 
 /** Convierte una hora en formato "14:00" o "15:42" al formato de 12h venezolano ("2:00 pm", "3:42 pm"). */

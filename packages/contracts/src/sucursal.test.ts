@@ -9,7 +9,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { AjustesSucursalSchema, HorarioDelDiaSchema, ServicioSchema } from "./index.ts";
+import { AjustesSucursalSchema, HorarioDelDiaSchema, PublicarAjustesCommandSchema, ServicioSchema } from "./index.ts";
 
 const DIAS = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"] as const;
 
@@ -20,16 +20,21 @@ const horarioCompleto = DIAS.map((dia) =>
 );
 
 const base = {
-  branchId: "b1",
   nombre: "Abby Kingdom",
   rif: "J-40123456-7",
   direccionFiscal: "Av. Principal, Local 3, Barquisimeto",
+  telefono: null,
   monedaFuncional: "USD" as const,
   formatoHora: "12h" as const,
+  zonaHoraria: "America/Caracas",
   horario: horarioCompleto,
   maxRetenido: { minor: "50", currency: "USD" as const },
+  umbralArqueo: { minor: "100", currency: "USD" as const },
+  horasHuerfana: 8,
   servicio: { kind: "SIN_SERVICIO" as const },
 };
+
+const pasa = (cambio: Record<string, unknown>) => AjustesSucursalSchema.safeParse({ ...base, ...cambio }).success;
 
 describe("horario del día", () => {
   test("cerrado no lleva horas: no es «abre a las 00:00»", () => {
@@ -72,7 +77,7 @@ describe("ajustes de la sucursal", () => {
   test("un local completo pasa", () => {
     const a = AjustesSucursalSchema.parse(base);
     assert.equal(a.formatoHora, "12h");
-    assert.equal(a.horario.length, 7);
+    assert.equal(a.horario?.length, 7);
   });
 
   test("el RIF tiene forma de RIF", () => {
@@ -100,5 +105,50 @@ describe("ajustes de la sucursal", () => {
         .success,
       false,
     );
+  });
+
+  test("RIF, dirección, teléfono y horario pueden faltar: no se inventan (F0-04)", () => {
+    assert.ok(pasa({ rif: null, direccionFiscal: null, telefono: null, horario: null }));
+    // Faltar es `null`, no la clave ausente: lo guardado se lee igual que se escribió.
+    const { rif: _r, ...sinRif } = base;
+    assert.equal(AjustesSucursalSchema.safeParse(sinRif).success, false);
+  });
+
+  test("la sucursal no la declara el navegador", () => {
+    const a = AjustesSucursalSchema.parse({ ...base, branchId: "otra" });
+    assert.equal("branchId" in a, false);
+  });
+
+  test("la zona horaria tiene que existir", () => {
+    assert.ok(pasa({ zonaHoraria: "America/Bogota" }));
+    assert.equal(pasa({ zonaHoraria: "America/Maracaibo" }), false);
+    assert.equal(pasa({ zonaHoraria: "UTC-4" }), false);
+  });
+
+  test("el residuo no pasa de $ 1,00", () => {
+    assert.ok(pasa({ maxRetenido: { minor: "100", currency: "USD" } }));
+    assert.equal(pasa({ maxRetenido: { minor: "101", currency: "USD" } }), false);
+  });
+
+  test("el umbral del arqueo va de $ 0,00 a $ 20,00, en dólares", () => {
+    assert.ok(pasa({ umbralArqueo: { minor: "0", currency: "USD" } }));
+    assert.ok(pasa({ umbralArqueo: { minor: "2000", currency: "USD" } }));
+    assert.equal(pasa({ umbralArqueo: { minor: "2001", currency: "USD" } }), false);
+    assert.equal(pasa({ umbralArqueo: { minor: "-1", currency: "USD" } }), false);
+    assert.equal(pasa({ umbralArqueo: { minor: "100", currency: "VES" } }), false);
+  });
+
+  test("las horas de una huérfana son enteras, de 2 a 16", () => {
+    assert.ok(pasa({ horasHuerfana: 2 }));
+    assert.ok(pasa({ horasHuerfana: 16 }));
+    assert.equal(pasa({ horasHuerfana: 1 }), false);
+    assert.equal(pasa({ horasHuerfana: 17 }), false);
+    assert.equal(pasa({ horasHuerfana: 8.5 }), false);
+  });
+
+  test("publicar dice sobre qué versión se editó", () => {
+    assert.ok(PublicarAjustesCommandSchema.safeParse({ versionBase: 0, ajustes: base }).success);
+    assert.equal(PublicarAjustesCommandSchema.safeParse({ ajustes: base }).success, false);
+    assert.equal(PublicarAjustesCommandSchema.safeParse({ versionBase: -1, ajustes: base }).success, false);
   });
 });

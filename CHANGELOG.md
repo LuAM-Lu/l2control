@@ -12,6 +12,29 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.31.0] — 2026-09-30 · Etapa 4 · Parque
+
+B4-4 · Los ajustes de la sucursal, en el servidor.
+
+### Añadido
+- **Ajustes → Sucursal guarda en el servidor**: el nombre del local, su RIF, dirección y teléfono, el
+  horario, el formato de hora, la zona horaria, el residuo que la caja puede quedarse, el **umbral del
+  arqueo** ($ 1,00) y las **horas tras las que una estancia pasa a revisar** (8). Se publican enteros,
+  administración confirma su identidad y todas las pantallas cambian a la vez en menos de 2 s.
+- Si otra persona publica mientras se edita, la pantalla lo avisa y el servidor no deja pisarla.
+- El recibo lleva el nombre del local y, si ya se declararon, su RIF y su dirección.
+
+### Cambiado
+- **Toda hora y fecha sale con el formato y la zona del local**, no con los del navegador: el reloj del
+  acceso y los historiales de Usuarios, Accesos y Mesas estaban fijos en 24 h, y la caja, las ventas del
+  turno, el recibo y la sala usaban la zona del aparato.
+- La caja, el corte Z y la sala usan los umbrales del local en vez de valores escritos en el código. Un
+  arqueo guarda con qué umbral se decidió quién firma: cambiarlo después no altera lo ya contado.
+- La zona horaria no se cambia con un turno abierto ni con niños en sala (decide el día de negocio).
+- La sala vuelve a leer sola, justo en el momento en que una estancia pasa a revisar, sin sondear.
+- Sin ajustes publicados rigen los de fábrica (los de antes); el RIF, la dirección y el horario quedan
+  «sin declarar» en vez de un RIF inventado.
+
 ## [0.30.1] — 2026-09-29 · Etapa 4 · Parque
 
 ### Cambiado

@@ -51,9 +51,9 @@ export function TurnosDelDia({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold text-ink">{t.punto}</span>
                   <span className="tnum block text-[12px] text-ink-3">
-                    {t.abiertoPor.name} · {formatClock(Date.parse(t.abiertoEn), ajustes.formatoHora)}
+                    {t.abiertoPor.name} · {formatClock(Date.parse(t.abiertoEn), ajustes.formatoHora, ajustes.zonaHoraria)}
                     {t.businessDate !== hoy ? ` del ${t.businessDate.split("-").reverse().join("/")}` : ""}
-                    {t.cerradoEn ? ` a ${formatClock(Date.parse(t.cerradoEn), ajustes.formatoHora)}` : ""}
+                    {t.cerradoEn ? ` a ${formatClock(Date.parse(t.cerradoEn), ajustes.formatoHora, ajustes.zonaHoraria)}` : ""}
                   </span>
                 </span>
                 {cerrado ? (

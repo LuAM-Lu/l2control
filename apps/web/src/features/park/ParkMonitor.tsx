@@ -10,7 +10,6 @@ import { toMajor } from "@l2/domain-money";
 import { can } from "@l2/domain-identity";
 import { pendiente } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
-import { formatClock, DEFAULT_TIME_FORMAT } from "./time-format.ts";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
 import { nombreVisible, toMonitorModel } from "./view-model";
@@ -19,7 +18,7 @@ import { nombrarEstancia } from "./parque.acciones";
 import { RecargarTiempo } from "./RecargarTiempo.tsx";
 import { EstanciasARevisar } from "./EstanciasARevisar.tsx";
 import { useTarifario } from "./TarifarioProvider";
-import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { useHora } from "../sucursal/SucursalProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { PonerNombre } from "./PonerNombre.tsx";
@@ -34,7 +33,7 @@ import { VincularAMesa } from "./VincularAMesa.tsx";
  * La sala es del servidor (B4-2): cada niño, su familia y su cuenta llegan de la base con la hora del
  * servidor, y los ve igual cualquier equipo.
  */
-const SALA_VACIA = { serverNow: 0, capacityLimit: 1, shiftLabel: "", rateValue: null, rateSource: null, rateCapturedAt: null, rateConfirmed: false, cards: [] };
+const SALA_VACIA = { serverNow: 0, capacityLimit: 1, shiftLabel: "", rateValue: null, rateSource: null, rateConfirmed: false, cards: [] };
 
 export function ParkMonitor() {
   const op = useOperacion();
@@ -96,7 +95,7 @@ export function ParkMonitor() {
 
   const { cuentas, adoptar: adoptarCuenta } = useCuentas();
   const compacta = ordered.length > 10;
-  const { ajustes } = useSucursal();
+  const hora = useHora();
   const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
   const cuentaFicha = ficha ? (cuentas.find((c) => c.id === ficha.accountId) ?? null) : null;
   const familiaRegistrada = ficha?.guardianName ?? null;
@@ -194,7 +193,7 @@ export function ParkMonitor() {
                   serverNow={model.serverNow}
                   selected={selected === card.id}
                   densidad={compacta ? "compacta" : "normal"}
-                  timeFormat={ajustes.formatoHora}
+                  hora={hora}
                   onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
                 />
               ))}
@@ -217,7 +216,7 @@ export function ParkMonitor() {
         titulo={ficha ? nombreVisible(ficha) : ""}
         {...(ficha
           ? {
-              descripcion: `${ficha.childNickname && ficha.childName ? `${ficha.childName} · ` : ""}${ficha.wristbandCode} · entró ${formatClock(ficha.startedAt, DEFAULT_TIME_FORMAT)}`,
+              descripcion: `${ficha.childNickname && ficha.childName ? `${ficha.childName} · ` : ""}${ficha.wristbandCode} · entró ${hora(ficha.startedAt)}`,
             }
           : {})}
         pie={
@@ -355,7 +354,7 @@ export function ParkMonitor() {
         onCerrar={() => setRevisando(false)}
         huerfanas={huerfanas}
         puedeCerrar={puedeCerrarHuerfanas}
-        formatoHora={ajustes.formatoHora}
+        hora={hora}
         onCerrada={() => void refrescar()}
       />
 

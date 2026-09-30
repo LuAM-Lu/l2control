@@ -16,7 +16,7 @@ import { errorDeBase, type Base, type CashShift, type Transaccion } from "@l2/da
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn } from "../identidad/actor.ts";
-import { ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
+import { zonaDe } from "../sucursal/ajustes.ts";
 
 export interface CasosTurnos {
   /** Abre el turno del equipo de la sesión con su fondo por moneda. */
@@ -74,13 +74,15 @@ export function casosTurnos(base: Base): CasosTurnos {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Este equipo ya tiene un turno abierto." };
           }
           const quien = await nombreDe(tx, ctx);
+          // El día de negocio lo fija la zona de la sucursal (ADR-009, B4-4).
+          const dia = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
           const turno = await tx.cashShift.create({
             data: {
               tenantId: ctx.tenantId,
               branchId: ctx.branchId,
               deviceId: equipo.id,
               pointLabel: equipo.label,
-              businessDate: new Date(`${calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL)}T00:00:00.000Z`),
+              businessDate: new Date(`${dia}T00:00:00.000Z`),
               status: "ABIERTO",
               openedAt: new Date(ahora),
               openedBy: ctx.quien.userId,
@@ -97,7 +99,7 @@ export function casosTurnos(base: Base): CasosTurnos {
             entityId: turno.id,
             after: {
               punto: turno.pointLabel,
-              businessDate: calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL),
+              businessDate: dia,
               fondos: floats.map((f) => ({ currency: f.currency, amountMinor: String(f.amountMinor) })),
             },
           });

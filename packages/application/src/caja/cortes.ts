@@ -37,7 +37,6 @@ import {
   type ResumenDelDiaDto,
 } from "@l2/contracts";
 import {
-  COUNT_THRESHOLD,
   countDenominations,
   countDifferenceInUsd,
   isPendingAtClose,
@@ -63,13 +62,17 @@ import { nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { confirmarPinPropio, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { programadaDeFila } from "../dinero/impuestos.ts";
 import { catalogoDe, conflictoDeClave } from "../dinero/pagos.ts";
-import { historialParaCobrar, ZONA_DEL_LOCAL } from "../dinero/tasas.ts";
+import { historialParaCobrar } from "../dinero/tasas.ts";
+import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { estanciasActivas } from "../park/parque.ts";
 import { pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
 import { turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
 import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
 
 const FUNCIONAL: CurrencyCode = "USD";
+
+/** El umbral del arqueo antes de que fuera un ajuste de la sucursal (B4-4): $ 1,00 (M-13). */
+const UMBRAL_ANTES_DE_LOS_AJUSTES = 100n;
 
 export interface CasosCortes {
   /** Cómo va el turno (el del equipo, u otro para quien ve la sucursal), sin la gaveta: el arqueo es a ciegas. */
@@ -284,6 +287,7 @@ function arqueoDto(c: {
   differences: unknown;
   differenceUsdMinor: bigint | null;
   signer: string;
+  thresholdUsdMinor: bigint | null;
 }): ArqueoDto {
   return ArqueoSchema.parse({
     id: c.id,
@@ -294,7 +298,8 @@ function arqueoDto(c: {
     esperado: c.expected,
     diferencias: c.differences,
     diferenciaEnDolares: c.differenceUsdMinor === null ? null : { minor: String(c.differenceUsdMinor), currency: FUNCIONAL },
-    umbral: dinero(COUNT_THRESHOLD),
+    // El umbral con que se decidió; los conteos de antes de B4-4 se decidieron con $ 1,00 (M-13).
+    umbral: { minor: String(c.thresholdUsdMinor ?? UMBRAL_ANTES_DE_LOS_AJUSTES), currency: FUNCIONAL },
     firma: c.signer,
   });
 }
@@ -421,7 +426,9 @@ export function casosCortes(base: Base): CasosCortes {
         const lineas = reconcile(contado.map((m) => ({ currency: m.currency, counted: m, expected: aDinero(gaveta.find((g) => g.currency === m.currency)!.esperado) })));
         const tasa = await tasaDelTurno(tx, o.turno, ahora);
         const diferencia = countDifferenceInUsd(lineas, tasa?.aDolares ?? null);
-        const firma: ZSigner = zSigner(diferencia);
+        // El umbral del arqueo es del local (B4-4) y queda escrito en el conteo con su firma.
+        const umbral = money(BigInt((await ajustesDe(tx, ctx.branchId)).umbralArqueo.minor), FUNCIONAL);
+        const firma: ZSigner = zSigner(diferencia, umbral);
         const quien = await nombreDe(tx, ctx);
         const fila = await tx.shiftCount.create({
           data: {
@@ -439,6 +446,7 @@ export function casosCortes(base: Base): CasosCortes {
             rateId: tasa?.id ?? null,
             rateValue: tasa?.value ?? null,
             signer: firma,
+            thresholdUsdMinor: umbral.amount,
           },
         });
         await auditar(tx, ctx, {
@@ -619,7 +627,7 @@ export function casosCortes(base: Base): CasosCortes {
     async comprobarApertura(ctx, ahora = Date.now()) {
       return base.conTenant(ctx.tenantId, async (tx) => {
         const faltan: ComprobacionAperturaDto["faltan"] = [];
-        const hoy = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+        const hoy = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
         const { registros, feriados } = await historialParaCobrar(tx);
         if (!rateOfDay(registros, "USD/VES", hoy, new Date(ahora).toISOString(), feriados)) {
           faltan.push({ que: "TASA", mensaje: "No hay tasa del BCV vigente para hoy.", bloquea: "Cobrar en bolívares", enlace: "/panel/ajustes/tasas" });
@@ -647,7 +655,7 @@ export function casosCortes(base: Base): CasosCortes {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<ResumenDelDiaDto | Rechazo> => {
         const p = await permisoEn(tx, ctx, "reportes.verSucursal");
         if (p === "DENEGADO") return rechazoDePermiso(p);
-        const dia = calendarDay(new Date(ahora).toISOString(), ZONA_DEL_LOCAL);
+        const dia = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
         const turnos = await tx.cashShift.findMany({
           where: { branchId: ctx.branchId, businessDate: new Date(`${dia}T00:00:00.000Z`) },
           include: { floats: true, cuts: { where: { kind: "Z" }, include: { count: true } } },

@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-09-29**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-09-30**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -31,7 +31,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.30.1 · 30 de 55 pasos.** **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
+**Versión 0.31.0 · 31 de 55 pasos.** **Los ajustes de la sucursal son del servidor (B4-4):** nombre, RIF,
+dirección, horario, formato de hora, zona horaria, residuo, umbral del arqueo y horas de una huérfana se
+publican como versión en Ajustes → Sucursal y llegan a todas las pantallas en vivo; la caja, el corte Z y la
+sala los leen de ahí, y toda hora y fecha sale con el formato y la zona del local. **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
 demás en menos de 2 s, sin sondeos. Toda escritura audita, y el asiento deja su evento en un outbox en la
 misma transacción; nace `apps/worker`, que lo publica por Socket.io con adaptador Valkey a la sala de cada
 sucursal (autorización con ticket en el apretón de manos), y cada pantalla vuelve a leer lo suyo con sus
@@ -41,7 +44,7 @@ consulta vive en el worker (V-14, ADR-024). **El parque funciona contra el servi
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
-huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-4 (ajustes) para cerrar el Parque. **La caja cierra en el servidor (B3-5): lo previsto de la Etapa 3, hecho** (la visita técnica le suma B3-6 y B3-7). Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-5 (el teléfono y las pulseras) para cerrar el Parque. **La caja cierra en el servidor (B3-5): lo previsto de la Etapa 3, hecho** (la visita técnica le suma B3-6 y B3-7). Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -63,8 +66,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (76 de base, 286 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  44 de impuestos, 104 de caja, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (77 de base, 301 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  45 de impuestos, 105 de caja, 34 del parque, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -173,8 +176,13 @@ quedaron **incobrables** («Otro: datos de prueba», autorizadas por Abigail Kar
 revocados. La migración del outbox se aplicó a la base del cliente (solo añade una tabla y un disparador).
 El turno de «PC admin» abierto el 28/09 a las 7:27 pm es del cliente: no se tocó.
 
-**Siguiente paso:** **B4-4** (ajustes del local en la base: zona horaria, umbrales de huérfanas y arqueo) y
-**B4-5** (la monitora en el teléfono y las pulseras de un solo uso).
+**Los ajustes en la base local (2026-09-30, al comprobar B4-4).** Las dos migraciones de B4-4 se aplicaron a la base
+del cliente (una tabla nueva y una columna que admite nulos en el arqueo). Abigail Karam, desde el equipo «Prueba B44
+Admin», publicó la versión 1 (formato de 24 h) y la 2 (de vuelta a 12 h): rigen los valores de fábrica, con el RIF, la
+dirección y el horario sin declarar. Cambiar la zona a Bogotá se negó por el turno abierto de «PC admin», que no se
+tocó. Equipos «Prueba B44 Admin» y «Prueba B44 Inicio» revocados.
+
+**Siguiente paso:** **B4-5** (la monitora en el teléfono y las pulseras de un solo uso), que cierra el Parque.
 
 ---
 
@@ -260,7 +268,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
    **B3-3** → B3-4 → B3-5 (se cierra Caja).
-3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → **B4-4** → B4-5 (la monitora en el
+3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → **B4-5** (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
 4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
@@ -932,8 +940,39 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   huérfana de ayer cerrada con motivo, salida con «otra persona» (el botón no se habilita sin
   marcarlo) y dos familias en la misma salida ($ 25,00 con la recarga). Entrada, sala y salida a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
-- [ ] **B4-4 · Ajustes de la sucursal** persistidos: formato de hora, umbral de residuo, servicio y
+- [x] **B4-4 · Ajustes de la sucursal** persistidos: formato de hora, umbral de residuo, servicio y
   umbral de diferencia del arqueo ($ 1,00 o su equivalente, M-13) (F5-08b).
+  *Hecho el 2026-09-30 (v0.31.0). Con lo que pedía el handoff: nombre, RIF, dirección, teléfono, horario, zona
+  horaria y horas de una huérfana, hasta ahora en el código o en el navegador.*
+  *· Base: `20261012000000_ajustes_de_la_sucursal`: `branch_settings_version` (versiones de solo-agregar como el
+  tarifario, contenido revalidado con el contrato al leer, autor completo o ninguno, RLS). Y
+  `…010000_umbral_del_arqueo_en_el_conteo`: el conteo guarda con qué umbral se decidió quién firma, y un CHECK
+  impide asentar otra firma (los anteriores, en nulo, se decidieron con $ 1,00). 1 prueba nueva.*
+  *· Contrato: `AjustesSucursalSchema` sin la sucursal (la pone el servidor), RIF, dirección, teléfono y horario
+  que pueden faltar («sin declarar», F0-04: no se inventan), zona IANA que el motor conoce, residuo hasta $ 1,00,
+  umbral del arqueo de $ 0,00 a $ 20,00 y huérfana de 2 a 16 horas; `AjustesPublicadosSchema` y
+  `PublicarAjustesCommandSchema` con `versionBase`. El recibo lleva `local`. Tema `sucursal`.*
+  *· Dominio: `orphanAfterMs`, `isOrphan` con las horas como argumento y `becomesOrphanAt` (el instante en que
+  pasa a huérfana, por umbral o por cambio de día); `zSigner` sin umbral por defecto. Fuera `ORPHAN_AFTER_MS`,
+  `COUNT_THRESHOLD`, `MAX_RESIDUO` y `ZONA_DEL_LOCAL`.*
+  *· Aplicación `sucursal/ajustes.ts`: `leer` (sin persona: el acceso enseña la hora) y `publicar`
+  (`catalogo.modificar` con elevación, CONFLICTO si otra versión llegó antes, la zona no cambia con un turno
+  abierto ni niños en sala, auditado `sucursal.ajustar` con lo de antes y lo de después). Sin versión, los
+  valores de fábrica con el nombre del local. `ajustesDe`/`zonaDe` dentro de la transacción de quien los usa:
+  cobro (residuo y tasa del día), arqueo (umbral), turno (día de negocio), sala, entrada, salida, recarga y
+  cierre de huérfanas, tasas, impuestos, catálogo e Inicio. 15 pruebas nuevas (13 de ajustes y 2 de umbrales en
+  la caja: el arqueo firma con el del local y lo guarda; el residuo del cobro es el del local).*
+  *· Web: `ajustes.servidor.ts` y `ajustes.acciones.ts`; `SucursalProvider` adopta la versión del layout (el tema
+  `sucursal` lo repinta en vivo) y publica con elevación; `useReloj`/`useHora` pintan toda hora y fecha con el
+  formato y la zona del local (`formatClock` ya no tiene valor por defecto ni usa la zona del navegador). La sala
+  programa una relectura para el instante en que la primera estancia pasa a huérfana. Editor nuevo en tres
+  tarjetas (el local, horario, cómo opera). Se borra `src/demo/sucursal.ts` y su `sessionStorage`.*
+  *· Comprobado con Playwright: la pantalla a 1366×768, 1280×800 y 800×1280 sin desplazar el documento (en
+  escritorio tampoco el contenido, con el horario declarado); un residuo de $ 1,50 se marca en su campo; cambiar
+  la zona pide la identidad y se niega por el turno abierto del cliente; publicar 24 h llega al Inicio de otro
+  equipo a los 868 ms del clic y se vuelve a 12 h; catorce pantallas y el acceso abren sin errores de consola. El
+  recibo con el nombre y el RIF no se vio en el navegador (no se cobró nada en la base del cliente); lo cubre el
+  tipado. El paso a huérfana en vivo lo cubren las pruebas (esperar horas no cabe en un guion).*
 - [ ] **B4-5 · La monitora en el teléfono y las pulseras de un solo uso** (M-15, V-1 y V-2).
   → Entrada, sala y salida en el teléfono del local (360×800 y 390×844, objetivos de 48 px, sin desplazar
   el documento), instalable como aplicación (PWA; la cámara pide HTTPS, que da el staging). La pulsera se
@@ -964,7 +1003,7 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   *· Base: migración `20261011000000_outbox`: `outbox_event` con RLS, que llena un disparador de
   `audit_log` por cada asiento HECHO en la misma transacción, con `pg_notify('l2_outbox')`; la aplicación
   solo marca lo publicado (una vez) y no borra. `escuchar()` en `@l2/database` (LISTEN).*
-  *· Contratos: `TemaSchema` (12 temas), `CambioSchema`, `TicketTiempoRealSchema`,
+  *· Contratos: `TemaSchema` (12 temas; 13 con `sucursal`, B4-4), `CambioSchema`, `TicketTiempoRealSchema`,
   `EventoDelNavegadorSchema` (solo `mesa.*` y `pedido.*`) y `SesionEnCursoSchema`; fuera `sesion.*` del bus.*
   *· Aplicación: `temasDe` con una tabla exhaustiva sobre `AccionAuditada` (una acción nueva no compila
   sin decidir qué invalida); `tiempoReal.ticket/abrir` (HMAC con clave HKDF de `L2_CLAVE_CIFRADO`, 60 s,
@@ -1173,7 +1212,6 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
-| La zona horaria es `America/Caracas` en el código | B4-4 |
 | Con el IGTF al 0 % (V-13, programado el 2026-09-29) la caja y el recibo enseñan su línea en cero | B3-6 |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
@@ -1185,28 +1223,27 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El teléfono no lee pulseras con la cámara (solo lectores en modo teclado), y un código ya usado puede volver a entrar | B4-5 |
 | «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
 | Un niño sin nombre sale en la tarjeta de la sala con su pulsera dos veces (título y subtítulo) | Al pasar por la sala |
-| El umbral de las huérfanas (8 horas) está en el dominio, no en los ajustes del local | B4-4 |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
 | El descuento (`cuenta.descuento`, 🔐 en la matriz) no existe en la caja: ni pantalla ni tarea del PLAN | Cuando el cliente lo pida (va al servidor con `exigirPermisoOAutorizacion`) |
 | Devolver en efectivo lo que entró por otro medio (Pago Móvil, punto) saca de la gaveta un efectivo que el libro no apunta: el arqueo lo verá como faltante | Un asiento de salida de caja en el libro, cuando el cliente lo necesite |
 | El ticket de corte no se imprime (el Z queda sellado y se ve en pantalla) | B5-2 |
-| El umbral del arqueo ($ 1,00) está en el dominio, no en los ajustes del local | B4-4 |
 | El resumen del día no separa lo vendido del parque y del restaurante (JORNADA §5) | Cuando el cliente lo pida |
 | Los pendientes del cierre no traen mesas ni comandas del restaurante (una mesa abierta sale como cuenta) | Etapa 6 |
 | La venta guarda el documento del cliente enmascarado: una factura fiscal necesitará el completo | F3 (fuera por M-3) |
-| Lo que cambia solo con el reloj no produce evento: una estancia que pasa a huérfana a las 8 horas se ve con el siguiente cambio de la sala o al navegar (el estado de cada niño y la tasa del día sí se calculan en la pantalla) | B4-4 |
 | `outbox_event` crece con cada asiento; purgar lo publicado de más de unos días (con el migrador) no está escrito | Runbook (B8-2) |
 | En `pnpm dev`, turbo para todo si una tarea se cae: sin Valkey el worker no arranca y la web tampoco queda | Aceptado (en producción son dos procesos) |
 | El bus del restaurante declara nombres de quien autoriza o ve una anulación (`pedido.*`), como antes | B6-2 |
+| El horario de la sucursal se declara pero todavía no decide nada (p. ej., avisar de un turno abierto fuera de hora) | Cuando el cliente lo pida |
+| Las migas del panel dicen «Abby Kingdom» escrito en cada pantalla (Sucursal ya lee el nombre del local) | Al pasar por cada pantalla |
+| El campo de hora del horario lo pinta el navegador en su idioma («10:00 a. m.») aunque el local use 24 h | Aceptado |
 
 **Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
 aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 
 | Qué | Dónde | Se va con |
 |---|---|---|
-| Ajustes del local guardados en el navegador | `src/demo/sucursal.ts`, `SucursalProvider` | B4-4 |
 | Plano y carta del restaurante guardados en el navegador | `src/demo/restaurante.ts`, `PlanoProvider`, `CartaProvider` | B6-1 |
 | Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
 
@@ -1260,7 +1297,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Descuentos (B3-6), carga desde papel (B3-7) y ticket de corte impreso (B5-2) |
-| F5 · Parque | **En el servidor** (B4-1 a B4-3): estancias, directorio, cronómetro, recarga, salida con D9 y huérfanas | Ajustes (B4-4), el teléfono y las pulseras (B4-5) y eventos (Etapa 10) |
+| F5 · Parque | **En el servidor** (B4-1 a B4-4): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas y los ajustes de la sucursal | El teléfono y las pulseras (B4-5) y eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Catálogo de productos en el servidor** (B9-1) | Existencias, entradas con costo, salidas y alertas (B9-2 a B9-5); recetas después del piloto (B6-4) |
@@ -1362,6 +1399,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   umbral de salto (ADR-024). Sigue B4-4.
 - **2026-09-29** · Con el cliente: IGTF al 0 % en su base (V-13) y fuera el IVA reducido de las pantallas y
   del catálogo (v0.30.1), porque el local no lo usa. Handoff.
+- **2026-09-30** · B4-4 hecho (v0.31.0): los ajustes de la sucursal son del servidor y llegan en vivo; la zona,
+  el residuo, el umbral del arqueo y las horas de una huérfana dejan de estar en el código, y toda hora sale con
+  el formato y la zona del local. Sigue B4-5.
 
 ---
 

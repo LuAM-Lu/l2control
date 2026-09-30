@@ -61,6 +61,7 @@ model Branch {
   sales        Sale[]
   parkSessions ParkSession[]
   outbox       OutboxEvent[]
+  settings     BranchSettingsVersion[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -88,6 +89,28 @@ model ParkTariffVersion {
 
   @@unique([tenantId, branchId, version])
   @@map("park_tariff_version")
+}
+
+/// Los ajustes de una sucursal (B4-4): formato de hora, zona, horario, residuo, umbral del arqueo,
+/// horas de una huérfana y servicio. Publicar añade una versión; nunca reescribe la anterior (regla
+/// 5). La vigente es la más alta; sin ninguna, el servidor usa los valores de fábrica.
+model BranchSettingsVersion {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  branchId        String   @map("branch_id") @db.Uuid
+  version         Int
+  /// `AjustesSucursalDto` de @l2/contracts. Se valida al escribir y otra vez al leer: una fila que
+  /// ya no cumple el contrato se niega en vez de operar con ella (fail-closed).
+  content         Json
+  publishedAt     DateTime @default(now()) @map("published_at") @db.Timestamptz(3)
+  publishedBy     String?  @map("published_by") @db.Uuid
+  /// El nombre de quien publicó, copiado: la pantalla lo enseña sin leer el personal.
+  publishedByName String?  @map("published_by_name")
+
+  branch Branch @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, branchId, version])
+  @@map("branch_settings_version")
 }
 
 /// El registro de auditoría (§7.4, F2-07). Solo se añaden filas: ni el dueño de la tabla puede
@@ -834,6 +857,9 @@ model ShiftCount {
   rateValue          String?  @map("rate_value")
   /// CAJERA o SUPERVISION (CHECK).
   signer             String
+  /// El umbral del arqueo con que se decidió quién firma (B4-4). NULL en los conteos anteriores a
+  /// B4-4, que se decidieron con $ 1,00.
+  thresholdUsdMinor  BigInt?  @map("threshold_usd_minor")
 
   shift CashShift  @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   cuts  ShiftCut[]

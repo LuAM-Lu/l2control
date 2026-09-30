@@ -19,6 +19,7 @@ escribe en la base dentro de la transacción del tenant. **Es la única puerta d
 |---|---|---|
 | Parque | `tarifario.leer`, `tarifario.publicar` (versión nueva; dos a la vez → `CONFLICTO`) | B0-5 |
 | Sucursal | `sucursal.asegurar` (semillas; idempotente) | B0-5 |
+| Ajustes de la sucursal | `ajustes.leer` (sin persona; sin versión, los de fábrica) y `ajustes.publicar` (versión nueva sobre `versionBase`, la zona no cambia con la caja o el parque en marcha). Los demás casos de uso leen zona y umbrales con `ajustesDe`/`zonaDe` dentro de su transacción | B4-4 |
 | Dinero | `tasas.leer`, `capturar`, `confirmar`, `sincronizar` (la del BCV se aplica sola con salvaguardas) | B2-1, B2-1b, B2-1c |
 | Dinero | `impuestos.leer`, `impuestos.programar` (desde un día; hoy, desde ya; nunca hacia atrás) | B2-2 |
 | Dinero | `pagos.asentar` (todo o nada, idempotente), `pagos.revertir` (asiento de signo contrario, 🔐), `pagos.libro` (saldo calculado) | B2-3 |

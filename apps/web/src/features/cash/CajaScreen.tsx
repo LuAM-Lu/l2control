@@ -124,8 +124,7 @@ import {
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useSala } from "../park/SalaProvider.tsx";
-import { formatClock } from "../park/time-format.ts";
-import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useTasaVigente } from "./TasasProvider.tsx";
 import { formatTasaVE } from "./tasa-format.ts";
 
@@ -231,6 +230,7 @@ function CobroCuenta({
 
   const mediosDisponibles = useMediosActivos();
   const { config: mediosConfig } = useMedios();
+  const hora = useHora();
   // Sin configuración (nadie en sesión o el servidor no la leyó), nada: la caja no llega a cobrar.
   const terminales = mediosConfig?.terminales ?? SIN_TERMINALES;
   const pagoMovilLocal = mediosConfig?.pagoMovil;
@@ -815,7 +815,7 @@ function CobroCuenta({
                 : cuenta.mode === "PREPAGO"
                   ? "Prepago"
                   : "Cuenta abierta"}{" "}
-              · {formatClock(Date.parse(cuenta.openedAt))}
+              · {hora(Date.parse(cuenta.openedAt))}
             </span>
           </h2>
           {onAgregarProducto && (
@@ -1834,7 +1834,7 @@ export function CajaScreen({
   const { cortesia: cortesiaEnServidor } = useCuentas();
   // Un cobro anulado ya no es «el último cobro»: su recibo no vale.
   const ultimaVenta = ventas.find((v) => !v.voided) ?? null;
-  const ultimoRecibo = useMemo(() => (ultimaVenta ? reciboDeVenta(ultimaVenta) : null), [ultimaVenta]);
+  const ultimoRecibo = useMemo(() => (ultimaVenta ? reciboDeVenta(ultimaVenta, ajustes) : null), [ultimaVenta, ajustes]);
   const [viendoRecibo, setViendoRecibo] = useState(false);
   const [viendoAtajos, setViendoAtajos] = useState(false);
 

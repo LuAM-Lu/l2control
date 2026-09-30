@@ -14,7 +14,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { AnularCobroDialog, type PedidoDeAnulacion } from "./AnularCobroDialog.tsx";
 import { textoDinero, textoMotivo } from "./anulacion.ts";
 import { reciboDeVenta, ordenDe } from "./recibo.ts";
-import { formatClock } from "../park/time-format.ts";
+import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useAtajos } from "./atajos.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 import { ReciboDialog, ReciboImpreso } from "./ReciboDialog.tsx";
@@ -56,6 +56,8 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
 }
 
 export function VentasDelTurno({ className }: { className?: string }) {
+  const hora = useHora();
+  const { ajustes } = useSucursal();
   const { ventas, imprimir: imprimirEnServidor, adoptar } = useVentas();
   const { anular: anularEnServidor } = useCuentas();
   /** La clave de la anulación en curso de cada venta: un reintento (un PIN mal tecleado) no anula dos veces. */
@@ -264,7 +266,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                             {ordenDe(v.orderNumber)}
                           </button>
                         </td>
-                        <td className="tnum text-ink-2">{formatClock(Date.parse(v.closedAt))}</td>
+                        <td className="tnum text-ink-2">{hora(Date.parse(v.closedAt))}</td>
                         <td className="max-w-0 truncate pr-2 text-ink">{v.cuenta.kind === "MOSTRADOR" ? "Venta de mostrador" : v.cuenta.family}</td>
                         <td className="hidden max-w-0 truncate pr-2 text-ink-3 md:table-cell">{mediosDe(v).join(" · ")}</td>
                         <td className={cn("tnum text-right font-semibold", v.voided ? "text-ink-3 line-through" : "text-ink")}>
@@ -300,14 +302,14 @@ export function VentasDelTurno({ className }: { className?: string }) {
           {actual ? (
             <>
               <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                <ReciboImpreso recibo={reciboDeVenta(actual)} copia={actual.prints.length > 0} anulada={Boolean(actual.voided)} className="max-w-none" />
+                <ReciboImpreso recibo={reciboDeVenta(actual, ajustes)} copia={actual.prints.length > 0} anulada={Boolean(actual.voided)} className="max-w-none" />
               </div>
               {/* La anulación, entera: por qué, quién y cómo volvió el dinero. */}
               {actual.voided && (
                 <div className="border-t border-line px-4 py-2 text-[12px] text-ink-2">
                   <p className="flex items-center gap-1.5 font-semibold text-ink">
                     <Ban size={13} aria-hidden="true" />
-                    Anulada a las {formatClock(Date.parse(actual.voided.at))} · {textoMotivo(actual.voided.reason)}
+                    Anulada a las {hora(Date.parse(actual.voided.at))} · {textoMotivo(actual.voided.reason)}
                   </p>
                   <p className="text-ink-3">
                     Autorizó {actual.voided.authorizedBy.name} ({actual.voided.authorizedBy.role === "ADMIN" ? "administración" : "supervisión"})
@@ -335,12 +337,12 @@ export function VentasDelTurno({ className }: { className?: string }) {
                   <details>
                     <summary className="cursor-pointer py-1">
                       Impreso {actual.prints.length} {actual.prints.length === 1 ? "vez" : "veces"} · la última a las{" "}
-                      {formatClock(Date.parse(actual.prints.at(-1)!.at))}
+                      {hora(Date.parse(actual.prints.at(-1)!.at))}
                     </summary>
                     <ol className="flex flex-col gap-0.5 pb-1">
                       {actual.prints.map((p, i) => (
                         <li key={i} className="tnum">
-                          {i === 0 ? "Original" : `Copia ${i}`} · {formatClock(Date.parse(p.at))} · {p.by}
+                          {i === 0 ? "Original" : `Copia ${i}`} · {hora(Date.parse(p.at))} · {p.by}
                         </li>
                       ))}
                     </ol>
@@ -386,7 +388,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
       />
 
       <ReciboDialog
-        recibo={enviando && actual ? reciboDeVenta(actual) : null}
+        recibo={enviando && actual ? reciboDeVenta(actual, ajustes) : null}
         copia={actual ? actual.prints.length > 0 : false}
         onImprimir={() => {
           if (actual) void imprimirEnServidor(actual.id);

@@ -1046,3 +1046,27 @@ test("una recarga es un tramo más de una estancia activa de tiempo fijo, y no s
   const deB = await estancia(B, (await cuenta(B)).id, (await representante(B, "04161230011")).id);
   await assert.rejects(recarga(deB.id), por("REFERENCIA_INVALIDA"));
 });
+
+test("los ajustes de la sucursal son versiones de solo-agregar, con autor completo (B4-4)", async () => {
+  const ajuste = (t: typeof A, version: number, extra: Record<string, unknown> = {}) =>
+    app.conTenant(t.tenant, (tx) =>
+      tx.branchSettingsVersion.create({
+        data: { tenantId: t.tenant, branchId: t.sucursal, version, content: { formatoHora: "12h" }, publishedBy: randomUUID(), publishedByName: "Abigail Karam", ...extra } as never,
+      }),
+    );
+  const v1 = await ajuste(A, 1);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.branchSettingsVersion.update({ where: { id: v1.id }, data: { content: { formatoHora: "24h" } } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.branchSettingsVersion.delete({ where: { id: v1.id } })), SOLO_AGREGAR);
+  await assert.rejects(ajuste(A, 1), por("DUPLICADO"));
+  for (const extra of [{ content: ["12h"] }, { content: "12h" }, { publishedByName: null }, { publishedBy: null }]) {
+    await assert.rejects(ajuste(A, 2, extra), por("RESTRICCION"), JSON.stringify(extra));
+  }
+  await assert.rejects(ajuste(A, 0), por("RESTRICCION"));
+  // Una operación del sistema no tiene persona: ni id ni nombre.
+  await ajuste(A, 2, { publishedBy: null, publishedByName: null });
+  // La sucursal de otro tenant no se cita.
+  await assert.rejects(
+    app.conTenant(A.tenant, (tx) => tx.branchSettingsVersion.create({ data: { tenantId: A.tenant, branchId: B.sucursal, version: 1, content: {} } })),
+    por("REFERENCIA_INVALIDA"),
+  );
+});
