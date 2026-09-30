@@ -15,6 +15,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Initial, Sheet, cn } from "@l2/ui";
+import { can } from "@l2/domain-identity";
 import { useEffect, useState } from "react";
 import {
   cerrarSesion,
@@ -186,10 +187,13 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   const verPanel = actor !== null && puedeVerInicio(actor);
   const sinTasa = tasaVigente === null;
   const sinTurno = contexto.turno === null;
+  // El turno es de la caja: solo lo avisa a quien lo abre. A la monitora un «Turno sin abrir» que
+  // nunca se va le enseñaría a ignorar los avisos (JORNADA §4).
+  const abreTurno = actor !== null && can(actor, "turno.abrir") !== "DENEGADO";
   const turnoDesde = contexto.turno ? formatClock(Date.parse(contexto.turno.abiertoEn), sucursal.formatoHora, sucursal.zonaHoraria) : null;
   // El canal en vivo (B5-1). «Conectando» al abrir la página no es una alerta; perderlo, sí.
   const offline = canal.estado === "sin-conexion";
-  const alerta = sinTasa || sinTurno || offline;
+  const alerta = sinTasa || (abreTurno && sinTurno) || offline;
 
   return (
     <header
@@ -287,7 +291,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
         {/* ── contexto: píldoras de la misma altura ─────────────────────── */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-          {sinTurno ? (
+          {!abreTurno && sinTurno ? null : sinTurno ? (
             <Pildora
               tono="crit"
               icono={<TriangleAlert size={14} />}

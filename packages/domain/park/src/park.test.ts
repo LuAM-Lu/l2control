@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { fromMajor, toMajor } from "@l2/domain-money";
 import {
   orphanAfterMs,
+  wristbandSeriesProblem,
   becomesOrphanAt,
   isOrphan,
   withRecharges,
@@ -336,5 +337,22 @@ describe("recarga y huérfanas (B4-3)", () => {
     assert.equal(isOrphan(temprano, epochMs(t - 1), epochMs(T0), ocho), false);
     assert.equal(isOrphan(noche, manana, manana, ocho), true);
     assert.equal(isOrphan(noche, epochMs(manana - 1), epochMs(T0), ocho), false);
+  });
+});
+
+describe("la serie de pulseras (V-1)", () => {
+  test("sin fijar, vale cualquier código", () => {
+    assert.equal(wristbandSeriesProblem("X9-001", { prefix: null, length: null }), null);
+  });
+  test("con prefijo y longitud, solo los de la serie", () => {
+    const serie = { prefix: "AK-", length: 7 };
+    assert.equal(wristbandSeriesProblem("AK-0042", serie), null);
+    assert.equal(wristbandSeriesProblem("BK-0042", serie), "PREFIJO");
+    assert.equal(wristbandSeriesProblem("AK-00421", serie), "LONGITUD");
+    assert.equal(wristbandSeriesProblem("AK-042", serie), "LONGITUD");
+  });
+  test("se puede fijar solo uno de los dos", () => {
+    assert.equal(wristbandSeriesProblem("ZZ-1", { prefix: "AK-", length: null }), "PREFIJO");
+    assert.equal(wristbandSeriesProblem("ZZ-1", { prefix: null, length: 4 }), null);
   });
 });

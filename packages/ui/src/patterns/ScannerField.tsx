@@ -145,6 +145,22 @@ function instalarLector() {
 // Al evaluarse el módulo en el navegador: antes que cualquier efecto de React.
 if (typeof window !== "undefined") instalarLector();
 
+/**
+ * Entrega un código leído por OTRO medio que el teclado (la cámara, B4-5) al mismo receptor que el
+ * lector: pasa por la misma validación de la pantalla y el mismo límite de frecuencia (§7.7), y si
+ * no hay pantalla escuchando espera a la siguiente. Devuelve si se entregó.
+ */
+export function leerCodigo(code: string): boolean {
+  const limpio = code.trim();
+  if (limpio.length < MIN_SCAN_LENGTH || limpio.length > MAX_BUFFER) return false;
+  const now = Date.now();
+  if (now - bus.lastEmitAt < MIN_INTERVAL_MS) return false;
+  bus.lastEmitAt = now;
+  if (bus.receptor) bus.receptor(limpio);
+  else bus.pendiente = { code: limpio, at: now };
+  return true;
+}
+
 /* ─────────────────────────────────────────────────── componente ── */
 
 export function ScannerField({

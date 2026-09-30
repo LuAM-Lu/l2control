@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ScanLine, TriangleAlert, Wallet, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ScanLine, TriangleAlert, Wallet, X } from "lucide-react";
 import {
   CheckoutCommandSchema,
   WristbandCodeSchema,
@@ -19,6 +19,7 @@ import {
   ScanPrompt,
   StatTile,
   avisar,
+  cn,
   formatMoneyVE,
   useServerClock,
 } from "@l2/ui";
@@ -35,6 +36,7 @@ import { registrarSalida } from "./parque.acciones";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { puedeAbrirRuta } from "../identity/visibilidad.ts";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
+import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 
 /**
  * Salida y liquidación del parque — F5-14.
@@ -64,6 +66,10 @@ export function CheckoutScreen({
   const hora = useHora();
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
+  /** En el teléfono (B4-5), dos pasos: las pulseras y luego la liquidación. */
+  const [pasoMovil, setPasoMovil] = useState<"PULSERAS" | "LIQUIDACION">("PULSERAS");
+  /** La cámara del teléfono como lector (V-2). */
+  const [camara, setCamara] = useState(false);
   /** Cerrar una salida es una acción terminada: se anuncia y la pantalla queda lista para la siguiente. */
   const anunciarCierre = (c: { ninos: number; total: string; destino: string }) =>
     avisar.ok(`${c.ninos} ${c.ninos === 1 ? "salida cerrada" : "salidas cerradas"} por ${formatMoneyVE(c.total, "USD")}`, {
@@ -123,6 +129,7 @@ export function CheckoutScreen({
         return;
       }
       setSeleccionados((prev) => [...prev, sesion.id]);
+      setPasoMovil("PULSERAS");
       setAviso(null);
       queueMicrotask(() => {
         const item = itemRefs.current.get(sesion.id);
@@ -243,6 +250,7 @@ export function CheckoutScreen({
       setAviso(fallo);
       return;
     }
+    setPasoMovil("PULSERAS");
     setAviso(null);
 
     const ninos = cerradas.length;
@@ -275,8 +283,9 @@ export function CheckoutScreen({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b border-line">
-        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 bajo:py-2">
-          <div>
+        <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 max-md:py-2 bajo:py-2">
+          {/* En el teléfono el título lo dice la pestaña: queda para el lector de pantalla. */}
+          <div className="max-md:sr-only">
             <div>
               <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
                 Salida del parque
@@ -287,7 +296,7 @@ export function CheckoutScreen({
             </div>
           </div>
 
-          <div className="flex items-end gap-7">
+          <div className="flex items-end gap-7 max-md:w-full max-md:justify-between">
             <StatTile label="En sala" value={sala ? snapshot.sessions.length : "—"} />
             <StatTile
               label="En esta salida"
@@ -298,15 +307,19 @@ export function CheckoutScreen({
         </Container>
       </header>
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3">
-        <section className="flex min-w-0 flex-col gap-4 apaisado:min-h-0">
-          <div className="shrink-0">
+      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 max-md:min-h-0 max-md:grid-rows-[minmax(0,1fr)] max-md:py-3 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3">
+        <section className={cn("flex min-w-0 flex-col gap-4 max-md:min-h-0 max-md:gap-3 apaisado:min-h-0", pasoMovil === "LIQUIDACION" && "max-md:hidden")}>
+          <div className="flex shrink-0 items-stretch gap-2">
             <ScannerField
               onScan={handleScan}
               validate={validarPulsera}
               placeholder="Pasa la pulsera de quien se va…"
+              className="min-w-0 flex-1"
             />
+            <BotonCamara activa={camara} onCambiar={setCamara} />
           </div>
+
+          {camara && <LectorCamara onCerrar={() => setCamara(false)} className="h-[36dvh] max-h-80 shrink-0 md:h-64" />}
 
           {aviso && (
             <p
@@ -318,9 +331,10 @@ export function CheckoutScreen({
             </p>
           )}
 
-          <div className="-m-1 p-1 apaisado:min-h-0 apaisado:flex-1 apaisado:overflow-y-auto">
+          <div className="-m-1 p-1 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto apaisado:min-h-0 apaisado:flex-1 apaisado:overflow-y-auto">
             {!hayAlgo ? (
-              <ScanPrompt
+              camara ? null : <ScanPrompt
+                className="max-md:py-6 max-md:[&_ol]:hidden"
                 icon={<ScanLine size={40} aria-hidden="true" />}
                 titulo="Pasa la pulsera de quien se va"
                 detalle="Si se va la familia entera, pasa todas seguidas: se liquidan juntas, con el desglose de cada niño, y se cobra una sola vez."
@@ -421,10 +435,40 @@ export function CheckoutScreen({
             </ul>
             )}
           </div>
+
+          {/* En el teléfono, el paso siguiente: a quién se entrega y el cobro. */}
+          <Button
+            surface="tablet"
+            variant="primary"
+            className="w-full shrink-0 md:hidden"
+            disabled={!hayAlgo}
+            onClick={() => setPasoMovil("LIQUIDACION")}
+          >
+            {!hayAlgo
+              ? "Pasa la primera pulsera"
+              : `Continuar con ${preview.lines.length} ${preview.lines.length === 1 ? "niño" : "niños"}`}
+            {hayAlgo && <ArrowRight size={18} aria-hidden="true" />}
+          </Button>
         </section>
 
-        <aside className="flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 bajo:gap-3 bajo:p-4 apaisado:min-h-0 apaisado:max-h-full apaisado:self-start">
-          <div className="-m-1 flex flex-col gap-4 p-1 apaisado:min-h-0 apaisado:flex-1 apaisado:overflow-y-auto bajo:gap-3">
+        <aside
+          className={cn(
+            "flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 max-md:min-h-0 max-md:p-4 bajo:gap-3 bajo:p-4 apaisado:min-h-0 apaisado:max-h-full apaisado:self-start",
+            pasoMovil === "PULSERAS" && "max-md:hidden",
+          )}
+        >
+          <div className="-m-1 flex flex-col gap-4 p-1 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto apaisado:min-h-0 apaisado:flex-1 apaisado:overflow-y-auto bajo:gap-3">
+            {/* En el teléfono: volver a las pulseras, con cuántas van. */}
+            <Button surface="tablet" variant="ghost" className="-mx-2 -mt-2 self-start md:hidden" onClick={() => setPasoMovil("PULSERAS")}>
+              <ArrowLeft size={18} aria-hidden="true" />
+              Pulseras ({preview.lines.length})
+            </Button>
+            {aviso && (
+              <p role="alert" className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2.5 text-[13px] text-state-warn md:hidden">
+                <TriangleAlert size={15} className="shrink-0" aria-hidden="true" />
+                {aviso}
+              </p>
+            )}
             <h2 className="font-display text-lg font-bold text-ink">Liquidación</h2>
 
             {/* Las dos rutas del plan. Producen el mismo total; cambia a dónde
@@ -529,7 +573,7 @@ function Recogida({
   onCambio: (v: { kind: "REPRESENTANTE" } | { kind: "OTRA_PERSONA"; nombre: string }) => void;
 }) {
   const opcion = (activo: boolean) =>
-    `flex min-h-11 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border px-2 text-[12.5px] font-semibold transition-colors ${
+    `flex min-h-12 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border px-2 text-[12.5px] font-semibold transition-colors ${
       activo ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:text-ink"
     }`;
   return (
@@ -556,7 +600,7 @@ function Recogida({
           placeholder="Nombre y parentesco"
           autoComplete="off"
           maxLength={80}
-          className="min-h-11 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-brand"
+          className="min-h-12 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-brand"
         />
       )}
     </fieldset>

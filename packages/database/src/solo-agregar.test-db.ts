@@ -922,7 +922,7 @@ test("el directorio se corrige pero no se borra, y un contacto es una familia po
   await assert.rejects(nino(A, g.id, { name: "S" }), por("RESTRICCION"));
 });
 
-test("una pulsera tiene una estancia activa a la vez; cerrada, el código se libera", async () => {
+test("una pulsera, una visita (V-1): ni cerrada su estancia vuelve a entrar; en otro local, sí", async () => {
   const g = await representante(A, "04161230001");
   const c = await cuenta(A);
   const s = await estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" });
@@ -930,7 +930,9 @@ test("una pulsera tiene una estancia activa a la vez; cerrada, el código se lib
   await app.conTenant(A.tenant, (tx) =>
     tx.parkSession.update({ where: { id: s.id }, data: { status: "CERRADA", endedAt: new Date(Date.now() + 1000), closedByName: "Ana Rojas", checkOutKey: randomUUID(), closureKind: "SALIDA", pickedUpByGuardian: true } }),
   );
-  await estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" });
+  await assert.rejects(estancia(A, c.id, g.id, { wristbandCode: "PULSERA-1" }), por("DUPLICADO"));
+  // El mismo código impreso en el lote de otro local no choca.
+  await estancia(B, (await cuenta(B)).id, (await representante(B, "04161230001")).id, { wristbandCode: "PULSERA-1" });
 });
 
 test("una estancia solo se nombra y se cierra: lo contratado y el cierre no se reescriben", async () => {

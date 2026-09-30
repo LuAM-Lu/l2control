@@ -82,6 +82,22 @@ export type ServicioDto = z.infer<typeof ServicioSchema>;
 
 const RIF = /^[JGVEP]-\d{8}-\d$/;
 
+/**
+ * El formato de la serie de pulseras (V-1, D-PUL): prefijo y longitud total del código impreso.
+ * Se fija con el primer lote; hasta entonces los dos quedan en `null` y vale cualquier código
+ * legible. Con él, un código de otra serie (una pulsera de otro local, una lectura torcida) no entra.
+ */
+export const FormatoPulserasSchema = z
+  .object({
+    prefijo: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{1,12}$/, "Letras, números y guiones, hasta 12").nullable(),
+    longitud: z.number().int("Longitud entera").min(4, "Un código tiene al menos 4 caracteres").max(32, "Un código tiene como mucho 32").nullable(),
+  })
+  .refine((f) => f.prefijo === null || f.longitud === null || f.prefijo.length < f.longitud, {
+    message: "El prefijo tiene que ser más corto que el código entero",
+    path: ["longitud"],
+  });
+export type FormatoPulserasDto = z.infer<typeof FormatoPulserasSchema>;
+
 /** ¿La conoce el motor de fechas? Una zona mal escrita movería el día de negocio sin avisar. */
 function zonaConocida(zona: string): boolean {
   try {
@@ -147,6 +163,8 @@ export const AjustesSucursalSchema = z
       .min(2, "Menos de 2 horas marcaría como olvidado a un niño que sigue jugando")
       .max(16, "Más de 16 horas: la del día anterior ya la marca el cambio de día"),
     servicio: ServicioSchema,
+    /** Sin serie hasta el primer lote (B4-5). Los ajustes publicados antes no la traen: sin serie. */
+    pulseras: FormatoPulserasSchema.default({ prefijo: null, longitud: null }),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

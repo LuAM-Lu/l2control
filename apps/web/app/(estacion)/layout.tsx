@@ -9,9 +9,9 @@ import { turnoDelEquipo } from "../../src/features/cash/turno.servidor";
 /**
  * Cáscara de las estaciones de operación — §9.10.2.
  *
- * A pantalla completa y **sin navegación**. El monitor de parque es una
- * pantalla de pared que nadie toca, el KDS se opera con guantes a dos metros
- * y la caja se usa con cola delante: una barra lateral les roba espacio y les
+ * A pantalla completa y **sin navegación**. La monitora trabaja en un teléfono
+ * (M-15, V-2: ya no hay pantalla de pared, DEC-18), el mesero en una tablet y la
+ * caja en una laptop con cola delante: una barra lateral les roba espacio y les
  * añade objetivos táctiles que nadie quiere pulsar.
  *
  * Lo único que aporta esta cáscara es la barra permanente de §8.5, con lo que
@@ -22,16 +22,15 @@ export default async function EstacionLayout({ children }: { children: React.Rea
   // El turno del equipo, del servidor (B3-1). La conexión la dice el canal en vivo (B5-1).
   const turno = await turnoDelEquipo();
   return (
-    // Desde 768 px (tablet, también en vertical) la estación mide la ventana y
-    // NO desplaza la página: la barra queda quieta y cada pantalla reparte su
-    // alto por dentro (patrón de estructura fija). Una pantalla que no lo hace
-    // desplaza dentro de su zona, bajo la barra (F-07). En móvil vuelve el
-    // flujo normal, donde el scroll es lo esperado.
+    // En todos los tamaños (desde B4-5 también el teléfono de la monitora) la
+    // estación mide la ventana y NO desplaza la página: la barra queda quieta y
+    // cada pantalla reparte su alto por dentro (patrón de estructura fija). Una
+    // pantalla que no lo hace desplaza dentro de su zona, bajo la barra (F-07).
     // Las cuentas de las familias (DEC-21) viven por encima de las pantallas:
     // entrada, salida y caja trabajan sobre las mismas.
-    // Desde md se FIJA a la ventana (`fixed inset-0`), igual que el panel: la barra de la
+    // Se FIJA a la ventana (`fixed inset-0`), igual que el panel: la barra de la
     // estación no se va aunque algo alargue el documento.
-    <div className="flex min-h-dvh flex-col bg-base md:fixed md:inset-0 md:min-h-0 md:overflow-hidden">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-base">
       <StationBar
         contexto={{
           turno: turno && { abiertoEn: turno.abiertoEn, punto: turno.punto },

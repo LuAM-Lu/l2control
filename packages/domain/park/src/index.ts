@@ -359,6 +359,22 @@ export function becomesOrphanAt(startedAt: EpochMs, afterMs: number, startOfNext
   return epochMs(Math.min(startedAt + afterMs + 1, startOfNextDay));
 }
 
+/** El formato de la serie de pulseras del local (V-1): prefijo y longitud total. `null` = sin fijar. */
+export type WristbandSeries = Readonly<{ prefix: string | null; length: number | null }>;
+
+/** Por qué un código no es de la serie del local. */
+export type WristbandSeriesProblem = "PREFIJO" | "LONGITUD";
+
+/**
+ * ¿Es este código de la serie del local? Sin serie fijada vale cualquiera (D-PUL: se fija con el
+ * primer lote). El código llega ya normalizado (mayúsculas, sin espacios).
+ */
+export function wristbandSeriesProblem(code: string, series: WristbandSeries): WristbandSeriesProblem | null {
+  if (series.prefix !== null && !code.startsWith(series.prefix)) return "PREFIJO";
+  if (series.length !== null && code.length !== series.length) return "LONGITUD";
+  return null;
+}
+
 /* ------------------------------------------------------------------ formato */
 
 /** Formatea una duración como HH:MM:SS o MM:SS. Solo presentación. */

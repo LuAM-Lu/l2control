@@ -21,6 +21,9 @@
 import { randomUUID } from "node:crypto";
 import {
   CheckInCommandSchema,
+  ConsultarPulseraSchema,
+  EstadoPulseraSchema,
+  type EstadoPulseraDto,
   CheckoutCommandSchema,
   CierreHuerfanaCommandSchema,
   RecargaCommandSchema,
@@ -53,6 +56,7 @@ import {
   fixed,
   isOrphan,
   orphanAfterMs,
+  wristbandSeriesProblem,
   openEnded,
   parkPolicy,
   settleAtExit,
@@ -86,6 +90,11 @@ export interface CasosParque {
   cerrarHuerfana(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<{ account: FamilyAccountDto }>>;
   /** Niños que entraron hoy y el mismo día de la semana pasada, en el día del local (Inicio). */
   atendidos(ctx: Contexto, ahora?: number): Promise<Resultado<{ hoy: number; semanaPasada: number }>>;
+  /**
+   * Si una pulsera se puede usar en una entrada (`ConsultarPulseraSchema`, V-1): libre, en sala, ya
+   * usada o de otra serie. Es un aviso al pasarla; la entrada lo vuelve a comprobar con su candado.
+   */
+  pulsera(ctx: Contexto, entrada: unknown): Promise<Resultado<EstadoPulseraDto>>;
 }
 
 /** Quién ve la sala: quien trabaja con el parque o con sus cuentas (entrada, salida, salón y caja). */
@@ -197,6 +206,15 @@ export function casosParque(base: Base): CasosParque {
             if (!p) return invalido("Ese paquete ya no está a la venta: elige otro.", ["entries", i, "packageId"], "PAQUETE_QUE_NO_SE_VENDE");
             paquetes.push(p);
           }
+          // V-1: la serie de pulseras del local, si ya se fijó con el primer lote (D-PUL).
+          const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
+          for (const [i, e] of cmd.entries.entries()) {
+            const problema = wristbandSeriesProblem(e.wristbandCode, { prefix: serie.prefijo, length: serie.longitud });
+            if (problema) {
+              const como = [serie.prefijo ? `empiezan por ${serie.prefijo}` : null, serie.longitud ? `tienen ${serie.longitud} caracteres` : null].filter(Boolean).join(" y ");
+              return invalido(`La pulsera ${e.wristbandCode} no es de la serie del local: las pulseras ${como}.`, ["entries", i, "wristbandCode"], "PULSERA_FUERA_DE_SERIE");
+            }
+          }
           const repetida = cmd.entries.findIndex((e, i) => cmd.entries.findIndex((x) => x.wristbandCode === e.wristbandCode) !== i);
           if (repetida >= 0) {
             return invalido(`La pulsera ${cmd.entries[repetida]!.wristbandCode} está dos veces en esta entrada.`, ["entries", repetida, "wristbandCode"], "PULSERA_REPETIDA");
@@ -210,6 +228,15 @@ export function casosParque(base: Base): CasosParque {
           if (ocupada >= 0) {
             // I-04: una pulsera, una estancia activa (también una huérfana, hasta que la dirección la cierre).
             return invalido(`La pulsera ${cmd.entries[ocupada]!.wristbandCode} ya está activa en sala.`, ["entries", ocupada, "wristbandCode"], "PULSERA_ACTIVA");
+          }
+          // V-1: una pulsera, una visita. Una que ya salió no vuelve a entrar (la base también lo impide).
+          const usadas = await tx.parkSession.findMany({
+            where: { branchId: ctx.branchId, status: { not: "ACTIVA" }, wristbandCode: { in: cmd.entries.map((e) => e.wristbandCode) } },
+            select: { wristbandCode: true },
+          });
+          const usada = cmd.entries.findIndex((e) => usadas.some((u) => u.wristbandCode === e.wristbandCode));
+          if (usada >= 0) {
+            return invalido(`La pulsera ${cmd.entries[usada]!.wristbandCode} ya se usó en otra visita: pon una nueva.`, ["entries", usada, "wristbandCode"], "PULSERA_USADA");
           }
           const aforo = vigente.tarifario.policy.capacityLimit;
           // Una huérfana no ocupa sitio: casi seguro ese niño ya no está (F5-13).
@@ -602,6 +629,27 @@ export function casosParque(base: Base): CasosParque {
         const r = await intentar();
         return "ok" in r ? r : { ok: true, valor: r };
       }
+    },
+
+    async pulsera(ctx, entrada) {
+      const v = ConsultarPulseraSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Ese código no es de una pulsera.", problemas: problemasDe(v.error) };
+      const codigo = v.data.codigo;
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<EstadoPulseraDto | Rechazo> => {
+        const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
+        if (rechazo) return rechazo;
+        const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
+        if (wristbandSeriesProblem(codigo, { prefix: serie.prefijo, length: serie.longitud })) {
+          const como = [serie.prefijo ? `empiezan por ${serie.prefijo}` : null, serie.longitud ? `tienen ${serie.longitud} caracteres` : null].filter(Boolean).join(" y ");
+          return { codigo, estado: "FUERA_DE_SERIE", mensaje: `${codigo} no es de la serie del local: las pulseras ${como}.` };
+        }
+        const previa = await tx.parkSession.findFirst({ where: { branchId: ctx.branchId, wristbandCode: codigo }, select: { status: true } });
+        if (!previa) return { codigo, estado: "LIBRE", mensaje: null };
+        return previa.status === "ACTIVA"
+          ? { codigo, estado: "ACTIVA", mensaje: `La pulsera ${codigo} ya está activa en sala.` }
+          : { codigo, estado: "USADA", mensaje: `La pulsera ${codigo} ya se usó en otra visita: pon una nueva.` };
+      });
+      return "ok" in r ? r : { ok: true, valor: EstadoPulseraSchema.parse(r) };
     },
 
     async atendidos(ctx, ahora = Date.now()) {

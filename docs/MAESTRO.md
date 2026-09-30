@@ -182,7 +182,15 @@ Admin», publicó la versión 1 (formato de 24 h) y la 2 (de vuelta a 12 h): rig
 dirección y el horario sin declarar. Cambiar la zona a Bogotá se negó por el turno abierto de «PC admin», que no se
 tocó. Equipos «Prueba B44 Admin» y «Prueba B44 Inicio» revocados.
 
-**Siguiente paso:** **B4-5** (la monitora en el teléfono y las pulseras de un solo uso), que cierra el Parque.
+**B4-5 a medias en `feat/b4-5` (2026-09-30).** Hecho y en verde: pulseras de un solo uso (en la base y en la
+entrada, con aviso al pasarlas), la serie de pulseras como ajuste, la cámara como lector y entrada, sala y salida
+en el teléfono sin desplazar el documento. Lo que falta está en su casilla de §3. **La base local ya tiene la
+migración `20261013000000_pulsera_de_un_solo_uso`**: se trabaja desde la rama. Al comprobarlo entró y salió la
+«Familia Prueba B45 6204» (pulseras PB45-6204 y PB45-6205, ya usadas), su cuenta #0027 quedó incobrable («Otro:
+datos de prueba», autorizada por Abigail Karam) y el equipo «Prueba B45 Telefono» está revocado. Queda una cuenta
+pendiente, del cliente.
+
+**Siguiente paso:** terminar **B4-5** (la monitora en el teléfono y las pulseras de un solo uso), que cierra el Parque.
 
 ---
 
@@ -984,6 +992,33 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   cualquier código legible.
   → Una entrada de dos niños en menos de 90 s en un teléfono real (F5-02); una pulsera usada ayer no
   entra hoy.
+  *En curso en `feat/b4-5` (2026-09-30), sin versión todavía. Hecho, con `verify:db` en verde (77 de base, 304 de
+  aplicación):*
+  *· Base: `20261013000000_pulsera_de_un_solo_uso`: índice único (tenant, sucursal, código) sobre TODAS las
+  estancias; se retira el parcial de las activas. Aplicada ya a la base del cliente (no tenía repetidas).*
+  *· Contrato: `FormatoPulserasSchema` (prefijo y longitud, `null` hasta el primer lote) dentro de los ajustes, con
+  valor por defecto para las versiones publicadas antes; `ConsultarPulseraSchema` y `EstadoPulseraSchema`.*
+  *· Dominio: `wristbandSeriesProblem` (PREFIJO o LONGITUD; sin serie, vale todo).*
+  *· Aplicación: la entrada rechaza PULSERA_USADA y PULSERA_FUERA_DE_SERIE (la entrada entera, nada a medias);
+  `parque.pulsera` dice LIBRE, ACTIVA, USADA o FUERA_DE_SERIE. Pruebas: la usada ayer no entra hoy, la serie, la
+  consulta y sus permisos; las dos que decían «al salir el código se libera», al día.*
+  *· Web: `leerCodigo` en `@l2/ui` (la cámara entra por el mismo bus que el lector de teclado);
+  `features/lector/` con `decodificador.ts` (`BarcodeDetector` nativo o @zxing/library 0.23.0 de respaldo, JS
+  puro, cargado solo si hace falta) y `LectorCamara`/`BotonCamara` en entrada, salida y sala. La entrada pregunta
+  al servidor por cada pulsera al pasarla y quita la fila si no sirve. Estación fija a la ventana también en el
+  teléfono; entrada y salida en dos pasos en el teléfono (pulseras → familia o liquidación); «Turno sin abrir»
+  solo a quien abre turno; `interactive-widget=resizes-content`; la sala se bloquea por inactividad (fuera la
+  pantalla de pared, DEC-18); el aviso de huérfanas dice las horas del local.*
+  *· Comprobado con Playwright a 360×800 con una cámara falsa (vídeo Y4M con Code 39, `code39.py` en el
+  scratchpad de la sesión 9c832397): la cámara (lector de respaldo) leyó dos pulseras en 2,3 s, la entrada de dos
+  niños quedó registrada a los 5,4 s, sala, salida y liquidación sin desplazar el documento ni errores de consola,
+  y la pulsera usada se rechazó al pasarla.*
+  *Falta: (1) en Ajustes → Sucursal, los campos del prefijo y la longitud (hoy solo por contrato); (2) pulir el
+  teléfono: el «← Pulseras» fuera de la zona que desplaza, el selector de paquetes de la fila (se monta a 360 px),
+  la tarjeta de un niño sin nombre que repite la pulsera (deuda de §5), la sala en baldosas compactas en el
+  teléfono y «Tiempo cumplido» que se corta; (3) medir 390×844 y que 1366×768, 1280×800 y 800×1280 siguen igual en
+  entrada, sala y salida; (4) CHANGELOG 0.32.0, etiqueta y esta casilla. Trabajo de campo (§4): la cámara nativa y
+  los 90 s en el teléfono real, con HTTPS (staging).*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -1402,6 +1437,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-30** · B4-4 hecho (v0.31.0): los ajustes de la sucursal son del servidor y llegan en vivo; la zona,
   el residuo, el umbral del arqueo y las horas de una huérfana dejan de estar en el código, y toda hora sale con
   el formato y la zona del local. Sigue B4-5.
+- **2026-09-30** · B4-5 empezado en `feat/b4-5`: pulseras de un solo uso, serie como ajuste, cámara como lector y
+  el parque en el teléfono, comprobado con una cámara falsa. Faltan el editor de la serie y pulir el teléfono. Handoff.
 
 ---
 
@@ -1415,21 +1452,21 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-29, v0.30.1 en `main`, sin subir a GitHub):**
+**Último handoff (2026-09-30, v0.31.0 en `main` y B4-5 a medias en `feat/b4-5`, sin subir a GitHub):**
 
 ```text
 Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-15 con V-1 a V-14, §3 con su DoD y orden, §4, §5), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.30.1 · 30 de 55 pasos, en verde. Nada subido a GitHub (main ~27 commits por delante).
-HECHO: B5-1 = todo en tiempo real: outbox_event lo llena un disparador de audit_log en la misma transacción; apps/worker (Socket.io + Valkey,
-  ticket HMAC en el apretón de manos, latido de sesiones, bus del restaurante, consulta del BCV) publica TEMAS; la web relee con useAlCambiar
-  o router.refresh() (ADR-025). V-14: la tasa del BCV sin umbral (ADR-024). Con el cliente: IGTF al 0 % en su base; fuera el IVA reducido (v0.30.1).
-SIGUIENTE: B4-4 (ajustes de la sucursal en la base y su pantalla en Ajustes: nombre, RIF, dirección, horario, formato de hora, residuo, servicio,
-  umbral del arqueo $ 1,00, umbral de huérfanas 8 h y zona horaria, hoy en el código); se borra src/demo/sucursal.ts. Luego B4-5 (teléfono y pulseras).
+Rol: full-stack senior; programas tú todo. main: v0.31.0 · 31 de 55 pasos (B4-4 hecho: ajustes de la sucursal en la base). Nada subido a GitHub.
+A MEDIAS: B4-5 en la rama feat/b4-5 (en verde, sin versión): pulseras de un solo uso (índice único + PULSERA_USADA), serie de pulseras en los
+  ajustes (sin editor todavía), cámara como lector (features/lector: BarcodeDetector o @zxing/library, entra por leerCodigo de @l2/ui) y entrada,
+  sala y salida en el teléfono (dos pasos). Lo que falta, en la casilla de B4-5 (§3): campos de la serie en Ajustes → Sucursal, pulir el teléfono,
+  medir 390×844 y los tres tamaños de siempre, CHANGELOG 0.32.0. Luego merge a main.
+OJO: la base local YA tiene la migración de B4-5 (pulsera de un solo uso): trabaja desde feat/b4-5, no desde main.
 Pendiente con el cliente: contarle que el turno de «PC admin» se selló por error con un Z de prueba (§1).
-Base local CON DATOS DEL CLIENTE («PC admin» y su turno del 28/09 abierto): un guion solo toca lo que se llama «Prueba …» y revoca sus equipos.
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (web :3000 + worker :3001; si uno cae, turbo tumba los dos).
+Base local CON DATOS DEL CLIENTE: un guion solo toca lo que se llama «Prueba …»/«Familia Prueba …» (limpiar_b45.mts filtra así) y revoca sus equipos.
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (web :3000 + worker :3001). Tras un caso de uso nuevo, reiniciar pnpm dev.
 Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Cuidado: DoD de §3; en una transacción nunca dos consultas a la vez (§5); toda acción auditada nueva exige su fila en TEMAS_DE_ACCION;
-  migración aplicada no se edita; heredocs grandes fallan (Write + python / commit -F). Playwright: comun.cjs y vivo1..5.cjs en el
-  scratchpad de la sesión b6cf4f88. Merge a main solo con verify:db verde. Push solo si se pide.
+Playwright en el scratchpad de la sesión 9c832397: comun.cjs (movil, permisos), b45e2e.cjs (teléfono + cámara falsa con code39.py), b44b.cjs.
+Cuidado: DoD de §3; en una transacción nunca dos consultas a la vez; acción auditada nueva → fila en TEMAS_DE_ACCION; migración aplicada
+  no se edita; heredocs grandes fallan (Write + python / commit -F). Merge a main solo con verify:db verde. Push solo si se pide.
 ```

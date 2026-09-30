@@ -5,6 +5,7 @@ import type {
   CheckoutResult,
   DirectorioRepresentantesDto,
   EstanciaDto,
+  EstadoPulseraDto,
   FamilyAccountDto,
   MonitorSnapshotDto,
   RecargaResult,
@@ -54,6 +55,13 @@ export async function nombrarEstancia(entrada: unknown): Promise<Resultado<Estan
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).parque.nombrar(ctx, entrada);
+}
+
+/** Si una pulsera se puede usar en una entrada (V-1): libre, en sala, ya usada o de otra serie. */
+export async function consultarPulsera(entrada: unknown): Promise<Resultado<EstadoPulseraDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).parque.pulsera(ctx, entrada);
 }
 
 /** La familia de un contacto (entero), o `null` si no ha venido nunca. */

@@ -138,10 +138,55 @@ describe("la entrada (B4-2)", () => {
     assert.equal(!otra.ok && otra.problemas?.[0]?.message, "PULSERA_ACTIVA");
     const doble = await local.app.parque.entrar(ctxMonitora, entrada([{ code: "AK-9002" }, { code: "AK-9002" }]), AHORA);
     assert.equal(!doble.ok && doble.problemas?.[0]?.message, "PULSERA_REPETIDA");
-    // Al salir, el código se libera.
     valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 30 * MIN));
-    await entrar(entrada([{ code: "AK-9001" }]), ctxMonitora, AHORA + 31 * MIN);
     await vaciarSala(AHORA + 31 * MIN);
+  });
+
+  test("una pulsera, una visita (V-1): la usada ayer no entra hoy, y la entrada no entra a medias", async () => {
+    const ayer = AHORA - 24 * 60 * MIN;
+    const r = await entrar(entrada([{ code: "AK-9101" }]), ctxMonitora, ayer);
+    valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), ayer + 30 * MIN));
+    const hoy = await local.app.parque.entrar(ctxMonitora, entrada([{ code: "AK-9102" }, { code: "AK-9101" }]), AHORA);
+    assert.equal(!hoy.ok && hoy.problemas?.[0]?.message, "PULSERA_USADA", JSON.stringify(hoy));
+    assert.deepEqual(!hoy.ok && hoy.problemas?.[0]?.path, ["entries", 1, "wristbandCode"]);
+    assert.match(!hoy.ok ? hoy.mensaje : "", /AK-9101 ya se usó en otra visita/);
+    // Nada entró: tampoco la otra pulsera de la misma entrada.
+    assert.equal(valor(await local.app.parque.sala(ctxMonitora, AHORA)).sessions.length, 0);
+    await entrar(entrada([{ code: "AK-9102" }]));
+    await vaciarSala();
+  });
+
+  test("al pasar una pulsera, el servidor dice si está libre, en sala o ya usada; la cajera no pregunta", async () => {
+    const estado = async (codigo: string) => valor(await local.app.parque.pulsera(ctxMonitora, { codigo })).estado;
+    assert.equal(await estado("ak-9301"), "LIBRE");
+    const r = await entrar(entrada([{ code: "AK-9301" }]));
+    assert.equal(await estado("AK-9301"), "ACTIVA");
+    valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 30 * MIN));
+    const usada = valor(await local.app.parque.pulsera(ctxMonitora, { codigo: "AK-9301" }));
+    assert.equal(usada.estado, "USADA");
+    assert.match(usada.mensaje ?? "", /ya se usó en otra visita/);
+    const mesero = await local.app.parque.pulsera(ctxMesero, { codigo: "AK-9302" });
+    assert.equal(!mesero.ok && mesero.motivo, "NO_PERMITIDO");
+    assert.equal((await local.app.parque.pulsera(ctxMonitora, { codigo: "a b" })).ok, false);
+    await vaciarSala(AHORA + 30 * MIN);
+  });
+
+  test("con la serie del local fijada, un código de otra serie no entra (D-PUL)", async () => {
+    const v = await local.app.ajustes.leer(local.sistema);
+    valor(await local.app.ajustes.publicar(local.sistema, { versionBase: v.version, ajustes: { ...v.ajustes, pulseras: { prefijo: "AK-", longitud: 7 } } }));
+    try {
+      assert.equal(valor(await local.app.parque.pulsera(ctxMonitora, { codigo: "BK-9201" })).estado, "FUERA_DE_SERIE");
+      for (const [code, que] of [["BK-9201", /empiezan por AK-/], ["AK-92011", /tienen 7 caracteres/]] as const) {
+        const r = await local.app.parque.entrar(ctxMonitora, entrada([{ code }]), AHORA);
+        assert.equal(!r.ok && r.problemas?.[0]?.message, "PULSERA_FUERA_DE_SERIE", JSON.stringify(r));
+        assert.match(!r.ok ? r.mensaje : "", que);
+      }
+      await entrar(entrada([{ code: "AK-9201" }]));
+      await vaciarSala();
+    } finally {
+      const w = await local.app.ajustes.leer(local.sistema);
+      valor(await local.app.ajustes.publicar(local.sistema, { versionBase: w.version, ajustes: { ...w.ajustes, pulseras: { prefijo: null, longitud: null } } }));
+    }
   });
 
   test("el aforo se llena pero no se pasa, y una entrada no entra a medias", async () => {

@@ -23,12 +23,11 @@ import { computeIdle, type IdlePolicy, type IdleState } from "@l2/domain-identit
  */
 
 /**
- * Política por superficie. El monitor de sala es una pantalla de pared que
- * se mira y no se toca: bloquearlo lo dejaría en negro delante de todos.
+ * Política por superficie. Ninguna se salta el bloqueo: la sala era una pantalla de pared que no se
+ * tocaba (DEC-18), pero desde la visita técnica (M-15, V-2) se ve en el teléfono de la monitora y en
+ * el panel, que se bloquean como cualquier puesto.
  */
-const POR_SUPERFICIE: Readonly<Record<string, IdlePolicy>> = {
-  "/monitor": { kind: "SIN_BLOQUEO" },
-};
+const POR_SUPERFICIE: Readonly<Record<string, IdlePolicy>> = {};
 
 const EVENTOS = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
 

@@ -26,6 +26,7 @@
     "@l2/domain-tax": "workspace:*",
     "@l2/observability": "workspace:*",
     "@l2/ui": "workspace:*",
+    "@zxing/library": "0.23.0",
     "lucide-react": "1.43.0",
     "next": "16.3.4",
     "otpauth": "9.5.2",

@@ -11,7 +11,7 @@ import { cerrarEstanciaHuerfana } from "./parque.acciones";
 /**
  * Estancias a revisar — F5-13, H-19.
  *
- * Siguen abiertas desde un día anterior o llevan más de 8 horas: casi seguro el niño se fue sin que
+ * Siguen abiertas desde un día anterior o llevan más de las horas del local (8 de fábrica, B4-4): casi seguro el niño se fue sin que
  * se registrara la salida. No cuentan en el aforo ni se les cobra tiempo de más. La dirección las
  * cierra con un motivo; lo contratado se sigue debiendo en la cuenta de la familia.
  */
@@ -33,7 +33,7 @@ export function EstanciasARevisar({
   onCerrada: () => void;
 }) {
   const [cerrando, setCerrando] = useState<string | null>(null);
-  const { zonaHoraria } = useSucursal().ajustes;
+  const { zonaHoraria, horasHuerfana } = useSucursal().ajustes;
   const dia = (t: number) => new Intl.DateTimeFormat("es-VE", { day: "numeric", month: "short", timeZone: zonaHoraria }).format(t);
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +66,7 @@ export function EstanciasARevisar({
       abierto={abierto}
       onCerrar={onCerrar}
       titulo="Estancias a revisar"
-      descripcion="Abiertas desde un día anterior o con más de 8 horas dentro. No cuentan en el aforo ni se les cobra tiempo de más."
+      descripcion={`Abiertas desde un día anterior o con más de ${horasHuerfana} horas dentro. No cuentan en el aforo ni se les cobra tiempo de más.`}
     >
       <ul className="flex flex-col gap-3">
         {huerfanas.map((h) => (

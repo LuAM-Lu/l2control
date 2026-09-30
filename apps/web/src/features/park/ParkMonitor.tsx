@@ -18,7 +18,8 @@ import { nombrarEstancia } from "./parque.acciones";
 import { RecargarTiempo } from "./RecargarTiempo.tsx";
 import { EstanciasARevisar } from "./EstanciasARevisar.tsx";
 import { useTarifario } from "./TarifarioProvider";
-import { useHora } from "../sucursal/SucursalProvider.tsx";
+import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { PonerNombre } from "./PonerNombre.tsx";
@@ -96,6 +97,9 @@ export function ParkMonitor() {
   const { cuentas, adoptar: adoptarCuenta } = useCuentas();
   const compacta = ordered.length > 10;
   const hora = useHora();
+  const { horasHuerfana } = useSucursal().ajustes;
+  /** La cámara del teléfono como lector (V-2): pasar la pulsera abre la ficha del niño. */
+  const [camara, setCamara] = useState(false);
   const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
   const cuentaFicha = ficha ? (cuentas.find((c) => c.id === ficha.accountId) ?? null) : null;
   const familiaRegistrada = ficha?.guardianName ?? null;
@@ -105,12 +109,12 @@ export function ParkMonitor() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Las cifras de sala se leen a dos metros, así que van grandes y solas.
-          El título «Monitor de parque» sobraba: la pestaña «Sala» de la barra
-          ya dice dónde estás, y el título ocupaba el sitio de las cifras. */}
+      {/* Las cifras de sala van grandes y solas: se leen de un vistazo, en el teléfono de la
+          monitora (V-2) o en el panel. El título «Monitor de parque» sobraba: la pestaña «Sala» de
+          la barra ya dice dónde estás. En el teléfono, las tres en una fila. */}
       <header className="border-b border-line">
         <h1 className="sr-only">Monitor de parque</h1>
-        <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-2.5">
+        <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-2.5 max-md:grid max-md:grid-cols-3 max-md:gap-x-3">
           <Contador
             etiqueta="En sala"
             valor={counts.total}
@@ -135,9 +139,13 @@ export function ParkMonitor() {
         </Container>
       </header>
 
-      <Container as="main" ancho="muro" className="flex min-h-0 flex-1 flex-col py-4">
+      <Container as="main" ancho="muro" className="flex min-h-0 flex-1 flex-col py-4 max-md:py-3">
         <div className="mb-3 shrink-0">
-          <ScannerField onScan={handleScan} validate={validarPulsera} />
+          <div className="flex items-stretch gap-2">
+            <ScannerField onScan={handleScan} validate={validarPulsera} className="min-w-0 flex-1" />
+            <BotonCamara activa={camara} onCambiar={setCamara} />
+          </div>
+          {camara && <LectorCamara onCerrar={() => setCamara(false)} className="mt-3 h-[30dvh] max-h-72 md:h-56" />}
           {scanError && (
             <p role="status" className="mt-2 text-[13px] text-state-warn">
               {scanError}
@@ -152,7 +160,7 @@ export function ParkMonitor() {
             className="mb-3 flex w-full shrink-0 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-2.5 text-left text-[13px] text-state-warn"
           >
             <ClipboardList size={15} aria-hidden="true" />
-            {huerfanas.length === 1 ? "1 estancia a revisar" : `${huerfanas.length} estancias a revisar`}: abiertas desde otro día o con más de 8 horas. No cuentan en el aforo.
+            {huerfanas.length === 1 ? "1 estancia a revisar" : `${huerfanas.length} estancias a revisar`}: abiertas desde otro día o con más de {horasHuerfana} horas. No cuentan en el aforo.
             <span className="ml-auto font-semibold underline">Ver</span>
           </button>
         )}

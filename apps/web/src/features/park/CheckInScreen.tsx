@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
   CircleCheckBig,
   Phone,
   ScanLine,
@@ -34,7 +36,8 @@ import { computeCapacity, contactKey } from "@l2/domain-park";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
-import { buscarRepresentante, registrarEntrada } from "./parque.acciones";
+import { buscarRepresentante, consultarPulsera, registrarEntrada } from "./parque.acciones";
+import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 import { useSala } from "./SalaProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
@@ -110,6 +113,13 @@ export function CheckInScreen() {
   const router = useRouter();
   const { adoptar: adoptarCuenta } = useCuentas();
   const [enviando, setEnviando] = useState(false);
+  /**
+   * En el teléfono (B4-5) la entrada va en dos pasos: las pulseras y luego la familia. En tablet y
+   * escritorio se ven los dos a la vez y esto no cambia nada.
+   */
+  const [pasoMovil, setPasoMovil] = useState<"PULSERAS" | "FAMILIA">("PULSERAS");
+  /** La cámara del teléfono como lector (V-2). */
+  const [camara, setCamara] = useState(false);
   /** La clave de este intento: un reintento tras un corte no registra dos veces (I-11). */
   const clave = useRef<string | null>(null);
 
@@ -179,6 +189,16 @@ export function CheckInScreen() {
         { uid, wristbandCode: limpio, packageId: defaultPackageId, nombre: "" },
       ]);
       setAviso(null);
+      setPasoMovil("PULSERAS");
+      // V-1: el servidor dice ya si la pulsera se usó en otra visita o no es de la serie; la fila
+      // se quita en vez de descubrirlo al registrar. Sin respuesta, lo comprueba la entrada.
+      void consultarPulsera({ codigo: limpio })
+        .then((r) => {
+          if (!r.ok || r.valor.estado === "LIBRE") return;
+          setEntradas((prev) => prev.filter((x) => x.uid !== uid));
+          setAviso(r.valor.mensaje);
+        })
+        .catch(() => undefined);
       // El foco salta solo al teléfono tras la primera pulsera si está vacío.
       if (entradas.length === 0 && !telefono) {
         queueMicrotask(() => {
@@ -299,6 +319,7 @@ export function CheckInScreen() {
     setNombreNuevo("");
     setBusqueda(null);
     setAviso(null);
+    setPasoMovil("PULSERAS");
 
     const n = sessions.length;
     if (modo === "PREPAGO") {
@@ -330,9 +351,10 @@ export function CheckInScreen() {
       <header className="border-b border-line">
         <Container
           ancho="operacion"
-          className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 bajo:py-2"
+          className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 max-md:py-2 bajo:py-2"
         >
-          <div>
+          {/* En el teléfono el título lo dice la pestaña: queda para el lector de pantalla. */}
+          <div className="max-md:sr-only">
             <div>
               <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
                 Entrada al parque
@@ -343,7 +365,7 @@ export function CheckInScreen() {
             </div>
           </div>
 
-          <div className="flex items-end gap-7">
+          <div className="flex items-end gap-7 max-md:w-full max-md:justify-between">
             <StatTile
               label="Aforo"
               value={capacidad.active}
@@ -369,17 +391,21 @@ export function CheckInScreen() {
       <Container
         as="main"
         ancho="operacion"
-        className="grid flex-1 gap-5 py-4 md:min-h-0 md:grid-rows-[minmax(0,1fr)_auto] apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3"
+        className="grid min-h-0 flex-1 gap-5 py-4 max-md:grid-rows-[minmax(0,1fr)] max-md:py-3 md:grid-rows-[minmax(0,1fr)_auto] apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3"
       >
         {/* ------------------------------------------------------ niños */}
-        <section className="flex min-h-0 min-w-0 flex-col gap-4">
-          <div className="shrink-0">
+        <section className={cn("flex min-h-0 min-w-0 flex-col gap-4 max-md:gap-3", pasoMovil === "FAMILIA" && "max-md:hidden")}>
+          <div className="flex shrink-0 items-stretch gap-2">
             <ScannerField
               onScan={handleScan}
               validate={validarPulsera}
               placeholder="Pasa la pulsera por el lector…"
+              className="min-w-0 flex-1"
             />
+            <BotonCamara activa={camara} onCambiar={setCamara} />
           </div>
+
+          {camara && <LectorCamara onCerrar={() => setCamara(false)} className="h-[36dvh] max-h-80 shrink-0 md:h-64" />}
 
           {aviso && (
             <p
@@ -393,7 +419,8 @@ export function CheckInScreen() {
 
           <div className="-m-1 flex-1 min-h-0 overflow-y-auto p-1">
             {entradas.length === 0 ? (
-              <ScanPrompt
+              camara ? null : <ScanPrompt
+                className="max-md:py-6 max-md:[&_ol]:hidden"
                 icon={<ScanLine size={40} aria-hidden="true" />}
                 titulo="Pasa la primera pulsera"
                 detalle="El lector la reconoce sin tocar la pantalla. Cada pulsera crea una fila; el nombre del niño es opcional: se puede poner aquí o después, desde la sala."
@@ -463,12 +490,42 @@ export function CheckInScreen() {
               </ul>
             )}
           </div>
+
+          {/* En el teléfono, el paso siguiente: la familia. */}
+          <Button
+            surface="tablet"
+            variant="primary"
+            className="w-full shrink-0 md:hidden"
+            disabled={entradas.length === 0}
+            onClick={() => setPasoMovil("FAMILIA")}
+          >
+            {entradas.length === 0
+              ? "Pasa la primera pulsera"
+              : `Continuar con ${entradas.length} ${entradas.length === 1 ? "niño" : "niños"}`}
+            {entradas.length > 0 && <ArrowRight size={18} aria-hidden="true" />}
+          </Button>
         </section>
 
         {/* ---------------------------------------------- representante */}
-        <aside className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 apaisado:max-h-full apaisado:self-start bajo:gap-3 bajo:p-4">
+        <aside
+          className={cn(
+            "flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 max-md:p-4 apaisado:max-h-full apaisado:self-start bajo:gap-3 bajo:p-4",
+            pasoMovil === "PULSERAS" && "max-md:hidden",
+          )}
+        >
           <div className="-m-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 bajo:gap-3">
             <div className="flex flex-col gap-4 bajo:gap-3">
+              {/* En el teléfono: volver a las pulseras, con cuántas van. */}
+              <Button surface="tablet" variant="ghost" className="-mx-2 -mt-2 self-start md:hidden" onClick={() => setPasoMovil("PULSERAS")}>
+                <ArrowLeft size={18} aria-hidden="true" />
+                Pulseras ({entradas.length})
+              </Button>
+              {aviso && (
+                <p role="alert" className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2.5 text-[13px] text-state-warn md:hidden">
+                  <TriangleAlert size={15} className="shrink-0" aria-hidden="true" />
+                  {aviso}
+                </p>
+              )}
               <h2 className="font-display text-lg font-bold text-ink">
                 Representante
               </h2>

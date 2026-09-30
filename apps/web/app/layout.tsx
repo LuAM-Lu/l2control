@@ -61,6 +61,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   width: "device-width",
   viewportFit: "cover",
+  // En el teléfono de la monitora (B4-5) el teclado encoge la pantalla fija en vez de tapar el campo.
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({

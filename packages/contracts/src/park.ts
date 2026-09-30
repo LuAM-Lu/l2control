@@ -416,6 +416,17 @@ export type NombrarEstanciaCommand = z.infer<typeof NombrarEstanciaCommandSchema
  * Buscar a una familia por su contacto en la entrada (F5-03). El servidor compara el contacto
  * entero, en dígitos: no hay búsqueda por pedazos que enseñe el directorio a quien teclea.
  */
+/** Qué pasa con una pulsera antes de meterla en una entrada (B4-5, V-1). */
+export const ConsultarPulseraSchema = z.strictObject({ codigo: WristbandCodeSchema });
+export const EstadoPulseraSchema = z.object({
+  codigo: z.string(),
+  /** LIBRE: se puede usar. ACTIVA: está en sala. USADA: ya sirvió en otra visita. FUERA_DE_SERIE: no es del lote del local. */
+  estado: z.enum(["LIBRE", "ACTIVA", "USADA", "FUERA_DE_SERIE"]),
+  /** Lo que se le dice a la monitora cuando no está libre. */
+  mensaje: z.string().nullable(),
+});
+export type EstadoPulseraDto = z.infer<typeof EstadoPulseraSchema>;
+
 export const BuscarRepresentanteSchema = z.strictObject({
   contacto: z.string().trim().min(4).max(40),
 });

@@ -151,4 +151,15 @@ describe("ajustes de la sucursal", () => {
     assert.equal(PublicarAjustesCommandSchema.safeParse({ ajustes: base }).success, false);
     assert.equal(PublicarAjustesCommandSchema.safeParse({ versionBase: -1, ajustes: base }).success, false);
   });
+
+  test("la serie de pulseras: sin fijar vale todo; los ajustes de antes la leen sin fijar", () => {
+    const a = AjustesSucursalSchema.parse(base);
+    assert.deepEqual(a.pulseras, { prefijo: null, longitud: null });
+    assert.ok(pasa({ pulseras: { prefijo: "ak-", longitud: 7 } }));
+    assert.equal(AjustesSucursalSchema.parse({ ...base, pulseras: { prefijo: "ak-", longitud: 7 } }).pulseras.prefijo, "AK-");
+    assert.equal(pasa({ pulseras: { prefijo: "AK 1", longitud: 7 } }), false);
+    assert.equal(pasa({ pulseras: { prefijo: "AK-", longitud: 3 } }), false);
+    assert.equal(pasa({ pulseras: { prefijo: "AKAK", longitud: 4 } }), false);
+    assert.equal(pasa({ pulseras: { prefijo: null, longitud: 40 } }), false);
+  });
 });
