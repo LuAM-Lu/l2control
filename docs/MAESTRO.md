@@ -31,7 +31,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.35.0 · 35 de 55 pasos.** **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
+**Versión 0.35.0 · 35 de 56 pasos.** **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
 regalo, devolución al proveedor) sale con su motivo, y el conteo físico deja la existencia igual a lo contado; los dos
 con la 🔐 de administración (supervisión pide la suya). **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
 de movimientos de solo-agregar; sale cuando un producto entra en una cuenta, vuelve cuando se quita sin pagar y **sin
@@ -208,13 +208,15 @@ lo ofrece) y sus entradas no se borran. Equipos «Prueba B92 Admin» y «Prueba 
 Abigail Karam, un consumo interno y dos regalos de 1 de Luis Guerrero (autorizados por Abigail), y dos conteos (69 → 65 y
 62 → 60) y otro rechazado por desactualizado: quedan 60. Equipos «Prueba B94 …» revocados.
 
-**Pregunta del cliente (2026-09-30):** ¿por qué el inventario no tiene SKU, código de barras, descripción técnica,
-ubicación en almacén ni stock máximo? Porque V-7 lo fijó «mínimo y real» para el piloto. Propuesta en la mesa, sin
-decidir: código de barras y SKU (la caja vendería pasando el producto por el lector) como paso corto junto a B9-5, que
-ya trae el mínimo y el punto de reorden; ubicación y máximo, no, para un local con un solo depósito. Es un cambio de
-alcance: lo decide el cliente.
+**El inventario se rediseña (M-16, 2026-09-30, con el cliente).** El stock es lo protagonista: Productos pasa a
+una vista de resumen (agotados, bajo mínimo, valor del inventario) con tabla, o de tarjetas. Cada producto lleva **SKU
+automático**, **código de barras** y **presentación**, y es de un **tipo**: Producto (se cuenta), Preparado (se hace al
+momento; sin stock hasta las recetas) o Servicio. Los **mínimos y sus avisos** entran ya (B9-5); la entrada de
+mercancía **crea productos** con una ficha corta; y el código se **escanea** en la caja, las entradas, el conteo y
+Productos. Sin foto por ahora. Pasos B9-5 y B9-6 (nuevo); la ruta pasa a **56 pasos**.
 
-**Siguiente paso:** **B9-5** (alertas de stock crítico con antelación por producto), que cierra el Inventario.
+**Siguiente paso:** **B9-5** (mínimos y alertas) y **B9-6** (identificación, tipos y la vista del inventario), que
+cierran el Inventario.
 
 ---
 
@@ -237,6 +239,7 @@ alcance: lo decide el cliente.
 | **M-13** | **La app se ordena por la jornada** (2026-09-27, pedido del cliente; [JORNADA.md](JORNADA.md)) | El objetivo es operar el parque y el restaurante con un camino feliz. El menú pone arriba lo que se opera (Inicio, Parque, Restaurante, Caja) y abajo, en «Ajustes», lo que se configura (impuestos, feriados, medios, tasas, tarifas, carta, plano, personas, equipos). Turnos y Ventas del turno son **una sección, Turno**. Primer uso con asistente corto y «Puesta a punto» en Inicio; la cajera abre el turno y el sistema comprueba; relevo con corte, arqueo a ciegas, Z por umbral ($ 1,00, firma de supervisión por encima) y **ninguna jornada se cierra con pendientes**; ticket de corte impreso y resumen del día en Inicio. Nuevo paso **T-6**; la ruta pasa a 48 pasos |
 | **M-14** | **El parque primero** (2026-09-28, pedido del cliente: «hacer funcional parque, urgente») | B3-5 queda en pausa a medias (dominio, contrato, base y caso de uso, sin pruebas ni pantalla) y el parque (B4-1 a B4-3) pasa delante, **sin esperar a B5-1**: la sala llega a los demás equipos por sondeo de 5 s, como las cuentas desde B3-3, y B5-1 la empujará en vivo. Las estancias, las familias y el precio del parque salen del navegador |
 | **M-15** | **Lo decidido en la visita técnica** (2026-09-28, con el cliente) | Dispositivos, pulseras, cocina, impresión, inventario, descuentos, eventos, tiempo real y servidor: detalle abajo (V-1 a V-12). Cierra D-INF, D-RES, D-INV y F-12; cambia DEC-8 (en parte), DEC-18 y DEC-19; ADR-021, ADR-022 y ADR-023. La ruta pasa a **55 pasos**: entran B4-5, B3-6, B3-7, la Etapa 6 (B6-1 a B6-3, sin recetas) y la Etapa 10 (B10-1 y B10-2), y sale B5-3 (no hay gaveta electrónica, D-GAV) |
+| **M-16** | **El inventario se ve por su stock** (2026-09-30, pedido del cliente; amplía V-7) | Productos se rediseña con el stock como protagonista: vista de resumen + tabla o de tarjetas (sin foto). Cada producto: **SKU automático** (prefijo de su categoría y correlativo, no se edita), **código de barras** opcional y único, **presentación** y **tipo** (PRODUCTO, PREPARADO o SERVICIO; sustituye la casilla «Lleva existencia»). **Stock mínimo** por producto con estado y avisos (B9-5 entra ya). La **entrada de mercancía crea productos** con una ficha corta (nombre, categoría, código, presentación y precio). El código se **escanea** en la caja (vende), las entradas, el conteo y Productos. Nuevo paso **B9-6**; la ruta pasa a 56 |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
@@ -303,12 +306,12 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → **B9-5** (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
+4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → **B9-5** → B9-6 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
-Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 56: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -1238,9 +1241,15 @@ antes del cobro en servidor (orden de ejecución).
   supervisión regala una unidad se rechaza («ahora el sistema dice 64»), la línea adopta el número y al volver a
   registrar queda lo contado. Lista y hojas a 1366×768, 1280×800 y 800×1280 sin desplazar el documento (la hoja del
   conteo desplaza su zona); sin errores de consola.*
-- [ ] **B9-5 · Alertas de stock crítico** con antelación por producto (F8-08), en Inicio y en el
-  inventario.
+- [ ] **B9-5 · Mínimos y alertas de stock crítico** con antelación por producto (F8-08), en Inicio y en el
+  inventario (M-16): el stock mínimo de cada producto es su punto de reorden; el estado (agotado, bajo mínimo, bien) se
+  ve con color, icono y texto, y los avisos salen en Inicio con enlace al inventario.
   → Avisa antes de quedarse sin producto.
+- [ ] **B9-6 · Identificación, tipos y la vista del inventario** (M-16): SKU automático, código de barras único y
+  presentación; tipo PRODUCTO, PREPARADO o SERVICIO; Productos con resumen + tabla y tarjetas, con el stock como
+  protagonista; la entrada de mercancía crea productos con una ficha corta; el código se escanea en la caja (vende), en
+  las entradas, en el conteo y en Productos (abre la ficha).
+  → Pasar un producto por el lector lo vende en la caja; uno que no existe se da de alta en la entrada sin salir de ella.
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
@@ -1550,6 +1559,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-30** · B9-4 hecho (v0.35.0): salidas con motivo y conteo físico con la 🔐 de administración; un conteo no
   ajusta a ciegas si se vendió mientras se contaba. El cliente pregunta por SKU, código de barras, ubicación y máximos:
   propuesta en §1, sin decidir. Sigue B9-5.
+- **2026-09-30** · Con el cliente, el inventario se rediseña con el stock como protagonista (M-16): SKU, código de barras,
+  presentación, tres tipos, mínimos ya, alta de productos en la entrada y escaneo en caja, entradas, conteo y Productos.
+  Nuevo paso B9-6; la ruta pasa a 56.
 
 ---
 
