@@ -31,7 +31,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.34.0 · 34 de 55 pasos.** **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
+**Versión 0.35.0 · 35 de 55 pasos.** **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
+regalo, devolución al proveedor) sale con su motivo, y el conteo físico deja la existencia igual a lo contado; los dos
+con la 🔐 de administración (supervisión pide la suya). **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
 de movimientos de solo-agregar; sale cuando un producto entra en una cuenta, vuelve cuando se quita sin pagar y **sin
 existencia no se vende** (ADR-023): la caja enseña «Quedan N» y «Agotado». Lo que llega se carga en Inventario →
 Entradas de mercancía (compra o reposición, por bultos de tantas unidades a tanto el bulto), y cada producto tiene su
@@ -72,8 +74,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (79 de base, 321 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  45 de impuestos, 105 de caja, 37 del parque, 34 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (80 de base, 331 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  45 de impuestos, 105 de caja, 37 del parque, 37 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -201,9 +203,18 @@ nulos; no había movimientos). Los productos del cliente que llevan existencia s
 su primera entrada. Abigail Karam creó «Prueba B93 Refresco» (categoría «Prueba», $ 1,50) y le cargó dos compras (48 a
 $ 0,50 de «Distribuidora de Prueba», factura P-0001, y 24 a $ 0,80): quedan 72 a $ 0,60 de costo promedio. Una venta
 de mostrador de una (#0030) la descontó y se descartó sin cobrar (vuelve). El producto está **apartado** (la caja no
-lo ofrece) y sus entradas no se borran. Equipos «Prueba B92 Admin» y «Prueba B93 Admin» revocados.
+lo ofrece) y sus entradas no se borran. Equipos «Prueba B92 Admin» y «Prueba B93 Admin» revocados. La migración
+`20261016000000_salidas_y_conteo` también está aplicada. Al comprobar B9-4, sobre el mismo producto: una merma de 2 de
+Abigail Karam, un consumo interno y dos regalos de 1 de Luis Guerrero (autorizados por Abigail), y dos conteos (69 → 65 y
+62 → 60) y otro rechazado por desactualizado: quedan 60. Equipos «Prueba B94 …» revocados.
 
-**Siguiente paso:** **B9-4** (salidas y ajustes con motivo y 🔐, y conteo físico).
+**Pregunta del cliente (2026-09-30):** ¿por qué el inventario no tiene SKU, código de barras, descripción técnica,
+ubicación en almacén ni stock máximo? Porque V-7 lo fijó «mínimo y real» para el piloto. Propuesta en la mesa, sin
+decidir: código de barras y SKU (la caja vendería pasando el producto por el lector) como paso corto junto a B9-5, que
+ya trae el mínimo y el punto de reorden; ubicación y máximo, no, para un local con un solo depósito. Es un cambio de
+alcance: lo decide el cliente.
+
+**Siguiente paso:** **B9-5** (alertas de stock crítico con antelación por producto), que cierra el Inventario.
 
 ---
 
@@ -292,7 +303,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. ~~B9-2~~ → ~~B9-3~~ → **B9-4** → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
+4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → **B9-5** (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1198,10 +1209,35 @@ antes del cobro en servidor (orden de ejecución).
   descartarla vuelve a 72 con el mismo costo. Entradas, la hoja con dos líneas y la ficha a 1366×768, 1280×800 y
   800×1280 sin desplazar el documento ni desbordar (la hoja desplaza su zona con dos líneas); sin errores de consola.
   Sin turno abierto la caja no deja tocar el ticket: el «+» que no pide más de lo que queda lo cubre el tipado.*
-- [ ] **B9-4 · Salidas y ajustes con motivo de lista cerrada y 🔐, y conteo físico** (F8-07): merma o
+- [x] **B9-4 · Salidas y ajustes con motivo de lista cerrada y 🔐, y conteo físico** (F8-07): merma o
   daño, consumo interno, regalo y devolución al proveedor; se cuenta, se ve la diferencia y se ajusta con
   autorización.
   → Ningún ajuste sin motivo ni asiento. El conteo deja la existencia igual a lo contado.
+  *Hecho el 2026-09-30 (v0.35.0).*
+  *· Base: `20261016000000_salidas_y_conteo`: `stock_adjustment` (SALIDA con motivo de lista cerrada o CONTEO sin él,
+  detalle opcional, lo declarado en `content`, clave única, quién lo hizo y **quién lo autorizó**, ambos obligatorios;
+  solo-agregar, RLS) y en `stock_movement` los tipos SALIDA (solo saca) y AJUSTE (saca o mete, con el valor de su signo),
+  que citan su ajuste, uno por producto. 1 prueba nueva.*
+  *· Contrato (`salidas.ts`): `RegistrarSalidaCommandSchema` (MERMA, CONSUMO_INTERNO, REGALO o DEVOLUCION_PROVEEDOR;
+  hasta 60 productos), `RegistrarConteoCommandSchema` (lo esperado al contar y lo contado; hasta 300) y la lectura con
+  cantidades y valores con su signo. 2 pruebas.*
+  *· Dominio (`ajustes.ts`): `countMoves` (lo contado menos lo esperado) y `costOfSurplus` (lo que sobra entra al costo
+  promedio; sin existencia, al de la última entrada; sin nada, a cero: el conteo no inventa costos). 3 pruebas.*
+  *· Aplicación: `salidas` (`leer`, `salida`, `conteo`, `autorizadores`) con `inventario.ajustar`: administración
+  confirma con su PIN y supervisión pide el de administración (D-AUT); la autorización se registra antes de mover nada;
+  no sale más de lo que hay; **un conteo no ajusta a ciegas**: si la existencia cambió mientras se contaba (se vendió
+  algo), CONFLICTO con lo que dice ahora; candados por producto, clave de idempotencia, asientos `inventario.salida` e
+  `inventario.conteo` con quién autorizó y tema `catalogo`. 10 pruebas contra la base.*
+  *· Web: Inventario → **Salidas y conteo**: la lista (tipo, motivo, detalle, lo que movió, el valor al costo con su
+  signo, quién y quién autorizó); «Registrar salida» (motivo, productos con lo que queda, detalle y la autorización) y
+  «Contar» (todos los productos que llevan existencia con lo que dice el sistema, lo contado y la diferencia; lo esperado
+  se fija al empezar a contar cada uno y, si el servidor dice que cambió, la línea adopta el número nuevo para revisar).
+  `useAutorizacion` admite otro cargador de autorizadores.*
+  *· Comprobado en el navegador con dos equipos: merma de administración con su PIN; supervisión ve que solo
+  administración la autoriza, un PIN equivocado se rechaza y el correcto pasa; un conteo deja 65; un conteo mientras
+  supervisión regala una unidad se rechaza («ahora el sistema dice 64»), la línea adopta el número y al volver a
+  registrar queda lo contado. Lista y hojas a 1366×768, 1280×800 y 800×1280 sin desplazar el documento (la hoja del
+  conteo desplaza su zona); sin errores de consola.*
 - [ ] **B9-5 · Alertas de stock crítico** con antelación por producto (F8-08), en Inicio y en el
   inventario.
   → Avisa antes de quedarse sin producto.
@@ -1337,7 +1373,6 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El bus del restaurante declara nombres de quien autoriza o ve una anulación (`pedido.*`), como antes | B6-2 |
 | Anular un cobro deja sus líneas por cobrar: lo no entregado vuelve al estante al quitar su línea, no al anular (ADR-023, situación) | Aceptado |
 | Las ventas de antes de B9-3 valen cero al costo, y la venta cobrada no guarda su margen: el margen por producto vendido (F9-04) sale de los movimientos | F9-04 (después del piloto) |
-| Una entrada mal cargada no se corrige todavía: hace falta el ajuste con motivo | B9-4 |
 | El horario de la sucursal se declara pero todavía no decide nada (p. ej., avisar de un turno abierto fuera de hora) | Cuando el cliente lo pida |
 | Las migas del panel dicen «Abby Kingdom» escrito en cada pantalla (Sucursal ya lee el nombre del local) | Al pasar por cada pantalla |
 | El campo de hora del horario lo pinta el navegador en su idioma («10:00 a. m.») aunque el local use 24 h | Aceptado |
@@ -1403,7 +1438,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | **Catálogo, existencias y entradas con costo promedio en el servidor** (B9-1 a B9-3) | Salidas, ajustes y conteo (B9-4) y alertas (B9-5); recetas después del piloto (B6-4) |
+| F8 · Inventario | **Catálogo, existencias, entradas con costo promedio, salidas y conteo en el servidor** (B9-1 a B9-4) | Alertas (B9-5); recetas después del piloto (B6-4) |
 | F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1) | Los informes, después del piloto |
 | F10 y F11 | Sin empezar | Etapas 7 y 8: VPS con internet de respaldo en el local (ADR-021) |
 
@@ -1512,6 +1547,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-30** · B9-2 (v0.33.0) y B9-3 (v0.34.0) hechos en `feat/b9-2` y pasados juntos a `main`: lo que no hay no
   se vende, la existencia es la suma de movimientos y las entradas de mercancía dan el costo promedio ponderado.
   Permiso nuevo `inventario.entrada`. Sigue B9-4.
+- **2026-09-30** · B9-4 hecho (v0.35.0): salidas con motivo y conteo físico con la 🔐 de administración; un conteo no
+  ajusta a ciegas si se vendió mientras se contaba. El cliente pregunta por SKU, código de barras, ubicación y máximos:
+  propuesta en §1, sin decidir. Sigue B9-5.
 
 ---
 

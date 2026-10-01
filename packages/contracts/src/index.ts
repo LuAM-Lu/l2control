@@ -166,6 +166,19 @@ export {
 } from "./entradas.ts";
 
 export {
+  MotivoSalidaSchema,
+  RegistrarSalidaCommandSchema,
+  RegistrarConteoCommandSchema,
+  AjusteInventarioSchema,
+  AjustesInventarioSchema,
+  type MotivoSalida,
+  type RegistrarSalidaCommand,
+  type RegistrarConteoCommand,
+  type AjusteInventarioDto,
+  type AjustesInventarioDto,
+} from "./salidas.ts";
+
+export {
   OficioImpresoraSchema,
   AnchoPapelSchema,
   IpLocalSchema,

@@ -2,7 +2,7 @@
 
 Inventario (F8, Etapa 9). Módulo puro: sin base, sin red y sin reloj propio.
 
-## Qué resuelve hoy (B9-1 a B9-3)
+## Qué resuelve hoy (B9-1 a B9-4)
 
 El **catálogo de productos** de venta directa y de consumo en cuenta (F8-02):
 
@@ -36,6 +36,14 @@ Se lleva el **valor** del inventario (no un costo unitario redondeado): tras dos
 (c₁ + c₂) / (q₁ + q₂), como lo calcula el contador, y vendido todo el valor queda en cero. La aritmética
 es de `@l2/domain-money` (`multiplyByRate`).
 
+Y las **salidas y el conteo** (B9-4):
+
+| Función | Qué decide |
+|---|---|
+| `STOCK_OUT_REASONS` | Por qué sale algo sin venderse: merma, consumo interno, regalo o devolución al proveedor (lista cerrada) |
+| `countMoves` | Lo que mueve un conteo: lo contado menos lo esperado, de cada producto con diferencia |
+| `costOfSurplus` | A qué costo entra lo que un conteo encuentra de más: al promedio; sin existencia, al de la última entrada; sin nada, a cero |
+
 La regla que lo ordena: **el precio es un dato con fecha**. Cambiarlo programa el tramo siguiente;
 lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al venderse).
 
@@ -51,5 +59,5 @@ lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al
 
 ## Lo que llega después
 
-Ajustes con motivo y conteo físico (B9-4) y alertas de stock crítico (B9-5). Las
+Las alertas de stock crítico (B9-5). Las
 recetas y la descarga al marcar LISTO van con el restaurante (B6-4).

@@ -219,9 +219,9 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "F8-06",
       },
       {
-        id: "mermas",
+        id: "salidas",
         nombre: "Salidas y conteo",
-        href: null,
+        href: rutaSeccion("inventario", "salidas"),
         proposito:
           "Merma, consumo interno, regalo y devolución al proveedor, con motivo y autorización, y el conteo físico.",
         tarea: "F8-07",
@@ -365,6 +365,7 @@ export const RUTAS_MOVIDAS: Readonly<Record<string, Route>> = {
   "personas/representantes": rutaSeccion("parque", "representantes"),
   // B9-3: «Compras y mermas» se partió en entradas (B9-3) y salidas con conteo (B9-4).
   "inventario/compras": rutaSeccion("inventario", "entradas"),
+  "inventario/mermas": rutaSeccion("inventario", "salidas"),
   "personas/usuarios": rutaSeccion("ajustes", "usuarios"),
   "personas/dispositivos": rutaSeccion("ajustes", "dispositivos"),
   "configuracion/accesos": rutaSeccion("ajustes", "accesos"),

@@ -30,6 +30,7 @@ import { casosCortes, type CasosCortes } from "./caja/cortes.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
 import { casosEntradas, type CasosEntradas } from "./inventario/entradas.ts";
+import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
 import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
 import { crearFirmante } from "./tiempo-real/ticket.ts";
 
@@ -55,6 +56,7 @@ export type { CasosCortes } from "./caja/cortes.ts";
 export type { CasosFeriados } from "./dinero/feriados.ts";
 export { DIAS_POR_ADELANTADO_PRECIOS, type CasosProductos } from "./inventario/productos.ts";
 export { ENTRADAS_RECIENTES, type CasosEntradas } from "./inventario/entradas.ts";
+export { AJUSTES_RECIENTES, type CasosSalidas } from "./inventario/salidas.ts";
 export type { Aviso, CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
 export { TICKET_MS, type DatosDelTicket } from "./tiempo-real/ticket.ts";
 export { TEMAS_DE_ACCION, temasDe } from "./tiempo-real/temas.ts";
@@ -94,6 +96,8 @@ export interface Aplicacion {
   readonly productos: CasosProductos;
   /** Las entradas de mercancía con su costo (B9-3). */
   readonly entradas: CasosEntradas;
+  /** Las salidas con motivo y los conteos físicos, con su autorización (B9-4). */
+  readonly salidas: CasosSalidas;
   readonly tiempoReal: CasosTiempoReal;
   cerrar(): Promise<void>;
 }
@@ -136,6 +140,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     feriados: casosFeriados(base),
     productos: casosProductos(base),
     entradas: casosEntradas(base),
+    salidas: casosSalidas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     cerrar: () => base.cerrar(),
   };

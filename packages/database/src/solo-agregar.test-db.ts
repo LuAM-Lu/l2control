@@ -1142,3 +1142,31 @@ test("una entrada de mercancía es inmutable; sus líneas dicen bultos × unidad
     por("REFERENCIA_INVALIDA"),
   );
 });
+
+test("una salida o un conteo es inmutable, con su motivo de lista cerrada y quién lo autorizó (B9-4)", async () => {
+  const p = await producto(A, "Galleta de prueba");
+  const ajuste = (extra: Record<string, unknown> = {}) =>
+    app.conTenant(A.tenant, (tx) =>
+      tx.stockAdjustment.create({
+        data: { tenantId: A.tenant, branchId: A.sucursal, kind: "SALIDA", reason: "MERMA", content: [{ productId: p.id, cantidad: 1 }], operationKey: randomUUID(), at: new Date(), createdByName: "Luis Guerrero", authorizedBy: randomUUID(), authorizedByName: "Abigail Karam", ...extra } as never,
+      }),
+    );
+  const a = await ajuste();
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.stockAdjustment.update({ where: { id: a.id }, data: { reason: "REGALO" } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.stockAdjustment.delete({ where: { id: a.id } })), SOLO_AGREGAR);
+  for (const extra of [{ reason: null }, { reason: "VARIOS" }, { kind: "CONTEO" }, { kind: "AJUSTE", reason: null }, { content: [] }, { content: { x: 1 } }, { note: "x" }, { authorizedByName: " " }]) {
+    await assert.rejects(ajuste(extra), por("RESTRICCION"), JSON.stringify(extra));
+  }
+  await ajuste({ kind: "CONTEO", reason: null });
+
+  const mov = (extra: Record<string, unknown>) =>
+    app.conTenant(A.tenant, (tx) =>
+      tx.stockMovement.create({ data: { tenantId: A.tenant, branchId: A.sucursal, productId: p.id, adjustmentId: a.id, at: new Date(), createdByName: "Luis Guerrero", ...extra } as never }),
+    );
+  // Un ajuste que mete: el valor va con su signo. Una salida solo saca.
+  await assert.rejects(mov({ kind: "AJUSTE", quantity: 2, valueMinor: -10n }), por("RESTRICCION"));
+  await assert.rejects(mov({ kind: "SALIDA", quantity: 2, valueMinor: 0n }), por("RESTRICCION"));
+  await assert.rejects(mov({ kind: "AJUSTE", quantity: 2, valueMinor: 10n, adjustmentId: null }), por("RESTRICCION"));
+  await mov({ kind: "AJUSTE", quantity: 2, valueMinor: 10n });
+  await assert.rejects(mov({ kind: "AJUSTE", quantity: 1, valueMinor: 5n }), por("DUPLICADO")); // un producto por ajuste
+});

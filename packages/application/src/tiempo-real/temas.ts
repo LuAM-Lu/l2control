@@ -75,6 +75,9 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "existencia.mover": ["catalogo"],
   // Una entrada sube la existencia y mueve el costo promedio: la caja vuelve a ofrecer lo que llegó.
   "inventario.entrada": ["catalogo"],
+  // Una salida o un conteo cambian la existencia y el costo: la caja deja de ofrecer lo que ya no hay.
+  "inventario.salida": ["catalogo"],
+  "inventario.conteo": ["catalogo"],
 
   "sesion.abrir": ["sesiones"],
   "sesion.cerrar": ["sesiones"],

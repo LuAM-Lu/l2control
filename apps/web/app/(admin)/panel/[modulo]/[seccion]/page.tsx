@@ -23,6 +23,8 @@ import { ProductosScreen } from "../../../../../src/features/inventario/Producto
 import { catalogoDelLocal } from "../../../../../src/features/inventario/productos.servidor";
 import { EntradasScreen } from "../../../../../src/features/inventario/EntradasScreen";
 import { entradasDelLocal } from "../../../../../src/features/inventario/entradas.servidor";
+import { SalidasScreen } from "../../../../../src/features/inventario/SalidasScreen";
+import { ajustesDelLocal } from "../../../../../src/features/inventario/salidas.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -46,6 +48,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/sucursal": () => <EditorSucursal />,
   "inventario/productos": async () => <ProductosScreen catalogo={await catalogoDelLocal()} />,
   "inventario/entradas": async () => <EntradasScreen catalogo={await catalogoDelLocal()} entradas={await entradasDelLocal()} />,
+  "inventario/salidas": async () => <SalidasScreen catalogo={await catalogoDelLocal()} ajustes={await ajustesDelLocal()} />,
 };
 
 /**

@@ -12,6 +12,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.35.0] — 2026-09-30 · Etapa 9 · Inventario
+
+B9-4 · Salidas y ajustes con motivo y autorización, y conteo físico.
+
+### Añadido
+- **Inventario → Salidas y conteo.** Lo que sale sin venderse se registra con su motivo: merma o daño, consumo
+  interno, regalo o devolución al proveedor. Sale al costo promedio y queda con quién lo hizo y quién lo autorizó.
+- **El conteo físico**: se escribe lo que hay en el estante y la existencia queda igual a lo contado; lo que falta
+  sale y lo que sobra entra, al costo. Un conteo que cuadra también queda registrado.
+- Si se vende algo mientras se cuenta, el conteo no ajusta a ciegas: avisa de lo que dice el sistema ahora para
+  revisarlo y volver a registrarlo.
+- Las dos cosas con autorización: administración confirma con su PIN y supervisión pide el de administración.
+
+### Cambiado
+- Una entrada mal cargada ya tiene arreglo: una salida (devolución al proveedor) o un conteo.
+
 ## [0.34.0] — 2026-09-30 · Etapa 9 · Inventario
 
 B9-3 · Entradas de mercancía y costo promedio ponderado.

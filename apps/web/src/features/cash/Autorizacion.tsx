@@ -17,16 +17,21 @@ import { autorizadoresDeCaja } from "../cuentas/cuentas.acciones";
  * con la sesión que alguien dejó abierta.
  */
 
-export type AccionConPin = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "turno.corteZ";
+export type AccionConPin = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "turno.corteZ" | "inventario.ajustar";
 const PIN_LONGITUD = 4;
 
-type Autorizador = { id: string; nombre: string; rol: string };
+export type Autorizador = { id: string; nombre: string; rol: string };
 
 /**
  * `propio`: quien opera firma con su propio PIN, sin pedírselo a nadie (la cajera firma su corte Z
  * dentro del umbral, JORNADA §1). El servidor rechaza el PIN de otra persona.
+ * `cargar`: de dónde sale la lista de quién autoriza, si no es una acción de la caja (el inventario, B9-4).
  */
-export function useAutorizacion(accion: AccionConPin, abierto: boolean, { propio = false }: { propio?: boolean } = {}) {
+export function useAutorizacion(
+  accion: AccionConPin,
+  abierto: boolean,
+  { propio = false, cargar }: { propio?: boolean; cargar?: () => Promise<Autorizador[]> } = {},
+) {
   const actor = useActorEnSesion();
   const operador = useOperador();
   const segunMatriz = actor ? can(actor, accion) : "DENEGADO";
@@ -44,7 +49,7 @@ export function useAutorizacion(accion: AccionConPin, abierto: boolean, { propio
     if (!pide) return;
     let vivo = true;
     setLista(null);
-    autorizadoresDeCaja(accion)
+    (cargar ? cargar() : autorizadoresDeCaja(accion))
       .then((l) => vivo && setLista(l))
       .catch(() => vivo && setLista([]));
     return () => {
