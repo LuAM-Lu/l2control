@@ -28,6 +28,18 @@ export async function trabajosDelLocal(): Promise<readonly TrabajoDeImpresionDto
   return r.ok ? r.valor.trabajos : [];
 }
 
+/** El agente empaquetado que se puede descargar, con su versión y su huella; `null` si no está. */
+export async function agenteDescargable(): Promise<{ version: string; sha256: string; mb: number } | null> {
+  const { existsSync, readFileSync, statSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const { entorno } = await import("../../servidor/entorno");
+  const exe = entorno().L2_AGENTE_EXE || resolve(process.cwd(), "..", "printer-agent", "dist", "l2-impresion.exe");
+  if (!existsSync(exe)) return null;
+  const sha256 = existsSync(`${exe}.sha256`) ? (readFileSync(`${exe}.sha256`, "utf8").split(/\s+/)[0] ?? "") : "";
+  const version = (JSON.parse(readFileSync(resolve(process.cwd(), "..", "..", "package.json"), "utf8")) as { version: string }).version;
+  return { version, sha256, mb: Math.round(statSync(exe).size / 1_048_576) };
+}
+
 /** A dónde se conecta el agente: la misma dirección del canal en vivo (vacía = esta máquina, ese puerto). */
 export async function direccionDelWorker(): Promise<{ url: string; puerto: number }> {
   const { entorno } = await import("../../servidor/entorno");

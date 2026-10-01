@@ -20,6 +20,9 @@ export function crearAgente(o: {
   registro: Registro;
   /** Cada cuánto mira la cola sin aviso. */
   mirarMs?: number;
+  /** Lo que espera para volver a intentarlo si el servidor no lo reconoce, o si falló al abrirlo. */
+  esperaRechazoMs?: number;
+  esperaErrorMs?: number;
 }): Agente {
   const socket = io(`${o.servidor.replace(/\/$/, "")}/impresion`, {
     path: "/tiempo-real",
@@ -67,10 +70,28 @@ export function crearAgente(o: {
     return n;
   }
 
+  /**
+   * Socket.io no vuelve a intentarlo solo cuando el servidor lo rechaza en el apretón de manos (la base
+   * no respondió, o el agente se retiró) ni cuando el servidor cierra la conexión: aquí se reintenta
+   * igual, más espaciado si no lo reconoce. Un agente de la caja no se rinde nunca.
+   */
+  let reintento: ReturnType<typeof setTimeout> | null = null;
+  const reintentar = (ms: number) => {
+    if (reintento || socket.active) return;
+    reintento = setTimeout(() => {
+      reintento = null;
+      if (!socket.connected) socket.connect();
+    }, ms);
+  };
   socket.on("connect", () => o.registro.info("Conectado al servidor."));
-  socket.on("disconnect", (motivo) => o.registro.error(`Desconectado del servidor (${motivo}).`));
+  socket.on("disconnect", (motivo) => {
+    o.registro.error(`Desconectado del servidor (${motivo}).`);
+    if (motivo === "io server disconnect") reintentar(o.esperaRechazoMs ?? 60_000);
+  });
   socket.on("connect_error", (e) => {
-    o.registro.error(e.message === "NO_AUTORIZADO" ? "El servidor no reconoce este agente: vuelve a vincularlo." : `Sin conexión con el servidor: ${e.message}`);
+    const rechazado = e.message === "NO_AUTORIZADO";
+    o.registro.error(rechazado ? "El servidor no reconoce este agente: vuélvelo a vincular desde Ajustes → Impresoras." : `Sin conexión con el servidor: ${e.message}`);
+    reintentar(rechazado ? (o.esperaRechazoMs ?? 60_000) : (o.esperaErrorMs ?? 15_000));
   });
   socket.on("hay-trabajo", () => void vaciar());
   const reloj = setInterval(() => void vaciar(), o.mirarMs ?? 30_000);
@@ -80,6 +101,9 @@ export function crearAgente(o: {
     vaciar,
     parar: () => {
       clearInterval(reloj);
+      if (reintento) clearTimeout(reintento);
+      socket.off("disconnect");
+      socket.off("connect_error");
       socket.disconnect();
     },
   };

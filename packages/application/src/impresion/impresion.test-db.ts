@@ -171,7 +171,7 @@ describe("el agente y la cola (ADR-026)", () => {
     assert.equal(await local.app.impresion.reclamar(ag, AHORA + MIN), null);
     const apagada = valor(await local.app.impresion.trabajos(ctxCajera, AHORA + MIN)).trabajos.find((x) => x.titulo === "Comanda de prueba")!;
     assert.equal(apagada.estado, "FALLIDO");
-    assert.match(apagada.error!, /apagada/);
+    assert.match(apagada.error!, /se apagó/);
     valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: impresora, activa: true }, AHORA));
   });
 
@@ -180,6 +180,28 @@ describe("el agente y la cola (ADR-026)", () => {
     const ajeno = await agente(otro, otro.sistema, "Ajeno");
     valor(await local.app.impresion.imprimirPrueba(ctxAdmin, { impresoraId: impresora }, AHORA));
     assert.equal(await otro.app.impresion.reclamar(ajeno, AHORA + 10 * MIN), null);
+  });
+});
+
+describe("apagar o retirar una impresora con trabajos en cola", () => {
+  test("lo pendiente falla con el motivo (al apagarla, salvo las pruebas); nada se queda esperando", async () => {
+    const otra = valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "CREAR", datos: datos({ nombre: "Barra", ip: "192.168.1.80", recibos: false }) }, AHORA)).local.impresoras.find((x) => x.nombre === "Barra")!.id;
+    const encolar = (tipo: "COMANDA" | "PRUEBA", titulo: string) =>
+      local.base.conTenant(local.sistema.tenantId, (tx) => encolarEn(tx, local.sistema, { tipo, titulo, documento: { renglones: [{ tipo: "TEXTO", texto: titulo }] }, impresoraId: otra }, AHORA));
+    // Barra hace las comandas un momento: la Caja las suelta.
+    valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: impresora, activa: false }, AHORA));
+    valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: otra, activa: true }, AHORA));
+    await encolar("COMANDA", "Comanda que no saldrá");
+    await encolar("PRUEBA", "Prueba que sí espera");
+    valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: otra, activa: false }, AHORA));
+    valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: impresora, activa: true }, AHORA));
+    const de = async () => valor(await local.app.impresion.trabajos(ctxCajera, AHORA)).trabajos.filter((t) => t.impresora.id === otra);
+    assert.deepEqual((await de()).map((t) => [t.titulo, t.estado, t.error]).sort(), [
+      ["Comanda que no saldrá", "FALLIDO", "«Barra» se apagó"],
+      ["Prueba que sí espera", "PENDIENTE", null],
+    ]);
+    valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "RETIRAR", impresoraId: otra }, AHORA));
+    assert.deepEqual((await de()).find((t) => t.titulo === "Prueba que sí espera")?.error, "«Barra» se retiró");
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Info, Laptop, Pencil, Power, Printer, Trash2, Wifi, WifiOff } from "lucide-react";
+import { Copy, Download, Info, Laptop, Pencil, Power, Printer, Trash2, Wifi, WifiOff } from "lucide-react";
 import { DatosImpresoraSchema, type ImpresoraCommand, type ImpresoraDto, type ImpresorasDelLocalDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Badge, Button, Container, EmptyState, Input, PageHeader, avisar, cn } from "@l2/ui";
@@ -35,7 +35,16 @@ const deImpresora = (i: ImpresoraDto): Form => ({
   ipFija: i.ipFija,
 });
 
-export function ImpresorasScreen({ local, worker }: { local: ImpresorasDelLocalDto | null; worker: { url: string; puerto: number } }) {
+export function ImpresorasScreen({
+  local,
+  worker,
+  descargable,
+}: {
+  local: ImpresorasDelLocalDto | null;
+  worker: { url: string; puerto: number };
+  /** El agente empaquetado en este servidor, si lo hay. */
+  descargable: { version: string; sha256: string; mb: number } | null;
+}) {
   const router = useRouter();
   const conElevacion = useConElevacion();
   const actor = useActorEnSesion();
@@ -227,6 +236,26 @@ export function ImpresorasScreen({ local, worker }: { local: ImpresorasDelLocalD
               Un programa en la laptop de caja recibe los trabajos del servidor y los manda a la impresora por la red del local.
             </p>
             {local.agentes.length === 0 && <p className="text-[12.5px] text-state-warn">Sin agente vinculado: nada sale en papel.</p>}
+            {descargable ? (
+              <a
+                href="/descargas/agente"
+                download="l2-impresion.exe"
+                className="flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] border border-line px-3 text-[13px] font-semibold text-ink no-underline hover:border-line-strong hover:bg-surface-2"
+              >
+                <Download size={15} aria-hidden="true" />
+                Descargar el agente
+                <span className="ml-auto text-[11.5px] font-normal text-ink-3">
+                  v{descargable.version} · {descargable.mb} MB
+                </span>
+              </a>
+            ) : (
+              <p className="text-[12px] text-ink-3">El agente todavía no está empaquetado en este servidor.</p>
+            )}
+            {descargable?.sha256 && (
+              <p className="break-all text-[11px] text-ink-3" title="Huella SHA-256 del instalador">
+                SHA-256 {descargable.sha256}
+              </p>
+            )}
             <ul className="flex flex-col gap-1.5">
               {local.agentes.map((a) => (
                 <li key={a.id} className="flex items-center justify-between gap-2 rounded-[var(--radius-control)] border border-line px-3 py-2">
@@ -261,10 +290,23 @@ export function ImpresorasScreen({ local, worker }: { local: ImpresorasDelLocalD
               <div role="status" className="flex flex-col gap-1.5 rounded-[var(--radius-control)] border border-brand/40 bg-brand/8 p-3">
                 <span className="text-[12px] text-ink-2">Código de un solo uso (vale 10 minutos):</span>
                 <span className="tnum font-display text-2xl font-bold tracking-[0.12em] text-ink">{codigo}</span>
-                <span className="text-[12px] text-ink-2">En la laptop de caja:</span>
-                <code className="block break-all rounded bg-base px-2 py-1.5 text-[12px] text-ink">
-                  l2-impresion vincular {servidor} {codigo}
-                </code>
+                <span className="text-[12px] text-ink-2">En la laptop de caja, abre <b>l2-impresion.exe</b> y pega esto cuando lo pida:</span>
+                <div className="flex items-center gap-1.5">
+                  <code className="block min-w-0 flex-1 break-all rounded bg-base px-2 py-1.5 text-[12px] text-ink">
+                    {servidor} {codigo}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="neutral"
+                    surface="admin"
+                    aria-label="Copiar la dirección y el código"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(`${servidor} ${codigo}`).then(() => avisar.ok("Copiado"));
+                    }}
+                  >
+                    <Copy size={14} aria-hidden="true" />
+                  </Button>
+                </div>
                 <Button type="button" variant="ghost" surface="admin" onClick={() => setCodigo(null)}>
                   Listo
                 </Button>

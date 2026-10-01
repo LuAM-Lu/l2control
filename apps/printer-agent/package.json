@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node --experimental-strip-types src/main.ts",
+    "empaquetar": "node scripts/empaquetar.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
   },
@@ -21,6 +22,9 @@
   "devDependencies": {
     "@l2/config": "workspace:*",
     "@types/node": "24.10.1",
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6",
+    "socket.io": "4.8.4",
     "typescript": "7.0.2"
   }
 }

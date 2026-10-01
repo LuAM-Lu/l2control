@@ -263,6 +263,17 @@ desconectó en el acto) y los equipos «Prueba B52 …» revocados. Las pruebas 
 historial de la impresora retirada. **Falta el trabajo de campo:** la impresora real del cliente (marca y modelo
 aún sin saber) y la instalación del agente en su laptop.
 
+**El agente de impresión, listo para instalar (v0.39.1, 2026-10-01, pedido del cliente: «nada para después»).**
+Se adelanta de B7-3 la instalación del agente en la laptop de caja: `l2-impresion.exe` es un solo ejecutable
+(Node SEA, sin Node ni el proyecto) que se descarga en Ajustes → Impresoras con su huella; doble clic abre un
+asistente que pide pegar la dirección y el código, pide permiso de administrador una vez, comprueba el servidor y
+lo deja como **tarea de Windows** (al arrancar, con la cuenta del sistema, sin ventana, reinicio cada minuto). La
+barra avisa en ámbar «N en espera» cuando el agente no toma lo que se manda. Comprobado con el `.exe` contra la
+impresora falsa (`pnpm impresora:falsa`): descarga con sesión (401 sin ella), vincular, imprimir, aviso con el
+agente parado y salida al volver. **La instalación como tarea no se probó aquí** (pide aceptar el permiso de
+administrador en la pantalla): su definición se validó con PowerShell sin registrarla. En la base del cliente, la
+impresora «Prueba B53 Caja» y sus agentes, retirados; equipo «Prueba B53 Admin» revocado.
+
 **Siguiente paso:** **B6-1** (carta y mesas en el servidor), que abre el restaurante.
 
 ---
@@ -1446,7 +1457,8 @@ antes del cobro en servidor (orden de ejecución).
   **Bloqueado por el cliente.**
 - [ ] **B7-3 · Medición con red real**: carga, error y degradación con latencia de verdad (RIE-13); la
   app en el teléfono de la monitora, la tablet del mesero y la laptop de caja reales, también por el 4G
-  de respaldo (T-5, M-15); los 12 tamaños otra vez.
+  de respaldo (T-5, M-15); los 12 tamaños otra vez. *El agente de impresión ya está empaquetado e instalable
+  (adelantado el 2026-10-01, v0.39.1): aquí queda instalarlo en la laptop real y medirlo.*
 - [ ] **B7-4 · Respaldos**: volcado diario cifrado fuera del VPS y una **restauración ensayada**
   (F10-04, F10-05).
 - [ ] **B7-5 · Revisión de seguridad** contra PLAN §7 y auditoría de dependencias (F10-06, F10-09).
@@ -1520,7 +1532,8 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook | Fuera de la Ruta A |
-| El agente de impresión se arranca a mano en la laptop (`l2-impresion`): falta empaquetarlo como servicio de Windows que arranque solo | B7-3 (instalación de los equipos) |
+| El agente de impresión no va firmado con un certificado de código: Windows avisa al abrirlo («editor desconocido») | B8 (si el cliente compra el certificado) |
+| La instalación del agente como tarea de Windows (con permiso de administrador) no se ha ejecutado de punta a punta en una laptop | Trabajo de campo (B7-3) |
 | En producción el proxy debe llevar `/impresion/vincular` y el espacio `/impresion` del canal al worker | B7-1 |
 | «Impreso» es que la impresora aceptó los bytes y cerró bien (ADR-026): no ve el papel. Una impresora que no contesta al sensor del papel imprime sin esa comprobación | Aceptado; se mide con la impresora real |
 | Las comandas tienen su impresora y su tipo de trabajo, pero no se encolan: los pedidos del mesero siguen en el bus del navegador | B6-2 |
@@ -1740,6 +1753,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-01** · Al llegar a B5-2, el servidor en la nube no alcanza la impresora del local: se decide un agente en
   la laptop de caja (ADR-026). B5-2 hecho (v0.39.0): recibo y ticket del Z en papel, cola con confirmación y alerta
   con «Reintentar». Sigue B6-1.
+- **2026-10-01** · Pedido del cliente: dejar el agente listo para instalar ya (de B7-3). v0.39.1: `l2-impresion.exe`
+  con asistente y tarea de Windows, descarga desde el panel, aviso «en espera», y se corrigen la reconexión del
+  agente tras un rechazo y los trabajos que quedaban esperando en una impresora apagada o retirada.
 
 ---
 

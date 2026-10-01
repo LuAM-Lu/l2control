@@ -305,12 +305,16 @@ export function casosImpresion(base: Base): CasosImpresion {
               }
               if (i.active === cmd.activa) break;
               await tx.printer.update({ where: { id: i.id }, data: { active: cmd.activa } });
+              // Lo que esperaba en ella ya no va a salir: falla con su motivo en vez de quedarse esperando
+              // para siempre. Las pruebas, no: se prueba con la impresora apagada.
+              if (!cmd.activa) await cancelarPendientesEn(tx, ctx, i.id, `«${i.name}» se apagó`, ahora, true);
               await auditar(tx, ctx, { action: "impresora.activar", entityType: "printer", entityId: i.id, after: { activa: cmd.activa, nombre: i.name } });
               break;
             }
             case "RETIRAR": {
               const i = await buscar(cmd.impresoraId);
               if (!i) return noDisponible("Esa impresora no existe en esta sucursal.");
+              await cancelarPendientesEn(tx, ctx, i.id, `«${i.name}» se retiró`, ahora, false);
               await tx.printer.update({ where: { id: i.id }, data: { active: false, retiredAt: new Date(ahora), retiredByName: quien.nombre } });
               await auditar(tx, ctx, { action: "impresora.retirar", entityType: "printer", entityId: i.id, before: { nombre: i.name, ip: i.ip, port: i.port } });
               break;
@@ -523,6 +527,20 @@ export function casosImpresion(base: Base): CasosImpresion {
       });
     },
   };
+}
+
+/**
+ * Los trabajos que esperaban en una impresora que se apaga o se retira pasan a FALLIDO con ese motivo
+ * (por ENVIADO, que es el único camino que admite la base). `salvoPruebas`: al apagarla, las pruebas
+ * siguen en cola. Lo ya enviado al agente se deja: su respuesta, o el barrido de 30 s, lo resuelve.
+ */
+async function cancelarPendientesEn(tx: Transaccion, ctx: Contexto, printerId: string, motivo: string, ahora: number, salvoPruebas: boolean): Promise<void> {
+  const pendientes = await tx.printJob.findMany({ where: { printerId, status: "PENDIENTE", ...(salvoPruebas ? { kind: { not: "PRUEBA" } } : {}) } });
+  for (const t of pendientes) {
+    await tx.printJob.update({ where: { id: t.id }, data: { status: "ENVIADO", sentAt: new Date(ahora) } });
+    await tx.printJob.update({ where: { id: t.id }, data: { status: "FALLIDO", sentAt: null, finishedAt: new Date(ahora), lastError: motivo } });
+    await auditar(tx, ctx, { action: "impresion.fallar", entityType: "print_job", entityId: t.id, after: { titulo: t.title, error: motivo } });
+  }
 }
 
 /** Encola el ticket de un corte guardado (lo usa también el Z al sellarse). */

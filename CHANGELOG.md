@@ -12,6 +12,29 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.39.1] — 2026-10-01 · Etapa 5 · Tiempo real e impresión
+
+El agente de impresión, listo para instalar en la laptop de caja (adelanto de B7-3, pedido del cliente).
+
+### Añadido
+- **`l2-impresion.exe`**: un solo ejecutable, sin Node ni el proyecto. Doble clic abre el asistente: se pega la
+  dirección del servidor y el código de Ajustes → Impresoras, pide permiso de administrador una vez, comprueba el
+  servidor, se vincula y queda instalado como **tarea de Windows**: arranca sola al encender la laptop, sin
+  ventana, y se vuelve a levantar si se cae. Volver a abrirlo enseña su estado y deja imprimir una prueba,
+  vincularlo otra vez o desinstalarlo. Registro en `C:\ProgramData\L2 Control\Impresion\agente.log`.
+- **«Descargar el agente»** en Ajustes → Impresoras, con su versión y su huella SHA-256; el código de vinculación
+  sale con lo que hay que pegar y un botón para copiarlo.
+- **«N en espera»** (ámbar) en la barra y en Inicio cuando algo lleva más de un minuto sin que el agente lo tome
+  (laptop apagada, sin internet o el agente parado).
+- `pnpm agente:empaquetar` construye el ejecutable; `pnpm impresora:falsa` levanta una impresora falsa para
+  probar sin la de verdad.
+
+### Corregido
+- El agente volvía a conectarse solo tras un corte de red, pero no si el servidor lo rechazaba un momento al
+  entrar (por ejemplo, con la base caída): ahora lo reintenta siempre.
+- Apagar o retirar una impresora deja en «no salió», con su motivo, lo que esperaba en ella (al apagarla, salvo
+  las pruebas), en vez de dejarlo esperando para siempre.
+
 ## [0.39.0] — 2026-10-01 · Etapa 5 · Tiempo real e impresión
 
 B5-2 · La impresión en papel: recibo, ticket del corte y la cola con confirmación.

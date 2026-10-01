@@ -1,7 +1,7 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.39.0",
+  "version": "0.39.1",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Etapa 5 · Tiempo real e impresión",
@@ -29,6 +29,8 @@
     "test:db": "turbo run test:db",
     "arch": "depcruise \"packages/*/src/**/*.{ts,tsx}\" \"packages/domain/*/src/**/*.ts\" \"packages/*/*.ts\" \"packages/database/scripts/**/*.ts\" \"apps/web/{app,src}/**/*.{ts,tsx}\" \"apps/web/*.ts\" \"apps/worker/src/**/*.ts\" \"apps/printer-agent/src/**/*.ts\" --config .dependency-cruiser.cjs",
     "arch:demo": "node scripts/arch-demo.mjs",
+    "agente:empaquetar": "pnpm --filter @l2/printer-agent empaquetar",
+    "impresora:falsa": "node scripts/impresora-falsa.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm lint:prueba && pnpm version:comprobar && pnpm arch && pnpm arch:demo && pnpm test",
     "verify:db": "pnpm verify && pnpm test:db",
     "lint:prueba": "node --test scripts/lint.test.mjs scripts/version.test.mjs",

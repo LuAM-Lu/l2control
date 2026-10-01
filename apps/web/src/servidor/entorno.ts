@@ -24,6 +24,11 @@ const EsquemaEntorno = z.object({
    */
   L2_TIEMPO_REAL_URL: z.union([z.literal(""), z.url({ protocol: /^https?$/ })]).default(""),
   L2_TIEMPO_REAL_PUERTO: z.coerce.number().int().min(1).max(65535).default(3001),
+  /**
+   * El agente de impresión empaquetado (`pnpm agente:empaquetar`, ADR-026), que Ajustes → Impresoras
+   * deja descargar. Vacío = el que deja el empaquetado en `apps/printer-agent/dist`.
+   */
+  L2_AGENTE_EXE: z.string().default(""),
 });
 
 export type EntornoWeb = z.infer<typeof EsquemaEntorno>;

@@ -6,6 +6,9 @@ packages:
 # Prisma los necesita para descargar su motor de migraciones.
 allowBuilds:
   '@prisma/engines': true
+  # esbuild empaqueta el agente de impresión: funciona con su binario de Windows sin su script de
+  # instalación. Revisado y denegado a propósito.
+  esbuild: false
   prisma: true
 minimumReleaseAgeExclude:
   - lucide-react@1.43.0
