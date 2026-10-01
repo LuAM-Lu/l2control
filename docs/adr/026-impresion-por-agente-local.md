@@ -29,7 +29,9 @@ internet 4G de respaldo) o imprimir desde el diálogo del navegador (no confirma
    Impresoras. El agente lo cambia por una credencial propia, larga y aleatoria, que el servidor guarda solo
    como huella; retirarla desde el panel lo desconecta en el acto.
 3. El servidor guarda la **cola** (`print_job`, por sucursal): `PENDIENTE → ENVIADO → CONFIRMADO | FALLIDO`, con
-   reintentos de espera creciente (5 intentos) y un trabajo enviado que no responde vuelve a la cola. El
+   reintentos de espera creciente (5 intentos) y un trabajo enviado que no responde vuelve a la cola. Lo que
+   falló o espera y ya no hace falta, una persona lo **descarta** (`DESCARTADO`, v0.39.2): no se imprime, deja
+   de avisar y queda en el historial con su nombre; lo que el agente tiene en la mano, no. El
    **servidor compone el ticket** en ESC/POS (`@l2/domain-printing`, 58 y 80 mm, página de códigos 850 para
    tildes y eñes): el agente no sabe de recibos ni de comandas, solo manda bytes a una IP y un puerto.
 4. El agente imprime por **TCP 9100 en la red del local**. Antes pregunta el estado del papel (DLE EOT 4) y,

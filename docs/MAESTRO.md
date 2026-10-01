@@ -274,6 +274,17 @@ agente parado y salida al volver. **La instalación como tarea no se probó aqu�
 administrador en la pantalla): su definición se validó con PowerShell sin registrarla. En la base del cliente, la
 impresora «Prueba B53 Caja» y sus agentes, retirados; equipo «Prueba B53 Admin» revocado.
 
+**Ajustes → Impresoras, reordenada (v0.39.2, 2026-10-01, pedido del cliente: «más organizada, sin listas
+infinitas, con capacidad de limpiar»).** Resumen arriba (impresoras, agente, no salieron, en cola) y tres pestañas:
+impresoras en tarjetas con alta y edición en hoja lateral; cola e historial **por páginas** (10/20/50) con filtros
+de estado, impresora y tipo y vista previa del ticket; y el agente. Lo que falló o espera se **descarta** (estado
+nuevo `DESCARTADO`, migración `20261021000000_descartar_impresion`): no se imprime, apaga la alerta y queda en el
+historial y la auditoría con quién lo hizo; la base impide salir de ahí y descartar sin nombre. Comprobado a
+1366×768, 1280×800 y 800×1280 sin desplazar la página, y en teléfono. En la base del cliente: impresoras «Prueba
+B54 Barra» y «Prueba B54 Terraza» (10.2.0.2, contra la impresora falsa, con el agente del cliente) retiradas tras
+la prueba, sus trabajos descartados o impresos en el historial; equipo «Prueba B54 Admin» revocado. El cliente
+descartó dos pruebas suyas de «Caja» mientras tanto.
+
 **Siguiente paso:** **B6-1** (carta y mesas en el servidor), que abre el restaurante.
 
 ---
@@ -1756,6 +1767,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-01** · Pedido del cliente: dejar el agente listo para instalar ya (de B7-3). v0.39.1: `l2-impresion.exe`
   con asistente y tarea de Windows, descarga desde el panel, aviso «en espera», y se corrigen la reconexión del
   agente tras un rechazo y los trabajos que quedaban esperando en una impresora apagada o retirada.
+- **2026-10-01** · Pedido del cliente: Ajustes → Impresoras más organizada. v0.39.2: resumen, pestañas, historial por
+  páginas con filtros y vista previa, y «Descartar» lo que no salió (estado nuevo, sin borrar). Sigue B6-1.
 
 ---
 

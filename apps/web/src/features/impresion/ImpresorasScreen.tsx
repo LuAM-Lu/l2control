@@ -1,46 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Download, Info, Laptop, Pencil, Power, Printer, Trash2, Wifi, WifiOff } from "lucide-react";
-import { DatosImpresoraSchema, type ImpresoraCommand, type ImpresoraDto, type ImpresorasDelLocalDto } from "@l2/contracts";
+import { History, Info, ListOrdered, Pencil, Plus, Power, Printer, Trash2, TriangleAlert, Wifi, WifiOff } from "lucide-react";
+import type { HistorialDeImpresionDto, ImpresoraDto, ImpresorasDelLocalDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { Badge, Button, Container, EmptyState, Input, PageHeader, avisar, cn } from "@l2/ui";
+import { Badge, Button, Container, Dialog, EmptyState, PageHeader, Tabs, avisar, cn } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
-import { useHora } from "../sucursal/SucursalProvider.tsx";
-import { EstadoDeImpresion, useCola } from "./ColaProvider.tsx";
+import { useReloj } from "../sucursal/SucursalProvider.tsx";
+import { AgenteDeImpresion } from "./AgenteDeImpresion.tsx";
+import { ESTADO_DE_TRABAJO, EstadoDeImpresion, useCola } from "./ColaProvider.tsx";
+import { HistorialDeImpresion, useHistorial } from "./HistorialDeImpresion.tsx";
+import { ImpresoraForm, type Mandar } from "./ImpresoraForm.tsx";
 import { aplicarImpresora, imprimirPrueba } from "./impresion.acciones";
 
 /**
- * Ajustes → Impresoras (B5-2, ADR-015, ADR-026). La impresora térmica del local (IP privada, puerto,
- * ancho y para qué sirve: recibos y cortes, comandas) y el agente de la laptop de caja que imprime en
- * ella. Una impresora nace apagada: se prueba y se enciende. Cambiar algo pide confirmar identidad; una
- * prueba, no.
+ * Ajustes → Impresoras (B5-2, ADR-015, ADR-026). Arriba, lo que hay que mirar: impresoras encendidas,
+ * el agente, lo que no salió y lo que está en cola (cada cifra lleva a su sitio). Debajo, tres pestañas:
+ * las impresoras (tarjetas; alta y edición en una hoja lateral), la cola y el historial por páginas, y
+ * el agente de la laptop de caja. Cambiar algo pide confirmar identidad; una prueba, no.
  */
 
-const ETIQUETA = "text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase";
-
-type Form = { nombre: string; ip: string; puerto: string; ancho: 58 | 80; recibos: boolean; comandas: boolean; enVlanDeHardware: boolean; ipFija: boolean };
-const VACIO: Form = { nombre: "", ip: "", puerto: "9100", ancho: 80, recibos: true, comandas: true, enVlanDeHardware: false, ipFija: false };
-const deImpresora = (i: ImpresoraDto): Form => ({
-  nombre: i.nombre,
-  ip: i.ip,
-  puerto: String(i.puerto),
-  ancho: i.ancho,
-  recibos: i.recibos,
-  comandas: i.comandas,
-  enVlanDeHardware: i.enVlanDeHardware,
-  ipFija: i.ipFija,
-});
+type Vista = "impresoras" | "cola" | "agente";
 
 export function ImpresorasScreen({
   local,
+  historial: inicial,
   worker,
   descargable,
 }: {
   local: ImpresorasDelLocalDto | null;
+  historial: HistorialDeImpresionDto | null;
   worker: { url: string; puerto: number };
   /** El agente empaquetado en este servidor, si lo hay. */
   descargable: { version: string; sha256: string; mb: number } | null;
@@ -49,22 +41,20 @@ export function ImpresorasScreen({
   const conElevacion = useConElevacion();
   const actor = useActorEnSesion();
   const puede = actor ? can(actor, "catalogo.modificar") !== "DENEGADO" : false;
-  const hora = useHora();
-  const { trabajos, releer } = useCola();
-  useAlCambiar(["impresion"], () => router.refresh());
+  const { trabajos, releer: releerCola } = useCola();
+  const reloj = useReloj();
+  const historial = useHistorial(inicial);
+  useAlCambiar(["impresion"], () => {
+    router.refresh();
+    void historial.releer();
+  });
 
-  const [form, setForm] = useState<Form>(VACIO);
-  const [editando, setEditando] = useState<string | null>(null);
-  const [errores, setErrores] = useState<Record<string, string>>({});
+  const [vista, setVista] = useState<Vista>("impresoras");
+  const [hojaAbierta, setHojaAbierta] = useState(false);
+  const [editando, setEditando] = useState<ImpresoraDto | null>(null);
+  const [retirar, setRetirar] = useState<ImpresoraDto | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const [retirando, setRetirando] = useState<string | null>(null);
-  const [equipo, setEquipo] = useState("Laptop de caja");
   const [codigo, setCodigo] = useState<string | null>(null);
-  const [servidor, setServidor] = useState(worker.url);
-  // Sin dirección pública configurada, el worker está en esta misma máquina, en su puerto.
-  useEffect(() => {
-    if (!worker.url) setServidor(`${window.location.protocol}//${window.location.hostname}:${worker.puerto}`);
-  }, [worker.url, worker.puerto]);
 
   if (!local) {
     return (
@@ -74,46 +64,25 @@ export function ImpresorasScreen({
     );
   }
 
-  async function mandar(cmd: ImpresoraCommand, ok: string): Promise<boolean> {
+  const mandar: Mandar = async (cmd, ok) => {
     setEnviando(true);
     try {
       const r = await conElevacion(() => aplicarImpresora(cmd));
       if (!r.ok) {
-        if (r.problemas?.length && (cmd.kind === "CREAR" || cmd.kind === "EDITAR")) {
-          setErrores(Object.fromEntries(r.problemas.map((p) => [String(p.path.at(-1)), p.message])));
-        }
         avisar.error(r.mensaje);
-        return false;
+        return { hecho: false, problemas: r.problemas?.length ? Object.fromEntries(r.problemas.map((p) => [String(p.path.at(-1)), p.message])) : undefined };
       }
       if (r.valor.codigo) setCodigo(r.valor.codigo);
       avisar.ok(ok);
       router.refresh();
-      return true;
+      return { hecho: true };
     } catch {
       avisar.error("No se pudo hablar con el servidor: no cambió nada.");
-      return false;
+      return { hecho: false };
     } finally {
       setEnviando(false);
     }
-  }
-
-  async function guardar(e: React.FormEvent) {
-    e.preventDefault();
-    const datos = { ...form, puerto: Number(form.puerto) };
-    const v = DatosImpresoraSchema.safeParse(datos);
-    if (!v.success) {
-      setErrores(Object.fromEntries(v.error.issues.map((i) => [String(i.path[0]), i.message])));
-      return;
-    }
-    const hecho = await mandar(
-      editando ? { kind: "EDITAR", impresoraId: editando, datos: v.data } : { kind: "CREAR", datos: v.data },
-      editando ? `Impresora guardada: ${v.data.nombre}` : `Impresora añadida: ${v.data.nombre}. Pruébala y enciéndela.`,
-    );
-    if (hecho) {
-      setForm(VACIO);
-      setEditando(null);
-    }
-  }
+  };
 
   async function prueba(i: ImpresoraDto) {
     const r = await imprimirPrueba({ impresoraId: i.id }).catch(() => null);
@@ -121,321 +90,279 @@ export function ImpresorasScreen({
     else if (!r.ok) avisar.error(r.mensaje);
     else {
       avisar.info(`Prueba enviada a ${i.nombre}`, { detalle: "Si el agente está conectado, sale en segundos." });
-      void releer();
+      void releerCola();
+      void historial.releer();
     }
   }
 
-  const campo = (k: keyof Form) => ({
-    value: String(form[k]),
-    error: errores[k] || undefined,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      setForm((f) => ({ ...f, [k]: e.target.value }));
-      setErrores((x) => ({ ...x, [k]: "" }));
-    },
-  });
-  const marca = (k: "recibos" | "comandas" | "enVlanDeHardware" | "ipFija", texto: string, pista?: string) => (
-    <label className="flex min-h-9 cursor-pointer items-start gap-2 text-[13px] text-ink">
-      <input
-        type="checkbox"
-        className="mt-0.5 size-4 accent-[var(--color-brand)]"
-        checked={form[k]}
-        onChange={(e) => {
-          setForm((f) => ({ ...f, [k]: e.target.checked }));
-          setErrores((x) => ({ ...x, recibos: "" }));
-        }}
-      />
-      <span>
-        {texto}
-        {pista && <span className="block text-[11.5px] text-ink-3">{pista}</span>}
-      </span>
-    </label>
+  const abrirHoja = (i: ImpresoraDto | null) => {
+    setEditando(i);
+    setHojaAbierta(true);
+  };
+  const verCola = (cambio: Parameters<typeof historial.cambiar>[0]) => {
+    setVista("cola");
+    historial.cambiar({ filtro: "TODOS", impresoraId: undefined, tipo: undefined, ...cambio });
+  };
+
+  const activas = local.impresoras.filter((i) => i.activa);
+  const deRecibos = activas.find((i) => i.recibos);
+  const deComandas = activas.find((i) => i.comandas);
+  const vinculados = local.agentes.filter((a) => a.vinculadoEn !== null);
+  const conectados = vinculados.filter((a) => a.conectado);
+  const pendientes = historial.datos?.pendientes ?? { fallidos: trabajos.filter((t) => t.estado === "FALLIDO").length, enCola: 0 };
+
+  const impresoras = (
+    <div className="flex flex-col gap-3">
+      {local.impresoras.length === 0 ? (
+        <EmptyState
+          icon={<Printer size={20} />}
+          title="Todavía no hay impresoras"
+          hint="Sin una impresora de recibos encendida, la caja no puede imprimir."
+          action={
+            puede ? (
+              <Button type="button" variant="primary" surface="admin" onClick={() => abrirHoja(null)}>
+                <Plus size={15} aria-hidden="true" /> Añadir impresora
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <ul className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,21rem),1fr))]">
+          {local.impresoras.map((i) => {
+            const enLaCola = trabajos.some((t) => t.impresora.id === i.id);
+            return (
+              <li key={i.id} className="flex flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
+                <div className="flex flex-col gap-2 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span className="grid size-9 shrink-0 place-content-center rounded-[var(--radius-control)] bg-surface-2 text-ink-2">
+                        <Printer size={17} aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[14px] font-semibold text-ink">{i.nombre}</span>
+                        <span className="tnum block truncate text-[12px] text-ink-3">
+                          {i.ip}:{i.puerto} · {i.ancho} mm
+                        </span>
+                      </span>
+                    </span>
+                    <Badge tone={i.activa ? "ok" : "idle"}>
+                      <Power size={11} aria-hidden="true" /> {i.activa ? "Encendida" : "Apagada"}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {i.recibos && <Badge tone="brand">Recibos y cortes</Badge>}
+                    {i.comandas && <Badge tone="brand">Comandas</Badge>}
+                  </div>
+                  {!(i.enVlanDeHardware && i.ipFija) && (
+                    <p className="flex items-center gap-1.5 text-[12px] text-state-warn">
+                      <TriangleAlert size={13} aria-hidden="true" /> Falta confirmar la red para encenderla
+                    </p>
+                  )}
+                </div>
+                <div className="border-t border-line px-4 py-1">
+                  {enLaCola ? (
+                    <EstadoDeImpresion impresoraId={i.id} />
+                  ) : (
+                    <p className="flex min-h-10 items-center text-[12.5px] text-ink-3">
+                      {i.ultimo ? `Lo último: ${ESTADO_DE_TRABAJO[i.ultimo.estado].texto.toLowerCase()} · ${reloj.diaYHora(Date.parse(i.ultimo.at))}` : "Todavía no ha impreso nada"}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-auto flex flex-wrap items-center gap-1 border-t border-line px-3 py-2">
+                  {puede && (
+                    <>
+                      <Button type="button" variant="neutral" surface="admin" onClick={() => void prueba(i)}>
+                        <Printer size={14} aria-hidden="true" /> Prueba
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={i.activa ? "ghost" : "primary"}
+                        surface="admin"
+                        disabled={enviando}
+                        onClick={() => void mandar({ kind: "ACTIVAR", impresoraId: i.id, activa: !i.activa }, i.activa ? `${i.nombre} apagada` : `${i.nombre} encendida`)}
+                      >
+                        {i.activa ? "Apagar" : "Encender"}
+                      </Button>
+                    </>
+                  )}
+                  <Button type="button" variant="ghost" surface="admin" className="ml-auto" aria-label={`Historial de ${i.nombre}`} title="Lo que se mandó a esta impresora" onClick={() => verCola({ impresoraId: i.id })}>
+                    <History size={14} aria-hidden="true" />
+                  </Button>
+                  {puede && (
+                    <>
+                      <Button type="button" variant="ghost" surface="admin" aria-label={`Editar ${i.nombre}`} title="Editar" onClick={() => abrirHoja(i)}>
+                        <Pencil size={14} aria-hidden="true" />
+                      </Button>
+                      <Button type="button" variant="ghost" surface="admin" aria-label={`Retirar ${i.nombre}`} title="Retirar" onClick={() => setRetirar(i)}>
+                        <Trash2 size={14} aria-hidden="true" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="flex items-start gap-1.5 text-[12.5px] text-ink-3">
+        <Info size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+        {puede
+          ? "Una sola encendida para los recibos y una para las comandas. Una impresora retirada no se borra: lo que imprimió sigue en el historial."
+          : "Las impresoras las configura la administración. Aquí se ve cómo va la impresión."}
+      </p>
+    </div>
   );
 
-  const recientes = trabajos.slice(0, 8);
-
   return (
-    <Container ancho="panel" className="py-8">
+    <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
       <PageHeader
+        className="mb-4"
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Impresoras" }]}
         titulo="Impresoras"
-        descripcion="La impresora térmica del local y el agente de la laptop de caja que imprime en ella: recibos, el ticket del corte y las comandas. Lo que no sale en papel se avisa y se reintenta."
+        descripcion="La impresora térmica del local, el agente de la laptop de caja que imprime en ella y todo lo que se mandó a imprimir."
+        acciones={
+          puede ? (
+            <Button type="button" variant="primary" surface="admin" onClick={() => abrirHoja(null)}>
+              <Plus size={15} aria-hidden="true" /> Nueva impresora
+            </Button>
+          ) : undefined
+        }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-        <section aria-label="Añadir o editar una impresora" className="flex min-w-0 flex-col gap-4">
-          {puede ? (
-            <form onSubmit={guardar} className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
-              <h2 className="font-display text-[14px] font-bold text-ink">{editando ? "Editar impresora" : "Nueva impresora"}</h2>
-              <Input surface="admin" label="Nombre" placeholder="Caja" autoComplete="off" maxLength={40} {...campo("nombre")} />
-              <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
-                <Input surface="admin" label="IP en la red del local" placeholder="192.168.1.50" inputMode="decimal" autoComplete="off" {...campo("ip")} />
-                <Input surface="admin" label="Puerto" inputMode="numeric" {...campo("puerto")} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className={ETIQUETA}>Papel</span>
-                <div role="radiogroup" aria-label="Ancho del papel" className="grid grid-cols-2 gap-1.5">
-                  {([80, 58] as const).map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      role="radio"
-                      aria-checked={form.ancho === a}
-                      onClick={() => setForm((f) => ({ ...f, ancho: a }))}
-                      className={cn(
-                        "min-h-9 cursor-pointer rounded-[var(--radius-control)] border text-[13px]",
-                        form.ancho === a ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
-                      )}
-                    >
-                      {a} mm
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <fieldset className="flex flex-col gap-0.5">
-                <legend className={cn(ETIQUETA, "mb-1")}>Imprime</legend>
-                {marca("recibos", "Recibos y ticket del corte")}
-                {marca("comandas", "Comandas del restaurante", "Hoy la de caja; mañana, la de la cocina")}
-                {errores.recibos && <p className="text-[12px] font-medium text-state-crit">{errores.recibos}</p>}
-              </fieldset>
-              <fieldset className="flex flex-col gap-0.5">
-                <legend className={cn(ETIQUETA, "mb-1")}>Para encenderla</legend>
-                {marca("enVlanDeHardware", "Está en la red de los equipos (VLAN de hardware)", "Fuera del wifi de los clientes")}
-                {marca("ipFija", "Tiene IP fija", "Reservada en el router: no cambia al reiniciarlo")}
-              </fieldset>
-              <div className="flex gap-2">
-                {editando && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    surface="admin"
-                    onClick={() => {
-                      setEditando(null);
-                      setForm(VACIO);
-                      setErrores({});
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                )}
-                <Button type="submit" variant="primary" surface="admin" className="flex-1" disabled={enviando}>
-                  {enviando ? "Guardando…" : editando ? "Guardar" : "Añadir impresora"}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <p className="rounded-[var(--radius-card)] border border-line bg-surface p-5 text-[13px] text-ink-2">
-              Las impresoras las configura la administración. Aquí se ve cómo va la impresión.
-            </p>
-          )}
+      {/* ── lo que hay que mirar; cada cifra lleva a su sitio ── */}
+      <section aria-label="Resumen de la impresión" className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-4">
+        <Cifra
+          etiqueta="Impresoras"
+          Icono={Printer}
+          tono={deRecibos ? "idle" : "warn"}
+          valor={local.impresoras.length === 0 ? "Ninguna" : `${activas.length} ${activas.length === 1 ? "encendida" : "encendidas"}`}
+          pie={`De ${local.impresoras.length} · ${deRecibos ? `Recibos: ${deRecibos.nombre}${deComandas ? ` · Comandas: ${deComandas.nombre}` : ""}` : "ninguna para los recibos"}`}
+          activo={vista === "impresoras"}
+          onClick={() => setVista("impresoras")}
+        />
+        <Cifra
+          etiqueta="Agente"
+          Icono={conectados.length > 0 ? Wifi : WifiOff}
+          tono={conectados.length > 0 ? "ok" : "warn"}
+          valor={conectados.length > 0 ? "Conectado" : vinculados.length > 0 ? "Sin conexión" : "Sin vincular"}
+          pie={conectados.length > 0 ? conectados.map((a) => a.nombre).join(" · ") : vinculados.length > 0 ? "Lo enviado espera a que vuelva" : "Nada sale en papel"}
+          activo={vista === "agente"}
+          onClick={() => setVista("agente")}
+        />
+        <Cifra
+          etiqueta="No salieron"
+          Icono={TriangleAlert}
+          tono={pendientes.fallidos > 0 ? "crit" : "idle"}
+          valor={String(pendientes.fallidos)}
+          pie={pendientes.fallidos > 0 ? "Reintentar o descartar" : "Todo salió"}
+          activo={vista === "cola" && historial.consulta.filtro === "FALLIDOS"}
+          onClick={() => verCola({ filtro: "FALLIDOS" })}
+        />
+        <Cifra
+          etiqueta="En cola"
+          Icono={ListOrdered}
+          tono="idle"
+          valor={String(pendientes.enCola)}
+          pie={pendientes.enCola > 0 ? "Saliendo o esperando al agente" : "Nada esperando"}
+          activo={vista === "cola" && historial.consulta.filtro === "EN_COLA"}
+          onClick={() => verCola({ filtro: "EN_COLA" })}
+        />
+      </section>
 
-          <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
-            <h2 className="font-display flex items-center gap-1.5 text-[14px] font-bold text-ink">
-              <Laptop size={15} aria-hidden="true" /> Agente de impresión
-            </h2>
-            <p className="text-[12.5px] text-ink-2">
-              Un programa en la laptop de caja recibe los trabajos del servidor y los manda a la impresora por la red del local.
-            </p>
-            {local.agentes.length === 0 && <p className="text-[12.5px] text-state-warn">Sin agente vinculado: nada sale en papel.</p>}
-            {descargable ? (
-              <a
-                href="/descargas/agente"
-                download="l2-impresion.exe"
-                className="flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] border border-line px-3 text-[13px] font-semibold text-ink no-underline hover:border-line-strong hover:bg-surface-2"
-              >
-                <Download size={15} aria-hidden="true" />
-                Descargar el agente
-                <span className="ml-auto text-[11.5px] font-normal text-ink-3">
-                  v{descargable.version} · {descargable.mb} MB
-                </span>
-              </a>
-            ) : (
-              <p className="text-[12px] text-ink-3">El agente todavía no está empaquetado en este servidor.</p>
-            )}
-            {descargable?.sha256 && (
-              <p className="break-all text-[11px] text-ink-3" title="Huella SHA-256 del instalador">
-                SHA-256 {descargable.sha256}
-              </p>
-            )}
-            <ul className="flex flex-col gap-1.5">
-              {local.agentes.map((a) => (
-                <li key={a.id} className="flex items-center justify-between gap-2 rounded-[var(--radius-control)] border border-line px-3 py-2">
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold text-ink">{a.nombre}</span>
-                    <span className={cn("flex items-center gap-1 text-[11.5px]", a.conectado ? "text-state-ok" : "text-ink-3")}>
-                      {a.conectado ? <Wifi size={12} aria-hidden="true" /> : <WifiOff size={12} aria-hidden="true" />}
-                      {a.vinculadoEn === null
-                        ? `Esperando su código, hasta las ${hora(Date.parse(a.codigoHasta!))}`
-                        : a.conectado
-                          ? "Conectado"
-                          : a.ultimaVez
-                            ? `Sin conexión desde las ${hora(Date.parse(a.ultimaVez))}`
-                            : "Sin conexión"}
-                    </span>
-                  </span>
-                  {puede && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      surface="admin"
-                      disabled={enviando}
-                      onClick={() => void mandar({ kind: "RETIRAR_AGENTE", agenteId: a.id }, `Agente retirado: ${a.nombre}`)}
-                    >
-                      Retirar
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {codigo ? (
-              <div role="status" className="flex flex-col gap-1.5 rounded-[var(--radius-control)] border border-brand/40 bg-brand/8 p-3">
-                <span className="text-[12px] text-ink-2">Código de un solo uso (vale 10 minutos):</span>
-                <span className="tnum font-display text-2xl font-bold tracking-[0.12em] text-ink">{codigo}</span>
-                <span className="text-[12px] text-ink-2">En la laptop de caja, abre <b>l2-impresion.exe</b> y pega esto cuando lo pida:</span>
-                <div className="flex items-center gap-1.5">
-                  <code className="block min-w-0 flex-1 break-all rounded bg-base px-2 py-1.5 text-[12px] text-ink">
-                    {servidor} {codigo}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="neutral"
-                    surface="admin"
-                    aria-label="Copiar la dirección y el código"
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(`${servidor} ${codigo}`).then(() => avisar.ok("Copiado"));
-                    }}
-                  >
-                    <Copy size={14} aria-hidden="true" />
-                  </Button>
-                </div>
-                <Button type="button" variant="ghost" surface="admin" onClick={() => setCodigo(null)}>
-                  Listo
-                </Button>
-              </div>
-            ) : (
-              puede && (
-                <div className="flex items-end gap-2">
-                  <Input surface="admin" label="Nombre del equipo" value={equipo} onChange={(e) => setEquipo(e.target.value)} maxLength={40} />
-                  <Button
-                    type="button"
-                    variant="neutral"
-                    surface="admin"
-                    disabled={enviando || equipo.trim().length < 2}
-                    onClick={() => void mandar({ kind: "VINCULAR_AGENTE", nombre: equipo.trim() }, "Código generado")}
-                  >
-                    Vincular
-                  </Button>
-                </div>
-              )
-            )}
-          </div>
-        </section>
+      <Tabs
+        etiqueta="Impresión"
+        surface="admin"
+        className="mt-4 min-h-0 flex-1"
+        activa={vista}
+        onCambiar={(id) => setVista(id as Vista)}
+        pestanas={[
+          { id: "impresoras", etiqueta: "Impresoras", contador: local.impresoras.length, contenido: impresoras },
+          { id: "cola", etiqueta: "Cola e historial", contenido: <HistorialDeImpresion historial={historial} impresoras={local.impresoras} /> },
+          {
+            id: "agente",
+            etiqueta: "Agente",
+            contenido: (
+              <AgenteDeImpresion
+                agentes={local.agentes}
+                puede={puede}
+                mandar={mandar}
+                enviando={enviando}
+                codigo={codigo}
+                onCodigoListo={() => setCodigo(null)}
+                worker={worker}
+                descargable={descargable}
+              />
+            ),
+          },
+        ]}
+      />
 
-        <section aria-label="Impresoras del local" className="flex min-w-0 flex-col gap-4">
-          <div className="rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
-            <h2 className="tnum border-b border-line px-4 py-2.5 text-[13px] font-bold text-ink">
-              Impresoras <span className="font-medium text-ink-3">· {local.impresoras.length}</span>
-            </h2>
-            {local.impresoras.length === 0 ? (
-              <p className="flex items-center gap-2 px-4 py-5 text-[13px] text-ink-3">
-                <Printer size={16} aria-hidden="true" />
-                Todavía no hay impresoras: los recibos no se pueden imprimir.
-              </p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-line">
-                {local.impresoras.map((i) => (
-                  <li key={i.id} className="flex flex-col gap-2 px-4 py-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-ink">
-                          {i.nombre}
-                          <Badge tone={i.activa ? "ok" : "idle"}>
-                            <Power size={11} aria-hidden="true" /> {i.activa ? "Encendida" : "Apagada"}
-                          </Badge>
-                          {i.recibos && <Badge tone="brand">Recibos y cortes</Badge>}
-                          {i.comandas && <Badge tone="brand">Comandas</Badge>}
-                        </p>
-                        <p className="tnum text-[12.5px] text-ink-2">
-                          {i.ip}:{i.puerto} · {i.ancho} mm
-                          {!(i.enVlanDeHardware && i.ipFija) && <span className="text-state-warn"> · falta confirmar la red para encenderla</span>}
-                        </p>
-                      </div>
-                      {puede && (
-                        <div className="flex shrink-0 flex-wrap gap-1.5">
-                          <Button type="button" variant="neutral" surface="admin" onClick={() => void prueba(i)}>
-                            <Printer size={14} aria-hidden="true" /> Prueba
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={i.activa ? "ghost" : "primary"}
-                            surface="admin"
-                            disabled={enviando}
-                            onClick={() => void mandar({ kind: "ACTIVAR", impresoraId: i.id, activa: !i.activa }, i.activa ? `${i.nombre} apagada` : `${i.nombre} encendida`)}
-                          >
-                            {i.activa ? "Apagar" : "Encender"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            surface="admin"
-                            aria-label={`Editar ${i.nombre}`}
-                            onClick={() => {
-                              setEditando(i.id);
-                              setForm(deImpresora(i));
-                              setErrores({});
-                            }}
-                          >
-                            <Pencil size={14} aria-hidden="true" />
-                          </Button>
-                          {retirando === i.id ? (
-                            <Button type="button" variant="danger" surface="admin" disabled={enviando} onClick={() => void mandar({ kind: "RETIRAR", impresoraId: i.id }, `Impresora retirada: ${i.nombre}`).then(() => setRetirando(null))}>
-                              Sí, retirar
-                            </Button>
-                          ) : (
-                            <Button type="button" variant="ghost" surface="admin" aria-label={`Retirar ${i.nombre}`} onClick={() => setRetirando(i.id)}>
-                              <Trash2 size={14} aria-hidden="true" />
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <EstadoDeImpresion impresoraId={i.id} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+      <ImpresoraForm abierta={hojaAbierta} impresora={editando} onCerrar={() => setHojaAbierta(false)} mandar={mandar} enviando={enviando} />
 
-          <div className="rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
-            <h2 className="border-b border-line px-4 py-2.5 text-[13px] font-bold text-ink">Lo último que se mandó a imprimir</h2>
-            {recientes.length === 0 ? (
-              <p className="px-4 py-5 text-[13px] text-ink-3">Nada en las últimas 24 horas.</p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-line">
-                {recientes.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-2 text-[12.5px]">
-                    <span className="min-w-0 truncate text-ink">
-                      {t.titulo}
-                      {t.copia ? " (copia)" : ""} <span className="text-ink-3">· {t.creadoPor} · {hora(Date.parse(t.creadoEn))}</span>
-                    </span>
-                    <span
-                      className={cn(
-                        "shrink-0 font-semibold",
-                        t.estado === "CONFIRMADO" ? "text-state-ok" : t.estado === "FALLIDO" ? "text-state-crit" : "text-ink-2",
-                      )}
-                    >
-                      {t.estado === "CONFIRMADO" ? "Impreso" : t.estado === "FALLIDO" ? "No salió" : t.estado === "ENVIADO" ? "Imprimiendo…" : "En cola"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+      <Dialog
+        abierto={retirar !== null}
+        onCerrar={() => setRetirar(null)}
+        titulo={`¿Retirar «${retirar?.nombre ?? ""}»?`}
+        pie={
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" surface="admin" onClick={() => setRetirar(null)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              surface="admin"
+              disabled={enviando}
+              onClick={() => {
+                const i = retirar;
+                if (i) void mandar({ kind: "RETIRAR", impresoraId: i.id }, `Impresora retirada: ${i.nombre}`).then((r) => r.hecho && setRetirar(null));
+              }}
+            >
+              Sí, retirar
+            </Button>
           </div>
-          <p className="flex items-start justify-center gap-1.5 text-center text-[12.5px] text-ink-3">
-            <Info size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-            Una impresora retirada no se borra: lo que imprimió sigue diciendo dónde salió.
-          </p>
-        </section>
-      </div>
+        }
+      >
+        <p className="text-[13px] text-ink-2">
+          Deja de imprimir y lo que tenga en cola no saldrá. No se borra: lo que imprimió sigue en el historial, diciendo dónde salió.
+        </p>
+      </Dialog>
     </Container>
+  );
+}
+
+/** Una cifra del resumen: etiqueta, valor y una línea de contexto. Color + icono + texto (§8.2). */
+function Cifra({
+  etiqueta,
+  Icono,
+  tono,
+  valor,
+  pie,
+  activo,
+  onClick,
+}: {
+  etiqueta: string;
+  Icono: typeof Printer;
+  tono: "ok" | "crit" | "warn" | "idle";
+  valor: string;
+  pie: string;
+  activo: boolean;
+  onClick: () => void;
+}) {
+  const color = { ok: "text-state-ok", crit: "text-state-crit", warn: "text-state-warn", idle: "text-ink" }[tono];
+  return (
+    <button
+      type="button"
+      aria-pressed={activo}
+      onClick={onClick}
+      className={cn("flex min-w-0 cursor-pointer flex-col items-start gap-0.5 bg-surface px-4 py-2.5 text-left transition-colors hover:bg-surface-2", activo && "ring-2 ring-brand ring-inset")}
+    >
+      <span className={cn("flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase", tono === "idle" ? "text-ink-3" : color)}>
+        <Icono size={13} aria-hidden="true" />
+        {etiqueta}
+      </span>
+      <span className={cn("tnum font-display text-[19px] leading-tight font-bold", color)}>{valor}</span>
+      <span className="w-full truncate text-[12px] text-ink-3">{pie}</span>
+    </button>
   );
 }

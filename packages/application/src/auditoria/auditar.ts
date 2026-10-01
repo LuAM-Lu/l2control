@@ -44,6 +44,7 @@ export type AccionAuditada =
   | "impresion.confirmar"
   | "impresion.fallar"
   | "impresion.reintentar"
+  | "impresion.descartar"
   | "impresora.crear"
   | "impresora.editar"
   | "impresora.activar"

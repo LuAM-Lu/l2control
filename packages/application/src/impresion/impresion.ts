@@ -7,7 +7,8 @@
  *  · las plantillas (`plantillas.ts`): qué dice el recibo, el ticket de corte y la prueba;
  *  · este archivo: las impresoras del local (`catalogo.modificar` con elevación), el código y la
  *    credencial del agente, encolar (en la transacción de lo que pide imprimir) y lo que el agente
- *    reclama y responde. La base impone que lo impreso no cambie y que el estado solo avance.
+ *    reclama y responde; el historial por páginas y descartar lo que ya no importa. La base impone
+ *    que lo impreso no cambie y que el estado solo avance.
  *
  * El agente no es una persona: opera como el sistema del local de su sucursal, y su nombre va en la
  * auditoría. Nada de lo que pide imprimir (un recibo, un corte) cambia por cómo le vaya al papel.
@@ -27,8 +28,15 @@ import {
   TrabajosDeImpresionSchema,
   VincularAgenteSchema,
   CorteSchema,
+  DescartarTrabajosCommandSchema,
+  HistorialDeImpresionSchema,
+  HistorialQuerySchema,
+  TrabajosDescartadosSchema,
   problemasDe,
   type AgenteVinculadoDto,
+  type FiltroHistorial,
+  type HistorialDeImpresionDto,
+  type TrabajosDescartadosDto,
   type ImpresorasAplicadasDto,
   type ImpresorasDelLocalDto,
   type Rechazo,
@@ -39,6 +47,7 @@ import {
 } from "@l2/contracts";
 import {
   comoTexto,
+  descarteProblem,
   escpos,
   reclamado,
   reintentado,
@@ -81,6 +90,10 @@ export interface CasosImpresion {
   imprimirCorte(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<TrabajoDeImpresionDto>>;
   /** Vuelve a poner en cola un trabajo FALLIDO (`ReintentarTrabajoCommandSchema`). */
   reintentar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<TrabajoDeImpresionDto>>;
+  /** Descarta lo que falló o espera y ya no importa (`DescartarTrabajosCommandSchema`). Devuelve cuántos. */
+  descartar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<TrabajosDescartadosDto>>;
+  /** Una página del historial de la sucursal, con sus filtros y lo que cuenta cada uno (`HistorialQuerySchema`). */
+  historial(ctx: Contexto, entrada: unknown): Promise<Resultado<HistorialDeImpresionDto>>;
 
   /** El agente cambia su código de un solo uso por su credencial. */
   vincular(tenantId: string, entrada: unknown, ahora?: number): Promise<Resultado<AgenteVinculadoDto>>;
@@ -103,6 +116,15 @@ const nuevoCodigo = () => {
   return `${c.slice(0, 4)}-${c.slice(4)}`;
 };
 const normalCodigo = (c: string) => c.replace("-", "").toUpperCase();
+
+/** Qué estados entran en cada filtro del historial. */
+const ESTADOS_DEL_FILTRO: Record<FiltroHistorial, readonly EstadoTrabajo[] | null> = {
+  TODOS: null,
+  FALLIDOS: ["FALLIDO"],
+  EN_COLA: ["PENDIENTE", "ENVIADO"],
+  IMPRESOS: ["CONFIRMADO"],
+  DESCARTADOS: ["DESCARTADO"],
+};
 
 const noDisponible = (mensaje: string): Rechazo => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje });
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({ ok: false, motivo: "INVALIDO", mensaje, problemas: [{ path, message }] });
@@ -130,6 +152,7 @@ function trabajoDto(t: FilaTrabajo, impresora: Pick<FilaImpresora, "id" | "name"
     creadoEn: t.createdAt.toISOString(),
     creadoPor: t.createdByName,
     terminadoEn: t.finishedAt?.toISOString() ?? null,
+    descartadoPor: t.discardedByName,
     vistaPrevia: comoTexto(t.content as unknown as Documento, impresora.width as Ancho),
     ventaId: t.saleId,
     corteId: t.cutId,
@@ -417,6 +440,92 @@ export function casosImpresion(base: Base): CasosImpresion {
         return trabajoDto(f, t.printer);
       });
       return "ok" in r ? r : { ok: true, valor: r };
+    },
+
+    async descartar(ctx, entrada, ahora = Date.now()) {
+      const v = DescartarTrabajosCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "No se descartó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<TrabajosDescartadosDto>> => {
+        const userId = ctx.quien?.userId;
+        if (!userId || !(await puedeAlguna(tx, ctx, ["catalogo.modificar", "documento.emitir"]))) return rechazoDePermiso("DENEGADO");
+        // Las filas quedan bloqueadas: el agente reclama con SKIP LOCKED y no toma lo que se descarta.
+        const pedidos = cmd.kind === "TRABAJOS" ? [...new Set(cmd.trabajoIds)] : [];
+        const impresoraId = cmd.kind === "FALLIDOS" ? (cmd.impresoraId ?? null) : null;
+        const tipo = cmd.kind === "FALLIDOS" ? (cmd.tipo ?? null) : null;
+        const bloqueadas =
+          cmd.kind === "TRABAJOS"
+            ? await tx.$queryRaw<{ id: string }[]>`
+                SELECT id FROM print_job
+                WHERE branch_id = ${ctx.branchId}::uuid AND id = ANY(${pedidos}::uuid[])
+                ORDER BY created_at, id
+                FOR UPDATE`
+            : await tx.$queryRaw<{ id: string }[]>`
+                SELECT id FROM print_job
+                WHERE branch_id = ${ctx.branchId}::uuid AND status = 'FALLIDO'
+                  AND (${impresoraId}::uuid IS NULL OR printer_id = ${impresoraId}::uuid)
+                  AND (${tipo}::text IS NULL OR kind = ${tipo}::text)
+                ORDER BY created_at, id
+                FOR UPDATE`;
+        if (bloqueadas.length < pedidos.length) return noDisponible("Ese trabajo no existe en esta sucursal.");
+        const filas = await tx.printJob.findMany({ where: { id: { in: bloqueadas.map((b) => b.id) } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+        // Fail-closed: si uno no se puede descartar, no se descarta ninguno y se dice cuál.
+        for (const t of filas) {
+          const p = descarteProblem({ estado: t.status as EstadoTrabajo });
+          if (p === "EN_CURSO") return { ok: false, motivo: "CONFLICTO", mensaje: `«${t.title}» se está imprimiendo ahora mismo: espera unos segundos.` };
+          if (p) return { ok: false, motivo: "CONFLICTO", mensaje: `«${t.title}» ya salió o ya se descartó.` };
+        }
+        const quien = await nombreDe(tx, ctx);
+        for (const t of filas) {
+          await tx.printJob.update({
+            where: { id: t.id },
+            data: { status: "DESCARTADO", sentAt: null, finishedAt: new Date(ahora), discardedBy: userId, discardedByName: quien.nombre },
+          });
+          await auditar(tx, ctx, { action: "impresion.descartar", entityType: "print_job", entityId: t.id, before: { estado: t.status, error: t.lastError }, after: { titulo: t.title } });
+        }
+        return { ok: true, valor: TrabajosDescartadosSchema.parse({ descartados: filas.length }) };
+      });
+    },
+
+    async historial(ctx, entrada) {
+      const v = HistorialQuerySchema.safeParse(entrada ?? {});
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Ese filtro no vale.", problemas: problemasDe(v.error) };
+      const q = v.data;
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<HistorialDeImpresionDto>> => {
+        if (!ctx.quien?.userId || !(await puedeAlguna(tx, ctx, ["catalogo.modificar", "documento.emitir"]))) return rechazoDePermiso("DENEGADO");
+        const donde = { branchId: ctx.branchId, ...(q.impresoraId ? { printerId: q.impresoraId } : {}), ...(q.tipo ? { kind: q.tipo } : {}) };
+        const porEstado = await tx.printJob.groupBy({ by: ["status"], where: donde, _count: { _all: true } });
+        const cuenta = (estados: readonly EstadoTrabajo[] | null) =>
+          porEstado.filter((g) => estados === null || estados.includes(g.status as EstadoTrabajo)).reduce((n, g) => n + g._count._all, 0);
+        const conteos = {
+          TODOS: cuenta(ESTADOS_DEL_FILTRO.TODOS),
+          FALLIDOS: cuenta(ESTADOS_DEL_FILTRO.FALLIDOS),
+          EN_COLA: cuenta(ESTADOS_DEL_FILTRO.EN_COLA),
+          IMPRESOS: cuenta(ESTADOS_DEL_FILTRO.IMPRESOS),
+          DESCARTADOS: cuenta(ESTADOS_DEL_FILTRO.DESCARTADOS),
+        };
+        // Con filtros, lo de toda la sucursal se cuenta aparte (para el resumen y la alerta).
+        const sinFiltros = !q.impresoraId && !q.tipo;
+        const deLaSucursal = sinFiltros ? porEstado : await tx.printJob.groupBy({ by: ["status"], where: { branchId: ctx.branchId }, _count: { _all: true } });
+        const enLaSucursal = (estados: readonly EstadoTrabajo[]) =>
+          deLaSucursal.filter((g) => estados.includes(g.status as EstadoTrabajo)).reduce((n, g) => n + g._count._all, 0);
+        const pendientes = { fallidos: enLaSucursal(["FALLIDO"]), enCola: enLaSucursal(["PENDIENTE", "ENVIADO"]) };
+        const total = conteos[q.filtro];
+        // Una página que ya no existe (se descartó lo último de ella) se lee como la última que queda.
+        const pagina = Math.min(q.pagina, Math.max(1, Math.ceil(total / q.porPagina)));
+        const estados = ESTADOS_DEL_FILTRO[q.filtro];
+        const filas = await tx.printJob.findMany({
+          where: { ...donde, ...(estados ? { status: { in: [...estados] } } : {}) },
+          include: { printer: { select: { id: true, name: true, width: true } } },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          skip: (pagina - 1) * q.porPagina,
+          take: q.porPagina,
+        });
+        return {
+          ok: true,
+          valor: HistorialDeImpresionSchema.parse({ trabajos: filas.map((f) => trabajoDto(f, f.printer)), total, pagina, porPagina: q.porPagina, conteos, pendientes }),
+        };
+      });
     },
 
     async vincular(tenantId, entrada, ahora = Date.now()) {

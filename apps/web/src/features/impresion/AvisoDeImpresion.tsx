@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, PrinterX, RotateCcw } from "lucide-react";
+import { Ban, Clock3, PrinterX, RotateCcw } from "lucide-react";
 import { Button, Dialog, avisar, cn } from "@l2/ui";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
 import { useCola } from "./ColaProvider.tsx";
@@ -17,10 +17,13 @@ const ESPERA_NORMAL_MS = 60_000;
  *  · Ámbar, «N en espera»: trabajos que llevan más de un minuto sin que el agente los tome. Casi siempre
  *    es la laptop de caja apagada o sin internet, o el agente parado: salen solos cuando vuelve.
  *
+ * Lo que ya no hace falta se **descarta** (uno, o todos los que no salieron): no se imprime y la alerta
+ * se apaga; queda en el historial de Ajustes → Impresoras, con quién lo descartó.
+ *
  * Icono y texto, nunca solo color. Sin nada de eso, nada.
  */
 export function AvisoDeImpresion({ className }: { className?: string }) {
-  const { trabajos, reintentar } = useCola();
+  const { trabajos, reintentar, descartar } = useCola();
   const hora = useHora();
   const [abierto, setAbierto] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -39,6 +42,23 @@ export function AvisoDeImpresion({ className }: { className?: string }) {
   if (fallidos.length === 0 && enEspera.length === 0) return null;
   const critico = fallidos.length > 0;
   const lista = [...fallidos, ...enEspera];
+
+  async function descartarUno(id: string, titulo: string) {
+    setOcupado(id);
+    const r = await descartar({ kind: "TRABAJOS", trabajoIds: [id] });
+    setOcupado(null);
+    if (r.ok) avisar.info(`${titulo}: descartado`);
+    else avisar.error(r.mensaje);
+  }
+
+  async function descartarFallidos() {
+    setOcupado("todos");
+    const r = await descartar({ kind: "FALLIDOS" });
+    setOcupado(null);
+    if (!r.ok) return avisar.error(r.mensaje);
+    avisar.ok(r.valor.descartados === 1 ? "1 descartado" : `${r.valor.descartados} descartados`);
+    if (enEspera.length === 0) setAbierto(false);
+  }
 
   return (
     <>
@@ -66,8 +86,18 @@ export function AvisoDeImpresion({ className }: { className?: string }) {
         titulo={critico ? "No salieron en papel" : "Esperando para imprimir"}
         descripcion={
           critico
-            ? "Revisa la impresora (papel, encendida, en la red) y reintenta. Lo que se cobró o se cerró ya está guardado."
+            ? "Revisa la impresora (papel, encendida, en la red) y reintenta, o descarta lo que ya no haga falta. Lo que se cobró o se cerró ya está guardado."
             : "El agente de impresión no los ha tomado: revisa que la laptop de caja esté encendida y con internet. Salen solos cuando vuelva."
+        }
+        pie={
+          fallidos.length > 1 ? (
+            <div className="flex justify-end">
+              <Button surface="tablet" variant="neutral" disabled={ocupado === "todos"} onClick={() => void descartarFallidos()}>
+                <Ban size={14} aria-hidden="true" />
+                {`Descartar los ${fallidos.length} que no salieron`}
+              </Button>
+            </div>
+          ) : undefined
         }
       >
         <ul className="flex flex-col gap-2">
@@ -85,11 +115,23 @@ export function AvisoDeImpresion({ className }: { className?: string }) {
                   {t.impresora.nombre} · {hora(Date.parse(t.creadoEn))} · {t.creadoPor}
                 </span>
               </span>
+              {(t.estado === "FALLIDO" || t.estado === "PENDIENTE") && (
+                <Button
+                  surface="tablet"
+                  variant="ghost"
+                  disabled={ocupado === t.id || ocupado === "todos"}
+                  aria-label={`Descartar ${t.titulo}`}
+                  title="Descartar: no se imprime y deja de avisar"
+                  onClick={() => void descartarUno(t.id, t.titulo)}
+                >
+                  <Ban size={15} aria-hidden="true" />
+                </Button>
+              )}
               {t.estado === "FALLIDO" && (
                 <Button
                   surface="tablet"
                   variant="neutral"
-                  disabled={ocupado === t.id}
+                  disabled={ocupado === t.id || ocupado === "todos"}
                   onClick={async () => {
                     setOcupado(t.id);
                     const r = await reintentar(t.id);

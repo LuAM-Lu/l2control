@@ -205,12 +205,104 @@ describe("apagar o retirar una impresora con trabajos en cola", () => {
   });
 });
 
+describe("descartar y el historial", () => {
+  /** Reclama y confirma lo que haya en cola: el punto de partida limpio de cada caso. */
+  async function vaciar(ag: AgenteAbierto, ahora: number) {
+    for (let j = await local.app.impresion.reclamar(ag, ahora); j; j = await local.app.impresion.reclamar(ag, ahora)) {
+      valor(await local.app.impresion.responder(ag, { trabajoId: j.id, ok: true }, ahora));
+    }
+  }
+  /** Lleva a FALLIDO el único trabajo en cola: cinco intentos sin papel. */
+  async function fallar(ag: AgenteAbierto, id: string, desde: number): Promise<number> {
+    let ahora = desde;
+    for (let i = 1; i <= 5; i++) {
+      assert.equal((await local.app.impresion.reclamar(ag, ahora))?.id, id);
+      valor(await local.app.impresion.responder(ag, { trabajoId: id, ok: false, error: "Sin papel" }, ahora));
+      ahora += MIN;
+    }
+    return ahora;
+  }
+
+  test("lo que falló o espera se descarta, uno o todos los fallidos; no se imprime y queda quién; lo que se imprime, no", async () => {
+    const ag = await agente(local, ctxAdmin, "Laptop E");
+    let ahora = AHORA + 60 * MIN;
+    await vaciar(ag, ahora);
+    const a = valor(await local.app.impresion.imprimirPrueba(ctxAdmin, { impresoraId: impresora }, ahora));
+    ahora = await fallar(ag, a.id, ahora);
+    const b = valor(await local.app.impresion.imprimirPrueba(ctxAdmin, { impresoraId: impresora }, ahora));
+    ahora = await fallar(ag, b.id, ahora);
+    const c = valor(await local.app.impresion.imprimirPrueba(ctxAdmin, { impresoraId: impresora }, ahora));
+    assert.equal((await local.app.impresion.reclamar(ag, ahora))?.id, c.id);
+    const d = valor(await local.app.impresion.imprimirPrueba(ctxAdmin, { impresoraId: impresora }, ahora));
+
+    assert.match(rechazo(await local.app.impresion.descartar(ctxCajera, { kind: "TRABAJOS", trabajoIds: [c.id] }, ahora), "CONFLICTO"), /imprimiendo ahora mismo/);
+    rechazo(await local.app.impresion.descartar(ctxCajera, { kind: "TRABAJOS", trabajoIds: [d.id, randomUUID()] }, ahora), "NO_DISPONIBLE");
+    rechazo(await local.app.impresion.descartar(ctxCajera, { kind: "TRABAJOS", trabajoIds: [] }, ahora), "INVALIDO");
+    assert.equal(valor(await local.app.impresion.descartar(ctxCajera, { kind: "TRABAJOS", trabajoIds: [d.id] }, ahora)).descartados, 1);
+    assert.match(rechazo(await local.app.impresion.descartar(ctxCajera, { kind: "TRABAJOS", trabajoIds: [d.id] }, ahora), "CONFLICTO"), /ya se descartó/);
+    valor(await local.app.impresion.responder(ag, { trabajoId: c.id, ok: true }, ahora));
+    assert.equal(await local.app.impresion.reclamar(ag, ahora + MIN), null, "lo descartado no se imprime");
+
+    // Los fallidos de la Caja, de una vez; los de otra impresora siguen avisando hasta que se descarten.
+    const fallidos = async (impresoraId?: string) => valor(await local.app.impresion.historial(ctxCajera, { filtro: "FALLIDOS", impresoraId })).total;
+    const deOtras = (await fallidos()) - (await fallidos(impresora));
+    assert.ok((await fallidos(impresora)) >= 2);
+    const comandasFallidas = valor(await local.app.impresion.historial(ctxCajera, { filtro: "FALLIDOS", impresoraId: impresora, tipo: "COMANDA" })).total;
+    assert.equal(valor(await local.app.impresion.descartar(ctxCajera, { kind: "FALLIDOS", impresoraId: impresora, tipo: "COMANDA" }, ahora)).descartados, comandasFallidas);
+    assert.ok((await fallidos(impresora)) >= 2, "las pruebas que no salieron siguen ahí");
+    valor(await local.app.impresion.descartar(ctxCajera, { kind: "FALLIDOS", impresoraId: impresora }, ahora));
+    assert.equal(await fallidos(impresora), 0);
+    assert.equal(await fallidos(), deOtras);
+    assert.equal(valor(await local.app.impresion.descartar(ctxCajera, { kind: "FALLIDOS" }, ahora)).descartados, deOtras);
+    assert.equal(await fallidos(), 0);
+
+    const descartados = valor(await local.app.impresion.historial(ctxCajera, { filtro: "DESCARTADOS", porPagina: 50 })).trabajos;
+    for (const id of [a.id, b.id, d.id]) {
+      const t = descartados.find((x) => x.id === id);
+      assert.equal(t?.estado, "DESCARTADO");
+      assert.equal(t?.descartadoPor, "Marisol Prieto");
+    }
+    assert.ok(!descartados.some((x) => x.id === c.id), "lo impreso no se descarta");
+    const leido = valor(await local.app.impresion.trabajos(ctxCajera, ahora)).trabajos;
+    assert.ok(!leido.some((t) => t.estado === "FALLIDO"), "nada avisa ya");
+  });
+
+  test("el historial va por páginas que no se pisan, con sus filtros y lo que cuenta cada uno", async () => {
+    const h = valor(await local.app.impresion.historial(ctxCajera, { porPagina: 10 }));
+    const { TODOS, FALLIDOS, EN_COLA, IMPRESOS, DESCARTADOS } = h.conteos;
+    assert.equal(h.total, TODOS);
+    assert.equal(FALLIDOS + EN_COLA + IMPRESOS + DESCARTADOS, TODOS);
+    assert.ok(TODOS > 10, "hay más de una página");
+    assert.equal(h.trabajos.length, 10);
+    const siguiente = valor(await local.app.impresion.historial(ctxCajera, { porPagina: 10, pagina: 2 }));
+    assert.ok(!siguiente.trabajos.some((t) => h.trabajos.some((x) => x.id === t.id)), "las páginas no se pisan");
+    assert.ok(Date.parse(h.trabajos.at(-1)!.creadoEn) >= Date.parse(siguiente.trabajos[0]!.creadoEn), "lo más reciente primero");
+    const lejos = valor(await local.app.impresion.historial(ctxCajera, { porPagina: 10, pagina: 999 }));
+    assert.equal(lejos.pagina, Math.ceil(TODOS / 10), "una página que no existe se lee como la última");
+
+    const comandas = valor(await local.app.impresion.historial(ctxCajera, { tipo: "COMANDA", porPagina: 50 }));
+    assert.ok(comandas.trabajos.length > 0 && comandas.trabajos.every((t) => t.tipo === "COMANDA"));
+    assert.ok(comandas.conteos.TODOS < TODOS, "los conteos siguen al tipo elegido");
+    assert.deepEqual(comandas.pendientes, { fallidos: FALLIDOS, enCola: EN_COLA }, "lo pendiente es de toda la sucursal");
+    const impresos = valor(await local.app.impresion.historial(ctxCajera, { filtro: "IMPRESOS", impresoraId: impresora, porPagina: 50 }));
+    assert.ok(impresos.trabajos.every((t) => t.estado === "CONFIRMADO" && t.impresora.id === impresora));
+    rechazo(await local.app.impresion.historial(ctxCajera, { porPagina: 15 }), "INVALIDO");
+    rechazo(await local.app.impresion.historial(ctxCajera, { filtro: "BORRADOS" }), "INVALIDO");
+  });
+});
+
 describe("lo que la base impide", () => {
   test("lo impreso no cambia, un trabajo no se borra y un confirmado no vuelve", async () => {
     const [t] = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.findMany({ where: { status: "CONFIRMADO" }, take: 1 }));
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.update({ where: { id: t!.id }, data: { payload: Buffer.from("hola") } })));
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.update({ where: { id: t!.id }, data: { status: "PENDIENTE", finishedAt: null } })));
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.delete({ where: { id: t!.id } })));
+    // Lo descartado es final, y siempre dice quién: ni vuelve a la cola ni se descarta sin nombre.
+    const [d] = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.findMany({ where: { status: "DESCARTADO" }, take: 1 }));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.update({ where: { id: d!.id }, data: { status: "PENDIENTE", finishedAt: null, discardedBy: null, discardedByName: null } })));
+    const p = valor(await local.app.impresion.imprimirPrueba(ctxAdmin, { impresoraId: impresora }, AHORA));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.update({ where: { id: p.id }, data: { status: "DESCARTADO", finishedAt: new Date(AHORA) } })));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.update({ where: { id: t!.id }, data: { status: "DESCARTADO", discardedByName: "Alguien" } })));
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printer.delete({ where: { id: impresora } })));
   });
 });

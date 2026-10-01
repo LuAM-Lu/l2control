@@ -18,6 +18,7 @@ import {
   reclamado,
   reintentado,
   reintentoProblem,
+  descarteProblem,
   respuestaProblem,
   sinRespuesta,
   trasFallo,
@@ -149,4 +150,12 @@ test("la tasa y la hora como en la pantalla", async () => {
   const t = Date.parse("2026-10-01T17:27:00.000Z");
   assert.equal(fechaYHora(t, "12h", "America/Caracas"), "01/10/2026 · 1:27 pm");
   assert.equal(fechaYHora(t, "24h", "America/Caracas"), "01/10/2026 · 13:27");
+});
+
+test("se descarta lo que falló o espera; no lo que está imprimiéndose ni lo terminado", () => {
+  assert.equal(descarteProblem({ estado: "FALLIDO" }), null);
+  assert.equal(descarteProblem({ estado: "PENDIENTE" }), null);
+  assert.equal(descarteProblem({ estado: "ENVIADO" }), "EN_CURSO");
+  assert.equal(descarteProblem({ estado: "CONFIRMADO" }), "YA_TERMINADO");
+  assert.equal(descarteProblem({ estado: "DESCARTADO" }), "YA_TERMINADO");
 });

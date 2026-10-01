@@ -6,13 +6,15 @@
  *  · el agente **responde**: bien → CONFIRMADO; mal → vuelve a PENDIENTE con una espera que crece, o
  *    FALLIDO al quinto intento;
  *  · un ENVIADO que no responde en 30 s (el agente se cayó con el papel a medias) se trata como un fallo;
- *  · una persona **reintenta** un FALLIDO: vuelve a PENDIENTE y sus intentos empiezan de cero.
+ *  · una persona **reintenta** un FALLIDO: vuelve a PENDIENTE y sus intentos empiezan de cero;
+ *  · una persona **descarta** lo que ya no importa (un FALLIDO, o un PENDIENTE que espera): queda
+ *    DESCARTADO, no se imprime y deja de avisar. No se borra: sigue en el historial y en la auditoría.
  *
  * Nada más avanza: lo que pidió la impresión (un recibo, un corte, una comanda) no cambia por haberlo
  * intentado (ADR-015). Las horas entran como argumento (ADR-010).
  */
 
-export type EstadoTrabajo = "PENDIENTE" | "ENVIADO" | "CONFIRMADO" | "FALLIDO";
+export type EstadoTrabajo = "PENDIENTE" | "ENVIADO" | "CONFIRMADO" | "FALLIDO" | "DESCARTADO";
 
 /** Intentos antes de dejarlo FALLIDO y avisar en pantalla. */
 export const MAX_INTENTOS = 5;
@@ -54,7 +56,7 @@ export function trasFallo<T extends Trabajo>(t: T, ahora: number): T {
   return { ...t, estado: "PENDIENTE", proximoIntento: ahora + esperaTrasFallo(t.intentos), enviadoEn: null };
 }
 
-export type ProblemaDeTrabajo = "NO_ESTA_ENVIADO" | "NO_ESTA_FALLIDO";
+export type ProblemaDeTrabajo = "NO_ESTA_ENVIADO" | "NO_ESTA_FALLIDO" | "EN_CURSO" | "YA_TERMINADO";
 
 /** ¿Puede el agente responder por este trabajo? Solo por uno que está enviado. */
 export function respuestaProblem(t: Pick<Trabajo, "estado">): ProblemaDeTrabajo | null {
@@ -69,4 +71,13 @@ export function reintentoProblem(t: Pick<Trabajo, "estado">): ProblemaDeTrabajo 
 /** El trabajo reintentado a mano: en cola ya, con los intentos a cero. */
 export function reintentado<T extends Trabajo>(t: T, ahora: number): T {
   return { ...t, estado: "PENDIENTE", intentos: 0, proximoIntento: ahora, enviadoEn: null };
+}
+
+/**
+ * ¿Se puede descartar? Lo que falló y lo que espera, sí; lo que está en manos del agente ahora mismo
+ * (ENVIADO), no: su respuesta llega en segundos. Lo que salió o ya se descartó, tampoco.
+ */
+export function descarteProblem(t: Pick<Trabajo, "estado">): ProblemaDeTrabajo | null {
+  if (t.estado === "FALLIDO" || t.estado === "PENDIENTE") return null;
+  return t.estado === "ENVIADO" ? "EN_CURSO" : "YA_TERMINADO";
 }

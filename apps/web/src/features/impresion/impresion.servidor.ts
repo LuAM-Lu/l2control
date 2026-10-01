@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import type { ImpresorasDelLocalDto, TrabajoDeImpresionDto } from "@l2/contracts";
+import type { HistorialDeImpresionDto, ImpresorasDelLocalDto, TrabajoDeImpresionDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -26,6 +26,14 @@ export async function trabajosDelLocal(): Promise<readonly TrabajoDeImpresionDto
   if (!ctx) return [];
   const r = await (await aplicacion()).impresion.trabajos(ctx);
   return r.ok ? r.valor.trabajos : [];
+}
+
+/** La primera página del historial (todo, lo más reciente primero); `null` si no se puede leer. */
+export async function historialDelLocal(): Promise<HistorialDeImpresionDto | null> {
+  const ctx = await contextoActual();
+  if (!ctx) return null;
+  const r = await (await aplicacion()).impresion.historial(ctx, {});
+  return r.ok ? r.valor : null;
 }
 
 /** El agente empaquetado que se puede descargar, con su versión y su huella; `null` si no está. */

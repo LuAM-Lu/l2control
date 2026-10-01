@@ -202,6 +202,13 @@ export {
   ImprimirCorteCommandSchema,
   ImprimirPruebaCommandSchema,
   ReintentarTrabajoCommandSchema,
+  DescartarTrabajosCommandSchema,
+  TrabajosDescartadosSchema,
+  FiltroHistorialSchema,
+  POR_PAGINA_HISTORIAL,
+  HistorialQuerySchema,
+  ConteosHistorialSchema,
+  HistorialDeImpresionSchema,
   VincularAgenteSchema,
   AgenteVinculadoSchema,
   TrabajoParaElAgenteSchema,
@@ -220,6 +227,11 @@ export {
   type AgenteVinculadoDto,
   type TrabajoParaElAgenteDto,
   type ResultadoDelAgenteDto,
+  type DescartarTrabajosCommand,
+  type TrabajosDescartadosDto,
+  type FiltroHistorial,
+  type HistorialQuery,
+  type HistorialDeImpresionDto,
 } from "./impresoras.ts";
 
 export {

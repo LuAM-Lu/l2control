@@ -13,7 +13,8 @@ reloj (las horas entran como argumento).
   tamaño, avanzar y cortar. Lo común a casi todas las térmicas. `PREGUNTA_PAPEL` (DLE EOT 4) y
   `problemaDePapel` leen el sensor del rollo.
 - **La cola** (`cola.ts`): `PENDIENTE → ENVIADO → CONFIRMADO | FALLIDO`, cinco intentos con espera de 5, 10, 20
-  y 40 s, 30 s para que el agente responda, y el reintento a mano desde cero.
+  y 40 s, 30 s para que el agente responda, el reintento a mano desde cero y el descarte (`descarteProblem`):
+  lo que falló o espera puede quedar `DESCARTADO`; lo enviado o terminado, no.
 - **Formatos** (`importe.ts`): importes, tasa y hora como los escribe la pantalla (`$ 1,234.56`,
   `Bs. 1.234,56`, `857,01`, `1:27 pm`), porque el servidor no puede importar `@l2/ui`.
 

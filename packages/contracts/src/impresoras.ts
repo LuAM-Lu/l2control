@@ -11,7 +11,8 @@
  * conecta al servidor hacia fuera. Aquí van también sus mensajes, que el worker revalida.
  *
  * La cola (`TrabajoDeImpresionSchema`) va `PENDIENTE → ENVIADO → CONFIRMADO | FALLIDO` (ADR-015): lo que
- * pidió la impresión no avanza por haberla intentado.
+ * pidió la impresión no avanza por haberla intentado. Lo que falló o espera y ya no importa, una persona
+ * lo **descarta**: no se imprime, deja de avisar y queda en el historial con su nombre.
  */
 import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.ts";
@@ -55,7 +56,7 @@ export const DatosImpresoraSchema = z
   .refine((d) => d.recibos || d.comandas, { message: "Elige para qué sirve: recibos, comandas o las dos", path: ["recibos"] });
 export type DatosImpresoraDto = z.infer<typeof DatosImpresoraSchema>;
 
-export const EstadoTrabajoSchema = z.enum(["PENDIENTE", "ENVIADO", "CONFIRMADO", "FALLIDO"]);
+export const EstadoTrabajoSchema = z.enum(["PENDIENTE", "ENVIADO", "CONFIRMADO", "FALLIDO", "DESCARTADO"]);
 export type EstadoTrabajo = z.infer<typeof EstadoTrabajoSchema>;
 
 export const TipoTrabajoSchema = z.enum(["RECIBO", "CORTE", "COMANDA", "PRUEBA"]);
@@ -141,6 +142,8 @@ export const TrabajoDeImpresionSchema = z.object({
   creadoEn: TimestampSchema,
   creadoPor: z.string(),
   terminadoEn: TimestampSchema.nullable(),
+  /** Quién lo descartó, si se descartó. */
+  descartadoPor: z.string().nullable(),
   /** El ticket como texto (la composición exacta que sale en el papel). */
   vistaPrevia: z.string(),
   ventaId: IdSchema.nullable(),
@@ -154,6 +157,60 @@ export type TrabajosDeImpresionDto = z.infer<typeof TrabajosDeImpresionSchema>;
 export const ImprimirCorteCommandSchema = z.strictObject({ corteId: z.uuid("Corte desconocido") });
 export const ImprimirPruebaCommandSchema = z.strictObject({ impresoraId: z.uuid("Impresora desconocida") });
 export const ReintentarTrabajoCommandSchema = z.strictObject({ trabajoId: z.uuid("Trabajo desconocido") });
+
+/**
+ * Descartar: uno (o los que se elijan), o de una vez todo lo que no salió —de una impresora o de todas,
+ * de un tipo o de todos: lo mismo que enseña el filtro «No salieron»—. Solo lo que falló o espera; lo
+ * que se está imprimiendo ahora mismo, no.
+ */
+export const DescartarTrabajosCommandSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("TRABAJOS"),
+    trabajoIds: z.array(z.uuid("Trabajo desconocido")).min(1, "Elige qué descartar").max(100, "Hasta 100 de una vez"),
+  }),
+  z.strictObject({ kind: z.literal("FALLIDOS"), impresoraId: z.uuid("Impresora desconocida").optional(), tipo: TipoTrabajoSchema.optional() }),
+]);
+export type DescartarTrabajosCommand = z.infer<typeof DescartarTrabajosCommandSchema>;
+export const TrabajosDescartadosSchema = z.object({ descartados: z.number().int().min(0) });
+export type TrabajosDescartadosDto = z.infer<typeof TrabajosDescartadosSchema>;
+
+/* ─────────────────────────────────────────────────────── el historial */
+
+/** Qué parte del historial: todo, lo que no salió, lo que está en cola, lo impreso o lo descartado. */
+export const FiltroHistorialSchema = z.enum(["TODOS", "FALLIDOS", "EN_COLA", "IMPRESOS", "DESCARTADOS"]);
+export type FiltroHistorial = z.infer<typeof FiltroHistorialSchema>;
+export const POR_PAGINA_HISTORIAL = [10, 20, 50] as const;
+
+/** Una página del historial, con sus filtros. Sin páginas infinitas: a lo sumo 50 por vez. */
+export const HistorialQuerySchema = z.strictObject({
+  pagina: z.number().int().min(1).max(10_000).default(1),
+  porPagina: z.union([z.literal(10), z.literal(20), z.literal(50)]).default(20),
+  filtro: FiltroHistorialSchema.default("TODOS"),
+  impresoraId: z.uuid("Impresora desconocida").optional(),
+  tipo: TipoTrabajoSchema.optional(),
+});
+export type HistorialQuery = z.input<typeof HistorialQuerySchema>;
+
+/** Lo que cuenta cada filtro, con la impresora y el tipo elegidos. */
+export const ConteosHistorialSchema = z.object({
+  TODOS: z.number().int().min(0),
+  FALLIDOS: z.number().int().min(0),
+  EN_COLA: z.number().int().min(0),
+  IMPRESOS: z.number().int().min(0),
+  DESCARTADOS: z.number().int().min(0),
+});
+
+export const HistorialDeImpresionSchema = z.object({
+  trabajos: z.array(TrabajoDeImpresionSchema),
+  /** Cuántos hay con estos filtros (para las páginas). */
+  total: z.number().int().min(0),
+  pagina: z.number().int().min(1),
+  porPagina: z.number().int().min(1),
+  conteos: ConteosHistorialSchema,
+  /** Lo que pide atención en toda la sucursal, sin filtros: el resumen de arriba. */
+  pendientes: z.object({ fallidos: z.number().int().min(0), enCola: z.number().int().min(0) }),
+});
+export type HistorialDeImpresionDto = z.infer<typeof HistorialDeImpresionSchema>;
 
 /* ───────────────────────────────────────────── lo que habla el agente */
 

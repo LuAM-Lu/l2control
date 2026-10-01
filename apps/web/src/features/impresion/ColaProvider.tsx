@@ -1,18 +1,18 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { CircleCheck, Clock3, Printer, RotateCcw, TriangleAlert } from "lucide-react";
-import type { Rechazo, Resultado, TrabajoDeImpresionDto } from "@l2/contracts";
+import { Ban, CircleCheck, Clock3, Printer, RotateCcw, TriangleAlert } from "lucide-react";
+import type { DescartarTrabajosCommand, Rechazo, Resultado, TrabajoDeImpresionDto, TrabajosDescartadosDto } from "@l2/contracts";
 import { Button, avisar, cn } from "@l2/ui";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
-import { leerTrabajos, reintentarTrabajo } from "./impresion.acciones";
+import { descartarTrabajos, leerTrabajos, reintentarTrabajo } from "./impresion.acciones";
 
 /**
  * La cola de impresión de la sucursal, en vivo — B5-2, ADR-015, ADR-026.
  *
  * Lo que se manda a imprimir no avanza por haberlo intentado: aquí se ve si salió (CONFIRMADO), si está
- * en camino o si falló, con su motivo y «Reintentar». Se vuelve a leer cuando el canal dice que cambió
+ * en camino o si falló, con su motivo, «Reintentar» y «Descartar». Se vuelve a leer cuando el canal dice que cambió
  * algo de la impresión (un agente confirmó, falló o se encoló otro). Nada se guarda en el navegador.
  */
 
@@ -23,6 +23,8 @@ type Valor = Readonly<{
   /** Vuelve a leer la cola (tras encolar algo, sin esperar al canal). */
   releer: () => Promise<void>;
   reintentar: (id: string) => Promise<Resultado<TrabajoDeImpresionDto>>;
+  /** Lo que falló o espera y ya no importa: no se imprime y deja de avisar (queda en el historial). */
+  descartar: (cmd: DescartarTrabajosCommand) => Promise<Resultado<TrabajosDescartadosDto>>;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
@@ -49,7 +51,16 @@ export function ColaProvider({ inicial, children }: { inicial: readonly TrabajoD
     [releer],
   );
 
-  const valor = useMemo(() => ({ trabajos, releer, reintentar }), [trabajos, releer, reintentar]);
+  const descartar = useCallback(
+    async (cmd: DescartarTrabajosCommand) => {
+      const r = await descartarTrabajos(cmd).catch(() => sinConexion);
+      if (r.ok) void releer();
+      return r;
+    },
+    [releer],
+  );
+
+  const valor = useMemo(() => ({ trabajos, releer, reintentar, descartar }), [trabajos, releer, reintentar, descartar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 
@@ -65,11 +76,13 @@ export function useFallidos(): readonly TrabajoDeImpresionDto[] {
   return useMemo(() => trabajos.filter((t) => t.estado === "FALLIDO"), [trabajos]);
 }
 
-const ESTADO = {
+/** Cómo se dice cada estado: texto, icono y tono (nunca solo color). */
+export const ESTADO_DE_TRABAJO = {
   PENDIENTE: { texto: "En cola", Icono: Clock3, tono: "text-ink-2" },
   ENVIADO: { texto: "Imprimiendo…", Icono: Printer, tono: "text-ink-2" },
   CONFIRMADO: { texto: "Impreso", Icono: CircleCheck, tono: "text-state-ok" },
   FALLIDO: { texto: "No salió", Icono: TriangleAlert, tono: "text-state-crit" },
+  DESCARTADO: { texto: "Descartado", Icono: Ban, tono: "text-ink-3" },
 } as const;
 
 /**
@@ -93,7 +106,7 @@ export function EstadoDeImpresion({
   const [reintentando, setReintentando] = useState(false);
   const t = trabajos.find((x) => (ventaId && x.ventaId === ventaId) || (corteId && x.corteId === corteId) || (impresoraId && x.impresora.id === impresoraId));
   if (!t) return null;
-  const e = ESTADO[t.estado];
+  const e = ESTADO_DE_TRABAJO[t.estado];
   return (
     <div role="status" className={cn("flex min-h-10 items-center gap-2 text-[12.5px]", className)}>
       <e.Icono size={15} className={cn("shrink-0", e.tono)} aria-hidden="true" />
@@ -104,7 +117,11 @@ export function EstadoDeImpresion({
           · {t.copia ? "copia · " : ""}
           {t.impresora.nombre} · {hora(Date.parse(t.terminadoEn ?? t.creadoEn))}
         </span>
-        {t.estado !== "CONFIRMADO" && t.error && <span className="block truncate text-ink-2">{t.error}</span>}
+        {t.estado === "DESCARTADO" ? (
+          <span className="block truncate text-ink-3">Lo descartó {t.descartadoPor}</span>
+        ) : (
+          t.estado !== "CONFIRMADO" && t.error && <span className="block truncate text-ink-2">{t.error}</span>
+        )}
       </span>
       {t.estado === "FALLIDO" && (
         <Button

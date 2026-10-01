@@ -1,6 +1,13 @@
 "use server";
 
-import type { ImpresorasAplicadasDto, Resultado, TrabajoDeImpresionDto, TrabajosDeImpresionDto } from "@l2/contracts";
+import type {
+  HistorialDeImpresionDto,
+  ImpresorasAplicadasDto,
+  Resultado,
+  TrabajoDeImpresionDto,
+  TrabajosDeImpresionDto,
+  TrabajosDescartadosDto,
+} from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -29,6 +36,13 @@ export async function leerTrabajos(): Promise<Resultado<TrabajosDeImpresionDto>>
   return (await aplicacion()).impresion.trabajos(ctx);
 }
 
+/** Una página del historial, con sus filtros. */
+export async function leerHistorial(entrada: unknown): Promise<Resultado<HistorialDeImpresionDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).impresion.historial(ctx, entrada);
+}
+
 export async function imprimirPrueba(entrada: unknown): Promise<Resultado<TrabajoDeImpresionDto>> {
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
@@ -45,4 +59,14 @@ export async function reintentarTrabajo(entrada: unknown): Promise<Resultado<Tra
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).impresion.reintentar(ctx, entrada);
+}
+
+/** Descarta lo que falló o espera y ya no importa: no se imprime y deja de avisar. */
+export async function descartarTrabajos(entrada: unknown): Promise<Resultado<TrabajosDescartadosDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).impresion.descartar(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, descartados: r.valor.descartados }, "trabajos de impresión descartados");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "descarte de impresión rechazado");
+  return r;
 }

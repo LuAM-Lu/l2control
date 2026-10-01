@@ -18,7 +18,7 @@ import { MediosPage } from "../../../../../src/features/cash/MediosPage";
 import { DescuentosScreen } from "../../../../../src/features/cash/DescuentosScreen";
 import { descuentosDelLocal } from "../../../../../src/features/cash/descuentos.servidor";
 import { ImpresorasScreen } from "../../../../../src/features/impresion/ImpresorasScreen";
-import { agenteDescargable, direccionDelWorker, impresorasDelLocal } from "../../../../../src/features/impresion/impresion.servidor";
+import { agenteDescargable, direccionDelWorker, historialDelLocal, impresorasDelLocal } from "../../../../../src/features/impresion/impresion.servidor";
 import { ImpuestosScreen } from "../../../../../src/features/cash/ImpuestosScreen";
 import { impuestosDelLocal } from "../../../../../src/features/cash/impuestos.servidor";
 import { FeriadosScreen } from "../../../../../src/features/cash/FeriadosScreen";
@@ -52,7 +52,12 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
   "ajustes/sucursal": () => <EditorSucursal />,
   "ajustes/impresoras": async () => (
-    <ImpresorasScreen local={await impresorasDelLocal()} worker={await direccionDelWorker()} descargable={await agenteDescargable()} />
+    <ImpresorasScreen
+      local={await impresorasDelLocal()}
+      historial={await historialDelLocal()}
+      worker={await direccionDelWorker()}
+      descargable={await agenteDescargable()}
+    />
   ),
   "inventario/productos": async () => <ProductosScreen catalogo={await catalogoDelLocal()} />,
   "inventario/entradas": async () => <EntradasScreen catalogo={await catalogoDelLocal()} entradas={await entradasDelLocal()} />,

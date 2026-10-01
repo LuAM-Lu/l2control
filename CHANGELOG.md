@@ -12,6 +12,25 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.39.2] — 2026-10-01 · Etapa 5 · Tiempo real e impresión
+
+Ajustes → Impresoras, reordenada (pedido del cliente): nada de listas sin fin, y lo que no salió se puede limpiar.
+
+### Añadido
+- **Resumen arriba**: impresoras encendidas, el agente, lo que no salió y lo que está en cola. Cada cifra lleva a
+  su sitio («No salieron» abre la cola ya filtrada).
+- **Tres pestañas**: *Impresoras* (tarjetas con prueba, encender/apagar, su historial, editar y retirar), *Cola e
+  historial* y *Agente* (equipos vinculados, vincular otro y la descarga con sus pasos).
+- **Historial por páginas** (10, 20 o 50), lo más reciente primero, con filtros por estado (todo, no salieron, en
+  cola, impresos, descartados, con su cuenta), impresora y tipo, y «Limpiar filtros». Tabla en el escritorio;
+  tarjetas en la tableta y el teléfono. Tocar un trabajo enseña el ticket tal como sale en el papel, con su
+  estado, intentos y motivo.
+- **Descartar**: lo que no salió (o espera) y ya no hace falta se descarta, uno a uno o todos los que no salieron
+  de una vez (respetando el filtro de impresora y tipo). No se imprime y la alerta roja se apaga; **no se borra**:
+  queda en el historial como «Descartado», con quién lo hizo, y en la auditoría. También desde la alerta de la
+  barra y de Inicio. Lo que se está imprimiendo en ese momento no se puede descartar.
+- Alta y edición de una impresora en una **hoja lateral**; retirar una impresora o un agente pide confirmarlo.
+
 ## [0.39.1] — 2026-10-01 · Etapa 5 · Tiempo real e impresión
 
 El agente de impresión, listo para instalar en la laptop de caja (adelanto de B7-3, pedido del cliente).

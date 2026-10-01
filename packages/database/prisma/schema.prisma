@@ -1270,19 +1270,19 @@ model Printer {
 /// El agente de impresión de un equipo del local (ADR-026). Nace con un código de un solo uso (solo su
 /// huella y su plazo) y, al vincularse, guarda la huella de su credencial. Se retira una vez.
 model PrintAgent {
-  id              String    @id @default(uuid(7)) @db.Uuid
-  tenantId        String    @map("tenant_id") @db.Uuid
-  branchId        String    @map("branch_id") @db.Uuid
-  name            String
-  codeHash        String?   @map("code_hash")
-  codeExpiresAt   DateTime? @map("code_expires_at") @db.Timestamptz(3)
-  tokenHash       String?   @map("token_hash")
-  pairedAt        DateTime? @map("paired_at") @db.Timestamptz(3)
-  lastSeenAt      DateTime? @map("last_seen_at") @db.Timestamptz(3)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  createdByName   String    @map("created_by_name")
-  retiredAt       DateTime? @map("retired_at") @db.Timestamptz(3)
-  retiredByName   String?   @map("retired_by_name")
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  branchId      String    @map("branch_id") @db.Uuid
+  name          String
+  codeHash      String?   @map("code_hash")
+  codeExpiresAt DateTime? @map("code_expires_at") @db.Timestamptz(3)
+  tokenHash     String?   @map("token_hash")
+  pairedAt      DateTime? @map("paired_at") @db.Timestamptz(3)
+  lastSeenAt    DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdByName String    @map("created_by_name")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredByName String?   @map("retired_by_name")
 
   branch Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   jobs   PrintJob[]
@@ -1292,34 +1292,38 @@ model PrintAgent {
   @@map("print_agent")
 }
 
-/// Un trabajo de la cola de impresión (ADR-015): PENDIENTE → ENVIADO → CONFIRMADO | FALLIDO. Lo que se
-/// imprime (el documento y sus bytes) no cambia; solo avanza su estado, como dice el disparador.
+/// Un trabajo de la cola de impresión (ADR-015): PENDIENTE → ENVIADO → CONFIRMADO | FALLIDO, y lo que falló
+/// o espera puede quedar DESCARTADO por una persona. Lo que se imprime (el documento y sus bytes) no
+/// cambia; solo avanza su estado, como dice el disparador.
 model PrintJob {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  tenantId      String    @map("tenant_id") @db.Uuid
-  branchId      String    @map("branch_id") @db.Uuid
-  printerId     String    @map("printer_id") @db.Uuid
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  branchId        String    @map("branch_id") @db.Uuid
+  printerId       String    @map("printer_id") @db.Uuid
   /// RECIBO, CORTE, COMANDA o PRUEBA (CHECK).
-  kind          String
-  title         String
-  copy          Boolean
-  saleId        String?   @map("sale_id") @db.Uuid
-  cutId         String?   @map("cut_id") @db.Uuid
+  kind            String
+  title           String
+  copy            Boolean
+  saleId          String?   @map("sale_id") @db.Uuid
+  cutId           String?   @map("cut_id") @db.Uuid
   /// El documento (renglones de `@l2/domain-printing`): la vista previa y la constancia de qué salió.
-  content       Json
+  content         Json
   /// El ESC/POS compuesto al ancho de su impresora.
-  payload       Bytes
-  status        String
-  attempts      Int
-  nextAttemptAt DateTime  @map("next_attempt_at") @db.Timestamptz(3)
-  sentAt        DateTime? @map("sent_at") @db.Timestamptz(3)
-  agentId       String?   @map("agent_id") @db.Uuid
-  lastError     String?   @map("last_error")
-  createdAt     DateTime  @map("created_at") @db.Timestamptz(3)
-  createdBy     String?   @map("created_by") @db.Uuid
-  createdByName String    @map("created_by_name")
-  deviceId      String?   @map("device_id") @db.Uuid
-  finishedAt    DateTime? @map("finished_at") @db.Timestamptz(3)
+  payload         Bytes
+  status          String
+  attempts        Int
+  nextAttemptAt   DateTime  @map("next_attempt_at") @db.Timestamptz(3)
+  sentAt          DateTime? @map("sent_at") @db.Timestamptz(3)
+  agentId         String?   @map("agent_id") @db.Uuid
+  lastError       String?   @map("last_error")
+  createdAt       DateTime  @map("created_at") @db.Timestamptz(3)
+  createdBy       String?   @map("created_by") @db.Uuid
+  createdByName   String    @map("created_by_name")
+  deviceId        String?   @map("device_id") @db.Uuid
+  finishedAt      DateTime? @map("finished_at") @db.Timestamptz(3)
+  /// Quién lo descartó (solo en DESCARTADO).
+  discardedBy     String?   @map("discarded_by") @db.Uuid
+  discardedByName String?   @map("discarded_by_name")
 
   branch  Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   printer Printer     @relation(fields: [tenantId, branchId, printerId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
