@@ -64,7 +64,12 @@ const bus = {
   /** Campo enfocado al empezar la ráfaga, y su valor previo. */
   campo: null as HTMLInputElement | HTMLTextAreaElement | null,
   valorCampo: "",
-  receptor: null as Receptor | null,
+  /**
+   * Quién recibe: el último que se montó. Una pila y no un solo receptor: una hoja que escucha encima
+   * de una pantalla que también escucha (la ficha de un producto sobre la lista) recibe mientras está
+   * abierta y, al cerrarse, devuelve el turno a la pantalla en vez de dejar el lector sin nadie.
+   */
+  pila: [] as Receptor[],
   pendiente: null as { code: string; at: number } | null,
   instalado: false,
 };
@@ -126,14 +131,34 @@ function alTeclear(event: KeyboardEvent) {
 
     event.preventDefault();
     bus.lastEmitAt = now;
-    if (bus.receptor) bus.receptor(code);
-    else bus.pendiente = { code, at: now };
+    entregar(code, now);
     return;
   }
 
   if (event.key.length === 1 && bus.buffer.length < MAX_BUFFER) {
     bus.buffer += event.key;
   }
+}
+
+/** Da el código a quien escucha ahora, o lo deja esperando a la siguiente pantalla que se monte. */
+function entregar(code: string, now: number) {
+  const receptor = bus.pila.at(-1);
+  if (receptor) receptor(code);
+  else bus.pendiente = { code, at: now };
+}
+
+/** Pone a escuchar a `receptor` encima de los demás; devuelve cómo quitarlo. */
+function escuchar(receptor: Receptor): () => void {
+  instalarLector();
+  bus.pila.push(receptor);
+  // Una lectura que terminó durante el cambio de pantalla llega aquí.
+  const p = bus.pendiente;
+  bus.pendiente = null;
+  if (p && Date.now() - p.at < ESPERA_PENDIENTE_MS) receptor(p.code);
+  return () => {
+    const i = bus.pila.lastIndexOf(receptor);
+    if (i >= 0) bus.pila.splice(i, 1);
+  };
 }
 
 function instalarLector() {
@@ -156,9 +181,25 @@ export function leerCodigo(code: string): boolean {
   const now = Date.now();
   if (now - bus.lastEmitAt < MIN_INTERVAL_MS) return false;
   bus.lastEmitAt = now;
-  if (bus.receptor) bus.receptor(limpio);
-  else bus.pendiente = { code: limpio, at: now };
+  entregar(limpio, now);
   return true;
+}
+
+/**
+ * Escuchar al lector sin pintar el campo (B9-6): una hoja o una pantalla que ya enseña dónde leer
+ * (la ficha de un producto, una entrada, un conteo). Mientras `activo`, recibe ella; al dejar de
+ * estarlo, vuelve a recibir quien escuchaba antes. `onScan` recibe el código tal cual se leyó: la
+ * validación es de quien lo usa, con el contrato de lo que espera.
+ */
+export function useLectorDeCodigos(onScan: (code: string) => void, activo = true): void {
+  const alLeer = useRef(onScan);
+  useEffect(() => {
+    alLeer.current = onScan;
+  });
+  useEffect(() => {
+    if (!activo) return;
+    return escuchar((code) => alLeer.current(code));
+  }, [activo]);
 }
 
 /* ─────────────────────────────────────────────────── componente ── */
@@ -193,27 +234,18 @@ export function ScannerField({
     validar.current = validate;
   });
 
-  useEffect(() => {
-    instalarLector();
-    const receptor: Receptor = (code) => {
-      if (!validar.current(code)) {
-        setFeedback({ kind: "error", text: `Código no reconocido: ${code.slice(0, 16)}` });
-        return;
-      }
-      setFeedback({ kind: "ok", text: `Leído ${code}` });
-      alLeer.current(code);
-    };
-    bus.receptor = receptor;
-
-    // Una lectura que terminó durante el cambio de pantalla llega aquí.
-    const p = bus.pendiente;
-    bus.pendiente = null;
-    if (p && Date.now() - p.at < ESPERA_PENDIENTE_MS) receptor(p.code);
-
-    return () => {
-      if (bus.receptor === receptor) bus.receptor = null;
-    };
-  }, []);
+  useEffect(
+    () =>
+      escuchar((code) => {
+        if (!validar.current(code)) {
+          setFeedback({ kind: "error", text: `Código no reconocido: ${code.slice(0, 16)}` });
+          return;
+        }
+        setFeedback({ kind: "ok", text: `Leído ${code}` });
+        alLeer.current(code);
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!feedback) return;

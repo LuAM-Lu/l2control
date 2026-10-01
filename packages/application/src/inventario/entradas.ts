@@ -7,7 +7,8 @@
  * Quién decide qué:
  *  · el dominio: qué línea vale (`entryLineProblem`) y cuánto entra (`entryLineTotals`);
  *  · la matriz: recibir es `inventario.entrada` (administración y supervisión), sin elevación: se hace
- *    con el proveedor delante;
+ *    con el proveedor delante; dar de alta un producto nuevo en la entrada (B9-6) es además del
+ *    catálogo (`catalogo.modificar`, con elevación), como «Nuevo producto»;
  *  · este archivo: la clave (un doble clic no carga dos veces), el candado de cada producto (una venta
  *    a la vez lee el costo de después), la transacción y su asiento.
  */
@@ -27,6 +28,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { bloquearProducto } from "./existencias.ts";
+import { crearProductoEn } from "./productos.ts";
 
 /** Cuántas entradas enseña la pantalla: las más recientes. */
 export const ENTRADAS_RECIENTES = 60;
@@ -90,21 +92,44 @@ export function casosEntradas(base: Base): CasosEntradas {
             return previa.branchId === ctx.branchId ? entradaDe(tx, previa.id) : { ok: false, motivo: "CONFLICTO", mensaje: "Esa clave ya se usó en otra sucursal." };
           }
 
-          const ids = cmd.lineas.map((l) => l.productId);
-          const productos = await tx.product.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, tracksStock: true } });
-          const porId = new Map(productos.map((p) => [p.id, p]));
+          // Dar de alta un producto en la entrada (B9-6) es del catálogo: lo mismo que «Nuevo producto».
+          const conNuevos = cmd.lineas.some((l) => "nuevo" in l);
+          if (conNuevos) {
+            const delCatalogo = await exigirPermiso(tx, ctx, "catalogo.modificar");
+            if (delCatalogo) return delCatalogo;
+          }
+
+          const existentes = cmd.lineas.flatMap((l) => ("productId" in l ? [l.productId] : []));
+          const productos = await tx.product.findMany({ where: { id: { in: existentes } }, select: { id: true, name: true, tracksStock: true } });
+          const porId = new Map(productos.map((p) => [p.id, { name: p.name }]));
           for (const [i, l] of cmd.lineas.entries()) {
-            const p = porId.get(l.productId);
+            if (!("productId" in l)) continue;
+            const p = productos.find((x) => x.id === l.productId);
             if (!p) return invalido("Ese producto no existe en este local.", ["lineas", i, "productId"], "Producto desconocido");
             if (!p.tracksStock) {
-              return invalido(`${p.name} no lleva existencia: se vende sin contarla. Enciéndesela en Productos si se quiere contar.`, ["lineas", i, "productId"], "SIN_CONTROL_DE_STOCK");
+              return invalido(`${p.name} no se cuenta: es un preparado o un servicio. Cámbiale el tipo en Productos si se quiere contar.`, ["lineas", i, "productId"], "SIN_CONTROL_DE_STOCK");
             }
+          }
+
+          const quien = await nombreDe(tx, ctx);
+          // Los nuevos nacen a la venta, con su precio y su SKU, en esta misma transacción: si algo de la
+          // entrada no vale, tampoco quedan creados.
+          const ids: string[] = [];
+          for (const [i, l] of cmd.lineas.entries()) {
+            if ("productId" in l) {
+              ids.push(l.productId);
+              continue;
+            }
+            const creado = await crearProductoEn(tx, ctx, { ...l.nuevo, tipo: "PRODUCTO" }, quien.nombre, ahora, ["lineas", i, "nuevo"]);
+            if ("ok" in creado) return creado;
+            await auditar(tx, ctx, creado.asiento);
+            ids.push(creado.fila.id);
+            porId.set(creado.fila.id, { name: creado.fila.name });
           }
 
           // Los candados en orden de producto, como la venta: nadie lee el costo a medias.
           for (const id of [...ids].sort()) await bloquearProducto(tx, ctx.branchId, id);
 
-          const quien = await nombreDe(tx, ctx);
           const fila = await tx.stockEntry.create({
             data: {
               tenantId: ctx.tenantId,
@@ -119,9 +144,9 @@ export function casosEntradas(base: Base): CasosEntradas {
               deviceId: ctx.quien?.deviceId ?? null,
             },
           });
-          const lineas = cmd.lineas.map((l) => {
+          const lineas = cmd.lineas.map((l, i) => {
             const t = entryLineTotals({ packs: l.bultos, packSize: l.unidadesPorBulto, packCostMinor: BigInt(l.costoBultoMinor) });
-            return { ...l, unidades: t.units, valorMinor: t.valueMinor };
+            return { productId: ids[i]!, bultos: l.bultos, unidadesPorBulto: l.unidadesPorBulto, unidades: t.units, valorMinor: t.valueMinor };
           });
           await tx.stockMovement.createMany({
             data: lineas.map((l) => ({

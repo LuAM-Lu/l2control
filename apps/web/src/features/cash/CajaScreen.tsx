@@ -1885,6 +1885,22 @@ export function CajaScreen({
    * sala del servidor (B4-2), que dice de qué cuenta es cada estancia.
    */
   function alEscanear(codigo: string) {
+    // Un producto pasado por el lector (B9-6) se vende como si se tocara en la carta: a la cuenta que
+    // está a la vista, o en una venta directa nueva.
+    const producto = aLaVenta.find((p) => p.codigoBarras === codigo.toUpperCase() || p.sku === codigo.toUpperCase());
+    if (producto) {
+      if (!turno) {
+        avisar.error("La caja no vende sin turno abierto", { detalle: "Abre el turno de este equipo." });
+        return;
+      }
+      if (producto.existencia === 0) {
+        avisar.error(`«${producto.nombre}» se agotó`, { detalle: "Lo que no hay no se vende: hay que cargar la entrada de mercancía." });
+        return;
+      }
+      if (actual && !ventaNueva && vistaEfectiva === "cuenta") onAgregarProductoACuenta(producto);
+      else crearVentaDirecta(producto);
+      return;
+    }
     const estancia = sala?.sessions.find((s) => s.wristbandCode === codigo) ?? null;
     const cuenta = estancia
       ? cuentas.find((c) => c.id === estancia.accountId)

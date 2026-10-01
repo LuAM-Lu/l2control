@@ -27,7 +27,7 @@ export { PageHeader, type Miga } from "./patterns/PageHeader";
 export { NumericKeypad } from "./patterns/NumericKeypad";
 export { Initial } from "./patterns/Initial";
 export { MoneyDisplay, formatMoneyVE, formatPartsMoneyVE } from "./patterns/MoneyDisplay";
-export { ScannerField, leerCodigo } from "./patterns/ScannerField";
+export { ScannerField, leerCodigo, useLectorDeCodigos } from "./patterns/ScannerField";
 export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBadge";
 export { EmptyState } from "./patterns/EmptyState";
 export { ScanPrompt } from "./patterns/ScanPrompt";

@@ -8,7 +8,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -19,6 +19,7 @@ let otro: LocalDePrueba;
 let ctxAdmin: Contexto;
 let ctxSupervisor: Contexto;
 let ctxCajera: Contexto;
+let ctxAdminElevado: Contexto;
 const ids: Record<string, string> = {};
 
 const usd = (minor: string) => ({ minor, currency: "USD" as const });
@@ -68,9 +69,10 @@ before(async () => {
   ctxAdmin = await contextoDe(local, await crearEquipo(local, "Oficina"), admin, "4826");
   ctxSupervisor = await contextoDe(local, await crearEquipo(local, "Depósito"), supervisor, "5937");
   ctxCajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), cajera, "7391");
+  ctxAdminElevado = await contextoElevado(local, await crearEquipo(local, "Oficina elevada"), { id: admin, nombre: "Abigail Karam", pin: "4826" });
   for (const [nombre, precioMinor] of Object.entries(PRECIOS)) {
-    const controlaStock = nombre !== "Café";
-    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Bebidas", taxCode: "GENERAL", controlaStock, precioMinor } }, AHORA - 5 * MIN));
+    const tipo = nombre !== "Café" ? ("PRODUCTO" as const) : ("PREPARADO" as const);
+    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Bebidas", taxCode: "GENERAL", tipo, precioMinor } }, AHORA - 5 * MIN));
     ids[nombre] = c.productos.find((p) => p.nombre === nombre)!.id;
   }
 });
@@ -207,5 +209,38 @@ describe("el stock mínimo (B9-5)", () => {
     assert.equal(!cafe.ok && cafe.problemas?.[0]?.message, "SIN_CONTROL_DE_STOCK");
     const negativo = await local.app.productos.fijarMinimo(ctxAdmin, { productId: ids.Refresco!, minimo: -1 });
     assert.equal(!negativo.ok && negativo.motivo, "INVALIDO");
+  });
+});
+
+describe("dar de alta un producto en la entrada (B9-6)", () => {
+  const nuevo = { nombre: "Refresco de uva", categoria: "Bebidas", taxCode: "GENERAL", precioMinor: "150", codigoBarras: "036000291452", presentacion: "Lata 355 ml" };
+
+  test("nace a la venta con su SKU, su código, su stock y su costo, en la misma entrada", async () => {
+    const e = valor(
+      await registrar(
+        compra([
+          { productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 24, costoBultoMinor: "1200" },
+          { nuevo, bultos: 2, unidadesPorBulto: 24, costoBultoMinor: "1440" },
+        ]),
+        ctxAdminElevado,
+      ),
+    );
+    const uva = (await local.app.productos.leer(ctxAdmin)).productos.find((p) => p.nombre === "Refresco de uva")!;
+    assert.deepEqual([uva.tipo, uva.activo, uva.codigoBarras, uva.presentacion, uva.existencia, uva.costoPromedio], ["PRODUCTO", true, "036000291452", "Lata 355 ml", 48, usd("60")]);
+    assert.match(uva.sku, /^BEB-\d{4}$/);
+    assert.ok(e.lineas.some((l) => l.productId === uva.id && l.unidades === 48));
+    const alta = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.auditEntry.findFirst({ where: { action: "producto.crear", entityId: uva.id } }));
+    assert.ok(alta, "el alta queda con su asiento");
+  });
+
+  test("crear es del catálogo: supervisión recibe pero no da de alta, y nada queda a medias", async () => {
+    const r = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }, { nuevo: { ...nuevo, nombre: "Malta light", codigoBarras: undefined }, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }]), ctxSupervisor);
+    assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
+    assert.equal((await local.app.productos.leer(ctxAdmin)).productos.some((p) => p.nombre === "Malta light"), false);
+    // Un nuevo con el código de otro producto tampoco deja la entrada a medias.
+    const antes = (await producto("Malta")).existencia;
+    const choca = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }, { nuevo: { ...nuevo, nombre: "Otra uva" }, bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "50" }]), ctxAdminElevado);
+    assert.deepEqual(!choca.ok && choca.problemas?.[0]?.path, ["lineas", 1, "nuevo", "codigoBarras"]);
+    assert.equal((await producto("Malta")).existencia, antes);
   });
 });

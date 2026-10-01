@@ -555,8 +555,10 @@ test("los datos del local se guardan cifrados y no se reescriben (§7.6)", async
 
 const producto = (t: { tenant: string }, name: string, extra: Record<string, unknown> = {}) =>
   app.conTenant(t.tenant, (tx) =>
-    tx.product.create({ data: { tenantId: t.tenant, name, category: "Bebidas", taxCode: "GENERAL", tracksStock: true, active: true, createdByName: "Abigail Karam", ...extra } as never }),
+    tx.product.create({ data: { tenantId: t.tenant, name, category: "Bebidas", taxCode: "GENERAL", kind: "PRODUCTO", tracksStock: true, sku: `BEB-${String(++skuLibre).padStart(4, "0")}`, active: true, createdByName: "Abigail Karam", ...extra } as never }),
   );
+/** El correlativo de los SKU de prueba: cada producto, el suyo. */
+let skuLibre = 0;
 const precioDe = (t: { tenant: string }, productId: string, amountMinor: bigint, extra: Record<string, unknown> = {}) =>
   app.conTenant(t.tenant, (tx) => {
     const ahora = new Date();
@@ -1169,4 +1171,27 @@ test("una salida o un conteo es inmutable, con su motivo de lista cerrada y qui�
   await assert.rejects(mov({ kind: "AJUSTE", quantity: 2, valueMinor: 10n, adjustmentId: null }), por("RESTRICCION"));
   await mov({ kind: "AJUSTE", quantity: 2, valueMinor: 10n });
   await assert.rejects(mov({ kind: "AJUSTE", quantity: 1, valueMinor: 5n }), por("DUPLICADO")); // un producto por ajuste
+});
+
+test("el tipo, el SKU, el código de barras y la presentación de un producto (B9-6)", async () => {
+  const p = await producto(A, "Refresco de prueba B96", { barcode: "4006381333931", presentation: "Lata 355 ml" });
+  // El SKU no cambia; el código y la presentación, sí.
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.product.update({ where: { id: p.id }, data: { sku: "BEB-9999" } })), SOLO_AGREGAR);
+  await app.conTenant(A.tenant, (tx) => tx.product.update({ where: { id: p.id }, data: { presentation: "Lata 330 ml" } }));
+  // Un código, un producto (en el local); en otro local, otro.
+  await assert.rejects(producto(A, "Otro refresco B96", { barcode: "4006381333931" }), por("DUPLICADO"));
+  await producto(B, "Refresco de B B96", { barcode: "4006381333931" });
+  // El SKU no se repite en el local.
+  await assert.rejects(producto(A, "Otro más B96", { sku: p.sku }), por("DUPLICADO"));
+  for (const extra of [
+    { kind: "COMIDA" },
+    { kind: "PREPARADO" }, // un preparado no lleva existencia
+    { kind: "SERVICIO", tracksStock: false, barcode: "ABCD-1234" }, // ni código de barras
+    { sku: "beb-1" },
+    { barcode: "abc" },
+    { presentation: " " },
+  ]) {
+    await assert.rejects(producto(A, `Malo B96 ${JSON.stringify(extra).length}`, extra), por("RESTRICCION"), JSON.stringify(extra));
+  }
+  await producto(A, "Café B96", { kind: "PREPARADO", tracksStock: false });
 });

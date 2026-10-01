@@ -33,6 +33,23 @@ export const CategoriaProductoSchema = z
  * Un precio tecleado, en centavos de dólar y como texto: «150» es $ 1,50. Mayor que cero: lo que se
  * regala es una cortesía, con su motivo y su firma. El tope lo pone el dominio (`priceProblem`).
  */
+/**
+ * De qué tipo es (B9-6, M-16): un PRODUCTO se cuenta (lleva existencia, código de barras, entradas y
+ * conteo), un PREPARADO se hace al momento (café, tequeños) y un SERVICIO no es una cosa (alquiler,
+ * paquetes).
+ */
+export const TipoProductoSchema = z.enum(["PRODUCTO", "PREPARADO", "SERVICIO"], { error: "Elige el tipo" });
+export type TipoProducto = z.infer<typeof TipoProductoSchema>;
+
+/** El código de barras del empaque, como se guarda: sin espacios y en mayúsculas. El dígito de control lo mira el dominio. */
+export const CodigoBarrasSchema = z
+  .string()
+  .transform((c) => c.replace(/\s+/g, "").toUpperCase())
+  .pipe(z.string().regex(/^[0-9A-Z-]{4,32}$/, "De 4 a 32 dígitos, letras o guiones"));
+
+/** «Lata 355 ml», «Bolsa 45 g». */
+export const PresentacionSchema = z.string().trim().min(2, "Escribe la presentación").max(40, "Hasta 40 caracteres");
+
 export const PrecioMinorSchema = z
   .string()
   .regex(/^\d{1,9}$/, "Un precio en centavos de dólar")
@@ -65,8 +82,14 @@ export const ProductoSchema = z
     categoria: CategoriaProductoSchema,
     /** El trato del IVA con que se vende (§5.3): la alícuota la pone el calendario de impuestos. */
     taxCode: TaxCodeSchema,
-    /** Si su existencia se lleva por movimientos (B9-2). Un café hecho al momento, no. */
+    /** De qué tipo es (B9-6). */
+    tipo: TipoProductoSchema,
+    /** Si su existencia se lleva por movimientos (B9-2): lo dice el tipo (solo el PRODUCTO). */
     controlaStock: z.boolean(),
+    /** El código interno, «BEB-0001»: lo pone el servidor y no cambia (B9-6). */
+    sku: z.string().regex(/^[A-Z]{3}-\d{4,6}$/),
+    codigoBarras: z.string().nullable(),
+    presentacion: z.string().nullable(),
     /** Uno apartado no se ofrece en la caja. No se borra: lo vendido lo nombra. */
     activo: z.boolean(),
     /** El calendario de precios, del más viejo al más nuevo. */
@@ -85,6 +108,12 @@ export const ProductoSchema = z
     ultimoBulto: z.number().int().min(1).nullable(),
     /** El stock mínimo, su punto de reorden (B9-5): con la existencia en él o por debajo, avisa. */
     minimo: z.number().int().min(0).nullable(),
+    /** Lo que vale al costo lo que queda (B9-6): la suma del valor de sus movimientos. `null` si no lleva existencia. */
+    valor: MoneySchema.nullable(),
+  })
+  .refine((p) => p.controlaStock === (p.tipo === "PRODUCTO"), {
+    message: "Solo el producto lleva existencia",
+    path: ["controlaStock"],
   })
   .refine((p) => (p.existencia === null) === !p.controlaStock, {
     message: "Solo lleva existencia lo que controla stock",
@@ -119,13 +148,20 @@ export const CatalogoSchema = z
 export type CatalogoDto = z.infer<typeof CatalogoSchema>;
 
 /** Un producto nuevo: nace a la venta, con su primer precio rigiendo desde que se guarda. */
-export const ProductoNuevoSchema = z.strictObject({
-  nombre: NombreProductoSchema,
-  categoria: CategoriaProductoSchema,
-  taxCode: TaxCodeDelCatalogoSchema,
-  controlaStock: z.boolean(),
-  precioMinor: PrecioMinorSchema,
-});
+export const ProductoNuevoSchema = z
+  .strictObject({
+    nombre: NombreProductoSchema,
+    categoria: CategoriaProductoSchema,
+    taxCode: TaxCodeDelCatalogoSchema,
+    tipo: TipoProductoSchema,
+    precioMinor: PrecioMinorSchema,
+    codigoBarras: CodigoBarrasSchema.optional(),
+    presentacion: PresentacionSchema.optional(),
+  })
+  .refine((p) => p.codigoBarras === undefined || p.tipo === "PRODUCTO", {
+    message: "Solo un producto que se cuenta lleva código de barras",
+    path: ["codigoBarras"],
+  });
 export type ProductoNuevoDto = z.infer<typeof ProductoNuevoSchema>;
 
 /**
@@ -143,7 +179,10 @@ export const ProductoCommandSchema = z.discriminatedUnion("kind", [
     nombre: NombreProductoSchema,
     categoria: CategoriaProductoSchema,
     taxCode: TaxCodeDelCatalogoSchema,
-    controlaStock: z.boolean(),
+    tipo: TipoProductoSchema,
+    /** `null` lo quita. */
+    codigoBarras: CodigoBarrasSchema.nullable(),
+    presentacion: PresentacionSchema.nullable(),
   }),
   z.strictObject({ kind: z.literal("ACTIVAR"), productId: z.uuid("Producto desconocido"), activo: z.boolean() }),
   z.strictObject({

@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ClipboardCheck, PackageMinus, Plus, Search, TriangleAlert, X } from "lucide-react";
 import type { AjusteInventarioDto, AjustesInventarioDto, CatalogoDto, MotivoSalida, Problema, ProductoDto, Rechazo, Resultado } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { nameKey } from "@l2/domain-inventory";
+import { nameKey, normalizeBarcode } from "@l2/domain-inventory";
 import { money, toMajor } from "@l2/domain-money";
-import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "../cash/Autorizacion.tsx";
@@ -362,6 +362,22 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
     return i < 0 ? undefined : (errores[`${i}.contado`] ?? errores[`${i}.esperado`] ?? errores[`${i}.productId`]);
   };
 
+  // Pasar un producto por el lector (B9-6) lo busca en la lista y pone el cursor en su casilla.
+  useLectorDeCodigos((leido) => {
+    const codigo = normalizeBarcode(leido);
+    const p = contables.find((x) => x.codigoBarras === codigo || x.sku === codigo);
+    if (!p) {
+      avisar.error(`Ningún producto que se cuente con el código ${codigo}`);
+      return;
+    }
+    setBusqueda(p.nombre);
+    window.setTimeout(() => {
+      const campo = document.querySelector<HTMLInputElement>(`input[aria-label="Contado de ${CSS.escape(p.nombre)}"]`);
+      campo?.focus();
+      campo?.select();
+    }, 50);
+  });
+
   function contar(p: ProductoDto, texto: string) {
     // Lo que el sistema decía se fija al empezar a contar ese producto: si después se vende algo, el
     // servidor lo nota y pide revisar, en vez de ajustar contra otro número.
@@ -431,6 +447,7 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
       <div className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">1 · Lo que hay</legend>
+          <p className="text-[12px] text-ink-3">Pasa cada producto por el lector para ir a su casilla.</p>
           <label className="relative flex">
             <span className="sr-only">Buscar un producto</span>
             <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" aria-hidden="true" />

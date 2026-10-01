@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, CheckCircle2, History, PackageOpen, PackagePlus, PackageX, Plus, Search } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, History, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Ticket } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
-import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCode, TaxCodeDelCatalogo } from "@l2/contracts";
+import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { categoriesOf, marginBasisPoints, nameKey, periodAt, stockStatus } from "@l2/domain-inventory";
+import { barcodeProblem, categoriesOf, marginBasisPoints, normalizeBarcode, periodAt, stockStatus } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
-import { convert, invertRate, money, toMajor, type Money } from "@l2/domain-money";
-import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { invertRate, money, toMajor, type Money } from "@l2/domain-money";
+import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
@@ -20,12 +20,14 @@ import { importeTecleado } from "../cash/importe.ts";
 import { aplicarProducto, fijarMinimo } from "./productos.acciones";
 import { EstadoStock } from "./EstadoStock.tsx";
 import { periodosDe } from "./catalogo.ts";
+import { InventarioVista } from "./InventarioVista.tsx";
 
 /**
- * Panel → Inventario → Productos (B9-1, F8-02). Lo que la caja vende en el mostrador o añade a una
- * cuenta, leído del servidor. Un producto no se borra (lo vendido lo nombra): se aparta. Un precio
- * no se edita: se programa el siguiente con su día, y lo ya vendido se queda con el que tenía.
- * Cada cambio pide confirmar identidad; quién puede y si el día vale lo decide el servidor.
+ * Panel → Inventario → Productos (B9-1, F8-02; rediseñada en B9-6, M-16). El stock es lo protagonista:
+ * la vista (`InventarioVista`) enseña lo que hay y lo que hay que reponer, por tipo, en tabla o en
+ * tarjetas, y pasar un código por el lector abre su ficha. Un producto no se borra (lo vendido lo
+ * nombra): se aparta. Un precio no se edita: se programa el siguiente con su día. Cada cambio del
+ * catálogo pide confirmar identidad; quién puede y si vale lo decide el servidor.
  */
 
 const ETIQUETA = "text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase";
@@ -38,8 +40,12 @@ const TRATOS: readonly { code: TaxCodeDelCatalogo; nombre: string }[] = [
   { code: "GENERAL", nombre: "IVA general" },
   { code: "EXENTA", nombre: "Exento de IVA" },
 ];
-/** Lo que se lee: un producto viejo con el reducido se sigue nombrando bien. */
-const nombreTrato = (code: TaxCode) => (code === "REDUCIDA" ? "IVA reducido" : TRATOS.find((t) => t.code === code)!.nombre);
+/** Los tres tipos (B9-6), con lo que significa cada uno para quien elige. */
+const TIPOS: readonly { id: TipoProducto; nombre: string; detalle: string; Icono: typeof Package }[] = [
+  { id: "PRODUCTO", nombre: "Producto", detalle: "Se cuenta: tiene stock y entradas", Icono: Package },
+  { id: "PREPARADO", nombre: "Preparado", detalle: "Se hace al momento, sin stock", Icono: ChefHat },
+  { id: "SERVICIO", nombre: "Servicio", detalle: "Alquiler, paquetes", Icono: Ticket },
+];
 
 const usd = (m: Money) => formatMoneyVE(toMajor(m), "USD");
 const precioDe = (minor: string) => money(BigInt(minor), "USD");
@@ -74,9 +80,9 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   const huella = JSON.stringify(inicial);
   useEffect(() => setCatalogo(inicial), [huella]);
 
-  const [busqueda, setBusqueda] = useState("");
-  const [vista, setVista] = useState<"venta" | "apartados">("venta");
-  const [creando, setCreando] = useState(false);
+  const actorPuedeRecibir = actor !== null && can(actor, "inventario.entrada") !== "DENEGADO";
+  /** `null` = cerrada; si no, el código de barras con que nace (leído en la lista). */
+  const [creando, setCreando] = useState<{ codigo: string } | null>(null);
   const [abiertoId, setAbiertoId] = useState<string | null>(null);
   /** Qué se está guardando: bloquea ese control mientras el servidor responde. */
   const [enviando, setEnviando] = useState<string | null>(null);
@@ -97,27 +103,46 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
 
   const periodos = useMemo(() => periodosDe(catalogo.productos), [catalogo]);
   const categorias = useMemo(() => categoriesOf(catalogo.productos.map((p) => ({ category: p.categoria }))), [catalogo]);
-  const aLaVenta = catalogo.productos.filter((p) => p.activo);
-  const apartados = catalogo.productos.filter((p) => !p.activo);
-  const visibles = (vista === "venta" ? aLaVenta : apartados).filter((p) => nameKey(p.nombre).includes(nameKey(busqueda)));
-  const grupos = categorias
-    .map((c) => ({ categoria: c, productos: visibles.filter((p) => nameKey(p.categoria) === nameKey(c)) }))
-    .filter((g) => g.productos.length > 0);
   const abierto = catalogo.productos.find((p) => p.id === abiertoId) ?? null;
+
+  // Pasar un código por el lector abre su ficha (B9-6). Con una hoja abierta, escucha ella.
+  useLectorDeCodigos((leido) => {
+    const codigo = normalizeBarcode(leido);
+    const p = catalogo.productos.find((x) => x.codigoBarras === codigo || x.sku === codigo);
+    if (p) {
+      setAbiertoId(p.id);
+      return;
+    }
+    avisar.info(`Ningún producto con el código ${codigo}`, {
+      detalle: puedeModificar ? "Si es nuevo, dalo de alta con ese código." : "Pide a administración que lo dé de alta.",
+      ...(puedeModificar && barcodeProblem(codigo) === null ? { accion: { texto: "Darlo de alta", alPulsar: () => setCreando({ codigo }) } } : {}),
+    });
+  }, creando === null && abierto === null);
 
   return (
     <Container ancho="panel" className="py-8">
       <PageHeader
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Inventario", href: "/panel/inventario" }, { texto: "Productos" }]}
         titulo="Productos"
-        descripcion="Lo que la caja vende en el mostrador o añade a una cuenta. El precio se programa con su día: cambiarlo no altera lo ya vendido."
+        descripcion="Lo que hay, lo que hay que reponer y lo que deja cada cosa que se vende. El precio se programa con su día: cambiarlo no altera lo ya vendido."
         acciones={
-          puedeModificar && (
-            <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setCreando(true)}>
-              <Plus size={15} aria-hidden="true" />
-              Nuevo producto
-            </Button>
-          )
+          <div className="flex flex-wrap gap-2">
+            {actorPuedeRecibir && (
+              <Link
+                href={"/panel/inventario/entradas" as Route}
+                className="flex min-h-9 items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] font-semibold text-ink no-underline hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand"
+              >
+                <PackagePlus size={15} aria-hidden="true" />
+                Cargar entrada
+              </Link>
+            )}
+            {puedeModificar && (
+              <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setCreando({ codigo: "" })}>
+                <Plus size={15} aria-hidden="true" />
+                Nuevo producto
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -126,114 +151,21 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
           <PackageOpen size={28} className="text-ink-3" aria-hidden="true" />
           <p className="font-display text-[16px] font-bold text-ink">Todavía no hay productos</p>
           <p className="max-w-md text-[13px] text-ink-2">
-            Sin productos, la caja no vende en el mostrador. Crea el primero con su precio: la caja lo ofrece en cuanto la cajera
-            vuelva a abrir la pantalla.
+            Sin productos, la caja no vende en el mostrador. Crea el primero con su precio, o cárgalo directamente en una entrada de
+            mercancía con su ficha corta.
           </p>
           {puedeModificar && (
-            <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setCreando(true)}>
+            <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setCreando({ codigo: "" })}>
               <Plus size={15} aria-hidden="true" />
               Nuevo producto
             </Button>
           )}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <div role="radiogroup" aria-label="Qué productos ver" className="flex gap-1 rounded-[var(--radius-control)] bg-surface-2 p-1">
-              {(
-                [
-                  ["venta", `A la venta · ${aLaVenta.length}`],
-                  ["apartados", `Apartados · ${apartados.length}`],
-                ] as const
-              ).map(([id, texto]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={vista === id}
-                  onClick={() => setVista(id)}
-                  className={cn(
-                    "tnum min-h-8 cursor-pointer rounded-[var(--radius-control)] px-3 text-[13px] transition-colors",
-                    vista === id ? "bg-surface font-semibold text-ink shadow-card" : "text-ink-2 hover:text-ink",
-                  )}
-                >
-                  {texto}
-                </button>
-              ))}
-            </div>
-            <label className="relative ml-auto flex min-w-0 flex-1 sm:max-w-72">
-              <span className="sr-only">Buscar un producto</span>
-              <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" aria-hidden="true" />
-              <input type="search" placeholder="Buscar" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className={cn(CAMPO, "pl-9")} />
-            </label>
-          </div>
-
-          {grupos.length === 0 ? (
-            <p className="rounded-[var(--radius-card)] border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-3">
-              {busqueda ? "Ningún producto con ese nombre." : vista === "apartados" ? "No hay productos apartados." : "No hay productos a la venta."}
-            </p>
-          ) : (
-            grupos.map((g) => (
-              <section key={g.categoria} aria-label={g.categoria} className="rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
-                <h2 className="border-b border-line px-4 py-2 text-[13px] font-bold text-ink">
-                  {g.categoria} <span className="tnum font-normal text-ink-3">· {g.productos.length}</span>
-                </h2>
-                <ul className="flex flex-col divide-y divide-line">
-                  {g.productos.map((p) => {
-                    const vigente = ahora === null ? undefined : periodAt(periodos, p.id, ahora);
-                    const siguiente = ahora === null ? undefined : p.precios.find((t) => Date.parse(t.desde) > ahora);
-                    const precio = vigente ? money(vigente.amountMinor, "USD") : null;
-                    return (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() => setAbiertoId(p.id)}
-                          className="flex min-h-11 w-full cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-left transition-colors hover:bg-surface-2"
-                        >
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate text-[14px] font-semibold text-ink">{p.nombre}</span>
-                            <span className="truncate text-[12px] text-ink-3">
-                              {nombreTrato(p.taxCode)}
-                              {` · ${existenciaEnPalabras(p)}`}
-                            </span>
-                          </span>
-                          {siguiente && ahora !== null && (
-                            <span className="tnum flex items-center gap-1 rounded-full border border-brand/40 px-2 py-0.5 text-[12px] font-semibold text-brand">
-                              <CalendarClock size={12} aria-hidden="true" />
-                              {usd(precioDe(siguiente.precio.minor))} desde el {diaEnPalabras(Date.parse(siguiente.desde), catalogo.zonaHoraria)}
-                            </span>
-                          )}
-                          <span className="flex w-28 shrink-0 flex-col items-end">
-                            {precio ? (
-                              <>
-                                <span className="tnum text-[15px] font-bold text-ink">{usd(precio)}</span>
-                                {tasa && <span className="tnum text-[11px] text-ink-3">{formatMoneyVE(toMajor(convert(precio, tasa)), "VES")}</span>}
-                              </>
-                            ) : ahora === null ? (
-                              <span className="text-[13px] text-ink-3">…</span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-[12px] font-semibold text-state-warn">
-                                <AlertTriangle size={12} aria-hidden="true" />
-                                Sin precio hoy
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))
-          )}
-          <p className="text-center text-[12.5px] text-ink-3">
-            Nada se borra: un producto se aparta y vuelve a la venta cuando haga falta. Los cambios llegan a la caja al volver a
-            abrir su pantalla.
-          </p>
-        </div>
+        <InventarioVista catalogo={catalogo} periodos={periodos} ahora={ahora} tasa={tasa} onAbrir={setAbiertoId} />
       )}
 
-      <ProductoNuevo abierto={creando} onCerrar={() => setCreando(false)} categorias={categorias} enviando={enviando} cambiar={cambiar} />
+      <ProductoNuevo abierto={creando !== null} codigoInicial={creando?.codigo ?? ""} onCerrar={() => setCreando(null)} categorias={categorias} enviando={enviando} cambiar={cambiar} />
       <FichaProducto
         producto={abierto}
         onCerrar={() => setAbiertoId(null)}
@@ -277,11 +209,16 @@ function CamposDelProducto({
   setCategoria,
   taxCode,
   setTaxCode,
-  controlaStock,
-  setControlaStock,
+  tipo,
+  setTipo,
+  codigo,
+  setCodigo,
+  presentacion,
+  setPresentacion,
   categorias,
   errores,
   deshabilitado,
+  tipoBloqueado,
 }: {
   prefijo: string;
   nombre: string;
@@ -290,15 +227,81 @@ function CamposDelProducto({
   setCategoria: (v: string) => void;
   taxCode: TaxCodeDelCatalogo;
   setTaxCode: (v: TaxCodeDelCatalogo) => void;
-  controlaStock: boolean;
-  setControlaStock: (v: boolean) => void;
+  tipo: TipoProducto;
+  setTipo: (v: TipoProducto) => void;
+  codigo: string;
+  setCodigo: (v: string) => void;
+  presentacion: string;
+  setPresentacion: (v: string) => void;
   categorias: readonly string[];
   errores: Record<string, string>;
   deshabilitado?: boolean;
+  /** Por qué no se puede cambiar el tipo (un producto con stock), o `null`. */
+  tipoBloqueado?: string | null;
 }) {
+  // El código leído o tecleado, con su problema a la vista antes de guardar (lo comprueba el servidor igual).
+  const problemaCodigo = codigo.trim() === "" ? null : barcodeProblem(normalizeBarcode(codigo));
   return (
     <>
+      <fieldset className="flex flex-col gap-1.5" disabled={deshabilitado}>
+        <legend className={cn(ETIQUETA, "mb-1.5")}>Tipo</legend>
+        <div role="radiogroup" aria-label="Tipo" className="grid grid-cols-3 gap-1.5">
+          {TIPOS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="radio"
+              aria-checked={tipo === t.id}
+              disabled={deshabilitado || (Boolean(tipoBloqueado) && tipo !== t.id)}
+              onClick={() => setTipo(t.id)}
+              className={cn(
+                "flex min-h-14 cursor-pointer flex-col items-start justify-center gap-0.5 rounded-[var(--radius-control)] border px-2.5 py-1.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                tipo === t.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+              )}
+            >
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+                <t.Icono size={14} aria-hidden="true" />
+                {t.nombre}
+              </span>
+              <span className="text-[11px] leading-tight text-ink-3">{t.detalle}</span>
+            </button>
+          ))}
+        </div>
+        {tipoBloqueado && <p className="text-[12px] text-ink-3">{tipoBloqueado}</p>}
+        {errores["tipo"] && <p className="text-[12px] font-medium text-state-crit">{errores["tipo"]}</p>}
+      </fieldset>
       <Input surface="admin" label="Nombre" placeholder="Agua mineral" autoComplete="off" value={nombre} error={errores["nombre"]} disabled={deshabilitado} onChange={(e) => setNombre(e.target.value)} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          surface="admin"
+          label="Presentación"
+          placeholder="Botella 600 ml"
+          autoComplete="off"
+          value={presentacion}
+          error={errores["presentacion"]}
+          disabled={deshabilitado}
+          onChange={(e) => setPresentacion(e.target.value)}
+        />
+        {tipo === "PRODUCTO" ? (
+          <Input
+            surface="admin"
+            label="Código de barras"
+            placeholder="Pásalo por el lector"
+            autoComplete="off"
+            className="tnum font-mono"
+            leading={<ScanLine size={15} aria-hidden="true" />}
+            value={codigo}
+            error={errores["codigoBarras"] ?? (problemaCodigo === "DIGITO_DE_CONTROL" ? "El dígito de control no cuadra: vuelve a leerlo" : problemaCodigo === "FORMATO" ? "De 4 a 32 dígitos, letras o guiones" : undefined)}
+            disabled={deshabilitado}
+            onChange={(e) => setCodigo(e.target.value)}
+          />
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <span className={ETIQUETA}>Código de barras</span>
+            <span className="flex min-h-9 items-center text-[12.5px] text-ink-3">Solo lo lleva lo que se cuenta</span>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Input
           surface="admin"
@@ -330,13 +333,6 @@ function CamposDelProducto({
           </select>
         </div>
       </div>
-      <label htmlFor={`${prefijo}-stock`} className="flex min-h-9 cursor-pointer items-start gap-2.5 rounded-[var(--radius-control)] border border-line px-3 py-2">
-        <input id={`${prefijo}-stock`} type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand)]" checked={controlaStock} disabled={deshabilitado} onChange={(e) => setControlaStock(e.target.checked)} />
-        <span className="flex flex-col">
-          <span className="text-[13.5px] font-semibold text-ink">Lleva existencia</span>
-          <span className="text-[12px] text-ink-3">Se descuenta al venderlo y, sin existencia, no se vende. Un café hecho al momento, no.</span>
-        </span>
-      </label>
     </>
   );
 }
@@ -344,12 +340,15 @@ function CamposDelProducto({
 /** «Nuevo producto»: nace a la venta, con su precio rigiendo desde que se guarda. */
 function ProductoNuevo({
   abierto,
+  codigoInicial,
   onCerrar,
   categorias,
   enviando,
   cambiar,
 }: {
   abierto: boolean;
+  /** El código leído en la lista, si se abrió desde él. */
+  codigoInicial: string;
   onCerrar: () => void;
   categorias: readonly string[];
   enviando: string | null;
@@ -358,16 +357,28 @@ function ProductoNuevo({
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
   const [taxCode, setTaxCode] = useState<TaxCodeDelCatalogo>("GENERAL");
-  const [controlaStock, setControlaStock] = useState(true);
+  const [tipo, setTipo] = useState<TipoProducto>("PRODUCTO");
+  const [codigo, setCodigo] = useState("");
+  const [presentacion, setPresentacion] = useState("");
   const [precio, setPrecio] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [general, setGeneral] = useState<string | null>(null);
+  useEffect(() => {
+    if (abierto) setCodigo(codigoInicial);
+  }, [abierto, codigoInicial]);
+  // Con la hoja abierta, lo que se lee es el código de este producto.
+  useLectorDeCodigos((leido) => {
+    setTipo("PRODUCTO");
+    setCodigo(normalizeBarcode(leido));
+  }, abierto);
 
   const cerrar = () => {
     setNombre("");
     setCategoria("");
     setTaxCode("GENERAL");
-    setControlaStock(true);
+    setTipo("PRODUCTO");
+    setCodigo("");
+    setPresentacion("");
     setPrecio("");
     setErrores({});
     setGeneral(null);
@@ -380,14 +391,28 @@ function ProductoNuevo({
       setErrores({ precioMinor: "Un precio en dólares mayor que cero, con hasta dos decimales (1,50)" });
       return;
     }
-    const r = await cambiar({ kind: "CREAR", producto: { nombre, categoria, taxCode, controlaStock, precioMinor } }, "crear");
+    const r = await cambiar(
+      {
+        kind: "CREAR",
+        producto: {
+          nombre,
+          categoria,
+          taxCode,
+          tipo,
+          precioMinor,
+          ...(tipo === "PRODUCTO" && codigo.trim() ? { codigoBarras: normalizeBarcode(codigo) } : {}),
+          ...(presentacion.trim() ? { presentacion: presentacion.trim() } : {}),
+        },
+      },
+      "crear",
+    );
     if (!r) return;
     if (r.ok) {
       avisar.ok(`${nombre.trim()} a la venta a ${usd(precioDe(precioMinor))}`);
       cerrar();
       return;
     }
-    const e = porCampo(r, ["nombre", "categoria", "taxCode", "precioMinor"]);
+    const e = porCampo(r, ["nombre", "categoria", "taxCode", "precioMinor", "tipo", "codigoBarras", "presentacion"]);
     setErrores(e.errores);
     setGeneral(e.general);
   };
@@ -398,7 +423,7 @@ function ProductoNuevo({
       abierto={abierto}
       onCerrar={cerrar}
       titulo="Nuevo producto"
-      descripcion="Nace a la venta, con su precio rigiendo desde que lo guardes."
+      descripcion="Nace a la venta, con su precio rigiendo desde que lo guardes. El SKU lo pone el sistema."
       pie={
         <div className="flex gap-2">
           <Button type="button" variant="ghost" surface="admin" onClick={cerrar} disabled={ocupado}>
@@ -419,8 +444,12 @@ function ProductoNuevo({
           setCategoria={setCategoria}
           taxCode={taxCode}
           setTaxCode={setTaxCode}
-          controlaStock={controlaStock}
-          setControlaStock={setControlaStock}
+          tipo={tipo}
+          setTipo={setTipo}
+          codigo={codigo}
+          setCodigo={setCodigo}
+          presentacion={presentacion}
+          setPresentacion={setPresentacion}
           categorias={categorias}
           errores={errores}
         />
@@ -475,7 +504,9 @@ function FichaProducto({
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
   const [taxCode, setTaxCode] = useState<TaxCodeDelCatalogo>("GENERAL");
-  const [controlaStock, setControlaStock] = useState(true);
+  const [tipo, setTipo] = useState<TipoProducto>("PRODUCTO");
+  const [codigo, setCodigo] = useState("");
+  const [presentacion, setPresentacion] = useState("");
   const [precio, setPrecio] = useState("");
   const [dia, setDia] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -490,18 +521,39 @@ function FichaProducto({
     // Uno viejo con el IVA reducido (el local ya no lo usa) se abre con el general, a la vista: guardar
     // es decidirlo, y el servidor no acepta el reducido.
     setTaxCode(producto.taxCode === "REDUCIDA" ? "GENERAL" : producto.taxCode);
-    setControlaStock(producto.controlaStock);
+    setTipo(producto.tipo);
+    setCodigo(producto.codigoBarras ?? "");
+    setPresentacion(producto.presentacion ?? "");
     setPrecio("");
     setDia(null);
     setErrores({});
     setGeneral(null);
   }, [id]);
 
+  // Con la ficha abierta, lo que se lee es su código (para ponérselo o corregirlo).
+  useLectorDeCodigos((leido) => {
+    if (!puedeModificar) return;
+    setCodigo(normalizeBarcode(leido));
+    avisar.info("Código leído: guarda los datos para quedártelo");
+  }, producto !== null);
+
   if (!producto) return <Sheet abierto={false} onCerrar={onCerrar} titulo="Producto">{null}</Sheet>;
   const diaElegido = dia ?? hoy;
 
   const guardar = async () => {
-    const r = await cambiar({ kind: "EDITAR", productId: producto.id, nombre, categoria, taxCode, controlaStock }, "editar");
+    const r = await cambiar(
+      {
+        kind: "EDITAR",
+        productId: producto.id,
+        nombre,
+        categoria,
+        taxCode,
+        tipo,
+        codigoBarras: tipo === "PRODUCTO" && codigo.trim() ? normalizeBarcode(codigo) : null,
+        presentacion: presentacion.trim() ? presentacion.trim() : null,
+      },
+      "editar",
+    );
     if (!r) return;
     if (r.ok) {
       avisar.ok(`${nombre.trim()}: guardado`);
@@ -509,7 +561,7 @@ function FichaProducto({
       setGeneral(null);
       return;
     }
-    const e = porCampo(r, ["nombre", "categoria", "taxCode"]);
+    const e = porCampo(r, ["nombre", "categoria", "taxCode", "tipo", "codigoBarras", "presentacion"]);
     setErrores(e.errores);
     setGeneral(e.general);
   };
@@ -554,7 +606,7 @@ function FichaProducto({
       abierto
       onCerrar={onCerrar}
       titulo={nombreFila}
-      descripcion={`${producto.activo ? `${producto.categoria} · a la venta` : `${producto.categoria} · apartado: la caja no lo ofrece`} · ${existenciaEnPalabras(producto)}`}
+      descripcion={`${producto.sku} · ${producto.activo ? `${producto.categoria} · a la venta` : `${producto.categoria} · apartado: la caja no lo ofrece`} · ${existenciaEnPalabras(producto)}`}
       pie={
         puedeModificar ? (
           <div className="flex gap-2">
@@ -646,8 +698,13 @@ function FichaProducto({
             setCategoria={setCategoria}
             taxCode={taxCode}
             setTaxCode={setTaxCode}
-            controlaStock={controlaStock}
-            setControlaStock={setControlaStock}
+            tipo={tipo}
+            setTipo={setTipo}
+            codigo={codigo}
+            setCodigo={setCodigo}
+            presentacion={presentacion}
+            setPresentacion={setPresentacion}
+            tipoBloqueado={producto.tipo === "PRODUCTO" && (producto.existencia ?? 0) !== 0 ? `Tiene ${producto.existencia} en stock: sácalas o cuéntalas antes de cambiar su tipo.` : null}
             categorias={categorias}
             errores={errores}
             deshabilitado={!puedeModificar}
@@ -657,7 +714,7 @@ function FichaProducto({
               {enviando === "editar" ? "Guardando…" : "Guardar datos"}
             </Button>
           )}
-          <p className="text-[12px] text-ink-3">Lo ya vendido conserva el nombre y el IVA con que se vendió.</p>
+          <p className="text-[12px] text-ink-3">El SKU ({producto.sku}) no cambia. Lo ya vendido conserva el nombre y el IVA con que se vendió.</p>
         </section>
         {general && <Aviso mensaje={general} />}
       </div>

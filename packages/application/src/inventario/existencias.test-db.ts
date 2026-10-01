@@ -88,8 +88,8 @@ before(async () => {
   // El IGTF al 0 %, como en el local (V-13): sin él no se cobra en divisas.
   valor(await local.app.impuestos.programar(local.sistema, { impuesto: "IGTF", code: null, basisPoints: 0, dia: HOY }, AHORA - 10 * MIN));
   for (const [nombre, precioMinor] of Object.entries(PRECIOS)) {
-    const controlaStock = nombre !== "Café"; // un café hecho al momento no lleva existencia
-    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Mostrador", taxCode: "GENERAL", controlaStock, precioMinor } }, AHORA - 5 * MIN));
+    const tipo = nombre !== "Café" ? ("PRODUCTO" as const) : ("PREPARADO" as const); // un café hecho al momento no lleva existencia
+    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Mostrador", taxCode: "GENERAL", tipo, precioMinor } }, AHORA - 5 * MIN));
     ids[nombre] = c.productos.find((p) => p.nombre === nombre)!.id;
   }
 });
@@ -199,9 +199,9 @@ describe("lo que entró antes de llevarse la existencia", () => {
   test("una cuenta no devuelve al estante lo que nunca sacó", async () => {
     // La galleta se vendía sin existencia; con unidades ya en una cuenta, se le enciende el control.
     const c = await abrir(mostrador([linea("Café")]));
-    valor(await local.app.productos.aplicar(local.sistema, { kind: "EDITAR", productId: ids.Galleta!, nombre: "Galleta", categoria: "Mostrador", taxCode: "GENERAL", controlaStock: false }, AHORA - MIN));
+    valor(await local.app.productos.aplicar(local.sistema, { kind: "EDITAR", productId: ids.Galleta!, nombre: "Galleta", categoria: "Mostrador", taxCode: "GENERAL", tipo: "PREPARADO", codigoBarras: null, presentacion: null }, AHORA - MIN));
     const conGalletas = await abrir({ ...c, lines: [...c.lines, linea("Galleta"), linea("Galleta")] });
-    valor(await local.app.productos.aplicar(local.sistema, { kind: "EDITAR", productId: ids.Galleta!, nombre: "Galleta", categoria: "Mostrador", taxCode: "GENERAL", controlaStock: true }, AHORA - MIN));
+    valor(await local.app.productos.aplicar(local.sistema, { kind: "EDITAR", productId: ids.Galleta!, nombre: "Galleta", categoria: "Mostrador", taxCode: "GENERAL", tipo: "PRODUCTO", codigoBarras: null, presentacion: null }, AHORA - MIN));
     assert.equal(await existencia("Galleta"), 0);
     // Quitar una no pone en el estante una galleta que nunca salió de él.
     await abrir({ ...conGalletas, lines: conGalletas.lines.filter((l) => l.id !== conGalletas.lines.at(-1)!.id) });

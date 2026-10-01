@@ -25,3 +25,14 @@ test("lo que no entra: sin líneas, un producto dos veces, cantidades y costos m
   ];
   for (const [i, m] of malas.entries()) assert.equal(RegistrarEntradaCommandSchema.safeParse(m).success, false, String(i));
 });
+
+test("una línea puede dar de alta un producto nuevo con su ficha corta (B9-6)", () => {
+  const nuevo = { nombre: "Refresco de uva", categoria: "Bebidas", taxCode: "GENERAL", precioMinor: "150", codigoBarras: "4006381333931", presentacion: "Lata 355 ml" };
+  const conNuevo = { ...entrada, lineas: [linea, { nuevo, bultos: 1, unidadesPorBulto: 24, costoBultoMinor: "1200" }] };
+  assert.equal(RegistrarEntradaCommandSchema.safeParse(conNuevo).success, true);
+  // Dos nuevos con el mismo nombre o el mismo código no van en la misma entrada.
+  const repetido = { ...entrada, lineas: [{ nuevo, bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "0" }, { nuevo: { ...nuevo, codigoBarras: undefined }, bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "0" }] };
+  assert.equal(RegistrarEntradaCommandSchema.safeParse(repetido).success, false);
+  // Una línea es de un producto o de uno nuevo, no de los dos.
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...entrada, lineas: [{ ...linea, nuevo }] }).success, false);
+});

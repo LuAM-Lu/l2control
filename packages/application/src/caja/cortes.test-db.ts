@@ -71,7 +71,7 @@ async function montar(nombre: string, conDatos = true): Promise<Montado> {
   const catalogo = valor(
     await l.app.productos.aplicar(
       l.sistema,
-      { kind: "CREAR", producto: { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: false, precioMinor: "100" } },
+      { kind: "CREAR", producto: { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PREPARADO", precioMinor: "100" } },
       AHORA - 60 * MIN,
     ),
   );

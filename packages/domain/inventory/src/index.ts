@@ -37,3 +37,13 @@ export {
 } from "./costo.ts";
 export { STOCK_OUT_REASONS, costOfSurplus, countMoves, type CountLine, type StockOutReason } from "./ajustes.ts";
 export { stockAlerts, stockStatus, type StockAlertProduct, type StockStatus } from "./alertas.ts";
+export {
+  PRODUCT_KINDS,
+  barcodeProblem,
+  kindTracksStock,
+  nextSku,
+  normalizeBarcode,
+  skuPrefix,
+  type BarcodeProblem,
+  type ProductKind,
+} from "./identificacion.ts";

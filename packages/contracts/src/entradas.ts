@@ -11,6 +11,8 @@
  */
 import { z } from "zod";
 import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
+import { CategoriaProductoSchema, CodigoBarrasSchema, NombreProductoSchema, PrecioMinorSchema, PresentacionSchema } from "./productos.ts";
+import { TaxCodeDelCatalogoSchema } from "./impuestos.ts";
 
 export const TipoEntradaSchema = z.enum(["COMPRA", "REPOSICION"], { error: "Elige si es una compra o una reposición" });
 export type TipoEntrada = z.infer<typeof TipoEntradaSchema>;
@@ -18,12 +20,32 @@ export type TipoEntrada = z.infer<typeof TipoEntradaSchema>;
 /** El costo de un bulto en centavos de dólar y como texto: «1200» es $ 12,00. Cero vale (lo regalado). */
 export const CostoMinorSchema = z.string().regex(/^\d{1,9}$/, "Un costo en centavos de dólar");
 
-export const LineaEntradaSchema = z.strictObject({
-  productId: z.uuid("Producto desconocido"),
+const cantidades = {
   bultos: z.number().int("Bultos enteros").min(1, "Al menos un bulto").max(10_000, "Hasta 10.000 bultos"),
   unidadesPorBulto: z.number().int("Unidades enteras").min(1, "Al menos una unidad por bulto").max(1_000, "Hasta 1.000 unidades por bulto"),
   costoBultoMinor: CostoMinorSchema,
+};
+
+/**
+ * Un producto que llega por primera vez (B9-6, M-16): se da de alta en la misma entrada con su ficha
+ * corta y nace a la venta con su stock y su costo. Siempre es un PRODUCTO (lo que se cuenta). Crearlo
+ * es del catálogo: pide lo mismo que «Nuevo producto» en Productos.
+ */
+export const ProductoDeEntradaSchema = z.strictObject({
+  nombre: NombreProductoSchema,
+  categoria: CategoriaProductoSchema,
+  taxCode: TaxCodeDelCatalogoSchema,
+  precioMinor: PrecioMinorSchema,
+  codigoBarras: CodigoBarrasSchema.optional(),
+  presentacion: PresentacionSchema.optional(),
 });
+export type ProductoDeEntradaDto = z.infer<typeof ProductoDeEntradaSchema>;
+
+/** Una línea: de un producto que ya existe, o de uno nuevo con su ficha corta. */
+export const LineaEntradaSchema = z.union([
+  z.strictObject({ productId: z.uuid("Producto desconocido"), ...cantidades }),
+  z.strictObject({ nuevo: ProductoDeEntradaSchema, ...cantidades }),
+]);
 export type LineaEntradaDto = z.infer<typeof LineaEntradaSchema>;
 
 /** Registrar una entrada. `idempotencyKey`: un doble clic no carga dos veces lo mismo. */
@@ -35,10 +57,15 @@ export const RegistrarEntradaCommandSchema = z
     factura: z.string().trim().min(1).max(40, "Hasta 40 caracteres").optional(),
     lineas: z.array(LineaEntradaSchema).min(1, "Añade al menos un producto").max(60, "Hasta 60 productos por entrada"),
   })
-  .refine((e) => new Set(e.lineas.map((l) => l.productId)).size === e.lineas.length, {
-    message: "Cada producto va una vez: suma sus bultos en una sola línea",
-    path: ["lineas"],
-  });
+  .refine(
+    (e) => {
+      const ids = e.lineas.flatMap((l) => ("productId" in l ? [l.productId] : []));
+      const nombres = e.lineas.flatMap((l) => ("nuevo" in l ? [l.nuevo.nombre.toLowerCase()] : []));
+      const codigos = e.lineas.flatMap((l) => ("nuevo" in l && l.nuevo.codigoBarras ? [l.nuevo.codigoBarras] : []));
+      return new Set(ids).size === ids.length && new Set(nombres).size === nombres.length && new Set(codigos).size === codigos.length;
+    },
+    { message: "Cada producto va una vez: suma sus bultos en una sola línea", path: ["lineas"] },
+  );
 export type RegistrarEntradaCommand = z.infer<typeof RegistrarEntradaCommandSchema>;
 
 /** Una entrada ya registrada, como la lee la pantalla de entradas. */

@@ -16,6 +16,9 @@ export type ProductoALaVenta = Readonly<{
   precio: Money;
   /** Cuántas quedan (B9-2), o `null` si no lleva existencia. Con 0 no se vende (ADR-023). */
   existencia: number | null;
+  /** Para venderlo pasándolo por el lector (B9-6). */
+  sku: string;
+  codigoBarras: string | null;
 }>;
 
 /** El calendario de precios de todo el catálogo, como lo entiende el dominio. */
@@ -46,5 +49,7 @@ export function productosALaVenta(catalogo: CatalogoDto, instante: number): Prod
     taxCode: p.taxCode,
     precio: p.price,
     existencia: p.existencia,
+    sku: p.sku,
+    codigoBarras: p.codigoBarras,
   }));
 }

@@ -31,7 +31,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.36.0 · 36 de 56 pasos.** **Mínimos y avisos (B9-5):** cada producto tiene su stock mínimo (punto de
+**Versión 0.37.0 · 37 de 56 pasos.** **Se cierra el Inventario (B9-6):** Productos enseña el stock primero (resumen +
+tabla o tarjetas, por tipo: Producto, Preparado, Servicio); cada producto tiene SKU automático, código de barras y
+presentación; la entrada de mercancía da de alta lo que llega por primera vez, y el código se lee en la caja (vende),
+las entradas, el conteo y Productos. **Mínimos y avisos (B9-5):** cada producto tiene su stock mínimo (punto de
 reorden) y su estado (agotado, bajo mínimo, bien); Inicio avisa de lo que hay que reponer. **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
 regalo, devolución al proveedor) sale con su motivo, y el conteo físico deja la existencia igual a lo contado; los dos
 con la 🔐 de administración (supervisión pide la suya). **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
@@ -75,8 +78,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (80 de base, 333 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  45 de impuestos, 105 de caja, 37 del parque, 39 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 338 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  45 de impuestos, 105 de caja, 37 del parque, 43 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -216,7 +219,17 @@ momento; sin stock hasta las recetas) o Servicio. Los **mínimos y sus avisos** 
 mercancía **crea productos** con una ficha corta; y el código se **escanea** en la caja, las entradas, el conteo y
 Productos. Sin foto por ahora. Pasos B9-5 y B9-6 (nuevo); la ruta pasa a **56 pasos**.
 
-**Siguiente paso:** **B9-6** (identificación, tipos y la vista del inventario), que cierra el Inventario.
+**El inventario en la base local (2026-09-30, al comprobar B9-5 y B9-6).** Las migraciones `20261017000000_stock_minimo` y
+`20261018000000_identificacion_y_tipos` están aplicadas a la base del cliente. La segunda **falló a la primera** (la RLS
+forzada dejó sin rellenar el tipo y el SKU, y Prisma no la envolvía en una transacción): se quitaron a mano las cuatro
+columnas vacías que dejó, se marcó como revertida y se aplicó corregida (trampa nueva en §5). Cada producto del cliente
+tiene su tipo (lo que llevaba existencia es Producto; el café, los tequeños y el jugo, Preparado) y su SKU (BEB-0001…).
+«Prueba B93 Refresco» tiene mínimo 70 (60 en stock: bajo mínimo). Abigail Karam dio de alta en una entrada «Prueba B96
+Uva» (PRU-0002, código 036000291452, 72 a $ 0,60): está apartado. Equipos «Prueba B95 Admin» y «Prueba B96 Admin»
+revocados. **En la base hay datos que no son míos**: el producto «TEST pRODUCTO» (categoría «sAPO») y la venta de mostrador
+#0031 (papas fritas, por cobrar), creados el 2026-09-30 a las 9:59 pm; no se tocaron.
+
+**Siguiente paso:** **B3-6** (descuentos configurables), que abre lo que queda de la caja.
 
 ---
 
@@ -306,7 +319,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → **B9-6** (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
+4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → **B3-6** (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1259,11 +1272,40 @@ antes del cobro en servidor (orden de ejecución).
   *· Comprobado en el navegador: el mínimo de «Prueba B93 Refresco» a 70 con 60 en stock lo pasa de «Bien» a «Bajo
   mínimo», en la ficha y en la lista; Inicio dice «Inventario: 8 agotados» (los productos del cliente) en rojo a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
-- [ ] **B9-6 · Identificación, tipos y la vista del inventario** (M-16): SKU automático, código de barras único y
+- [x] **B9-6 · Identificación, tipos y la vista del inventario** (M-16): SKU automático, código de barras único y
   presentación; tipo PRODUCTO, PREPARADO o SERVICIO; Productos con resumen + tabla y tarjetas, con el stock como
   protagonista; la entrada de mercancía crea productos con una ficha corta; el código se escanea en la caja (vende), en
   las entradas, en el conteo y en Productos (abre la ficha).
   → Pasar un producto por el lector lo vende en la caja; uno que no existe se da de alta en la entrada sin salir de ella.
+  *Hecho el 2026-09-30 (v0.37.0), en `feat/b9-5`; se cierra la Etapa 9.*
+  *· Base: `20261018000000_identificacion_y_tipos` (en una transacción): `product.kind` (PRODUCTO, PREPARADO, SERVICIO;
+  CHECK de que solo el PRODUCTO lleva existencia), `sku` (único por local, «AAA-0000», no cambia: lo impone el mismo
+  disparador que guarda quién lo creó), `barcode` (único por local, solo en un PRODUCTO) y `presentation`; relleno de
+  los existentes con la RLS suspendida solo mientras rellena. 1 prueba nueva.*
+  *· Contrato: `TipoProductoSchema`, `CodigoBarrasSchema` (sin espacios, en mayúsculas), `PresentacionSchema`; el
+  producto trae tipo, SKU, código, presentación y su valor al costo; crear y editar llevan tipo (fuera `controlaStock`
+  de los mandos), código y presentación; la línea de entrada puede ser `{ nuevo: ficha corta }`. 5 pruebas.*
+  *· Dominio (`identificacion.ts`): `skuPrefix` (tres letras de la categoría sin acentos), `nextSku`, `normalizeBarcode`,
+  `barcodeProblem` (formato y dígito de control de EAN-8, UPC-A, EAN-13 e ITF-14: una lectura torcida no entra) y
+  `kindTracksStock`. 4 pruebas.*
+  *· Aplicación: `crearProductoEn` (el alta, con el SKU bajo candado y el código validado y único) la usan «Nuevo
+  producto» y la entrada; dar de alta en una entrada pide además `catalogo.modificar` (con elevación) y va en la misma
+  transacción (nada a medias); lo que tiene existencia no cambia de tipo hasta sacarla o contarla. 5 pruebas contra la
+  base.*
+  *· Web: `InventarioVista` (resumen que filtra: agotados, bajo mínimo, unidades, valor al costo; pestañas por tipo;
+  búsqueda por nombre, SKU o código; categoría, estado y apartados; tabla con el stock primero y por urgencia, o
+  tarjetas con barra de nivel, la elección recordada en el navegador). La ficha y «Nuevo producto» eligen el tipo y
+  llevan código (leído o tecleado, con su problema a la vista) y presentación. La entrada tiene «Producto nuevo» con su
+  ficha corta. **El lector:** el bus de `@l2/ui` pasa de un receptor a una pila (una hoja escucha encima de su pantalla
+  y le devuelve el turno al cerrarse) con `useLectorDeCodigos`; en Productos abre la ficha (o propone el alta), en la
+  ficha y en «Nuevo producto» pone el código, en la entrada suma un bulto o abre la ficha corta, en el conteo lleva a su
+  casilla y en la caja vende (a la cuenta a la vista o en una venta directa; sin turno o agotado, avisa).*
+  *· Comprobado en el navegador: el código 036000291452 leído en Productos se ofrece para dar de alta; en la entrada
+  abre la ficha corta con él y otra lectura suma un bulto; registrada, nace «Prueba B96 Uva» (PRU-0002) con 72; leerlo en
+  Productos abre su ficha y en el conteo pone el cursor en su casilla; la caja sin turno avisa en vez de vender. Tabla y
+  tarjetas a 1366×768, 1280×800 y 800×1280 sin desplazar el documento ni desbordar (en vertical, mínimo y costo quedan
+  en la ficha); sin errores de consola. Vender por el lector con un turno abierto no se probó (no se abrió un turno en la
+  base del cliente): usa el mismo camino que tocar el producto en la carta.*
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
@@ -1442,6 +1484,10 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
   `transaccion-sin-consultas-a-la-vez` de `pnpm lint` lo caza) y un **`include` con tres relaciones al
   mismo nivel**, que Prisma 7 resuelve en paralelo (el lint no lo ve): con dos, o con una anidada, no
   pasa. La tercera relación va en su propia consulta (así `estancias()` en el parque).
+- **Una migración que rellena datos choca con la RLS forzada**: el `UPDATE` no ve ninguna fila y no falla (el fallo
+  llega después, en el `NOT NULL`). Se suspende `FORCE ROW LEVEL SECURITY` de esa tabla solo mientras rellena y se vuelve
+  a poner, y la migración va entre `BEGIN;` y `COMMIT;`: **Prisma no la envuelve en una transacción** y, si falla, deja
+  aplicado lo de antes del error (B9-6: hubo que quitar a mano las columnas y `prisma migrate resolve --rolled-back`).
 - `$queryRaw` de Prisma no sabe leer una columna `void`: `SELECT pg_advisory_xact_lock(...)` revienta
   al volver. Se castea (`::text`).
 - El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
@@ -1461,7 +1507,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | **Catálogo, existencias, entradas con costo promedio, salidas y conteo en el servidor** (B9-1 a B9-4) | Alertas (B9-5); recetas después del piloto (B6-4) |
+| F8 · Inventario | **Hecho en el servidor** (B9-1 a B9-6): catálogo con tipo, SKU y código de barras, existencias, entradas con costo promedio (y alta de productos), salidas, conteo, mínimos y avisos | Recetas e insumos después del piloto (B6-4) |
 | F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1) | Los informes, después del piloto |
 | F10 y F11 | Sin empezar | Etapas 7 y 8: VPS con internet de respaldo en el local (ADR-021) |
 
@@ -1577,6 +1623,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   presentación, tres tipos, mínimos ya, alta de productos en la entrada y escaneo en caja, entradas, conteo y Productos.
   Nuevo paso B9-6; la ruta pasa a 56.
 - **2026-09-30** · B9-5 hecho (v0.36.0): stock mínimo por producto, su estado y el aviso en Inicio. Sigue B9-6.
+- **2026-09-30** · B9-6 hecho (v0.37.0): Productos con el stock primero, tipos, SKU, código de barras, alta en la entrada y
+  el lector en caja, entradas, conteo y Productos; se cierra la Etapa 9. Sigue B3-6.
 
 ---
 

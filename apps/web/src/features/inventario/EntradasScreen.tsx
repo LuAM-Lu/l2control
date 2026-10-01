@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { PackagePlus, Plus, TriangleAlert, Truck, X } from "lucide-react";
-import type { CatalogoDto, EntradaDto, EntradasDto, Problema, ProductoDto, TipoEntrada } from "@l2/contracts";
+import { PackagePlus, Plus, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
+import type { CatalogoDto, EntradaDto, EntradasDto, Problema, ProductoDto, TaxCodeDelCatalogo, TipoEntrada } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { averageUnitCostMinor, entryLineTotals } from "@l2/domain-inventory";
+import { averageUnitCostMinor, barcodeProblem, categoriesOf, entryLineTotals, normalizeBarcode } from "@l2/domain-inventory";
 import { money, sum, toMajor, type Money } from "@l2/domain-money";
-import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
+import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { registrarEntrada } from "./entradas.acciones";
@@ -17,7 +18,9 @@ import { registrarEntrada } from "./entradas.acciones";
  * Panel → Inventario → Entradas de mercancía (B9-3, F8-06). Lo que llega, por compra o reposición:
  * tantos bultos de tantas unidades a tanto el bulto. Sube la existencia y da el costo promedio de
  * cada producto. Una entrada no se edita ni se borra: un error se corrige con otro movimiento (B9-4).
- * Quién puede y si cada línea vale lo decide el servidor.
+ * Un producto que llega por primera vez se da de alta en la misma hoja con su ficha corta (B9-6), y
+ * pasar un código por el lector suma su línea o abre esa ficha con el código puesto. Quién puede y si
+ * cada línea vale lo decide el servidor.
  */
 
 const ETIQUETA = "text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase";
@@ -29,24 +32,54 @@ const usd = (m: Money) => formatMoneyVE(toMajor(m), "USD");
 const minor = (m: { minor: string }) => money(BigInt(m.minor), "USD");
 const NOMBRE_TIPO: Readonly<Record<TipoEntrada, string>> = { COMPRA: "Compra", REPOSICION: "Reposición" };
 
-/** Una línea del borrador: lo tecleado, sin convertir hasta que se entiende. */
-type Borrador = { uid: string; productId: string; bultos: string; unidades: string; costo: string };
+/** La ficha corta de un producto que llega por primera vez (B9-6), tal como se teclea. */
+type Nuevo = { nombre: string; categoria: string; presentacion: string; codigo: string; precio: string; taxCode: TaxCodeDelCatalogo };
 
-const nuevaLinea = (productId = "", unidades = "1"): Borrador => ({ uid: globalThis.crypto.randomUUID(), productId, bultos: "1", unidades, costo: "" });
+/** Una línea del borrador: lo tecleado, sin convertir hasta que se entiende. Con `nuevo`, es un alta. */
+type Borrador = { uid: string; productId: string; nuevo: Nuevo | null; bultos: string; unidades: string; costo: string };
+
+const nuevaLinea = (productId = "", unidades = "1"): Borrador => ({ uid: globalThis.crypto.randomUUID(), productId, nuevo: null, bultos: "1", unidades, costo: "" });
+const lineaDeAlta = (codigo = ""): Borrador => ({
+  ...nuevaLinea(),
+  nuevo: { nombre: "", categoria: "", presentacion: "", codigo, precio: "", taxCode: "GENERAL" },
+});
+
+/** La ficha corta, si se entiende; `null` si falta algo. El servidor la revalida con el contrato. */
+function altaDe(n: Nuevo) {
+  const precio = n.precio.trim() === "" ? null : importeTecleado(n.precio, "USD");
+  const codigo = normalizeBarcode(n.codigo);
+  if (n.nombre.trim().length < 2 || n.categoria.trim().length < 2 || !precio || precio.amount <= 0n) return null;
+  if (codigo !== "" && barcodeProblem(codigo) !== null) return null;
+  return {
+    nombre: n.nombre.trim(),
+    categoria: n.categoria.trim(),
+    taxCode: n.taxCode,
+    precioMinor: String(precio.amount),
+    ...(codigo ? { codigoBarras: codigo } : {}),
+    ...(n.presentacion.trim() ? { presentacion: n.presentacion.trim() } : {}),
+  };
+}
 
 /** Lo que dice una línea del borrador si se entiende; `null` si falta algo o está mal escrito. */
 function lineaDe(b: Borrador) {
   const bultos = Number(b.bultos);
   const unidades = Number(b.unidades);
   const costo = b.costo.trim() === "" ? null : importeTecleado(b.costo, "USD");
-  if (!b.productId || !Number.isInteger(bultos) || bultos < 1 || !Number.isInteger(unidades) || unidades < 1 || !costo || costo.amount < 0n) return null;
+  if (!Number.isInteger(bultos) || bultos < 1 || !Number.isInteger(unidades) || unidades < 1 || !costo || costo.amount < 0n) return null;
   const t = entryLineTotals({ packs: bultos, packSize: unidades, packCostMinor: costo.amount });
-  return { productId: b.productId, bultos, unidadesPorBulto: unidades, costoBultoMinor: String(costo.amount), ...t };
+  const cantidades = { bultos, unidadesPorBulto: unidades, costoBultoMinor: String(costo.amount), ...t };
+  if (b.nuevo) {
+    const alta = altaDe(b.nuevo);
+    return alta ? { linea: { nuevo: alta, bultos, unidadesPorBulto: unidades, costoBultoMinor: cantidades.costoBultoMinor }, ...cantidades } : null;
+  }
+  return b.productId ? { linea: { productId: b.productId, bultos, unidadesPorBulto: unidades, costoBultoMinor: cantidades.costoBultoMinor }, ...cantidades } : null;
 }
 
 export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: CatalogoDto; entradas: EntradasDto | null }) {
   const actor = useActorEnSesion();
   const puedeRecibir = actor !== null && can(actor, "inventario.entrada") !== "DENEGADO";
+  // Dar de alta en la entrada es del catálogo (B9-6): lo mismo que «Nuevo producto».
+  const puedeCrear = actor !== null && can(actor, "catalogo.modificar") !== "DENEGADO";
   const { ajustes } = useSucursal();
   const reloj = useReloj();
   const params = useSearchParams();
@@ -61,6 +94,7 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
     [catalogo],
   );
   const porId = useMemo(() => new Map(catalogo.productos.map((p) => [p.id, p])), [catalogo]);
+  const categorias = useMemo(() => categoriesOf(catalogo.productos.map((p) => ({ category: p.categoria }))), [catalogo]);
 
   const [abierta, setAbierta] = useState(false);
   // «Cargar entrada» desde la ficha de un producto llega con `?producto=` y abre la hoja con él.
@@ -76,7 +110,7 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
         titulo="Entradas de mercancía"
         descripcion="Lo que llega, por compra o reposición. Sube la existencia y da el costo promedio de cada producto; no se edita ni se borra."
         acciones={
-          puedeRecibir && contables.length > 0 && (
+          puedeRecibir && (contables.length > 0 || puedeCrear) && (
             <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setAbierta(true)}>
               <Plus size={15} aria-hidden="true" />
               Nueva entrada
@@ -90,8 +124,8 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
           <TriangleAlert size={16} aria-hidden="true" />
           {puedeRecibir ? "No se pudieron leer las entradas. Recarga la página; si sigue así, avisa a administración." : "Las entradas de mercancía las carga administración o supervisión."}
         </p>
-      ) : contables.length === 0 ? (
-        <Vacio titulo="Ningún producto lleva existencia" detalle="Enciende «Lleva existencia» en Inventario → Productos para los que se venden tal cual (refrescos, golosinas, juguetes)." />
+      ) : contables.length === 0 && !puedeCrear ? (
+        <Vacio titulo="Ningún producto se cuenta todavía" detalle="Administración los da de alta en Productos, o directamente en una entrada, con el tipo «Producto»." />
       ) : entradas.length === 0 ? (
         <Vacio
           titulo="Todavía no llegó nada"
@@ -117,6 +151,8 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
         <NuevaEntrada
           contables={contables}
           porId={porId}
+          categorias={categorias}
+          puedeCrear={puedeCrear}
           inicial={desdeProducto && porId.get(desdeProducto)?.controlaStock ? desdeProducto : null}
           onCerrar={() => setAbierta(false)}
           onRegistrada={(e) => {
@@ -167,12 +203,16 @@ function FilaEntrada({ entrada: e, cuando }: { entrada: EntradaDto; cuando: stri
 function NuevaEntrada({
   contables,
   porId,
+  categorias,
+  puedeCrear,
   inicial,
   onCerrar,
   onRegistrada,
 }: {
   contables: readonly ProductoDto[];
   porId: ReadonlyMap<string, ProductoDto>;
+  categorias: readonly string[];
+  puedeCrear: boolean;
   inicial: string | null;
   onCerrar: () => void;
   onRegistrada: (e: EntradaDto) => void;
@@ -182,6 +222,7 @@ function NuevaEntrada({
   const [proveedor, setProveedor] = useState("");
   const [factura, setFactura] = useState("");
   const [lineas, setLineas] = useState<Borrador[]>(() => [nuevaLinea(inicial ?? "", inicial ? bultoDe(inicial) : "1")]);
+  const conElevacion = useConElevacion();
   const [errores, setErrores] = useState<Readonly<Record<string, string>>>({});
   const [general, setGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -190,11 +231,53 @@ function NuevaEntrada({
 
   const entendidas = lineas.map(lineaDe);
   const listas = entendidas.every((l) => l !== null);
-  const repetido = new Set(lineas.map((l) => l.productId).filter(Boolean)).size !== lineas.filter((l) => l.productId).length;
+  const existentes = lineas.filter((l) => !l.nuevo && l.productId).map((l) => l.productId);
+  const repetido = new Set(existentes).size !== existentes.length;
+
+  // El lector dentro de la hoja (B9-6): un código conocido suma un bulto a su línea (o la abre); uno
+  // desconocido abre la ficha corta con el código puesto, si quien recibe puede dar de alta.
+  useLectorDeCodigos((leido) => {
+    const codigo = normalizeBarcode(leido);
+    const p = contables.find((x) => x.codigoBarras === codigo || x.sku === codigo);
+    if (p) {
+      setLineas((ls) => {
+        const suya = ls.find((l) => !l.nuevo && l.productId === p.id);
+        if (suya) return ls.map((l) => (l === suya ? { ...l, bultos: String((Number(l.bultos) || 0) + 1) } : l));
+        const vacia = ls.find((l) => !l.nuevo && !l.productId);
+        const linea = { ...nuevaLinea(p.id, bultoDe(p.id)) };
+        return vacia ? ls.map((l) => (l === vacia ? { ...linea, uid: l.uid } : l)) : [...ls, linea];
+      });
+      setClave(globalThis.crypto.randomUUID());
+      return;
+    }
+    const yaNuevo = lineas.find((l) => l.nuevo && normalizeBarcode(l.nuevo.codigo) === codigo);
+    if (yaNuevo) {
+      setLineas((ls) => ls.map((l) => (l.uid === yaNuevo.uid ? { ...l, bultos: String((Number(l.bultos) || 0) + 1) } : l)));
+      return;
+    }
+    if (!puedeCrear) {
+      avisar.error(`Ningún producto con el código ${codigo}`, { detalle: "Darlo de alta es de administración." });
+      return;
+    }
+    setLineas((ls) => {
+      const vacia = ls.find((l) => !l.nuevo && !l.productId);
+      const alta = lineaDeAlta(codigo);
+      return vacia ? ls.map((l) => (l === vacia ? { ...alta, uid: l.uid } : l)) : [...ls, alta];
+    });
+    setClave(globalThis.crypto.randomUUID());
+    avisar.info(`${codigo} es nuevo: completa su ficha corta`);
+  });
   const total = sum(
     entendidas.flatMap((l) => (l ? [money(l.valueMinor, "USD")] : [])),
     "USD",
   );
+
+  function cambiarNuevo(uid: string, cambio: Partial<Nuevo>) {
+    setLineas((ls) => ls.map((l) => (l.uid === uid && l.nuevo ? { ...l, nuevo: { ...l.nuevo, ...cambio } } : l)));
+    setClave(globalThis.crypto.randomUUID());
+    setErrores({});
+    setGeneral(null);
+  }
 
   function cambiar(uid: string, cambio: Partial<Borrador>) {
     setLineas((ls) => ls.map((l) => (l.uid === uid ? { ...l, ...cambio } : l)));
@@ -207,13 +290,16 @@ function NuevaEntrada({
     if (!listas || repetido) return;
     setEnviando(true);
     try {
-      const r = await registrarEntrada({
+      const mando = {
         idempotencyKey: clave,
         tipo,
         ...(tipo === "COMPRA" && proveedor.trim() ? { proveedor: proveedor.trim() } : {}),
         ...(tipo === "COMPRA" && factura.trim() ? { factura: factura.trim() } : {}),
-        lineas: entendidas.map((l) => ({ productId: l!.productId, bultos: l!.bultos, unidadesPorBulto: l!.unidadesPorBulto, costoBultoMinor: l!.costoBultoMinor })),
-      });
+        lineas: entendidas.map((l) => l!.linea),
+      };
+      // Con altas, la entrada es también del catálogo: pide confirmar la identidad, como «Nuevo producto».
+      const conAltas = lineas.some((l) => l.nuevo);
+      const r = conAltas ? await conElevacion(() => registrarEntrada(mando)) : await registrarEntrada(mando);
       if (r.ok) {
         const unidades = r.valor.lineas.reduce((n, l) => n + l.unidades, 0);
         avisar.ok(`Entrada registrada: ${unidades} ${unidades === 1 ? "unidad" : "unidades"}`, { detalle: `${usd(minor(r.valor.total))}. La caja ya las ofrece.` });
@@ -259,12 +345,16 @@ function NuevaEntrada({
               {enviando ? "Registrando…" : "Registrar entrada"}
             </Button>
           </div>
-          {!listas && !enviando && <p className="text-right text-[12px] text-ink-3">Falta elegir el producto o escribir bultos, unidades y costo de alguna línea.</p>}
+          {!listas && !enviando && <p className="text-right text-[12px] text-ink-3">Falta el producto (o su ficha: nombre, categoría y precio), o bultos, unidades y costo de alguna línea.</p>}
           {repetido && <p className="text-right text-[12px] text-state-warn">Un producto va una vez: suma sus bultos en una sola línea.</p>}
         </div>
       }
     >
       <div className="flex flex-col gap-4">
+        <p className="-mt-1 flex items-center gap-1.5 text-[12px] text-ink-3">
+          <ScanLine size={13} aria-hidden="true" />
+          Pasa los códigos por el lector: cada lectura suma un bulto{puedeCrear ? ", y uno nuevo abre su ficha" : ""}.
+        </p>
         <div className="flex gap-2" role="group" aria-label="Qué llegó">
           {(["COMPRA", "REPOSICION"] as const).map((t) => (
             <button key={t} type="button" aria-pressed={tipo === t} className={segmento(tipo === t)} onClick={() => setTipo(t)}>
@@ -286,6 +376,16 @@ function NuevaEntrada({
             const unitario = l ? averageUnitCostMinor({ quantity: l.units, valueMinor: l.valueMinor }) : null;
             return (
               <li key={b.uid} className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-line bg-base p-3">
+                {b.nuevo ? (
+                  <FichaCorta
+                    nuevo={b.nuevo}
+                    categorias={categorias}
+                    errores={errores}
+                    i={i}
+                    onCambiar={(c) => cambiarNuevo(b.uid, c)}
+                    onQuitar={lineas.length > 1 ? () => setLineas((ls) => ls.filter((x) => x.uid !== b.uid)) : null}
+                  />
+                ) : (
                 <div className="flex items-end gap-2">
                   <label className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <span className={ETIQUETA}>Producto</span>
@@ -314,6 +414,7 @@ function NuevaEntrada({
                     </button>
                   )}
                 </div>
+                )}
                 {/* Por abajo: con la etiqueta en dos renglones, los tres campos siguen en una línea. */}
                 <div className="grid grid-cols-3 items-end gap-2">
                   <Input label="Bultos" surface="admin" type="number" min={1} step={1} inputMode="numeric" className="tnum" value={b.bultos} error={errores[`${i}.bultos`]} onChange={(e) => cambiar(b.uid, { bultos: e.target.value })} />
@@ -328,19 +429,95 @@ function NuevaEntrada({
                       {p?.costoPromedio && <span className="text-ink-3"> · hoy cuestan {usd(minor(p.costoPromedio))} de promedio</span>}
                     </>
                   ) : (
-                    <span className="text-ink-3">{errores[`${i}.productId`] ?? "Elige el producto y escribe bultos, unidades y costo."}</span>
+                    <span className="text-ink-3">{errores[`${i}.productId`] ?? (b.nuevo ? "Completa la ficha y escribe bultos, unidades y costo." : "Elige el producto y escribe bultos, unidades y costo.")}</span>
                   )}
                 </p>
               </li>
             );
           })}
         </ul>
-        <Button type="button" variant="neutral" surface="admin" className="gap-1.5 self-start" onClick={() => setLineas((ls) => [...ls, nuevaLinea()])}>
-          <Plus size={15} aria-hidden="true" />
-          Añadir producto
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => setLineas((ls) => [...ls, nuevaLinea()])}>
+            <Plus size={15} aria-hidden="true" />
+            Añadir producto
+          </Button>
+          {puedeCrear && (
+            <Button type="button" variant="ghost" surface="admin" className="gap-1.5" onClick={() => setLineas((ls) => [...ls, lineaDeAlta()])}>
+              <Sparkles size={15} aria-hidden="true" />
+              Producto nuevo
+            </Button>
+          )}
+        </div>
       </div>
     </Sheet>
+  );
+}
+
+/** La ficha corta de un producto nuevo dentro de la entrada (B9-6): nace a la venta como «Producto». */
+function FichaCorta({
+  nuevo: n,
+  categorias,
+  errores,
+  i,
+  onCambiar,
+  onQuitar,
+}: {
+  nuevo: Nuevo;
+  categorias: readonly string[];
+  errores: Readonly<Record<string, string>>;
+  i: number;
+  onCambiar: (c: Partial<Nuevo>) => void;
+  onQuitar: (() => void) | null;
+}) {
+  const problema = n.codigo.trim() === "" ? null : barcodeProblem(normalizeBarcode(n.codigo));
+  const error = (campo: string) => errores[`${i}.nuevo.${campo}`];
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[12px] font-semibold text-brand">
+          <Sparkles size={13} aria-hidden="true" />
+          Producto nuevo: nace a la venta con este stock
+        </span>
+        {onQuitar && (
+          <button
+            type="button"
+            aria-label={`Quitar la línea ${i + 1}`}
+            onClick={onQuitar}
+            className="grid size-8 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 hover:bg-state-crit-bg hover:text-state-crit"
+          >
+            <X size={15} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 items-end gap-2">
+        <Input label="Nombre" surface="admin" autoComplete="off" placeholder="Refresco de uva" value={n.nombre} error={error("nombre")} onChange={(e) => onCambiar({ nombre: e.target.value })} />
+        <Input label="Categoría" surface="admin" autoComplete="off" placeholder="Bebidas" list={`entrada-categorias-${i}`} value={n.categoria} error={error("categoria")} onChange={(e) => onCambiar({ categoria: e.target.value })} />
+        <datalist id={`entrada-categorias-${i}`}>
+          {categorias.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+        <Input label="Presentación" surface="admin" autoComplete="off" placeholder="Lata 355 ml" value={n.presentacion} error={error("presentacion")} onChange={(e) => onCambiar({ presentacion: e.target.value })} />
+        <Input
+          label="Código de barras"
+          surface="admin"
+          autoComplete="off"
+          className="tnum font-mono"
+          placeholder="Pásalo por el lector"
+          value={n.codigo}
+          error={error("codigoBarras") ?? (problema === "DIGITO_DE_CONTROL" ? "El dígito de control no cuadra" : problema === "FORMATO" ? "De 4 a 32 dígitos, letras o guiones" : undefined)}
+          onChange={(e) => onCambiar({ codigo: e.target.value })}
+        />
+        <Input label="Precio de venta ($)" surface="admin" inputMode="decimal" className="tnum" placeholder="1,50" value={n.precio} error={error("precioMinor")} onChange={(e) => onCambiar({ precio: e.target.value })} />
+        <label className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>IVA</span>
+          <select className={cn(CAMPO, "border-line")} value={n.taxCode} onChange={(e) => onCambiar({ taxCode: e.target.value as TaxCodeDelCatalogo })}>
+            <option value="GENERAL">IVA general</option>
+            <option value="EXENTA">Exento de IVA</option>
+          </select>
+        </label>
+      </div>
+    </div>
   );
 }
 
@@ -349,7 +526,8 @@ function porLinea(problemas: readonly Problema[], lineas: readonly Borrador[]): 
   const e: Record<string, string> = {};
   for (const p of problemas) {
     if (p.path[0] !== "lineas" || typeof p.path[1] !== "number" || !lineas[p.path[1]]) continue;
-    const campo = `${p.path[1]}.${String(p.path[2] ?? "productId")}`;
+    // La ficha corta señala su campo («lineas.1.nuevo.codigoBarras» → «1.nuevo.codigoBarras»).
+    const campo = p.path[2] === "nuevo" ? `${p.path[1]}.nuevo.${String(p.path[3] ?? "nombre")}` : `${p.path[1]}.${String(p.path[2] ?? "productId")}`;
     e[campo] ??= p.message === "SIN_CONTROL_DE_STOCK" ? "No lleva existencia" : p.message;
   }
   return e;

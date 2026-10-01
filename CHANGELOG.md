@@ -12,6 +12,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.37.0] — 2026-09-30 · Etapa 9 · Inventario
+
+B9-6 · Identificación, tipos y la vista del inventario. Se cierra el Inventario.
+
+### Añadido
+- **Productos enseña el stock primero**: arriba, cuántos están agotados, cuántos bajo su mínimo, las unidades y el
+  valor del inventario al costo (cada cifra filtra); debajo, la **tabla** (stock y estado, producto, SKU y código,
+  categoría, mínimo, costo, precio y margen), ordenada por lo que exige atención, o las **tarjetas**, con una barra de
+  nivel. Se busca por nombre, SKU o código, y se filtra por categoría, estado y apartados.
+- **Cada producto tiene su SKU** (BEB-0001), que pone el sistema y no cambia, su **código de barras** y su
+  **presentación** («Lata 355 ml»).
+- **Tres tipos**: Producto (se cuenta), Preparado (se hace al momento) y Servicio (alquiler, paquetes).
+- **La entrada de mercancía da de alta lo que llega por primera vez**, con una ficha corta (nombre, categoría,
+  presentación, código, precio e IVA): nace a la venta con su stock y su costo.
+- **El lector de códigos**: en la caja vende el producto; en una entrada suma un bulto o abre la ficha del producto
+  nuevo; en el conteo lleva a su casilla; en Productos abre su ficha. Un código mal leído (el dígito de control de un
+  EAN o un UPC no cuadra) se rechaza.
+
+### Cambiado
+- «Lleva existencia» ya no es una casilla: lo dice el tipo. Lo que la llevaba es un Producto; lo demás, un Preparado.
+- Lo que tiene stock no cambia de tipo hasta sacarlo o contarlo.
+
 ## [0.36.0] — 2026-09-30 · Etapa 9 · Inventario
 
 B9-5 · Mínimos y alertas de stock crítico.

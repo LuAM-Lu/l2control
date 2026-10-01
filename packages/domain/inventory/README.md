@@ -2,7 +2,7 @@
 
 Inventario (F8, Etapa 9). Módulo puro: sin base, sin red y sin reloj propio.
 
-## Qué resuelve hoy (B9-1 a B9-5)
+## Qué resuelve hoy (B9-1 a B9-6)
 
 El **catálogo de productos** de venta directa y de consumo en cuenta (F8-02):
 
@@ -47,6 +47,10 @@ Y las **salidas y el conteo** (B9-4):
 Y el **estado del stock** (B9-5): `stockStatus` (agotado, bajo su mínimo, bien) y `stockAlerts` (cuántos a la venta
 están agotados o bajo mínimo, para avisar en Inicio).
 
+Y la **identificación** (B9-6): `PRODUCT_KINDS` y `kindTracksStock` (solo el PRODUCTO se cuenta), `skuPrefix` y
+`nextSku` (el SKU, «BEB-0001»), `normalizeBarcode` y `barcodeProblem` (el formato y el dígito de control de un EAN o
+UPC: una lectura torcida no se guarda).
+
 La regla que lo ordena: **el precio es un dato con fecha**. Cambiarlo programa el tramo siguiente;
 lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al venderse).
 
@@ -62,5 +66,4 @@ lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al
 
 ## Lo que llega después
 
-La identificación (SKU, código de barras, presentación) y los tipos (B9-6). Las
-recetas y la descarga al marcar LISTO van con el restaurante (B6-4).
+Las recetas, los insumos de cocina y la descarga al marcar LISTO van con el restaurante (B6-4), después del piloto.

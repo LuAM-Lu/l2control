@@ -51,8 +51,8 @@ before(async () => {
   ctxAdmin = await contextoDe(local, await crearEquipo(local, "Oficina"), admin, "4826");
   ctxSupervisor = await contextoDe(local, await crearEquipo(local, "Depósito"), supervisor, "5937");
   ctxCajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), cajera, "7391");
-  for (const [nombre, controlaStock] of [["Refresco", true], ["Malta", true], ["Café", false]] as const) {
-    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Bebidas", taxCode: "GENERAL", controlaStock, precioMinor: "150" } }, AHORA - 5 * MIN));
+  for (const [nombre, tipo] of [["Refresco", "PRODUCTO"], ["Malta", "PRODUCTO"], ["Café", "PREPARADO"]] as const) {
+    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Bebidas", taxCode: "GENERAL", tipo, precioMinor: "150" } }, AHORA - 5 * MIN));
     ids[nombre] = c.productos.find((p) => p.nombre === nombre)!.id;
   }
   // 48 refrescos a $ 0,50 y 12 maltas a $ 0,75.

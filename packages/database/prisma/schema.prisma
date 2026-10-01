@@ -667,6 +667,14 @@ model Product {
   tracksStock   Boolean  @map("tracks_stock")
   /// El stock mínimo (B9-5): su punto de reorden. Con la existencia en él o por debajo, avisa. Nulo = sin mínimo.
   minStock      Int?     @map("min_stock")
+  /// PRODUCTO (se cuenta), PREPARADO (se hace al momento) o SERVICIO (CHECK, B9-6). Solo el PRODUCTO lleva existencia.
+  kind          String
+  /// El código interno (B9-6): prefijo de su categoría y correlativo, «BEB-0001». Lo pone el servidor y no cambia.
+  sku           String
+  /// El código de barras del empaque, si lo trae (solo un PRODUCTO). Único en el local.
+  barcode       String?
+  /// «Lata 355 ml», «Bolsa 45 g»: distingue dos productos de nombre parecido.
+  presentation  String?
   active        Boolean
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   createdBy     String?  @map("created_by") @db.Uuid
@@ -678,6 +686,7 @@ model Product {
 
   /// Destino de la FK compuesta de los precios: un precio es de un producto de SU tenant.
   @@unique([tenantId, id])
+  @@unique([tenantId, sku])
   @@map("product")
 }
 

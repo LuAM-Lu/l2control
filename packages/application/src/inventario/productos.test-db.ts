@@ -8,6 +8,7 @@
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import type { CatalogoDto, ProductoDto } from "@l2/contracts";
 import { priceAt, priceTimeline } from "@l2/domain-inventory";
 import type { Contexto } from "../index.ts";
@@ -40,7 +41,7 @@ const precioEn = (p: ProductoDto, at: number) =>
     at,
   )?.amount ?? null;
 
-const AGUA = { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, precioMinor: "100" };
+const AGUA = { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "100" };
 
 before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Productos");
@@ -81,7 +82,7 @@ describe("administración arma el catálogo (F8-02)", () => {
     const r = await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "  AGUA   Mineral " } }, reloj());
     assert.equal(!r.ok && r.motivo, "INVALIDO");
     assert.deepEqual(!r.ok && r.problemas?.[0]?.path, ["producto", "nombre"]);
-    valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Café con leche", categoria: "Café", controlaStock: false, precioMinor: "150" } }, reloj()));
+    valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Café con leche", categoria: "Café", tipo: "PREPARADO", precioMinor: "150" } }, reloj()));
     const cafe = await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "cafe con leche" } }, reloj());
     assert.equal(!cafe.ok && cafe.motivo, "INVALIDO");
   });
@@ -96,7 +97,7 @@ describe("administración arma el catálogo (F8-02)", () => {
 
   test("editar cambia nombre, categoría, IVA y stock; lo que no cambia nada se rechaza", async () => {
     const agua = producto(await local.app.productos.leer(local.sistema), "Agua mineral");
-    const edicion = { kind: "EDITAR", productId: agua.id, nombre: "Agua mineral 600 ml", categoria: "Bebidas", taxCode: "EXENTA", controlaStock: true };
+    const edicion = { kind: "EDITAR", productId: agua.id, nombre: "Agua mineral 600 ml", categoria: "Bebidas", taxCode: "EXENTA", tipo: "PRODUCTO", codigoBarras: null, presentacion: null };
     const c = valor(await local.app.productos.aplicar(ctxAdmin, edicion, reloj()));
     assert.equal(producto(c, "Agua mineral 600 ml").taxCode, "EXENTA");
     const igual = await local.app.productos.aplicar(ctxAdmin, edicion, reloj());
@@ -190,5 +191,40 @@ describe("nadie más lo cambia", () => {
     const agua = producto(await local.app.productos.leer(local.sistema), "Agua mineral 600 ml");
     const r = await otro.app.productos.aplicar(otro.sistema, { kind: "PROGRAMAR_PRECIO", productId: agua.id, precioMinor: "50", dia: "2026-10-01" }, reloj());
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
+  });
+});
+
+describe("identificación y tipo (B9-6)", () => {
+  test("el SKU lo pone el servidor: prefijo de la categoría y correlativo, sin repetirse", async () => {
+    const a = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Jugo de naranja", categoria: "Jugos" } }, reloj()));
+    const b = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Jugo de mango", categoria: "Jugos" } }, reloj()));
+    assert.equal(producto(a, "Jugo de naranja").sku, "JUG-0001");
+    assert.equal(producto(b, "Jugo de mango").sku, "JUG-0002");
+    // El SKU no cambia aunque cambie la categoría.
+    const mango = producto(b, "Jugo de mango");
+    const editado = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "EDITAR", productId: mango.id, nombre: "Jugo de mango", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", codigoBarras: null, presentacion: "Vaso 300 ml" }, reloj()));
+    assert.deepEqual([producto(editado, "Jugo de mango").sku, producto(editado, "Jugo de mango").presentacion], ["JUG-0002", "Vaso 300 ml"]);
+  });
+
+  test("el código de barras: bien leído, de un solo producto y solo en lo que se cuenta", async () => {
+    const c = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Galleta María", categoria: "Golosinas", codigoBarras: "4006381333931" } }, reloj()));
+    assert.equal(producto(c, "Galleta María").codigoBarras, "4006381333931");
+    const repetido = await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Galleta Soda", categoria: "Golosinas", codigoBarras: "4006381333931" } }, reloj());
+    assert.equal(!repetido.ok && repetido.problemas?.[0]?.message, "Ya es de «Galleta María»");
+    const torcido = await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Galleta Soda", categoria: "Golosinas", codigoBarras: "4006381333932" } }, reloj());
+    assert.match((!torcido.ok && torcido.problemas?.[0]?.message) || "", /dígito de control/);
+    const servicio = await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Alquiler del salón", categoria: "Eventos", tipo: "SERVICIO", codigoBarras: "ABC-1234" } }, reloj());
+    assert.equal(servicio.ok, false);
+    const s = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Alquiler del salón", categoria: "Eventos", tipo: "SERVICIO" } }, reloj()));
+    const alquiler = producto(s, "Alquiler del salón");
+    assert.deepEqual([alquiler.tipo, alquiler.controlaStock, alquiler.existencia, alquiler.sku], ["SERVICIO", false, null, "EVE-0001"]);
+  });
+
+  test("lo que tiene existencia no cambia de tipo hasta sacarla o contarla", async () => {
+    const c = await local.app.productos.leer(local.sistema);
+    const galleta = producto(c, "Galleta María");
+    valor(await local.app.entradas.registrar(local.sistema, { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: galleta.id, bultos: 1, unidadesPorBulto: 6, costoBultoMinor: "300" }] }, reloj()));
+    const r = await local.app.productos.aplicar(ctxAdmin, { kind: "EDITAR", productId: galleta.id, nombre: "Galleta María", categoria: "Golosinas", taxCode: "GENERAL", tipo: "PREPARADO", codigoBarras: null, presentacion: null }, reloj());
+    assert.match(!r.ok ? r.mensaje : "", /tiene 6 en stock/);
   });
 });

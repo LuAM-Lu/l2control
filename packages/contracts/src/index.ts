@@ -151,12 +151,18 @@ export {
   type ProductoCommand,
   FijarMinimoCommandSchema,
   type FijarMinimoCommand,
+  TipoProductoSchema,
+  CodigoBarrasSchema,
+  PresentacionSchema,
+  type TipoProducto,
 } from "./productos.ts";
 
 export {
   TipoEntradaSchema,
   CostoMinorSchema,
   LineaEntradaSchema,
+  ProductoDeEntradaSchema,
+  type ProductoDeEntradaDto,
   RegistrarEntradaCommandSchema,
   EntradaSchema,
   EntradasSchema,

@@ -27,7 +27,13 @@ import {
 import { addDays, calendarDay, startOfDay } from "@l2/domain-rates";
 import {
   averageUnitCostMinor,
+  barcodeProblem,
   changesTimeline,
+  kindTracksStock,
+  nextSku,
+  skuPrefix,
+  type BarcodeProblem,
+  type ProductKind,
   nameClash,
   periodAt,
   priceProblem,
@@ -91,13 +97,18 @@ export function casosProductos(base: Base): CasosProductos {
         nombre: p.name,
         categoria: p.category,
         taxCode: p.taxCode,
+        tipo: p.kind,
         controlaStock: p.tracksStock,
+        sku: p.sku,
+        codigoBarras: p.barcode,
+        presentacion: p.presentation,
         activo: p.active,
         precios: tramosDe(precios.filter((x) => x.productId === p.id)),
         existencia: p.tracksStock ? (existencias.get(p.id)?.quantity ?? 0) : null,
         costoPromedio: costoDe(p.tracksStock ? existencias.get(p.id) : undefined),
         ultimoBulto: bulto.get(p.id) ?? null,
         minimo: p.tracksStock ? p.minStock : null,
+        valor: p.tracksStock ? { minor: String(existencias.get(p.id)?.valueMinor ?? 0n), currency: "USD" } : null,
       })),
       zonaHoraria: await zonaDe(tx, branchId),
       diasPorAdelantado: DIAS_POR_ADELANTADO_PRECIOS,
@@ -181,7 +192,7 @@ export function casosProductos(base: Base): CasosProductos {
           // Dos personas a la vez: el mismo nombre, o dos precios del mismo producto en el mismo instante.
           return cmd.kind === "PROGRAMAR_PRECIO"
             ? { ok: false, motivo: "CONFLICTO", mensaje: "Se programó otro precio de ese producto en el mismo instante. Vuelve a intentarlo." }
-            : invalido("Ya hay un producto con ese nombre.", cmd.kind === "CREAR" ? ["producto", "nombre"] : ["nombre"], "Nombre repetido");
+            : invalido("Ya hay un producto con ese nombre o ese código de barras.", cmd.kind === "CREAR" ? ["producto", "nombre"] : ["nombre"], "Nombre o código repetido");
         }
         throw e;
       }
@@ -203,13 +214,97 @@ function accionDe(cmd: ProductoCommand): AccionAuditada {
 }
 
 /** Lo que dice la auditoría de un producto: sin identificadores de la base, legible. */
-const fotoDe = (p: Pick<Product, "name" | "category" | "taxCode" | "tracksStock" | "active">) => ({
+const fotoDe = (p: Pick<Product, "name" | "category" | "taxCode" | "kind" | "sku" | "barcode" | "presentation" | "active">) => ({
   nombre: p.name,
+  sku: p.sku,
   categoria: p.category,
   taxCode: p.taxCode,
-  controlaStock: p.tracksStock,
+  tipo: p.kind,
+  codigoBarras: p.barcode,
+  presentacion: p.presentation,
   activo: p.active,
 });
+
+const MENSAJE_CODIGO: Record<BarcodeProblem, string> = {
+  FORMATO: "De 4 a 32 dígitos, letras o guiones",
+  DIGITO_DE_CONTROL: "El dígito de control no cuadra: vuelve a leerlo",
+};
+
+/** Lo que pide el alta de un producto, venga de Productos o de una entrada de mercancía (B9-6). */
+export type ProductoAlta = Readonly<{
+  nombre: string;
+  categoria: string;
+  taxCode: string;
+  tipo: ProductKind;
+  precioMinor: string;
+  codigoBarras?: string | undefined;
+  presentacion?: string | undefined;
+}>;
+
+/**
+ * Que un código de barras sirva: bien leído y de nadie más (salvo `exceptoId`, el propio producto).
+ * `ruta` dice dónde señalarlo.
+ */
+async function problemaDeCodigo(tx: Transaccion, codigo: string, ruta: (string | number)[], exceptoId?: string): Promise<Rechazo | null> {
+  const problema = barcodeProblem(codigo);
+  if (problema) return invalido("Ese código de barras no sirve.", ruta, MENSAJE_CODIGO[problema]);
+  const otro = await tx.product.findFirst({ where: { barcode: codigo, ...(exceptoId ? { id: { not: exceptoId } } : {}) }, select: { name: true } });
+  return otro ? invalido(`Ese código ya es de «${otro.name}».`, ruta, `Ya es de «${otro.name}»`) : null;
+}
+
+/**
+ * Da de alta un producto con su primer precio, rigiendo desde `ahora`, y su SKU (prefijo de la
+ * categoría y el siguiente correlativo, con un candado para que dos altas a la vez no tomen el mismo).
+ * Devuelve la fila y su asiento, o el rechazo. `ruta` es dónde está el producto en el mando.
+ */
+export async function crearProductoEn(
+  tx: Transaccion,
+  ctx: Contexto,
+  p: ProductoAlta,
+  quien: string,
+  ahora: number,
+  ruta: (string | number)[],
+): Promise<{ fila: Product; asiento: Asiento } | Rechazo> {
+  const choca = nameClash(await productosDe(tx), p.nombre);
+  if (choca) return invalido("Ya hay un producto con ese nombre.", [...ruta, "nombre"], mensajeDeChoque(choca));
+  if (p.codigoBarras !== undefined) {
+    if (!kindTracksStock(p.tipo)) return invalido("Solo un producto que se cuenta lleva código de barras.", [...ruta, "codigoBarras"], "Sin código para este tipo");
+    const malo = await problemaDeCodigo(tx, p.codigoBarras, [...ruta, "codigoBarras"]);
+    if (malo) return malo;
+  }
+  const prefijo = skuPrefix(p.categoria);
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`sku:${ctx.tenantId}`}, 0))::text AS candado`;
+  const existentes = await tx.product.findMany({ where: { sku: { startsWith: `${prefijo}-` } }, select: { sku: true } });
+  const fila = await tx.product.create({
+    data: {
+      tenantId: ctx.tenantId,
+      name: p.nombre,
+      category: p.categoria,
+      taxCode: p.taxCode,
+      kind: p.tipo,
+      tracksStock: kindTracksStock(p.tipo),
+      sku: nextSku(prefijo, existentes.map((x) => x.sku)),
+      barcode: p.codigoBarras ?? null,
+      presentation: p.presentacion ?? null,
+      active: true,
+      createdAt: new Date(ahora),
+      createdBy: ctx.quien?.userId ?? null,
+      createdByName: quien,
+    },
+  });
+  await tx.productPrice.create({
+    data: {
+      tenantId: ctx.tenantId,
+      productId: fila.id,
+      amountMinor: BigInt(p.precioMinor),
+      effectiveFrom: new Date(ahora),
+      scheduledAt: new Date(ahora),
+      scheduledBy: ctx.quien?.userId ?? null,
+      scheduledByName: quien,
+    },
+  });
+  return { fila, asiento: { action: "producto.crear", entityType: "product", entityId: fila.id, after: { ...fotoDe(fila), precio: { minor: p.precioMinor, currency: "USD" } } } };
+}
 
 /**
  * Escribe el cambio y devuelve su asiento de auditoría (`cambio: null` si no había nada que
@@ -226,43 +321,44 @@ async function guardar(
   const action = accionDe(cmd);
   switch (cmd.kind) {
     case "CREAR": {
-      const p = cmd.producto;
-      const choca = nameClash(await productosDe(tx), p.nombre);
-      if (choca) return invalido("Ya hay un producto con ese nombre.", ["producto", "nombre"], mensajeDeChoque(choca));
-      const fila = await tx.product.create({
-        data: {
-          tenantId: ctx.tenantId,
-          name: p.nombre,
-          category: p.categoria,
-          taxCode: p.taxCode,
-          tracksStock: p.controlaStock,
-          active: true,
-          createdAt: new Date(ahora),
-          createdBy: ctx.quien?.userId ?? null,
-          createdByName: quien,
-        },
-      });
-      await tx.productPrice.create({
-        data: {
-          tenantId: ctx.tenantId,
-          productId: fila.id,
-          amountMinor: BigInt(p.precioMinor),
-          effectiveFrom: new Date(ahora),
-          scheduledAt: new Date(ahora),
-          scheduledBy: ctx.quien?.userId ?? null,
-          scheduledByName: quien,
-        },
-      });
-      return { cambio: { action, entityType: "product", entityId: fila.id, after: { ...fotoDe(fila), precio: { minor: p.precioMinor, currency: "USD" } } } };
+      const creado = await crearProductoEn(tx, ctx, cmd.producto, quien, ahora, ["producto"]);
+      return "ok" in creado ? creado : { cambio: creado.asiento };
     }
     case "EDITAR": {
       const antes = await tx.product.findUnique({ where: { id: cmd.productId } });
       if (!antes) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese producto no existe en este local." };
       const choca = nameClash(await productosDe(tx), cmd.nombre, cmd.productId);
       if (choca) return invalido("Ya hay otro producto con ese nombre.", ["nombre"], mensajeDeChoque(choca));
-      const datos = { name: cmd.nombre, category: cmd.categoria, taxCode: cmd.taxCode, tracksStock: cmd.controlaStock };
-      if (antes.name === datos.name && antes.category === datos.category && antes.taxCode === datos.taxCode && antes.tracksStock === datos.tracksStock) {
+      const datos = {
+        name: cmd.nombre,
+        category: cmd.categoria,
+        taxCode: cmd.taxCode,
+        kind: cmd.tipo,
+        tracksStock: kindTracksStock(cmd.tipo),
+        barcode: cmd.codigoBarras,
+        presentation: cmd.presentacion,
+      };
+      if (
+        antes.name === datos.name &&
+        antes.category === datos.category &&
+        antes.taxCode === datos.taxCode &&
+        antes.kind === datos.kind &&
+        antes.barcode === datos.barcode &&
+        antes.presentation === datos.presentation
+      ) {
         return invalido("No cambia nada.", ["nombre"], "El producto ya está así");
+      }
+      if (datos.barcode !== null) {
+        if (!datos.tracksStock) return invalido("Solo un producto que se cuenta lleva código de barras.", ["codigoBarras"], "Sin código para este tipo");
+        if (datos.barcode !== antes.barcode) {
+          const malo = await problemaDeCodigo(tx, datos.barcode, ["codigoBarras"], antes.id);
+          if (malo) return malo;
+        }
+      }
+      // Lo que tiene existencia no deja de contarse sin más: lo que hay se saca o se cuenta antes.
+      if (antes.tracksStock && !datos.tracksStock) {
+        const hay = (await existenciasDe(tx, ctx.branchId, [antes.id])).get(antes.id)?.quantity ?? 0;
+        if (hay !== 0) return invalido(`${antes.name} tiene ${hay} en stock: sácalas o cuéntalas antes de cambiar su tipo.`, ["tipo"], "Tiene existencia");
       }
       const fila = await tx.product.update({ where: { id: cmd.productId }, data: datos });
       return { cambio: { action, entityType: "product", entityId: fila.id, before: fotoDe(antes), after: fotoDe(fila) } };
