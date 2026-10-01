@@ -48,6 +48,8 @@ describe("los cambios del catálogo", () => {
   test("no hay borrar: un producto se aparta", () => {
     assert.equal(ProductoCommandSchema.safeParse({ kind: "BORRAR", productId: ID }).success, false);
     assert.equal(ProductoCommandSchema.safeParse({ kind: "ACTIVAR", productId: ID, activo: false }).success, true);
+    assert.equal(ProductoCommandSchema.safeParse({ kind: "EN_CARTA", productId: ID, enCarta: false }).success, true);
+    assert.equal(ProductoCommandSchema.safeParse({ kind: "EN_CARTA", productId: ID }).success, false);
   });
 });
 
@@ -71,12 +73,12 @@ describe("el catálogo que llega a la caja", () => {
   });
 
   test("dos productos no comparten identificador", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: null, activo: true, precios: [tramo], existencia: 3, costoPromedio: null, ultimoBulto: null, minimo: null, valor: null };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: null, activo: true, enCarta: true, precios: [tramo], existencia: 3, costoPromedio: null, ultimoBulto: null, minimo: null, valor: null };
     assert.equal(CatalogoSchema.safeParse({ productos: [p, p], zonaHoraria: "America/Caracas", diasPorAdelantado: 366 }).success, false);
   });
 
   test("la existencia: solo de lo que controla stock, entera y nunca negativa (B9-2)", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: null, activo: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: null, minimo: 5, valor: null };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: null, activo: true, enCarta: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: null, minimo: 5, valor: null };
     assert.equal(ProductoSchema.safeParse(p).success, true);
     assert.equal(ProductoSchema.safeParse({ ...p, existencia: null }).success, false);
     assert.equal(ProductoSchema.safeParse({ ...p, existencia: -1 }).success, false);
@@ -86,7 +88,7 @@ describe("el catálogo que llega a la caja", () => {
   });
 
   test("el costo promedio: solo con existencia (B9-3)", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: null, activo: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: 24, minimo: null, valor: null };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: null, activo: true, enCarta: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: 24, minimo: null, valor: null };
     assert.equal(ProductoSchema.safeParse(p).success, true);
     assert.equal(ProductoSchema.safeParse({ ...p, costoPromedio: { minor: "55", currency: "USD" } }).success, false);
     assert.equal(ProductoSchema.safeParse({ ...p, existencia: 10, costoPromedio: { minor: "55", currency: "USD" } }).success, true);
@@ -105,7 +107,7 @@ describe("identificación y tipo (B9-6)", () => {
   });
 
   test("el tipo y el control de existencia dicen lo mismo; el SKU tiene su forma", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: "Botella 600 ml", activo: true, precios: [tramo], existencia: 3, costoPromedio: null, ultimoBulto: null, minimo: null, valor: { minor: "150", currency: "USD" } };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: "Botella 600 ml", activo: true, enCarta: true, precios: [tramo], existencia: 3, costoPromedio: null, ultimoBulto: null, minimo: null, valor: { minor: "150", currency: "USD" } };
     assert.equal(ProductoSchema.safeParse(p).success, true);
     assert.equal(ProductoSchema.safeParse({ ...p, tipo: "SERVICIO" }).success, false);
     assert.equal(ProductoSchema.safeParse({ ...p, sku: "beb-1" }).success, false);

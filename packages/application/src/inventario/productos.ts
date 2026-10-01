@@ -103,6 +103,7 @@ export function casosProductos(base: Base): CasosProductos {
         codigoBarras: p.barcode,
         presentacion: p.presentation,
         activo: p.active,
+        enCarta: p.onMenu,
         precios: tramosDe(precios.filter((x) => x.productId === p.id)),
         existencia: p.tracksStock ? (existencias.get(p.id)?.quantity ?? 0) : null,
         costoPromedio: costoDe(p.tracksStock ? existencias.get(p.id) : undefined),
@@ -208,6 +209,8 @@ function accionDe(cmd: ProductoCommand): AccionAuditada {
       return "producto.editar";
     case "ACTIVAR":
       return cmd.activo ? "producto.activar" : "producto.apartar";
+    case "EN_CARTA":
+      return "producto.carta";
     case "PROGRAMAR_PRECIO":
       return "precio.programar";
   }
@@ -239,6 +242,8 @@ export type ProductoAlta = Readonly<{
   precioMinor: string;
   codigoBarras?: string | undefined;
   presentacion?: string | undefined;
+  /** Si el mesero lo ofrece (B6-1). Sin decirlo: sí, salvo un servicio. */
+  enCarta?: boolean | undefined;
 }>;
 
 /**
@@ -287,6 +292,7 @@ export async function crearProductoEn(
       barcode: p.codigoBarras ?? null,
       presentation: p.presentacion ?? null,
       active: true,
+      onMenu: p.enCarta ?? p.tipo !== "SERVICIO",
       createdAt: new Date(ahora),
       createdBy: ctx.quien?.userId ?? null,
       createdByName: quien,
@@ -369,6 +375,13 @@ async function guardar(
       if (antes.active === cmd.activo) return { cambio: null }; // ya estaba así: nada que guardar ni auditar
       const fila = await tx.product.update({ where: { id: cmd.productId }, data: { active: cmd.activo } });
       return { cambio: { action, entityType: "product", entityId: fila.id, before: { nombre: antes.name, activo: antes.active }, after: { nombre: fila.name, activo: fila.active } } };
+    }
+    case "EN_CARTA": {
+      const antes = await tx.product.findUnique({ where: { id: cmd.productId } });
+      if (!antes) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese producto no existe en este local." };
+      if (antes.onMenu === cmd.enCarta) return { cambio: null };
+      const fila = await tx.product.update({ where: { id: cmd.productId }, data: { onMenu: cmd.enCarta } });
+      return { cambio: { action, entityType: "product", entityId: fila.id, before: { nombre: antes.name, enCarta: antes.onMenu }, after: { nombre: fila.name, enCarta: fila.onMenu } } };
     }
     case "PROGRAMAR_PRECIO": {
       const producto = await tx.product.findUnique({ where: { id: cmd.productId } });

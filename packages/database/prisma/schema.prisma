@@ -63,6 +63,7 @@ model Branch {
   parkSessions     ParkSession[]
   outbox           OutboxEvent[]
   settings         BranchSettingsVersion[]
+  floorPlans       FloorPlanVersion[]
   stockMovements   StockMovement[]
   stockEntries     StockEntry[]
   stockAdjustments StockAdjustment[]
@@ -118,6 +119,25 @@ model BranchSettingsVersion {
 
   @@unique([tenantId, branchId, version])
   @@map("branch_settings_version")
+}
+
+/// El plano del local publicado (B6-1, F6-01): cada publicación es una versión nueva, solo-agregar.
+/// Una mesa no se borra (se retira) y la versión dice quién lo publicó.
+model FloorPlanVersion {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  branchId        String   @map("branch_id") @db.Uuid
+  version         Int
+  /// `PlanoLocalDto` de @l2/contracts. Se valida al escribir y otra vez al leer (fail-closed).
+  content         Json
+  publishedAt     DateTime @default(now()) @map("published_at") @db.Timestamptz(3)
+  publishedBy     String?  @map("published_by") @db.Uuid
+  publishedByName String?  @map("published_by_name")
+
+  branch Branch @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, branchId, version])
+  @@map("floor_plan_version")
 }
 
 /// El registro de auditoría (§7.4, F2-07). Solo se añaden filas: ni el dueño de la tabla puede
@@ -681,6 +701,8 @@ model Product {
   /// «Lata 355 ml», «Bolsa 45 g»: distingue dos productos de nombre parecido.
   presentation  String?
   active        Boolean
+  /// Si el mesero lo ofrece en las mesas (B6-1): la carta del restaurante es el catálogo con esta marca.
+  onMenu        Boolean  @default(true) @map("on_menu")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   createdBy     String?  @map("created_by") @db.Uuid
   createdByName String   @map("created_by_name")

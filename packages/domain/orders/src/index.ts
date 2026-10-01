@@ -114,3 +114,5 @@ export function nivelEspera(esperaMs: number, umbral: UmbralEspera): NivelEspera
   if (min >= umbral.avisoMin) return "TARDA";
   return "A_TIEMPO";
 }
+
+export { cambioDePlanoProblem, mesasRetiradas, type MesaDelPlano, type ProblemaDePlano } from "./plano.ts";

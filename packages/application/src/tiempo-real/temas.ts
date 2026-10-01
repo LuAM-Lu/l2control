@@ -55,6 +55,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "impresion.fallar": ["impresion"],
   "impresion.reintentar": ["impresion"],
   "impresion.descartar": ["impresion"],
+  "producto.carta": ["catalogo"],
+  "plano.publicar": ["plano"],
   "impresora.crear": ["impresion"],
   "impresora.editar": ["impresion"],
   "impresora.activar": ["impresion"],

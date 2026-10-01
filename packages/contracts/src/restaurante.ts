@@ -1,13 +1,16 @@
 /**
- * Contratos del restaurante: el plano de mesas y la carta — F6-01, F6-03.
+ * Contratos del restaurante: el plano de mesas — F6-01, B6-1.
  *
  * El número de mesas y sus sillas son **datos**, no constantes del código
  * (criterio de F6-01): DEC-7 habla de 7 a 10 mesas de 4 a 6 sillas, y el
- * relevamiento en sitio (F0-03) dirá cuántas son. La carta, igual: sus
- * precios reales llegan con F0-04.
+ * relevamiento en sitio (F0-03) dirá cuántas son.
+ *
+ * La carta no tiene contrato propio: es el catálogo de productos (`productos.ts`) con lo que el
+ * mesero ofrece marcado `enCarta`. Un solo precio con su calendario, un solo IVA y, si se cuenta, su
+ * existencia (ADR-023).
  */
 import { z } from "zod";
-import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
+import { IdSchema, TimestampSchema } from "./primitives.ts";
 
 /**
  * Dónde está una mesa **en el local**, no en la pantalla — V3, D11.
@@ -147,46 +150,25 @@ export const PlanoLocalSchema = z
   });
 export type PlanoLocalDto = z.infer<typeof PlanoLocalSchema>;
 
-export const MenuItemSchema = z.object({
-  id: IdSchema,
-  name: z.string().trim().min(1).max(60),
-  category: z.string().trim().min(1).max(40),
-  /** Precio de carta. Un plato a precio cero sería una cortesía, y eso exige autorización (F6-14). */
-  price: MoneySchema.refine((m) => BigInt(m.minor) > 0n, "Un plato de la carta tiene precio"),
-  /** Si se agota, sigue en la carta pero no se puede pedir. */
-  available: z.boolean(),
-  /**
-   * Retirado de la carta, no borrado (regla 5, F6-03).
-   *
-   * Un plato que se deja de vender sigue existiendo: las cuentas y ventas de
-   * ayer lo nombran por su id, y un recibo reimpreso tiene que poder decir qué
-   * era. Retirado, ni se ofrece al mesero ni se puede pedir.
-   */
-  retiredAt: TimestampSchema.optional(),
+/**
+ * El plano publicado de la sucursal (B6-1): la última versión, con quién y cuándo. `null` en un local
+ * que todavía no lo ha dibujado: el salón dice dónde se dibuja, no inventa mesas.
+ */
+export const PlanoPublicadoSchema = z.object({
+  plano: PlanoLocalSchema.nullable(),
+  version: z.number().int().min(1).nullable(),
+  publicadoEn: TimestampSchema.nullable(),
+  publicadoPor: z.string().nullable(),
 });
-export type MenuItemDto = z.infer<typeof MenuItemSchema>;
+export type PlanoPublicadoDto = z.infer<typeof PlanoPublicadoSchema>;
 
-/** Un nombre de plato comparado como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
-const nombrePlato = (n: string) =>
-  n.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ");
-
-export const MenuSchema = z
-  .array(MenuItemSchema)
-  .min(1)
-  .refine((items) => new Set(items.map((i) => i.id)).size === items.length, "Dos platos con el mismo id")
-  .refine((items) => items.some((i) => !i.retiredAt), "La carta necesita al menos un plato sin retirar")
-  .superRefine((items, ctx) => {
-    // Dos platos en venta con el mismo nombre: el mesero no sabría cuál pedir.
-    // Los retirados no cuentan: un plato vuelve a la carta con otro precio.
-    const vistos = new Map<string, number>();
-    items.forEach((item, i) => {
-      if (item.retiredAt) return;
-      const clave = nombrePlato(item.name);
-      if (vistos.has(clave)) {
-        ctx.addIssue({ code: "custom", path: [i, "name"], message: `Ya hay un plato «${item.name}» en la carta` });
-      } else {
-        vistos.set(clave, i);
-      }
-    });
-  });
-export type MenuDto = z.infer<typeof MenuSchema>;
+/**
+ * Publicar un plano nuevo. `sobre` es la versión que se editó (`null` si no había ninguna): si otra
+ * persona publicó entre medias, choca en vez de pisarla. La hora de retirar una mesa la pone el
+ * servidor.
+ */
+export const PublicarPlanoCommandSchema = z.strictObject({
+  plano: PlanoLocalSchema,
+  sobre: z.number().int().min(1).nullable(),
+});
+export type PublicarPlanoCommand = z.infer<typeof PublicarPlanoCommandSchema>;

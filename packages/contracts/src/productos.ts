@@ -92,6 +92,11 @@ export const ProductoSchema = z
     presentacion: z.string().nullable(),
     /** Uno apartado no se ofrece en la caja. No se borra: lo vendido lo nombra. */
     activo: z.boolean(),
+    /**
+     * Si el mesero lo ofrece en las mesas (B6-1): la carta del restaurante es el catálogo con esta marca.
+     * La caja vende todo lo activo; las mesas, solo lo de la carta.
+     */
+    enCarta: z.boolean(),
     /** El calendario de precios, del más viejo al más nuevo. */
     precios: z.array(TramoPrecioSchema),
     /**
@@ -157,6 +162,8 @@ export const ProductoNuevoSchema = z
     precioMinor: PrecioMinorSchema,
     codigoBarras: CodigoBarrasSchema.optional(),
     presentacion: PresentacionSchema.optional(),
+    /** Si el mesero lo ofrece (B6-1). Sin decirlo: sí, salvo un servicio. */
+    enCarta: z.boolean().optional(),
   })
   .refine((p) => p.codigoBarras === undefined || p.tipo === "PRODUCTO", {
     message: "Solo un producto que se cuenta lleva código de barras",
@@ -185,6 +192,8 @@ export const ProductoCommandSchema = z.discriminatedUnion("kind", [
     presentacion: PresentacionSchema.nullable(),
   }),
   z.strictObject({ kind: z.literal("ACTIVAR"), productId: z.uuid("Producto desconocido"), activo: z.boolean() }),
+  /** Ponerlo en la carta de las mesas o quitarlo (B6-1). La caja lo sigue vendiendo si está activo. */
+  z.strictObject({ kind: z.literal("EN_CARTA"), productId: z.uuid("Producto desconocido"), enCarta: z.boolean() }),
   z.strictObject({
     kind: z.literal("PROGRAMAR_PRECIO"),
     productId: z.uuid("Producto desconocido"),

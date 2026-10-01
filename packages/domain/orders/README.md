@@ -17,6 +17,10 @@ ANULADO desde cualquiera de ellos, con motivo y autorización
   a la vista hasta que alguien en cocina confirma que la vio (FLUJOS C5).
 - **`nivelEspera`**: a tiempo, tarda o atrasada, con un umbral configurable (§8.5).
 
+- **El plano que se publica** (`plano.ts`, B6-1): `cambioDePlanoProblem` impide que una mesa desaparezca
+  (se retira; los cobros del pasado la nombran) y que se retire una mesa con su cuenta abierta;
+  `mesasRetiradas` dice cuáles se retiran en un cambio. La geometría la valida el contrato.
+
 ## Qué NO le corresponde
 
 - **El borrador del mesero.** Vive en su tablet y la cocina no lo ve. Esta máquina empieza al enviar.

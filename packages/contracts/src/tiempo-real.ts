@@ -44,6 +44,8 @@ export const TemaSchema = z.enum([
   "descuentos",
   /** Las impresoras, sus agentes y la cola de impresión (B5-2). */
   "impresion",
+  /** El plano del local: sus mesas y su estructura (B6-1). */
+  "plano",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 
