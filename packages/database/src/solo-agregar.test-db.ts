@@ -1082,7 +1082,7 @@ test("la existencia es la suma de movimientos inmutables, citados por su versió
   const mover = (t: typeof A, quantity: number, extra: Record<string, unknown> = {}) =>
     app.conTenant(t.tenant, (tx) =>
       tx.stockMovement.create({
-        data: { tenantId: t.tenant, branchId: t.sucursal, productId: p.id, quantity, kind: quantity < 0 ? "VENTA" : "DEVOLUCION", accountId: c.id, accountVersion: v1.version, at: new Date(), createdByName: "Marisol Prieto", ...extra } as never,
+        data: { tenantId: t.tenant, branchId: t.sucursal, productId: p.id, quantity, kind: quantity < 0 ? "VENTA" : "DEVOLUCION", valueMinor: 0n, accountId: c.id, accountVersion: v1.version, at: new Date(), createdByName: "Marisol Prieto", ...extra } as never,
       }),
     );
   // Sin existencia no sale: la última línea, aunque la aplicación se equivoque.
@@ -1100,4 +1100,45 @@ test("la existencia es la suma de movimientos inmutables, citados por su versió
   // B no ve ni cita lo de A.
   assert.equal(await app.conTenant(B.tenant, (tx) => tx.stockMovement.count({ where: { productId: p.id } })), 0);
   await assert.rejects(mover(B, 1), por("REFERENCIA_INVALIDA"));
+});
+
+test("una entrada de mercancía es inmutable; sus líneas dicen bultos × unidades y su costo (B9-3)", async () => {
+  const p = await producto(A, "Malta en caja");
+  const entrada = (t: typeof A, extra: Record<string, unknown> = {}) =>
+    app.conTenant(t.tenant, (tx) =>
+      tx.stockEntry.create({ data: { tenantId: t.tenant, branchId: t.sucursal, kind: "COMPRA", operationKey: randomUUID(), receivedAt: new Date(), createdByName: "Luis Guerrero", ...extra } as never }),
+    );
+  const e = await entrada(A, { supplier: "Distribuidora Polar", invoice: "0001" });
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.stockEntry.update({ where: { id: e.id }, data: { supplier: "Otra" } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.stockEntry.delete({ where: { id: e.id } })), SOLO_AGREGAR);
+  for (const extra of [{ kind: "REGALO" }, { supplier: " " }, { invoice: "" }, { createdByName: "X" }]) {
+    await assert.rejects(entrada(A, extra), por("RESTRICCION"), JSON.stringify(extra));
+  }
+  await assert.rejects(entrada(A, { operationKey: e.operationKey }), por("DUPLICADO")); // la misma clave
+
+  const linea = (extra: Record<string, unknown> = {}) =>
+    app.conTenant(A.tenant, (tx) =>
+      tx.stockMovement.create({
+        data: { tenantId: A.tenant, branchId: A.sucursal, productId: p.id, quantity: 48, kind: "ENTRADA", valueMinor: 2400n, entryId: e.id, packs: 2, packSize: 24, at: new Date(), createdByName: "Luis Guerrero", ...extra } as never,
+      }),
+    );
+  for (const extra of [
+    { quantity: 47 }, // no es bultos × unidades
+    { packs: null },
+    { valueMinor: -1n },
+    { valueMinor: 10_000_001n }, // más de $ 100.000,00
+    { packSize: 1001, quantity: 2002 },
+    { entryId: null },
+  ]) {
+    await assert.rejects(linea(extra), por("RESTRICCION"), JSON.stringify(extra, (_, v) => (typeof v === "bigint" ? String(v) : v)));
+  }
+  await linea();
+  await assert.rejects(linea(), por("DUPLICADO")); // una entrada recibe cada producto una vez
+  // B no cita la entrada de A.
+  await assert.rejects(
+    app.conTenant(B.tenant, (tx) =>
+      tx.stockMovement.create({ data: { tenantId: B.tenant, branchId: B.sucursal, productId: p.id, quantity: 1, kind: "ENTRADA", valueMinor: 0n, entryId: e.id, packs: 1, packSize: 1, at: new Date(), createdByName: "Luis Guerrero" } }),
+    ),
+    por("REFERENCIA_INVALIDA"),
+  );
 });

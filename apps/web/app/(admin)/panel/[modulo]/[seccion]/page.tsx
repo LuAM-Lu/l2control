@@ -21,6 +21,8 @@ import { FeriadosScreen } from "../../../../../src/features/cash/FeriadosScreen"
 import { feriadosDelLocal } from "../../../../../src/features/cash/feriados.servidor";
 import { ProductosScreen } from "../../../../../src/features/inventario/ProductosScreen";
 import { catalogoDelLocal } from "../../../../../src/features/inventario/productos.servidor";
+import { EntradasScreen } from "../../../../../src/features/inventario/EntradasScreen";
+import { entradasDelLocal } from "../../../../../src/features/inventario/entradas.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -43,6 +45,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
   "ajustes/sucursal": () => <EditorSucursal />,
   "inventario/productos": async () => <ProductosScreen catalogo={await catalogoDelLocal()} />,
+  "inventario/entradas": async () => <EntradasScreen catalogo={await catalogoDelLocal()} entradas={await entradasDelLocal()} />,
 };
 
 /**

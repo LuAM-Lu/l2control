@@ -1,7 +1,7 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.33.0",
+  "version": "0.34.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Etapa 9 · Inventario",

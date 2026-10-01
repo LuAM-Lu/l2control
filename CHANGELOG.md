@@ -12,6 +12,24 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.34.0] — 2026-09-30 · Etapa 9 · Inventario
+
+B9-3 · Entradas de mercancía y costo promedio ponderado.
+
+### Añadido
+- **Inventario → Entradas de mercancía.** Lo que llega se carga de una vez: una compra a un proveedor (con su
+  factura, si la hay) o una reposición del depósito, con uno o varios productos. Cada línea dice cuántos bultos de
+  cuántas unidades y lo que costó el bulto, en dólares: se compra la caja de 24 y se vende la unidad. La pantalla
+  propone las unidades del último bulto y dice lo que entra, lo que cuesta cada unidad y el promedio de hoy.
+- **El costo promedio ponderado de cada producto**, como lo calcula el contador, y su **margen** sobre el precio,
+  en la ficha del producto, que además dice cuántas quedan y tiene «Cargar entrada».
+- Un permiso nuevo, «Cargar entradas de mercancía» (administración y supervisión), que se ajusta en Roles y accesos.
+- Cada entrada queda con quién la recibió y cuándo, y no se edita ni se borra.
+
+### Cambiado
+- Lo que llega vuelve a estar a la venta en la caja en el acto, en todos los equipos.
+- «Compras y mermas» se parte en «Entradas de mercancía» y «Salidas y conteo» (llega con el paso siguiente).
+
 ## [0.33.0] — 2026-09-30 · Etapa 9 · Inventario
 
 B9-2 · Existencias en tiempo real, de solo-agregar.
@@ -25,7 +43,7 @@ B9-2 · Existencias en tiempo real, de solo-agregar.
 - Cada movimiento queda guardado con la cuenta que lo causó y quién: la existencia es su suma, y no se edita.
 
 ### Cambiado
-- Hasta cargar la primera entrada de mercancía (B9-3), lo que lleva existencia sale «Agotado».
+- Lo que lleva existencia sale «Agotado» hasta que se carga su primera entrada de mercancía.
 
 ## [0.32.0] — 2026-09-30 · Etapa 4 · Parque
 

@@ -4,8 +4,7 @@
  * Con reloj fijo (domingo 27 de septiembre de 2026, 10:00 am en Caracas): el precio del catálogo y el
  * IVA del cobro dependen de él. Corre con `pnpm test:db`.
  *
- * Hasta B9-3 no hay entrada de mercancía: `cargar` mete la existencia de partida con un movimiento
- * escrito directamente en la base (una devolución citando una cuenta de prueba).
+ * La existencia de partida entra con una entrada de mercancía (B9-3), como en el local.
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -60,23 +59,14 @@ const existencia = async (nombre: string) => valor({ ok: true, valor: await loca
 const movimientosDe = (accountId: string) =>
   local.base.conTenant(local.sistema.tenantId, (tx) => tx.stockMovement.findMany({ where: { accountId }, orderBy: [{ accountVersion: "asc" }, { productId: "asc" }] }));
 
-/** Mete `n` unidades de partida (hasta B9-3, que trae la entrada de mercancía). */
+/** Mete `n` unidades de partida con una reposición, a $ 0,50 cada una. */
 async function cargar(nombre: string, n: number): Promise<void> {
-  const soporte = await abrir(mostrador([linea("Café")]));
-  await local.base.conTenant(local.sistema.tenantId, (tx) =>
-    tx.stockMovement.create({
-      data: {
-        tenantId: local.sistema.tenantId,
-        branchId: local.sistema.branchId,
-        productId: ids[nombre]!,
-        quantity: n,
-        kind: "DEVOLUCION",
-        accountId: soporte.id,
-        accountVersion: soporte.version!,
-        at: new Date(AHORA),
-        createdByName: "Prueba de existencias",
-      },
-    }),
+  valor(
+    await local.app.entradas.registrar(
+      local.sistema,
+      { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids[nombre]!, bultos: n, unidadesPorBulto: 1, costoBultoMinor: "50" }] },
+      AHORA - MIN,
+    ),
   );
 }
 

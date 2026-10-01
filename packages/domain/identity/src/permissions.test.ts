@@ -96,6 +96,9 @@ describe("pruebas NEGATIVAS: cada ❌ de la matriz devuelve DENEGADO", () => {
     ["CAJERO", "tasa.confirmar"],
     ["SUPERVISOR", "catalogo.modificar"],
     ["CAJERO", "inventario.ajustar"],
+    // B9-3: recibe la mercancía quien recibe al proveedor, no la caja ni el salón.
+    ["CAJERO", "inventario.entrada"],
+    ["MESERO", "inventario.entrada"],
     ["MESERO", "reportes.verSucursal"],
     ["SUPERVISOR", "reportes.verTodas"],
     ["SUPERVISOR", "usuarios.gestionar"],
@@ -108,6 +111,11 @@ describe("pruebas NEGATIVAS: cada ❌ de la matriz devuelve DENEGADO", () => {
       assert.equal(isReachable(actor(rol), accion), false);
     });
   }
+});
+
+test("supervisión carga entradas de mercancía sin pedir autorización (B9-3)", () => {
+  assert.equal(can(actor("SUPERVISOR"), "inventario.entrada"), "PERMITIDO");
+  assert.equal(can(actor("ADMIN"), "inventario.entrada"), "PERMITIDO");
 });
 
 describe("las operaciones sensibles exigen autorización, no se deniegan", () => {

@@ -63,6 +63,7 @@ model Branch {
   outbox         OutboxEvent[]
   settings       BranchSettingsVersion[]
   stockMovements StockMovement[]
+  stockEntries   StockEntry[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -1065,11 +1066,19 @@ model StockMovement {
   productId      String   @map("product_id") @db.Uuid
   /// Positivo entra, negativo sale. Nunca cero (CHECK).
   quantity       Int
-  /// VENTA o DEVOLUCION (CHECK). B9-3 y B9-4 añaden los suyos.
+  /// VENTA, DEVOLUCION o ENTRADA (CHECK). B9-4 añade los suyos.
   kind           String
+  /// Lo que vale el movimiento al costo, en centavos de dólar (B9-3): una ENTRADA, lo que costó; una
+  /// VENTA, lo que sale al costo promedio (negativo); una DEVOLUCION, lo que la cuenta había sacado.
+  /// La suma es el valor del inventario, y valor entre unidades, el costo promedio ponderado.
+  valueMinor     BigInt   @map("value_minor")
   /// La cuenta y la versión que lo causaron (VENTA y DEVOLUCION).
   accountId      String?  @map("account_id") @db.Uuid
   accountVersion Int?     @map("account_version")
+  /// La entrada de mercancía (ENTRADA), con cómo se compró: tantos bultos de tantas unidades.
+  entryId        String?  @map("entry_id") @db.Uuid
+  packs          Int?
+  packSize       Int?     @map("pack_size")
   at             DateTime @db.Timestamptz(3)
   createdBy      String?  @map("created_by") @db.Uuid
   createdByName  String   @map("created_by_name")
@@ -1078,10 +1087,39 @@ model StockMovement {
   branch  Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   product Product         @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   causa   AccountVersion? @relation(fields: [tenantId, accountId, accountVersion], references: [tenantId, accountId, version], onDelete: Restrict, onUpdate: Restrict)
+  entrada StockEntry?     @relation(fields: [tenantId, entryId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   /// Una versión de una cuenta mueve cada producto una sola vez: un reintento tropieza aquí.
   @@unique([tenantId, accountId, accountVersion, productId])
+  /// Una entrada recibe cada producto una vez.
+  @@unique([tenantId, entryId, productId])
   @@index([tenantId, branchId, productId])
   @@map("stock_movement")
+}
+
+/// Una entrada de mercancía (B9-3, F8-06): lo que llegó de una vez, con proveedor y factura si los
+/// hay. Sus líneas son movimientos ENTRADA. Solo-agregar: un error se corrige con otro movimiento.
+model StockEntry {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  /// COMPRA o REPOSICION (CHECK).
+  kind          String
+  supplier      String?
+  invoice       String?
+  /// La clave del navegador: un doble clic no carga dos veces la misma entrada.
+  operationKey  String   @map("operation_key") @db.Uuid
+  receivedAt    DateTime @map("received_at") @db.Timestamptz(3)
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+  deviceId      String?  @map("device_id") @db.Uuid
+
+  branch    Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  movements StockMovement[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, branchId, receivedAt])
+  @@map("stock_entry")
 }

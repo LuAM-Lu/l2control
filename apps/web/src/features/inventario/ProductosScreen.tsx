@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, CheckCircle2, History, PackageOpen, Plus, Search } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, History, PackageOpen, PackagePlus, PackageX, Plus, Search } from "lucide-react";
+import Link from "next/link";
+import type { Route } from "next";
 import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCode, TaxCodeDelCatalogo } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { categoriesOf, nameKey, periodAt } from "@l2/domain-inventory";
+import { categoriesOf, marginBasisPoints, nameKey, periodAt } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { convert, invertRate, money, toMajor, type Money } from "@l2/domain-money";
 import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
@@ -330,7 +332,7 @@ function CamposDelProducto({
         <input id={`${prefijo}-stock`} type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand)]" checked={controlaStock} disabled={deshabilitado} onChange={(e) => setControlaStock(e.target.checked)} />
         <span className="flex flex-col">
           <span className="text-[13.5px] font-semibold text-ink">Lleva existencia</span>
-          <span className="text-[12px] text-ink-3">Se descuenta al venderlo (cuando llegue el inventario). Un café hecho al momento, no.</span>
+          <span className="text-[12px] text-ink-3">Se descuenta al venderlo y, sin existencia, no se vende. Un café hecho al momento, no.</span>
         </span>
       </label>
     </>
@@ -566,6 +568,7 @@ function FichaProducto({
       }
     >
       <div className="flex flex-col gap-5">
+        {producto.controlaStock && <Existencia producto={producto} ahora={ahora} />}
         <section aria-label="Precio" className="flex flex-col gap-3">
           <h3 className="font-display text-[14px] font-bold text-ink">Precio</h3>
           <ul className="flex flex-col divide-y divide-line rounded-[var(--radius-control)] border border-line">
@@ -687,4 +690,60 @@ function existenciaEnPalabras(p: Pick<ProductoDto, "existencia">): string {
   if (p.existencia === null) return "sin existencia";
   if (p.existencia === 0) return "agotado: no se vende";
   return p.existencia === 1 ? "queda 1" : `quedan ${p.existencia}`;
+}
+
+const PORCENTAJE = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/**
+ * Lo que queda, lo que cuesta y lo que deja (B9-2, B9-3): la existencia de la sucursal, el costo
+ * promedio ponderado y el margen sobre el precio de hoy. Desde aquí se carga su entrada.
+ */
+function Existencia({ producto, ahora }: { producto: ProductoDto; ahora: number | null }) {
+  const actor = useActorEnSesion();
+  const puedeRecibir = actor !== null && can(actor, "inventario.entrada") !== "DENEGADO";
+  const tramo = ahora === null ? undefined : periodAt(periodosDe([producto]), producto.id, ahora);
+  const costo = producto.costoPromedio ? BigInt(producto.costoPromedio.minor) : null;
+  const margen = tramo ? marginBasisPoints(tramo.amountMinor, costo) : null;
+  const agotado = producto.existencia === 0;
+  return (
+    <section aria-label="Existencia" className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-display text-[14px] font-bold text-ink">Existencia</h3>
+        {puedeRecibir && (
+          <Link
+            href={`/panel/inventario/entradas?producto=${producto.id}` as Route}
+            className="flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-line px-2.5 text-[13px] font-semibold text-ink no-underline hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand"
+          >
+            <PackagePlus size={14} aria-hidden="true" />
+            Cargar entrada
+          </Link>
+        )}
+      </div>
+      <dl className="grid grid-cols-3 gap-2 rounded-[var(--radius-control)] border border-line px-3 py-2.5">
+        <div className="flex flex-col gap-0.5">
+          <dt className={ETIQUETA}>Quedan</dt>
+          <dd className={cn("tnum flex items-center gap-1 text-[16px] font-bold", agotado ? "text-ink-2" : "text-ink")}>
+            {agotado && <PackageX size={15} aria-hidden="true" />}
+            {agotado ? "Agotado" : producto.existencia}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className={ETIQUETA}>Costo promedio</dt>
+          <dd className="tnum text-[16px] font-bold text-ink">{costo === null ? <span className="text-[13px] font-normal text-ink-3">Sin existencia</span> : usd(money(costo, "USD"))}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className={ETIQUETA}>Margen</dt>
+          <dd className={cn("tnum text-[16px] font-bold", margen !== null && margen < 0 ? "text-state-crit" : "text-ink")}>
+            {margen === null ? <span className="text-[13px] font-normal text-ink-3">—</span> : `${PORCENTAJE.format(margen / 100)} %`}
+          </dd>
+        </div>
+      </dl>
+      {margen !== null && margen < 0 && (
+        <p className="flex items-center gap-1.5 text-[12.5px] text-state-crit">
+          <AlertTriangle size={13} aria-hidden="true" />
+          Se vende por debajo de lo que cuesta.
+        </p>
+      )}
+    </section>
+  );
 }

@@ -44,6 +44,7 @@ export type Action =
   | "tasa.confirmar"
   | "catalogo.modificar"
   | "inventario.ajustar"
+  | "inventario.entrada"
   | "reportes.verSucursal"
   | "reportes.verTodas"
   | "usuarios.gestionar"
@@ -129,6 +130,9 @@ export const MATRIZ: Matriz = Object.freeze({
   "tasa.confirmar": fila(P, A, D, D, D, D),
   "catalogo.modificar": fila(P, D, D, D, D, D),
   "inventario.ajustar": fila(P, A, D, D, D, D),
+  // B9-3: recibir mercancía (compra o reposición) no es un ajuste: entra lo que llegó, con su costo.
+  // Lo hace quien recibe al proveedor; cada entrada queda con su autor y no se edita.
+  "inventario.entrada": fila(P, P, D, D, D, D),
 
   "reportes.verSucursal": fila(P, P, D, D, D, D),
   "reportes.verTodas": fila(P, D, D, D, D, D),

@@ -25,6 +25,7 @@ import {
 } from "@l2/contracts";
 import { addDays, calendarDay, startOfDay } from "@l2/domain-rates";
 import {
+  averageUnitCostMinor,
   changesTimeline,
   nameClash,
   periodAt,
@@ -32,6 +33,7 @@ import {
   priceTimeline,
   type PriceProblem,
   type ScheduledPrice,
+  type StockValue,
 } from "@l2/domain-inventory";
 import { errorDeBase, type Base, type Product, type ProductPrice, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
@@ -71,6 +73,14 @@ export function casosProductos(base: Base): CasosProductos {
     const productos = await tx.product.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
     const precios = await tx.productPrice.findMany({ orderBy: { scheduledAt: "asc" } });
     const existencias = await existenciasDe(tx, branchId);
+    // Cómo venía el bulto de la última entrada de cada producto: la pantalla de entradas lo propone.
+    const ultimas = await tx.stockMovement.findMany({
+      where: { branchId, kind: "ENTRADA" },
+      orderBy: { at: "desc" },
+      distinct: ["productId"],
+      select: { productId: true, packSize: true },
+    });
+    const bulto = new Map(ultimas.map((u) => [u.productId, u.packSize]));
     // Se revalida al salir: lo que no cumple el contrato no llega a la caja (fail-closed).
     return CatalogoSchema.parse({
       productos: productos.map((p) => ({
@@ -81,7 +91,9 @@ export function casosProductos(base: Base): CasosProductos {
         controlaStock: p.tracksStock,
         activo: p.active,
         precios: tramosDe(precios.filter((x) => x.productId === p.id)),
-        existencia: p.tracksStock ? (existencias.get(p.id) ?? 0) : null,
+        existencia: p.tracksStock ? (existencias.get(p.id)?.quantity ?? 0) : null,
+        costoPromedio: costoDe(p.tracksStock ? existencias.get(p.id) : undefined),
+        ultimoBulto: bulto.get(p.id) ?? null,
       })),
       zonaHoraria: await zonaDe(tx, branchId),
       diasPorAdelantado: DIAS_POR_ADELANTADO_PRECIOS,
@@ -294,4 +306,10 @@ function tramosDe(filas: readonly ProductPrice[]) {
       programadoPor: f.scheduledByName,
     };
   });
+}
+
+/** El costo promedio de una unidad para enseñarlo (B9-3), o `null` sin existencia. */
+function costoDe(v: StockValue | undefined) {
+  const minor = v ? averageUnitCostMinor(v) : null;
+  return minor === null ? null : { minor: String(minor), currency: "USD" as const };
 }

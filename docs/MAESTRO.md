@@ -31,9 +31,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.33.0 · 33 de 55 pasos.** **La existencia es de la base (B9-2, en `feat/b9-2`):** sale cuando un producto
-entra en una cuenta, vuelve cuando se quita sin pagar y **sin existencia no se vende** (ADR-023); la caja enseña
-«Quedan N» y «Agotado». Hasta B9-3 no hay cómo cargarla: la rama pasa a `main` con B9-3. **El Parque está cerrado (B4-5):** la monitora trabaja en el teléfono
+**Versión 0.34.0 · 34 de 55 pasos.** **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
+de movimientos de solo-agregar; sale cuando un producto entra en una cuenta, vuelve cuando se quita sin pagar y **sin
+existencia no se vende** (ADR-023): la caja enseña «Quedan N» y «Agotado». Lo que llega se carga en Inventario →
+Entradas de mercancía (compra o reposición, por bultos de tantas unidades a tanto el bulto), y cada producto tiene su
+**costo promedio ponderado** y su margen en Productos. **El Parque está cerrado (B4-5):** la monitora trabaja en el teléfono
 (entrada, sala y salida sin desplazar la página), la cámara lee las pulseras y una pulsera sirve para una sola
 visita; la serie (prefijo y longitud) se fija en Ajustes → Sucursal con el primer lote. **Los ajustes de la sucursal son del servidor (B4-4):** nombre, RIF,
 dirección, horario, formato de hora, zona horaria, residuo, umbral del arqueo y horas de una huérfana se
@@ -70,8 +72,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (78 de base, 313 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  45 de impuestos, 105 de caja, 37 del parque, 27 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (79 de base, 321 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  45 de impuestos, 105 de caja, 37 del parque, 34 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -193,8 +195,15 @@ cuentas #0027 a #0029 quedaron **incobrables** («Otro: datos de prueba», autor
 publicó los ajustes 3 (serie «PB45-» de 9 caracteres) y 4 (de vuelta a sin serie): rige sin serie hasta el primer
 lote. Equipos «Prueba B45 …» revocados. Queda una cuenta pendiente, del cliente.
 
-**Siguiente paso:** **B9-3** (entradas de mercancía con costo promedio), en la misma rama `feat/b9-2`: sin ella,
-lo que lleva existencia no se puede vender. Las dos pasan juntas a `main`.
+**El inventario en la base local (2026-09-30, al comprobar B9-2 y B9-3).** Las migraciones `20261014000000_existencias`
+y `20261015000000_entradas_de_mercancia` están aplicadas a la base del cliente (tablas nuevas y columnas que admiten
+nulos; no había movimientos). Los productos del cliente que llevan existencia salen **«Agotado»** hasta que se cargue
+su primera entrada. Abigail Karam creó «Prueba B93 Refresco» (categoría «Prueba», $ 1,50) y le cargó dos compras (48 a
+$ 0,50 de «Distribuidora de Prueba», factura P-0001, y 24 a $ 0,80): quedan 72 a $ 0,60 de costo promedio. Una venta
+de mostrador de una (#0030) la descontó y se descartó sin cobrar (vuelve). El producto está **apartado** (la caja no
+lo ofrece) y sus entradas no se borran. Equipos «Prueba B92 Admin» y «Prueba B93 Admin» revocados.
+
+**Siguiente paso:** **B9-4** (salidas y ajustes con motivo y 🔐, y conteo físico).
 
 ---
 
@@ -283,7 +292,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. ~~B9-2~~ → **B9-3** → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
+4. ~~B9-2~~ → ~~B9-3~~ → **B9-4** → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1130,7 +1139,7 @@ antes del cobro en servidor (orden de ejecución).
   se vende**, ni en la caja ni en la tablet del mesero; los servicios no llevan existencia.
   → Toda diferencia de existencia tiene un movimiento que la explica. Un doble clic no descuenta dos veces
   y dos ventas a la vez no venden la última unidad dos veces.
-  *Hecho el 2026-09-30 (v0.33.0) en `feat/b9-2`; pasa a `main` con B9-3, porque sin entradas lo que lleva existencia
+  *Hecho el 2026-09-30 (v0.33.0) en `feat/b9-2`; pasó a `main` con B9-3, porque sin entradas lo que lleva existencia
   no se vende.*
   *· Base: `20261014000000_existencias`: `stock_movement` (VENTA o DEVOLUCION con su cuenta y versión, cantidad
   entera distinta de cero, FK compuestas con el tenant a la sucursal, al producto y a la versión de la cuenta, única
@@ -1154,12 +1163,41 @@ antes del cobro en servidor (orden de ejecución).
   *· Comprobado en el navegador: la carta de la caja con los siete productos de la base que llevan existencia
   «Agotado» y deshabilitados, y Productos con «agotado: no se vende»; sin errores de consola. Vender lo que lleva
   existencia se comprueba con B9-3, que trae la entrada.*
-- [ ] **B9-3 · Entradas de mercancía y costo promedio ponderado** (F8-06, F8-01): una carga de **varias
+- [x] **B9-3 · Entradas de mercancía y costo promedio ponderado** (F8-06, F8-01): una carga de **varias
   líneas** (compra o reposición, con proveedor y factura opcionales) o de un producto suelto, cada línea
   con cantidad y costo en $, y conversiones de unidad (se compra la caja de 24, se vende la unidad). El
   margen de lo vendido sale del costo promedio. Sin insumos de cocina (después del piloto, M-15).
   → El costo tras dos compras a precios distintos coincide con el cálculo del contador; comprar por caja
   y vender por unidad cuadra.
+  *Hecho el 2026-09-30 (v0.34.0), con B9-2 en la misma rama.*
+  *· Base: `20261015000000_entradas_de_mercancia`: `stock_entry` (COMPRA o REPOSICION, proveedor y factura que pueden
+  faltar, clave de idempotencia única, solo-agregar, RLS) y en `stock_movement` el **valor al costo** (`value_minor`,
+  la suma es el valor del inventario), la entrada y cómo se compró (`packs` × `pack_size` = unidades, CHECK); el tipo
+  pasa a VENTA, DEVOLUCION o ENTRADA, cada uno con lo suyo, y hasta $ 100.000,00 por línea. 1 prueba nueva.*
+  *· Permiso nuevo `inventario.entrada` (administración y supervisión, sin elevación: se recibe con el proveedor
+  delante), en Roles y accesos como «Cargar entradas de mercancía». 3 pruebas.*
+  *· Contrato: `RegistrarEntradaCommandSchema` (clave, tipo, proveedor y factura opcionales, de 1 a 60 líneas con
+  bultos, unidades por bulto y costo del bulto en centavos, cada producto una vez), `EntradaSchema`/`EntradasSchema`;
+  el producto trae `costoPromedio` (solo con existencia) y `ultimoBulto`. 3 pruebas.*
+  *· Dominio (`costo.ts`): costo promedio ponderado perpetuo llevando el valor, con la aritmética de `@l2/domain-money`:
+  `costOfUnits` (la venta se lleva su parte proporcional; la última, lo que quede), `costOfReturn`,
+  `averageUnitCostMinor`, `marginBasisPoints`, `entryLineProblem` y `entryLineTotals`. 7 pruebas, con los dos criterios.*
+  *· Aplicación: `entradas` (`leer` y `registrar`, con `inventario.entrada`, la clave, el candado de cada producto, el
+  asiento `inventario.entrada` con tema `catalogo` y el rechazo por permiso auditado; lo que no lleva existencia no
+  entra). La venta guarda su valor al costo promedio y la devolución lo que su cuenta sacó. 8 pruebas contra la base:
+  la compra de varias líneas, dos compras = el cálculo del contador ($ 0,60), doble clic y dos a la vez, lo que no
+  entra (nada a medias), permisos, aislamiento, la caja de 24 vendida por unidad deja el valor en cero, y vender y
+  devolver no cambia el costo. Las de B9-2 cargan su existencia con entradas reales.*
+  *· Web: Inventario → **Entradas de mercancía** (la lista con tipo, proveedor, factura, líneas, total, cuándo y quién;
+  «Nueva entrada» con compra o reposición, líneas de producto, bultos, unidades por bulto que propone la última y
+  costo del bulto, con lo que entra, el costo por unidad y el promedio de hoy). La ficha del producto dice cuántas
+  quedan, su costo promedio y su margen, y «Cargar entrada» abre la hoja con él. «Compras y mermas» se parte en
+  Entradas (B9-3) y Salidas y conteo (B9-4).*
+  *· Comprobado en el navegador: dos entradas de «Prueba B93 Refresco» (48 a $ 0,50 y 24 a $ 0,80): 72 a $ 0,60 y
+  margen 60,0 %; la caja ofrece «Quedan 72» y una venta de mostrador la deja en 71 (la ficha lo dice en vivo); al
+  descartarla vuelve a 72 con el mismo costo. Entradas, la hoja con dos líneas y la ficha a 1366×768, 1280×800 y
+  800×1280 sin desplazar el documento ni desbordar (la hoja desplaza su zona con dos líneas); sin errores de consola.
+  Sin turno abierto la caja no deja tocar el ticket: el «+» que no pide más de lo que queda lo cubre el tipado.*
 - [ ] **B9-4 · Salidas y ajustes con motivo de lista cerrada y 🔐, y conteo físico** (F8-07): merma o
   daño, consumo interno, regalo y devolución al proveedor; se cuenta, se ve la diferencia y se ajusta con
   autorización.
@@ -1297,6 +1335,9 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | `outbox_event` crece con cada asiento; purgar lo publicado de más de unos días (con el migrador) no está escrito | Runbook (B8-2) |
 | En `pnpm dev`, turbo para todo si una tarea se cae: sin Valkey el worker no arranca y la web tampoco queda | Aceptado (en producción son dos procesos) |
 | El bus del restaurante declara nombres de quien autoriza o ve una anulación (`pedido.*`), como antes | B6-2 |
+| Anular un cobro deja sus líneas por cobrar: lo no entregado vuelve al estante al quitar su línea, no al anular (ADR-023, situación) | Aceptado |
+| Las ventas de antes de B9-3 valen cero al costo, y la venta cobrada no guarda su margen: el margen por producto vendido (F9-04) sale de los movimientos | F9-04 (después del piloto) |
+| Una entrada mal cargada no se corrige todavía: hace falta el ajuste con motivo | B9-4 |
 | El horario de la sucursal se declara pero todavía no decide nada (p. ej., avisar de un turno abierto fuera de hora) | Cuando el cliente lo pida |
 | Las migas del panel dicen «Abby Kingdom» escrito en cada pantalla (Sucursal ya lee el nombre del local) | Al pasar por cada pantalla |
 | El campo de hora del horario lo pinta el navegador en su idioma («10:00 a. m.») aunque el local use 24 h | Aceptado |
@@ -1362,7 +1403,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | **Catálogo de productos en el servidor** (B9-1) | Existencias, entradas con costo, salidas y alertas (B9-2 a B9-5); recetas después del piloto (B6-4) |
+| F8 · Inventario | **Catálogo, existencias y entradas con costo promedio en el servidor** (B9-1 a B9-3) | Salidas, ajustes y conteo (B9-4) y alertas (B9-5); recetas después del piloto (B6-4) |
 | F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1) | Los informes, después del piloto |
 | F10 y F11 | Sin empezar | Etapas 7 y 8: VPS con internet de respaldo en el local (ADR-021) |
 
@@ -1468,6 +1509,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   el parque en el teléfono, comprobado con una cámara falsa. Faltan el editor de la serie y pulir el teléfono. Handoff.
 - **2026-09-30** · B4-5 hecho (v0.32.0): la serie de pulseras en Ajustes → Sucursal y el teléfono pulido (sala en
   baldosas, paquetes en 2×2); se cierra la Etapa 4, el Parque. Sigue B9-2.
+- **2026-09-30** · B9-2 (v0.33.0) y B9-3 (v0.34.0) hechos en `feat/b9-2` y pasados juntos a `main`: lo que no hay no
+  se vende, la existencia es la suma de movimientos y las entradas de mercancía dan el costo promedio ponderado.
+  Permiso nuevo `inventario.entrada`. Sigue B9-4.
 
 ---
 

@@ -76,10 +76,21 @@ export const ProductoSchema = z
      * si no lleva existencia. Lo que una cuenta abierta ya tiene, ya salió (ADR-023).
      */
     existencia: z.number().int().min(0, "La existencia no baja de cero").nullable(),
+    /**
+     * El costo promedio ponderado de una unidad (B9-3), redondeado al céntimo para enseñarlo: el valor
+     * al costo de lo que queda entre sus unidades. `null` sin existencia o si no la lleva.
+     */
+    costoPromedio: MoneySchema.nullable(),
+    /** Cuántas unidades traía el bulto de la última entrada: la pantalla de entradas lo propone. */
+    ultimoBulto: z.number().int().min(1).nullable(),
   })
   .refine((p) => (p.existencia === null) === !p.controlaStock, {
     message: "Solo lleva existencia lo que controla stock",
     path: ["existencia"],
+  })
+  .refine((p) => p.costoPromedio === null || (p.existencia !== null && p.existencia > 0), {
+    message: "Sin existencia no hay costo promedio",
+    path: ["costoPromedio"],
   });
 export type ProductoDto = z.infer<typeof ProductoSchema>;
 

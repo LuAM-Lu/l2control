@@ -58,6 +58,7 @@ export type AccionAuditada =
   | "producto.activar"
   | "producto.apartar"
   | "existencia.mover"
+  | "inventario.entrada"
   | "precio.programar"
   | "feriado.registrar"
   | "feriado.retirar"

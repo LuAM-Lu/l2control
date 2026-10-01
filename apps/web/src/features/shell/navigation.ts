@@ -211,12 +211,20 @@ export const MODULOS: readonly Modulo[] = [
         necesita: "Insumos y carta.",
       },
       {
-        id: "compras",
-        nombre: "Compras y mermas",
+        id: "entradas",
+        nombre: "Entradas de mercancía",
+        href: rutaSeccion("inventario", "entradas"),
+        proposito:
+          "Lo que llega, por compra o reposición: bultos de tantas unidades a tanto el bulto. Sube la existencia y da el costo promedio de cada producto.",
+        tarea: "F8-06",
+      },
+      {
+        id: "mermas",
+        nombre: "Salidas y conteo",
         href: null,
         proposito:
-          "Entradas por compra y salidas por merma, ambas como asientos: nada se edita, todo se corrige con otro movimiento.",
-        tarea: "F8-06",
+          "Merma, consumo interno, regalo y devolución al proveedor, con motivo y autorización, y el conteo físico.",
+        tarea: "F8-07",
       },
     ],
   },
@@ -355,6 +363,8 @@ export const RUTAS_MOVIDAS: Readonly<Record<string, Route>> = {
   personas: rutaModulo("ajustes"),
   configuracion: rutaModulo("ajustes"),
   "personas/representantes": rutaSeccion("parque", "representantes"),
+  // B9-3: «Compras y mermas» se partió en entradas (B9-3) y salidas con conteo (B9-4).
+  "inventario/compras": rutaSeccion("inventario", "entradas"),
   "personas/usuarios": rutaSeccion("ajustes", "usuarios"),
   "personas/dispositivos": rutaSeccion("ajustes", "dispositivos"),
   "configuracion/accesos": rutaSeccion("ajustes", "accesos"),

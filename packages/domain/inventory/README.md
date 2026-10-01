@@ -2,7 +2,7 @@
 
 Inventario (F8, Etapa 9). Módulo puro: sin base, sin red y sin reloj propio.
 
-## Qué resuelve hoy (B9-1)
+## Qué resuelve hoy (B9-1 a B9-3)
 
 El **catálogo de productos** de venta directa y de consumo en cuenta (F8-02):
 
@@ -23,6 +23,19 @@ Y las **existencias** (B9-2, ADR-023):
 | `stockMovesOf` | Qué movimientos causa pasar de una versión de la cuenta a la siguiente, solo de lo que lleva existencia, ordenados por producto (el orden de los candados) |
 | `stockShortfalls` | Lo que no alcanza: sin existencia no se vende, y lo que no se sabe que hay, no hay |
 
+Y el **costo** (B9-3, costo promedio ponderado perpetuo):
+
+| Función | Qué decide |
+|---|---|
+| `entryLineProblem`, `entryLineTotals` | Una línea de entrada: tantos bultos de tantas unidades a tanto el bulto (se compra la caja de 24, se vende la unidad), con sus topes; lo regalado (costo cero) entra |
+| `costOfUnits` | El valor al costo que se lleva una venta: su parte proporcional del valor del inventario; la última unidad se lleva lo que quede, al céntimo |
+| `costOfReturn` | Lo que vuelve cuando una cuenta devuelve lo que sacó: su parte de lo que se llevó, para que el costo promedio no cambie |
+| `averageUnitCostMinor`, `marginBasisPoints` | El costo promedio de una unidad y el margen sobre el precio, para enseñarlos |
+
+Se lleva el **valor** del inventario (no un costo unitario redondeado): tras dos compras el costo es
+(c₁ + c₂) / (q₁ + q₂), como lo calcula el contador, y vendido todo el valor queda en cero. La aritmética
+es de `@l2/domain-money` (`multiplyByRate`).
+
 La regla que lo ordena: **el precio es un dato con fecha**. Cambiarlo programa el tramo siguiente;
 lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al venderse).
 
@@ -38,5 +51,5 @@ lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al
 
 ## Lo que llega después
 
-Compras con costo promedio ponderado y conversiones de unidad (B9-3), ajustes con motivo y conteo físico (B9-4) y alertas de stock crítico (B9-5). Las
+Ajustes con motivo y conteo físico (B9-4) y alertas de stock crítico (B9-5). Las
 recetas y la descarga al marcar LISTO van con el restaurante (B6-4).

@@ -152,6 +152,20 @@ export {
 } from "./productos.ts";
 
 export {
+  TipoEntradaSchema,
+  CostoMinorSchema,
+  LineaEntradaSchema,
+  RegistrarEntradaCommandSchema,
+  EntradaSchema,
+  EntradasSchema,
+  type TipoEntrada,
+  type LineaEntradaDto,
+  type RegistrarEntradaCommand,
+  type EntradaDto,
+  type EntradasDto,
+} from "./entradas.ts";
+
+export {
   OficioImpresoraSchema,
   AnchoPapelSchema,
   IpLocalSchema,

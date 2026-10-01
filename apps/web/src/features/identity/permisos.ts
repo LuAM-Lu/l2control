@@ -65,6 +65,7 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "tasa.confirmar": { etiqueta: "Confirmar la tasa del día", area: "Administración" },
   "catalogo.modificar": { etiqueta: "Modificar carta y tarifas", area: "Administración" },
   "inventario.ajustar": { etiqueta: "Ajustar inventario", area: "Administración" },
+  "inventario.entrada": { etiqueta: "Cargar entradas de mercancía", area: "Administración" },
   "reportes.verSucursal": { etiqueta: "Reportes de la sucursal", area: "Administración" },
   "reportes.verTodas": { etiqueta: "Reportes de todas las sucursales", area: "Administración" },
   "usuarios.gestionar": { etiqueta: "Gestionar usuarios y permisos", area: "Administración" },
