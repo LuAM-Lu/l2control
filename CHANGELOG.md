@@ -12,6 +12,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.32.0] — 2026-09-30 · Etapa 4 · Parque
+
+B4-5 · La monitora en el teléfono y las pulseras de un solo uso. Se cierra el Parque.
+
+### Añadido
+- **La cámara lee las pulseras** (QR y código de barras) en la entrada, la sala y la salida: con el lector
+  del navegador o, si el teléfono no lo trae, con uno de respaldo que se carga solo cuando hace falta. El
+  lector Bluetooth en modo teclado sigue valiendo igual.
+- **Una pulsera sirve para una sola visita.** Una ya usada se rechaza al pasarla («ya se usó en otra
+  visita: pon una nueva») y el servidor no deja registrarla.
+- **La serie de las pulseras** en Ajustes → Sucursal: prefijo y longitud, sin fijar hasta el primer lote.
+  Con la serie fijada, un código de otra serie (una pulsera ajena, una lectura torcida) no entra, y la
+  pantalla dice cómo son las del local.
+
+### Cambiado
+- **Entrada, sala y salida en el teléfono** sin desplazar la página: la entrada y la salida van en dos
+  pasos (pulseras y luego la familia o la liquidación, con «← Pulseras» siempre a la vista), los paquetes
+  de cada niño en 2×2 y la sala en baldosas de un renglón.
+- Fuera la pantalla de pared del monitor (DEC-18): la sala se bloquea por inactividad como las demás.
+- Un niño sin nombre ya no sale en la sala con su pulsera repetida: su tarjeta dice «Falta nombre».
+- «Turno sin abrir» solo lo ve quien puede abrir el turno.
+
 ## [0.31.0] — 2026-09-30 · Etapa 4 · Parque
 
 B4-4 · Los ajustes de la sucursal, en el servidor.

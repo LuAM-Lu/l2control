@@ -31,7 +31,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.31.0 · 31 de 55 pasos.** **Los ajustes de la sucursal son del servidor (B4-4):** nombre, RIF,
+**Versión 0.32.0 · 32 de 55 pasos.** **El Parque está cerrado (B4-5):** la monitora trabaja en el teléfono
+(entrada, sala y salida sin desplazar la página), la cámara lee las pulseras y una pulsera sirve para una sola
+visita; la serie (prefijo y longitud) se fija en Ajustes → Sucursal con el primer lote. **Los ajustes de la sucursal son del servidor (B4-4):** nombre, RIF,
 dirección, horario, formato de hora, zona horaria, residuo, umbral del arqueo y horas de una huérfana se
 publican como versión en Ajustes → Sucursal y llegan a todas las pantallas en vivo; la caja, el corte Z y la
 sala los leen de ahí, y toda hora y fecha sale con el formato y la zona del local. **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
@@ -44,7 +46,7 @@ consulta vive en el worker (V-14, ADR-024). **El parque funciona contra el servi
 la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
 a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
 servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
-huérfanas las cierra la dirección sin cobrar tiempo de más. Falta B4-5 (el teléfono y las pulseras) para cerrar el Parque. **La caja cierra en el servidor (B3-5): lo previsto de la Etapa 3, hecho** (la visita técnica le suma B3-6 y B3-7). Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+huérfanas las cierra la dirección sin cobrar tiempo de más. **La caja cierra en el servidor (B3-5): lo previsto de la Etapa 3, hecho** (la visita técnica le suma B3-6 y B3-7). Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
 son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
 (B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
 servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
@@ -66,8 +68,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (77 de base, 301 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  45 de impuestos, 105 de caja, 34 del parque, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (77 de base, 304 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  45 de impuestos, 105 de caja, 37 del parque, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -182,15 +184,14 @@ Admin», publicó la versión 1 (formato de 24 h) y la 2 (de vuelta a 12 h): rig
 dirección y el horario sin declarar. Cambiar la zona a Bogotá se negó por el turno abierto de «PC admin», que no se
 tocó. Equipos «Prueba B44 Admin» y «Prueba B44 Inicio» revocados.
 
-**B4-5 a medias en `feat/b4-5` (2026-09-30).** Hecho y en verde: pulseras de un solo uso (en la base y en la
-entrada, con aviso al pasarlas), la serie de pulseras como ajuste, la cámara como lector y entrada, sala y salida
-en el teléfono sin desplazar el documento. Lo que falta está en su casilla de §3. **La base local ya tiene la
-migración `20261013000000_pulsera_de_un_solo_uso`**: se trabaja desde la rama. Al comprobarlo entró y salió la
-«Familia Prueba B45 6204» (pulseras PB45-6204 y PB45-6205, ya usadas), su cuenta #0027 quedó incobrable («Otro:
-datos de prueba», autorizada por Abigail Karam) y el equipo «Prueba B45 Telefono» está revocado. Queda una cuenta
-pendiente, del cliente.
+**Las pulseras en la base local (2026-09-30, al comprobar B4-5).** La migración
+`20261013000000_pulsera_de_un_solo_uso` está aplicada a la base del cliente (no tenía códigos repetidos). Entraron y
+salieron tres familias de prueba, «Familia Prueba B45 6204», «… 7363» y «… 2322» (pulseras PB45-…, ya usadas); sus
+cuentas #0027 a #0029 quedaron **incobrables** («Otro: datos de prueba», autorizadas por Abigail Karam). Abigail
+publicó los ajustes 3 (serie «PB45-» de 9 caracteres) y 4 (de vuelta a sin serie): rige sin serie hasta el primer
+lote. Equipos «Prueba B45 …» revocados. Queda una cuenta pendiente, del cliente.
 
-**Siguiente paso:** terminar **B4-5** (la monitora en el teléfono y las pulseras de un solo uso), que cierra el Parque.
+**Siguiente paso:** **B9-2** (existencias de solo-agregar), que abre lo que queda del inventario (V-7).
 
 ---
 
@@ -276,10 +277,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
    **B3-3** → B3-4 → B3-5 (se cierra Caja).
-3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → **B4-5** (la monitora en el
+3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. B9-2 → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
+4. **B9-2** → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -981,7 +982,7 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   equipo a los 868 ms del clic y se vuelve a 12 h; catorce pantallas y el acceso abren sin errores de consola. El
   recibo con el nombre y el RIF no se vio en el navegador (no se cobró nada en la base del cliente); lo cubre el
   tipado. El paso a huérfana en vivo lo cubren las pruebas (esperar horas no cabe en un guion).*
-- [ ] **B4-5 · La monitora en el teléfono y las pulseras de un solo uso** (M-15, V-1 y V-2).
+- [x] **B4-5 · La monitora en el teléfono y las pulseras de un solo uso** (M-15, V-1 y V-2).
   → Entrada, sala y salida en el teléfono del local (360×800 y 390×844, objetivos de 48 px, sin desplazar
   el documento), instalable como aplicación (PWA; la cámara pide HTTPS, que da el staging). La pulsera se
   lee con la **cámara** (QR y código de barras, con el lector del navegador y una biblioteca de respaldo
@@ -992,10 +993,9 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   cualquier código legible.
   → Una entrada de dos niños en menos de 90 s en un teléfono real (F5-02); una pulsera usada ayer no
   entra hoy.
-  *En curso en `feat/b4-5` (2026-09-30), sin versión todavía. Hecho, con `verify:db` en verde (77 de base, 304 de
-  aplicación):*
+  *Hecho el 2026-09-30 (v0.32.0); se cierra la Etapa 4. `verify:db` en verde (77 de base, 304 de aplicación).*
   *· Base: `20261013000000_pulsera_de_un_solo_uso`: índice único (tenant, sucursal, código) sobre TODAS las
-  estancias; se retira el parcial de las activas. Aplicada ya a la base del cliente (no tenía repetidas).*
+  estancias; se retira el parcial de las activas. Aplicada a la base del cliente (no tenía repetidas).*
   *· Contrato: `FormatoPulserasSchema` (prefijo y longitud, `null` hasta el primer lote) dentro de los ajustes, con
   valor por defecto para las versiones publicadas antes; `ConsultarPulseraSchema` y `EstadoPulseraSchema`.*
   *· Dominio: `wristbandSeriesProblem` (PREFIJO o LONGITUD; sin serie, vale todo).*
@@ -1005,20 +1005,22 @@ Fuera de la cuenta de 55: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   *· Web: `leerCodigo` en `@l2/ui` (la cámara entra por el mismo bus que el lector de teclado);
   `features/lector/` con `decodificador.ts` (`BarcodeDetector` nativo o @zxing/library 0.23.0 de respaldo, JS
   puro, cargado solo si hace falta) y `LectorCamara`/`BotonCamara` en entrada, salida y sala. La entrada pregunta
-  al servidor por cada pulsera al pasarla y quita la fila si no sirve. Estación fija a la ventana también en el
-  teléfono; entrada y salida en dos pasos en el teléfono (pulseras → familia o liquidación); «Turno sin abrir»
-  solo a quien abre turno; `interactive-widget=resizes-content`; la sala se bloquea por inactividad (fuera la
-  pantalla de pared, DEC-18); el aviso de huérfanas dice las horas del local.*
-  *· Comprobado con Playwright a 360×800 con una cámara falsa (vídeo Y4M con Code 39, `code39.py` en el
-  scratchpad de la sesión 9c832397): la cámara (lector de respaldo) leyó dos pulseras en 2,3 s, la entrada de dos
-  niños quedó registrada a los 5,4 s, sala, salida y liquidación sin desplazar el documento ni errores de consola,
-  y la pulsera usada se rechazó al pasarla.*
-  *Falta: (1) en Ajustes → Sucursal, los campos del prefijo y la longitud (hoy solo por contrato); (2) pulir el
-  teléfono: el «← Pulseras» fuera de la zona que desplaza, el selector de paquetes de la fila (se monta a 360 px),
-  la tarjeta de un niño sin nombre que repite la pulsera (deuda de §5), la sala en baldosas compactas en el
-  teléfono y «Tiempo cumplido» que se corta; (3) medir 390×844 y que 1366×768, 1280×800 y 800×1280 siguen igual en
-  entrada, sala y salida; (4) CHANGELOG 0.32.0, etiqueta y esta casilla. Trabajo de campo (§4): la cámara nativa y
-  los 90 s en el teléfono real, con HTTPS (staging).*
+  al servidor por cada pulsera al pasarla y quita la fila si no sirve. En el teléfono: estación fija a la ventana,
+  entrada y salida en dos pasos con «← Pulseras» fuera de lo que desplaza, paquetes de la fila en 2×2 y la sala en
+  baldosas de un renglón (`useMediaQuery` nuevo en `@l2/ui`), «Cumplido» en vez de «Tiempo cumplido».
+  `interactive-widget=resizes-content`; «Turno sin abrir» solo a quien abre turno; la sala se bloquea por
+  inactividad (fuera la pantalla de pared, DEC-18). Ajustes → Sucursal gana la tarjeta «Pulseras» (prefijo en
+  mayúsculas, longitud y qué entra, con un código de ejemplo). La tarjeta de un niño sin nombre dice «Falta
+  nombre» en vez de repetir la pulsera (deuda de §5).*
+  *· Comprobado con Playwright, con una cámara falsa (vídeo Y4M con Code 39, `code39.py`): a 360×800 y a 390×844 la
+  cámara (lector de respaldo) leyó dos pulseras en 2,4 s y la entrada de dos niños quedó registrada a los 4,2 s del
+  primer toque; sala, ficha, salida y liquidación sin desplazar el documento ni errores de consola. Con la serie
+  «PB45-» de 9 publicada, «ZZ-998877» se rechazó al pasarla («no es de la serie del local: las pulseras empiezan por
+  PB45- y tienen 9 caracteres») y la serie se devolvió a sin fijar. Entrada (con dos filas), sala (con un niño con
+  nombre y otro sin él), salida, liquidación y Ajustes → Sucursal a 1366×768, 1280×800 y 800×1280 sin desplazar el
+  documento; en escritorio Sucursal tampoco el contenido (a 800×1280 desplaza su zona, una columna).*
+  *Trabajo de campo (§4): la cámara nativa y los 90 s en el teléfono real, con HTTPS (staging), y la serie con el
+  primer lote.*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -1255,9 +1257,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El importe de la carta de la mesa llega de la pantalla (el del parque ya lo pone el servidor, B4-2), y lo que se mueve del parque a una mesa también | B6-1 (carta y mesas) |
 | La estación de cocina (KDS) y los estados «en fuego» y «listo» siguen en la app, sobre el bus del navegador | B6-2 (ADR-022) |
-| El teléfono no lee pulseras con la cámara (solo lectores en modo teclado), y un código ya usado puede volver a entrar | B4-5 |
 | «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
-| Un niño sin nombre sale en la tarjeta de la sala con su pulsera dos veces (título y subtítulo) | Al pasar por la sala |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
@@ -1332,7 +1332,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Descuentos (B3-6), carga desde papel (B3-7) y ticket de corte impreso (B5-2) |
-| F5 · Parque | **En el servidor** (B4-1 a B4-4): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas y los ajustes de la sucursal | El teléfono y las pulseras (B4-5) y eventos (Etapa 10) |
+| F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Catálogo de productos en el servidor** (B9-1) | Existencias, entradas con costo, salidas y alertas (B9-2 a B9-5); recetas después del piloto (B6-4) |
@@ -1439,6 +1439,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   el formato y la zona del local. Sigue B4-5.
 - **2026-09-30** · B4-5 empezado en `feat/b4-5`: pulseras de un solo uso, serie como ajuste, cámara como lector y
   el parque en el teléfono, comprobado con una cámara falsa. Faltan el editor de la serie y pulir el teléfono. Handoff.
+- **2026-09-30** · B4-5 hecho (v0.32.0): la serie de pulseras en Ajustes → Sucursal y el teléfono pulido (sala en
+  baldosas, paquetes en 2×2); se cierra la Etapa 4, el Parque. Sigue B9-2.
 
 ---
 

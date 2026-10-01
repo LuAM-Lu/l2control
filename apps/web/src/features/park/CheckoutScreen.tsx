@@ -457,12 +457,12 @@ export function CheckoutScreen({
             pasoMovil === "PULSERAS" && "max-md:hidden",
           )}
         >
+          {/* En el teléfono: volver a las pulseras, con cuántas van. Fuera de lo que desplaza. */}
+          <Button surface="tablet" variant="ghost" className="-mx-2 -mt-2 mb-2 shrink-0 self-start md:hidden" onClick={() => setPasoMovil("PULSERAS")}>
+            <ArrowLeft size={18} aria-hidden="true" />
+            Pulseras ({preview.lines.length})
+          </Button>
           <div className="-m-1 flex flex-col gap-4 p-1 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto apaisado:min-h-0 apaisado:flex-1 apaisado:overflow-y-auto bajo:gap-3">
-            {/* En el teléfono: volver a las pulseras, con cuántas van. */}
-            <Button surface="tablet" variant="ghost" className="-mx-2 -mt-2 self-start md:hidden" onClick={() => setPasoMovil("PULSERAS")}>
-              <ArrowLeft size={18} aria-hidden="true" />
-              Pulseras ({preview.lines.length})
-            </Button>
             {aviso && (
               <p role="alert" className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2.5 text-[13px] text-state-warn md:hidden">
                 <TriangleAlert size={15} className="shrink-0" aria-hidden="true" />

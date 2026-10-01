@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert, NotebookPen } from "lucide-react";
+import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert } from "lucide-react";
 import {
   CountdownDisplay,
   Initial,
@@ -130,7 +130,15 @@ export function ParkChildCard({
       urgent={status.urgent}
       leading={<Initial name={nombreVisible(model)} tone={status.tone} />}
       title={nombreVisible(model)}
-      subtitle={model.childNickname && model.childName ? model.childName : model.wristbandCode}
+      // Sin nombre, el título ya es la pulsera (y el pie también): el subtítulo dice lo que falta en
+      // vez de repetirla.
+      subtitle={
+        model.childNickname && model.childName
+          ? model.childName
+          : model.childName || model.childNickname
+            ? model.wristbandCode
+            : "Falta nombre"
+      }
       // `exactOptionalPropertyTypes` distingue «ausente» de «explícitamente
       // undefined»: una tarjeta está seleccionada o no lo está, no hay un
       // tercer estado.
@@ -165,12 +173,6 @@ export function ParkChildCard({
         </div>
       }
     >
-      {!model.childName && !model.childNickname && (
-        <div className="flex items-center gap-1.5 text-[12px] text-ink-3 -mt-1 mb-1">
-          <NotebookPen size={12} aria-hidden="true" />
-          Falta nombre
-        </div>
-      )}
       <div className="flex flex-wrap items-end justify-between gap-x-2 min-w-0">
         <CountdownDisplay
           now={now}

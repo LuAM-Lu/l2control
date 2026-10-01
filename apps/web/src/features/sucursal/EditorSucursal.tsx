@@ -9,7 +9,8 @@ import { useReloj, useSucursal } from "./SucursalProvider";
 
 /**
  * Ajustes → Sucursal (B4-4, F5-08b). Los datos del local, su horario y cómo opera: formato de hora,
- * zona, residuo de la caja, umbral del arqueo, horas de una huérfana y servicio.
+ * zona, residuo de la caja, umbral del arqueo, horas de una huérfana y servicio. Y la serie de las
+ * pulseras (B4-5, V-1): prefijo y longitud, sin fijar hasta el primer lote.
  *
  * Se edita un borrador y se publica entero como versión nueva; el servidor lo revalida, lo audita y
  * lo cuenta en vivo a todas las pantallas. Si otra persona publica mientras tanto, se avisa aquí y el
@@ -57,6 +58,16 @@ function aMinor(texto: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Qué entra con la serie del borrador, en palabras, con un código de ejemplo cuando se puede armar. */
+function serieEnPalabras({ prefijo, longitud }: AjustesSucursalDto["pulseras"]): string {
+  if (prefijo === null && longitud === null) return "Sin serie: entra cualquier código legible. Se fija con el primer lote.";
+  if (longitud === null) return `Entran los códigos que empiezan por ${prefijo}, de cualquier largo.`;
+  if (prefijo === null) return `Entran los códigos de ${longitud} caracteres.`;
+  if (prefijo.length >= longitud) return `Entran los que empiezan por ${prefijo} y tienen ${longitud} caracteres.`;
+  const ejemplo = prefijo + "1".padStart(longitud - prefijo.length, "0");
+  return `Entran los códigos como ${ejemplo} (${longitud} caracteres).`;
 }
 
 type Errores = Readonly<Record<string, string>>;
@@ -219,21 +230,59 @@ export function EditorSucursal() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1.1fr)]">
-        {/* === El local === */}
-        <section aria-labelledby="suc-local" className={TARJETA}>
-          <h2 id="suc-local" className="font-display text-[14px] font-bold text-ink">
-            El local
-          </h2>
-          {texto("nombre", "Nombre")}
-          <div className="grid grid-cols-2 gap-3">
-            {texto("rif", "RIF", { placeholder: "Sin declarar" })}
-            {texto("telefono", "Teléfono", { placeholder: "Sin declarar" })}
-          </div>
-          {texto("direccionFiscal", "Dirección fiscal", { placeholder: "Sin declarar" })}
-          <p className="text-[12px] text-ink-3">
-            El nombre, el RIF y la dirección salen en el recibo. Moneda funcional: dólar (DEC-2); cambiarla es una decisión del plan, no un ajuste.
-          </p>
-        </section>
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* === El local === */}
+          <section aria-labelledby="suc-local" className={TARJETA}>
+            <h2 id="suc-local" className="font-display text-[14px] font-bold text-ink">
+              El local
+            </h2>
+            {texto("nombre", "Nombre")}
+            <div className="grid grid-cols-2 gap-3">
+              {texto("rif", "RIF", { placeholder: "Sin declarar" })}
+              {texto("telefono", "Teléfono", { placeholder: "Sin declarar" })}
+            </div>
+            {texto("direccionFiscal", "Dirección fiscal", { placeholder: "Sin declarar" })}
+            <p className="text-[12px] text-ink-3">
+              El nombre, el RIF y la dirección salen en el recibo. Moneda funcional: dólar (DEC-2).
+            </p>
+          </section>
+
+          {/* === Pulseras (V-1, D-PUL) === */}
+          <section aria-labelledby="suc-pulseras" className={TARJETA}>
+            <h2 id="suc-pulseras" className="font-display text-[14px] font-bold text-ink">
+              Pulseras
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Prefijo"
+                surface="admin"
+                value={borrador.pulseras.prefijo ?? ""}
+                placeholder="Sin fijar"
+                error={errores["pulseras.prefijo"]}
+                autoComplete="off"
+                autoCapitalize="characters"
+                onChange={(e) => {
+                  const v = e.target.value.toUpperCase();
+                  cambiar({ pulseras: { ...borrador.pulseras, prefijo: v.trim() === "" ? null : v } });
+                }}
+              />
+              <Input
+                label="Longitud"
+                surface="admin"
+                type="number"
+                min={4}
+                max={32}
+                step={1}
+                className="tnum"
+                value={borrador.pulseras.longitud === null ? "" : String(borrador.pulseras.longitud)}
+                placeholder="Sin fijar"
+                error={errores["pulseras.longitud"]}
+                onChange={(e) => cambiar({ pulseras: { ...borrador.pulseras, longitud: e.target.value.trim() === "" ? null : Number(e.target.value) } })}
+              />
+            </div>
+            <p className="text-[12px] text-ink-3">{serieEnPalabras(borrador.pulseras)}</p>
+          </section>
+        </div>
 
         {/* === Horario === */}
         <section aria-labelledby="suc-horario" className={TARJETA}>

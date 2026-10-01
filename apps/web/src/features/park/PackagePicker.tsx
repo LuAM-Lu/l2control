@@ -28,7 +28,7 @@ export function PackagePicker({
     <div
       role="radiogroup"
       aria-label="Paquete de tiempo"
-      className={cn("grid gap-2", compact ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-4")}
+      className={cn("grid gap-2", compact ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 sm:grid-cols-4")}
     >
       {packages.map((p) => {
         const active = p.id === selectedId;

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button } from "@l2/ui";
+import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
 import Link from "next/link";
 import type { Route } from "next";
 import { toMajor } from "@l2/domain-money";
@@ -95,7 +95,10 @@ export function ParkMonitor() {
   }, [model.cards]);
 
   const { cuentas, adoptar: adoptarCuenta } = useCuentas();
-  const compacta = ordered.length > 10;
+  // En el teléfono de la monitora (V-2) la tarjeta completa ocupa la pantalla entera por niño: allí
+  // siempre baldosas, una por renglón. En el panel, solo con la sala llena.
+  const telefono = useMediaQuery("(max-width: 767px)");
+  const compacta = telefono || ordered.length > 10;
   const hora = useHora();
   const { horasHuerfana } = useSucursal().ajustes;
   /** La cámara del teléfono como lector (V-2): pasar la pulsera abre la ficha del niño. */
@@ -125,6 +128,7 @@ export function ParkMonitor() {
           />
           <Contador
             etiqueta="Tiempo cumplido"
+            etiquetaCorta="Cumplido"
             valor={counts.expired}
             tono={counts.expired > 0 ? "crit" : "idle"}
             urgente={counts.expired > 0}
@@ -398,6 +402,7 @@ const TONO_CIFRA = {
  */
 function Contador({
   etiqueta,
+  etiquetaCorta,
   valor,
   sufijo,
   tono,
@@ -406,6 +411,8 @@ function Contador({
   barra,
 }: {
   etiqueta: string;
+  /** Para el teléfono, donde las tres cifras van en una fila de 360 px y la larga se cortaba. */
+  etiquetaCorta?: string;
   valor: number;
   sufijo?: string;
   tono: keyof typeof TONO_CIFRA;
@@ -422,7 +429,14 @@ function Contador({
         )}
       >
         <span className="shrink-0">{icono}</span>
-        <span className="truncate">{etiqueta}</span>
+        {etiquetaCorta ? (
+          <>
+            <span className="truncate md:hidden">{etiquetaCorta}</span>
+            <span className="truncate max-md:hidden">{etiqueta}</span>
+          </>
+        ) : (
+          <span className="truncate">{etiqueta}</span>
+        )}
       </span>
       <span className="flex items-baseline gap-2">
         <span

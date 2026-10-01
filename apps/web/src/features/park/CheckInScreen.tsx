@@ -454,7 +454,8 @@ export function CheckInScreen() {
                         </span>
                       </Badge>
 
-                      <div className="min-w-[200px] flex-1">
+                      {/* En el teléfono el paquete va en su renglón, en 2×2: en la fila, cuatro no caben. */}
+                      <div className="min-w-[200px] flex-1 max-md:order-last max-md:basis-full">
                         <PackagePicker
                           packages={paquetesActivos}
                           selectedId={e.packageId}
@@ -469,7 +470,7 @@ export function CheckInScreen() {
                         type="button"
                         onClick={() => quitar(e.uid)}
                         aria-label={`Quitar la pulsera ${e.wristbandCode}`}
-                        className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit"
+                        className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit max-md:ml-auto"
                       >
                         <X size={16} aria-hidden="true" />
                       </button>
@@ -513,13 +514,14 @@ export function CheckInScreen() {
             pasoMovil === "PULSERAS" && "max-md:hidden",
           )}
         >
+          {/* En el teléfono: volver a las pulseras, con cuántas van. Fuera de lo que desplaza: con el
+              teclado abierto sigue a la vista. */}
+          <Button surface="tablet" variant="ghost" className="-mx-2 -mt-2 mb-2 shrink-0 self-start md:hidden" onClick={() => setPasoMovil("PULSERAS")}>
+            <ArrowLeft size={18} aria-hidden="true" />
+            Pulseras ({entradas.length})
+          </Button>
           <div className="-m-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1 bajo:gap-3">
             <div className="flex flex-col gap-4 bajo:gap-3">
-              {/* En el teléfono: volver a las pulseras, con cuántas van. */}
-              <Button surface="tablet" variant="ghost" className="-mx-2 -mt-2 self-start md:hidden" onClick={() => setPasoMovil("PULSERAS")}>
-                <ArrowLeft size={18} aria-hidden="true" />
-                Pulseras ({entradas.length})
-              </Button>
               {aviso && (
                 <p role="alert" className="flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2.5 text-[13px] text-state-warn md:hidden">
                   <TriangleAlert size={15} className="shrink-0" aria-hidden="true" />

@@ -8,6 +8,7 @@
 
 export { cn } from "./cn";
 export { useServerClock } from "./useServerClock";
+export { useMediaQuery } from "./useMediaQuery";
 
 // Nivel 1 — primitivos: no conocen el dominio
 export { Button, type ButtonProps, type Surface } from "./primitives/Button";
