@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.39.0 · 39 de 56 pasos.** **Se imprime en papel (B5-2, [ADR-026](adr/026-impresion-por-agente-local.md)):**
+**Versión 0.39.2 · 39 de 57 pasos.** **Se imprime en papel (B5-2, [ADR-026](adr/026-impresion-por-agente-local.md)):**
 con el servidor en la nube, la impresora del local la alcanza un **agente** en la laptop de caja, que se vincula
 una vez con un código del panel y se conecta hacia fuera. El servidor guarda la cola (pendiente, enviado,
 confirmado o fallido, con cinco intentos) y compone el ESC/POS a 58 u 80 mm; el agente lo manda por TCP 9100 y
@@ -285,7 +285,8 @@ B54 Barra» y «Prueba B54 Terraza» (10.2.0.2, contra la impresora falsa, con e
 la prueba, sus trabajos descartados o impresos en el historial; equipo «Prueba B54 Admin» revocado. El cliente
 descartó dos pruebas suyas de «Caja» mientras tanto.
 
-**Siguiente paso:** **B6-1** (carta y mesas en el servidor), que abre el restaurante.
+**Siguiente paso:** **B6-1** (carta y mesas en el servidor), que abre el restaurante y estrena el patrón de
+Ajustes en Carta y Plano; después **T-7** (M-17) lo lleva al resto de Ajustes.
 
 ---
 
@@ -309,6 +310,7 @@ descartó dos pruebas suyas de «Caja» mientras tanto.
 | **M-14** | **El parque primero** (2026-09-28, pedido del cliente: «hacer funcional parque, urgente») | B3-5 queda en pausa a medias (dominio, contrato, base y caso de uso, sin pruebas ni pantalla) y el parque (B4-1 a B4-3) pasa delante, **sin esperar a B5-1**: la sala llega a los demás equipos por sondeo de 5 s, como las cuentas desde B3-3, y B5-1 la empujará en vivo. Las estancias, las familias y el precio del parque salen del navegador |
 | **M-15** | **Lo decidido en la visita técnica** (2026-09-28, con el cliente) | Dispositivos, pulseras, cocina, impresión, inventario, descuentos, eventos, tiempo real y servidor: detalle abajo (V-1 a V-12). Cierra D-INF, D-RES, D-INV y F-12; cambia DEC-8 (en parte), DEC-18 y DEC-19; ADR-021, ADR-022 y ADR-023. La ruta pasa a **55 pasos**: entran B4-5, B3-6, B3-7, la Etapa 6 (B6-1 a B6-3, sin recetas) y la Etapa 10 (B10-1 y B10-2), y sale B5-3 (no hay gaveta electrónica, D-GAV) |
 | **M-16** | **El inventario se ve por su stock** (2026-09-30, pedido del cliente; amplía V-7) | Productos se rediseña con el stock como protagonista: vista de resumen + tabla o de tarjetas (sin foto). Cada producto: **SKU automático** (prefijo de su categoría y correlativo, no se edita), **código de barras** opcional y único, **presentación** y **tipo** (PRODUCTO, PREPARADO o SERVICIO; sustituye la casilla «Lleva existencia»). **Stock mínimo** por producto con estado y avisos (B9-5 entra ya). La **entrada de mercancía crea productos** con una ficha corta (nombre, categoría, código, presentación y precio). El código se **escanea** en la caja (vende), las entradas, el conteo y Productos. Nuevo paso **B9-6**; la ruta pasa a 56 |
+| **M-17** | **Ajustes con un mismo patrón** (2026-10-01, pedido del cliente tras ver Impresoras en v0.39.2) | Las pantallas de Ajustes siguen el patrón de Impresoras: cabecera compacta con la acción principal; **resumen** de 2 a 4 cifras que llevan a su sitio (color + icono + texto); **pestañas** que separan lo que se configura de lo que se consulta; alta y edición en **hoja lateral** y confirmación en diálogo para lo irreversible; las listas que crecen, **por páginas en el servidor** (10/20/50) con filtros y su cuenta, «Limpiar filtros», tabla en el escritorio y tarjetas en tableta y teléfono. Sin desplazar la página a 1366×768, 1280×800 ni 800×1280. Carta y precios y Plano del local lo estrenan en **B6-1** (se rehacen contra el servidor ahí); Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes, en el paso nuevo **T-7**, justo después. La ruta pasa a 57 |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
@@ -376,11 +378,12 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
-5. **B6-1** → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
+5. **B6-1** (con Carta y Plano en el patrón de M-17) → **T-7** (el resto de Ajustes en ese patrón) → B6-2 → B6-3
+   (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
-Fuera de la cuenta de 56: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 57: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -452,6 +455,17 @@ Fuera de la cuenta de 56: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   y en la lista; «Cerrar turno» → arqueo → «Volver al turno». Inicio, Ajustes, Turno y el cierre a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento y con «Cerrar turno» a la vista; sin
   errores de consola.*
+- [ ] **T-7 · Ajustes con un mismo patrón** (M-17, pedido del cliente el 2026-10-01; la ruta pasa a 57), justo
+  después de B6-1.
+  → **Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes** siguen el
+  patrón de Impresoras (v0.39.2) con las piezas comunes que B6-1 sube a `@l2/ui`: resumen arriba, pestañas,
+  hoja lateral para alta y edición, confirmación de lo irreversible, y las listas que crecen (historial de
+  tasas, cambios de equipos, versiones de tarifas, lo que haga falta al medirlas) **paginadas en el servidor**
+  con filtros, conteos y «Limpiar filtros», tabla en el escritorio y tarjetas en tableta y teléfono. Ninguna
+  regla de negocio cambia: si una pantalla necesita leer por páginas, su caso de uso lo hace con su
+  `*.test-db.ts`. Cada una, en el navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página, y en
+  teléfono; sin errores de consola. Medios de pago, Impuestos, Feriados y Sucursal (listas cortas) quedan como
+  están salvo que el cliente las pida.
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
   suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -1437,6 +1451,8 @@ antes del cobro en servidor (orden de ejecución).
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
 - [ ] **B6-1 · Mesas, plano y carta** persistidos (F6-01 a F6-03). Se borra `src/demo/restaurante.ts`.
+  Carta y precios y Plano del local se rehacen ya con el patrón de Ajustes (M-17), y sus piezas comunes
+  (resumen con cifras, paginación, filtros con su cuenta, confirmación) suben a `@l2/ui` para T-7.
 - [ ] **B6-2 · Pedidos del mesero y comanda impresa** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), F6-06,
   F6-07 y F6-09, sin F6-08): el pedido confirmado en la tablet crea su trabajo de impresión en la
   impresora de comandas; la comanda queda «enviada» e «impresa», y si falla, la tablet del mesero y la caja
@@ -1769,6 +1785,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   agente tras un rechazo y los trabajos que quedaban esperando en una impresora apagada o retirada.
 - **2026-10-01** · Pedido del cliente: Ajustes → Impresoras más organizada. v0.39.2: resumen, pestañas, historial por
   páginas con filtros y vista previa, y «Descartar» lo que no salió (estado nuevo, sin borrar). Sigue B6-1.
+- **2026-10-01** · Pedido del cliente: el mismo rediseño en el resto de Ajustes (M-17). Carta y Plano entran en B6-1;
+  Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas y Tarifas, en el paso nuevo T-7 tras B6-1. Ruta a 57.
 
 ---
 
