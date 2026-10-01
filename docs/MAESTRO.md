@@ -1625,6 +1625,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-30** · B9-5 hecho (v0.36.0): stock mínimo por producto, su estado y el aviso en Inicio. Sigue B9-6.
 - **2026-09-30** · B9-6 hecho (v0.37.0): Productos con el stock primero, tipos, SKU, código de barras, alta en la entrada y
   el lector en caja, entradas, conteo y Productos; se cierra la Etapa 9. Sigue B3-6.
+- **2026-09-30** · Handoff (v0.37.0 en `main`, sin subir): B4-5 y la Etapa 9 entera (B9-2 a B9-6) hechas en esta sesión.
 
 ---
 
@@ -1638,21 +1639,21 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-30, v0.31.0 en `main` y B4-5 a medias en `feat/b4-5`, sin subir a GitHub):**
+**Último handoff (2026-09-30, v0.37.0 en `main`, sin subir a GitHub):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-15 con V-1 a V-14, §3 con su DoD y orden, §4, §5), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.31.0 · 31 de 55 pasos (B4-4 hecho: ajustes de la sucursal en la base). Nada subido a GitHub.
-A MEDIAS: B4-5 en la rama feat/b4-5 (en verde, sin versión): pulseras de un solo uso (índice único + PULSERA_USADA), serie de pulseras en los
-  ajustes (sin editor todavía), cámara como lector (features/lector: BarcodeDetector o @zxing/library, entra por leerCodigo de @l2/ui) y entrada,
-  sala y salida en el teléfono (dos pasos). Lo que falta, en la casilla de B4-5 (§3): campos de la serie en Ajustes → Sucursal, pulir el teléfono,
-  medir 390×844 y los tres tamaños de siempre, CHANGELOG 0.32.0. Luego merge a main.
-OJO: la base local YA tiene la migración de B4-5 (pulsera de un solo uso): trabaja desde feat/b4-5, no desde main.
-Pendiente con el cliente: contarle que el turno de «PC admin» se selló por error con un Z de prueba (§1).
-Base local CON DATOS DEL CLIENTE: un guion solo toca lo que se llama «Prueba …»/«Familia Prueba …» (limpiar_b45.mts filtra así) y revoca sus equipos.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 con M-15 y M-16, §3 con su DoD y orden, §4, §5), docs/JORNADA.md y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. main: v0.37.0 · 37 de 56 pasos. Parque (B4-5) e Inventario (B9-2 a B9-6) cerrados. Nada subido a GitHub.
+Siguiente: B3-6 · descuentos configurables (V-9 y D-DESC en §2/§4: por medio con 🔐 y cuenta entera, VIP, manual con motivo, admin;
+  uno por cuenta, el mayor; tope de supervisión 20 %; antes del IVA) — su casilla en §3. Luego B5-2 (impresión y comandas).
+Inventario (M-16): stock_movement con valor al costo, entradas (crean productos), salidas/conteo con 🔐, mínimos, tipos PRODUCTO/
+  PREPARADO/SERVICIO, SKU y código de barras; el bus del lector de @l2/ui es una pila (useLectorDeCodigos).
+Pendiente con el cliente: el turno de «PC admin» sellado por error con un Z de prueba (§1); vender por lector con turno abierto, sin probar.
+Base local CON DATOS DEL CLIENTE: guiones solo sobre «Prueba …»; no tocar «TEST pRODUCTO» ni la venta #0031 (son de él). Productos de
+  prueba apartados: Prueba B93 Refresco, Prueba B96 Uva. Los productos del cliente que se cuentan salen «Agotado» hasta su entrada.
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (web :3000 + worker :3001). Tras un caso de uso nuevo, reiniciar pnpm dev.
 Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Playwright en el scratchpad de la sesión 9c832397: comun.cjs (movil, permisos), b45e2e.cjs (teléfono + cámara falsa con code39.py), b44b.cjs.
-Cuidado: DoD de §3; en una transacción nunca dos consultas a la vez; acción auditada nueva → fila en TEMAS_DE_ACCION; migración aplicada
-  no se edita; heredocs grandes fallan (Write + python / commit -F). Merge a main solo con verify:db verde. Push solo si se pide.
+Playwright en el scratchpad de la sesión 1efa3b19: comun.cjs, b96.cjs (inventario + lector), b94.cjs (🔐 en dos equipos), b45f.cjs (teléfono).
+Cuidado: DoD de §3; migración que rellena datos → NO FORCE RLS mientras rellena + BEGIN/COMMIT (§5); en una transacción nunca dos consultas
+  a la vez; acción auditada nueva → fila en TEMAS_DE_ACCION; heredocs grandes fallan (Write + python / commit -F). Push solo si se pide.
 ```
