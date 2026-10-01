@@ -166,6 +166,40 @@ describe("descuentos (T-TAX-06)", () => {
   });
 });
 
+describe("descuentos con alcance (B3-6)", () => {
+  const cuenta = [linea("parque", "20.00", 1n), linea("jugo", "3.00", 1n), linea("galleta", "2.00", 1n, "EXENTA")];
+
+  test("un porcentaje con alcance se calcula sobre sus líneas y solo ellas bajan su base", () => {
+    const r = doc({ lines: cuenta, discounts: [{ kind: "PERCENT", basisPoints: 1000, lineIds: ["parque"] }] });
+    assert.equal(toMajor(r.discountTotal), "2.00");
+    // Gravado: 18 (parque) + 3 (jugo) = 21 → IVA 3,36; exento 2.
+    assert.equal(toMajor(r.buckets.find((b) => b.code === "GENERAL")!.base), "21.00");
+    assert.equal(toMajor(r.buckets.find((b) => b.code === "EXENTA")!.base), "2.00");
+    assert.equal(toMajor(r.total), "26.36");
+  });
+
+  test("un monto con alcance no pasa de lo que suman sus líneas", () => {
+    const r = doc({ lines: cuenta, discounts: [{ kind: "AMOUNT", value: fromMajor("10.00", "USD"), lineIds: ["jugo", "galleta"] }] });
+    assert.equal(toMajor(r.discountTotal), "5.00");
+    assert.equal(toMajor(r.buckets.find((b) => b.code === "GENERAL")!.base), "20.00");
+    assert.equal(toMajor(r.buckets.find((b) => b.code === "EXENTA")!.base), "0.00");
+  });
+
+  test("se reparte entre sus líneas con el mayor resto: la suma de las bases cuadra al céntimo", () => {
+    const tres = [linea("a", "1.00", 1n), linea("b", "1.00", 1n), linea("c", "1.00", 1n, "EXENTA"), linea("d", "9.00", 1n)];
+    const r = doc({ lines: tres, discounts: [{ kind: "AMOUNT", value: fromMajor("1.00", "USD"), lineIds: ["a", "b", "c"] }] });
+    const bases = sum(r.buckets.map((b) => b.base), "USD");
+    assert.equal(toMajor(bases), "11.00");
+    assert.equal(toMajor(r.discountTotal), "1.00");
+  });
+
+  test("sin líneas en su alcance no descuenta nada", () => {
+    const r = doc({ lines: cuenta, discounts: [{ kind: "PERCENT", basisPoints: 5000, lineIds: ["no-esta"] }] });
+    assert.equal(toMajor(r.discountTotal), "0.00");
+    assert.equal(toMajor(r.subtotal), "25.00");
+  });
+});
+
 /* ---------------------------------------------------------- servicio */
 
 describe("servicio y propina (DEC-6)", () => {

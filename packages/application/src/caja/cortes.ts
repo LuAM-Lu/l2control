@@ -66,6 +66,7 @@ import { historialParaCobrar } from "../dinero/tasas.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { estanciasActivas } from "../park/parque.ts";
 import { pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
+import { TEXTO_MOTIVO_DESCUENTO } from "./reglas-de-descuento.ts";
 import { turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
 import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
 
@@ -171,6 +172,7 @@ async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
       lineas: { lineId: string; concept: string; amount: MoneyDto; cortesia: string | null }[];
       sobra: { amount: MoneyDto; destino: string } | null;
       total: MoneyDto;
+      descuento?: { origen: string; nombre: string; motivo: string | null; detalle: string | null; autorizadoPor: { name: string } | null; importe: MoneyDto } | null;
     };
     const anulada = v.voids[0];
     if (anulada) anuladas += 1;
@@ -192,6 +194,21 @@ async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
           importe: l.amount,
         });
       }
+    }
+    // El descuento del cobro (B3-6), con su motivo y quién lo autorizó (el VIP lo ampara su marca).
+    if (c.descuento) {
+      const d = c.descuento;
+      const porque =
+        d.origen === "VIP" ? "Familia VIP" : d.origen === "MEDIO" ? "Pago por su medio" : d.motivo ? (TEXTO_MOTIVO_DESCUENTO[d.motivo] ?? d.motivo) : "Administración";
+      excepciones.push({
+        at: v.closedAt.toISOString(),
+        tipo: "DESCUENTO",
+        detalle: `Orden ${orden(v.orderNumber)} · ${d.nombre}`.slice(0, 160),
+        usuario: v.cashierName,
+        motivo: `${porque}${d.detalle ? ` · ${d.detalle}` : ""}`.slice(0, 280),
+        autorizadoPor: d.autorizadoPor?.name ?? null,
+        importe: d.importe,
+      });
     }
     if (c.sobra?.destino === "RESIDUO") {
       excepciones.push({

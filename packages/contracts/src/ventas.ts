@@ -14,6 +14,7 @@
  */
 import { z } from "zod";
 import { AccountKindSchema, MotivoCortesiaSchema } from "./account.ts";
+import { DescuentoDeVentaSchema } from "./descuentos.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 const Texto = (max: number) => z.string().max(max);
@@ -43,6 +44,8 @@ export const ReciboSchema = z.object({
     )
     .min(1),
   subtotal: Texto(24),
+  /** «Descuento · Pago con Zelle 10 %» y lo que descontó, antes del IVA (B3-6). */
+  descuento: z.object({ etiqueta: Texto(80), monto: Texto(24) }).nullable().optional(),
   impuestos: z.array(z.object({ etiqueta: Texto(24), monto: Texto(24) })),
   total: Texto(24),
   totalBs: Texto(32).nullable(),
@@ -153,6 +156,8 @@ export const VentaCerradaSchema = z
       .array(z.object({ lineId: IdSchema, concept: Texto(80), amount: MoneySchema, cortesia: MotivoCortesiaSchema.nullable() }))
       .min(1),
     subtotal: MoneySchema,
+    /** El descuento del cobro (B3-6): el subtotal es antes de él, y el IVA, después. Las de antes no lo traen. */
+    descuento: DescuentoDeVentaSchema.nullable().optional(),
     impuestos: z.array(z.object({ basisPoints: z.number().int().nonnegative(), tax: MoneySchema })),
     igtf: z.object({ basisPoints: z.number().int().nonnegative(), amount: MoneySchema }),
     total: MoneySchema,

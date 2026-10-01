@@ -46,7 +46,10 @@ import {
   closeSettlement,
   computeBalance,
   courtesyProblem,
+  discountAtChargeProblem,
+  documentDiscountsOf,
   documentLinesOf,
+  ruleInForce,
   markUncollectible,
   uncollectibleProblem,
   isDiscardedDraft,
@@ -56,7 +59,9 @@ import {
   revertPaid,
   withCourtesy,
   type AccountChangeProblem,
+  type CategoryOf,
   type CourtesyProblem,
+  type DiscountAtChargeProblem,
   type AccountKind,
   type ChangeDisposition,
   type ProductAtNow,
@@ -102,6 +107,7 @@ import { turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
+import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
@@ -136,7 +142,7 @@ export interface CasosCuentas {
 }
 
 /** Las acciones de la caja que se autorizan con 🔐 y cuya lista de autorizadores pide la pantalla. */
-export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "turno.corteZ";
+export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "cuenta.descuento" | "turno.corteZ";
 
 /** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
 const CON_PIN = { confirmarConPin: true } as const;
@@ -169,6 +175,14 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   FAMILIA_DESDE_LA_PANTALLA: "La cuenta de una familia la abre la entrada del parque.",
   ESTANCIAS_DESDE_LA_PANTALLA: "Quién entra y quién sale lo registran la entrada y la salida del parque.",
   PARQUE_DESDE_LA_PANTALLA: "El paquete y el tiempo de más los pone el parque con su tarifario.",
+  DESCUENTO_DESDE_LA_PANTALLA: "Un descuento se pone o se quita con su autorización, no al guardar la cuenta.",
+  DIVISION_CON_DESCUENTO: "Una cuenta con descuento no se divide: quítale el descuento para dividirla.",
+};
+
+const MENSAJE_DESCUENTO_AL_COBRAR: Record<DiscountAtChargeProblem, string> = {
+  MEDIO_DISTINTO: "El descuento por medio de pago exige cobrar toda la cuenta por ese medio: cóbrala así o quita el descuento.",
+  REGLA_NO_VIGENTE: "El descuento de esta cuenta ya no rige: quítalo o aplica otro.",
+  PASA_DEL_TOPE: "El descuento pasa del tope de supervisión con lo que queda en la cuenta: vuelve a aplicarlo.",
 };
 
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({
@@ -349,11 +363,19 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           // La zona que decide qué tasa rige y el residuo que la caja puede quedarse (B4-4).
           const ajustes = await ajustesDe(tx, ctx.branchId);
 
-          // El IVA y el IGTF del instante (B2-2): sin ellos no se cobra con un impuesto supuesto.
+          // El IVA y el IGTF del instante (B2-2): sin ellos no se cobra con un impuesto supuesto. El
+          // descuento, si lo lleva, baja la base antes del IVA (B3-6, §5.3).
           const periodos = taxTimeline((await tx.taxRate.findMany()).map(programadaDeFila));
+          const categoryOf: CategoryOf = cuenta.descuento ? await categoriasDe(tx) : () => null;
           let doc: DocumentTotals;
           try {
-            doc = computeDocument({ lines: documentLinesOf(cuenta), rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL });
+            doc = computeDocument({
+              lines: documentLinesOf(cuenta),
+              discounts: documentDiscountsOf(cuenta, categoryOf),
+              rules: ivaRulesOf(periodos),
+              at: ahora,
+              currency: FUNCIONAL,
+            });
           } catch (e) {
             if (!(e instanceof NoApplicableRuleError)) throw e;
             return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay IVA vigente para lo que se cobra: configúralo en Impuestos." };
@@ -371,6 +393,22 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             if (!medio) return invalido("Ese medio no existe en este local.", ["pagos", i, "method"], "Medio desconocido");
             if (medio.currency !== p.amount.currency) return invalido(`«${medio.label}» cobra en ${medio.currency}.`, ["pagos", i, "amount"], "Moneda del medio");
             medios.push(medio);
+          }
+          // El descuento se cobra si se cumple lo suyo: toda la cuenta por su medio, su regla vigente y
+          // el tope de supervisión (pudieron quitarse líneas desde que se aplicó).
+          if (cuenta.descuento) {
+            const d = cuenta.descuento;
+            const regla = d.reglaId ? (await reglasDe(tx)).find((r) => r.id === d.reglaId) : undefined;
+            const hoy = calendarDay(new Date(ahora).toISOString(), ajustes.zonaHoraria);
+            const problema = discountAtChargeProblem({
+              descuento: d,
+              methodCodes: cmd.pagos.map((p) => p.method),
+              ruleInForce: regla !== undefined && ruleInForce(regla, hoy),
+              importe: doc.discountTotal,
+              subtotal: doc.subtotal,
+              topeBps: ajustes.topeDescuentoSupervision,
+            });
+            if (problema) return { ok: false, motivo: "CONFLICTO", mensaje: MENSAJE_DESCUENTO_AL_COBRAR[problema], problemas: [{ path: ["pagos"], message: problema }] };
           }
           let tasa: ReturnType<typeof frozenRateOf> | null = null;
           let valorDeLaTasa: string | null = null;
@@ -499,6 +537,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               operationKey: cmd.idempotencyKey,
               total: { minor: String(aCobrar.amount), currency: FUNCIONAL },
               igtf: { minor: String(igtfTotal.amount), currency: FUNCIONAL },
+              descuento: cuenta.descuento ? { nombre: cuenta.descuento.nombre, importe: { minor: String(doc.discountTotal.amount), currency: FUNCIONAL } } : null,
               sobra: { minor: String(sobra.amount), currency: FUNCIONAL, destino: sobra.amount > 0n ? cmd.destinoSobra : null },
             },
           });
@@ -524,6 +563,19 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               .filter((l) => !l.paid && !l.movedTo)
               .map((l) => ({ lineId: l.id, concept: l.concept, amount: l.amount, cortesia: l.cortesia?.motivo ?? null })),
             subtotal: conDinero(doc.subtotal),
+            // El descuento del cobro, con quién lo autorizó (B3-6): sale en el recibo y en las excepciones.
+            descuento: cuenta.descuento
+              ? {
+                  origen: cuenta.descuento.origen,
+                  nombre: cuenta.descuento.nombre,
+                  valor: cuenta.descuento.valor,
+                  alcance: cuenta.descuento.alcance,
+                  motivo: cuenta.descuento.motivo,
+                  detalle: cuenta.descuento.detalle,
+                  autorizadoPor: cuenta.descuento.autorizadoPor ? { name: cuenta.descuento.autorizadoPor.name, role: cuenta.descuento.autorizadoPor.role } : null,
+                  importe: conDinero(doc.discountTotal),
+                }
+              : null,
             impuestos: doc.buckets.map((b) => ({ basisPoints: b.basisPoints, tax: conDinero(b.tax) })),
             igtf: { basisPoints: igtfBps, amount: conDinero(igtfTotal) },
             total: conDinero(aCobrar),
@@ -940,7 +992,7 @@ export async function guardarVersion(
   ctx: Contexto,
   cuenta: FamilyAccountDto,
   v: Readonly<{
-    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA" | "RECARGA" | "CIERRE_ADMINISTRATIVO";
+    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA" | "RECARGA" | "CIERRE_ADMINISTRATIVO" | "DESCUENTO";
     operationKey: string | null;
     ahora: number;
     quien: string;
@@ -1009,11 +1061,11 @@ async function catalogoEn(tx: Transaccion, ahora: number): Promise<(productId: s
  * está dividida, las partes que faltan. Sin el IGTF, que depende de cómo se pague. Sin IVA vigente
  * (no se podría cobrar), lo cobrable sin impuesto: la cifra es para enseñar, no para cobrar.
  */
-export function pendienteDe(c: FamilyAccountDto, periodos: TaxPeriods, ahora: number): Money {
+export function pendienteDe(c: FamilyAccountDto, periodos: TaxPeriods, ahora: number, categoryOf: CategoryOf = () => null): Money {
   const lineas = documentLinesOf(c);
   if (lineas.length === 0) return zero(FUNCIONAL);
   try {
-    const total = computeDocument({ lines: lineas, rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL }).total;
+    const total = computeDocument({ lines: lineas, discounts: documentDiscountsOf(c, categoryOf), rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL }).total;
     if (!c.split || c.split.paid >= c.split.parts) return total;
     return allocate(total, c.split.parts).slice(c.split.paid).reduce<Money>((acc, p) => add(acc, p), zero(FUNCIONAL));
   } catch (e) {
@@ -1036,6 +1088,7 @@ function resumenDe(c: FamilyAccountDto) {
     lineas: c.lines.length,
     pagadas: c.lines.filter((l) => l.paid).length,
     split: c.split ?? null,
+    descuento: c.descuento ? c.descuento.nombre : null,
   };
 }
 

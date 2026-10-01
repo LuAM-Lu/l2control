@@ -158,6 +158,7 @@ export function ReciboImpreso({
 
       <dl className="flex flex-col gap-0.5">
         <Renglon etiqueta="Subtotal" valor={recibo.subtotal} />
+        {recibo.descuento && <Renglon etiqueta={recibo.descuento.etiqueta} valor={recibo.descuento.monto} />}
         {recibo.impuestos.map((t) => (
           <Renglon key={t.etiqueta} etiqueta={t.etiqueta} valor={t.monto} />
         ))}
@@ -191,8 +192,8 @@ export function ReciboImpreso({
 function Renglon({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
-      <dt className="text-ink-2">{etiqueta}</dt>
-      <dd className="tnum">{valor}</dd>
+      <dt className="min-w-0 text-ink-2">{etiqueta}</dt>
+      <dd className="tnum shrink-0 whitespace-nowrap">{valor}</dd>
     </div>
   );
 }

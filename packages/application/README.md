@@ -25,6 +25,7 @@ escribe en la base dentro de la transacción del tenant. **Es la única puerta d
 | Dinero | `pagos.asentar` (todo o nada, idempotente), `pagos.revertir` (asiento de signo contrario, 🔐), `pagos.libro` (saldo calculado) | B2-3 |
 | Tiempo real | `tiempoReal.ticket` (lo firma la web para una sesión), `abrir` (firma, plazo y sesión viva), `latido`, `despachar` (outbox → temas por sucursal), `escuchar`; `sesiones.enCurso` (quién está en cada puesto). `temasDe` traduce cada acción auditada a lo que invalida | B5-1 |
 | Caja | `medios.leer`, `medios.aplicar` (encender y apagar, añadir un medio, datos del local cifrados, terminales); el libro cita el medio del catálogo, cifra los datos de cada pago y rechaza una referencia ya cobrada | B3-2 |
+| Caja | `descuentos.leer`, `crear` y `retirar` (reglas; `catalogo.modificar` con elevación), `marcarVip`, `deCuenta` (lo que se ofrece, el mayor primero) y `aplicar` (poner o quitar, con la 🔐 que toque; lo de administración lo autoriza administración). `cuentas.cobrar` cobra con el descuento y lo deja en la venta; las lecturas compartidas viven en `reglas-de-descuento.ts` | B3-6 |
 
 ## Qué NO le corresponde
 

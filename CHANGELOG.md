@@ -12,6 +12,29 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.38.0] — 2026-10-01 · Etapa 3 · Caja
+
+B3-6 · Descuentos configurables.
+
+### Añadido
+- **Ajustes → Descuentos**: administración crea los descuentos que la caja puede aplicar, **por medio de pago**
+  (p. ej. pagando todo en efectivo en dólares o por Zelle), **VIP** y **manuales**; un porcentaje o un monto, sobre
+  toda la cuenta, el parque, el restaurante o unas categorías, con su vigencia por días. Un descuento no se edita
+  ni se borra: se retira, y lo cobrado con él sigue diciendo cuál fue.
+- **Familias VIP**: en Parque → Representantes, administración marca a una familia con un descuento VIP.
+- **En la caja, «Descuento · Aplicar»**: la caja enseña los que aplican a la cuenta, el mayor primero, con lo que
+  descuenta cada uno. Uno por cuenta, y siempre **antes del IVA**. El de medio de pago pide el PIN de supervisión y
+  que toda la cuenta se cobre por ese medio (la caja se pone sola en ese medio); el manual, un motivo y el PIN de
+  supervisión, que llega hasta el **tope del 20 %** (por encima lo autoriza administración); el VIP no pide PIN; y
+  administración aplica el que quiera con su PIN y un motivo escrito.
+- El descuento sale en el **recibo**, en las **excepciones del turno** y en las del día en Inicio, con quién lo
+  autorizó.
+- **Tope de supervisión** configurable en Ajustes → Descuentos.
+
+### Cambiado
+- Con el IGTF al 0 % (V-13), la caja ya no enseña «+0 % IGTF» en los medios ni «+ IGTF $ 0,00» en los pagos.
+- Una cuenta con descuento no se divide: se quita el descuento para dividirla.
+
 ## [0.37.0] — 2026-09-30 · Etapa 9 · Inventario
 
 B9-6 · Identificación, tipos y la vista del inventario. Se cierra el Inventario.

@@ -21,6 +21,7 @@ import { formatMoneyVE } from "@l2/ui";
 import { formatClock } from "../park/time-format.ts";
 import { formatTasaVE } from "./tasa-format.ts";
 import { TEXTO_MOTIVO } from "./CortesiaDialog.tsx";
+import { etiquetaDescuento } from "./descuentos.ts";
 
 /** La forma vive en el contrato (`ReciboSchema`). */
 export type Recibo = ReciboDto;
@@ -72,6 +73,14 @@ export function reciboDeVenta(v: VentaCerradaDto, local: AjustesSucursalDto): Re
       ...(f.cortesia ? { cortesia: true } : {}),
     })),
     subtotal: texto(aDinero(v.subtotal)),
+    // El descuento va antes del IVA (B3-6): el subtotal es antes de él y los impuestos, después.
+    descuento: v.descuento
+      ? {
+          // «Descuento · Pago con Zelle · 10 %», sin repetir la palabra si el nombre ya la dice.
+          etiqueta: `${/^descuento/i.test(v.descuento.nombre) ? "" : "Descuento · "}${etiquetaDescuento(v.descuento)}`.slice(0, 80),
+          monto: `− ${texto(aDinero(v.descuento.importe))}`,
+        }
+      : null,
     impuestos: [
       ...v.impuestos.map((i) => ({ etiqueta: `IVA ${i.basisPoints / 100}%`, monto: texto(aDinero(i.tax)) })),
       ...(igtf.amount > 0n ? [{ etiqueta: `IGTF ${v.igtf.basisPoints / 100}%`, monto: texto(igtf) }] : []),
@@ -106,6 +115,7 @@ export function textoRecibo(r: Recibo, copia = false): string {
     ),
     "",
     `Subtotal: ${r.subtotal}`,
+    ...(r.descuento ? [`${r.descuento.etiqueta}: ${r.descuento.monto}`] : []),
     ...r.impuestos.map((i) => `${i.etiqueta}: ${i.monto}`),
     `*Total: ${r.total}*${r.totalBs ? ` (${r.totalBs})` : ""}`,
     "",

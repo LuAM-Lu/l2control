@@ -42,6 +42,13 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "cuenta.quitar_cortesia": ["cuentas", "ventas"],
   // Una incobrable sale de los pendientes del cierre.
   "cuenta.incobrable": ["cuentas", "turno"],
+  // Poner o quitar un descuento cambia lo que se cobra de esa cuenta (B3-6).
+  "cuenta.descuento": ["cuentas"],
+  "cuenta.quitar_descuento": ["cuentas"],
+  // Una regla nueva o retirada cambia lo que la caja ofrece; marcar una familia VIP, también, y el directorio.
+  "descuento.crear": ["descuentos"],
+  "descuento.retirar": ["descuentos"],
+  "familia.vip": ["descuentos", "sala"],
   "venta.imprimir": ["ventas"],
   "venta.reimprimir": ["ventas"],
 

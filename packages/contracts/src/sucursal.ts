@@ -165,6 +165,16 @@ export const AjustesSucursalSchema = z
     servicio: ServicioSchema,
     /** Sin serie hasta el primer lote (B4-5). Los ajustes publicados antes no la traen: sin serie. */
     pulseras: FormatoPulserasSchema.default({ prefijo: null, longitud: null }),
+    /**
+     * Hasta cuánto de la cuenta autoriza supervisión en un descuento manual, en puntos básicos
+     * (D-DESC: 20 %, configurable). Por encima, lo autoriza administración, que no tiene tope.
+     */
+    topeDescuentoSupervision: z
+      .number()
+      .int("Porcentaje con hasta dos decimales")
+      .min(0, "El tope va de 0 % a 100 %")
+      .max(10_000, "El tope va de 0 % a 100 %")
+      .default(2000),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

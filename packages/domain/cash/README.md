@@ -79,6 +79,16 @@ son los siete de §5.5 con los que nace un local (los que piden datos del local,
 gaveta, que no pide referencia); `offerProblem` y `offeredMethods`, qué puede ofrecer la caja:
 encendido y con los datos del local que el cliente necesita.
 
+## Los descuentos (B3-6, V-9, D-DESC)
+
+`descuento.ts`: qué líneas toca un alcance (`scopeLineIds`: la cuenta, el parque, el restaurante o unas
+categorías), cuánto descuenta (`discountAmount`, igual que el motor de impuestos) y en qué forma lo recibe
+`computeDocument` (`documentDiscountsOf`), siempre antes del IVA. `discountCandidates` ordena lo que se ofrece, el
+mayor primero, con el VIP solo para su familia; `applyDiscountProblem` dice si se puede poner (en la cola, sin
+dividir y descontando algo); `exceedsSupervisionCap` y `needsAdministration`, quién lo autoriza; y
+`discountAtChargeProblem`, si se puede cobrar con él (toda la cuenta por su medio, su regla vigente, el tope). Uno
+por cuenta: `withDiscount` sustituye al anterior, y `markPaid` lo consume (queda en la venta).
+
 ## Qué NO le corresponde
 
 - **Los impuestos.** El total que recibe ya viene con IVA de `@l2/domain-tax`. El IGTF se

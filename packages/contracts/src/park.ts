@@ -349,6 +349,8 @@ export const RepresentanteSchema = z.object({
   /** Cuántas veces ha entrado la familia. Nunca negativo. */
   visitas: z.number().int().min(0),
   ultimaVisita: TimestampSchema.optional(),
+  /** La regla VIP con que administración marcó a la familia (B3-6), o nada. */
+  vip: z.object({ reglaId: IdSchema, nombre: z.string() }).nullable().optional(),
 });
 export type RepresentanteDto = z.infer<typeof RepresentanteSchema>;
 

@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-09-30**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-10-01**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -31,7 +31,13 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.37.0 · 37 de 56 pasos.** **Se cierra el Inventario (B9-6):** Productos enseña el stock primero (resumen +
+**Versión 0.38.0 · 38 de 56 pasos.** **Los descuentos son configurables (B3-6):** administración crea en Ajustes →
+Descuentos los que la caja puede aplicar (por medio de pago, VIP y manuales; porcentaje o monto; sobre la cuenta, el
+parque, el restaurante o unas categorías; con vigencia) y marca familias VIP en el directorio. La caja ofrece los que
+aplican, el mayor primero, uno por cuenta y antes del IVA, con la 🔐 que toca: el de medio exige cobrar toda la cuenta
+por ese medio; el manual de supervisión llega hasta el tope (20 %, ajuste del local); el VIP no pide PIN; y
+administración aplica el que quiera con su PIN y un motivo escrito. Sale en el recibo y en las excepciones del turno y
+del día. **Se cierra el Inventario (B9-6):** Productos enseña el stock primero (resumen +
 tabla o tarjetas, por tipo: Producto, Preparado, Servicio); cada producto tiene SKU automático, código de barras y
 presentación; la entrada de mercancía da de alta lo que llega por primera vez, y el código se lee en la caja (vende),
 las entradas, el conteo y Productos. **Mínimos y avisos (B9-5):** cada producto tiene su stock mínimo (punto de
@@ -78,8 +84,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 338 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  45 de impuestos, 105 de caja, 37 del parque, 43 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 349 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  49 de impuestos, 119 de caja, 37 del parque, 43 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -229,7 +235,17 @@ Uva» (PRU-0002, código 036000291452, 72 a $ 0,60): está apartado. Equipos «P
 revocados. **En la base hay datos que no son míos**: el producto «TEST pRODUCTO» (categoría «sAPO») y la venta de mostrador
 #0031 (papas fritas, por cobrar), creados el 2026-09-30 a las 9:59 pm; no se tocaron.
 
-**Siguiente paso:** **B3-6** (descuentos configurables), que abre lo que queda de la caja.
+**Los descuentos en la base local (2026-10-01, al comprobar B3-6).** La migración `20261019000000_descuentos` está
+aplicada a la base del cliente (dos tablas nuevas y una causa más en las versiones de la cuenta; no rellena nada).
+Abigail Karam creó «Prueba B36 Efectivo $» (10 %, pagando todo en efectivo en dólares), «Prueba B36 Manual 25» y
+«Prueba B36 VIP» (20 % del parque), y marcó VIP a la «Familia Prueba B36 8153». Entraron y salieron tres familias de
+prueba (8153, 1779 y 1646; pulseras PB36-…) y se cobraron en «Prueba B36 Caja» con descuento: #0032 con el VIP
+($ 4,64), #0033 con el de efectivo autorizado por Luis Guerrero ($ 5,22, después de rechazar un pago en bolívares) y
+#0034 con uno de administración del 50 % ($ 2,90). Dos turnos de prueba, los dos sellados con su Z por la cajera
+(faltó $ 0,11 en el primero, dentro del umbral). **Las tres reglas están retiradas**: la caja del cliente no ofrece
+ninguna. Equipos «Prueba B36 …» revocados. El turno de «PC admin» y las cuentas #0022 y #0031 del cliente no se tocaron.
+
+**Siguiente paso:** **B5-2** (impresión y comandas).
 
 ---
 
@@ -275,7 +291,7 @@ cinco reglas de CLAUDE.md no se relajan.
 | **V-10** | **Cumpleaños: reserva con fecha y anticipo.** Horario, cliente, **niños invitados** (sus pulseras cuentan en el aforo), **paquete con productos** (descuenta existencias el día del evento), anticipo al reservar y saldo el día. Sin política de cancelación: devolver un anticipo es anular su cobro (DEC-24) | B10-1, B10-2 |
 | **V-11** | **Un solo servidor en la nube (VPS)** con **internet de respaldo 4G** y UPS en la red del local ([ADR-021](adr/021-servidor-en-la-nube.md), cierra D-INF; supersede la topología de ADR-003 y DEC-4/DEC-10 en lo que pedían un equipo en el local) | B7-1, B8-1 |
 | **V-12** | **Papel**: si caen los dos enlaces, se anota en formularios; al volver, **la cajera lo carga en su turno**, marcado «desde papel» con la hora real anotada, y **supervisión lo revisa** en el cierre (cierra JORNADA §7.4) | B3-7 |
-| **V-13** | **No se cobra IGTF por ahora** (el cliente, 2026-09-28): se programa al 0 % en Ajustes → Impuestos y el motor se queda para cuando vuelva. Con el IGTF al 0 %, la caja y el recibo no enseñan su línea. Cambia lo que M-3 decía del IGTF; el IVA sigue | ~~Ajustes~~ (hecho el 2026-09-29); B3-6 (la línea) |
+| **V-13** | **No se cobra IGTF por ahora** (el cliente, 2026-09-28): se programa al 0 % en Ajustes → Impuestos y el motor se queda para cuando vuelva. Con el IGTF al 0 %, la caja y el recibo no enseñan su línea. Cambia lo que M-3 decía del IGTF; el IVA sigue | ~~Ajustes~~ (hecho el 2026-09-29); ~~B3-6~~ (la línea) |
 | **V-14** | **La tasa del BCV es siempre la que trae la API**: se retira el umbral de salto de ADR-019 (D-CORD). Si la API falla, administración (o supervisión con 🔐) la carga a mano en Ajustes → Tasas y se aplica al guardarla, como ya hace; en dólares se cobra siempre. Cuando la API trae la del día, la reemplaza | B5-1 |
 
 ---
@@ -319,7 +335,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → **B3-6** (descuentos) → B5-2 (impresión y comandas).
+4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → **B5-2** (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -886,7 +902,7 @@ Fuera de la cuenta de 56: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   consola. La jornada completa hasta su Z se prueba contra la base: el local tiene cuentas vivas del cliente, que
   no se tocaron.*
 
-- [ ] **B3-6 · Descuentos configurables** (M-15, V-9; `cuenta.descuento`, que ya estaba en la matriz).
+- [x] **B3-6 · Descuentos configurables** (M-15, V-9; `cuenta.descuento`, que ya estaba en la matriz).
   → Administración crea las reglas en Ajustes → Descuentos (tipo: medio de pago, VIP o manual;
   porcentaje o monto; alcance: toda la cuenta, el parque, el restaurante o categorías; vigencia) y marca
   familias VIP en el directorio. Al cobrar, la caja ve los que aplican: el de medio de pago exige que
@@ -898,6 +914,41 @@ Fuera de la cuenta de 56: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   (V-13), la caja y el recibo no enseñan su línea.
   → Ningún descuento sin regla o autorización en la auditoría; el total con descuento cuadra al céntimo
   con el libro.
+  *Hecho el 2026-10-01 (v0.38.0), en `feat/b3-6`. Decisiones del paso, a confirmar con el cliente: el VIP **no pide
+  PIN** (la marca de administración lo ampara; la matriz dice 🔐 para la caja); una familia VIP lo es por **una regla
+  VIP** (así «su porcentaje» tiene alcance y vigencia); el descuento **se pone a la cuenta antes de cobrar** y el cobro
+  lo consume (anular el cobro no lo devuelve: la cuenta vuelve a deberse entera); una cuenta **dividida no lleva
+  descuento**; el **«de administración»** lo puede pedir la caja, pero solo lo autoriza administración; y el tope se
+  mide sobre lo que se cobra antes del IVA.*
+  *· Dominio: `@l2/domain-tax` admite un descuento con alcance (`lineIds`: porcentaje sobre sus líneas, monto sin
+  pasar de ellas, prorrateo solo entre ellas). `@l2/domain-cash` (`descuento.ts`): `scopeLineIds`,
+  `discountAmount`, `documentDiscountsOf`, `discountCandidates` (el mayor primero; el VIP solo a su familia),
+  `applyDiscountProblem`, `exceedsSupervisionCap`/`needsAdministration`, `discountAtChargeProblem` y `withDiscount`;
+  `markPaid` lo consume y `accountChangeProblem` rechaza ponerlo, quitarlo o dividir desde un «guardar». 18 pruebas.*
+  *· Contrato (`descuentos.ts`): reglas, mando de crear y retirar, marca VIP, `DescuentoAplicadoSchema` en la cuenta,
+  `AplicarDescuentoCommandSchema`, `DescuentosDeCuentaSchema` y el descuento de la venta; el recibo lleva su línea y
+  los ajustes, `topeDescuentoSupervision` (2000 de fábrica). Tema en vivo nuevo: `descuentos`. 7 pruebas.*
+  *· Base: `20261019000000_descuentos`: `discount_rule` (CHECKs de valor, alcance, medio y vigencia; se retira una
+  vez, no se borra ni se reescribe) y `guardian_vip` (solo-agregar; solo una regla VIP vigente), las dos con RLS; la
+  versión de una cuenta admite la causa DESCUENTO.*
+  *· Aplicación: `caja/descuentos.ts` (`leer`, `crear`, `retirar` y `marcarVip` con `catalogo.modificar` y
+  elevación; `deCuenta`; `aplicar` con `cuenta.descuento`: la regla rige hoy en el local, el VIP es el de esa familia,
+  lo de administración lo autoriza administración —comprobado antes del PIN— y la 🔐 queda antes de tocar la cuenta;
+  quitarlo no pide PIN). `cuentas.cobrar` calcula con el descuento, exige su medio, su regla vigente y el tope, y lo
+  deja en la venta y en la auditoría; `cortes` lo pone en las excepciones del turno y del día; el directorio lleva la
+  marca VIP. Auditoría `cuenta.descuento`, `cuenta.quitar_descuento`, `descuento.crear`, `descuento.retirar` y
+  `familia.vip`, con su fila en `TEMAS_DE_ACCION`. 11 pruebas contra la base (incluido otro local y el mesero).*
+  *· Web: Ajustes → Descuentos (alta con su formulario, vigentes y retirados, tope de supervisión), la marca VIP en
+  Parque → Representantes, y en la caja la fila «Descuento» con «Aplicar» o «Quitar», el diálogo que propone el mayor
+  (con motivo y quién autoriza; solo administración si pasa del tope) y la caja que se pone sola en el medio del
+  descuento y avisa si un pago va por otro. Con el IGTF al 0 % ya no salen «+0 % IGTF» ni «+ IGTF $ 0,00» (V-13).*
+  *· Comprobado en el navegador (Playwright, base local, datos «Prueba B36 …»): alta de tres reglas (con sus errores
+  de formulario), marca VIP en el directorio, el diálogo con los tres candidatos ordenados (VIP sin PIN; el manual de
+  25 % solo con administración en la lista), cobro con VIP, cambio de un manual por el de efectivo con Luis Guerrero,
+  un pago en bolívares rechazado por la caja y el cobro en dólares, uno de administración con PIN malo rechazado, el
+  recibo con su línea, las dos excepciones en el turno y en Inicio, y retirar las reglas. Ajustes → Descuentos, el
+  diálogo y la caja a 1366×768, 1280×800 y 800×1280 sin desplazar el documento (el PIN a la vista); sin errores de
+  consola.*
 - [ ] **B3-7 · Carga de lo anotado en papel** (M-15, V-12; JORNADA §4 y §7).
   → Tras un corte de los dos enlaces (ADR-021, N2), la cajera carga en su turno las entradas y los
   cobros anotados, cada uno marcado «desde papel» con la hora real que se anotó: la única hora que
@@ -1415,7 +1466,6 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
-| Con el IGTF al 0 % (V-13, programado el 2026-09-29) la caja y el recibo enseñan su línea en cero | B3-6 |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
@@ -1427,7 +1477,9 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
-| El descuento (`cuenta.descuento`, 🔐 en la matriz) no existe en la caja: ni pantalla ni tarea del PLAN | Cuando el cliente lo pida (va al servidor con `exigirPermisoOAutorizacion`) |
+| Una cuenta dividida no lleva descuento, y una con descuento no se divide (el reparto en partes sale del total) | Aceptado (B3-6); si el cliente lo pide en mesas |
+| El tope de supervisión se cambia desde Ajustes → Descuentos (publica una versión de los ajustes); el editor de Sucursal no lo enseña | Al pasar por Sucursal |
+| Los pendientes del cierre enseñan lo que se debe sin restar un descuento «por categorías» (la cifra es para enseñar; el cobro sí lo resta) | Aceptado |
 | Devolver en efectivo lo que entró por otro medio (Pago Móvil, punto) saca de la gaveta un efectivo que el libro no apunta: el arqueo lo verá como faltante | Un asiento de salida de caja en el libro, cuando el cliente lo necesite |
 | El ticket de corte no se imprime (el Z queda sellado y se ve en pantalla) | B5-2 |
 | El resumen del día no separa lo vendido del parque y del restaurante (JORNADA §5) | Cuando el cliente lo pida |
@@ -1503,7 +1555,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada e incobrables | Descuentos (B3-6), carga desde papel (B3-7) y ticket de corte impreso (B5-2) |
+| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables y descuentos | Carga desde papel (B3-7) y ticket de corte impreso (B5-2) |
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
@@ -1626,6 +1678,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-30** · B9-6 hecho (v0.37.0): Productos con el stock primero, tipos, SKU, código de barras, alta en la entrada y
   el lector en caja, entradas, conteo y Productos; se cierra la Etapa 9. Sigue B3-6.
 - **2026-09-30** · Handoff (v0.37.0 en `main`, sin subir): B4-5 y la Etapa 9 entera (B9-2 a B9-6) hechas en esta sesión.
+- **2026-10-01** · B3-6 hecho (v0.38.0): descuentos configurables por medio de pago, VIP, manuales y de administración,
+  uno por cuenta y antes del IVA, con su 🔐 en el servidor, en el recibo y en las excepciones. Sigue B5-2.
 
 ---
 

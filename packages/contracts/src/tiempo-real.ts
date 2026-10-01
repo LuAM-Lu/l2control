@@ -40,6 +40,8 @@ export const TemaSchema = z.enum([
   "sesiones",
   /** Los ajustes de la sucursal: formato de hora, zona, umbrales (B4-4). */
   "sucursal",
+  /** Las reglas de descuento y las familias VIP (B3-6). */
+  "descuentos",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 

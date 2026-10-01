@@ -13,6 +13,7 @@
  * para las tres y para el servidor (ADR-017).
  */
 import { z } from "zod";
+import { DescuentoAplicadoSchema } from "./descuentos.ts";
 import { TaxCodeSchema } from "./impuestos.ts";
 import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
@@ -179,6 +180,11 @@ export const FamilyAccountSchema = z
     /** Estancias ya cerradas en la salida. */
     closedSessionIds: z.array(IdSchema),
     lines: z.array(AccountLineSchema),
+    /**
+     * El descuento que lleva (B3-6, D-DESC: uno por cuenta). Lo pone y lo quita su mando en el
+     * servidor, con su autorización; el cobro lo consume y queda en la venta.
+     */
+    descuento: DescuentoAplicadoSchema.optional(),
   })
   .superRefine((c, ctx) => {
     // Lo que queda por cobrar. Una línea regalada NO cuenta: se entregó y no

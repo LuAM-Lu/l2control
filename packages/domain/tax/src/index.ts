@@ -91,9 +91,14 @@ export type DocumentLine = Readonly<{
   taxCode: TaxCode;
 }>;
 
+/**
+ * Un descuento sobre el documento. Sin `lineIds` toca toda la cuenta; con ellos, solo esas líneas
+ * (B3-6: el parque, el restaurante o unas categorías): el porcentaje se calcula sobre lo que suman,
+ * un monto no pasa de lo que suman y el prorrateo se reparte solo entre ellas.
+ */
 export type Discount =
-  | Readonly<{ kind: "AMOUNT"; value: Money }>
-  | Readonly<{ kind: "PERCENT"; basisPoints: number }>;
+  | Readonly<{ kind: "AMOUNT"; value: Money; lineIds?: readonly string[] }>
+  | Readonly<{ kind: "PERCENT"; basisPoints: number; lineIds?: readonly string[] }>;
 
 /**
  * Servicio o propina.
@@ -166,8 +171,11 @@ export function computeDocument(input: {
   const subtotal = sum(amounts, currency);
 
   // --- descuentos -------------------------------------------------------
+  // Los de toda la cuenta se suman y se prorratean juntos; los que tienen alcance, cada uno entre
+  // sus líneas (más abajo). Una cuenta lleva uno solo (D-DESC): combinarlos no está pensado.
+  const scoped = discounts.filter((d) => d.lineIds !== undefined);
   let discountTotal = zero(currency);
-  for (const d of discounts) {
+  for (const d of discounts.filter((x) => x.lineIds === undefined)) {
     discountTotal = add(
       discountTotal,
       d.kind === "AMOUNT"
@@ -196,6 +204,23 @@ export function computeDocument(input: {
     discountTotal.amount === 0n || weightSum === 0n
       ? amounts.map(() => zero(currency))
       : allocateByRatios(discountTotal, weights);
+
+  // Un descuento con alcance: sobre lo que suman sus líneas, sin pasar de ello, y repartido solo
+  // entre ellas. Sin cargos que descontar (devoluciones, nada en el alcance), no descuenta nada.
+  for (const d of scoped) {
+    const ids = new Set(d.lineIds);
+    const idx = lines.flatMap((l, i) => (ids.has(l.id) && amounts[i]!.amount > 0n ? [i] : []));
+    const base = sum(idx.map((i) => amounts[i]!), currency);
+    if (base.amount <= 0n) continue;
+    let monto = d.kind === "AMOUNT" ? d.value : multiplyByRate(base, BigInt(d.basisPoints), BASIS, rounding);
+    if (monto.amount > base.amount) monto = base;
+    if (monto.amount <= 0n) continue;
+    const partes = allocateByRatios(monto, idx.map((i) => amounts[i]!.amount));
+    idx.forEach((i, k) => {
+      discountPerLine[i] = add(discountPerLine[i]!, partes[k]!);
+    });
+    discountTotal = add(discountTotal, monto);
+  }
 
   // --- servicio ---------------------------------------------------------
   const netSubtotal = subtract(subtotal, discountTotal);

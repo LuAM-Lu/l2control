@@ -28,6 +28,7 @@ import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar } from "../auditoria/auditar.ts";
 import { exigirPermiso } from "../identidad/actor.ts";
+import { marcasVip } from "../caja/reglas-de-descuento.ts";
 
 export interface CasosRepresentantes {
   /** La familia de ese contacto, o `null` si no ha venido nunca. */
@@ -167,6 +168,7 @@ async function leerDirectorio(tx: Transaccion): Promise<DirectorioRepresentantes
     SELECT guardian_id, count(DISTINCT check_in_key) AS visitas, max(started_at) AS ultima
     FROM park_session GROUP BY guardian_id`;
   const porFamilia = new Map(visitas.map((v) => [v.guardian_id, v]));
+  const vip = await marcasVip(tx);
   return DirectorioRepresentantesSchema.parse({
     representantes: familias.map((g) => {
       const v = porFamilia.get(g.id);
@@ -177,6 +179,7 @@ async function leerDirectorio(tx: Transaccion): Promise<DirectorioRepresentantes
         kids: g.kids.map((k) => ({ id: k.id, name: k.name, ...(k.nickname ? { nickname: k.nickname } : {}) })),
         visitas: v ? Number(v.visitas) : 0,
         ...(v ? { ultimaVisita: v.ultima.toISOString() } : {}),
+        vip: vip.get(g.id) ?? null,
       };
     }),
   });

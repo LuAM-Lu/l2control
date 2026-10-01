@@ -44,6 +44,8 @@ export type AccountDoc = Readonly<{
   tableId?: string | undefined;
   split?: Readonly<{ parts: number; paid: number }> | undefined;
   lines: readonly AccountLineDoc[];
+  /** El descuento que lleva (B3-6): lo pone y lo quita su mando, con su autorización; lo consume el cobro. */
+  descuento?: unknown;
 }>;
 
 /* ─────────────────────────────────────────────────────────── qué se cobra */
@@ -72,11 +74,13 @@ const todosFuera = (c: AccountDoc) => c.closedSessionIds.length === c.sessionIds
 
 /**
  * Se cobró todo lo pendiente: las líneas quedan pagadas. Si la familia ya se fue (o es una mesa o
- * el mostrador), la cuenta queda cobrada; si quedan niños dentro, vuelve a «abierta».
+ * el mostrador), la cuenta queda cobrada; si quedan niños dentro, vuelve a «abierta». El descuento,
+ * si lo llevaba, se queda en la venta: lo que se deba después no lo arrastra (B3-6).
  */
 export function markPaid<A extends AccountDoc>(c: A): A {
+  const { descuento: _, ...sinDescuento } = c;
   return {
-    ...c,
+    ...(sinDescuento as A),
     lines: c.lines.map((l) => (l.paid || l.movedTo || l.cortesia ? l : { ...l, paid: true })),
     status: c.kind !== "FAMILIA" || todosFuera(c) ? "COBRADA" : "ABIERTA",
   };
@@ -150,7 +154,9 @@ export type AccountChangeProblem =
   | "PRECIO_DISTINTO"
   | "FAMILIA_DESDE_LA_PANTALLA"
   | "ESTANCIAS_DESDE_LA_PANTALLA"
-  | "PARQUE_DESDE_LA_PANTALLA";
+  | "PARQUE_DESDE_LA_PANTALLA"
+  | "DESCUENTO_DESDE_LA_PANTALLA"
+  | "DIVISION_CON_DESCUENTO";
 
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
@@ -184,6 +190,10 @@ export function accountChangeProblem(
 
   // Marcar incobrable es de supervisión con su 🔐 (D-JOR), y una incobrable ya no se toca.
   if (after.status === "INCOBRABLE" || before?.status === "INCOBRABLE") return { problem: "CUENTA_INCOBRABLE" };
+  // El descuento es de su mando, con su autorización (B3-6): un «guardar» no lo pone ni lo quita.
+  if (JSON.stringify(before?.descuento ?? null) !== JSON.stringify(after.descuento ?? null)) return { problem: "DESCUENTO_DESDE_LA_PANTALLA" };
+  // El reparto en partes sale del total: con un descuento puesto, la cuenta no se divide.
+  if (after.descuento !== undefined && after.split !== undefined) return { problem: "DIVISION_CON_DESCUENTO" };
   if (!before) {
     // La cuenta de una familia la abre la entrada del parque (B4-2), con sus estancias y el precio
     // del tarifario: una pantalla no la inventa.

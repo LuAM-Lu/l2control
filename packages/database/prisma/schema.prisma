@@ -34,6 +34,7 @@ model Tenant {
   collectionDetails CollectionDetails[]
   products          Product[]
   guardians         Guardian[]
+  discountRules     DiscountRule[]
 
   @@map("tenant")
 }
@@ -525,8 +526,9 @@ model PaymentMethod {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   createdByName String   @map("created_by_name")
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  payments Payment[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payments      Payment[]
+  discountRules DiscountRule[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, code])
@@ -931,6 +933,7 @@ model Guardian {
   tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   kids     Kid[]
   sessions ParkSession[]
+  vipMarks GuardianVip[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, contactKey])
@@ -1171,4 +1174,59 @@ model StockAdjustment {
   @@unique([tenantId, operationKey])
   @@index([tenantId, branchId, at])
   @@map("stock_adjustment")
+}
+
+/// Una regla de descuento (B3-6, V-9): por medio de pago, VIP o manual; un porcentaje o un monto;
+/// sobre la cuenta, el parque, el restaurante o unas categorías; con su vigencia en días del local.
+/// No se borra ni se reescribe (lo cobrado con ella la cita): se retira una vez, con quién y cuándo.
+model DiscountRule {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  name          String
+  /// MEDIO, VIP o MANUAL (CHECK).
+  kind          String
+  /// PORCENTAJE (con `basis_points`) o MONTO (con `amount_minor` en dólares) (CHECK).
+  valueKind     String    @map("value_kind")
+  basisPoints   Int?      @map("basis_points")
+  amountMinor   BigInt?   @map("amount_minor")
+  currency      String?
+  /// CUENTA, PARQUE, RESTAURANTE o CATEGORIAS (con sus `categories`) (CHECK).
+  scopeKind     String    @map("scope_kind")
+  categories    String[]
+  /// El medio de un descuento por medio de pago; nulo en los demás (CHECK).
+  methodCode    String?   @map("method_code")
+  validFrom     DateTime  @map("valid_from") @db.Date
+  validTo       DateTime? @map("valid_to") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdByName String    @map("created_by_name")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredBy     String?   @map("retired_by") @db.Uuid
+  retiredByName String?   @map("retired_by_name")
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  method   PaymentMethod? @relation(fields: [tenantId, methodCode], references: [tenantId, code], onDelete: Restrict, onUpdate: Restrict)
+  vipMarks GuardianVip[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, kind])
+  @@map("discount_rule")
+}
+
+/// Marcar o desmarcar a una familia VIP (B3-6): solo se añaden filas, y rige la última de cada
+/// familia. `discount_rule_id` nulo = se le quitó la marca.
+model GuardianVip {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  guardianId     String   @map("guardian_id") @db.Uuid
+  discountRuleId String?  @map("discount_rule_id") @db.Uuid
+  markedAt       DateTime @map("marked_at") @db.Timestamptz(3)
+  markedBy       String?  @map("marked_by") @db.Uuid
+  markedByName   String   @map("marked_by_name")
+
+  guardian Guardian      @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  rule     DiscountRule? @relation(fields: [tenantId, discountRuleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, guardianId, markedAt])
+  @@map("guardian_vip")
 }

@@ -5,6 +5,7 @@ import {
   FamilyAccountSchema,
   type AnularCobroCommand,
   type CobrarCuentaCommand,
+  type AplicarDescuentoCommand,
   type CortesiaCommand,
   type CuentaYLibroDto,
   type FamilyAccountDto,
@@ -15,7 +16,7 @@ import { isDiscardedDraft } from "@l2/domain-cash";
 import { avisar } from "@l2/ui";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { puedeDescartarse } from "./cuentas.ts";
-import { anularCobro, cobrarCuenta, darCortesia, guardarCuenta, leerCuentas } from "./cuentas.acciones";
+import { anularCobro, aplicarDescuento, cobrarCuenta, darCortesia, guardarCuenta, leerCuentas } from "./cuentas.acciones";
 
 /**
  * Las cuentas de la sucursal, compartidas por las estaciones — DEC-21, en el servidor desde B3-3.
@@ -49,6 +50,8 @@ type Valor = Readonly<{
   anular: (cmd: AnularCobroCommand, autorizacion?: unknown) => Promise<Resultado<CuentaYLibroDto>>;
   /** Regala una línea (o deja de regalarla) en el servidor, con su autorización, y adopta la cuenta. */
   cortesia: (cmd: CortesiaCommand, autorizacion?: unknown) => Promise<Resultado<FamilyAccountDto>>;
+  /** Pone un descuento a una cuenta o se lo quita (B3-6), en el servidor y con su autorización. */
+  descuento: (cmd: AplicarDescuentoCommand, autorizacion?: unknown) => Promise<Resultado<FamilyAccountDto>>;
   /** Adopta una cuenta que el servidor acaba de devolver por otra vía (la entrada o la salida del parque). */
   adoptar: (cuenta: FamilyAccountDto) => void;
   /** Siempre `true`: las cuentas llegan del servidor con la página. Se mantiene para quien lo mira. */
@@ -193,6 +196,17 @@ export function CuentasProvider({ inicial, children }: { inicial: readonly Famil
     [enCola, refrescar],
   );
 
+  const descuento = useCallback(
+    (cmd: AplicarDescuentoCommand, autorizacion?: unknown) =>
+      enCola(cmd.accountId, async (): Promise<Resultado<FamilyAccountDto>> => {
+        const r = await aplicarDescuento({ ...cmd, version: versionPara(cmd.accountId, cmd.version) ?? cmd.version }, autorizacion).catch(() => sinConexion);
+        if (r.ok) setCuentas((prev) => conCuenta(prev, r.valor));
+        else if (r.motivo === "CONFLICTO") void refrescar();
+        return r;
+      }),
+    [enCola, refrescar],
+  );
+
   const adoptar = useCallback((cuenta: FamilyAccountDto) => {
     setCuentas((prev) => conCuenta(prev, FamilyAccountSchema.parse(cuenta)));
   }, []);
@@ -200,8 +214,8 @@ export function CuentasProvider({ inicial, children }: { inicial: readonly Famil
   // Una venta de mostrador vaciada no es una cuenta: no sale en ninguna estación.
   const vigentes = useMemo(() => cuentas.filter((c) => !isDiscardedDraft(c)), [cuentas]);
   const valor = useMemo(
-    () => ({ cuentas: vigentes, guardar, descartar, cobrar, anular, cortesia, adoptar, cargado: true }),
-    [vigentes, guardar, descartar, cobrar, anular, cortesia, adoptar],
+    () => ({ cuentas: vigentes, guardar, descartar, cobrar, anular, cortesia, descuento, adoptar, cargado: true }),
+    [vigentes, guardar, descartar, cobrar, anular, cortesia, descuento, adoptar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

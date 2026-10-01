@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BadgePercent,
   Banknote,
   Check,
   CircleCheckBig,
@@ -50,6 +51,8 @@ import {
 import {
   closeSettlement,
   computeBalance,
+  documentDiscountsOf,
+  type CategoryOf,
   type ChangeDisposition,
   type Tender,
 } from "@l2/domain-cash";
@@ -81,6 +84,7 @@ import {
   type ClienteFacturaDto,
   type CortesiaDto,
   type DatosDePagoDto,
+  type DescuentosDeCuentaDto,
   type FamilyAccountDto,
   type ImpuestosDto,
   type TurnoDto,
@@ -107,6 +111,10 @@ import {
   type FiltroCola,
 } from "./ColaCuentas.tsx";
 import { CortesiaDialog } from "./CortesiaDialog.tsx";
+import { DescuentoDialog, type PedidoDeDescuento } from "./DescuentoDialog.tsx";
+import { textoAlcance, textoValor } from "./descuentos.ts";
+import { descuentosDeCuenta } from "../cuentas/cuentas.acciones";
+import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { ReciboDialog } from "./ReciboDialog.tsx";
 import { reciboDeVenta } from "./recibo.ts";
 import { useVentas } from "./VentasProvider.tsx";
@@ -188,6 +196,9 @@ function CobroCuenta({
   onCambiarCantidad,
   onDividir,
   onCortesia,
+  categoryOf,
+  onDescuento,
+  onQuitarDescuento,
   ocultoEnDosColumnas,
 }: {
   lines: readonly DocumentLine[];
@@ -224,6 +235,12 @@ function CobroCuenta({
    * si lo hay, para que el diálogo lo enseñe.
    */
   onCortesia?: (linea: AccountLineDto, motivo: CortesiaDto["motivo"] | null, detalle: string | undefined, autorizacion: unknown) => Promise<Rechazo | null>;
+  /** La categoría de cada producto del catálogo: el descuento «por categorías» la necesita (B3-6). */
+  categoryOf: CategoryOf;
+  /** Pone un descuento a la cuenta en el servidor, con su autorización (B3-6). Devuelve el rechazo, si lo hay. */
+  onDescuento?: (pedido: PedidoDeDescuento, autorizacion: unknown) => Promise<Rechazo | null>;
+  /** Le quita el descuento a la cuenta: vuelve a deberse entera. */
+  onQuitarDescuento?: () => Promise<Rechazo | null>;
   /** Con la cola plegada (dos columnas), el ticket cede su sitio a la cola. El cobro no se oculta nunca. */
   ocultoEnDosColumnas?: boolean;
 }) {
@@ -311,6 +328,12 @@ function CobroCuenta({
       if (primero) setMedioActivo(primero);
     }
   }, [mediosDisponibles, medioActivo.code]);
+  // Con un descuento por medio de pago, la caja se pone en ese medio: toda la cuenta va por él (V-9).
+  const medioDelDescuento = cuenta.descuento?.origen === "MEDIO" ? cuenta.descuento.medio : null;
+  useEffect(() => {
+    const m = medioDelDescuento ? mediosDisponibles.find((x) => x.code === medioDelDescuento) : undefined;
+    if (m) setMedioActivo(m);
+  }, [medioDelDescuento, mediosDisponibles]);
   const [monto, setMonto] = useState("");
   const [destinoVuelto, setDestinoVuelto] = useState<
     "VUELTO" | "PROPINA" | "CAJA"
@@ -330,6 +353,32 @@ function CobroCuenta({
   const pagoEditado = pagos.find((p) => p.uid === editando) ?? null;
   const actor = useActorEnSesion();
   const permisoCortesia = actor ? can(actor, "cuenta.cortesia") : "DENEGADO";
+  const permisoDescuento = actor ? can(actor, "cuenta.descuento") : "DENEGADO";
+  const descuento = cuenta.descuento;
+
+  /**
+   * Los descuentos que el servidor ofrece a esta cuenta (B3-6), el mayor primero. Se vuelven a pedir
+   * cuando la cuenta cambia y cuando administración cambia las reglas o marca una familia VIP.
+   */
+  const [ofrecidos, setOfrecidos] = useState<DescuentosDeCuentaDto | null>(null);
+  const [viendoDescuento, setViendoDescuento] = useState(false);
+  const [quitandoDescuento, setQuitandoDescuento] = useState(false);
+  const [releerOfrecidos, setReleerOfrecidos] = useState(0);
+  useAlCambiar(["descuentos"], () => setReleerOfrecidos((n) => n + 1));
+  const ofreceDescuentos = onDescuento !== undefined && permisoDescuento !== "DENEGADO" && cuenta.status === "POR_COBRAR";
+  useEffect(() => {
+    if (!ofreceDescuentos) {
+      setOfrecidos(null);
+      return;
+    }
+    let vivo = true;
+    descuentosDeCuenta(cuenta.id)
+      .then((r) => vivo && setOfrecidos(r.ok ? r.valor : null))
+      .catch(() => vivo && setOfrecidos(null));
+    return () => {
+      vivo = false;
+    };
+  }, [ofreceDescuentos, cuenta.id, cuenta.version, releerOfrecidos]);
 
   // Estilo factura: los ítems iguales de mostrador van en UNA fila con su
   // cantidad. Cada unidad sigue siendo su propia línea en la cuenta; aquí solo
@@ -350,9 +399,10 @@ function CobroCuenta({
 
   /* ------------------------------------------------- documento (IVA) */
 
+  // El descuento baja la base antes del IVA (§5.3), igual que lo calculará el servidor al cobrar.
   const doc = useMemo(
-    () => computeDocument({ lines, rules, at: instanteFiscal, currency: FUNCIONAL }),
-    [lines, rules, instanteFiscal],
+    () => computeDocument({ lines, discounts: documentDiscountsOf(cuenta, categoryOf), rules, at: instanteFiscal, currency: FUNCIONAL }),
+    [lines, cuenta, categoryOf, rules, instanteFiscal],
   );
 
   /* ------------------------------------------------------ IGTF */
@@ -535,6 +585,11 @@ function CobroCuenta({
   async function cobrar() {
     if (enviando) return;
     setError(null);
+    if (medioDelDescuento && pagos.some((p) => p.medio.code !== medioDelDescuento)) {
+      const nombre = mediosDisponibles.find((m) => m.code === medioDelDescuento)?.label ?? medioDelDescuento;
+      setError(`El descuento «${descuento!.nombre}» exige cobrar toda la cuenta con ${nombre}: quita los otros pagos o el descuento.`);
+      return;
+    }
     const dispositions: ChangeDisposition[] = [];
     if (sobra.amount > 0n) {
       if (destinoVuelto === "VUELTO") {
@@ -781,7 +836,7 @@ function CobroCuenta({
                   </span>
                   {/* El IGTF solo existe en divisas: en bolívares no se dice
                         nada, en vez de un «0% IGTF» que hay que leer para nada. */}
-                  {m.triggersIgtf && (
+                  {m.triggersIgtf && igtfBasisPoints > 0 && (
                     <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
                       +{igtfBasisPoints / 100}% IGTF
                     </span>
@@ -1042,7 +1097,7 @@ function CobroCuenta({
                               <span className="text-[13px] font-semibold text-ink">
                                 {p.medio.label}
                               </span>
-                              {p.medio.triggersIgtf && linea && (
+                              {p.medio.triggersIgtf && linea && linea.igtf.amount > 0n && (
                                 <span className="tnum text-[11px] whitespace-nowrap text-ink-3">
                                   + IGTF{" "}
                                   {formatMoneyVE(
@@ -1127,6 +1182,66 @@ function CobroCuenta({
               />
             </dd>
           </div>
+          {(descuento || (ofreceDescuentos && !cuenta.split)) && (
+            <div className="flex items-center justify-between gap-3">
+              <dt className="flex min-w-0 flex-col text-ink-2">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <BadgePercent size={14} className="shrink-0" aria-hidden="true" />
+                  <span className="truncate">{descuento ? descuento.nombre : "Descuento"}</span>
+                </span>
+                {descuento ? (
+                  <span className="truncate text-[11.5px] text-ink-3">
+                    {textoValor(descuento.valor)}
+                    {descuento.alcance.tipo === "CUENTA" ? "" : ` sobre ${textoAlcance(descuento.alcance)}`} ·{" "}
+                    {descuento.origen === "MEDIO"
+                      ? `toda la cuenta con ${mediosDisponibles.find((m) => m.code === descuento.medio)?.label ?? descuento.medio}`
+                      : descuento.autorizadoPor
+                        ? `autorizó ${descuento.autorizadoPor.name}`
+                        : "familia VIP"}
+                  </span>
+                ) : ofrecidos && ofrecidos.candidatos.length > 0 ? (
+                  <span className="text-[11.5px] text-ink-3">
+                    {ofrecidos.candidatos.length === 1 ? "1 disponible" : `${ofrecidos.candidatos.length} disponibles`}
+                  </span>
+                ) : null}
+              </dt>
+              <dd className="flex shrink-0 items-center gap-2">
+                {descuento && (
+                  <span className="tnum text-[14px] font-semibold text-ink">− {formatMoneyVE(toMajor(doc.discountTotal), "USD")}</span>
+                )}
+                {descuento ? (
+                  onQuitarDescuento && (
+                    <Button
+                      surface="pos"
+                      variant="neutral"
+                      className="text-[13px]"
+                      disabled={pagos.length > 0 || quitandoDescuento}
+                      title={pagos.length > 0 ? "Quita primero los pagos" : undefined}
+                      onClick={async () => {
+                        setQuitandoDescuento(true);
+                        const r = await onQuitarDescuento();
+                        setQuitandoDescuento(false);
+                        if (r) setError(r.mensaje);
+                      }}
+                    >
+                      Quitar
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    surface="pos"
+                    variant="neutral"
+                    className="text-[13px]"
+                    disabled={pagos.length > 0}
+                    title={pagos.length > 0 ? "Quita primero los pagos" : undefined}
+                    onClick={() => setViendoDescuento(true)}
+                  >
+                    Aplicar
+                  </Button>
+                )}
+              </dd>
+            </div>
+          )}
           {doc.buckets.map((b) => (
             <div
               key={b.code}
@@ -1201,14 +1316,16 @@ function CobroCuenta({
                   // de camino, o alguien pagaría de más o de menos.
                   const bloqueado =
                     (cuenta.split?.paid ?? 0) > 0 ||
-                    (pagos.length > 0 && n !== partes);
+                    (pagos.length > 0 && n !== partes) ||
+                    // El reparto sale del total: con un descuento, la cuenta no se divide (B3-6).
+                    (descuento !== undefined && n !== partes);
                   return (
                     <button
                       key={n}
                       type="button"
                       aria-pressed={n === partes}
                       disabled={bloqueado}
-                      title={n === 1 ? "Sin dividir" : `Entre ${n}`}
+                      title={descuento && n !== partes ? "Quita el descuento para dividir" : n === 1 ? "Sin dividir" : `Entre ${n}`}
                       onClick={() => onDividir(n)}
                       className={cn(
                         "tnum h-14 w-full cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors @md/ticket:size-14",
@@ -1647,7 +1764,7 @@ function CobroCuenta({
                 <span className="text-[14px] font-bold">{m.label}</span>
                 <span className="text-[11px] text-ink-3">
                   {m.currency}
-                  {m.triggersIgtf ? ` · +${igtfBasisPoints / 100}% IGTF` : ""}
+                  {m.triggersIgtf && igtfBasisPoints > 0 ? ` · +${igtfBasisPoints / 100}% IGTF` : ""}
                 </span>
               </button>
             );
@@ -1696,6 +1813,18 @@ function CobroCuenta({
         onConfirmar={confirmarEdicion}
         onCancelar={() => setEditando(null)}
       />
+      {onDescuento && (
+        <DescuentoDialog
+          abierto={viendoDescuento}
+          ofrecidos={ofrecidos}
+          onAplicar={async (pedido, autorizacion) => {
+            const rechazo = await onDescuento(pedido, autorizacion);
+            if (!rechazo) setViendoDescuento(false);
+            return rechazo;
+          }}
+          onCerrar={() => setViendoDescuento(false)}
+        />
+      )}
       {lineaParaCortesia && onCortesia && (
         <CortesiaDialog
           linea={lineaParaCortesia.linea}
@@ -1761,7 +1890,7 @@ export function CajaScreen({
   ...cobro
 }: Omit<
   CobroProps,
-  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate" | "tasaValor" | "tasaId" | "rules" | "igtfBasisPoints" | "instanteFiscal"
+  "lines" | "cuenta" | "onCobrado" | "maxRetained" | "rate" | "tasaValor" | "tasaId" | "rules" | "igtfBasisPoints" | "instanteFiscal" | "categoryOf"
 > & {
   /** El calendario de los impuestos, leído en el servidor (B2-2). */
   impuestos: ImpuestosDto;
@@ -1832,7 +1961,12 @@ export function CajaScreen({
   // El último cobro sale del registro de ventas: sobrevive a una recarga y
   // «Ventas» ve lo mismo.
   const { ventas, adoptar, imprimir } = useVentas();
-  const { cortesia: cortesiaEnServidor } = useCuentas();
+  const { cortesia: cortesiaEnServidor, descuento: descuentoEnServidor } = useCuentas();
+  // La categoría de cada producto, para el descuento «por categorías» (B3-6).
+  const categoryOf = useMemo<CategoryOf>(() => {
+    const porId = new Map(catalogo.productos.map((p) => [p.id, p.categoria]));
+    return (id) => porId.get(id) ?? null;
+  }, [catalogo]);
   // Un cobro anulado ya no es «el último cobro»: su recibo no vale.
   const ultimaVenta = ventas.find((v) => !v.voided) ?? null;
   const ultimoRecibo = useMemo(() => (ultimaVenta ? reciboDeVenta(ultimaVenta, ajustes) : null), [ultimaVenta, ajustes]);
@@ -2287,6 +2421,19 @@ export function CajaScreen({
                 },
                 autorizacion,
               );
+              return r.ok ? null : r;
+            }}
+            categoryOf={categoryOf}
+            onDescuento={async (pedido, autorizacion) => {
+              const r = await descuentoEnServidor(
+                { idempotencyKey: globalThis.crypto.randomUUID(), accountId: actual.id, version: actual.version ?? 0, quitar: false, ...pedido },
+                autorizacion,
+              );
+              if (r.ok) avisar.ok(`Descuento aplicado: ${r.valor.descuento?.nombre ?? ""}`);
+              return r.ok ? null : r;
+            }}
+            onQuitarDescuento={async () => {
+              const r = await descuentoEnServidor({ idempotencyKey: globalThis.crypto.randomUUID(), accountId: actual.id, version: actual.version ?? 0, quitar: true });
               return r.ok ? null : r;
             }}
             ocultoEnDosColumnas={vistaEfectiva === "cola"}

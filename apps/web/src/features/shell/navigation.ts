@@ -275,6 +275,15 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "F4-02",
       },
       {
+        id: "descuentos",
+        grupo: "Dinero",
+        nombre: "Descuentos",
+        href: rutaSeccion("ajustes", "descuentos"),
+        proposito:
+          "Los descuentos que la caja puede aplicar: por medio de pago, VIP y manuales, con su alcance y su vigencia, y el tope de supervisión.",
+        tarea: "B3-6",
+      },
+      {
         id: "tasas",
         grupo: "Dinero",
         nombre: "Tasas de cambio",

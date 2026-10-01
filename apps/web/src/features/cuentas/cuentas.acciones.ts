@@ -1,6 +1,6 @@
 "use server";
 
-import type { CuentaYLibroDto, CuentasDelLocalDto, FamilyAccountDto, Resultado } from "@l2/contracts";
+import type { CuentaYLibroDto, CuentasDelLocalDto, DescuentosDeCuentaDto, FamilyAccountDto, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -69,8 +69,25 @@ export async function marcarIncobrable(entrada: unknown, autorizacion?: unknown)
   return r;
 }
 
+/** Lo que la caja puede ofrecerle a una cuenta hoy (B3-6), el mayor primero. */
+export async function descuentosDeCuenta(accountId: unknown): Promise<Resultado<DescuentosDeCuentaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).descuentos.deCuenta(ctx, accountId);
+}
+
+/** Pone un descuento a una cuenta o se lo quita (B3-6). `autorizacion` lleva quién, su PIN y el motivo. */
+export async function aplicarDescuento(entrada: unknown, autorizacion?: unknown): Promise<Resultado<FamilyAccountDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).descuentos.aplicar(ctx, entrada, autorizacion);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id }, r.valor.descuento ? "descuento aplicado" : "descuento quitado");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "descuento rechazado");
+  return r;
+}
+
 /** Las acciones de la caja con 🔐 cuya lista de autorizadores puede pedir la pantalla. */
-const CON_AUTORIZADORES = ["cobro.anular", "cuenta.cortesia", "cuenta.incobrable", "turno.corteZ"] as const;
+const CON_AUTORIZADORES = ["cobro.anular", "cuenta.cortesia", "cuenta.incobrable", "cuenta.descuento", "turno.corteZ"] as const;
 
 /**
  * Quiénes pueden autorizar a quien opera una acción de la caja (vacío si no le hace falta). Solo las

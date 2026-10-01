@@ -532,3 +532,4 @@ export * from "./libro.ts";
 export * from "./medios.ts";
 export * from "./cuenta.ts";
 export * from "./corte.ts";
+export * from "./descuento.ts";

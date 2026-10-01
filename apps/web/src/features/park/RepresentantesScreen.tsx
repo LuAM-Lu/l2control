@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, UserCog, UserPlus } from "lucide-react";
+import { Crown, Search, UserCog, UserPlus } from "lucide-react";
+import { can } from "@l2/domain-identity";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import {
   RepresentanteCommandSchema,
   type DirectorioRepresentantesDto,
@@ -37,6 +39,13 @@ type NinoDelDirectorio = RepresentanteDto["kids"][number];
  * mismo contacto lo es del directorio entero— vuelve del proveedor y se enseña
  * arriba.
  */
+/** Qué descuento VIP tiene la familia, en palabras. */
+function textoVip(vip: { reglaId: string; nombre: string } | null, reglas: readonly { id: string; detalle: string }[]): string {
+  if (!vip) return "Sin descuento VIP: la caja no le ofrece ninguno por ser de la familia.";
+  const regla = reglas.find((r) => r.id === vip.reglaId);
+  return regla ? `${vip.nombre} · ${regla.detalle}` : `${vip.nombre} · regla retirada: ya no se ofrece`;
+}
+
 function erroresDelMando(cmd: RepresentanteCommand): Record<string, string> {
   const r = RepresentanteCommandSchema.safeParse(cmd);
   if (r.success) return {};
@@ -52,11 +61,20 @@ function erroresDelMando(cmd: RepresentanteCommand): Record<string, string> {
 export function RepresentantesScreen({
   directorio,
   corregir,
+  reglasVip = [],
+  marcarVip,
 }: {
   directorio: DirectorioRepresentantesDto;
   corregir: (cmd: RepresentanteCommand) => Promise<string | null>;
+  /** Las reglas VIP vigentes con que administración puede marcar a una familia (B3-6). */
+  reglasVip?: readonly { id: string; nombre: string; detalle: string }[];
+  marcarVip?: (guardianId: string, reglaId: string | null) => Promise<string | null>;
 }) {
   const reloj = useReloj();
+  const actor = useActorEnSesion();
+  const puedeMarcarVip = marcarVip !== undefined && actor !== null && can(actor, "catalogo.modificar") !== "DENEGADO";
+  const [marcandoVip, setMarcandoVip] = useState(false);
+  const [errorVip, setErrorVip] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [seleccionId, setSeleccionId] = useState<string | null>(
     directorio.representantes.length > 0
@@ -171,8 +189,14 @@ export function RepresentantesScreen({
                         tone={activa ? "brand" : "idle"}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13.5px] font-semibold text-ink">
-                          {r.fullName}
+                        <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-semibold text-ink">
+                          <span className="truncate">{r.fullName}</span>
+                          {r.vip && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-brand/40 px-1.5 text-[10.5px] font-bold text-brand">
+                              <Crown size={10} aria-hidden="true" />
+                              VIP
+                            </span>
+                          )}
                         </span>
                         {/* El que se recorta es el teléfono, no el número de
                             niños: un «1 niñ» cortado no dice nada. */}
@@ -242,6 +266,47 @@ export function RepresentantesScreen({
                   Corregir
                 </button>
               </div>
+            </div>
+
+            <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-display flex items-center gap-1.5 text-base font-bold text-ink">
+                    <Crown size={16} className={seleccion.vip ? "text-brand" : "text-ink-3"} aria-hidden="true" />
+                    Descuento VIP
+                  </h3>
+                  <p className="text-[13px] text-ink-2">{textoVip(seleccion.vip ?? null, reglasVip)}</p>
+                </div>
+                {puedeMarcarVip && (
+                  <select
+                    aria-label={`Descuento VIP de ${seleccion.fullName}`}
+                    disabled={marcandoVip || (reglasVip.length === 0 && !seleccion.vip)}
+                    value={seleccion.vip?.reglaId ?? ""}
+                    onChange={async (e) => {
+                      const reglaId = e.target.value || null;
+                      setMarcandoVip(true);
+                      setErrorVip(null);
+                      const err = await marcarVip!(seleccion.id, reglaId);
+                      setMarcandoVip(false);
+                      if (err) setErrorVip(err);
+                      else avisar.ok(reglaId ? "Familia marcada VIP" : "Marca VIP quitada");
+                    }}
+                    className="min-h-8 rounded-[var(--radius-control)] border border-line bg-surface px-2.5 text-[12.5px] text-ink focus-visible:outline-2 focus-visible:outline-brand"
+                  >
+                    <option value="">{reglasVip.length === 0 && !seleccion.vip ? "Crea un descuento VIP en Ajustes" : "Sin VIP"}</option>
+                    {reglasVip.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.nombre} · {r.detalle}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {errorVip && (
+                <p role="alert" className="mt-2 text-[12px] text-state-crit">
+                  {errorVip}
+                </p>
+              )}
             </div>
 
             <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
