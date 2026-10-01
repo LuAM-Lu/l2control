@@ -285,8 +285,16 @@ B54 Barra» y «Prueba B54 Terraza» (10.2.0.2, contra la impresora falsa, con e
 la prueba, sus trabajos descartados o impresos en el historial; equipo «Prueba B54 Admin» revocado. El cliente
 descartó dos pruebas suyas de «Caja» mientras tanto.
 
-**Siguiente paso:** **B6-1** (carta y mesas en el servidor), que abre el restaurante y estrena el patrón de
-Ajustes en Carta y Plano; después **B6-2** (la comanda impresa) y **T-7** (M-17, el resto de Ajustes).
+**B6-1 a medias en `feat/b6-1` (2026-10-01, d4a41a0).** Decidido: **la carta del restaurante es el catálogo de
+productos** con la marca «en la carta» (los servicios, fuera por defecto): un solo precio con su calendario, un solo
+IVA y, si se cuenta, su existencia; el servidor ya revisa precio y existencias de las líneas con `productId`. Los
+estados de la mesa en vivo (ocupada, pide cuenta, por limpiar) siguen en el bus hasta B6-3; B6-1 impone en el servidor
+I-05 (una cuenta abierta por mesa, de una mesa del plano). **La base local ya tiene la migración de B6-1**
+(`20261022000000_plano_y_carta`): trabajar desde `feat/b6-1`. Lo hecho y lo que falta, en la casilla de B6-1 (§3).
+El cliente probó «Enviar a cocina» y no salió nada: es lo esperado hasta B6-2 (la comanda no se encola todavía).
+
+**Siguiente paso:** terminar **B6-1** en `feat/b6-1`; después **B6-2** (la comanda impresa) y **T-7** (M-17, el resto
+de Ajustes).
 
 ---
 
@@ -1454,6 +1462,24 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B6-1 · Mesas, plano y carta** persistidos (F6-01 a F6-03). Se borra `src/demo/restaurante.ts`.
   Carta y precios y Plano del local se rehacen ya con el patrón de Ajustes (M-17), y sus piezas comunes
   (resumen con cifras, paginación, filtros con su cuenta, confirmación) suben a `@l2/ui` para T-7.
+  *A medias en `feat/b6-1` (d4a41a0, 2026-10-01). **Hecho:** regla del plano en `@l2/domain-orders/plano.ts`
+  (`cambioDePlanoProblem`: una mesa no desaparece, se retira; con su cuenta abierta no se retira; `mesasRetiradas`;
+  4 pruebas); contratos `PlanoPublicadoSchema` y `PublicarPlanoCommandSchema` (`sobre` = versión editada), fuera
+  `MenuSchema`/`MenuItemSchema`, `ProductoDto.enCarta` y el mando `EN_CARTA`; migración `20261022000000_plano_y_carta`
+  (`floor_plan_version` solo-agregar con autor; `product.on_menu` rellenado, servicios fuera; **aplicada a la base
+  local**); `EN_CARTA` en la aplicación (auditoría `producto.carta`, tema `catalogo`) y la acción `plano.publicar` con
+  su tema nuevo `plano`. **Falta:** (1) aplicación: `casosRestaurante` con `plano` (leer la última versión, validada
+  al leer) y `publicarPlano` (`catalogo.modificar` con elevación; choca si `sobre` no es la vigente; hora de retirar
+  del servidor; `cambioDePlanoProblem` con las mesas ocupadas), y `mesasOcupadasEn` en `caja/cuentas.ts`; en
+  `guardar`, una cuenta MESA nombra una mesa del plano sin retirar y es la única abierta de su mesa (candado
+  `pg_advisory_xact_lock` por mesa); sus `*.test-db.ts`. (2) web: `plano.servidor.ts`/`plano.acciones.ts`;
+  `PlanoProvider` desde el servidor (`useAlCambiar(["plano"])`, sin `sessionStorage`); la carta del mesero sale de
+  `productosALaVenta` filtrada por `enCarta`, y `TomaPedido`/`mesas.ts`/`MesasScreen` mandan líneas con `productId`
+  y `taxCode`; `EditorPlano` publica con la acción; **Carta y precios** nueva con el patrón M-17 (resumen, filtros,
+  tabla y tarjetas, hoja para «Nuevo plato» PREPARADO, cambiar precio y en carta); piezas comunes a `@l2/ui` y
+  Impresoras sobre ellas; local sin plano → aviso con enlace a Ajustes → Plano; se borran `src/demo/restaurante.ts`,
+  `CartaProvider` y las filas de §5 (plano y carta en el navegador; importe de la mesa desde la pantalla). (3)
+  navegador en los tres tamaños, `l2.etapa` «Etapa 6 · Restaurante en el servidor», v0.40.0 y CHANGELOG.*
 - [ ] **B6-2 · Pedidos del mesero y comanda impresa** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), F6-06,
   F6-07 y F6-09, sin F6-08): el pedido confirmado en la tablet crea su trabajo de impresión en la
   impresora de comandas; la comanda queda «enviada» e «impresa», y si falla, la tablet del mesero y la caja
@@ -1789,6 +1815,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-01** · Pedido del cliente: el mismo rediseño en el resto de Ajustes (M-17). Carta y Plano entran en B6-1;
   Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas y Tarifas, en el paso nuevo T-7. Ruta a 57. El cliente
   probó «Enviar a cocina» y no salió nada (la comanda impresa es de B6-2): el orden queda B6-1 → B6-2 → T-7.
+- **2026-10-01** · Handoff: B6-1 a medias en `feat/b6-1` (carta = catálogo con «en la carta», plano versionado; dominio,
+  contratos, migración aplicada a la base local y productos hechos; faltan aplicación del plano e I-05, web y navegador).
 
 ---
 
@@ -1802,21 +1830,20 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-09-30, v0.37.0 en `main`, sin subir a GitHub):**
+**Último handoff (2026-10-01, v0.39.2 en `main`; B6-1 a medias en `feat/b6-1`; nada subido a GitHub):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 con M-15 y M-16, §3 con su DoD y orden, §4, §5), docs/JORNADA.md y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.37.0 · 37 de 56 pasos. Parque (B4-5) e Inventario (B9-2 a B9-6) cerrados. Nada subido a GitHub.
-Siguiente: B3-6 · descuentos configurables (V-9 y D-DESC en §2/§4: por medio con 🔐 y cuenta entera, VIP, manual con motivo, admin;
-  uno por cuenta, el mayor; tope de supervisión 20 %; antes del IVA) — su casilla en §3. Luego B5-2 (impresión y comandas).
-Inventario (M-16): stock_movement con valor al costo, entradas (crean productos), salidas/conteo con 🔐, mínimos, tipos PRODUCTO/
-  PREPARADO/SERVICIO, SKU y código de barras; el bus del lector de @l2/ui es una pila (useLectorDeCodigos).
-Pendiente con el cliente: el turno de «PC admin» sellado por error con un Z de prueba (§1); vender por lector con turno abierto, sin probar.
-Base local CON DATOS DEL CLIENTE: guiones solo sobre «Prueba …»; no tocar «TEST pRODUCTO» ni la venta #0031 (son de él). Productos de
-  prueba apartados: Prueba B93 Refresco, Prueba B96 Uva. Los productos del cliente que se cuentan salen «Agotado» hasta su entrada.
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (web :3000 + worker :3001). Tras un caso de uso nuevo, reiniciar pnpm dev.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 con M-15 a M-17, §3 con su DoD, su orden y la casilla de B6-1, §4, §5) y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. main: v0.39.2 · 39 de 57 pasos (impresión con agente, Impresoras rediseñada). Nada subido a GitHub.
+Siguiente: terminar B6-1 en la rama feat/b6-1 (d4a41a0): la lista de «Falta» está en su casilla de §3. Decidido: la carta del restaurante
+  ES el catálogo de productos con «en la carta»; plano versionado (floor_plan_version); I-05 en el servidor; estados de mesa en el bus hasta B6-3.
+Luego B6-2 (la comanda impresa: el cliente probó «Enviar a cocina» y no sale nada, es lo esperado) y T-7 (M-17: Ajustes con el patrón de Impresoras).
+La base local YA tiene la migración de B6-1: trabajar desde feat/b6-1 (main no la conoce). La web de la rama no compila hasta hacer el punto (2).
+Base local CON DATOS DEL CLIENTE: guiones solo sobre «Prueba …»; no tocar «TEST pRODUCTO», la venta #0031, la impresora «Caja» ni el agente
+  «Laptop de caja» (corre en esta PC, alcanza 10.2.0.2:9100 = pnpm impresora:falsa). El cliente usa el panel a la vez: nada de «descartar todo» sin filtro.
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (web :3000 + worker :3001). Tras cambiar Prisma: generate y reiniciar pnpm dev.
 Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Playwright en el scratchpad de la sesión 1efa3b19: comun.cjs, b96.cjs (inventario + lector), b94.cjs (🔐 en dos equipos), b45f.cjs (teléfono).
-Cuidado: DoD de §3; migración que rellena datos → NO FORCE RLS mientras rellena + BEGIN/COMMIT (§5); en una transacción nunca dos consultas
-  a la vez; acción auditada nueva → fila en TEMAS_DE_ACCION; heredocs grandes fallan (Write + python / commit -F). Push solo si se pide.
+Playwright en el scratchpad de la sesión c1565432: comun.cjs, b54a-e.cjs (Impresoras: alta en hoja, historial, descartes, alerta, retirar).
+Cuidado: DoD de §3; migración que rellena → NO FORCE RLS + BEGIN/COMMIT (§5); en una transacción nunca dos consultas a la vez; acción
+  auditada nueva → TEMAS_DE_ACCION; tests de base: pnpm --filter @l2/database test:db migra la base de pruebas; heredocs grandes: Write + python.
 ```
