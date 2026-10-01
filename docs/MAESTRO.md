@@ -286,7 +286,7 @@ la prueba, sus trabajos descartados o impresos en el historial; equipo «Prueba 
 descartó dos pruebas suyas de «Caja» mientras tanto.
 
 **Siguiente paso:** **B6-1** (carta y mesas en el servidor), que abre el restaurante y estrena el patrón de
-Ajustes en Carta y Plano; después **T-7** (M-17) lo lleva al resto de Ajustes.
+Ajustes en Carta y Plano; después **B6-2** (la comanda impresa) y **T-7** (M-17, el resto de Ajustes).
 
 ---
 
@@ -378,8 +378,9 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
-5. **B6-1** (con Carta y Plano en el patrón de M-17) → **T-7** (el resto de Ajustes en ese patrón) → B6-2 → B6-3
-   (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
+5. **B6-1** (con Carta y Plano en el patrón de M-17) → B6-2 (comanda impresa) → **T-7** (el resto de Ajustes en ese
+   patrón) → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
+   cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
@@ -455,8 +456,8 @@ Fuera de la cuenta de 57: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   y en la lista; «Cerrar turno» → arqueo → «Volver al turno». Inicio, Ajustes, Turno y el cierre a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento y con «Cerrar turno» a la vista; sin
   errores de consola.*
-- [ ] **T-7 · Ajustes con un mismo patrón** (M-17, pedido del cliente el 2026-10-01; la ruta pasa a 57), justo
-  después de B6-1.
+- [ ] **T-7 · Ajustes con un mismo patrón** (M-17, pedido del cliente el 2026-10-01; la ruta pasa a 57), después
+  de B6-2.
   → **Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes** siguen el
   patrón de Impresoras (v0.39.2) con las piezas comunes que B6-1 sube a `@l2/ui`: resumen arriba, pestañas,
   hoja lateral para alta y edición, confirmación de lo irreversible, y las listas que crecen (historial de
@@ -1786,7 +1787,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-01** · Pedido del cliente: Ajustes → Impresoras más organizada. v0.39.2: resumen, pestañas, historial por
   páginas con filtros y vista previa, y «Descartar» lo que no salió (estado nuevo, sin borrar). Sigue B6-1.
 - **2026-10-01** · Pedido del cliente: el mismo rediseño en el resto de Ajustes (M-17). Carta y Plano entran en B6-1;
-  Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas y Tarifas, en el paso nuevo T-7 tras B6-1. Ruta a 57.
+  Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas y Tarifas, en el paso nuevo T-7. Ruta a 57. El cliente
+  probó «Enviar a cocina» y no salió nada (la comanda impresa es de B6-2): el orden queda B6-1 → B6-2 → T-7.
 
 ---
 
