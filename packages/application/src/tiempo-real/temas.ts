@@ -71,6 +71,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "producto.activar": ["catalogo"],
   "producto.apartar": ["catalogo"],
   "precio.programar": ["catalogo"],
+  "producto.minimo": ["catalogo"],
   // La existencia viaja con el catálogo: la caja y la tablet dejan de ofrecer lo que se acabó (B9-2).
   "existencia.mover": ["catalogo"],
   // Una entrada sube la existencia y mueve el costo promedio: la caja vuelve a ofrecer lo que llegó.

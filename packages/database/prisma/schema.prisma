@@ -665,6 +665,8 @@ model Product {
   taxCode       String   @map("tax_code")
   /// Si su existencia se lleva por movimientos (B9-2).
   tracksStock   Boolean  @map("tracks_stock")
+  /// El stock mínimo (B9-5): su punto de reorden. Con la existencia en él o por debajo, avisa. Nulo = sin mínimo.
+  minStock      Int?     @map("min_stock")
   active        Boolean
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   createdBy     String?  @map("created_by") @db.Uuid

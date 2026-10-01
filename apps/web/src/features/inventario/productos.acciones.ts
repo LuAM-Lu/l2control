@@ -26,3 +26,16 @@ export async function aplicarProducto(entrada: unknown): Promise<Resultado<Catal
   }
   return resultado;
 }
+
+/**
+ * Fijar o quitar el stock mínimo de un producto (B9-5). Lo hace quien recibe la mercancía
+ * (`inventario.entrada`), sin elevación: no cambia lo que se cobra. El caso de uso lo revalida.
+ */
+export async function fijarMinimo(entrada: unknown): Promise<Resultado<CatalogoDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar para fijar el mínimo." };
+  const resultado = await (await aplicacion()).productos.fijarMinimo(ctx, entrada);
+  if (resultado.ok) revalidatePath("/", "layout");
+  else log().warn({ tenantId: ctx.tenantId, motivo: resultado.motivo }, "mínimo de stock rechazado");
+  return resultado;
+}

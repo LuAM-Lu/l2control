@@ -2,7 +2,7 @@
 
 Inventario (F8, Etapa 9). Módulo puro: sin base, sin red y sin reloj propio.
 
-## Qué resuelve hoy (B9-1 a B9-4)
+## Qué resuelve hoy (B9-1 a B9-5)
 
 El **catálogo de productos** de venta directa y de consumo en cuenta (F8-02):
 
@@ -44,6 +44,9 @@ Y las **salidas y el conteo** (B9-4):
 | `countMoves` | Lo que mueve un conteo: lo contado menos lo esperado, de cada producto con diferencia |
 | `costOfSurplus` | A qué costo entra lo que un conteo encuentra de más: al promedio; sin existencia, al de la última entrada; sin nada, a cero |
 
+Y el **estado del stock** (B9-5): `stockStatus` (agotado, bajo su mínimo, bien) y `stockAlerts` (cuántos a la venta
+están agotados o bajo mínimo, para avisar en Inicio).
+
 La regla que lo ordena: **el precio es un dato con fecha**. Cambiarlo programa el tramo siguiente;
 lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al venderse).
 
@@ -59,5 +62,5 @@ lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al
 
 ## Lo que llega después
 
-Las alertas de stock crítico (B9-5). Las
+La identificación (SKU, código de barras, presentación) y los tipos (B9-6). Las
 recetas y la descarga al marcar LISTO van con el restaurante (B6-4).

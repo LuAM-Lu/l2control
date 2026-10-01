@@ -16,6 +16,7 @@
  */
 import {
   CatalogoSchema,
+  FijarMinimoCommandSchema,
   ProductoCommandSchema,
   problemasDe,
   type CatalogoDto,
@@ -53,6 +54,8 @@ export interface CasosProductos {
   leer(ctx: Contexto): Promise<CatalogoDto>;
   /** Un cambio del catálogo (`ProductoCommandSchema`). Devuelve cómo queda. */
   aplicar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CatalogoDto>>;
+  /** Fija o quita el stock mínimo de un producto (`FijarMinimoCommandSchema`, B9-5). */
+  fijarMinimo(ctx: Contexto, entrada: unknown): Promise<Resultado<CatalogoDto>>;
 }
 
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({
@@ -94,6 +97,7 @@ export function casosProductos(base: Base): CasosProductos {
         existencia: p.tracksStock ? (existencias.get(p.id)?.quantity ?? 0) : null,
         costoPromedio: costoDe(p.tracksStock ? existencias.get(p.id) : undefined),
         ultimoBulto: bulto.get(p.id) ?? null,
+        minimo: p.tracksStock ? p.minStock : null,
       })),
       zonaHoraria: await zonaDe(tx, branchId),
       diasPorAdelantado: DIAS_POR_ADELANTADO_PRECIOS,
@@ -103,6 +107,30 @@ export function casosProductos(base: Base): CasosProductos {
   return {
     async leer(ctx) {
       return base.conTenant(ctx.tenantId, (tx) => cargar(tx, ctx.branchId));
+    },
+
+    async fijarMinimo(ctx, entrada) {
+      const v = FijarMinimoCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "El mínimo no se guardó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CatalogoDto | Rechazo> => {
+        // Lo fija quien recibe la mercancía: no cambia lo que se cobra, no pide elevación.
+        const rechazo = await exigirPermiso(tx, ctx, "inventario.entrada");
+        if (rechazo) return rechazo;
+        const p = await tx.product.findUnique({ where: { id: cmd.productId } });
+        if (!p) return invalido("Ese producto no existe en este local.", ["productId"], "Producto desconocido");
+        if (!p.tracksStock) return invalido(`${p.name} no lleva existencia: no tiene mínimo.`, ["productId"], "SIN_CONTROL_DE_STOCK");
+        if (p.minStock !== cmd.minimo) {
+          await tx.product.update({ where: { id: p.id }, data: { minStock: cmd.minimo } });
+          await auditar(tx, ctx, { action: "producto.minimo", entityType: "product", entityId: p.id, before: { nombre: p.name, minimo: p.minStock }, after: { nombre: p.name, minimo: cmd.minimo } });
+        }
+        return cargar(tx, ctx.branchId);
+      });
+      if ("ok" in r) {
+        if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "producto.minimo", reason: r.mensaje });
+        return r;
+      }
+      return { ok: true, valor: r };
     },
 
     async aplicar(ctx, entrada, ahora = Date.now()) {

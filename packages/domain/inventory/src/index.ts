@@ -36,3 +36,4 @@ export {
   type StockValue,
 } from "./costo.ts";
 export { STOCK_OUT_REASONS, costOfSurplus, countMoves, type CountLine, type StockOutReason } from "./ajustes.ts";
+export { stockAlerts, stockStatus, type StockAlertProduct, type StockStatus } from "./alertas.ts";

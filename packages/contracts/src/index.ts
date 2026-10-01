@@ -149,6 +149,8 @@ export {
   type CatalogoDto,
   type ProductoNuevoDto,
   type ProductoCommand,
+  FijarMinimoCommandSchema,
+  type FijarMinimoCommand,
 } from "./productos.ts";
 
 export {

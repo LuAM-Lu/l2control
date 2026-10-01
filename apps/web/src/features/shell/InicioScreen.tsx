@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowRight, CircleCheck, PackageX, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import type { ResumenDelDiaDto } from "@l2/contracts";
 import type { UmbralEspera } from "@l2/domain-orders";
 import { add, money, toMajor, zero } from "@l2/domain-money";
@@ -59,6 +59,7 @@ export function InicioScreen({
   turnos,
   umbral,
   enServicio,
+  inventario = null,
 }: {
   /** El día según el libro (B3-5); `null` sin permiso de ver la sucursal o sin servidor. */
   resumen: ResumenDelDiaDto | null;
@@ -73,6 +74,8 @@ export function InicioScreen({
   umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
+  /** Lo que hay que reponer (B9-5); `null` si nada a la venta lleva existencia. */
+  inventario?: Readonly<{ agotados: number; bajoMinimo: number }> | null;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
   // La tasa vigente, de la misma fuente que la caja y la barra de las estaciones (B2-1c): llega
@@ -132,6 +135,9 @@ export function InicioScreen({
               </span>
             )}
           </div>
+
+          {/* B9-5: lo que hay que reponer, con color + icono + texto; lleva al inventario. */}
+          {inventario && <AvisoInventario {...inventario} />}
 
           {/* Enlace al Turno */}
           <Link
@@ -274,6 +280,28 @@ export function InicioScreen({
 }
 
 /* ──────────────────────────────────────────────────────────── piezas ── */
+
+/** Agotados y bajo mínimo del inventario (B9-5). Sin nada que reponer, lo dice en verde. */
+function AvisoInventario({ agotados, bajoMinimo }: { agotados: number; bajoMinimo: number }) {
+  const tono = agotados > 0 ? "crit" : bajoMinimo > 0 ? "warn" : "ok";
+  const Icono = tono === "crit" ? PackageX : tono === "warn" ? TriangleAlert : CircleCheck;
+  const partes = [agotados > 0 ? `${agotados} ${agotados === 1 ? "agotado" : "agotados"}` : null, bajoMinimo > 0 ? `${bajoMinimo} bajo mínimo` : null].filter(Boolean);
+  return (
+    <Link
+      href={"/panel/inventario/productos" as Route}
+      className={cn(
+        "group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border px-3 py-1.5 text-xs lg:text-[13px] font-medium shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand",
+        tono === "crit" && "border-state-crit/40 bg-state-crit-bg text-state-crit",
+        tono === "warn" && "border-state-warn/40 bg-state-warn-bg text-state-warn",
+        tono === "ok" && "border-line bg-surface/80 text-ink-2 hover:bg-surface-2",
+      )}
+    >
+      <Icono size={14} aria-hidden="true" />
+      <span className="tnum">{partes.length > 0 ? `Inventario: ${partes.join(" · ")}` : "Inventario al día"}</span>
+      <ArrowRight size={13} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
+    </Link>
+  );
+}
 
 function Numero({ children }: { children: React.ReactNode }) {
   return (

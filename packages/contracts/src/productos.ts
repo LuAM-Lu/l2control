@@ -83,6 +83,8 @@ export const ProductoSchema = z
     costoPromedio: MoneySchema.nullable(),
     /** Cuántas unidades traía el bulto de la última entrada: la pantalla de entradas lo propone. */
     ultimoBulto: z.number().int().min(1).nullable(),
+    /** El stock mínimo, su punto de reorden (B9-5): con la existencia en él o por debajo, avisa. */
+    minimo: z.number().int().min(0).nullable(),
   })
   .refine((p) => (p.existencia === null) === !p.controlaStock, {
     message: "Solo lleva existencia lo que controla stock",
@@ -91,6 +93,10 @@ export const ProductoSchema = z
   .refine((p) => p.costoPromedio === null || (p.existencia !== null && p.existencia > 0), {
     message: "Sin existencia no hay costo promedio",
     path: ["costoPromedio"],
+  })
+  .refine((p) => p.minimo === null || p.controlaStock, {
+    message: "Solo tiene mínimo lo que lleva existencia",
+    path: ["minimo"],
   });
 export type ProductoDto = z.infer<typeof ProductoSchema>;
 
@@ -148,3 +154,13 @@ export const ProductoCommandSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type ProductoCommand = z.infer<typeof ProductoCommandSchema>;
+
+/**
+ * Fijar el stock mínimo de un producto (B9-5). Es de quien recibe la mercancía (`inventario.entrada`),
+ * no del catálogo: no cambia lo que se cobra. `null` quita el mínimo (solo avisa al agotarse).
+ */
+export const FijarMinimoCommandSchema = z.strictObject({
+  productId: z.uuid("Producto desconocido"),
+  minimo: z.number().int("Unidades enteras").min(0, "El mínimo no puede ser negativo").max(1_000_000, "Mínimo desmesurado").nullable(),
+});
+export type FijarMinimoCommand = z.infer<typeof FijarMinimoCommandSchema>;

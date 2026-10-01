@@ -188,3 +188,24 @@ describe("el costo de lo vendido (costo promedio ponderado)", () => {
     assert.deepEqual((await producto("Refresco")).costoPromedio, antes);
   });
 });
+
+describe("el stock mínimo (B9-5)", () => {
+  test("lo fija quien recibe la mercancía, sin elevación; el catálogo lo enseña y queda en la auditoría", async () => {
+    const r = valor(await local.app.productos.fijarMinimo(ctxSupervisor, { productId: ids.Refresco!, minimo: 24 }));
+    assert.equal(r.productos.find((p) => p.id === ids.Refresco)!.minimo, 24);
+    const asiento = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.auditEntry.findFirst({ where: { action: "producto.minimo", entityId: ids.Refresco! } }));
+    assert.deepEqual(asiento?.after, { nombre: "Refresco", minimo: 24 });
+    // Quitarlo deja solo el aviso de agotado.
+    const sin = valor(await local.app.productos.fijarMinimo(ctxAdmin, { productId: ids.Refresco!, minimo: null }));
+    assert.equal(sin.productos.find((p) => p.id === ids.Refresco)!.minimo, null);
+  });
+
+  test("la caja no lo fija, y lo que no lleva existencia no tiene mínimo", async () => {
+    const caja = await local.app.productos.fijarMinimo(ctxCajera, { productId: ids.Refresco!, minimo: 5 });
+    assert.equal(!caja.ok && caja.motivo, "NO_PERMITIDO");
+    const cafe = await local.app.productos.fijarMinimo(ctxAdmin, { productId: ids.Café!, minimo: 5 });
+    assert.equal(!cafe.ok && cafe.problemas?.[0]?.message, "SIN_CONTROL_DE_STOCK");
+    const negativo = await local.app.productos.fijarMinimo(ctxAdmin, { productId: ids.Refresco!, minimo: -1 });
+    assert.equal(!negativo.ok && negativo.motivo, "INVALIDO");
+  });
+});

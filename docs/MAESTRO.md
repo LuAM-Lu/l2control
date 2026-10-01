@@ -31,7 +31,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.35.0 · 35 de 56 pasos.** **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
+**Versión 0.36.0 · 36 de 56 pasos.** **Mínimos y avisos (B9-5):** cada producto tiene su stock mínimo (punto de
+reorden) y su estado (agotado, bajo mínimo, bien); Inicio avisa de lo que hay que reponer. **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
 regalo, devolución al proveedor) sale con su motivo, y el conteo físico deja la existencia igual a lo contado; los dos
 con la 🔐 de administración (supervisión pide la suya). **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
 de movimientos de solo-agregar; sale cuando un producto entra en una cuenta, vuelve cuando se quita sin pagar y **sin
@@ -74,8 +75,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (80 de base, 331 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  45 de impuestos, 105 de caja, 37 del parque, 37 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (80 de base, 333 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  45 de impuestos, 105 de caja, 37 del parque, 39 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -215,8 +216,7 @@ momento; sin stock hasta las recetas) o Servicio. Los **mínimos y sus avisos** 
 mercancía **crea productos** con una ficha corta; y el código se **escanea** en la caja, las entradas, el conteo y
 Productos. Sin foto por ahora. Pasos B9-5 y B9-6 (nuevo); la ruta pasa a **56 pasos**.
 
-**Siguiente paso:** **B9-5** (mínimos y alertas) y **B9-6** (identificación, tipos y la vista del inventario), que
-cierran el Inventario.
+**Siguiente paso:** **B9-6** (identificación, tipos y la vista del inventario), que cierra el Inventario.
 
 ---
 
@@ -306,7 +306,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → **B9-5** → B9-6 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
+4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → **B9-6** (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1241,10 +1241,24 @@ antes del cobro en servidor (orden de ejecución).
   supervisión regala una unidad se rechaza («ahora el sistema dice 64»), la línea adopta el número y al volver a
   registrar queda lo contado. Lista y hojas a 1366×768, 1280×800 y 800×1280 sin desplazar el documento (la hoja del
   conteo desplaza su zona); sin errores de consola.*
-- [ ] **B9-5 · Mínimos y alertas de stock crítico** con antelación por producto (F8-08), en Inicio y en el
+- [x] **B9-5 · Mínimos y alertas de stock crítico** con antelación por producto (F8-08), en Inicio y en el
   inventario (M-16): el stock mínimo de cada producto es su punto de reorden; el estado (agotado, bajo mínimo, bien) se
   ve con color, icono y texto, y los avisos salen en Inicio con enlace al inventario.
   → Avisa antes de quedarse sin producto.
+  *Hecho el 2026-09-30 (v0.36.0), en `feat/b9-5`.*
+  *· Base: `20261017000000_stock_minimo`: `product.min_stock` (entero de 0 a 1.000.000 o nulo, CHECK); se edita y el
+  cambio queda en la auditoría.*
+  *· Contrato: `ProductoSchema.minimo` (solo con existencia) y `FijarMinimoCommandSchema` (o `null`, sin mínimo).*
+  *· Dominio (`alertas.ts`): `stockStatus` (AGOTADO, BAJO_MINIMO en el punto de reorden o por debajo, BIEN) y
+  `stockAlerts` (lo apartado y lo que no lleva existencia no avisan). 2 pruebas.*
+  *· Aplicación: `productos.fijarMinimo` con `inventario.entrada` (quien recibe la mercancía, sin elevación: no cambia lo
+  que se cobra), asiento `producto.minimo` con lo de antes y lo de después y tema `catalogo`. 2 pruebas contra la base.*
+  *· Web: `EstadoStock` (color + icono + texto, los colores de estado con su significado) en la ficha del producto, con
+  su campo «Stock mínimo»; la lista dice «bajo su mínimo»; Inicio enseña «Inventario: N agotados · M bajo mínimo» (o
+  «al día») con enlace al inventario. La vista completa llega con B9-6.*
+  *· Comprobado en el navegador: el mínimo de «Prueba B93 Refresco» a 70 con 60 en stock lo pasa de «Bien» a «Bajo
+  mínimo», en la ficha y en la lista; Inicio dice «Inventario: 8 agotados» (los productos del cliente) en rojo a
+  1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [ ] **B9-6 · Identificación, tipos y la vista del inventario** (M-16): SKU automático, código de barras único y
   presentación; tipo PRODUCTO, PREPARADO o SERVICIO; Productos con resumen + tabla y tarjetas, con el stock como
   protagonista; la entrada de mercancía crea productos con una ficha corta; el código se escanea en la caja (vende), en
@@ -1562,6 +1576,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-30** · Con el cliente, el inventario se rediseña con el stock como protagonista (M-16): SKU, código de barras,
   presentación, tres tipos, mínimos ya, alta de productos en la entrada y escaneo en caja, entradas, conteo y Productos.
   Nuevo paso B9-6; la ruta pasa a 56.
+- **2026-09-30** · B9-5 hecho (v0.36.0): stock mínimo por producto, su estado y el aviso en Inicio. Sigue B9-6.
 
 ---
 

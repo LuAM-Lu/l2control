@@ -71,21 +71,22 @@ describe("el catálogo que llega a la caja", () => {
   });
 
   test("dos productos no comparten identificador", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 3, costoPromedio: null, ultimoBulto: null };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 3, costoPromedio: null, ultimoBulto: null, minimo: null };
     assert.equal(CatalogoSchema.safeParse({ productos: [p, p], zonaHoraria: "America/Caracas", diasPorAdelantado: 366 }).success, false);
   });
 
   test("la existencia: solo de lo que controla stock, entera y nunca negativa (B9-2)", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: null };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: null, minimo: 5 };
     assert.equal(ProductoSchema.safeParse(p).success, true);
     assert.equal(ProductoSchema.safeParse({ ...p, existencia: null }).success, false);
     assert.equal(ProductoSchema.safeParse({ ...p, existencia: -1 }).success, false);
-    assert.equal(ProductoSchema.safeParse({ ...p, controlaStock: false, existencia: null }).success, true);
+    assert.equal(ProductoSchema.safeParse({ ...p, controlaStock: false, existencia: null, minimo: null }).success, true);
+    assert.equal(ProductoSchema.safeParse({ ...p, controlaStock: false, existencia: null }).success, false); // un mínimo sin existencia
     assert.equal(ProductoSchema.safeParse({ ...p, controlaStock: false, existencia: 2 }).success, false);
   });
 
   test("el costo promedio: solo con existencia (B9-3)", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: 24 };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: 24, minimo: null };
     assert.equal(ProductoSchema.safeParse(p).success, true);
     assert.equal(ProductoSchema.safeParse({ ...p, costoPromedio: { minor: "55", currency: "USD" } }).success, false);
     assert.equal(ProductoSchema.safeParse({ ...p, existencia: 10, costoPromedio: { minor: "55", currency: "USD" } }).success, true);

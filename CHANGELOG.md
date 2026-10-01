@@ -12,6 +12,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.36.0] — 2026-09-30 · Etapa 9 · Inventario
+
+B9-5 · Mínimos y alertas de stock crítico.
+
+### Añadido
+- **El stock mínimo de cada producto**, su punto de reorden, en la ficha del producto. Lo fija administración o
+  supervisión.
+- **El estado del stock**: agotado, bajo mínimo o bien, con color, icono y texto.
+- **Inicio avisa** de lo que hay que reponer («Inventario: 3 agotados · 2 bajo mínimo») y lleva al inventario.
+
+### Corregido
+- El corte Z enseña las cuentas incobrables en el orden en que se marcaron (antes, cada vez de una forma).
+
 ## [0.35.0] — 2026-09-30 · Etapa 9 · Inventario
 
 B9-4 · Salidas y ajustes con motivo y autorización, y conteo físico.

@@ -230,6 +230,9 @@ async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
   // Las cuentas que se dieron por incobrables desde este equipo mientras el turno estaba abierto.
   const incobrables = await tx.accountVersion.findMany({
     where: { cause: "INCOBRABLE", deviceId: t.deviceId, savedAt: { gte: t.openedAt, lte: hasta } },
+    // En el orden en que se marcaron (el id es uuid v7: desempata las del mismo instante). Sin orden, el
+    // reporte del Z las enseñaba cada vez de una forma.
+    orderBy: [{ savedAt: "asc" }, { id: "asc" }],
   });
   for (const i of incobrables) {
     const asiento = await tx.auditEntry.findFirst({ where: { action: "cuenta.incobrable", entityId: i.accountId }, orderBy: { occurredAt: "desc" } });

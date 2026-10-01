@@ -3,6 +3,8 @@ import { ninosAtendidos } from "../../../src/features/park/parque.servidor";
 import { turnosAbiertos } from "../../../src/features/cash/turno.servidor";
 import { resumenDelDia } from "../../../src/features/cash/cortes.servidor";
 import { RefrescarAlCambiar } from "../../../src/features/operacion/RefrescarAlCambiar";
+import { catalogoDelLocal } from "../../../src/features/inventario/productos.servidor";
+import { stockAlerts } from "@l2/domain-inventory";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -24,7 +26,10 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen] = await Promise.all([ninosAtendidos(), turnosAbiertos(), resumenDelDia()]);
+  const [atendidos, turnos, resumen, catalogo] = await Promise.all([ninosAtendidos(), turnosAbiertos(), resumenDelDia(), catalogoDelLocal()]);
+  // B9-5: lo que hay que reponer. Solo si algún producto a la venta lleva existencia.
+  const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
+  const inventario = contables.length > 0 ? stockAlerts(contables) : null;
   // Un turno que sigue abierto de un día anterior (un corte de luz, un equipo dañado) va delante:
   // lo cierra supervisión antes de nada (JORNADA §3).
   const deAntes = turnos
@@ -48,6 +53,7 @@ export default async function InicioPage() {
       // Quién está en cada puesto sale de las sesiones de la base (B5-1): con un turno abierto, un
       // puesto sin nadie es noticia.
       enServicio={turnos.length > 0}
+      inventario={inventario}
     />
     </>
   );

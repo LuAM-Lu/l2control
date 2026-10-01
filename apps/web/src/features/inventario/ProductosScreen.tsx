@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCode, TaxCodeDelCatalogo } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { categoriesOf, marginBasisPoints, nameKey, periodAt } from "@l2/domain-inventory";
+import { categoriesOf, marginBasisPoints, nameKey, periodAt, stockStatus } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { convert, invertRate, money, toMajor, type Money } from "@l2/domain-money";
 import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
@@ -17,7 +17,8 @@ import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
-import { aplicarProducto } from "./productos.acciones";
+import { aplicarProducto, fijarMinimo } from "./productos.acciones";
+import { EstadoStock } from "./EstadoStock.tsx";
 import { periodosDe } from "./catalogo.ts";
 
 /**
@@ -242,6 +243,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
         puedeModificar={puedeModificar}
         enviando={enviando}
         cambiar={cambiar}
+        adoptar={setCatalogo}
       />
     </Container>
   );
@@ -452,6 +454,7 @@ function FichaProducto({
   puedeModificar,
   enviando,
   cambiar,
+  adoptar,
 }: {
   producto: ProductoDto | null;
   onCerrar: () => void;
@@ -461,6 +464,8 @@ function FichaProducto({
   puedeModificar: boolean;
   enviando: string | null;
   cambiar: Aplicar;
+  /** El catálogo como quedó tras fijar el mínimo (B9-5). */
+  adoptar: (c: CatalogoDto) => void;
 }) {
   const { ajustes } = useSucursal();
   const zona = catalogo.zonaHoraria;
@@ -568,7 +573,7 @@ function FichaProducto({
       }
     >
       <div className="flex flex-col gap-5">
-        {producto.controlaStock && <Existencia producto={producto} ahora={ahora} />}
+        {producto.controlaStock && <Existencia producto={producto} ahora={ahora} adoptar={adoptar} />}
         <section aria-label="Precio" className="flex flex-col gap-3">
           <h3 className="font-display text-[14px] font-bold text-ink">Precio</h3>
           <ul className="flex flex-col divide-y divide-line rounded-[var(--radius-control)] border border-line">
@@ -686,10 +691,11 @@ function ChipEstado({ estado }: { estado: "RIGE" | "PROGRAMADO" | "TERMINO" }) {
 }
 
 /** La existencia en palabras (B9-2): cuántas quedan en esta sucursal, o que no lleva. */
-function existenciaEnPalabras(p: Pick<ProductoDto, "existencia">): string {
+function existenciaEnPalabras(p: Pick<ProductoDto, "existencia" | "minimo">): string {
   if (p.existencia === null) return "sin existencia";
   if (p.existencia === 0) return "agotado: no se vende";
-  return p.existencia === 1 ? "queda 1" : `quedan ${p.existencia}`;
+  const quedan = p.existencia === 1 ? "queda 1" : `quedan ${p.existencia}`;
+  return stockStatus(p.existencia, p.minimo) === "BAJO_MINIMO" ? `${quedan}, bajo su mínimo (${p.minimo})` : quedan;
 }
 
 const PORCENTAJE = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -698,9 +704,30 @@ const PORCENTAJE = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 1, ma
  * Lo que queda, lo que cuesta y lo que deja (B9-2, B9-3): la existencia de la sucursal, el costo
  * promedio ponderado y el margen sobre el precio de hoy. Desde aquí se carga su entrada.
  */
-function Existencia({ producto, ahora }: { producto: ProductoDto; ahora: number | null }) {
+function Existencia({ producto, ahora, adoptar }: { producto: ProductoDto; ahora: number | null; adoptar: (c: CatalogoDto) => void }) {
   const actor = useActorEnSesion();
   const puedeRecibir = actor !== null && can(actor, "inventario.entrada") !== "DENEGADO";
+  // El mínimo se teclea como texto: vacío = sin mínimo (solo avisa al agotarse).
+  const [minimo, setMinimo] = useState(producto.minimo === null ? "" : String(producto.minimo));
+  const [errorMinimo, setErrorMinimo] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => setMinimo(producto.minimo === null ? "" : String(producto.minimo)), [producto.id, producto.minimo]);
+  const tecleado = minimo.trim() === "" ? null : Number(minimo);
+  const cambioMinimo = tecleado !== producto.minimo;
+  const guardarMinimo = async () => {
+    if (tecleado !== null && (!Number.isInteger(tecleado) || tecleado < 0)) {
+      setErrorMinimo("Unidades enteras, desde 0");
+      return;
+    }
+    setGuardando(true);
+    const r = await fijarMinimo({ productId: producto.id, minimo: tecleado }).catch(() => null);
+    setGuardando(false);
+    if (!r) return setErrorMinimo("Sin conexión con el servidor: no se guardó.");
+    if (!r.ok) return setErrorMinimo(r.problemas?.[0]?.message ?? r.mensaje);
+    setErrorMinimo(null);
+    adoptar(r.valor);
+    avisar.ok(tecleado === null ? `${producto.nombre}: sin mínimo` : `${producto.nombre}: mínimo ${tecleado}`, { detalle: "Avisa al llegar a él, en Inicio y en el inventario." });
+  };
   const tramo = ahora === null ? undefined : periodAt(periodosDe([producto]), producto.id, ahora);
   const costo = producto.costoPromedio ? BigInt(producto.costoPromedio.minor) : null;
   const margen = tramo ? marginBasisPoints(tramo.amountMinor, costo) : null;
@@ -744,6 +771,33 @@ function Existencia({ producto, ahora }: { producto: ProductoDto; ahora: number 
           Se vende por debajo de lo que cuesta.
         </p>
       )}
+      {/* El punto de reorden (B9-5): con la existencia en él o por debajo, avisa. */}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="w-36">
+          <Input
+            label="Stock mínimo"
+            surface="admin"
+            inputMode="numeric"
+            className="tnum"
+            placeholder="Sin mínimo"
+            value={minimo}
+            error={errorMinimo ?? undefined}
+            disabled={!puedeRecibir || guardando}
+            onChange={(e) => {
+              setMinimo(e.target.value.replace(/\D/g, ""));
+              setErrorMinimo(null);
+            }}
+          />
+        </div>
+        {puedeRecibir && cambioMinimo && (
+          <Button type="button" variant="neutral" surface="admin" disabled={guardando} onClick={() => void guardarMinimo()}>
+            {guardando ? "Guardando…" : "Guardar mínimo"}
+          </Button>
+        )}
+        <span className="mb-2 ml-auto">
+          <EstadoStock estado={stockStatus(producto.existencia ?? 0, producto.minimo)} />
+        </span>
+      </div>
     </section>
   );
 }
