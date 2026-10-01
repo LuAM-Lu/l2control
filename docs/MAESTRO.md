@@ -10,11 +10,12 @@
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
 > - [JORNADA.md](JORNADA.md): el día completo en cuatro momentos (primer encendido, apertura, jornada y
 >   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige cuando un paso resuelve algo suyo.
-> - [adr/](adr/): las decisiones de arquitectura, una por archivo (25; ADR-018 supersede la biblioteca
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (26; ADR-018 supersede la biblioteca
 >   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2, ADR-020 cambia el TOTP
 >   de ADR-018 por llaves de acceso, ADR-021 supersede la topología de ADR-003, ADR-022 retira la
 >   pantalla de cocina de DEC-19, ADR-023 supersede ADR-012, ADR-024 retira el límite de cordura de
->   ADR-019 y ADR-025 concreta el tiempo real de ADR-008).
+>   ADR-019, ADR-025 concreta el tiempo real de ADR-008 y ADR-026 lleva la impresión al local con un agente,
+>   en lugar de la conexión directa del servidor de ADR-015).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -31,7 +32,14 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.38.0 · 38 de 56 pasos.** **Los descuentos son configurables (B3-6):** administración crea en Ajustes →
+**Versión 0.39.0 · 39 de 56 pasos.** **Se imprime en papel (B5-2, [ADR-026](adr/026-impresion-por-agente-local.md)):**
+con el servidor en la nube, la impresora del local la alcanza un **agente** en la laptop de caja, que se vincula
+una vez con un código del panel y se conecta hacia fuera. El servidor guarda la cola (pendiente, enviado,
+confirmado o fallido, con cinco intentos) y compone el ESC/POS a 58 u 80 mm; el agente lo manda por TCP 9100 y
+pregunta antes por el papel. Salen el **recibo** (original y copias) y el **ticket del corte Z** (solo, al
+sellar); lo que no sale se avisa en la barra y en Inicio con «Reintentar». Ajustes → Impresoras configura la
+impresora y el agente. Las comandas ya tienen su impresora elegida y salen cuando los pedidos sean del servidor
+(B6-2). **Los descuentos son configurables (B3-6):** administración crea en Ajustes →
 Descuentos los que la caja puede aplicar (por medio de pago, VIP y manuales; porcentaje o monto; sobre la cuenta, el
 parque, el restaurante o unas categorías; con vigencia) y marca familias VIP en el directorio. La caja ofrece los que
 aplican, el mayor primero, uno por cuenta y antes del IVA, con la 🔐 que toca: el de medio exige cobrar toda la cuenta
@@ -84,8 +92,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 349 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  49 de impuestos, 119 de caja, 37 del parque, 43 de inventario y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 357 de aplicación, 13 del worker, 4 del agente; en el dominio,
+  55 de tasas, 49 de impuestos, 119 de caja, 37 del parque, 43 de inventario, 14 de impresión y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -245,7 +253,17 @@ prueba (8153, 1779 y 1646; pulseras PB36-…) y se cobraron en «Prueba B36 Caja
 (faltó $ 0,11 en el primero, dentro del umbral). **Las tres reglas están retiradas**: la caja del cliente no ofrece
 ninguna. Equipos «Prueba B36 …» revocados. El turno de «PC admin» y las cuentas #0022 y #0031 del cliente no se tocaron.
 
-**Siguiente paso:** **B5-2** (impresión y comandas).
+**La impresión en la base local (2026-10-01, al comprobar B5-2).** La migración `20261020000000_impresion` está
+aplicada a la base del cliente (tres tablas nuevas; no rellena nada). Abigail Karam dio de alta «Prueba B52 Caja»
+(10.2.0.2:9100, la IP de esta máquina, donde escuchaba una **impresora falsa** que guarda lo que recibe) y vinculó
+dos veces el agente «Prueba B52 Laptop». La «Familia Prueba B52 2828» entró, salió y se cobró en «Prueba B52 Caja»
+(#0037, $ 5,80); su recibo salió a 80 mm, la copia falló sin papel y salió al reintentar, y el Z del turno sacó
+solo su ticket, ya a 58 mm. **La impresora y los dos agentes están retirados** (el agente en marcha se
+desconectó en el acto) y los equipos «Prueba B52 …» revocados. Las pruebas de impresión de la cola quedan en el
+historial de la impresora retirada. **Falta el trabajo de campo:** la impresora real del cliente (marca y modelo
+aún sin saber) y la instalación del agente en su laptop.
+
+**Siguiente paso:** **B6-1** (carta y mesas en el servidor), que abre el restaurante.
 
 ---
 
@@ -283,7 +301,7 @@ cinco reglas de CLAUDE.md no se relajan.
 | **V-2** | **La monitora trabaja en un teléfono del local** (entrada, sala y salida). Lee con la **cámara** (QR y código de barras) y, si lo compran, con un **lector Bluetooth** en modo teclado (lo que DEC-8 ya resolvía). **Sin pantalla de pared** (cambia DEC-18): la sala se ve en el teléfono y en el panel | B4-5 |
 | **V-3** | **Caja en una laptop; mesero en una tablet.** Equipos del local, aprobados como del puesto (DEC-17); cada persona entra con su PIN | B7-3 |
 | **V-4** | **La cocina trabaja con la comanda impresa, sin pantalla** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), cambia DEC-19). El sistema sabe el pedido y la cuenta, no «listo» ni «entregado». La comanda sale en la **impresora de comandas**, un ajuste: hoy la de caja (alguien la lleva), mañana una en la cocina | B5-2, B6-2 |
-| **V-5** | **Una sola impresora térmica, en la caja, por red** (TCP 9100): recibo, ticket de corte y comandas | B5-2 |
+| **V-5** | **Una sola impresora térmica, en la caja, por red** (TCP 9100): recibo, ticket de corte y comandas. Con el servidor en la nube, la alcanza un agente en la laptop de caja ([ADR-026](adr/026-impresion-por-agente-local.md)) | ~~B5-2~~ |
 | **V-6** | **El restaurante entra en el piloto** (cierra D-RES): mesas, carta, pedidos del mesero y cuenta de mesa en el servidor | B6-1 a B6-3 |
 | **V-7** | **Inventario mínimo y real** (cierra D-INV): lo que se vende tal cual (refrescos, golosinas, juguetes) y servicios sin existencia (alquiler por cumpleaños, paquetes). Entradas de **varias líneas de una vez** o de un producto, con **costo promedio** y margen. **Lo que no hay no se vende** ([ADR-023](adr/023-existencia-al-entrar-en-la-cuenta.md)). Insumos y recetas de cocina, después del piloto | B9-2 a B9-5 |
 | **V-8** | **Todo sincronizado en tiempo real**: sala, cuentas, existencias, turnos y pendientes, comandas, reservas, tasa, catálogo, medios y equipos | B5-1 |
@@ -335,8 +353,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → **B5-2** (impresión y comandas).
-5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
+4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
+5. **B6-1** → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
@@ -1159,11 +1177,47 @@ Fuera de la cuenta de 56: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   sin errores de consola (con el worker caído, el navegador anota que no conecta). Tasas, medios, catálogo
   y equipos usan el mismo camino pero no se vieron cambiar en el navegador (no se tocaron los datos del
   cliente). Las existencias, las comandas y las reservas lo usarán al nacer.*
-- [ ] **B5-2 · Cola de impresión por TCP 9100** y plantillas de 58 y 80 mm, más la pantalla
+- [x] **B5-2 · Cola de impresión por TCP 9100** y plantillas de 58 y 80 mm, más la pantalla
   **Configuración → Impresoras** (contrato `impresoras.ts`) (F1-10, F1-12, ADR-015). Con M-15 (V-4 y V-5):
   una sola impresora, en la caja, por red, para el recibo, el **ticket de corte** (JORNADA §5) y las
   **comandas**; la **impresora de comandas** es un ajuste (hoy la de caja, mañana una en la cocina).
   → El recibo no fiscal sale en papel real en los dos anchos. Sin confirmación de impresión, nada avanza.
+  *Hecho el 2026-10-01 (v0.39.0), en `feat/b5-2`, con [ADR-026](adr/026-impresion-por-agente-local.md): con el servidor
+  en un VPS (ADR-021), el TCP 9100 lo abre un **agente en la laptop de caja**, no el servidor (decisión del equipo al
+  llegar al paso; el modelo de la impresora aún no se sabe: ESC/POS estándar).*
+  *· Dominio nuevo `@l2/domain-printing`: el documento y su composición a 32 o 48 columnas (`componer`, `comoTexto`),
+  el ESC/POS con la página 850 (`escpos`), el sensor del papel (`PREGUNTA_PAPEL`, `problemaDePapel`), la cola
+  (`reclamado`, `trasFallo` con 5, 10, 20 y 40 s, `sinRespuesta` a los 30 s, `reintentado`) y los formatos de
+  importe, tasa y hora de la pantalla. 14 pruebas.*
+  *· Contrato `impresoras.ts` rehecho (era un borrador): datos de la impresora con `recibos` y `comandas` (sale el
+  «oficio» y el «sin impresora de cocina», que pedía el KDS de ADR-015), mandos (crear, editar, encender, retirar,
+  vincular y retirar agente), el trabajo con su vista previa y los mensajes del agente. Tema en vivo `impresion`.*
+  *· Base: `20261020000000_impresion`: `printer` (IP privada por CHECK, encendida solo con sus garantías, una
+  encendida para recibos y otra para comandas por sucursal, una por dirección; no se borra, se retira),
+  `print_agent` (código y credencial solo como huella; se vincula y se retira una vez) y `print_job` (lo impreso no
+  cambia, el estado solo avanza como dice ADR-015, nada se borra), con RLS.*
+  *· Aplicación `impresion/`: impresoras y agentes (`catalogo.modificar` con elevación; la prueba, sin elevación),
+  la cola (`encolarEn` en la transacción de quien imprime; sin impresora encendida, se niega), las plantillas del
+  recibo (desde la venta, con «COPIA»), del corte (lo vendido, por medio, gaveta, arqueo, firma y excepciones) y de
+  la prueba; del agente, vincular, abrir, reclamar (FOR UPDATE SKIP LOCKED), responder, barrer y latido. Una
+  impresora apagada solo imprime pruebas. `ventas.imprimir` encola el recibo; el Z encola su ticket sin depender de
+  él; la apertura del turno avisa sin impresora. 11 acciones auditadas con su fila en `TEMAS_DE_ACCION`. 8 pruebas
+  contra la base y las del recibo y el Z al día.*
+  *· `apps/worker`: el espacio `/impresion` (credencial en el apretón de manos, sala por sucursal, `hay-trabajo`,
+  `reclamar` y `resultado`), `POST /impresion/vincular` con tope, y cada 15 s el barrido y el latido que echa a los
+  retirados. 4 pruebas con servidor y clientes de verdad.*
+  *· `apps/printer-agent` (nuevo): `l2-impresion vincular | probar | iniciar`; imprime por TCP con la pregunta del
+  papel y vacía la cola al avisarle y cada 30 s. `pnpm arch` le prohíbe la base y la aplicación. 4 pruebas contra
+  una impresora falsa.*
+  *· Web: Ajustes → Impresoras (alta, prueba, encender, editar, retirar, el agente con su código y la orden, y lo
+  último que se mandó a imprimir); la cola en vivo (`ColaProvider`); el recibo y Turno enseñan cómo va la impresión
+  con «Reintentar»; el Z sellado, su ticket; «N sin imprimir» en la barra de las estaciones y en Inicio. Fuera
+  `window.print()`.*
+  *· Comprobado en el navegador con una impresora falsa en TCP y el agente de verdad: alta con errores de
+  formulario, prueba en cola sin agente, vincular con el código del panel, la prueba en papel y «Impreso» en vivo,
+  recibo de #0037 en papel a 80 mm, la copia sin papel («Sin papel»), la alerta «1 sin imprimir» con su lista y
+  «Reintentar», el ticket del Z solo y a 58 mm (32 columnas), y retirar el agente lo desconecta. Impresoras, la
+  caja y Turno a 1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - ~~**B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09)~~. **Retirado el 2026-09-28
   (D-GAV):** la impresora de caja no lleva gaveta electrónica; la gaveta es manual. No cuenta en la ruta.
 
@@ -1465,7 +1519,11 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El primer administrador y sus credenciales solo se crean por consola (`pnpm credenciales`): una base vacía no arranca sin ella | T-4 (instalación inicial y enlace de alta, M-12) |
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
-| Sin Storybook; sin `apps/printer-agent` (DEC-8: la impresora es de red) | Fuera de la Ruta A |
+| Sin Storybook | Fuera de la Ruta A |
+| El agente de impresión se arranca a mano en la laptop (`l2-impresion`): falta empaquetarlo como servicio de Windows que arranque solo | B7-3 (instalación de los equipos) |
+| En producción el proxy debe llevar `/impresion/vincular` y el espacio `/impresion` del canal al worker | B7-1 |
+| «Impreso» es que la impresora aceptó los bytes y cerró bien (ADR-026): no ve el papel. Una impresora que no contesta al sensor del papel imprime sin esa comprobación | Aceptado; se mide con la impresora real |
+| Las comandas tienen su impresora y su tipo de trabajo, pero no se encolan: los pedidos del mesero siguen en el bus del navegador | B6-2 |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
@@ -1481,7 +1539,6 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El tope de supervisión se cambia desde Ajustes → Descuentos (publica una versión de los ajustes); el editor de Sucursal no lo enseña | Al pasar por Sucursal |
 | Los pendientes del cierre enseñan lo que se debe sin restar un descuento «por categorías» (la cifra es para enseñar; el cobro sí lo resta) | Aceptado |
 | Devolver en efectivo lo que entró por otro medio (Pago Móvil, punto) saca de la gaveta un efectivo que el libro no apunta: el arqueo lo verá como faltante | Un asiento de salida de caja en el libro, cuando el cliente lo necesite |
-| El ticket de corte no se imprime (el Z queda sellado y se ve en pantalla) | B5-2 |
 | El resumen del día no separa lo vendido del parque y del restaurante (JORNADA §5) | Cuando el cliente lo pida |
 | Los pendientes del cierre no traen mesas ni comandas del restaurante (una mesa abierta sale como cuenta) | Etapa 6 |
 | La venta guarda el documento del cliente enmascarado: una factura fiscal necesitará el completo | F3 (fuera por M-3) |
@@ -1555,7 +1612,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables y descuentos | Carga desde papel (B3-7) y ticket de corte impreso (B5-2) |
+| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables y descuentos | Carga desde papel (B3-7) |
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
@@ -1680,6 +1737,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-09-30** · Handoff (v0.37.0 en `main`, sin subir): B4-5 y la Etapa 9 entera (B9-2 a B9-6) hechas en esta sesión.
 - **2026-10-01** · B3-6 hecho (v0.38.0): descuentos configurables por medio de pago, VIP, manuales y de administración,
   uno por cuenta y antes del IVA, con su 🔐 en el servidor, en el recibo y en las excepciones. Sigue B5-2.
+- **2026-10-01** · Al llegar a B5-2, el servidor en la nube no alcanza la impresora del local: se decide un agente en
+  la laptop de caja (ADR-026). B5-2 hecho (v0.39.0): recibo y ticket del Z en papel, cola con confirmación y alerta
+  con «Reintentar». Sigue B6-1.
 
 ---
 

@@ -2445,8 +2445,11 @@ export function CajaScreen({
       <ReciboDialog
         recibo={viendoRecibo ? ultimoRecibo : null}
         copia={ultimaVenta ? ultimaVenta.prints.length > 0 : false}
-        onImprimir={() => {
-          if (ultimaVenta) void imprimir(ultimaVenta.id);
+        ventaId={ultimaVenta?.id}
+        onImprimir={async () => {
+          if (!ultimaVenta) return null;
+          const r = await imprimir(ultimaVenta.id);
+          return r.ok ? null : r.mensaje;
         }}
         onCerrar={() => setViendoRecibo(false)}
       />

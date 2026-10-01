@@ -13,6 +13,7 @@ import { importeTecleado } from "./importe.ts";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { PendientesDelCierre } from "./PendientesDelCierre.tsx";
 import { registrarArqueo, sellarCorteZ } from "./cortes.acciones";
+import { TicketDelCorte } from "../impresion/TicketDelCorte.tsx";
 
 /**
  * Cerrar un turno — F4-06, F4-07, JORNADA §4 (relevo) y §5 (cierre de la jornada), B3-5.
@@ -538,6 +539,7 @@ function Sellado({ corte, ajeno, onVolver }: { corte: CorteDto; ajeno: boolean; 
             </div>
           ))}
         </dl>
+        {corte.id && <TicketDelCorte corteId={corte.id} />}
         {ajeno || jornada ? (
           <Link
             href={"/panel" as Route}

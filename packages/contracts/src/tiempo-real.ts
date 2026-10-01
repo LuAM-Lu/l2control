@@ -42,6 +42,8 @@ export const TemaSchema = z.enum([
   "sucursal",
   /** Las reglas de descuento y las familias VIP (B3-6). */
   "descuentos",
+  /** Las impresoras, sus agentes y la cola de impresión (B5-2). */
+  "impresion",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 

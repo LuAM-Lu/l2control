@@ -8,7 +8,10 @@
  *  2. la vuelta del outbox: lo que ocurre en la base llega a las pantallas en menos de 2 s
  *     (`outbox.ts`), y el latido que sostiene las sesiones con el canal abierto y echa a las que
  *     murieron;
- *  3. la consulta automática de la tasa del BCV, que antes vivía en el servidor web (`tasa.ts`).
+ *  3. la consulta automática de la tasa del BCV, que antes vivía en el servidor web (`tasa.ts`);
+ *  4. los agentes de impresión de la laptop de caja (`impresion.ts`, ADR-026): les avisa cuando hay
+ *     trabajo, les da lo que reclaman, devuelve a la cola lo enviado que no respondió y echa a los
+ *     que se retiraron desde el panel.
  *
  * Si algo de lo imprescindible falla al arrancar (entorno, base, Valkey), no arranca: mejor que
  * arrancar a medias (fail-closed, §10.3). Si se cae, la operación sigue: la web escribe sin él, y
@@ -25,9 +28,12 @@ import { crearCanal } from "./canal.ts";
 import { almacenValkey } from "./operacion.ts";
 import { vigilarOutbox } from "./outbox.ts";
 import { programarSincronizacionDeTasa } from "./tasa.ts";
+import { crearCanalDeImpresion, type CanalDeImpresion } from "./impresion.ts";
 
 /** Cada cuánto se confirma que las sesiones con el canal abierto siguen vivas. */
 const LATIDO_MS = 60_000;
+/** Cada cuánto se mira la cola de impresión: lo enviado sin respuesta y los agentes vivos (ADR-026). */
+const COLA_MS = 15_000;
 
 const VERSION = (JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8")) as { version: string }).version;
 
@@ -42,7 +48,10 @@ async function arrancar() {
   for (const c of [pub, sub]) c.on("error", (err) => log.warn({ err }, "Valkey no responde"));
   await Promise.all([pub.connect(), sub.connect()]);
 
+  let impresion: CanalDeImpresion | null = null;
   const http = createServer((req, res) => {
+    // La vinculación de un agente de impresión (ADR-026): un POST con el código de un solo uso.
+    if (impresion?.atenderHttp(req, res)) return;
     // Para el proxy y la supervisión: si esto no responde, el canal tampoco.
     if (req.url === "/salud") {
       res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ok: true, version: VERSION }));
@@ -59,6 +68,36 @@ async function arrancar() {
     adaptador: createAdapter(pub, sub, { key: "l2:socket.io" }),
     alError: (err, contexto) => log.error({ err, contexto }, "error en el canal en vivo"),
   });
+
+  impresion = crearCanalDeImpresion({
+    io: canal.io,
+    casos: {
+      abrirAgente: (c) => app.impresion.abrirAgente(e.L2_TENANT_ID, c),
+      reclamar: (a) => app.impresion.reclamar(a, Date.now()),
+      responder: (a, r) => app.impresion.responder(a, r, Date.now()),
+      vincular: (x) => app.impresion.vincular(e.L2_TENANT_ID, x, Date.now()),
+    },
+    alError: (err, contexto) => log.error({ err, contexto }, "error con un agente de impresión"),
+  });
+  const deImpresion = impresion;
+  let mirandoCola = false;
+  const mirarCola = async () => {
+    if (mirandoCola) return;
+    mirandoCola = true;
+    try {
+      // Lo enviado que no respondió vuelve a la cola: que lo tome el agente que siga vivo.
+      if ((await app.impresion.barrer(e.L2_TENANT_ID, Date.now())) > 0) deImpresion.avisar("todas");
+      const conectados = deImpresion.conectados().map((a) => a.agenteId);
+      const vigentes = new Set(await app.impresion.latido(e.L2_TENANT_ID, conectados, Date.now()));
+      const retirados = new Set(conectados.filter((id) => !vigentes.has(id)));
+      if (retirados.size > 0) deImpresion.echar(retirados);
+    } catch (err) {
+      log.warn({ err }, "no se pudo mirar la cola de impresión");
+    } finally {
+      mirandoCola = false;
+    }
+  };
+  const cola = setInterval(() => void mirarCola(), COLA_MS);
 
   let latiendo = false;
   const latir = async () => {
@@ -86,6 +125,9 @@ async function arrancar() {
     log,
     contar(avisos) {
       canal.contar(avisos);
+      // Algo entró en la cola de impresión (o cambió una impresora): que lo sepan los agentes.
+      const deCola = avisos.filter((a) => a.temas.includes("impresion"));
+      if (deCola.length > 0) deImpresion.avisar(deCola.some((a) => a.branchId === null) ? "todas" : deCola.map((a) => a.branchId!));
       // Una salida, una revocación o una baja: quien la sufre deja el canal ya, no al minuto.
       if (avisos.some((a) => a.temas.includes("sesiones"))) void latir();
     },
@@ -97,7 +139,7 @@ async function arrancar() {
   await new Promise<void>((listo) => http.listen(e.L2_TIEMPO_REAL_PUERTO, listo));
   log.info(
     { version: VERSION, entorno: e.L2_ENTORNO, puerto: e.L2_TIEMPO_REAL_PUERTO, tenantId: e.L2_TENANT_ID, sincronizarTasa: e.L2_SINCRONIZAR_TASA },
-    "worker en marcha: canal en vivo, outbox y trabajos programados",
+    "worker en marcha: canal en vivo, outbox, cola de impresión y trabajos programados",
   );
 
   let saliendo = false;
@@ -106,6 +148,7 @@ async function arrancar() {
     saliendo = true;
     log.info({ senal }, "worker deteniéndose");
     clearInterval(latido);
+    clearInterval(cola);
     pararTasa();
     await vuelta.parar();
     await canal.cerrar();

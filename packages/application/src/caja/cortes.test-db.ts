@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { ArqueoDto, TurnoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -42,6 +42,7 @@ const PIN = { admin: "4826", supervisor: "5937", cajera: "7391", cajera2: "2846"
 
 async function montar(nombre: string, conDatos = true): Promise<Montado> {
   const l = await abrirLocalDePrueba(URL_APP, nombre);
+  await impresoraDePrueba(l);
   const admin = await crearPersona(l, { nombre: "Abigail Karam", role: "ADMIN", pin: PIN.admin });
   const supervisor = await crearPersona(l, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: PIN.supervisor });
   const cajera = await crearPersona(l, { nombre: "Marisol Prieto", role: "CAJERO", pin: PIN.cajera });
@@ -322,6 +323,10 @@ describe("el arqueo a ciegas y el corte Z (F4-06, F4-07)", () => {
 
     const z = valor(await m.l.app.cortes.corteZ(ctx, cmd, pinDe(m.cajera, PIN.cajera), AHORA));
     assert.equal(z.tipo, "Z");
+    // El ticket del corte sale solo, en la impresora de recibos (B5-2, JORNADA C5).
+    const ticket = valor(await m.l.app.impresion.trabajos(ctx, AHORA)).trabajos.find((t) => t.corteId === z.id);
+    assert.equal(ticket?.tipo, "CORTE");
+    assert.match(ticket!.vistaPrevia, /CORTE Z[\s\S]*Arqueo/);
     assert.equal(z.turno.estado, "CERRADO_Z");
     assert.equal(z.arqueo!.id, a.id);
     assert.deepEqual(z.cierre, {

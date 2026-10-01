@@ -22,11 +22,17 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import type { Cifrador } from "../identidad/cifrado.ts";
 import { turnoSinCorteDe } from "./turnos.ts";
+import { encolarEn } from "../impresion/impresion.ts";
+import { documentoDeRecibo } from "../impresion/plantillas.ts";
+import { ajustesDe } from "../sucursal/ajustes.ts";
 
 export interface CasosVentas {
   /** Las ventas del turno abierto del equipo de la sesión, de la más reciente a la más antigua. */
   delTurno(ctx: Contexto): Promise<Resultado<VentasDelTurnoDto>>;
-  /** Anota una impresión del recibo (`ImprimirVentaCommandSchema`) y devuelve la venta. */
+  /**
+   * Imprime el recibo (`ImprimirVentaCommandSchema`): lo pone en la cola de la impresora de recibos y
+   * anota la impresión (la primera es el original; las siguientes, copias). Sin impresora, no (B5-2).
+   */
   imprimir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<VentaCerradaDto>>;
 }
 
@@ -102,6 +108,14 @@ export function casosVentas(base: Base, cifrador: Cifrador | null): CasosVentas 
         const venta = await tx.sale.findUnique({ where: { id: v.data.saleId }, include: CON_TODO });
         if (!venta || venta.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa venta no existe en esta sucursal." };
         const copia = venta.prints.length > 0;
+        const dto = ventaDe(venta, cifrador);
+        const trabajo = await encolarEn(
+          tx,
+          ctx,
+          { tipo: "RECIBO", titulo: `Recibo #${String(venta.orderNumber).padStart(4, "0")}`, copia, saleId: venta.id, documento: documentoDeRecibo(dto, await ajustesDe(tx, ctx.branchId), copia), para: "recibos" },
+          ahora,
+        );
+        if ("ok" in trabajo) return trabajo;
         const quien = await nombreDe(tx, ctx);
         const impresion = await tx.salePrint.create({
           data: {

@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CuentaYLibroDto, FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -107,6 +107,7 @@ const asientosCon = (operationKey: string) =>
 before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
+  await impresoraDePrueba(local);
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
@@ -420,6 +421,11 @@ describe("la venta de cada cobro (B3-4, C12)", () => {
     assert.deepEqual(original.prints.map((x) => x.copia), [false]);
     const copia = valor(await local.app.ventas.imprimir(ctxCajera, { saleId: venta.id }, AHORA + 2 * MIN));
     assert.deepEqual(copia.prints.map((x) => [x.copia, x.by]), [[false, "Marisol Prieto"], [true, "Marisol Prieto"]]);
+    // Cada impresión es un trabajo en la cola de la impresora de recibos (B5-2); la copia lo dice arriba.
+    const trabajos = valor(await local.app.impresion.trabajos(ctxCajera, AHORA + 2 * MIN)).trabajos.filter((t) => t.ventaId === venta.id);
+    assert.deepEqual(trabajos.map((t) => [t.tipo, t.copia, t.estado]), [["RECIBO", true, "PENDIENTE"], ["RECIBO", false, "PENDIENTE"]]);
+    assert.match(trabajos[0]!.vistaPrevia, /\*\*\* COPIA \*\*\*/);
+    assert.match(trabajos[1]!.vistaPrevia, /RECIBO NO FISCAL[\s\S]*TOTAL/);
     const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "sale", entityId: venta.id });
     assert.deepEqual(asientos.map((a) => a.action).sort(), ["venta.imprimir", "venta.reimprimir"]);
     const monitora = await local.app.ventas.imprimir(ctxMonitora, { saleId: venta.id }, AHORA);

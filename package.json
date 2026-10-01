@@ -1,10 +1,10 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.38.0",
+  "version": "0.39.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
-    "etapa": "Etapa 3 · Caja",
+    "etapa": "Etapa 5 · Tiempo real e impresión",
     "pasos": 56
   },
   "packageManager": "pnpm@12.3.4",
@@ -27,7 +27,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:db": "turbo run test:db",
-    "arch": "depcruise \"packages/*/src/**/*.{ts,tsx}\" \"packages/domain/*/src/**/*.ts\" \"packages/*/*.ts\" \"packages/database/scripts/**/*.ts\" \"apps/web/{app,src}/**/*.{ts,tsx}\" \"apps/web/*.ts\" \"apps/worker/src/**/*.ts\" --config .dependency-cruiser.cjs",
+    "arch": "depcruise \"packages/*/src/**/*.{ts,tsx}\" \"packages/domain/*/src/**/*.ts\" \"packages/*/*.ts\" \"packages/database/scripts/**/*.ts\" \"apps/web/{app,src}/**/*.{ts,tsx}\" \"apps/web/*.ts\" \"apps/worker/src/**/*.ts\" \"apps/printer-agent/src/**/*.ts\" --config .dependency-cruiser.cjs",
     "arch:demo": "node scripts/arch-demo.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm lint:prueba && pnpm version:comprobar && pnpm arch && pnpm arch:demo && pnpm test",
     "verify:db": "pnpm verify && pnpm test:db",

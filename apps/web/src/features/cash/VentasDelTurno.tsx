@@ -19,6 +19,7 @@ import { useAtajos } from "./atajos.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 import { ReciboDialog, ReciboImpreso } from "./ReciboDialog.tsx";
 import { useVentas } from "./VentasProvider.tsx";
+import { EstadoDeImpresion } from "../impresion/ColaProvider.tsx";
 
 /** Los medios usados en una venta, sin repetir. */
 const mediosDe = (v: VentaCerradaDto) => [...new Set(v.payments.map((p) => p.label))];
@@ -111,18 +112,17 @@ export function VentasDelTurno({ className }: { className?: string }) {
   }
 
   /**
-   * Imprime y lo anota en el servidor, que dice si fue el original o una copia (§5.4). El papel sale
-   * primero y dice lo que ya se sabía: si ya se había impreso, es COPIA.
+   * Manda el recibo a la impresora (B5-2): el servidor lo pone en la cola, dice si es el original o una
+   * copia (§5.4) y lo anota con quién y cuándo. Cómo va el papel se ve en el detalle de la venta.
    */
   async function imprimir(v: VentaCerradaDto) {
     const copia = v.prints.length > 0;
-    window.print();
     const r = await imprimirEnServidor(v.id);
     if (!r.ok) {
-      avisar.error(r.mensaje, { detalle: "La impresión no quedó anotada." });
+      avisar.error(r.mensaje, { detalle: "No se mandó a imprimir." });
       return;
     }
-    avisar.info(copia ? `Copia del recibo ${ordenDe(v.orderNumber)} impresa` : `Recibo ${ordenDe(v.orderNumber)} impreso`, {
+    avisar.info(copia ? `Copia del recibo ${ordenDe(v.orderNumber)} enviada a la impresora` : `Recibo ${ordenDe(v.orderNumber)} enviado a la impresora`, {
       detalle: "Queda anotada con tu nombre y la hora.",
     });
   }
@@ -349,6 +349,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                   </details>
                 )}
               </div>
+              <EstadoDeImpresion ventaId={actual.id} className="border-t border-line px-4" />
               {actual.voided ? (
                 <p className="border-t border-line px-4 py-3 text-[12.5px] text-ink-3">
                   Un cobro anulado no se reimprime ni se envía: su recibo ya no vale.
@@ -390,8 +391,11 @@ export function VentasDelTurno({ className }: { className?: string }) {
       <ReciboDialog
         recibo={enviando && actual ? reciboDeVenta(actual, ajustes) : null}
         copia={actual ? actual.prints.length > 0 : false}
-        onImprimir={() => {
-          if (actual) void imprimirEnServidor(actual.id);
+        ventaId={actual?.id}
+        onImprimir={async () => {
+          if (!actual) return null;
+          const r = await imprimirEnServidor(actual.id);
+          return r.ok ? null : r.mensaje;
         }}
         onCerrar={() => setEnviando(false)}
       />

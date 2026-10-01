@@ -1,0 +1,26 @@
+{
+  "name": "@l2/printer-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "El agente de impresión de la laptop de caja (ADR-026): se conecta al worker hacia fuera, recibe los trabajos de su sucursal y los manda a la impresora por TCP 9100 en la red del local.",
+  "bin": {
+    "l2-impresion": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
+  },
+  "comment": "No conoce la base ni la aplicación: solo la red (pnpm arch lo impone). Los bytes los compone el servidor.",
+  "dependencies": {
+    "@l2/contracts": "workspace:*",
+    "@l2/domain-printing": "workspace:*",
+    "socket.io-client": "4.8.4"
+  },
+  "devDependencies": {
+    "@l2/config": "workspace:*",
+    "@types/node": "24.10.1",
+    "typescript": "7.0.2"
+  }
+}

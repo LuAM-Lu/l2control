@@ -36,6 +36,7 @@ import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { formatTasaVE } from "../cash/tasa-format.ts";
 import { formatClock } from "../park/time-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 
 /**
  * Barra permanente de las estaciones — §8.5 y §9.10.2.
@@ -291,6 +292,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
         {/* ── contexto: píldoras de la misma altura ─────────────────────── */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {/* ADR-015: lo que no salió en papel se ve aquí, con su lista y «Reintentar». */}
+          <AvisoDeImpresion />
           {!abreTurno && sinTurno ? null : sinTurno ? (
             <Pildora
               tono="crit"

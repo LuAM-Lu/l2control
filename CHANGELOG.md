@@ -12,6 +12,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.39.0] — 2026-10-01 · Etapa 5 · Tiempo real e impresión
+
+B5-2 · La impresión en papel: recibo, ticket del corte y la cola con confirmación.
+
+### Añadido
+- **Ajustes → Impresoras**: la impresora térmica del local (IP de la red del local, puerto, 58 u 80 mm y para
+  qué sirve: recibos y cortes, comandas). Nace apagada: se imprime una prueba y se enciende. Una sola encendida
+  para cada papel; para encenderla se confirma que está en la red de los equipos y con IP fija.
+- **El agente de impresión** para la laptop de caja (`l2-impresion`): se vincula una vez con un código de 10
+  minutos que da el panel, se conecta al servidor por su cuenta y manda cada trabajo a la impresora. Retirarlo
+  desde el panel lo desconecta en el acto.
+- **El recibo sale en papel** desde la caja y desde Turno: original y copias, a la venezolana, con el
+  descuento, el IVA y la tasa del cobro. El diálogo dice si está en cola, si se imprimió o por qué no salió.
+- **El ticket del corte Z** sale solo al sellar el turno, con lo vendido, por medio, la gaveta, el arqueo, la
+  firma y las excepciones; se reimprime desde la pantalla del Z.
+- **Lo que no sale en papel se avisa**: «N sin imprimir» en la barra de las estaciones y en Inicio, con su
+  motivo (sin papel, la impresora no responde) y «Reintentar». Hasta cinco intentos solos antes de avisar.
+- La apertura del turno avisa si no hay impresora de recibos encendida.
+
+### Cambiado
+- Imprimir ya no abre el diálogo del navegador: el trabajo va a la impresora del local por el agente.
+
 ## [0.38.0] — 2026-10-01 · Etapa 3 · Caja
 
 B3-6 · Descuentos configurables.

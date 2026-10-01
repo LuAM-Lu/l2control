@@ -26,6 +26,8 @@ import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { ventasDelTurno } from "../src/features/cash/ventas.servidor";
 import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
+import { ColaProvider } from "../src/features/impresion/ColaProvider";
+import { trabajosDelLocal } from "../src/features/impresion/impresion.servidor";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
    interfaz y datos. Quicksand NUNCA para cifras: sus numerales no sirven
@@ -90,6 +92,8 @@ export default async function RootLayout({
   const ventas = sesion ? await ventasDelTurno() : [];
   // Los niños en sala, de la base con la hora del servidor (B4-2). Sin sesión, ninguno.
   const sala = sesion ? await salaDelLocal() : null;
+  // La cola de impresión de la sucursal (B5-2): si salió el recibo o el ticket del corte.
+  const trabajos = sesion ? await trabajosDelLocal() : [];
   // Quién está en cada puesto, de las sesiones de la base (B5-1). Solo para quien ve Inicio.
   const enCurso = sesion ? await sesionesEnCurso() : [];
 
@@ -127,7 +131,7 @@ export default async function RootLayout({
                         <TarifarioProvider inicial={tarifario}>
                           <CuentasProvider inicial={cuentas}>
                             <VentasProvider inicial={ventas}>
-                              {children}
+                              <ColaProvider inicial={trabajos}>{children}</ColaProvider>
                             </VentasProvider>
                           </CuentasProvider>
                         </TarifarioProvider>

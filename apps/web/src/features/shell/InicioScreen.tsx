@@ -16,6 +16,7 @@ import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { formatTasaVE } from "../cash/tasa-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
+import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 
 /**
  * Inicio del back-office — F9-00, §9.10.4.
@@ -138,6 +139,8 @@ export function InicioScreen({
 
           {/* B9-5: lo que hay que reponer, con color + icono + texto; lleva al inventario. */}
           {inventario && <AvisoInventario {...inventario} />}
+          {/* Lo que no salió en papel (ADR-015, ADR-022: las comandas fallidas, en Inicio). */}
+          <AvisoDeImpresion className="h-auto min-h-8 py-1.5 text-xs lg:text-[13px]" />
 
           {/* Enlace al Turno */}
           <Link

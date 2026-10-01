@@ -11,6 +11,11 @@ El proceso aparte del servidor web (ADR-006). Nace en B5-1 con tres trabajos:
    el canal abierto siguen vivas (latido) y cierra el de las que murieron.
 3. **Los trabajos programados** (`tasa.ts`): la consulta de la tasa del BCV cada 15 minutos (antes, en el
    arranque de la web).
+4. **Los agentes de impresión** (`impresion.ts`, B5-2, ADR-026): el espacio `/impresion` del mismo Socket.io,
+   con la credencial del agente en el apretón de manos; les avisa (`hay-trabajo`) cuando el outbox trae el
+   tema `impresion` de su sucursal, atiende `reclamar` y `resultado`, y la vinculación por HTTP
+   (`POST /impresion/vincular`, 10 intentos por minuto y dirección). Cada 15 s devuelve a la cola lo enviado
+   sin respuesta y echa a los agentes retirados. En producción el proxy lleva `/impresion/vincular` al worker.
 
 Además, provisionalmente, **el bus del restaurante** (`operacion.ts`): los eventos `mesa.*` y `pedido.*`
 que se cuentan las pantallas, revalidados, con la hora del servidor, con tope por conexión y guardados

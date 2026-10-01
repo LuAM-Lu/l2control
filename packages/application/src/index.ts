@@ -26,6 +26,7 @@ import { casosTurnos, type CasosTurnos } from "./caja/turnos.ts";
 import { casosMedios, type CasosMedios } from "./caja/medios.ts";
 import { casosCuentas, type CasosCuentas } from "./caja/cuentas.ts";
 import { casosDescuentos, type CasosDescuentos } from "./caja/descuentos.ts";
+import { casosImpresion, type CasosImpresion } from "./impresion/impresion.ts";
 import { casosVentas, type CasosVentas } from "./caja/ventas.ts";
 import { casosCortes, type CasosCortes } from "./caja/cortes.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
@@ -53,6 +54,7 @@ export type { CasosTurnos } from "./caja/turnos.ts";
 export type { CasosMedios } from "./caja/medios.ts";
 export type { CasosCuentas } from "./caja/cuentas.ts";
 export type { CasosDescuentos } from "./caja/descuentos.ts";
+export { AGENTE_CONECTADO_MS, VIGENCIA_CODIGO_MS, type AgenteAbierto, type CasosImpresion } from "./impresion/impresion.ts";
 export type { CasosVentas } from "./caja/ventas.ts";
 export type { CasosCortes } from "./caja/cortes.ts";
 export type { CasosFeriados } from "./dinero/feriados.ts";
@@ -94,6 +96,8 @@ export interface Aplicacion {
   readonly cuentas: CasosCuentas;
   /** Las reglas de descuento, las familias VIP y el descuento de cada cuenta (B3-6). */
   readonly descuentos: CasosDescuentos;
+  /** Las impresoras, sus agentes y la cola de impresión (B5-2, ADR-026). */
+  readonly impresion: CasosImpresion;
   readonly ventas: CasosVentas;
   readonly cortes: CasosCortes;
   readonly feriados: CasosFeriados;
@@ -140,6 +144,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     medios: casosMedios(base, cifrador),
     cuentas: casosCuentas(base, cifrador),
     descuentos: casosDescuentos(base),
+    impresion: casosImpresion(base),
     ventas: casosVentas(base, cifrador),
     cortes: casosCortes(base),
     feriados: casosFeriados(base),

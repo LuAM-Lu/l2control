@@ -56,6 +56,15 @@ module.exports = {
       to: { path: "^(@l2/database|packages/database/|@prisma/)" },
     },
     {
+      name: "el-agente-solo-habla-por-la-red",
+      severity: "error",
+      comment:
+        "ADR-026: el agente de impresión corre en la laptop de caja y solo habla con el worker por la " +
+        "red. Si importara la aplicación o la base, llevaría credenciales del servidor a un equipo del local.",
+      from: { path: "^apps/printer-agent/" },
+      to: { path: "^(@l2/application|packages/application/|@l2/database|packages/database/|@l2/observability|packages/observability/)" },
+    },
+    {
       name: "sin-importaciones-relativas-entre-paquetes",
       severity: "error",
       comment:

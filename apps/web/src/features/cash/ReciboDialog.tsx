@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageCircle, Printer } from "lucide-react";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import { enlaceWhatsApp, textoRecibo, type Recibo } from "./recibo.ts";
+import { EstadoDeImpresion } from "../impresion/ColaProvider.tsx";
 
 /**
  * El recibo no fiscal de una venta: en pantalla, para imprimir y para mandar
@@ -11,10 +12,9 @@ import { enlaceWhatsApp, textoRecibo, type Recibo } from "./recibo.ts";
  * turno).
  *
  * ORIGINAL Y COPIA (§5.4): la primera impresión es el original; cualquier otra
- * sale marcada «COPIA» en grande. Quien llama anota cada impresión con
- * `onImprimir`, y lo hace DESPUÉS de imprimir, para que el papel refleje si ya
- * se había impreso antes y no la impresión que se está haciendo.
- * TODO(F1-12): la impresora térmica en red y sus plantillas de 58 y 80 mm.
+ * sale marcada «COPIA». Imprimir lo hace el servidor (B5-2): pone el recibo en
+ * la cola de la impresora de recibos, que el agente de la caja saca en papel, y
+ * aquí se ve cómo va (en cola, impreso o no salió, con «Reintentar»).
  *
  * WhatsApp: solo si el cliente lo pide. Se propone el teléfono de la familia
  * si se conoce; si no, se teclea.
@@ -22,16 +22,22 @@ import { enlaceWhatsApp, textoRecibo, type Recibo } from "./recibo.ts";
 export function ReciboDialog({
   recibo,
   copia,
+  ventaId,
   onImprimir,
   onCerrar,
 }: {
   recibo: Recibo | null;
   /** Si ya se imprimió: lo que salga ahora es una copia. */
   copia: boolean;
-  onImprimir: () => void;
+  /** La venta del recibo: para enseñar cómo va su impresión. */
+  ventaId?: string | undefined;
+  /** Pide la impresión al servidor. Devuelve el motivo si se negó (p. ej., sin impresora). */
+  onImprimir: () => Promise<string | null>;
   onCerrar: () => void;
 }) {
   const [telefono, setTelefono] = useState("");
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const [errorImpresion, setErrorImpresion] = useState<string | null>(null);
   const [paraOrden, setParaOrden] = useState<string | null>(null);
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -39,6 +45,7 @@ export function ReciboDialog({
     setParaOrden(recibo.orden);
     setTelefono(recibo.telefono ?? "");
     setError(undefined);
+    setErrorImpresion(null);
   }
 
   function enviar() {
@@ -79,16 +86,24 @@ export function ReciboDialog({
               Enviar
             </Button>
           </div>
+          {ventaId && <EstadoDeImpresion ventaId={ventaId} />}
+          {errorImpresion && (
+            <p role="alert" className="text-[12.5px] text-state-crit">
+              {errorImpresion}
+            </p>
+          )}
           <Button
             surface="pos"
             variant="primary"
-            onClick={() => {
-              window.print();
-              onImprimir();
+            disabled={imprimiendo}
+            onClick={async () => {
+              setImprimiendo(true);
+              setErrorImpresion(await onImprimir());
+              setImprimiendo(false);
             }}
           >
             <Printer size={17} aria-hidden="true" />
-            {copia ? "Reimprimir (copia)" : "Imprimir recibo"}
+            {imprimiendo ? "Enviando…" : copia ? "Reimprimir (copia)" : "Imprimir recibo"}
           </Button>
         </div>
       }

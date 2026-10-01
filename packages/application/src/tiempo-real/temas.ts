@@ -49,6 +49,18 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "descuento.crear": ["descuentos"],
   "descuento.retirar": ["descuentos"],
   "familia.vip": ["descuentos", "sala"],
+  // La cola de impresión y sus impresoras (B5-2): el worker avisa además a los agentes de la sucursal.
+  "impresion.encolar": ["impresion"],
+  "impresion.confirmar": ["impresion"],
+  "impresion.fallar": ["impresion"],
+  "impresion.reintentar": ["impresion"],
+  "impresora.crear": ["impresion"],
+  "impresora.editar": ["impresion"],
+  "impresora.activar": ["impresion"],
+  "impresora.retirar": ["impresion"],
+  "agente.codigo": ["impresion"],
+  "agente.vincular": ["impresion"],
+  "agente.retirar": ["impresion"],
   "venta.imprimir": ["ventas"],
   "venta.reimprimir": ["ventas"],
 

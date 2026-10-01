@@ -67,6 +67,7 @@ import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { estanciasActivas } from "../park/parque.ts";
 import { pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
 import { TEXTO_MOTIVO_DESCUENTO } from "./reglas-de-descuento.ts";
+import { encolarCorteEn } from "../impresion/impresion.ts";
 import { turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
 import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
 
@@ -606,6 +607,9 @@ export function casosCortes(base: Base): CasosCortes {
             ...(justificacion ? { reason: justificacion } : {}),
             after: { corte: fila.id, cierre: cmd.cierre, firma, diferencia: arqueo.diferenciaEnDolares, propio: o.propio },
           });
+          // El ticket del corte sale solo (JORNADA C5, R4). Sin impresora, el Z se sella igual y se
+          // imprime después: lo que se sella no depende del papel.
+          await encolarCorteEn(tx, ctx, { id: fila.id, kind: "Z", content: corte }, ahora);
           return { ...corte, id: fila.id };
         });
 
@@ -666,6 +670,9 @@ export function casosCortes(base: Base): CasosCortes {
         }
         if (!(await tx.parkTariffVersion.findFirst({ where: { branchId: ctx.branchId }, select: { id: true } }))) {
           faltan.push({ que: "TARIFARIO", mensaje: "No hay tarifario del parque publicado.", bloquea: "La entrada al parque", enlace: "/panel/ajustes/tarifas" });
+        }
+        if (!(await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, forReceipts: true }, select: { id: true } }))) {
+          faltan.push({ que: "IMPRESORA", mensaje: "No hay impresora de recibos encendida.", bloquea: "Imprimir recibos y el ticket del corte", enlace: "/panel/ajustes/impresoras" });
         }
         return ComprobacionAperturaSchema.parse({ faltan });
       });

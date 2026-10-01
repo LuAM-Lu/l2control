@@ -119,6 +119,28 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  apps/printer-agent:
+    dependencies:
+      '@l2/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@l2/domain-printing':
+        specifier: workspace:*
+        version: link:../../packages/domain/printing
+      socket.io-client:
+        specifier: 4.8.4
+        version: 4.8.4(supports-color@7.2.0)
+    devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   apps/web:
     dependencies:
       '@l2/application':
@@ -267,6 +289,9 @@ importers:
       '@l2/domain-park':
         specifier: workspace:*
         version: link:../domain/park
+      '@l2/domain-printing':
+        specifier: workspace:*
+        version: link:../domain/printing
       '@l2/domain-rates':
         specifier: workspace:*
         version: link:../domain/rates
@@ -414,6 +439,22 @@ importers:
         version: 7.0.2
 
   packages/domain/park:
+    dependencies:
+      '@l2/domain-money':
+        specifier: workspace:*
+        version: link:../money
+    devDependencies:
+      '@l2/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/domain/printing:
     dependencies:
       '@l2/domain-money':
         specifier: workspace:*
