@@ -31,7 +31,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.32.0 · 32 de 55 pasos.** **El Parque está cerrado (B4-5):** la monitora trabaja en el teléfono
+**Versión 0.33.0 · 33 de 55 pasos.** **La existencia es de la base (B9-2, en `feat/b9-2`):** sale cuando un producto
+entra en una cuenta, vuelve cuando se quita sin pagar y **sin existencia no se vende** (ADR-023); la caja enseña
+«Quedan N» y «Agotado». Hasta B9-3 no hay cómo cargarla: la rama pasa a `main` con B9-3. **El Parque está cerrado (B4-5):** la monitora trabaja en el teléfono
 (entrada, sala y salida sin desplazar la página), la cámara lee las pulseras y una pulsera sirve para una sola
 visita; la serie (prefijo y longitud) se fija en Ajustes → Sucursal con el primer lote. **Los ajustes de la sucursal son del servidor (B4-4):** nombre, RIF,
 dirección, horario, formato de hora, zona horaria, residuo, umbral del arqueo y horas de una huérfana se
@@ -68,8 +70,8 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (77 de base, 304 de aplicación, 9 del worker; en el dominio, 55 de tasas,
-  45 de impuestos, 105 de caja, 37 del parque, 18 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (78 de base, 313 de aplicación, 9 del worker; en el dominio, 55 de tasas,
+  45 de impuestos, 105 de caja, 37 del parque, 27 de inventario y 104 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -191,7 +193,8 @@ cuentas #0027 a #0029 quedaron **incobrables** («Otro: datos de prueba», autor
 publicó los ajustes 3 (serie «PB45-» de 9 caracteres) y 4 (de vuelta a sin serie): rige sin serie hasta el primer
 lote. Equipos «Prueba B45 …» revocados. Queda una cuenta pendiente, del cliente.
 
-**Siguiente paso:** **B9-2** (existencias de solo-agregar), que abre lo que queda del inventario (V-7).
+**Siguiente paso:** **B9-3** (entradas de mercancía con costo promedio), en la misma rama `feat/b9-2`: sin ella,
+lo que lleva existencia no se puede vender. Las dos pasan juntas a `main`.
 
 ---
 
@@ -280,7 +283,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
-4. **B9-2** → B9-3 → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
+4. ~~B9-2~~ → **B9-3** → B9-4 → B9-5 (se cierra Inventario) → B3-6 (descuentos) → B5-2 (impresión y comandas).
 5. B6-1 → B6-2 → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1121,12 +1124,36 @@ antes del cobro en servidor (orden de ejecución).
   venta cobrada sigue en $ 1,31 en Turno, la de a medias conserva su $ 1,00 y la carta ofrece el agua
   a $ 1,20. «Pirulín» exento se cobra sin IVA. Productos, la ficha y la carta de la caja a 1366×768,
   1280×800 y 800×1280 sin desplazar el documento ni desbordar; sin errores de consola.*
-- [ ] **B9-2 · Existencias en tiempo real, de solo-agregar** (F8-05, I-10, [ADR-023](adr/023-existencia-al-entrar-en-la-cuenta.md)):
+- [x] **B9-2 · Existencias en tiempo real, de solo-agregar** (F8-05, I-10, [ADR-023](adr/023-existencia-al-entrar-en-la-cuenta.md)):
   la existencia es la suma de movimientos. La línea que entra en una cuenta (mostrador, mesa, evento) la
   descuenta en la misma transacción, y quitarla o anular lo no entregado la devuelve. **Sin existencia no
   se vende**, ni en la caja ni en la tablet del mesero; los servicios no llevan existencia.
   → Toda diferencia de existencia tiene un movimiento que la explica. Un doble clic no descuenta dos veces
   y dos ventas a la vez no venden la última unidad dos veces.
+  *Hecho el 2026-09-30 (v0.33.0) en `feat/b9-2`; pasa a `main` con B9-3, porque sin entradas lo que lleva existencia
+  no se vende.*
+  *· Base: `20261014000000_existencias`: `stock_movement` (VENTA o DEVOLUCION con su cuenta y versión, cantidad
+  entera distinta de cero, FK compuestas con el tenant a la sucursal, al producto y a la versión de la cuenta, única
+  por cuenta, versión y producto), solo-agregar, RLS y un disparador que no deja la existencia bajo cero (la última
+  línea). Aplicada a la base del cliente (solo añade la tabla). 1 prueba nueva.*
+  *· Contrato: `ProductoSchema.existencia` (entera, nunca negativa, `null` si no lleva). Tema `catalogo`, que ahora
+  dice también la existencia.*
+  *· Dominio (`@l2/domain-inventory`): `unitsHeld` (cada línea de un producto es una unidad; la movida a otra cuenta
+  ya no es de esta), `stockMovesOf` (la diferencia entre dos versiones, ordenada por producto, sin devolver más de
+  lo que la cuenta sacó) y `stockShortfalls` (lo que no se sabe que hay, no hay). 9 pruebas.*
+  *· Aplicación: `inventario/existencias.ts`: `comprobarExistencias` toma el candado de cada producto que sale, suma
+  y rechaza «Sin existencia de … : no queda ninguno» señalando la línea, antes de escribir nada; `asentarExistencias`
+  escribe los movimientos tras la versión de la cuenta, con su asiento `existencia.mover` (tema `catalogo`).
+  `cuentas.guardar` los llama en su transacción (mostrador, mesa y familia). El catálogo lleva la existencia de la
+  sucursal de quien lee. 9 pruebas contra la base: sin existencia no se guarda nada, tampoco en la tablet, lo que no
+  lleva no mueve, venta y devolución con su movimiento, un reintento no descuenta dos veces, dos cajas a la vez por
+  la última unidad (una sola la vende), cobrar no mueve, aislamiento y lo que entró antes de llevarse.*
+  *· Web: la carta de la caja dice «Quedan N» y deja ver pero no tocar lo «Agotado»; el «+» de una fila no pide más
+  de lo que queda; Inventario → Productos dice cuántas quedan. Anular un cobro deja las líneas por cobrar: lo no
+  entregado vuelve al quitar su línea (ADR-023, situación en el código).*
+  *· Comprobado en el navegador: la carta de la caja con los siete productos de la base que llevan existencia
+  «Agotado» y deshabilitados, y Productos con «agotado: no se vende»; sin errores de consola. Vender lo que lleva
+  existencia se comprueba con B9-3, que trae la entrada.*
 - [ ] **B9-3 · Entradas de mercancía y costo promedio ponderado** (F8-06, F8-01): una carga de **varias
   líneas** (compra o reposición, con proveedor y factura opcionales) o de un producto suelto, cada línea
   con cantidad y costo en $, y conversiones de unidad (se compra la caja de 24, se vende la unidad). El

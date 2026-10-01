@@ -38,6 +38,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo, type AccionAuditada, type Asiento } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
+import { existenciasDe } from "./existencias.ts";
 
 /** Hasta cuántos días por delante se programa un precio: una lista nueva llega con semanas. */
 export const DIAS_POR_ADELANTADO_PRECIOS = 366;
@@ -69,6 +70,7 @@ export function casosProductos(base: Base): CasosProductos {
   const cargar = async (tx: Transaccion, branchId: string): Promise<CatalogoDto> => {
     const productos = await tx.product.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
     const precios = await tx.productPrice.findMany({ orderBy: { scheduledAt: "asc" } });
+    const existencias = await existenciasDe(tx, branchId);
     // Se revalida al salir: lo que no cumple el contrato no llega a la caja (fail-closed).
     return CatalogoSchema.parse({
       productos: productos.map((p) => ({
@@ -79,6 +81,7 @@ export function casosProductos(base: Base): CasosProductos {
         controlaStock: p.tracksStock,
         activo: p.active,
         precios: tramosDe(precios.filter((x) => x.productId === p.id)),
+        existencia: p.tracksStock ? (existencias.get(p.id) ?? 0) : null,
       })),
       zonaHoraria: await zonaDe(tx, branchId),
       diasPorAdelantado: DIAS_POR_ADELANTADO_PRECIOS,

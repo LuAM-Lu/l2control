@@ -58,19 +58,29 @@ export const TramoPrecioSchema = z
   });
 export type TramoPrecioDto = z.infer<typeof TramoPrecioSchema>;
 
-export const ProductoSchema = z.object({
-  id: IdSchema,
-  nombre: NombreProductoSchema,
-  categoria: CategoriaProductoSchema,
-  /** El trato del IVA con que se vende (§5.3): la alícuota la pone el calendario de impuestos. */
-  taxCode: TaxCodeSchema,
-  /** Si su existencia se lleva por movimientos (B9-2). Un café hecho al momento, no. */
-  controlaStock: z.boolean(),
-  /** Uno apartado no se ofrece en la caja. No se borra: lo vendido lo nombra. */
-  activo: z.boolean(),
-  /** El calendario de precios, del más viejo al más nuevo. */
-  precios: z.array(TramoPrecioSchema),
-});
+export const ProductoSchema = z
+  .object({
+    id: IdSchema,
+    nombre: NombreProductoSchema,
+    categoria: CategoriaProductoSchema,
+    /** El trato del IVA con que se vende (§5.3): la alícuota la pone el calendario de impuestos. */
+    taxCode: TaxCodeSchema,
+    /** Si su existencia se lleva por movimientos (B9-2). Un café hecho al momento, no. */
+    controlaStock: z.boolean(),
+    /** Uno apartado no se ofrece en la caja. No se borra: lo vendido lo nombra. */
+    activo: z.boolean(),
+    /** El calendario de precios, del más viejo al más nuevo. */
+    precios: z.array(TramoPrecioSchema),
+    /**
+     * Cuántas unidades quedan en la sucursal de quien lee (B9-2): la suma de sus movimientos. `null`
+     * si no lleva existencia. Lo que una cuenta abierta ya tiene, ya salió (ADR-023).
+     */
+    existencia: z.number().int().min(0, "La existencia no baja de cero").nullable(),
+  })
+  .refine((p) => (p.existencia === null) === !p.controlaStock, {
+    message: "Solo lleva existencia lo que controla stock",
+    path: ["existencia"],
+  });
 export type ProductoDto = z.infer<typeof ProductoSchema>;
 
 /**

@@ -1072,3 +1072,32 @@ test("los ajustes de la sucursal son versiones de solo-agregar, con autor comple
     por("REFERENCIA_INVALIDA"),
   );
 });
+
+test("la existencia es la suma de movimientos inmutables, citados por su versión y nunca bajo cero (B9-2)", async () => {
+  const p = await producto(A, "Refresco de lata");
+  const c = await cuenta(A);
+  const v1 = await version(A, c.id);
+  const v2 = await version(A, c.id, { version: 2 });
+  const v3 = await version(A, c.id, { version: 3 });
+  const mover = (t: typeof A, quantity: number, extra: Record<string, unknown> = {}) =>
+    app.conTenant(t.tenant, (tx) =>
+      tx.stockMovement.create({
+        data: { tenantId: t.tenant, branchId: t.sucursal, productId: p.id, quantity, kind: quantity < 0 ? "VENTA" : "DEVOLUCION", accountId: c.id, accountVersion: v1.version, at: new Date(), createdByName: "Marisol Prieto", ...extra } as never,
+      }),
+    );
+  // Sin existencia no sale: la última línea, aunque la aplicación se equivoque.
+  await assert.rejects(mover(A, -1), por("RESTRICCION"));
+  const entra = await mover(A, 2);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.stockMovement.update({ where: { id: entra.id }, data: { quantity: 5 } })), SOLO_AGREGAR);
+  await assert.rejects(app.conTenant(A.tenant, (tx) => tx.stockMovement.delete({ where: { id: entra.id } })), SOLO_AGREGAR);
+  // La misma versión no mueve el mismo producto dos veces (un reintento).
+  await assert.rejects(mover(A, -1), por("DUPLICADO"));
+  await mover(A, -2, { accountVersion: v2.version });
+  await assert.rejects(mover(A, 1, { accountVersion: 9 }), por("REFERENCIA_INVALIDA")); // una versión que no existe
+  for (const extra of [{ quantity: 0 }, { kind: "AJUSTE" }, { kind: "VENTA", quantity: 1 }, { accountId: null, accountVersion: null }, { createdByName: " " }]) {
+    await assert.rejects(mover(A, 1, { accountVersion: v3.version, ...extra }), por("RESTRICCION"), JSON.stringify(extra));
+  }
+  // B no ve ni cita lo de A.
+  assert.equal(await app.conTenant(B.tenant, (tx) => tx.stockMovement.count({ where: { productId: p.id } })), 0);
+  await assert.rejects(mover(B, 1), por("REFERENCIA_INVALIDA"));
+});

@@ -30,7 +30,7 @@ export const TemaSchema = z.enum([
   "tarifario",
   /** Los medios de pago y sus terminales (B3-2). */
   "medios",
-  /** El catálogo de productos y sus precios (B9-1). */
+  /** El catálogo de productos, sus precios (B9-1) y su existencia (B9-2). */
   "catalogo",
   /** Los equipos: solicitudes, aprobaciones y revocaciones (B1-3, M-7). */
   "equipos",

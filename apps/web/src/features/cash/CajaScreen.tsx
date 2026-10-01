@@ -11,6 +11,7 @@ import {
   CreditCard,
   HandCoins,
   Pencil,
+  PackageX,
   PiggyBank,
   ShoppingBag,
   Smartphone,
@@ -2067,6 +2068,17 @@ export function CajaScreen({
         );
         return;
       }
+      // Lo que no hay no se vende (ADR-023): el servidor lo rechazaría igual; aquí se dice antes.
+      const piden = objetivo - suyas.length;
+      if (producto.existencia !== null && producto.existencia < piden) {
+        avisar.error(
+          producto.existencia === 0
+            ? `«${producto.nombre}» se agotó`
+            : `Solo ${producto.existencia === 1 ? "queda 1" : `quedan ${producto.existencia}`} de «${producto.nombre}»`,
+          { detalle: "Lo que no hay no se vende: hay que cargar la entrada de mercancía." },
+        );
+        return;
+      }
       const nuevas: AccountLineDto[] = Array.from(
         { length: objetivo - suyas.length },
         () =>
@@ -2399,15 +2411,37 @@ function CartaMostrador({
         {productos.map((p) => {
           const usd = p.precio;
           const bs = aBolivares ? convert(usd, aBolivares) : null;
+          // Sin existencia no se vende (ADR-023): se ve, pero no se toca.
+          const agotado = p.existencia === 0;
           return (
             <button
               key={p.id}
               type="button"
               onClick={() => onElegir(p)}
-              className="flex min-h-14 cursor-pointer flex-col items-start justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-left transition-all hover:border-brand hover:bg-brand/10 active:scale-[0.98]"
+              disabled={agotado}
+              aria-label={agotado ? `${p.nombre}, agotado` : undefined}
+              className={cn(
+                "flex min-h-14 flex-col items-start justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-left transition-all",
+                agotado
+                  ? "cursor-not-allowed opacity-55"
+                  : "cursor-pointer hover:border-brand hover:bg-brand/10 active:scale-[0.98]",
+              )}
             >
-              <span className="text-[12.5px] leading-tight font-bold text-ink">
-                {p.nombre}
+              <span className="flex w-full items-start justify-between gap-1.5">
+                <span className="text-[12.5px] leading-tight font-bold text-ink">
+                  {p.nombre}
+                </span>
+                {p.existencia !== null && (
+                  <span
+                    className={cn(
+                      "tnum flex shrink-0 items-center gap-0.5 text-[10px] font-semibold whitespace-nowrap",
+                      agotado ? "text-ink-2" : "text-ink-3",
+                    )}
+                  >
+                    {agotado && <PackageX size={11} aria-hidden="true" />}
+                    {agotado ? "Agotado" : `Quedan ${p.existencia}`}
+                  </span>
+                )}
               </span>
               <span className="mt-1 flex w-full flex-wrap items-baseline justify-between gap-x-2">
                 <span className="tnum text-xs font-bold text-brand">

@@ -12,6 +12,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.33.0] — 2026-09-30 · Etapa 9 · Inventario
+
+B9-2 · Existencias en tiempo real, de solo-agregar.
+
+### Añadido
+- **Lo que no hay no se vende** (ADR-023). Un producto que lleva existencia sale del estante cuando entra en una
+  cuenta (la venta de mostrador, la mesa, la cuenta de la familia) y vuelve cuando se quita sin pagar. Sin
+  existencia, la cuenta no se guarda y la caja dice de qué producto y cuántas quedan.
+- La carta de la caja dice **«Quedan N»** de cada producto que lleva existencia y enseña lo **«Agotado»** sin dejar
+  tocarlo; Inventario → Productos dice cuántas quedan. Todo en vivo en todos los equipos.
+- Cada movimiento queda guardado con la cuenta que lo causó y quién: la existencia es su suma, y no se edita.
+
+### Cambiado
+- Hasta cargar la primera entrada de mercancía (B9-3), lo que lleva existencia sale «Agotado».
+
 ## [0.32.0] — 2026-09-30 · Etapa 4 · Parque
 
 B4-5 · La monitora en el teléfono y las pulseras de un solo uso. Se cierra el Parque.

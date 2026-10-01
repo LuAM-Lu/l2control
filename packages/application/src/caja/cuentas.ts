@@ -11,7 +11,9 @@
  *    `cobro.anular` (🔐 para supervisión y caja, DEC-24);
  *  · este archivo: el número de orden, la hora de apertura y la de entrada en la cola, la versión
  *    (dos equipos que guardan a la vez: el segundo recibe CONFLICTO) y que el cobro, sus asientos
- *    en el libro y la cuenta marcada pagada vayan en UNA transacción.
+ *    en el libro y la cuenta marcada pagada vayan en UNA transacción. Y la existencia (B9-2,
+ *    ADR-023): lo que entra en una cuenta sale del estante al guardarla, y sin existencia no se
+ *    guarda; quitarlo sin pagar lo devuelve.
  *
  * Lo que la pantalla calculó (las líneas que cobra y el total) viaja para comprobarlo, no para
  * creerlo: si el servidor llega a otro total, no se cobra algo distinto de lo que vio el cliente.
@@ -99,6 +101,7 @@ import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
+import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
@@ -243,6 +246,13 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           // Guardar lo mismo no añade versión: el sondeo de una pantalla no llena el historial.
           if (antes && mismaCuenta(antes, enviada)) return antes;
 
+          // Lo que entra en la cuenta sale del estante (ADR-023): se comprueba antes de escribir nada.
+          const existencias = await comprobarExistencias(tx, ctx, antes ? enviada.id : null, antes?.lines ?? null, enviada.lines, (productId) => {
+            const i = enviada.lines.findIndex((l) => l.productId === productId && !(antes?.lines ?? []).some((a) => a.id === l.id));
+            return i >= 0 ? ["cuenta", "lines", i] : ["cuenta", "lines"];
+          });
+          if ("ok" in existencias) return existencias;
+
           const instante = new Date(ahora).toISOString();
           const orderNumber = antes?.orderNumber ?? (await siguienteNumero(tx, ctx));
           const version = (actual?.version ?? 0) + 1;
@@ -273,6 +283,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             });
           }
           await guardarVersion(tx, ctx, cuenta, { cause: "GUARDAR", operationKey: null, ahora, quien: quien.nombre });
+          await asentarExistencias(tx, ctx, existencias, { accountId: cuenta.id, version, ahora, quien: quien.nombre });
           await auditar(tx, ctx, {
             action: antes ? "cuenta.guardar" : "cuenta.abrir",
             entityType: "account",

@@ -15,13 +15,22 @@ El **catálogo de productos** de venta directa y de consumo en cuenta (F8-02):
 | `nameKey`, `nameClash` | Un nombre, un producto: sin mayúsculas, acentos ni espacios de más, contando los que no se venden |
 | `sellableAt`, `categoriesOf` | Lo que la caja ofrece en un instante y sus pestañas |
 
+Y las **existencias** (B9-2, ADR-023):
+
+| Función | Qué decide |
+|---|---|
+| `unitsHeld` | Cuántas unidades de cada producto tiene una cuenta: cada línea de un producto es una, y la movida a otra cuenta ya no es de esta |
+| `stockMovesOf` | Qué movimientos causa pasar de una versión de la cuenta a la siguiente, solo de lo que lleva existencia, ordenados por producto (el orden de los candados) |
+| `stockShortfalls` | Lo que no alcanza: sin existencia no se vende, y lo que no se sabe que hay, no hay |
+
 La regla que lo ordena: **el precio es un dato con fecha**. Cambiarlo programa el tramo siguiente;
 lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al venderse).
 
 ## Qué no le corresponde
 
-- **Guardar ni leer.** Las filas viven en `product` y `product_price` (`@l2/database`) y los casos
-  de uso en `@l2/application` (`productos`).
+- **Guardar ni leer.** Las filas viven en `product`, `product_price` y `stock_movement`
+  (`@l2/database`) y los casos de uso en `@l2/application` (`productos`, y la existencia la mueve
+  `cuentas.guardar` con el candado del producto).
 - **El IVA.** El producto dice su trato (`GENERAL`, `REDUCIDA`, `EXENTA`); la alícuota y el cálculo
   son de `@l2/domain-tax`.
 - **El bolívar.** Todo precio está en dólares; la conversión es de `@l2/domain-money` con la tasa
@@ -29,6 +38,5 @@ lo vendido se queda con el precio que tenía (la línea de la cuenta lo copia al
 
 ## Lo que llega después
 
-Movimientos de stock de solo-agregar (B9-2), compras con costo promedio ponderado y conversiones de
-unidad (B9-3), ajustes con motivo y conteo físico (B9-4) y alertas de stock crítico (B9-5). Las
+Compras con costo promedio ponderado y conversiones de unidad (B9-3), ajustes con motivo y conteo físico (B9-4) y alertas de stock crítico (B9-5). Las
 recetas y la descarga al marcar LISTO van con el restaurante (B6-4).

@@ -4,8 +4,12 @@
   que se queda sin disparador al retirarse la pantalla de cocina (ADR-022). Las recetas y los insumos de
   cocina quedan para después del piloto, con su propia decisión entonces.
 - **Fecha:** 2026-09-28
-- **Situación en el código:** pendiente, B9-2. El catálogo ya marca qué productos llevan existencia
-  (`controlaStock`, B9-1).
+- **Situación en el código:** hecha en B9-2 (v0.33.0). `stock_movement` de solo-agregar con un
+  disparador que no deja bajar de cero; `cuentas.guardar` saca y devuelve en su transacción
+  (`inventario/existencias.ts`, con el candado de cada producto) y el catálogo lleva la existencia de la
+  sucursal. Anular un cobro deja las líneas en la cuenta, por cobrar: lo no entregado vuelve al estante
+  cuando se quita su línea, que es una reversión como la de §2. Una cuenta no devuelve más de lo que
+  sacó (lo que entró antes de llevarse la existencia no salió del estante).
 
 > Para cambiar esta decisión se escribe un ADR nuevo que la supersede.
 > No se edita esta en silencio.

@@ -54,14 +54,15 @@ model Branch {
   roleAdjustments RoleAdjustment[]
   sessions        StaffSession[]
 
-  payments     Payment[]
-  cashShifts   CashShift[]
-  posTerminals PosTerminal[]
-  accounts     Account[]
-  sales        Sale[]
-  parkSessions ParkSession[]
-  outbox       OutboxEvent[]
-  settings     BranchSettingsVersion[]
+  payments       Payment[]
+  cashShifts     CashShift[]
+  posTerminals   PosTerminal[]
+  accounts       Account[]
+  sales          Sale[]
+  parkSessions   ParkSession[]
+  outbox         OutboxEvent[]
+  settings       BranchSettingsVersion[]
+  stockMovements StockMovement[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -667,8 +668,9 @@ model Product {
   createdBy     String?  @map("created_by") @db.Uuid
   createdByName String   @map("created_by_name")
 
-  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  prices ProductPrice[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  prices         ProductPrice[]
+  stockMovements StockMovement[]
 
   /// Destino de la FK compuesta de los precios: un precio es de un producto de SU tenant.
   @@unique([tenantId, id])
@@ -748,7 +750,8 @@ model AccountVersion {
   savedByName  String   @map("saved_by_name")
   deviceId     String?  @map("device_id") @db.Uuid
 
-  account Account @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account        Account         @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  stockMovements StockMovement[]
 
   @@unique([tenantId, id])
   /// Dos cambios a la vez sobre la misma versión: el segundo tropieza aquí y se le dice CONFLICTO.
@@ -1046,4 +1049,39 @@ model OutboxEvent {
 
   @@index([tenantId, publishedAt, id])
   @@map("outbox_event")
+}
+
+/// Un movimiento de existencia (B9-2, F8-05, I-10, ADR-023). La existencia de un producto en una
+/// sucursal es la SUMA de sus movimientos: no hay un campo «stock» que alguien edite. Solo-agregar:
+/// un error se corrige con otro movimiento. En unidades de venta (enteras).
+///
+/// Una VENTA sale cuando la línea entra en una cuenta y una DEVOLUCION cuando se quita sin pagar: las
+/// dos las escribe la versión de la cuenta que las causa, y llevan su clave (cuenta, versión,
+/// producto), así que un reintento no descuenta dos veces.
+model StockMovement {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  /// Positivo entra, negativo sale. Nunca cero (CHECK).
+  quantity       Int
+  /// VENTA o DEVOLUCION (CHECK). B9-3 y B9-4 añaden los suyos.
+  kind           String
+  /// La cuenta y la versión que lo causaron (VENTA y DEVOLUCION).
+  accountId      String?  @map("account_id") @db.Uuid
+  accountVersion Int?     @map("account_version")
+  at             DateTime @db.Timestamptz(3)
+  createdBy      String?  @map("created_by") @db.Uuid
+  createdByName  String   @map("created_by_name")
+  deviceId       String?  @map("device_id") @db.Uuid
+
+  branch  Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  product Product         @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  causa   AccountVersion? @relation(fields: [tenantId, accountId, accountVersion], references: [tenantId, accountId, version], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  /// Una versión de una cuenta mueve cada producto una sola vez: un reintento tropieza aquí.
+  @@unique([tenantId, accountId, accountVersion, productId])
+  @@index([tenantId, branchId, productId])
+  @@map("stock_movement")
 }

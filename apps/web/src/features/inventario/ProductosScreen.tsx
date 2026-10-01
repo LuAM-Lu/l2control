@@ -191,7 +191,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
                             <span className="truncate text-[14px] font-semibold text-ink">{p.nombre}</span>
                             <span className="truncate text-[12px] text-ink-3">
                               {nombreTrato(p.taxCode)}
-                              {p.controlaStock ? " · lleva existencia" : " · sin existencia"}
+                              {` · ${existenciaEnPalabras(p)}`}
                             </span>
                           </span>
                           {siguiente && ahora !== null && (
@@ -547,7 +547,7 @@ function FichaProducto({
       abierto
       onCerrar={onCerrar}
       titulo={nombreFila}
-      descripcion={producto.activo ? `${producto.categoria} · a la venta` : `${producto.categoria} · apartado: la caja no lo ofrece`}
+      descripcion={`${producto.activo ? `${producto.categoria} · a la venta` : `${producto.categoria} · apartado: la caja no lo ofrece`} · ${existenciaEnPalabras(producto)}`}
       pie={
         puedeModificar ? (
           <div className="flex gap-2">
@@ -680,4 +680,11 @@ function ChipEstado({ estado }: { estado: "RIGE" | "PROGRAMADO" | "TERMINO" }) {
       Terminó
     </span>
   );
+}
+
+/** La existencia en palabras (B9-2): cuántas quedan en esta sucursal, o que no lleva. */
+function existenciaEnPalabras(p: Pick<ProductoDto, "existencia">): string {
+  if (p.existencia === null) return "sin existencia";
+  if (p.existencia === 0) return "agotado: no se vende";
+  return p.existencia === 1 ? "queda 1" : `quedan ${p.existencia}`;
 }

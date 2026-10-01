@@ -71,6 +71,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "producto.activar": ["catalogo"],
   "producto.apartar": ["catalogo"],
   "precio.programar": ["catalogo"],
+  // La existencia viaja con el catálogo: la caja y la tablet dejan de ofrecer lo que se acabó (B9-2).
+  "existencia.mover": ["catalogo"],
 
   "sesion.abrir": ["sesiones"],
   "sesion.cerrar": ["sesiones"],

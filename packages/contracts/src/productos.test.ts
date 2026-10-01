@@ -6,7 +6,7 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { CatalogoSchema, ProductoCommandSchema, TramoPrecioSchema } from "./productos.ts";
+import { CatalogoSchema, ProductoCommandSchema, ProductoSchema, TramoPrecioSchema } from "./productos.ts";
 
 const ID = "0192f0a0-0000-7000-8000-000000000001";
 const nuevo = { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, precioMinor: "100" };
@@ -71,7 +71,16 @@ describe("el catálogo que llega a la caja", () => {
   });
 
   test("dos productos no comparten identificador", () => {
-    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo] };
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 3 };
     assert.equal(CatalogoSchema.safeParse({ productos: [p, p], zonaHoraria: "America/Caracas", diasPorAdelantado: 366 }).success, false);
+  });
+
+  test("la existencia: solo de lo que controla stock, entera y nunca negativa (B9-2)", () => {
+    const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", controlaStock: true, activo: true, precios: [tramo], existencia: 0 };
+    assert.equal(ProductoSchema.safeParse(p).success, true);
+    assert.equal(ProductoSchema.safeParse({ ...p, existencia: null }).success, false);
+    assert.equal(ProductoSchema.safeParse({ ...p, existencia: -1 }).success, false);
+    assert.equal(ProductoSchema.safeParse({ ...p, controlaStock: false, existencia: null }).success, true);
+    assert.equal(ProductoSchema.safeParse({ ...p, controlaStock: false, existencia: 2 }).success, false);
   });
 });
