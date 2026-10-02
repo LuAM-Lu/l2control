@@ -9,7 +9,7 @@ import { ElevacionProvider } from "../src/features/identity/ElevacionProvider";
 import { NOMBRE_ROL } from "../src/features/identity/permisos";
 import { sesionActual } from "../src/servidor/sesion";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
-import { CartaProvider } from "../src/features/mesas/CartaProvider";
+import { planoDelLocal } from "../src/features/mesas/plano.servidor";
 import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
 import { tarifarioVigente } from "../src/features/park/tarifario.servidor";
 import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
@@ -24,7 +24,6 @@ import { CuentasProvider } from "../src/features/cuentas/CuentasProvider";
 import { cuentasDelLocal } from "../src/features/cuentas/cuentas.servidor";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { ventasDelTurno } from "../src/features/cash/ventas.servidor";
-import { PLANO_DEMO, CARTA_DEMO } from "../src/demo/restaurante";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
 import { ColaProvider } from "../src/features/impresion/ColaProvider";
 import { trabajosDelLocal } from "../src/features/impresion/impresion.servidor";
@@ -67,13 +66,15 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
+/** Lo que recibe una pantalla sin sesión (el acceso): ningún plano. */
+const SIN_PLANO = { plano: null, version: null, publicadoEn: null, publicadoPor: null } as const;
+
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Lo que ya tiene servidor sale de la base; lo demás, de `src/demo`, que se vacía paso a
-  // paso de la ruta (MAESTRO §3 y M-6). El tarifario fue el primero (B0-5).
+  // Todo sale de la base: el plano y la carta del restaurante fueron lo último de `src/demo` (B6-1).
   const tarifario = await tarifarioVigente();
   // Los ajustes de la sucursal, de la base (B4-4): el formato de hora y el nombre los enseña también
   // el acceso, así que se leen sin sesión.
@@ -94,6 +95,8 @@ export default async function RootLayout({
   const sala = sesion ? await salaDelLocal() : null;
   // La cola de impresión de la sucursal (B5-2): si salió el recibo o el ticket del corte.
   const trabajos = sesion ? await trabajosDelLocal() : [];
+  // El plano del local, de la base (B6-1): `null` si todavía no se dibujó. Sin sesión, ninguno.
+  const plano = sesion ? await planoDelLocal() : SIN_PLANO;
   // Quién está en cada puesto, de las sesiones de la base (B5-1). Solo para quien ve Inicio.
   const enCurso = sesion ? await sesionesEnCurso() : [];
 
@@ -119,23 +122,21 @@ export default async function RootLayout({
         <SucursalProvider inicial={ajustes}>
         <SalaProvider inicial={sala}>
         <OperacionProvider sesiones={enCurso}>
-          {/* V4: el plano publicado vive por encima de las dos cáscaras: lo
+          {/* V4: el plano publicado (B6-1) vive por encima de las dos cáscaras: lo
               edita el panel y lo lee el salón. */}
           {/* El estado del local vive por encima de las dos cáscaras: lo
               escriben las estaciones y lo lee el panel en vivo (F9-08).
               Las cuentas y las ventas del turno son de la base. */}
                 <TasasProvider inicial={tasas}>
                   <MediosProvider inicial={medios}>
-                    <PlanoProvider inicial={PLANO_DEMO}>
-                      <CartaProvider inicial={CARTA_DEMO}>
-                        <TarifarioProvider inicial={tarifario}>
-                          <CuentasProvider inicial={cuentas}>
-                            <VentasProvider inicial={ventas}>
-                              <ColaProvider inicial={trabajos}>{children}</ColaProvider>
-                            </VentasProvider>
-                          </CuentasProvider>
-                        </TarifarioProvider>
-                      </CartaProvider>
+                    <PlanoProvider inicial={plano}>
+                      <TarifarioProvider inicial={tarifario}>
+                        <CuentasProvider inicial={cuentas}>
+                          <VentasProvider inicial={ventas}>
+                            <ColaProvider inicial={trabajos}>{children}</ColaProvider>
+                          </VentasProvider>
+                        </CuentasProvider>
+                      </TarifarioProvider>
                     </PlanoProvider>
                   </MediosProvider>
                 </TasasProvider>

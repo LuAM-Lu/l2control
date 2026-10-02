@@ -376,7 +376,7 @@ export function ParkMonitor() {
           onCerrar={() => setVinculandoAMesa(false)}
           sesionId={ficha.id}
           estado={op.estado}
-          plano={plano.tables}
+          plano={plano?.tables ?? []}
           onVincular={(tableId, sessionIds) => {
             const r = op.emitir({ type: "mesa.vinculada", tableId, sessionIds });
             if (r.ok) avisar.ok(`${sessionIds.length === 1 ? "Niño vinculado" : "Niños vinculados"} a la mesa`);

@@ -21,6 +21,7 @@ export type {
   BranchSettingsVersion,
   ExchangeRate,
   ExchangeRateConfirmation,
+  FloorPlanVersion,
   TaxRate,
   Payment,
   CashShift,

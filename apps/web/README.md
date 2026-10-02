@@ -33,7 +33,7 @@ Las estaciones (`(estacion)`) van a pantalla completa con la barra de §8.5; el 
 ## Organización interna
 
 ```
-app/                     rutas (convención de Next). Las únicas que importan src/demo
+app/                     rutas (convención de Next)
 src/features/<dominio>   nivel 3: pantallas y lógica que SÍ conocen el dominio
   cash/                  caja, ventas, turno, recibo, atajos, anulación
   cuentas/               cuentas de familia (DEC-21)
@@ -43,7 +43,6 @@ src/features/<dominio>   nivel 3: pantallas y lógica que SÍ conocen el dominio
   shell/                 barras, navegación, inicio del panel y el local en vivo
   cocina/                KDS: vista de cocina y cronómetro
   operacion/             bus de eventos del local y su proyección (en B5-1, por el servidor)
-src/demo/                datos provisionales, cada uno con el paso que lo borra (ver su README)
 src/servidor/            entorno validado, conexión a @l2/application y logger (solo servidor)
 ```
 
@@ -61,17 +60,16 @@ día por el **canal en vivo** del worker (`features/operacion/TiempoRealProvider
 | Tema que cambia | Quién vuelve a leer |
 |---|---|
 | `sala`, `cuentas`, `tasas` | Su proveedor, con su acción (`useAlCambiar`) |
-| Los demás (turno, ventas, medios, catálogo, impuestos, tarifario, ajustes de la sucursal, equipos, personal, sesiones) | `router.refresh()`: repinta las lecturas del servidor y los proveedores adoptan lo nuevo |
+| Los demás (turno, ventas, medios, catálogo, plano, impuestos, tarifario, ajustes de la sucursal, equipos, personal, sesiones) | `router.refresh()`: repinta las lecturas del servidor y los proveedores adoptan lo nuevo |
 | Lo que una página lee en el servidor de un tema con lectura propia (Inicio) | `<RefrescarAlCambiar temas={…}>` |
 
-Sin canal, la barra dice «Sin conexión en vivo» y se vuelve a leer todo cada 30 s. Lo provisional que
-queda (ajustes del local, plano y carta del restaurante) está en `src/demo` y en MAESTRO §5.
+Sin canal, la barra dice «Sin conexión en vivo» y se vuelve a leer todo cada 30 s. Ya no queda nada
+provisional en `src/demo` (la carpeta se fue con B6-1); lo que queda por pasar al servidor está en MAESTRO §5.
 
 ## Fronteras
 
 - Se importa de `@l2/ui`, `@l2/domain-*`, `@l2/contracts` y `@l2/config` **por nombre de
   paquete**, nunca por ruta relativa. `pnpm arch` lo comprueba.
-- `src/demo` solo desde `app/**` (regla `demo-solo-desde-las-rutas`).
 - Dentro de la app, rutas relativas. No hay alias `@/`: resolverlo bien en Next, TypeScript y
   dependency-cruiser a la vez costaba más de lo que ahorraba.
 - Toda dependencia externa se **declara en este `package.json`**, aunque otro paquete ya la

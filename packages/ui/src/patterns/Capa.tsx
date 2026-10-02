@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "../cn";
+import { Button } from "../primitives/Button";
 
 /**
  * Nivel 2 — patrón (§9.4). Capas que se abren sobre la pantalla.
@@ -136,5 +137,51 @@ function Capa({
         {pie && <footer className="border-t border-line bg-base/30 px-5 py-3.5">{pie}</footer>}
       </div>
     </dialog>
+  );
+}
+
+/**
+ * Confirmar lo irreversible (M-17): un diálogo con «Cancelar» y la acción, que dice lo que va a pasar
+ * en `children`. Mientras `ocupado`, la acción no se repite.
+ */
+export function Confirmacion({
+  abierto,
+  onCerrar,
+  titulo,
+  children,
+  confirmar,
+  onConfirmar,
+  peligro = false,
+  ocupado = false,
+}: {
+  abierto: boolean;
+  onCerrar: () => void;
+  titulo: string;
+  children: ReactNode;
+  /** El texto del botón: «Sí, retirar». */
+  confirmar: string;
+  onConfirmar: () => void;
+  /** La acción destruye o retira algo: botón de peligro. */
+  peligro?: boolean;
+  ocupado?: boolean;
+}) {
+  return (
+    <Dialog
+      abierto={abierto}
+      onCerrar={onCerrar}
+      titulo={titulo}
+      pie={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" surface="admin" onClick={onCerrar}>
+            Cancelar
+          </Button>
+          <Button type="button" variant={peligro ? "danger" : "primary"} surface="admin" disabled={ocupado} onClick={onConfirmar}>
+            {confirmar}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-2 text-[13px] text-ink-2">{children}</div>
+    </Dialog>
   );
 }

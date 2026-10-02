@@ -1,63 +1,53 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { PlanoLocalSchema, type PlanoLocalDto } from "@l2/contracts";
+import type { PlanoLocalDto, PlanoPublicadoDto, Resultado } from "@l2/contracts";
+import { publicarPlano } from "./plano.acciones";
+import { useConElevacion } from "../identity/ElevacionProvider";
 
 /**
- * El plano del local publicado — V4 (UX-MEJORAS §2.2).
+ * El plano del local publicado — F6-01, V4, en el servidor desde B6-1.
  *
- * Vive por encima de las dos cáscaras porque lo escribe el back-office (el
- * editor, solo administración) y lo lee la estación (el mesero). **Solo se
- * guarda lo PUBLICADO**: el borrador del editor no sale de su pantalla, para
- * que nadie vea media reforma a mitad de servicio.
- *
- * TODO(F6-01/backend): el servidor guardará cada publicación como una versión
- * con fecha, y el servicio recibirá la nueva por tiempo real. La forma ya es
- * la definitiva: las pantallas piden `plano` y llaman a `publicar`.
+ * Vive por encima de las dos cáscaras porque lo escribe el back-office (el editor, solo
+ * administración) y lo lee la estación (el mesero). El layout lo lee en el servidor; cuando otro
+ * equipo publica, el canal en vivo repinta el layout (tema `plano`) y aquí se adopta la versión
+ * nueva. El borrador del editor no sale de su pantalla, y nada se guarda en el navegador.
  */
 
-const CLAVE = "l2:plano:v1";
-
 type Valor = Readonly<{
-  plano: PlanoLocalDto;
-  /** Sustituye el plano en servicio. Lanza si no cumple el contrato. */
-  publicar: (plano: PlanoLocalDto) => void;
+  /** El plano publicado, o `null` si el local todavía no tiene uno. */
+  plano: PlanoLocalDto | null;
+  /** Versión vigente en el servidor; `null` = nunca se publicó. */
+  version: number | null;
+  publicadoEn: string | null;
+  publicadoPor: string | null;
+  /** Publica sobre la versión vigente. Nunca lanza por un rechazo: lo devuelve. */
+  publicar: (plano: PlanoLocalDto) => Promise<Resultado<PlanoPublicadoDto>>;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
 
-export function PlanoProvider({ inicial, children }: { inicial: PlanoLocalDto; children: React.ReactNode }) {
-  const [plano, setPlano] = useState<PlanoLocalDto>(inicial);
-  const [cargado, setCargado] = useState(false);
+export function PlanoProvider({ inicial, children }: { inicial: PlanoPublicadoDto; children: React.ReactNode }) {
+  const [vigente, setVigente] = useState<PlanoPublicadoDto>(inicial);
 
+  // `useState` solo mira su valor inicial una vez: cuando el layout se repinta con otra versión (esta
+  // u otra estación publicó), se adopta. La versión identifica el contenido.
   useEffect(() => {
-    try {
-      const crudo = window.sessionStorage.getItem(CLAVE);
-      if (crudo) {
-        const r = PlanoLocalSchema.safeParse(JSON.parse(crudo));
-        if (r.success) setPlano(r.data);
-        else window.sessionStorage.removeItem(CLAVE);
-      }
-    } catch {
-      // Almacenamiento bloqueado o JSON roto: se sigue con el plano inicial.
-    }
-    setCargado(true);
-  }, []);
+    setVigente(inicial);
+  }, [inicial.version]);
 
-  const publicar = useCallback((nuevo: PlanoLocalDto) => {
-    const valido = PlanoLocalSchema.parse(nuevo);
-    setPlano(valido);
-    try {
-      window.sessionStorage.setItem(CLAVE, JSON.stringify(valido));
-    } catch {
-      // Sin almacenamiento, el plano vive en memoria hasta recargar.
-    }
-  }, []);
+  // Publicar exige confirmar identidad (F2-04): si el servidor la pide, se pide y se reintenta.
+  const conElevacion = useConElevacion();
+  const publicar = useCallback(
+    async (plano: PlanoLocalDto) => {
+      const r = await conElevacion(() => publicarPlano({ plano, sobre: vigente.version }));
+      if (r.ok) setVigente(r.valor);
+      return r;
+    },
+    [conElevacion, vigente.version],
+  );
 
-  const valor = useMemo(() => ({ plano, publicar }), [plano, publicar]);
-  // `cargado` no cambia lo que se pinta: el plano inicial y el guardado tienen
-  // la misma forma, y así servidor y navegador coinciden al hidratar.
-  void cargado;
+  const valor = useMemo(() => ({ ...vigente, publicar }), [vigente, publicar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

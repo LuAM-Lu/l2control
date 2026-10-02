@@ -21,6 +21,7 @@
     "@l2/domain-inventory": "workspace:*",
     "@l2/domain-park": "workspace:*",
     "@l2/domain-money": "workspace:*",
+    "@l2/domain-orders": "workspace:*",
     "@l2/domain-rates": "workspace:*",
     "@l2/domain-tax": "workspace:*",
     "@l2/domain-printing": "workspace:*",

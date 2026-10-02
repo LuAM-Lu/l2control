@@ -122,6 +122,30 @@ describe("administración arma el catálogo (F8-02)", () => {
   });
 });
 
+describe("la carta del restaurante es el catálogo (B6-1)", () => {
+  test("un producto nace en la carta; un servicio, fuera de ella; y se puede decir al crearlo", async () => {
+    const c = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Tequeños", categoria: "Pasapalos", tipo: "PREPARADO", precioMinor: "500" } }, reloj()));
+    assert.equal(producto(c, "Tequeños").enCarta, true);
+    const s = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Animación de fiesta", categoria: "Servicios", tipo: "SERVICIO", precioMinor: "5000" } }, reloj()));
+    assert.equal(producto(s, "Animación de fiesta").enCarta, false);
+    const f = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "CREAR", producto: { ...AGUA, nombre: "Pila AA", categoria: "Tienda", enCarta: false } }, reloj()));
+    assert.equal(producto(f, "Pila AA").enCarta, false);
+  });
+
+  test("quitarlo de la carta lo audita; lo mismo dos veces no hace nada; la caja no puede", async () => {
+    const tequenos = producto(await local.app.productos.leer(local.sistema), "Tequeños");
+    const c = valor(await local.app.productos.aplicar(ctxAdmin, { kind: "EN_CARTA", productId: tequenos.id, enCarta: false }, reloj()));
+    assert.equal(producto(c, "Tequeños").enCarta, false);
+    assert.equal(producto(c, "Tequeños").activo, true, "la caja lo sigue vendiendo");
+    valor(await local.app.productos.aplicar(ctxAdmin, { kind: "EN_CARTA", productId: tequenos.id, enCarta: false }, reloj()));
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "product", entityId: tequenos.id });
+    assert.equal(asientos.filter((a) => a.action === "producto.carta").length, 1);
+    const cajera = await local.app.productos.aplicar(ctxCajera, { kind: "EN_CARTA", productId: tequenos.id, enCarta: true }, reloj());
+    assert.equal(!cajera.ok && cajera.motivo, "NO_PERMITIDO");
+    valor(await local.app.productos.aplicar(ctxAdmin, { kind: "EN_CARTA", productId: tequenos.id, enCarta: true }, reloj()));
+  });
+});
+
 describe("el precio es un calendario", () => {
   test("cambiar el precio hoy rige desde ya; el que rigió se queda con lo vendido", async () => {
     const antes = producto(await local.app.productos.leer(local.sistema), "Agua mineral 600 ml");

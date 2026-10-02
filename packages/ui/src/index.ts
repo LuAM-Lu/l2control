@@ -31,5 +31,15 @@ export { ScannerField, leerCodigo, useLectorDeCodigos } from "./patterns/Scanner
 export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBadge";
 export { EmptyState } from "./patterns/EmptyState";
 export { ScanPrompt } from "./patterns/ScanPrompt";
-export { Sheet, Dialog } from "./patterns/Capa";
+export { Sheet, Dialog, Confirmacion } from "./patterns/Capa";
+export {
+  BarraDeFiltros,
+  CAMPO_DE_FILTRO,
+  Cifra,
+  FiltroSegmentado,
+  Paginacion,
+  Resumen,
+  type OpcionDeFiltro,
+  type TonoCifra,
+} from "./patterns/Listado";
 export { Avisos, avisar } from "./patterns/Avisos";

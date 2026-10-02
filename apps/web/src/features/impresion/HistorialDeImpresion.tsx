@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Ban, ChevronLeft, ChevronRight, Eye, FilterX, Inbox, RotateCcw, TriangleAlert } from "lucide-react";
+import { Ban, Eye, Inbox, RotateCcw, TriangleAlert } from "lucide-react";
 import {
   POR_PAGINA_HISTORIAL,
   type FiltroHistorial,
@@ -10,7 +10,7 @@ import {
   type TipoTrabajo,
   type TrabajoDeImpresionDto,
 } from "@l2/contracts";
-import { Button, Dialog, EmptyState, avisar, cn } from "@l2/ui";
+import { BarraDeFiltros, Button, CAMPO_DE_FILTRO, Confirmacion, Dialog, EmptyState, FiltroSegmentado, Paginacion, avisar, cn } from "@l2/ui";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { ESTADO_DE_TRABAJO, useCola } from "./ColaProvider.tsx";
 import { leerHistorial } from "./impresion.acciones";
@@ -88,9 +88,6 @@ const TIPOS: readonly { id: TipoTrabajo; nombre: string }[] = [
   { id: "PRUEBA", nombre: "Pruebas" },
 ];
 
-const CAMPO =
-  "min-h-8 rounded-[var(--radius-control)] border border-line bg-surface px-2.5 text-[13px] text-ink " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 const TH = "px-3 py-2 text-left text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase whitespace-nowrap";
 const TD = "px-3 py-2 align-middle";
 
@@ -143,9 +140,6 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
   const fallidos = conteos?.FALLIDOS ?? 0;
   const conFiltros = consulta.filtro !== "TODOS" || consulta.impresoraId !== undefined || consulta.tipo !== undefined;
   const total = datos?.total ?? 0;
-  const paginas = Math.max(1, Math.ceil(total / consulta.porPagina));
-  const desde = total === 0 ? 0 : (consulta.pagina - 1) * consulta.porPagina + 1;
-  const hasta = Math.min(total, consulta.pagina * consulta.porPagina);
   const trabajos = datos?.trabajos ?? [];
   const nombreDe = (t: TrabajoDeImpresionDto) => `${t.titulo}${t.copia ? " (copia)" : ""}`;
 
@@ -184,32 +178,15 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
   return (
     <div className="flex min-h-full flex-col gap-3 md:h-full">
       {/* ── qué ver ── */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="Estado" className="flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] bg-surface-2 p-1 [scrollbar-width:none]">
-          {FILTROS.map((f) => {
-            const n = conteos?.[f.id];
-            const elegido = consulta.filtro === f.id;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                role="tab"
-                aria-selected={elegido}
-                onClick={() => cambiar({ filtro: f.id })}
-                className={cn(
-                  "tnum flex min-h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-3 text-[13px] whitespace-nowrap transition-colors",
-                  elegido ? "bg-surface font-semibold text-ink shadow-card" : "text-ink-2 hover:text-ink",
-                )}
-              >
-                {f.id === "FALLIDOS" && fallidos > 0 && <TriangleAlert size={13} className="text-state-crit" aria-hidden="true" />}
-                {f.nombre}
-                {n !== undefined && <span className={cn("text-[12px]", f.id === "FALLIDOS" && n > 0 ? "font-semibold text-state-crit" : "text-ink-3")}>{n}</span>}
-              </button>
-            );
-          })}
-        </div>
+      <BarraDeFiltros hayFiltros={conFiltros} onLimpiar={() => cambiar({ filtro: "TODOS", impresoraId: undefined, tipo: undefined })}>
+        <FiltroSegmentado
+          etiqueta="Estado"
+          valor={consulta.filtro}
+          onCambiar={(filtro) => cambiar({ filtro })}
+          opciones={FILTROS.map((f) => ({ ...f, cuenta: conteos?.[f.id], alerta: f.id === "FALLIDOS" }))}
+        />
         <label className="flex items-center">
-          <select aria-label="Impresora" className={CAMPO} value={consulta.impresoraId ?? ""} onChange={(e) => cambiar({ impresoraId: e.target.value || undefined })}>
+          <select aria-label="Impresora" className={CAMPO_DE_FILTRO} value={consulta.impresoraId ?? ""} onChange={(e) => cambiar({ impresoraId: e.target.value || undefined })}>
             <option value="">Todas las impresoras</option>
             {impresoras.map((i) => (
               <option key={i.id} value={i.id}>
@@ -219,7 +196,7 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
           </select>
         </label>
         <label className="flex items-center">
-          <select aria-label="Tipo" className={CAMPO} value={consulta.tipo ?? ""} onChange={(e) => cambiar({ tipo: (e.target.value || undefined) as TipoTrabajo | undefined })}>
+          <select aria-label="Tipo" className={CAMPO_DE_FILTRO} value={consulta.tipo ?? ""} onChange={(e) => cambiar({ tipo: (e.target.value || undefined) as TipoTrabajo | undefined })}>
             <option value="">Todos los tipos</option>
             {TIPOS.map((t) => (
               <option key={t.id} value={t.id}>
@@ -228,13 +205,7 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
             ))}
           </select>
         </label>
-        {conFiltros && (
-          <Button type="button" variant="ghost" surface="admin" onClick={() => cambiar({ filtro: "TODOS", impresoraId: undefined, tipo: undefined })}>
-            <FilterX size={14} aria-hidden="true" />
-            Limpiar filtros
-          </Button>
-        )}
-      </div>
+      </BarraDeFiltros>
 
       {/* ── lo que no salió, con su salida: reintentar uno a uno o descartarlos de una vez ── */}
       {fallidos > 0 && (
@@ -355,32 +326,15 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
 
       {/* ── las páginas ── */}
       {!error && total > 0 && (
-        <nav aria-label="Páginas del historial" className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-[12.5px] text-ink-2">
-          <span className="tnum">
-            {desde}–{hasta} de {total}
-          </span>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5">
-              <span aria-hidden="true">Por página</span>
-              <select aria-label="Por página" className={CAMPO} value={consulta.porPagina} onChange={(e) => cambiar({ porPagina: Number(e.target.value) as ConsultaHistorial["porPagina"] })}>
-                {POR_PAGINA_HISTORIAL.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="button" variant="neutral" surface="admin" aria-label="Página anterior" disabled={consulta.pagina <= 1 || cargando} onClick={() => cambiar({ pagina: consulta.pagina - 1 })}>
-              <ChevronLeft size={15} aria-hidden="true" />
-            </Button>
-            <span className="tnum min-w-[5.5rem] text-center">
-              Página {consulta.pagina} de {paginas}
-            </span>
-            <Button type="button" variant="neutral" surface="admin" aria-label="Página siguiente" disabled={consulta.pagina >= paginas || cargando} onClick={() => cambiar({ pagina: consulta.pagina + 1 })}>
-              <ChevronRight size={15} aria-hidden="true" />
-            </Button>
-          </div>
-        </nav>
+        <Paginacion
+          etiqueta="Páginas del historial"
+          pagina={consulta.pagina}
+          porPagina={consulta.porPagina}
+          opciones={POR_PAGINA_HISTORIAL}
+          total={total}
+          cargando={cargando}
+          onCambiar={(c) => cambiar(c)}
+        />
       )}
 
       <VistaPrevia
@@ -390,31 +344,24 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
         onAccion={(t, que) => void accion(t, que).then(() => setViendo(null))}
       />
 
-      <Dialog
+      <Confirmacion
         abierto={confirmarTodos}
         onCerrar={() => setConfirmarTodos(false)}
         titulo={fallidos === 1 ? "¿Descartar el que no salió?" : `¿Descartar los ${fallidos} que no salieron?`}
-        pie={
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" surface="admin" onClick={() => setConfirmarTodos(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" variant="primary" surface="admin" disabled={ocupado === "todos"} onClick={() => void descartarTodos()}>
-              {ocupado === "todos" ? "Descartando…" : "Sí, descartar"}
-            </Button>
-          </div>
-        }
+        confirmar={ocupado === "todos" ? "Descartando…" : "Sí, descartar"}
+        ocupado={ocupado === "todos"}
+        onConfirmar={() => void descartarTodos()}
       >
-        <p className="text-[13px] text-ink-2">
+        <p>
           No se imprimirán y la alerta se apaga. No se borran: quedan en el historial como descartados, con tu nombre. Lo que se cobró o se cerró ya está
           guardado; un recibo se puede reimprimir desde la caja.
         </p>
         {(consulta.impresoraId || consulta.tipo) && (
-          <p className="mt-2 text-[13px] text-ink-2">
+          <p>
             Solo los de {[consulta.impresoraId && impresoras.find((i) => i.id === consulta.impresoraId)?.nombre, consulta.tipo && TIPOS.find((x) => x.id === consulta.tipo)?.nombre.toLowerCase()].filter(Boolean).join(" · ")}, como dice el filtro.
           </p>
         )}
-      </Dialog>
+      </Confirmacion>
     </div>
   );
 }

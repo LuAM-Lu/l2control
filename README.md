@@ -38,9 +38,8 @@ pnpm infra:down       # los apaga; los datos se conservan
 pnpm infra:reset      # borra los datos y arranca de cero
 ```
 
-Hoy el **tarifario** sale de la base; el resto de pantallas usa datos provisionales que se van paso a
-paso ([src/demo](apps/web/src/demo/README.md)). Si falta o sobra una variable, el servidor **no
-arranca** y dice cuál.
+Todo sale de la base: los datos provisionales de `src/demo` se fueron paso a paso y el último salió con
+B6-1. Si falta o sobra una variable, el servidor **no arranca** y dice cuál.
 
 | Servicio | En tu máquina | Para qué |
 |---|---|---|

@@ -179,6 +179,13 @@ describe("qué cambio acepta el servidor", () => {
     assert.equal(accountChangeProblem(null, mostrador([linea("x", { kind: "RESTAURANTE" })]), productAt)?.problem, "MOSTRADOR_SIN_PRODUCTO");
   });
 
+  test("lo que se pide en la mesa sale de la carta, con su precio de hoy (B6-1)", () => {
+    const mesa = (lines: AccountLineDoc[]): AccountDoc => ({ kind: "MESA", status: "ABIERTA", sessionIds: [], closedSessionIds: [], tableId: "m-1", lines });
+    assert.equal(accountChangeProblem(null, mesa([linea("x", { kind: "RESTAURANTE" })]), productAt)?.problem, "MESA_SIN_PRODUCTO");
+    assert.equal(accountChangeProblem(null, mesa([agua("x", { amount: usd("100") })]), productAt)?.problem, "PRECIO_DISTINTO");
+    assert.equal(accountChangeProblem(null, mesa([agua("x")]), productAt), null);
+  });
+
   test("lo de mostrador sin pagar se quita; lo consumido, no", () => {
     const antes = { ...familia(), lines: [...familia().lines, agua("x")] };
     assert.equal(accountChangeProblem(antes, familia(), productAt), null);

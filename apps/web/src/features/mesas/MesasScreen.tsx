@@ -16,7 +16,9 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import type { FamilyAccountDto } from "@l2/contracts";
+import type { CatalogoDto, FamilyAccountDto } from "@l2/contracts";
+import Link from "next/link";
+import type { Route } from "next";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
@@ -40,7 +42,7 @@ import {
 } from "./mesas.ts";
 import { PlanoLocal } from "./PlanoLocal.tsx";
 import { usePlano } from "./PlanoProvider.tsx";
-import { useCarta } from "./CartaProvider.tsx";
+import { cartaDelMesero } from "../inventario/catalogo.ts";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
@@ -54,8 +56,11 @@ import { useHora } from "../sucursal/SucursalProvider.tsx";
  * carta necesita el ancho que ocupa el plano; vincular pulseras abre una hoja
  * lateral porque es una tarea corta sobre la mesa que se está viendo.
  *
- * Todo lo que hace el mesero sale como un evento del catálogo (F1-20) y todo
- * lo que ve llega igual, sea del simulador o —mañana— del servidor.
+ * El plano y la carta son del servidor (B6-1): el plano publicado en Ajustes y la carta, que es el
+ * catálogo con lo marcado «en la carta». La cuenta de la mesa también: una mesa tiene una sola abierta
+ * (I-05, lo impone el servidor) y lo pedido lleva su producto, cuyo precio comprueba el servidor. El
+ * estado de cada mesa (abierta, pide la cuenta, por limpiar) y los pedidos viajan aún por el bus del
+ * local hasta B6-2 y B6-3.
  *
  * El mesero NO toca dinero (DEC-14): marca que la mesa pide la cuenta y la
  * familia paga en caja.
@@ -77,15 +82,16 @@ const ESTADO_PEDIDO: Readonly<Record<Pedido["estado"], { texto: string; tono: To
   ANULADO: { texto: "Anulado", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
 };
 
-export function MesasScreen() {
-  // El plano lo publica administración desde el panel (V4); aquí solo se lee.
+export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
+  // El plano lo publica administración desde el panel (V4, B6-1); aquí solo se lee.
   const { plano } = usePlano();
-  const { carta } = useCarta();
   // La cuenta de la mesa (F6-05, D2): los platos y el parque de esta familia.
   const { cuentas, guardar } = useCuentas();
   const op = useOperacion();
   const ahora = useAhoraLocal();
   const { estado } = op;
+  // La carta con el precio de este instante: un precio programado entra a su hora sin recargar.
+  const carta = useMemo(() => (ahora > 0 ? cartaDelMesero(catalogo, ahora) : []), [catalogo, ahora]);
 
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const [vista, setVista] = useState<"plano" | "pedido">("plano");
@@ -107,7 +113,7 @@ export function MesasScreen() {
 
   // Una mesa retirada ya no está en el salón: no se pinta ni se puede abrir.
   const mesas = useMemo(
-    () => vistaDelPlano(plano.tables.filter((m) => !m.retiredAt), estado, ahora),
+    () => vistaDelPlano((plano?.tables ?? []).filter((m) => !m.retiredAt), estado, ahora),
     [plano, estado, ahora],
   );
   const elegida = mesas.find((m) => m.mesa.id === seleccion) ?? null;
@@ -206,29 +212,45 @@ export function MesasScreen() {
     }
   }
 
-  function enviar(m: MesaVista) {
+  /**
+   * Lo pedido entra primero en la cuenta de la mesa, en el servidor, con su producto y el precio de hoy;
+   * solo si la cuenta lo acepta (precio, existencia, una sola cuenta por mesa) sale hacia la cocina.
+   * Fail-closed: si algo del borrador no se puede pedir, no se envía nada.
+   */
+  async function enviar(m: MesaVista) {
     const lineas = borradores[m.mesa.id] ?? [];
-    const items = lineas.flatMap((l) => {
+    const platos = lineas.flatMap((l) => {
       const it = carta.find((i) => i.id === l.itemId);
-      return it?.available ? [{ name: it.name, quantity: l.cantidad, ...(l.nota ? { note: l.nota } : {}) }] : [];
+      return it ? [{ it, l }] : [];
     });
-    // Fail-closed: si algo del borrador no se puede enviar, no se envía nada.
-    if (items.length !== lineas.length || items.length === 0) {
-      avisar.error("El borrador tiene platos que no se pueden enviar");
+    if (platos.length !== lineas.length || platos.length === 0) {
+      avisar.error("El borrador tiene platos que ya no están en la carta");
       return;
     }
+    const r = await guardar(
+      anadirPedido(
+        cuentaDeLaMesa(m),
+        platos.map(({ it, l }) => ({
+          productId: it.id,
+          concepto: it.nombre,
+          precio: { minor: String(it.precio.amount), currency: "USD" },
+          taxCode: it.taxCode,
+          cantidad: l.cantidad,
+        })),
+      ),
+    );
+    // El rechazo (sin existencia, un precio que cambió, la mesa ya tiene otra cuenta) ya se avisó.
+    if (!r.ok) return;
     const ok = emitir(
-      { type: "pedido.enviado", orderId: globalThis.crypto.randomUUID(), tableId: m.mesa.id, items },
+      {
+        type: "pedido.enviado",
+        orderId: globalThis.crypto.randomUUID(),
+        tableId: m.mesa.id,
+        items: platos.map(({ it, l }) => ({ name: it.nombre, quantity: l.cantidad, ...(l.nota ? { note: l.nota } : {}) })),
+      },
       `Pedido enviado a cocina · Mesa ${m.mesa.label}`,
     );
     if (ok) {
-      // Lo enviado a cocina ya es deuda de la mesa: entra en su cuenta con el
-      // precio de carta de hoy, no con el de mañana.
-      const platos = lineas.flatMap((l) => {
-        const it = carta.find((i) => i.id === l.itemId);
-        return it ? [{ concepto: it.name, cantidad: l.cantidad, precio: it.price }] : [];
-      });
-      void guardar(anadirPedido(cuentaDeLaMesa(m), platos));
       setBorradores((b) => ({ ...b, [m.mesa.id]: [] }));
       setVista("plano");
     }
@@ -255,6 +277,30 @@ export function MesasScreen() {
         ? "La mesa ya pagó y está por limpiar"
         : null;
 
+  /* ── un local sin plano: se dice dónde se dibuja, sin inventar mesas ── */
+  if (!plano) {
+    return (
+      <div className="flex flex-1 flex-col apaisado:min-h-0">
+        <Cabecera titulo="Mesas" subtitulo="El salón del local" />
+        <Container as="main" ancho="operacion" className="flex flex-1 items-center justify-center py-10">
+          <div role="status" className="flex max-w-md flex-col items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface px-6 py-10 text-center">
+            <HandPlatter size={30} aria-hidden="true" className="text-ink-3" />
+            <p className="font-display text-lg font-bold text-ink">Todavía no hay plano del local</p>
+            <p className="text-[13.5px] text-ink-2">
+              Sin plano no hay mesas que atender. Administración lo dibuja y lo publica en Ajustes → Plano del local, y aparece aquí al momento.
+            </p>
+            <Link
+              href={"/panel/ajustes/plano" as Route}
+              className="flex min-h-12 items-center rounded-[var(--radius-control)] border border-line px-4 text-[14px] font-semibold text-ink no-underline hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              Ir a Ajustes → Plano del local
+            </Link>
+          </div>
+        </Container>
+      </div>
+    );
+  }
+
   /* ── vista de pedido: carta + ticket ── */
   if (vista === "pedido" && elegida) {
     return (
@@ -270,7 +316,7 @@ export function MesasScreen() {
             carta={carta}
             lineas={borradores[elegida.mesa.id] ?? []}
             onCambiar={(l) => setBorradores((b) => ({ ...b, [elegida.mesa.id]: l }))}
-            onEnviar={() => enviar(elegida)}
+            onEnviar={() => void enviar(elegida)}
             onVolver={() => setVista("plano")}
             bloqueo={bloqueoEnvio(elegida)}
           />
@@ -306,7 +352,7 @@ export function MesasScreen() {
         }
         cifras={
           <>
-            <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${plano.tables.length}`} />
+            <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${mesas.length}`} />
             <StatTile label="En cocina" value={enCocina} icon={<ChefHat size={11} aria-hidden="true" />} />
             <StatTile
               label="Para servir"

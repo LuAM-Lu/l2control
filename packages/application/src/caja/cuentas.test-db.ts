@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CuentaYLibroDto, FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -108,6 +108,7 @@ before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
   await impresoraDePrueba(local);
+  await planoDePrueba(local);
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
@@ -525,5 +526,49 @@ describe("la tasa del cobro (ADR-019 §7)", () => {
     const tarde = await local.app.cuentas.cobrar(ctxCajera, enBolivares(b, "99257", "116"), AHORA + 12 * MIN);
     assert.equal(!tarde.ok && tarde.motivo, "CONFLICTO");
     assert.match(!tarde.ok ? tarde.mensaje : "", /ya no es la vigente/);
+  });
+});
+
+describe("la cuenta de una mesa (B6-1, I-05)", () => {
+  const deMesa = (tableId: string, lines: unknown[] = [], extra: Record<string, unknown> = {}) =>
+    familia({ kind: "MESA", family: `Mesa ${tableId}`, sessionIds: [], lines, tableId, tableLabel: "99", ...extra });
+
+  test("nace en una mesa del plano, con el número que dice el plano y no la pantalla", async () => {
+    const c = await abrir(deMesa("mesa-1", [lineaDeAgua()]), ctxMesero);
+    assert.equal(c.tableId, "mesa-1");
+    assert.equal(c.tableLabel, "1");
+  });
+
+  test("una mesa tiene una sola cuenta abierta: la segunda choca", async () => {
+    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-1") }, AHORA);
+    assert.equal(!r.ok && r.motivo, "CONFLICTO", JSON.stringify(r));
+    assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_CON_CUENTA");
+    assert.match(!r.ok ? r.mensaje : "", /La mesa 1 ya tiene su cuenta abierta/);
+  });
+
+  test("dos tablets que abren la misma mesa a la vez: entra una", async () => {
+    const [a, b] = await Promise.all([
+      local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-4", [lineaDeAgua()]) }, AHORA),
+      local.app.cuentas.guardar(ctxCajera, { cuenta: deMesa("mesa-4", [lineaDeAgua()]) }, AHORA),
+    ]);
+    assert.equal([a, b].filter((r) => r.ok).length, 1, JSON.stringify([a, b]));
+  });
+
+  test("una mesa que no está en el salón no abre cuenta", async () => {
+    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-99") }, AHORA);
+    assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_FUERA_DEL_PLANO");
+  });
+
+  test("lo que se pide en la mesa sale de la carta, con su precio", async () => {
+    const aMano = { ...lineaDeAgua(), productId: undefined, taxCode: undefined };
+    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-2", [aMano]) }, AHORA);
+    assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_SIN_PRODUCTO");
+    const barata = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-2", [{ ...lineaDeAgua(), amount: usd("50") }]) }, AHORA);
+    assert.equal(!barata.ok && barata.problemas?.[0]?.message, "PRECIO_DISTINTO");
+  });
+
+  test("en un local sin plano, la cuenta de mesa no nace", async () => {
+    const r = await otro.app.cuentas.guardar(otro.sistema, { cuenta: deMesa("mesa-1") }, AHORA);
+    assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE", JSON.stringify(r));
   });
 });

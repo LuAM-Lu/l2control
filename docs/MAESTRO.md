@@ -32,7 +32,12 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.39.2 · 39 de 57 pasos.** **Se imprime en papel (B5-2, [ADR-026](adr/026-impresion-por-agente-local.md)):**
+**Versión 0.40.0 · 40 de 57 pasos.** **El restaurante empieza en el servidor (B6-1):** el plano del local se
+publica en Ajustes → Plano del local como versión (con quién y cuándo) y llega en vivo al salón; una mesa no se borra,
+se retira, y con su cuenta abierta no se retira. La carta del restaurante **es el catálogo** con la marca «en la
+carta», y Ajustes → Carta y precios la gestiona con el patrón de M-17 (resumen, filtros, páginas, hoja lateral). Una
+mesa tiene **una sola cuenta abierta** (I-05, en el servidor) y lo pedido lleva su producto: precio, IVA y existencia
+los comprueba el servidor. Ya no queda nada en `src/demo`. **Se imprime en papel (B5-2, [ADR-026](adr/026-impresion-por-agente-local.md)):**
 con el servidor en la nube, la impresora del local la alcanza un **agente** en la laptop de caja, que se vincula
 una vez con un código del panel y se conecta hacia fuera. El servidor guarda la cola (pendiente, enviado,
 confirmado o fallido, con cinco intentos) y compone el ESC/POS a 58 u 80 mm; el agente lo manda por TCP 9100 y
@@ -92,8 +97,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 357 de aplicación, 13 del worker, 4 del agente; en el dominio,
-  55 de tasas, 49 de impuestos, 119 de caja, 37 del parque, 43 de inventario, 14 de impresión y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 383 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 15 de pedidos, 15 de impresión y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -285,16 +289,20 @@ B54 Barra» y «Prueba B54 Terraza» (10.2.0.2, contra la impresora falsa, con e
 la prueba, sus trabajos descartados o impresos en el historial; equipo «Prueba B54 Admin» revocado. El cliente
 descartó dos pruebas suyas de «Caja» mientras tanto.
 
-**B6-1 a medias en `feat/b6-1` (2026-10-01, d4a41a0).** Decidido: **la carta del restaurante es el catálogo de
-productos** con la marca «en la carta» (los servicios, fuera por defecto): un solo precio con su calendario, un solo
-IVA y, si se cuenta, su existencia; el servidor ya revisa precio y existencias de las líneas con `productId`. Los
-estados de la mesa en vivo (ocupada, pide cuenta, por limpiar) siguen en el bus hasta B6-3; B6-1 impone en el servidor
-I-05 (una cuenta abierta por mesa, de una mesa del plano). **La base local ya tiene la migración de B6-1**
-(`20261022000000_plano_y_carta`): trabajar desde `feat/b6-1`. Lo hecho y lo que falta, en la casilla de B6-1 (§3).
-El cliente probó «Enviar a cocina» y no salió nada: es lo esperado hasta B6-2 (la comanda no se encola todavía).
+**El restaurante en la base local (2026-10-02, al comprobar B6-1).** La migración `20261022000000_plano_y_carta`
+dejó todo lo activo en la carta (los servicios, fuera). Desde «Prueba B61 Admin», Abigail Karam publicó la **versión 1
+del plano** con el boceto del cliente (8 × 6 m; mesas 1 a 4 «Junto al parque» y 5 a 8 «Salón», de 4 sillas, con ids
+`mesa-1` a `mesa-8`, los que ya nombraban las cuentas del cliente; parque, paso al parque, entrada, caja, barra y
+cocina como rectángulos): es el plano que ve el cliente y lo puede cambiar. Las cuentas del cliente #0022 (mesa 8,
+abierta) y #0038 (mesa 1, por cobrar) siguen ahí, con «Pizza margarita» sin producto (de la carta de ejemplo). Se creó
+«Prueba B61 Tequeños» (preparado, exento, $ 4,50 y luego $ 5,00), se sacó y volvió a la carta, y el mesero Jesús
+Mendoza («Prueba B61 Salón») pidió dos en la mesa 5: cuenta #0039, cobrada ($ 10,00) en un turno de «Prueba B61 Caja»
+(Marisol Prieto) que se selló con relevo. **El ticket de ese Z no salió y se descartó** (solo ese trabajo): la
+impresora «Caja» del cliente apunta ahora a 192.168.1.194:9100, que esta máquina no alcanza. «Prueba B61 Tequeños»
+quedó apartado y la mesa 5, libre en el salón; equipos «Prueba B61 …» revocados.
 
-**Siguiente paso:** terminar **B6-1** en `feat/b6-1`; después **B6-2** (la comanda impresa) y **T-7** (M-17, el resto
-de Ajustes).
+**Siguiente paso:** **B6-2** (la comanda impresa: el pedido confirmado crea su trabajo en la impresora de comandas) y
+después **T-7** (M-17, el resto de Ajustes con las piezas que B6-1 subió a `@l2/ui`).
 
 ---
 
@@ -386,7 +394,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
-5. **B6-1** (con Carta y Plano en el patrón de M-17) → B6-2 (comanda impresa) → **T-7** (el resto de Ajustes en ese
+5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → **B6-2** (comanda impresa) → **T-7** (el resto de Ajustes en ese
    patrón) → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
@@ -476,8 +484,8 @@ Fuera de la cuenta de 57: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   teléfono; sin errores de consola. Medios de pago, Impuestos, Feriados y Sucursal (listas cortas) quedan como
   están salvo que el cliente las pida.
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
-  → La carpeta `src/demo` ya no existe, se retira la regla `demo-solo-desde-las-rutas` y `pnpm lint`
-  suma la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
+  → ~~La carpeta `src/demo` ya no existe y se retira la regla `demo-solo-desde-las-rutas`~~ (hecho con B6-1, que
+  borró lo último). Falta que `pnpm lint` sume la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
   literales y listas de ejemplo en `features/`. El CI sale en rojo con una violación.
 
 ### Etapa 0 · Cimientos del servidor (local)
@@ -1459,27 +1467,30 @@ antes del cobro en servidor (orden de ejecución).
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
-- [ ] **B6-1 · Mesas, plano y carta** persistidos (F6-01 a F6-03). Se borra `src/demo/restaurante.ts`.
+- [x] **B6-1 · Mesas, plano y carta** persistidos (F6-01 a F6-03). Se borra `src/demo/restaurante.ts`.
   Carta y precios y Plano del local se rehacen ya con el patrón de Ajustes (M-17), y sus piezas comunes
   (resumen con cifras, paginación, filtros con su cuenta, confirmación) suben a `@l2/ui` para T-7.
-  *A medias en `feat/b6-1` (d4a41a0, 2026-10-01). **Hecho:** regla del plano en `@l2/domain-orders/plano.ts`
-  (`cambioDePlanoProblem`: una mesa no desaparece, se retira; con su cuenta abierta no se retira; `mesasRetiradas`;
-  4 pruebas); contratos `PlanoPublicadoSchema` y `PublicarPlanoCommandSchema` (`sobre` = versión editada), fuera
-  `MenuSchema`/`MenuItemSchema`, `ProductoDto.enCarta` y el mando `EN_CARTA`; migración `20261022000000_plano_y_carta`
-  (`floor_plan_version` solo-agregar con autor; `product.on_menu` rellenado, servicios fuera; **aplicada a la base
-  local**); `EN_CARTA` en la aplicación (auditoría `producto.carta`, tema `catalogo`) y la acción `plano.publicar` con
-  su tema nuevo `plano`. **Falta:** (1) aplicación: `casosRestaurante` con `plano` (leer la última versión, validada
-  al leer) y `publicarPlano` (`catalogo.modificar` con elevación; choca si `sobre` no es la vigente; hora de retirar
-  del servidor; `cambioDePlanoProblem` con las mesas ocupadas), y `mesasOcupadasEn` en `caja/cuentas.ts`; en
-  `guardar`, una cuenta MESA nombra una mesa del plano sin retirar y es la única abierta de su mesa (candado
-  `pg_advisory_xact_lock` por mesa); sus `*.test-db.ts`. (2) web: `plano.servidor.ts`/`plano.acciones.ts`;
-  `PlanoProvider` desde el servidor (`useAlCambiar(["plano"])`, sin `sessionStorage`); la carta del mesero sale de
-  `productosALaVenta` filtrada por `enCarta`, y `TomaPedido`/`mesas.ts`/`MesasScreen` mandan líneas con `productId`
-  y `taxCode`; `EditorPlano` publica con la acción; **Carta y precios** nueva con el patrón M-17 (resumen, filtros,
-  tabla y tarjetas, hoja para «Nuevo plato» PREPARADO, cambiar precio y en carta); piezas comunes a `@l2/ui` y
-  Impresoras sobre ellas; local sin plano → aviso con enlace a Ajustes → Plano; se borran `src/demo/restaurante.ts`,
-  `CartaProvider` y las filas de §5 (plano y carta en el navegador; importe de la mesa desde la pantalla). (3)
-  navegador en los tres tamaños, `l2.etapa` «Etapa 6 · Restaurante en el servidor», v0.40.0 y CHANGELOG.*
+  *Hecho el 2026-10-02 (v0.40.0). **Carta = catálogo:** `ProductoDto.enCarta` y el mando `EN_CARTA` (auditoría
+  `producto.carta`, tema `catalogo`); un producto nace en la carta y un servicio fuera. **Plano versionado:**
+  `floor_plan_version` solo-agregar con autor (migración `20261022000000_plano_y_carta`); `casosPlano` lee la última
+  versión revalidada y publica con `catalogo.modificar` y elevación, a nombre de una persona, chocando si `sobre` no es
+  la vigente; la hora de retirar una mesa la pone el servidor y no cambia después; `cambioDePlanoProblem` (dominio)
+  impide borrar una mesa o retirarla con su cuenta abierta; publicar lo mismo no añade versión. **I-05 en el
+  servidor:** al nacer una cuenta MESA, `mesaParaCuentaNueva` (candado `mesas:<sucursal>`, el mismo que publicar)
+  exige una mesa del plano sin retirar y sin otra cuenta abierta, y pone su número; `MESA_SIN_PRODUCTO` (dominio): lo
+  pedido en la mesa lleva su producto, con precio, IVA y existencia del servidor. Pruebas: `plano.test-db.ts` (16),
+  mesa en `cuentas.test-db.ts` (6, con dos tablets a la vez), `EN_CARTA` en `productos.test-db.ts` (2), dominio (1).
+  **Web:** `plano.servidor.ts`/`plano.acciones.ts`, `PlanoProvider` desde el layout (tema `plano` → repinta, sin
+  `sessionStorage`); el mesero pide de `cartaDelMesero` (catálogo a la venta y en la carta, con «Quedan N» y
+  agotados), la cuenta guarda primero y solo entonces sale el evento a cocina; local sin plano → aviso con enlace.
+  **Carta y precios** nueva (resumen que filtra, filtros con cuenta, búsqueda, tabla y tarjetas, páginas 10/20/50,
+  interruptor «en la carta», hoja de precio y de «Nuevo plato»); **Plano del local** con resumen, pestañas Plano ·
+  Mesas · Local (medidas y estructura), mesas ocupadas que no se retiran, aviso si otro publicó y confirmación al
+  retirar; una mesa nueva toma el id `mesa-<número>` si está libre. `@l2/ui`: `Resumen`, `Cifra`,
+  `FiltroSegmentado`, `BarraDeFiltros`, `Paginacion`, `Confirmacion`; Impresoras sobre ellas. Fuera
+  `src/demo` entera (y la regla `demo-solo-desde-las-rutas`), `CartaProvider`, `EditorCarta` y `MenuSchema`.
+  Navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página ni errores de consola (detalle en §1).
+  Lo que se mueve del parque a una mesa (vincular pulseras) sigue llegando de la pantalla: B6-3.*
 - [ ] **B6-2 · Pedidos del mesero y comanda impresa** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), F6-06,
   F6-07 y F6-09, sin F6-08): el pedido confirmado en la tablet crea su trabajo de impresión en la
   impresora de comandas; la comanda queda «enviada» e «impresa», y si falla, la tablet del mesero y la caja
@@ -1596,7 +1607,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
-| El importe de la carta de la mesa llega de la pantalla (el del parque ya lo pone el servidor, B4-2), y lo que se mueve del parque a una mesa también | B6-1 (carta y mesas) |
+| Lo que se mueve del parque a una mesa (vincular pulseras) llega de la pantalla con su importe; lo pedido de la carta ya lo comprueba el servidor (B6-1) | B6-3 |
 | La estación de cocina (KDS) y los estados «en fuego» y «listo» siguen en la app, sobre el bus del navegador | B6-2 (ADR-022) |
 | «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
@@ -1618,12 +1629,11 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Las migas del panel dicen «Abby Kingdom» escrito en cada pantalla (Sucursal ya lee el nombre del local) | Al pasar por cada pantalla |
 | El campo de hora del horario lo pinta el navegador en su idioma («10:00 a. m.») aunque el local use 24 h | Aceptado |
 
-**Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-09-26. Cada fila sale de
+**Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-10-02 (`src/demo` ya no existe). Cada fila sale de
 aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 
 | Qué | Dónde | Se va con |
 |---|---|---|
-| Plano y carta del restaurante guardados en el navegador | `src/demo/restaurante.ts`, `PlanoProvider`, `CartaProvider` | B6-1 |
 | Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
 
 **Trampas del código.** Ninguna la caza `pnpm typecheck`; todas se ven abriendo la pantalla.
@@ -1817,6 +1827,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   probó «Enviar a cocina» y no salió nada (la comanda impresa es de B6-2): el orden queda B6-1 → B6-2 → T-7.
 - **2026-10-01** · Handoff: B6-1 a medias en `feat/b6-1` (carta = catálogo con «en la carta», plano versionado; dominio,
   contratos, migración aplicada a la base local y productos hechos; faltan aplicación del plano e I-05, web y navegador).
+- **2026-10-02** · B6-1 hecho (v0.40.0): plano versionado en el servidor, carta = catálogo con Carta y precios nueva,
+  una cuenta abierta por mesa (I-05) y lo pedido con su producto; piezas de M-17 en `@l2/ui`; `src/demo` borrada.
+  En la base local, la versión 1 del plano es el boceto del cliente. Sigue B6-2.
 
 ---
 

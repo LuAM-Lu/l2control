@@ -28,6 +28,10 @@ porque esto se usa de pie, con prisa y a veces con guantes.
 | `ScannerField` | Buffer global del lector HID, con validación de formato |
 | `ConnectionBadge` | Nivel de degradación N0-N3 **en palabras** |
 | `EmptyState` | Vacío explícito; los estados ocultos son antipatrón |
+| `Resumen`, `Cifra` | Las 2 a 4 cifras de cabecera de una pantalla de Ajustes que llevan a su sitio (M-17) |
+| `FiltroSegmentado`, `BarraDeFiltros` | Filtros con su cuenta y «Limpiar filtros» (M-17) |
+| `Paginacion` | Una lista que crece va por páginas (10/20/50), nunca sin fin (M-17) |
+| `Confirmacion` | Diálogo para lo irreversible: dice qué pasa, «Cancelar» y la acción |
 
 **Nivel 3 · funcionalidad** — vive en `apps/web/src/features/<contexto>`, **no aquí**.
 

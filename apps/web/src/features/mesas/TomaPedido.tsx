@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { ArrowLeft, Send, StickyNote, Trash2, TriangleAlert } from "lucide-react";
-import type { MenuDto } from "@l2/contracts";
 import { multiply, toMajor } from "@l2/domain-money";
 import { Badge, Button, Dialog, Input, MoneyDisplay, Stepper, cn, formatMoneyVE } from "@l2/ui";
-import { anadir, precioDe, totalBorrador, type LineaBorrador } from "./mesas.ts";
+import { anadir, totalBorrador, type LineaBorrador } from "./mesas.ts";
+import { disponible, type ProductoALaVenta } from "../inventario/catalogo.ts";
 
 /**
  * Tomar un pedido — F6-03, pasos B4 y B5.
@@ -19,6 +19,9 @@ import { anadir, precioDe, totalBorrador, type LineaBorrador } from "./mesas.ts"
  *
  * Carta a la izquierda, ticket a la derecha: el patrón de cualquier punto de
  * venta. Un toque añade una unidad; el contador del ticket corrige.
+ *
+ * La carta es el catálogo con lo marcado «en la carta» (B6-1), con el precio de hoy. Lo que se cuenta
+ * dice cuántos quedan, y sin existencia no se pide (ADR-023): el servidor lo vuelve a comprobar.
  */
 export function TomaPedido({
   mesaLabel,
@@ -30,7 +33,7 @@ export function TomaPedido({
   bloqueo,
 }: {
   mesaLabel: string;
-  carta: MenuDto;
+  carta: readonly ProductoALaVenta[];
   lineas: readonly LineaBorrador[];
   onCambiar: (lineas: LineaBorrador[]) => void;
   onEnviar: () => void;
@@ -38,8 +41,8 @@ export function TomaPedido({
   /** Por qué no se puede enviar ahora, si hay algo que lo impide. */
   bloqueo: string | null;
 }) {
-  const enVenta = carta.filter((i) => !i.retiredAt);
-  const categorias = [...new Set(enVenta.map((i) => i.category))];
+  const enVenta = carta;
+  const categorias = [...new Set(enVenta.map((i) => i.categoria))];
   const [categoria, setCategoria] = useState<string>(categorias[0] ?? "");
   const [notaDe, setNotaDe] = useState<number | null>(null);
   const [notaTexto, setNotaTexto] = useState("");
@@ -48,15 +51,20 @@ export function TomaPedido({
 
   const item = (id: string) => carta.find((i) => i.id === id);
   const total = totalBorrador(lineas, carta);
-  const agotados = lineas.filter((l) => !item(l.itemId)?.available);
+  const cantidadEn = (id: string) => lineas.filter((l) => l.itemId === id).reduce((n, l) => n + l.cantidad, 0);
+  /** Cuántas más se pueden pedir de un plato: sin límite si no lleva existencia. */
+  const quedanDe = (i: ProductoALaVenta) => (i.existencia === null ? Number.POSITIVE_INFINITY : i.existencia - cantidadEn(i.id));
+  // Lo que ya no está en la carta, o se pide más de lo que queda, no se envía.
+  const agotados = lineas.filter((l) => {
+    const it = item(l.itemId);
+    return !it || quedanDe(it) < 0;
+  });
   const unidades = lineas.reduce((n, l) => n + l.cantidad, 0);
   const impedimento =
     bloqueo ??
     (agotados.length > 0
-      ? `Hay platos agotados en el borrador: ${agotados.map((l) => item(l.itemId)?.name ?? "?").join(", ")}`
+      ? `No queda lo suficiente o ya no está en la carta: ${agotados.map((l) => item(l.itemId)?.nombre ?? "un plato").join(", ")}`
       : null);
-
-  const cantidadEn = (id: string) => lineas.filter((l) => l.itemId === id).reduce((n, l) => n + l.cantidad, 0);
 
   const fijarCantidad = (i: number, n: number) =>
     onCambiar(n === 0 ? lineas.filter((_, j) => j !== i) : lineas.map((l, j) => (j === i ? { ...l, cantidad: n } : l)));
@@ -85,36 +93,46 @@ export function TomaPedido({
           ))}
         </div>
 
+        {enVenta.length === 0 && (
+          <p role="status" className="rounded-[var(--radius-card)] border border-dashed border-line px-4 py-10 text-center text-[13.5px] text-ink-2">
+            La carta está vacía: administración la arma en Ajustes → Carta y precios.
+          </p>
+        )}
         <ul className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3 apaisado:min-h-0 apaisado:overflow-y-auto xl:grid-cols-4">
           {enVenta
-            .filter((i) => i.category === categoria)
+            .filter((i) => i.categoria === categoria)
             .map((i) => {
               const n = cantidadEn(i.id);
+              const hay = disponible(i) && quedanDe(i) > 0;
               return (
                 <li key={i.id}>
                   <button
                     type="button"
-                    disabled={!i.available}
+                    disabled={!hay}
                     onClick={() => onCambiar(anadir(lineas, i.id))}
-                    aria-label={`Añadir ${i.name}, ${formatMoneyVE(toMajor(precioDe(i)), "USD")}${n > 0 ? `, van ${n}` : ""}`}
+                    aria-label={`Añadir ${i.nombre}, ${formatMoneyVE(toMajor(i.precio), "USD")}${n > 0 ? `, van ${n}` : ""}`}
                     className={cn(
                       "relative flex min-h-[5.5rem] w-full cursor-pointer flex-col justify-between rounded-[var(--radius-card)] border p-3 text-left",
                       "transition-[border-color,background-color,transform] duration-[var(--dur-rapida)] active:scale-[0.98]",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                       "disabled:cursor-not-allowed disabled:active:scale-100",
-                      !i.available
+                      !hay
                         ? "border-dashed border-line bg-base/40 text-ink-3"
                         : n > 0
                           ? "border-brand/60 bg-surface"
                           : "border-line bg-surface hover:border-line-strong",
                     )}
                   >
-                    <span className={cn("pr-7 text-[14px] leading-snug font-semibold", i.available ? "text-ink" : "line-through")}>
-                      {i.name}
+                    <span className={cn("pr-7 text-[14px] leading-snug font-semibold", hay ? "text-ink" : "line-through")}>
+                      {i.nombre}
                     </span>
                     <span className="flex items-center justify-between gap-2">
-                      <span className="tnum text-[13px] text-ink-2">{formatMoneyVE(toMajor(precioDe(i)), "USD")}</span>
-                      {!i.available && <Badge tone="idle">Agotado</Badge>}
+                      <span className="tnum text-[13px] text-ink-2">{formatMoneyVE(toMajor(i.precio), "USD")}</span>
+                      {!disponible(i) ? (
+                        <Badge tone="idle">Agotado</Badge>
+                      ) : i.existencia !== null ? (
+                        <span className="tnum text-[12px] text-ink-3">{hay ? `Quedan ${quedanDe(i)}` : "No quedan más"}</span>
+                      ) : null}
                     </span>
                     {n > 0 && (
                       <span
@@ -158,13 +176,13 @@ export function TomaPedido({
                   // contador a la derecha. En dos filas, cinco platos ya no cabían.
                   <li key={`${l.itemId}-${i}`} className="flex items-center gap-2 py-2">
                     <div className="min-w-0 flex-1">
-                      <p className={cn("truncate text-[14px] leading-snug font-medium", it?.available ? "text-ink" : "text-state-warn")}>
-                        {it?.name ?? "Plato fuera de carta"}
-                        {!it?.available && <span className="ml-1.5 text-[12px]">· agotado</span>}
+                      <p className={cn("truncate text-[14px] leading-snug font-medium", it && quedanDe(it) >= 0 ? "text-ink" : "text-state-warn")}>
+                        {it?.nombre ?? "Plato fuera de carta"}
+                        {it && quedanDe(it) < 0 && <span className="ml-1.5 text-[12px]">· {it.existencia === 0 ? "agotado" : `quedan ${it.existencia}`}</span>}
                       </p>
                       <p className="flex items-center gap-2 text-[12.5px]">
                         {it && (
-                          <span className="tnum text-ink-2">{formatMoneyVE(toMajor(multiply(precioDe(it), BigInt(l.cantidad))), "USD")}</span>
+                          <span className="tnum text-ink-2">{formatMoneyVE(toMajor(multiply(it.precio, BigInt(l.cantidad))), "USD")}</span>
                         )}
                         <button
                           type="button"
@@ -172,7 +190,7 @@ export function TomaPedido({
                             setNotaDe(i);
                             setNotaTexto(l.nota);
                           }}
-                          aria-label={l.nota ? `Nota: ${l.nota}. Cambiarla` : `Añadir nota a ${it?.name ?? "este plato"}`}
+                          aria-label={l.nota ? `Nota: ${l.nota}. Cambiarla` : `Añadir nota a ${it?.nombre ?? "este plato"}`}
                           className={cn(
                             // El objetivo táctil crece hacia fuera sin engordar la fila.
                             "relative -my-2 flex min-h-8 min-w-0 cursor-pointer items-center gap-1 rounded px-1 py-2",
@@ -188,7 +206,7 @@ export function TomaPedido({
                     <Stepper
                       value={l.cantidad}
                       onChange={(n) => fijarCantidad(i, n)}
-                      label={it?.name ?? "Plato"}
+                      label={it?.nombre ?? "Plato"}
                       min={0}
                       max={50}
                     />
@@ -242,7 +260,7 @@ export function TomaPedido({
       <Dialog
         abierto={notaDe !== null}
         onCerrar={() => setNotaDe(null)}
-        titulo={`Nota · ${notaDe !== null ? (item(lineas[notaDe]?.itemId ?? "")?.name ?? "") : ""}`}
+        titulo={`Nota · ${notaDe !== null ? (item(lineas[notaDe]?.itemId ?? "")?.nombre ?? "") : ""}`}
         descripcion="La cocina la lee en la comanda. Corta y concreta."
         pie={
           <div className="grid grid-cols-2 gap-2">
@@ -303,7 +321,7 @@ export function TomaPedido({
             <li key={`${l.itemId}-${i}`} className="flex items-baseline gap-3 text-[14px]">
               <span className="tnum w-8 shrink-0 text-right font-bold text-ink">{l.cantidad}×</span>
               <span className="min-w-0 flex-1">
-                <span className="text-ink">{item(l.itemId)?.name}</span>
+                <span className="text-ink">{item(l.itemId)?.nombre}</span>
                 {l.nota && <span className="block text-[12.5px] text-ink-2">«{l.nota}»</span>}
               </span>
             </li>

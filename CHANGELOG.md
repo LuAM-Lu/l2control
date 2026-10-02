@@ -12,6 +12,39 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.40.0] — 2026-10-02 · Etapa 6 · Restaurante en el servidor
+
+B6-1: el plano del local y la carta del restaurante son del servidor. Ya no queda nada provisional en el navegador.
+
+### Añadido
+- **Plano del local, publicado y con versiones.** Ajustes → Plano del local edita un borrador y, al publicar, guarda
+  una versión nueva con quién y cuándo, que llega en vivo al salón. Resumen arriba (mesas en el salón y sus sillas,
+  ocupadas ahora, retiradas, versión publicada) y tres pestañas: *Plano* (el lienzo, como antes), *Mesas* (todas,
+  también las retiradas, con «Devolver al salón») y *Local* (medidas del local y su estructura: paredes, puertas,
+  parque, caja, cocina, barra). Si otra persona publica mientras editas, se avisa y publicar no la pisa.
+- **Una mesa no se borra: se retira**, a la hora del servidor y conservando su número; con su cuenta abierta no se
+  retira. Retirar mesas al publicar pide confirmarlo.
+- **Carta y precios, nueva.** La carta es el catálogo de productos: el mesero ofrece lo que está a la venta y marcado
+  «en la carta». Resumen (en la carta, fuera, agotados, precios programados) que filtra, filtros con su cuenta,
+  búsqueda y «Limpiar filtros», tabla en el escritorio y tarjetas en tableta y teléfono, por páginas. Un interruptor
+  saca o pone un plato en la carta (la caja lo sigue vendiendo); «Precio» programa el siguiente con su día; «Nuevo
+  plato» da de alta un preparado o un producto que se cuenta, ya en la carta. Los servicios nacen fuera de la carta.
+- La **toma de pedido** enseña cuántos quedan de lo que se cuenta y no deja pedir lo agotado; una carta vacía dice
+  dónde se arma.
+- Un local **sin plano** lo dice en Mesas, con el enlace a Ajustes → Plano del local, en vez de inventar mesas.
+
+### Cambiado
+- **Una mesa tiene una sola cuenta abierta**, y solo en una mesa del plano publicado: lo comprueba el servidor, también
+  si dos tablets la abren a la vez. El número de la mesa en la cuenta lo pone el plano.
+- **Lo que se pide en la mesa lleva su producto**: el servidor comprueba el precio de hoy, el IVA y la existencia, y lo
+  que se cuenta sale del estante al pedirlo. Un pedido entra primero en la cuenta y solo si se acepta sale a cocina.
+- Ajustes → Impresoras usa las piezas comunes del rediseño de Ajustes (resumen, filtros, páginas, confirmación); se ve
+  igual.
+
+### Quitado
+- La carta y el plano de ejemplo guardados en el navegador, y la carpeta de datos provisionales (`src/demo`) con su
+  regla de arquitectura: ya no queda nada provisional.
+
 ## [0.39.2] — 2026-10-01 · Etapa 5 · Tiempo real e impresión
 
 Ajustes → Impresoras, reordenada (pedido del cliente): nada de listas sin fin, y lo que no salió se puede limpiar.

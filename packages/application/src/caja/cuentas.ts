@@ -108,6 +108,7 @@ import { esperadoEnGaveta } from "./gaveta.ts";
 import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
+import { mesaParaCuentaNueva } from "../restaurante/plano.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
@@ -169,6 +170,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   CORTESIA_DESDE_LA_PANTALLA: "Una cortesía se da con su autorización, no al guardar la cuenta.",
   DIVISION_ALTERADA: "Con partes cobradas, la división no se cambia.",
   MOSTRADOR_SIN_PRODUCTO: "Una venta de mostrador vende del catálogo.",
+  MESA_SIN_PRODUCTO: "Lo que se pide en la mesa sale de la carta.",
   CUENTA_INCOBRABLE: "Una cuenta incobrable no se cambia: la marca supervisión con su autorización.",
   PRODUCTO_QUE_NO_SE_VENDE: "Ese producto ya no se vende.",
   PRECIO_DISTINTO: "El precio de ese producto cambió: vuelve a añadirlo desde la carta.",
@@ -260,6 +262,15 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           // Guardar lo mismo no añade versión: el sondeo de una pantalla no llena el historial.
           if (antes && mismaCuenta(antes, enviada)) return antes;
 
+          // Una cuenta de mesa nace en una mesa del salón, y una mesa tiene una sola abierta (I-05). Su
+          // número lo dice el plano, no la pantalla. Después la mesa ya no cambia (MESA_CAMBIADA).
+          let mesa: Readonly<{ label: string }> | null = null;
+          if (!antes && enviada.kind === "MESA") {
+            const r = await mesaParaCuentaNueva(tx, ctx.branchId, enviada.tableId!);
+            if ("ok" in r) return r;
+            mesa = r;
+          }
+
           // Lo que entra en la cuenta sale del estante (ADR-023): se comprueba antes de escribir nada.
           const existencias = await comprobarExistencias(tx, ctx, antes ? enviada.id : null, antes?.lines ?? null, enviada.lines, (productId) => {
             const i = enviada.lines.findIndex((l) => l.productId === productId && !(antes?.lines ?? []).some((a) => a.id === l.id));
@@ -274,6 +285,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           const { pendingSince: _, ...sinEspera } = enviada;
           const cuenta = FamilyAccountSchema.parse({
             ...sinEspera,
+            ...(mesa ? { tableLabel: mesa.label } : {}),
             version,
             orderNumber,
             openedAt: antes?.openedAt ?? instante,

@@ -181,3 +181,36 @@ export async function impresoraDePrueba(local: LocalDePrueba, ip = "192.168.250.
   if (!a.ok) throw new Error(a.mensaje);
   return id;
 }
+
+/**
+ * Un plano del salón publicado (B6-1) con las mesas `mesa-1` a `mesa-N`, de 4 sillas: sin plano, una
+ * cuenta de mesa no nace. Se escribe directo en la base, a nombre de una persona de prueba.
+ */
+export async function planoDePrueba(local: LocalDePrueba, mesas = 4): Promise<void> {
+  const { tenantId, branchId } = local.sistema;
+  const tables = Array.from({ length: mesas }, (_, i) => ({
+    id: `mesa-${i + 1}`,
+    label: String(i + 1),
+    zone: "Salón",
+    seats: 4,
+    shape: "REDONDA",
+    x: 100 + (i % 5) * 150,
+    y: 100 + Math.floor(i / 5) * 150,
+    width: 80,
+    height: 80,
+    rotation: 0,
+  }));
+  await local.base.conTenant(tenantId, async (tx) => {
+    const r = await tx.floorPlanVersion.aggregate({ where: { branchId }, _max: { version: true } });
+    await tx.floorPlanVersion.create({
+      data: {
+        tenantId,
+        branchId,
+        version: (r._max.version ?? 0) + 1,
+        content: { width: 800, height: 100 + Math.ceil(mesas / 5) * 150, tables, fixtures: [] },
+        publishedBy: randomUUID(),
+        publishedByName: "Prueba del plano",
+      },
+    });
+  });
+}

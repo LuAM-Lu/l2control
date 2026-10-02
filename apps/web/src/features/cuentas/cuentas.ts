@@ -19,7 +19,7 @@ import {
 } from "@l2/contracts";
 import { sum, type Money } from "@l2/domain-money";
 import { registerExit } from "@l2/domain-cash";
-import type { DocumentLine } from "@l2/domain-tax";
+import type { DocumentLine, TaxCode } from "@l2/domain-tax";
 import { toMoney } from "../park/mappers.ts";
 
 /** Lo que falta por cobrar de una cuenta. Lo movido a otra cuenta y lo regalado (cortesía) ya no cuenta aquí. */
@@ -181,10 +181,14 @@ export function abrirCuentaDeMesa({
   });
 }
 
-/** Añade a la cuenta de la mesa lo que se acaba de enviar a cocina. */
+/**
+ * Añade a la cuenta de la mesa lo que se acaba de pedir (B6-1). Cada línea COPIA el nombre, el precio y
+ * el trato del IVA del producto de la carta, con su `productId`: el servidor comprueba que son los de
+ * hoy (un precio viejo de una tablet abierta no se cuela), y lo que se cuenta sale del estante.
+ */
 export function anadirPedido(
   c: FamilyAccountDto,
-  platos: readonly { concepto: string; cantidad: number; precio: MoneyDto }[],
+  platos: readonly { productId: string; concepto: string; precio: MoneyDto; taxCode: TaxCode; cantidad: number }[],
 ): FamilyAccountDto {
   const lineas: AccountLineDto[] = platos.flatMap((p) =>
     // Una línea por unidad: así se puede cobrar o cortesía una sola, y la caja
@@ -195,6 +199,8 @@ export function anadirPedido(
       kind: "RESTAURANTE" as const,
       amount: p.precio,
       paid: false,
+      productId: p.productId,
+      taxCode: p.taxCode,
     })),
   );
   return FamilyAccountSchema.parse({ ...c, lines: [...c.lines, ...lineas] });

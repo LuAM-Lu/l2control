@@ -149,6 +149,7 @@ export type AccountChangeProblem =
   | "CORTESIA_DESDE_LA_PANTALLA"
   | "DIVISION_ALTERADA"
   | "MOSTRADOR_SIN_PRODUCTO"
+  | "MESA_SIN_PRODUCTO"
   | "CUENTA_INCOBRABLE"
   | "PRODUCTO_QUE_NO_SE_VENDE"
   | "PRECIO_DISTINTO"
@@ -238,6 +239,9 @@ export function accountChangeProblem(
     if (l.paid) return { problem: "PAGO_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.cortesia !== undefined) return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
     if (after.kind === "MOSTRADOR" && l.productId === undefined) return { problem: "MOSTRADOR_SIN_PRODUCTO", lineId: l.id };
+    // Lo que se pide en la mesa sale de la carta, que es el catálogo (B6-1): su precio lo pone el
+    // servidor, no la tablet. Lo del parque que llega a la mesa lo trae la vinculación (B6-3).
+    if (after.kind === "MESA" && l.kind === "RESTAURANTE" && l.productId === undefined) return { problem: "MESA_SIN_PRODUCTO", lineId: l.id };
     // El paquete y el tiempo de más de una familia los pone el parque con su tarifario y su reloj.
     if (after.kind === "FAMILIA" && (l.kind === "PAQUETE" || l.kind === "EXCEDENTE")) return { problem: "PARQUE_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.productId !== undefined) {

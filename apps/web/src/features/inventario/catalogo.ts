@@ -19,6 +19,8 @@ export type ProductoALaVenta = Readonly<{
   /** Para venderlo pasándolo por el lector (B9-6). */
   sku: string;
   codigoBarras: string | null;
+  /** Si el mesero lo ofrece en las mesas (B6-1): la carta del restaurante es el catálogo con esta marca. */
+  enCarta: boolean;
 }>;
 
 /** El calendario de precios de todo el catálogo, como lo entiende el dominio. */
@@ -51,5 +53,17 @@ export function productosALaVenta(catalogo: CatalogoDto, instante: number): Prod
     existencia: p.existencia,
     sku: p.sku,
     codigoBarras: p.codigoBarras,
+    enCarta: p.enCarta,
   }));
 }
+
+/**
+ * La carta del mesero en `instante` (B6-1): lo que se vende ahora y está en la carta. Lo agotado sale
+ * (la pantalla lo enseña sin dejar pedirlo), porque el mesero tiene que poder decir «no queda».
+ */
+export function cartaDelMesero(catalogo: CatalogoDto, instante: number): ProductoALaVenta[] {
+  return productosALaVenta(catalogo, instante).filter((p) => p.enCarta);
+}
+
+/** ¿Se puede pedir ahora? Lo que no lleva existencia, siempre; lo que sí, mientras quede (ADR-023). */
+export const disponible = (p: Pick<ProductoALaVenta, "existencia">): boolean => p.existencia === null || p.existencia > 0;

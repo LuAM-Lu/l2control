@@ -53,9 +53,8 @@ Una excepción se escribe `lint-permitido: <regla> — <motivo>`, y sin motivo n
 
 ```
 apps/web                  Next.js 16 — todas las superficies
-  app/                    rutas; las únicas que importan src/demo
+  app/                    rutas
   src/features/<dominio>  pantallas y lógica de aplicación, por dominio
-  src/demo/               datos provisionales; cada paso de backend borra el suyo (M-6)
   src/servidor/           entorno validado, conexión a application y logger (solo servidor)
 apps/worker               canal en vivo (Socket.io + Valkey), outbox y trabajos programados (B5-1)
 packages/contracts        contratos Zod: la forma de cada dato, una vez
@@ -77,15 +76,13 @@ docs/adr/                 las 25 decisiones, una por archivo
 ```
 
 **No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su
-servidor. Lo que aún no tiene backend usa datos provisionales de `apps/web/src/demo`, que entran solo
-por las rutas (`app/**`) y se pasan por props (`pnpm arch` lo impone). **Nada nuevo entra ahí**, y el
-paso de backend que sustituye un archivo lo borra en el mismo commit.
+servidor. Los datos provisionales de `apps/web/src/demo` se fueron paso a paso; el último (plano y carta
+del restaurante) salió con B6-1 y la carpeta ya no existe. **Una pantalla nueva nace contra el servidor.**
 
 **Del provisional al servidor (B0-5).** Una pantalla pasa a la base así: caso de uso en `@l2/application` con su
 `*.test-db.ts`; lectura en `features/<dominio>/<x>.servidor.ts` (con `connection()`); escritura en
 `<x>.acciones.ts` (`"use server"`, recibe `unknown`, devuelve `Resultado`); la ruta o el layout lee
-en el servidor, el proveedor escribe con la acción y se borra su archivo de `src/demo`. El modelo es
-el tarifario. **En vivo (B5-1, ADR-025):** toda escritura audita, y el asiento deja su evento en el
+en el servidor y el proveedor escribe con la acción. El modelo es el tarifario. **En vivo (B5-1, ADR-025):** toda escritura audita, y el asiento deja su evento en el
 outbox en la misma transacción; el worker cuenta a cada sucursal qué temas cambiaron y cada pantalla
 vuelve a leer lo suyo (`useAlCambiar` o `router.refresh()`). Nada de sondeos. El bus del restaurante
 (`features/operacion`) viaja por el worker hasta la Etapa 6.

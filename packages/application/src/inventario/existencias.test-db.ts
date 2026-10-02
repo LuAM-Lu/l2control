@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -77,6 +77,7 @@ before(async () => {
   const mesero = await crearPersona(local, { nombre: "Pedro Díaz", role: "MESERO", pin: "3175" });
   ctxCajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), cajera, "7391");
   ctxMesero = await contextoDe(local, await crearEquipo(local, "Salón"), mesero, "3175");
+  await planoDePrueba(local);
   valor(
     await local.app.turnos.abrir(
       ctxCajera,

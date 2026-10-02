@@ -5,8 +5,9 @@
  * ocupadas y qué pidió cada una. Una mesa sin evento de apertura está libre.
  * El instante entra como argumento (ADR-010).
  */
-import type { DiningTableDto, MenuDto, MenuItemDto, ParkSessionDto } from "@l2/contracts";
-import { money, multiply, sum, type Money } from "@l2/domain-money";
+import type { DiningTableDto, ParkSessionDto } from "@l2/contracts";
+import { multiply, sum, type Money } from "@l2/domain-money";
+import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import type { EstadoLocal, Mesa, Pedido } from "../operacion/proyeccion.ts";
 
 export type EstadoVisible = "LIBRE" | Mesa["estado"];
@@ -127,18 +128,15 @@ export function ninosSinMesa(estado: EstadoLocal): GrupoFamilia[] {
 
 /* ── el borrador del pedido ── */
 
+/** Una línea del borrador: un plato de la carta (`itemId` es su producto), cuántos y su nota. */
 export type LineaBorrador = Readonly<{ itemId: string; cantidad: number; nota: string }>;
 
-export function precioDe(item: MenuItemDto): Money {
-  return money(BigInt(item.price.minor), item.price.currency);
-}
-
-/** Total del borrador. Los platos que ya no están en la carta no suman: no se pueden enviar. */
-export function totalBorrador(lineas: readonly LineaBorrador[], carta: MenuDto): Money {
+/** Total del borrador con el precio de hoy. Los platos que ya no están en la carta no suman: no se pueden enviar. */
+export function totalBorrador(lineas: readonly LineaBorrador[], carta: readonly ProductoALaVenta[]): Money {
   return sum(
     lineas.flatMap((l) => {
       const item = carta.find((i) => i.id === l.itemId);
-      return item ? [multiply(precioDe(item), BigInt(l.cantidad))] : [];
+      return item ? [multiply(item.precio, BigInt(l.cantidad))] : [];
     }),
     "USD",
   );

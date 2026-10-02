@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { History, Info, ListOrdered, Pencil, Plus, Power, Printer, Trash2, TriangleAlert, Wifi, WifiOff } from "lucide-react";
 import type { HistorialDeImpresionDto, ImpresoraDto, ImpresorasDelLocalDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { Badge, Button, Container, Dialog, EmptyState, PageHeader, Tabs, avisar, cn } from "@l2/ui";
+import { Badge, Button, Cifra, Confirmacion, Container, EmptyState, PageHeader, Resumen, Tabs, avisar } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
@@ -230,10 +230,10 @@ export function ImpresorasScreen({
       />
 
       {/* ── lo que hay que mirar; cada cifra lleva a su sitio ── */}
-      <section aria-label="Resumen de la impresión" className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-4">
+      <Resumen etiqueta="Resumen de la impresión">
         <Cifra
           etiqueta="Impresoras"
-          Icono={Printer}
+          icono={<Printer aria-hidden="true" />}
           tono={deRecibos ? "idle" : "warn"}
           valor={local.impresoras.length === 0 ? "Ninguna" : `${activas.length} ${activas.length === 1 ? "encendida" : "encendidas"}`}
           pie={`De ${local.impresoras.length} · ${deRecibos ? `Recibos: ${deRecibos.nombre}${deComandas ? ` · Comandas: ${deComandas.nombre}` : ""}` : "ninguna para los recibos"}`}
@@ -242,7 +242,7 @@ export function ImpresorasScreen({
         />
         <Cifra
           etiqueta="Agente"
-          Icono={conectados.length > 0 ? Wifi : WifiOff}
+          icono={conectados.length > 0 ? <Wifi aria-hidden="true" /> : <WifiOff aria-hidden="true" />}
           tono={conectados.length > 0 ? "ok" : "warn"}
           valor={conectados.length > 0 ? "Conectado" : vinculados.length > 0 ? "Sin conexión" : "Sin vincular"}
           pie={conectados.length > 0 ? conectados.map((a) => a.nombre).join(" · ") : vinculados.length > 0 ? "Lo enviado espera a que vuelva" : "Nada sale en papel"}
@@ -251,7 +251,7 @@ export function ImpresorasScreen({
         />
         <Cifra
           etiqueta="No salieron"
-          Icono={TriangleAlert}
+          icono={<TriangleAlert aria-hidden="true" />}
           tono={pendientes.fallidos > 0 ? "crit" : "idle"}
           valor={String(pendientes.fallidos)}
           pie={pendientes.fallidos > 0 ? "Reintentar o descartar" : "Todo salió"}
@@ -260,14 +260,14 @@ export function ImpresorasScreen({
         />
         <Cifra
           etiqueta="En cola"
-          Icono={ListOrdered}
+          icono={<ListOrdered aria-hidden="true" />}
           tono="idle"
           valor={String(pendientes.enCola)}
           pie={pendientes.enCola > 0 ? "Saliendo o esperando al agente" : "Nada esperando"}
           activo={vista === "cola" && historial.consulta.filtro === "EN_COLA"}
           onClick={() => verCola({ filtro: "EN_COLA" })}
         />
-      </section>
+      </Resumen>
 
       <Tabs
         etiqueta="Impresión"
@@ -299,70 +299,20 @@ export function ImpresorasScreen({
 
       <ImpresoraForm abierta={hojaAbierta} impresora={editando} onCerrar={() => setHojaAbierta(false)} mandar={mandar} enviando={enviando} />
 
-      <Dialog
+      <Confirmacion
         abierto={retirar !== null}
         onCerrar={() => setRetirar(null)}
         titulo={`¿Retirar «${retirar?.nombre ?? ""}»?`}
-        pie={
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" surface="admin" onClick={() => setRetirar(null)}>
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              surface="admin"
-              disabled={enviando}
-              onClick={() => {
-                const i = retirar;
-                if (i) void mandar({ kind: "RETIRAR", impresoraId: i.id }, `Impresora retirada: ${i.nombre}`).then((r) => r.hecho && setRetirar(null));
-              }}
-            >
-              Sí, retirar
-            </Button>
-          </div>
-        }
+        confirmar="Sí, retirar"
+        peligro
+        ocupado={enviando}
+        onConfirmar={() => {
+          const i = retirar;
+          if (i) void mandar({ kind: "RETIRAR", impresoraId: i.id }, `Impresora retirada: ${i.nombre}`).then((r) => r.hecho && setRetirar(null));
+        }}
       >
-        <p className="text-[13px] text-ink-2">
-          Deja de imprimir y lo que tenga en cola no saldrá. No se borra: lo que imprimió sigue en el historial, diciendo dónde salió.
-        </p>
-      </Dialog>
+        <p>Deja de imprimir y lo que tenga en cola no saldrá. No se borra: lo que imprimió sigue en el historial, diciendo dónde salió.</p>
+      </Confirmacion>
     </Container>
-  );
-}
-
-/** Una cifra del resumen: etiqueta, valor y una línea de contexto. Color + icono + texto (§8.2). */
-function Cifra({
-  etiqueta,
-  Icono,
-  tono,
-  valor,
-  pie,
-  activo,
-  onClick,
-}: {
-  etiqueta: string;
-  Icono: typeof Printer;
-  tono: "ok" | "crit" | "warn" | "idle";
-  valor: string;
-  pie: string;
-  activo: boolean;
-  onClick: () => void;
-}) {
-  const color = { ok: "text-state-ok", crit: "text-state-crit", warn: "text-state-warn", idle: "text-ink" }[tono];
-  return (
-    <button
-      type="button"
-      aria-pressed={activo}
-      onClick={onClick}
-      className={cn("flex min-w-0 cursor-pointer flex-col items-start gap-0.5 bg-surface px-4 py-2.5 text-left transition-colors hover:bg-surface-2", activo && "ring-2 ring-brand ring-inset")}
-    >
-      <span className={cn("flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase", tono === "idle" ? "text-ink-3" : color)}>
-        <Icono size={13} aria-hidden="true" />
-        {etiqueta}
-      </span>
-      <span className={cn("tnum font-display text-[19px] leading-tight font-bold", color)}>{valor}</span>
-      <span className="w-full truncate text-[12px] text-ink-3">{pie}</span>
-    </button>
   );
 }
