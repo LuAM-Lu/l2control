@@ -166,6 +166,8 @@ export type Encargo = Readonly<{
   copia?: boolean;
   saleId?: string;
   cutId?: string;
+  /** El pedido del mesero que imprime una COMANDA (B6-2): toda comanda lleva el suyo. */
+  orderId?: string;
   documento: Documento;
 }> &
   (Readonly<{ para: "recibos" | "comandas" }> | Readonly<{ impresoraId: string }>);
@@ -196,6 +198,7 @@ export async function encolarEn(tx: Transaccion, ctx: Contexto, e: Encargo, ahor
       copy: e.copia ?? false,
       saleId: e.saleId ?? null,
       cutId: e.cutId ?? null,
+      orderId: e.orderId ?? null,
       content: e.documento as object,
       payload: Buffer.from(escpos(e.documento, impresora.width as Ancho)),
       status: "PENDIENTE",

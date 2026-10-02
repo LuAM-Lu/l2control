@@ -131,7 +131,7 @@ export const MODULOS: readonly Modulo[] = [
     icon: LayoutGrid,
     accion: "pedido.tomar",
     resumen:
-      "Mesas, comandas y cocina. Es lo que permite que la cuenta del parque y la del restaurante se paguen juntas.",
+      "Mesas y pedidos; la cocina trabaja con la comanda impresa (ADR-022). Es lo que permite que la cuenta del parque y la del restaurante se paguen juntas.",
     secciones: [
       {
         id: "mesas",
@@ -139,18 +139,7 @@ export const MODULOS: readonly Modulo[] = [
         href: "/mesas",
         abre: "estacion",
         proposito:
-          "El plano de sala: qué mesa está ocupada, desde cuándo y qué pidió. Se vincula a las pulseras de los niños y el pedido se confirma antes de ir a cocina.",
-      },
-      {
-        id: "comandas",
-        nombre: "Comandas del día",
-        href: "/cocina",
-        abre: "estacion",
-        // La cocina no toma pedidos, pero las comandas son su trabajo.
-        accion: "kds.cambiarEstado",
-        proposito:
-          "Lo que se ha pedido, en qué estado va y cuánto lleva esperando. La cocina lo ve en su propia pantalla.",
-        tarea: "F6-05",
+          "El plano de sala: qué mesa está ocupada, desde cuándo y qué pidió, y si su comanda salió en papel. Se vincula a las pulseras de los niños y el pedido se confirma antes de ir a cocina.",
       },
     ],
   },

@@ -15,6 +15,6 @@ test("una pantalla manda eventos del restaurante, no lo que ya sabe el servidor"
   assert.equal(EventoDelNavegadorSchema.safeParse({ id, at, type: "mesa.pide_cuenta", tableId: "m1" }).success, true);
   // La sala es del servidor desde B4-2: un navegador no cierra una estancia por el bus.
   assert.equal(EventoDelNavegadorSchema.safeParse({ id, at, type: "estancia.cerrada", sessionId: id }).success, false);
-  // Ni avisa de una impresora (B5-2 la vigila el worker).
-  assert.equal(EventoDelNavegadorSchema.safeParse({ id, at, type: "impresora.fallo", printer: "Caja", detail: "x" }).success, false);
+  // Ni declara un pedido: es del servidor desde B6-2.
+  assert.equal(EventoDelNavegadorSchema.safeParse({ id, at, type: "pedido.listo", orderId: id }).success, false);
 });

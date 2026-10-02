@@ -15,8 +15,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
-import { aprobarEsteEquipo, entrar, renovarSolicitud, solicitarRegistro } from "./acceso.acciones";
-import { puestoDe } from "./visibilidad.ts";
+import { aprobarEsteEquipo, entrar, renovarSolicitud, salir, solicitarRegistro } from "./acceso.acciones";
+import { puestoDe, sinPantalla } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { RotuloVersion } from "../shell/RotuloVersion.tsx";
 import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
@@ -163,6 +163,19 @@ export function AccesoScreen({
     // estado que se persiste (§7.6). Lo comprueba el servidor con Argon2id.
     const r = await (temporal !== null ? entrar(operador.id, temporal, pin) : entrar(operador.id, pin)).catch(() => null);
     setEnviando(false);
+
+    if (r?.ok && sinPantalla(r.valor.actor)) {
+      // La cocina trabaja con la comanda impresa (ADR-022): su PIN es correcto, pero no tiene pantalla.
+      // Se dice y se cierra la sesión, en vez de dejarla abierta en el acceso.
+      await salir().catch(() => undefined);
+      setPin("");
+      setRechazo({
+        mensaje: "Tu puesto no usa el sistema: la cocina trabaja con la comanda impresa, que sale en la impresora de comandas.",
+        hasta: null,
+        intentosRestantes: null,
+      });
+      return;
+    }
 
     if (r?.ok) {
       // Entrar es IR al puesto de trabajo. El sello verde ocupa el lugar de una pantalla de

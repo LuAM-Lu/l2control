@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, CircleCheck, PackageX, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import type { ResumenDelDiaDto } from "@l2/contracts";
-import type { UmbralEspera } from "@l2/domain-orders";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
@@ -58,7 +57,6 @@ export function InicioScreen({
   fecha,
   diaSemana,
   turnos,
-  umbral,
   enServicio,
   inventario = null,
 }: {
@@ -72,7 +70,6 @@ export function InicioScreen({
   /** Los turnos abiertos de la sucursal, del servidor (B3-1). Vacío = ninguno. */
   turnos: readonly { abiertoEn: string; abiertoPor: string; punto: string }[];
   /** Cuándo una comanda tarda y cuándo está atrasada. */
-  umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
   /** Lo que hay que reponer (B9-5); `null` si nada a la venta lleva existencia. */
@@ -172,7 +169,6 @@ export function InicioScreen({
 
       {/* ──────────────────────────── 1 · el local ahora ─────────────────── */}
       <EnVivo
-        umbral={umbral}
         enServicio={enServicio}
       />
 

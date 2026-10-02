@@ -29,6 +29,7 @@ export function TomaPedido({
   lineas,
   onCambiar,
   onEnviar,
+  enviando = false,
   onVolver,
   bloqueo,
 }: {
@@ -37,6 +38,8 @@ export function TomaPedido({
   lineas: readonly LineaBorrador[];
   onCambiar: (lineas: LineaBorrador[]) => void;
   onEnviar: () => void;
+  /** Mientras el servidor responde: no se envía dos veces. */
+  enviando?: boolean;
   onVolver: () => void;
   /** Por qué no se puede enviar ahora, si hay algo que lo impide. */
   bloqueo: string | null;
@@ -230,12 +233,12 @@ export function TomaPedido({
           )}
           <Button
             variant="primary"
-            disabled={lineas.length === 0 || impedimento !== null}
+            disabled={lineas.length === 0 || impedimento !== null || enviando}
             onClick={() => setConfirmar(true)}
             className="w-full"
           >
             <Send size={17} aria-hidden="true" />
-            Revisar y enviar a cocina
+            {enviando ? "Enviando…" : "Revisar y enviar a cocina"}
           </Button>
           <div className="grid grid-cols-2 gap-2">
             <Button variant="neutral" onClick={onVolver}>
@@ -304,7 +307,7 @@ export function TomaPedido({
             </Button>
             <Button
               variant="primary"
-              disabled={impedimento !== null}
+              disabled={impedimento !== null || enviando}
               onClick={() => {
                 setConfirmar(false);
                 onEnviar();

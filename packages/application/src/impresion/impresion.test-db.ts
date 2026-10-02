@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { AgenteAbierto, Contexto } from "../index.ts";
 import { encolarEn } from "./impresion.ts";
-import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, impresoraDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, impresoraDePrueba, pedidoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-10-01T14:00:00.000Z");
@@ -161,8 +161,9 @@ describe("el agente y la cola (ADR-026)", () => {
 
     // Una comanda para una impresora que se apagó después de encolarla falla; una prueba sale igual
     // (se prueba antes de encenderla).
+    const orderId = await pedidoDePrueba(local);
     const comanda = await local.base.conTenant(local.sistema.tenantId, (tx) =>
-      encolarEn(tx, local.sistema, { tipo: "COMANDA", titulo: "Comanda de prueba", documento: { renglones: [{ tipo: "TEXTO", texto: "2 × Tequeños" }] }, para: "comandas" }, AHORA),
+      encolarEn(tx, local.sistema, { tipo: "COMANDA", titulo: "Comanda de prueba", orderId, documento: { renglones: [{ tipo: "TEXTO", texto: "2 × Tequeños" }] }, para: "comandas" }, AHORA),
     );
     assert.ok(!("ok" in comanda));
     valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: impresora, activa: false }, AHORA));
@@ -186,8 +187,12 @@ describe("el agente y la cola (ADR-026)", () => {
 describe("apagar o retirar una impresora con trabajos en cola", () => {
   test("lo pendiente falla con el motivo (al apagarla, salvo las pruebas); nada se queda esperando", async () => {
     const otra = valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "CREAR", datos: datos({ nombre: "Barra", ip: "192.168.1.80", recibos: false }) }, AHORA)).local.impresoras.find((x) => x.nombre === "Barra")!.id;
-    const encolar = (tipo: "COMANDA" | "PRUEBA", titulo: string) =>
-      local.base.conTenant(local.sistema.tenantId, (tx) => encolarEn(tx, local.sistema, { tipo, titulo, documento: { renglones: [{ tipo: "TEXTO", texto: titulo }] }, impresoraId: otra }, AHORA));
+    const encolar = async (tipo: "COMANDA" | "PRUEBA", titulo: string) => {
+      const orderId = tipo === "COMANDA" ? await pedidoDePrueba(local) : undefined;
+      return local.base.conTenant(local.sistema.tenantId, (tx) =>
+        encolarEn(tx, local.sistema, { tipo, titulo, ...(orderId ? { orderId } : {}), documento: { renglones: [{ tipo: "TEXTO", texto: titulo }] }, impresoraId: otra }, AHORA),
+      );
+    };
     // Barra hace las comandas un momento: la Caja las suelta.
     valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: impresora, activa: false }, AHORA));
     valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTIVAR", impresoraId: otra, activa: true }, AHORA));

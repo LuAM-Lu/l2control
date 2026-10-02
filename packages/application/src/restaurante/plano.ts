@@ -73,7 +73,7 @@ export async function mesasOcupadasEn(tx: Transaccion, branchId: string): Promis
  * Las mesas de la sucursal se abren y se retiran de una en una: el candado ordena dos altas de cuenta
  * en la misma mesa (I-05) y un plano que se publica mientras una mesa se abre.
  */
-async function candadoDeMesas(tx: Transaccion, branchId: string): Promise<void> {
+export async function candadoDeMesas(tx: Transaccion, branchId: string): Promise<void> {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`mesas:${branchId}`}, 0))::text AS candado`;
 }
 

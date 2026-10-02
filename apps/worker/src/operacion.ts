@@ -1,6 +1,6 @@
 /**
  * El bus de la operación del restaurante, por el servidor — B5-1 (antes, `BroadcastChannel` de un
- * solo navegador). Provisional hasta que las mesas y los pedidos sean de la base (Etapa 6).
+ * solo navegador). Provisional hasta que las mesas sean de la base (B6-3): los pedidos ya lo son (B6-2).
  *
  * Un evento que manda una pantalla es una entrada no confiable (ADR-017): se revalida contra el
  * contrato, solo se aceptan los tipos del restaurante (lo demás ya lo sabe el servidor), el instante

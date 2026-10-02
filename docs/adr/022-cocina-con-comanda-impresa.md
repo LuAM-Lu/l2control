@@ -4,8 +4,9 @@
   (pantalla de cocina más comanda impresa): se retira la pantalla. ADR-015 (impresión en cola con
   confirmación) sigue entero y pasa a ser la única vía a la cocina.
 - **Fecha:** 2026-09-28
-- **Situación en el código:** la estación de cocina (`/cocina`, KDS) y los estados «en fuego» y «listo» de
-  `@l2/domain-orders` existen en la interfaz sobre el bus del navegador; se retiran con B6-2.
+- **Situación en el código:** aplicada con B6-2 (v0.41.0, 2026-10-02): el pedido (`kitchen_order`) y su comanda
+  en la cola se escriben en una transacción (`@l2/application`, `restaurante/pedidos.ts`); la estación de cocina, la
+  máquina de estados de la comanda y los eventos `pedido.*` del bus se retiraron.
 
 > Para cambiar esta decisión se escribe un ADR nuevo que la supersede.
 > No se edita esta en silencio.

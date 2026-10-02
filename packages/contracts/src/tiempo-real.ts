@@ -46,6 +46,8 @@ export const TemaSchema = z.enum([
   "impresion",
   /** El plano del local: sus mesas y su estructura (B6-1). */
   "plano",
+  /** Los pedidos del mesero y su comanda (B6-2). */
+  "pedidos",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 
@@ -69,11 +71,11 @@ export const TicketTiempoRealSchema = z.object({
 export type TicketTiempoRealDto = z.infer<typeof TicketTiempoRealSchema>;
 
 /**
- * Los eventos del bus que un navegador puede mandar: solo los del restaurante, que todavía no
- * tiene servidor (Etapa 6). Lo que el servidor ya sabe (la sala, quién está en sesión, la
- * impresora) no lo declara un navegador.
+ * Los eventos del bus que un navegador puede mandar: solo los de las mesas, que todavía no tienen
+ * servidor (hasta B6-3). Lo que el servidor ya sabe (la sala, los pedidos, quién está en sesión) no
+ * lo declara un navegador.
  */
-export const TIPOS_DEL_NAVEGADOR = /^(mesa|pedido)\./;
+export const TIPOS_DEL_NAVEGADOR = /^mesa\./;
 
 /** Un evento del bus tal como lo manda un navegador: sin el instante, que lo pone el worker. */
 export const EventoDelNavegadorSchema = OperationEventSchema.refine((e) => TIPOS_DEL_NAVEGADOR.test(e.type), {

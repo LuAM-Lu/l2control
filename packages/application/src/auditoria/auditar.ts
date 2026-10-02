@@ -47,6 +47,8 @@ export type AccionAuditada =
   | "impresion.descartar"
   | "producto.carta"
   | "plano.publicar"
+  | "pedido.enviar"
+  | "pedido.reimprimir"
   | "impresora.crear"
   | "impresora.editar"
   | "impresora.activar"

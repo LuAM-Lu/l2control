@@ -371,10 +371,8 @@ export {
 
 export {
   OperationEventSchema,
-  OrderItemSchema,
   type OperationEventDto,
   type OperationEventType,
-  type OrderItemDto,
 } from "./eventos.ts";
 
 export {
@@ -393,6 +391,19 @@ export {
   FloorPlanSchema,
   PlanoPublicadoSchema,
   PublicarPlanoCommandSchema,
+  EnviarPedidoCommandSchema,
+  EstadoDeComandaSchema,
+  LineaPedidaSchema,
+  PedidoEnviadoSchema,
+  PedidoSchema,
+  PedidosDelLocalSchema,
+  ReimprimirComandaCommandSchema,
+  type EnviarPedidoCommand,
+  type EstadoDeComandaDto,
+  type LineaPedidaDto,
+  type PedidoDto,
+  type PedidoEnviadoDto,
+  type PedidosDelLocalDto,
   type DiningTableDto,
   type FloorPlanDto,
   type PlanoPublicadoDto,

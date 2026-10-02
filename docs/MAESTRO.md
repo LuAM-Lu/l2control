@@ -32,7 +32,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.40.0 · 40 de 57 pasos.** **El restaurante empieza en el servidor (B6-1):** el plano del local se
+**Versión 0.41.0 · 41 de 57 pasos.** **La comanda sale en papel (B6-2, ADR-022):** el pedido del mesero entra en la
+cuenta de la mesa y su comanda en la impresora de comandas en una sola transacción; sin impresora de comandas no se
+envía. Cada pedido dice si su comanda se imprime, salió, no salió o se descartó; lo que no salió se avisa en la
+tablet, en la caja y en Inicio, y se vuelve a imprimir (reintento si la cocina no la tenía, copia marcada si ya
+salió). Se retiraron la pantalla de cocina y los estados «en fuego/listo». **El restaurante empieza en el servidor (B6-1):** el plano del local se
 publica en Ajustes → Plano del local como versión (con quién y cuándo) y llega en vivo al salón; una mesa no se borra,
 se retira, y con su cuenta abierta no se retira. La carta del restaurante **es el catálogo** con la marca «en la
 carta», y Ajustes → Carta y precios la gestiona con el patrón de M-17 (resumen, filtros, páginas, hoja lateral). Una
@@ -97,7 +101,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 383 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 15 de pedidos, 15 de impresión y 107 de identidad). **Subido a GitHub el 2026-09-27** (`main` y las etiquetas hasta
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 398 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad).
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -301,8 +305,16 @@ Mendoza («Prueba B61 Salón») pidió dos en la mesa 5: cuenta #0039, cobrada (
 impresora «Caja» del cliente apunta ahora a 192.168.1.194:9100, que esta máquina no alcanza. «Prueba B61 Tequeños»
 quedó apartado y la mesa 5, libre en el salón; equipos «Prueba B61 …» revocados.
 
-**Siguiente paso:** **B6-2** (la comanda impresa: el pedido confirmado crea su trabajo en la impresora de comandas) y
-después **T-7** (M-17, el resto de Ajustes con las piezas que B6-1 subió a `@l2/ui`).
+**La comanda en la base local (2026-10-02, al comprobar B6-2).** Migración `20261023000000_pedidos` aplicada (tabla
+`kitchen_order`, la comanda con su pedido; no rellena nada). Desde «Prueba B62 Salón», Jesús Mendoza pidió dos «Prueba
+B62 Arepa» con nota en la mesa 6: **comanda #0001**. Salió hacia la impresora «Caja» del cliente (192.168.1.194, que
+esta máquina no alcanza), así que **no salió**: la tablet lo avisó, se volvió a imprimir y volvió a fallar; sus
+trabajos se descartaron uno a uno. La cuenta #0040 ($ 6,00) se cobró en un turno de «Prueba B62 Caja» sellado con
+relevo (su Z, descartado); la arepa quedó apartada, la mesa 6 libre y los equipos «Prueba B62 …» revocados. Diego Salas
+(cocina) entró y el acceso le dijo que su puesto no usa el sistema.
+
+**Siguiente paso:** **T-7** (M-17, el resto de Ajustes con las piezas que B6-1 subió a `@l2/ui`) y después **B6-3**
+(cuenta de mesa: estados de la mesa en el servidor, vincular pulseras, división, anular lo pedido).
 
 ---
 
@@ -394,7 +406,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
-5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → **B6-2** (comanda impresa) → **T-7** (el resto de Ajustes en ese
+5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → **T-7** (el resto de Ajustes en ese
    patrón) → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
@@ -1491,11 +1503,29 @@ antes del cobro en servidor (orden de ejecución).
   `src/demo` entera (y la regla `demo-solo-desde-las-rutas`), `CartaProvider`, `EditorCarta` y `MenuSchema`.
   Navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página ni errores de consola (detalle en §1).
   Lo que se mueve del parque a una mesa (vincular pulseras) sigue llegando de la pantalla: B6-3.*
-- [ ] **B6-2 · Pedidos del mesero y comanda impresa** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), F6-06,
+- [x] **B6-2 · Pedidos del mesero y comanda impresa** ([ADR-022](adr/022-cocina-con-comanda-impresa.md), F6-06,
   F6-07 y F6-09, sin F6-08): el pedido confirmado en la tablet crea su trabajo de impresión en la
   impresora de comandas; la comanda queda «enviada» e «impresa», y si falla, la tablet del mesero y la caja
   lo avisan y se reimprime. Se retiran la estación de cocina (KDS) y los estados «en fuego» y «listo».
   → Ningún pedido confirmado se queda sin comanda sin que alguien lo vea.
+  *Hecho el 2026-10-02 (v0.41.0). **Base:** `kitchen_order` solo-agregar (número de comanda por sucursal, mesa, platos
+  con nota, autor; migración `20261023000000_pedidos`), `print_job.order_id` (toda COMANDA lleva su pedido, CHECK
+  `NOT VALID` por las comandas sueltas de antes en bases de desarrollo; el pedido del trabajo tampoco cambia) y la
+  causa `PEDIDO` en la versión de la cuenta. **Dominio** (`@l2/domain-orders/pedido.ts`): `lineasDelPedido` (catálogo
+  de ahora, una línea por unidad; si el precio cambió desde que la tablet lo enseñó, `PRECIO_DISTINTO`) y
+  `estadoDeComanda` (impresa si alguno salió; si no, el último: en cola, no salió o descartada); fuera la máquina
+  «en fuego/listo/entregado» y `nivelEspera`. **Aplicación** (`restaurante/pedidos.ts`): `enviar` comprueba permiso
+  (`pedido.enviarCocina`), impresora de comandas, mesa (candado de las mesas, I-05), catálogo y existencia antes de
+  escribir, y en una transacción abre o amplía la cuenta, asienta la existencia, crea el pedido y encola la comanda;
+  el mismo `pedidoId` devuelve lo ya enviado. `reimprimir`: si no salió, reintenta el mismo trabajo (o lo descarta y
+  sale en la impresora de comandas de ahora); descartada, sale como original; impresa, copia marcada «REIMPRESIÓN»;
+  mientras se imprime, CONFLICTO. `leer`: los de hoy con su comanda. Plantilla `documentoDeComanda`. Pruebas:
+  `pedidos.test-db.ts` (15), dominio (7). **Web:** `PedidosProvider` desde el layout (temas `pedidos` e `impresion`),
+  la tablet envía al servidor y adopta la cuenta, cada pedido con su estado y «Volver a imprimir», aviso rojo y
+  «Atender» con las que no salieron; Inicio con la zona «Comandas»; la caja ya avisaba de los trabajos que no salen.
+  Fuera `/cocina`, `features/cocina`, los eventos `pedido.*` e `impresora.*` del bus y su proyección; el rol COCINA no
+  tiene puesto y el acceso se lo dice. Navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página (§1). Anular
+  un pedido enviado y la cuenta de mesa en el servidor: B6-3.*
 - [ ] **B6-3 · Cuenta de mesa**, vinculación de pulseras y división (F6-05, F6-12, F6-14), con los
   productos del mesero descontando existencias (ADR-023).
 - [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
@@ -1601,14 +1631,12 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La instalación del agente como tarea de Windows (con permiso de administrador) no se ha ejecutado de punta a punta en una laptop | Trabajo de campo (B7-3) |
 | En producción el proxy debe llevar `/impresion/vincular` y el espacio `/impresion` del canal al worker | B7-1 |
 | «Impreso» es que la impresora aceptó los bytes y cerró bien (ADR-026): no ve el papel. Una impresora que no contesta al sensor del papel imprime sin esa comprobación | Aceptado; se mide con la impresora real |
-| Las comandas tienen su impresora y su tipo de trabajo, pero no se encolan: los pedidos del mesero siguen en el bus del navegador | B6-2 |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | Lo que se mueve del parque a una mesa (vincular pulseras) llega de la pantalla con su importe; lo pedido de la carta ya lo comprueba el servidor (B6-1) | B6-3 |
-| La estación de cocina (KDS) y los estados «en fuego» y «listo» siguen en la app, sobre el bus del navegador | B6-2 (ADR-022) |
 | «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
@@ -1618,11 +1646,10 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Los pendientes del cierre enseñan lo que se debe sin restar un descuento «por categorías» (la cifra es para enseñar; el cobro sí lo resta) | Aceptado |
 | Devolver en efectivo lo que entró por otro medio (Pago Móvil, punto) saca de la gaveta un efectivo que el libro no apunta: el arqueo lo verá como faltante | Un asiento de salida de caja en el libro, cuando el cliente lo necesite |
 | El resumen del día no separa lo vendido del parque y del restaurante (JORNADA §5) | Cuando el cliente lo pida |
-| Los pendientes del cierre no traen mesas ni comandas del restaurante (una mesa abierta sale como cuenta) | Etapa 6 |
+| Los pendientes del cierre no traen mesas del restaurante (una mesa abierta sale como cuenta); las comandas que no salieron se ven en la barra de la caja e Inicio, no en el cierre | B6-3 |
 | La venta guarda el documento del cliente enmascarado: una factura fiscal necesitará el completo | F3 (fuera por M-3) |
 | `outbox_event` crece con cada asiento; purgar lo publicado de más de unos días (con el migrador) no está escrito | Runbook (B8-2) |
 | En `pnpm dev`, turbo para todo si una tarea se cae: sin Valkey el worker no arranca y la web tampoco queda | Aceptado (en producción son dos procesos) |
-| El bus del restaurante declara nombres de quien autoriza o ve una anulación (`pedido.*`), como antes | B6-2 |
 | Anular un cobro deja sus líneas por cobrar: lo no entregado vuelve al estante al quitar su línea, no al anular (ADR-023, situación) | Aceptado |
 | Las ventas de antes de B9-3 valen cero al costo, y la venta cobrada no guarda su margen: el margen por producto vendido (F9-04) sale de los movimientos | F9-04 (después del piloto) |
 | El horario de la sucursal se declara pero todavía no decide nada (p. ej., avisar de un turno abierto fuera de hora) | Cuando el cliente lo pida |
@@ -1830,6 +1857,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-02** · B6-1 hecho (v0.40.0): plano versionado en el servidor, carta = catálogo con Carta y precios nueva,
   una cuenta abierta por mesa (I-05) y lo pedido con su producto; piezas de M-17 en `@l2/ui`; `src/demo` borrada.
   En la base local, la versión 1 del plano es el boceto del cliente. Sigue B6-2.
+- **2026-10-02** · B6-2 hecho (v0.41.0): el pedido del mesero y su comanda impresa en una transacción, con aviso y
+  «Volver a imprimir» si no sale; fuera la pantalla de cocina y los estados «en fuego/listo». Sigue T-7.
 
 ---
 

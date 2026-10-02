@@ -6,7 +6,8 @@
  * la prueba desde la impresora. Dicen lo mismo que la pantalla (`recibo.ts` de la caja): los importes a
  * la venezolana, la tasa con dos decimales y la hora en el formato y la zona del local.
  *
- * La comanda llega con los pedidos del mesero en el servidor (B6-2): su impresora ya se elige aquí.
+ * La comanda sale del PEDIDO del mesero (B6-2, ADR-022): la mesa en grande, el número que se canta y
+ * lo pedido con su nota, sin precios (en la cocina no hacen falta).
  *
  * ⚠ §7.6: las referencias de pago y el documento del cliente llegan enmascarados desde la venta.
  */
@@ -194,3 +195,30 @@ export function documentoDePrueba(
     ],
   };
 }
+
+/**
+ * La comanda de un pedido (B6-2, ADR-022): la mesa en grande, el número de la comanda, cuándo y quién, y
+ * cada plato con su cantidad y su nota. `copia`: una reimpresión lo dice arriba, para que la cocina no
+ * prepare dos veces lo mismo.
+ */
+export function documentoDeComanda(
+  p: Readonly<{ numero: number; mesa: string; enviadoEn: number; enviadoPor: string; lineas: readonly Readonly<{ nombre: string; cantidad: number; nota: string | null }>[] }>,
+  local: AjustesSucursalDto,
+  copia: boolean,
+): Documento {
+  const renglones: Renglon[] = [
+    ...(copia ? [{ tipo: "TEXTO", texto: "REIMPRESIÓN · NO PREPARAR DOS VECES", alinear: "CENTRO", negrita: true } as const] : []),
+    { tipo: "TEXTO", texto: `MESA ${p.mesa}`, alinear: "CENTRO", negrita: true, grande: true },
+    { tipo: "TEXTO", texto: `Comanda ${orden(p.numero)}`, alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: `${fechaYHora(p.enviadoEn, local.formatoHora, local.zonaHoraria)} · ${p.enviadoPor}`, alinear: "CENTRO" },
+    { tipo: "LINEA", caracter: "=" },
+  ];
+  for (const l of p.lineas) {
+    renglones.push({ tipo: "TEXTO", texto: `${l.cantidad} x ${l.nombre}`, negrita: true, grande: true });
+    if (l.nota) renglones.push({ tipo: "TEXTO", texto: `   > ${l.nota}` });
+  }
+  const unidades = p.lineas.reduce((n, l) => n + l.cantidad, 0);
+  renglones.push({ tipo: "LINEA", caracter: "=" }, { tipo: "TEXTO", texto: `${unidades} ${unidades === 1 ? "plato" : "platos"}`, alinear: "CENTRO" });
+  return { renglones };
+}
+

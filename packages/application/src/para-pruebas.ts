@@ -214,3 +214,31 @@ export async function planoDePrueba(local: LocalDePrueba, mesas = 4): Promise<vo
     });
   });
 }
+
+/**
+ * Un pedido del mesero registrado (B6-2), sin pasar por su caso de uso: basta para que una COMANDA de
+ * las pruebas de la cola lo nombre (toda comanda lleva su pedido). Las pruebas de los pedidos en sí los
+ * envían con `app.pedidos.enviar`.
+ */
+export async function pedidoDePrueba(local: LocalDePrueba): Promise<string> {
+  const id = randomUUID();
+  const accountId = await crearCuenta(local, "MESA");
+  const { tenantId, branchId } = local.sistema;
+  await local.base.conTenant(tenantId, (tx) =>
+    tx.kitchenOrder.create({
+      data: {
+        id,
+        tenantId,
+        branchId,
+        accountId,
+        number: 10_000 + ++ordenDePrueba,
+        tableId: "mesa-1",
+        tableLabel: "1",
+        items: [{ productId: randomUUID(), nombre: "Tequeños", cantidad: 2, nota: null }],
+        createdAt: new Date(),
+        createdByName: "Prueba de la cola",
+      },
+    }),
+  );
+  return id;
+}

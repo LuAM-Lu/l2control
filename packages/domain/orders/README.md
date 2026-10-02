@@ -1,29 +1,22 @@
 # @l2/domain-orders
 
-Ciclo de vida de la comanda. Implementa §6.5 del plan y F6-08.
-
-```
-ENVIADO → EN_PREPARACION → LISTO → ENTREGADO
-ANULADO desde cualquiera de ellos, con motivo y autorización
-```
+El restaurante en el dominio: el plano que se publica y el pedido del mesero con su comanda impresa.
 
 ## Qué resuelve
-
-- **`transicionar(estado, transición)`** dice si un cambio es posible y a qué estado lleva, o por qué
-  no. Solo se avanza hacia delante: un evento repetido o retrasado nunca hace retroceder una comanda.
-- **`requiereReversion`**: anular después de `LISTO` obliga a devolver el inventario que se descontó al
-  terminar el plato (ADR-012).
-- **`anulacionRequiereConfirmacion`**: si la cocina ya tenía la comanda en sus manos, la anulación queda
-  a la vista hasta que alguien en cocina confirma que la vio (FLUJOS C5).
-- **`nivelEspera`**: a tiempo, tarda o atrasada, con un umbral configurable (§8.5).
 
 - **El plano que se publica** (`plano.ts`, B6-1): `cambioDePlanoProblem` impide que una mesa desaparezca
   (se retira; los cobros del pasado la nombran) y que se retire una mesa con su cuenta abierta;
   `mesasRetiradas` dice cuáles se retiran en un cambio. La geometría la valida el contrato.
+- **El pedido del mesero** (`pedido.ts`, B6-2, ADR-022): `lineasDelPedido` dice qué entra en la cuenta (una
+  línea por unidad, con el nombre, el precio y el IVA del catálogo de ahora) y se niega si un plato ya no se
+  vende o si su precio cambió desde que la tablet lo enseñó; `estadoDeComanda` dice si la comanda está en
+  cola, impresa, no salió o se descartó, por sus trabajos de impresión.
 
 ## Qué NO le corresponde
 
-- **El borrador del mesero.** Vive en su tablet y la cocina no lo ve. Esta máquina empieza al enviar.
-- **Quién puede anular.** Eso es la matriz de permisos (`@l2/domain-identity`, `pedido.anularEnProduccion`).
-- **Imprimir.** La cola de impresión es infraestructura (ADR-015).
-- **El reloj.** La espera entra ya calculada en milisegundos (ADR-010).
+- **«En fuego», «listo» y «entregado».** Se retiraron con B6-2: la cocina trabaja con la comanda impresa y
+  el sistema no lo sabe (ADR-022). Si el cliente pide medir tiempos, un ADR nuevo.
+- **El borrador del mesero.** Vive en su tablet; el pedido empieza al enviarse.
+- **Quién puede pedir o reimprimir.** Eso es la matriz de permisos (`@l2/domain-identity`).
+- **Imprimir.** La cola de impresión y sus bytes son de `@l2/domain-printing` y del agente (ADR-015, ADR-026).
+- **El reloj.** El instante entra como argumento (ADR-010).

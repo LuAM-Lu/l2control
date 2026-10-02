@@ -85,7 +85,8 @@ del restaurante) salió con B6-1 y la carpeta ya no existe. **Una pantalla nueva
 en el servidor y el proveedor escribe con la acción. El modelo es el tarifario. **En vivo (B5-1, ADR-025):** toda escritura audita, y el asiento deja su evento en el
 outbox en la misma transacción; el worker cuenta a cada sucursal qué temas cambiaron y cada pantalla
 vuelve a leer lo suyo (`useAlCambiar` o `router.refresh()`). Nada de sondeos. El bus del restaurante
-(`features/operacion`) viaja por el worker hasta la Etapa 6.
+(`features/operacion`) viaja por el worker con el estado de las mesas hasta B6-3; los pedidos ya son del
+servidor (B6-2).
 
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.

@@ -1,15 +1,12 @@
 /**
  * Catálogo de eventos de la operación — F1-20, ADR-008, FLUJOS.md §4.
  *
- * Todo lo que una pantalla necesita saber de lo que pasa en otra viaja como
- * uno de estos eventos: el mesero confirma un pedido y la cocina lo ve; la
- * cocina lo marca listo y el mesero recibe el aviso. Hoy los emite el
- * simulador (F1-19); mañana, el servidor por Socket.io. Las pantallas no
- * distinguen el origen: por eso el contrato es uno solo.
+ * Lo que una pantalla necesita saber de otra y todavía no es del servidor viaja como uno de estos
+ * eventos por el worker (B5-1). Quedan las estancias (que ya escribe el servidor) y las mesas, hasta
+ * B6-3; los pedidos y su comanda son del servidor desde B6-2.
  *
  * Unión discriminada por `type`: un evento de tipo desconocido no se puede
- * expresar y el esquema lo rechaza. El catálogo crece con cada paso de
- * DEC-22; los eventos de cuentas llegan con la caja de mesa.
+ * expresar y el esquema lo rechaza.
  */
 import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.ts";
@@ -17,20 +14,6 @@ import { ParkSessionSchema } from "./park.ts";
 
 const base = { id: IdSchema, at: TimestampSchema };
 const Texto = (max: number) => z.string().trim().min(1).max(max);
-/**
- * Quién hizo el cambio (F6-08: «toda transición registra quién y cuándo»).
- * El cuándo es `at`. Opcional porque los guiones del simulador reproducen una
- * cocina sin personas; lo que emite una pantalla lo lleva siempre.
- */
-const Quien = z.string().trim().min(2).max(80).optional();
-
-export const OrderItemSchema = z.object({
-  name: Texto(60),
-  quantity: z.number().int().positive().max(50),
-  note: z.string().trim().max(80).optional(),
-});
-export type OrderItemDto = z.infer<typeof OrderItemSchema>;
-
 export const OperationEventSchema = z.discriminatedUnion("type", [
   /* ── parque ── */
   z.object({
@@ -74,41 +57,9 @@ export const OperationEventSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("mesa.por_limpiar"), tableId: IdSchema }),
   z.object({ ...base, type: z.literal("mesa.libre"), tableId: IdSchema }),
 
-  /* ── pedidos (máquina de estados de §6.5) ── */
-  z.object({
-    ...base,
-    type: z.literal("pedido.enviado"),
-    orderId: IdSchema,
-    tableId: IdSchema,
-    items: z.array(OrderItemSchema).min(1, "Un pedido sin platos no se envía"),
-  }),
-  z.object({ ...base, type: z.literal("pedido.aceptado"), orderId: IdSchema, by: Quien }),
-  z.object({ ...base, type: z.literal("pedido.listo"), orderId: IdSchema, by: Quien }),
-  z.object({ ...base, type: z.literal("pedido.entregado"), orderId: IdSchema, by: Quien }),
-  z.object({
-    ...base,
-    type: z.literal("pedido.anulado"),
-    orderId: IdSchema,
-    /** Anular lo que ya está en cocina exige motivo y autorización (§7.3). */
-    reason: z.string().trim().min(3).max(120),
-    authorizedBy: z.string().trim().min(2).max(80),
-  }),
-  /** La cocina confirma que vio la anulación de algo que ya estaba preparando (FLUJOS C5). */
-  z.object({
-    ...base,
-    type: z.literal("pedido.anulacion_vista"),
-    orderId: IdSchema,
-    by: z.string().trim().min(2).max(80),
-  }),
-
-  /* ── impresión (ADR-015) ── */
-  z.object({
-    ...base,
-    type: z.literal("impresora.fallo"),
-    printer: Texto(40),
-    detail: Texto(120),
-  }),
-  z.object({ ...base, type: z.literal("impresora.recuperada"), printer: Texto(40) }),
+  // Los pedidos y su comanda son del servidor desde B6-2 (ADR-022): «en fuego», «listo» y «entregado» ya no
+  // existen, y la impresora la vigila la cola de impresión (B5-2). Lo que queda del bus son las mesas,
+  // hasta B6-3.
   // Quién está en cada puesto (F9-08) ya no es un evento que declare una pantalla: lo dicen las
   // sesiones abiertas en el servidor (B5-1, `SesionEnCursoSchema`).
 ]);

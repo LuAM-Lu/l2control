@@ -72,8 +72,7 @@ type Ruta =
   | "/salida"
   | "/caja"
   | "/turno"
-  | "/mesas"
-  | "/cocina";
+  | "/mesas";
 
 type Puesto = {
   id: string;
@@ -104,7 +103,6 @@ const PUESTOS: Puesto[] = [
     nombre: "Restaurante",
     superficies: [
       { href: "/mesas", corto: "Mesas", largo: "Mesas y pedidos" },
-      { href: "/cocina", corto: "Cocina", largo: "Cocina (KDS)" },
     ],
   },
 ];

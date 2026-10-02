@@ -35,6 +35,7 @@ import { casosEntradas, type CasosEntradas } from "./inventario/entradas.ts";
 import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
 import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
 import { casosPlano, type CasosPlano } from "./restaurante/plano.ts";
+import { casosPedidos, type CasosPedidos } from "./restaurante/pedidos.ts";
 import { crearFirmante } from "./tiempo-real/ticket.ts";
 
 export type { Contexto } from "./contexto.ts";
@@ -60,6 +61,7 @@ export type { CasosVentas } from "./caja/ventas.ts";
 export type { CasosCortes } from "./caja/cortes.ts";
 export type { CasosFeriados } from "./dinero/feriados.ts";
 export type { CasosPlano } from "./restaurante/plano.ts";
+export type { CasosPedidos } from "./restaurante/pedidos.ts";
 export { DIAS_POR_ADELANTADO_PRECIOS, type CasosProductos } from "./inventario/productos.ts";
 export { ENTRADAS_RECIENTES, type CasosEntradas } from "./inventario/entradas.ts";
 export { AJUSTES_RECIENTES, type CasosSalidas } from "./inventario/salidas.ts";
@@ -110,6 +112,8 @@ export interface Aplicacion {
   readonly salidas: CasosSalidas;
   /** El plano del local, versionado, y una sola cuenta abierta por mesa (B6-1). */
   readonly plano: CasosPlano;
+  /** Los pedidos del mesero y su comanda impresa (B6-2, ADR-022). */
+  readonly pedidos: CasosPedidos;
   readonly tiempoReal: CasosTiempoReal;
   cerrar(): Promise<void>;
 }
@@ -156,6 +160,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     entradas: casosEntradas(base),
     salidas: casosSalidas(base),
     plano: casosPlano(base),
+    pedidos: casosPedidos(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     cerrar: () => base.cerrar(),
   };

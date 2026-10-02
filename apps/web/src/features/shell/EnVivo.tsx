@@ -5,8 +5,6 @@ import type { Route } from "next";
 import {
   ArrowRight,
   Baby,
-  BellRing,
-  ChefHat,
   ChevronRight,
   CircleCheckBig,
   OctagonAlert,
@@ -18,12 +16,12 @@ import {
   UtensilsCrossed,
   Wallet,
 } from "lucide-react";
-import type { UmbralEspera } from "@l2/domain-orders";
 import { toMajor } from "@l2/domain-money";
 import { MoneyDisplay, cn } from "@l2/ui";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
-import { panelVivo, reloj, type Alerta } from "./vivo.ts";
+import { panelVivo, type Alerta } from "./vivo.ts";
+import { usePedidos } from "../mesas/PedidosProvider.tsx";
 import { useSala } from "../park/SalaProvider.tsx";
 import { useTasas, useTasaVigente } from "../cash/TasasProvider.tsx";
 import { useTarifario } from "../park/TarifarioProvider";
@@ -32,7 +30,7 @@ import { rutaSeccion } from "./navigation.ts";
 /**
  * El local ahora mismo — F9-08, FLUJOS flujo E, paso 5 de DEC-22.
  *
- * Cinco zonas —parque, cocina, mesas, caja y personas— alimentadas por los
+ * Cinco zonas —parque, comandas, mesas, caja y personas— alimentadas por los
  * mismos eventos que mueven las estaciones. **Nada se recarga**: lo que pasa
  * en una tablet se ve aquí en el mismo segundo.
  *
@@ -58,10 +56,8 @@ import { rutaSeccion } from "./navigation.ts";
  * local.
  */
 export function EnVivo({
-  umbral,
   enServicio,
 }: {
-  umbral: UmbralEspera;
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
 }) {
@@ -73,12 +69,13 @@ export function EnVivo({
   const ahora = useAhoraLocal();
   const { tarifario } = useTarifario();
   const { sala } = useSala();
+  const { pedidos } = usePedidos();
   const v = panelVivo({
     estado: op.estado,
     cuentas,
     ahora,
     politica: tarifario.policy,
-    umbral,
+    pedidos,
     enServicio,
     tasaConfirmada: tasa !== null,
     alertasDeTasa: historial.alertas,
@@ -94,7 +91,7 @@ export function EnVivo({
     alertas.some((a) => a.tono === "crit") ? "crit" : alertas.length > 0 ? "warn" : "idle";
 
   // Lo crítico primero: dentro de la franja, el orden ES la prioridad.
-  const alertas = [v.parque, v.cocina, v.mesas, v.caja, v.personas]
+  const alertas = [v.parque, v.comandas, v.mesas, v.caja, v.personas]
     .flatMap((z) => z.alertas)
     .sort((a, b) => Number(b.tono === "crit") - Number(a.tono === "crit"));
 
@@ -155,33 +152,19 @@ export function EnVivo({
         />
 
         <Zona
-          titulo="Cocina"
-          icono={<ChefHat size={13} aria-hidden="true" />}
-          href="/cocina"
-          principal={`${v.cocina.enCola + v.cocina.enPreparacion}`}
-          unidad="comandas"
-          tono={tonoDe(v.cocina.alertas)}
+          titulo="Comandas"
+          icono={<Printer size={13} aria-hidden="true" />}
+          href="/mesas"
+          principal={`${v.comandas.hoy}`}
+          unidad="hoy"
+          tono={tonoDe(v.comandas.alertas)}
           datos={[
+            { etiqueta: "Imprimiéndose", valor: v.comandas.enCola },
             {
-              etiqueta: "En cola · en fuego",
-              texto: `${v.cocina.enCola} · ${v.cocina.enPreparacion}`,
-            },
-            v.cocina.sinTicket > 0
-              ? {
-                  etiqueta: "Sin ticket",
-                  valor: v.cocina.sinTicket,
-                  icono: <Printer size={11} aria-hidden="true" />,
-                  urgente: true,
-                }
-              : {
-                  etiqueta: "Listas",
-                  valor: v.cocina.listas,
-                  icono: <BellRing size={11} aria-hidden="true" />,
-                },
-            {
-              etiqueta: "La más antigua",
-              texto:
-                v.cocina.enCola + v.cocina.enPreparacion > 0 ? reloj(v.cocina.masAntiguaMs) : "—",
+              etiqueta: "No salieron",
+              valor: v.comandas.noSalieron,
+              icono: <TriangleAlert size={11} aria-hidden="true" />,
+              urgente: v.comandas.noSalieron > 0,
             },
           ]}
         />

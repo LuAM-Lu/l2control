@@ -25,7 +25,7 @@ export type EstadoDelCanal = "sin-sesion" | "conectando" | "en-vivo" | "sin-cone
 export type RespuestaDelBus = Readonly<{ ok: true; evento: OperationEventDto }> | Readonly<{ ok: false; motivo: string }>;
 
 /** Los temas que su proveedor vuelve a leer por su cuenta, sin repintar toda la página. */
-const CON_LECTURA_PROPIA: ReadonlySet<Tema> = new Set(["sala", "cuentas", "tasas", "impresion"]);
+const CON_LECTURA_PROPIA: ReadonlySet<Tema> = new Set(["sala", "cuentas", "tasas", "impresion", "pedidos"]);
 /** Varios cambios seguidos se juntan en un solo repintado. */
 const JUNTAR_MS = 50;
 /** Sin canal, cada cuánto se vuelve a leer todo. */

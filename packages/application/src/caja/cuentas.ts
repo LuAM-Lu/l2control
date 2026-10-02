@@ -1004,7 +1004,7 @@ export async function guardarVersion(
   ctx: Contexto,
   cuenta: FamilyAccountDto,
   v: Readonly<{
-    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA" | "RECARGA" | "CIERRE_ADMINISTRATIVO" | "DESCUENTO";
+    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA" | "RECARGA" | "CIERRE_ADMINISTRATIVO" | "DESCUENTO" | "PEDIDO";
     operationKey: string | null;
     ahora: number;
     quien: string;
@@ -1054,7 +1054,7 @@ function hayProductosNuevos(antes: FamilyAccountDto | null, despues: FamilyAccou
 }
 
 /** Lo que el catálogo vende en `ahora`: su nombre, su precio y su trato del IVA (B9-1). */
-async function catalogoEn(tx: Transaccion, ahora: number): Promise<(productId: string) => ProductAtNow | null> {
+export async function catalogoEn(tx: Transaccion, ahora: number): Promise<(productId: string) => ProductAtNow | null> {
   const productos = await tx.product.findMany({ select: { id: true, name: true, active: true, taxCode: true } });
   const precios = await tx.productPrice.findMany();
   const tramos = priceTimeline(

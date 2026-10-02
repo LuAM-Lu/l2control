@@ -12,6 +12,32 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.41.0] — 2026-10-02 · Etapa 6 · Restaurante en el servidor
+
+B6-2: lo que pide el mesero sale en papel. La cocina trabaja con la comanda impresa (ADR-022).
+
+### Añadido
+- **La comanda impresa.** Al enviar un pedido desde la tablet, sus platos entran en la cuenta de la mesa y su
+  comanda sale en la impresora de comandas, las dos cosas juntas o ninguna. La comanda lleva la mesa en grande, su
+  número (continuo en el local), la hora, quién la pidió y cada plato con su cantidad y su nota, sin precios.
+- **Si no sale, se ve.** Cada pedido de la mesa dice si su comanda se está imprimiendo, salió, no salió (con el
+  motivo) o se descartó. Lo que no salió se avisa en rojo en la tablet del mesero, en «Atender», en la barra de la
+  caja y en Inicio, y se vuelve a imprimir con un toque: si la cocina no la tenía, sale como la primera vez; si ya
+  salió y se perdió el papel, sale una copia marcada «REIMPRESIÓN · NO PREPARAR DOS VECES».
+- Inicio: la zona «Comandas» (las de hoy, imprimiéndose y las que no salieron) sustituye a «Cocina».
+
+### Cambiado
+- **Sin impresora de comandas encendida, el pedido no se envía** (y se dice dónde configurarla): ningún pedido se
+  queda sin su comanda.
+- El servidor pone el precio, el IVA y la existencia de lo pedido; si un precio cambió desde que la tablet lo
+  enseñó, el pedido no se envía hasta revisarlo con la mesa. Reenviar el mismo pedido (se cortó la red) no lo pide
+  dos veces.
+- Quien entra con el rol de cocina oye que su puesto no usa el sistema, en vez de quedarse en blanco.
+
+### Quitado
+- La pantalla de cocina (KDS), con sus estados «en fuego», «listo» y «entregado» y los avisos de «plato listo»: la
+  cocina trabaja con el papel (ADR-022). Los pedidos ya no viajan por el bus del navegador.
+
 ## [0.40.0] — 2026-10-02 · Etapa 6 · Restaurante en el servidor
 
 B6-1: el plano del local y la carta del restaurante son del servidor. Ya no queda nada provisional en el navegador.

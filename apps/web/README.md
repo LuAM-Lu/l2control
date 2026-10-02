@@ -1,7 +1,7 @@
 # @l2/web
 
 Aplicación Next.js 16. Alberga **todas** las superficies del sistema: administración, punto de
-venta, cocina y monitor de parque. Implementa [ADR-006](../../docs/adr/006-un-solo-backend.md).
+venta, mesas y monitor de parque (la cocina trabaja con la comanda impresa, ADR-022). Implementa [ADR-006](../../docs/adr/006-un-solo-backend.md).
 
 ```bash
 pnpm dev     # http://localhost:3000 · PIN de prueba 1970
@@ -20,7 +20,6 @@ pnpm dev     # http://localhost:3000 · PIN de prueba 1970
 | `/ventas` | Ventas del turno: reimprimir y anular | C12, DEC-24 | Interfaz |
 | `/turno` | Cortes X y Z, arqueo, excepciones | F4-05 a F4-08 | Interfaz |
 | `/mesas` | Plano, pedido, vincular pulseras | F6-01 a F6-05 | Interfaz; entre pestañas por el bus de operación |
-| `/cocina` | Cocina (KDS): comandas, cronómetro, anulaciones | F6-07, F6-08 | Interfaz; entre pestañas por el bus de operación |
 | `/panel` | Inicio: el local ahora (cinco zonas en vivo, D7) y el día | F9-00, F9-08 | Interfaz; entre pestañas por el bus de operación |
 | `/panel/configuracion/accesos` | Roles y accesos: la matriz del local, editable | F2-13, F2-05 | Interfaz; vive en la pestaña |
 | `/panel/[modulo]/[seccion]` | Secciones del back-office: tarifas, plano, carta, usuarios; las demás enseñan qué les falta | F5-04, F6-01, F6-03, F2-11 | Interfaz |
@@ -38,10 +37,9 @@ src/features/<dominio>   nivel 3: pantallas y lógica que SÍ conocen el dominio
   cash/                  caja, ventas, turno, recibo, atajos, anulación
   cuentas/               cuentas de familia (DEC-21)
   park/                  monitor, entrada, salida
-  mesas/                 plano y pedido
+  mesas/                 plano, carta, pedido y su comanda impresa
   identity/              acceso, sesión, visibilidad por rol, usuarios
   shell/                 barras, navegación, inicio del panel y el local en vivo
-  cocina/                KDS: vista de cocina y cronómetro
   operacion/             bus de eventos del local y su proyección (en B5-1, por el servidor)
 src/servidor/            entorno validado, conexión a @l2/application y logger (solo servidor)
 ```

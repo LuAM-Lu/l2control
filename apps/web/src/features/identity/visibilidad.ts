@@ -30,7 +30,6 @@ export const SUPERFICIE_DE_RUTA: Readonly<Record<string, SurfaceId>> = {
   "/caja": "caja",
   "/turno": "turno",
   "/mesas": "mesas",
-  "/cocina": "kds",
 };
 
 const NOMBRE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, string>>> = {
@@ -40,7 +39,6 @@ const NOMBRE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, string>>> = {
   caja: "la caja",
   turno: "el turno de caja",
   mesas: "las mesas",
-  kds: "la cocina",
 };
 
 export function puedeAbrirRuta(actor: Actor, ruta: string): boolean {
@@ -107,7 +105,6 @@ const RUTA_DE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, Route>>> = {
   caja: "/caja",
   monitor: "/monitor",
   mesas: "/mesas",
-  kds: "/cocina",
   entrada: "/entrada",
   salida: "/salida",
   turno: "/turno",
@@ -125,13 +122,14 @@ const RUTA_DE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, Route>>> = {
  * Es el mismo reparto que `PUESTO_DE_ROL` en `operador.ts`, que dice en qué
  * puesto aparece cada rol en el tablero en vivo.
  */
-const PUESTO_DE_ROL: Readonly<Record<Role, SurfaceId | "panel">> = {
+const PUESTO_DE_ROL: Readonly<Record<Role, SurfaceId | "panel" | "ninguno">> = {
   ADMIN: "panel",
   SUPERVISOR: "panel",
   CAJERO: "caja",
   MONITOR_PARQUE: "monitor",
   MESERO: "mesas",
-  COCINA: "kds",
+  // La cocina trabaja con la comanda impresa, sin pantalla (ADR-022, B6-2): no tiene puesto en el sistema.
+  COCINA: "ninguno",
 };
 
 /**
@@ -149,6 +147,7 @@ const PUESTO_DE_ROL: Readonly<Record<Role, SurfaceId | "panel">> = {
  */
 export function puestoDe(actor: Actor): { ruta: Route; nombre: string } {
   const suyo = PUESTO_DE_ROL[actor.role];
+  if (suyo === "ninguno") return { ruta: "/acceso", nombre: "el acceso" };
   if (suyo === "panel") {
     return puedeVerInicio(actor)
       ? { ruta: "/panel", nombre: "el panel" }
@@ -160,3 +159,12 @@ export function puestoDe(actor: Actor): { ruta: Route; nombre: string } {
   }
   return { ruta: "/acceso", nombre: "el acceso" };
 }
+
+/**
+ * ¿Su puesto no usa ninguna pantalla? La cocina trabaja con la comanda impresa (ADR-022, B6-2): quien
+ * entra con ese rol no tiene a dónde ir, y el acceso se lo dice en vez de dejarlo en blanco.
+ */
+export function sinPantalla(actor: Actor): boolean {
+  return PUESTO_DE_ROL[actor.role] === "ninguno";
+}
+

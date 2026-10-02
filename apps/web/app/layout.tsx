@@ -10,6 +10,8 @@ import { NOMBRE_ROL } from "../src/features/identity/permisos";
 import { sesionActual } from "../src/servidor/sesion";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
 import { planoDelLocal } from "../src/features/mesas/plano.servidor";
+import { PedidosProvider } from "../src/features/mesas/PedidosProvider";
+import { pedidosDelLocal } from "../src/features/mesas/pedidos.servidor";
 import { TarifarioProvider } from "../src/features/park/TarifarioProvider";
 import { tarifarioVigente } from "../src/features/park/tarifario.servidor";
 import { SucursalProvider } from "../src/features/sucursal/SucursalProvider";
@@ -97,6 +99,8 @@ export default async function RootLayout({
   const trabajos = sesion ? await trabajosDelLocal() : [];
   // El plano del local, de la base (B6-1): `null` si todavía no se dibujó. Sin sesión, ninguno.
   const plano = sesion ? await planoDelLocal() : SIN_PLANO;
+  // Los pedidos de hoy con su comanda (B6-2): si salió en papel. Solo para quien los toma o cobra.
+  const pedidos = sesion ? await pedidosDelLocal() : [];
   // Quién está en cada puesto, de las sesiones de la base (B5-1). Solo para quien ve Inicio.
   const enCurso = sesion ? await sesionesEnCurso() : [];
 
@@ -132,9 +136,11 @@ export default async function RootLayout({
                     <PlanoProvider inicial={plano}>
                       <TarifarioProvider inicial={tarifario}>
                         <CuentasProvider inicial={cuentas}>
-                          <VentasProvider inicial={ventas}>
-                            <ColaProvider inicial={trabajos}>{children}</ColaProvider>
-                          </VentasProvider>
+                          <PedidosProvider inicial={pedidos}>
+                            <VentasProvider inicial={ventas}>
+                              <ColaProvider inicial={trabajos}>{children}</ColaProvider>
+                            </VentasProvider>
+                          </PedidosProvider>
                         </CuentasProvider>
                       </TarifarioProvider>
                     </PlanoProvider>

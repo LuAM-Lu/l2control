@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Ciclo de vida de la comanda (§6.5, F6-08). Módulo puro.",
+  "description": "El restaurante: plano del local y pedido del mesero con su comanda (B6-1, B6-2). Módulo puro.",
   "exports": {
     ".": "./src/index.ts"
   },
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types src/*.test.ts"
   },
-  "comment": "La comanda solo avanza hacia delante. Un evento que pide un salto imposible —servir lo que no está listo, aceptar lo ya servido— se rechaza con su motivo, nunca se aplica a medias.",
+  "comment": "Lo que entra en la cuenta por un pedido lo decide el catálogo de ahora, nunca la tablet; la comanda está impresa solo si la impresora lo confirmó (ADR-015, ADR-022).",
   "devDependencies": {
     "@l2/config": "workspace:*",
     "@types/node": "24.10.1",

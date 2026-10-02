@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Ban,
   Baby,
-  BellRing,
-  ChefHat,
   CircleCheckBig,
   Clock,
   HandPlatter,
@@ -12,11 +11,12 @@ import {
   NotebookPen,
   Printer,
   Receipt,
+  RotateCcw,
   Sparkles,
   TriangleAlert,
   Users,
 } from "lucide-react";
-import type { CatalogoDto, FamilyAccountDto } from "@l2/contracts";
+import type { CatalogoDto, EstadoDeComandaDto, FamilyAccountDto, PedidoDto } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
@@ -25,13 +25,11 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
 import {
   abrirCuentaDeMesa,
-  anadirPedido,
   esDeMesa,
   moverParqueALaMesa,
   numeroDeOrden,
   pasarACaja,
 } from "../cuentas/cuentas.ts";
-import type { Pedido } from "../operacion/proyeccion.ts";
 import {
   loQuePideAtencion,
   minutosDesde,
@@ -46,6 +44,7 @@ import { cartaDelMesero } from "../inventario/catalogo.ts";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
+import { usePedidos } from "./PedidosProvider.tsx";
 
 /**
  * Estación del mesero: mesas y pedidos — F6-01, F6-02, F6-05, DEC-22.
@@ -58,9 +57,12 @@ import { useHora } from "../sucursal/SucursalProvider.tsx";
  *
  * El plano y la carta son del servidor (B6-1): el plano publicado en Ajustes y la carta, que es el
  * catálogo con lo marcado «en la carta». La cuenta de la mesa también: una mesa tiene una sola abierta
- * (I-05, lo impone el servidor) y lo pedido lleva su producto, cuyo precio comprueba el servidor. El
- * estado de cada mesa (abierta, pide la cuenta, por limpiar) y los pedidos viajan aún por el bus del
- * local hasta B6-2 y B6-3.
+ * (I-05, lo impone el servidor) y lo pedido lleva su producto, cuyo precio comprueba el servidor.
+ *
+ * El pedido es del servidor (B6-2, ADR-022): al enviarlo entra en la cuenta de la mesa y su comanda en
+ * la impresora de comandas, juntos. La cocina trabaja con el papel: aquí no hay «listo» ni «entregado»,
+ * sino si la comanda salió; si no salió, se ve y se reimprime. El estado de cada mesa (abierta, pide la
+ * cuenta, por limpiar) viaja aún por el bus del local hasta B6-3.
  *
  * El mesero NO toca dinero (DEC-14): marca que la mesa pide la cuenta y la
  * familia paga en caja.
@@ -74,19 +76,23 @@ const ESTADO_MESA: Readonly<Record<EstadoVisible, { texto: string; tono: Tone; i
   POR_LIMPIAR: { texto: "Por limpiar", tono: "idle", icono: <Sparkles size={14} aria-hidden="true" /> },
 };
 
-const ESTADO_PEDIDO: Readonly<Record<Pedido["estado"], { texto: string; tono: Tone; icono: React.ReactNode }>> = {
-  ENVIADO: { texto: "En cola de cocina", tono: "idle", icono: <Clock size={13} aria-hidden="true" /> },
-  EN_PREPARACION: { texto: "En preparación", tono: "idle", icono: <ChefHat size={13} aria-hidden="true" /> },
-  LISTO: { texto: "Listo para servir", tono: "ok", icono: <BellRing size={13} aria-hidden="true" /> },
-  ENTREGADO: { texto: "Entregado", tono: "idle", icono: <CircleCheckBig size={13} aria-hidden="true" /> },
-  ANULADO: { texto: "Anulado", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
+/** La comanda en el papel: lo único que el sistema sabe de la cocina (ADR-022). Color + icono + texto. */
+const ESTADO_COMANDA: Readonly<Record<EstadoDeComandaDto, { texto: string; tono: Tone; icono: React.ReactNode }>> = {
+  EN_COLA: { texto: "Imprimiendo comanda", tono: "idle", icono: <Clock size={13} aria-hidden="true" /> },
+  IMPRESA: { texto: "Comanda impresa", tono: "ok", icono: <Printer size={13} aria-hidden="true" /> },
+  NO_SALIO: { texto: "La comanda no salió", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
+  DESCARTADA: { texto: "Comanda descartada", tono: "idle", icono: <Ban size={13} aria-hidden="true" /> },
 };
+
+const comanda = (n: number) => `#${String(n).padStart(4, "0")}`;
 
 export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // El plano lo publica administración desde el panel (V4, B6-1); aquí solo se lee.
   const { plano } = usePlano();
   // La cuenta de la mesa (F6-05, D2): los platos y el parque de esta familia.
   const { cuentas, guardar } = useCuentas();
+  // Los pedidos y su comanda, del servidor (B6-2).
+  const { pedidos, enviar: enviarPedido, reimprimir } = usePedidos();
   const op = useOperacion();
   const ahora = useAhoraLocal();
   const { estado } = op;
@@ -109,20 +115,22 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
   const [vinculando, setVinculando] = useState(false);
   const [comensales, setComensales] = useState(2);
+  /** El id del pedido que se está enviando en cada mesa: reintentarlo (se cortó la red) no pide dos veces. */
+  const [envios, setEnvios] = useState<Readonly<Record<string, string>>>({});
+  const [enviando, setEnviando] = useState(false);
   const detalle = useRef<HTMLElement>(null);
 
   // Una mesa retirada ya no está en el salón: no se pinta ni se puede abrir.
   const mesas = useMemo(
-    () => vistaDelPlano((plano?.tables ?? []).filter((m) => !m.retiredAt), estado, ahora),
-    [plano, estado, ahora],
+    () => vistaDelPlano((plano?.tables ?? []).filter((m) => !m.retiredAt), estado, cuentas, pedidos, ahora),
+    [plano, estado, cuentas, pedidos, ahora],
   );
   const elegida = mesas.find((m) => m.mesa.id === seleccion) ?? null;
 
   const ocupadas = mesas.filter((m) => m.estado !== "LIBRE").length;
   const pidenCuenta = mesas.filter((m) => m.estado === "PIDE_CUENTA").length;
-  const listos = mesas.reduce((n, m) => n + m.listos, 0);
-  const enCocina = mesas.reduce((n, m) => n + m.enCocina, 0);
-  const impresorasCaidas = Object.entries(estado.impresoras).filter(([, i]) => i.estado === "FALLO");
+  // Las comandas de hoy que no salieron en papel, de cualquier mesa: la cocina no sabe que existen.
+  const sinSalir = pedidos.filter((p) => p.comanda.estado === "NO_SALIO");
 
   // El borrador de una mesa que se libera no pasa a la familia siguiente.
   useEffect(() => {
@@ -178,11 +186,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    */
   function cuentaDeLaMesa(m: MesaVista): FamilyAccountDto {
     if (!m.ocupacion) throw new Error("La mesa no está abierta");
-    return (
-      // Una incobrable (D-JOR) ya se cerró, como una cobrada: la mesa abre otra.
-      cuentas.find((c) => c.kind === "MESA" && c.tableId === m.mesa.id && (c.status === "ABIERTA" || c.status === "POR_COBRAR")) ??
-      abrirCuentaDeMesa({ tableId: m.mesa.id, tableLabel: m.mesa.label, ahora: new Date().toISOString() })
-    );
+    // Una incobrable (D-JOR) ya se cerró, como una cobrada: la mesa abre otra.
+    return m.cuenta ?? abrirCuentaDeMesa({ tableId: m.mesa.id, tableLabel: m.mesa.label, ahora: new Date().toISOString() });
   }
 
   function vincular(m: MesaVista, ids: string[]) {
@@ -213,9 +218,10 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /**
-   * Lo pedido entra primero en la cuenta de la mesa, en el servidor, con su producto y el precio de hoy;
-   * solo si la cuenta lo acepta (precio, existencia, una sola cuenta por mesa) sale hacia la cocina.
-   * Fail-closed: si algo del borrador no se puede pedir, no se envía nada.
+   * Envía el borrador (B6-2): en el servidor, sus platos entran en la cuenta de la mesa y su comanda en
+   * la impresora de comandas, juntos o nada. El precio, el IVA y la existencia los comprueba el servidor;
+   * lo que la tablet enseñó viaja para comprobarlo. Fail-closed: si algo del borrador ya no está en la
+   * carta, no se envía nada.
    */
   async function enviar(m: MesaVista) {
     const lineas = borradores[m.mesa.id] ?? [];
@@ -227,33 +233,42 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       avisar.error("El borrador tiene platos que ya no están en la carta");
       return;
     }
-    const r = await guardar(
-      anadirPedido(
-        cuentaDeLaMesa(m),
-        platos.map(({ it, l }) => ({
-          productId: it.id,
-          concepto: it.nombre,
-          precio: { minor: String(it.precio.amount), currency: "USD" },
-          taxCode: it.taxCode,
-          cantidad: l.cantidad,
-        })),
-      ),
-    );
-    // El rechazo (sin existencia, un precio que cambió, la mesa ya tiene otra cuenta) ya se avisó.
-    if (!r.ok) return;
-    const ok = emitir(
-      {
-        type: "pedido.enviado",
-        orderId: globalThis.crypto.randomUUID(),
-        tableId: m.mesa.id,
-        items: platos.map(({ it, l }) => ({ name: it.nombre, quantity: l.cantidad, ...(l.nota ? { note: l.nota } : {}) })),
-      },
-      `Pedido enviado a cocina · Mesa ${m.mesa.label}`,
-    );
-    if (ok) {
-      setBorradores((b) => ({ ...b, [m.mesa.id]: [] }));
-      setVista("plano");
+    const pedidoId = envios[m.mesa.id] ?? globalThis.crypto.randomUUID();
+    setEnvios((e) => ({ ...e, [m.mesa.id]: pedidoId }));
+    setEnviando(true);
+    const r = await enviarPedido({
+      pedidoId,
+      tableId: m.mesa.id,
+      lineas: platos.map(({ it, l }) => ({
+        productId: it.id,
+        cantidad: l.cantidad,
+        ...(l.nota ? { nota: l.nota } : {}),
+        precioMinor: String(it.precio.amount),
+      })),
+    });
+    setEnviando(false);
+    if (!r.ok) {
+      avisar.error(r.mensaje);
+      return;
     }
+    const { pedido } = r.valor;
+    avisar.ok(`Comanda ${comanda(pedido.numero)} enviada · Mesa ${pedido.mesa}`, {
+      detalle: pedido.comanda.impresora ? `Sale en «${pedido.comanda.impresora}».` : "Sale en la impresora de comandas.",
+    });
+    setEnvios((e) => {
+      const { [m.mesa.id]: _, ...resto } = e;
+      return resto;
+    });
+    setBorradores((b) => ({ ...b, [m.mesa.id]: [] }));
+    setVista("plano");
+  }
+
+  /** Si no salió o se descartó, sale como la primera vez; si ya salió, una copia marcada «reimpresión». */
+  async function volverAImprimir(p: PedidoDto) {
+    const r = await reimprimir(p.id);
+    if (!r.ok) avisar.error(r.mensaje);
+    else if (p.comanda.estado === "IMPRESA") avisar.info(`Copia de la comanda ${comanda(p.numero)} a la impresora`, { detalle: "Sale marcada «reimpresión»: que no se prepare dos veces." });
+    else avisar.info(`Comanda ${comanda(p.numero)} otra vez a la impresora`, { detalle: "La cocina todavía no la tenía." });
   }
 
   /** La mesa pide la cuenta: el mesero no cobra (DEC-14), la manda a caja. */
@@ -317,6 +332,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
             lineas={borradores[elegida.mesa.id] ?? []}
             onCambiar={(l) => setBorradores((b) => ({ ...b, [elegida.mesa.id]: l }))}
             onEnviar={() => void enviar(elegida)}
+            enviando={enviando}
             onVolver={() => setVista("plano")}
             bloqueo={bloqueoEnvio(elegida)}
           />
@@ -353,12 +369,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         cifras={
           <>
             <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${mesas.length}`} />
-            <StatTile label="En cocina" value={enCocina} icon={<ChefHat size={11} aria-hidden="true" />} />
+            <StatTile label="Comandas hoy" value={pedidos.length} icon={<Printer size={11} aria-hidden="true" />} />
             <StatTile
-              label="Para servir"
-              value={listos}
-              tone={listos > 0 ? "ok" : "idle"}
-              icon={<BellRing size={11} aria-hidden="true" />}
+              label="No salieron"
+              value={sinSalir.length}
+              tone={sinSalir.length > 0 ? "crit" : "idle"}
+              icon={<TriangleAlert size={11} aria-hidden="true" />}
             />
             <StatTile
               label="Piden cuenta"
@@ -370,17 +386,18 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         }
       />
 
-      {impresorasCaidas.map(([nombre, imp]) => (
+      {sinSalir.length > 0 && (
         <p
-          key={nombre}
           role="alert"
-          className="flex items-center justify-center gap-2 border-b border-state-crit/40 bg-state-crit-bg px-4 py-2 text-[13px] text-state-crit"
+          className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-state-crit/40 bg-state-crit-bg px-4 py-2 text-[13px] text-state-crit"
         >
           <Printer size={15} aria-hidden="true" />
-          <strong className="font-semibold">Impresora de {nombre.toLowerCase()}: {imp.detalle}.</strong>
-          Los pedidos que envíes pueden no salir en papel: avisa en cocina.
+          <strong className="font-semibold">
+            {sinSalir.length === 1 ? "Una comanda no salió en papel" : `${sinSalir.length} comandas no salieron en papel`}:
+          </strong>
+          {sinSalir.map((p) => `${comanda(p.numero)} · Mesa ${p.mesa}`).join(", ")}. Vuelve a imprimirla desde su mesa o avisa en cocina.
         </p>
-      ))}
+      )}
 
       <Container
         as="main"
@@ -445,10 +462,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                   vista={elegida}
                   ahora={ahora}
                   borrador={(borradores[elegida.mesa.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
-                  onEntregar={(p) =>
-                    p.estado === "LISTO" &&
-                    emitir({ type: "pedido.entregado", orderId: p.id }, `Entregado en la mesa ${elegida.mesa.label}`)
-                  }
+                  onReimprimir={(p) => void volverAImprimir(p)}
                 />
               </div>
               <footer className="flex flex-col gap-2 border-t border-line px-4 py-3">
@@ -557,7 +571,7 @@ function Atender({
       <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/40 px-6 text-center">
         <CircleCheckBig size={26} className="text-state-ok" aria-hidden="true" />
         <p className="font-display text-lg font-bold text-ink">Nada que atender ahora</p>
-        <p className="text-[13px] text-ink-2">Aquí saldrán los platos listos, quien pida la cuenta y las mesas por limpiar.</p>
+        <p className="text-[13px] text-ink-2">Aquí saldrán las comandas que no salgan en papel, quien pida la cuenta y las mesas por limpiar.</p>
       </div>
     );
   }
@@ -575,8 +589,8 @@ function Atender({
                 "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left",
                 "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                f.tono === "ok"
-                  ? "border-state-ok/40 bg-state-ok-bg/40"
+                f.tono === "crit"
+                  ? "border-state-crit/40 bg-state-crit-bg/40"
                   : f.tono === "warn"
                     ? "border-state-warn/40 bg-state-warn-bg/40"
                     : "border-line bg-surface",
@@ -590,7 +604,7 @@ function Atender({
                 <span
                   className={cn(
                     "block truncate text-[14px] font-semibold",
-                    f.tono === "ok" ? "text-state-ok" : f.tono === "warn" ? "text-state-warn" : "text-ink",
+                    f.tono === "crit" ? "text-state-crit" : f.tono === "warn" ? "text-state-warn" : "text-ink",
                   )}
                 >
                   {f.que}
@@ -600,8 +614,8 @@ function Atender({
                   {v.ocupacion ? ` · ${v.ocupacion.comensales} de ${v.mesa.seats} sillas` : ""}
                 </span>
               </span>
-              {f.tono === "ok" ? (
-                <BellRing size={18} className="shrink-0 text-state-ok" aria-hidden="true" />
+              {f.tono === "crit" ? (
+                <Printer size={18} className="shrink-0 text-state-crit" aria-hidden="true" />
               ) : f.tono === "warn" ? (
                 <Receipt size={18} className="shrink-0 text-state-warn" aria-hidden="true" />
               ) : (
@@ -678,13 +692,14 @@ function PedidosDeLaMesa({
   vista,
   ahora,
   borrador,
-  onEntregar,
+  onReimprimir,
 }: {
   vista: MesaVista;
   ahora: number;
   borrador: number;
-  onEntregar: (p: Pedido) => void;
+  onReimprimir: (p: PedidoDto) => void;
 }) {
+  const hora = useHora();
   return (
     <section aria-label="Pedidos de la mesa">
       <h3 className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">Pedidos</h3>
@@ -699,32 +714,30 @@ function PedidosDeLaMesa({
       ) : (
         <ul className="flex flex-col gap-2">
           {vista.pedidos.map((p) => {
-            const e = ESTADO_PEDIDO[p.estado];
-            const listo = p.estado === "LISTO";
+            const e = ESTADO_COMANDA[p.comanda.estado];
+            const fallo = p.comanda.estado === "NO_SALIO";
             return (
-              <li
-                key={p.id}
-                className={cn(
-                  "rounded-[var(--radius-control)] border px-3 py-2.5",
-                  listo ? "border-state-ok/50 bg-state-ok-bg" : "border-line bg-base/40",
-                  (p.estado === "ENTREGADO" || p.estado === "ANULADO") && "opacity-70",
-                )}
-              >
+              <li key={p.id} className={cn("rounded-[var(--radius-control)] border px-3 py-2.5", fallo ? "border-state-crit/50 bg-state-crit-bg" : "border-line bg-base/40")}>
                 <div className="flex items-center justify-between gap-2">
                   <Badge tone={e.tono} icon={e.icono}>
                     {e.texto}
                   </Badge>
                   <span className="tnum text-[12px] text-ink-3">
-                    {ahora > 0 && `enviado hace ${minutosDesde(p.enviadoEn, ahora)} min`}
+                    {comanda(p.numero)} · {ahora > 0 ? `${hora(Date.parse(p.enviadoEn))} · hace ${minutosDesde(p.enviadoEn, ahora)} min` : ""}
                   </span>
                 </div>
-                <p className={cn("mt-1.5 text-[13px] text-ink", p.estado === "ANULADO" && "line-through")}>
-                  {p.items.map((i) => `${i.quantity}× ${i.name}`).join(" · ")}
-                </p>
-                {listo && (
-                  <Button variant="primary" onClick={() => onEntregar(p)} className="mt-2 w-full">
-                    <HandPlatter size={16} aria-hidden="true" />
-                    Entregado en la mesa
+                <p className="mt-1.5 text-[13px] text-ink">{p.lineas.map((l) => `${l.cantidad}× ${l.nombre}${l.nota ? ` («${l.nota}»)` : ""}`).join(" · ")}</p>
+                {fallo && p.comanda.error && <p className="mt-1 text-[12.5px] text-state-crit">{p.comanda.error}</p>}
+                {(fallo || p.comanda.estado === "DESCARTADA") && (
+                  <Button variant={fallo ? "primary" : "neutral"} onClick={() => onReimprimir(p)} className="mt-2 w-full">
+                    <RotateCcw size={16} aria-hidden="true" />
+                    Volver a imprimir
+                  </Button>
+                )}
+                {p.comanda.estado === "IMPRESA" && (
+                  <Button variant="ghost" onClick={() => onReimprimir(p)} className="mt-1 -mb-1 w-full text-[13px]">
+                    <Printer size={15} aria-hidden="true" />
+                    Se perdió el papel: imprimir una copia
                   </Button>
                 )}
               </li>
@@ -734,4 +747,5 @@ function PedidosDeLaMesa({
       )}
     </section>
   );
+
 }

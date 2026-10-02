@@ -57,6 +57,9 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "impresion.descartar": ["impresion"],
   "producto.carta": ["catalogo"],
   "plano.publicar": ["plano"],
+  // El pedido cambia la cuenta de la mesa; su comanda en la cola avisa con su propio asiento (impresion).
+  "pedido.enviar": ["pedidos", "cuentas"],
+  "pedido.reimprimir": ["pedidos"],
   "impresora.crear": ["impresion"],
   "impresora.editar": ["impresion"],
   "impresora.activar": ["impresion"],

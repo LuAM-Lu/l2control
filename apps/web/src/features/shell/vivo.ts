@@ -9,8 +9,7 @@
  * «todo»: lo que a la administración le haría levantarse de la silla.
  */
 import type { Route } from "next";
-import type { FamilyAccountDto, ParkPolicyDto } from "@l2/contracts";
-import { nivelEspera, type UmbralEspera } from "@l2/domain-orders";
+import type { FamilyAccountDto, ParkPolicyDto, PedidoDto } from "@l2/contracts";
 import { sum, type Money } from "@l2/domain-money";
 import { computeSessionView } from "@l2/domain-park";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
@@ -41,14 +40,13 @@ export type ZonaParque = Readonly<{
   alertas: readonly Alerta[];
 }>;
 
-export type ZonaCocina = Readonly<{
+/** Las comandas de hoy (B6-2, ADR-022): la cocina trabaja con el papel; aquí importa si salió. */
+export type ZonaComandas = Readonly<{
+  hoy: number;
+  /** Esperando a la impresora o imprimiéndose. */
   enCola: number;
-  enPreparacion: number;
-  listas: number;
-  /** Espera de la comanda viva más antigua, en ms. */
-  masAntiguaMs: number;
-  sinTicket: number;
-  impresorasCaidas: readonly string[];
+  /** No salieron en papel: la cocina no sabe que existen. */
+  noSalieron: number;
   alertas: readonly Alerta[];
 }>;
 
@@ -87,7 +85,7 @@ export type ZonaPersonas = Readonly<{
 
 export type PanelVivo = Readonly<{
   parque: ZonaParque;
-  cocina: ZonaCocina;
+  comandas: ZonaComandas;
   mesas: ZonaMesas;
   caja: ZonaCaja;
   personas: ZonaPersonas;
@@ -120,7 +118,7 @@ export function panelVivo({
   cuentas,
   ahora,
   politica,
-  umbral,
+  pedidos = [],
   enServicio,
   tasaConfirmada,
   alertasDeTasa = [],
@@ -130,7 +128,8 @@ export function panelVivo({
   cuentas: readonly FamilyAccountDto[];
   ahora: number;
   politica: ParkPolicyDto;
-  umbral: UmbralEspera;
+  /** Los pedidos de hoy con su comanda, del servidor (B6-2). */
+  pedidos?: readonly PedidoDto[];
   /** Si el local está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
   /** Si hay tasa vigente (ADR-005). Sin ella no se cobra en bolívares. */
@@ -169,26 +168,16 @@ export function panelVivo({
     ],
   };
 
-  /* ── cocina ── */
-  const pedidos = Object.values(estado.pedidos);
-  const vivas = pedidos.filter((p) => p.estado === "ENVIADO" || p.estado === "EN_PREPARACION");
-  const masAntiguaMs = vivas.reduce((max, p) => Math.max(max, ahora > 0 ? ahora - Date.parse(p.enviadoEn) : 0), 0);
-  const caidas = Object.entries(estado.impresoras)
-    .filter(([, i]) => i.estado === "FALLO")
-    .map(([nombre]) => nombre);
-  const cocina: ZonaCocina = {
-    enCola: vivas.filter((p) => p.estado === "ENVIADO").length,
-    enPreparacion: vivas.filter((p) => p.estado === "EN_PREPARACION").length,
-    listas: pedidos.filter((p) => p.estado === "LISTO").length,
-    masAntiguaMs,
-    sinTicket: vivas.filter((p) => !p.impreso).length,
-    impresorasCaidas: caidas,
-    alertas: [
-      ...(vivas.length > 0 && nivelEspera(masAntiguaMs, umbral) === "ATRASADA"
-        ? [aviso(`Una comanda lleva ${Math.floor(masAntiguaMs / 60_000)} min`, "crit", "/cocina", "Ver comandas")]
-        : []),
-      ...caidas.map((n) => aviso(`Impresora de ${n.toLowerCase()} caída`, "crit", "/cocina", "Ver comandas")),
-    ],
+  /* ── comandas ── */
+  const noSalieron = pedidos.filter((p) => p.comanda.estado === "NO_SALIO").length;
+  const comandas: ZonaComandas = {
+    hoy: pedidos.length,
+    enCola: pedidos.filter((p) => p.comanda.estado === "EN_COLA").length,
+    noSalieron,
+    alertas:
+      noSalieron > 0
+        ? [aviso(noSalieron === 1 ? "Una comanda no salió en papel" : `${noSalieron} comandas no salieron en papel`, "crit", "/mesas", "Volver a imprimir")]
+        : [],
   };
 
   /* ── mesas ── */
@@ -248,12 +237,6 @@ export function panelVivo({
         : [],
   };
 
-  const urgencias = [parque, cocina, mesas, caja, personas].reduce((n, z) => n + z.alertas.length, 0);
-  return { parque, cocina, mesas, caja, personas, urgencias };
-}
-
-/** «12:05» de reloj de pared, para la comanda más antigua. */
-export function reloj(ms: number): string {
-  const total = Math.floor(Math.max(0, ms) / 1000);
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  const urgencias = [parque, comandas, mesas, caja, personas].reduce((n, z) => n + z.alertas.length, 0);
+  return { parque, comandas, mesas, caja, personas, urgencias };
 }

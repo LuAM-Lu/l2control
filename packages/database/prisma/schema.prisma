@@ -64,6 +64,7 @@ model Branch {
   outbox           OutboxEvent[]
   settings         BranchSettingsVersion[]
   floorPlans       FloorPlanVersion[]
+  kitchenOrders    KitchenOrder[]
   stockMovements   StockMovement[]
   stockEntries     StockEntry[]
   stockAdjustments StockAdjustment[]
@@ -765,6 +766,7 @@ model Account {
   payments     Payment[]
   sales        Sale[]
   parkSessions ParkSession[]
+  kitchenOrders KitchenOrder[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -1346,15 +1348,49 @@ model PrintJob {
   /// Quién lo descartó (solo en DESCARTADO).
   discardedBy     String?   @map("discarded_by") @db.Uuid
   discardedByName String?   @map("discarded_by_name")
+  /// El pedido del mesero que imprime una COMANDA (B6-2): toda comanda lleva el suyo (CHECK).
+  orderId         String?   @map("order_id") @db.Uuid
 
   branch  Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   printer Printer     @relation(fields: [tenantId, branchId, printerId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
   sale    Sale?       @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   cut     ShiftCut?   @relation(fields: [tenantId, cutId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   agent   PrintAgent? @relation(fields: [tenantId, agentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  order   KitchenOrder? @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
+  @@index([tenantId, orderId])
   @@index([tenantId, branchId, status, nextAttemptAt])
   @@index([tenantId, branchId, createdAt])
   @@map("print_job")
+}
+
+/// Un pedido del mesero (B6-2, ADR-022): lo que se pidió de una vez en una mesa. Entra en la cuenta de
+/// la mesa y sale en papel como comanda, en la misma transacción. Solo-agregar: anularlo es de B6-3.
+model KitchenOrder {
+  /// Lo genera la tablet: el reintento de un envío no pide dos veces.
+  id            String   @id @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  accountId     String   @map("account_id") @db.Uuid
+  /// El correlativo de la comanda en la sucursal, el que se canta en la cocina.
+  number        Int
+  tableId       String   @map("table_id")
+  tableLabel    String   @map("table_label")
+  /// Lo pedido: producto, nombre, cantidad y nota (`PedidoDto.lineas`).
+  items         Json
+  createdAt     DateTime @map("created_at") @db.Timestamptz(3)
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+  deviceId      String?  @map("device_id") @db.Uuid
+
+  branch    Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account   Account    @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  printJobs PrintJob[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, branchId, number])
+  @@index([tenantId, branchId, createdAt])
+  @@index([tenantId, accountId])
+  @@map("kitchen_order")
 }

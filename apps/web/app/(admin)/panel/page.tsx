@@ -14,8 +14,7 @@ import { stockAlerts } from "@l2/domain-inventory";
  * estancias (B4-2). Lo que pasa AHORA lo lee `EnVivo` de los eventos de la operación. Todo se
  * actualiza solo por el canal en vivo (B5-1).
  *
- * TODO(F9-08/backend): política y umbral de cocina vendrán de la configuración de la sucursal, por
- * tiempo real (ADR-008).
+ * Las comandas que no salieron en papel las trae el proveedor de pedidos (B6-2).
  */
 export const dynamic = "force-dynamic";
 
@@ -49,7 +48,6 @@ export default async function InicioPage() {
       fecha={`${hoy.getDate()} de ${MESES[hoy.getMonth()]}`}
       diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
       turnos={turnos.map((t) => ({ abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto }))}
-      umbral={{ avisoMin: 8, gritaMin: 15 }}
       // Quién está en cada puesto sale de las sesiones de la base (B5-1): con un turno abierto, un
       // puesto sin nadie es noticia.
       enServicio={turnos.length > 0}
