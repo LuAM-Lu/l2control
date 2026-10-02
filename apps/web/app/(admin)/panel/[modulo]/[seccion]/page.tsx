@@ -13,7 +13,7 @@ import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucur
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { directorioDeFamilias } from "../../../../../src/features/park/parque.servidor";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
-import { autorizadoresDeTasa } from "../../../../../src/features/cash/tasas.servidor";
+import { autorizadoresDeTasa, paginaDeTasas } from "../../../../../src/features/cash/tasas.servidor";
 import { MediosPage } from "../../../../../src/features/cash/MediosPage";
 import { DescuentosScreen } from "../../../../../src/features/cash/DescuentosScreen";
 import { descuentosDelLocal } from "../../../../../src/features/cash/descuentos.servidor";
@@ -44,7 +44,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/plano": () => <EditorPlano />,
   "ajustes/medios": () => <MediosPage />,
   "ajustes/descuentos": async () => <DescuentosScreen descuentos={await descuentosDelLocal()} catalogo={await catalogoDelLocal()} />,
-  "ajustes/tasas": async () => <TasasPage autorizadores={await autorizadoresDeTasa()} />,
+  "ajustes/tasas": async () => <TasasPage autorizadores={await autorizadoresDeTasa()} historial={await paginaDeTasas()} />,
   "ajustes/impuestos": async () => <ImpuestosScreen impuestos={await impuestosDelLocal()} />,
   "ajustes/feriados": async () => <FeriadosScreen feriados={await feriadosDelLocal()} />,
   "ajustes/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} />,

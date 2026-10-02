@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import type { HistorialTasasDto } from "@l2/contracts";
+import type { HistorialTasasDto, PaginaDeTasasDto, Resultado } from "@l2/contracts";
 import { aplicacion, contextoDelLocal } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -21,4 +21,10 @@ export async function historialDeTasas(): Promise<HistorialTasasDto> {
 export async function autorizadoresDeTasa(): Promise<{ id: string; nombre: string }[]> {
   const ctx = await contextoActual();
   return ctx ? (await aplicacion()).tasas.autorizadores(ctx) : [];
+}
+
+/** La primera página del historial de tasas para Ajustes → Tasas de cambio (T-7). */
+export async function paginaDeTasas(): Promise<Resultado<PaginaDeTasasDto>> {
+  await connection();
+  return (await aplicacion()).tasas.pagina(contextoDelLocal(), {});
 }

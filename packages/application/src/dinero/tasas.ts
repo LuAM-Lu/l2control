@@ -15,8 +15,12 @@ import {
   CapturarTasaCommandSchema,
   ConfirmarTasaCommandSchema,
   HistorialTasasSchema,
+  PaginaDeTasasSchema,
+  TasasQuerySchema,
   problemasDe,
   type ExchangeRateDto,
+  type FiltroTasas,
+  type PaginaDeTasasDto,
   type HistorialTasasDto,
   type SincronizacionTasaDto,
   type Rechazo,
@@ -85,6 +89,11 @@ export interface CasosTasas {
    */
   leer(ctx: Contexto, ahora?: number): Promise<HistorialTasasDto>;
   /**
+   * Una página del historial completo (T-7, `TasasQuerySchema`), lo más reciente primero, con lo que
+   * cuenta cada filtro. Lo lee cualquiera, como `leer`: la tasa no es un dato sensible.
+   */
+  pagina(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PaginaDeTasasDto>>;
+  /**
    * Captura una tasa. La de administración se aplica al guardarla (ADR-019 §5), tecleada dos
    * veces si salta o es la primera; la de supervisión queda pendiente de confirmar con 🔐.
    */
@@ -126,6 +135,38 @@ export function casosTasas(base: Base): CasosTasas {
         feriados,
         alertas: alertasDe(filas.map(registro), ahora, feriados, zona),
       });
+    },
+
+    async pagina(ctx, entrada, ahora = Date.now()) {
+      const v = TasasQuerySchema.safeParse(entrada ?? {});
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "La consulta no es válida.", problemas: problemasDe(v.error) };
+      const q = v.data;
+      const [filas, feriados, zona] = await base.conTenant(ctx.tenantId, async (tx) => [
+        await tx.exchangeRate.findMany({ where: q.par ? { pair: q.par } : {}, include: { confirmation: true }, orderBy: [{ capturedAt: "desc" }, { id: "desc" }] }),
+        await diasFeriados(tx),
+        await zonaDe(tx, ctx.branchId),
+      ] as const);
+      const hoy = calendarDay(new Date(ahora).toISOString(), zona);
+      // Sin confirmar: por confirmar mientras su día rija (o esté por venir); si su día pasó, no se usó.
+      const enQueQuedo = (f: (typeof filas)[number]): Exclude<FiltroTasas, "TODAS"> => {
+        if (f.confirmation) return "APLICADAS";
+        const dia = f.effectiveDate.toISOString().slice(0, 10);
+        return dia >= hoy || coversDay(dia, hoy, feriados) ? "POR_CONFIRMAR" : "NO_USADAS";
+      };
+      const conteos: Record<FiltroTasas, number> = { TODAS: filas.length, APLICADAS: 0, POR_CONFIRMAR: 0, NO_USADAS: 0 };
+      for (const f of filas) conteos[enQueQuedo(f)] += 1;
+      const elegidas = q.filtro === "TODAS" ? filas : filas.filter((f) => enQueQuedo(f) === q.filtro);
+      const paginas = Math.max(1, Math.ceil(elegidas.length / q.porPagina));
+      const pagina = Math.min(q.pagina, paginas);
+      return {
+        ok: true,
+        valor: PaginaDeTasasSchema.parse({
+          tasas: elegidas.slice((pagina - 1) * q.porPagina, pagina * q.porPagina).map(dto),
+          total: elegidas.length,
+          pagina,
+          conteos,
+        }),
+      };
     },
 
     async capturar(ctx, entrada, ahora = Date.now()) {

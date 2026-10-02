@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { ExchangeRateDto, HistorialTasasDto, Resultado, SincronizacionTasaDto } from "@l2/contracts";
+import type { ExchangeRateDto, HistorialTasasDto, Resultado, SincronizacionTasaDto, PaginaDeTasasDto } from "@l2/contracts";
 import { aplicacion, contextoDelLocal, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -68,4 +68,9 @@ export async function traerTasaDelBcv(): Promise<Resultado<SincronizacionTasaDto
     log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "tasa del BCV no traída");
   }
   return r;
+}
+
+/** Una página del historial de tasas (T-7): la revalida el caso de uso con su contrato. */
+export async function leerPaginaDeTasas(consulta: unknown): Promise<Resultado<PaginaDeTasasDto>> {
+  return (await aplicacion()).tasas.pagina(contextoDelLocal(), consulta);
 }

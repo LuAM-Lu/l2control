@@ -11,7 +11,7 @@
  * que es puro y tiene sus pruebas. Aquí solo está **la forma**.
  */
 import { z } from "zod";
-import { FechaSchema, IdSchema, TimestampSchema } from "./primitives.ts";
+import { FechaSchema, IdSchema, PaginaSchema, PorPaginaSchema, TimestampSchema } from "./primitives.ts";
 
 export const RatePairSchema = z.enum(["USD/VES", "USDT/VES"]);
 export type RatePair = z.infer<typeof RatePairSchema>;
@@ -141,6 +141,31 @@ export const HistorialTasasSchema = z
     },
   );
 export type HistorialTasasDto = z.infer<typeof HistorialTasasSchema>;
+
+/**
+ * En qué quedó cada tasa del historial (T-7): aplicada (confirmada o aplicada sola), por confirmar (sin
+ * confirmar y su día todavía rige o está por venir) o no usada (su día pasó sin confirmarla).
+ */
+export const FiltroTasasSchema = z.enum(["TODAS", "APLICADAS", "POR_CONFIRMAR", "NO_USADAS"]);
+export type FiltroTasas = z.infer<typeof FiltroTasasSchema>;
+
+/** Una página del historial de tasas (T-7, M-17): lo más reciente primero. */
+export const TasasQuerySchema = z.strictObject({
+  pagina: PaginaSchema.default(1),
+  porPagina: PorPaginaSchema.default(20),
+  filtro: FiltroTasasSchema.default("TODAS"),
+  par: RatePairSchema.optional(),
+});
+export type TasasQuery = z.input<typeof TasasQuerySchema>;
+
+export const PaginaDeTasasSchema = z.object({
+  tasas: z.array(ExchangeRateSchema),
+  total: z.number().int().min(0),
+  pagina: z.number().int().min(1),
+  /** Lo que cuenta cada filtro, con el par elegido. */
+  conteos: z.record(FiltroTasasSchema, z.number().int().min(0)),
+});
+export type PaginaDeTasasDto = z.infer<typeof PaginaDeTasasSchema>;
 
 /**
  * Capturar la tasa de un día (F3-04). Los dos únicos mandos del historial son este y confirmar:
