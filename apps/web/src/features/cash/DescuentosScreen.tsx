@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgePercent, Crown, Hand, Info, Smartphone, Trash2 } from "lucide-react";
+import { BadgePercent, CalendarClock, Crown, Hand, Info, Percent, Plus, Smartphone, Trash2 } from "lucide-react";
 import {
   CrearReglaDescuentoCommandSchema,
   type CatalogoDto,
@@ -13,7 +13,7 @@ import {
 import { calendarDay } from "@l2/domain-rates";
 import { basisPointsFromPercent, percentFromBasisPoints } from "@l2/domain-tax";
 import { can } from "@l2/domain-identity";
-import { Badge, Button, Container, EmptyState, Input, PageHeader, avisar, cn } from "@l2/ui";
+import { Badge, Button, Cifra, Confirmacion, Container, Dialog, EmptyState, FiltroSegmentado, Input, PageHeader, Resumen, Sheet, Tabs, avisar, cn } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
@@ -24,11 +24,12 @@ import { crearReglaDescuento, retirarReglaDescuento } from "./descuentos.accione
 import { textoAlcance, textoValor } from "./descuentos.ts";
 
 /**
- * Ajustes → Descuentos (B3-6, V-9, D-DESC). Administración crea las reglas que la caja ofrece: por
- * medio de pago (la caja lo propone y pide la 🔐 de supervisión), VIP (se asigna a familias en el
- * directorio) y manuales (con motivo y 🔐; supervisión hasta su tope). Una regla no se edita: se
- * retira y se crea otra, y lo cobrado con ella sigue diciendo cuál fue. Crear, retirar y cambiar el
- * tope piden confirmar identidad.
+ * Ajustes → Descuentos (B3-6, V-9, D-DESC; patrón de Ajustes, M-17 y T-7). Administración crea las
+ * reglas que la caja ofrece: por medio de pago (la caja lo propone y pide la 🔐 de supervisión), VIP (se
+ * asigna a familias en el directorio) y manuales (con motivo y 🔐; supervisión hasta su tope). Una regla
+ * no se edita: se retira y se crea otra, y lo cobrado con ella sigue diciendo cuál fue. Arriba, el
+ * resumen; debajo, las vigentes y las retiradas en pestañas; el alta en una hoja lateral y retirar pide
+ * confirmarlo. Crear, retirar y cambiar el tope piden confirmar identidad.
  */
 
 const ETIQUETA = "text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase";
@@ -81,9 +82,11 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
   const [hasta, setHasta] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
-  const [retirando, setRetirando] = useState<string | null>(null);
-  const [verRetiradas, setVerRetiradas] = useState(false);
+  const [retirando, setRetirando] = useState<ReglaDescuentoDto | null>(null);
   const [tope, setTope] = useState<string | null>(null);
+  const [creando, setCreando] = useState(false);
+  const [vista, setVista] = useState<"vigentes" | "retirados">("vigentes");
+  const [filtro, setFiltro] = useState<"TODOS" | TipoReglaDescuento>("TODOS");
 
   if (!descuentos) {
     return (
@@ -134,6 +137,7 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
         setElegidas([]);
         setHasta("");
         setDesde("");
+        setCreando(false);
         router.refresh();
       } else if (r.problemas?.length) {
         setErrores(Object.fromEntries(r.problemas.map((p) => [String(p.path[0]), r.mensaje])));
@@ -187,19 +191,156 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
   const limpiar = (k: string) => setErrores((e) => ({ ...e, [k]: "" }));
   const mediosDelLocal = (medios?.medios ?? []).filter((m) => m.activo);
 
+  const programados = vigentes.filter((r) => hoy !== null && r.desde > hoy);
+  const vip = vigentes.filter((r) => r.tipo === "VIP");
+  const familiasVip = vip.reduce((n, r) => n + r.familias, 0);
+  const deTipo = (lista: readonly ReglaDescuentoDto[]) => (filtro === "TODOS" ? lista : lista.filter((r) => r.tipo === filtro));
+  const opciones = (lista: readonly ReglaDescuentoDto[]) => [
+    { id: "TODOS" as const, nombre: "Todos", cuenta: lista.length },
+    ...TIPOS.map((t) => ({ id: t.id, nombre: t.nombre, cuenta: lista.filter((r) => r.tipo === t.id).length })),
+  ];
+  const nombreMedio = (code: string) => (medios?.medios ?? []).find((m) => m.code === code)?.label ?? code;
+
+  const fila = (r: ReglaDescuentoDto, retirada: boolean) => {
+    const futura = hoy !== null && r.desde > hoy;
+    const vencida = hoy !== null && r.hasta !== null && r.hasta < hoy;
+    return (
+      <li key={r.id} className={cn("flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between", retirada && "text-ink-3")}>
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-ink">
+            {r.nombre}
+            <span className="tnum text-brand">{textoValor(r.valor)}</span>
+            <Badge tone="idle">{NOMBRE_TIPO[r.tipo]}</Badge>
+            {!retirada && futura && <Badge tone="warn">Empieza el {fechaCorta(r.desde)}</Badge>}
+            {!retirada && vencida && <Badge tone="warn">Venció</Badge>}
+          </p>
+          <p className="truncate text-[12.5px] text-ink-2">
+            Sobre {textoAlcance(r.alcance)}
+            {r.medio ? ` · pagando todo con ${nombreMedio(r.medio)}` : ""}
+            {r.tipo === "VIP" ? ` · ${r.familias} ${r.familias === 1 ? "familia" : "familias"}` : ""}
+            <span className="text-ink-3">
+              {" "}
+              · {vigencia(r)} · creado por {r.creada.por}
+              {retirada && r.retirada ? ` · retirado por ${r.retirada.por}` : ""}
+            </span>
+          </p>
+        </div>
+        {!retirada && puede && (
+          <Button type="button" variant="ghost" surface="admin" className="shrink-0 gap-1.5 self-start sm:self-auto" onClick={() => setRetirando(r)}>
+            <Trash2 size={14} className="text-state-crit" aria-hidden="true" />
+            Retirar
+          </Button>
+        )}
+      </li>
+    );
+  };
+
+  const lista = (reglas: readonly ReglaDescuentoDto[], retiradas: boolean) => (
+    <div className="flex min-h-0 flex-col gap-3 md:h-full">
+      <div className="shrink-0">
+        <FiltroSegmentado etiqueta="Tipo de descuento" valor={filtro} onCambiar={setFiltro} opciones={opciones(reglas)} />
+      </div>
+      {deTipo(reglas).length === 0 ? (
+        <EmptyState
+          icon={<BadgePercent size={20} />}
+          title={reglas.length === 0 ? (retiradas ? "Ningún descuento retirado" : "Todavía no hay descuentos") : "Ninguno de este tipo"}
+          hint={reglas.length === 0 && !retiradas ? "La caja no ofrece ninguno hasta que crees el primero." : "Cambia el tipo para ver los demás."}
+        />
+      ) : (
+        <ul className="flex min-h-0 flex-col divide-y divide-line rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:overflow-y-auto">
+          {deTipo(reglas).map((r) => fila(r, retiradas))}
+        </ul>
+      )}
+      <p className="flex shrink-0 items-start gap-1.5 text-[12.5px] text-ink-3">
+        <Info size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+        Retirar no borra: lo cobrado con un descuento sigue diciendo cuál fue. Para cambiar uno, retíralo y crea otro.
+      </p>
+    </div>
+  );
+
   return (
-    <Container ancho="panel" className="py-8">
+    <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
       <PageHeader
+        className="mb-4"
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Descuentos" }]}
         titulo="Descuentos"
         descripcion="Lo que la caja puede descontar, siempre antes del IVA y uno por cuenta: propone el mayor y quien autoriza puede elegir otro. La administración aplica además el que quiera, con su PIN y un motivo escrito."
+        acciones={
+          puede ? (
+            <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setCreando(true)}>
+              <Plus size={15} aria-hidden="true" /> Nuevo descuento
+            </Button>
+          ) : undefined
+        }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        <section aria-label="Crear un descuento" className="flex min-w-0 flex-col gap-4">
-          {puede ? (
-            <form onSubmit={crear} className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
-              <h2 className="font-display text-[14px] font-bold text-ink">Nuevo descuento</h2>
+      <Resumen etiqueta="Resumen de los descuentos">
+        <Cifra
+          etiqueta="Vigentes"
+          icono={<BadgePercent aria-hidden="true" />}
+          valor={String(vigentes.length - programados.length)}
+          pie={vigentes.length - programados.length > 0 ? "La caja los ofrece hoy" : "La caja no ofrece ninguno hoy"}
+          activo={vista === "vigentes"}
+          onClick={() => setVista("vigentes")}
+        />
+        <Cifra
+          etiqueta="Programados"
+          icono={<CalendarClock aria-hidden="true" />}
+          valor={String(programados.length)}
+          pie={programados.length > 0 ? `El próximo empieza el ${fechaCorta([...programados].sort((a, b) => a.desde.localeCompare(b.desde))[0]!.desde)}` : "Ninguno por empezar"}
+          onClick={() => setVista("vigentes")}
+        />
+        <Cifra
+          etiqueta="Familias VIP"
+          icono={<Crown aria-hidden="true" />}
+          valor={String(familiasVip)}
+          pie={vip.length > 0 ? `En ${vip.length} ${vip.length === 1 ? "descuento VIP" : "descuentos VIP"} · se marcan en el directorio` : "Sin descuento VIP vigente"}
+          onClick={() => {
+            setVista("vigentes");
+            setFiltro("VIP");
+          }}
+        />
+        <Cifra
+          etiqueta="Tope de supervisión"
+          icono={<Percent aria-hidden="true" />}
+          valor={`${percentFromBasisPoints(descuentos.topeSupervision)} %`}
+          pie={puede ? "Por encima, autoriza administración · tocar para cambiarlo" : "Por encima, autoriza administración"}
+          {...(puede ? { onClick: () => setTope(percentFromBasisPoints(descuentos.topeSupervision)) } : {})}
+        />
+      </Resumen>
+
+      <Tabs
+        etiqueta="Descuentos"
+        surface="admin"
+        className="mt-4 min-h-0 flex-1"
+        activa={vista}
+        onCambiar={(id) => {
+          setVista(id as "vigentes" | "retirados");
+          setFiltro("TODOS");
+        }}
+        pestanas={[
+          { id: "vigentes", etiqueta: "Vigentes", contador: vigentes.length, contenido: lista(vigentes, false) },
+          { id: "retirados", etiqueta: "Retirados", contador: retiradas.length, contenido: lista(retiradas, true) },
+        ]}
+      />
+
+      <Sheet
+        abierto={creando}
+        onCerrar={() => setCreando(false)}
+        titulo="Nuevo descuento"
+        descripcion="Se aplica antes del IVA y uno por cuenta. No se edita: para cambiarlo, se retira y se crea otro."
+        pie={
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" surface="admin" onClick={() => setCreando(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="nuevo-descuento" variant="primary" surface="admin" className="flex-1" disabled={enviando}>
+              {enviando ? "Guardando…" : "Crear descuento"}
+            </Button>
+          </div>
+        }
+      >
+            <form id="nuevo-descuento" onSubmit={crear} className="flex flex-col gap-3">
               <div role="radiogroup" aria-label="Tipo de descuento" className="grid grid-cols-3 gap-1.5">
                 {TIPOS.map((t) => (
                   <button
@@ -384,140 +525,49 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
               </div>
               {(errores.desde || errores.hasta) && <p className="text-[12px] font-medium text-state-crit">{errores.desde || errores.hasta}</p>}
 
-              <Button type="submit" variant="primary" surface="admin" className="mt-1 w-full" disabled={enviando}>
-                {enviando ? "Guardando…" : "Crear descuento"}
-              </Button>
             </form>
-          ) : (
-            <p className="rounded-[var(--radius-card)] border border-line bg-surface p-5 text-[13px] text-ink-2">
-              Los descuentos los configura la administración. Aquí puedes ver los que la caja ofrece.
-            </p>
-          )}
+      </Sheet>
 
-          <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
-            <h2 className="font-display text-[14px] font-bold text-ink">Tope de supervisión</h2>
-            <p className="text-[12.5px] text-ink-2">
-              Un descuento manual que pase de este porcentaje de la cuenta lo autoriza la administración, que no tiene tope.
-            </p>
-            {tope === null ? (
-              <div className="flex items-center justify-between gap-3">
-                <span className="tnum font-display text-xl font-bold text-ink">{percentFromBasisPoints(descuentos.topeSupervision)} %</span>
-                {puede && (
-                  <Button type="button" variant="neutral" surface="admin" onClick={() => setTope(percentFromBasisPoints(descuentos.topeSupervision))}>
-                    Cambiar
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-1.5">
-                <Input
-                  surface="admin"
-                  label="Tope (%)"
-                  inputMode="decimal"
-                  value={tope}
-                  error={errores.tope || undefined}
-                  onChange={(e) => {
-                    setTope(e.target.value);
-                    limpiar("tope");
-                  }}
-                />
-                <Button type="button" variant="ghost" surface="admin" className="mt-6" onClick={() => setTope(null)} disabled={enviando}>
-                  Cancelar
-                </Button>
-                <Button type="button" variant="primary" surface="admin" className="mt-6" onClick={() => void guardarTope()} disabled={enviando}>
-                  Guardar
-                </Button>
-              </div>
-            )}
+      <Dialog
+        abierto={tope !== null}
+        onCerrar={() => setTope(null)}
+        titulo="Tope de supervisión"
+        descripcion="Un descuento manual que pase de este porcentaje de la cuenta lo autoriza la administración, que no tiene tope."
+        pie={
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" surface="admin" onClick={() => setTope(null)} disabled={enviando}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="primary" surface="admin" onClick={() => void guardarTope()} disabled={enviando}>
+              {enviando ? "Guardando…" : "Guardar"}
+            </Button>
           </div>
-        </section>
+        }
+      >
+        <Input
+          surface="admin"
+          label="Tope (%)"
+          inputMode="decimal"
+          value={tope ?? ""}
+          error={errores.tope || undefined}
+          onChange={(e) => {
+            setTope(e.target.value);
+            limpiar("tope");
+          }}
+        />
+      </Dialog>
 
-        <section aria-label="Descuentos del local" className="flex min-w-0 flex-col gap-4">
-          <div className="rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
-            <h2 className="tnum border-b border-line px-4 py-2.5 text-[13px] font-bold text-ink">
-              Vigentes <span className="font-medium text-ink-3">· {vigentes.length}</span>
-            </h2>
-            {vigentes.length === 0 ? (
-              <p className="flex items-center gap-2 px-4 py-5 text-[13px] text-ink-3">
-                <BadgePercent size={16} aria-hidden="true" />
-                Todavía no hay descuentos: la caja no ofrece ninguno.
-              </p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-line">
-                {vigentes.map((r) => {
-                  const futura = hoy !== null && r.desde > hoy;
-                  const vencida = hoy !== null && r.hasta !== null && r.hasta < hoy;
-                  return (
-                    <li key={r.id} className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-ink">
-                          {r.nombre}
-                          <span className="tnum text-brand">{textoValor(r.valor)}</span>
-                          <Badge tone="idle">{NOMBRE_TIPO[r.tipo]}</Badge>
-                          {futura && <Badge tone="warn">Empieza el {fechaCorta(r.desde)}</Badge>}
-                          {vencida && <Badge tone="warn">Venció</Badge>}
-                        </p>
-                        <p className="truncate text-[12.5px] text-ink-2">
-                          Sobre {textoAlcance(r.alcance)}
-                          {r.medio ? ` · pagando todo con ${(medios?.medios ?? []).find((m) => m.code === r.medio)?.label ?? r.medio}` : ""}
-                          {r.tipo === "VIP" ? ` · ${r.familias} ${r.familias === 1 ? "familia" : "familias"}` : ""}
-                          <span className="text-ink-3"> · {vigencia(r)} · creado por {r.creada.por}</span>
-                        </p>
-                      </div>
-                      {puede &&
-                        (retirando === r.id ? (
-                          <div className="flex shrink-0 gap-1.5">
-                            <Button type="button" variant="ghost" surface="admin" onClick={() => setRetirando(null)} disabled={enviando}>
-                              Cancelar
-                            </Button>
-                            <Button type="button" variant="danger" surface="admin" onClick={() => void retirar(r)} disabled={enviando}>
-                              Sí, retirar
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button type="button" variant="ghost" surface="admin" className="shrink-0 gap-1.5 self-start sm:self-auto" onClick={() => setRetirando(r.id)}>
-                            <Trash2 size={14} aria-hidden="true" />
-                            Retirar
-                          </Button>
-                        ))}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          {retiradas.length > 0 && (
-            <div className="rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
-              <button
-                type="button"
-                aria-expanded={verRetiradas}
-                onClick={() => setVerRetiradas((v) => !v)}
-                className="flex min-h-10 w-full cursor-pointer items-center justify-between px-4 text-[13px] font-bold text-ink-2 hover:text-ink"
-              >
-                <span>
-                  Retirados <span className="tnum font-medium text-ink-3">· {retiradas.length}</span>
-                </span>
-                <span className="text-[12px] font-medium text-ink-3">{verRetiradas ? "Ocultar" : "Ver"}</span>
-              </button>
-              {verRetiradas && (
-                <ul className="flex flex-col divide-y divide-line border-t border-line">
-                  {retiradas.map((r) => (
-                    <li key={r.id} className="px-4 py-2 text-[12.5px] text-ink-3">
-                      <span className="font-semibold text-ink-2">{r.nombre}</span> · {textoValor(r.valor)} sobre {textoAlcance(r.alcance)} · retirado por{" "}
-                      {r.retirada!.por}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          <p className="flex items-start justify-center gap-1.5 text-center text-[12.5px] text-ink-3">
-            <Info size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-            Retirar no borra: lo cobrado con un descuento sigue diciendo cuál fue. Para cambiar uno, retíralo y crea otro.
-          </p>
-        </section>
-      </div>
+      <Confirmacion
+        abierto={retirando !== null}
+        onCerrar={() => setRetirando(null)}
+        titulo={`¿Retirar «${retirando?.nombre ?? ""}»?`}
+        confirmar={enviando ? "Retirando…" : "Sí, retirar"}
+        peligro
+        ocupado={enviando}
+        onConfirmar={() => retirando && void retirar(retirando)}
+      >
+        <p>La caja deja de ofrecerlo desde ahora. No se borra: lo cobrado con él sigue diciendo cuál fue.</p>
+      </Confirmacion>
     </Container>
   );
 }
