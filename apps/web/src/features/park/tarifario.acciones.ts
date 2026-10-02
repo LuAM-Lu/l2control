@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { Resultado, TarifarioPublicadoDto } from "@l2/contracts";
-import { aplicacion, log } from "../../servidor/aplicacion";
+import type { Resultado, TarifarioPublicadoDto, PaginaDeVersionesTarifarioDto } from "@l2/contracts";
+import { aplicacion, contextoDelLocal, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
 /**
@@ -25,4 +25,9 @@ export async function publicarTarifario(entrada: unknown): Promise<Resultado<Tar
     log().warn({ tenantId: ctx.tenantId, motivo: resultado.motivo }, "tarifario rechazado");
   }
   return resultado;
+}
+
+/** Una página del historial del tarifario (T-7): la revalida el caso de uso con su contrato. */
+export async function leerVersionesTarifario(consulta: unknown): Promise<Resultado<PaginaDeVersionesTarifarioDto>> {
+  return (await aplicacion()).tarifario.versiones(contextoDelLocal(), consulta);
 }

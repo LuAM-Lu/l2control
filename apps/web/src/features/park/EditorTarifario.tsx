@@ -1,21 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Redo2, Undo2, Save, TriangleAlert, ChevronDown, ChevronRight, Edit2, ArchiveRestore, ArchiveX } from "lucide-react";
-import { TarifarioSchema, type ParkPolicyDto, type PricePackageDto, type TarifarioDto } from "@l2/contracts";
+import { Plus, Redo2, Undo2, Save, TriangleAlert, Edit2, ArchiveRestore, ArchiveX, Ticket, Archive, Timer, CalendarClock, History } from "lucide-react";
+import {
+  POR_PAGINA,
+  TarifarioSchema,
+  type PaginaDeVersionesTarifarioDto,
+  type ParkPolicyDto,
+  type PorPagina,
+  type PricePackageDto,
+  type Resultado,
+  type TarifarioDto,
+} from "@l2/contracts";
 import { fromMajor, toMajor } from "@l2/domain-money";
 import { computeOverdueBreakdown, computeSessionView, epochMs, fixed, type ParkSession } from "@l2/domain-park";
-import { Button, Container, Dialog, Input, MoneyDisplay, PageHeader, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { Button, Cifra, Confirmacion, Container, EmptyState, Input, MoneyDisplay, PageHeader, Paginacion, Resumen, Sheet, Tabs, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { usePaginas } from "../shell/usePaginas.ts";
+import { useReloj } from "../sucursal/SucursalProvider.tsx";
+import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
+import { leerVersionesTarifario } from "./tarifario.acciones";
 import { toMoney, toParkPolicy } from "./mappers.ts";
 import { useTarifario } from "./TarifarioProvider";
 
 /**
- * Editor de Tarifas y paquetes — F5-04, F5-06, en Panel → Parque.
+ * Ajustes → Tarifas y paquetes — F5-04, F5-06; patrón de Ajustes (M-17, T-7).
  *
- * Mismo trato que la carta: se edita un BORRADOR y el parque solo ve el
- * tarifario cuando se publica.
- * Retirar un paquete no lo borra: lo marca con `active: false`.
+ * Se edita un BORRADOR y la entrada solo ve el tarifario cuando se publica, como versión nueva con quién
+ * y cuándo. Arriba, el resumen (paquetes a la venta, retirados, reglas y lo publicado); debajo, tres
+ * pestañas: los paquetes (alta y edición en hoja lateral), las reglas del parque y el historial de
+ * versiones por páginas, con lo que cambió en cada una. Retirar un paquete no lo borra: lo marca con
+ * `active: false`, y se puede devolver a la venta.
  */
+
+type ConsultaVersiones = Readonly<{ pagina: number; porPagina: PorPagina }>;
+type Vista = "paquetes" | "reglas" | "versiones";
 
 type Borrador = TarifarioDto;
 
@@ -28,13 +46,21 @@ function duracionLegible(d: PricePackageDto["duration"]): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
-export function EditorTarifario() {
-  const { tarifario: publicado, publicar } = useTarifario();
+export function EditorTarifario({ versiones: inicialVersiones }: { versiones: Resultado<PaginaDeVersionesTarifarioDto> }) {
+  const { tarifario: publicado, version, publicar } = useTarifario();
+  const reloj = useReloj();
+  const [vista, setVista] = useState<Vista>("paquetes");
+  const versiones = usePaginas<ConsultaVersiones, PaginaDeVersionesTarifarioDto>(
+    (q) => leerVersionesTarifario(q),
+    inicialVersiones.ok ? inicialVersiones.valor : null,
+    { pagina: 1, porPagina: 10 },
+  );
+  // Otra persona publicó: el historial se vuelve a leer solo.
+  useAlCambiar(["tarifario"], () => void versiones.releer());
   const [historial, setHistorial] = useState<Borrador[]>([publicado]);
   const [paso, setPaso] = useState(0);
   const [errores, setErrores] = useState<readonly string[]>([]);
   const [publicando, setPublicando] = useState(false);
-  const [retiradosAbiertos, setRetiradosAbiertos] = useState(false);
   const [editando, setEditando] = useState<PricePackageDto | "nuevo" | null>(null);
   const [paqueteARetirar, setPaqueteARetirar] = useState<PricePackageDto | null>(null);
 
@@ -67,6 +93,7 @@ export function EditorTarifario() {
       setHistorial([resultado.valor.tarifario]);
       setPaso(0);
       setErrores([]);
+      void versiones.releer();
       avisar.ok("Tarifario publicado", { detalle: "La entrada ya usa los nuevos paquetes y reglas." });
     } catch {
       setErrores(["No se pudo publicar: el servidor no respondió. El borrador sigue aquí; inténtalo de nuevo."]);
@@ -96,9 +123,134 @@ export function EditorTarifario() {
     });
   }
 
+  const ultima = versiones.datos?.versiones[0] ?? null;
+  const desde = enVenta.length > 0 ? enVenta.reduce((m, p) => (BigInt(p.price.minor) < BigInt(m.price.minor) ? p : m)) : null;
+
+  const paquetes = (
+    <div className="flex min-h-0 flex-col gap-3 md:h-full">
+      <div className="flex shrink-0 flex-wrap items-center gap-1">
+        <Button surface="admin" variant="neutral" onClick={() => setEditando("nuevo")}>
+          <Plus size={15} aria-hidden="true" />
+          Añadir paquete
+        </Button>
+        <Button surface="admin" variant="ghost" aria-label="Deshacer" title="Deshacer" onClick={() => setPaso((p) => Math.max(0, p - 1))} disabled={paso === 0}>
+          <Undo2 size={15} aria-hidden="true" />
+        </Button>
+        <Button surface="admin" variant="ghost" aria-label="Rehacer" title="Rehacer" onClick={() => setPaso((p) => Math.min(historial.length - 1, p + 1))} disabled={paso >= historial.length - 1}>
+          <Redo2 size={15} aria-hidden="true" />
+        </Button>
+        <Button surface="admin" variant="ghost" onClick={descartar} disabled={!sucio}>
+          Descartar cambios
+        </Button>
+      </div>
+      <div className="flex min-h-0 flex-col gap-4 md:overflow-y-auto">
+        {enVenta.length === 0 ? (
+          <EmptyState icon={<Ticket size={20} />} title="No hay paquetes a la venta" hint="Sin paquetes, la entrada no puede vender. Añade uno y publica." />
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {enVenta.map((paquete) => (
+              <li key={paquete.id} className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[var(--radius-control)] border border-line bg-surface px-4 py-2 shadow-card">
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3">
+                  <span className="truncate text-[14px] font-semibold text-ink">{paquete.name}</span>
+                  <span className="text-[13px] text-ink-2">{duracionLegible(paquete.duration)}</span>
+                  <span className="text-[13px] text-ink-3">{paquete.mode === "PREPAGO" ? "Se paga al entrar" : "Se paga al salir"}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <MoneyDisplay value={toMajor(toMoney(paquete.price))} currency={paquete.price.currency} size="md" />
+                  <Button surface="admin" variant="ghost" onClick={() => setEditando(paquete)} aria-label={`Editar ${paquete.name}`}>
+                    <Edit2 size={15} aria-hidden="true" />
+                    Editar
+                  </Button>
+                  <Button surface="admin" variant="ghost" onClick={() => setPaqueteARetirar(paquete)} aria-label={`Retirar ${paquete.name}`}>
+                    <ArchiveX size={15} className="text-state-crit" aria-hidden="true" />
+                    Retirar
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {retirados.length > 0 && (
+          <section aria-label="Paquetes retirados" className="flex flex-col gap-2">
+            <h3 className="text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">Retirados · {retirados.length}</h3>
+            <ul className="flex flex-col gap-2">
+              {retirados.map((paquete) => (
+                <li key={paquete.id} className="flex min-h-12 flex-wrap items-center justify-between gap-4 rounded-[var(--radius-control)] border border-dashed border-line bg-surface-2 px-4 py-2">
+                  <span className="min-w-0 truncate text-[14px] text-ink-2">
+                    {paquete.name} <span className="text-[12px] text-ink-3">· {duracionLegible(paquete.duration)}</span>
+                  </span>
+                  <Button surface="admin" variant="neutral" onClick={() => devolver(paquete)}>
+                    <ArchiveRestore size={15} aria-hidden="true" />
+                    Volver a la venta
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+
+  const reglas = (
+    <div className="min-h-0 md:h-full md:overflow-y-auto">
+      <EditorReglas key={JSON.stringify(borrador.policy)} policy={borrador.policy} onChange={(nuevaPolicy) => cambiar({ ...borrador, policy: nuevaPolicy })} />
+    </div>
+  );
+
+  const historialDeVersiones = (
+    <div className="flex min-h-0 flex-col gap-3 md:h-full">
+      <div aria-busy={versiones.cargando} className={cn("flex min-h-0 flex-1 flex-col transition-opacity", versiones.cargando && "opacity-60")}>
+        {versiones.error ? (
+          <div role="alert" className="rounded-[var(--radius-card)] border border-state-crit/35 bg-state-crit-bg px-4 py-6 text-center text-[13px]">
+            <p className="font-semibold text-state-crit">{versiones.error}</p>
+            <Button type="button" variant="neutral" surface="admin" className="mt-3" onClick={() => void versiones.releer()}>
+              Volver a intentar
+            </Button>
+          </div>
+        ) : (versiones.datos?.versiones.length ?? 0) === 0 ? (
+          <EmptyState icon={<History size={20} />} title="Todavía no hay versiones" hint="Cada vez que publiques, queda aquí con quién y qué cambió." />
+        ) : (
+          <ul className="flex min-h-0 flex-col gap-2 md:overflow-y-auto">
+            {versiones.datos!.versiones.map((v) => (
+              <li key={v.version} className="shrink-0 rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-display text-[14px] font-bold text-ink">
+                    Versión {v.version}
+                    {v.version === version && <span className="ml-2 text-[12px] font-semibold text-state-ok">rige ahora</span>}
+                  </span>
+                  <span className="tnum text-[12px] text-ink-3">
+                    {reloj.diaYHora(Date.parse(v.publicadoEn))} · {v.publicadoPor} · {v.aLaVenta} a la venta
+                  </span>
+                </div>
+                <ul className="mt-1.5 flex flex-col gap-0.5 text-[13px] text-ink-2">
+                  {v.cambios.map((c) => (
+                    <li key={c}>· {c}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {!versiones.error && versiones.datos && versiones.datos.total > 0 && (
+        <Paginacion
+          etiqueta="Páginas de las versiones"
+          pagina={versiones.consulta.pagina}
+          porPagina={versiones.consulta.porPagina}
+          opciones={POR_PAGINA}
+          total={versiones.datos.total}
+          cargando={versiones.cargando}
+          onCambiar={(c) => versiones.cambiar(c)}
+        />
+      )}
+    </div>
+  );
+
   return (
-    <Container ancho="panel" className="py-8">
+    <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
       <PageHeader
+        className="mb-4"
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
           { texto: "Ajustes", href: "/panel/ajustes" },
@@ -107,157 +259,79 @@ export function EditorTarifario() {
         titulo="Tarifas y paquetes"
         descripcion="Lo que cambies aquí es un borrador: la entrada lo verá cuando publiques."
         acciones={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button surface="admin" variant="ghost" onClick={() => setPaso((p) => Math.max(0, p - 1))} disabled={paso === 0}>
-              <Undo2 size={15} aria-hidden="true" />
-              Deshacer
-            </Button>
-            <Button
-              surface="admin"
-              variant="ghost"
-              onClick={() => setPaso((p) => Math.min(historial.length - 1, p + 1))}
-              disabled={paso >= historial.length - 1}
-            >
-              <Redo2 size={15} aria-hidden="true" />
-              Rehacer
-            </Button>
-            <Button surface="admin" variant="neutral" onClick={() => setEditando("nuevo")}>
-              <Plus size={15} aria-hidden="true" />
-              Añadir paquete
-            </Button>
-            <Button surface="admin" variant="ghost" onClick={descartar} disabled={!sucio}>
-              Descartar cambios
-            </Button>
-            <Button surface="admin" variant="primary" onClick={() => void alPublicar()} disabled={!sucio || publicando}>
-              <Save size={15} aria-hidden="true" />
-              {publicando ? "Publicando…" : "Publicar"}
-            </Button>
-          </div>
+          <Button surface="admin" variant="primary" onClick={() => void alPublicar()} disabled={!sucio || publicando}>
+            <Save size={15} aria-hidden="true" />
+            {publicando ? "Publicando…" : "Publicar"}
+          </Button>
         }
       />
 
+      <Resumen etiqueta="Resumen del tarifario">
+        <Cifra
+          etiqueta="A la venta"
+          icono={<Ticket aria-hidden="true" />}
+          tono={enVenta.length === 0 ? "crit" : "idle"}
+          valor={`${enVenta.length} ${enVenta.length === 1 ? "paquete" : "paquetes"}`}
+          pie={desde ? `Desde ${formatMoneyVE(toMajor(toMoney(desde.price)), "USD")} · ${desde.name}` : "La entrada no puede vender"}
+          activo={vista === "paquetes"}
+          onClick={() => setVista("paquetes")}
+        />
+        <Cifra
+          etiqueta="Retirados"
+          icono={<Archive aria-hidden="true" />}
+          valor={String(retirados.length)}
+          pie={retirados.length > 0 ? "Se conservan para las estancias de antes" : "Ninguno"}
+          onClick={() => setVista("paquetes")}
+        />
+        <Cifra
+          etiqueta="Reglas"
+          icono={<Timer aria-hidden="true" />}
+          valor={`${borrador.policy.graceMinutes} min de gracia`}
+          pie={`Bloques de ${borrador.policy.penaltyBlockMinutes} min a ${formatMoneyVE(toMajor(toMoney(borrador.policy.penaltyPricePerBlock)), "USD")} · aforo ${borrador.policy.capacityLimit}`}
+          activo={vista === "reglas"}
+          onClick={() => setVista("reglas")}
+        />
+        <Cifra
+          etiqueta="Publicado"
+          icono={<CalendarClock aria-hidden="true" />}
+          tono={sucio ? "warn" : "idle"}
+          valor={sucio ? "Cambios sin publicar" : `Versión ${version}`}
+          pie={ultima ? `${reloj.diaYHora(Date.parse(ultima.publicadoEn))} · ${ultima.publicadoPor}` : "Sin historial"}
+          activo={vista === "versiones"}
+          onClick={() => setVista("versiones")}
+        />
+      </Resumen>
+
       {errores.length > 0 && (
-        <div role="alert" className="mt-4 flex items-center gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[13px] text-state-crit">
+        <div role="alert" className="mt-3 flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[13px] text-state-crit">
           <TriangleAlert size={16} aria-hidden="true" />
           {errores[0]}
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-8">
-        <section aria-label="Paquetes">
-          <h2 className="font-display mb-3 text-lg font-bold text-ink">Paquetes</h2>
-          {enVenta.length === 0 ? (
-            <p className="text-[13px] text-ink-3">No hay paquetes a la venta. Añade uno para empezar.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {enVenta.map((paquete) => {
-                const duracion = duracionLegible(paquete.duration);
-                const modo = paquete.mode === "PREPAGO" ? "Se paga al entrar" : "Se paga al salir";
+      <Tabs
+        etiqueta="Tarifario"
+        surface="admin"
+        className="mt-4 min-h-0 flex-1"
+        activa={vista}
+        onCambiar={(id) => setVista(id as Vista)}
+        pestanas={[
+          { id: "paquetes", etiqueta: "Paquetes", contador: enVenta.length, contenido: paquetes },
+          { id: "reglas", etiqueta: "Reglas del parque", contenido: reglas },
+          { id: "versiones", etiqueta: "Versiones", contador: versiones.datos?.total ?? 0, contenido: historialDeVersiones },
+        ]}
+      />
 
-                return (
-                  <li
-                    key={paquete.id}
-                    className="flex min-h-12 flex-wrap items-center justify-between gap-4 rounded-[var(--radius-control)] border border-line bg-surface px-4 py-2"
-                  >
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <span className="truncate text-[14px] font-semibold text-ink">{paquete.name}</span>
-                      <span className="text-[13px] text-ink-2">• {duracion}</span>
-                      <span className="text-[13px] text-ink-3">• {modo}</span>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <MoneyDisplay value={toMajor(toMoney(paquete.price))} currency={paquete.price.currency} size="md" />
-                      <div className="flex items-center gap-2">
-                        <Button surface="admin" variant="ghost" onClick={() => setEditando(paquete)} aria-label={`Editar ${paquete.name}`}>
-                          <Edit2 size={15} aria-hidden="true" />
-                          Editar
-                        </Button>
-                        <Button
-                          surface="admin"
-                          variant="ghost"
-                          className="text-state-crit hover:text-state-crit"
-                          onClick={() => setPaqueteARetirar(paquete)}
-                          aria-label={`Retirar ${paquete.name}`}
-                        >
-                          <ArchiveX size={15} aria-hidden="true" />
-                          Retirar
-                        </Button>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section aria-label="Paquetes retirados" className="border-t border-line pt-6">
-          <button
-            type="button"
-            aria-expanded={retiradosAbiertos}
-            onClick={() => setRetiradosAbiertos((a) => !a)}
-            className="flex min-h-8 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] px-2 text-[14px] font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            {retiradosAbiertos ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
-            Paquetes retirados ({retirados.length})
-          </button>
-
-          {retiradosAbiertos && (
-            <div className="mt-4">
-              {retirados.length === 0 ? (
-                <p className="text-[13px] text-ink-3">No hay paquetes retirados.</p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {retirados.map((paquete) => (
-                    <li
-                      key={paquete.id}
-                      className="flex min-h-12 flex-wrap items-center justify-between gap-4 rounded-[var(--radius-control)] border border-dashed border-line bg-surface-2 px-4 py-2 opacity-70"
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <span className="truncate text-[14px] text-ink-2">{paquete.name}</span>
-                        <span className="text-[12px] text-ink-3">
-                          ({duracionLegible(paquete.duration)})
-                        </span>
-                      </div>
-                      <Button surface="admin" variant="neutral" onClick={() => devolver(paquete)}>
-                        <ArchiveRestore size={15} aria-hidden="true" />
-                        Volver a la venta
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </section>
-
-        <section aria-label="Reglas del parque" className="border-t border-line pt-6">
-          <h2 className="font-display mb-4 text-lg font-bold text-ink">Reglas del parque</h2>
-          <EditorReglas
-            key={JSON.stringify(borrador.policy)}
-            policy={borrador.policy}
-            onChange={(nuevaPolicy) => cambiar({ ...borrador, policy: nuevaPolicy })}
-          />
-        </section>
-      </div>
-
-      <Dialog
+      <Confirmacion
         abierto={paqueteARetirar !== null}
         onCerrar={() => setPaqueteARetirar(null)}
-        titulo="¿Retirar de la venta?"
-        descripcion="El paquete dejará de ofrecerse, pero se conservará para las estancias anteriores. Podrás volver a ponerlo a la venta más adelante."
-        pie={
-          <div className="grid grid-cols-2 gap-2">
-            <Button surface="tablet" variant="neutral" onClick={() => setPaqueteARetirar(null)}>
-              Cancelar
-            </Button>
-            <Button surface="tablet" variant="danger" onClick={() => paqueteARetirar && retirar(paqueteARetirar)}>
-              Sí, retirar
-            </Button>
-          </div>
-        }
+        titulo={`¿Retirar «${paqueteARetirar?.name ?? ""}» de la venta?`}
+        confirmar="Sí, retirar"
+        peligro
+        onConfirmar={() => paqueteARetirar && retirar(paqueteARetirar)}
       >
-        <p className="text-[14px] font-semibold text-ink">{paqueteARetirar?.name}</p>
-      </Dialog>
+        <p>Deja de ofrecerse al publicar, pero se conserva para las estancias de antes. Se puede devolver a la venta más adelante.</p>
+      </Confirmacion>
 
       {editando !== null && (
         <SheetEditarPaquete

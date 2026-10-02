@@ -7,7 +7,7 @@
  * cliente ya lo haya hecho (ADR-017).
  */
 import { z } from "zod";
-import { IdSchema, MoneySchema, TimestampSchema, IdempotencyKeySchema } from "./primitives.ts";
+import { IdSchema, MoneySchema, TimestampSchema, IdempotencyKeySchema, PaginaSchema, PorPaginaSchema } from "./primitives.ts";
 // La tasa tiene su propio módulo (§5.2): aquí solo se usa para pintar el monitor.
 import { ExchangeRateSchema } from "./tasas.ts";
 import { FamilyAccountSchema, PaymentModeSchema } from "./account.ts";
@@ -200,6 +200,33 @@ export const TarifarioPublicadoSchema = z.object({
   tarifario: TarifarioSchema,
 });
 export type TarifarioPublicadoDto = z.infer<typeof TarifarioPublicadoSchema>;
+
+/** Una versión publicada del tarifario, como la lee el historial (T-7): quién, cuándo y qué cambió. */
+export const VersionTarifarioSchema = z.object({
+  version: z.number().int().positive(),
+  publicadoEn: TimestampSchema,
+  /** Quién la publicó («Consola del servidor» si no fue una persona). */
+  publicadoPor: z.string(),
+  /** Cuántos paquetes quedaron a la venta. */
+  aLaVenta: z.number().int().min(0),
+  /** Lo que cambió respecto de la versión anterior, en palabras. */
+  cambios: z.array(z.string()),
+});
+export type VersionTarifarioDto = z.infer<typeof VersionTarifarioSchema>;
+
+export const VersionesTarifarioQuerySchema = z.strictObject({
+  pagina: PaginaSchema.default(1),
+  porPagina: PorPaginaSchema.default(10),
+});
+export type VersionesTarifarioQuery = z.input<typeof VersionesTarifarioQuerySchema>;
+
+/** Una página del historial del tarifario, de la más nueva a la más vieja. */
+export const PaginaDeVersionesTarifarioSchema = z.object({
+  versiones: z.array(VersionTarifarioSchema),
+  total: z.number().int().min(0),
+  pagina: z.number().int().min(1),
+});
+export type PaginaDeVersionesTarifarioDto = z.infer<typeof PaginaDeVersionesTarifarioSchema>;
 
 /* ----------------------------------------------------------- estancia */
 

@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import type { TarifarioPublicadoDto } from "@l2/contracts";
+import type { PaginaDeVersionesTarifarioDto, Resultado, TarifarioPublicadoDto } from "@l2/contracts";
 import { aplicacion, contextoDelLocal } from "../../servidor/aplicacion";
 
 /**
@@ -22,4 +22,10 @@ export async function tarifarioVigente(): Promise<TarifarioPublicadoDto> {
     );
   }
   return vigente;
+}
+
+/** La primera página del historial del tarifario, para Ajustes → Tarifas y paquetes (T-7). */
+export async function versionesDelTarifario(): Promise<Resultado<PaginaDeVersionesTarifarioDto>> {
+  await connection();
+  return (await aplicacion()).tarifario.versiones(contextoDelLocal(), {});
 }

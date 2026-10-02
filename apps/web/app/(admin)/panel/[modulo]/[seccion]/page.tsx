@@ -5,6 +5,7 @@ import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage"
 import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
 import { CartaScreen } from "../../../../../src/features/mesas/CartaScreen";
 import { EditorTarifario } from "../../../../../src/features/park/EditorTarifario";
+import { versionesDelTarifario } from "../../../../../src/features/park/tarifario.servidor";
 import { AccesosPage } from "../../../../../src/features/identity/AccesosPage";
 import { DispositivosPage } from "../../../../../src/features/identity/DispositivosPage";
 import { dispositivosDelLocal } from "../../../../../src/features/identity/dispositivos.servidor";
@@ -39,7 +40,7 @@ import { ajustesDelLocal } from "../../../../../src/features/inventario/salidas.
  */
 const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.ReactNode>>> = {
   "parque/representantes": async () => <RepresentantesPage inicial={await directorioDeFamilias()} descuentos={await descuentosDelLocal()} />,
-  "ajustes/tarifas": () => <EditorTarifario />,
+  "ajustes/tarifas": async () => <EditorTarifario versiones={await versionesDelTarifario()} />,
   "ajustes/carta": async () => <CartaScreen catalogo={await catalogoDelLocal()} />,
   "ajustes/plano": () => <EditorPlano />,
   "ajustes/medios": () => <MediosPage />,

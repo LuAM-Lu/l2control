@@ -125,3 +125,40 @@ describe("dos personas publican a la vez", () => {
     assert.equal(new Set(versiones).size, versiones.length, "versiones repetidas");
   });
 });
+
+describe("el historial de versiones (T-7)", () => {
+  test("de la más nueva a la más vieja, con quién la publicó y qué cambió", async () => {
+    const C: Contexto = { tenantId: randomUUID(), branchId: randomUUID(), sistema: true };
+    await app.sucursal.asegurar(C, { tenant: "Prueba C", sucursal: "Principal" });
+    try {
+      assert.deepEqual(await app.tarifario.versiones(C, {}), { ok: true, valor: { versiones: [], total: 0, pagina: 1 } });
+      assert.ok((await app.tarifario.publicar(C, tarifario("300"))).ok);
+      const segundo = tarifario("350");
+      segundo.packages.push({ ...paquete("p60", "1 hora", 60, "500") });
+      segundo.policy.capacityLimit = 25;
+      assert.ok((await app.tarifario.publicar(C, segundo)).ok);
+      const tercero = structuredClone(segundo);
+      tercero.packages[2]!.active = false;
+      assert.ok((await app.tarifario.publicar(C, tercero)).ok);
+
+      const r = await app.tarifario.versiones(C, { porPagina: 10 });
+      assert.ok(r.ok, JSON.stringify(r));
+      assert.deepEqual(r.valor.versiones.map((v) => v.version), [3, 2, 1]);
+      assert.equal(r.valor.versiones[2]!.publicadoPor, "Consola del servidor");
+      assert.deepEqual(r.valor.versiones[2]!.cambios, ["Primera publicación: 2 paquetes a la venta"]);
+      assert.ok(r.valor.versiones[1]!.cambios.some((c) => c.startsWith("Nuevo paquete «1 hora»")));
+      assert.ok(r.valor.versiones[1]!.cambios.some((c) => c.startsWith("«30 minutos»:")));
+      assert.ok(r.valor.versiones[1]!.cambios.includes("Aforo: 30 → 25 niños"));
+      assert.deepEqual(r.valor.versiones[0]!.cambios, ["«1 hora» se retiró de la venta"]);
+      assert.equal(r.valor.versiones[0]!.aLaVenta, 2);
+
+      const p2 = await app.tarifario.versiones(C, { porPagina: 10, pagina: 5 });
+      assert.ok(p2.ok && p2.valor.pagina === 1);
+      // Cada sucursal ve las suyas.
+      const deA = await app.tarifario.versiones({ tenantId: C.tenantId, branchId: A.branchId, sistema: true }, {});
+      assert.ok(deA.ok && deA.valor.total === 0);
+    } finally {
+      await borrarTenantsDePrueba(URL_APP, [C.tenantId]);
+    }
+  });
+});
