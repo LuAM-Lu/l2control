@@ -6,7 +6,11 @@ import {
   Ban,
   CircleCheckBig,
   KeyRound,
+  LayoutDashboard,
   Search,
+  ShieldAlert,
+  UserX,
+  Users,
   ShieldMinus,
   ShieldPlus,
   UserMinus,
@@ -25,7 +29,7 @@ import {
   type Permission,
   type Role,
 } from "@l2/domain-identity";
-import { Badge, Button, Container, Dialog, Initial, Input, PageHeader, avisar, cn } from "@l2/ui";
+import { Badge, BarraDeFiltros, Button, CAMPO_DE_FILTRO, Cifra, Container, Dialog, FiltroSegmentado, Initial, PageHeader, Resumen, avisar, cn } from "@l2/ui";
 import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL, etiquetaDe, toActor } from "./permisos.ts";
 import type { Autor } from "./operador.ts";
 import { cambiarPersona, registrarExcepcion } from "./identidad.acciones";
@@ -103,7 +107,8 @@ export function UsuariosScreen({
   );
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState<Role | "TODOS">("TODOS");
-  const [conBajas, setConBajas] = useState(false);
+  /** Qué personas se ven (T-7): las activas, las que tienen excepciones o las de baja. */
+  const [estado, setEstado] = useState<"ACTIVAS" | "EXCEPCIONES" | "BAJAS">("ACTIVAS");
   const [cambio, setCambio] = useState<Cambio | null>(null);
   const [excepcionPara, setExcepcionPara] = useState<UserSummaryDto | null>(null);
   /** El PIN temporal de un alta o una reposición: se enseña UNA vez y no se guarda en ningún sitio. */
@@ -112,16 +117,17 @@ export function UsuariosScreen({
 
   const usuario = usuarios.find((u) => u.id === seleccion) ?? null;
   const activas = usuarios.filter((u) => u.active).length;
-  const conExcepciones = usuarios.filter((u) => u.exceptions.length > 0).length;
+  const conExcepciones = usuarios.filter((u) => u.active && u.exceptions.length > 0).length;
+  const alPanel = usuarios.filter((u) => u.active && (u.role === "ADMIN" || u.role === "SUPERVISOR")).length;
 
+  const enEstado = (u: UserSummaryDto) =>
+    estado === "BAJAS" ? !u.active : estado === "EXCEPCIONES" ? u.active && u.exceptions.length > 0 : u.active;
   const lista = useMemo(() => {
     const q = plano(busqueda.trim());
-    return usuarios.filter((u) => {
-      if (!conBajas && !u.active) return false;
-      if (filtroRol !== "TODOS" && u.role !== filtroRol) return false;
-      return q === "" || plano(u.fullName).includes(q);
-    });
-  }, [usuarios, busqueda, filtroRol, conBajas]);
+    return usuarios.filter((u) => enEstado(u) && (filtroRol === "TODOS" || u.role === filtroRol) && (q === "" || plano(u.fullName).includes(q)));
+  }, [usuarios, busqueda, filtroRol, estado]);
+  const delRol = (r: Role) => usuarios.filter((u) => enEstado(u) && u.role === r).length;
+  const hayFiltros = estado !== "ACTIVAS" || filtroRol !== "TODOS" || busqueda.trim() !== "";
 
   /**
    * Envía un comando al SERVIDOR, que lo valida con el contrato, lo juzga con las cinco puertas
@@ -162,8 +168,9 @@ export function UsuariosScreen({
   }
 
   return (
-    <Container ancho="panel" className="py-8">
+    <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
       <PageHeader
+        className="mb-4"
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
           { texto: "Ajustes", href: "/panel/ajustes" },
@@ -171,12 +178,6 @@ export function UsuariosScreen({
         ]}
         titulo="Usuarios y permisos"
         descripcion="Cada persona tiene un rol fijo. Lo que se sale de su rol se ve aparte: son las excepciones, con quién las concedió, cuándo y por qué."
-        meta={
-          <span className="tnum text-[12.5px] text-ink-3">
-            {activas} {activas === 1 ? "persona activa" : "personas activas"} ·{" "}
-            {usuarios.length - activas} de baja · {conExcepciones} con excepciones
-          </span>
-        }
         acciones={
           puedeGestionar && (
             <Button surface="admin" variant="primary" onClick={() => setCambio({ kind: "ALTA" })}>
@@ -187,81 +188,121 @@ export function UsuariosScreen({
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-        {/* ═════════════════════════ personas ═════════════════════════ */}
-        <section aria-label="Personas" className="flex min-w-0 flex-col gap-3">
-          <Input
-            surface="admin"
-            label="Buscar"
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Nombre de la persona"
-            leading={<Search size={14} aria-hidden="true" />}
-          />
+      <Resumen etiqueta="Resumen del equipo">
+        <Cifra
+          etiqueta="Activas"
+          icono={<Users aria-hidden="true" />}
+          valor={String(activas)}
+          pie="Entran con su PIN en un equipo aprobado"
+          activo={estado === "ACTIVAS" && filtroRol === "TODOS"}
+          onClick={() => {
+            setEstado("ACTIVAS");
+            setFiltroRol("TODOS");
+          }}
+        />
+        <Cifra
+          etiqueta="Con excepciones"
+          icono={<ShieldAlert aria-hidden="true" />}
+          valor={String(conExcepciones)}
+          pie={conExcepciones > 0 ? "Tienen poderes que su rol no da (o les quitaron)" : "Todos tienen exactamente su rol"}
+          activo={estado === "EXCEPCIONES"}
+          onClick={() => setEstado("EXCEPCIONES")}
+        />
+        <Cifra
+          etiqueta="Entran al panel"
+          icono={<LayoutDashboard aria-hidden="true" />}
+          valor={String(alPanel)}
+          pie="Administración y supervisión"
+        />
+        <Cifra
+          etiqueta="De baja"
+          icono={<UserX aria-hidden="true" />}
+          valor={String(usuarios.length - activas)}
+          pie="No se borran: su historia y sus cobros se conservan"
+          activo={estado === "BAJAS"}
+          onClick={() => setEstado("BAJAS")}
+        />
+      </Resumen>
 
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrar por rol">
-              <Chip activo={filtroRol === "TODOS"} onClick={() => setFiltroRol("TODOS")}>
-                Todos
-              </Chip>
-              {ROLES.map((r) => (
-                <Chip key={r} activo={filtroRol === r} onClick={() => setFiltroRol(r)}>
-                  {NOMBRE_ROL[r]}
-                </Chip>
-              ))}
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-ink-3">
+      <div className="mt-4 grid min-h-0 flex-1 content-start gap-5 overflow-y-auto lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:content-stretch lg:overflow-visible">
+        {/* ═════════════════════════ personas ═════════════════════════ */}
+        <section aria-label="Personas" className="flex min-w-0 flex-col gap-2.5 lg:min-h-0">
+          <BarraDeFiltros
+            hayFiltros={hayFiltros}
+            onLimpiar={() => {
+              setEstado("ACTIVAS");
+              setFiltroRol("TODOS");
+              setBusqueda("");
+            }}
+          >
+            <FiltroSegmentado
+              etiqueta="Estado"
+              valor={estado}
+              onCambiar={setEstado}
+              opciones={[
+                { id: "ACTIVAS", nombre: "Activas", cuenta: activas },
+                { id: "EXCEPCIONES", nombre: "Excepciones", cuenta: conExcepciones },
+                { id: "BAJAS", nombre: "De baja", cuenta: usuarios.length - activas },
+              ]}
+            />
+          </BarraDeFiltros>
+          <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            <label className="relative flex items-center">
+              <Search size={14} className="pointer-events-none absolute left-2.5 text-ink-3" aria-hidden="true" />
               <input
-                type="checkbox"
-                checked={conBajas}
-                onChange={(e) => setConBajas(e.target.checked)}
-                className="size-3.5 accent-[var(--color-brand)]"
+                type="search"
+                aria-label="Buscar por nombre"
+                placeholder="Nombre"
+                className={cn(CAMPO_DE_FILTRO, "w-full pl-8")}
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
               />
-              Incluir a quienes están de baja
             </label>
+            <select aria-label="Rol" className={cn(CAMPO_DE_FILTRO, "w-full")} value={filtroRol} onChange={(e) => setFiltroRol(e.target.value as Role | "TODOS")}>
+              <option value="TODOS">Todos los roles</option>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {NOMBRE_ROL[r]} ({delRol(r)})
+                </option>
+              ))}
+            </select>
           </div>
 
           {lista.length === 0 ? (
             <p className="rounded-[var(--radius-card)] border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-3">
-              Nadie con ese nombre en este filtro.
+              Nadie con estos filtros.
             </p>
           ) : (
-            <ul className="flex flex-col gap-1.5">
+            <ul className="flex min-h-0 flex-col gap-1.5 lg:overflow-y-auto">
               {lista.map((u) => {
                 const activa = u.id === seleccion;
                 return (
-                  <li key={u.id}>
+                  <li key={u.id} className="shrink-0">
                     <button
                       type="button"
                       onClick={() => setSeleccion(u.id)}
                       aria-pressed={activa}
                       className={cn(
-                        "flex min-h-14 w-full cursor-pointer items-center gap-2.5 rounded-[var(--radius-control)]",
-                        "border bg-surface px-3 py-2 text-left",
+                        "flex min-h-12 w-full cursor-pointer items-center gap-2.5 rounded-[var(--radius-control)]",
+                        "border bg-surface px-3 py-1.5 text-left",
                         "transition-[border-color,background-color] duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                        activa
-                          ? "border-brand/60 bg-surface-2"
-                          : "border-line hover:border-line-strong",
+                        activa ? "border-brand/60 bg-surface-2" : "border-line hover:border-line-strong",
                         !u.active && "opacity-55",
                       )}
                     >
                       <Initial name={u.fullName} tone={u.active ? "brand" : "idle"} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13.5px] font-semibold text-ink">
-                          {u.fullName}
-                        </span>
+                        <span className="block truncate text-[13.5px] font-semibold text-ink">{u.fullName}</span>
                         <span className="flex items-center gap-1.5 text-[11.5px] text-ink-3">
                           {NOMBRE_ROL[u.role]}
-                          {!u.active && (
-                            <span className="text-[10px] tracking-wide uppercase">· de baja</span>
-                          )}
+                          {!u.active && <span className="text-[10px] tracking-wide uppercase">· de baja</span>}
                         </span>
                       </span>
                       {u.exceptions.length > 0 && (
                         <span
                           aria-label={`${u.exceptions.length} excepciones`}
+                          title="Excepciones: permisos que su rol no da, o que le quitaron"
                           className="tnum flex size-5 shrink-0 items-center justify-center rounded-full bg-state-warn-bg text-[11px] font-bold text-state-warn"
                         >
                           {u.exceptions.length}
@@ -273,10 +314,6 @@ export function UsuariosScreen({
               })}
             </ul>
           )}
-
-          <p className="text-[11.5px] text-ink-3">
-            El número naranja son las excepciones: permisos que su rol no da, o que le quitaron.
-          </p>
         </section>
 
         {/* ═════════════════════════ detalle ══════════════════════════ */}
@@ -357,7 +394,7 @@ function Detalle({
   }, [actor]);
 
   return (
-    <section aria-label={`Permisos de ${usuario.fullName}`} className="flex min-w-0 flex-col gap-4">
+    <section aria-label={`Permisos de ${usuario.fullName}`} className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
       {/* ── quién es y qué se puede hacer con ella ── */}
       <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -614,34 +651,6 @@ function Accion({
       {...rest}
     >
       {icono}
-      {children}
-    </button>
-  );
-}
-
-function Chip({
-  activo,
-  onClick,
-  children,
-}: {
-  activo: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={activo}
-      onClick={onClick}
-      className={cn(
-        "min-h-8 cursor-pointer rounded-full border px-2.5 text-[11.5px]",
-        "transition-colors duration-[var(--dur-rapida)]",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-        activo
-          ? "border-brand bg-brand/12 font-semibold text-ink"
-          : "border-line text-ink-3 hover:border-line-strong hover:text-ink-2",
-      )}
-    >
       {children}
     </button>
   );
