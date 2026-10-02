@@ -1701,6 +1701,10 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
   llega después, en el `NOT NULL`). Se suspende `FORCE ROW LEVEL SECURITY` de esa tabla solo mientras rellena y se vuelve
   a poner, y la migración va entre `BEGIN;` y `COMMIT;`: **Prisma no la envuelve en una transacción** y, si falla, deja
   aplicado lo de antes del error (B9-6: hubo que quitar a mano las columnas y `prisma migrate resolve --rolled-back`).
+- **Una migración aplicada antes de su commit puede quedar con otra suma**: en Windows se escribe con CRLF y git la
+  guarda con LF (`.gitattributes`). `prisma migrate deploy` y `status` no lo miran, pero `migrate dev` la daría por
+  modificada y propondría **resetear la base**: contra la base del cliente, solo `pnpm db:migrar`. Les pasa a
+  `20261020000000_impresion` y `20261023000000_pedidos`.
 - `$queryRaw` de Prisma no sabe leer una columna `void`: `SELECT pg_advisory_xact_lock(...)` revienta
   al volver. Se castea (`::text`).
 - El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
