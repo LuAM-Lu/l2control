@@ -10,7 +10,7 @@
  * dominio añade un rol y el contrato no, deja de compilar allí—.
  */
 import { z } from "zod";
-import { IdSchema, TimestampSchema } from "./primitives.ts";
+import { IdSchema, TimestampSchema, PaginaSchema, PorPaginaSchema } from "./primitives.ts";
 
 export const RoleSchema = z.enum([
   "ADMIN",
@@ -308,6 +308,31 @@ export const DevicesDirectorySchema = z
     path: ["devices"],
   });
 export type DevicesDirectoryDto = z.infer<typeof DevicesDirectorySchema>;
+
+/** Qué equipos se ven (T-7): por estado, o los que tienen una sesión abierta ahora. */
+export const FiltroDispositivosSchema = z.enum(["TODOS", "PENDIENTES", "APROBADOS", "REVOCADOS", "EN_SESION"]);
+export type FiltroDispositivos = z.infer<typeof FiltroDispositivosSchema>;
+
+/** Una página de los equipos de la sucursal (T-7, M-17): primero los pendientes, luego los más nuevos. */
+export const DispositivosQuerySchema = z.strictObject({
+  pagina: PaginaSchema.default(1),
+  porPagina: PorPaginaSchema.default(20),
+  filtro: FiltroDispositivosSchema.default("TODOS"),
+  /** Parte del nombre o del código de emparejamiento. */
+  busqueda: z.string().trim().max(40).optional(),
+});
+export type DispositivosQuery = z.input<typeof DispositivosQuerySchema>;
+
+export const PaginaDeDispositivosSchema = z.object({
+  dispositivos: z.array(DeviceSchema),
+  /** Cuántos cumplen el filtro y la búsqueda. */
+  total: z.number().int().min(0),
+  /** La página que se devuelve (la pedida, o la última si ya no existe). */
+  pagina: z.number().int().min(1),
+  /** Lo que cuenta cada filtro, con la búsqueda puesta. */
+  conteos: z.record(FiltroDispositivosSchema, z.number().int().min(0)),
+});
+export type PaginaDeDispositivosDto = z.infer<typeof PaginaDeDispositivosSchema>;
 
 /**
  * Lo que se le puede pedir al servidor sobre un dispositivo.

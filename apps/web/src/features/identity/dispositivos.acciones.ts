@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { DeviceDto, Resultado } from "@l2/contracts";
+import type { DeviceDto, PaginaDeDispositivosDto, Resultado } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -15,4 +15,11 @@ export async function ordenarDispositivo(orden: unknown): Promise<Resultado<Devi
   const r = await (await aplicacion()).dispositivos.ordenar(ctx, orden);
   if (r.ok) revalidatePath("/panel/ajustes/dispositivos");
   return r;
+}
+
+/** Una página de los equipos de la sucursal (T-7): la revalida el caso de uso con su contrato. */
+export async function leerDispositivos(consulta: unknown): Promise<Resultado<PaginaDeDispositivosDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar." };
+  return (await aplicacion()).dispositivos.pagina(ctx, consulta);
 }

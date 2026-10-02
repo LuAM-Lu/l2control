@@ -15,9 +15,13 @@
 import {
   DeviceCommandSchema,
   DeviceSchema,
+  DispositivosQuerySchema,
+  PaginaDeDispositivosSchema,
   problemasDe,
   type DeviceDto,
   type DevicesDirectoryDto,
+  type FiltroDispositivos,
+  type PaginaDeDispositivosDto,
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
@@ -60,6 +64,11 @@ export interface CasosDispositivos {
   solicitar(lugar: Lugar, label: unknown, ip: string | null): Promise<Resultado<{ credencial: string; dispositivo: EstadoDispositivo }>>;
   /** Los equipos de la sucursal, con quién tiene sesión en cada uno (`usuarios.gestionar`). */
   listar(ctx: Contexto): Promise<Resultado<DevicesDirectoryDto>>;
+  /**
+   * Una página de los equipos de la sucursal (T-7, `DispositivosQuerySchema`): primero los pendientes,
+   * después los más nuevos; con lo que cuenta cada filtro. `usuarios.gestionar`, como `listar`.
+   */
+  pagina(ctx: Contexto, entrada: unknown): Promise<Resultado<PaginaDeDispositivosDto>>;
   /** Aprobar, revocar o renombrar (`usuarios.gestionar`), con motivo y su asiento. */
   ordenar(ctx: Contexto, comando: unknown): Promise<Resultado<DeviceDto>>;
   /** El propio equipo renueva su solicitud caducada (M-7). Conserva su historia y sus fallos. */
@@ -69,9 +78,9 @@ export interface CasosDispositivos {
 const NOMBRE_REPETIDO = "Ya hay un equipo con ese nombre. Usa uno que diga dónde está: «Tablet taquilla».";
 
 export function casosDispositivos(base: Base): CasosDispositivos {
-  async function directorio(tx: Transaccion, branchId: string, soloId?: string): Promise<DeviceDto[]> {
+  async function directorio(tx: Transaccion, branchId: string, soloId?: string | readonly string[]): Promise<DeviceDto[]> {
     const filas = await tx.device.findMany({
-      where: { branchId, ...(soloId ? { id: soloId } : {}) },
+      where: { branchId, ...(typeof soloId === "string" ? { id: soloId } : soloId ? { id: { in: [...soloId] } } : {}) },
       orderBy: { registeredAt: "asc" },
       include: {
         changes: { orderBy: { at: "desc" } },
@@ -186,6 +195,50 @@ export function casosDispositivos(base: Base): CasosDispositivos {
         const rechazo = await exigirPermiso(tx, ctx, "usuarios.gestionar");
         if (rechazo) return rechazo;
         return { ok: true, valor: { devices: await directorio(tx, ctx.branchId) } };
+      });
+    },
+
+    async pagina(ctx, entrada) {
+      const v = DispositivosQuerySchema.safeParse(entrada ?? {});
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "La consulta no es válida.", problemas: problemasDe(v.error) };
+      const q = v.data;
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<PaginaDeDispositivosDto>> => {
+        const rechazo = await exigirPermiso(tx, ctx, "usuarios.gestionar");
+        if (rechazo) return rechazo;
+        // Pocos cientos de equipos a lo sumo: se filtran y ordenan aquí y solo la página se lee entera.
+        const filas = await tx.device.findMany({ where: { branchId: ctx.branchId }, select: { id: true, label: true, status: true, registeredAt: true } });
+        const conSesion = new Set(
+          (
+            await tx.staffSession.findMany({
+              where: { branchId: ctx.branchId, closedAt: null, lastSeenAt: { gt: new Date(Date.now() - SESION_INACTIVA_MS) } },
+              select: { deviceId: true },
+            })
+          ).map((x) => x.deviceId),
+        );
+        const texto = q.busqueda?.toLowerCase() ?? "";
+        const buscados = texto ? filas.filter((d) => d.label.toLowerCase().includes(texto) || codigoDeEmparejamiento(d.id).toLowerCase().includes(texto)) : filas;
+        const cumple: Record<FiltroDispositivos, (d: (typeof filas)[number]) => boolean> = {
+          TODOS: () => true,
+          PENDIENTES: (d) => d.status === "PENDIENTE",
+          APROBADOS: (d) => d.status === "APROBADO",
+          REVOCADOS: (d) => d.status === "REVOCADO",
+          EN_SESION: (d) => d.status === "APROBADO" && conSesion.has(d.id),
+        };
+        const conteos = Object.fromEntries(
+          (Object.keys(cumple) as FiltroDispositivos[]).map((f) => [f, buscados.filter(cumple[f]).length]),
+        ) as Record<FiltroDispositivos, number>;
+        const RANGO: Record<string, number> = { PENDIENTE: 0, APROBADO: 1, REVOCADO: 2 };
+        const elegidos = buscados
+          .filter(cumple[q.filtro])
+          .sort((a, b) => (RANGO[a.status] ?? 3) - (RANGO[b.status] ?? 3) || b.registeredAt.getTime() - a.registeredAt.getTime());
+        const paginas = Math.max(1, Math.ceil(elegidos.length / q.porPagina));
+        const pagina = Math.min(q.pagina, paginas);
+        const ids = elegidos.slice((pagina - 1) * q.porPagina, pagina * q.porPagina).map((d) => d.id);
+        const porId = new Map((await directorio(tx, ctx.branchId, ids)).map((d) => [d.id, d]));
+        return {
+          ok: true,
+          valor: PaginaDeDispositivosSchema.parse({ dispositivos: ids.map((id) => porId.get(id)!), total: elegidos.length, pagina, conteos }),
+        };
       });
     },
 

@@ -80,3 +80,13 @@ export const ApiErrorSchema = z.object({
   field: z.string().optional(),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+
+/* ------------------------------------------------------------- páginas */
+
+/** Cuántas filas por página admite una lista que crece (M-17): nunca una lista sin fin. */
+export const POR_PAGINA = [10, 20, 50] as const;
+export const PorPaginaSchema = z.union([z.literal(10), z.literal(20), z.literal(50)]);
+export type PorPagina = z.infer<typeof PorPaginaSchema>;
+/** La página pedida (desde 1). El servidor la ajusta si ya no existe. */
+export const PaginaSchema = z.number().int().min(1).max(10_000);
+

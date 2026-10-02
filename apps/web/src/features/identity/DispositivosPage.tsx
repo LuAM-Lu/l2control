@@ -1,25 +1,18 @@
 "use client";
 
-import type { DevicesDirectoryDto, Resultado } from "@l2/contracts";
+import type { PaginaDeDispositivosDto, Resultado } from "@l2/contracts";
 import { SinDatos } from "./ConfirmarIdentidad";
-import { DispositivosProvider } from "./DispositivosProvider.tsx";
 import { DispositivosScreen } from "./DispositivosScreen.tsx";
 import { useOperador } from "./operador.ts";
 
 /**
- * Dispositivos (F2-02). El directorio lo manda el servidor; si la sesión no alcanza a verlo,
- * se dice (un error oculto es un antipatrón explícito).
+ * Dispositivos (F2-02, T-7). La primera página la manda el servidor; las siguientes las lee la
+ * pantalla. Si la sesión no alcanza a verlos, se dice (un error oculto es un antipatrón explícito).
  */
-export function DispositivosPage({ directorio }: { directorio: Resultado<DevicesDirectoryDto> }) {
+export function DispositivosPage({ directorio }: { directorio: Resultado<PaginaDeDispositivosDto> }) {
   const operador = useOperador();
   if (!operador) return null;
-
   if (!directorio.ok) return <SinDatos rechazo={directorio} />;
-
-  return (
-    <DispositivosProvider inicial={directorio.valor}>
-      {/* Llegar aquí con el directorio ya dice que el servidor concedió usuarios.gestionar. */}
-      <DispositivosScreen autor={{ id: operador.id, nombre: operador.nombre }} puedeGestionar />
-    </DispositivosProvider>
-  );
+  // Llegar aquí con la página ya dice que el servidor concedió usuarios.gestionar.
+  return <DispositivosScreen inicial={directorio.valor} autor={{ id: operador.id, nombre: operador.nombre }} puedeGestionar />;
 }
