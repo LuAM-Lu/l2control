@@ -32,7 +32,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.41.0 · 41 de 57 pasos.** **La comanda sale en papel (B6-2, ADR-022):** el pedido del mesero entra en la
+**Versión 0.42.0 · 42 de 57 pasos.** **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
+cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
+las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
+filtros, su cuenta y «Limpiar filtros». Ninguna regla de negocio cambió. **La comanda sale en papel (B6-2, ADR-022):** el pedido del mesero entra en la
 cuenta de la mesa y su comanda en la impresora de comandas en una sola transacción; sin impresora de comandas no se
 envía. Cada pedido dice si su comanda se imprime, salió, no salió o se descartó; lo que no salió se avisa en la
 tablet, en la caja y en Inicio, y se vuelve a imprimir (reintento si la cocina no la tenía, copia marcada si ya
@@ -101,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 398 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad).
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 409 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -313,8 +317,15 @@ trabajos se descartaron uno a uno. La cuenta #0040 ($ 6,00) se cobró en un turn
 relevo (su Z, descartado); la arepa quedó apartada, la mesa 6 libre y los equipos «Prueba B62 …» revocados. Diego Salas
 (cocina) entró y el acceso le dijo que su puesto no usa el sistema.
 
-**Siguiente paso:** **T-7** (M-17, el resto de Ajustes con las piezas que B6-1 subió a `@l2/ui`) y después **B6-3**
-(cuenta de mesa: estados de la mesa en el servidor, vincular pulseras, división, anular lo pedido).
+**Ajustes con el patrón de M-17 (2026-10-02, al comprobar T-7).** Las seis pantallas (Roles y accesos, Usuarios,
+Dispositivos, Descuentos, Tasas de cambio, Tarifas y paquetes) probadas desde «Prueba T7 Admin»: páginas de
+Dispositivos (68 equipos, con los revocados de pruebas anteriores), filtros y búsqueda por código; historial de Tasas
+por páginas y par; versiones del Tarifario con sus cambios (se intentó retirar «30 minutos», se canceló); un
+descuento de prueba creado y retirado en Descuentos; un ajuste de prueba en Roles y accesos («Dar cortesía» de Caja a
+No) devuelto a fábrica. Equipo «Prueba T7 Admin» revocado.
+
+**Siguiente paso:** **B6-3** (cuenta de mesa: estados de la mesa en el servidor, vincular pulseras, división, anular
+lo pedido).
 
 ---
 
@@ -406,7 +417,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
-5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → **T-7** (el resto de Ajustes en ese
+5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
    patrón) → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
@@ -484,7 +495,7 @@ Fuera de la cuenta de 57: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   y en la lista; «Cerrar turno» → arqueo → «Volver al turno». Inicio, Ajustes, Turno y el cierre a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento y con «Cerrar turno» a la vista; sin
   errores de consola.*
-- [ ] **T-7 · Ajustes con un mismo patrón** (M-17, pedido del cliente el 2026-10-01; la ruta pasa a 57), después
+- [x] **T-7 · Ajustes con un mismo patrón** (M-17, pedido del cliente el 2026-10-01; la ruta pasa a 57), después
   de B6-2.
   → **Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes** siguen el
   patrón de Impresoras (v0.39.2) con las piezas comunes que B6-1 sube a `@l2/ui`: resumen arriba, pestañas,
@@ -495,6 +506,16 @@ Fuera de la cuenta de 57: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   `*.test-db.ts`. Cada una, en el navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página, y en
   teléfono; sin errores de consola. Medios de pago, Impuestos, Feriados y Sucursal (listas cortas) quedan como
   están salvo que el cliente las pida.
+  *Hecho el 2026-10-02 (v0.42.0). **Dispositivos:** `dispositivos.pagina` (filtro por estado y «con sesión», búsqueda
+  por nombre o código, orden pendientes→nuevos); 6 pruebas nuevas (`dispositivos.test-db.ts`). **Tasas:**
+  `tasas.pagina` (en qué quedó cada tasa — aplicada, por confirmar, no usada — y por par); 4 pruebas nuevas
+  (`tasas-paginas.test-db.ts`). **Tarifario:** `tarifario.versiones` con `cambiosDeTarifario` (compara cada versión
+  con la anterior: paquetes nuevos, retirados o con otro precio o duración, reglas del parque); 1 prueba nueva.
+  Dispositivos, Usuarios y Accesos no tenían caso de uso por página propio: la lista corta la trae el caso de uso
+  existente y la pantalla filtra y pagina en memoria (Usuarios, Accesos) o usa un hook compartido (`usePaginas`) sobre
+  el nuevo caso de uso (Dispositivos, Tasas, Tarifario). Confirmar identidad para ver sigue en Usuarios, Accesos y
+  Dispositivos (sin cambios). Navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página, y en teléfono; sin
+  errores de consola (detalle en §1).*
 - [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → ~~La carpeta `src/demo` ya no existe y se retira la regla `demo-solo-desde-las-rutas`~~ (hecho con B6-1, que
   borró lo último). Falta que `pnpm lint` sume la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
@@ -1863,6 +1884,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   En la base local, la versión 1 del plano es el boceto del cliente. Sigue B6-2.
 - **2026-10-02** · B6-2 hecho (v0.41.0): el pedido del mesero y su comanda impresa en una transacción, con aviso y
   «Volver a imprimir» si no sale; fuera la pantalla de cocina y los estados «en fuego/listo». Sigue T-7.
+- **2026-10-02** · T-7 hecho (v0.42.0): las seis pantallas de Ajustes que faltaban (Roles y accesos, Usuarios,
+  Dispositivos, Descuentos, Tasas y Tarifas) con el patrón de Impresoras; tres con historial paginado en el servidor
+  (Dispositivos, Tasas, Tarifario). Sigue B6-3.
 
 ---
 

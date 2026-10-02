@@ -12,6 +12,33 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.42.0] — 2026-10-02 · Etapa 6 · Restaurante en el servidor
+
+T-7: Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes pasan al patrón de
+Ajustes que estrenó Impresoras (M-17): resumen arriba, pestañas, hoja lateral o diálogo para lo irreversible, y las
+listas que crecen por páginas en el servidor.
+
+### Añadido
+- **Dispositivos**: resumen (pendientes, aprobados, con sesión ahora, revocados) que filtra la lista; búsqueda por
+  nombre o código de emparejamiento; la historia de un equipo en una hoja lateral; páginas en el servidor.
+- **Tasas de cambio**: resumen con el USD y el USDT de hoy, la próxima tasa ya aplicada y cuántas esperan
+  confirmación; el historial completo por páginas, filtrable por en qué quedó cada tasa (aplicada, por confirmar, no
+  usada) y por par; cargar una tasa a mano pasa a una hoja lateral.
+- **Tarifas y paquetes**: resumen (paquetes a la venta, retirados, reglas del parque, versión publicada); pestañas
+  para los paquetes, las reglas y el historial de versiones; cada versión dice qué cambió respecto de la anterior
+  (precios, duraciones, paquetes nuevos o retirados, reglas del parque), por páginas.
+- **Descuentos**: resumen (vigentes, programados, familias VIP, tope de supervisión); vigentes y retirados en
+  pestañas, cada uno con su filtro por tipo; el alta pasa a una hoja lateral y retirar pide confirmarlo.
+- **Usuarios y permisos**: resumen (activas, con excepciones, que entran al panel, de baja) que filtra la lista;
+  buscador y filtro por rol en una fila.
+- **Roles y accesos**: resumen (ajustes del local, roles que entran al panel, acciones con autorización del rol
+  elegido, total de roles); la matriz, quién entra al panel y los ajustes del local, en pestañas; cada ajuste se
+  puede devolver a los valores de fábrica desde su propia pestaña.
+
+### Cambiado
+- Ninguna regla de negocio cambia: cada pantalla que ahora lee por páginas lo hace con un caso de uso nuevo
+  (`dispositivos.pagina`, `tasas.pagina`, `tarifario.versiones`) con sus pruebas contra la base.
+
 ## [0.41.0] — 2026-10-02 · Etapa 6 · Restaurante en el servidor
 
 B6-2: lo que pide el mesero sale en papel. La cocina trabaja con la comanda impresa (ADR-022).

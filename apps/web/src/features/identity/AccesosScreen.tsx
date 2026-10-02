@@ -9,7 +9,9 @@ import {
   Lock,
   LayoutDashboard,
   RotateCcw,
+  SlidersHorizontal,
   TriangleAlert,
+  UsersRound,
 } from "lucide-react";
 import {
   RoleAdjustmentCommandSchema,
@@ -24,7 +26,7 @@ import {
   type Permission,
   type Role,
 } from "@l2/domain-identity";
-import { Badge, Button, Container, Dialog, PageHeader, avisar, cn } from "@l2/ui";
+import { Badge, Button, Cifra, Container, Dialog, EmptyState, FiltroSegmentado, PageHeader, Resumen, Tabs, avisar, cn } from "@l2/ui";
 import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL } from "./permisos.ts";
 import type { Autor } from "./operador.ts";
 import { ordenarAcceso } from "./identidad.acciones";
@@ -118,6 +120,7 @@ export function AccesosScreen({
   const [pendiente, setPendiente] = useState<Pendiente | null>(null);
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [vista, setVista] = useState<"matriz" | "panel" | "ajustes">("matriz");
 
   /** El actor de un rol «limpio»: sin persona detrás, solo su rol y los ajustes. */
   const actorDeRol = useMemo(() => {
@@ -130,7 +133,6 @@ export function AccesosScreen({
     return { id: `rol:${rol}`, role: rol, branchIds: [branchId], roleAdjustments: deEste };
   }, [ajustes, rol, branchId]);
 
-  const ajustados = ajustes.filter((a) => a.role === rol);
 
   function abrir(action: Action, permission: Permission | null) {
     setPendiente({ role: rol, action, permission });
@@ -186,9 +188,121 @@ export function AccesosScreen({
     setPendiente(null);
   }
 
+  const entranAlPanel = ROLES.filter((r) => permisoDe(r, ACCION_PANEL, ajustes) !== "DENEGADO");
+  const rolesAjustados = ROLES.filter((r) => ajustes.some((a) => a.role === r));
+  const conAutorizacion = ACCIONES.filter((a) => explainPermission(actorDeRol, a).effective === "REQUIERE_AUTORIZACION").length;
+
+  const matriz = (
+    <div className="flex min-h-0 flex-col gap-3 md:h-full">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <FiltroSegmentado
+          etiqueta="Elegir rol"
+          valor={rol}
+          onCambiar={setRol}
+          opciones={ROLES.map((r) => ({ id: r, nombre: NOMBRE_ROL[r], cuenta: ajustes.filter((a) => a.role === r).length }))}
+        />
+        <span className="flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] text-ink-3">
+          <Lock size={13} aria-hidden="true" />
+          Administración: no se ajusta
+        </span>
+      </div>
+      <p className="shrink-0 text-[12.5px] text-ink-3">
+        La cifra de cada rol son sus ajustes. Resaltado: lo que este local ajustó, con el valor de fábrica tachado al lado. Las celdas con candado no se
+        pueden ajustar desde aquí.
+      </p>
+      <div className="flex min-h-0 flex-col gap-5 md:overflow-y-auto xl:grid xl:grid-cols-2 xl:content-start xl:gap-x-8">
+        {AREAS.map((area) => (
+          <section key={area} aria-label={area}>
+            <h2 className="mb-1 text-[10.5px] font-semibold tracking-[0.09em] text-ink-3 uppercase">{area}</h2>
+            <ul>
+              {ACCIONES.filter((a) => ETIQUETAS[a].area === area).map((a) => (
+                <FilaAccion key={a} accion={a} rol={rol} explicacion={explainPermission(actorDeRol, a)} onCambiar={(p) => abrir(a, p)} />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+
+  const panel = (
+    <section aria-label="Quién entra al back-office" className="flex flex-col gap-3">
+      <p className="max-w-[70ch] text-[13px] text-ink-2">
+        El panel es una sola puerta: quien puede ver los reportes de la sucursal entra, y quien no, trabaja en su estación a pantalla completa.
+        Administración y supervisión entran siempre. Tocar un rol propone el cambio, con su motivo.
+      </p>
+      <ul className="flex flex-wrap gap-2">
+        {ROLES.map((r) => {
+          const entra = permisoDe(r, ACCION_PANEL, ajustes) !== "DENEGADO";
+          const ajustado = ajustes.some((a) => a.role === r && a.action === ACCION_PANEL);
+          return (
+            <li key={r}>
+              <button
+                type="button"
+                aria-pressed={entra}
+                onClick={() => {
+                  setRol(r);
+                  abrir(ACCION_PANEL, entra ? null : "PERMITIDO");
+                }}
+                className={cn(
+                  "flex min-h-9 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 text-[13px]",
+                  "transition-colors duration-[var(--dur-rapida)]",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  entra ? "border-state-ok/45 bg-state-ok-bg/40 font-semibold text-ink" : "border-line text-ink-3 hover:border-line-strong hover:text-ink-2",
+                )}
+              >
+                {entra ? <CircleCheckBig size={14} className="text-state-ok" aria-hidden="true" /> : <Ban size={14} aria-hidden="true" />}
+                {NOMBRE_ROL[r]}
+                {ajustado && <span className="text-[10px] tracking-wide text-state-warn uppercase">ajustado</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+
+  const listaDeAjustes =
+    ajustes.length === 0 ? (
+      <EmptyState icon={<SlidersHorizontal size={20} />} title="Sin ajustes" hint="Todo sale de la matriz de fábrica. Un ajuste se hace en la matriz de cada rol, con su motivo." />
+    ) : (
+      <ul className="flex min-h-0 flex-col divide-y divide-line rounded-[var(--radius-card)] border border-line bg-surface shadow-card md:max-h-full md:overflow-y-auto">
+        {ajustes.map((a) => (
+          <li key={`${a.role}:${a.action}`} className="flex flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 text-[13px]">
+              <p className="flex flex-wrap items-center gap-2">
+                <Badge tone="warn">{NOMBRE_ROL[a.role as Role] ?? a.role}</Badge>
+                <span className="font-semibold text-ink">{ETIQUETAS[a.action as Action]?.etiqueta ?? a.action}</span>
+                <span className="text-ink-3">→ {NIVEL[a.permission].texto}</span>
+              </p>
+              <p className="mt-1 text-ink-2">«{a.reason}»</p>
+              <p className="tnum mt-0.5 text-[11.5px] text-ink-3">
+                {a.byName} · {reloj.diaYHora(Date.parse(a.at))}
+              </p>
+            </div>
+            <Button
+              surface="admin"
+              variant="ghost"
+              className="shrink-0 gap-1.5"
+              onClick={() => {
+                setRol(a.role as Role);
+                setPendiente({ role: a.role as Role, action: a.action as Action, permission: null });
+                setMotivo("");
+                setError(null);
+              }}
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+              Volver a fábrica
+            </Button>
+          </li>
+        ))}
+      </ul>
+    );
+
   return (
-    <Container ancho="panel" className="py-8">
+    <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
       <PageHeader
+        className="mb-4"
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },
           { texto: "Ajustes", href: "/panel/ajustes" },
@@ -196,154 +310,48 @@ export function AccesosScreen({
         ]}
         titulo="Roles y accesos"
         descripcion="Lo que alcanza cada rol en este local. De fábrica viene la matriz del plan; aquí se ajusta lo que este local hace distinto, con su motivo."
-        meta={
-          <span className="tnum text-[12.5px] text-ink-3">
-            {ajustes.length === 0
-              ? "Sin ajustes: todo sale de la matriz de fábrica"
-              : `${ajustes.length} ${ajustes.length === 1 ? "ajuste" : "ajustes"} en este local`}
-          </span>
-        }
       />
 
-      {/* ── la pregunta que trae aquí a la administración ── */}
-      <section
-        aria-label="Quién entra al back-office"
-        className="mb-6 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card"
-      >
-        <h2 className="font-display flex items-center gap-2 text-base font-bold text-ink">
-          <LayoutDashboard size={17} aria-hidden="true" />
-          Quién entra al back-office
-        </h2>
-        <p className="mt-1 mb-4 max-w-[70ch] text-[13px] text-ink-2">
-          El panel es una sola puerta: quien puede ver los reportes de la sucursal entra, y quien no,
-          trabaja en su estación a pantalla completa. Administración y supervisión entran siempre.
-        </p>
-        <ul className="flex flex-wrap gap-2">
-          {ROLES.map((r) => {
-            const entra = permisoDe(r, ACCION_PANEL, ajustes) !== "DENEGADO";
-            const ajustado = ajustes.some((a) => a.role === r && a.action === ACCION_PANEL);
-            return (
-              <li key={r}>
-                <button
-                  type="button"
-                  aria-pressed={entra}
-                  onClick={() => {
-                    setRol(r);
-                    abrir(ACCION_PANEL, entra ? null : "PERMITIDO");
-                  }}
-                  className={cn(
-                    "flex min-h-9 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 text-[13px]",
-                    "transition-colors duration-[var(--dur-rapida)]",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    entra
-                      ? "border-state-ok/45 bg-state-ok-bg/40 font-semibold text-ink"
-                      : "border-line text-ink-3 hover:border-line-strong hover:text-ink-2",
-                  )}
-                >
-                  {entra ? (
-                    <CircleCheckBig size={14} className="text-state-ok" aria-hidden="true" />
-                  ) : (
-                    <Ban size={14} aria-hidden="true" />
-                  )}
-                  {NOMBRE_ROL[r]}
-                  {ajustado && (
-                    <span className="text-[10px] tracking-wide text-state-warn uppercase">
-                      ajustado
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <Resumen etiqueta="Resumen de los accesos">
+        <Cifra
+          etiqueta="Ajustes del local"
+          icono={<SlidersHorizontal aria-hidden="true" />}
+          valor={String(ajustes.length)}
+          pie={ajustes.length === 0 ? "Todo sale de la matriz de fábrica" : `En ${rolesAjustados.length} ${rolesAjustados.length === 1 ? "rol" : "roles"}`}
+          activo={vista === "ajustes"}
+          onClick={() => setVista("ajustes")}
+        />
+        <Cifra
+          etiqueta="Entran al panel"
+          icono={<LayoutDashboard aria-hidden="true" />}
+          valor={`${entranAlPanel.length + 1} de ${ROLES.length + 1} roles`}
+          pie={["Administración", ...entranAlPanel.map((r) => NOMBRE_ROL[r])].join(", ")}
+          activo={vista === "panel"}
+          onClick={() => setVista("panel")}
+        />
+        <Cifra
+          etiqueta={`${NOMBRE_ROL[rol]}: con autorización`}
+          icono={<KeyRound aria-hidden="true" />}
+          valor={String(conAutorizacion)}
+          pie="Acciones que piden la autorización de supervisión"
+          activo={vista === "matriz"}
+          onClick={() => setVista("matriz")}
+        />
+        <Cifra etiqueta="Roles" icono={<UsersRound aria-hidden="true" />} valor={String(ROLES.length + 1)} pie="Administración no se ajusta: no se puede quitar a sí misma" />
+      </Resumen>
 
-      {/* ── la matriz, rol por rol ── */}
-      <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Elegir rol">
-        {ROLES.map((r) => {
-          const n = ajustes.filter((a) => a.role === r).length;
-          return (
-            <button
-              key={r}
-              type="button"
-              aria-pressed={rol === r}
-              onClick={() => setRol(r)}
-              className={cn(
-                "flex min-h-9 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 text-[13px]",
-                "transition-colors duration-[var(--dur-rapida)]",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                rol === r
-                  ? "border-brand bg-brand/12 font-semibold text-ink"
-                  : "border-line text-ink-2 hover:border-line-strong hover:text-ink",
-              )}
-            >
-              {NOMBRE_ROL[r]}
-              {n > 0 && (
-                <span className="tnum flex size-5 items-center justify-center rounded-full bg-state-warn-bg text-[11px] font-bold text-state-warn">
-                  {n}
-                </span>
-              )}
-            </button>
-          );
-        })}
-        <span className="flex min-h-9 items-center gap-1.5 rounded-[var(--radius-control)] border border-dashed border-line px-3 text-[12px] text-ink-3">
-          <Lock size={13} aria-hidden="true" />
-          Administración: no se ajusta
-        </span>
-      </div>
-
-      {ajustados.length > 0 && (
-        <section
-          aria-label={`Ajustes de ${NOMBRE_ROL[rol]}`}
-          className="mb-4 rounded-[var(--radius-card)] border border-state-warn/35 bg-state-warn-bg/20 p-4"
-        >
-          <h2 className="mb-2 text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
-            Lo que este local hace distinto
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {ajustados.map((a) => (
-              <li key={a.action} className="text-[13px]">
-                <p className="flex flex-wrap items-center gap-2">
-                  <Badge tone="warn">Ajuste</Badge>
-                  <span className="font-semibold text-ink">
-                    {ETIQUETAS[a.action as Action]?.etiqueta ?? a.action}
-                  </span>
-                  <span className="text-ink-3">→ {NIVEL[a.permission].texto}</span>
-                </p>
-                <p className="mt-1 text-ink-2">«{a.reason}»</p>
-                <p className="tnum mt-0.5 text-[11.5px] text-ink-3">
-                  {a.byName} · {reloj.diaYHora(Date.parse(a.at))}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <div className="flex flex-col gap-5 xl:grid xl:grid-cols-2 xl:gap-x-8">
-        <p className="text-[12.5px] text-ink-3 xl:col-span-2">
-          Resaltado: lo que este local ajustó, con el valor de fábrica tachado al lado. Las celdas con
-          candado no se pueden ajustar desde aquí.
-        </p>
-        {AREAS.map((area) => (
-          <section key={area} aria-label={area}>
-            <h2 className="mb-1 text-[10.5px] font-semibold tracking-[0.09em] text-ink-3 uppercase">
-              {area}
-            </h2>
-            <ul>
-              {ACCIONES.filter((a) => ETIQUETAS[a].area === area).map((a) => (
-                <FilaAccion
-                  key={a}
-                  accion={a}
-                  rol={rol}
-                  explicacion={explainPermission(actorDeRol, a)}
-                  onCambiar={(p) => abrir(a, p)}
-                />
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+      <Tabs
+        etiqueta="Roles y accesos"
+        surface="admin"
+        className="mt-4 min-h-0 flex-1"
+        activa={vista}
+        onCambiar={(id) => setVista(id as "matriz" | "panel" | "ajustes")}
+        pestanas={[
+          { id: "matriz", etiqueta: "Matriz por rol", contenido: matriz },
+          { id: "panel", etiqueta: "Quién entra al panel", contenido: panel },
+          { id: "ajustes", etiqueta: "Ajustes del local", contador: ajustes.length, contenido: listaDeAjustes },
+        ]}
+      />
 
       <Dialog
         abierto={pendiente !== null}
