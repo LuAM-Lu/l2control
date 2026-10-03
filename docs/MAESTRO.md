@@ -333,8 +333,11 @@ Sin desplazamiento ni errores de consola a 1366×768, 1280×800 y 800×1280. **F
 la división por ítems (F6-12), en un paso propio.
 **Lo que tocó la prueba en la base local (la del cliente):** la vinculación de «Prueba B63» (AK-9601 y AK-9602) llevó sus
 dos paquetes a la cuenta #0038, la de la mesa 1 de Abigail del 2026-10-01 (por cobrar, con una cortesía de 8,50 $). La
-caja muestra $ 10,00 en esa mesa hasta que alguien con turno abierto dé cortesía a esas dos líneas (`cuentas.cortesia`).
-No se hizo porque la caja exige turno. El plano marcó la mesa 1 como libre hasta entonces (ver §5).
+plano marcó la mesa 1 como libre hasta entonces (ver §5). **Limpiado el 2026-10-03** (decisión del cliente), por los casos de
+uso con el PIN de Abigail y sin abrir turno: los dos paquetes de #0038, regalados («Otro»), así que #0038 vuelve a estar
+como la dejó Abigail, todo regalado y en $ 0, y se libera con «Liberar mesa» (B6-5). Los dos niños salieron a las 5:09 pm;
+la salida dejó $ 3,00 de tiempo de más en la familia «Prueba B63» (#0041), marcada incobrable («Otro: datos de prueba»).
+Equipos «Prueba B63 …» revocados.
 
 ---
 
@@ -1696,7 +1699,6 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | Etapa 6 (D-RES): los estados de mesa al servidor, tras B6-3 |
 | Al anular un plato enviado, la cocina no recibe papel y la existencia no vuelve al estante | B6-6 |
-| Los dos paquetes de «Prueba B63» en la cuenta #0038 (mesa 1 de la base local) siguen sin regalar: dar cortesía exige turno abierto en la caja | El cliente, al abrir su turno (ver §1, «Lo que tocó la prueba») |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
@@ -1928,7 +1930,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-03** · B6-3 hecho (v0.43.0): vincular pulseras, salida a mesa y anular un plato enviado en el servidor,
   `mesa.vinculada` fuera del bus; `pnpm verify:db` en verde (81 y 423). Navegador en la base de pruebas. La división
   por ítems (F6-12) va en un paso propio. En la base local, la prueba de vincular dejó dos paquetes en la cuenta #0038
-  (ver §1); el cliente decide la cortesía al abrir turno.
+  (ver §1); limpiado el mismo día con el visto bueno del cliente (#0038 regalada, #0041 incobrable).
 - **2026-10-03** · M-18 (preguntas del cliente sobre la mesa y el parque): mesa sin consumo que libera el mesero (B6-5),
   papel «ANULAR» a cocina e inventario según el motivo (B6-6), y salida antes de tiempo cobrada por uso en cuenta abierta
   (B4-6). La ruta pasa a 60. Siguen B6-5 → B6-6 → B4-6 antes de los eventos.
