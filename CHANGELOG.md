@@ -12,6 +12,32 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.43.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+B6-3: la cuenta de la mesa se mueve en el servidor. El dinero del parque ya no viaja por el bus: vincular, cargar
+a mesa y anular un plato pasan por una sola operación con su comprobación.
+
+### Añadido
+- **Vincular pulseras a una mesa** (desde la mesa y desde la ficha del niño en el Monitor): lo pendiente de esos
+  niños pasa a la cuenta de la mesa en la misma operación. La familia paga todo junto en caja.
+- **Cargar la salida a una mesa**: en la salida, «A una mesa» elige la mesa del plano y lo pendiente de esos niños
+  pasa a su cuenta, sin cobrar en ese momento. Con «En caja», como antes.
+- **Anular un pedido enviado a cocina** (🔐 de administración o supervisión): con motivo (pedido equivocado, el cliente
+  desistió, sin existencia u otro con explicación). El plato no se borra: queda anulado en la cuenta y entra en las
+  excepciones del turno.
+
+### Cambiado
+- El aviso «mesa vinculada» sale del bus: el servidor es el que decide y el que lo guarda.
+
+### Conocido
+- La ocupación de cada mesa en el plano todavía la marca el bus, no la cuenta del servidor. Una mesa con cuenta
+  abierta puede verse «Libre» en el plano; la cuenta sí existe y el servidor no duplica la mesa.
+- La división por ítems (F6-12) no entra en este paso: va en uno propio.
+
+### Comprobado
+- `pnpm verify:db` en verde (423 pruebas de aplicación). Navegador en 1366×768, 1280×800 y 800×1280: sin desplazar la
+  página y sin errores de consola.
+
 ## [0.42.0] — 2026-10-02 · Etapa 6 · Restaurante en el servidor
 
 T-7: Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes pasan al patrón de

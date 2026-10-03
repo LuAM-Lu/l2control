@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-10-01**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-10-03**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.42.0 · 42 de 57 pasos.** **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.43.0 · 43 de 57 pasos.** **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 409 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 423 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -324,12 +324,17 @@ por páginas y par; versiones del Tarifario con sus cambios (se intentó retirar
 descuento de prueba creado y retirado en Descuentos; un ajuste de prueba en Roles y accesos («Dar cortesía» de Caja a
 No) devuelto a fábrica. Equipo «Prueba T7 Admin» revocado.
 
-**B6-3 en curso (2026-10-03, rama `feat/b6-3`, sin subir a `main`):** el código está hecho y `pnpm verify:db` pasa
-(423 pruebas de aplicación). Vincular pulseras (`casosMesas.vincular`) y cargar la salida del parque a una mesa mueven
-lo pendiente a la cuenta de la mesa en el servidor, en una transacción; anular un plato ya enviado (`cuentas.anularPedido`,
-🔐 `pedido.anularEnProduccion`) con su motivo; `mesa.vinculada` sale del bus. **Falta:** probarlo en el navegador, la
-versión 0.43.0 con su CHANGELOG y la etiqueta, y decidir si la división por ítems (F6-12) entra en este paso (hoy hay
-partes iguales en la caja).
+**B6-3 hecho (2026-10-03, v0.43.0):** vincular pulseras (`casosMesas.vincular`), cargar la salida a una mesa (la salida
+elige «En caja» o «A una mesa») y anular un plato enviado (`cuentas.anularPedido`, 🔐 `pedido.anularEnProduccion`) van en
+una transacción con su comprobación; `mesa.vinculada` sale del bus. `pnpm verify:db` en verde (81 de base, 423 de
+aplicación). El navegador se probó en la **base de pruebas** `l2control_test`, con su propio local, un plano de 8 mesas
+y una impresora de comandas de prueba apuntando a la IP falsa 10.2.0.2; la base del cliente no recibió comandas.
+Sin desplazamiento ni errores de consola a 1366×768, 1280×800 y 800×1280. **Fuera de B6-3 (decidido el 2026-10-03):**
+la división por ítems (F6-12), en un paso propio.
+**Lo que tocó la prueba en la base local (la del cliente):** la vinculación de «Prueba B63» (AK-9601 y AK-9602) llevó sus
+dos paquetes a la cuenta #0038, la de la mesa 1 de Abigail del 2026-10-01 (por cobrar, con una cortesía de 8,50 $). La
+caja muestra $ 10,00 en esa mesa hasta que alguien con turno abierto dé cortesía a esas dos líneas (`cuentas.cortesia`).
+No se hizo porque la caja exige turno. El plano marcó la mesa 1 como libre hasta entonces (ver §5).
 
 ---
 
@@ -422,7 +427,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
-   patrón) → B6-3 (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
+   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1551,8 +1556,10 @@ antes del cobro en servidor (orden de ejecución).
   Fuera `/cocina`, `features/cocina`, los eventos `pedido.*` e `impresora.*` del bus y su proyección; el rol COCINA no
   tiene puesto y el acceso se lo dice. Navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página (§1). Anular
   un pedido enviado y la cuenta de mesa en el servidor: B6-3.*
-- [ ] **B6-3 · Cuenta de mesa**, vinculación de pulseras y división (F6-05, F6-12, F6-14), con los
-  productos del mesero descontando existencias (ADR-023).
+- [x] **B6-3 · Cuenta de mesa**, vinculación de pulseras, salida a mesa y anulación de pedidos (F5-14, F6-05, F6-14), con
+  los productos del mesero descontando existencias (ADR-023).
+  *Hecho el 2026-10-03 (v0.43.0). **La división por ítems (F6-12) queda fuera:** va en un paso propio, con su número
+  por decidir.*
 - [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
   cuenta en la ruta. ADR-023 supersede la descarga al marcar LISTO de ADR-012: su disparador será otro ADR.
 
@@ -1661,8 +1668,8 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
-| Lo que se mueve del parque a una mesa (vincular pulseras) llega de la pantalla con su importe; lo pedido de la carta ya lo comprueba el servidor (B6-1) | B6-3 |
-| «Vincular a una mesa» (ficha del niño) y el salón viajan por el bus de un navegador; cargar el parque a una mesa desde la salida no existe | Etapa 6 (D-RES) |
+| El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | Etapa 6 (D-RES): los estados de mesa al servidor, tras B6-3 |
+| Los dos paquetes de «Prueba B63» en la cuenta #0038 (mesa 1 de la base local) siguen sin regalar: dar cortesía exige turno abierto en la caja | El cliente, al abrir su turno (ver §1, «Lo que tocó la prueba») |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
@@ -1891,9 +1898,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-02** · T-7 hecho (v0.42.0): las seis pantallas de Ajustes que faltaban (Roles y accesos, Usuarios,
   Dispositivos, Descuentos, Tasas y Tarifas) con el patrón de Impresoras; tres con historial paginado en el servidor
   (Dispositivos, Tasas, Tarifario). Sigue B6-3.
-- **2026-10-03** · B6-3 en curso (rama `feat/b6-3`, sin versión todavía): vincular pulseras y la salida a mesa en el
-  servidor, anular un plato con 🔐, `mesa.vinculada` fuera del bus; `pnpm verify:db` en verde (423). Falta el navegador,
-  v0.43.0 y decidir la división por ítems.
+- **2026-10-03** · B6-3 hecho (v0.43.0): vincular pulseras, salida a mesa y anular un plato enviado en el servidor,
+  `mesa.vinculada` fuera del bus; `pnpm verify:db` en verde (81 y 423). Navegador en la base de pruebas. La división
+  por ítems (F6-12) va en un paso propio. En la base local, la prueba de vincular dejó dos paquetes en la cuenta #0038
+  (ver §1); el cliente decide la cortesía al abrir turno.
 
 ---
 

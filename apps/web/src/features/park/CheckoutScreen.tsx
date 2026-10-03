@@ -13,6 +13,7 @@ import {
   Badge,
   Button,
   Container,
+  FiltroSegmentado,
   Initial,
   MoneyDisplay,
   ScannerField,
@@ -23,13 +24,14 @@ import {
   formatMoneyVE,
   useServerClock,
 } from "@l2/ui";
-import { PackageOpen } from "lucide-react";
+import { HandPlatter, PackageOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { sum, toMajor } from "@l2/domain-money";
 import { pendiente, previsualizarSalida } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
+import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { useSala } from "./SalaProvider.tsx";
 import { nombreDeEstancia } from "./view-model";
 import { registrarSalida } from "./parque.acciones";
@@ -54,7 +56,9 @@ import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
  * esta pantalla enseña antes de confirmar es su anticipo. Cada familia sale con su propia operación
  * (y su clave): dos familias en la misma salida son dos registros, cada uno con su cuenta.
  *
- * Cargar a una mesa llega con el restaurante (Etapa 6): hasta entonces todo va a la caja.
+ * Cargar a una mesa (F5-14, B6-3): lo pendiente de la salida pasa a la cuenta de la mesa y se cobra allí.
+ * Por defecto va a caja. La mesa la elige quien registra la salida: el servidor comprueba que exista y no
+ * esté retirada, y si ya tiene cuenta abierta la carga en esa (una mesa, una cuenta: I-05).
  */
 export function CheckoutScreen({
   pulseraInicial = null,
@@ -86,6 +90,13 @@ export function CheckoutScreen({
    * por supuesto: quien atiende lo marca, y queda constancia en la salida.
    */
   const [recogidas, setRecogidas] = useState<Record<string, { kind: "REPRESENTANTE" } | { kind: "OTRA_PERSONA"; nombre: string }>>({});
+
+  /** Dónde se paga la salida (F5-14, B6-3): en caja, o cargada a una mesa del plano (la cuenta de la mesa). */
+  const [destino, setDestino] = useState<"CAJA" | "MESA">("CAJA");
+  const [mesaElegida, setMesaElegida] = useState<string | null>(null);
+  const { plano } = usePlano();
+  const mesas = useMemo(() => (plano?.tables ?? []).filter((m) => !m.retiredAt), [plano]);
+  const etiquetaDeMesa = mesas.find((m) => m.id === mesaElegida)?.label ?? null;
 
   const actor = useActorEnSesion();
   const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
@@ -210,6 +221,12 @@ export function CheckoutScreen({
       setAviso("Marca a quién se entrega cada familia antes de registrar la salida.");
       return;
     }
+    if (destino === "MESA" && !mesaElegida) {
+      setAviso("Elige la mesa a la que se carga la salida.");
+      return;
+    }
+    // Con mesa, lo pendiente de estos niños pasa a la cuenta de la mesa (el servidor lo comprueba: I-05).
+    const disposicion = destino === "MESA" && mesaElegida ? { kind: "MESA" as const, tableId: mesaElegida } : { kind: "CAJA" as const };
     if (plan.sinCuenta.length > 0) {
       // Fail-closed: sin cuenta no se sabe quién paga ni qué se pagó ya.
       setAviso(`Sin cuenta: ${plan.sinCuenta.join(", ")}. No se puede cerrar su salida.`);
@@ -225,7 +242,7 @@ export function CheckoutScreen({
       const clave = claves.current.get(g.cuenta.id) ?? globalThis.crypto.randomUUID();
       claves.current.set(g.cuenta.id, clave);
       const recogida: RecogidaDto = recogidas[g.cuenta.id] ?? { kind: "REPRESENTANTE" };
-      const cmd = CheckoutCommandSchema.parse({ idempotencyKey: clave, sessionIds: g.salen, disposition: { kind: "CAJA" }, recogida });
+      const cmd = CheckoutCommandSchema.parse({ idempotencyKey: clave, sessionIds: g.salen, disposition: disposicion, recogida });
       const r = await registrarSalida(cmd).catch(() => null);
       if (!r) {
         fallo = "Sin conexión con el servidor: la salida no se registró. Vuelve a intentarlo.";
@@ -254,6 +271,11 @@ export function CheckoutScreen({
     setAviso(null);
 
     const ninos = cerradas.length;
+    if (disposicion.kind === "MESA") {
+      // Lo cargado no sale a la caja: la cuenta de la mesa lo guarda hasta que se cobre allí.
+      anunciarCierre({ ninos, total: toMajor(aCobrar), destino: `cargado a la mesa ${etiquetaDeMesa ?? "?"}` });
+      return;
+    }
     const aCaja = hechas.filter((c) => c.status === "POR_COBRAR");
     const monto = sum(aCaja.map(pendiente), "USD");
     const unica = aCaja[0];
@@ -526,10 +548,51 @@ export function CheckoutScreen({
               </p>
             </div>
 
+            {porCobrar.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <FiltroSegmentado
+                  etiqueta="Dónde se paga"
+                  valor={destino}
+                  onCambiar={(id) => setDestino(id)}
+                  opciones={[
+                    { id: "CAJA", nombre: "En caja" },
+                    { id: "MESA", nombre: "A una mesa" },
+                  ]}
+                />
+                {destino === "MESA" && (
+                  mesas.length === 0 ? (
+                    <p className="text-[12.5px] text-ink-3">Este local no tiene plano con mesas: la salida va a caja.</p>
+                  ) : (
+                    <div role="radiogroup" aria-label="Mesa" className="grid grid-cols-4 gap-1.5">
+                      {mesas.map((m) => {
+                        const elegida = m.id === mesaElegida;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={elegida}
+                            onClick={() => setMesaElegida(m.id)}
+                            className={cn(
+                              "flex min-h-12 items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-2 text-[13px] font-semibold",
+                              elegida ? "border-brand bg-brand/15 text-ink" : "border-line bg-base/40 text-ink-2",
+                            )}
+                          >
+                            <HandPlatter size={14} aria-hidden="true" />
+                            Mesa {m.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
             <Button
               surface="pos"
               variant="primary"
-              disabled={!hayAlgo || enviando || faltaRecogida}
+              disabled={!hayAlgo || enviando || faltaRecogida || (destino === "MESA" && !mesaElegida)}
               onClick={() => void confirmarSalida()}
               className="w-full"
             >
@@ -538,9 +601,11 @@ export function CheckoutScreen({
                 ? "Registrando la salida…"
                 : porCobrar.length === 0
                 ? "Registrar salida sin cargo"
-                : porCobrar.length === 1
-                  ? (puedeCobrar ? `Cobrar ${formatMoneyVE(toMajor(aCobrar), "USD")} en caja` : `Enviar ${formatMoneyVE(toMajor(aCobrar), "USD")} a caja`)
-                  : `Enviar ${porCobrar.length} cuentas a caja`}
+                : destino === "MESA"
+                  ? `Cargar ${formatMoneyVE(toMajor(aCobrar), "USD")} a ${etiquetaDeMesa ? `la mesa ${etiquetaDeMesa}` : "una mesa"}`
+                  : porCobrar.length === 1
+                    ? (puedeCobrar ? `Cobrar ${formatMoneyVE(toMajor(aCobrar), "USD")} en caja` : `Enviar ${formatMoneyVE(toMajor(aCobrar), "USD")} a caja`)
+                    : `Enviar ${porCobrar.length} cuentas a caja`}
             </Button>
 
             {hayAlgo && faltaRecogida && !enviando && (
