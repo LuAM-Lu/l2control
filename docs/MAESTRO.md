@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.43.0 · 43 de 57 pasos.** **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.43.0 · 43 de 60 pasos.** **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -359,6 +359,7 @@ No se hizo porque la caja exige turno. El plano marcó la mesa 1 como libre hast
 | **M-15** | **Lo decidido en la visita técnica** (2026-09-28, con el cliente) | Dispositivos, pulseras, cocina, impresión, inventario, descuentos, eventos, tiempo real y servidor: detalle abajo (V-1 a V-12). Cierra D-INF, D-RES, D-INV y F-12; cambia DEC-8 (en parte), DEC-18 y DEC-19; ADR-021, ADR-022 y ADR-023. La ruta pasa a **55 pasos**: entran B4-5, B3-6, B3-7, la Etapa 6 (B6-1 a B6-3, sin recetas) y la Etapa 10 (B10-1 y B10-2), y sale B5-3 (no hay gaveta electrónica, D-GAV) |
 | **M-16** | **El inventario se ve por su stock** (2026-09-30, pedido del cliente; amplía V-7) | Productos se rediseña con el stock como protagonista: vista de resumen + tabla o de tarjetas (sin foto). Cada producto: **SKU automático** (prefijo de su categoría y correlativo, no se edita), **código de barras** opcional y único, **presentación** y **tipo** (PRODUCTO, PREPARADO o SERVICIO; sustituye la casilla «Lleva existencia»). **Stock mínimo** por producto con estado y avisos (B9-5 entra ya). La **entrada de mercancía crea productos** con una ficha corta (nombre, categoría, código, presentación y precio). El código se **escanea** en la caja (vende), las entradas, el conteo y Productos. Nuevo paso **B9-6**; la ruta pasa a 56 |
 | **M-17** | **Ajustes con un mismo patrón** (2026-10-01, pedido del cliente tras ver Impresoras en v0.39.2) | Las pantallas de Ajustes siguen el patrón de Impresoras: cabecera compacta con la acción principal; **resumen** de 2 a 4 cifras que llevan a su sitio (color + icono + texto); **pestañas** que separan lo que se configura de lo que se consulta; alta y edición en **hoja lateral** y confirmación en diálogo para lo irreversible; las listas que crecen, **por páginas en el servidor** (10/20/50) con filtros y su cuenta, «Limpiar filtros», tabla en el escritorio y tarjetas en tableta y teléfono. Sin desplazar la página a 1366×768, 1280×800 ni 800×1280. Carta y precios y Plano del local lo estrenan en **B6-1** (se rehacen contra el servidor ahí); Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes, en el paso nuevo **T-7**, justo después. La ruta pasa a 57 |
+| **M-18** | **Cambios en la mesa y salida antes de tiempo** (2026-10-03, preguntas del cliente) | (1) Una mesa sin nada que cobrar (no pidieron, o todo se anuló o se regaló) la **libera el mesero sin PIN**, con registro de quién y cuándo; la cuenta en $ 0 se cierra «sin consumo», no como incobrable → **B6-5**. (2) Anular un plato ya enviado saca un **papel «ANULAR»** en la impresora de comandas, y el inventario va **según el motivo**: lo que la cocina no preparó vuelve al estante; lo preparado sale como merma con su costo → **B6-6**. (3) **Prepago:** el paquete se cobra entero y no se devuelve (la entrada lo avisa); **cuenta abierta:** al salir se cobra el paquete más barato que cubre el tiempo real → **B4-6**. No entran por ahora: anular plato por plato en la pantalla (el servidor ya lo admite), un botón «Cambiar» y la ronda adicional en la comanda. La ruta pasa a 60 |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
@@ -427,12 +428,12 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
-   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
+   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → B6-5 → B6-6 → B4-6 (M-18) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
-Fuera de la cuenta de 57: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 60: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -1224,6 +1225,11 @@ Fuera de la cuenta de 57: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   documento; en escritorio Sucursal tampoco el contenido (a 800×1280 desplaza su zona, una columna).*
   *Trabajo de campo (§4): la cámara nativa y los 90 s en el teléfono real, con HTTPS (staging), y la serie con el
   primer lote.*
+- [ ] **B4-6 · Salir antes de tiempo** (M-18). En **cuenta abierta**, la salida cobra el paquete más barato del
+  tarifario que cubre el tiempo real (con la gracia), no el que se eligió en la entrada; si se pasó del elegido, se
+  cobra como hoy (paquete y tiempo de más). El desglose lo dice («Elegido: 1 hora · Usado: 28 min · Se cobra: 30
+  minutos»). En **prepago** no se devuelve nada, y la entrada lo avisa antes de cobrar.
+  → Una familia en cuenta abierta paga lo que usó, y el recibo explica por qué.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -1560,6 +1566,16 @@ antes del cobro en servidor (orden de ejecución).
   los productos del mesero descontando existencias (ADR-023).
   *Hecho el 2026-10-03 (v0.43.0). **La división por ítems (F6-12) queda fuera:** va en un paso propio, con su número
   por decidir.*
+- [ ] **B6-5 · Mesa sin consumo** (M-18). «Liberar mesa» en la tablet cuando la mesa no tiene nada que cobrar (no
+  pidieron, o todo se anuló o se regaló): el mesero, sin PIN, y queda en la auditoría quién y cuándo. La cuenta en
+  $ 0 se cierra con un estado propio («sin consumo»): sale de la cola de la caja y de los pendientes del cierre, y no
+  cuenta como incobrable. → Ninguna mesa se queda ocupada ni bloquea el cierre del día por no tener nada que cobrar.
+  *Corrige lo que deja B6-3: hoy una cuenta de mesa con todo anulado no se puede cobrar (la caja exige un pago) y
+  bloquea el cierre de la jornada; solo sale marcándola incobrable.*
+- [ ] **B6-6 · Anular en cocina, con papel e inventario** (M-18, F6-14). Al anular un plato ya enviado sale en la
+  impresora de comandas un papel «ANULAR · Mesa N · cantidad × plato», con su cola y su aviso si no sale, como la
+  comanda. Quien anula marca si la cocina ya lo preparó: si no, la existencia vuelve al estante; si sí, sale como merma
+  con su costo (B9-4). → La cocina no prepara lo anulado y el inventario no baja de más.
 - [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
   cuenta en la ruta. ADR-023 supersede la descarga al marcar LISTO de ADR-012: su disparador será otro ADR.
 
@@ -1669,6 +1685,8 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | Etapa 6 (D-RES): los estados de mesa al servidor, tras B6-3 |
+| Una cuenta de mesa con todo anulado o regalado se queda en $ 0 sin poder cobrarse (la caja exige un pago) y bloquea el cierre de la jornada; solo sale marcándola incobrable. Una mesa abierta sin pedido no tiene botón para liberarse (leído en el código, sin probar en pantalla) | B6-5 |
+| Al anular un plato enviado, la cocina no recibe papel y la existencia no vuelve al estante | B6-6 |
 | Los dos paquetes de «Prueba B63» en la cuenta #0038 (mesa 1 de la base local) siguen sin regalar: dar cortesía exige turno abierto en la caja | El cliente, al abrir su turno (ver §1, «Lo que tocó la prueba») |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
@@ -1902,6 +1920,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   `mesa.vinculada` fuera del bus; `pnpm verify:db` en verde (81 y 423). Navegador en la base de pruebas. La división
   por ítems (F6-12) va en un paso propio. En la base local, la prueba de vincular dejó dos paquetes en la cuenta #0038
   (ver §1); el cliente decide la cortesía al abrir turno.
+- **2026-10-03** · M-18 (preguntas del cliente sobre la mesa y el parque): mesa sin consumo que libera el mesero (B6-5),
+  papel «ANULAR» a cocina e inventario según el motivo (B6-6), y salida antes de tiempo cobrada por uso en cuenta abierta
+  (B4-6). La ruta pasa a 60. Siguen B6-5 → B6-6 → B4-6 antes de los eventos.
 
 ---
 
