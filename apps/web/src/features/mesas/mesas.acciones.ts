@@ -31,3 +31,13 @@ export async function anularPedido(entrada: unknown, autorizacion?: unknown): Pr
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "anular pedido rechazado");
   return r;
 }
+
+/** Libera una mesa sin nada que cobrar: su cuenta se cierra «sin consumo» (B6-5, M-18). Sin PIN. */
+export async function liberarMesa(entrada: unknown): Promise<Resultado<FamilyAccountDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cuentas.liberarMesa(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id, estado: r.valor.status }, "mesa liberada sin consumo");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "liberar mesa rechazado");
+  return r;
+}

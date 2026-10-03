@@ -142,3 +142,14 @@ export const AnularPedidoCommandSchema = z
   })
   .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, { message: "Con «Otro» hay que explicar la anulación", path: ["detalle"] });
 export type AnularPedidoCommand = z.infer<typeof AnularPedidoCommandSchema>;
+
+/**
+ * Liberar una mesa sin nada que cobrar (B6-5, M-18): la cuenta se cierra «sin consumo». Sin PIN; la
+ * versión es la que vio la tablet, para no cerrar una cuenta a la que otro equipo le acaba de pedir algo.
+ */
+export const LiberarMesaCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  accountId: z.uuid("Cuenta desconocida"),
+  version: z.number().int().positive(),
+});
+export type LiberarMesaCommand = z.infer<typeof LiberarMesaCommandSchema>;

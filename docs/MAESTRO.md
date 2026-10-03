@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.43.0 · 43 de 60 pasos.** **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.44.0 · 44 de 60 pasos.** **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 423 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 428 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -428,7 +428,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
-   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → B6-5 → B6-6 → B4-6 (M-18) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
+   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → B6-6 → B4-6 (M-18) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1566,12 +1566,22 @@ antes del cobro en servidor (orden de ejecución).
   los productos del mesero descontando existencias (ADR-023).
   *Hecho el 2026-10-03 (v0.43.0). **La división por ítems (F6-12) queda fuera:** va en un paso propio, con su número
   por decidir.*
-- [ ] **B6-5 · Mesa sin consumo** (M-18). «Liberar mesa» en la tablet cuando la mesa no tiene nada que cobrar (no
+- [x] **B6-5 · Mesa sin consumo** (M-18). «Liberar mesa» en la tablet cuando la mesa no tiene nada que cobrar (no
   pidieron, o todo se anuló o se regaló): el mesero, sin PIN, y queda en la auditoría quién y cuándo. La cuenta en
   $ 0 se cierra con un estado propio («sin consumo»): sale de la cola de la caja y de los pendientes del cierre, y no
   cuenta como incobrable. → Ninguna mesa se queda ocupada ni bloquea el cierre del día por no tener nada que cobrar.
   *Corrige lo que deja B6-3: hoy una cuenta de mesa con todo anulado no se puede cobrar (la caja exige un pago) y
   bloquea el cierre de la jornada; solo sale marcándola incobrable.*
+  *Hecho el 2026-10-03 (v0.44.0). **Dominio:** `sinConsumoProblem` (solo MESA, abierta o por cobrar, sin
+  `chargeableLines`) y `closeWithoutConsumption` (SIN_CONSUMO, o COBRADA si ya se cobró una parte); un «guardar» no la
+  cierra ni la toca (`CUENTA_SIN_CONSUMO`). **Base:** estado `SIN_CONSUMO` y causa `LIBERAR` en `account_version`
+  (migración `20261025000000_mesa_sin_consumo`). **Aplicación:** `cuentas.liberarMesa` con `pedido.tomar`, sin PIN,
+  versión optimista, clave de idempotencia y auditoría `mesa.liberar` (tema `cuentas`); `leer` ya no carga las cerradas
+  sin consumo de días anteriores. Pruebas: dominio (5), `cuentas.test-db.ts` (5: con todo anulado sale de los
+  pendientes del cierre, reabrir la mesa, rechazos, versión vieja, permisos y aislamiento). **Web:** «Liberar mesa» en
+  lugar de «Pide la cuenta» cuando no hay nada que cobrar, con confirmación; `pasarACaja` cuenta solo lo cobrable.
+  Navegador en la base de pruebas a 1366×768, 1280×800 y 800×1280. Una mesa abierta solo en el bus (sin cuenta en el
+  servidor) se libera emitiendo `mesa.libre`, sin asiento: su apertura tampoco lo tiene (§5, el salón en el bus).*
 - [ ] **B6-6 · Anular en cocina, con papel e inventario** (M-18, F6-14). Al anular un plato ya enviado sale en la
   impresora de comandas un papel «ANULAR · Mesa N · cantidad × plato», con su cola y su aviso si no sale, como la
   comanda. Quien anula marca si la cocina ya lo preparó: si no, la existencia vuelve al estante; si sí, sale como merma
@@ -1685,7 +1695,6 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | Etapa 6 (D-RES): los estados de mesa al servidor, tras B6-3 |
-| Una cuenta de mesa con todo anulado o regalado se queda en $ 0 sin poder cobrarse (la caja exige un pago) y bloquea el cierre de la jornada; solo sale marcándola incobrable. Una mesa abierta sin pedido no tiene botón para liberarse (leído en el código, sin probar en pantalla) | B6-5 |
 | Al anular un plato enviado, la cocina no recibe papel y la existencia no vuelve al estante | B6-6 |
 | Los dos paquetes de «Prueba B63» en la cuenta #0038 (mesa 1 de la base local) siguen sin regalar: dar cortesía exige turno abierto en la caja | El cliente, al abrir su turno (ver §1, «Lo que tocó la prueba») |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
@@ -1923,6 +1932,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-03** · M-18 (preguntas del cliente sobre la mesa y el parque): mesa sin consumo que libera el mesero (B6-5),
   papel «ANULAR» a cocina e inventario según el motivo (B6-6), y salida antes de tiempo cobrada por uso en cuenta abierta
   (B4-6). La ruta pasa a 60. Siguen B6-5 → B6-6 → B4-6 antes de los eventos.
+- **2026-10-03** · B6-5 hecho (v0.44.0): «Liberar mesa» sin PIN y la cuenta «sin consumo»; la mesa en $ 0 ya no
+  bloquea el cierre. `pnpm verify:db` en verde (81 y 428). Sigue B6-6.
 
 ---
 

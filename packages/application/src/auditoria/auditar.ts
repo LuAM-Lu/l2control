@@ -50,6 +50,7 @@ export type AccionAuditada =
   | "pedido.enviar"
   | "pedido.reimprimir"
   | "pedido.anular"
+  | "mesa.liberar"
   | "mesa.vincular"
   | "impresora.crear"
   | "impresora.editar"

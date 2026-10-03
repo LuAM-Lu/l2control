@@ -27,6 +27,8 @@ import {
   moveSessionLines,
   anulacionProblem,
   withAnulacion,
+  sinConsumoProblem,
+  closeWithoutConsumption,
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
@@ -429,5 +431,52 @@ describe("anular un pedido en producción (F6-14, B6-3)", () => {
     assert.deepEqual(anulada.lines[0]!.amount, c.lines[0]!.amount);
     assert.equal(anulacionProblem(anulada, "a"), "YA_ANULADA");
     assert.deepEqual(chargeableLines(anulada).map((l) => l.id), []);
+  });
+});
+
+describe("la mesa sin consumo (B6-5, M-18)", () => {
+  const mesa = (lines: AccountLineDoc[], extra: Partial<AccountDoc> = {}): AccountDoc => ({
+    kind: "MESA",
+    status: "ABIERTA",
+    sessionIds: [],
+    closedSessionIds: [],
+    tableId: "mesa-1",
+    lines,
+    ...extra,
+  });
+  const anulacion = { motivo: "CLIENTE_DESISTIO" };
+
+  test("se libera una mesa sin nada que cobrar: vacía, o con todo anulado, regalado o movido", () => {
+    assert.equal(sinConsumoProblem(mesa([])), null);
+    assert.equal(sinConsumoProblem(mesa([agua("a", { anulacion })])), null);
+    assert.equal(sinConsumoProblem(mesa([agua("a", { cortesia: { motivo: "INVITACION" } }), agua("b", { movedTo: "otra" })])), null);
+    assert.equal(sinConsumoProblem(mesa([agua("a", { anulacion })], { status: "POR_COBRAR" })), null);
+  });
+
+  test("con algo por cobrar no se libera: se pide la cuenta", () => {
+    assert.equal(sinConsumoProblem(mesa([agua("a", { anulacion }), agua("b")])), "QUEDA_POR_COBRAR");
+  });
+
+  test("solo una mesa abierta: ni la familia ni el mostrador, ni una cuenta ya cerrada", () => {
+    assert.equal(sinConsumoProblem({ ...familia(), lines: [] }), "NO_ES_MESA");
+    assert.equal(sinConsumoProblem(mostrador([])), "NO_ES_MESA");
+    assert.equal(sinConsumoProblem(mesa([], { status: "COBRADA" })), "NO_ABIERTA");
+    assert.equal(sinConsumoProblem(mesa([], { status: "SIN_CONSUMO" })), "NO_ABIERTA");
+  });
+
+  test("se cierra «sin consumo», o cobrada si ya se cobró una parte; las líneas no cambian y no queda pendiente", () => {
+    const anulada = mesa([agua("a", { anulacion })]);
+    const cerrada = closeWithoutConsumption(anulada);
+    assert.equal(cerrada.status, "SIN_CONSUMO");
+    assert.deepEqual(cerrada.lines, anulada.lines);
+    assert.equal(isPendingAtClose(cerrada), false);
+    assert.equal(closeWithoutConsumption(mesa([agua("a", { paid: true }), agua("b", { anulacion })], { status: "POR_COBRAR" })).status, "COBRADA");
+  });
+
+  test("un «guardar» de la pantalla no cierra sin consumo ni toca una cuenta cerrada así", () => {
+    const abierta = mesa([]);
+    assert.equal(accountChangeProblem(abierta, { ...abierta, status: "SIN_CONSUMO" }, productAt)?.problem, "CUENTA_SIN_CONSUMO");
+    const cerrada = mesa([], { status: "SIN_CONSUMO" });
+    assert.equal(accountChangeProblem(cerrada, { ...cerrada, status: "ABIERTA" }, productAt)?.problem, "CUENTA_SIN_CONSUMO");
   });
 });

@@ -62,6 +62,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "pedido.reimprimir": ["pedidos"],
   // Anular un plato ya enviado cambia la cuenta de la mesa, no su comanda (ya se imprimió, B6-3).
   "pedido.anular": ["cuentas"],
+  "mesa.liberar": ["cuentas"],
   // Vincular pulseras mueve dinero entre la cuenta de la mesa y la de cada familia tocada (F6-05).
   "mesa.vincular": ["cuentas", "sala"],
   "impresora.crear": ["impresion"],

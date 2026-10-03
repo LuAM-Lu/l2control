@@ -27,8 +27,10 @@ export type PaymentMode = z.infer<typeof PaymentModeSchema>;
  *                 borra: un error se corrige con otro asiento (regla 5).
  * · INCOBRABLE  — no se va a cobrar (D-JOR): supervisión la marcó con motivo y
  *                 su 🔐. Lo que se debía sigue en sus líneas: nada se borra.
+ * · SIN_CONSUMO — una mesa que se liberó sin nada que cobrar (B6-5, M-18): no
+ *                 pidieron, o todo se anuló o se regaló. No se debía nada.
  */
-export const AccountStatusSchema = z.enum(["ABIERTA", "POR_COBRAR", "COBRADA", "INCOBRABLE"]);
+export const AccountStatusSchema = z.enum(["ABIERTA", "POR_COBRAR", "COBRADA", "INCOBRABLE", "SIN_CONSUMO"]);
 export type AccountStatus = z.infer<typeof AccountStatusSchema>;
 
 /**

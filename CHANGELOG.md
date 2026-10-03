@@ -12,6 +12,25 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.44.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+B6-5: una mesa sin nada que cobrar se libera desde la tablet (M-18).
+
+### Añadido
+- **Liberar mesa.** Si la familia se va sin pedir, o todo lo que pidió se anuló o se regaló, la tablet ofrece
+  «Liberar mesa» en lugar de «Pide la cuenta». La libera el mesero sin PIN, con una confirmación, y queda registrado
+  quién y cuándo. La mesa vuelve a estar libre para otra familia.
+- La cuenta de esa mesa se cierra **«sin consumo»**: no va a la caja, no impide cerrar la jornada y no cuenta como
+  incobrable. Lo anulado sigue en sus líneas, con su importe y su autorización: nada se borra.
+
+### Corregido
+- Una mesa a la que se le anulaba todo se quedaba abierta en $ 0: la caja no podía cobrarla y el cierre de la jornada
+  la contaba como pendiente. «Pide la cuenta» tampoco manda ya a la caja una mesa sin nada que cobrar.
+
+### Comprobado
+- `pnpm verify:db` en verde (81 de base, 428 de aplicación). Navegador en la base de pruebas a 1366×768, 1280×800 y
+  800×1280: una mesa con el pedido anulado, dos vacías y una con paquetes por cobrar (que no ofrece «Liberar»).
+
 ## [0.43.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 B6-3: la cuenta de la mesa se mueve en el servidor. El dinero del parque ya no viaja por el bus: vincular, cargar

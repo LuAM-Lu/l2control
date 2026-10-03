@@ -6,6 +6,7 @@ import {
   Baby,
   CircleCheckBig,
   Clock,
+  DoorOpen,
   HandPlatter,
   Link2,
   NotebookPen,
@@ -19,7 +20,8 @@ import {
 import type { CatalogoDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
+import { Badge, Button, Confirmacion, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
+import { chargeableLines } from "@l2/domain-cash";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
@@ -44,7 +46,7 @@ import { VincularPulseras } from "./VincularPulseras.tsx";
 import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
 import { usePedidos } from "./PedidosProvider.tsx";
-import { vincularPulseras } from "./mesas.acciones.ts";
+import { liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
 
 /**
  * Estación del mesero: mesas y pedidos — F6-01, F6-02, F6-05, DEC-22.
@@ -115,6 +117,9 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
   const [vinculando, setVinculando] = useState(false);
   const [anulando, setAnulando] = useState<PedidoDto | null>(null);
+  /** La mesa que se va a liberar sin consumo (B6-5), mientras se confirma. */
+  const [liberando, setLiberando] = useState<MesaVista | null>(null);
+  const [liberandoEnvio, setLiberandoEnvio] = useState(false);
   const [comensales, setComensales] = useState(2);
   /** El id del pedido que se está enviando en cada mesa: reintentarlo (se cortó la red) no pide dos veces. */
   const [envios, setEnvios] = useState<Readonly<Record<string, string>>>({});
@@ -291,11 +296,35 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     return null;
   }
 
+  /**
+   * Libera una mesa sin nada que cobrar (B6-5, M-18): no pidieron, o todo se anuló o se regaló. Si la
+   * mesa tiene cuenta en el servidor, se cierra «sin consumo» allí primero; si no, solo se libera el salón.
+   */
+  async function liberar(m: MesaVista) {
+    const cuenta = m.cuenta;
+    if (cuenta?.version !== undefined) {
+      setLiberandoEnvio(true);
+      const r = await liberarMesa({ idempotencyKey: crypto.randomUUID(), accountId: cuenta.id, version: cuenta.version }).catch(() => null);
+      setLiberandoEnvio(false);
+      if (!r) {
+        avisar.error("Sin conexión con el servidor: la mesa no se liberó. Vuelve a intentarlo.");
+        return;
+      }
+      if (!r.ok) {
+        avisar.error(r.mensaje);
+        return;
+      }
+      adoptar(r.valor);
+    }
+    setLiberando(null);
+    emitir({ type: "mesa.libre", tableId: m.mesa.id }, `Mesa ${m.mesa.label} libre: no hubo nada que cobrar`);
+  }
+
   /** La mesa pide la cuenta: el mesero no cobra (DEC-14), la manda a caja. */
   function pedirLaCuenta(m: MesaVista) {
     const cuenta = pasarACaja(cuentaDeLaMesa(m));
     if (cuenta.status !== "POR_COBRAR") {
-      avisar.error(`La mesa ${m.mesa.label} no ha consumido nada todavía`);
+      avisar.error(`La mesa ${m.mesa.label} no tiene nada que cobrar: libérala`);
       return;
     }
     if (!emitir({ type: "mesa.pide_cuenta", tableId: m.mesa.id }, `Mesa ${m.mesa.label}: la cuenta pasa a caja`)) return;
@@ -504,7 +533,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                       <NotebookPen size={17} aria-hidden="true" />
                       {(borradores[elegida.mesa.id] ?? []).length > 0 ? "Seguir con el pedido" : "Tomar pedido"}
                     </Button>
-                    {elegida.estado === "OCUPADA" ? (
+                    {!elegida.cuenta || chargeableLines(elegida.cuenta).length === 0 ? (
+                      // Nada que cobrar (B6-5): no se manda a la caja, se libera.
+                      <Button variant="neutral" onClick={() => setLiberando(elegida)} className="w-full">
+                        <DoorOpen size={16} aria-hidden="true" />
+                        Liberar mesa
+                      </Button>
+                    ) : elegida.estado === "OCUPADA" ? (
                       <Button
                         variant="neutral"
                         onClick={() => pedirLaCuenta(elegida)}
@@ -530,6 +565,23 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                 cuentas={cuentas}
                 onVincular={(ids) => vincular(elegida, ids)}
               />
+              <Confirmacion
+                abierto={liberando !== null}
+                onCerrar={() => setLiberando(null)}
+                titulo={`Liberar la mesa ${liberando?.mesa.label ?? ""}`}
+                confirmar="Sí, liberar"
+                ocupado={liberandoEnvio}
+                onConfirmar={() => void (liberando && liberar(liberando))}
+              >
+                <p>
+                  {liberando?.cuenta && liberando.cuenta.lines.length > 0
+                    ? "Lo que se pidió está anulado o regalado: no hay nada que cobrar. La cuenta se cierra sin consumo y la mesa queda libre."
+                    : "No pidieron nada. La mesa queda libre para otra familia."}
+                </p>
+                {(borradores[liberando?.mesa.id ?? ""] ?? []).length > 0 && (
+                  <p className="mt-2 text-state-warn">El pedido sin enviar de esta mesa se descarta.</p>
+                )}
+              </Confirmacion>
               <AnularPedidoDialog
                 pedido={anulando}
                 onCerrar={() => setAnulando(null)}

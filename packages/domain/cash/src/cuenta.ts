@@ -21,7 +21,7 @@ import { money, type CurrencyCode } from "@l2/domain-money";
 import type { DocumentLine, TaxCode } from "@l2/domain-tax";
 
 export type AccountKind = "FAMILIA" | "MESA" | "MOSTRADOR";
-export type AccountStatus = "ABIERTA" | "POR_COBRAR" | "COBRADA" | "INCOBRABLE";
+export type AccountStatus = "ABIERTA" | "POR_COBRAR" | "COBRADA" | "INCOBRABLE" | "SIN_CONSUMO";
 
 export type AccountLineDoc = Readonly<{
   id: string;
@@ -155,6 +155,7 @@ export type AccountChangeProblem =
   | "MOSTRADOR_SIN_PRODUCTO"
   | "MESA_SIN_PRODUCTO"
   | "CUENTA_INCOBRABLE"
+  | "CUENTA_SIN_CONSUMO"
   | "PRODUCTO_QUE_NO_SE_VENDE"
   | "PRECIO_DISTINTO"
   | "FAMILIA_DESDE_LA_PANTALLA"
@@ -197,6 +198,8 @@ export function accountChangeProblem(
 
   // Marcar incobrable es de supervisión con su 🔐 (D-JOR), y una incobrable ya no se toca.
   if (after.status === "INCOBRABLE" || before?.status === "INCOBRABLE") return { problem: "CUENTA_INCOBRABLE" };
+  // Cerrar sin consumo es el mando de liberar la mesa (B6-5, M-18), y una cuenta cerrada así ya no se toca.
+  if (after.status === "SIN_CONSUMO" || before?.status === "SIN_CONSUMO") return { problem: "CUENTA_SIN_CONSUMO" };
   // El descuento es de su mando, con su autorización (B3-6): un «guardar» no lo pone ni lo quita.
   if (JSON.stringify(before?.descuento ?? null) !== JSON.stringify(after.descuento ?? null)) return { problem: "DESCUENTO_DESDE_LA_PANTALLA" };
   // El reparto en partes sale del total: con un descuento puesto, la cuenta no se divide.
@@ -429,6 +432,30 @@ export function anulacionProblem(c: Pick<AccountDoc, "lines">, lineId: string): 
  */
 export function withAnulacion<A extends AccountDoc>(c: A, lineId: string, anulacion: unknown): A {
   return { ...c, lines: c.lines.map((l) => (l.id === lineId ? { ...l, anulacion } : l)) };
+}
+
+/* ─────────────────────────────────────── la mesa sin consumo (B6-5) */
+
+/** Por qué una mesa no se libera sin pasar por la caja. */
+export type SinConsumoProblem = "NO_ES_MESA" | "NO_ABIERTA" | "QUEDA_POR_COBRAR";
+
+/**
+ * ¿Se puede cerrar esta cuenta sin cobrar (B6-5, M-18)? Solo una de mesa, abierta o en la cola de la
+ * caja, a la que no le queda nada que cobrar: no pidieron, o todo se anuló, se regaló o se movió.
+ */
+export function sinConsumoProblem(c: Pick<AccountDoc, "kind" | "status" | "lines">): SinConsumoProblem | null {
+  if (c.kind !== "MESA") return "NO_ES_MESA";
+  if (c.status !== "ABIERTA" && c.status !== "POR_COBRAR") return "NO_ABIERTA";
+  if (chargeableLines(c).length > 0) return "QUEDA_POR_COBRAR";
+  return null;
+}
+
+/**
+ * La cuenta de la mesa cerrada sin cobrar. Si algo se cobró antes (una parte), queda cobrada; si no,
+ * «sin consumo». Ninguna de las dos es incobrable: no se debía nada. Las líneas se quedan como están.
+ */
+export function closeWithoutConsumption<A extends AccountDoc>(c: A): A {
+  return { ...c, status: c.lines.some((l) => l.paid) ? "COBRADA" : "SIN_CONSUMO" };
 }
 
 /* ─────────────────────────────────────── el cierre de la jornada (B3-5) */

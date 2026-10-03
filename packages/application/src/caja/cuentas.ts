@@ -22,6 +22,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   AnularCobroCommandSchema,
   AnularPedidoCommandSchema,
+  LiberarMesaCommandSchema,
   CobrarCuentaCommandSchema,
   CortesiaCommandSchema,
   CuentaYLibroSchema,
@@ -45,6 +46,8 @@ import {
   USDT_AT_PAR,
   accountChangeProblem,
   anulacionProblem,
+  closeWithoutConsumption,
+  sinConsumoProblem,
   chargeableLines,
   closeSettlement,
   computeBalance,
@@ -65,6 +68,7 @@ import {
   type AccountChangeProblem,
   type AccountLineDoc,
   type AnulacionProblem,
+  type SinConsumoProblem,
   type CategoryOf,
   type CourtesyProblem,
   type DiscountAtChargeProblem,
@@ -149,6 +153,11 @@ export interface CasosCuentas {
    * tiene vuelta: lo anulado por error se vuelve a pedir.
    */
   anularPedido(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
+  /**
+   * Libera una mesa que no tiene nada que cobrar (`LiberarMesaCommandSchema`, B6-5, M-18): su cuenta se
+   * cierra «sin consumo» (o cobrada, si ya se cobró una parte). Sin PIN: no se deja de cobrar nada.
+   */
+  liberarMesa(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
   /** Quiénes pueden autorizar a quien opera una acción de la caja con 🔐 (vacío si no le hace falta). */
   autorizadores(ctx: Contexto, accion?: AccionDeCaja): Promise<{ id: string; nombre: string; rol: string }[]>;
 }
@@ -183,6 +192,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   MOSTRADOR_SIN_PRODUCTO: "Una venta de mostrador vende del catálogo.",
   MESA_SIN_PRODUCTO: "Lo que se pide en la mesa sale de la carta.",
   CUENTA_INCOBRABLE: "Una cuenta incobrable no se cambia: la marca supervisión con su autorización.",
+  CUENTA_SIN_CONSUMO: "La mesa se libera con su botón, y una cuenta cerrada sin consumo ya no se cambia.",
   PRODUCTO_QUE_NO_SE_VENDE: "Ese producto ya no se vende.",
   PRECIO_DISTINTO: "El precio de ese producto cambió: vuelve a añadirlo desde la carta.",
   FAMILIA_DESDE_LA_PANTALLA: "La cuenta de una familia la abre la entrada del parque.",
@@ -240,7 +250,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             WHERE a.branch_id = ${ctx.branchId}::uuid
             ORDER BY v.account_id, v.version DESC
           ) ultima
-          WHERE ultima.status NOT IN ('COBRADA', 'INCOBRABLE') OR ultima.saved_at >= ${desde}
+          WHERE ultima.status NOT IN ('COBRADA', 'INCOBRABLE', 'SIN_CONSUMO') OR ultima.saved_at >= ${desde}
           ORDER BY ultima.saved_at`;
         // Se revalida al salir: lo que no cumple el contrato no llega a ninguna estación (fail-closed).
         const cuentas = filas.map((f) => deVersion(f.content, f.version)).filter((c) => !isDiscardedDraft(c));
@@ -1039,11 +1049,75 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       }
     },
 
+    async liberarMesa(ctx, entrada, ahora = Date.now()) {
+      const v = LiberarMesaCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "La mesa no se liberó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<FamilyAccountDto | Rechazo> => {
+          // Quien atiende las mesas la libera: no hay dinero de por medio (M-18).
+          const rechazo = await exigirPermiso(tx, ctx, "pedido.tomar");
+          if (rechazo) return rechazo;
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.accountId !== cmd.accountId || previa.cause !== "LIBERAR") return conflictoDeClave;
+            return (await vigenteDe(tx, cmd.accountId))!.cuenta;
+          }
+          const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
+          if (!fila || fila.branchId !== ctx.branchId) return noExiste;
+          const actual = (await vigenteDe(tx, cmd.accountId))!;
+          if (actual.version !== cmd.version) return cuentaCambiada;
+          const problema = sinConsumoProblem(actual.cuenta);
+          if (problema) return { ok: false, motivo: "CONFLICTO", mensaje: MENSAJE_SIN_CONSUMO[problema] };
+
+          const { pendingSince: _, ...sinEspera } = closeWithoutConsumption(actual.cuenta);
+          const nueva = FamilyAccountSchema.parse({ ...sinEspera, version: actual.version + 1 });
+          const quien = await nombreDe(tx, ctx);
+          await guardarVersion(tx, ctx, nueva, { cause: "LIBERAR", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await auditar(tx, ctx, {
+            action: "mesa.liberar",
+            entityType: "account",
+            entityId: nueva.id,
+            after: {
+              orderNumber: nueva.orderNumber ?? null,
+              mesa: nueva.tableLabel ?? null,
+              status: nueva.status,
+              anuladas: nueva.lines.filter((l) => l.anulacion !== undefined).length,
+              regaladas: nueva.lines.filter((l) => l.cortesia !== undefined).length,
+              version: nueva.version,
+            },
+          });
+          return nueva;
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "mesa.liberar", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
     async autorizadores(ctx, accion = "cobro.anular") {
       return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, accion));
     },
   };
 }
+
+const MENSAJE_SIN_CONSUMO: Record<SinConsumoProblem, string> = {
+  NO_ES_MESA: "Solo se libera una mesa: las demás cuentas se cobran o se marcan en la caja.",
+  NO_ABIERTA: "Esa cuenta ya está cerrada.",
+  QUEDA_POR_COBRAR: "La mesa tiene algo por cobrar: pide la cuenta, o anula lo que no se sirvió.",
+};
 
 const MENSAJE_CORTESIA: Record<CourtesyProblem, string> = {
   LINEA_DESCONOCIDA: "Esa línea no está en la cuenta.",
@@ -1102,7 +1176,8 @@ export async function guardarVersion(
       | "DESCUENTO"
       | "PEDIDO"
       | "VINCULAR"
-      | "ANULACION_PEDIDO";
+      | "ANULACION_PEDIDO"
+      | "LIBERAR";
     operationKey: string | null;
     ahora: number;
     quien: string;

@@ -647,3 +647,72 @@ describe("anular un pedido en producción (F6-14, B6-3)", () => {
     assert.equal(!delParque.ok && delParque.problemas?.[0]?.message, "NO_ES_PEDIDO");
   });
 });
+
+describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
+  const deMesa = (tableId: string, lines: unknown[] = []) => familia({ kind: "MESA", family: `Mesa ${tableId}`, sessionIds: [], lines, tableId, tableLabel: "99" });
+  const platoDePedido = () => ({ ...lineaDeAgua(), orderId: randomUUID() });
+  const liberar = (ctx: Contexto, c: FamilyAccountDto, idempotencyKey: string = randomUUID()) =>
+    local.app.cuentas.liberarMesa(ctx, { idempotencyKey, accountId: c.id, version: c.version }, AHORA);
+  const pendientesDelCierre = async () => valor(await local.app.cortes.pendientes(ctxAdmin, undefined, AHORA)).cuentas.map((c) => c.id);
+
+  test("con todo anulado, el mesero la libera sin PIN: queda «sin consumo», fuera del cierre y auditada", async () => {
+    const c = await abrir(deMesa("mesa-9", [platoDePedido()]), ctxMesero);
+    const anulada = valor(
+      await local.app.cuentas.anularPedido(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: c.lines[0]!.id, motivo: "CLIENTE_DESISTIO" }, pinDeAdmin(), AHORA),
+    );
+    assert.ok((await pendientesDelCierre()).includes(c.id), "antes de liberarla, la mesa en $ 0 impedía cerrar la jornada");
+
+    const clave = randomUUID();
+    const libre = valor(await liberar(ctxMesero, anulada, clave));
+    assert.equal(libre.status, "SIN_CONSUMO");
+    assert.deepEqual(libre.lines, anulada.lines); // nada se borra: el plato sigue anulado, con su importe
+    assert.ok(!(await pendientesDelCierre()).includes(c.id));
+    // Un doble toque no la cierra dos veces.
+    assert.deepEqual(valor(await liberar(ctxMesero, anulada, clave)), libre);
+    const versiones = await versionesDe(c.id);
+    assert.equal(versiones.filter((v) => v.cause === "LIBERAR").length, 1);
+
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "account", entityId: c.id });
+    assert.ok(asientos.some((a) => a.action === "mesa.liberar" && a.authorizedBy === null));
+  });
+
+  test("liberada, la mesa vuelve a abrir cuenta; la cerrada no se toca", async () => {
+    const c = await abrir(deMesa("mesa-10", []), ctxMesero);
+    const libre = valor(await liberar(ctxMesero, c));
+    assert.equal(libre.status, "SIN_CONSUMO");
+    const otraVez = await liberar(ctxMesero, libre);
+    assert.equal(!otraVez.ok && otraVez.mensaje, "Esa cuenta ya está cerrada.");
+    const aMano = await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...libre, status: "ABIERTA" } }, AHORA);
+    assert.equal(!aMano.ok && aMano.problemas?.[0]?.message, "CUENTA_SIN_CONSUMO");
+    const nueva = await abrir(deMesa("mesa-10", [lineaDeAgua()]), ctxMesero);
+    assert.notEqual(nueva.id, c.id);
+  });
+
+  test("con algo por cobrar, o si no es una mesa, no se libera", async () => {
+    const conAgua = await abrir(deMesa("mesa-11", [lineaDeAgua()]), ctxMesero);
+    const r = await liberar(ctxMesero, conAgua);
+    assert.equal(!r.ok && r.motivo, "CONFLICTO");
+    assert.match(!r.ok ? r.mensaje : "", /algo por cobrar/);
+    const deMostrador = await abrir(mostrador([lineaDeAgua()]));
+    const m = await liberar(ctxCajera, deMostrador);
+    assert.match(!m.ok ? m.mensaje : "", /Solo se libera una mesa/);
+  });
+
+  test("con la versión vieja choca: otra tablet acaba de pedir algo", async () => {
+    const c = await abrir(deMesa("mesa-12", []), ctxMesero);
+    const conPedido = valor(await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...c, lines: [lineaDeAgua()] } }, AHORA));
+    assert.ok(conPedido.version! > c.version!);
+    const r = await liberar(ctxMesero, c);
+    assert.equal(!r.ok && r.motivo, "CONFLICTO");
+  });
+
+  test("quien no atiende mesas no la libera, y otro local no la ve", async () => {
+    const c = await abrir(deMesa("mesa-8", []), ctxMesero);
+    const monitora = await liberar(ctxMonitora, c);
+    assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
+    const cocina = await liberar(ctxCocina, c);
+    assert.equal(!cocina.ok && cocina.motivo, "NO_PERMITIDO");
+    const ajeno = await otro.app.cuentas.liberarMesa(otro.sistema, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version }, AHORA);
+    assert.equal(!ajeno.ok && ajeno.motivo, "NO_DISPONIBLE", JSON.stringify(ajeno));
+  });
+});

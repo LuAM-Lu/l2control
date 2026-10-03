@@ -18,7 +18,7 @@ import {
   type MoneyDto,
 } from "@l2/contracts";
 import { sum, type Money } from "@l2/domain-money";
-import { registerExit } from "@l2/domain-cash";
+import { chargeableLines, registerExit } from "@l2/domain-cash";
 import type { DocumentLine, TaxCode } from "@l2/domain-tax";
 import { toMoney } from "../park/mappers.ts";
 
@@ -249,9 +249,12 @@ export function moverParqueALaMesa(
   };
 }
 
-/** La mesa pidió la cuenta: pasa a la cola de la caja si hay algo que cobrar. */
+/**
+ * La mesa pidió la cuenta: pasa a la cola de la caja si hay algo que cobrar. Lo anulado y lo regalado no
+ * cuentan: una mesa en $ 0 no va a la caja, se libera (B6-5).
+ */
 export function pasarACaja(c: FamilyAccountDto): FamilyAccountDto {
-  const hayPendiente = c.lines.some((l) => !l.paid && !l.movedTo);
+  const hayPendiente = chargeableLines(c).length > 0;
   return FamilyAccountSchema.parse({
     ...c,
     status: hayPendiente ? "POR_COBRAR" : c.status,
