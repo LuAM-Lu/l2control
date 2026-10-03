@@ -26,6 +26,7 @@ import {
   registerRecharge,
   moveSessionLines,
   anulacionProblem,
+  anulacionesProblem,
   withAnulacion,
   sinConsumoProblem,
   closeWithoutConsumption,
@@ -431,6 +432,13 @@ describe("anular un pedido en producción (F6-14, B6-3)", () => {
     assert.deepEqual(anulada.lines[0]!.amount, c.lines[0]!.amount);
     assert.equal(anulacionProblem(anulada, "a"), "YA_ANULADA");
     assert.deepEqual(chargeableLines(anulada).map((l) => l.id), []);
+  });
+
+  test("varios platos de una vez, solo de una comanda: cada anulación saca un papel (B6-6)", () => {
+    const c = mostrador([plato("a"), plato("b"), agua("c", { orderId: "ped-2" }), plato("d", { paid: true })]);
+    assert.equal(anulacionesProblem(c, ["a", "b"]), null);
+    assert.deepEqual(anulacionesProblem(c, ["a", "c"]), { problem: "PEDIDOS_DISTINTOS", lineId: "a" });
+    assert.deepEqual(anulacionesProblem(c, ["a", "d"]), { problem: "LINEA_PAGADA", lineId: "d" });
   });
 });
 

@@ -275,24 +275,28 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /**
-   * Anula todos los platos de este pedido que todavía se deban (F6-14): la cuenta de la mesa ya no los
-   * cobra, con el mismo motivo y la misma autorización. Si alguno falla (otro equipo cambió la cuenta
-   * mientras tanto), se detiene ahí y lo dice el rechazo; lo que ya se anuló, queda anulado.
+   * Anula de una vez todos los platos de este pedido que todavía se deban (F6-14, B6-6): la cuenta de la
+   * mesa ya no los cobra, el inventario va según si la cocina los preparó y a la cocina le sale un papel
+   * «ANULAR». Todo o nada: si otro equipo cambió la cuenta mientras tanto, no se anula ninguno.
    */
-  async function aplicarAnulacion(pedido: PedidoDto, motivo: MotivoAnulacionPedido, detalle: string | undefined, autorizacion: unknown): Promise<Rechazo | null> {
+  async function aplicarAnulacion(
+    pedido: PedidoDto,
+    motivo: MotivoAnulacionPedido,
+    detalle: string | undefined,
+    preparado: boolean,
+    autorizacion: unknown,
+  ): Promise<Rechazo | null> {
     const cuenta = elegida?.cuenta;
     if (!cuenta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "La cuenta de la mesa ya no está disponible." };
-    const porAnular = cuenta.lines.filter((l) => l.orderId === pedido.id && !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
-    let version = cuenta.version!;
-    for (const linea of porAnular) {
-      const r = await anularPedidoDeLaCuenta(
-        { idempotencyKey: crypto.randomUUID(), accountId: cuenta.id, version, lineId: linea.id, motivo, ...(detalle ? { detalle } : {}) },
-        autorizacion,
-      );
-      if (!r.ok) return r;
-      version = r.valor.version!;
-    }
-    avisar.ok(`Comanda ${comanda(pedido.numero)} anulada`, { detalle: "Entra en las excepciones del turno." });
+    const lineIds = cuenta.lines.filter((l) => l.orderId === pedido.id && !l.paid && !l.movedTo && !l.cortesia && !l.anulacion).map((l) => l.id);
+    const r = await anularPedidoDeLaCuenta(
+      { idempotencyKey: crypto.randomUUID(), accountId: cuenta.id, version: cuenta.version!, lineIds, motivo, preparado, ...(detalle ? { detalle } : {}) },
+      autorizacion,
+    );
+    if (!r.ok) return r;
+    avisar.ok(`Comanda ${comanda(pedido.numero)} anulada`, {
+      detalle: `${preparado ? "Sale como merma" : "Vuelve al inventario"}. A la cocina le sale el papel «ANULAR».`,
+    });
     return null;
   }
 
@@ -585,8 +589,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
               <AnularPedidoDialog
                 pedido={anulando}
                 onCerrar={() => setAnulando(null)}
-                onAplicar={async (motivo, detalle, autorizacion) => {
-                  const rechazo = await aplicarAnulacion(anulando!, motivo, detalle, autorizacion);
+                onAplicar={async (motivo, detalle, preparado, autorizacion) => {
+                  const rechazo = await aplicarAnulacion(anulando!, motivo, detalle, preparado, autorizacion);
                   if (!rechazo) setAnulando(null);
                   return rechazo;
                 }}
@@ -800,12 +804,15 @@ function PedidosDeLaMesa({
         <ul className="flex flex-col gap-2">
           {vista.pedidos.map((p) => {
             const e = ESTADO_COMANDA[p.comanda.estado];
-            const fallo = p.comanda.estado === "NO_SALIO";
             const propias = vista.cuenta?.lines.filter((l) => l.orderId === p.id) ?? [];
             const anulable = propias.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
             const anulado = propias.length > 0 && propias.every((l) => l.anulacion !== undefined);
+            // Una comanda anulada no se reimprime: la cocina no tiene que preparar nada de ella.
+            const fallo = p.comanda.estado === "NO_SALIO" && !anulado;
+            // El papel «ANULAR» que no salió (B6-6): la cocina no se enteró y hay que decírselo.
+            const anulacionSinPapel = p.anulacion?.estado === "NO_SALIO";
             return (
-              <li key={p.id} className={cn("rounded-[var(--radius-control)] border px-3 py-2.5", fallo ? "border-state-crit/50 bg-state-crit-bg" : "border-line bg-base/40")}>
+              <li key={p.id} className={cn("rounded-[var(--radius-control)] border px-3 py-2.5", fallo || anulacionSinPapel ? "border-state-crit/50 bg-state-crit-bg" : "border-line bg-base/40")}>
                 <div className="flex items-center justify-between gap-2">
                   <Badge tone={anulado ? "idle" : e.tono} icon={anulado ? <Ban size={13} aria-hidden="true" /> : e.icono}>
                     {anulado ? "Pedido anulado" : e.texto}
@@ -816,13 +823,28 @@ function PedidosDeLaMesa({
                 </div>
                 <p className="mt-1.5 text-[13px] text-ink">{p.lineas.map((l) => `${l.cantidad}× ${l.nombre}${l.nota ? ` («${l.nota}»)` : ""}`).join(" · ")}</p>
                 {fallo && p.comanda.error && <p className="mt-1 text-[12.5px] text-state-crit">{p.comanda.error}</p>}
+                {p.anulacion && (
+                  <p
+                    role={anulacionSinPapel ? "alert" : undefined}
+                    className={cn("mt-1 flex items-start gap-1.5 text-[12.5px]", anulacionSinPapel ? "text-state-crit" : "text-ink-3")}
+                  >
+                    {anulacionSinPapel ? <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" /> : <Printer size={14} className="mt-0.5 shrink-0" aria-hidden="true" />}
+                    {anulacionSinPapel
+                      ? `El papel «ANULAR» no salió${p.anulacion.error ? ` (${p.anulacion.error})` : ""}: avisa a la cocina de palabra.`
+                      : p.anulacion.estado === "IMPRESA"
+                        ? "Papel «ANULAR» impreso en cocina"
+                        : p.anulacion.estado === "DESCARTADA"
+                          ? "Papel «ANULAR» descartado"
+                          : "Papel «ANULAR» imprimiéndose…"}
+                  </p>
+                )}
                 {(fallo || p.comanda.estado === "DESCARTADA") && (
                   <Button variant={fallo ? "primary" : "neutral"} onClick={() => onReimprimir(p)} className="mt-2 w-full">
                     <RotateCcw size={16} aria-hidden="true" />
                     Volver a imprimir
                   </Button>
                 )}
-                {p.comanda.estado === "IMPRESA" && (
+                {p.comanda.estado === "IMPRESA" && !anulado && (
                   <Button variant="ghost" onClick={() => onReimprimir(p)} className="mt-1 -mb-1 w-full text-[13px]">
                     <Printer size={15} aria-hidden="true" />
                     Se perdió el papel: imprimir una copia

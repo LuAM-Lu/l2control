@@ -161,12 +161,12 @@ function trabajoDto(t: FilaTrabajo, impresora: Pick<FilaImpresora, "id" | "name"
 
 /** Qué se pide imprimir. `para` elige la impresora activa de ese oficio; `impresoraId`, una concreta. */
 export type Encargo = Readonly<{
-  tipo: "RECIBO" | "CORTE" | "COMANDA" | "PRUEBA";
+  tipo: "RECIBO" | "CORTE" | "COMANDA" | "ANULACION" | "PRUEBA";
   titulo: string;
   copia?: boolean;
   saleId?: string;
   cutId?: string;
-  /** El pedido del mesero que imprime una COMANDA (B6-2): toda comanda lleva el suyo. */
+  /** El pedido del mesero que imprime una COMANDA (B6-2) o corrige una ANULACION (B6-6): las dos llevan el suyo. */
   orderId?: string;
   documento: Documento;
 }> &

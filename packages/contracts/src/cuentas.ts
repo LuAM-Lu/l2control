@@ -136,9 +136,16 @@ export const AnularPedidoCommandSchema = z
     idempotencyKey: IdempotencyKeySchema,
     accountId: z.uuid("Cuenta desconocida"),
     version: z.number().int().positive(),
-    lineId: IdSchema,
+    /** Los platos que se anulan, todos del mismo pedido (B6-6): una anulación, un papel «ANULAR». */
+    lineIds: z
+      .array(IdSchema)
+      .min(1, "Elige qué platos se anulan")
+      .max(40)
+      .refine((ids) => new Set(ids).size === ids.length, "Un plato se anula una vez"),
     motivo: MotivoAnulacionPedidoSchema,
     detalle: z.string().trim().max(120).optional(),
+    /** ¿La cocina ya lo preparó? Decide el inventario (B6-6, M-18): no, vuelve al estante; sí, es merma. */
+    preparado: z.boolean({ error: "Di si la cocina ya lo preparó" }),
   })
   .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, { message: "Con «Otro» hay que explicar la anulación", path: ["detalle"] });
 export type AnularPedidoCommand = z.infer<typeof AnularPedidoCommandSchema>;

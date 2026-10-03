@@ -222,3 +222,26 @@ export function documentoDeComanda(
   return { renglones };
 }
 
+/**
+ * El papel «ANULAR» (B6-6, M-18): sale en la impresora de comandas cuando se anulan platos ya enviados, para
+ * que la cocina no los prepare (o deje de hacerlo). Lleva la mesa en grande, la comanda que corrige, cuándo,
+ * quién lo autorizó y cada plato anulado con su cantidad. Sin precios, como la comanda.
+ */
+export function documentoDeAnulacion(
+  a: Readonly<{ numero: number; mesa: string; anuladoEn: number; autorizadoPor: string; motivo: string; lineas: readonly Readonly<{ nombre: string; cantidad: number }>[] }>,
+  local: AjustesSucursalDto,
+): Documento {
+  const renglones: Renglon[] = [
+    { tipo: "TEXTO", texto: "ANULAR · NO PREPARAR", alinear: "CENTRO", negrita: true, grande: true },
+    { tipo: "TEXTO", texto: `MESA ${a.mesa}`, alinear: "CENTRO", negrita: true, grande: true },
+    { tipo: "TEXTO", texto: `De la comanda ${orden(a.numero)}`, alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: `${fechaYHora(a.anuladoEn, local.formatoHora, local.zonaHoraria)} · ${a.autorizadoPor}`, alinear: "CENTRO" },
+    { tipo: "TEXTO", texto: a.motivo, alinear: "CENTRO" },
+    { tipo: "LINEA", caracter: "=" },
+  ];
+  for (const l of a.lineas) renglones.push({ tipo: "TEXTO", texto: `${l.cantidad} x ${l.nombre}`, negrita: true, grande: true });
+  const unidades = a.lineas.reduce((n, l) => n + l.cantidad, 0);
+  renglones.push({ tipo: "LINEA", caracter: "=" }, { tipo: "TEXTO", texto: `${unidades} ${unidades === 1 ? "plato anulado" : "platos anulados"}`, alinear: "CENTRO" });
+  return { renglones };
+}
+

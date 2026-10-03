@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.44.0 · 44 de 60 pasos.** **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.45.0 · 45 de 60 pasos.** **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 428 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 432 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -431,7 +431,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
-   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → B6-6 → B4-6 (M-18) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
+   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → B4-6 (M-18) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1585,10 +1585,23 @@ antes del cobro en servidor (orden de ejecución).
   lugar de «Pide la cuenta» cuando no hay nada que cobrar, con confirmación; `pasarACaja` cuenta solo lo cobrable.
   Navegador en la base de pruebas a 1366×768, 1280×800 y 800×1280. Una mesa abierta solo en el bus (sin cuenta en el
   servidor) se libera emitiendo `mesa.libre`, sin asiento: su apertura tampoco lo tiene (§5, el salón en el bus).*
-- [ ] **B6-6 · Anular en cocina, con papel e inventario** (M-18, F6-14). Al anular un plato ya enviado sale en la
+- [x] **B6-6 · Anular en cocina, con papel e inventario** (M-18, F6-14). Al anular un plato ya enviado sale en la
   impresora de comandas un papel «ANULAR · Mesa N · cantidad × plato», con su cola y su aviso si no sale, como la
   comanda. Quien anula marca si la cocina ya lo preparó: si no, la existencia vuelve al estante; si sí, sale como merma
   con su costo (B9-4). → La cocina no prepara lo anulado y el inventario no baja de más.
+  *Hecho el 2026-10-03 (v0.45.0). **Contrato:** `AnularPedidoCommandSchema` pasa a `lineIds` (todos de una comanda) y
+  `preparado`; la anulación guarda `preparado`; `PedidoDto.anulacion` dice cómo salió el último papel; tipo de trabajo
+  `ANULACION`. **Dominio:** `anulacionesProblem` (cada línea + `PEDIDOS_DISTINTOS`). **Base:** `print_job` admite
+  `ANULACION` con su pedido (migración `20261026000000_anular_en_cocina`). **Aplicación:** `cuentas.anularPedido`
+  comprueba todo antes de escribir (permiso, versión, platos, impresora de comandas, PIN) y en una transacción guarda la
+  versión, devuelve la existencia (`comprobarExistencias` + `asentarExistencias`), si estaba preparado la saca como
+  `SALIDA`/`MERMA` con la autorización de la anulación (`asentarAjuste`, extraído de `salidas.ts`) y encola el papel
+  (`documentoDeAnulacion`); la comanda y su reimpresión miran solo los trabajos `COMANDA`. Pruebas: dominio (1),
+  `pedidos.test-db.ts` (4: sin preparar con papel y devolución, preparado como merma, sin impresora, permiso) y las de
+  anular de `cuentas.test-db.ts` con pedidos reales. **Web:** la pregunta «¿La cocina ya lo preparó?», una sola llamada
+  por pedido, el estado del papel en la tarjeta y sin «Volver a imprimir» en una comanda anulada; «Anulaciones» en el
+  historial de Impresoras. Navegador en la base de pruebas a 1366×768, 1280×800 y 800×1280. La merma con existencia se
+  comprobó en las pruebas contra la base (la carta de la base de pruebas no tiene platos con existencia).*
 - [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
   cuenta en la ruta. ADR-023 supersede la descarga al marcar LISTO de ADR-012: su disparador será otro ADR.
 
@@ -1698,7 +1711,6 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | Etapa 6 (D-RES): los estados de mesa al servidor, tras B6-3 |
-| Al anular un plato enviado, la cocina no recibe papel y la existencia no vuelve al estante | B6-6 |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
@@ -1936,6 +1948,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   (B4-6). La ruta pasa a 60. Siguen B6-5 → B6-6 → B4-6 antes de los eventos.
 - **2026-10-03** · B6-5 hecho (v0.44.0): «Liberar mesa» sin PIN y la cuenta «sin consumo»; la mesa en $ 0 ya no
   bloquea el cierre. `pnpm verify:db` en verde (81 y 428). Sigue B6-6.
+- **2026-10-03** · B6-6 hecho (v0.45.0): papel «ANULAR» a cocina y existencia según si se preparó (devolución o
+  merma); un pedido se anula de una vez. `pnpm verify:db` en verde (81 y 432). Sigue B4-6.
 
 ---
 

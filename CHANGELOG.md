@@ -12,6 +12,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.45.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+B6-6: al anular lo que ya está en cocina, la cocina se entera en papel y el inventario cuadra (M-18).
+
+### Añadido
+- **El papel «ANULAR».** Al anular un pedido ya enviado, sale en la impresora de comandas un papel «ANULAR · NO
+  PREPARAR» con la mesa, la comanda que corrige, quién lo autorizó, el motivo y los platos anulados. Si no sale, la
+  tarjeta del pedido lo avisa en rojo («avisa a la cocina de palabra») y la barra lo cuenta entre los «sin imprimir»,
+  con su «Reintentar». En Impresoras, el historial se filtra también por «Anulaciones».
+- **¿La cocina ya lo preparó?** El diálogo de anular lo pregunta. **Todavía no:** lo que lleva existencia vuelve al
+  inventario. **Sí:** sale como merma, con su costo y la misma autorización, y aparece en Inventario → salidas.
+
+### Cambiado
+- Un pedido se anula **de una vez**: todos sus platos en una sola operación, con un solo PIN y un solo papel. Antes,
+  la tablet anulaba plato a plato. Platos de dos comandas distintas no se anulan juntos.
+- **Sin impresora de comandas encendida no se anula** (como no se envía): la cocina no se enteraría.
+- Una comanda anulada ya no ofrece «Volver a imprimir».
+
+### Comprobado
+- `pnpm verify:db` en verde (81 de base, 432 de aplicación). Navegador en la base de pruebas a 1366×768, 1280×800 y
+  800×1280: anular sin preparar, el papel en cola, el aviso cuando no sale y «Liberar mesa» tras anular todo.
+
 ## [0.44.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 B6-5: una mesa sin nada que cobrar se libera desde la tablet (M-18).

@@ -102,6 +102,11 @@ export const AnulacionPedidoSchema = z
       role: z.enum(["ADMIN", "SUPERVISOR"]),
     }),
     en: TimestampSchema,
+    /**
+     * Si la cocina ya lo había preparado (B6-6, M-18): si no, volvió al estante; si sí, salió como merma.
+     * Falta en lo anulado antes de B6-6.
+     */
+    preparado: z.boolean().optional(),
   })
   .refine((a) => a.motivo !== "OTRO" || a.detalle !== undefined, {
     message: "Con «Otro» hay que explicar la anulación",

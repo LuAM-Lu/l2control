@@ -85,6 +85,7 @@ const TIPOS: readonly { id: TipoTrabajo; nombre: string }[] = [
   { id: "RECIBO", nombre: "Recibos" },
   { id: "CORTE", nombre: "Cortes" },
   { id: "COMANDA", nombre: "Comandas" },
+  { id: "ANULACION", nombre: "Anulaciones" },
   { id: "PRUEBA", nombre: "Pruebas" },
 ];
 

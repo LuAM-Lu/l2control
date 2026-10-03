@@ -30,6 +30,7 @@ let mesero: Contexto;
 let cajera: Contexto;
 let monitora: Contexto;
 let otroMesero: Contexto;
+let supervisor: string;
 const ids: Record<string, string> = {};
 
 const linea = (nombre: string, cantidad = 1, extra: Record<string, unknown> = {}) => ({
@@ -61,6 +62,7 @@ before(async () => {
   mesero = await contextoDe(l, await crearEquipo(l, "Salón"), pedro, "3175");
   cajera = await contextoDe(l, await crearEquipo(l, "Caja"), marisol, "7391");
   monitora = await contextoDe(l, await crearEquipo(l, "Entrada"), ana, "6284");
+  supervisor = await crearPersona(l, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   const jesus = await crearPersona(otro, { nombre: "Jesús Mendoza", role: "MESERO", pin: "3175" });
   otroMesero = await contextoDe(otro, await crearEquipo(otro, "Salón"), jesus, "3175");
 
@@ -254,5 +256,109 @@ describe("nada se borra y cada local ve lo suyo", () => {
     const { pedidos } = valor(await l.app.pedidos.leer(mesero, AHORA));
     const r = await otro.app.pedidos.reimprimir(otroMesero, { pedidoId: pedidos[0]!.id }, AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
+  });
+});
+
+describe("anular en cocina, con papel e inventario (B6-6, M-18)", () => {
+  const conPin = { autorizadorId: "", pin: "5937", motivo: "Lo autorizo" };
+  const existencia = async (nombre: string) =>
+    (await l.app.productos.leer(l.sistema)).productos.find((p) => p.nombre === nombre)!.existencia!;
+  const anular = (cuenta: PedidoEnviadoDto["cuenta"], lineIds: string[], preparado: boolean) =>
+    l.app.cuentas.anularPedido(
+      mesero,
+      { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, lineIds, motivo: "CLIENTE_DESISTIO", preparado },
+      { ...conPin, autorizadorId: supervisor },
+      AHORA,
+    );
+  const platosDe = (cuenta: PedidoEnviadoDto["cuenta"], pedidoId: string) => cuenta.lines.filter((l) => l.orderId === pedidoId).map((l) => l.id);
+
+  before(async () => {
+    valor(
+      await l.app.entradas.registrar(
+        l.sistema,
+        { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids["Refresco"]!, bultos: 1, unidadesPorBulto: 6, costoBultoMinor: "600" }] },
+        AHORA - 5 * MIN,
+      ),
+    );
+  });
+
+  test("sin preparar: no se cobra, vuelve al estante y a la cocina le sale un papel «ANULAR», todo de una vez", async () => {
+    const antes = await existencia("Refresco");
+    const pedidoId = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-4", [linea("Refresco", 2), linea("Tequeños")], pedidoId));
+    assert.equal(await existencia("Refresco"), antes - 2);
+
+    const r = valor(await anular(cuenta, platosDe(cuenta, pedidoId), false));
+    assert.ok(r.lines.filter((x) => x.orderId === pedidoId).every((x) => x.anulacion?.preparado === false));
+    assert.equal(await existencia("Refresco"), antes, "lo que no se preparó vuelve al estante");
+
+    const trabajos = await trabajosDe(pedidoId);
+    assert.deepEqual(trabajos.map((t) => t.kind), ["COMANDA", "ANULACION"]);
+    const papel = trabajos[1]!;
+    assert.match(papel.title, /Anular · comanda #\d{4} · Mesa 4/);
+    const texto = JSON.stringify(papel.content);
+    assert.match(texto, /ANULAR · NO PREPARAR/);
+    assert.match(texto, /2 x Refresco/);
+    assert.match(texto, /1 x Tequeños/);
+    assert.match(texto, /Luis Guerrero/);
+
+    // La comanda sigue siendo la comanda: el papel de anulación se ve aparte y no la cambia.
+    const { pedidos } = valor(await l.app.pedidos.leer(mesero, AHORA));
+    const leido = pedidos.find((p) => p.id === pedidoId)!;
+    assert.equal(leido.comanda.estado, "EN_COLA");
+    assert.equal(leido.comanda.reimpresiones, 0);
+    assert.deepEqual(leido.anulacion, { estado: "EN_COLA", error: null });
+    await mover(papel.id, "FALLIDO");
+    const tras = valor(await l.app.pedidos.leer(mesero, AHORA)).pedidos.find((p) => p.id === pedidoId)!;
+    assert.deepEqual(tras.anulacion, { estado: "NO_SALIO", error: "La impresora no responde" });
+  });
+
+  test("ya preparado: la existencia no vuelve y sale como merma, con su costo y quien lo autorizó", async () => {
+    const antes = await existencia("Refresco");
+    const pedidoId = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-4", [linea("Refresco", 1)], pedidoId));
+    const r = valor(await anular(cuenta, platosDe(cuenta, pedidoId), true));
+    assert.equal(await existencia("Refresco"), antes - 1, "lo preparado no vuelve al estante");
+    assert.equal(r.lines.find((x) => x.orderId === pedidoId)!.anulacion?.preparado, true);
+
+    const merma = await l.base.conTenant(l.sistema.tenantId, (tx) =>
+      tx.stockAdjustment.findFirst({ where: { reason: "MERMA" }, orderBy: { at: "desc" }, include: { movements: true } }),
+    );
+    assert.ok(merma, "queda la salida por merma");
+    assert.equal(merma.kind, "SALIDA");
+    assert.equal(merma.authorizedBy, supervisor);
+    assert.match(merma.note ?? "", /Anulado ya preparado · comanda #\d{4} · Mesa 4/);
+    assert.deepEqual(merma.movements.map((m) => [m.quantity, m.valueMinor < 0n]), [[-1, true]]);
+    const devuelto = await l.base.conTenant(l.sistema.tenantId, (tx) => tx.stockMovement.findMany({ where: { accountId: cuenta.id, kind: "DEVOLUCION" } }));
+    assert.ok(devuelto.some((m) => m.quantity === 1 && m.productId === ids["Refresco"]));
+  });
+
+  test("sin impresora de comandas no se anula: la cocina no se enteraría", async () => {
+    const pedidoId = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-4", [linea("Tequeños")], pedidoId));
+    const impresoras = await l.base.conTenant(l.sistema.tenantId, (tx) => tx.printer.findMany({ where: { active: true, forOrders: true }, select: { id: true } }));
+    for (const i of impresoras) valor(await l.app.impresion.aplicar(l.sistema, { kind: "ACTIVAR", impresoraId: i.id, activa: false }));
+    try {
+      const r = await anular(cuenta, platosDe(cuenta, pedidoId), false);
+      assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE", JSON.stringify(r));
+      assert.match(!r.ok ? r.mensaje : "", /impresora de comandas/);
+      const sigue = valor(await l.app.cuentas.leer(l.sistema, AHORA)).cuentas.find((c) => c.id === cuenta.id)!;
+      assert.ok(sigue.lines.filter((x) => x.orderId === pedidoId).every((x) => x.anulacion === undefined), "no se anuló nada");
+    } finally {
+      for (const i of impresoras) valor(await l.app.impresion.aplicar(l.sistema, { kind: "ACTIVAR", impresoraId: i.id, activa: true }));
+    }
+  });
+
+  test("la monitora no anula, y el intento no deja papel", async () => {
+    const pedidoId = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-4", [linea("Tequeños")], pedidoId));
+    const r = await l.app.cuentas.anularPedido(
+      monitora,
+      { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, lineIds: platosDe(cuenta, pedidoId), motivo: "CLIENTE_DESISTIO", preparado: false },
+      { ...conPin, autorizadorId: supervisor },
+      AHORA,
+    );
+    assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
+    assert.deepEqual((await trabajosDe(pedidoId)).map((t) => t.kind), ["COMANDA"]);
   });
 });

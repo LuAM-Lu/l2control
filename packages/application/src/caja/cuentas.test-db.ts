@@ -573,19 +573,29 @@ describe("la cuenta de una mesa (B6-1, I-05)", () => {
   });
 });
 
-describe("anular un pedido en producción (F6-14, B6-3)", () => {
-  const deMesa = (tableId: string, lines: unknown[] = []) => familia({ kind: "MESA", family: `Mesa ${tableId}`, sessionIds: [], lines, tableId, tableLabel: "99" });
-  const platoDePedido = (extra: Record<string, unknown> = {}) => ({ ...lineaDeAgua(), orderId: randomUUID(), ...extra });
+describe("anular un pedido en producción (F6-14, B6-3, B6-6)", () => {
+  /** Un pedido real del mesero (B6-2): la anulación nombra su comanda y saca su papel «ANULAR». */
+  const pedir = async (tableId: string, cantidad = 1) =>
+    valor(await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId, lineas: [{ productId: agua, cantidad, precioMinor: "100" }] }, AHORA)).cuenta;
+  const anular = (c: FamilyAccountDto, lineIds: string[], extra: Record<string, unknown> = {}) => ({
+    idempotencyKey: randomUUID(),
+    accountId: c.id,
+    version: c.version,
+    lineIds,
+    motivo: "PEDIDO_EQUIVOCADO" as const,
+    preparado: false,
+    ...extra,
+  });
 
   test("un «guardar» no lo anula: tiene su propio mando, con autorización", async () => {
-    const c = await abrir(deMesa("mesa-5", [platoDePedido()]));
+    const c = await pedir("mesa-5");
     const linea = c.lines[0]!;
     const aMano = await local.app.cuentas.guardar(ctxMesero, {
       cuenta: { ...c, lines: [{ ...linea, anulacion: { motivo: "PEDIDO_EQUIVOCADO", autorizadaPor: { id: admin, name: "Abigail Karam", role: "ADMIN" }, en: new Date(AHORA).toISOString() } }] },
     }, AHORA);
     assert.equal(!aMano.ok && aMano.problemas?.[0]?.message, "ANULACION_DESDE_LA_PANTALLA");
 
-    const cmd = { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea.id, motivo: "PEDIDO_EQUIVOCADO" as const };
+    const cmd = anular(c, [linea.id]);
     const sinAutorizar = await local.app.cuentas.anularPedido(ctxMesero, cmd, undefined, AHORA);
     assert.equal(!sinAutorizar.ok && sinAutorizar.motivo, "NO_PERMITIDO");
     const r = valor(await local.app.cuentas.anularPedido(ctxMesero, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "Se equivocó de mesa" }, AHORA));
@@ -594,6 +604,7 @@ describe("anular un pedido en producción (F6-14, B6-3)", () => {
       motivo: "PEDIDO_EQUIVOCADO",
       autorizadaPor: { id: supervisor, name: "Luis Guerrero", role: "SUPERVISOR" },
       en: new Date(AHORA).toISOString(),
+      preparado: false,
     });
     assert.deepEqual(anulada.amount, usd("100")); // conserva su importe
     // Un doble clic no la aplica dos veces.
@@ -604,61 +615,51 @@ describe("anular un pedido en producción (F6-14, B6-3)", () => {
   });
 
   test("la administración se autoriza con su propio PIN, sin pedírselo a otro", async () => {
-    const c = await abrir(deMesa("mesa-6", [platoDePedido()]));
-    const linea = c.lines[0]!;
-    const cmd = { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea.id, motivo: "CLIENTE_DESISTIO" as const };
+    const c = await pedir("mesa-6");
+    const cmd = anular(c, [c.lines[0]!.id], { motivo: "CLIENTE_DESISTIO" });
     const sinPin = await local.app.cuentas.anularPedido(ctxAdmin, cmd, undefined, AHORA);
     assert.equal(!sinPin.ok && sinPin.mensaje, "Confirma con tu PIN.");
     const r = valor(await local.app.cuentas.anularPedido(ctxAdmin, cmd, pinDeAdmin(), AHORA));
-    assert.deepEqual(r.lines.find((l) => l.id === linea.id)!.anulacion?.autorizadaPor, { id: admin, name: "Abigail Karam", role: "ADMIN" });
+    assert.deepEqual(r.lines[0]!.anulacion?.autorizadaPor, { id: admin, name: "Abigail Karam", role: "ADMIN" });
   });
 
-  test("no se anula lo ya pagado, lo movido, lo regalado o lo del parque; ni dos veces", async () => {
-    const pagada = await abrir(mostrador([platoDePedido()]));
+  test("no se anula lo ya pagado ni lo del parque; ni dos veces, ni dos comandas de una vez", async () => {
+    const pagada = await abrir(mostrador([{ ...lineaDeAgua(), orderId: randomUUID() }]));
     const { cuenta: cobrada } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(pagada, "500", "131"), AHORA));
-    const yaPagada = await local.app.cuentas.anularPedido(
-      ctxAdmin,
-      { idempotencyKey: randomUUID(), accountId: cobrada.id, version: cobrada.version, lineId: cobrada.lines[0]!.id, motivo: "OTRO", detalle: "Prueba" },
-      pinDeAdmin(),
-      AHORA,
-    );
+    const yaPagada = await local.app.cuentas.anularPedido(ctxAdmin, anular(cobrada, [cobrada.lines[0]!.id], { motivo: "OTRO", detalle: "Prueba" }), pinDeAdmin(), AHORA);
     assert.equal(!yaPagada.ok && yaPagada.problemas?.[0]?.message, "LINEA_PAGADA");
 
-    const c = await abrir(deMesa("mesa-7", [platoDePedido()]));
-    const linea = c.lines[0]!;
-    const primera = valor(
-      await local.app.cuentas.anularPedido(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea.id, motivo: "SIN_EXISTENCIA" }, pinDeAdmin(), AHORA),
-    );
-    const otraVez = await local.app.cuentas.anularPedido(
-      ctxAdmin,
-      { idempotencyKey: randomUUID(), accountId: c.id, version: primera.version, lineId: linea.id, motivo: "SIN_EXISTENCIA" },
-      pinDeAdmin(),
-      AHORA,
-    );
+    await pedir("mesa-7");
+    const c = await pedir("mesa-7"); // la segunda comanda de la misma mesa
+    const [primera, segunda] = c.lines;
+    const juntas = await local.app.cuentas.anularPedido(ctxAdmin, anular(c, [primera!.id, segunda!.id]), pinDeAdmin(), AHORA);
+    assert.equal(!juntas.ok && juntas.problemas?.[0]?.message, "PEDIDOS_DISTINTOS");
+
+    const hecha = valor(await local.app.cuentas.anularPedido(ctxAdmin, anular(c, [primera!.id], { motivo: "SIN_EXISTENCIA" }), pinDeAdmin(), AHORA));
+    const otraVez = await local.app.cuentas.anularPedido(ctxAdmin, anular(hecha, [primera!.id], { motivo: "SIN_EXISTENCIA" }), pinDeAdmin(), AHORA);
     assert.equal(!otraVez.ok && otraVez.problemas?.[0]?.message, "YA_ANULADA");
 
     const deLaFamilia = await familiaDePrueba(local, ctxMonitora, AHORA);
-    const delParque = await local.app.cuentas.anularPedido(
-      ctxAdmin,
-      { idempotencyKey: randomUUID(), accountId: deLaFamilia.id, version: deLaFamilia.version, lineId: deLaFamilia.lines[0]!.id, motivo: "OTRO", detalle: "Prueba" },
-      pinDeAdmin(),
-      AHORA,
-    );
+    const delParque = await local.app.cuentas.anularPedido(ctxAdmin, anular(deLaFamilia, [deLaFamilia.lines[0]!.id], { motivo: "OTRO", detalle: "Prueba" }), pinDeAdmin(), AHORA);
     assert.equal(!delParque.ok && delParque.problemas?.[0]?.message, "NO_ES_PEDIDO");
   });
 });
 
 describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
   const deMesa = (tableId: string, lines: unknown[] = []) => familia({ kind: "MESA", family: `Mesa ${tableId}`, sessionIds: [], lines, tableId, tableLabel: "99" });
-  const platoDePedido = () => ({ ...lineaDeAgua(), orderId: randomUUID() });
   const liberar = (ctx: Contexto, c: FamilyAccountDto, idempotencyKey: string = randomUUID()) =>
     local.app.cuentas.liberarMesa(ctx, { idempotencyKey, accountId: c.id, version: c.version }, AHORA);
   const pendientesDelCierre = async () => valor(await local.app.cortes.pendientes(ctxAdmin, undefined, AHORA)).cuentas.map((c) => c.id);
 
   test("con todo anulado, el mesero la libera sin PIN: queda «sin consumo», fuera del cierre y auditada", async () => {
-    const c = await abrir(deMesa("mesa-9", [platoDePedido()]), ctxMesero);
+    const c = valor(await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId: "mesa-9", lineas: [{ productId: agua, cantidad: 1, precioMinor: "100" }] }, AHORA)).cuenta;
     const anulada = valor(
-      await local.app.cuentas.anularPedido(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: c.lines[0]!.id, motivo: "CLIENTE_DESISTIO" }, pinDeAdmin(), AHORA),
+      await local.app.cuentas.anularPedido(
+        ctxAdmin,
+        { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineIds: [c.lines[0]!.id], motivo: "CLIENTE_DESISTIO", preparado: false },
+        pinDeAdmin(),
+        AHORA,
+      ),
     );
     assert.ok((await pendientesDelCierre()).includes(c.id), "antes de liberarla, la mesa en $ 0 impedía cerrar la jornada");
 

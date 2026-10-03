@@ -237,7 +237,8 @@ export function casosPedidos(base: Base): CasosPedidos {
         if (rechazo) return rechazo;
         const fila = await tx.kitchenOrder.findUnique({ where: { id: v.data.pedidoId } });
         if (!fila || fila.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese pedido no existe en esta sucursal." };
-        const trabajos = await tx.printJob.findMany({ where: { orderId: fila.id }, orderBy: { createdAt: "asc" } });
+        // Solo la comanda: el papel «ANULAR» del mismo pedido (B6-6) no es una reimpresión suya.
+        const trabajos = await tx.printJob.findMany({ where: { orderId: fila.id, kind: "COMANDA" }, orderBy: { createdAt: "asc" } });
         const estado = estadoDeComanda(trabajos.map((t) => ({ estado: t.status as EstadoDeTrabajo, creadoEn: t.createdAt.getTime() })));
         if (estado === "EN_COLA") {
           return { ok: false, motivo: "CONFLICTO", mensaje: "La comanda se está imprimiendo: espera a que la impresora responda." };
@@ -313,16 +314,19 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
   if (filas.length === 0) return [];
   const trabajos = await tx.printJob.findMany({
     where: { orderId: { in: filas.map((f) => f.id) } },
-    select: { orderId: true, status: true, createdAt: true, copy: true, lastError: true, printerId: true },
+    select: { orderId: true, kind: true, status: true, createdAt: true, copy: true, lastError: true, printerId: true },
     orderBy: { createdAt: "asc" },
   });
   const impresoras = new Map(
     (await tx.printer.findMany({ where: { id: { in: [...new Set(trabajos.map((t) => t.printerId))] } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]),
   );
   return filas.map((f) => {
-    const suyos = trabajos.filter((t) => t.orderId === f.id);
+    const suyos = trabajos.filter((t) => t.orderId === f.id && t.kind === "COMANDA");
     const ultimo = suyos.at(-1);
     const estado = estadoDeComanda(suyos.map((t) => ({ estado: t.status as EstadoDeTrabajo, creadoEn: t.createdAt.getTime() })));
+    // El último papel «ANULAR» de este pedido (B6-6), si se anuló algo.
+    const anulacion = trabajos.filter((t) => t.orderId === f.id && t.kind === "ANULACION").at(-1);
+    const estadoAnulacion = anulacion ? estadoDeComanda([{ estado: anulacion.status as EstadoDeTrabajo, creadoEn: anulacion.createdAt.getTime() }]) : null;
     return PedidoSchema.parse({
       id: f.id,
       numero: f.number,
@@ -338,6 +342,9 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
         error: estado === "NO_SALIO" ? (ultimo?.lastError ?? "No salió") : null,
         reimpresiones: suyos.filter((t) => t.copy).length,
       },
+      anulacion: anulacion && estadoAnulacion
+        ? { estado: estadoAnulacion, error: estadoAnulacion === "NO_SALIO" ? (anulacion.lastError ?? "No salió") : null }
+        : null,
     });
   });
 }

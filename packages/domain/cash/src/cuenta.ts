@@ -408,7 +408,7 @@ export function withCourtesy<A extends AccountDoc>(c: A, lineId: string, cortesi
 
 /* ──────────────────────────────────────── anular un pedido (F6-14, B6-3) */
 
-export type AnulacionProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_ANULADA" | "YA_REGALADA" | "NO_ES_PEDIDO";
+export type AnulacionProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_ANULADA" | "YA_REGALADA" | "NO_ES_PEDIDO" | "PEDIDOS_DISTINTOS";
 
 /**
  * ¿Se puede anular este plato pedido? Solo un plato de la mesa (`RESTAURANTE`), que todavía se deba:
@@ -423,6 +423,20 @@ export function anulacionProblem(c: Pick<AccountDoc, "lines">, lineId: string): 
   if (l.movedTo) return "LINEA_MOVIDA";
   if (l.cortesia) return "YA_REGALADA";
   if (l.anulacion) return "YA_ANULADA";
+  return null;
+}
+
+/**
+ * ¿Se pueden anular estos platos de una vez (B6-6)? Cada uno como `anulacionProblem`, y todos del mismo
+ * pedido: una anulación saca un papel «ANULAR» que nombra una comanda. El primer problema, con su línea.
+ */
+export function anulacionesProblem(c: Pick<AccountDoc, "lines">, lineIds: readonly string[]): Readonly<{ problem: AnulacionProblem; lineId: string }> | null {
+  for (const id of lineIds) {
+    const problem = anulacionProblem(c, id);
+    if (problem) return { problem, lineId: id };
+  }
+  const pedidos = new Set(lineIds.map((id) => c.lines.find((l) => l.id === id)?.orderId));
+  if (pedidos.size > 1 || pedidos.has(undefined)) return { problem: "PEDIDOS_DISTINTOS", lineId: lineIds[0]! };
   return null;
 }
 

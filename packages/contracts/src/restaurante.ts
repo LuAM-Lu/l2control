@@ -228,6 +228,11 @@ export const PedidoSchema = z.object({
     /** Cuántas veces se volvió a imprimir. */
     reimpresiones: z.number().int().min(0),
   }),
+  /**
+   * El último papel «ANULAR» de este pedido (B6-6), si se anuló algo: si salió o no, para que la tablet avise
+   * cuando la cocina no se enteró. `null` si no se anuló nada.
+   */
+  anulacion: z.object({ estado: EstadoDeComandaSchema, error: z.string().nullable() }).nullable().default(null),
 });
 export type PedidoDto = z.infer<typeof PedidoSchema>;
 

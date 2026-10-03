@@ -22,13 +22,20 @@ const MOTIVOS: { id: MotivoAnulacionPedido; texto: string }[] = [
 
 const comanda = (n: number) => `#${String(n).padStart(4, "0")}`;
 
+/** ¿La cocina ya lo preparó? Decide el inventario (B6-6, M-18). */
+const PREPARADO: { id: boolean; texto: string; detalle: string }[] = [
+  { id: false, texto: "Todavía no", detalle: "Vuelve al inventario" },
+  { id: true, texto: "Sí, ya estaba hecho", detalle: "Sale como merma" },
+];
+
 /**
- * Anular un pedido ya enviado a cocina — F6-14, B6-3.
+ * Anular un pedido ya enviado a cocina — F6-14, B6-3, B6-6.
  *
  * No es una cortesía: nada se entregó, el pedido no debió salir así. El motivo es de lista cerrada;
- * «Otro» pide explicarlo. Lo autoriza la administración o un supervisor con su PIN (el mesero no se
- * autoriza a sí mismo): el servidor lo comprueba y deja quién y cuándo. No tiene vuelta: lo anulado
- * por error se vuelve a pedir.
+ * «Otro» pide explicarlo. Quien anula dice si la cocina ya lo había preparado: si no, vuelve al
+ * inventario; si sí, sale como merma (M-18). Lo autoriza la administración o un supervisor con su PIN
+ * (el mesero no se autoriza a sí mismo): el servidor lo comprueba, deja quién y cuándo, y saca el papel
+ * «ANULAR» en la impresora de comandas. No tiene vuelta: lo anulado por error se vuelve a pedir.
  */
 export function AnularPedidoDialog({
   pedido,
@@ -36,12 +43,13 @@ export function AnularPedidoDialog({
   onCerrar,
 }: {
   pedido: PedidoDto | null;
-  /** Anula todos los platos anulables de este pedido, con el mismo motivo y autorización. */
-  onAplicar: (motivo: MotivoAnulacionPedido, detalle: string | undefined, autorizacion: unknown) => Promise<Rechazo | null>;
+  /** Anula todos los platos anulables de este pedido de una vez, con el mismo motivo y autorización. */
+  onAplicar: (motivo: MotivoAnulacionPedido, detalle: string | undefined, preparado: boolean, autorizacion: unknown) => Promise<Rechazo | null>;
   onCerrar: () => void;
 }) {
   const [motivo, setMotivo] = useState<MotivoAnulacionPedido | null>(null);
   const [nota, setNota] = useState("");
+  const [preparado, setPreparado] = useState<boolean | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
   const [para, setPara] = useState<string | null>(null);
@@ -52,6 +60,7 @@ export function AnularPedidoDialog({
     setPara(pedido?.id ?? null);
     setMotivo(null);
     setNota("");
+    setPreparado(null);
     setErrores({});
   }
 
@@ -62,13 +71,14 @@ export function AnularPedidoDialog({
     const nuevos: Record<string, string> = { ...(a.falta() ?? {}) };
     if (!motivo) nuevos.motivo = "Elige el motivo";
     if (motivo === "OTRO" && nota.trim().length < 3) nuevos.nota = "Explica la anulación";
+    if (preparado === null) nuevos.preparado = "Di si la cocina ya lo preparó";
     if (Object.keys(nuevos).length > 0) {
       setErrores(nuevos);
       return;
     }
     const razon = `${TEXTO_MOTIVO_ANULACION[motivo!]}${nota.trim() ? ` · ${nota.trim()}` : ""}`;
     setEnviando(true);
-    const rechazo = await onAplicar(motivo!, nota.trim() || undefined, a.autorizacion(razon)).catch(
+    const rechazo = await onAplicar(motivo!, nota.trim() || undefined, preparado!, a.autorizacion(razon)).catch(
       () => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: no se anuló nada." }) as Rechazo,
     );
     setEnviando(false);
@@ -83,7 +93,7 @@ export function AnularPedidoDialog({
       abierto
       onCerrar={onCerrar}
       titulo={`Anular comanda ${comanda(pedido.numero)}`}
-      descripcion="Lo pedido no se borra: se anula, con su motivo y autorización, y no se cobra."
+      descripcion="Lo pedido no se borra: se anula, con su motivo y autorización, y no se cobra. A la cocina le sale un papel «ANULAR»."
       pie={
         <div className="grid grid-cols-2 gap-2">
           <Button surface="pos" variant="neutral" onClick={onCerrar}>
@@ -134,9 +144,35 @@ export function AnularPedidoDialog({
           )}
         </fieldset>
 
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">2 · ¿La cocina ya lo preparó?</legend>
+          <div role="radiogroup" aria-label="¿La cocina ya lo preparó?" className="grid grid-cols-2 gap-1.5">
+            {PREPARADO.map((p) => (
+              <button
+                key={String(p.id)}
+                type="button"
+                role="radio"
+                aria-checked={preparado === p.id}
+                onClick={() => {
+                  setPreparado(p.id);
+                  setErrores((e) => ({ ...e, preparado: "" }));
+                }}
+                className={cn(
+                  "flex min-h-12 cursor-pointer flex-col justify-center rounded-[var(--radius-control)] border px-3 text-left leading-tight transition-colors",
+                  preparado === p.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+                )}
+              >
+                <span className={cn("text-[13px]", preparado === p.id && "font-semibold")}>{p.texto}</span>
+                <span className="text-[11.5px] text-ink-3">{p.detalle}</span>
+              </button>
+            ))}
+          </div>
+          {errores.preparado && <p className="text-[12px] text-state-crit">{errores.preparado}</p>}
+        </fieldset>
+
         <CampoAutorizacion
           a={a}
-          numero={2}
+          numero={3}
           denegado="Tu puesto no puede anular un pedido en producción."
           errores={errores}
           deshabilitado={enviando}

@@ -64,73 +64,6 @@ export function casosSalidas(base: Base): CasosSalidas {
     return porId;
   }
 
-  /** Escribe la salida o el conteo con sus movimientos y su asiento. La autorización ya pasó. */
-  async function asentar(
-    tx: Transaccion,
-    ctx: Contexto,
-    a: Readonly<{
-      kind: "SALIDA" | "CONTEO";
-      reason: string | null;
-      note: string | null;
-      content: unknown[];
-      operationKey: string;
-      ahora: number;
-      autorizadoPor: string;
-      movimientos: readonly (StockMove & { valueMinor: bigint })[];
-      resumen: Record<string, unknown>;
-    }>,
-  ): Promise<AjusteInventarioDto> {
-    const quien = await nombreDe(tx, ctx);
-    const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: a.autorizadoPor }, select: { fullName: true } });
-    const fila = await tx.stockAdjustment.create({
-      data: {
-        tenantId: ctx.tenantId,
-        branchId: ctx.branchId,
-        kind: a.kind,
-        reason: a.reason,
-        note: a.note,
-        content: a.content as never,
-        operationKey: a.operationKey,
-        at: new Date(a.ahora),
-        createdBy: ctx.quien?.userId ?? null,
-        createdByName: quien.nombre,
-        deviceId: ctx.quien?.deviceId ?? null,
-        authorizedBy: a.autorizadoPor,
-        authorizedByName: autorizador.fullName,
-      },
-    });
-    if (a.movimientos.length > 0) {
-      await tx.stockMovement.createMany({
-        data: a.movimientos.map((m) => ({
-          tenantId: ctx.tenantId,
-          branchId: ctx.branchId,
-          productId: m.productId,
-          quantity: m.quantity,
-          kind: a.kind === "SALIDA" ? "SALIDA" : "AJUSTE",
-          valueMinor: m.valueMinor,
-          adjustmentId: fila.id,
-          at: new Date(a.ahora),
-          createdBy: ctx.quien?.userId ?? null,
-          createdByName: quien.nombre,
-          deviceId: ctx.quien?.deviceId ?? null,
-        })),
-      });
-    }
-    await auditar(tx, ctx, {
-      action: a.kind === "SALIDA" ? "inventario.salida" : "inventario.conteo",
-      entityType: "stock_adjustment",
-      entityId: fila.id,
-      authorizedBy: a.autorizadoPor,
-      ...(a.reason ? { reason: a.reason } : {}),
-      after: {
-        ...a.resumen,
-        detalle: a.note,
-        movimientos: a.movimientos.map((m) => ({ productId: m.productId, cantidad: m.quantity, valor: { minor: String(m.valueMinor), currency: "USD" } })),
-      },
-    });
-    return ajusteDe(tx, fila.id);
-  }
-
   /** Corre `intentar` y traduce lo de siempre: el rechazo por permiso, auditado; el doble envío, el mismo. */
   async function conReintento(ctx: Contexto, accion: "inventario.salida" | "inventario.conteo", intentar: () => Promise<AjusteInventarioDto | Rechazo>): Promise<Resultado<AjusteInventarioDto>> {
     try {
@@ -199,7 +132,7 @@ export function casosSalidas(base: Base): CasosSalidas {
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "inventario.ajustar", autorizacion, ahora, CON_PIN);
           if (!permiso.ok) return permiso;
           const vacio: StockValue = { quantity: 0, valueMinor: 0n };
-          return asentar(tx, ctx, {
+          return asentarAjuste(tx, ctx, {
             kind: "SALIDA",
             reason: cmd.motivo,
             note: cmd.detalle ?? null,
@@ -262,7 +195,7 @@ export function casosSalidas(base: Base): CasosSalidas {
             const ultima = await tx.stockMovement.findFirst({ where: { branchId: ctx.branchId, productId: m.productId, kind: "ENTRADA" }, orderBy: { at: "desc" }, select: { quantity: true, valueMinor: true } });
             movimientos.push({ ...m, valueMinor: costOfSurplus(stock, ultima ? { quantity: ultima.quantity, valueMinor: ultima.valueMinor } : null, m.quantity) });
           }
-          return asentar(tx, ctx, {
+          return asentarAjuste(tx, ctx, {
             kind: "CONTEO",
             reason: null,
             note: cmd.detalle ?? null,
@@ -284,6 +217,76 @@ export function casosSalidas(base: Base): CasosSalidas {
 }
 
 /** Una salida o un conteo con sus líneas, como los lee la pantalla. Consulta a consulta. */
+/**
+ * Escribe la salida o el conteo con sus movimientos y su asiento. La autorización ya pasó. La usa también
+ * la anulación de un plato preparado (B6-6), que sale como merma con la autorización de la anulación.
+ */
+export async function asentarAjuste(
+  tx: Transaccion,
+  ctx: Contexto,
+  a: Readonly<{
+    kind: "SALIDA" | "CONTEO";
+    reason: string | null;
+    note: string | null;
+    content: unknown[];
+    operationKey: string;
+    ahora: number;
+    autorizadoPor: string;
+    movimientos: readonly (StockMove & { valueMinor: bigint })[];
+    resumen: Record<string, unknown>;
+  }>,
+): Promise<AjusteInventarioDto> {
+  const quien = await nombreDe(tx, ctx);
+  const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: a.autorizadoPor }, select: { fullName: true } });
+  const fila = await tx.stockAdjustment.create({
+    data: {
+      tenantId: ctx.tenantId,
+      branchId: ctx.branchId,
+      kind: a.kind,
+      reason: a.reason,
+      note: a.note,
+      content: a.content as never,
+      operationKey: a.operationKey,
+      at: new Date(a.ahora),
+      createdBy: ctx.quien?.userId ?? null,
+      createdByName: quien.nombre,
+      deviceId: ctx.quien?.deviceId ?? null,
+      authorizedBy: a.autorizadoPor,
+      authorizedByName: autorizador.fullName,
+    },
+  });
+  if (a.movimientos.length > 0) {
+    await tx.stockMovement.createMany({
+      data: a.movimientos.map((m) => ({
+        tenantId: ctx.tenantId,
+        branchId: ctx.branchId,
+        productId: m.productId,
+        quantity: m.quantity,
+        kind: a.kind === "SALIDA" ? "SALIDA" : "AJUSTE",
+        valueMinor: m.valueMinor,
+        adjustmentId: fila.id,
+        at: new Date(a.ahora),
+        createdBy: ctx.quien?.userId ?? null,
+        createdByName: quien.nombre,
+        deviceId: ctx.quien?.deviceId ?? null,
+      })),
+    });
+  }
+  await auditar(tx, ctx, {
+    action: a.kind === "SALIDA" ? "inventario.salida" : "inventario.conteo",
+    entityType: "stock_adjustment",
+    entityId: fila.id,
+    authorizedBy: a.autorizadoPor,
+    ...(a.reason ? { reason: a.reason } : {}),
+    after: {
+      ...a.resumen,
+      detalle: a.note,
+      movimientos: a.movimientos.map((m) => ({ productId: m.productId, cantidad: m.quantity, valor: { minor: String(m.valueMinor), currency: "USD" } })),
+    },
+  });
+  return ajusteDe(tx, fila.id);
+}
+
 async function ajusteDe(tx: Transaccion, id: string): Promise<AjusteInventarioDto> {
   const a = await tx.stockAdjustment.findUniqueOrThrow({ where: { id } });
   const movs = await tx.stockMovement.findMany({ where: { adjustmentId: id } });
