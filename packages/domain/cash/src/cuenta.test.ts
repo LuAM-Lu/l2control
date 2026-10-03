@@ -440,6 +440,13 @@ describe("anular un pedido en producción (F6-14, B6-3)", () => {
     assert.deepEqual(anulacionesProblem(c, ["a", "c"]), { problem: "PEDIDOS_DISTINTOS", lineId: "a" });
     assert.deepEqual(anulacionesProblem(c, ["a", "d"]), { problem: "LINEA_PAGADA", lineId: "d" });
   });
+
+  test("al cobrar, lo anulado no se marca pagado: no se cobró", () => {
+    const c = { ...mostrador([plato("a"), plato("b")]), kind: "MESA" as const, tableId: "mesa-1" };
+    const cobrada = markPaid(withAnulacion(c, "a", { motivo: "CLIENTE_DESISTIO" }));
+    assert.equal(cobrada.status, "COBRADA");
+    assert.deepEqual(cobrada.lines.map((l) => [l.id, l.paid]), [["a", false], ["b", true]]);
+  });
 });
 
 describe("la mesa sin consumo (B6-5, M-18)", () => {

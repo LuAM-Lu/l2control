@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.45.0 · 45 de 60 pasos.** **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.45.1 · 45 de 60 pasos.** **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 432 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 433 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -1950,6 +1950,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   bloquea el cierre. `pnpm verify:db` en verde (81 y 428). Sigue B6-6.
 - **2026-10-03** · B6-6 hecho (v0.45.0): papel «ANULAR» a cocina y existencia según si se preparó (devolución o
   merma); un pedido se anula de una vez. `pnpm verify:db` en verde (81 y 432). Sigue B4-6.
+- **2026-10-03** · v0.45.1: corregido lo que dejó B6-3 en la caja (lo anulado contaba como pendiente en la web, en el
+  contrato y en `markPaid`); visto al empezar B4-6. `pnpm verify:db` en verde (81 y 433).
 
 ---
 

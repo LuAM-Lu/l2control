@@ -927,8 +927,9 @@ function CobroCuenta({
               const esMostrador =
                 f.item !== null && onCambiarCantidad !== undefined;
               const expandible =
-                esMostrador ||
-                (onCortesia !== undefined && permisoCortesia !== "DENEGADO");
+                f.anulada === undefined &&
+                (esMostrador ||
+                  (onCortesia !== undefined && permisoCortesia !== "DENEGADO"));
               const abierta = expandible && filaAbierta === f.clave;
 
               // La línea base de la cuenta, para pasarla al diálogo de cortesía.
@@ -954,7 +955,7 @@ function CobroCuenta({
                         />
                       )}
                     </span>
-                    {f.cantidad > 1 && !f.cortesia && (
+                    {f.cantidad > 1 && !f.cortesia && !f.anulada && (
                       <span className="tnum mt-0.5 text-[11px] text-ink-3 @md/ticket:hidden">
                         {f.cantidad} ×{" "}
                         {formatMoneyVE(toMajor(f.precio), f.precio.currency)}
@@ -965,9 +966,14 @@ function CobroCuenta({
                         Cortesía · {f.cortesia.autorizadaPor.name}
                       </span>
                     )}
+                    {f.anulada && (
+                      <span className="mt-0.5 text-[11.5px] text-ink-3">
+                        Anulado en cocina · {f.anulada}
+                      </span>
+                    )}
                   </span>
                   <span className="hidden tnum text-right text-ink-3 @md/ticket:block">
-                    {f.cortesia ? (
+                    {f.cortesia || f.anulada ? (
                       <span className="line-through opacity-60">
                         {formatMoneyVE(toMajor(f.precio), f.precio.currency)}
                       </span>
@@ -976,7 +982,7 @@ function CobroCuenta({
                     )}
                   </span>
                   <span className="tnum text-right font-medium text-ink">
-                    {f.cortesia ? (
+                    {f.cortesia || f.anulada ? (
                       <span className="line-through opacity-60">{importe}</span>
                     ) : (
                       importe
@@ -2717,6 +2723,8 @@ type Fila = Readonly<{
   item: ItemDeMostrador | null;
   lineIds: string[];
   cortesia?: CortesiaDto;
+  /** Anulada en producción (F6-14): quién lo autorizó. No se cobra ni se regala. */
+  anulada?: string;
 }>;
 
 /** Agrupa las líneas por ítem de mostrador, en el orden en que apareció cada uno. */
@@ -2748,9 +2756,9 @@ function agruparFilas(
     });
   }
 
-  // Líneas regaladas: se muestran en el ticket con su importe tachado, no se agrupan.
+  // Líneas regaladas o anuladas: se muestran en el ticket con su importe tachado, no se agrupan.
   for (const l of cuenta.lines) {
-    if (l.cortesia && !l.paid && !l.movedTo) {
+    if ((l.cortesia || l.anulacion) && !l.paid && !l.movedTo) {
       filas.set(l.id, {
         clave: l.id,
         concepto: l.concept,
@@ -2761,7 +2769,8 @@ function agruparFilas(
         cantidad: 1,
         item: null, // Una cortesía ya no se edita en cantidad
         lineIds: [l.id],
-        cortesia: l.cortesia,
+        ...(l.cortesia ? { cortesia: l.cortesia } : {}),
+        ...(l.anulacion ? { anulada: l.anulacion.autorizadaPor.name } : {}),
       });
     }
   }

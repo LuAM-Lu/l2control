@@ -85,7 +85,8 @@ export function markPaid<A extends AccountDoc>(c: A): A {
   const { descuento: _, ...sinDescuento } = c;
   return {
     ...(sinDescuento as A),
-    lines: c.lines.map((l) => (l.paid || l.movedTo || l.cortesia ? l : { ...l, paid: true })),
+    // Lo anulado (F6-14) no se cobró: no se marca pagado, igual que lo movido y lo regalado.
+    lines: c.lines.map((l) => (l.paid || l.movedTo || l.cortesia || l.anulacion ? l : { ...l, paid: true })),
     status: c.kind !== "FAMILIA" || todosFuera(c) ? "COBRADA" : "ABIERTA",
   };
 }

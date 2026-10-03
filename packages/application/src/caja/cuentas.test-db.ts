@@ -86,7 +86,7 @@ const enEfectivo = (c: FamilyAccountDto, minor: string, total: string, extra: Re
   idempotencyKey: randomUUID(),
   accountId: c.id,
   version: c.version,
-  lineIds: c.lines.filter((l) => !l.paid && !l.movedTo && !l.cortesia).map((l) => l.id),
+  lineIds: c.lines.filter((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion).map((l) => l.id),
   total: usd(total),
   pagos: [{ method: "EFECTIVO_USD", amount: usd(minor) }],
   destinoSobra: "VUELTO",
@@ -642,6 +642,19 @@ describe("anular un pedido en producción (F6-14, B6-3, B6-6)", () => {
     const deLaFamilia = await familiaDePrueba(local, ctxMonitora, AHORA);
     const delParque = await local.app.cuentas.anularPedido(ctxAdmin, anular(deLaFamilia, [deLaFamilia.lines[0]!.id], { motivo: "OTRO", detalle: "Prueba" }), pinDeAdmin(), AHORA);
     assert.equal(!delParque.ok && delParque.problemas?.[0]?.message, "NO_ES_PEDIDO");
+  });
+
+  test("con un plato anulado, la mesa se cobra por lo demás y queda cobrada", async () => {
+    await pedir("mesa-3");
+    const c = await pedir("mesa-3");
+    const [anulado, servido] = c.lines;
+    const tras = valor(await local.app.cuentas.anularPedido(ctxAdmin, anular(c, [anulado!.id]), pinDeAdmin(), AHORA));
+    const enCaja = valor(await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...tras, status: "POR_COBRAR" } }, AHORA));
+    const cobro = enEfectivo(enCaja, "500", "131");
+    assert.deepEqual(cobro.lineIds, [servido!.id]);
+    const { cuenta } = valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA));
+    assert.equal(cuenta.status, "COBRADA");
+    assert.equal(cuenta.lines.find((l) => l.id === anulado!.id)!.paid, false, "lo anulado no se cobra ni se marca pagado");
   });
 });
 

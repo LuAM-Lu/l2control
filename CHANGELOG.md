@@ -12,6 +12,20 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.45.1] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+Corrección de B6-3: una mesa con un plato anulado se cobra bien.
+
+### Corregido
+- **La caja cobra una mesa con un plato anulado.** La caja contaba lo anulado como algo por cobrar y el servidor no:
+  el cobro chocaba («la cuenta cambió») y la mesa no se podía cobrar. Ahora la caja cobra lo mismo que el servidor y
+  enseña lo anulado tachado, con «Anulado en cocina» y quién lo autorizó.
+- Al cobrar, lo anulado ya no se marca pagado (no se cobró), y una cuenta cobrada con platos anulados es válida.
+
+### Comprobado
+- `pnpm verify:db` en verde (81 de base, 433 de aplicación). En la caja, con la base de pruebas: una mesa con una
+  comanda anulada y otra servida se cobró por lo servido ($ 2,90) y quedó cobrada, con lo anulado sin pagar.
+
 ## [0.45.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 B6-6: al anular lo que ya está en cocina, la cocina se entera en papel y el inventario cuadra (M-18).

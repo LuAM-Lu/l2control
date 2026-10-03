@@ -237,11 +237,11 @@ export const FamilyAccountSchema = z
     descuento: DescuentoAplicadoSchema.optional(),
   })
   .superRefine((c, ctx) => {
-    // Lo que queda por cobrar. Una línea regalada NO cuenta: se entregó y no
-    // se cobra (F6-14). Sin esta exclusión, una cuenta con una cortesía no
-    // podría cerrarse nunca, porque siempre parecería tener algo pendiente.
-    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia);
-    const regalado = c.lines.some((l) => l.cortesia);
+    // Lo que queda por cobrar. Una línea regalada o anulada NO cuenta: no se
+    // cobra (F6-14). Sin esta exclusión, una cuenta con una cortesía o un plato
+    // anulado no podría cerrarse nunca, porque siempre parecería deber algo.
+    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
+    const regalado = c.lines.some((l) => l.cortesia || l.anulacion);
 
     // Una cuenta tiene que ser de ALGUIEN, y su tipo dice de quién: de unos
     // niños, de una mesa, o de una venta de mostrador (que no tiene ni lo uno

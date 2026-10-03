@@ -22,12 +22,10 @@ import { chargeableLines, registerExit } from "@l2/domain-cash";
 import type { DocumentLine, TaxCode } from "@l2/domain-tax";
 import { toMoney } from "../park/mappers.ts";
 
-/** Lo que falta por cobrar de una cuenta. Lo movido a otra cuenta y lo regalado (cortesía) ya no cuenta aquí. */
+/** Lo que falta por cobrar de una cuenta. Lo movido a otra cuenta, lo regalado y lo anulado ya no cuenta aquí. */
 export function pendiente(c: FamilyAccountDto): Money {
   return sum(
-    c.lines
-      .filter((l) => !l.paid && !l.movedTo && !l.cortesia)
-      .map((l) => toMoney(l.amount)),
+    chargeableLines(c).map((l) => toMoney(l.amount)),
     "USD",
   );
 }
@@ -94,8 +92,8 @@ export function puedeDescartarse(c: FamilyAccountDto): boolean {
 
 /** Las líneas pendientes, en la forma que cobra la caja. */
 export function lineasParaCobrar(c: FamilyAccountDto): DocumentLine[] {
-  return c.lines
-    .filter((l) => !l.paid && !l.movedTo && !l.cortesia)
+  // Las mismas que cobra el servidor (`chargeableLines`): si no coinciden, el cobro choca.
+  return chargeableLines(c)
     .map((l) => ({
       id: l.id,
       description: l.concept,
