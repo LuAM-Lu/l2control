@@ -38,6 +38,8 @@ export type AccountLineDoc = Readonly<{
   orderId?: string | undefined;
   /** Anulada en producción (F6-14): no se borra, se queda con su importe y deja de cobrarse. */
   anulacion?: unknown;
+  /** Cambiada por uso al salir antes de tiempo (B4-6): se queda con su importe y la cobra la línea que la cambió. */
+  porUso?: unknown;
 }>;
 
 export type AccountDoc = Readonly<{
@@ -56,7 +58,12 @@ export type AccountDoc = Readonly<{
 
 /** Lo que se cobra ahora: ni lo pagado, ni lo movido, ni lo regalado, ni lo anulado. */
 export function chargeableLines<L extends AccountLineDoc>(c: Readonly<{ lines: readonly L[] }>): L[] {
-  return c.lines.filter((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
+  return c.lines.filter(seDebe);
+}
+
+/** ¿Se debe esta línea? Sin pagar, sin moverse, sin regalarse, sin anularse y sin cambiarse por uso. */
+function seDebe(l: AccountLineDoc): boolean {
+  return !l.paid && !l.movedTo && !l.cortesia && !l.anulacion && !l.porUso;
 }
 
 /**
@@ -86,7 +93,7 @@ export function markPaid<A extends AccountDoc>(c: A): A {
   return {
     ...(sinDescuento as A),
     // Lo anulado (F6-14) no se cobró: no se marca pagado, igual que lo movido y lo regalado.
-    lines: c.lines.map((l) => (l.paid || l.movedTo || l.cortesia || l.anulacion ? l : { ...l, paid: true })),
+    lines: c.lines.map((l) => (seDebe(l) ? { ...l, paid: true } : l)),
     status: c.kind !== "FAMILIA" || todosFuera(c) ? "COBRADA" : "ABIERTA",
   };
 }
@@ -164,7 +171,8 @@ export type AccountChangeProblem =
   | "PARQUE_DESDE_LA_PANTALLA"
   | "DESCUENTO_DESDE_LA_PANTALLA"
   | "DIVISION_CON_DESCUENTO"
-  | "ANULACION_DESDE_LA_PANTALLA";
+  | "ANULACION_DESDE_LA_PANTALLA"
+  | "POR_USO_DESDE_LA_PANTALLA";
 
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
@@ -247,6 +255,10 @@ export function accountChangeProblem(
       if (JSON.stringify(antes.anulacion ?? null) !== JSON.stringify(l.anulacion ?? null)) {
         return { problem: "ANULACION_DESDE_LA_PANTALLA", lineId: l.id };
       }
+      // Cobrar por uso lo decide la salida del parque (B4-6), no un «guardar».
+      if (JSON.stringify(antes.porUso ?? null) !== JSON.stringify(l.porUso ?? null)) {
+        return { problem: "POR_USO_DESDE_LA_PANTALLA", lineId: l.id };
+      }
       if (antes.paid && l.movedTo !== antes.movedTo) return { problem: "MOVIDA_OTRA_VEZ", lineId: l.id };
       continue;
     }
@@ -254,6 +266,7 @@ export function accountChangeProblem(
     if (l.paid) return { problem: "PAGO_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.cortesia !== undefined) return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.anulacion !== undefined) return { problem: "ANULACION_DESDE_LA_PANTALLA", lineId: l.id };
+    if (l.porUso !== undefined) return { problem: "POR_USO_DESDE_LA_PANTALLA", lineId: l.id };
     if (after.kind === "MOSTRADOR" && l.productId === undefined) return { problem: "MOSTRADOR_SIN_PRODUCTO", lineId: l.id };
     // Lo que se pide en la mesa sale de la carta, que es el catálogo (B6-1): su precio lo pone el
     // servidor, no la tablet. Lo del parque que llega a la mesa lo trae la vinculación (B6-3).
@@ -357,7 +370,7 @@ export function moveSessionLines<A extends AccountDoc>(
   const ids = new Set(sessionIds);
   const lineasNuevas: AccountLineDoc[] = [];
   const lines = familia.lines.map((l) => {
-    if (l.paid || l.movedTo || l.cortesia || !l.sessionId || !ids.has(l.sessionId)) return l;
+    if (!seDebe(l) || !l.sessionId || !ids.has(l.sessionId)) return l;
     lineasNuevas.push({ ...l, id: idDeLaNueva(l) });
     return { ...l, movedTo: targetAccountId };
   });
@@ -372,9 +385,42 @@ export function moveSessionLines<A extends AccountDoc>(
   return { familia: { ...familia, lines, status }, lineasNuevas };
 }
 
+/* ───────────────────────────────────── salir antes de tiempo (B4-6, M-18) */
+
+/**
+ * Cobra por uso lo de una estancia (B4-6): sus líneas de paquete que se deben (el paquete y sus recargas)
+ * quedan marcadas `porUso` —con su importe, sin cobrarse, nada se borra— y entra `nueva`, el paquete que
+ * cubre lo que el niño estuvo. `null` si en esta cuenta no se debe ningún paquete de esa estancia (ya se
+ * pagó, o está en otra cuenta). La salida decide si toca y cuál; esto solo lo asienta.
+ */
+export function chargeByUsage<A extends AccountDoc>(
+  c: A,
+  sessionId: string,
+  nueva: Readonly<{ id: string; concept: string; amountMinor: bigint; minutos: number }>,
+): A | null {
+  const suyas = c.lines.filter((l) => l.kind === "PAQUETE" && l.sessionId === sessionId && seDebe(l));
+  if (suyas.length === 0 || c.lines.some((l) => l.id === nueva.id)) return null;
+  const ids = new Set(suyas.map((l) => l.id));
+  const lines: AccountLineDoc[] = c.lines.map((l) => (ids.has(l.id) ? { ...l, porUso: { cambiadaPor: nueva.id, minutos: nueva.minutos } } : l));
+  lines.push({
+    id: nueva.id,
+    concept: nueva.concept.slice(0, 80),
+    kind: "PAQUETE",
+    amount: { minor: String(nueva.amountMinor), currency: "USD" },
+    paid: false,
+    sessionId,
+  });
+  return { ...c, lines };
+}
+
+/** Lo que se debe en paquetes de una estancia en esta cuenta: lo contratado que cobrar por uso puede rebajar. */
+export function packagesOwed(c: Pick<AccountDoc, "lines">, sessionId: string): bigint {
+  return c.lines.filter((l) => l.kind === "PAQUETE" && l.sessionId === sessionId && seDebe(l)).reduce((n, l) => n + BigInt(l.amount.minor), 0n);
+}
+
 /* ────────────────────────────────────────────── la cortesía (F6-14, B3-4) */
 
-export type CourtesyProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_REGALADA" | "NO_REGALADA";
+export type CourtesyProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_REGALADA" | "NO_REGALADA" | "CAMBIADA_POR_USO";
 
 /**
  * ¿Se puede regalar (o dejar de regalar, con `quitar`) esta línea? Solo lo que se debe todavía: una
@@ -385,6 +431,7 @@ export function courtesyProblem(c: Pick<AccountDoc, "lines">, lineId: string, qu
   if (!l) return "LINEA_DESCONOCIDA";
   if (l.paid) return "LINEA_PAGADA";
   if (l.movedTo) return "LINEA_MOVIDA";
+  if (l.porUso) return "CAMBIADA_POR_USO";
   if (!quitar && l.cortesia) return "YA_REGALADA";
   if (quitar && !l.cortesia) return "NO_REGALADA";
   return null;

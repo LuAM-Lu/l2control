@@ -32,6 +32,8 @@ import {
   formatDuration,
   openEnded,
   parkPolicy,
+  paquetePorUso,
+  type PaqueteDeUso,
   type ParkSession,
 } from "./index.ts";
 
@@ -354,5 +356,40 @@ describe("la serie de pulseras (V-1)", () => {
   test("se puede fijar solo uno de los dos", () => {
     assert.equal(wristbandSeriesProblem("ZZ-1", { prefix: "AK-", length: null }), "PREFIJO");
     assert.equal(wristbandSeriesProblem("ZZ-1", { prefix: null, length: 4 }), null);
+  });
+});
+
+describe("salir antes de tiempo: cobrar por uso (B4-6, M-18)", () => {
+  const usd = (n: number) => fromMajor(n, "USD");
+  const TARIFA: PaqueteDeUso[] = [
+    { name: "30 minutos", duration: fixed(30), price: usd(3) },
+    { name: "1 hora", duration: fixed(60), price: usd(5) },
+    { name: "2 horas", duration: fixed(120), price: usd(9) },
+    { name: "Pase libre", duration: openEnded, price: usd(12) },
+  ];
+  const nombre = (p: PaqueteDeUso | null) => p?.name ?? null;
+
+  test("pidió 1 hora y estuvo 25 minutos: se cobra el de 30 minutos", () => {
+    assert.equal(nombre(paquetePorUso(TARIFA, 25 * MIN, 5, usd(5))), "30 minutos");
+  });
+
+  test("la gracia cuenta: 34 minutos con 5 de gracia los cubre el de 30; 36, ya no", () => {
+    assert.equal(nombre(paquetePorUso(TARIFA, 34 * MIN, 5, usd(5))), "30 minutos");
+    assert.equal(nombre(paquetePorUso(TARIFA, 36 * MIN, 5, usd(5))), null, "le toca la hora que pidió: no hay ajuste");
+  });
+
+  test("el pase libre también se cobra por uso, y las recargas entran en lo contratado", () => {
+    assert.equal(nombre(paquetePorUso(TARIFA, 25 * MIN, 5, usd(12))), "30 minutos");
+    assert.equal(nombre(paquetePorUso(TARIFA, 70 * MIN, 5, usd(10))), "2 horas", "1 hora + 1 hora de recarga, 70 min: el de 2 horas");
+  });
+
+  test("si lo contratado ya es lo más barato, no hay nada que ajustar", () => {
+    assert.equal(paquetePorUso(TARIFA, 10 * MIN, 5, usd(3)), null);
+    assert.equal(paquetePorUso([], 10 * MIN, 5, usd(5)), null);
+  });
+
+  test("a igual precio gana el más corto", () => {
+    const iguales: PaqueteDeUso[] = [{ name: "Libre barato", duration: openEnded, price: usd(3) }, ...TARIFA];
+    assert.equal(nombre(paquetePorUso(iguales, 20 * MIN, 0, usd(5))), "30 minutos");
   });
 });

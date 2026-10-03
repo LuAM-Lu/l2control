@@ -205,6 +205,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   DESCUENTO_DESDE_LA_PANTALLA: "Un descuento se pone o se quita con su autorización, no al guardar la cuenta.",
   DIVISION_CON_DESCUENTO: "Una cuenta con descuento no se divide: quítale el descuento para dividirla.",
   ANULACION_DESDE_LA_PANTALLA: "Un pedido se anula con su autorización, no al guardar la cuenta.",
+  POR_USO_DESDE_LA_PANTALLA: "Cobrar el parque por uso lo decide la salida, no al guardar la cuenta.",
 };
 
 const MENSAJE_ANULACION: Record<AnulacionProblem, string> = {
@@ -1218,6 +1219,7 @@ const MENSAJE_CORTESIA: Record<CourtesyProblem, string> = {
   LINEA_MOVIDA: "Esa línea se movió a otra cuenta: se regala allí.",
   YA_REGALADA: "Esa línea ya está regalada.",
   NO_REGALADA: "Esa línea no está regalada.",
+  CAMBIADA_POR_USO: "Ese paquete se cambió por el que cubre lo que el niño estuvo: se regala esa otra línea.",
 };
 
 /** Qué asiento es lo que sobra, según su destino (§5.6). */

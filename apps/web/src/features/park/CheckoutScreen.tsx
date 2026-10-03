@@ -113,7 +113,7 @@ export function CheckoutScreen({
   const snap = snapshot;
 
   const preview = useMemo(
-    () => buildCheckoutPreview(snap, seleccionados),
+    () => buildCheckoutPreview(snap, seleccionados, (accountId) => cuentas.find((c) => c.id === accountId)?.mode === "CUENTA_ABIERTA"),
     [snap, seleccionados],
   );
 
@@ -180,6 +180,7 @@ export function CheckoutScreen({
         cuenta: (typeof cuentas)[number];
         salen: string[];
         excedentes: { sessionId: string; concept: string; amount: { minor: string; currency: "USD" | "VES" | "USDT" } }[];
+        porUso: { sessionId: string; concept: string; amount: { minor: string; currency: "USD" | "VES" | "USDT" }; minutos: number }[];
       }
     >();
     const sinCuenta: string[] = [];
@@ -192,7 +193,7 @@ export function CheckoutScreen({
         sinCuenta.push(nombre);
         continue;
       }
-      const g = porCuenta.get(c.id) ?? { cuenta: c, salen: [], excedentes: [] };
+      const g = porCuenta.get(c.id) ?? { cuenta: c, salen: [], excedentes: [], porUso: [] };
       g.salen.push(l.sessionId);
       if (l.penaltyBlocks > 0) {
         g.excedentes.push({
@@ -201,10 +202,18 @@ export function CheckoutScreen({
           amount: l.overdue,
         });
       }
+      if (l.porUso) {
+        g.porUso.push({
+          sessionId: l.sessionId,
+          concept: `Paquete ${l.porUso.paquete} por uso (${l.consumedMinutes} min) · ${l.wristbandCode}`,
+          amount: l.porUso.precio,
+          minutos: l.consumedMinutes,
+        });
+      }
       porCuenta.set(c.id, g);
     }
     const grupos = [...porCuenta.values()];
-    const resultados = grupos.map((g) => previsualizarSalida(g.cuenta, g.salen, g.excedentes));
+    const resultados = grupos.map((g) => previsualizarSalida(g.cuenta, g.salen, g.excedentes, g.porUso));
     return { resultados, grupos, sinCuenta };
   }, [preview.lines, cuentas, snapshot.sessions]);
 
@@ -407,7 +416,7 @@ export function CheckoutScreen({
                     <dl className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3 text-[13px]">
                       <div className="flex items-baseline justify-between gap-3">
                         <dt className="text-ink-2">Paquete contratado</dt>
-                        <dd>
+                        <dd className={cn(l.porUso && "line-through opacity-60")}>
                           <MoneyDisplay
                             value={moneyDtoToMajor(l.packagePrice)}
                             currency={l.packagePrice.currency}
@@ -416,6 +425,19 @@ export function CheckoutScreen({
                           />
                         </dd>
                       </div>
+
+                      {l.porUso && (
+                        // Salió antes de tiempo en cuenta abierta (B4-6): se cobra lo que usó.
+                        <div className="flex items-baseline justify-between gap-3">
+                          <dt className="text-state-ok">
+                            Por uso: {l.porUso.paquete}
+                            <span className="tnum ml-1.5 text-ink-3">({l.consumedMinutes} min)</span>
+                          </dt>
+                          <dd>
+                            <MoneyDisplay value={moneyDtoToMajor(l.porUso.precio)} currency={l.porUso.precio.currency} size="sm" />
+                          </dd>
+                        </div>
+                      )}
 
                       {conExcedente && (
                         <div className="flex items-baseline justify-between gap-3">

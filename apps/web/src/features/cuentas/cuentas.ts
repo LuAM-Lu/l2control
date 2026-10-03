@@ -18,7 +18,7 @@ import {
   type MoneyDto,
 } from "@l2/contracts";
 import { sum, type Money } from "@l2/domain-money";
-import { chargeableLines, registerExit } from "@l2/domain-cash";
+import { chargeByUsage, chargeableLines, registerExit } from "@l2/domain-cash";
 import type { DocumentLine, TaxCode } from "@l2/domain-tax";
 import { toMoney } from "../park/mappers.ts";
 
@@ -117,10 +117,16 @@ export function previsualizarSalida(
     concept: string;
     amount: MoneyDto;
   }[],
+  /** Lo que sale antes de tiempo en cuenta abierta (B4-6): su paquete por uso, como lo asienta el servidor. */
+  porUso: readonly { sessionId: string; concept: string; amount: MoneyDto; minutos: number }[] = [],
 ): FamilyAccountDto {
+  const conUso = porUso.reduce(
+    (cuenta, p) => chargeByUsage(cuenta, p.sessionId, { id: `uso-${p.sessionId}`, concept: p.concept, amountMinor: BigInt(p.amount.minor), minutos: p.minutos }) ?? cuenta,
+    c,
+  );
   return FamilyAccountSchema.parse(
     registerExit(
-      c,
+      conUso,
       salen,
       excedentes.map((e) => ({ sessionId: e.sessionId, concept: e.concept, amountMinor: BigInt(e.amount.minor) })),
     ),

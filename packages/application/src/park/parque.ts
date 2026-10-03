@@ -49,7 +49,7 @@ import {
   type SettlementLineDto,
   type TarifarioDto,
 } from "@l2/contracts";
-import { moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
+import { chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import {
@@ -61,9 +61,12 @@ import {
   wristbandSeriesProblem,
   openEnded,
   parkPolicy,
+  computeSessionView,
+  paquetePorUso,
   settleAtExit,
   withRecharges,
   type Duration,
+  type PaqueteDeUso,
   type ParkPolicy,
   type ParkSession as SesionDelDominio,
 } from "@l2/domain-park";
@@ -136,7 +139,23 @@ async function estancias(tx: Transaccion, busqueda: BusquedaDeEstancias): Promis
     select: { sessionId: true, minutes: true, packageName: true, priceMinor: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
-  return filas.map((f) => ({ ...f, extensions: recargas.filter((r) => r.sessionId === f.id).map(({ sessionId: _, ...r }) => r) }));
+  // Los paquetes del tarifario con que entró cada estancia (B4-6): por ellos se cobra si sale antes de tiempo.
+  const versiones = await tx.parkTariffVersion.findMany({
+    where: { branchId: { in: [...new Set(filas.map((f) => f.branchId))] }, version: { in: [...new Set(filas.map((f) => f.tariffVersion))] } },
+    select: { branchId: true, version: true, content: true },
+  });
+  const paquetesDe = new Map(
+    versiones.map((v) => {
+      const t = TarifarioSchema.safeParse(v.content);
+      const activos = t.success ? t.data.packages.filter((p) => p.active).map((p) => ({ name: p.name, duration: p.duration, price: p.price })) : [];
+      return [`${v.branchId}:${v.version}`, activos] as const;
+    }),
+  );
+  return filas.map((f) => ({
+    ...f,
+    extensions: recargas.filter((r) => r.sessionId === f.id).map(({ sessionId: _, ...r }) => r),
+    porUso: paquetesDe.get(`${f.branchId}:${f.tariffVersion}`) ?? [],
+  }));
 }
 
 /** Una estancia, o `null`. */
@@ -423,9 +442,33 @@ export function casosParque(base: Base): CasosParque {
             mesaInfo = { accountId: abierta ?? randomUUID(), tableId, label, vigente };
           }
 
-          const lineas = enOrden.map((f) => liquidacionDe(f, ahora));
+          // Salir antes de tiempo en cuenta abierta (B4-6, M-18): se cobra el paquete que cubre lo que estuvo.
+          // En prepago no: lo pagado al entrar no se devuelve, y la entrada lo avisa.
+          const porUso = new Map<string, PaqueteDeUso>();
+          if (actual.cuenta.mode === "CUENTA_ABIERTA") {
+            for (const f of enOrden) {
+              const p = paqueteParaCobrarPorUso(f, ahora);
+              if (p) porUso.set(f.id, p);
+            }
+          }
+          const lineas = enOrden.map((f) => liquidacionDe(f, ahora, porUso.get(f.id) ?? null));
+          const lineaPorUso = (f: FilaDeEstancia, i: number) => ({
+            id: `uso-${f.id}`,
+            concept: `Paquete ${porUso.get(f.id)!.name} por uso (${lineas[i]!.consumedMinutes} min) · ${f.wristbandCode}`,
+            amountMinor: porUso.get(f.id)!.price.amount,
+            minutos: lineas[i]!.consumedMinutes,
+          });
+          let base = actual.cuenta;
+          // Lo de un niño vinculado a una mesa ya no está aquí (B6-3): se cobra por uso en la cuenta de la mesa.
+          const enUnaMesa: number[] = [];
+          enOrden.forEach((f, i) => {
+            if (!porUso.has(f.id)) return;
+            const c = chargeByUsage(base, f.id, lineaPorUso(f, i));
+            if (c) base = c;
+            else enUnaMesa.push(i);
+          });
           let despues = registerExit(
-            actual.cuenta,
+            base,
             cmd.sessionIds,
             lineas.map((l, i) => ({
               sessionId: l.sessionId,
@@ -452,6 +495,23 @@ export function casosParque(base: Base): CasosParque {
           });
           const quien = await nombreDe(tx, ctx);
           await guardarVersion(tx, ctx, nueva, { cause: "SALIDA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          if (enUnaMesa.length > 0) {
+            // El mismo candado que la vinculación y el plano (I-05); en la misma transacción se puede volver a tomar.
+            await candadoDeMesas(tx, ctx.branchId);
+            for (const mesaId of (await mesasOcupadasEn(tx, ctx.branchId)).values()) {
+              const esLaDestino = mesaInfo?.vigente && mesaInfo.accountId === mesaId;
+              const vigente = esLaDestino ? mesaInfo!.vigente! : (await vigenteDe(tx, mesaId))!;
+              let cuenta = vigente.cuenta;
+              for (const i of enUnaMesa) cuenta = chargeByUsage(cuenta, enOrden[i]!.id, lineaPorUso(enOrden[i]!, i)) ?? cuenta;
+              if (cuenta === vigente.cuenta) continue;
+              if (esLaDestino) {
+                mesaInfo = { ...mesaInfo!, vigente: { ...vigente, cuenta } };
+              } else {
+                const mesa = FamilyAccountSchema.parse({ ...cuenta, version: vigente.version + 1 });
+                await guardarVersion(tx, ctx, mesa, { cause: "SALIDA", operationKey: claveSecundaria(cmd.idempotencyKey, mesaId), ahora, quien: quien.nombre });
+              }
+            }
+          }
           if (mesaInfo) {
             const mesa: FamilyAccountDto = mesaInfo.vigente
               ? FamilyAccountSchema.parse({
@@ -759,6 +819,8 @@ type FilaDeEstancia = Awaited<ReturnType<Transaccion["parkSession"]["findFirstOr
   guardian: { fullName: string };
   kid: { id: string; name: string; nickname: string | null } | null;
   extensions: { minutes: number; packageName: string; priceMinor: bigint; createdAt: Date }[];
+  /** Los paquetes activos del tarifario con que entró (B4-6). */
+  porUso: EstanciaDto["porUso"];
 };
 
 /**
@@ -808,6 +870,7 @@ function estanciaDe(f: FilaDeEstancia): EstanciaDto {
       price: { minor: String(e.priceMinor), currency: "USD" },
       at: e.createdAt.toISOString(),
     })),
+    porUso: f.porUso,
   });
 }
 
@@ -836,12 +899,34 @@ function paraMedir(f: FilaDeEstancia): { sesion: SesionDelDominio; politica: Par
   };
 }
 
+/** Lo contratado de una estancia: el paquete y cada recarga, que ya están en la cuenta como líneas propias. */
+function contratadoDe(f: FilaDeEstancia) {
+  return f.extensions.reduce((acc, e) => add(acc, money(e.priceMinor, "USD")), money(f.priceMinor, "USD"));
+}
+
+/**
+ * Salir antes de tiempo en cuenta abierta (B4-6, M-18): el paquete que se cobra en lugar de lo contratado, el
+ * más barato del tarifario con que entró que cubre lo que estuvo. `null` si se pasó (se cobra como siempre,
+ * con el tiempo de más) o si lo contratado ya es lo más barato.
+ */
+function paqueteParaCobrarPorUso(f: FilaDeEstancia, hasta: number): PaqueteDeUso | null {
+  const { sesion, politica } = paraMedir(f);
+  if (settleAtExit(sesion, politica, epochMs(hasta)).overdue.amount > 0n) return null;
+  const paquetes: PaqueteDeUso[] = f.porUso.map((p) => ({
+    name: p.name,
+    duration: p.duration.kind === "fixed" ? fixed(p.duration.minutes) : openEnded,
+    price: money(BigInt(p.price.minor), "USD"),
+  }));
+  return paquetePorUso(paquetes, computeSessionView(sesion, politica, epochMs(hasta)).elapsedMs, politica.graceMinutes, contratadoDe(f));
+}
+
 /** El desglose de la salida de una estancia en `hasta` (el instante del servidor, ADR-010). */
-function liquidacionDe(f: FilaDeEstancia, hasta: number): SettlementLineDto {
+function liquidacionDe(f: FilaDeEstancia, hasta: number, porUso: PaqueteDeUso | null = null): SettlementLineDto {
   const { sesion, politica } = paraMedir(f);
   const s = settleAtExit(sesion, politica, epochMs(hasta));
-  // Lo contratado: el paquete y cada recarga, que ya están en la cuenta como líneas propias.
-  const paquete = f.extensions.reduce((acc, e) => add(acc, money(e.priceMinor, "USD")), money(f.priceMinor, "USD"));
+  // Lo contratado, o el paquete por uso si salió antes de tiempo en cuenta abierta (B4-6).
+  const contratado = contratadoDe(f);
+  const paquete = porUso ? porUso.price : contratado;
   return {
     sessionId: f.id,
     wristbandCode: f.wristbandCode,
@@ -851,7 +936,8 @@ function liquidacionDe(f: FilaDeEstancia, hasta: number): SettlementLineDto {
     consumedMinutes: s.consumedMinutes,
     billableOverdueMinutes: s.billableOverdueMinutes,
     penaltyBlocks: s.penaltyBlocks,
-    packagePrice: { minor: String(paquete.amount), currency: "USD" },
+    packagePrice: { minor: String(contratado.amount), currency: "USD" },
+    porUso: porUso ? { paquete: porUso.name, precio: { minor: String(porUso.price.amount), currency: "USD" } } : null,
     overdue: { minor: String(s.overdue.amount), currency: "USD" },
     total: { minor: String(add(paquete, s.overdue).amount), currency: "USD" },
   };

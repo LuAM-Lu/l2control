@@ -579,7 +579,8 @@ export function CheckInScreen() {
               botón, y fuera de lo que desplaza: en una tablet de 600 px de
               alto, «cómo paga» se quedaba medio tapado abajo. */}
           <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 bajo:mt-3 bajo:gap-3">
-            {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. */}
+            {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. M-18 (B4-6): lo pagado al
+                entrar no se devuelve si sale antes; en cuenta abierta se cobra por lo que usó. */}
             <fieldset className="flex flex-col">
               <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">
                 Cómo paga
@@ -590,9 +591,9 @@ export function CheckInScreen() {
                     [
                       "PREPAGO",
                       "Pagar ahora",
-                      "Al salir, solo el tiempo de más",
+                      "Si sale antes, no se devuelve",
                     ],
-                    ["CUENTA_ABIERTA", "Cuenta abierta", "Todo junto al salir"],
+                    ["CUENTA_ABIERTA", "Cuenta abierta", "Al salir, por lo que usó"],
                   ] as const
                 ).map(([valor, nombre, detalle]) => (
                   <button

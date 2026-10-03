@@ -11,8 +11,8 @@ import {
   type MonitorSnapshotDto,
   type SettlementLineDto,
 } from "@l2/contracts";
-import { add, toMajor, zero, type Money } from "@l2/domain-money";
-import { computeOverdueBreakdown, computeSessionView } from "@l2/domain-park";
+import { add, money, toMajor, zero, type Money } from "@l2/domain-money";
+import { computeOverdueBreakdown, computeSessionView, fixed, openEnded, paquetePorUso } from "@l2/domain-park";
 import { toEpochMs, toMoney, toParkSession, toParkTerms } from "./mappers.ts";
 
 function toMoneyDto(m: Money) {
@@ -28,6 +28,8 @@ function toMoneyDto(m: Money) {
 export function buildCheckoutPreview(
   snapshot: MonitorSnapshotDto,
   sessionIds: readonly string[],
+  /** ¿Paga al salir (cuenta abierta)? Entonces, si sale antes de tiempo, se cobra por uso (B4-6). */
+  cuentaAbierta: (accountId: string) => boolean = () => false,
 ): CheckoutPreviewDto {
   const now = toEpochMs(snapshot.serverNow);
   const endedAt = snapshot.serverNow;
@@ -48,6 +50,21 @@ export function buildCheckoutPreview(
       const desglose = computeOverdueBreakdown(view, terms);
       // Lo contratado: el paquete y sus recargas (F5-11), como lo liquida el servidor.
       const packagePrice = dto.recargas.reduce((acc, r) => add(acc, toMoney(r.price)), toMoney(dto.packagePrice));
+      // Salió antes de tiempo en cuenta abierta (B4-6): el paquete más barato que cubre lo que estuvo.
+      const porUso =
+        desglose.charge.amount === 0n && cuentaAbierta(dto.accountId)
+          ? paquetePorUso(
+              dto.porUso.map((p) => ({
+                name: p.name,
+                duration: p.duration.kind === "fixed" ? fixed(p.duration.minutes) : openEnded,
+                price: money(BigInt(p.price.minor), "USD"),
+              })),
+              view.elapsedMs,
+              terms.graceMinutes,
+              packagePrice,
+            )
+          : null;
+      const paquete = porUso ? porUso.price : packagePrice;
 
       return {
         sessionId: dto.id,
@@ -61,8 +78,9 @@ export function buildCheckoutPreview(
         billableOverdueMinutes: desglose.billableMinutes,
         penaltyBlocks: desglose.blocks,
         packagePrice: toMoneyDto(packagePrice),
+        porUso: porUso ? { paquete: porUso.name, precio: toMoneyDto(porUso.price) } : null,
         overdue: toMoneyDto(desglose.charge),
-        total: toMoneyDto(add(packagePrice, desglose.charge)),
+        total: toMoneyDto(add(paquete, desglose.charge)),
       };
     });
 

@@ -161,6 +161,12 @@ export const AccountLineSchema = z.object({
    * vuelve a pedir.
    */
   anulacion: AnulacionPedidoSchema.optional(),
+  /**
+   * Cambiada por uso — B4-6, M-18. El niño salió antes de tiempo en cuenta abierta: este paquete (o recarga)
+   * se queda con su importe pero no se cobra, y lo cobra la línea `cambiadaPor`, el paquete más barato que
+   * cubre los `minutos` que estuvo. Solo lo pone la salida del parque.
+   */
+  porUso: z.object({ cambiadaPor: IdSchema, minutos: z.number().int().min(0) }).optional(),
 });
 export type AccountLineDto = z.infer<typeof AccountLineSchema>;
 
@@ -240,7 +246,7 @@ export const FamilyAccountSchema = z
     // Lo que queda por cobrar. Una línea regalada o anulada NO cuenta: no se
     // cobra (F6-14). Sin esta exclusión, una cuenta con una cortesía o un plato
     // anulado no podría cerrarse nunca, porque siempre parecería deber algo.
-    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
+    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion && !l.porUso);
     const regalado = c.lines.some((l) => l.cortesia || l.anulacion);
 
     // Una cuenta tiene que ser de ALGUIEN, y su tipo dice de quién: de unos

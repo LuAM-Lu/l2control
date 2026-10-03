@@ -280,6 +280,11 @@ export const EstanciaSchema = ParkSessionSchema.extend({
       at: TimestampSchema,
     }),
   ),
+  /**
+   * Los paquetes del tarifario con que entró (B4-6): si sale antes de tiempo en cuenta abierta, se cobra el
+   * más barato de estos que cubre lo que estuvo. Los activos de esa versión, no los de hoy.
+   */
+  porUso: z.array(z.object({ name: z.string().trim().min(1).max(40), duration: DurationSchema, price: MoneySchema })).default([]),
 });
 export type EstanciaDto = z.infer<typeof EstanciaSchema>;
 

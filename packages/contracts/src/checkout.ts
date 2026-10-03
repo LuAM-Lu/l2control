@@ -33,6 +33,11 @@ export const SettlementLineSchema = z.object({
   penaltyBlocks: z.number().int().min(0),
   /** Lo contratado: el paquete y sus recargas. */
   packagePrice: MoneySchema,
+  /**
+   * Salió antes de tiempo en cuenta abierta (B4-6): el paquete que se cobra en lugar de lo contratado, el más
+   * barato que cubre lo que estuvo. `null` si se cobra lo contratado. `total` ya lo lleva en cuenta.
+   */
+  porUso: z.object({ paquete: z.string(), precio: MoneySchema }).nullable().default(null),
   overdue: MoneySchema,
   total: MoneySchema,
 });

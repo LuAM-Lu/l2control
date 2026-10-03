@@ -13,6 +13,8 @@ import {
   chargeableLines,
   documentLinesOf,
   markPaid,
+  chargeByUsage,
+  packagesOwed,
   markPartPaid,
   revertPaid,
   linesPaidBetween,
@@ -355,6 +357,34 @@ describe("la recarga de tiempo (B4-3, F5-11)", () => {
     const c = registerRecharge({ ...familia(), mode: "CUENTA_ABIERTA" as const }, linea);
     assert.equal(c.status, "ABIERTA");
     assert.equal(registerRecharge(c, linea).lines.length, 3);
+  });
+});
+
+describe("cobrar el parque por uso (B4-6, M-18)", () => {
+  const nueva = { id: "uso-s1", concept: "Paquete 30 minutos por uso (25 min) · AK-1", amountMinor: 300n, minutos: 25 };
+  const conRecarga = familia({ lines: [linea("l1", { sessionId: "s1" }), linea("r1", { sessionId: "s1" }), linea("l2", { sessionId: "s2" })] });
+
+  test("el paquete y sus recargas se cambian por la línea por uso: se quedan con su importe y no se cobran", () => {
+    assert.equal(packagesOwed(conRecarga, "s1"), 2000n);
+    const c = chargeByUsage(conRecarga, "s1", nueva)!;
+    assert.deepEqual(c.lines.filter((l) => l.porUso).map((l) => l.id), ["l1", "r1"]);
+    assert.deepEqual(c.lines.find((l) => l.id === "l1")!.porUso, { cambiadaPor: "uso-s1", minutos: 25 });
+    assert.deepEqual(chargeableLines(c).map((l) => l.id), ["l2", "uso-s1"]);
+    assert.equal(packagesOwed(c, "s1"), 300n);
+  });
+
+  test("nada que cambiar si su paquete ya se pagó, se movió a una mesa o ya se cambió", () => {
+    assert.equal(chargeByUsage(familia({ lines: [linea("l1", { sessionId: "s1", paid: true })] }), "s1", nueva), null);
+    assert.equal(chargeByUsage(familia({ lines: [linea("l1", { sessionId: "s1", movedTo: "mesa" })] }), "s1", nueva), null);
+    assert.equal(chargeByUsage(chargeByUsage(conRecarga, "s1", nueva)!, "s1", nueva), null);
+  });
+
+  test("lo cambiado no se cobra, no se regala, no se mueve y no lo toca un «guardar»", () => {
+    const c = chargeByUsage(conRecarga, "s1", nueva)!;
+    assert.deepEqual(markPaid({ ...c, closedSessionIds: ["s1", "s2"] }).lines.filter((l) => l.paid).map((l) => l.id), ["l2", "uso-s1"]);
+    assert.equal(courtesyProblem(c, "l1", false), "CAMBIADA_POR_USO");
+    assert.deepEqual(moveSessionLines(c, ["s1"], "mesa", (l) => `m-${l.id}`).lineasNuevas.map((l) => l.id), ["m-uso-s1"]);
+    assert.equal(accountChangeProblem(conRecarga, c, productAt)?.problem, "POR_USO_DESDE_LA_PANTALLA");
   });
 });
 

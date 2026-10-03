@@ -320,6 +320,35 @@ export function contactKey(reference: string): string | null {
   return digitos.length >= 4 && digitos.length <= 20 ? digitos : null;
 }
 
+/* ------------------------------------------------- salir antes de tiempo (B4-6) */
+
+/** Un paquete del tarifario, como lo mira la salida para cobrar por uso. */
+export type PaqueteDeUso = Readonly<{ name: string; duration: Duration; price: Money }>;
+
+/**
+ * Salir antes de tiempo en cuenta abierta (B4-6, M-18): el paquete más barato del tarifario que cubre lo que
+ * el niño estuvo (con la gracia), si cuesta menos que lo contratado (`contratado`: el paquete y sus recargas).
+ * `null` si no hay nada que ajustar: lo contratado ya es lo más barato, o ningún paquete cubre ese tiempo.
+ *
+ * Un paquete fijo cubre si sus minutos más la gracia llegan a lo que estuvo; el pase libre (`openEnded`)
+ * cubre siempre. A igual precio gana el más corto, que es el que mejor dice lo que se usó. Si se pasó de
+ * lo contratado, esto no se llama: se cobra como siempre, el paquete y el tiempo de más.
+ */
+export function paquetePorUso(
+  paquetes: readonly PaqueteDeUso[],
+  elapsedMs: number,
+  graceMinutes: number,
+  contratado: Money,
+): PaqueteDeUso | null {
+  const cubre = (p: PaqueteDeUso) => p.duration.kind === "openEnded" || (p.duration.minutes + graceMinutes) * MS_PER_MINUTE >= elapsedMs;
+  const largo = (p: PaqueteDeUso) => (p.duration.kind === "openEnded" ? Number.POSITIVE_INFINITY : p.duration.minutes);
+  const candidatos = paquetes
+    .filter((p) => p.price.currency === contratado.currency && cubre(p))
+    .sort((a, b) => (a.price.amount === b.price.amount ? largo(a) - largo(b) : a.price.amount < b.price.amount ? -1 : 1));
+  const mejor = candidatos[0];
+  return mejor && mejor.price.amount < contratado.amount ? mejor : null;
+}
+
 /* -------------------------------------------------------- recarga y huérfanas */
 
 /**
