@@ -17,7 +17,14 @@ import { autorizadoresDeCaja } from "../cuentas/cuentas.acciones";
  * con la sesión que alguien dejó abierta.
  */
 
-export type AccionConPin = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "cuenta.descuento" | "turno.corteZ" | "inventario.ajustar";
+export type AccionConPin =
+  | "cobro.anular"
+  | "cuenta.cortesia"
+  | "cuenta.incobrable"
+  | "cuenta.descuento"
+  | "turno.corteZ"
+  | "inventario.ajustar"
+  | "pedido.anularEnProduccion";
 const PIN_LONGITUD = 4;
 
 export type Autorizador = { id: string; nombre: string; rol: string };

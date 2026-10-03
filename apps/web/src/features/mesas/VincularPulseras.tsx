@@ -2,10 +2,10 @@
 
 import { useCallback, useState } from "react";
 import { Baby, Link2, TriangleAlert } from "lucide-react";
-import { WristbandCodeSchema, type DiningTableDto } from "@l2/contracts";
+import { WristbandCodeSchema, type DiningTableDto, type FamilyAccountDto } from "@l2/contracts";
 import { Button, ScannerField, Sheet, cn } from "@l2/ui";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
-import { ninosSinMesa } from "./mesas.ts";
+import { cuentaAbiertaDe, ninosSinMesa } from "./mesas.ts";
 import { nombreDeEstancia } from "../park/view-model.ts";
 
 /**
@@ -23,19 +23,23 @@ export function VincularPulseras({
   onCerrar,
   mesa,
   estado,
+  cuentas,
   onVincular,
 }: {
   abierto: boolean;
   onCerrar: () => void;
   mesa: DiningTableDto;
   estado: EstadoLocal;
-  onVincular: (sessionIds: string[]) => void;
+  cuentas: readonly FamilyAccountDto[];
+  /** Vincula en el servidor (B6-3); `true` si quedó hecho. */
+  onVincular: (sessionIds: string[]) => Promise<boolean>;
 }) {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [vinculando, setVinculando] = useState(false);
 
-  const grupos = ninosSinMesa(estado);
-  const yaAqui = estado.mesas[mesa.id]?.sesiones ?? [];
+  const grupos = ninosSinMesa(estado, cuentas);
+  const yaAqui = cuentaAbiertaDe(cuentas, mesa.id)?.sessionIds ?? [];
   const nombre = (id: string) => {
     const s = estado.sesiones.find((x) => x.id === id);
     return s ? nombreDeEstancia(s) : (estado.nombres[id] ?? "un niño");
@@ -52,16 +56,16 @@ export function VincularPulseras({
         setAviso(`La pulsera ${codigo} no es de ningún niño en sala`);
         return;
       }
-      const otra = Object.values(estado.mesas).find((m) => m.sesiones.includes(sesion.id));
+      const otra = cuentas.find((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.sessionIds.includes(sesion.id));
       const quien = nombreDeEstancia(sesion);
       if (otra) {
-        setAviso(otra.id === mesa.id ? `${quien} ya está en esta mesa` : `${quien} ya está en la mesa ${otra.label}`);
+        setAviso(otra.tableId === mesa.id ? `${quien} ya está en esta mesa` : `${quien} ya está en la mesa ${otra.tableLabel ?? "?"}`);
         return;
       }
       setElegidos((prev) => (prev.includes(sesion.id) ? prev : [...prev, sesion.id]));
       setAviso(null);
     },
-    [estado.sesiones, estado.mesas, mesa.id],
+    [estado.sesiones, cuentas, mesa.id],
   );
 
   const cerrar = () => {
@@ -75,6 +79,13 @@ export function VincularPulseras({
   const disponibles = new Set(grupos.flatMap((g) => g.ninos.map((n) => n.id)));
   const validos = elegidos.filter((id) => disponibles.has(id));
 
+  const confirmar = async () => {
+    setVinculando(true);
+    const hecho = await onVincular(validos);
+    setVinculando(false);
+    if (hecho) cerrar();
+  };
+
   return (
     <Sheet
       abierto={abierto}
@@ -82,15 +93,7 @@ export function VincularPulseras({
       titulo={`Vincular niños a la mesa ${mesa.label}`}
       descripcion="Su tiempo de parque se cobrará con la cuenta de la mesa: la familia paga una sola vez."
       pie={
-        <Button
-          variant="primary"
-          disabled={validos.length === 0}
-          onClick={() => {
-            onVincular(validos);
-            cerrar();
-          }}
-          className="w-full"
-        >
+        <Button variant="primary" disabled={validos.length === 0 || vinculando} onClick={() => void confirmar()} className="w-full">
           <Link2 size={17} aria-hidden="true" />
           {validos.length === 0
             ? "Elige a los niños"

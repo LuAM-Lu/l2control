@@ -16,7 +16,7 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import type { CatalogoDto, EstadoDeComandaDto, FamilyAccountDto, PedidoDto } from "@l2/contracts";
+import type { CatalogoDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
 import { Badge, Button, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
@@ -25,8 +25,6 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
 import {
   abrirCuentaDeMesa,
-  esDeMesa,
-  moverParqueALaMesa,
   numeroDeOrden,
   pasarACaja,
 } from "../cuentas/cuentas.ts";
@@ -43,8 +41,10 @@ import { usePlano } from "./PlanoProvider.tsx";
 import { cartaDelMesero } from "../inventario/catalogo.ts";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
+import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
 import { usePedidos } from "./PedidosProvider.tsx";
+import { vincularPulseras } from "./mesas.acciones.ts";
 
 /**
  * Estación del mesero: mesas y pedidos — F6-01, F6-02, F6-05, DEC-22.
@@ -90,7 +90,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // El plano lo publica administración desde el panel (V4, B6-1); aquí solo se lee.
   const { plano } = usePlano();
   // La cuenta de la mesa (F6-05, D2): los platos y el parque de esta familia.
-  const { cuentas, guardar } = useCuentas();
+  const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta } = useCuentas();
   // Los pedidos y su comanda, del servidor (B6-2).
   const { pedidos, enviar: enviarPedido, reimprimir } = usePedidos();
   const op = useOperacion();
@@ -114,6 +114,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }, []);
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
   const [vinculando, setVinculando] = useState(false);
+  const [anulando, setAnulando] = useState<PedidoDto | null>(null);
   const [comensales, setComensales] = useState(2);
   /** El id del pedido que se está enviando en cada mesa: reintentarlo (se cortó la red) no pide dos veces. */
   const [envios, setEnvios] = useState<Readonly<Record<string, string>>>({});
@@ -190,31 +191,28 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     return m.cuenta ?? abrirCuentaDeMesa({ tableId: m.mesa.id, tableLabel: m.mesa.label, ahora: new Date().toISOString() });
   }
 
-  function vincular(m: MesaVista, ids: string[]) {
-    if (!m.ocupacion || ids.length === 0) return;
-    const ok = emitir(
-      { type: "mesa.vinculada", tableId: m.mesa.id, sessionIds: ids },
-      `${ids.length === 1 ? "1 niño vinculado" : `${ids.length} niños vinculados`} a la mesa ${m.mesa.label}`,
-    );
-    if (!ok) return;
-
-    // D2: lo del parque pasa a la cuenta de la mesa, para que la familia pague
-    // UNA vez. La cuenta de la familia conserva el rastro de adónde fue cada línea.
-    let mesa = cuentaDeLaMesa(m);
-    let movidas = 0;
-    for (const familia of cuentas.filter((c) => c.sessionIds.some((id) => ids.includes(id)) && !esDeMesa(c))) {
-      const r = moverParqueALaMesa(familia, mesa, ids);
-      if (!r) continue;
-      movidas += r.mesa.lines.length - mesa.lines.length;
-      mesa = r.mesa;
-      guardar(r.familia);
+  /**
+   * Vincula pulseras a la mesa, en el servidor (F6-05, D2, B6-3): lo pendiente del parque de esas
+   * estancias pasa a la cuenta de la mesa, para que la familia pague de una vez. Devuelve si quedó
+   * hecho, para que la hoja se cierre solo si no hubo que avisar de nada.
+   */
+  async function vincular(m: MesaVista, ids: string[]): Promise<boolean> {
+    if (!m.ocupacion || ids.length === 0) return false;
+    const r = await vincularPulseras({ idempotencyKey: crypto.randomUUID(), tableId: m.mesa.id, sessionIds: ids });
+    if (!r.ok) {
+      avisar.error(r.mensaje);
+      return false;
     }
-    guardar(mesa);
+    adoptar(r.valor.mesa);
+    for (const familia of r.valor.familias) adoptar(familia);
+    const movidas = r.valor.familias.reduce((n, f) => n + f.lines.filter((l) => l.movedTo === r.valor.mesa.id).length, 0);
+    avisar.ok(`${ids.length === 1 ? "1 niño vinculado" : `${ids.length} niños vinculados`} a la mesa ${m.mesa.label}`);
     if (movidas > 0) {
       avisar.info(`El parque de ${movidas === 1 ? "un niño" : "esos niños"} pasa a la cuenta de la mesa`, {
         detalle: "La familia lo paga todo junto en caja.",
       });
     }
+    return true;
   }
 
   /**
@@ -269,6 +267,28 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     if (!r.ok) avisar.error(r.mensaje);
     else if (p.comanda.estado === "IMPRESA") avisar.info(`Copia de la comanda ${comanda(p.numero)} a la impresora`, { detalle: "Sale marcada «reimpresión»: que no se prepare dos veces." });
     else avisar.info(`Comanda ${comanda(p.numero)} otra vez a la impresora`, { detalle: "La cocina todavía no la tenía." });
+  }
+
+  /**
+   * Anula todos los platos de este pedido que todavía se deban (F6-14): la cuenta de la mesa ya no los
+   * cobra, con el mismo motivo y la misma autorización. Si alguno falla (otro equipo cambió la cuenta
+   * mientras tanto), se detiene ahí y lo dice el rechazo; lo que ya se anuló, queda anulado.
+   */
+  async function aplicarAnulacion(pedido: PedidoDto, motivo: MotivoAnulacionPedido, detalle: string | undefined, autorizacion: unknown): Promise<Rechazo | null> {
+    const cuenta = elegida?.cuenta;
+    if (!cuenta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "La cuenta de la mesa ya no está disponible." };
+    const porAnular = cuenta.lines.filter((l) => l.orderId === pedido.id && !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
+    let version = cuenta.version!;
+    for (const linea of porAnular) {
+      const r = await anularPedidoDeLaCuenta(
+        { idempotencyKey: crypto.randomUUID(), accountId: cuenta.id, version, lineId: linea.id, motivo, ...(detalle ? { detalle } : {}) },
+        autorizacion,
+      );
+      if (!r.ok) return r;
+      version = r.valor.version!;
+    }
+    avisar.ok(`Comanda ${comanda(pedido.numero)} anulada`, { detalle: "Entra en las excepciones del turno." });
+    return null;
   }
 
   /** La mesa pide la cuenta: el mesero no cobra (DEC-14), la manda a caja. */
@@ -463,6 +483,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                   ahora={ahora}
                   borrador={(borradores[elegida.mesa.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
                   onReimprimir={(p) => void volverAImprimir(p)}
+                  onAnular={(p) => setAnulando(p)}
                 />
               </div>
               <footer className="flex flex-col gap-2 border-t border-line px-4 py-3">
@@ -506,7 +527,17 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                 onCerrar={() => setVinculando(false)}
                 mesa={elegida.mesa}
                 estado={estado}
+                cuentas={cuentas}
                 onVincular={(ids) => vincular(elegida, ids)}
+              />
+              <AnularPedidoDialog
+                pedido={anulando}
+                onCerrar={() => setAnulando(null)}
+                onAplicar={async (motivo, detalle, autorizacion) => {
+                  const rechazo = await aplicarAnulacion(anulando!, motivo, detalle, autorizacion);
+                  if (!rechazo) setAnulando(null);
+                  return rechazo;
+                }}
               />
             </>
           )}
@@ -655,7 +686,7 @@ function CabeceraDetalle({ vista, ahora }: { vista: MesaVista; ahora: number }) 
 
 function NinosDeLaMesa({ vista, onVincular }: { vista: MesaVista; onVincular: () => void }) {
   const op = useOperacion();
-  const ids = vista.ocupacion?.sesiones ?? [];
+  const ids = vista.cuenta?.sessionIds ?? [];
   const nombre = (id: string) => {
     const s = op.estado.sesiones.find((x) => x.id === id);
     return s ? nombreDeEstancia(s) : `${op.estado.nombres[id] ?? "Niño"} (ya salió)`;
@@ -693,11 +724,13 @@ function PedidosDeLaMesa({
   ahora,
   borrador,
   onReimprimir,
+  onAnular,
 }: {
   vista: MesaVista;
   ahora: number;
   borrador: number;
   onReimprimir: (p: PedidoDto) => void;
+  onAnular: (p: PedidoDto) => void;
 }) {
   const hora = useHora();
   return (
@@ -716,11 +749,14 @@ function PedidosDeLaMesa({
           {vista.pedidos.map((p) => {
             const e = ESTADO_COMANDA[p.comanda.estado];
             const fallo = p.comanda.estado === "NO_SALIO";
+            const propias = vista.cuenta?.lines.filter((l) => l.orderId === p.id) ?? [];
+            const anulable = propias.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
+            const anulado = propias.length > 0 && propias.every((l) => l.anulacion !== undefined);
             return (
               <li key={p.id} className={cn("rounded-[var(--radius-control)] border px-3 py-2.5", fallo ? "border-state-crit/50 bg-state-crit-bg" : "border-line bg-base/40")}>
                 <div className="flex items-center justify-between gap-2">
-                  <Badge tone={e.tono} icon={e.icono}>
-                    {e.texto}
+                  <Badge tone={anulado ? "idle" : e.tono} icon={anulado ? <Ban size={13} aria-hidden="true" /> : e.icono}>
+                    {anulado ? "Pedido anulado" : e.texto}
                   </Badge>
                   <span className="tnum text-[12px] text-ink-3">
                     {comanda(p.numero)} · {ahora > 0 ? `${hora(Date.parse(p.enviadoEn))} · hace ${minutosDesde(p.enviadoEn, ahora)} min` : ""}
@@ -738,6 +774,12 @@ function PedidosDeLaMesa({
                   <Button variant="ghost" onClick={() => onReimprimir(p)} className="mt-1 -mb-1 w-full text-[13px]">
                     <Printer size={15} aria-hidden="true" />
                     Se perdió el papel: imprimir una copia
+                  </Button>
+                )}
+                {anulable && (
+                  <Button variant="ghost" onClick={() => onAnular(p)} className="mt-1 -mb-1 w-full text-[13px] text-state-crit">
+                    <Ban size={15} aria-hidden="true" />
+                    Anular pedido
                   </Button>
                 )}
               </li>

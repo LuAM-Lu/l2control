@@ -87,7 +87,7 @@ export async function aplicarDescuento(entrada: unknown, autorizacion?: unknown)
 }
 
 /** Las acciones de la caja con 🔐 cuya lista de autorizadores puede pedir la pantalla. */
-const CON_AUTORIZADORES = ["cobro.anular", "cuenta.cortesia", "cuenta.incobrable", "cuenta.descuento", "turno.corteZ"] as const;
+const CON_AUTORIZADORES = ["cobro.anular", "cuenta.cortesia", "cuenta.incobrable", "cuenta.descuento", "turno.corteZ", "pedido.anularEnProduccion"] as const;
 
 /**
  * Quiénes pueden autorizar a quien opera una acción de la caja (vacío si no le hace falta). Solo las

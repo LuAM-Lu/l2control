@@ -10,7 +10,9 @@
  *    tarifario (en prepago, ya en la cola de la caja). El aforo se comprueba con un candado por
  *    sucursal: dos entradas a la vez no cuelan un niño de más. Una pulsera tiene una estancia activa.
  *  · **La salida** calcula el excedente con el reloj del servidor y las condiciones de la entrada
- *    (`settleAtExit`), lo añade a la cuenta (`registerExit`) y cierra las estancias.
+ *    (`settleAtExit`), lo añade a la cuenta (`registerExit`) y cierra las estancias. Si se carga a una
+ *    mesa (F5-14, D-RES, B6-3), lo pendiente de esas estancias pasa a la cuenta de la mesa
+ *    (`moveSessionLines`, el mismo mando que usa vincular pulseras) en la misma transacción.
  *  · **La sala** es la foto de los niños dentro con la hora del servidor, de la que la pantalla solo
  *    interpola (ADR-010). Las **huérfanas** (de un día anterior o de más de 8 horas, F5-13) van
  *    aparte: no cuentan en el aforo, no se cobran por olvidadas y las cierra la dirección.
@@ -47,7 +49,7 @@ import {
   type SettlementLineDto,
   type TarifarioDto,
 } from "@l2/contracts";
-import { registerExit, registerRecharge } from "@l2/domain-cash";
+import { moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import {
@@ -72,7 +74,8 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
-import { guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { claveSecundaria, crearCuentaDeMesa, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { candadoDeMesas, mesaParaCuentaNueva, mesasOcupadasEn } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
 
 export interface CasosParque {
@@ -367,16 +370,16 @@ export function casosParque(base: Base): CasosParque {
         return { ok: false, motivo: "INVALIDO", mensaje: "La salida no se registró: hay datos que corregir.", problemas: problemasDe(v.error) };
       }
       const cmd = v.data;
-      if (cmd.disposition.kind === "MESA") {
-        return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Cargar el parque a una mesa llega con el restaurante. Por ahora, envíalo a caja." };
-      }
 
       const intentar = () =>
         base.conTenant(ctx.tenantId, async (tx): Promise<CheckoutResult | Rechazo> => {
           const rechazo = await exigirPermiso(tx, ctx, "parque.checkOut");
           if (rechazo) return rechazo;
-          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
-          if (previa) return previa.cause === "SALIDA" ? salidaHecha(tx, cmd.idempotencyKey, previa.accountId) : conflictoDeClave;
+          // El reintento se detecta por la estancia (`checkOutKey` lo pone solo una salida): con una
+          // mesa de por medio, la operación guarda más de una cuenta con la misma clave, así que no
+          // sirve buscarla por el asiento de una cuenta cualquiera.
+          const yaSalio = await tx.parkSession.findFirst({ where: { checkOutKey: cmd.idempotencyKey } });
+          if (yaSalio) return salidaHecha(tx, cmd.idempotencyKey, yaSalio.accountId);
 
           const filas = await estancias(tx, { where: { id: { in: cmd.sessionIds }, branchId: ctx.branchId } });
           if (filas.length !== cmd.sessionIds.length) {
@@ -401,8 +404,27 @@ export function casosParque(base: Base): CasosParque {
             return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de esta familia se dio por incobrable: la salida la resuelve supervisión." };
           }
 
+          // Cargar la deuda a una mesa (F5-14, D-RES, B6-3): la «cuenta unificada» que es el diferencial
+          // del producto. El candado de las mesas (I-05) es el mismo de la vinculación y del plano.
+          let mesaInfo: Readonly<{ accountId: string; tableId: string; label: string; vigente: Awaited<ReturnType<typeof vigenteDe>> }> | null = null;
+          if (cmd.disposition.kind === "MESA") {
+            const tableId = cmd.disposition.tableId;
+            await candadoDeMesas(tx, ctx.branchId);
+            const abierta = (await mesasOcupadasEn(tx, ctx.branchId)).get(tableId);
+            const vigente = abierta ? await vigenteDe(tx, abierta) : null;
+            let label: string;
+            if (vigente) {
+              label = vigente.cuenta.tableLabel ?? "?";
+            } else {
+              const r = await mesaParaCuentaNueva(tx, ctx.branchId, tableId);
+              if ("ok" in r) return { ...r, ...(r.problemas ? { problemas: r.problemas.map((p) => ({ ...p, path: ["disposition", "tableId"] })) } : {}) };
+              label = r.label;
+            }
+            mesaInfo = { accountId: abierta ?? randomUUID(), tableId, label, vigente };
+          }
+
           const lineas = enOrden.map((f) => liquidacionDe(f, ahora));
-          const despues = registerExit(
+          let despues = registerExit(
             actual.cuenta,
             cmd.sessionIds,
             lineas.map((l, i) => ({
@@ -411,6 +433,14 @@ export function casosParque(base: Base): CasosParque {
               amountMinor: BigInt(l.overdue.minor),
             })),
           );
+          // Lo que se debía de estas estancias —el paquete, si seguía pendiente, y el excedente recién
+          // calculado— pasa a la mesa entera: la familia paga todo junto, ahí (D2).
+          let lineasParaLaMesa: AccountLineDoc[] = [];
+          if (mesaInfo) {
+            const movido = moveSessionLines(despues, cmd.sessionIds, mesaInfo.accountId, () => randomUUID());
+            despues = movido.familia;
+            lineasParaLaMesa = movido.lineasNuevas;
+          }
           const instante = new Date(ahora).toISOString();
           const { pendingSince: _, ...sinEspera } = despues;
           const nueva = FamilyAccountSchema.parse({
@@ -422,6 +452,25 @@ export function casosParque(base: Base): CasosParque {
           });
           const quien = await nombreDe(tx, ctx);
           await guardarVersion(tx, ctx, nueva, { cause: "SALIDA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          if (mesaInfo) {
+            const mesa: FamilyAccountDto = mesaInfo.vigente
+              ? FamilyAccountSchema.parse({
+                  ...mesaInfo.vigente.cuenta,
+                  sessionIds: [...new Set([...mesaInfo.vigente.cuenta.sessionIds, ...cmd.sessionIds])],
+                  lines: [...mesaInfo.vigente.cuenta.lines, ...lineasParaLaMesa],
+                  version: mesaInfo.vigente.version + 1,
+                })
+              : await crearCuentaDeMesa(tx, ctx, {
+                  id: mesaInfo.accountId,
+                  tableId: mesaInfo.tableId,
+                  label: mesaInfo.label,
+                  lines: lineasParaLaMesa,
+                  sessionIds: cmd.sessionIds,
+                  ahora,
+                  quien: quien.nombre,
+                });
+            await guardarVersion(tx, ctx, mesa, { cause: "SALIDA", operationKey: claveSecundaria(cmd.idempotencyKey, mesaInfo.accountId), ahora, quien: quien.nombre });
+          }
           await tx.parkSession.updateMany({
             where: { id: { in: cmd.sessionIds }, status: "ACTIVA" },
             data: {
@@ -449,6 +498,7 @@ export function casosParque(base: Base): CasosParque {
               excedente: { minor: String(excedente.amount), currency: "USD" },
               // El nombre de quien lo recogió queda en la estancia, no en el asiento (§7.6).
               recogidoPorOtraPersona: cmd.recogida.kind === "OTRA_PERSONA",
+              cargadoAMesa: mesaInfo ? mesaInfo.label : null,
             },
           });
           return { lines: lineas, account: nueva };

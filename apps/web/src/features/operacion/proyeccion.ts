@@ -11,7 +11,9 @@
  * está no se duplica (I-04) y una mesa abierta no se abre dos veces (I-05).
  *
  * Los pedidos y su comanda dejaron el bus con B6-2 (son del servidor, ADR-022), y la impresora con
- * B5-2 (la vigila la cola). Quedan las mesas, hasta B6-3.
+ * B5-2 (la vigila la cola). Vincular pulseras dejó el bus con B6-3 (mueve dinero, es del servidor):
+ * quién está en cada mesa lo dice la cuenta de la mesa (`FamilyAccountDto.sessionIds`), no un evento.
+ * Quedan el abrir, pedir la cuenta, poner por limpiar y liberar una mesa.
  */
 import type { OperationEventDto, ParkSessionDto } from "@l2/contracts";
 
@@ -33,7 +35,6 @@ export type Mesa = Readonly<{
   /** Cuándo se abrió: separa los pedidos de esta familia de los de la anterior. */
   abiertaEn: string;
   comensales: number;
-  sesiones: readonly string[];
 }>;
 
 export type Conectado = Readonly<{ userName: string; role: string; device: string; desde: string }>;
@@ -121,15 +122,10 @@ export function aplicar(e: EstadoLocal, ev: OperationEventDto): EstadoLocal {
             desde: ev.at,
             abiertaEn: ev.at,
             comensales: ev.guests,
-            sesiones: [],
           },
         },
         etiquetasMesa: { ...e.etiquetasMesa, [ev.tableId]: ev.label },
       };
-    case "mesa.vinculada": {
-      const m = e.mesas[ev.tableId];
-      return m ? mesa(ev.tableId, { sesiones: [...new Set([...m.sesiones, ...ev.sessionIds])] }) : base;
-    }
     case "mesa.pide_cuenta":
       return mesa(ev.tableId, { estado: "PIDE_CUENTA", desde: ev.at });
     case "mesa.por_limpiar":

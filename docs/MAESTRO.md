@@ -324,8 +324,12 @@ por páginas y par; versiones del Tarifario con sus cambios (se intentó retirar
 descuento de prueba creado y retirado en Descuentos; un ajuste de prueba en Roles y accesos («Dar cortesía» de Caja a
 No) devuelto a fábrica. Equipo «Prueba T7 Admin» revocado.
 
-**Siguiente paso:** **B6-3** (cuenta de mesa: estados de la mesa en el servidor, vincular pulseras, división, anular
-lo pedido).
+**B6-3 en curso (2026-10-03, rama `feat/b6-3`, sin subir a `main`):** el código está hecho y `pnpm verify:db` pasa
+(423 pruebas de aplicación). Vincular pulseras (`casosMesas.vincular`) y cargar la salida del parque a una mesa mueven
+lo pendiente a la cuenta de la mesa en el servidor, en una transacción; anular un plato ya enviado (`cuentas.anularPedido`,
+🔐 `pedido.anularEnProduccion`) con su motivo; `mesa.vinculada` sale del bus. **Falta:** probarlo en el navegador, la
+versión 0.43.0 con su CHANGELOG y la etiqueta, y decidir si la división por ítems (F6-12) entra en este paso (hoy hay
+partes iguales en la caja).
 
 ---
 
@@ -1887,6 +1891,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-02** · T-7 hecho (v0.42.0): las seis pantallas de Ajustes que faltaban (Roles y accesos, Usuarios,
   Dispositivos, Descuentos, Tasas y Tarifas) con el patrón de Impresoras; tres con historial paginado en el servidor
   (Dispositivos, Tasas, Tarifario). Sigue B6-3.
+- **2026-10-03** · B6-3 en curso (rama `feat/b6-3`, sin versión todavía): vincular pulseras y la salida a mesa en el
+  servidor, anular un plato con 🔐, `mesa.vinculada` fuera del bus; `pnpm verify:db` en verde (423). Falta el navegador,
+  v0.43.0 y decidir la división por ítems.
 
 ---
 
@@ -1900,20 +1907,19 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-10-01, v0.39.2 en `main`; B6-1 a medias en `feat/b6-1`; nada subido a GitHub):**
+**Último handoff (2026-10-03, v0.42.0 en `main`; B6-3 en curso en `feat/b6-3`, sin subir a GitHub):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 con M-15 a M-17, §3 con su DoD, su orden y la casilla de B6-1, §4, §5) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. main: v0.39.2 · 39 de 57 pasos (impresión con agente, Impresoras rediseñada). Nada subido a GitHub.
-Siguiente: terminar B6-1 en la rama feat/b6-1 (d4a41a0): la lista de «Falta» está en su casilla de §3. Decidido: la carta del restaurante
-  ES el catálogo de productos con «en la carta»; plano versionado (floor_plan_version); I-05 en el servidor; estados de mesa en el bus hasta B6-3.
-Luego B6-2 (la comanda impresa: el cliente probó «Enviar a cocina» y no sale nada, es lo esperado) y T-7 (M-17: Ajustes con el patrón de Impresoras).
-La base local YA tiene la migración de B6-1: trabajar desde feat/b6-1 (main no la conoce). La web de la rama no compila hasta hacer el punto (2).
-Base local CON DATOS DEL CLIENTE: guiones solo sobre «Prueba …»; no tocar «TEST pRODUCTO», la venta #0031, la impresora «Caja» ni el agente
-  «Laptop de caja» (corre en esta PC, alcanza 10.2.0.2:9100 = pnpm impresora:falsa). El cliente usa el panel a la vez: nada de «descartar todo» sin filtro.
-Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev (web :3000 + worker :3001). Tras cambiar Prisma: generate y reiniciar pnpm dev.
-Entrar: /acceso → equipo → «Soy de administración» → abby-kingdom-desarrollo + `pnpm totp` (o `pnpm equipos aprobar`) → PIN 1970.
-Playwright en el scratchpad de la sesión c1565432: comun.cjs, b54a-e.cjs (Impresoras: alta en hoja, historial, descartes, alerta, retirar).
-Cuidado: DoD de §3; migración que rellena → NO FORCE RLS + BEGIN/COMMIT (§5); en una transacción nunca dos consultas a la vez; acción
-  auditada nueva → TEMAS_DE_ACCION; tests de base: pnpm --filter @l2/database test:db migra la base de pruebas; heredocs grandes: Write + python.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §3 casilla de B6-3, §5) y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. main: v0.42.0 · 42 de 57. Rama de trabajo: feat/b6-3 (WIP, sin subir).
+Estado B6-3: código hecho y pnpm verify:db en verde (423 pruebas de aplicación). Falta: (1) probar en navegador Mesas
+  (vincular, anular un plato con 🔐) y «Cargar a mesa» al salir de Entrada/Monitor; (2) v0.43.0 + CHANGELOG + etiqueta;
+  (3) decidir si la división por ítems (F6-12) entra aquí (hoy: partes iguales en caja).
+Piezas: application/src/restaurante/mesas.ts (vincular), caja/cuentas.ts (anularPedido, crearCuentaDeMesa, claveSecundaria),
+  park/parque.ts (salida a MESA), domain/cash/src/cuenta.ts (moveSessionLines, anulacionProblem); migración 20261024000000_mesas.
+Cuidado: account_version admite UNA clave de operación por tenant: la cuenta principal usa la del mando y la secundaria
+  claveSecundaria(). En una transacción nunca dos consultas a la vez. Planos de prueba: planoDePrueba(l, 12).
+Base local CON DATOS DEL CLIENTE: guiones solo sobre «Prueba …»; no tocar «TEST pRODUCTO», venta #0031, impresora «Caja»
+  ni agente «Laptop de caja». Nada de «descartar todo» sin filtro.
+Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Entrar por /acceso.
 ```

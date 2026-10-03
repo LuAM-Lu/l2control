@@ -15,7 +15,7 @@
  *    servidor) y devuelve las líneas a la cola.
  */
 import { z } from "zod";
-import { FamilyAccountSchema, MotivoCortesiaSchema } from "./account.ts";
+import { FamilyAccountSchema, MotivoAnulacionPedidoSchema, MotivoCortesiaSchema } from "./account.ts";
 import { ClienteFacturaSchema } from "./documento.ts";
 import { LibroDocumentoSchema } from "./libro.ts";
 import { CodigoMedioSchema } from "./medios.ts";
@@ -126,3 +126,19 @@ export const CortesiaCommandSchema = z
   .refine((c) => c.quitar || c.motivo !== undefined, { message: "Elige el motivo de la cortesía", path: ["motivo"] })
   .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, { message: "Con «Otro» hay que explicar la cortesía", path: ["detalle"] });
 export type CortesiaCommand = z.infer<typeof CortesiaCommandSchema>;
+
+/**
+ * Anular un plato de un pedido ya enviado a cocina (F6-14, B6-3). A diferencia de la cortesía, no
+ * tiene vuelta: lo anulado por error se vuelve a pedir, no se «desanula».
+ */
+export const AnularPedidoCommandSchema = z
+  .strictObject({
+    idempotencyKey: IdempotencyKeySchema,
+    accountId: z.uuid("Cuenta desconocida"),
+    version: z.number().int().positive(),
+    lineId: IdSchema,
+    motivo: MotivoAnulacionPedidoSchema,
+    detalle: z.string().trim().max(120).optional(),
+  })
+  .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, { message: "Con «Otro» hay que explicar la anulación", path: ["detalle"] });
+export type AnularPedidoCommand = z.infer<typeof AnularPedidoCommandSchema>;

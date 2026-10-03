@@ -36,6 +36,7 @@ import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
 import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
 import { casosPlano, type CasosPlano } from "./restaurante/plano.ts";
 import { casosPedidos, type CasosPedidos } from "./restaurante/pedidos.ts";
+import { casosMesas, type CasosMesas } from "./restaurante/mesas.ts";
 import { crearFirmante } from "./tiempo-real/ticket.ts";
 
 export type { Contexto } from "./contexto.ts";
@@ -114,6 +115,8 @@ export interface Aplicacion {
   readonly plano: CasosPlano;
   /** Los pedidos del mesero y su comanda impresa (B6-2, ADR-022). */
   readonly pedidos: CasosPedidos;
+  /** Vincular pulseras a una mesa: el parque pendiente pasa a la cuenta maestra (F6-05, B6-3). */
+  readonly mesas: CasosMesas;
   readonly tiempoReal: CasosTiempoReal;
   cerrar(): Promise<void>;
 }
@@ -161,6 +164,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     salidas: casosSalidas(base),
     plano: casosPlano(base),
     pedidos: casosPedidos(base),
+    mesas: casosMesas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     cerrar: () => base.cerrar(),
   };

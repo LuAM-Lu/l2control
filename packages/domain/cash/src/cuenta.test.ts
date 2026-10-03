@@ -24,6 +24,9 @@ import {
   withCourtesy,
   registerExit,
   registerRecharge,
+  moveSessionLines,
+  anulacionProblem,
+  withAnulacion,
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
@@ -192,6 +195,11 @@ describe("qué cambio acepta el servidor", () => {
     assert.equal(accountChangeProblem(familia(), { ...familia(), lines: [familia().lines[0]!] }, productAt)?.problem, "LINEA_QUITADA");
   });
 
+  test("lo pedido en una mesa tampoco se quita con un «guardar» (B6-3): se anula, con su mando", () => {
+    const mesa: AccountDoc = { kind: "MESA", status: "ABIERTA", tableId: "m1", sessionIds: [], closedSessionIds: [], lines: [agua("x")] };
+    assert.equal(accountChangeProblem(mesa, { ...mesa, lines: [] }, productAt)?.problem, "LINEA_QUITADA");
+  });
+
   test("una línea no cambia de importe ni de concepto", () => {
     const c = familia();
     const alterada = { ...c, lines: [{ ...c.lines[0]!, amount: usd("1") }, c.lines[1]!] };
@@ -204,6 +212,13 @@ describe("qué cambio acepta el servidor", () => {
     assert.equal(accountChangeProblem(c, regalada, productAt)?.problem, "CORTESIA_DESDE_LA_PANTALLA");
     assert.equal(accountChangeProblem(regalada, c, productAt)?.problem, "CORTESIA_DESDE_LA_PANTALLA");
     assert.equal(accountChangeProblem(null, mostrador([agua("x", { cortesia: { motivo: "INVITACION" } })]), productAt)?.problem, "CORTESIA_DESDE_LA_PANTALLA");
+  });
+
+  test("un «guardar» tampoco anula un pedido: tiene su propio mando (F6-14)", () => {
+    const mesa: AccountDoc = { kind: "MESA", status: "ABIERTA", tableId: "m1", sessionIds: [], closedSessionIds: [], lines: [agua("x")] };
+    const anulada = { ...mesa, lines: [{ ...mesa.lines[0]!, anulacion: { motivo: "PEDIDO_EQUIVOCADO" } }] };
+    assert.equal(accountChangeProblem(mesa, anulada, productAt)?.problem, "ANULACION_DESDE_LA_PANTALLA");
+    assert.equal(accountChangeProblem(anulada, mesa, productAt)?.problem, "ANULACION_DESDE_LA_PANTALLA");
   });
 
   test("se regala lo que se debe todavía, y se quita lo regalado", () => {
@@ -239,10 +254,11 @@ describe("qué cambio acepta el servidor", () => {
     const c = familia();
     assert.equal(accountChangeProblem(c, { ...c, kind: "MESA" }, productAt)?.problem, "TIPO_CAMBIADO");
     assert.equal(accountChangeProblem(c, { ...c, sessionIds: ["s1"] }, productAt)?.problem, "ESTANCIA_QUITADA");
-    // A una familia los niños los mete la entrada (B4-2); a una mesa se le vinculan desde el salón.
+    // A una familia los niños los mete la entrada (B4-2); a una mesa, vincular pulseras (B6-3): las dos
+    // tienen su propio mando, que mueve el dinero del parque a la vez. Un «guardar» no hace ni lo uno ni lo otro.
     assert.equal(accountChangeProblem(c, { ...c, sessionIds: ["s1", "s2", "s3"] }, productAt)?.problem, "ESTANCIAS_DESDE_LA_PANTALLA");
     const mesa: AccountDoc = { kind: "MESA", status: "ABIERTA", tableId: "m1", sessionIds: [], closedSessionIds: [], lines: [] };
-    assert.equal(accountChangeProblem(mesa, { ...mesa, sessionIds: ["s1"] }, productAt), null);
+    assert.equal(accountChangeProblem(mesa, { ...mesa, sessionIds: ["s1"] }, productAt)?.problem, "ESTANCIAS_DESDE_LA_PANTALLA");
   });
 });
 
@@ -336,5 +352,82 @@ describe("la recarga de tiempo (B4-3, F5-11)", () => {
     const c = registerRecharge({ ...familia(), mode: "CUENTA_ABIERTA" as const }, linea);
     assert.equal(c.status, "ABIERTA");
     assert.equal(registerRecharge(c, linea).lines.length, 3);
+  });
+});
+
+describe("vincular pulseras a una mesa (F6-05, B6-3)", () => {
+  const idsNuevos = (prefijo: string) => {
+    let n = 0;
+    return (l: AccountLineDoc) => `${prefijo}-${l.id}-${++n}`;
+  };
+
+  test("mueve lo pendiente del parque de esas estancias, con un id propio en la mesa", () => {
+    const f = familia({ lines: [linea("l1", { sessionId: "s1" }), linea("l2", { sessionId: "s2" })] });
+    const { familia: fQueda, lineasNuevas } = moveSessionLines(f, ["s1"], "mesa-1", idsNuevos("mov"));
+    assert.deepEqual(fQueda.lines[0], { ...f.lines[0]!, movedTo: "mesa-1" });
+    assert.equal(fQueda.lines[1], f.lines[1]); // s2 no se toca
+    assert.equal(lineasNuevas.length, 1);
+    assert.equal(lineasNuevas[0]!.id, "mov-l1-1");
+    assert.equal(lineasNuevas[0]!.movedTo, undefined);
+    assert.equal(lineasNuevas[0]!.sessionId, "s1");
+  });
+
+  test("lo ya pagado, lo ya movido y lo regalado no se mueven otra vez", () => {
+    const f = familia({
+      lines: [
+        linea("pagada", { sessionId: "s1", paid: true }),
+        linea("movida", { sessionId: "s1", movedTo: "otra-mesa" }),
+        linea("regalada", { sessionId: "s1", cortesia: { motivo: "INVITACION" } }),
+      ],
+    });
+    const { lineasNuevas } = moveSessionLines(f, ["s1"], "mesa-1", idsNuevos("mov"));
+    assert.deepEqual(lineasNuevas, []);
+  });
+
+  test("sin nada pendiente de esas estancias, no mueve nada", () => {
+    const f = familia({ lines: [linea("l1", { sessionId: "s1" })] });
+    const { familia: fQueda, lineasNuevas } = moveSessionLines(f, ["s2"], "mesa-1", idsNuevos("mov"));
+    assert.deepEqual(fQueda.lines, f.lines);
+    assert.deepEqual(lineasNuevas, []);
+  });
+
+  test("si lo movido era lo único pendiente, la cuenta sale de la cola de la caja", () => {
+    const enCola = familia({ status: "POR_COBRAR", lines: [linea("l1", { sessionId: "s1" })] });
+    const { familia: fQueda } = moveSessionLines(enCola, ["s1"], "mesa-1", idsNuevos("mov"));
+    assert.equal(fQueda.status, "ABIERTA");
+    const todosFuera = familia({ status: "POR_COBRAR", closedSessionIds: ["s1", "s2"], lines: [linea("l1", { sessionId: "s1" })] });
+    assert.equal(moveSessionLines(todosFuera, ["s1"], "mesa-1", idsNuevos("mov")).familia.status, "COBRADA");
+  });
+
+  test("si queda otra cosa pendiente en la familia, sigue en la cola", () => {
+    const enCola = familia({ status: "POR_COBRAR", lines: [linea("l1", { sessionId: "s1" }), agua("x")] });
+    assert.equal(moveSessionLines(enCola, ["s1"], "mesa-1", idsNuevos("mov")).familia.status, "POR_COBRAR");
+  });
+});
+
+describe("anular un pedido en producción (F6-14, B6-3)", () => {
+  const plato = (id: string, extra: Partial<AccountLineDoc> = {}) => agua(id, { orderId: "ped-1", ...extra });
+
+  test("se anula un plato que se debe todavía; lo pagado, lo movido y lo regalado, no", () => {
+    const c = mostrador([plato("a"), plato("b", { paid: true }), plato("c", { movedTo: "otra" }), plato("d", { cortesia: { motivo: "INVITACION" } })]);
+    assert.equal(anulacionProblem(c, "a"), null);
+    assert.equal(anulacionProblem(c, "b"), "LINEA_PAGADA");
+    assert.equal(anulacionProblem(c, "c"), "LINEA_MOVIDA");
+    assert.equal(anulacionProblem(c, "d"), "YA_REGALADA");
+    assert.equal(anulacionProblem(c, "z"), "LINEA_DESCONOCIDA");
+  });
+
+  test("solo se anula un plato: lo del parque no es un pedido", () => {
+    const c = familia();
+    assert.equal(anulacionProblem(c, "l1"), "NO_ES_PEDIDO");
+  });
+
+  test("anulado una vez, no se anula otra; se queda con su importe y deja de cobrarse", () => {
+    const c = mostrador([plato("a")]);
+    const anulada = withAnulacion(c, "a", { motivo: "PEDIDO_EQUIVOCADO" });
+    assert.deepEqual(anulada.lines[0]!.anulacion, { motivo: "PEDIDO_EQUIVOCADO" });
+    assert.deepEqual(anulada.lines[0]!.amount, c.lines[0]!.amount);
+    assert.equal(anulacionProblem(anulada, "a"), "YA_ANULADA");
+    assert.deepEqual(chargeableLines(anulada).map((l) => l.id), []);
   });
 });

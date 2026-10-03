@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CheckInResult } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -86,6 +86,7 @@ before(async () => {
   ctxSupervisor = await contextoDe(local, await crearEquipo(local, "Oficina"), supervisor, "5937");
   valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
   valor(await otro.app.tarifario.publicar(otro.sistema, TARIFARIO));
+  await planoDePrueba(local, 12);
 });
 
 after(async () => {
@@ -312,10 +313,38 @@ describe("la salida (B4-3)", () => {
     await vaciarSala();
   });
 
-  test("cargar a una mesa espera al restaurante: no se finge", async () => {
+  test("cargar la salida a una mesa (F5-14, D-RES, B6-3): el paquete y el excedente pasan juntos", async () => {
+    const r = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA" }));
+    const salio = valor(
+      await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id], { disposition: { kind: "MESA", tableId: "mesa-10" } }), AHORA + 72 * MIN),
+    );
+    // La familia se queda sin nada pendiente: todo se fue a la mesa.
+    assert.ok(salio.account.lines.every((l) => l.movedTo !== undefined), "lo de la familia se queda diciendo adónde fue");
+    assert.equal(salio.account.status, "COBRADA", "el único niño ya salió y no debe nada aquí");
+
+    const cuentas = valor(await local.app.cuentas.leer(ctxCajera, AHORA + 72 * MIN));
+    const mesa = cuentas.cuentas.find((c) => c.kind === "MESA" && c.tableId === "mesa-10")!;
+    assert.deepEqual(mesa.lines.map((l) => [l.kind, l.amount.minor, l.movedTo]), [
+      ["PAQUETE", "500", undefined],
+      ["EXCEDENTE", "150", undefined],
+    ]);
+    assert.deepEqual(mesa.sessionIds, [r.sessions[0]!.id]);
+    assert.equal(mesa.status, "ABIERTA");
+
+    // Otra familia que sale a la misma mesa se suma a la cuenta que ya tenía.
+    const otraEntrada = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA" }));
+    valor(await local.app.parque.salir(ctxMonitora, salida([otraEntrada.sessions[0]!.id], { disposition: { kind: "MESA", tableId: "mesa-10" } }), AHORA + 80 * MIN));
+    const otraVez = valor(await local.app.cuentas.leer(ctxCajera, AHORA + 80 * MIN));
+    const mismaMesa = otraVez.cuentas.find((c) => c.id === mesa.id)!;
+    assert.equal(mismaMesa.lines.length, 4, "dos familias, paquete y excedente cada una");
+    assert.equal(mismaMesa.sessionIds.length, 2);
+    await vaciarSala();
+  });
+
+  test("cargar a una mesa fuera del plano no se finge", async () => {
     const r = await entrar(entrada([{}]));
-    const mesa = await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id], { disposition: { kind: "MESA", tableId: "mesa-1" } }), AHORA);
-    assert.equal(!mesa.ok && mesa.motivo, "NO_DISPONIBLE");
+    const mesa = await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id], { disposition: { kind: "MESA", tableId: "mesa-99" } }), AHORA);
+    assert.equal(!mesa.ok && mesa.problemas?.[0]?.message, "MESA_FUERA_DEL_PLANO", JSON.stringify(mesa));
     await vaciarSala();
   });
 

@@ -34,6 +34,10 @@ export type AccountLineDoc = Readonly<{
   cortesia?: unknown;
   productId?: string | undefined;
   taxCode?: TaxCode | undefined;
+  /** El pedido que la trajo (B6-2), si es un plato: de ahí sale qué anular junto (F6-14). */
+  orderId?: string | undefined;
+  /** Anulada en producción (F6-14): no se borra, se queda con su importe y deja de cobrarse. */
+  anulacion?: unknown;
 }>;
 
 export type AccountDoc = Readonly<{
@@ -50,9 +54,9 @@ export type AccountDoc = Readonly<{
 
 /* ─────────────────────────────────────────────────────────── qué se cobra */
 
-/** Lo que se cobra ahora: ni lo pagado, ni lo que se movió a otra cuenta, ni lo regalado. */
+/** Lo que se cobra ahora: ni lo pagado, ni lo movido, ni lo regalado, ni lo anulado. */
 export function chargeableLines<L extends AccountLineDoc>(c: Readonly<{ lines: readonly L[] }>): L[] {
-  return c.lines.filter((l) => !l.paid && !l.movedTo && !l.cortesia);
+  return c.lines.filter((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
 }
 
 /**
@@ -157,7 +161,8 @@ export type AccountChangeProblem =
   | "ESTANCIAS_DESDE_LA_PANTALLA"
   | "PARQUE_DESDE_LA_PANTALLA"
   | "DESCUENTO_DESDE_LA_PANTALLA"
-  | "DIVISION_CON_DESCUENTO";
+  | "DIVISION_CON_DESCUENTO"
+  | "ANULACION_DESDE_LA_PANTALLA";
 
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
@@ -165,7 +170,7 @@ export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: s
  * Una línea que la pantalla puede quitar: sin pagar y de mostrador (un producto del catálogo). Lo
  * consumido en el parque o servido en la mesa no se quita: se regala (cortesía) o se anula.
  */
-const quitable = (l: AccountLineDoc) => !l.paid && !l.movedTo && l.productId !== undefined;
+const quitable = (l: AccountLineDoc, kind: AccountKind) => !l.paid && !l.movedTo && l.productId !== undefined && kind !== "MESA";
 
 const mismoContenido = (a: AccountLineDoc, b: AccountLineDoc) =>
   a.concept === b.concept &&
@@ -174,7 +179,8 @@ const mismoContenido = (a: AccountLineDoc, b: AccountLineDoc) =>
   a.amount.currency === b.amount.currency &&
   a.sessionId === b.sessionId &&
   a.productId === b.productId &&
-  a.taxCode === b.taxCode;
+  a.taxCode === b.taxCode &&
+  a.orderId === b.orderId;
 
 /**
  * ¿Acepta el servidor que la cuenta pase de `before` (`null` si es nueva) a `after`? `productAt`
@@ -208,8 +214,9 @@ export function accountChangeProblem(
     if (before.sessionIds.some((s) => !sesiones.has(s)) || before.closedSessionIds.some((s) => !cerradas.has(s))) {
       return { problem: "ESTANCIA_QUITADA" };
     }
-    // Quién entra y quién sale de una familia lo dicen la entrada y la salida del parque (B4-2, B4-3).
-    if (after.kind === "FAMILIA" && (sesiones.size !== before.sessionIds.length || cerradas.size !== before.closedSessionIds.length)) {
+    // Quién entra y quién sale de una familia lo dicen la entrada y la salida del parque (B4-2, B4-3);
+    // a una mesa se le vinculan pulseras con su propio mando, que mueve el dinero a la vez (B6-3).
+    if ((after.kind === "FAMILIA" || after.kind === "MESA") && (sesiones.size !== before.sessionIds.length || cerradas.size !== before.closedSessionIds.length)) {
       return { problem: "ESTANCIAS_DESDE_LA_PANTALLA" };
     }
     // Dividir o unir solo mientras no se cobró ninguna parte; las partes cobradas las cuenta el cobro.
@@ -219,7 +226,7 @@ export function accountChangeProblem(
 
   const ahora = new Set(after.lines.map((l) => l.id));
   for (const antes of previas.values()) {
-    if (!ahora.has(antes.id) && !quitable(antes)) return { problem: "LINEA_QUITADA", lineId: antes.id };
+    if (!ahora.has(antes.id) && !quitable(antes, after.kind)) return { problem: "LINEA_QUITADA", lineId: antes.id };
   }
 
   for (const l of after.lines) {
@@ -232,18 +239,23 @@ export function accountChangeProblem(
       if (JSON.stringify(antes.cortesia ?? null) !== JSON.stringify(l.cortesia ?? null)) {
         return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
       }
+      // Anular un pedido es otro mando propio, con su autorización (F6-14): tampoco lo da un «guardar».
+      if (JSON.stringify(antes.anulacion ?? null) !== JSON.stringify(l.anulacion ?? null)) {
+        return { problem: "ANULACION_DESDE_LA_PANTALLA", lineId: l.id };
+      }
       if (antes.paid && l.movedTo !== antes.movedTo) return { problem: "MOVIDA_OTRA_VEZ", lineId: l.id };
       continue;
     }
-    // Una línea nueva nace sin pagar y sin regalar: lo uno lo marca el cobro y lo otro la cortesía.
+    // Una línea nueva nace sin pagar, sin regalar y sin anular: eso lo marcan el cobro, la cortesía y la anulación.
     if (l.paid) return { problem: "PAGO_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.cortesia !== undefined) return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
+    if (l.anulacion !== undefined) return { problem: "ANULACION_DESDE_LA_PANTALLA", lineId: l.id };
     if (after.kind === "MOSTRADOR" && l.productId === undefined) return { problem: "MOSTRADOR_SIN_PRODUCTO", lineId: l.id };
     // Lo que se pide en la mesa sale de la carta, que es el catálogo (B6-1): su precio lo pone el
     // servidor, no la tablet. Lo del parque que llega a la mesa lo trae la vinculación (B6-3).
     if (after.kind === "MESA" && l.kind === "RESTAURANTE" && l.productId === undefined) return { problem: "MESA_SIN_PRODUCTO", lineId: l.id };
     // El paquete y el tiempo de más de una familia los pone el parque con su tarifario y su reloj.
-    if (after.kind === "FAMILIA" && (l.kind === "PAQUETE" || l.kind === "EXCEDENTE")) return { problem: "PARQUE_DESDE_LA_PANTALLA", lineId: l.id };
+    if ((after.kind === "FAMILIA" || after.kind === "MESA") && (l.kind === "PAQUETE" || l.kind === "EXCEDENTE")) return { problem: "PARQUE_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.productId !== undefined) {
       const p = productAt(l.productId);
       if (!p) return { problem: "PRODUCTO_QUE_NO_SE_VENDE", lineId: l.id };
@@ -323,6 +335,39 @@ export function registerRecharge<A extends AccountDoc & { mode: "PREPAGO" | "CUE
   return { ...c, lines: [...c.lines, nueva], status };
 }
 
+/* ──────────────────────────────────── vincular pulseras a una mesa (F6-05) */
+
+/**
+ * Mueve a la cuenta de la mesa (`targetAccountId`) lo que todavía se debe del parque de estas
+ * estancias en la cuenta de su familia (F6-05, F5-14): el paquete y el excedente pendientes. La
+ * línea de la familia no se borra (regla 5): se marca `movedTo` y deja de contar como pendiente
+ * ahí; nace su igual en la mesa, con un id propio y sin pagar, para que la familia la pague una
+ * sola vez. Lo regalado no se mueve: no se debe, y su cortesía se queda donde se dio.
+ */
+export function moveSessionLines<A extends AccountDoc>(
+  familia: A,
+  sessionIds: readonly string[],
+  targetAccountId: string,
+  idDeLaNueva: (l: AccountLineDoc) => string,
+): Readonly<{ familia: A; lineasNuevas: AccountLineDoc[] }> {
+  const ids = new Set(sessionIds);
+  const lineasNuevas: AccountLineDoc[] = [];
+  const lines = familia.lines.map((l) => {
+    if (l.paid || l.movedTo || l.cortesia || !l.sessionId || !ids.has(l.sessionId)) return l;
+    lineasNuevas.push({ ...l, id: idDeLaNueva(l) });
+    return { ...l, movedTo: targetAccountId };
+  });
+  // Si lo que la ponía en la cola se acaba de mover, la cuenta sale de la cola: a abierta mientras
+  // queden niños dentro, o a cobrada si la familia entera ya se fue (como al salir, `registerExit`).
+  const status: AccountStatus =
+    familia.status === "POR_COBRAR" && chargeableLines({ lines }).length === 0
+      ? familia.closedSessionIds.length === familia.sessionIds.length
+        ? "COBRADA"
+        : "ABIERTA"
+      : familia.status;
+  return { familia: { ...familia, lines, status }, lineasNuevas };
+}
+
 /* ────────────────────────────────────────────── la cortesía (F6-14, B3-4) */
 
 export type CourtesyProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_REGALADA" | "NO_REGALADA";
@@ -356,6 +401,34 @@ export function withCourtesy<A extends AccountDoc>(c: A, lineId: string, cortesi
       return sin;
     }),
   };
+}
+
+/* ──────────────────────────────────────── anular un pedido (F6-14, B6-3) */
+
+export type AnulacionProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_ANULADA" | "YA_REGALADA" | "NO_ES_PEDIDO";
+
+/**
+ * ¿Se puede anular este plato pedido? Solo un plato de la mesa (`RESTAURANTE`), que todavía se deba:
+ * una línea pagada se corrige anulando el cobro, y una movida o regalada se corrige donde está. A
+ * diferencia de la cortesía, anular no tiene vuelta (si se hizo sin querer, se vuelve a pedir).
+ */
+export function anulacionProblem(c: Pick<AccountDoc, "lines">, lineId: string): AnulacionProblem | null {
+  const l = c.lines.find((x) => x.id === lineId);
+  if (!l) return "LINEA_DESCONOCIDA";
+  if (l.kind !== "RESTAURANTE") return "NO_ES_PEDIDO";
+  if (l.paid) return "LINEA_PAGADA";
+  if (l.movedTo) return "LINEA_MOVIDA";
+  if (l.cortesia) return "YA_REGALADA";
+  if (l.anulacion) return "YA_ANULADA";
+  return null;
+}
+
+/**
+ * La cuenta con ese plato anulado. Se queda con su importe (igual que la cortesía, F6-14): deja de
+ * sumar al total a cobrar y entra en las excepciones del turno, pero el negocio ve qué se anuló.
+ */
+export function withAnulacion<A extends AccountDoc>(c: A, lineId: string, anulacion: unknown): A {
+  return { ...c, lines: c.lines.map((l) => (l.id === lineId ? { ...l, anulacion } : l)) };
 }
 
 /* ─────────────────────────────────────── el cierre de la jornada (B3-5) */

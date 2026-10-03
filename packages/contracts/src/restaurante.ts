@@ -239,3 +239,28 @@ export type PedidosDelLocalDto = z.infer<typeof PedidosDelLocalSchema>;
 export const PedidoEnviadoSchema = z.object({ pedido: PedidoSchema, cuenta: FamilyAccountSchema });
 export type PedidoEnviadoDto = z.infer<typeof PedidoEnviadoSchema>;
 
+/* ────────────────────────────────── vincular pulseras a una mesa (F6-05, B6-3) */
+
+/**
+ * Vincula estancias del parque a la mesa `tableId`: su paquete y su excedente pendientes pasan a la
+ * cuenta de la mesa, para que la familia pague una sola vez (D2). Puede juntar niños de más de una
+ * familia (una mesa compartida); cada estancia se vincula una vez.
+ */
+export const VincularPulserasCommandSchema = z.strictObject({
+  idempotencyKey: IdSchema,
+  tableId: IdSchema,
+  sessionIds: z
+    .array(IdSchema)
+    .min(1, "Elige al menos un niño")
+    .max(30, "Demasiados niños de una vez")
+    .refine((ids) => new Set(ids).size === ids.length, "Un niño se vincula una vez"),
+});
+export type VincularPulserasCommand = z.infer<typeof VincularPulserasCommandSchema>;
+
+/** Lo que devuelve vincular: la cuenta de la mesa como quedó, y la de cada familia con lo que se le movió. */
+export const VincularPulserasResultSchema = z.object({
+  mesa: FamilyAccountSchema,
+  familias: z.array(FamilyAccountSchema),
+});
+export type VincularPulserasResultDto = z.infer<typeof VincularPulserasResultSchema>;
+

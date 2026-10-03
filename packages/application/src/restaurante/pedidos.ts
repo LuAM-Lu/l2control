@@ -40,7 +40,7 @@ import type { Action } from "@l2/domain-identity";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
-import { catalogoEn, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { catalogoEn, crearCuentaDeMesa, guardarVersion, vigenteDe } from "../caja/cuentas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 import { encolarEn } from "../impresion/impresion.ts";
 import { documentoDeComanda } from "../impresion/plantillas.ts";
@@ -153,6 +153,8 @@ export function casosPedidos(base: Base): CasosPedidos {
             paid: false,
             productId: u.productId,
             taxCode: u.taxCode,
+            // De qué pedido sale: así se anula junto si hace falta (F6-14).
+            orderId: cmd.pedidoId,
           }));
           const antes = actual?.cuenta.lines ?? null;
           const existencias = await comprobarExistencias(tx, ctx, actual ? actual.cuenta.id : null, antes, [...(antes ?? []), ...nuevas], (productId) => [
@@ -163,41 +165,9 @@ export function casosPedidos(base: Base): CasosPedidos {
 
           // Todo comprobado: se escribe.
           const quien = await nombreDe(tx, ctx);
-          const instante = new Date(ahora).toISOString();
-          let cuenta: FamilyAccountDto;
-          if (actual) {
-            cuenta = FamilyAccountSchema.parse({ ...actual.cuenta, lines: [...actual.cuenta.lines, ...nuevas], version: actual.version + 1 });
-          } else {
-            const orderNumber = await siguienteNumero(tx, ctx);
-            cuenta = FamilyAccountSchema.parse({
-              id: randomUUID(),
-              kind: "MESA",
-              family: `Mesa ${mesa}`,
-              mode: "CUENTA_ABIERTA",
-              status: "ABIERTA",
-              openedAt: instante,
-              sessionIds: [],
-              closedSessionIds: [],
-              tableId: cmd.tableId,
-              tableLabel: mesa,
-              lines: nuevas,
-              version: 1,
-              orderNumber,
-            });
-            await tx.account.create({
-              data: {
-                id: cuenta.id,
-                tenantId: ctx.tenantId,
-                branchId: ctx.branchId,
-                kind: "MESA",
-                orderNumber,
-                openedAt: new Date(ahora),
-                openedBy: ctx.quien?.userId ?? null,
-                openedByName: quien.nombre,
-                deviceId: ctx.quien?.deviceId ?? null,
-              },
-            });
-          }
+          const cuenta: FamilyAccountDto = actual
+            ? FamilyAccountSchema.parse({ ...actual.cuenta, lines: [...actual.cuenta.lines, ...nuevas], version: actual.version + 1 })
+            : await crearCuentaDeMesa(tx, ctx, { tableId: cmd.tableId, label: mesa, lines: nuevas, ahora, quien: quien.nombre });
           await guardarVersion(tx, ctx, cuenta, { cause: "PEDIDO", operationKey: cmd.pedidoId, ahora, quien: quien.nombre });
           await asentarExistencias(tx, ctx, existencias, { accountId: cuenta.id, version: cuenta.version!, ahora, quien: quien.nombre });
 

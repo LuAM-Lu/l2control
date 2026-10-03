@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Baby, Link2, TriangleAlert } from "lucide-react";
-import type { DiningTableDto } from "@l2/contracts";
+import type { DiningTableDto, FamilyAccountDto } from "@l2/contracts";
 import { Button, Sheet, cn } from "@l2/ui";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
-import { ninosSinMesa } from "../mesas/mesas.ts";
+import { cuentaAbiertaDe, ninosSinMesa } from "../mesas/mesas.ts";
 import { nombreDeEstancia } from "./view-model.ts";
 
 /**
@@ -17,6 +17,7 @@ export function VincularAMesa({
   sesionId,
   estado,
   plano,
+  cuentas,
   onVincular,
 }: {
   abierto: boolean;
@@ -24,14 +25,17 @@ export function VincularAMesa({
   sesionId: string;
   estado: EstadoLocal;
   plano: readonly DiningTableDto[];
-  onVincular: (tableId: string, sessionIds: string[]) => void;
+  cuentas: readonly FamilyAccountDto[];
+  /** Vincula en el servidor (B6-3); `true` si quedó hecho. */
+  onVincular: (tableId: string, sessionIds: string[]) => Promise<boolean>;
 }) {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [mesaElegida, setMesaElegida] = useState<string | null>(null);
+  const [vinculando, setVinculando] = useState(false);
 
   const familia = estado.familias[sesionId];
-  const sinMesa = ninosSinMesa(estado).find((g) => g.familia === familia)?.ninos ?? [];
-  const mesaActual = Object.values(estado.mesas).find((m) => m.sesiones.includes(sesionId));
+  const sinMesa = ninosSinMesa(estado, cuentas).find((g) => g.familia === familia)?.ninos ?? [];
+  const mesaActual = cuentas.find((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.sessionIds.includes(sesionId));
 
   // Preseleccionar a todos los hermanos que aún no tienen mesa
   useEffect(() => {
@@ -54,16 +58,26 @@ export function VincularAMesa({
 
   let motivoBoton: string | null = null;
   if (mesaActual) {
-    motivoBoton = `Ya está en la mesa ${mesaActual.label}`;
+    motivoBoton = `Ya está en la mesa ${mesaActual.tableLabel ?? "?"}`;
   } else if (validos.length === 0) {
     motivoBoton = "Elige al menos un niño";
   } else if (!mesaElegida) {
     motivoBoton = "Elige una mesa";
+  } else if (vinculando) {
+    motivoBoton = "Vinculando…";
   }
 
   const nombre = (id: string) => {
     const s = estado.sesiones.find((x) => x.id === id);
     return s ? nombreDeEstancia(s) : (estado.nombres[id] ?? "Un niño");
+  };
+
+  const confirmar = async () => {
+    if (!mesaElegida || validos.length === 0) return;
+    setVinculando(true);
+    const hecho = await onVincular(mesaElegida, validos);
+    setVinculando(false);
+    if (hecho) onCerrar();
   };
 
   return (
@@ -73,17 +87,7 @@ export function VincularAMesa({
       titulo="Vincular a una mesa"
       descripcion="Su tiempo de parque se cobrará con la cuenta de la mesa: la familia paga una sola vez."
       pie={
-        <Button
-          variant="primary"
-          disabled={motivoBoton !== null}
-          onClick={() => {
-            if (mesaElegida && validos.length > 0) {
-              onVincular(mesaElegida, validos);
-              onCerrar();
-            }
-          }}
-          className="w-full"
-        >
+        <Button variant="primary" disabled={motivoBoton !== null} onClick={() => void confirmar()} className="w-full">
           <Link2 size={17} aria-hidden="true" />
           {motivoBoton ?? `Vincular a la mesa ${mesasAbiertas.find((m) => m.id === mesaElegida)?.label ?? ""}`}
         </Button>
@@ -95,7 +99,7 @@ export function VincularAMesa({
           className="mb-4 flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2.5 text-[13px] text-state-warn"
         >
           <TriangleAlert size={15} aria-hidden="true" />
-          El niño ya está en la mesa {mesaActual.label}
+          El niño ya está en la mesa {mesaActual.tableLabel ?? "?"}
         </p>
       )}
 
@@ -146,6 +150,7 @@ export function VincularAMesa({
             <ul className="flex flex-col gap-1.5">
               {mesasAbiertas.map((m) => {
                 const marcado = mesaElegida === m.id;
+                const ninosAqui = cuentaAbiertaDe(cuentas, m.id)?.sessionIds.length ?? 0;
                 return (
                   <li key={m.id}>
                     <label
@@ -165,7 +170,7 @@ export function VincularAMesa({
                       <span className="font-display w-8 text-center text-lg font-bold text-ink">{m.label}</span>
                       <span className="flex-1 text-[13px] text-ink-2">
                         {m.comensales} {m.comensales === 1 ? "persona" : "personas"}
-                        {m.sesiones.length > 0 && ` · ${m.sesiones.length} niños`}
+                        {ninosAqui > 0 && ` · ${ninosAqui} niños`}
                       </span>
                     </label>
                   </li>

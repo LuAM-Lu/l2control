@@ -49,6 +49,8 @@ export type AccionAuditada =
   | "plano.publicar"
   | "pedido.enviar"
   | "pedido.reimprimir"
+  | "pedido.anular"
+  | "mesa.vincular"
   | "impresora.crear"
   | "impresora.editar"
   | "impresora.activar"

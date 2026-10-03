@@ -102,10 +102,13 @@ export type GrupoFamilia = Readonly<{ familia: string; ninos: readonly ParkSessi
 /**
  * Niños en sala que todavía no están vinculados a ninguna mesa, por familia.
  * Un niño ya vinculado no se ofrece para otra mesa: su parque se cobraría
- * dos veces (R3).
+ * dos veces (R3). Quién está vinculado lo dice la cuenta de la mesa en el
+ * servidor (`sessionIds`, B6-3), no un evento del bus.
  */
-export function ninosSinMesa(estado: EstadoLocal): GrupoFamilia[] {
-  const vinculados = new Set(Object.values(estado.mesas).flatMap((m) => m.sesiones));
+export function ninosSinMesa(estado: EstadoLocal, cuentas: readonly FamilyAccountDto[]): GrupoFamilia[] {
+  const vinculados = new Set(
+    cuentas.filter((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR")).flatMap((c) => c.sessionIds),
+  );
   const grupos = new Map<string, ParkSessionDto[]>();
   for (const s of estado.sesiones) {
     if (vinculados.has(s.id)) continue;

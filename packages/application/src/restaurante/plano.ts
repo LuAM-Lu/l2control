@@ -81,6 +81,28 @@ export async function candadoDeMesas(tx: Transaccion, branchId: string): Promise
  * ¿Puede nacer una cuenta en esta mesa? Tiene que estar en el plano publicado, en el salón (sin
  * retirar) y sin otra cuenta abierta (I-05). Devuelve el número de la mesa, o el rechazo.
  */
+/**
+ * Las estancias ya vinculadas a alguna mesa de la sucursal (F6-05): su id → a qué mesa y con qué
+ * etiqueta. Un niño vinculado no se ofrece para otra mesa: su parque se cobraría dos veces (R3).
+ */
+export async function sessionsVinculadas(tx: Transaccion, branchId: string): Promise<Map<string, Readonly<{ tableId: string; label: string }>>> {
+  const filas = await tx.$queryRaw<{ content: unknown }[]>`
+    SELECT ultima.content FROM (
+      SELECT DISTINCT ON (v.account_id) v.account_id, v.content, v.status
+      FROM account_version v
+      JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
+      WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA'
+      ORDER BY v.account_id, v.version DESC
+    ) ultima
+    WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')`;
+  const mapa = new Map<string, Readonly<{ tableId: string; label: string }>>();
+  for (const f of filas) {
+    const c = f.content as { tableId?: string; tableLabel?: string; sessionIds?: string[] };
+    for (const id of c.sessionIds ?? []) mapa.set(id, { tableId: c.tableId ?? "", label: c.tableLabel ?? "?" });
+  }
+  return mapa;
+}
+
 export async function mesaParaCuentaNueva(tx: Transaccion, branchId: string, tableId: string): Promise<Readonly<{ label: string }> | Rechazo> {
   await candadoDeMesas(tx, branchId);
   const { plano } = await planoEn(tx, branchId);

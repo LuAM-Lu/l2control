@@ -60,14 +60,8 @@ describe("catálogo de eventos (F1-20)", () => {
 
 
 
-  test("vincular una mesa exige al menos una estancia", () => {
-    const r = OperationEventSchema.safeParse({
-      id: "e-5",
-      at,
-      type: "mesa.vinculada",
-      tableId: "m-3",
-      sessionIds: [],
-    });
+  test("vincular pulseras ya no viaja por el bus: mueve dinero, y eso es del servidor (B6-3)", () => {
+    const r = OperationEventSchema.safeParse({ id: "e-5", at, type: "mesa.vinculada", tableId: "m-3", sessionIds: ["s-1"] });
     assert.equal(r.success, false);
   });
 

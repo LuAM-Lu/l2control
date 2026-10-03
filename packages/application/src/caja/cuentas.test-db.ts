@@ -108,7 +108,7 @@ before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
   await impresoraDePrueba(local);
-  await planoDePrueba(local);
+  await planoDePrueba(local, 12);
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
@@ -570,5 +570,80 @@ describe("la cuenta de una mesa (B6-1, I-05)", () => {
   test("en un local sin plano, la cuenta de mesa no nace", async () => {
     const r = await otro.app.cuentas.guardar(otro.sistema, { cuenta: deMesa("mesa-1") }, AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE", JSON.stringify(r));
+  });
+});
+
+describe("anular un pedido en producción (F6-14, B6-3)", () => {
+  const deMesa = (tableId: string, lines: unknown[] = []) => familia({ kind: "MESA", family: `Mesa ${tableId}`, sessionIds: [], lines, tableId, tableLabel: "99" });
+  const platoDePedido = (extra: Record<string, unknown> = {}) => ({ ...lineaDeAgua(), orderId: randomUUID(), ...extra });
+
+  test("un «guardar» no lo anula: tiene su propio mando, con autorización", async () => {
+    const c = await abrir(deMesa("mesa-5", [platoDePedido()]));
+    const linea = c.lines[0]!;
+    const aMano = await local.app.cuentas.guardar(ctxMesero, {
+      cuenta: { ...c, lines: [{ ...linea, anulacion: { motivo: "PEDIDO_EQUIVOCADO", autorizadaPor: { id: admin, name: "Abigail Karam", role: "ADMIN" }, en: new Date(AHORA).toISOString() } }] },
+    }, AHORA);
+    assert.equal(!aMano.ok && aMano.problemas?.[0]?.message, "ANULACION_DESDE_LA_PANTALLA");
+
+    const cmd = { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea.id, motivo: "PEDIDO_EQUIVOCADO" as const };
+    const sinAutorizar = await local.app.cuentas.anularPedido(ctxMesero, cmd, undefined, AHORA);
+    assert.equal(!sinAutorizar.ok && sinAutorizar.motivo, "NO_PERMITIDO");
+    const r = valor(await local.app.cuentas.anularPedido(ctxMesero, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "Se equivocó de mesa" }, AHORA));
+    const anulada = r.lines.find((l) => l.id === linea.id)!;
+    assert.deepEqual(anulada.anulacion, {
+      motivo: "PEDIDO_EQUIVOCADO",
+      autorizadaPor: { id: supervisor, name: "Luis Guerrero", role: "SUPERVISOR" },
+      en: new Date(AHORA).toISOString(),
+    });
+    assert.deepEqual(anulada.amount, usd("100")); // conserva su importe
+    // Un doble clic no la aplica dos veces.
+    assert.deepEqual(valor(await local.app.cuentas.anularPedido(ctxMesero, cmd, undefined, AHORA)), r);
+
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "account", entityId: c.id });
+    assert.ok(asientos.some((a) => a.action === "pedido.anular" && a.authorizedBy === supervisor));
+  });
+
+  test("la administración se autoriza con su propio PIN, sin pedírselo a otro", async () => {
+    const c = await abrir(deMesa("mesa-6", [platoDePedido()]));
+    const linea = c.lines[0]!;
+    const cmd = { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea.id, motivo: "CLIENTE_DESISTIO" as const };
+    const sinPin = await local.app.cuentas.anularPedido(ctxAdmin, cmd, undefined, AHORA);
+    assert.equal(!sinPin.ok && sinPin.mensaje, "Confirma con tu PIN.");
+    const r = valor(await local.app.cuentas.anularPedido(ctxAdmin, cmd, pinDeAdmin(), AHORA));
+    assert.deepEqual(r.lines.find((l) => l.id === linea.id)!.anulacion?.autorizadaPor, { id: admin, name: "Abigail Karam", role: "ADMIN" });
+  });
+
+  test("no se anula lo ya pagado, lo movido, lo regalado o lo del parque; ni dos veces", async () => {
+    const pagada = await abrir(mostrador([platoDePedido()]));
+    const { cuenta: cobrada } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(pagada, "500", "131"), AHORA));
+    const yaPagada = await local.app.cuentas.anularPedido(
+      ctxAdmin,
+      { idempotencyKey: randomUUID(), accountId: cobrada.id, version: cobrada.version, lineId: cobrada.lines[0]!.id, motivo: "OTRO", detalle: "Prueba" },
+      pinDeAdmin(),
+      AHORA,
+    );
+    assert.equal(!yaPagada.ok && yaPagada.problemas?.[0]?.message, "LINEA_PAGADA");
+
+    const c = await abrir(deMesa("mesa-7", [platoDePedido()]));
+    const linea = c.lines[0]!;
+    const primera = valor(
+      await local.app.cuentas.anularPedido(ctxAdmin, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineId: linea.id, motivo: "SIN_EXISTENCIA" }, pinDeAdmin(), AHORA),
+    );
+    const otraVez = await local.app.cuentas.anularPedido(
+      ctxAdmin,
+      { idempotencyKey: randomUUID(), accountId: c.id, version: primera.version, lineId: linea.id, motivo: "SIN_EXISTENCIA" },
+      pinDeAdmin(),
+      AHORA,
+    );
+    assert.equal(!otraVez.ok && otraVez.problemas?.[0]?.message, "YA_ANULADA");
+
+    const deLaFamilia = await familiaDePrueba(local, ctxMonitora, AHORA);
+    const delParque = await local.app.cuentas.anularPedido(
+      ctxAdmin,
+      { idempotencyKey: randomUUID(), accountId: deLaFamilia.id, version: deLaFamilia.version, lineId: deLaFamilia.lines[0]!.id, motivo: "OTRO", detalle: "Prueba" },
+      pinDeAdmin(),
+      AHORA,
+    );
+    assert.equal(!delParque.ok && delParque.problemas?.[0]?.message, "NO_ES_PEDIDO");
   });
 });

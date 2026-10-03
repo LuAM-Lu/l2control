@@ -75,6 +75,38 @@ export const CortesiaSchema = z
   });
 export type CortesiaDto = z.infer<typeof CortesiaSchema>;
 
+/**
+ * Por qué se anula un pedido ya enviado a cocina (F6-14). Lista cerrada (§7.5), distinta de la de la
+ * cortesía: anular no es regalar nada, es que ese plato no debió pedirse.
+ */
+export const MotivoAnulacionPedidoSchema = z.enum(["PEDIDO_EQUIVOCADO", "CLIENTE_DESISTIO", "SIN_EXISTENCIA", "OTRO"], {
+  error: "Elige el motivo de la anulación",
+});
+export type MotivoAnulacionPedido = z.infer<typeof MotivoAnulacionPedidoSchema>;
+
+/**
+ * Un pedido anulado en producción (F6-14, B6-3): por qué, quién lo autorizó y cuándo.
+ *
+ * Distinta de la cortesía (§7.3): un mesero puede pedirla con la autorización de otro, pero no
+ * puede concederse cortesías a sí mismo. Por eso lleva su propio mando (`pedido.anularEnProduccion`).
+ */
+export const AnulacionPedidoSchema = z
+  .strictObject({
+    motivo: MotivoAnulacionPedidoSchema,
+    detalle: z.string().trim().min(3, "Explica la anulación").max(120).optional(),
+    autorizadaPor: z.object({
+      id: IdSchema,
+      name: z.string().trim().min(2).max(80),
+      role: z.enum(["ADMIN", "SUPERVISOR"]),
+    }),
+    en: TimestampSchema,
+  })
+  .refine((a) => a.motivo !== "OTRO" || a.detalle !== undefined, {
+    message: "Con «Otro» hay que explicar la anulación",
+    path: ["detalle"],
+  });
+export type AnulacionPedidoDto = z.infer<typeof AnulacionPedidoSchema>;
+
 export const AccountLineSchema = z.object({
   id: IdSchema,
   /** Lo que lee el representante en el recibo: «Paquete 1 hora · Vale». */
@@ -111,6 +143,17 @@ export const AccountLineSchema = z.object({
    * nombre y apellido de quien lo autorizó (regla 5).
    */
   cortesia: CortesiaSchema.optional(),
+  /** El pedido que trajo este plato (B6-2), para anularlo todo junto si hace falta (F6-14). */
+  orderId: IdSchema.optional(),
+  /**
+   * Anulación — F6-14, B6-3.
+   *
+   * Un plato pedido por error, o que el cliente ya no quiere, se anula en vez de quitarse: la línea
+   * **se queda con su importe** (igual que la cortesía) pero deja de cobrarse, y entra en las
+   * excepciones del turno con quién lo autorizó. No tiene vuelta: lo que se anuló por error se
+   * vuelve a pedir.
+   */
+  anulacion: AnulacionPedidoSchema.optional(),
 });
 export type AccountLineDto = z.infer<typeof AccountLineSchema>;
 

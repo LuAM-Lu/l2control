@@ -18,8 +18,10 @@
  * Lo que la pantalla calculó (las líneas que cobra y el total) viaja para comprobarlo, no para
  * creerlo: si el servidor llega a otro total, no se cobra algo distinto de lo que vio el cliente.
  */
+import { createHash, randomUUID } from "node:crypto";
 import {
   AnularCobroCommandSchema,
+  AnularPedidoCommandSchema,
   CobrarCuentaCommandSchema,
   CortesiaCommandSchema,
   CuentaYLibroSchema,
@@ -42,6 +44,7 @@ import {
   SettlementImbalanceError,
   USDT_AT_PAR,
   accountChangeProblem,
+  anulacionProblem,
   chargeableLines,
   closeSettlement,
   computeBalance,
@@ -57,8 +60,11 @@ import {
   markPartPaid,
   refundableByTender,
   revertPaid,
+  withAnulacion,
   withCourtesy,
   type AccountChangeProblem,
+  type AccountLineDoc,
+  type AnulacionProblem,
   type CategoryOf,
   type CourtesyProblem,
   type DiscountAtChargeProblem,
@@ -138,12 +144,17 @@ export interface CasosCuentas {
    * la 🔐 de supervisión. Nada se borra: lo que se debía sigue en la cuenta y sale en las excepciones.
    */
   incobrable(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
+  /**
+   * Anula un plato ya enviado a cocina (`AnularPedidoCommandSchema`, F6-14), con su autorización. No
+   * tiene vuelta: lo anulado por error se vuelve a pedir.
+   */
+  anularPedido(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
   /** Quiénes pueden autorizar a quien opera una acción de la caja con 🔐 (vacío si no le hace falta). */
   autorizadores(ctx: Contexto, accion?: AccionDeCaja): Promise<{ id: string; nombre: string; rol: string }[]>;
 }
 
 /** Las acciones de la caja que se autorizan con 🔐 y cuya lista de autorizadores pide la pantalla. */
-export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "cuenta.descuento" | "turno.corteZ";
+export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "cuenta.descuento" | "turno.corteZ" | "pedido.anularEnProduccion";
 
 /** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
 const CON_PIN = { confirmarConPin: true } as const;
@@ -179,6 +190,16 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   PARQUE_DESDE_LA_PANTALLA: "El paquete y el tiempo de más los pone el parque con su tarifario.",
   DESCUENTO_DESDE_LA_PANTALLA: "Un descuento se pone o se quita con su autorización, no al guardar la cuenta.",
   DIVISION_CON_DESCUENTO: "Una cuenta con descuento no se divide: quítale el descuento para dividirla.",
+  ANULACION_DESDE_LA_PANTALLA: "Un pedido se anula con su autorización, no al guardar la cuenta.",
+};
+
+const MENSAJE_ANULACION: Record<AnulacionProblem, string> = {
+  LINEA_DESCONOCIDA: "Ese plato no está en la cuenta.",
+  LINEA_PAGADA: "Lo ya cobrado no se anula: se anula el cobro.",
+  LINEA_MOVIDA: "Ese plato se movió a otra cuenta: se anula allí.",
+  YA_REGALADA: "Ese plato ya está regalado: no hace falta anularlo.",
+  YA_ANULADA: "Ese plato ya está anulado.",
+  NO_ES_PEDIDO: "Solo se anula un plato pedido en la mesa.",
 };
 
 const MENSAJE_DESCUENTO_AL_COBRAR: Record<DiscountAtChargeProblem, string> = {
@@ -954,6 +975,70 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       }
     },
 
+    async anularPedido(ctx, entrada, autorizacion, ahora = Date.now()) {
+      const v = AnularPedidoCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "El pedido no se anuló: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<FamilyAccountDto | Rechazo> => {
+          const p = await permisoEn(tx, ctx, "pedido.anularEnProduccion");
+          if (p === "DENEGADO") return rechazoDePermiso(p);
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.accountId !== cmd.accountId || previa.cause !== "ANULACION_PEDIDO") return conflictoDeClave;
+            return (await vigenteDe(tx, cmd.accountId))!.cuenta;
+          }
+
+          const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
+          if (!fila || fila.branchId !== ctx.branchId) return noExiste;
+          const actual = (await vigenteDe(tx, cmd.accountId))!;
+          if (actual.version !== cmd.version) return cuentaCambiada;
+          const problema = anulacionProblem(actual.cuenta, cmd.lineId);
+          if (problema) return invalido(MENSAJE_ANULACION[problema], ["lineId"], problema);
+
+          // La autorización se comprueba y se registra ANTES de anular nada (§7.3).
+          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "pedido.anularEnProduccion", autorizacion, ahora, CON_PIN);
+          if (!permiso.ok) return permiso;
+          const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { id: true, fullName: true, role: true } });
+
+          const anulacion = {
+            motivo: cmd.motivo,
+            ...(cmd.detalle ? { detalle: cmd.detalle } : {}),
+            autorizadaPor: { id: autorizador.id, name: autorizador.fullName, role: autorizador.role },
+            en: new Date(ahora).toISOString(),
+          };
+          const nueva = FamilyAccountSchema.parse({ ...withAnulacion(actual.cuenta, cmd.lineId, anulacion), version: actual.version + 1 });
+          const quien = await nombreDe(tx, ctx);
+          await guardarVersion(tx, ctx, nueva, { cause: "ANULACION_PEDIDO", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          const linea = actual.cuenta.lines.find((l) => l.id === cmd.lineId)!;
+          await auditar(tx, ctx, {
+            action: "pedido.anular",
+            entityType: "account",
+            entityId: nueva.id,
+            authorizedBy: autorizador.id,
+            reason: cmd.motivo,
+            after: { lineId: cmd.lineId, concepto: linea.concept, importe: linea.amount, detalle: cmd.detalle ?? null, version: nueva.version },
+          });
+          return nueva;
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "pedido.anular", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
     async autorizadores(ctx, accion = "cobro.anular") {
       return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, accion));
     },
@@ -1004,7 +1089,20 @@ export async function guardarVersion(
   ctx: Contexto,
   cuenta: FamilyAccountDto,
   v: Readonly<{
-    cause: "GUARDAR" | "COBRO" | "ANULACION" | "CORTESIA" | "INCOBRABLE" | "ENTRADA" | "SALIDA" | "RECARGA" | "CIERRE_ADMINISTRATIVO" | "DESCUENTO" | "PEDIDO";
+    cause:
+      | "GUARDAR"
+      | "COBRO"
+      | "ANULACION"
+      | "CORTESIA"
+      | "INCOBRABLE"
+      | "ENTRADA"
+      | "SALIDA"
+      | "RECARGA"
+      | "CIERRE_ADMINISTRATIVO"
+      | "DESCUENTO"
+      | "PEDIDO"
+      | "VINCULAR"
+      | "ANULACION_PEDIDO";
     operationKey: string | null;
     ahora: number;
     quien: string;
@@ -1034,6 +1132,69 @@ export async function siguienteNumero(tx: Transaccion, ctx: Contexto): Promise<n
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`orden:${ctx.branchId}`}, 0))::text AS candado`;
   const r = await tx.account.aggregate({ where: { branchId: ctx.branchId }, _max: { orderNumber: true } });
   return (r._max.orderNumber ?? 0) + 1;
+}
+
+/**
+ * La clave de operación de la versión que un mismo mando guarda en OTRA cuenta (vincular pulseras,
+ * cargar una salida a la mesa). `account_version` admite una sola versión por clave y tenant, así que
+ * la cuenta principal usa la clave del mando y cada cuenta secundaria, esta, derivada de ella: la misma
+ * entrada siempre da la misma clave, y un reintento la vuelve a encontrar.
+ */
+export function claveSecundaria(idempotencyKey: string, accountId: string): string {
+  const hex = createHash("sha256").update(`${idempotencyKey}:${accountId}`, "utf8").digest("hex").slice(0, 32);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * Abre la fila (`account`) de una mesa que todavía no tiene cuenta (B6-1, B6-2, B6-3): el primer
+ * pedido o la primera vinculación de pulseras. Devuelve su primera versión, ya con `lines` (y
+ * `sessionIds`, si trae), sin guardarla: eso lo hace quien llama, igual que con una mesa que ya
+ * tenía cuenta, para que las dos salidas pasen por el mismo `guardarVersion`. El candado de las
+ * mesas (I-05) lo pone quien llama, antes de decidir que hace falta una cuenta nueva.
+ */
+export async function crearCuentaDeMesa(
+  tx: Transaccion,
+  ctx: Contexto,
+  args: Readonly<{
+    id?: string;
+    tableId: string;
+    label: string;
+    lines: readonly AccountLineDoc[];
+    sessionIds?: readonly string[];
+    ahora: number;
+    quien: string;
+  }>,
+): Promise<FamilyAccountDto> {
+  const orderNumber = await siguienteNumero(tx, ctx);
+  const cuenta = FamilyAccountSchema.parse({
+    id: args.id ?? randomUUID(),
+    kind: "MESA",
+    family: `Mesa ${args.label}`,
+    mode: "CUENTA_ABIERTA",
+    status: "ABIERTA",
+    openedAt: new Date(args.ahora).toISOString(),
+    sessionIds: args.sessionIds ?? [],
+    closedSessionIds: [],
+    tableId: args.tableId,
+    tableLabel: args.label,
+    lines: args.lines,
+    version: 1,
+    orderNumber,
+  });
+  await tx.account.create({
+    data: {
+      id: cuenta.id,
+      tenantId: ctx.tenantId,
+      branchId: ctx.branchId,
+      kind: "MESA",
+      orderNumber,
+      openedAt: new Date(args.ahora),
+      openedBy: ctx.quien?.userId ?? null,
+      openedByName: args.quien,
+      deviceId: ctx.quien?.deviceId ?? null,
+    },
+  });
+  return cuenta;
 }
 
 /** Lo que es de la pantalla: sin la versión ni lo que pone el servidor. */
