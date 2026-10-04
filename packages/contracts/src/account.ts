@@ -28,7 +28,9 @@ export type PaymentMode = z.infer<typeof PaymentModeSchema>;
  * · INCOBRABLE  — no se va a cobrar (D-JOR): supervisión la marcó con motivo y
  *                 su 🔐. Lo que se debía sigue en sus líneas: nada se borra.
  * · SIN_CONSUMO — una mesa que se liberó sin nada que cobrar (B6-5, M-18): no
- *                 pidieron, o todo se anuló o se regaló. No se debía nada.
+ *                 pidieron, o todo se anuló o se regaló. No se debía nada. También
+ *                 la cuenta de un cumpleaños que se canceló sin cobrar su anticipo
+ *                 (B10-1): sin reserva, ese anticipo ya no se debe.
  */
 export const AccountStatusSchema = z.enum(["ABIERTA", "POR_COBRAR", "COBRADA", "INCOBRABLE", "SIN_CONSUMO"]);
 export type AccountStatus = z.infer<typeof AccountStatusSchema>;
@@ -37,8 +39,10 @@ export type AccountStatus = z.infer<typeof AccountStatusSchema>;
  * De quién es la cuenta (B3-3). Una **familia** (sus niños), una **mesa** del salón o una venta de
  * **mostrador**: consumo del catálogo, sin niños ni mesa. Antes el mostrador se disfrazaba de familia
  * con una estancia ficticia; ahora lo dice su tipo, y el servidor le exige vender del catálogo.
+ * Un **evento** es la cuenta de un cumpleaños reservado (B10-1): nace con su anticipo y la nombra su
+ * reserva.
  */
-export const AccountKindSchema = z.enum(["FAMILIA", "MESA", "MOSTRADOR"]);
+export const AccountKindSchema = z.enum(["FAMILIA", "MESA", "MOSTRADOR", "EVENTO"]);
 export type AccountKind = z.infer<typeof AccountKindSchema>;
 
 /**
@@ -118,7 +122,8 @@ export const AccountLineSchema = z.object({
   id: IdSchema,
   /** Lo que lee el representante en el recibo: «Paquete 1 hora · Vale». */
   concept: z.string().trim().min(1).max(80),
-  kind: z.enum(["PAQUETE", "EXCEDENTE", "RESTAURANTE"]),
+  /** EVENTO: el anticipo de un cumpleaños (B10-1); el saldo del paquete llega el día del evento. */
+  kind: z.enum(["PAQUETE", "EXCEDENTE", "RESTAURANTE", "EVENTO"]),
   amount: MoneySchema,
   /** Si ya se cobró. En prepago, los paquetes se cobran al entrar. */
   paid: z.boolean(),
@@ -229,6 +234,8 @@ export const FamilyAccountSchema = z
     sessionIds: z.array(IdSchema),
     /** La mesa de la que es esta cuenta, si nació en el salón (F6-05, D2). */
     tableId: IdSchema.optional(),
+    /** El cumpleaños del que es esta cuenta, si es de un evento (B10-1). */
+    eventId: IdSchema.optional(),
     /** Si se está pagando en partes (F6-12). Sin esto, se paga de una vez. */
     split: DivisionCuentaSchema.optional(),
     /** El número de mesa tal como se leía ese día: «3». Renumerarla no reescribe esto. */
@@ -260,6 +267,14 @@ export const FamilyAccountSchema = z
     }
     if (c.kind === "MOSTRADOR" && (c.sessionIds.length > 0 || c.tableId)) {
       ctx.addIssue({ code: "custom", path: ["kind"], message: "Una venta de mostrador no tiene niños ni mesa" });
+    }
+    // El anticipo de un cumpleaños es de su reserva: sin niños ni mesa todavía (los invitados entran el día
+    // del evento, B10-2). Y solo una cuenta de evento nombra un evento.
+    if (c.kind === "EVENTO" && (!c.eventId || c.sessionIds.length > 0 || c.tableId)) {
+      ctx.addIssue({ code: "custom", path: ["eventId"], message: "La cuenta de un evento es de su reserva" });
+    }
+    if (c.kind !== "EVENTO" && c.eventId) {
+      ctx.addIssue({ code: "custom", path: ["eventId"], message: "Solo la cuenta de un evento nombra un evento" });
     }
 
     for (const id of c.closedSessionIds) {

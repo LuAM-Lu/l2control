@@ -417,3 +417,7 @@ export function formatDuration(ms: number): string {
 }
 
 export { money };
+
+/* ---------------------------------------------------------- cumpleaños */
+
+export * from "./eventos.ts";

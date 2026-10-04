@@ -120,13 +120,14 @@ export function claveDeNombre(n: string): string {
 }
 
 /**
- * El representante de una entrada: uno del directorio (`guardianId`) o uno nuevo. Si el «nuevo» ya
- * estaba con ese contacto, es él: una familia no se duplica por no haberla encontrado a tiempo.
+ * El representante de una entrada (o de una reserva de cumpleaños, B10-1): uno del directorio
+ * (`guardianId`) o uno nuevo. Si el «nuevo» ya estaba con ese contacto, es él: una familia no se
+ * duplica por no haberla encontrado a tiempo.
  */
 export async function representanteDeLaEntrada(
   tx: Transaccion,
   ctx: Contexto,
-  cmd: CheckInCommand,
+  cmd: Pick<CheckInCommand, "guardianId" | "guardian">,
   ahora: number,
 ): Promise<{ id: string; fullName: string } | Rechazo> {
   if (cmd.guardianId) {

@@ -20,6 +20,8 @@ export type {
   Branch,
   BranchSettingsVersion,
   ExchangeRate,
+  EventCatalogVersion,
+  EventReservation,
   ExchangeRateConfirmation,
   FloorPlanVersion,
   TaxRate,

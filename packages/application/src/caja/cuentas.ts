@@ -180,6 +180,9 @@ const GUARDAN: Readonly<Record<AccountKind, readonly Action[]>> = {
   FAMILIA: ["parque.checkIn", "parque.checkOut", "parque.vincularMesa", "documento.emitir"],
   MESA: ["pedido.tomar", "parque.vincularMesa", "documento.emitir"],
   MOSTRADOR: ["documento.emitir"],
+  // La cuenta de un cumpleaños la abre su reserva y ninguna pantalla la cambia (B10-1): la caja llega al
+  // dominio, que se lo dice con palabras (EVENTO_DESDE_LA_PANTALLA), en vez de un «tu puesto no puede».
+  EVENTO: ["documento.emitir"],
 };
 
 const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
@@ -206,6 +209,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   DIVISION_CON_DESCUENTO: "Una cuenta con descuento no se divide: quítale el descuento para dividirla.",
   ANULACION_DESDE_LA_PANTALLA: "Un pedido se anula con su autorización, no al guardar la cuenta.",
   POR_USO_DESDE_LA_PANTALLA: "Cobrar el parque por uso lo decide la salida, no al guardar la cuenta.",
+  EVENTO_DESDE_LA_PANTALLA: "La cuenta de un cumpleaños la abre su reserva: aquí solo se cobra (o se anula su cobro).",
 };
 
 const MENSAJE_ANULACION: Record<AnulacionProblem, string> = {
@@ -950,6 +954,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           if (problema === "NINOS_EN_SALA") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Hay niños de esa familia en sala: registra primero su salida." };
           }
+          if (problema === "ES_DE_UN_EVENTO") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Un anticipo que no se cobra no es incobrable: se cancela la reserva en Parque → Eventos." };
+          }
           // La autorización se comprueba y se registra antes de tocar la cuenta (§7.3).
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cuenta.incobrable", autorizacion, ahora, CON_PIN);
           if (!permiso.ok) return permiso;
@@ -1220,6 +1227,7 @@ const MENSAJE_CORTESIA: Record<CourtesyProblem, string> = {
   YA_REGALADA: "Esa línea ya está regalada.",
   NO_REGALADA: "Esa línea no está regalada.",
   CAMBIADA_POR_USO: "Ese paquete se cambió por el que cubre lo que el niño estuvo: se regala esa otra línea.",
+  ANTICIPO_DE_EVENTO: "El anticipo de un cumpleaños no se regala: si no se cobra, se cancela la reserva en Parque → Eventos.",
 };
 
 /** Qué asiento es lo que sobra, según su destino (§5.6). */
@@ -1272,7 +1280,9 @@ export async function guardarVersion(
       | "PEDIDO"
       | "VINCULAR"
       | "ANULACION_PEDIDO"
-      | "LIBERAR";
+      | "LIBERAR"
+      | "RESERVA"
+      | "CANCELAR_RESERVA";
     operationKey: string | null;
     ahora: number;
     quien: string;

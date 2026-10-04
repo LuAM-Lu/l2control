@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { MoneyDisplay, ScannerField, cn } from "@l2/ui";
@@ -263,7 +263,7 @@ export function ColaCuentas({
             const activa = c.id === actual && !ventaNueva;
             const esDirecta = esVentaDirecta(c);
             const deMesa = esDeMesa(c);
-            const Origen = esDirecta ? ShoppingBag : deMesa ? UtensilsCrossed : Baby;
+            const Origen = esDirecta ? ShoppingBag : deMesa ? UtensilsCrossed : c.kind === "EVENTO" ? Cake : Baby;
             const minutos =
               ahora > 0 && c.pendingSince ? Math.max(0, Math.floor((ahora - Date.parse(c.pendingSince)) / 60_000)) : null;
             const larga = minutos !== null && minutos >= ESPERA_LARGA_MIN;
@@ -292,7 +292,7 @@ export function ColaCuentas({
                       <span className="tnum font-semibold text-ink-2">{numeroDeOrden(c)}</span>
                       <Origen size={12} className="ml-0.5 shrink-0" aria-hidden="true" />
                       <span className="truncate">
-                        {esDirecta ? "Mostrador" : deMesa ? "Mesa" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                        {esDirecta ? "Mostrador" : deMesa ? "Mesa" : c.kind === "EVENTO" ? "Cumpleaños" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
                         {!esDirecta && c.sessionIds.length > 0 &&
                           ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
                       </span>

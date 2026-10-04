@@ -35,6 +35,7 @@ import { casosEntradas, type CasosEntradas } from "./inventario/entradas.ts";
 import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
 import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
 import { casosPlano, type CasosPlano } from "./restaurante/plano.ts";
+import { casosEventos, type CasosEventos } from "./park/eventos.ts";
 import { casosPedidos, type CasosPedidos } from "./restaurante/pedidos.ts";
 import { casosMesas, type CasosMesas } from "./restaurante/mesas.ts";
 import { crearFirmante } from "./tiempo-real/ticket.ts";
@@ -62,6 +63,7 @@ export type { CasosVentas } from "./caja/ventas.ts";
 export type { CasosCortes } from "./caja/cortes.ts";
 export type { CasosFeriados } from "./dinero/feriados.ts";
 export type { CasosPlano } from "./restaurante/plano.ts";
+export type { CasosEventos } from "./park/eventos.ts";
 export type { CasosPedidos } from "./restaurante/pedidos.ts";
 export { DIAS_POR_ADELANTADO_PRECIOS, type CasosProductos } from "./inventario/productos.ts";
 export { ENTRADAS_RECIENTES, type CasosEntradas } from "./inventario/entradas.ts";
@@ -113,6 +115,8 @@ export interface Aplicacion {
   readonly salidas: CasosSalidas;
   /** El plano del local, versionado, y una sola cuenta abierta por mesa (B6-1). */
   readonly plano: CasosPlano;
+  /** Los cumpleaños: los paquetes con su anticipo y las reservas con la cuenta del anticipo (B10-1). */
+  readonly eventos: CasosEventos;
   /** Los pedidos del mesero y su comanda impresa (B6-2, ADR-022). */
   readonly pedidos: CasosPedidos;
   /** Vincular pulseras a una mesa: el parque pendiente pasa a la cuenta maestra (F6-05, B6-3). */
@@ -163,6 +167,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     entradas: casosEntradas(base),
     salidas: casosSalidas(base),
     plano: casosPlano(base),
+    eventos: casosEventos(base),
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),

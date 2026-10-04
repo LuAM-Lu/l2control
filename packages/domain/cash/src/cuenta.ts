@@ -20,13 +20,13 @@
 import { money, type CurrencyCode } from "@l2/domain-money";
 import type { DocumentLine, TaxCode } from "@l2/domain-tax";
 
-export type AccountKind = "FAMILIA" | "MESA" | "MOSTRADOR";
+export type AccountKind = "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO";
 export type AccountStatus = "ABIERTA" | "POR_COBRAR" | "COBRADA" | "INCOBRABLE" | "SIN_CONSUMO";
 
 export type AccountLineDoc = Readonly<{
   id: string;
   concept: string;
-  kind: "PAQUETE" | "EXCEDENTE" | "RESTAURANTE";
+  kind: "PAQUETE" | "EXCEDENTE" | "RESTAURANTE" | "EVENTO";
   amount: Readonly<{ minor: string; currency: string }>;
   paid: boolean;
   sessionId?: string | undefined;
@@ -172,7 +172,8 @@ export type AccountChangeProblem =
   | "DESCUENTO_DESDE_LA_PANTALLA"
   | "DIVISION_CON_DESCUENTO"
   | "ANULACION_DESDE_LA_PANTALLA"
-  | "POR_USO_DESDE_LA_PANTALLA";
+  | "POR_USO_DESDE_LA_PANTALLA"
+  | "EVENTO_DESDE_LA_PANTALLA";
 
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
@@ -205,6 +206,9 @@ export function accountChangeProblem(
 ): AccountChange | null {
   const previas = new Map((before?.lines ?? []).map((l) => [l.id, l]));
 
+  // La cuenta de un cumpleaños la abre su reserva con el anticipo del paquete (B10-1); la caja la cobra
+  // y la anula, y la reserva la cancela. Una pantalla no la abre ni le añade, quita o divide nada.
+  if (after.kind === "EVENTO" || before?.kind === "EVENTO") return { problem: "EVENTO_DESDE_LA_PANTALLA" };
   // Marcar incobrable es de supervisión con su 🔐 (D-JOR), y una incobrable ya no se toca.
   if (after.status === "INCOBRABLE" || before?.status === "INCOBRABLE") return { problem: "CUENTA_INCOBRABLE" };
   // Cerrar sin consumo es el mando de liberar la mesa (B6-5, M-18), y una cuenta cerrada así ya no se toca.
@@ -420,7 +424,14 @@ export function packagesOwed(c: Pick<AccountDoc, "lines">, sessionId: string): b
 
 /* ────────────────────────────────────────────── la cortesía (F6-14, B3-4) */
 
-export type CourtesyProblem = "LINEA_DESCONOCIDA" | "LINEA_PAGADA" | "LINEA_MOVIDA" | "YA_REGALADA" | "NO_REGALADA" | "CAMBIADA_POR_USO";
+export type CourtesyProblem =
+  | "LINEA_DESCONOCIDA"
+  | "LINEA_PAGADA"
+  | "LINEA_MOVIDA"
+  | "YA_REGALADA"
+  | "NO_REGALADA"
+  | "CAMBIADA_POR_USO"
+  | "ANTICIPO_DE_EVENTO";
 
 /**
  * ¿Se puede regalar (o dejar de regalar, con `quitar`) esta línea? Solo lo que se debe todavía: una
@@ -432,6 +443,8 @@ export function courtesyProblem(c: Pick<AccountDoc, "lines">, lineId: string, qu
   if (l.paid) return "LINEA_PAGADA";
   if (l.movedTo) return "LINEA_MOVIDA";
   if (l.porUso) return "CAMBIADA_POR_USO";
+  // El anticipo de un cumpleaños no se regala: si no se cobra, se cancela la reserva (B10-1).
+  if (l.kind === "EVENTO") return "ANTICIPO_DE_EVENTO";
   if (!quitar && l.cortesia) return "YA_REGALADA";
   if (quitar && !l.cortesia) return "NO_REGALADA";
   return null;
@@ -541,7 +554,7 @@ export function markUncollectible<A extends AccountDoc>(c: A): A {
 }
 
 /** Por qué una cuenta no se puede dar por incobrable. */
-export type UncollectibleProblem = "NO_PENDIENTE" | "NINOS_EN_SALA";
+export type UncollectibleProblem = "NO_PENDIENTE" | "NINOS_EN_SALA" | "ES_DE_UN_EVENTO";
 
 /**
  * ¿Se puede dar por incobrable? Solo lo que impide cerrar, y una familia con niños dentro todavía no:
@@ -550,5 +563,31 @@ export type UncollectibleProblem = "NO_PENDIENTE" | "NINOS_EN_SALA";
 export function uncollectibleProblem(c: Pick<AccountDoc, "kind" | "lines" | "status" | "sessionIds" | "closedSessionIds">): UncollectibleProblem | null {
   if (!isPendingAtClose(c)) return "NO_PENDIENTE";
   if (c.kind === "FAMILIA" && c.closedSessionIds.length < c.sessionIds.length) return "NINOS_EN_SALA";
+  // Un anticipo que no se va a cobrar no es una deuda: es una reserva que no sigue, y se cancela (B10-1).
+  if (c.kind === "EVENTO") return "ES_DE_UN_EVENTO";
   return null;
+}
+
+/* ─────────────────────────────────────── la reserva de un cumpleaños (B10-1) */
+
+/** Por qué la cuenta de un evento no se cierra al cancelar su reserva. */
+export type CancelReservationProblem = "NO_ES_EVENTO" | "YA_CANCELADA" | "ANTICIPO_COBRADO";
+
+/**
+ * ¿Se puede cancelar la reserva de esta cuenta? Solo mientras el anticipo no esté cobrado: si ya se
+ * cobró, devolverlo es anular su cobro en la caja (DEC-24, V-10), y después se cancela.
+ */
+export function cancelReservationProblem(c: Pick<AccountDoc, "kind" | "status" | "lines">): CancelReservationProblem | null {
+  if (c.kind !== "EVENTO") return "NO_ES_EVENTO";
+  if (c.status === "SIN_CONSUMO") return "YA_CANCELADA";
+  if (c.status !== "POR_COBRAR" || c.lines.some((l) => l.paid)) return "ANTICIPO_COBRADO";
+  return null;
+}
+
+/**
+ * La cuenta de la reserva cancelada: «sin consumo», fuera de la cola y del cierre. Sin reserva, el
+ * anticipo ya no se debe; la línea se queda como estaba (regla 5) y sus versiones dicen quién canceló.
+ */
+export function cancelReservation<A extends AccountDoc>(c: A): A {
+  return { ...c, status: "SIN_CONSUMO" };
 }

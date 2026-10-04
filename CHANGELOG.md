@@ -12,6 +12,31 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.47.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+B10-1 (V-10, D-EVT): cumpleaños con reserva y anticipo.
+
+### Añadido
+- **Ajustes → Cumpleaños.** Administración carga los paquetes de cumpleaños: precio sin IVA, mínimo y máximo de
+  invitados (nunca por encima del aforo) y lo que incluyen, del catálogo de productos. Junto a ellos, el anticipo que
+  se cobra al reservar (50 % por defecto, configurable). Un paquete no se borra: se retira y puede volver a la venta.
+- **Parque → Eventos: la agenda.** Los próximos tres meses agrupados por día, con el estado de cada reserva (anticipo
+  por cobrar, confirmada o cancelada). «Nueva reserva» pide día, horario, paquete, invitados, cumpleañero y la familia
+  por su teléfono (la del directorio aparece sola). No se reserva en una fecha pasada, fuera del mínimo y el máximo del
+  paquete, ni si con los cumpleaños del mismo horario se pasa del aforo.
+- **El anticipo, en la caja.** Al reservar nace la cuenta del evento con «Anticipo 50 % · Cumpleaños de …»; la caja la
+  cobra con su IVA, con su venta y en su turno, y la reserva queda confirmada. Esa cuenta solo se cobra: no se le
+  añaden ítems, no se regala, no se descuenta, no se divide ni se da por incobrable.
+- **Cancelar.** Con el anticipo sin cobrar, la reserva se cancela desde la agenda y su cuenta sale de la caja y de los
+  pendientes del cierre. Con el anticipo cobrado, devolverlo es anular su cobro en la caja (DEC-24) y después cancelar.
+- **«Hoy hay un cumpleaños»** en la cabecera de Inicio y en la apertura del turno, con la hora y el enlace a la agenda.
+- Permiso nuevo «Reservar y cancelar cumpleaños» (administración, supervisión y caja).
+
+### Comprobado
+- `pnpm verify:db` en verde (81 de base, 455 de aplicación; dominio del parque 54, de caja 145). En el navegador, con
+  la base de pruebas: dos paquetes publicados, dos reservas, el anticipo cobrado en la caja ($ 87,00 con IVA) y la
+  reserva confirmada, una cancelada, y los avisos de Inicio y de la apertura del turno, a 1366×768, 1280×800 y 800×1280.
+
 ## [0.46.1] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 Corrección: confirmar una tasa tecleándola otra vez.

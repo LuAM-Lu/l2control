@@ -89,6 +89,7 @@ const MENSAJE_APLICAR: Record<ApplyDiscountProblem, string> = {
   NO_POR_COBRAR: "El descuento se pone a una cuenta que está en la cola de la caja.",
   CUENTA_DIVIDIDA: "Una cuenta dividida no lleva descuento: únela para aplicarlo.",
   NADA_QUE_DESCONTAR: "Ese descuento no toca nada de lo que se cobra en esta cuenta.",
+  ANTICIPO_DE_EVENTO: "El anticipo de un cumpleaños no lleva descuento.",
 };
 
 

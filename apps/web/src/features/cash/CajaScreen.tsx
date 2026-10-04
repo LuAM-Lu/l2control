@@ -868,7 +868,9 @@ function CobroCuenta({
             <span className="text-[12px] text-ink-3">
               {esVentaDirecta(cuenta)
                 ? "Mostrador"
-                : cuenta.mode === "PREPAGO"
+                : cuenta.kind === "EVENTO"
+                  ? "Cumpleaños"
+                  : cuenta.mode === "PREPAGO"
                   ? "Prepago"
                   : "Cuenta abierta"}{" "}
               · {hora(Date.parse(cuenta.openedAt))}
@@ -2044,7 +2046,7 @@ export function CajaScreen({
         avisar.error(`«${producto.nombre}» se agotó`, { detalle: "Lo que no hay no se vende: hay que cargar la entrada de mercancía." });
         return;
       }
-      if (actual && !ventaNueva && vistaEfectiva === "cuenta") onAgregarProductoACuenta(producto);
+      if (actual && actual.kind !== "EVENTO" && !ventaNueva && vistaEfectiva === "cuenta") onAgregarProductoACuenta(producto);
       else crearVentaDirecta(producto);
       return;
     }
@@ -2416,39 +2418,42 @@ export function CajaScreen({
             cuenta={actual}
             lines={lineas}
             onCobrado={(r) => alCobrar(actual, r)}
-            onAgregarProducto={onAgregarProductoACuenta}
-            onCambiarCantidad={onCambiarCantidadEnCuenta}
-            onDividir={(n) =>
-              guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n))
-            }
-            onCortesia={async (linea, motivo, detalle, autorizacion) => {
-              const r = await cortesiaEnServidor(
-                {
-                  idempotencyKey: globalThis.crypto.randomUUID(),
-                  accountId: actual.id,
-                  version: actual.version ?? 0,
-                  lineId: linea.id,
-                  quitar: motivo === null,
-                  ...(motivo ? { motivo } : {}),
-                  ...(detalle ? { detalle } : {}),
-                },
-                autorizacion,
-              );
-              return r.ok ? null : r;
-            }}
             categoryOf={categoryOf}
-            onDescuento={async (pedido, autorizacion) => {
-              const r = await descuentoEnServidor(
-                { idempotencyKey: globalThis.crypto.randomUUID(), accountId: actual.id, version: actual.version ?? 0, quitar: false, ...pedido },
-                autorizacion,
-              );
-              if (r.ok) avisar.ok(`Descuento aplicado: ${r.valor.descuento?.nombre ?? ""}`);
-              return r.ok ? null : r;
-            }}
-            onQuitarDescuento={async () => {
-              const r = await descuentoEnServidor({ idempotencyKey: globalThis.crypto.randomUUID(), accountId: actual.id, version: actual.version ?? 0, quitar: true });
-              return r.ok ? null : r;
-            }}
+            // La cuenta de un cumpleaños solo se cobra (B10-1): ni ítems, ni partes, ni cortesía, ni descuento.
+            {...(actual.kind === "EVENTO"
+              ? {}
+              : ({
+                  onAgregarProducto: onAgregarProductoACuenta,
+                  onCambiarCantidad: onCambiarCantidadEnCuenta,
+                  onDividir: (n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n)),
+                  onCortesia: async (linea, motivo, detalle, autorizacion) => {
+                    const r = await cortesiaEnServidor(
+                      {
+                        idempotencyKey: globalThis.crypto.randomUUID(),
+                        accountId: actual.id,
+                        version: actual.version ?? 0,
+                        lineId: linea.id,
+                        quitar: motivo === null,
+                        ...(motivo ? { motivo } : {}),
+                        ...(detalle ? { detalle } : {}),
+                      },
+                      autorizacion,
+                    );
+                    return r.ok ? null : r;
+                  },
+                  onDescuento: async (pedido, autorizacion) => {
+                    const r = await descuentoEnServidor(
+                      { idempotencyKey: globalThis.crypto.randomUUID(), accountId: actual.id, version: actual.version ?? 0, quitar: false, ...pedido },
+                      autorizacion,
+                    );
+                    if (r.ok) avisar.ok(`Descuento aplicado: ${r.valor.descuento?.nombre ?? ""}`);
+                    return r.ok ? null : r;
+                  },
+                  onQuitarDescuento: async () => {
+                    const r = await descuentoEnServidor({ idempotencyKey: globalThis.crypto.randomUUID(), accountId: actual.id, version: actual.version ?? 0, quitar: true });
+                    return r.ok ? null : r;
+                  },
+                } satisfies Partial<React.ComponentProps<typeof CobroCuenta>>))}
             ocultoEnDosColumnas={vistaEfectiva === "cola"}
           />
         ) : (

@@ -123,6 +123,16 @@ export const MODULOS: readonly Modulo[] = [
           "El histórico mínimo: nombre, apodo, edad y una referencia de contacto. Nada más — es lo menos sensible que permite operar (DEC-9).",
         tarea: "F5-01",
       },
+      {
+        id: "eventos",
+        nombre: "Cumpleaños",
+        href: rutaSeccion("parque", "eventos"),
+        // Reservar es de quien atiende en la caja (B10-1); la monitora ve los de hoy en su aviso.
+        accion: "evento.reservar",
+        proposito:
+          "La agenda de cumpleaños: reservar con día, horario, paquete e invitados; el anticipo pasa a la caja y el saldo queda para el día.",
+        tarea: "B10-1",
+      },
     ],
   },
   {
@@ -234,6 +244,15 @@ export const MODULOS: readonly Modulo[] = [
         proposito:
           "Paquetes por tiempo, gracia, excedente, aviso y aforo. Se edita en borrador y la entrada lo usa al publicar.",
         tarea: "F5-04",
+      },
+      {
+        id: "cumpleanos",
+        grupo: "Parque y restaurante",
+        nombre: "Cumpleaños",
+        href: rutaSeccion("ajustes", "cumpleanos"),
+        proposito:
+          "Los paquetes de cumpleaños (precio, invitados y lo que incluyen) y el anticipo que se cobra al reservar.",
+        tarea: "B10-1",
       },
       {
         id: "carta",

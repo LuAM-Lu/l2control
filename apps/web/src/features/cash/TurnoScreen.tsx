@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarClock, CircleCheckBig, FileText, Lock, Repeat, TriangleAlert, Wallet } from "lucide-react";
-import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
+import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
 import { Badge, Button, Container, Dialog, Input, MoneyDisplay, Sheet, avisar } from "@l2/ui";
@@ -20,6 +20,7 @@ import { useVentas } from "./VentasProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
+import { TarjetaEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 
 /**
  * El turno de caja — F4-01, F4-05 a F4-08, JORNADA §3 a §5, B3-1 y B3-5.
@@ -40,6 +41,7 @@ export function TurnoScreen({
   comprobacion = null,
   otrosAbiertos = [],
   ultimoZ = null,
+  eventosHoy = [],
 }: {
   /** El turno del equipo (o el ajeno que se cierra); `null` si no hay ninguno abierto. */
   turno: TurnoDto | null;
@@ -52,13 +54,15 @@ export function TurnoScreen({
   otrosAbiertos?: readonly TurnoDto[];
   /** El último corte Z de este equipo, para decir cómo quedó. */
   ultimoZ?: CorteDto | null;
+  /** Los cumpleaños de hoy (B10-1): la apertura avisa «Hoy hay un evento». */
+  eventosHoy?: readonly ReservaEventoDto[];
 }) {
   if (ajeno) {
     if (!vista?.ok || !turno) return <SinTurnoAjeno mensaje={vista && !vista.ok ? vista.mensaje : "Ese turno no existe."} />;
     if (turno.estado === "CERRADO_Z") return <SinTurnoAjeno mensaje="Ese turno ya tiene su corte Z: está cerrado." />;
     return <TurnoAbierto turno={turno} vistaInicial={vista.valor} ajeno />;
   }
-  if (!turno) return <AperturaTurno comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} />;
+  if (!turno) return <AperturaTurno comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} eventosHoy={eventosHoy} />;
   return <TurnoAbierto turno={turno} vistaInicial={vista?.ok ? vista.valor : null} ajeno={false} />;
 }
 
@@ -69,10 +73,12 @@ function AperturaTurno({
   comprobacion,
   otrosAbiertos,
   ultimoZ,
+  eventosHoy,
 }: {
   comprobacion: ComprobacionAperturaDto | null;
   otrosAbiertos: readonly TurnoDto[];
   ultimoZ: CorteDto | null;
+  eventosHoy: readonly ReservaEventoDto[];
 }) {
   const router = useRouter();
   const actor = useActorEnSesion();
@@ -170,6 +176,7 @@ function AperturaTurno({
       </form>
 
       <div className="flex w-full max-w-md flex-col gap-4">
+        <TarjetaEventosDeHoy reservas={eventosHoy} />
         {deAntes.length > 0 && (
           <section className="rounded-[var(--radius-card)] border border-state-warn/40 bg-state-warn-bg p-4">
             <h2 className="flex items-center gap-1.5 font-display text-sm font-bold text-state-warn">

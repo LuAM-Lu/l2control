@@ -1,6 +1,7 @@
 import { TurnoScreen } from "../../../src/features/cash/TurnoScreen";
 import { turnoDelEquipo } from "../../../src/features/cash/turno.servidor";
 import { comprobacionApertura, turnosAbiertosDeOtros, ultimoCorteZ, vistaDelTurno } from "../../../src/features/cash/cortes.servidor";
+import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
 
 /**
  * Turno de caja (M-13, B3-5): la apertura con su comprobación, el resumen del libro con las ventas
@@ -19,6 +20,6 @@ export default async function TurnoPage({ searchParams }: { searchParams: Promis
   }
   const turno = await turnoDelEquipo();
   if (turno) return <TurnoScreen turno={turno} vista={await vistaDelTurno()} />;
-  const [comprobacion, otrosAbiertos, ultimoZ] = await Promise.all([comprobacionApertura(), turnosAbiertosDeOtros(), ultimoCorteZ()]);
-  return <TurnoScreen turno={null} vista={null} comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} />;
+  const [comprobacion, otrosAbiertos, ultimoZ, eventos] = await Promise.all([comprobacionApertura(), turnosAbiertosDeOtros(), ultimoCorteZ(), eventosDeHoy()]);
+  return <TurnoScreen turno={null} vista={null} comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} eventosHoy={eventos?.reservas ?? []} />;
 }

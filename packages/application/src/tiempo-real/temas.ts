@@ -65,6 +65,11 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "mesa.liberar": ["cuentas"],
   // Vincular pulseras mueve dinero entre la cuenta de la mesa y la de cada familia tocada (F6-05).
   "mesa.vincular": ["cuentas", "sala"],
+  // Los cumpleaños (B10-1): reservar abre la cuenta del anticipo en la cola de la caja; cancelar la
+  // cierra sin consumo y la saca de los pendientes del cierre.
+  "evento.catalogo": ["eventos"],
+  "evento.reservar": ["eventos", "cuentas"],
+  "evento.cancelar": ["eventos", "cuentas", "turno"],
   "impresora.crear": ["impresion"],
   "impresora.editar": ["impresion"],
   "impresora.activar": ["impresion"],

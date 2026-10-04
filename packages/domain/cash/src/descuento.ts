@@ -168,19 +168,21 @@ export function discountCandidates<R extends DiscountRule>(input: {
 
 /* ─────────────────────────────────────────────── aplicar y cobrar con él */
 
-export type ApplyDiscountProblem = "NO_POR_COBRAR" | "CUENTA_DIVIDIDA" | "NADA_QUE_DESCONTAR";
+export type ApplyDiscountProblem = "NO_POR_COBRAR" | "CUENTA_DIVIDIDA" | "NADA_QUE_DESCONTAR" | "ANTICIPO_DE_EVENTO";
 
 /**
  * ¿Se le puede poner un descuento a esta cuenta? Solo a lo que está en la cola de la caja, sin
  * dividir (el reparto en partes sale del total, y un descuento a mitad de las partes no cuadraría),
- * y si descuenta algo.
+ * y si descuenta algo. El anticipo de un cumpleaños no lleva descuento (B10-1): anticipo y saldo son
+ * mitades del precio del paquete, y descontar solo una dejaría el día del evento sin saber cuánto falta.
  */
 export function applyDiscountProblem(
-  c: Readonly<{ status: string; split?: unknown; lines: readonly AccountLineDoc[] }>,
+  c: Readonly<{ status: string; split?: unknown; lines: readonly AccountLineDoc[]; kind?: string }>,
   d: Pick<AppliedDiscount, "valor" | "alcance">,
   categoryOf: CategoryOf,
 ): ApplyDiscountProblem | null {
   if (c.status !== "POR_COBRAR") return "NO_POR_COBRAR";
+  if (c.kind === "EVENTO") return "ANTICIPO_DE_EVENTO";
   if (c.split !== undefined) return "CUENTA_DIVIDIDA";
   if (discountAmount(d, c, categoryOf).amount <= 0n) return "NADA_QUE_DESCONTAR";
   return null;

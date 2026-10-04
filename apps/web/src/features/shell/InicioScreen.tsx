@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, CircleCheck, PackageX, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
-import type { ResumenDelDiaDto } from "@l2/contracts";
+import type { ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
@@ -16,6 +16,7 @@ import { formatTasaVE } from "../cash/tasa-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
+import { ChipEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 
 /**
  * Inicio del back-office — F9-00, §9.10.4.
@@ -59,6 +60,7 @@ export function InicioScreen({
   turnos,
   enServicio,
   inventario = null,
+  eventosHoy = [],
 }: {
   /** El día según el libro (B3-5); `null` sin permiso de ver la sucursal o sin servidor. */
   resumen: ResumenDelDiaDto | null;
@@ -74,6 +76,8 @@ export function InicioScreen({
   enServicio: boolean;
   /** Lo que hay que reponer (B9-5); `null` si nada a la venta lleva existencia. */
   inventario?: Readonly<{ agotados: number; bajoMinimo: number }> | null;
+  /** Los cumpleaños de hoy que siguen en pie (B10-1): «Hoy hay un evento». */
+  eventosHoy?: readonly ReservaEventoDto[];
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
   // La tasa vigente, de la misma fuente que la caja y la barra de las estaciones (B2-1c): llega
@@ -134,6 +138,8 @@ export function InicioScreen({
             )}
           </div>
 
+          {/* B10-1: los cumpleaños de hoy, antes que nada de lo demás: cambian cómo se prepara el día. */}
+          <ChipEventosDeHoy reservas={eventosHoy} />
           {/* B9-5: lo que hay que reponer, con color + icono + texto; lleva al inventario. */}
           {inventario && <AvisoInventario {...inventario} />}
           {/* Lo que no salió en papel (ADR-015, ADR-022: las comandas fallidas, en Inicio). */}

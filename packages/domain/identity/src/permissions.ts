@@ -41,6 +41,7 @@ export type Action =
   | "parque.vincularMesa"
   | "parque.verContacto"
   | "parque.cerrarHuerfana"
+  | "evento.reservar"
   | "tasa.confirmar"
   | "catalogo.modificar"
   | "inventario.ajustar"
@@ -126,6 +127,9 @@ export const MATRIZ: Matriz = Object.freeze({
   // F5-13, H-19: una estancia huérfana (el niño se fue sin registrar la salida) la cierra la
   // dirección del local con un motivo, sin cobrar tiempo de más.
   "parque.cerrarHuerfana": fila(P, P, D, D, D, D),
+  // B10-1 (V-10): reservar un cumpleaños, y cancelarlo mientras su anticipo no se haya cobrado. Lo hace
+  // quien atiende al cliente en la caja; el anticipo lo cobra la caja como cualquier cuenta.
+  "evento.reservar": fila(P, P, P, D, D, D),
 
   "tasa.confirmar": fila(P, A, D, D, D, D),
   "catalogo.modificar": fila(P, D, D, D, D, D),

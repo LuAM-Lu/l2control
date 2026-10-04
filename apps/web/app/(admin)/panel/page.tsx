@@ -5,6 +5,7 @@ import { resumenDelDia } from "../../../src/features/cash/cortes.servidor";
 import { RefrescarAlCambiar } from "../../../src/features/operacion/RefrescarAlCambiar";
 import { catalogoDelLocal } from "../../../src/features/inventario/productos.servidor";
 import { stockAlerts } from "@l2/domain-inventory";
+import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -25,7 +26,7 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen, catalogo] = await Promise.all([ninosAtendidos(), turnosAbiertos(), resumenDelDia(), catalogoDelLocal()]);
+  const [atendidos, turnos, resumen, catalogo, eventos] = await Promise.all([ninosAtendidos(), turnosAbiertos(), resumenDelDia(), catalogoDelLocal(), eventosDeHoy()]);
   // B9-5: lo que hay que reponer. Solo si algún producto a la venta lleva existencia.
   const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
   const inventario = contables.length > 0 ? stockAlerts(contables) : null;
@@ -39,7 +40,7 @@ export default async function InicioPage() {
   return (
     <>
     {/* Los niños atendidos y el día salen de la sala y de las cuentas: al cambiar, se vuelven a leer. */}
-    <RefrescarAlCambiar temas={["sala", "cuentas"]} />
+    <RefrescarAlCambiar temas={["sala", "cuentas", "eventos"]} />
     <InicioScreen
       resumen={resumen ? { ...resumen, turnos: [...deAntes, ...resumen.turnos] } : null}
       ninosHoy={atendidos?.hoy ?? 0}
@@ -52,6 +53,7 @@ export default async function InicioPage() {
       // puesto sin nadie es noticia.
       enServicio={turnos.length > 0}
       inventario={inventario}
+      eventosHoy={eventos?.reservas ?? []}
     />
     </>
   );

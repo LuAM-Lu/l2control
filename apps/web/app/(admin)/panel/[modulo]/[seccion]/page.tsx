@@ -30,6 +30,9 @@ import { EntradasScreen } from "../../../../../src/features/inventario/EntradasS
 import { entradasDelLocal } from "../../../../../src/features/inventario/entradas.servidor";
 import { SalidasScreen } from "../../../../../src/features/inventario/SalidasScreen";
 import { ajustesDelLocal } from "../../../../../src/features/inventario/salidas.servidor";
+import { EventosScreen } from "../../../../../src/features/eventos/EventosScreen";
+import { CumpleanosScreen } from "../../../../../src/features/eventos/CumpleanosScreen";
+import { agendaDeEventos, catalogoDeEventos } from "../../../../../src/features/eventos/eventos.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -40,6 +43,8 @@ import { ajustesDelLocal } from "../../../../../src/features/inventario/salidas.
  */
 const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.ReactNode>>> = {
   "parque/representantes": async () => <RepresentantesPage inicial={await directorioDeFamilias()} descuentos={await descuentosDelLocal()} />,
+  "parque/eventos": async () => <EventosScreen catalogo={await catalogoDeEventos()} agenda={await agendaDeEventos()} />,
+  "ajustes/cumpleanos": async () => <CumpleanosScreen publicado={await catalogoDeEventos()} productos={await catalogoDelLocal()} />,
   "ajustes/tarifas": async () => <EditorTarifario versiones={await versionesDelTarifario()} />,
   "ajustes/carta": async () => <CartaScreen catalogo={await catalogoDelLocal()} />,
   "ajustes/plano": () => <EditorPlano />,

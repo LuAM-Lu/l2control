@@ -55,22 +55,24 @@ model Branch {
   roleAdjustments RoleAdjustment[]
   sessions        StaffSession[]
 
-  payments         Payment[]
-  cashShifts       CashShift[]
-  posTerminals     PosTerminal[]
-  accounts         Account[]
-  sales            Sale[]
-  parkSessions     ParkSession[]
-  outbox           OutboxEvent[]
-  settings         BranchSettingsVersion[]
-  floorPlans       FloorPlanVersion[]
-  kitchenOrders    KitchenOrder[]
-  stockMovements   StockMovement[]
-  stockEntries     StockEntry[]
-  stockAdjustments StockAdjustment[]
-  printers         Printer[]
-  printAgents      PrintAgent[]
-  printJobs        PrintJob[]
+  payments          Payment[]
+  cashShifts        CashShift[]
+  posTerminals      PosTerminal[]
+  accounts          Account[]
+  sales             Sale[]
+  parkSessions      ParkSession[]
+  outbox            OutboxEvent[]
+  settings          BranchSettingsVersion[]
+  floorPlans        FloorPlanVersion[]
+  kitchenOrders     KitchenOrder[]
+  stockMovements    StockMovement[]
+  stockEntries      StockEntry[]
+  stockAdjustments  StockAdjustment[]
+  printers          Printer[]
+  printAgents       PrintAgent[]
+  printJobs         PrintJob[]
+  eventCatalogs     EventCatalogVersion[]
+  eventReservations EventReservation[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -752,7 +754,7 @@ model Account {
   id           String   @id @db.Uuid
   tenantId     String   @map("tenant_id") @db.Uuid
   branchId     String   @map("branch_id") @db.Uuid
-  /// FAMILIA, MESA o MOSTRADOR (CHECK).
+  /// FAMILIA, MESA, MOSTRADOR o EVENTO (CHECK).
   kind         String
   /// El correlativo de la sucursal que se dice en voz alta (D13: continuo). Lo pone el servidor.
   orderNumber  Int      @map("order_number")
@@ -761,12 +763,13 @@ model Account {
   openedByName String   @map("opened_by_name")
   deviceId     String?  @map("device_id") @db.Uuid
 
-  branch       Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  versions     AccountVersion[]
-  payments     Payment[]
-  sales        Sale[]
-  parkSessions ParkSession[]
-  kitchenOrders KitchenOrder[]
+  branch            Branch             @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  versions          AccountVersion[]
+  payments          Payment[]
+  sales             Sale[]
+  parkSessions      ParkSession[]
+  kitchenOrders     KitchenOrder[]
+  eventReservations EventReservation[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -959,10 +962,11 @@ model Guardian {
   createdAt        DateTime @map("created_at") @db.Timestamptz(3)
   createdBy        String?  @map("created_by") @db.Uuid
 
-  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  kids     Kid[]
-  sessions ParkSession[]
-  vipMarks GuardianVip[]
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  kids              Kid[]
+  sessions          ParkSession[]
+  vipMarks          GuardianVip[]
+  eventReservations EventReservation[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, contactKey])
@@ -1351,11 +1355,11 @@ model PrintJob {
   /// El pedido del mesero que imprime una COMANDA (B6-2): toda comanda lleva el suyo (CHECK).
   orderId         String?   @map("order_id") @db.Uuid
 
-  branch  Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  printer Printer     @relation(fields: [tenantId, branchId, printerId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
-  sale    Sale?       @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  cut     ShiftCut?   @relation(fields: [tenantId, cutId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  agent   PrintAgent? @relation(fields: [tenantId, agentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch  Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  printer Printer       @relation(fields: [tenantId, branchId, printerId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
+  sale    Sale?         @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  cut     ShiftCut?     @relation(fields: [tenantId, cutId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  agent   PrintAgent?   @relation(fields: [tenantId, agentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   order   KitchenOrder? @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
@@ -1393,4 +1397,64 @@ model KitchenOrder {
   @@index([tenantId, branchId, createdAt])
   @@index([tenantId, accountId])
   @@map("kitchen_order")
+}
+
+/// Los paquetes de cumpleaños y el anticipo publicados (B10-1, D-EVT): cada publicación es una versión
+/// nueva, solo-agregar. La vigente es la más alta; sin ninguna, el local no tiene paquetes y no reserva.
+model EventCatalogVersion {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  branchId        String   @map("branch_id") @db.Uuid
+  version         Int
+  /// `CatalogoEventosDto` de @l2/contracts. Se valida al escribir y otra vez al leer (fail-closed).
+  content         Json
+  publishedAt     DateTime @default(now()) @map("published_at") @db.Timestamptz(3)
+  publishedBy     String?  @map("published_by") @db.Uuid
+  publishedByName String?  @map("published_by_name")
+
+  branch Branch @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, branchId, version])
+  @@map("event_catalog_version")
+}
+
+/// Un cumpleaños reservado (B10-1, V-10): el día, el horario en minutos desde la medianoche del local,
+/// la familia, el cumpleañero, los invitados y el paquete COPIADO con su anticipo y su saldo. Nace con
+/// la cuenta del anticipo y no se toca (solo-agregar): en qué va lo dice esa cuenta.
+model EventReservation {
+  id             String   @id @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  /// La cuenta del anticipo (kind EVENTO).
+  accountId      String   @map("account_id") @db.Uuid
+  guardianId     String   @map("guardian_id") @db.Uuid
+  eventDate      DateTime @map("event_date") @db.Date
+  startsMinute   Int      @map("starts_minute")
+  endsMinute     Int      @map("ends_minute")
+  guests         Int
+  honoree        String
+  honoreeAge     Int?     @map("honoree_age")
+  /// `PaqueteEventoDto` sin `active`, como regía al reservar.
+  package        Json
+  catalogVersion Int      @map("catalog_version")
+  depositBps     Int      @map("deposit_bps")
+  depositMinor   BigInt   @map("deposit_minor")
+  balanceMinor   BigInt   @map("balance_minor")
+  currency       String
+  createdAt      DateTime @map("created_at") @db.Timestamptz(3)
+  createdBy      String?  @map("created_by") @db.Uuid
+  createdByName  String   @map("created_by_name")
+  deviceId       String?  @map("device_id") @db.Uuid
+  /// La clave de la operación que la creó: un doble clic no reserva dos veces (I-11).
+  operationKey   String   @map("operation_key") @db.Uuid
+
+  branch   Branch   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account  Account  @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  guardian Guardian @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@unique([tenantId, accountId])
+  @@index([tenantId, branchId, eventDate])
+  @@map("event_reservation")
 }

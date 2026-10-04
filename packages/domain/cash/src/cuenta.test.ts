@@ -32,6 +32,8 @@ import {
   withAnulacion,
   sinConsumoProblem,
   closeWithoutConsumption,
+  cancelReservationProblem,
+  cancelReservation,
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
@@ -523,5 +525,54 @@ describe("la mesa sin consumo (B6-5, M-18)", () => {
     assert.equal(accountChangeProblem(abierta, { ...abierta, status: "SIN_CONSUMO" }, productAt)?.problem, "CUENTA_SIN_CONSUMO");
     const cerrada = mesa([], { status: "SIN_CONSUMO" });
     assert.equal(accountChangeProblem(cerrada, { ...cerrada, status: "ABIERTA" }, productAt)?.problem, "CUENTA_SIN_CONSUMO");
+  });
+});
+
+describe("la cuenta de un cumpleaños (B10-1)", () => {
+  const anticipo = linea("ant", { concept: "Anticipo 50 % · Cumpleaños de Sofía", kind: "EVENTO", amount: usd("7500") });
+  const evento = (extra: Partial<AccountDoc> = {}): AccountDoc => ({
+    kind: "EVENTO",
+    status: "POR_COBRAR",
+    sessionIds: [],
+    closedSessionIds: [],
+    lines: [anticipo],
+    ...extra,
+  });
+
+  test("el anticipo se cobra como cualquier línea, y al cobrarlo la cuenta queda cobrada", () => {
+    assert.deepEqual(chargeableLines(evento()).map((l) => l.id), ["ant"]);
+    const cobrada = markPaid(evento());
+    assert.equal(cobrada.status, "COBRADA");
+    assert.equal(isPendingAtClose(cobrada), false);
+  });
+
+  test("una pantalla no la abre ni la cambia: la abre su reserva", () => {
+    assert.equal(accountChangeProblem(null, evento(), productAt)?.problem, "EVENTO_DESDE_LA_PANTALLA");
+    const antes = evento();
+    assert.equal(accountChangeProblem(antes, { ...antes, lines: [...antes.lines, agua("a")] }, productAt)?.problem, "EVENTO_DESDE_LA_PANTALLA");
+    assert.equal(accountChangeProblem(antes, { ...antes, split: { parts: 2, paid: 0 } }, productAt)?.problem, "EVENTO_DESDE_LA_PANTALLA");
+  });
+
+  test("el anticipo no se regala ni se da por incobrable: si no se cobra, se cancela la reserva", () => {
+    assert.equal(courtesyProblem(evento(), "ant", false), "ANTICIPO_DE_EVENTO");
+    assert.equal(uncollectibleProblem(evento()), "ES_DE_UN_EVENTO");
+  });
+
+  test("se cancela con el anticipo sin cobrar: queda sin consumo, fuera del cierre, con su línea intacta", () => {
+    assert.equal(cancelReservationProblem(evento()), null);
+    const cancelada = cancelReservation(evento());
+    assert.equal(cancelada.status, "SIN_CONSUMO");
+    assert.deepEqual(cancelada.lines, [anticipo]);
+    assert.equal(isPendingAtClose(cancelada), false);
+  });
+
+  test("con el anticipo cobrado no se cancela (se anula el cobro primero), ni dos veces, ni otra cuenta", () => {
+    assert.equal(cancelReservationProblem(markPaid(evento())), "ANTICIPO_COBRADO");
+    assert.equal(cancelReservationProblem(evento({ status: "SIN_CONSUMO" })), "YA_CANCELADA");
+    assert.equal(cancelReservationProblem(mostrador([agua("a")])), "NO_ES_EVENTO");
+    // Tras anular el cobro, el anticipo vuelve a deberse y la reserva se puede cancelar.
+    const anulado = revertPaid(markPaid(evento()), ["ant"]);
+    assert.equal(anulado.status, "POR_COBRAR");
+    assert.equal(cancelReservationProblem(anulado), null);
   });
 });
