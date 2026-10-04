@@ -352,6 +352,32 @@ export function needsDoubleCheck(
   return variationBasisPoints(anterior.value, nueva.value) > BigInt(umbralBasisPoints);
 }
 
+/**
+ * Una tasa como la enseñan las pantallas: en centésimas, redondeada la mitad hacia arriba (pedido del
+ * cliente, v0.27.1: «857,0058» se lee 857,01). Solo para comparar con lo que alguien ve; el cobro
+ * convierte con la tasa completa.
+ */
+export function rateAsShown(value: string): bigint {
+  const { digits, decimals } = parseDecimal(value);
+  if (decimals <= 2) return digits * 10n ** BigInt(2 - decimals);
+  const sobra = 10n ** BigInt(decimals - 2);
+  return digits / sobra + ((digits % sobra) * 2n >= sobra ? 1n : 0n);
+}
+
+/**
+ * ¿Lo que se tecleó otra vez para confirmar (§5.2) es la tasa capturada? Vale la tasa completa, con
+ * todos sus decimales, o la tasa como se ve en pantalla (con dos decimales como mucho): quien confirma
+ * teclea lo que lee, y la pantalla la enseña redondeada. Sigue cazando lo que la revisión doble existe
+ * para cazar, una tecla equivocada: 866,65 no es 866,5612 ni se ve como 866,56.
+ */
+export function typedRateMatches(captured: string, typed: string): boolean {
+  const c = parseDecimal(captured);
+  const t = parseDecimal(typed);
+  const escala = Math.max(c.decimals, t.decimals);
+  if (c.digits * 10n ** BigInt(escala - c.decimals) === t.digits * 10n ** BigInt(escala - t.decimals)) return true;
+  return t.decimals <= 2 && rateAsShown(captured) === rateAsShown(typed);
+}
+
 /** Lo que decide `autoApplyDecision`: aplicarla sola, o dejarla para una persona y por qué. */
 export type AutoApplyDecision = Readonly<{ apply: true }> | Readonly<{ apply: false; reason: HeldReason }>;
 

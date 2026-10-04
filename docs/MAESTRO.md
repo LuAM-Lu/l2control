@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.46.0 · 46 de 60 pasos.** **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.46.1 · 46 de 60 pasos.** **Corrección (v0.46.1):** confirmar una tasa tecleándola como se ve (con dos decimales) ya vale; antes el servidor la comparaba con la tasa completa de la API y nunca coincidía. **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 440 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 140 de caja, 42 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 441 de aplicación, 13 del worker, 6 del agente; en el dominio, 58 de tasas, 49 de impuestos, 140 de caja, 42 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -1968,6 +1968,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   mesa); dominio, contratos, salida y web escritos y en verde; faltan pruebas contra la base, la caja y el navegador.
 - **2026-10-03** · B4-6 hecho (v0.46.0): en cuenta abierta se cobra por uso al salir antes; la caja lo enseña tachado.
   `pnpm verify:db` en verde (81 y 440). Siguen B10-1 → B10-2 (eventos).
+- **2026-10-03** · v0.46.1: confirmar una tasa tecleándola como se ve (dos decimales) fallaba siempre con las de la
+  API (más decimales); lo reportó el usuario al empezar B10-1. Vale la tasa como se ve o la completa.
 
 ---
 
@@ -1981,11 +1983,11 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-10-03, v0.46.0 en `feat/b6-3`, en GitHub hasta v0.45.0; `main` en v0.42.0, sin fusionar):**
+**Último handoff (2026-10-03, v0.46.1 en `feat/b6-3`, en GitHub hasta v0.45.0; `main` en v0.42.0, sin fusionar):**
 
 ```text
 Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §3 Etapa 10 con B10-1, §2 V-10 y D-EVT, §5) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.46.0 · 46 de 60 (GitHub hasta v0.45.0; main en v0.42.0, sin fusionar).
+Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.46.1 · 46 de 60 (GitHub hasta v0.45.0; main en v0.42.0, sin fusionar).
 Hecho: B6-3, B6-5, B6-6, v0.45.1 y B4-6 (cuenta abierta cobra por uso al salir antes; prepago no se devuelve; la caja
   lo enseña tachado). verify:db en verde (81 de base, 440 de aplicación).
 Siguiente: B10-1 · Reservas con agenda y anticipo (cumpleaños): fecha y horario, cliente del directorio, invitados y

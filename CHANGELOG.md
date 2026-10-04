@@ -12,6 +12,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.46.1] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+Corrección: confirmar una tasa tecleándola otra vez.
+
+### Corregido
+- **Confirmar una tasa tecleando lo que se ve ya vale.** Las pantallas enseñan la tasa con dos decimales (pedido del
+  cliente, v0.27.1), pero la que trae la API tiene más (866,5612) y el servidor comparaba lo tecleado con la tasa
+  completa: quien tecleaba «866,56» recibía siempre «El valor tecleado no coincide con el capturado». Ahora vale la
+  tasa como se ve o la completa; una tecla equivocada (866,65) sigue sin pasar, y lo que se confirma es la tasa
+  completa. La hoja enseña además la tasa con todos sus decimales, para compararla con la del BCV.
+
+### Comprobado
+- Dominio de tasas (3 pruebas nuevas, 58) y `tasas.test-db.ts` (una nueva: 2300,5612 se confirma con «2300,56» y no
+  con «2300,57»). `pnpm verify` en verde.
+
 ## [0.46.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 B4-6 (M-18): salir antes de tiempo.

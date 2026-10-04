@@ -681,6 +681,10 @@ function HojaConfirmar({
             {tasa.pair} · para el {enPalabras(tasa.effectiveDate)}
           </p>
           <p className="tnum text-2xl font-bold text-ink">Bs. {formatTasaVE(tasa.value)}</p>
+          {/* La pantalla la enseña con dos decimales; la completa, para compararla con lo que publica el BCV. */}
+          {(tasa.value.split(".")[1]?.replace(/0+$/, "").length ?? 0) > 2 && (
+            <p className="tnum mt-0.5 text-[12.5px] text-ink-3">Con todos sus decimales: {tasa.value.replace(/0+$/, "").replace(".", ",")}</p>
+          )}
           {anterior && (
             <p className="tnum mt-1 text-[12.5px] text-ink-3">La anterior confirmada: Bs. {formatTasaVE(anterior.value)}</p>
           )}
@@ -690,7 +694,8 @@ function HojaConfirmar({
           <Input
             surface="tablet"
             label="Teclea el valor de nuevo"
-            placeholder="228,41"
+            placeholder="0,00"
+            hint={`Como lo ves: ${formatTasaVE(tasa.value)}, o con todos sus decimales.`}
             inputMode="decimal"
             autoComplete="off"
             value={verificado}

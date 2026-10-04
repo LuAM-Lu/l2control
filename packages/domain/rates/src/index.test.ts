@@ -10,6 +10,8 @@ import assert from "node:assert/strict";
 import { convert, invertRate, money, toMajor } from "@l2/domain-money";
 
 import {
+  rateAsShown,
+  typedRateMatches,
   InvalidRateError,
   addDays,
   autoApplyDecision,
@@ -387,5 +389,29 @@ describe("la tasa de un cobro en curso (ADR-019 §7, B3-3)", () => {
     assert.equal(citedRateValid(historia, "USD/VES", "otra", aplicada, zona), false);
     const sinConfirmar = [viernes, { ...lunes, confirmed: false }];
     assert.equal(citedRateValid(sinConfirmar, "USD/VES", "l", aplicada + 60_000, zona), false);
+  });
+});
+
+describe("lo tecleado otra vez al confirmar (§5.2, v0.27.1)", () => {
+  test("vale la tasa completa, con o sin ceros de más", () => {
+    assert.equal(typedRateMatches("866.5612", "866.5612"), true);
+    assert.equal(typedRateMatches("871.36890000", "871.3689"), true);
+  });
+
+  test("vale la tasa como se ve en pantalla, redondeada a dos decimales", () => {
+    assert.equal(rateAsShown("866.5612"), 86656n);
+    assert.equal(rateAsShown("857.0058"), 85701n);
+    assert.equal(rateAsShown("871.365"), 87137n, "la mitad, hacia arriba");
+    assert.equal(rateAsShown("228.4"), 22840n);
+    assert.equal(typedRateMatches("866.5612", "866.56"), true);
+    assert.equal(typedRateMatches("857.0058", "857.01"), true);
+    assert.equal(typedRateMatches("228.4", "228.40"), true);
+  });
+
+  test("una tecla equivocada no pasa, ni un redondeo a medias", () => {
+    assert.equal(typedRateMatches("866.5612", "866.65"), false);
+    assert.equal(typedRateMatches("866.5612", "866.57"), false);
+    assert.equal(typedRateMatches("866.5612", "866.5"), false, "866,50 no es lo que se ve");
+    assert.equal(typedRateMatches("866.5612", "866.561"), false, "con más de dos decimales se compara la completa");
   });
 });

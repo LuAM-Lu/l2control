@@ -195,6 +195,18 @@ describe("confirmar una pendiente (F3-04) y la doble verificación (§5.2, T2)",
     assert.ok(buena.ok, JSON.stringify(buena));
   });
 
+  test("teclearla como se ve en pantalla (dos decimales) vale; con una tecla equivocada, no (v0.46.1)", async () => {
+    // La API trae cuatro decimales y la pantalla enseña dos: quien confirma teclea lo que lee.
+    const larga = await capturada(ctxSupervisor, "2300.5612");
+    const errada = await confirmar(ctxAdmin, { rateId: larga.id, valorVerificado: "2300.57" });
+    assert.equal(errada.ok ? "ok" : errada.problemas?.[0]?.message, "No coincide");
+    const r = await confirmar(ctxAdmin, { rateId: larga.id, valorVerificado: "2300.56" });
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.valor.value, "2300.5612", "se confirma la tasa completa, no la redondeada");
+    const buena = await capturar(ctxAdmin, { ...captura("229.00"), valorVerificado: "229.00" });
+    assert.ok(buena.ok, JSON.stringify(buena));
+  });
+
   test("una tasa de un día que pasó sin confirmar ya no se confirma", async () => {
     const ahoraAyer = reloj - 86_400_000;
     const c = await capturar(ctxSupervisor, captura("221.00", addDays(hoy(), -1)), ahoraAyer + 1000);

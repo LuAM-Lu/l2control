@@ -36,6 +36,7 @@ import {
   heldRates,
   missingNextBusinessDayRate,
   needsDoubleCheck,
+  typedRateMatches,
   variationBasisPoints,
   type HeldReason,
   type Holidays,
@@ -317,7 +318,7 @@ export function casosTasas(base: Base): CasosTasas {
               problemas: [{ path: ["valorVerificado"], message: "Hace falta teclearlo de nuevo" }],
             };
           }
-          if (tecleado !== undefined && !mismoValor(tasa.pair, tasa.value, tecleado)) {
+          if (tecleado !== undefined && !coincideConLoQueSeVe(tasa.value, tecleado)) {
             negada = "El valor tecleado de nuevo no coincide";
             return {
               ok: false,
@@ -620,6 +621,19 @@ function mismoValor(pair: string, a: string, b: string): boolean {
     const x = frozenRateOf({ pair: par, value: a });
     const y = frozenRateOf({ pair: par, value: b });
     return x.numerator === y.numerator && x.denominator === y.denominator;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Al confirmar, ¿lo tecleado otra vez es la tasa capturada? Completa o como se ve en pantalla, con dos
+ * decimales (`typedRateMatches`): la pantalla la enseña redondeada y quien confirma teclea lo que lee.
+ * Al capturar a mano, en cambio, lo tecleado dos veces se compara exacto (`mismoValor`).
+ */
+function coincideConLoQueSeVe(capturado: string, tecleado: string): boolean {
+  try {
+    return typedRateMatches(capturado, tecleado);
   } catch {
     return false;
   }
