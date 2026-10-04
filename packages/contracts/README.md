@@ -65,9 +65,19 @@ texto es para la persona.
 | `libro.ts` | El libro de pagos: asentar (con los datos del pago), revertir y leer (§5.5) |
 | `documento.ts` | A quién se factura: consumidor final o identificado (DEC-23) |
 | `ventas.ts` | La venta cerrada con la foto de su recibo, sus impresiones y su anulación (DEC-24) |
-| `restaurante.ts` | Plano de mesas y carta |
-| `eventos.ts` | Catálogo de eventos de operación que emiten el simulador y las pantallas (F1-20) |
+| `cuentas.ts` | Guardar, cobrar, anular, regalar y anular pedidos de una cuenta; la cola de la caja |
+| `cortes.ts`, `turno.ts` | Turnos, arqueo a ciegas, cortes X y Z, pendientes del cierre y resumen del día |
+| `descuentos.ts` | Reglas de descuento, el aplicado a una cuenta y las familias VIP (B3-6) |
+| `tasas.ts`, `feriados.ts`, `impuestos.ts` | Tasas de cambio con su origen, feriados y alícuotas con vigencia |
+| `productos.ts`, `entradas.ts`, `salidas.ts` | Catálogo con existencia, entradas de mercancía, salidas y conteos |
+| `restaurante.ts` | Plano de mesas, carta y pedidos del mesero con su comanda |
+| `impresoras.ts` | Impresoras, agentes de impresión y la cola de trabajos |
+| `reservas.ts` | Cumpleaños: paquetes con su anticipo, reservas, el día del evento y sus invitados (B10) |
+| `sucursal.ts` | Los ajustes de la sucursal: formato de hora, zona, umbrales, serie de pulseras |
+| `tiempo-real.ts` | Los temas que el canal en vivo avisa que cambiaron (ADR-025) |
+| `eventos.ts` | Lo que aún viaja por el canal en vivo entre pantallas: el estado de las mesas (F1-20) |
 | `identity.ts` | Personas, roles y excepciones de permiso |
+| `resultado.ts` | `Resultado` y `Rechazo`: cómo responde todo caso de uso |
 
 ## Qué NO le corresponde
 

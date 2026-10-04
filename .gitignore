@@ -22,5 +22,3 @@ Thumbs.db
 # Cliente de Prisma: se genera con `prisma generate` (turbo lo hace antes de typecheck y test).
 packages/database/src/generated/
 
-# Lo que imprime la impresora falsa (pnpm impresora:falsa)
-.impresora-falsa/

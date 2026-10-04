@@ -36,16 +36,15 @@ El registro está en `C:\ProgramData\L2 Control\Impresion\agente.log` (se rota a
 credencial (`agente.json`) solo la leen el sistema y la administración del equipo; retirar el agente desde
 el panel la invalida y lo desconecta en el acto.
 
-## Construirlo y probarlo sin impresora
+## Construirlo
 
 ```bash
 pnpm agente:empaquetar        # apps/printer-agent/dist/l2-impresion.exe y su .sha256 (en Windows, Node 24)
-pnpm impresora:falsa          # una impresora falsa en el 9100: lo impreso queda en .impresora-falsa/
 ```
 
-La impresora falsa se da de alta con la IP de este equipo en la red (`ipconfig`), no 127.0.0.1. Con
-`.impresora-falsa/papel.txt` en `sinpapel` contesta que no tiene papel. En desarrollo el agente corre sin
-empaquetar: `node --experimental-strip-types src/main.ts vincular <servidor> <código>` y después `… iniciar`.
+En desarrollo el agente corre sin empaquetar: `node --experimental-strip-types src/main.ts vincular <servidor>
+<código>` y después `… iniciar`. Se prueba contra la impresora real del local (por red, TCP 9100); sus pruebas
+levantan su propio servidor TCP de prueba y no necesitan ninguna.
 
 ## Qué NO le corresponde
 
@@ -54,5 +53,5 @@ empaquetar: `node --experimental-strip-types src/main.ts vincular <servidor> <c�
 - **Qué se imprime.** Los bytes los compone el servidor; el agente no sabe de recibos ni de comandas.
 
 ```bash
-pnpm test    # 6 pruebas: impresora falsa, reconexión y lo que se pega al instalar
+pnpm test    # 6 pruebas: lo que llega a la impresora (con un servidor TCP de prueba), reconexión e instalación
 ```

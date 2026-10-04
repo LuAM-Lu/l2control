@@ -16,6 +16,10 @@ const view = computeSessionView(session, policy, epochMs(serverNow));
 computeOverdueCharge(view, policy);  // Money — bloques iniciados, no proporcional
 ```
 
+También los **cumpleaños** (`eventos.ts`, B10-1): el anticipo y el saldo de un paquete
+(`anticipoDe`, en puntos básicos y al céntimo) y si una reserva cabe (`reservaProblem`: la fecha, el
+horario, los invitados del paquete y el aforo del horario con los eventos que se solapan).
+
 ## Las dos decisiones que gobiernan este módulo
 
 **[ADR-010] El instante entra como argumento.** Ninguna función llama a `Date.now()`. El

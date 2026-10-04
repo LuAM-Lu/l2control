@@ -4,7 +4,7 @@ Biblioteca de componentes. Implementa §9.4 del plan.
 
 ## Qué resuelve
 
-Que las superficies operativas —POS, KDS, monitor de parque— se vean y se comporten igual sin
+Que las superficies operativas —caja, mesas, monitor de parque— se vean y se comporten igual sin
 copiar código, y que las reglas de §8 (contraste, objetivos táctiles, estado por color + icono
 + texto) se cumplan por construcción en lugar de por memoria.
 
@@ -12,7 +12,8 @@ copiar código, y que las reglas de §8 (contraste, objetivos táctiles, estado 
 
 **Nivel 1 · primitivos** — base sin dominio: `Button`, `Badge`.
 Un primitivo no acepta colores literales, solo tokens. Y el tamaño se elige por **superficie**
-(`kds` 64 px, `pos` 56 px, `tablet` 48 px, `admin` 32 px), no por gusto: §8.4 fija esos mínimos
+(`pos` 56 px, `tablet` 48 px, `admin` 32 px; el de 64 px, `kds`, queda de la pantalla de cocina retirada con
+ADR-022), no por gusto: §8.4 fija esos mínimos
 porque esto se usa de pie, con prisa y a veces con guantes.
 
 **Nivel 2 · patrones** — composiciones reutilizables, todavía sin dominio:
