@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { Cake, CalendarCheck, CalendarDays, CircleCheck, Clock, Hourglass, Info, Plus, Users, XCircle } from "lucide-react";
+import { Banknote, Cake, CalendarCheck, CalendarDays, CircleCheck, Clock, Hourglass, Info, PartyPopper, Plus, TriangleAlert, Users, XCircle } from "lucide-react";
 import {
   ReservarEventoCommandSchema,
   type AgendaEventosDto,
@@ -23,8 +23,8 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { buscarRepresentante } from "../park/parque.acciones";
-import { cancelarReserva, reservarEvento } from "./eventos.acciones";
-import { ESTADO, fechaCorta, fechaLarga, horaDelDia, horario } from "./formato.ts";
+import { cancelarReserva, empezarEvento, reservarEvento } from "./eventos.acciones";
+import { AL_DIA, ESTADO, POR_COBRAR, fechaCorta, fechaLarga, horaDelDia, horario } from "./formato.ts";
 
 /**
  * Parque → Eventos: la agenda de cumpleaños (B10-1, V-10). Arriba, el resumen (hoy, anticipos por
@@ -40,11 +40,18 @@ const CAMPO =
   "flex min-h-10 w-full rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[14px] text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 
-const ICONO_ESTADO: Readonly<Record<EstadoReserva, typeof Clock>> = { ANTICIPO_POR_COBRAR: Hourglass, CONFIRMADA: CircleCheck, CANCELADA: XCircle };
+const ICONO_ESTADO: Readonly<Record<EstadoReserva, typeof Clock>> = {
+  ANTICIPO_POR_COBRAR: Hourglass,
+  CONFIRMADA: CircleCheck,
+  CANCELADA: XCircle,
+  EN_CURSO: Banknote,
+  SALDADA: CircleCheck,
+  SALDO_INCOBRABLE: TriangleAlert,
+};
 const orden = (n: number) => `#${String(n).padStart(4, "0")}`;
 const enDolares = (m: { minor: string }) => money(BigInt(m.minor), "USD");
 
-type Filtro = "TODAS" | "ANTICIPO_POR_COBRAR" | "CONFIRMADA";
+type Filtro = "TODAS" | "POR_COBRAR" | "AL_DIA";
 
 /** Las horas que se ofrecen para un evento: de las 6:00 am a las 11:30 pm, cada media hora. */
 const HORAS: readonly number[] = Array.from({ length: 36 }, (_, i) => 6 * 60 + i * 30);
@@ -75,9 +82,9 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
   const enPie = reservas.filter((r) => r.estado !== "CANCELADA");
   const canceladas = reservas.filter((r) => r.estado === "CANCELADA");
   const deHoy = enPie.filter((r) => r.fecha === hoy);
-  const porCobrar = enPie.filter((r) => r.estado === "ANTICIPO_POR_COBRAR");
-  const confirmadas = enPie.filter((r) => r.estado === "CONFIRMADA");
-  const filtradas = filtro === "TODAS" ? enPie : enPie.filter((r) => r.estado === filtro);
+  const porCobrar = enPie.filter((r) => POR_COBRAR.includes(r.estado));
+  const confirmadas = enPie.filter((r) => AL_DIA.includes(r.estado));
+  const filtradas = filtro === "TODAS" ? enPie : filtro === "POR_COBRAR" ? porCobrar : confirmadas;
   const aLaVenta = (catalogo.catalogo?.paquetes ?? []).filter((p) => p.active);
 
   const cancelar = async (r: ReservaEventoDto) => {
@@ -93,6 +100,21 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
     } finally {
       setEnviando(false);
       setCancelando(null);
+    }
+  };
+
+  const empezar = async (r: ReservaEventoDto) => {
+    setEnviando(true);
+    try {
+      const res = await empezarEvento({ idempotencyKey: crypto.randomUUID(), reservaId: r.id });
+      if (res.ok) {
+        avisar.ok(`Empezó el cumpleaños de ${r.cumpleanero}. El saldo está en la caja con la cuenta ${orden(res.valor.dia!.cuenta.orderNumber)}.`);
+        router.refresh();
+      } else avisar.error(res.mensaje);
+    } catch {
+      avisar.error("No se pudo hablar con el servidor. El cumpleaños no empezó.");
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -129,7 +151,29 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
             <MoneyDisplay value={toMajor(enDolares(r.saldo))} currency="USD" size="sm" tone="muted" /> · sin IVA
             {r.cancelada ? ` · cancelada por ${r.cancelada.por}` : ` · reservada por ${r.reservadaPor}`}
           </p>
+          {r.dia && (
+            <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-ink-2">
+              <PartyPopper size={12} className="text-brand" aria-hidden="true" />
+              <span className="tnum">
+                Entraron {r.dia.entraron} de {r.invitados} invitados · {r.dia.dentro} dentro · cuenta del día {orden(r.dia.cuenta.orderNumber)}
+              </span>
+            </p>
+          )}
         </div>
+        {r.estado === "CONFIRMADA" && r.fecha === hoy && puedeReservar && (
+          <Button type="button" variant="primary" surface="admin" className="shrink-0 gap-1.5 self-start lg:self-auto" disabled={enviando} onClick={() => void empezar(r)}>
+            <PartyPopper size={14} aria-hidden="true" />
+            Empezar el cumpleaños
+          </Button>
+        )}
+        {r.estado === "EN_CURSO" && puedeCobrar && (
+          <Link
+            href={"/caja" as Route}
+            className="inline-flex min-h-8 shrink-0 items-center self-start rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13px] font-semibold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-brand lg:self-auto"
+          >
+            Cobrar el saldo en caja
+          </Link>
+        )}
         {r.estado === "ANTICIPO_POR_COBRAR" && (
           <div className="flex shrink-0 gap-2 self-start lg:self-auto">
             {puedeCobrar && (
@@ -175,8 +219,8 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
             onCambiar={setFiltro}
             opciones={[
               { id: "TODAS", nombre: "Todas", cuenta: enPie.length },
-              { id: "ANTICIPO_POR_COBRAR", nombre: "Anticipo por cobrar", cuenta: porCobrar.length },
-              { id: "CONFIRMADA", nombre: "Confirmadas", cuenta: confirmadas.length },
+              { id: "POR_COBRAR", nombre: "Por cobrar", cuenta: porCobrar.length },
+              { id: "AL_DIA", nombre: "Al día", cuenta: confirmadas.length },
             ]}
           />
         </div>
@@ -188,7 +232,7 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
       )}
       <p className="flex shrink-0 items-start gap-1.5 text-[12.5px] text-ink-3">
         <Info size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-        El anticipo se cobra en la caja con su IVA. Con él cobrado, la reserva no se cancela aquí: devolverlo es anular su cobro en la caja.
+        El anticipo se cobra en la caja con su IVA; el día del cumpleaños, al empezarlo o al entrar el primer invitado, el saldo va a la caja. Con el anticipo cobrado, la reserva no se cancela aquí: devolverlo es anular su cobro.
       </p>
     </div>
   );
@@ -234,27 +278,27 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
           }}
         />
         <Cifra
-          etiqueta="Anticipo por cobrar"
+          etiqueta="Por cobrar"
           icono={<Hourglass aria-hidden="true" />}
           tono={porCobrar.length > 0 ? "warn" : "idle"}
           valor={String(porCobrar.length)}
-          pie={porCobrar.length > 0 ? "En la cola de la caja" : "Todos los anticipos cobrados"}
-          activo={vista === "proximas" && filtro === "ANTICIPO_POR_COBRAR"}
+          pie={porCobrar.length > 0 ? "Anticipos y saldos en la caja" : "Nada pendiente en la caja"}
+          activo={vista === "proximas" && filtro === "POR_COBRAR"}
           onClick={() => {
             setVista("proximas");
-            setFiltro("ANTICIPO_POR_COBRAR");
+            setFiltro("POR_COBRAR");
           }}
         />
         <Cifra
-          etiqueta="Confirmadas"
+          etiqueta="Al día"
           icono={<CalendarCheck aria-hidden="true" />}
           tono={confirmadas.length > 0 ? "ok" : "idle"}
           valor={String(confirmadas.length)}
-          pie={confirmadas.length > 0 ? `La próxima: ${fechaCorta(confirmadas[0]!.fecha)}` : "Ninguna con el anticipo cobrado"}
-          activo={vista === "proximas" && filtro === "CONFIRMADA"}
+          pie={confirmadas.length > 0 ? `La próxima: ${fechaCorta(confirmadas[0]!.fecha)}` : "Ninguna con lo suyo cobrado"}
+          activo={vista === "proximas" && filtro === "AL_DIA"}
           onClick={() => {
             setVista("proximas");
-            setFiltro("CONFIRMADA");
+            setFiltro("AL_DIA");
           }}
         />
         <Cifra

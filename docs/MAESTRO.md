@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.47.1 · 47 de 60 pasos.** **Corrección (v0.47.1):** con Ajustes desplegado, en el menú lateral desplaza solo su lista; la operación, la marca y la persona se quedan a la vista. **Cumpleaños con reserva y anticipo (B10-1, V-10):** administración carga los paquetes en Ajustes → Cumpleaños (precio, invitados, lo que incluyen y el anticipo, 50 % por defecto); Parque → Eventos es la agenda: al reservar, la cuenta del evento lleva el anticipo a la caja, que lo cobra con su venta; cobrado, la reserva está confirmada; sin cobrar, se cancela desde la agenda. Inicio y la apertura del turno avisan «Hoy hay un cumpleaños». El día del evento es B10-2. **Corrección (v0.46.1):** confirmar una tasa tecleándola como se ve (con dos decimales) ya vale; antes el servidor la comparaba con la tasa completa de la API y nunca coincidía. **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.48.0 · 48 de 60 pasos.** **El día del cumpleaños (B10-2, V-10):** con el anticipo cobrado, el día empieza desde la agenda o con el primer invitado: la cuenta del día lleva el saldo y lo incluido (que sale del estante) a la caja; los invitados entran por la entrada solo con su pulsera, sin cobro, hasta los reservados; el saldo se cobra como una mesa y sale en los pendientes del cierre hasta cobrarse. Los eventos quedan completos. **Corrección (v0.47.1):** con Ajustes desplegado, en el menú lateral desplaza solo su lista; la operación, la marca y la persona se quedan a la vista. **Cumpleaños con reserva y anticipo (B10-1, V-10):** administración carga los paquetes en Ajustes → Cumpleaños (precio, invitados, lo que incluyen y el anticipo, 50 % por defecto); Parque → Eventos es la agenda: al reservar, la cuenta del evento lleva el anticipo a la caja, que lo cobra con su venta; cobrado, la reserva está confirmada; sin cobrar, se cancela desde la agenda. Inicio y la apertura del turno avisan «Hoy hay un cumpleaños». El día del evento es B10-2. **Corrección (v0.46.1):** confirmar una tasa tecleándola como se ve (con dos decimales) ya vale; antes el servidor la comparaba con la tasa completa de la API y nunca coincidía. **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 455 de aplicación, 13 del worker, 6 del agente; en el dominio, 58 de tasas, 49 de impuestos, 145 de caja, 54 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 461 de aplicación, 13 del worker, 6 del agente; en el dominio, 58 de tasas, 49 de impuestos, 149 de caja, 54 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -431,7 +431,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
-   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → ~~B4-6~~ (M-18) → ~~B10-1~~ → B10-2 (eventos). B6-2 va antes que T-7 porque el
+   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → ~~B4-6~~ (M-18) → ~~B10-1~~ → ~~B10-2~~ (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1640,10 +1640,25 @@ antes del cobro en servidor (orden de ejecución).
   apertura del turno (si falla la lectura, el aviso no sale y no tumba la pantalla); la caja la llama «Cumpleaños» y no
   ofrece ítems, partes, cortesía ni descuento. Navegador en la base de pruebas a 1366×768, 1280×800 y 800×1280. Fuera,
   para cuando se pida: cambiar la fecha de una reserva (hoy se cancela y se reserva otra) y el día del evento (B10-2).*
-- [ ] **B10-2 · El día del evento**: los invitados entran con pulseras a la cuenta del evento (cuentan en
+- [x] **B10-2 · El día del evento**: los invitados entran con pulseras a la cuenta del evento (cuentan en
   el aforo), el paquete descuenta sus productos (ADR-023) y el saldo se cobra en la caja; la cuenta del
   evento sale en los pendientes del cierre hasta cobrarse.
   → Un evento de punta a punta en el sistema real: reserva, anticipo, entrada de invitados y saldo.
+  *Hecho el 2026-10-03 (v0.48.0). **Dominio de caja:** la cuenta del día (`eventDay`) se cobra como una mesa
+  (`registerExit` no la reabre ni la cierra por salir invitados), su saldo no se regala pero sí es incobrable con
+  todos fuera; la del anticipo sigue sin serlo (4 pruebas). **Contratos:** `FamilyAccount.eventDay`, estados
+  `EN_CURSO`, `SALDADA` y `SALDO_INCOBRABLE`, `ReservaEvento.dia` (cuenta, entraron, dentro), `AgendaEventos.ahora`
+  (minuto del local), `EmpezarEventoCommand` y `EntradaEventoCommand`. **Base:** `event_day` (solo-agregar),
+  causa `EMPEZAR_EVENTO` (`20261028000000_dia_del_evento`) y `park_session.event_reservation_id`: solo el invitado de
+  un cumpleaños va a precio cero (`20261028000001_invitados_del_evento`); las dos aplicadas solo en `l2control_test`.
+  **Aplicación:** `eventos.empezar` y `eventos.entrarInvitados` con `diaDelEvento` (su día, anticipo cobrado, antes
+  del fin, lo incluido con `comprobarExistencias`); las comprobaciones de pulseras y aforo salen de `entrar()` a
+  `comprobarPulserasYAforo` y las usan las dos entradas; recargar y vincular a una mesa se niegan para un invitado; 6
+  pruebas nuevas en `eventos.test-db.ts`. **Web:** «Empezar el cumpleaños» y la línea del día en la agenda, «Entran
+  a» en la entrada, la salida de un invitado sin cargo y sin llevar a la caja. Navegador en la base de pruebas a
+  1366×768, 800×1280 y 390×844. **A confirmar con el cliente:** que los invitados no paguen tiempo de más al pasarse
+  de la hora del evento (hoy, «en gracia» como aviso, sin cobro) y que los que sobran de lo reservado entren como
+  visita normal.*
 
 ### Etapa 7 · Staging en VPS
 
@@ -1988,6 +2003,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-03** · B10-1 hecho (v0.47.0): paquetes de cumpleaños, agenda, anticipo en la caja con la cuenta del evento
   y cancelación; avisos de hoy. `pnpm verify:db` en verde (81 y 455). Sigue B10-2 (el día del evento).
 - **2026-10-03** · v0.47.1 (pedido del usuario): en el menú lateral, Ajustes desplegado desplaza solo su lista.
+- **2026-10-03** · B10-2 hecho (v0.48.0): el día del cumpleaños (empezar, invitados, saldo). Etapa 10 cerrada.
+  `pnpm verify:db` en verde (81 y 461). Siguen B3-7 → T-2 → T-4 y la Etapa 7.
 
 ---
 
@@ -2001,20 +2018,22 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-10-03, v0.47.0 en `feat/b6-3`, subida a GitHub con sus etiquetas; `main` en v0.42.0, sin fusionar):**
+**Último handoff (2026-10-03, v0.48.0 en `feat/b6-3`; GitHub hasta v0.47.0; `main` en v0.42.0, sin fusionar):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §3 B10-1 hecho y B10-2, §2 V-10 y D-EVT, §5) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.47.0 · 47 de 60 (en GitHub; main en v0.42.0, sin fusionar).
-Hecho: B4-6, v0.46.1 (confirmar tasa tecleando lo que se ve) y B10-1 (paquetes en Ajustes → Cumpleaños, agenda en
-  Parque → Eventos, anticipo en la caja con la cuenta EVENTO, cancelar, avisos de hoy). verify:db 81 y 455.
-Siguiente: B10-2 · El día del evento: invitados con pulseras a la cuenta del evento (cuentan en el aforo), el paquete
-  descuenta sus productos (ADR-023), el saldo (event_reservation.balance_minor) se cobra en la caja; la cuenta del día
-  sale en los pendientes del cierre hasta cobrarse. La cuenta del anticipo ya está COBRADA: el día es otra cuenta.
-Migración 20261027000000_cumpleanos aplicada solo en l2control_test: la base del cliente necesita `pnpm db:migrar`.
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §3 B3-7, §2 V-12, JORNADA §4 y §7, §5) y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.48.0 · 48 de 60 (GitHub hasta v0.47.0; main en v0.42.0).
+Hecho: B10-1 y B10-2 (cumpleaños de punta a punta), v0.46.1 (tasa tecleada como se ve) y v0.47.1 (menú: Ajustes
+  desplaza solo su lista). verify:db 81 y 461. A confirmar con el cliente: invitados sin tiempo de más, y los que
+  sobran de lo reservado entran como visita normal.
+Siguiente: B3-7 · Carga de lo anotado en papel (V-12): tras un corte, la cajera carga en su turno entradas y cobros
+  anotados, marcados «desde papel» con la hora real (acotada a la ventana del corte, con su ADR: excepción a
+  ADR-017); formularios impresos desde la app; supervisión revisa lo cargado antes del Z. Después T-2, T-4 y Etapa 7.
+Migraciones 20261027…, 20261028000000 y 20261028000001 solo en l2control_test: la base del cliente necesita
+  `pnpm db:migrar`.
 Navegador SIEMPRE en la base de pruebas: prueba-env.sh (scratchpad 5d4d04b1) + web `next dev` y worker a mano;
-  sesiones b46-admin.json (con turno) y b101-turno.json (sin turno) en el scratchpad de 0fa807c3. Si `pnpm verify`
-  corre con el esquema a medias, regenera el cliente (`prisma generate`) y reinicia la web: si no, «findMany» de undefined.
+  sesiones b46-admin.json (con turno) y b101-turno.json (sin turno) en el scratchpad de 0fa807c3. Tras cambiar
+  @l2/application o el esquema: `prisma generate` y reiniciar la web (si no, «X is not a function» o 500).
 Base local CON DATOS DEL CLIENTE: no enviar pedidos ni anular allí. Solo «Prueba …». Push solo si el usuario lo pide.
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Entrar por /acceso.
 ```

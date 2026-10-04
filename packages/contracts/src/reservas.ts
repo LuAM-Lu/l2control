@@ -12,7 +12,7 @@
  * saldo queda para el día del evento (B10-2).
  */
 import { z } from "zod";
-import { GuardianSchema } from "./park.ts";
+import { GuardianSchema, WristbandCodeSchema } from "./park.ts";
 import { AccountStatusSchema } from "./account.ts";
 import { FechaSchema, IdempotencyKeySchema, IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
@@ -145,12 +145,15 @@ export const ReservarEventoCommandSchema = z
 export type ReservarEventoCommand = z.infer<typeof ReservarEventoCommandSchema>;
 
 /**
- * En qué va una reserva. Sale de su cuenta, no de una columna que alguien tenga que mantener:
- *  · ANTICIPO_POR_COBRAR — la cuenta del evento está en la cola de la caja;
+ * En qué va una reserva. Sale de sus cuentas, no de una columna que alguien tenga que mantener:
+ *  · ANTICIPO_POR_COBRAR — la cuenta del anticipo está en la cola de la caja;
  *  · CONFIRMADA          — el anticipo está cobrado;
- *  · CANCELADA           — se canceló antes de cobrar el anticipo (o después de anular su cobro).
+ *  · CANCELADA           — se canceló antes de cobrar el anticipo (o después de anular su cobro);
+ *  · EN_CURSO            — empezó el día del evento (B10-2): su cuenta del día, con el saldo, está en la caja;
+ *  · SALDADA             — el saldo está cobrado;
+ *  · SALDO_INCOBRABLE    — supervisión dio el saldo por incobrable.
  */
-export const EstadoReservaSchema = z.enum(["ANTICIPO_POR_COBRAR", "CONFIRMADA", "CANCELADA"]);
+export const EstadoReservaSchema = z.enum(["ANTICIPO_POR_COBRAR", "CONFIRMADA", "CANCELADA", "EN_CURSO", "SALDADA", "SALDO_INCOBRABLE"]);
 export type EstadoReserva = z.infer<typeof EstadoReservaSchema>;
 
 export const ReservaEventoSchema = z.object({
@@ -175,6 +178,18 @@ export const ReservaEventoSchema = z.object({
   reservadaPor: z.string(),
   /** Quién la canceló y cuándo, si se canceló. */
   cancelada: z.object({ en: TimestampSchema, por: z.string() }).nullable(),
+  /**
+   * El día del evento, si ya empezó (B10-2): su cuenta (el saldo y lo incluido), cuántos invitados entraron
+   * y cuántos siguen dentro.
+   */
+  dia: z
+    .object({
+      cuenta: z.object({ id: IdSchema, orderNumber: z.number().int().positive(), status: AccountStatusSchema }),
+      empezadoEn: TimestampSchema,
+      entraron: z.number().int().min(0),
+      dentro: z.number().int().min(0),
+    })
+    .nullable(),
 });
 export type ReservaEventoDto = z.infer<typeof ReservaEventoSchema>;
 
@@ -191,10 +206,33 @@ export type AgendaEventosQuery = z.infer<typeof AgendaEventosQuerySchema>;
 export const AgendaEventosSchema = z.object({
   /** El día de hoy en el calendario del local, para que la pantalla no use el del navegador. */
   hoy: FechaSchema,
+  /** La hora de ahora en el local, en minutos desde la medianoche: dice qué cumpleaños de hoy ya terminó. */
+  ahora: MinutoDelDiaSchema,
   /** En orden de día y de hora. */
   reservas: z.array(ReservaEventoSchema),
 });
 export type AgendaEventosDto = z.infer<typeof AgendaEventosSchema>;
+
+/**
+ * Empezar el día del evento (B10-2): con el anticipo cobrado y en su día, nace la cuenta del día con el saldo y
+ * lo que incluye el paquete (que sale del estante). También lo hace la primera entrada de invitados.
+ */
+export const EmpezarEventoCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  reservaId: IdSchema,
+});
+export type EmpezarEventoCommand = z.infer<typeof EmpezarEventoCommandSchema>;
+
+/**
+ * La entrada de los invitados de un cumpleaños (B10-2): solo sus pulseras. El representante es quien reservó,
+ * no hay paquete que elegir (los cubre el del evento) ni nada que cobrar. Cuentan en el aforo.
+ */
+export const EntradaEventoCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  reservaId: IdSchema,
+  pulseras: z.array(WristbandCodeSchema).min(1, "Pasa al menos una pulsera").max(30, "Hasta 30 pulseras por entrada"),
+});
+export type EntradaEventoCommand = z.infer<typeof EntradaEventoCommandSchema>;
 
 /** Cancelar una reserva cuyo anticipo no se ha cobrado: su cuenta se cierra sin consumo. */
 export const CancelarReservaCommandSchema = z.strictObject({

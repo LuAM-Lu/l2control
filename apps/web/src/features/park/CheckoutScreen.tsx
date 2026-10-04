@@ -217,7 +217,9 @@ export function CheckoutScreen({
     return { resultados, grupos, sinCuenta };
   }, [preview.lines, cuentas, snapshot.sessions]);
 
-  const porCobrar = plan.resultados.filter((c) => c.status === "POR_COBRAR");
+  // La cuenta del día de un cumpleaños (B10-2) no se cobra cuando sale un invitado: su saldo lo paga quien
+  // reservó, en la caja, cuando quiera. Sus invitados salen sin cargo.
+  const porCobrar = plan.resultados.filter((c) => c.status === "POR_COBRAR" && c.kind !== "EVENTO");
   // D9: cada familia de la salida dice a quién se entrega; «otra persona», con su nombre.
   const faltaRecogida = plan.grupos.some((g) => {
     const r = recogidas[g.cuenta.id];
@@ -285,7 +287,7 @@ export function CheckoutScreen({
       anunciarCierre({ ninos, total: toMajor(aCobrar), destino: `cargado a la mesa ${etiquetaDeMesa ?? "?"}` });
       return;
     }
-    const aCaja = hechas.filter((c) => c.status === "POR_COBRAR");
+    const aCaja = hechas.filter((c) => c.status === "POR_COBRAR" && c.kind !== "EVENTO");
     const monto = sum(aCaja.map(pendiente), "USD");
     const unica = aCaja[0];
     if (aCaja.length === 1 && unica) {
@@ -307,7 +309,11 @@ export function CheckoutScreen({
     anunciarCierre({
       ninos,
       total: "0.00",
-      destino: hechas.some((c) => c.status === "ABIERTA") ? "sin cargo por ahora: la familia sigue con niños dentro" : "sin cargo: estaba todo pagado",
+      destino: hechas.some((c) => c.kind === "EVENTO")
+        ? "sin cargo: invitados de un cumpleaños"
+        : hechas.some((c) => c.status === "ABIERTA")
+          ? "sin cargo por ahora: la familia sigue con niños dentro"
+          : "sin cargo: estaba todo pagado",
     });
   }
 
@@ -535,12 +541,14 @@ export function CheckoutScreen({
                     >
                       <p className="flex items-center justify-between gap-2">
                         <span className="truncate font-semibold text-ink">{c.family}</span>
-                        <Badge tone={c.mode === "PREPAGO" ? "idle" : "brand"}>
-                          {c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                        <Badge tone={c.mode === "PREPAGO" || c.kind === "EVENTO" ? "idle" : "brand"}>
+                          {c.kind === "EVENTO" ? "Cumpleaños" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
                         </Badge>
                       </p>
                       <p className="tnum mt-1 text-ink-3">
-                        {p.amount === 0n
+                        {c.kind === "EVENTO"
+                          ? "Invitado: sale sin cargo. El saldo del cumpleaños se cobra en la caja."
+                          : p.amount === 0n
                           ? "Todo pagado: sale sin cargo"
                           : c.status === "POR_COBRAR"
                             ? `A cobrar ahora: ${formatMoneyVE(toMajor(p), "USD")}`

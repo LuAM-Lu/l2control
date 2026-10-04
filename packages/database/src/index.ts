@@ -21,6 +21,7 @@ export type {
   BranchSettingsVersion,
   ExchangeRate,
   EventCatalogVersion,
+  EventDay,
   EventReservation,
   ExchangeRateConfirmation,
   FloorPlanVersion,

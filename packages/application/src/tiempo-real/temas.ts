@@ -70,6 +70,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "evento.catalogo": ["eventos"],
   "evento.reservar": ["eventos", "cuentas"],
   "evento.cancelar": ["eventos", "cuentas", "turno"],
+  // Empezar el día abre la cuenta del día en la caja y saca lo incluido del estante (B10-2).
+  "evento.empezar": ["eventos", "cuentas", "catalogo", "turno"],
+  // Los invitados entran a la sala y a la cuenta del día.
+  "evento.entrada": ["eventos", "sala", "cuentas"],
   "impresora.crear": ["impresion"],
   "impresora.editar": ["impresion"],
   "impresora.activar": ["impresion"],

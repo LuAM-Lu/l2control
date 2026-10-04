@@ -1282,7 +1282,8 @@ export async function guardarVersion(
       | "ANULACION_PEDIDO"
       | "LIBERAR"
       | "RESERVA"
-      | "CANCELAR_RESERVA";
+      | "CANCELAR_RESERVA"
+      | "EMPEZAR_EVENTO";
     operationKey: string | null;
     ahora: number;
     quien: string;

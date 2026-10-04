@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Cake,
   CircleCheckBig,
   Phone,
   ScanLine,
+  Ticket,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -15,6 +17,7 @@ import {
   GuardianSchema,
   type PaymentMode,
   type RepresentanteEncontradoDto,
+  type ReservaEventoDto,
   WristbandCodeSchema,
 } from "@l2/contracts";
 import {
@@ -37,6 +40,9 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buscarRepresentante, consultarPulsera, registrarEntrada } from "./parque.acciones";
+import { entrarInvitados } from "../eventos/eventos.acciones";
+import { horario } from "../eventos/formato.ts";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 import { useSala } from "./SalaProvider.tsx";
 import { PackagePicker } from "./PackagePicker";
@@ -84,7 +90,12 @@ const NUEVO_UID = () => globalThis.crypto.randomUUID();
 /** Dígitos que hacen falta para buscar a una familia: un teléfono entero, no un pedazo. */
 const DIGITOS_PARA_BUSCAR = 7;
 
-export function CheckInScreen() {
+export function CheckInScreen({
+  cumpleanos = [],
+}: {
+  /** Los cumpleaños de hoy que reciben invitados (B10-2): la entrada los ofrece además de la visita normal. */
+  cumpleanos?: readonly ReservaEventoDto[];
+} = {}) {
   const { sala, adoptar: adoptarEstancias } = useSala();
   const activeSessions = sala?.sessions.length ?? 0;
   /**
@@ -103,6 +114,12 @@ export function CheckInScreen() {
     paquetesActivos[0]?.id ??
     "";
   const capacityLimit = tarifario.policy.capacityLimit;
+  const { formatoHora } = useSucursal().ajustes;
+  /** A qué entra esta tanda (B10-2): una visita normal (`null`) o un cumpleaños de hoy, por su reserva. */
+  const [reservaId, setReservaId] = useState<string | null>(null);
+  const cumple = cumpleanos.find((r) => r.id === reservaId) ?? null;
+  /** Cuántos invitados del cumpleaños elegido pueden entrar todavía: los reservados menos los que entraron. */
+  const quedan = cumple ? Math.max(0, cumple.invitados - (cumple.dia?.entraron ?? 0)) : null;
 
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -344,6 +361,37 @@ export function CheckInScreen() {
     });
   }
 
+  const puedeEnviarInvitados = cumple !== null && entradas.length > 0 && entradas.length <= (quedan ?? 0) && !capacidad.isFull && !enviando;
+
+  /** Los invitados de un cumpleaños (B10-2): solo sus pulseras, a la cuenta del día; sin paquete ni cobro. */
+  async function registrarInvitados() {
+    if (!cumple) return;
+    clave.current ??= NUEVO_UID();
+    setEnviando(true);
+    const r = await entrarInvitados({ idempotencyKey: clave.current, reservaId: cumple.id, pulseras: entradas.map((e) => e.wristbandCode) }).catch(() => null);
+    setEnviando(false);
+    if (!r) {
+      setAviso("Sin conexión con el servidor: los invitados no entraron. Vuelve a intentarlo.");
+      return;
+    }
+    clave.current = null;
+    if (!r.ok) {
+      setAviso(r.mensaje);
+      return;
+    }
+    adoptarEstancias(r.valor.sessions);
+    adoptarCuenta(r.valor.account);
+    setEntradas([]);
+    setAviso(null);
+    setPasoMovil("PULSERAS");
+    const n = r.valor.sessions.length;
+    avisar.ok(`${n === 1 ? "Entró 1 invitado" : `Entraron ${n} invitados`} al cumpleaños de ${cumple.cumpleanero}`, {
+      detalle: "Sin cobro: lo paga el paquete del cumpleaños.",
+    });
+    // La cuenta de invitados que entraron la vuelve a leer la página.
+    router.refresh();
+  }
+
   /* ------------------------------------------------------------ pintado */
 
   return (
@@ -454,7 +502,11 @@ export function CheckInScreen() {
                         </span>
                       </Badge>
 
-                      {/* En el teléfono el paquete va en su renglón, en 2×2: en la fila, cuatro no caben. */}
+                      {/* En el teléfono el paquete va en su renglón, en 2×2: en la fila, cuatro no caben. Un
+                          invitado de cumpleaños no elige paquete: lo cubre el del evento (B10-2). */}
+                      {cumple ? (
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">Invitado · Cumpleaños de {cumple.cumpleanero}</span>
+                      ) : (
                       <div className="min-w-[200px] flex-1 max-md:order-last max-md:basis-full">
                         <PackagePicker
                           packages={paquetesActivos}
@@ -465,6 +517,7 @@ export function CheckInScreen() {
                           compact
                         />
                       </div>
+                      )}
 
                       <button
                         type="button"
@@ -475,8 +528,9 @@ export function CheckInScreen() {
                         <X size={16} aria-hidden="true" />
                       </button>
                     </div>
-                    {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. */}
-                    <input
+                    {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. Los invitados
+                        de un cumpleaños no son de la familia que reservó: se nombran después, desde la sala. */}
+                    {!cumple && <input
                       aria-label={`Nombre del niño de la pulsera ${e.wristbandCode} (opcional)`}
                       value={e.nombre}
                       onChange={(ev) => actualizar(e.uid, { nombre: ev.target.value })}
@@ -485,7 +539,7 @@ export function CheckInScreen() {
                       autoComplete="off"
                       maxLength={60}
                       className="mt-3 min-h-12 w-full rounded-[var(--radius-control)] border border-line bg-base px-3 text-[14px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-brand"
-                    />
+                    />}
                   </li>
                 ))}
               </ul>
@@ -528,6 +582,54 @@ export function CheckInScreen() {
                   {aviso}
                 </p>
               )}
+              {cumpleanos.length > 0 && (
+                <fieldset className="flex flex-col">
+                  <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">Entran a</legend>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {[null, ...cumpleanos].map((r) => (
+                      <button
+                        key={r?.id ?? "visita"}
+                        type="button"
+                        aria-pressed={reservaId === (r?.id ?? null)}
+                        onClick={() => {
+                          setReservaId(r?.id ?? null);
+                          setAviso(null);
+                        }}
+                        className={cn(
+                          "flex min-h-12 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 py-2 text-left",
+                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                          reservaId === (r?.id ?? null) ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:text-ink",
+                        )}
+                      >
+                        {r ? <Cake size={16} className="shrink-0 text-brand" aria-hidden="true" /> : <Ticket size={16} className="shrink-0" aria-hidden="true" />}
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-semibold">{r ? `Cumpleaños de ${r.cumpleanero}` : "Visita"}</span>
+                          <span className="block truncate text-[11px] text-ink-3">
+                            {r
+                              ? `${horario(r.inicio, r.fin, formatoHora)} · entraron ${r.dia?.entraron ?? 0} de ${r.invitados}`
+                              : "Con su paquete y su representante"}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+
+              {cumple ? (
+                <div className="flex flex-col gap-1 rounded-[var(--radius-control)] border border-line bg-base px-3 py-2.5 text-[13px]">
+                  <p className="font-semibold text-ink">Cumpleaños de {cumple.cumpleanero}</p>
+                  <p className="text-ink-2">
+                    {cumple.paquete.name} · representante: {cumple.representante.fullName}
+                  </p>
+                  <p className={cn("tnum", quedan === 0 ? "font-semibold text-state-warn" : "text-ink-2")}>
+                    {quedan === 0
+                      ? "Ya entraron todos los invitados reservados: quien llegue entra como visita normal."
+                      : `Pueden entrar ${quedan} ${quedan === 1 ? "invitado" : "invitados"} más.`}
+                  </p>
+                </div>
+              ) : (
+              <>
               <h2 className="font-display text-lg font-bold text-ink">
                 Representante
               </h2>
@@ -572,12 +674,27 @@ export function CheckInScreen() {
                   hint="No lo tenemos registrado todavía"
                 />
               )}
+              </>
+              )}
             </div>
           </div>
 
           {/* Lo que se decide justo antes de pulsar el botón va pegado al
               botón, y fuera de lo que desplaza: en una tablet de 600 px de
               alto, «cómo paga» se quedaba medio tapado abajo. */}
+          {cumple ? (
+            <div className="mt-4 flex shrink-0 flex-col gap-2 border-t border-line pt-4 bajo:mt-3">
+              <p className="text-[12px] text-ink-3">Sin cobro: lo paga el paquete del cumpleaños. Cuentan en el aforo.</p>
+              <Button surface="pos" variant="primary" disabled={!puedeEnviarInvitados} onClick={() => void registrarInvitados()} className="w-full">
+                {enviando ? "Registrando…" : entradas.length > 0 ? `Registrar ${entradas.length} ${entradas.length === 1 ? "invitado" : "invitados"}` : "Registrar invitados"}
+              </Button>
+              {!puedeEnviarInvitados && !enviando && entradas.length > 0 && (
+                <p className="text-center text-[12px] text-ink-3">
+                  {capacidad.isFull ? "Aforo completo" : `Caben ${quedan} ${quedan === 1 ? "invitado" : "invitados"} más: quita las pulseras que sobran`}
+                </p>
+              )}
+            </div>
+          ) : (
           <div className="mt-4 flex shrink-0 flex-col gap-4 border-t border-line pt-4 bajo:mt-3 bajo:gap-3">
             {/* DEC-21: la familia elige cómo paga. Define a dónde lleva el botón. M-18 (B4-6): lo pagado al
                 entrar no se devuelve si sale antes; en cuenta abierta se cobra por lo que usó. */}
@@ -675,6 +792,7 @@ export function CheckInScreen() {
               </div>
             </div>
           </div>
+          )}
         </aside>
       </Container>
     </div>

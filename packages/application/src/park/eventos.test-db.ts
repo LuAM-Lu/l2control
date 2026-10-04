@@ -310,6 +310,7 @@ describe("la agenda y el aviso de hoy", () => {
   test("la agenda va en orden de día y de hora, con el día de hoy del local", async () => {
     const a = valor(await local.app.eventos.agenda(ctxCajera, { desde: "2026-10-10", hasta: "2026-10-10" }, AHORA));
     assert.equal(a.hoy, HOY);
+    assert.equal(a.ahora, 10 * 60, "son las 10:00 am en el local");
     assert.deepEqual(
       a.reservas.map((x) => x.inicio),
       [...a.reservas.map((x) => x.inicio)].sort((x, y) => x - y),
@@ -333,5 +334,181 @@ describe("la agenda y el aviso de hoy", () => {
     assert.equal((await otro.app.eventos.leerCatalogo(ctxOtro)).catalogo, null);
     const a = valor(await otro.app.eventos.agenda(ctxOtro, { desde: "2026-10-01", hasta: "2026-12-31" }, AHORA));
     assert.deepEqual(a.reservas, []);
+  });
+});
+
+describe("el día del evento (B10-2)", () => {
+  let refresco: string;
+  let agotado: string;
+  /** Lo que queda de un producto: la suma de sus movimientos. */
+  const existencia = async (productId: string) =>
+    (await local.base.conTenant(local.sistema.tenantId, (tx) => tx.stockMovement.aggregate({ where: { productId }, _sum: { quantity: true } })))._sum.quantity ?? 0;
+  const salidaDe = (sessionIds: string[]) => ({ idempotencyKey: randomUUID(), sessionIds, disposition: { kind: "CAJA" }, recogida: { kind: "REPRESENTANTE" } });
+  const entrada = (reservaId: string, pulseras: string[]) => ({ idempotencyKey: randomUUID(), reservaId, pulseras });
+  let pulsera = 0;
+  const pulseras = (n: number) => Array.from({ length: n }, () => `AK-${String(7000 + ++pulsera)}`);
+  /** Una reserva de hoy, de 10:30 am a 1:00 pm, con su anticipo cobrado (salvo que se diga). */
+  const deHoyConfirmada = async (paqueteId: string, invitados: number, cobrar = true) => {
+    const r = await reservar(reserva({ fecha: HOY, inicio: 10 * 60 + 30, fin: 13 * 60, paqueteId, invitados, cumpleanero: "Valentina" }));
+    if (cobrar) {
+      const c = await cuentaDe(r.cuenta.id);
+      valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(c, "2320"), AHORA));
+    }
+    return r;
+  };
+
+  before(async () => {
+    const crear = async (nombre: string) =>
+      valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "150" } }, AHORA - 5 * MIN)).productos.find(
+        (p) => p.nombre === nombre,
+      )!.id;
+    refresco = await crear("Refresco en lata");
+    agotado = await crear("Jugo en caja");
+    valor(
+      await local.app.entradas.registrar(
+        local.sistema,
+        { idempotencyKey: randomUUID(), tipo: "COMPRA", lineas: [{ productId: refresco, bultos: 1, unidadesPorBulto: 10, costoBultoMinor: "500" }] },
+        AHORA - 4 * MIN,
+      ),
+    );
+    const vigente = await local.app.eventos.leerCatalogo(ctxCajera);
+    const paquetes = vigente.catalogo!.paquetes.map((p) => ({ ...p, incluye: p.incluye.map(({ productId, quantity }) => ({ productId, quantity })) }));
+    valor(
+      await local.app.eventos.publicarCatalogo(
+        ctxAdmin,
+        {
+          sobre: vigente.version,
+          catalogo: {
+            anticipoBps: 5000,
+            paquetes: [
+              ...paquetes,
+              { id: "con-refresco", name: "Con refresco", price: usd("4000"), minInvitados: 2, maxInvitados: 5, incluye: [{ productId: refresco, quantity: 2 }], active: true },
+              { id: "sin-existencia", name: "Sin existencia", price: usd("4000"), minInvitados: 1, maxInvitados: 5, incluye: [{ productId: agotado, quantity: 1 }], active: true },
+            ],
+          },
+        },
+        AHORA,
+      ),
+    );
+  });
+
+  test("sin el anticipo cobrado no empieza, ni entran invitados; otro día, tampoco", async () => {
+    const r = await deHoyConfirmada("con-refresco", 3, false);
+    const empezar = await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id }, AHORA);
+    assert.equal(!empezar.ok && empezar.motivo, "CONFLICTO");
+    assert.match(!empezar.ok ? empezar.mensaje : "", /Primero se cobra el anticipo/);
+    const entrar = await local.app.eventos.entrarInvitados(ctxMonitora, entrada(r.id, pulseras(1)), AHORA);
+    assert.equal(!entrar.ok && entrar.motivo, "CONFLICTO");
+    valor(await local.app.eventos.cancelar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id }, AHORA));
+
+    const otroDia = await reservar(reserva({ fecha: "2026-12-12" }));
+    const c = await cuentaDe(otroDia.cuenta.id);
+    valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(c, "8700"), AHORA));
+    const antes = await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: otroDia.id }, AHORA);
+    assert.match(!antes.ok ? antes.mensaje : "", /empieza ese día/);
+  });
+
+  test("empezar abre la cuenta del día con el saldo y lo incluido, que sale del estante; una vez", async () => {
+    const r = await deHoyConfirmada("con-refresco", 3);
+    assert.equal(r.estado, "ANTICIPO_POR_COBRAR", "la reserva devuelta es de antes del cobro");
+    const antes = await existencia(refresco);
+    const e = valor(await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id }, AHORA));
+    assert.equal(e.estado, "EN_CURSO");
+    assert.deepEqual([e.dia!.cuenta.status, e.dia!.entraron, e.dia!.dentro], ["POR_COBRAR", 0, 0]);
+    const dia = await cuentaDe(e.dia!.cuenta.id);
+    assert.deepEqual([dia.kind, dia.eventDay, dia.eventId, dia.mode], ["EVENTO", true, r.id, "PREPAGO"]);
+    assert.deepEqual(
+      dia.lines.map((l) => [l.concept, l.amount.minor, l.productId ?? null]),
+      [
+        ["Saldo · Cumpleaños de Valentina (Con refresco)", "2000", null],
+        ["Refresco en lata · incluido", "0", refresco],
+        ["Refresco en lata · incluido", "0", refresco],
+      ],
+    );
+    assert.equal(await existencia(refresco), antes - 2, "los dos refrescos salieron del estante");
+    // Otra vez (otro toque, otra clave): el mismo día, sin otra cuenta ni otra salida del estante.
+    const otra = valor(await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id }, AHORA + MIN));
+    assert.equal(otra.dia!.cuenta.id, e.dia!.cuenta.id);
+    assert.equal(await existencia(refresco), antes - 2);
+  });
+
+  test("sin existencia de lo incluido el día no empieza", async () => {
+    const r = await deHoyConfirmada("sin-existencia", 2);
+    const e = await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id }, AHORA);
+    assert.equal(!e.ok && e.motivo, "INVALIDO");
+    assert.match(!e.ok ? e.mensaje : "", /Jugo en caja/);
+    assert.equal(valor(await local.app.eventos.agenda(ctxCajera, { desde: HOY, hasta: HOY }, AHORA)).reservas.find((x) => x.id === r.id)!.estado, "CONFIRMADA");
+  });
+
+  test("los invitados entran con sus pulseras a la cuenta del día, sin cobro y hasta los reservados; la primera entrada lo empieza", async () => {
+    const r = await deHoyConfirmada("con-refresco", 3);
+    const cmd = entrada(r.id, pulseras(2));
+    const hecha = valor(await local.app.eventos.entrarInvitados(ctxMonitora, cmd, AHORA));
+    assert.equal(hecha.sessions.length, 2);
+    assert.ok(hecha.sessions.every((s) => s.accountId === hecha.account.id && s.packagePrice.minor === "0" && s.packageName === "Cumpleaños de Valentina"));
+    assert.equal(hecha.account.eventDay, true);
+    // Hasta la hora de fin del evento (1:00 pm; son las 10:00 am): 180 minutos.
+    assert.deepEqual(hecha.sessions[0]!.duration, { kind: "fixed", minutes: 180 });
+    assert.equal(hecha.sessions[0]!.terms.penaltyPricePerBlock.minor, "0", "no se cobra tiempo de más");
+    // Un reintento devuelve la misma entrada.
+    assert.deepEqual(valor(await local.app.eventos.entrarInvitados(ctxMonitora, cmd, AHORA + 2000)), hecha);
+    // En sala, con el representante de la reserva.
+    const sala = valor(await local.app.parque.sala(ctxMonitora, AHORA));
+    assert.ok(hecha.sessions.every((s) => sala.sessions.some((x) => x.id === s.id && x.guardianName === "Carmen Rivas")));
+    // Se reservaron 3: con dos más, sobra uno.
+    const demas = await local.app.eventos.entrarInvitados(ctxMonitora, entrada(r.id, pulseras(2)), AHORA);
+    assert.equal(!demas.ok && demas.problemas?.[0]?.message, "INVITADOS_COMPLETOS");
+    // Una pulsera ya activa no entra dos veces.
+    const repetida = await local.app.eventos.entrarInvitados(ctxMonitora, entrada(r.id, [hecha.sessions[0]!.wristbandCode]), AHORA);
+    assert.equal(!repetida.ok && repetida.problemas?.[0]?.message, "PULSERA_ACTIVA");
+    const agenda = valor(await local.app.eventos.deHoy(ctxCajera, AHORA)).reservas.find((x) => x.id === r.id)!;
+    assert.deepEqual([agenda.estado, agenda.dia!.entraron, agenda.dia!.dentro], ["EN_CURSO", 2, 2]);
+    // Un invitado no recarga tiempo.
+    const recarga = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: hecha.sessions[0]!.id, packageId: "pkg-60" }, AHORA);
+    assert.equal(!recarga.ok && recarga.motivo, "CONFLICTO");
+  });
+
+  test("el saldo se cobra en la caja con invitados dentro; que salgan no la reabre, y hasta cobrarlo está en los pendientes", async () => {
+    const r = await deHoyConfirmada("con-refresco", 3);
+    const hecha = valor(await local.app.eventos.entrarInvitados(ctxMonitora, entrada(r.id, pulseras(3)), AHORA));
+    const [a, b, c] = hecha.sessions.map((s) => s.id);
+    // Sale uno: nada que cobrar por él, y la cuenta del día sigue en la caja con el saldo.
+    const s1 = valor(await local.app.parque.salir(ctxMonitora, salidaDe([a!]), AHORA + 30 * MIN));
+    assert.equal(s1.lines[0]!.total.minor, "0");
+    assert.equal(s1.account.status, "POR_COBRAR");
+    assert.ok(valor(await local.app.cortes.pendientes(ctxCajera, undefined, AHORA + 31 * MIN)).cuentas.some((x) => x.id === hecha.account.id));
+    // Se cobra el saldo con su IVA (lo incluido va a $ 0): saldada, aunque queden dos dentro.
+    const dia = await cuentaDe(hecha.account.id);
+    const cobro = valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(dia, "2320"), AHORA + 32 * MIN));
+    assert.equal(cobro.cuenta.status, "COBRADA");
+    // Salen los demás después de las 1:00 pm: en gracia, sin tiempo de más, y la cuenta sigue cobrada.
+    const s2 = valor(await local.app.parque.salir(ctxMonitora, salidaDe([b!, c!]), AHORA + 3 * 60 * MIN + 40 * MIN));
+    assert.ok(s2.lines.every((l) => l.total.minor === "0"));
+    assert.equal(s2.account.status, "COBRADA");
+    assert.ok(!valor(await local.app.cortes.pendientes(ctxCajera, undefined, AHORA + 4 * 60 * MIN)).cuentas.some((x) => x.id === hecha.account.id));
+    const agenda = valor(await local.app.eventos.agenda(ctxCajera, { desde: HOY, hasta: HOY }, AHORA)).reservas.find((x) => x.id === r.id)!;
+    assert.deepEqual([agenda.estado, agenda.dia!.entraron, agenda.dia!.dentro], ["SALDADA", 3, 0]);
+  });
+});
+
+describe("el saldo incobrable (B10-2)", () => {
+  test("con el saldo dado por incobrable no entran más invitados", async () => {
+    const r = await reservar(reserva({ fecha: HOY, inicio: 10 * 60 + 30, fin: 13 * 60, paqueteId: "basico", invitados: 10, cumpleanero: "Martina" }));
+    valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(await cuentaDe(r.cuenta.id), "8700"), AHORA));
+    const e = valor(await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id }, AHORA));
+    const dia = await cuentaDe(e.dia!.cuenta.id);
+    valor(
+      await local.app.cuentas.incobrable(
+        ctxCajera,
+        { idempotencyKey: randomUUID(), accountId: dia.id, version: dia.version, motivo: "NO_PUEDE_PAGAR" },
+        { autorizadorId: supervisor, pin: "5937", motivo: "No vino nadie" },
+        AHORA,
+      ),
+    );
+    const agenda = valor(await local.app.eventos.deHoy(ctxCajera, AHORA)).reservas.find((x) => x.id === r.id)!;
+    assert.equal(agenda.estado, "SALDO_INCOBRABLE");
+    const entrar = await local.app.eventos.entrarInvitados(ctxMonitora, { idempotencyKey: randomUUID(), reservaId: r.id, pulseras: ["AK-7999"] }, AHORA);
+    assert.equal(!entrar.ok && entrar.motivo, "CONFLICTO");
+    assert.match(!entrar.ok ? entrar.mensaje : "", /incobrable/);
   });
 });

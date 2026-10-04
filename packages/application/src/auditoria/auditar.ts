@@ -54,6 +54,8 @@ export type AccionAuditada =
   | "evento.catalogo"
   | "evento.reservar"
   | "evento.cancelar"
+  | "evento.empezar"
+  | "evento.entrada"
   | "mesa.vincular"
   | "impresora.crear"
   | "impresora.editar"

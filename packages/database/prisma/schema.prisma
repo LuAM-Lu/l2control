@@ -73,6 +73,7 @@ model Branch {
   printJobs         PrintJob[]
   eventCatalogs     EventCatalogVersion[]
   eventReservations EventReservation[]
+  eventDays         EventDay[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -770,6 +771,7 @@ model Account {
   parkSessions      ParkSession[]
   kitchenOrders     KitchenOrder[]
   eventReservations EventReservation[]
+  eventDays         EventDay[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -1036,12 +1038,15 @@ model ParkSession {
   pickedUpByGuardian Boolean?  @map("picked_up_by_guardian")
   /// D9: quién lo recogió, si no fue su representante.
   pickedUpByName     String?   @map("picked_up_by_name")
+  /// El cumpleaños del que es invitado (B10-2): su estancia la paga el paquete del evento, a precio cero.
+  eventReservationId String?   @map("event_reservation_id") @db.Uuid
 
-  branch     Branch                 @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  account    Account                @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  guardian   Guardian               @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  kid        Kid?                   @relation(fields: [tenantId, kidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  extensions ParkSessionExtension[]
+  branch           Branch                 @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account          Account                @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  guardian         Guardian               @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  kid              Kid?                   @relation(fields: [tenantId, kidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  extensions       ParkSessionExtension[]
+  eventReservation EventReservation?      @relation(fields: [tenantId, eventReservationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   @@index([tenantId, branchId, status])
@@ -1452,9 +1457,37 @@ model EventReservation {
   account  Account  @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   guardian Guardian @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
+  day           EventDay?
+  guestSessions ParkSession[]
+
   @@unique([tenantId, id])
   @@unique([tenantId, operationKey])
   @@unique([tenantId, accountId])
   @@index([tenantId, branchId, eventDate])
   @@map("event_reservation")
+}
+
+/// El día de un cumpleaños, empezado (B10-2): la cuenta del día con el saldo y lo que incluye el paquete, que
+/// nace una vez por reserva. Solo-agregar: en qué va lo dicen la cuenta y las estancias de los invitados.
+model EventDay {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  reservationId String   @map("reservation_id") @db.Uuid
+  /// La cuenta del día (kind EVENTO con eventDay).
+  accountId     String   @map("account_id") @db.Uuid
+  startedAt     DateTime @map("started_at") @db.Timestamptz(3)
+  startedBy     String?  @map("started_by") @db.Uuid
+  startedByName String   @map("started_by_name")
+  deviceId      String?  @map("device_id") @db.Uuid
+  operationKey  String   @map("operation_key") @db.Uuid
+
+  branch      Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  reservation EventReservation @relation(fields: [tenantId, reservationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account     Account          @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, reservationId])
+  @@unique([tenantId, accountId])
+  @@unique([tenantId, operationKey])
+  @@map("event_day")
 }

@@ -228,50 +228,8 @@ export function casosParque(base: Base): CasosParque {
             if (!p) return invalido("Ese paquete ya no está a la venta: elige otro.", ["entries", i, "packageId"], "PAQUETE_QUE_NO_SE_VENDE");
             paquetes.push(p);
           }
-          // V-1: la serie de pulseras del local, si ya se fijó con el primer lote (D-PUL).
-          const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
-          for (const [i, e] of cmd.entries.entries()) {
-            const problema = wristbandSeriesProblem(e.wristbandCode, { prefix: serie.prefijo, length: serie.longitud });
-            if (problema) {
-              const como = [serie.prefijo ? `empiezan por ${serie.prefijo}` : null, serie.longitud ? `tienen ${serie.longitud} caracteres` : null].filter(Boolean).join(" y ");
-              return invalido(`La pulsera ${e.wristbandCode} no es de la serie del local: las pulseras ${como}.`, ["entries", i, "wristbandCode"], "PULSERA_FUERA_DE_SERIE");
-            }
-          }
-          const repetida = cmd.entries.findIndex((e, i) => cmd.entries.findIndex((x) => x.wristbandCode === e.wristbandCode) !== i);
-          if (repetida >= 0) {
-            return invalido(`La pulsera ${cmd.entries[repetida]!.wristbandCode} está dos veces en esta entrada.`, ["entries", repetida, "wristbandCode"], "PULSERA_REPETIDA");
-          }
-
-          // El candado ordena dos entradas a la vez: el aforo y las pulseras se miran y se ocupan juntos.
-          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`parque:${ctx.branchId}`}, 0))::text AS candado`;
-          const activas = await tx.parkSession.findMany({ where: { branchId: ctx.branchId, status: "ACTIVA" }, select: { wristbandCode: true, startedAt: true } });
-          const ocupadas = new Set(activas.map((a) => a.wristbandCode));
-          const ocupada = cmd.entries.findIndex((e) => ocupadas.has(e.wristbandCode));
-          if (ocupada >= 0) {
-            // I-04: una pulsera, una estancia activa (también una huérfana, hasta que la dirección la cierre).
-            return invalido(`La pulsera ${cmd.entries[ocupada]!.wristbandCode} ya está activa en sala.`, ["entries", ocupada, "wristbandCode"], "PULSERA_ACTIVA");
-          }
-          // V-1: una pulsera, una visita. Una que ya salió no vuelve a entrar (la base también lo impide).
-          const usadas = await tx.parkSession.findMany({
-            where: { branchId: ctx.branchId, status: { not: "ACTIVA" }, wristbandCode: { in: cmd.entries.map((e) => e.wristbandCode) } },
-            select: { wristbandCode: true },
-          });
-          const usada = cmd.entries.findIndex((e) => usadas.some((u) => u.wristbandCode === e.wristbandCode));
-          if (usada >= 0) {
-            return invalido(`La pulsera ${cmd.entries[usada]!.wristbandCode} ya se usó en otra visita: pon una nueva.`, ["entries", usada, "wristbandCode"], "PULSERA_USADA");
-          }
-          const aforo = vigente.tarifario.policy.capacityLimit;
-          // Una huérfana no ocupa sitio: casi seguro ese niño ya no está (F5-13).
-          const regla = await reglaDeHuerfanas(tx, ctx.branchId);
-          const dentro = activas.filter((a) => !huerfana(a, ahora, regla)).length;
-          if (!admits(dentro, cmd.entries.length, aforo)) {
-            const libres = Math.max(0, aforo - dentro);
-            return {
-              ok: false,
-              motivo: "CONFLICTO",
-              mensaje: libres === 0 ? `Aforo completo (${aforo}): no entra nadie más.` : `Aforo: quedan ${libres} ${libres === 1 ? "plaza" : "plazas"} y esta entrada trae ${cmd.entries.length}.`,
-            };
-          }
+          const pulseras = await comprobarPulserasYAforo(tx, ctx, cmd.entries.map((e) => e.wristbandCode), vigente.tarifario.policy.capacityLimit, ahora, (i) => ["entries", i, "wristbandCode"]);
+          if (pulseras) return pulseras;
 
           const familia = await representanteDeLaEntrada(tx, ctx, cmd, ahora);
           if ("ok" in familia) return familia;
@@ -627,6 +585,10 @@ export function casosParque(base: Base): CasosParque {
           if (actual.cuenta.status === "INCOBRABLE") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de esta familia se dio por incobrable: no admite recargas." };
           }
+          // Un invitado de un cumpleaños está en el horario del evento (B10-2): no se le recarga tiempo.
+          if (actual.cuenta.kind === "EVENTO") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Es un invitado de un cumpleaños: su tiempo es el del evento y no se recarga." };
+          }
           const quien = await nombreDe(tx, ctx);
           const extension = await tx.parkSessionExtension.create({
             data: {
@@ -853,8 +815,62 @@ function duracionDe(f: FilaDeEstancia): Duration {
   return withRecharges(f.durationMinutes === null ? openEnded : fixed(f.durationMinutes), f.extensions.map((e) => e.minutes));
 }
 
+/**
+ * Lo que una entrada comprueba de sus pulseras antes de ocuparlas (B4-2, B4-5, V-1) y el aforo: la serie del
+ * local, ninguna repetida, ninguna activa en sala (I-04) ni usada en otra visita, y que quepan. Toma el candado
+ * del parque, que ordena dos entradas a la vez: lo que mira y lo que ocupa van juntos. La usan la entrada de
+ * una familia y la de los invitados de un cumpleaños (B10-2). `null` si todo está bien; si no, el rechazo.
+ */
+export async function comprobarPulserasYAforo(
+  tx: Transaccion,
+  ctx: Contexto,
+  codigos: readonly string[],
+  aforo: number,
+  ahora: number,
+  ruta: (i: number) => (string | number)[],
+): Promise<Rechazo | null> {
+  // V-1: la serie de pulseras del local, si ya se fijó con el primer lote (D-PUL).
+  const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
+  for (const [i, codigo] of codigos.entries()) {
+    const problema = wristbandSeriesProblem(codigo, { prefix: serie.prefijo, length: serie.longitud });
+    if (problema) {
+      const como = [serie.prefijo ? `empiezan por ${serie.prefijo}` : null, serie.longitud ? `tienen ${serie.longitud} caracteres` : null].filter(Boolean).join(" y ");
+      return invalido(`La pulsera ${codigo} no es de la serie del local: las pulseras ${como}.`, ruta(i), "PULSERA_FUERA_DE_SERIE");
+    }
+  }
+  const repetida = codigos.findIndex((c, i) => codigos.indexOf(c) !== i);
+  if (repetida >= 0) return invalido(`La pulsera ${codigos[repetida]} está dos veces en esta entrada.`, ruta(repetida), "PULSERA_REPETIDA");
+
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`parque:${ctx.branchId}`}, 0))::text AS candado`;
+  const activas = await tx.parkSession.findMany({ where: { branchId: ctx.branchId, status: "ACTIVA" }, select: { wristbandCode: true, startedAt: true } });
+  const ocupadas = new Set(activas.map((a) => a.wristbandCode));
+  const ocupada = codigos.findIndex((c) => ocupadas.has(c));
+  // I-04: una pulsera, una estancia activa (también una huérfana, hasta que la dirección la cierre).
+  if (ocupada >= 0) return invalido(`La pulsera ${codigos[ocupada]} ya está activa en sala.`, ruta(ocupada), "PULSERA_ACTIVA");
+  // V-1: una pulsera, una visita. Una que ya salió no vuelve a entrar (la base también lo impide).
+  const usadas = await tx.parkSession.findMany({
+    where: { branchId: ctx.branchId, status: { not: "ACTIVA" }, wristbandCode: { in: [...codigos] } },
+    select: { wristbandCode: true },
+  });
+  const usada = codigos.findIndex((c) => usadas.some((u) => u.wristbandCode === c));
+  if (usada >= 0) return invalido(`La pulsera ${codigos[usada]} ya se usó en otra visita: pon una nueva.`, ruta(usada), "PULSERA_USADA");
+
+  // Una huérfana no ocupa sitio: casi seguro ese niño ya no está (F5-13).
+  const regla = await reglaDeHuerfanas(tx, ctx.branchId);
+  const dentro = activas.filter((a) => !huerfana(a, ahora, regla)).length;
+  if (!admits(dentro, codigos.length, aforo)) {
+    const libres = Math.max(0, aforo - dentro);
+    return {
+      ok: false,
+      motivo: "CONFLICTO",
+      mensaje: libres === 0 ? `Aforo completo (${aforo}): no entra nadie más.` : `Aforo: quedan ${libres} ${libres === 1 ? "plaza" : "plazas"} y esta entrada trae ${codigos.length}.`,
+    };
+  }
+  return null;
+}
+
 /** El tarifario vigente de la sucursal, revalidado; `null` si nunca se publicó (o ya no se entiende). */
-async function tarifarioDe(tx: Transaccion, ctx: Contexto): Promise<{ version: number; tarifario: TarifarioDto } | null> {
+export async function tarifarioDe(tx: Transaccion, ctx: Contexto): Promise<{ version: number; tarifario: TarifarioDto } | null> {
   const fila = await tx.parkTariffVersion.findFirst({ where: { branchId: ctx.branchId }, orderBy: { version: "desc" } });
   const t = fila ? TarifarioSchema.safeParse(fila.content) : null;
   return fila && t?.success ? { version: fila.version, tarifario: t.data } : null;
@@ -956,7 +972,7 @@ function liquidacionDe(f: FilaDeEstancia, hasta: number, porUso: PaqueteDeUso | 
 }
 
 /** Lo que dejó una entrada: sus estancias y la cuenta de la familia como está ahora. */
-async function entradaHecha(tx: Transaccion, clave: string, accountId: string): Promise<CheckInResult> {
+export async function entradaHecha(tx: Transaccion, clave: string, accountId: string): Promise<CheckInResult> {
   const filas = await estancias(tx, { where: { checkInKey: clave }, orderBy: { wristbandCode: "asc" } });
   const cuenta: FamilyAccountDto = (await vigenteDe(tx, accountId))!.cuenta;
   const orden = new Map(cuenta.sessionIds.map((id, i) => [id, i]));

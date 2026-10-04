@@ -21,16 +21,21 @@ import {
   CancelarReservaCommandSchema,
   CatalogoEventosPublicadoSchema,
   CatalogoEventosSchema,
+  EmpezarEventoCommandSchema,
+  EntradaEventoCommandSchema,
   FamilyAccountSchema,
   PaqueteEventoSchema,
   problemasDe,
   PublicarCatalogoEventosCommandSchema,
   ReservaEventoSchema,
   ReservarEventoCommandSchema,
+  ParkTermsSchema,
   TarifarioSchema,
+  type AccountLineDto,
   type AgendaEventosDto,
   type CatalogoEventosDto,
   type CatalogoEventosPublicadoDto,
+  type CheckInResult,
   type EstadoReserva,
   type FamilyAccountDto,
   type ReservaEventoDto,
@@ -41,13 +46,15 @@ import { cancelReservation, cancelReservationProblem, type CancelReservationProb
 import type { Action } from "@l2/domain-identity";
 import { money, toMajor } from "@l2/domain-money";
 import { anticipoDe, anticipoValido, paqueteSobreAforo, reservaProblem, type ProblemaDeReserva } from "@l2/domain-park";
-import { calendarDay } from "@l2/domain-rates";
+import { calendarDay, startOfDay } from "@l2/domain-rates";
 import { percentFromBasisPoints } from "@l2/domain-tax";
 import { errorDeBase, type Base, type EventCatalogVersion, type Prisma, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
-import { catalogoEn, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { catalogoEn, claveSecundaria, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
+import { comprobarPulserasYAforo, entradaHecha, tarifarioDe } from "./parque.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
 import { representanteDeLaEntrada } from "./representantes.ts";
 
@@ -67,6 +74,16 @@ export interface CasosEventos {
   reservar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
   /** Cancela una reserva cuyo anticipo no se ha cobrado (`CancelarReservaCommandSchema`). */
   cancelar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
+  /**
+   * Empieza el día del evento (`EmpezarEventoCommandSchema`, B10-2): con el anticipo cobrado y en su día, abre
+   * la cuenta del día con el saldo y lo que incluye el paquete, que sale del estante (ADR-023).
+   */
+  empezar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
+  /**
+   * Entran invitados con sus pulseras (`EntradaEventoCommandSchema`, B10-2): a la cuenta del día (si no había
+   * empezado, empieza), sin paquete ni cobro, hasta los invitados reservados y dentro del aforo.
+   */
+  entrarInvitados(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CheckInResult>>;
 }
 
 /** Quién ve la agenda: quien reserva, quien cobra, quien lleva el parque y la dirección del local. */
@@ -208,9 +225,10 @@ export function casosEventos(base: Base): CasosEventos {
       if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "La agenda no se pudo leer: revisa las fechas.", problemas: problemasDe(v.error) };
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<AgendaEventosDto | Rechazo> => {
         if (!(await puedeAlguna(tx, ctx, VEN_AGENDA))) return rechazoDePermiso("DENEGADO");
-        const hoy = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
+        const zona = await zonaDe(tx, ctx.branchId);
+        const hoy = calendarDay(new Date(ahora).toISOString(), zona);
         const reservas = await reservasDe(tx, { branchId: ctx.branchId, eventDate: { gte: new Date(v.data.desde), lte: new Date(v.data.hasta) } });
-        return AgendaEventosSchema.parse({ hoy, reservas });
+        return AgendaEventosSchema.parse({ hoy, ahora: minutoDelDia(ahora, hoy, zona), reservas });
       });
       return "ok" in r ? r : { ok: true, valor: r };
     },
@@ -218,9 +236,10 @@ export function casosEventos(base: Base): CasosEventos {
     async deHoy(ctx, ahora = Date.now()) {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<AgendaEventosDto | Rechazo> => {
         if (!(await puedeAlguna(tx, ctx, VEN_AGENDA))) return rechazoDePermiso("DENEGADO");
-        const hoy = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
+        const zona = await zonaDe(tx, ctx.branchId);
+        const hoy = calendarDay(new Date(ahora).toISOString(), zona);
         const reservas = await reservasDe(tx, { branchId: ctx.branchId, eventDate: new Date(hoy) });
-        return AgendaEventosSchema.parse({ hoy, reservas: reservas.filter((x) => x.estado !== "CANCELADA") });
+        return AgendaEventosSchema.parse({ hoy, ahora: minutoDelDia(ahora, hoy, zona), reservas: reservas.filter((x) => x.estado !== "CANCELADA") });
       });
       return "ok" in r ? r : { ok: true, valor: r };
     },
@@ -419,7 +438,268 @@ export function casosEventos(base: Base): CasosEventos {
         return "ok" in r ? r : { ok: true, valor: r };
       }
     },
+    async empezar(ctx, entrada, ahora = Date.now()) {
+      const v = EmpezarEventoCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "El cumpleaños no empezó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<ReservaEventoDto | Rechazo> => {
+          const rechazo = await exigirPermiso(tx, ctx, "evento.reservar");
+          if (rechazo) return rechazo;
+          const reserva = await tx.eventReservation.findFirst({ where: { id: cmd.reservaId, branchId: ctx.branchId } });
+          if (!reserva) return noExiste;
+          const previo = await tx.eventDay.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previo && previo.reservationId !== reserva.id) return { ok: false, motivo: "CONFLICTO", mensaje: "Esa clave ya se usó para otra operación." };
+          const dia = await diaDelEvento(tx, ctx, reserva, ahora, cmd.idempotencyKey);
+          if ("ok" in dia) return dia;
+          return (await reservasDe(tx, { id: reserva.id }))[0]!;
+        });
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "evento.empezar", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        // Dos toques a la vez: el segundo encuentra el día ya empezado.
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
+    async entrarInvitados(ctx, entrada, ahora = Date.now()) {
+      const v = EntradaEventoCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "La entrada no se registró: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<CheckInResult | Rechazo> => {
+          // Es una entrada al parque: la hace quien lleva la puerta, como la de cualquier familia.
+          const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
+          if (rechazo) return rechazo;
+          // Un reintento de la misma entrada devuelve la que ya se hizo.
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) return previa.cause === "ENTRADA" ? entradaHecha(tx, cmd.idempotencyKey, previa.accountId) : { ok: false, motivo: "CONFLICTO", mensaje: "Esa clave ya se usó para otra operación." };
+
+          const reserva = await tx.eventReservation.findFirst({ where: { id: cmd.reservaId, branchId: ctx.branchId }, include: { guardian: { select: { fullName: true } } } });
+          if (!reserva) return noExiste;
+          const tarifario = await tarifarioDe(tx, ctx);
+          if (!tarifario) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "El parque no tiene tarifario publicado: sin aforo no entra nadie." };
+
+          // Si el día no había empezado, empieza ahora: los invitados entran a su cuenta.
+          const dia = await diaDelEvento(tx, ctx, reserva, ahora, claveSecundaria(cmd.idempotencyKey, reserva.id));
+          if ("ok" in dia) return dia;
+          if (ahora >= dia.terminaEn) return { ok: false, motivo: "CONFLICTO", mensaje: "El cumpleaños ya terminó: quien llegue ahora entra como visita normal." };
+          // Con el saldo dado por incobrable, el evento no admite a nadie más.
+          if ((await vigenteDe(tx, dia.accountId))!.cuenta.status === "INCOBRABLE") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "El saldo de este cumpleaños se dio por incobrable: no entran más invitados." };
+          }
+
+          // Entran los invitados reservados, no más: quien sobra entra como visita normal (y paga su paquete).
+          const yaEntraron = await tx.parkSession.count({ where: { accountId: dia.accountId } });
+          if (yaEntraron + cmd.pulseras.length > reserva.guests) {
+            const quedan = Math.max(0, reserva.guests - yaEntraron);
+            return invalido(
+              quedan === 0
+                ? `Ya entraron los ${reserva.guests} invitados reservados: quien llegue ahora entra como visita normal.`
+                : `Se reservó para ${reserva.guests} invitados y ya entraron ${yaEntraron}: caben ${quedan} más. El resto entra como visita normal.`,
+              ["pulseras"],
+              "INVITADOS_COMPLETOS",
+            );
+          }
+          const pulseras = await comprobarPulserasYAforo(tx, ctx, cmd.pulseras, tarifario.tarifario.policy.capacityLimit, ahora, (i) => ["pulseras", i]);
+          if (pulseras) return pulseras;
+
+          // Su tiempo es el del evento: hasta su hora de fin. No se cobra tiempo de más (lo paga el paquete); al
+          // terminar, en sala pasan a «en gracia» como aviso, durante todo el día.
+          const minutos = Math.max(1, Math.ceil((dia.terminaEn - ahora) / 60_000));
+          const terms = ParkTermsSchema.parse({
+            ...tarifario.tarifario.policy,
+            graceMinutes: Math.max(tarifario.tarifario.policy.graceMinutes, 12 * 60),
+            penaltyPricePerBlock: { minor: "0", currency: "USD" },
+          });
+          const quien = await nombreDe(tx, ctx);
+          const sesiones = cmd.pulseras.map(() => randomUUID());
+          const nombre = `Cumpleaños de ${reserva.honoree}`.slice(0, 40);
+          const actual = (await vigenteDe(tx, dia.accountId))!;
+          const cuenta = FamilyAccountSchema.parse({
+            ...actual.cuenta,
+            version: actual.version + 1,
+            sessionIds: [...actual.cuenta.sessionIds, ...sesiones],
+          });
+          await guardarVersion(tx, ctx, cuenta, { cause: "ENTRADA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await tx.parkSession.createMany({
+            data: cmd.pulseras.map((codigo, i) => ({
+              id: sesiones[i]!,
+              tenantId: ctx.tenantId,
+              branchId: ctx.branchId,
+              accountId: dia.accountId,
+              guardianId: reserva.guardianId,
+              kidId: null,
+              wristbandCode: codigo,
+              packageId: `cumple-${reserva.id}`,
+              eventReservationId: reserva.id,
+              packageName: nombre,
+              mode: "PREPAGO",
+              durationMinutes: minutos,
+              priceMinor: 0n,
+              currency: "USD",
+              terms,
+              tariffVersion: tarifario.version,
+              startedAt: new Date(ahora),
+              openedBy: ctx.quien?.userId ?? null,
+              openedByName: quien.nombre,
+              deviceId: ctx.quien?.deviceId ?? null,
+              checkInKey: cmd.idempotencyKey,
+              status: "ACTIVA",
+            })),
+          });
+          await auditar(tx, ctx, {
+            action: "evento.entrada",
+            entityType: "event_reservation",
+            entityId: reserva.id,
+            after: { cuenta: cuenta.orderNumber, invitados: cmd.pulseras.length, entraron: yaEntraron + cmd.pulseras.length, reservados: reserva.guests, pulseras: cmd.pulseras },
+          });
+          return entradaHecha(tx, cmd.idempotencyKey, dia.accountId);
+        });
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "evento.entrada", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        // Dos entradas a la vez con la misma clave o una pulsera que acaba de ocuparse: se vuelve a mirar.
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
   };
+}
+
+
+type FilaDeReserva = NonNullable<Awaited<ReturnType<Transaccion["eventReservation"]["findFirst"]>>>;
+
+/**
+ * El día del evento de una reserva: el que ya empezó o el que empieza ahora (B10-2). Empieza solo en su día,
+ * con el anticipo cobrado y antes de su hora de fin. Nace la cuenta del día con el saldo y lo que incluye el
+ * paquete, una línea por unidad a $ 0 (lo paga el paquete), que sale del estante (ADR-023): si algo no alcanza,
+ * no empieza. `clave` es la de la operación que lo empieza (la versión de la cuenta y el día la llevan).
+ */
+async function diaDelEvento(
+  tx: Transaccion,
+  ctx: Contexto,
+  reserva: FilaDeReserva,
+  ahora: number,
+  clave: string,
+): Promise<Readonly<{ accountId: string; terminaEn: number }> | Rechazo> {
+  const zona = await zonaDe(tx, ctx.branchId);
+  const fecha = reserva.eventDate.toISOString().slice(0, 10);
+  const terminaEn = startOfDay(fecha, zona) + reserva.endsMinute * 60_000;
+  const yaEmpezo = await tx.eventDay.findFirst({ where: { reservationId: reserva.id } });
+  if (yaEmpezo) return { accountId: yaEmpezo.accountId, terminaEn };
+
+  const hoy = calendarDay(new Date(ahora).toISOString(), zona);
+  if (fecha !== hoy) return { ok: false, motivo: "CONFLICTO", mensaje: `Ese cumpleaños es el ${fecha.split("-").reverse().join("/")}: empieza ese día.` };
+  const anticipo = (await vigenteDe(tx, reserva.accountId))!.cuenta;
+  if (anticipo.status === "SIN_CONSUMO") return { ok: false, motivo: "CONFLICTO", mensaje: "Esa reserva está cancelada." };
+  if (anticipo.status !== "COBRADA") {
+    return { ok: false, motivo: "CONFLICTO", mensaje: `Primero se cobra el anticipo en la caja (cuenta #${String(anticipo.orderNumber).padStart(4, "0")}): sin él, el cumpleaños no empieza.` };
+  }
+  if (ahora >= terminaEn) return { ok: false, motivo: "CONFLICTO", mensaje: "Ese cumpleaños ya terminó." };
+
+  const paquete = PaqueteEventoSchema.omit({ active: true }).parse(reserva.package);
+  const lines: AccountLineDto[] = [
+    ...(reserva.balanceMinor > 0n
+      ? [
+          {
+            id: `saldo-${reserva.id}`,
+            concept: `Saldo · Cumpleaños de ${reserva.honoree} (${paquete.name})`.slice(0, 80),
+            kind: "EVENTO" as const,
+            amount: { minor: String(reserva.balanceMinor), currency: "USD" as const },
+            paid: false,
+          },
+        ]
+      : []),
+    ...paquete.incluye.flatMap((x) =>
+      Array.from({ length: x.quantity }, (_, n) => ({
+        id: `inc-${x.productId}-${n + 1}`,
+        concept: `${x.name} · incluido`.slice(0, 80),
+        kind: "EVENTO" as const,
+        amount: { minor: "0", currency: "USD" as const },
+        paid: false,
+        productId: x.productId,
+      })),
+    ),
+  ];
+  // Lo incluido sale del estante al entrar en la cuenta (ADR-023): sin existencia, el día no empieza.
+  const movimientos = await comprobarExistencias(tx, ctx, null, null, lines, () => ["reservaId"]);
+  if ("ok" in movimientos) return { ...movimientos, mensaje: `${movimientos.mensaje} El cumpleaños no empieza hasta que haya lo que incluye.` };
+
+  const quien = await nombreDe(tx, ctx);
+  const accountId = randomUUID();
+  const orderNumber = await siguienteNumero(tx, ctx);
+  const instante = new Date(ahora).toISOString();
+  const familia = await tx.guardian.findUniqueOrThrow({ where: { id: reserva.guardianId }, select: { fullName: true } });
+  const cuenta = FamilyAccountSchema.parse({
+    id: accountId,
+    kind: "EVENTO",
+    eventId: reserva.id,
+    eventDay: true,
+    version: 1,
+    family: familia.fullName,
+    mode: "PREPAGO",
+    // Con algo que cobrar va a la caja desde ya, como una mesa; sin nada (anticipo del 100 % y sin productos), cobrada.
+    status: lines.length > 0 ? "POR_COBRAR" : "COBRADA",
+    orderNumber,
+    openedAt: instante,
+    ...(lines.length > 0 ? { pendingSince: instante } : {}),
+    sessionIds: [],
+    closedSessionIds: [],
+    lines,
+  });
+  await tx.account.create({
+    data: {
+      id: accountId,
+      tenantId: ctx.tenantId,
+      branchId: ctx.branchId,
+      kind: "EVENTO",
+      orderNumber,
+      openedAt: new Date(ahora),
+      openedBy: ctx.quien?.userId ?? null,
+      openedByName: quien.nombre,
+      deviceId: ctx.quien?.deviceId ?? null,
+    },
+  });
+  await guardarVersion(tx, ctx, cuenta, { cause: "EMPEZAR_EVENTO", operationKey: clave, ahora, quien: quien.nombre });
+  await asentarExistencias(tx, ctx, movimientos, { accountId, version: 1, ahora, quien: quien.nombre });
+  await tx.eventDay.create({
+    data: {
+      tenantId: ctx.tenantId,
+      branchId: ctx.branchId,
+      reservationId: reserva.id,
+      accountId,
+      startedAt: new Date(ahora),
+      startedBy: ctx.quien?.userId ?? null,
+      startedByName: quien.nombre,
+      deviceId: ctx.quien?.deviceId ?? null,
+      operationKey: clave,
+    },
+  });
+  await auditar(tx, ctx, {
+    action: "evento.empezar",
+    entityType: "event_reservation",
+    entityId: reserva.id,
+    after: {
+      cuenta: orderNumber,
+      saldo: { minor: String(reserva.balanceMinor), currency: "USD" },
+      incluido: paquete.incluye.map((x) => `${x.quantity} × ${x.name}`),
+    },
+  });
+  return { accountId, terminaEn };
 }
 
 /** El catálogo vigente de la sucursal, revalidado (fail-closed: uno que ya no cumple el contrato no se usa). */
@@ -438,6 +718,11 @@ async function aforoDe(tx: Transaccion, branchId: string): Promise<number | null
   return t?.success ? t.data.policy.capacityLimit : null;
 }
 
+/** La hora de `ahora` en el local, en minutos desde la medianoche de `hoy` (su día en el calendario del local). */
+function minutoDelDia(ahora: number, hoy: string, zona: string): number {
+  return Math.min(24 * 60, Math.max(0, Math.floor((ahora - startOfDay(hoy, zona)) / 60_000)));
+}
+
 /** Las reservas y los catálogos de una sucursal se escriben de uno en uno. */
 async function candadoDeEventos(tx: Transaccion, branchId: string): Promise<void> {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`eventos:${branchId}`}, 0))::text AS candado`;
@@ -449,36 +734,57 @@ async function puedeAlguna(tx: Transaccion, ctx: Contexto, acciones: readonly Ac
   return false;
 }
 
-const ESTADO_DE_CUENTA: Readonly<Partial<Record<FamilyAccountDto["status"], EstadoReserva>>> = {
+const ESTADO_DEL_ANTICIPO: Readonly<Partial<Record<FamilyAccountDto["status"], EstadoReserva>>> = {
   POR_COBRAR: "ANTICIPO_POR_COBRAR",
   COBRADA: "CONFIRMADA",
   SIN_CONSUMO: "CANCELADA",
 };
+/** Con el día empezado (B10-2), manda su cuenta: el saldo en la caja, cobrado o dado por incobrable. */
+const ESTADO_DEL_DIA: Readonly<Partial<Record<FamilyAccountDto["status"], EstadoReserva>>> = {
+  POR_COBRAR: "EN_CURSO",
+  COBRADA: "SALDADA",
+  INCOBRABLE: "SALDO_INCOBRABLE",
+};
 
 /**
- * Las reservas que cumplen `where`, en orden de día y de hora, con el estado que dice su cuenta (su
- * última versión) y, si se canceló, quién y cuándo.
+ * Las reservas que cumplen `where`, en orden de día y de hora, con el estado que dicen sus cuentas (su última
+ * versión): la del anticipo y, si el día empezó, la del día con cuántos invitados entraron y siguen dentro.
  */
 async function reservasDe(tx: Transaccion, where: Prisma.EventReservationWhereInput): Promise<ReservaEventoDto[]> {
   const filas = await tx.eventReservation.findMany({
     where,
-    include: { guardian: { select: { id: true, fullName: true } }, account: { select: { orderNumber: true } } },
+    include: {
+      guardian: { select: { id: true, fullName: true } },
+      account: { select: { orderNumber: true } },
+      day: { select: { accountId: true, startedAt: true, account: { select: { orderNumber: true } } } },
+    },
     orderBy: [{ eventDate: "asc" }, { startsMinute: "asc" }, { createdAt: "asc" }],
   });
   if (filas.length === 0) return [];
+  const cuentas = filas.flatMap((f) => (f.day ? [f.accountId, f.day.accountId] : [f.accountId]));
   const versiones = await tx.accountVersion.findMany({
-    where: { accountId: { in: filas.map((f) => f.accountId) } },
+    where: { accountId: { in: cuentas } },
     orderBy: [{ accountId: "asc" }, { version: "desc" }],
     distinct: ["accountId"],
     select: { accountId: true, status: true, cause: true, savedAt: true, savedByName: true },
   });
   const ultima = new Map(versiones.map((x) => [x.accountId, x]));
+  const dias = filas.flatMap((f) => (f.day ? [f.day.accountId] : []));
+  const estancias =
+    dias.length === 0
+      ? []
+      : await tx.parkSession.groupBy({ by: ["accountId", "status"], where: { accountId: { in: dias } }, _count: { _all: true } });
+  const contar = (accountId: string, soloDentro: boolean) =>
+    estancias.filter((e) => e.accountId === accountId && (!soloDentro || e.status === "ACTIVA")).reduce((n, e) => n + e._count._all, 0);
+
   return filas.map((f) => {
     const v = ultima.get(f.accountId)!;
     const status = v.status as FamilyAccountDto["status"];
+    const vDia = f.day ? ultima.get(f.day.accountId)! : null;
+    const statusDia = vDia ? (vDia.status as FamilyAccountDto["status"]) : null;
     // Un estado que la reserva no conoce (un cambio que no salió de aquí) no se disfraza de otro.
-    const estado = ESTADO_DE_CUENTA[status];
-    if (!estado) throw new Error(`La cuenta del cumpleaños ${f.id} está ${status}, un estado que la reserva no conoce.`);
+    const estado = statusDia ? ESTADO_DEL_DIA[statusDia] : ESTADO_DEL_ANTICIPO[status];
+    if (!estado) throw new Error(`La cuenta del cumpleaños ${f.id} está ${statusDia ?? status}, un estado que la reserva no conoce.`);
     const paquete = PaqueteEventoSchema.omit({ active: true }).parse(f.package);
     return ReservaEventoSchema.parse({
       id: f.id,
@@ -498,6 +804,15 @@ async function reservasDe(tx: Transaccion, where: Prisma.EventReservationWhereIn
       reservadaEn: f.createdAt.toISOString(),
       reservadaPor: f.createdByName,
       cancelada: estado === "CANCELADA" ? { en: v.savedAt.toISOString(), por: v.savedByName } : null,
+      dia:
+        f.day && statusDia
+          ? {
+              cuenta: { id: f.day.accountId, orderNumber: f.day.account.orderNumber, status: statusDia },
+              empezadoEn: f.day.startedAt.toISOString(),
+              entraron: contar(f.day.accountId, false),
+              dentro: contar(f.day.accountId, true),
+            }
+          : null,
     });
   });
 }

@@ -576,3 +576,40 @@ describe("la cuenta de un cumpleaños (B10-1)", () => {
     assert.equal(cancelReservationProblem(anulado), null);
   });
 });
+
+describe("la cuenta del día de un cumpleaños (B10-2)", () => {
+  const saldo = linea("saldo", { concept: "Saldo · Cumpleaños de Sofía", kind: "EVENTO", amount: usd("7500") });
+  const torta = linea("torta", { concept: "Torta · incluida", kind: "EVENTO", amount: usd("0"), productId: "p-torta" });
+  const dia = (extra: Partial<AccountDoc> = {}): AccountDoc => ({
+    kind: "EVENTO",
+    eventDay: true,
+    status: "POR_COBRAR",
+    sessionIds: ["g1", "g2"],
+    closedSessionIds: [],
+    lines: [saldo, torta],
+    ...extra,
+  });
+  const conModo = (c: AccountDoc) => ({ ...c, mode: "PREPAGO" as const });
+
+  test("se cobra como una mesa: cobrado el saldo queda cobrada aunque haya invitados dentro", () => {
+    assert.deepEqual(chargeableLines(dia()).map((l) => l.id), ["saldo", "torta"]);
+    assert.equal(markPaid(dia()).status, "COBRADA");
+  });
+
+  test("que salgan invitados no la reabre ni la cierra: sigue por cobrar mientras deba el saldo", () => {
+    assert.equal(registerExit(conModo(dia()), ["g1"], []).status, "POR_COBRAR");
+    assert.equal(registerExit(conModo(dia()), ["g1", "g2"], []).status, "POR_COBRAR");
+    const cobrada = markPaid(dia());
+    assert.equal(registerExit(conModo(cobrada), ["g1"], []).status, "COBRADA");
+  });
+
+  test("el saldo no se regala, pero sí se da por incobrable cuando ya salieron todos", () => {
+    assert.equal(courtesyProblem(dia(), "saldo", false), "ANTICIPO_DE_EVENTO");
+    assert.equal(uncollectibleProblem(dia()), "NINOS_EN_SALA");
+    assert.equal(uncollectibleProblem(dia({ closedSessionIds: ["g1", "g2"] })), null);
+  });
+
+  test("la reserva no se cancela por la cuenta del día", () => {
+    assert.equal(cancelReservationProblem(dia()), "NO_ES_EVENTO");
+  });
+});

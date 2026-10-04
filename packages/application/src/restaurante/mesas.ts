@@ -111,6 +111,10 @@ export function casosMesas(base: Base): CasosMesas {
           const lineasParaLaMesa: AccountLineDoc[] = [];
           for (const [accountId, ids] of porCuenta) {
             const actual = (await vigenteDe(tx, accountId))!;
+            // Los invitados de un cumpleaños los paga el evento (B10-2): no hay parque que llevar a la mesa.
+            if (actual.cuenta.kind === "EVENTO") {
+              return { ok: false, motivo: "CONFLICTO", mensaje: "Son invitados de un cumpleaños: su parque lo paga el evento y no se vinculan a una mesa." };
+            }
             const { familia, lineasNuevas } = moveSessionLines(actual.cuenta, ids, mesaAccountId, () => randomUUID());
             lineasParaLaMesa.push(...lineasNuevas);
             const nuevaFamilia = FamilyAccountSchema.parse({ ...familia, version: actual.version + 1 });

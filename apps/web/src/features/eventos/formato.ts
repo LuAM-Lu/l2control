@@ -45,4 +45,14 @@ export const ESTADO: Readonly<Record<EstadoReserva, { texto: string; tono: Tone 
   ANTICIPO_POR_COBRAR: { texto: "Anticipo por cobrar", tono: "warn" },
   CONFIRMADA: { texto: "Confirmada", tono: "ok" },
   CANCELADA: { texto: "Cancelada", tono: "idle" },
+  EN_CURSO: { texto: "En curso · saldo por cobrar", tono: "warn" },
+  SALDADA: { texto: "Saldada", tono: "ok" },
+  SALDO_INCOBRABLE: { texto: "Saldo incobrable", tono: "crit" },
 };
+
+/** Las que tienen algo en la cola de la caja: el anticipo o el saldo. */
+export const POR_COBRAR: readonly EstadoReserva[] = ["ANTICIPO_POR_COBRAR", "EN_CURSO"];
+/** Las que tienen lo suyo cobrado: el anticipo (confirmada) o también el saldo (saldada). */
+export const AL_DIA: readonly EstadoReserva[] = ["CONFIRMADA", "SALDADA"];
+/** Las que admiten invitados hoy: con el anticipo cobrado, empezadas o no. */
+export const RECIBEN_INVITADOS: readonly EstadoReserva[] = ["CONFIRMADA", "EN_CURSO", "SALDADA"];

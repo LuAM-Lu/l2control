@@ -12,6 +12,32 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.48.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+B10-2 (V-10): el día del cumpleaños, de punta a punta.
+
+### Añadido
+- **Empezar el cumpleaños.** En su día y con el anticipo cobrado, desde la agenda («Empezar el cumpleaños») o solo
+  al entrar el primer invitado. Nace la cuenta del día con el saldo y lo que incluye el paquete (a $ 0: lo paga el
+  paquete), que sale del estante; si falta existencia de algo incluido, no empieza y lo dice.
+- **Entrada de invitados.** En la entrada, cuando hay cumpleaños hoy, «Entran a: Visita / Cumpleaños de …». Los
+  invitados entran solo con su pulsera, sin paquete, representante ni cobro, a la cuenta del día; cuentan en el aforo
+  y no entran más de los reservados (el resto entra como visita normal). Su tiempo llega hasta la hora de fin del
+  evento; después, en sala, pasan a «en gracia» como aviso y no se cobra tiempo de más. No se les recarga tiempo ni
+  se vinculan a una mesa. Un cumpleaños que ya terminó o con el saldo incobrable no se ofrece.
+- **El saldo, en la caja.** La cuenta del día («Cumpleaños · N niños») se cobra cuando se quiera, con su IVA, como
+  una mesa: cobrada, queda cobrada aunque haya invitados dentro. Hasta cobrarla sale en los pendientes del cierre;
+  si no se va a cobrar, supervisión la da por incobrable (con los invitados ya fuera). La salida de un invitado no
+  cobra nada ni lleva a la caja.
+- **La agenda lo cuenta:** «En curso · saldo por cobrar», «Saldada» o «Saldo incobrable», con cuántos invitados
+  entraron y cuántos siguen dentro.
+
+### Comprobado
+- `pnpm verify:db` en verde (81 de base, 461 de aplicación; dominio de caja 149). En el navegador, con la base de
+  pruebas: reserva para esa noche, anticipo cobrado, «sin existencia» al empezar, empezado tras cargar la entrada,
+  dos invitados por la entrada, la sala, la salida sin cargo y el saldo cobrado en la caja, a 1366×768, 800×1280 y
+  390×844.
+
 ## [0.47.1] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 Corrección: el menú lateral con Ajustes desplegado.

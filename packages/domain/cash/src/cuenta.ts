@@ -52,6 +52,8 @@ export type AccountDoc = Readonly<{
   lines: readonly AccountLineDoc[];
   /** El descuento que lleva (B3-6): lo pone y lo quita su mando, con su autorización; lo consume el cobro. */
   descuento?: unknown;
+  /** La cuenta del día de un cumpleaños (B10-2); sin ella, una cuenta EVENTO es la de su anticipo. */
+  eventDay?: true | undefined;
 }>;
 
 /* ─────────────────────────────────────────────────────────── qué se cobra */
@@ -328,8 +330,12 @@ export function registerExit<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_
   const lines = [...c.lines, ...nuevas];
   const todos = cerradas.length === c.sessionIds.length;
   const hayPendiente = chargeableLines({ lines }).length > 0;
+  // La cuenta del día de un cumpleaños (B10-2) se cobra como una mesa: con el saldo pendiente sigue en la caja
+  // y, cobrado, queda cobrada aunque haya invitados dentro. Que salgan no la reabre.
   const status: AccountStatus =
-    c.mode === "PREPAGO"
+    c.kind === "EVENTO"
+      ? hayPendiente ? "POR_COBRAR" : "COBRADA"
+      : c.mode === "PREPAGO"
       ? hayPendiente ? "POR_COBRAR" : todos ? "COBRADA" : "ABIERTA"
       : todos ? (hayPendiente ? "POR_COBRAR" : "COBRADA") : "ABIERTA";
   return { ...c, closedSessionIds: cerradas, lines, status };
@@ -443,7 +449,8 @@ export function courtesyProblem(c: Pick<AccountDoc, "lines">, lineId: string, qu
   if (l.paid) return "LINEA_PAGADA";
   if (l.movedTo) return "LINEA_MOVIDA";
   if (l.porUso) return "CAMBIADA_POR_USO";
-  // El anticipo de un cumpleaños no se regala: si no se cobra, se cancela la reserva (B10-1).
+  // El anticipo y el saldo de un cumpleaños no se regalan: el anticipo sin cobrar se cancela con la reserva
+  // (B10-1), y un saldo que no se va a cobrar se da por incobrable (B10-2).
   if (l.kind === "EVENTO") return "ANTICIPO_DE_EVENTO";
   if (!quitar && l.cortesia) return "YA_REGALADA";
   if (quitar && !l.cortesia) return "NO_REGALADA";
@@ -560,11 +567,15 @@ export type UncollectibleProblem = "NO_PENDIENTE" | "NINOS_EN_SALA" | "ES_DE_UN_
  * ¿Se puede dar por incobrable? Solo lo que impide cerrar, y una familia con niños dentro todavía no:
  * primero se registra su salida (que liquida el tiempo de más), y después se decide si se cobra.
  */
-export function uncollectibleProblem(c: Pick<AccountDoc, "kind" | "lines" | "status" | "sessionIds" | "closedSessionIds">): UncollectibleProblem | null {
+export function uncollectibleProblem(
+  c: Pick<AccountDoc, "kind" | "lines" | "status" | "sessionIds" | "closedSessionIds" | "eventDay">,
+): UncollectibleProblem | null {
   if (!isPendingAtClose(c)) return "NO_PENDIENTE";
-  if (c.kind === "FAMILIA" && c.closedSessionIds.length < c.sessionIds.length) return "NINOS_EN_SALA";
-  // Un anticipo que no se va a cobrar no es una deuda: es una reserva que no sigue, y se cancela (B10-1).
-  if (c.kind === "EVENTO") return "ES_DE_UN_EVENTO";
+  // Con niños dentro, primero se registra su salida: la familia, o los invitados del día de un cumpleaños.
+  if ((c.kind === "FAMILIA" || c.kind === "EVENTO") && c.closedSessionIds.length < c.sessionIds.length) return "NINOS_EN_SALA";
+  // Un anticipo que no se va a cobrar no es una deuda: es una reserva que no sigue, y se cancela (B10-1). El
+  // saldo del día sí lo es (B10-2): se da por incobrable como cualquier cuenta.
+  if (c.kind === "EVENTO" && !c.eventDay) return "ES_DE_UN_EVENTO";
   return null;
 }
 
@@ -577,8 +588,8 @@ export type CancelReservationProblem = "NO_ES_EVENTO" | "YA_CANCELADA" | "ANTICI
  * ¿Se puede cancelar la reserva de esta cuenta? Solo mientras el anticipo no esté cobrado: si ya se
  * cobró, devolverlo es anular su cobro en la caja (DEC-24, V-10), y después se cancela.
  */
-export function cancelReservationProblem(c: Pick<AccountDoc, "kind" | "status" | "lines">): CancelReservationProblem | null {
-  if (c.kind !== "EVENTO") return "NO_ES_EVENTO";
+export function cancelReservationProblem(c: Pick<AccountDoc, "kind" | "status" | "lines" | "eventDay">): CancelReservationProblem | null {
+  if (c.kind !== "EVENTO" || c.eventDay) return "NO_ES_EVENTO";
   if (c.status === "SIN_CONSUMO") return "YA_CANCELADA";
   if (c.status !== "POR_COBRAR" || c.lines.some((l) => l.paid)) return "ANTICIPO_COBRADO";
   return null;

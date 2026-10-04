@@ -122,7 +122,10 @@ export const AccountLineSchema = z.object({
   id: IdSchema,
   /** Lo que lee el representante en el recibo: «Paquete 1 hora · Vale». */
   concept: z.string().trim().min(1).max(80),
-  /** EVENTO: el anticipo de un cumpleaños (B10-1); el saldo del paquete llega el día del evento. */
+  /**
+   * EVENTO: el anticipo de un cumpleaños (B10-1) o, en la cuenta del día (B10-2), su saldo y lo que el paquete
+   * incluye (a $ 0: lo paga el paquete, pero sale del estante).
+   */
   kind: z.enum(["PAQUETE", "EXCEDENTE", "RESTAURANTE", "EVENTO"]),
   amount: MoneySchema,
   /** Si ya se cobró. En prepago, los paquetes se cobran al entrar. */
@@ -236,6 +239,11 @@ export const FamilyAccountSchema = z
     tableId: IdSchema.optional(),
     /** El cumpleaños del que es esta cuenta, si es de un evento (B10-1). */
     eventId: IdSchema.optional(),
+    /**
+     * La cuenta del día del evento (B10-2): el saldo, lo incluido y los invitados que entran con pulsera. Sin
+     * esta marca, la cuenta de un evento es la de su anticipo.
+     */
+    eventDay: z.literal(true).optional(),
     /** Si se está pagando en partes (F6-12). Sin esto, se paga de una vez. */
     split: DivisionCuentaSchema.optional(),
     /** El número de mesa tal como se leía ese día: «3». Renumerarla no reescribe esto. */
@@ -268,12 +276,16 @@ export const FamilyAccountSchema = z
     if (c.kind === "MOSTRADOR" && (c.sessionIds.length > 0 || c.tableId)) {
       ctx.addIssue({ code: "custom", path: ["kind"], message: "Una venta de mostrador no tiene niños ni mesa" });
     }
-    // El anticipo de un cumpleaños es de su reserva: sin niños ni mesa todavía (los invitados entran el día
-    // del evento, B10-2). Y solo una cuenta de evento nombra un evento.
-    if (c.kind === "EVENTO" && (!c.eventId || c.sessionIds.length > 0 || c.tableId)) {
+    // Las cuentas de un cumpleaños (la del anticipo y la del día) son de su reserva, sin mesa. Y solo una
+    // cuenta de evento nombra un evento.
+    if (c.kind === "EVENTO" && (!c.eventId || c.tableId)) {
       ctx.addIssue({ code: "custom", path: ["eventId"], message: "La cuenta de un evento es de su reserva" });
     }
-    if (c.kind !== "EVENTO" && c.eventId) {
+    // Los invitados entran el día del evento, a la cuenta del día; la del anticipo no tiene niños.
+    if (c.kind === "EVENTO" && !c.eventDay && c.sessionIds.length > 0) {
+      ctx.addIssue({ code: "custom", path: ["sessionIds"], message: "Los invitados entran a la cuenta del día del evento" });
+    }
+    if (c.kind !== "EVENTO" && (c.eventId || c.eventDay)) {
       ctx.addIssue({ code: "custom", path: ["eventId"], message: "Solo la cuenta de un evento nombra un evento" });
     }
 
