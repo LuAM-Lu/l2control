@@ -9,6 +9,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CheckInResult } from "@l2/contracts";
+import { chargeableLines } from "@l2/domain-cash";
 import type { Contexto } from "../index.ts";
 import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
@@ -359,6 +360,130 @@ describe("la salida (B4-3)", () => {
     const inventada = await local.app.cuentas.guardar(ctxMonitora, { cuenta: { ...c, id: randomUUID(), version: undefined, orderNumber: undefined } }, AHORA);
     assert.equal(!inventada.ok && inventada.problemas?.[0]?.message, "FAMILIA_DESDE_LA_PANTALLA");
     await vaciarSala();
+  });
+});
+
+describe("salir antes de tiempo (B4-6, M-18)", () => {
+  // Con «30 minutos» a la venta: es el que cubre una salida temprana. Cuenta el tarifario con que entró.
+  const CON_30 = { ...TARIFARIO, packages: TARIFARIO.packages.map((p) => (p.id === "pkg-30" ? { ...p, active: true } : p)) };
+  before(async () => {
+    valor(await local.app.tarifario.publicar(local.sistema, CON_30));
+  });
+  after(async () => {
+    valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
+  });
+  /** Lo que la caja cobra de una cuenta: lo mismo que el servidor (`chargeableLines`). */
+  const seDebe = (c: Parameters<typeof chargeableLines>[0]) => chargeableLines(c).map((l) => l.amount.minor);
+
+  test("cuenta abierta: 1 hora y sale a los 25 min, se cobran 30 minutos; lo contratado queda marcado, no se borra", async () => {
+    const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const id = r.sessions[0]!.id;
+    // La estancia trae los paquetes del tarifario con que entró.
+    assert.deepEqual(r.sessions[0]!.porUso.map((p) => p.name), ["1 hora", "2 horas", "Pase libre", "30 minutos"]);
+    const cmd = salida([id]);
+    const s = valor(await local.app.parque.salir(ctxMonitora, cmd, AHORA + 25 * MIN));
+    const l = s.lines[0]!;
+    assert.deepEqual(l.porUso, { paquete: "30 minutos", precio: usd("300") });
+    assert.equal(l.consumedMinutes, 25);
+    assert.equal(l.packagePrice.minor, "500", "el desglose dice lo elegido");
+    assert.equal(l.overdue.minor, "0");
+    assert.equal(l.total.minor, "300");
+
+    assert.equal(s.account.status, "POR_COBRAR");
+    const [elegido, cobrado] = s.account.lines;
+    assert.equal(elegido!.amount.minor, "500", "se queda con su importe");
+    assert.deepEqual(elegido!.porUso, { cambiadaPor: `uso-${id}`, minutos: 25 });
+    assert.deepEqual([cobrado!.id, cobrado!.kind, cobrado!.amount.minor, cobrado!.sessionId, cobrado!.porUso], [`uso-${id}`, "PAQUETE", "300", id, undefined]);
+    assert.match(cobrado!.concept, /^Paquete 30 minutos por uso \(25 min\)/);
+    assert.deepEqual(seDebe(s.account), ["300"]);
+
+    // La caja la ve igual, y un reintento devuelve la misma salida y no ajusta dos veces.
+    const enCaja = valor(await local.app.cuentas.leer(ctxCajera, AHORA + 26 * MIN)).cuentas.find((c) => c.id === s.account.id)!;
+    assert.deepEqual(seDebe(enCaja), ["300"]);
+    const otraVez = valor(await local.app.parque.salir(ctxMonitora, cmd, AHORA + 40 * MIN));
+    assert.deepEqual(otraVez.lines, s.lines);
+    assert.equal(otraVez.account.version, s.account.version);
+  });
+
+  test("el pase libre también se cobra por uso: a los 50 min, 1 hora", async () => {
+    const r = await entrar(entrada([{ packageId: "libre" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 50 * MIN));
+    assert.deepEqual(s.lines[0]!.porUso, { paquete: "1 hora", precio: usd("500") });
+    assert.equal(s.lines[0]!.packagePrice.minor, "1200");
+    assert.deepEqual(seDebe(s.account), ["500"]);
+  });
+
+  test("dentro de la gracia cubre el paquete corto: a los 33 min, 30 minutos", async () => {
+    const r = await entrar(entrada([{ packageId: "pkg-120" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 33 * MIN));
+    assert.equal(s.lines[0]!.porUso?.paquete, "30 minutos");
+    assert.deepEqual(seDebe(s.account), ["300"]);
+  });
+
+  test("prepago no se devuelve: sale a los 25 min y la cuenta queda como estaba", async () => {
+    const r = await entrar(entrada([{ packageId: "pkg-60" }]));
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 25 * MIN));
+    assert.equal(s.lines[0]!.porUso, null);
+    assert.equal(s.lines[0]!.total.minor, "500");
+    assert.deepEqual(s.account.lines.map((l) => [l.kind, l.amount.minor, l.porUso]), [["PAQUETE", "500", undefined]]);
+    assert.deepEqual(seDebe(s.account), ["500"]);
+  });
+
+  test("si se pasó de lo elegido, se cobra como siempre: el paquete y el tiempo de más", async () => {
+    const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 72 * MIN));
+    assert.equal(s.lines[0]!.porUso, null);
+    assert.equal(s.lines[0]!.total.minor, "650");
+    assert.ok(s.account.lines.every((l) => l.porUso === undefined));
+    assert.deepEqual(seDebe(s.account), ["500", "150"]);
+  });
+
+  test("el paquete y sus recargas se cambian juntos: 1 hora + 1 hora y sale a los 70 min, se cobran 2 horas", async () => {
+    const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const id = r.sessions[0]!.id;
+    valor(await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: id, packageId: "pkg-60" }, AHORA + 50 * MIN));
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([id]), AHORA + 70 * MIN));
+    assert.deepEqual(s.lines[0]!.porUso, { paquete: "2 horas", precio: usd("800") });
+    assert.equal(s.lines[0]!.packagePrice.minor, "1000");
+    assert.equal(s.lines[0]!.total.minor, "800");
+    assert.deepEqual(
+      s.account.lines.map((l) => [l.amount.minor, l.porUso?.cambiadaPor ?? null]),
+      [
+        ["500", `uso-${id}`],
+        ["500", `uso-${id}`],
+        ["800", null],
+      ],
+    );
+    assert.deepEqual(seDebe(s.account), ["800"]);
+  });
+
+  test("vinculado a una mesa: el ajuste se hace en la cuenta de la mesa", async () => {
+    const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const id = r.sessions[0]!.id;
+    const { mesa } = valor(await local.app.mesas.vincular(ctxMesero, { idempotencyKey: randomUUID(), tableId: "mesa-11", sessionIds: [id] }, AHORA + 5 * MIN));
+    const cmd = salida([id]);
+    const s = valor(await local.app.parque.salir(ctxMonitora, cmd, AHORA + 25 * MIN));
+    assert.deepEqual(s.lines[0]!.porUso, { paquete: "30 minutos", precio: usd("300") });
+    // La familia no tiene nada que ajustar: su paquete se fue a la mesa.
+    assert.ok(s.account.lines.every((l) => l.porUso === undefined && l.id !== `uso-${id}`));
+    assert.deepEqual(seDebe(s.account), []);
+
+    const enMesa = valor(await local.app.cuentas.leer(ctxCajera, AHORA + 26 * MIN)).cuentas.find((c) => c.id === mesa.id)!;
+    assert.deepEqual(
+      enMesa.lines.map((l) => [l.amount.minor, l.sessionId, l.porUso?.cambiadaPor ?? null]),
+      [
+        ["500", id, `uso-${id}`],
+        ["300", id, null],
+      ],
+    );
+    assert.deepEqual(seDebe(enMesa), ["300"]);
+    assert.equal(enMesa.status, "ABIERTA", "la mesa sigue: la cobra la caja con lo demás");
+    const version = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.accountVersion.findFirst({ where: { accountId: mesa.id }, orderBy: { version: "desc" } }));
+    assert.equal(version!.cause, "SALIDA");
+
+    // El reintento devuelve el mismo desglose, aunque el ajuste esté en la mesa.
+    const otraVez = valor(await local.app.parque.salir(ctxMonitora, cmd, AHORA + 40 * MIN));
+    assert.deepEqual(otraVez.lines, s.lines);
   });
 });
 

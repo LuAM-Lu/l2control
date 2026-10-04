@@ -32,7 +32,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.45.1 · 45 de 60 pasos.** **B4-6 en curso** (rama `feat/b6-3`, casilla de §3). **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.46.0 · 46 de 60 pasos.** **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +105,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 433 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 120 de caja, 37 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (81 de base, 440 de aplicación, 13 del worker, 6 del agente; en el dominio, 55 de tasas, 49 de impuestos, 140 de caja, 42 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -431,7 +431,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    sala viaja por sondeo de 5 s.
 4. ~~B9-2~~ → ~~B9-3~~ → ~~B9-4~~ → ~~B9-5~~ → ~~B9-6~~ (se cierra Inventario) → ~~B3-6~~ (descuentos) → ~~B5-2~~ (impresión y comandas).
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
-   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → B4-6 (M-18) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
+   patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → ~~B4-6~~ (M-18) → B10-1 → B10-2 (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
@@ -1228,20 +1228,23 @@ Fuera de la cuenta de 60: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   documento; en escritorio Sucursal tampoco el contenido (a 800×1280 desplaza su zona, una columna).*
   *Trabajo de campo (§4): la cámara nativa y los 90 s en el teléfono real, con HTTPS (staging), y la serie con el
   primer lote.*
-- [ ] **B4-6 · Salir antes de tiempo** (M-18). En **cuenta abierta**, la salida cobra el paquete más barato del
+- [x] **B4-6 · Salir antes de tiempo** (M-18). En **cuenta abierta**, la salida cobra el paquete más barato del
   tarifario que cubre el tiempo real (con la gracia), no el que se eligió en la entrada; si se pasó del elegido, se
   cobra como hoy (paquete y tiempo de más). El desglose lo dice («Elegido: 1 hora · Usado: 28 min · Se cobra: 30
   minutos»). En **prepago** no se devuelve nada, y la entrada lo avisa antes de cobrar.
   → Una familia en cuenta abierta paga lo que usó, y el recibo explica por qué.
-  *En curso (2026-10-03). Decidido con el cliente: el pase libre también se cobra por uso; el paquete y sus recargas se
-  cambian juntos por el más barato que cubre; si el niño está vinculado a una mesa, se ajusta en la cuenta de la mesa.
-  **Hecho y en verde** (`pnpm verify:db`: 81 de base, 433 de aplicación): `paquetePorUso` (dominio del parque, 5 pruebas),
-  `chargeByUsage` y `packagesOwed` con la marca `porUso` en la línea (dominio de caja, 3 pruebas; lo cambiado no se cobra,
-  no se regala, no se mueve y no lo toca un «guardar»), contratos (`AccountLine.porUso`, `Estancia.porUso` con los
-  paquetes del tarifario con que entró, `SettlementLine.porUso`), `salir()` en `park/parque.ts` (familia y mesa
-  vinculada, con `claveSecundaria`), anticipo y desglose en la salida, aviso en la entrada. **Falta:** pruebas en
-  `parque.test-db.ts` (abierta 25 min → 30 minutos; prepago y con tiempo de más, sin ajuste; recarga → 2 horas; vinculado
-  → en la mesa), que la caja pinte lo «cambiado por uso» tachado (`agruparFilas` en `CajaScreen`), navegador y v0.46.0.*
+  *Hecho el 2026-10-03 (v0.46.0). Decidido con el cliente: el pase libre también se cobra por uso; el paquete y sus
+  recargas se cambian juntos por el más barato que cubre; si el niño está vinculado a una mesa, se ajusta en la cuenta
+  de la mesa. **Dominio:** `paquetePorUso` (parque, 5 pruebas); `chargeByUsage` y `packagesOwed` con la marca `porUso`
+  en la línea (caja, 3 pruebas): lo cambiado no se cobra, no se regala, no se mueve y no lo toca un «guardar».
+  **Contratos:** `AccountLine.porUso`, `Estancia.porUso` (los paquetes del tarifario con que entró),
+  `SettlementLine.porUso`. **Aplicación:** `salir()` en `park/parque.ts` asienta la línea `uso-<estancia>` en la
+  cuenta de la familia o en la de la mesa vinculada; el desglose solo dice «por uso» si quedó asentado, y el reintento
+  (`salidaHecha` → `porUsoAsentado`) devuelve el mismo. Pruebas en `parque.test-db.ts` (7: abierta 25 min → 30
+  minutos, pase libre → 1 hora, gracia, prepago y tiempo de más sin ajuste, recarga → 2 horas, vinculado → mesa).
+  **Web:** aviso en la entrada; la salida dice el paquete elegido (con sus recargas) tachado y el que se cobra; la caja
+  pinta lo «cambiado por uso» tachado (`agruparFilas`). Navegador en la base de pruebas a 1366×768, 1280×800 y
+  800×1280. El caso de la mesa se comprobó contra la base, no en el navegador.*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -1963,6 +1966,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   contrato y en `markPaid`); visto al empezar B4-6. `pnpm verify:db` en verde (81 y 433).
 - **2026-10-03** · B4-6 en curso: el cliente decidió los tres casos (pase libre por uso, recargas juntas, también en la
   mesa); dominio, contratos, salida y web escritos y en verde; faltan pruebas contra la base, la caja y el navegador.
+- **2026-10-03** · B4-6 hecho (v0.46.0): en cuenta abierta se cobra por uso al salir antes; la caja lo enseña tachado.
+  `pnpm verify:db` en verde (81 y 440). Siguen B10-1 → B10-2 (eventos).
 
 ---
 
@@ -1976,21 +1981,20 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-10-03, v0.45.1 en `feat/b6-3`, en GitHub hasta v0.45.0; `main` en v0.42.0, sin fusionar):**
+**Último handoff (2026-10-03, v0.46.0 en `feat/b6-3`, en GitHub hasta v0.45.0; `main` en v0.42.0, sin fusionar):**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §2 M-18, §3 casilla de B4-6, §5) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.45.1 · 45 de 60 (GitHub hasta v0.45.0; main en v0.42.0, sin fusionar).
-Hecho: B6-3, B6-5 (liberar mesa sin consumo), B6-6 (papel «ANULAR» e inventario) y v0.45.1 (la caja cobra bien lo anulado).
-Siguiente: terminar B4-6 (M-18). Cuenta abierta: salir antes cobra el paquete más barato que cubre lo que estuvo (pase libre
-  incluido; paquete + recargas juntos; vinculado → en la cuenta de la mesa). Prepago: no se devuelve (aviso en la entrada).
-  Escrito y en verde (verify:db 433): paquetePorUso, chargeByUsage/porUso, contratos, salir() en park/parque.ts, salida web.
-  Falta: pruebas en parque.test-db.ts (abierta 25 min→30 minutos, prepago y con excedente sin ajuste, recarga→2 horas,
-  vinculado→mesa), caja pinta «cambiado por uso» tachado (agruparFilas en CajaScreen), navegador, v0.46.0 + CHANGELOG + etiqueta.
-Navegador SIEMPRE en la base de pruebas: scratchpad de la sesión 5d4d04b1 (prueba-env.sh = .env con l2control_test y local
-  propio; web `next dev` y worker a mano; sesión b64-admin.json; plano de 8 mesas, impresora falsa y un turno ya creados).
+Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §3 Etapa 10 con B10-1, §2 V-10 y D-EVT, §5) y CLAUDE.md. Español.
+Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.46.0 · 46 de 60 (GitHub hasta v0.45.0; main en v0.42.0, sin fusionar).
+Hecho: B6-3, B6-5, B6-6, v0.45.1 y B4-6 (cuenta abierta cobra por uso al salir antes; prepago no se devuelve; la caja
+  lo enseña tachado). verify:db en verde (81 de base, 440 de aplicación).
+Siguiente: B10-1 · Reservas con agenda y anticipo (cumpleaños): fecha y horario, cliente del directorio, invitados y
+  paquete con mínimo/máximo (nunca sobre el aforo), anticipo 50 % configurable cobrado en la caja contra la cuenta del
+  evento; Parque → Eventos; Inicio y la apertura del turno avisan «Hoy hay un evento». Antes de construir, leer PLAN.
+Navegador SIEMPRE en la base de pruebas: prueba-env.sh en el scratchpad de la sesión 5d4d04b1 (.env con l2control_test
+  y local propio); web `next dev` y worker a mano con ese entorno; sesión b46-admin.json en el scratchpad de 0fa807c3
+  (si caduca: /acceso → Abigail → 1970, el equipo sigue aprobado). Plano de 8 mesas, impresora falsa y turno creados.
 Base local CON DATOS DEL CLIENTE: no enviar pedidos ni anular allí (la impresora «Caja» imprime de verdad). Solo «Prueba …».
-Cuidado: lo que se debe = chargeableLines (no filtrar a mano); una línea no se cambia: se marca y se añade otra. Un guion
-  relee el botón antes de confirmar (la gracia vence en un minuto). El git push lo hace el usuario (el clasificador lo bloquea).
+Cuidado: lo que se debe = chargeableLines; una línea no se cambia: se marca y se añade otra. El git push lo hace el usuario.
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Entrar por /acceso.
 ```

@@ -12,6 +12,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.46.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+B4-6 (M-18): salir antes de tiempo.
+
+### Añadido
+- **En cuenta abierta, quien sale antes paga lo que usó.** La salida cobra el paquete más barato del tarifario con que
+  entró que cubre el tiempo que estuvo (con la gracia), no el que eligió al entrar. Vale también para el pase libre, y
+  el paquete y sus recargas se cambian juntos (1 hora + 1 hora y sale a los 70 min: se cobran 2 horas). Si se pasó de
+  lo elegido, se cobra como siempre: el paquete y el tiempo de más.
+- **El desglose lo explica.** La salida dice lo elegido, tachado, y lo que se cobra: «Paquete contratado · 1 hora
+  $ 5,00 → Por uso: 30 minutos (25 min) $ 3,00». En la caja, la línea del paquete elegido sale tachada con «Cambiado
+  por uso · estuvo 25 min» y debajo la del paquete que se cobra.
+- **Si el niño está vinculado a una mesa**, el cambio se hace en la cuenta de la mesa, que se cobra con lo demás.
+- **En prepago no se devuelve nada**, y la entrada lo avisa antes de cobrar («Si sale antes, no se devuelve»; la
+  cuenta abierta dice «Al salir, por lo que usó»).
+
+### Comprobado
+- `pnpm verify:db` en verde (81 de base, 440 de aplicación; dominio del parque 42, de caja 140): la salida temprana,
+  el pase libre, la gracia, el prepago, el tiempo de más, las recargas, la mesa y el reintento de la misma salida. En
+  el navegador, con la base de pruebas: entrada en cuenta abierta con 1 hora, salida a los 2 minutos con 30 minutos
+  ($ 3,00) y la caja con lo elegido tachado, a 1366×768, 1280×800 y 800×1280.
+
 ## [0.45.1] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 Corrección de B6-3: una mesa con un plato anulado se cobra bien.

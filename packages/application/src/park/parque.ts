@@ -461,11 +461,15 @@ export function casosParque(base: Base): CasosParque {
           let base = actual.cuenta;
           // Lo de un niño vinculado a una mesa ya no está aquí (B6-3): se cobra por uso en la cuenta de la mesa.
           const enUnaMesa: number[] = [];
+          // Las estancias cuyo ajuste quedó asentado: el desglose solo dice «por uso» de esas.
+          const asentado = new Set<string>();
           enOrden.forEach((f, i) => {
             if (!porUso.has(f.id)) return;
             const c = chargeByUsage(base, f.id, lineaPorUso(f, i));
-            if (c) base = c;
-            else enUnaMesa.push(i);
+            if (c) {
+              base = c;
+              asentado.add(f.id);
+            } else enUnaMesa.push(i);
           });
           let despues = registerExit(
             base,
@@ -502,7 +506,12 @@ export function casosParque(base: Base): CasosParque {
               const esLaDestino = mesaInfo?.vigente && mesaInfo.accountId === mesaId;
               const vigente = esLaDestino ? mesaInfo!.vigente! : (await vigenteDe(tx, mesaId))!;
               let cuenta = vigente.cuenta;
-              for (const i of enUnaMesa) cuenta = chargeByUsage(cuenta, enOrden[i]!.id, lineaPorUso(enOrden[i]!, i)) ?? cuenta;
+              for (const i of enUnaMesa) {
+                const c = chargeByUsage(cuenta, enOrden[i]!.id, lineaPorUso(enOrden[i]!, i));
+                if (!c) continue;
+                cuenta = c;
+                asentado.add(enOrden[i]!.id);
+              }
               if (cuenta === vigente.cuenta) continue;
               if (esLaDestino) {
                 mesaInfo = { ...mesaInfo!, vigente: { ...vigente, cuenta } };
@@ -561,7 +570,10 @@ export function casosParque(base: Base): CasosParque {
               cargadoAMesa: mesaInfo ? mesaInfo.label : null,
             },
           });
-          return { lines: lineas, account: nueva };
+          // Si el paquete ya no se debía en ninguna cuenta (p. ej., la mesa ya lo cobró), no hubo ajuste:
+          // el desglose dice lo contratado, como lo dirá un reintento.
+          const desglose = lineas.map((l, i) => (porUso.has(l.sessionId) && !asentado.has(l.sessionId) ? liquidacionDe(enOrden[i]!, ahora) : l));
+          return { lines: desglose, account: nueva };
         });
 
       try {
@@ -955,10 +967,31 @@ async function entradaHecha(tx: Transaccion, clave: string, accountId: string): 
 /** Lo que dejó una salida: su desglose (con la hora en que se cerró) y la cuenta como está ahora. */
 async function salidaHecha(tx: Transaccion, clave: string, accountId: string): Promise<CheckoutResult> {
   const filas = await estancias(tx, { where: { checkOutKey: clave } });
-  return {
-    lines: filas.map((f) => liquidacionDe(f, f.endedAt!.getTime())),
-    account: (await vigenteDe(tx, accountId))!.cuenta,
-  };
+  const cuenta = (await vigenteDe(tx, accountId))!.cuenta;
+  const lines: SettlementLineDto[] = [];
+  // Una a una: dentro de la transacción, nunca dos consultas a la vez (§5).
+  for (const f of filas) lines.push(liquidacionDe(f, f.endedAt!.getTime(), await porUsoAsentado(tx, cuenta, f)));
+  return { lines, account: cuenta };
+}
+
+/**
+ * El paquete por uso que asentó la salida de una estancia (B4-6), para que el reintento devuelva el mismo
+ * desglose. Lo que se calcula es lo mismo que calculó la salida (las condiciones y el tarifario de la
+ * entrada, y la hora en que se cerró); se da por asentado si su línea `uso-` está en la cuenta de la
+ * familia o en la de la mesa adonde se fue el paquete.
+ */
+async function porUsoAsentado(tx: Transaccion, familia: FamilyAccountDto, f: FilaDeEstancia): Promise<PaqueteDeUso | null> {
+  if (familia.mode !== "CUENTA_ABIERTA") return null;
+  const p = paqueteParaCobrarPorUso(f, f.endedAt!.getTime());
+  if (!p) return null;
+  const id = `uso-${f.id}`;
+  if (familia.lines.some((l) => l.id === id)) return p;
+  const mesas = new Set(familia.lines.filter((l) => l.sessionId === f.id && l.movedTo).map((l) => l.movedTo!));
+  for (const mesaId of mesas) {
+    const mesa = await vigenteDe(tx, mesaId);
+    if (mesa?.cuenta.lines.some((l) => l.id === id)) return p;
+  }
+  return null;
 }
 
 /**

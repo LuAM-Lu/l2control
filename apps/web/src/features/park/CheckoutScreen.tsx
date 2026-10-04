@@ -375,6 +375,9 @@ export function CheckoutScreen({
               <ul className="flex flex-col gap-3">
                 {preview.lines.map((l) => {
                   const conExcedente = l.penaltyBlocks > 0;
+                  // Lo que eligió al entrar y sus recargas, por su nombre: el desglose dice qué se cambió (B4-6).
+                  const estancia = snapshot.sessions.find((x) => x.id === l.sessionId);
+                  const contratado = estancia ? [estancia.packageName, ...estancia.recargas.map((r) => r.packageName)].join(" + ") : null;
                   return (
                     <li
                       key={l.sessionId}
@@ -415,7 +418,10 @@ export function CheckoutScreen({
                         discusión en taquilla. */}
                     <dl className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3 text-[13px]">
                       <div className="flex items-baseline justify-between gap-3">
-                        <dt className="text-ink-2">Paquete contratado</dt>
+                        <dt className="text-ink-2">
+                          Paquete contratado
+                          {contratado && <span className="ml-1.5 text-ink-3">· {contratado}</span>}
+                        </dt>
                         <dd className={cn(l.porUso && "line-through opacity-60")}>
                           <MoneyDisplay
                             value={moneyDtoToMajor(l.packagePrice)}
