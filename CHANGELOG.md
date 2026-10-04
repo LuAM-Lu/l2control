@@ -12,6 +12,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.47.1] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
+
+Corrección: el menú lateral con Ajustes desplegado.
+
+### Corregido
+- **Al desplegar Ajustes, desplaza solo su lista.** Antes desplazaba el menú entero y los módulos de operación se
+  iban hacia arriba. Ahora la marca, los módulos de operación, la fila «Ajustes» y la persona se quedan a la vista;
+  Ajustes ocupa el alto que queda y sus secciones desplazan por su cuenta. Con Ajustes plegado, la operación usa
+  todo el alto (ya no se corta a medio menú) y Ajustes queda abajo. Barra de desplazamiento fina.
+
+### Comprobado
+- En el navegador a 1366×768 y 1366×950, con Ajustes plegado y desplegado (y Restaurante y Caja abiertos).
+
 ## [0.47.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 
 B10-1 (V-10, D-EVT): cumpleaños con reserva y anticipo.

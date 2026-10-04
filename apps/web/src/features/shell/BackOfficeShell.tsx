@@ -222,13 +222,20 @@ function NavModulos({
   const operar = modulosDeZona(modulos, "operar");
   const ajustes = modulosDeZona(modulos, "ajustes");
 
-  const pintarModulo = (m: Modulo) => {
+  const estaDesplegado = (m: Modulo) => eleccion[m.id] ?? pathname.startsWith(rutaModulo(m.id));
+  // Ajustes es la lista más larga: desplegado, ocupa el sitio que queda y solo sus secciones desplazan. La fila
+  // «Ajustes», los módulos de operación, la marca y la persona se quedan a la vista.
+  const ajustesDesplegado = ajustes.some(estaDesplegado);
+
+  /** `propioScroll`: desplegado, el módulo llena el alto que queda y desplaza solo sus secciones (Ajustes). */
+  const pintarModulo = (m: Modulo, propioScroll = false) => {
     const enModulo = pathname.startsWith(rutaModulo(m.id));
     const secciones = m.secciones.filter((s) => actor !== null && puedeVerSeccion(actor, m, s));
     const seccionActiva = secciones.some((s) => s.href === pathname);
-    const desplegado = eleccion[m.id] ?? enModulo;
+    const desplegado = estaDesplegado(m);
+    const llena = propioScroll && desplegado && secciones.length > 0;
     return (
-            <li key={m.id}>
+            <li key={m.id} className={cn(llena && "flex min-h-0 flex-1 flex-col")}>
               {/* La fila del módulo SIEMPRE navega a su página. Un encabezado
                   que solo despliega obliga a dos toques para llegar a algo. */}
               <Fila
@@ -270,6 +277,7 @@ function NavModulos({
                   className={cn(
                     "mt-0.5 mb-1 ml-[1.6rem] flex flex-col gap-0.5 border-l border-line pl-2.5",
                     riel && "hidden xl:flex",
+                    llena && "min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:thin]",
                   )}
                 >
                   {secciones.map((s, i) => {
@@ -321,9 +329,16 @@ function NavModulos({
   return (
     <nav
       aria-label="Módulos"
-      className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-4", modo === "cajon" && "px-3")}
+      className={cn("flex min-h-0 flex-1 flex-col px-2 pb-4", modo === "cajon" && "px-3")}
     >
-      <ul className="flex flex-col gap-0.5">
+      {/* Lo que se opera, arriba y a la vista: con Ajustes plegado usa todo el alto; con Ajustes desplegado cede
+          el sitio y solo desplaza por su cuenta si pasa del 45 %. */}
+      <ul
+        className={cn(
+          "flex flex-col gap-0.5 overflow-y-auto overscroll-contain [scrollbar-width:thin]",
+          ajustesDesplegado ? (riel ? "min-h-0 shrink xl:max-h-[45%] xl:shrink-0" : "max-h-[45%] shrink-0") : "min-h-0 shrink",
+        )}
+      >
         {inicioVisible && (
           <li>
             <Fila
@@ -336,11 +351,14 @@ function NavModulos({
           </li>
         )}
 
-        {operar.map(pintarModulo)}
+        {operar.map((m) => pintarModulo(m))}
       </ul>
-      {/* Lo que se configura, abajo y aparte: el menú es para operar (M-13). */}
+      {/* Lo que se configura, abajo y aparte: el menú es para operar (M-13). Desplegado, Ajustes sube y llena el
+          alto que queda, con su propio desplazamiento. */}
       {ajustes.length > 0 && (
-        <ul className="mt-auto flex flex-col gap-0.5 border-t border-line pt-2">{ajustes.map(pintarModulo)}</ul>
+        <ul className={cn("flex flex-col gap-0.5 border-t border-line pt-2", !ajustesDesplegado ? "mt-auto" : riel ? "mt-auto xl:mt-2 xl:min-h-0 xl:flex-1" : "mt-2 min-h-0 flex-1")}>
+          {ajustes.map((m) => pintarModulo(m, true))}
+        </ul>
       )}
     </nav>
   );
