@@ -2000,11 +2000,11 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-10-03, v0.47.0 en `feat/b6-3`, en GitHub hasta v0.45.0; `main` en v0.42.0, sin fusionar):**
+**Último handoff (2026-10-03, v0.47.0 en `feat/b6-3`, subida a GitHub con sus etiquetas; `main` en v0.42.0, sin fusionar):**
 
 ```text
 Proyecto L2 Control. Lee docs/MAESTRO.md (§1, §3 B10-1 hecho y B10-2, §2 V-10 y D-EVT, §5) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.47.0 · 47 de 60 (GitHub hasta v0.45.0; main en v0.42.0).
+Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.47.0 · 47 de 60 (en GitHub; main en v0.42.0, sin fusionar).
 Hecho: B4-6, v0.46.1 (confirmar tasa tecleando lo que se ve) y B10-1 (paquetes en Ajustes → Cumpleaños, agenda en
   Parque → Eventos, anticipo en la caja con la cuenta EVENTO, cancelar, avisos de hoy). verify:db 81 y 455.
 Siguiente: B10-2 · El día del evento: invitados con pulseras a la cuenta del evento (cuentan en el aforo), el paquete
@@ -2014,6 +2014,6 @@ Migración 20261027000000_cumpleanos aplicada solo en l2control_test: la base de
 Navegador SIEMPRE en la base de pruebas: prueba-env.sh (scratchpad 5d4d04b1) + web `next dev` y worker a mano;
   sesiones b46-admin.json (con turno) y b101-turno.json (sin turno) en el scratchpad de 0fa807c3. Si `pnpm verify`
   corre con el esquema a medias, regenera el cliente (`prisma generate`) y reinicia la web: si no, «findMany» de undefined.
-Base local CON DATOS DEL CLIENTE: no enviar pedidos ni anular allí. Solo «Prueba …». El git push lo hace el usuario.
+Base local CON DATOS DEL CLIENTE: no enviar pedidos ni anular allí. Solo «Prueba …». Push solo si el usuario lo pide.
 Arrancar: Docker Desktop → pnpm infra:up → pnpm db:migrar → pnpm dev. Entrar por /acceso.
 ```
