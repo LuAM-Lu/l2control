@@ -12,7 +12,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [0.50.1] — 2026-10-05 · Etapa 2 · Dinero
+## [0.50.1] — 2026-10-05 · Preparación del staging
 
 Corrección entre pasos.
 
@@ -24,6 +24,11 @@ Corrección entre pasos.
 
 ### Comprobado
 - Prueba nueva contra la base (falla sin la corrección); `pnpm verify:db` en verde.
+
+### Cambiado
+- **La etapa que acompaña a la versión dice dónde va el proyecto**, no de qué etapa era el último paso entregado: tras
+  B2-5 decía «Etapa 2 · Dinero», como si se volviera atrás. Las etapas de construcción están cerradas y lo que queda
+  (T-2 y T-4) va antes del staging: «Preparación del staging».
 
 ## [0.50.0] — 2026-10-05 · Etapa 2 · Dinero
 

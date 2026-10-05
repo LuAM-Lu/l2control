@@ -4,7 +4,7 @@
   "version": "0.50.1",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
-    "etapa": "Etapa 2 · Dinero",
+    "etapa": "Preparación del staging",
     "pasos": 61
   },
   "packageManager": "pnpm@12.3.4",
