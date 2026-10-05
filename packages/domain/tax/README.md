@@ -63,6 +63,8 @@ impuesto; con el mismo comienzo manda la programación más reciente, y una que 
 no abre tramo (programar la vigente para un día cancela el cambio de ese día).
 
 - `ivaRulesOf(tramos)` da las reglas para `computeDocument`, con lo exento (0 %, siempre) incluido.
+- `pricesIncludeTax` (B2-5): los precios ya traen el IVA dentro. La base de cada grupo es lo que suma × 100 / (100 +
+  alícuota) y el IVA, la diferencia: el total es la suma de los precios al céntimo y `taxIncluded` lo dice.
 - `igtfAt(tramos, at)` da el IGTF del instante; `missingTaxesAt` dice qué falta para poder cobrar.
 - `scheduleProblem` dice si algo se puede programar: nunca hacia atrás.
 - `basisPointsFromPercent` / `percentFromBasisPoints`: «16,5» ↔ 1650, sin coma flotante.

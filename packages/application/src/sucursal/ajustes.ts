@@ -123,6 +123,19 @@ export function casosAjustes(base: Base): CasosAjustes {
               };
             }
           }
+          if (ajustes.preciosConIva !== antes.ajustes.preciosConIva) {
+            // Si los precios llevan o no el IVA dentro cambia lo que se cobra de cada cuenta: con un turno
+            // abierto, una cuenta vista a un precio se cobraría a otro. Se cambia con la caja cerrada.
+            const turno = await tx.cashShift.findFirst({ where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" } }, select: { id: true } });
+            if (turno) {
+              return {
+                ok: false as const,
+                motivo: "CONFLICTO" as const,
+                mensaje: "Si los precios incluyen el IVA cambia lo que se cobra: se cambia sin turnos abiertos. Cierra los turnos y vuelve a publicar.",
+                problemas: [{ path: ["ajustes", "preciosConIva"], message: "No se cambia con la caja abierta" }],
+              };
+            }
+          }
           const autor = ctx.quien?.userId ? await nombreDe(tx, ctx) : null;
           const fila = await tx.branchSettingsVersion.create({
             data: {

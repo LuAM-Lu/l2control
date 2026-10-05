@@ -5,12 +5,25 @@ Qué cambia en cada versión, para quien usa el sistema. Formato de
 según M-10 (docs/MAESTRO.md §2):
 
 - **MINOR** +1 por cada paso de la ruta a producción entregado: el número del medio dice cuántos van
-  (de 60). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
+  (de 61). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
 - La fuente es `version` del `package.json` raíz, con su etapa en `l2.etapa`. `pnpm verify` falla si
   este archivo no abre con esa versión. Cada versión lleva su etiqueta git `vX.Y.Z`.
 
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
+
+## [0.50.0] — 2026-10-05 · Etapa 2 · Dinero
+
+B2-5 (M-19): precios con el IVA incluido.
+
+### Añadido
+- **Ajustes → Sucursal → Precios: «IVA incluido» o «IVA aparte».** Con el IVA incluido, lo que dice el menú es lo que
+  paga el cliente: tres alitas de $ 6,00 se cobran $ 18,00, no $ 20,88 ni $ 17,99. El IVA se saca de dentro (y así sale
+  en la caja, el recibo y el ticket: «IVA 16 % (incluido)»). Vale para el catálogo, el parque y los cumpleaños.
+  Apagado de fábrica; no se cambia con turnos abiertos, porque cambiaría lo que se cobra de cada cuenta.
+
+### Comprobado
+- `pnpm verify:db` en verde.
 
 ## [0.49.0] — 2026-10-05 · Etapa 3 · Caja
 

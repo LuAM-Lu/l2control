@@ -116,12 +116,20 @@ export type ServiceCharge = Readonly<{
 export type TaxBucket = Readonly<{
   code: TaxCode;
   basisPoints: number;
-  /** Base imponible del grupo, ya con el descuento prorrateado aplicado. */
+  /**
+   * Base imponible del grupo, ya con el descuento prorrateado aplicado. Con los precios con IVA
+   * incluido, es lo que queda de los precios del grupo al sacarles el IVA.
+   */
   base: Money;
   tax: Money;
 }>;
 
 export type DocumentTotals = Readonly<{
+  /**
+   * Si los precios ya traían el IVA dentro (`pricesIncludeTax`). Entonces `subtotal`, el descuento y
+   * el total son precios finales, y `taxTotal` es el IVA que contienen: el total NO lo suma otra vez.
+   */
+  taxIncluded: boolean;
   subtotal: Money;
   discountTotal: Money;
   serviceCharge: Money;
@@ -153,6 +161,11 @@ function lineAmount(line: DocumentLine): Money {
  * El IVA se calcula **una vez por grupo de alícuota**, sobre la base sumada,
  * no línea a línea: redondear en cada línea produce diferencias de céntimos
  * que en un cierre de mes son visibles.
+ *
+ * CON EL IVA INCLUIDO (`pricesIncludeTax`, ajuste de la sucursal): los precios son lo que paga el
+ * cliente. El orden es el mismo, pero el IVA de cada grupo se SACA de lo que suma el grupo en vez de
+ * añadírselo: base = suma × 100 / (100 + alícuota), redondeada una vez, e IVA = suma − base. Así el
+ * total es siempre la suma de los precios (menos el descuento), al céntimo, lleve los platos que lleve.
  */
 export function computeDocument(input: {
   lines: readonly DocumentLine[];
@@ -162,8 +175,11 @@ export function computeDocument(input: {
   at: number;
   currency: CurrencyCode;
   rounding?: Rounding;
+  /** Los precios ya traen el IVA dentro: se saca de ellos y no se suma al total. */
+  pricesIncludeTax?: boolean;
 }): DocumentTotals {
   const { lines, rules, at, currency } = input;
+  const included = input.pricesIncludeTax === true;
   const rounding: Rounding = input.rounding ?? "HALF_UP";
   const discounts = input.discounts ?? [];
 
@@ -246,14 +262,18 @@ export function computeDocument(input: {
   }
 
   // --- IVA por grupo ----------------------------------------------------
+  // Con el IVA incluido, lo sumado por grupo es el precio final: la base se saca de él y el IVA es la
+  // diferencia, para que base + IVA sea exactamente lo que suman los precios.
   const buckets: TaxBucket[] = [...bases.entries()]
-    .map(([code, base]) => {
+    .map(([code, sumado]) => {
       const rule = findRule(rules, code, at);
+      const bps = BigInt(rule.basisPoints);
+      const base = included ? multiplyByRate(sumado, BASIS, BASIS + bps, rounding) : sumado;
       return {
         code,
         basisPoints: rule.basisPoints,
         base,
-        tax: multiplyByRate(base, BigInt(rule.basisPoints), BASIS, rounding),
+        tax: included ? subtract(sumado, base) : multiplyByRate(base, bps, BASIS, rounding),
       };
     })
     // Orden estable para que el desglose sea reproducible en el ticket.
@@ -265,10 +285,11 @@ export function computeDocument(input: {
   );
 
   // El servicio suma al total UNA vez, sea o no base imponible. Que tribute
-  // solo cambia si además entra en el cálculo del IVA de arriba.
-  const total = add(add(netSubtotal, serviceCharge), taxTotal);
+  // solo cambia si además entra en el cálculo del IVA de arriba. Con el IVA incluido, ya está dentro.
+  const total = included ? add(netSubtotal, serviceCharge) : add(add(netSubtotal, serviceCharge), taxTotal);
 
   return Object.freeze({
+    taxIncluded: included,
     subtotal,
     discountTotal,
     serviceCharge,

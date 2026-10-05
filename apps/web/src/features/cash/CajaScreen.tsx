@@ -401,9 +401,11 @@ function CobroCuenta({
   /* ------------------------------------------------- documento (IVA) */
 
   // El descuento baja la base antes del IVA (§5.3), igual que lo calculará el servidor al cobrar.
+  // Con los precios con IVA incluido (ajuste de la sucursal), el total es la suma de los precios.
+  const { preciosConIva } = useSucursal().ajustes;
   const doc = useMemo(
-    () => computeDocument({ lines, discounts: documentDiscountsOf(cuenta, categoryOf), rules, at: instanteFiscal, currency: FUNCIONAL }),
-    [lines, cuenta, categoryOf, rules, instanteFiscal],
+    () => computeDocument({ lines, discounts: documentDiscountsOf(cuenta, categoryOf), rules, at: instanteFiscal, currency: FUNCIONAL, pricesIncludeTax: preciosConIva }),
+    [lines, cuenta, categoryOf, rules, instanteFiscal, preciosConIva],
   );
 
   /* ------------------------------------------------------ IGTF */
@@ -1268,9 +1270,9 @@ function CobroCuenta({
               className="flex items-baseline justify-between gap-3"
             >
               <dt className="text-ink-2">
-                IVA {b.basisPoints / 100}%
+                IVA {b.basisPoints / 100}%{doc.taxIncluded ? " incluido" : ""}
                 <span className="tnum ml-1.5 text-ink-3">
-                  sobre {toMajor(b.base)}
+                  {doc.taxIncluded ? "base" : "sobre"} {toMajor(b.base)}
                 </span>
               </dt>
               <dd>

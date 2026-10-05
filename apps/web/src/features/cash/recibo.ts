@@ -82,7 +82,8 @@ export function reciboDeVenta(v: VentaCerradaDto, local: AjustesSucursalDto): Re
         }
       : null,
     impuestos: [
-      ...v.impuestos.map((i) => ({ etiqueta: `IVA ${i.basisPoints / 100}%`, monto: texto(aDinero(i.tax)) })),
+      // Con los precios con IVA incluido, el IVA va dentro del total: se dice, no se suma.
+      ...v.impuestos.map((i) => ({ etiqueta: `IVA ${i.basisPoints / 100}%${v.ivaIncluido ? " (incluido)" : ""}`, monto: texto(aDinero(i.tax)) })),
       ...(igtf.amount > 0n ? [{ etiqueta: `IGTF ${v.igtf.basisPoints / 100}%`, monto: texto(igtf) }] : []),
     ],
     total: texto(total),

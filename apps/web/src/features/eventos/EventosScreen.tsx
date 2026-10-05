@@ -61,7 +61,7 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
   const actor = useActorEnSesion();
   const puedeReservar = actor ? can(actor, "evento.reservar") === "PERMITIDO" : false;
   const puedeCobrar = actor ? can(actor, "documento.emitir") !== "DENEGADO" : false;
-  const { formatoHora } = useSucursal().ajustes;
+  const { formatoHora, preciosConIva } = useSucursal().ajustes;
   // La agenda cambia al reservar, al cancelar y al cobrar o anular un anticipo en la caja.
   useAlCambiar(["eventos", "cuentas"], () => router.refresh());
 
@@ -148,7 +148,7 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
           </p>
           <p className="tnum text-[12px] text-ink-3">
             Anticipo {percentFromBasisPoints(r.anticipoBps)} % <MoneyDisplay value={toMajor(enDolares(r.anticipo))} currency="USD" size="sm" tone="muted" /> · saldo el día{" "}
-            <MoneyDisplay value={toMajor(enDolares(r.saldo))} currency="USD" size="sm" tone="muted" /> · sin IVA
+            <MoneyDisplay value={toMajor(enDolares(r.saldo))} currency="USD" size="sm" tone="muted" /> · {preciosConIva ? "IVA incluido" : "sin IVA"}
             {r.cancelada ? ` · cancelada por ${r.cancelada.por}` : ` · reservada por ${r.reservadaPor}`}
           </p>
           {r.dia && (
@@ -377,7 +377,7 @@ function NuevaReserva({
   const [fecha, setFecha] = useState(hoy);
   const [inicio, setInicio] = useState(15 * 60);
   const [fin, setFin] = useState(18 * 60);
-  const { formatoHora } = useSucursal().ajustes;
+  const { formatoHora, preciosConIva } = useSucursal().ajustes;
   const [paqueteId, setPaqueteId] = useState(paquetes[0]?.id ?? "");
   const [invitados, setInvitados] = useState("");
   const [cumpleanero, setCumpleanero] = useState("");
@@ -646,7 +646,7 @@ function NuevaReserva({
             ))}
           </dl>
         )}
-        <p className="text-[12px] text-ink-3">Importes sin IVA: la caja lo suma al cobrar.</p>
+        <p className="text-[12px] text-ink-3">{preciosConIva ? "Importes con el IVA incluido: es lo que paga el cliente." : "Importes sin IVA: la caja lo suma al cobrar."}</p>
       </form>
     </Sheet>
   );

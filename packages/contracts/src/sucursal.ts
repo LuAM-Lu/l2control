@@ -175,6 +175,12 @@ export const AjustesSucursalSchema = z
       .min(0, "El tope va de 0 % a 100 %")
       .max(10_000, "El tope va de 0 % a 100 %")
       .default(2000),
+    /**
+     * Los precios del catálogo, del parque y de los cumpleaños ya traen el IVA dentro: lo que dice el
+     * menú es lo que paga el cliente, y el IVA se saca de ahí. Apagado, se suma encima (de fábrica). Los
+     * ajustes publicados antes no lo traen: apagado.
+     */
+    preciosConIva: z.boolean().default(false),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

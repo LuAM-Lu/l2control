@@ -379,3 +379,55 @@ describe("pago que cubre la deuda con su propio IGTF (cobrar exacto)", () => {
     assert.throws(() => pagoQueCubreConIgtf(fromMajor("10.00", "USD"), -1), RangeError);
   });
 });
+
+/* ------------------------------------------------- precios con IVA incluido */
+
+describe("precios con el IVA incluido (ajuste de la sucursal)", () => {
+  const conIva = (lines: DocumentLine[], over: Partial<Parameters<typeof computeDocument>[0]> = {}) =>
+    computeDocument({ lines, rules: REGLAS, at: AHORA, currency: "USD", pricesIncludeTax: true, ...over });
+
+  test("un plato de $ 5,00 se cobra $ 5,00 y lleva dentro $ 0,69 de IVA", () => {
+    const d = conIva([linea("l1", "5.00", 1n)]);
+    assert.equal(d.taxIncluded, true);
+    assert.equal(toMajor(d.total), "5.00");
+    assert.equal(toMajor(d.buckets[0]!.base), "4.31");
+    assert.equal(toMajor(d.buckets[0]!.tax), "0.69");
+    assert.equal(toMajor(d.taxTotal), "0.69");
+  });
+
+  test("el total es siempre la suma de los precios, lleve los platos que lleve", () => {
+    // Con el IVA sumado, tres de $ 5,17 de base daban $ 17,99: aquí, tres de $ 6,00 son $ 18,00.
+    for (const [precio, n] of [["6.00", 3n], ["6.50", 7n], ["10.50", 2n], ["8.00", 11n], ["0.01", 1n]] as const) {
+      const d = conIva([linea("l1", precio, n)]);
+      assert.equal(d.total.amount, fromMajor(precio, "USD").amount * n, `${n} × ${precio}`);
+      // Y lo de dentro cuadra: base + IVA = lo que se cobra.
+      assert.equal(add(d.buckets[0]!.base, d.buckets[0]!.tax).amount, d.total.amount);
+    }
+  });
+
+  test("lo exento no lleva IVA dentro, y cada grupo saca el suyo", () => {
+    const d = conIva([linea("a", "5.00", 1n), linea("b", "3.00", 2n, "EXENTA"), linea("c", "1.08", 1n, "REDUCIDA")]);
+    assert.equal(toMajor(d.total), "12.08");
+    const por = Object.fromEntries(d.buckets.map((b) => [b.code, [toMajor(b.base), toMajor(b.tax)]]));
+    assert.deepEqual(por, { EXENTA: ["6.00", "0.00"], GENERAL: ["4.31", "0.69"], REDUCIDA: ["1.00", "0.08"] });
+  });
+
+  test("el descuento baja el precio final, y el IVA se saca de lo que queda", () => {
+    const d = conIva([linea("l1", "10.00", 1n)], { discounts: [{ kind: "PERCENT", basisPoints: 1000 }] });
+    assert.equal(toMajor(d.subtotal), "10.00");
+    assert.equal(toMajor(d.discountTotal), "1.00");
+    assert.equal(toMajor(d.total), "9.00");
+    assert.equal(toMajor(d.buckets[0]!.base), "7.76");
+    assert.equal(toMajor(d.buckets[0]!.tax), "1.24");
+  });
+
+  test("sin decirlo, todo sigue como antes: el IVA se suma", () => {
+    const d = computeDocument({ lines: [linea("l1", "5.00", 1n)], rules: REGLAS, at: AHORA, currency: "USD" });
+    assert.equal(d.taxIncluded, false);
+    assert.equal(toMajor(d.total), "5.80");
+  });
+
+  test("sin alícuota vigente tampoco se cobra con el IVA incluido (fail-closed)", () => {
+    assert.throws(() => conIva([linea("l1", "5.00", 1n)], { rules: [] }), NoApplicableRuleError);
+  });
+});

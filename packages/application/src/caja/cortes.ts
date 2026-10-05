@@ -362,6 +362,7 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
     ) ultima
     WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')`;
   const periodos = await periodosDeImpuestos(tx);
+  const ivaIncluido = (await ajustesDe(tx, ctx.branchId)).preciosConIva;
   const cuentas = filas
     .map((f) => FamilyAccountSchema.parse({ ...(f.content as object), version: f.version }))
     .filter(isPendingAtClose)
@@ -371,7 +372,7 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
       kind: c.kind,
       family: c.family,
       status: c.status,
-      pendiente: dinero(pendienteDe(c, periodos, ahora)),
+      pendiente: dinero(pendienteDe(c, periodos, ahora, () => null, ivaIncluido)),
       version: c.version!,
     }))
     .sort((a, b) => a.orderNumber - b.orderNumber);

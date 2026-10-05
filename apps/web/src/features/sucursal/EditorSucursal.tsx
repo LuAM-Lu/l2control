@@ -401,6 +401,22 @@ export function EditorSucursal() {
               {errores.zonaHoraria ?? "Decide el día de negocio: se cambia sin turnos abiertos ni niños en sala."}
             </p>
           </div>
+          {/* Lo que dice el menú es lo que paga el cliente, o el IVA se suma encima. Cambia lo que se cobra. */}
+          <div className="flex flex-col gap-1.5">
+            <span className={ETIQUETA}>Precios</span>
+            <div className="flex items-center gap-1" role="group" aria-label="Los precios incluyen el IVA">
+              <button type="button" aria-pressed={borrador.preciosConIva} className={segmento(borrador.preciosConIva)} onClick={() => cambiar({ preciosConIva: true })}>
+                IVA incluido
+              </button>
+              <button type="button" aria-pressed={!borrador.preciosConIva} className={segmento(!borrador.preciosConIva)} onClick={() => cambiar({ preciosConIva: false })}>
+                IVA aparte
+              </button>
+            </div>
+            <p className={cn("flex items-start gap-1 text-[12px]", errores.preciosConIva ? "font-medium text-state-crit" : "text-ink-3")}>
+              {errores.preciosConIva && <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />}
+              {errores.preciosConIva ?? (borrador.preciosConIva ? "El precio es lo que paga el cliente; el IVA va dentro." : "La caja suma el IVA al precio.") + " Se cambia sin turnos abiertos."}
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Residuo ($)"

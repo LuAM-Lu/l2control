@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { Archive, Cake, Info, Pencil, Percent, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
 import type { CatalogoDto, CatalogoEventosPublicadoDto, PaqueteEventoDto } from "@l2/contracts";
 import { ANTICIPO_POR_DEFECTO_BPS } from "@l2/contracts";
@@ -38,6 +39,7 @@ export function CumpleanosScreen({ publicado, productos }: { publicado: Catalogo
   const conElevacion = useConElevacion();
   const actor = useActorEnSesion();
   const puede = actor ? can(actor, "catalogo.modificar") !== "DENEGADO" : false;
+  const { preciosConIva } = useSucursal().ajustes;
   useAlCambiar(["eventos", "tarifario"], () => router.refresh());
 
   const catalogo = publicado.catalogo;
@@ -190,7 +192,7 @@ export function CumpleanosScreen({ publicado, productos }: { publicado: Catalogo
         className="mb-4"
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Cumpleaños" }]}
         titulo="Cumpleaños"
-        descripcion="Los paquetes que se reservan en Parque → Eventos: su precio sin IVA, cuántos invitados admiten y lo que incluyen. Al reservar se cobra el anticipo; el saldo, el día del evento."
+        descripcion={`Los paquetes que se reservan en Parque → Eventos: su precio ${preciosConIva ? "con el IVA incluido" : "sin IVA"}, cuántos invitados admiten y lo que incluyen. Al reservar se cobra el anticipo; el saldo, el día del evento.`}
         acciones={
           puede ? (
             <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => abrir(null)} disabled={publicado.aforo === null}>
@@ -250,7 +252,7 @@ export function CumpleanosScreen({ publicado, productos }: { publicado: Catalogo
         abierto={borrador !== null}
         onCerrar={() => setBorrador(null)}
         titulo={borrador?.id ? "Editar paquete" : "Nuevo paquete"}
-        descripcion="El precio va sin IVA: la caja lo suma al cobrar. Lo que incluye sale del catálogo de productos."
+        descripcion={`${preciosConIva ? "El precio es lo que paga el cliente, con el IVA incluido." : "El precio va sin IVA: la caja lo suma al cobrar."} Lo que incluye sale del catálogo de productos.`}
         pie={
           <div className="flex gap-2">
             <Button type="button" variant="ghost" surface="admin" onClick={() => setBorrador(null)}>

@@ -76,7 +76,8 @@ export function documentoDeRecibo(v: VentaCerradaDto, local: AjustesSucursalDto,
           } as const,
         ]
       : []),
-    ...v.impuestos.map((i): Renglon => ({ tipo: "PAR", izq: `IVA ${percentFromBasisPoints(i.basisPoints)} %`, der: texto(dinero(i.tax)) })),
+    // Con los precios con IVA incluido, el IVA va dentro del total: se dice, no se suma.
+    ...v.impuestos.map((i): Renglon => ({ tipo: "PAR", izq: `IVA ${percentFromBasisPoints(i.basisPoints)} %${v.ivaIncluido ? " (incluido)" : ""}`, der: texto(dinero(i.tax)) })),
     ...(BigInt(v.igtf.amount.minor) > 0n ? [{ tipo: "PAR", izq: `IGTF ${percentFromBasisPoints(v.igtf.basisPoints)} %`, der: texto(dinero(v.igtf.amount)) } as const] : []),
     { tipo: "LINEA", caracter: "=" },
     { tipo: "PAR", izq: "TOTAL", der: texto(total), negrita: true, grande: true },

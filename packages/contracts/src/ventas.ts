@@ -160,6 +160,8 @@ export const VentaCerradaSchema = z
     /** El descuento del cobro (B3-6): el subtotal es antes de él, y el IVA, después. Las de antes no lo traen. */
     descuento: DescuentoDeVentaSchema.nullable().optional(),
     impuestos: z.array(z.object({ basisPoints: z.number().int().nonnegative(), tax: MoneySchema })),
+    /** El IVA venía dentro de los precios (ajuste de la sucursal): el total no lo suma otra vez. Las de antes, no. */
+    ivaIncluido: z.boolean().default(false),
     igtf: z.object({ basisPoints: z.number().int().nonnegative(), amount: MoneySchema }),
     total: MoneySchema,
     /** La tasa congelada del cobro, si se pagó algo en bolívares. */

@@ -449,6 +449,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               rules: ivaRulesOf(periodos),
               at: ahora,
               currency: FUNCIONAL,
+              // Con los precios con IVA incluido (ajuste de la sucursal), el total es la suma de los precios.
+              pricesIncludeTax: ajustes.preciosConIva,
             });
           } catch (e) {
             if (!(e instanceof NoApplicableRuleError)) throw e;
@@ -652,6 +654,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
                 }
               : null,
             impuestos: doc.buckets.map((b) => ({ basisPoints: b.basisPoints, tax: conDinero(b.tax) })),
+            ivaIncluido: doc.taxIncluded,
             igtf: { basisPoints: igtfBps, amount: conDinero(igtfTotal) },
             total: conDinero(aCobrar),
             tasa: cmd.rateId && valorDeLaTasa ? { id: cmd.rateId, value: valorDeLaTasa } : null,
@@ -1005,7 +1008,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
           const nueva = FamilyAccountSchema.parse({ ...sinEspera, version: actual.version + 1 });
           const quien = await nombreDe(tx, ctx);
           await guardarVersion(tx, ctx, nueva, { cause: "INCOBRABLE", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
-          const debe = pendienteDe(actual.cuenta, await periodosDeImpuestos(tx), ahora);
+          const debe = pendienteDe(actual.cuenta, await periodosDeImpuestos(tx), ahora, () => null, (await ajustesDe(tx, ctx.branchId)).preciosConIva);
           await auditar(tx, ctx, {
             action: "cuenta.incobrable",
             entityType: "account",
@@ -1454,11 +1457,11 @@ export async function catalogoEn(tx: Transaccion, ahora: number): Promise<(produ
  * está dividida, las partes que faltan. Sin el IGTF, que depende de cómo se pague. Sin IVA vigente
  * (no se podría cobrar), lo cobrable sin impuesto: la cifra es para enseñar, no para cobrar.
  */
-export function pendienteDe(c: FamilyAccountDto, periodos: TaxPeriods, ahora: number, categoryOf: CategoryOf = () => null): Money {
+export function pendienteDe(c: FamilyAccountDto, periodos: TaxPeriods, ahora: number, categoryOf: CategoryOf = () => null, ivaIncluido = false): Money {
   const lineas = documentLinesOf(c);
   if (lineas.length === 0) return zero(FUNCIONAL);
   try {
-    const total = computeDocument({ lines: lineas, discounts: documentDiscountsOf(c, categoryOf), rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL }).total;
+    const total = computeDocument({ lines: lineas, discounts: documentDiscountsOf(c, categoryOf), rules: ivaRulesOf(periodos), at: ahora, currency: FUNCIONAL, pricesIncludeTax: ivaIncluido }).total;
     if (!c.split || c.split.paid >= c.split.parts) return total;
     return allocate(total, c.split.parts).slice(c.split.paid).reduce<Money>((acc, p) => add(acc, p), zero(FUNCIONAL));
   } catch (e) {
