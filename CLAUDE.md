@@ -128,6 +128,9 @@ Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 - **Somos dos (M-20).** Nada entra en `main` sin PR y sin el CI en verde: `main` está protegido y **siempre
   en verde**. Cada trabajo va en su rama desde `main` actualizado: `feat/<tema>`, `fix/<tema>` o
   `docs/<tema>`; no se reescribe historia compartida (nada de `push --force` en una rama que otro usa).
+- **Solo `main` es permanente.** Una rama vive lo que dura su PR y se borra al fusionar (GitHub lo hace solo);
+  las versiones se buscan por su etiqueta `vX.Y.Z`, no por la rama. Nada de ramas «wip» que se quedan.
+  Con `main` protegido se fusiona con `gh pr merge --rebase --delete-branch` (historial lineal).
 - **Antes de empezar un paso, se reclama:** su casilla de MAESTRO §3 pasa a `[~]` con «a cargo: <persona>»
   y la rama, en un commit pequeño que se sube enseguida. Si ya tiene dueño, se habla antes de tocarlo.
 - **Un commit por paso**, con título en español que diga qué cambia para quien usa el sistema, y un

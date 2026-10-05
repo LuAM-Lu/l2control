@@ -1781,6 +1781,16 @@ antes del cobro en servidor (orden de ejecución).
 | ~~D-GAV~~ | ¿La impresora de caja lleva gaveta de dinero? | **Decidido el 2026-09-28:** no; la gaveta es manual y B5-3 sale de la ruta | — |
 | ~~D-AUT~~ | ¿Supervisión puede autorizarse a sí misma un 🔐? | **Decidido el 2026-09-28:** sí en la caja (con PIN y motivo, en la auditoría); no en tasas ni en ajustes de inventario. Como lo aplicó B3-4 | B3-4 |
 
+**Hace el usuario en GitHub** (M-20; los cambios de cuenta y de reglas no los hace Claude: se lo bloquea el sistema de permisos)
+
+| Qué | Cómo | Hace falta antes de |
+|---|---|---|
+| Proteger `main` | Settings → Branches → regla para `main`: PR obligatorio (0 aprobaciones), check «pnpm verify:db» obligatorio y rama al día, historial lineal, sin force push ni borrado, y que aplique a administradores | Que trabaje la segunda persona |
+| Dar acceso a la segunda persona | Settings → Collaborators → «Add people»: `aemorandin-coder` (aemorandin@gmail.com), rol **Maintain** (fusiona en `main` por PR; no cambia la visibilidad ni borra el repositorio) | Que trabaje la segunda persona |
+| Repositorio privado | Settings → General → Danger Zone → «Change visibility». **Ojo:** en un repositorio privado con la cuenta gratuita, GitHub no aplica la protección de ramas: hace falta GitHub Pro (unos 4 $ al mes). El CI sigue, con 2.000 minutos al mes gratis | B7-1 |
+| Borrar las ramas ya fusionadas | Las 17 locales y `feat/b6-3` y `wip/kds` en GitHub están enteras dentro de `main`: borrarlas no pierde nada (las versiones viven en las etiquetas) | — |
+| Borrado automático de ramas | Settings → General → «Automatically delete head branches»: la rama de un PR se borra sola al fusionarlo | — |
+
 **Confirma el contador** (lo fiscal queda fuera, pero esto cambia lo que se cobra)
 
 - ~~**IGTF sobre el vuelto (C13).**~~ **El cliente decidió no cobrar IGTF por ahora** (2026-09-28, V-13): se
@@ -2097,6 +2107,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   la base no comprueba las claves foráneas: se revisaron las 90 y no queda ninguna fila huérfana.
 - **2026-10-05** · M-20 (decisión del usuario antes del VPS): actualizaciones decididas por administración desde el panel
   ([ADR-028](adr/028-actualizaciones.md), paso nuevo T-8) y trabajo entre dos por PR con el CI en verde. La ruta pasa a 62.
+- **2026-10-05** · `gh` instalado con la sesión del usuario (dueño del repositorio); PR #1 (M-20) fusionado con el CI en
+  verde. Proteger `main`, dar acceso a `aemorandin-coder`, pasar el repositorio a privado y borrar ramas los bloquea el
+  sistema de permisos de Claude: quedan en §4 para el usuario. Regla de ramas: solo `main` es permanente.
 
 ---
 
