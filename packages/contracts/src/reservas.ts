@@ -32,7 +32,7 @@ const MAX_INVITADOS = 200;
 export const PaqueteEventoSchema = z.object({
   id: IdSchema,
   name: z.string().trim().min(2, "Nombre demasiado corto").max(40, "Hasta 40 caracteres"),
-  /** El precio del paquete entero, sin IVA, en dólares. */
+  /** El precio del paquete entero, en dólares; con el IVA dentro o aparte según el ajuste de la sucursal (B2-5). */
   price: MoneySchema,
   minInvitados: z.number().int().min(1, "Al menos un invitado").max(MAX_INVITADOS),
   maxInvitados: z.number().int().min(1, "Al menos un invitado").max(MAX_INVITADOS),
