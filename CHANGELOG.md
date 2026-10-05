@@ -12,6 +12,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.50.1] — 2026-10-05 · Etapa 2 · Dinero
+
+Corrección entre pasos.
+
+### Corregido
+- **Inicio ya no enseña «Calling client.query() when the client is already executing a query».** Al leer los
+  cumpleaños del día, Prisma pedía a la vez varias partes de la reserva por la misma conexión; la base lo aguantaba,
+  pero avisaba de que la próxima versión de `pg` dejará de hacerlo, y en desarrollo salía como error. Ahora cada
+  conexión atiende sus consultas de una en una, en todas las pantallas. Lo que se ve y lo que se cobra no cambia.
+
+### Comprobado
+- Prueba nueva contra la base (falla sin la corrección); `pnpm verify:db` en verde.
+
 ## [0.50.0] — 2026-10-05 · Etapa 2 · Dinero
 
 B2-5 (M-19): precios con el IVA incluido.

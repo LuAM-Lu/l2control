@@ -68,6 +68,26 @@ const CANAL = /^[a-z_][a-z0-9_]{0,62}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Una conexión atiende sus consultas de una en una, en el orden en que llegan. Prisma 7 pide a la vez
+ * las relaciones hermanas de un `include` (tres o más) sobre la conexión de la transacción; `pg` 8 las
+ * encola por dentro y avisa de que `pg` 9 dejará de hacerlo (DeprecationWarning, que Next enseña como
+ * error en Inicio). Encolarlas aquí hace lo mismo que `pg` hace hoy, sin depender de esa cola.
+ * Solo la forma con promesa, que es la que usa el adaptador; con callback o un `Submittable` se deja
+ * pasar tal cual.
+ */
+function ponerEnFila(conexion: pg.PoolClient): void {
+  const consultar = conexion.query.bind(conexion) as (...args: unknown[]) => unknown;
+  let cola: Promise<unknown> = Promise.resolve();
+  conexion.query = ((...args: unknown[]) => {
+    const primero = args[0] as { submit?: unknown } | undefined;
+    if (typeof args.at(-1) === "function" || typeof primero?.submit === "function") return consultar(...args);
+    const turno = cola.then(() => consultar(...args));
+    cola = turno.catch(() => undefined);
+    return turno;
+  }) as typeof conexion.query;
+}
+
+/**
  * Abre la base con `url` y comprueba, antes de devolver nada, que ese usuario NO puede
  * saltarse la RLS. Un superusuario o un rol con BYPASSRLS la ignoran aunque esté
  * forzada: conectarse así por un error de configuración apagaría el aislamiento en
@@ -76,7 +96,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function abrirBase(url: string | undefined): Promise<Base> {
   if (!url) throw new Error("abrirBase: falta la URL de la base de datos.");
 
-  const cliente = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
+  const pool = new pg.Pool({ connectionString: url });
+  pool.on("connect", ponerEnFila);
+  const cliente = new PrismaClient({ adapter: new PrismaPg(pool, { disposeExternalPool: true }) });
 
   const papel = await cliente.$queryRaw<{ usuario: string; rolsuper: boolean; rolbypassrls: boolean }[]>`
     SELECT current_user AS usuario, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`;
