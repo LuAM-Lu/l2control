@@ -33,7 +33,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.50.1 · 50 de 61 pasos.** **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
+**Versión 0.50.1 · 50 de 62 pasos.** **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde. **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
 con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
 lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
 platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
@@ -372,6 +372,7 @@ Equipos «Prueba B63 …» revocados.
 | **M-17** | **Ajustes con un mismo patrón** (2026-10-01, pedido del cliente tras ver Impresoras en v0.39.2) | Las pantallas de Ajustes siguen el patrón de Impresoras: cabecera compacta con la acción principal; **resumen** de 2 a 4 cifras que llevan a su sitio (color + icono + texto); **pestañas** que separan lo que se configura de lo que se consulta; alta y edición en **hoja lateral** y confirmación en diálogo para lo irreversible; las listas que crecen, **por páginas en el servidor** (10/20/50) con filtros y su cuenta, «Limpiar filtros», tabla en el escritorio y tarjetas en tableta y teléfono. Sin desplazar la página a 1366×768, 1280×800 ni 800×1280. Carta y precios y Plano del local lo estrenan en **B6-1** (se rehacen contra el servidor ahí); Roles y accesos, Usuarios, Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes, en el paso nuevo **T-7**, justo después. La ruta pasa a 57 |
 | **M-18** | **Cambios en la mesa y salida antes de tiempo** (2026-10-03, preguntas del cliente) | (1) Una mesa sin nada que cobrar (no pidieron, o todo se anuló o se regaló) la **libera el mesero sin PIN**, con registro de quién y cuándo; la cuenta en $ 0 se cierra «sin consumo», no como incobrable → **B6-5**. (2) Anular un plato ya enviado saca un **papel «ANULAR»** en la impresora de comandas, y el inventario va **según el motivo**: lo que la cocina no preparó vuelve al estante; lo preparado sale como merma con su costo → **B6-6**. (3) **Prepago:** el paquete se cobra entero y no se devuelve (la entrada lo avisa); **cuenta abierta:** al salir se cobra el paquete más barato que cubre el tiempo real → **B4-6**. No entran por ahora: anular plato por plato en la pantalla (el servidor ya lo admite), un botón «Cambiar» y la ronda adicional en la comanda. La ruta pasa a 60 |
 | **M-19** | **Datos reales y precios con el IVA incluido** (2026-10-05, pedido del cliente antes de T-2) | Se vacía el movimiento y el catálogo de la base local y se cargan el menú infantil, las tarifas del parque y los paquetes de cumpleaños reales (con dos precios: lunes a viernes, y fin de semana o feriado, como dos paquetes). El precio del menú es lo que paga el cliente: **el total es siempre la suma de los precios, al céntimo**, y el IVA se saca de dentro → paso nuevo **B2-5**. Lo que no tiene precio no se vende (Sandwiches, Proteínas, bebidas y golosinas hasta el inventario). El consumo del cumpleaños sobre la marcha (lo que gasta, anotado a su cuenta hasta que se paga) queda pendiente de cuando haya inventario de esos artículos. La ruta pasa a 61 |
+| **M-20** | **Actualizaciones y trabajo entre dos** (2026-10-05, decisión del usuario antes del VPS, con una persona más en el equipo que hace lo mismo que él) | **Actualizaciones ([ADR-028](adr/028-actualizaciones.md)):** en producción decide administración desde Ajustes → Sistema (ahora, al cierre o más tarde; «ahora» sin turnos abiertos ni niños en sala), cada actualización hace respaldo, migra, comprueba y vuelve sola atrás si falla; el personal no decide nada: su pantalla se recarga sola al estar libre y no cobra si el servidor ya no acepta su versión; el agente de impresión se actualiza solo con la cola vacía → paso nuevo **T-8**, antes de B7-1. **Trabajo entre dos:** todo entra a `main` por PR con el CI en verde (`main` protegido en GitHub); la versión y su etiqueta se ponen al fusionar, y cada rama escribe lo suyo en «Sin publicar» del CHANGELOG; cada casilla en curso de §3 dice quién la lleva; nadie recibe la base ni las claves del cliente (se trabaja con `pnpm db:semilla` y un `.env` propio). La ruta pasa a 62 |
 | **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
@@ -406,6 +407,8 @@ como hecho solo si su criterio se cumple y se puede demostrar, y se marca aquí 
 Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `auth`, `observability`,
 `hardware` y `apps/worker`), y `pnpm arch` incorpora sus fronteras al crearlos.
 
+**Quién lleva cada paso (M-20).** Al empezar un paso, su casilla pasa a `[~]` con «a cargo: <persona>» y la rama; así dos personas no hacen lo mismo. Se marca `[x]` al fusionar en `main`.
+
 **Definición de hecho de un paso de backend.** Un paso cuenta como hecho solo si cumple todo esto:
 
 1. **Contrato** Zod de entrada y salida en `@l2/contracts`. El servidor revalida lo que llega (ADR-017)
@@ -413,7 +416,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 2. **Dominio** puro con sus pruebas. Las reglas de negocio viven ahí, no en la acción ni en la pantalla.
 3. **Caso de uso** en `@l2/application`, dentro de la transacción del tenant: `exigirPermiso…` antes de
    tocar nada, `auditar()` en la misma transacción y rechazos auditados.
-4. **Base:** migración versionada y nunca editada una vez aplicada, `l2_aislar_por_tenant`, solo-agregar
+4. **Base:** migración versionada y nunca editada una vez aplicada, de expandir y contraer (la versión anterior funciona con la base nueva, ADR-028), `l2_aislar_por_tenant`, solo-agregar
    donde haya dinero, stock o historia, CHECKs, FK compuestas con el tenant, sin `Float` e índices con
    el tenant primero.
 5. **Dinero:** clave de idempotencia en toda escritura de dinero y tasa congelada en el asiento (ADR-005).
@@ -443,9 +446,9 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → ~~B4-6~~ (M-18) → ~~B10-1~~ → ~~B10-2~~ (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. ~~B3-7~~ (carga desde papel) → ~~B2-5~~ (IVA incluido, M-19) y los datos reales del local → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
-   → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
+   → **T-8** (actualizaciones, M-20) → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
-Fuera de la cuenta de 61: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -542,6 +545,17 @@ Fuera de la cuenta de 61: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   → ~~La carpeta `src/demo` ya no existe y se retira la regla `demo-solo-desde-las-rutas`~~ (hecho con B6-1, que
   borró lo último). Falta que `pnpm lint` sume la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
   literales y listas de ejemplo en `features/`. El CI sale en rojo con una violación.
+
+- [ ] **T-8 · Actualizaciones** (M-20, [ADR-028](adr/028-actualizaciones.md)), antes de B7-1.
+  → Una etiqueta `vX.Y.Z` en `main` construye y publica las imágenes de la web y del worker y el ejecutable del
+  agente con su huella, y staging se actualiza solo. En producción, Ajustes → Sistema enseña la versión en marcha,
+  la disponible y sus novedades, y administración elige «Actualizar ahora» (solo sin turnos abiertos ni niños en
+  sala), «Esta noche al cierre» o «Más tarde», con su 🔐 y auditado. La actualización hace respaldo → migraciones
+  → versión nueva → comprobación de salud, y **con la comprobación forzada a fallar vuelve sola a la anterior** y
+  lo avisa. Con una versión nueva en marcha, una pantalla abierta se recarga sola al quedar libre, y una con la
+  versión vieja que el servidor ya no acepta no cobra hasta recargarse (prueba en el navegador con dos versiones).
+  El agente se actualiza solo con la cola vacía, rechaza un ejecutable con la huella equivocada y vuelve al
+  anterior si el nuevo no arranca.
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -1804,6 +1818,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
 | El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | Etapa 6 (D-RES): los estados de mesa al servidor, tras B6-3 |
+| La base local del cliente cifra con la clave de juguete de `.env.example` (datos de cobro del local, secreto TOTP): si esa base se lleva al VPS, lo cifrado se vuelve a cifrar con la clave de producción, o se vuelve a cargar | B7-1 |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
@@ -2080,6 +2095,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-05** · M-19 en la base del cliente, con el sí del usuario: respaldo, migración 46, limpieza (también los dos
   IGTF de prueba del 2026-10-27, «Prueba T7 Oficina», la auditoría y el outbox) y la carga. Con los disparadores apagados
   la base no comprueba las claves foráneas: se revisaron las 90 y no queda ninguna fila huérfana.
+- **2026-10-05** · M-20 (decisión del usuario antes del VPS): actualizaciones decididas por administración desde el panel
+  ([ADR-028](adr/028-actualizaciones.md), paso nuevo T-8) y trabajo entre dos por PR con el CI en verde. La ruta pasa a 62.
 
 ---
 

@@ -50,6 +50,19 @@ El puerto es 5433 para no chocar con un PostgreSQL instalado. PostgreSQL tiene t
 papeles distintos (`postgres`, `l2_migrator` y `l2_app`); por qué, en
 [infra/postgres/init](infra/postgres/init/01-roles-y-bases.sh).
 
+## Trabajar en el proyecto
+
+Somos dos personas (más Claude Code). Las reglas completas están en [`CLAUDE.md`](CLAUDE.md) → «Flujo de
+trabajo»; lo esencial:
+
+1. **Empieza por [`docs/MAESTRO.md`](docs/MAESTRO.md) §1 y §3**: qué toca ahora y quién lleva cada paso.
+   Reclama el tuyo (`[~]` y «a cargo: <tu nombre>») antes de empezar.
+2. **Una rama desde `main` actualizado** (`feat/…`, `fix/…`, `docs/…`) y un PR. `main` está protegido: solo
+   entra con el CI en verde. En local, `pnpm verify:db` antes de pedir la fusión.
+3. **La versión se pone al fusionar**: en la rama, lo tuyo va en `## [Sin publicar]` de `CHANGELOG.md`.
+4. **Tu `.env` es tuyo** (`cp .env.example .env` y `pnpm db:semilla`). La base y las claves del cliente no se
+   comparten, y ningún secreto entra en el repositorio.
+
 ## Estado
 
 El frontend está terminado **sobre datos de ejemplo** y el backend está en construcción. El estado, la

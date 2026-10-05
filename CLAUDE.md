@@ -72,7 +72,7 @@ packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)
 docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
-docs/adr/                 las 27 decisiones, una por archivo
+docs/adr/                 las 28 decisiones, una por archivo
 ```
 
 **No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su
@@ -125,14 +125,22 @@ Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
 ## Flujo de trabajo
 
-- `main` está **siempre en verde**: nada que rompa `pnpm verify` entra en `main`. Para trabajo largo,
-  una rama `feat/<tema>` o `fix/<tema>`; no se reescribe historia compartida.
+- **Somos dos (M-20).** Nada entra en `main` sin PR y sin el CI en verde: `main` está protegido y **siempre
+  en verde**. Cada trabajo va en su rama desde `main` actualizado: `feat/<tema>`, `fix/<tema>` o
+  `docs/<tema>`; no se reescribe historia compartida (nada de `push --force` en una rama que otro usa).
+- **Antes de empezar un paso, se reclama:** su casilla de MAESTRO §3 pasa a `[~]` con «a cargo: <persona>»
+  y la rama, en un commit pequeño que se sube enseguida. Si ya tiene dueño, se habla antes de tocarlo.
 - **Un commit por paso**, con título en español que diga qué cambia para quien usa el sistema, y un
   cuerpo con el porqué. El mismo commit marca el paso en `docs/MAESTRO.md` §3.
 - **Versionado semántico (M-10):** cada paso entregado sube el MINOR (`0.14.0`), cada corrección entre
-  pasos el PATCH; `1.0.0` es la puesta en marcha. `version` del `package.json` raíz, entrada en
-  `CHANGELOG.md` y etiqueta `vX.Y.Z` en el mismo commit. Un paso cumple la definición de hecho de
-  MAESTRO §3.
+  pasos el PATCH; `1.0.0` es la puesta en marcha. **En la rama**, lo que cambia se escribe en
+  `## [Sin publicar]` de `CHANGELOG.md` y no se toca la versión; **al fusionar**, quien fusiona pone el
+  número (`version` del `package.json` raíz y el encabezado del CHANGELOG) y la etiqueta `vX.Y.Z`. Así dos
+  ramas no chocan por el número. Un paso cumple la definición de hecho de MAESTRO §3.
+- **Las migraciones son de expandir y contraer** (ADR-028): la versión anterior tiene que funcionar con la
+  base nueva, porque una actualización que falla vuelve sola atrás sin tocar datos.
+- **La base y las claves del cliente no salen de su equipo.** Cada persona trabaja con `pnpm db:semilla` y su
+  propio `.env` (con sus claves generadas). Las de producción viven solo en el VPS y en los secretos de GitHub.
 - Una pantalla no está hecha hasta que se abre en el navegador: los errores que más se repiten aquí no
   los caza `pnpm typecheck` (lista en MAESTRO §5).
 - **Nada de secretos en el repositorio.** `.env*` está ignorado: se documenta el nombre de la variable,
