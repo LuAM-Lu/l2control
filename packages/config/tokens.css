@@ -347,6 +347,18 @@ html:has(dialog[open]) { overflow: hidden; }
   }
 }
 
+/* Los formularios de papel (B3-7): hojas blancas con tinta negra, que se ven en pantalla y salen igual por la
+   impresora. En pantalla desplazan dentro de su zona (el documento no desplaza nunca); al imprimir se sueltan
+   y cada hoja es una página A4. */
+.l2-formulario { background: white; color: black; }
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  .l2-formularios, .l2-formularios * { visibility: visible; }
+  .l2-formularios { position: static !important; overflow: visible !important; inset: auto !important; background: white !important; }
+  .l2-formulario { break-after: page; width: auto !important; margin: 0 !important; box-shadow: none !important; border: 0 !important; }
+  .l2-formulario:last-of-type { break-after: auto; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .l2-destello { animation: none; }
   .l2-punto, .l2-sacudida, .l2-recorre { animation: none; }

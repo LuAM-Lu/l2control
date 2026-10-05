@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { Baby, CircleCheckBig, Clock3, Monitor, ReceiptText, RefreshCw } from "lucide-react";
+import { Baby, CircleCheckBig, Clock3, FileText, Monitor, ReceiptText, RefreshCw } from "lucide-react";
 import type { PendientesDelCierreDto, Rechazo } from "@l2/contracts";
 import { money, toMajor } from "@l2/domain-money";
+import { can } from "@l2/domain-identity";
 import { Button, Dialog, Input, MoneyDisplay, avisar, cn } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { leerPendientesDelCierre } from "./cortes.acciones";
@@ -14,11 +15,13 @@ import { nombreDeEstancia } from "../park/view-model.ts";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
+import { useActorEnSesion } from "../identity/sesion.ts";
 
 /**
  * Lo que impide cerrar la jornada — JORNADA §5, C2, B3-5.
  *
- * Cuentas por cobrar, niños en sala, estancias huérfanas y turnos de otros equipos. Cada fila lleva a
+ * Cuentas por cobrar, niños en sala, estancias huérfanas, turnos de otros equipos y lo cargado desde papel
+ * sin revisar (B3-7). Cada fila lleva a
  * resolverla (cobrar, registrar la salida, cerrar la huérfana, cerrar ese turno) o, una cuenta que no
  * se va a cobrar, a marcarla incobrable con motivo y 🔐 (D-JOR). No hay «cerrar igual»: el conteo no
  * se ofrece hasta que la lista está vacía.
@@ -31,6 +34,9 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
   const { ajustes } = useSucursal();
   const reloj = useReloj();
   const vivo = useRef(true);
+  // Lo cargado desde papel lo revisa supervisión (B3-7): quien no puede, lo ve pero no lo revisa.
+  const actor = useActorEnSesion();
+  const puedeRevisar = actor ? can(actor, "papel.revisar") !== "DENEGADO" : false;
 
   const leer = useCallback(async () => {
     setCargando(true);
@@ -56,9 +62,9 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
   }, [leer]);
   // En vivo (B5-1): se cobra una cuenta, sale un niño o se cierra otro turno en cualquier equipo, y
   // la lista se comprueba otra vez sola.
-  useAlCambiar(["cuentas", "sala", "turno"], () => void leer());
+  useAlCambiar(["cuentas", "sala", "turno", "papel"], () => void leer());
 
-  const total = p ? p.cuentas.length + p.ninos.length + p.huerfanas.length + p.turnos.length : 0;
+  const total = p ? p.cuentas.length + p.ninos.length + p.huerfanas.length + p.turnos.length + p.papel.length : 0;
   const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora, ajustes.zonaHoraria);
 
   return (
@@ -87,7 +93,7 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
           <div className="flex flex-col items-start gap-3">
             <p className="flex items-center gap-2 text-[14px] font-semibold text-state-ok">
               <CircleCheckBig size={17} aria-hidden="true" />
-              Nada pendiente: sin cuentas por cobrar, sin niños en sala y sin otros turnos abiertos.
+              Nada pendiente: sin cuentas por cobrar, sin niños en sala, sin otros turnos abiertos y sin cargas desde papel por revisar.
             </p>
             <Button surface="pos" variant="primary" onClick={onListo}>
               Contar la gaveta
@@ -174,7 +180,29 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
                 ))}
               </Grupo>
             )}
-            <p className="text-[12px] text-ink-3">Un turno de otro equipo lo cierra supervisión, con su arqueo, desde este o cualquier equipo.</p>
+            {p.papel.length > 0 && (
+              <Grupo icono={<FileText size={15} aria-hidden="true" />} titulo="Cargas desde papel sin revisar" n={p.papel.length}>
+                {p.papel.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-semibold text-ink">{c.punto}</span>
+                      <span className="text-ink-3">
+                        {" "}
+                        · cargó {c.abiertaPor} · {c.registros} {c.registros === 1 ? "registro" : "registros"} · corte de {reloj.diaYHora(Date.parse(c.desde))} a {hora(c.hasta)}
+                        {c.estado === "ABIERTA" ? " · todavía cargando" : " · esperando a supervisión"}
+                      </span>
+                    </span>
+                    <Link
+                      href={"/papel" as Route}
+                      className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] border border-line px-3 text-[13px] font-semibold text-ink hover:border-line-strong"
+                    >
+                      {c.estado === "ABIERTA" ? "Terminar la carga" : puedeRevisar ? "Revisarla" : "Ver la carga"}
+                    </Link>
+                  </li>
+                ))}
+              </Grupo>
+            )}
+            <p className="text-[12px] text-ink-3">Un turno de otro equipo lo cierra supervisión, con su arqueo, desde este o cualquier equipo. Lo cargado desde papel lo revisa supervisión contra las hojas.</p>
           </div>
         )}
       </section>

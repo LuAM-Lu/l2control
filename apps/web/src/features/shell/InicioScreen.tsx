@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, CircleCheck, PackageX, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, FileText, PackageX, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import type { ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn } from "@l2/ui";
@@ -140,6 +140,8 @@ export function InicioScreen({
 
           {/* B10-1: los cumpleaños de hoy, antes que nada de lo demás: cambian cómo se prepara el día. */}
           <ChipEventosDeHoy reservas={eventosHoy} />
+          {/* B3-7: lo cargado desde papel que nadie ha revisado frena el Z y el cierre: se dice aquí. */}
+          {resumen && resumen.papelPorRevisar > 0 && <AvisoDePapel porRevisar={resumen.papelPorRevisar} />}
           {/* B9-5: lo que hay que reponer, con color + icono + texto; lleva al inventario. */}
           {inventario && <AvisoInventario {...inventario} />}
           {/* Lo que no salió en papel (ADR-015, ADR-022: las comandas fallidas, en Inicio). */}
@@ -196,7 +198,7 @@ export function InicioScreen({
             pie={
               resumen === null
                 ? "Sin acceso al libro del día"
-                : `${vendidas} ${vendidas === 1 ? "venta" : "ventas"}${resumen.ventas.anuladas > 0 ? ` · ${resumen.ventas.anuladas} anuladas` : ""}`
+                : `${vendidas} ${vendidas === 1 ? "venta" : "ventas"}${resumen.ventas.anuladas > 0 ? ` · ${resumen.ventas.anuladas} anuladas` : ""}${resumen.ventas.desdePapel > 0 ? ` · ${resumen.ventas.desdePapel} desde papel` : ""}`
             }
           />
           <Cifra
@@ -285,6 +287,25 @@ export function InicioScreen({
 }
 
 /* ──────────────────────────────────────────────────────────── piezas ── */
+
+/**
+ * Las cargas desde papel que esperan revisión (B3-7, V-12): hasta que supervisión las revisa, el turno no se sella
+ * ni la jornada se cierra. Color + icono + texto; lleva a la carga, donde se revisan.
+ */
+function AvisoDePapel({ porRevisar }: { porRevisar: number }) {
+  return (
+    <Link
+      href={"/papel" as Route}
+      className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-1.5 text-xs lg:text-[13px] font-medium text-state-warn shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand"
+    >
+      <FileText size={14} aria-hidden="true" />
+      <span className="tnum">
+        {porRevisar} {porRevisar === 1 ? "carga desde papel por revisar" : "cargas desde papel por revisar"}
+      </span>
+      <ArrowRight size={13} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
+    </Link>
+  );
+}
 
 /** Agotados y bajo mínimo del inventario (B9-5). Sin nada que reponer, lo dice en verde. */
 function AvisoInventario({ agotados, bajoMinimo }: { agotados: number; bajoMinimo: number }) {

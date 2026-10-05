@@ -25,6 +25,7 @@ import { casosPagos, type CasosPagos } from "./dinero/pagos.ts";
 import { casosTurnos, type CasosTurnos } from "./caja/turnos.ts";
 import { casosMedios, type CasosMedios } from "./caja/medios.ts";
 import { casosCuentas, type CasosCuentas } from "./caja/cuentas.ts";
+import { casosPapel, type CasosPapel } from "./caja/papel.ts";
 import { casosDescuentos, type CasosDescuentos } from "./caja/descuentos.ts";
 import { casosImpresion, type CasosImpresion } from "./impresion/impresion.ts";
 import { casosVentas, type CasosVentas } from "./caja/ventas.ts";
@@ -57,6 +58,7 @@ export type { CasosPagos } from "./dinero/pagos.ts";
 export type { CasosTurnos } from "./caja/turnos.ts";
 export type { CasosMedios } from "./caja/medios.ts";
 export type { CasosCuentas } from "./caja/cuentas.ts";
+export type { CasosPapel } from "./caja/papel.ts";
 export type { CasosDescuentos } from "./caja/descuentos.ts";
 export { AGENTE_CONECTADO_MS, VIGENCIA_CODIGO_MS, type AgenteAbierto, type CasosImpresion } from "./impresion/impresion.ts";
 export type { CasosVentas } from "./caja/ventas.ts";
@@ -101,6 +103,8 @@ export interface Aplicacion {
   readonly turnos: CasosTurnos;
   readonly medios: CasosMedios;
   readonly cuentas: CasosCuentas;
+  /** Lo anotado en papel cuando cayeron los dos enlaces: la carga, sus registros y su revisión (B3-7, ADR-027). */
+  readonly papel: CasosPapel;
   /** Las reglas de descuento, las familias VIP y el descuento de cada cuenta (B3-6). */
   readonly descuentos: CasosDescuentos;
   /** Las impresoras, sus agentes y la cola de impresión (B5-2, ADR-026). */
@@ -140,9 +144,11 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
   const base = await abrirBase(urlBase);
   const dispositivos = casosDispositivos(base);
   const sesiones = casosSesiones(base, dispositivos);
+  const parque = casosParque(base);
+  const cuentas = casosCuentas(base, cifrador);
   return {
     tarifario: casosTarifario(base),
-    parque: casosParque(base),
+    parque,
     representantes: casosRepresentantes(base),
     sucursal: casosSucursal(base),
     ajustes: casosAjustes(base),
@@ -157,7 +163,8 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     pagos: casosPagos(base, cifrador),
     turnos: casosTurnos(base),
     medios: casosMedios(base, cifrador),
-    cuentas: casosCuentas(base, cifrador),
+    cuentas,
+    papel: casosPapel(base, parque, cuentas),
     descuentos: casosDescuentos(base),
     impresion: casosImpresion(base),
     ventas: casosVentas(base, cifrador),

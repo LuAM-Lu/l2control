@@ -105,6 +105,7 @@ const TIPO_EXCEPCION: Readonly<Record<ExcepcionDto["tipo"], string>> = {
   RESIDUO: "Redondeo",
   INCOBRABLE: "Incobrable",
   DIFERENCIA: "Diferencia",
+  PAPEL: "Desde papel",
 };
 
 /** El ticket de un corte X o Z (JORNADA §5, C5 y R4): lo vendido, por medio, la gaveta y la firma. */

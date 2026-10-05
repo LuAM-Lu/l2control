@@ -11,6 +11,7 @@
  */
 import { z } from "zod";
 import { AccountKindSchema, AccountStatusSchema } from "./account.ts";
+import { CargaPendienteSchema } from "./papel.ts";
 import { EstanciaSchema } from "./park.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 import { TurnoSchema } from "./turno.ts";
@@ -72,7 +73,7 @@ export type ArqueoDto = z.infer<typeof ArqueoSchema>;
 /** Una excepción del turno (F4-08, §7.5): con quién, cuándo, por qué y quién la autorizó. */
 export const ExcepcionSchema = z.object({
   at: TimestampSchema,
-  tipo: z.enum(["ANULACION", "DESCUENTO", "CORTESIA", "REIMPRESION", "RESIDUO", "INCOBRABLE", "DIFERENCIA"]),
+  tipo: z.enum(["ANULACION", "DESCUENTO", "CORTESIA", "REIMPRESION", "RESIDUO", "INCOBRABLE", "DIFERENCIA", "PAPEL"]),
   detalle: Texto(160),
   usuario: Texto(80),
   motivo: Texto(280),
@@ -120,7 +121,14 @@ export const CorteSchema = z.object({
   porMedio: z.array(MovimientoPorMedioSchema),
   /** `null` en la vista: el arqueo es a ciegas. */
   gaveta: z.array(GavetaSchema).nullable(),
-  ventas: z.object({ cantidad: z.number().int().nonnegative(), anuladas: z.number().int().nonnegative(), total: MoneySchema, igtf: MoneySchema }),
+  ventas: z.object({
+    cantidad: z.number().int().nonnegative(),
+    anuladas: z.number().int().nonnegative(),
+    total: MoneySchema,
+    igtf: MoneySchema,
+    /** Cuántas de esas ventas se cargaron desde papel (B3-7). Los cortes de antes no lo traen. */
+    desdePapel: z.number().int().nonnegative().default(0),
+  }),
   excepciones: z.array(ExcepcionSchema),
   arqueo: ArqueoSchema.nullable(),
   cierre: z
@@ -159,7 +167,7 @@ export type CorteZCommand = z.infer<typeof CorteZCommandSchema>;
 
 /**
  * Lo que impide cerrar la jornada (JORNADA §5, C2): cuentas por cobrar, niños en sala (B4-3), estancias
- * huérfanas sin cerrar (D9) y turnos de otros equipos abiertos.
+ * huérfanas sin cerrar (D9), turnos de otros equipos abiertos y lo cargado desde papel sin revisar (B3-7).
  */
 export const PendientesDelCierreSchema = z.object({
   cuentas: z.array(
@@ -176,6 +184,8 @@ export const PendientesDelCierreSchema = z.object({
   ninos: z.array(EstanciaSchema),
   huerfanas: z.array(EstanciaSchema),
   turnos: z.array(TurnoSchema),
+  /** Las cargas desde papel sin revisar (abiertas o cerradas): ni el turno se sella ni la jornada se cierra. */
+  papel: z.array(CargaPendienteSchema).default([]),
 });
 export type PendientesDelCierreDto = z.infer<typeof PendientesDelCierreSchema>;
 
@@ -214,7 +224,14 @@ export type ComprobacionAperturaDto = z.infer<typeof ComprobacionAperturaSchema>
 export const ResumenDelDiaSchema = z.object({
   dia: FechaSchema,
   porMedio: z.array(MovimientoPorMedioSchema),
-  ventas: z.object({ cantidad: z.number().int().nonnegative(), anuladas: z.number().int().nonnegative(), total: MoneySchema, igtf: MoneySchema }),
+  ventas: z.object({
+    cantidad: z.number().int().nonnegative(),
+    anuladas: z.number().int().nonnegative(),
+    total: MoneySchema,
+    igtf: MoneySchema,
+    /** Cuántas de esas ventas se cargaron desde papel (B3-7). */
+    desdePapel: z.number().int().nonnegative().default(0),
+  }),
   turnos: z.array(
     z.object({
       turno: TurnoSchema,
@@ -223,5 +240,7 @@ export const ResumenDelDiaSchema = z.object({
     }),
   ),
   excepciones: z.array(ExcepcionSchema),
+  /** Las cargas desde papel que esperan revisión en la sucursal (B3-7): de cualquier día, porque bloquean el cierre. */
+  papelPorRevisar: z.number().int().nonnegative().default(0),
 });
 export type ResumenDelDiaDto = z.infer<typeof ResumenDelDiaSchema>;

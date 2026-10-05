@@ -72,6 +72,7 @@ type Ruta =
   | "/salida"
   | "/caja"
   | "/turno"
+  | "/papel"
   | "/mesas";
 
 type Puesto = {
@@ -96,6 +97,8 @@ const PUESTOS: Puesto[] = [
     superficies: [
       { href: "/caja", corto: "Cobrar", largo: "Caja" },
       { href: "/turno", corto: "Turno", largo: "Turno de caja" },
+      // Lo anotado en papel cuando cayeron los dos enlaces (B3-7, V-12).
+      { href: "/papel", corto: "Papel", largo: "Carga desde papel" },
     ],
   },
   {

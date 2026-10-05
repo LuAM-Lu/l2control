@@ -68,6 +68,7 @@ texto es para la persona.
 | `cuentas.ts` | Guardar, cobrar, anular, regalar y anular pedidos de una cuenta; la cola de la caja |
 | `cortes.ts`, `turno.ts` | Turnos, arqueo a ciegas, cortes X y Z, pendientes del cierre y resumen del día |
 | `descuentos.ts` | Reglas de descuento, el aplicado a una cuenta y las familias VIP (B3-6) |
+| `papel.ts` | La carga de lo anotado en papel: la ventana del corte, sus registros (entrada, salida, cobro), su revisión y lo único que declara la pantalla, `DesdePapel` (B3-7, ADR-027) |
 | `tasas.ts`, `feriados.ts`, `impuestos.ts` | Tasas de cambio con su origen, feriados y alícuotas con vigencia |
 | `productos.ts`, `entradas.ts`, `salidas.ts` | Catálogo con existencia, entradas de mercancía, salidas y conteos |
 | `restaurante.ts` | Plano de mesas, carta y pedidos del mesero con su comanda |

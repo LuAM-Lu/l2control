@@ -30,22 +30,28 @@ export async function leerSala(): Promise<Resultado<MonitorSnapshotDto>> {
   return (await aplicacion()).parque.sala(ctx);
 }
 
-/** Registra una entrada: estancias y cuenta de la familia, juntas. */
-export async function registrarEntrada(entrada: unknown): Promise<Resultado<CheckInResult>> {
+/**
+ * Registra una entrada: estancias y cuenta de la familia, juntas. `desdePapel` (B3-7, ADR-027) dice que es lo
+ * anotado en el formulario: la carga y la hora real. Con él, el caso de uso de la carga decide si la acepta;
+ * sin él, la entrada es de ahora.
+ */
+export async function registrarEntrada(entrada: unknown, desdePapel?: unknown): Promise<Resultado<CheckInResult>> {
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
-  const r = await (await aplicacion()).parque.entrar(ctx, entrada);
-  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.account.id, ninos: r.valor.sessions.length }, "entrada al parque");
+  const app = await aplicacion();
+  const r = desdePapel === undefined ? await app.parque.entrar(ctx, entrada) : await app.papel.entrar(ctx, entrada, desdePapel);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.account.id, ninos: r.valor.sessions.length, papel: desdePapel !== undefined }, "entrada al parque");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo, problemas: r.problemas?.map((p) => p.message) }, "entrada rechazada");
   return r;
 }
 
-/** Registra la salida de niños de una familia y liquida su tiempo de más. */
-export async function registrarSalida(entrada: unknown): Promise<Resultado<CheckoutResult>> {
+/** Registra la salida de niños de una familia y liquida su tiempo de más. `desdePapel`, como en la entrada. */
+export async function registrarSalida(entrada: unknown, desdePapel?: unknown): Promise<Resultado<CheckoutResult>> {
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
-  const r = await (await aplicacion()).parque.salir(ctx, entrada);
-  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.account.id, estado: r.valor.account.status }, "salida del parque");
+  const app = await aplicacion();
+  const r = desdePapel === undefined ? await app.parque.salir(ctx, entrada) : await app.papel.salir(ctx, entrada, desdePapel);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.account.id, estado: r.valor.account.status, papel: desdePapel !== undefined }, "salida del parque");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo, problemas: r.problemas?.map((p) => p.message) }, "salida rechazada");
   return r;
 }

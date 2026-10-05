@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Ban, MessageCircle, Printer, ReceiptText, Search, X } from "lucide-react";
+import { Ban, FileText, MessageCircle, Printer, ReceiptText, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
@@ -284,6 +284,15 @@ export function VentasDelTurno({ className }: { className?: string }) {
                               {v.prints.length - 1} {v.prints.length === 2 ? "copia" : "copias"}
                             </span>
                           )}
+                          {v.desdePapel && (
+                            <span
+                              className="ml-2 inline-flex items-center gap-1 rounded border border-brand/40 bg-brand/10 px-1.5 text-[11px] font-semibold whitespace-nowrap text-brand"
+                              title="Cargada desde papel: la hora es la que se anotó en el formulario"
+                            >
+                              <FileText size={11} aria-hidden="true" />
+                              Desde papel
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -327,6 +336,18 @@ export function VentasDelTurno({ className }: { className?: string }) {
                       );
                     })}
                   </ul>
+                </div>
+              )}
+              {/* Lo cargado desde papel (B3-7): la hora del recibo es la anotada; aquí, cuándo se cargó. */}
+              {actual.desdePapel && (
+                <div className="border-t border-line px-4 py-2 text-[12px] text-ink-2">
+                  <p className="flex items-center gap-1.5 font-semibold text-ink">
+                    <FileText size={13} aria-hidden="true" />
+                    Cargada desde papel
+                  </p>
+                  <p className="tnum text-ink-3">
+                    Ocurrió a las {hora(Date.parse(actual.desdePapel.ocurrioEn))} · se cargó a las {hora(Date.parse(actual.desdePapel.cargadoEn))}.
+                  </p>
                 </div>
               )}
               {/* El rastro, a la vista: quién imprimió y cuándo. */}

@@ -35,6 +35,7 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "turno.abrir": { etiqueta: "Abrir turno", area: "Turno" },
   "turno.corteX": { etiqueta: "Corte X", area: "Turno" },
   "turno.corteZ": { etiqueta: "Corte Z · cerrar el turno", area: "Turno" },
+  "papel.revisar": { etiqueta: "Revisar lo cargado desde papel", area: "Turno" },
 
   "documento.emitir": { etiqueta: "Cobrar", area: "Cobro y cuenta" },
   "cuenta.descuento": { etiqueta: "Aplicar descuento", area: "Cobro y cuenta" },

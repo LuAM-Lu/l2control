@@ -42,6 +42,7 @@ export type Action =
   | "parque.verContacto"
   | "parque.cerrarHuerfana"
   | "evento.reservar"
+  | "papel.revisar"
   | "tasa.confirmar"
   | "catalogo.modificar"
   | "inventario.ajustar"
@@ -130,6 +131,10 @@ export const MATRIZ: Matriz = Object.freeze({
   // B10-1 (V-10): reservar un cumpleaños, y cancelarlo mientras su anticipo no se haya cobrado. Lo hace
   // quien atiende al cliente en la caja; el anticipo lo cobra la caja como cualquier cuenta.
   "evento.reservar": fila(P, P, P, D, D, D),
+  // B3-7 (V-12, ADR-027): lo que la cajera carga desde el papel lo revisa supervisión contra los
+  // formularios, con su PIN, antes del Z. Cargarlo es de la caja (`documento.emitir`, `parque.checkIn`,
+  // `parque.checkOut`): quien carga no se revisa a sí misma.
+  "papel.revisar": fila(P, P, D, D, D, D),
 
   "tasa.confirmar": fila(P, A, D, D, D, D),
   "catalogo.modificar": fila(P, D, D, D, D, D),
@@ -348,6 +353,7 @@ export type SurfaceId =
   | "salida"
   | "caja"
   | "turno"
+  | "papel"
   | "mesas"
   | "kds"
   | "inventario"
@@ -361,6 +367,8 @@ export const SURFACE_ACTION: Readonly<Record<SurfaceId, Action>> = Object.freeze
   salida: "parque.checkOut",
   caja: "documento.emitir",
   turno: "turno.corteX",
+  // La carga de lo anotado en papel (B3-7): la cajera carga y supervisión revisa; ambas cobran.
+  papel: "documento.emitir",
   mesas: "pedido.tomar",
   kds: "kds.cambiarEstado",
   inventario: "inventario.ajustar",

@@ -89,6 +89,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "turno.corte_x": ["turno"],
   // El Z cierra el turno: la caja deja de cobrar en ese equipo y los pendientes cambian.
   "turno.corte_z": ["turno", "cuentas"],
+  // La carga desde papel (B3-7): abrirla, terminarla y revisarla cambian lo que dice su pantalla y los pendientes del cierre.
+  "papel.abrir": ["papel", "turno"],
+  "papel.cerrar": ["papel", "turno"],
+  "papel.revisar": ["papel", "turno"],
 
   "parque.entrada": PARQUE,
   "parque.salida": PARQUE,

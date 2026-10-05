@@ -24,6 +24,8 @@ const TIPO: Record<ExcepcionDto["tipo"], { texto: string; tono: "crit" | "warn" 
   RESIDUO: { texto: "Redondeo en caja", tono: "neutro" },
   CORTESIA: { texto: "Cortesía", tono: "neutro" },
   REIMPRESION: { texto: "Reimpresión", tono: "neutro" },
+  // Lo cargado desde papel (B3-7): sin revisar pide atención; revisado ya no.
+  PAPEL: { texto: "Desde papel", tono: "warn" },
 };
 
 export function ExcepcionesTurno({

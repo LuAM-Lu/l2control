@@ -145,7 +145,7 @@ Todo lo demás espera en Inicio.
 **Un corte de internet** pasa solo al 4G de respaldo (ADR-021). Si caen los dos enlaces, o la luz sin
 UPS, se sigue en **papel** con los formularios impresos (entrada y cobro) y, al volver, **la cajera carga
 lo anotado en su turno**, marcado «desde papel» con la hora real, antes de seguir; **supervisión lo
-revisa** en el cierre (B3-7).
+revisa** en el cierre (B3-7, hecha: ADR-027).
 
 ---
 
@@ -187,7 +187,7 @@ con su autorización y el mismo arqueo.
 | Ticket de corte impreso | **B5-2** | Plantilla de 58 y 80 mm |
 | Resumen del día en Inicio | **B3-5** (caja) y **B4-2** (parque) | Sustituye las cifras sin fuente de Inicio |
 | Puesta a punto en Inicio | **T-4** | Amplía la instalación inicial |
-| Contingencia en papel y carga posterior | **B3-7** y B8-2 | Decidido (M-15) |
+| Contingencia en papel y carga posterior | **B3-7** (hecha) y B8-2 | Decidido (M-15); la hora real, con su ventana, en ADR-027 |
 
 ---
 
@@ -200,7 +200,7 @@ con su autorización y el mismo arqueo.
 3. ~~**El equivalente de $ 1,00** en bolívares~~ — **decidido:** con la tasa del turno, contra un
    solo umbral.
 4. ~~**La carga de lo anotado en papel**~~ — **decidido el 2026-09-28 (M-15):** la cajera, al volver y en
-   su turno, marcado «desde papel» con la hora real; supervisión lo revisa en el cierre (B3-7).
+   su turno, marcado «desde papel» con la hora real; supervisión lo revisa en el cierre (B3-7, hecha: ADR-027).
 5. ~~**D-INF**~~ — **decidido el 2026-09-28 (M-15, ADR-021):** solo VPS, con internet de respaldo 4G.
 
 ---

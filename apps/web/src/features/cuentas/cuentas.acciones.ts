@@ -20,21 +20,26 @@ export async function leerCuentas(): Promise<Resultado<CuentasDelLocalDto>> {
   return (await aplicacion()).cuentas.leer(ctx);
 }
 
-/** Abre o cambia una cuenta. Devuelve cómo la dejó el servidor (versión, número de orden). */
-export async function guardarCuenta(entrada: unknown): Promise<Resultado<FamilyAccountDto>> {
+/**
+ * Abre o cambia una cuenta. Devuelve cómo la dejó el servidor (versión, número de orden). `desdePapel` (B3-7,
+ * ADR-027): una venta de mostrador anotada en el formulario, con su hora real.
+ */
+export async function guardarCuenta(entrada: unknown, desdePapel?: unknown): Promise<Resultado<FamilyAccountDto>> {
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
-  const r = await (await aplicacion()).cuentas.guardar(ctx, entrada);
+  const app = await aplicacion();
+  const r = desdePapel === undefined ? await app.cuentas.guardar(ctx, entrada) : await app.papel.guardar(ctx, entrada, desdePapel);
   if (!r.ok) log().warn({ tenantId: ctx.tenantId, motivo: r.motivo, problemas: r.problemas?.map((p) => p.message) }, "cuenta no guardada");
   return r;
 }
 
-/** Cobra una cuenta (o una parte) contra el libro. */
-export async function cobrarCuenta(entrada: unknown): Promise<Resultado<CuentaYLibroDto>> {
+/** Cobra una cuenta (o una parte) contra el libro. `desdePapel`, como en `guardarCuenta`: el cobro anotado en el formulario. */
+export async function cobrarCuenta(entrada: unknown, desdePapel?: unknown): Promise<Resultado<CuentaYLibroDto>> {
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
-  const r = await (await aplicacion()).cuentas.cobrar(ctx, entrada);
-  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.cuenta.id, version: r.valor.cuenta.version }, "cuenta cobrada");
+  const app = await aplicacion();
+  const r = desdePapel === undefined ? await app.cuentas.cobrar(ctx, entrada) : await app.papel.cobrar(ctx, entrada, desdePapel);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.cuenta.id, version: r.valor.cuenta.version, papel: desdePapel !== undefined }, "cuenta cobrada");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo, problemas: r.problemas?.map((p) => p.message) }, "cobro rechazado");
   return r;
 }

@@ -175,6 +175,15 @@ export const MODULOS: readonly Modulo[] = [
         proposito:
           "El turno de principio a fin: lo que hay en la gaveta y lo cobrado por medio, las ventas con su recibo (reimprimir, anular) y el cierre con su arqueo.",
       },
+      {
+        id: "papel",
+        nombre: "Carga desde papel",
+        href: "/papel",
+        abre: "estacion",
+        proposito:
+          "Lo anotado en formularios cuando cayeron internet y luz: la caja lo carga en su turno con la hora real del papel y supervisión lo revisa antes del Z.",
+        tarea: "B3-7",
+      },
     ],
   },
   {

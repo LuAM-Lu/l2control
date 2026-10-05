@@ -289,6 +289,41 @@ export function startOfDay(day: string, timeZone: string): number {
   return t;
 }
 
+/**
+ * La fecha y la hora de un instante en la zona del local, como las enseña un campo de fecha y hora
+ * (`AAAA-MM-DDTHH:mm`, sin zona). Es lo que una persona lee en un reloj del local.
+ */
+export function localDateTimeOf(instant: number, timeZone: string): string {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(instant);
+  const de = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((p) => p.type === tipo)?.value ?? "00";
+  return `${de("year")}-${de("month")}-${de("day")}T${de("hour")}:${de("minute")}`;
+}
+
+/**
+ * El instante de una fecha y hora escritas como las ve el local (`AAAA-MM-DDTHH:mm`), o `null` si no son
+ * una hora. Lo escrito se lee en la zona del local, nunca en la del aparato: una persona anota en el papel
+ * la hora del reloj de la pared.
+ */
+export function instantOfLocalDateTime(text: string, timeZone: string): number | null {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/.exec(text);
+  if (!m) return null;
+  const horas = Number(m[2]);
+  const minutos = Number(m[3]);
+  if (horas > 23 || minutos > 59 || !DIA.test(m[1]!)) return null;
+  const dia = m[1]!;
+  // Un día que no existe (31 de febrero) no es una fecha: `calendarDay` de su medianoche no coincide.
+  if (calendarDay(new Date(startOfDay(dia, timeZone)).toISOString(), timeZone) !== dia) return null;
+  return startOfDay(dia, timeZone) + (horas * 60 + minutos) * 60_000;
+}
+
 /** Cuánto va la hora de `timeZone` por delante de UTC en el instante `t`, en milisegundos. */
 function desfase(t: number, timeZone: string): number {
   const partes = new Intl.DateTimeFormat("en-US", {

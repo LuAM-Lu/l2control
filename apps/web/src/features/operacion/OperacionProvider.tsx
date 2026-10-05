@@ -135,11 +135,25 @@ export function useOperacion(): Operacion {
  * la del servidor (ADR-010), que llega con las estancias en B4.
  */
 export function useAhoraLocal(): number {
+  const fijo = useContext(RelojFijo);
   const [ahora, setAhora] = useState(0);
   useEffect(() => {
+    // Con el reloj fijo (la carga desde papel) no corre ningún intervalo: la hora es la anotada.
+    if (fijo !== null) return;
     setAhora(Date.now());
     const id = window.setInterval(() => setAhora(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, []);
-  return ahora;
+  }, [fijo]);
+  return fijo ?? ahora;
+}
+
+/**
+ * La hora que un subárbol da por «ahora» en lugar de la del aparato: la hora real anotada en el formulario
+ * de papel (B3-7, ADR-027). Así la tasa vigente, el IVA y los precios que la caja pinta son los de ENTONCES,
+ * y el servidor, que recibe esa misma hora, comprueba lo mismo. Fuera de la carga desde papel no existe.
+ */
+const RelojFijo = createContext<number | null>(null);
+
+export function RelojDeLaCarga({ ahora, children }: { ahora: number; children: React.ReactNode }) {
+  return <RelojFijo.Provider value={ahora}>{children}</RelojFijo.Provider>;
 }

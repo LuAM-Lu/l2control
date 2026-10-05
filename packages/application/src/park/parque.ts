@@ -78,16 +78,24 @@ import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identid
 import { conflictoDeClave } from "../dinero/pagos.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { claveSecundaria, crearCuentaDeMesa, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "../caja/papel-en.ts";
 import { candadoDeMesas, mesaParaCuentaNueva, mesasOcupadasEn } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
 
 export interface CasosParque {
   /** Los niños en sala, con la hora del servidor y la política vigente (aforo, avisos). */
   sala(ctx: Contexto, ahora?: number): Promise<Resultado<MonitorSnapshotDto>>;
-  /** Registra una entrada (`CheckInCommandSchema`): estancias y cuenta de la familia, juntas. */
-  entrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CheckInResult>>;
-  /** Registra la salida de niños de UNA familia (`CheckoutCommandSchema`) y liquida su tiempo de más. */
-  salir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CheckoutResult>>;
+  /**
+   * Registra una entrada (`CheckInCommandSchema`): estancias y cuenta de la familia, juntas. `papel` solo lo
+   * pasa `casosPapel` (B3-7, ADR-027): lo anotado en el formulario, con su hora real en `ahora`; no cuenta el
+   * aforo, porque ya ocurrió.
+   */
+  entrar(ctx: Contexto, entrada: unknown, ahora?: number, papel?: EnPapel): Promise<Resultado<CheckInResult>>;
+  /**
+   * Registra la salida de niños de UNA familia (`CheckoutCommandSchema`) y liquida su tiempo de más. `papel`,
+   * como en `entrar`: la salida anotada en el formulario, con su hora real en `ahora`.
+   */
+  salir(ctx: Contexto, entrada: unknown, ahora?: number, papel?: EnPapel): Promise<Resultado<CheckoutResult>>;
   /** Pone o corrige el nombre del niño de una estancia en sala (`NombrarEstanciaCommandSchema`, DEC-28). */
   nombrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstanciaDto>>;
   /** Recarga tiempo a una estancia en sala (`RecargaCommandSchema`, F5-11). */
@@ -205,7 +213,7 @@ export function casosParque(base: Base): CasosParque {
       return "ok" in r ? r : { ok: true, valor: r };
     },
 
-    async entrar(ctx, entrada, ahora = Date.now()) {
+    async entrar(ctx, entrada, ahora = Date.now(), papel) {
       const v = CheckInCommandSchema.safeParse(entrada);
       if (!v.success) {
         return { ok: false, motivo: "INVALIDO", mensaje: "La entrada no se registró: hay datos que corregir.", problemas: problemasDe(v.error) };
@@ -220,6 +228,10 @@ export function casosParque(base: Base): CasosParque {
           const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
           if (previa) return previa.cause === "ENTRADA" ? entradaHecha(tx, cmd.idempotencyKey, previa.accountId) : conflictoDeClave;
 
+          // Desde papel (ADR-027): la carga abierta de este turno, y la hora real dentro de su ventana.
+          const carga = papel ? await cargaParaRegistrar(tx, ctx, papel, ahora) : null;
+          if (carga && "ok" in carga) return carga;
+
           const vigente = await tarifarioDe(tx, ctx);
           if (!vigente) return sinTarifario;
           const paquetes: PricePackageDto[] = [];
@@ -228,7 +240,8 @@ export function casosParque(base: Base): CasosParque {
             if (!p) return invalido("Ese paquete ya no está a la venta: elige otro.", ["entries", i, "packageId"], "PAQUETE_QUE_NO_SE_VENDE");
             paquetes.push(p);
           }
-          const pulseras = await comprobarPulserasYAforo(tx, ctx, cmd.entries.map((e) => e.wristbandCode), vigente.tarifario.policy.capacityLimit, ahora, (i) => ["entries", i, "wristbandCode"]);
+          // Lo anotado en papel ya ocurrió: no se le cuenta el aforo (los niños que salieron ya no están).
+          const pulseras = await comprobarPulserasYAforo(tx, ctx, cmd.entries.map((e) => e.wristbandCode), vigente.tarifario.policy.capacityLimit, ahora, (i) => ["entries", i, "wristbandCode"], { sinAforo: carga !== null });
           if (pulseras) return pulseras;
 
           const familia = await representanteDeLaEntrada(tx, ctx, cmd, ahora);
@@ -320,8 +333,25 @@ export function casosParque(base: Base): CasosParque {
               pulseras: cmd.entries.map((e) => e.wristbandCode),
               tarifario: vigente.version,
               total: { minor: String(total.amount), currency: "USD" },
+              ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
             },
           });
+          if (carga && papel) {
+            await asentarRegistroEn(tx, ctx, carga, papel, {
+              tipo: "ENTRADA",
+              accountId,
+              operationKey: cmd.idempotencyKey,
+              ocurrioEn: ahora,
+              quien: quien.nombre,
+              detalle: {
+                orden: orderNumber,
+                familia: familia.fullName,
+                modo: cmd.paymentMode,
+                ninos: cmd.entries.map((e) => ({ pulsera: e.wristbandCode, nombre: e.kid.name ?? null })),
+                total: { minor: String(total.amount), currency: "USD" },
+              },
+            });
+          }
           return entradaHecha(tx, cmd.idempotencyKey, accountId);
         });
 
@@ -341,7 +371,7 @@ export function casosParque(base: Base): CasosParque {
       }
     },
 
-    async salir(ctx, entrada, ahora = Date.now()) {
+    async salir(ctx, entrada, ahora = Date.now(), papel) {
       const v = CheckoutCommandSchema.safeParse(entrada);
       if (!v.success) {
         return { ok: false, motivo: "INVALIDO", mensaje: "La salida no se registró: hay datos que corregir.", problemas: problemasDe(v.error) };
@@ -357,6 +387,10 @@ export function casosParque(base: Base): CasosParque {
           // sirve buscarla por el asiento de una cuenta cualquiera.
           const yaSalio = await tx.parkSession.findFirst({ where: { checkOutKey: cmd.idempotencyKey } });
           if (yaSalio) return salidaHecha(tx, cmd.idempotencyKey, yaSalio.accountId);
+
+          // Desde papel (ADR-027): la carga abierta de este turno, y la hora real de salida dentro de su ventana.
+          const carga = papel ? await cargaParaRegistrar(tx, ctx, papel, ahora) : null;
+          if (carga && "ok" in carga) return carga;
 
           const filas = await estancias(tx, { where: { id: { in: cmd.sessionIds }, branchId: ctx.branchId } });
           if (filas.length !== cmd.sessionIds.length) {
@@ -526,8 +560,24 @@ export function casosParque(base: Base): CasosParque {
               // El nombre de quien lo recogió queda en la estancia, no en el asiento (§7.6).
               recogidoPorOtraPersona: cmd.recogida.kind === "OTRA_PERSONA",
               cargadoAMesa: mesaInfo ? mesaInfo.label : null,
+              ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
             },
           });
+          if (carga && papel) {
+            await asentarRegistroEn(tx, ctx, carga, papel, {
+              tipo: "SALIDA",
+              accountId,
+              operationKey: cmd.idempotencyKey,
+              ocurrioEn: ahora,
+              quien: quien.nombre,
+              detalle: {
+                orden: actual.cuenta.orderNumber ?? 0,
+                familia: actual.cuenta.family,
+                ninos: enOrden.map((f) => ({ pulsera: f.wristbandCode, nombre: f.kid?.nickname ?? f.kid?.name ?? null })),
+                excedente: { minor: String(excedente.amount), currency: "USD" },
+              },
+            });
+          }
           // Si el paquete ya no se debía en ninguna cuenta (p. ej., la mesa ya lo cobró), no hubo ajuste:
           // el desglose dice lo contratado, como lo dirá un reintento.
           const desglose = lineas.map((l, i) => (porUso.has(l.sessionId) && !asentado.has(l.sessionId) ? liquidacionDe(enOrden[i]!, ahora) : l));
@@ -828,6 +878,7 @@ export async function comprobarPulserasYAforo(
   aforo: number,
   ahora: number,
   ruta: (i: number) => (string | number)[],
+  opciones: Readonly<{ sinAforo?: boolean }> = {},
 ): Promise<Rechazo | null> {
   // V-1: la serie de pulseras del local, si ya se fijó con el primer lote (D-PUL).
   const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
@@ -854,6 +905,9 @@ export async function comprobarPulserasYAforo(
   });
   const usada = codigos.findIndex((c) => usadas.some((u) => u.wristbandCode === c));
   if (usada >= 0) return invalido(`La pulsera ${codigos[usada]} ya se usó en otra visita: pon una nueva.`, ruta(usada), "PULSERA_USADA");
+
+  // Lo anotado en papel ya ocurrió (B3-7): el aforo no se le cuenta, porque no se puede rechazar lo que pasó.
+  if (opciones.sinAforo) return null;
 
   // Una huérfana no ocupa sitio: casi seguro ese niño ya no está (F5-13).
   const regla = await reglaDeHuerfanas(tx, ctx.branchId);

@@ -168,14 +168,17 @@ async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
   const excepciones: ExcepcionDto[] = [];
   let total = zero(FUNCIONAL);
   let anuladas = 0;
+  let desdePapel = 0;
   for (const v of ventas) {
     const c = v.content as {
       lineas: { lineId: string; concept: string; amount: MoneyDto; cortesia: string | null }[];
       sobra: { amount: MoneyDto; destino: string } | null;
       total: MoneyDto;
       descuento?: { origen: string; nombre: string; motivo: string | null; detalle: string | null; autorizadoPor: { name: string } | null; importe: MoneyDto } | null;
+      desdePapel?: { cargaId: string } | null;
     };
     const anulada = v.voids[0];
+    if (c.desdePapel) desdePapel += 1;
     if (anulada) anuladas += 1;
     else total = add(total, money(v.totalMinor, FUNCIONAL));
     const regaladas = c.lineas.filter((l) => l.cortesia);
@@ -265,8 +268,27 @@ async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
       importe: despues.pendiente ?? null,
     });
   }
+  // Lo cargado desde papel es una excepción del turno (B3-7): sale en el corte y en el resumen del día con su
+  // responsable y, si ya la revisó supervisión, con quién. Una descartada no cargó nada: no cuenta.
+  const cargas = await tx.paperLoad.findMany({ where: { shiftId: t.id, status: { not: "DESCARTADA" } }, orderBy: { openedAt: "asc" } });
+  for (const l of cargas) {
+    const registros = await tx.paperLoadItem.findMany({ where: { loadId: l.id }, select: { kind: true, detail: true } });
+    const cobrado = registros.reduce((acc, r) => {
+      const d = r.detail as { total?: MoneyDto };
+      return r.kind === "COBRO" && d.total ? add(acc, money(BigInt(d.total.minor), FUNCIONAL)) : acc;
+    }, zero(FUNCIONAL));
+    excepciones.push({
+      at: l.openedAt.toISOString(),
+      tipo: "PAPEL",
+      detalle: `Carga desde papel · ${registros.length} ${registros.length === 1 ? "registro" : "registros"}`,
+      usuario: l.openedByName,
+      motivo: `${l.note ?? "Sin conexión"} · ${l.status === "REVISADA" ? "Revisada" : "Sin revisar"}`.slice(0, 280),
+      autorizadoPor: l.reviewedByName,
+      importe: cobrado.amount > 0n ? dinero(cobrado) : null,
+    });
+  }
   excepciones.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  return { ventas: { cantidad: ventas.length, anuladas, total: dinero(total) }, excepciones };
+  return { ventas: { cantidad: ventas.length, anuladas, total: dinero(total), desdePapel }, excepciones };
 }
 
 /** La foto del turno en `ahora`: con la gaveta (X y Z) o sin ella (la vista, que es a ciegas). */
@@ -359,7 +381,23 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
     orderBy: { openedAt: "asc" },
   });
   const { enSala, huerfanas } = await estanciasActivas(tx, ctx.branchId, ahora);
-  return PendientesDelCierreSchema.parse({ cuentas, ninos: enSala, huerfanas, turnos: turnos.map(turnoDto) });
+  // Lo cargado desde papel que nadie revisó (B3-7): abierto o terminado, pero sin revisar. Incluye el del turno
+  // que se va a cerrar: sin revisar, tampoco se sella.
+  const sinRevisar = await tx.paperLoad.findMany({ where: { branchId: ctx.branchId, status: { in: ["ABIERTA", "CERRADA"] } }, orderBy: { openedAt: "asc" } });
+  const papel: PendientesDelCierreDto["papel"] = [];
+  for (const c of sinRevisar) {
+    const turno = await tx.cashShift.findUniqueOrThrow({ where: { id: c.shiftId }, select: { pointLabel: true } });
+    papel.push({
+      id: c.id,
+      punto: turno.pointLabel,
+      estado: c.status as "ABIERTA" | "CERRADA",
+      abiertaPor: c.openedByName,
+      desde: c.windowFrom.toISOString(),
+      hasta: c.windowTo.toISOString(),
+      registros: await tx.paperLoadItem.count({ where: { loadId: c.id } }),
+    });
+  }
+  return PendientesDelCierreSchema.parse({ cuentas, ninos: enSala, huerfanas, turnos: turnos.map(turnoDto), papel });
 }
 
 /** «2 cuentas pendientes y 1 niño en sala»: lo que falta, para el rechazo del cierre. */
@@ -370,6 +408,7 @@ function textoDePendientes(p: PendientesDelCierreDto): string | null {
     cuantos(p.ninos.length, "niño en sala", "niños en sala"),
     cuantos(p.huerfanas.length, "estancia huérfana sin cerrar", "estancias huérfanas sin cerrar"),
     cuantos(p.turnos.length, "turno abierto en otro equipo", "turnos abiertos en otros equipos"),
+    cuantos(p.papel.length, "carga desde papel sin revisar", "cargas desde papel sin revisar"),
   ].filter((x): x is string => x !== null);
   if (partes.length === 0) return null;
   return partes.length === 1 ? partes[0]! : `${partes.slice(0, -1).join(", ")} y ${partes.at(-1)}`;
@@ -518,6 +557,18 @@ export function casosCortes(base: Base): CasosCortes {
           const queda = cmd.quedaEnGaveta.map(aDinero);
           const problemaQueda = leftInDrawerProblem(contado, queda);
           if (problemaQueda) return invalido("Lo que queda en la gaveta no cuadra con lo contado.", ["quedaEnGaveta"], problemaQueda);
+
+          // Lo cargado desde papel en este turno se revisa antes del Z (B3-7, V-12): es dinero y niños que la
+          // cajera pasó del formulario al sistema, y supervisión los compara con el papel. Vale para el relevo
+          // y para el cierre de la jornada.
+          const sinRevisar = await tx.paperLoad.count({ where: { shiftId: o.turno.id, status: { in: ["ABIERTA", "CERRADA"] } } });
+          if (sinRevisar > 0) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: `Este turno tiene ${sinRevisar === 1 ? "una carga" : `${sinRevisar} cargas`} desde papel sin revisar: supervisión ${sinRevisar === 1 ? "la revisa" : "las revisa"} antes del corte Z.`,
+            };
+          }
 
           // La jornada no se cierra con pendientes (JORNADA §5, C2).
           if (cmd.cierre === "JORNADA") {
@@ -692,6 +743,7 @@ export function casosCortes(base: Base): CasosCortes {
         let medio = new Map<string, { code: string; label: string; givesChange: boolean }>();
         let cantidad = 0;
         let anuladas = 0;
+        let desdePapel = 0;
         let total = zero(FUNCIONAL);
         let igtf = zero(FUNCIONAL);
         const excepciones: ExcepcionDto[] = [];
@@ -703,6 +755,7 @@ export function casosCortes(base: Base): CasosCortes {
           const v = await ventasYExcepciones(tx, t, t.closedAt ?? new Date(ahora));
           cantidad += v.ventas.cantidad;
           anuladas += v.ventas.anuladas;
+          desdePapel += v.ventas.desdePapel;
           total = add(total, aDinero(v.ventas.total));
           excepciones.push(...v.excepciones);
           const z = t.cuts[0];
@@ -712,7 +765,7 @@ export function casosCortes(base: Base): CasosCortes {
         return ResumenDelDiaSchema.parse({
           dia,
           porMedio: porMedioDe({ entradas, medio, igtf }),
-          ventas: { cantidad, anuladas, total: dinero(total), igtf: dinero(igtf) },
+          ventas: { cantidad, anuladas, total: dinero(total), igtf: dinero(igtf), desdePapel },
           turnos: turnos.map((t) => {
             const z = t.cuts[0];
             return {
@@ -722,6 +775,8 @@ export function casosCortes(base: Base): CasosCortes {
             };
           }),
           excepciones,
+          // Las cargas que esperan revisión bloquean el cierre sea del día que sea: se cuentan todas.
+          papelPorRevisar: await tx.paperLoad.count({ where: { branchId: ctx.branchId, status: { in: ["ABIERTA", "CERRADA"] } } }),
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };

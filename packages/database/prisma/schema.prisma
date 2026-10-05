@@ -74,6 +74,7 @@ model Branch {
   eventCatalogs     EventCatalogVersion[]
   eventReservations EventReservation[]
   eventDays         EventDay[]
+  paperLoads        PaperLoad[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -638,6 +639,7 @@ model CashShift {
   sales    Sale[]
   counts   ShiftCount[]
   cuts     ShiftCut[]
+  paperLoads PaperLoad[]
 
   @@unique([tenantId, id])
   @@index([tenantId, branchId, businessDate])
@@ -772,6 +774,7 @@ model Account {
   kitchenOrders     KitchenOrder[]
   eventReservations EventReservation[]
   eventDays         EventDay[]
+  paperItems        PaperLoadItem[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -1490,4 +1493,80 @@ model EventDay {
   @@unique([tenantId, accountId])
   @@unique([tenantId, operationKey])
   @@map("event_day")
+}
+
+/// Una carga desde papel (B3-7, V-12, ADR-027): lo que se anotó en formularios mientras no hubo sistema (N2,
+/// ADR-021) y la cajera carga en SU turno. Declara la ventana del corte (`windowFrom`, `windowTo`); cada registro
+/// que se le añade tiene su hora real dentro de ella. Avanza ABIERTA → CERRADA (la cajera terminó de cargar) →
+/// REVISADA (supervisión la comparó con el papel); una sin registros se DESCARTA al terminar. No se borra, y
+/// mientras esté ABIERTA o CERRADA su turno no se sella con el corte Z.
+model PaperLoad {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  shiftId        String    @map("shift_id") @db.Uuid
+  /// La ventana del corte, como la declaró la cajera: no cambia nunca (disparador).
+  windowFrom     DateTime  @map("window_from") @db.Timestamptz(3)
+  windowTo       DateTime  @map("window_to") @db.Timestamptz(3)
+  note           String?
+  /// ABIERTA, CERRADA, REVISADA o DESCARTADA (CHECK). Solo avanza (disparador).
+  status         String
+  /// La clave de la operación que la abrió: un doble clic no abre dos (I-11).
+  operationKey   String    @map("operation_key") @db.Uuid
+  /// Cuándo se abrió, con el reloj del servidor.
+  openedAt       DateTime  @map("opened_at") @db.Timestamptz(3)
+  openedBy       String    @map("opened_by") @db.Uuid
+  openedByName   String    @map("opened_by_name")
+  deviceId       String?   @map("device_id") @db.Uuid
+  /// Cuando la cajera terminó de cargar (o descartó la carga vacía).
+  closedAt       DateTime? @map("closed_at") @db.Timestamptz(3)
+  closedBy       String?   @map("closed_by") @db.Uuid
+  closedByName   String?   @map("closed_by_name")
+  /// La revisión de supervisión: quién, cuándo y qué anotó.
+  reviewedAt     DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  reviewedBy     String?   @map("reviewed_by") @db.Uuid
+  reviewedByName String?   @map("reviewed_by_name")
+  reviewNote     String?   @map("review_note")
+
+  branch  Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  shift   CashShift       @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  items   PaperLoadItem[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, shiftId])
+  @@map("paper_load")
+}
+
+/// Un registro de una carga desde papel (B3-7): una entrada, una salida o un cobro que ya ocurrió y se anotó en
+/// el formulario. `occurredAt` es la hora real que se escribió en el papel (dentro de la ventana de su carga,
+/// disparador); `loadedAt`, cuándo se cargó, con el reloj del servidor. Solo-agregar. Lo que hizo la operación
+/// (la cuenta, las estancias, el libro, la venta) está en sus tablas de siempre, con la hora real; esta fila dice
+/// que vino del papel y deja lo que revisa supervisión.
+model PaperLoadItem {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  loadId       String   @map("load_id") @db.Uuid
+  /// ENTRADA, SALIDA o COBRO (CHECK).
+  kind         String
+  accountId    String   @map("account_id") @db.Uuid
+  /// La clave de la entrada, la salida o el cobro: la misma que dejó su versión de la cuenta.
+  operationKey String   @map("operation_key") @db.Uuid
+  occurredAt   DateTime @map("occurred_at") @db.Timestamptz(3)
+  loadedAt     DateTime @map("loaded_at") @db.Timestamptz(3)
+  loadedBy     String?  @map("loaded_by") @db.Uuid
+  loadedByName String   @map("loaded_by_name")
+  deviceId     String?  @map("device_id") @db.Uuid
+  /// Lo que se compara con el formulario (`RegistroDePapelSchema` sin lo que ya está en las columnas).
+  detail       Json
+
+  load    PaperLoad @relation(fields: [tenantId, loadId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account Account   @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, loadId, occurredAt])
+  @@index([tenantId, accountId])
+  @@map("paper_load_item")
 }

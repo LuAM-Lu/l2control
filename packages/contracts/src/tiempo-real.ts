@@ -50,6 +50,8 @@ export const TemaSchema = z.enum([
   "pedidos",
   /** Los cumpleaños: los paquetes y la agenda de reservas (B10-1). */
   "eventos",
+  /** Lo cargado desde papel: las cargas, sus registros y su revisión (B3-7). */
+  "papel",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 

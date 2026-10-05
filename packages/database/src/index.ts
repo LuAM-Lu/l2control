@@ -34,6 +34,8 @@ export type {
   ParkSession,
   ParkSessionExtension,
   OutboxEvent,
+  PaperLoad,
+  PaperLoadItem,
   ParkTariffVersion,
   Product,
   ProductPrice,

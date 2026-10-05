@@ -61,7 +61,7 @@ packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
 packages/domain/rates     tasa vigente, fracción de conversión y límite de cordura (puro)
 packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
-packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones (puro)
+packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones, carga desde papel (puro)
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
 packages/domain/inventory catálogo de productos con precio por día; stock y costeo después (puro)
@@ -72,7 +72,7 @@ packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)
 docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
-docs/adr/                 las 25 decisiones, una por archivo
+docs/adr/                 las 27 decisiones, una por archivo
 ```
 
 **No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su

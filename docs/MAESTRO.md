@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-10-03**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-10-05**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -10,12 +10,13 @@
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
 > - [JORNADA.md](JORNADA.md): el día completo en cuatro momentos (primer encendido, apertura, jornada y
 >   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige cuando un paso resuelve algo suyo.
-> - [adr/](adr/): las decisiones de arquitectura, una por archivo (26; ADR-018 supersede la biblioteca
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (27; ADR-018 supersede la biblioteca
 >   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2, ADR-020 cambia el TOTP
 >   de ADR-018 por llaves de acceso, ADR-021 supersede la topología de ADR-003, ADR-022 retira la
 >   pantalla de cocina de DEC-19, ADR-023 supersede ADR-012, ADR-024 retira el límite de cordura de
 >   ADR-019, ADR-025 concreta el tiempo real de ADR-008 y ADR-026 lleva la impresión al local con un agente,
->   en lugar de la conexión directa del servidor de ADR-015).
+>   en lugar de la conexión directa del servidor de ADR-015, y ADR-027 limita ADR-017 y ADR-010 con una excepción única:
+  la hora real de lo anotado en papel, dentro de la ventana del corte).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -32,7 +33,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.48.0 · 48 de 60 pasos.** **El día del cumpleaños (B10-2, V-10):** con el anticipo cobrado, el día empieza desde la agenda o con el primer invitado: la cuenta del día lleva el saldo y lo incluido (que sale del estante) a la caja; los invitados entran por la entrada solo con su pulsera, sin cobro, hasta los reservados; el saldo se cobra como una mesa y sale en los pendientes del cierre hasta cobrarse. Los eventos quedan completos. La base local del cliente tiene ya las tres migraciones de los cumpleaños (45 de 45, 2026-10-03), y se retiró la impresora falsa de desarrollo: la impresión se prueba con la real del local. **Corrección (v0.47.1):** con Ajustes desplegado, en el menú lateral desplaza solo su lista; la operación, la marca y la persona se quedan a la vista. **Cumpleaños con reserva y anticipo (B10-1, V-10):** administración carga los paquetes en Ajustes → Cumpleaños (precio, invitados, lo que incluyen y el anticipo, 50 % por defecto); Parque → Eventos es la agenda: al reservar, la cuenta del evento lleva el anticipo a la caja, que lo cobra con su venta; cobrado, la reserva está confirmada; sin cobrar, se cancela desde la agenda. Inicio y la apertura del turno avisan «Hoy hay un cumpleaños». El día del evento es B10-2. **Corrección (v0.46.1):** confirmar una tasa tecleándola como se ve (con dos decimales) ya vale; antes el servidor la comparaba con la tasa completa de la API y nunca coincidía. **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+**Versión 0.49.0 · 49 de 60 pasos.** **Lo anotado en papel (B3-7, V-12, [ADR-027](adr/027-hora-real-de-lo-anotado-en-papel.md)):** si caen internet y luz, el local sigue en formularios (se imprimen desde Caja → Papel); al volver, la cajera abre una carga en su turno con la ventana del corte y carga las entradas, las salidas y los cobros (cola de cuentas y ventas de mostrador), cada uno con **la hora real del formulario**, que tiene que caer dentro del corte y con la que salen el tiempo, la tasa, el IVA, el precio y la existencia de entonces; el servidor guarda además cuándo se cargó. La carga terminada la revisa supervisión con su PIN (quien cargó no la revisa) y, mientras haya una abierta o sin revisar, el turno no se sella y la jornada no se cierra. Se distingue en la venta, en el turno, en Inicio y en la auditoría. La caja queda completa. **El día del cumpleaños (B10-2, V-10):** con el anticipo cobrado, el día empieza desde la agenda o con el primer invitado: la cuenta del día lleva el saldo y lo incluido (que sale del estante) a la caja; los invitados entran por la entrada solo con su pulsera, sin cobro, hasta los reservados; el saldo se cobra como una mesa y sale en los pendientes del cierre hasta cobrarse. Los eventos quedan completos. La base local del cliente tiene ya las tres migraciones de los cumpleaños (45 de 45, 2026-10-03), y se retiró la impresora falsa de desarrollo: la impresión se prueba con la real del local. **Corrección (v0.47.1):** con Ajustes desplegado, en el menú lateral desplaza solo su lista; la operación, la marca y la persona se quedan a la vista. **Cumpleaños con reserva y anticipo (B10-1, V-10):** administración carga los paquetes en Ajustes → Cumpleaños (precio, invitados, lo que incluyen y el anticipo, 50 % por defecto); Parque → Eventos es la agenda: al reservar, la cuenta del evento lleva el anticipo a la caja, que lo cobra con su venta; cobrado, la reserva está confirmada; sin cobrar, se cancela desde la agenda. Inicio y la apertura del turno avisan «Hoy hay un cumpleaños». El día del evento es B10-2. **Corrección (v0.46.1):** confirmar una tasa tecleándola como se ve (con dos decimales) ya vale; antes el servidor la comparaba con la tasa completa de la API y nunca coincidía. **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
 Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
 cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
 las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
@@ -105,7 +106,7 @@ número del medio cuenta los pasos entregados.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (81 de base, 461 de aplicación, 13 del worker, 6 del agente; en el dominio, 58 de tasas, 49 de impuestos, 149 de caja, 54 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 107 de identidad)..
+- **Pruebas:** `pnpm verify:db` en verde (92 de base, 495 de aplicación, 13 del worker, 6 del agente; en el dominio, 62 de tasas, 49 de impuestos, 162 de caja, 54 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 110 de identidad; 281 de contratos).
   v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
   prueba.
 
@@ -433,7 +434,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
    patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → ~~B4-6~~ (M-18) → ~~B10-1~~ → ~~B10-2~~ (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
-6. B3-7 (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
+6. ~~B3-7~~ (carga desde papel) → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
    → Etapa 7 (staging) → Etapa 8 (producción, 1.0.0).
 
 Fuera de la cuenta de 60: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -1066,7 +1067,7 @@ Fuera de la cuenta de 60: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   recibo con su línea, las dos excepciones en el turno y en Inicio, y retirar las reglas. Ajustes → Descuentos, el
   diálogo y la caja a 1366×768, 1280×800 y 800×1280 sin desplazar el documento (el PIN a la vista); sin errores de
   consola.*
-- [ ] **B3-7 · Carga de lo anotado en papel** (M-15, V-12; JORNADA §4 y §7).
+- [x] **B3-7 · Carga de lo anotado en papel** (M-15, V-12; JORNADA §4 y §7).
   → Tras un corte de los dos enlaces (ADR-021, N2), la cajera carga en su turno las entradas y los
   cobros anotados, cada uno marcado «desde papel» con la hora real que se anotó: la única hora que
   declara la pantalla, acotada a la ventana del corte y auditada (excepción explícita a ADR-017, con su
@@ -1074,6 +1075,38 @@ Fuera de la cuenta de 60: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   app. Los pendientes del cierre listan lo cargado sin revisar y supervisión lo revisa antes del Z.
   → Lo cargado desde papel se distingue en el turno, en Inicio y en la auditoría; ninguna jornada se
   cierra con cargas sin revisar.
+  *Hecho el 2026-10-05 (v0.49.0, [ADR-027](adr/027-hora-real-de-lo-anotado-en-papel.md)), en `feat/b6-3`:*
+  *· Decisión: la hora real de un registro cargado desde papel es la única hora que declara una pantalla; el servidor la
+  acepta solo dentro de la **ventana del corte** de una carga abierta (desde < hasta, hasta no después de ahora, a lo
+  sumo 24 h, y no más de 24 h antes de abrirse el turno), la comprueba en el dominio, en la transacción y con un
+  disparador, y guarda además cuándo se cargó. Un registro es la operación de siempre con `ahora` igual a esa hora
+  (así salen el tiempo, la tasa, el IVA, el precio y la existencia de entonces); `ahora` no viaja desde la web.*
+  *· Dominio: `@l2/domain-cash` (`papel.ts`): `ventanaProblem`, `horaRealProblem` y los estados de una carga (`ABIERTA →
+  CERRADA → REVISADA`, o `DESCARTADA` si no cargó nada; `bloqueaElCierre`, `sePuedeRevisar`, `estadoAlTerminar`);
+  `@l2/domain-rates`: `localDateTimeOf` e `instantOfLocalDateTime` (la hora del reloj del local ↔ instante). 12 + 4
+  pruebas. Permiso nuevo `papel.revisar` (supervisión y administración) y la superficie `papel`.*
+  *· Contrato (`papel.ts`): `DesdePapel` (carga + hora real, lo único que declara la pantalla), abrir, terminar y revisar la
+  carga, y la carga con sus registros (entrada, salida, cobro). `VentaCerrada.desdePapel`, `ventas.desdePapel` en el
+  corte y el resumen, `papel` en los pendientes del cierre, `papelPorRevisar` en el resumen del día, la excepción
+  `PAPEL` y el tema en vivo `papel`.*
+  *· Base: `20261029000000_carga_desde_papel`: `paper_load` (con su ventana; avanza solo, sin borrar; una abierta por turno;
+  disparadores) y `paper_load_item` (solo-agregar; el disparador exige carga abierta, hora dentro de la ventana y cuenta
+  de la sucursal), las dos con RLS. 11 pruebas.*
+  *· Aplicación: `caja/papel.ts` (`leer`, `abrir`, `terminar`, `revisar` con el PIN propio y sin revisar lo propio, y
+  `entrar`, `salir`, `guardar` y `cobrar` desde papel) y `caja/papel-en.ts` (la puerta que comparten, dentro de la
+  transacción). `parque.entrar`/`salir` y `cuentas.guardar`/`cobrar` aceptan lo anotado (sin contar el aforo; `guardar`
+  solo ventas de mostrador); el corte Z se niega con cargas sin revisar del turno, y los pendientes del cierre, el
+  resumen y las excepciones las cuentan. Auditoría `papel.abrir`, `papel.cerrar` y `papel.revisar`, y las demás con su
+  `desdePapel`. 34 pruebas contra la base (otro local, la monitora, la hora fuera del corte, la tasa de esa hora, el
+  Z, el doble clic).*
+  *· Web: Caja → Papel (`/papel`): abrir la carga, registrar entradas y salidas en hojas laterales, «Cobrar lo anotado»
+  (la misma caja en modo papel: cinta con la hora real, reloj fijo en esa hora, sin caer al cobro de ahora), terminar, y
+  «Por revisar» para supervisión con su PIN. `/formularios-papel`: las dos hojas A4. «Desde papel» en las ventas del
+  turno, el aviso y la cifra en Inicio y los pendientes del cierre.*
+  *· Comprobado en el navegador (Playwright, base de pruebas, datos «Prueba …»): carga con corte de 3:00 a 4:30 pm, entrada
+  a las 3:10, salida a las 3:50, cobro a las 3:12 y venta de mostrador a las 3:30; hora fuera del corte y sin hora
+  rechazadas; la revisión con PIN; las hojas en pantalla y en PDF (2 páginas); a 1366×768, 1280×800 y 800×1280 sin
+  desplazar el documento y sin errores de consola. `pnpm verify:db` en verde.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -1770,6 +1803,10 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El horario de la sucursal se declara pero todavía no decide nada (p. ej., avisar de un turno abierto fuera de hora) | Cuando el cliente lo pida |
 | Las migas del panel dicen «Abby Kingdom» escrito en cada pantalla (Sucursal ya lee el nombre del local) | Al pasar por cada pantalla |
 | El campo de hora del horario lo pinta el navegador en su idioma («10:00 a. m.») aunque el local use 24 h | Aceptado |
+| La carga desde papel no abre pedidos ni cuentas de mesa: lo anotado de una mesa se carga cuando su cuenta ya existe (solo su cobro). Entradas, salidas, cobros y ventas de mostrador sí | Si el cliente anota las mesas en papel (V-12 pide «entrada y cobro») |
+| Lo cargado desde papel usa el tarifario y el catálogo publicados al cargar, no los de la hora real (no se versionan por fecha): un corte que cruce un cambio de precios cobra el nuevo | Aceptado (ADR-027); supervisión lo ve al revisar |
+| Quien cargó no revisa su propia carga: con una sola persona de supervisión que también cobra, la revisa administración | **A confirmar con el cliente** |
+| Las horas del formulario se escriben con el campo de fecha y hora del navegador, en su idioma (como el horario, arriba) | Aceptado |
 
 **Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-10-02 (`src/demo` ya no existe). Cada fila sale de
 aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
@@ -1835,7 +1872,7 @@ aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
 | F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | **En el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables y descuentos | Carga desde papel (B3-7) |
+| F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables, descuentos y carga de lo anotado en papel | — |
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
 | F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
@@ -2007,6 +2044,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   `pnpm verify:db` en verde (81 y 461). Siguen B3-7 → T-2 → T-4 y la Etapa 7.
 - **2026-10-03** · Handoff: base local migrada (45 de 45, las tres de los cumpleaños), fuera la impresora falsa y
   los README al día; rama y etiquetas hasta v0.48.0 subidas a GitHub.
+- **2026-10-05** · B3-7 hecho (v0.49.0, ADR-027): carga de lo anotado en papel con la hora real dentro de la ventana
+  del corte, revisión de supervisión con PIN antes del Z, formularios impresos y la marca «desde papel». La Etapa 3
+  queda cerrada. `pnpm verify:db` en verde (92 y 495). Siguen T-2 → T-4 y la Etapa 7. **La base local del cliente
+  necesita `pnpm db:migrar` (migración 46 de 46) antes de abrir la web con este código.**
 
 ---
 

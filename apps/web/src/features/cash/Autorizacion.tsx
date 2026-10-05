@@ -23,6 +23,7 @@ export type AccionConPin =
   | "cuenta.incobrable"
   | "cuenta.descuento"
   | "turno.corteZ"
+  | "papel.revisar"
   | "inventario.ajustar"
   | "pedido.anularEnProduccion";
 const PIN_LONGITUD = 4;

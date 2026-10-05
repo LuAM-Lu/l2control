@@ -5,12 +5,42 @@ Qué cambia en cada versión, para quien usa el sistema. Formato de
 según M-10 (docs/MAESTRO.md §2):
 
 - **MINOR** +1 por cada paso de la ruta a producción entregado: el número del medio dice cuántos van
-  (de 48). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
+  (de 60). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
 - La fuente es `version` del `package.json` raíz, con su etapa en `l2.etapa`. `pnpm verify` falla si
   este archivo no abre con esa versión. Cada versión lleva su etiqueta git `vX.Y.Z`.
 
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
+
+## [0.49.0] — 2026-10-05 · Etapa 3 · Caja
+
+B3-7 (V-12, ADR-027): la carga de lo anotado en papel.
+
+### Añadido
+- **Carga desde papel.** Si caen internet y luz, el local sigue en formularios; al volver, la cajera abre en Caja →
+  Papel una carga con la ventana del corte (desde cuándo hasta cuándo) y va cargando lo anotado: **entradas**
+  (familia, niños con su pulsera y paquete), **salidas** (con su tiempo de más) y **cobros**, en la caja de siempre
+  (cola de cuentas, ventas de mostrador, cobro mixto). Cada registro lleva **la hora real que se anotó**: con ella el
+  tiempo de un niño, la tasa, el IVA, el precio y la existencia salen como entonces. La hora tiene que caer dentro del
+  corte declarado, y el sistema guarda además cuándo se cargó. No se cuenta el aforo a lo que ya ocurrió.
+- **Formularios impresos desde la app** (`Imprimir los formularios`): dos hojas A4, entradas y cobros, para guardar
+  junto a la caja.
+- **Supervisión lo revisa antes del Z.** La carga terminada espera en «Por revisar»: supervisión (o administración) la
+  compara con las hojas y la da por revisada con su PIN; quien cargó no revisa su propia carga. Mientras haya una
+  abierta o sin revisar, el turno no se sella (ni el relevo ni la jornada) y sale en los pendientes del cierre.
+- **Se distingue.** Una venta cargada desde papel dice «Desde papel» en el turno, con su hora real y cuándo se cargó;
+  Inicio avisa de las cargas por revisar y cuenta las ventas que vienen del papel; el turno, el día y el ticket del
+  corte las dejan como una excepción (con quién la revisó); la auditoría lleva las dos horas.
+
+### Cambiado
+- Un permiso nuevo, «Revisar lo cargado desde papel» (supervisión y administración), ajustable por rol.
+
+### Comprobado
+- `pnpm verify:db` en verde. En el navegador, con la base de pruebas: una carga con corte de 3:00 a 4:30 pm, una
+  entrada a las 3:10, su salida a las 3:50, el cobro a las 3:12 y una venta de mostrador a las 3:30; una hora fuera
+  del corte rechazada, la caja de papel sin hora rechazada por el servidor, la revisión de supervisión con PIN, el
+  aviso en Inicio, la marca en el turno y la lista de pendientes del cierre; las hojas en pantalla y en PDF; a
+  1366×768, 1280×800 y 800×1280 sin desplazar el documento.
 
 ## [0.48.0] — 2026-10-03 · Etapa 6 · Restaurante en el servidor
 

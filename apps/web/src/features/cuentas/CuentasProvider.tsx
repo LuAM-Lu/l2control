@@ -9,6 +9,7 @@ import {
   type AplicarDescuentoCommand,
   type CortesiaCommand,
   type CuentaYLibroDto,
+  type DesdePapel,
   type FamilyAccountDto,
   type Rechazo,
   type Resultado,
@@ -43,11 +44,14 @@ type Valor = Readonly<{
    * Crea o cambia una cuenta: se ve al momento y el servidor la confirma. Lanza si la cuenta no
    * cumple el contrato (un error de la pantalla, no del servidor); un rechazo lo avisa y lo devuelve.
    */
-  guardar: (cuenta: FamilyAccountDto) => Promise<Resultado<FamilyAccountDto>>;
+  guardar: (cuenta: FamilyAccountDto, desdePapel?: DesdePapel) => Promise<Resultado<FamilyAccountDto>>;
   /** Descarta una venta de mostrador sin cobrar. Cualquier otra cuenta se queda: fail-closed. */
   descartar: (id: string) => void;
-  /** Cobra en el servidor y adopta la cuenta como quedó. */
-  cobrar: (cmd: CobrarCuentaCommand) => Promise<Resultado<CuentaYLibroDto>>;
+  /**
+   * Cobra en el servidor y adopta la cuenta como quedó. `desdePapel` (B3-7): el cobro anotado en el
+   * formulario, con su carga y su hora real; sin él, el cobro es de ahora.
+   */
+  cobrar: (cmd: CobrarCuentaCommand, desdePapel?: DesdePapel) => Promise<Resultado<CuentaYLibroDto>>;
   /** Anula un cobro en el servidor (🔐 comprobado allí) y adopta la cuenta como quedó. */
   anular: (cmd: AnularCobroCommand, autorizacion?: unknown) => Promise<Resultado<CuentaYLibroDto>>;
   /** Regala una línea (o deja de regalarla) en el servidor, con su autorización, y adopta la cuenta. */
@@ -129,13 +133,13 @@ export function CuentasProvider({ inicial, children }: { inicial: readonly Famil
   }, []);
 
   const guardar = useCallback(
-    (cuenta: FamilyAccountDto) => {
+    (cuenta: FamilyAccountDto, desdePapel?: DesdePapel) => {
       const valida = FamilyAccountSchema.parse(cuenta);
       setCuentas((prev) => conCuenta(prev, valida));
       return enCola(valida.id, async (): Promise<Resultado<FamilyAccountDto>> => {
         const version = versionPara(valida.id, valida.version);
         const { version: _, ...sinVersion } = valida;
-        const r = await guardarCuenta({ cuenta: version === undefined ? sinVersion : { ...valida, version } }).catch(() => sinConexion);
+        const r = await guardarCuenta({ cuenta: version === undefined ? sinVersion : { ...valida, version } }, desdePapel).catch(() => sinConexion);
         if (r.ok) {
           encadenar(valida.id, valida.version, r.valor.version);
           encadenar(valida.id, version, r.valor.version);
@@ -168,10 +172,10 @@ export function CuentasProvider({ inicial, children }: { inicial: readonly Famil
   );
 
   const cobrar = useCallback(
-    (cmd: CobrarCuentaCommand) =>
+    (cmd: CobrarCuentaCommand, desdePapel?: DesdePapel) =>
       // Detrás de los cambios de esa cuenta que van en camino: se cobra la versión que quedó.
       enCola(cmd.accountId, async (): Promise<Resultado<CuentaYLibroDto>> => {
-        const r = await cobrarCuenta({ ...cmd, version: versionPara(cmd.accountId, cmd.version) ?? cmd.version }).catch(() => sinConexion);
+        const r = await cobrarCuenta({ ...cmd, version: versionPara(cmd.accountId, cmd.version) ?? cmd.version }, desdePapel).catch(() => sinConexion);
         if (r.ok) setCuentas((prev) => conCuenta(prev, r.valor.cuenta));
         else if (r.motivo === "CONFLICTO") void refrescar();
         return r;

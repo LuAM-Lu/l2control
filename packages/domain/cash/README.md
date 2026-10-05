@@ -89,6 +89,15 @@ dividir y descontando algo); `exceedsSupervisionCap` y `needsAdministration`, qu
 `discountAtChargeProblem`, si se puede cobrar con él (toda la cuenta por su medio, su regla vigente, el tope). Uno
 por cuenta: `withDiscount` sustituye al anterior, y `markPaid` lo consume (queda en la venta).
 
+## La carga de lo anotado en papel (B3-7, V-12, ADR-027)
+
+`papel.ts`: las reglas de una carga, sin reloj (el instante entra como argumento). `ventanaProblem` dice si la ventana
+del corte que declara la cajera sirve (empieza antes de terminar, no termina después de ahora, dura a lo sumo 24 horas
+y no empieza más de 24 horas antes de abrirse su turno) y `horaRealProblem`, si la hora de un registro cae dentro de
+ella y no es posterior a la carga. Una carga avanza `ABIERTA → CERRADA → REVISADA` (o `DESCARTADA` si no cargó nada):
+`bloqueaElCierre` dice que abierta o sin revisar impide sellar el turno, `sePuedeRevisar` que solo se revisa lo ya
+terminado y `estadoAlTerminar`, en qué queda al terminar.
+
 ## Qué NO le corresponde
 
 - **Los impuestos.** El total que recibe ya viene con IVA de `@l2/domain-tax`. El IGTF se

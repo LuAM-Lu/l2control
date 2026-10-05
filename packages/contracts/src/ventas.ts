@@ -15,6 +15,7 @@
 import { z } from "zod";
 import { AccountKindSchema, MotivoCortesiaSchema } from "./account.ts";
 import { DescuentoDeVentaSchema } from "./descuentos.ts";
+import { MarcaDePapelSchema } from "./papel.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 const Texto = (max: number) => z.string().max(max);
@@ -167,6 +168,12 @@ export const VentaCerradaSchema = z
     sobra: z.object({ amount: MoneySchema, destino: DestinoSobraSchema }).nullable(),
     prints: z.array(ImpresionSchema),
     voided: AnulacionSchema.nullable(),
+    /**
+     * Si el cobro se cargó desde papel (B3-7, ADR-027): de qué carga es y cuándo se cargó. `closedAt` es
+     * entonces la hora real que se anotó en el formulario. Las ventas de antes, y las que no vienen del
+     * papel, no lo traen.
+     */
+    desdePapel: MarcaDePapelSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
     const a = v.voided;

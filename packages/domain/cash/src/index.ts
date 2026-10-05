@@ -533,3 +533,4 @@ export * from "./medios.ts";
 export * from "./cuenta.ts";
 export * from "./corte.ts";
 export * from "./descuento.ts";
+export * from "./papel.ts";

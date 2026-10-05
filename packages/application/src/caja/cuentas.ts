@@ -123,6 +123,7 @@ import { encolarEn } from "../impresion/impresion.ts";
 import { documentoDeAnulacion } from "../impresion/plantillas.ts";
 import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
 import { mesaParaCuentaNueva } from "../restaurante/plano.ts";
+import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "./papel-en.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
 const FUNCIONAL: CurrencyCode = "USD";
@@ -133,10 +134,17 @@ const MEDIO_DE_LO_QUE_SOBRA = "EFECTIVO_USD";
 export interface CasosCuentas {
   /** Las cuentas de la sucursal: las que no están cobradas y las cobradas hoy, en su última versión. */
   leer(ctx: Contexto, ahora?: number): Promise<Resultado<CuentasDelLocalDto>>;
-  /** Abre o cambia una cuenta (`GuardarCuentaCommandSchema`). Devuelve cómo quedó. */
-  guardar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
-  /** Cobra una cuenta, o una parte si está dividida, contra el libro (`CobrarCuentaCommandSchema`). */
-  cobrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CuentaYLibroDto>>;
+  /**
+   * Abre o cambia una cuenta (`GuardarCuentaCommandSchema`). Devuelve cómo quedó. `papel` solo lo pasa
+   * `casosPapel` (B3-7, ADR-027): una venta de mostrador anotada en el formulario, con su hora real en `ahora`.
+   */
+  guardar(ctx: Contexto, entrada: unknown, ahora?: number, papel?: EnPapel): Promise<Resultado<FamilyAccountDto>>;
+  /**
+   * Cobra una cuenta, o una parte si está dividida, contra el libro (`CobrarCuentaCommandSchema`). `papel`,
+   * como en `guardar`: el cobro anotado en el formulario, con su hora real en `ahora` (la tasa, el IVA y el
+   * precio salen como entonces).
+   */
+  cobrar(ctx: Contexto, entrada: unknown, ahora?: number, papel?: EnPapel): Promise<Resultado<CuentaYLibroDto>>;
   /**
    * Anula un cobro (`AnularCobroCommandSchema`): revierte sus asientos y devuelve lo que pagó a la
    * cola. `autorizacion` es la del 🔐 cuando quien lo pide no puede anular por sí mismo.
@@ -270,7 +278,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       return { ok: true, valor: r };
     },
 
-    async guardar(ctx, entrada, ahora = Date.now()) {
+    async guardar(ctx, entrada, ahora = Date.now(), papel) {
       const v = GuardarCuentaCommandSchema.safeParse(entrada);
       if (!v.success) {
         return { ok: false, motivo: "INVALIDO", mensaje: "La cuenta no se guardó: hay datos que corregir.", problemas: problemasDe(v.error) };
@@ -280,6 +288,14 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       const intentar = () =>
         base.conTenant(ctx.tenantId, async (tx): Promise<FamilyAccountDto | Rechazo> => {
           if (!(await puedeAlguna(tx, ctx, GUARDAN[enviada.kind], "PERMITIDO"))) return rechazoDePermiso("DENEGADO");
+
+          // Desde papel (ADR-027): la carga abierta de este turno, y la hora real dentro de su ventana. Solo
+          // las ventas de mostrador nacen así: lo demás (familias, mesas, cumpleaños) ya existe en el sistema.
+          const carga = papel ? await cargaParaRegistrar(tx, ctx, papel, ahora) : null;
+          if (carga && "ok" in carga) return carga;
+          if (carga && enviada.kind !== "MOSTRADOR") {
+            return invalido("Desde papel solo se cargan las ventas de mostrador.", ["cuenta", "kind"], "PAPEL_SOLO_MOSTRADOR");
+          }
 
           const fila = await tx.account.findUnique({ where: { id: enviada.id }, select: { branchId: true } });
           if (fila && fila.branchId !== ctx.branchId) {
@@ -356,7 +372,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             entityType: "account",
             entityId: cuenta.id,
             ...(antes ? { before: resumenDe(antes) } : {}),
-            after: resumenDe(cuenta),
+            after: { ...resumenDe(cuenta), ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}) },
           });
           return cuenta;
         });
@@ -377,7 +393,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
       }
     },
 
-    async cobrar(ctx, entrada, ahora = Date.now()) {
+    async cobrar(ctx, entrada, ahora = Date.now(), papel) {
       const v = CobrarCuentaCommandSchema.safeParse(entrada);
       if (!v.success) {
         return { ok: false, motivo: "INVALIDO", mensaje: "El cobro no se cerró: hay datos que corregir.", problemas: problemasDe(v.error) };
@@ -397,6 +413,11 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             if (previa.accountId !== cmd.accountId || previa.cause !== "COBRO") return conflictoDeClave;
             return cuentaYLibro(tx, cmd.accountId, cmd.idempotencyKey, cifrador);
           }
+
+          // Desde papel (ADR-027): la carga abierta de este turno, y la hora real dentro de su ventana. La tasa
+          // citada, el IVA y los precios se miran en esa hora, no en la de hoy.
+          const carga = papel ? await cargaParaRegistrar(tx, ctx, papel, ahora) : null;
+          if (carga && "ok" in carga) return carga;
 
           const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
           if (!fila || fila.branchId !== ctx.branchId) return noExiste;
@@ -592,6 +613,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               igtf: { minor: String(igtfTotal.amount), currency: FUNCIONAL },
               descuento: cuenta.descuento ? { nombre: cuenta.descuento.nombre, importe: { minor: String(doc.discountTotal.amount), currency: FUNCIONAL } } : null,
               sobra: { minor: String(sobra.amount), currency: FUNCIONAL, destino: sobra.amount > 0n ? cmd.destinoSobra : null },
+              ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
             },
           });
 
@@ -643,6 +665,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               referencia: filas[i] ? referenciaDe(filas[i]!, cifrador) : null,
             })),
             sobra: sobra.amount > 0n ? { amount: conDinero(sobra), destino: cmd.destinoSobra } : null,
+            // Cargada desde papel: `closedAt` es la hora real anotada, y esto dice de qué carga y cuándo se cargó (B3-7).
+            ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
           };
           await tx.sale.create({
             data: {
@@ -662,6 +686,21 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               content: venta,
             },
           });
+          if (carga && papel) {
+            await asentarRegistroEn(tx, ctx, carga, papel, {
+              tipo: "COBRO",
+              accountId: cuenta.id,
+              operationKey: cmd.idempotencyKey,
+              ocurrioEn: ahora,
+              quien: quien.nombre,
+              detalle: {
+                orden: cuenta.orderNumber!,
+                familia: cuenta.family,
+                total: conDinero(aCobrar),
+                pagos: venta.payments.map((p) => ({ medio: p.label, monto: p.paid })),
+              },
+            });
+          }
           return cuentaYLibro(tx, cmd.accountId, cmd.idempotencyKey, cifrador);
         });
 

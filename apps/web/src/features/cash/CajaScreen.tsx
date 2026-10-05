@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgePercent,
   Banknote,
@@ -136,6 +136,7 @@ import { useSala } from "../park/SalaProvider.tsx";
 import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useTasaVigente } from "./TasasProvider.tsx";
 import { formatTasaVE } from "./tasa-format.ts";
+import { useModoPapel } from "../papel/ModoPapel.tsx";
 
 /** USDT → USD a la par (DEC-1: cuestión abierta con el contador). */
 const PARIDAD_USDT: FrozenRate = {
@@ -573,6 +574,8 @@ function CobroCuenta({
   }
 
   const { cobrar: cobrarEnServidor } = useCuentas();
+  // Cargando lo anotado en papel (B3-7): el cobro lleva su carga y la hora real del formulario.
+  const modoPapel = useModoPapel();
   const [enviando, setEnviando] = useState(false);
   /** La clave del intento en curso: un reintento de lo mismo (se cayó la red) no cobra dos veces. */
   const intento = useRef<{ huella: string; clave: string } | null>(null);
@@ -625,13 +628,15 @@ function CobroCuenta({
     if (intento.current?.huella !== huella) intento.current = { huella, clave: globalThis.crypto.randomUUID() };
     const clave = intento.current.clave;
     setEnviando(true);
-    const r = await cobrarEnServidor({ idempotencyKey: clave, ...cuerpo, ...(cliente.kind === "IDENTIFICADO" ? { cliente } : {}) });
+    const r = await cobrarEnServidor({ idempotencyKey: clave, ...cuerpo, ...(cliente.kind === "IDENTIFICADO" ? { cliente } : {}) }, modoPapel?.desdePapel());
     setEnviando(false);
     if (!r.ok) {
       setError(r.mensaje);
       return;
     }
     intento.current = null;
+    // El siguiente cobro del papel trae su propia hora: la de este no se arrastra.
+    modoPapel?.limpiarHora();
     onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(cambio), cliente, venta: r.valor.venta, cuenta: r.valor.cuenta });
     setPagos([]);
   }
@@ -1934,7 +1939,14 @@ export function CajaScreen({
   // faltan sus datos—, la caja lo dice. Antes entraba en el cobro y se caía al
   // buscar el primer medio de una lista vacía.
   const mediosDisponibles = useMediosActivos();
-  const { cuentas, guardar, descartar, cargado } = useCuentas();
+  const { cuentas, guardar: guardarEnProvider, descartar, cargado } = useCuentas();
+  // Cargando lo anotado en papel (B3-7): una venta de mostrador nace con la hora real del formulario; lo demás
+  // (dividir una cuenta de familia, p. ej.) es de ahora.
+  const modoPapel = useModoPapel();
+  const guardar = useCallback(
+    (cuenta: FamilyAccountDto) => guardarEnProvider(cuenta, modoPapel && cuenta.kind === "MOSTRADOR" ? modoPapel.desdePapel() : undefined),
+    [guardarEnProvider, modoPapel],
+  );
   const op = useOperacion();
   const { sala } = useSala();
   const router = useRouter();
@@ -2929,6 +2941,31 @@ function SinMediosDePago() {
 }
 
 function SinCuentas() {
+  // Cargando lo anotado en papel (B3-7): las cuentas por cobrar nacen de las entradas que se cargan, no de la
+  // entrada de ahora. Se vuelve a la carga, no a una pantalla que registraría a la hora de hoy.
+  const modoPapel = useModoPapel();
+  if (modoPapel) {
+    return (
+      <section
+        className={cn(
+          "flex min-h-[16rem] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/50 px-6 py-10 text-center",
+          PLACEMENT_SIN_CUENTAS,
+        )}
+      >
+        <CircleCheckBig size={32} className="text-state-ok" aria-hidden="true" />
+        <p className="font-display text-xl font-bold text-ink">Nada por cobrar</p>
+        <p className="max-w-sm text-[14px] leading-relaxed text-ink-2">
+          Las cuentas por cobrar del papel salen de las entradas que cargas. Si falta una, cárgala primero; si es una venta de mostrador, usa «Venta directa».
+        </p>
+        <Link
+          href="/papel"
+          className="mt-2 flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
+        >
+          Volver a la carga
+        </Link>
+      </section>
+    );
+  }
   return (
     <section
       className={cn(

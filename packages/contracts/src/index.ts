@@ -618,3 +618,28 @@ export {
   type ReservaEventoDto,
   type ReservarEventoCommand,
 } from "./reservas.ts";
+
+export {
+  AbrirCargaCommandSchema,
+  CargaDePapelSchema,
+  CargaPendienteSchema,
+  CargasDePapelSchema,
+  DesdePapelSchema,
+  EstadoDeCargaSchema,
+  MarcaDePapelSchema,
+  RegistroDePapelSchema,
+  RevisarCargaCommandSchema,
+  TerminarCargaCommandSchema,
+  TipoDeRegistroSchema,
+  type AbrirCargaCommand,
+  type CargaDePapelDto,
+  type CargaPendienteDto,
+  type CargasDePapelDto,
+  type DesdePapel,
+  type EstadoDeCargaDto,
+  type MarcaDePapelDto,
+  type RegistroDePapelDto,
+  type RevisarCargaCommand,
+  type TerminarCargaCommand,
+  type TipoDeRegistro,
+} from "./papel.ts";

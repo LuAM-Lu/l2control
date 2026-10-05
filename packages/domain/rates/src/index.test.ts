@@ -23,6 +23,8 @@ import {
   coversDay,
   holidayProblem,
   startOfDay,
+  localDateTimeOf,
+  instantOfLocalDateTime,
   currenciesOf,
   currentRate,
   rateOfDay,
@@ -331,6 +333,40 @@ describe("el comienzo del día en la zona del local", () => {
   test("con horario de verano mide el desfase de ese día (Madrid: +2 en verano, +1 en invierno)", () => {
     assert.equal(new Date(startOfDay("2026-07-01", "Europe/Madrid")).toISOString(), "2026-06-30T22:00:00.000Z");
     assert.equal(new Date(startOfDay("2026-12-01", "Europe/Madrid")).toISOString(), "2026-11-30T23:00:00.000Z");
+  });
+});
+
+describe("la hora del reloj del local (B3-7, lo anotado en papel)", () => {
+  const caracas = "America/Caracas";
+
+  test("de un instante al texto de un campo de fecha y hora, en la zona del local", () => {
+    // 18:14 UTC son las 2:14 pm en Caracas.
+    assert.equal(localDateTimeOf(Date.parse("2026-09-27T18:14:00.000Z"), caracas), "2026-09-27T14:14");
+    // La medianoche del local es la hora 00, no la 24, y cambia de día con ella.
+    assert.equal(localDateTimeOf(Date.parse("2026-09-28T04:00:00.000Z"), caracas), "2026-09-28T00:00");
+    assert.equal(localDateTimeOf(Date.parse("2026-09-28T03:59:00.000Z"), caracas), "2026-09-27T23:59");
+  });
+
+  test("del texto al instante: se lee como la hora del local, no la del aparato", () => {
+    assert.equal(new Date(instantOfLocalDateTime("2026-09-27T14:14", caracas)!).toISOString(), "2026-09-27T18:14:00.000Z");
+    assert.equal(new Date(instantOfLocalDateTime("2026-09-27T00:00", caracas)!).toISOString(), "2026-09-27T04:00:00.000Z");
+    assert.equal(new Date(instantOfLocalDateTime("2026-09-27T23:59", caracas)!).toISOString(), "2026-09-28T03:59:00.000Z");
+  });
+
+  test("ida y vuelta, con y sin horario de verano", () => {
+    for (const [zona, texto] of [
+      [caracas, "2026-10-05T08:05"],
+      ["Europe/Madrid", "2026-07-01T09:30"],
+      ["Europe/Madrid", "2026-12-01T09:30"],
+    ] as const) {
+      assert.equal(localDateTimeOf(instantOfLocalDateTime(texto, zona)!, zona), texto, `${zona} ${texto}`);
+    }
+  });
+
+  test("lo que no es una hora no es un instante", () => {
+    for (const malo of ["", "14:14", "2026-09-27 14:14", "2026-09-27T24:00", "2026-09-27T14:60", "2026-02-31T10:00", "27/09/2026 2:14 pm"]) {
+      assert.equal(instantOfLocalDateTime(malo, caracas), null, malo);
+    }
   });
 });
 
