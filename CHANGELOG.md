@@ -14,7 +14,9 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.51.1] — 2026-10-06 · Preparación del staging
+
+Corrección entre pasos: el contraste de los avisos y sus iconos.
 
 ### Corregido
 - **Los avisos y lo seleccionado ya no parecen botones hundidos.** Los fondos verde, amarillo y rojo de avisos,
@@ -23,6 +25,12 @@ al commit que entregó cada paso.
   «Soy de administración») lleva un relleno dorado más visible. El rojo de errores y bloqueos es un tono más
   claro, que se lee mejor sobre el fondo oscuro, y el botón de peligro lleva el texto oscuro. Ningún color
   cambia de significado.
+
+### Añadido
+- **Los iconos de los avisos se mueven para encontrarlos de un vistazo.** El de un aviso rojo (sin tasa, agotados,
+  un bloqueo) crece, se sacude y suelta un destello cada pocos segundos mientras el aviso siga ahí. El de uno
+  amarillo se balancea tres veces al aparecer y se queda quieto. Lo verde no se mueve. Con «reducir movimiento»
+  activado en el equipo, ninguno se anima.
 
 ## [0.51.0] — 2026-10-06 · Preparación del staging
 
