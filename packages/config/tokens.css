@@ -429,3 +429,96 @@ html:has(dialog[open]) { overflow: hidden; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================================
+   TEMA CLARO («azul claro»), por equipo. Inspirado en «Light Blue» de L2Lab: fondo
+   azul muy claro, tarjetas blancas, azul de marca y texto azul marino. El servidor
+   pone `data-tema` en <html> según la cookie del equipo. Es el tema PREDETERMINADO: un equipo
+   que nunca eligió sale en claro; el oscuro (los tokens de arriba) queda como opción.
+
+   Solo cambia tokens: ninguna pantalla sabe en qué tema está. Los colores de estado
+   siguen significando lo mismo; en claro son tonos oscuros (700) para que el texto
+   se lea sobre blanco. Contrastes medidos: texto 17,9 · 10,4 · 6,0 a 1; marca 5,2;
+   ok 5,5 · warn 5,0 · crit 6,5 sobre tarjeta.
+   ========================================================================= */
+html[data-tema="claro"] {
+  color-scheme: light;
+  --color-base: #f0f8ff;
+  --color-surface: #ffffff;
+  --color-surface-2: #e8f1fd;
+  --color-line: #d5e0ef;
+  --color-line-strong: #b4c5dc;
+  --color-ink: #0f172a;
+  --color-ink-2: #334155;
+  --color-ink-3: #55647a;
+  /* Azul 600 y no el 500 de L2Lab: con texto blanco encima, el 500 se queda en 3,7:1. */
+  --color-brand: #2563eb;
+  --color-brand-2: #1d4ed8;
+  --color-on-brand: #ffffff;
+  --color-state-ok: #047857;
+  --color-state-warn: #b45309;
+  --color-state-crit: #b91c1c;
+  --color-state-idle: #64748b;
+  --color-state-ok-bg: #d1fae5;
+  --color-state-idle-bg: #eef2f7;
+  /* Rojo y amarillo van SÓLIDOS en este tema (pedido del usuario, para ver cómo se comportan):
+     el aviso es un bloque de color, no un tinte. Ver el bloque siguiente. */
+  /* El amarillo sólido es el amarillo clásico del sistema (#eab308, el de la marca en oscuro), con
+     la letra OSCURA: azul marino sobre él da 9,3:1. La letra blanca, que sí va en el rojo, aquí se
+     queda en 1,9:1 y no se lee; con blanco haría falta un naranja tostado (#b85a06, 4,7:1). */
+  --color-state-warn-bg: #eab308;
+  --color-state-crit-bg: #dc2626;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.05), 0 6px 18px -10px rgb(30 64 175 / 0.14);
+  --shadow-lift: 0 2px 6px rgb(15 23 42 / 0.07), 0 14px 30px -14px rgb(30 64 175 / 0.22);
+  --shadow-bar: 0 1px 0 rgb(15 23 42 / 0.06), 0 6px 18px -12px rgb(30 64 175 / 0.16);
+}
+
+/* Un AVISO es sólido; un TINTE DE ZONA, no. Las pantallas escriben `bg-state-crit-bg` (o con
+   opacidad /40 en adelante) para un aviso, un distintivo o una tarjeta en ese estado, y con
+   opacidad baja (/25, /35) para teñir una zona entera: la barra de la estación, una fila
+   resaltada. En sólido, una barra de lado a lado sería una pared de color; esas se quedan en
+   pastel, con su texto oscuro de siempre.
+
+   Dentro de un aviso sólido, los tokens se redefinen para lo que contiene: las pantallas siguen
+   escribiendo `text-state-crit`, `text-ink` o `bg-surface`, y ahí dentro valen lo que se lee sobre
+   ese color (blanco sobre el rojo, 4,8:1; azul marino sobre el amarillo, 9,3:1). */
+html[data-tema="claro"] :is([class~="bg-state-crit-bg"], [class^="bg-state-crit-bg/4"], [class*=" bg-state-crit-bg/4"], [class^="bg-state-crit-bg/5"], [class*=" bg-state-crit-bg/5"], [class^="bg-state-crit-bg/6"], [class*=" bg-state-crit-bg/6"], [class^="bg-state-crit-bg/7"], [class*=" bg-state-crit-bg/7"], [class^="bg-state-crit-bg/8"], [class*=" bg-state-crit-bg/8"], [class^="bg-state-crit-bg/9"], [class*=" bg-state-crit-bg/9"]) {
+  background-color: var(--color-state-crit-bg) !important;
+  /* Sin contorno: el borde de un aviso usa el color de su texto, que aquí dentro es oscuro o
+     blanco y dibujaría un marco. En sólido, el bloque de color ya es el límite. */
+  border-color: var(--color-state-crit-bg) !important;
+  --color-state-crit: #ffffff;
+  --color-ink: #ffffff;
+  --color-ink-2: #ffffff;
+  --color-ink-3: #fff1f2;
+  --color-surface: #991b1b;
+  --color-surface-2: #7f1d1d;
+  --color-line: #fca5a5;
+}
+/* La marca solo cambia para lo de DENTRO (una barra de progreso, un enlace): el anillo de
+   «seleccionado» lo dibuja el propio bloque hacia fuera y tiene que seguir viéndose sobre la página. */
+html[data-tema="claro"] :is([class~="bg-state-crit-bg"], [class^="bg-state-crit-bg/4"], [class*=" bg-state-crit-bg/4"], [class^="bg-state-crit-bg/5"], [class*=" bg-state-crit-bg/5"], [class^="bg-state-crit-bg/6"], [class*=" bg-state-crit-bg/6"], [class^="bg-state-crit-bg/7"], [class*=" bg-state-crit-bg/7"], [class^="bg-state-crit-bg/8"], [class*=" bg-state-crit-bg/8"], [class^="bg-state-crit-bg/9"], [class*=" bg-state-crit-bg/9"]) > * {
+  --color-brand: #ffffff;
+  --color-on-brand: #b91c1c;
+}
+html[data-tema="claro"] :is([class~="bg-state-warn-bg"], [class^="bg-state-warn-bg/4"], [class*=" bg-state-warn-bg/4"], [class^="bg-state-warn-bg/5"], [class*=" bg-state-warn-bg/5"], [class^="bg-state-warn-bg/6"], [class*=" bg-state-warn-bg/6"], [class^="bg-state-warn-bg/7"], [class*=" bg-state-warn-bg/7"], [class^="bg-state-warn-bg/8"], [class*=" bg-state-warn-bg/8"], [class^="bg-state-warn-bg/9"], [class*=" bg-state-warn-bg/9"]) {
+  background-color: var(--color-state-warn-bg) !important;
+  /* Sin contorno: el borde de un aviso usa el color de su texto, que aquí dentro es oscuro o
+     blanco y dibujaría un marco. En sólido, el bloque de color ya es el límite. */
+  border-color: var(--color-state-warn-bg) !important;
+  --color-state-warn: #0f172a;
+  --color-ink: #0f172a;
+  --color-ink-2: #1e293b;
+  --color-ink-3: #334155;
+  --color-surface: #fef08a;
+  --color-surface-2: #fde047;
+  --color-line: #a16207;
+}
+/* La marca solo cambia para lo de DENTRO (una barra de progreso, un enlace): el anillo de
+   «seleccionado» lo dibuja el propio bloque hacia fuera y tiene que seguir viéndose sobre la página. */
+html[data-tema="claro"] :is([class~="bg-state-warn-bg"], [class^="bg-state-warn-bg/4"], [class*=" bg-state-warn-bg/4"], [class^="bg-state-warn-bg/5"], [class*=" bg-state-warn-bg/5"], [class^="bg-state-warn-bg/6"], [class*=" bg-state-warn-bg/6"], [class^="bg-state-warn-bg/7"], [class*=" bg-state-warn-bg/7"], [class^="bg-state-warn-bg/8"], [class*=" bg-state-warn-bg/8"], [class^="bg-state-warn-bg/9"], [class*=" bg-state-warn-bg/9"]) > * {
+  --color-brand: #0f172a;
+  --color-on-brand: #eab308;
+}
+html[data-tema="claro"] :is([class^="bg-state-crit-bg/1"], [class*=" bg-state-crit-bg/1"], [class^="bg-state-crit-bg/2"], [class*=" bg-state-crit-bg/2"], [class^="bg-state-crit-bg/3"], [class*=" bg-state-crit-bg/3"]) { background-color: #fee2e2 !important; }
+html[data-tema="claro"] :is([class^="bg-state-warn-bg/1"], [class*=" bg-state-warn-bg/1"], [class^="bg-state-warn-bg/2"], [class*=" bg-state-warn-bg/2"], [class^="bg-state-warn-bg/3"], [class*=" bg-state-warn-bg/3"]) { background-color: #fef3c7 !important; }

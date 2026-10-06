@@ -19,6 +19,7 @@ import { aprobarEsteEquipo, desafioParaAprobarEsteEquipo, entrar, renovarSolicit
 import { CamposDeIdentidad, useSegundoFactor } from "./SegundoFactor";
 import { puestoDe, sinPantalla } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
+import { BotonTema } from "../shell/BotonTema.tsx";
 import { RotuloVersion } from "../shell/RotuloVersion.tsx";
 import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -518,6 +519,7 @@ function PanelMarca({ estado, extra }: { estado: ReactNode; extra?: ReactNode })
       <div className="relative flex flex-wrap items-center gap-3">
         {estado}
         {extra}
+        <BotonTema />
         <RotuloVersion className="basis-full" />
       </div>
     </section>
