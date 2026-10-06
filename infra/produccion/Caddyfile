@@ -1,0 +1,26 @@
+# La puerta de L2 Control en el servidor (T-8a). Caddy saca y renueva solo el certificado de
+# Let's Encrypt para L2_DOMINIO; sin dominio comprado (M-22), un nombre que apunta a la IP del VPS,
+# como 203-0-113-5.sslip.io. Con «localhost» usa un certificado propio (para probar en local).
+#
+# El canal en vivo y la vinculación de los agentes de impresión van al worker; lo demás, a la web.
+# Un solo proxy delante: la aplicación toma la última IP de X-Forwarded-For (MAESTRO §5).
+
+{$L2_DOMINIO} {
+	encode zstd gzip
+
+	@worker path /tiempo-real /tiempo-real/* /impresion/vincular
+	handle @worker {
+		reverse_proxy worker:3001
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+}

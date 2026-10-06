@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 // El `.env` vive en la raíz del monorepo (lo comparten Docker, Prisma y la web); Next solo
@@ -15,6 +16,10 @@ const raiz = JSON.parse(readFileSync(new URL("../../package.json", import.meta.u
 };
 
 const nextConfig: NextConfig = {
+  // La imagen de producción (T-8a) lleva solo lo que el servidor usa: `next build` deja en
+  // `.next/standalone` el servidor y sus dependencias, trazadas desde la raíz del monorepo.
+  output: "standalone",
+  outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
   env: {
     L2_VERSION: raiz.version,
     L2_ETAPA: raiz.l2.etapa,

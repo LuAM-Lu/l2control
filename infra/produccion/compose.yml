@@ -1,0 +1,113 @@
+# L2 Control en el servidor (staging y producción) — T-8a, ADR-021 y ADR-028.
+#
+# No se usa a mano: lo maneja `./desplegar.sh <versión>`, que elige la versión de las imágenes
+# (L2_ETIQUETA, en etiqueta.env), respalda, migra, comprueba la salud y vuelve atrás si falla.
+# Los secretos están en `.env` junto a este archivo (copia de entorno.ejemplo), que no sale del servidor.
+#
+# Solo Caddy abre puertos (80 y 443). La base, Valkey, la web y el worker se hablan por la red interna
+# de compose y no se ven desde fuera. Cada servicio recibe solo las variables que usa: la web y el worker
+# no conocen la contraseña del superusuario ni la del migrador.
+
+name: l2control-servidor
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta en .env}
+      L2_MIGRATOR_PASSWORD: ${L2_MIGRATOR_PASSWORD:?falta en .env}
+      L2_APP_PASSWORD: ${L2_APP_PASSWORD:?falta en .env}
+      # Solo la base del local, y el migrador sin CREATEDB (infra/postgres/init).
+      L2_BASES: l2control
+      L2_MIGRADOR_CREA_BASES: "no"
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d l2control"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8.1.10-alpine
+    restart: unless-stopped
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?falta en .env}
+    command: ["sh", "-c", 'exec valkey-server --appendonly yes --requirepass "$$VALKEY_PASSWORD"']
+    volumes:
+      - valkey:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'valkey-cli -a "$$VALKEY_PASSWORD" --no-auth-warning ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Corre una vez por despliegue y se va (perfil «despliegue»: `up` no lo arranca).
+  migrar:
+    image: "${L2_REGISTRO:-ghcr.io/luam-lu}/l2control-migrar:${L2_ETIQUETA:?falta la versión, usa ./desplegar.sh}"
+    profiles: ["despliegue"]
+    environment:
+      L2_DB_MIGRATOR_URL: postgresql://l2_migrator:${L2_MIGRATOR_PASSWORD}@postgres:5432/l2control
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: "${L2_REGISTRO:-ghcr.io/luam-lu}/l2control-web:${L2_ETIQUETA:?falta la versión, usa ./desplegar.sh}"
+    restart: unless-stopped
+    environment: &entorno-app
+      L2_ENTORNO: ${L2_ENTORNO:?falta en .env}
+      L2_DB_APP_URL: postgresql://l2_app:${L2_APP_PASSWORD}@postgres:5432/l2control
+      L2_LOG_LEVEL: ${L2_LOG_LEVEL:-info}
+      L2_TENANT_ID: ${L2_TENANT_ID:?falta en .env}
+      L2_BRANCH_ID: ${L2_BRANCH_ID:?falta en .env}
+      L2_CLAVE_CIFRADO: ${L2_CLAVE_CIFRADO:?falta en .env}
+      L2_URL_PUBLICA: ${L2_URL_PUBLICA:?falta en .env}
+      # Los navegadores abren el canal en vivo en la misma dirección; Caddy lo lleva al worker.
+      L2_TIEMPO_REAL_URL: ${L2_URL_PUBLICA}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    image: "${L2_REGISTRO:-ghcr.io/luam-lu}/l2control-worker:${L2_ETIQUETA:?falta la versión, usa ./desplegar.sh}"
+    restart: unless-stopped
+    environment:
+      <<: *entorno-app
+      L2_VALKEY_URL: redis://:${VALKEY_PASSWORD}@valkey:6379
+      L2_SINCRONIZAR_TASA: ${L2_SINCRONIZAR_TASA:-si}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  # HTTPS automático con Let's Encrypt para L2_DOMINIO (con «localhost», un certificado propio de Caddy).
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      L2_DOMINIO: ${L2_DOMINIO:?falta en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-datos:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+      - worker
+
+volumes:
+  postgres:
+  valkey:
+  caddy-datos:
+  caddy-config:

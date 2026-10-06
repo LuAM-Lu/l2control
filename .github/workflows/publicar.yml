@@ -1,0 +1,105 @@
+# Publicar una versión — T-8a (ADR-028). Una etiqueta vX.Y.Z en `main` construye y publica:
+#
+#   1. el agente de impresión (Windows), con su huella SHA-256, en el «release» de la etiqueta, con las
+#      novedades de CHANGELOG.md;
+#   2. las imágenes de la web, del worker y de migrar en ghcr.io, con el agente dentro de la de la web.
+#
+# Publicar no actualiza ningún servidor: en el VPS, `infra/produccion/desplegar.sh X.Y.Z` (y, con T-8b,
+# Ajustes → Sistema). La etiqueta tiene que ser la versión del package.json raíz: si no, no se publica.
+#
+# Las acciones van fijadas por el hash de su commit, como en ci.yml.
+
+name: Publicar
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write # el «release» con el agente
+  packages: write # las imágenes en ghcr.io
+
+concurrency:
+  group: publicar-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  agente:
+    name: Agente de impresión (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: La etiqueta es la versión del package.json
+        shell: bash
+        run: |
+          v="v$(node -p "require('./package.json').version")"
+          if [ "$v" != "$GITHUB_REF_NAME" ]; then
+            echo "La etiqueta $GITHUB_REF_NAME no es la versión del package.json ($v): no se publica."
+            exit 1
+          fi
+
+      - name: Dependencias (lockfile exacto)
+        run: pnpm install --frozen-lockfile
+
+      - name: Empaquetar el agente
+        run: pnpm agente:empaquetar
+
+      - name: Release con el agente, su huella y las novedades
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Las novedades: la sección de esta versión en CHANGELOG.md, hasta la siguiente.
+          node -e '
+            const v = process.argv[1].slice(1);
+            const t = require("fs").readFileSync("CHANGELOG.md", "utf8");
+            const i = t.indexOf("## [" + v + "]");
+            if (i < 0) { console.error("CHANGELOG.md no tiene la " + v); process.exit(1); }
+            const j = t.indexOf("\n## [", i + 1);
+            require("fs").writeFileSync("novedades.md", t.slice(i, j < 0 ? undefined : j).trim() + "\n");
+          ' "$GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME" \
+            apps/printer-agent/dist/l2-impresion.exe \
+            apps/printer-agent/dist/l2-impresion.exe.sha256 \
+            --title "$GITHUB_REF_NAME" --notes-file novedades.md --verify-tag
+
+  imagenes:
+    name: Imágenes (web, worker, migrar)
+    needs: agente
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: El agente de esta versión, comprobado por su huella
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --dir apps/printer-agent/dist --pattern 'l2-impresion.exe*'
+          (cd apps/printer-agent/dist && sha256sum --check l2-impresion.exe.sha256)
+
+      - name: Construir y publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          v="${GITHUB_REF_NAME#v}"
+          registro="ghcr.io/$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for t in web worker migrar; do
+            docker build -f infra/docker/Dockerfile --target "$t" \
+              --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+              --label "org.opencontainers.image.version=$v" \
+              -t "$registro/l2control-$t:$v" .
+            docker push "$registro/l2control-$t:$v"
+          done
+          echo "Publicadas: $registro/l2control-{web,worker,migrar}:$v" >> "$GITHUB_STEP_SUMMARY"

@@ -3,3 +3,5 @@
 # «/bin/sh^M: not found», un error que no dice nada de los finales de línea.
 *.sh   text eol=lf
 *.sql  text eol=lf
+Caddyfile text eol=lf
+Dockerfile text eol=lf

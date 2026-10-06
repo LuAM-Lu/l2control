@@ -14,6 +14,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.53.0] — 2026-10-06 · Preparación del staging
+
+Publicar y desplegar (T-8a, M-22).
+
+### Añadido
+- **El sistema se puede poner en un servidor y se actualiza sin miedo.** Cada versión tiene sus imágenes (la web,
+  el canal en vivo y las migraciones) y un servidor completo con HTTPS automático. Poner una versión nueva respalda
+  la base, la migra, arranca la versión y comprueba que responde; **si no queda sana, vuelve sola a la que estaba**,
+  sin tocar los datos, y queda anotado. Lo prepara el siguiente paso: el sistema en el VPS.
+- Al publicar una versión, el agente de impresión de la laptop de caja sale con su huella y con las novedades de
+  esta lista.
+- La web dice su versión y si alcanza la base en `/salud`, como ya hacía el canal en vivo.
+
 ## [0.52.3] — 2026-10-06 · Preparación del staging
 
 El logo de L2 (pedido del usuario).

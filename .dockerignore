@@ -1,0 +1,20 @@
+# Lo que NO entra al construir las imágenes (T-8a). Las dependencias se instalan dentro, desde el
+# lockfile; los secretos nunca viajan en una imagen: llegan del entorno del servidor.
+**/node_modules
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+packages/database/src/generated
+.git
+.github
+.vscode
+.idea
+**/.env
+**/.env.*
+!.env.example
+infra/produccion/etiqueta.env
+infra/produccion/historial.log
+infra/produccion/respaldos
+docs
+**/*.log
+# El agente empaquetado (dist/) SÍ entra si está: la imagen de la web lo ofrece para descargar.
