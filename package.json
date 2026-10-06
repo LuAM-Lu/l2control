@@ -5,7 +5,7 @@
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Preparación del staging",
-    "pasos": 62
+    "pasos": 63
   },
   "packageManager": "pnpm@12.3.4",
   "engines": {
