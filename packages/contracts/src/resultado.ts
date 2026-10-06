@@ -15,7 +15,7 @@ export const MotivoDeRechazoSchema = z.enum([
   /** Quien lo pide no tiene permiso. */
   "NO_PERMITIDO",
   /**
-   * Tiene permiso, pero la acción exige confirmar identidad con contraseña y código TOTP
+   * Tiene permiso, pero la acción exige confirmar identidad con contraseña y llave de acceso
    * (F2-04: configuración, precios, personas y reportes globales). La pantalla lo pide y reintenta.
    */
   "ELEVACION_REQUERIDA",

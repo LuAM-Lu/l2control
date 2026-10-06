@@ -399,6 +399,18 @@ html:has(dialog[open]) { overflow: hidden; }
   .l2-formulario:last-of-type { break-after: auto; }
 }
 
+/* Un código QR se lee en negro sobre blanco, también con el tema oscuro: invertido, muchas
+   cámaras no lo reconocen. Sus módulos se pintan con `currentColor`. */
+.l2-qr { background: white; color: black; }
+
+/* Los códigos de recuperación (ADR-020) se imprimen solos, en negro sobre blanco: son lo que
+   queda cuando se pierde la llave, y se guardan en papel. */
+@media print {
+  .l2-codigos, .l2-codigos * { visibility: visible; color: black !important; }
+  .l2-codigos { position: fixed; inset: 0 auto auto 0; width: 100%; border: 0; border-radius: 0; background: white; }
+  .l2-codigos .l2-no-imprime { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .l2-destello { animation: none; }
   .l2-punto, .l2-sacudida, .l2-recorre { animation: none; }

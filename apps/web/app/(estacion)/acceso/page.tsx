@@ -1,7 +1,8 @@
 import type { Device } from "@l2/domain-identity";
 import { AccesoScreen, type Operador } from "../../../src/features/identity/AccesoScreen";
 import { NOMBRE_ROL } from "../../../src/features/identity/permisos";
-import { aplicacion } from "../../../src/servidor/aplicacion";
+import { PuertaDeInstalacion } from "../../../src/features/identity/InstalacionScreen";
+import { aplicacion, contextoDelLocal } from "../../../src/servidor/aplicacion";
 import { credencialEquipo } from "../../../src/servidor/sesion";
 
 /**
@@ -15,6 +16,10 @@ export const dynamic = "force-dynamic";
 
 export default async function AccesoPage() {
   const app = await aplicacion();
+  // Con la base vacía (M-12) no hay local que ofrecer: el acceso es «Instalar L2 Control» (ADR-020).
+  const { tenantId, branchId } = contextoDelLocal();
+  if (!(await app.instalacion.estado({ tenantId, branchId })).instalado) return <PuertaDeInstalacion instalado={false}>{null}</PuertaDeInstalacion>;
+
   const credencial = await credencialEquipo();
   const [equipo, personas] = await Promise.all([
     app.dispositivos.identificar(credencial),
@@ -38,5 +43,9 @@ export default async function AccesoPage() {
   const pendiente =
     equipo.estado === "PENDIENTE" ? { codigo: equipo.codigo, caducada: equipo.caducada } : null;
 
-  return <AccesoScreen device={device} operadores={operadores} pendiente={pendiente} />;
+  return (
+    <PuertaDeInstalacion instalado>
+      <AccesoScreen device={device} operadores={operadores} pendiente={pendiente} />
+    </PuertaDeInstalacion>
+  );
 }

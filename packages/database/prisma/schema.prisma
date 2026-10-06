@@ -202,8 +202,11 @@ model StaffUser {
   /// El PIN actual es temporal (alta o reposición): al entrar con él, la persona elige el suyo
   /// antes de tener sesión.
   pinMustChange    Boolean   @default(false) @map("pin_must_change")
-  /// Administración (F2-04): contraseña Argon2id y secreto TOTP cifrado (AES-256-GCM).
+  /// Administración (F2-04): contraseña Argon2id. El segundo factor son sus llaves de acceso
+  /// (`passkey`) y sus códigos de recuperación (ADR-020).
   passwordHash     String?   @map("password_hash")
+  /// Retirado con T-4 (ADR-020): ya no se lee ni se escribe. La columna se quita en una migración
+  /// de contracción, cuando ninguna versión en marcha la conozca (ADR-028).
   totpSecretEnc    String?   @map("totp_secret_enc")
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -211,6 +214,9 @@ model StaffUser {
   changes    StaffUserChange[]
   exceptions PermissionException[]
   sessions   StaffSession[]
+  passkeys        Passkey[]
+  recoveryCodes   RecoveryCode[]
+  enrollmentLinks EnrollmentLink[]
 
   paymentsRecorded   Payment[]   @relation("PaymentRecordedBy")
   paymentsAuthorized Payment[]   @relation("PaymentAuthorizedBy")
@@ -294,6 +300,110 @@ model RoleAdjustment {
 
   @@index([tenantId, branchId])
   @@map("role_adjustment")
+}
+
+/// Una llave de acceso (WebAuthn) de una persona (ADR-020): el segundo factor de administración.
+/// Aquí solo vive su clave PÚBLICA; la privada no sale del equipo o del teléfono que la guarda.
+/// Retirarla no la borra (regla 5): pone `retired_at`.
+model Passkey {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  /// El identificador que da el autenticador, en base64url.
+  credentialId String    @unique @map("credential_id")
+  /// La clave pública en COSE, tal como la entrega el autenticador.
+  publicKey    Bytes     @map("public_key")
+  /// El contador de firmas del autenticador: si retrocede, la llave pudo ser clonada.
+  counter      BigInt    @default(0)
+  transports   String[]
+  /// Dónde se registró («Laptop de caja»), para reconocerla en la lista.
+  label        String
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt   DateTime? @map("last_used_at") @db.Timestamptz(3)
+  retiredAt    DateTime? @map("retired_at") @db.Timestamptz(3)
+
+  user StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, userId])
+  @@map("passkey")
+}
+
+/// Un código de recuperación de un solo uso (ADR-020). Se enseña una vez; aquí queda su SHA-256.
+/// Usarlo o reponer el juego no lo borra: pone `used_at` o `retired_at`.
+model RecoveryCode {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @unique @map("code_hash")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  retiredAt DateTime? @map("retired_at") @db.Timestamptz(3)
+
+  user StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, userId])
+  @@map("recovery_code")
+}
+
+/// Un enlace de alta de un solo uso (ADR-020): ALTA da contraseña, llave y códigos (y retira lo
+/// anterior); LLAVE añade otra llave a quien ya tiene contraseña. Caduca a las 24 h.
+model EnrollmentLink {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  /// ALTA o LLAVE.
+  kind          String
+  secretHash    String    @unique @map("secret_hash")
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdByName String    @map("created_by_name")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt        DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+  /// Contraseñas erradas al usarlo (solo LLAVE): con cinco, el enlace deja de valer.
+  failures      Int       @default(0)
+
+  user StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, userId])
+  @@map("enrollment_link")
+}
+
+/// Un desafío de WebAuthn pendiente de respuesta: de un solo uso y de pocos minutos. `payload`
+/// lleva lo que la ceremonia necesita recordar entre sus dos pasos (nunca un secreto en claro).
+/// Sin FK al tenant: la instalación inicial lo usa antes de que el local exista.
+model AuthChallenge {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  /// INSTALACION, ALTA, LLAVE, ELEVAR o APROBAR_EQUIPO.
+  purpose   String
+  challenge String
+  userId    String?   @map("user_id") @db.Uuid
+  deviceId  String?   @map("device_id") @db.Uuid
+  payload   Json?
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+
+  @@index([tenantId, expiresAt])
+  @@map("auth_challenge")
+}
+
+/// La instalación inicial de un local (ADR-020, M-12): una fila por tenant. Mientras no esté
+/// hecha guarda el SHA-256 del código de instalación vigente y sus intentos fallidos; hecha, dice
+/// cuándo y por quién, y la pantalla de instalación no vuelve a existir. Sin FK al tenant: la fila
+/// nace antes que él.
+model Installation {
+  tenantId        String    @id @map("tenant_id") @db.Uuid
+  codeHash        String?   @map("code_hash")
+  issuedAt        DateTime? @map("issued_at") @db.Timestamptz(3)
+  failures        Int       @default(0)
+  lastFailureAt   DateTime? @map("last_failure_at") @db.Timestamptz(3)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(3)
+  completedByName String?   @map("completed_by_name")
+
+  @@map("installation")
 }
 
 /// Un equipo del local (F2-02). Primer factor del acceso: su secreto vive en una cookie

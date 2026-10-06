@@ -2,12 +2,13 @@
  * Utilidades SOLO para las pruebas de integración (`*.test-db.ts`): un local de prueba con
  * personas y equipos reales en la base. No las importa el código de la aplicación.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign, type KeyObject } from "node:crypto";
 import { hash } from "@node-rs/argon2";
 import type { Role } from "@l2/domain-identity";
 import { abrirBase, type Base } from "@l2/database";
 import { borrarTenantsDePrueba } from "@l2/database/para-pruebas";
-import { conectar, type Aplicacion, type Contexto } from "./index.ts";
+import { isoCBOR } from "@simplewebauthn/server/helpers";
+import { conectar, type Aplicacion, type Contexto, type OpcionesDeFirma, type OpcionesDeRegistro } from "./index.ts";
 
 export interface LocalDePrueba {
   app: Aplicacion;
@@ -21,9 +22,11 @@ export interface LocalDePrueba {
 
 /** Clave de cifrado de las pruebas: fija y sin valor fuera de ellas. */
 export const CLAVE_DE_PRUEBA = Buffer.alloc(32, 9).toString("base64");
+/** La dirección pública de las pruebas: las llaves de `LlaveDePrueba` firman para ella. */
+export const URL_DE_PRUEBA = "http://localhost:3000";
 
 export async function abrirLocalDePrueba(url: string, nombre: string): Promise<LocalDePrueba> {
-  const app = await conectar(url, { claveCifrado: CLAVE_DE_PRUEBA });
+  const app = await conectar(url, { claveCifrado: CLAVE_DE_PRUEBA, urlPublica: URL_DE_PRUEBA });
   const base = await abrirBase(url);
   const tenantId = randomUUID();
   const sistema: Contexto = { tenantId, branchId: randomUUID(), sistema: true };
@@ -87,24 +90,155 @@ export async function crearEquipo(local: LocalDePrueba, label: string, aprobar =
   return r.valor.credencial;
 }
 
+const b64 = (b: Uint8Array) => Buffer.from(b).toString("base64url");
+
+/**
+ * Un autenticador de software: lo que haría Windows Hello o el teléfono, pero dentro de la prueba.
+ * Genera su par de claves (ES256), responde a un desafío de registro y firma los de acceso con el
+ * formato exacto de WebAuthn, así que el servidor lo comprueba con el mismo código que una llave
+ * de verdad. La clave privada no sale de aquí, como no sale del aparato.
+ */
+export class LlaveDePrueba {
+  readonly id = b64(randomBytes(32));
+  readonly #privada: KeyObject;
+  readonly #cose: Uint8Array;
+  #userHandle: string | null = null;
+  /** El contador de firmas. Una llave copiada lo enseña retrocediendo. */
+  contador = 0;
+  /** El origen que el navegador declara al firmar. */
+  readonly origen: string;
+
+  constructor(origen: string = URL_DE_PRUEBA) {
+    this.origen = origen;
+    const par = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    this.#privada = par.privateKey;
+    const jwk = par.publicKey.export({ format: "jwk" });
+    // Clave pública en COSE: EC2 (1: 2), ES256 (3: -7), curva P-256 (-1: 1) y sus coordenadas.
+    this.#cose = isoCBOR.encode(
+      new Map<number, number | Uint8Array>([
+        [1, 2],
+        [3, -7],
+        [-1, 1],
+        [-2, Buffer.from(jwk.x!, "base64url")],
+        [-3, Buffer.from(jwk.y!, "base64url")],
+      ]),
+    );
+  }
+
+  #datos(rpId: string, registro: boolean): Buffer {
+    const cuenta = Buffer.alloc(4);
+    cuenta.writeUInt32BE(this.contador);
+    // Presente (0x01) y verificada (0x04); al registrar lleva además la credencial (0x40).
+    const cabecera = Buffer.concat([createHash("sha256").update(rpId).digest(), Buffer.from([registro ? 0x45 : 0x05]), cuenta]);
+    if (!registro) return cabecera;
+    const id = Buffer.from(this.id, "base64url");
+    const largo = Buffer.alloc(2);
+    largo.writeUInt16BE(id.length);
+    return Buffer.concat([cabecera, Buffer.alloc(16), largo, id, this.#cose]);
+  }
+
+  #cliente(tipo: "webauthn.create" | "webauthn.get", desafio: string): Buffer {
+    return Buffer.from(JSON.stringify({ type: tipo, challenge: desafio, origin: this.origen, crossOrigin: false }), "utf8");
+  }
+
+  /** La respuesta a un desafío de registro, como la entregaría `navigator.credentials.create()`. */
+  registrar(opciones: OpcionesDeRegistro): Record<string, unknown> {
+    this.#userHandle = opciones.user.id;
+    const attestationObject = isoCBOR.encode(
+      new Map<string, string | Uint8Array | Map<string, never>>([
+        ["fmt", "none"],
+        ["attStmt", new Map<string, never>()],
+        ["authData", new Uint8Array(this.#datos(opciones.rp.id!, true))],
+      ]),
+    );
+    return {
+      id: this.id,
+      rawId: this.id,
+      type: "public-key",
+      authenticatorAttachment: "platform",
+      clientExtensionResults: {},
+      response: { clientDataJSON: b64(this.#cliente("webauthn.create", opciones.challenge)), attestationObject: b64(attestationObject), transports: ["internal"] },
+    };
+  }
+
+  /** La firma de un desafío de acceso, como la entregaría `navigator.credentials.get()`. */
+  firmar(opciones: OpcionesDeFirma): Record<string, unknown> {
+    this.contador++;
+    const datos = this.#datos(opciones.rpId!, false);
+    const cliente = this.#cliente("webauthn.get", opciones.challenge);
+    const firma = sign("sha256", Buffer.concat([datos, createHash("sha256").update(cliente).digest()]), this.#privada);
+    return {
+      id: this.id,
+      rawId: this.id,
+      type: "public-key",
+      authenticatorAttachment: "platform",
+      clientExtensionResults: {},
+      response: { clientDataJSON: b64(cliente), authenticatorData: b64(datos), signature: b64(firma), ...(this.#userHandle ? { userHandle: this.#userHandle } : {}) },
+    };
+  }
+}
+
+export interface CredencialesDePrueba {
+  readonly llave: LlaveDePrueba;
+  readonly contrasena: string;
+  /** Los diez códigos de recuperación, en claro. */
+  readonly codigos: readonly string[];
+}
+
+/**
+ * Da contraseña, llave de acceso y códigos de recuperación a una persona por el camino real: un
+ * enlace de alta que genera el sistema y que ella completa con su autenticador (ADR-020).
+ */
+export async function darCredenciales(
+  local: LocalDePrueba,
+  userId: string,
+  contrasena = "contraseña-de-prueba",
+  ahora = Date.now(),
+): Promise<CredencialesDePrueba> {
+  const e = await local.app.enlaces.crear(local.sistema, { userId, kind: "ALTA" }, ahora);
+  if (!e.ok) throw new Error(e.mensaje);
+  const enlace = e.valor.url.split("#")[1]!;
+  const p = await local.app.enlaces.preparar({ enlace, datos: { contrasena }, ahora });
+  if (!p.ok) throw new Error(p.mensaje);
+  const llave = new LlaveDePrueba();
+  const c = await local.app.enlaces.completar({
+    enlace,
+    datos: { desafioId: p.valor.desafioId, respuesta: llave.registrar(p.valor.opciones), etiqueta: "Llave de prueba" },
+    ip: null,
+    ahora,
+  });
+  if (!c.ok) throw new Error(c.mensaje);
+  return { llave, contrasena, codigos: c.valor.codigos ?? [] };
+}
+
+/** Confirma identidad en una sesión abierta con la contraseña y la llave, como haría la pantalla. */
+export async function elevarConLlave(local: Pick<LocalDePrueba, "app">, sesion: string, c: Pick<CredencialesDePrueba, "llave" | "contrasena">, ahora = Date.now()) {
+  const d = await local.app.elevacion.desafio({ sesion, ahora });
+  if (!d.ok) return d;
+  return local.app.elevacion.elevar({
+    sesion,
+    contrasena: c.contrasena,
+    factor: { tipo: "LLAVE", desafioId: d.valor.desafioId, respuesta: c.llave.firmar(d.valor.opciones) },
+    ip: null,
+    ahora,
+  });
+}
+
 /**
  * El contexto de una persona que entra con su PIN en `equipo` y confirma identidad con
- * contraseña y TOTP (F2-04), como haría la pantalla. Da credenciales si no las tenía.
+ * contraseña y llave de acceso (F2-04), como haría la pantalla. Le da credenciales antes.
  */
 export async function contextoElevado(
   local: LocalDePrueba,
   equipo: string,
   persona: { id: string; nombre: string; pin: string },
 ): Promise<Contexto> {
-  const { Secret, TOTP } = await import("otpauth");
   const { contextoDeSesion } = await import("./identidad/sesiones.ts");
-  const c = await local.app.elevacion.credenciales(local.sistema, { nombre: persona.nombre, contrasena: "contraseña-de-prueba" });
-  if (!c.ok) throw new Error(c.mensaje);
   const ahora = Date.now();
+  const credenciales = await darCredenciales(local, persona.id, "contraseña-de-prueba", ahora);
   const r = await local.app.sesiones.entrar({ dispositivo: equipo, userId: persona.id, pin: persona.pin, ip: null, ahora });
   if (!r.ok) throw new Error(r.mensaje);
-  const codigo = new TOTP({ secret: Secret.fromBase32(c.valor.secretoBase32) }).generate({ timestamp: ahora });
-  const e = await local.app.elevacion.elevar({ sesion: r.credencial, contrasena: "contraseña-de-prueba", codigo, ip: null, ahora });
+  const e = await elevarConLlave(local, r.credencial, credenciales, ahora);
   if (!e.ok) throw new Error(e.mensaje);
   return contextoDeSesion((await local.app.sesiones.consultar(r.credencial, ahora))!, null);
 }

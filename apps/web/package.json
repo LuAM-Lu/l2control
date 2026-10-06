@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit",
     "semilla": "node --experimental-strip-types scripts/semilla.mts",
     "equipos": "node --experimental-strip-types scripts/equipos.mts",
-    "totp": "node --experimental-strip-types scripts/totp.mts",
     "credenciales": "node --experimental-strip-types scripts/credenciales.mts"
   },
   "dependencies": {
@@ -26,10 +25,11 @@
     "@l2/domain-tax": "workspace:*",
     "@l2/observability": "workspace:*",
     "@l2/ui": "workspace:*",
+    "@simplewebauthn/browser": "14.0.0",
     "@zxing/library": "0.23.0",
     "lucide-react": "1.43.0",
     "next": "16.3.4",
-    "otpauth": "9.5.2",
+    "qrcode-generator": "2.0.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1",

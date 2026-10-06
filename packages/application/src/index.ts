@@ -17,6 +17,10 @@ import { casosDispositivos, type CasosDispositivos } from "./identidad/dispositi
 import { casosSesiones, type CasosSesiones } from "./identidad/sesiones.ts";
 import { casosEquipo, type CasosEquipo } from "./identidad/equipo.ts";
 import { casosElevacion, type CasosElevacion } from "./identidad/elevacion.ts";
+import { casosEnlaces, type CasosEnlaces } from "./identidad/enlaces.ts";
+import { casosInstalacion, type CasosInstalacion } from "./identidad/instalacion.ts";
+import { leerOrigenWeb } from "./identidad/llaves.ts";
+import { casosPuestaAPunto, type CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
 import { crearCifrador } from "./identidad/cifrado.ts";
 import { casosAccesos, type CasosAccesos } from "./identidad/accesos.ts";
 import { casosTasas, type CasosTasas } from "./dinero/tasas.ts";
@@ -74,7 +78,17 @@ export type { Aviso, CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
 export { TICKET_MS, type DatosDelTicket } from "./tiempo-real/ticket.ts";
 export { TEMAS_DE_ACCION, temasDe } from "./tiempo-real/temas.ts";
 export { AutorizacionSchema, exigirPermisoOAutorizacion, type Autorizacion } from "./identidad/autorizacion.ts";
-export { ELEVACION_MS, type CasosElevacion, type CredencialesNuevas } from "./identidad/elevacion.ts";
+export { ELEVACION_MS, type CasosElevacion } from "./identidad/elevacion.ts";
+export { ENLACE_MS, type AltaCompletada, type CasosEnlaces } from "./identidad/enlaces.ts";
+export type { CasosInstalacion, InstalacionHecha } from "./identidad/instalacion.ts";
+export {
+  CODIGOS_DE_RECUPERACION,
+  DESAFIO_MS,
+  type Desafio,
+  type OpcionesDeFirma,
+  type OpcionesDeRegistro,
+} from "./identidad/llaves.ts";
+export type { CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
 export {
   contextoDeSesion,
   SESION_INACTIVA_MS,
@@ -96,6 +110,12 @@ export interface Aplicacion {
   readonly sesiones: CasosSesiones;
   readonly equipo: CasosEquipo;
   readonly elevacion: CasosElevacion;
+  /** Los enlaces de alta de credenciales de administración (ADR-020). */
+  readonly enlaces: CasosEnlaces;
+  /** La instalación inicial de un local con la base vacía (ADR-020, M-12). */
+  readonly instalacion: CasosInstalacion;
+  /** La lista de lo que falta para abrir el primer día, que se tacha sola (JORNADA §2). */
+  readonly puestaAPunto: CasosPuestaAPunto;
   readonly accesos: CasosAccesos;
   readonly tasas: CasosTasas;
   readonly impuestos: CasosImpuestos;
@@ -131,16 +151,24 @@ export interface Aplicacion {
 
 export interface OpcionesDeConexion {
   /**
-   * Clave AES-256 en base64 (L2_CLAVE_CIFRADO) para lo que se guarda cifrado: el secreto TOTP, los
+   * Clave AES-256 en base64 (L2_CLAVE_CIFRADO) para lo que se guarda cifrado: los
    * datos de cada pago y los datos de cobro del local (B3-2). Sin ella, esas funciones responden
    * NO_DISPONIBLE, y el canal en vivo no firma ni abre tickets (B5-1).
    */
   claveCifrado?: string | undefined;
+  /**
+   * La dirección con la que se abre el sistema en el navegador (L2_URL_PUBLICA), como
+   * `https://l2.ejemplo.com`. Las llaves de acceso quedan atadas a su dominio y los enlaces de alta
+   * se componen con ella. Sin ella, confirmar identidad, los enlaces y la instalación responden
+   * NO_DISPONIBLE (fail-closed).
+   */
+  urlPublica?: string | undefined;
 }
 
 /** Abre la base (y se niega si el usuario se salta la RLS) y devuelve los casos de uso. */
 export async function conectar(urlBase: string | undefined, opciones: OpcionesDeConexion = {}): Promise<Aplicacion> {
   const cifrador = opciones.claveCifrado ? crearCifrador(opciones.claveCifrado) : null;
+  const web = leerOrigenWeb(opciones.urlPublica);
   const base = await abrirBase(urlBase);
   const dispositivos = casosDispositivos(base);
   const sesiones = casosSesiones(base, dispositivos);
@@ -156,7 +184,10 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     dispositivos,
     sesiones,
     equipo: casosEquipo(base),
-    elevacion: casosElevacion(base, sesiones, cifrador),
+    elevacion: casosElevacion(base, sesiones, web),
+    enlaces: casosEnlaces(base, web),
+    instalacion: casosInstalacion(base, web),
+    puestaAPunto: casosPuestaAPunto(base),
     accesos: casosAccesos(base),
     tasas: casosTasas(base),
     impuestos: casosImpuestos(base),

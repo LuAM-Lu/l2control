@@ -295,7 +295,7 @@ export function EditorTarifario({ versiones: inicialVersiones }: { versiones: Re
           etiqueta="Publicado"
           icono={<CalendarClock aria-hidden="true" />}
           tono={sucio ? "warn" : "idle"}
-          valor={sucio ? "Cambios sin publicar" : `Versión ${version}`}
+          valor={sucio ? "Cambios sin publicar" : version === 0 ? "Sin publicar" : `Versión ${version}`}
           pie={ultima ? `${reloj.diaYHora(Date.parse(ultima.publicadoEn))} · ${ultima.publicadoPor}` : "Sin historial"}
           activo={vista === "versiones"}
           onClick={() => setVista("versiones")}

@@ -3,14 +3,15 @@
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import type { Resultado } from "@l2/contracts";
-import { Button, Dialog, Input } from "@l2/ui";
-import { elevar } from "./acceso.acciones";
+import { Button, Dialog } from "@l2/ui";
+import { desafioParaElevar, elevar } from "./acceso.acciones";
+import { CamposDeIdentidad, useSegundoFactor } from "./SegundoFactor";
 
 /**
  * Confirmar identidad — F2-04.
  *
  * Configuración, precios, personas y reportes globales exigen, además del permiso, la
- * contraseña y el código del autenticador. El servidor lo dice con `ELEVACION_REQUERIDA`; este
+ * contraseña y la llave de acceso, o un código de recuperación (ADR-020). El servidor lo dice con `ELEVACION_REQUERIDA`; este
  * proveedor abre el diálogo, eleva la sesión y reintenta lo que se había pedido, UNA vez. Si la
  * persona cancela, se devuelve el rechazo tal cual: la pantalla lo enseña y no se pierde nada.
  */
@@ -70,19 +71,23 @@ export function useConElevacion() {
 }
 
 function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }) {
-  const [contrasena, setContrasena] = useState("");
-  const [codigo, setCodigo] = useState("");
+  const factor = useSegundoFactor();
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const valido = contrasena.length > 0 && /^\d{6}$/.test(codigo);
 
   const confirmar = async () => {
     setEnviando(true);
     setError(null);
-    const r = await elevar(contrasena, codigo).catch(() => null);
+    // Primero la llave (o el código), luego todo junto al servidor: él comprueba los dos.
+    const presentado = await factor.presentar(desafioParaElevar);
+    if (!presentado.ok) {
+      setEnviando(false);
+      return setError(presentado.mensaje);
+    }
+    const r = await elevar(factor.contrasena, presentado.factor).catch(() => null);
     setEnviando(false);
     if (r?.ok) return onCerrar(true);
-    setCodigo("");
+    factor.vaciar();
     setError(r ? r.mensaje : "El servidor no respondió. Inténtalo de nuevo.");
   };
 
@@ -91,7 +96,7 @@ function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }
       <Button surface="admin" variant="ghost" className="flex-1" onClick={() => onCerrar(false)} disabled={enviando}>
         Cancelar
       </Button>
-      <Button surface="admin" variant="primary" className="flex-1" onClick={() => void confirmar()} disabled={!valido || enviando}>
+      <Button surface="admin" variant="primary" className="flex-1" onClick={() => void confirmar()} disabled={!factor.listo || enviando}>
         <ShieldCheck size={15} aria-hidden="true" />
         {enviando ? "Comprobando…" : "Confirmar"}
       </Button>
@@ -103,35 +108,16 @@ function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }
       abierto
       onCerrar={() => onCerrar(false)}
       titulo="Confirma que eres tú"
-      descripcion="Para configuración, precios y personas hace falta tu contraseña y el código de tu autenticador. Vale 15 minutos en esta sesión."
+      descripcion="Para configuración, precios y personas hace falta tu contraseña y tu llave de acceso. Vale 15 minutos en esta sesión."
       pie={pie}
     >
       <form
-        className="flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault();
-          if (valido && !enviando) void confirmar();
+          if (factor.listo && !enviando) void confirmar();
         }}
       >
-        <Input
-          label="Contraseña"
-          type="password"
-          autoComplete="current-password"
-          surface="admin"
-          value={contrasena}
-          onChange={(e) => setContrasena(e.target.value)}
-        />
-        <Input
-          label="Código del autenticador"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          surface="admin"
-          className="tnum tracking-[0.3em]"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
-          error={error ?? undefined}
-        />
+        <CamposDeIdentidad factor={factor} surface="admin" error={error} />
         {/* Enviar con Intro desde cualquier campo. */}
         <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
       </form>

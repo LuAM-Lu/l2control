@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { PermissionExceptionCommand } from "@l2/contracts";
+import type { CredencialesDePersonaDto, PermissionExceptionCommand } from "@l2/contracts";
 import {
   Ban,
   CircleCheckBig,
@@ -34,6 +34,7 @@ import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL, etiquetaDe, toActor } from "./p
 import type { Autor } from "./operador.ts";
 import { cambiarPersona, registrarExcepcion } from "./identidad.acciones";
 import { useConElevacion } from "./ElevacionProvider";
+import { CredencialesDePersona } from "./CredencialesDePersona.tsx";
 import { DialogoCambio, type Cambio } from "./DialogoCambio.tsx";
 import { SheetExcepcion } from "./SheetExcepcion.tsx";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
@@ -90,11 +91,14 @@ const plano = (s: string) =>
 
 export function UsuariosScreen({
   usuarios: iniciales,
+  credenciales,
   autor,
   branchId,
   puedeGestionar,
 }: {
   usuarios: readonly UserSummaryDto[];
+  /** Del servidor en cada pintado: generar un enlace o completar un alta lo cambia (ADR-020). */
+  credenciales: readonly CredencialesDePersonaDto[];
   autor: Autor;
   branchId: string;
   puedeGestionar: boolean;
@@ -322,6 +326,7 @@ export function UsuariosScreen({
             key={usuario.id}
             usuario={usuario}
             puedeGestionar={puedeGestionar}
+            credenciales={credenciales.find((c) => c.userId === usuario.id) ?? null}
             onCambio={(c) => setCambio(c)}
             onExcepcion={() => setExcepcionPara(usuario)}
           />
@@ -372,11 +377,13 @@ export function UsuariosScreen({
 
 function Detalle({
   usuario,
+  credenciales,
   puedeGestionar,
   onCambio,
   onExcepcion,
 }: {
   usuario: UserSummaryDto;
+  credenciales: CredencialesDePersonaDto | null;
   puedeGestionar: boolean;
   onCambio: (c: Cambio) => void;
   onExcepcion: () => void;
@@ -461,6 +468,11 @@ function Detalle({
           )}
         </div>
       </div>
+
+      {/* ── credenciales de administración: solo de quien las usa, o de quien ya las tiene ── */}
+      {credenciales && usuario.active && (credenciales.lasNecesita || credenciales.tieneContrasena) && (
+        <CredencialesDePersona usuario={usuario} credenciales={credenciales} puedeGestionar={puedeGestionar && credenciales.lasNecesita} />
+      )}
 
       {/* ── excepciones: lo que esta pantalla existe para enseñar ── */}
       <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">

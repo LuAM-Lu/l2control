@@ -14,6 +14,44 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.52.0] — 2026-10-06 · Preparación del staging
+
+Paso T-4 de la ruta: instalación inicial y llaves de acceso (ADR-020, M-12).
+
+### Añadido
+- **Un servidor recién puesto se instala desde el navegador, sin consola.** Con la base vacía, el acceso
+  ofrece «Instalar L2 Control»: el código de un solo uso que el servidor escribe en su registro, el nombre
+  del local y la primera persona de administración con su contraseña, su PIN y su llave de acceso. Al
+  terminar, ese equipo queda aprobado, la persona entra y la pantalla no vuelve a existir.
+- **Llaves de acceso en lugar del autenticador.** Confirmar identidad y aprobar un equipo desde sí mismo
+  piden la contraseña y la llave de acceso (la huella, la cara o el PIN del equipo, o el teléfono). Quien
+  no tenga su llave a mano usa uno de sus diez códigos de recuperación, que valen una vez cada uno y se
+  imprimen al recibirlos.
+- **Las credenciales de administración se dan desde el panel.** En Ajustes → Usuarios, cada persona de
+  administración enseña si puede confirmar identidad, sus llaves y los códigos que le quedan.
+  «Dar credenciales» y «Añadir otra llave» generan un enlace de 24 horas y un solo uso, con su código QR:
+  la persona lo abre en su equipo o su teléfono y pone ella su contraseña y su llave. Quien genera el
+  enlace no ve la contraseña.
+- **Puesta a punto en Inicio.** Tras instalar, Inicio dice a administración qué falta para abrir el primer
+  día (personas, equipos, tarifas, impuestos, tasa, catálogo, impresoras, carta y plano, existencias…) y
+  qué puesto no puede trabajar sin cada cosa. Se tacha sola cuando el dato existe y, con todo hecho, deja
+  de salir.
+
+### Cambiado
+- **Un local sin tarifas ya abre.** Antes la app no arrancaba sin un tarifario publicado; ahora la entrada
+  dice «Todavía no hay tarifas del parque» y Ajustes → Tarifas y paquetes deja publicar el primero.
+- `pnpm db:semilla` y `pnpm credenciales "<nombre>"` imprimen un enlace de alta en vez de una contraseña.
+- El worker no consulta la tasa del BCV mientras el local está sin instalar; la trae en cuanto se instala.
+
+### Corregido
+- Cuando el navegador rellena solo un campo (el gestor de contraseñas, el autocompletado), la pantalla ya no
+  falla con «Cannot read properties of undefined»: el lector de códigos y los atajos de la caja trataban ese
+  aviso del navegador como si fuera una tecla.
+
+### Retirado
+- El código del autenticador (TOTP) y `pnpm totp`. Quien tenía contraseña de la etapa anterior necesita
+  un enlace de alta para registrar su llave.
+
 ## [0.51.1] — 2026-10-06 · Preparación del staging
 
 Corrección entre pasos: el contraste de los avisos y sus iconos.

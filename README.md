@@ -18,10 +18,15 @@ pnpm verify           # tipos + lint + fronteras + pruebas; pnpm verify:db añad
 **La app necesita su base de datos** (sección siguiente): no hay modo demo. La primera vez, el
 navegador es un **equipo desconocido**: ponle nombre y pide su registro en `/acceso`, apruébalo con
 `pnpm equipos aprobar "<ese nombre>"` y entra con cualquier persona y el PIN **`1970`**. Para
-configuración, precios y personas la app pide además **confirmar identidad**: en desarrollo, la
-contraseña `abby-kingdom-desarrollo` y el código que da `pnpm totp`. En un local de verdad las
-credenciales se dan con `pnpm credenciales "<nombre>"`. En Chrome, «Instalar la app» la instala
-como PWA.
+configuración, precios y personas la app pide además **confirmar identidad** con la contraseña y la
+**llave de acceso** de administración (Windows Hello, el bloqueo del teléfono; ADR-020). No hay
+contraseña fija de desarrollo: `pnpm db:semilla` imprime el **enlace de alta** de Abigail Karam, que se
+abre en el navegador para poner la contraseña y registrar la llave (y `pnpm credenciales "<nombre>"`
+da otro cuando haga falta). Se entra siempre por `http://localhost:3000`: la llave queda atada a esa
+dirección (`L2_URL_PUBLICA`). En un local de verdad las credenciales se dan desde Ajustes → Usuarios, con
+un enlace con QR; la consola queda como puerta de emergencia. Con la base vacía, el acceso ofrece
+**«Instalar L2 Control»** con el código que el servidor escribe en su registro al arrancar. En Chrome,
+«Instalar la app» la instala como PWA.
 
 ## Base de datos local
 

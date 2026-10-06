@@ -25,6 +25,7 @@ import {
   Button,
   Container,
   Initial,
+  EmptyState,
   Input,
   MoneyDisplay,
   ScannerField,
@@ -104,7 +105,7 @@ export function CheckInScreen({
    * misma pulsera que ya está puesta a un niño en sala (I-04). El servidor lo vuelve a mirar.
    */
   const occupiedWristbands = useMemo(() => sala?.sessions.map((s) => s.wristbandCode) ?? [], [sala]);
-  const { tarifario } = useTarifario();
+  const { tarifario, publicado } = useTarifario();
   const paquetesActivos = useMemo(
     () => tarifario.packages.filter((p) => p.active),
     [tarifario.packages],
@@ -393,6 +394,20 @@ export function CheckInScreen({
   }
 
   /* ------------------------------------------------------------ pintado */
+
+  // Un local recién instalado no tiene tarifas (T-4): la entrada lo dice en vez de ofrecer una
+  // lista de paquetes vacía. El servidor tampoco dejaría entrar a nadie sin tarifario.
+  if (!publicado) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col justify-center p-6">
+        <EmptyState
+          icon={<TriangleAlert size={28} className="text-state-warn" aria-hidden="true" />}
+          title="Todavía no hay tarifas del parque"
+          hint="Sin tarifas publicadas no se puede registrar una entrada. Administración las publica en Panel → Ajustes → Tarifas y paquetes."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

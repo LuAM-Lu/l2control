@@ -22,5 +22,23 @@ export async function arrancar(): Promise<void> {
     },
     "servidor web conectado a la base",
   );
+  await avisarSiFaltaInstalar();
   // La consulta automática al BCV vive en el worker desde B5-1 (ADR-025): este proceso solo sirve páginas.
+}
+
+/**
+ * Con la base vacía (M-12), el servidor emite el código de instalación y lo escribe en su
+ * registro: lo lee quien despliega y se lo da a quien instala (ADR-020, JORNADA §2 P1). Cada
+ * arranque emite uno nuevo y el anterior deja de valer. Con el local ya instalado no hace nada.
+ */
+async function avisarSiFaltaInstalar(): Promise<void> {
+  const e = entorno();
+  const codigo = await (await aplicacion()).instalacion.emitirCodigo({ tenantId: e.L2_TENANT_ID, branchId: e.L2_BRANCH_ID }, Date.now());
+  if (codigo === null) return;
+  // Es el único secreto que se escribe en el registro, a propósito: de un solo uso, y deja de
+  // valer al instalar o al reiniciar.
+  log().warn(
+    { codigoDeInstalacion: codigo, abrir: `${e.L2_URL_PUBLICA}/acceso` },
+    "Este local está sin instalar. Abre el acceso, elige «Instalar L2 Control» y escribe este código",
+  );
 }

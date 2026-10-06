@@ -1,8 +1,8 @@
 /**
  * Cifrado en reposo (§7.6): AES-256-GCM de `node:crypto`, sin criptografía casera.
  *
- * Para lo que el sistema tiene que poder LEER de vuelta: el secreto TOTP de administración, los
- * datos de cada pago y los datos de cobro del local (B3-2). Lo que solo hay que comprobar (PIN,
+ * Para lo que el sistema tiene que poder LEER de vuelta: los datos de cada pago y los datos de
+ * cobro del local (B3-2). Lo que solo hay que comprobar (PIN,
  * contraseña) no se cifra: se hashea.
  *
  * `huella` es un HMAC-SHA256 con una clave DERIVADA de la misma (HKDF, otro propósito): reconoce

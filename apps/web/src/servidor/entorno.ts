@@ -14,8 +14,14 @@ const EsquemaEntorno = z.object({
   L2_LOG_LEVEL: nivelLog,
   L2_TENANT_ID: z.uuid(),
   L2_BRANCH_ID: z.uuid(),
-  /** 32 bytes en base64: sin ella no hay elevación con TOTP ni cifrado en reposo (§7.6). */
+  /** 32 bytes en base64: sin ella no hay cifrado en reposo ni canal en vivo (§7.6). */
   L2_CLAVE_CIFRADO: z.base64().refine((v) => Buffer.from(v, "base64").length === 32, "32 bytes en base64"),
+  /**
+   * La dirección con la que se abre el sistema en el navegador, como `https://l2.ejemplo.com`
+   * (ADR-020). Las llaves de acceso quedan atadas a su dominio —cambiarla las deja sin valer— y
+   * los enlaces de alta se componen con ella. WebAuthn exige HTTPS fuera de `localhost`.
+   */
+  L2_URL_PUBLICA: z.url({ protocol: /^https?$/ }).refine((v) => new URL(v).pathname === "/" && !new URL(v).search, "solo el origen, sin ruta"),
   /**
    * A dónde se conectan los navegadores para el canal en vivo (`apps/worker`, B5-1). Vacío = la
    * misma máquina que sirve la página, en `L2_TIEMPO_REAL_PUERTO`; en producción, la dirección
@@ -37,5 +43,12 @@ let validado: EntornoWeb | undefined;
 
 /** El entorno validado. La primera llamada valida; si algo falla, lanza `EntornoInvalido`. */
 export function entorno(): EntornoWeb {
-  return (validado ??= leerEntorno(EsquemaEntorno));
+  if (validado) return validado;
+  const e = leerEntorno(EsquemaEntorno);
+  // Una llave de acceso solo funciona en un contexto seguro: fuera de desarrollo, sin HTTPS no hay
+  // forma de confirmar identidad, y es mejor no arrancar que descubrirlo al instalar.
+  if (e.L2_ENTORNO !== "desarrollo" && !e.L2_URL_PUBLICA.startsWith("https://")) {
+    throw new Error("L2_URL_PUBLICA debe ser https:// fuera de desarrollo: las llaves de acceso lo exigen (ADR-020).");
+  }
+  return (validado = e);
 }

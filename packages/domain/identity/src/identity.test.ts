@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_LOCKOUT_POLICY,
   checkDevice,
+  checkNewPassword,
   checkNewPin,
   computeLockout,
   describeLockout,
@@ -125,5 +126,31 @@ describe("bloqueo con escalada creciente (§7.2 A07)", () => {
   test("la política por defecto es la que documenta el plan", () => {
     assert.equal(DEFAULT_LOCKOUT_POLICY.freeAttempts, 3);
     assert.deepEqual([...DEFAULT_LOCKOUT_POLICY.backoffSeconds], [30, 60, 300, 900]);
+  });
+});
+
+describe("la contraseña de administración (ADR-020)", () => {
+  test("una frase de doce caracteres o más vale", () => {
+    assert.equal(checkNewPassword("parque de niños 2026").ok, true);
+    assert.equal(checkNewPassword("abby-kingdom").ok, true);
+  });
+
+  test("con menos de doce caracteres no vale, y un acento cuenta uno", () => {
+    const corta = checkNewPassword("once-letras");
+    assert.equal(corta.ok === false && corta.reason, "CORTA");
+    assert.equal(checkNewPassword("ñandú-árbol-").ok, true);
+    assert.equal(checkNewPassword("ñandú-árbol").ok, false);
+  });
+
+  test("doce caracteres iguales o alternados no son una contraseña", () => {
+    for (const p of ["aaaaaaaaaaaa", "abababababab", "121212121212"]) {
+      const r = checkNewPassword(p);
+      assert.equal(r.ok === false && r.reason, "TRIVIAL", p);
+    }
+  });
+
+  test("tiene un tope, para que nadie mande un libro a hashear", () => {
+    const r = checkNewPassword("frase ".repeat(40));
+    assert.equal(r.ok === false && r.reason, "LARGA");
   });
 });

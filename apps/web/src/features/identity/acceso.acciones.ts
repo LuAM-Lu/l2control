@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import type { Bloqueo } from "@l2/application";
+import type { Bloqueo, Desafio, OpcionesDeFirma } from "@l2/application";
 import type { Actor } from "@l2/domain-identity";
 import type { Rechazo, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
@@ -69,14 +69,23 @@ export async function salir(motivo: "SALIDA" | "CORTE_Z" = "SALIDA"): Promise<vo
 }
 
 /**
- * Confirmar identidad con contraseña y código TOTP (F2-04): eleva ESTA sesión durante un rato
- * para configuración, precios, personas y reportes globales. Nada de lo tecleado se registra.
+ * El desafío para firmar con la llave de acceso de quien tiene ESTA sesión (ADR-020). No es un
+ * secreto: es lo que el navegador le pasa a Windows Hello o al teléfono para que firme.
  */
-export async function elevar(contrasena: unknown, codigo: unknown): Promise<Resultado<{ elevadaHasta: string }> & { bloqueo?: Bloqueo }> {
+export async function desafioParaElevar(): Promise<Resultado<Desafio<OpcionesDeFirma>>> {
+  return (await aplicacion()).elevacion.desafio({ sesion: await credencialSesion(), ahora: Date.now() });
+}
+
+/**
+ * Confirmar identidad con la contraseña y la llave de acceso, o un código de recuperación
+ * (F2-04): eleva ESTA sesión durante un rato para configuración, precios, personas y reportes
+ * globales. Nada de lo tecleado se registra.
+ */
+export async function elevar(contrasena: unknown, factor: unknown): Promise<Resultado<{ elevadaHasta: string }> & { bloqueo?: Bloqueo }> {
   const r = await (await aplicacion()).elevacion.elevar({
     sesion: await credencialSesion(),
     contrasena,
-    codigo,
+    factor,
     ip: await ipDeLaPeticion(),
     ahora: Date.now(),
   });
@@ -84,19 +93,24 @@ export async function elevar(contrasena: unknown, codigo: unknown): Promise<Resu
   return r;
 }
 
+/** El desafío para aprobar ESTE equipo con una llave: la que responda dirá de quién es. */
+export async function desafioParaAprobarEsteEquipo(): Promise<Resultado<Desafio<OpcionesDeFirma>>> {
+  return (await aplicacion()).elevacion.desafioDeEquipo({ dispositivo: await credencialEquipo(), ahora: Date.now() });
+}
+
 /**
- * Aprobar ESTE equipo con las credenciales de administración (M-7): la contraseña y el código del
- * autenticador de quien gestiona personas. Resuelve el primer equipo de un local sin la consola.
- * El equipo sale de su cookie; nada de lo tecleado se registra.
+ * Aprobar ESTE equipo con las credenciales de administración (M-7): la contraseña y la llave de
+ * acceso (o un código de recuperación) de quien gestiona personas. Resuelve el equipo perdido sin
+ * la consola. El equipo sale de su cookie; nada de lo tecleado se registra.
  */
 export async function aprobarEsteEquipo(
   contrasena: unknown,
-  codigo: unknown,
+  factor: unknown,
 ): Promise<Resultado<{ label: string; aprobadoPor: string }> & { bloqueo?: Bloqueo }> {
   const r = await (await aplicacion()).elevacion.aprobarEquipo({
     dispositivo: await credencialEquipo(),
     contrasena,
-    codigo,
+    factor,
     ip: await ipDeLaPeticion(),
     ahora: Date.now(),
   });

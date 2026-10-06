@@ -15,7 +15,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
-import { aprobarEsteEquipo, entrar, renovarSolicitud, salir, solicitarRegistro } from "./acceso.acciones";
+import { aprobarEsteEquipo, desafioParaAprobarEsteEquipo, entrar, renovarSolicitud, salir, solicitarRegistro } from "./acceso.acciones";
+import { CamposDeIdentidad, useSegundoFactor } from "./SegundoFactor";
 import { puestoDe, sinPantalla } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { RotuloVersion } from "../shell/RotuloVersion.tsx";
@@ -458,7 +459,7 @@ export function AccesoScreen({
  * parte del día aquí: es su pantalla de bloqueo, y es lo primero que ve quien estrena un equipo.
  * En vertical (tablet o móvil) la marca se vuelve una franja arriba y la tarea queda debajo.
  */
-function PantallaAcceso({ estado, extra, children }: { estado: ReactNode; extra?: ReactNode; children: ReactNode }) {
+export function PantallaAcceso({ estado, extra, children }: { estado: ReactNode; extra?: ReactNode; children: ReactNode }) {
   return (
     <div className="grid flex-1 grid-rows-[auto_minmax(0,1fr)] bg-base lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:grid-rows-1">
       <PanelMarca estado={estado} extra={extra} />
@@ -529,7 +530,7 @@ function PanelMarca({ estado, extra }: { estado: ReactNode; extra?: ReactNode })
  * enseña nombres de personas: el equipo aún no es de confianza.
  *
  * «Soy de administración» está desde la primera pantalla: quien estrena el primer equipo de un
- * local, o sustituye uno perdido, lo registra y lo aprueba de una vez con su contraseña y su código.
+ * local, o sustituye uno perdido, lo registra y lo aprueba de una vez con su contraseña y su llave de acceso (ADR-020).
  * Son dos pasos del servidor (pedir y aprobar); si el segundo falla, el equipo queda pendiente, el
  * error se ve aquí y el siguiente intento solo aprueba.
  */
@@ -543,20 +544,22 @@ function AltaDeEquipo({
   const router = useRouter();
   const [nombre, setNombre] = useState("");
   const [comoAdmin, setComoAdmin] = useState(false);
-  const [contrasena, setContrasena] = useState("");
-  const [totp, setTotp] = useState("");
+  const factor = useSegundoFactor();
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorAprobar, setErrorAprobar] = useState<string | null>(null);
   const registrado = nombreEquipo !== null;
 
   async function aprobar(): Promise<boolean> {
-    const a = await aprobarEsteEquipo(contrasena, totp).catch(() => null);
+    // La llave que responda dice de quién es: un equipo sin aprobar no enseña nombres.
+    const presentado = await factor.presentar(desafioParaAprobarEsteEquipo);
+    if (!presentado.ok) {
+      setErrorAprobar(presentado.mensaje);
+      return false;
+    }
+    const a = await aprobarEsteEquipo(factor.contrasena, presentado.factor).catch(() => null);
     if (a?.ok) return true;
-    // Se vacían los dos: una contraseña mala oculta tras los puntos haría fallar el siguiente
-    // intento, y cada fallo acerca el bloqueo del equipo.
-    setContrasena("");
-    setTotp("");
+    factor.vaciar();
     setErrorAprobar(!a ? "El servidor no respondió al aprobarlo. Inténtalo de nuevo." : a.mensaje);
     return false;
   }
@@ -587,30 +590,13 @@ function AltaDeEquipo({
     router.refresh();
   }
 
-  const credencialesListas = contrasena.length > 0 && totp.length === 6;
+  const credencialesListas = factor.listo;
   const puedeEnviar = registrado ? comoAdmin && credencialesListas : nombre.trim().length >= 2 && (!comoAdmin || credencialesListas);
 
   const credenciales = comoAdmin && (
     <div className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line bg-surface/60 p-3">
-      <p className="text-[12.5px] text-ink-2">Con tu contraseña y el código de tu autenticador. Queda en la auditoría a tu nombre.</p>
-      <Input
-        label="Contraseña"
-        surface="tablet"
-        type="password"
-        autoComplete="current-password"
-        value={contrasena}
-        onChange={(e) => setContrasena(e.target.value)}
-      />
-      <Input
-        label="Código del autenticador"
-        surface="tablet"
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        maxLength={6}
-        value={totp}
-        onChange={(e) => setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-        error={errorAprobar ?? undefined}
-      />
+      <p className="text-[12.5px] text-ink-2">Con tu contraseña y tu llave de acceso. Queda en la auditoría a tu nombre.</p>
+      <CamposDeIdentidad factor={factor} surface="tablet" error={errorAprobar} />
     </div>
   );
 

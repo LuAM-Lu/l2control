@@ -1,7 +1,7 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.51.1",
+  "version": "0.52.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Preparación del staging",
@@ -21,7 +21,6 @@
     "db:semilla": "pnpm --filter @l2/web semilla",
     "equipos": "pnpm --filter @l2/web equipos",
     "credenciales": "pnpm --filter @l2/web credenciales",
-    "totp": "pnpm --silent --filter @l2/web totp",
     "build": "turbo run build",
     "lint": "node scripts/lint.mjs",
     "typecheck": "turbo run typecheck",
