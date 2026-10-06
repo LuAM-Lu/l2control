@@ -1793,8 +1793,9 @@ antes del cobro en servidor (orden de ejecución).
 
 ### Etapa 7 · Staging en VPS
 
-- [ ] **B7-1 · VPS con Docker, HTTPS y dominio**; despliegue reversible y migraciones ensayadas antes
+- [~] **B7-1 · VPS con Docker, HTTPS y dominio**; despliegue reversible y migraciones ensayadas antes
   (F1-15, §10.3). Usa el despliegue de T-8a. Sin dominio comprado (M-22): `<ip-con-guiones>.sslip.io` con Let's Encrypt.
+  **a cargo: LuAMi · rama `feat/b7-1`.** VPS Ubuntu 24.04 (4 CPU, 8 GB) en `217-216-48-54.sslip.io`, usuario `luami` en el grupo `docker`.
 - [ ] **B7-2 · Datos maestros reales** cargados con semillas (`pnpm db:seed`) (F0-04, F1-16).
   **Bloqueado por el cliente.**
 - [ ] **B7-3 · Medición con red real**: carga, error y degradación con latencia de verdad (RIE-13); la
@@ -1854,7 +1855,7 @@ antes del cobro en servidor (orden de ejecución).
 |---|---|---|
 | ~~Proteger `main`~~ | **Hecho el 2026-10-05:** ruleset «main» activo sobre la rama por defecto, sin excepciones: PR obligatorio (0 aprobaciones), check «pnpm verify:db» con la rama al día, historial lineal, fusión por squash o rebase, sin force push ni borrado | — |
 | ~~Dar acceso a la segunda persona~~ | **Hecho:** `aemorandin-coder` trabaja y fusiona por PR desde el 2026-10-06 | — |
-| Las imágenes en ghcr.io | Tras la primera publicación, en el perfil → Packages, cada `l2control-*` → «Package settings»: hacerlas **públicas** (no llevan secretos) o crear un token de solo lectura (`read:packages`) para que el VPS haga `docker login ghcr.io` | B7-1 |
+| ~~Las imágenes en ghcr.io~~ | **No hizo falta:** con el repositorio público, `ghcr.io/luam-lu/l2control-*` se descargan sin sesión (comprobado con la 0.53.0). Si el repositorio pasa a privado, el VPS necesita un token de solo lectura (`read:packages`) | — |
 | Repositorio privado | Settings → General → Danger Zone → «Change visibility». **Ojo:** en un repositorio privado con la cuenta gratuita, GitHub no aplica la protección de ramas: hace falta GitHub Pro (unos 4 $ al mes). El CI sigue, con 2.000 minutos al mes gratis | B7-1 |
 | ~~Borrar las ramas ya fusionadas~~ | **Hecho el 2026-10-05:** solo queda `main`, en local y en GitHub | — |
 | ~~Borrado automático de ramas~~ | **Hecho el 2026-10-05:** la rama de un PR se borra sola al fusionarlo | — |
