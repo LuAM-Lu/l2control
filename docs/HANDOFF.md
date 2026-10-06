@@ -28,7 +28,7 @@ Pendiente de LuAM-Lu en GitHub (§4): dar acceso a aemorandin-coder (Maintain) y
 
 ## aemorandin-coder
 
-*2026-10-06 (tarde) · v0.52.2 · `main` tras el tema claro (M-21)*
+*2026-10-06 (cierre) · v0.52.3 · `main` tras el logo de L2*
 
 ```text
 Hecho hoy: T-2 (v0.51.0), una corrección de contraste (v0.51.1) y T-4 (v0.52.0, PR #13). 52 de 62 pasos; nada a medias.
@@ -44,6 +44,6 @@ Al actualizar tu copia: pnpm install, pnpm db:migrar (solo expande) y L2_URL_PUB
   Entra siempre por localhost (la llave va atada a la dirección). Para confirmar identidad necesitas una llave de verdad:
   pnpm credenciales "Abigail Karam" da el enlace; en Chrome sirve el autenticador virtual de DevTools → WebAuthn.
 Cuidado: un local recién instalado no tiene tarifario y la app ya abre sin él (no lo exijas en el layout). No hay suite de Playwright (§5).
-Después: v0.52.1 (doble clic al anular un cobro, que puso main en rojo) y v0.52.2 (tema claro predeterminado, por equipo,
-  M-21: mira cada pantalla en los dos temas). Pendiente: ver la sala y las mesas en alerta con datos. «Abby Kingdom», a mano (§5).
+Después: v0.52.1 (doble clic al anular un cobro, que puso main en rojo), v0.52.2 (tema claro predeterminado, por equipo, M-21:
+  mira cada pantalla en los dos temas) y v0.52.3 (logo de L2). Pendiente: sala y mesas en alerta con datos. «Abby Kingdom», a mano (§5).
 ```
