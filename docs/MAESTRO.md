@@ -571,7 +571,7 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   `pnpm lint` lo rechazó en el check «pnpm verify:db». En el equipo de quien lo hizo no había Node ni Docker: la
   regla se comprobó en el CI.*
 
-- [ ] **T-8 · Actualizaciones** (M-20, [ADR-028](adr/028-actualizaciones.md)), antes de B7-1.
+- [~] **T-8 · Actualizaciones** (M-20, [ADR-028](adr/028-actualizaciones.md)), antes de B7-1. *A cargo: aemorandin-coder, rama `feat/actualizaciones` (2026-10-06).*
   → Una etiqueta `vX.Y.Z` en `main` construye y publica las imágenes de la web y del worker y el ejecutable del
   agente con su huella, y staging se actualiza solo. En producción, Ajustes → Sistema enseña la versión en marcha,
   la disponible y sus novedades, y administración elige «Actualizar ahora» (solo sin turnos abiertos ni niños en
