@@ -28,7 +28,16 @@ function porQueNo(e: unknown, registro: boolean): string {
   if (nombre === "SecurityError") {
     return "La llave de acceso no vale desde esta dirección. Abre el sistema con su dirección de siempre.";
   }
-  return registro ? "No se pudo registrar la llave de acceso en este equipo." : "No se pudo usar la llave de acceso en este equipo.";
+  if (nombre === "InvalidStateError") {
+    return registro ? "Este equipo ya tiene una llave de acceso para esta persona. Usa otra o entra con la que tienes." : "Esa llave de acceso no sirve aquí. Usa otra.";
+  }
+  // Windows sin Hello (sin PIN, huella ni cara), o un autenticador que no guarda llaves en sí mismo.
+  if (nombre === "NotSupportedError" || nombre === "ConstraintError") {
+    return "Este equipo no puede guardar una llave de acceso. En Windows, configura un PIN en Configuración → Cuentas → Opciones de inicio de sesión, o elige «Usar un teléfono» y créala en el teléfono.";
+  }
+  // Un error oculto es un antipatrón (CLAUDE.md): lo que no se reconoce se dice con su nombre.
+  const motivo = nombre ? ` (${nombre})` : "";
+  return registro ? `No se pudo registrar la llave de acceso en este equipo${motivo}.` : `No se pudo usar la llave de acceso en este equipo${motivo}.`;
 }
 
 /** ¿Este navegador puede usar llaves de acceso? Solo tiene sentido preguntarlo en el cliente. */

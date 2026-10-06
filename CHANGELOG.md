@@ -14,6 +14,17 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.53.1] — 2026-10-07 · Preparación del staging
+
+Corrección al instalar en el servidor de staging.
+
+### Corregido
+- **Si no se puede crear una llave de acceso, la pantalla dice por qué.** Antes, ante un fallo que no reconocía,
+  decía solo «No se pudo registrar la llave de acceso en este equipo». Ahora explica los casos de Windows: si el
+  equipo no tiene Windows Hello (sin PIN, huella ni cara), dice dónde configurarlo o que se puede crear la llave
+  en el teléfono, y si el equipo ya tenía una llave para esa persona, lo dice. Cualquier otro fallo sale con el
+  nombre del error.
+
 ## [0.53.0] — 2026-10-06 · Preparación del staging
 
 Publicar y desplegar (T-8a, M-22).
