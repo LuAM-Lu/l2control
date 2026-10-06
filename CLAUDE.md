@@ -10,8 +10,14 @@ las tareas `Fn-nn` con su criterio de aceptación en §12. Antes de construir al
 MAESTRO §3 y su tarea en el plan. Si lo que vas a hacer no está en ninguno de los dos, es un cambio de
 alcance: dilo, no lo hagas en silencio.
 
-**Handoff.** Cuando el usuario escribe «handoff», se sigue el protocolo de MAESTRO §8: actualizar el
-maestro, hacer commit y entregar en el chat el bloque para pegar en una sesión nueva.
+**Relevo entre sesiones ([`docs/HANDOFF.md`](docs/HANDOFF.md), una sección por persona).**
+
+- **«siguiente»** (al abrir un chat): `git switch main` y `git pull --ff-only` (si hay cambios sin guardar o se
+  está en otra rama, se dice y no se toca nada); se lee `docs/HANDOFF.md` entero y MAESTRO §1 y §3; se responde en
+  pocas líneas qué dejó cada persona, qué pasos están reclamados y por quién, y cuál es el siguiente libre con su
+  criterio; y se propone reclamarlo. No se empieza a programar sin el sí de quien escribió «siguiente».
+- **«handoff»** (al cerrar): el protocolo de MAESTRO §8. Se reescribe solo la sección de quien trabajó y el
+  relevo se sube por PR hasta `main`.
 
 ## Comandos
 
@@ -70,7 +76,8 @@ packages/database         Prisma, migraciones y RLS forzada; solo lo importa app
 packages/observability    logger JSON con redacción y entorno validado al arrancar (solo servidor)
 packages/ui               nivel 1 primitivos + nivel 2 patrones
 packages/config           tokens de diseño + tsconfig base
-docs/MAESTRO.md           estado, ruta a producción y handoff (el único vivo)
+docs/MAESTRO.md           estado, ruta a producción y protocolo de handoff (el único vivo)
+docs/HANDOFF.md           el último relevo de cada persona («siguiente» lo lee, «handoff» lo reescribe)
 docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
 docs/adr/                 las 28 decisiones, una por archivo
 ```
