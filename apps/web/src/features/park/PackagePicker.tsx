@@ -45,7 +45,7 @@ export function PackagePicker({
               "rounded-[var(--radius-control)] border px-3 py-2 text-left transition-colors",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               active
-                ? "border-brand bg-brand/12 text-ink"
+                ? "border-brand bg-brand/20 text-ink"
                 : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
             )}
           >

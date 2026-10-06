@@ -251,7 +251,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                         onClick={() => setElegida(v.id)}
                         className={cn(
                           "cursor-pointer border-b border-dashed border-line/60 transition-colors",
-                          activa ? "bg-brand/12" : "hover:bg-surface-2/60",
+                          activa ? "bg-brand/20" : "hover:bg-surface-2/60",
                         )}
                       >
                         <td className="py-0 pl-4">

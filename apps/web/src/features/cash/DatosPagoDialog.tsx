@@ -215,7 +215,7 @@ export function DatosPagoDialog({
             className={cn(
               "flex min-h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 text-left",
               "transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-              campos[campo] === o.id ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:border-line-strong",
+              campos[campo] === o.id ? "border-brand bg-brand/20 text-ink" : "border-line bg-base text-ink-2 hover:border-line-strong",
             )}
           >
             <span className="text-[14px] font-semibold">{o.nombre}</span>

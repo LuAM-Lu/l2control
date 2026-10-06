@@ -34,12 +34,17 @@
      significar otra cosa en ninguna otra pantalla.                      */
   --color-state-ok: #10b981;      /* En tiempo, disponible, listo          */
   --color-state-warn: #f59e0b;    /* Por vencer, requiere revisión         */
-  --color-state-crit: #ef4444;    /* Vencido, error, bloqueo               */
+  --color-state-crit: #f87171;    /* Vencido, error, bloqueo               */
   --color-state-idle: #64748b;    /* Libre, inactivo, sin datos            */
 
-  --color-state-ok-bg: #052e26;
-  --color-state-warn-bg: #3a2a08;
-  --color-state-crit-bg: #3f1414;
+  /* Los fondos de estado son MÁS CLAROS que la tarjeta (#1e293b) sobre la que van: un tono oscuro
+     del propio color, pero con más luz que ella. Más oscuros (como eran: #052e26, #3a2a08, #3f1414) el aviso
+     se leía hundido, como un botón ya presionado. El tope de cada tinte lo pone el contraste de
+     su texto, que se mantiene en torno a 4,5:1 (ok 4,5 · warn 5,2 · crit 4,9). Por eso el rojo
+     es el 400 y no el 500: con #ef4444 el texto de error sobre una tarjeta se quedaba en 3,9. */
+  --color-state-ok-bg: #0e4236;
+  --color-state-warn-bg: #4a3a12;
+  --color-state-crit-bg: #4a2229;
   --color-state-idle-bg: #1e293b;
 
   /* --- Tipografía (§8.3) -------------------------------------------------

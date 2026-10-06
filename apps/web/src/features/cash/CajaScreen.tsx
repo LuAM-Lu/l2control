@@ -810,7 +810,7 @@ function CobroCuenta({
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   "disabled:cursor-not-allowed disabled:opacity-35",
                   activo
-                    ? "border-brand bg-brand/12 text-ink ring-1 ring-brand/30"
+                    ? "border-brand bg-brand/20 text-ink ring-1 ring-brand/30"
                     : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
                 )}
               >
@@ -1780,7 +1780,7 @@ function CobroCuenta({
                 className={cn(
                   "flex min-h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 text-left",
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35",
-                  m.code === medioActivo.code ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:text-ink",
+                  m.code === medioActivo.code ? "border-brand bg-brand/20 text-ink" : "border-line bg-base text-ink-2 hover:text-ink",
                 )}
               >
                 <span className="text-[14px] font-bold">{m.label}</span>

@@ -110,7 +110,7 @@ function Pasos({ paso, jornada }: { paso: Paso; jornada: boolean }) {
           <span
             className={cn(
               "tnum flex size-5 items-center justify-center rounded-full border text-[11px] font-semibold",
-              i < actual ? "border-state-ok bg-state-ok-bg text-state-ok" : i === actual ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-3",
+              i < actual ? "border-state-ok bg-state-ok-bg text-state-ok" : i === actual ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-3",
             )}
           >
             {i < actual ? <CircleCheckBig size={12} aria-hidden="true" /> : i + 1}

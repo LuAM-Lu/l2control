@@ -232,7 +232,7 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
                 onClick={() => setModo(id)}
                 className={cn(
                   "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13px] transition-colors",
-                  modo === id ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                  modo === id ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                 )}
               >
                 {texto}

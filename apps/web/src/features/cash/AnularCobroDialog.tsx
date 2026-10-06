@@ -149,7 +149,7 @@ export function AnularCobroDialog({
                 }}
                 className={cn(
                   "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-left text-[13px] leading-tight transition-colors",
-                  motivo === m.id ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                  motivo === m.id ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                 )}
               >
                 {m.texto}
@@ -197,7 +197,7 @@ export function AnularCobroDialog({
                           onClick={() => setVias((x) => ({ ...x, [i]: v }))}
                           className={cn(
                             "min-h-12 cursor-pointer rounded-[var(--radius-control)] border text-[12.5px] transition-colors",
-                            viaDe(i) === v ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                            viaDe(i) === v ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                           )}
                         >
                           {v === "MISMO_MEDIO" ? `Por ${p.label}` : "En efectivo"}

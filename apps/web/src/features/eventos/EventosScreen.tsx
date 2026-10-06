@@ -533,7 +533,7 @@ function NuevaReserva({
                 }}
                 className={cn(
                   "flex min-h-12 cursor-pointer flex-col items-start justify-center gap-0.5 rounded-[var(--radius-control)] border px-3 py-1.5 text-left",
-                  paqueteId === p.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+                  paqueteId === p.id ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-2 hover:text-ink",
                 )}
               >
                 <span className="flex w-full items-baseline justify-between gap-2 text-[13.5px] font-semibold">

@@ -128,7 +128,7 @@ export function ImpresoraForm({
                 onClick={() => setForm((f) => ({ ...f, ancho: a }))}
                 className={cn(
                   "min-h-9 cursor-pointer rounded-[var(--radius-control)] border text-[13px]",
-                  form.ancho === a ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                  form.ancho === a ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                 )}
               >
                 {a} mm

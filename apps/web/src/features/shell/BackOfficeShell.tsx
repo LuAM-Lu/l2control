@@ -400,7 +400,7 @@ function Fila({
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           riel && "justify-center xl:justify-start",
           activo
-            ? "bg-brand/12 font-semibold text-brand"
+            ? "bg-brand/20 font-semibold text-brand"
             : resaltado
               ? "font-semibold text-ink"
               : "text-ink-2 hover:bg-surface-2 hover:text-ink",

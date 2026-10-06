@@ -181,7 +181,7 @@ export function ColaCuentas({
           className={cn(
             "flex min-h-14 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-colors",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-            ventaNueva ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
+            ventaNueva ? "border-brand bg-brand/20 text-ink" : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
           )}
         >
           <Plus size={15} aria-hidden="true" />
@@ -277,7 +277,7 @@ export function ColaCuentas({
                     "flex min-h-14 w-full cursor-pointer flex-col gap-1 rounded-[var(--radius-control)] border px-3 py-2 text-left",
                     "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    activa ? "border-brand bg-brand/12" : "border-transparent hover:bg-surface-2",
+                    activa ? "border-brand bg-brand/20" : "border-transparent hover:bg-surface-2",
                     recientes.has(c.id) && "l2-destello",
                   )}
                 >

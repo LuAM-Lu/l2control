@@ -256,7 +256,7 @@ function CamposDelProducto({
               onClick={() => setTipo(t.id)}
               className={cn(
                 "flex min-h-14 cursor-pointer flex-col items-start justify-center gap-0.5 rounded-[var(--radius-control)] border px-2.5 py-1.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                tipo === t.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+                tipo === t.id ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-2 hover:text-ink",
               )}
             >
               <span className="flex items-center gap-1.5 text-[13px] font-semibold">

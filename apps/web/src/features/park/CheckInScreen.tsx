@@ -598,7 +598,7 @@ export function CheckInScreen({
                         className={cn(
                           "flex min-h-12 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 py-2 text-left",
                           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                          reservaId === (r?.id ?? null) ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:text-ink",
+                          reservaId === (r?.id ?? null) ? "border-brand bg-brand/20 text-ink" : "border-line bg-base text-ink-2 hover:text-ink",
                         )}
                       >
                         {r ? <Cake size={16} className="shrink-0 text-brand" aria-hidden="true" /> : <Ticket size={16} className="shrink-0" aria-hidden="true" />}
@@ -724,7 +724,7 @@ export function CheckInScreen({
                       "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                       modo === valor
-                        ? "border-brand bg-brand/12 text-ink"
+                        ? "border-brand bg-brand/20 text-ink"
                         : "border-line bg-base text-ink-2 hover:text-ink",
                     )}
                   >

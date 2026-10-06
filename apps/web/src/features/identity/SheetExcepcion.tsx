@@ -224,7 +224,7 @@ function Segmento({
         "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         activo
-          ? "border-brand bg-brand/12 font-semibold text-ink"
+          ? "border-brand bg-brand/20 font-semibold text-ink"
           : "border-line bg-base text-ink-2 hover:text-ink",
       )}
     >

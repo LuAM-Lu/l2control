@@ -14,6 +14,16 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+### Corregido
+- **Los avisos y lo seleccionado ya no parecen botones hundidos.** Los fondos verde, amarillo y rojo de avisos,
+  distintivos y tarjetas de estado eran más oscuros que la tarjeta sobre la que iban, y se leían como algo ya
+  presionado; ahora tienen más luz que ella. La opción elegida en los selectores (motivos, medios, paquetes,
+  «Soy de administración») lleva un relleno dorado más visible. El rojo de errores y bloqueos es un tono más
+  claro, que se lee mejor sobre el fondo oscuro, y el botón de peligro lleva el texto oscuro. Ningún color
+  cambia de significado.
+
 ## [0.51.0] — 2026-10-06 · Preparación del staging
 
 Paso T-2 de la ruta: cero simulación.
