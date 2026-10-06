@@ -14,6 +14,16 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.52.3] — 2026-10-06 · Preparación del staging
+
+El logo de L2 (pedido del usuario).
+
+### Cambiado
+- **El sistema lleva el logo oficial de L2**, la «L2» azul y verde de la suite, en lugar del recuadro con las
+  letras: en el acceso, en el menú del panel, en la pestaña del navegador y en el icono de la app instalada.
+  Es el mismo en el tema claro y en el oscuro. Quien ya tenía la app instalada verá el icono nuevo cuando su
+  equipo la actualice, o al reinstalarla.
+
 ## [0.52.2] — 2026-10-06 · Preparación del staging
 
 Tema claro (pedido del usuario; M-21).

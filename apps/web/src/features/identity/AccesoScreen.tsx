@@ -20,6 +20,7 @@ import { CamposDeIdentidad, useSegundoFactor } from "./SegundoFactor";
 import { puestoDe, sinPantalla } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
 import { BotonTema } from "../shell/BotonTema.tsx";
+import { LogoL2 } from "../shell/LogoL2.tsx";
 import { RotuloVersion } from "../shell/RotuloVersion.tsx";
 import { Badge, Button, Initial, Input, NumericKeypad, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -498,9 +499,7 @@ function PanelMarca({ estado, extra }: { estado: ReactNode; extra?: ReactNode })
       />
 
       <div className="relative flex items-center gap-4">
-        <span className="font-display grid size-14 shrink-0 place-content-center rounded-[0.9rem] bg-brand text-xl font-bold text-on-brand shadow-lift lg:size-16 lg:text-2xl">
-          L2
-        </span>
+        <LogoL2 className="h-14 drop-shadow-md lg:h-16" />
         <span className="min-w-0">
           <span className="font-display block text-2xl leading-tight font-bold tracking-tight text-ink lg:text-[2rem]">
             L2 Control
