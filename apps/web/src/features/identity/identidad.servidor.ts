@@ -1,5 +1,5 @@
 import "server-only";
-import type { BranchAccessDto, Resultado, UsersDirectoryDto } from "@l2/contracts";
+import type { BranchAccessDto, CredencialesDePersonaDto, PuestaAPuntoDto, Resultado, UsersDirectoryDto } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -15,4 +15,16 @@ export async function directorioDelLocal(): Promise<Resultado<UsersDirectoryDto>
 export async function accesosDelLocal(): Promise<Resultado<BranchAccessDto>> {
   const ctx = await contextoActual();
   return ctx ? (await aplicacion()).accesos.leer(ctx) : sinSesion;
+}
+
+/** Las credenciales de cada persona, sin ningún secreto (ADR-020). Exige `usuarios.gestionar`. */
+export async function credencialesDelLocal(): Promise<Resultado<CredencialesDePersonaDto[]>> {
+  const ctx = await contextoActual();
+  return ctx ? (await aplicacion()).enlaces.resumen(ctx) : sinSesion;
+}
+
+/** La Puesta a punto (JORNADA §2), que solo ve quien gestiona personas. */
+export async function puestaAPuntoDelLocal(): Promise<Resultado<PuestaAPuntoDto>> {
+  const ctx = await contextoActual();
+  return ctx ? (await aplicacion()).puestaAPunto.leer(ctx) : sinSesion;
 }

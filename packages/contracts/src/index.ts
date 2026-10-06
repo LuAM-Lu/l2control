@@ -323,6 +323,33 @@ export {
 } from "./identity.ts";
 
 export {
+  TipoDeEnlaceSchema,
+  EnlaceDeAltaCommandSchema,
+  EnlaceDeAltaSchema,
+  LlaveDeAccesoSchema,
+  CredencialesDePersonaSchema,
+  EnlaceAbiertoSchema,
+  PrepararAltaSchema,
+  CompletarAltaSchema,
+  PrepararInstalacionSchema,
+  CompletarInstalacionSchema,
+  PuntoDePuestaAPuntoSchema,
+  PuestaAPuntoSchema,
+  type TipoDeEnlace,
+  type EnlaceDeAltaCommand,
+  type EnlaceDeAltaDto,
+  type LlaveDeAccesoDto,
+  type CredencialesDePersonaDto,
+  type EnlaceAbiertoDto,
+  type PrepararAlta,
+  type CompletarAlta,
+  type PrepararInstalacion,
+  type CompletarInstalacion,
+  type PuntoDePuestaAPuntoDto,
+  type PuestaAPuntoDto,
+} from "./credenciales.ts";
+
+export {
   MotivoCortesiaSchema,
   CortesiaSchema,
   MotivoAnulacionPedidoSchema,

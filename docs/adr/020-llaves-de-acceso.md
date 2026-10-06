@@ -4,8 +4,12 @@
   de ADR-018** (segundo factor); el resto de ADR-018 y el «segundo factor obligatorio» de ADR-013
   siguen enteros.
 - **Fecha:** 2026-09-27
-- **Situación en el código:** pendiente, paso T-4 del MAESTRO. Hoy el segundo factor es TOTP y las
-  credenciales se dan por consola (`pnpm credenciales`).
+- **Situación en el código:** hecho en el paso T-4 del MAESTRO (2026-10-06). Llaves WebAuthn con
+  SimpleWebAuthn (`identidad/llaves.ts`), diez códigos de recuperación, elevación y aprobación de equipo
+  con contraseña + llave o código, enlaces de alta de 24 h con QR (Ajustes → Usuarios y `/alta`),
+  instalación inicial con código del registro (`/acceso` con la base vacía) y Puesta a punto en Inicio.
+  `pnpm totp` y `otpauth` se retiraron; `pnpm credenciales` imprime un enlace de alta. Queda la columna
+  `totp_secret_enc`, sin uso, hasta una migración de contracción (ADR-028; MAESTRO §5).
 
 > Para cambiar esta decisión se escribe un ADR nuevo que la supersede.
 > No se edita esta en silencio.

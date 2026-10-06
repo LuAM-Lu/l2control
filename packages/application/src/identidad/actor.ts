@@ -62,7 +62,7 @@ export async function permisoEn(tx: Transaccion, ctx: Contexto, accion: Action):
 }
 
 /**
- * Lo que además del permiso exige confirmar identidad con contraseña y código TOTP (F2-04):
+ * Lo que además del permiso exige confirmar identidad con contraseña y llave de acceso (F2-04, ADR-020):
  * configuración, precios, personas y reportes globales. Vale para leer y para escribir.
  */
 export const ACCIONES_ELEVADAS: readonly Action[] = ["catalogo.modificar", "usuarios.gestionar", "reportes.verTodas"];
@@ -80,7 +80,7 @@ export async function exigirPermiso(tx: Transaccion, ctx: Contexto, accion: Acti
   return {
     ok: false,
     motivo: "ELEVACION_REQUERIDA",
-    mensaje: "Confirma que eres tú: tu contraseña y el código de tu autenticador.",
+    mensaje: "Confirma que eres tú: tu contraseña y tu llave de acceso.",
   };
 }
 

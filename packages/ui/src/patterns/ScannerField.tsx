@@ -80,6 +80,9 @@ function esCampo(el: EventTarget | null): el is HTMLInputElement | HTMLTextAreaE
 }
 
 function alTeclear(event: KeyboardEvent) {
+  // Al rellenar un campo solo (el gestor de contraseñas, el autocompletado), el navegador lanza un
+  // `keydown` que no es de ninguna tecla: llega sin `key`. No lo tecleó nadie ni lo leyó un lector.
+  if (typeof event.key !== "string") return;
   const now = Date.now();
   const gap = now - bus.lastKeyAt;
   bus.lastKeyAt = now;

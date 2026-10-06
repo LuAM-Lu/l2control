@@ -19,15 +19,15 @@
     "@l2/domain-cash": "workspace:*",
     "@l2/domain-identity": "workspace:*",
     "@l2/domain-inventory": "workspace:*",
-    "@l2/domain-park": "workspace:*",
     "@l2/domain-money": "workspace:*",
     "@l2/domain-orders": "workspace:*",
+    "@l2/domain-park": "workspace:*",
+    "@l2/domain-printing": "workspace:*",
     "@l2/domain-rates": "workspace:*",
     "@l2/domain-tax": "workspace:*",
-    "@l2/domain-printing": "workspace:*",
     "@l2/observability": "workspace:*",
     "@node-rs/argon2": "2.2.1",
-    "otpauth": "9.5.2",
+    "@simplewebauthn/server": "14.0.3",
     "zod": "4.5.4"
   },
   "devDependencies": {

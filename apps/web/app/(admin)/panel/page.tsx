@@ -6,6 +6,7 @@ import { RefrescarAlCambiar } from "../../../src/features/operacion/RefrescarAlC
 import { catalogoDelLocal } from "../../../src/features/inventario/productos.servidor";
 import { stockAlerts } from "@l2/domain-inventory";
 import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
+import { puestaAPuntoDelLocal } from "../../../src/features/identity/identidad.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -26,7 +27,15 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen, catalogo, eventos] = await Promise.all([ninosAtendidos(), turnosAbiertos(), resumenDelDia(), catalogoDelLocal(), eventosDeHoy()]);
+  const [atendidos, turnos, resumen, catalogo, eventos, puesta] = await Promise.all([
+    ninosAtendidos(),
+    turnosAbiertos(),
+    resumenDelDia(),
+    catalogoDelLocal(),
+    eventosDeHoy(),
+    // La Puesta a punto (JORNADA §2, T-4) solo la recibe quien gestiona personas; a los demás, nada.
+    puestaAPuntoDelLocal(),
+  ]);
   // B9-5: lo que hay que reponer. Solo si algún producto a la venta lleva existencia.
   const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
   const inventario = contables.length > 0 ? stockAlerts(contables) : null;
@@ -54,6 +63,7 @@ export default async function InicioPage() {
       enServicio={turnos.length > 0}
       inventario={inventario}
       eventosHoy={eventos?.reservas ?? []}
+      puestaAPunto={puesta.ok ? puesta.valor : null}
     />
     </>
   );

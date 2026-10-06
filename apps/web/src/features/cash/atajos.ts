@@ -70,6 +70,8 @@ export function useAtajos(manejador: Manejador, activo = true) {
     };
 
     const alTeclear = (e: KeyboardEvent) => {
+      // El autocompletado del navegador lanza un `keydown` sin `key`: no es una tecla.
+      if (typeof e.key !== "string") return;
       if (e.repeat || (e.defaultPrevented && !CANCELADOS_AQUI.has(e)) || estaEscribiendo(e) || e.metaKey) return;
       const ahora = performance.now();
       if (cola.length > 0 && ahora - ultima < RAFAGA_MS) rafaga = true;

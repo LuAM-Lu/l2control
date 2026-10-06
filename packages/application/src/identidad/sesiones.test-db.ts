@@ -3,9 +3,8 @@
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { Secret, TOTP } from "otpauth";
 import { DEFAULT_LOCKOUT_POLICY } from "@l2/domain-identity";
-import { abrirLocalDePrueba, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, crearEquipo, crearPersona, darCredenciales, elevarConLlave, type CredencialesDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 import { contextoDeSesion, SESION_INACTIVA_MS } from "./sesiones.ts";
 import { leerCredencial } from "./credenciales.ts";
 
@@ -14,7 +13,7 @@ let local: LocalDePrueba;
 let admin: string;
 let cajera: string;
 let equipo: string;
-let secretoAdmin: string;
+let credencialesAdmin: CredencialesDePrueba;
 const T0 = Date.parse("2026-09-27T18:00:00.000Z");
 
 before(async () => {
@@ -25,9 +24,7 @@ before(async () => {
   await crearPersona(local, { nombre: "Sin PIN todavía", role: "MESERO", pin: null });
   await crearPersona(local, { nombre: "De la otra sede", role: "CAJERO", sucursales: [local.otraSucursal] });
   equipo = await crearEquipo(local, "Tablet caja");
-  const c = await local.app.elevacion.credenciales(local.sistema, { nombre: "Abigail Karam", contrasena: "contraseña-de-prueba" });
-  if (!c.ok) throw new Error(c.mensaje);
-  secretoAdmin = c.valor.secretoBase32;
+  credencialesAdmin = await darCredenciales(local, admin);
 });
 
 after(() => local.cerrar());
@@ -178,13 +175,12 @@ async function sesionDe(userId: string, pin: string) {
   return contextoDeSesion(r.sesion, "10.0.0.9");
 }
 
-/** Igual, pero además confirmada con contraseña y código TOTP (F2-04), como haría la pantalla. */
+/** Igual, pero además confirmada con contraseña y llave de acceso (F2-04), como haría la pantalla. */
 async function sesionElevadaDeAdmin() {
   const ahora = Date.now();
   const r = await entrar(admin, "4826", ahora);
   if (!r.ok) throw new Error(r.mensaje);
-  const codigo = new TOTP({ secret: Secret.fromBase32(secretoAdmin) }).generate({ timestamp: ahora });
-  const e = await local.app.elevacion.elevar({ sesion: r.credencial, contrasena: "contraseña-de-prueba", codigo, ip: null, ahora });
+  const e = await elevarConLlave(local, r.credencial, credencialesAdmin, ahora);
   if (!e.ok) throw new Error(e.mensaje);
   const s = await local.app.sesiones.consultar(r.credencial, ahora);
   return contextoDeSesion(s!, "10.0.0.9");

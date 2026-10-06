@@ -14,7 +14,7 @@ export interface Contexto {
   /** Desde dónde llegó la petición, para la auditoría. */
   readonly ip?: string | null;
   /**
-   * Hasta cuándo vale la elevación de la sesión con contraseña y TOTP (F2-04). Lo pone el
+   * Hasta cuándo vale la elevación de la sesión con contraseña y llave de acceso (F2-04, ADR-020). Lo pone el
    * servidor desde la sesión, nunca el navegador.
    */
   readonly elevadaHasta?: string | null;

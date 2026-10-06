@@ -111,6 +111,36 @@ function esSecuencia(pin: string): boolean {
 }
 
 /**
+ * La contraseña de administración (F2-04, ADR-020). Es el factor que se SABE, junto a la llave
+ * de acceso que se TIENE: larga antes que rebuscada, porque una frase de varias palabras se
+ * recuerda y cuesta más adivinarla que ocho símbolos raros.
+ */
+export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MAX_LENGTH = 200;
+
+export type PasswordRejection = "CORTA" | "LARGA" | "TRIVIAL";
+
+export type PasswordCheck =
+  | Readonly<{ ok: true }>
+  | Readonly<{ ok: false; reason: PasswordRejection; message: string }>;
+
+export function checkNewPassword(password: string): PasswordCheck {
+  // Se cuentan caracteres, no unidades UTF-16: una «ñ» o un acento valen uno.
+  const largo = [...password].length;
+  if (largo < PASSWORD_MIN_LENGTH) {
+    return { ok: false, reason: "CORTA", message: `La contraseña necesita al menos ${PASSWORD_MIN_LENGTH} caracteres.` };
+  }
+  if (largo > PASSWORD_MAX_LENGTH) {
+    return { ok: false, reason: "LARGA", message: `La contraseña admite hasta ${PASSWORD_MAX_LENGTH} caracteres.` };
+  }
+  // «aaaaaaaaaaaa» o «abababababab»: doce caracteres que no son doce decisiones.
+  if (new Set(password).size < 4) {
+    return { ok: false, reason: "TRIVIAL", message: "Esa contraseña es demasiado fácil de adivinar. Usa una frase." };
+  }
+  return { ok: true };
+}
+
+/**
  * ¿Es aceptable este PIN **como nuevo**?
  *
  * Se usa al asignarlo, no al entrar: rechazar un PIN por «trivial» en el

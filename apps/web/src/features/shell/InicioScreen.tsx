@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, CircleCheck, FileText, PackageX, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
-import type { ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
+import type { PuestaAPuntoDto, ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
+import { PuestaAPunto } from "./PuestaAPunto.tsx";
 import { TurnosDelDia } from "../cash/TurnosDelDia.tsx";
 import { EntradasPorMedio, porMedioDelLibro } from "../cash/EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "../cash/ExcepcionesTurno.tsx";
@@ -61,6 +62,7 @@ export function InicioScreen({
   enServicio,
   inventario = null,
   eventosHoy = [],
+  puestaAPunto = null,
 }: {
   /** El día según el libro (B3-5); `null` sin permiso de ver la sucursal o sin servidor. */
   resumen: ResumenDelDiaDto | null;
@@ -78,6 +80,8 @@ export function InicioScreen({
   inventario?: Readonly<{ agotados: number; bajoMinimo: number }> | null;
   /** Los cumpleaños de hoy que siguen en pie (B10-1): «Hoy hay un evento». */
   eventosHoy?: readonly ReservaEventoDto[];
+  /** Lo que falta para el primer día (JORNADA §2); `null` para quien no gestiona personas. */
+  puestaAPunto?: PuestaAPuntoDto | null;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
   // La tasa vigente, de la misma fuente que la caja y la barra de las estaciones (B2-1c): llega
@@ -174,6 +178,9 @@ export function InicioScreen({
           </Link>
         </div>
       </header>
+
+      {/* T-4: tras la instalación, lo que falta para abrir; se tacha sola y con todo hecho no sale. */}
+      {puestaAPunto && <PuestaAPunto puesta={puestaAPunto} />}
 
       {/* ──────────────────────────── 1 · el local ahora ─────────────────── */}
       <EnVivo

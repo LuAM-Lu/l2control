@@ -18,12 +18,7 @@ export const EQUIPO_DESARROLLO: readonly PersonaASembrar[] = [
 ];
 
 /**
- * La administración de desarrollo confirma identidad (F2-04) con esta contraseña y este secreto
- * TOTP, fijos para no depender de un autenticador: `pnpm totp` imprime el código vigente. SOLO en
- * desarrollo; en un local de verdad se dan con `pnpm credenciales "<nombre>"`.
+ * Quién es la administración de desarrollo: a ella le imprime la semilla su enlace de alta para
+ * poner contraseña y llave de acceso (ADR-020). No hay contraseña ni secreto fijos.
  */
-export const ADMIN_DESARROLLO = {
-  nombre: "Abigail Karam",
-  contrasena: "abby-kingdom-desarrollo",
-  secretoBase32: "L2DESARROLLOABBYKINGDOMZZZZZZZZZ",
-} as const;
+export const ADMIN_DESARROLLO = "Abigail Karam";

@@ -15,24 +15,44 @@ import { useConElevacion } from "../identity/ElevacionProvider";
  */
 
 type Valor = Readonly<{
+  /** El publicado; sin ninguno, el borrador de partida: sin paquetes, así que nada se vende con él. */
   tarifario: TarifarioDto;
-  /** Versión vigente en el servidor. */
+  /** Versión vigente en el servidor; 0 si todavía no se publicó ninguna. */
   version: number;
+  /** `false` en un local recién instalado (T-4): la entrada no vende hasta publicar el primero. */
+  publicado: boolean;
   /** Sustituye el tarifario en servicio. Nunca lanza por un rechazo: lo devuelve. */
   publicar: (tarifario: TarifarioDto) => Promise<Resultado<TarifarioPublicadoDto>>;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
 
-export function TarifarioProvider({ inicial, children }: { inicial: TarifarioPublicadoDto; children: React.ReactNode }) {
-  const [vigente, setVigente] = useState<TarifarioPublicadoDto>(inicial);
+/**
+ * De dónde parte el editor en un local sin tarifario: ningún paquete y unas reglas que NO cobran
+ * nada por su cuenta (sin gracia y tiempo de más a $ 0,00) hasta que administración las fije. El
+ * aforo es el del piloto (DEC-7). No es un tarifario: no pasa el contrato (pide un paquete a la
+ * venta) y el servidor no lo conoce.
+ */
+const BORRADOR_DE_PARTIDA: TarifarioDto = {
+  packages: [],
+  policy: {
+    graceMinutes: 0,
+    penaltyBlockMinutes: 15,
+    penaltyPricePerBlock: { minor: "0", currency: "USD" },
+    warnBeforeMinutes: 5,
+    capacityLimit: 30,
+  },
+};
+
+export function TarifarioProvider({ inicial, children }: { inicial: TarifarioPublicadoDto | null; children: React.ReactNode }) {
+  const [vigente, setVigente] = useState<TarifarioPublicadoDto | null>(inicial);
 
   // Cuando el layout se vuelve a pintar con otra versión (esta u otra estación publicó y se
   // navegó), se adopta: `useState` solo mira su valor inicial una vez. Depende solo de la
   // versión, que identifica el contenido; el objeto cambia en cada pintado.
   useEffect(() => {
     setVigente(inicial);
-  }, [inicial.version]);
+  }, [inicial?.version]);
 
   // Publicar precios exige confirmar identidad (F2-04): si el servidor la pide, se pide y se reintenta.
   const conElevacion = useConElevacion();
@@ -46,7 +66,7 @@ export function TarifarioProvider({ inicial, children }: { inicial: TarifarioPub
   );
 
   const valor = useMemo(
-    () => ({ tarifario: vigente.tarifario, version: vigente.version, publicar }),
+    () => ({ tarifario: vigente?.tarifario ?? BORRADOR_DE_PARTIDA, version: vigente?.version ?? 0, publicado: vigente !== null, publicar }),
     [vigente, publicar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

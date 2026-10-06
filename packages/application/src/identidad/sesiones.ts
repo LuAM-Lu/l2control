@@ -43,7 +43,7 @@ export interface SesionActiva {
   readonly role: Role;
   readonly actor: Actor;
   readonly abiertaEn: string;
-  /** Hasta cuándo vale la elevación con contraseña y TOTP (B1-2). */
+  /** Hasta cuándo vale la elevación con contraseña y llave de acceso (B1-2, ADR-020). */
   readonly elevadaHasta: string | null;
 }
 

@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-10-05**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-10-06**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -33,7 +33,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.51.1 · 51 de 62 pasos.** **Corrección (v0.51.1):** los avisos verdes, amarillos y rojos y la opción elegida de los selectores se leían hundidos, como un botón ya presionado, porque su fondo era más oscuro que la tarjeta; ahora tienen más luz que ella (tres tokens), el rojo de estado es un tono más claro que sí llega al contraste mínimo y el icono de un aviso rojo se mueve en bucle (el de uno amarillo, tres veces al aparecer). **En curso (T-4, rama `feat/instalacion-y-llaves`, sin fusionar):** el servidor ya tiene las llaves de acceso, los enlaces de alta, la instalación inicial y la puesta a punto, con sus pruebas contra la base; faltan las pantallas, la consola y la semilla sin TOTP, y abrirlo en el navegador (detalle en su casilla de §3). **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Siguen T-4 y T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
+**Versión 0.52.0 · 52 de 62 pasos.** **Instalación inicial y llaves de acceso (T-4, [ADR-020](adr/020-llaves-de-acceso.md)):** con la base vacía, el acceso ofrece «Instalar L2 Control» (código del registro del servidor, local, primera administración con contraseña, PIN y llave de acceso, diez códigos de recuperación y ese equipo aprobado), y después esa pantalla no vuelve a existir. Confirmar identidad y aprobar un equipo desde sí mismo piden contraseña + llave, o un código de recuperación; el TOTP y `pnpm totp` se retiraron. Administración da credenciales desde Ajustes → Usuarios con un enlace de 24 h con QR, que la persona completa en `/alta`. Inicio enseña la Puesta a punto, que se tacha sola. Un local sin tarifario ya abre (la entrada lo dice y el editor publica el primero). **Corrección (v0.51.1):** los avisos verdes, amarillos y rojos y la opción elegida de los selectores se leían hundidos, como un botón ya presionado, porque su fondo era más oscuro que la tarjeta; ahora tienen más luz que ella (tres tokens), el rojo de estado es un tono más claro que sí llega al contraste mínimo y el icono de un aviso rojo se mueve en bucle (el de uno amarillo, tres veces al aparecer). **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Sigue T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
 con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
 lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
 platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
@@ -110,9 +110,11 @@ número del medio cuenta los pasos entregados.
   Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja) y las cuentas (entrada, mesas, caja, cobrar y anular), los cortes del turno y el resumen del día de Inicio, y **el parque** (entrada, sala, salida, directorio de familias y
   los niños atendidos de Inicio). No se enseña nada inventado: lo que no existe dice «Sin datos» o «Sin turno
   abierto». Lo demás es configuración provisional o simulación, en §5.
-- **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → «Soy de administración» con
-  contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
-  → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
+- **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → `pnpm equipos aprobar "<nombre>"` → persona →
+  PIN 1970. Para confirmar identidad, la administración pone su contraseña y su llave de acceso con el enlace de
+  alta que imprime `pnpm db:semilla` (o `pnpm credenciales "Abigail Karam"`); con ellas también aprueba un equipo
+  desde él mismo («Soy de administración»). Siempre por `http://localhost:3000`: la llave va atada a la dirección.
+  Tope: 10 solicitudes por hora desde la misma dirección.
 - **Pruebas:** `pnpm verify:db` en verde (94 de base, 500 de aplicación, 13 del worker, 6 del agente; en el dominio, 62 de tasas, 49 de impuestos, 162 de caja, 54 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 110 de identidad; 281 de contratos).
   v0.22.0); el CI pasó en verde allí el 2026-09-26. B0-4 se cerró el 2026-10-06 al verlo en rojo con un PR de
   prueba (#6, T-2).
@@ -160,9 +162,9 @@ está revocado.
 **Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
 carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
 
-**Producción arranca con la base vacía (M-12).** Hoy el primer administrador y su primer equipo solo
-se crean por consola, y el segundo factor es un TOTP de una app de terceros. T-4 lo resuelve antes de
-staging: instalación inicial desde el navegador y llaves de acceso (ADR-020).
+**Producción arranca con la base vacía (M-12), y ya no pide consola (T-4).** El servidor escribe en su registro un
+código de instalación de un solo uso; con él, el primer administrador y su primer equipo se crean desde el navegador, y
+el segundo factor es una llave de acceso (ADR-020). `pnpm credenciales` y `pnpm equipos` quedan como puerta de emergencia.
 
 **El día completo, en cuatro momentos (M-13).** Con el cliente se fijó el 2026-09-27 cómo es la
 jornada: primer encendido, apertura, jornada y cierre, en [JORNADA.md](JORNADA.md). Lo que exige a
@@ -481,24 +483,7 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   sin registrar (con y sin la opción de administración), contraseña mala → pendiente con «Contraseña o
   código incorrectos» y su código, aprobar → «¿Quién entra?» → PIN → panel, y pendiente; los cinco a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
-- [~] **T-4 · Instalación inicial y llaves de acceso** (M-12, ADR-020), antes de B7-1. *A cargo: aemorandin-coder, rama `feat/instalacion-y-llaves` (2026-10-06).*
-  *A medias al 2026-10-06 (en la rama, dos commits «wip» que se funden en uno al cerrar):*
-  *— **Hecho y probado** (`pnpm --filter @l2/application test:db`, 534 en verde): migración `20261030000000_llaves_de_acceso`
-  (solo expande: `passkey`, `recovery_code`, `enrollment_link`, `auth_challenge`, `installation`; `totp_secret_enc` se queda
-  sin usar hasta una contracción); `identidad/llaves.ts` (WebAuthn con SimpleWebAuthn, desafío de un solo uso, códigos de
-  recuperación), `elevacion.ts` (contraseña + llave o código, también al aprobar un equipo), `enlaces.ts` (enlace de alta
-  de 24 h, ALTA o LLAVE, con el secreto en el fragmento de la dirección), `instalacion.ts` (código de instalación con
-  bloqueo, todo en una transacción) y `sucursal/puesta-a-punto.ts`; contratos en `contracts/credenciales.ts`;
-  `checkNewPassword` en el dominio; `LlaveDePrueba` (autenticador de software) en `para-pruebas.ts`; `otpauth` retirado.*
-  *— **Hecho sin probar en el navegador:** `L2_URL_PUBLICA` en el entorno web (obligatoria; https fuera de desarrollo), el
-  código de instalación en el registro al arrancar, y las acciones `acceso.acciones.ts`, `instalacion.acciones.ts`,
-  `alta.acciones.ts` y las de enlaces y puesta a punto en `identidad.*`.*
-  *— **Falta:** las pantallas (el diálogo de elevación y el alta de equipo siguen pidiendo el código TOTP y hoy no elevan;
-  «Instalar L2 Control» en `/acceso`; la página `/alta`; el enlace con QR en Panel → Personas, con `qrcode-generator`;
-  la Puesta a punto en Inicio); `pnpm credenciales` y `pnpm db:semilla` (llaman a `elevacion.credenciales`, que ya no
-  existe: deben imprimir un enlace de alta) y retirar `pnpm totp`; probar con el autenticador virtual de Chromium a
-  1366×768, 1280×800 y 800×1280, también con la base vacía; README, CLAUDE.md, CHANGELOG, ADR-020 («Situación en el
-  código») y §5 (la columna del TOTP como deuda de contracción).*
+- [x] **T-4 · Instalación inicial y llaves de acceso** (M-12, ADR-020), antes de B7-1.
   → Con la base vacía, el acceso ofrece «Instalar L2 Control» (código de instalación de un solo uso que
   el servidor escribe en su registro): local, primer administrador con contraseña, PIN y llave de
   acceso, diez códigos de recuperación y este equipo aprobado; después la pantalla no vuelve a
@@ -509,6 +494,34 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   enseña la **Puesta a punto** de JORNADA §2 (personas, equipos, tarifas, impuestos, tasa, medios,
   catálogo, impresoras, feriados, carta y plano, segunda administración), que se tacha sola cuando
   el dato existe; cada punto dice qué puesto bloquea.
+  *Hecho el 2026-10-06 (aemorandin-coder):*
+  *· **Servidor:** migración `20261030000000_llaves_de_acceso` (solo expande: `passkey`, `recovery_code`, `enrollment_link`,
+  `auth_challenge`, `installation`); `identidad/llaves.ts` (WebAuthn con SimpleWebAuthn, desafío de un solo uso, códigos de
+  recuperación), `elevacion.ts`, `enlaces.ts` (ALTA o LLAVE, 24 h, el secreto en el fragmento de la dirección),
+  `instalacion.ts` (código con bloqueo, todo en una transacción) y `sucursal/puesta-a-punto.ts`; contratos en
+  `contracts/credenciales.ts`; `checkNewPassword` en el dominio; `otpauth` retirado. `test:db` de aplicación, 534 en verde.*
+  *· **Web:** `L2_URL_PUBLICA` obligatoria; el diálogo de elevación y el alta de equipo piden contraseña + llave, o un
+  código de recuperación (`SegundoFactor.tsx`, `llave.cliente.ts`); «Instalar L2 Control» en `/acceso` en cuatro pasos
+  cortos (`InstalacionScreen.tsx`); `/alta` (`AltaScreen.tsx`); los códigos se enseñan una vez y se imprimen solos
+  (`CodigosDeRecuperacion.tsx`); credenciales de cada persona y enlace con QR en Ajustes → Usuarios
+  (`CredencialesDePersona.tsx`, `Qr.tsx` con `qrcode-generator`); Puesta a punto en Inicio (`PuestaAPunto.tsx`).*
+  *· **Consola:** `pnpm credenciales "<nombre>" [llave]` y `pnpm db:semilla` imprimen un enlace de alta; se retira `pnpm totp`.*
+  *· **Lo que apareció al abrirlo con la base vacía:** el layout exigía un tarifario publicado y ni el acceso abría: ahora
+  `tarifarioVigente()` admite «sin publicar», la entrada lo dice y el editor publica el primero desde un borrador que no
+  cobra nada por su cuenta. Al completar la instalación el servidor repintaba el acceso y se llevaba los códigos antes de
+  poder guardarlos: la pantalla de instalación es ahora la puerta del acceso y los conserva. La Puesta a punto daba
+  «Medios de pago» por hecho en un local nuevo (contaba el USDT, que nace encendido): cuenta solo Pago Móvil, Zelle y el
+  punto. El worker fallaba al guardar la tasa de un local sin instalar: espera en silencio y la trae al instalarse.*
+  *· **Comprobado en el navegador** (Chromium con autenticador virtual, a 1366×768, 1280×800 y 800×1280, sin desplazar el
+  documento, sin botones cortados y sin errores de consola): con la base vacía, código equivocado y PIN trivial rechazados
+  junto a su campo, instalación completa, diez códigos, entrada al panel, Puesta a punto con 0 de 13 y el acceso que ya no
+  ofrece instalar; con el local de desarrollo, alta con enlace, enlace usado que ya no vale, equipo aprobado con
+  contraseña + llave y con un código, elevación con llave y con código (y el mismo código rechazado la segunda vez),
+  «Reponer credenciales» con su confirmación, «Añadir otra llave» con QR y una segunda llave en otro autenticador. Las
+  pruebas de navegador se corrieron a mano: el repositorio sigue sin suite de Playwright (JORNADA §8).*
+  *· **En la base local de quien lo probó:** tres locales de prueba «Parque de Prueba T4» (cada uno con su tenant, aislados
+  por RLS) y los equipos «Prueba T4 …», revocados. Las credenciales de Abigail Karam quedaron atadas a un autenticador
+  virtual que ya no existe: se reponen con `pnpm credenciales "Abigail Karam"`.*
 - [x] **T-6 · Menú por operación** (M-13, JORNADA §1).
   → El menú del panel pone arriba Inicio, Parque, Restaurante y Caja, y abajo «Ajustes» con
   impuestos, feriados bancarios, medios de pago, tasas, tarifas, carta, plano, personas y equipos.
@@ -1839,8 +1852,12 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Qué | Se salda en |
 |---|---|
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
-| Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos) | T-4 (se retira el TOTP, ADR-020) |
-| El primer administrador y sus credenciales solo se crean por consola (`pnpm credenciales`): una base vacía no arranca sin ella | T-4 (instalación inicial y enlace de alta, M-12) |
+| ~~Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos)~~ | Saldada con T-4: no hay TOTP; el desafío de una llave y cada código de recuperación son de un solo uso |
+| ~~El primer administrador y sus credenciales solo se crean por consola (`pnpm credenciales`): una base vacía no arranca sin ella~~ | Saldada con T-4: instalación inicial y enlace de alta desde el panel |
+| La columna `totp_secret_enc` de `staff_user` quedó sin uso (T-4 solo expande) | Una migración de contracción, en una versión posterior a la que entre en producción (ADR-028) |
+| El nombre «Abby Kingdom» está escrito a mano en el acceso, el menú del panel, las migas de unas 20 pantallas y el manifiesto; la instalación ya pide el nombre del local, pero esas pantallas no lo leen | Antes de un segundo cliente; con uno solo coincide |
+| Quien desarrolla necesita una llave de acceso de verdad para confirmar identidad (Windows Hello, el teléfono o el gestor de contraseñas del navegador): ya no hay contraseña ni código fijos de desarrollo | Aceptado (ADR-020). Las pruebas usan el autenticador de software de `para-pruebas.ts` o el virtual de Chromium |
+| No hay suite de Playwright en el repositorio: las pruebas de navegador de cada paso se corren a mano (JORNADA §8 las pide de punta a punta) | B7-3, o antes si se decide |
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | Sin Storybook | Fuera de la Ruta A |
@@ -2145,6 +2162,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   botón de peligro con texto oscuro e iconos de aviso animados por selector en los tokens. Se hizo además una vista previa
   de un **tema claro azulado** (inspirado en «Light Blue» de L2Lab) cambiando solo tokens: gustó, pero no está en el plan
   y no se guardó; si entra, hay que decidir el interruptor (por persona o por equipo) y qué pasa con el amarillo de marca.
+- **2026-10-06** · T-4 entregado (instalación inicial y llaves de acceso, ADR-020): pantallas, consola sin TOTP y la base
+  vacía operativa sin consola; al probarla salieron y se corrigieron cuatro fallos (§3). T-8 se reclamó por error fuera de
+  orden y se retiró el mismo día (PR #10 y #11). Sigue T-8 y la Etapa 7.
 
 ---
 

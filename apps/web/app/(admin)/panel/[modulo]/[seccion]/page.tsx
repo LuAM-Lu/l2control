@@ -9,7 +9,7 @@ import { versionesDelTarifario } from "../../../../../src/features/park/tarifari
 import { AccesosPage } from "../../../../../src/features/identity/AccesosPage";
 import { DispositivosPage } from "../../../../../src/features/identity/DispositivosPage";
 import { dispositivosDelLocal } from "../../../../../src/features/identity/dispositivos.servidor";
-import { accesosDelLocal, directorioDelLocal } from "../../../../../src/features/identity/identidad.servidor";
+import { accesosDelLocal, credencialesDelLocal, directorioDelLocal } from "../../../../../src/features/identity/identidad.servidor";
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { directorioDeFamilias } from "../../../../../src/features/park/parque.servidor";
@@ -53,7 +53,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/tasas": async () => <TasasPage autorizadores={await autorizadoresDeTasa()} historial={await paginaDeTasas()} />,
   "ajustes/impuestos": async () => <ImpuestosScreen impuestos={await impuestosDelLocal()} />,
   "ajustes/feriados": async () => <FeriadosScreen feriados={await feriadosDelLocal()} />,
-  "ajustes/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} />,
+  "ajustes/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} credenciales={await credencialesDelLocal()} />,
   "ajustes/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
   "ajustes/sucursal": () => <EditorSucursal />,

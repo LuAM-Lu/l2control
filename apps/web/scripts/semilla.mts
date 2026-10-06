@@ -8,6 +8,10 @@
  * Los datos son inventados (scripts/semilla). Los reales llegan con F0-04 y B7-2. El equipo
  * nuevo desde el que se abra la app pide su registro en el acceso; se aprueba con
  * `pnpm equipos aprobar "<nombre>"` (la consola del servidor).
+ *
+ * La administración de desarrollo no tiene contraseña fija (ADR-020): mientras no tenga
+ * credenciales, la semilla imprime su enlace de alta, que se abre en el navegador para poner la
+ * contraseña y registrar la llave de acceso.
  */
 import { existsSync } from "node:fs";
 import { conectar, type Contexto } from "@l2/application";
@@ -21,7 +25,7 @@ import { PRODUCTOS_DE_DESARROLLO } from "./semilla/productos.mts";
 const raiz = new URL("../../../.env", import.meta.url);
 if (existsSync(raiz)) process.loadEnvFile(raiz);
 
-const { L2_DB_APP_URL, L2_TENANT_ID, L2_BRANCH_ID, L2_ENTORNO, L2_CLAVE_CIFRADO } = process.env;
+const { L2_DB_APP_URL, L2_TENANT_ID, L2_BRANCH_ID, L2_ENTORNO, L2_CLAVE_CIFRADO, L2_URL_PUBLICA } = process.env;
 if (!L2_DB_APP_URL || !L2_TENANT_ID || !L2_BRANCH_ID) {
   console.error("Faltan L2_DB_APP_URL, L2_TENANT_ID o L2_BRANCH_ID (copia .env.example a .env).");
   process.exit(1);
@@ -31,22 +35,19 @@ if (L2_ENTORNO !== "desarrollo") {
   process.exit(1);
 }
 
-const app = await conectar(L2_DB_APP_URL, { claveCifrado: L2_CLAVE_CIFRADO });
+const app = await conectar(L2_DB_APP_URL, { claveCifrado: L2_CLAVE_CIFRADO, urlPublica: L2_URL_PUBLICA });
 try {
   const ctx: Contexto = { tenantId: L2_TENANT_ID, branchId: L2_BRANCH_ID, sistema: true };
   const { creada } = await app.sucursal.asegurar(ctx, { tenant: "Abby Kingdom", sucursal: "Principal" });
   console.log(creada ? "✓ Local creado: Abby Kingdom · Principal" : "· El local ya existía");
 
+  let adminId: string | null = null;
   for (const persona of EQUIPO_DESARROLLO) {
     const r = await app.equipo.asegurar(ctx, persona);
     if (!r.ok) throw new Error(`${persona.nombre}: ${r.mensaje}`);
+    if (persona.nombre === ADMIN_DESARROLLO) adminId = r.id;
     console.log(r.creada ? `✓ ${persona.nombre} (${persona.role})` : `· ${persona.nombre} ya existía`);
   }
-
-  // La administración confirma identidad (F2-04) con credenciales fijas de desarrollo.
-  const cred = await app.elevacion.credenciales(ctx, ADMIN_DESARROLLO);
-  if (!cred.ok) throw new Error(`Credenciales de ${ADMIN_DESARROLLO.nombre}: ${cred.mensaje}`);
-  console.log(`✓ ${ADMIN_DESARROLLO.nombre}: contraseña y autenticador de desarrollo`);
 
   if (await app.tarifario.leer(ctx)) {
     console.log("· Ya hay tarifario publicado: no se toca");
@@ -87,7 +88,21 @@ try {
     console.log(`✓ Catálogo de mostrador de ejemplo: ${PRODUCTOS_DE_DESARROLLO.length} productos`);
   }
   console.log("\nEl PIN de todo el equipo de desarrollo es 1970.");
-  console.log(`Para confirmar identidad: contraseña «${ADMIN_DESARROLLO.contrasena}» y el código de \`pnpm totp\`.`);
+
+  // La administración confirma identidad con su contraseña y su llave de acceso (ADR-020), que
+  // pone ella misma con un enlace de alta. Con credenciales ya puestas no se le repone nada.
+  const credenciales = await app.enlaces.resumen(ctx);
+  if (!credenciales.ok) throw new Error(`Credenciales de ${ADMIN_DESARROLLO}: ${credenciales.mensaje}`);
+  // Una contraseña sin llave no confirma nada (la base de quien ya sembraba con TOTP): también recibe enlace.
+  const suyas = credenciales.valor.find((c) => c.userId === adminId);
+  if (suyas?.tieneContrasena && suyas.llaves.length > 0) {
+    console.log(`${ADMIN_DESARROLLO} ya tiene contraseña y llave de acceso (se reponen con \`pnpm credenciales "${ADMIN_DESARROLLO}"\`).`);
+  } else if (adminId) {
+    const enlace = await app.enlaces.crear(ctx, { userId: adminId, kind: "ALTA" }, Date.now());
+    if (!enlace.ok) throw new Error(`Enlace de alta de ${ADMIN_DESARROLLO}: ${enlace.mensaje}`);
+    console.log(`Para confirmar identidad, ${ADMIN_DESARROLLO} pone su contraseña y su llave de acceso con este enlace (24 h, un solo uso):`);
+    console.log(`  ${enlace.valor.url}`);
+  }
 } finally {
   await app.cerrar();
 }
