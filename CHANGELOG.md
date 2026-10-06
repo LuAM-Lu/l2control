@@ -5,7 +5,7 @@ Qué cambia en cada versión, para quien usa el sistema. Formato de
 según M-10 (docs/MAESTRO.md §2):
 
 - **MINOR** +1 por cada paso de la ruta a producción entregado: el número del medio dice cuántos van
-  (de 62). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
+  (de 63). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
 - Cada rama escribe lo suyo en `## [Sin publicar]`; al fusionar en `main`, quien fusiona le pone número y
   fecha y crea la etiqueta (M-20).
 - La fuente es `version` del `package.json` raíz, con su etapa en `l2.etapa`. `pnpm verify` falla si

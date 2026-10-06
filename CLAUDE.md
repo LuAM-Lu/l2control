@@ -64,6 +64,7 @@ apps/web                  Next.js 16 — todas las superficies
   src/features/<dominio>  pantallas y lógica de aplicación, por dominio
   src/servidor/           entorno validado, conexión a application y logger (solo servidor)
 apps/worker               canal en vivo (Socket.io + Valkey), outbox y trabajos programados (B5-1)
+apps/printer-agent        agente de impresión de la laptop de caja: cola del servidor → impresora por TCP 9100 (ADR-026)
 packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
 packages/domain/rates     tasa vigente, fracción de conversión y límite de cordura (puro)
@@ -71,7 +72,9 @@ packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
 packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones, carga desde papel (puro)
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
-packages/domain/inventory catálogo de productos con precio por día; stock y costeo después (puro)
+packages/domain/inventory catálogo con precio por día, existencia, costo promedio, mínimos y conteo (puro)
+packages/domain/orders    plano del restaurante y pedido del mesero con su comanda (puro)
+packages/domain/printing  ticket impreso (ESC/POS) y cola de impresión (puro)
 packages/application      casos de uso: contrato + dominio + base en la transacción del tenant
 packages/database         Prisma, migraciones y RLS forzada; solo lo importa application
 packages/observability    logger JSON con redacción y entorno validado al arrancar (solo servidor)
