@@ -1942,6 +1942,8 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
   worker): se recorta con `turbo prune`. `pnpm exec` dentro de una imagen intenta reinstalar: se llama al binario.
   Un `.env` en una subcarpeta entra al contexto de Docker si `.dockerignore` no dice `**/.env`. En el compose, un
   valor con «: » (como el mensaje de `${VAR:?…}`) va entre comillas o el YAML no carga.
+  En el runner de Windows de GitHub, `pnpm` bajo PowerShell sale sin hacer nada **y sin error**: los pasos van en
+  `bash` y la publicación comprueba que el ejecutable existe antes de subirlo.
 
 - `can()` devuelve una palabra (`PERMITIDO`, `REQUIERE_AUTORIZACION` o `DENEGADO`), no un booleano. Se
   compara siempre así: `can(...) !== "DENEGADO"`. Escribir `actor ? can(...) : false` da cierto para
@@ -2217,6 +2219,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   contratado y staging va sin dominio comprado, por `sslip.io`. La ruta pasa a 63. T-8a reclamado por LuAMi (`feat/t-8a`).
 - **2026-10-06** · T-8a entregado como v0.53.0 (LuAMi): imágenes, servidor con Caddy, `desplegar.sh` con vuelta atrás ensayada en local,
   publicación por etiqueta y las imágenes en el CI. Sigue B7-1 en el VPS ya contratado; T-8b en paralelo.
+- **2026-10-06** · La primera publicación (v0.53.0) falló sin publicar nada: en el runner de Windows `pnpm` no corría bajo
+  PowerShell y salía con éxito. `publicar.yml` pasa a `bash`, comprueba el ejecutable y se puede relanzar a mano para una etiqueta.
 
 ---
 
