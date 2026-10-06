@@ -24,7 +24,7 @@ export function ChipEventosDeHoy({ reservas, className }: { reservas: readonly R
     <Link
       href={AGENDA}
       className={cn(
-        "group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-brand/40 bg-brand/12 px-3 py-1.5 text-xs font-medium text-ink shadow-sm transition-colors duration-[var(--dur-rapida)] hover:bg-brand/20 focus-visible:outline-2 focus-visible:outline-brand lg:text-[13px]",
+        "group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-brand/40 bg-brand/20 px-3 py-1.5 text-xs font-medium text-ink shadow-sm transition-colors duration-[var(--dur-rapida)] hover:bg-brand/20 focus-visible:outline-2 focus-visible:outline-brand lg:text-[13px]",
         className,
       )}
     >

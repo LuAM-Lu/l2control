@@ -145,7 +145,7 @@ export function CampoAutorizacion({
                   onClick={() => a.elegir(x.id)}
                   className={cn(
                     "flex min-h-12 cursor-pointer flex-col justify-center rounded-[var(--radius-control)] border px-3 text-left transition-colors",
-                    a.autorizador?.id === x.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+                    a.autorizador?.id === x.id ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-2 hover:text-ink",
                   )}
                 >
                   <span className="text-[13px] font-semibold">{x.nombre}</span>

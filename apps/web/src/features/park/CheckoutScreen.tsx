@@ -675,7 +675,7 @@ function Recogida({
 }) {
   const opcion = (activo: boolean) =>
     `flex min-h-12 cursor-pointer items-center justify-center rounded-[var(--radius-control)] border px-2 text-[12.5px] font-semibold transition-colors ${
-      activo ? "border-brand bg-brand/12 text-ink" : "border-line bg-base text-ink-2 hover:text-ink"
+      activo ? "border-brand bg-brand/20 text-ink" : "border-line bg-base text-ink-2 hover:text-ink"
     }`;
   return (
     <fieldset className="mt-2.5 flex flex-col gap-1.5">

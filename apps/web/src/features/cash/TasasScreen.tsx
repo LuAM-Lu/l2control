@@ -729,7 +729,7 @@ function HojaConfirmar({
                         "min-h-11 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13px]",
                         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                         autorizadorId === a.id
-                          ? "border-brand bg-brand/12 font-semibold text-ink"
+                          ? "border-brand bg-brand/20 font-semibold text-ink"
                           : "border-line bg-base text-ink-2 hover:text-ink",
                       )}
                     >

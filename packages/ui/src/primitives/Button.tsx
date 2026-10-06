@@ -33,7 +33,8 @@ const VARIANT: Record<string, string> = {
   primary: `bg-brand text-on-brand hover:bg-brand-2 font-semibold ${APAGADO}`,
   neutral: "bg-surface-2 text-ink hover:bg-line border border-line",
   ghost: "bg-transparent text-ink-2 hover:bg-surface-2 hover:text-ink",
-  danger: `bg-state-crit text-ink hover:opacity-90 font-semibold ${APAGADO}`,
+  // Texto oscuro, como el primario: sobre el rojo, el claro se queda en 2,5:1 y el oscuro da 6,4:1.
+  danger: `bg-state-crit text-on-brand hover:opacity-90 font-semibold ${APAGADO}`,
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

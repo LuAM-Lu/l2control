@@ -634,7 +634,7 @@ function AltaDeEquipo({
           className={cn(
             "flex min-h-14 cursor-pointer flex-col items-start justify-center rounded-[var(--radius-control)] border px-3 text-left",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-            comoAdmin === valor ? "border-brand bg-brand/12 text-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
+            comoAdmin === valor ? "border-brand bg-brand/20 text-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
           )}
         >
           <span className="flex items-center gap-1.5 text-[13.5px] font-semibold">

@@ -168,7 +168,7 @@ export function DescuentoDialog({
                     }}
                     className={cn(
                       "flex min-h-14 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 text-left transition-colors",
-                      id === c.regla.id ? "border-brand bg-brand/12" : "border-line hover:border-line-strong",
+                      id === c.regla.id ? "border-brand bg-brand/20" : "border-line hover:border-line-strong",
                     )}
                   >
                     <Icono size={16} className="shrink-0 text-ink-3" aria-hidden="true" />
@@ -198,7 +198,7 @@ export function DescuentoDialog({
                   }}
                   className={cn(
                     "flex min-h-12 cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border border-dashed px-3 text-left transition-colors",
-                    id === ADMIN ? "border-brand bg-brand/12" : "border-line-strong hover:border-brand/60",
+                    id === ADMIN ? "border-brand bg-brand/20" : "border-line-strong hover:border-brand/60",
                   )}
                 >
                   <ShieldCheck size={16} className="shrink-0 text-ink-3" aria-hidden="true" />
@@ -226,7 +226,7 @@ export function DescuentoDialog({
                     onClick={() => setEnPorcentaje(pct)}
                     className={cn(
                       "min-h-12 w-12 cursor-pointer border text-[15px] font-bold first:rounded-l-[var(--radius-control)] last:rounded-r-[var(--radius-control)]",
-                      enPorcentaje === pct ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-3 hover:text-ink",
+                      enPorcentaje === pct ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-3 hover:text-ink",
                     )}
                   >
                     {pct ? "%" : "$"}
@@ -261,7 +261,7 @@ export function DescuentoDialog({
                   }}
                   className={cn(
                     "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-2 text-center text-[13px] leading-tight transition-colors",
-                    motivo === m.id ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                    motivo === m.id ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                   )}
                 >
                   {m.texto}

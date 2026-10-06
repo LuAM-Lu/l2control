@@ -124,7 +124,7 @@ export function AnularPedidoDialog({
                 }}
                 className={cn(
                   "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-left text-[13px] leading-tight transition-colors",
-                  motivo === m.id ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                  motivo === m.id ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                 )}
               >
                 {m.texto}
@@ -159,7 +159,7 @@ export function AnularPedidoDialog({
                 }}
                 className={cn(
                   "flex min-h-12 cursor-pointer flex-col justify-center rounded-[var(--radius-control)] border px-3 text-left leading-tight transition-colors",
-                  preparado === p.id ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+                  preparado === p.id ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-2 hover:text-ink",
                 )}
               >
                 <span className={cn("text-[13px]", preparado === p.id && "font-semibold")}>{p.texto}</span>

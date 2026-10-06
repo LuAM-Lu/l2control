@@ -149,7 +149,7 @@ export function SalidaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePape
                   onClick={() => elegirFamilia(f)}
                   className={cn(
                     "flex min-h-12 cursor-pointer flex-col justify-center rounded-[var(--radius-control)] border px-3 py-1.5 text-left transition-colors",
-                    familiaId === f.accountId ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-2 hover:text-ink",
+                    familiaId === f.accountId ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-2 hover:text-ink",
                   )}
                 >
                   <span className="text-[13.5px] font-semibold">{f.nombre}</span>
@@ -194,7 +194,7 @@ export function SalidaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePape
                 onClick={() => setOtra(valor)}
                 className={cn(
                   "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13px] transition-colors",
-                  otra === valor ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                  otra === valor ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                 )}
               >
                 {texto}

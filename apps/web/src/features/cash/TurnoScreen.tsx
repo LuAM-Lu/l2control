@@ -134,7 +134,7 @@ function AperturaTurno({
         className="flex w-full max-w-md shrink-0 flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-card apaisado:bajo:gap-3 apaisado:bajo:p-5"
       >
         <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand/12 text-brand">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand/20 text-brand">
             <Wallet size={20} aria-hidden="true" />
           </span>
           <div>

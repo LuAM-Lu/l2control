@@ -159,7 +159,7 @@ function AbrirCarga({ datos, onCambio }: { datos: CargasDePapelDto; onCambio: ()
   return (
     <form onSubmit={abrir} className="flex w-full max-w-xl flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand/12 text-brand">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand/20 text-brand">
           <FileText size={20} aria-hidden="true" />
         </span>
         <div>

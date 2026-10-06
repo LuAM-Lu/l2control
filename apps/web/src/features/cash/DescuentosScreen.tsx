@@ -351,7 +351,7 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
                     onClick={() => setTipo(t.id)}
                     className={cn(
                       "flex min-h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border px-1 text-center text-[12px] leading-tight",
-                      tipo === t.id ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                      tipo === t.id ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                     )}
                   >
                     <t.icon size={14} aria-hidden="true" />
@@ -413,7 +413,7 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
                         onClick={() => setEnPorcentaje(pct)}
                         className={cn(
                           "min-h-10 w-10 cursor-pointer border text-[14px] font-bold first:rounded-l-[var(--radius-control)] last:rounded-r-[var(--radius-control)]",
-                          enPorcentaje === pct ? "border-brand bg-brand/12 text-ink" : "border-line text-ink-3 hover:text-ink",
+                          enPorcentaje === pct ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-3 hover:text-ink",
                         )}
                       >
                         {pct ? "%" : "$"}
@@ -451,7 +451,7 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
                       }}
                       className={cn(
                         "min-h-9 cursor-pointer rounded-[var(--radius-control)] border px-2 text-[12.5px]",
-                        alcance === a.id ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                        alcance === a.id ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                       )}
                     >
                       {a.nombre}
@@ -476,7 +476,7 @@ export function DescuentosScreen({ descuentos, catalogo }: { descuentos: Descuen
                             }}
                             className={cn(
                               "min-h-8 cursor-pointer rounded-full border px-3 text-[12px]",
-                              on ? "border-brand bg-brand/12 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                              on ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
                             )}
                           >
                             {c}
