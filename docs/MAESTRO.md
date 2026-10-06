@@ -541,7 +541,7 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   el nuevo caso de uso (Dispositivos, Tasas, Tarifario). Confirmar identidad para ver sigue en Usuarios, Accesos y
   Dispositivos (sin cambios). Navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página, y en teléfono; sin
   errores de consola (detalle en §1).*
-- [ ] **T-2 · Cero simulación** (M-11), antes de B7-1.
+- [~] **T-2 · Cero simulación** (M-11), antes de B7-1. *A cargo: aemorandin-coder, rama `feat/sin-simulacion` (2026-10-06).*
   → ~~La carpeta `src/demo` ya no existe y se retira la regla `demo-solo-desde-las-rutas`~~ (hecho con B6-1, que
   borró lo último). Falta que `pnpm lint` sume la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
   literales y listas de ejemplo en `features/`. El CI sale en rojo con una violación.
