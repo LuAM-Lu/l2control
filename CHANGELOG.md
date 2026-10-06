@@ -14,6 +14,15 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.54.0] — 2026-10-07 · Staging en el VPS
+
+El sistema en el servidor (B7-1).
+
+### Añadido
+- **L2 Control ya está en internet**, en su servidor (VPS), con HTTPS: `https://217-216-48-54.sslip.io`. Es el
+  staging: aquí se prueba con los equipos reales del local antes de la puesta en marcha. Las actualizaciones se
+  ponen sin miedo: si una versión no queda sana, el servidor vuelve solo a la anterior (ensayado allí mismo).
+
 ## [0.53.1] — 2026-10-07 · Preparación del staging
 
 Corrección al instalar en el servidor de staging.
