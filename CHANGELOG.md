@@ -14,6 +14,16 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.52.1] — 2026-10-06 · Preparación del staging
+
+Corrección entre pasos.
+
+### Corregido
+- **Un doble clic al anular un cobro ya no puede acabar en «Ese asiento ya se revirtió».** Si las dos
+  peticiones llegaban casi a la vez, la segunda podía responder con ese error aunque la anulación se había
+  hecho, y bien, una sola vez. Ahora devuelve lo ya anulado, como hacía en el resto de los casos. El dinero
+  nunca estuvo mal: siempre quedó una sola reversión.
+
 ## [0.52.0] — 2026-10-06 · Preparación del staging
 
 Paso T-4 de la ruta: instalación inicial y llaves de acceso (ADR-020, M-12).

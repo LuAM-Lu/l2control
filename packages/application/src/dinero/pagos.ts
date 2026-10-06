@@ -163,7 +163,14 @@ export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
           const original = await tx.payment.findUnique({ where: { id: cmd.paymentId } });
           if (!original) return noExiste;
           const problema = await problemaDeReversion(tx, original);
-          if (problema === "YA_REVERTIDO") return { ok: false, motivo: "CONFLICTO", mensaje: "Ese asiento ya se revirtió." };
+          if (problema === "YA_REVERTIDO") {
+            // Un doble clic puede colarse entre las dos miradas: al empezar, la otra petición aún no
+            // había asentado (no había nada con esta clave) y aquí ya sí. Si quien lo revirtió es
+            // ESTA misma operación, se devuelve lo hecho; solo es conflicto si fue otra.
+            const gemela = await yaAsentado(tx, cmd.idempotencyKey);
+            if (gemela[0]?.reversesId === cmd.paymentId) return leerLibro(tx, gemela[0].documentId);
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Ese asiento ya se revirtió." };
+          }
           if (problema === "ES_UNA_REVERSION") {
             return invalido("Una reversión no se revierte: si hay que volver a cobrar, es un cobro nuevo.", ["paymentId"], problema);
           }
