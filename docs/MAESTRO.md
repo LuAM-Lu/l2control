@@ -481,7 +481,7 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   sin registrar (con y sin la opción de administración), contraseña mala → pendiente con «Contraseña o
   código incorrectos» y su código, aprobar → «¿Quién entra?» → PIN → panel, y pendiente; los cinco a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
-- [ ] **T-4 · Instalación inicial y llaves de acceso** (M-12, ADR-020), antes de B7-1.
+- [~] **T-4 · Instalación inicial y llaves de acceso** (M-12, ADR-020), antes de B7-1. *A cargo: aemorandin-coder, rama `feat/instalacion-y-llaves` (2026-10-06).*
   → Con la base vacía, el acceso ofrece «Instalar L2 Control» (código de instalación de un solo uso que
   el servidor escribe en su registro): local, primer administrador con contraseña, PIN y llave de
   acceso, diez códigos de recuperación y este equipo aprobado; después la pantalla no vuelve a
