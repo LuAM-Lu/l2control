@@ -14,6 +14,20 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.52.2] — 2026-10-06 · Preparación del staging
+
+Tema claro (pedido del usuario; M-21).
+
+### Añadido
+- **Tema claro, y es el que sale por defecto.** Fondo azul muy claro, tarjetas blancas, azul como color
+  principal y texto azul marino (inspirado en «Light Blue» de L2Lab). Cada equipo elige el suyo con el botón
+  del sol o la luna, en el acceso y en el pie del menú del panel, y se queda así en ese equipo: la laptop de
+  caja puede ir en claro y el teléfono de la sala en oscuro. El tema oscuro sigue igual que estaba.
+- **En el tema claro, los avisos rojos y amarillos son bloques de color sólido.** El rojo lleva la letra blanca
+  y el amarillo, azul marino (sobre el amarillo el blanco no se lee). Las zonas teñidas enteras, como la barra
+  de la caja sin turno abierto, se quedan en un tono suave. El verde no cambia.
+- La barra del navegador toma el color del tema.
+
 ## [0.52.1] — 2026-10-06 · Preparación del staging
 
 Corrección entre pasos.

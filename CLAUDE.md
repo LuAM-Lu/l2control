@@ -105,6 +105,11 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
 ## Al escribir componentes
 
 - Colores **solo** desde los tokens de `packages/config/tokens.css`. Ningún literal.
+- **Hay dos temas (M-21): claro, el predeterminado, y oscuro**, por equipo (cookie `l2_tema`, `data-tema` en
+  `<html>`). Una pantalla no sabe en cuál está: usa los tokens y los dos salen solos. Lo que se pruebe en el
+  navegador se mira en los dos. En el claro, un aviso (`bg-state-crit-bg`, `bg-state-warn-bg`, o con opacidad
+  de /40 en adelante) es un bloque sólido y los tokens de texto se redefinen dentro; con opacidad baja (/25,
+  /35) es un tinte de zona y queda en pastel.
 - Los colores de estado (`state-ok`, `state-warn`, `state-crit`) son **reservados**: significan
   siempre lo mismo y nunca se usan como decoración.
 - El estado se comunica por **color + icono + texto**, nunca solo por color (§8.2).

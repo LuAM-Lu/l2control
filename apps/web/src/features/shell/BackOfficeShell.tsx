@@ -8,6 +8,7 @@ import { ChevronDown, LogOut, Maximize2, Menu, X } from "lucide-react";
 import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
+import { BotonTema } from "./BotonTema.tsx";
 import { PageTransition } from "./PageTransition.tsx";
 import { cerrarSesion, useOperador } from "../identity/operador.ts";
 import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
@@ -438,6 +439,7 @@ function PieUsuario({
         <p className="truncate text-[13px] font-medium text-ink">{usuario}</p>
         <p className="truncate text-[11.5px] text-ink-3">{rol}</p>
       </div>
+      <BotonTema compacto className={cn(compacto && "hidden xl:flex")} />
       <Link
         href="/acceso"
         onClick={onSalir}

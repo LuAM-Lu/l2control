@@ -8,6 +8,7 @@ import { SesionProvider } from "../src/features/identity/operador";
 import { ElevacionProvider } from "../src/features/identity/ElevacionProvider";
 import { NOMBRE_ROL } from "../src/features/identity/permisos";
 import { sesionActual } from "../src/servidor/sesion";
+import { temaDelEquipo } from "../src/servidor/tema";
 import { PlanoProvider } from "../src/features/mesas/PlanoProvider";
 import { planoDelLocal } from "../src/features/mesas/plano.servidor";
 import { PedidosProvider } from "../src/features/mesas/PedidosProvider";
@@ -58,15 +59,18 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
-export const viewport: Viewport = {
-  themeColor: "#0f172a",
-  // §8.7: nunca se desactiva el zoom.
-  initialScale: 1,
-  width: "device-width",
-  viewportFit: "cover",
-  // En el teléfono de la monitora (B4-5) el teclado encoge la pantalla fija en vez de tapar el campo.
-  interactiveWidget: "resizes-content",
-};
+/** El color de la barra del navegador sigue al tema del equipo: no admite var(), así que se copia del token base. */
+export async function generateViewport(): Promise<Viewport> {
+  return {
+    themeColor: (await temaDelEquipo()) === "claro" ? "#f0f8ff" : "#0f172a",
+    // §8.7: nunca se desactiva el zoom.
+    initialScale: 1,
+    width: "device-width",
+    viewportFit: "cover",
+    // En el teléfono de la monitora (B4-5) el teclado encoge la pantalla fija en vez de tapar el campo.
+    interactiveWidget: "resizes-content",
+  };
+}
 
 /** Lo que recibe una pantalla sin sesión (el acceso): ningún plano. */
 const SIN_PLANO = { plano: null, version: null, publicadoEn: null, publicadoPor: null } as const;
@@ -105,7 +109,8 @@ export default async function RootLayout({
   const enCurso = sesion ? await sesionesEnCurso() : [];
 
   return (
-    <html lang="es-VE" className={`${quicksand.variable} ${inter.variable}`}>
+    // El tema de este equipo (oscuro o claro), de su cookie: lo pinta el servidor, sin parpadeo.
+    <html lang="es-VE" data-tema={await temaDelEquipo()} className={`${quicksand.variable} ${inter.variable}`}>
       <body>
         <RegistroServiceWorker />
         {/* La operación del local (bus de eventos) por encima de las dos cáscaras:
