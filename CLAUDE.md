@@ -51,7 +51,8 @@ pnpm test         # pruebas de dominio
 
 `pnpm arch` impone las reglas 1 y 2 (y que las apps no importen `@l2/database`) y **rompe la
 construcción** si se violan. `pnpm lint` impone lo que no es una importación: sin `toFixed` fuera de
-`@l2/ui`, sin `parseFloat`, colores solo desde tokens, el dominio sin reloj y sin emojis en pantalla.
+`@l2/ui`, sin `parseFloat`, colores solo desde tokens, el dominio sin reloj, sin emojis en pantalla y sin
+simulación (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo).
 Una excepción se escribe `lint-permitido: <regla> — <motivo>`, y sin motivo no vale. No es decorativo:
 `pnpm arch:demo` lo demuestra inyectando una violación real.
 

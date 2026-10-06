@@ -77,3 +77,55 @@ test("las excepciones de archivo entero son solo para su regla", () => {
   assert.deepEqual(reglas("apps/web/app/manifest.ts", 'theme_color: "#0f172a",'), []);
   assert.deepEqual(reglas("apps/web/app/manifest.ts", "x.toFixed(2)"), ["dinero-sin-toFixed"]);
 });
+
+test("sin-simulacion: el almacenamiento del navegador se rechaza en la web, salvo con su motivo", () => {
+  const r = "apps/web/src/features/park/x.tsx";
+  assert.deepEqual(reglas(r, 'window.localStorage.setItem("l2.sala", JSON.stringify(ninos));'), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, 'const c = sessionStorage.getItem("cuenta");'), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, 'const bd = indexedDB.open("l2");'), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, '// lint-permitido: sin-simulacion — recuerda la vista elegida\nlocalStorage.setItem("vista", v);'), []);
+  assert.deepEqual(reglas(r, '// lint-permitido: sin-simulacion\nlocalStorage.setItem("vista", v);'), ["sin-simulacion"]);
+  assert.deepEqual(reglas("apps/web/src/features/park/x.test.ts", 'localStorage.setItem("a", "b");'), []);
+});
+
+test("sin-simulacion: un PIN literal se rechaza fuera de las pruebas", () => {
+  const r = "apps/web/src/features/identity/x.tsx";
+  assert.deepEqual(reglas(r, 'const [pin, setPin] = useState(""); const PIN_ADMIN = "1970";'), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, 'entrar({ userId, pin: "1970" });'), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, 'if (pin === "1970") abrir();'), ["sin-simulacion"]);
+  assert.deepEqual(reglas("packages/application/src/identidad/x.ts", "const elPin = cmd.pin ?? '2580';"), ["sin-simulacion"]);
+  assert.deepEqual(reglas("packages/application/src/identidad/x.test-db.ts", 'pin: "4826"'), []);
+  assert.deepEqual(reglas("packages/application/src/para-pruebas.ts", 'p.pin ?? "2580"'), []);
+  for (const texto of ['const [pin, setPin] = useState("");', 'placeholder="PIN de 4 a 8 cifras"', 'opinion: "1234"', 'codigo: "0102"', "pin.length === 4"]) {
+    assert.deepEqual(reglas(r, texto), [], texto);
+  }
+});
+
+test("sin-simulacion: una pantalla no trae listas de ejemplo ni importa de una carpeta demo", () => {
+  const r = "apps/web/src/features/inventario/x.tsx";
+  assert.deepEqual(reglas(r, "const PRODUCTOS: readonly ProductoDto[] = ["), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, 'export const CUENTAS: CuentaDto[] = [{ id: "1" }];'), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, "const PRODUCTOS_DEMO = ["), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, "const mockCuentas = cuentas();"), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, "function familiasDeEjemplo() {"), ["sin-simulacion"]);
+  assert.deepEqual(reglas(r, 'import { CARTA } from "@/demo/carta";'), ["sin-simulacion"]);
+  assert.deepEqual(reglas("apps/web/app/(admin)/panel/page.tsx", 'import { dia } from "../../src/demo";'), ["sin-simulacion"]);
+});
+
+test("sin-simulacion: las opciones de una pantalla, una lista vacía y un ejemplo calculado no son simulación", () => {
+  const r = "apps/web/src/features/cash/x.tsx";
+  for (const texto of [
+    "const SIN_TERMINALES: readonly PosTerminalDto[] = [];",
+    "const FILTROS: readonly { id: FiltroCola; texto: string }[] = [",
+    'const FIJOS: readonly { kind: ElementoFijoDto["kind"]; nombre: string }[] = [',
+    "const BILLETES_USD = [1, 5, 10, 20, 50, 100] as const;",
+    "  const visibles: CuentaDto[] = [...cuentas].sort(porNumero);",
+    "const deMostrador = linea !== undefined && esLineaDeMostrador(linea);",
+    "type ItemDeMostrador = Readonly<{ concepto: string }>;",
+    "function ejemploExcedente(p: ParkPolicyDto, minutosDeMas: number) {",
+    "const minutosEjemplo = 20;",
+    'import { x } from "@l2/domain-money";',
+  ]) {
+    assert.deepEqual(reglas(r, texto), [], texto);
+  }
+});

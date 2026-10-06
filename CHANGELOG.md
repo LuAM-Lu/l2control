@@ -14,6 +14,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Paso T-2 de la ruta: cero simulación.
+
+### Añadido
+- **El sistema ya no puede volver a enseñar datos inventados sin que alguien lo note.** `pnpm lint` suma la regla
+  `sin-simulacion`, que rechaza tres cosas en el código: datos guardados en el almacenamiento del navegador (lo del
+  negocio vive en el servidor), un PIN escrito en el código y listas de ejemplo o carpetas de demostración en las
+  pantallas. Para quien usa el sistema no cambia nada: lo que ve sigue saliendo del servidor.
+
+### Comprobado
+- Cuatro pruebas nuevas demuestran que la regla muerde y que no salta con las opciones de una pantalla, una lista
+  vacía ni un ejemplo calculado. El código actual pasa sin violaciones; la única excepción, con su motivo, es la
+  vista (tabla o tarjetas) que Inventario recuerda en cada navegador.
+
 ## [0.50.1] — 2026-10-05 · Preparación del staging
 
 Corrección entre pasos.
