@@ -275,6 +275,41 @@ html:has(dialog[open]) { overflow: hidden; }
 }
 .l2-late { animation: l2-late 2s var(--ease-salida) infinite; }
 
+/* Los iconos de los avisos se mueven para que el ojo los encuentre, y cuánto se mueven dice lo
+   urgente que es (el estado sigue dicho con color + icono + texto, §8.2; esto se suma):
+
+   · ROJO, lo que exige hacer algo ya: el icono «suena» — crece, se sacude y suelta un destello — y
+     descansa. Se repite mientras el aviso siga ahí. La pausa es más larga que el gesto: algo que
+     no para de moverse deja de mirarse.
+   · AMARILLO, lo que hay que revisar: se balancea tres veces al aparecer y se queda quieto.
+   · VERDE no se mueve: lo que va bien no pide atención.
+
+   Va por selector y no por clase en cada aviso: es el primer icono de cualquier superficie de
+   estado (`bg-state-crit-bg`, `bg-state-warn-bg`, con o sin opacidad), así que un aviso nuevo se
+   anima sin acordarse de nada y todos laten a la vez. El espacio delante del nombre deja fuera
+   las variantes (`hover:bg-state-crit-bg`). `l2-quieto` en el icono lo apaga donde estorbe. */
+@keyframes l2-icono-crit {
+  0%, 46%, 100% { transform: none; filter: drop-shadow(0 0 0 transparent); }
+  6%  { transform: scale(1.28) rotate(-12deg); }
+  12% { transform: scale(1.28) rotate(11deg); filter: drop-shadow(0 0 5px var(--color-state-crit)); }
+  18% { transform: scale(1.2) rotate(-8deg); }
+  24% { transform: scale(1.14) rotate(5deg); filter: drop-shadow(0 0 7px var(--color-state-crit)); }
+  32% { transform: scale(1.06) rotate(-2deg); }
+}
+@keyframes l2-icono-warn {
+  0%, 100% { transform: none; }
+  25% { transform: rotate(-11deg) scale(1.12); }
+  60% { transform: rotate(8deg) scale(1.08); }
+}
+:is([class^="bg-state-crit-bg"], [class*=" bg-state-crit-bg"]) > svg:first-child:not(.l2-quieto) {
+  transform-origin: 50% 55%;
+  animation: l2-icono-crit 2.6s var(--ease-salida) infinite;
+}
+:is([class^="bg-state-warn-bg"], [class*=" bg-state-warn-bg"]) > svg:first-child:not(.l2-quieto) {
+  transform-origin: 50% 10%;
+  animation: l2-icono-warn 0.9s ease-in-out 0.3s 3;
+}
+
 /* Un aviso aparece; no estaba y ahora está. Corto y lateral, para que se lea
    como algo que ENTRA en la franja y no como la página recolocándose. */
 @keyframes l2-aparece {
@@ -370,6 +405,8 @@ html:has(dialog[open]) { overflow: hidden; }
   /* El aviso crítico deja de latir: lo urgente se dice con color, icono y
      texto, que es como se dice de todos modos. */
   .l2-late, .l2-aparece { animation: none; }
+  /* Los iconos de aviso se quedan quietos: siguen ahí, con su color y su texto. */
+  [class*="bg-state-crit-bg"] > svg:first-child, [class*="bg-state-warn-bg"] > svg:first-child { animation: none !important; }
   /* El sello sí se queda, pero sin crecer: es el acuse de que el PIN entró. */
   .l2-sello { animation: none; opacity: 1; }
   .l2-pulse { animation: none; }
