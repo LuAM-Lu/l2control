@@ -260,16 +260,21 @@ describe("revertir (F3-10)", () => {
   });
 
   test("un doble clic al revertir deja una sola reversión", async () => {
-    const doc = await crearCuenta(local);
-    const id = valor(await local.app.pagos.asentar(ctxAdmin, cobro([usd("6.00")], doc), AHORA)).asientos[0]!.id;
-    const clave = randomUUID();
-    const cmd = { idempotencyKey: clave, paymentId: id, motivo: "ERROR_EN_COBRO" };
-    const [a, b] = await Promise.all([
-      local.app.pagos.revertir(ctxAdmin, cmd, undefined, AHORA),
-      local.app.pagos.revertir(ctxAdmin, cmd, undefined, AHORA),
-    ]);
-    assert.deepEqual(valor(a), valor(b));
-    assert.equal(await filasDe(clave), 1);
+    // Varias veces: lo que se prueba es una carrera, y con una sola pasada la ventana mala (la
+    // segunda petición mira la clave antes de que la primera asiente, y el asiento después) cae
+    // una de cada muchas. Así pasó el CI de main en rojo con un commit que solo tocaba documentos.
+    for (let i = 0; i < 12; i++) {
+      const doc = await crearCuenta(local);
+      const id = valor(await local.app.pagos.asentar(ctxAdmin, cobro([usd("6.00")], doc), AHORA)).asientos[0]!.id;
+      const clave = randomUUID();
+      const cmd = { idempotencyKey: clave, paymentId: id, motivo: "ERROR_EN_COBRO" };
+      const [a, b] = await Promise.all([
+        local.app.pagos.revertir(ctxAdmin, cmd, undefined, AHORA),
+        local.app.pagos.revertir(ctxAdmin, cmd, undefined, AHORA),
+      ]);
+      assert.deepEqual(valor(a), valor(b));
+      assert.equal(await filasDe(clave), 1);
+    }
   });
 
   test("se audita con el original y la reversión", async () => {
