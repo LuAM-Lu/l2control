@@ -24,11 +24,13 @@ ningún servidor.** El CI construye las tres imágenes en cada PR: una que no co
 
 ## Poner el servidor por primera vez (B7-1)
 
-En un VPS Linux con Docker y su plugin de compose, con los puertos 80 y 443 abiertos:
+En un VPS Linux con Docker y su plugin de compose, con los puertos 80 y 443 abiertos y el usuario que despliega
+en el grupo `docker` (así no necesita `sudo`). El staging (B7-1, 2026-10-07): Ubuntu 24.04, 4 CPU y 8 GB, usuario
+`luami`, en `~/l2control`, abierto en `https://217-216-48-54.sslip.io`:
 
 ```bash
-git clone https://github.com/LuAM-Lu/l2control.git /srv/l2control
-cd /srv/l2control/infra/produccion
+git clone https://github.com/LuAM-Lu/l2control.git ~/l2control
+cd ~/l2control/infra/produccion
 cp entorno.ejemplo .env && chmod 600 .env
 ./desplegar.sh --claves          # pega lo que imprime en .env
 nano .env                        # L2_ENTORNO, L2_DOMINIO y L2_URL_PUBLICA
@@ -54,7 +56,7 @@ nuevo; después de instalar no vuelve a salir.
 ## Poner una versión nueva
 
 ```bash
-cd /srv/l2control && git pull --ff-only    # trae este guion y el compose de esa versión
+cd ~/l2control && git pull --ff-only    # trae este guion y el compose de esa versión
 cd infra/produccion && ./desplegar.sh 0.54.0
 ./desplegar.sh --estado                    # la versión en marcha y la salud de la web y el worker
 ```
@@ -74,7 +76,8 @@ Mientras no exista T-8b (Ajustes → Sistema), el despliegue en producción se h
 L2_FORZAR_FALLO_SALUD=si ./desplegar.sh 0.54.0   # falla a propósito: queda la que estaba
 ```
 
-Ensayado en local el 2026-10-06 (Caddy en `https://localhost`, imágenes construidas en la PC con
+Ensayado en el VPS el 2026-10-07: la 0.53.1 con la comprobación forzada a fallar volvió a la 0.53.0, y después
+la 0.53.1 quedó en marcha. Antes, en local, el 2026-10-06 (Caddy en `https://localhost`, imágenes construidas en la PC con
 `L2_REGISTRO=local` y `L2_SIN_DESCARGAR=si`): primera instalación de la 0.52.3; la 0.53.0 con la
 comprobación forzada a fallar volvió a la 0.52.3; una 0.54.0 cuya salud respondía otra versión volvió a la
 0.52.3; la 0.53.0 sin forzar quedó en marcha.

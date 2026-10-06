@@ -1,10 +1,10 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.53.1",
+  "version": "0.54.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
-    "etapa": "Preparación del staging",
+    "etapa": "Staging en el VPS",
     "pasos": 63
   },
   "packageManager": "pnpm@12.3.4",
