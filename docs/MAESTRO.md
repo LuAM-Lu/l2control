@@ -33,7 +33,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.50.1 · 50 de 62 pasos.** **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
+**Versión 0.51.0 · 51 de 62 pasos.** **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Siguen T-4 y T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
 con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
 lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
 platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
@@ -114,8 +114,8 @@ número del medio cuenta los pasos entregados.
   contraseña `abby-kingdom-desarrollo` + código de `pnpm totp` (o `pnpm equipos aprobar "<nombre>"`)
   → persona → PIN 1970. Tope: 10 solicitudes por hora desde la misma dirección.
 - **Pruebas:** `pnpm verify:db` en verde (94 de base, 500 de aplicación, 13 del worker, 6 del agente; en el dominio, 62 de tasas, 49 de impuestos, 162 de caja, 54 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 110 de identidad; 281 de contratos).
-  v0.22.0); el CI pasó en verde allí el 2026-09-26. Para cerrar B0-4 falta verlo en rojo con un PR de
-  prueba.
+  v0.22.0); el CI pasó en verde allí el 2026-09-26. B0-4 se cerró el 2026-10-06 al verlo en rojo con un PR de
+  prueba (#6, T-2).
 
 **La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
 viernes 25 (855,6625, solo DolarApi) y la del lunes 28 (857,0058, web del BCV), retenidas las dos. La
@@ -541,10 +541,18 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   el nuevo caso de uso (Dispositivos, Tasas, Tarifario). Confirmar identidad para ver sigue en Usuarios, Accesos y
   Dispositivos (sin cambios). Navegador a 1366×768, 1280×800 y 800×1280 sin desplazar la página, y en teléfono; sin
   errores de consola (detalle en §1).*
-- [~] **T-2 · Cero simulación** (M-11), antes de B7-1. *A cargo: aemorandin-coder, rama `feat/sin-simulacion` (2026-10-06).*
+- [x] **T-2 · Cero simulación** (M-11), antes de B7-1.
   → ~~La carpeta `src/demo` ya no existe y se retira la regla `demo-solo-desde-las-rutas`~~ (hecho con B6-1, que
   borró lo último). Falta que `pnpm lint` sume la regla `sin-simulacion`: rechaza datos de negocio en el almacenamiento del navegador, PINs
   literales y listas de ejemplo en `features/`. El CI sale en rojo con una violación.
+  *Hecho el 2026-10-06 (aemorandin-coder): `sin-simulacion` en `scripts/lint-reglas.mjs`, con tres caras bajo un solo
+  nombre (almacenamiento del navegador en la web; un PIN literal fuera de las pruebas; y, en la web, una lista de
+  datos del contrato escrita a mano, un nombre de demostración o una importación desde una carpeta `demo`) y cuatro
+  pruebas que demuestran que muerde y que no salta con las opciones de una pantalla. El código pasa sin violaciones;
+  la única excepción, con su motivo, es la vista de Inventario que cada navegador recuerda. **Visto en rojo en
+  GitHub:** el PR #6 (rama `prueba/ci-en-rojo`, cerrado sin fusionar) guardaba la sala en `localStorage` y
+  `pnpm lint` lo rechazó en el check «pnpm verify:db». En el equipo de quien lo hizo no había Node ni Docker: la
+  regla se comprobó en el CI.*
 
 - [ ] **T-8 · Actualizaciones** (M-20, [ADR-028](adr/028-actualizaciones.md)), antes de B7-1.
   → Una etiqueta `vX.Y.Z` en `main` construye y publica las imágenes de la web y del worker y el ejecutable del
@@ -579,15 +587,16 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   `leerEntorno()`, que lista todos los problemas sin enseñar un solo valor. 20 pruebas; cazaron dos
   filtraciones reales (`txId` y el contexto de `child()`). **Se engancha al arranque de Next en B0-5**,
   que es cuando la app empieza a necesitar variables.*
-- [~] **B0-4 · CI en GitHub Actions** con `pnpm verify` y un lint que sí haga algo: `toFixed` fuera de
+- [x] **B0-4 · CI en GitHub Actions** con `pnpm verify` y un lint que sí haga algo: `toFixed` fuera de
   `@l2/ui`, colores literales y `parseFloat` sobre dinero (F1-14).
   → Un PR con una violación sale en rojo.
   *Hecho en local el 2026-09-26: `.github/workflows/ci.yml` (acciones fijadas por hash, Node 24,
   mismo `docker-compose.yml`, `pnpm verify:db`) y `pnpm lint` con 5 reglas y 9 pruebas que demuestran
   que muerden: `toFixed` fuera de `@l2/ui`, `parseFloat`, colores literales, reloj en el dominio y
   emojis en pantalla. Excepciones solo con `lint-permitido: <regla> — <motivo>`. **Visto en verde en
-  GitHub el 2026-09-26** (primer push, `verify:db` completo con la base en el runner). Falta ver en
-  rojo un PR con una violación a propósito (una rama de prueba que no se fusiona).*
+  GitHub el 2026-09-26** (primer push, `verify:db` completo con la base en el runner). **Visto en rojo el
+  2026-10-06** con el PR #6, una violación a propósito de `sin-simulacion` en una rama de prueba que no se fusionó
+  (T-2).*
 - [x] **B0-5 · La costura entre demo y servidor** (`packages/application`). Se fija un patrón único:
   acción de servidor → contrato Zod → dominio → repositorio en transacción con `SET LOCAL app.tenant_id`.
   El primer caso vertical es el **tarifario**: leer y publicar.
@@ -1853,12 +1862,12 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Con los precios con IVA incluido, el margen de Inventario → Productos se calcula sobre el precio con IVA (sale mayor de lo que es) | Al cargar el inventario real |
 | El consumo de un cumpleaños sobre la marcha (refrescos, hielo… anotados a su cuenta hasta que se paga) no existe: el paquete trae una lista fija (vacía en los paquetes reales) | Cuando haya inventario de esos artículos (M-19) |
 
-**Inventario de lo provisional y lo simulado (M-11).** Lo que queda al 2026-10-02 (`src/demo` ya no existe). Cada fila sale de
-aquí en el paso que la sustituye, y T-2 comprueba que no quede ninguna.
+**Inventario de lo provisional y lo simulado (M-11).** Al 2026-10-06 no queda nada (`src/demo` ya no existe). Cada fila salió de
+aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` (`sin-simulacion`) impide que vuelva.
 
 | Qué | Dónde | Se va con |
 |---|---|---|
-| Puestos deducidos del rol (`PUESTO_DE_ROL`) | `features/identity/operador.ts` | D7 |
+| ~~Puestos deducidos del rol (`PUESTO_DE_ROL`)~~ | `features/identity/operador.ts` | Ya no es provisional: D7 se decidió así el 2026-09-28 (§4) |
 
 **Trampas del código.** Ninguna la caza `pnpm typecheck`; todas se ven abriendo la pantalla.
 

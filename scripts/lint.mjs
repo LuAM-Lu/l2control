@@ -18,7 +18,7 @@ const archivos = execFileSync(
   .split("\n")
   .filter((f) => /\.(ts|tsx|mjs|js|css)$/.test(f) && !f.includes("/generated/"));
 
-const explicacion = Object.fromEntries(REGLAS.map((r) => [r.nombre, r.explica]));
+const reglas = new Set(REGLAS.map((r) => r.nombre)).size;
 let total = 0;
 for (const ruta of archivos) {
   let texto;
@@ -29,7 +29,7 @@ for (const ruta of archivos) {
   }
   for (const h of revisar(ruta, texto)) {
     total++;
-    console.error(`${ruta}:${h.linea}  ${h.regla}\n    ${h.texto}\n    → ${explicacion[h.regla]}`);
+    console.error(`${ruta}:${h.linea}  ${h.regla}\n    ${h.texto}\n    → ${h.explica}`);
   }
 }
 
@@ -40,4 +40,4 @@ if (total > 0) {
   );
   process.exit(1);
 }
-console.log(`✓ lint: ${archivos.length} archivos, ${REGLAS.length} reglas, sin violaciones.`);
+console.log(`✓ lint: ${archivos.length} archivos, ${reglas} reglas, sin violaciones.`);
