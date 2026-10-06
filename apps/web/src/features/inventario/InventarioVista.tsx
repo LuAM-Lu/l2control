@@ -66,6 +66,7 @@ export function InventarioVista({
   // La vista elegida se recuerda en este navegador (una comodidad, no un dato del negocio).
   useEffect(() => {
     try {
+      // lint-permitido: sin-simulacion — tabla o tarjetas es una preferencia de la pantalla, no un dato del negocio
       const v = window.localStorage.getItem(CLAVE_VISTA);
       if (v === "tabla" || v === "tarjetas") setVista(v);
     } catch {
@@ -75,6 +76,7 @@ export function InventarioVista({
   const elegirVista = (v: Vista) => {
     setVista(v);
     try {
+      // lint-permitido: sin-simulacion — tabla o tarjetas es una preferencia de la pantalla, no un dato del negocio
       window.localStorage.setItem(CLAVE_VISTA, v);
     } catch {
       /* sin almacenamiento: dura lo que dure la pantalla */
