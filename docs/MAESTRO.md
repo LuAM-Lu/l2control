@@ -33,7 +33,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.50.1 · 50 de 62 pasos.** **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde. **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
+**Versión 0.50.1 · 50 de 62 pasos.** **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
 con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
 lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
 platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
@@ -1785,11 +1785,11 @@ antes del cobro en servidor (orden de ejecución).
 
 | Qué | Cómo | Hace falta antes de |
 |---|---|---|
-| Proteger `main` | Settings → Branches → regla para `main`: PR obligatorio (0 aprobaciones), check «pnpm verify:db» obligatorio y rama al día, historial lineal, sin force push ni borrado, y que aplique a administradores | Que trabaje la segunda persona |
+| ~~Proteger `main`~~ | **Hecho el 2026-10-05:** ruleset «main» activo sobre la rama por defecto, sin excepciones: PR obligatorio (0 aprobaciones), check «pnpm verify:db» con la rama al día, historial lineal, fusión por squash o rebase, sin force push ni borrado | — |
 | Dar acceso a la segunda persona | Settings → Collaborators → «Add people»: `aemorandin-coder` (aemorandin@gmail.com), rol **Maintain** (fusiona en `main` por PR; no cambia la visibilidad ni borra el repositorio) | Que trabaje la segunda persona |
 | Repositorio privado | Settings → General → Danger Zone → «Change visibility». **Ojo:** en un repositorio privado con la cuenta gratuita, GitHub no aplica la protección de ramas: hace falta GitHub Pro (unos 4 $ al mes). El CI sigue, con 2.000 minutos al mes gratis | B7-1 |
-| Borrar las ramas ya fusionadas | Las 17 locales y `feat/b6-3` y `wip/kds` en GitHub están enteras dentro de `main`: borrarlas no pierde nada (las versiones viven en las etiquetas) | — |
-| Borrado automático de ramas | Settings → General → «Automatically delete head branches»: la rama de un PR se borra sola al fusionarlo | — |
+| ~~Borrar las ramas ya fusionadas~~ | **Hecho el 2026-10-05:** solo queda `main`, en local y en GitHub | — |
+| ~~Borrado automático de ramas~~ | **Hecho el 2026-10-05:** la rama de un PR se borra sola al fusionarlo | — |
 
 **Confirma el contador** (lo fiscal queda fuera, pero esto cambia lo que se cobra)
 
@@ -2110,6 +2110,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-05** · `gh` instalado con la sesión del usuario (dueño del repositorio); PR #1 (M-20) fusionado con el CI en
   verde. Proteger `main`, dar acceso a `aemorandin-coder`, pasar el repositorio a privado y borrar ramas los bloquea el
   sistema de permisos de Claude: quedan en §4 para el usuario. Regla de ramas: solo `main` es permanente.
+- **2026-10-05** · El usuario borró las ramas fusionadas, activó el borrado automático y protegió `main` con un ruleset
+  (comprobado: activo, sin excepciones). Handoff para cualquier persona del equipo (§8).
 
 ---
 
@@ -2123,19 +2125,21 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
    nueva. Tiene como mucho 15 líneas y responde a: dónde quedó, el paso siguiente con su criterio, qué
    quedó a medias y con qué hay que tener cuidado.
 
-**Último handoff (2026-10-05, v0.50.0 en `feat/b6-3`; v0.49.0 y v0.50.0 solo en local, sin subir; `main` en v0.42.0):**
+**Último handoff (2026-10-05, v0.50.1 en `main`, protegido; todo subido). Sirve para cualquier persona del equipo:**
 
 ```text
-Proyecto L2 Control. Lee docs/MAESTRO.md (§1 «Datos reales», §2 M-19, §3 B2-5, §5) y CLAUDE.md. Español.
-Rol: full-stack senior; programas tú todo. Rama feat/b6-3: v0.50.0 · 50 de 61 (B3-7 y B2-5 hechos, sin push).
-En curso, M-19 (datos reales de Abby tras vaciar movimiento y catálogo). Guiones en el scratchpad de a653e46b:
-  ensayo-env.sh [base] (entorno del cliente contra otra base), limpieza.sql, cargar-abby.mts (con BASE_ESPERADA).
-  Respaldo: C:	mpl2-respaldosl2control-2026-10-05.dump. l2control_ensayo: migrado y limpio; falta la carga.
-Siguiente: 1) correr cargar-abby.mts en l2control_ensayo y verlo en el navegador (caja con IVA incluido: 3 alitas
-  $6,50 = $19,50; tarifas, menú, 6 cumpleaños); 2) ENSEÑAR AL USUARIO la lista exacta de lo que se borra y pedir su
-  sí; 3) con su sí: pnpm db:migrar en l2control, limpieza.sql, carga. Luego T-2, T-4 y la Etapa 7.
-Preguntar: dos IGTF al 3 % programados para el 2026-10-27 (prueba del 27-09) romperían V-13: ¿quitarlos o 0 % encima?
-  Y si «Prueba T7 Oficina», la auditoría y el outbox se borran (el guion hoy los borra).
-Base local CON DATOS DEL CLIENTE: nada se borra allí sin el sí del usuario. Navegador de pruebas: prueba-env.sh
-  (scratchpad 5d4d04b1). Push solo si se pide. Arrancar: Docker → pnpm infra:up → pnpm db:migrar → pnpm dev; /acceso.
+Proyecto L2 Control (github.com/LuAM-Lu/l2control). Lee CLAUDE.md y docs/MAESTRO.md (§1, §3, §4, §5). Español.
+Rol: full-stack senior; programas tú. Estado: v0.50.1 · 50 de 62 pasos en main; las etapas de construcción están cerradas.
+Somos dos personas + Claude (M-20): main está protegido, todo entra por PR con el check «pnpm verify:db» en verde y se
+  fusiona por rebase o squash; la versión y su etiqueta se ponen al fusionar (en la rama, CHANGELOG «Sin publicar»).
+Antes de empezar un paso, reclámalo en MAESTRO §3 ([~] a cargo: <persona>, rama) en un PR pequeño; si tiene dueño, habla antes.
+Equipo nuevo: Node 24, pnpm 12 y Docker Desktop → pnpm install → cp .env.example .env → pnpm infra:up → pnpm db:migrar →
+  pnpm db:semilla → pnpm dev → /acceso (pnpm equipos aprobar "<nombre>", PIN 1970) → pnpm verify:db antes de cada PR.
+Siguiente: T-2 (cero simulación, §3 Transversal): regla `sin-simulacion` en pnpm lint (datos de negocio en el almacenamiento
+  del navegador, PINs literales, listas de ejemplo en features/); criterio: el CI sale en rojo con una violación (cierra B0-4).
+  Luego T-4 (instalación inicial y llaves de acceso, ADR-020) → T-8 (actualizaciones, ADR-028) → Etapa 7 (VPS).
+Cuidado: las cinco reglas de CLAUDE.md; migraciones de expandir y contraer, nunca editar una aplicada; una pantalla no está
+  hecha hasta abrirla en el navegador (Playwright a 1366×768, 1280×800 y 800×1280, sin errores de consola).
+La base real del cliente vive solo en el equipo de LuAM-Lu: nadie más la tiene ni la toca. Push solo por PR.
+Pendiente de LuAM-Lu en GitHub (§4): dar acceso a aemorandin-coder (Maintain) y decidir si el repositorio pasa a privado.
 ```
