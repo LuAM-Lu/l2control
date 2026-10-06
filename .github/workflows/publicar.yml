@@ -6,6 +6,8 @@
 #
 # Publicar no actualiza ningún servidor: en el VPS, `infra/produccion/desplegar.sh X.Y.Z` (y, con T-8b,
 # Ajustes → Sistema). La etiqueta tiene que ser la versión del package.json raíz: si no, no se publica.
+# Si una publicación falla, se vuelve a lanzar a mano (Actions → Publicar → Run workflow) con la misma
+# etiqueta: corre este flujo sobre el código de la etiqueta.
 #
 # Las acciones van fijadas por el hash de su commit, como en ci.yml.
 
@@ -14,13 +16,21 @@ name: Publicar
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      etiqueta:
+        description: "La etiqueta a publicar, como v0.53.0"
+        required: true
 
 permissions:
   contents: write # el «release» con el agente
   packages: write # las imágenes en ghcr.io
 
+env:
+  ETIQUETA: ${{ inputs.etiqueta || github.ref_name }}
+
 concurrency:
-  group: publicar-${{ github.ref }}
+  group: publicar-${{ inputs.etiqueta || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -28,8 +38,14 @@ jobs:
     name: Agente de impresión (Windows)
     runs-on: windows-latest
     timeout-minutes: 20
+    # En PowerShell, pnpm salía sin hacer nada y sin error (2026-10-06, v0.53.0): todo en bash.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.ETIQUETA }}
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
@@ -39,11 +55,10 @@ jobs:
           cache: pnpm
 
       - name: La etiqueta es la versión del package.json
-        shell: bash
         run: |
           v="v$(node -p "require('./package.json').version")"
-          if [ "$v" != "$GITHUB_REF_NAME" ]; then
-            echo "La etiqueta $GITHUB_REF_NAME no es la versión del package.json ($v): no se publica."
+          if [ "$v" != "$ETIQUETA" ]; then
+            echo "La etiqueta $ETIQUETA no es la versión del package.json ($v): no se publica."
             exit 1
           fi
 
@@ -51,10 +66,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Empaquetar el agente
-        run: pnpm agente:empaquetar
+        run: |
+          pnpm agente:empaquetar
+          # Fail-closed: sin el ejecutable y su huella no se publica nada.
+          test -s apps/printer-agent/dist/l2-impresion.exe
+          test -s apps/printer-agent/dist/l2-impresion.exe.sha256
 
       - name: Release con el agente, su huella y las novedades
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -66,11 +84,14 @@ jobs:
             if (i < 0) { console.error("CHANGELOG.md no tiene la " + v); process.exit(1); }
             const j = t.indexOf("\n## [", i + 1);
             require("fs").writeFileSync("novedades.md", t.slice(i, j < 0 ? undefined : j).trim() + "\n");
-          ' "$GITHUB_REF_NAME"
-          gh release create "$GITHUB_REF_NAME" \
-            apps/printer-agent/dist/l2-impresion.exe \
-            apps/printer-agent/dist/l2-impresion.exe.sha256 \
-            --title "$GITHUB_REF_NAME" --notes-file novedades.md --verify-tag
+          ' "$ETIQUETA"
+          dist=apps/printer-agent/dist
+          if gh release view "$ETIQUETA" > /dev/null 2>&1; then
+            gh release upload "$ETIQUETA" "$dist/l2-impresion.exe" "$dist/l2-impresion.exe.sha256" --clobber
+          else
+            gh release create "$ETIQUETA" "$dist/l2-impresion.exe" "$dist/l2-impresion.exe.sha256" \
+              --title "$ETIQUETA" --notes-file novedades.md --verify-tag
+          fi
 
   imagenes:
     name: Imágenes (web, worker, migrar)
@@ -79,12 +100,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.ETIQUETA }}
 
       - name: El agente de esta versión, comprobado por su huella
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download "$GITHUB_REF_NAME" --dir apps/printer-agent/dist --pattern 'l2-impresion.exe*'
+          gh release download "$ETIQUETA" --dir apps/printer-agent/dist --pattern 'l2-impresion.exe*'
           (cd apps/printer-agent/dist && sha256sum --check l2-impresion.exe.sha256)
 
       - name: Construir y publicar
@@ -92,7 +115,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          v="${GITHUB_REF_NAME#v}"
+          v="${ETIQUETA#v}"
           registro="ghcr.io/$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           for t in web worker migrar; do
