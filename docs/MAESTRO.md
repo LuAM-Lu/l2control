@@ -2165,6 +2165,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-06** · T-4 entregado (instalación inicial y llaves de acceso, ADR-020): pantallas, consola sin TOTP y la base
   vacía operativa sin consola; al probarla salieron y se corrigieron cuatro fallos (§3). T-8 se reclamó por error fuera de
   orden y se retiró el mismo día (PR #10 y #11). Sigue T-8 y la Etapa 7.
+- **2026-10-06** · T-4 fusionado como v0.52.0 (PR #13) tras v0.51.1 (PR #12). Relevo dejado: sigue T-8, libre.
 
 ---
 

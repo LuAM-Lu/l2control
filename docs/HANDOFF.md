@@ -28,24 +28,22 @@ Pendiente de LuAM-Lu en GitHub (§4): dar acceso a aemorandin-coder (Maintain) y
 
 ## aemorandin-coder
 
-*2026-10-06 · v0.51.0 · `main` en 681ac23 más el reclamo de T-4 y este relevo*
+*2026-10-06 (tarde) · v0.52.0 · `main` en af9dec9*
 
 ```text
-Hecho hoy: T-2 (cero simulación) en main como v0.51.0; cierra también B0-4 (CI visto en rojo, PR #6). 51 de 62 pasos.
-A medias: T-4 (instalación inicial y llaves de acceso, ADR-020), reclamado por aemorandin-coder, en la rama
-  feat/instalacion-y-llaves (subida, sin PR, dos commits «wip» que se funden en uno al cerrar). Detalle en MAESTRO §3.
-  Hecho y probado en el servidor (test:db de @l2/application, 534 en verde): migración 20261030000000 (solo expande),
-  llaves WebAuthn, códigos de recuperación, elevación y aprobar equipo con contraseña + llave o código, enlaces de alta,
-  instalación con código y puesta a punto. En la web: entorno (L2_URL_PUBLICA), código al arrancar y acciones.
-  Falta: las pantallas (elevación, alta de equipo, «Instalar L2 Control», /alta, enlace con QR en Personas, Puesta a
-  punto en Inicio), pnpm credenciales y la semilla (hoy rotos en esa rama: llaman a elevacion.credenciales), retirar
-  pnpm totp, la prueba en navegador con el autenticador virtual de Chromium (también con la base vacía) y los documentos.
-Criterio de T-4: una base vacía queda operativa sin tocar la consola; elevar y aprobar equipos piden contraseña + llave.
-Cuidado: en esa rama NO se puede confirmar identidad desde el navegador hasta tener las pantallas; no la fusiones a medias.
-  Añade L2_URL_PUBLICA=http://localhost:3000 a tu .env y entra siempre por localhost (la llave va atada al dominio).
-  SUPERVISOR no tiene acciones elevadas: desde el panel solo ADMIN recibe enlace; la consola se lo da a cualquiera.
-  Para ver la base vacía sin borrar nada: cambia L2_TENANT_ID y L2_BRANCH_ID del .env por dos UUID nuevos.
-Después de T-4: T-8 (actualizaciones, ADR-028) y la Etapa 7 (VPS).
-Para LuAMi: taché la última fila del inventario de lo provisional (PUESTO_DE_ROL, MAESTRO §5) porque D7 lo decidió así;
-  si no era la intención, se revierte esa línea. Sigo con permiso WRITE (fusiono por PR); el maestro pedía Maintain.
+Hecho hoy: T-2 (v0.51.0), una corrección de contraste (v0.51.1) y T-4 (v0.52.0, PR #13). 52 de 62 pasos; nada a medias.
+T-4 (ADR-020): con la base vacía el acceso ofrece «Instalar L2 Control» (código del registro del servidor); confirmar
+  identidad y aprobar un equipo piden contraseña + llave de acceso, o un código de recuperación; Ajustes → Usuarios da
+  credenciales con un enlace de 24 h con QR (/alta); Inicio enseña la Puesta a punto. Ya no hay TOTP ni pnpm totp.
+v0.51.1: los fondos de estado tienen más luz que la tarjeta (antes se leían hundidos), el rojo es #f87171 y el icono de un
+  aviso rojo se anima en bucle (el amarillo, tres veces). Va por selector en tokens.css; `l2-quieto` lo apaga en un icono.
+Siguiente: T-8 (actualizaciones, ADR-028), libre. Criterio en MAESTRO §3: una etiqueta vX.Y.Z publica las imágenes y el
+  agente; Ajustes → Sistema decide cuándo; con la salud forzada a fallar vuelve sola a la versión anterior. No hay ningún
+  Dockerfile en el repositorio (ADR-021 dice que sí): es lo primero. Después, la Etapa 7 (VPS).
+Al actualizar tu copia: pnpm install, pnpm db:migrar (solo expande) y L2_URL_PUBLICA=http://localhost:3000 en tu .env.
+  Entra siempre por localhost (la llave va atada a la dirección). Para confirmar identidad necesitas una llave de verdad:
+  pnpm credenciales "Abigail Karam" da el enlace; en Chrome sirve el autenticador virtual de DevTools → WebAuthn.
+Cuidado: un local recién instalado no tiene tarifario y la app ya abre sin él (no lo exijas en el layout). No hay suite de Playwright (§5).
+Abierto con el usuario: color sólido en etiquetas pequeñas y en la opción seleccionada (propuesto, sin respuesta), y un
+  tema claro azulado que gustó en vista previa pero no está en el plan (MAESTRO §7). «Abby Kingdom» sigue escrito a mano (§5).
 ```
