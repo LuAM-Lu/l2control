@@ -9,6 +9,7 @@ import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { BotonTema } from "./BotonTema.tsx";
+import { LogoL2 } from "./LogoL2.tsx";
 import { PageTransition } from "./PageTransition.tsx";
 import { cerrarSesion, useOperador } from "../identity/operador.ts";
 import { GuardiaAcceso } from "../identity/GuardiaAcceso.tsx";
@@ -185,9 +186,7 @@ function Marca({ compacta = false }: { compacta?: boolean }) {
       className="flex items-center gap-3 px-4 py-4 no-underline xl:px-5"
       title="Abby Kingdom · Inicio"
     >
-      <span className="font-display grid size-9 shrink-0 place-content-center rounded-[0.6rem] bg-brand text-[15px] font-bold text-on-brand">
-        L2
-      </span>
+      <LogoL2 className="h-9" />
       <span className={cn("min-w-0", compacta && "hidden xl:block")}>
         <span className="font-display block truncate leading-tight font-bold text-ink">
           Abby Kingdom
