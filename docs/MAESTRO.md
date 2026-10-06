@@ -33,7 +33,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.51.0 · 51 de 62 pasos.** **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Siguen T-4 y T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
+**Versión 0.51.0 · 51 de 62 pasos.** **En curso (T-4, rama `feat/instalacion-y-llaves`, sin fusionar):** el servidor ya tiene las llaves de acceso, los enlaces de alta, la instalación inicial y la puesta a punto, con sus pruebas contra la base; faltan las pantallas, la consola y la semilla sin TOTP, y abrirlo en el navegador (detalle en su casilla de §3). **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Siguen T-4 y T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
 con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
 lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
 platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
@@ -482,6 +482,23 @@ Fuera de la cuenta de 62: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   código incorrectos» y su código, aprobar → «¿Quién entra?» → PIN → panel, y pendiente; los cinco a
   1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - [~] **T-4 · Instalación inicial y llaves de acceso** (M-12, ADR-020), antes de B7-1. *A cargo: aemorandin-coder, rama `feat/instalacion-y-llaves` (2026-10-06).*
+  *A medias al 2026-10-06 (en la rama, dos commits «wip» que se funden en uno al cerrar):*
+  *— **Hecho y probado** (`pnpm --filter @l2/application test:db`, 534 en verde): migración `20261030000000_llaves_de_acceso`
+  (solo expande: `passkey`, `recovery_code`, `enrollment_link`, `auth_challenge`, `installation`; `totp_secret_enc` se queda
+  sin usar hasta una contracción); `identidad/llaves.ts` (WebAuthn con SimpleWebAuthn, desafío de un solo uso, códigos de
+  recuperación), `elevacion.ts` (contraseña + llave o código, también al aprobar un equipo), `enlaces.ts` (enlace de alta
+  de 24 h, ALTA o LLAVE, con el secreto en el fragmento de la dirección), `instalacion.ts` (código de instalación con
+  bloqueo, todo en una transacción) y `sucursal/puesta-a-punto.ts`; contratos en `contracts/credenciales.ts`;
+  `checkNewPassword` en el dominio; `LlaveDePrueba` (autenticador de software) en `para-pruebas.ts`; `otpauth` retirado.*
+  *— **Hecho sin probar en el navegador:** `L2_URL_PUBLICA` en el entorno web (obligatoria; https fuera de desarrollo), el
+  código de instalación en el registro al arrancar, y las acciones `acceso.acciones.ts`, `instalacion.acciones.ts`,
+  `alta.acciones.ts` y las de enlaces y puesta a punto en `identidad.*`.*
+  *— **Falta:** las pantallas (el diálogo de elevación y el alta de equipo siguen pidiendo el código TOTP y hoy no elevan;
+  «Instalar L2 Control» en `/acceso`; la página `/alta`; el enlace con QR en Panel → Personas, con `qrcode-generator`;
+  la Puesta a punto en Inicio); `pnpm credenciales` y `pnpm db:semilla` (llaman a `elevacion.credenciales`, que ya no
+  existe: deben imprimir un enlace de alta) y retirar `pnpm totp`; probar con el autenticador virtual de Chromium a
+  1366×768, 1280×800 y 800×1280, también con la base vacía; README, CLAUDE.md, CHANGELOG, ADR-020 («Situación en el
+  código») y §5 (la columna del TOTP como deuda de contracción).*
   → Con la base vacía, el acceso ofrece «Instalar L2 Control» (código de instalación de un solo uso que
   el servidor escribe en su registro): local, primer administrador con contraseña, PIN y llave de
   acceso, diez códigos de recuperación y este equipo aprobado; después la pantalla no vuelve a
@@ -2121,6 +2138,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   sistema de permisos de Claude: quedan en §4 para el usuario. Regla de ramas: solo `main` es permanente.
 - **2026-10-05** · El usuario borró las ramas fusionadas, activó el borrado automático y protegió `main` con un ruleset
   (comprobado: activo, sin excepciones). Handoff para cualquier persona del equipo (§8).
+- **2026-10-06** · Primera sesión de aemorandin-coder. T-2 entregado (v0.51.0): regla `sin-simulacion` en `pnpm lint`
+  y el CI visto en rojo con una violación a propósito (PR #6), que cierra también B0-4. T-4 reclamado y a medias en
+  `feat/instalacion-y-llaves`: el servidor completo y probado, la web sin pantallas todavía (§3).
 
 ---
 
