@@ -1,0 +1,32 @@
+# El entorno de L2 Control en el servidor (T-8a). Se copia a `.env` junto a compose.yml y se
+# rellena EN el servidor: este archivo es el único sitio con las claves, nunca sale de ahí ni entra
+# al repositorio. `./desplegar.sh --claves` genera las cinco claves de abajo.
+#
+# Las contraseñas van dentro de una URL: solo letras y números (las de --claves son hexadecimales).
+
+# desarrollo · staging · produccion. Fuera de desarrollo, L2_URL_PUBLICA tiene que ser https://.
+L2_ENTORNO=staging
+
+# El nombre con el que se abre el sistema. Sin dominio comprado (M-22), la IP del VPS con guiones y
+# «.sslip.io». Las llaves de acceso quedan atadas a este nombre: cambiarlo obliga a crearlas otra vez.
+L2_DOMINIO=203-0-113-5.sslip.io
+L2_URL_PUBLICA=https://203-0-113-5.sslip.io
+
+# El local que sirve este servidor. Se generan una vez (uuid) y no cambian nunca.
+L2_TENANT_ID=
+L2_BRANCH_ID=
+
+# Claves (./desplegar.sh --claves). Perder L2_CLAVE_CIFRADO es perder lo cifrado: guárdala también
+# fuera del servidor, donde se guardan los respaldos.
+POSTGRES_PASSWORD=
+L2_MIGRATOR_PASSWORD=
+L2_APP_PASSWORD=
+VALKEY_PASSWORD=
+L2_CLAVE_CIFRADO=
+
+L2_LOG_LEVEL=info
+# Traer sola la tasa del BCV cada 15 minutos (la hace el worker).
+L2_SINCRONIZAR_TASA=si
+
+# De dónde salen las imágenes: las publica la etiqueta vX.Y.Z (.github/workflows/publicar.yml).
+L2_REGISTRO=ghcr.io/luam-lu

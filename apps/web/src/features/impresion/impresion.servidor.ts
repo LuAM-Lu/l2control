@@ -36,16 +36,21 @@ export async function historialDelLocal(): Promise<HistorialDeImpresionDto | nul
   return r.ok ? r.valor : null;
 }
 
-/** El agente empaquetado que se puede descargar, con su versión y su huella; `null` si no está. */
+/**
+ * El agente empaquetado que se puede descargar, con su versión y su huella; `null` si no está. Su versión
+ * es la del sistema: se empaqueta con la misma etiqueta (T-8a), y la imagen no lleva el package.json raíz.
+ */
 export async function agenteDescargable(): Promise<{ version: string; sha256: string; mb: number } | null> {
   const { existsSync, readFileSync, statSync } = await import("node:fs");
   const { resolve } = await import("node:path");
   const { entorno } = await import("../../servidor/entorno");
-  const exe = entorno().L2_AGENTE_EXE || resolve(process.cwd(), "..", "printer-agent", "dist", "l2-impresion.exe");
-  if (!existsSync(exe)) return null;
-  const sha256 = existsSync(`${exe}.sha256`) ? (readFileSync(`${exe}.sha256`, "utf8").split(/\s+/)[0] ?? "") : "";
-  const version = (JSON.parse(readFileSync(resolve(process.cwd(), "..", "..", "package.json"), "utf8")) as { version: string }).version;
-  return { version, sha256, mb: Math.round(statSync(exe).size / 1_048_576) };
+  const { VERSION } = await import("../shell/version");
+  // La ruta la decide el entorno al arrancar: que `next build` no trace el proyecto entero buscándola.
+  const exe = entorno().L2_AGENTE_EXE || resolve(/*turbopackIgnore: true*/ process.cwd(), "..", "printer-agent", "dist", "l2-impresion.exe");
+  if (!existsSync(/*turbopackIgnore: true*/ exe)) return null;
+  const huella = `${exe}.sha256`;
+  const sha256 = existsSync(/*turbopackIgnore: true*/ huella) ? (readFileSync(/*turbopackIgnore: true*/ huella, "utf8").split(/\s+/)[0] ?? "") : "";
+  return { version: VERSION.numero, sha256, mb: Math.round(statSync(/*turbopackIgnore: true*/ exe).size / 1_048_576) };
 }
 
 /** A dónde se conecta el agente: la misma dirección del canal en vivo (vacía = esta máquina, ese puerto). */

@@ -21,6 +21,7 @@ import { casosEnlaces, type CasosEnlaces } from "./identidad/enlaces.ts";
 import { casosInstalacion, type CasosInstalacion } from "./identidad/instalacion.ts";
 import { leerOrigenWeb } from "./identidad/llaves.ts";
 import { casosPuestaAPunto, type CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
+import { casosSalud, type CasosSalud } from "./sistema/salud.ts";
 import { crearCifrador } from "./identidad/cifrado.ts";
 import { casosAccesos, type CasosAccesos } from "./identidad/accesos.ts";
 import { casosTasas, type CasosTasas } from "./dinero/tasas.ts";
@@ -89,6 +90,7 @@ export {
   type OpcionesDeRegistro,
 } from "./identidad/llaves.ts";
 export type { CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
+export type { CasosSalud } from "./sistema/salud.ts";
 export {
   contextoDeSesion,
   SESION_INACTIVA_MS,
@@ -146,6 +148,8 @@ export interface Aplicacion {
   /** Vincular pulseras a una mesa: el parque pendiente pasa a la cuenta maestra (F6-05, B6-3). */
   readonly mesas: CasosMesas;
   readonly tiempoReal: CasosTiempoReal;
+  /** Si la base responde: lo pregunta el despliegue antes de dar una versión por buena (T-8a, ADR-028). */
+  readonly salud: CasosSalud;
   cerrar(): Promise<void>;
 }
 
@@ -209,6 +213,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
+    salud: casosSalud(base),
     cerrar: () => base.cerrar(),
   };
 }

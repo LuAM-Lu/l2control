@@ -33,7 +33,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.52.3 · 52 de 63 pasos.** **T-8 en dos partes (M-22, 2026-10-06):** T-8a (contenedores, publicación por etiqueta y despliegue que vuelve solo atrás) va antes de B7-1, y T-8b (las actualizaciones desde el panel) en paralelo con la Etapa 7, antes de B8-3. El VPS ya está contratado y, sin dominio comprado, staging se abre por `<ip>.sslip.io` (las llaves de acceso no funcionan con una IP); antes de B8-3 se decide un dominio propio. **Logo de L2 (v0.52.3):** el acceso, el menú del panel, la pestaña del navegador y el icono de la app instalada llevan el logo oficial de la suite (`apps/web/public/logo-l2.png`, traído de L2Lab y reducido), igual en los dos temas. **Tema claro (v0.52.2, M-21):** el sistema tiene dos temas, claro (el predeterminado) y oscuro, por equipo, con el botón del sol o la luna en el acceso y en el pie del menú; solo cambian tokens, ninguna pantalla sabe en cuál está. En el claro los avisos rojos y amarillos son bloques sólidos (rojo con letra blanca, amarillo con letra azul marino). **Corrección (v0.52.1):** un doble clic al anular un cobro podía responder «Ese asiento ya se revirtió» si la segunda petición miraba su clave antes de que la primera asentara y el asiento después; ahora, si quien lo revirtió es la misma operación, devuelve lo hecho. Salió porque el CI de `main` falló con un commit que solo tocaba documentos (la prueba del doble clic caía en esa ventana una de cada muchas veces); la prueba ahora lo repite doce veces. **Instalación inicial y llaves de acceso (T-4, [ADR-020](adr/020-llaves-de-acceso.md)):** con la base vacía, el acceso ofrece «Instalar L2 Control» (código del registro del servidor, local, primera administración con contraseña, PIN y llave de acceso, diez códigos de recuperación y ese equipo aprobado), y después esa pantalla no vuelve a existir. Confirmar identidad y aprobar un equipo desde sí mismo piden contraseña + llave, o un código de recuperación; el TOTP y `pnpm totp` se retiraron. Administración da credenciales desde Ajustes → Usuarios con un enlace de 24 h con QR, que la persona completa en `/alta`. Inicio enseña la Puesta a punto, que se tacha sola. Un local sin tarifario ya abre (la entrada lo dice y el editor publica el primero). **Corrección (v0.51.1):** los avisos verdes, amarillos y rojos y la opción elegida de los selectores se leían hundidos, como un botón ya presionado, porque su fondo era más oscuro que la tarjeta; ahora tienen más luz que ella (tres tokens), el rojo de estado es un tono más claro que sí llega al contraste mínimo y el icono de un aviso rojo se mueve en bucle (el de uno amarillo, tres veces al aparecer). **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Sigue T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
+**Versión 0.53.0 · 53 de 63 pasos.** **Publicar y desplegar (T-8a, M-22, v0.53.0):** el sistema tiene sus imágenes (web en Next `standalone`, worker y migrar, en `infra/docker/Dockerfile`) y un servidor de producción en `infra/produccion` (PostgreSQL, Valkey, la web, el worker y Caddy con HTTPS automático). `./desplegar.sh X.Y.Z` respalda la base, migra, arranca la versión y pregunta a la web y al worker por `/salud`; si no responden con esa versión y la base contestando, vuelve solo a la anterior y lo anota. Ensayado en esta PC: la vuelta atrás con la comprobación forzada a fallar y con una versión rota, y una versión nueva que quedó en marcha. Una etiqueta `vX.Y.Z` publica las imágenes en ghcr.io y el agente con su huella en el «release»; el CI construye las imágenes en cada PR. Sigue B7-1 (el VPS ya está contratado) y, en paralelo, T-8b. **T-8 en dos partes (M-22, 2026-10-06):** T-8a (contenedores, publicación por etiqueta y despliegue que vuelve solo atrás) va antes de B7-1, y T-8b (las actualizaciones desde el panel) en paralelo con la Etapa 7, antes de B8-3. El VPS ya está contratado y, sin dominio comprado, staging se abre por `<ip>.sslip.io` (las llaves de acceso no funcionan con una IP); antes de B8-3 se decide un dominio propio. **Logo de L2 (v0.52.3):** el acceso, el menú del panel, la pestaña del navegador y el icono de la app instalada llevan el logo oficial de la suite (`apps/web/public/logo-l2.png`, traído de L2Lab y reducido), igual en los dos temas. **Tema claro (v0.52.2, M-21):** el sistema tiene dos temas, claro (el predeterminado) y oscuro, por equipo, con el botón del sol o la luna en el acceso y en el pie del menú; solo cambian tokens, ninguna pantalla sabe en cuál está. En el claro los avisos rojos y amarillos son bloques sólidos (rojo con letra blanca, amarillo con letra azul marino). **Corrección (v0.52.1):** un doble clic al anular un cobro podía responder «Ese asiento ya se revirtió» si la segunda petición miraba su clave antes de que la primera asentara y el asiento después; ahora, si quien lo revirtió es la misma operación, devuelve lo hecho. Salió porque el CI de `main` falló con un commit que solo tocaba documentos (la prueba del doble clic caía en esa ventana una de cada muchas veces); la prueba ahora lo repite doce veces. **Instalación inicial y llaves de acceso (T-4, [ADR-020](adr/020-llaves-de-acceso.md)):** con la base vacía, el acceso ofrece «Instalar L2 Control» (código del registro del servidor, local, primera administración con contraseña, PIN y llave de acceso, diez códigos de recuperación y ese equipo aprobado), y después esa pantalla no vuelve a existir. Confirmar identidad y aprobar un equipo desde sí mismo piden contraseña + llave, o un código de recuperación; el TOTP y `pnpm totp` se retiraron. Administración da credenciales desde Ajustes → Usuarios con un enlace de 24 h con QR, que la persona completa en `/alta`. Inicio enseña la Puesta a punto, que se tacha sola. Un local sin tarifario ya abre (la entrada lo dice y el editor publica el primero). **Corrección (v0.51.1):** los avisos verdes, amarillos y rojos y la opción elegida de los selectores se leían hundidos, como un botón ya presionado, porque su fondo era más oscuro que la tarjeta; ahora tienen más luz que ella (tres tokens), el rojo de estado es un tono más claro que sí llega al contraste mínimo y el icono de un aviso rojo se mueve en bucle (el de uno amarillo, tres veces al aparecer). **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Sigue T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
 con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
 lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
 platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
@@ -450,7 +450,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → ~~B4-6~~ (M-18) → ~~B10-1~~ → ~~B10-2~~ (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
 6. ~~B3-7~~ (carga desde papel) → ~~B2-5~~ (IVA incluido, M-19) y los datos reales del local → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
-   → **T-8a** (publicar y desplegar, M-22) → B7-1 (VPS) → **T-8b** (actualizaciones desde el panel), en paralelo con B7-2 a B7-5
+   → ~~T-8a~~ (publicar y desplegar, M-22) → **B7-1** (VPS) → **T-8b** (actualizaciones desde el panel), en paralelo con B7-2 a B7-5
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 
 Fuera de la cuenta de 63: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -587,13 +587,32 @@ Fuera de la cuenta de 63: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   `pnpm lint` lo rechazó en el check «pnpm verify:db». En el equipo de quien lo hizo no había Node ni Docker: la
   regla se comprobó en el CI.*
 
-- [~] **T-8a · Publicar y desplegar** (M-20, M-22, [ADR-028](adr/028-actualizaciones.md)), antes de B7-1.
-  **a cargo: LuAMi · rama `feat/t-8a`.**
+- [x] **T-8a · Publicar y desplegar** (M-20, M-22, [ADR-028](adr/028-actualizaciones.md)), antes de B7-1.
   → La web y el worker tienen su imagen (Next en `standalone`, el worker con Node sin compilar) y un `compose` de
   producción con PostgreSQL, Valkey y Caddy (HTTPS automático) que se prueba en local. Una etiqueta `vX.Y.Z` en
   `main` construye y publica las imágenes y el ejecutable del agente con su huella (SHA-256). Un despliegue hace
   respaldo → migraciones → versión nueva → comprobación de salud (web, worker y base) y, **con la comprobación
   forzada a fallar, vuelve solo a la versión anterior** sin tocar datos. El CI construye la versión de producción.
+  *Hecho el 2026-10-06 (LuAMi), v0.53.0:*
+  *· **Imágenes** (`infra/docker/Dockerfile`, una receta y tres destinos): `web` con Next `standalone` (`output` y
+  `outputFileTracingRoot` en `next.config.ts`; 41 MB de servidor), `worker` y `migrar` desde un workspace recortado con
+  `turbo prune` (el worker, 398 MB con Node). Todas como `node`, sin secretos; OpenSSL en la base antes de instalar para que
+  Prisma elija su motor, y `migrar` sin la caché de efectos de pnpm. La descarga del agente ya no traza el proyecto entero
+  (`turbopackIgnore`) ni lee el package.json raíz (no está en la imagen): su versión es la incrustada.*
+  *· **Salud:** `/salud` en la web (versión y si la base contesta, sin sesión y sin datos del negocio) con `salud.comprobar`
+  en `@l2/application` (`sistema/salud.ts`, con su `test-db`); el worker ya tenía la suya.*
+  *· **Servidor** (`infra/produccion`): `compose.yml` (solo Caddy abre puertos; cada servicio recibe solo sus variables),
+  `Caddyfile` (`/tiempo-real` y `/impresion/vincular` al worker), `entorno.ejemplo`, `desplegar.sh` (`--claves`, `--estado`,
+  `L2_FORZAR_FALLO_SALUD=si` para ensayar) y su README. El guion de roles de PostgreSQL acepta `L2_BASES` y
+  `L2_MIGRADOR_CREA_BASES` (en el servidor, solo `l2control` y el migrador sin CREATEDB).*
+  *· **Publicación:** `.github/workflows/publicar.yml` (la etiqueta tiene que ser la versión; agente en Windows con su huella
+  en el «release» con las novedades del CHANGELOG; imágenes en `ghcr.io/luam-lu/l2control-*`). El CI construye las tres
+  imágenes dentro del check «pnpm verify:db».*
+  *· **Ensayo** en esta PC con Caddy en `https://localhost`, base nueva y `L2_REGISTRO=local`: instalación de la 0.52.3 (el
+  acceso ofrece «Instalar L2 Control» y el registro trae el código); la 0.53.0 con la comprobación forzada a fallar → vuelta
+  a la 0.52.3; una «0.54.0» que respondía otra versión → vuelta a la 0.52.3; la 0.53.0 sin forzar → en marcha. Cada paso
+  con su respaldo y su línea en `historial.log`. El acceso desplegado se vio en Chromium a 1366×768. La publicación por
+  etiqueta corre por primera vez con la etiqueta de esta versión.*
 - [ ] **T-8b · Actualizaciones desde el panel** (M-20, M-22, [ADR-028](adr/028-actualizaciones.md)), antes de B8-3.
   → Staging se actualiza solo con cada etiqueta. En producción, Ajustes → Sistema enseña la versión en marcha,
   la disponible y sus novedades, y administración elige «Actualizar ahora» (solo sin turnos abiertos ni niños en
@@ -1834,7 +1853,8 @@ antes del cobro en servidor (orden de ejecución).
 | Qué | Cómo | Hace falta antes de |
 |---|---|---|
 | ~~Proteger `main`~~ | **Hecho el 2026-10-05:** ruleset «main» activo sobre la rama por defecto, sin excepciones: PR obligatorio (0 aprobaciones), check «pnpm verify:db» con la rama al día, historial lineal, fusión por squash o rebase, sin force push ni borrado | — |
-| Dar acceso a la segunda persona | Settings → Collaborators → «Add people»: `aemorandin-coder` (aemorandin@gmail.com), rol **Maintain** (fusiona en `main` por PR; no cambia la visibilidad ni borra el repositorio) | Que trabaje la segunda persona |
+| ~~Dar acceso a la segunda persona~~ | **Hecho:** `aemorandin-coder` trabaja y fusiona por PR desde el 2026-10-06 | — |
+| Las imágenes en ghcr.io | Tras la primera publicación, en el perfil → Packages, cada `l2control-*` → «Package settings»: hacerlas **públicas** (no llevan secretos) o crear un token de solo lectura (`read:packages`) para que el VPS haga `docker login ghcr.io` | B7-1 |
 | Repositorio privado | Settings → General → Danger Zone → «Change visibility». **Ojo:** en un repositorio privado con la cuenta gratuita, GitHub no aplica la protección de ramas: hace falta GitHub Pro (unos 4 $ al mes). El CI sigue, con 2.000 minutos al mes gratis | B7-1 |
 | ~~Borrar las ramas ya fusionadas~~ | **Hecho el 2026-10-05:** solo queda `main`, en local y en GitHub | — |
 | ~~Borrado automático de ramas~~ | **Hecho el 2026-10-05:** la rama de un PR se borra sola al fusionarlo | — |
@@ -1869,6 +1889,8 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | No hay suite de Playwright en el repositorio: las pruebas de navegador de cada paso se corren a mano (JORNADA §8 las pide de punta a punta) | B7-3, o antes si se decide |
 | La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
+| La imagen del worker lleva la CLI de Prisma y TypeScript (dependencias «peer» de `@prisma/client`): 398 MB donde bastarían unos 150 | Cuando pese en el VPS |
+| Mientras no exista T-8b, el despliegue en producción es a mano (`desplegar.sh`) y quien lo corre comprueba antes que no hay turnos abiertos ni niños en sala | T-8b |
 | Sin Storybook | Fuera de la Ruta A |
 | El agente de impresión no va firmado con un certificado de código: Windows avisa al abrirlo («editor desconocido») | B8 (si el cliente compra el certificado) |
 | La instalación del agente como tarea de Windows (con permiso de administrador) no se ha ejecutado de punta a punta en una laptop | Trabajo de campo (B7-3) |
@@ -1913,6 +1935,13 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
 | ~~Puestos deducidos del rol (`PUESTO_DE_ROL`)~~ | `features/identity/operador.ts` | Ya no es provisional: D7 se decidió así el 2026-09-28 (§4) |
 
 **Trampas del código.** Ninguna la caza `pnpm typecheck`; todas se ven abriendo la pantalla.
+
+- **Imágenes (T-8a).** Prisma elige su motor de migraciones por el OpenSSL que ve **al instalar**, y pnpm guarda ese
+  resultado en su caché de efectos: con la caché de otra construcción, en marcha pide bajar otro motor y no puede
+  escribir. `pnpm install --filter` enlaza solo lo filtrado pero llena el almacén con todo el lockfile (Next en el
+  worker): se recorta con `turbo prune`. `pnpm exec` dentro de una imagen intenta reinstalar: se llama al binario.
+  Un `.env` en una subcarpeta entra al contexto de Docker si `.dockerignore` no dice `**/.env`. En el compose, un
+  valor con «: » (como el mensaje de `${VAR:?…}`) va entre comillas o el YAML no carga.
 
 - `can()` devuelve una palabra (`PERMITIDO`, `REQUIERE_AUTORIZACION` o `DENEGADO`), no un booleano. Se
   compara siempre así: `can(...) !== "DENEGADO"`. Escribir `actor ? can(...) : false` da cierto para
@@ -2186,6 +2215,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-06** · Cierre de la sesión de aemorandin-coder: `main` en v0.52.3 y en verde, sin ramas ni pasos reclamados. Sigue T-8.
 - **2026-10-06** · M-22 (decisión del usuario): T-8 se parte en T-8a (antes de B7-1) y T-8b (antes de B8-3); el VPS ya está
   contratado y staging va sin dominio comprado, por `sslip.io`. La ruta pasa a 63. T-8a reclamado por LuAMi (`feat/t-8a`).
+- **2026-10-06** · T-8a entregado como v0.53.0 (LuAMi): imágenes, servidor con Caddy, `desplegar.sh` con vuelta atrás ensayada en local,
+  publicación por etiqueta y las imágenes en el CI. Sigue B7-1 en el VPS ya contratado; T-8b en paralelo.
 
 ---
 

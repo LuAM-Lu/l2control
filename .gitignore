@@ -22,3 +22,8 @@ Thumbs.db
 # Cliente de Prisma: se genera con `prisma generate` (turbo lo hace antes de typecheck y test).
 packages/database/src/generated/
 
+
+# El servidor (infra/produccion): su entorno, la versión en marcha, el historial y los respaldos viven solo allí.
+infra/produccion/etiqueta.env
+infra/produccion/historial.log
+infra/produccion/respaldos/

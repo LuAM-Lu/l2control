@@ -1,6 +1,6 @@
 # CI de L2 Control — B0-4 (F1-14). En cada push y cada pull request:
 # tipos → lint → arquitectura (y la demostración de que muerde) → pruebas → pruebas contra
-# la base. Levanta PostgreSQL y Valkey con el MISMO docker-compose.yml que se usa en local,
+# la base → las imágenes de producción (T-8a), que se construyen sin publicarse. Levanta PostgreSQL y Valkey con el MISMO docker-compose.yml que se usa en local,
 # así que lo que pasa aquí pasa en tu máquina y al revés.
 #
 # Las acciones van fijadas por el hash de su commit, no por etiqueta: una etiqueta se puede
@@ -23,7 +23,7 @@ jobs:
   verificar:
     name: pnpm verify:db
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -44,6 +44,14 @@ jobs:
 
       - name: Verificar todo
         run: pnpm verify:db
+
+      # Lo que se despliega se construye aquí también: una imagen que no construye no entra en main.
+      # Publicarlas lo hace la etiqueta (publicar.yml).
+      - name: Imágenes de producción (web, worker, migrar)
+        run: |
+          for t in web worker migrar; do
+            docker build --quiet -f infra/docker/Dockerfile --target "$t" -t "l2control-$t:ci" .
+          done
 
       - name: Registros de los contenedores si algo falló
         if: failure()
