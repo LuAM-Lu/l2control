@@ -14,6 +14,15 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.60.1] — 2026-10-07 · Staging en el VPS
+
+Corrección vista al poner la 0.60.0 en el staging.
+
+### Corregido
+- **Las cabeceras de seguridad nuevas no llegaban al servidor.** Caddy leía el `Caddyfile` de antes: el contenedor
+  monta ese archivo, `git pull` lo reemplaza por otro y dentro se seguía viendo el viejo. Ahora el despliegue lo
+  compara y, si cambió, recrea Caddy.
+
 ## [0.60.0] — 2026-10-07 · Staging en el VPS
 
 Revisión de seguridad (B7-5).

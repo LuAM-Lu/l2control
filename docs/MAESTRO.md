@@ -1960,7 +1960,11 @@ antes del cobro en servidor (orden de ejecución).
   representantes queda auditado (cuántos, no cuáles). Ya estaban: Argon2id y bloqueo creciente para el PIN y el
   código de instalación, cookies `httpOnly`/`secure`/`lax`, mensajes del canal validados con Zod, redacción de logs
   con prueba. Visto en el ensayo con la 0.60.0: los iconos, entrar, seis pantallas, la cámara permitida, la
-  geolocalización negada y el sistema que no se deja incrustar. Queda una decisión (§4, D-REIMP) y lo de §5.*
+  geolocalización negada y el sistema que no se deja incrustar. Queda una decisión (§4, D-REIMP) y lo de §5.
+  **Corrección (v0.60.1):** en el staging, la 0.60.0 entró sola pero sin las cabeceras: el contenedor de Caddy monta el
+  `Caddyfile` y `git pull` lo reemplaza por otro archivo, así que dentro seguía el viejo (en Windows, Docker Desktop no
+  lo reproduce). `desplegar.sh` compara el de dentro con el del disco y, si difieren, recrea Caddy. En el staging se
+  recreó a mano y las cabeceras ya salen.*
 
 ### Etapa 8 · Producción
 
