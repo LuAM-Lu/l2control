@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, CircleCheck, FileText, PackageX, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, Clock, FileText, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import type { PuestaAPuntoDto, ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn } from "@l2/ui";
@@ -18,6 +18,8 @@ import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 import { ChipEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
+import type { AvisoDeVersion } from "../sistema/sistema.servidor.ts";
+import { rutaSeccion } from "./navigation.ts";
 
 /**
  * Inicio del back-office — F9-00, §9.10.4.
@@ -63,6 +65,7 @@ export function InicioScreen({
   inventario = null,
   eventosHoy = [],
   puestaAPunto = null,
+  version = null,
 }: {
   /** El día según el libro (B3-5); `null` sin permiso de ver la sucursal o sin servidor. */
   resumen: ResumenDelDiaDto | null;
@@ -82,6 +85,8 @@ export function InicioScreen({
   eventosHoy?: readonly ReservaEventoDto[];
   /** Lo que falta para el primer día (JORNADA §2); `null` para quien no gestiona personas. */
   puestaAPunto?: PuestaAPuntoDto | null;
+  /** Una versión nueva del sistema (T-8b); `null` si no hay, en staging o para quien no decide. */
+  version?: AvisoDeVersion | null;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
   // La tasa vigente, de la misma fuente que la caja y la barra de las estaciones (B2-1c): llega
@@ -150,6 +155,7 @@ export function InicioScreen({
           {inventario && <AvisoInventario {...inventario} />}
           {/* Lo que no salió en papel (ADR-015, ADR-022: las comandas fallidas, en Inicio). */}
           <AvisoDeImpresion className="h-auto min-h-8 py-1.5 text-xs lg:text-[13px]" />
+          {version && <AvisoVersion {...version} />}
 
           {/* Enlace al Turno */}
           <Link
@@ -410,5 +416,37 @@ function Cifra({
 
       <span className="text-[10px] sm:text-[10.5px] text-ink-2/80 truncate leading-none mt-0.5">{pie}</span>
     </div>
+  );
+}
+
+/**
+ * Una versión nueva del sistema (T-8b): un chip más del encabezado, que lleva a decidir cuándo ponerla.
+ * Solo una urgente (una corrección de seguridad o de dinero) se pinta como aviso.
+ */
+function AvisoVersion({ version, urgente, pedida }: AvisoDeVersion) {
+  const Icono = pedida ? Clock : urgente ? TriangleAlert : Sparkles;
+  return (
+    <Link
+      href={rutaSeccion("ajustes", "sistema")}
+      className={cn(
+        "inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 py-1.5 text-xs shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand lg:text-[13px]",
+        urgente && !pedida
+          ? "border-state-warn/40 bg-state-warn-bg text-state-warn hover:border-state-warn"
+          : "border-line bg-surface/80 text-ink-2 hover:border-line-strong hover:bg-surface-2 hover:text-ink",
+      )}
+    >
+      <Icono size={13} className={cn("shrink-0", !urgente || pedida ? "text-brand" : undefined)} aria-hidden="true" />
+      <span>
+        {pedida ? (
+          <>
+            <span className="tnum font-medium text-ink">v{version}</span> {pedida === "AHORA" ? "poniéndose" : "al cierre"}
+          </>
+        ) : (
+          <>
+            {urgente ? "Versión urgente" : "Versión nueva"} <span className="tnum font-medium">v{version}</span>
+          </>
+        )}
+      </span>
+    </Link>
   );
 }

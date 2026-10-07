@@ -34,6 +34,9 @@ model Tenant {
   collectionDetails CollectionDetails[]
   products          Product[]
   productCategories ProductCategory[]
+  systemReleases    SystemRelease[]
+  systemUpdates     SystemUpdate[]
+  setupPostponements SetupPostponement[]
   guardians         Guardian[]
   discountRules     DiscountRule[]
 
@@ -1743,4 +1746,62 @@ model PaperLoadItem {
   @@index([tenantId, loadId, occurredAt])
   @@index([tenantId, accountId])
   @@map("paper_load_item")
+}
+
+/// Una versión publicada que el actualizador del servidor vio, con sus imágenes ya listas (T-8b, ADR-028).
+/// La escribe el actualizador del VPS; la web la lee para ofrecerla en Ajustes → Sistema.
+model SystemRelease {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  version     String
+  publishedAt DateTime @map("published_at") @db.Timestamptz(3)
+  notes       String
+  urgent      Boolean  @default(false)
+  seenAt      DateTime @default(now()) @map("seen_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, version])
+  @@map("system_release")
+}
+
+/// Una actualización pedida (por administración o, en staging, sola) y lo que pasó con ella (T-8b). La web
+/// la pide; el actualizador del VPS la pone cuando toca y escribe cómo terminó.
+model SystemUpdate {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  version         String
+  fromVersion     String?   @map("from_version")
+  mode            String
+  state           String
+  requestedAt     DateTime  @default(now()) @map("requested_at") @db.Timestamptz(3)
+  requestedBy     String?   @map("requested_by") @db.Uuid
+  requestedByName String?   @map("requested_by_name")
+  startedAt       DateTime? @map("started_at") @db.Timestamptz(3)
+  finishedAt      DateTime? @map("finished_at") @db.Timestamptz(3)
+  detail          String?
+  cancelledByName String?   @map("cancelled_by_name")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, requestedAt])
+  @@map("system_update")
+}
+
+/// Un punto recomendable de la Puesta a punto que administración dejó para después (T-8b, a pedido del
+/// usuario). Lo que bloquea un puesto no se pospone. Se retoma poniendo `resumedAt`; nada se borra.
+model SetupPostponement {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  branchId          String    @map("branch_id") @db.Uuid
+  item              String
+  postponedAt       DateTime  @default(now()) @map("postponed_at") @db.Timestamptz(3)
+  postponedByName   String    @map("postponed_by_name")
+  resumedAt         DateTime? @map("resumed_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@map("setup_postponement")
 }

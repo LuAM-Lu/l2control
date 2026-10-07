@@ -10,6 +10,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { PiezaFija, Suelo, TramaParque } from "./piezas.tsx";
 import { usePlano } from "./PlanoProvider.tsx";
+import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { PASO_CM, PASO_LARGO_CM, REJILLA_CM, ajustar, dentroDelLocal, huecoLibre, mesasConProblema, siguienteNumero } from "./geometria.ts";
 
 /**
@@ -73,6 +74,8 @@ export function EditorPlano() {
 
   const borrador = historial[paso]!;
   const sucio = JSON.stringify(borrador) !== JSON.stringify(base);
+  // Un plano sin publicar no se pierde porque llegue una versión nueva (T-8b).
+  useSinGuardar(sucio);
   // Otra persona publicó (llega en vivo): sin cambios propios se adopta; con cambios, se avisa.
   useEffect(() => {
     if (!sucio) {

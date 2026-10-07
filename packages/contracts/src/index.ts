@@ -340,6 +340,10 @@ export {
   PrepararInstalacionSchema,
   CompletarInstalacionSchema,
   PuntoDePuestaAPuntoSchema,
+  PuntoDePuestaAPuntoIdSchema,
+  PosponerPuntoCommandSchema,
+  type PuntoDePuestaAPuntoId,
+  type PosponerPuntoCommand,
   PuestaAPuntoSchema,
   EquipoDeConfianzaSchema,
   CodigoDeAppSchema,
@@ -698,3 +702,20 @@ export {
   type InformeDeSemillaDto,
   type CargarSemillaCommand,
 } from "./semilla.ts";
+
+export {
+  NumeroDeVersionSchema,
+  VersionDisponibleSchema,
+  ModoDeActualizacionSchema,
+  EstadoDeActualizacionSchema,
+  ActualizacionSchema,
+  EstadoDelSistemaSchema,
+  PedirActualizacionCommandSchema,
+  CancelarActualizacionCommandSchema,
+  type VersionDisponibleDto,
+  type ModoDeActualizacion,
+  type EstadoDeActualizacion,
+  type ActualizacionDto,
+  type EstadoDelSistemaDto,
+  type PedirActualizacionCommand,
+} from "./sistema.ts";

@@ -9,6 +9,7 @@ import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { BotonTema } from "./BotonTema.tsx";
+import { VERSION } from "./version.ts";
 import { LogoL2 } from "./LogoL2.tsx";
 import { PageTransition } from "./PageTransition.tsx";
 import { cerrarSesion, useOperador } from "../identity/operador.ts";
@@ -191,7 +192,11 @@ function Marca({ compacta = false }: { compacta?: boolean }) {
         <span className="font-display block truncate leading-tight font-bold text-ink">
           Abby Kingdom
         </span>
-        <span className="block truncate text-[11.5px] text-ink-3">Sucursal única</span>
+        {/* La versión, en tinta tenue (T-8b): lo que se dicta por teléfono si algo falla. */}
+        <span className="block truncate text-[11.5px] text-ink-3">
+          Sucursal única
+          {VERSION.numero && <span className="tnum"> · v{VERSION.numero}</span>}
+        </span>
       </span>
     </Link>
   );

@@ -27,3 +27,7 @@ packages/database/src/generated/
 infra/produccion/etiqueta.env
 infra/produccion/historial.log
 infra/produccion/respaldos/
+# Lo que deja el actualizador (T-8b): su registro, su cerrojo y cuándo miró las versiones publicadas.
+infra/produccion/actualizador.log
+infra/produccion/.actualizador.lock
+infra/produccion/.actualizador.consultada

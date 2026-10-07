@@ -106,6 +106,9 @@ describe("pruebas NEGATIVAS: cada ❌ de la matriz devuelve DENEGADO", () => {
     ["SUPERVISOR", "reportes.verTodas"],
     ["SUPERVISOR", "usuarios.gestionar"],
     ["SUPERVISOR", "camaras.ver"],
+    // T-8b (ADR-028): las actualizaciones las decide administración; nadie más, ni con autorización.
+    ["SUPERVISOR", "sistema.actualizar"],
+    ["CAJERO", "sistema.actualizar"],
   ];
 
   for (const [rol, accion] of denegados) {

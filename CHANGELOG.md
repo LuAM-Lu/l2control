@@ -14,6 +14,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.58.0] — 2026-10-07 · Staging en el VPS
+
+Actualizaciones desde el panel (T-8b, M-25).
+
+### Añadido
+- **Ajustes → Versión y actualizaciones**: la versión en marcha, las nuevas con lo que trae cada una y lo último que se
+  puso. En producción decide administración, con su identidad confirmada: «Actualizar ahora» (solo sin turnos abiertos
+  ni niños en sala) o «Esta noche al cierre», que se pone sola cuando no queda nada abierto; mientras espera se puede
+  cancelar. Si no se pide, la versión sigue ahí hasta que se pida. El staging se pone al día solo con cada versión.
+- **El servidor pone la versión solo**, con respaldo antes, y si no queda sana vuelve a la anterior: el panel lo dice
+  («Volvió a la anterior», con el motivo). Inicio enseña un aviso discreto cuando hay una versión nueva.
+- **Las pantallas abiertas se ponen al día solas** al terminar una actualización, en cuanto están libres: sin un diálogo
+  abierto, sin escribir en un campo y sin un pedido o un plano sin enviar. Si no están libres, un aviso abajo lo dice y
+  se pueden poner al día con un toque.
+- **La versión del sistema**, en letra pequeña bajo el nombre en el menú del panel.
+- **Puesta a punto: «Después»** en los consejos recomendables. Se apartan a un grupo «Para después» que se puede abrir y
+  retomar, y si solo quedan esos, Inicio enseña una línea en vez del cuadro. Lo imprescindible no se aparta.
+
+### Cambiado
+- Con el canal en vivo recién vuelto, o sin él, una pantalla solo vuelve a leer todo si el servidor contesta: antes,
+  repintar contra un servidor caído podía dejar la página de error del navegador.
+
 ## [0.57.0] — 2026-10-07 · Staging en el VPS
 
 La semilla del local (B7-2) y el inventario en lote (T-10), con el icono de Android (M-24).

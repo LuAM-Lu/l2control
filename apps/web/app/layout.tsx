@@ -28,6 +28,7 @@ import { cuentasDelLocal } from "../src/features/cuentas/cuentas.servidor";
 import { VentasProvider } from "../src/features/cash/VentasProvider";
 import { ventasDelTurno } from "../src/features/cash/ventas.servidor";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
+import { PuestaAlDia } from "../src/features/shell/PuestaAlDia";
 import { ColaProvider } from "../src/features/impresion/ColaProvider";
 import { trabajosDelLocal } from "../src/features/impresion/impresion.servidor";
 
@@ -125,6 +126,8 @@ export default async function RootLayout({
         <ElevacionProvider>
         {/* El canal en vivo (B5-1): por encima de todo lo que vuelve a leer cuando algo cambia. */}
         <TiempoRealProvider sesionId={sesion?.id ?? null}>
+        {/* Tras poner una versión nueva, cada pantalla se recarga sola cuando está libre (T-8b). */}
+        <PuestaAlDia />
         {/* Los ajustes del local (B4-4) envuelven a todo lo demás: el formato de hora, la zona y los
             umbrales los lee cualquier superficie, y la sala los necesita para saber cuándo una
             estancia pasa a huérfana (F5-08b, F4-04c, D9). */}

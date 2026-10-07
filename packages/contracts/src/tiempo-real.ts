@@ -52,6 +52,8 @@ export const TemaSchema = z.enum([
   "eventos",
   /** Lo cargado desde papel: las cargas, sus registros y su revisión (B3-7). */
   "papel",
+  /** Las versiones del sistema y sus actualizaciones (T-8b). */
+  "sistema",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 
