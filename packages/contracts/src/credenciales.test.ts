@@ -59,6 +59,14 @@ describe("enlaces de alta", () => {
     assert.equal(EnlaceDeAltaCommandSchema.safeParse({ userId: "u1", kind: "ADMIN" }).success, false);
   });
 
+  test("la llave es opcional al instalar y en el alta (ADR-029), pero no a medias", () => {
+    const base = { codigo: "K7F2QX9B3M", desafioId: DESAFIO, equipo: "PC de la oficina" };
+    assert.equal(CompletarInstalacionSchema.safeParse(base).success, true);
+    assert.equal(CompletarInstalacionSchema.safeParse({ ...base, respuesta: { id: "x" } }).success, false);
+    assert.equal(CompletarAltaSchema.safeParse({ desafioId: DESAFIO }).success, true);
+    assert.equal(CompletarAltaSchema.safeParse({ desafioId: DESAFIO, etiqueta: "Teléfono" }).success, false);
+  });
+
   test("una llave se registra con un nombre para reconocerla", () => {
     const respuesta = { id: "abc", response: {} };
     assert.equal(CompletarAltaSchema.safeParse({ desafioId: DESAFIO, respuesta, etiqueta: "Teléfono" }).success, true);

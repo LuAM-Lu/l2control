@@ -9,5 +9,10 @@ import { AltaScreen } from "../../src/features/identity/AltaScreen";
 export const metadata: Metadata = { title: "Credenciales de administración · L2 Control", referrer: "no-referrer" };
 
 export default function AltaPage() {
-  return <AltaScreen />;
+  // Sin cáscara, la pantalla de acceso no tendría altura de la que estirarse: la marca se quedaría corta.
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <AltaScreen />
+    </div>
+  );
 }

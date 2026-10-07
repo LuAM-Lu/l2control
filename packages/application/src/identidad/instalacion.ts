@@ -3,8 +3,9 @@
  *
  * En producción la base arranca vacía: no hay local, ni personas, ni equipos. Con ella vacía, el
  * acceso ofrece «Instalar L2 Control», que en un solo paso deja el local con su sucursal, la
- * primera persona de administración (contraseña, PIN, llave de acceso y diez códigos de
- * recuperación) y ESTE equipo aprobado. Nadie toca la consola.
+ * primera persona de administración (contraseña, PIN, diez códigos de recuperación y, si este
+ * equipo puede, una llave de acceso) y ESTE equipo aprobado y de su confianza: en él confirma
+ * identidad con su contraseña (ADR-029). Nadie toca la consola.
  *
  * Para que nadie se adelante a instalarlo, pide un **código de instalación** de un solo uso que
  * el servidor escribe en su registro al arrancar sin instalar (lo lee quien despliega). La base
@@ -26,6 +27,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar } from "../auditoria/auditar.ts";
 import { crearLocal } from "../sucursal/sucursal.ts";
 import { coincide, componer, huella, nuevoSecreto } from "./credenciales.ts";
+import { confiarEnEquipo } from "./elevacion.ts";
 import type { Lugar } from "./dispositivos.ts";
 import type { Bloqueo } from "./sesiones.ts";
 import {
@@ -60,7 +62,7 @@ export interface CasosInstalacion {
   emitirCodigo(lugar: Lugar, ahora: number): Promise<string | null>;
   /** Primer paso: el código, el local y la primera administración. Devuelve el desafío de su llave. */
   preparar(p: { lugar: Lugar; datos: unknown; ahora: number }): Promise<Resultado<Desafio<OpcionesDeRegistro>> & Readonly<{ bloqueo?: Bloqueo }>>;
-  /** Segundo paso: la llave. Crea todo en una transacción y aprueba este equipo. */
+  /** Segundo paso: la llave, si la hay. Crea todo en una transacción y aprueba este equipo, de su confianza. */
   completar(p: { lugar: Lugar; datos: unknown; ip: string | null; ahora: number }): Promise<Resultado<InstalacionHecha> & Readonly<{ bloqueo?: Bloqueo }>>;
 }
 
@@ -177,8 +179,9 @@ export function casosInstalacion(base: Base, web: OrigenWeb | null): CasosInstal
         if (typeof local !== "string" || typeof sucursal !== "string" || typeof nombre !== "string" || typeof passwordHash !== "string" || typeof pinHash !== "string") {
           return llaveNoVale;
         }
-        const llave = await verificarRegistro(web, d.desafio, c.respuesta);
-        if (!llave) return llaveNoVale;
+        // La llave es opcional (ADR-029): sin ella, este equipo de confianza es su segundo factor.
+        const llave = c.respuesta !== undefined ? await verificarRegistro(web, d.desafio, c.respuesta) : null;
+        if (c.respuesta !== undefined && !llave) return llaveNoVale;
 
         // Todo o nada: si algo de aquí falla, la transacción se deshace y el local sigue sin instalar.
         const hecha = await tx.installation.updateMany({
@@ -194,7 +197,7 @@ export function casosInstalacion(base: Base, web: OrigenWeb | null): CasosInstal
         await tx.staffUserChange.create({
           data: { tenantId: lugar.tenantId, userId, kind: "ALTA", toRole: "ADMIN", reason: "Primera administración, en la instalación inicial", byUserId: userId, byName: nombre },
         });
-        const llaveId = await guardarLlave(tx, { tenantId: lugar.tenantId, userId, llave, etiqueta: c.etiqueta, ahora });
+        const llaveId = llave && c.etiqueta !== undefined ? await guardarLlave(tx, { tenantId: lugar.tenantId, userId, llave, etiqueta: c.etiqueta, ahora }) : null;
         const codigos = await reponerCodigos(tx, { tenantId: lugar.tenantId, userId, ahora });
 
         const secreto = nuevoSecreto();
@@ -214,8 +217,11 @@ export function casosInstalacion(base: Base, web: OrigenWeb | null): CasosInstal
           reason: "Instalación inicial con el código del servidor",
         });
         await auditar(tx, ctx, { action: "usuario.alta", entityType: "staff_user", entityId: userId, after: { nombre, role: "ADMIN" }, reason: "Primera administración, en la instalación inicial" });
-        await auditar(tx, ctx, { action: "usuario.llave", entityType: "staff_user", entityId: userId, after: { llave: llaveId, etiqueta: c.etiqueta }, reason: "Llave de acceso registrada en la instalación inicial" });
+        if (llaveId) {
+          await auditar(tx, ctx, { action: "usuario.llave", entityType: "staff_user", entityId: userId, after: { llave: llaveId, etiqueta: c.etiqueta }, reason: "Llave de acceso registrada en la instalación inicial" });
+        }
         await auditar(tx, ctx, { action: "dispositivo.aprobar", entityType: "device", entityId: equipo.id, after: { status: "APROBADO", label: equipo.label }, reason: motivo });
+        await confiarEnEquipo(tx, ctx, { userId, deviceId: equipo.id, motivo: "En la instalación inicial", ahora });
 
         return {
           ok: true as const,

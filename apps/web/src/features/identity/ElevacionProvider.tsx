@@ -1,17 +1,19 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { MonitorCheck, ShieldCheck } from "lucide-react";
+import type { OpcionesDeConfirmacion } from "@l2/application";
 import type { Resultado } from "@l2/contracts";
 import { Button, Dialog } from "@l2/ui";
-import { desafioParaElevar, elevar } from "./acceso.acciones";
-import { CamposDeIdentidad, useSegundoFactor } from "./SegundoFactor";
+import { desafioParaElevar, elevar, opcionesDeConfirmacion } from "./acceso.acciones";
+import { CamposDeIdentidad, useSegundoFactor, type Modo } from "./SegundoFactor";
 
 /**
  * Confirmar identidad — F2-04.
  *
- * Configuración, precios, personas y reportes globales exigen, además del permiso, la
- * contraseña y la llave de acceso, o un código de recuperación (ADR-020). El servidor lo dice con `ELEVACION_REQUERIDA`; este
+ * Configuración, precios, personas y reportes globales exigen, además del permiso, la contraseña y
+ * un segundo factor (ADR-029): en el equipo de confianza basta la contraseña; si no, el código de la
+ * app, la llave de acceso o un código de recuperación. El servidor lo dice con `ELEVACION_REQUERIDA`; este
  * proveedor abre el diálogo, eleva la sesión y reintenta lo que se había pedido, UNA vez. Si la
  * persona cancela, se devuelve el rechazo tal cual: la pantalla lo enseña y no se pierde nada.
  */
@@ -70,10 +72,42 @@ export function useConElevacion() {
   );
 }
 
+/** Lo que ofrece el diálogo, en orden: lo más cómodo primero. */
+function modosDe(o: OpcionesDeConfirmacion | null): Modo[] {
+  if (!o) return ["APP", "LLAVE", "CODIGO"];
+  const modos: Modo[] = [];
+  if (o.deConfianza) modos.push("EQUIPO");
+  if (o.app) modos.push("APP");
+  if (o.llaves) modos.push("LLAVE");
+  if (o.codigos > 0) modos.push("CODIGO");
+  return modos.length > 0 ? modos : ["CODIGO"];
+}
+
 function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }) {
-  const factor = useSegundoFactor();
+  const [opciones, setOpciones] = useState<OpcionesDeConfirmacion | null>(null);
+  const [errorOpciones, setErrorOpciones] = useState<string | null>(null);
+  const factor = useSegundoFactor(modosDe(opciones));
+  // Desmarcado: un equipo compartido (la caja) no debe quedar de confianza sin querer.
+  const [confiar, setConfiar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    opcionesDeConfirmacion()
+      .then((r) => {
+        if (!vivo) return;
+        if (r.ok) setOpciones(r.valor);
+        else setErrorOpciones(r.mensaje);
+      })
+      .catch(() => vivo && setErrorOpciones("El servidor no respondió. Cierra y vuelve a intentarlo."));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  // Se ofrece confiar en un equipo aprobado que aún no lo es, al confirmar con un factor de verdad.
+  const ofrecerConfianza = opciones?.puedeConfiar === true && factor.modo !== "EQUIPO";
 
   const confirmar = async () => {
     setEnviando(true);
@@ -84,7 +118,7 @@ function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }
       setEnviando(false);
       return setError(presentado.mensaje);
     }
-    const r = await elevar(factor.contrasena, presentado.factor).catch(() => null);
+    const r = await elevar(factor.contrasena, presentado.factor, ofrecerConfianza && confiar).catch(() => null);
     setEnviando(false);
     if (r?.ok) return onCerrar(true);
     factor.vaciar();
@@ -96,7 +130,7 @@ function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }
       <Button surface="admin" variant="ghost" className="flex-1" onClick={() => onCerrar(false)} disabled={enviando}>
         Cancelar
       </Button>
-      <Button surface="admin" variant="primary" className="flex-1" onClick={() => void confirmar()} disabled={!factor.listo || enviando}>
+      <Button surface="admin" variant="primary" className="flex-1" onClick={() => void confirmar()} disabled={!opciones || !factor.listo || enviando}>
         <ShieldCheck size={15} aria-hidden="true" />
         {enviando ? "Comprobando…" : "Confirmar"}
       </Button>
@@ -108,7 +142,7 @@ function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }
       abierto
       onCerrar={() => onCerrar(false)}
       titulo="Confirma que eres tú"
-      descripcion="Para configuración, precios y personas hace falta tu contraseña y tu llave de acceso. Vale 15 minutos en esta sesión."
+      descripcion="Para configuración, precios y personas. Vale 15 minutos en esta sesión."
       pie={pie}
     >
       <form
@@ -117,7 +151,29 @@ function DialogoElevacion({ onCerrar }: { onCerrar: (elevada: boolean) => void }
           if (factor.listo && !enviando) void confirmar();
         }}
       >
-        <CamposDeIdentidad factor={factor} surface="admin" error={error} />
+        {errorOpciones ? (
+          <p role="alert" className="text-[13px] text-state-crit">
+            {errorOpciones}
+          </p>
+        ) : !opciones ? (
+          <p className="text-[13px] text-ink-3">Comprobando cómo puedes confirmar…</p>
+        ) : (
+          <>
+            <CamposDeIdentidad factor={factor} surface="admin" error={error} />
+            {ofrecerConfianza && (
+              <label className="mt-3 flex min-h-8 cursor-pointer items-start gap-2 text-[13px] text-ink-2">
+                <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand)]" checked={confiar} onChange={(e) => setConfiar(e.target.checked)} />
+                <span>
+                  <span className="flex items-center gap-1.5 font-medium text-ink">
+                    <MonitorCheck size={14} aria-hidden="true" />
+                    Confiar en este equipo
+                  </span>
+                  La próxima vez, aquí te bastará tu contraseña. Márcalo solo en un equipo tuyo.
+                </span>
+              </label>
+            )}
+          </>
+        )}
         {/* Enviar con Intro desde cualquier campo. */}
         <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
       </form>

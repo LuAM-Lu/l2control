@@ -67,7 +67,10 @@ export interface CasosEnlaces {
   abrir(enlace: unknown, ahora: number): Promise<EnlaceAbiertoDto | null>;
   /** Primer paso: la contraseña. Devuelve el desafío para registrar la llave. */
   preparar(p: { enlace: unknown; datos: unknown; ahora: number }): Promise<Resultado<Desafio<OpcionesDeRegistro>>>;
-  /** Segundo paso: la llave. Deja las credenciales puestas y gasta el enlace. */
+  /**
+   * Segundo paso: la llave (opcional en un alta, ADR-029). Deja las credenciales puestas y gasta el
+   * enlace.
+   */
   completar(p: { enlace: unknown; datos: unknown; ip: string | null; ahora: number }): Promise<Resultado<AltaCompletada>>;
 }
 
@@ -112,6 +115,13 @@ export function casosEnlaces(base: Base, web: OrigenWeb | null): CasosEnlaces {
         const ahora = new Date();
         const llaves = await tx.passkey.findMany({ where: { userId: { in: ids }, retiredAt: null }, orderBy: { createdAt: "asc" } });
         const codigos = await tx.recoveryCode.groupBy({ by: ["userId"], where: { userId: { in: ids }, usedAt: null, retiredAt: null }, _count: true });
+        const apps = await tx.totpCredential.findMany({ where: { userId: { in: ids }, confirmedAt: { not: null }, retiredAt: null }, select: { userId: true } });
+        // Solo cuentan los equipos que siguen aprobados: la confianza cae con el equipo (ADR-029).
+        const confianzas = await tx.trustedDevice.findMany({
+          where: { userId: { in: ids }, revokedAt: null, device: { status: "APROBADO" } },
+          include: { device: { select: { label: true } } },
+          orderBy: { createdAt: "asc" },
+        });
         const enlaces = await tx.enrollmentLink.findMany({
           where: { userId: { in: ids }, usedAt: null, revokedAt: null, expiresAt: { gt: ahora }, failures: { lt: FALLOS_DEL_ENLACE } },
           orderBy: { createdAt: "desc" },
@@ -127,6 +137,10 @@ export function casosEnlaces(base: Base, web: OrigenWeb | null): CasosEnlaces {
               llaves: llaves
                 .filter((l) => l.userId === p.id)
                 .map((l) => ({ id: l.id, etiqueta: l.label, creada: l.createdAt.toISOString(), ultimoUso: l.lastUsedAt?.toISOString() ?? null })),
+              app: apps.some((a) => a.userId === p.id),
+              equiposDeConfianza: confianzas
+                .filter((c) => c.userId === p.id)
+                .map((c) => ({ id: c.id, equipo: c.device.label, desde: c.createdAt.toISOString() })),
               codigosRestantes: codigos.find((c) => c.userId === p.id)?._count ?? 0,
               enlacePendiente: enlace ? { kind: enlace.kind, caduca: enlace.expiresAt.toISOString() } : null,
             }),
@@ -255,6 +269,7 @@ export function casosEnlaces(base: Base, web: OrigenWeb | null): CasosEnlaces {
       const leido = CompletarAltaSchema.safeParse(datos);
       if (!leido.success) return { ok: false, motivo: "INVALIDO", mensaje: "La respuesta de la llave no llegó completa.", problemas: problemasDe(leido.error) };
       const { desafioId, respuesta, etiqueta } = leido.data;
+      const conLlave = respuesta !== undefined && etiqueta !== undefined;
 
       return base.conTenant(cred.tenantId, async (tx) => {
         const e = await vigente(tx, cred, ahora);
@@ -264,12 +279,14 @@ export function casosEnlaces(base: Base, web: OrigenWeb | null): CasosEnlaces {
           motivo: "NO_PERMITIDO" as const,
           mensaje: "No se pudo registrar la llave de acceso. Vuelve a escribir tu contraseña e inténtalo otra vez.",
         };
+        // Un enlace para añadir una llave sin llave no tiene sentido; un alta sí (ADR-029).
+        if (e.kind === "LLAVE" && !conLlave) return llaveNoVale;
         const d = await tomarDesafio(tx, { desafioId, proposito: e.kind as "ALTA" | "LLAVE", ahora });
         const recordado = d?.payload && typeof d.payload === "object" && !Array.isArray(d.payload) ? d.payload : null;
         if (!d || d.userId !== e.userId || recordado?.enlace !== e.id) return llaveNoVale;
-        const llave = await verificarRegistro(web, d.desafio, respuesta);
-        if (!llave) return llaveNoVale;
-        if (await tx.passkey.findUnique({ where: { credentialId: llave.credentialId }, select: { id: true } })) {
+        const llave = conLlave ? await verificarRegistro(web, d.desafio, respuesta) : null;
+        if (conLlave && !llave) return llaveNoVale;
+        if (llave && (await tx.passkey.findUnique({ where: { credentialId: llave.credentialId }, select: { id: true } }))) {
           return { ok: false as const, motivo: "CONFLICTO" as const, mensaje: "Esa llave de acceso ya está registrada. Usa otra." };
         }
 
@@ -284,6 +301,12 @@ export function casosEnlaces(base: Base, web: OrigenWeb | null): CasosEnlaces {
           if (!passwordHash) return llaveNoVale;
           const repone = e.user.passwordHash !== null;
           const retiradas = await retirarLlaves(tx, { userId: e.userId, ahora });
+          // Reponer es empezar de cero: la app y los equipos de confianza de antes tampoco valen (ADR-029).
+          await tx.totpCredential.updateMany({ where: { userId: e.userId, retiredAt: null }, data: { retiredAt: new Date(ahora) } });
+          await tx.trustedDevice.updateMany({
+            where: { userId: e.userId, revokedAt: null },
+            data: { revokedAt: new Date(ahora), revokedByName: e.createdByName },
+          });
           await tx.staffUser.update({ where: { id: e.userId }, data: { passwordHash, pinFailures: 0, pinLastFailureAt: null } });
           codigos = await reponerCodigos(tx, { tenantId: e.tenantId, userId: e.userId, ahora });
           // Reponer credenciales cierra lo que estuviera elevado con las anteriores.
@@ -296,15 +319,17 @@ export function casosEnlaces(base: Base, web: OrigenWeb | null): CasosEnlaces {
             reason: `${repone ? "Credenciales repuestas" : "Alta de credenciales"} con el enlace que generó ${e.createdByName}`,
           });
         }
-        const llaveId = await guardarLlave(tx, { tenantId: e.tenantId, userId: e.userId, llave, etiqueta, ahora });
+        if (llave && etiqueta !== undefined) {
+          const llaveId = await guardarLlave(tx, { tenantId: e.tenantId, userId: e.userId, llave, etiqueta, ahora });
+          await auditar(tx, ctx, {
+            action: "usuario.llave",
+            entityType: "staff_user",
+            entityId: e.userId,
+            after: { llave: llaveId, etiqueta },
+            reason: `Llave de acceso registrada con el enlace que generó ${e.createdByName}`,
+          });
+        }
         await tx.enrollmentLink.update({ where: { id: e.id }, data: { usedAt: new Date(ahora) } });
-        await auditar(tx, ctx, {
-          action: "usuario.llave",
-          entityType: "staff_user",
-          entityId: e.userId,
-          after: { llave: llaveId, etiqueta },
-          reason: `Llave de acceso registrada con el enlace que generó ${e.createdByName}`,
-        });
         return { ok: true as const, valor: { nombre: e.user.fullName, codigos } };
       });
     },

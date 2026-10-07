@@ -210,7 +210,7 @@ describe("elevar", () => {
     if (!r.ok) assert.match(r.mensaje, /enlace de alta/);
   });
 
-  test("sin la dirección pública en el servidor, la elevación no está disponible (fail-closed)", async () => {
+  test("sin la dirección pública no hay llave que comprobar, pero los códigos siguen valiendo (ADR-029)", async () => {
     const sinDireccion = await conectar(URL_APP, { claveCifrado: CLAVE_DE_PRUEBA });
     try {
       const ahora = Date.now() + 2 * 60 * 60_000;
@@ -218,7 +218,7 @@ describe("elevar", () => {
       const d = await sinDireccion.elevacion.desafio({ sesion: cred, ahora });
       assert.equal(d.ok ? "ok" : d.motivo, "NO_DISPONIBLE");
       const r = await sinDireccion.elevacion.elevar({ sesion: cred, contrasena: luis.contrasena, factor: { tipo: "CODIGO", codigo: luis.codigos[1]! }, ip: null, ahora });
-      assert.equal(r.ok ? "ok" : r.motivo, "NO_DISPONIBLE");
+      assert.ok(r.ok, JSON.stringify(r));
     } finally {
       await sinDireccion.cerrar();
     }

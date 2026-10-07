@@ -13,7 +13,7 @@ import { etiquetaSugerida, registrarLlave } from "./llave.cliente";
 /**
  * El alta de credenciales con un enlace (ADR-020, punto 4). La persona abre en SU equipo o en SU
  * teléfono el enlace que le generó administración: pone su contraseña, registra su llave de
- * acceso y recibe sus códigos de recuperación. No hay sesión ni equipo aprobado: lo único que
+ * acceso si ese equipo puede (ADR-029: es opcional en un alta) y recibe sus códigos de recuperación. No hay sesión ni equipo aprobado: lo único que
  * autoriza es el enlace, que vive en el fragmento de la dirección (el navegador no lo envía al
  * pedir la página, así que no llega a ningún registro) y viaja en el cuerpo de cada acción.
  */
@@ -128,6 +128,8 @@ function Formulario({
   const [contrasena, setContrasena] = useState("");
   const [repetida, setRepetida] = useState("");
   const [etiqueta, setEtiqueta] = useState("");
+  // En un alta la llave es opcional (ADR-029); un enlace para otra llave es para eso.
+  const [conLlave, setConLlave] = useState(!alta);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorDeLlave, setErrorDeLlave] = useState<string | null>(null);
@@ -136,7 +138,7 @@ function Formulario({
   useEffect(() => setEtiqueta(etiquetaSugerida()), []);
 
   const noCoinciden = alta && repetida.length > 0 && repetida !== contrasena;
-  const listo = contrasena.length > 0 && (!alta || repetida === contrasena) && etiqueta.trim().length >= 2;
+  const listo = contrasena.length > 0 && (!alta || repetida === contrasena) && (!conLlave || etiqueta.trim().length >= 2);
 
   async function enviar() {
     setEnviando(true);
@@ -150,12 +152,16 @@ function Formulario({
       if (preparado?.motivo === "NO_PERMITIDO" && (await abrirEnlace(secreto).catch(() => enlace)) === null) return onNoVale();
       return setError(!preparado ? "El servidor no respondió. Inténtalo de nuevo." : (preparado.problemas?.[0]?.message ?? preparado.mensaje));
     }
-    const llave = await registrarLlave(preparado.valor);
-    if (!llave.ok) {
-      setEnviando(false);
-      return setErrorDeLlave(llave.mensaje);
+    let conRespuesta: { respuesta: Record<string, unknown>; etiqueta: string } | null = null;
+    if (conLlave) {
+      const llave = await registrarLlave(preparado.valor);
+      if (!llave.ok) {
+        setEnviando(false);
+        return setErrorDeLlave(alta ? `${llave.mensaje} Puedes seguir sin llave: desmarca la casilla.` : llave.mensaje);
+      }
+      conRespuesta = { respuesta: llave.respuesta, etiqueta };
     }
-    const hecho = await completarAlta(secreto, { desafioId: llave.desafioId, respuesta: llave.respuesta, etiqueta }).catch(() => null);
+    const hecho = await completarAlta(secreto, { desafioId: preparado.valor.desafioId, ...conRespuesta }).catch(() => null);
     setEnviando(false);
     if (!hecho || !hecho.ok) {
       return setErrorDeLlave(!hecho ? "El servidor no respondió. Inténtalo de nuevo." : (hecho.problemas?.[0]?.message ?? hecho.mensaje));
@@ -174,7 +180,7 @@ function Formulario({
       <h1 className="font-display text-3xl font-bold text-ink">{alta ? "Tus credenciales de administración" : "Añadir otra llave de acceso"}</h1>
       <p className="text-[14.5px] text-ink-2">
         {alta
-          ? `${enlace.nombre}: elige tu contraseña y registra tu llave de acceso en este equipo. Las dos juntas confirman que eres tú para configuración, precios y personas.`
+          ? `${enlace.nombre}: elige tu contraseña. Con ella y tu equipo de confianza, la app de autenticación o una llave de acceso confirmas que eres tú para configuración, precios y personas.`
           : `${enlace.nombre}: escribe tu contraseña y registra una llave más en este equipo. Conviene tener dos, en equipos distintos.`}
       </p>
 
@@ -199,24 +205,44 @@ function Formulario({
           error={noCoinciden ? "Las dos contraseñas no coinciden." : undefined}
         />
       )}
-      <Input
-        label="Nombre de esta llave"
-        surface="tablet"
-        maxLength={60}
-        hint="Para reconocerla en la lista: «Laptop de la oficina», «Mi teléfono»."
-        value={etiqueta}
-        onChange={(e) => setEtiqueta(e.target.value)}
-        error={errorDeLlave ?? undefined}
-      />
+      {alta && (
+        <label className="flex min-h-12 cursor-pointer items-start gap-2 text-[13px] text-ink-2">
+          <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand)]" checked={conLlave} onChange={(e) => setConLlave(e.target.checked)} />
+          <span>
+            <span className="flex items-center gap-1.5 font-medium text-ink">
+              <Fingerprint size={14} aria-hidden="true" />
+              Crear también una llave de acceso en este equipo
+            </span>
+            Opcional. Solo si este equipo la admite: Windows Hello (PIN, huella o cara) o el bloqueo del teléfono.
+          </span>
+        </label>
+      )}
+      {conLlave && (
+        <Input
+          label="Nombre de esta llave"
+          surface="tablet"
+          maxLength={60}
+          hint="Para reconocerla en la lista: «Laptop de la oficina», «Mi teléfono»."
+          value={etiqueta}
+          onChange={(e) => setEtiqueta(e.target.value)}
+          error={errorDeLlave ?? undefined}
+        />
+      )}
+      {!conLlave && errorDeLlave && (
+        <p role="alert" className="text-[13px] text-state-crit">
+          {errorDeLlave}
+        </p>
+      )}
 
-      <p className="flex items-start gap-2 text-[12.5px] text-ink-2">
-        <Fingerprint size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-        Al continuar, este equipo te pedirá crear la llave: con la huella, la cara o el PIN del equipo.
-        {alta && " Si ya tenías credenciales, las anteriores dejan de valer."}
-      </p>
+      {alta && (
+        <p className="flex items-start gap-2 text-[12.5px] text-ink-2">
+          <KeyRound size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+          Si ya tenías credenciales, las anteriores dejan de valer (también tu app y tus equipos de confianza).
+        </p>
+      )}
 
       <Button type="submit" surface="tablet" variant="primary" disabled={!listo || enviando}>
-        {enviando ? "Registrando…" : "Continuar y registrar la llave"}
+        {enviando ? "Guardando…" : conLlave ? "Continuar y registrar la llave" : "Guardar mi contraseña"}
       </Button>
     </form>
   );

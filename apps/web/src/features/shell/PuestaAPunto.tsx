@@ -31,7 +31,8 @@ const PUNTO: Record<PuntoDePuestaAPuntoDto["id"], { titulo: string; ruta: Route 
   carta_y_plano: { titulo: "Carta y plano del restaurante", ruta: rutaSeccion("ajustes", "plano") },
   existencias: { titulo: "Existencias iniciales del inventario", ruta: rutaSeccion("inventario", "entradas") },
   descuentos: { titulo: "Descuentos y familias VIP", ruta: rutaSeccion("ajustes", "descuentos") },
-  segunda_administracion: { titulo: "Segunda administración con su llave", ruta: rutaSeccion("ajustes", "usuarios") },
+  segunda_administracion: { titulo: "Segunda administración con sus credenciales", ruta: rutaSeccion("ajustes", "usuarios") },
+  otros_equipos: { titulo: "App de autenticación para otros equipos", ruta: rutaSeccion("ajustes", "usuarios") },
 };
 
 export function PuestaAPunto({ puesta }: { puesta: PuestaAPuntoDto }) {

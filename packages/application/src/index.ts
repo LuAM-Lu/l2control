@@ -22,6 +22,7 @@ import { casosInstalacion, type CasosInstalacion } from "./identidad/instalacion
 import { leerOrigenWeb } from "./identidad/llaves.ts";
 import { casosPuestaAPunto, type CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
 import { casosSalud, type CasosSalud } from "./sistema/salud.ts";
+import { casosFactores, type CasosFactores } from "./identidad/factores.ts";
 import { crearCifrador } from "./identidad/cifrado.ts";
 import { casosAccesos, type CasosAccesos } from "./identidad/accesos.ts";
 import { casosTasas, type CasosTasas } from "./dinero/tasas.ts";
@@ -91,6 +92,8 @@ export {
 } from "./identidad/llaves.ts";
 export type { CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
 export type { CasosSalud } from "./sistema/salud.ts";
+export type { CasosFactores } from "./identidad/factores.ts";
+export type { OpcionesDeConfirmacion } from "./identidad/elevacion.ts";
 export {
   contextoDeSesion,
   SESION_INACTIVA_MS,
@@ -112,6 +115,8 @@ export interface Aplicacion {
   readonly sesiones: CasosSesiones;
   readonly equipo: CasosEquipo;
   readonly elevacion: CasosElevacion;
+  /** La app de autenticación y los equipos de confianza de cada persona (ADR-029). */
+  readonly factores: CasosFactores;
   /** Los enlaces de alta de credenciales de administración (ADR-020). */
   readonly enlaces: CasosEnlaces;
   /** La instalación inicial de un local con la base vacía (ADR-020, M-12). */
@@ -188,7 +193,8 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     dispositivos,
     sesiones,
     equipo: casosEquipo(base),
-    elevacion: casosElevacion(base, sesiones, web),
+    elevacion: casosElevacion(base, sesiones, web, cifrador),
+    factores: casosFactores(base, cifrador),
     enlaces: casosEnlaces(base, web),
     instalacion: casosInstalacion(base, web),
     puestaAPunto: casosPuestaAPunto(base),
