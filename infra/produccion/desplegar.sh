@@ -34,9 +34,18 @@ salud_de() { # servicio puerto
   dc exec -T "$1" node -e "fetch('http://127.0.0.1:$2/salud').then(async r=>{process.stdout.write(await r.text());process.exit(r.ok?0:1)},()=>process.exit(1))" 2>/dev/null
 }
 
-# El Caddyfile viene con cada versión (git pull) pero Caddy solo lo lee al arrancar, y `up` no lo reinicia si su
-# servicio no cambió: se le pide que lo vuelva a leer, sin cortar conexiones. Si no puede, sigue con el que tenía.
+# El Caddyfile viene con cada versión (git pull), pero Caddy solo lo lee al arrancar y `up` no lo reinicia si su
+# servicio no cambió. Y no basta con pedirle que lo relea: el contenedor monta ESE archivo, y `git pull` lo
+# reemplaza por otro, así que dentro se sigue viendo el viejo (visto en el staging con la 0.60.0). Si el de dentro
+# no es el del disco, se recrea Caddy (un corte de un segundo, dentro del despliegue); si es el mismo, se relee
+# sin cortar nada. Si no puede, sigue con el que tenía y lo dice.
 recargar_caddy() {
+  if ! MSYS_NO_PATHCONV=1 dc exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | cmp -s - Caddyfile; then
+    decir "El Caddyfile cambió: Caddy se recrea para leerlo."
+    dc up -d --force-recreate --no-deps caddy >/dev/null 2>&1 ||
+      decir "Caddy no se pudo recrear: sigue con la configuración anterior (mira 'docker compose logs caddy')."
+    return 0
+  fi
   MSYS_NO_PATHCONV=1 dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 ||
     decir "Caddy no recargó su configuración: sigue con la anterior (mira 'docker compose logs caddy')."
 }
