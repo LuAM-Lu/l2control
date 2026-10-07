@@ -1260,7 +1260,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pinta lo «cambiado por uso» tachado (`agruparFilas`). Navegador en la base de pruebas a 1366×768, 1280×800 y
   800×1280. El caso de la mesa se comprobó contra la base, no en el navegador.*
 
-- [ ] **B4-7 · Pausa por comida** (M-27, P-14).
+- [~] **B4-7 · Pausa por comida** (M-27, P-14). *A cargo: LuAMi, rama `feat/b4-7`.*
   → La monitora pausa el reloj de un niño una vez por visita; a los 10 minutos (ajuste de la sucursal) vuelve a
   correr solo, o antes si ella lo reanuda. Una segunda pausa la niega el servidor; la salida y el tiempo de más
   cuentan sin la pausa; la sala enseña «En pausa» con lo que le queda. Solo-agregar.
