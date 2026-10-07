@@ -37,6 +37,10 @@ Varias cuentas en una mesa y cuentas de pie (B6-7, M-27).
   «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis».
 - La mesa queda «por limpiar» al cobrar su última cuenta, no la primera.
 
+### Seguridad
+- Next.js 16.3.7 → 16.3.8: corrige una falsificación de peticiones del servidor en la optimización de imágenes
+  (GHSA-cjq9-62q9-8jv4), que la auditoría de dependencias del CI marcó como alta.
+
 ## [0.60.1] — 2026-10-07 · Staging en el VPS
 
 Corrección vista al poner la 0.60.0 en el staging.
