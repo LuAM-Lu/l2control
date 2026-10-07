@@ -37,6 +37,11 @@ jobs:
       - name: Dependencias (lockfile exacto)
         run: pnpm install --frozen-lockfile
 
+      # A03 / F10-09 (B7-5): una dependencia con un aviso alto o crítico no entra. Lo aceptado a sabiendas, con su
+      # porqué, está en auditConfig de pnpm-workspace.yaml.
+      - name: Auditoría de dependencias
+        run: pnpm audit --audit-level high
+
       - name: Base de datos y Valkey
         run: |
           cp .env.example .env

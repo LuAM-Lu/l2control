@@ -28,7 +28,7 @@
     "@simplewebauthn/browser": "14.0.0",
     "@zxing/library": "0.23.0",
     "lucide-react": "1.43.0",
-    "next": "16.3.4",
+    "next": "16.3.7",
     "qrcode-generator": "2.0.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
