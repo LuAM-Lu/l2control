@@ -10,6 +10,19 @@
 
 name: l2control-servidor
 
+# Lo que necesitan la web y el worker para hablar con la base y entre ellos. Cada uno lo toma con
+# `<<: *entorno-app` y añade solo lo suyo.
+x-entorno-app: &entorno-app
+  L2_ENTORNO: ${L2_ENTORNO:?falta en .env}
+  L2_DB_APP_URL: postgresql://l2_app:${L2_APP_PASSWORD}@postgres:5432/l2control
+  L2_LOG_LEVEL: ${L2_LOG_LEVEL:-info}
+  L2_TENANT_ID: ${L2_TENANT_ID:?falta en .env}
+  L2_BRANCH_ID: ${L2_BRANCH_ID:?falta en .env}
+  L2_CLAVE_CIFRADO: ${L2_CLAVE_CIFRADO:?falta en .env}
+  L2_URL_PUBLICA: ${L2_URL_PUBLICA:?falta en .env}
+  # Los navegadores abren el canal en vivo en la misma dirección; Caddy lo lleva al worker.
+  L2_TIEMPO_REAL_URL: ${L2_URL_PUBLICA}
+
 services:
   postgres:
     image: postgres:17.11-alpine
@@ -61,16 +74,12 @@ services:
   web:
     image: "${L2_REGISTRO:-ghcr.io/luam-lu}/l2control-web:${L2_ETIQUETA:?falta la versión, usa ./desplegar.sh}"
     restart: unless-stopped
-    environment: &entorno-app
-      L2_ENTORNO: ${L2_ENTORNO:?falta en .env}
-      L2_DB_APP_URL: postgresql://l2_app:${L2_APP_PASSWORD}@postgres:5432/l2control
-      L2_LOG_LEVEL: ${L2_LOG_LEVEL:-info}
-      L2_TENANT_ID: ${L2_TENANT_ID:?falta en .env}
-      L2_BRANCH_ID: ${L2_BRANCH_ID:?falta en .env}
-      L2_CLAVE_CIFRADO: ${L2_CLAVE_CIFRADO:?falta en .env}
-      L2_URL_PUBLICA: ${L2_URL_PUBLICA:?falta en .env}
-      # Los navegadores abren el canal en vivo en la misma dirección; Caddy lo lleva al worker.
-      L2_TIEMPO_REAL_URL: ${L2_URL_PUBLICA}
+    environment:
+      <<: *entorno-app
+      # Los respaldos cifrados que deja respaldar.sh, para la PC del local (B7-4): la web solo los lee.
+      L2_RESPALDOS_DIR: /respaldos
+    volumes:
+      - ./respaldos/diarios:/respaldos:ro
     depends_on:
       postgres:
         condition: service_healthy

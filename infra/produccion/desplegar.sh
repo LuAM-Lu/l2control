@@ -75,7 +75,8 @@ estado() {
 }
 
 respaldar() { # versión nueva
-  mkdir -p "$RESPALDOS"
+  # respaldos/diarios lo monta la web (B7-4): que exista antes de arrancar, y del usuario, no de Docker.
+  mkdir -p "$RESPALDOS/diarios"
   local archivo
   archivo="$RESPALDOS/l2control-$(date -u +%Y%m%dT%H%M%SZ)-antes-de-$1.dump"
   dc up -d --wait postgres >/dev/null

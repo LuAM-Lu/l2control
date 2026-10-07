@@ -19,6 +19,7 @@ import { formatClock } from "../park/time-format.ts";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 import { ChipEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 import type { AvisoDeVersion } from "../sistema/sistema.servidor.ts";
+import type { AvisoDeRespaldos } from "../sistema/respaldos.servidor.ts";
 import { rutaSeccion } from "./navigation.ts";
 
 /**
@@ -66,6 +67,7 @@ export function InicioScreen({
   eventosHoy = [],
   puestaAPunto = null,
   version = null,
+  respaldos = null,
 }: {
   /** El día según el libro (B3-5); `null` sin permiso de ver la sucursal o sin servidor. */
   resumen: ResumenDelDiaDto | null;
@@ -87,6 +89,8 @@ export function InicioScreen({
   puestaAPunto?: PuestaAPuntoDto | null;
   /** Una versión nueva del sistema (T-8b); `null` si no hay, en staging o para quien no decide. */
   version?: AvisoDeVersion | null;
+  /** Los respaldos (B7-4), solo si algo no va bien; `null` si van al día o para quien no decide. */
+  respaldos?: AvisoDeRespaldos | null;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
   // La tasa vigente, de la misma fuente que la caja y la barra de las estaciones (B2-1c): llega
@@ -156,6 +160,7 @@ export function InicioScreen({
           {/* Lo que no salió en papel (ADR-015, ADR-022: las comandas fallidas, en Inicio). */}
           <AvisoDeImpresion className="h-auto min-h-8 py-1.5 text-xs lg:text-[13px]" />
           {version && <AvisoVersion {...version} />}
+          {respaldos && <AvisoRespaldos {...respaldos} />}
 
           {/* Enlace al Turno */}
           <Link
@@ -447,6 +452,34 @@ function AvisoVersion({ version, urgente, pedida }: AvisoDeVersion) {
           </>
         )}
       </span>
+    </Link>
+  );
+}
+
+/**
+ * Los respaldos (B7-4): un chip del encabezado solo cuando algo no va bien. Que el de anoche no se hiciera es
+ * crítico; que la PC del local no los baje, un aviso.
+ */
+const TEXTO_RESPALDOS: Readonly<Record<AvisoDeRespaldos["nivel"], string>> = {
+  FALLIDO: "El respaldo falló",
+  ATRASADO: "Respaldo atrasado",
+  SIN_BAJAR: "Respaldo sin bajar",
+  SIN_RESPALDOS: "Sin respaldos",
+};
+
+function AvisoRespaldos({ nivel, aviso }: AvisoDeRespaldos) {
+  const critico = nivel === "FALLIDO" || nivel === "ATRASADO";
+  return (
+    <Link
+      href={rutaSeccion("ajustes", "respaldos")}
+      title={aviso}
+      className={cn(
+        "inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand lg:text-[13px]",
+        critico ? "border-state-crit/40 bg-state-crit-bg text-state-crit hover:border-state-crit" : "border-state-warn/40 bg-state-warn-bg text-state-warn hover:border-state-warn",
+      )}
+    >
+      <TriangleAlert size={13} className="shrink-0" aria-hidden="true" />
+      {TEXTO_RESPALDOS[nivel]}
     </Link>
   );
 }

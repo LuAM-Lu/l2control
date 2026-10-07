@@ -31,3 +31,8 @@ infra/produccion/respaldos/
 infra/produccion/actualizador.log
 infra/produccion/.actualizador.lock
 infra/produccion/.actualizador.consultada
+# Los respaldos (B7-4): la clave pública del local y el registro de cada noche (los respaldos, en respaldos/).
+infra/produccion/respaldo-destinatario.pem
+infra/produccion/respaldos.log
+# La clave privada de los respaldos nunca entra al repositorio, esté donde esté.
+respaldo-clave-privada.pem

@@ -387,6 +387,15 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "T-8b",
       },
       {
+        id: "respaldos",
+        grupo: "Sistema",
+        nombre: "Respaldos",
+        href: rutaSeccion("ajustes", "respaldos"),
+        accion: "sistema.actualizar",
+        proposito: "Si el respaldo de anoche se hizo y si la PC del local ya lo bajó: una copia que deja de salir del servidor se ve aquí y en Inicio.",
+        tarea: "B7-4",
+      },
+      {
         id: "semilla",
         grupo: "Sistema",
         nombre: "Semilla del local",

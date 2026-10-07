@@ -9,13 +9,17 @@ Cómo corre L2 Control en el VPS (staging y producción) y cómo se pone una ver
 | `Caddyfile` | HTTPS automático (Let's Encrypt) y el reparto: el canal en vivo al worker, lo demás a la web |
 | `desplegar.sh` | Respaldo → migraciones → versión nueva → salud; si no queda sana, vuelve sola a la anterior |
 | `actualizador.sh` | Cada minuto (cron): ve las versiones publicadas, pone la que pidió administración (o sola, en staging) con `desplegar.sh` y escribe en la base cómo terminó (T-8b) |
+| `respaldar.sh` | Cada noche (cron): el respaldo cifrado de la base, con su huella, para la PC del local (B7-4) |
+| `restaurar.sh` | **Fuera del servidor:** el par de claves del local y el ensayo de restauración en una base limpia (B7-4) |
+| `huella.sql` | Las filas de cada tabla y lo que suma el libro de pagos: lo que compara el ensayo |
 | `entorno.ejemplo` | Las variables del `.env` del servidor (sin valores) |
 | `../docker/Dockerfile` | Las tres imágenes: `web`, `worker` y `migrar` |
 
 Lo que el servidor guarda junto a estos archivos y **nunca** entra al repositorio: `.env` (las claves),
 `etiqueta.env` (la versión en marcha), `historial.log` (cada despliegue y su resultado), `respaldos/`
-(el volcado de la base antes de cada despliegue; se guardan los diez últimos) y `actualizador.log` (lo que
-hizo el actualizador).
+(el volcado de la base antes de cada despliegue, los diez últimos, y en `respaldos/diarios/` los respaldos
+cifrados de las últimas siete noches), `respaldo-destinatario.pem` (la clave pública del local),
+`actualizador.log` y `respaldos.log` (lo que hicieron el actualizador y los respaldos).
 
 ## De dónde salen las versiones
 
@@ -107,6 +111,63 @@ contra el servidor nuevo: sus acciones ya no existen y se niegan.
 
 `./actualizador.sh --quitar` lo saca del cron. Para ensayarlo en una PC sin GitHub: `L2_SIN_DESCARGAR=si` (imágenes
 locales, sin `git pull`) y `L2_RELEASES_ARCHIVO=lista.json` (las versiones de un archivo con la forma de la API).
+
+## Respaldos (B7-4)
+
+Cada noche el servidor hace un respaldo de la base, cifrado para la **clave del local**, y una **PC del local** lo
+baja (M-26). La clave privada no está en el servidor: quien se lleve el servidor (o un respaldo) no puede abrirlo.
+
+**Poner los respaldos, una vez por servidor:**
+
+```bash
+# 1. En la PC del técnico (Git Bash o Linux), NO en el servidor: el par de claves del local. Pide una frase.
+infra/produccion/restaurar.sh --clave-nueva ~/l2-claves-del-local
+scp ~/l2-claves-del-local/respaldo-destinatario.pem l2vps:l2control/infra/produccion/
+#    La privada (respaldo-clave-privada.pem) y su frase se guardan fuera del servidor, junto a L2_CLAVE_CIFRADO:
+#    sin las tres, un respaldo no sirve. Que lo sepa también administración.
+
+# 2. En el servidor: el primero ahora y después cada noche a las 3:15 (hora del servidor).
+cd ~/l2control/infra/produccion && ./respaldar.sh && ./respaldar.sh --instalar
+```
+
+3. En el panel, **Ajustes → Respaldos → Preparar una PC del local**: una PC con Windows que esté encendida casi todos
+   los días. El panel da una orden para pegar en PowerShell en esa PC (no hace falta ser administrador) y una
+   credencial que se enseña una vez. Queda una tarea programada que los baja cada día a las 7:00 am y al entrar en
+   Windows, comprueba la huella de cada uno, se lo confirma al servidor y guarda la escalera en *Documentos\L2 Control
+   - Respaldos*: los últimos 30 días, una copia por semana (12) y una por mes (todas).
+
+El servidor guarda las últimas siete noches (`respaldos/diarios/`); la web se las sirve a esa PC con su credencial
+(`/respaldos/indice`, `/respaldos/archivo/…`, `/respaldos/acuse`) y anota cuándo bajó cada una. Ajustes → Respaldos e
+Inicio avisan si el de anoche falló o no se hizo, si no hay PC preparada o si la PC no baja los recientes.
+
+**Ensayar la restauración (cada mes, PLAN §10.4),** en la PC del técnico, con un respaldo de la carpeta de la PC del
+local:
+
+```bash
+infra/produccion/restaurar.sh l2control-20261008T071500Z.l2r ~/l2-claves-del-local/respaldo-clave-privada.pem
+```
+
+Lo descifra, lo restaura en una base limpia (un PostgreSQL de usar y tirar en Docker, con los papeles de
+`infra/postgres/init`) y calcula otra vez su huella: **ÍNTEGRO** si es la misma que se tomó al respaldarlo. Dice
+cuánto tardó. `--conservar` deja esa base encendida para mirarla.
+
+**Volver a levantar el servidor desde un respaldo** (se perdió el VPS): en el servidor nuevo, como en «Poner el
+servidor por primera vez» pero con el `.env` de siempre (las mismas `L2_TENANT_ID`, `L2_BRANCH_ID` y `L2_CLAVE_CIFRADO`;
+contraseñas nuevas valen) y **antes** de desplegar:
+
+```bash
+# En la PC del técnico: el volcado descifrado del último respaldo, y al servidor nuevo.
+infra/produccion/restaurar.sh <respaldo.l2r> <clave-privada.pem> --volcado l2control.dump
+scp l2control.dump servidor-nuevo:l2control/infra/produccion/
+# En el servidor nuevo: la base vacía, el volcado dentro y la versión que estaba en marcha (la dice el ensayo).
+echo "L2_ETIQUETA=<versión>" > etiqueta.env
+docker compose --env-file .env --env-file etiqueta.env up -d --wait postgres
+docker compose --env-file .env --env-file etiqueta.env exec -T postgres pg_restore -U postgres -d l2control --exit-on-error --single-transaction < l2control.dump
+rm l2control.dump && rm etiqueta.env && ./desplegar.sh <versión>
+```
+
+Con un volcado por noche se puede perder hasta un día de trabajo (lo de ese día está también en papel si hubo
+corte: B3-7). El objetivo de PLAN §10.4 (15 minutos, con WAL continuo) queda en MAESTRO §5.
 
 ## Ensayar la vuelta atrás
 
