@@ -1647,7 +1647,7 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
   cuenta en la ruta. ADR-023 supersede la descarga al marcar LISTO de ADR-012: su disparador será otro ADR.
 
-- [ ] **B6-7 · Varias cuentas en una mesa y cuentas de pie** (M-27, P-2, P-3).
+- [~] **B6-7 · Varias cuentas en una mesa y cuentas de pie** (M-27, P-2, P-3). *A cargo: LuAMi, rama `feat/b6-7`.*
   → Una mesa admite varias cuentas abiertas, cada una con su nombre (cambia I-05); el mesero elige a cuál pide y la
   comanda la nombra; cada una se cobra, se vincula y se libera por separado. El mesero abre una cuenta de pie, sin
   mesa, y le pide igual. El plano lee la ocupación del servidor (las cuentas abiertas de cada mesa), no del bus.
