@@ -305,5 +305,20 @@ describe("la puesta a punto", () => {
     assert.ok(caja.ok, JSON.stringify(caja));
     const negada = await app.puestaAPunto.leer(contextoDeSesion(caja.sesion, null));
     assert.equal(negada.ok ? "ok" : negada.motivo, "NO_PERMITIDO");
+
+    // Un recomendable se deja para después (y se retoma); lo que bloquea, no (T-8b).
+    const conFeriados = await app.puestaAPunto.posponer(admin, { id: "feriados", paraDespues: true }, ahora + 10);
+    assert.ok(conFeriados.ok, JSON.stringify(conFeriados));
+    assert.equal(de(conFeriados.valor, "feriados").paraDespues?.por, "Abigail Karam");
+    assert.equal(conFeriados.valor.pendientesQueBloquean, despues.valor.pendientesQueBloquean);
+    const otraVez = await app.puestaAPunto.posponer(admin, { id: "feriados", paraDespues: true }, ahora + 11);
+    assert.ok(otraVez.ok, "dejarlo para después dos veces no duplica nada");
+    const bloqueante = await app.puestaAPunto.posponer(admin, { id: "impuestos", paraDespues: true }, ahora + 12);
+    assert.equal(bloqueante.ok ? "ok" : bloqueante.motivo, "INVALIDO");
+    const retomado = await app.puestaAPunto.posponer(admin, { id: "feriados", paraDespues: false }, ahora + 13);
+    assert.ok(retomado.ok);
+    assert.equal(de(retomado.valor, "feriados").paraDespues, null);
+    const cajaNo = await app.puestaAPunto.posponer(contextoDeSesion(caja.sesion, null), { id: "feriados", paraDespues: true }, ahora + 14);
+    assert.equal(cajaNo.ok ? "ok" : cajaNo.motivo, "NO_PERMITIDO");
   });
 });

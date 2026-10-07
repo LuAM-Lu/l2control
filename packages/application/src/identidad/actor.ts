@@ -65,7 +65,7 @@ export async function permisoEn(tx: Transaccion, ctx: Contexto, accion: Action):
  * Lo que además del permiso exige confirmar identidad con la contraseña y un segundo factor (F2-04, ADR-029):
  * configuración, precios, personas y reportes globales. Vale para leer y para escribir.
  */
-export const ACCIONES_ELEVADAS: readonly Action[] = ["catalogo.modificar", "usuarios.gestionar", "reportes.verTodas"];
+export const ACCIONES_ELEVADAS: readonly Action[] = ["catalogo.modificar", "usuarios.gestionar", "reportes.verTodas", "sistema.actualizar"];
 
 /**
  * El permiso completo de una operación, en un solo sitio: la matriz y, si la acción lo exige,

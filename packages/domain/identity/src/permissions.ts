@@ -50,7 +50,8 @@ export type Action =
   | "reportes.verSucursal"
   | "reportes.verTodas"
   | "usuarios.gestionar"
-  | "camaras.ver";
+  | "camaras.ver"
+  | "sistema.actualizar";
 
 /**
  * Resultado de una comprobación.
@@ -147,6 +148,9 @@ export const MATRIZ: Matriz = Object.freeze({
   "reportes.verTodas": fila(P, D, D, D, D, D),
   "usuarios.gestionar": fila(P, D, D, D, D, D),
   "camaras.ver": fila(P, D, D, D, D, D),
+  // T-8b (ADR-028): cuándo se pone una versión nueva lo decide administración, con su identidad
+  // confirmada; el resto del equipo no decide nada (su pantalla se pone al día sola).
+  "sistema.actualizar": fila(P, D, D, D, D, D),
 });
 
 export type Actor = Readonly<{
@@ -273,7 +277,7 @@ export function explainPermission(actor: Actor, action: Action): PermissionExpla
  * Si se pudieran regalar por rol, cualquier ajuste sería el último que alguien
  * necesita hacer.
  */
-export const ACCIONES_INTOCABLES: readonly Action[] = ["usuarios.gestionar", "catalogo.modificar"];
+export const ACCIONES_INTOCABLES: readonly Action[] = ["usuarios.gestionar", "catalogo.modificar", "sistema.actualizar"];
 
 /**
  * ¿Se puede ajustar esta celda de la matriz?

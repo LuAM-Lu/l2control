@@ -158,8 +158,7 @@ export type CompletarInstalacion = z.infer<typeof CompletarInstalacionSchema>;
  * Un punto de la Puesta a punto (JORNADA §2): se tacha solo cuando el dato existe. `bloquea` dice
  * qué no funcionará todavía; `null` es «recomendable, no detiene nada».
  */
-export const PuntoDePuestaAPuntoSchema = z.object({
-  id: z.enum([
+export const PuntoDePuestaAPuntoIdSchema = z.enum([
     "personas",
     "equipos",
     "tarifas",
@@ -174,11 +173,20 @@ export const PuntoDePuestaAPuntoSchema = z.object({
     "descuentos",
     "segunda_administracion",
     "otros_equipos",
-  ]),
+  ]);
+export type PuntoDePuestaAPuntoId = z.infer<typeof PuntoDePuestaAPuntoIdSchema>;
+
+export const PuntoDePuestaAPuntoSchema = z.object({
+  id: PuntoDePuestaAPuntoIdSchema,
   hecho: z.boolean(),
   bloquea: z.string().min(1).max(80).nullable(),
   /** Lo que hay o lo que falta, en una frase: «3 personas con PIN», «Falta la tasa de hoy». */
   detalle: z.string().min(1).max(160),
+  /**
+   * Un recomendable que administración dejó para después (T-8b): no cuenta como pendiente y se retoma
+   * cuando se quiera. Lo que bloquea no se pospone.
+   */
+  paraDespues: z.object({ desde: TimestampSchema, por: z.string().min(2) }).nullable().default(null),
 });
 export type PuntoDePuestaAPuntoDto = z.infer<typeof PuntoDePuestaAPuntoSchema>;
 
@@ -188,3 +196,7 @@ export const PuestaAPuntoSchema = z.object({
   pendientesQueBloquean: z.number().int().min(0),
 });
 export type PuestaAPuntoDto = z.infer<typeof PuestaAPuntoSchema>;
+
+/** Dejar un recomendable para después, o retomarlo. */
+export const PosponerPuntoCommandSchema = z.strictObject({ id: PuntoDePuestaAPuntoIdSchema, paraDespues: z.boolean() });
+export type PosponerPuntoCommand = z.infer<typeof PosponerPuntoCommandSchema>;

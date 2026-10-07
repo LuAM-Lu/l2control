@@ -122,6 +122,14 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "categoria.retirar": ["catalogo"],
   // Una semilla (B7-2) deja su resumen; cada parte que carga deja además su propio asiento.
   "semilla.cargar": NADA,
+  // T-8b: pedir o cancelar una actualización, y lo que el actualizador del servidor escribe al terminarla
+  // (`sistema.resultado`, también la vuelta atrás) se ve al momento en Ajustes → Sistema.
+  "sistema.actualizar": ["sistema"],
+  "sistema.cancelar": ["sistema"],
+  "sistema.resultado": ["sistema"],
+  // La Puesta a punto la lee Inicio de administración al entrar: dejar un punto para después no avisa a nadie.
+  "puesta.posponer": NADA,
+  "puesta.retomar": NADA,
   // La existencia viaja con el catálogo: la caja y la tablet dejan de ofrecer lo que se acabó (B9-2).
   "existencia.mover": ["catalogo"],
   // Una entrada sube la existencia y mueve el costo promedio: la caja vuelve a ofrecer lo que llegó.

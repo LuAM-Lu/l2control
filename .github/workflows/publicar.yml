@@ -4,8 +4,10 @@
 #      novedades de CHANGELOG.md;
 #   2. las imágenes de la web, del worker y de migrar en ghcr.io, con el agente dentro de la de la web.
 #
-# Publicar no actualiza ningún servidor: en el VPS, `infra/produccion/desplegar.sh X.Y.Z` (y, con T-8b,
-# Ajustes → Sistema). La etiqueta tiene que ser la versión del package.json raíz: si no, no se publica.
+# Publicar no pone la versión en ningún servidor: la ve el actualizador del VPS (T-8b), que la pone solo en
+# staging y, en producción, cuando la pide administración en Ajustes → Versión y actualizaciones. Las
+# novedades del panel son la sección del CHANGELOG; con un apartado «### Urgente», sale como urgente.
+# La etiqueta tiene que ser la versión del package.json raíz: si no, no se publica.
 # Si una publicación falla, se vuelve a lanzar a mano (Actions → Publicar → Run workflow) con la misma
 # etiqueta: corre este flujo sobre el código de la etiqueta.
 #

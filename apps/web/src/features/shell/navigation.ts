@@ -377,8 +377,18 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "B5-2",
       },
       {
+        id: "sistema",
+        grupo: "Sistema",
+        nombre: "Versión y actualizaciones",
+        href: rutaSeccion("ajustes", "sistema"),
+        accion: "sistema.actualizar",
+        proposito:
+          "La versión en marcha y las nuevas, con sus novedades: administración decide si se pone ahora o al cierre. Si una versión no queda sana, el servidor vuelve solo a la anterior.",
+        tarea: "T-8b",
+      },
+      {
         id: "semilla",
-        grupo: "El local",
+        grupo: "Sistema",
         nombre: "Semilla del local",
         href: rutaSeccion("ajustes", "semilla"),
         accion: "catalogo.modificar",

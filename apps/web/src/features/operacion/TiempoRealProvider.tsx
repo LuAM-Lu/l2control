@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { CambioSchema, OperationEventSchema, type OperationEventDto, type Tema } from "@l2/contracts";
 import { pedirTicketTiempoReal } from "./tiempo-real.acciones";
+import { compararConElServidor, versionNueva } from "../shell/puesta-al-dia.ts";
 
 /**
  * El canal en vivo del navegador — B5-1, ADR-008 y ADR-025. Sustituye a los sondeos (5 s la sala y
@@ -18,6 +19,9 @@ import { pedirTicketTiempoReal } from "./tiempo-real.acciones";
  *
  * Sin canal (el worker caído, la red del local caída) se dice (`estado`) y, mientras dure, se vuelve
  * a leer todo cada 30 s: un modo degradado, no la forma normal de trabajar.
+ *
+ * Antes de volver a leer todo (al reconectarse y en el modo degradado) se pregunta a `/salud` (T-8b): sin
+ * respuesta no se repinta, y con otra versión en el servidor tampoco: de eso se encarga `PuestaAlDia`.
  */
 
 export type EstadoDelCanal = "sin-sesion" | "conectando" | "en-vivo" | "sin-conexion";
@@ -32,6 +36,11 @@ const JUNTAR_MS = 50;
 const DEGRADADO_MS = 30_000;
 /** Tras un rechazo del apretón de manos, cuándo se vuelve a intentar. */
 const REINTENTO_MS = 10_000;
+/** Repasar todo sin respuesta de `/salud`: cuántas veces más se intenta, y cada cuánto. */
+const REPASOS = 4;
+const REPASO_MS = 5_000;
+/** Un ticket que no llega lleva a preguntar la versión del servidor, como mucho cada tanto. */
+const COMPARAR_MS = 5_000;
 
 type Oyente = Readonly<{ temas: readonly Tema[]; alCambiar: () => void }>;
 
@@ -83,6 +92,9 @@ export function TiempoRealProvider({ sesionId, children }: { sesionId: string | 
         const temasAhora = p.temas;
         const repintar = p.repintar;
         pendiente.current = { temas: new Set(), repintar: false, t: null };
+        // Con otra versión en el servidor (T-8b) no se repinta nada: Next recargaría la página de golpe y se
+        // perdería un borrador. La recarga la hace `PuestaAlDia`, cuando la pantalla está libre.
+        if (versionNueva() !== null) return;
         for (const o of oyentes.current) if (o.temas.some((t) => temasAhora.has(t))) o.alCambiar();
         if (repintar) router.refresh();
       }, JUNTAR_MS);
@@ -101,9 +113,20 @@ export function TiempoRealProvider({ sesionId, children }: { sesionId: string | 
     let reintento: number | undefined;
     let degradado: number | undefined;
 
+    // Volver a leer todo, pero antes que el servidor conteste y sea el de esta pantalla (T-8b): contra uno
+    // caído, repintar deja la página de error del navegador; contra otra versión, la recarga de golpe.
+    let repaso: number | undefined;
+    let comparada = 0;
+    const repasar = async (intentos = REPASOS) => {
+      window.clearTimeout(repaso);
+      const c = await compararConElServidor();
+      if (!vivo) return;
+      if (c === "igual") avisar("todo");
+      else if (c === "sin-respuesta" && intentos > 0) repaso = window.setTimeout(() => void repasar(intentos - 1), REPASO_MS);
+    };
     const entrarEnDegradado = () => {
       if (degradado !== undefined) return;
-      degradado = window.setInterval(() => avisar("todo"), DEGRADADO_MS);
+      degradado = window.setInterval(() => void repasar(0), DEGRADADO_MS);
     };
     const salirDeDegradado = () => {
       window.clearInterval(degradado);
@@ -137,7 +160,15 @@ export function TiempoRealProvider({ sesionId, children }: { sesionId: string | 
           }
           void pedirTicketTiempoReal()
             .catch(() => null)
-            .then((n) => dar({ ticket: n?.ok ? n.valor.ticket : "" }));
+            .then((n) => {
+              // Sin ticket, puede que el servidor ya sea otra versión, que no reconoce las acciones de esta
+              // pantalla (T-8b): se pregunta enseguida, sin esperar al modo degradado. Como mucho cada 5 s.
+              if (!n?.ok && Date.now() - comparada > COMPARAR_MS) {
+                comparada = Date.now();
+                void compararConElServidor();
+              }
+              dar({ ticket: n?.ok ? n.valor.ticket : "" });
+            });
         },
       });
       socket.current = s;
@@ -149,7 +180,7 @@ export function TiempoRealProvider({ sesionId, children }: { sesionId: string | 
         if (primera) {
           primera = false;
           for (const o of oyentes.current) o.alCambiar();
-        } else avisar("todo");
+        } else void repasar();
       });
       s.on("disconnect", (motivo) => {
         setEstado("sin-conexion");
@@ -182,6 +213,7 @@ export function TiempoRealProvider({ sesionId, children }: { sesionId: string | 
     return () => {
       vivo = false;
       window.clearTimeout(reintento);
+      window.clearTimeout(repaso);
       salirDeDegradado();
       socket.current?.disconnect();
       socket.current = null;

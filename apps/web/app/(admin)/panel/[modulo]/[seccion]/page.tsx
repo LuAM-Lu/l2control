@@ -12,6 +12,8 @@ import { dispositivosDelLocal } from "../../../../../src/features/identity/dispo
 import { accesosDelLocal, credencialesDelLocal, directorioDelLocal } from "../../../../../src/features/identity/identidad.servidor";
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
 import { SemillaScreen } from "../../../../../src/features/sucursal/SemillaScreen";
+import { SistemaScreen } from "../../../../../src/features/sistema/SistemaScreen";
+import { estadoDelSistema } from "../../../../../src/features/sistema/sistema.servidor";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { directorioDeFamilias } from "../../../../../src/features/park/parque.servidor";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
@@ -59,6 +61,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
   "ajustes/sucursal": () => <EditorSucursal />,
   "ajustes/semilla": () => <SemillaScreen />,
+  "ajustes/sistema": async () => <SistemaScreen estado={await estadoDelSistema()} />,
   "ajustes/impresoras": async () => (
     <ImpresorasScreen
       local={await impresorasDelLocal()}

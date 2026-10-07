@@ -47,6 +47,7 @@ import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
 import { usePedidos } from "./PedidosProvider.tsx";
 import { liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
+import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 
 /**
  * Estación del mesero: mesas y pedidos — F6-01, F6-02, F6-05, DEC-22.
@@ -115,6 +116,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     if (window.matchMedia("(max-width: 1023px)").matches) setModo("ATENDER");
   }, []);
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
+  // Un pedido sin enviar no se pierde porque llegue una versión nueva (T-8b).
+  useSinGuardar(Object.values(borradores).some((l) => l.length > 0));
   const [vinculando, setVinculando] = useState(false);
   const [anulando, setAnulando] = useState<PedidoDto | null>(null);
   /** La mesa que se va a liberar sin consumo (B6-5), mientras se confirma. */

@@ -9,6 +9,7 @@ import { calendarDay } from "@l2/domain-rates";
 import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
 import { puestaAPuntoDelLocal } from "../../../src/features/identity/identidad.servidor";
 import { ajustesDelLocal } from "../../../src/features/sucursal/ajustes.servidor";
+import { avisoDeVersion } from "../../../src/features/sistema/sistema.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -29,7 +30,7 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes] = await Promise.all([
+  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes, version] = await Promise.all([
     ninosAtendidos(),
     turnosAbiertos(),
     resumenDelDia(),
@@ -38,6 +39,8 @@ export default async function InicioPage() {
     // La Puesta a punto (JORNADA §2, T-4) solo la recibe quien gestiona personas; a los demás, nada.
     puestaAPuntoDelLocal(),
     ajustesDelLocal(),
+    // Una versión nueva del sistema (T-8b), para quien decide las actualizaciones.
+    avisoDeVersion(),
   ]);
   // B9-5: lo que hay que reponer. Solo si algún producto a la venta lleva existencia.
   const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
@@ -55,7 +58,7 @@ export default async function InicioPage() {
   return (
     <>
     {/* Los niños atendidos y el día salen de la sala y de las cuentas: al cambiar, se vuelven a leer. */}
-    <RefrescarAlCambiar temas={["sala", "cuentas", "eventos"]} />
+    <RefrescarAlCambiar temas={["sala", "cuentas", "eventos", "sistema"]} />
     <InicioScreen
       resumen={resumen ? { ...resumen, turnos: [...deAntes, ...resumen.turnos] } : null}
       ninosHoy={atendidos?.hoy ?? 0}
@@ -70,6 +73,7 @@ export default async function InicioPage() {
       inventario={inventario}
       eventosHoy={eventos?.reservas ?? []}
       puestaAPunto={puesta.ok ? puesta.valor : null}
+      version={version}
     />
     </>
   );
