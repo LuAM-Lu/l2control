@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, History, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Ticket } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, History, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { barcodeProblem, categoriesOf, marginBasisPoints, normalizeBarcode, periodAt, stockStatus } from "@l2/domain-inventory";
+import { barcodeProblem, marginBasisPoints, normalizeBarcode, periodAt, stockStatus } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { invertRate, money, toMajor, type Money } from "@l2/domain-money";
 import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
@@ -19,8 +19,9 @@ import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { aplicarProducto, fijarMinimo } from "./productos.acciones";
 import { EstadoStock } from "./EstadoStock.tsx";
-import { periodosDe } from "./catalogo.ts";
+import { categoriasDelCatalogo, periodosDe } from "./catalogo.ts";
 import { InventarioVista } from "./InventarioVista.tsx";
+import { CategoriasSheet } from "./CategoriasSheet.tsx";
 
 /**
  * Panel → Inventario → Productos (B9-1, F8-02; rediseñada en B9-6, M-16). El stock es lo protagonista:
@@ -84,6 +85,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   /** `null` = cerrada; si no, el código de barras con que nace (leído en la lista). */
   const [creando, setCreando] = useState<{ codigo: string } | null>(null);
   const [abiertoId, setAbiertoId] = useState<string | null>(null);
+  const [conCategorias, setConCategorias] = useState(false);
   /** Qué se está guardando: bloquea ese control mientras el servidor responde. */
   const [enviando, setEnviando] = useState<string | null>(null);
 
@@ -102,7 +104,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   };
 
   const periodos = useMemo(() => periodosDe(catalogo.productos), [catalogo]);
-  const categorias = useMemo(() => categoriesOf(catalogo.productos.map((p) => ({ category: p.categoria }))), [catalogo]);
+  const categorias = useMemo(() => categoriasDelCatalogo(catalogo), [catalogo]);
   const abierto = catalogo.productos.find((p) => p.id === abiertoId) ?? null;
 
   // Pasar un código por el lector abre su ficha (B9-6). Con una hoja abierta, escucha ella.
@@ -117,7 +119,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
       detalle: puedeModificar ? "Si es nuevo, dalo de alta con ese código." : "Pide a administración que lo dé de alta.",
       ...(puedeModificar && barcodeProblem(codigo) === null ? { accion: { texto: "Darlo de alta", alPulsar: () => setCreando({ codigo }) } } : {}),
     });
-  }, creando === null && abierto === null);
+  }, creando === null && abierto === null && !conCategorias);
 
   return (
     <Container ancho="panel" className="py-8">
@@ -135,6 +137,12 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
                 <PackagePlus size={15} aria-hidden="true" />
                 Cargar entrada
               </Link>
+            )}
+            {puedeModificar && (
+              <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => setConCategorias(true)}>
+                <Tags size={15} aria-hidden="true" />
+                Categorías
+              </Button>
             )}
             {puedeModificar && (
               <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setCreando({ codigo: "" })}>
@@ -165,6 +173,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
         <InventarioVista catalogo={catalogo} periodos={periodos} ahora={ahora} tasa={tasa} onAbrir={setAbiertoId} />
       )}
 
+      <CategoriasSheet abierto={conCategorias} onCerrar={() => setConCategorias(false)} catalogo={catalogo} onCambio={setCatalogo} />
       <ProductoNuevo abierto={creando !== null} codigoInicial={creando?.codigo ?? ""} onCerrar={() => setCreando(null)} categorias={categorias} enviando={enviando} cambiar={cambiar} />
       <FichaProducto
         producto={abierto}

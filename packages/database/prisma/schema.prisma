@@ -33,6 +33,7 @@ model Tenant {
   paymentMethods    PaymentMethod[]
   collectionDetails CollectionDetails[]
   products          Product[]
+  productCategories ProductCategory[]
   guardians         Guardian[]
   discountRules     DiscountRule[]
 
@@ -842,6 +843,24 @@ model BankHoliday {
 /// una cuenta abierta. No se borra (lo vendido lo nombra): se aparta con `active`. Se edita el
 /// nombre, la categoría, el trato del IVA y si lleva stock, con asiento de auditoría; quién lo creó
 /// y cuándo no cambia (disparador). El precio no vive aquí: es un calendario (`ProductPrice`).
+/// Las categorías del catálogo (T-10, M-24): una lista que administra el local (crear, renombrar,
+/// unir, retirar una vacía) y que nace con unas de arranque. El producto guarda el nombre de la suya
+/// (`product.category`); renombrar o unir cambia ese nombre en sus productos, en la misma transacción.
+model ProductCategory {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  name          String
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdByName String    @map("created_by_name")
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredByName String?   @map("retired_by_name")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@map("product_category")
+}
+
 model Product {
   id            String   @id @default(uuid(7)) @db.Uuid
   tenantId      String   @map("tenant_id") @db.Uuid

@@ -4,7 +4,7 @@
  * traduce la forma del contrato.
  */
 import type { CatalogoDto, ProductoDto, TaxCode } from "@l2/contracts";
-import { priceTimeline, sellableAt, type PricePeriod } from "@l2/domain-inventory";
+import { categoriesOf, priceTimeline, sellableAt, type PricePeriod } from "@l2/domain-inventory";
 import type { Money } from "@l2/domain-money";
 
 /** Un producto que se puede vender ahora, con su precio de ahora. */
@@ -67,3 +67,13 @@ export function cartaDelMesero(catalogo: CatalogoDto, instante: number): Product
 
 /** ¿Se puede pedir ahora? Lo que no lleva existencia, siempre; lo que sí, mientras quede (ADR-023). */
 export const disponible = (p: Pick<ProductoALaVenta, "existencia">): boolean => p.existencia === null || p.existencia > 0;
+
+/**
+ * Las categorías que se ofrecen al escribir la de un producto (T-10): las de la lista del local y, si
+ * algún producto lleva otra que ya no está en ella, también esa. Sin repetir, como las compara el dominio.
+ */
+export function categoriasDelCatalogo(c: Pick<CatalogoDto, "categorias" | "productos">): string[] {
+  return categoriesOf([...c.categorias.map((x) => ({ category: x.nombre })), ...c.productos.map((p) => ({ category: p.categoria }))]).sort((a, b) =>
+    a.localeCompare(b, "es"),
+  );
+}

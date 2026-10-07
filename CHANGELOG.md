@@ -14,6 +14,35 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.57.0] — 2026-10-07 · Staging en el VPS
+
+La semilla del local (B7-2) y el inventario en lote (T-10), con el icono de Android (M-24).
+
+### Añadido
+- **Semilla del local** (Ajustes → Semilla del local): descarga en un archivo lo que se tarda en teclear (los ajustes de
+  la sucursal, las tarifas y paquetes, las categorías y la carta con sus precios, el plano y los cumpleaños) y carga la
+  de otro local. Primero enseña qué entra, qué ya está y qué no trae; después solo añade lo que falta: lo que el local ya
+  tiene no se toca. No lleva personas, medios de pago, impuestos ni existencias.
+- **Las entradas de mercancía son una tabla**: se busca el producto por nombre, SKU o código, la cantidad va en unidades
+  sueltas o en bultos de N y el costo como venga en la factura (por unidad, por bulto o el total de la fila). Cada fila
+  dice su total y lo que cuesta cada unidad, propone el último costo de ese producto, e Intro en el costo pasa a la
+  siguiente. Un producto nuevo se da de alta en su misma fila.
+- **Pegar desde Excel** o Google Sheets: producto, cantidad, costo y, para los nuevos, categoría y precio. Se revisa
+  fila por fila antes de pasar a la tabla.
+- **Inventario inicial**: trae todos los productos que se cuentan para escribir lo que hay de cada uno, en unidades y al
+  costo de una; queda como tal en el historial. La Puesta a punto lo abre directamente.
+- **Categorías como lista propia** (Inventario → Productos → Categorías): crear, renombrar (con sus productos), unir dos
+  y retirar una vacía. Un local nace con unas de arranque, y «bebidas» o «BEBIDAS» son la misma que «Bebidas».
+
+### Cambiado
+- El icono de la app instalada es el logo de L2 sobre transparente (y sobre fondo claro en el adaptable de Android y en
+  el de Apple), con los colores del tema claro en la pantalla de arranque. Para que Android la instale de verdad (sin el
+  sello de Chrome), se elige «Instalar app» en el menú de Chrome.
+
+### Corregido
+- Una entrada con varios productos nuevos en la que uno no valía (un nombre o un código ya usados) dejaba creados los de
+  las filas anteriores. Ahora no queda nada de esa entrada.
+
 ## [0.55.1] — 2026-10-07 · Staging en el VPS
 
 Corrección vista al probar T-9 en el servidor.

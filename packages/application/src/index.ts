@@ -38,6 +38,8 @@ import { casosVentas, type CasosVentas } from "./caja/ventas.ts";
 import { casosCortes, type CasosCortes } from "./caja/cortes.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
+import { casosCategorias, type CasosCategorias } from "./inventario/categorias.ts";
+import { casosSemilla, type CasosSemilla } from "./sucursal/semilla.ts";
 import { casosEntradas, type CasosEntradas } from "./inventario/entradas.ts";
 import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
 import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
@@ -74,6 +76,8 @@ export type { CasosPlano } from "./restaurante/plano.ts";
 export type { CasosEventos } from "./park/eventos.ts";
 export type { CasosPedidos } from "./restaurante/pedidos.ts";
 export { DIAS_POR_ADELANTADO_PRECIOS, type CasosProductos } from "./inventario/productos.ts";
+export type { CasosCategorias } from "./inventario/categorias.ts";
+export type { CasosSemilla } from "./sucursal/semilla.ts";
 export { ENTRADAS_RECIENTES, type CasosEntradas } from "./inventario/entradas.ts";
 export { AJUSTES_RECIENTES, type CasosSalidas } from "./inventario/salidas.ts";
 export type { Aviso, CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
@@ -140,6 +144,8 @@ export interface Aplicacion {
   readonly cortes: CasosCortes;
   readonly feriados: CasosFeriados;
   readonly productos: CasosProductos;
+  readonly categorias: CasosCategorias;
+  readonly semilla: CasosSemilla;
   /** Las entradas de mercancía con su costo (B9-3). */
   readonly entradas: CasosEntradas;
   /** Las salidas con motivo y los conteos físicos, con su autorización (B9-4). */
@@ -183,12 +189,16 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
   const sesiones = casosSesiones(base, dispositivos);
   const parque = casosParque(base);
   const cuentas = casosCuentas(base, cifrador);
+  const tarifario = casosTarifario(base);
+  const ajustes = casosAjustes(base);
+  const plano = casosPlano(base);
+  const eventos = casosEventos(base);
   return {
-    tarifario: casosTarifario(base),
+    tarifario,
     parque,
     representantes: casosRepresentantes(base),
     sucursal: casosSucursal(base),
-    ajustes: casosAjustes(base),
+    ajustes,
     auditoria: casosAuditoria(base),
     dispositivos,
     sesiones,
@@ -212,10 +222,12 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     cortes: casosCortes(base),
     feriados: casosFeriados(base),
     productos: casosProductos(base),
+    categorias: casosCategorias(base),
     entradas: casosEntradas(base),
     salidas: casosSalidas(base),
-    plano: casosPlano(base),
-    eventos: casosEventos(base),
+    plano,
+    eventos,
+    semilla: casosSemilla(base, { ajustes, tarifario, plano, eventos }),
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),

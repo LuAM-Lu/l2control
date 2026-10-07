@@ -376,6 +376,16 @@ export const MODULOS: readonly Modulo[] = [
         proposito: "La impresora térmica del local (recibos, ticket del corte y comandas, en 58 u 80 mm) y el agente de la laptop de caja que imprime en ella.",
         tarea: "B5-2",
       },
+      {
+        id: "semilla",
+        grupo: "El local",
+        nombre: "Semilla del local",
+        href: rutaSeccion("ajustes", "semilla"),
+        accion: "catalogo.modificar",
+        proposito:
+          "Descarga la configuración de este local (ajustes, tarifas, carta, plano y cumpleaños) y carga la de otro: solo añade lo que falta.",
+        tarea: "B7-2",
+      },
     ],
   },
 ];

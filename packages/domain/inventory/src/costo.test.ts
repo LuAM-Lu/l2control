@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { averageUnitCostMinor, costOfReturn, costOfUnits, entryLineProblem, entryLineTotals, marginBasisPoints } from "./costo.ts";
+import { averageUnitCostMinor, costOfReturn, costOfUnits, entryLineProblem, entryLineTotals, marginBasisPoints, packCostOf } from "./costo.ts";
+
+const porBulto = (minor: bigint) => ({ per: "PACK" as const, minor });
 
 test("el costo tras dos compras a precios distintos es el del contador: (c₁ + c₂) / (q₁ + q₂)", () => {
   // 24 refrescos a $ 12,00 la caja ($ 0,50 c/u) y 24 a $ 14,40 ($ 0,60 c/u): $ 26,40 / 48 = $ 0,55.
-  const primera = entryLineTotals({ packs: 1, packSize: 24, packCostMinor: 1200n });
-  const segunda = entryLineTotals({ packs: 1, packSize: 24, packCostMinor: 1440n });
+  const primera = entryLineTotals({ packs: 1, packSize: 24, cost: porBulto(1200n) });
+  const segunda = entryLineTotals({ packs: 1, packSize: 24, cost: porBulto(1440n) });
   const stock = { quantity: primera.units + segunda.units, valueMinor: primera.valueMinor + segunda.valueMinor };
   assert.deepEqual(stock, { quantity: 48, valueMinor: 2640n });
   assert.equal(averageUnitCostMinor(stock), 55n);
@@ -55,12 +57,31 @@ test("el margen sobre el precio, en puntos básicos", () => {
 });
 
 test("una línea de entrada: bultos, unidades por bulto y costo, con sus topes", () => {
-  assert.equal(entryLineProblem({ packs: 2, packSize: 24, packCostMinor: 1200n }), null);
-  assert.equal(entryLineProblem({ packs: 1, packSize: 6, packCostMinor: 0n }), null); // lo regalado entra
-  assert.equal(entryLineProblem({ packs: 0, packSize: 24, packCostMinor: 1200n }), "BULTOS");
-  assert.equal(entryLineProblem({ packs: 1.5, packSize: 24, packCostMinor: 1200n }), "BULTOS");
-  assert.equal(entryLineProblem({ packs: 1, packSize: 0, packCostMinor: 1200n }), "UNIDADES_POR_BULTO");
-  assert.equal(entryLineProblem({ packs: 1, packSize: 24, packCostMinor: -1n }), "COSTO_NEGATIVO");
-  assert.equal(entryLineProblem({ packs: 200, packSize: 24, packCostMinor: 100_000n }), "COSTO_EXCESIVO");
-  assert.deepEqual(entryLineTotals({ packs: 2, packSize: 24, packCostMinor: 1200n }), { units: 48, valueMinor: 2400n });
+  assert.equal(entryLineProblem({ packs: 2, packSize: 24, cost: porBulto(1200n) }), null);
+  assert.equal(entryLineProblem({ packs: 1, packSize: 6, cost: porBulto(0n) }), null); // lo regalado entra
+  assert.equal(entryLineProblem({ packs: 0, packSize: 24, cost: porBulto(1200n) }), "BULTOS");
+  assert.equal(entryLineProblem({ packs: 1.5, packSize: 24, cost: porBulto(1200n) }), "BULTOS");
+  assert.equal(entryLineProblem({ packs: 1, packSize: 0, cost: porBulto(1200n) }), "UNIDADES_POR_BULTO");
+  assert.equal(entryLineProblem({ packs: 1, packSize: 24, cost: porBulto(-1n) }), "COSTO_NEGATIVO");
+  assert.equal(entryLineProblem({ packs: 200, packSize: 24, cost: porBulto(100_000n) }), "COSTO_EXCESIVO");
+  assert.deepEqual(entryLineTotals({ packs: 2, packSize: 24, cost: porBulto(1200n) }), { units: 48, valueMinor: 2400n });
+});
+
+test("el costo de la línea, como venga en la factura: por unidad, por bulto o el total (M-24)", () => {
+  // 24 latas sueltas (bultos de 1) a $ 0,50 cada una: $ 12,00.
+  assert.deepEqual(entryLineTotals({ packs: 24, packSize: 1, cost: { per: "UNIT", minor: 50n } }), { units: 24, valueMinor: 1200n });
+  // 2 cajas de 24 con el costo por unidad: 48 × $ 0,50.
+  assert.deepEqual(entryLineTotals({ packs: 2, packSize: 24, cost: { per: "UNIT", minor: 50n } }), { units: 48, valueMinor: 2400n });
+  // El total de la línea, tal cual: 3 unidades por $ 10,00 (no se reparte en céntimos aquí).
+  assert.deepEqual(entryLineTotals({ packs: 3, packSize: 1, cost: { per: "LINE", minor: 1000n } }), { units: 3, valueMinor: 1000n });
+  // El tope mira lo que cuesta la línea entera, sea cual sea la forma.
+  assert.equal(entryLineProblem({ packs: 10_000, packSize: 1, cost: { per: "UNIT", minor: 1001n } }), "COSTO_EXCESIVO");
+  assert.equal(entryLineProblem({ packs: 1, packSize: 1, cost: { per: "LINE", minor: 10_000_001n } }), "COSTO_EXCESIVO");
+  assert.equal(entryLineProblem({ packs: 1, packSize: 1, cost: { per: "LINE", minor: 10_000_000n } }), null);
+});
+
+test("lo que costó cada bulto de una línea registrada, para proponerlo la próxima vez", () => {
+  assert.equal(packCostOf({ packs: 2, valueMinor: 2400n }), 1200n);
+  assert.equal(packCostOf({ packs: 3, valueMinor: 1000n }), 333n);
+  assert.equal(packCostOf({ packs: 0, valueMinor: 0n }), null);
 });

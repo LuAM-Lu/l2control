@@ -124,7 +124,7 @@ before(async () => {
   );
   refresco = conRefresco.productos.find((p) => p.nombre === "Refresco")!.id;
   valor(
-    await l.app.entradas.registrar(l.sistema, { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: refresco, bultos: 20, unidadesPorBulto: 1, costoBultoMinor: "50" }] }, T_PREP),
+    await l.app.entradas.registrar(l.sistema, { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: refresco, bultos: 20, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "50" } }] }, T_PREP),
   );
   // Un aforo de 2: lo anotado en papel ya ocurrió y no se le cuenta; lo vivo, sí.
   valor(

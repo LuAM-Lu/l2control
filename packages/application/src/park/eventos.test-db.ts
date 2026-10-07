@@ -367,7 +367,7 @@ describe("el día del evento (B10-2)", () => {
     valor(
       await local.app.entradas.registrar(
         local.sistema,
-        { idempotencyKey: randomUUID(), tipo: "COMPRA", lineas: [{ productId: refresco, bultos: 1, unidadesPorBulto: 10, costoBultoMinor: "500" }] },
+        { idempotencyKey: randomUUID(), tipo: "COMPRA", lineas: [{ productId: refresco, bultos: 1, unidadesPorBulto: 10, costo: { por: "BULTO", minor: "500" } }] },
         AHORA - 4 * MIN,
       ),
     );

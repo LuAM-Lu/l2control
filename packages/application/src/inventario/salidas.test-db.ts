@@ -63,8 +63,8 @@ before(async () => {
         idempotencyKey: randomUUID(),
         tipo: "COMPRA",
         lineas: [
-          { productId: ids.Refresco!, bultos: 2, unidadesPorBulto: 24, costoBultoMinor: "1200" },
-          { productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" },
+          { productId: ids.Refresco!, bultos: 2, unidadesPorBulto: 24, costo: { por: "BULTO", minor: "1200" } },
+          { productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } },
         ],
       },
       AHORA - 2 * MIN,

@@ -64,7 +64,7 @@ async function cargar(nombre: string, n: number): Promise<void> {
   valor(
     await local.app.entradas.registrar(
       local.sistema,
-      { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids[nombre]!, bultos: n, unidadesPorBulto: 1, costoBultoMinor: "50" }] },
+      { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids[nombre]!, bultos: n, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "50" } }] },
       AHORA - MIN,
     ),
   );

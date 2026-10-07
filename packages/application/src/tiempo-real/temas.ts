@@ -115,6 +115,13 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "producto.apartar": ["catalogo"],
   "precio.programar": ["catalogo"],
   "producto.minimo": ["catalogo"],
+  // Las categorías son las pestañas de la caja y el filtro de Productos (T-10).
+  "categoria.crear": ["catalogo"],
+  "categoria.renombrar": ["catalogo"],
+  "categoria.unir": ["catalogo"],
+  "categoria.retirar": ["catalogo"],
+  // Una semilla (B7-2) deja su resumen; cada parte que carga deja además su propio asiento.
+  "semilla.cargar": NADA,
   // La existencia viaja con el catálogo: la caja y la tablet dejan de ofrecer lo que se acabó (B9-2).
   "existencia.mover": ["catalogo"],
   // Una entrada sube la existencia y mueve el costo promedio: la caja vuelve a ofrecer lo que llegó.

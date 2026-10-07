@@ -87,8 +87,8 @@ describe("registrar una entrada", () => {
       await registrar(
         compra(
           [
-            { productId: ids.Refresco!, bultos: 2, unidadesPorBulto: 24, costoBultoMinor: "1200" },
-            { productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" },
+            { productId: ids.Refresco!, bultos: 2, unidadesPorBulto: 24, costo: { por: "BULTO", minor: "1200" } },
+            { productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } },
           ],
           { proveedor: "Distribuidora Polar", factura: "00012345" },
         ),
@@ -115,49 +115,49 @@ describe("registrar una entrada", () => {
 
   test("el costo tras dos compras a precios distintos es el del contador", async () => {
     // Ya hay 48 refrescos a $ 0,50 ($ 24,00). Llegan 24 a $ 0,80 ($ 19,20): $ 43,20 / 72 = $ 0,60.
-    valor(await registrar(compra([{ productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 24, costoBultoMinor: "1920" }])));
+    valor(await registrar(compra([{ productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 24, costo: { por: "BULTO", minor: "1920" } }])));
     const p = await producto("Refresco");
     assert.equal(p.existencia, 72);
     assert.deepEqual(p.costoPromedio, usd("60"));
   });
 
   test("un doble clic no carga dos veces la misma entrada, ni a la vez", async () => {
-    const cmd = compra([{ productId: ids.Chupeta!, bultos: 1, unidadesPorBulto: 50, costoBultoMinor: "1000" }]);
+    const cmd = compra([{ productId: ids.Chupeta!, bultos: 1, unidadesPorBulto: 50, costo: { por: "BULTO", minor: "1000" } }]);
     const a = valor(await registrar(cmd));
     const b = valor(await registrar(cmd));
     assert.equal(a.id, b.id);
-    const otra = compra([{ productId: ids.Chupeta!, bultos: 1, unidadesPorBulto: 50, costoBultoMinor: "1000" }]);
+    const otra = compra([{ productId: ids.Chupeta!, bultos: 1, unidadesPorBulto: 50, costo: { por: "BULTO", minor: "1000" } }]);
     const [x, y] = await Promise.all([registrar(otra), registrar(otra)]);
     assert.equal(valor(x).id, valor(y).id);
     assert.equal((await producto("Chupeta")).existencia, 100);
   });
 
   test("lo que no entra: un producto sin control de stock, uno que no existe, un costo desmesurado", async () => {
-    const cafe = await registrar(compra([{ productId: ids.Café!, bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "100" }]));
+    const cafe = await registrar(compra([{ productId: ids.Café!, bultos: 1, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "100" } }]));
     assert.equal(!cafe.ok && cafe.problemas?.[0]?.message, "SIN_CONTROL_DE_STOCK");
-    const fantasma = await registrar(compra([{ productId: randomUUID(), bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "100" }]));
+    const fantasma = await registrar(compra([{ productId: randomUUID(), bultos: 1, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "100" } }]));
     assert.deepEqual(!fantasma.ok && fantasma.problemas?.[0]?.path, ["lineas", 0, "productId"]);
-    const caro = await registrar(compra([{ productId: ids.Malta!, bultos: 200, unidadesPorBulto: 24, costoBultoMinor: "100000" }]));
-    assert.deepEqual(!caro.ok && caro.problemas?.[0]?.path, ["lineas", 0, "costoBultoMinor"]);
+    const caro = await registrar(compra([{ productId: ids.Malta!, bultos: 200, unidadesPorBulto: 24, costo: { por: "BULTO", minor: "100000" } }]));
+    assert.deepEqual(!caro.ok && caro.problemas?.[0]?.path, ["lineas", 0, "costo"]);
     // Nada a medias: una entrada con una línea mala no carga las buenas.
-    const mixta = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }, { productId: ids.Café!, bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "100" }]));
+    const mixta = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }, { productId: ids.Café!, bultos: 1, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "100" } }]));
     assert.equal(mixta.ok, false);
     assert.equal((await producto("Malta")).existencia, 12);
   });
 
   test("recibe administración o supervisión; la caja no carga ni lee entradas", async () => {
-    const r = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }]), ctxCajera);
+    const r = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }]), ctxCajera);
     assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
     const leer = await local.app.entradas.leer(ctxCajera);
     assert.equal(!leer.ok && leer.motivo, "NO_PERMITIDO");
-    valor(await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }]), ctxAdmin));
+    valor(await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }]), ctxAdmin));
     const rechazo = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.auditEntry.findFirst({ where: { action: "inventario.entrada", outcome: { not: "HECHO" } } }));
     assert.ok(rechazo, "el rechazo por permiso queda en la auditoría");
   });
 
   test("cada sucursal ve sus entradas, y no recibe productos ajenos", async () => {
     assert.deepEqual(valor(await otro.app.entradas.leer(otro.sistema)).entradas, []);
-    const ajeno = await otro.app.entradas.registrar(otro.sistema, compra([{ productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "50" }]), AHORA);
+    const ajeno = await otro.app.entradas.registrar(otro.sistema, compra([{ productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "50" } }]), AHORA);
     assert.equal(ajeno.ok, false);
   });
 });
@@ -165,7 +165,7 @@ describe("registrar una entrada", () => {
 describe("el costo de lo vendido (costo promedio ponderado)", () => {
   test("comprar la caja de 24 y vender por unidad cuadra: vendido todo, el valor queda en cero", async () => {
     // 24 maltas más a $ 10,00 la caja: $ 0,41666… cada una, mezcladas con las que había.
-    valor(await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 24, costoBultoMinor: "1000" }])));
+    valor(await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 24, costo: { por: "BULTO", minor: "1000" } }])));
     const antes = await valorDe("Malta");
     const hay = (await producto("Malta")).existencia!;
     // Se venden todas, de a una por cuenta y luego el resto de golpe.
@@ -219,8 +219,8 @@ describe("dar de alta un producto en la entrada (B9-6)", () => {
     const e = valor(
       await registrar(
         compra([
-          { productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 24, costoBultoMinor: "1200" },
-          { nuevo, bultos: 2, unidadesPorBulto: 24, costoBultoMinor: "1440" },
+          { productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 24, costo: { por: "BULTO", minor: "1200" } },
+          { nuevo, bultos: 2, unidadesPorBulto: 24, costo: { por: "BULTO", minor: "1440" } },
         ]),
         ctxAdminElevado,
       ),
@@ -234,13 +234,67 @@ describe("dar de alta un producto en la entrada (B9-6)", () => {
   });
 
   test("crear es del catálogo: supervisión recibe pero no da de alta, y nada queda a medias", async () => {
-    const r = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }, { nuevo: { ...nuevo, nombre: "Malta light", codigoBarras: undefined }, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }]), ctxSupervisor);
+    const r = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }, { nuevo: { ...nuevo, nombre: "Malta light", codigoBarras: undefined }, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }]), ctxSupervisor);
     assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
     assert.equal((await local.app.productos.leer(ctxAdmin)).productos.some((p) => p.nombre === "Malta light"), false);
     // Un nuevo con el código de otro producto tampoco deja la entrada a medias.
     const antes = (await producto("Malta")).existencia;
-    const choca = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costoBultoMinor: "900" }, { nuevo: { ...nuevo, nombre: "Otra uva" }, bultos: 1, unidadesPorBulto: 1, costoBultoMinor: "50" }]), ctxAdminElevado);
+    const choca = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }, { nuevo: { ...nuevo, nombre: "Otra uva" }, bultos: 1, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "50" } }]), ctxAdminElevado);
     assert.deepEqual(!choca.ok && choca.problemas?.[0]?.path, ["lineas", 1, "nuevo", "codigoBarras"]);
     assert.equal((await producto("Malta")).existencia, antes);
+  });
+});
+
+describe("la línea flexible y el inventario inicial (T-10, M-24)", () => {
+  test("el costo por unidad o el total de la línea dan el mismo valor que por bulto, y se propone el último", async () => {
+    const antes = await valorDe("Chupeta");
+    // 30 chupetas sueltas (bultos de 1) a $ 0,25 cada una: $ 7,50.
+    const porUnidad = valor(await registrar(compra([{ productId: ids.Chupeta!, bultos: 30, unidadesPorBulto: 1, costo: { por: "UNIDAD", minor: "25" } }])));
+    assert.deepEqual(porUnidad.lineas[0]!.costo, usd("750"));
+    // 2 bolsas de 50 por $ 18,00 en total (lo que dice la factura).
+    const total = valor(await registrar(compra([{ productId: ids.Chupeta!, bultos: 2, unidadesPorBulto: 50, costo: { por: "TOTAL", minor: "1800" } }])));
+    assert.deepEqual([total.lineas[0]!.unidades, total.lineas[0]!.costo], [100, usd("1800")]);
+    const despues = await valorDe("Chupeta");
+    assert.equal(despues.valueMinor! - antes.valueMinor!, 2550n);
+    // La próxima entrada propone la bolsa de 50 a $ 9,00, lo último que costó.
+    const p = await producto("Chupeta");
+    assert.deepEqual([p.ultimoBulto, p.ultimoCostoBulto], [50, usd("900")]);
+    // El asiento dice cómo se tecleó.
+    const asiento = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.auditEntry.findFirst({ where: { action: "inventario.entrada", entityId: total.id } }));
+    assert.deepEqual((asiento?.after as { lineas: { tecleado: unknown }[] }).lineas[0]!.tecleado, { por: "TOTAL", minor: "1800" });
+  });
+
+  test("el inventario inicial queda como tal, sin proveedor ni factura", async () => {
+    const e = valor(await registrar({ idempotencyKey: randomUUID(), tipo: "INICIAL", lineas: [{ productId: ids.Refresco!, bultos: 10, unidadesPorBulto: 1, costo: { por: "UNIDAD", minor: "55" } }] }, ctxAdmin));
+    assert.deepEqual([e.tipo, e.proveedor, e.factura], ["INICIAL", null, null]);
+    assert.ok(valor(await local.app.entradas.leer(ctxAdmin)).entradas.some((x) => x.id === e.id && x.tipo === "INICIAL"));
+    const conProveedor = await registrar({ idempotencyKey: randomUUID(), tipo: "INICIAL", proveedor: "Distribuidora Polar", lineas: [{ productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 1, costo: { por: "UNIDAD", minor: "55" } }] }, ctxAdmin);
+    assert.equal(!conProveedor.ok && conProveedor.motivo, "INVALIDO");
+  });
+
+  test("varios productos nuevos de una vez: si uno no vale, no queda creado ninguno (nada a medias)", async () => {
+    const ficha = (nombre: string) => ({ nombre, categoria: "golosinas", taxCode: "GENERAL", precioMinor: "100" });
+    const r = await registrar(
+      compra([
+        { nuevo: ficha("Gomitas"), bultos: 1, unidadesPorBulto: 20, costo: { por: "BULTO", minor: "600" } },
+        { nuevo: ficha("Chupeta"), bultos: 1, unidadesPorBulto: 20, costo: { por: "BULTO", minor: "600" } }, // ya existe
+      ]),
+      ctxAdminElevado,
+    );
+    assert.deepEqual(!r.ok && r.problemas?.[0]?.path, ["lineas", 1, "nuevo", "nombre"]);
+    const catalogo = await local.app.productos.leer(ctxAdmin);
+    assert.equal(catalogo.productos.some((p) => p.nombre === "Gomitas"), false, "la primera línea no quedó creada");
+    // Bien escritos, entran los dos, en la categoría de la lista tal como se llama («Golosinas»).
+    valor(
+      await registrar(
+        compra([
+          { nuevo: ficha("Gomitas"), bultos: 1, unidadesPorBulto: 20, costo: { por: "BULTO", minor: "600" } },
+          { nuevo: ficha("Caramelos"), bultos: 1, unidadesPorBulto: 20, costo: { por: "BULTO", minor: "600" } },
+        ]),
+        ctxAdminElevado,
+      ),
+    );
+    const despues = await local.app.productos.leer(ctxAdmin);
+    assert.deepEqual(despues.productos.filter((p) => p.nombre === "Gomitas" || p.nombre === "Caramelos").map((p) => p.categoria), ["Golosinas", "Golosinas"]);
   });
 });

@@ -1,9 +1,11 @@
 /**
  * Las entradas de mercancía en el servidor — B9-3, F8-06, F8-01.
  *
- * Lo que llega (una compra con su proveedor y su factura, o una reposición) entra de una vez: una
- * fila en `stock_entry` y un movimiento ENTRADA por producto, con sus unidades (bultos × unidades por
- * bulto) y lo que costaron. El costo promedio ponderado sale solo de la suma (`@l2/domain-inventory`).
+ * Lo que llega (una compra con su proveedor y su factura, una reposición o el inventario inicial del
+ * local, T-10) entra de una vez: una fila en `stock_entry` y un movimiento ENTRADA por producto, con sus
+ * unidades (bultos × unidades por bulto; las sueltas son bultos de 1) y lo que costaron, tecleado por
+ * unidad, por bulto o en total (M-24). El costo promedio ponderado sale solo de la suma
+ * (`@l2/domain-inventory`).
  * Quién decide qué:
  *  · el dominio: qué línea vale (`entryLineProblem`) y cuánto entra (`entryLineTotals`);
  *  · la matriz: recibir es `inventario.entrada` (administración y supervisión), sin elevación: se hace
@@ -16,12 +18,13 @@ import {
   EntradasSchema,
   RegistrarEntradaCommandSchema,
   problemasDe,
+  type CostoPor,
   type EntradaDto,
   type EntradasDto,
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
-import { entryLineProblem, entryLineTotals, type EntryLineProblem } from "@l2/domain-inventory";
+import { entryLineProblem, entryLineTotals, type EntryCostBasis, type EntryLine, type EntryLineProblem } from "@l2/domain-inventory";
 import { money, sum } from "@l2/domain-money";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
@@ -46,6 +49,27 @@ const MENSAJE_LINEA: Record<EntryLineProblem, string> = {
   COSTO_NEGATIVO: "El costo no puede ser negativo",
   COSTO_EXCESIVO: "Más de $ 100.000,00 en una línea: ¿se tecleó en bolívares?",
 };
+
+const BASE_DEL_COSTO: Readonly<Record<CostoPor, EntryCostBasis>> = { UNIDAD: "UNIT", BULTO: "PACK", TOTAL: "LINE" };
+
+/** La línea del mando, como la entiende el dominio. */
+const lineaDelDominio = (l: { bultos: number; unidadesPorBulto: number; costo: { por: CostoPor; minor: string } }): EntryLine => ({
+  packs: l.bultos,
+  packSize: l.unidadesPorBulto,
+  cost: { per: BASE_DEL_COSTO[l.costo.por], minor: BigInt(l.costo.minor) },
+});
+
+/**
+ * Un rechazo a mitad de la entrada, cuando ya se escribió algo (un producto nuevo de una línea anterior):
+ * se lanza para que la transacción se deshaga entera. Devolverlo la confirmaría con lo escrito.
+ */
+class Deshacer extends Error {
+  readonly rechazo: Rechazo;
+  constructor(rechazo: Rechazo) {
+    super(rechazo.mensaje);
+    this.rechazo = rechazo;
+  }
+}
 
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({
   ok: false,
@@ -75,9 +99,9 @@ export function casosEntradas(base: Base): CasosEntradas {
       }
       const cmd = v.data;
       for (const [i, l] of cmd.lineas.entries()) {
-        const problema = entryLineProblem({ packs: l.bultos, packSize: l.unidadesPorBulto, packCostMinor: BigInt(l.costoBultoMinor) });
+        const problema = entryLineProblem(lineaDelDominio(l));
         if (problema) {
-          const campo = problema === "BULTOS" ? "bultos" : problema === "UNIDADES_POR_BULTO" ? "unidadesPorBulto" : "costoBultoMinor";
+          const campo = problema === "BULTOS" ? "bultos" : problema === "UNIDADES_POR_BULTO" ? "unidadesPorBulto" : "costo";
           return invalido("La entrada no se registró: hay datos que corregir.", ["lineas", i, campo], MENSAJE_LINEA[problema]);
         }
       }
@@ -121,7 +145,8 @@ export function casosEntradas(base: Base): CasosEntradas {
               continue;
             }
             const creado = await crearProductoEn(tx, ctx, { ...l.nuevo, tipo: "PRODUCTO" }, quien.nombre, ahora, ["lineas", i, "nuevo"]);
-            if ("ok" in creado) return creado;
+            // Las líneas anteriores pueden haber creado ya sus productos: nada de la entrada queda.
+            if ("ok" in creado) throw new Deshacer(creado);
             await auditar(tx, ctx, creado.asiento);
             ids.push(creado.fila.id);
             porId.set(creado.fila.id, { name: creado.fila.name });
@@ -145,8 +170,8 @@ export function casosEntradas(base: Base): CasosEntradas {
             },
           });
           const lineas = cmd.lineas.map((l, i) => {
-            const t = entryLineTotals({ packs: l.bultos, packSize: l.unidadesPorBulto, packCostMinor: BigInt(l.costoBultoMinor) });
-            return { productId: ids[i]!, bultos: l.bultos, unidadesPorBulto: l.unidadesPorBulto, unidades: t.units, valorMinor: t.valueMinor };
+            const t = entryLineTotals(lineaDelDominio(l));
+            return { productId: ids[i]!, bultos: l.bultos, unidadesPorBulto: l.unidadesPorBulto, unidades: t.units, valorMinor: t.valueMinor, costo: l.costo };
           });
           await tx.stockMovement.createMany({
             data: lineas.map((l) => ({
@@ -179,6 +204,8 @@ export function casosEntradas(base: Base): CasosEntradas {
                 unidadesPorBulto: l.unidadesPorBulto,
                 unidades: l.unidades,
                 costo: { minor: String(l.valorMinor), currency: "USD" },
+                // Cómo se tecleó: por unidad, por bulto o el total de la línea (M-24).
+                tecleado: { por: l.costo.por, minor: l.costo.minor },
               })),
             },
           });
@@ -186,7 +213,10 @@ export function casosEntradas(base: Base): CasosEntradas {
         });
 
       try {
-        const r = await intentar();
+        const r = await intentar().catch((e: unknown) => {
+          if (e instanceof Deshacer) return e.rechazo;
+          throw e;
+        });
         if ("ok" in r) {
           if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "inventario.entrada", reason: r.mensaje });
           return r;
@@ -195,7 +225,10 @@ export function casosEntradas(base: Base): CasosEntradas {
       } catch (e) {
         // Dos envíos a la vez con la misma clave: la base deja uno, y el segundo devuelve ese.
         if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
-        const r = await intentar();
+        const r = await intentar().catch((x: unknown) => {
+          if (x instanceof Deshacer) return x.rechazo;
+          throw x;
+        });
         return "ok" in r ? r : { ok: true, valor: r };
       }
     },

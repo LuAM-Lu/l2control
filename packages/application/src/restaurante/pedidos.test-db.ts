@@ -83,7 +83,7 @@ before(async () => {
   valor(
     await l.app.entradas.registrar(
       l.sistema,
-      { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids["Refresco"]!, bultos: 1, unidadesPorBulto: 2, costoBultoMinor: "100" }] },
+      { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids["Refresco"]!, bultos: 1, unidadesPorBulto: 2, costo: { por: "BULTO", minor: "100" } }] },
       AHORA - 8 * MIN,
     ),
   );
@@ -276,7 +276,7 @@ describe("anular en cocina, con papel e inventario (B6-6, M-18)", () => {
     valor(
       await l.app.entradas.registrar(
         l.sistema,
-        { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids["Refresco"]!, bultos: 1, unidadesPorBulto: 6, costoBultoMinor: "600" }] },
+        { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids["Refresco"]!, bultos: 1, unidadesPorBulto: 6, costo: { por: "BULTO", minor: "600" } }] },
         AHORA - 5 * MIN,
       ),
     );

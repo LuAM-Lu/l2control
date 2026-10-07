@@ -6,5 +6,6 @@ export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
 export default function Icon() {
-  return new ImageResponse(dibujarIconoApp(180, 80), { ...size });
+  // Fondo lleno: Safari pinta de negro lo transparente.
+  return new ImageResponse(dibujarIconoApp(180, 80, "claro"), { ...size });
 }

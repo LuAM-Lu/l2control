@@ -29,7 +29,8 @@ const PUNTO: Record<PuntoDePuestaAPuntoDto["id"], { titulo: string; ruta: Route 
   impresoras: { titulo: "Impresoras", ruta: rutaSeccion("ajustes", "impresoras") },
   feriados: { titulo: "Feriados bancarios del año", ruta: rutaSeccion("ajustes", "feriados") },
   carta_y_plano: { titulo: "Carta y plano del restaurante", ruta: rutaSeccion("ajustes", "plano") },
-  existencias: { titulo: "Existencias iniciales del inventario", ruta: rutaSeccion("inventario", "entradas") },
+  // Abre la entrada en modo «inventario inicial» (T-10).
+  existencias: { titulo: "Existencias iniciales del inventario", ruta: `${rutaSeccion("inventario", "entradas")}?inicial=1` as Route },
   descuentos: { titulo: "Descuentos y familias VIP", ruta: rutaSeccion("ajustes", "descuentos") },
   segunda_administracion: { titulo: "Segunda administración con sus credenciales", ruta: rutaSeccion("ajustes", "usuarios") },
   otros_equipos: { titulo: "App de autenticación para otros equipos", ruta: rutaSeccion("ajustes", "usuarios") },

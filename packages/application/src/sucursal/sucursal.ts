@@ -3,6 +3,7 @@
  * inicial (T-4, `instalacion.ts`); más sucursales llegan con el back-office de sucursales.
  */
 import { DEFAULT_LEDGER_METHODS } from "@l2/domain-cash";
+import { STARTER_CATEGORIES, findCategory } from "@l2/domain-inventory";
 import type { Base, Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 
@@ -16,8 +17,9 @@ export interface CasosSucursal {
 }
 
 /**
- * Crea el tenant, la sucursal y los siete medios de pago de §5.5 (B3-2; los que piden datos,
- * apagados) dentro del `tx` de quien lo llama. La usan las semillas y la instalación inicial.
+ * Crea el tenant, la sucursal, los siete medios de pago de §5.5 (B3-2; los que piden datos,
+ * apagados) y las categorías de arranque del catálogo (T-10) dentro del `tx` de quien lo llama. La
+ * usan las semillas y la instalación inicial.
  */
 export async function crearLocal(tx: Transaccion, lugar: { tenantId: string; branchId: string }, nombres: { tenant: string; sucursal: string }): Promise<void> {
   await tx.tenant.upsert({
@@ -41,6 +43,12 @@ export async function crearLocal(tx: Transaccion, lugar: { tenantId: string; bra
     })),
     skipDuplicates: true,
   });
+  // Las de arranque que el local no tenga ya (un tenant que suma una sucursal ya tiene su lista).
+  const vigentes = await tx.productCategory.findMany({ where: { retiredAt: null }, select: { name: true } });
+  const faltan = STARTER_CATEGORIES.filter((c) => !findCategory(vigentes, c));
+  if (faltan.length > 0) {
+    await tx.productCategory.createMany({ data: faltan.map((name) => ({ tenantId: lugar.tenantId, name, createdByName: "Alta del local" })) });
+  }
 }
 
 export function casosSucursal(base: Base): CasosSucursal {
