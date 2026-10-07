@@ -1937,7 +1937,8 @@ antes del cobro en servidor (orden de ejecución).
   **En el staging (2026-10-07):** clave pública copiada (la privada y su frase, fuera del servidor), primer respaldo
   (452 KB) y cron; ese respaldo, bajado y restaurado en una base limpia: íntegro en 5 s. Sin credencial, las rutas de
   la PC responden 401. Falta que administración prepare la PC del local desde el panel.*
-- [ ] **B7-5 · Revisión de seguridad** contra PLAN §7 y auditoría de dependencias (F10-06, F10-09).
+- [~] **B7-5 · Revisión de seguridad** contra PLAN §7 y auditoría de dependencias (F10-06, F10-09).
+  **a cargo: LuAMi · rama `feat/b7-5`.**
 
 ### Etapa 8 · Producción
 
