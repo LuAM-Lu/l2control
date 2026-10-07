@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-10-06**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-10-07**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -10,13 +10,14 @@
 > - [FLUJOS.md](FLUJOS.md): cómo se mueven personas, pedidos y dinero en el local. El código lo cita.
 > - [JORNADA.md](JORNADA.md): el día completo en cuatro momentos (primer encendido, apertura, jornada y
 >   cierre), con lo decidido el 2026-09-27 (M-13). Se corrige cuando un paso resuelve algo suyo.
-> - [adr/](adr/): las decisiones de arquitectura, una por archivo (27; ADR-018 supersede la biblioteca
+> - [adr/](adr/): las decisiones de arquitectura, una por archivo (29; ADR-018 supersede la biblioteca
 >   de ADR-013, ADR-019 cambia la confirmación de la tasa automática de §5.2, ADR-020 cambia el TOTP
 >   de ADR-018 por llaves de acceso, ADR-021 supersede la topología de ADR-003, ADR-022 retira la
 >   pantalla de cocina de DEC-19, ADR-023 supersede ADR-012, ADR-024 retira el límite de cordura de
 >   ADR-019, ADR-025 concreta el tiempo real de ADR-008 y ADR-026 lleva la impresión al local con un agente,
 >   en lugar de la conexión directa del servidor de ADR-015, y ADR-027 limita ADR-017 y ADR-010 con una excepción única:
-  la hora real de lo anotado en papel, dentro de la ventana del corte).
+>   la hora real de lo anotado en papel, dentro de la ventana del corte; ADR-028 decide cómo se actualiza el sistema
+>   y ADR-029 añade el equipo de confianza y la app de autenticación a ADR-020).
 >
 > Las reglas del código están en [CLAUDE.md](../CLAUDE.md).
 
@@ -33,321 +34,39 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.60.0 · 60 de 66 pasos.** **Revisión de seguridad (B7-5, v0.60.0):** la matriz de permisos se comprueba celda por celda contra PLAN §7.3; el historial no tiene secretos (gitleaks) y Semgrep encontró un fallo real, corregido (el descifrado aceptaba una etiqueta GCM recortada); Next sube a 16.3.7 por una ejecución remota en la generación de iconos, y las dependencias con avisos altos, a su versión corregida, con la auditoría en el CI y una política de siete días y de procedencia; Caddy pone cabeceras que impiden incrustar el sistema y solo dejan la cámara; consultar los contactos de los representantes queda auditado. Pendiente de decidir: D-REIMP y el calendario de actualización (§4). Queda Etapa 7 con B7-3 en el local; después, Etapa 8. **Respaldos fuera del servidor (B7-4, M-26, v0.59.0):** cada noche el VPS hace un respaldo de la base cifrado para la clave pública del local (la privada no está en el servidor; `restaurar.sh --clave-nueva`, en la PC del técnico), con su huella (las filas de cada tabla y lo que suma el libro de pagos) tomada en la misma instantánea, y guarda las últimas siete noches. Una PC del local, preparada desde Ajustes → Respaldos con la identidad confirmada (el panel da una orden de PowerShell y una credencial que se enseña una vez), lo baja cada mañana, comprueba su huella, se lo confirma al servidor y guarda 30 diarios, 12 semanales y los mensuales. Ajustes → Respaldos e Inicio avisan si el de anoche falló o no se hizo, si no hay PC o si la PC no baja los recientes. La restauración se ensayó en una base limpia: íntegra (la huella coincide) en 4 s. Con un volcado por noche se puede perder hasta un día (el objetivo de 15 min con WAL queda en §5). **En el staging (2026-10-07):** la 0.59.0 la puso sola el actualizador (la primera actualización real de T-8b: vista, pedida y puesta en 42 s, con respaldo antes); los respaldos están instalados (clave pública, cron de las 3:15 am) y el primero, de 452 KB, se restauró íntegro en 5 s fuera del servidor. Falta que administración, en el staging, prepare la PC del local (Ajustes → Respaldos), cargue la semilla (Ajustes → Semilla del local) y los feriados. Sigue B7-5. **Actualizaciones desde el panel (T-8b, M-25, v0.58.0):** Ajustes → Versión y actualizaciones enseña la versión en marcha, las nuevas con sus novedades (la sección del CHANGELOG; urgente si trae `### Urgente`) y lo último que se puso. En producción administración elige «Actualizar ahora» (solo sin turnos abiertos ni niños en sala) o «Esta noche al cierre», con su identidad confirmada, y la puede cancelar mientras espera; el staging se pone al día solo. La web solo pide: el actualizador del VPS (`infra/produccion/actualizador.sh`, cada minuto por cron) ve las versiones publicadas con sus imágenes, comprueba otra vez que no haya operación, la pone con `desplegar.sh` y escribe cómo terminó; una que no queda sana vuelve sola a la anterior y el panel lo dice. Cada pantalla abierta se pone al día sola en cuanto está libre (sin diálogo, sin el cursor en un campo, sin un pedido o un plano sin enviar) y, si no, lo avisa; una pantalla vieja no puede hacer nada contra el servidor nuevo (sus acciones se niegan). La versión va en el menú del panel, Inicio avisa de una nueva, y la Puesta a punto deja apartar lo recomendable («Después»). Visto en el ensayo local con dos versiones construidas en la PC, en los dos temas, con la vuelta atrás en staging. Sigue desplegarla en el VPS e instalar allí el actualizador; el agente de impresión es T-8c, con B7-3. **La semilla del local y el inventario en lote (B7-2 y T-10, M-24, v0.57.0):** Ajustes → Semilla del local descarga en un archivo lo que se tarda en teclear (ajustes de la sucursal, tarifas y paquetes, categorías y carta con sus precios, plano y cumpleaños) y lo carga en otro local, que solo añade lo que le falta y nunca pisa lo suyo; la semilla de la base del local ya está lista para el staging (la carga administración desde su sesión). Las entradas de mercancía son una tabla: buscar el producto, cantidad en unidades o en bultos de N, costo por unidad, por bulto o total, el último costo propuesto, pegar una lista de Excel e «Inventario inicial» para la existencia de arranque. Las categorías son una lista propia (crear, renombrar, unir, retirar) que nace con unas de arranque. El icono de la app instalada es el logo sobre transparente (y sobre claro en el adaptable de Android), con los colores del tema claro. Corregido de B9-6: una entrada con varios productos nuevos en la que uno no valía dejaba creados los anteriores. **Corrección (v0.55.1):** Inicio ponía la fecha con el reloj del servidor, que en el contenedor va en UTC: desde las 8 pm de Venezuela decía el día siguiente. Ahora es el día del local, en la zona de sus ajustes (como ya hacía Turno). **Confirmar identidad desde cualquier equipo (T-9, M-23, [ADR-029](adr/029-equipo-de-confianza-y-app-de-autenticacion.md), v0.55.0):** al instalar el staging, ni la laptop (Windows sin PIN de Hello) ni una tableta pudieron crear la llave de acceso, que era obligatoria. Ahora se instala sin llave y ese equipo queda de confianza: en él, confirmar identidad es solo la contraseña. En cualquier otro, la contraseña y el código de la app de autenticación (Google Authenticator, Authy…, configurada con un QR en Ajustes → Usuarios; un código ya usado no vale otra vez), una llave o un código de recuperación, y al confirmar se puede marcar «Confiar en este equipo». La confianza es de esa persona en ese equipo, se ve y se retira en Ajustes → Usuarios y cae al revocar el equipo. Aprobar un equipo desde sí mismo acepta la app, y el enlace de alta no exige llave. Visto en el navegador desde una instalación limpia con las imágenes de la versión, en el escritorio y el teléfono y en los dos temas. Sigue desplegarla en el staging, que sigue **sin instalar**, para que administración lo instale. **El sistema en el VPS (B7-1, v0.54.0):** L2 Control corre en el staging, `https://217-216-48-54.sslip.io` (Ubuntu 24.04, 4 CPU, 8 GB; certificado de Let's Encrypt que Caddy renueva solo; en el VPS solo escuchan 22, 80 y 443). Las claves se generaron en el VPS y no salen de él. La vuelta atrás se ensayó allí: la 0.53.1 con la comprobación forzada a fallar volvió a la 0.53.0, y después quedó en marcha. Falta que administración instale el local (código en el registro de la web). Siguen B7-2 a B7-5 y T-8b. **Corrección (v0.53.1):** al instalar el staging, Windows no pudo crear la llave de acceso y la pantalla solo dijo «No se pudo registrar la llave de acceso en este equipo», sin el motivo (el dominio `sslip.io` sí vale: se comprobó en Chromium con un autenticador virtual). Ahora dice el porqué: sin Windows Hello, dónde configurarlo o que se cree en el teléfono; una llave ya registrada; y cualquier otro fallo, con el nombre del error. **Publicar y desplegar (T-8a, M-22, v0.53.0):** el sistema tiene sus imágenes (web en Next `standalone`, worker y migrar, en `infra/docker/Dockerfile`) y un servidor de producción en `infra/produccion` (PostgreSQL, Valkey, la web, el worker y Caddy con HTTPS automático). `./desplegar.sh X.Y.Z` respalda la base, migra, arranca la versión y pregunta a la web y al worker por `/salud`; si no responden con esa versión y la base contestando, vuelve solo a la anterior y lo anota. Ensayado en esta PC: la vuelta atrás con la comprobación forzada a fallar y con una versión rota, y una versión nueva que quedó en marcha. Una etiqueta `vX.Y.Z` publica las imágenes en ghcr.io y el agente con su huella en el «release»; el CI construye las imágenes en cada PR. Sigue B7-1 (el VPS ya está contratado) y, en paralelo, T-8b. **T-8 en dos partes (M-22, 2026-10-06):** T-8a (contenedores, publicación por etiqueta y despliegue que vuelve solo atrás) va antes de B7-1, y T-8b (las actualizaciones desde el panel) en paralelo con la Etapa 7, antes de B8-3. El VPS ya está contratado y, sin dominio comprado, staging se abre por `<ip>.sslip.io` (las llaves de acceso no funcionan con una IP); antes de B8-3 se decide un dominio propio. **Logo de L2 (v0.52.3):** el acceso, el menú del panel, la pestaña del navegador y el icono de la app instalada llevan el logo oficial de la suite (`apps/web/public/logo-l2.png`, traído de L2Lab y reducido), igual en los dos temas. **Tema claro (v0.52.2, M-21):** el sistema tiene dos temas, claro (el predeterminado) y oscuro, por equipo, con el botón del sol o la luna en el acceso y en el pie del menú; solo cambian tokens, ninguna pantalla sabe en cuál está. En el claro los avisos rojos y amarillos son bloques sólidos (rojo con letra blanca, amarillo con letra azul marino). **Corrección (v0.52.1):** un doble clic al anular un cobro podía responder «Ese asiento ya se revirtió» si la segunda petición miraba su clave antes de que la primera asentara y el asiento después; ahora, si quien lo revirtió es la misma operación, devuelve lo hecho. Salió porque el CI de `main` falló con un commit que solo tocaba documentos (la prueba del doble clic caía en esa ventana una de cada muchas veces); la prueba ahora lo repite doce veces. **Instalación inicial y llaves de acceso (T-4, [ADR-020](adr/020-llaves-de-acceso.md)):** con la base vacía, el acceso ofrece «Instalar L2 Control» (código del registro del servidor, local, primera administración con contraseña, PIN y llave de acceso, diez códigos de recuperación y ese equipo aprobado), y después esa pantalla no vuelve a existir. Confirmar identidad y aprobar un equipo desde sí mismo piden contraseña + llave, o un código de recuperación; el TOTP y `pnpm totp` se retiraron. Administración da credenciales desde Ajustes → Usuarios con un enlace de 24 h con QR, que la persona completa en `/alta`. Inicio enseña la Puesta a punto, que se tacha sola. Un local sin tarifario ya abre (la entrada lo dice y el editor publica el primero). **Corrección (v0.51.1):** los avisos verdes, amarillos y rojos y la opción elegida de los selectores se leían hundidos, como un botón ya presionado, porque su fondo era más oscuro que la tarjeta; ahora tienen más luz que ella (tres tokens), el rojo de estado es un tono más claro que sí llega al contraste mínimo y el icono de un aviso rojo se mueve en bucle (el de uno amarillo, tres veces al aparecer). **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Sigue T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
-con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
-lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
-platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
-persona vuelve a entrar con su PIN), la auditoría, el outbox y los dos IGTF de prueba del 2026-10-27 (el IGTF sigue al
-0 %, V-13). Quedan personas, «PC admin», tasas, impuestos, feriados, medios, ajustes, plano, impresora «Caja» y agente
-«Laptop de caja»; 46 de 46 migraciones y ninguna fila huérfana. Queda en Impuestos un rastro de prueba: IVA general 15 %
-y 16 % programados para el 2026-10-27; manda el último (16 %), así que no cambia nada. **Precios con el IVA incluido (B2-5, M-19):** con el ajuste «IVA incluido» de la sucursal, el total es la suma de los precios del menú al céntimo y el IVA se saca de dentro. **Lo anotado en papel (B3-7, V-12, [ADR-027](adr/027-hora-real-de-lo-anotado-en-papel.md)):** si caen internet y luz, el local sigue en formularios (se imprimen desde Caja → Papel); al volver, la cajera abre una carga en su turno con la ventana del corte y carga las entradas, las salidas y los cobros (cola de cuentas y ventas de mostrador), cada uno con **la hora real del formulario**, que tiene que caer dentro del corte y con la que salen el tiempo, la tasa, el IVA, el precio y la existencia de entonces; el servidor guarda además cuándo se cargó. La carga terminada la revisa supervisión con su PIN (quien cargó no la revisa) y, mientras haya una abierta o sin revisar, el turno no se sella y la jornada no se cierra. Se distingue en la venta, en el turno, en Inicio y en la auditoría. La caja queda completa. **El día del cumpleaños (B10-2, V-10):** con el anticipo cobrado, el día empieza desde la agenda o con el primer invitado: la cuenta del día lleva el saldo y lo incluido (que sale del estante) a la caja; los invitados entran por la entrada solo con su pulsera, sin cobro, hasta los reservados; el saldo se cobra como una mesa y sale en los pendientes del cierre hasta cobrarse. Los eventos quedan completos. La base local del cliente tiene ya las tres migraciones de los cumpleaños (45 de 45, 2026-10-03), y se retiró la impresora falsa de desarrollo: la impresión se prueba con la real del local. **Corrección (v0.47.1):** con Ajustes desplegado, en el menú lateral desplaza solo su lista; la operación, la marca y la persona se quedan a la vista. **Cumpleaños con reserva y anticipo (B10-1, V-10):** administración carga los paquetes en Ajustes → Cumpleaños (precio, invitados, lo que incluyen y el anticipo, 50 % por defecto); Parque → Eventos es la agenda: al reservar, la cuenta del evento lleva el anticipo a la caja, que lo cobra con su venta; cobrado, la reserva está confirmada; sin cobrar, se cancela desde la agenda. Inicio y la apertura del turno avisan «Hoy hay un cumpleaños». El día del evento es B10-2. **Corrección (v0.46.1):** confirmar una tasa tecleándola como se ve (con dos decimales) ya vale; antes el servidor la comparaba con la tasa completa de la API y nunca coincidía. **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
-Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
-cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
-las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
-filtros, su cuenta y «Limpiar filtros». Ninguna regla de negocio cambió. **La comanda sale en papel (B6-2, ADR-022):** el pedido del mesero entra en la
-cuenta de la mesa y su comanda en la impresora de comandas en una sola transacción; sin impresora de comandas no se
-envía. Cada pedido dice si su comanda se imprime, salió, no salió o se descartó; lo que no salió se avisa en la
-tablet, en la caja y en Inicio, y se vuelve a imprimir (reintento si la cocina no la tenía, copia marcada si ya
-salió). Se retiraron la pantalla de cocina y los estados «en fuego/listo». **El restaurante empieza en el servidor (B6-1):** el plano del local se
-publica en Ajustes → Plano del local como versión (con quién y cuándo) y llega en vivo al salón; una mesa no se borra,
-se retira, y con su cuenta abierta no se retira. La carta del restaurante **es el catálogo** con la marca «en la
-carta», y Ajustes → Carta y precios la gestiona con el patrón de M-17 (resumen, filtros, páginas, hoja lateral). Una
-mesa tiene **una sola cuenta abierta** (I-05, en el servidor) y lo pedido lleva su producto: precio, IVA y existencia
-los comprueba el servidor. Ya no queda nada en `src/demo`. **Se imprime en papel (B5-2, [ADR-026](adr/026-impresion-por-agente-local.md)):**
-con el servidor en la nube, la impresora del local la alcanza un **agente** en la laptop de caja, que se vincula
-una vez con un código del panel y se conecta hacia fuera. El servidor guarda la cola (pendiente, enviado,
-confirmado o fallido, con cinco intentos) y compone el ESC/POS a 58 u 80 mm; el agente lo manda por TCP 9100 y
-pregunta antes por el papel. Salen el **recibo** (original y copias) y el **ticket del corte Z** (solo, al
-sellar); lo que no sale se avisa en la barra y en Inicio con «Reintentar». Ajustes → Impresoras configura la
-impresora y el agente. Las comandas ya tienen su impresora elegida y salen cuando los pedidos sean del servidor
-(B6-2). **Los descuentos son configurables (B3-6):** administración crea en Ajustes →
-Descuentos los que la caja puede aplicar (por medio de pago, VIP y manuales; porcentaje o monto; sobre la cuenta, el
-parque, el restaurante o unas categorías; con vigencia) y marca familias VIP en el directorio. La caja ofrece los que
-aplican, el mayor primero, uno por cuenta y antes del IVA, con la 🔐 que toca: el de medio exige cobrar toda la cuenta
-por ese medio; el manual de supervisión llega hasta el tope (20 %, ajuste del local); el VIP no pide PIN; y
-administración aplica el que quiera con su PIN y un motivo escrito. Sale en el recibo y en las excepciones del turno y
-del día. **Se cierra el Inventario (B9-6):** Productos enseña el stock primero (resumen +
-tabla o tarjetas, por tipo: Producto, Preparado, Servicio); cada producto tiene SKU automático, código de barras y
-presentación; la entrada de mercancía da de alta lo que llega por primera vez, y el código se lee en la caja (vende),
-las entradas, el conteo y Productos. **Mínimos y avisos (B9-5):** cada producto tiene su stock mínimo (punto de
-reorden) y su estado (agotado, bajo mínimo, bien); Inicio avisa de lo que hay que reponer. **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
-regalo, devolución al proveedor) sale con su motivo, y el conteo físico deja la existencia igual a lo contado; los dos
-con la 🔐 de administración (supervisión pide la suya). **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
-de movimientos de solo-agregar; sale cuando un producto entra en una cuenta, vuelve cuando se quita sin pagar y **sin
-existencia no se vende** (ADR-023): la caja enseña «Quedan N» y «Agotado». Lo que llega se carga en Inventario →
-Entradas de mercancía (compra o reposición, por bultos de tantas unidades a tanto el bulto), y cada producto tiene su
-**costo promedio ponderado** y su margen en Productos. **El Parque está cerrado (B4-5):** la monitora trabaja en el teléfono
-(entrada, sala y salida sin desplazar la página), la cámara lee las pulseras y una pulsera sirve para una sola
-visita; la serie (prefijo y longitud) se fija en Ajustes → Sucursal con el primer lote. **Los ajustes de la sucursal son del servidor (B4-4):** nombre, RIF,
-dirección, horario, formato de hora, zona horaria, residuo, umbral del arqueo y horas de una huérfana se
-publican como versión en Ajustes → Sucursal y llegan a todas las pantallas en vivo; la caja, el corte Z y la
-sala los leen de ahí, y toda hora y fecha sale con el formato y la zona del local. **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
-demás en menos de 2 s, sin sondeos. Toda escritura audita, y el asiento deja su evento en un outbox en la
-misma transacción; nace `apps/worker`, que lo publica por Socket.io con adaptador Valkey a la sala de cada
-sucursal (autorización con ticket en el apretón de manos), y cada pantalla vuelve a leer lo suyo con sus
-permisos (ADR-025). Quién está en cada puesto sale de las sesiones de la base, el bus del restaurante viaja
-por el worker y la barra dice si hay canal. La tasa del BCV se aplica siempre, salte lo que salte, y su
-consulta vive en el worker (V-14, ADR-024). **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
-la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
-a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
-servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
-huérfanas las cierra la dirección sin cobrar tiempo de más. **La caja cierra en el servidor (B3-5): lo previsto de la Etapa 3, hecho** (la visita técnica le suma B3-6 y B3-7). Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
-son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
-(B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
-servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
-feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Etapa 9 empezada: **el catálogo de productos es de la base (B9-1)**, con el precio programado por día, y la caja vende de él. **Las cuentas son de la base (B3-3)**: familia, mesa y mostrador; la caja cobra y anula contra el libro en una transacción, con el total, la tasa y la autorización comprobados en el servidor; **cada cobro deja su venta (B3-4)** con la foto de lo cobrado, y reimprimir, anular y regalar quedan en el servidor con su autorización. Sin modo demo; lo provisional y lo simulado que queda está
-inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
-número del medio cuenta los pasos entregados.
+**Versión 0.60.1 · 60 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).**
+
+- **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
+  impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
+  sala y salida en el teléfono, pulseras de un solo uso), inventario (existencias, entradas en lote, salidas, conteo,
+  mínimos), restaurante (plano, carta, pedido del mesero con comanda impresa), cumpleaños con anticipo, tiempo real
+  e impresión por un agente en la laptop de caja. El detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
+- **Staging:** `https://217-216-48-54.sslip.io` (Etapa 7). Se pone al día solo con cada versión publicada (T-8b),
+  hace un respaldo cifrado cada noche que baja una PC del local (B7-4) y pasó la revisión de seguridad (B7-5).
+  **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Respaldos), cargar la semilla
+  (Ajustes → Semilla del local) y los feriados.
+- **Ahora (M-27, 2026-10-07):** el cliente vio el sistema funcionando en el local y pidió 19 cambios (P-1 a P-19,
+  §2). Son **13 pasos nuevos**, ordenados del más complejo al más simple (§3, orden de ejecución, punto 7). Dos
+  esperan una decisión del cliente (**D-SERV** y **D-SOP**, §4); el resto se construye con la propuesta anotada y se
+  confirma al verlo.
+- **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
+  runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
+
+La historia de esta sección (qué decía al entregar cada paso y lo que se probó en la base local) está en §9.
 
 - **Infraestructura local:** `pnpm infra:up` (PostgreSQL 17 en el 5433, Valkey 8), `pnpm db:migrar`,
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
-- **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría), `@l2/application` (tarifario,
-  auditoría, equipos, sesiones, elevación, personas, excepciones, accesos, autorización 🔐, tasas y
-  su sincronización con el BCV, impuestos con vigencia, feriados bancarios, libro de pagos, turnos de caja, medios de pago, catálogo de productos, cuentas, parque y directorio de familias), `@l2/observability` (logs redactados, entorno validado). La web lee
-  la sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor.
-- **Ya van contra la base:** acceso (equipo + PIN, alta de equipos con código de emparejamiento),
-  tarifario, Dispositivos, Usuarios y permisos, Roles y accesos, Tasas de cambio (barra, caja e
-  Inicio), Impuestos y Feriados bancarios (Configuración), el turno (apertura, barra, caja e Inicio) los medios de pago (Caja → Medios de pago y los medios que ofrece la caja) el catálogo de productos (Inventario → Productos y la carta de mostrador de la caja) y las cuentas (entrada, mesas, caja, cobrar y anular), los cortes del turno y el resumen del día de Inicio, y **el parque** (entrada, sala, salida, directorio de familias y
-  los niños atendidos de Inicio). No se enseña nada inventado: lo que no existe dice «Sin datos» o «Sin turno
-  abierto». Lo demás es configuración provisional o simulación, en §5.
+- **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría y outbox), `@l2/application` (los casos de uso
+  de cada dominio, en la transacción del tenant), `@l2/observability` (logs redactados, entorno validado),
+  `apps/worker` (canal en vivo, outbox, tasa del BCV) y `apps/printer-agent` (la impresora del local). La web lee la
+  sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor, recalculado en cada petición.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → `pnpm equipos aprobar "<nombre>"` → persona →
-  PIN 1970. Para confirmar identidad, la administración pone su contraseña y su llave de acceso con el enlace de
-  alta que imprime `pnpm db:semilla` (o `pnpm credenciales "Abigail Karam"`); con ellas también aprueba un equipo
-  desde él mismo («Soy de administración»). Siempre por `http://localhost:3000`: la llave va atada a la dirección.
-  Tope: 10 solicitudes por hora desde la misma dirección.
-- **Pruebas:** `pnpm verify:db` en verde (94 de base, 500 de aplicación, 13 del worker, 6 del agente; en el dominio, 62 de tasas, 49 de impuestos, 162 de caja, 54 del parque, 43 de inventario, 11 del restaurante, 15 de impresión y 110 de identidad; 281 de contratos).
-  v0.22.0); el CI pasó en verde allí el 2026-09-26. B0-4 se cerró el 2026-10-06 al verlo en rojo con un PR de
-  prueba (#6, T-2).
-
-**La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
-viernes 25 (855,6625, solo DolarApi) y la del lunes 28 (857,0058, web del BCV), retenidas las dos. La
-del viernes la confirmó Abigail Karam al comprobar B2-1c; la del lunes se aplicó sola en cuanto hubo
-vigente. Para probar el aviso de la caja se aplicaron a mano para el domingo 27, dos veces, 860,00 y
-luego 855,6625: la vigente de ese día quedó en 855,6625, el valor del BCV. Equipos de prueba «Verif Caja» y «Verif
-Admin» revocados.
-
-**Los impuestos en la base local.** La semilla programó 16 %, 8 % y 3 % el 2026-09-27. Al comprobar
-B2-2 se programó el IVA general al 15 % (hoy y el 27 oct) y se devolvió al 16 %, y el IGTF al 2 % el
-27 oct y se canceló: rige 16 %, 8 % y 3 %, sin nada programado. Equipos «Prueba B22 Admin» y «Prueba
-B22 Caja» revocados.
-
-**Turnos de prueba abiertos en la base local.** Al comprobar B3-1 se abrió un turno en «Prueba B31
-Caja» ($ 20,00 y Bs. 1.500,00), al comprobar B3-2 otro en «Prueba B32» ($ 0 y Bs. 0,00) y al comprobar
-T-6 otro en «Prueba T6» ($ 10,00 y Bs. 0,00), los dos últimos a nombre de Abigail Karam; los tres
-equipos están revocados. Un turno no se borra ni se cierra sin corte Z, así
-que Inicio los enseña hasta B3-5, que debe permitir cerrar un turno huérfano desde otro equipo.
-
-**Medios de pago en la base local.** La migración de B3-2 dio a cada local los siete medios de §5.5
-(los que piden datos del local, apagados) y `pnpm db:semilla` cargó datos inventados: Pago Móvil
-(Banesco, 0414-2345678, J-40123456-7), Zelle (Parque Infantil L2 C.A.) y dos terminales (Punto
-Banesco y Punto Mercantil), con Pago Móvil, Punto débito y Zelle encendidos. Al comprobar B3-2 se
-añadió el medio «Biopago» (se queda apagado: un medio no se borra) y se añadió y retiró el terminal
-«Punto BNC». Punto crédito sigue apagado.
-
-**Cuentas en la base local (2026-09-28).** Al comprobar B3-3 se abrieron ocho: #0001 (mostrador, cobrada
-mixta), #0002 a #0004 (familias en cuenta abierta, se quedan abiertas: la salida no ve la sala hasta
-B4-2), #0005 (familia en prepago, cobrada; sigue abierta con el niño dentro), #0006 (mesa 1, cobrada
-en dos partes) y #0007 y #0008 (mostrador, cobradas y anuladas: vuelven a estar por cobrar). Dos turnos
-de prueba más, en «Prueba B33 Caja» ($ 10,00) y «Prueba B33 Admin» ($ 20,00); equipos «Prueba B33
-Caja», «Prueba B33 Admin» y «Prueba B33 Salón» revocados. Al comprobar B3-4, #0009 (mostrador con una
-cortesía, cobrada, impresa dos veces y anulada) y #0010 (cobrada y anulada por administración), y dos
-turnos más en «Prueba B34 Caja» y «Prueba B34 Admin» ($ 20,00 cada uno); equipos revocados.
-
-**Productos en la base local.** `pnpm db:semilla` cargó doce de ejemplo (bebidas, snacks, golosinas
-y café). Al comprobar B9-1 se creó «Pirulín» ($ 2,50) y se dejó exento, se apartó «Gomitas», el agua
-subió a $ 1,20 desde el domingo 27 y la malta tiene $ 1,75 programado para el miércoles 30. Se abrió
-un cuarto turno de prueba en «Prueba B91» ($ 10,00 y Bs. 0,00, con una venta de $ 1,31); el equipo
-está revocado.
-
-**Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
-carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
-
-**Producción arranca con la base vacía (M-12), y ya no pide consola (T-4).** El servidor escribe en su registro un
-código de instalación de un solo uso; con él, el primer administrador y su primer equipo se crean desde el navegador, y
-el segundo factor es una llave de acceso (ADR-020). `pnpm credenciales` y `pnpm equipos` quedan como puerta de emergencia.
-
-**El día completo, en cuatro momentos (M-13).** Con el cliente se fijó el 2026-09-27 cómo es la
-jornada: primer encendido, apertura, jornada y cierre, en [JORNADA.md](JORNADA.md). Lo que exige a
-la ruta está en su §6 y ya está en §3: un paso nuevo (T-6, el menú por operación) y criterios más
-completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el menú es por operación
-y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
-(sin día simulado: decisión del cliente, 2026-09-27).
-
-**El parque en la base local (2026-09-28).** Al comprobar B4-1 y B4-2 entraron tres familias de prueba:
-Carolina Méndez en prepago (#0011, cobrada con $ 20; #0013, por cobrar) y Pedro Álvarez en cuenta
-abierta (#0012 y #0014, por cobrar). Salieron todos: la sala está vacía (seis estancias cerradas). Se abrió un turno más en «Prueba B4 Caja» ($ 10,00);
-equipos «Prueba B4 Entrada», «Prueba B4 Sala» y «Prueba B4 Caja» revocados. Al comprobar B4-3: Laura Pérez
-tres veces en cuenta abierta (#0017 a #0019, por cobrar; una con una recarga de 1 hora) y la
-«Familia Olvido» (#0016, por cobrar), una huérfana de ayer creada con el caso de uso y cerrada por Luis
-Guerrero. #0015 (Luis Morandin, cobrada) es del cliente. Sala vacía; equipos «Prueba B43 …» revocados.
-
-**Limpieza para probar de cero (2026-09-28, pedido del cliente).** Todas las cuentas pendientes de prueba
-(#0002–#0005 abiertas de B3-3 y #0007–#0010, #0012–#0014 y #0016–#0019 por cobrar) se marcaron
-**incobrables** con el caso de uso de B3-5, motivo «Otro: datos de prueba», autorizadas por Abigail
-Karam con su PIN: nada se borró. No queda ninguna cuenta pendiente ni niños en sala. Los turnos
-huérfanos de prueba se cerraron al comprobar B3-5 (abajo).
-
-**Cortes en la base local (2026-09-28, al comprobar B3-5).** Supervisión (Luis Guerrero) cerró desde Inicio, con
-conteo en cero y justificación, los turnos de prueba que seguían abiertos (B31, B32, T6, B91, B33 ×2, B34 ×2 y B4
-Caja). **Por error, el mismo guion selló también el turno de «PC admin»**, el equipo del cliente (abierto por Abigail
-Karam a las 12:29 pm, con #0015 y #0020 cobradas): su Z dice $ 12,00 de diferencia y «Turno de prueba…», y un Z
-no se deshace. Hay que decírselo al cliente; su cuadre real, si lo quiere, se anota aparte. En «Prueba B35 Caja»,
-tres turnos: un relevo que cuadra (Z de la cajera), otro con $ 5,00 de faltante (Z de supervisión) y uno con
-la «Familia Prueba Jornada» (#0023), que entró, salió y se marcó incobrable. **Quedan pendientes del cliente**
-#0021 (mostrador, $ 2,78) y #0022 (Mesa 8): la jornada del local no se cerró. Equipos «Prueba B35 …» revocados.
-
-**Visita técnica (2026-09-28, M-15).** El cliente fijó cómo se trabajará en el local, y la ruta pasa de 48 a
-**55 pasos** (56 con lo nuevo, menos la gaveta, que no hay): la monitora en un **teléfono** que lee pulseras **preimpresas y de un solo uso** con la cámara;
-la caja en una **laptop**; el mesero en una **tablet**; la **cocina sin pantalla**, con la comanda impresa;
-**una impresora**, en caja, por red; el **restaurante entra en el piloto**; un **inventario mínimo y real**
-(lo que no hay no se vende); **descuentos configurables** (por medio de pago, VIP, manual y de
-administración); **reservas de cumpleaños** con anticipo; **todo en tiempo real**; y **un solo servidor en la
-nube con internet de respaldo** en el local. El detalle, en §2 (M-15); los pasos nuevos, en §3. El mismo día
-se respondieron **todas las preguntas abiertas de §4** (descuentos, eventos, pulseras, gaveta, número de orden,
-autorizarse a sí mismo, puestos, umbral de la tasa e IGTF): ya no queda ninguna del cliente para la Ruta A,
-salvo los datos maestros (F0-04) y la firma del alcance (F0-09).
-
-**El IGTF ya no se cobra (V-13).** Con el visto bueno del cliente, el 2026-09-29 se programó en Ajustes →
-Impuestos el IGTF al **0 %**, rigiendo desde ese momento, a nombre de Abigail Karam (equipo «Prueba IGTF
-Admin», revocado). Lo cobrado antes se queda como se cobró; el IVA sigue en 16 % y 8 %. La caja y el recibo
-enseñan todavía la línea del IGTF en cero hasta B3-6.
-
-**El IVA reducido no se usa en el local** (el cliente, 2026-09-29; v0.30.1): no se ofrece ni se acepta al
-crear o editar un producto, Ajustes → Impuestos no lo enseña y la caja no lo exige para cobrar. El 8 %
-programado en la base local se queda (nada se borra) pero no lo usa ningún producto; el motor lo conserva.
-
-**Pendiente con el cliente:** **contarle** lo del turno de «PC admin» (arriba).
-
-**El tiempo real en la base local (2026-09-29, al comprobar B5-1).** Entraron y salieron dos familias de
-prueba, «Prueba Vivo B51» (#0025) y «Prueba Caida B51» (registrada con el worker caído); sus cuentas
-quedaron **incobrables** («Otro: datos de prueba», autorizadas por Abigail Karam). Equipos «Prueba B51 …»
-revocados. La migración del outbox se aplicó a la base del cliente (solo añade una tabla y un disparador).
-El turno de «PC admin» abierto el 28/09 a las 7:27 pm es del cliente: no se tocó.
-
-**Los ajustes en la base local (2026-09-30, al comprobar B4-4).** Las dos migraciones de B4-4 se aplicaron a la base
-del cliente (una tabla nueva y una columna que admite nulos en el arqueo). Abigail Karam, desde el equipo «Prueba B44
-Admin», publicó la versión 1 (formato de 24 h) y la 2 (de vuelta a 12 h): rigen los valores de fábrica, con el RIF, la
-dirección y el horario sin declarar. Cambiar la zona a Bogotá se negó por el turno abierto de «PC admin», que no se
-tocó. Equipos «Prueba B44 Admin» y «Prueba B44 Inicio» revocados.
-
-**Las pulseras en la base local (2026-09-30, al comprobar B4-5).** La migración
-`20261013000000_pulsera_de_un_solo_uso` está aplicada a la base del cliente (no tenía códigos repetidos). Entraron y
-salieron tres familias de prueba, «Familia Prueba B45 6204», «… 7363» y «… 2322» (pulseras PB45-…, ya usadas); sus
-cuentas #0027 a #0029 quedaron **incobrables** («Otro: datos de prueba», autorizadas por Abigail Karam). Abigail
-publicó los ajustes 3 (serie «PB45-» de 9 caracteres) y 4 (de vuelta a sin serie): rige sin serie hasta el primer
-lote. Equipos «Prueba B45 …» revocados. Queda una cuenta pendiente, del cliente.
-
-**El inventario en la base local (2026-09-30, al comprobar B9-2 y B9-3).** Las migraciones `20261014000000_existencias`
-y `20261015000000_entradas_de_mercancia` están aplicadas a la base del cliente (tablas nuevas y columnas que admiten
-nulos; no había movimientos). Los productos del cliente que llevan existencia salen **«Agotado»** hasta que se cargue
-su primera entrada. Abigail Karam creó «Prueba B93 Refresco» (categoría «Prueba», $ 1,50) y le cargó dos compras (48 a
-$ 0,50 de «Distribuidora de Prueba», factura P-0001, y 24 a $ 0,80): quedan 72 a $ 0,60 de costo promedio. Una venta
-de mostrador de una (#0030) la descontó y se descartó sin cobrar (vuelve). El producto está **apartado** (la caja no
-lo ofrece) y sus entradas no se borran. Equipos «Prueba B92 Admin» y «Prueba B93 Admin» revocados. La migración
-`20261016000000_salidas_y_conteo` también está aplicada. Al comprobar B9-4, sobre el mismo producto: una merma de 2 de
-Abigail Karam, un consumo interno y dos regalos de 1 de Luis Guerrero (autorizados por Abigail), y dos conteos (69 → 65 y
-62 → 60) y otro rechazado por desactualizado: quedan 60. Equipos «Prueba B94 …» revocados.
-
-**El inventario se rediseña (M-16, 2026-09-30, con el cliente).** El stock es lo protagonista: Productos pasa a
-una vista de resumen (agotados, bajo mínimo, valor del inventario) con tabla, o de tarjetas. Cada producto lleva **SKU
-automático**, **código de barras** y **presentación**, y es de un **tipo**: Producto (se cuenta), Preparado (se hace al
-momento; sin stock hasta las recetas) o Servicio. Los **mínimos y sus avisos** entran ya (B9-5); la entrada de
-mercancía **crea productos** con una ficha corta; y el código se **escanea** en la caja, las entradas, el conteo y
-Productos. Sin foto por ahora. Pasos B9-5 y B9-6 (nuevo); la ruta pasa a **56 pasos**.
-
-**El inventario en la base local (2026-09-30, al comprobar B9-5 y B9-6).** Las migraciones `20261017000000_stock_minimo` y
-`20261018000000_identificacion_y_tipos` están aplicadas a la base del cliente. La segunda **falló a la primera** (la RLS
-forzada dejó sin rellenar el tipo y el SKU, y Prisma no la envolvía en una transacción): se quitaron a mano las cuatro
-columnas vacías que dejó, se marcó como revertida y se aplicó corregida (trampa nueva en §5). Cada producto del cliente
-tiene su tipo (lo que llevaba existencia es Producto; el café, los tequeños y el jugo, Preparado) y su SKU (BEB-0001…).
-«Prueba B93 Refresco» tiene mínimo 70 (60 en stock: bajo mínimo). Abigail Karam dio de alta en una entrada «Prueba B96
-Uva» (PRU-0002, código 036000291452, 72 a $ 0,60): está apartado. Equipos «Prueba B95 Admin» y «Prueba B96 Admin»
-revocados. **En la base hay datos que no son míos**: el producto «TEST pRODUCTO» (categoría «sAPO») y la venta de mostrador
-#0031 (papas fritas, por cobrar), creados el 2026-09-30 a las 9:59 pm; no se tocaron.
-
-**Los descuentos en la base local (2026-10-01, al comprobar B3-6).** La migración `20261019000000_descuentos` está
-aplicada a la base del cliente (dos tablas nuevas y una causa más en las versiones de la cuenta; no rellena nada).
-Abigail Karam creó «Prueba B36 Efectivo $» (10 %, pagando todo en efectivo en dólares), «Prueba B36 Manual 25» y
-«Prueba B36 VIP» (20 % del parque), y marcó VIP a la «Familia Prueba B36 8153». Entraron y salieron tres familias de
-prueba (8153, 1779 y 1646; pulseras PB36-…) y se cobraron en «Prueba B36 Caja» con descuento: #0032 con el VIP
-($ 4,64), #0033 con el de efectivo autorizado por Luis Guerrero ($ 5,22, después de rechazar un pago en bolívares) y
-#0034 con uno de administración del 50 % ($ 2,90). Dos turnos de prueba, los dos sellados con su Z por la cajera
-(faltó $ 0,11 en el primero, dentro del umbral). **Las tres reglas están retiradas**: la caja del cliente no ofrece
-ninguna. Equipos «Prueba B36 …» revocados. El turno de «PC admin» y las cuentas #0022 y #0031 del cliente no se tocaron.
-
-**La impresión en la base local (2026-10-01, al comprobar B5-2).** La migración `20261020000000_impresion` está
-aplicada a la base del cliente (tres tablas nuevas; no rellena nada). Abigail Karam dio de alta «Prueba B52 Caja»
-(10.2.0.2:9100, la IP de esta máquina, donde escuchaba una **impresora falsa** que guarda lo que recibe) y vinculó
-dos veces el agente «Prueba B52 Laptop». La «Familia Prueba B52 2828» entró, salió y se cobró en «Prueba B52 Caja»
-(#0037, $ 5,80); su recibo salió a 80 mm, la copia falló sin papel y salió al reintentar, y el Z del turno sacó
-solo su ticket, ya a 58 mm. **La impresora y los dos agentes están retirados** (el agente en marcha se
-desconectó en el acto) y los equipos «Prueba B52 …» revocados. Las pruebas de impresión de la cola quedan en el
-historial de la impresora retirada. **Falta el trabajo de campo:** la impresora real del cliente (marca y modelo
-aún sin saber) y la instalación del agente en su laptop.
-
-**El agente de impresión, listo para instalar (v0.39.1, 2026-10-01, pedido del cliente: «nada para después»).**
-Se adelanta de B7-3 la instalación del agente en la laptop de caja: `l2-impresion.exe` es un solo ejecutable
-(Node SEA, sin Node ni el proyecto) que se descarga en Ajustes → Impresoras con su huella; doble clic abre un
-asistente que pide pegar la dirección y el código, pide permiso de administrador una vez, comprueba el servidor y
-lo deja como **tarea de Windows** (al arrancar, con la cuenta del sistema, sin ventana, reinicio cada minuto). La
-barra avisa en ámbar «N en espera» cuando el agente no toma lo que se manda. Comprobado con el `.exe` contra la
-impresora falsa (`pnpm impresora:falsa`): descarga con sesión (401 sin ella), vincular, imprimir, aviso con el
-agente parado y salida al volver. **La instalación como tarea no se probó aquí** (pide aceptar el permiso de
-administrador en la pantalla): su definición se validó con PowerShell sin registrarla. En la base del cliente, la
-impresora «Prueba B53 Caja» y sus agentes, retirados; equipo «Prueba B53 Admin» revocado.
-
-**Ajustes → Impresoras, reordenada (v0.39.2, 2026-10-01, pedido del cliente: «más organizada, sin listas
-infinitas, con capacidad de limpiar»).** Resumen arriba (impresoras, agente, no salieron, en cola) y tres pestañas:
-impresoras en tarjetas con alta y edición en hoja lateral; cola e historial **por páginas** (10/20/50) con filtros
-de estado, impresora y tipo y vista previa del ticket; y el agente. Lo que falló o espera se **descarta** (estado
-nuevo `DESCARTADO`, migración `20261021000000_descartar_impresion`): no se imprime, apaga la alerta y queda en el
-historial y la auditoría con quién lo hizo; la base impide salir de ahí y descartar sin nombre. Comprobado a
-1366×768, 1280×800 y 800×1280 sin desplazar la página, y en teléfono. En la base del cliente: impresoras «Prueba
-B54 Barra» y «Prueba B54 Terraza» (10.2.0.2, contra la impresora falsa, con el agente del cliente) retiradas tras
-la prueba, sus trabajos descartados o impresos en el historial; equipo «Prueba B54 Admin» revocado. El cliente
-descartó dos pruebas suyas de «Caja» mientras tanto.
-
-**El restaurante en la base local (2026-10-02, al comprobar B6-1).** La migración `20261022000000_plano_y_carta`
-dejó todo lo activo en la carta (los servicios, fuera). Desde «Prueba B61 Admin», Abigail Karam publicó la **versión 1
-del plano** con el boceto del cliente (8 × 6 m; mesas 1 a 4 «Junto al parque» y 5 a 8 «Salón», de 4 sillas, con ids
-`mesa-1` a `mesa-8`, los que ya nombraban las cuentas del cliente; parque, paso al parque, entrada, caja, barra y
-cocina como rectángulos): es el plano que ve el cliente y lo puede cambiar. Las cuentas del cliente #0022 (mesa 8,
-abierta) y #0038 (mesa 1, por cobrar) siguen ahí, con «Pizza margarita» sin producto (de la carta de ejemplo). Se creó
-«Prueba B61 Tequeños» (preparado, exento, $ 4,50 y luego $ 5,00), se sacó y volvió a la carta, y el mesero Jesús
-Mendoza («Prueba B61 Salón») pidió dos en la mesa 5: cuenta #0039, cobrada ($ 10,00) en un turno de «Prueba B61 Caja»
-(Marisol Prieto) que se selló con relevo. **El ticket de ese Z no salió y se descartó** (solo ese trabajo): la
-impresora «Caja» del cliente apunta ahora a 192.168.1.194:9100, que esta máquina no alcanza. «Prueba B61 Tequeños»
-quedó apartado y la mesa 5, libre en el salón; equipos «Prueba B61 …» revocados.
-
-**La comanda en la base local (2026-10-02, al comprobar B6-2).** Migración `20261023000000_pedidos` aplicada (tabla
-`kitchen_order`, la comanda con su pedido; no rellena nada). Desde «Prueba B62 Salón», Jesús Mendoza pidió dos «Prueba
-B62 Arepa» con nota en la mesa 6: **comanda #0001**. Salió hacia la impresora «Caja» del cliente (192.168.1.194, que
-esta máquina no alcanza), así que **no salió**: la tablet lo avisó, se volvió a imprimir y volvió a fallar; sus
-trabajos se descartaron uno a uno. La cuenta #0040 ($ 6,00) se cobró en un turno de «Prueba B62 Caja» sellado con
-relevo (su Z, descartado); la arepa quedó apartada, la mesa 6 libre y los equipos «Prueba B62 …» revocados. Diego Salas
-(cocina) entró y el acceso le dijo que su puesto no usa el sistema.
-
-**Ajustes con el patrón de M-17 (2026-10-02, al comprobar T-7).** Las seis pantallas (Roles y accesos, Usuarios,
-Dispositivos, Descuentos, Tasas de cambio, Tarifas y paquetes) probadas desde «Prueba T7 Admin»: páginas de
-Dispositivos (68 equipos, con los revocados de pruebas anteriores), filtros y búsqueda por código; historial de Tasas
-por páginas y par; versiones del Tarifario con sus cambios (se intentó retirar «30 minutos», se canceló); un
-descuento de prueba creado y retirado en Descuentos; un ajuste de prueba en Roles y accesos («Dar cortesía» de Caja a
-No) devuelto a fábrica. Equipo «Prueba T7 Admin» revocado.
-
-**B6-3 hecho (2026-10-03, v0.43.0):** vincular pulseras (`casosMesas.vincular`), cargar la salida a una mesa (la salida
-elige «En caja» o «A una mesa») y anular un plato enviado (`cuentas.anularPedido`, 🔐 `pedido.anularEnProduccion`) van en
-una transacción con su comprobación; `mesa.vinculada` sale del bus. `pnpm verify:db` en verde (81 de base, 423 de
-aplicación). El navegador se probó en la **base de pruebas** `l2control_test`, con su propio local, un plano de 8 mesas
-y una impresora de comandas de prueba apuntando a la IP falsa 10.2.0.2; la base del cliente no recibió comandas.
-Sin desplazamiento ni errores de consola a 1366×768, 1280×800 y 800×1280. **Fuera de B6-3 (decidido el 2026-10-03):**
-la división por ítems (F6-12), en un paso propio.
-**Lo que tocó la prueba en la base local (la del cliente):** la vinculación de «Prueba B63» (AK-9601 y AK-9602) llevó sus
-dos paquetes a la cuenta #0038, la de la mesa 1 de Abigail del 2026-10-01 (por cobrar, con una cortesía de 8,50 $). La
-plano marcó la mesa 1 como libre hasta entonces (ver §5). **Limpiado el 2026-10-03** (decisión del cliente), por los casos de
-uso con el PIN de Abigail y sin abrir turno: los dos paquetes de #0038, regalados («Otro»), así que #0038 vuelve a estar
-como la dejó Abigail, todo regalado y en $ 0, y se libera con «Liberar mesa» (B6-5). Los dos niños salieron a las 5:09 pm;
-la salida dejó $ 3,00 de tiempo de más en la familia «Prueba B63» (#0041), marcada incobrable («Otro: datos de prueba»).
-Equipos «Prueba B63 …» revocados.
+  PIN 1970. Para confirmar identidad, la administración usa su contraseña y la app de autenticación, la llave o un
+  código de recuperación (ADR-029); el enlace de alta lo imprime `pnpm db:semilla` (o `pnpm credenciales "Abigail
+  Karam"`). Siempre por `http://localhost:3000`: la llave va atada a la dirección. Tope: 10 solicitudes por hora
+  desde la misma dirección.
+- **Pruebas:** `pnpm verify:db` en verde en `main` (la cuenta de cada paquete la da el propio comando). El CI la corre
+  en cada PR y `main` está protegido (M-20).
 
 ---
 
@@ -360,12 +79,12 @@ Equipos «Prueba B63 …» revocados.
 | **M-3** | **Nada fiscal por ahora** | F7 queda fuera, igual que el hito M1 (F3-08, las 20 facturas), la máquina fiscal y la nota de crédito. El recibo es **no fiscal**. IVA e IGTF **se siguen calculando** en el ticket, porque ya están hechos y cambian lo que se cobra |
 | **M-4** | **Entornos: primero local (Docker), luego VPS** | ⚠ **Choca con ADR-003**, que pide un servidor en el local y usa la nube solo como réplica. Con solo un VPS, un corte de internet detiene los cobros y la cocina. **Propuesta:** el VPS sirve de staging y para el piloto en paralelo, donde el método anterior hace de respaldo (F11-04). La topología final (D-INF, §4) se decide antes de retirar ese método. El servidor se empaqueta en Docker para que la misma imagen corra en el VPS o en un mini-PC sin cambios. **Resuelto por M-15 ([ADR-021](adr/021-servidor-en-la-nube.md)):** un solo VPS, con internet de respaldo en el local |
 | **M-5** | **Un solo documento vivo y handoff a petición** | Este archivo. El protocolo está en §8 |
-| **M-7** | **Alta de equipos con buenas prácticas** (2026-09-26, pedido del cliente) | Amplía F2-02. El primer equipo de un local, o el que sustituye a uno perdido, se aprueba **desde él mismo con la contraseña y el TOTP** de quien gestiona personas (nunca con un PIN, y sin enseñar nombres en un equipo no aprobado); la consola `pnpm equipos` queda como puerta de emergencia. Cada equipo enseña un **código de emparejamiento** que quien aprueba compara. Una solicitud **caduca a las 24 h** y se renueva desde el equipo. Tope de 10 solicitudes por hora y dirección y de 20 pendientes por sucursal. Regla de operación (runbook, B8-2): **siempre dos equipos de administración aprobados** |
 | **M-6** | **Fuera el modo demo y el simulador** (2026-09-26), y **todo el backend según esta ruta** | Se retiran el chip «DEMO», su panel, los escenarios, el reloj acelerado, `NEXT_PUBLIC_DEMO` y `L2_FUENTE_DE_DATOS`: la app corre siempre contra su servidor. Queda el bus de eventos (`features/operacion`), que no era simulado y en B5-1 viaja por el servidor. Lo que aún no tiene backend usa datos provisionales de `src/demo`; **cada paso borra el suyo** (tabla en su README). Cambio de alcance sobre F1-19 (DEC-22), pedido por el cliente |
-
+| **M-7** | **Alta de equipos con buenas prácticas** (2026-09-26, pedido del cliente) | Amplía F2-02. El primer equipo de un local, o el que sustituye a uno perdido, se aprueba **desde él mismo con la contraseña y el TOTP** de quien gestiona personas (nunca con un PIN, y sin enseñar nombres en un equipo no aprobado); la consola `pnpm equipos` queda como puerta de emergencia. Cada equipo enseña un **código de emparejamiento** que quien aprueba compara. Una solicitud **caduca a las 24 h** y se renueva desde el equipo. Tope de 10 solicitudes por hora y dirección y de 20 pendientes por sucursal. Regla de operación (runbook, B8-2): **siempre dos equipos de administración aprobados** |
 | **M-8** | **La tasa del BCV se aplica sola y llega en vivo a todas las pantallas** (2026-09-26, pedido del cliente, [ADR-019](adr/019-tasa-automatica.md)) | Cambia §5.2 y F3-04 (confirmación humana de toda tasa automática). Salvaguardas: solo se aplica sola la de la web oficial del BCV con TLS verificado; si salta más del 10 % respecto de la vigente, si es la primera o si solo respondió un tercero, **no** se aplica y sale alerta crítica; si dos fuentes discrepan para el mismo día, no se captura. Todo queda auditado como «Aplicada automáticamente». La carga manual de administración también se aplica al guardarla (supervisión sigue con 🔐). En vivo: sondeo de 60 s hasta B5-1, push después. Un cobro en curso conserva su tasa y avisa si cambió (ADR-005) |
 | **M-9** | **El inventario vuelve al plan** (2026-09-26, pedido del cliente; revierte esa parte de M-1) | Nueva **Etapa 9** (catálogo de productos, movimientos de solo-agregar, compras con costo promedio, ajustes con motivo y 🔐, alertas y conteo físico). Su primer paso, el catálogo, va antes del cobro en servidor (B3-3), que lo necesita. Recetas, descarga al marcar LISTO y merma (F8-03, F8-04, F8-09) van con el restaurante (B6-4), porque dependen de las comandas |
 | **M-10** | **Versionado semántico visible** (2026-09-26, pedido del cliente) | SemVer 2.0.0. **MAJOR** 0 hasta producción; **1.0.0 = puesta en marcha** (B8-4). **MINOR** +1 por cada paso de la ruta entregado: la versión dice cuántos van. **PATCH** +1 por cada corrección entre pasos. Staging publica `-rc.N`. Fuente única: `version` del `package.json` raíz; `CHANGELOG.md` por versión (Keep a Changelog, en español) y etiqueta git `vX.Y.Z` en cada entrega. Se ve en el acceso y en Configuración con su etapa: «v0.14.0 · Etapa 2 · Dinero». La etapa es la del trabajo en curso (la del siguiente paso de la ruta), no la del último paso entregado (aclarado el 2026-10-05: tras B2-5 decía «Etapa 2 · Dinero»). Punto de partida: **0.13.0** |
+| **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
 | **M-12** | **Puesta en marcha sin consola y sin apps de terceros** (2026-09-27, pedido del cliente; [ADR-020](adr/020-llaves-de-acceso.md)) | Producción arranca vacía: el primer administrador y su equipo se crean desde el navegador con un código de instalación de un solo uso. El segundo factor pasa de TOTP a **llaves de acceso** (Windows Hello, el bloqueo del teléfono), dos por administrador, más diez códigos de recuperación impresos. Las credenciales de administración se dan desde el panel con un enlace de alta (QR). Paso **T-4**, antes de staging |
 | **M-13** | **La app se ordena por la jornada** (2026-09-27, pedido del cliente; [JORNADA.md](JORNADA.md)) | El objetivo es operar el parque y el restaurante con un camino feliz. El menú pone arriba lo que se opera (Inicio, Parque, Restaurante, Caja) y abajo, en «Ajustes», lo que se configura (impuestos, feriados, medios, tasas, tarifas, carta, plano, personas, equipos). Turnos y Ventas del turno son **una sección, Turno**. Primer uso con asistente corto y «Puesta a punto» en Inicio; la cajera abre el turno y el sistema comprueba; relevo con corte, arqueo a ciegas, Z por umbral ($ 1,00, firma de supervisión por encima) y **ninguna jornada se cierra con pendientes**; ticket de corte impreso y resumen del día en Inicio. Nuevo paso **T-6**; la ruta pasa a 48 pasos |
 | **M-14** | **El parque primero** (2026-09-28, pedido del cliente: «hacer funcional parque, urgente») | B3-5 queda en pausa a medias (dominio, contrato, base y caso de uso, sin pruebas ni pantalla) y el parque (B4-1 a B4-3) pasa delante, **sin esperar a B5-1**: la sala llega a los demás equipos por sondeo de 5 s, como las cuentas desde B3-3, y B5-1 la empujará en vivo. Las estancias, las familias y el precio del parque salen del navegador |
@@ -381,7 +100,7 @@ Equipos «Prueba B63 …» revocados.
 | **M-24** | **La semilla del local y el inventario en lote** (2026-10-07, decisiones del usuario al revisar el staging recién instalado) | El staging nació vacío: ni el plano, ni la carta con sus precios, ni los cumpleaños, ni las tarifas y paquetes que ya estaban en la base del local, ni categorías. **B7-2 se desbloquea:** una **semilla** se descarga de un local (Ajustes → Semilla) y se carga en otro, que solo **añade lo que le falta** y nunca pisa lo que ya tiene; lleva los ajustes de la sucursal, tarifas y paquetes, la carta con sus categorías y precios, el plano y los cumpleaños, y nada más (ni personas, ni medios de pago, ni impuestos, ni existencias: el inventario se carga a mano en el local). La misma semilla sirve después para producción. **Inventario, tras una auditoría** (paso nuevo **T-10**): la línea de una entrada es **flexible** (unidades sueltas o bultos de N; el costo por unidad, por bulto o el total de la línea de la factura) y recuerda el último costo; la entrada es una **tabla** que se llena con el teclado, admite **pegar una lista copiada de Excel o Google Sheets** y tiene un modo **«inventario inicial»** para la existencia de arranque; las **categorías son una lista propia** (crear, renombrar, unir) que nace con unas de arranque y viaja en la semilla. Y el **icono de la app instalada** es el logo de L2 en Android, sin el cuadrado oscuro. Todo en una sola entrega. La ruta pasa a 65 |
 | **M-25** | **T-8b en dos: el panel ahora, el agente después** (2026-10-07, decisión del usuario: empezar T-8b «para ver cómo se comporta en producción») | El agente de impresión se actualiza en la laptop de caja real, con permiso de administrador de Windows, y eso se prueba en el local. Se parte: **T-8b** (Ajustes → Sistema, el actualizador del VPS, staging al día con cada versión publicada, la vuelta atrás avisada en el panel y las pantallas que se ponen al día solas) va ya y se ve en el staging; **T-8c** (el agente se actualiza solo, con su huella y su vuelta atrás) va con B7-3, en el local. Los dos, antes de B8-3. La web solo **pide** la actualización (una fila en la base, auditada); la ejecuta un actualizador del VPS que comprueba que no haya turnos abiertos ni niños en sala: la web no toca Docker. La ruta pasa a 66 |
 | **M-26** | **Los respaldos los baja una PC del local** (2026-10-07, decisión del usuario para B7-4, frente a Backblaze B2 o Google Drive) | Sin terceros ni cuentas nuevas: el VPS hace cada noche un volcado **cifrado con una clave pública** (la privada no está en el servidor) y una tarea programada de Windows en una PC del local lo descarga por HTTPS con su usuario y contraseña, comprueba su huella y guarda la escalera (diarios, semanales, mensuales). El servidor anota cuándo lo bajó la PC, y el panel avisa si el respaldo no se hizo o si la PC no lo bajó: una copia que dejó de salir no puede pasar en silencio. El riesgo aceptado: si esa PC pasa días apagada, la única copia es la del VPS. Con un volcado diario, lo que se puede perder es hasta un día (PLAN §10.4 pide 15 minutos con WAL continuo: queda en §5) |
-| **M-11** | **Cero código demo o simulado en producción** (2026-09-26, pedido del cliente) | Todo lo provisional o simulado está inventariado en §5 con el paso que lo borra, y un paso no está hecho si deja simulado algo suyo. Antes del staging, **T-2** lo impone en CI: `src/demo` borrada, sin datos de negocio en `sessionStorage`/`localStorage`, sin PINs literales ni listas inventadas |
+| **M-27** | **Lo pedido en la primera visita con el sistema** (2026-10-07, el cliente lo vio funcionar en el local) | Diecinueve pedidos (P-1 a P-19, abajo) que se vuelven **13 pasos nuevos**: B3-8, B4-7 a B4-10, B6-7, B6-8 y T-11 a T-16. Se construyen del más complejo al más simple y, si uno espera una decisión, se sigue con el siguiente que no la espera (regla del usuario). Cambia I-05: una mesa admite varias cuentas abiertas (B6-7). Dos decisiones nuevas, D-SERV y D-SOP (§4). La ruta pasa a **79** |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -405,6 +124,40 @@ cinco reglas de CLAUDE.md no se relajan.
 | **V-12** | **Papel**: si caen los dos enlaces, se anota en formularios; al volver, **la cajera lo carga en su turno**, marcado «desde papel» con la hora real anotada, y **supervisión lo revisa** en el cierre (cierra JORNADA §7.4) | B3-7 |
 | **V-13** | **No se cobra IGTF por ahora** (el cliente, 2026-09-28): se programa al 0 % en Ajustes → Impuestos y el motor se queda para cuando vuelva. Con el IGTF al 0 %, la caja y el recibo no enseñan su línea. Cambia lo que M-3 decía del IGTF; el IVA sigue | ~~Ajustes~~ (hecho el 2026-09-29); ~~B3-6~~ (la línea) |
 | **V-14** | **La tasa del BCV es siempre la que trae la API**: se retira el umbral de salto de ADR-019 (D-CORD). Si la API falla, administración (o supervisión con 🔐) la carga a mano en Ajustes → Tasas y se aplica al guardarla, como ya hace; en dólares se cobra siempre. Cuando la API trae la del día, la reemplaza | B5-1 |
+
+
+**M-27 en detalle.** Lo que se vio, lo que se hará y en qué paso. Donde dice **propuesta**, se construye así y se
+confirma con el cliente al verlo (como D-AUT o D13); lo que de verdad espera una decisión está en §4.
+
+| # | Lo que se vio | Lo que se hará | Paso |
+|---|---|---|---|
+| **P-1** | Niños con capacidades especiales que no toleran la pulsera | **Propuesta:** entran **sin pulsera**. La entrada lo marca por niño; el nombre pasa a ser obligatorio y se puede añadir una seña («camisa roja»). El servidor le da un código interno que ningún lector puede producir, y en la sala, la salida y la caja se le encuentra por nombre o por su representante, con el chip «Sin pulsera». Aforo, tiempo y cobro, como cualquiera | B4-8 |
+| **P-2** | Clientes que no están en una mesa: de pie, haciendo pedidos | El mesero abre desde la tablet una **cuenta de pie** con un nombre o una seña y le pide como a una mesa; su comanda sale «DE PIE · nombre» y se cobra en la caja como cualquier cuenta | B6-7 |
+| **P-3** | Mesas compartidas: familias distintas en la misma mesa por el aforo | **Propuesta:** **varias cuentas en una mesa**, una por familia y con su nombre. El mesero elige a cuál pide, la comanda dice «Mesa 3 · Familia Pérez», y cada una se cobra, se vincula y se libera por separado; la mesa queda libre cuando no le queda ninguna. Cambia I-05. La ocupación del plano pasa a salir del servidor (las cuentas abiertas), lo que salda la deuda del bus (§5) | B6-7 |
+| **P-4** | Una sección para que el personal reporte problemas y reciba ayuda: captura, errores reconocidos, ayuda que resuelve, manual y un recorrido con spotlight | **Reportar** desde cualquier pantalla (y desde cada error) con la captura y el contexto que el sistema pone solo; una bandeja con estados que quien reporta sigue, y los reportes del mismo error agrupados («ya está reportado»), en T-11. **Ayuda** de la pantalla en la que se está, manual por rol con búsqueda, la solución de cada error conocido y **recorridos guiados**, en T-12. **Recomendación sobre el recorrido:** automático la primera vez que cada persona abre cada pantalla de operación (corto, de 3 a 5 pasos, se puede saltar) y a petición desde el botón de ayuda; lo visto se guarda por persona en el servidor, porque los equipos del local son compartidos. El canal hasta el desarrollo y lo «inteligente», D-SOP | T-11, T-12 |
+| **P-5** | ¿Imprimir o no el ticket de caja? | **Recomendación:** un interruptor «Imprimir recibo» en el cobro, a la vista y con su tecla, que arranca con lo que diga un ajuste de la sucursal (de fábrica, imprimir, que es lo de hoy). Sin imprimir, el recibo se saca después desde Ventas. El corte Z y las comandas se imprimen siempre | B3-8 |
+| **P-6** | Medias: quien no las trae las paga | **Propuesta:** un ajuste de la sucursal elige el producto «Medias» del inventario; la entrada pregunta por cada niño «Trae medias» (sí, de fábrica) y, si no, carga el par a la cuenta de la familia. Sale del inventario y, sin existencia, no se vende (ADR-023): la monitora lo ve | B4-9 |
+| **P-7** | Recepción: los botones de tiempo (30 min, 1 hora…) cortan el texto; administración quiere dar cortesía o eliminar una pulsera | Los paquetes, como tarjetas con un icono que dice la duración (un arco de reloj; el pase libre, infinito), el nombre entero y el precio debajo (T-15). Desde la sala, administración (supervisión con 🔐) **regala el tiempo** de un niño con un motivo o **anula su entrada** registrada por error: sale sin cobro y deja el aforo; nada se borra (B4-10) | T-15, B4-10 |
+| **P-8** | La pulsera se tiene que poder escribir a mano en el parque, la caja y la tablet | El lector admite **escribir el código** (botón «Escribir», con la misma validación) en la entrada, la sala, la salida, la caja y la tablet del mesero | T-15 |
+| **P-9** | «Por cobrar» corta los nombres | Un nombre que no cabe se desliza solo (marquesina) y se queda quieto si el equipo pide menos movimiento | T-15 |
+| **P-10** | Medios de pago: el icono primero y el nombre debajo | Icono arriba, grande; el nombre debajo, entero | T-15 |
+| **P-11** | Un camino de solo teclado para cobrar más rápido | Cobrar sin ratón: la cuenta, el medio, el monto, el recibo y confirmar, con los atajos a la vista | B3-8 |
+| **P-12** | En la carta de la caja el precio doble se ve apretado | Selector «$ · Bs · Ambos», recordado por equipo (como el tema) | T-15 |
+| **P-13** | En el acceso, usar el teclado: una tecla por persona y el PIN escrito | Con teclado físico, cada persona lleva su tecla (1 a 9 por orden; con más, se escribe su inicial); el PIN se escribe o se pega; Intro entra, Retroceso borra y Esc vuelve | T-14 |
+| **P-14** | Pausa del tiempo de una pulsera cuando el niño sale a comer: máximo 10 min, luego corre solo, una sola vez por pulsera | **Una pausa por visita, de hasta 10 minutos** (ajuste de la sucursal, 10 de fábrica): el reloj se detiene y vuelve a correr solo al cumplirse, o antes si la monitora la termina. **Propuesta:** el niño sigue contando en el aforo (su sitio está guardado) | B4-7 |
+| **P-15** | Roles: a una persona creada con un rol se le suben los permisos y no cambia nada (p. ej., darle a supervisión el inventario inicial y todo el inventario) | **Fallo encontrado** (no es una caché: el servidor recalcula el permiso en cada operación): dar de alta productos y categorías, y el inventario inicial con productos nuevos, exigen `catalogo.modificar`, que es **intocable**: no se ajusta por rol ni se concede por persona y además pide confirmar identidad. Acción nueva `inventario.catalogo`, ajustable; cada sección del menú contra lo que exige su servidor; y la prueba de que un cambio de permisos llega en vivo | T-13 |
+| **P-16** | Un estudio de jerarquía: títulos, subtítulos, iconos y tamaños | La escala de texto y de iconos en tokens, con su porqué, aplicada a las piezas comunes | T-16 |
+| **P-17** | Cada persona cambia su PIN desde su propia configuración | «Mi cuenta» en el menú de la persona: el PIN actual y el nuevo dos veces, con sus reglas y su bloqueo | T-14 |
+| **P-18** | Inicio usa todo el ancho; las demás secciones dejan márgenes a los lados | Todas las secciones del panel con el ancho de Inicio | T-16 |
+| **P-19** | Administración quiere medir la atención en las mesas: cuánto llevan sentados, cuánto esperaron un pedido, y quién está sin atender | Por cuenta del salón: sentada desde, sin pedir desde y esperando desde, con aviso de las que pasan del umbral y el resumen del día. Medir la espera de un pedido exige saber cuándo se sirvió, y ADR-022 retiró «listo/entregado»: D-SERV | B6-8 |
+
+**Auditoría del pedido (2026-10-07).** Lo que el texto no decide y cómo se leyó, para que se corrija si no es así:
+«eliminar una pulsera» se lee como anular una entrada registrada por error (no como borrar: regla 5); «asignar una
+tecla a usuario» se lee como tecla automática por orden, no elegida en un panel; «copiar el pin con teclado», como
+escribirlo o pegarlo; «sección inteligente» y «manual inteligente», sin IA de terceros mientras D-SOP no diga otra
+cosa; «Botones de Tiempo… estamos el monitor de parque» se lee como que el monitor de parque trabaja con ellos en el
+teléfono, así que T-15 los mide también a 390 px; la pausa «máxima 10 min» se hace ajuste con 10 de fábrica, y «una
+pausa por pulsera» es una por visita (la pulsera ya es de un solo uso, V-1).
 
 ---
 
@@ -445,7 +198,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    B3-1 se adelantó a B2-4 el 2026-09-27 (decisión del cliente): el día de negocio lo asigna el turno
    (ADR-009), así que el turno tenía que existir antes.
 2. ~~B3-2 → T-6 → B9-1~~ (catálogo, que el cobro necesita) →
-   **B3-3** → B3-4 → B3-5 (se cierra Caja).
+   ~~B3-3 → B3-4 → B3-5~~ (se cierra Caja).
 3. ~~B4-1 → B4-2 → B4-3 → B3-5 → B5-1~~ (todo en tiempo real, V-8) → ~~B4-4~~ → ~~B4-5~~ (la monitora en el
    teléfono; se cierra Parque). M-14 adelantó el parque a B3-5 y a B5-1: mientras no haya tiempo real, la
    sala viaja por sondeo de 5 s.
@@ -453,11 +206,16 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 5. ~~B6-1~~ (con Carta y Plano en el patrón de M-17) → ~~B6-2~~ (comanda impresa) → ~~T-7~~ (el resto de Ajustes en ese
    patrón) → ~~B6-3~~ (restaurante, en el piloto por M-15) → ~~B6-5~~ → ~~B6-6~~ → ~~B4-6~~ (M-18) → ~~B10-1~~ → ~~B10-2~~ (eventos). B6-2 va antes que T-7 porque el
    cliente ya prueba el restaurante y la comanda no sale en papel hasta B6-2 (2026-10-01).
-6. ~~B3-7~~ (carga desde papel) → ~~B2-5~~ (IVA incluido, M-19) y los datos reales del local → **T-2** (cero simulación) → **T-4** (instalación inicial y llaves de acceso)
+6. ~~B3-7~~ (carga desde papel) → ~~B2-5~~ (IVA incluido, M-19) y los datos reales del local → ~~T-2~~ (cero simulación) → ~~T-4~~ (instalación inicial y llaves de acceso)
    → ~~T-8a~~ (publicar y desplegar, M-22) → ~~B7-1~~ (VPS) → ~~T-9~~ (confirmar identidad desde cualquier equipo, M-23) → ~~B7-2 y T-10~~ (la semilla del local y el inventario en lote, M-24) → ~~T-8b~~ (actualizaciones desde el panel, M-25) → ~~B7-4~~ (respaldos, M-26) → ~~B7-5~~ (seguridad), y B7-3 con **T-8c** (el agente se actualiza solo) en el local
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
+7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
+   **B6-7** (varias cuentas por mesa y de pie) → B4-7 (pausa) → B4-8 (sin pulsera) → T-12 (ayuda y recorridos) →
+   B4-10 (cortesía y anular desde la sala) → B4-9 (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
+   y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
+   **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
-Fuera de la cuenta de 66: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -710,6 +468,35 @@ Fuera de la cuenta de 66: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   el último costo propuesto; el inventario inicial con «Traer todos»; a 1366×768 y 390×844, en claro y en oscuro. Salieron
   y se corrigieron: el inventario inicial proponía bultos (10 eran 240 unidades) y la hoja de categorías cortaba los
   nombres con tres botones.*
+
+- [ ] **T-11 · Reportar un problema** (M-27, P-4; el canal hasta el desarrollo espera D-SOP).
+  → Desde cualquier pantalla, y desde cada error, la persona cuenta qué pasó; el sistema adjunta la captura, la
+  pantalla, la versión, el equipo, su rol y los últimos errores, sin datos de cobro ni PIN (PLAN §7.6). El reporte
+  queda en el servidor con sus estados (nuevo, visto, en curso, resuelto en la versión X), que quien lo envió sigue
+  en «Mis reportes»; los que traen el mismo error se agrupan y quien reporta ve que ya se conoce.
+- [ ] **T-12 · Ayuda dentro de la app y recorridos guiados** (M-27, P-4).
+  → Un botón de ayuda en cada pantalla abre lo que dice el manual de esa pantalla para el rol de quien la usa, con
+  búsqueda en todo el manual; cada error conocido trae su solución. La primera vez que una persona abre una pantalla
+  de operación ve un recorrido corto con spotlight (se salta y se vuelve a pedir desde la ayuda); lo visto se guarda
+  por persona en el servidor. El manual por rol se escribe una vez y lo reutiliza B8-2.
+- [ ] **T-13 · Roles que se pueden dar** (M-27, P-15).
+  → Acción nueva `inventario.catalogo` (alta y ficha de productos y categorías; cambiar el precio de lo que existe
+  sigue en `catalogo.modificar`), ajustable por rol y por persona y sin confirmar identidad: con ella, supervisión
+  da de alta productos y carga el inventario inicial. Cada sección del menú pide lo mismo que su servidor (escrito en
+  una prueba); Roles y accesos dice por qué una celda no se ajusta; un cambio de permisos llega a la sesión abierta
+  sin volver a entrar (visto con dos equipos).
+- [ ] **T-14 · Mi PIN y el acceso con teclado** (M-27, P-13, P-17).
+  → «Mi cuenta» cambia el PIN propio (el actual y el nuevo dos veces, con sus reglas y su bloqueo, auditado). En el
+  acceso, con teclado físico, cada persona tiene su tecla, el PIN se escribe o se pega, Intro entra y Esc vuelve.
+- [ ] **T-15 · La operación se lee de un vistazo** (M-27, P-7, P-8, P-9, P-10, P-12).
+  → Paquetes de tiempo con icono y el nombre entero; el código de la pulsera se escribe a mano en la entrada, la sala,
+  la salida, la caja y la tablet; «Por cobrar» con marquesina para los nombres largos; medios de pago con el icono
+  arriba y el nombre debajo; la carta de la caja en $, en Bs o con los dos, recordado por equipo. Ningún texto
+  cortado a 1366×768, 1280×800, 800×1280 ni a 390 px, en los dos temas.
+- [ ] **T-16 · Jerarquía tipográfica y ancho completo** (M-27, P-16, P-18).
+  → La escala de texto (título de página, de sección y de tarjeta, subtítulo, cuerpo, etiqueta, cifra) y la de
+  iconos por superficie, en tokens y con su porqué en el README de `@l2/ui`, aplicada a las cabeceras y piezas
+  comunes; todas las secciones del panel con el ancho de Inicio.
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -1295,6 +1082,12 @@ Fuera de la cuenta de 66: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   rechazadas; la revisión con PIN; las hojas en pantalla y en PDF (2 páginas); a 1366×768, 1280×800 y 800×1280 sin
   desplazar el documento y sin errores de consola. `pnpm verify:db` en verde.*
 
+- [ ] **B3-8 · Cobrar con el teclado y el recibo a elección** (M-27, P-5, P-11).
+  → Una cuenta se cobra de punta a punta sin el ratón: buscarla o leer su pulsera, el medio por su número, el monto,
+  el recibo y confirmar, con los atajos a la vista. El interruptor «Imprimir recibo» arranca con el ajuste de la
+  sucursal (de fábrica, imprimir); lo que no se imprimió se saca después desde Ventas. Medido con Playwright solo
+  con el teclado.
+
 ### Etapa 4 · Parque (F5, es el producto)
 
 - [x] **B4-1 · `Guardian`, `Kid` y `ParkSession`**, sin entidad pulsera. El código solo es único entre
@@ -1465,6 +1258,23 @@ Fuera de la cuenta de 66: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   **Web:** aviso en la entrada; la salida dice el paquete elegido (con sus recargas) tachado y el que se cobra; la caja
   pinta lo «cambiado por uso» tachado (`agruparFilas`). Navegador en la base de pruebas a 1366×768, 1280×800 y
   800×1280. El caso de la mesa se comprobó contra la base, no en el navegador.*
+
+- [ ] **B4-7 · Pausa por comida** (M-27, P-14).
+  → La monitora pausa el reloj de un niño una vez por visita; a los 10 minutos (ajuste de la sucursal) vuelve a
+  correr solo, o antes si ella lo reanuda. Una segunda pausa la niega el servidor; la salida y el tiempo de más
+  cuentan sin la pausa; la sala enseña «En pausa» con lo que le queda. Solo-agregar.
+- [ ] **B4-8 · Entrar sin pulsera** (M-27, P-1).
+  → Un niño entra sin pulsera con su nombre (obligatorio) y una seña; el servidor le da un código interno que un
+  lector no puede producir; se le encuentra por nombre en la sala, la salida y la caja, con el chip «Sin pulsera»;
+  aforo, tiempo y cobro, como los demás.
+- [ ] **B4-9 · Medias en la entrada** (M-27, P-6).
+  → Con el producto de medias elegido en Ajustes → Sucursal, la entrada pregunta por cada niño si trae medias; si
+  no, la cuenta de la familia lleva el par y el inventario lo descuenta; sin existencia, la entrada lo avisa y no lo
+  vende.
+- [ ] **B4-10 · La sala para administración: cortesía y anular una entrada** (M-27, P-7).
+  → Desde la tarjeta del niño, administración (supervisión con 🔐) regala su tiempo con un motivo o anula su
+  entrada registrada por error: sin cobro, fuera del aforo y su línea fuera de la cuenta si no se cobró. Queda en la
+  auditoría y en las excepciones del turno; nada se borra.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -1837,6 +1647,14 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
   cuenta en la ruta. ADR-023 supersede la descarga al marcar LISTO de ADR-012: su disparador será otro ADR.
 
+- [ ] **B6-7 · Varias cuentas en una mesa y cuentas de pie** (M-27, P-2, P-3).
+  → Una mesa admite varias cuentas abiertas, cada una con su nombre (cambia I-05); el mesero elige a cuál pide y la
+  comanda la nombra; cada una se cobra, se vincula y se libera por separado. El mesero abre una cuenta de pie, sin
+  mesa, y le pide igual. El plano lee la ocupación del servidor (las cuentas abiertas de cada mesa), no del bus.
+- [ ] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; espera D-SERV).
+  → Administración ve, por cuenta del salón, cuánto lleva sentada, cuánto sin pedir y cuánto esperando lo pedido,
+  con aviso de las que pasan del umbral; el día deja su resumen (espera media y máxima).
+
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
 - [x] **B10-1 · Reservas con agenda y anticipo**: fecha y horario, cliente (del directorio de familias),
@@ -1991,8 +1809,8 @@ antes del cobro en servidor (orden de ejecución).
 | ~~D-INF~~ | Producción solo en un VPS, o servidor en el local | **Decidido el 2026-09-28 (M-15, ADR-021):** un solo VPS, con internet de respaldo 4G y UPS en el local; si caen los dos enlaces, papel (B3-7) | B8-1 |
 | ~~D-JOR~~ | Lo abierto de la jornada (JORNADA §7) | **Decidido el 2026-09-28:** una cuenta que no se puede cobrar se marca **incobrable** con motivo y 🔐 de supervisión (sale en las excepciones y deja cerrar la jornada; nada se borra); en el **relevo** la que sale retira lo vendido y deja solo el fondo, que la que entra declara al abrir; la diferencia en bolívares se lleva a dólares **con la tasa del turno** y cuenta contra un solo umbral de $ 1,00. Queda abierta la carga del papel (B8-2) | B3-5 |
 | ~~D-RES~~ | ¿El piloto incluye el restaurante en el sistema? | **Decidido el 2026-09-28 (M-15):** sí, sin pantalla de cocina (ADR-022) | Etapa 6 |
-| F0-04 | Datos maestros reales: tarifas, carta, precios y personas | Los editores ya existen para cargarlos | B7-2 |
-| F0-03 | Medidas reales del local para el plano | — | B6-1 |
+| ~~F0-04~~ | Datos maestros reales: tarifas, carta, precios y personas | **Hecho:** la base del local los tiene (M-19) y la semilla los lleva a otro local (B7-2); las personas se dan de alta en el panel | B7-2 |
+| ~~F0-03~~ | Medidas reales del local para el plano | **Hecho:** el plano v1 es el boceto del cliente (B6-1), y lo cambia desde Ajustes → Plano | B6-1 |
 | ~~D7~~ | Quién asigna los puestos de trabajo | **Decidido el 2026-09-28:** salen del rol y del equipo aprobado (`PUESTO_DE_ROL`), sin pantalla de asignación | B1-5 |
 | ~~D9~~ | Un niño que sale sin su representante | **Decidido el 2026-09-28:** la salida pregunta «Lo recoge: su representante u otra persona» y, si es otra, su nombre; no bloquea, pero queda constancia. Y una estancia es **huérfana** si sigue abierta desde un día anterior o lleva más de 8 horas: no cuenta en el aforo y la dirección la cierra con motivo, sin tiempo de más | B4-3 |
 | ~~D13~~ | Número de orden continuo o diario | **Decidido el 2026-09-28:** continuo, por sucursal (como está) | B3-4 |
@@ -2000,6 +1818,8 @@ antes del cobro en servidor (orden de ejecución).
 | ~~F-12~~ | ¿El teléfono entra en el objetivo? | **Sí (M-15):** la monitora trabaja en un teléfono | B4-5 |
 | D-REIMP | ¿Reimprimir un recibo pide 🔐 a la caja? (B7-5) | PLAN §7.3 marca «Reimprimir documento» 🔐 para supervisión y caja; B3-4 lo dejó como copia marcada y auditada, sin autorización, y nadie lo anotó como decisión. **Propuesta:** dejarlo así (el recibo no es un documento fiscal, sale «COPIA», queda en la auditoría y en las excepciones del turno) y anotarlo; o pedir el PIN de supervisión desde la segunda copia | B8-3 |
 | F10-09 | Calendario de actualización de dependencias | **Propuesta:** el CI ya rechaza un aviso alto o crítico; además, cada mes (primera semana) una revisión de `pnpm outdated` con parches y menores en una rama, y las mayores como paso propio | B8-3 |
+| D-SERV | ¿El mesero marca «Servido»? (M-27, P-19) | Para medir cuánto esperó un pedido hay que saber cuándo llegó a la mesa, y ADR-022 retiró «listo/entregado». **Propuesta:** un toque «Servido» por pedido en la tablet; si no se marca, el pedido sigue contando como esperando y el informe lo dice. Sin ese toque, B6-8 mide solo el tiempo sentado y sin pedir | B6-8 |
+| D-SOP | ¿Cómo llega un reporte al desarrollo, y qué es lo «inteligente»? (M-27, P-4) | **Propuesta:** el reporte, con su captura, se queda en el servidor del local y administración lo ve en Ajustes → Soporte; el desarrollo entra con una cuenta de soporte propia (de administración, sin turno) y recibe un aviso por correo sin la captura ni datos del local. Lo «inteligente», sin IA de terceros: ayuda de la pantalla, búsqueda y la solución de cada error conocido por su código. Un asistente con IA (Claude) se puede sumar después: cuesta por uso y saca el texto del servidor | T-11 |
 | D-DOM | ¿Dominio propio para producción? (M-22) | Staging va por `sslip.io`, que es de terceros; un dominio propio (unos 10 $ al año) no depende de nadie. Al cambiar, cada persona vuelve a crear su llave de acceso | B8-3 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | ~~D-CORD~~ | Umbral de cordura de la tasa automática (M-8) | **Decidido el 2026-09-28 (V-14):** sin umbral; la del BCV se aplica siempre, y si la API falla se carga a mano | B5-1 |
@@ -2018,7 +1838,7 @@ antes del cobro en servidor (orden de ejecución).
 | ~~Proteger `main`~~ | **Hecho el 2026-10-05:** ruleset «main» activo sobre la rama por defecto, sin excepciones: PR obligatorio (0 aprobaciones), check «pnpm verify:db» con la rama al día, historial lineal, fusión por squash o rebase, sin force push ni borrado | — |
 | ~~Dar acceso a la segunda persona~~ | **Hecho:** `aemorandin-coder` trabaja y fusiona por PR desde el 2026-10-06 | — |
 | ~~Las imágenes en ghcr.io~~ | **No hizo falta:** con el repositorio público, `ghcr.io/luam-lu/l2control-*` se descargan sin sesión (comprobado con la 0.53.0). Si el repositorio pasa a privado, el VPS necesita un token de solo lectura (`read:packages`) | — |
-| Repositorio privado | Settings → General → Danger Zone → «Change visibility». **Ojo:** en un repositorio privado con la cuenta gratuita, GitHub no aplica la protección de ramas: hace falta GitHub Pro (unos 4 $ al mes). El CI sigue, con 2.000 minutos al mes gratis | B7-1 |
+| Repositorio privado | Settings → General → Danger Zone → «Change visibility». **Ojo:** en un repositorio privado con la cuenta gratuita, GitHub no aplica la protección de ramas: hace falta GitHub Pro (unos 4 $ al mes). El CI sigue, con 2.000 minutos al mes gratis. Con el repositorio privado, el VPS necesita un token para las imágenes y el actualizador para la API (§5) | Cuando se decida |
 | ~~Borrar las ramas ya fusionadas~~ | **Hecho el 2026-10-05:** solo queda `main`, en local y en GitHub | — |
 | ~~Borrado automático de ramas~~ | **Hecho el 2026-10-05:** la rama de un PR se borra sola al fusionarlo | — |
 
@@ -2050,7 +1870,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El nombre «Abby Kingdom» está escrito a mano en el acceso, el menú del panel, las migas de unas 20 pantallas y el manifiesto; la instalación ya pide el nombre del local, pero esas pantallas no lo leen | Antes de un segundo cliente; con uno solo coincide |
 | Quien desarrolla necesita una llave de acceso de verdad para confirmar identidad (Windows Hello, el teléfono o el gestor de contraseñas del navegador): ya no hay contraseña ni código fijos de desarrollo | Aceptado (ADR-020). Las pruebas usan el autenticador de software de `para-pruebas.ts` o el virtual de Chromium |
 | No hay suite de Playwright en el repositorio: las pruebas de navegador de cada paso se corren a mano (JORNADA §8 las pide de punta a punta) | B7-3, o antes si se decide |
-| La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | B7-1 |
+| La IP es la última de `x-forwarded-for`: correcto con UN proxy delante; con dos (p. ej. Cloudflare + Caddy) hay que contar saltos. En desarrollo, sin proxy, se puede falsear | Comprobado en B7-1: delante solo está Caddy. Se vuelve a mirar si se pone otro proxy |
 | La medición de interfaz vive fuera del repo (`C:/tmp/pw_test`) | B7-3 (`pnpm audit:ui`) |
 | La imagen del worker lleva la CLI de Prisma y TypeScript (dependencias «peer» de `@prisma/client`): 398 MB donde bastarían unos 150 | Cuando pese en el VPS |
 | Seguridad (B7-5), la política de contenido no limita scripts ni estilos: Next los pone en línea y hacerlo bien pide un nonce por petición (un `proxy.ts` y todas las páginas dinámicas) | Antes de B8-3, si se decide |
@@ -2061,18 +1881,19 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Seguridad (B7-5), PLAN §7.4 y §7.6 sin hacer: alertas activas sobre la auditoría (anulaciones, descuentos, arqueos), envío de la auditoría fuera de la máquina al instante (hoy sale cada noche con el respaldo), consentimiento y retención de los contactos (DEC-9) | Después del piloto, si se decide |
 | Respaldos: con un volcado por noche se puede perder hasta un día (RPO de 24 h); PLAN §10.4 pide 15 minutos con WAL continuo a otro sitio. El ensayo de restauración mensual se anota a mano (no hay registro en el panel) | Antes de B8-3, decidir si basta |
 | El actualizador pregunta a la API de GitHub sin token (60 consultas por hora, cada 5 min): si el repositorio pasa a privado, necesita un token de solo lectura | Si el repositorio deja de ser público |
+| Crear productos y categorías (y el inventario inicial con productos nuevos) exige `catalogo.modificar`, que no se ajusta por rol ni se concede por persona: supervisión no puede hacer inventario aunque administración se lo dé (P-15) | T-13 |
 | Sin Storybook | Fuera de la Ruta A |
 | El agente de impresión no va firmado con un certificado de código: Windows avisa al abrirlo («editor desconocido») | B8 (si el cliente compra el certificado) |
 | La instalación del agente como tarea de Windows (con permiso de administrador) no se ha ejecutado de punta a punta en una laptop | Trabajo de campo (B7-3) |
-| En producción el proxy debe llevar `/impresion/vincular` y el espacio `/impresion` del canal al worker | B7-1 |
+| ~~En producción el proxy debe llevar `/impresion/vincular` y el espacio `/impresion` del canal al worker~~ | Saldada en T-8a: el `Caddyfile` lleva `/tiempo-real` y `/impresion/vincular` al worker |
 | «Impreso» es que la impresora aceptó los bytes y cerró bien (ADR-026): no ve el papel. Una impresora que no contesta al sensor del papel imprime sin esa comprobación | Aceptado; se mide con la impresora real |
 | Los feriados de cada año los carga el cliente a mano desde el calendario de SUDEBAN; si se olvida, ese día exige la tasa a mano | Operación (runbook, B8-2) |
 | Una pendiente traída antes de B2-1c no tiene `held_back`: no sale como alerta (solo afecta a bases con datos viejos) | Base limpia antes del piloto |
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
-| El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | Etapa 6 (D-RES): los estados de mesa al servidor, tras B6-3 |
-| La base local del cliente cifra con la clave de juguete de `.env.example` (datos de cobro del local, secreto TOTP): si esa base se lleva al VPS, lo cifrado se vuelve a cifrar con la clave de producción, o se vuelve a cargar | B7-1 |
+| El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | B6-7 (M-27): la ocupación sale de las cuentas abiertas de cada mesa |
+| ~~La base local del cliente cifra con la clave de juguete de `.env.example`: si esa base se lleva al VPS, lo cifrado se vuelve a cifrar o se vuelve a cargar~~ | Saldada: el staging generó sus claves y nació vacío (B7-1), y la semilla no lleva nada cifrado (B7-2) |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
 | Anular una parte intermedia de una cuenta dividida y volver a cobrarla puede dejar el total a un céntimo del documento (el reparto va por índice de parte) | Cuando el cliente cobre dividido con anulaciones (F6-12) |
@@ -2167,16 +1988,16 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
 | Fase | Estado | Qué falta para cerrarla |
 |---|---|---|
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
-| F1 · Cimientos | Monorepo, tipos, fronteras, tokens, contratos, escáner y PWA hechos | Docker, Prisma, CI, observabilidad, staging y semillas (Etapas 0 y 7) |
+| F1 · Cimientos | **Hecha:** monorepo, fronteras, contratos, Prisma con RLS, CI, imágenes, staging, semilla y actualizaciones | — |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables, descuentos y carga de lo anotado en papel | — |
-| F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Eventos (Etapa 10) |
-| F6 · Restaurante | Interfaz completa (DEC-22); **en el piloto, sin pantalla de cocina** (M-15) | Etapa 6 (B6-1 a B6-3) |
+| F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Lo de M-27: pausa, sin pulsera, medias y la sala para administración (B4-7 a B4-10) |
+| F6 · Restaurante | **Hecho en el servidor** (B6-1 a B6-6): plano, carta, pedido con comanda impresa, cuenta de la mesa, mesa sin consumo y anular en cocina | Varias cuentas por mesa, de pie y tiempo de atención (B6-7, B6-8, M-27) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Hecho en el servidor** (B9-1 a B9-6): catálogo con tipo, SKU y código de barras, existencias, entradas con costo promedio (y alta de productos), salidas, conteo, mínimos y avisos | Recetas e insumos después del piloto (B6-4) |
 | F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1) | Los informes, después del piloto |
-| F10 y F11 | Sin empezar | Etapas 7 y 8: VPS con internet de respaldo en el local (ADR-021) |
+| F10 y F11 | Staging en el VPS con despliegue reversible, respaldos y revisión de seguridad (Etapa 7, salvo B7-3) | B7-3 en el local y la Etapa 8 |
 
 ---
 
@@ -2426,6 +2247,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   Semgrep (un fallo real de cifrado, corregido), Next 16.3.7 por una ejecución remota, auditoría de dependencias en el CI
   con siete días y procedencia, cabeceras en Caddy y la consulta de contactos auditada. Abiertas: D-REIMP y el calendario
   de actualización (§4).
+- **2026-10-07** · M-27 (primera visita al local con el sistema): 19 pedidos del cliente, 13 pasos nuevos, la ruta pasa a
+  79; D-SERV y D-SOP abiertas. Hallado al estudiarlos: crear productos exige `catalogo.modificar`, que no se ajusta, y
+  por eso supervisión no podía hacer inventario (T-13). Auditoría de este archivo: §1 reescrito para leerse en un
+  minuto (su historia pasa a §9), la tabla de §2 en orden y sin el corte que la partía, y tachado lo ya hecho en §3 a §6.
 
 ---
 
@@ -2448,3 +2273,305 @@ El relevo vive en [`docs/HANDOFF.md`](HANDOFF.md), con una sección por persona;
 
 **Cuando alguien escribe «siguiente»** (al abrir un chat): lo dice `CLAUDE.md`.
 
+---
+
+## 9. Historia de §1
+
+Lo que decía §1 al entregar cada paso, del más reciente al más antiguo, y lo que se probó en la base local
+(la del cliente) hasta M-19. Se movió aquí el 2026-10-07 (M-27) para que §1 se lea en un minuto. No se edita.
+
+**Versión 0.60.0 · 60 de 66 pasos.** **Revisión de seguridad (B7-5, v0.60.0):** la matriz de permisos se comprueba celda por celda contra PLAN §7.3; el historial no tiene secretos (gitleaks) y Semgrep encontró un fallo real, corregido (el descifrado aceptaba una etiqueta GCM recortada); Next sube a 16.3.7 por una ejecución remota en la generación de iconos, y las dependencias con avisos altos, a su versión corregida, con la auditoría en el CI y una política de siete días y de procedencia; Caddy pone cabeceras que impiden incrustar el sistema y solo dejan la cámara; consultar los contactos de los representantes queda auditado. Pendiente de decidir: D-REIMP y el calendario de actualización (§4). Queda Etapa 7 con B7-3 en el local; después, Etapa 8. **Respaldos fuera del servidor (B7-4, M-26, v0.59.0):** cada noche el VPS hace un respaldo de la base cifrado para la clave pública del local (la privada no está en el servidor; `restaurar.sh --clave-nueva`, en la PC del técnico), con su huella (las filas de cada tabla y lo que suma el libro de pagos) tomada en la misma instantánea, y guarda las últimas siete noches. Una PC del local, preparada desde Ajustes → Respaldos con la identidad confirmada (el panel da una orden de PowerShell y una credencial que se enseña una vez), lo baja cada mañana, comprueba su huella, se lo confirma al servidor y guarda 30 diarios, 12 semanales y los mensuales. Ajustes → Respaldos e Inicio avisan si el de anoche falló o no se hizo, si no hay PC o si la PC no baja los recientes. La restauración se ensayó en una base limpia: íntegra (la huella coincide) en 4 s. Con un volcado por noche se puede perder hasta un día (el objetivo de 15 min con WAL queda en §5). **En el staging (2026-10-07):** la 0.59.0 la puso sola el actualizador (la primera actualización real de T-8b: vista, pedida y puesta en 42 s, con respaldo antes); los respaldos están instalados (clave pública, cron de las 3:15 am) y el primero, de 452 KB, se restauró íntegro en 5 s fuera del servidor. Falta que administración, en el staging, prepare la PC del local (Ajustes → Respaldos), cargue la semilla (Ajustes → Semilla del local) y los feriados. Sigue B7-5. **Actualizaciones desde el panel (T-8b, M-25, v0.58.0):** Ajustes → Versión y actualizaciones enseña la versión en marcha, las nuevas con sus novedades (la sección del CHANGELOG; urgente si trae `### Urgente`) y lo último que se puso. En producción administración elige «Actualizar ahora» (solo sin turnos abiertos ni niños en sala) o «Esta noche al cierre», con su identidad confirmada, y la puede cancelar mientras espera; el staging se pone al día solo. La web solo pide: el actualizador del VPS (`infra/produccion/actualizador.sh`, cada minuto por cron) ve las versiones publicadas con sus imágenes, comprueba otra vez que no haya operación, la pone con `desplegar.sh` y escribe cómo terminó; una que no queda sana vuelve sola a la anterior y el panel lo dice. Cada pantalla abierta se pone al día sola en cuanto está libre (sin diálogo, sin el cursor en un campo, sin un pedido o un plano sin enviar) y, si no, lo avisa; una pantalla vieja no puede hacer nada contra el servidor nuevo (sus acciones se niegan). La versión va en el menú del panel, Inicio avisa de una nueva, y la Puesta a punto deja apartar lo recomendable («Después»). Visto en el ensayo local con dos versiones construidas en la PC, en los dos temas, con la vuelta atrás en staging. Sigue desplegarla en el VPS e instalar allí el actualizador; el agente de impresión es T-8c, con B7-3. **La semilla del local y el inventario en lote (B7-2 y T-10, M-24, v0.57.0):** Ajustes → Semilla del local descarga en un archivo lo que se tarda en teclear (ajustes de la sucursal, tarifas y paquetes, categorías y carta con sus precios, plano y cumpleaños) y lo carga en otro local, que solo añade lo que le falta y nunca pisa lo suyo; la semilla de la base del local ya está lista para el staging (la carga administración desde su sesión). Las entradas de mercancía son una tabla: buscar el producto, cantidad en unidades o en bultos de N, costo por unidad, por bulto o total, el último costo propuesto, pegar una lista de Excel e «Inventario inicial» para la existencia de arranque. Las categorías son una lista propia (crear, renombrar, unir, retirar) que nace con unas de arranque. El icono de la app instalada es el logo sobre transparente (y sobre claro en el adaptable de Android), con los colores del tema claro. Corregido de B9-6: una entrada con varios productos nuevos en la que uno no valía dejaba creados los anteriores. **Corrección (v0.55.1):** Inicio ponía la fecha con el reloj del servidor, que en el contenedor va en UTC: desde las 8 pm de Venezuela decía el día siguiente. Ahora es el día del local, en la zona de sus ajustes (como ya hacía Turno). **Confirmar identidad desde cualquier equipo (T-9, M-23, [ADR-029](adr/029-equipo-de-confianza-y-app-de-autenticacion.md), v0.55.0):** al instalar el staging, ni la laptop (Windows sin PIN de Hello) ni una tableta pudieron crear la llave de acceso, que era obligatoria. Ahora se instala sin llave y ese equipo queda de confianza: en él, confirmar identidad es solo la contraseña. En cualquier otro, la contraseña y el código de la app de autenticación (Google Authenticator, Authy…, configurada con un QR en Ajustes → Usuarios; un código ya usado no vale otra vez), una llave o un código de recuperación, y al confirmar se puede marcar «Confiar en este equipo». La confianza es de esa persona en ese equipo, se ve y se retira en Ajustes → Usuarios y cae al revocar el equipo. Aprobar un equipo desde sí mismo acepta la app, y el enlace de alta no exige llave. Visto en el navegador desde una instalación limpia con las imágenes de la versión, en el escritorio y el teléfono y en los dos temas. Sigue desplegarla en el staging, que sigue **sin instalar**, para que administración lo instale. **El sistema en el VPS (B7-1, v0.54.0):** L2 Control corre en el staging, `https://217-216-48-54.sslip.io` (Ubuntu 24.04, 4 CPU, 8 GB; certificado de Let's Encrypt que Caddy renueva solo; en el VPS solo escuchan 22, 80 y 443). Las claves se generaron en el VPS y no salen de él. La vuelta atrás se ensayó allí: la 0.53.1 con la comprobación forzada a fallar volvió a la 0.53.0, y después quedó en marcha. Falta que administración instale el local (código en el registro de la web). Siguen B7-2 a B7-5 y T-8b. **Corrección (v0.53.1):** al instalar el staging, Windows no pudo crear la llave de acceso y la pantalla solo dijo «No se pudo registrar la llave de acceso en este equipo», sin el motivo (el dominio `sslip.io` sí vale: se comprobó en Chromium con un autenticador virtual). Ahora dice el porqué: sin Windows Hello, dónde configurarlo o que se cree en el teléfono; una llave ya registrada; y cualquier otro fallo, con el nombre del error. **Publicar y desplegar (T-8a, M-22, v0.53.0):** el sistema tiene sus imágenes (web en Next `standalone`, worker y migrar, en `infra/docker/Dockerfile`) y un servidor de producción en `infra/produccion` (PostgreSQL, Valkey, la web, el worker y Caddy con HTTPS automático). `./desplegar.sh X.Y.Z` respalda la base, migra, arranca la versión y pregunta a la web y al worker por `/salud`; si no responden con esa versión y la base contestando, vuelve solo a la anterior y lo anota. Ensayado en esta PC: la vuelta atrás con la comprobación forzada a fallar y con una versión rota, y una versión nueva que quedó en marcha. Una etiqueta `vX.Y.Z` publica las imágenes en ghcr.io y el agente con su huella en el «release»; el CI construye las imágenes en cada PR. Sigue B7-1 (el VPS ya está contratado) y, en paralelo, T-8b. **T-8 en dos partes (M-22, 2026-10-06):** T-8a (contenedores, publicación por etiqueta y despliegue que vuelve solo atrás) va antes de B7-1, y T-8b (las actualizaciones desde el panel) en paralelo con la Etapa 7, antes de B8-3. El VPS ya está contratado y, sin dominio comprado, staging se abre por `<ip>.sslip.io` (las llaves de acceso no funcionan con una IP); antes de B8-3 se decide un dominio propio. **Logo de L2 (v0.52.3):** el acceso, el menú del panel, la pestaña del navegador y el icono de la app instalada llevan el logo oficial de la suite (`apps/web/public/logo-l2.png`, traído de L2Lab y reducido), igual en los dos temas. **Tema claro (v0.52.2, M-21):** el sistema tiene dos temas, claro (el predeterminado) y oscuro, por equipo, con el botón del sol o la luna en el acceso y en el pie del menú; solo cambian tokens, ninguna pantalla sabe en cuál está. En el claro los avisos rojos y amarillos son bloques sólidos (rojo con letra blanca, amarillo con letra azul marino). **Corrección (v0.52.1):** un doble clic al anular un cobro podía responder «Ese asiento ya se revirtió» si la segunda petición miraba su clave antes de que la primera asentara y el asiento después; ahora, si quien lo revirtió es la misma operación, devuelve lo hecho. Salió porque el CI de `main` falló con un commit que solo tocaba documentos (la prueba del doble clic caía en esa ventana una de cada muchas veces); la prueba ahora lo repite doce veces. **Instalación inicial y llaves de acceso (T-4, [ADR-020](adr/020-llaves-de-acceso.md)):** con la base vacía, el acceso ofrece «Instalar L2 Control» (código del registro del servidor, local, primera administración con contraseña, PIN y llave de acceso, diez códigos de recuperación y ese equipo aprobado), y después esa pantalla no vuelve a existir. Confirmar identidad y aprobar un equipo desde sí mismo piden contraseña + llave, o un código de recuperación; el TOTP y `pnpm totp` se retiraron. Administración da credenciales desde Ajustes → Usuarios con un enlace de 24 h con QR, que la persona completa en `/alta`. Inicio enseña la Puesta a punto, que se tacha sola. Un local sin tarifario ya abre (la entrada lo dice y el editor publica el primero). **Corrección (v0.51.1):** los avisos verdes, amarillos y rojos y la opción elegida de los selectores se leían hundidos, como un botón ya presionado, porque su fondo era más oscuro que la tarjeta; ahora tienen más luz que ella (tres tokens), el rojo de estado es un tono más claro que sí llega al contraste mínimo y el icono de un aviso rojo se mueve en bucle (el de uno amarillo, tres veces al aparecer). **Cero simulación (T-2):** `pnpm lint` suma la regla `sin-simulacion` (nada de negocio en el almacenamiento del navegador, ni PINs literales, ni listas de ejemplo en las pantallas) y el CI se vio en rojo con una violación a propósito (PR #6), lo que cierra también B0-4. Sigue T-8 antes del staging. **Actualizaciones y trabajo entre dos (M-20, [ADR-028](adr/028-actualizaciones.md)):** en producción las actualizaciones las decide administración desde el panel y cada equipo se pone al día solo (paso nuevo T-8, antes del staging); todo entra a `main` por PR con el CI en verde, y `main` está protegido en GitHub (2026-10-05). Falta que la segunda persona (`aemorandin-coder`) tenga acceso (§4). **Corrección (v0.50.1):** Inicio enseñaba en desarrollo el aviso de `pg` «client.query() when the client is already executing a query»: Prisma 7 pide a la vez las relaciones hermanas de un `include` (tres o más; aquí, la agenda de cumpleaños) por la conexión de la transacción. `abrirBase` pone en fila las consultas de cada conexión (lo que `pg` 8 hace por dentro y `pg` 9 dejará de hacer); prueba en `fila.test-db.ts`. **Datos reales del local (M-19, hecho, 2026-10-05):** la base local del cliente se vació de movimiento y catálogo
+con el sí del usuario (respaldos en `C:\tmp\l2-respaldos\`, el último `l2control-2026-10-05-antes-limpieza.dump`) y
+lleva los datos de Abby: precios con el IVA incluido, tarifario (30 min $ 3, 1 h $ 5, 2 h $ 9, pase libre $ 12), 12
+platos y 6 paquetes de cumpleaños. Se fueron también los equipos, impresoras y agentes de prueba, las sesiones (cada
+persona vuelve a entrar con su PIN), la auditoría, el outbox y los dos IGTF de prueba del 2026-10-27 (el IGTF sigue al
+0 %, V-13). Quedan personas, «PC admin», tasas, impuestos, feriados, medios, ajustes, plano, impresora «Caja» y agente
+«Laptop de caja»; 46 de 46 migraciones y ninguna fila huérfana. Queda en Impuestos un rastro de prueba: IVA general 15 %
+y 16 % programados para el 2026-10-27; manda el último (16 %), así que no cambia nada. **Precios con el IVA incluido (B2-5, M-19):** con el ajuste «IVA incluido» de la sucursal, el total es la suma de los precios del menú al céntimo y el IVA se saca de dentro. **Lo anotado en papel (B3-7, V-12, [ADR-027](adr/027-hora-real-de-lo-anotado-en-papel.md)):** si caen internet y luz, el local sigue en formularios (se imprimen desde Caja → Papel); al volver, la cajera abre una carga en su turno con la ventana del corte y carga las entradas, las salidas y los cobros (cola de cuentas y ventas de mostrador), cada uno con **la hora real del formulario**, que tiene que caer dentro del corte y con la que salen el tiempo, la tasa, el IVA, el precio y la existencia de entonces; el servidor guarda además cuándo se cargó. La carga terminada la revisa supervisión con su PIN (quien cargó no la revisa) y, mientras haya una abierta o sin revisar, el turno no se sella y la jornada no se cierra. Se distingue en la venta, en el turno, en Inicio y en la auditoría. La caja queda completa. **El día del cumpleaños (B10-2, V-10):** con el anticipo cobrado, el día empieza desde la agenda o con el primer invitado: la cuenta del día lleva el saldo y lo incluido (que sale del estante) a la caja; los invitados entran por la entrada solo con su pulsera, sin cobro, hasta los reservados; el saldo se cobra como una mesa y sale en los pendientes del cierre hasta cobrarse. Los eventos quedan completos. La base local del cliente tiene ya las tres migraciones de los cumpleaños (45 de 45, 2026-10-03), y se retiró la impresora falsa de desarrollo: la impresión se prueba con la real del local. **Corrección (v0.47.1):** con Ajustes desplegado, en el menú lateral desplaza solo su lista; la operación, la marca y la persona se quedan a la vista. **Cumpleaños con reserva y anticipo (B10-1, V-10):** administración carga los paquetes en Ajustes → Cumpleaños (precio, invitados, lo que incluyen y el anticipo, 50 % por defecto); Parque → Eventos es la agenda: al reservar, la cuenta del evento lleva el anticipo a la caja, que lo cobra con su venta; cobrado, la reserva está confirmada; sin cobrar, se cancela desde la agenda. Inicio y la apertura del turno avisan «Hoy hay un cumpleaños». El día del evento es B10-2. **Corrección (v0.46.1):** confirmar una tasa tecleándola como se ve (con dos decimales) ya vale; antes el servidor la comparaba con la tasa completa de la API y nunca coincidía. **Salir antes de tiempo (B4-6, M-18):** en cuenta abierta, quien sale antes paga el paquete más barato que cubre lo que estuvo (también el pase libre; el paquete y sus recargas juntos; si está vinculado, en la cuenta de la mesa), y la salida y la caja enseñan lo elegido tachado y lo que se cobra; en prepago no se devuelve, y la entrada lo avisa. **Corrección (v0.45.1):** la caja cobraba mal una mesa con un plato anulado (contaba lo anulado como pendiente y el cobro chocaba); ya cobra lo mismo que el servidor y lo anulado no se marca pagado. **Anular en cocina, con papel e inventario (B6-6, M-18):** anular un pedido enviado saca un papel «ANULAR» en la impresora de comandas (y avisa si no sale), y quien anula dice si la cocina ya lo preparó: si no, vuelve al inventario; si sí, sale como merma. Se anula un pedido de una vez, con un solo PIN. **Una mesa sin nada que cobrar se libera (B6-5, M-18):** el mesero la libera sin PIN y su cuenta se cierra «sin consumo», fuera de la caja y del cierre; ya no queda una mesa en $ 0 que bloquee la jornada. **La cuenta de la mesa es del servidor (B6-3):** vincular pulseras, cargar la salida a una mesa y anular un plato enviado van por una operación del servidor con su comprobación; el dinero ya no viaja por el bus. La ocupación del plano sigue en el bus (§5). **Ajustes con un mismo patrón (T-7, M-17):** Roles y accesos, Usuarios,
+Dispositivos, Descuentos, Tasas de cambio y Tarifas y paquetes siguen el patrón que estrenó Impresoras: resumen de
+cifras arriba que filtran la pantalla, pestañas, alta y edición en hoja lateral, confirmación para lo irreversible y
+las listas que crecen por páginas en el servidor (dispositivos, historial de tasas, versiones del tarifario), con
+filtros, su cuenta y «Limpiar filtros». Ninguna regla de negocio cambió. **La comanda sale en papel (B6-2, ADR-022):** el pedido del mesero entra en la
+cuenta de la mesa y su comanda en la impresora de comandas en una sola transacción; sin impresora de comandas no se
+envía. Cada pedido dice si su comanda se imprime, salió, no salió o se descartó; lo que no salió se avisa en la
+tablet, en la caja y en Inicio, y se vuelve a imprimir (reintento si la cocina no la tenía, copia marcada si ya
+salió). Se retiraron la pantalla de cocina y los estados «en fuego/listo». **El restaurante empieza en el servidor (B6-1):** el plano del local se
+publica en Ajustes → Plano del local como versión (con quién y cuándo) y llega en vivo al salón; una mesa no se borra,
+se retira, y con su cuenta abierta no se retira. La carta del restaurante **es el catálogo** con la marca «en la
+carta», y Ajustes → Carta y precios la gestiona con el patrón de M-17 (resumen, filtros, páginas, hoja lateral). Una
+mesa tiene **una sola cuenta abierta** (I-05, en el servidor) y lo pedido lleva su producto: precio, IVA y existencia
+los comprueba el servidor. Ya no queda nada en `src/demo`. **Se imprime en papel (B5-2, [ADR-026](adr/026-impresion-por-agente-local.md)):**
+con el servidor en la nube, la impresora del local la alcanza un **agente** en la laptop de caja, que se vincula
+una vez con un código del panel y se conecta hacia fuera. El servidor guarda la cola (pendiente, enviado,
+confirmado o fallido, con cinco intentos) y compone el ESC/POS a 58 u 80 mm; el agente lo manda por TCP 9100 y
+pregunta antes por el papel. Salen el **recibo** (original y copias) y el **ticket del corte Z** (solo, al
+sellar); lo que no sale se avisa en la barra y en Inicio con «Reintentar». Ajustes → Impresoras configura la
+impresora y el agente. Las comandas ya tienen su impresora elegida y salen cuando los pedidos sean del servidor
+(B6-2). **Los descuentos son configurables (B3-6):** administración crea en Ajustes →
+Descuentos los que la caja puede aplicar (por medio de pago, VIP y manuales; porcentaje o monto; sobre la cuenta, el
+parque, el restaurante o unas categorías; con vigencia) y marca familias VIP en el directorio. La caja ofrece los que
+aplican, el mayor primero, uno por cuenta y antes del IVA, con la 🔐 que toca: el de medio exige cobrar toda la cuenta
+por ese medio; el manual de supervisión llega hasta el tope (20 %, ajuste del local); el VIP no pide PIN; y
+administración aplica el que quiera con su PIN y un motivo escrito. Sale en el recibo y en las excepciones del turno y
+del día. **Se cierra el Inventario (B9-6):** Productos enseña el stock primero (resumen +
+tabla o tarjetas, por tipo: Producto, Preparado, Servicio); cada producto tiene SKU automático, código de barras y
+presentación; la entrada de mercancía da de alta lo que llega por primera vez, y el código se lee en la caja (vende),
+las entradas, el conteo y Productos. **Mínimos y avisos (B9-5):** cada producto tiene su stock mínimo (punto de
+reorden) y su estado (agotado, bajo mínimo, bien); Inicio avisa de lo que hay que reponer. **Salidas y conteo (B9-4):** lo que sale sin venderse (merma, consumo interno,
+regalo, devolución al proveedor) sale con su motivo, y el conteo físico deja la existencia igual a lo contado; los dos
+con la 🔐 de administración (supervisión pide la suya). **El inventario lleva existencia y costo (B9-2 y B9-3):** la existencia es la suma
+de movimientos de solo-agregar; sale cuando un producto entra en una cuenta, vuelve cuando se quita sin pagar y **sin
+existencia no se vende** (ADR-023): la caja enseña «Quedan N» y «Agotado». Lo que llega se carga en Inventario →
+Entradas de mercancía (compra o reposición, por bultos de tantas unidades a tanto el bulto), y cada producto tiene su
+**costo promedio ponderado** y su margen en Productos. **El Parque está cerrado (B4-5):** la monitora trabaja en el teléfono
+(entrada, sala y salida sin desplazar la página), la cámara lee las pulseras y una pulsera sirve para una sola
+visita; la serie (prefijo y longitud) se fija en Ajustes → Sucursal con el primer lote. **Los ajustes de la sucursal son del servidor (B4-4):** nombre, RIF,
+dirección, horario, formato de hora, zona horaria, residuo, umbral del arqueo y horas de una huérfana se
+publican como versión en Ajustes → Sucursal y llegan a todas las pantallas en vivo; la caja, el corte Z y la
+sala los leen de ahí, y toda hora y fecha sale con el formato y la zona del local. **Todo va en tiempo real (B5-1):** lo que pasa en un equipo llega a los
+demás en menos de 2 s, sin sondeos. Toda escritura audita, y el asiento deja su evento en un outbox en la
+misma transacción; nace `apps/worker`, que lo publica por Socket.io con adaptador Valkey a la sala de cada
+sucursal (autorización con ticket en el apretón de manos), y cada pantalla vuelve a leer lo suyo con sus
+permisos (ADR-025). Quién está en cada puesto sale de las sesiones de la base, el bus del restaurante viaja
+por el worker y la barra dice si hay canal. La tasa del BCV se aplica siempre, salte lo que salte, y su
+consulta vive en el worker (V-14, ADR-024). **El parque funciona contra el servidor (B4-1 a B4-3, M-14):**
+la entrada registra en la base (con el nombre del niño si se quiere), la sala de cualquier equipo ve
+a los niños con el reloj del servidor, se recarga tiempo, la salida liquida el tiempo de más en el
+servidor y deja constancia de quién recogió al niño (D9), la caja recibe la cuenta y las estancias
+huérfanas las cierra la dirección sin cobrar tiempo de más. **La caja cierra en el servidor (B3-5): lo previsto de la Etapa 3, hecho** (la visita técnica le suma B3-6 y B3-7). Arqueo a ciegas, corte X, corte Z que firma la cajera hasta $ 1,00 de diferencia y supervisión por encima, relevo, cierre de la jornada sin pendientes (cuentas, niños en sala, huérfanas y otros turnos), incobrables con 🔐 y el resumen del día en Inicio. Etapas 0, 1 y 2 hechas, y la versión ya se ve (T-1). En la Etapa 2 (dinero): las tasas
+son de la base, se traen del BCV, se aplican solas con salvaguardas y llegan en vivo a toda pantalla
+(B2-1c), los impuestos son de la base con su vigencia (B2-2) y **el libro de pagos existe en el
+servidor (B2-3)**, a la espera de que la caja cobre contra él (B3-3), y **el día de negocio y los
+feriados bancarios (B2-4)**. Etapa 3 (caja) empezada: el turno es real (B3-1) y sin él no se cobra, y **los medios de pago son de la base (B3-2)**: se añaden sin desplegar y los datos de cada pago se guardan cifrados. Etapa 9 empezada: **el catálogo de productos es de la base (B9-1)**, con el precio programado por día, y la caja vende de él. **Las cuentas son de la base (B3-3)**: familia, mesa y mostrador; la caja cobra y anula contra el libro en una transacción, con el total, la tasa y la autorización comprobados en el servidor; **cada cobro deja su venta (B3-4)** con la foto de lo cobrado, y reimprimir, anular y regalar quedan en el servidor con su autorización. Sin modo demo; lo provisional y lo simulado que queda está
+inventariado en §5, y cada pieza tiene el paso que la elimina (M-11). La versión sigue M-10: el
+número del medio cuenta los pasos entregados.
+
+**La tasa en la base local (2026-09-27).** Vaciada y sembrada de cero; el servidor trajo del BCV la del
+viernes 25 (855,6625, solo DolarApi) y la del lunes 28 (857,0058, web del BCV), retenidas las dos. La
+del viernes la confirmó Abigail Karam al comprobar B2-1c; la del lunes se aplicó sola en cuanto hubo
+vigente. Para probar el aviso de la caja se aplicaron a mano para el domingo 27, dos veces, 860,00 y
+luego 855,6625: la vigente de ese día quedó en 855,6625, el valor del BCV. Equipos de prueba «Verif Caja» y «Verif
+Admin» revocados.
+
+**Los impuestos en la base local.** La semilla programó 16 %, 8 % y 3 % el 2026-09-27. Al comprobar
+B2-2 se programó el IVA general al 15 % (hoy y el 27 oct) y se devolvió al 16 %, y el IGTF al 2 % el
+27 oct y se canceló: rige 16 %, 8 % y 3 %, sin nada programado. Equipos «Prueba B22 Admin» y «Prueba
+B22 Caja» revocados.
+
+**Turnos de prueba abiertos en la base local.** Al comprobar B3-1 se abrió un turno en «Prueba B31
+Caja» ($ 20,00 y Bs. 1.500,00), al comprobar B3-2 otro en «Prueba B32» ($ 0 y Bs. 0,00) y al comprobar
+T-6 otro en «Prueba T6» ($ 10,00 y Bs. 0,00), los dos últimos a nombre de Abigail Karam; los tres
+equipos están revocados. Un turno no se borra ni se cierra sin corte Z, así
+que Inicio los enseña hasta B3-5, que debe permitir cerrar un turno huérfano desde otro equipo.
+
+**Medios de pago en la base local.** La migración de B3-2 dio a cada local los siete medios de §5.5
+(los que piden datos del local, apagados) y `pnpm db:semilla` cargó datos inventados: Pago Móvil
+(Banesco, 0414-2345678, J-40123456-7), Zelle (Parque Infantil L2 C.A.) y dos terminales (Punto
+Banesco y Punto Mercantil), con Pago Móvil, Punto débito y Zelle encendidos. Al comprobar B3-2 se
+añadió el medio «Biopago» (se queda apagado: un medio no se borra) y se añadió y retiró el terminal
+«Punto BNC». Punto crédito sigue apagado.
+
+**Cuentas en la base local (2026-09-28).** Al comprobar B3-3 se abrieron ocho: #0001 (mostrador, cobrada
+mixta), #0002 a #0004 (familias en cuenta abierta, se quedan abiertas: la salida no ve la sala hasta
+B4-2), #0005 (familia en prepago, cobrada; sigue abierta con el niño dentro), #0006 (mesa 1, cobrada
+en dos partes) y #0007 y #0008 (mostrador, cobradas y anuladas: vuelven a estar por cobrar). Dos turnos
+de prueba más, en «Prueba B33 Caja» ($ 10,00) y «Prueba B33 Admin» ($ 20,00); equipos «Prueba B33
+Caja», «Prueba B33 Admin» y «Prueba B33 Salón» revocados. Al comprobar B3-4, #0009 (mostrador con una
+cortesía, cobrada, impresa dos veces y anulada) y #0010 (cobrada y anulada por administración), y dos
+turnos más en «Prueba B34 Caja» y «Prueba B34 Admin» ($ 20,00 cada uno); equipos revocados.
+
+**Productos en la base local.** `pnpm db:semilla` cargó doce de ejemplo (bebidas, snacks, golosinas
+y café). Al comprobar B9-1 se creó «Pirulín» ($ 2,50) y se dejó exento, se apartó «Gomitas», el agua
+subió a $ 1,20 desde el domingo 27 y la malta tiene $ 1,75 programado para el miércoles 30. Se abrió
+un cuarto turno de prueba en «Prueba B91» ($ 10,00 y Bs. 0,00, con una venta de $ 1,31); el equipo
+está revocado.
+
+**Feriados en la base local:** ninguno (al comprobar B2-4 se registró el 12 oct y se retiró). El cliente
+carga los de 2026 desde Configuración → Feriados bancarios con el calendario de SUDEBAN.
+
+**Producción arranca con la base vacía (M-12), y ya no pide consola (T-4).** El servidor escribe en su registro un
+código de instalación de un solo uso; con él, el primer administrador y su primer equipo se crean desde el navegador, y
+el segundo factor es una llave de acceso (ADR-020). `pnpm credenciales` y `pnpm equipos` quedan como puerta de emergencia.
+
+**El día completo, en cuatro momentos (M-13).** Con el cliente se fijó el 2026-09-27 cómo es la
+jornada: primer encendido, apertura, jornada y cierre, en [JORNADA.md](JORNADA.md). Lo que exige a
+la ruta está en su §6 y ya está en §3: un paso nuevo (T-6, el menú por operación) y criterios más
+completos en T-4, B3-4, B3-5, B4-4 y B8-2. **T-6 ya está hecho** (v0.22.0): el menú es por operación
+y la caja tiene Cobrar | Turno. Lo abierto de su §7 se pregunta al cliente cuando llegue su paso
+(sin día simulado: decisión del cliente, 2026-09-27).
+
+**El parque en la base local (2026-09-28).** Al comprobar B4-1 y B4-2 entraron tres familias de prueba:
+Carolina Méndez en prepago (#0011, cobrada con $ 20; #0013, por cobrar) y Pedro Álvarez en cuenta
+abierta (#0012 y #0014, por cobrar). Salieron todos: la sala está vacía (seis estancias cerradas). Se abrió un turno más en «Prueba B4 Caja» ($ 10,00);
+equipos «Prueba B4 Entrada», «Prueba B4 Sala» y «Prueba B4 Caja» revocados. Al comprobar B4-3: Laura Pérez
+tres veces en cuenta abierta (#0017 a #0019, por cobrar; una con una recarga de 1 hora) y la
+«Familia Olvido» (#0016, por cobrar), una huérfana de ayer creada con el caso de uso y cerrada por Luis
+Guerrero. #0015 (Luis Morandin, cobrada) es del cliente. Sala vacía; equipos «Prueba B43 …» revocados.
+
+**Limpieza para probar de cero (2026-09-28, pedido del cliente).** Todas las cuentas pendientes de prueba
+(#0002–#0005 abiertas de B3-3 y #0007–#0010, #0012–#0014 y #0016–#0019 por cobrar) se marcaron
+**incobrables** con el caso de uso de B3-5, motivo «Otro: datos de prueba», autorizadas por Abigail
+Karam con su PIN: nada se borró. No queda ninguna cuenta pendiente ni niños en sala. Los turnos
+huérfanos de prueba se cerraron al comprobar B3-5 (abajo).
+
+**Cortes en la base local (2026-09-28, al comprobar B3-5).** Supervisión (Luis Guerrero) cerró desde Inicio, con
+conteo en cero y justificación, los turnos de prueba que seguían abiertos (B31, B32, T6, B91, B33 ×2, B34 ×2 y B4
+Caja). **Por error, el mismo guion selló también el turno de «PC admin»**, el equipo del cliente (abierto por Abigail
+Karam a las 12:29 pm, con #0015 y #0020 cobradas): su Z dice $ 12,00 de diferencia y «Turno de prueba…», y un Z
+no se deshace. Hay que decírselo al cliente; su cuadre real, si lo quiere, se anota aparte. En «Prueba B35 Caja»,
+tres turnos: un relevo que cuadra (Z de la cajera), otro con $ 5,00 de faltante (Z de supervisión) y uno con
+la «Familia Prueba Jornada» (#0023), que entró, salió y se marcó incobrable. **Quedan pendientes del cliente**
+#0021 (mostrador, $ 2,78) y #0022 (Mesa 8): la jornada del local no se cerró. Equipos «Prueba B35 …» revocados.
+
+**Visita técnica (2026-09-28, M-15).** El cliente fijó cómo se trabajará en el local, y la ruta pasa de 48 a
+**55 pasos** (56 con lo nuevo, menos la gaveta, que no hay): la monitora en un **teléfono** que lee pulseras **preimpresas y de un solo uso** con la cámara;
+la caja en una **laptop**; el mesero en una **tablet**; la **cocina sin pantalla**, con la comanda impresa;
+**una impresora**, en caja, por red; el **restaurante entra en el piloto**; un **inventario mínimo y real**
+(lo que no hay no se vende); **descuentos configurables** (por medio de pago, VIP, manual y de
+administración); **reservas de cumpleaños** con anticipo; **todo en tiempo real**; y **un solo servidor en la
+nube con internet de respaldo** en el local. El detalle, en §2 (M-15); los pasos nuevos, en §3. El mismo día
+se respondieron **todas las preguntas abiertas de §4** (descuentos, eventos, pulseras, gaveta, número de orden,
+autorizarse a sí mismo, puestos, umbral de la tasa e IGTF): ya no queda ninguna del cliente para la Ruta A,
+salvo los datos maestros (F0-04) y la firma del alcance (F0-09).
+
+**El IGTF ya no se cobra (V-13).** Con el visto bueno del cliente, el 2026-09-29 se programó en Ajustes →
+Impuestos el IGTF al **0 %**, rigiendo desde ese momento, a nombre de Abigail Karam (equipo «Prueba IGTF
+Admin», revocado). Lo cobrado antes se queda como se cobró; el IVA sigue en 16 % y 8 %. La caja y el recibo
+enseñan todavía la línea del IGTF en cero hasta B3-6.
+
+**El IVA reducido no se usa en el local** (el cliente, 2026-09-29; v0.30.1): no se ofrece ni se acepta al
+crear o editar un producto, Ajustes → Impuestos no lo enseña y la caja no lo exige para cobrar. El 8 %
+programado en la base local se queda (nada se borra) pero no lo usa ningún producto; el motor lo conserva.
+
+**Pendiente con el cliente:** **contarle** lo del turno de «PC admin» (arriba).
+
+**El tiempo real en la base local (2026-09-29, al comprobar B5-1).** Entraron y salieron dos familias de
+prueba, «Prueba Vivo B51» (#0025) y «Prueba Caida B51» (registrada con el worker caído); sus cuentas
+quedaron **incobrables** («Otro: datos de prueba», autorizadas por Abigail Karam). Equipos «Prueba B51 …»
+revocados. La migración del outbox se aplicó a la base del cliente (solo añade una tabla y un disparador).
+El turno de «PC admin» abierto el 28/09 a las 7:27 pm es del cliente: no se tocó.
+
+**Los ajustes en la base local (2026-09-30, al comprobar B4-4).** Las dos migraciones de B4-4 se aplicaron a la base
+del cliente (una tabla nueva y una columna que admite nulos en el arqueo). Abigail Karam, desde el equipo «Prueba B44
+Admin», publicó la versión 1 (formato de 24 h) y la 2 (de vuelta a 12 h): rigen los valores de fábrica, con el RIF, la
+dirección y el horario sin declarar. Cambiar la zona a Bogotá se negó por el turno abierto de «PC admin», que no se
+tocó. Equipos «Prueba B44 Admin» y «Prueba B44 Inicio» revocados.
+
+**Las pulseras en la base local (2026-09-30, al comprobar B4-5).** La migración
+`20261013000000_pulsera_de_un_solo_uso` está aplicada a la base del cliente (no tenía códigos repetidos). Entraron y
+salieron tres familias de prueba, «Familia Prueba B45 6204», «… 7363» y «… 2322» (pulseras PB45-…, ya usadas); sus
+cuentas #0027 a #0029 quedaron **incobrables** («Otro: datos de prueba», autorizadas por Abigail Karam). Abigail
+publicó los ajustes 3 (serie «PB45-» de 9 caracteres) y 4 (de vuelta a sin serie): rige sin serie hasta el primer
+lote. Equipos «Prueba B45 …» revocados. Queda una cuenta pendiente, del cliente.
+
+**El inventario en la base local (2026-09-30, al comprobar B9-2 y B9-3).** Las migraciones `20261014000000_existencias`
+y `20261015000000_entradas_de_mercancia` están aplicadas a la base del cliente (tablas nuevas y columnas que admiten
+nulos; no había movimientos). Los productos del cliente que llevan existencia salen **«Agotado»** hasta que se cargue
+su primera entrada. Abigail Karam creó «Prueba B93 Refresco» (categoría «Prueba», $ 1,50) y le cargó dos compras (48 a
+$ 0,50 de «Distribuidora de Prueba», factura P-0001, y 24 a $ 0,80): quedan 72 a $ 0,60 de costo promedio. Una venta
+de mostrador de una (#0030) la descontó y se descartó sin cobrar (vuelve). El producto está **apartado** (la caja no
+lo ofrece) y sus entradas no se borran. Equipos «Prueba B92 Admin» y «Prueba B93 Admin» revocados. La migración
+`20261016000000_salidas_y_conteo` también está aplicada. Al comprobar B9-4, sobre el mismo producto: una merma de 2 de
+Abigail Karam, un consumo interno y dos regalos de 1 de Luis Guerrero (autorizados por Abigail), y dos conteos (69 → 65 y
+62 → 60) y otro rechazado por desactualizado: quedan 60. Equipos «Prueba B94 …» revocados.
+
+**El inventario se rediseña (M-16, 2026-09-30, con el cliente).** El stock es lo protagonista: Productos pasa a
+una vista de resumen (agotados, bajo mínimo, valor del inventario) con tabla, o de tarjetas. Cada producto lleva **SKU
+automático**, **código de barras** y **presentación**, y es de un **tipo**: Producto (se cuenta), Preparado (se hace al
+momento; sin stock hasta las recetas) o Servicio. Los **mínimos y sus avisos** entran ya (B9-5); la entrada de
+mercancía **crea productos** con una ficha corta; y el código se **escanea** en la caja, las entradas, el conteo y
+Productos. Sin foto por ahora. Pasos B9-5 y B9-6 (nuevo); la ruta pasa a **56 pasos**.
+
+**El inventario en la base local (2026-09-30, al comprobar B9-5 y B9-6).** Las migraciones `20261017000000_stock_minimo` y
+`20261018000000_identificacion_y_tipos` están aplicadas a la base del cliente. La segunda **falló a la primera** (la RLS
+forzada dejó sin rellenar el tipo y el SKU, y Prisma no la envolvía en una transacción): se quitaron a mano las cuatro
+columnas vacías que dejó, se marcó como revertida y se aplicó corregida (trampa nueva en §5). Cada producto del cliente
+tiene su tipo (lo que llevaba existencia es Producto; el café, los tequeños y el jugo, Preparado) y su SKU (BEB-0001…).
+«Prueba B93 Refresco» tiene mínimo 70 (60 en stock: bajo mínimo). Abigail Karam dio de alta en una entrada «Prueba B96
+Uva» (PRU-0002, código 036000291452, 72 a $ 0,60): está apartado. Equipos «Prueba B95 Admin» y «Prueba B96 Admin»
+revocados. **En la base hay datos que no son míos**: el producto «TEST pRODUCTO» (categoría «sAPO») y la venta de mostrador
+#0031 (papas fritas, por cobrar), creados el 2026-09-30 a las 9:59 pm; no se tocaron.
+
+**Los descuentos en la base local (2026-10-01, al comprobar B3-6).** La migración `20261019000000_descuentos` está
+aplicada a la base del cliente (dos tablas nuevas y una causa más en las versiones de la cuenta; no rellena nada).
+Abigail Karam creó «Prueba B36 Efectivo $» (10 %, pagando todo en efectivo en dólares), «Prueba B36 Manual 25» y
+«Prueba B36 VIP» (20 % del parque), y marcó VIP a la «Familia Prueba B36 8153». Entraron y salieron tres familias de
+prueba (8153, 1779 y 1646; pulseras PB36-…) y se cobraron en «Prueba B36 Caja» con descuento: #0032 con el VIP
+($ 4,64), #0033 con el de efectivo autorizado por Luis Guerrero ($ 5,22, después de rechazar un pago en bolívares) y
+#0034 con uno de administración del 50 % ($ 2,90). Dos turnos de prueba, los dos sellados con su Z por la cajera
+(faltó $ 0,11 en el primero, dentro del umbral). **Las tres reglas están retiradas**: la caja del cliente no ofrece
+ninguna. Equipos «Prueba B36 …» revocados. El turno de «PC admin» y las cuentas #0022 y #0031 del cliente no se tocaron.
+
+**La impresión en la base local (2026-10-01, al comprobar B5-2).** La migración `20261020000000_impresion` está
+aplicada a la base del cliente (tres tablas nuevas; no rellena nada). Abigail Karam dio de alta «Prueba B52 Caja»
+(10.2.0.2:9100, la IP de esta máquina, donde escuchaba una **impresora falsa** que guarda lo que recibe) y vinculó
+dos veces el agente «Prueba B52 Laptop». La «Familia Prueba B52 2828» entró, salió y se cobró en «Prueba B52 Caja»
+(#0037, $ 5,80); su recibo salió a 80 mm, la copia falló sin papel y salió al reintentar, y el Z del turno sacó
+solo su ticket, ya a 58 mm. **La impresora y los dos agentes están retirados** (el agente en marcha se
+desconectó en el acto) y los equipos «Prueba B52 …» revocados. Las pruebas de impresión de la cola quedan en el
+historial de la impresora retirada. **Falta el trabajo de campo:** la impresora real del cliente (marca y modelo
+aún sin saber) y la instalación del agente en su laptop.
+
+**El agente de impresión, listo para instalar (v0.39.1, 2026-10-01, pedido del cliente: «nada para después»).**
+Se adelanta de B7-3 la instalación del agente en la laptop de caja: `l2-impresion.exe` es un solo ejecutable
+(Node SEA, sin Node ni el proyecto) que se descarga en Ajustes → Impresoras con su huella; doble clic abre un
+asistente que pide pegar la dirección y el código, pide permiso de administrador una vez, comprueba el servidor y
+lo deja como **tarea de Windows** (al arrancar, con la cuenta del sistema, sin ventana, reinicio cada minuto). La
+barra avisa en ámbar «N en espera» cuando el agente no toma lo que se manda. Comprobado con el `.exe` contra la
+impresora falsa (`pnpm impresora:falsa`): descarga con sesión (401 sin ella), vincular, imprimir, aviso con el
+agente parado y salida al volver. **La instalación como tarea no se probó aquí** (pide aceptar el permiso de
+administrador en la pantalla): su definición se validó con PowerShell sin registrarla. En la base del cliente, la
+impresora «Prueba B53 Caja» y sus agentes, retirados; equipo «Prueba B53 Admin» revocado.
+
+**Ajustes → Impresoras, reordenada (v0.39.2, 2026-10-01, pedido del cliente: «más organizada, sin listas
+infinitas, con capacidad de limpiar»).** Resumen arriba (impresoras, agente, no salieron, en cola) y tres pestañas:
+impresoras en tarjetas con alta y edición en hoja lateral; cola e historial **por páginas** (10/20/50) con filtros
+de estado, impresora y tipo y vista previa del ticket; y el agente. Lo que falló o espera se **descarta** (estado
+nuevo `DESCARTADO`, migración `20261021000000_descartar_impresion`): no se imprime, apaga la alerta y queda en el
+historial y la auditoría con quién lo hizo; la base impide salir de ahí y descartar sin nombre. Comprobado a
+1366×768, 1280×800 y 800×1280 sin desplazar la página, y en teléfono. En la base del cliente: impresoras «Prueba
+B54 Barra» y «Prueba B54 Terraza» (10.2.0.2, contra la impresora falsa, con el agente del cliente) retiradas tras
+la prueba, sus trabajos descartados o impresos en el historial; equipo «Prueba B54 Admin» revocado. El cliente
+descartó dos pruebas suyas de «Caja» mientras tanto.
+
+**El restaurante en la base local (2026-10-02, al comprobar B6-1).** La migración `20261022000000_plano_y_carta`
+dejó todo lo activo en la carta (los servicios, fuera). Desde «Prueba B61 Admin», Abigail Karam publicó la **versión 1
+del plano** con el boceto del cliente (8 × 6 m; mesas 1 a 4 «Junto al parque» y 5 a 8 «Salón», de 4 sillas, con ids
+`mesa-1` a `mesa-8`, los que ya nombraban las cuentas del cliente; parque, paso al parque, entrada, caja, barra y
+cocina como rectángulos): es el plano que ve el cliente y lo puede cambiar. Las cuentas del cliente #0022 (mesa 8,
+abierta) y #0038 (mesa 1, por cobrar) siguen ahí, con «Pizza margarita» sin producto (de la carta de ejemplo). Se creó
+«Prueba B61 Tequeños» (preparado, exento, $ 4,50 y luego $ 5,00), se sacó y volvió a la carta, y el mesero Jesús
+Mendoza («Prueba B61 Salón») pidió dos en la mesa 5: cuenta #0039, cobrada ($ 10,00) en un turno de «Prueba B61 Caja»
+(Marisol Prieto) que se selló con relevo. **El ticket de ese Z no salió y se descartó** (solo ese trabajo): la
+impresora «Caja» del cliente apunta ahora a 192.168.1.194:9100, que esta máquina no alcanza. «Prueba B61 Tequeños»
+quedó apartado y la mesa 5, libre en el salón; equipos «Prueba B61 …» revocados.
+
+**La comanda en la base local (2026-10-02, al comprobar B6-2).** Migración `20261023000000_pedidos` aplicada (tabla
+`kitchen_order`, la comanda con su pedido; no rellena nada). Desde «Prueba B62 Salón», Jesús Mendoza pidió dos «Prueba
+B62 Arepa» con nota en la mesa 6: **comanda #0001**. Salió hacia la impresora «Caja» del cliente (192.168.1.194, que
+esta máquina no alcanza), así que **no salió**: la tablet lo avisó, se volvió a imprimir y volvió a fallar; sus
+trabajos se descartaron uno a uno. La cuenta #0040 ($ 6,00) se cobró en un turno de «Prueba B62 Caja» sellado con
+relevo (su Z, descartado); la arepa quedó apartada, la mesa 6 libre y los equipos «Prueba B62 …» revocados. Diego Salas
+(cocina) entró y el acceso le dijo que su puesto no usa el sistema.
+
+**Ajustes con el patrón de M-17 (2026-10-02, al comprobar T-7).** Las seis pantallas (Roles y accesos, Usuarios,
+Dispositivos, Descuentos, Tasas de cambio, Tarifas y paquetes) probadas desde «Prueba T7 Admin»: páginas de
+Dispositivos (68 equipos, con los revocados de pruebas anteriores), filtros y búsqueda por código; historial de Tasas
+por páginas y par; versiones del Tarifario con sus cambios (se intentó retirar «30 minutos», se canceló); un
+descuento de prueba creado y retirado en Descuentos; un ajuste de prueba en Roles y accesos («Dar cortesía» de Caja a
+No) devuelto a fábrica. Equipo «Prueba T7 Admin» revocado.
+
+**B6-3 hecho (2026-10-03, v0.43.0):** vincular pulseras (`casosMesas.vincular`), cargar la salida a una mesa (la salida
+elige «En caja» o «A una mesa») y anular un plato enviado (`cuentas.anularPedido`, 🔐 `pedido.anularEnProduccion`) van en
+una transacción con su comprobación; `mesa.vinculada` sale del bus. `pnpm verify:db` en verde (81 de base, 423 de
+aplicación). El navegador se probó en la **base de pruebas** `l2control_test`, con su propio local, un plano de 8 mesas
+y una impresora de comandas de prueba apuntando a la IP falsa 10.2.0.2; la base del cliente no recibió comandas.
+Sin desplazamiento ni errores de consola a 1366×768, 1280×800 y 800×1280. **Fuera de B6-3 (decidido el 2026-10-03):**
+la división por ítems (F6-12), en un paso propio.
+**Lo que tocó la prueba en la base local (la del cliente):** la vinculación de «Prueba B63» (AK-9601 y AK-9602) llevó sus
+dos paquetes a la cuenta #0038, la de la mesa 1 de Abigail del 2026-10-01 (por cobrar, con una cortesía de 8,50 $). La
+plano marcó la mesa 1 como libre hasta entonces (ver §5). **Limpiado el 2026-10-03** (decisión del cliente), por los casos de
+uso con el PIN de Abigail y sin abrir turno: los dos paquetes de #0038, regalados («Otro»), así que #0038 vuelve a estar
+como la dejó Abigail, todo regalado y en $ 0, y se libera con «Liberar mesa» (B6-5). Los dos niños salieron a las 5:09 pm;
+la salida dejó $ 3,00 de tiempo de más en la familia «Prueba B63» (#0041), marcada incobrable («Otro: datos de prueba»).
+Equipos «Prueba B63 …» revocados.
