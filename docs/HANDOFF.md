@@ -7,23 +7,22 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-05 · v0.50.1 · `main` en 83e245d*
+*2026-10-07 · v0.54.0 · `main` en 926a4d8 más este relevo · T-9 a medias en `feat/t-9` (36050ec)*
 
 ```text
-Proyecto L2 Control (github.com/LuAM-Lu/l2control). Lee CLAUDE.md y docs/MAESTRO.md (§1, §3, §4, §5). Español.
-Rol: full-stack senior; programas tú. Estado: v0.50.1 · 50 de 62 pasos en main; las etapas de construcción están cerradas.
-Somos dos personas + Claude (M-20): main está protegido, todo entra por PR con el check «pnpm verify:db» en verde y se
-  fusiona por rebase o squash; la versión y su etiqueta se ponen al fusionar (en la rama, CHANGELOG «Sin publicar»).
-Antes de empezar un paso, reclámalo en MAESTRO §3 ([~] a cargo: <persona>, rama) en un PR pequeño; si tiene dueño, habla antes.
-Equipo nuevo: Node 24, pnpm 12 y Docker Desktop → pnpm install → cp .env.example .env → pnpm infra:up → pnpm db:migrar →
-  pnpm db:semilla → pnpm dev → /acceso (pnpm equipos aprobar "<nombre>", PIN 1970) → pnpm verify:db antes de cada PR.
-Siguiente: T-2 (cero simulación, §3 Transversal): regla `sin-simulacion` en pnpm lint (datos de negocio en el almacenamiento
-  del navegador, PINs literales, listas de ejemplo en features/); criterio: el CI sale en rojo con una violación (cierra B0-4).
-  Luego T-4 (instalación inicial y llaves de acceso, ADR-020) → T-8 (actualizaciones, ADR-028) → Etapa 7 (VPS).
-Cuidado: las cinco reglas de CLAUDE.md; migraciones de expandir y contraer, nunca editar una aplicada; una pantalla no está
-  hecha hasta abrirla en el navegador (Playwright a 1366×768, 1280×800 y 800×1280, sin errores de consola).
-La base real del cliente vive solo en el equipo de LuAM-Lu: nadie más la tiene ni la toca. Push solo por PR.
-Pendiente de LuAM-Lu en GitHub (§4): dar acceso a aemorandin-coder (Maintain) y decidir si el repositorio pasa a privado.
+Hecho: T-8a (v0.53.0: imágenes, infra/produccion con Caddy, desplegar.sh con vuelta atrás, publicar.yml por etiqueta),
+  v0.53.1 (la llave dice por qué falla) y B7-1 (v0.54.0): staging en https://217-216-48-54.sslip.io (VPS Ubuntu, usuario
+  luami en el grupo docker, repo en ~/l2control; vuelta atrás ensayada allí). 54 de 64 pasos. El VPS corre la 0.53.1.
+M-23/ADR-029: ni una laptop sin Windows Hello ni una tableta pudieron crear la llave al instalar → equipo de confianza
+  (solo contraseña en el propio), app de autenticación (TOTP, sin repetir códigos) y la llave opcional. Paso T-9.
+A medias, T-9 en feat/t-9: código y pruebas hechos, pnpm verify:db en verde. Falta verlo en el navegador desde una
+  instalación limpia (imágenes locales en https://localhost como en T-8a; README de infra/produccion): instalar sin llave,
+  confirmar con contraseña, configurar la app con el QR, confirmar desde otro equipo, confiar y retirar; en los dos temas.
+  Después: v0.55.0 al fusionar, etiqueta, ./desplegar.sh 0.55.0 en el VPS y que administración instale (código de
+  instalación: docker compose ... logs web | grep codigoDeInstalacion). El staging sigue SIN instalar.
+Siguiente tras T-9: B7-2 a B7-5 y T-8b. Dominio propio (D-DOM) antes de B8-3.
+Cuidado: cada despliegue reinicia la web y cambia el código de instalación; tras traer migraciones, prisma generate
+  (pnpm install no lo hace); en el runner de Windows, pnpm bajo PowerShell no hace nada: los pasos van en bash.
 ```
 
 ## aemorandin-coder
