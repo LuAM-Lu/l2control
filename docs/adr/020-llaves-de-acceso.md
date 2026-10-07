@@ -1,6 +1,8 @@
 # ADR-020 · Llaves de acceso en lugar de TOTP, e instalación inicial sin consola
 
-- **Estado:** Aceptada (2026-09-27; el cliente delegó la decisión). **Supersede la elección de TOTP
+- **Estado:** Aceptada (2026-09-27; el cliente delegó la decisión). **Superseded en parte por
+  [ADR-029](029-equipo-de-confianza-y-app-de-autenticacion.md)** (2026-10-07): la llave deja de ser el único segundo
+  factor y de exigirse al instalar; vuelve el TOTP como opción. **Supersede la elección de TOTP
   de ADR-018** (segundo factor); el resto de ADR-018 y el «segundo factor obligatorio» de ADR-013
   siguen enteros.
 - **Fecha:** 2026-09-27
