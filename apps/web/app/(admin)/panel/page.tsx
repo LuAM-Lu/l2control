@@ -10,6 +10,7 @@ import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
 import { puestaAPuntoDelLocal } from "../../../src/features/identity/identidad.servidor";
 import { ajustesDelLocal } from "../../../src/features/sucursal/ajustes.servidor";
 import { avisoDeVersion } from "../../../src/features/sistema/sistema.servidor";
+import { avisoDeRespaldos } from "../../../src/features/sistema/respaldos.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -30,7 +31,7 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes, version] = await Promise.all([
+  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes, version, respaldos] = await Promise.all([
     ninosAtendidos(),
     turnosAbiertos(),
     resumenDelDia(),
@@ -41,6 +42,8 @@ export default async function InicioPage() {
     ajustesDelLocal(),
     // Una versión nueva del sistema (T-8b), para quien decide las actualizaciones.
     avisoDeVersion(),
+    // Los respaldos (B7-4), solo si algo no va bien y para quien decide el sistema.
+    avisoDeRespaldos(),
   ]);
   // B9-5: lo que hay que reponer. Solo si algún producto a la venta lleva existencia.
   const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
@@ -74,6 +77,7 @@ export default async function InicioPage() {
       eventosHoy={eventos?.reservas ?? []}
       puestaAPunto={puesta.ok ? puesta.valor : null}
       version={version}
+      respaldos={respaldos}
     />
     </>
   );

@@ -127,6 +127,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "sistema.actualizar": ["sistema"],
   "sistema.cancelar": ["sistema"],
   "sistema.resultado": ["sistema"],
+  "respaldo.hacer": ["sistema"],
+  "respaldo.bajar": ["sistema"],
+  "respaldo.preparar": ["sistema"],
+  "respaldo.retirar": ["sistema"],
   // La Puesta a punto la lee Inicio de administración al entrar: dejar un punto para después no avisa a nadie.
   "puesta.posponer": NADA,
   "puesta.retomar": NADA,

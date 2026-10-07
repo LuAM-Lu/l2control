@@ -14,6 +14,9 @@ import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucur
 import { SemillaScreen } from "../../../../../src/features/sucursal/SemillaScreen";
 import { SistemaScreen } from "../../../../../src/features/sistema/SistemaScreen";
 import { estadoDelSistema } from "../../../../../src/features/sistema/sistema.servidor";
+import { RespaldosScreen } from "../../../../../src/features/sistema/RespaldosScreen";
+import { estadoDeRespaldos } from "../../../../../src/features/sistema/respaldos.servidor";
+import { entorno } from "../../../../../src/servidor/entorno";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { directorioDeFamilias } from "../../../../../src/features/park/parque.servidor";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
@@ -62,6 +65,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/sucursal": () => <EditorSucursal />,
   "ajustes/semilla": () => <SemillaScreen />,
   "ajustes/sistema": async () => <SistemaScreen estado={await estadoDelSistema()} />,
+  "ajustes/respaldos": async () => <RespaldosScreen estado={await estadoDeRespaldos()} servidor={entorno().L2_URL_PUBLICA.replace(/\/$/, "")} />,
   "ajustes/impresoras": async () => (
     <ImpresorasScreen
       local={await impresorasDelLocal()}

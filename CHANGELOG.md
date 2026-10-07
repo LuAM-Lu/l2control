@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.59.0] — 2026-10-07 · Staging en el VPS
+
+Respaldos fuera del servidor (B7-4, M-26).
+
+### Añadido
+- **Un respaldo cada noche, cifrado y fuera del servidor.** El servidor guarda a las 3:15 am un respaldo de la base
+  cifrado con la clave del local, que no está en el servidor: sin ella nadie lo puede abrir. Una PC del local lo baja
+  cada mañana, comprueba que llegó entero y guarda los últimos 30 días, una copia por semana y una por mes.
+- **Ajustes → Respaldos**: si el de anoche se hizo, cuándo lo bajó la PC del local y las últimas noches. Desde ahí se
+  prepara esa PC (con tu identidad confirmada): el panel da una orden para pegar en PowerShell y una credencial que se
+  enseña una sola vez. Cambiarla o retirarla deja sin valer la anterior.
+- **Si un respaldo falla, no se hizo o no sale del servidor, se ve**: en Ajustes → Respaldos y con un aviso en Inicio
+  para administración.
+- **La restauración se ensaya**: cada respaldo lleva su huella (las filas de cada tabla y lo que suma el libro de
+  pagos) y el ensayo la comprueba sobre una base limpia.
+
 ## [0.58.0] — 2026-10-07 · Staging en el VPS
 
 Actualizaciones desde el panel (T-8b, M-25).

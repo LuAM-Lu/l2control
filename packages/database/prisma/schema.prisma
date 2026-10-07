@@ -26,19 +26,21 @@ model Tenant {
   name      String
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  branches          Branch[]
-  exchangeRates     ExchangeRate[]
-  taxRates          TaxRate[]
-  bankHolidays      BankHoliday[]
-  paymentMethods    PaymentMethod[]
-  collectionDetails CollectionDetails[]
-  products          Product[]
-  productCategories ProductCategory[]
-  systemReleases    SystemRelease[]
-  systemUpdates     SystemUpdate[]
+  branches           Branch[]
+  exchangeRates      ExchangeRate[]
+  taxRates           TaxRate[]
+  bankHolidays       BankHoliday[]
+  paymentMethods     PaymentMethod[]
+  collectionDetails  CollectionDetails[]
+  products           Product[]
+  productCategories  ProductCategory[]
+  systemReleases     SystemRelease[]
+  systemUpdates      SystemUpdate[]
   setupPostponements SetupPostponement[]
-  guardians         Guardian[]
-  discountRules     DiscountRule[]
+  backupCopies       BackupCopy[]
+  backupReceivers    BackupReceiver[]
+  guardians          Guardian[]
+  discountRules      DiscountRule[]
 
   @@map("tenant")
 }
@@ -214,10 +216,10 @@ model StaffUser {
   totpSecretEnc    String?   @map("totp_secret_enc")
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  branches   StaffUserBranch[]
-  changes    StaffUserChange[]
-  exceptions PermissionException[]
-  sessions   StaffSession[]
+  branches        StaffUserBranch[]
+  changes         StaffUserChange[]
+  exceptions      PermissionException[]
+  sessions        StaffSession[]
   passkeys        Passkey[]
   recoveryCodes   RecoveryCode[]
   enrollmentLinks EnrollmentLink[]
@@ -473,9 +475,9 @@ model Device {
   approvalFailures      Int       @default(0) @map("approval_failures")
   approvalLastFailureAt DateTime? @map("approval_last_failure_at") @db.Timestamptz(3)
 
-  branch   Branch         @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  changes  DeviceChange[]
-  sessions StaffSession[]
+  branch    Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  changes   DeviceChange[]
+  sessions  StaffSession[]
   trustedBy TrustedDevice[]
 
   payments   Payment[]
@@ -789,15 +791,15 @@ model CashShift {
   closedBy     String?   @map("closed_by") @db.Uuid
   closedByName String?   @map("closed_by_name")
 
-  branch   Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  device   Device           @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  opener   StaffUser        @relation("ShiftOpenedBy", fields: [tenantId, openedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  closer   StaffUser?       @relation("ShiftClosedBy", fields: [tenantId, closedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  floats   CashShiftFloat[]
-  payments Payment[]
-  sales    Sale[]
-  counts   ShiftCount[]
-  cuts     ShiftCut[]
+  branch     Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  device     Device           @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  opener     StaffUser        @relation("ShiftOpenedBy", fields: [tenantId, openedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  closer     StaffUser?       @relation("ShiftClosedBy", fields: [tenantId, closedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  floats     CashShiftFloat[]
+  payments   Payment[]
+  sales      Sale[]
+  counts     ShiftCount[]
+  cuts       ShiftCut[]
   paperLoads PaperLoad[]
 
   @@unique([tenantId, id])
@@ -1705,9 +1707,9 @@ model PaperLoad {
   reviewedByName String?   @map("reviewed_by_name")
   reviewNote     String?   @map("review_note")
 
-  branch  Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  shift   CashShift       @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  items   PaperLoadItem[]
+  branch Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  shift  CashShift       @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  items  PaperLoadItem[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, operationKey])
@@ -1792,16 +1794,73 @@ model SystemUpdate {
 /// Un punto recomendable de la Puesta a punto que administración dejó para después (T-8b, a pedido del
 /// usuario). Lo que bloquea un puesto no se pospone. Se retoma poniendo `resumedAt`; nada se borra.
 model SetupPostponement {
-  id                String    @id @default(uuid(7)) @db.Uuid
-  tenantId          String    @map("tenant_id") @db.Uuid
-  branchId          String    @map("branch_id") @db.Uuid
-  item              String
-  postponedAt       DateTime  @default(now()) @map("postponed_at") @db.Timestamptz(3)
-  postponedByName   String    @map("postponed_by_name")
-  resumedAt         DateTime? @map("resumed_at") @db.Timestamptz(3)
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  branchId        String    @map("branch_id") @db.Uuid
+  item            String
+  postponedAt     DateTime  @default(now()) @map("postponed_at") @db.Timestamptz(3)
+  postponedByName String    @map("postponed_by_name")
+  resumedAt       DateTime? @map("resumed_at") @db.Timestamptz(3)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   @@map("setup_postponement")
+}
+
+/// Cada respaldo de la noche (B7-4, M-26): el volcado cifrado que el servidor deja para que lo baje la PC
+/// del local, o el intento que falló con su motivo. Lo escribe `infra/produccion/respaldar.sh`; la
+/// aplicación solo anota la bajada que la PC confirma con su huella. Nada se borra: la retención del
+/// servidor pone `removedAt`.
+model BackupCopy {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  madeAt         DateTime  @default(now()) @map("made_at") @db.Timestamptz(3)
+  /// HECHO o FALLIDO.
+  state          String
+  /// `l2control-20261007T071500Z.l2r`: el volcado y su huella, cifrados para la clave del local.
+  file           String?
+  bytes          BigInt?
+  sha256         String?
+  /// La versión del sistema que estaba en marcha.
+  version        String?
+  /// Por qué falló.
+  detail         String?
+  downloadedAt   DateTime? @map("downloaded_at") @db.Timestamptz(3)
+  downloadedFrom String?   @map("downloaded_from")
+  /// La PC que lo bajó.
+  downloadedBy   String?   @map("downloaded_by") @db.Uuid
+  removedAt      DateTime? @map("removed_at") @db.Timestamptz(3)
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pc     BackupReceiver? @relation(fields: [tenantId, downloadedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, file])
+  @@index([tenantId, madeAt])
+  @@map("backup_copy")
+}
+
+/// La PC del local que baja los respaldos (B7-4, M-26), preparada desde Ajustes → Respaldos. De su
+/// credencial solo se guarda la huella: la credencial se enseña una vez y la escribe quien la prepara en
+/// esa PC. Una en uso a la vez; preparar otra retira la anterior. Nada se borra.
+model BackupReceiver {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  name          String
+  secretSha256  String    @map("secret_sha256")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdByName String    @map("created_by_name")
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedByName String?   @map("revoked_by_name")
+  /// La última vez que preguntó qué había, y desde dónde.
+  lastSeenAt    DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  lastSeenFrom  String?   @map("last_seen_from")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  bajados BackupCopy[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, secretSha256])
+  @@map("backup_receiver")
 }

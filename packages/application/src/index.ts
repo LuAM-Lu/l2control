@@ -41,6 +41,7 @@ import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
 import { casosCategorias, type CasosCategorias } from "./inventario/categorias.ts";
 import { casosSemilla, type CasosSemilla } from "./sucursal/semilla.ts";
 import { casosActualizaciones, type CasosActualizaciones } from "./sistema/actualizaciones.ts";
+import { casosRespaldos, type CasosRespaldos } from "./sistema/respaldos.ts";
 import { casosEntradas, type CasosEntradas } from "./inventario/entradas.ts";
 import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
 import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
@@ -80,6 +81,7 @@ export { DIAS_POR_ADELANTADO_PRECIOS, type CasosProductos } from "./inventario/p
 export type { CasosCategorias } from "./inventario/categorias.ts";
 export type { CasosSemilla } from "./sucursal/semilla.ts";
 export { compararVersiones, type CasosActualizaciones, type Servidor } from "./sistema/actualizaciones.ts";
+export { clasificar as clasificarRespaldos, type CasosRespaldos, type PcDeRespaldos } from "./sistema/respaldos.ts";
 export { ENTRADAS_RECIENTES, type CasosEntradas } from "./inventario/entradas.ts";
 export { AJUSTES_RECIENTES, type CasosSalidas } from "./inventario/salidas.ts";
 export type { Aviso, CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
@@ -149,6 +151,8 @@ export interface Aplicacion {
   readonly categorias: CasosCategorias;
   readonly semilla: CasosSemilla;
   readonly actualizaciones: CasosActualizaciones;
+  /** Los respaldos que hace el servidor y baja la PC del local (B7-4). */
+  readonly respaldos: CasosRespaldos;
   /** Las entradas de mercancía con su costo (B9-3). */
   readonly entradas: CasosEntradas;
   /** Las salidas con motivo y los conteos físicos, con su autorización (B9-4). */
@@ -232,6 +236,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     eventos,
     semilla: casosSemilla(base, { ajustes, tarifario, plano, eventos }),
     actualizaciones: casosActualizaciones(base),
+    respaldos: casosRespaldos(base),
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),

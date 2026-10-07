@@ -35,6 +35,11 @@ const EsquemaEntorno = z.object({
    * deja descargar. Vacío = el que deja el empaquetado en `apps/printer-agent/dist`.
    */
   L2_AGENTE_EXE: z.string().default(""),
+  /**
+   * Dónde deja `infra/produccion/respaldar.sh` los respaldos cifrados para la PC del local (B7-4, M-26). Vacía =
+   * este servidor no sirve respaldos: las rutas `/respaldos/*` responden que no hay (fail-closed).
+   */
+  L2_RESPALDOS_DIR: z.string().default(""),
 });
 
 export type EntornoWeb = z.infer<typeof EsquemaEntorno>;
