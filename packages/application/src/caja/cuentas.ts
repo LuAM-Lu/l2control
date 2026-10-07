@@ -120,7 +120,7 @@ import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 import { asentarExistencias, comprobarExistencias, existenciasDe } from "../inventario/existencias.ts";
 import { asentarAjuste } from "../inventario/salidas.ts";
 import { encolarEn } from "../impresion/impresion.ts";
-import { documentoDeAnulacion } from "../impresion/plantillas.ts";
+import { documentoDeAnulacion, rotuloDePedido } from "../impresion/plantillas.ts";
 import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
 import { mesaParaCuentaNueva } from "../restaurante/plano.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "./papel-en.ts";
@@ -629,7 +629,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             closedAt: new Date(ahora).toISOString(),
             businessDate: turno.businessDate.toISOString().slice(0, 10),
             cashier: quien.nombre,
-            cuenta: { kind: cuenta.kind, family: cuenta.family, tableLabel: cuenta.tableLabel ?? null },
+            cuenta: { kind: cuenta.kind, family: cuenta.family, tableLabel: cuenta.tableLabel ?? null, ...(cuenta.dePie ? { dePie: true as const } : {}) },
             parte: split ? { n: split.paid + 1, de: split.parts } : null,
             cliente:
               cmd.cliente?.kind === "IDENTIFICADO"
@@ -1108,7 +1108,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             await asentarAjuste(tx, ctx, {
               kind: "SALIDA",
               reason: "MERMA",
-              note: `Anulado ya preparado · comanda ${orden(pedido.number)} · Mesa ${pedido.tableLabel}`,
+              note: `Anulado ya preparado · comanda ${orden(pedido.number)} · ${rotuloDePedido(pedido)}`,
               content: devolucion.map((m) => ({ productId: m.productId, cantidad: m.quantity })),
               operationKey: claveSecundaria(cmd.idempotencyKey, "merma"),
               ahora,
@@ -1131,12 +1131,13 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
             {
               tipo: "ANULACION",
               para: "comandas",
-              titulo: `Anular · comanda ${orden(pedido.number)} · Mesa ${pedido.tableLabel}`,
+              titulo: `Anular · comanda ${orden(pedido.number)} · ${rotuloDePedido(pedido)}`,
               orderId: pedido.id,
               documento: documentoDeAnulacion(
                 {
                   numero: pedido.number,
-                  mesa: pedido.tableLabel,
+                  mesa: pedido.tableId === null ? null : pedido.tableLabel,
+                  nombreCuenta: pedido.accountLabel,
                   anuladoEn: ahora,
                   autorizadoPor: autorizador.fullName,
                   motivo: `${TEXTO_MOTIVO_ANULACION[cmd.motivo]}${cmd.detalle ? `: ${cmd.detalle}` : ""}`,
@@ -1257,7 +1258,7 @@ const TEXTO_MOTIVO_ANULACION: Record<AnularPedidoCommand["motivo"], string> = {
 const orden = (n: number) => `#${String(n).padStart(4, "0")}`;
 
 const MENSAJE_SIN_CONSUMO: Record<SinConsumoProblem, string> = {
-  NO_ES_MESA: "Solo se libera una mesa: las demás cuentas se cobran o se marcan en la caja.",
+  NO_ES_MESA: "Solo se libera una cuenta del salón (de una mesa o de pie): las demás se cobran o se marcan en la caja.",
   NO_ABIERTA: "Esa cuenta ya está cerrada.",
   QUEDA_POR_COBRAR: "La mesa tiene algo por cobrar: pide la cuenta, o anula lo que no se sirvió.",
 };
@@ -1369,11 +1370,14 @@ export function claveSecundaria(idempotencyKey: string, accountId: string): stri
 }
 
 /**
- * Abre la fila (`account`) de una mesa que todavía no tiene cuenta (B6-1, B6-2, B6-3): el primer
- * pedido o la primera vinculación de pulseras. Devuelve su primera versión, ya con `lines` (y
- * `sessionIds`, si trae), sin guardarla: eso lo hace quien llama, igual que con una mesa que ya
- * tenía cuenta, para que las dos salidas pasen por el mismo `guardarVersion`. El candado de las
- * mesas (I-05) lo pone quien llama, antes de decidir que hace falta una cuenta nueva.
+ * Abre la fila (`account`) de una cuenta del salón (B6-1 a B6-3, B6-7): la de una mesa —al sentar a una
+ * familia, o con el primer pedido o la primera vinculación de una mesa sin cuenta— o una de pie, sin mesa.
+ * Devuelve su primera versión, ya con `lines` (y `sessionIds`, si trae), sin guardarla: eso lo hace quien
+ * llama, igual que con una cuenta que ya existía, para que las dos salidas pasen por el mismo
+ * `guardarVersion`. El candado de las mesas lo pone quien llama, antes de decidir que hace falta una nueva.
+ *
+ * Una cuenta de mesa sin nombre propio se llama como su mesa («Mesa 3»); en una mesa compartida cada una
+ * lleva el de su familia. Una de pie se llama siempre por su nombre o una seña.
  */
 export async function crearCuentaDeMesa(
   tx: Transaccion,
@@ -1382,24 +1386,58 @@ export async function crearCuentaDeMesa(
     id?: string;
     tableId: string;
     label: string;
+    nombre?: string;
+    comensales?: number;
     lines: readonly AccountLineDoc[];
     sessionIds?: readonly string[];
     ahora: number;
     quien: string;
   }>,
 ): Promise<FamilyAccountDto> {
+  return crearCuentaDelSalon(tx, ctx, {
+    ...args,
+    kind: "MESA",
+    family: args.nombre ?? `Mesa ${args.label}`,
+    extra: { tableId: args.tableId, tableLabel: args.label },
+  });
+}
+
+/** Abre una cuenta de pie (B6-7, P-2): de mostrador, sin mesa ni niños, con el nombre con que se la llama. */
+export async function crearCuentaDePie(
+  tx: Transaccion,
+  ctx: Contexto,
+  args: Readonly<{ id?: string; nombre: string; comensales?: number; lines: readonly AccountLineDoc[]; ahora: number; quien: string }>,
+): Promise<FamilyAccountDto> {
+  return crearCuentaDelSalon(tx, ctx, { ...args, kind: "MOSTRADOR", family: args.nombre, extra: { dePie: true } });
+}
+
+async function crearCuentaDelSalon(
+  tx: Transaccion,
+  ctx: Contexto,
+  args: Readonly<{
+    id?: string;
+    kind: "MESA" | "MOSTRADOR";
+    family: string;
+    comensales?: number;
+    lines: readonly AccountLineDoc[];
+    sessionIds?: readonly string[];
+    ahora: number;
+    quien: string;
+    extra: Readonly<Record<string, unknown>>;
+  }>,
+): Promise<FamilyAccountDto> {
   const orderNumber = await siguienteNumero(tx, ctx);
   const cuenta = FamilyAccountSchema.parse({
     id: args.id ?? randomUUID(),
-    kind: "MESA",
-    family: `Mesa ${args.label}`,
+    kind: args.kind,
+    family: args.family,
     mode: "CUENTA_ABIERTA",
     status: "ABIERTA",
     openedAt: new Date(args.ahora).toISOString(),
     sessionIds: args.sessionIds ?? [],
     closedSessionIds: [],
-    tableId: args.tableId,
-    tableLabel: args.label,
+    ...args.extra,
+    ...(args.comensales !== undefined ? { comensales: args.comensales } : {}),
     lines: args.lines,
     version: 1,
     orderNumber,
@@ -1409,7 +1447,7 @@ export async function crearCuentaDeMesa(
       id: cuenta.id,
       tenantId: ctx.tenantId,
       branchId: ctx.branchId,
-      kind: "MESA",
+      kind: args.kind,
       orderNumber,
       openedAt: new Date(args.ahora),
       openedBy: ctx.quien?.userId ?? null,
@@ -1418,6 +1456,16 @@ export async function crearCuentaDeMesa(
     },
   });
   return cuenta;
+}
+
+/**
+ * El nombre propio de una cuenta del salón, si lo tiene (B6-7): el de la familia en una mesa compartida o el
+ * de quien pide de pie. `null` si se llama como su mesa. Lo lleva la comanda debajo de la mesa.
+ */
+export function nombrePropioDe(c: FamilyAccountDto): string | null {
+  if (c.dePie) return c.family;
+  if (c.kind === "MESA") return c.family === `Mesa ${c.tableLabel ?? ""}` ? null : c.family;
+  return null;
 }
 
 /** Lo que es de la pantalla: sin la versión ni lo que pone el servidor. */

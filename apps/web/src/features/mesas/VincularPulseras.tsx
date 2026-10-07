@@ -2,10 +2,11 @@
 
 import { useCallback, useState } from "react";
 import { Baby, Link2, TriangleAlert } from "lucide-react";
-import { WristbandCodeSchema, type DiningTableDto, type FamilyAccountDto } from "@l2/contracts";
+import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { Button, ScannerField, Sheet, cn } from "@l2/ui";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
-import { cuentaAbiertaDe, ninosSinMesa } from "./mesas.ts";
+import { ninosSinMesa } from "./mesas.ts";
+import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 import { nombreDeEstancia } from "../park/view-model.ts";
 
 /**
@@ -21,14 +22,15 @@ import { nombreDeEstancia } from "../park/view-model.ts";
 export function VincularPulseras({
   abierto,
   onCerrar,
-  mesa,
+  cuenta,
   estado,
   cuentas,
   onVincular,
 }: {
   abierto: boolean;
   onCerrar: () => void;
-  mesa: DiningTableDto;
+  /** La cuenta de la mesa a la que van (B6-7: en una mesa compartida, la de una familia). */
+  cuenta: FamilyAccountDto;
   estado: EstadoLocal;
   cuentas: readonly FamilyAccountDto[];
   /** Vincula en el servidor (B6-3); `true` si quedó hecho. */
@@ -39,7 +41,7 @@ export function VincularPulseras({
   const [vinculando, setVinculando] = useState(false);
 
   const grupos = ninosSinMesa(estado, cuentas);
-  const yaAqui = cuentaAbiertaDe(cuentas, mesa.id)?.sessionIds ?? [];
+  const yaAqui = cuenta.sessionIds;
   const nombre = (id: string) => {
     const s = estado.sesiones.find((x) => x.id === id);
     return s ? nombreDeEstancia(s) : (estado.nombres[id] ?? "un niño");
@@ -59,13 +61,13 @@ export function VincularPulseras({
       const otra = cuentas.find((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.sessionIds.includes(sesion.id));
       const quien = nombreDeEstancia(sesion);
       if (otra) {
-        setAviso(otra.tableId === mesa.id ? `${quien} ya está en esta mesa` : `${quien} ya está en la mesa ${otra.tableLabel ?? "?"}`);
+        setAviso(otra.id === cuenta.id ? `${quien} ya está en esta cuenta` : `${quien} ya está en ${nombreDeCuenta(otra)}`);
         return;
       }
       setElegidos((prev) => (prev.includes(sesion.id) ? prev : [...prev, sesion.id]));
       setAviso(null);
     },
-    [estado.sesiones, cuentas, mesa.id],
+    [estado.sesiones, cuentas, cuenta.id],
   );
 
   const cerrar = () => {
@@ -90,7 +92,7 @@ export function VincularPulseras({
     <Sheet
       abierto={abierto}
       onCerrar={cerrar}
-      titulo={`Vincular niños a la mesa ${mesa.label}`}
+      titulo={`Vincular niños · ${nombreDeCuenta(cuenta)}`}
       descripcion="Su tiempo de parque se cobrará con la cuenta de la mesa: la familia paga una sola vez."
       pie={
         <Button variant="primary" disabled={validos.length === 0 || vinculando} onClick={() => void confirmar()} className="w-full">
@@ -121,7 +123,7 @@ export function VincularPulseras({
 
       {yaAqui.length > 0 && (
         <p className="mt-4 text-[13px] text-ink-2">
-          Ya en esta mesa: <span className="font-medium text-ink">{yaAqui.map(nombre).join(", ")}</span>
+          Ya en esta cuenta: <span className="font-medium text-ink">{yaAqui.map(nombre).join(", ")}</span>
         </p>
       )}
 

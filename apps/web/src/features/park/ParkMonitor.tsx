@@ -8,7 +8,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { toMajor } from "@l2/domain-money";
 import { can } from "@l2/domain-identity";
-import { pendiente } from "../cuentas/cuentas.ts";
+import { nombreDeCuenta, pendiente } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
@@ -21,7 +21,6 @@ import { useTarifario } from "./TarifarioProvider";
 import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 import { useActorEnSesion } from "../identity/sesion.ts";
-import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { PonerNombre } from "./PonerNombre.tsx";
 import { VincularAMesa } from "./VincularAMesa.tsx";
 import { vincularPulseras } from "../mesas/mesas.acciones.ts";
@@ -51,7 +50,6 @@ export function ParkMonitor() {
   const actor = useActorEnSesion();
   const puedeVincular = actor !== null && can(actor, "parque.vincularMesa") !== "DENEGADO";
   const puedeCerrarHuerfanas = actor !== null && can(actor, "parque.cerrarHuerfana") === "PERMITIDO";
-  const { plano } = usePlano();
 
   const [poniendoNombre, setPoniendoNombre] = useState(false);
   const [vinculandoAMesa, setVinculandoAMesa] = useState(false);
@@ -377,17 +375,16 @@ export function ParkMonitor() {
           onCerrar={() => setVinculandoAMesa(false)}
           sesionId={ficha.id}
           estado={op.estado}
-          plano={plano?.tables ?? []}
           cuentas={cuentas}
-          onVincular={async (tableId, sessionIds) => {
-            const r = await vincularPulseras({ idempotencyKey: crypto.randomUUID(), tableId, sessionIds });
+          onVincular={async (cuenta, sessionIds) => {
+            const r = await vincularPulseras({ idempotencyKey: crypto.randomUUID(), tableId: cuenta.tableId!, cuentaId: cuenta.id, sessionIds });
             if (!r.ok) {
               avisar.error(r.mensaje);
               return false;
             }
             adoptarCuenta(r.valor.mesa);
             for (const f of r.valor.familias) adoptarCuenta(f);
-            avisar.ok(`${sessionIds.length === 1 ? "Niño vinculado" : "Niños vinculados"} a la mesa ${r.valor.mesa.tableLabel ?? "?"}`, {
+            avisar.ok(`${sessionIds.length === 1 ? "Niño vinculado" : "Niños vinculados"} · ${nombreDeCuenta(r.valor.mesa)}`, {
               detalle: "Su parque pasa a la cuenta de la mesa: la familia paga todo junto.",
             });
             return true;

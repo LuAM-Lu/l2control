@@ -32,6 +32,7 @@ import { pendiente, previsualizarSalida } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
+import { cuentasDeLaMesa } from "../mesas/mesas.ts";
 import { useSala } from "./SalaProvider.tsx";
 import { nombreDeEstancia } from "./view-model";
 import { registrarSalida } from "./parque.acciones";
@@ -96,7 +97,22 @@ export function CheckoutScreen({
   const [mesaElegida, setMesaElegida] = useState<string | null>(null);
   const { plano } = usePlano();
   const mesas = useMemo(() => (plano?.tables ?? []).filter((m) => !m.retiredAt), [plano]);
-  const etiquetaDeMesa = mesas.find((m) => m.id === mesaElegida)?.label ?? null;
+  /**
+   * A qué se puede cargar (B6-7): una opción por mesa, y en una mesa compartida una por familia, porque el
+   * parque va a la cuenta de la familia de los niños, no a la mesa. `clave` es lo que se elige.
+   */
+  const opcionesDeMesa = useMemo(
+    () =>
+      mesas.flatMap((m) => {
+        const suyas = cuentasDeLaMesa(cuentas, m.id);
+        const nombre = (family: string) => (family === `Mesa ${m.label}` ? null : family);
+        if (suyas.length <= 1) return [{ clave: m.id, tableId: m.id, cuentaId: suyas[0]?.id, mesa: m.label, familia: suyas[0] ? nombre(suyas[0].family) : null }];
+        return suyas.map((c) => ({ clave: c.id, tableId: m.id, cuentaId: c.id, mesa: m.label, familia: nombre(c.family) ?? "Primera cuenta" }));
+      }),
+    [mesas, cuentas],
+  );
+  const opcionElegida = opcionesDeMesa.find((o) => o.clave === mesaElegida) ?? null;
+  const etiquetaDeMesa = opcionElegida ? `${opcionElegida.mesa}${opcionElegida.familia ? ` · ${opcionElegida.familia}` : ""}` : null;
 
   const actor = useActorEnSesion();
   const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
@@ -232,12 +248,15 @@ export function CheckoutScreen({
       setAviso("Marca a quién se entrega cada familia antes de registrar la salida.");
       return;
     }
-    if (destino === "MESA" && !mesaElegida) {
+    if (destino === "MESA" && !opcionElegida) {
       setAviso("Elige la mesa a la que se carga la salida.");
       return;
     }
     // Con mesa, lo pendiente de estos niños pasa a la cuenta de la mesa (el servidor lo comprueba: I-05).
-    const disposicion = destino === "MESA" && mesaElegida ? { kind: "MESA" as const, tableId: mesaElegida } : { kind: "CAJA" as const };
+    const disposicion =
+      destino === "MESA" && opcionElegida
+        ? { kind: "MESA" as const, tableId: opcionElegida.tableId, ...(opcionElegida.cuentaId ? { cuentaId: opcionElegida.cuentaId } : {}) }
+        : { kind: "CAJA" as const };
     if (plan.sinCuenta.length > 0) {
       // Fail-closed: sin cuenta no se sabe quién paga ni qué se pagó ya.
       setAviso(`Sin cuenta: ${plan.sinCuenta.join(", ")}. No se puede cerrar su salida.`);
@@ -599,23 +618,26 @@ export function CheckoutScreen({
                   mesas.length === 0 ? (
                     <p className="text-[12.5px] text-ink-3">Este local no tiene plano con mesas: la salida va a caja.</p>
                   ) : (
-                    <div role="radiogroup" aria-label="Mesa" className="grid grid-cols-4 gap-1.5">
-                      {mesas.map((m) => {
-                        const elegida = m.id === mesaElegida;
+                    <div role="radiogroup" aria-label="Mesa" className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-1.5">
+                      {opcionesDeMesa.map((o) => {
+                        const elegida = o.clave === mesaElegida;
                         return (
                           <button
-                            key={m.id}
+                            key={o.clave}
                             type="button"
                             role="radio"
                             aria-checked={elegida}
-                            onClick={() => setMesaElegida(m.id)}
+                            onClick={() => setMesaElegida(o.clave)}
                             className={cn(
-                              "flex min-h-12 items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-2 text-[13px] font-semibold",
+                              "flex min-h-12 flex-col items-center justify-center rounded-[var(--radius-control)] border px-2 py-1 text-center",
                               elegida ? "border-brand bg-brand/15 text-ink" : "border-line bg-base/40 text-ink-2",
                             )}
                           >
-                            <HandPlatter size={14} aria-hidden="true" />
-                            Mesa {m.label}
+                            <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+                              <HandPlatter size={14} aria-hidden="true" />
+                              Mesa {o.mesa}
+                            </span>
+                            {o.familia && <span className="text-[11.5px] leading-tight break-words">{o.familia}</span>}
                           </button>
                         );
                       })}
@@ -628,7 +650,7 @@ export function CheckoutScreen({
             <Button
               surface="pos"
               variant="primary"
-              disabled={!hayAlgo || enviando || faltaRecogida || (destino === "MESA" && !mesaElegida)}
+              disabled={!hayAlgo || enviando || faltaRecogida || (destino === "MESA" && !opcionElegida)}
               onClick={() => void confirmarSalida()}
               className="w-full"
             >

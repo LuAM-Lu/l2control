@@ -189,14 +189,20 @@ export type LineaPedidaDto = z.infer<typeof LineaPedidaSchema>;
 
 /**
  * Enviar un pedido a cocina. `pedidoId` lo genera la tablet: reenviar el mismo (se cortó la red) no pide
- * dos veces. La cuenta de la mesa la encuentra o la abre el servidor; el precio, el IVA y la existencia
- * también son suyos.
+ * dos veces. El precio, el IVA y la existencia son del servidor.
+ *
+ * A qué cuenta va (B6-7): `cuentaId` la nombra (una de las de la mesa, o una de pie). Sin ella, la de la
+ * mesa `tableId` si tiene una sola, o una nueva si no tiene ninguna; con dos o más, la tablet tiene que
+ * decir cuál. Sin mesa ni cuenta no hay a quién cobrarle.
  */
-export const EnviarPedidoCommandSchema = z.strictObject({
-  pedidoId: z.uuid("Pedido desconocido"),
-  tableId: IdSchema,
-  lineas: z.array(LineaPedidaSchema).min(1, "Un pedido sin platos no se envía").max(40, "Hasta 40 platos distintos por pedido"),
-});
+export const EnviarPedidoCommandSchema = z
+  .strictObject({
+    pedidoId: z.uuid("Pedido desconocido"),
+    tableId: IdSchema.optional(),
+    cuentaId: z.uuid("Cuenta desconocida").optional(),
+    lineas: z.array(LineaPedidaSchema).min(1, "Un pedido sin platos no se envía").max(40, "Hasta 40 platos distintos por pedido"),
+  })
+  .refine((c) => c.tableId !== undefined || c.cuentaId !== undefined, { path: ["cuentaId"], message: "El pedido es de una mesa o de una cuenta de pie" });
 export type EnviarPedidoCommand = z.infer<typeof EnviarPedidoCommandSchema>;
 
 /** Volver a imprimir la comanda de un pedido (sale marcada «reimpresión»). */
@@ -210,9 +216,15 @@ export const PedidoSchema = z.object({
   id: IdSchema,
   /** El correlativo de la comanda en la sucursal: el que se canta en la cocina. */
   numero: z.number().int().min(1),
-  tableId: IdSchema,
-  /** El número de la mesa el día del pedido. */
+  /** La mesa del pedido; sin ella, es de una cuenta de pie (B6-7). */
+  tableId: IdSchema.nullable(),
+  /** El número de la mesa el día del pedido; «De pie» si no tiene. */
   mesa: z.string(),
+  /**
+   * El nombre de su cuenta, si tiene uno propio (B6-7): la familia en una mesa compartida, o quien pide de
+   * pie. La comanda lo lleva debajo de la mesa para que la cocina sepa a quién va.
+   */
+  nombreCuenta: z.string().nullable(),
   cuentaId: IdSchema,
   lineas: z
     .array(z.object({ productId: IdSchema, nombre: z.string(), cantidad: z.number().int().min(1), nota: z.string().nullable() }))
@@ -244,6 +256,33 @@ export type PedidosDelLocalDto = z.infer<typeof PedidosDelLocalSchema>;
 export const PedidoEnviadoSchema = z.object({ pedido: PedidoSchema, cuenta: FamilyAccountSchema });
 export type PedidoEnviadoDto = z.infer<typeof PedidoEnviadoSchema>;
 
+/* ──────────────────────────────── abrir una cuenta en el salón (B6-7, M-27) */
+
+/**
+ * Sentar a una familia: abre su cuenta en una mesa, o una cuenta de pie si no hay mesa. Una mesa admite
+ * varias (mesas compartidas, P-3), cada una con su nombre; la primera puede ir sin él («Mesa 3»).
+ *
+ * `cuentaId` lo genera la tablet: reenviar la misma (se cortó la red) no abre dos. `vistas` son las
+ * cuentas abiertas que la tablet veía en esa mesa: si otro equipo abrió una mientras tanto, choca en vez
+ * de abrir dos para la misma familia.
+ */
+export const AbrirCuentaDelSalonCommandSchema = z
+  .strictObject({
+    cuentaId: z.uuid("Cuenta desconocida"),
+    tableId: IdSchema.optional(),
+    nombre: z.string().trim().min(2, "Un nombre de al menos dos letras").max(40, "Un nombre corto: hasta 40 caracteres").optional(),
+    comensales: z.number().int().min(1, "Al menos una persona").max(30, "Hasta 30 personas"),
+    vistas: z.number().int().min(0).max(20),
+  })
+  .refine((c) => c.tableId !== undefined || c.nombre !== undefined, {
+    path: ["nombre"],
+    message: "Una cuenta de pie se llama de alguna forma: su nombre o una seña",
+  });
+export type AbrirCuentaDelSalonCommand = z.infer<typeof AbrirCuentaDelSalonCommandSchema>;
+
+/** Cuántas cuentas abiertas admite una mesa compartida: más que eso ya no es una mesa, es un error. */
+export const CUENTAS_POR_MESA = 6;
+
 /* ────────────────────────────────── vincular pulseras a una mesa (F6-05, B6-3) */
 
 /**
@@ -254,6 +293,8 @@ export type PedidoEnviadoDto = z.infer<typeof PedidoEnviadoSchema>;
 export const VincularPulserasCommandSchema = z.strictObject({
   idempotencyKey: IdSchema,
   tableId: IdSchema,
+  /** La cuenta de la mesa a la que van (B6-7): obligatoria si la mesa tiene más de una. */
+  cuentaId: z.uuid("Cuenta desconocida").optional(),
   sessionIds: z
     .array(IdSchema)
     .min(1, "Elige al menos un niño")

@@ -22,6 +22,7 @@ import { formatClock } from "../park/time-format.ts";
 import { formatTasaVE } from "./tasa-format.ts";
 import { TEXTO_MOTIVO } from "./CortesiaDialog.tsx";
 import { etiquetaDescuento } from "./descuentos.ts";
+import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 
 /** La forma vive en el contrato (`ReciboSchema`). */
 export type Recibo = ReciboDto;
@@ -62,7 +63,7 @@ export function reciboDeVenta(v: VentaCerradaDto, local: AjustesSucursalDto): Re
   return {
     local: { nombre: local.nombre, rif: local.rif, direccion: local.direccionFiscal },
     orden: ordenDe(v.orderNumber),
-    cuenta: v.cuenta.kind === "MOSTRADOR" ? "Venta de mostrador" : v.cuenta.family,
+    cuenta: nombreDeCuenta(v.cuenta),
     cuando: `${diaNumerico(cuando, local.zonaHoraria)} · ${formatClock(cuando, local.formatoHora, local.zonaHoraria)}`,
     facturaA: v.cliente.kind === "CONSUMIDOR_FINAL" ? "Consumidor final" : `${v.cliente.name} · ${v.cliente.document}`,
     parte: v.parte ? `Parte ${v.parte.n} de ${v.parte.de}` : null,

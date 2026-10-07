@@ -2,21 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { Baby, Link2, TriangleAlert } from "lucide-react";
-import type { DiningTableDto, FamilyAccountDto } from "@l2/contracts";
+import type { FamilyAccountDto } from "@l2/contracts";
 import { Button, Sheet, cn } from "@l2/ui";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
-import { cuentaAbiertaDe, ninosSinMesa } from "../mesas/mesas.ts";
+import { cuentasDeMesaAbiertas, ninosSinMesa } from "../mesas/mesas.ts";
+import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 import { nombreDeEstancia } from "./view-model.ts";
 
 /**
  * Vincular a un niño (y sus hermanos) a una mesa desde la sala — DEC-29.
+ *
+ * Se elige la CUENTA de la mesa (B6-7): en una mesa compartida cada familia tiene la suya, y el parque del
+ * niño va a la de su familia. Las mesas que se ofrecen son las que tienen cuenta abierta en el servidor.
  */
 export function VincularAMesa({
   abierto,
   onCerrar,
   sesionId,
   estado,
-  plano,
   cuentas,
   onVincular,
 }: {
@@ -24,10 +27,9 @@ export function VincularAMesa({
   onCerrar: () => void;
   sesionId: string;
   estado: EstadoLocal;
-  plano: readonly DiningTableDto[];
   cuentas: readonly FamilyAccountDto[];
-  /** Vincula en el servidor (B6-3); `true` si quedó hecho. */
-  onVincular: (tableId: string, sessionIds: string[]) => Promise<boolean>;
+  /** Vincula en el servidor (B6-3, B6-7) a esa cuenta de mesa; `true` si quedó hecho. */
+  onVincular: (cuenta: FamilyAccountDto, sessionIds: string[]) => Promise<boolean>;
 }) {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [mesaElegida, setMesaElegida] = useState<string | null>(null);
@@ -52,13 +54,13 @@ export function VincularAMesa({
   const disponibles = new Set(sinMesa.map((n) => n.id));
   const validos = elegidos.filter((id) => disponibles.has(id));
 
-  const mesasAbiertas = plano
-    .map((m) => estado.mesas[m.id])
-    .filter((m) => m !== undefined);
+  // Las cuentas de mesa abiertas en el servidor: una por familia en una mesa compartida (B6-7).
+  const mesasAbiertas = cuentasDeMesaAbiertas(cuentas);
+  const destino = mesasAbiertas.find((c) => c.id === mesaElegida) ?? null;
 
   let motivoBoton: string | null = null;
   if (mesaActual) {
-    motivoBoton = `Ya está en la mesa ${mesaActual.tableLabel ?? "?"}`;
+    motivoBoton = `Ya está en ${nombreDeCuenta(mesaActual)}`;
   } else if (validos.length === 0) {
     motivoBoton = "Elige al menos un niño";
   } else if (!mesaElegida) {
@@ -73,9 +75,9 @@ export function VincularAMesa({
   };
 
   const confirmar = async () => {
-    if (!mesaElegida || validos.length === 0) return;
+    if (!destino || validos.length === 0) return;
     setVinculando(true);
-    const hecho = await onVincular(mesaElegida, validos);
+    const hecho = await onVincular(destino, validos);
     setVinculando(false);
     if (hecho) onCerrar();
   };
@@ -89,7 +91,7 @@ export function VincularAMesa({
       pie={
         <Button variant="primary" disabled={motivoBoton !== null} onClick={() => void confirmar()} className="w-full">
           <Link2 size={17} aria-hidden="true" />
-          {motivoBoton ?? `Vincular a la mesa ${mesasAbiertas.find((m) => m.id === mesaElegida)?.label ?? ""}`}
+          {motivoBoton ?? `Vincular · ${destino ? nombreDeCuenta(destino) : ""}`}
         </Button>
       }
     >
@@ -99,7 +101,7 @@ export function VincularAMesa({
           className="mb-4 flex items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2.5 text-[13px] text-state-warn"
         >
           <TriangleAlert size={15} aria-hidden="true" />
-          El niño ya está en la mesa {mesaActual.tableLabel ?? "?"}
+          El niño ya está en {nombreDeCuenta(mesaActual)}
         </p>
       )}
 
@@ -144,13 +146,14 @@ export function VincularAMesa({
           </legend>
           {mesasAbiertas.length === 0 ? (
             <p className="rounded-[var(--radius-control)] border border-dashed border-line px-4 py-8 text-center text-[13px] text-ink-2">
-              No hay mesas abiertas. El mesero tiene que abrir la mesa primero para que puedas vincular a los niños.
+              No hay mesas abiertas. El mesero tiene que sentar a la familia primero para que puedas vincular a los niños.
             </p>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {mesasAbiertas.map((m) => {
                 const marcado = mesaElegida === m.id;
-                const ninosAqui = cuentaAbiertaDe(cuentas, m.id)?.sessionIds.length ?? 0;
+                const ninosAqui = m.sessionIds.length;
+                const propio = m.family !== `Mesa ${m.tableLabel ?? ""}` ? m.family : null;
                 return (
                   <li key={m.id}>
                     <label
@@ -167,10 +170,13 @@ export function VincularAMesa({
                         onChange={() => setMesaElegida(m.id)}
                         className="size-5 accent-[var(--color-brand)]"
                       />
-                      <span className="font-display w-8 text-center text-lg font-bold text-ink">{m.label}</span>
-                      <span className="flex-1 text-[13px] text-ink-2">
-                        {m.comensales} {m.comensales === 1 ? "persona" : "personas"}
-                        {ninosAqui > 0 && ` · ${ninosAqui} niños`}
+                      <span className="font-display w-8 text-center text-lg font-bold text-ink">{m.tableLabel}</span>
+                      <span className="min-w-0 flex-1">
+                        {propio && <span className="block truncate text-[13.5px] font-semibold text-ink">{propio}</span>}
+                        <span className="block text-[12.5px] text-ink-2">
+                          {m.comensales ? `${m.comensales} ${m.comensales === 1 ? "persona" : "personas"}` : "Sin contar personas"}
+                          {ninosAqui > 0 && ` · ${ninosAqui} niños`}
+                        </span>
                       </span>
                     </label>
                   </li>

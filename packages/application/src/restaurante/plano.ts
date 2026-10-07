@@ -11,10 +11,12 @@
  *  · el dominio (`cambioDePlanoProblem`): una mesa no desaparece, se retira, y con su cuenta abierta
  *    no se retira;
  *  · este archivo: la versión optimista (`sobre`), la hora de retirar una mesa (la del servidor, no la
- *    del navegador) y que **una mesa tenga una sola cuenta abierta** (I-05), con un candado por
- *    sucursal que ordenan también las altas de cuentas de mesa (`mesaParaCuentaNueva`).
+ *    del navegador) y las cuentas de cada mesa, con un candado por sucursal que ordena también sus altas
+ *    (`mesaParaCuentaNueva`). Desde B6-7 una mesa admite varias cuentas abiertas, cada una con su nombre
+ *    (mesas compartidas, M-27): I-05 pasa a ser «una cuenta nueva solo sobre lo que se vio».
  */
 import {
+  CUENTAS_POR_MESA,
   PlanoLocalSchema,
   PlanoPublicadoSchema,
   problemasDe,
@@ -52,35 +54,55 @@ export async function planoEn(tx: Transaccion, branchId: string): Promise<Vigent
   return { fila, plano: fila ? revalidado(fila) : null };
 }
 
+/** Una cuenta abierta en una mesa: su id y su nombre (`family`: «Mesa 3» o el de la familia). */
+export type CuentaEnMesa = Readonly<{ id: string; nombre: string }>;
+
 /**
- * Las mesas con una cuenta abierta (o por cobrar) en la sucursal: su id → el de la cuenta. Lee la
- * última versión de cada cuenta de mesa.
+ * Las cuentas abiertas (o por cobrar) de cada mesa de la sucursal: su id → sus cuentas, de la más antigua
+ * a la más nueva. Una mesa compartida tiene varias (B6-7). Lee la última versión de cada cuenta de mesa.
  */
-export async function mesasOcupadasEn(tx: Transaccion, branchId: string): Promise<Map<string, string>> {
-  const filas = await tx.$queryRaw<{ table_id: string | null; account_id: string }[]>`
-    SELECT ultima.content->>'tableId' AS table_id, ultima.account_id FROM (
-      SELECT DISTINCT ON (v.account_id) v.account_id, v.content, v.status
+export async function cuentasDeLasMesas(tx: Transaccion, branchId: string): Promise<Map<string, CuentaEnMesa[]>> {
+  const filas = await tx.$queryRaw<{ table_id: string | null; account_id: string; family: string | null }[]>`
+    SELECT ultima.content->>'tableId' AS table_id, ultima.account_id, ultima.content->>'family' AS family FROM (
+      SELECT DISTINCT ON (v.account_id) v.account_id, v.content, v.status, a.opened_at
       FROM account_version v
       JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
       WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA'
       ORDER BY v.account_id, v.version DESC
     ) ultima
-    WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')`;
-  return new Map(filas.flatMap((f) => (f.table_id ? [[f.table_id, f.account_id] as const] : [])));
+    WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')
+    ORDER BY ultima.opened_at, ultima.account_id`;
+  const mapa = new Map<string, CuentaEnMesa[]>();
+  for (const f of filas) {
+    if (!f.table_id) continue;
+    mapa.set(f.table_id, [...(mapa.get(f.table_id) ?? []), { id: f.account_id, nombre: f.family ?? "" }]);
+  }
+  return mapa;
+}
+
+/** Las cuentas de pie abiertas (o por cobrar) de la sucursal (B6-7), de la más antigua a la más nueva. */
+export async function cuentasDePieEn(tx: Transaccion, branchId: string): Promise<CuentaEnMesa[]> {
+  const filas = await tx.$queryRaw<{ account_id: string; family: string | null }[]>`
+    SELECT ultima.account_id, ultima.content->>'family' AS family FROM (
+      SELECT DISTINCT ON (v.account_id) v.account_id, v.content, v.status, a.opened_at
+      FROM account_version v
+      JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
+      WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MOSTRADOR'
+      ORDER BY v.account_id, v.version DESC
+    ) ultima
+    WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR') AND ultima.content->>'dePie' = 'true'
+    ORDER BY ultima.opened_at, ultima.account_id`;
+  return filas.map((f) => ({ id: f.account_id, nombre: f.family ?? "" }));
 }
 
 /**
  * Las mesas de la sucursal se abren y se retiran de una en una: el candado ordena dos altas de cuenta
- * en la misma mesa (I-05) y un plano que se publica mientras una mesa se abre.
+ * en la misma mesa y un plano que se publica mientras una mesa se abre.
  */
 export async function candadoDeMesas(tx: Transaccion, branchId: string): Promise<void> {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`mesas:${branchId}`}, 0))::text AS candado`;
 }
 
-/**
- * ¿Puede nacer una cuenta en esta mesa? Tiene que estar en el plano publicado, en el salón (sin
- * retirar) y sin otra cuenta abierta (I-05). Devuelve el número de la mesa, o el rechazo.
- */
 /**
  * Las estancias ya vinculadas a alguna mesa de la sucursal (F6-05): su id → a qué mesa y con qué
  * etiqueta. Un niño vinculado no se ofrece para otra mesa: su parque se cobraría dos veces (R3).
@@ -103,7 +125,26 @@ export async function sessionsVinculadas(tx: Transaccion, branchId: string): Pro
   return mapa;
 }
 
-export async function mesaParaCuentaNueva(tx: Transaccion, branchId: string, tableId: string): Promise<Readonly<{ label: string }> | Rechazo> {
+/** Cómo se abre una cuenta más en una mesa (B6-7): con nombre, y sabiendo cuántas veía quien la abre. */
+export type CuentaNuevaEnMesa = Readonly<{ nombre?: string; vistas: number }>;
+
+const mismoNombre = (a: string, b: string) => a.trim().localeCompare(b.trim(), "es", { sensitivity: "base" }) === 0;
+
+/**
+ * ¿Puede nacer una cuenta en esta mesa? Tiene que estar en el plano publicado y en el salón (sin retirar).
+ * Devuelve el número de la mesa, o el rechazo.
+ *
+ * Sin `nueva` (un pedido o un vínculo sobre una mesa sin cuenta), la mesa tiene que estar libre: así dos
+ * tablets que piden a la vez en una mesa vacía no abren dos cuentas. Con `nueva` (sentar a una familia,
+ * B6-7) la mesa puede tener otras —una mesa compartida—, pero tienen que ser las que vio quien la abre
+ * (`vistas`), la nueva lleva un nombre que la distinga y no pasan de `CUENTAS_POR_MESA`.
+ */
+export async function mesaParaCuentaNueva(
+  tx: Transaccion,
+  branchId: string,
+  tableId: string,
+  nueva?: CuentaNuevaEnMesa,
+): Promise<Readonly<{ label: string }> | Rechazo> {
   await candadoDeMesas(tx, branchId);
   const { plano } = await planoEn(tx, branchId);
   if (!plano) {
@@ -113,15 +154,71 @@ export async function mesaParaCuentaNueva(tx: Transaccion, branchId: string, tab
   if (!mesa || mesa.retiredAt !== undefined) {
     return { ok: false, motivo: "INVALIDO", mensaje: "Esa mesa no está en el salón.", problemas: [{ path: ["cuenta", "tableId"], message: "MESA_FUERA_DEL_PLANO" }] };
   }
-  if ((await mesasOcupadasEn(tx, branchId)).has(tableId)) {
+  const abiertas = (await cuentasDeLasMesas(tx, branchId)).get(tableId) ?? [];
+  const otroEquipo: Rechazo = {
+    ok: false,
+    motivo: "CONFLICTO",
+    mensaje: `La mesa ${mesa.label} cambió: otro equipo le abrió una cuenta. Vuelve a mirar la mesa.`,
+    problemas: [{ path: ["cuenta", "tableId"], message: "MESA_CON_CUENTA" }],
+  };
+  if (!nueva) return abiertas.length > 0 ? otroEquipo : { label: mesa.label };
+
+  if (abiertas.length !== nueva.vistas) return otroEquipo;
+  if (abiertas.length >= CUENTAS_POR_MESA) {
     return {
       ok: false,
       motivo: "CONFLICTO",
-      mensaje: `La mesa ${mesa.label} ya tiene su cuenta abierta: otro equipo la abrió. Vuelve a mirar la mesa.`,
-      problemas: [{ path: ["cuenta", "tableId"], message: "MESA_CON_CUENTA" }],
+      mensaje: `La mesa ${mesa.label} ya tiene ${CUENTAS_POR_MESA} cuentas abiertas.`,
+      problemas: [{ path: ["tableId"], message: "MESA_LLENA" }],
+    };
+  }
+  if (abiertas.length > 0 && !nueva.nombre) {
+    return {
+      ok: false,
+      motivo: "INVALIDO",
+      mensaje: `La mesa ${mesa.label} ya tiene una cuenta: la nueva lleva el nombre de la familia para no confundirlas.`,
+      problemas: [{ path: ["nombre"], message: "NOMBRE_OBLIGATORIO" }],
+    };
+  }
+  const nombre = nueva.nombre ?? `Mesa ${mesa.label}`;
+  if (abiertas.some((c) => mismoNombre(c.nombre, nombre))) {
+    return {
+      ok: false,
+      motivo: "CONFLICTO",
+      mensaje: `En la mesa ${mesa.label} ya hay una cuenta «${nombre}»: usa otro nombre.`,
+      problemas: [{ path: ["nombre"], message: "NOMBRE_REPETIDO" }],
     };
   }
   return { label: mesa.label };
+}
+
+/**
+ * La cuenta de la mesa a la que va algo —un pedido, un vínculo, la salida del parque— (B6-7). Con
+ * `cuentaId`, esa, que tiene que estar abierta en esa mesa. Sin ella, la única que tenga la mesa, o
+ * ninguna (`abierta: null`: quien llama la abre, con `mesaParaCuentaNueva`); con dos o más, quien pide
+ * tiene que decir a cuál. Se llama con el candado de las mesas tomado.
+ */
+export async function cuentaDeMesaPara(
+  tx: Transaccion,
+  branchId: string,
+  tableId: string,
+  cuentaId: string | undefined,
+): Promise<Readonly<{ abierta: string | null }> | Rechazo> {
+  const abiertas = (await cuentasDeLasMesas(tx, branchId)).get(tableId) ?? [];
+  if (cuentaId !== undefined) {
+    return abiertas.some((c) => c.id === cuentaId)
+      ? { abierta: cuentaId }
+      : {
+          ok: false,
+          motivo: "CONFLICTO",
+          mensaje: "Esa cuenta ya no está abierta en esta mesa: vuelve a mirar la mesa.",
+          problemas: [{ path: ["cuentaId"], message: "CUENTA_CERRADA" }],
+        };
+  }
+  if (abiertas.length > 1) {
+    return { ok: false, motivo: "INVALIDO", mensaje: "La mesa tiene varias cuentas: elige a cuál va.", problemas: [{ path: ["cuentaId"], message: "ELIGE_CUENTA" }] };
+  }
+  return { abierta: abiertas[0]?.id ?? null };
 }
 
 export function casosPlano(base: Base): CasosPlano {
@@ -156,7 +253,7 @@ export function casosPlano(base: Base): CasosPlano {
           const tables = v.data.plano.tables.map(({ retiredAt, ...m }) =>
             retiredAt === undefined ? m : { ...m, retiredAt: previas.get(m.id)?.retiredAt ?? instante },
           );
-          const ocupadas = await mesasOcupadasEn(tx, ctx.branchId);
+          const ocupadas = await cuentasDeLasMesas(tx, ctx.branchId);
           const problema = cambioDePlanoProblem(antes.plano?.tables ?? null, tables, new Set(ocupadas.keys()));
           if (problema) {
             const i = Math.max(0, tables.findIndex((m) => m.label === problema.mesa));

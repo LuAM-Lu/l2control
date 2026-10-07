@@ -14,6 +14,29 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.61.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Varias cuentas en una mesa y cuentas de pie (B6-7, M-27).
+
+### Añadido
+- **Mesas compartidas.** Cuando familias distintas se sientan en la misma mesa, cada una tiene su cuenta, con su nombre
+  y cuántas personas son: el mesero elige a cuál le pide, la comanda sale con la mesa y el nombre («MESA 3 · Familia
+  Pérez») y cada una se cobra, se vincula y se libera por separado. La mesa queda libre cuando no le queda ninguna. El
+  plano marca con un número cuántas cuentas tiene una mesa.
+- **Cuentas de pie.** Para quien pide sin estar en una mesa: «De pie», encima del plano, abre una cuenta con un nombre o
+  una seña («Sr. Luis, camisa azul»). Se le pide igual que a una mesa y la comanda sale «DE PIE».
+- **Sentar a una familia** abre su cuenta en el momento, con cuántas personas son. La primera de una mesa puede ir sin
+  nombre (se llama como la mesa); las siguientes llevan el de la familia, y dos con el mismo nombre no se permiten.
+
+### Cambiado
+- El plano, «Atender» e Inicio saben qué mesas están ocupadas, desde cuándo y cuánta gente hay por las cuentas del
+  servidor, no por los avisos del salón: una mesa con su cuenta abierta ya no puede verse libre.
+- Vincular niños a una mesa (desde la sala o desde la salida «A una mesa») elige la cuenta de la familia cuando la mesa
+  es compartida.
+- La caja, las ventas, el recibo y los pendientes del cierre nombran las cuentas del salón como se ven en él: «Mesa 3»,
+  «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis».
+- La mesa queda «por limpiar» al cobrar su última cuenta, no la primera.
+
 ## [0.60.1] — 2026-10-07 · Staging en el VPS
 
 Corrección vista al poner la 0.60.0 en el staging.
