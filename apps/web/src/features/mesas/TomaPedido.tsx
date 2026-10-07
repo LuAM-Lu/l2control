@@ -24,7 +24,7 @@ import { disponible, type ProductoALaVenta } from "../inventario/catalogo.ts";
  * dice cuántos quedan, y sin existencia no se pide (ADR-023): el servidor lo vuelve a comprobar.
  */
 export function TomaPedido({
-  mesaLabel,
+  rotulo,
   carta,
   lineas,
   onCambiar,
@@ -33,7 +33,8 @@ export function TomaPedido({
   onVolver,
   bloqueo,
 }: {
-  mesaLabel: string;
+  /** A quién va: «Mesa 3», «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis» (B6-7). */
+  rotulo: string;
   carta: readonly ProductoALaVenta[];
   lineas: readonly LineaBorrador[];
   onCambiar: (lineas: LineaBorrador[]) => void;
@@ -154,12 +155,12 @@ export function TomaPedido({
 
       {/* ── el ticket del borrador ── */}
       <aside
-        aria-label={`Borrador de la mesa ${mesaLabel}`}
+        aria-label={`Borrador · ${rotulo}`}
         className="flex min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface apaisado:min-h-0"
       >
         <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0">
-            <h2 className="font-display text-lg leading-tight font-bold text-ink">Mesa {mesaLabel}</h2>
+            <h2 className="font-display text-lg leading-tight font-bold text-ink">{rotulo}</h2>
             <p className="text-[12px] text-ink-3">Borrador: la cocina todavía no lo ve</p>
           </div>
           <Badge tone="idle">{unidades === 1 ? "1 plato" : `${unidades} platos`}</Badge>
@@ -243,7 +244,7 @@ export function TomaPedido({
           <div className="grid grid-cols-2 gap-2">
             <Button variant="neutral" onClick={onVolver}>
               <ArrowLeft size={16} aria-hidden="true" />
-              Mesa
+              Volver
             </Button>
             <Button
               variant="ghost"
@@ -298,7 +299,7 @@ export function TomaPedido({
       <Dialog
         abierto={confirmar}
         onCerrar={() => setConfirmar(false)}
-        titulo={`Enviar a cocina · Mesa ${mesaLabel}`}
+        titulo={`Enviar a cocina · ${rotulo}`}
         descripcion="Léeselo a la mesa. Una vez enviado, cambiarlo o anularlo exige motivo y autorización."
         pie={
           <div className="grid grid-cols-2 gap-2">

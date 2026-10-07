@@ -12,6 +12,19 @@ import { contextoActual } from "../../servidor/sesion";
 
 const sinSesion = { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar." } as const;
 
+/**
+ * Sienta a una familia (B6-7): abre su cuenta en una mesa —una más si la mesa es compartida— o una cuenta
+ * de pie. Reenviar el mismo id no abre dos.
+ */
+export async function abrirCuentaDelSalon(entrada: unknown): Promise<Resultado<FamilyAccountDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).mesas.abrir(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id, mesa: r.valor.tableLabel ?? "de pie" }, "cuenta del salón abierta");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "abrir cuenta del salón rechazado");
+  return r;
+}
+
 /** Vincula pulseras a una mesa: su parque pendiente pasa a la cuenta de la mesa, junta o nada. */
 export async function vincularPulseras(entrada: unknown): Promise<Resultado<VincularPulserasResultDto>> {
   const ctx = await contextoActual();

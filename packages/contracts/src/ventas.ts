@@ -148,7 +148,7 @@ export const VentaCerradaSchema = z
     businessDate: FechaSchema,
     cashier: Texto(80),
     /** De quién era la cuenta: la familia, la mesa o el mostrador. */
-    cuenta: z.object({ kind: AccountKindSchema, family: Texto(80), tableLabel: Texto(20).nullable() }),
+    cuenta: z.object({ kind: AccountKindSchema, family: Texto(80), tableLabel: Texto(20).nullable(), dePie: z.literal(true).optional() }),
     /** La parte cobrada si la cuenta se pagó dividida (F6-12). */
     parte: z.object({ n: z.number().int().positive(), de: z.number().int().min(2) }).nullable(),
     cliente: ClienteDeLaVentaSchema,

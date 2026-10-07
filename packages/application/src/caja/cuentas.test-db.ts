@@ -539,11 +539,13 @@ describe("la cuenta de una mesa (B6-1, I-05)", () => {
     assert.equal(c.tableLabel, "1");
   });
 
-  test("una mesa tiene una sola cuenta abierta: la segunda choca", async () => {
+  // Una cuenta que nace sin «sentar» (B6-7) no abre una segunda en una mesa ocupada: así dos tablets que piden
+  // a la vez no abren dos. Una mesa compartida se abre sentando a la familia, con su nombre.
+  test("una mesa con su cuenta abierta no abre otra sin sentar a una familia: la segunda choca", async () => {
     const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-1") }, AHORA);
     assert.equal(!r.ok && r.motivo, "CONFLICTO", JSON.stringify(r));
     assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_CON_CUENTA");
-    assert.match(!r.ok ? r.mensaje : "", /La mesa 1 ya tiene su cuenta abierta/);
+    assert.match(!r.ok ? r.mensaje : "", /La mesa 1 cambió: otro equipo le abrió una cuenta/);
   });
 
   test("dos tablets que abren la misma mesa a la vez: entra una", async () => {
@@ -709,7 +711,7 @@ describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
     assert.match(!r.ok ? r.mensaje : "", /algo por cobrar/);
     const deMostrador = await abrir(mostrador([lineaDeAgua()]));
     const m = await liberar(ctxCajera, deMostrador);
-    assert.match(!m.ok ? m.mensaje : "", /Solo se libera una mesa/);
+    assert.match(!m.ok ? m.mensaje : "", /Solo se libera una cuenta del salón/);
   });
 
   test("con la versión vieja choca: otra tablet acaba de pedir algo", async () => {

@@ -248,6 +248,16 @@ export const FamilyAccountSchema = z
     split: DivisionCuentaSchema.optional(),
     /** El número de mesa tal como se leía ese día: «3». Renumerarla no reescribe esto. */
     tableLabel: z.string().trim().max(20).optional(),
+    /**
+     * Cuántas personas se sentaron con esta cuenta (B6-7): lo dice el mesero al sentarlas. Solo en el
+     * salón, en una mesa o de pie. Una mesa compartida suma las de sus cuentas.
+     */
+    comensales: z.number().int().min(1).max(30).optional(),
+    /**
+     * Una cuenta de pie (B6-7, M-27): la abre el mesero para quien pide sin mesa. Es de mostrador (sin
+     * niños ni mesa) y la nombra `family`: el nombre o la seña con que se la llama.
+     */
+    dePie: z.literal(true).optional(),
     /** Estancias ya cerradas en la salida. */
     closedSessionIds: z.array(IdSchema),
     lines: z.array(AccountLineSchema),
@@ -275,6 +285,13 @@ export const FamilyAccountSchema = z
     }
     if (c.kind === "MOSTRADOR" && (c.sessionIds.length > 0 || c.tableId)) {
       ctx.addIssue({ code: "custom", path: ["kind"], message: "Una venta de mostrador no tiene niños ni mesa" });
+    }
+    // De pie es una cuenta del salón sin mesa: de mostrador, nunca de una familia ni de una mesa (B6-7).
+    if (c.dePie && c.kind !== "MOSTRADOR") {
+      ctx.addIssue({ code: "custom", path: ["dePie"], message: "Una cuenta de pie no tiene mesa ni niños" });
+    }
+    if (c.comensales !== undefined && c.kind !== "MESA" && !c.dePie) {
+      ctx.addIssue({ code: "custom", path: ["comensales"], message: "Los comensales son de una cuenta del salón" });
     }
     // Las cuentas de un cumpleaños (la del anticipo y la del día) son de su reserva, sin mesa. Y solo una
     // cuenta de evento nombra un evento.

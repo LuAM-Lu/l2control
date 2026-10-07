@@ -54,6 +54,8 @@ export type AccountDoc = Readonly<{
   descuento?: unknown;
   /** La cuenta del día de un cumpleaños (B10-2); sin ella, una cuenta EVENTO es la de su anticipo. */
   eventDay?: true | undefined;
+  /** Una cuenta de pie (B6-7): de mostrador, abierta por el mesero para quien pide sin mesa. */
+  dePie?: true | undefined;
 }>;
 
 /* ─────────────────────────────────────────────────────────── qué se cobra */
@@ -141,9 +143,12 @@ export function linesPaidBetween(before: Readonly<{ lines: readonly AccountLineD
 /**
  * Una venta de mostrador que se vació antes de cobrarse: la caja la descarta. No se borra (regla 5:
  * sus versiones dicen qué se quitó y quién), pero no es una cuenta pendiente ni sale en la cola.
+ *
+ * Una cuenta de pie (B6-7) nace vacía y no es un borrador: es alguien que espera para pedir, como una mesa
+ * recién ocupada. Sigue a la vista hasta que el mesero la libera.
  */
-export function isDiscardedDraft(c: Pick<AccountDoc, "kind" | "lines">): boolean {
-  return c.kind === "MOSTRADOR" && c.lines.length === 0;
+export function isDiscardedDraft(c: Pick<AccountDoc, "kind" | "lines" | "dePie">): boolean {
+  return c.kind === "MOSTRADOR" && !c.dePie && c.lines.length === 0;
 }
 
 /* ───────────────────────────────────────── qué cambio acepta el servidor */
@@ -525,8 +530,9 @@ export type SinConsumoProblem = "NO_ES_MESA" | "NO_ABIERTA" | "QUEDA_POR_COBRAR"
  * ¿Se puede cerrar esta cuenta sin cobrar (B6-5, M-18)? Solo una de mesa, abierta o en la cola de la
  * caja, a la que no le queda nada que cobrar: no pidieron, o todo se anuló, se regaló o se movió.
  */
-export function sinConsumoProblem(c: Pick<AccountDoc, "kind" | "status" | "lines">): SinConsumoProblem | null {
-  if (c.kind !== "MESA") return "NO_ES_MESA";
+export function sinConsumoProblem(c: Pick<AccountDoc, "kind" | "status" | "lines" | "dePie">): SinConsumoProblem | null {
+  // Lo que se libera es del salón: una mesa o una cuenta de pie (B6-7).
+  if (c.kind !== "MESA" && !(c.kind === "MOSTRADOR" && c.dePie)) return "NO_ES_MESA";
   if (c.status !== "ABIERTA" && c.status !== "POR_COBRAR") return "NO_ABIERTA";
   if (chargeableLines(c).length > 0) return "QUEDA_POR_COBRAR";
   return null;

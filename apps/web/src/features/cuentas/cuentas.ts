@@ -51,9 +51,9 @@ export function lineasDeCortesia(
   return c.lines.filter((l) => l.cortesia);
 }
 
-/** Una cuenta abierta en el salón: se cobra cuando la mesa pide la cuenta (F6-05). */
+/** Una cuenta del salón (una mesa, o de pie desde B6-7): se cobra cuando la piden (F6-05). */
 export function esDeMesa(c: FamilyAccountDto): boolean {
-  return c.kind === "MESA";
+  return c.kind === "MESA" || c.dePie === true;
 }
 
 /**
@@ -77,9 +77,13 @@ export function numeroDeOrden(c: FamilyAccountDto): string {
     : "Sin número";
 }
 
-/** Venta de mostrador: una cuenta sin familia ni mesa, abierta en la caja (su tipo lo dice, B3-3). */
+/**
+ * Venta de mostrador: una cuenta sin familia ni mesa, abierta en la caja (su tipo lo dice, B3-3). Una cuenta de
+ * pie (B6-7) también es de mostrador, pero la abre el mesero con su nombre y sus pedidos van a cocina: en la
+ * caja se trata como la de una mesa, no como un borrador que se vacía.
+ */
 export function esVentaDirecta(c: FamilyAccountDto): boolean {
-  return c.kind === "MOSTRADOR";
+  return c.kind === "MOSTRADOR" && !c.dePie;
 }
 
 /**
@@ -160,29 +164,23 @@ export function partesQueFaltan(c: FamilyAccountDto): number {
 
 /* ══════════════════════════════ la cuenta de la mesa — F6-05, D2, D3 ══ */
 
-/** Abre la cuenta de una mesa. Nace vacía y se llena con cada pedido. */
-export function abrirCuentaDeMesa({
-  tableId,
-  tableLabel,
-  ahora,
-}: {
-  tableId: string;
-  tableLabel: string;
-  ahora: string;
-}): FamilyAccountDto {
-  return FamilyAccountSchema.parse({
-    id: globalThis.crypto.randomUUID(),
-    kind: "MESA",
-    family: `Mesa ${tableLabel}`,
-    mode: "CUENTA_ABIERTA",
-    status: "ABIERTA",
-    openedAt: ahora,
-    sessionIds: [],
-    closedSessionIds: [],
-    tableId,
-    tableLabel,
-    lines: [],
-  });
+/**
+ * Cómo se nombra una cuenta en una lista, un título o un aviso (B6-7): «Mesa 3», «Mesa 3 · Familia Pérez» en
+ * una mesa compartida, «De pie · Sr. Luis», «Venta de mostrador» o el representante de una familia. La cuenta
+ * de la mesa la abre el servidor al sentar a la familia (`abrirCuentaDelSalon`), no la pantalla.
+ */
+export function nombreDeCuenta(c: Readonly<{ kind: FamilyAccountDto["kind"]; family: string; tableLabel?: string | null | undefined; dePie?: true | undefined }>): string {
+  if (c.kind === "MESA") {
+    const mesa = `Mesa ${c.tableLabel ?? "?"}`;
+    return c.family === mesa ? mesa : `${mesa} · ${c.family}`;
+  }
+  if (c.kind === "MOSTRADOR") return c.dePie ? `De pie · ${c.family}` : "Venta de mostrador";
+  return c.family;
+}
+
+/** ¿Es una cuenta del salón que sigue abierta (una mesa o de pie)? Lo que el mesero atiende (B6-7). */
+export function esDelSalonAbierta(c: FamilyAccountDto): boolean {
+  return (c.kind === "MESA" || (c.kind === "MOSTRADOR" && c.dePie === true)) && (c.status === "ABIERTA" || c.status === "POR_COBRAR");
 }
 
 /**

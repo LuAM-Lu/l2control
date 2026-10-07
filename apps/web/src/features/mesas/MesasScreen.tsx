@@ -10,33 +10,36 @@ import {
   HandPlatter,
   Link2,
   NotebookPen,
+  PersonStanding,
+  Plus,
   Printer,
   Receipt,
   RotateCcw,
   Sparkles,
   TriangleAlert,
   Users,
+  X,
 } from "lucide-react";
 import type { CatalogoDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, Confirmacion, Container, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
+import { Badge, Button, Confirmacion, Container, Input, MoneyDisplay, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { chargeableLines } from "@l2/domain-cash";
+import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
-import {
-  abrirCuentaDeMesa,
-  numeroDeOrden,
-  pasarACaja,
-} from "../cuentas/cuentas.ts";
+import { nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
 import {
   loQuePideAtencion,
   minutosDesde,
+  vistaDePie,
   vistaDelPlano,
   type EstadoVisible,
   type LineaBorrador,
   type MesaVista,
+  type PieVista,
+  type Urgencia,
 } from "./mesas.ts";
 import { PlanoLocal } from "./PlanoLocal.tsx";
 import { usePlano } from "./PlanoProvider.tsx";
@@ -46,11 +49,11 @@ import { VincularPulseras } from "./VincularPulseras.tsx";
 import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
 import { usePedidos } from "./PedidosProvider.tsx";
-import { liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
+import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 
 /**
- * Estación del mesero: mesas y pedidos — F6-01, F6-02, F6-05, DEC-22.
+ * Estación del mesero: mesas, cuentas y pedidos — F6-01, F6-02, F6-05, DEC-22, B6-7.
  *
  * Maestro-detalle a pantalla fija (1366×768 y tablet 1280×800 sin desplazar
  * la página): el plano a la izquierda, lo que pasa en la mesa elegida a la
@@ -58,19 +61,19 @@ import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
  * carta necesita el ancho que ocupa el plano; vincular pulseras abre una hoja
  * lateral porque es una tarea corta sobre la mesa que se está viendo.
  *
- * El plano y la carta son del servidor (B6-1): el plano publicado en Ajustes y la carta, que es el
- * catálogo con lo marcado «en la carta». La cuenta de la mesa también: una mesa tiene una sola abierta
- * (I-05, lo impone el servidor) y lo pedido lleva su producto, cuyo precio comprueba el servidor.
+ * TODO ES DEL SERVIDOR (B6-7). Sentar a una familia abre su cuenta en la mesa, con cuántas personas son;
+ * desde ahí el plano sabe que la mesa está ocupada y desde cuándo. Una mesa compartida (familias distintas
+ * en la misma mesa, por el aforo) tiene **una cuenta por familia**, cada una con su nombre: el mesero elige
+ * a cuál pide, la comanda la nombra y cada una se cobra y se libera por separado. Quien pide de pie, sin
+ * mesa, tiene su **cuenta de pie**. Del bus del salón queda solo «por limpiar».
  *
- * El pedido es del servidor (B6-2, ADR-022): al enviarlo entra en la cuenta de la mesa y su comanda en
- * la impresora de comandas, juntos. La cocina trabaja con el papel: aquí no hay «listo» ni «entregado»,
- * sino si la comanda salió; si no salió, se ve y se reimprime. El estado de cada mesa (abierta, pide la
- * cuenta, por limpiar) viaja aún por el bus del local hasta B6-3.
+ * El pedido es del servidor (B6-2, ADR-022): al enviarlo entra en su cuenta y su comanda en la impresora
+ * de comandas, juntos. La cocina trabaja con el papel: aquí no hay «listo» ni «entregado», sino si la
+ * comanda salió; si no salió, se ve y se reimprime.
  *
- * El mesero NO toca dinero (DEC-14): marca que la mesa pide la cuenta y la
+ * El mesero NO toca dinero (DEC-14): marca que la cuenta se pide y la
  * familia paga en caja.
  */
-
 
 const ESTADO_MESA: Readonly<Record<EstadoVisible, { texto: string; tono: Tone; icono: React.ReactNode }>> = {
   LIBRE: { texto: "Libre", tono: "idle", icono: <Sparkles size={14} aria-hidden="true" /> },
@@ -88,11 +91,19 @@ const ESTADO_COMANDA: Readonly<Record<EstadoDeComandaDto, { texto: string; tono:
 };
 
 const comanda = (n: number) => `#${String(n).padStart(4, "0")}`;
+/** «Mesa 3», «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis»: cómo se nombra un pedido. */
+const rotuloDePedido = (p: PedidoDto) => (p.tableId === null ? `De pie · ${p.nombreCuenta ?? ""}` : p.nombreCuenta ? `Mesa ${p.mesa} · ${p.nombreCuenta}` : `Mesa ${p.mesa}`);
+
+/** Lo elegido en el salón: una mesa del plano o las cuentas de pie. */
+const PIE = "PIE";
+
+/** Un lugar del salón visto en el detalle: una mesa o «De pie». */
+type Lugar = Readonly<{ tipo: "MESA"; vista: MesaVista } | { tipo: "PIE"; vista: PieVista }>;
 
 export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // El plano lo publica administración desde el panel (V4, B6-1); aquí solo se lee.
   const { plano } = usePlano();
-  // La cuenta de la mesa (F6-05, D2): los platos y el parque de esta familia.
+  // Las cuentas del salón (F6-05, D2, B6-7): una por familia en cada mesa, y las de pie.
   const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta } = useCuentas();
   // Los pedidos y su comanda, del servidor (B6-2).
   const { pedidos, enviar: enviarPedido, reimprimir } = usePedidos();
@@ -102,7 +113,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // La carta con el precio de este instante: un precio programado entra a su hora sin recargar.
   const carta = useMemo(() => (ahora > 0 ? cartaDelMesero(catalogo, ahora) : []), [catalogo, ahora]);
 
+  /** La mesa elegida (su id) o `PIE`. */
   const [seleccion, setSeleccion] = useState<string | null>(null);
+  /** La cuenta elegida dentro del lugar; sin ella, la primera. */
+  const [cuentaSel, setCuentaSel] = useState<string | null>(null);
+  /** Sentando a una familia más en una mesa ya ocupada, o abriendo otra cuenta de pie. */
+  const [sentando, setSentando] = useState(false);
   const [vista, setVista] = useState<"plano" | "pedido">("plano");
   /**
    * Plano espacial o «Atender» (V3).
@@ -115,16 +131,22 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   useEffect(() => {
     if (window.matchMedia("(max-width: 1023px)").matches) setModo("ATENDER");
   }, []);
+  /** El borrador del pedido de cada cuenta. */
   const [borradores, setBorradores] = useState<Readonly<Record<string, LineaBorrador[]>>>({});
   // Un pedido sin enviar no se pierde porque llegue una versión nueva (T-8b).
   useSinGuardar(Object.values(borradores).some((l) => l.length > 0));
   const [vinculando, setVinculando] = useState(false);
   const [anulando, setAnulando] = useState<PedidoDto | null>(null);
-  /** La mesa que se va a liberar sin consumo (B6-5), mientras se confirma. */
-  const [liberando, setLiberando] = useState<MesaVista | null>(null);
+  /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
+  const [liberando, setLiberando] = useState<FamilyAccountDto | null>(null);
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
+  /** El formulario de sentar: nombre (obligatorio de pie o si la mesa ya tiene cuenta) y personas. */
+  const [nombre, setNombre] = useState("");
   const [comensales, setComensales] = useState(2);
-  /** El id del pedido que se está enviando en cada mesa: reintentarlo (se cortó la red) no pide dos veces. */
+  /** El id de la cuenta que se está abriendo: reintentarlo (se cortó la red) no abre dos. */
+  const altaId = useRef<string | null>(null);
+  const [abriendo, setAbriendo] = useState(false);
+  /** El id del pedido que se está enviando en cada cuenta: reintentarlo no pide dos veces. */
   const [envios, setEnvios] = useState<Readonly<Record<string, string>>>({});
   const [enviando, setEnviando] = useState(false);
   const detalle = useRef<HTMLElement>(null);
@@ -134,79 +156,114 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     () => vistaDelPlano((plano?.tables ?? []).filter((m) => !m.retiredAt), estado, cuentas, pedidos, ahora),
     [plano, estado, cuentas, pedidos, ahora],
   );
-  const elegida = mesas.find((m) => m.mesa.id === seleccion) ?? null;
+  const pie = useMemo(() => vistaDePie(cuentas, pedidos, ahora), [cuentas, pedidos, ahora]);
+  const lugar: Lugar | null =
+    seleccion === PIE ? { tipo: "PIE", vista: pie } : (() => {
+      const v = mesas.find((m) => m.mesa.id === seleccion);
+      return v ? { tipo: "MESA", vista: v } : null;
+    })();
+  const cuentasDelLugar = lugar?.vista.cuentas ?? [];
+  const cuenta = cuentasDelLugar.find((c) => c.id === cuentaSel) ?? cuentasDelLugar[0] ?? null;
+  const formulario = lugar !== null && (sentando || cuentasDelLugar.length === 0);
 
-  const ocupadas = mesas.filter((m) => m.estado !== "LIBRE").length;
-  const pidenCuenta = mesas.filter((m) => m.estado === "PIDE_CUENTA").length;
-  // Las comandas de hoy que no salieron en papel, de cualquier mesa: la cocina no sabe que existen.
+  const ocupadas = mesas.filter((m) => m.cuentas.length > 0).length;
+  const pidenCuenta = [...mesas.flatMap((m) => m.cuentas), ...pie.cuentas].filter((c) => c.status === "POR_COBRAR").length;
+  // Las comandas de hoy que no salieron en papel, de cualquier cuenta: la cocina no sabe que existen.
   const sinSalir = pedidos.filter((p) => p.comanda.estado === "NO_SALIO");
 
-  // El borrador de una mesa que se libera no pasa a la familia siguiente.
+  // El borrador de una cuenta que se cerró (cobrada, liberada) no pasa a nadie.
+  const abiertas = useMemo(() => new Set([...mesas.flatMap((m) => m.cuentas), ...pie.cuentas].map((c) => c.id)), [mesas, pie]);
   useEffect(() => {
     setBorradores((b) => {
-      const huerfanos = Object.keys(b).filter((id) => !estado.mesas[id]);
+      const huerfanos = Object.keys(b).filter((id) => !abiertas.has(id));
       if (huerfanos.length === 0) return b;
       const limpio = { ...b };
       for (const id of huerfanos) delete limpio[id];
       return limpio;
     });
-  }, [estado.mesas]);
+  }, [abiertas]);
 
-  // Si la mesa del pedido deja de estar abierta, se vuelve al plano: no se
-  // toma un pedido para una mesa que ya no existe.
+  // Si la cuenta del pedido deja de estar abierta, se vuelve al plano: no se pide para una cuenta cerrada.
   useEffect(() => {
-    if (vista === "pedido" && (!elegida || elegida.estado === "LIBRE")) setVista("plano");
-  }, [vista, elegida]);
+    if (vista === "pedido" && !cuenta) setVista("plano");
+  }, [vista, cuenta]);
 
-  const elegir = (id: string) => {
+  const reiniciarFormulario = (lugarNuevo: string | null) => {
+    setNombre("");
+    setComensales(lugarNuevo === PIE ? 1 : 2);
+    altaId.current = null;
+  };
+
+  const elegir = (id: string, cuentaId: string | null = null) => {
+    if (id !== seleccion) {
+      setSentando(false);
+      reiniciarFormulario(id);
+    }
     setSeleccion(id);
-    setComensales(2);
+    setCuentaSel(cuentaId);
     // En pantallas estrechas el detalle queda debajo del plano.
     if (window.matchMedia("(max-width: 1023px)").matches) {
       window.requestAnimationFrame(() => detalle.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
   };
 
-  const emitir = (ev: Parameters<typeof op.emitir>[0], exito: string): boolean => {
+  const emitir = (ev: Parameters<typeof op.emitir>[0], exito: string | null): boolean => {
     const r = op.emitir(ev);
-    if (r.ok) avisar.ok(exito);
-    else avisar.error(r.motivo);
+    if (r.ok && exito) avisar.ok(exito);
+    else if (!r.ok) avisar.error(r.motivo);
     return r.ok;
   };
 
-  /* ── acciones: cada una comprueba su precondición antes de emitir ── */
+  /* ── acciones: cada una va al servidor y adopta lo que devuelve ── */
 
-  function abrir(m: MesaVista) {
-    if (m.estado !== "LIBRE") {
-      // I-05: una mesa no tiene dos sesiones abiertas.
-      avisar.error(`La mesa ${m.mesa.label} ya está abierta`);
+  /**
+   * Sienta a una familia (B6-7): abre su cuenta en la mesa —una más si ya tiene— o una cuenta de pie. El
+   * servidor comprueba que la mesa tenga las cuentas que se ven aquí: si otro equipo abrió una, choca.
+   */
+  async function sentar(l: Lugar) {
+    const limpio = nombre.trim();
+    const hayOtras = l.vista.cuentas.length > 0;
+    if ((l.tipo === "PIE" || hayOtras) && limpio.length < 2) {
+      avisar.error(l.tipo === "PIE" ? "Escribe un nombre o una seña para llamarla" : "Escribe el nombre de la familia: la mesa ya tiene otra cuenta");
       return;
     }
-    emitir(
-      { type: "mesa.abierta", tableId: m.mesa.id, label: m.mesa.label, guests: comensales },
-      `Mesa ${m.mesa.label} abierta · ${comensales} ${comensales === 1 ? "persona" : "personas"}`,
-    );
+    altaId.current ??= globalThis.crypto.randomUUID();
+    setAbriendo(true);
+    const r = await abrirCuentaDelSalon({
+      cuentaId: altaId.current,
+      ...(l.tipo === "MESA" ? { tableId: l.vista.mesa.id } : {}),
+      ...(limpio.length >= 2 ? { nombre: limpio } : {}),
+      comensales,
+      vistas: l.vista.cuentas.length,
+    }).catch(() => null);
+    setAbriendo(false);
+    if (!r) {
+      avisar.error("Sin conexión con el servidor: la cuenta no se abrió. Vuelve a intentarlo.");
+      return;
+    }
+    if (!r.ok) {
+      avisar.error(r.mensaje);
+      // Un choque con otro equipo no se reintenta con el mismo id: la próxima vez se mira de nuevo.
+      if (r.motivo === "CONFLICTO") altaId.current = null;
+      return;
+    }
+    adoptar(r.valor);
+    // Una mesa por limpiar en la que se sienta alguien ya está limpia: el bus lo olvida.
+    if (l.tipo === "MESA" && l.vista.estado === "POR_LIMPIAR") emitir({ type: "mesa.libre", tableId: l.vista.mesa.id }, null);
+    setCuentaSel(r.valor.id);
+    setSentando(false);
+    reiniciarFormulario(seleccion);
+    avisar.ok(`${nombreDeCuenta(r.valor)} · ${comensales} ${comensales === 1 ? "persona" : "personas"}`, { detalle: "Ya se le puede tomar el pedido." });
   }
 
   /**
-   * La cuenta de esta ocupación de la mesa: la de la mesa que no se ha cobrado.
-   * Se crea al primer pedido o al primer vínculo, y muere con el cobro: la
-   * siguiente familia que se siente abre otra.
-   */
-  function cuentaDeLaMesa(m: MesaVista): FamilyAccountDto {
-    if (!m.ocupacion) throw new Error("La mesa no está abierta");
-    // Una incobrable (D-JOR) ya se cerró, como una cobrada: la mesa abre otra.
-    return m.cuenta ?? abrirCuentaDeMesa({ tableId: m.mesa.id, tableLabel: m.mesa.label, ahora: new Date().toISOString() });
-  }
-
-  /**
-   * Vincula pulseras a la mesa, en el servidor (F6-05, D2, B6-3): lo pendiente del parque de esas
-   * estancias pasa a la cuenta de la mesa, para que la familia pague de una vez. Devuelve si quedó
+   * Vincula pulseras a la cuenta elegida de la mesa, en el servidor (F6-05, D2, B6-3, B6-7): lo pendiente
+   * del parque de esas estancias pasa a esa cuenta, para que la familia pague de una vez. Devuelve si quedó
    * hecho, para que la hoja se cierre solo si no hubo que avisar de nada.
    */
-  async function vincular(m: MesaVista, ids: string[]): Promise<boolean> {
-    if (!m.ocupacion || ids.length === 0) return false;
-    const r = await vincularPulseras({ idempotencyKey: crypto.randomUUID(), tableId: m.mesa.id, sessionIds: ids });
+  async function vincular(c: FamilyAccountDto, ids: string[]): Promise<boolean> {
+    if (!c.tableId || ids.length === 0) return false;
+    const r = await vincularPulseras({ idempotencyKey: crypto.randomUUID(), tableId: c.tableId, cuentaId: c.id, sessionIds: ids });
     if (!r.ok) {
       avisar.error(r.mensaje);
       return false;
@@ -214,9 +271,9 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     adoptar(r.valor.mesa);
     for (const familia of r.valor.familias) adoptar(familia);
     const movidas = r.valor.familias.reduce((n, f) => n + f.lines.filter((l) => l.movedTo === r.valor.mesa.id).length, 0);
-    avisar.ok(`${ids.length === 1 ? "1 niño vinculado" : `${ids.length} niños vinculados`} a la mesa ${m.mesa.label}`);
+    avisar.ok(`${ids.length === 1 ? "1 niño vinculado" : `${ids.length} niños vinculados`} · ${nombreDeCuenta(r.valor.mesa)}`);
     if (movidas > 0) {
-      avisar.info(`El parque de ${movidas === 1 ? "un niño" : "esos niños"} pasa a la cuenta de la mesa`, {
+      avisar.info(`El parque de ${movidas === 1 ? "un niño" : "esos niños"} pasa a esta cuenta`, {
         detalle: "La familia lo paga todo junto en caja.",
       });
     }
@@ -224,13 +281,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /**
-   * Envía el borrador (B6-2): en el servidor, sus platos entran en la cuenta de la mesa y su comanda en
-   * la impresora de comandas, juntos o nada. El precio, el IVA y la existencia los comprueba el servidor;
-   * lo que la tablet enseñó viaja para comprobarlo. Fail-closed: si algo del borrador ya no está en la
-   * carta, no se envía nada.
+   * Envía el borrador (B6-2): en el servidor, sus platos entran en la cuenta elegida y su comanda en la
+   * impresora de comandas, juntos. El precio, el IVA y la existencia los comprueba el servidor; lo que la
+   * tablet enseñó viaja para comprobarlo. Fail-closed: si algo del borrador ya no está en la carta, no se
+   * envía nada.
    */
-  async function enviar(m: MesaVista) {
-    const lineas = borradores[m.mesa.id] ?? [];
+  async function enviar(c: FamilyAccountDto) {
+    const lineas = borradores[c.id] ?? [];
     const platos = lineas.flatMap((l) => {
       const it = carta.find((i) => i.id === l.itemId);
       return it ? [{ it, l }] : [];
@@ -239,12 +296,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       avisar.error("El borrador tiene platos que ya no están en la carta");
       return;
     }
-    const pedidoId = envios[m.mesa.id] ?? globalThis.crypto.randomUUID();
-    setEnvios((e) => ({ ...e, [m.mesa.id]: pedidoId }));
+    const pedidoId = envios[c.id] ?? globalThis.crypto.randomUUID();
+    setEnvios((e) => ({ ...e, [c.id]: pedidoId }));
     setEnviando(true);
     const r = await enviarPedido({
       pedidoId,
-      tableId: m.mesa.id,
+      ...(c.tableId ? { tableId: c.tableId } : {}),
+      cuentaId: c.id,
       lineas: platos.map(({ it, l }) => ({
         productId: it.id,
         cantidad: l.cantidad,
@@ -258,14 +316,14 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       return;
     }
     const { pedido } = r.valor;
-    avisar.ok(`Comanda ${comanda(pedido.numero)} enviada · Mesa ${pedido.mesa}`, {
+    avisar.ok(`Comanda ${comanda(pedido.numero)} enviada · ${rotuloDePedido(pedido)}`, {
       detalle: pedido.comanda.impresora ? `Sale en «${pedido.comanda.impresora}».` : "Sale en la impresora de comandas.",
     });
     setEnvios((e) => {
-      const { [m.mesa.id]: _, ...resto } = e;
+      const { [c.id]: _, ...resto } = e;
       return resto;
     });
-    setBorradores((b) => ({ ...b, [m.mesa.id]: [] }));
+    setBorradores((b) => ({ ...b, [c.id]: [] }));
     setVista("plano");
   }
 
@@ -278,22 +336,22 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /**
-   * Anula de una vez todos los platos de este pedido que todavía se deban (F6-14, B6-6): la cuenta de la
-   * mesa ya no los cobra, el inventario va según si la cocina los preparó y a la cocina le sale un papel
-   * «ANULAR». Todo o nada: si otro equipo cambió la cuenta mientras tanto, no se anula ninguno.
+   * Anula de una vez todos los platos de este pedido que todavía se deban (F6-14, B6-6): la cuenta ya no
+   * los cobra, el inventario va según si la cocina los preparó y a la cocina le sale un papel «ANULAR».
+   * Todo o nada: si otro equipo cambió la cuenta mientras tanto, no se anula ninguno.
    */
   async function aplicarAnulacion(
     pedido: PedidoDto,
     motivo: MotivoAnulacionPedido,
-    detalle: string | undefined,
+    detalleMotivo: string | undefined,
     preparado: boolean,
     autorizacion: unknown,
   ): Promise<Rechazo | null> {
-    const cuenta = elegida?.cuenta;
-    if (!cuenta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "La cuenta de la mesa ya no está disponible." };
-    const lineIds = cuenta.lines.filter((l) => l.orderId === pedido.id && !l.paid && !l.movedTo && !l.cortesia && !l.anulacion).map((l) => l.id);
+    const suya = cuentas.find((c) => c.id === pedido.cuentaId);
+    if (!suya) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "La cuenta del pedido ya no está disponible." };
+    const lineIds = suya.lines.filter((l) => l.orderId === pedido.id && !l.paid && !l.movedTo && !l.cortesia && !l.anulacion).map((l) => l.id);
     const r = await anularPedidoDeLaCuenta(
-      { idempotencyKey: crypto.randomUUID(), accountId: cuenta.id, version: cuenta.version!, lineIds, motivo, preparado, ...(detalle ? { detalle } : {}) },
+      { idempotencyKey: crypto.randomUUID(), accountId: suya.id, version: suya.version!, lineIds, motivo, preparado, ...(detalleMotivo ? { detalle: detalleMotivo } : {}) },
       autorizacion,
     );
     if (!r.ok) return r;
@@ -304,49 +362,39 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /**
-   * Libera una mesa sin nada que cobrar (B6-5, M-18): no pidieron, o todo se anuló o se regaló. Si la
-   * mesa tiene cuenta en el servidor, se cierra «sin consumo» allí primero; si no, solo se libera el salón.
+   * Libera una cuenta sin nada que cobrar (B6-5, M-18): no pidieron, o todo se anuló o se regaló. Se cierra
+   * «sin consumo» en el servidor. Si era la última de su mesa, la mesa queda libre.
    */
-  async function liberar(m: MesaVista) {
-    const cuenta = m.cuenta;
-    if (cuenta?.version !== undefined) {
-      setLiberandoEnvio(true);
-      const r = await liberarMesa({ idempotencyKey: crypto.randomUUID(), accountId: cuenta.id, version: cuenta.version }).catch(() => null);
-      setLiberandoEnvio(false);
-      if (!r) {
-        avisar.error("Sin conexión con el servidor: la mesa no se liberó. Vuelve a intentarlo.");
-        return;
-      }
-      if (!r.ok) {
-        avisar.error(r.mensaje);
-        return;
-      }
-      adoptar(r.valor);
-    }
-    setLiberando(null);
-    emitir({ type: "mesa.libre", tableId: m.mesa.id }, `Mesa ${m.mesa.label} libre: no hubo nada que cobrar`);
-  }
-
-  /** La mesa pide la cuenta: el mesero no cobra (DEC-14), la manda a caja. */
-  function pedirLaCuenta(m: MesaVista) {
-    const cuenta = pasarACaja(cuentaDeLaMesa(m));
-    if (cuenta.status !== "POR_COBRAR") {
-      avisar.error(`La mesa ${m.mesa.label} no tiene nada que cobrar: libérala`);
+  async function liberar(c: FamilyAccountDto) {
+    setLiberandoEnvio(true);
+    const r = await liberarMesa({ idempotencyKey: crypto.randomUUID(), accountId: c.id, version: c.version! }).catch(() => null);
+    setLiberandoEnvio(false);
+    if (!r) {
+      avisar.error("Sin conexión con el servidor: no se liberó. Vuelve a intentarlo.");
       return;
     }
-    if (!emitir({ type: "mesa.pide_cuenta", tableId: m.mesa.id }, `Mesa ${m.mesa.label}: la cuenta pasa a caja`)) return;
-    guardar(cuenta);
-    avisar.info(`${numeroDeOrden(cuenta)} en la cola de la caja`, {
-      detalle: "La familia paga ahí: el mesero no toca dinero (DEC-14).",
-    });
+    if (!r.ok) {
+      avisar.error(r.mensaje);
+      return;
+    }
+    adoptar(r.valor);
+    setLiberando(null);
+    setCuentaSel(null);
+    avisar.ok(`${nombreDeCuenta(c)}: libre, no hubo nada que cobrar`);
   }
 
-  const bloqueoEnvio = (m: MesaVista | null): string | null =>
-    !m || m.estado === "LIBRE"
-      ? "La mesa no está abierta"
-      : m.estado === "POR_LIMPIAR"
-        ? "La mesa ya pagó y está por limpiar"
-        : null;
+  /** La cuenta se pide: el mesero no cobra (DEC-14), la manda a caja. */
+  function pedirLaCuenta(c: FamilyAccountDto) {
+    const lista = pasarACaja(c);
+    if (lista.status !== "POR_COBRAR") {
+      avisar.error(`${nombreDeCuenta(c)} no tiene nada que cobrar: libérala`);
+      return;
+    }
+    guardar(lista);
+    avisar.info(`${numeroDeOrden(lista)} · ${nombreDeCuenta(lista)} en la cola de la caja`, {
+      detalle: "Pagan ahí: el mesero no toca dinero (DEC-14).",
+    });
+  }
 
   /* ── un local sin plano: se dice dónde se dibuja, sin inventar mesas ── */
   if (!plano) {
@@ -373,24 +421,24 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /* ── vista de pedido: carta + ticket ── */
-  if (vista === "pedido" && elegida) {
+  if (vista === "pedido" && cuenta) {
     return (
       <div className="flex flex-1 flex-col apaisado:min-h-0">
-        <Cabecera titulo={`Pedido · Mesa ${elegida.mesa.label}`} subtitulo="Borrador: la cocina lo verá cuando lo envíes" />
+        <Cabecera titulo={`Pedido · ${nombreDeCuenta(cuenta)}`} subtitulo="Borrador: la cocina lo verá cuando lo envíes" />
         <Container
           as="main"
           ancho="operacion"
           className="grid flex-1 content-start gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[3fr_2fr] apaisado:grid-rows-[minmax(0,1fr)] apaisado:content-stretch"
         >
           <TomaPedido
-            mesaLabel={elegida.mesa.label}
+            rotulo={nombreDeCuenta(cuenta)}
             carta={carta}
-            lineas={borradores[elegida.mesa.id] ?? []}
-            onCambiar={(l) => setBorradores((b) => ({ ...b, [elegida.mesa.id]: l }))}
-            onEnviar={() => void enviar(elegida)}
+            lineas={borradores[cuenta.id] ?? []}
+            onCambiar={(l) => setBorradores((b) => ({ ...b, [cuenta.id]: l }))}
+            onEnviar={() => void enviar(cuenta)}
             enviando={enviando}
             onVolver={() => setVista("plano")}
-            bloqueo={bloqueoEnvio(elegida)}
+            bloqueo={null}
           />
         </Container>
       </div>
@@ -398,11 +446,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /* ── vista de plano: mesas + detalle ── */
+  const enEspera = (borradores[cuenta?.id ?? ""] ?? []).length > 0;
   return (
     <div className="flex flex-1 flex-col apaisado:min-h-0">
       <Cabecera
         titulo="Mesas"
-        subtitulo="Toca una mesa para ver sus pedidos"
+        subtitulo="Toca una mesa, o «De pie», para atenderla"
         vista={
           <div role="radiogroup" aria-label="Cómo ver las mesas" className="flex gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1">
             {([["PLANO", "Plano"], ["ATENDER", "Atender"]] as const).map(([id, texto]) => (
@@ -425,7 +474,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         cifras={
           <>
             <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${mesas.length}`} />
-            <StatTile label="Comandas hoy" value={pedidos.length} icon={<Printer size={11} aria-hidden="true" />} />
+            <StatTile label="De pie" value={pie.cuentas.length} icon={<PersonStanding size={11} aria-hidden="true" />} />
             <StatTile
               label="No salieron"
               value={sinSalir.length}
@@ -451,7 +500,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
           <strong className="font-semibold">
             {sinSalir.length === 1 ? "Una comanda no salió en papel" : `${sinSalir.length} comandas no salieron en papel`}:
           </strong>
-          {sinSalir.map((p) => `${comanda(p.numero)} · Mesa ${p.mesa}`).join(", ")}. Vuelve a imprimirla desde su mesa o avisa en cocina.
+          {sinSalir.map((p) => `${comanda(p.numero)} · ${rotuloDePedido(p)}`).join(", ")}. Vuelve a imprimirla desde su cuenta o avisa en cocina.
         </p>
       )}
 
@@ -462,140 +511,159 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       >
         <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 apaisado:min-h-0 apaisado:overflow-y-auto">
           {modo === "PLANO" ? (
-            <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion} onElegir={elegir} className="apaisado:min-h-0" />
+            <>
+              <BotonDePie pie={pie} activo={seleccion === PIE} onElegir={() => elegir(PIE)} />
+              <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion === PIE ? null : seleccion} onElegir={(id) => elegir(id)} className="apaisado:min-h-0" />
+            </>
           ) : (
-            <Atender mesas={mesas} elegida={seleccion} onElegir={elegir} />
+            <Atender filas={loQuePideAtencion(mesas, pie, ahora)} elegida={seleccion} onElegir={(f) => elegir(f.lugar, f.cuentaId)} onDePie={() => elegir(PIE)} pie={pie} />
           )}
         </section>
 
         <aside
           ref={detalle}
-          aria-label="Detalle de la mesa"
+          aria-label="Detalle"
           className="flex min-w-0 scroll-mt-20 flex-col rounded-[var(--radius-card)] border border-line bg-surface apaisado:min-h-0"
         >
-          {!elegida ? (
+          {!lugar ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
               <HandPlatter size={34} aria-hidden="true" className="text-ink-3" />
               <p className="font-display text-lg font-semibold text-ink">Elige una mesa</p>
-              <p className="max-w-[16rem] text-[13px] text-ink-2">
-                Una libre para sentar a una familia; una ocupada para tomar su pedido o servir lo que está listo.
+              <p className="max-w-[18rem] text-[13px] text-ink-2">
+                Una libre para sentar a una familia; una ocupada para tomar su pedido. Quien pide sin mesa, en «De pie».
               </p>
             </div>
-          ) : elegida.estado === "LIBRE" ? (
-            <>
-              <CabeceraDetalle vista={elegida} ahora={ahora} />
-              <div className="flex flex-1 flex-col gap-4 px-4 py-4">
-                <div>
-                  <p className="mb-2 text-[13px] text-ink-2">¿Cuántas personas se sientan?</p>
-                  <Stepper
-                    value={comensales}
-                    onChange={setComensales}
-                    label={`Personas en la mesa ${elegida.mesa.label}`}
-                    min={1}
-                    max={20}
-                  />
-                  {comensales > elegida.mesa.seats && (
-                    <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-state-warn">
-                      <TriangleAlert size={13} aria-hidden="true" />
-                      La mesa tiene {elegida.mesa.seats} sillas: harán falta más
-                    </p>
-                  )}
-                </div>
-              </div>
-              <footer className="border-t border-line px-4 py-3">
-                <Button variant="primary" onClick={() => abrir(elegida)} className="w-full">
-                  <Users size={17} aria-hidden="true" />
-                  Abrir la mesa {elegida.mesa.label}
-                </Button>
-              </footer>
-            </>
           ) : (
             <>
-              <CabeceraDetalle vista={elegida} ahora={ahora} />
-              <div className="flex flex-1 flex-col gap-4 px-4 py-3 apaisado:min-h-0 apaisado:overflow-y-auto">
-                <NinosDeLaMesa vista={elegida} onVincular={() => setVinculando(true)} />
-                <PedidosDeLaMesa
-                  vista={elegida}
-                  ahora={ahora}
-                  borrador={(borradores[elegida.mesa.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
-                  onReimprimir={(p) => void volverAImprimir(p)}
-                  onAnular={(p) => setAnulando(p)}
+              <CabeceraDetalle lugar={lugar} ahora={ahora} />
+              {cuentasDelLugar.length > 0 && (
+                <CuentasDelLugar
+                  lugar={lugar}
+                  elegida={formulario ? null : (cuenta?.id ?? null)}
+                  onElegir={(id) => {
+                    setSentando(false);
+                    setCuentaSel(id);
+                  }}
+                  nueva={sentando}
+                  onNueva={() => {
+                    reiniciarFormulario(seleccion);
+                    setSentando(true);
+                  }}
                 />
-              </div>
+              )}
+
+              {formulario ? (
+                <FormularioSentar
+                  lugar={lugar}
+                  nombre={nombre}
+                  onNombre={setNombre}
+                  comensales={comensales}
+                  onComensales={setComensales}
+                  onEnviar={() => void sentar(lugar)}
+                />
+              ) : (
+                cuenta && (
+                  <div className="flex flex-1 flex-col gap-4 px-4 py-3 apaisado:min-h-0 apaisado:overflow-y-auto">
+                    <ResumenDeCuenta cuenta={cuenta} ahora={ahora} />
+                    {lugar.tipo === "MESA" && <NinosDeLaCuenta cuenta={cuenta} onVincular={() => setVinculando(true)} />}
+                    <PedidosDeLaCuenta
+                      pedidos={pedidos.filter((p) => p.cuentaId === cuenta.id)}
+                      cuenta={cuenta}
+                      ahora={ahora}
+                      borrador={(borradores[cuenta.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
+                      onReimprimir={(p) => void volverAImprimir(p)}
+                      onAnular={(p) => setAnulando(p)}
+                    />
+                  </div>
+                )
+              )}
+
               <footer className="flex flex-col gap-2 border-t border-line px-4 py-3">
-                {elegida.estado === "POR_LIMPIAR" ? (
-                  <Button
-                    variant="primary"
-                    onClick={() =>
-                      emitir({ type: "mesa.libre", tableId: elegida.mesa.id }, `Mesa ${elegida.mesa.label} libre`)
-                    }
-                    className="w-full"
-                  >
-                    <Sparkles size={17} aria-hidden="true" />
-                    Mesa limpia: dejarla libre
-                  </Button>
-                ) : (
+                {formulario ? (
                   <>
-                    <Button variant="primary" onClick={() => setVista("pedido")} className="w-full">
-                      <NotebookPen size={17} aria-hidden="true" />
-                      {(borradores[elegida.mesa.id] ?? []).length > 0 ? "Seguir con el pedido" : "Tomar pedido"}
+                    <Button variant="primary" disabled={abriendo} onClick={() => void sentar(lugar)} className="w-full">
+                      {lugar.tipo === "PIE" ? <PersonStanding size={17} aria-hidden="true" /> : <Users size={17} aria-hidden="true" />}
+                      {abriendo
+                        ? "Abriendo la cuenta…"
+                        : lugar.tipo === "PIE"
+                          ? "Abrir la cuenta de pie"
+                          : cuentasDelLugar.length > 0
+                            ? `Sentar a otra familia en la mesa ${lugar.vista.mesa.label}`
+                            : `Sentar en la mesa ${lugar.vista.mesa.label}`}
                     </Button>
-                    {!elegida.cuenta || chargeableLines(elegida.cuenta).length === 0 ? (
-                      // Nada que cobrar (B6-5): no se manda a la caja, se libera.
-                      <Button variant="neutral" onClick={() => setLiberando(elegida)} className="w-full">
-                        <DoorOpen size={16} aria-hidden="true" />
-                        Liberar mesa
+                    {cuentasDelLugar.length > 0 && (
+                      <Button variant="ghost" onClick={() => setSentando(false)} className="w-full">
+                        <X size={16} aria-hidden="true" />
+                        Cancelar
                       </Button>
-                    ) : elegida.estado === "OCUPADA" ? (
-                      <Button
-                        variant="neutral"
-                        onClick={() => pedirLaCuenta(elegida)}
-                        className="w-full"
-                      >
-                        <Receipt size={16} aria-hidden="true" />
-                        Pide la cuenta
+                    )}
+                    {lugar.tipo === "MESA" && lugar.vista.estado === "POR_LIMPIAR" && (
+                      <Button variant="neutral" onClick={() => emitir({ type: "mesa.libre", tableId: lugar.vista.mesa.id }, `Mesa ${lugar.vista.mesa.label} libre`)} className="w-full">
+                        <Sparkles size={16} aria-hidden="true" />
+                        Mesa limpia: dejarla libre
                       </Button>
-                    ) : (
-                      <p className="text-center text-[12.5px] text-ink-3">
-                        La familia paga en caja. El mesero no cobra (DEC-14).
-                      </p>
                     )}
                   </>
+                ) : (
+                  cuenta && (
+                    <>
+                      <Button variant="primary" onClick={() => setVista("pedido")} className="w-full">
+                        <NotebookPen size={17} aria-hidden="true" />
+                        {enEspera ? "Seguir con el pedido" : "Tomar pedido"}
+                      </Button>
+                      {chargeableLines(cuenta).length === 0 ? (
+                        // Nada que cobrar (B6-5): no se manda a la caja, se libera.
+                        <Button variant="neutral" onClick={() => setLiberando(cuenta)} className="w-full">
+                          <DoorOpen size={16} aria-hidden="true" />
+                          {lugar.tipo === "PIE" || cuentasDelLugar.length > 1 ? "Liberar esta cuenta" : "Liberar mesa"}
+                        </Button>
+                      ) : cuenta.status === "ABIERTA" ? (
+                        <Button variant="neutral" onClick={() => pedirLaCuenta(cuenta)} className="w-full">
+                          <Receipt size={16} aria-hidden="true" />
+                          Pide la cuenta
+                        </Button>
+                      ) : (
+                        <p className="text-center text-[12.5px] text-ink-3">Pagan en caja. El mesero no cobra (DEC-14).</p>
+                      )}
+                    </>
+                  )
                 )}
               </footer>
 
-              <VincularPulseras
-                abierto={vinculando}
-                onCerrar={() => setVinculando(false)}
-                mesa={elegida.mesa}
-                estado={estado}
-                cuentas={cuentas}
-                onVincular={(ids) => vincular(elegida, ids)}
-              />
+              {cuenta && lugar.tipo === "MESA" && (
+                <VincularPulseras
+                  abierto={vinculando}
+                  onCerrar={() => setVinculando(false)}
+                  cuenta={cuenta}
+                  estado={estado}
+                  cuentas={cuentas}
+                  onVincular={(ids) => vincular(cuenta, ids)}
+                />
+              )}
               <Confirmacion
                 abierto={liberando !== null}
                 onCerrar={() => setLiberando(null)}
-                titulo={`Liberar la mesa ${liberando?.mesa.label ?? ""}`}
+                titulo={`Liberar · ${liberando ? nombreDeCuenta(liberando) : ""}`}
                 confirmar="Sí, liberar"
                 ocupado={liberandoEnvio}
                 onConfirmar={() => void (liberando && liberar(liberando))}
               >
                 <p>
-                  {liberando?.cuenta && liberando.cuenta.lines.length > 0
-                    ? "Lo que se pidió está anulado o regalado: no hay nada que cobrar. La cuenta se cierra sin consumo y la mesa queda libre."
-                    : "No pidieron nada. La mesa queda libre para otra familia."}
+                  {liberando && liberando.lines.length > 0
+                    ? "Lo que se pidió está anulado o regalado: no hay nada que cobrar. La cuenta se cierra sin consumo."
+                    : "No pidieron nada. La cuenta se cierra sin consumo."}
                 </p>
-                {(borradores[liberando?.mesa.id ?? ""] ?? []).length > 0 && (
-                  <p className="mt-2 text-state-warn">El pedido sin enviar de esta mesa se descarta.</p>
+                {(borradores[liberando?.id ?? ""] ?? []).length > 0 && (
+                  <p className="mt-2 text-state-warn">El pedido sin enviar de esta cuenta se descarta.</p>
                 )}
               </Confirmacion>
               <AnularPedidoDialog
                 pedido={anulando}
                 onCerrar={() => setAnulando(null)}
-                onAplicar={async (motivo, detalle, preparado, autorizacion) => {
-                  const rechazo = await aplicarAnulacion(anulando!, motivo, detalle, preparado, autorizacion);
-                  if (!rechazo) setAnulando(null);
-                  return rechazo;
+                onAplicar={async (motivo, detalleMotivo, preparado, autorizacion) => {
+                  const rechazoAnular = await aplicarAnulacion(anulando!, motivo, detalleMotivo, preparado, autorizacion);
+                  if (!rechazoAnular) setAnulando(null);
+                  return rechazoAnular;
                 }}
               />
             </>
@@ -638,114 +706,291 @@ function Cabecera({
   );
 }
 
+/** «De pie»: el lugar de quien pide sin mesa (B6-7), encima del plano. Dice cuántas cuentas hay y si alguna pide. */
+function BotonDePie({ pie, activo, onElegir }: { pie: PieVista; activo: boolean; onElegir: () => void }) {
+  const piden = pie.cuentas.filter((c) => c.status === "POR_COBRAR").length;
+  return (
+    <button
+      type="button"
+      aria-pressed={activo}
+      onClick={onElegir}
+      className={cn(
+        "flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left",
+        "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        piden > 0 ? "border-state-warn/50 bg-state-warn-bg/40" : "border-line bg-surface hover:border-line-strong",
+        activo && "ring-2 ring-brand",
+      )}
+    >
+      <PersonStanding size={20} aria-hidden="true" className={piden > 0 ? "text-state-warn" : "text-brand"} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-semibold text-ink">De pie</span>
+        <span className="block text-[12px] text-ink-3">
+          {pie.cuentas.length === 0
+            ? "Quien pide sin mesa: ábrele una cuenta"
+            : `${pie.cuentas.length === 1 ? "1 cuenta abierta" : `${pie.cuentas.length} cuentas abiertas`}${piden > 0 ? ` · ${piden === 1 ? "1 pide" : `${piden} piden`} la cuenta` : ""}`}
+        </span>
+      </span>
+      {piden > 0 ? <Receipt size={18} className="shrink-0 text-state-warn" aria-hidden="true" /> : <Plus size={18} className="shrink-0 text-ink-3" aria-hidden="true" />}
+    </button>
+  );
+}
+
 /**
  * «Atender»: solo lo que pide acción, en el orden en que conviene hacerlo.
  *
  * No es el plano en forma de lista —eso sería repetir lo mismo con más ruido—,
- * sino la cola de trabajo del mesero: platos que se enfrían, quien quiere
- * pagar, mesas que bloquean y mesas largas. En el teléfono es la vista de
- * entrada, porque un plano de ocho metros ahí no se lee.
+ * sino la cola de trabajo del mesero: comandas que no salieron, quien quiere
+ * pagar, mesas por limpiar y mesas largas, con las cuentas de pie entre ellas.
+ * En el teléfono es la vista de entrada, porque un plano de ocho metros ahí no
+ * se lee.
  */
 function Atender({
-  mesas,
+  filas,
   elegida,
   onElegir,
+  onDePie,
+  pie,
 }: {
-  mesas: readonly MesaVista[];
+  filas: readonly Urgencia[];
   elegida: string | null;
-  onElegir: (id: string) => void;
+  onElegir: (f: Urgencia) => void;
+  onDePie: () => void;
+  pie: PieVista;
 }) {
-  const filas = loQuePideAtencion(mesas);
-  if (filas.length === 0) {
-    return (
-      <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/40 px-6 text-center">
-        <CircleCheckBig size={26} className="text-state-ok" aria-hidden="true" />
-        <p className="font-display text-lg font-bold text-ink">Nada que atender ahora</p>
-        <p className="text-[13px] text-ink-2">Aquí saldrán las comandas que no salgan en papel, quien pida la cuenta y las mesas por limpiar.</p>
-      </div>
-    );
-  }
   return (
-    <ul className="flex flex-col gap-2">
-      {filas.map((f) => {
-        const v = f.vista;
-        return (
-          <li key={`${v.mesa.id}-${f.orden}`}>
-            <button
-              type="button"
-              aria-pressed={v.mesa.id === elegida}
-              onClick={() => onElegir(v.mesa.id)}
-              className={cn(
-                "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left",
-                "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                f.tono === "crit"
-                  ? "border-state-crit/40 bg-state-crit-bg/40"
-                  : f.tono === "warn"
-                    ? "border-state-warn/40 bg-state-warn-bg/40"
-                    : "border-line bg-surface",
-                v.mesa.id === elegida && "ring-2 ring-brand",
-              )}
-            >
-              <span className="font-display w-10 shrink-0 text-center text-2xl leading-none font-bold text-ink">
-                {v.mesa.label}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span
-                  className={cn(
-                    "block truncate text-[14px] font-semibold",
-                    f.tono === "crit" ? "text-state-crit" : f.tono === "warn" ? "text-state-warn" : "text-ink",
-                  )}
-                >
-                  {f.que}
+    <div className="flex flex-col gap-2">
+      <BotonDePie pie={pie} activo={elegida === PIE} onElegir={onDePie} />
+      {filas.length === 0 ? (
+        <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border border-dashed border-line-strong/60 bg-surface/40 px-6 text-center">
+          <CircleCheckBig size={26} className="text-state-ok" aria-hidden="true" />
+          <p className="font-display text-lg font-bold text-ink">Nada que atender ahora</p>
+          <p className="text-[13px] text-ink-2">Aquí saldrán las comandas que no salgan en papel, quien pida la cuenta y las mesas por limpiar.</p>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {filas.map((f) => (
+            <li key={`${f.lugar}-${f.cuentaId ?? ""}-${f.orden}`}>
+              <button
+                type="button"
+                aria-pressed={f.lugar === elegida}
+                onClick={() => onElegir(f)}
+                className={cn(
+                  "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left",
+                  "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  f.tono === "crit"
+                    ? "border-state-crit/40 bg-state-crit-bg/40"
+                    : f.tono === "warn"
+                      ? "border-state-warn/40 bg-state-warn-bg/40"
+                      : "border-line bg-surface",
+                  f.lugar === elegida && "ring-2 ring-brand",
+                )}
+              >
+                <span className={cn("font-display w-12 shrink-0 text-center leading-none font-bold text-ink", f.lugar === PIE ? "text-[13px]" : "text-2xl")}>
+                  {f.rotulo}
                 </span>
-                <span className="block truncate text-[12px] text-ink-3">
-                  {v.mesa.zone}
-                  {v.ocupacion ? ` · ${v.ocupacion.comensales} de ${v.mesa.seats} sillas` : ""}
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      "block text-[14px] leading-tight font-semibold",
+                      f.tono === "crit" ? "text-state-crit" : f.tono === "warn" ? "text-state-warn" : "text-ink",
+                    )}
+                  >
+                    {f.que}
+                  </span>
+                  <span className="block text-[12px] leading-tight text-ink-3">{f.detalle}</span>
                 </span>
-              </span>
-              {f.tono === "crit" ? (
-                <Printer size={18} className="shrink-0 text-state-crit" aria-hidden="true" />
-              ) : f.tono === "warn" ? (
-                <Receipt size={18} className="shrink-0 text-state-warn" aria-hidden="true" />
-              ) : (
-                <Sparkles size={18} className="shrink-0 text-ink-3" aria-hidden="true" />
-              )}
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+                {f.tono === "crit" ? (
+                  <Printer size={18} className="shrink-0 text-state-crit" aria-hidden="true" />
+                ) : f.tono === "warn" ? (
+                  <Receipt size={18} className="shrink-0 text-state-warn" aria-hidden="true" />
+                ) : (
+                  <Sparkles size={18} className="shrink-0 text-ink-3" aria-hidden="true" />
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
-function CabeceraDetalle({ vista, ahora }: { vista: MesaVista; ahora: number }) {
+function CabeceraDetalle({ lugar, ahora }: { lugar: Lugar; ahora: number }) {
   const hora = useHora();
-  const e = ESTADO_MESA[vista.estado];
+  const v = lugar.vista;
+  const e = ESTADO_MESA[v.estado];
   return (
     <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
       <div className="min-w-0">
-        <h2 className="font-display text-2xl leading-none font-bold text-ink">Mesa {vista.mesa.label}</h2>
+        <h2 className="font-display text-2xl leading-none font-bold text-ink">{lugar.tipo === "PIE" ? "De pie" : `Mesa ${lugar.vista.mesa.label}`}</h2>
         <p className="tnum mt-1.5 text-[12.5px] text-ink-3">
-          {vista.mesa.zone} · {vista.mesa.seats} sillas
-          {vista.ocupacion && ahora > 0 && (
+          {lugar.tipo === "PIE" ? "Quien pide sin mesa" : `${lugar.vista.mesa.zone} · ${lugar.vista.mesa.seats} sillas`}
+          {v.cuentas.length > 0 && ahora > 0 && (
             <>
-              {" "}· abierta a las {hora(Date.parse(vista.ocupacion.abiertaEn))} ·{" "}
-              {vista.ocupacion.comensales} {vista.ocupacion.comensales === 1 ? "persona" : "personas"}
+              {" "}· {v.comensales} {v.comensales === 1 ? "persona" : "personas"}
+              {lugar.tipo === "MESA" && v.desde ? ` · desde las ${hora(Date.parse(v.cuentas[0]!.openedAt))}` : ""}
             </>
           )}
         </p>
       </div>
-      <Badge tone={e.tono} icon={e.icono}>
-        {e.texto}
-      </Badge>
+      {lugar.tipo === "MESA" && (
+        <Badge tone={e.tono} icon={e.icono}>
+          {e.texto}
+        </Badge>
+      )}
     </header>
   );
 }
 
-function NinosDeLaMesa({ vista, onVincular }: { vista: MesaVista; onVincular: () => void }) {
+/**
+ * Las cuentas del lugar, para elegir a cuál se atiende (B6-7): en una mesa compartida, una por familia.
+ * Cada una dice su nombre, cuántas personas y si pide la cuenta (color + icono + texto). La última opción
+ * sienta a otra familia, o abre otra cuenta de pie.
+ */
+function CuentasDelLugar({
+  lugar,
+  elegida,
+  onElegir,
+  nueva,
+  onNueva,
+}: {
+  lugar: Lugar;
+  elegida: string | null;
+  onElegir: (id: string) => void;
+  nueva: boolean;
+  onNueva: () => void;
+}) {
+  const nombreCorto = (c: FamilyAccountDto) => (c.dePie || c.family !== `Mesa ${c.tableLabel ?? ""}` ? c.family : "Primera cuenta");
+  return (
+    <div role="radiogroup" aria-label="Cuentas" className="flex flex-wrap gap-1.5 border-b border-line px-4 py-2.5">
+      {lugar.vista.cuentas.map((c) => {
+        const activa = c.id === elegida;
+        const pide = c.status === "POR_COBRAR";
+        return (
+          <button
+            key={c.id}
+            type="button"
+            role="radio"
+            aria-checked={activa}
+            onClick={() => onElegir(c.id)}
+            className={cn(
+              "flex min-h-12 max-w-full cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 text-left",
+              "transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              activa ? "border-brand bg-brand/15" : pide ? "border-state-warn/50 bg-state-warn-bg/40" : "border-line bg-base/40 hover:border-line-strong",
+            )}
+          >
+            {pide ? <Receipt size={15} aria-hidden="true" className="shrink-0 text-state-warn" /> : <Users size={15} aria-hidden="true" className="shrink-0 text-ink-3" />}
+            <span className="min-w-0">
+              <span className="block truncate text-[13.5px] font-semibold text-ink">{nombreCorto(c)}</span>
+              <span className="tnum block text-[11.5px] text-ink-3">
+                {numeroDeOrden(c)}
+                {c.comensales ? ` · ${c.comensales} ${c.comensales === 1 ? "persona" : "personas"}` : ""}
+                {pide ? " · pide la cuenta" : ""}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        role="radio"
+        aria-checked={nueva}
+        onClick={onNueva}
+        className={cn(
+          "flex min-h-12 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border border-dashed px-3 text-[13px] font-semibold",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          nueva ? "border-brand bg-brand/15 text-ink" : "border-line-strong text-ink-2 hover:text-ink",
+        )}
+      >
+        <Plus size={15} aria-hidden="true" />
+        {lugar.tipo === "PIE" ? "Otra cuenta de pie" : "Otra familia"}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Sentar a una familia, o abrir una cuenta de pie (B6-7). El nombre es obligatorio de pie y cuando la mesa ya
+ * tiene otra cuenta (para no confundirlas); la primera de una mesa puede ir sin él y se llama como la mesa.
+ */
+function FormularioSentar({
+  lugar,
+  nombre,
+  onNombre,
+  comensales,
+  onComensales,
+  onEnviar,
+}: {
+  lugar: Lugar;
+  nombre: string;
+  onNombre: (n: string) => void;
+  comensales: number;
+  onComensales: (n: number) => void;
+  onEnviar: () => void;
+}) {
+  const obligatorio = lugar.tipo === "PIE" || lugar.vista.cuentas.length > 0;
+  const sillas = lugar.tipo === "MESA" ? lugar.vista.mesa.seats - lugar.vista.comensales : null;
+  return (
+    <form
+      className="flex flex-1 flex-col gap-4 px-4 py-4 apaisado:min-h-0 apaisado:overflow-y-auto"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onEnviar();
+      }}
+    >
+      {lugar.tipo === "MESA" && lugar.vista.cuentas.length > 0 && (
+        <p className="flex items-start gap-2 rounded-[var(--radius-control)] border border-line bg-base/40 px-3 py-2 text-[12.5px] text-ink-2">
+          <Users size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-ink-3" />
+          Mesa compartida: cada familia tiene su cuenta, su pedido y su cobro.
+        </p>
+      )}
+      <Input
+        label={lugar.tipo === "PIE" ? "Nombre o seña para llamarla" : obligatorio ? "Nombre de la familia" : "Nombre de la familia (opcional)"}
+        surface="tablet"
+        value={nombre}
+        onChange={(e) => onNombre(e.target.value)}
+        maxLength={40}
+        autoComplete="off"
+        placeholder={lugar.tipo === "PIE" ? "Sr. Luis, camisa azul" : obligatorio ? "Familia Pérez" : `Mesa ${lugar.vista.mesa.label}`}
+        aria-required={obligatorio}
+        hint={obligatorio ? undefined : "Sin nombre, la cuenta se llama como la mesa."}
+      />
+      <div>
+        <p className="mb-2 text-[13px] text-ink-2">¿Cuántas personas?</p>
+        <Stepper value={comensales} onChange={onComensales} label="Personas" min={1} max={30} />
+        {sillas !== null && comensales > sillas && (
+          <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-state-warn">
+            <TriangleAlert size={13} aria-hidden="true" />
+            {sillas > 0 ? `Quedan ${sillas} ${sillas === 1 ? "silla" : "sillas"} libres: harán falta más` : "La mesa no tiene sillas libres: harán falta más"}
+          </p>
+        )}
+      </div>
+    </form>
+  );
+}
+
+/** El número de orden de la cuenta, desde cuándo y lo que debe: lo que el mesero dice si le preguntan. */
+function ResumenDeCuenta({ cuenta, ahora }: { cuenta: FamilyAccountDto; ahora: number }) {
+  const hora = useHora();
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <p className="tnum text-[12.5px] text-ink-3">
+        {nombreDeCuenta(cuenta)} · {numeroDeOrden(cuenta)}
+        {ahora > 0 ? ` · ${hora(Date.parse(cuenta.openedAt))} · hace ${minutosDesde(cuenta.openedAt, ahora)} min` : ""}
+      </p>
+      <span className="flex items-center gap-1.5 text-[12.5px] text-ink-3">
+        Debe
+        <MoneyDisplay value={toMajor(pendiente(cuenta))} currency="USD" size="sm" />
+      </span>
+    </div>
+  );
+}
+
+function NinosDeLaCuenta({ cuenta, onVincular }: { cuenta: FamilyAccountDto; onVincular: () => void }) {
   const op = useOperacion();
-  const ids = vista.cuenta?.sessionIds ?? [];
+  const ids = cuenta.sessionIds;
   const nombre = (id: string) => {
     const s = op.estado.sesiones.find((x) => x.id === id);
     return s ? nombreDeEstancia(s) : `${op.estado.nombres[id] ?? "Niño"} (ya salió)`;
@@ -754,12 +999,10 @@ function NinosDeLaMesa({ vista, onVincular }: { vista: MesaVista; onVincular: ()
     <section aria-label="Niños vinculados">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">Niños vinculados</h3>
-        {vista.estado !== "POR_LIMPIAR" && (
-          <Button variant="ghost" onClick={onVincular} className="-mr-2 text-[13px]">
-            <Link2 size={15} aria-hidden="true" />
-            Vincular
-          </Button>
-        )}
+        <Button variant="ghost" onClick={onVincular} className="-mr-2 text-[13px]">
+          <Link2 size={15} aria-hidden="true" />
+          Vincular
+        </Button>
       </div>
       {ids.length === 0 ? (
         <p className="text-[13px] text-ink-3">Ninguno. Si la familia tiene niños jugando, vincúlalos: pagan todo junto.</p>
@@ -778,14 +1021,16 @@ function NinosDeLaMesa({ vista, onVincular }: { vista: MesaVista; onVincular: ()
   );
 }
 
-function PedidosDeLaMesa({
-  vista,
+function PedidosDeLaCuenta({
+  pedidos,
+  cuenta,
   ahora,
   borrador,
   onReimprimir,
   onAnular,
 }: {
-  vista: MesaVista;
+  pedidos: readonly PedidoDto[];
+  cuenta: FamilyAccountDto;
   ahora: number;
   borrador: number;
   onReimprimir: (p: PedidoDto) => void;
@@ -793,7 +1038,7 @@ function PedidosDeLaMesa({
 }) {
   const hora = useHora();
   return (
-    <section aria-label="Pedidos de la mesa">
+    <section aria-label="Pedidos de la cuenta">
       <h3 className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">Pedidos</h3>
       {borrador > 0 && (
         <p className="mb-2 flex items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-line-strong px-3 py-2 text-[13px] text-ink-2">
@@ -801,13 +1046,13 @@ function PedidosDeLaMesa({
           Borrador sin enviar · {borrador === 1 ? "1 plato" : `${borrador} platos`}
         </p>
       )}
-      {vista.pedidos.length === 0 ? (
+      {pedidos.length === 0 ? (
         <p className="text-[13px] text-ink-3">Todavía no ha pedido nada.</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {vista.pedidos.map((p) => {
+          {pedidos.map((p) => {
             const e = ESTADO_COMANDA[p.comanda.estado];
-            const propias = vista.cuenta?.lines.filter((l) => l.orderId === p.id) ?? [];
+            const propias = cuenta.lines.filter((l) => l.orderId === p.id);
             const anulable = propias.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
             const anulado = propias.length > 0 && propias.every((l) => l.anulacion !== undefined);
             // Una comanda anulada no se reimprime: la cocina no tiene que preparar nada de ella.
@@ -866,5 +1111,4 @@ function PedidosDeLaMesa({
       )}
     </section>
   );
-
 }

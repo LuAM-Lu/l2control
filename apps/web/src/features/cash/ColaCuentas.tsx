@@ -5,7 +5,7 @@ import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, Utensi
 import { toMajor } from "@l2/domain-money";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { MoneyDisplay, ScannerField, cn } from "@l2/ui";
-import { esDeMesa, esVentaDirecta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
+import { esDeMesa, esVentaDirecta, nombreDeCuenta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 
 /**
@@ -58,7 +58,7 @@ export function filtrarCola(cuentas: readonly FamilyAccountDto[], texto: string,
     if (filtro === "MOSTRADOR" && !directa) return false;
     if (q === "") return true;
     const numero = String(c.orderNumber ?? "");
-    const nombre = sinAcentos(directa ? "venta de mostrador" : c.family);
+    const nombre = sinAcentos(nombreDeCuenta(c));
     return nombre.includes(q) || (/^\d+$/.test(q) && (numero === q.replace(/^0+/, "") || numero.startsWith(q)));
   });
 }
@@ -283,7 +283,7 @@ export function ColaCuentas({
                 >
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="truncate text-[13.5px] font-semibold text-ink">
-                      {esDirecta ? "Venta de mostrador" : c.family}
+                      {nombreDeCuenta(c)}
                     </span>
                     <MoneyDisplay value={toMajor(pendiente(c))} currency="USD" size="sm" />
                   </span>
@@ -292,7 +292,7 @@ export function ColaCuentas({
                       <span className="tnum font-semibold text-ink-2">{numeroDeOrden(c)}</span>
                       <Origen size={12} className="ml-0.5 shrink-0" aria-hidden="true" />
                       <span className="truncate">
-                        {esDirecta ? "Mostrador" : deMesa ? "Mesa" : c.kind === "EVENTO" ? "Cumpleaños" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                        {esDirecta ? "Mostrador" : deMesa ? (c.dePie ? "De pie" : "Mesa") : c.kind === "EVENTO" ? "Cumpleaños" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
                         {!esDirecta && c.sessionIds.length > 0 &&
                           ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
                       </span>

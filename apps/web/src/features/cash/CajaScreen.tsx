@@ -122,9 +122,9 @@ import { can } from "@l2/domain-identity";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import {
-  esDeMesa,
   esLineaDeMostrador,
   esVentaDirecta,
+  nombreDeCuenta,
   dividirEn,
   lineasParaCobrar,
   numeroDeOrden,
@@ -870,7 +870,7 @@ function CobroCuenta({
               {numeroDeOrden(cuenta)}
             </span>
             <span className="truncate text-[14px] font-semibold text-ink-2">
-              {esVentaDirecta(cuenta) ? "Venta de mostrador" : cuenta.family}
+              {nombreDeCuenta(cuenta)}
             </span>
             <span className="text-[12px] text-ink-3">
               {esVentaDirecta(cuenta)
@@ -2025,7 +2025,7 @@ export function CajaScreen({
     setRecientes((prev) => new Set([...prev, ...nuevas.map((c) => c.id)]));
     avisar.info(
       nuevas.length === 1
-        ? `Llegó a la cola: ${numeroDeOrden(nuevas[0]!)} · ${esVentaDirecta(nuevas[0]!) ? "mostrador" : nuevas[0]!.family}`
+        ? `Llegó a la cola: ${numeroDeOrden(nuevas[0]!)} · ${nombreDeCuenta(nuevas[0]!)}`
         : `Llegaron ${nuevas.length} cuentas a la cola`,
     );
     // Sin limpieza a propósito: si la cola cambia antes, el destello igual se apaga.
@@ -2076,7 +2076,7 @@ export function CajaScreen({
     }
     if (cuenta.status !== "POR_COBRAR") {
       avisar.info(
-        `${cuenta.family}: ${cuenta.status === "COBRADA" ? "la cuenta ya está cobrada" : "la cuenta sigue abierta"}`,
+        `${nombreDeCuenta(cuenta)}: ${cuenta.status === "COBRADA" ? "la cuenta ya está cobrada" : "la cuenta sigue abierta"}`,
         {
           detalle:
             cuenta.status === "COBRADA"
@@ -2135,8 +2135,10 @@ export function CajaScreen({
     // dice el servidor, que la marcó en la misma transacción del cobro.
     const despues = r.cuenta;
     const faltan = despues.status === "COBRADA" || !despues.split ? 0 : despues.split.parts - despues.split.paid;
-    // Cobrada del todo, la mesa queda por limpiar: el salón lo ve al momento (D7).
-    if (faltan === 0 && esDeMesa(cuenta) && cuenta.tableId) {
+    // Cobrada del todo la última cuenta de la mesa, la mesa queda por limpiar: el salón lo ve al momento (D7).
+    // En una mesa compartida (B6-7) las otras familias siguen sentadas: la mesa no se limpia todavía.
+    const otraEnLaMesa = cuentas.some((c) => c.id !== cuenta.id && c.kind === "MESA" && c.tableId === cuenta.tableId && (c.status === "ABIERTA" || c.status === "POR_COBRAR"));
+    if (faltan === 0 && cuenta.kind === "MESA" && cuenta.tableId && !otraEnLaMesa) {
       op.emitir({ type: "mesa.por_limpiar", tableId: cuenta.tableId });
     }
     // Si quedan partes, la cuenta sigue elegida: la siguiente persona paga ya.

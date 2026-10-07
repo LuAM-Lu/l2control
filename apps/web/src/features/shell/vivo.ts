@@ -181,18 +181,22 @@ export function panelVivo({
   };
 
   /* ── mesas ── */
-  const abiertas = Object.values(estado.mesas);
-  const piden = abiertas.filter((m) => m.estado === "PIDE_CUENTA");
-  const esperaCuentaMin = piden.reduce((max, m) => Math.max(max, minutos(m.desde, ahora)), 0);
+  // Las cuentas del salón son del servidor (B6-7): una mesa está ocupada si tiene alguna abierta, y piden la
+  // cuenta las que están por cobrar (de una mesa o de pie). Del bus queda solo «por limpiar».
+  const delSalon = cuentas.filter((c) => (c.kind === "MESA" || c.dePie === true) && (c.status === "ABIERTA" || c.status === "POR_COBRAR"));
+  const conCuenta = new Set(delSalon.flatMap((c) => (c.tableId ? [c.tableId] : [])));
+  const piden = delSalon.filter((c) => c.status === "POR_COBRAR");
+  const esperaCuentaMin = piden.reduce((max, c) => Math.max(max, minutos(c.pendingSince ?? c.openedAt, ahora)), 0);
+  const porLimpiar = Object.values(estado.mesas).filter((m) => m.estado === "POR_LIMPIAR" && !conCuenta.has(m.id)).length;
   const mesas: ZonaMesas = {
-    ocupadas: abiertas.filter((m) => m.estado === "OCUPADA").length,
-    total: abiertas.length,
+    ocupadas: conCuenta.size,
+    total: conCuenta.size + porLimpiar,
     pidenCuenta: piden.length,
-    porLimpiar: abiertas.filter((m) => m.estado === "POR_LIMPIAR").length,
+    porLimpiar,
     esperaCuentaMin,
     alertas:
       esperaCuentaMin >= 5
-        ? [aviso(`Una mesa pidió la cuenta hace ${esperaCuentaMin} min`, "warn", "/mesas", "Ver el salón")]
+        ? [aviso(`Una cuenta del salón pidió la cuenta hace ${esperaCuentaMin} min`, "warn", "/mesas", "Ver el salón")]
         : [],
   };
 

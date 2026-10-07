@@ -20,6 +20,7 @@ import { PistaTecla } from "./AtajosDialog.tsx";
 import { ReciboDialog, ReciboImpreso } from "./ReciboDialog.tsx";
 import { useVentas } from "./VentasProvider.tsx";
 import { EstadoDeImpresion } from "../impresion/ColaProvider.tsx";
+import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 
 /** Los medios usados en una venta, sin repetir. */
 const mediosDe = (v: VentaCerradaDto) => [...new Set(v.payments.map((p) => p.label))];
@@ -52,7 +53,7 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
     if (medio && !mediosDe(v).includes(medio)) return false;
     if (q === "") return true;
     const numero = String(v.orderNumber ?? "");
-    return sinAcentos(v.cuenta.family).includes(q) || (/^\d+$/.test(q) && numero.includes(q));
+    return sinAcentos(nombreDeCuenta(v.cuenta)).includes(q) || (/^\d+$/.test(q) && numero.includes(q));
   });
 }
 
@@ -260,14 +261,14 @@ export function VentasDelTurno({ className }: { className?: string }) {
                             type="button"
                             onClick={() => setElegida(v.id)}
                             aria-pressed={activa}
-                            aria-label={`Orden ${ordenDe(v.orderNumber)}, ${v.cuenta.family}, ${textoDinero(v.total)}`}
+                            aria-label={`Orden ${ordenDe(v.orderNumber)}, ${nombreDeCuenta(v.cuenta)}, ${textoDinero(v.total)}`}
                             className="tnum min-h-12 cursor-pointer font-bold text-ink focus-visible:outline-2 focus-visible:outline-brand"
                           >
                             {ordenDe(v.orderNumber)}
                           </button>
                         </td>
                         <td className="tnum text-ink-2">{hora(Date.parse(v.closedAt))}</td>
-                        <td className="max-w-0 truncate pr-2 text-ink">{v.cuenta.kind === "MOSTRADOR" ? "Venta de mostrador" : v.cuenta.family}</td>
+                        <td className="max-w-0 truncate pr-2 text-ink">{nombreDeCuenta(v.cuenta)}</td>
                         <td className="hidden max-w-0 truncate pr-2 text-ink-3 md:table-cell">{mediosDe(v).join(" · ")}</td>
                         <td className={cn("tnum text-right font-semibold", v.voided ? "text-ink-3 line-through" : "text-ink")}>
                           {formatMoneyVE(toMajor(money(BigInt(v.total.minor), "USD")), "USD")}

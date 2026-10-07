@@ -152,9 +152,13 @@ function Mesa({
   const estado: EstadoVisible = vista?.estado ?? "LIBRE";
   const pinta = PINTA[estado];
   const r = Math.min(t.width, t.height) / 2;
-  const sentados = vista?.ocupacion?.comensales ?? 0;
+  // Las personas sentadas: la suma de sus cuentas (B6-7). En una mesa compartida, cuántas cuentas tiene.
+  const sentados = vista?.comensales ?? 0;
+  const cuentas = vista?.cuentas.length ?? 0;
   const detalle =
-    estado === "OCUPADA" && vista?.ocupacion ? `, ${sentados} de ${t.seats} sillas, ${vista.minutos} minutos` : "";
+    (estado === "OCUPADA" || estado === "PIDE_CUENTA") && vista
+      ? `, ${sentados} de ${t.seats} sillas, ${vista.minutos} minutos${cuentas > 1 ? `, ${cuentas} cuentas` : ""}`
+      : "";
 
   return (
     <g
@@ -222,6 +226,16 @@ function Mesa({
           filter="url(#l2-relieve)"
           transform={`rotate(${t.rotation} ${t.x} ${t.y})`}
         />
+      )}
+
+      {/* Mesa compartida (B6-7): cuántas cuentas tiene, en un círculo junto a la mesa. */}
+      {cuentas > 1 && (
+        <g aria-hidden="true">
+          <circle cx={t.x + r * 0.78} cy={t.y - r * 0.78} r={15} fill="var(--color-surface)" stroke="var(--color-brand)" strokeWidth={2.5} />
+          <text x={t.x + r * 0.78} y={t.y - r * 0.78} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={700} fill="var(--color-brand)">
+            {cuentas}
+          </text>
+        </g>
       )}
 
       <text

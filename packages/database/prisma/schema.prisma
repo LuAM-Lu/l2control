@@ -1566,8 +1566,12 @@ model KitchenOrder {
   accountId     String   @map("account_id") @db.Uuid
   /// El correlativo de la comanda en la sucursal, el que se canta en la cocina.
   number        Int
-  tableId       String   @map("table_id")
+  /// La mesa del pedido; nula en uno de una cuenta de pie (B6-7).
+  tableId       String?  @map("table_id")
+  /// El número de la mesa ese día, o «De pie».
   tableLabel    String   @map("table_label")
+  /// El nombre propio de su cuenta (la familia en una mesa compartida, o quien pide de pie), para la comanda.
+  accountLabel  String?  @map("account_label")
   /// Lo pedido: producto, nombre, cantidad y nota (`PedidoDto.lineas`).
   items         Json
   createdAt     DateTime @map("created_at") @db.Timestamptz(3)

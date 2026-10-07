@@ -198,19 +198,37 @@ export function documentoDePrueba(
   };
 }
 
+/** De dónde es un pedido (B6-7): su mesa (`null` si es de pie) y el nombre propio de su cuenta, si lo tiene. */
+type Destino = Readonly<{ mesa: string | null; nombreCuenta: string | null }>;
+
+/** «Mesa 3», «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis»: cómo se nombra un pedido en una lista o un título. */
+export function rotuloDePedido(f: Readonly<{ tableId: string | null; tableLabel: string; accountLabel: string | null }>): string {
+  if (f.tableId === null) return `De pie · ${f.accountLabel ?? ""}`;
+  return f.accountLabel ? `Mesa ${f.tableLabel} · ${f.accountLabel}` : `Mesa ${f.tableLabel}`;
+}
+
+/** La cabecera en grande de la comanda y del papel «ANULAR»: la mesa (o DE PIE) y, debajo, a quién va. */
+function cabeceraDeMesa(d: Destino): Renglon[] {
+  return [
+    { tipo: "TEXTO", texto: d.mesa === null ? "DE PIE" : `MESA ${d.mesa}`, alinear: "CENTRO", negrita: true, grande: true },
+    ...(d.nombreCuenta ? [{ tipo: "TEXTO", texto: d.nombreCuenta, alinear: "CENTRO", negrita: true } as const] : []),
+  ];
+}
+
 /**
- * La comanda de un pedido (B6-2, ADR-022): la mesa en grande, el número de la comanda, cuándo y quién, y
- * cada plato con su cantidad y su nota. `copia`: una reimpresión lo dice arriba, para que la cocina no
- * prepare dos veces lo mismo.
+ * La comanda de un pedido (B6-2, ADR-022): la mesa en grande (o DE PIE) y el nombre de su cuenta si lo tiene
+ * (B6-7), el número de la comanda, cuándo y quién, y cada plato con su cantidad y su nota. `copia`: una
+ * reimpresión lo dice arriba, para que la cocina no prepare dos veces lo mismo.
  */
 export function documentoDeComanda(
-  p: Readonly<{ numero: number; mesa: string; enviadoEn: number; enviadoPor: string; lineas: readonly Readonly<{ nombre: string; cantidad: number; nota: string | null }>[] }>,
+  p: Destino &
+    Readonly<{ numero: number; enviadoEn: number; enviadoPor: string; lineas: readonly Readonly<{ nombre: string; cantidad: number; nota: string | null }>[] }>,
   local: AjustesSucursalDto,
   copia: boolean,
 ): Documento {
   const renglones: Renglon[] = [
     ...(copia ? [{ tipo: "TEXTO", texto: "REIMPRESIÓN · NO PREPARAR DOS VECES", alinear: "CENTRO", negrita: true } as const] : []),
-    { tipo: "TEXTO", texto: `MESA ${p.mesa}`, alinear: "CENTRO", negrita: true, grande: true },
+    ...cabeceraDeMesa(p),
     { tipo: "TEXTO", texto: `Comanda ${orden(p.numero)}`, alinear: "CENTRO", negrita: true },
     { tipo: "TEXTO", texto: `${fechaYHora(p.enviadoEn, local.formatoHora, local.zonaHoraria)} · ${p.enviadoPor}`, alinear: "CENTRO" },
     { tipo: "LINEA", caracter: "=" },
@@ -230,12 +248,12 @@ export function documentoDeComanda(
  * quién lo autorizó y cada plato anulado con su cantidad. Sin precios, como la comanda.
  */
 export function documentoDeAnulacion(
-  a: Readonly<{ numero: number; mesa: string; anuladoEn: number; autorizadoPor: string; motivo: string; lineas: readonly Readonly<{ nombre: string; cantidad: number }>[] }>,
+  a: Destino & Readonly<{ numero: number; anuladoEn: number; autorizadoPor: string; motivo: string; lineas: readonly Readonly<{ nombre: string; cantidad: number }>[] }>,
   local: AjustesSucursalDto,
 ): Documento {
   const renglones: Renglon[] = [
     { tipo: "TEXTO", texto: "ANULAR · NO PREPARAR", alinear: "CENTRO", negrita: true, grande: true },
-    { tipo: "TEXTO", texto: `MESA ${a.mesa}`, alinear: "CENTRO", negrita: true, grande: true },
+    ...cabeceraDeMesa(a),
     { tipo: "TEXTO", texto: `De la comanda ${orden(a.numero)}`, alinear: "CENTRO", negrita: true },
     { tipo: "TEXTO", texto: `${fechaYHora(a.anuladoEn, local.formatoHora, local.zonaHoraria)} · ${a.autorizadoPor}`, alinear: "CENTRO" },
     { tipo: "TEXTO", texto: a.motivo, alinear: "CENTRO" },

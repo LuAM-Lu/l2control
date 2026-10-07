@@ -62,7 +62,8 @@ export type CheckoutPreviewDto = z.infer<typeof CheckoutPreviewSchema>;
  */
 export const SettlementDispositionSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("CAJA") }),
-  z.object({ kind: z.literal("MESA"), tableId: IdSchema }),
+  // La cuenta de la mesa a la que va (B6-7): obligatoria si la mesa tiene más de una.
+  z.object({ kind: z.literal("MESA"), tableId: IdSchema, cuentaId: IdSchema.optional() }),
 ]);
 export type SettlementDisposition = z.infer<typeof SettlementDispositionSchema>;
 

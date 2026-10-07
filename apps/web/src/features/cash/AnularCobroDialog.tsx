@@ -6,6 +6,7 @@ import type { DevolucionDto, MotivoAnulacion, Rechazo, VentaCerradaDto } from "@
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero, textoMotivo } from "./anulacion.ts";
+import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 
 /**
  * Anular un cobro ya cerrado — DEC-24, en el servidor desde B3-3 y B3-4.
@@ -120,7 +121,7 @@ export function AnularCobroDialog({
       // Dos columnas desde tablet: a 1366×768 todo cabe sin desplazar hasta el PIN.
       className="md:w-[min(52rem,calc(100vw-2rem))]"
       titulo={`Anular cobro · Orden #${String(venta.orderNumber).padStart(4, "0")}`}
-      descripcion={`${venta.cuenta.kind === "MOSTRADOR" ? "Venta de mostrador" : venta.cuenta.family} · ${textoDinero(venta.total)}. La cuenta vuelve a «por cobrar»; nada se borra.`}
+      descripcion={`${nombreDeCuenta(venta.cuenta)} · ${textoDinero(venta.total)}. La cuenta vuelve a «por cobrar»; nada se borra.`}
       pie={
         <div className="grid grid-cols-2 gap-2">
           <Button surface="pos" variant="neutral" onClick={onCerrar}>

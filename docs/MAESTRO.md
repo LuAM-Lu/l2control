@@ -34,7 +34,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.60.1 · 60 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).**
+**Versión 0.61.0 · 61 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Último entregado: B6-7
+(varias cuentas en una mesa y cuentas de pie).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -210,7 +211,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → ~~T-8a~~ (publicar y desplegar, M-22) → ~~B7-1~~ (VPS) → ~~T-9~~ (confirmar identidad desde cualquier equipo, M-23) → ~~B7-2 y T-10~~ (la semilla del local y el inventario en lote, M-24) → ~~T-8b~~ (actualizaciones desde el panel, M-25) → ~~B7-4~~ (respaldos, M-26) → ~~B7-5~~ (seguridad), y B7-3 con **T-8c** (el agente se actualiza solo) en el local
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
-   **B6-7** (varias cuentas por mesa y de pie) → B4-7 (pausa) → B4-8 (sin pulsera) → T-12 (ayuda y recorridos) →
+   ~~B6-7~~ (varias cuentas por mesa y de pie) → **B4-7** (pausa) → B4-8 (sin pulsera) → T-12 (ayuda y recorridos) →
    B4-10 (cortesía y anular desde la sala) → B4-9 (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
@@ -1647,10 +1648,29 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B6-4 · Recetas e insumos de cocina** (F8-03, F8-04, F8-09): **después del piloto** (M-15, V-7); no
   cuenta en la ruta. ADR-023 supersede la descarga al marcar LISTO de ADR-012: su disparador será otro ADR.
 
-- [~] **B6-7 · Varias cuentas en una mesa y cuentas de pie** (M-27, P-2, P-3). *A cargo: LuAMi, rama `feat/b6-7`.*
+- [x] **B6-7 · Varias cuentas en una mesa y cuentas de pie** (M-27, P-2, P-3).
   → Una mesa admite varias cuentas abiertas, cada una con su nombre (cambia I-05); el mesero elige a cuál pide y la
   comanda la nombra; cada una se cobra, se vincula y se libera por separado. El mesero abre una cuenta de pie, sin
   mesa, y le pide igual. El plano lee la ocupación del servidor (las cuentas abiertas de cada mesa), no del bus.
+  *Hecho el 2026-10-07 (LuAMi), v0.61.0.* **Contratos:** la cuenta lleva `comensales` y `dePie` (de mostrador, sin mesa
+  ni niños); `AbrirCuentaDelSalonCommandSchema` (sentar: `cuentaId` de la tablet, mesa o ninguna, nombre, personas y
+  `vistas`, las cuentas que veía la tablet); el pedido y el vínculo nombran su `cuentaId` (obligatoria si la mesa tiene
+  varias) y la salida «A una mesa» también; `PedidoDto` con `tableId` nulo de pie y `nombreCuenta`; `CUENTAS_POR_MESA` = 6.
+  **Aplicación:** `casosMesas.abrir` (`pedido.tomar`, candado de las mesas, reintento por id, auditado `cuenta.abrir`);
+  `mesaParaCuentaNueva` admite una más solo sobre lo visto, con nombre distinto y hasta seis, y sin `nueva` sigue
+  exigiendo la mesa libre (dos tablets que piden a la vez en una mesa vacía no abren dos); `cuentaDeMesaPara` elige la
+  cuenta de un pedido, un vínculo o una salida; `cuentasDeLasMesas` y `cuentasDePieEn` sustituyen a `mesasOcupadasEn`.
+  La comanda y el papel «ANULAR» llevan «MESA 3» o «DE PIE» y, debajo, el nombre de la cuenta (`rotuloDePedido`). Una
+  cuenta de pie se libera sin consumo como una mesa y no es un borrador de mostrador aunque nazca vacía. Migración
+  `20261104000000_cuentas_del_salon` (solo expande: `kitchen_order.table_id` admite nulo, `account_label` nueva y su
+  CHECK dice las dos cosas). 20 pruebas nuevas contra la base (`salon.test-db.ts`) y 2 del dominio. **Web:** el plano y
+  el salón leen la ocupación de las cuentas (del bus queda solo «por limpiar»): sentar con nombre y personas, las cuentas
+  de la mesa como opciones con «Otra familia», «De pie» encima del plano y en «Atender», la mesa compartida con su
+  número de cuentas en el plano; vincular desde la sala y la salida «A una mesa» eligen la cuenta de la familia; la caja,
+  Inicio y las ventas nombran «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis», y la mesa queda por limpiar solo al cobrar
+  su última cuenta. Visto en el navegador en la base de pruebas (sentar, segunda familia, nombre repetido rechazado,
+  pedido a la segunda con su comanda, de pie, liberar una y la otra sigue, la caja) a 1366×768, 1280×800, 800×1280 y 390
+  px, en los dos temas, sin desplazar la página ni errores de consola.*
 - [ ] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; espera D-SERV).
   → Administración ve, por cuenta del salón, cuánto lleva sentada, cuánto sin pedir y cuánto esperando lo pedido,
   con aviso de las que pasan del umbral; el día deja su resumen (espera media y máxima).
@@ -1892,7 +1912,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | El motivo de una retenida es el del momento en que se trajo: si al volver a mirarla cambia (p. ej. de SOLO_TERCERO a PRIMERA), el texto de la alerta no lo dice | Cuando haga falta |
 | La billetera USDT del local no se configura ni se le enseña al cliente | Cuando el cliente la pida (F0-04) |
 | Los medios no se reordenan ni se renombran desde el panel (la base lo admite) | Cuando haga falta |
-| El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano. Pasó con la cuenta #0038 de la base local (2026-10-03); la cuenta sí existe y el servidor no duplica la mesa | B6-7 (M-27): la ocupación sale de las cuentas abiertas de cada mesa |
+| ~~El salón (la ocupación de cada mesa) sigue en el bus: una mesa con cuenta abierta en el servidor puede verse «Libre» en el plano~~ | Saldada en B6-7: la ocupación sale de las cuentas abiertas de cada mesa; del bus queda «por limpiar» |
 | ~~La base local del cliente cifra con la clave de juguete de `.env.example`: si esa base se lleva al VPS, lo cifrado se vuelve a cifrar o se vuelve a cargar~~ | Saldada: el staging generó sus claves y nació vacío (B7-1), y la semilla no lleva nada cifrado (B7-2) |
 | La tasa se enseña redondeada a dos decimales: un importe en bolívares calculado con la tasa completa puede no coincidir al céntimo con multiplicar a mano por la que se ve | Aceptado (pedido del cliente, v0.27.1) |
 | Una venta de mostrador vaciada consume su número de orden (queda en la base, sin salir en la cola) | Aceptado: sus versiones dicen qué se quitó y quién |
@@ -2251,6 +2271,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   79; D-SERV y D-SOP abiertas. Hallado al estudiarlos: crear productos exige `catalogo.modificar`, que no se ajusta, y
   por eso supervisión no podía hacer inventario (T-13). Auditoría de este archivo: §1 reescrito para leerse en un
   minuto (su historia pasa a §9), la tabla de §2 en orden y sin el corte que la partía, y tachado lo ya hecho en §3 a §6.
+- **2026-10-07** · B6-7 entregado como v0.61.0: una mesa admite una cuenta por familia y quien pide de pie tiene la suya;
+  el plano lee la ocupación de las cuentas, no del bus. Salió al probarlo: una cuenta de pie recién abierta se escondía
+  como borrador de mostrador vacío. Sigue B4-7.
 
 ---
 

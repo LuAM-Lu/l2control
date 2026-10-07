@@ -79,7 +79,7 @@ import { conflictoDeClave } from "../dinero/pagos.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { claveSecundaria, crearCuentaDeMesa, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "../caja/papel-en.ts";
-import { candadoDeMesas, mesaParaCuentaNueva, mesasOcupadasEn } from "../restaurante/plano.ts";
+import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
 
 export interface CasosParque {
@@ -421,7 +421,10 @@ export function casosParque(base: Base): CasosParque {
           if (cmd.disposition.kind === "MESA") {
             const tableId = cmd.disposition.tableId;
             await candadoDeMesas(tx, ctx.branchId);
-            const abierta = (await mesasOcupadasEn(tx, ctx.branchId)).get(tableId);
+            // A cuál de las cuentas de la mesa (B6-7): la que eligió la salida, o la única.
+            const destino = await cuentaDeMesaPara(tx, ctx.branchId, tableId, cmd.disposition.cuentaId);
+            if ("ok" in destino) return { ...destino, ...(destino.problemas ? { problemas: destino.problemas.map((p) => ({ ...p, path: ["disposition", "cuentaId"] })) } : {}) };
+            const abierta = destino.abierta;
             const vigente = abierta ? await vigenteDe(tx, abierta) : null;
             let label: string;
             if (vigente) {
@@ -494,7 +497,7 @@ export function casosParque(base: Base): CasosParque {
           if (enUnaMesa.length > 0) {
             // El mismo candado que la vinculación y el plano (I-05); en la misma transacción se puede volver a tomar.
             await candadoDeMesas(tx, ctx.branchId);
-            for (const mesaId of (await mesasOcupadasEn(tx, ctx.branchId)).values()) {
+            for (const mesaId of [...(await cuentasDeLasMesas(tx, ctx.branchId)).values()].flat().map((c) => c.id)) {
               const esLaDestino = mesaInfo?.vigente && mesaInfo.accountId === mesaId;
               const vigente = esLaDestino ? mesaInfo!.vigente! : (await vigenteDe(tx, mesaId))!;
               let cuenta = vigente.cuenta;

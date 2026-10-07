@@ -150,6 +150,8 @@ describe("cobrar y anular", () => {
   test("una venta de mostrador vacía es un borrador descartado", () => {
     assert.equal(isDiscardedDraft(mostrador([])), true);
     assert.equal(isDiscardedDraft(mostrador([agua("x")])), false);
+    // Una cuenta de pie recién abierta (B6-7) no es un borrador: alguien espera para pedir.
+    assert.equal(isDiscardedDraft({ ...mostrador([]), dePie: true }), false);
     assert.equal(isDiscardedDraft({ ...familia(), lines: [] }), false);
   });
 });
@@ -509,6 +511,11 @@ describe("la mesa sin consumo (B6-5, M-18)", () => {
     assert.equal(sinConsumoProblem(mostrador([])), "NO_ES_MESA");
     assert.equal(sinConsumoProblem(mesa([], { status: "COBRADA" })), "NO_ABIERTA");
     assert.equal(sinConsumoProblem(mesa([], { status: "SIN_CONSUMO" })), "NO_ABIERTA");
+  });
+
+  test("una cuenta de pie del salón también se libera (B6-7); una venta de mostrador de la caja, no", () => {
+    assert.equal(sinConsumoProblem({ ...mostrador([]), dePie: true }), null);
+    assert.equal(sinConsumoProblem({ ...mostrador([agua("a")]), dePie: true }), "QUEDA_POR_COBRAR");
   });
 
   test("se cierra «sin consumo», o cobrada si ya se cobró una parte; las líneas no cambian y no queda pendiente", () => {

@@ -16,6 +16,7 @@ import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
+import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 
 /**
  * Lo que impide cerrar la jornada — JORNADA §5, C2, B3-5.
@@ -106,7 +107,7 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
                 {p.cuentas.map((c) => (
                   <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
                     <span className="tnum w-14 shrink-0 font-semibold text-ink">#{String(c.orderNumber).padStart(4, "0")}</span>
-                    <span className="min-w-0 flex-1 truncate text-ink-2">{c.family}</span>
+                    <span className="min-w-0 flex-1 truncate text-ink-2">{nombreDeCuenta(c)}</span>
                     <MoneyDisplay value={toMajor(money(BigInt(c.pendiente.minor), "USD"))} currency="USD" size="sm" />
                     <span className="flex gap-2">
                       <Link
@@ -312,7 +313,7 @@ function IncobrableDialog({
         <div className="flex items-baseline justify-between gap-3 rounded-[var(--radius-control)] border border-line p-3">
           <span>
             <span className="tnum font-semibold text-ink">#{String(cuenta.orderNumber).padStart(4, "0")}</span>
-            <span className="text-ink-2"> · {cuenta.family}</span>
+            <span className="text-ink-2"> · {nombreDeCuenta(cuenta)}</span>
           </span>
           <MoneyDisplay value={toMajor(money(BigInt(cuenta.pendiente.minor), "USD"))} currency="USD" />
         </div>

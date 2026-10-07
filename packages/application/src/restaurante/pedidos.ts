@@ -20,6 +20,7 @@ import { randomUUID } from "node:crypto";
 import {
   EnviarPedidoCommandSchema,
   FamilyAccountSchema,
+  type EnviarPedidoCommand,
   PedidoSchema,
   PedidosDelLocalSchema,
   ReimprimirComandaCommandSchema,
@@ -40,12 +41,12 @@ import type { Action } from "@l2/domain-identity";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
-import { catalogoEn, crearCuentaDeMesa, guardarVersion, vigenteDe } from "../caja/cuentas.ts";
+import { catalogoEn, crearCuentaDeMesa, guardarVersion, nombrePropioDe, vigenteDe } from "../caja/cuentas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 import { encolarEn } from "../impresion/impresion.ts";
-import { documentoDeComanda } from "../impresion/plantillas.ts";
+import { documentoDeComanda, rotuloDePedido } from "../impresion/plantillas.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
-import { candadoDeMesas, mesaParaCuentaNueva, mesasOcupadasEn } from "./plano.ts";
+import { candadoDeMesas, cuentaDeMesaPara, mesaParaCuentaNueva } from "./plano.ts";
 
 export interface CasosPedidos {
   /** Los pedidos de hoy en la sucursal, con su comanda: del más nuevo al más viejo. */
@@ -101,7 +102,9 @@ export function casosPedidos(base: Base): CasosPedidos {
           // El reintento de un envío (se cortó la red) devuelve el pedido que ya entró.
           const previo = await tx.kitchenOrder.findUnique({ where: { id: cmd.pedidoId } });
           if (previo) {
-            if (previo.branchId !== ctx.branchId || previo.tableId !== cmd.tableId) {
+            const otraMesa = cmd.tableId !== undefined && previo.tableId !== cmd.tableId;
+            const otraCuenta = cmd.cuentaId !== undefined && previo.accountId !== cmd.cuentaId;
+            if (previo.branchId !== ctx.branchId || otraMesa || otraCuenta) {
               return { ok: false, motivo: "CONFLICTO", mensaje: "Ese identificador de pedido ya existe." };
             }
             const [pedido] = await pedidosDe(tx, [previo]);
@@ -112,17 +115,12 @@ export function casosPedidos(base: Base): CasosPedidos {
           const impresora = await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, forOrders: true }, select: { id: true } });
           if (!impresora) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: SIN_IMPRESORA };
 
-          // La mesa: su cuenta abierta, o una nueva si está en el salón (I-05, con el candado de las mesas).
+          // A qué cuenta va (B6-7): la que nombra la tablet, la única de la mesa o una nueva en una mesa libre,
+          // con el candado de las mesas.
           await candadoDeMesas(tx, ctx.branchId);
-          const abierta = (await mesasOcupadasEn(tx, ctx.branchId)).get(cmd.tableId);
-          const actual = abierta ? await vigenteDe(tx, abierta) : null;
-          let mesa: string;
-          if (actual) mesa = actual.cuenta.tableLabel ?? "?";
-          else {
-            const r = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId);
-            if ("ok" in r) return { ...r, ...(r.problemas ? { problemas: r.problemas.map((p) => ({ ...p, path: ["tableId"] })) } : {}) };
-            mesa = r.label;
-          }
+          const destino = await destinoDelPedido(tx, ctx, cmd);
+          if ("ok" in destino) return destino;
+          const { actual, tableId, mesa } = destino;
 
           // Lo que entra en la cuenta lo dice el catálogo de ahora, no la tablet.
           const platoEn = await catalogoEn(tx, ahora);
@@ -167,7 +165,7 @@ export function casosPedidos(base: Base): CasosPedidos {
           const quien = await nombreDe(tx, ctx);
           const cuenta: FamilyAccountDto = actual
             ? FamilyAccountSchema.parse({ ...actual.cuenta, lines: [...actual.cuenta.lines, ...nuevas], version: actual.version + 1 })
-            : await crearCuentaDeMesa(tx, ctx, { tableId: cmd.tableId, label: mesa, lines: nuevas, ahora, quien: quien.nombre });
+            : await crearCuentaDeMesa(tx, ctx, { tableId: tableId!, label: mesa, lines: nuevas, ahora, quien: quien.nombre });
           await guardarVersion(tx, ctx, cuenta, { cause: "PEDIDO", operationKey: cmd.pedidoId, ahora, quien: quien.nombre });
           await asentarExistencias(tx, ctx, existencias, { accountId: cuenta.id, version: cuenta.version!, ahora, quien: quien.nombre });
 
@@ -185,8 +183,9 @@ export function casosPedidos(base: Base): CasosPedidos {
               branchId: ctx.branchId,
               accountId: cuenta.id,
               number: (max._max.number ?? 0) + 1,
-              tableId: cmd.tableId,
+              tableId,
               tableLabel: mesa,
+              accountLabel: nombrePropioDe(cuenta),
               items: lineas,
               createdAt: new Date(ahora),
               createdBy: ctx.quien?.userId ?? null,
@@ -201,6 +200,7 @@ export function casosPedidos(base: Base): CasosPedidos {
             after: {
               comanda: fila.number,
               mesa,
+              ...(fila.accountLabel ? { nombreCuenta: fila.accountLabel } : {}),
               cuenta: { id: cuenta.id, orden: cuenta.orderNumber ?? null, version: cuenta.version ?? null },
               lineas: lineas.map((l) => ({ nombre: l.nombre, cantidad: l.cantidad })),
             },
@@ -286,6 +286,37 @@ export function casosPedidos(base: Base): CasosPedidos {
   };
 }
 
+type VigenteDeCuenta = NonNullable<Awaited<ReturnType<typeof vigenteDe>>>;
+type Destino = Readonly<{ actual: VigenteDeCuenta | null; tableId: string | null; mesa: string }>;
+
+/**
+ * La cuenta a la que va un pedido (B6-7). Sin mesa, una cuenta de pie abierta de esta sucursal, que nombra la
+ * tablet. Con mesa, la que diga la tablet, la única que tenga, o ninguna: entonces la mesa tiene que estar en
+ * el salón y libre, y el pedido abre su cuenta (`actual: null`). Con el candado de las mesas tomado.
+ */
+async function destinoDelPedido(tx: Transaccion, ctx: Contexto, cmd: EnviarPedidoCommand): Promise<Destino | Rechazo> {
+  if (cmd.tableId === undefined) {
+    const fila = await tx.account.findUnique({ where: { id: cmd.cuentaId! }, select: { branchId: true } });
+    const vigente = fila?.branchId === ctx.branchId ? await vigenteDe(tx, cmd.cuentaId!) : null;
+    if (!vigente || (vigente.cuenta.status !== "ABIERTA" && vigente.cuenta.status !== "POR_COBRAR")) {
+      return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta ya no está abierta: vuelve a mirar el salón.", problemas: [{ path: ["cuentaId"], message: "CUENTA_CERRADA" }] };
+    }
+    if (!vigente.cuenta.dePie) {
+      return { ok: false, motivo: "INVALIDO", mensaje: "El mesero pide para una mesa o para una cuenta de pie.", problemas: [{ path: ["cuentaId"], message: "NO_ES_DEL_SALON" }] };
+    }
+    return { actual: vigente, tableId: null, mesa: "De pie" };
+  }
+  const r = await cuentaDeMesaPara(tx, ctx.branchId, cmd.tableId, cmd.cuentaId);
+  if ("ok" in r) return r;
+  if (r.abierta) {
+    const vigente = (await vigenteDe(tx, r.abierta))!;
+    return { actual: vigente, tableId: cmd.tableId, mesa: vigente.cuenta.tableLabel ?? "?" };
+  }
+  const nueva = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId);
+  if ("ok" in nueva) return { ...nueva, ...(nueva.problemas ? { problemas: nueva.problemas.map((p) => ({ ...p, path: ["tableId"] })) } : {}) };
+  return { actual: null, tableId: cmd.tableId, mesa: nueva.label };
+}
+
 /** La comanda de un pedido en la cola de la impresora de comandas; `copia`, si es una reimpresión. */
 async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, ahora: number, copia: boolean) {
   const local = await ajustesDe(tx, ctx.branchId);
@@ -296,11 +327,18 @@ async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, 
     {
       tipo: "COMANDA",
       para: "comandas",
-      titulo: `Comanda ${comanda(fila.number)} · Mesa ${fila.tableLabel}`,
+      titulo: `Comanda ${comanda(fila.number)} · ${rotuloDePedido(fila)}`,
       copia,
       orderId: fila.id,
       documento: documentoDeComanda(
-        { numero: fila.number, mesa: fila.tableLabel, enviadoEn: fila.createdAt.getTime(), enviadoPor: fila.createdByName, lineas },
+        {
+          numero: fila.number,
+          mesa: fila.tableId === null ? null : fila.tableLabel,
+          nombreCuenta: fila.accountLabel,
+          enviadoEn: fila.createdAt.getTime(),
+          enviadoPor: fila.createdByName,
+          lineas,
+        },
         local,
         copia,
       ),
@@ -332,6 +370,7 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
       numero: f.number,
       tableId: f.tableId,
       mesa: f.tableLabel,
+      nombreCuenta: f.accountLabel,
       cuentaId: f.accountId,
       lineas: f.items,
       enviadoEn: f.createdAt.toISOString(),
