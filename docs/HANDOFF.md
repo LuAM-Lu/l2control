@@ -7,22 +7,23 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-07 · v0.54.0 · `main` en 926a4d8 más este relevo · T-9 a medias en `feat/t-9` (36050ec)*
+*2026-10-07 · v0.59.0 · `main` en 8e26960 más este relevo · nada a medias ni reclamado*
 
 ```text
-Hecho: T-8a (v0.53.0: imágenes, infra/produccion con Caddy, desplegar.sh con vuelta atrás, publicar.yml por etiqueta),
-  v0.53.1 (la llave dice por qué falla) y B7-1 (v0.54.0): staging en https://217-216-48-54.sslip.io (VPS Ubuntu, usuario
-  luami en el grupo docker, repo en ~/l2control; vuelta atrás ensayada allí). 54 de 64 pasos. El VPS corre la 0.53.1.
-M-23/ADR-029: ni una laptop sin Windows Hello ni una tableta pudieron crear la llave al instalar → equipo de confianza
-  (solo contraseña en el propio), app de autenticación (TOTP, sin repetir códigos) y la llave opcional. Paso T-9.
-A medias, T-9 en feat/t-9: código y pruebas hechos, pnpm verify:db en verde. Falta verlo en el navegador desde una
-  instalación limpia (imágenes locales en https://localhost como en T-8a; README de infra/produccion): instalar sin llave,
-  confirmar con contraseña, configurar la app con el QR, confirmar desde otro equipo, confiar y retirar; en los dos temas.
-  Después: v0.55.0 al fusionar, etiqueta, ./desplegar.sh 0.55.0 en el VPS y que administración instale (código de
-  instalación: docker compose ... logs web | grep codigoDeInstalacion). El staging sigue SIN instalar.
-Siguiente tras T-9: B7-2 a B7-5 y T-8b. Dominio propio (D-DOM) antes de B8-3.
-Cuidado: cada despliegue reinicia la web y cambia el código de instalación; tras traer migraciones, prisma generate
-  (pnpm install no lo hace); en el runner de Windows, pnpm bajo PowerShell no hace nada: los pasos van en bash.
+Hecho, todo en main: T-9 (v0.55.0), v0.55.1, B7-2 y T-10 (v0.57.0), T-8b (v0.58.0) y B7-4 (v0.59.0). 59 de 66 pasos.
+Staging (https://217-216-48-54.sslip.io) instalado por administración y en 0.59.0. Se pone al día SOLO: el cron del VPS
+  corre infra/produccion/actualizador.sh cada minuto (ve los «release» con sus imágenes y llama a desplegar.sh); la 0.59.0
+  entró así en 42 s. En producción la pide administración en Ajustes → Versión y actualizaciones (ahora o al cierre).
+Respaldos (M-26): respaldar.sh a las 3:15 am, cifrado para la clave pública del local; la privada y su frase las guarda
+  el usuario fuera del servidor. Una PC del local los baja (Ajustes → Respaldos la prepara). restaurar.sh ensaya en una
+  base limpia: el primero del staging salió íntegro en 5 s. Todo en infra/produccion/README («Respaldos»).
+Pendiente de administración en el staging: preparar la PC de los respaldos, cargar la semilla y los feriados (12 oct).
+Siguiente: B7-5 · revisión de seguridad contra PLAN §7 y auditoría de dependencias. Criterio (F10-06): toda la matriz de
+  §7.3 con prueba negativa, escaneo estático limpio, aislamiento de tenant verificado, sin secretos en el repo.
+  B7-3 y T-8c van en el local, con los equipos reales. Dominio propio (D-DOM) antes de B8-3.
+Cuidado: una versión cuyas tablas necesita el actualizador se pone la primera vez a mano; tras desplegar, las acciones
+  de la versión vieja dan 404 (la pantalla se recarga sola al quedar libre); una migración sin publicar que cambias hay que
+  deshacerla en tu base y en l2control_test; gh pr merge --delete-branch desde la rama te deja en main sin confirmar.
 ```
 
 ## aemorandin-coder
