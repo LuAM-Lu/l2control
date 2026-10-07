@@ -171,11 +171,17 @@ export {
   CodigoBarrasSchema,
   PresentacionSchema,
   type TipoProducto,
+  CategoriaSchema,
+  type CategoriaDto,
 } from "./productos.ts";
+
+export { CategoriaCommandSchema, type CategoriaCommand } from "./categorias.ts";
 
 export {
   TipoEntradaSchema,
   CostoMinorSchema,
+  CostoPorSchema,
+  type CostoPor,
   LineaEntradaSchema,
   ProductoDeEntradaSchema,
   type ProductoDeEntradaDto,
@@ -678,3 +684,17 @@ export {
   type TerminarCargaCommand,
   type TipoDeRegistro,
 } from "./papel.ts";
+
+export {
+  SemillaSchema,
+  ProductoDeSemillaSchema,
+  PaqueteDeSemillaSchema,
+  ParteDeSemillaSchema,
+  InformeDeSemillaSchema,
+  CargarSemillaCommandSchema,
+  type SemillaDto,
+  type ProductoDeSemillaDto,
+  type ParteDeSemilla,
+  type InformeDeSemillaDto,
+  type CargarSemillaCommand,
+} from "./semilla.ts";

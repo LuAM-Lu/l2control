@@ -1,10 +1,11 @@
 /**
  * Las entradas de mercancía — B9-3, F8-06, F8-01.
  *
- * Lo que llega de una vez: una compra a un proveedor (con su factura, si la hay) o una reposición
- * (lo que se trae del depósito, sin proveedor). Cada línea dice cuántos bultos de cuántas unidades y
- * lo que costó cada bulto, en dólares: se compra la caja de 24 y se vende la unidad. Una entrada no
- * se edita ni se borra; un error se corrige con otro movimiento (B9-4).
+ * Lo que llega de una vez: una compra a un proveedor (con su factura, si la hay), una reposición (lo
+ * que se trae del depósito, sin proveedor) o el inventario inicial (la existencia de arranque del local,
+ * T-10). Cada línea dice cuántos bultos de cuántas unidades (las sueltas son bultos de 1) y lo que
+ * costó, en dólares, como venga en la factura: por unidad, por bulto o el total de la línea (M-24). Una
+ * entrada no se edita ni se borra; un error se corrige con otro movimiento (B9-4).
  *
  * El navegador dice qué llegó y a qué costo; el instante, quién lo recibe y la sucursal los pone el
  * servidor (ADR-017).
@@ -14,16 +15,20 @@ import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 import { CategoriaProductoSchema, CodigoBarrasSchema, NombreProductoSchema, PrecioMinorSchema, PresentacionSchema } from "./productos.ts";
 import { TaxCodeDelCatalogoSchema } from "./impuestos.ts";
 
-export const TipoEntradaSchema = z.enum(["COMPRA", "REPOSICION"], { error: "Elige si es una compra o una reposición" });
+export const TipoEntradaSchema = z.enum(["COMPRA", "REPOSICION", "INICIAL"], { error: "Elige si es una compra, una reposición o el inventario inicial" });
 export type TipoEntrada = z.infer<typeof TipoEntradaSchema>;
 
-/** El costo de un bulto en centavos de dólar y como texto: «1200» es $ 12,00. Cero vale (lo regalado). */
+/** Un costo en centavos de dólar y como texto: «1200» es $ 12,00. Cero vale (lo regalado). */
 export const CostoMinorSchema = z.string().regex(/^\d{1,9}$/, "Un costo en centavos de dólar");
+
+/** De qué es el costo tecleado: de cada unidad, de cada bulto o de toda la línea. */
+export const CostoPorSchema = z.enum(["UNIDAD", "BULTO", "TOTAL"], { error: "Di si el costo es por unidad, por bulto o el total" });
+export type CostoPor = z.infer<typeof CostoPorSchema>;
 
 const cantidades = {
   bultos: z.number().int("Bultos enteros").min(1, "Al menos un bulto").max(10_000, "Hasta 10.000 bultos"),
   unidadesPorBulto: z.number().int("Unidades enteras").min(1, "Al menos una unidad por bulto").max(1_000, "Hasta 1.000 unidades por bulto"),
-  costoBultoMinor: CostoMinorSchema,
+  costo: z.strictObject({ por: CostoPorSchema, minor: CostoMinorSchema }),
 };
 
 /**
@@ -55,7 +60,12 @@ export const RegistrarEntradaCommandSchema = z
     tipo: TipoEntradaSchema,
     proveedor: z.string().trim().min(2, "Nombre del proveedor demasiado corto").max(80, "Hasta 80 caracteres").optional(),
     factura: z.string().trim().min(1).max(40, "Hasta 40 caracteres").optional(),
-    lineas: z.array(LineaEntradaSchema).min(1, "Añade al menos un producto").max(60, "Hasta 60 productos por entrada"),
+    // Hasta 300: el inventario inicial trae todos los productos que se cuentan de una vez.
+    lineas: z.array(LineaEntradaSchema).min(1, "Añade al menos un producto").max(300, "Hasta 300 productos por entrada"),
+  })
+  .refine((e) => e.tipo !== "INICIAL" || (e.proveedor === undefined && e.factura === undefined), {
+    message: "El inventario inicial no tiene proveedor ni factura",
+    path: ["proveedor"],
   })
   .refine(
     (e) => {

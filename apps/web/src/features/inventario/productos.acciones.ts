@@ -39,3 +39,21 @@ export async function fijarMinimo(entrada: unknown): Promise<Resultado<CatalogoD
   else log().warn({ tenantId: ctx.tenantId, motivo: resultado.motivo }, "mínimo de stock rechazado");
   return resultado;
 }
+
+/**
+ * Un cambio de la lista de categorías (T-10): crear, renombrar, unir o retirar una vacía. Es del
+ * catálogo: el caso de uso exige `catalogo.modificar` con elevación y deja el asiento.
+ */
+export async function aplicarCategoria(entrada: unknown): Promise<Resultado<CatalogoDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar para cambiar las categorías." };
+  const resultado = await (await aplicacion()).categorias.aplicar(ctx, entrada);
+  const cambio = typeof entrada === "object" && entrada !== null && "kind" in entrada ? String(entrada.kind) : "desconocido";
+  if (resultado.ok) {
+    log().info({ tenantId: ctx.tenantId, cambio }, "categorías cambiadas");
+    revalidatePath("/", "layout");
+  } else {
+    log().warn({ tenantId: ctx.tenantId, cambio, motivo: resultado.motivo }, "cambio de categorías rechazado");
+  }
+  return resultado;
+}

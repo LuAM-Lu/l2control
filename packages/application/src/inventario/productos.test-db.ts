@@ -247,7 +247,7 @@ describe("identificación y tipo (B9-6)", () => {
   test("lo que tiene existencia no cambia de tipo hasta sacarla o contarla", async () => {
     const c = await local.app.productos.leer(local.sistema);
     const galleta = producto(c, "Galleta María");
-    valor(await local.app.entradas.registrar(local.sistema, { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: galleta.id, bultos: 1, unidadesPorBulto: 6, costoBultoMinor: "300" }] }, reloj()));
+    valor(await local.app.entradas.registrar(local.sistema, { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: galleta.id, bultos: 1, unidadesPorBulto: 6, costo: { por: "BULTO", minor: "300" } }] }, reloj()));
     const r = await local.app.productos.aplicar(ctxAdmin, { kind: "EDITAR", productId: galleta.id, nombre: "Galleta María", categoria: "Golosinas", taxCode: "GENERAL", tipo: "PREPARADO", codigoBarras: null, presentacion: null }, reloj());
     assert.match(!r.ok ? r.mensaje : "", /tiene 6 en stock/);
   });

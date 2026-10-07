@@ -31,12 +31,23 @@ export {
   entryLineProblem,
   entryLineTotals,
   marginBasisPoints,
+  packCostOf,
+  type EntryCostBasis,
   type EntryLine,
   type EntryLineProblem,
   type StockValue,
 } from "./costo.ts";
 export { STOCK_OUT_REASONS, costOfSurplus, countMoves, type CountLine, type StockOutReason } from "./ajustes.ts";
 export { stockAlerts, stockStatus, type StockAlertProduct, type StockStatus } from "./alertas.ts";
+export {
+  CATEGORY_MAX_LENGTH,
+  CATEGORY_MIN_LENGTH,
+  STARTER_CATEGORIES,
+  categoryProblem,
+  cleanCategory,
+  findCategory,
+  type CategoryProblem,
+} from "./categorias.ts";
 export {
   PRODUCT_KINDS,
   barcodeProblem,

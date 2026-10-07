@@ -35,6 +35,7 @@ import {
   type BarcodeProblem,
   type ProductKind,
   nameClash,
+  packCostOf,
   periodAt,
   priceProblem,
   priceTimeline,
@@ -48,6 +49,7 @@ import { auditar, auditarRechazo, type AccionAuditada, type Asiento } from "../a
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
 import { existenciasDe } from "./existencias.ts";
+import { asegurarCategoria, categoriaComoEnLista, categoriasDe } from "./lista-de-categorias.ts";
 
 /** Hasta cuántos días por delante se programa un precio: una lista nueva llega con semanas. */
 export const DIAS_POR_ADELANTADO_PRECIOS = 366;
@@ -77,19 +79,26 @@ const MENSAJE_PRECIO: Record<PriceProblem, string> = {
   EN_EL_PASADO: "Un precio no se programa hacia atrás",
 };
 
-export function casosProductos(base: Base): CasosProductos {
-  const cargar = async (tx: Transaccion, branchId: string): Promise<CatalogoDto> => {
+/**
+ * El catálogo del local como lo lee toda pantalla: los productos con sus precios, su existencia y su
+ * costo en `branchId`, y la lista de categorías (T-10).
+ */
+export async function cargarCatalogo(tx: Transaccion, branchId: string): Promise<CatalogoDto> {
     const productos = await tx.product.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
     const precios = await tx.productPrice.findMany({ orderBy: { scheduledAt: "asc" } });
     const existencias = await existenciasDe(tx, branchId);
-    // Cómo venía el bulto de la última entrada de cada producto: la pantalla de entradas lo propone.
+    // Cómo venía el bulto de la última entrada de cada producto y lo que costó: la pantalla de entradas
+    // lo propone (T-10).
     const ultimas = await tx.stockMovement.findMany({
       where: { branchId, kind: "ENTRADA" },
-      orderBy: { at: "desc" },
+      // En el mismo instante, la registrada después (los id crecen con el orden de creación).
+      orderBy: [{ at: "desc" }, { id: "desc" }],
       distinct: ["productId"],
-      select: { productId: true, packSize: true },
+      select: { productId: true, packSize: true, packs: true, valueMinor: true },
     });
     const bulto = new Map(ultimas.map((u) => [u.productId, u.packSize]));
+    const costoBulto = new Map(ultimas.map((u) => [u.productId, u.packs === null ? null : packCostOf({ packs: u.packs, valueMinor: u.valueMinor })]));
+    const categorias = await categoriasDe(tx);
     // Se revalida al salir: lo que no cumple el contrato no llega a la caja (fail-closed).
     return CatalogoSchema.parse({
       productos: productos.map((p) => ({
@@ -108,13 +117,18 @@ export function casosProductos(base: Base): CasosProductos {
         existencia: p.tracksStock ? (existencias.get(p.id)?.quantity ?? 0) : null,
         costoPromedio: costoDe(p.tracksStock ? existencias.get(p.id) : undefined),
         ultimoBulto: bulto.get(p.id) ?? null,
+        ultimoCostoBulto: costoDeBulto(costoBulto.get(p.id) ?? null),
         minimo: p.tracksStock ? p.minStock : null,
         valor: p.tracksStock ? { minor: String(existencias.get(p.id)?.valueMinor ?? 0n), currency: "USD" } : null,
       })),
       zonaHoraria: await zonaDe(tx, branchId),
       diasPorAdelantado: DIAS_POR_ADELANTADO_PRECIOS,
+      categorias,
     });
-  };
+}
+
+export function casosProductos(base: Base): CasosProductos {
+  const cargar = cargarCatalogo;
 
   return {
     async leer(ctx) {
@@ -277,14 +291,16 @@ export async function crearProductoEn(
     const malo = await problemaDeCodigo(tx, p.codigoBarras, [...ruta, "codigoBarras"]);
     if (malo) return malo;
   }
-  const prefijo = skuPrefix(p.categoria);
+  // La categoría, como está en la lista; si es nueva, entra en ella (T-10).
+  const categoria = await asegurarCategoria(tx, ctx, p.categoria, quien, ahora);
+  const prefijo = skuPrefix(categoria);
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`sku:${ctx.tenantId}`}, 0))::text AS candado`;
   const existentes = await tx.product.findMany({ where: { sku: { startsWith: `${prefijo}-` } }, select: { sku: true } });
   const fila = await tx.product.create({
     data: {
       tenantId: ctx.tenantId,
       name: p.nombre,
-      category: p.categoria,
+      category: categoria,
       taxCode: p.taxCode,
       kind: p.tipo,
       tracksStock: kindTracksStock(p.tipo),
@@ -337,7 +353,8 @@ async function guardar(
       if (choca) return invalido("Ya hay otro producto con ese nombre.", ["nombre"], mensajeDeChoque(choca));
       const datos = {
         name: cmd.nombre,
-        category: cmd.categoria,
+        // La de la lista (sin contar mayúsculas ni acentos); si es nueva, entra en ella al guardar (T-10).
+        category: await categoriaComoEnLista(tx, cmd.categoria),
         taxCode: cmd.taxCode,
         kind: cmd.tipo,
         tracksStock: kindTracksStock(cmd.tipo),
@@ -366,6 +383,7 @@ async function guardar(
         const hay = (await existenciasDe(tx, ctx.branchId, [antes.id])).get(antes.id)?.quantity ?? 0;
         if (hay !== 0) return invalido(`${antes.name} tiene ${hay} en stock: sácalas o cuéntalas antes de cambiar su tipo.`, ["tipo"], "Tiene existencia");
       }
+      if (datos.category !== antes.category) await asegurarCategoria(tx, ctx, datos.category, quien, ahora);
       const fila = await tx.product.update({ where: { id: cmd.productId }, data: datos });
       return { cambio: { action, entityType: "product", entityId: fila.id, before: fotoDe(antes), after: fotoDe(fila) } };
     }
@@ -443,6 +461,11 @@ function tramosDe(filas: readonly ProductPrice[]) {
       programadoPor: f.scheduledByName,
     };
   });
+}
+
+/** Lo que costó el último bulto, en la forma del contrato, o `null`. */
+function costoDeBulto(minor: bigint | null) {
+  return minor === null ? null : { minor: String(minor), currency: "USD" as const };
 }
 
 /** El costo promedio de una unidad para enseñarlo (B9-3), o `null` sin existencia. */

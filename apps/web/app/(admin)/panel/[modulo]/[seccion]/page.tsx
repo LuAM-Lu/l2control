@@ -11,6 +11,7 @@ import { DispositivosPage } from "../../../../../src/features/identity/Dispositi
 import { dispositivosDelLocal } from "../../../../../src/features/identity/dispositivos.servidor";
 import { accesosDelLocal, credencialesDelLocal, directorioDelLocal } from "../../../../../src/features/identity/identidad.servidor";
 import { EditorSucursal } from "../../../../../src/features/sucursal/EditorSucursal";
+import { SemillaScreen } from "../../../../../src/features/sucursal/SemillaScreen";
 import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
 import { directorioDeFamilias } from "../../../../../src/features/park/parque.servidor";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
@@ -57,6 +58,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
   "ajustes/sucursal": () => <EditorSucursal />,
+  "ajustes/semilla": () => <SemillaScreen />,
   "ajustes/impresoras": async () => (
     <ImpresorasScreen
       local={await impresorasDelLocal()}

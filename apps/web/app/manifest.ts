@@ -18,8 +18,10 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "any",
-    background_color: "#0f172a",
-    theme_color: "#0f172a",
+    // Los del tema claro, el predeterminado (M-21): la pantalla de arranque y la barra del sistema
+    // antes de que la página diga el suyo (`themeColor` en el layout, según el tema del equipo).
+    background_color: "#f0f8ff",
+    theme_color: "#f0f8ff",
     lang: "es-VE",
     dir: "ltr",
     categories: ["business", "productivity"],

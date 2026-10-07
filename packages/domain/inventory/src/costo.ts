@@ -70,21 +70,43 @@ export const MAX_PACK_SIZE = 1_000;
 /** Hasta $ 100.000,00 por línea: por encima, se tecleó en bolívares. */
 export const MAX_ENTRY_LINE_MINOR = 10_000_000n;
 
-/** Una línea de entrada: tantos bultos de tantas unidades, a tanto el bulto. */
-export type EntryLine = Readonly<{ packs: number; packSize: number; packCostMinor: bigint }>;
+/**
+ * De qué es el costo que se teclea (M-24): de cada unidad, de cada bulto o de toda la línea, como venga
+ * en la factura. Las unidades sueltas son bultos de 1.
+ */
+export type EntryCostBasis = "UNIT" | "PACK" | "LINE";
+
+/** Una línea de entrada: tantos bultos de tantas unidades, y lo que costó (por unidad, por bulto o en total). */
+export type EntryLine = Readonly<{ packs: number; packSize: number; cost: Readonly<{ per: EntryCostBasis; minor: bigint }> }>;
 
 export type EntryLineProblem = "BULTOS" | "UNIDADES_POR_BULTO" | "COSTO_NEGATIVO" | "COSTO_EXCESIVO";
+
+/** Lo que cuesta la línea entera: el costo por lo que cubre. */
+function lineValue(l: EntryLine): bigint {
+  const costo = money(l.cost.minor, USD);
+  if (l.cost.per === "LINE") return costo.amount;
+  return multiply(costo, BigInt(l.cost.per === "PACK" ? l.packs : l.packs * l.packSize)).amount;
+}
 
 /** Qué tiene mal una línea de entrada, o `null`. Un costo cero vale: lo que el proveedor regala. */
 export function entryLineProblem(l: EntryLine): EntryLineProblem | null {
   if (!Number.isInteger(l.packs) || l.packs < 1 || l.packs > MAX_PACKS) return "BULTOS";
   if (!Number.isInteger(l.packSize) || l.packSize < 1 || l.packSize > MAX_PACK_SIZE) return "UNIDADES_POR_BULTO";
-  if (l.packCostMinor < 0n) return "COSTO_NEGATIVO";
-  if (multiply(money(l.packCostMinor, USD), BigInt(l.packs)).amount > MAX_ENTRY_LINE_MINOR) return "COSTO_EXCESIVO";
+  if (l.cost.minor < 0n) return "COSTO_NEGATIVO";
+  if (lineValue(l) > MAX_ENTRY_LINE_MINOR) return "COSTO_EXCESIVO";
   return null;
 }
 
 /** Las unidades que entran y lo que cuestan en total. */
 export function entryLineTotals(l: EntryLine): Readonly<{ units: number; valueMinor: bigint }> {
-  return { units: l.packs * l.packSize, valueMinor: multiply(money(l.packCostMinor, USD), BigInt(l.packs)).amount };
+  return { units: l.packs * l.packSize, valueMinor: lineValue(l) };
+}
+
+/**
+ * Lo que costó cada bulto de una línea ya registrada (su valor entre sus bultos), redondeado al centavo:
+ * lo que la próxima entrada de ese producto propone. `null` sin bultos.
+ */
+export function packCostOf(line: Readonly<{ packs: number; valueMinor: bigint }>): bigint | null {
+  if (line.packs < 1) return null;
+  return averageUnitCostMinor({ quantity: line.packs, valueMinor: line.valueMinor });
 }

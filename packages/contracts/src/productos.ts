@@ -29,6 +29,14 @@ export const CategoriaProductoSchema = z
   .min(2, "Escribe la categoría")
   .max(24, "Hasta 24 caracteres: es una pestaña de la caja");
 
+/** Una categoría vigente del local (T-10, M-24), con cuántos productos la llevan (activos o apartados). */
+export const CategoriaSchema = z.object({
+  id: IdSchema,
+  nombre: CategoriaProductoSchema,
+  productos: z.number().int().min(0),
+});
+export type CategoriaDto = z.infer<typeof CategoriaSchema>;
+
 /**
  * Un precio tecleado, en centavos de dólar y como texto: «150» es $ 1,50. Mayor que cero: lo que se
  * regala es una cortesía, con su motivo y su firma. El tope lo pone el dominio (`priceProblem`).
@@ -111,6 +119,8 @@ export const ProductoSchema = z
     costoPromedio: MoneySchema.nullable(),
     /** Cuántas unidades traía el bulto de la última entrada: la pantalla de entradas lo propone. */
     ultimoBulto: z.number().int().min(1).nullable(),
+    /** Lo que costó cada bulto en la última entrada (T-10): la pantalla de entradas lo propone. */
+    ultimoCostoBulto: MoneySchema.nullable().default(null),
     /** El stock mínimo, su punto de reorden (B9-5): con la existencia en él o por debajo, avisa. */
     minimo: z.number().int().min(0).nullable(),
     /** Lo que vale al costo lo que queda (B9-6): la suma del valor de sus movimientos. `null` si no lleva existencia. */
@@ -145,6 +155,8 @@ export const CatalogoSchema = z
     zonaHoraria: z.string().min(1),
     /** Hasta cuántos días por delante se programa un precio. */
     diasPorAdelantado: z.number().int().min(1),
+    /** La lista de categorías del local (T-10), con cuántos productos tiene cada una. */
+    categorias: z.array(CategoriaSchema).default([]),
   })
   .refine((c) => new Set(c.productos.map((p) => p.id)).size === c.productos.length, {
     message: "Dos productos no pueden compartir identificador",
