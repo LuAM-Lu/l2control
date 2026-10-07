@@ -5,8 +5,10 @@ import { resumenDelDia } from "../../../src/features/cash/cortes.servidor";
 import { RefrescarAlCambiar } from "../../../src/features/operacion/RefrescarAlCambiar";
 import { catalogoDelLocal } from "../../../src/features/inventario/productos.servidor";
 import { stockAlerts } from "@l2/domain-inventory";
+import { calendarDay } from "@l2/domain-rates";
 import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
 import { puestaAPuntoDelLocal } from "../../../src/features/identity/identidad.servidor";
+import { ajustesDelLocal } from "../../../src/features/sucursal/ajustes.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -27,7 +29,7 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen, catalogo, eventos, puesta] = await Promise.all([
+  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes] = await Promise.all([
     ninosAtendidos(),
     turnosAbiertos(),
     resumenDelDia(),
@@ -35,6 +37,7 @@ export default async function InicioPage() {
     eventosDeHoy(),
     // La Puesta a punto (JORNADA §2, T-4) solo la recibe quien gestiona personas; a los demás, nada.
     puestaAPuntoDelLocal(),
+    ajustesDelLocal(),
   ]);
   // B9-5: lo que hay que reponer. Solo si algún producto a la venta lleva existencia.
   const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
@@ -44,7 +47,10 @@ export default async function InicioPage() {
   const deAntes = turnos
     .filter((t) => resumen && t.businessDate < resumen.dia)
     .map((turno) => ({ turno, diferenciaEnDolares: null, firma: null }));
-  const hoy = new Date();
+  // El día del local, en su zona: el servidor corre en UTC y, desde las 8 pm de Venezuela, su
+  // `new Date()` ya sería mañana.
+  const [anio, mes, dia] = calendarDay(new Date().toISOString(), ajustes.ajustes.zonaHoraria).split("-").map(Number) as [number, number, number];
+  const hoy = new Date(Date.UTC(anio, mes - 1, dia));
 
   return (
     <>
@@ -55,8 +61,8 @@ export default async function InicioPage() {
       ninosHoy={atendidos?.hoy ?? 0}
       // Sin estancias de hace una semana no hay con qué comparar: se dice, no se inventa un cero.
       ninosSemanaPasada={atendidos && atendidos.semanaPasada > 0 ? atendidos.semanaPasada : null}
-      fecha={`${hoy.getDate()} de ${MESES[hoy.getMonth()]}`}
-      diaSemana={DIAS[hoy.getDay()] ?? "Hoy"}
+      fecha={`${dia} de ${MESES[mes - 1]}`}
+      diaSemana={DIAS[hoy.getUTCDay()] ?? "Hoy"}
       turnos={turnos.map((t) => ({ abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto }))}
       // Quién está en cada puesto sale de las sesiones de la base (B5-1): con un turno abierto, un
       // puesto sin nadie es noticia.

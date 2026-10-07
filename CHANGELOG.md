@@ -14,6 +14,14 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.55.1] — 2026-10-07 · Staging en el VPS
+
+Corrección vista al probar T-9 en el servidor.
+
+### Corregido
+- **Inicio decía la fecha de mañana desde las 8 pm.** La tomaba del reloj del servidor, que en el VPS va en hora
+  universal; ahora es la del local, en su zona horaria (Ajustes → Sucursal).
+
 ## [0.55.0] — 2026-10-07 · Staging en el VPS
 
 Confirmar identidad desde cualquier equipo (T-9, M-23).
