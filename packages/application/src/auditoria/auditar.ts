@@ -77,6 +77,7 @@ export type AccionAuditada =
   | "parque.recarga"
   | "parque.cierre_administrativo"
   | "representante.corregir"
+  | "representante.consultar"
   | "nino.corregir"
   | "venta.reimprimir"
   | "medio.crear"

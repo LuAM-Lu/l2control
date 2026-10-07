@@ -17,10 +17,19 @@
 		reverse_proxy web:3000
 	}
 
+	# PLAN §7.2 A02 (revisado en B7-5). La política de contenido limita lo que no rompe nada: ninguna página de
+	# fuera puede incrustar el sistema (clickjacking), ni cambiar la base de los enlaces, ni cargar plugins, y los
+	# formularios solo van al propio servidor. Los scripts y estilos no se limitan aquí: Next los pone en línea, y
+	# hacerlo bien pide un nonce por petición (queda en MAESTRO §5). Del navegador, solo la cámara, y solo para
+	# el propio sistema (la monitora lee pulseras con ella).
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "same-origin"
+		Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=()"
+		Cross-Origin-Opener-Policy "same-origin"
 		-Server
 	}
 }

@@ -69,7 +69,11 @@ export function casosRepresentantes(base: Base): CasosRepresentantes {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<DirectorioRepresentantesDto | Rechazo> => {
         const rechazo = await exigirPermiso(tx, ctx, "parque.verContacto");
         if (rechazo) return rechazo;
-        return leerDirectorio(tx);
+        const d = await leerDirectorio(tx);
+        // PLAN §7.6: ver los contactos de los representantes es un permiso propio y se audita cada consulta. El
+        // asiento dice cuántos, no cuáles: los contactos no salen de la máquina.
+        await auditar(tx, ctx, { action: "representante.consultar", entityType: "guardian", after: { representantes: d.representantes.length } });
+        return d;
       });
       return "ok" in r ? r : { ok: true, valor: r };
     },

@@ -50,6 +50,17 @@ test("el cifrado va y vuelve, y un texto manipulado no se descifra", () => {
   assert.throws(() => c.descifrar(partes.join(".")));
 });
 
+test("una etiqueta recortada no se acepta (B7-5): con 4 bytes, falsificar sería cuestión de intentos", () => {
+  const c = crearCifrador(Buffer.alloc(32, 7).toString("base64"));
+  const partes = c.cifrar("0414-555-1234").split(".");
+  const recortada = [...partes];
+  recortada[2] = Buffer.from(partes[2]!, "base64url").subarray(0, 4).toString("base64url");
+  assert.throws(() => c.descifrar(recortada.join(".")), /formato desconocido/);
+  const otroIv = [...partes];
+  otroIv[1] = Buffer.alloc(8).toString("base64url");
+  assert.throws(() => c.descifrar(otroIv.join(".")), /formato desconocido/);
+});
+
 test("una clave que no es de 32 bytes se rechaza", () => {
   assert.throws(() => crearCifrador("corta"), /32 bytes/);
 });

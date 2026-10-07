@@ -10,5 +10,37 @@ allowBuilds:
   # instalación. Revisado y denegado a propósito.
   esbuild: false
   prisma: true
+# Cadena de suministro (PLAN §7.2 A03, revisado en B7-5): una versión recién publicada espera siete días antes
+# de entrar (lo que se cuela en npm suele retirarse antes; un parche urgente va en minimumReleaseAgeExclude con su
+# aviso); no se acepta una versión con menos garantías de
+# origen que las anteriores; y ninguna dependencia de una dependencia viene de git o de una URL suelta.
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  # La herramienta de Prisma 7.10.0 la publicó la cuenta de siempre de Prisma («prismabot») con un token, sin la
+  # procedencia de GitHub Actions de las 7.x anteriores; @prisma/client, engines, config y adapter-pg 7.10.0 sí la
+  # tienen, y salieron en el mismo lanzamiento (25-08-2026, en 15 minutos). Revisado en B7-5: se quita al subir a
+  # una versión con procedencia.
+  - prisma@7.10.0
+blockExoticSubdeps: true
 minimumReleaseAgeExclude:
   - lucide-react@1.43.0
+  # El parche de GHSA-68fv-2mgg-jv7q (B7-5), publicado el 30-09-2026: entra antes de sus siete días.
+  - source-map-js@1.2.2
+# Dependencias de dependencias con un aviso de seguridad, subidas a su versión corregida dentro de la misma
+# versión mayor (B7-5, F10-09). Se quitan cuando quien las trae ya las pide así.
+overrides:
+  # Lo trae la herramienta de Prisma (no hablamos con MySQL): GHSA-3f6p-5ww8-9rcr y GHSA-rgwj-5xj2-c3m3.
+  'mysql2@<3.23.1': '^3.24.5'
+  # Lo trae ajv, dentro de la herramienta de Prisma: GHSA-hrr3-gc8f-f4qj.
+  'fast-uri@<3.1.8': '^3.1.8'
+  # Lo trae postcss al compilar la web: GHSA-68fv-2mgg-jv7q.
+  'source-map-js@<1.2.2': '^1.2.2'
+  # Lo usa Next para las imágenes: GHSA-wq5f-xc86-pv6w.
+  'sharp@<0.35.5': '^0.35.5'
+auditConfig:
+  ignoreGhsas:
+    # deepmerge-ts 7.1.5 lo fija @prisma/config (la herramienta de Prisma, también en la imagen de migrar). El
+    # fallo es agotar la pila al fusionar objetos recursivos, y lo único que fusiona es nuestro prisma.config.ts:
+    # no hay entrada de nadie más. La 8 cambia de versión mayor y Prisma no la acepta. Revisar al subir Prisma.
+    - GHSA-ggr8-5vv4-36mx

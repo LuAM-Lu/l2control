@@ -40,8 +40,13 @@ export function crearCifrador(clave: string): Cifrador {
     descifrar(cifrado) {
       const [version, iv, etiqueta, datos] = cifrado.split(".");
       if (version !== "v1" || !iv || !etiqueta || datos === undefined) throw new Error("Texto cifrado con formato desconocido.");
-      const d = createDecipheriv("aes-256-gcm", k, Buffer.from(iv, "base64url"));
-      d.setAuthTag(Buffer.from(etiqueta, "base64url"));
+      const vector = Buffer.from(iv, "base64url");
+      const tag = Buffer.from(etiqueta, "base64url");
+      // La etiqueta, entera (B7-5): Node acepta etiquetas GCM más cortas si no se le dice el largo, y con una de
+      // 4 bytes falsificar un texto cifrado deja de ser imposible.
+      if (vector.length !== 12 || tag.length !== 16) throw new Error("Texto cifrado con formato desconocido.");
+      const d = createDecipheriv("aes-256-gcm", k, vector, { authTagLength: 16 });
+      d.setAuthTag(tag);
       return Buffer.concat([d.update(Buffer.from(datos, "base64url")), d.final()]).toString("utf8");
     },
   };

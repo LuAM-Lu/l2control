@@ -34,6 +34,13 @@ salud_de() { # servicio puerto
   dc exec -T "$1" node -e "fetch('http://127.0.0.1:$2/salud').then(async r=>{process.stdout.write(await r.text());process.exit(r.ok?0:1)},()=>process.exit(1))" 2>/dev/null
 }
 
+# El Caddyfile viene con cada versión (git pull) pero Caddy solo lo lee al arrancar, y `up` no lo reinicia si su
+# servicio no cambió: se le pide que lo vuelva a leer, sin cortar conexiones. Si no puede, sigue con el que tenía.
+recargar_caddy() {
+  MSYS_NO_PATHCONV=1 dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 ||
+    decir "Caddy no recargó su configuración: sigue con la anterior (mira 'docker compose logs caddy')."
+}
+
 # Sana = la web y el worker responden 200 con la versión esperada y la base contesta.
 comprobar_salud() { # versión
   local esperada=$1 web worker
@@ -129,6 +136,7 @@ desplegar() {
 
   decir "Arrancando la $nueva…"
   dc up -d --remove-orphans web worker caddy
+  recargar_caddy
   if comprobar_salud "$nueva"; then
     anotar "$nueva	EN MARCHA	antes ${anterior:-ninguna}"
     decir "La $nueva está en marcha y sana."

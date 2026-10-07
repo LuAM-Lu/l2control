@@ -261,6 +261,12 @@ describe("el directorio (B4-1)", () => {
     assert.equal(!choque.ok && choque.motivo, "CONFLICTO");
     const cajera = await local.app.representantes.directorio(ctxCajera);
     assert.equal(!cajera.ok && cajera.motivo, "NO_PERMITIDO");
+    // PLAN §7.6: cada consulta de los contactos queda en la auditoría, con cuántos y no cuáles.
+    const consultas = await local.base.conTenant(local.sistema.tenantId, (tx) =>
+      tx.auditEntry.findMany({ where: { action: "representante.consultar", actorId: ctxMonitora.quien!.userId! }, orderBy: { occurredAt: "asc" } }),
+    );
+    assert.equal(consultas.length, 1);
+    assert.deepEqual(consultas[0]!.after, { representantes: d.representantes.length });
   });
 });
 

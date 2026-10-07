@@ -14,6 +14,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.60.0] — 2026-10-07 · Staging en el VPS
+
+Revisión de seguridad (B7-5).
+
+### Seguridad
+- **Next 16.3.7**: la 16.3.4 tenía una ejecución remota de código en la generación de imágenes, la que dibuja los iconos
+  de la app instalada (GHSA-vcvr-r3jv-pc5j, crítica).
+- **Los datos cifrados (referencias de pago, datos del local) exigen la etiqueta de autenticación entera**: antes se
+  aceptaba una recortada, y con 4 bytes falsificar un texto cifrado dejaba de ser imposible.
+- **El sistema no se deja incrustar en otra página** y el navegador solo le da la cámara: cabeceras de seguridad nuevas.
+- **Ver los contactos de los representantes queda en la auditoría**, cada vez, con cuántos y no cuáles (PLAN §7.6).
+- Dependencias de dependencias con avisos altos (`mysql2`, `sharp`, `source-map-js`, `fast-uri`) en su versión
+  corregida. El CI rechaza una dependencia con un aviso alto o crítico, y una versión nueva espera siete días antes de
+  entrar.
+
 ## [0.59.0] — 2026-10-07 · Staging en el VPS
 
 Respaldos fuera del servidor (B7-4, M-26).

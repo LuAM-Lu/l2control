@@ -1,0 +1,11 @@
+# Hallazgos de gitleaks revisados a mano (B7-5): no son secretos de ningún entorno real. Uno por línea, con su porqué.
+# Repetir: docker run --rm -v <repo>:/repo:ro zricethezav/gitleaks:v8.28.0 git /repo --redact
+# clave de idempotencia de una prueba (un UUID inventado)
+ca56f95f0fc76e15c3cd8b0bb94fb12aca644cc3:packages/database/src/papel.test-db.ts:generic-api-key:153
+# clave de idempotencia de una prueba (un UUID inventado)
+f2916bb78a6158faee4dec63f58ba2509520a46c:packages/contracts/src/ventas.test.ts:generic-api-key:31
+# secreto TOTP fijo de la semilla de DESARROLLO (B1-2), retirado en T-4 (af9dec9); staging y producción se instalan con credenciales propias (ADR-020)
+1b09ff4feef12690da855e1b3d5d20dd4573904a:apps/web/scripts/semilla/equipo.mts:generic-api-key:28
+# Las mismas dos claves de prueba, como las ve «gitleaks dir» (sin commit).
+packages/database/src/papel.test-db.ts:generic-api-key:153
+packages/contracts/src/ventas.test.ts:generic-api-key:31
