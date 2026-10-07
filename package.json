@@ -5,7 +5,7 @@
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Staging en el VPS",
-    "pasos": 65
+    "pasos": 66
   },
   "packageManager": "pnpm@12.3.4",
   "engines": {
