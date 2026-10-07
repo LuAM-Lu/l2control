@@ -83,7 +83,7 @@ packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y protocolo de handoff (el único vivo)
 docs/HANDOFF.md           el último relevo de cada persona («siguiente» lo lee, «handoff» lo reescribe)
 docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
-docs/adr/                 las 28 decisiones, una por archivo
+docs/adr/                 las 29 decisiones, una por archivo
 ```
 
 **No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su
