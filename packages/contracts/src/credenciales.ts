@@ -48,6 +48,14 @@ export const LlaveDeAccesoSchema = z.object({
 });
 export type LlaveDeAccesoDto = z.infer<typeof LlaveDeAccesoSchema>;
 
+/** Un equipo en el que esa persona confirma identidad solo con su contraseña (ADR-029). */
+export const EquipoDeConfianzaSchema = z.object({
+  id: IdSchema,
+  equipo: z.string().min(1).max(60),
+  desde: TimestampSchema,
+});
+export type EquipoDeConfianzaDto = z.infer<typeof EquipoDeConfianzaSchema>;
+
 /** Lo que Panel → Personas enseña de las credenciales de cada persona. Nunca un secreto. */
 export const CredencialesDePersonaSchema = z.object({
   userId: IdSchema,
@@ -55,6 +63,9 @@ export const CredencialesDePersonaSchema = z.object({
   lasNecesita: z.boolean(),
   tieneContrasena: z.boolean(),
   llaves: z.array(LlaveDeAccesoSchema),
+  /** Tiene la app de autenticación configurada y confirmada (ADR-029). */
+  app: z.boolean(),
+  equiposDeConfianza: z.array(EquipoDeConfianzaSchema),
   codigosRestantes: z.number().int().min(0).max(10),
   /** Un enlace de alta sin usar y sin caducar. */
   enlacePendiente: z.object({ kind: TipoDeEnlaceSchema, caduca: TimestampSchema }).nullable(),
@@ -73,12 +84,21 @@ export type EnlaceAbiertoDto = z.infer<typeof EnlaceAbiertoSchema>;
 export const PrepararAltaSchema = z.strictObject({ contrasena: ContrasenaSchema });
 export type PrepararAlta = z.infer<typeof PrepararAltaSchema>;
 
-/** Segundo paso: la respuesta de la llave al desafío. */
-export const CompletarAltaSchema = z.strictObject({
-  desafioId: DesafioIdSchema,
-  respuesta: RespuestaDeLlaveSchema,
-  etiqueta: EtiquetaDeLlaveSchema,
-});
+/** La llave es opcional donde ADR-029 lo permite: o viene con su nombre, o no viene ninguno de los dos. */
+const llaveCompleta = (v: { respuesta?: unknown; etiqueta?: unknown }) => (v.respuesta === undefined) === (v.etiqueta === undefined);
+const LLAVE_INCOMPLETA = { message: "Ponle un nombre a tu llave de acceso", path: ["etiqueta"] };
+
+/**
+ * Segundo paso: la respuesta de la llave al desafío. En un alta (no al añadir una llave) la llave es
+ * opcional (ADR-029): sin ella, la persona confirma con un equipo de confianza, la app o un código.
+ */
+export const CompletarAltaSchema = z
+  .strictObject({
+    desafioId: DesafioIdSchema,
+    respuesta: RespuestaDeLlaveSchema.optional(),
+    etiqueta: EtiquetaDeLlaveSchema.optional(),
+  })
+  .refine(llaveCompleta, LLAVE_INCOMPLETA);
 export type CompletarAlta = z.infer<typeof CompletarAltaSchema>;
 
 /* -------------------------------------------------------- instalación inicial */
@@ -100,14 +120,36 @@ export const PrepararInstalacionSchema = z.strictObject({
 });
 export type PrepararInstalacion = z.infer<typeof PrepararInstalacionSchema>;
 
-export const CompletarInstalacionSchema = z.strictObject({
-  codigo: CodigoDeInstalacionSchema,
-  desafioId: DesafioIdSchema,
-  respuesta: RespuestaDeLlaveSchema,
-  etiqueta: EtiquetaDeLlaveSchema,
-  /** El nombre de este equipo, que queda aprobado: «PC de la oficina». */
-  equipo: z.string().trim().min(2, "El nombre del equipo, al menos dos letras").max(40),
+/**
+ * El último paso de la instalación. La llave es opcional (ADR-029): este equipo queda aprobado y de
+ * confianza para la primera administración, con o sin ella.
+ */
+export const CompletarInstalacionSchema = z
+  .strictObject({
+    codigo: CodigoDeInstalacionSchema,
+    desafioId: DesafioIdSchema,
+    respuesta: RespuestaDeLlaveSchema.optional(),
+    etiqueta: EtiquetaDeLlaveSchema.optional(),
+    /** El nombre de este equipo, que queda aprobado: «PC de la oficina». */
+    equipo: z.string().trim().min(2, "El nombre del equipo, al menos dos letras").max(40),
+  })
+  .refine(llaveCompleta, LLAVE_INCOMPLETA);
+
+/* ------------------------------------------------------ app de autenticación */
+
+/** El código de 6 cifras que da la app. Se aceptan espacios («123 456»). */
+export const CodigoDeAppSchema = z.string().trim().regex(/^\d{3}\s?\d{3}$/, "Son seis cifras");
+
+/** Para darla de alta en la app: el QR (`otpauth://…`) y el secreto, por si hay que teclearlo. Se enseña UNA vez. */
+export const AppNuevaSchema = z.object({
+  otpauth: z.string().startsWith("otpauth://totp/"),
+  secreto: z.string().regex(/^[A-Z2-7]{16,64}$/),
 });
+export type AppNuevaDto = z.infer<typeof AppNuevaSchema>;
+
+export const ConfirmarAppSchema = z.strictObject({ codigo: CodigoDeAppSchema });
+export const RetirarAppSchema = z.strictObject({ userId: IdSchema });
+export const RetirarConfianzaSchema = z.strictObject({ id: IdSchema });
 export type CompletarInstalacion = z.infer<typeof CompletarInstalacionSchema>;
 
 /* ------------------------------------------------------------- puesta a punto */
@@ -131,6 +173,7 @@ export const PuntoDePuestaAPuntoSchema = z.object({
     "existencias",
     "descuentos",
     "segunda_administracion",
+    "otros_equipos",
   ]),
   hecho: z.boolean(),
   bloquea: z.string().min(1).max(80).nullable(),

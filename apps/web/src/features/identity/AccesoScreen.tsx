@@ -552,7 +552,7 @@ function AltaDeEquipo({
   const registrado = nombreEquipo !== null;
 
   async function aprobar(): Promise<boolean> {
-    // La llave que responda dice de quién es: un equipo sin aprobar no enseña nombres.
+    // El factor que responda dice de quién es: un equipo sin aprobar no enseña nombres.
     const presentado = await factor.presentar(desafioParaAprobarEsteEquipo);
     if (!presentado.ok) {
       setErrorAprobar(presentado.mensaje);
@@ -596,7 +596,7 @@ function AltaDeEquipo({
 
   const credenciales = comoAdmin && (
     <div className="flex flex-col gap-3 rounded-[var(--radius-control)] border border-line bg-surface/60 p-3">
-      <p className="text-[12.5px] text-ink-2">Con tu contraseña y tu llave de acceso. Queda en la auditoría a tu nombre.</p>
+      <p className="text-[12.5px] text-ink-2">Con tu contraseña y el código de tu app, tu llave de acceso o un código de recuperación. Queda en la auditoría a tu nombre.</p>
       <CamposDeIdentidad factor={factor} surface="tablet" error={errorAprobar} />
     </div>
   );

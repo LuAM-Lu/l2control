@@ -116,6 +116,8 @@ export type AccionAuditada =
   | "usuario.llave"
   | "usuario.enlace"
   | "usuario.codigo_recuperacion"
+  | "usuario.app"
+  | "usuario.confianza"
   | "instalacion.completar"
   | "permiso.conceder"
   | "permiso.revocar"

@@ -28,6 +28,8 @@ import {
   type RegistrationResponseJSON,
 } from "@simplewebauthn/server";
 import type { Prisma, Transaccion } from "@l2/database";
+import { normalizarCodigoDeApp, reconocerApp } from "./app.ts";
+import type { Cifrador } from "./cifrado.ts";
 import { huella } from "./credenciales.ts";
 
 /** Para qué se pide una firma. El desafío de una ceremonia no sirve para otra. */
@@ -241,14 +243,22 @@ export async function desafioDeFirma(
 
 type AuthenticatorTransport = NonNullable<NonNullable<Parameters<typeof generateAuthenticationOptions>[0]["allowCredentials"]>[number]["transports"]>[number];
 
-/** El segundo factor que presenta quien confirma identidad: una firma de su llave o un código. */
+/**
+ * El segundo factor que presenta quien confirma identidad: una firma de su llave, el código de su app
+ * de autenticación (ADR-029) o un código de recuperación. El equipo de confianza no viaja aquí: lo
+ * decide el servidor con la sesión.
+ */
 export type SegundoFactor =
   | Readonly<{ tipo: "LLAVE"; desafioId: unknown; respuesta: unknown }>
+  | Readonly<{ tipo: "APP"; codigo: string }>
   | Readonly<{ tipo: "CODIGO"; codigo: string }>;
 
-/** Lee lo que mandó la pantalla. Lo que no tenga una de las dos formas es `null`. */
+/** Lee lo que mandó la pantalla. Lo que no tenga una de las tres formas es `null`. */
 export function leerSegundoFactor(v: unknown): SegundoFactor | null {
   if (!esObjeto(v)) return null;
+  if (v.tipo === "APP" && typeof v.codigo === "string" && normalizarCodigoDeApp(v.codigo) !== null) {
+    return { tipo: "APP", codigo: v.codigo };
+  }
   if (v.tipo === "LLAVE" && typeof v.desafioId === "string" && esObjeto(v.respuesta)) {
     return { tipo: "LLAVE", desafioId: v.desafioId, respuesta: v.respuesta };
   }
@@ -268,14 +278,29 @@ export interface FactorReconocido {
 
 /**
  * Comprueba un segundo factor. Devuelve de quién es, o `null` si no vale. Con `userId`, tiene que
- * ser de esa persona. El desafío de una llave se gasta aquí, valga o no la firma; un código solo
- * se gasta al `consumir()`, para que una contraseña mal tecleada no le cueste uno de sus diez.
+ * ser de esa persona; sin él, el código de la app se busca entre las apps de `candidatos`. El
+ * desafío de una llave se gasta aquí, valga o no la firma; un código solo se gasta al `consumir()`,
+ * para que una contraseña mal tecleada no le cueste uno de sus diez (ni el código de la app).
+ * Sin `web` no hay llave que comprobar, y sin `cifrador`, app.
  */
 export async function reconocerFactor(
   tx: Transaccion,
-  web: OrigenWeb,
-  p: { factor: SegundoFactor; proposito: Extract<Proposito, "ELEVAR" | "APROBAR_EQUIPO">; userId?: string | null; deviceId?: string | null; ahora: number },
+  web: OrigenWeb | null,
+  p: {
+    factor: SegundoFactor;
+    proposito: Extract<Proposito, "ELEVAR" | "APROBAR_EQUIPO">;
+    userId?: string | null;
+    deviceId?: string | null;
+    cifrador?: Cifrador | null;
+    candidatos?: readonly string[];
+    ahora: number;
+  },
 ): Promise<FactorReconocido | null> {
+  if (p.factor.tipo === "APP") {
+    if (!p.cifrador) return null;
+    const app = await reconocerApp(tx, p.cifrador, { codigo: p.factor.codigo, userId: p.userId ?? null, candidatos: p.candidatos ?? [], ahora: p.ahora });
+    return app ? { userId: app.userId, tipo: "APP", consumir: app.consumir } : null;
+  }
   if (p.factor.tipo === "CODIGO") {
     const codigo = normalizarCodigo(p.factor.codigo);
     if (codigo === null) return null;
@@ -293,6 +318,7 @@ export async function reconocerFactor(
     };
   }
 
+  if (!web) return null;
   const d = await tomarDesafio(tx, { desafioId: p.factor.desafioId, proposito: p.proposito, ahora: p.ahora });
   if (!d) return null;
   // El desafío se pidió para una persona o un equipo concretos: no vale para otros.

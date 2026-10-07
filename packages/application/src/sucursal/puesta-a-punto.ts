@@ -46,8 +46,17 @@ export function casosPuestaAPunto(base: Base): CasosPuestaAPunto {
         const movimientos = await tx.stockMovement.count({ where: { branchId: ctx.branchId } });
         const descuentos = await tx.discountRule.count({ where: { retiredAt: null } });
         const vip = await tx.guardianVip.count();
-        const administraciones = await tx.staffUser.count({
-          where: { active: true, role: "ADMIN", passwordHash: { not: null }, passkeys: { some: { retiredAt: null } }, ...enSucursal },
+        // Con contraseña ya confirma identidad (en su equipo de confianza, con la app, la llave o un código).
+        const administraciones = await tx.staffUser.count({ where: { active: true, role: "ADMIN", passwordHash: { not: null }, ...enSucursal } });
+        // Fuera de su equipo de confianza hace falta la app o una llave (ADR-029).
+        const desdeOtrosEquipos = await tx.staffUser.count({
+          where: {
+            active: true,
+            role: "ADMIN",
+            passwordHash: { not: null },
+            OR: [{ passkeys: { some: { retiredAt: null } } }, { totpCredentials: { some: { confirmedAt: { not: null }, retiredAt: null } } }],
+            ...enSucursal,
+          },
         });
 
         const puntos: PuntoDePuestaAPuntoDto[] = [
@@ -140,8 +149,17 @@ export function casosPuestaAPunto(base: Base): CasosPuestaAPunto {
             bloquea: null,
             detalle:
               administraciones >= 2
-                ? `${administraciones} personas de administración con su llave`
+                ? `${administraciones} personas de administración con sus credenciales`
                 : "Regla de operación: siempre dos. Da de alta a otra y envíale su enlace",
+          },
+          {
+            id: "otros_equipos",
+            hecho: desdeOtrosEquipos >= 1,
+            bloquea: null,
+            detalle:
+              desdeOtrosEquipos >= 1
+                ? "Administración puede confirmar también fuera de su equipo"
+                : "Configura la app de autenticación en Ajustes → Usuarios para confirmar desde otros equipos",
           },
         ];
         return {

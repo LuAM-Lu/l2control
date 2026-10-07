@@ -147,6 +147,9 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "usuario.llave": ["personal"],
   "usuario.enlace": ["personal"],
   "usuario.codigo_recuperacion": ["personal"],
+  // La app de autenticación y los equipos de confianza (ADR-029) salen en las credenciales de la persona.
+  "usuario.app": ["personal"],
+  "usuario.confianza": ["personal"],
   // El local nace con su primera persona y su primer equipo: quien ya mire, vuelve a leer los dos.
   "instalacion.completar": ["personal", "equipos"],
   "permiso.conceder": ["personal"],

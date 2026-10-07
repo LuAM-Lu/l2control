@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { CambioHecho } from "@l2/application";
-import type { BranchAccessDto, EnlaceDeAltaDto, Resultado, UserSummaryDto } from "@l2/contracts";
+import type { AppNuevaDto, BranchAccessDto, EnlaceDeAltaDto, Resultado, UserSummaryDto } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -47,6 +47,43 @@ export async function crearEnlaceDeAlta(comando: unknown): Promise<Resultado<Enl
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   const r = await (await aplicacion()).enlaces.crear(ctx, comando, Date.now());
+  if (r.ok) revalidatePath("/panel", "layout");
+  return r;
+}
+
+/**
+ * Empieza a configurar la app de autenticación de quien opera (ADR-029): el QR y el secreto, que se
+ * enseñan UNA vez. Exige la identidad confirmada.
+ */
+export async function iniciarApp(): Promise<Resultado<AppNuevaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).factores.iniciarApp(ctx, Date.now());
+}
+
+/** Deja la app en vigor con su primer código (y retira la anterior). */
+export async function confirmarApp(datos: unknown): Promise<Resultado<{ confirmada: true }>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).factores.confirmarApp(ctx, datos, Date.now());
+  if (r.ok) revalidatePath("/panel", "layout");
+  return r;
+}
+
+/** Quita la app de una persona (la propia, o cualquiera si gestiona personas). */
+export async function retirarApp(datos: unknown): Promise<Resultado<{ retirada: true }>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).factores.retirarApp(ctx, datos, Date.now());
+  if (r.ok) revalidatePath("/panel", "layout");
+  return r;
+}
+
+/** Retira la confianza en un equipo (la propia, o cualquiera si gestiona personas). */
+export async function retirarConfianza(datos: unknown): Promise<Resultado<{ retirada: true }>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).factores.retirarConfianza(ctx, datos, Date.now());
   if (r.ok) revalidatePath("/panel", "layout");
   return r;
 }

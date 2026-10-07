@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Fingerprint, HardDriveDownload, Lock } from "lucide-react";
+import { ArrowLeft, Fingerprint, HardDriveDownload, Lock, MonitorCheck } from "lucide-react";
 import { PASSWORD_MIN_LENGTH } from "@l2/domain-identity";
 import { Badge, Button, Input } from "@l2/ui";
 import { PantallaAcceso } from "./AccesoScreen";
@@ -13,9 +13,10 @@ import { etiquetaSugerida, registrarLlave } from "./llave.cliente";
 /**
  * «Instalar L2 Control» (ADR-020, M-12, JORNADA §2 P1 a P4). Con la base vacía, el acceso enseña
  * esto en lugar de «Registrar este equipo»: el código que el servidor escribió en su registro, el
- * local, y la primera persona de administración con su contraseña, su PIN y su llave de acceso.
- * Al terminar, este equipo queda aprobado y la persona, dentro. Después esta pantalla no vuelve a
- * existir: el servidor la niega para siempre.
+ * local, y la primera persona de administración con su contraseña y su PIN; la llave de acceso es
+ * opcional (ADR-029: no todos los equipos pueden crearla). Al terminar, este equipo queda aprobado y
+ * de su confianza (en él confirma identidad con su contraseña) y la persona, dentro. Después esta
+ * pantalla no vuelve a existir: el servidor la niega para siempre.
  *
  * Nada se crea hasta el final: los dos primeros pasos solo recogen datos, y el servidor lo hace
  * todo en una transacción cuando ya tiene la llave.
@@ -34,7 +35,7 @@ const TITULO: Record<Paso, string> = {
   CODIGO: "Instalar L2 Control",
   LOCAL: "El local",
   PERSONA: "La primera administración",
-  LLAVE: "Tu contraseña y tu llave",
+  LLAVE: "Tu contraseña",
 };
 
 const estadoDelPanel = (
@@ -63,6 +64,8 @@ export function PuertaDeInstalacion({
   const [repetida, setRepetida] = useState("");
   const [pin, setPin] = useState("");
   const [etiqueta, setEtiqueta] = useState("");
+  /** Crear además una llave de acceso en este equipo: solo si puede (Windows Hello, el teléfono). */
+  const [conLlave, setConLlave] = useState(false);
   const [enviando, setEnviando] = useState(false);
   /** Lo que respondió el servidor, junto al campo al que se refiere (o al pie si no es de ninguno). */
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -74,7 +77,7 @@ export function PuertaDeInstalacion({
   const localListo = local.trim().length >= 2 && sucursal.trim().length >= 2 && equipo.trim().length >= 2;
   const noCoinciden = repetida.length > 0 && repetida !== contrasena;
   const personaLista = nombre.trim().length >= 2 && /^\d{4}$/.test(pin);
-  const llaveLista = contrasena.length > 0 && repetida === contrasena && etiqueta.trim().length >= 2;
+  const llaveLista = contrasena.length > 0 && repetida === contrasena && (!conLlave || etiqueta.trim().length >= 2);
 
   /** Lleva cada problema a su campo y vuelve al paso donde está el primero. */
   function mostrarRechazo(r: { mensaje: string; motivo: string; problemas?: readonly { path: readonly PropertyKey[]; message: string }[] | undefined }) {
@@ -99,12 +102,17 @@ export function PuertaDeInstalacion({
       setEnviando(false);
       return preparado ? mostrarRechazo(preparado) : setErrores({ general: "El servidor no respondió. Inténtalo de nuevo." });
     }
-    const llave = await registrarLlave(preparado.valor);
-    if (!llave.ok) {
-      setEnviando(false);
-      return setErrores({ etiqueta: llave.mensaje });
+    let conRespuesta: { respuesta: Record<string, unknown>; etiqueta: string } | null = null;
+    if (conLlave) {
+      const llave = await registrarLlave(preparado.valor);
+      if (!llave.ok) {
+        setEnviando(false);
+        // Sin llave también se instala: lo dice el error, y la casilla se puede desmarcar.
+        return setErrores({ etiqueta: `${llave.mensaje} Puedes instalar sin llave: desmarca la casilla.` });
+      }
+      conRespuesta = { respuesta: llave.respuesta, etiqueta };
     }
-    const r = await completarInstalacion({ codigo, desafioId: llave.desafioId, respuesta: llave.respuesta, etiqueta, equipo }, pin).catch(() => null);
+    const r = await completarInstalacion({ codigo, desafioId: preparado.valor.desafioId, ...conRespuesta, equipo }, pin).catch(() => null);
     setEnviando(false);
     if (!r || !r.ok) return r ? mostrarRechazo(r) : setErrores({ general: "El servidor no respondió. Inténtalo de nuevo." });
     setHecho(r.valor);
@@ -225,7 +233,7 @@ export function PuertaDeInstalacion({
 
         {paso === "LLAVE" && (
           <>
-            <p className="text-[14.5px] text-ink-2">Las dos juntas confirman que eres tú para configuración, precios y personas.</p>
+            <p className="text-[14.5px] text-ink-2">Con ella confirmas que eres tú para configuración, precios y personas.</p>
             <Input
               label="Contraseña"
               surface="tablet"
@@ -245,19 +253,31 @@ export function PuertaDeInstalacion({
               onChange={(e) => setRepetida(e.target.value)}
               error={noCoinciden ? "Las dos contraseñas no coinciden." : undefined}
             />
-            <Input
-              label="Nombre de tu llave de acceso"
-              surface="tablet"
-              maxLength={60}
-              hint="Se crea en este equipo, con su huella, su cara o su PIN."
-              value={etiqueta}
-              onChange={(e) => setEtiqueta(e.target.value)}
-              error={errores.etiqueta}
-            />
             <p className="flex items-start gap-2 text-[12.5px] text-ink-2">
-              <Fingerprint size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-              Al instalar, este equipo te pedirá crear tu llave de acceso.
+              <MonitorCheck size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+              Este equipo quedará de tu confianza: en él te bastará la contraseña. Para otros equipos, configura después la app de
+              autenticación (Google Authenticator, Authy…).
             </p>
+            <label className="flex min-h-12 cursor-pointer items-start gap-2 text-[13px] text-ink-2">
+              <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand)]" checked={conLlave} onChange={(e) => setConLlave(e.target.checked)} />
+              <span>
+                <span className="flex items-center gap-1.5 font-medium text-ink">
+                  <Fingerprint size={14} aria-hidden="true" />
+                  Crear también una llave de acceso en este equipo
+                </span>
+                Opcional. Solo si este equipo la admite: Windows Hello (PIN, huella o cara) o el bloqueo del teléfono.
+              </span>
+            </label>
+            {conLlave && (
+              <Input
+                label="Nombre de tu llave de acceso"
+                surface="tablet"
+                maxLength={60}
+                value={etiqueta}
+                onChange={(e) => setEtiqueta(e.target.value)}
+                error={errores.etiqueta}
+              />
+            )}
           </>
         )}
 
@@ -281,7 +301,7 @@ export function PuertaDeInstalacion({
             className="flex-1"
             disabled={enviando || (paso === "CODIGO" ? !codigoListo : paso === "LOCAL" ? !localListo : paso === "PERSONA" ? !personaLista : !llaveLista)}
           >
-            {paso !== "LLAVE" ? "Continuar" : enviando ? "Instalando…" : "Instalar y crear mi llave"}
+            {paso !== "LLAVE" ? "Continuar" : enviando ? "Instalando…" : conLlave ? "Instalar y crear mi llave" : "Instalar"}
           </Button>
         </div>
       </form>

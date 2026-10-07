@@ -217,6 +217,8 @@ model StaffUser {
   passkeys        Passkey[]
   recoveryCodes   RecoveryCode[]
   enrollmentLinks EnrollmentLink[]
+  trustedDevices  TrustedDevice[]
+  totpCredentials TotpCredential[]
 
   paymentsRecorded   Payment[]   @relation("PaymentRecordedBy")
   paymentsAuthorized Payment[]   @relation("PaymentAuthorizedBy")
@@ -329,6 +331,48 @@ model Passkey {
   @@map("passkey")
 }
 
+/// Un equipo de confianza de una persona de administración (ADR-029): en él, confirmar identidad pide
+/// solo la contraseña. Es de ESA persona en ESE equipo y solo vale con el equipo aprobado. Retirarla
+/// no la borra: pone `revoked_at`.
+model TrustedDevice {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  deviceId      String    @map("device_id") @db.Uuid
+  /// Cómo se marcó: «En la instalación inicial», «Al confirmar con la app de autenticación»…
+  reason        String
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedByName String?   @map("revoked_by_name")
+
+  user   StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  device Device    @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, userId])
+  @@index([tenantId, deviceId])
+  @@map("trusted_device")
+}
+
+/// La app de autenticación de una persona (TOTP, ADR-029): su secreto, cifrado. Vale cuando se
+/// confirma con el primer código; `last_step` es el último intervalo de 30 s aceptado, para que un
+/// código no valga dos veces. Cambiarla o quitarla no la borra: pone `retired_at`.
+model TotpCredential {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  secretEnc   String    @map("secret_enc")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  lastStep    BigInt?   @map("last_step")
+  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(3)
+  retiredAt   DateTime? @map("retired_at") @db.Timestamptz(3)
+
+  user StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, userId])
+  @@map("totp_credential")
+}
+
 /// Un código de recuperación de un solo uso (ADR-020). Se enseña una vez; aquí queda su SHA-256.
 /// Usarlo o reponer el juego no lo borra: pone `used_at` o `retired_at`.
 model RecoveryCode {
@@ -428,6 +472,7 @@ model Device {
   branch   Branch         @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   changes  DeviceChange[]
   sessions StaffSession[]
+  trustedBy TrustedDevice[]
 
   payments   Payment[]
   cashShifts CashShift[]

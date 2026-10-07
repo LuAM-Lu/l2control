@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import type { Bloqueo, Desafio, OpcionesDeFirma } from "@l2/application";
+import type { Bloqueo, Desafio, OpcionesDeConfirmacion, OpcionesDeFirma } from "@l2/application";
 import type { Actor } from "@l2/domain-identity";
 import type { Rechazo, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
@@ -77,15 +77,29 @@ export async function desafioParaElevar(): Promise<Resultado<Desafio<OpcionesDeF
 }
 
 /**
- * Confirmar identidad con la contraseña y la llave de acceso, o un código de recuperación
- * (F2-04): eleva ESTA sesión durante un rato para configuración, precios, personas y reportes
- * globales. Nada de lo tecleado se registra.
+ * Cómo puede confirmar identidad quien tiene ESTA sesión (ADR-029): si este equipo es de su
+ * confianza (basta la contraseña), y si tiene llave, app o códigos. No dice ningún secreto.
  */
-export async function elevar(contrasena: unknown, factor: unknown): Promise<Resultado<{ elevadaHasta: string }> & { bloqueo?: Bloqueo }> {
+export async function opcionesDeConfirmacion(): Promise<Resultado<OpcionesDeConfirmacion>> {
+  return (await aplicacion()).elevacion.opciones({ sesion: await credencialSesion(), ahora: Date.now() });
+}
+
+/**
+ * Confirmar identidad con la contraseña y un segundo factor (F2-04, ADR-029): en un equipo de
+ * confianza basta la contraseña (`factor` nulo); si no, la llave, el código de la app o uno de
+ * recuperación, y con `confiar` este equipo pasa a ser de confianza. Eleva ESTA sesión durante un
+ * rato para configuración, precios, personas y reportes globales. Nada de lo tecleado se registra.
+ */
+export async function elevar(
+  contrasena: unknown,
+  factor: unknown,
+  confiar = false,
+): Promise<Resultado<{ elevadaHasta: string; deConfianza: boolean }> & { bloqueo?: Bloqueo }> {
   const r = await (await aplicacion()).elevacion.elevar({
     sesion: await credencialSesion(),
     contrasena,
     factor,
+    confiar: confiar === true,
     ip: await ipDeLaPeticion(),
     ahora: Date.now(),
   });

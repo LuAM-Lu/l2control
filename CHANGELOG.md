@@ -14,6 +14,34 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.55.0] — 2026-10-07 · Staging en el VPS
+
+Confirmar identidad desde cualquier equipo (T-9, M-23).
+
+### Añadido
+- **En tu propio equipo, confirmar que eres tú es solo tu contraseña.** El equipo donde se instala L2 Control
+  queda de confianza para quien lo instala, y cualquier persona de administración puede marcar «Confiar en este
+  equipo» al confirmar en un equipo suyo. La confianza es de esa persona en ese equipo: no le sirve a nadie más,
+  se ve y se retira en Ajustes → Usuarios, y si el equipo se revoca, deja de valer.
+- **App de autenticación** (Google Authenticator, Authy, Microsoft Authenticator o el gestor del iPhone): el
+  código de 6 cifras sirve para confirmar desde cualquier equipo, aunque no tenga huella ni Windows Hello. Cada
+  persona la configura con un QR en Ajustes → Usuarios. Un código ya usado no vale otra vez. También sirve para
+  aprobar un equipo desde sí mismo.
+- La Puesta a punto avisa si nadie de administración puede confirmar fuera de su equipo de confianza.
+
+### Cambiado
+- **Instalar L2 Control ya no exige una llave de acceso**, ni el enlace de alta de una persona de administración:
+  la llave queda como opción para los equipos que la admiten. Antes, una laptop sin Windows Hello o una tableta
+  sin los servicios de Google no podían ni instalar.
+- Reponer las credenciales de alguien retira también su app y sus equipos de confianza.
+- Una sección protegida ya no dice «con tu contraseña» en un equipo donde hace falta además la app: dice que hay que
+  confirmar que eres tú, y el diálogo ofrece lo que vale en ese equipo.
+
+### Corregido
+- En el teléfono, el nombre de un equipo de confianza o de una llave de acceso se quedaba en una sola letra en
+  Ajustes → Usuarios; ahora la fecha baja de renglón.
+- La pantalla del enlace de alta (`/alta`) no estiraba el panel de la marca hasta el pie de la pantalla.
+
 ## [0.54.0] — 2026-10-07 · Staging en el VPS
 
 El sistema en el servidor (B7-1).
