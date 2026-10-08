@@ -73,6 +73,8 @@ export const AjusteInventarioSchema = z.object({
     z.object({
       productId: IdSchema,
       nombre: z.string().min(1),
+      /** Su categoría (B9-10): el informe de diferencias suma por ella. */
+      categoria: z.string().default("Sin categoría"),
       /** Lo que movió: negativo sale, positivo entra; 0 si el conteo cuadró. */
       cantidad: z.number().int(),
       /** En un conteo, lo que decía el sistema y lo que se contó. */

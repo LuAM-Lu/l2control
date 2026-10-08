@@ -44,7 +44,8 @@ teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el
 §3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
 corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF), T-18
 (Ajustes de 18 secciones a 12, con pestañas), B11-3 (movimientos: el kárdex con su PDF) y B11-2 (inventario al momento,
-con su PDF): la Etapa 11 entera; y T-17 (la cuenta de soporte). **Siguiente:** **B9-10** (conteo a ciegas y su informe).
+con su PDF): la Etapa 11 entera; T-17 (la cuenta de soporte) y B9-10 (conteo a ciegas y su informe de diferencias).
+**Siguiente:** **B9-9** (editar en lote).
 **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
@@ -67,7 +68,7 @@ con su PDF): la Etapa 11 entera; y T-17 (la cuenta de soporte). **Siguiente:** *
   el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
   respaldos con carpeta, fijados e integridad (B7-6), la sección Reportes con las ventas y su PDF (B11-1) y Ajustes
   unificados (T-18), los movimientos de inventario (B11-3) y el inventario al momento (B11-2), y la cuenta de
-  soporte (T-17). Quedan conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
+  soporte (T-17) y el conteo a ciegas con su informe (B9-10). Quedan editar en lote (B9-9) y duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
   runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
@@ -239,8 +240,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
    semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
-   (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → ~~T-17~~ (cuenta de soporte) → **B9-10** (conteo
-   a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
+   (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → ~~T-17~~ (cuenta de soporte) → ~~B9-10~~ (conteo
+   a ciegas y su informe) → **B9-9** (editar en lote) → B9-8 (duplicar productos).
 
 Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -1826,11 +1827,29 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B9-9 · Editar en lote** (M-29).
   → En Productos se eligen varios y se les cambia la categoría, el mínimo, la carta o el precio (en % o en monto, desde
   una fecha), o se apartan. Una sola confirmación, y cada producto deja su asiento.
-- [~] **B9-10 · Conteo a ciegas y su informe de diferencias** (M-29). *A cargo: LuAMi, rama `feat/b9-10`.*
+- [x] **B9-10 · Conteo a ciegas y su informe de diferencias** (M-29).
   → La hoja de conteo (impresa o en el teléfono, por categoría o completa) no enseña lo que dice el sistema. Al
   terminar, el informe de diferencias: faltantes y sobrantes por producto y por categoría, valorados al costo, que se
   guarda con su fecha para comparar un conteo con otro; ajustar sigue pidiendo su autorización (B9-4). Se cuenta con el
   local cerrado; el conteo ya detecta lo que se vendió mientras se contaba.
+  *Hecho el 2026-10-08, en `feat/b9-10`.*
+  *· Dominio (`@l2/domain-inventory`, `conteo.ts`): `diferenciasDeConteo` suma lo contado, lo que cuadró, lo que faltó y
+  lo que sobró, en unidades y al costo, por categoría y en total. 2 pruebas.*
+  *· Contrato y aplicación: cada línea de un ajuste trae su categoría; `salidas.uno` vuelve a leer una salida o un conteo
+  por su id (`inventario.ajustar`, solo de su sucursal). 1 prueba contra la base.*
+  *· Web: «Contar» es a ciegas: se elige qué se cuenta (todo o una categoría), la lista no dice lo que espera el sistema
+  y «Terminé: ver diferencias» enseña, antes de ajustar, lo contado contra el sistema por categoría y por producto (al
+  costo promedio, estimado); la autorización se pide ahí. «Hoja para imprimir» (`/informes/hoja-de-conteo`) da la hoja A4
+  en blanco, por categoría, sin el sistema, con «Contó» y «Revisó». Cada conteo del historial lleva su «Informe de
+  diferencias» (`/informes/conteo/[id]`): el resumen, por categoría y por producto, con el valor que asentó el ajuste.
+  La tabla de los informes (`informe.tsx`) admite columnas con el mismo título.*
+  *· Decidido al construir: «lo que dice el sistema» se fija al empezar a contar cada producto, como en B9-4, así que lo
+  vendido mientras se contaba se detecta igual (el servidor lo dice y la revisión se vuelve a abrir con lo nuevo). El
+  informe se guarda con el conteo: comparar dos es abrir sus dos informes, con su fecha, quién contó y quién autorizó.*
+  *· Comprobado: en el navegador, contra la base de pruebas: «Contar» de «Prueba B97» sin «Sistema:» a la vista, las
+  diferencias (8 contados, 7 cuadran, falta 1), registrar con el PIN de administración, el informe de diferencias en PDF
+  y la hoja para imprimir; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni errores de
+  consola.*
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 

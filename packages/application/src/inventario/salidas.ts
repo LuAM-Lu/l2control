@@ -41,6 +41,8 @@ export interface CasosSalidas {
   conteo(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<AjusteInventarioDto>>;
   /** Quiénes pueden autorizar a quien opera un ajuste de inventario. */
   autorizadores(ctx: Contexto): Promise<{ id: string; nombre: string; rol: string }[]>;
+  /** Una salida o un conteo por su id, con lo que movió cada línea (B9-10: el informe de diferencias de un conteo). */
+  uno(ctx: Contexto, id: unknown): Promise<Resultado<AjusteInventarioDto>>;
 }
 
 /** Mover inventario sin venderlo no se hace con la sesión que alguien dejó abierta: siempre con PIN. */
@@ -212,6 +214,18 @@ export function casosSalidas(base: Base): CasosSalidas {
       );
     },
 
+    async uno(ctx, id) {
+      if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, motivo: "INVALIDO", mensaje: "Ese conteo no existe." };
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<AjusteInventarioDto | Rechazo> => {
+        const p = await permisoEn(tx, ctx, "inventario.ajustar");
+        if (p === "DENEGADO") return rechazoDePermiso(p);
+        const a = await tx.stockAdjustment.findUnique({ where: { id }, select: { id: true, branchId: true } });
+        if (!a || a.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese conteo no existe en este local." };
+        return ajusteDe(tx, a.id);
+      });
+      return "ok" in r ? r : { ok: true, valor: r };
+    },
+
     async autorizadores(ctx) {
       return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, "inventario.ajustar"));
     },
@@ -297,8 +311,8 @@ async function ajusteDe(tx: Transaccion, id: string): Promise<AjusteInventarioDt
   const a = await tx.stockAdjustment.findUniqueOrThrow({ where: { id } });
   const movs = await tx.stockMovement.findMany({ where: { adjustmentId: id } });
   const declaradas = a.content as { productId: string; cantidad?: number; esperado?: number; contado?: number }[];
-  const nombres = new Map(
-    (await tx.product.findMany({ where: { id: { in: declaradas.map((l) => l.productId) } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]),
+  const productos = new Map(
+    (await tx.product.findMany({ where: { id: { in: declaradas.map((l) => l.productId) } }, select: { id: true, name: true, category: true } })).map((p) => [p.id, p]),
   );
   const porProducto = new Map(movs.map((m) => [m.productId, m]));
   const usd = (minor: bigint) => ({ minor: String(minor), currency: "USD" as const });
@@ -314,7 +328,8 @@ async function ajusteDe(tx: Transaccion, id: string): Promise<AjusteInventarioDt
       const m = porProducto.get(l.productId);
       return {
         productId: l.productId,
-        nombre: nombres.get(l.productId) ?? "Producto",
+        nombre: productos.get(l.productId)?.name ?? "Producto",
+        categoria: productos.get(l.productId)?.category ?? "Sin categoría",
         cantidad: m?.quantity ?? 0,
         esperado: a.kind === "CONTEO" ? (l.esperado ?? null) : null,
         contado: a.kind === "CONTEO" ? (l.contado ?? null) : null,

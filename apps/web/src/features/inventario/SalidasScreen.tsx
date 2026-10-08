@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardCheck, PackageMinus, Plus, Search, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, FileText, PackageMinus, Plus, Printer, Search, TriangleAlert, X } from "lucide-react";
 import type { AjusteInventarioDto, AjustesInventarioDto, CatalogoDto, MotivoSalida, Problema, ProductoDto, Rechazo, Resultado } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { nameKey, normalizeBarcode } from "@l2/domain-inventory";
+import { diferenciasDeConteo, nameKey, normalizeBarcode } from "@l2/domain-inventory";
 import { money, toMajor } from "@l2/domain-money";
 import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -138,8 +138,15 @@ function FilaAjuste({ ajuste: a, cuando }: { ajuste: AjusteInventarioDto; cuando
         )}
         {a.tipo === "CONTEO" && conDiferencia.length > 0 && cuadran > 0 && <span className="text-ink-3"> · {cuadran} cuadraron</span>}
       </p>
-      <p className="tnum mt-0.5 text-[12px] text-ink-3">
+      <p className="tnum mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
         {cuando} · {a.por} · autorizó {a.autorizadoPor}
+        {a.tipo === "CONTEO" && (
+          // B9-10: el informe de diferencias queda con el conteo, para compararlo con otro.
+          <a href={`/informes/conteo/${a.id}`} className="inline-flex items-center gap-1 font-semibold text-ink underline-offset-2 hover:underline">
+            <FileText size={12} aria-hidden="true" />
+            Informe de diferencias
+          </a>
+        )}
       </p>
     </li>
   );
@@ -350,8 +357,12 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
   const [busqueda, setBusqueda] = useState("");
   const [detalle, setDetalle] = useState("");
   const [contados, setContados] = useState<Record<string, Contado>>({});
+  /** B9-10: qué se cuenta (una categoría o todo) y si ya se terminó de contar y se revisan las diferencias. */
+  const [categoria, setCategoria] = useState<string | null>(null);
+  const [revisando, setRevisando] = useState(false);
   const { a, errores, setErrores, enviando, clave, nuevaClave, enviar } = useEnvio(onHecho, true);
-  const visibles = contables.filter((p) => nameKey(p.nombre).includes(nameKey(busqueda)));
+  const categorias = useMemo(() => [...new Set(contables.map((p) => p.categoria))].sort((x, y) => x.localeCompare(y, "es")), [contables]);
+  const visibles = contables.filter((p) => (categoria === null || p.categoria === categoria) && nameKey(p.nombre).includes(nameKey(busqueda)));
   // Lo que se envía, en el orden en que se contó: el servidor señala las líneas por su posición.
   const enviados = contables.filter((p) => contados[p.id] && contados[p.id]!.contado.trim() !== "");
   const valido = (x: Contado) => Number.isInteger(Number(x.contado)) && Number(x.contado) >= 0;
@@ -398,6 +409,7 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
     }
     if (Object.keys(nuevos).length === 0) return;
     setContados((c) => Object.fromEntries(Object.entries(c).map(([id, x]) => [id, id in nuevos ? { ...x, esperado: nuevos[id]! } : x])));
+    setRevisando(true);
     // Solo cuando llega un rechazo nuevo.
   }, [errores]);
 
@@ -423,7 +435,7 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
       abierto
       onCerrar={onCerrar}
       titulo="Conteo físico"
-      descripcion="Escribe lo que hay en el estante de lo que cuentes. Lo que falta sale y lo que sobra entra, al costo."
+      descripcion="A ciegas: escribe lo que hay en el estante sin ver lo que dice el sistema. Al terminar ves las diferencias; lo que falta sale y lo que sobra entra, al costo."
       pie={
         <div className="flex w-full flex-col gap-2">
           {errores.general && (
@@ -434,20 +446,58 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
           )}
           <div className="flex items-center gap-3">
             <p className="tnum text-[12.5px] text-ink-2">
-              {enviados.length === 0 ? "Nada contado todavía" : `${enviados.length} contados · ${conDiferencia} con diferencia`}
+              {enviados.length === 0 ? "Nada contado todavía" : revisando ? `${enviados.length} contados · ${conDiferencia} con diferencia` : `${enviados.length} contados`}
             </p>
-            <Button type="button" variant="primary" surface="admin" className="ml-auto gap-1.5" disabled={!listos || enviando || a.permiso === "DENEGADO"} onClick={() => void registrar()}>
-              <ClipboardCheck size={15} aria-hidden="true" />
-              {enviando ? "Registrando…" : "Registrar conteo"}
-            </Button>
+            {revisando ? (
+              <>
+                <Button type="button" variant="ghost" surface="admin" className="ml-auto gap-1.5" disabled={enviando} onClick={() => setRevisando(false)}>
+                  <ArrowLeft size={15} aria-hidden="true" />
+                  Seguir contando
+                </Button>
+                <Button type="button" variant="primary" surface="admin" className="gap-1.5" disabled={!listos || enviando || a.permiso === "DENEGADO"} onClick={() => void registrar()}>
+                  <ClipboardCheck size={15} aria-hidden="true" />
+                  {enviando ? "Registrando…" : "Registrar conteo"}
+                </Button>
+              </>
+            ) : (
+              <Button type="button" variant="primary" surface="admin" className="ml-auto gap-1.5" disabled={!listos} onClick={() => setRevisando(true)}>
+                <ClipboardCheck size={15} aria-hidden="true" />
+                Terminé: ver diferencias
+              </Button>
+            )}
           </div>
         </div>
       }
     >
       <div className="flex flex-col gap-5">
+        {revisando ? (
+          <Diferencias contables={contables} contados={contados} />
+        ) : (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">1 · Lo que hay</legend>
-          <p className="text-[12px] text-ink-3">Pasa cada producto por el lector para ir a su casilla.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
+              Qué cuentas
+              <select value={categoria ?? ""} onChange={(e) => setCategoria(e.target.value || null)} className={cn(CAMPO, "w-auto border-line")}>
+                <option value="">Todo</option>
+                {categorias.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <a
+              href={categoria ? `/informes/hoja-de-conteo?categoria=${encodeURIComponent(categoria)}` : "/informes/hoja-de-conteo"}
+              target="_blank"
+              rel="noopener"
+              className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-control)] border border-line px-3 text-[12.5px] font-semibold text-ink hover:border-line-strong"
+            >
+              <Printer size={14} aria-hidden="true" />
+              Hoja para imprimir
+            </a>
+          </div>
+          <p className="text-[12px] text-ink-3">Pasa cada producto por el lector para ir a su casilla. Lo que dice el sistema se ve al terminar.</p>
           <label className="relative flex">
             <span className="sr-only">Buscar un producto</span>
             <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" aria-hidden="true" />
@@ -456,8 +506,6 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
           <ul className="flex flex-col divide-y divide-line rounded-[var(--radius-control)] border border-line">
             {visibles.map((p) => {
               const c = contados[p.id];
-              const esperado = c?.esperado ?? p.existencia ?? 0;
-              const dif = c && c.contado !== "" && valido(c) ? Number(c.contado) - esperado : null;
               const error = errorDe(p.id);
               return (
                 <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5">
@@ -466,15 +514,7 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
                       {p.nombre}
                       {!p.activo && <span className="font-normal text-ink-3"> · apartado</span>}
                     </span>
-                    <span className="tnum text-[12px] text-ink-3">Sistema: {esperado}</span>
-                  </span>
-                  <span
-                    className={cn(
-                      "tnum w-12 text-right text-[12.5px] font-semibold",
-                      dif === null ? "text-ink-3" : dif === 0 ? "text-state-ok" : "text-ink",
-                    )}
-                  >
-                    {dif === null ? "" : dif === 0 ? "cuadra" : unidades(dif)}
+                    <span className="tnum text-[12px] text-ink-3">{[p.sku, p.presentacion].filter(Boolean).join(" · ")}</span>
                   </span>
                   <input
                     type="text"
@@ -493,7 +533,9 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
           </ul>
           <Input label="Detalle (opcional)" surface="admin" value={detalle} maxLength={280} placeholder="Conteo de cierre de mes, por ejemplo" onChange={(e) => setDetalle(e.target.value)} />
         </fieldset>
+        )}
 
+        {revisando && (
         <CampoAutorizacion
           a={a}
           numero={2}
@@ -502,7 +544,56 @@ function NuevoConteo({ contables, onCerrar, onHecho }: { contables: readonly Pro
           deshabilitado={enviando}
           onConfirmar={() => void registrar()}
         />
+        )}
       </div>
     </Sheet>
+  );
+}
+
+/**
+ * Las diferencias antes de ajustar (B9-10): lo contado contra lo que decía el sistema al empezar a contar cada producto,
+ * por categoría y por producto. El valor es una estimación al costo promedio de hoy; el que queda es el que asienta el
+ * servidor al registrar, y ese es el del informe.
+ */
+function Diferencias({ contables, contados }: { contables: readonly ProductoDto[]; contados: Record<string, Contado> }) {
+  const lineas = contables
+    .filter((p) => contados[p.id] && contados[p.id]!.contado.trim() !== "")
+    .map((p) => {
+      const c = contados[p.id]!;
+      const diferencia = Number(c.contado) - c.esperado;
+      const costo = p.costoPromedio ? BigInt(p.costoPromedio.minor) : 0n;
+      return { p, esperado: c.esperado, contado: Number(c.contado), categoria: p.categoria, diferencia, valorMinor: costo * BigInt(diferencia) };
+    });
+  const { total, porCategoria } = diferenciasDeConteo(lineas);
+  const usd = (m: bigint) => (m < 0n ? `− ${formatMoneyVE(toMajor(money(-m, "USD")), "USD")}` : formatMoneyVE(toMajor(money(m, "USD")), "USD"));
+  return (
+    <section className="flex flex-col gap-3" aria-label="Diferencias del conteo">
+      <h3 className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">1 · Las diferencias, antes de ajustar</h3>
+      <p className="tnum text-[13px] text-ink-2">
+        {total.contados} contados · {total.cuadran} cuadran · faltan {total.faltan} ({usd(total.faltanMinor)}) · sobran {total.sobran} ({usd(total.sobranMinor)})
+      </p>
+      <ul className="flex flex-col gap-1 text-[12.5px]">
+        {porCategoria.map((c) => (
+          <li key={c.categoria} className="tnum flex justify-between gap-3 text-ink-2">
+            <span className="font-semibold text-ink">{c.categoria}</span>
+            <span>
+              {c.contados} contados · −{c.faltan} / +{c.sobran} · {usd(c.netoMinor)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <ul className="flex flex-col divide-y divide-line rounded-[var(--radius-control)] border border-line">
+        {lineas.map((l) => (
+          <li key={l.p.id} className="tnum flex items-center gap-3 px-3 py-1.5 text-[13px]">
+            <span className="min-w-0 flex-1 truncate font-semibold text-ink">{l.p.nombre}</span>
+            <span className="text-ink-3">
+              sistema {l.esperado} · contado {l.contado}
+            </span>
+            <span className={cn("w-14 text-right font-semibold", l.diferencia === 0 ? "text-state-ok" : "text-ink")}>{l.diferencia === 0 ? "cuadra" : unidades(l.diferencia)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[12px] text-ink-3">Al costo promedio de hoy, estimado: el valor que queda es el que asienta el registro, y sale en su informe de diferencias.</p>
+    </section>
   );
 }

@@ -173,3 +173,23 @@ describe("el conteo físico deja la existencia igual a lo contado", () => {
     assert.deepEqual(valor(await otro.app.salidas.leer(otro.sistema)).ajustes, []);
   });
 });
+
+describe("el informe de diferencias de un conteo (B9-10)", () => {
+  test("un conteo se vuelve a leer por su id, con la categoría y el valor de cada línea; de otro local, no", async () => {
+    const c = valor(await local.app.salidas.conteo(ctxAdmin, await conteo([{ nombre: "Refresco", contado: 38 }, { nombre: "Malta", contado: 3 }]), conPinDeAdmin(), AHORA));
+    const leido = valor(await local.app.salidas.uno(ctxSupervisor, c.id));
+    assert.deepEqual(
+      leido.lineas.map((l) => [l.nombre, l.categoria, l.esperado, l.contado, l.cantidad, l.valor.minor]),
+      [
+        ["Refresco", "Bebidas", 40, 38, -2, "-100"],
+        ["Malta", "Bebidas", 3, 3, 0, "0"],
+      ],
+    );
+    const ajeno = await otro.app.salidas.uno(otro.sistema, c.id);
+    assert.equal(!ajeno.ok && ajeno.motivo, "NO_DISPONIBLE");
+    const malo = await local.app.salidas.uno(ctxAdmin, "no-es-un-id");
+    assert.equal(!malo.ok && malo.motivo, "INVALIDO");
+    const cajera = await local.app.salidas.uno(ctxCajera, c.id);
+    assert.equal(!cajera.ok && cajera.motivo, "NO_PERMITIDO");
+  });
+});

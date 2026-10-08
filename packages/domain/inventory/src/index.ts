@@ -59,3 +59,4 @@ export {
   type ProductKind,
 } from "./identificacion.ts";
 export { conSaldo, resumenDeKardex, type FilaDeKardex, type MovimientoDeKardex } from "./kardex.ts";
+export { diferenciasDeConteo, type LineaContada, type TotalesDeConteo } from "./conteo.ts";
