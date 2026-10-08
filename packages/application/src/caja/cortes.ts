@@ -256,14 +256,15 @@ export async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: D
     orderBy: [{ savedAt: "asc" }, { id: "asc" }],
   });
   for (const i of incobrables) {
-    const asiento = await tx.auditEntry.findFirst({ where: { action: "cuenta.incobrable", entityId: i.accountId }, orderBy: { occurredAt: "desc" } });
+    const asiento = await tx.auditEntry.findFirst({ where: { action: { in: ["cuenta.incobrable", "cuenta.deuda"] }, entityId: i.accountId }, orderBy: { occurredAt: "desc" } });
     const despues = (asiento?.after ?? {}) as { orderNumber?: number; family?: string; pendiente?: MoneyDto; detalle?: string | null; autorizadoPor?: string };
     excepciones.push({
       at: i.savedAt.toISOString(),
       tipo: "INCOBRABLE",
       detalle: `${despues.orderNumber ? `Orden ${orden(despues.orderNumber)} · ` : ""}${despues.family ?? ""}`.slice(0, 160),
       usuario: i.savedByName,
-      motivo: `${TEXTO_INCOBRABLE[asiento?.reason ?? ""] ?? asiento?.reason ?? ""}${despues.detalle ? ` · ${despues.detalle}` : ""}`.slice(0, 280),
+      // Quien se fue sin pagar con sus datos deja una deuda (B3-11): se cobra cuando vuelva.
+      motivo: `${TEXTO_INCOBRABLE[asiento?.reason ?? ""] ?? asiento?.reason ?? ""}${asiento?.action === "cuenta.deuda" ? " · queda en deuda" : ""}${despues.detalle ? ` · ${despues.detalle}` : ""}`.slice(0, 280),
       autorizadoPor: despues.autorizadoPor ?? null,
       importe: despues.pendiente ?? null,
     });

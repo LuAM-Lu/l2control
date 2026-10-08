@@ -22,6 +22,7 @@ export type AccionConPin =
   | "cuenta.cortesia"
   | "cuenta.incobrable"
   | "cuenta.cambiarCliente"
+  | "cuenta.deuda"
   | "cuenta.descuento"
   | "turno.corteZ"
   | "turno.abrirFueraDelPunto"

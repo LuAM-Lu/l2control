@@ -14,6 +14,20 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Deudas de clientes (B3-11, M-33): quien se va sin pagar deja una deuda a su nombre.
+
+### Añadido
+- **«Se fue sin pagar»** en la cuenta de la caja, en Mesas y al cerrar el turno, con el PIN de supervisión. La cuenta
+  sale de la cola y del cierre, la mesa queda libre y lo que debe queda a nombre de su cliente (si la cuenta no tenía
+  cliente, se escriben sus datos ahí mismo).
+- **Caja → Deudas:** las pendientes, cobradas y perdidas, con el cliente, lo que debe, de dónde, quién lo atendió y
+  quién lo autorizó. «Cobrar» la pasa a la caja con lo que consumió; «Devolver a deudas» si al final no pagó; «Dar por
+  perdida», administración con su PIN y un motivo.
+- **Cuando vuelve:** al buscarlo en la cola de la caja sale «Debe de antes», y al sentarlo en una mesa se avisa cuánto
+  debe. Inicio dice cuántas deudas hay pendientes y por cuánto.
+
 ## [0.88.0] — 2026-10-08 · Hacia la puesta en marcha
 
 Saber a quién cobrarle (B6-9, M-33): quien se sienta en el salón deja su nombre, su cédula y su teléfono.

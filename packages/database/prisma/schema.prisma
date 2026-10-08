@@ -65,6 +65,7 @@ model Branch {
   cashShifts        CashShift[]
   posTerminals      PosTerminal[]
   accounts          Account[]
+  customerDebts     CustomerDebt[]
   sales             Sale[]
   parkSessions      ParkSession[]
   outbox            OutboxEvent[]
@@ -973,6 +974,9 @@ model Account {
   eventDays         EventDay[]
   paperItems        PaperLoadItem[]
   customers         AccountCustomer[]
+  debt              CustomerDebt?
+  debtCollections   CustomerDebtCollection[]
+  debtOutcomes      CustomerDebtOutcome[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -1175,6 +1179,7 @@ model Guardian {
   vipMarks          GuardianVip[]
   eventReservations EventReservation[]
   accountCustomers  AccountCustomer[]
+  debts             CustomerDebt[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, contactKey])
@@ -1208,6 +1213,93 @@ model AccountCustomer {
   @@index([tenantId, documentKey])
   @@index([tenantId, phoneKey])
   @@map("account_customer")
+}
+
+/// Lo que un cliente dejó sin pagar (B3-11, M-33): se fue con el local lleno. La cuenta pasa a INCOBRABLE (sale de la
+/// cola y del cierre y libera la mesa) y la deuda guarda al cliente, el monto, quién lo sentó, quién la marcó y quién
+/// lo autorizó. Una por cuenta; solo agregar. Cómo termina, en `CustomerDebtOutcome`.
+model CustomerDebt {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  accountId        String   @map("account_id") @db.Uuid
+  guardianId       String?  @map("guardian_id") @db.Uuid
+  fullName         String   @map("full_name")
+  document         String
+  documentKey      String   @map("document_key")
+  phone            String
+  phoneKey         String   @map("phone_key")
+  amountMinor      BigInt   @map("amount_minor")
+  currency         String
+  seatedBy         String?  @map("seated_by") @db.Uuid
+  seatedByName     String   @map("seated_by_name")
+  markedAt         DateTime @map("marked_at") @db.Timestamptz(3)
+  markedBy         String?  @map("marked_by") @db.Uuid
+  markedByName     String   @map("marked_by_name")
+  authorizedBy     String?  @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+  detail           String?
+  operationKey     String   @map("operation_key") @db.Uuid
+  deviceId         String?  @map("device_id") @db.Uuid
+
+  branch      Branch                   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account     Account                  @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  guardian    Guardian?                @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  collections CustomerDebtCollection[]
+  outcome     CustomerDebtOutcome?
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, accountId])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, branchId, markedAt])
+  @@index([tenantId, documentKey])
+  @@index([tenantId, phoneKey])
+  @@map("customer_debt")
+}
+
+/// La cuenta del mostrador con que se cobra una deuda cuando el cliente vuelve (B3-11). Al cobrarla entera, la deuda
+/// queda cobrada. Si se descarta, otra la sustituye. Solo agregar.
+model CustomerDebtCollection {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  debtId        String   @map("debt_id") @db.Uuid
+  accountId     String   @map("account_id") @db.Uuid
+  createdAt     DateTime @map("created_at") @db.Timestamptz(3)
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+
+  debt    CustomerDebt @relation(fields: [tenantId, debtId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account Account      @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, accountId])
+  @@index([tenantId, debtId])
+  @@map("customer_debt_collection")
+}
+
+/// Cómo terminó una deuda (B3-11): COBRADA (con la cuenta del cobro) o PERDIDA (con su motivo, por administración).
+/// Una por deuda; solo agregar.
+model CustomerDebtOutcome {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  debtId           String   @map("debt_id") @db.Uuid
+  kind             String
+  at               DateTime @db.Timestamptz(3)
+  byUser           String?  @map("by_user") @db.Uuid
+  byName           String   @map("by_name")
+  authorizedBy     String?  @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+  reason           String?
+  accountId        String?  @map("account_id") @db.Uuid
+  operationKey     String   @map("operation_key") @db.Uuid
+
+  debt    CustomerDebt @relation(fields: [tenantId, debtId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account Account?     @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, debtId])
+  @@unique([tenantId, operationKey])
+  @@map("customer_debt_outcome")
 }
 
 /// Un niño de una familia, con nombre (DEC-28: en la puerta no se pide; nace cuando alguien lo

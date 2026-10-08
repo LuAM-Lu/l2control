@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, CircleCheck, ClipboardList, Clock, FileText, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, ClipboardList, Clock, FileText, HandCoins, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import type { PuestaAPuntoDto, ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
 import { add, money, toMajor, zero } from "@l2/domain-money";
-import { Container, MoneyDisplay, cn } from "@l2/ui";
+import { Container, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
 import { PuestaAPunto } from "./PuestaAPunto.tsx";
 import { TurnosDelDia } from "../cash/TurnosDelDia.tsx";
@@ -68,6 +68,7 @@ export function InicioScreen({
   puestaAPunto = null,
   version = null,
   respaldos = null,
+  deudas = null,
 }: {
   /** El día según el libro (B3-5); `null` sin permiso de ver la sucursal o sin servidor. */
   resumen: ResumenDelDiaDto | null;
@@ -94,6 +95,8 @@ export function InicioScreen({
   version?: AvisoDeVersion | null;
   /** Los respaldos (B7-4): lo que no va bien o, al día, el último ensayo íntegro (B7-6); `null` para quien no decide. */
   respaldos?: AvisoDeRespaldos | null;
+  /** Las deudas de clientes pendientes (B3-11): cuántas y por cuánto, en centavos de dólar; `null` si no hay. */
+  deudas?: Readonly<{ pendientes: number; minor: string }> | null;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
   // La tasa vigente, de la misma fuente que la caja y la barra de las estaciones (B2-1c): llega
@@ -166,6 +169,7 @@ export function InicioScreen({
           <AvisoDeImpresion className="h-auto min-h-8 py-1.5 text-xs lg:text-[13px]" />
           {version && <AvisoVersion {...version} />}
           {respaldos && <AvisoRespaldos {...respaldos} />}
+          {deudas && <AvisoDeudas {...deudas} />}
 
           {/* Enlace al Turno */}
           <Link
@@ -334,6 +338,22 @@ function AvisoDePapel({ porRevisar }: { porRevisar: number }) {
  * Un turno abierto fuera del punto de cobro (B3-9, M-31): la laptop de caja falló y se abrió en otro equipo con el PIN de
  * administración. Se dice mientras siga abierto, con quién lo autorizó y por qué; lleva a ese turno.
  */
+/** Lo que dejaron sin pagar quienes se fueron (B3-11): cuántas deudas y por cuánto, con color + icono + texto. */
+function AvisoDeudas({ pendientes, minor }: { pendientes: number; minor: string }) {
+  return (
+    <Link
+      href={"/deudas" as Route}
+      className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-1.5 text-xs lg:text-[13px] font-medium text-state-warn shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand"
+    >
+      <HandCoins size={14} aria-hidden="true" />
+      <span>
+        {pendientes === 1 ? "1 deuda de clientes" : `${pendientes} deudas de clientes`} · {formatMoneyVE(toMajor(money(BigInt(minor), "USD")), "USD")}
+      </span>
+      <ArrowRight size={13} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
+    </Link>
+  );
+}
+
 function AvisoFueraDelPunto({ turnos }: { turnos: React.ComponentProps<typeof InicioScreen>["turnos"] }) {
   const fuera = turnos.filter((t) => t.fueraDelPunto !== null);
   const primero = fuera[0];

@@ -17,6 +17,8 @@ import { formatClock } from "../park/time-format.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { nombreDeCuenta } from "../cuentas/cuentas.ts";
+import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 
 /**
  * Lo que impide cerrar la jornada — JORNADA §5, C2, B3-5.
@@ -32,6 +34,10 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [incobrable, setIncobrable] = useState<PendientesDelCierreDto["cuentas"][number] | null>(null);
+  /** La cuenta cuyo cliente se fue sin pagar (B3-11): queda en deuda a su nombre, no incobrable sin más. */
+  const [seFue, setSeFue] = useState<string | null>(null);
+  const { cuentas: lasCuentas, adoptar } = useCuentas();
+  const cuentaQueSeFue = seFue ? (lasCuentas.find((x) => x.id === seFue) ?? null) : null;
   const { ajustes } = useSucursal();
   const reloj = useReloj();
   const vivo = useRef(true);
@@ -116,6 +122,11 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
                       >
                         Cobrar
                       </Link>
+                      {(c.kind === "MESA" || c.kind === "MOSTRADOR") && lasCuentas.some((x) => x.id === c.id) && (
+                        <Button surface="tablet" variant="neutral" onClick={() => setSeFue(c.id)} title="Queda en deuda a nombre de su cliente: se cobra cuando vuelva">
+                          Se fue sin pagar
+                        </Button>
+                      )}
                       <Button surface="tablet" variant="neutral" onClick={() => setIncobrable(c)}>
                         Incobrable
                       </Button>
@@ -207,6 +218,15 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
           </div>
         )}
       </section>
+      <MarcarDeudaDialog
+        cuenta={cuentaQueSeFue}
+        onCerrar={() => setSeFue(null)}
+        onHecha={(r) => {
+          setSeFue(null);
+          adoptar(r.cuenta);
+          void leer();
+        }}
+      />
       <IncobrableDialog
         cuenta={incobrable}
         onCerrar={() => setIncobrable(null)}

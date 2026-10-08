@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UserX, UtensilsCrossed, X } from "lucide-react";
-import { toMajor } from "@l2/domain-money";
-import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
+import { Baby, Cake, Clock, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UserX, UtensilsCrossed, X } from "lucide-react";
+import { money, toMajor } from "@l2/domain-money";
+import { WristbandCodeSchema, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
 import { Marquesina, MoneyDisplay, ScannerField, cn } from "@l2/ui";
 import { esDeMesa, esVentaDirecta, nombreDeCuenta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
@@ -66,6 +66,19 @@ export function filtrarCola(cuentas: readonly FamilyAccountDto[], texto: string,
   });
 }
 
+/**
+ * Las deudas pendientes que coinciden con la búsqueda (B3-11): por el nombre del cliente o, desde cinco cifras, por su
+ * cédula o su teléfono. Cuando vuelve, la caja lo ve al buscarlo.
+ */
+export function deudasQueCoinciden(deudas: readonly DeudaDto[], texto: string): DeudaDto[] {
+  const q = sinAcentos(texto.trim());
+  if (q === "") return [];
+  const cifras = q.replace(/\D/g, "");
+  return deudas.filter(
+    (d) => sinAcentos(d.cliente.nombre).includes(q) || (cifras.length >= 5 && [d.cliente.cedula, d.cliente.telefono].some((x) => x.replace(/\D/g, "").includes(cifras))),
+  );
+}
+
 export function ColaCuentas({
   className,
   cuentas,
@@ -88,6 +101,8 @@ export function ColaCuentas({
   ultimoCobro,
   onVerRecibo,
   onVerAtajos,
+  deudas = [],
+  onCobrarDeuda,
 }: {
   className?: string;
   /** Ya ordenadas y filtradas. */
@@ -116,6 +131,9 @@ export function ColaCuentas({
   ultimoCobro: { orden: string; total: string } | null;
   onVerRecibo: () => void;
   onVerAtajos: () => void;
+  /** Lo que sus clientes dejaron sin pagar (B3-11): sale al buscarlos, con «Cobrar». */
+  deudas?: readonly DeudaDto[];
+  onCobrarDeuda?: (d: DeudaDto) => void;
 }) {
   // El reloj de la espera. Arranca en 0 para que servidor y navegador pinten
   // lo mismo; la espera aparece tras hidratar y se refresca cada 30 s.
@@ -278,6 +296,32 @@ export function ColaCuentas({
           </div>
         )}
       </div>
+
+      {/* Debe de antes (B3-11): al buscar a un cliente que se fue sin pagar, su deuda sale aquí, con «Cobrar». */}
+      {onCobrarDeuda && deudasQueCoinciden(deudas, busqueda).length > 0 && (
+        <section aria-label="Deudas que coinciden" className="mx-2 mt-2 flex flex-col gap-1.5 rounded-[var(--radius-control)] border border-state-warn/50 bg-state-warn-bg/40 p-2">
+          <h3 className="flex items-center gap-1 text-etiqueta font-semibold text-state-warn uppercase">
+            <HandCoins className="size-(--icono-etiqueta)" aria-hidden="true" />
+            Debe de antes
+          </h3>
+          {deudasQueCoinciden(deudas, busqueda).map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => onCobrarDeuda(d)}
+              className="flex min-h-14 w-full cursor-pointer flex-col gap-0.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 text-left hover:border-brand"
+            >
+              <span className="flex items-baseline justify-between gap-2">
+                <Marquesina className="flex-1 text-[13.5px] font-semibold text-ink">{d.cliente.nombre}</Marquesina>
+                <MoneyDisplay value={toMajor(money(BigInt(d.monto.minor), "USD"))} currency="USD" size="sm" />
+              </span>
+              <span className="tnum text-[11.5px] text-ink-3">
+                #{String(d.orden).padStart(4, "0")} · {d.lugar} · Cobrar la deuda
+              </span>
+            </button>
+          ))}
+        </section>
+      )}
 
       {cuentas.length === 0 ? (
         <p className="px-4 py-4 text-[13px] text-ink-3">

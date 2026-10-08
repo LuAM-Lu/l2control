@@ -34,6 +34,7 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { guardarVersion, vigenteDe } from "../caja/cuentas.ts";
+import { avisosDeDeuda } from "../deudas/lectura.ts";
 export { clientesDeCuentas } from "./de-cuentas.ts";
 
 /** El cliente que se le pone a una cuenta, ya reconocido (o dado de alta) en el directorio. */
@@ -162,6 +163,8 @@ export function casosClientes(base: Base): CasosClientes {
           nombre: g.fullName,
           cedula: g.document,
           telefono: telefonoLegible(g.contactReference) ?? g.contactReference,
+          // Lo que dejó sin pagar (B3-11): se avisa al encontrarlo.
+          deudas: await avisosDeDeuda(tx, { guardianId: g.id, documentKey: g.documentKey, phoneKey: g.contactKey }),
         });
       });
       return r !== null && "ok" in r ? r : { ok: true, valor: r };

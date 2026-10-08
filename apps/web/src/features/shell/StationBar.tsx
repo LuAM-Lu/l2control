@@ -75,6 +75,7 @@ type Ruta =
   | "/caja"
   | "/turno"
   | "/papel"
+  | "/deudas"
   | "/mesas";
 
 type Puesto = {
@@ -101,6 +102,8 @@ const PUESTOS: Puesto[] = [
       { href: "/turno", corto: "Turno", largo: "Turno de caja" },
       // Lo anotado en papel cuando cayeron los dos enlaces (B3-7, V-12).
       { href: "/papel", corto: "Papel", largo: "Carga desde papel" },
+      // Lo que dejaron sin pagar quienes se fueron (B3-11).
+      { href: "/deudas", corto: "Deudas", largo: "Deudas de clientes" },
     ],
   },
   {

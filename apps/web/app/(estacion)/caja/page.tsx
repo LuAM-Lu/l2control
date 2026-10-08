@@ -6,6 +6,7 @@ import { ModoPapel } from "../../../src/features/papel/ModoPapel";
 import { SinCargaAbierta } from "../../../src/features/papel/SinCargaAbierta";
 import { cargaParaCargar } from "../../../src/features/papel/papel.servidor";
 import { vistaDePreciosDelEquipo } from "../../../src/servidor/vista-precios";
+import { deudasDelLocal } from "../../../src/features/deudas/deudas.servidor";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
@@ -46,6 +47,8 @@ export default async function CajaPage({
       serverNow={Date.now()}
       // Cómo enseña los precios la carta en este equipo (T-15): $, Bs o los dos.
       vistaDePrecios={await vistaDePreciosDelEquipo()}
+      // Lo que dejaron sin pagar quienes se fueron (B3-11): sale al buscar a su cliente.
+      deudasPendientes={(await deudasDelLocal())?.deudas.filter((d) => d.estado === "PENDIENTE" && !d.enCobro) ?? []}
     />
   );
   return carga ? <ModoPapel carga={carga}>{caja}</ModoPapel> : caja;

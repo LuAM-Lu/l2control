@@ -11,6 +11,7 @@ import { puestaAPuntoDelLocal } from "../../../src/features/identity/identidad.s
 import { ajustesDelLocal } from "../../../src/features/sucursal/ajustes.servidor";
 import { avisoDeVersion } from "../../../src/features/sistema/sistema.servidor";
 import { avisoDeRespaldos } from "../../../src/features/sistema/respaldos.servidor";
+import { deudasDelLocal } from "../../../src/features/deudas/deudas.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -31,7 +32,7 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes, version, respaldos] = await Promise.all([
+  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes, version, respaldos, deudas] = await Promise.all([
     ninosAtendidos(),
     turnosAbiertos(),
     resumenDelDia(),
@@ -44,7 +45,10 @@ export default async function InicioPage() {
     avisoDeVersion(),
     // Los respaldos (B7-4), solo si algo no va bien y para quien decide el sistema.
     avisoDeRespaldos(),
+    // Las deudas de clientes (B3-11), para quien cobra o ve la sucursal.
+    deudasDelLocal(),
   ]);
+  const pendientes = deudas?.deudas.filter((d) => d.estado === "PENDIENTE") ?? [];
   // B9-5: lo que hay que reponer; B9-7: lo que falta contar. Solo si algún producto a la venta lleva existencia.
   const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
   const inventario = contables.length > 0 ? stockAlerts(contables.map((p) => ({ ...p, iniciado: p.inventarioInicialEl !== null }))) : null;
@@ -79,6 +83,7 @@ export default async function InicioPage() {
       puestaAPunto={puesta.ok ? puesta.valor : null}
       version={version}
       respaldos={respaldos}
+      deudas={pendientes.length > 0 ? { pendientes: pendientes.length, minor: pendientes.reduce((n, d) => n + BigInt(d.monto.minor), 0n).toString() } : null}
     />
     </>
   );

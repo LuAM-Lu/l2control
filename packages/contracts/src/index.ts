@@ -556,6 +556,25 @@ export {
 } from "./clientes.ts";
 
 export {
+  AvisoDeDeudaSchema,
+  CobrarDeudaCommandSchema,
+  DeudaSchema,
+  DeudasSchema,
+  DevolverDeudaCommandSchema,
+  EstadoDeudaSchema,
+  MarcarDeudaCommandSchema,
+  PerderDeudaCommandSchema,
+  type AvisoDeDeudaDto,
+  type CobrarDeudaCommand,
+  type DeudaDto,
+  type DeudasDto,
+  type DevolverDeudaCommand,
+  type EstadoDeuda,
+  type MarcarDeudaCommand,
+  type PerderDeudaCommand,
+} from "./deudas.ts";
+
+export {
   AnulacionSchema,
   ClienteDeLaVentaSchema,
   DestinoSobraSchema,

@@ -69,6 +69,7 @@ const DESPUES: Readonly<Partial<Record<Action, { fila: Fila; decision: string }>
   "turno.abrirFueraDelPunto": { fila: ["✅", "🔐", "🔐", "❌", "❌", "❌"], decision: "B3-9, M-31: lo autoriza administración" },
   "cuenta.cliente": { fila: ["✅", "✅", "✅", "✅", "❌", "❌"], decision: "B6-9, M-33: quien atiende pone el cliente" },
   "cuenta.cambiarCliente": { fila: ["✅", "✅", "🔐", "🔐", "❌", "❌"], decision: "B6-9, M-33: cambiarlo lo autoriza supervisión" },
+  "cuenta.deuda": { fila: ["✅", "✅", "🔐", "🔐", "❌", "❌"], decision: "B3-11, M-33: «se fue sin pagar», con el PIN de supervisión" },
 };
 
 const VALOR: Readonly<Record<Celda, string>> = { "✅": "PERMITIDO", "🔐": "REQUIERE_AUTORIZACION", "❌": "DENEGADO" };

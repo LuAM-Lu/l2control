@@ -107,6 +107,9 @@ servidor (B6-2).
 cliente vive en `account_customer` (solo agregar), no en el contenido de la versión: `vigenteDe` y `cuentas.leer` lo
 ponen y `guardarVersion` lo quita. El directorio es el de representantes, con la cédula. Las pruebas sientan con
 `sentarDePrueba`. La caja pregunta antes de dejar una venta del mostrador sin cobrar ni cliente (`VentaSinCobrar`).
+**Las deudas (B3-11):** «Se fue sin pagar» deja la cuenta INCOBRABLE (sin estado nuevo, ADR-028) y la deuda en
+`customer_debt`; se cobra en una cuenta nueva del mostrador (`deudas.cobrar`) que, cobrada entera, la salda en la misma
+transacción (`deudas/saldar.ts`).
 
 **Secciones con pestañas (T-18).** Lo que va junto vive en una sección con `pestanas` en `shell/navigation.ts`, cada
 pestaña con su permiso (la sección se ve con cualquiera de ellos). La pestaña va en la dirección (`?pestana=…`,
