@@ -60,8 +60,8 @@ export function TablaDeInforme({ seccion, papel = false }: { seccion: SeccionDeI
         <table className={cn("w-full border-collapse", papel ? "text-[9.5pt]" : "text-detalle")}>
           <thead className={papel ? "" : "bg-surface-2"}>
             <tr>
-              {columnas.map((c) => (
-                <th key={c.titulo} scope="col" className={cn(th, c.derecha && "text-right", c.clase)}>
+              {columnas.map((c, i) => (
+                <th key={`${i}-${c.titulo}`} scope="col" className={cn(th, c.derecha && "text-right", c.clase)}>
                   {c.titulo}
                 </th>
               ))}
@@ -117,7 +117,8 @@ export function DocumentoDeInforme({
   /** Lo que acota el informe además del periodo («Solo los turnos de Marisol»). */
   filtro?: string | null;
   generadoEn: string;
-  generadoPor: string;
+  /** Quién lo pidió; una hoja en blanco para llenar a mano no lo lleva. */
+  generadoPor?: string | undefined;
   volver: string;
   children: ReactNode;
 }) {
@@ -150,7 +151,8 @@ export function DocumentoDeInforme({
             {filtro ? ` · ${filtro}` : ""}
           </p>
           <p className="mt-0.5 text-[8.5pt]">
-            Generado el {reloj.diaConAnio(instante)} a las {reloj.hora(instante)} por {generadoPor}
+            Generado el {reloj.diaConAnio(instante)} a las {reloj.hora(instante)}
+            {generadoPor ? ` por ${generadoPor}` : ""}
           </p>
         </header>
         {children}

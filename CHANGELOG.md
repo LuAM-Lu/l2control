@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Conteo a ciegas y su informe de diferencias (B9-10, M-29).
+
+### Cambiado
+- **«Contar» es a ciegas.** En Inventario → Salidas y conteo se elige qué se cuenta (todo o una categoría) y la lista ya
+  no dice lo que espera el sistema: se escribe lo que hay en el estante. Al terminar, «Terminé: ver diferencias» enseña
+  lo contado contra el sistema, por categoría y por producto, antes de ajustar; la autorización se pide ahí, como antes.
+
+### Añadido
+- **La hoja para imprimir**: los productos que se cuentan (todos o de una categoría), con una casilla en blanco para lo
+  que hay, sin lo que dice el sistema, y espacio para quién contó y quién revisó.
+- **El informe de diferencias** de cada conteo, desde el historial: lo que faltó y lo que sobró, por categoría y por
+  producto, al costo con que se ajustó, con su fecha, quién contó y quién autorizó. Se imprime o se guarda como PDF, y
+  dos conteos se comparan abriendo sus informes.
+
 ## [0.81.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 La cuenta de soporte (T-17, M-28).
