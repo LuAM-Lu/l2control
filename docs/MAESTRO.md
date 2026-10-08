@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.73.0 · 73 de 79 pasos · M-27 (lo pedido en la primera visita) entregado entero.** Entregados de M-27: B6-7
+**Versión 0.73.0 · 73 de 82 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -108,6 +108,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-25** | **T-8b en dos: el panel ahora, el agente después** (2026-10-07, decisión del usuario: empezar T-8b «para ver cómo se comporta en producción») | El agente de impresión se actualiza en la laptop de caja real, con permiso de administrador de Windows, y eso se prueba en el local. Se parte: **T-8b** (Ajustes → Sistema, el actualizador del VPS, staging al día con cada versión publicada, la vuelta atrás avisada en el panel y las pantallas que se ponen al día solas) va ya y se ve en el staging; **T-8c** (el agente se actualiza solo, con su huella y su vuelta atrás) va con B7-3, en el local. Los dos, antes de B8-3. La web solo **pide** la actualización (una fila en la base, auditada); la ejecuta un actualizador del VPS que comprueba que no haya turnos abiertos ni niños en sala: la web no toca Docker. La ruta pasa a 66 |
 | **M-26** | **Los respaldos los baja una PC del local** (2026-10-07, decisión del usuario para B7-4, frente a Backblaze B2 o Google Drive) | Sin terceros ni cuentas nuevas: el VPS hace cada noche un volcado **cifrado con una clave pública** (la privada no está en el servidor) y una tarea programada de Windows en una PC del local lo descarga por HTTPS con su usuario y contraseña, comprueba su huella y guarda la escalera (diarios, semanales, mensuales). El servidor anota cuándo lo bajó la PC, y el panel avisa si el respaldo no se hizo o si la PC no lo bajó: una copia que dejó de salir no puede pasar en silencio. El riesgo aceptado: si esa PC pasa días apagada, la única copia es la del VPS. Con un volcado diario, lo que se puede perder es hasta un día (PLAN §10.4 pide 15 minutos con WAL continuo: queda en §5) |
 | **M-27** | **Lo pedido en la primera visita con el sistema** (2026-10-07, el cliente lo vio funcionar en el local) | Diecinueve pedidos (P-1 a P-19, abajo) que se vuelven **13 pasos nuevos**: B3-8, B4-7 a B4-10, B6-7, B6-8 y T-11 a T-16. Se construyen del más complejo al más simple y, si uno espera una decisión, se sigue con el siguiente que no la espera (regla del usuario). Cambia I-05: una mesa admite varias cuentas abiertas (B6-7). Dos decisiones nuevas, D-SERV y D-SOP (§4). La ruta pasa a **79** |
+| **M-28** | **Soporte oculto, catálogo sin existencias y duplicar productos** (2026-10-08, pedido y decisión del usuario) | (1) La cuenta de soporte del desarrollo es una persona de Administración con la marca «soporte»: **no sale en «¿Quién entra?»**, entra con su nombre de usuario y su PIN desde su equipo aprobado (como todos), sin plazo; no abre turnos; se ve como «Soporte» en Usuarios, la auditoría e Inicio, y administración la desactiva cuando quiera. Lo sensible sigue pidiendo contraseña y llave. (2) El catálogo se carga sin existencias y el stock se cuenta otro día: estado «Sin inventario inicial», distinto de «Agotado», que **no se vende** hasta su conteo. (3) «Duplicar» un producto y «Duplicar con otros sabores», cada uno con su propio código de barras. Tres pasos: B9-7, T-17 y B9-8. La ruta pasa a **82** | B9-7, T-17, B9-8 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -221,8 +222,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
+8. **M-28** (soporte oculto, catálogo sin existencias y duplicar), del más complejo al más simple: **B9-7** (catálogo sin
+   existencias y su conteo inicial) → T-17 (cuenta de soporte) → B9-8 (duplicar productos).
 
-Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 82: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -590,6 +593,12 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   vacíos. **De paso:** el pie de la barra lateral en dos renglones (la persona con todo el ancho, debajo ayuda, tema y
   salir): «Abi… Ad…» ya no se corta. Visto en el navegador en la base de pruebas: a 1920×1080 Inicio, Productos y
   Sucursal miden 1600 px y el título de página 28 px, en los dos temas; el pie a 1366, 1100 y 800 de ancho.*
+- [ ] **T-17 · Cuenta de soporte** (M-28).
+  → Una persona de Administración con la marca «soporte» no sale en «¿Quién entra?»: entra por «Acceso de soporte»
+  con su nombre de usuario y su PIN, desde su equipo aprobado (como todos), con el mismo bloqueo; sin plazo. No abre
+  turnos ni cuenta como personal del local. Se ve como «Soporte» en Usuarios, en la auditoría y en Inicio mientras está
+  conectada; administración la marca, la desactiva o le repone el PIN. Configuración, precios y personas siguen
+  pidiendo contraseña y llave (F2-04).
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -1712,6 +1721,16 @@ antes del cobro en servidor (orden de ejecución).
   tarjetas a 1366×768, 1280×800 y 800×1280 sin desplazar el documento ni desbordar (en vertical, mínimo y costo quedan
   en la ficha); sin errores de consola. Vender por el lector con un turno abierto no se probó (no se abrió un turno en la
   base del cliente): usa el mismo camino que tocar el producto en la carta.*
+- [ ] **B9-7 · Catálogo sin existencias y su conteo inicial** (M-28).
+  → El catálogo se da de alta en una hoja, sin cantidades (nombre, categoría, presentación, precio, IVA, mínimo y
+  código de barras). Un producto que se cuenta y nunca tuvo existencia queda «Sin inventario inicial», distinto de
+  «Agotado»: no se vende (ADR-023) y la caja, la carta y la lista dicen por qué. Inventario y la puesta a punto cuentan
+  los pendientes; el inventario inicial trae solo los que faltan, con la fecha del conteo.
+- [ ] **B9-8 · Duplicar un producto y sus sabores** (M-28).
+  → «Duplicar» abre la ficha copiada (categoría, presentación, precio, IVA, mínimo y carta) con el nombre para cambiar:
+  SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una
+  lista («Naranja, Manzana…» → «Jugo Naranja», «Jugo Manzana»), cada uno con su propio código de barras si se escribe o
+  se lee. Cada copia es un producto propio, con su existencia.
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
@@ -2481,6 +2500,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   v0.72.0 se puso primero sobre el commit de reclamo (un PR #52 lo fusionó aparte): se quitó y se puso en el de T-11.
 - **2026-10-07** · B6-8 entregado como v0.73.0: «Servido» en la tablet y la atención en el salón para administración.
   Con él, M-27 (los 19 pedidos de la primera visita) queda entregado entero.
+- **2026-10-08** · M-28 decidido con el usuario: la cuenta de soporte oculta del acceso (con PIN, sin plazo, con su
+  equipo), el catálogo sin existencias que no se vende hasta su conteo, y duplicar productos con sus sabores. Tres pasos
+  nuevos (B9-7, T-17, B9-8); la ruta pasa a 82. Sigue B9-7.
 
 ---
 
