@@ -2066,7 +2066,7 @@ F9-05).
   `Caddyfile` y `git pull` lo reemplaza por otro archivo, así que dentro seguía el viejo (en Windows, Docker Desktop no
   lo reproduce). `desplegar.sh` compara el de dentro con el del disco y, si difieren, recrea Caddy. En el staging se
   recreó a mano y las cabeceras ya salen.*
-- [ ] **B7-6 · Respaldos con carpeta, fijados e integridad a la vista** (M-29).
+- [~] **B7-6 · Respaldos con carpeta, fijados e integridad a la vista** (M-29). *A cargo: LuAMi, rama `feat/b7-6`.*
   → Al preparar la PC se elige la carpeta (un disco externo o una carpeta sincronizada con la nube: una copia fuera del
   local). Un respaldo se puede **fijar** con su nombre («antes de producción») y la escalera nunca lo borra. Ajustes →
   Sistema → Respaldos dice de cada uno si su huella se comprobó al bajarlo, y el servidor ensaya cada semana la
