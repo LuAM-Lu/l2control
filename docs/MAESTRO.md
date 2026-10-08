@@ -2071,7 +2071,7 @@ F9-05).
   local). Un respaldo se puede **fijar** con su nombre («antes de producción») y la escalera nunca lo borra. Ajustes →
   Sistema → Respaldos dice de cada uno si su huella se comprobó al bajarlo, y el servidor ensaya cada semana la
   restauración del último en una base de usar y tirar: «ÍNTEGRO» o qué falló, en el panel y en Inicio.
-- [ ] **B7-7 · La semilla con casillas** (M-29).
+- [~] **B7-7 · La semilla con casillas** (M-29). *A cargo: LuAMi, rama `feat/b7-7`.*
   → Exportar la semilla enseña lo que lleva, con casillas (cada sección y cada producto: los «Prueba…» se desmarcan), y
   además de ajustes, tarifas, categorías, carta, plano y cumpleaños lleva medios de pago, descuentos, impuestos e
   impresoras. Importarla en una base nueva enseña lo mismo antes de cargar. Personas, PIN, llaves y equipos no viajan:
