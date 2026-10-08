@@ -54,6 +54,7 @@ import { casosPlano, type CasosPlano } from "./restaurante/plano.ts";
 import { casosEventos, type CasosEventos } from "./park/eventos.ts";
 import { casosPedidos, type CasosPedidos } from "./restaurante/pedidos.ts";
 import { casosMesas, type CasosMesas } from "./restaurante/mesas.ts";
+import { casosClientes, type CasosClientes } from "./clientes/clientes.ts";
 import { crearFirmante } from "./tiempo-real/ticket.ts";
 
 export type { Contexto } from "./contexto.ts";
@@ -173,6 +174,8 @@ export interface Aplicacion {
   readonly pedidos: CasosPedidos;
   /** Vincular pulseras a una mesa: el parque pendiente pasa a la cuenta maestra (F6-05, B6-3). */
   readonly mesas: CasosMesas;
+  /** El cliente de una cuenta del salón o del mostrador: buscarlo y ponérselo (B6-9, M-33). */
+  readonly clientes: CasosClientes;
   readonly tiempoReal: CasosTiempoReal;
   /** Los recorridos guiados que vio cada persona (T-12). */
   readonly recorridos: CasosRecorridos;
@@ -261,6 +264,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     reportes: { ...casosReportes(base), ...casosMovimientos(base), ...casosInventarioAlMomento(base) },
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
+    clientes: casosClientes(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     salud: casosSalud(base),
     recorridos: casosRecorridos(base),

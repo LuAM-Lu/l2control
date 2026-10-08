@@ -543,6 +543,19 @@ export {
 } from "./documento.ts";
 
 export {
+  AsignarClienteCommandSchema,
+  BuscarClienteSchema,
+  ClienteDeCuentaSchema,
+  ClienteEncontradoSchema,
+  DatosDelClienteSchema,
+  type AsignarClienteCommand,
+  type BuscarClienteQuery,
+  type ClienteDeCuentaDto,
+  type ClienteEncontradoDto,
+  type DatosDelClienteDto,
+} from "./clientes.ts";
+
+export {
   AnulacionSchema,
   ClienteDeLaVentaSchema,
   DestinoSobraSchema,

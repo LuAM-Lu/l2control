@@ -212,6 +212,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "La cola «Por cobrar» va de la más antigua a la más nueva. Elige una cuenta, o pasa la pulsera de un niño para traer la de su familia.",
       "Una familia que llega directo a la caja: «Entrada» (tecla A), o pasa una pulsera que no está en la sala. En el panel, cada pulsera suma un niño (si no se lee, «Escribir» su número; «Sin pulsera» con su nombre), el paquete y el teléfono del representante; «Registrar y cobrar» deja su cuenta lista. Se paga ahora: la cuenta abierta y los invitados de un cumpleaños, en Entrada.",
+      "Si dejas una venta del mostrador sin cobrar (eliges otra cuenta, empiezas otra venta o la entrada), la caja pregunta: cobrarla ahora, dejarla pendiente a nombre del cliente (cédula, teléfono y nombre) o descartarla. En la cola, una venta pendiente sin datos dice «Sin datos». La búsqueda de la cola encuentra también por cédula y teléfono.",
       "En una venta de mostrador, añade los productos de la carta (o pasa su código de barras). Para no buscarlos a ojo, escribe en «Buscar producto o código» (tecla /): busca en toda la carta por nombre, SKU o código, e Intro añade el primero. Lo que no se vende ahora (sin contar o agotado) va al final, atenuado.",
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
       "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I) si el cliente pide la factura con su cédula o RIF, «Descuento» y «Dividir» en partes iguales, de 2 a 6.",
@@ -328,9 +329,9 @@ export const MANUAL: readonly EntradaDelManual[] = [
     roles: SALON,
     proposito: "Atender el salón: sentar a las familias, tomar sus pedidos (la comanda sale en papel) y mandar la cuenta a caja.",
     pasos: [
-      "Toca una mesa libre y «Sentar»: el nombre es opcional y se dice cuántas personas son.",
-      "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, su pedido y su cobro.",
-      "Quien pide sin mesa: «De pie», con un nombre o una seña.",
+      "Toca una mesa libre y «Sentar»: pide la cédula, el teléfono y el nombre del cliente (los tres, obligatorios) y cuántas personas son. Quien consume primero y paga al final deja sus datos: si se va sin pagar, hay a quién cobrarle. Si ya vino antes, al escribir su cédula o su teléfono lo demás se rellena solo.",
+      "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, sus datos, su pedido y su cobro.",
+      "Quien pide sin mesa: «De pie», con sus mismos datos.",
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: la comanda sale en la impresora.",
       "Cuando el plato llega a la mesa, toca «Servido» en su pedido: ahí termina su espera. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
       "«Pide la cuenta» la manda a caja. Si no consumieron nada, «Liberar».",
@@ -358,8 +359,18 @@ export const MANUAL: readonly EntradaDelManual[] = [
       },
       {
         sintoma: "«Ya hay una cuenta con ese nombre»",
-        solucion: "Usa otro nombre o una seña para no confundirlas («Pérez 2», «camisa azul»).",
-        reconoce: ["usa otro nombre"],
+        solucion: "Otra cuenta de esa mesa (o de pie) ya está a ese nombre. Revisa que no sea la misma familia; si es otra persona, escribe su nombre completo.",
+        reconoce: ["usa otro nombre", "ya hay una cuenta de pie a nombre"],
+      },
+      {
+        sintoma: "«Faltan los datos del cliente» o «Documento no válido»",
+        solucion: "La cédula va con su letra (V-12345678; un RIF, J-40123456-7) y el teléfono con su código (0414-1234567). Sin los tres datos la cuenta no se abre.",
+        reconoce: ["faltan los datos del cliente", "documento no valido", "telefono no valido"],
+      },
+      {
+        sintoma: "«Esa mesa no tiene cuenta abierta»",
+        solucion: "Un pedido o una pulsera no abren una mesa: primero «Sentar» al cliente con sus datos, y después se pide o se vincula.",
+        reconoce: ["no tiene cuenta abierta"],
       },
     ],
     recorrido: "mesas",

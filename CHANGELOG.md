@@ -14,6 +14,23 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Saber a quién cobrarle (B6-9, M-33): quien se sienta en el salón deja su nombre, su cédula y su teléfono.
+
+### Añadido
+- **Sentar a alguien pide su cédula, su teléfono y su nombre**, los tres obligatorios: en una mesa, en una mesa
+  compartida y de pie. La cuenta se llama como el cliente. Si ya vino antes (o es una familia del parque), al escribir
+  su cédula o su teléfono lo demás se rellena solo.
+- **La caja pregunta antes de dejar una venta del mostrador sin cobrar:** cobrarla ahora, dejarla pendiente a nombre
+  del cliente (con los mismos tres datos) o descartarla. En la cola, una venta pendiente sin datos dice «Sin datos».
+- La búsqueda de la cola encuentra también por cédula y teléfono, y «Factura a» propone al cliente de la cuenta.
+
+### Cambiado
+- Una mesa ya no se abre con un pedido, una pulsera ni una salida del parque: primero se sienta a su cliente.
+- La comanda dice la mesa y el nombre del cliente.
+- La ayuda de Mesas y de Cobrar, y el recorrido de Mesas (se vuelve a enseñar una vez), lo cuentan.
+
 ## [0.87.0] — 2026-10-08 · Hacia la puesta en marcha
 
 La caja más clara (B3-10, M-32): con todo el catálogo en la carta, buscar en vez de recorrerla, y los ítems que se

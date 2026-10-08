@@ -21,10 +21,10 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { CatalogoDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
+import type { CatalogoDto, DatosDelClienteDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, Confirmacion, Container, Input, MoneyDisplay, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
+import { Badge, Button, Confirmacion, Container, MoneyDisplay, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { chargeableLines } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
@@ -53,6 +53,7 @@ import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { usePedidos } from "./PedidosProvider.tsx";
 import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
+import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
 
 /**
  * Estación del mesero: mesas, cuentas y pedidos — F6-01, F6-02, F6-05, DEC-22, B6-7.
@@ -144,8 +145,10 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
   const [liberando, setLiberando] = useState<FamilyAccountDto | null>(null);
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
-  /** El formulario de sentar: nombre (obligatorio de pie o si la mesa ya tiene cuenta) y personas. */
-  const [nombre, setNombre] = useState("");
+  /** El formulario de sentar: el cliente, con nombre, cédula y teléfono (B6-9, M-33), y cuántas personas. */
+  const [cliente, setCliente] = useState<DatosDelClienteDto>(SIN_DATOS);
+  /** Lo que falta o no vale, después de intentar sentar. */
+  const [erroresCliente, setErroresCliente] = useState<ReturnType<typeof problemasDelCliente>>(null);
   const [comensales, setComensales] = useState(2);
   /** El id de la cuenta que se está abriendo: reintentarlo (se cortó la red) no abre dos. */
   const altaId = useRef<string | null>(null);
@@ -193,7 +196,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }, [vista, cuenta]);
 
   const reiniciarFormulario = (lugarNuevo: string | null) => {
-    setNombre("");
+    setCliente(SIN_DATOS);
+    setErroresCliente(null);
     setComensales(lugarNuevo === PIE ? 1 : 2);
     altaId.current = null;
   };
@@ -225,10 +229,11 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    * servidor comprueba que la mesa tenga las cuentas que se ven aquí: si otro equipo abrió una, choca.
    */
   async function sentar(l: Lugar) {
-    const limpio = nombre.trim();
-    const hayOtras = l.vista.cuentas.length > 0;
-    if ((l.tipo === "PIE" || hayOtras) && limpio.length < 2) {
-      avisar.error(l.tipo === "PIE" ? "Escribe un nombre o una seña para llamarla" : "Escribe el nombre de la familia: la mesa ya tiene otra cuenta");
+    // Quien consume primero y paga al final deja sus datos (B6-9, M-33): sin ellos no se abre la cuenta.
+    const problemas = problemasDelCliente(cliente);
+    setErroresCliente(problemas);
+    if (problemas) {
+      avisar.error("Faltan los datos del cliente", { detalle: "Nombre, cédula y teléfono: sin ellos no se abre la cuenta." });
       return;
     }
     altaId.current ??= globalThis.crypto.randomUUID();
@@ -236,7 +241,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     const r = await abrirCuentaDelSalon({
       cuentaId: altaId.current,
       ...(l.tipo === "MESA" ? { tableId: l.vista.mesa.id } : {}),
-      ...(limpio.length >= 2 ? { nombre: limpio } : {}),
+      cliente,
       comensales,
       vistas: l.vista.cuentas.length,
     }).catch(() => null);
@@ -560,8 +565,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
               {formulario ? (
                 <FormularioSentar
                   lugar={lugar}
-                  nombre={nombre}
-                  onNombre={setNombre}
+                  cliente={cliente}
+                  // Después del primer intento, lo que falta se recalcula al escribir: un error corregido se va solo.
+                  onCliente={(c) => {
+                    setCliente(c);
+                    if (erroresCliente) setErroresCliente(problemasDelCliente(c));
+                  }}
+                  errores={erroresCliente}
                   comensales={comensales}
                   onComensales={setComensales}
                   onEnviar={() => void sentar(lugar)}
@@ -929,20 +939,21 @@ function CuentasDelLugar({
  */
 function FormularioSentar({
   lugar,
-  nombre,
-  onNombre,
+  cliente,
+  onCliente,
+  errores,
   comensales,
   onComensales,
   onEnviar,
 }: {
   lugar: Lugar;
-  nombre: string;
-  onNombre: (n: string) => void;
+  cliente: DatosDelClienteDto;
+  onCliente: (c: DatosDelClienteDto) => void;
+  errores: ReturnType<typeof problemasDelCliente>;
   comensales: number;
   onComensales: (n: number) => void;
   onEnviar: () => void;
 }) {
-  const obligatorio = lugar.tipo === "PIE" || lugar.vista.cuentas.length > 0;
   const sillas = lugar.tipo === "MESA" ? lugar.vista.mesa.seats - lugar.vista.comensales : null;
   return (
     <form
@@ -958,17 +969,8 @@ function FormularioSentar({
           Mesa compartida: cada familia tiene su cuenta, su pedido y su cobro.
         </p>
       )}
-      <Input
-        label={lugar.tipo === "PIE" ? "Nombre o seña para llamarla" : obligatorio ? "Nombre de la familia" : "Nombre de la familia (opcional)"}
-        surface="tablet"
-        value={nombre}
-        onChange={(e) => onNombre(e.target.value)}
-        maxLength={40}
-        autoComplete="off"
-        placeholder={lugar.tipo === "PIE" ? "Sr. Luis, camisa azul" : obligatorio ? "Familia Pérez" : `Mesa ${lugar.vista.mesa.label}`}
-        aria-required={obligatorio}
-        hint={obligatorio ? undefined : "Sin nombre, la cuenta se llama como la mesa."}
-      />
+      {/* Quien consume primero y paga al final deja sus datos (B6-9, M-33): la cuenta se llama como él. */}
+      <DatosDelCliente valor={cliente} onCambio={onCliente} errores={errores} surface="tablet" />
       <div>
         <p className="mb-2 text-[13px] text-ink-2">¿Cuántas personas?</p>
         <Stepper value={comensales} onChange={onComensales} label="Personas" min={1} max={30} />

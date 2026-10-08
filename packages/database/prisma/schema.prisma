@@ -972,6 +972,7 @@ model Account {
   eventReservations EventReservation[]
   eventDays         EventDay[]
   paperItems        PaperLoadItem[]
+  customers         AccountCustomer[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, orderNumber])
@@ -1152,7 +1153,9 @@ model ShiftCut {
 }
 
 /// Un representante del directorio (B4-1, F5-01, DEC-9): a quién se entrega el niño y a quién se
-/// llama si pasa algo. Solo nombre y contacto, por decisión (sin documento, dirección ni foto).
+/// llama si pasa algo. Solo nombre y contacto, por decisión (sin documento, dirección ni foto). Desde
+/// B6-9 (M-33) es también el directorio de los clientes del restaurante, y quien abre una cuenta allí
+/// deja su cédula: `document` como se escribe, `documentKey` sin separadores (única en el local).
 /// `contactKey` es el contacto en dígitos normalizados: la llave con la que la entrada reconoce a la
 /// familia, única en el local. Se corrige con auditoría; no se borra (sus estancias lo nombran).
 model Guardian {
@@ -1161,6 +1164,8 @@ model Guardian {
   fullName         String   @map("full_name")
   contactReference String   @map("contact_reference")
   contactKey       String   @map("contact_key")
+  document         String?
+  documentKey      String?  @map("document_key")
   createdAt        DateTime @map("created_at") @db.Timestamptz(3)
   createdBy        String?  @map("created_by") @db.Uuid
 
@@ -1169,10 +1174,40 @@ model Guardian {
   sessions          ParkSession[]
   vipMarks          GuardianVip[]
   eventReservations EventReservation[]
+  accountCustomers  AccountCustomer[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, contactKey])
+  @@unique([tenantId, documentKey])
   @@map("guardian")
+}
+
+/// A quién es una cuenta del salón o del mostrador (B6-9, M-33): nombre, cédula y teléfono como se dieron, y
+/// el cliente del directorio si se reconoció. Solo agregar: cambiarlo añade una fila y la vigente es la última.
+/// Va fuera del contenido de la cuenta para que una versión anterior, que no lo conoce, no lo pierda al guardarla.
+model AccountCustomer {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  guardianId  String?  @map("guardian_id") @db.Uuid
+  fullName    String   @map("full_name")
+  document    String
+  documentKey String   @map("document_key")
+  phone       String
+  phoneKey    String   @map("phone_key")
+  setAt       DateTime @map("set_at") @db.Timestamptz(3)
+  setBy       String?  @map("set_by") @db.Uuid
+  setByName   String   @map("set_by_name")
+  deviceId    String?  @map("device_id") @db.Uuid
+
+  account  Account   @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  guardian Guardian? @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, accountId, setAt])
+  @@index([tenantId, documentKey])
+  @@index([tenantId, phoneKey])
+  @@map("account_customer")
 }
 
 /// Un niño de una familia, con nombre (DEC-28: en la puerta no se pide; nace cuando alguien lo

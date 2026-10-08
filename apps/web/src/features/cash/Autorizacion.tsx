@@ -21,6 +21,7 @@ export type AccionConPin =
   | "cobro.anular"
   | "cuenta.cortesia"
   | "cuenta.incobrable"
+  | "cuenta.cambiarCliente"
   | "cuenta.descuento"
   | "turno.corteZ"
   | "turno.abrirFueraDelPunto"

@@ -70,11 +70,16 @@ export const RECORRIDOS: readonly RecorridoDePantalla[] = [
   },
   {
     id: "mesas",
-    version: 1,
+    // 2 (B6-9): sentar pide la cédula, el teléfono y el nombre del cliente.
+    version: 2,
     ruta: "/mesas",
     pasos: [
-      { objetivo: en("mesas-plano"), titulo: "El salón", texto: "Toca una mesa libre para sentar a una familia, o una ocupada para atenderla. El número en un círculo dice cuántas cuentas tiene." },
-      { objetivo: en("mesas-de-pie"), titulo: "Quien pide de pie", texto: "Para quien pide sin mesa: ábrele una cuenta con un nombre o una seña." },
+      {
+        objetivo: en("mesas-plano"),
+        titulo: "El salón",
+        texto: "Toca una mesa libre para sentar a un cliente con su cédula, su teléfono y su nombre (si ya vino, se rellenan solos), o una ocupada para atenderla. El número en un círculo dice cuántas cuentas tiene.",
+      },
+      { objetivo: en("mesas-de-pie"), titulo: "Quien pide de pie", texto: "Para quien pide sin mesa: ábrele una cuenta con sus mismos datos." },
       { objetivo: en("mesas-detalle"), titulo: "La mesa elegida", texto: "Sus cuentas (una por familia si es compartida), sus pedidos y si la comanda salió. Desde aquí se toma el pedido y se pide la cuenta." },
     ],
   },

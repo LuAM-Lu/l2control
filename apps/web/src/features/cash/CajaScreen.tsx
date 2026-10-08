@@ -111,6 +111,8 @@ import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
 import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
+import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
+import { asignarCliente } from "../clientes/clientes.acciones";
 import {
   ColaCuentas,
   filtrarCola,
@@ -1752,7 +1754,9 @@ function CobroCuenta({
       <ClienteFacturaDialog
         abierto={identificando}
         actual={cliente}
-        nombrePropuesto={esVentaDirecta(cuenta) ? "" : cuenta.family}
+        // El cliente de la cuenta (B6-9) se ofrece con un toque: su nombre y su cédula ya puestos.
+        nombrePropuesto={cuenta.cliente?.nombre ?? (esVentaDirecta(cuenta) ? "" : cuenta.family)}
+        documentoPropuesto={cuenta.cliente?.cedula ?? ""}
         onConfirmar={(c) => {
           setCliente(c);
           setIdentificando(false);
@@ -1959,7 +1963,7 @@ export function CajaScreen({
   // faltan sus datos—, la caja lo dice. Antes entraba en el cobro y se caía al
   // buscar el primer medio de una lista vacía.
   const mediosDisponibles = useMediosActivos();
-  const { cuentas, guardar: guardarEnProvider, descartar, cargado } = useCuentas();
+  const { cuentas, guardar: guardarEnProvider, descartar, cargado, adoptar: adoptarCuenta } = useCuentas();
   // Cargando lo anotado en papel (B3-7): una venta de mostrador nace con la hora real del formulario; lo demás
   // (dividir una cuenta de familia, p. ej.) es de ahora.
   const modoPapel = useModoPapel();
@@ -2077,6 +2081,27 @@ export function CajaScreen({
     setVista("cuenta");
   }
 
+  /* ── la venta del mostrador que se deja sin cobrar (B6-9, M-33) ──────
+     Salir de una venta directa sin cobrarla ni ponerle cliente pregunta antes: cobrarla ahora, dejarla pendiente a
+     nombre de alguien (nombre, cédula y teléfono) o descartarla. Si el cliente se va sin pagar, hay a quién cobrarle. */
+  const [saliendo, setSaliendo] = useState<(() => void) | null>(null);
+  const ventaSinDatos =
+    actual !== null && !ventaNueva && esVentaDirecta(actual) && !actual.cliente && actual.status === "POR_COBRAR" && actual.lines.some((l) => !l.paid);
+  function antesDeSalir(seguir: () => void) {
+    if (ventaSinDatos) setSaliendo(() => seguir);
+    else seguir();
+  }
+  /** Elegir otra cuenta de la cola: si la que se deja es una venta sin cobrar ni datos, primero la pregunta. */
+  function elegirOtra(id: string) {
+    if (id === actual?.id) elegir(id);
+    else antesDeSalir(() => elegir(id));
+  }
+  function seguirSaliendo() {
+    const seguir = saliendo;
+    setSaliendo(null);
+    seguir?.();
+  }
+
   /**
    * Pasar una pulsera abre la cuenta de ese niño. La pulsera se busca en la
    * sala del servidor (B4-2), que dice de qué cuenta es cada estancia.
@@ -2104,7 +2129,7 @@ export function CajaScreen({
       : undefined;
     // Una pulsera que no está en la sala (ya leída) es un niño que llega (B3-9): se registra aquí mismo.
     if (sala && !estancia && puedeRegistrarEntrada) {
-      abrirEntrada(codigo);
+      antesDeSalir(() => abrirEntrada(codigo));
       return;
     }
     if (!cuenta) {
@@ -2127,7 +2152,7 @@ export function CajaScreen({
     }
     setBusqueda("");
     setFiltro("TODAS");
-    elegir(cuenta.id);
+    elegirOtra(cuenta.id);
   }
 
   // Atajos de la cola (atajos.ts). Los del cobro viven en CobroCuenta.
@@ -2140,7 +2165,7 @@ export function CajaScreen({
         t.key === "ArrowDown"
           ? Math.min(visibles.length - 1, i + 1)
           : Math.max(0, i - 1);
-      elegir(visibles[i < 0 ? 0 : siguiente]!.id);
+      elegirOtra(visibles[i < 0 ? 0 : siguiente]!.id);
       return true;
     }
     if (t.key === "/") {
@@ -2164,8 +2189,7 @@ export function CajaScreen({
     }
     const letra = t.key.toUpperCase();
     if (letra === "N") {
-      setVentaNueva(true);
-      setVista("cuenta");
+      antesDeSalir(onNuevaVentaDirecta);
       return true;
     }
     if (letra === "R" && ultimaVenta) {
@@ -2173,7 +2197,7 @@ export function CajaScreen({
       return true;
     }
     if (letra === "A" && puedeRegistrarEntrada) {
-      abrirEntrada(null);
+      antesDeSalir(() => abrirEntrada(null));
       return true;
     }
     return false;
@@ -2446,9 +2470,9 @@ export function CajaScreen({
           cuentas={visibles}
           total={porCobrar.length}
           actual={actual?.id ?? null}
-          onElegir={elegir}
-          onNuevaVentaDirecta={onNuevaVentaDirecta}
-          onEntrada={puedeRegistrarEntrada ? () => abrirEntrada(null) : null}
+          onElegir={elegirOtra}
+          onNuevaVentaDirecta={() => antesDeSalir(onNuevaVentaDirecta)}
+          onEntrada={puedeRegistrarEntrada ? () => antesDeSalir(() => abrirEntrada(null)) : null}
           ventaNueva={ventaNueva}
           puntoDeCobro={turno?.punto ?? null}
           recientes={recientes}
@@ -2557,6 +2581,24 @@ export function CajaScreen({
       <AtajosDialog
         abierto={viendoAtajos}
         onCerrar={() => setViendoAtajos(false)}
+      />
+      <VentaSinCobrar
+        cuenta={saliendo && actual ? actual : null}
+        onCobrar={() => setSaliendo(null)}
+        onDejarPendiente={async (cliente) => {
+          if (!actual) return null;
+          const r = await asignarCliente({ idempotencyKey: globalThis.crypto.randomUUID(), accountId: actual.id, cliente }).catch(() => null);
+          if (!r) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: la venta no se dejó pendiente. Vuelve a intentarlo." };
+          if (!r.ok) return r;
+          adoptarCuenta(r.valor);
+          avisar.ok(`${numeroDeOrden(r.valor)} queda pendiente a nombre de ${r.valor.family}`, { detalle: "Sigue en la cola: se cobra cuando vuelva." });
+          seguirSaliendo();
+          return null;
+        }}
+        onDescartar={() => {
+          if (actual) descartar(actual.id);
+          seguirSaliendo();
+        }}
       />
       {puedeRegistrarEntrada && (
         <EntradaDesdeCaja

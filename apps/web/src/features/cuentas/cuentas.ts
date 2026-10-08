@@ -174,7 +174,8 @@ export function nombreDeCuenta(c: Readonly<{ kind: FamilyAccountDto["kind"]; fam
     const mesa = `Mesa ${c.tableLabel ?? "?"}`;
     return c.family === mesa ? mesa : `${mesa} · ${c.family}`;
   }
-  if (c.kind === "MOSTRADOR") return c.dePie ? `De pie · ${c.family}` : "Venta de mostrador";
+  // Una venta del mostrador que se dejó pendiente a nombre de alguien (B6-9) se llama como él.
+  if (c.kind === "MOSTRADOR") return c.dePie ? `De pie · ${c.family}` : c.family !== "Mostrador" ? c.family : "Venta de mostrador";
   return c.family;
 }
 

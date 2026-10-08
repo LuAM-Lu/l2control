@@ -67,6 +67,8 @@ const DESPUES: Readonly<Partial<Record<Action, { fila: Fila; decision: string }>
   "sistema.actualizar": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-8b, ADR-028" },
   "soporte.gestionar": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-11, M-27 (P-4), D-SOP: ajustable" },
   "turno.abrirFueraDelPunto": { fila: ["✅", "🔐", "🔐", "❌", "❌", "❌"], decision: "B3-9, M-31: lo autoriza administración" },
+  "cuenta.cliente": { fila: ["✅", "✅", "✅", "✅", "❌", "❌"], decision: "B6-9, M-33: quien atiende pone el cliente" },
+  "cuenta.cambiarCliente": { fila: ["✅", "✅", "🔐", "🔐", "❌", "❌"], decision: "B6-9, M-33: cambiarlo lo autoriza supervisión" },
 };
 
 const VALOR: Readonly<Record<Celda, string>> = { "✅": "PERMITIDO", "🔐": "REQUIERE_AUTORIZACION", "❌": "DENEGADO" };

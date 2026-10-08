@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UserX, UtensilsCrossed, X } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { Marquesina, MoneyDisplay, ScannerField, cn } from "@l2/ui";
@@ -59,7 +59,10 @@ export function filtrarCola(cuentas: readonly FamilyAccountDto[], texto: string,
     if (q === "") return true;
     const numero = String(c.orderNumber ?? "");
     const nombre = sinAcentos(nombreDeCuenta(c));
-    return nombre.includes(q) || (/^\d+$/.test(q) && (numero === q.replace(/^0+/, "") || numero.startsWith(q)));
+    // La cédula o el teléfono del cliente de la cuenta (B6-9): desde cinco cifras, en cualquier parte.
+    const cifras = q.replace(/\D/g, "");
+    const delCliente = c.cliente !== undefined && cifras.length >= 5 && [c.cliente.cedula, c.cliente.telefono].some((d) => d.replace(/\D/g, "").includes(cifras));
+    return nombre.includes(q) || delCliente || (/^\d+$/.test(q) && (numero === q.replace(/^0+/, "") || numero.startsWith(q)));
   });
 }
 
@@ -240,7 +243,7 @@ export function ColaCuentas({
                     e.currentTarget.blur();
                   }
                 }}
-                placeholder="Familia o #orden"
+                placeholder="Nombre, cédula o #orden"
                 autoComplete="off"
                 className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-ink-3 [&::-webkit-search-cancel-button]:hidden"
               />
@@ -290,6 +293,8 @@ export function ColaCuentas({
             const minutos =
               ahora > 0 && c.pendingSince ? Math.max(0, Math.floor((ahora - Date.parse(c.pendingSince)) / 60_000)) : null;
             const larga = minutos !== null && minutos >= ESPERA_LARGA_MIN;
+            // Una venta del mostrador que se dejó sin cobrar y sin datos (B6-9): no hay a quién cobrarle si se va.
+            const sinDatos = esDirecta && !c.cliente && !activa;
             return (
               <li key={c.id}>
                 <button
@@ -313,11 +318,17 @@ export function ColaCuentas({
                     <span className="flex min-w-0 items-center gap-1">
                       <span className="tnum font-semibold text-ink-2">{numeroDeOrden(c)}</span>
                       <Origen size={12} className="ml-0.5 shrink-0" aria-hidden="true" />
-                      <span className="truncate">
+                      <span className={cn("truncate", sinDatos && "sr-only")}>
                         {esDirecta ? "Mostrador" : deMesa ? (c.dePie ? "De pie" : "Mesa") : c.kind === "EVENTO" ? "Cumpleaños" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
                         {!esDirecta && c.sessionIds.length > 0 &&
                           ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
                       </span>
+                      {sinDatos && (
+                        <span className="flex shrink-0 items-center gap-0.5 rounded bg-state-warn-bg px-1 font-semibold whitespace-nowrap text-state-warn">
+                          <UserX size={11} aria-hidden="true" />
+                          Sin datos
+                        </span>
+                      )}
                     </span>
                     {minutos !== null && (
                       <span

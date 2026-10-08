@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CuentaYLibroDto, FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, clienteDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -102,6 +102,12 @@ const enBolivares = (c: FamilyAccountDto, minor: string, total: string, rateId =
 
 const versionesDe = (accountId: string) =>
   local.base.conTenant(local.sistema.tenantId, (tx) => tx.accountVersion.findMany({ where: { accountId }, orderBy: { version: "asc" } }));
+/** Sienta a un cliente en la mesa si no tiene cuenta abierta (B6-9): sin cuenta, una mesa no recibe pedidos. */
+const sentadaEn = async (tableId: string) => {
+  const abiertas = valor(await local.app.cuentas.leer(ctxCajera, AHORA)).cuentas;
+  const ya = abiertas.find((c) => c.tableId === tableId && (c.status === "ABIERTA" || c.status === "POR_COBRAR"));
+  return ya ?? (await sentarDePrueba(local, ctxMesero, tableId, AHORA - MIN));
+};
 const asientosCon = (operationKey: string) =>
   local.base.conTenant(local.sistema.tenantId, (tx) => tx.payment.count({ where: { operationKey } }));
 
@@ -197,7 +203,7 @@ describe("guardar una cuenta", () => {
 
   test("cada estación guarda las cuentas que le tocan", async () => {
     await familiaDePrueba(local, ctxMonitora, AHORA);
-    const mesa = await abrir({ ...familia(), kind: "MESA", family: "Mesa 3", sessionIds: [], lines: [], tableId: "mesa-3", tableLabel: "3" }, ctxMesero);
+    const mesa = await sentadaEn("mesa-3");
     assert.equal(mesa.kind, "MESA");
     const r = await local.app.cuentas.guardar(ctxMonitora, { cuenta: mostrador([lineaDeAgua()]) }, AHORA);
     assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
@@ -565,56 +571,52 @@ describe("la tasa del cobro (ADR-019 §7)", () => {
   });
 });
 
-describe("la cuenta de una mesa (B6-1, I-05)", () => {
+describe("la cuenta de una mesa (B6-1, I-05, B6-9)", () => {
   const deMesa = (tableId: string, lines: unknown[] = [], extra: Record<string, unknown> = {}) =>
     familia({ kind: "MESA", family: `Mesa ${tableId}`, sessionIds: [], lines, tableId, tableLabel: "99", ...extra });
+  const sentar = (tableId: string, ctx: Contexto = ctxMesero, local_: LocalDePrueba = local) =>
+    local_.app.mesas.abrir(ctx, { cuentaId: randomUUID(), tableId, cliente: clienteDePrueba(), comensales: 2, vistas: 0 }, AHORA);
 
-  test("nace en una mesa del plano, con el número que dice el plano y no la pantalla", async () => {
-    const c = await abrir(deMesa("mesa-1", [lineaDeAgua()]), ctxMesero);
+  // Una cuenta de mesa nace al sentar a su cliente, con nombre, cédula y teléfono (B6-9): guardarla no la abre.
+  test("no nace al guardar: se sienta a su cliente", async () => {
+    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-1", [lineaDeAgua()]) }, AHORA);
+    assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_SIN_CUENTA", JSON.stringify(r));
+    const c = valor(await sentar("mesa-1"));
     assert.equal(c.tableId, "mesa-1");
-    assert.equal(c.tableLabel, "1");
+    assert.equal(c.tableLabel, "1", "el número lo dice el plano");
   });
 
-  // Una cuenta que nace sin «sentar» (B6-7) no abre una segunda en una mesa ocupada: así dos tablets que piden
-  // a la vez no abren dos. Una mesa compartida se abre sentando a la familia, con su nombre.
-  test("una mesa con su cuenta abierta no abre otra sin sentar a una familia: la segunda choca", async () => {
-    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-1") }, AHORA);
-    assert.equal(!r.ok && r.motivo, "CONFLICTO", JSON.stringify(r));
-    assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_CON_CUENTA");
-    assert.match(!r.ok ? r.mensaje : "", /La mesa 1 cambió: otro equipo le abrió una cuenta/);
-  });
-
-  test("dos tablets que abren la misma mesa a la vez: entra una", async () => {
-    const [a, b] = await Promise.all([
-      local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-4", [lineaDeAgua()]) }, AHORA),
-      local.app.cuentas.guardar(ctxCajera, { cuenta: deMesa("mesa-4", [lineaDeAgua()]) }, AHORA),
-    ]);
+  test("dos tablets que sientan en la misma mesa a la vez: entra una", async () => {
+    const [a, b] = await Promise.all([sentar("mesa-4"), sentar("mesa-4", ctxCajera)]);
     assert.equal([a, b].filter((r) => r.ok).length, 1, JSON.stringify([a, b]));
   });
 
   test("una mesa que no está en el salón no abre cuenta", async () => {
-    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-99") }, AHORA);
+    const r = await sentar("mesa-99");
     assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_FUERA_DEL_PLANO");
   });
 
   test("lo que se pide en la mesa sale de la carta, con su precio", async () => {
+    const c = await sentadaEn("mesa-2");
     const aMano = { ...lineaDeAgua(), productId: undefined, taxCode: undefined };
-    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-2", [aMano]) }, AHORA);
+    const r = await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...c, lines: [aMano] } }, AHORA);
     assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_SIN_PRODUCTO");
-    const barata = await local.app.cuentas.guardar(ctxMesero, { cuenta: deMesa("mesa-2", [{ ...lineaDeAgua(), amount: usd("50") }]) }, AHORA);
+    const barata = await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...c, lines: [{ ...lineaDeAgua(), amount: usd("50") }] } }, AHORA);
     assert.equal(!barata.ok && barata.problemas?.[0]?.message, "PRECIO_DISTINTO");
   });
 
   test("en un local sin plano, la cuenta de mesa no nace", async () => {
-    const r = await otro.app.cuentas.guardar(otro.sistema, { cuenta: deMesa("mesa-1") }, AHORA);
+    const r = await otro.app.mesas.abrir(otro.sistema, { cuentaId: randomUUID(), tableId: "mesa-1", cliente: clienteDePrueba(), comensales: 2, vistas: 0 }, AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE", JSON.stringify(r));
   });
 });
 
 describe("anular un pedido en producción (F6-14, B6-3, B6-6)", () => {
   /** Un pedido real del mesero (B6-2): la anulación nombra su comanda y saca su papel «ANULAR». */
-  const pedir = async (tableId: string, cantidad = 1) =>
-    valor(await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId, lineas: [{ productId: agua, cantidad, precioMinor: "100" }] }, AHORA)).cuenta;
+  const pedir = async (tableId: string, cantidad = 1) => {
+    await sentadaEn(tableId);
+    return valor(await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId, lineas: [{ productId: agua, cantidad, precioMinor: "100" }] }, AHORA)).cuenta;
+  };
   const anular = (c: FamilyAccountDto, lineIds: string[], extra: Record<string, unknown> = {}) => ({
     idempotencyKey: randomUUID(),
     accountId: c.id,
@@ -697,12 +699,17 @@ describe("anular un pedido en producción (F6-14, B6-3, B6-6)", () => {
 });
 
 describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
-  const deMesa = (tableId: string, lines: unknown[] = []) => familia({ kind: "MESA", family: `Mesa ${tableId}`, sessionIds: [], lines, tableId, tableLabel: "99" });
+  /** Una mesa con su cliente sentado (B6-9) y, si se dice, algo pedido. */
+  const deMesa = async (tableId: string, lines: unknown[] = []) => {
+    const c = await sentarDePrueba(local, ctxMesero, tableId, AHORA - MIN);
+    return lines.length === 0 ? c : valor(await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...c, lines } }, AHORA));
+  };
   const liberar = (ctx: Contexto, c: FamilyAccountDto, idempotencyKey: string = randomUUID()) =>
     local.app.cuentas.liberarMesa(ctx, { idempotencyKey, accountId: c.id, version: c.version }, AHORA);
   const pendientesDelCierre = async () => valor(await local.app.cortes.pendientes(ctxAdmin, undefined, AHORA)).cuentas.map((c) => c.id);
 
   test("con todo anulado, el mesero la libera sin PIN: queda «sin consumo», fuera del cierre y auditada", async () => {
+    await sentadaEn("mesa-9");
     const c = valor(await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId: "mesa-9", lineas: [{ productId: agua, cantidad: 1, precioMinor: "100" }] }, AHORA)).cuenta;
     const anulada = valor(
       await local.app.cuentas.anularPedido(
@@ -729,19 +736,19 @@ describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
   });
 
   test("liberada, la mesa vuelve a abrir cuenta; la cerrada no se toca", async () => {
-    const c = await abrir(deMesa("mesa-10", []), ctxMesero);
+    const c = await deMesa("mesa-10");
     const libre = valor(await liberar(ctxMesero, c));
     assert.equal(libre.status, "SIN_CONSUMO");
     const otraVez = await liberar(ctxMesero, libre);
     assert.equal(!otraVez.ok && otraVez.mensaje, "Esa cuenta ya está cerrada.");
     const aMano = await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...libre, status: "ABIERTA" } }, AHORA);
     assert.equal(!aMano.ok && aMano.problemas?.[0]?.message, "CUENTA_SIN_CONSUMO");
-    const nueva = await abrir(deMesa("mesa-10", [lineaDeAgua()]), ctxMesero);
+    const nueva = await deMesa("mesa-10", [lineaDeAgua()]);
     assert.notEqual(nueva.id, c.id);
   });
 
   test("con algo por cobrar, o si no es una mesa, no se libera", async () => {
-    const conAgua = await abrir(deMesa("mesa-11", [lineaDeAgua()]), ctxMesero);
+    const conAgua = await deMesa("mesa-11", [lineaDeAgua()]);
     const r = await liberar(ctxMesero, conAgua);
     assert.equal(!r.ok && r.motivo, "CONFLICTO");
     assert.match(!r.ok ? r.mensaje : "", /algo por cobrar/);
@@ -751,7 +758,7 @@ describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
   });
 
   test("con la versión vieja choca: otra tablet acaba de pedir algo", async () => {
-    const c = await abrir(deMesa("mesa-12", []), ctxMesero);
+    const c = await deMesa("mesa-12");
     const conPedido = valor(await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...c, lines: [lineaDeAgua()] } }, AHORA));
     assert.ok(conPedido.version! > c.version!);
     const r = await liberar(ctxMesero, c);
@@ -759,7 +766,7 @@ describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
   });
 
   test("quien no atiende mesas no la libera, y otro local no la ve", async () => {
-    const c = await abrir(deMesa("mesa-8", []), ctxMesero);
+    const c = await deMesa("mesa-8");
     const monitora = await liberar(ctxMonitora, c);
     assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
     const cocina = await liberar(ctxCocina, c);

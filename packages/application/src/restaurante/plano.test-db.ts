@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import type { DiningTableDto, PlanoLocalDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
 import { temasDe } from "../tiempo-real/temas.ts";
-import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, clienteDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-10-02T15:00:00.000Z");
@@ -66,19 +66,6 @@ const leer = (local: LocalDePrueba = l) => local.app.plano.leer(local.sistema);
 const publicar = (ctx: Contexto, p: PlanoLocalDto, sobre: number | null, ahora = AHORA) => l.app.plano.publicar(ctx, { plano: p, sobre }, ahora);
 const asientos = (local: LocalDePrueba) =>
   local.base.conTenant(local.sistema.tenantId, (tx) => tx.auditEntry.findMany({ where: { action: "plano.publicar" }, orderBy: { occurredAt: "asc" } }));
-const cuentaDeMesa = (tableId: string) => ({
-  id: randomUUID(),
-  kind: "MESA",
-  family: "Mesa",
-  mode: "CUENTA_ABIERTA",
-  status: "ABIERTA",
-  openedAt: new Date(AHORA).toISOString(),
-  sessionIds: [],
-  closedSessionIds: [],
-  tableId,
-  tableLabel: "?",
-  lines: [],
-});
 
 describe("sin publicar", () => {
   test("el local no tiene plano: no se inventan mesas", async () => {
@@ -150,7 +137,7 @@ describe("una mesa no se borra: se retira", () => {
   });
 
   test("con su cuenta abierta no se retira; las demás, sí", async () => {
-    valor(await l.app.cuentas.guardar(mesero, { cuenta: cuentaDeMesa("mesa-2") }, AHORA));
+    await sentarDePrueba(l, mesero, "mesa-2", AHORA);
     const r = await publicar(admin, plano([mesa(1), mesa(2, { retiredAt: new Date(AHORA).toISOString() }), mesa(3)]), 1);
     assert.equal(!r.ok && r.motivo, "CONFLICTO", JSON.stringify(r));
     assert.match(!r.ok ? r.mensaje : "", /La mesa 2 tiene su cuenta abierta/);
@@ -168,7 +155,7 @@ describe("una mesa no se borra: se retira", () => {
   });
 
   test("una mesa retirada no abre cuenta; su número queda libre para otra", async () => {
-    const r = await l.app.cuentas.guardar(mesero, { cuenta: cuentaDeMesa("mesa-3") }, AHORA);
+    const r = await l.app.mesas.abrir(mesero, { cuentaId: randomUUID(), tableId: "mesa-3", cliente: clienteDePrueba(), comensales: 2, vistas: 0 }, AHORA);
     assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_FUERA_DEL_PLANO", JSON.stringify(r));
     const v = await leer();
     const conOtraTres = plano([...v.plano!.tables, mesa(4, { label: "3" })]);

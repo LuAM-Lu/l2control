@@ -125,6 +125,19 @@ export async function sessionsVinculadas(tx: Transaccion, branchId: string): Pro
   return mapa;
 }
 
+/**
+ * Una mesa sin cuenta abierta no la abre un pedido, una pulsera ni una salida del parque: se sienta primero a su
+ * cliente, con nombre, cédula y teléfono (B6-9, M-33). Así toda cuenta del salón tiene a quién cobrarle.
+ */
+export function mesaSinCuenta(path: readonly (string | number)[]): Rechazo {
+  return {
+    ok: false,
+    motivo: "CONFLICTO",
+    mensaje: "Esa mesa no tiene cuenta abierta: sienta primero a su cliente, con su nombre, cédula y teléfono.",
+    problemas: [{ path: [...path], message: "MESA_SIN_CUENTA" }],
+  };
+}
+
 /** Cómo se abre una cuenta más en una mesa (B6-7): con nombre, y sabiendo cuántas veía quien la abre. */
 export type CuentaNuevaEnMesa = Readonly<{ nombre?: string; vistas: number }>;
 

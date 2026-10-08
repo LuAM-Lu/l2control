@@ -35,8 +35,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 ## 1. Dónde estamos
 
 **Versión 0.87.0 · 87 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
-capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. Decidido M-33 (B6-9, B3-11 y B11-4: saber a
-quién cobrarle), sin empezar hasta el sí del usuario.** M-28 y M-29
+capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 en curso (saber a quién cobrarle): B6-9
+hecho; siguen B3-11 y B11-4.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -2175,7 +2175,8 @@ antes del cobro en servidor (orden de ejecución).
   Ajustes → Sucursal; su página en el manual. Visto en el navegador en la base de pruebas, en los dos temas: «Atender»
   con sus avisos; un pedido de 186 min marcado servido en la tablet («esperó 186 min»); la pantalla de administración
   con 9 cuentas, la que espera su pedido primero, y la espera del día.*
-- [~] **B6-9 · El cliente de la cuenta: nombre, cédula y teléfono** (M-33). *A cargo: LuAMi, rama `feat/b6-9`.*
+- [x] **B6-9 · El cliente de la cuenta: nombre, cédula y teléfono** (M-33).
+  *Hecho el 2026-10-08, en `feat/b6-9`.*
   → **Mesa y de pie.** Sentar a alguien pide nombre y apellido, cédula (V o E y el número) y teléfono, los tres
   obligatorios: el servidor no abre la cuenta sin ellos. Al escribir el teléfono o la cédula, el directorio propone al
   cliente que ya vino y lo rellena; si tiene una deuda pendiente (B3-11), lo dice ahí mismo. Una familia del parque que
@@ -2191,6 +2192,34 @@ antes del cobro en servidor (orden de ejecución).
   Se adapta a lo que hay (punto 10 de la definición de hecho): el manual y el recorrido de Mesas, el manual de Cobrar; la
   cédula y el teléfono con `data-privado` (todo el que atiende los ve completos, M-33); la auditoría del cliente creado o
   corregido (corregirlo, supervisión); su tema en vivo; 48 px en la tablet y 56 en la caja.
+  *· Base: `20261115000000_cliente_de_la_cuenta` (solo expande): `guardian.document` y `document_key` (única por local, con
+  su CHECK) y `account_customer` (solo agregar, aislada por tenant, con la cédula y el teléfono como se escriben y sus
+  llaves). Dominio: `documentKey`, `documentoLegible` y `telefonoLegible` en `@l2/domain-park`, con sus pruebas.*
+  *· Contrato: `DatosDelClienteSchema` (acepta «v 12.345.678» y «(0414) 123 45 67»), `cliente` en la cuenta,
+  `AbrirCuentaDelSalonCommandSchema` con `cliente` obligatorio (sin `nombre`), `BuscarClienteSchema` y
+  `AsignarClienteCommandSchema`. Las acciones `cuenta.cliente` (quien atiende ✅) y `cuenta.cambiarCliente` (caja y
+  mesero 🔐), con sus filas en la matriz del plan.*
+  *· Aplicación: `clientes.buscar` y `clientes.asignar`; `mesas.abrir` valida la mesa, reconoce al cliente (por la
+  cédula; por el teléfono, al representante del parque sin cédula, que la recibe con su asiento `cliente.completar`; un
+  teléfono de otro cliente con otra cédula no se enlaza) o lo da de alta, y lo anota. El cliente vive en
+  `account_customer`: `vigenteDe` y `cuentas.leer` lo ponen, `guardarVersion` lo quita y `cuentas.guardar` ignora el
+  que mande la pantalla. Un pedido, una pulsera, una salida del parque o un «guardar» ya no abren una mesa:
+  `MESA_SIN_CUENTA`, después de comprobar el plano. 15 pruebas nuevas contra la base; las que pedían en una mesa vacía
+  ahora sientan primero (`sentarDePrueba`, `clienteDePrueba`).*
+  *· Web: `features/clientes` (`DatosDelCliente`: cédula, teléfono y nombre; el que ya vino se rellena solo, sin pisar
+  lo escrito), el formulario de sentar en Mesas, `VentaSinCobrar` en la caja (al elegir otra cuenta, N, A, las flechas
+  o una pulsera), la cola (busca por cédula y teléfono; «Sin datos»), «Factura a» propone al cliente. El manual de
+  Mesas y de Cobrar con tres problemas nuevos y el recorrido de Mesas v2.*
+  *· Decidido al construir: la comanda y la cola dicen el nombre del cliente (solo el nombre); los asientos nombran al
+  cliente del directorio, nunca su cédula ni su teléfono; vincular pulseras y cargar una salida exigen la mesa ya
+  sentada (antes la abrían); una venta del mostrador pendiente se llama como su cliente.*
+  *· Comprobado en el navegador, en la base de pruebas: sentar sin datos lo dice en cada campo y no abre; con ellos, la
+  mesa queda a nombre del cliente; en otra mesa, su cédula escrita «v 30.000.xxx» rellena el teléfono y el nombre («Ya
+  vino antes»); cédula y teléfono con `data-privado`. En la caja: N sobre una venta sin cobrar pregunta; «Cobrarla
+  ahora» se queda; «Dejarla pendiente» sin datos los pide y con ellos la deja a nombre del cliente y sigue a la venta
+  nueva; la cola la encuentra por la cédula; «Factura a» propone su cédula y su nombre; elegir otra cuenta y
+  «Descartar la venta». A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas: el formulario y la pregunta sin
+  desplazar ni cortar y sin errores de consola.*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
@@ -3090,6 +3119,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · M-33, al revisar el plan: el reporte del flujo entero de las deudas (B11-4, Reportes → Deudas con su
   PDF): por mesero que sentó al cliente, por supervisor que autorizó y cada deuda de la mesa al desenlace; el PDF con la
   cédula y el teléfono completos. La ruta pasa a 95.
+- **2026-10-08** · El usuario da el sí a M-33 («Dale»): B6-9, B3-11 y B11-4 de corrido. B6-9 entregado: la mesa y de
+  pie piden nombre, cédula y teléfono, el que vuelve se reconoce, la caja pregunta antes de dejar una venta sin cobrar
+  y ninguna mesa se abre sin sentar a su cliente.
 
 ---
 

@@ -22,6 +22,9 @@ import {
   admits,
   computeCapacity,
   contactKey,
+  documentKey,
+  documentoLegible,
+  telefonoLegible,
   settleAtExit,
   computeOverdueBreakdown,
   computeOverdueCharge,
@@ -294,6 +297,22 @@ describe("la entrada (B4-2)", () => {
     }
     assert.equal(contactKey("12a"), null);
     assert.equal(contactKey("1".repeat(21)), null);
+  });
+
+  test("una cédula o un RIF escritos de cualquier manera son el mismo cliente (B6-9)", () => {
+    for (const d of ["V-12345678", "v 12.345.678", "V12345678", " v-12345678 "]) {
+      assert.equal(documentKey(d), "V12345678", d);
+      assert.equal(documentoLegible(d), "V-12345678", d);
+    }
+    assert.equal(documentoLegible("j-40123456-7"), "J-40123456-7");
+    assert.equal(documentoLegible("E-81234567"), "E-81234567");
+    // Sin letra, con otra letra o con muy pocos o demasiados números, no es un documento.
+    for (const d of ["12345678", "X-12345678", "V-1234", "V-12345678901", ""]) assert.equal(documentKey(d), null, d);
+  });
+
+  test("un teléfono se escribe 0414-1234567, y solo uno de once dígitos lo es (B6-9)", () => {
+    for (const t of ["04141234567", "0414 123.45.67", "+58 414 1234567"]) assert.equal(telefonoLegible(t), "0414-1234567", t);
+    for (const t of ["1234567", "4141234567", "041412345678"]) assert.equal(telefonoLegible(t), null, t);
   });
 });
 
