@@ -2175,7 +2175,7 @@ antes del cobro en servidor (orden de ejecución).
   Ajustes → Sucursal; su página en el manual. Visto en el navegador en la base de pruebas, en los dos temas: «Atender»
   con sus avisos; un pedido de 186 min marcado servido en la tablet («esperó 186 min»); la pantalla de administración
   con 9 cuentas, la que espera su pedido primero, y la espera del día.*
-- [ ] **B6-9 · El cliente de la cuenta: nombre, cédula y teléfono** (M-33).
+- [~] **B6-9 · El cliente de la cuenta: nombre, cédula y teléfono** (M-33). *A cargo: LuAMi, rama `feat/b6-9`.*
   → **Mesa y de pie.** Sentar a alguien pide nombre y apellido, cédula (V o E y el número) y teléfono, los tres
   obligatorios: el servidor no abre la cuenta sin ellos. Al escribir el teléfono o la cédula, el directorio propone al
   cliente que ya vino y lo rellena; si tiene una deuda pendiente (B3-11), lo dice ahí mismo. Una familia del parque que
