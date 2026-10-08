@@ -1314,7 +1314,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   → Con el producto de medias elegido en Ajustes → Sucursal, la entrada pregunta por cada niño si trae medias; si
   no, la cuenta de la familia lleva el par y el inventario lo descuenta; sin existencia, la entrada lo avisa y no lo
   vende.
-- [ ] **B4-10 · La sala para administración: cortesía y anular una entrada** (M-27, P-7).
+- [~] **B4-10 · La sala para administración: cortesía y anular una entrada** (M-27, P-7). *A cargo: LuAMi, rama `feat/b4-10`.*
   → Desde la tarjeta del niño, administración (supervisión con 🔐) regala su tiempo con un motivo o anula su
   entrada registrada por error: sin cobro, fuera del aforo y su línea fuera de la cuenta si no se cobró. Queda en la
   auditoría y en las excepciones del turno; nada se borra.
