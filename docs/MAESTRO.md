@@ -1824,7 +1824,7 @@ antes del cobro en servidor (orden de ejecución).
   SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una
   lista («Naranja, Manzana…» → «Jugo Naranja», «Jugo Manzana»), cada uno con su propio código de barras si se escribe o
   se lee. Cada copia es un producto propio, con su existencia.
-- [ ] **B9-9 · Editar en lote** (M-29).
+- [~] **B9-9 · Editar en lote** (M-29). *A cargo: LuAMi, rama `feat/b9-9`.*
   → En Productos se eligen varios y se les cambia la categoría, el mínimo, la carta o el precio (en % o en monto, desde
   una fecha), o se apartan. Una sola confirmación, y cada producto deja su asiento.
 - [x] **B9-10 · Conteo a ciegas y su informe de diferencias** (M-29).
