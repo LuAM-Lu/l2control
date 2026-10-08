@@ -34,8 +34,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.62.0 · 62 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
-(varias cuentas en una mesa y cuentas de pie) y B4-7 (pausa por comida).
+**Versión 0.63.0 · 63 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
+(varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida) y B4-8 (entrar sin pulsera).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -211,7 +211,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → ~~T-8a~~ (publicar y desplegar, M-22) → ~~B7-1~~ (VPS) → ~~T-9~~ (confirmar identidad desde cualquier equipo, M-23) → ~~B7-2 y T-10~~ (la semilla del local y el inventario en lote, M-24) → ~~T-8b~~ (actualizaciones desde el panel, M-25) → ~~B7-4~~ (respaldos, M-26) → ~~B7-5~~ (seguridad), y B7-3 con **T-8c** (el agente se actualiza solo) en el local
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
-   ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → **B4-8** (sin pulsera) → T-12 (ayuda y recorridos) →
+   ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → **T-12** (ayuda y recorridos) →
    B4-10 (cortesía y anular desde la sala) → B4-9 (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
@@ -1279,10 +1279,21 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   máximo. Visto en el navegador en la base de pruebas: pausar, reloj quieto, terminar y que no se ofrezca otra, a 1366×768
   y en el teléfono en oscuro, sin desplazar la página ni errores de consola. **Propuesta a confirmar (P-14):** el niño en
   pausa sigue contando en el aforo.*
-- [~] **B4-8 · Entrar sin pulsera** (M-27, P-1). *A cargo: LuAMi, rama `feat/b4-8`.*
+- [x] **B4-8 · Entrar sin pulsera** (M-27, P-1).
   → Un niño entra sin pulsera con su nombre (obligatorio) y una seña; el servidor le da un código interno que un
   lector no puede producir; se le encuentra por nombre en la sala, la salida y la caja, con el chip «Sin pulsera»;
   aforo, tiempo y cobro, como los demás.
+  *Hecho el 2026-10-07 (LuAMi), v0.63.0.* **Dominio:** `WRISTBANDLESS_PREFIX` («SP-»), `isWristbandless`,
+  `wristbandlessCode` y `nextWristbandlessNumber` (correlativo por sucursal sobre los ya usados); 2 pruebas. **Contrato:**
+  cada niño de la entrada lleva su pulsera o `sinPulsera`, y sin pulsera su nombre es obligatorio (o un niño conocido de
+  la familia). **Aplicación:** la entrada genera los códigos con el candado del parque (`SP-00001`…, nunca se repiten:
+  cada uno es de una visita, V-1) y no les aplica la serie del local; una pulsera física con el prefijo se rechaza
+  (`PULSERA_RESERVADA`) y consultarla lo dice; el resto (aforo, tiempo, salida, caja) los trata como a cualquiera.
+  Sin migración: el prefijo reservado basta para reconocerlos. 7 pruebas contra la base. **Web:** «Sin pulsera» junto al
+  lector en la entrada (el foco salta al nombre, que se pide obligatorio); la tarjeta de la sala lo dice con su icono; la
+  salida tiene «Sin pulsera (N)» para elegirlos por su nombre. Visto en el navegador en la base de pruebas: sin nombre
+  no entra, con nombre entra como SP-00001, la sala lo marca y la salida lo elige, sin errores de consola. **Propuesta a
+  confirmar (P-1):** la seña («camisa roja») va en el apodo; no es un campo propio.*
 - [ ] **B4-9 · Medias en la entrada** (M-27, P-6).
   → Con el producto de medias elegido en Ajustes → Sucursal, la entrada pregunta por cada niño si trae medias; si
   no, la cuenta de la familia lleva el par y el inventario lo descuenta; sin existencia, la entrada lo avisa y no lo
@@ -2292,6 +2303,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-07** · v0.61.0 llevó también Next 16.3.8: la auditoría del CI marcó como alta una falsificación de peticiones en
   la optimización de imágenes (GHSA-cjq9-62q9-8jv4), y `main` habría quedado en rojo sin tocar nada.
 - **2026-10-07** · B4-7 entregado como v0.62.0: la pausa por comida, una por visita y de hasta 10 minutos (ajuste). Sigue B4-8.
+- **2026-10-07** · B4-8 entregado como v0.63.0: niños sin pulsera con un código reservado que pone el servidor. Sigue T-12.
 
 ---
 

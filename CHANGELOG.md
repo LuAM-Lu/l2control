@@ -14,6 +14,17 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.63.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Entrar sin pulsera (B4-8, M-27).
+
+### Añadido
+- **Niños sin pulsera.** Para los niños que no toleran la pulsera, la entrada tiene «Sin pulsera» junto al lector: el
+  niño entra con su nombre (obligatorio: se le reconoce por él) y el sistema le da un código propio (SP-00001…) que
+  ninguna pulsera puede traer. Cuenta en el aforo, corre su tiempo y se cobra como los demás.
+- La sala marca su tarjeta «Sin pulsera», y la salida tiene «Sin pulsera (N)» para elegirlo por su nombre.
+- Una pulsera con un código que empiece por «SP-» se rechaza: esos son solo de los niños sin pulsera.
+
 ## [0.62.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Pausa por comida (B4-7, M-27).

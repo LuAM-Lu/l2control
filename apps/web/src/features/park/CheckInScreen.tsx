@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Cake,
   CircleCheckBig,
+  HandHeart,
   Phone,
   ScanLine,
   Ticket,
@@ -76,9 +77,12 @@ import { puedeAbrirRuta } from "../identity/visibilidad.ts";
 
 type Entrada = {
   uid: string;
+  /** La pulsera leída; vacío en un niño sin pulsera (B4-8), cuyo código lo pone el servidor. */
   wristbandCode: string;
+  /** Un niño que no tolera la pulsera (B4-8, P-1): entra sin ella y su nombre es obligatorio. */
+  sinPulsera: boolean;
   packageId: string;
-  /** Opcional (DEC-28): vacío, el niño entra solo con su pulsera. */
+  /** Opcional (DEC-28): vacío, el niño entra solo con su pulsera. Sin pulsera, obligatorio. */
   nombre: string;
 };
 
@@ -204,7 +208,7 @@ export function CheckInScreen({
       const uid = NUEVO_UID();
       setEntradas((prev) => [
         ...prev,
-        { uid, wristbandCode: limpio, packageId: defaultPackageId, nombre: "" },
+        { uid, wristbandCode: limpio, sinPulsera: false, packageId: defaultPackageId, nombre: "" },
       ]);
       setAviso(null);
       setPasoMovil("PULSERAS");
@@ -233,6 +237,22 @@ export function CheckInScreen({
       telefono,
     ],
   );
+
+  /**
+   * Un niño que no tolera la pulsera (B4-8, P-1): entra sin ella. Se le reconoce por su nombre, que se pide en el
+   * acto; el código (SP-…) lo pone el servidor al registrar.
+   */
+  function anadirSinPulsera() {
+    if (activeSessions + entradas.length >= capacityLimit) {
+      setAviso(`Aforo completo (${capacityLimit}). No se puede registrar a nadie más`);
+      return;
+    }
+    const uid = NUEVO_UID();
+    setEntradas((prev) => [...prev, { uid, wristbandCode: "", sinPulsera: true, packageId: defaultPackageId, nombre: "" }]);
+    setAviso(null);
+    setPasoMovil("PULSERAS");
+    queueMicrotask(() => document.getElementById(`nombre-${uid}`)?.focus());
+  }
 
   const validarPulsera = useCallback(
     (code: string) => WristbandCodeSchema.safeParse(code).success,
@@ -290,7 +310,7 @@ export function CheckInScreen({
       idempotencyKey: clave.current,
       paymentMode: modo,
       entries: entradas.map((e) => ({
-        wristbandCode: e.wristbandCode,
+        ...(e.sinPulsera ? { sinPulsera: true as const } : { wristbandCode: e.wristbandCode }),
         kid: ninoDe(e.nombre),
         packageId: e.packageId,
       })),
@@ -466,6 +486,14 @@ export function CheckInScreen({
               className="min-w-0 flex-1"
             />
             <BotonCamara activa={camara} onCambiar={setCamara} />
+            {/* B4-8 (P-1): un niño que no tolera la pulsera entra sin ella, por su nombre. No en un cumpleaños: sus
+                invitados entran con la pulsera de la reserva. */}
+            {!cumple && (
+              <Button surface="tablet" variant="neutral" className="shrink-0 gap-1.5" onClick={anadirSinPulsera} aria-label="Añadir un niño sin pulsera">
+                <HandHeart size={18} aria-hidden="true" />
+                <span className="max-sm:hidden">Sin pulsera</span>
+              </Button>
+            )}
           </div>
 
           {camara && <LectorCamara onCerrar={() => setCamara(false)} className="h-[36dvh] max-h-80 shrink-0 md:h-64" />}
@@ -511,11 +539,17 @@ export function CheckInScreen({
                     <div className="flex flex-wrap items-center gap-3">
                       <Initial name={String(i + 1)} tone="brand" />
 
-                      <Badge tone="idle" className="text-[15px] px-3 py-1.5">
-                        <span className="tnum font-mono">
-                          {e.wristbandCode}
-                        </span>
-                      </Badge>
+                      {e.sinPulsera ? (
+                        <Badge tone="brand" icon={<HandHeart size={14} aria-hidden="true" />} className="text-[14px] px-3 py-1.5">
+                          Sin pulsera
+                        </Badge>
+                      ) : (
+                        <Badge tone="idle" className="text-[15px] px-3 py-1.5">
+                          <span className="tnum font-mono">
+                            {e.wristbandCode}
+                          </span>
+                        </Badge>
+                      )}
 
                       {/* En el teléfono el paquete va en su renglón, en 2×2: en la fila, cuatro no caben. Un
                           invitado de cumpleaños no elige paquete: lo cubre el del evento (B10-2). */}
@@ -537,7 +571,7 @@ export function CheckInScreen({
                       <button
                         type="button"
                         onClick={() => quitar(e.uid)}
-                        aria-label={`Quitar la pulsera ${e.wristbandCode}`}
+                        aria-label={e.sinPulsera ? `Quitar al niño sin pulsera ${e.nombre}` : `Quitar la pulsera ${e.wristbandCode}`}
                         className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit max-md:ml-auto"
                       >
                         <X size={16} aria-hidden="true" />
@@ -546,10 +580,18 @@ export function CheckInScreen({
                     {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. Los invitados
                         de un cumpleaños no son de la familia que reservó: se nombran después, desde la sala. */}
                     {!cumple && <input
-                      aria-label={`Nombre del niño de la pulsera ${e.wristbandCode} (opcional)`}
+                      id={`nombre-${e.uid}`}
+                      aria-label={e.sinPulsera ? "Nombre del niño sin pulsera (obligatorio)" : `Nombre del niño de la pulsera ${e.wristbandCode} (opcional)`}
+                      aria-required={e.sinPulsera}
                       value={e.nombre}
                       onChange={(ev) => actualizar(e.uid, { nombre: ev.target.value })}
-                      placeholder={encontrado && encontrado.kids.length > 0 ? `Nombre (opcional): ${encontrado.kids.map((k) => k.nickname ?? k.name).join(", ")}` : "Nombre del niño (opcional)"}
+                      placeholder={
+                        e.sinPulsera
+                          ? "Nombre del niño (obligatorio: sin pulsera se le reconoce por él)"
+                          : encontrado && encontrado.kids.length > 0
+                            ? `Nombre (opcional): ${encontrado.kids.map((k) => k.nickname ?? k.name).join(", ")}`
+                            : "Nombre del niño (opcional)"
+                      }
                       list={encontrado && encontrado.kids.length > 0 ? "ninos-de-la-familia" : undefined}
                       autoComplete="off"
                       maxLength={60}

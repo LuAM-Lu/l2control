@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert, UtensilsCrossed } from "lucide-react";
+import { CheckCircle2, HandHeart, TimerReset, TriangleAlert, OctagonAlert, UtensilsCrossed } from "lucide-react";
 import {
   CountdownDisplay,
   Initial,
@@ -11,7 +11,7 @@ import {
   useServerClock,
   cn,
 } from "@l2/ui";
-import { formatDuration, type SessionStatus } from "@l2/domain-park";
+import { formatDuration, isWristbandless, type SessionStatus } from "@l2/domain-park";
 import { enPausa, msEnPausa, nombreVisible, type SessionCardModel } from "./view-model";
 
 /**
@@ -154,8 +154,15 @@ export function ParkChildCard({
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="flex items-baseline gap-1.5 text-[11px] whitespace-nowrap text-ink-3">
             {/* El código de la pulsera es de un solo uso: identifica esta
-                estancia, no al niño (§6.6). */}
-            <span className="tnum font-mono">{model.wristbandCode}</span>
+                estancia, no al niño (§6.6). Sin pulsera (B4-8), se dice: a ese niño se le reconoce por su nombre. */}
+            {isWristbandless(model.wristbandCode) ? (
+              <span className="flex items-center gap-1 font-semibold text-brand" title={model.wristbandCode}>
+                <HandHeart size={12} aria-hidden="true" />
+                Sin pulsera
+              </span>
+            ) : (
+              <span className="tnum font-mono">{model.wristbandCode}</span>
+            )}
             <span aria-hidden="true">·</span>
             {/* Hora de entrada, discreta: responde «¿desde cuándo está?» sin
                 competir con el cronómetro, que es el dato principal. */}

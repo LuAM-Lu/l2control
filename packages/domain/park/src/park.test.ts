@@ -34,6 +34,9 @@ import {
   parkPolicy,
   paquetePorUso,
   pauseProblem,
+  isWristbandless,
+  nextWristbandlessNumber,
+  wristbandlessCode,
   pausedMs,
   resumeProblem,
   type PaqueteDeUso,
@@ -450,5 +453,20 @@ describe("la pausa por comida (B4-7, M-27)", () => {
     assert.equal(resumeProblem(sesion({ pause: pausa() }), epochMs(T0 + 25 * MIN)), null);
     assert.equal(resumeProblem(sesion({ pause: pausa() }), epochMs(T0 + 31 * MIN)), "YA_TERMINO");
     assert.equal(resumeProblem(sesion({ pause: pausa(24) }), epochMs(T0 + 25 * MIN)), "YA_TERMINO");
+  });
+});
+
+describe("niños sin pulsera (B4-8, M-27)", () => {
+  test("el código lo pone el servidor, correlativo y con su prefijo reservado", () => {
+    assert.equal(wristbandlessCode(1), "SP-00001");
+    assert.equal(nextWristbandlessNumber([]), 1);
+    assert.equal(nextWristbandlessNumber(["SP-00001", "AK-0009", "SP-00007", "sp-00003"]), 8);
+    assert.throws(() => wristbandlessCode(0), RangeError);
+  });
+
+  test("un código con el prefijo reservado es de un niño sin pulsera", () => {
+    assert.equal(isWristbandless("SP-00012"), true);
+    assert.equal(isWristbandless("sp-1"), true);
+    assert.equal(isWristbandless("AK-0012"), false);
   });
 });

@@ -347,11 +347,26 @@ export const CheckInCommandSchema = z
     paymentMode: PaymentModeSchema,
     entries: z
       .array(
-        z.object({
-          wristbandCode: WristbandCodeSchema,
-          kid: KidSchema,
-          packageId: IdSchema,
-        }),
+        z
+          .object({
+            /** La pulsera del niño. Sin ella, entra «sin pulsera» (B4-8) y el servidor le da un código reservado. */
+            wristbandCode: WristbandCodeSchema.optional(),
+            /**
+             * Un niño que no tolera la pulsera (B4-8, M-27, P-1): entra sin ella y se le reconoce por su nombre, que
+             * es obligatorio (o un niño ya conocido de la familia).
+             */
+            sinPulsera: z.literal(true).optional(),
+            kid: KidSchema,
+            packageId: IdSchema,
+          })
+          .refine((e) => (e.wristbandCode === undefined) === (e.sinPulsera === true), {
+            message: "Cada niño entra con su pulsera, o marcado «sin pulsera»",
+            path: ["wristbandCode"],
+          })
+          .refine((e) => !e.sinPulsera || e.kid.id !== undefined || (e.kid.name?.trim().length ?? 0) >= 2, {
+            message: "Un niño sin pulsera se reconoce por su nombre: escríbelo",
+            path: ["kid", "name"],
+          }),
       )
       .min(1, "Hay que registrar al menos un niño")
       .max(10, "Demasiados niños en un mismo registro"),
