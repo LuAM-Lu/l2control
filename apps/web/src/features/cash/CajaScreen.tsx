@@ -108,6 +108,7 @@ import {
 import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
 import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
+import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
 import {
   ColaCuentas,
   filtrarCola,
@@ -2048,6 +2049,18 @@ export function CajaScreen({
   const [viendoRecibo, setViendoRecibo] = useState(false);
   const [viendoAtajos, setViendoAtajos] = useState(false);
 
+  /* ── la entrada desde la caja (B3-9, M-31) ──────────────────────────
+     Registrar y cobrar la entrada de niños sin salir de la caja. Pide registrar entradas (`parque.checkIn`); al
+     cargar lo anotado en papel, no: eso sigue en Entrada. `pedido` lleva la pulsera que lo abrió, una vez. */
+  const actorDeCaja = useActorEnSesion();
+  const puedeRegistrarEntrada = actorDeCaja !== null && can(actorDeCaja, "parque.checkIn") !== "DENEGADO" && !modoPapel;
+  const [entradaAbierta, setEntradaAbierta] = useState(false);
+  const [pedidoDeEntrada, setPedidoDeEntrada] = useState<{ codigo: string | null; n: number } | null>(null);
+  function abrirEntrada(codigo: string | null) {
+    setPedidoDeEntrada((p) => ({ codigo, n: (p?.n ?? 0) + 1 }));
+    setEntradaAbierta(true);
+  }
+
   /* ── lo que llega a la cola ──────────────────────────────────────────
      Una cuenta que aparece mientras la caja está abierta destella y se avisa.
      Lo que había al abrir no es «nuevo», ni lo que crea la propia caja (una
@@ -2118,6 +2131,11 @@ export function CajaScreen({
     const cuenta = estancia
       ? cuentas.find((c) => c.id === estancia.accountId)
       : undefined;
+    // Una pulsera que no está en la sala (ya leída) es un niño que llega (B3-9): se registra aquí mismo.
+    if (sala && !estancia && puedeRegistrarEntrada) {
+      abrirEntrada(codigo);
+      return;
+    }
     if (!cuenta) {
       avisar.error(`La pulsera ${codigo} no tiene cuenta en caja`, {
         detalle: "Búscala por el nombre de la familia o el número de orden.",
@@ -2174,6 +2192,10 @@ export function CajaScreen({
     }
     if (letra === "R" && ultimaVenta) {
       setViendoRecibo(true);
+      return true;
+    }
+    if (letra === "A" && puedeRegistrarEntrada) {
+      abrirEntrada(null);
       return true;
     }
     return false;
@@ -2447,6 +2469,7 @@ export function CajaScreen({
           actual={actual?.id ?? null}
           onElegir={elegir}
           onNuevaVentaDirecta={onNuevaVentaDirecta}
+          onEntrada={puedeRegistrarEntrada ? () => abrirEntrada(null) : null}
           ventaNueva={ventaNueva}
           puntoDeCobro={turno?.punto ?? null}
           recientes={recientes}
@@ -2556,6 +2579,23 @@ export function CajaScreen({
         abierto={viendoAtajos}
         onCerrar={() => setViendoAtajos(false)}
       />
+      {puedeRegistrarEntrada && (
+        <EntradaDesdeCaja
+          abierto={entradaAbierta}
+          pedido={pedidoDeEntrada}
+          catalogo={catalogo}
+          conTurno={turno !== null}
+          onCerrar={() => setEntradaAbierta(false)}
+          onRegistrada={(cuenta) => {
+            // La cuenta la creó esta caja: no «llega» a la cola, se elige para cobrarla ya.
+            creadasAqui.current.add(cuenta.id);
+            setEntradaAbierta(false);
+            setBusqueda("");
+            setFiltro("TODAS");
+            elegir(cuenta.id);
+          }}
+        />
+      )}
     </div>
     </VistaPrecios.Provider>
     </ALaVenta.Provider>

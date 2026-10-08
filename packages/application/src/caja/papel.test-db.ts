@@ -56,7 +56,7 @@ let ctxAdmin: Contexto;
 /** Una caja nueva con su turno abierto a las 10:00 am. */
 async function caja(nombre: string, persona = cajera, pin: string = PIN.cajera) {
   const ctx = await contextoDe(l, await crearEquipo(l, nombre), persona, pin);
-  const turno = valor(await l.app.turnos.abrir(ctx, FONDO, T_TURNO));
+  const turno = valor(await l.app.turnos.abrir(ctx, FONDO, undefined, T_TURNO));
   return { ctx, turno };
 }
 
@@ -641,7 +641,7 @@ describe("terminar, revisar y el Z", () => {
   test("quien cargó no revisa su propia carga, aunque sea de supervisión", async () => {
     // Una supervisora que carga el papel de su propio turno.
     const ctx = ctxSupervisor2;
-    valor(await l.app.turnos.abrir(ctx, FONDO, T_TURNO));
+    valor(await l.app.turnos.abrir(ctx, FONDO, undefined, T_TURNO));
     const c = await abrirCarga(ctx);
     valor(await entrar(ctx, c, a("12:20")));
     valor(await l.app.papel.terminar(ctx, { cargaId: c.id }, T_CARGA + MIN));
@@ -731,7 +731,7 @@ describe("el aislamiento", () => {
     assert.ok(!valor(await otro.app.papel.leer(ctxOtro, T_CARGA)).cargas.some((x) => x.id === c.id));
     const r = rechazo(await otro.app.papel.revisar(ctxOtro, { cargaId: c.id }, pinDe(admin2, "4826"), T_CARGA + 5 * MIN));
     assert.equal(r.motivo, "NO_DISPONIBLE");
-    const t = valor(await otro.app.turnos.abrir(ctxOtro, FONDO, T_TURNO));
+    const t = valor(await otro.app.turnos.abrir(ctxOtro, FONDO, undefined, T_TURNO));
     assert.ok(t.id);
     const e = rechazo(await otro.app.papel.entrar(ctxOtro, entrada(), papel(c, a("12:20")), T_CARGA));
     assert.equal(e.motivo, "NO_DISPONIBLE");

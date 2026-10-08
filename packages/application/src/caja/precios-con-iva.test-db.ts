@@ -90,7 +90,7 @@ describe("los precios con el IVA incluido", () => {
   });
 
   test("tres alitas de $ 6,00 se cobran $ 18,00, con el IVA dentro, y la venta lo dice", async () => {
-    valor(await l.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, AHORA - 2 * MIN));
+    valor(await l.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, undefined, AHORA - 2 * MIN));
     const c = valor(await mostrador(3));
     // Lo que la caja enseñaría con el IVA aparte ($ 20,88) se rechaza: el servidor cobra lo que dice el menú.
     const caro = await cobrar(c, "2088", "2100");

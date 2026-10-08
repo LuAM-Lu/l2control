@@ -66,6 +66,7 @@ const DESPUES: Readonly<Partial<Record<Action, { fila: Fila; decision: string }>
   "inventario.catalogo": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-13, M-27 (P-15): ajustable" },
   "sistema.actualizar": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-8b, ADR-028" },
   "soporte.gestionar": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-11, M-27 (P-4), D-SOP: ajustable" },
+  "turno.abrirFueraDelPunto": { fila: ["✅", "🔐", "🔐", "❌", "❌", "❌"], decision: "B3-9, M-31: lo autoriza administración" },
 };
 
 const VALOR: Readonly<Record<Celda, string>> = { "✅": "PERMITIDO", "🔐": "REQUIERE_AUTORIZACION", "❌": "DENEGADO" };

@@ -60,8 +60,9 @@ export default async function InicioPage() {
 
   return (
     <>
-    {/* Los niños atendidos y el día salen de la sala y de las cuentas: al cambiar, se vuelven a leer. */}
-    <RefrescarAlCambiar temas={["sala", "cuentas", "eventos", "sistema"]} />
+    {/* Los niños atendidos y el día salen de la sala y de las cuentas: al cambiar, se vuelven a leer. Los turnos abiertos (y
+        el que se abrió fuera del punto de cobro, B3-9), del tema `turno`. */}
+    <RefrescarAlCambiar temas={["sala", "cuentas", "eventos", "sistema", "turno"]} />
     <InicioScreen
       resumen={resumen ? { ...resumen, turnos: [...deAntes, ...resumen.turnos] } : null}
       ninosHoy={atendidos?.hoy ?? 0}
@@ -69,7 +70,7 @@ export default async function InicioPage() {
       ninosSemanaPasada={atendidos && atendidos.semanaPasada > 0 ? atendidos.semanaPasada : null}
       fecha={`${dia} de ${MESES[mes - 1]}`}
       diaSemana={DIAS[hoy.getUTCDay()] ?? "Hoy"}
-      turnos={turnos.map((t) => ({ abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto }))}
+      turnos={turnos.map((t) => ({ id: t.id, abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto, fueraDelPunto: t.fueraDelPunto }))}
       // Quién está en cada puesto sale de las sesiones de la base (B5-1): con un turno abierto, un
       // puesto sin nadie es noticia.
       enServicio={turnos.length > 0}

@@ -122,7 +122,7 @@ before(async () => {
   ctxMesero = await contextoDe(local, await crearEquipo(local, "Salón"), mesero, "3175");
   ctxCocina = await contextoDe(local, await crearEquipo(local, "Cocina"), cocinera, "8462");
   ctxSinTurno = await contextoDe(local, await crearEquipo(local, "Caja 2"), supervisor, "5937");
-  for (const ctx of [ctxCajera, ctxAdmin]) valor(await local.app.turnos.abrir(ctx, FONDO, AHORA - 2 * MIN));
+  for (const ctx of [ctxCajera, ctxAdmin]) valor(await local.app.turnos.abrir(ctx, FONDO, undefined, AHORA - 2 * MIN));
 
   tasa = valor(await local.app.tasas.capturar(local.sistema, { pair: "USD/VES", source: "BCV", value: "855.6625", effectiveDate: HOY, valorVerificado: "855.6625" }, AHORA - 10 * MIN)).id;
   for (const cmd of [

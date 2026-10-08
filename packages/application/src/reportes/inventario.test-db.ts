@@ -62,7 +62,7 @@ before(async () => {
     ),
   );
   valor(await local.app.entradas.registrar(local.sistema, { idempotencyKey: randomUUID(), tipo: "INICIAL", lineas: [], enCero: [ids.Chupeta!] }, AHORA - 45 * MIN));
-  valor(await local.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, AHORA - 40 * MIN));
+  valor(await local.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, undefined, AHORA - 40 * MIN));
   const linea = () => ({ id: randomUUID(), concept: "Refresco", kind: "RESTAURANTE" as const, amount: usd("150"), paid: false, productId: ids.Refresco!, taxCode: "GENERAL" as const });
   valor(
     await local.app.cuentas.guardar(

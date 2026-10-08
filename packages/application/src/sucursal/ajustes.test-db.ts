@@ -160,7 +160,7 @@ describe("la zona horaria decide el día de negocio (ADR-009)", () => {
   test("con el local parado se cambia, y el turno que se abre después es del día de la zona nueva", async () => {
     valor(await publicar(admin, { zonaHoraria: "Europe/Madrid" }));
     // A las 10:00 pm del domingo en Caracas, en Madrid ya es lunes.
-    const turno = valor(await l.app.turnos.abrir(cajera, { fondos: FONDO_CERO }, NOCHE));
+    const turno = valor(await l.app.turnos.abrir(cajera, { fondos: FONDO_CERO }, undefined, NOCHE));
     assert.equal(turno.businessDate, "2026-09-28");
   });
 

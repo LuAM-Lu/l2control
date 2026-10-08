@@ -298,6 +298,11 @@ export const DeviceSchema = z.object({
    * el equipo la renueva desde su pantalla (M-7), para que la lista no acumule solicitudes viejas.
    */
   requestExpiresAt: TimestampSchema.optional(),
+  /**
+   * El punto de cobro (B3-9, M-31): en él el turno se abre como siempre; en otro equipo, con el PIN de administración y
+   * un motivo. Los equipos de antes no lo traen: no lo son.
+   */
+  puntoDeCobro: z.boolean().default(false),
   /** Quién tiene sesión abierta ahora mismo, si hay alguien. */
   session: z
     .object({ userId: IdSchema, userName: z.string().trim().min(2).max(80), since: TimestampSchema })
@@ -368,6 +373,8 @@ export const DeviceCommandSchema = z.discriminatedUnion("kind", [
     label: z.string().trim().min(2).max(40),
     reason: ReasonSchema,
   }),
+  /** Marcar o desmarcar el punto de cobro (B3-9, M-31), con su motivo: cambia dónde se abre el turno sin pedir nada. */
+  z.strictObject({ kind: z.literal("PUNTO_DE_COBRO"), deviceId: IdSchema, puntoDeCobro: z.boolean(), reason: ReasonSchema }),
 ]);
 export type DeviceCommand = z.infer<typeof DeviceCommandSchema>;
 

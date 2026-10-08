@@ -28,6 +28,7 @@ import { posponerPunto } from "./puesta.acciones";
 const PUNTO: Record<PuntoDePuestaAPuntoDto["id"], { titulo: string; ruta: Route }> = {
   personas: { titulo: "Personas del equipo, con su rol y su PIN", ruta: rutaPestana("ajustes", "personas", "usuarios") },
   equipos: { titulo: "Equipos de cada puesto aprobados", ruta: rutaPestana("ajustes", "personas", "dispositivos") },
+  punto_de_cobro: { titulo: "Punto de cobro marcado", ruta: rutaPestana("ajustes", "personas", "dispositivos") },
   tarifas: { titulo: "Tarifas del parque publicadas", ruta: rutaSeccion("ajustes", "tarifas") },
   impuestos: { titulo: "Impuestos vigentes", ruta: rutaSeccion("ajustes", "impuestos") },
   tasa: { titulo: "Tasa del BCV", ruta: rutaSeccion("ajustes", "tasas") },

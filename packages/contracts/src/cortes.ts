@@ -217,6 +217,11 @@ export const ComprobacionAperturaSchema = z.object({
       enlace: Texto(80).nullable(),
     }),
   ),
+  /**
+   * El punto de cobro (B3-9, M-31): si este equipo lo es y cómo se llaman los que lo son. Fuera de él, abrir el turno
+   * pide el PIN de administración y un motivo.
+   */
+  puntoDeCobro: z.object({ esEste: z.boolean(), puntos: z.array(Texto(40)) }).default({ esEste: true, puntos: [] }),
 });
 export type ComprobacionAperturaDto = z.infer<typeof ComprobacionAperturaSchema>;
 

@@ -71,7 +71,7 @@ async function vender(ctx: Contexto, pago: "EFECTIVO_USD" | "EFECTIVO_VES", mesa
 
 async function caja(nombre: string, persona: string, pin: string): Promise<{ ctx: Contexto; turno: TurnoDto }> {
   const ctx = await contextoDe(l, await crearEquipo(l, nombre), persona, pin);
-  const turno = valor(await l.app.turnos.abrir(ctx, { fondos: [{ currency: "USD", amount: usd("2000") }, { currency: "VES", amount: ves("150000") }] }, AHORA - 30 * MIN));
+  const turno = valor(await l.app.turnos.abrir(ctx, { fondos: [{ currency: "USD", amount: usd("2000") }, { currency: "VES", amount: ves("150000") }] }, undefined, AHORA - 30 * MIN));
   return { ctx, turno };
 }
 

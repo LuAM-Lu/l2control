@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, CircleCheckBig, FileText, Lock, Repeat, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowLeft, CalendarClock, CircleCheckBig, FileText, Laptop, Lock, Repeat, TriangleAlert, Wallet } from "lucide-react";
 import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
-import { Badge, Button, Container, Dialog, Input, MoneyDisplay, Sheet, avisar } from "@l2/ui";
+import { Badge, Button, Container, Dialog, Input, MoneyDisplay, Sheet, avisar, cn } from "@l2/ui";
+import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { CierreTurno } from "./CierreTurno.tsx";
 import { EntradasPorMedio, porMedioDelLibro } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
@@ -93,6 +94,11 @@ function AperturaTurno({
   const [bs, setBs] = useState(() => dejado("VES"));
   const [errores, setErrores] = useState<{ USD?: string | undefined; VES?: string | undefined }>({});
   const [enviando, setEnviando] = useState(false);
+  // B3-9 (M-31): fuera del punto de cobro, el turno se abre con el PIN de administración y un motivo.
+  const fuera = comprobacion !== null && !comprobacion.puntoDeCobro.esEste;
+  const autorizacion = useAutorizacion("turno.abrirFueraDelPunto", fuera);
+  const [motivo, setMotivo] = useState("");
+  const [erroresFuera, setErroresFuera] = useState<{ motivo?: string; autorizador?: string; pin?: string }>({});
   const hoy = new Date().toLocaleDateString("en-CA", { timeZone: ajustes.zonaHoraria });
   const deAntes = otrosAbiertos.filter((t) => t.businessDate < hoy);
 
@@ -107,14 +113,24 @@ function AperturaTurno({
       });
       return;
     }
+    if (fuera) {
+      const falta = { ...(motivo.trim().length < 3 ? { motivo: "Di por qué se abre aquí: «La laptop de caja no enciende»" } : {}), ...(autorizacion.falta() ?? {}) };
+      setErroresFuera(falta);
+      if (Object.keys(falta).length > 0) return;
+    }
     setEnviando(true);
     try {
-      const r = await abrirTurno({
-        fondos: [fondoUsd, fondoBs].map((f) => ({ currency: f.currency, amount: { minor: String(f.amount), currency: f.currency } })),
-      });
+      const r = await abrirTurno(
+        { fondos: [fondoUsd, fondoBs].map((f) => ({ currency: f.currency, amount: { minor: String(f.amount), currency: f.currency } })) },
+        fuera ? autorizacion.autorizacion(motivo.trim()) : undefined,
+      );
       if (r.ok) {
-        avisar.ok(`Turno abierto en ${r.valor.punto}: ya se puede cobrar`);
+        avisar.ok(`Turno abierto en ${r.valor.punto}: ya se puede cobrar`, r.valor.fueraDelPunto ? { detalle: `Fuera del punto de cobro, autorizado por ${r.valor.fueraDelPunto.autorizadoPor}.` } : undefined);
         router.refresh();
+      } else if (fuera && /PIN|autorizar/i.test(r.mensaje)) {
+        // Lo del PIN o de quién autoriza, junto al PIN: el aviso suelto se perdería.
+        setErroresFuera(erroresDeRechazo(r.mensaje));
+        autorizacion.borrarPin();
       } else {
         avisar.error(r.mensaje);
         // Otro toque ya lo abrió (o se abrió en otra pestaña): se enseña el que hay.
@@ -142,6 +158,7 @@ function AperturaTurno({
             <p className="mt-1 text-[13.5px] text-ink-2">Cuenta el fondo que hay en la gaveta antes de empezar. Sin turno abierto, la caja no cobra.</p>
           </div>
         </div>
+        <div className={cn("flex flex-col gap-4 apaisado:bajo:gap-3", fuera && "grid grid-cols-2 gap-3")}>
         <Input
           surface="pos"
           label="Fondo en dólares"
@@ -163,19 +180,48 @@ function AperturaTurno({
           autoComplete="off"
           value={bs}
           error={errores.VES}
-          hint={ultimoZ?.cierre ? "Propuesto: lo que dejó el último corte de este equipo. Cuéntalo igual." : "Vacío o cero si se empieza sin cambio."}
+          hint={fuera ? undefined : ultimoZ?.cierre ? "Propuesto: lo que dejó el último corte de este equipo. Cuéntalo igual." : "Vacío o cero si se empieza sin cambio."}
           onChange={(e) => {
             setBs(e.target.value);
             setErrores((x) => ({ ...x, VES: undefined }));
           }}
         />
-        <Button type="submit" surface="pos" variant="primary" className="w-full text-base" disabled={enviando}>
-          {enviando ? "Abriendo…" : "Abrir turno"}
+        </div>
+        {fuera && (
+          <>
+            <Input
+              surface="tablet"
+              label="Por qué se abre aquí"
+              placeholder="La laptop de caja no enciende"
+              autoComplete="off"
+              maxLength={280}
+              value={motivo}
+              error={erroresFuera.motivo}
+              onChange={(e) => {
+                setMotivo(e.target.value);
+                setErroresFuera(({ motivo: _, ...resto }) => resto);
+              }}
+            />
+            <CampoAutorizacion
+              a={autorizacion}
+              denegado="Tu puesto no abre turnos fuera del punto de cobro."
+              sinAutorizadores="No hay nadie de administración activo que pueda autorizarlo."
+              errores={erroresFuera}
+              deshabilitado={enviando}
+              onConfirmar={() => document.getElementById("abrir-turno")?.click()}
+            />
+          </>
+        )}
+        <Button id="abrir-turno" type="submit" surface="pos" variant="primary" className="w-full text-base" disabled={enviando || (fuera && autorizacion.permiso === "DENEGADO")}>
+          {enviando ? "Abriendo…" : fuera ? "Abrir turno con autorización" : "Abrir turno"}
         </Button>
-        <p className="text-[12px] text-ink-3">El turno queda a tu nombre, en este equipo y con el día de hoy como día de negocio.</p>
+        <p className="text-[12px] text-ink-3">
+          {fuera ? "Queda en la auditoría, con quién lo autorizó, e Inicio lo avisa mientras siga abierto." : "El turno queda a tu nombre, en este equipo y con el día de hoy como día de negocio."}
+        </p>
       </form>
 
       <div className="flex w-full max-w-md flex-col gap-4">
+        {fuera && comprobacion && <AvisoFueraDelPunto puntos={comprobacion.puntoDeCobro.puntos} />}
         <TarjetaEventosDeHoy reservas={eventosHoy} />
         {deAntes.length > 0 && (
           <section className="rounded-[var(--radius-card)] border border-state-warn/40 bg-state-warn-bg p-4">
@@ -241,6 +287,27 @@ function AperturaTurno({
   );
 }
 
+/**
+ * Este equipo no es el punto de cobro (B3-9, M-31): se dice cuál lo es y qué hacer. Abrir aquí es la salida de emergencia
+ * cuando el punto falla, no la manera de trabajar.
+ */
+function AvisoFueraDelPunto({ puntos }: { puntos: readonly string[] }) {
+  return (
+    <section role="note" className="rounded-[var(--radius-card)] border border-state-warn/40 bg-state-warn-bg p-4">
+      <h2 className="flex items-center gap-1.5 font-display text-sm font-bold text-state-warn">
+        <Laptop size={15} aria-hidden="true" />
+        Este equipo no es el punto de cobro
+      </h2>
+      <p className="mt-1.5 text-[13px] text-ink-2">
+        {puntos.length === 0
+          ? "Ningún equipo está marcado como punto de cobro: administración lo marca en Ajustes → Personas y equipos → Dispositivos."
+          : `El turno se abre en ${puntos.length === 1 ? `«${puntos[0]}»` : puntos.map((p) => `«${p}»`).join(", ")}.`}{" "}
+        Si falló, administración autoriza abrirlo aquí con su PIN y el motivo.
+      </p>
+    </section>
+  );
+}
+
 function SinTurnoAjeno({ mensaje }: { mensaje: string }) {
   return (
     <Container ancho="operacion" className="flex min-h-0 flex-1 items-start justify-center py-8">
@@ -285,9 +352,19 @@ function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaIn
               Volver al turno
             </Button>
           ) : (
-            <Badge tone="ok" icon={<CircleCheckBig size={13} aria-hidden="true" />}>
-              Abierto
-            </Badge>
+            <span className="flex flex-wrap items-center gap-2">
+              {/* B3-9: abierto fuera del punto de cobro, con quién lo autorizó y por qué. */}
+              {turno.fueraDelPunto && (
+                <span title={`Autorizó ${turno.fueraDelPunto.autorizadoPor}: «${turno.fueraDelPunto.motivo}»`}>
+                  <Badge tone="warn" icon={<TriangleAlert size={13} aria-hidden="true" />}>
+                    Fuera del punto de cobro
+                  </Badge>
+                </span>
+              )}
+              <Badge tone="ok" icon={<CircleCheckBig size={13} aria-hidden="true" />}>
+                Abierto
+              </Badge>
+            </span>
           )}
         </Container>
       </header>

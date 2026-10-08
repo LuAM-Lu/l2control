@@ -53,7 +53,7 @@ before(async () => {
     ids[nombre] = c.productos.find((p) => p.nombre === nombre)!.id;
   }
   valor(
-    await local.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, MARTES - HORA),
+    await local.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, undefined, MARTES - HORA),
   );
 
   // Martes: 2 bultos de 12 refrescos de la Distribuidora Centro, factura A-123.

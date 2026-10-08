@@ -171,6 +171,8 @@ export function casosReportes(base: Base): CasosReportes {
             anuladas: delTurno.ventas.anuladas,
             vendido: delTurno.ventas.total,
             cuadre,
+            // B3-9 (M-31): el turno que se abrió fuera del punto de cobro, con quién lo autorizó y por qué.
+            fueraDelPunto: t.outsidePointByName && t.outsidePointReason ? { autorizadoPor: t.outsidePointByName, motivo: t.outsidePointReason } : null,
           });
         }
 

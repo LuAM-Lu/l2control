@@ -129,6 +129,7 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "↑ ↓", que: "Cuenta anterior o siguiente de la cola" },
   { teclas: "/", que: "Buscar en la cola" },
   { teclas: "N", que: "Nueva venta directa" },
+  { teclas: "A", que: "Entrada al parque: registrar y cobrar niños sin salir de la caja" },
   { teclas: "I", que: "Identificar al cliente de la factura" },
   { teclas: "R", que: "Ver el recibo del último cobro" },
   { teclas: "?", que: "Ver estos atajos" },

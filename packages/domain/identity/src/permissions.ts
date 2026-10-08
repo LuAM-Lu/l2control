@@ -20,6 +20,7 @@ export type Role =
 /** Cada operación con impacto monetario o de acceso tiene su acción. */
 export type Action =
   | "turno.abrir"
+  | "turno.abrirFueraDelPunto"
   | "turno.corteX"
   | "turno.corteZ"
   | "pedido.tomar"
@@ -97,6 +98,9 @@ const fila = (
  */
 export const MATRIZ: Matriz = Object.freeze({
   "turno.abrir": fila(P, P, P, D, D, D),
+  // B3-9 (M-31): abrir el turno en un equipo que no es el punto de cobro (la laptop de caja no enciende). Lo autoriza
+  // administración con su PIN y un motivo, y administración misma confirma con el suyo: queda en la auditoría.
+  "turno.abrirFueraDelPunto": fila(P, A, A, D, D, D),
   "turno.corteX": fila(P, P, P, D, D, D),
   "turno.corteZ": fila(P, P, A, D, D, D),
 
@@ -330,6 +334,13 @@ const AUTORIZADORES: readonly Role[] = ["ADMIN", "SUPERVISOR"];
 export const SIN_AUTORIZARSE_A_SI_MISMO: readonly Action[] = ["tasa.confirmar", "inventario.ajustar"];
 
 /**
+ * Lo que solo autoriza quien puede hacerlo sin pedirlo (B3-9, M-31): abrir el turno fuera del punto de cobro pide el PIN
+ * de administración, no el de supervisión. Se pregunta por el permiso, no por el rol: si un local le concede la acción a
+ * una persona, esa persona también la autoriza.
+ */
+export const SOLO_AUTORIZA_QUIEN_LO_TIENE: readonly Action[] = ["turno.abrirFueraDelPunto"];
+
+/**
  * ¿Puede `authorizer` autorizar que `requester` haga `action`?
  *
  * Solo un supervisor o el administrador, y solo si ellos mismos pueden
@@ -352,6 +363,7 @@ export function canAuthorize(
   if (!AUTORIZADORES.includes(authorizer.role)) return false;
   if (authorizer.id === requester.id && SIN_AUTORIZARSE_A_SI_MISMO.includes(action)) return false;
   if (can(requester, action, context) !== "REQUIERE_AUTORIZACION") return false;
+  if (SOLO_AUTORIZA_QUIEN_LO_TIENE.includes(action)) return isAllowedOutright(authorizer, action, context);
   return isReachable(authorizer, action, context);
 }
 

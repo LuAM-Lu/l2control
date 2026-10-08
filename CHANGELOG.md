@@ -14,6 +14,28 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+El punto de cobro y la entrada desde la caja (B3-9, M-31).
+
+### Añadido
+- **El punto de cobro.** El equipo de la caja lleva la marca «Punto de cobro» (Ajustes → Personas y equipos →
+  Dispositivos, con la identidad confirmada). En él, el turno se abre como siempre. En otro equipo, abrirlo pide el PIN
+  de administración y un motivo («La laptop de caja no enciende»): queda en la auditoría con quién lo autorizó, e Inicio
+  avisa «Turno abierto fuera del punto de cobro» mientras siga abierto. Reportes → Ventas → Turnos lo marca.
+- **La entrada al parque desde la caja.** «Entrada» (tecla A) o una pulsera que no está en la sala abre un panel
+  lateral: cada pulsera leída suma un niño (si no se lee, se escribe su número; «Sin pulsera», con su nombre), el
+  paquete más común ya elegido, las medias y el teléfono del representante. «Registrar y cobrar» deja la cuenta lista
+  en la columna de cobro, sin salir de la caja. Se paga ahora: la cuenta abierta y los invitados de un cumpleaños
+  siguen en Entrada.
+- La Puesta a punto pide marcar un punto de cobro; el recorrido de la caja y el manual lo cuentan.
+
+### Cambiado
+- Al actualizar, cada equipo que ya abrió un turno queda como punto de cobro: ninguna caja se bloquea ese día.
+- Entrada se ve y funciona igual; su lógica es ahora la misma pieza que usa la caja. El teléfono del representante no
+  sale en la captura de un reporte de problema.
+- La ruta a producción cuenta 91 pasos.
+
 ## [0.84.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Duplicar un producto y sus sabores (B9-8, M-28).

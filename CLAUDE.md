@@ -115,6 +115,11 @@ vista de impresión de `app/informes/` con las piezas de `features/reportes/info
 por «Acceso de soporte», firma «Nombre (soporte)» y no cuenta como personal del local. Abre turnos y cobra solo con
 `soporteOpera`, que la web enciende cuando `L2_ENTORNO` no es `produccion`.
 
+**El punto de cobro y la entrada (B3-9).** El turno se abre en un equipo marcado como punto de cobro; en otro,
+`turnos.abrir` pide la autorización de `turno.abrirFueraDelPunto` (el PIN de administración y un motivo). La entrada al
+parque es una sola lógica (`park/useEntradaDeNinos.ts`) y unas piezas (`park/EntradaPiezas.tsx`) que usan Entrada y la
+entrada desde la caja: lo que cambie en una, cambia en las dos.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 

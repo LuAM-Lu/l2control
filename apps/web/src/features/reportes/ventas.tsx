@@ -45,6 +45,22 @@ function Cuadre({ cuadre, papel }: { cuadre: InformeDeVentasDto["porTurno"][numb
   );
 }
 
+/** El punto de un turno abierto fuera del punto de cobro (B3-9, M-31): quién lo autorizó y por qué; en el papel, tinta negra. */
+function Punto({ punto, fuera, papel }: { punto: string; fuera: { autorizadoPor: string; motivo: string }; papel: boolean }) {
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>{punto}</span>
+      <span className={cn("inline-flex items-center gap-1 font-semibold whitespace-nowrap", !papel && "text-state-warn")}>
+        <TriangleAlert size={TAMANO_ICONO.texto} aria-hidden="true" />
+        Fuera del punto de cobro
+      </span>
+      <span className={cn(!papel && "text-ink-2")}>
+        Autorizó {fuera.autorizadoPor}: «{fuera.motivo}»
+      </span>
+    </span>
+  );
+}
+
 export function seccionesDeVentas(informe: InformeDeVentasDto, reloj: Reloj, papel = false): readonly SeccionDeInforme<SeccionDeVentas>[] {
   const { resumen } = informe;
   const vendido = BigInt(resumen.vendido.minor);
@@ -90,10 +106,19 @@ export function seccionesDeVentas(informe: InformeDeVentasDto, reloj: Reloj, pap
         { titulo: "Vendido", derecha: true },
         { titulo: "Cierre Z" },
       ],
-      filas: informe.porTurno.map((t) => [diaDelInforme(t.dia), t.punto, t.abrio, horario(t), t.ventas, t.anuladas, importe(t.vendido), <Cuadre key="z" cuadre={t.cuadre} papel={papel} />]),
+      filas: informe.porTurno.map((t) => [
+        diaDelInforme(t.dia),
+        t.fueraDelPunto ? <Punto key="p" punto={t.punto} fuera={t.fueraDelPunto} papel={papel} /> : t.punto,
+        t.abrio,
+        horario(t),
+        t.ventas,
+        t.anuladas,
+        importe(t.vendido),
+        <Cuadre key="z" cuadre={t.cuadre} papel={papel} />,
+      ]),
       pie: ["Total", "", "", "", resumen.ventas, resumen.anuladas, importe(resumen.vendido), ""],
       vacio: "Ningún turno en el periodo.",
-      nota: "Un turno con su Z da lo mismo que su Z. Sin Z, sus cifras pueden cambiar hasta que se cierre.",
+      nota: "Un turno con su Z da lo mismo que su Z. Sin Z, sus cifras pueden cambiar hasta que se cierre. «Fuera del punto de cobro»: se abrió en otro equipo, con el PIN de administración y su motivo.",
     },
     {
       id: "anuladas",

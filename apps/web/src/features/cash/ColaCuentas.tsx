@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UtensilsCrossed, X } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { Marquesina, MoneyDisplay, ScannerField, cn } from "@l2/ui";
@@ -70,6 +70,7 @@ export function ColaCuentas({
   actual,
   onElegir,
   onNuevaVentaDirecta,
+  onEntrada,
   ventaNueva,
   puntoDeCobro,
   recientes,
@@ -93,6 +94,8 @@ export function ColaCuentas({
   actual: string | null;
   onElegir: (id: string) => void;
   onNuevaVentaDirecta: () => void;
+  /** La entrada al parque desde la caja (B3-9); `null` para quien no registra entradas. */
+  onEntrada: (() => void) | null;
   ventaNueva: boolean;
   /** El equipo desde el que se cobra (su turno, B3-1); `null` sin turno abierto. */
   puntoDeCobro: string | null;
@@ -173,22 +176,40 @@ export function ColaCuentas({
       </div>
 
       <div className="flex flex-col gap-2 border-b border-line/40 p-2">
-        {/* Neutro: es una acción secundaria de la cola, no la acción principal
-            de la pantalla, que es cobrar. */}
-        <button
-          type="button"
-          onClick={onNuevaVentaDirecta}
-          aria-pressed={ventaNueva}
-          className={cn(
-            "flex min-h-14 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-colors",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-            ventaNueva ? "border-brand bg-brand/20 text-ink" : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
+        {/* Neutros: son acciones secundarias de la cola, no la acción principal de la pantalla, que es cobrar. Lado a
+            lado donde la cola es ancha; una sobre otra en la columna estrecha de escritorio. */}
+        <div className={cn("grid gap-2", onEntrada && "grid-cols-2 lg:grid-cols-1 lg:bajo:grid-cols-2 xl:bajo:grid-cols-1")}>
+          <button
+            type="button"
+            onClick={onNuevaVentaDirecta}
+            aria-pressed={ventaNueva}
+            className={cn(
+              "flex min-h-14 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-colors",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              ventaNueva ? "border-brand bg-brand/20 text-ink" : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
+            )}
+          >
+            <Plus size={15} aria-hidden="true" />
+            <span>Venta directa</span>
+            <PistaTecla tecla="N" />
+          </button>
+          {/* B3-9 (M-31): la entrada de niños que llegan directo a la caja, sin salir de ella. */}
+          {onEntrada && (
+            <button
+              type="button"
+              data-recorrido="caja-entrada"
+              onClick={onEntrada}
+              className={cn(
+                "flex min-h-14 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] font-semibold text-ink-2 transition-colors hover:border-line-strong hover:text-ink",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              )}
+            >
+              <Ticket size={15} aria-hidden="true" />
+              <span>Entrada</span>
+              <PistaTecla tecla="A" />
+            </button>
           )}
-        >
-          <Plus size={15} aria-hidden="true" />
-          <span>Venta directa</span>
-          <PistaTecla tecla="N" />
-        </button>
+        </div>
 
         <ScannerField
           onScan={onEscanear}

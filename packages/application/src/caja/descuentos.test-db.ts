@@ -106,7 +106,7 @@ before(async () => {
   ctxCajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), cajera, "7391");
   ctxMesero = await contextoDe(local, await crearEquipo(local, "Salón"), mesero, "3175");
   const fondo = { fondos: [{ currency: "USD", amount: usd("5000") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] };
-  valor(await local.app.turnos.abrir(ctxCajera, fondo, AHORA - 30 * MIN));
+  valor(await local.app.turnos.abrir(ctxCajera, fondo, undefined, AHORA - 30 * MIN));
   for (const cmd of [
     { impuesto: "IVA", code: "GENERAL", basisPoints: 1600, dia: HOY },
     { impuesto: "IGTF", code: null, basisPoints: 0, dia: HOY },

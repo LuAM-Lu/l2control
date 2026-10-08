@@ -113,6 +113,10 @@ supervisión lo cierra desde otro equipo (🔐), con su arqueo, antes de abrir e
 
 **Un feriado bancario** se abre igual: la tasa del día hábil anterior lo cubre sola (B2-4).
 
+**Si la laptop de caja falla.** El turno se abre en el punto de cobro: el equipo marcado en Dispositivos. En otro equipo,
+abrirlo pide el PIN de administración y un motivo; queda en la auditoría e Inicio lo avisa mientras siga abierto (B3-9,
+M-31).
+
 **Objetivo:** abrir el turno en menos de un minuto.
 
 ---
@@ -134,6 +138,9 @@ cocina (C), la caja (D) y administración en vivo (E). Aquí va lo que la jornad
 
 Las **cuentas por cobrar no son de un turno**: siguen en la cola y las cobra la que entra. Los
 pendientes solo bloquean el **cierre de la jornada**, no un relevo.
+
+**Una familia que llega directo a la caja** compra ahí la entrada de sus niños: la caja los registra y los cobra sin
+salir de su pantalla (B3-9). La monitora los ve en la sala como a los de Entrada.
 
 **Lo que interrumpe** (y nada más, para no entrenar a ignorar avisos): tasa retenida por salto o
 por fuente dudosa, impresora caída, comanda atrasada, tiempo cumplido sin liquidar y aforo lleno.

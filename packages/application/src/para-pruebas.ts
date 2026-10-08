@@ -74,8 +74,11 @@ let equiposDePrueba = 0;
 /**
  * Un equipo registrado (y aprobado, salvo que se diga lo contrario). Devuelve su credencial. Cada uno
  * pide desde su propia dirección: el tope de solicitudes por red (M-7) es de las pruebas del alta.
+ *
+ * Uno aprobado queda además como punto de cobro (B3-9), como un equipo que ya cobraba al actualizar: abre su turno sin
+ * pedir nada. Las pruebas del punto de cobro lo crean sin la marca (`puntoDeCobro = false`).
  */
-export async function crearEquipo(local: LocalDePrueba, label: string, aprobar = true): Promise<string> {
+export async function crearEquipo(local: LocalDePrueba, label: string, aprobar = true, puntoDeCobro = aprobar): Promise<string> {
   const n = ++equiposDePrueba;
   const r = await local.app.dispositivos.solicitar(local.sistema, label, `10.0.${n >> 8}.${n & 255}`);
   if (!r.ok) throw new Error(`No se pudo registrar el equipo: ${r.mensaje}`);
@@ -86,6 +89,15 @@ export async function crearEquipo(local: LocalDePrueba, label: string, aprobar =
       reason: "Aprobado en la preparación de la prueba",
     });
     if (!a.ok) throw new Error(`No se pudo aprobar el equipo: ${a.mensaje}`);
+  }
+  if (puntoDeCobro) {
+    const p = await local.app.dispositivos.ordenar(local.sistema, {
+      kind: "PUNTO_DE_COBRO",
+      deviceId: r.valor.credencial.split(".")[1],
+      puntoDeCobro: true,
+      reason: "Punto de cobro en la preparación de la prueba",
+    });
+    if (!p.ok) throw new Error(`No se pudo marcar el punto de cobro: ${p.mensaje}`);
   }
   return r.valor.credencial;
 }

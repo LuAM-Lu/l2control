@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, CircleCheckBig, History, KeyRound, MonitorSmartphone, MonitorX, Pencil, Search, SmartphoneNfc, TriangleAlert, Users } from "lucide-react";
+import { Ban, CircleCheckBig, History, KeyRound, MonitorSmartphone, MonitorX, Pencil, Search, SmartphoneNfc, TriangleAlert, Users, Wallet } from "lucide-react";
 import { POR_PAGINA, type DeviceCommand, type DeviceDto, type FiltroDispositivos, type PaginaDeDispositivosDto, type PorPagina } from "@l2/contracts";
 import {
   BarraDeFiltros,
@@ -34,10 +34,13 @@ import { leerDispositivos, ordenarDispositivo } from "./dispositivos.acciones";
  * filtra la lista. La lista va por páginas del servidor, con búsqueda por nombre o código: los equipos
  * revocados no se borran (regla 5) y se acumulan. Aprobar, revocar y renombrar piden motivo, que queda
  * en la historia del equipo y en la auditoría.
+ *
+ * El punto de cobro (B3-9, M-31): el equipo de la caja lleva su marca. En él el turno se abre como siempre; en otro, con el
+ * PIN de administración y un motivo. Marcarlo o quitarlo pide motivo y queda en la auditoría.
  */
 
 type Consulta = Readonly<{ pagina: number; porPagina: PorPagina; filtro: FiltroDispositivos; busqueda?: string | undefined }>;
-type Orden = { kind: "APROBAR" | "REVOCAR" | "RENOMBRAR"; dev: DeviceDto };
+type Orden = { kind: "APROBAR" | "REVOCAR" | "RENOMBRAR" | "MARCAR_PUNTO" | "QUITAR_PUNTO"; dev: DeviceDto };
 
 const ESTADOS = {
   APROBADO: { texto: "Aprobado", clase: "text-state-ok", bg: "bg-state-ok-bg", Icono: CircleCheckBig },
@@ -91,9 +94,17 @@ export function DispositivosScreen({
   const estado = (d: DeviceDto) => {
     const e = ESTADOS[d.status];
     return (
-      <span className={cn("flex items-center gap-1.5 font-semibold whitespace-nowrap", e.clase)}>
-        <e.Icono size={13} aria-hidden="true" />
-        {e.texto}
+      <span className="flex flex-col gap-0.5">
+        <span className={cn("flex items-center gap-1.5 font-semibold whitespace-nowrap", e.clase)}>
+          <e.Icono size={13} aria-hidden="true" />
+          {e.texto}
+        </span>
+        {d.puntoDeCobro && (
+          <span className="flex items-center gap-1.5 text-[12px] font-semibold whitespace-nowrap text-brand">
+            <Wallet size={13} aria-hidden="true" />
+            Punto de cobro
+          </span>
+        )}
       </span>
     );
   };
@@ -113,6 +124,20 @@ export function DispositivosScreen({
         <Button type="button" variant="ghost" surface={surface} aria-label={`Renombrar ${d.label}`} title="Renombrar" onClick={() => setOrden({ kind: "RENOMBRAR", dev: d })}>
           <Pencil size={14} aria-hidden="true" />
           {surface === "tablet" && "Renombrar"}
+        </Button>
+      )}
+      {(d.status === "APROBADO" || d.puntoDeCobro) && puedeGestionar && (
+        <Button
+          type="button"
+          variant="ghost"
+          surface={surface}
+          aria-label={d.puntoDeCobro ? `Quitar el punto de cobro de ${d.label}` : `Marcar ${d.label} como punto de cobro`}
+          aria-pressed={d.puntoDeCobro}
+          title={d.puntoDeCobro ? "Quitar el punto de cobro" : "Marcar como punto de cobro"}
+          onClick={() => setOrden({ kind: d.puntoDeCobro ? "QUITAR_PUNTO" : "MARCAR_PUNTO", dev: d })}
+        >
+          <Wallet size={14} className={d.puntoDeCobro ? "text-brand" : undefined} aria-hidden="true" />
+          {surface === "tablet" && (d.puntoDeCobro ? "Quitar punto de cobro" : "Punto de cobro")}
         </Button>
       )}
       {d.status === "APROBADO" && puedeGestionar && (
@@ -336,7 +361,17 @@ export function DispositivosScreen({
           // El error vuelve como texto y el diálogo se queda abierto con lo escrito.
           const e = await aplicar(cmd);
           if (e) return e;
-          avisar.ok(cmd.kind === "APROBAR" ? "Equipo aprobado" : cmd.kind === "REVOCAR" ? "Equipo revocado: sus sesiones se cerraron" : "Equipo renombrado");
+          avisar.ok(
+            cmd.kind === "APROBAR"
+              ? "Equipo aprobado"
+              : cmd.kind === "REVOCAR"
+                ? "Equipo revocado: sus sesiones se cerraron"
+                : cmd.kind === "RENOMBRAR"
+                  ? "Equipo renombrado"
+                  : cmd.puntoDeCobro
+                    ? "Marcado como punto de cobro: abre su turno sin pedir nada"
+                    : "Ya no es punto de cobro: su turno pedirá el PIN de administración",
+          );
           setOrden(null);
           return null;
         }}
@@ -361,9 +396,19 @@ const TEXTO_DIALOGO = {
     desc: "Cambia el nombre que se ve en el acceso, en esta lista y en la auditoría.",
     boton: "Renombrar",
   },
+  MARCAR_PUNTO: {
+    titulo: "Marcar como punto de cobro",
+    desc: "En este equipo el turno de caja se abre sin pedir nada. En los demás, abrirlo pide el PIN de administración y un motivo.",
+    boton: "Marcar",
+  },
+  QUITAR_PUNTO: {
+    titulo: "Quitar el punto de cobro",
+    desc: "Desde ahora, abrir el turno en este equipo pedirá el PIN de administración y un motivo. El turno que tenga abierto sigue igual.",
+    boton: "Quitar",
+  },
 } as const;
 
-/** Aprobar, revocar o renombrar: qué se hace, sobre qué equipo y por qué (el motivo queda en su historia). */
+/** Aprobar, revocar, renombrar o el punto de cobro: qué se hace, sobre qué equipo y por qué (el motivo queda en su historia). */
 function DialogoDispositivo({
   orden,
   autor,
@@ -403,6 +448,9 @@ function DialogoDispositivo({
       const label = nuevoNombre.trim();
       if (label.length < 2) return setError("El nombre debe tener al menos 2 caracteres.");
       return void enviar({ kind: "RENOMBRAR", deviceId: orden.dev.id, label, reason });
+    }
+    if (orden.kind === "MARCAR_PUNTO" || orden.kind === "QUITAR_PUNTO") {
+      return void enviar({ kind: "PUNTO_DE_COBRO", deviceId: orden.dev.id, puntoDeCobro: orden.kind === "MARCAR_PUNTO", reason });
     }
     void enviar({ kind: orden.kind, deviceId: orden.dev.id, reason });
   };
@@ -470,7 +518,9 @@ function DialogoDispositivo({
               {error}
             </p>
           ) : (
-            <p className="text-[12.5px] text-ink-3">Queda en la historia del equipo y en la auditoría.</p>
+            <p className="text-[12.5px] text-ink-3">
+              {orden.kind === "MARCAR_PUNTO" || orden.kind === "QUITAR_PUNTO" ? "Queda en la auditoría, con quién lo hizo." : "Queda en la historia del equipo y en la auditoría."}
+            </p>
           )}
         </div>
       </div>

@@ -33,6 +33,7 @@ export const AREAS: readonly Area[] = [
 
 export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }>> = {
   "turno.abrir": { etiqueta: "Abrir turno", area: "Turno" },
+  "turno.abrirFueraDelPunto": { etiqueta: "Abrir turno fuera del punto de cobro", area: "Turno" },
   "turno.corteX": { etiqueta: "Corte X", area: "Turno" },
   "turno.corteZ": { etiqueta: "Corte Z · cerrar el turno", area: "Turno" },
   "papel.revisar": { etiqueta: "Revisar lo cargado desde papel", area: "Turno" },
