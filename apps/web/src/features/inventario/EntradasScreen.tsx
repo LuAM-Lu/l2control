@@ -141,7 +141,7 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
   const actor = useActorEnSesion();
   const puedeRecibir = actor !== null && can(actor, "inventario.entrada") !== "DENEGADO";
   // Dar de alta en la entrada es del catálogo (B9-6): lo mismo que «Nuevo producto».
-  const puedeCrear = actor !== null && can(actor, "catalogo.modificar") !== "DENEGADO";
+  const puedeCrear = actor !== null && can(actor, "inventario.catalogo") !== "DENEGADO";
   const { ajustes } = useSucursal();
   const reloj = useReloj();
   const params = useSearchParams();

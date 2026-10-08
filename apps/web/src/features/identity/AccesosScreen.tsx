@@ -458,6 +458,13 @@ function permisoDe(
   ).effective;
 }
 
+/** Por qué una acción no se ajusta por rol, dicho donde se ve (T-13). */
+const POR_QUE_NO_SE_AJUSTA: Partial<Record<Action, string>> = {
+  "catalogo.modificar": "Cambia precios, tarifas y la configuración: no se regala. El inventario se da con «Dar de alta y editar productos y categorías».",
+  "usuarios.gestionar": "Quien gestiona personas podría darse todo lo demás: no se regala.",
+  "sistema.actualizar": "Decide cuándo se actualiza el sistema: solo administración.",
+};
+
 function FilaAccion({
   accion,
   rol,
@@ -482,6 +489,10 @@ function FilaAccion({
     >
       <span className={cn("min-w-0 flex-1", ajustado ? "font-medium text-ink" : "text-ink-2")}>
         {ETIQUETAS[accion].etiqueta}
+        {/* Por qué no se ajusta, a la vista (T-13): en una tableta no hay «pasar el ratón». */}
+        {ACCIONES_INTOCABLES.includes(accion) && rol !== "ADMIN" && (
+          <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-3">{POR_QUE_NO_SE_AJUSTA[accion] ?? "No se ajusta por rol."}</span>
+        )}
       </span>
 
       <span className="flex shrink-0 items-center gap-2">

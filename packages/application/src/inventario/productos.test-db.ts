@@ -205,9 +205,13 @@ describe("nadie más lo cambia", () => {
     assert.ok(asientos.some((a) => a.action === "precio.programar" && a.outcome === "NEGADO"));
   });
 
-  test("administración sin confirmar su identidad, tampoco (F2-04)", async () => {
-    const r = await local.app.productos.aplicar(ctxAdminSinElevar, { kind: "CREAR", producto: { ...AGUA, nombre: "Refresco" } }, reloj());
-    assert.equal(!r.ok && r.motivo, "ELEVACION_REQUERIDA");
+  // Desde T-13 dar de alta es del inventario (sin elevación); el precio sigue pidiendo confirmar identidad (F2-04).
+  test("administración sin confirmar su identidad da de alta, pero no cambia un precio (T-13, F2-04)", async () => {
+    const alta = await local.app.productos.aplicar(ctxAdminSinElevar, { kind: "CREAR", producto: { ...AGUA, nombre: "Refresco" } }, reloj());
+    assert.equal(alta.ok, true, JSON.stringify(alta));
+    const refresco = producto(alta.ok ? alta.valor : await local.app.productos.leer(local.sistema), "Refresco");
+    const precio = await local.app.productos.aplicar(ctxAdminSinElevar, { kind: "PROGRAMAR_PRECIO", productId: refresco.id, precioMinor: "175", dia: "2026-10-01" }, reloj());
+    assert.equal(!precio.ok && precio.motivo, "ELEVACION_REQUERIDA");
   });
 
   test("un local no ve ni toca el catálogo de otro", async () => {

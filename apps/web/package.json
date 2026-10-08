@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
     "semilla": "node --experimental-strip-types scripts/semilla.mts",
     "equipos": "node --experimental-strip-types scripts/equipos.mts",
     "credenciales": "node --experimental-strip-types scripts/credenciales.mts"

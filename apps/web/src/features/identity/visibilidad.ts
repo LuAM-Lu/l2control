@@ -56,7 +56,8 @@ export function nombreDeRuta(ruta: string): string {
 /* ── back-office ── */
 
 export function puedeVerSeccion(actor: Actor, m: Modulo, s: Seccion): boolean {
-  // Sin acción propia, la sección hereda la del módulo.
+  // Con varias acciones, basta una (T-13). Sin acción propia, la sección hereda la del módulo.
+  if (s.acciones) return s.acciones.some((a) => alcanza(actor, a));
   return alcanza(actor, s.accion ?? m.accion);
 }
 

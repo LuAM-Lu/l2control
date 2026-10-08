@@ -67,7 +67,9 @@ type Aplicar = (cmd: ProductoCommand, que: string) => Promise<Resultado<Catalogo
 
 export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
   const actor = useActorEnSesion();
-  const puedeModificar = actor !== null && can(actor, "catalogo.modificar") !== "DENEGADO";
+  // El alta, la ficha y apartar son del inventario (T-13); el precio, de `catalogo.modificar`.
+  const puedeModificar = actor !== null && can(actor, "inventario.catalogo") !== "DENEGADO";
+  const puedePrecio = actor !== null && can(actor, "catalogo.modificar") !== "DENEGADO";
   const conElevacion = useConElevacion();
   const ahoraLocal = useAhoraLocal();
   const ahora = ahoraLocal === 0 ? null : ahoraLocal;
@@ -182,6 +184,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
         categorias={categorias}
         ahora={ahora}
         puedeModificar={puedeModificar}
+        puedePrecio={puedePrecio}
         enviando={enviando}
         cambiar={cambiar}
         adoptar={setCatalogo}
@@ -490,6 +493,7 @@ function FichaProducto({
   categorias,
   ahora,
   puedeModificar,
+  puedePrecio,
   enviando,
   cambiar,
   adoptar,
@@ -500,6 +504,8 @@ function FichaProducto({
   categorias: readonly string[];
   ahora: number | null;
   puedeModificar: boolean;
+  /** Programar su precio (`catalogo.modificar`): no basta con poder darlo de alta. */
+  puedePrecio: boolean;
   enviando: string | null;
   cambiar: Aplicar;
   /** El catálogo como quedó tras fijar el mínimo (B9-5). */
@@ -654,7 +660,7 @@ function FichaProducto({
               );
             })}
           </ul>
-          {puedeModificar && (
+          {puedePrecio && (
             <div className="grid grid-cols-2 gap-3">
               <Input
                 surface="admin"

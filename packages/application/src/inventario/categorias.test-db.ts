@@ -99,10 +99,12 @@ describe("la lista de categorías", () => {
     valor(await aplicar({ kind: "CREAR", nombre: "Juguetes" }));
   });
 
-  test("es del catálogo: la caja no la cambia y administración confirma su identidad", async () => {
+  // Desde T-13 la lista de categorías es del inventario (`inventario.catalogo`), que se da por rol o por persona y no pide
+  // confirmar identidad: administración la cambia con su sesión; la caja, sin ese permiso, no.
+  test("es del inventario: la caja no la cambia y administración sí, sin confirmar su identidad (T-13)", async () => {
     const caja = await aplicar({ kind: "CREAR", nombre: "Helados de máquina" }, ctxCajera);
     assert.equal(!caja.ok && caja.motivo, "NO_PERMITIDO");
-    const sinConfirmar = await aplicar({ kind: "CREAR", nombre: "Helados de máquina" }, ctxAdmin);
-    assert.equal(!sinConfirmar.ok && sinConfirmar.motivo, "ELEVACION_REQUERIDA");
+    const admin = await aplicar({ kind: "CREAR", nombre: "Helados de máquina" }, ctxAdmin);
+    assert.equal(admin.ok, true, JSON.stringify(admin));
   });
 });

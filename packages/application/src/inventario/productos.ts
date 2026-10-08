@@ -189,7 +189,9 @@ export function casosProductos(base: Base): CasosProductos {
 
       try {
         const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CatalogoDto | Rechazo> => {
-          const rechazo = await exigirPermiso(tx, ctx, "catalogo.modificar");
+          // Precios y carta son de `catalogo.modificar` (con elevación); el alta, la ficha y apartar, del inventario
+          // (T-13), que se puede dar por rol o por persona sin confirmar identidad.
+          const rechazo = await exigirPermiso(tx, ctx, cmd.kind === "PROGRAMAR_PRECIO" || cmd.kind === "EN_CARTA" ? "catalogo.modificar" : "inventario.catalogo");
           if (rechazo) return rechazo;
           const quien = await nombreDe(tx, ctx);
           const asiento = await guardar(tx, ctx, cmd, quien.nombre, ahora, desde);
