@@ -118,10 +118,10 @@ export function InicioScreen({
       {/* ─────────────── cabecera delgada: contexto, no protagonismo ────── */}
       <header className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
         <div>
-          <h1 className="font-display text-2xl lg:text-3xl leading-none font-bold tracking-tight text-ink">
+          <h1 className="font-display text-pagina leading-none font-bold text-ink">
             Hoy
           </h1>
-          <p className="mt-0.5 text-xs lg:text-[12.5px] text-ink-3">
+          <p className="mt-0.5 text-nota text-ink-3">
             {diaSemana} {fecha}
           </p>
         </div>

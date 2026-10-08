@@ -37,6 +37,34 @@ porque esto se usa de pie, con prisa y a veces con guantes.
 
 **Nivel 3 · funcionalidad** — vive en `apps/web/src/features/<contexto>`, **no aquí**.
 
+## La jerarquía: texto e iconos (T-16)
+
+Los tamaños tienen nombre de trabajo, no de píxel, y viven en `packages/config/tokens.css`: quien escribe una
+pantalla elige «título de sección», no «18 px». Entre un escalón y el siguiente hay al menos un 12 %; con menos, dos
+títulos de distinto rango se leen iguales.
+
+| Clase | Tamaño | Para |
+|---|---|---|
+| `text-pagina` | 28 px | El título de la pantalla, uno por pantalla (`PageHeader`, Inicio) |
+| `text-seccion` | 18 px | El título de un bloque o de una capa (`Dialog`, `Sheet`, `EmptyState`) y el nombre en una tarjeta que se lee a distancia (`StatusCard`) |
+| `text-tarjeta` | 16 px | El título de una tarjeta de panel |
+| `text-subtitulo` | 15 px | La frase bajo el título de la pantalla |
+| `text-cuerpo` | 14 px | El texto de trabajo |
+| `text-detalle` | 13 px | Lo secundario: la descripción de una capa, un subtítulo de tarjeta |
+| `text-nota` | 12 px | Pistas bajo un campo, migas, horas |
+| `text-etiqueta` | 11 px | En mayúsculas y espaciada (el espaciado va en el token): nombra un dato sin competir con él |
+| `text-cifra` | 24 px | La cifra de cabecera que se compara de un vistazo (`StatTile`) |
+
+El título de página bajó de 32 a 28 px: a 1366×768 cada píxel de alto cuenta y 28 ya domina. Los importes grandes del
+cobro tienen su escalado propio (6 a 8 cifras en bolívares, CLAUDE.md).
+
+Los iconos crecen con el objetivo táctil de su superficie (§8.4), no por gusto: `--icono-pos` 20 px (caja),
+`--icono-tablet` 18, `--icono-admin` 16, `--icono-texto` 14 (dentro de una frase) y `--icono-etiqueta` 12. En CSS,
+`size-(--icono-pos)`; para el `size` de un icono, `TAMANO_ICONO.pos` y sus hermanos, que dicen lo mismo en números.
+
+El ancho también es uno: `Container` con `panel` mide lo mismo que Inicio (1600 px), así que al pasar de una sección a
+otra el contenido no encoge ni deja márgenes vacíos.
+
 ## Qué NO le corresponde
 
 **No conoce el dominio.** Un componente recibe datos y emite eventos; no sabe qué es una

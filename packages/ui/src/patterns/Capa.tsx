@@ -109,11 +109,11 @@ function Capa({
       >
         <header className="flex items-start gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0 flex-1">
-            <h2 id={tituloId} className="font-display text-lg leading-tight font-bold text-ink">
+            <h2 id={tituloId} className="font-display text-seccion font-bold text-ink">
               {titulo}
             </h2>
             {descripcion && (
-              <p id={descripcionId} className="mt-1 text-[13px] text-ink-2">
+              <p id={descripcionId} className="mt-1 text-detalle text-ink-2">
                 {descripcion}
               </p>
             )}
@@ -181,7 +181,7 @@ export function Confirmacion({
         </div>
       }
     >
-      <div className="flex flex-col gap-2 text-[13px] text-ink-2">{children}</div>
+      <div className="flex flex-col gap-2 text-detalle text-ink-2">{children}</div>
     </Dialog>
   );
 }

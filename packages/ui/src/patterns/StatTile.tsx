@@ -39,21 +39,21 @@ export function StatTile({
 }) {
   return (
     <div className={cn("flex min-w-[76px] flex-col gap-0.5", className)}>
-      <span className="flex items-center gap-1 text-[10px] font-medium tracking-[0.09em] text-ink-3 uppercase">
+      <span className="flex items-center gap-1 text-etiqueta font-medium text-ink-3 uppercase">
         {icon}
         {label}
       </span>
       <span className="flex items-baseline gap-1">
         <span
           className={cn(
-            "tnum font-display text-2xl leading-none font-bold tracking-tight",
+            "tnum font-display text-cifra leading-none font-bold tracking-tight",
             VALUE[tone],
             urgent && "l2-pulse",
           )}
         >
           {value}
         </span>
-        {suffix && <span className="text-xs text-ink-3">{suffix}</span>}
+        {suffix && <span className="text-nota text-ink-3">{suffix}</span>}
       </span>
     </div>
   );

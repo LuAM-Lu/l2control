@@ -57,6 +57,58 @@
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
 
+  /* --- Escala de texto (T-16, M-27, P-16) --------------------------------
+     Ocho escalones con nombre de trabajo, no de tamaño: quien escribe una
+     pantalla elige «título de sección», no «18 px». Entre un nivel y el
+     siguiente hay al menos un 12 %: menos, y dos títulos de distinto rango
+     se leen iguales (lo que pasaba entre «Cómo opera» y su etiqueta).
+
+     · pagina    28 px — el título de la pantalla (uno por pantalla). Bajó de
+                 32: a 1366×768 cada píxel de alto cuenta y 28 ya domina.
+     · seccion   18 px — el título de un bloque o de una capa (diálogo, hoja)
+                 y el nombre en una tarjeta que se lee a distancia (la sala).
+     · tarjeta   16 px — el título de una tarjeta de panel o de un estado vacío.
+     · subtitulo 15 px — la frase bajo el título de la pantalla: qué se hace aquí.
+     · cuerpo    14 px — el texto de trabajo.
+     · detalle   13 px — lo secundario: la descripción de una capa, un subtítulo.
+     · nota      12 px — pistas bajo un campo, migas, horas.
+     · etiqueta  11 px — en mayúsculas y espaciada, nombra un dato sin competir
+                 con él (TELÉFONO, AFORO).
+     · cifra     24 px — la cifra de cabecera que se compara de un vistazo.
+     Los importes grandes (el cobro, los totales) siguen con su escalado propio. */
+  --text-pagina: 1.75rem;
+  --text-pagina--line-height: 1.2;
+  --text-pagina--letter-spacing: -0.02em;
+  --text-seccion: 1.125rem;
+  --text-seccion--line-height: 1.3;
+  --text-tarjeta: 1rem;
+  --text-tarjeta--line-height: 1.35;
+  --text-subtitulo: 0.9375rem;
+  --text-subtitulo--line-height: 1.55;
+  --text-cuerpo: 0.875rem;
+  --text-cuerpo--line-height: 1.5;
+  --text-detalle: 0.8125rem;
+  --text-detalle--line-height: 1.45;
+  --text-nota: 0.75rem;
+  --text-nota--line-height: 1.4;
+  --text-etiqueta: 0.6875rem;
+  --text-etiqueta--line-height: 1.3;
+  --text-etiqueta--letter-spacing: 0.08em;
+  --text-cifra: 1.5rem;
+  --text-cifra--line-height: 1.1;
+
+  /* --- Escala de iconos (T-16) --------------------------------------------
+     El icono acompaña al texto de su superficie: crece con el objetivo
+     táctil, no por gusto. En un botón de caja (56 px) va a 20; en la tablet
+     (48 px), a 18; en el panel con ratón, a 16; dentro de una frase, a 14; en
+     una etiqueta, a 12. Se usan con `size-(--icono-pos)` o con
+     `TAMANO_ICONO` de @l2/ui, que dice lo mismo en números para `size={}`. */
+  --icono-pos: 1.25rem;
+  --icono-tablet: 1.125rem;
+  --icono-admin: 1rem;
+  --icono-texto: 0.875rem;
+  --icono-etiqueta: 0.75rem;
+
   /* --- Objetivos táctiles (§8.4) ---------------------------------------
      Los mínimos de plataforma (44pt iOS / 48dp Android / 24px WCAG) son
      insuficientes en el piso: se usa de pie, con prisa y a veces con

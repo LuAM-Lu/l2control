@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import { ChevronDown, LogOut, Maximize2, Menu, X } from "lucide-react";
 import type { Actor } from "@l2/domain-identity";
-import { Initial, cn } from "@l2/ui";
+import { Initial, Marquesina, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { BotonTema } from "./BotonTema.tsx";
 import { BotonAyuda } from "../ayuda/AyudaProvider.tsx";
@@ -433,23 +433,25 @@ function PieUsuario({
   onSalir: () => void;
   compacto?: boolean;
 }) {
+  // Dos renglones (T-16): la persona con todo el ancho (antes, «Abi… Ad…») y debajo la ayuda, el tema y salir.
   return (
     <div
       className={cn(
-        "flex items-center gap-3 border-t border-line px-3 py-3",
-        compacto && "justify-center xl:justify-start xl:px-4",
+        "flex flex-col gap-1 border-t border-line px-3 py-3",
+        compacto && "items-center xl:items-stretch xl:px-4",
       )}
     >
       {/* Tocar el propio nombre abre «Mi cuenta» (T-14): cambiar el PIN. */}
-      <MiCuenta nombre={usuario} rol={rol} className={cn("-my-1 -ml-1 flex min-w-0 items-center gap-3 p-1", !compacto && "flex-1", compacto && "xl:flex-1")}>
+      <MiCuenta nombre={usuario} rol={rol} className="-mx-1 flex min-w-0 items-center gap-3 p-1">
         <Initial name={usuario} tone="idle" className="size-8 shrink-0 text-sm" />
         <span className={cn("min-w-0 flex-1", compacto && "hidden xl:block")}>
-          <span className="block truncate text-[13px] font-medium text-ink">{usuario}</span>
-          <span className="block truncate text-[11.5px] text-ink-3">{rol}</span>
+          <Marquesina className="text-[13px] font-medium text-ink">{usuario}</Marquesina>
+          <Marquesina className="text-[11.5px] text-ink-3">{rol}</Marquesina>
         </span>
       </MiCuenta>
-      <BotonAyuda className={cn("size-9", compacto && "hidden xl:grid")} />
-      <BotonTema compacto className={cn(compacto && "hidden xl:flex")} />
+      <div className={cn("flex items-center justify-end gap-1", compacto && "hidden xl:flex")}>
+      <BotonAyuda className="size-9" />
+      <BotonTema compacto />
       <Link
         href="/acceso"
         onClick={onSalir}
@@ -458,11 +460,11 @@ function PieUsuario({
         className={cn(
           "grid size-9 shrink-0 place-content-center rounded-[var(--radius-control)] text-ink-3",
           "transition-colors hover:bg-surface-2 hover:text-ink",
-          compacto && "hidden xl:grid",
         )}
       >
         <LogOut size={15} aria-hidden="true" />
       </Link>
+      </div>
     </div>
   );
 }

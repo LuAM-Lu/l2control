@@ -15,6 +15,9 @@ import { cn } from "../cn";
  *  · `prosa`     — texto corrido. Se corta cerca de 68 caracteres porque una
  *                  línea más larga obliga a buscar el renglón siguiente.
  *  · `panel`     — back-office, sentado y de cerca. Inicio, informes, ajustes.
+ *                  Desde T-16 (P-18) tiene el ancho de Inicio: con 1180 las
+ *                  secciones dejaban márgenes vacíos en una pantalla ancha y,
+ *                  al pasar de Inicio a cualquier otra, el contenido encogía.
  *  · `operacion` — superficie de trabajo de pie: caja, entrada, salida, turno.
  *                  Son dos columnas —lo que se hace y lo que se cobra— y la
  *                  segunda no puede encogerse: a 1180 el ticket queda ilegible.
@@ -26,7 +29,7 @@ import { cn } from "../cn";
  */
 const ANCHO = {
   prosa: "max-w-[68ch]",
-  panel: "max-w-[1180px]",
+  panel: "max-w-[1600px]",
   operacion: "max-w-[1440px]",
   muro: "max-w-[1680px]",
   full: "max-w-none",

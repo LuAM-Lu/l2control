@@ -14,6 +14,18 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.71.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Jerarquía tipográfica y ancho completo (T-16, M-27).
+
+### Cambiado
+- **Todas las secciones del panel usan el ancho de Inicio.** En una pantalla ancha ya no quedan márgenes vacíos a los
+  lados, y al pasar de Inicio a otra sección el contenido no encoge.
+- **Una sola escala de títulos y textos.** El título de cada pantalla, el de cada bloque, los subtítulos, las
+  etiquetas y las cifras tienen tamaños fijos y distinguibles en todo el sistema (el título de pantalla pasa de 32 a
+  28 px); los iconos crecen con el tamaño del botón de cada puesto.
+- El nombre y el rol al pie del menú lateral se leen enteros; la ayuda, el tema y salir pasan al renglón de abajo.
+
 ## [0.70.0] — 2026-10-07 · Lo pedido en la primera visita
 
 La operación se lee de un vistazo (T-15, M-27).

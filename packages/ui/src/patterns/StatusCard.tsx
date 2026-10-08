@@ -104,7 +104,7 @@ export function StatusCard({
       <div className="flex items-center gap-2.5 px-4 pt-3">
         <span
           className={cn(
-            "flex items-center gap-1.5 text-[11px] font-bold tracking-[0.08em] uppercase",
+            "flex items-center gap-1.5 text-etiqueta font-bold uppercase",
             LABEL[tone],
             urgent && "l2-pulse",
           )}
@@ -119,10 +119,10 @@ export function StatusCard({
           {leading}
           <div className="min-w-0 flex-1">
             {/* Un nombre largo no se corta: va y vuelve (T-15). */}
-            <h3 className="font-display text-lg leading-tight font-bold text-ink">
+            <h3 className="font-display text-seccion font-bold text-ink">
               <Marquesina>{title}</Marquesina>
             </h3>
-            {subtitle && <p className="mt-0.5 truncate text-[13px] text-ink-2">{subtitle}</p>}
+            {subtitle && <p className="mt-0.5 truncate text-detalle text-ink-2">{subtitle}</p>}
           </div>
         </div>
         {children}
