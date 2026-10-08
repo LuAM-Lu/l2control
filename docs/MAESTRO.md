@@ -496,7 +496,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pruebas contra la base. Visto en el navegador en la base de pruebas: el recorrido de la sala solo la primera vez y no
   al recargar, F1, la búsqueda coloquial («pulsera usada», «no imprime»), «Cómo se resuelve» en un error real de las
   mesas, y el recorrido de las mesas entero a 1366×768, 800×1280 y 390 px.*
-- [ ] **T-13 · Roles que se pueden dar** (M-27, P-15).
+- [~] **T-13 · Roles que se pueden dar** (M-27, P-15). *A cargo: LuAMi, rama `feat/t-13`.*
   → Acción nueva `inventario.catalogo` (alta y ficha de productos y categorías; cambiar el precio de lo que existe
   sigue en `catalogo.modificar`), ajustable por rol y por persona y sin confirmar identidad: con ella, supervisión
   da de alta productos y carga el inventario inicial. Cada sección del menú pide lo mismo que su servidor (escrito en
