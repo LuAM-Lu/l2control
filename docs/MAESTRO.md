@@ -1739,7 +1739,7 @@ antes del cobro en servidor (orden de ejecución).
   tarjetas a 1366×768, 1280×800 y 800×1280 sin desplazar el documento ni desbordar (en vertical, mínimo y costo quedan
   en la ficha); sin errores de consola. Vender por el lector con un turno abierto no se probó (no se abrió un turno en la
   base del cliente): usa el mismo camino que tocar el producto en la carta.*
-- [ ] **B9-7 · Catálogo sin existencias y su conteo inicial** (M-28).
+- [~] **B9-7 · Catálogo sin existencias y su conteo inicial** (M-28). *A cargo: LuAMi, rama `feat/b9-7`.*
   → El catálogo se da de alta en una hoja, sin cantidades (nombre, categoría, presentación, precio, IVA, mínimo y
   código de barras). Un producto que se cuenta y nunca tuvo existencia queda «Sin inventario inicial», distinto de
   «Agotado»: no se vende (ADR-023) y la caja, la carta y la lista dicen por qué. Inventario y la puesta a punto cuentan
