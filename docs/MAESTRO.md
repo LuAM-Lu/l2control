@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.89.0 · 89 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.90.0 · 90 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
@@ -2369,7 +2369,7 @@ F9-05).
   producto y el PDF de la categoría; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni
   errores de consola.*
 - [x] **B11-4 · Deudas: el flujo entero** (M-33).
-  *Hecho el 2026-10-08, en `feat/b11-4`.*
+  *Hecho el 2026-10-08 (v0.90.0), en `feat/b11-4`.*
   → **Reportes → Deudas** (`reportes.verSucursal`), por día de negocio y con el periodo en la dirección, como los demás;
   su PDF en `/informes/deudas`, con las piezas de `features/reportes/informe.tsx`. Sale de los asientos: solo lectura.
   → **Resumen del periodo:** lo que quedó en deuda (cuántas y cuánto), lo recuperado, lo dado por perdido y lo que sigue
@@ -3173,7 +3173,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   y ninguna mesa se abre sin sentar a su cliente.
 - **2026-10-08** · B3-11 entregado como v0.89.0: «Se fue sin pagar» deja la cuenta incobrable y una deuda a nombre del cliente, que
   se cobra cuando vuelve (Caja → Deudas, o al buscarlo) o administración da por perdida. Sigue B11-4.
-- **2026-10-08** · B11-4 entregado: Reportes → Deudas, con su PDF, cuenta lo que quedó en deuda, lo recuperado y lo
+- **2026-10-08** · B11-4 entregado como v0.90.0: Reportes → Deudas, con su PDF, cuenta lo que quedó en deuda, lo recuperado y lo
   perdido, por mesero que sentó al cliente y por quien autorizó, y la historia de cada deuda. M-33 queda entero.
 
 ---
