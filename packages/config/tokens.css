@@ -448,6 +448,8 @@ html:has(dialog[open]) { overflow: hidden; }
 @media print {
   @page { size: A4 portrait; margin: 10mm; }
   .l2-formularios, .l2-formularios * { visibility: visible; }
+  /* El fondo de la página no se cuela al papel debajo de la hoja (B8-2; lo mismo que los informes). */
+  html:has(.l2-formularios), body:has(.l2-formularios) { background: white !important; }
   .l2-formularios { position: static !important; overflow: visible !important; inset: auto !important; background: white !important; }
   .l2-formulario { break-after: page; width: auto !important; margin: 0 !important; box-shadow: none !important; border: 0 !important; }
   .l2-formulario:last-of-type { break-after: auto; }

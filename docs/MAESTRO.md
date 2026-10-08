@@ -34,15 +34,16 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.86.0 · 86 de 91 pasos · M-27, M-28, M-29 y M-31 entregados enteros; nada a medias ni reclamado.** M-28 y M-29
+**Versión 0.86.0 · 86 de 91 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+capacitación, en B8-3.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
 la Etapa 11 entera), Ajustes en 12 secciones con pestañas (T-18), la cuenta de soporte (T-17), el conteo a ciegas con
 su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos con sus sabores (B9-8).
 **M-31 entregado:** B3-9, el punto de cobro y la entrada desde la caja. **T-8c hecho:** el agente de impresión se
-actualiza solo (ensayado en una PC con Windows). **Siguiente, sin pedir el sí entre pasos:** lo
-escrito de B8-2 (el procedimiento en papel y los runbooks), según §3, orden, punto 10. **En el local:** B7-3 (con T-8c en
+actualiza solo (ensayado en una PC con Windows). **B8-2, lo escrito, hecho:** la hoja del procedimiento en papel y los
+runbooks del técnico (la capacitación cierra B8-2 en B8-3). **Desde aquí ya no se programa nada para la 1.0.0. En el local:** B7-3 (con T-8c en
 la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
 1.0.0, §4), antes de B8-4.
 
@@ -254,8 +255,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 9. **M-31**: ~~B3-9~~ (el punto de cobro y la entrada desde la caja): una sola tarea, de punta a punta, sin pedir el sí
    entre sus partes (el usuario, 2026-10-08).
 10. **Hacia la 1.0.0**, lo que no necesita el local: ~~T-8c~~ (se programa y se prueba en una PC con Windows como la de
-   caja; en la laptop real se comprueba con B7-3) → **B8-2** (lo que se escribe: la hoja del procedimiento en papel y los
-   runbooks del técnico; la capacitación se da en B8-3, y ahí se cierra). Después, en el local: B7-3, B8-1, B8-3 y
+   caja; en la laptop real se comprueba con B7-3) → **B8-2** (~~lo que se escribe~~: la hoja del procedimiento en papel y
+   los runbooks del técnico; la capacitación se da en B8-3, y ahí se cierra). Después, en el local: B7-3, B8-1, B8-3 y
    **B8-4 = 1.0.0**, con D-REL decidido.
 
 Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -2385,13 +2386,28 @@ F9-05).
   del local aprobados (F10-03).
   → Con el enlace principal desconectado, la caja cobra y la sala se actualiza por el 4G.
 - [~] **B8-2 · Runbooks, contingencia en papel y capacitación por rol** (F10-10, F11-02, F11-03, F11-08; sin
-  manual aparte desde M-30: el de la app es el manual). *A cargo: LuAMi, rama `docs/b8-2` (lo escrito; la capacitación,
-  en B8-3).*
+  manual aparte desde M-30: el de la app es el manual). *A cargo: LuAMi. Lo escrito, hecho (v0.86.1); queda la
+  capacitación por rol, en B8-3, y ahí se cierra.*
   → Una hoja impresa junto a la caja con el procedimiento en papel para cuando caigan los dos enlaces (cuándo se pasa
   al papel, quién anota qué y cómo se carga al volver; los formularios y su carga son B3-7). Los runbooks del técnico,
   juntos y completos a partir de `infra/produccion/README.md`: restaurar un respaldo, volver atrás una actualización,
   aprobar el equipo que sustituye a uno perdido (siempre dos equipos de administración aprobados, M-7), cambiar la
   impresora y cargar los feriados de cada año. La capacitación de cada rol, durante B8-3, con los recorridos de la app.
+  *Lo escrito, hecho el 2026-10-08 (v0.86.1), en `docs/b8-2`:*
+  *· **El procedimiento en papel:** `/procedimiento-papel` (`ProcedimientoDePapel`), una hoja A4 para pegar junto a la
+  caja: cuándo se pasa al papel (los dos internet caídos más de 5 minutos, quién lo decide y la hora del corte), quién
+  anota qué (entrada, caja, mesero, pagos sin efectivo), cómo se carga al volver (Caja → Papel, el orden y la revisión
+  de supervisión) y a quién se llama (las líneas se llenan a mano). Se abre desde Caja → Papel («El procedimiento») y
+  desde los formularios; la ayuda tiene la entrada «Carga desde papel» con sus avisos. Al imprimir, el fondo de la
+  página ya no se cuela bajo la hoja (tampoco en los formularios).*
+  *· **Los runbooks del técnico:** `infra/produccion/RUNBOOKS.md`, desde el README: restaurar un respaldo (el ensayo de
+  cada mes y el servidor perdido), volver atrás una actualización, el equipo que sustituye a uno perdido (con el punto
+  de cobro, el agente y la regla de las dos administraciones, M-7), cambiar la impresora y los feriados del año; y,
+  por lo hecho hoy, la laptop de caja que no enciende (B3-9), el agente que no imprime (y que se actualiza solo, T-8c)
+  y la caída de los dos enlaces. Cada uno con cuándo, qué hace falta, los pasos y cómo se sabe que salió.*
+  *· Comprobado en el navegador, en la base de pruebas: la hoja a 1366×768, 1280×800, 800×1280 y 390 px en los dos
+  temas, sin desbordes ni errores de consola; su PDF, una sola hoja A4 en blanco y negro; los enlaces desde Caja →
+  Papel y los formularios. Versión de corrección (0.86.1), no de paso: B8-2 cuenta al cerrarse con la capacitación.*
 - [ ] **B8-3 · Operación en paralelo** con el método anterior, piloto de un turno y ajustes (F11-04 a
   F11-06).
   → Los totales de los dos sistemas coinciden todos los días del período.
@@ -2949,6 +2965,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · T-8c entregado como v0.86.0: el agente de impresión se actualiza solo, ensayado en esta PC con Windows (cambio, huella
   equivocada, versión que no arranca y vuelta atrás). En la laptop de caja real se comprueba con B7-3. Sigue lo escrito
   de B8-2.
+- **2026-10-08** · B8-2, lo escrito, como v0.86.1 (corrección: el paso cuenta al cerrarse con la capacitación en B8-3): la
+  hoja del procedimiento en papel (`/procedimiento-papel`) y los runbooks del técnico (`infra/produccion/RUNBOOKS.md`).
+  Con esto, lo que se programa para la 1.0.0 está hecho: queda el local (B7-3, B8-1, B8-3, B8-4) y D-REL.
 
 ---
 

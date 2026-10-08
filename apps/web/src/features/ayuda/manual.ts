@@ -283,6 +283,32 @@ export const MANUAL: readonly EntradaDelManual[] = [
     ],
   },
   {
+    id: "papel",
+    ruta: "/papel",
+    titulo: "Carga desde papel",
+    roles: CAJA,
+    proposito:
+      "Si caen los dos internet (o la luz sin batería), el local sigue en papel; al volver, lo anotado se carga aquí con su hora real y supervisión lo revisa.",
+    pasos: [
+      "Antes del día que haga falta: «El procedimiento» se imprime y se pega junto a la caja, y «Imprimir los formularios» deja cinco copias de cada uno en la carpeta.",
+      "Sin sistema: se pasa al papel como dice el procedimiento, con la hora del reloj de la pared en cada fila.",
+      "Al volver: «Abrir carga» con la hora en que se pasó al papel y la hora en que volvió; se cargan las entradas, las salidas y los cobros, cada uno con su hora.",
+      "«Terminar la carga»: supervisión la revisa en «Por revisar», contra las hojas, con su PIN. Sin revisar, no se cierra el turno ni la jornada.",
+    ],
+    problemas: [
+      {
+        sintoma: "«Esa hora es anterior (o posterior) al corte que declaraste»",
+        solucion: "Cada fila tiene que caer entre la hora en que se pasó al papel y la hora en que volvió. Revisa la hora escrita en la hoja, o abre otra carga con el corte bien.",
+        reconoce: ["al corte que declaraste", "todavia no ha pasado"],
+      },
+      {
+        sintoma: "«Quien cargó no revisa su propia carga»",
+        solucion: "La revisa otra persona de supervisión o administración, con su propio PIN.",
+        reconoce: ["no revisa su propia carga"],
+      },
+    ],
+  },
+  {
     id: "mesas",
     ruta: "/mesas",
     titulo: "Mesas",
