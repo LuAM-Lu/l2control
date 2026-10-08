@@ -156,3 +156,19 @@ export function categoriesOf(products: readonly Pick<CatalogProduct, "category">
   }
   return categorias;
 }
+
+/**
+ * Un ajuste de precio para muchos productos a la vez (B9-9, M-29): en puntos básicos (1000 = +10 %, −500 = −5 %) o
+ * sumando un monto en céntimos (también negativo).
+ */
+export type AjusteDePrecio = Readonly<{ modo: "PORCENTAJE"; puntosBasicos: number }> | Readonly<{ modo: "MONTO"; minor: bigint }>;
+
+/**
+ * El precio que queda tras un ajuste. En por ciento se redondea al céntimo más cercano (la mitad, hacia arriba); con un
+ * monto, se suma. No decide si vale: eso es `priceProblem` (positivo y no excesivo).
+ */
+export function adjustedPrice(actualMinor: bigint, a: AjusteDePrecio): bigint {
+  if (a.modo === "MONTO") return actualMinor + a.minor;
+  if (a.puntosBasicos <= -10_000) return 0n;
+  return (actualMinor * BigInt(10_000 + a.puntosBasicos) + 5_000n) / 10_000n;
+}

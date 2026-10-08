@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, ClipboardList, History, ListPlus, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -9,7 +10,7 @@ import { can } from "@l2/domain-identity";
 import { barcodeProblem, marginBasisPoints, normalizeBarcode, periodAt } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { invertRate, money, toMajor, type Money } from "@l2/domain-money";
-import { Button, Container, Input, Sheet, TAMANO_ICONO, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
+import { Button, Container, Input, Sheet, TAMANO_ICONO, avisar, cn, formatMoneyVE, useLectorDeCodigos, useMediaQuery } from "@l2/ui";
 import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -19,6 +20,7 @@ import { formatClock } from "../park/time-format.ts";
 import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { aplicarProducto, fijarMinimo } from "./productos.acciones";
+import { BarraDeLote, EditarEnLote, type CambioDeLote } from "./EditarEnLote.tsx";
 import { EstadoStock, estadoDe as estadoDelStock } from "./EstadoStock.tsx";
 import { AltaEnLote } from "./AltaEnLote.tsx";
 import { categoriasDelCatalogo, periodosDe } from "./catalogo.ts";
@@ -91,6 +93,12 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   const [abiertoId, setAbiertoId] = useState<string | null>(null);
   const [conCategorias, setConCategorias] = useState(false);
   const [enLote, setEnLote] = useState(false);
+  /** B9-9: los elegidos en la tabla y el cambio en lote que se está pidiendo. */
+  const [elegidos, setElegidos] = useState<ReadonlySet<string>>(new Set());
+  const [cambioEnLote, setCambioEnLote] = useState<CambioDeLote | null>(null);
+  const puedeLote = puedeModificar || puedePrecio || actorPuedeRecibir;
+  // En el teléfono la barra va abajo, fija: ahí desplaza la ventana y la región del panel no la sostiene.
+  const enTelefono = useMediaQuery("(max-width: 47.99rem)");
   /** Qué se está guardando: bloquea ese control mientras el servidor responde. */
   const [enviando, setEnviando] = useState<string | null>(null);
 
@@ -198,9 +206,50 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
           )}
         </div>
       ) : (
-        <InventarioVista catalogo={catalogo} periodos={periodos} ahora={ahora} tasa={tasa} onAbrir={setAbiertoId} />
+        <>
+          {elegidos.size > 0 &&
+            (() => {
+              const barra = (
+                <BarraDeLote
+                  cuantos={elegidos.size}
+                  puede={{ CATEGORIA: puedeModificar, APARTAR: puedeModificar, MINIMO: actorPuedeRecibir, EN_CARTA: puedePrecio, PRECIO: puedePrecio }}
+                  onAccion={setCambioEnLote}
+                  onLimpiar={() => setElegidos(new Set())}
+                />
+              );
+              return enTelefono ? (
+                createPortal(<div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-base px-3 pt-2 pb-[calc(0.5rem+var(--seguro-abajo))]">{barra}</div>, document.body)
+              ) : (
+                // Fija arriba mientras se baja por la lista: con muchos elegidos, la barra sigue a mano.
+                <div className="sticky top-0 z-30 mb-3 bg-base py-1">{barra}</div>
+              );
+            })()}
+          <InventarioVista
+            catalogo={catalogo}
+            periodos={periodos}
+            ahora={ahora}
+            tasa={tasa}
+            onAbrir={setAbiertoId}
+            seleccion={puedeLote ? { elegidos, onCambiar: setElegidos } : undefined}
+          />
+        </>
       )}
 
+      {cambioEnLote && ahora !== null && (
+        <EditarEnLote
+          cambio={cambioEnLote}
+          ids={[...elegidos]}
+          catalogo={catalogo}
+          periodos={periodos}
+          ahora={ahora}
+          onCerrar={() => setCambioEnLote(null)}
+          onHecho={(c) => {
+            setCatalogo(c);
+            setCambioEnLote(null);
+            setElegidos(new Set());
+          }}
+        />
+      )}
       <CategoriasSheet abierto={conCategorias} onCerrar={() => setConCategorias(false)} catalogo={catalogo} onCambio={setCatalogo} />
       {enLote && (
         <AltaEnLote

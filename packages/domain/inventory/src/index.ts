@@ -6,6 +6,7 @@
  */
 export {
   MAX_PRICE_MINOR,
+  adjustedPrice,
   categoriesOf,
   changesTimeline,
   nameClash,
@@ -15,6 +16,7 @@ export {
   priceProblem,
   priceTimeline,
   sellableAt,
+  type AjusteDePrecio,
   type CatalogProduct,
   type PricePeriod,
   type PriceProblem,

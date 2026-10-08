@@ -49,6 +49,7 @@ export function InventarioVista({
   ahora,
   tasa,
   onAbrir,
+  seleccion,
 }: {
   catalogo: CatalogoDto;
   periodos: readonly PricePeriod[];
@@ -56,6 +57,8 @@ export function InventarioVista({
   /** La tasa del día, de dólares a bolívares, para enseñar el precio también en Bs. */
   tasa: FrozenRate | null;
   onAbrir: (id: string) => void;
+  /** B9-9: los elegidos para editarlos en lote (solo en la tabla); sin ella, no se elige. */
+  seleccion?: Seleccion | undefined;
 }) {
   const [tipo, setTipo] = useState<TipoProducto>("PRODUCTO");
   const [estado, setEstado] = useState<FiltroEstado>("TODOS");
@@ -245,7 +248,7 @@ export function InventarioVista({
                   : "Todavía no hay servicios."}
         </p>
       ) : vista === "tabla" ? (
-        <Tabla filas={visibles} tipo={tipo} tasa={tasa} onAbrir={onAbrir} />
+        <Tabla filas={visibles} tipo={tipo} tasa={tasa} onAbrir={onAbrir} seleccion={seleccion} />
       ) : (
         <Tarjetas filas={visibles} tipo={tipo} onAbrir={onAbrir} />
       )}
@@ -296,13 +299,34 @@ function Cifra({
 const TH = "px-3 py-2 text-left text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase whitespace-nowrap";
 const TD = "px-3 py-2 align-middle";
 
-function Tabla({ filas, tipo, tasa, onAbrir }: { filas: readonly Fila[]; tipo: TipoProducto; tasa: FrozenRate | null; onAbrir: (id: string) => void }) {
+/** Los productos elegidos para editarlos en lote (B9-9). */
+export type Seleccion = Readonly<{ elegidos: ReadonlySet<string>; onCambiar: (ids: ReadonlySet<string>) => void }>;
+
+function Tabla({ filas, tipo, tasa, onAbrir, seleccion }: { filas: readonly Fila[]; tipo: TipoProducto; tasa: FrozenRate | null; onAbrir: (id: string) => void; seleccion?: Seleccion | undefined }) {
   const cuenta = tipo === "PRODUCTO";
+  const todos = filas.length > 0 && filas.every((f) => seleccion?.elegidos.has(f.p.id));
+  const alternar = (ids: readonly string[], poner: boolean) => {
+    if (!seleccion) return;
+    const nuevo = new Set(seleccion.elegidos);
+    for (const id of ids) (poner ? nuevo.add(id) : nuevo.delete(id));
+    seleccion.onCambiar(nuevo);
+  };
   return (
     <div className="overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
       <table className="w-full border-collapse text-[13.5px]">
         <thead className="sticky top-0 z-10 bg-surface-2">
           <tr>
+            {seleccion && (
+              <th className={cn(TH, "w-10")}>
+                <input
+                  type="checkbox"
+                  aria-label={todos ? "No elegir ninguno de los que se ven" : "Elegir todos los que se ven"}
+                  checked={todos}
+                  onChange={(e) => alternar(filas.map((f) => f.p.id), e.target.checked)}
+                  className="size-4 cursor-pointer accent-[var(--color-brand)]"
+                />
+              </th>
+            )}
             {cuenta && <th className={cn(TH, "w-36 max-lg:w-24")}>Stock</th>}
             <th className={TH}>Producto</th>
             <th className={TH}>SKU · código</th>
@@ -316,7 +340,18 @@ function Tabla({ filas, tipo, tasa, onAbrir }: { filas: readonly Fila[]; tipo: T
         </thead>
         <tbody className="divide-y divide-line">
           {filas.map(({ p, estado, precio, costo, margen }) => (
-            <tr key={p.id} onClick={() => onAbrir(p.id)} className="cursor-pointer transition-colors hover:bg-surface-2">
+            <tr key={p.id} onClick={() => onAbrir(p.id)} className={cn("cursor-pointer transition-colors hover:bg-surface-2", seleccion?.elegidos.has(p.id) && "bg-brand/10")}>
+              {seleccion && (
+                <td className={TD} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    aria-label={`Elegir ${p.nombre}`}
+                    checked={seleccion.elegidos.has(p.id)}
+                    onChange={(e) => alternar([p.id], e.target.checked)}
+                    className="size-4 cursor-pointer accent-[var(--color-brand)]"
+                  />
+                </td>
+              )}
               {cuenta && (
                 <td className={TD}>
                   <span className="flex items-center gap-2.5 max-lg:flex-col max-lg:items-start max-lg:gap-1">

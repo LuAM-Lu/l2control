@@ -269,3 +269,39 @@ export const FijarMinimoCommandSchema = z.strictObject({
   minimo: MinimoSchema.nullable(),
 });
 export type FijarMinimoCommand = z.infer<typeof FijarMinimoCommandSchema>;
+
+/** Hasta cuántos productos se editan de una vez (B9-9). */
+export const MAX_EDICION_EN_LOTE = 300;
+
+/** Cómo se ajusta un precio en lote (B9-9): en puntos básicos (1000 = +10 %) o con un monto en céntimos, con su signo. */
+export const AjusteDePrecioSchema = z.discriminatedUnion("modo", [
+  z.strictObject({
+    modo: z.literal("PORCENTAJE"),
+    puntosBasicos: z.number().int().min(-9000, "Hasta −90 %").max(50_000, "Hasta +500 %").refine((v) => v !== 0, "Un ajuste de 0 % no cambia nada"),
+  }),
+  z.strictObject({
+    modo: z.literal("MONTO"),
+    minor: z.string().regex(/^-?\d{1,7}$/, "Un monto en céntimos").refine((v) => BigInt(v) !== 0n, "Un ajuste de $ 0 no cambia nada"),
+  }),
+]);
+
+/**
+ * Editar varios productos de una vez (B9-9, M-29): la categoría, el mínimo, la carta o el precio (en % o en monto,
+ * desde un día), o apartarlos. Todo o nada, con una sola confirmación; cada producto deja su asiento, como si se
+ * hubiera cambiado solo.
+ */
+export const EditarEnLoteCommandSchema = z.strictObject({
+  productIds: z
+    .array(z.uuid("Producto desconocido"))
+    .min(1, "Elige al menos un producto")
+    .max(MAX_EDICION_EN_LOTE, `Hasta ${MAX_EDICION_EN_LOTE} de una vez`)
+    .refine((ids) => new Set(ids).size === ids.length, "Un producto se elige una vez"),
+  cambio: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("CATEGORIA"), categoria: CategoriaProductoSchema }),
+    z.strictObject({ kind: z.literal("MINIMO"), minimo: MinimoSchema.nullable() }),
+    z.strictObject({ kind: z.literal("EN_CARTA"), enCarta: z.boolean() }),
+    z.strictObject({ kind: z.literal("PRECIO"), ajuste: AjusteDePrecioSchema, dia: FechaSchema }),
+    z.strictObject({ kind: z.literal("APARTAR") }),
+  ]),
+});
+export type EditarEnLoteCommand = z.infer<typeof EditarEnLoteCommandSchema>;

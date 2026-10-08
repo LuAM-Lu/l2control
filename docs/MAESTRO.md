@@ -44,8 +44,8 @@ teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el
 §3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
 corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF), T-18
 (Ajustes de 18 secciones a 12, con pestañas), B11-3 (movimientos: el kárdex con su PDF) y B11-2 (inventario al momento,
-con su PDF): la Etapa 11 entera; T-17 (la cuenta de soporte) y B9-10 (conteo a ciegas y su informe de diferencias).
-**Siguiente:** **B9-9** (editar en lote).
+con su PDF): la Etapa 11 entera; T-17 (la cuenta de soporte), B9-10 (conteo a ciegas y su informe de diferencias) y
+B9-9 (editar en lote). **Siguiente:** **B9-8** (duplicar productos), el último de M-28 y M-29.
 **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
@@ -68,7 +68,7 @@ con su PDF): la Etapa 11 entera; T-17 (la cuenta de soporte) y B9-10 (conteo a c
   el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
   respaldos con carpeta, fijados e integridad (B7-6), la sección Reportes con las ventas y su PDF (B11-1) y Ajustes
   unificados (T-18), los movimientos de inventario (B11-3) y el inventario al momento (B11-2), y la cuenta de
-  soporte (T-17) y el conteo a ciegas con su informe (B9-10). Quedan editar en lote (B9-9) y duplicar productos (B9-8). **Para
+  soporte (T-17), el conteo a ciegas con su informe (B9-10) y editar en lote (B9-9). Queda duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
   runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
@@ -241,7 +241,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
    semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
    (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → ~~T-17~~ (cuenta de soporte) → ~~B9-10~~ (conteo
-   a ciegas y su informe) → **B9-9** (editar en lote) → B9-8 (duplicar productos).
+   a ciegas y su informe) → ~~B9-9~~ (editar en lote) → **B9-8** (duplicar productos).
 
 Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -1824,9 +1824,25 @@ antes del cobro en servidor (orden de ejecución).
   SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una
   lista («Naranja, Manzana…» → «Jugo Naranja», «Jugo Manzana»), cada uno con su propio código de barras si se escribe o
   se lee. Cada copia es un producto propio, con su existencia.
-- [~] **B9-9 · Editar en lote** (M-29). *A cargo: LuAMi, rama `feat/b9-9`.*
+- [x] **B9-9 · Editar en lote** (M-29).
   → En Productos se eligen varios y se les cambia la categoría, el mínimo, la carta o el precio (en % o en monto, desde
   una fecha), o se apartan. Una sola confirmación, y cada producto deja su asiento.
+  *Hecho el 2026-10-08, en `feat/b9-9`.*
+  *· Dominio (`catalogo.ts`): `adjustedPrice`, el precio tras un ajuste en puntos básicos (redondeado al céntimo, la
+  mitad hacia arriba) o con un monto; si vale lo sigue diciendo `priceProblem`. 1 prueba.*
+  *· Contrato: `EditarEnLoteCommandSchema` (hasta 300 productos, sin repetir) con un cambio: `CATEGORIA`, `MINIMO`,
+  `EN_CARTA`, `PRECIO` (`AjusteDePrecioSchema`: de −90 % a +500 %, o un monto, y su día) o `APARTAR`.*
+  *· Aplicación: `productos.editarEnLote` pide lo mismo que cada cambio suelto (el precio y la carta, `catalogo.modificar`
+  con elevación; la ficha y apartar, `inventario.catalogo`; el mínimo, `inventario.entrada`) y lleva cada producto por
+  el mismo camino que su cambio suelto (`guardar`), así que cada uno deja su asiento («Editado en lote»). Todo o nada
+  (`Deshacer`): el primer producto que no puede dice su nombre y no cambia ninguno; lo que ya estaba así no se toca. El
+  día del precio, como uno suelto (ni atrás ni más allá del plazo). 5 pruebas contra la base.*
+  *· Web: casillas en la tabla de Productos (una por fila y «todos los que se ven»), la barra «N elegidos» con lo que el
+  puesto alcanza (fija arriba en el escritorio y abajo en el teléfono) y una hoja por cambio que enseña a quiénes toca y,
+  con el precio, cómo queda cada uno («$ 1.20 → $ 1.32»), con un solo «Aplicar a N productos».*
+  *· Comprobado: en el navegador, contra la base de pruebas: elegir los dos «Prueba B97 Jugo», subirles el precio un
+  10 % desde hoy confirmando la identidad (de $ 1.20 a $ 1.32) y la barra con 17 elegidos; a 1366×768, 1280×800,
+  800×1280 y 390 px, en los dos temas, sin desbordes ni errores de consola.*
 - [x] **B9-10 · Conteo a ciegas y su informe de diferencias** (M-29).
   → La hoja de conteo (impresa o en el teléfono, por categoría o completa) no enseña lo que dice el sistema. Al
   terminar, el informe de diferencias: faltantes y sobrantes por producto y por categoría, valorados al costo, que se

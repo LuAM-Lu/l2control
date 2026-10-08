@@ -9,6 +9,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   MAX_PRICE_MINOR,
+  adjustedPrice,
   categoriesOf,
   changesTimeline,
   nameClash,
@@ -153,4 +154,13 @@ describe("lo que ofrece la caja", () => {
   test("las categorías salen de lo que se vende, sin repetir", () => {
     assert.deepEqual(categoriesOf(sellableAt(productos, tramos, T0 + DIA)), ["Bebidas", "Café"]);
   });
+});
+
+test("el precio ajustado en lote (B9-9): en por ciento redondea al céntimo; con un monto, suma", () => {
+  assert.equal(adjustedPrice(150n, { modo: "PORCENTAJE", puntosBasicos: 1000 }), 165n); // $ 1,50 + 10 % = $ 1,65
+  assert.equal(adjustedPrice(155n, { modo: "PORCENTAJE", puntosBasicos: 1000 }), 171n); // 170,5 → 171
+  assert.equal(adjustedPrice(199n, { modo: "PORCENTAJE", puntosBasicos: -500 }), 189n); // 189,05 → 189
+  assert.equal(adjustedPrice(150n, { modo: "MONTO", minor: 25n }), 175n);
+  assert.equal(adjustedPrice(150n, { modo: "MONTO", minor: -200n }), -50n, "el monto no se recorta: lo rechaza priceProblem");
+  assert.equal(adjustedPrice(150n, { modo: "PORCENTAJE", puntosBasicos: -10_000 }), 0n);
 });

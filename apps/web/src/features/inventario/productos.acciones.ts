@@ -75,3 +75,21 @@ export async function aplicarCategoria(entrada: unknown): Promise<Resultado<Cata
   }
   return resultado;
 }
+
+/**
+ * Editar varios productos de una vez (B9-9): la categoría, el mínimo, la carta, el precio o apartarlos. Lo que llega es
+ * `unknown`: el caso de uso lo revisa todo y lo hace todo o nada.
+ */
+export async function editarEnLote(entrada: unknown): Promise<Resultado<CatalogoDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar para cambiar el catálogo." };
+  const resultado = await (await aplicacion()).productos.editarEnLote(ctx, entrada);
+  const cambio = typeof entrada === "object" && entrada !== null && "cambio" in entrada ? String((entrada.cambio as { kind?: unknown })?.kind) : "desconocido";
+  if (resultado.ok) {
+    log().info({ tenantId: ctx.tenantId, cambio }, "catálogo editado en lote");
+    revalidatePath("/", "layout");
+  } else {
+    log().warn({ tenantId: ctx.tenantId, cambio, motivo: resultado.motivo }, "edición en lote rechazada");
+  }
+  return resultado;
+}
