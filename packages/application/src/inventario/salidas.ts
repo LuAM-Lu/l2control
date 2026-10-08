@@ -27,7 +27,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { autorizadoresPara, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
-import { bloquearProducto, existenciasDe } from "./existencias.ts";
+import { asentarArranques, bloquearProducto, existenciasDe, type Arranque } from "./existencias.ts";
 
 /** Cuántas salidas y conteos enseña la pantalla: los más recientes. */
 export const AJUSTES_RECIENTES = 60;
@@ -204,6 +204,8 @@ export function casosSalidas(base: Base): CasosSalidas {
             ahora,
             autorizadoPor: permiso.autorizadoPor!,
             movimientos,
+            // Contar lo que nunca se contó es su inventario inicial (B9-7), aunque se cuente en cero.
+            arranques: cmd.lineas.map((l) => ({ productId: l.productId, quantity: l.contado })),
             resumen: { contados: cmd.lineas.length, conDiferencia: moves.length },
           });
         }),
@@ -233,6 +235,8 @@ export async function asentarAjuste(
     ahora: number;
     autorizadoPor: string;
     movimientos: readonly (StockMove & { valueMinor: bigint })[];
+    /** En un conteo, lo contado de cada producto: arranca lo que todavía no había arrancado (B9-7). */
+    arranques?: readonly Arranque[];
     resumen: Record<string, unknown>;
   }>,
 ): Promise<AjusteInventarioDto> {
@@ -255,6 +259,8 @@ export async function asentarAjuste(
       authorizedByName: autorizador.fullName,
     },
   });
+  // Antes de los movimientos: lo que ya tenía existencia no vuelve a arrancar.
+  if (a.arranques) await asentarArranques(tx, ctx, a.arranques, { adjustmentId: fila.id, ahora: a.ahora, quien: quien.nombre });
   if (a.movimientos.length > 0) {
     await tx.stockMovement.createMany({
       data: a.movimientos.map((m) => ({

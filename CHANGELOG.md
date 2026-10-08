@@ -14,6 +14,27 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Catálogo sin existencias y su conteo inicial (B9-7, M-28).
+
+### Añadido
+- **Inventario → Productos → «Alta en lote».** El catálogo se carga de una vez en una hoja, sin cantidades: nombre,
+  categoría, presentación, precio, IVA, mínimo y código de barras. Se escribe con el teclado, se pega desde Excel o
+  Google Sheets y el lector pone el código en la fila en la que se está. Todo o nada: si una fila no vale, no se crea
+  ninguno y se dice cuál.
+- **«Sin inventario inicial»**, un estado nuevo y distinto de «Agotado»: lo que se cuenta y todavía no se contó. No se
+  vende, y la caja («Sin contar»), la carta del mesero, la carta de Ajustes y Productos dicen por qué. Productos tiene
+  su cifra y su filtro, y «Contar N pendientes»; la ficha de cada uno, «Contarlo», o el día de su inventario inicial.
+- Inicio y la Puesta a punto cuentan los productos sin inventario inicial; el punto «Existencias iniciales» se tacha
+  cuando todo lo que está a la venta tiene el suyo.
+
+### Cambiado
+- **El inventario inicial trae solo los que faltan** («Traer los que faltan»): 0 si no hay ninguno (queda «Agotado»,
+  sin costo) y en blanco si todavía no se contó. Lo que ya tiene su inventario inicial no entra otra vez: lo que falte
+  o sobre se corrige con un conteo.
+- Una compra, una reposición o un conteo también arrancan un producto pendiente: desde entonces ya tuvo existencia.
+
 ## [0.73.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Tiempo de atención en el salón (B6-8, M-27). Con él, lo pedido en la primera visita queda entregado entero.

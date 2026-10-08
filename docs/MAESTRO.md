@@ -40,9 +40,10 @@ recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
 teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio), T-11
 (reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
-«Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. **Siguiente:** M-28 y M-29 (decididos el 2026-10-08, once pasos;
-orden en §3, punto 8), empezando por **B9-7** cuando el usuario dé el sí. **Para decidir:** D-REL (qué entra en la 1.0.0,
-§4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
+«Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. De M-28 y M-29 (decididos el 2026-10-08, once pasos; orden en
+§3, punto 8) está entregado B9-7 (catálogo sin existencias y su conteo inicial). **Siguiente:** **B7-7** (la semilla con
+casillas para la corrida limpia). **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al
+local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -60,11 +61,11 @@ orden en §3, punto 8), empezando por **B9-7** cuando el usuario dé el sí. **P
   reportes de problemas avisen por correo (T-11).
 - **M-27 (2026-10-07) entregado entero:** los 19 pedidos de la primera visita (P-1 a P-19, §2), en 13 pasos. Quedan
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
-- **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario y sin empezar (§3, orden de ejecución,
-  punto 8): catálogo sin existencias (B9-7), semilla con casillas para la corrida limpia (B7-7), respaldos con carpeta,
-  fijados e integridad (B7-6), Reportes en PDF (Etapa 11), Ajustes unificados (T-18), la cuenta de soporte oculta
-  (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). Se empieza con el sí del
-  usuario. **Para decidir:** D-REL, qué entra en la 1.0.0 (§4).
+- **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
+  el catálogo sin existencias y su conteo inicial (B9-7). Quedan la semilla con casillas para la corrida limpia (B7-7),
+  respaldos con carpeta, fijados e integridad (B7-6), Reportes en PDF (Etapa 11), Ajustes unificados (T-18), la cuenta
+  de soporte oculta (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
+  decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
   runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
 
@@ -233,7 +234,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
-8. **M-28 y M-29**, del más complejo al más simple: **B9-7** (catálogo sin existencias y su conteo inicial) → B7-7 (la
+8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → **B7-7** (la
    semilla con casillas) → B7-6 (respaldos con carpeta, fijados e integridad) → B11-1 (Reportes y las ventas) → T-18
    (Ajustes unificados) → B11-3 (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
    a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
@@ -1739,11 +1740,41 @@ antes del cobro en servidor (orden de ejecución).
   tarjetas a 1366×768, 1280×800 y 800×1280 sin desplazar el documento ni desbordar (en vertical, mínimo y costo quedan
   en la ficha); sin errores de consola. Vender por el lector con un turno abierto no se probó (no se abrió un turno en la
   base del cliente): usa el mismo camino que tocar el producto en la carta.*
-- [~] **B9-7 · Catálogo sin existencias y su conteo inicial** (M-28). *A cargo: LuAMi, rama `feat/b9-7`.*
+- [x] **B9-7 · Catálogo sin existencias y su conteo inicial** (M-28).
   → El catálogo se da de alta en una hoja, sin cantidades (nombre, categoría, presentación, precio, IVA, mínimo y
   código de barras). Un producto que se cuenta y nunca tuvo existencia queda «Sin inventario inicial», distinto de
   «Agotado»: no se vende (ADR-023) y la caja, la carta y la lista dicen por qué. Inventario y la puesta a punto cuentan
   los pendientes; el inventario inicial trae solo los que faltan, con la fecha del conteo.
+  *Hecho el 2026-10-08, en `feat/b9-7`.*
+  *· Base: `20261110000000_inventario_inicial` (solo expande): `stock_start`, el arranque de la existencia de un producto
+  en una sucursal (lo que entró o lo que se contó, también cero, con la entrada o el conteo que lo arrancó), uno por
+  producto y sucursal, solo-agregar y con RLS. Arranca un producto lo que no tenía fila ni movimientos; lo cargado antes
+  (o con la versión anterior durante una vuelta atrás) cuenta como arrancado desde su primer movimiento (ADR-028).*
+  *· Dominio: `stockStatus` gana `SIN_INICIAL` (distinto de `AGOTADO`, con `iniciado` como dato) y `stockAlerts` lo
+  cuenta. 2 pruebas.*
+  *· Contrato: `inventarioInicialEl` en el producto (`null` en lo que se cuenta = sin inventario inicial; sin decirlo,
+  `null`: fail-closed); `minimo` en el alta; `AltaEnLoteCommandSchema` (de 1 a 300, cada nombre y código una vez); el
+  inventario inicial admite `enCero` (puede ser solo de ellos) y la entrada los devuelve. 4 pruebas.*
+  *· Aplicación: `productos.altaEnLote` (`inventario.catalogo`, todo o nada, con un asiento por producto; 300 de una vez
+  en menos de 2,5 s); `arranquesDe` y `asentarArranques`; las entradas arrancan lo que no había arrancado y el
+  inventario inicial rechaza lo ya arrancado (`YA_TIENE_INVENTARIO_INICIAL`, se corrige con un conteo); el conteo
+  arranca lo contado, aunque sea cero; vender lo que no arrancó dice «todavía no tiene inventario inicial»
+  (`SIN_INVENTARIO_INICIAL`); la puesta a punto cuenta los pendientes a la venta. 12 pruebas nuevas contra la base
+  (`inventario-inicial.test-db.ts`) y 3 ajustadas.*
+  *· Web: Productos con la cifra «Sin inventario inicial» (filtra), «Alta en lote» (hoja con teclado, «Pegar desde
+  Excel» y el lector en la fila activa) y «Contar N pendientes»; la ficha con «Contarlo» o el día de su inventario
+  inicial; «Traer los que faltan» en el inventario inicial, con 0 = «en cero» y en blanco = sigue pendiente, y el aviso de
+  lo ya contado; la caja y la tablet dicen «Sin contar»; la carta de Ajustes, «No se piden» (agotados y sin inventario
+  inicial); Inicio y la puesta a punto, cuántos faltan; el manual, su síntoma.*
+  *· Decidido al construir: una compra, una reposición o un conteo también arrancan un pendiente (ya tuvo existencia:
+  «nunca tuvo existencia» es el criterio); la «fecha del conteo» es el instante en que se registró, sin fechas hacia
+  atrás (ADR-010); un producto nuevo de una entrada no se cuenta en cero (para eso, el alta en lote).*
+  *· Comprobado en el navegador, en la base de pruebas: cuatro «Prueba B97 …» pegados desde Excel (uno con el precio
+  mal escrito, señalado en su fila) nacen «Sin inventario inicial»; la caja los enseña «Sin contar» y no deja tocarlos;
+  el inventario inicial trae los que faltan, uno con 12 a $ 0,55 y otro en 0 → «Bien» y «Agotado», los otros dos
+  siguen pendientes; la ficha dice «Inventario inicial: jue 8 oct»; Inicio, «1 agotado · 12 sin inventario inicial», y
+  la puesta a punto, «12 productos sin inventario inicial de 16». A 1366×768, 1280×800, 800×1280 y 390 px, en los dos
+  temas, sin desbordar ni errores de consola.*
 - [ ] **B9-8 · Duplicar un producto y sus sabores** (M-28).
   → «Duplicar» abre la ficha copiada (categoría, presentación, precio, IVA, mínimo y carta) con el nombre para cambiar:
   SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una

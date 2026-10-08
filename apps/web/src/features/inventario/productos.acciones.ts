@@ -28,6 +28,24 @@ export async function aplicarProducto(entrada: unknown): Promise<Resultado<Catal
 }
 
 /**
+ * El alta del catálogo en una hoja, sin cantidades (B9-7): todos o ninguno. Es del inventario
+ * (`inventario.catalogo`), como «Nuevo producto»; el caso de uso lo revalida con el contrato.
+ */
+export async function altaEnLote(entrada: unknown): Promise<Resultado<CatalogoDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar para dar de alta el catálogo." };
+  const resultado = await (await aplicacion()).productos.altaEnLote(ctx, entrada);
+  const productos = typeof entrada === "object" && entrada !== null && "productos" in entrada && Array.isArray(entrada.productos) ? entrada.productos.length : 0;
+  if (resultado.ok) {
+    log().info({ tenantId: ctx.tenantId, productos }, "catálogo dado de alta en lote");
+    revalidatePath("/", "layout");
+  } else {
+    log().warn({ tenantId: ctx.tenantId, productos, motivo: resultado.motivo }, "alta en lote rechazada");
+  }
+  return resultado;
+}
+
+/**
  * Fijar o quitar el stock mínimo de un producto (B9-5). Lo hace quien recibe la mercancía
  * (`inventario.entrada`), sin elevación: no cambia lo que se cobra. El caso de uso lo revalida.
  */

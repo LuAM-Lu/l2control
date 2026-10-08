@@ -58,3 +58,20 @@ test("una línea puede dar de alta un producto nuevo con su ficha corta (B9-6)",
   // Una línea es de un producto o de uno nuevo, no de los dos.
   assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...entrada, lineas: [{ ...linea, nuevo }] }).success, false);
 });
+
+test("el inventario inicial cuenta productos en cero, y puede ser solo de ellos (B9-7)", () => {
+  const inicial = { idempotencyKey: entrada.idempotencyKey, tipo: "INICIAL", lineas: [linea], enCero: [OTRO] };
+  assert.equal(RegistrarEntradaCommandSchema.safeParse(inicial).success, true);
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...inicial, lineas: [] }).success, true);
+  // Sin nada que cargar ni que contar en cero, no hay inventario inicial.
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...inicial, lineas: [], enCero: [] }).success, false);
+  // Un producto va con su cantidad o en cero, no de las dos formas.
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...inicial, enCero: [ID] }).success, false);
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...inicial, enCero: [OTRO, OTRO] }).success, false);
+  // Una compra o una reposición traen lo que llegó: no cuentan en cero.
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...entrada, enCero: [OTRO] }).success, false);
+  // Entre lo que entra y lo que se cuenta en cero, hasta 300.
+  const enCero = Array.from({ length: 300 }, (_, i) => `0199a0c0-0000-7000-8000-${String(i).padStart(12, "0")}`);
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...inicial, lineas: [], enCero }).success, true);
+  assert.equal(RegistrarEntradaCommandSchema.safeParse({ ...inicial, enCero }).success, false);
+});

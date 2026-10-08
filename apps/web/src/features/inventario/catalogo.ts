@@ -4,7 +4,7 @@
  * traduce la forma del contrato.
  */
 import type { CatalogoDto, ProductoDto, TaxCode } from "@l2/contracts";
-import { categoriesOf, priceTimeline, sellableAt, type PricePeriod } from "@l2/domain-inventory";
+import { categoriesOf, priceTimeline, sellableAt, stockStatus, type PricePeriod } from "@l2/domain-inventory";
 import type { Money } from "@l2/domain-money";
 
 /** Un producto que se puede vender ahora, con su precio de ahora. */
@@ -16,6 +16,11 @@ export type ProductoALaVenta = Readonly<{
   precio: Money;
   /** Cuántas quedan (B9-2), o `null` si no lleva existencia. Con 0 no se vende (ADR-023). */
   existencia: number | null;
+  /**
+   * Si se cuenta y todavía no tiene su inventario inicial (B9-7): no se vende, como lo agotado, pero no
+   * porque se acabara sino porque nunca se contó. La pantalla lo dice así.
+   */
+  sinInventarioInicial: boolean;
   /** Para venderlo pasándolo por el lector (B9-6). */
   sku: string;
   codigoBarras: string | null;
@@ -51,6 +56,7 @@ export function productosALaVenta(catalogo: CatalogoDto, instante: number): Prod
     taxCode: p.taxCode,
     precio: p.price,
     existencia: p.existencia,
+    sinInventarioInicial: p.existencia !== null && stockStatus(p.existencia, p.minimo, p.inventarioInicialEl !== null) === "SIN_INICIAL",
     sku: p.sku,
     codigoBarras: p.codigoBarras,
     enCarta: p.enCarta,

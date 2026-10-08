@@ -100,14 +100,14 @@ after(async () => {
 });
 
 describe("sin existencia no se vende (ADR-023 §3)", () => {
-  test("una venta de lo que no hay se rechaza señalando su línea, y no deja nada escrito", async () => {
+  test("lo que nunca se contó no se vende, y dice que le falta su inventario inicial (B9-7)", async () => {
     assert.equal(await existencia("Refresco"), 0);
     const cuenta = mostrador([linea("Café"), linea("Refresco")]);
     const r = await guardar(cuenta);
     assert.equal(!r.ok && r.motivo, "INVALIDO");
-    assert.match(!r.ok ? r.mensaje : "", /Sin existencia de Refresco: no queda ninguno/);
+    assert.match(!r.ok ? r.mensaje : "", /«Refresco» todavía no tiene inventario inicial: se vende cuando se cuente/);
     assert.deepEqual(!r.ok && r.problemas?.[0]?.path, ["cuenta", "lines", 1]);
-    assert.match((!r.ok && r.problemas?.[0]?.message) || "", /^SIN_EXISTENCIA/);
+    assert.equal(!r.ok && r.problemas?.[0]?.message, "SIN_INVENTARIO_INICIAL");
     const fila = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.account.findUnique({ where: { id: cuenta.id } }));
     assert.equal(fila, null);
   });
@@ -115,7 +115,14 @@ describe("sin existencia no se vende (ADR-023 §3)", () => {
   test("tampoco en la tablet del mesero", async () => {
     const mesa = { ...mostrador([linea("Galleta")]), kind: "MESA", family: "Mesa 3", status: "ABIERTA", tableId: "mesa-3", tableLabel: "3" };
     const r = await guardar(mesa, ctxMesero);
-    assert.match(!r.ok ? r.mensaje : "", /Sin existencia de Galleta/);
+    assert.match(!r.ok ? r.mensaje : "", /«Galleta» todavía no tiene inventario inicial/);
+  });
+
+  test("contado en cero ya no le falta el inicial: está agotado, y se dice así", async () => {
+    valor(await local.app.entradas.registrar(local.sistema, { idempotencyKey: randomUUID(), tipo: "INICIAL", lineas: [], enCero: [ids.Jugo!] }, AHORA - MIN));
+    const r = await guardar(mostrador([linea("Jugo")]));
+    assert.match(!r.ok ? r.mensaje : "", /Sin existencia de Jugo: no queda ninguno/);
+    assert.match((!r.ok && r.problemas?.[0]?.message) || "", /^SIN_EXISTENCIA/);
   });
 
   test("lo que no lleva existencia se vende sin ella y no deja movimientos", async () => {

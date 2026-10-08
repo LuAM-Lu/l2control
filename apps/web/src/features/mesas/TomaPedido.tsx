@@ -132,7 +132,9 @@ export function TomaPedido({
                     </span>
                     <span className="flex items-center justify-between gap-2">
                       <span className="tnum text-[13px] text-ink-2">{formatMoneyVE(toMajor(i.precio), "USD")}</span>
-                      {!disponible(i) ? (
+                      {i.sinInventarioInicial ? (
+                        <Badge tone="idle">Sin contar</Badge>
+                      ) : !disponible(i) ? (
                         <Badge tone="idle">Agotado</Badge>
                       ) : i.existencia !== null ? (
                         <span className="tnum text-[12px] text-ink-3">{hay ? `Quedan ${quedanDe(i)}` : "No quedan más"}</span>
@@ -182,7 +184,9 @@ export function TomaPedido({
                     <div className="min-w-0 flex-1">
                       <p className={cn("truncate text-[14px] leading-snug font-medium", it && quedanDe(it) >= 0 ? "text-ink" : "text-state-warn")}>
                         {it?.nombre ?? "Plato fuera de carta"}
-                        {it && quedanDe(it) < 0 && <span className="ml-1.5 text-[12px]">· {it.existencia === 0 ? "agotado" : `quedan ${it.existencia}`}</span>}
+                        {it && quedanDe(it) < 0 && (
+                          <span className="ml-1.5 text-[12px]">· {it.sinInventarioInicial ? "sin contar" : it.existencia === 0 ? "agotado" : `quedan ${it.existencia}`}</span>
+                        )}
                       </p>
                       <p className="flex items-center gap-2 text-[12.5px]">
                         {it && (

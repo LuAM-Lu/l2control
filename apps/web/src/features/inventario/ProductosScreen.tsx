@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, History, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, ClipboardList, History, ListPlus, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { barcodeProblem, marginBasisPoints, normalizeBarcode, periodAt, stockStatus } from "@l2/domain-inventory";
+import { barcodeProblem, marginBasisPoints, normalizeBarcode, periodAt } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { invertRate, money, toMajor, type Money } from "@l2/domain-money";
-import { Button, Container, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
+import { Button, Container, Input, PageHeader, Sheet, TAMANO_ICONO, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
@@ -18,7 +18,8 @@ import { formatClock } from "../park/time-format.ts";
 import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { aplicarProducto, fijarMinimo } from "./productos.acciones";
-import { EstadoStock } from "./EstadoStock.tsx";
+import { EstadoStock, estadoDe as estadoDelStock } from "./EstadoStock.tsx";
+import { AltaEnLote } from "./AltaEnLote.tsx";
 import { categoriasDelCatalogo, periodosDe } from "./catalogo.ts";
 import { InventarioVista } from "./InventarioVista.tsx";
 import { CategoriasSheet } from "./CategoriasSheet.tsx";
@@ -88,6 +89,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   const [creando, setCreando] = useState<{ codigo: string } | null>(null);
   const [abiertoId, setAbiertoId] = useState<string | null>(null);
   const [conCategorias, setConCategorias] = useState(false);
+  const [enLote, setEnLote] = useState(false);
   /** Qué se está guardando: bloquea ese control mientras el servidor responde. */
   const [enviando, setEnviando] = useState<string | null>(null);
 
@@ -108,6 +110,8 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   const periodos = useMemo(() => periodosDe(catalogo.productos), [catalogo]);
   const categorias = useMemo(() => categoriasDelCatalogo(catalogo), [catalogo]);
   const abierto = catalogo.productos.find((p) => p.id === abiertoId) ?? null;
+  // Lo que se cuenta, está a la venta y todavía no tiene su inventario inicial (B9-7).
+  const pendientes = catalogo.productos.filter((p) => p.activo && estadoDelStock(p) === "SIN_INICIAL").length;
 
   // Pasar un código por el lector abre su ficha (B9-6). Con una hoja abierta, escucha ella.
   useLectorDeCodigos((leido) => {
@@ -121,7 +125,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
       detalle: puedeModificar ? "Si es nuevo, dalo de alta con ese código." : "Pide a administración que lo dé de alta.",
       ...(puedeModificar && barcodeProblem(codigo) === null ? { accion: { texto: "Darlo de alta", alPulsar: () => setCreando({ codigo }) } } : {}),
     });
-  }, creando === null && abierto === null && !conCategorias);
+  }, creando === null && abierto === null && !conCategorias && !enLote);
 
   return (
     <Container ancho="panel" className="py-8">
@@ -131,6 +135,15 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
         descripcion="Lo que hay, lo que hay que reponer y lo que deja cada cosa que se vende. El precio se programa con su día: cambiarlo no altera lo ya vendido."
         acciones={
           <div className="flex flex-wrap gap-2">
+            {actorPuedeRecibir && pendientes > 0 && (
+              <Link
+                href={"/panel/inventario/entradas?inicial=1" as Route}
+                className="flex min-h-9 items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] font-semibold text-ink no-underline hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand"
+              >
+                <ClipboardList size={TAMANO_ICONO.admin} aria-hidden="true" />
+                Contar {pendientes === 1 ? "1 pendiente" : `${pendientes} pendientes`}
+              </Link>
+            )}
             {actorPuedeRecibir && (
               <Link
                 href={"/panel/inventario/entradas" as Route}
@@ -139,6 +152,12 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
                 <PackagePlus size={15} aria-hidden="true" />
                 Cargar entrada
               </Link>
+            )}
+            {puedeModificar && (
+              <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => setEnLote(true)}>
+                <ListPlus size={TAMANO_ICONO.admin} aria-hidden="true" />
+                Alta en lote
+              </Button>
             )}
             {puedeModificar && (
               <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => setConCategorias(true)}>
@@ -161,14 +180,20 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
           <PackageOpen size={28} className="text-ink-3" aria-hidden="true" />
           <p className="font-display text-[16px] font-bold text-ink">Todavía no hay productos</p>
           <p className="max-w-md text-[13px] text-ink-2">
-            Sin productos, la caja no vende en el mostrador. Crea el primero con su precio, o cárgalo directamente en una entrada de
-            mercancía con su ficha corta.
+            Sin productos, la caja no vende en el mostrador. Carga el catálogo de una vez en una hoja, sin cantidades (el stock se
+            cuenta otro día), crea uno con su precio, o cárgalo directamente en una entrada de mercancía con su ficha corta.
           </p>
           {puedeModificar && (
-            <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setCreando({ codigo: "" })}>
-              <Plus size={15} aria-hidden="true" />
-              Nuevo producto
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button type="button" variant="primary" surface="admin" className="gap-1.5" onClick={() => setEnLote(true)}>
+                <ListPlus size={TAMANO_ICONO.admin} aria-hidden="true" />
+                Alta en lote
+              </Button>
+              <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => setCreando({ codigo: "" })}>
+                <Plus size={15} aria-hidden="true" />
+                Nuevo producto
+              </Button>
+            </div>
           )}
         </div>
       ) : (
@@ -176,6 +201,17 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
       )}
 
       <CategoriasSheet abierto={conCategorias} onCerrar={() => setConCategorias(false)} catalogo={catalogo} onCambio={setCatalogo} />
+      {enLote && (
+        <AltaEnLote
+          catalogo={catalogo}
+          categorias={categorias}
+          onCerrar={() => setEnLote(false)}
+          onCreados={(c) => {
+            setCatalogo(c);
+            setEnLote(false);
+          }}
+        />
+      )}
       <ProductoNuevo abierto={creando !== null} codigoInicial={creando?.codigo ?? ""} onCerrar={() => setCreando(null)} categorias={categorias} enviando={enviando} cambiar={cambiar} />
       <FichaProducto
         producto={abierto}
@@ -640,7 +676,7 @@ function FichaProducto({
       }
     >
       <div className="flex flex-col gap-5">
-        {producto.controlaStock && <Existencia producto={producto} ahora={ahora} adoptar={adoptar} />}
+        {producto.controlaStock && <Existencia producto={producto} ahora={ahora} zona={zona} adoptar={adoptar} />}
         <section aria-label="Precio" className="flex flex-col gap-3">
           <h3 className="font-display text-[14px] font-bold text-ink">Precio</h3>
           <ul className="flex flex-col divide-y divide-line rounded-[var(--radius-control)] border border-line">
@@ -762,12 +798,14 @@ function ChipEstado({ estado }: { estado: "RIGE" | "PROGRAMADO" | "TERMINO" }) {
   );
 }
 
-/** La existencia en palabras (B9-2): cuántas quedan en esta sucursal, o que no lleva. */
-function existenciaEnPalabras(p: Pick<ProductoDto, "existencia" | "minimo">): string {
-  if (p.existencia === null) return "sin existencia";
-  if (p.existencia === 0) return "agotado: no se vende";
+/** La existencia en palabras (B9-2): cuántas quedan en esta sucursal, que no se contó todavía (B9-7) o que no lleva. */
+function existenciaEnPalabras(p: Pick<ProductoDto, "existencia" | "minimo" | "inventarioInicialEl">): string {
+  const estado = estadoDelStock(p);
+  if (p.existencia === null || estado === null) return "sin existencia";
+  if (estado === "SIN_INICIAL") return "sin inventario inicial: no se vende hasta contarlo";
+  if (estado === "AGOTADO") return "agotado: no se vende";
   const quedan = p.existencia === 1 ? "queda 1" : `quedan ${p.existencia}`;
-  return stockStatus(p.existencia, p.minimo) === "BAJO_MINIMO" ? `${quedan}, bajo su mínimo (${p.minimo})` : quedan;
+  return estado === "BAJO_MINIMO" ? `${quedan}, bajo su mínimo (${p.minimo})` : quedan;
 }
 
 const PORCENTAJE = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -776,7 +814,7 @@ const PORCENTAJE = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 1, ma
  * Lo que queda, lo que cuesta y lo que deja (B9-2, B9-3): la existencia de la sucursal, el costo
  * promedio ponderado y el margen sobre el precio de hoy. Desde aquí se carga su entrada.
  */
-function Existencia({ producto, ahora, adoptar }: { producto: ProductoDto; ahora: number | null; adoptar: (c: CatalogoDto) => void }) {
+function Existencia({ producto, ahora, zona, adoptar }: { producto: ProductoDto; ahora: number | null; zona: string; adoptar: (c: CatalogoDto) => void }) {
   const actor = useActorEnSesion();
   const puedeRecibir = actor !== null && can(actor, "inventario.entrada") !== "DENEGADO";
   // El mínimo se teclea como texto: vacío = sin mínimo (solo avisa al agotarse).
@@ -803,12 +841,23 @@ function Existencia({ producto, ahora, adoptar }: { producto: ProductoDto; ahora
   const tramo = ahora === null ? undefined : periodAt(periodosDe([producto]), producto.id, ahora);
   const costo = producto.costoPromedio ? BigInt(producto.costoPromedio.minor) : null;
   const margen = tramo ? marginBasisPoints(tramo.amountMinor, costo) : null;
+  const estado = estadoDelStock(producto) ?? "AGOTADO";
+  const sinInicial = estado === "SIN_INICIAL";
   const agotado = producto.existencia === 0;
   return (
     <section aria-label="Existencia" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display text-[14px] font-bold text-ink">Existencia</h3>
-        {puedeRecibir && (
+        {puedeRecibir && sinInicial && (
+          <Link
+            href={`/panel/inventario/entradas?inicial=1&producto=${producto.id}` as Route}
+            className="flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-line px-2.5 text-[13px] font-semibold text-ink no-underline hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand"
+          >
+            <ClipboardList size={TAMANO_ICONO.texto} aria-hidden="true" />
+            Contarlo
+          </Link>
+        )}
+        {puedeRecibir && !sinInicial && (
           <Link
             href={`/panel/inventario/entradas?producto=${producto.id}` as Route}
             className="flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border border-line px-2.5 text-[13px] font-semibold text-ink no-underline hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand"
@@ -822,8 +871,14 @@ function Existencia({ producto, ahora, adoptar }: { producto: ProductoDto; ahora
         <div className="flex flex-col gap-0.5">
           <dt className={ETIQUETA}>Quedan</dt>
           <dd className={cn("tnum flex items-center gap-1 text-[16px] font-bold", agotado ? "text-ink-2" : "text-ink")}>
-            {agotado && <PackageX size={15} aria-hidden="true" />}
-            {agotado ? "Agotado" : producto.existencia}
+            {sinInicial ? (
+              <span className="text-detalle font-normal text-ink-3">Sin contar</span>
+            ) : (
+              <>
+                {agotado && <PackageX size={15} aria-hidden="true" />}
+                {agotado ? "Agotado" : producto.existencia}
+              </>
+            )}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">
@@ -837,6 +892,17 @@ function Existencia({ producto, ahora, adoptar }: { producto: ProductoDto; ahora
           </dd>
         </div>
       </dl>
+      {/* B9-7: cuándo arrancó su existencia, o que todavía no se contó y por eso no se vende. */}
+      {sinInicial ? (
+        <p className="flex items-start gap-1.5 rounded-[var(--radius-control)] border border-line bg-state-idle-bg px-3 py-2 text-detalle text-ink-2">
+          <ClipboardList size={TAMANO_ICONO.texto} className="mt-0.5 shrink-0" aria-hidden="true" />
+          Sin inventario inicial: la caja y la carta no lo venden hasta que se cuente (en el inventario inicial o en un conteo).
+        </p>
+      ) : (
+        producto.inventarioInicialEl && (
+          <p className="tnum text-nota text-ink-3">Inventario inicial: {diaEnPalabras(Date.parse(producto.inventarioInicialEl), zona)}</p>
+        )
+      )}
       {margen !== null && margen < 0 && (
         <p className="flex items-center gap-1.5 text-[12.5px] text-state-crit">
           <AlertTriangle size={13} aria-hidden="true" />
@@ -867,7 +933,7 @@ function Existencia({ producto, ahora, adoptar }: { producto: ProductoDto; ahora
           </Button>
         )}
         <span className="mb-2 ml-auto">
-          <EstadoStock estado={stockStatus(producto.existencia ?? 0, producto.minimo)} />
+          <EstadoStock estado={estado} />
         </span>
       </div>
     </section>

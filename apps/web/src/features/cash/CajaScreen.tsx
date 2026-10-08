@@ -7,6 +7,7 @@ import {
   Check,
   CircleCheckBig,
   CircleDollarSign,
+  ClipboardList,
   Coins,
   Copy,
   CreditCard,
@@ -2101,6 +2102,10 @@ export function CajaScreen({
         avisar.error("La caja no vende sin turno abierto", { detalle: "Abre el turno de este equipo." });
         return;
       }
+      if (producto.sinInventarioInicial) {
+        avisar.error(`«${producto.nombre}» todavía no tiene inventario inicial`, { detalle: "Se vende cuando se cuente: Inventario → Entradas → Inventario inicial." });
+        return;
+      }
       if (producto.existencia === 0) {
         avisar.error(`«${producto.nombre}» se agotó`, { detalle: "Lo que no hay no se vende: hay que cargar la entrada de mercancía." });
         return;
@@ -2304,6 +2309,12 @@ export function CajaScreen({
       }
       // Lo que no hay no se vende (ADR-023): el servidor lo rechazaría igual; aquí se dice antes.
       const piden = objetivo - suyas.length;
+      if (producto.sinInventarioInicial) {
+        avisar.error(`«${producto.nombre}» todavía no tiene inventario inicial`, {
+          detalle: "Se vende cuando se cuente: Inventario → Entradas → Inventario inicial.",
+        });
+        return;
+      }
       if (producto.existencia !== null && producto.existencia < piden) {
         avisar.error(
           producto.existencia === 0
@@ -2687,15 +2698,18 @@ function CartaMostrador({
         {productos.map((p) => {
           const usd = p.precio;
           const bs = aBolivares ? convert(usd, aBolivares) : null;
-          // Sin existencia no se vende (ADR-023): se ve, pero no se toca.
+          // Sin existencia no se vende (ADR-023): se ve, pero no se toca. Lo que nunca se contó (B9-7) dice eso,
+          // no «agotado»: no se acabó, falta contarlo.
           const agotado = p.existencia === 0;
+          const sinContar = p.sinInventarioInicial;
           return (
             <button
               key={p.id}
               type="button"
               onClick={() => onElegir(p)}
               disabled={agotado}
-              aria-label={agotado ? `${p.nombre}, agotado` : undefined}
+              aria-label={sinContar ? `${p.nombre}, sin inventario inicial` : agotado ? `${p.nombre}, agotado` : undefined}
+              title={sinContar ? "Sin inventario inicial: se vende cuando se cuente" : undefined}
               className={cn(
                 "flex min-h-14 flex-col items-start justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-left transition-all",
                 agotado
@@ -2714,8 +2728,8 @@ function CartaMostrador({
                       agotado ? "text-ink-2" : "text-ink-3",
                     )}
                   >
-                    {agotado && <PackageX size={11} aria-hidden="true" />}
-                    {agotado ? "Agotado" : `Quedan ${p.existencia}`}
+                    {sinContar ? <ClipboardList size={11} aria-hidden="true" /> : agotado && <PackageX size={11} aria-hidden="true" />}
+                    {sinContar ? "Sin contar" : agotado ? "Agotado" : `Quedan ${p.existencia}`}
                   </span>
                 )}
               </span>

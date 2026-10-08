@@ -2,7 +2,7 @@
 
 Inventario (F8, Etapa 9). Módulo puro: sin base, sin red y sin reloj propio.
 
-## Qué resuelve hoy (B9-1 a B9-6)
+## Qué resuelve hoy (B9-1 a B9-7)
 
 El **catálogo de productos** de venta directa y de consumo en cuenta (F8-02):
 
@@ -45,7 +45,10 @@ Y las **salidas y el conteo** (B9-4):
 | `costOfSurplus` | A qué costo entra lo que un conteo encuentra de más: al promedio; sin existencia, al de la última entrada; sin nada, a cero |
 
 Y el **estado del stock** (B9-5): `stockStatus` (agotado, bajo su mínimo, bien) y `stockAlerts` (cuántos a la venta
-están agotados o bajo mínimo, para avisar en Inicio).
+están agotados o bajo mínimo, para avisar en Inicio). Desde B9-7 (M-28), un cuarto estado: **sin inventario inicial**
+(`SIN_INICIAL`), lo que se cuenta y todavía no arrancó (el catálogo se cargó sin existencias). No se vende, como lo
+agotado, pero no se acabó: falta contarlo. Si arrancó lo dice quien llama (`iniciado`): la fila de arranque de
+`stock_start` o su primer movimiento, que lee `@l2/application`.
 
 Y la **identificación** (B9-6): `PRODUCT_KINDS` y `kindTracksStock` (solo el PRODUCTO se cuenta), `skuPrefix` y
 `nextSku` (el SKU, «BEB-0001»), `normalizeBarcode` y `barcodeProblem` (el formato y el dígito de control de un EAN o

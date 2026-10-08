@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { BookOpen, CalendarClock, ChefHat, EyeOff, Package, PackageX, Plus, Search, Tag, UtensilsCrossed } from "lucide-react";
+import { BookOpen, CalendarClock, ChefHat, ClipboardList, EyeOff, Package, PackageX, Plus, Search, Tag, UtensilsCrossed } from "lucide-react";
 import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { addDays, calendarDay } from "@l2/domain-rates";
@@ -31,6 +31,7 @@ import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { aplicarProducto } from "../inventario/productos.acciones";
+import { estadoDe } from "../inventario/EstadoStock.tsx";
 
 /**
  * Ajustes → Carta y precios (B6-1, F6-03; patrón de Ajustes, M-17).
@@ -61,7 +62,9 @@ type Fila = Readonly<{
   p: ProductoDto;
   hoy: bigint | null;
   proximo: Readonly<{ minor: bigint; desde: number }> | null;
+  /** No se pide: se acabó, o todavía no tiene su inventario inicial (`sinContar`, B9-7). */
   agotado: boolean;
+  sinContar: boolean;
 }>;
 
 function filasDe(catalogo: CatalogoDto, ahora: number | null): Fila[] {
@@ -76,6 +79,7 @@ function filasDe(catalogo: CatalogoDto, ahora: number | null): Fila[] {
         hoy: ahora !== null && vigente ? BigInt(vigente.precio.minor) : null,
         proximo: ahora !== null && siguiente ? { minor: BigInt(siguiente.precio.minor), desde: Date.parse(siguiente.desde) } : null,
         agotado: p.existencia !== null && p.existencia <= 0,
+        sinContar: estadoDe(p) === "SIN_INICIAL",
       };
     })
     .sort((a, b) => a.p.categoria.localeCompare(b.p.categoria, "es") || a.p.nombre.localeCompare(b.p.nombre, "es"));
@@ -129,6 +133,7 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
     FUERA: filas.length - enCarta.length,
     AGOTADOS: enCarta.filter((f) => f.agotado).length,
   };
+  const sinContar = enCarta.filter((f) => f.sinContar).length;
   const programados = enCarta.filter((f) => f.proximo !== null);
 
   const texto = busqueda.trim().toLocaleLowerCase("es");
@@ -196,6 +201,10 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
   const existencia = (f: Fila) =>
     f.p.existencia === null ? (
       <span className="text-ink-3">Sin stock</span>
+    ) : f.sinContar ? (
+      <span className="flex items-center gap-1 font-semibold text-ink-2">
+        <ClipboardList size={13} aria-hidden="true" /> Sin inventario inicial
+      </span>
     ) : f.agotado ? (
       <span className="flex items-center gap-1 font-semibold text-state-crit">
         <PackageX size={13} aria-hidden="true" /> Agotado
@@ -238,11 +247,19 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
           onClick={() => filtrar("FUERA")}
         />
         <Cifra
-          etiqueta="Agotados"
+          etiqueta="No se piden"
           icono={<PackageX aria-hidden="true" />}
-          tono={cuentas.AGOTADOS > 0 ? "crit" : "idle"}
+          tono={cuentas.AGOTADOS > sinContar ? "crit" : "idle"}
           valor={String(cuentas.AGOTADOS)}
-          pie={cuentas.AGOTADOS > 0 ? "En la carta, sin existencia: no se piden" : "Todo lo de la carta se puede pedir"}
+          pie={
+            cuentas.AGOTADOS === 0
+              ? "Todo lo de la carta se puede pedir"
+              : sinContar === 0
+                ? "En la carta y agotados"
+                : sinContar === cuentas.AGOTADOS
+                  ? "En la carta, sin inventario inicial"
+                  : `${cuentas.AGOTADOS - sinContar} agotados y ${sinContar} sin inventario inicial`
+          }
           activo={filtro === "AGOTADOS"}
           onClick={() => filtrar("AGOTADOS")}
         />
@@ -264,7 +281,7 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
               { id: "TODOS", nombre: "Todo", cuenta: cuentas.TODOS },
               { id: "EN_CARTA", nombre: "En la carta", cuenta: cuentas.EN_CARTA },
               { id: "FUERA", nombre: "Fuera", cuenta: cuentas.FUERA },
-              { id: "AGOTADOS", nombre: "Agotados", cuenta: cuentas.AGOTADOS, alerta: true },
+              { id: "AGOTADOS", nombre: "No se piden", cuenta: cuentas.AGOTADOS, alerta: true },
             ]}
           />
           <select

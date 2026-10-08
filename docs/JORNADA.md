@@ -88,7 +88,7 @@ trabajar sin ella; lo demás es recomendable pero no detiene nada.
 | Impresoras | Comandas y ticket de corte | B5-2 |
 | Feriados bancarios del año | — | Recordatorio: sin ellos, ese día pide la tasa a mano |
 | Carta y plano del restaurante | Mesas y comandas | El restaurante entra en el piloto (M-15) |
-| Existencias iniciales del inventario | Vender lo que lleva existencia | Sin existencia no se vende (ADR-023, B9-3) |
+| Existencias iniciales del inventario | Vender lo que lleva existencia | Sin existencia no se vende (ADR-023, B9-3). Se tacha cuando todo lo que se cuenta y está a la venta tiene su inventario inicial; dice cuántos faltan (B9-7) |
 | Descuentos y familias VIP | — | Opcional (B3-6) |
 | Segunda administración con su llave | — | Regla de operación: siempre dos (M-7) |
 
