@@ -7,21 +7,20 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-07 · v0.60.1 · `main` en c7325c2 más este relevo · nada a medias ni reclamado*
+*2026-10-08 · v0.73.0 · `main` en 9ca1c8b más este relevo · nada a medias ni reclamado*
 
 ```text
-Hecho, todo en main: T-9, B7-2 y T-10, T-8b (v0.58.0), B7-4 (v0.59.0), B7-5 (v0.60.0) y v0.60.1. 60 de 66 pasos.
-Staging (https://217-216-48-54.sslip.io) en 0.60.1: se pone al día SOLO (cron con infra/produccion/actualizador.sh;
-  cada versión entró en ~40 s) y hace un respaldo cifrado cada noche (respaldar.sh, 3:15 am). README de infra/produccion.
-B7-5: matriz §7.3 comprobada celda por celda (matriz-del-plan.test.ts), Next 16.3.7 (ejecución remota en next/og), el
-  descifrado GCM exige la etiqueta entera, pnpm audit en el CI con 7 días de edad mínima y trustPolicy, cabeceras en Caddy.
-Para decidir (MAESTRO §4): D-REIMP (reimprimir un recibo sin 🔐) y el calendario de actualización de dependencias.
-Pendiente de administración en el staging: preparar la PC de los respaldos, cargar la semilla y los feriados (12 oct).
-Siguiente que se puede hacer a distancia: B8-2 · runbooks, contingencia en papel, manual y capacitación por rol.
-  Criterio: cada runbook («se cayó la impresora», «se perdió internet», «revertir un despliegue», «no cuadra la caja»)
-  lo sigue alguien externo; el manual se lee en 30 min por rol. B7-3, T-8c, B8-1 y B8-3 van en el local.
-Cuidado: una versión nueva espera 7 días en npm antes de entrar (un parche urgente va en minimumReleaseAgeExclude); en
-  el VPS, Caddy monta su Caddyfile y git pull lo cambia por otro archivo: desplegar.sh ya lo recrea si difiere.
+Hecho, todo en main: M-27 entero (19 pedidos de la primera visita) de v0.61.0 a v0.73.0, y v0.72.1 (corrección). 73 de 90.
+  T-11 (reportes con captura, Ajustes → Soporte, aviso por correo desde el worker) y B6-8 («Servido», Atención en el salón).
+Decidido y escrito en el plan, SIN empezar: M-28 (B9-7, T-17, B9-8) y M-29 (B7-6, B7-7, T-18, B9-9, B9-10, Reportes
+  B11-1 a B11-3, en PDF por vista de impresión). Orden en MAESTRO §3, punto 8. No programar hasta el sí del usuario.
+Siguiente: B9-7 · catálogo sin existencias. Criterio: alta en hoja sin cantidades; «Sin inventario inicial» ≠ «Agotado»,
+  no se vende; los pendientes contados en Inventario y la puesta a punto; el inventario inicial trae solo esos.
+Para decidir: D-REL (qué entra en la 1.0.0, MAESTRO §4). Para el usuario: L2_SMTP_URL y L2_CORREO_SOPORTE en el VPS;
+  confirmar P-1, P-3, P-5, P-6 y P-14 de M-27. La rama vieja feat/t-11 sigue en GitHub (la usó otra persona).
+Cuidado: antes de etiquetar, git log -1 origin/main tiene que ser el commit del paso (un PR #52 fusionó aparte un reclamo
+  y una etiqueta cayó en el commit equivocado; se rehízo). Si pasa: rama nueva desde main y cherry-pick, nunca --force.
+  cn (tailwind-merge) solo conoce la escala ESCALA_DE_TEXTO de packages/ui/src/cn.ts: un escalón nuevo va también ahí.
 ```
 
 ## aemorandin-coder

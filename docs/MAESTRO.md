@@ -38,24 +38,33 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
-teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio) y T-11
+teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio), T-11
 (reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
-«Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. Lo que queda de la ruta sigue en §3: B7-3 y T-8c esperan visita al
-local; B8 es la puesta en marcha.
+«Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. **Siguiente:** M-28 y M-29 (decididos el 2026-10-08, once pasos;
+orden en §3, punto 8), empezando por **B9-7** cuando el usuario dé el sí. **Para decidir:** D-REL (qué entra en la 1.0.0,
+§4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
   sala y salida en el teléfono, pulseras de un solo uso), inventario (existencias, entradas en lote, salidas, conteo,
   mínimos), restaurante (plano, carta, pedido del mesero con comanda impresa), cumpleaños con anticipo, tiempo real
-  e impresión por un agente en la laptop de caja. El detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
+  e impresión por un agente en la laptop de caja. Con M-27 (v0.61.0 a v0.73.0): varias cuentas por mesa y de pie,
+  pausa por comida, entrar sin pulsera, medias, cortesía y anular desde la sala, ayuda con recorridos guiados, roles que
+  se pueden dar, cobrar con el teclado y el recibo a elección, «Mi cuenta» y el acceso con teclado, la operación de un
+  vistazo, la escala de texto e iconos, reportar un problema con captura y la atención en el salón. El detalle de cada
+  paso está en su casilla de §3 y en `CHANGELOG.md`.
 - **Staging:** `https://217-216-48-54.sslip.io` (Etapa 7). Se pone al día solo con cada versión publicada (T-8b),
   hace un respaldo cifrado cada noche que baja una PC del local (B7-4) y pasó la revisión de seguridad (B7-5).
   **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Respaldos), cargar la semilla
-  (Ajustes → Semilla del local) y los feriados.
-- **Ahora (M-27, 2026-10-07):** el cliente vio el sistema funcionando en el local y pidió 19 cambios (P-1 a P-19,
-  §2). Son **13 pasos nuevos**, ordenados del más complejo al más simple (§3, orden de ejecución, punto 7). Dos
-  esperan una decisión del cliente (**D-SERV** y **D-SOP**, §4); el resto se construye con la propuesta anotada y se
-  confirma al verlo.
+  (Ajustes → Semilla del local) y los feriados; y del usuario, poner `L2_SMTP_URL` y `L2_CORREO_SOPORTE` para que los
+  reportes de problemas avisen por correo (T-11).
+- **M-27 (2026-10-07) entregado entero:** los 19 pedidos de la primera visita (P-1 a P-19, §2), en 13 pasos. Quedan
+  por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
+- **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario y sin empezar (§3, orden de ejecución,
+  punto 8): catálogo sin existencias (B9-7), semilla con casillas para la corrida limpia (B7-7), respaldos con carpeta,
+  fijados e integridad (B7-6), Reportes en PDF (Etapa 11), Ajustes unificados (T-18), la cuenta de soporte oculta
+  (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). Se empieza con el sí del
+  usuario. **Para decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
   runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
 
@@ -65,7 +74,8 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
   `pnpm db:semilla` (local, equipo con PIN 1970, credenciales de Abigail, tarifario).
 - **Servidor:** `@l2/database` (RLS forzada, solo-agregar, auditoría y outbox), `@l2/application` (los casos de uso
   de cada dominio, en la transacción del tenant), `@l2/observability` (logs redactados, entorno validado),
-  `apps/worker` (canal en vivo, outbox, tasa del BCV) y `apps/printer-agent` (la impresora del local). La web lee la
+  `apps/worker` (canal en vivo, outbox, tasa del BCV y el aviso por correo de los reportes de problemas) y
+  `apps/printer-agent` (la impresora del local). La web lee la
   sesión de cookies `httpOnly` y recibe el actor COMPLETO del servidor, recalculado en cada petición.
 - **Entrar en local:** navegador nuevo → «Pedir registro» en `/acceso` → `pnpm equipos aprobar "<nombre>"` → persona →
   PIN 1970. Para confirmar identidad, la administración usa su contraseña y la app de autenticación, la llave o un
@@ -2070,9 +2080,10 @@ F9-05).
 | ~~F-12~~ | ¿El teléfono entra en el objetivo? | **Sí (M-15):** la monitora trabaja en un teléfono | B4-5 |
 | D-REIMP | ¿Reimprimir un recibo pide 🔐 a la caja? (B7-5) | PLAN §7.3 marca «Reimprimir documento» 🔐 para supervisión y caja; B3-4 lo dejó como copia marcada y auditada, sin autorización, y nadie lo anotó como decisión. **Propuesta:** dejarlo así (el recibo no es un documento fiscal, sale «COPIA», queda en la auditoría y en las excepciones del turno) y anotarlo; o pedir el PIN de supervisión desde la segunda copia | B8-3 |
 | F10-09 | Calendario de actualización de dependencias | **Propuesta:** el CI ya rechaza un aviso alto o crítico; además, cada mes (primera semana) una revisión de `pnpm outdated` con parches y menores en una rama, y las mayores como paso propio | B8-3 |
-| ~~D-SERV~~ | ¿El mesero marca «Servido»? (M-27, P-19) | **Decidido el 2026-10-07:** sí, un toque «Servido» por pedido en la tablet; si no se marca, el pedido sigue contando como esperando y el informe lo dice | B6-8 |
+| ~~D-SERV~~ | ¿El mesero marca «Servido»? (M-27, P-19) | **Decidido el 2026-10-07 ([ADR-030](adr/030-el-mesero-marca-servido.md), supersede en parte ADR-022):** sí, un toque «Servido» por pedido en la tablet; si no se marca, el pedido sigue contando como esperando y el informe lo dice | B6-8 |
 | ~~D-SOP~~ | ¿Cómo llega un reporte al desarrollo, y qué es lo «inteligente»? (M-27, P-4) | **Decidido el 2026-10-07, como se propuso:** el reporte, con su captura, se queda en el servidor del local y administración lo ve en Ajustes → Soporte; el desarrollo entra con una cuenta de soporte propia (de administración, sin turno) y recibe un aviso por correo sin la captura ni datos del local. Lo «inteligente», sin IA de terceros: ayuda de la pantalla, búsqueda y la solución de cada error conocido por su código. Un asistente con IA (Claude) se puede sumar después: cuesta por uso y saca el texto del servidor | T-11 |
 | D-DOM | ¿Dominio propio para producción? (M-22) | Staging va por `sslip.io`, que es de terceros; un dominio propio (unos 10 $ al año) no depende de nadie. Al cambiar, cada persona vuelve a crear su llave de acceso | B8-3 |
+| D-REL | ¿Qué entra en la 1.0.0? (2026-10-08) | **Propuesta:** la 1.0.0 es la puesta en marcha (B8-4), con solo lo que el día uno necesita de M-28 y M-29: B9-7 (catálogo sin existencias y su conteo), B7-7 (semilla con casillas para la corrida limpia), B7-6 (respaldos fijados y con integridad), T-17 (cuenta de soporte) y B11-1 (ventas); más B7-3 y T-8c en el local y la Etapa 8. Pasan a la 1.x: T-18, B11-2, B11-3, B9-8, B9-9 y B9-10. Desde la 1.0.0, PATCH = errores (lo que toca dinero, cobro o acceso, el mismo día) y MINOR = mejoras y añadidos, apagados de fábrica con un ajuste: M-10 se enmienda (el MINOR deja de contar pasos) | B8-4 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | ~~D-CORD~~ | Umbral de cordura de la tasa automática (M-8) | **Decidido el 2026-09-28 (V-14):** sin umbral; la del BCV se aplica siempre, y si la API falla se carga a mano | B5-1 |
 | ~~D-FER~~ | Calendario de feriados bancarios de Venezuela | **Decidido el 2026-09-27:** se carga por año desde el panel copiando el calendario de SUDEBAN (cambia cada año: Carnaval, Semana Santa y feriados trasladados) | B2-4 |
@@ -2257,11 +2268,11 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables, descuentos y carga de lo anotado en papel | — |
-| F5 · Parque | **Hecho en el servidor** (B4-1 a B4-5): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara y las pulseras de un solo uso | Lo de M-27: pausa, sin pulsera, medias y la sala para administración (B4-7 a B4-10) |
-| F6 · Restaurante | **Hecho en el servidor** (B6-1 a B6-6): plano, carta, pedido con comanda impresa, cuenta de la mesa, mesa sin consumo y anular en cocina | Varias cuentas por mesa, de pie y tiempo de atención (B6-7, B6-8, M-27) |
+| F5 · Parque | **Hecho en el servidor** (B4-1 a B4-10): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara, las pulseras de un solo uso, la pausa por comida, entrar sin pulsera, las medias, y la cortesía y la anulación desde la sala | — |
+| F6 · Restaurante | **Hecho en el servidor** (B6-1 a B6-3, B6-5 a B6-8): plano, carta, pedido con comanda impresa, cuenta de la mesa, mesa sin consumo, anular en cocina, varias cuentas por mesa y de pie, y el tiempo de atención con «Servido» | Recetas e insumos de cocina, después del piloto (B6-4) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | **Hecho en el servidor** (B9-1 a B9-6): catálogo con tipo, SKU y código de barras, existencias, entradas con costo promedio (y alta de productos), salidas, conteo, mínimos y avisos | Recetas e insumos después del piloto (B6-4) |
-| F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1) | Los informes, después del piloto |
+| F8 · Inventario | **Hecho en el servidor** (B9-1 a B9-6): catálogo con tipo, SKU y código de barras, existencias, entradas con costo promedio (y alta de productos), salidas, conteo, mínimos y avisos | M-28 y M-29: catálogo sin existencias (B9-7), duplicar (B9-8), editar en lote (B9-9) y conteo a ciegas con su informe (B9-10) |
+| F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1); la atención en el salón (B6-8) | Reportes en PDF: ventas, inventario al momento y movimientos (Etapa 11, M-29); excepciones, parque frente a restaurante, más vendidos y margen, después del piloto |
 | F10 y F11 | Staging en el VPS con despliegue reversible, respaldos y revisión de seguridad (Etapa 7, salvo B7-3) | B7-3 en el local y la Etapa 8 |
 
 ---
@@ -2553,6 +2564,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   (B7-6), la semilla con casillas para la corrida limpia (B7-7), editar en lote (B9-9) y el conteo a ciegas con su
   informe de diferencias (B9-10); la cuenta de soporte no mueve dinero en producción (T-17); y la sección Reportes
   (Etapa 11: ventas, inventario al momento y movimientos, en PDF, para administración y supervisión). La ruta pasa a 90.
+- **2026-10-08** · Relevo (LuAMi): M-27 entregado; M-28 y M-29 en el plan, sin empezar; D-REL para decidir. Sigue B9-7.
 
 ---
 
