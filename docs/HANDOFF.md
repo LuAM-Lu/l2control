@@ -7,21 +7,22 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-08 (cierre, 2) · v0.84.0 · `main` en 1a2fd68 más este relevo · nada a medias ni reclamado*
+*2026-10-08 (cierre, 3) · v0.86.1 · `main` en dac7d93 más este relevo · B8-2 a medias: lo escrito, hecho; la capacitación, en B8-3*
 
 ```text
-Hecho, todo en main y etiquetado: M-27, M-28 y M-29 enteros (v0.61.0 a v0.84.0). 84 de 91.
-Decidido hoy, sin programar: M-30 (B8-2 sin manual aparte: la ayuda de la app ES el manual) y M-31 = B3-9, UNA tarea:
-  el punto de cobro (solo equipos marcados abren turno; en otro, PIN de administración y motivo, auditado y en Inicio)
-  y la entrada desde la caja (registrar y cobrar sin salir de ella, reutilizando Entrada). El aviso «sin pulsera», no.
-  Regla nueva para todo paso: punto 10 de la definición de hecho (ayuda, soporte, data-privado, vivo, permisos…).
-Siguiente, AUTOMÁTICO y sin pedir el sí entre partes (MAESTRO §3, orden 9 y 10): B3-9 → T-8c (programar y probar en
-  una PC con Windows) → lo escrito de B8-2 (hoja del procedimiento en papel y runbooks; B8-2 se cierra en B8-3).
-  Después, en el local: B7-3, B8-1, B8-3 y B8-4 = 1.0.0. La 1.0.0 NO se etiqueta desde aquí.
+Hecho hoy, todo en main y etiquetado (86 de 91): B3-9 (v0.85.0: el punto de cobro, con PIN de administración y motivo
+  fuera de él; y la entrada desde la caja, con la lógica de Entrada en useEntradaDeNinos y EntradaPiezas), T-8c (v0.86.0:
+  el agente se actualiza solo y Windows vuelve a la anterior si la nueva no arranca; ensayado en una PC con Windows) y
+  lo escrito de B8-2 (v0.86.1: /procedimiento-papel y infra/produccion/RUNBOOKS.md). Staging al día solo.
+Ya NO queda nada que programar para la 1.0.0. Todo lo que sigue es en el local, con los equipos reales:
+  B7-3 (medir con la red real; instalar el agente 0.86.x en la laptop de caja y ver que se actualiza y vuelve atrás),
+  B8-1 (red con 4G y UPS), B8-3 (operación en paralelo + capacitación por rol: ahí se cierra B8-2) y B8-4 = 1.0.0.
+  La 1.0.0 NO se etiqueta desde aquí.
 Para decidir (usuario): D-REL antes de B8-4. Para el usuario: L2_SMTP_URL y L2_CORREO_SOPORTE en el VPS; P-1, P-3,
-  P-5, P-6 y P-14; dominio propio y firma del alcance (F0-09) antes de B8-3.
-Cuidado: B3-9 parte CheckInScreen en piezas y Entrada debe quedar idéntica (2 niños < 90 s). Pruebas con azar: nunca un
-  literal que el azar pueda dar (§5). Tras cambiar @l2/application, reiniciar pnpm dev. feat/t-11: no se borra.
+  P-5, P-6 y P-14; dominio propio y firma del alcance (F0-09) antes de B8-3. En el staging: PC de respaldos, semilla y
+  feriados; el punto de cobro lo marcó la migración en los equipos que ya cobraban (revisarlo en Dispositivos).
+Cuidado: un agente instalado antes de la 0.86.0 no sabe actualizarse (se reinstala una vez); la tarea «(cambio)» del
+  agente no se borra. turnos.abrir es ahora (ctx, entrada, autorizacion?, ahora?). feat/t-11: no se borra.
 ```
 
 ## aemorandin-coder
