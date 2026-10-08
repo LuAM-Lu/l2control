@@ -67,7 +67,8 @@ su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos co
   otro (lo pidió el usuario). Para usarlos en el staging: la cuenta de soporte se marca en Ajustes → Personas y equipos
   (y allí sí abre turnos y cobra); la corrida limpia de producción es base nueva más la semilla con casillas (B7-7).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
-  runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
+  runbooks del técnico, el procedimiento en papel y la capacitación (M-30: el manual es el de la app), operación en
+  paralelo y puesta en marcha, que es la 1.0.0).
 
 La historia de esta sección (qué decía al entregar cada paso y lo que se probó en la base local) está en §9.
 
@@ -121,6 +122,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-27** | **Lo pedido en la primera visita con el sistema** (2026-10-07, el cliente lo vio funcionar en el local) | Diecinueve pedidos (P-1 a P-19, abajo) que se vuelven **13 pasos nuevos**: B3-8, B4-7 a B4-10, B6-7, B6-8 y T-11 a T-16. Se construyen del más complejo al más simple y, si uno espera una decisión, se sigue con el siguiente que no la espera (regla del usuario). Cambia I-05: una mesa admite varias cuentas abiertas (B6-7). Dos decisiones nuevas, D-SERV y D-SOP (§4). La ruta pasa a **79** |
 | **M-28** | **Soporte oculto, catálogo sin existencias y duplicar productos** (2026-10-08, pedido y decisión del usuario) | (1) La cuenta de soporte del desarrollo es una persona de Administración con la marca «soporte»: **no sale en «¿Quién entra?»**, entra con su nombre de usuario y su PIN desde su equipo aprobado (como todos), sin plazo; no abre turnos; se ve como «Soporte» en Usuarios, la auditoría e Inicio, y administración la desactiva cuando quiera. Lo sensible sigue pidiendo contraseña y llave. (2) El catálogo se carga sin existencias y el stock se cuenta otro día: estado «Sin inventario inicial», distinto de «Agotado», que **no se vende** hasta su conteo. (3) «Duplicar» un producto y «Duplicar con otros sabores», cada uno con su propio código de barras. Tres pasos: B9-7, T-17 y B9-8. La ruta pasa a **82** | B9-7, T-17, B9-8 |
 | **M-29** | **Ajustes más cortos, respaldos con control, una corrida limpia, el inventario en lote y Reportes** (2026-10-08, decisiones del usuario) | (1) Ajustes se unifica: **Personas y equipos** (usuarios, roles y dispositivos), **Tasas** con sus feriados, **Sistema** (versión, respaldos y semilla) y la **carta dentro de Inventario → Productos** (un solo sitio para el precio): de 18 secciones a 12 (T-18). (2) Respaldos: **elegir la carpeta** de la PC (disco externo o carpeta en la nube, regla 3-2-1), **fijar** un respaldo para que la escalera nunca lo borre, y su **integridad a la vista** con un ensayo de restauración automático cada semana (B7-6). (3) La corrida limpia de producción no saca partes de un respaldo (rompería la integridad): base nueva y la **semilla con casillas**, que además lleva medios de pago, descuentos, impuestos e impresoras (B7-7). (4) La cuenta de soporte no mueve dinero en producción; en staging sí, con una copia de la base, para reproducir errores (T-17). (5) Inventario: **editar en lote** (B9-9) y la **hoja de conteo a ciegas con su informe de diferencias** (B9-10). (6) Una sección **Reportes** para administración y supervisión (`reportes.verSucursal`), de solo lectura, que sale de los asientos y cuadra con los cierres: **ventas** del día o de un rango, **inventario al momento** y **movimientos** (kárdex); cada uno en **PDF** con su vista de impresión (sin Excel, decisión del usuario); excepciones y lo demás de F9, después del piloto (Etapa 11). Ocho pasos nuevos; la ruta pasa a **90** | T-18, B7-6, B7-7, T-17, B9-9, B9-10, B11-1 a B11-3 |
+| **M-30** | **B8-2 sin manual aparte** (2026-10-08, decisión del usuario) | La ayuda dentro de la app (T-12: el manual de cada pantalla y los recorridos guiados) **es** el manual por rol, y el soporte (T-11, T-17) cubre avisar de un error: B8-2 no escribe otro manual. Queda lo que la app no puede cubrir cuando no está: (1) **el procedimiento en papel**, una hoja impresa junto a la caja que dice cuándo se pasa al papel, quién anota qué y cómo se carga al volver (los formularios ya existen, B3-7); (2) **los runbooks del técnico**, juntos y completos (restaurar un respaldo, volver atrás una actualización, aprobar el equipo que sustituye a uno perdido, cambiar la impresora, los feriados de cada año), partiendo de `infra/produccion/README.md`; (3) **la capacitación por rol**, hecha durante la operación en paralelo (B8-3) con los recorridos de la app, sin material aparte | B8-2 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -2280,9 +2282,13 @@ F9-05).
   principal y router 4G de respaldo con conmutación automática, UPS en router, módem y WiFi, y los equipos
   del local aprobados (F10-03).
   → Con el enlace principal desconectado, la caja cobra y la sala se actualiza por el 4G.
-- [ ] **B8-2 · Runbooks, contingencia en papel, manual y capacitación por rol** (F10-10, F11-02,
-  F11-03, F11-08). Incluye los formularios de papel y su procedimiento para cuando caigan los dos
-  enlaces (la carga es B3-7).
+- [ ] **B8-2 · Runbooks, contingencia en papel y capacitación por rol** (F10-10, F11-02, F11-03, F11-08; sin
+  manual aparte desde M-30: el de la app es el manual).
+  → Una hoja impresa junto a la caja con el procedimiento en papel para cuando caigan los dos enlaces (cuándo se pasa
+  al papel, quién anota qué y cómo se carga al volver; los formularios y su carga son B3-7). Los runbooks del técnico,
+  juntos y completos a partir de `infra/produccion/README.md`: restaurar un respaldo, volver atrás una actualización,
+  aprobar el equipo que sustituye a uno perdido (siempre dos equipos de administración aprobados, M-7), cambiar la
+  impresora y cargar los feriados de cada año. La capacitación de cada rol, durante B8-3, con los recorridos de la app.
 - [ ] **B8-3 · Operación en paralelo** con el método anterior, piloto de un turno y ajustes (F11-04 a
   F11-06).
   → Los totales de los dos sistemas coinciden todos los días del período.
@@ -2829,6 +2835,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   D-REL; después, la Etapa 8.
 - **2026-10-08** · Relevo (LuAMi): M-28 y M-29 entregados en una sola sesión, sin pedir el sí entre pasos (lo pidió el
   usuario). Tres pruebas intermitentes corregidas (§5). CLAUDE.md al día con lo que dejaron (pestañas, informes, soporte).
+- **2026-10-08** · M-30: B8-2 deja de escribir un manual aparte (el de la app lo es); quedan el procedimiento en papel,
+  los runbooks del técnico y la capacitación por rol durante B8-3. D-REL sigue por decidir.
 
 ---
 
