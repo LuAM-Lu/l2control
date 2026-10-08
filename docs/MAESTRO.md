@@ -531,7 +531,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   PIN, los números, Retroceso, Intro entra, Esc vuelve y pegar vale. Las teclas se ven donde hay puntero fino o en
   cuanto se pulsa una. Visto en el navegador en la base de pruebas, en los dos temas: con 2 y Esc vuelve; el PIN pegado
   y Intro entran; «Mi cuenta» cambia el PIN y lo devuelve; desde la barra de la caja a 1366 y 800 de ancho.*
-- [ ] **T-15 · La operación se lee de un vistazo** (M-27, P-7, P-8, P-9, P-10, P-12).
+- [~] **T-15 · La operación se lee de un vistazo** (M-27, P-7, P-8, P-9, P-10, P-12). *A cargo: LuAMi, rama `feat/t-15`.*
   → Paquetes de tiempo con icono y el nombre entero; el código de la pulsera se escribe a mano en la entrada, la sala,
   la salida, la caja y la tablet; «Por cobrar» con marquesina para los nombres largos; medios de pago con el icono
   arriba y el nombre debajo; la carta de la caja en $, en Bs o con los dos, recordado por equipo. Ningún texto
