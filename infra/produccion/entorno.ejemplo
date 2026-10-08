@@ -28,5 +28,13 @@ L2_LOG_LEVEL=info
 # Traer sola la tasa del BCV cada 15 minutos (la hace el worker).
 L2_SINCRONIZAR_TASA=si
 
+# El aviso por correo de cada reporte de problema al desarrollo (T-11, D-SOP): el número, la versión y la pantalla,
+# nunca lo que contó la persona ni la captura. Vacías, no se avisa y los reportes siguen en Ajustes → Soporte.
+# L2_SMTP_URL lleva la contraseña del correo: es un secreto (smtps://usuario:clave@servidor:465).
+L2_SMTP_URL=
+L2_CORREO_SOPORTE=
+# Quién firma el aviso; vacía, el mismo correo de soporte.
+L2_CORREO_DE=
+
 # De dónde salen las imágenes: las publica la etiqueta vX.Y.Z (.github/workflows/publicar.yml).
 L2_REGISTRO=ghcr.io/luam-lu

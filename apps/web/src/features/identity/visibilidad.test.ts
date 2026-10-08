@@ -20,6 +20,7 @@ const SERVIDOR: Readonly<Record<string, readonly Action[]>> = {
   "ajustes/accesos": ["usuarios.gestionar"],
   "ajustes/sistema": ["sistema.actualizar"],
   "ajustes/tasas": ["tasa.confirmar"],
+  "ajustes/soporte": ["soporte.gestionar"],
 };
 
 const actor = (role: Role, extra: Partial<Actor> = {}): Actor => ({ id: "u1", role, branchIds: ["b1"], grants: {}, revokes: [], ...extra });

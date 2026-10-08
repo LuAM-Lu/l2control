@@ -42,7 +42,16 @@ export {
   type OpcionDeFiltro,
   type TonoCifra,
 } from "./patterns/Listado";
-export { Avisos, avisar, registrarAyudaDeErrores, type AyudaDeError } from "./patterns/Avisos";
+export {
+  Avisos,
+  anotarErrorReciente,
+  avisar,
+  erroresRecientes,
+  registrarAyudaDeErrores,
+  registrarReporteDeErrores,
+  type AyudaDeError,
+  type ReporteDeError,
+} from "./patterns/Avisos";
 export { Recorrido, type PasoDeRecorrido } from "./patterns/Recorrido";
 export { Marquesina } from "./patterns/Marquesina";
 export { TAMANO_ICONO } from "./iconos";

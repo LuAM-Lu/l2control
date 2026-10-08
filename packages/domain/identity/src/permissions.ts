@@ -49,6 +49,7 @@ export type Action =
   | "inventario.ajustar"
   | "inventario.entrada"
   | "inventario.catalogo"
+  | "soporte.gestionar"
   | "reportes.verSucursal"
   | "reportes.verTodas"
   | "usuarios.gestionar"
@@ -159,6 +160,10 @@ export const MATRIZ: Matriz = Object.freeze({
   // T-8b (ADR-028): cuándo se pone una versión nueva lo decide administración, con su identidad
   // confirmada; el resto del equipo no decide nada (su pantalla se pone al día sola).
   "sistema.actualizar": fila(P, D, D, D, D, D),
+  // T-11 (M-27, P-4, D-SOP): atender los reportes de problemas (verlos todos, sus capturas, y marcarlos visto, en
+  // curso o resuelto). Reportar no pide nada: lo hace cualquiera con sesión. La cuenta de soporte del desarrollo es
+  // de administración; se puede dar por persona a quien ayude con el soporte en el local.
+  "soporte.gestionar": fila(P, D, D, D, D, D),
 });
 
 export type Actor = Readonly<{

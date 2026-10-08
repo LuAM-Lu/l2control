@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, CircleHelp, Lightbulb, PlayCircle, Search, TriangleAlert } from "lucide-react";
+import { ChevronRight, CircleHelp, Lightbulb, MessageSquareWarning, PlayCircle, Search, TriangleAlert } from "lucide-react";
 import { Button, Input, Sheet, cn } from "@l2/ui";
-import { buscar, entradaDe, problemaDe, type EntradaDelManual, type Problema } from "./manual.ts";
+import { buscar, codigoDelProblema, entradaDe, problemaDe, type EntradaDelManual, type Problema } from "./manual.ts";
+import { MisReportes } from "../soporte/MisReportes.tsx";
 import { recorridoDe, RECORRIDOS, type RecorridoDePantalla } from "./recorridos.ts";
 
 /**
@@ -19,6 +20,7 @@ export function AyudaPanel({
   ruta,
   consulta,
   onRecorrido,
+  onReportar,
 }: {
   abierto: boolean;
   onCerrar: () => void;
@@ -26,6 +28,8 @@ export function AyudaPanel({
   /** El texto del error con que se abrió, si se abrió desde un aviso. */
   consulta: string | null;
   onRecorrido: (r: RecorridoDePantalla) => void;
+  /** Abre «Reportar un problema» (T-11), con el código del error si se reporta desde su ayuda. Sin sesión, no hay. */
+  onReportar: ((codigoError: string | null) => void) | null;
 }) {
   const [texto, setTexto] = useState("");
   /** La pantalla que se está leyendo: la actual, o una elegida en la búsqueda. */
@@ -50,10 +54,15 @@ export function AyudaPanel({
       titulo="Ayuda"
       descripcion={actual ? actual.titulo : "El manual del sistema"}
       pie={
-        <p className="w-full text-[12.5px] text-ink-3">
-          ¿No se resuelve? Avisa a administración con lo que dice el aviso y la pantalla en la que estabas. F1 abre esta ayuda desde cualquier
-          pantalla.
-        </p>
+        onReportar ? (
+          // T-11: el problema llega al soporte con la pantalla, la versión, los últimos errores y la captura.
+          <Button variant="neutral" surface="tablet" className="w-full" onClick={() => onReportar(null)}>
+            <MessageSquareWarning size={17} aria-hidden="true" />
+            Reportar un problema
+          </Button>
+        ) : (
+          <p className="w-full text-nota text-ink-3">¿No se resuelve? Avisa a administración con lo que dice el aviso. F1 abre esta ayuda desde cualquier pantalla.</p>
+        )
       }
     >
       <div className="flex flex-col gap-5">
@@ -109,6 +118,15 @@ export function AyudaPanel({
                   <Lightbulb size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-brand" />
                   {delError.problema.solucion}
                 </p>
+                {onReportar && (
+                  <button
+                    type="button"
+                    onClick={() => onReportar(codigoDelProblema(delError))}
+                    className="mt-2 min-h-12 cursor-pointer text-detalle font-semibold text-brand hover:underline"
+                  >
+                    ¿No se resolvió? Repórtalo
+                  </button>
+                )}
               </section>
             )}
 
@@ -156,6 +174,14 @@ export function AyudaPanel({
               </>
             ) : (
               <p className="text-[14px] text-ink-2">Esta pantalla todavía no tiene su página en el manual. Busca arriba lo que necesitas.</p>
+            )}
+
+            {/* T-11: lo que reportó esta persona, y cómo va. */}
+            {onReportar && (
+              <section aria-label="Mis reportes">
+                <h3 className="mb-2 text-[12px] font-semibold tracking-[0.07em] text-ink-3 uppercase">Mis reportes</h3>
+                <MisReportes />
+              </section>
             )}
           </>
         )}

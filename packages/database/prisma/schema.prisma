@@ -81,6 +81,7 @@ model Branch {
   eventReservations EventReservation[]
   eventDays         EventDay[]
   paperLoads        PaperLoad[]
+  supportReports    SupportReport[]
 
   @@unique([tenantId, name])
   /// Destino de las FK compuestas: una fila solo puede apuntar a una sucursal de SU tenant.
@@ -226,6 +227,7 @@ model StaffUser {
   trustedDevices  TrustedDevice[]
   totpCredentials TotpCredential[]
   toursSeen       UserTourSeen[]
+  supportReports  SupportReport[]
 
   paymentsRecorded   Payment[]   @relation("PaymentRecordedBy")
   paymentsAuthorized Payment[]   @relation("PaymentAuthorizedBy")
@@ -1912,4 +1914,95 @@ model UserTourSeen {
   @@unique([tenantId, id])
   @@unique([tenantId, userId, tour, version])
   @@map("user_tour_seen")
+}
+
+/// Un problema que reportó quien opera — T-11 (M-27, P-4, D-SOP). Solo se agrega: su estado es el último paso de su
+/// historia (`SupportReportStatus`), y el aviso al desarrollo, el último intento (`SupportReportNotice`). Quién, su rol
+/// y el equipo los pone el servidor de la sesión. Nunca datos de cobro ni PIN (PLAN §7.6).
+model SupportReport {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  /// Correlativo del local: «reporte #12».
+  number       Int
+  createdAt    DateTime @map("created_at") @db.Timestamptz(3)
+  userId       String   @map("user_id") @db.Uuid
+  userName     String   @map("user_name")
+  userRole     String   @map("user_role")
+  deviceId     String?  @map("device_id") @db.Uuid
+  deviceLabel  String?  @map("device_label")
+  /// La pantalla (solo la ruta) y la versión del sistema en que pasó.
+  route        String
+  appVersion   String   @map("app_version")
+  text         String
+  /// El error conocido que se estaba viendo (clave del manual), si se reportó desde su ayuda.
+  errorCode    String?  @map("error_code")
+  /// La huella del error, para agrupar los reportes del mismo problema.
+  fingerprint  String?
+  /// Los últimos errores que enseñó la pantalla.
+  recentErrors Json     @map("recent_errors")
+  hasCapture   Boolean  @map("has_capture")
+
+  branch   Branch                @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  user     StaffUser             @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  capture  SupportReportCapture?
+  statuses SupportReportStatus[]
+  notices  SupportReportNotice[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, number])
+  @@index([tenantId, fingerprint])
+  @@index([tenantId, userId, createdAt])
+  @@map("support_report")
+}
+
+/// La captura de la pantalla de un reporte: aparte, para no cargarla al listar.
+model SupportReportCapture {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  reportId  String   @map("report_id") @db.Uuid
+  mime      String
+  bytes     Bytes
+  createdAt DateTime @map("created_at") @db.Timestamptz(3)
+
+  report SupportReport @relation(fields: [tenantId, reportId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, reportId])
+  @@map("support_report_capture")
+}
+
+/// Un paso de la historia de un reporte: visto, en curso o resuelto en una versión. El vigente es el último.
+model SupportReportStatus {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  reportId        String   @map("report_id") @db.Uuid
+  status          String
+  resolvedVersion String?  @map("resolved_version")
+  note            String?
+  byUserId        String?  @map("by_user_id") @db.Uuid
+  byName          String   @map("by_name")
+  at              DateTime @db.Timestamptz(3)
+
+  report SupportReport @relation(fields: [tenantId, reportId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, reportId, at])
+  @@map("support_report_status")
+}
+
+/// Un intento de avisar al desarrollo por correo (D-SOP): sin el texto ni la captura. El vigente es el último.
+model SupportReportNotice {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  tenantId String   @map("tenant_id") @db.Uuid
+  reportId String   @map("report_id") @db.Uuid
+  ok       Boolean
+  detail   String?
+  at       DateTime @db.Timestamptz(3)
+
+  report SupportReport @relation(fields: [tenantId, reportId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, reportId, at])
+  @@map("support_report_notice")
 }
