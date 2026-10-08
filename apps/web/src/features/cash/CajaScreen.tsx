@@ -14,6 +14,7 @@ import {
   Pencil,
   PackageX,
   PiggyBank,
+  Printer,
   ShoppingBag,
   Smartphone,
   TriangleAlert,
@@ -153,6 +154,8 @@ type Cobrado = Readonly<{
   cliente: ClienteFacturaDto;
   /** La venta que dejó el cobro en el servidor (B3-4): de ella sale el recibo. */
   venta: VentaCerradaDto;
+  /** Se pidió el recibo y no salió (B3-8): por qué. El cobro quedó cerrado igual. */
+  reciboNoImpreso?: string;
   /** La cuenta como la dejó el servidor al cobrar. */
   cuenta: FamilyAccountDto;
 }>;
@@ -578,6 +581,12 @@ function CobroCuenta({
   const { cobrar: cobrarEnServidor } = useCuentas();
   // Cargando lo anotado en papel (B3-7): el cobro lleva su carga y la hora real del formulario.
   const modoPapel = useModoPapel();
+  /**
+   * «Imprimir recibo» (B3-8, P-5): cada cobro arranca con lo que diga la sucursal (de fábrica, imprimir) y la caja
+   * lo cambia con un toque o con «*». Desde papel arranca apagado: el cliente ya se llevó su recibo.
+   */
+  const { imprimirRecibo: reciboDeFabrica } = useSucursal().ajustes;
+  const [imprimirRecibo, setImprimirRecibo] = useState(reciboDeFabrica && !modoPapel);
   const [enviando, setEnviando] = useState(false);
   /** La clave del intento en curso: un reintento de lo mismo (se cayó la red) no cobra dos veces. */
   const intento = useRef<{ huella: string; clave: string } | null>(null);
@@ -630,7 +639,11 @@ function CobroCuenta({
     if (intento.current?.huella !== huella) intento.current = { huella, clave: globalThis.crypto.randomUUID() };
     const clave = intento.current.clave;
     setEnviando(true);
-    const r = await cobrarEnServidor({ idempotencyKey: clave, ...cuerpo, ...(cliente.kind === "IDENTIFICADO" ? { cliente } : {}) }, modoPapel?.desdePapel());
+    // El recibo va fuera de la huella: cambiar de idea sobre el papel no es otro cobro.
+    const r = await cobrarEnServidor(
+      { idempotencyKey: clave, ...cuerpo, ...(cliente.kind === "IDENTIFICADO" ? { cliente } : {}), imprimirRecibo },
+      modoPapel?.desdePapel(),
+    );
     setEnviando(false);
     if (!r.ok) {
       setError(r.mensaje);
@@ -639,7 +652,14 @@ function CobroCuenta({
     intento.current = null;
     // El siguiente cobro del papel trae su propia hora: la de este no se arrastra.
     modoPapel?.limpiarHora();
-    onCobrado({ total: toMajor(aCobrar), vuelto: toMajor(cambio), cliente, venta: r.valor.venta, cuenta: r.valor.cuenta });
+    onCobrado({
+      total: toMajor(aCobrar),
+      vuelto: toMajor(cambio),
+      cliente,
+      venta: r.valor.venta,
+      cuenta: r.valor.cuenta,
+      ...(r.valor.reciboNoImpreso ? { reciboNoImpreso: r.valor.reciboNoImpreso } : {}),
+    });
     setPagos([]);
   }
 
@@ -773,6 +793,10 @@ function CobroCuenta({
       cobrarMontoExacto();
       return true;
     }
+    if (t.key === "*") {
+      setImprimirRecibo((v) => !v);
+      return true;
+    }
     const letra = t.key.toUpperCase();
     if (letra === "I") {
       setIdentificando(true);
@@ -814,9 +838,8 @@ function CobroCuenta({
                     : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
                 )}
               >
-                {/* Icono junto al nombre; debajo, moneda e IGTF. La letra del
-                      atajo va en el `title` y en la chuleta: en el botón le
-                      quitaba sitio al nombre («Punto dé…»). */}
+                {/* Icono junto al nombre; debajo, moneda, IGTF y la letra del
+                      atajo (B3-8): junto al nombre le quitaba sitio («Punto dé…»). */}
                 <span className="flex w-full min-w-0 items-center gap-1">
                   <Icon
                     size={12}
@@ -843,11 +866,14 @@ function CobroCuenta({
                   </span>
                   {/* El IGTF solo existe en divisas: en bolívares no se dice
                         nada, en vez de un «0% IGTF» que hay que leer para nada. */}
-                  {m.triggersIgtf && igtfBasisPoints > 0 && (
-                    <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
-                      +{igtfBasisPoints / 100}% IGTF
-                    </span>
-                  )}
+                  <span className="flex shrink-0 items-center gap-1">
+                    {m.triggersIgtf && igtfBasisPoints > 0 && (
+                      <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
+                        +{igtfBasisPoints / 100}% IGTF
+                      </span>
+                    )}
+                    {TECLA_MEDIO[m.code] && <PistaTecla tecla={TECLA_MEDIO[m.code]!} />}
+                  </span>
                 </div>
               </button>
             );
@@ -1696,9 +1722,29 @@ function CobroCuenta({
           )}
         </div>
 
-        {/* ── una fila: cobrar exacto · cerrar cobro. En efectivo, solo cerrar,
-              a todo el ancho: la fila no cambia de alto ni de sitio. ── */}
-        <div className="md:bajo:col-start-1 md:bajo:row-start-5 mt-auto grid grid-cols-2 gap-2">
+        {/* ── una fila: el recibo · cobrar exacto · cerrar cobro. En efectivo, solo
+              cerrar, a lo que queda: la fila no cambia de alto ni de sitio. ── */}
+        <div className="md:bajo:col-start-1 md:bajo:row-start-5 mt-auto grid grid-cols-[4.5rem_1fr_1fr] gap-2">
+          {/* «Imprimir recibo» (B3-8): un interruptor a la vista, con su tecla. Icono, texto y color: no solo color. */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={imprimirRecibo}
+            aria-label="Imprimir recibo"
+            title="Imprimir el recibo al cerrar (tecla *)"
+            onClick={() => setImprimirRecibo((v) => !v)}
+            className={cn(
+              "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border px-1 leading-tight",
+              "transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              imprimirRecibo ? "border-brand bg-brand/15 text-ink" : "border-line bg-base text-ink-3 hover:border-line-strong",
+            )}
+          >
+            <span className="flex items-center gap-1">
+              <Printer size={16} aria-hidden="true" className={imprimirRecibo ? "text-brand" : "text-ink-3"} />
+              <PistaTecla tecla="*" />
+            </span>
+            <span className="text-[11.5px] font-semibold whitespace-nowrap">{imprimirRecibo ? "Recibo" : "Sin recibo"}</span>
+          </button>
           {!esEfectivo && (
             <button
               type="button"
@@ -2162,6 +2208,7 @@ export function CajaScreen({
           faltan > 0
             ? `faltan ${faltan} ${faltan === 1 ? "parte" : "partes"} por cobrar`
             : null,
+          r.venta.prints.length > 0 ? "recibo a la impresora" : null,
         ]
           .filter(Boolean)
           .join(" · "),
@@ -2174,6 +2221,13 @@ export function CajaScreen({
           : { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
       },
     );
+    // Se pidió el recibo y no salió (B3-8): el cobro está hecho; el recibo se imprime desde aquí o desde Ventas.
+    if (r.reciboNoImpreso) {
+      avisar.aviso("El recibo no se imprimió", {
+        detalle: `${r.reciboNoImpreso} El cobro sí quedó cerrado.`,
+        accion: { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
+      });
+    }
   }
 
   function onNuevaVentaDirecta() {

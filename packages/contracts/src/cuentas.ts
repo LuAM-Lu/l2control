@@ -70,6 +70,11 @@ export const CobrarCuentaCommandSchema = z
     destinoSobra: DestinoSobraSchema,
     /** A quién sale la factura (DEC-23); sin decirlo, consumidor final. */
     cliente: ClienteFacturaSchema.optional(),
+    /**
+     * Imprimir el recibo al cerrar (B3-8, M-27, P-5), en la misma transacción del cobro. Sin decirlo, no se
+     * imprime: es lo que hacía la caja antes, y el recibo se saca después desde Ventas.
+     */
+    imprimirRecibo: z.boolean().optional(),
   })
   .refine((c) => !c.pagos.some((p) => p.amount.currency === "VES") || c.rateId !== undefined, {
     message: "Un cobro en bolívares cita su tasa",
@@ -82,6 +87,11 @@ export const CuentaYLibroSchema = z.object({
   cuenta: FamilyAccountSchema,
   libro: LibroDocumentoSchema,
   venta: VentaCerradaSchema,
+  /**
+   * Se pidió imprimir el recibo y no salió (B3-8): por qué. El cobro quedó cerrado igual (un recibo no
+   * detiene un cobro); se imprime después desde Ventas.
+   */
+  reciboNoImpreso: z.string().optional(),
 });
 export type CuentaYLibroDto = z.infer<typeof CuentaYLibroSchema>;
 

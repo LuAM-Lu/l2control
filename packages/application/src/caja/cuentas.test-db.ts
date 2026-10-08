@@ -28,6 +28,7 @@ let supervisor: string;
 let admin: string;
 let cajera: string;
 let tasa: string;
+let impresora: string;
 let agua: string;
 let gomitas: string;
 
@@ -107,7 +108,7 @@ const asientosCon = (operationKey: string) =>
 before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
-  await impresoraDePrueba(local);
+  impresora = await impresoraDePrueba(local);
   await planoDePrueba(local, 12);
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
@@ -431,6 +432,41 @@ describe("la venta de cada cobro (B3-4, C12)", () => {
     assert.deepEqual(asientos.map((a) => a.action).sort(), ["venta.imprimir", "venta.reimprimir"]);
     const monitora = await local.app.ventas.imprimir(ctxMonitora, { saleId: venta.id }, AHORA);
     assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
+  });
+
+  test("cobrar con «Imprimir recibo» deja el original en la cola en la misma transacción (B3-8)", async () => {
+    const c = await abrir(mostrador([lineaDeAgua()]));
+    const cobro = { ...enEfectivo(c, "500", "131"), imprimirRecibo: true };
+    const r = valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA));
+    assert.equal(r.reciboNoImpreso, undefined);
+    assert.deepEqual(r.venta.prints.map((p) => [p.copia, p.by]), [[false, "Marisol Prieto"]]);
+    const trabajos = valor(await local.app.impresion.trabajos(ctxCajera, AHORA)).trabajos.filter((t) => t.ventaId === r.venta.id);
+    assert.deepEqual(trabajos.map((t) => [t.tipo, t.copia]), [["RECIBO", false]]);
+    // El doble clic devuelve lo cobrado y no imprime otra vez.
+    const otra = valor(await local.app.cuentas.cobrar(ctxCajera, cobro, AHORA + 1));
+    assert.equal(otra.venta.prints.length, 1);
+    assert.equal(valor(await local.app.impresion.trabajos(ctxCajera, AHORA + 1)).trabajos.filter((t) => t.ventaId === r.venta.id).length, 1);
+    // Lo que se saque después desde Ventas ya es copia.
+    assert.deepEqual(valor(await local.app.ventas.imprimir(ctxCajera, { saleId: r.venta.id }, AHORA + MIN)).prints.map((p) => p.copia), [false, true]);
+  });
+
+  test("sin pedirlo no se imprime; sin impresora de recibos, el cobro se cierra y dice por qué no salió (B3-8)", async () => {
+    const sin = await abrir(mostrador([lineaDeAgua()]));
+    const r = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(sin, "500", "131"), AHORA));
+    assert.deepEqual(r.venta.prints, []);
+    assert.equal(r.reciboNoImpreso, undefined);
+
+    const apagar = (activa: boolean) => local.app.impresion.aplicar(local.sistema, { kind: "ACTIVAR", impresoraId: impresora, activa });
+    assert.ok((await apagar(false)).ok);
+    try {
+      const c = await abrir(mostrador([lineaDeAgua()]));
+      const cobrada = valor(await local.app.cuentas.cobrar(ctxCajera, { ...enEfectivo(c, "500", "131"), imprimirRecibo: true }, AHORA));
+      assert.equal(cobrada.cuenta.status, "COBRADA");
+      assert.deepEqual(cobrada.venta.prints, []);
+      assert.match(cobrada.reciboNoImpreso ?? "", /No hay impresora de recibos/);
+    } finally {
+      assert.ok((await apagar(true)).ok);
+    }
   });
 
   test("la anulación queda en la venta: quién autorizó y cómo volvió cada pago, con la referencia enmascarada", async () => {
