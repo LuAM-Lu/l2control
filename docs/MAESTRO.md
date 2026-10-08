@@ -1283,7 +1283,8 @@ Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   directa (N, Tab hasta el producto, Intro) cobrada «Sin recibo» y después en Ventas del turno con «Imprimir»; a
   1366×768 y 1280×800, en los dos temas, sin desplazamiento. De paso: la prueba de la instalación que buscaba el PIN
   «4826» suelto fallaba por azar cuando salía dentro de un UUID o un hash; ahora lo busca como valor.*
-- [ ] **B3-9 · El punto de cobro y la entrada desde la caja** (M-31; una sola tarea, de punta a punta).
+- [~] **B3-9 · El punto de cobro y la entrada desde la caja** (M-31; una sola tarea, de punta a punta). *A cargo:
+  LuAMi, rama `feat/b3-9`.*
   → **El punto de cobro.** Cada equipo lleva la marca «Punto de cobro» en Ajustes → Personas y equipos → Dispositivos (administración, con la
   identidad confirmada). En un equipo marcado, el turno se abre como hoy. En uno sin marcar, abrir turno pide el PIN de
   administración y un motivo («La laptop de caja no enciende»), queda en la auditoría e Inicio avisa «Turno abierto fuera
