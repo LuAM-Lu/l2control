@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.76.0 · 76 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.77.0 · 77 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -1976,7 +1976,7 @@ F9-05).
 - [x] **B11-1 · La sección Reportes y las ventas** (M-29, F9-01).
   → Reportes → Ventas del día o de un rango: por medio de pago y moneda, por origen (parque, restaurante, mostrador,
   cumpleaños) y por cajera y turno, con lo anulado aparte; los totales cuadran con los cierres Z del periodo. Su PDF.
-  *Hecho el 2026-10-08, en `feat/b11-1`.*
+  *Hecho el 2026-10-08 (v0.77.0), en `feat/b11-1`.*
   *· Dominio (`@l2/domain-cash`, `reporte.ts`): el origen de una venta por la cuenta en que se cobró, cada asiento en
   dólares con la tasa con que se cobró (ADR-005; en bolívares sin tasa no se inventa), el cuadre de un turno con su Z en
   palabras y los periodos de un toque (hoy, ayer, esta semana, este mes y el anterior). 4 pruebas.*
@@ -2678,6 +2678,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   impresoras, y se elige con casillas al descargar y al cargar (lo «Prueba…», desmarcado). Sigue B7-6 (respaldos).
 - **2026-10-08** · B7-6 entregado como v0.76.0: los respaldos se ensayan cada semana (ÍNTEGRO en el panel y en Inicio), se
   fijan con su nombre y la PC guarda donde se elija (disco externo, nube o Documentos). Sigue B11-1 (Reportes y ventas).
+- **2026-10-08** · B11-1 entregado como v0.77.0: la sección Reportes con las ventas de un día o de un rango (por medio,
+  origen, cajera y turno, con su cuadre contra el Z y lo anulado) y su PDF A4. Sigue T-18 (Ajustes unificados).
 
 ---
 
