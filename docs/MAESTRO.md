@@ -1819,7 +1819,7 @@ antes del cobro en servidor (orden de ejecución).
   siguen pendientes; la ficha dice «Inventario inicial: jue 8 oct»; Inicio, «1 agotado · 12 sin inventario inicial», y
   la puesta a punto, «12 productos sin inventario inicial de 16». A 1366×768, 1280×800, 800×1280 y 390 px, en los dos
   temas, sin desbordar ni errores de consola.*
-- [ ] **B9-8 · Duplicar un producto y sus sabores** (M-28).
+- [~] **B9-8 · Duplicar un producto y sus sabores** (M-28). *A cargo: LuAMi, rama `feat/b9-8`.*
   → «Duplicar» abre la ficha copiada (categoría, presentación, precio, IVA, mínimo y carta) con el nombre para cambiar:
   SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una
   lista («Naranja, Manzana…» → «Jugo Naranja», «Jugo Manzana»), cada uno con su propio código de barras si se escribe o
