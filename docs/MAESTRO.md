@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.75.0 · 75 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.76.0 · 76 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -2071,7 +2071,7 @@ F9-05).
   local). Un respaldo se puede **fijar** con su nombre («antes de producción») y la escalera nunca lo borra. Ajustes →
   Sistema → Respaldos dice de cada uno si su huella se comprobó al bajarlo, y el servidor ensaya cada semana la
   restauración del último en una base de usar y tirar: «ÍNTEGRO» o qué falló, en el panel y en Inicio.
-  *Hecho el 2026-10-08, en `feat/b7-6`.*
+  *Hecho el 2026-10-08 (v0.76.0), en `feat/b7-6`.*
   *· Base: `20261111000000_respaldos_con_control` (solo expande): `backup_pin` (fijar con su nombre; se suelta una vez,
   no se borra ni se rebautiza; uno vigente por respaldo), `backup_rehearsal` (el ensayo: íntegro o qué falló, con sus
   segundos; solo-agregar) y en `backup_receiver` la carpeta, su tipo (EN_LA_PC, EXTERNO, NUBE) y la versión del
@@ -2651,6 +2651,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   con el cero. La versión se puso al fusionar, en su propio PR (regla de CLAUDE.md). Sigue B7-7 (semilla con casillas).
 - **2026-10-08** · B7-7 entregado como v0.75.0: la semilla lleva impuestos, medios de pago con sus datos, descuentos e
   impresoras, y se elige con casillas al descargar y al cargar (lo «Prueba…», desmarcado). Sigue B7-6 (respaldos).
+- **2026-10-08** · B7-6 entregado como v0.76.0: los respaldos se ensayan cada semana (ÍNTEGRO en el panel y en Inicio), se
+  fijan con su nombre y la PC guarda donde se elija (disco externo, nube o Documentos). Sigue B11-1 (Reportes y ventas).
 
 ---
 
