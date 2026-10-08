@@ -413,12 +413,31 @@ html:has(dialog[open]) { overflow: hidden; }
   .l2-codigos .l2-no-imprime { display: none; }
 }
 
+/* La marquesina (T-15, P-9): un nombre que no cabe va hasta su final y vuelve, despacio y con una pausa en cada
+   extremo. Lo que se desplaza lo mide el componente y llega en `--l2-desplazar`. */
+@keyframes l2-marquesina {
+  0%, 15% { transform: translateX(0); }
+  50%, 65% { transform: translateX(var(--l2-desplazar, 0)); }
+  100% { transform: translateX(0); }
+}
+.l2-marquesina { animation: l2-marquesina var(--l2-marquesina-dur, 8s) ease-in-out infinite; }
+
+/* El reloj del paquete (T-15, P-7): al elegirlo, el anillo se dibuja hasta su tiempo. */
+@keyframes l2-anillo {
+  from { stroke-dashoffset: var(--l2-anillo-largo); }
+}
+.l2-anillo { animation: l2-anillo var(--dur-capa) var(--ease-salida) both; }
+
 /* El recorrido guiado (T-12): el anillo y la tarjeta acompañan al paso con una transición corta. */
 .l2-recorrido-anillo { transition: x var(--dur-normal) var(--ease-salida), y var(--dur-normal) var(--ease-salida), width var(--dur-normal) var(--ease-salida), height var(--dur-normal) var(--ease-salida); }
 .l2-recorrido-tarjeta { transition: top var(--dur-normal) var(--ease-salida), left var(--dur-normal) var(--ease-salida), bottom var(--dur-normal) var(--ease-salida); }
 
 @media (prefers-reduced-motion: reduce) {
   .l2-recorrido-anillo, .l2-recorrido-tarjeta { transition: none; }
+  /* Sin movimiento, el nombre largo no se desliza: se parte en renglones. */
+  .l2-marquesina { animation: none; }
+  .l2-marquesina-caja { white-space: normal; }
+  .l2-anillo { animation: none; }
   .l2-destello { animation: none; }
   .l2-punto, .l2-sacudida, .l2-recorre { animation: none; }
   /* El aviso crítico deja de latir: lo urgente se dice con color, icono y

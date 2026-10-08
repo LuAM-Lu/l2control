@@ -5,6 +5,7 @@ import { catalogoDelLocal } from "../../../src/features/inventario/productos.ser
 import { ModoPapel } from "../../../src/features/papel/ModoPapel";
 import { SinCargaAbierta } from "../../../src/features/papel/SinCargaAbierta";
 import { cargaParaCargar } from "../../../src/features/papel/papel.servidor";
+import { vistaDePreciosDelEquipo } from "../../../src/servidor/vista-precios";
 
 /**
  * Caja: cola de cuentas por cobrar y cobro mixto (F4-03, F4-04b, DEC-21).
@@ -43,6 +44,8 @@ export default async function CajaPage({
       // El turno del equipo (B3-1): sin él no se cobra, y su equipo es el punto de cobro.
       turno={await turnoDelEquipo()}
       serverNow={Date.now()}
+      // Cómo enseña los precios la carta en este equipo (T-15): $, Bs o los dos.
+      vistaDePrecios={await vistaDePreciosDelEquipo()}
     />
   );
   return carga ? <ModoPapel carga={carga}>{caja}</ModoPapel> : caja;

@@ -4,7 +4,7 @@ import { useEffect, useState, type RefObject } from "react";
 import { Baby, Cake, Clock, Keyboard, Plus, Receipt, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
-import { MoneyDisplay, ScannerField, cn } from "@l2/ui";
+import { Marquesina, MoneyDisplay, ScannerField, cn } from "@l2/ui";
 import { esDeMesa, esVentaDirecta, nombreDeCuenta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 
@@ -194,7 +194,7 @@ export function ColaCuentas({
           onScan={onEscanear}
           validate={(c) => WristbandCodeSchema.safeParse(c).success}
           placeholder="Pasa una pulsera"
-          className="min-h-12 gap-2 px-3 py-2 [&>span:last-child]:hidden [&>span[role=status]]:truncate [&>span[role=status]]:text-[12.5px]"
+          className="min-h-12 gap-2 px-3 py-2 [&_[data-pista]]:hidden [&>span[role=status]]:truncate [&>span[role=status]]:text-[12.5px]"
         />
 
         {conBuscador && (
@@ -284,9 +284,8 @@ export function ColaCuentas({
                   )}
                 >
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-[13.5px] font-semibold text-ink">
-                      {nombreDeCuenta(c)}
-                    </span>
+                    {/* Un nombre largo no se corta: va y vuelve (T-15, P-9). */}
+                    <Marquesina className="flex-1 text-[13.5px] font-semibold text-ink">{nombreDeCuenta(c)}</Marquesina>
                     <MoneyDisplay value={toMajor(pendiente(c))} currency="USD" size="sm" />
                   </span>
                   <span className="flex items-center justify-between gap-2 text-[11.5px] text-ink-3">

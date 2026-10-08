@@ -26,7 +26,8 @@ porque esto se usa de pie, con prisa y a veces con guantes.
 | `StatTile` | Cifra de cabecera legible de un vistazo |
 | `Initial` | Ancla visual para encontrar a alguien entre doce tarjetas |
 | `MoneyDisplay` | Única vía autorizada para mostrar dinero |
-| `ScannerField` | Buffer global del lector HID, con validación de formato |
+| `ScannerField` | Buffer global del lector HID, con validación de formato; «Escribir» el código a mano por el mismo camino (T-15) |
+| `Marquesina` | Un texto de un renglón que no cabe se desliza y vuelve en vez de cortarse; con movimiento reducido, se parte (T-15) |
 | `ConnectionBadge` | Nivel de degradación N0-N3 **en palabras** |
 | `EmptyState` | Vacío explícito; los estados ocultos son antipatrón |
 | `Resumen`, `Cifra` | Las 2 a 4 cifras de cabecera de una pantalla de Ajustes que llevan a su sitio (M-17) |
