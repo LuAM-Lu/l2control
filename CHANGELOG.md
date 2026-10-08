@@ -14,6 +14,18 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.65.0] — 2026-10-07 · Lo pedido en la primera visita
+
+La sala para administración: cortesía y anular una entrada (B4-10, M-27).
+
+### Añadido
+- **Regalar su tiempo**, desde la ficha del niño en la sala: su paquete, sus recargas y su tiempo de más pasan a ser
+  cortesía, con un motivo y la autorización con PIN de siempre. Quedan en la cuenta con su importe y en las excepciones
+  del turno.
+- **Anular la entrada** registrada por error (la pulsera equivocada, un niño registrado dos veces): sale de la sala sin
+  cobro, su paquete deja de cobrarse y su pulsera vuelve a servir. Pide un motivo y el PIN de administración
+  (supervisión la pide con el de administración). Si su paquete ya se cobró, primero se anula ese cobro en la caja.
+
 ## [0.64.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Ayuda dentro de la app y recorridos guiados (T-12, M-27).

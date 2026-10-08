@@ -59,6 +59,7 @@ const PLAN: Readonly<Partial<Record<Action, Fila>>> = {
 const DESPUES: Readonly<Partial<Record<Action, { fila: Fila; decision: string }>>> = {
   "cuenta.incobrable": { fila: ["✅", "🔐", "🔐", "❌", "❌", "❌"], decision: "D-JOR" },
   "parque.cerrarHuerfana": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "F5-13, H-19" },
+  "parque.anularEntrada": { fila: ["✅", "🔐", "❌", "❌", "❌", "❌"], decision: "B4-10, M-27 (P-7)" },
   "evento.reservar": { fila: ["✅", "✅", "✅", "❌", "❌", "❌"], decision: "B10-1, V-10" },
   "papel.revisar": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "B3-7, ADR-027" },
   "inventario.entrada": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "B9-3" },

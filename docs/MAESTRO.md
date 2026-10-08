@@ -34,9 +34,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.64.0 · 64 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
-(varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera) y T-12 (ayuda y
-recorridos guiados).
+**Versión 0.65.0 · 65 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
+(varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
+recorridos guiados) y B4-10 (cortesía y anular una entrada desde la sala).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -213,7 +213,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
-   B4-10 (cortesía y anular desde la sala) → B4-9 (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
+   ~~B4-10~~ (cortesía y anular desde la sala) → **B4-9** (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
@@ -1314,10 +1314,21 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   → Con el producto de medias elegido en Ajustes → Sucursal, la entrada pregunta por cada niño si trae medias; si
   no, la cuenta de la familia lleva el par y el inventario lo descuenta; sin existencia, la entrada lo avisa y no lo
   vende.
-- [~] **B4-10 · La sala para administración: cortesía y anular una entrada** (M-27, P-7). *A cargo: LuAMi, rama `feat/b4-10`.*
+- [x] **B4-10 · La sala para administración: cortesía y anular una entrada** (M-27, P-7).
   → Desde la tarjeta del niño, administración (supervisión con 🔐) regala su tiempo con un motivo o anula su
   entrada registrada por error: sin cobro, fuera del aforo y su línea fuera de la cuenta si no se cobró. Queda en la
   auditoría y en las excepciones del turno; nada se borra.
+  *Hecho el 2026-10-07 (LuAMi), v0.65.0.* **Matriz:** acción nueva `parque.anularEntrada` (administración ✅, supervisión
+  🔐, el resto ❌), con su fila en `matriz-del-plan.test.ts`. **Dominio:** `annulEntry` (las líneas sin cobrar del niño
+  quedan anuladas con su importe; su estancia cuenta como cerrada; sin nadie dentro y nada que cobrar, la cuenta queda
+  sin consumo; con algo suyo ya cobrado, no se anula); 3 pruebas. **Contrato:** `AnularEntradaCommandSchema` (motivo de 5 a
+  200) y el motivo de anulación `ENTRADA_POR_ERROR`. **Base** (migración `20261107000000_anular_entrada`, solo expande):
+  cierre `ANULADA` con su motivo, causa `ANULAR_ENTRADA`, y el índice de un solo uso que no cuenta las anuladas (su
+  pulsera vuelve a servir). **Aplicación:** `parque.anularEntrada` con PIN (de administración, o el suyo si es
+  administración), auditado `parque.anular_entrada` (temas sala, cuentas y turno); 4 pruebas contra la base. **Web:** en la
+  ficha del niño, para quien puede, «Regalar su tiempo» (la cortesía de la caja sobre todas sus líneas por cobrar, con una
+  autorización) y «Anular la entrada» (motivo y PIN). Visto en el navegador en la base de pruebas: las dos, sin errores de
+  consola. Salió al probarlo: la consulta de la pulsera decía «libre» con el niño dentro (trampa de Prisma, §5).*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -1943,6 +1954,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Seguridad (B7-5), PLAN §7.4 y §7.6 sin hacer: alertas activas sobre la auditoría (anulaciones, descuentos, arqueos), envío de la auditoría fuera de la máquina al instante (hoy sale cada noche con el respaldo), consentimiento y retención de los contactos (DEC-9) | Después del piloto, si se decide |
 | Respaldos: con un volcado por noche se puede perder hasta un día (RPO de 24 h); PLAN §10.4 pide 15 minutos con WAL continuo a otro sitio. El ensayo de restauración mensual se anota a mano (no hay registro en el panel) | Antes de B8-3, decidir si basta |
 | El actualizador pregunta a la API de GitHub sin token (60 consultas por hora, cada 5 min): si el repositorio pasa a privado, necesita un token de solo lectura | Si el repositorio deja de ser público |
+| Lo que escribe una versión nueva puede no leerlo la anterior: un pedido de pie (`table_id` nulo, B6-7) o el motivo `ENTRADA_POR_ERROR` (B4-10). La vuelta atrás automática de un despliegue ocurre antes de que nadie los use; una vuelta atrás a mano días después dejaría esas pantallas sin leer | Aceptado (ADR-028 habla de la base, no de los datos nuevos); antes de una vuelta atrás manual, mirar §7 |
 | Crear productos y categorías (y el inventario inicial con productos nuevos) exige `catalogo.modificar`, que no se ajusta por rol ni se concede por persona: supervisión no puede hacer inventario aunque administración se lo dé (P-15) | T-13 |
 | Sin Storybook | Fuera de la Ruta A |
 | El agente de impresión no va firmado con un certificado de código: Windows avisa al abrirlo («editor desconocido») | B8 (si el cliente compra el certificado) |
@@ -2038,6 +2050,8 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
   guarda con LF (`.gitattributes`). `prisma migrate deploy` y `status` no lo miran, pero `migrate dev` la daría por
   modificada y propondría **resetear la base**: contra la base del cliente, solo `pnpm db:migrar`. Les pasa a
   `20261020000000_impresion` y `20261023000000_pedidos`.
+- **En Prisma, `campo: { not: "X" }` deja fuera también los nulos** (en SQL, `NULL <> 'X'` es desconocido). Para «distinto de X,
+  nulos incluidos» se escribe `OR: [{ campo: null }, { campo: { not: "X" } }]` (así `SIN_ANULADAS` en el parque, B4-10).
 - `$queryRaw` de Prisma no sabe leer una columna `void`: `SELECT pg_advisory_xact_lock(...)` revienta
   al volver. Se castea (`::text`).
 - El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
@@ -2322,6 +2336,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-07** · B4-8 entregado como v0.63.0: niños sin pulsera con un código reservado que pone el servidor. Sigue T-12.
 - **2026-10-07** · T-12 entregado como v0.64.0: ayuda por pantalla (F1), «Cómo se resuelve» en los errores conocidos y
   recorridos guiados la primera vez, sin IA. Sigue B4-10.
+- **2026-10-07** · B4-10 entregado como v0.65.0: desde la sala, regalar el tiempo de un niño y anular una entrada por
+  error (su pulsera vuelve a servir). Sigue B4-9.
 
 ---
 

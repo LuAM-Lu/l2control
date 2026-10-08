@@ -51,6 +51,8 @@ export {
   type PausaDto,
   RecargaResultSchema,
   CierreHuerfanaCommandSchema,
+  AnularEntradaCommandSchema,
+  type AnularEntradaCommand,
   type RecargaCommand,
   type RecargaResult,
   type CierreHuerfanaCommand,

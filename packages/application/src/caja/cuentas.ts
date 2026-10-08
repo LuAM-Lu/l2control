@@ -175,7 +175,7 @@ export interface CasosCuentas {
 }
 
 /** Las acciones de la caja que se autorizan con 🔐 y cuya lista de autorizadores pide la pantalla. */
-export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "cuenta.descuento" | "turno.corteZ" | "pedido.anularEnProduccion";
+export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "cuenta.descuento" | "turno.corteZ" | "pedido.anularEnProduccion" | "parque.anularEntrada";
 
 /** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
 const CON_PIN = { confirmarConPin: true } as const;
@@ -1252,6 +1252,7 @@ const TEXTO_MOTIVO_ANULACION: Record<AnularPedidoCommand["motivo"], string> = {
   CLIENTE_DESISTIO: "El cliente desistió",
   SIN_EXISTENCIA: "Sin existencia",
   OTRO: "Otro",
+  ENTRADA_POR_ERROR: "Entrada registrada por error",
 };
 
 /** El número de una comanda como se canta: «#0007». */
@@ -1326,7 +1327,8 @@ export async function guardarVersion(
       | "LIBERAR"
       | "RESERVA"
       | "CANCELAR_RESERVA"
-      | "EMPEZAR_EVENTO";
+      | "EMPEZAR_EVENTO"
+      | "ANULAR_ENTRADA";
     operationKey: string | null;
     ahora: number;
     quien: string;

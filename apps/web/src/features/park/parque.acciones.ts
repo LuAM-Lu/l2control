@@ -75,6 +75,19 @@ export async function pausarEstancia(entrada: unknown): Promise<Resultado<Estanc
   return r;
 }
 
+/**
+ * Anula la entrada de un niño registrada por error (B4-10, M-27), con su autorización: sale de la sala sin cobro, su
+ * paquete deja de cobrarse y su pulsera vuelve a servir.
+ */
+export async function anularEntrada(entrada: unknown, autorizacion?: unknown): Promise<Resultado<{ account: FamilyAccountDto }>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).parque.anularEntrada(ctx, entrada, autorizacion);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.account.id }, "entrada anulada");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "anular entrada rechazado");
+  return r;
+}
+
 /** Si una pulsera se puede usar en una entrada (V-1): libre, en sala, ya usada o de otra serie. */
 export async function consultarPulsera(entrada: unknown): Promise<Resultado<EstadoPulseraDto>> {
   const ctx = await contextoActual();
