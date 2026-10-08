@@ -33,6 +33,7 @@ import {
   FamilyAccountSchema,
   MonitorSnapshotSchema,
   NombrarEstanciaCommandSchema,
+  PausaCommandSchema,
   ParkTermsSchema,
   TarifarioSchema,
   problemasDe,
@@ -42,6 +43,7 @@ import {
   type FamilyAccountDto,
   type MonitorSnapshotDto,
   type ParkTermsDto,
+  type PausaDto,
   type PricePackageDto,
   type RecargaResult,
   type Rechazo,
@@ -63,12 +65,16 @@ import {
   parkPolicy,
   computeSessionView,
   paquetePorUso,
+  pauseProblem,
+  pausedMs,
+  resumeProblem,
   settleAtExit,
   withRecharges,
   type Duration,
   type PaqueteDeUso,
   type ParkPolicy,
   type ParkSession as SesionDelDominio,
+  type Pause,
 } from "@l2/domain-park";
 import type { Action } from "@l2/domain-identity";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
@@ -100,6 +106,11 @@ export interface CasosParque {
   nombrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstanciaDto>>;
   /** Recarga tiempo a una estancia en sala (`RecargaCommandSchema`, F5-11). */
   recargar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<RecargaResult>>;
+  /**
+   * Pausa el tiempo de un niño que sale a comer, o termina su pausa antes del máximo (`PausaCommandSchema`,
+   * B4-7, M-27). Una pausa por visita; el máximo es el de los ajustes de la sucursal al pausar.
+   */
+  pausa(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstanciaDto>>;
   /** Cierra una estancia huérfana (`CierreHuerfanaCommandSchema`, F5-13): sin tiempo de más, con motivo. */
   cerrarHuerfana(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<{ account: FamilyAccountDto }>>;
   /** Niños que entraron hoy y el mismo día de la semana pasada, en el día del local (Inicio). */
@@ -147,6 +158,11 @@ async function estancias(tx: Transaccion, busqueda: BusquedaDeEstancias): Promis
     select: { sessionId: true, minutes: true, packageName: true, priceMinor: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
+  // La pausa por comida de cada una (B4-7), en su propia consulta (como las recargas).
+  const pausas = await tx.parkSessionPause.findMany({
+    where: { sessionId: { in: filas.map((f) => f.id) } },
+    select: { sessionId: true, kind: true, at: true, maxMinutes: true },
+  });
   // Los paquetes del tarifario con que entró cada estancia (B4-6): por ellos se cobra si sale antes de tiempo.
   const versiones = await tx.parkTariffVersion.findMany({
     where: { branchId: { in: [...new Set(filas.map((f) => f.branchId))] }, version: { in: [...new Set(filas.map((f) => f.tariffVersion))] } },
@@ -162,6 +178,7 @@ async function estancias(tx: Transaccion, busqueda: BusquedaDeEstancias): Promis
   return filas.map((f) => ({
     ...f,
     extensions: recargas.filter((r) => r.sessionId === f.id).map(({ sessionId: _, ...r }) => r),
+    pauses: pausas.filter((x) => x.sessionId === f.id).map(({ sessionId: _, ...x }) => x),
     porUso: paquetesDe.get(`${f.branchId}:${f.tariffVersion}`) ?? [],
   }));
 }
@@ -699,6 +716,97 @@ export function casosParque(base: Base): CasosParque {
       }
     },
 
+    async pausa(ctx, entrada, ahora = Date.now()) {
+      const v = PausaCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "La pausa no se registró: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+      const accion = cmd.accion === "PAUSAR" ? "parque.pausar" : "parque.reanudar";
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<EstanciaDto | Rechazo> => {
+          // La lleva quien atiende la sala, como la recarga.
+          const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
+          if (rechazo) return rechazo;
+          // El reintento (se cortó la red) devuelve la estancia como quedó.
+          const previa = await tx.parkSessionPause.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.sessionId !== cmd.sessionId || previa.kind !== (cmd.accion === "PAUSAR" ? "PAUSA" : "REANUDA")) return conflictoDeClave;
+            return estanciaDe(await estanciaQueExiste(tx, { id: cmd.sessionId }));
+          }
+          const f = await estancia(tx, { id: cmd.sessionId, branchId: ctx.branchId });
+          if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
+          if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió.` };
+          if (huerfana(f, ahora, await reglaDeHuerfanas(tx, ctx.branchId))) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa estancia está a revisar: la cierra la dirección." };
+          }
+          const pausaActual = pausaDelDominio(f);
+          const sesion = pausaActual ? { pause: pausaActual } : {};
+          const quien = await nombreDe(tx, ctx);
+          if (cmd.accion === "PAUSAR") {
+            if (pauseProblem(sesion) === "YA_PAUSO") {
+              return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya usó su pausa: hay una por visita.`, problemas: [{ path: ["sessionId"], message: "YA_PAUSO" }] };
+            }
+            const { pausaMaximaMin } = await ajustesDe(tx, ctx.branchId);
+            await tx.parkSessionPause.create({
+              data: {
+                tenantId: ctx.tenantId,
+                sessionId: f.id,
+                kind: "PAUSA",
+                at: new Date(ahora),
+                maxMinutes: pausaMaximaMin,
+                operationKey: cmd.idempotencyKey,
+                createdBy: ctx.quien?.userId ?? null,
+                createdByName: quien.nombre,
+              },
+            });
+            await auditar(tx, ctx, { action: accion, entityType: "park_session", entityId: f.id, after: { pulsera: f.wristbandCode, maxMinutos: pausaMaximaMin } });
+          } else {
+            const problema = resumeProblem(sesion, epochMs(ahora));
+            if (problema) {
+              return {
+                ok: false,
+                motivo: "CONFLICTO",
+                mensaje: problema === "SIN_PAUSA" ? `${nombreDeFila(f)} no está en pausa.` : `La pausa de ${nombreDeFila(f)} ya terminó: su tiempo corre.`,
+                problemas: [{ path: ["sessionId"], message: problema }],
+              };
+            }
+            await tx.parkSessionPause.create({
+              data: {
+                tenantId: ctx.tenantId,
+                sessionId: f.id,
+                kind: "REANUDA",
+                at: new Date(ahora),
+                operationKey: cmd.idempotencyKey,
+                createdBy: ctx.quien?.userId ?? null,
+                createdByName: quien.nombre,
+              },
+            });
+            await auditar(tx, ctx, {
+              action: accion,
+              entityType: "park_session",
+              entityId: f.id,
+              after: { pulsera: f.wristbandCode, minutos: Math.round(pausedMs(pausaActual, epochMs(ahora)) / 60_000) },
+            });
+          }
+          return estanciaDe(await estanciaQueExiste(tx, { id: f.id }));
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: accion, reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        // Dos equipos pausan a la vez: la base deja una sola pausa (o un solo fin); se vuelve a mirar.
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
     async cerrarHuerfana(ctx, entrada, ahora = Date.now()) {
       const v = CierreHuerfanaCommandSchema.safeParse(entrada);
       if (!v.success) {
@@ -846,6 +954,8 @@ type FilaDeEstancia = Awaited<ReturnType<Transaccion["parkSession"]["findFirstOr
   guardian: { fullName: string };
   kid: { id: string; name: string; nickname: string | null } | null;
   extensions: { minutes: number; packageName: string; priceMinor: bigint; createdAt: Date }[];
+  /** Su pausa por comida (B4-7): la PAUSA y, si la terminaron antes, la REANUDA. */
+  pauses: { kind: string; at: Date; maxMinutes: number | null }[];
   /** Los paquetes activos del tarifario con que entró (B4-6). */
   porUso: EstanciaDto["porUso"];
 };
@@ -956,7 +1066,22 @@ function estanciaDe(f: FilaDeEstancia): EstanciaDto {
       at: e.createdAt.toISOString(),
     })),
     porUso: f.porUso,
+    ...(pausaDe(f) ? { pausa: pausaDe(f) } : {}),
   });
+}
+
+/** La pausa de una estancia como la entrega el servidor (B4-7), o `undefined` si no la tuvo. */
+function pausaDe(f: FilaDeEstancia): PausaDto | undefined {
+  const inicio = f.pauses.find((x) => x.kind === "PAUSA");
+  if (!inicio || inicio.maxMinutes === null) return undefined;
+  const fin = f.pauses.find((x) => x.kind === "REANUDA");
+  return { desde: inicio.at.toISOString(), hasta: fin ? fin.at.toISOString() : null, maxMin: inicio.maxMinutes };
+}
+
+/** La pausa en la forma del dominio, para medir la estancia sin ella. */
+function pausaDelDominio(f: FilaDeEstancia): Pause | undefined {
+  const p = pausaDe(f);
+  return p ? { startedAt: epochMs(Date.parse(p.desde)), endedAt: p.hasta ? epochMs(Date.parse(p.hasta)) : null, maxMinutes: p.maxMin } : undefined;
 }
 
 /** Cómo se nombra a un niño en la cuenta y en los avisos: su apodo, su nombre o su pulsera (DEC-28). */
@@ -974,6 +1099,8 @@ function paraMedir(f: FilaDeEstancia): { sesion: SesionDelDominio; politica: Par
       mode: f.mode as "PREPAGO" | "POSTPAGO",
       duration: duracionDe(f),
       startedAt: epochMs(f.startedAt.getTime()),
+      // Lo que estuvo comiendo no cuenta (B4-7): ni consume su tiempo ni se cobra como tiempo de más.
+      ...(pausaDelDominio(f) ? { pause: pausaDelDominio(f)! } : {}),
     },
     politica: parkPolicy({
       graceMinutes: t.graceMinutes,

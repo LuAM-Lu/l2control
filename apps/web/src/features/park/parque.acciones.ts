@@ -63,6 +63,18 @@ export async function nombrarEstancia(entrada: unknown): Promise<Resultado<Estan
   return (await aplicacion()).parque.nombrar(ctx, entrada);
 }
 
+/**
+ * Pausa el tiempo de un niño que sale a comer, o termina su pausa antes del máximo (B4-7, M-27). Una pausa
+ * por visita; pasado el máximo de la sucursal, el reloj vuelve a correr solo.
+ */
+export async function pausarEstancia(entrada: unknown): Promise<Resultado<EstanciaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).parque.pausa(ctx, entrada);
+  if (!r.ok) log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "pausa de una estancia rechazada");
+  return r;
+}
+
 /** Si una pulsera se puede usar en una entrada (V-1): libre, en sala, ya usada o de otra serie. */
 export async function consultarPulsera(entrada: unknown): Promise<Resultado<EstadoPulseraDto>> {
   const ctx = await contextoActual();

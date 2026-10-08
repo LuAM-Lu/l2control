@@ -181,6 +181,16 @@ export const AjustesSucursalSchema = z
      * ajustes publicados antes no lo traen: apagado.
      */
     preciosConIva: z.boolean().default(false),
+    /**
+     * Cuánto dura como mucho la pausa por comida de una pulsera (B4-7, M-27, P-14): pasado ese tiempo, el
+     * reloj del niño vuelve a correr solo. Una pausa por visita. Los ajustes publicados antes no lo traen: 10.
+     */
+    pausaMaximaMin: z
+      .number()
+      .int("Minutos enteros")
+      .min(1, "Al menos un minuto")
+      .max(30, "Más de media hora ya no es una pausa: es otra visita")
+      .default(10),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

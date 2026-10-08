@@ -239,6 +239,17 @@ export const SessionStatusSchema = z.enum([
 export type SessionStatus = z.infer<typeof SessionStatusSchema>;
 
 /** Una estancia tal como el servidor la entrega. */
+/**
+ * La pausa por comida de una estancia (B4-7, M-27): desde cuándo, cuándo la terminó la monitora (`null` si no la
+ * terminó: sigue, o se acabó sola al cumplir `maxMin`) y su máximo, como regía al pausar. Una por visita.
+ */
+export const PausaSchema = z.object({
+  desde: TimestampSchema,
+  hasta: TimestampSchema.nullable(),
+  maxMin: z.number().int().min(1).max(30),
+});
+export type PausaDto = z.infer<typeof PausaSchema>;
+
 export const ParkSessionSchema = z.object({
   id: IdSchema,
   wristbandCode: WristbandCodeSchema,
@@ -248,6 +259,8 @@ export const ParkSessionSchema = z.object({
   startedAt: TimestampSchema,
   packageId: IdSchema,
   packagePrice: MoneySchema,
+  /** La pausa por comida, si la tuvo (B4-7). */
+  pausa: PausaSchema.optional(),
 });
 export type ParkSessionDto = z.infer<typeof ParkSessionSchema>;
 
@@ -483,6 +496,17 @@ export const RecargaCommandSchema = z.strictObject({
   packageId: IdSchema,
 });
 export type RecargaCommand = z.infer<typeof RecargaCommandSchema>;
+
+/**
+ * Pausar el tiempo de un niño que sale a comer, o terminar su pausa antes del máximo (B4-7, M-27). Una pausa
+ * por visita; pasado el máximo de la sucursal, el reloj vuelve a correr solo.
+ */
+export const PausaCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  sessionId: IdSchema,
+  accion: z.enum(["PAUSAR", "REANUDAR"]),
+});
+export type PausaCommand = z.infer<typeof PausaCommandSchema>;
 
 export const RecargaResultSchema = z.object({
   session: EstanciaSchema,

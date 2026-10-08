@@ -33,6 +33,9 @@ import {
   openEnded,
   parkPolicy,
   paquetePorUso,
+  pauseProblem,
+  pausedMs,
+  resumeProblem,
   type PaqueteDeUso,
   type ParkSession,
 } from "./index.ts";
@@ -391,5 +394,61 @@ describe("salir antes de tiempo: cobrar por uso (B4-6, M-18)", () => {
   test("a igual precio gana el más corto", () => {
     const iguales: PaqueteDeUso[] = [{ name: "Libre barato", duration: openEnded, price: usd(3) }, ...TARIFA];
     assert.equal(nombre(paquetePorUso(iguales, 20 * MIN, 0, usd(5))), "30 minutos");
+  });
+});
+
+describe("la pausa por comida (B4-7, M-27)", () => {
+  // Entró en T0 con una hora; a los 20 min sale a comer con una pausa de hasta 10.
+  const pausa = (endedAtMin: number | null = null) => ({ startedAt: epochMs(T0 + 20 * MIN), endedAt: endedAtMin === null ? null : epochMs(T0 + endedAtMin * MIN), maxMinutes: 10 });
+
+  test("mientras dura, el reloj está quieto y dice cuánto le queda a la pausa", () => {
+    const s = sesion({ pause: pausa() });
+    const v = alos(24, s);
+    assert.equal(v.paused, true);
+    assert.equal(v.pauseRemainingMs, 6 * MIN);
+    assert.equal(v.elapsedMs, 20 * MIN, "se quedó en los 20 minutos de antes de salir a comer");
+    assert.equal(v.remainingMs, 40 * MIN);
+  });
+
+  test("a los 10 minutos vuelve a correr sola: el tiempo de después cuenta", () => {
+    const s = sesion({ pause: pausa() });
+    const v = alos(45, s);
+    assert.equal(v.paused, false);
+    assert.equal(v.pauseRemainingMs, null);
+    assert.equal(v.elapsedMs, 35 * MIN, "45 menos los 10 de la pausa");
+    assert.equal(pausedMs(s.pause, epochMs(T0 + 45 * MIN)), 10 * MIN);
+  });
+
+  test("si la monitora la termina antes, solo descuenta lo que duró", () => {
+    const s = sesion({ pause: pausa(26) });
+    assert.equal(alos(40, s).elapsedMs, 34 * MIN);
+    assert.equal(alos(40, s).paused, false);
+  });
+
+  test("terminarla después del máximo no regala más tiempo", () => {
+    const s = sesion({ pause: pausa(50) });
+    assert.equal(alos(60, s).elapsedMs, 50 * MIN);
+  });
+
+  test("el tiempo de más y la salida se cuentan sin la pausa", () => {
+    const sin = settleAtExit(sesion(), POLICY, epochMs(T0 + 68 * MIN));
+    const con = settleAtExit(sesion({ pause: pausa() }), POLICY, epochMs(T0 + 68 * MIN));
+    assert.ok(sin.overdue.amount > 0n, "sin pausa se pasó de la hora y la gracia");
+    assert.equal(con.overdue.amount, 0n, "con la pausa, 58 minutos: dentro de su hora");
+    assert.equal(con.consumedMinutes, 58);
+  });
+
+  test("también en tiempo abierto: lo que estuvo comiendo no cuenta", () => {
+    const s = sesion({ duration: openEnded, pause: pausa() });
+    assert.equal(alos(60, s).elapsedMs, 50 * MIN);
+  });
+
+  test("una sola pausa por visita, y solo se termina la que sigue en curso", () => {
+    assert.equal(pauseProblem(sesion()), null);
+    assert.equal(pauseProblem(sesion({ pause: pausa() })), "YA_PAUSO");
+    assert.equal(resumeProblem(sesion(), epochMs(T0 + 25 * MIN)), "SIN_PAUSA");
+    assert.equal(resumeProblem(sesion({ pause: pausa() }), epochMs(T0 + 25 * MIN)), null);
+    assert.equal(resumeProblem(sesion({ pause: pausa() }), epochMs(T0 + 31 * MIN)), "YA_TERMINO");
+    assert.equal(resumeProblem(sesion({ pause: pausa(24) }), epochMs(T0 + 25 * MIN)), "YA_TERMINO");
   });
 });

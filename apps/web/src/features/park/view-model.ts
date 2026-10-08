@@ -11,7 +11,7 @@
  */
 import type { MonitorSnapshotDto } from "@l2/contracts";
 import { toMajor } from "@l2/domain-money";
-import { computeOverdueCharge, computeSessionView, type SessionStatus } from "@l2/domain-park";
+import { computeOverdueCharge, computeSessionView, pauseEndsAt, type SessionStatus } from "@l2/domain-park";
 import { toEpochMs, toParkSession, toParkTerms } from "./mappers.ts";
 
 /**
@@ -53,8 +53,13 @@ export type SessionCardModel = Readonly<{
   wristbandCode: string;
   mode: "PREPAGO" | "POSTPAGO";
   status: SessionStatus;
-  /** Instante contra el que cuenta el cronómetro, en epoch ms. */
+  /**
+   * Instante contra el que cuenta el cronómetro, en epoch ms, SIN la pausa: la tarjeta le suma lo que lleve
+   * en pausa en cada latido (`conPausa`), y así el reloj se queda quieto mientras el niño come.
+   */
   targetMs: number;
+  /** La pausa por comida (B4-7): cuándo empezó y cuándo termina (sola o a mano). `null` si no la usó. */
+  pausa: Readonly<{ inicio: number; fin: number }> | null;
   direction: "up" | "down";
   /** Minutos contratados; `null` si la duración es abierta. */
   contractedMinutes: number | null;
@@ -71,6 +76,17 @@ export type SessionCardModel = Readonly<{
   guardianName: string;
   packageName: string;
 }>;
+
+/** Cuánto lleva en pausa en `now` (B4-7): lo que el reloj de la tarjeta no cuenta. */
+export function msEnPausa(pausa: SessionCardModel["pausa"], now: number): number {
+  if (!pausa || now <= pausa.inicio) return 0;
+  return Math.min(now, pausa.fin) - pausa.inicio;
+}
+
+/** ¿Está en pausa ahora mismo? */
+export function enPausa(pausa: SessionCardModel["pausa"], now: number): boolean {
+  return pausa !== null && now >= pausa.inicio && now < pausa.fin;
+}
 
 export type MonitorModel = Readonly<{
   serverNow: number;
@@ -109,6 +125,7 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
       mode: session.mode,
       status: view.status,
       targetMs,
+      pausa: session.pause ? { inicio: session.pause.startedAt, fin: pauseEndsAt(session.pause) } : null,
       direction: isFixed ? ("down" as const) : ("up" as const),
       contractedMinutes,
       startedAt: session.startedAt,

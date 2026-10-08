@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert } from "lucide-react";
+import { CheckCircle2, TimerReset, TriangleAlert, OctagonAlert, UtensilsCrossed } from "lucide-react";
 import {
   CountdownDisplay,
   Initial,
@@ -12,7 +12,7 @@ import {
   cn,
 } from "@l2/ui";
 import { formatDuration, type SessionStatus } from "@l2/domain-park";
-import { nombreVisible, type SessionCardModel } from "./view-model";
+import { enPausa, msEnPausa, nombreVisible, type SessionCardModel } from "./view-model";
 
 /**
  * Nivel 3 — funcionalidad (§9.4). Conoce el dominio del parque y por eso vive
@@ -57,7 +57,13 @@ export function ParkChildCard({
 }) {
   // Un solo reloj por tarjeta: cifra y barra laten juntas.
   const now = useServerClock(serverNow);
-  const status = STATUS[model.status];
+  // La pausa por comida (B4-7): mientras dura, el reloj no corre (el objetivo se corre lo que lleva en pausa)
+  // y la tarjeta lo dice con su icono y lo que le queda. No es un color de estado: es una espera.
+  const pausado = enPausa(model.pausa, now);
+  const target = model.targetMs + msEnPausa(model.pausa, now);
+  const status = pausado
+    ? { tone: "brand" as const, label: `En pausa · ${formatDuration(model.pausa!.fin - now)}`, icon: UtensilsCrossed, urgent: false }
+    : STATUS[model.status];
   const Icon = status.icon;
 
   const colorCifra =
@@ -104,7 +110,7 @@ export function ParkChildCard({
         </span>
         <CountdownDisplay
           now={now}
-          targetMs={model.targetMs}
+          targetMs={target}
           direction={model.direction}
           format={formatDuration}
           size="sm"
@@ -114,7 +120,7 @@ export function ParkChildCard({
     );
   }
 
-  const elapsed = Math.max(0, now - model.startedAt);
+  const elapsed = Math.max(0, now - model.startedAt - msEnPausa(model.pausa, now));
   const total = model.totalMs;
 
   // Ratio para la barra. Es presentación, no reglas de negocio: el cobro del
@@ -176,7 +182,7 @@ export function ParkChildCard({
       <div className="flex flex-wrap items-end justify-between gap-x-2 min-w-0">
         <CountdownDisplay
           now={now}
-          targetMs={model.targetMs}
+          targetMs={target}
           direction={model.direction}
           format={formatDuration}
           size="md"
