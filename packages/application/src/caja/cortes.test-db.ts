@@ -92,6 +92,7 @@ async function caja(m: Montado, nombre: string, persona = m.cajera, pin: string 
           { currency: "VES", amount: ves(fondo.ves) },
         ],
       },
+      undefined,
       AHORA - 30 * MIN,
     ),
   );

@@ -173,6 +173,7 @@ export const PuntoDePuestaAPuntoIdSchema = z.enum([
     "descuentos",
     "segunda_administracion",
     "otros_equipos",
+    "punto_de_cobro",
   ]);
 export type PuntoDePuestaAPuntoId = z.infer<typeof PuntoDePuestaAPuntoIdSchema>;
 

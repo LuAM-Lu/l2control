@@ -45,10 +45,16 @@ export const RECORRIDOS: readonly RecorridoDePantalla[] = [
   },
   {
     id: "caja",
-    version: 1,
+    // 2 (B3-9): la entrada desde la caja.
+    version: 2,
     ruta: "/caja",
     pasos: [
       { objetivo: en("caja-cola"), titulo: "Lo que hay por cobrar", texto: "La cola va de la cuenta más antigua a la más nueva: parque, mesas, de pie y mostrador." },
+      {
+        objetivo: en("caja-entrada"),
+        titulo: "Niños que llegan a la caja",
+        texto: "«Entrada» (o pasar una pulsera nueva) registra a los niños con su paquete y su representante, y deja la cuenta lista para cobrar sin salir de aquí.",
+      },
       { objetivo: en("caja-cuenta"), titulo: "La cuenta elegida", texto: "Lo que se cobra, línea a línea. En una venta de mostrador se añaden los productos de la carta." },
       { objetivo: en("caja-cobro"), titulo: "Medio, monto y cobrar", texto: "Elige el medio, escribe lo que entrega el cliente (se puede mezclar) y cobra. El recibo sale en la impresora de caja." },
     ],

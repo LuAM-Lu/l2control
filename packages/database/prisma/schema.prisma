@@ -237,6 +237,7 @@ model StaffUser {
   paymentsAuthorized Payment[]   @relation("PaymentAuthorizedBy")
   shiftsOpened       CashShift[] @relation("ShiftOpenedBy")
   shiftsClosed       CashShift[] @relation("ShiftClosedBy")
+  shiftsOutsidePoint CashShift[] @relation("ShiftOutsidePointBy")
 
   @@unique([tenantId, id])
   @@map("staff_user")
@@ -481,6 +482,9 @@ model Device {
   /// bloqueo creciente del EQUIPO, porque quien teclea todavía no tiene identidad.
   approvalFailures      Int       @default(0) @map("approval_failures")
   approvalLastFailureAt DateTime? @map("approval_last_failure_at") @db.Timestamptz(3)
+  /// El punto de cobro (B3-9, M-31): en un equipo marcado el turno se abre como siempre; en otro, con el PIN de
+  /// administración y un motivo. La marca la pone administración en Dispositivos.
+  cashPoint             Boolean   @default(false) @map("cash_point")
 
   branch    Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   changes   DeviceChange[]
@@ -781,33 +785,39 @@ model CollectionDetails {
 /// Un turno de caja (B3-1, F4-01, ADR-009, I-06): un equipo, un turno abierto. No se borra y solo
 /// avanza (ABIERTO → EN_CIERRE → CERRADO_Z); lo que declara al abrir no cambia nunca (disparador).
 model CashShift {
-  id           String    @id @default(uuid(7)) @db.Uuid
-  tenantId     String    @map("tenant_id") @db.Uuid
-  branchId     String    @map("branch_id") @db.Uuid
-  deviceId     String    @map("device_id") @db.Uuid
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  branchId           String    @map("branch_id") @db.Uuid
+  deviceId           String    @map("device_id") @db.Uuid
   /// El punto de cobro: el nombre del equipo al abrir (DEC-13).
-  pointLabel   String    @map("point_label")
+  pointLabel         String    @map("point_label")
   /// El día de negocio que declara el turno (ADR-009): el del local al abrirlo.
-  businessDate DateTime  @map("business_date") @db.Date
+  businessDate       DateTime  @map("business_date") @db.Date
   /// ABIERTO, EN_CIERRE o CERRADO_Z (CHECK).
-  status       String
-  openedAt     DateTime  @default(now()) @map("opened_at") @db.Timestamptz(3)
-  openedBy     String    @map("opened_by") @db.Uuid
-  openedByName String    @map("opened_by_name")
-  closedAt     DateTime? @map("closed_at") @db.Timestamptz(3)
-  closedBy     String?   @map("closed_by") @db.Uuid
-  closedByName String?   @map("closed_by_name")
+  status             String
+  openedAt           DateTime  @default(now()) @map("opened_at") @db.Timestamptz(3)
+  openedBy           String    @map("opened_by") @db.Uuid
+  openedByName       String    @map("opened_by_name")
+  closedAt           DateTime? @map("closed_at") @db.Timestamptz(3)
+  closedBy           String?   @map("closed_by") @db.Uuid
+  closedByName       String?   @map("closed_by_name")
+  /// Abierto fuera del punto de cobro (B3-9, M-31): quién lo autorizó con su PIN, su nombre y el motivo. Los tres o
+  /// ninguno (CHECK); no cambian después de abrir.
+  outsidePointBy     String?   @map("outside_point_by") @db.Uuid
+  outsidePointByName String?   @map("outside_point_by_name")
+  outsidePointReason String?   @map("outside_point_reason")
 
-  branch     Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  device     Device           @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  opener     StaffUser        @relation("ShiftOpenedBy", fields: [tenantId, openedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  closer     StaffUser?       @relation("ShiftClosedBy", fields: [tenantId, closedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  floats     CashShiftFloat[]
-  payments   Payment[]
-  sales      Sale[]
-  counts     ShiftCount[]
-  cuts       ShiftCut[]
-  paperLoads PaperLoad[]
+  branch            Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  device            Device           @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  opener            StaffUser        @relation("ShiftOpenedBy", fields: [tenantId, openedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  closer            StaffUser?       @relation("ShiftClosedBy", fields: [tenantId, closedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  outsideAuthorizer StaffUser?       @relation("ShiftOutsidePointBy", fields: [tenantId, outsidePointBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  floats            CashShiftFloat[]
+  payments          Payment[]
+  sales             Sale[]
+  counts            ShiftCount[]
+  cuts              ShiftCut[]
+  paperLoads        PaperLoad[]
 
   @@unique([tenantId, id])
   @@index([tenantId, branchId, businessDate])

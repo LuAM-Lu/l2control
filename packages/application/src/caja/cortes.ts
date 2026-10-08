@@ -726,7 +726,10 @@ export function casosCortes(base: Base): CasosCortes {
         if (!(await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, forReceipts: true }, select: { id: true } }))) {
           faltan.push({ que: "IMPRESORA", mensaje: "No hay impresora de recibos encendida.", bloquea: "Imprimir recibos y el ticket del corte", enlace: "/panel/ajustes/impresoras" });
         }
-        return ComprobacionAperturaSchema.parse({ faltan });
+        // El punto de cobro (B3-9, M-31): fuera de él, abrir pide el PIN de administración y un motivo.
+        const equipo = ctx.quien?.deviceId ? await tx.device.findUnique({ where: { id: ctx.quien.deviceId }, select: { cashPoint: true } }) : null;
+        const puntos = await tx.device.findMany({ where: { branchId: ctx.branchId, status: "APROBADO", cashPoint: true }, select: { label: true }, orderBy: { label: "asc" } });
+        return ComprobacionAperturaSchema.parse({ faltan, puntoDeCobro: { esEste: equipo?.cashPoint ?? false, puntos: puntos.map((p) => p.label) } });
       });
     },
 

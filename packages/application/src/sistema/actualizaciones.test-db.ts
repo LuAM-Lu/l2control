@@ -82,7 +82,7 @@ describe("ver y pedir una actualización", () => {
   });
 
   test("con un turno abierto, «ahora» no; «al cierre», sí", async () => {
-    valor(await local.app.turnos.abrir(ctxCajera, FONDO, AHORA - 60_000));
+    valor(await local.app.turnos.abrir(ctxCajera, FONDO, undefined, AHORA - 60_000));
     const e = valor(await local.app.actualizaciones.estado(ctxAdmin, PRODUCCION, AHORA));
     assert.equal(e.ocupado.turnosAbiertos, 1);
     const ahora = await local.app.actualizaciones.pedir(ctxAdmin, { version: "0.58.0", cuando: "AHORA" }, PRODUCCION, AHORA);

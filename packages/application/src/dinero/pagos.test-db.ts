@@ -64,7 +64,7 @@ before(async () => {
   ctxMonitora = await contextoDe(local, await crearEquipo(local, "Entrada"), monitora, "6284");
   const ctxSupervisor = await contextoDe(local, await crearEquipo(local, "Supervisión"), supervisor, "5937");
   // Sin turno abierto no se cobra (B3-1): la caja y la oficina abren el suyo.
-  for (const ctx of [ctxCajera, ctxAdmin]) valor(await local.app.turnos.abrir(ctx, FONDO, AHORA - 120_000));
+  for (const ctx of [ctxCajera, ctxAdmin]) valor(await local.app.turnos.abrir(ctx, FONDO, undefined, AHORA - 120_000));
 
   // La tasa del día, aplicada; y otra que supervisión deja pendiente.
   tasa = valor(await local.app.tasas.capturar(local.sistema, { pair: "USD/VES", source: "BCV", value: "855.6625", effectiveDate: HOY, valorVerificado: "855.6625" }, AHORA)).id;
@@ -199,7 +199,7 @@ describe("asentar un cobro (F3-09)", () => {
   test("sin IGTF vigente no se cobra en divisas", async () => {
     const persona = await crearPersona(otro, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
     const ctx = await contextoDe(otro, await crearEquipo(otro, "Caja"), persona, "7391");
-    valor(await otro.app.turnos.abrir(ctx, FONDO, AHORA));
+    valor(await otro.app.turnos.abrir(ctx, FONDO, undefined, AHORA));
     const r = await otro.app.pagos.asentar(ctx, cobro([usd("3.00")]), AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
     assert.match(!r.ok ? r.mensaje : "", /IGTF/);
@@ -357,7 +357,7 @@ describe("aislamiento", () => {
     // Con su propio turno abierto, para que el rechazo sea por no ver el asiento y no por otra cosa.
     const admin = await crearPersona(otro, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
     const ctx = await contextoDe(otro, await crearEquipo(otro, "Oficina"), admin, "4826");
-    valor(await otro.app.turnos.abrir(ctx, FONDO, AHORA));
+    valor(await otro.app.turnos.abrir(ctx, FONDO, undefined, AHORA));
     const r = await otro.app.pagos.revertir(ctx, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, undefined, AHORA);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
     assert.match(!r.ok ? r.mensaje : "", /no existe/);

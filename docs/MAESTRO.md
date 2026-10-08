@@ -40,8 +40,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
 la Etapa 11 entera), Ajustes en 12 secciones con pestañas (T-18), la cuenta de soporte (T-17), el conteo a ciegas con
 su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos con sus sabores (B9-8).
-**Siguiente, de punta a punta y sin pedir el sí entre partes:** B3-9 (el punto de cobro y la entrada desde la caja,
-M-31); después, hacia la 1.0.0, lo que no necesita el local: T-8c (programado y probado en una PC con Windows) y lo
+**M-31 entregado:** B3-9, el punto de cobro y la entrada desde la caja. **Siguiente, sin pedir el sí entre pasos:** hacia
+la 1.0.0, lo que no necesita el local: T-8c (programado y probado en una PC con Windows) y lo
 escrito de B8-2 (el procedimiento en papel y los runbooks), según §3, orden, punto 10. **En el local:** B7-3 (con T-8c en
 la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
 1.0.0, §4), antes de B8-4.
@@ -56,8 +56,9 @@ la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Pa
   vistazo, la escala de texto e iconos, reportar un problema con captura y la atención en el salón. Con M-28 y M-29
   (v0.74.0 a v0.84.0): Reportes en PDF (ventas, inventario al momento y kárdex), Ajustes en 12 secciones con pestañas,
   la cuenta de soporte, el catálogo en hoja sin cantidades con su conteo inicial, el conteo a ciegas con su informe,
-  editar en lote, duplicar con sabores, la semilla con casillas y los respaldos con carpeta, fijados e integridad. El
-  detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
+  editar en lote, duplicar con sabores, la semilla con casillas y los respaldos con carpeta, fijados e integridad. Con
+  M-31 (B3-9): el punto de cobro (fuera de él, el turno se abre con el PIN de administración y queda avisado) y la
+  entrada al parque desde la caja. El detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
 - **Staging:** `https://217-216-48-54.sslip.io` (Etapa 7). Se pone al día solo con cada versión publicada (T-8b),
   hace un respaldo cifrado cada noche que baja una PC del local (B7-4) y pasó la revisión de seguridad (B7-5).
   **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Sistema → Respaldos), cargar la
@@ -250,7 +251,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
    (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → ~~T-17~~ (cuenta de soporte) → ~~B9-10~~ (conteo
    a ciegas y su informe) → ~~B9-9~~ (editar en lote) → ~~B9-8~~ (duplicar productos).
-9. **M-31**: **B3-9** (el punto de cobro y la entrada desde la caja): una sola tarea, de punta a punta, sin pedir el sí
+9. **M-31**: ~~B3-9~~ (el punto de cobro y la entrada desde la caja): una sola tarea, de punta a punta, sin pedir el sí
    entre sus partes (el usuario, 2026-10-08).
 10. **Hacia la 1.0.0**, lo que no necesita el local: **T-8c** (se programa y se prueba en una PC con Windows como la de
    caja; en la laptop real se comprueba con B7-3) → **B8-2** (lo que se escribe: la hoja del procedimiento en papel y los
@@ -1283,8 +1284,7 @@ Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   directa (N, Tab hasta el producto, Intro) cobrada «Sin recibo» y después en Ventas del turno con «Imprimir»; a
   1366×768 y 1280×800, en los dos temas, sin desplazamiento. De paso: la prueba de la instalación que buscaba el PIN
   «4826» suelto fallaba por azar cuando salía dentro de un UUID o un hash; ahora lo busca como valor.*
-- [~] **B3-9 · El punto de cobro y la entrada desde la caja** (M-31; una sola tarea, de punta a punta). *A cargo:
-  LuAMi, rama `feat/b3-9`.*
+- [x] **B3-9 · El punto de cobro y la entrada desde la caja** (M-31; una sola tarea, de punta a punta).
   → **El punto de cobro.** Cada equipo lleva la marca «Punto de cobro» en Ajustes → Personas y equipos → Dispositivos (administración, con la
   identidad confirmada). En un equipo marcado, el turno se abre como hoy. En uno sin marcar, abrir turno pide el PIN de
   administración y un motivo («La laptop de caja no enciende»), queda en la auditoría e Inicio avisa «Turno abierto fuera
@@ -1307,6 +1307,36 @@ Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   la ayuda de atajos; el teléfono del representante lleva `data-privado`; un rechazo (aforo, pulsera usada, sin turno)
   se dice en el panel, con su aviso; la sala y la cola de la caja se releen solas; la cuenta de soporte en producción no
   cobra, tampoco desde aquí; registrar pide `parque.checkIn` y cobrar, el permiso de cobro.
+  *Hecho el 2026-10-08, en `feat/b3-9`.*
+  *· Base: `20261113000000_punto_de_cobro` (solo expande): `device.cash_point` y, en `cash_shift`, quién autorizó abrir
+  fuera del punto, su nombre y el motivo (los tres o ninguno; el disparador de «solo avanza» tampoco deja reescribirlos).
+  Al migrar, cada equipo que ya abrió un turno queda como punto de cobro (en la base de pruebas, los cinco que cobraban).*
+  *· Dominio: la acción `turno.abrirFueraDelPunto` (administración ✅; supervisión y caja 🔐) y
+  `SOLO_AUTORIZA_QUIEN_LO_TIENE`: la autoriza quien la tiene permitida, no supervisión (se pregunta por el permiso, no por
+  el rol). Su fila en la matriz del plan, con su decisión.*
+  *· Contrato: la marca `puntoDeCobro` del equipo y su orden `PUNTO_DE_COBRO`; `fueraDelPunto` en el turno y en el
+  informe de ventas; `puntoDeCobro` (este equipo y cuáles lo son) en la comprobación de apertura; el punto
+  `punto_de_cobro` de la Puesta a punto.*
+  *· Aplicación: `turnos.abrir(ctx, entrada, autorizacion?, ahora?)`: fuera del punto, sin autorización se niega; con
+  ella, `exigirPermisoOAutorizacion` con el PIN (administración confirma con el suyo) y el turno guarda quién y por qué,
+  en su asiento (`authorizedBy`, `reason`). La cuenta de soporte en producción tampoco lo autoriza ni sale en la lista.
+  `dispositivos.ordenar` marca y quita (`usuarios.gestionar` con la identidad confirmada; asiento
+  `dispositivo.punto_de_cobro`, tema `equipos` y `turno`; en la auditoría y no en la historia del equipo, que una
+  versión anterior no sabría leer). 9 pruebas contra la base; la preparación de las demás marca sus equipos aprobados.*
+  *· Web: la apertura fuera del punto (aviso con cuál lo es, motivo y «Quién autoriza» con su PIN); «Fuera del punto de
+  cobro» en la cabecera del turno, en Inicio (en vivo) y en Reportes → Ventas → Turnos; la marca y su botón en
+  Dispositivos. La entrada: `useEntradaDeNinos` y `EntradaPiezas` (la lógica y las piezas de Entrada, que ahora las usa
+  también la caja) y `EntradaDesdeCaja`, el panel lateral: «Entrada» (tecla A) o una pulsera que no está en la sala;
+  «Registrar y cobrar» deja la cuenta elegida. Sin turno, el panel lo dice y no registra; en papel no se ofrece. El
+  teléfono del representante lleva `data-privado` en las dos pantallas.*
+  *· Ayuda: el manual de Turno, Cobrar, Inicio, Reportes y una entrada nueva de Personas y equipos; el recorrido de la
+  caja pasa a la versión 2 con «Niños que llegan a la caja»; la tecla A en la ayuda de atajos.*
+  *· Comprobado en el navegador, en la base de pruebas: en una tablet sin marca («Prueba B39 Tablet»), la apertura pide
+  motivo y autorización, rechaza un PIN malo y abre con el de administración; Inicio avisa, Reportes lo marca;
+  marcar y quitar el punto en Dispositivos. En la caja: la tecla A, dos pulseras, un niño sin pulsera y una familia
+  nueva, registrado y cobrado con el teclado; una pulsera nueva leída en la cola abre el panel con ella; una que está en
+  la sala se rechaza en el panel. Entrada igual: dos niños hasta la caja en 3,4 s. A 1366×768, 1280×800, 800×1280 y
+  390 px, en los dos temas: la caja no desplaza y sin errores de consola.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -2552,7 +2582,7 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
 | F1 · Cimientos | **Hecha:** monorepo, fronteras, contratos, Prisma con RLS, CI, imágenes, staging, semilla y actualizaciones | — |
 | F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) y la cuenta de soporte (T-17) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
-| F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables, descuentos y carga de lo anotado en papel | — |
+| F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables, descuentos, carga de lo anotado en papel, el punto de cobro y la entrada al parque desde la caja (B3-9) | — |
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-10): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara, las pulseras de un solo uso, la pausa por comida, entrar sin pulsera, las medias, y la cortesía y la anulación desde la sala | — |
 | F6 · Restaurante | **Hecho en el servidor** (B6-1 a B6-3, B6-5 a B6-8): plano, carta, pedido con comanda impresa, cuenta de la mesa, mesa sin consumo, anular en cocina, varias cuentas por mesa y de pie, y el tiempo de atención con «Servido» | Recetas e insumos de cocina, después del piloto (B6-4) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
@@ -2882,6 +2912,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   el aviso de «sin pulsera», descartado por ahora. La ruta pasa a 92. Sin empezar hasta el «empieza» del usuario.
 - **2026-10-08** · El usuario junta los dos pasos de M-31 en uno (B3-9, de punta a punta y automático) y pide ir después
   a la 1.0.0: T-8c y lo escrito de B8-2 se hacen antes de la visita (§3, orden, punto 10). La ruta pasa a 91.
+- **2026-10-08** · B3-9 entregado (M-31): el punto de cobro y la entrada desde la caja. La ruta cuenta 91 en el
+  `package.json` (se había quedado en 90, PR #85). Sigue T-8c y lo escrito de B8-2, sin pedir el sí entre pasos.
 
 ---
 

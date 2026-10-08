@@ -94,6 +94,8 @@ export const InformeDeVentasSchema = z.object({
       vendido: MoneySchema,
       /** Con su Z: si da lo mismo que el Z y, si no, qué no cuadra. Sin Z, `SIN_Z`. */
       cuadre: z.object({ estado: z.enum(["CUADRA", "NO_CUADRA", "SIN_Z"]), diferencias: z.array(z.string()) }),
+      /** Abierto fuera del punto de cobro (B3-9, M-31): quién lo autorizó y por qué. */
+      fueraDelPunto: z.object({ autorizadoPor: z.string(), motivo: z.string() }).nullable().default(null),
     }),
   ),
   anuladas: z.array(

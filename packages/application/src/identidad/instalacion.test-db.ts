@@ -271,12 +271,13 @@ describe("la puesta a punto", () => {
     const ctx = contextoDeSesion(s.sesion, null);
     const antes = await app.puestaAPunto.leer(ctx);
     assert.ok(antes.ok, JSON.stringify(antes));
-    assert.equal(antes.valor.puntos.length, 14);
+    assert.equal(antes.valor.puntos.length, 15);
     const de = (v: typeof antes.valor, id: string) => v.puntos.find((p) => p.id === id)!;
     // «medios» también: el USDT nace encendido, pero no es un medio con datos del local.
     // Instalado con llave, ya confirma fuera de su equipo de confianza: ese punto nace hecho.
     assert.equal(de(antes.valor, "otros_equipos").hecho, true);
-    for (const id of ["personas", "equipos", "tarifas", "impuestos", "tasa", "medios", "catalogo", "impresoras", "carta_y_plano", "segunda_administracion"]) {
+    // El equipo de la instalación no es el punto de cobro (B3-9): es el de administración.
+    for (const id of ["personas", "equipos", "punto_de_cobro", "tarifas", "impuestos", "tasa", "medios", "catalogo", "impresoras", "carta_y_plano", "segunda_administracion"]) {
       assert.equal(de(antes.valor, id).hecho, false, id);
     }
     assert.equal(de(antes.valor, "tarifas").bloquea, "La entrada al parque");

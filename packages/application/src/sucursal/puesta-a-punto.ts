@@ -45,6 +45,8 @@ async function calcular(tx: Transaccion, ctx: Contexto): Promise<PuestaAPuntoDto
   // De una en una: es la única conexión de la transacción.
   const personas = await tx.staffUser.count({ where: { active: true, pinHash: { not: null }, ...enSucursal } });
   const equipos = await tx.device.count({ where: { branchId: ctx.branchId, status: "APROBADO" } });
+  // B3-9 (M-31): fuera del punto de cobro, el turno solo se abre con el PIN de administración.
+  const puntosDeCobro = await tx.device.count({ where: { branchId: ctx.branchId, status: "APROBADO", cashPoint: true } });
   const tarifas = await tx.parkTariffVersion.count({ where: { branchId: ctx.branchId } });
   const impuestos = await tx.taxRate.count();
   const tasas = await tx.exchangeRate.count({ where: { confirmation: { isNot: null } } });
@@ -87,6 +89,15 @@ async function calcular(tx: Transaccion, ctx: Contexto): Promise<PuestaAPuntoDto
       hecho: equipos >= 2,
       bloquea: "El puesto que no tenga equipo",
       detalle: equipos >= 2 ? `${cuantos(equipos, "equipo aprobado", "equipos aprobados")}` : "Solo este equipo está aprobado: registra el de cada puesto desde él mismo",
+    },
+    {
+      id: "punto_de_cobro",
+      hecho: puntosDeCobro > 0,
+      bloquea: "Que la caja abra su turno sin administración",
+      detalle:
+        puntosDeCobro > 0
+          ? `${cuantos(puntosDeCobro, "equipo marcado", "equipos marcados")} como punto de cobro`
+          : "Marca el equipo de la caja en Dispositivos: en otro, el turno pide el PIN de administración",
     },
     {
       id: "tarifas",

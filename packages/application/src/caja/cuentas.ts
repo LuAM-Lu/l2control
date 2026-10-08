@@ -175,7 +175,15 @@ export interface CasosCuentas {
 }
 
 /** Las acciones de la caja que se autorizan con 🔐 y cuya lista de autorizadores pide la pantalla. */
-export type AccionDeCaja = "cobro.anular" | "cuenta.cortesia" | "cuenta.incobrable" | "cuenta.descuento" | "turno.corteZ" | "pedido.anularEnProduccion" | "parque.anularEntrada";
+export type AccionDeCaja =
+  | "cobro.anular"
+  | "cuenta.cortesia"
+  | "cuenta.incobrable"
+  | "cuenta.descuento"
+  | "turno.corteZ"
+  | "turno.abrirFueraDelPunto"
+  | "pedido.anularEnProduccion"
+  | "parque.anularEntrada";
 
 /** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
 const CON_PIN = { confirmarConPin: true } as const;
@@ -1254,7 +1262,14 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
     },
 
     async autorizadores(ctx, accion = "cobro.anular") {
-      return base.conTenant(ctx.tenantId, (tx) => autorizadoresPara(tx, ctx, accion));
+      return base.conTenant(ctx.tenantId, async (tx) => {
+        const lista = await autorizadoresPara(tx, ctx, accion);
+        if (soporteOpera || accion !== "turno.abrirFueraDelPunto") return lista;
+        // La cuenta de soporte no autoriza turnos en producción (T-17, B3-9): no se ofrece.
+        const ids = lista.map((a) => a.id);
+        const soporte = new Set((await tx.staffUser.findMany({ where: { id: { in: ids }, supportLogin: { not: null } }, select: { id: true } })).map((u) => u.id));
+        return lista.filter((a) => !soporte.has(a.id));
+      });
     },
   };
 }

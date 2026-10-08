@@ -23,6 +23,7 @@ export type AccionConPin =
   | "cuenta.incobrable"
   | "cuenta.descuento"
   | "turno.corteZ"
+  | "turno.abrirFueraDelPunto"
   | "papel.revisar"
   | "inventario.ajustar"
   | "pedido.anularEnProduccion"
@@ -104,14 +105,18 @@ export function CampoAutorizacion({
   a,
   numero,
   denegado,
+  sinAutorizadores = "No hay un supervisor ni un administrador activo que pueda autorizarlo.",
   errores,
   deshabilitado,
   onConfirmar,
 }: {
   a: EstadoAutorizacion;
-  numero: number;
+  /** El número del paso en un formulario numerado; sin él, solo «Autorización». */
+  numero?: number;
   /** Qué se dice a quien no puede ni pidiéndolo. */
   denegado: string;
+  /** Qué se dice si no hay nadie que pueda autorizarlo (de fábrica, supervisión o administración). */
+  sinAutorizadores?: string;
   errores: { autorizador?: string; pin?: string };
   deshabilitado?: boolean;
   onConfirmar: () => void;
@@ -119,7 +124,7 @@ export function CampoAutorizacion({
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
-        <ShieldCheck size={13} aria-hidden="true" /> {numero} · Autorización
+        <ShieldCheck size={13} aria-hidden="true" /> {numero ? `${numero} · ` : ""}Autorización
       </legend>
       {a.permiso === "DENEGADO" ? (
         <p className="text-[12.5px] text-state-crit">{denegado}</p>
@@ -128,7 +133,7 @@ export function CampoAutorizacion({
           Buscando quién puede autorizar…
         </p>
       ) : a.autorizadores.length === 0 ? (
-        <p className="text-[12.5px] text-state-crit">No hay un supervisor ni un administrador activo que pueda autorizarlo.</p>
+        <p className="text-[12.5px] text-state-crit">{sinAutorizadores}</p>
       ) : (
         <>
           {a.permiso === "PERMITIDO" ? (

@@ -76,8 +76,11 @@ export function InicioScreen({
   ninosSemanaPasada: number | null;
   fecha: string;
   diaSemana: string;
-  /** Los turnos abiertos de la sucursal, del servidor (B3-1). Vacío = ninguno. */
-  turnos: readonly { abiertoEn: string; abiertoPor: string; punto: string }[];
+  /**
+   * Los turnos abiertos de la sucursal, del servidor (B3-1). Vacío = ninguno. `fueraDelPunto`: abierto fuera del punto de
+   * cobro (B3-9), con quién lo autorizó y por qué.
+   */
+  turnos: readonly { id: string; abiertoEn: string; abiertoPor: string; punto: string; fueraDelPunto: { autorizadoPor: string; motivo: string } | null }[];
   /** Cuándo una comanda tarda y cuándo está atrasada. */
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
@@ -155,6 +158,8 @@ export function InicioScreen({
           <ChipEventosDeHoy reservas={eventosHoy} />
           {/* B3-7: lo cargado desde papel que nadie ha revisado frena el Z y el cierre: se dice aquí. */}
           {resumen && resumen.papelPorRevisar > 0 && <AvisoDePapel porRevisar={resumen.papelPorRevisar} />}
+          {/* B3-9 (M-31): un turno abierto fuera del punto de cobro se avisa mientras siga abierto. */}
+          <AvisoFueraDelPunto turnos={turnos} />
           {/* B9-5: lo que hay que reponer, con color + icono + texto; lleva al inventario. */}
           {inventario && <AvisoInventario {...inventario} />}
           {/* Lo que no salió en papel (ADR-015, ADR-022: las comandas fallidas, en Inicio). */}
@@ -319,6 +324,31 @@ function AvisoDePapel({ porRevisar }: { porRevisar: number }) {
       <FileText size={14} aria-hidden="true" />
       <span className="tnum">
         {porRevisar} {porRevisar === 1 ? "carga desde papel por revisar" : "cargas desde papel por revisar"}
+      </span>
+      <ArrowRight size={13} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
+    </Link>
+  );
+}
+
+/**
+ * Un turno abierto fuera del punto de cobro (B3-9, M-31): la laptop de caja falló y se abrió en otro equipo con el PIN de
+ * administración. Se dice mientras siga abierto, con quién lo autorizó y por qué; lleva a ese turno.
+ */
+function AvisoFueraDelPunto({ turnos }: { turnos: React.ComponentProps<typeof InicioScreen>["turnos"] }) {
+  const fuera = turnos.filter((t) => t.fueraDelPunto !== null);
+  const primero = fuera[0];
+  if (!primero?.fueraDelPunto) return null;
+  const detalle = `Autorizó ${primero.fueraDelPunto.autorizadoPor}: «${primero.fueraDelPunto.motivo}»`;
+  return (
+    <Link
+      href={`/turno?turno=${primero.id}` as Route}
+      title={detalle}
+      className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-1.5 text-xs lg:text-[13px] font-medium text-state-warn shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand"
+    >
+      <TriangleAlert size={14} aria-hidden="true" />
+      <span>
+        {fuera.length === 1 ? "Turno abierto fuera del punto de cobro" : `${fuera.length} turnos abiertos fuera del punto de cobro`} · {primero.punto}
+        <span className="sr-only">. {detalle}</span>
       </span>
       <ArrowRight size={13} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
     </Link>

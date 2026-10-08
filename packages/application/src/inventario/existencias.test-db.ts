@@ -82,6 +82,7 @@ before(async () => {
     await local.app.turnos.abrir(
       ctxCajera,
       { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] },
+      undefined,
       AHORA - 2 * MIN,
     ),
   );

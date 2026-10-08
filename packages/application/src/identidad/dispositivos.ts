@@ -11,6 +11,10 @@
  * hay tope de solicitudes por dirección y de pendientes por sucursal. El primer equipo de un local
  * se aprueba desde la consola del servidor o, con credenciales de administración, desde él mismo
  * (`elevacion.aprobarEquipo`).
+ *
+ * El punto de cobro (B3-9, M-31) es una marca del equipo: en él el turno se abre como siempre; en otro, con el PIN de
+ * administración. Marcarlo y quitarlo queda en la auditoría, no en la historia del equipo: una versión anterior que
+ * vuelva tras una actualización fallida no conoce ese tipo de cambio y dejaría de leer la lista (ADR-028).
  */
 import {
   DeviceCommandSchema,
@@ -69,7 +73,7 @@ export interface CasosDispositivos {
    * después los más nuevos; con lo que cuenta cada filtro. `usuarios.gestionar`, como `listar`.
    */
   pagina(ctx: Contexto, entrada: unknown): Promise<Resultado<PaginaDeDispositivosDto>>;
-  /** Aprobar, revocar o renombrar (`usuarios.gestionar`), con motivo y su asiento. */
+  /** Aprobar, revocar, renombrar o marcar el punto de cobro (`usuarios.gestionar`), con motivo y su asiento. */
   ordenar(ctx: Contexto, comando: unknown): Promise<Resultado<DeviceDto>>;
   /** El propio equipo renueva su solicitud caducada (M-7). Conserva su historia y sus fallos. */
   renovar(credencial: string | undefined | null, ip: string | null): Promise<Resultado<{ estado: "PENDIENTE" }>>;
@@ -101,6 +105,7 @@ export function casosDispositivos(base: Base): CasosDispositivos {
         status: d.status,
         registeredAt: d.registeredAt.toISOString(),
         pairingCode: codigoDeEmparejamiento(d.id),
+        puntoDeCobro: d.cashPoint,
         ...(d.status === "PENDIENTE"
           ? { requestExpiresAt: new Date(d.requestedAt.getTime() + SOLICITUD_EQUIPO_MS).toISOString() }
           : {}),
@@ -248,7 +253,8 @@ export function casosDispositivos(base: Base): CasosDispositivos {
         return { ok: false, motivo: "INVALIDO", mensaje: "La orden no es válida.", problemas: problemasDe(cmd.error) };
       }
       const c = cmd.data;
-      const accion = c.kind === "APROBAR" ? "dispositivo.aprobar" : c.kind === "REVOCAR" ? "dispositivo.revocar" : "dispositivo.renombrar";
+      const accion =
+        c.kind === "APROBAR" ? "dispositivo.aprobar" : c.kind === "REVOCAR" ? "dispositivo.revocar" : c.kind === "RENOMBRAR" ? "dispositivo.renombrar" : "dispositivo.punto_de_cobro";
 
       try {
         const r = await base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<DeviceDto>> => {
@@ -258,6 +264,25 @@ export function casosDispositivos(base: Base): CasosDispositivos {
           const d = await tx.device.findUnique({ where: { id: c.deviceId } });
           if (!d || d.branchId !== ctx.branchId) {
             return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese equipo no está en esta sucursal." };
+          }
+          if (c.kind === "PUNTO_DE_COBRO") {
+            if (c.puntoDeCobro && d.status !== "APROBADO") {
+              return { ok: false, motivo: "INVALIDO", mensaje: "Solo un equipo aprobado puede ser punto de cobro." };
+            }
+            if (d.cashPoint === c.puntoDeCobro) {
+              return { ok: false, motivo: "INVALIDO", mensaje: c.puntoDeCobro ? "Ese equipo ya es punto de cobro." : "Ese equipo no es punto de cobro." };
+            }
+            await tx.device.update({ where: { id: d.id }, data: { cashPoint: c.puntoDeCobro } });
+            await auditar(tx, ctx, {
+              action: accion,
+              entityType: "device",
+              entityId: d.id,
+              before: { label: d.label, puntoDeCobro: d.cashPoint },
+              after: { label: d.label, puntoDeCobro: c.puntoDeCobro },
+              reason: c.reason,
+            });
+            const [marcado] = await directorio(tx, ctx.branchId, d.id);
+            return { ok: true, valor: marcado! };
           }
           const quien = await nombreDe(tx, ctx);
           const cambio = { tenantId: ctx.tenantId, deviceId: d.id, reason: c.reason, byUserId: ctx.quien?.userId ?? null, byName: quien.nombre };

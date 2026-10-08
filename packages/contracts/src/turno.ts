@@ -59,6 +59,11 @@ export const TurnoSchema = z
     abiertoPor: Persona,
     abiertoEn: TimestampSchema,
     fondos: z.array(FondoInicialSchema).min(1, "Declara el fondo de cada moneda"),
+    /**
+     * Abierto fuera del punto de cobro (B3-9, M-31): quién lo autorizó con su PIN y por qué. Inicio lo avisa mientras
+     * siga abierto y Reportes lo marca. Los turnos de antes no lo traen: se abrieron en su equipo.
+     */
+    fueraDelPunto: z.object({ autorizadoPor: z.string().trim().min(2).max(80), motivo: z.string().trim().min(3).max(280) }).nullable().default(null),
     /** Quién hizo el corte Z y cuándo. Van juntos o no van (§7.4). */
     cerradoPor: Persona.optional(),
     cerradoEn: TimestampSchema.optional(),

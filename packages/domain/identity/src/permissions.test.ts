@@ -189,6 +189,23 @@ describe("quién autoriza un 🔐 (DEC-24)", () => {
     const supervisorB2 = actor("SUPERVISOR", ["b2"]);
     assert.equal(canAuthorize(supervisorB2, actor("CAJERO", ["b1"]), "cobro.anular", { branchId: "b1" }), false);
   });
+
+  test("el turno fuera del punto de cobro lo autoriza administración, no supervisión (B3-9, M-31)", () => {
+    const cajera = actor("CAJERO");
+    const sup = actor("SUPERVISOR");
+    assert.equal(can(cajera, "turno.abrirFueraDelPunto"), "REQUIERE_AUTORIZACION");
+    assert.equal(can(sup, "turno.abrirFueraDelPunto"), "REQUIERE_AUTORIZACION");
+    assert.equal(canAuthorize(actor("ADMIN"), cajera, "turno.abrirFueraDelPunto"), true);
+    assert.equal(canAuthorize(actor("ADMIN"), sup, "turno.abrirFueraDelPunto"), true);
+    assert.equal(canAuthorize(sup, cajera, "turno.abrirFueraDelPunto"), false);
+    assert.equal(canAuthorize(sup, sup, "turno.abrirFueraDelPunto"), false);
+    // Se pregunta por el permiso: la supervisora a quien el local le concede la acción también la autoriza.
+    const concedida = { ...actor("SUPERVISOR"), id: "sup-2", grants: { "turno.abrirFueraDelPunto": "PERMITIDO" } } as Actor;
+    assert.equal(canAuthorize(concedida, cajera, "turno.abrirFueraDelPunto"), true);
+    // Y una administración a quien se la revocaron, no.
+    const sinElla = { ...actor("ADMIN"), revokes: ["turno.abrirFueraDelPunto"] } as Actor;
+    assert.equal(canAuthorize(sinElla, cajera, "turno.abrirFueraDelPunto"), false);
+  });
 });
 
 describe("el administrador no necesita autorización para nada", () => {

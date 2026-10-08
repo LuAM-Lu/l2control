@@ -104,7 +104,7 @@ before(async () => {
 
   valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
   valor(await otro.app.tarifario.publicar(otro.sistema, TARIFARIO));
-  valor(await local.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, AHORA - 2 * MIN));
+  valor(await local.app.turnos.abrir(ctxCajera, { fondos: [{ currency: "USD", amount: usd("0") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] }, undefined, AHORA - 2 * MIN));
   for (const cmd of [
     { impuesto: "IVA", code: "GENERAL", basisPoints: 1600, dia: HOY },
     { impuesto: "IGTF", code: null, basisPoints: 0, dia: HOY },

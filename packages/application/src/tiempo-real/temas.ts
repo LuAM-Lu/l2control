@@ -174,6 +174,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   // Revocar un equipo cierra sus sesiones en el acto (B1-3).
   "dispositivo.revocar": ["equipos", "sesiones"],
   "dispositivo.renombrar": ["equipos", "sesiones"],
+  // Marcar el punto de cobro cambia dónde se abre el turno sin pedir nada (B3-9): la apertura y la Puesta a punto lo releen.
+  "dispositivo.punto_de_cobro": ["equipos", "turno"],
 
   "usuario.alta": ["personal"],
   // La baja cierra sus sesiones.

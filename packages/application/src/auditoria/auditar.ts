@@ -133,6 +133,7 @@ export type AccionAuditada =
   | "dispositivo.aprobar"
   | "dispositivo.revocar"
   | "dispositivo.renombrar"
+  | "dispositivo.punto_de_cobro"
   | "usuario.alta"
   | "usuario.baja"
   | "usuario.reingreso"

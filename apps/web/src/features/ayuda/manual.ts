@@ -211,6 +211,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Cobrar lo que se debe: la cola de cuentas por cobrar (parque, mesas, de pie, mostrador) y las ventas directas.",
     pasos: [
       "La cola «Por cobrar» va de la más antigua a la más nueva. Elige una cuenta, o pasa la pulsera de un niño para traer la de su familia.",
+      "Una familia que llega directo a la caja: «Entrada» (tecla A), o pasa una pulsera que no está en la sala. En el panel, cada pulsera suma un niño (si no se lee, «Escribir» su número; «Sin pulsera» con su nombre), el paquete y el teléfono del representante; «Registrar y cobrar» deja su cuenta lista. Se paga ahora: la cuenta abierta y los invitados de un cumpleaños, en Entrada.",
       "En una venta de mostrador, añade los productos de la carta (o pasa su código de barras).",
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
       "Cobra (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
@@ -232,6 +233,16 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["sin imprimir", "la impresora no responde", "no salio", "no imprime", "recibo"],
       },
       {
+        sintoma: "Una pulsera abre «Entrada al parque» en vez de una cuenta",
+        solucion:
+          "Esa pulsera no está en la sala: es un niño que llega. Regístralo ahí mismo, o cierra el panel si buscabas otra cuenta (búscala por la familia o el número de orden).",
+      },
+      {
+        sintoma: "«Aforo completo» o «La pulsera ya se usó en otra visita» en la entrada desde la caja",
+        solucion: "Lo mismo que en Entrada: espera a que salga alguien, o pon una pulsera nueva del lote. El niño no queda registrado hasta que el panel lo acepta.",
+        reconoce: ["aforo completo", "ya se uso en otra visita"],
+      },
+      {
         sintoma: "«La cuenta cambió» al cobrar",
         solucion: "Otro equipo la cambió mientras tanto (un pedido, una salida). Vuelve a elegirla: ya se ve como quedó.",
         reconoce: ["la cuenta cambio", "otro equipo"],
@@ -246,7 +257,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
     roles: CAJA,
     proposito: "Abrir y cerrar el turno de la caja: el fondo, los cortes y el arqueo.",
     pasos: [
-      "Abre el turno contando el fondo de la gaveta, en dólares y en bolívares.",
+      "Abre el turno contando el fondo de la gaveta, en dólares y en bolívares. Se abre en el punto de cobro: el equipo de la caja, marcado en Dispositivos.",
+      "Si la laptop de caja falla, el turno se abre en otro equipo con el PIN de administración y el motivo: queda en la auditoría e Inicio lo avisa mientras siga abierto.",
       "El corte X enseña lo cobrado sin cerrar nada.",
       "Para cerrar: cuenta lo que hay (arqueo a ciegas) y sella el corte Z. Hasta $ 1,00 de diferencia lo firma la cajera; más, supervisión.",
       "En un relevo, la que sale retira lo vendido y deja el fondo; la que entra lo declara al abrir.",
@@ -261,6 +273,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "Hay cargas de papel sin revisar",
         solucion: "Supervisión revisa la carga en Caja → Papel con su PIN (quien la cargó no la revisa). Después se sella el Z.",
         reconoce: ["sin revisar"],
+      },
+      {
+        sintoma: "«Este equipo no es el punto de cobro»",
+        solucion:
+          "El turno se abre en el equipo de la caja. Si ese equipo falló, pide a administración que ponga su PIN y escribe el motivo («La laptop de caja no enciende»); el turno se abre aquí y queda avisado. Si este equipo pasa a ser la caja, administración lo marca en Ajustes → Personas y equipos → Dispositivos.",
+        reconoce: ["no es el punto de cobro", "pin de administracion"],
       },
     ],
   },
@@ -314,7 +332,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     roles: DIRECCION,
     proposito: "El día del local de un vistazo: lo vendido, la sala, las mesas, la caja, lo que pide atención y la Puesta a punto.",
     pasos: [
-      "Arriba, los avisos que piden acción (tasa, impresión, respaldos, estancias a revisar).",
+      "Arriba, los avisos que piden acción (tasa, impresión, respaldos, estancias a revisar, un turno abierto fuera del punto de cobro).",
       "Las cifras del día y quién está en cada puesto, en vivo.",
       "La Puesta a punto dice qué falta configurar; se tacha sola.",
     ],
@@ -362,6 +380,28 @@ export const MANUAL: readonly EntradaDelManual[] = [
     problemas: GENERALES,
   },
   {
+    id: "personas",
+    ruta: "/panel/ajustes/personas",
+    titulo: "Personas y equipos",
+    roles: ["ADMIN"],
+    proposito:
+      "Quién trabaja en el local (usuarios, su rol y su PIN), qué puede hacer cada rol, y los equipos aprobados: el primer factor del acceso. Uno de ellos es el punto de cobro, donde se abre el turno de caja.",
+    pasos: [
+      "Usuarios y permisos: alta, rol, PIN y credenciales de cada persona; Roles y accesos: lo que puede cada rol.",
+      "Dispositivos: un equipo nuevo pide registro desde su pantalla; se aprueba comparando su código.",
+      "El equipo de la caja lleva la marca «Punto de cobro» (el botón de la cartera): en él el turno se abre sin pedir nada. En otro, abrirlo pide el PIN de administración y un motivo.",
+      "Si la laptop de caja se daña, el turno se abre en otro equipo con tu PIN; si la cambian por otra, marca la nueva y quita la marca a la vieja.",
+    ],
+    problemas: [
+      {
+        sintoma: "«Solo un equipo aprobado puede ser punto de cobro»",
+        solucion: "Aprueba primero el equipo (compara su código) y después márcalo como punto de cobro.",
+        reconoce: ["solo un equipo aprobado puede ser punto de cobro"],
+      },
+      ...GENERALES,
+    ],
+  },
+  {
     id: "reportes",
     ruta: "/panel/reportes",
     titulo: "Reportes",
@@ -370,7 +410,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas de un día o de un rango, el inventario al momento y los movimientos de inventario (el kárdex), cada uno con su PDF.",
     pasos: [
       "Elige el periodo (hoy, ayer, esta semana, este mes o el anterior) o un rango de hasta 93 días y, si quieres, una cajera.",
-      "Ventas: arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección.",
+      "Ventas: arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección. Por turno marca el que se abrió fuera del punto de cobro, con quién lo autorizó.",
       "Inventario al momento: lo que hay a esta hora y lo que vale al costo; las cifras filtran lo agotado, lo bajo mínimo y lo sin contar.",
       "Movimientos: elige un producto o una categoría; cada entrada, venta, salida y conteo sale con quién, el motivo y el saldo que dejó.",
       "«PDF» abre la hoja para imprimir: en el diálogo del navegador, elige la impresora o «Guardar como PDF».",
