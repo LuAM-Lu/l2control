@@ -1114,7 +1114,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   rechazadas; la revisión con PIN; las hojas en pantalla y en PDF (2 páginas); a 1366×768, 1280×800 y 800×1280 sin
   desplazar el documento y sin errores de consola. `pnpm verify:db` en verde.*
 
-- [ ] **B3-8 · Cobrar con el teclado y el recibo a elección** (M-27, P-5, P-11).
+- [~] **B3-8 · Cobrar con el teclado y el recibo a elección** (M-27, P-5, P-11). *A cargo: LuAMi, rama `feat/b3-8`.*
   → Una cuenta se cobra de punta a punta sin el ratón: buscarla o leer su pulsera, el medio por su número, el monto,
   el recibo y confirmar, con los atajos a la vista. El interruptor «Imprimir recibo» arranca con el ajuste de la
   sucursal (de fábrica, imprimir); lo que no se imprimió se saca después desde Ventas. Medido con Playwright solo
