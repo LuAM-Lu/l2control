@@ -19,3 +19,12 @@ export {
   type ProblemaDePedido,
   type UnidadPedida,
 } from "./pedido.ts";
+export {
+  atencionDeCuentas,
+  resumenDeEspera,
+  type AtencionDeCuenta,
+  type CuentaParaAtencion,
+  type PedidoParaAtencion,
+  type ResumenDeEspera,
+  type UmbralesDeAtencion,
+} from "./atencion.ts";

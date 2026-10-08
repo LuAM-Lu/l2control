@@ -274,6 +274,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, su pedido y su cobro.",
       "Quien pide sin mesa: «De pie», con un nombre o una seña.",
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: la comanda sale en la impresora.",
+      "Cuando el plato llega a la mesa, toca «Servido» en su pedido: ahí termina su espera. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
       "«Pide la cuenta» la manda a caja. Si no consumieron nada, «Liberar».",
     ],
     problemas: [
@@ -349,6 +350,25 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Nada se borra: un precio nuevo rige desde su día; lo que ya no se usa se retira.",
     ],
     problemas: GENERALES,
+  },
+  {
+    id: "atencion",
+    ruta: "/panel/restaurante/atencion",
+    titulo: "Atención en el salón",
+    roles: ["ADMIN", "SUPERVISOR"],
+    proposito: "Cuánto lleva cada mesa sentada, sin pedir y esperando lo que pidió, para llamar a quien atiende; y la espera media y máxima del día.",
+    pasos: [
+      "Arriba, cuántas mesas piden atención y la espera media y máxima de hoy.",
+      "Cada cuenta del salón, la que más pide atención primero: «Esperando su pedido» o «Sin atender».",
+      "La espera de un pedido termina cuando el mesero toca «Servido»; uno sin marcar sigue contando.",
+      "Los minutos a partir de los cuales se avisa se cambian en Ajustes → Sucursal.",
+    ],
+    problemas: [
+      {
+        sintoma: "Una mesa sale «Esperando su pedido» y ya comieron",
+        solucion: "Nadie marcó «Servido» en su pedido. Pídele al mesero que lo marque desde la mesa: deja de contar.",
+      },
+    ],
   },
   {
     id: "soporte",

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { EnviarPedidoCommand, PedidoDto, PedidoEnviadoDto, Rechazo, Resultado } from "@l2/contracts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
-import { enviarPedido, leerPedidos, reimprimirComanda } from "./pedidos.acciones";
+import { enviarPedido, leerPedidos, reimprimirComanda, servirPedido } from "./pedidos.acciones";
 
 /**
  * Los pedidos de hoy y su comanda, en vivo — B6-2, ADR-022.
@@ -22,6 +22,8 @@ type Valor = Readonly<{
   /** Envía un pedido y adopta la cuenta de la mesa como quedó. Nunca lanza por un rechazo: lo devuelve. */
   enviar: (cmd: EnviarPedidoCommand) => Promise<Resultado<PedidoEnviadoDto>>;
   reimprimir: (pedidoId: string) => Promise<Resultado<PedidoDto>>;
+  /** Marca un pedido servido en la mesa (B6-8): termina su espera. */
+  servir: (pedidoId: string) => Promise<Resultado<PedidoDto>>;
 }>;
 
 const Contexto = createContext<Valor | null>(null);
@@ -32,7 +34,7 @@ const conPedido = (lista: readonly PedidoDto[], p: PedidoDto) =>
 export function PedidosProvider({ inicial, children }: { inicial: readonly PedidoDto[]; children: React.ReactNode }) {
   const [pedidos, setPedidos] = useState<readonly PedidoDto[]>(inicial);
   const { adoptar } = useCuentas();
-  const huella = JSON.stringify(inicial.map((p) => [p.id, p.comanda.estado, p.comanda.reimpresiones]));
+  const huella = JSON.stringify(inicial.map((p) => [p.id, p.comanda.estado, p.comanda.reimpresiones, p.servido?.en ?? null]));
   useEffect(() => {
     setPedidos(inicial);
   }, [huella]);
@@ -61,7 +63,13 @@ export function PedidosProvider({ inicial, children }: { inicial: readonly Pedid
     return r;
   }, []);
 
-  const valor = useMemo(() => ({ pedidos, enviar, reimprimir }), [pedidos, enviar, reimprimir]);
+  const servir = useCallback(async (pedidoId: string) => {
+    const r = await servirPedido({ pedidoId }).catch((): Rechazo => ({ ...sinConexion, mensaje: "Sin conexión con el servidor: no se marcó servido." }));
+    if (r.ok) setPedidos((l) => conPedido(l, r.valor));
+    return r;
+  }, []);
+
+  const valor = useMemo(() => ({ pedidos, enviar, reimprimir, servir }), [pedidos, enviar, reimprimir, servir]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

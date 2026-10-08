@@ -541,6 +541,35 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               <span className="text-[12px] text-ink-3">Quien entra sin medias paga este producto</span>
             </label>
           </div>
+          {/* B6-8 (P-19): a partir de cuántos minutos una mesa pide atención, en la tablet y en Atención en el salón. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Sin pedir (min)"
+              surface="admin"
+              type="number"
+              min={1}
+              max={120}
+              step={1}
+              className="tnum"
+              value={String(borrador.atencionSinPedirMin)}
+              error={errores.atencionSinPedirMin}
+              hint="Sentada sin pedir"
+              onChange={(e) => cambiar({ atencionSinPedirMin: Number(e.target.value) })}
+            />
+            <Input
+              label="Esperando (min)"
+              surface="admin"
+              type="number"
+              min={1}
+              max={120}
+              step={1}
+              className="tnum"
+              value={String(borrador.atencionEsperaMin)}
+              error={errores.atencionEsperaMin}
+              hint="Su pedido sin servir"
+              onChange={(e) => cambiar({ atencionEsperaMin: Number(e.target.value) })}
+            />
+          </div>
           <p className="text-[12px] text-ink-3">
             El residuo es lo que la caja se queda si no hay vuelto exacto. Una estancia que pasa de sus horas (o del día) queda a revisar y deja de contar en el aforo. Un niño que sale a comer puede pausar su tiempo una vez; pasado el máximo, vuelve a correr solo.
           </p>

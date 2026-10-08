@@ -482,6 +482,7 @@ export {
   PedidoSchema,
   PedidosDelLocalSchema,
   ReimprimirComandaCommandSchema,
+  ServirPedidoCommandSchema,
   VincularPulserasCommandSchema,
   VincularPulserasResultSchema,
   type EnviarPedidoCommand,

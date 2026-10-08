@@ -60,6 +60,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   // El pedido cambia la cuenta de la mesa; su comanda en la cola avisa con su propio asiento (impresion).
   "pedido.enviar": ["pedidos", "cuentas"],
   "pedido.reimprimir": ["pedidos"],
+  // Servido en la mesa (B6-8): termina la espera del pedido.
+  "pedido.servir": ["pedidos"],
   // Anular un plato ya enviado cambia la cuenta de la mesa, no su comanda (ya se imprimió, B6-3).
   "pedido.anular": ["cuentas"],
   "mesa.liberar": ["cuentas"],

@@ -7,6 +7,7 @@
  * «por limpiar», que no es de nadie. El instante entra como argumento (ADR-010).
  */
 import type { DiningTableDto, FamilyAccountDto, ParkSessionDto, PedidoDto } from "@l2/contracts";
+import { atencionDeCuentas, type PedidoParaAtencion, type UmbralesDeAtencion } from "@l2/domain-orders";
 import { multiply, sum, type Money } from "@l2/domain-money";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
@@ -116,7 +117,13 @@ export type Urgencia = Readonly<{
  * luego lo que bloquea una mesa (por limpiar) y por último las mesas que llevan mucho tiempo. Las cuentas
  * de pie entran igual. Lo demás no sale: una lista que lo enumera todo se deja de mirar.
  */
-export function loQuePideAtencion(mesas: readonly MesaVista[], pie: PieVista, ahora: number): Urgencia[] {
+export function loQuePideAtencion(
+  mesas: readonly MesaVista[],
+  pie: PieVista,
+  ahora: number,
+  /** Los pedidos y los umbrales (B6-8): quien espera su pedido, o no ha pedido, pasado su umbral. */
+  atencion?: Readonly<{ pedidos: readonly PedidoParaAtencion[]; umbrales: UmbralesDeAtencion }>,
+): Urgencia[] {
   const filas: Urgencia[] = [];
   const grupos = [
     ...mesas.map((v) => ({ lugar: v.mesa.id, rotulo: v.mesa.label, detalle: `${v.mesa.zone} · ${v.comensales} de ${v.mesa.seats} sillas`, v })),
@@ -129,6 +136,19 @@ export function loQuePideAtencion(mesas: readonly MesaVista[], pie: PieVista, ah
     for (const c of v.cuentas.filter((x) => x.status === "POR_COBRAR")) {
       const espera = minutosDesde(c.pendingSince ?? c.openedAt, ahora);
       filas.push({ lugar, rotulo, cuentaId: c.id, que: `Pide la cuenta · ${espera} min esperando`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: espera });
+    }
+    // B6-8 (P-19): la que espera lo que pidió, o no ha pedido, pasado su umbral. Para llamar a quien atiende.
+    if (atencion && ahora > 0) {
+      const abiertas = v.cuentas.filter((c) => c.status === "ABIERTA");
+      for (const a of atencionDeCuentas(abiertas.map((c) => ({ id: c.id, abiertaEn: Date.parse(c.openedAt) })), atencion.pedidos, ahora, atencion.umbrales)) {
+        if (a.alerta === null) continue;
+        const c = abiertas.find((x) => x.id === a.cuentaId)!;
+        filas.push(
+          a.alerta === "ESPERANDO"
+            ? { lugar, rotulo, cuentaId: c.id, que: `Espera su pedido · ${a.esperandoMin} min`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: a.esperandoMin ?? 0 }
+            : { lugar, rotulo, cuentaId: c.id, que: `Sin pedir · ${a.sinPedirMin} min sentada`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: a.sinPedirMin ?? 0 },
+        );
+      }
     }
     if (v.estado === "POR_LIMPIAR") {
       filas.push({ lugar, rotulo, cuentaId: null, que: "Por limpiar", detalle, tono: "idle", orden: 2, minutos: v.minutos ?? 0 });
@@ -199,4 +219,15 @@ export function anadir(lineas: readonly LineaBorrador[], itemId: string): LineaB
   const i = lineas.findIndex((l) => l.itemId === itemId && l.nota === "");
   if (i === -1) return [...lineas, { itemId, cantidad: 1, nota: "" }];
   return lineas.map((l, j) => (j === i ? { ...l, cantidad: Math.min(50, l.cantidad + 1) } : l));
+}
+
+/** Un pedido como lo necesita la atención en el salón (B6-8): anulado si su cuenta anuló todo lo que pidió. */
+export function paraAtender(p: PedidoDto, cuentas: readonly FamilyAccountDto[]): PedidoParaAtencion {
+  const propias = cuentas.find((c) => c.id === p.cuentaId)?.lines.filter((l) => l.orderId === p.id) ?? [];
+  return {
+    cuentaId: p.cuentaId,
+    enviadoEn: Date.parse(p.enviadoEn),
+    servidoEn: p.servido ? Date.parse(p.servido.en) : null,
+    anulado: propias.length > 0 && propias.every((l) => l.anulacion !== undefined),
+  };
 }

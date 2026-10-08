@@ -49,6 +49,7 @@ export type AccionAuditada =
   | "plano.publicar"
   | "pedido.enviar"
   | "pedido.reimprimir"
+  | "pedido.servir"
   | "pedido.anular"
   | "mesa.liberar"
   | "evento.catalogo"

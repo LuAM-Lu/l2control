@@ -201,6 +201,12 @@ export const AjustesSucursalSchema = z
      * cada uno. De fábrica, imprimir. Los ajustes publicados antes no lo traen: imprimir.
      */
     imprimirRecibo: z.boolean().default(true),
+    /**
+     * Los umbrales de la atención en el salón (B6-8, M-27, P-19): a partir de cuántos minutos sin pedir, o esperando lo
+     * pedido, una cuenta pide atención. Los ajustes publicados antes no los traen: 15 y 20.
+     */
+    atencionSinPedirMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(15),
+    atencionEsperaMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(20),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",
