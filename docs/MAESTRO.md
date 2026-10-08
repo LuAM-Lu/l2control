@@ -550,7 +550,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   base de pruebas: la caja a 1366×768, 1280×800, 800×1280 y 390×844 en los dos temas, sin textos cortados ni
   desplazamiento; la entrada (con un código escrito a mano) y la sala a 800 y 390 en los dos temas; la vista de precios
   cambia al momento y sigue al recargar.*
-- [ ] **T-16 · Jerarquía tipográfica y ancho completo** (M-27, P-16, P-18).
+- [~] **T-16 · Jerarquía tipográfica y ancho completo** (M-27, P-16, P-18). *A cargo: LuAMi, rama `feat/t-16`.*
   → La escala de texto (título de página, de sección y de tarjeta, subtítulo, cuerpo, etiqueta, cifra) y la de
   iconos por superficie, en tokens y con su porqué en el README de `@l2/ui`, aplicada a las cabeceras y piezas
   comunes; todas las secciones del panel con el ancho de Inicio.
