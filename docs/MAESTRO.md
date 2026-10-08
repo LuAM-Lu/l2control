@@ -1417,7 +1417,7 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   cobrada con el teclado ($ 50 en efectivo, Ctrl+Intro). A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desplazar la página (en el teléfono, sin desplazar a lo ancho), sin textos cortados ni que se salgan de su tarjeta y sin
   errores de consola.*
-- [ ] **B3-11 · Deudas de clientes: quien se va sin pagar** (M-33).
+- [~] **B3-11 · Deudas de clientes: quien se va sin pagar** (M-33). *A cargo: LuAMi, rama `feat/b3-11`.*
   → **Marcarla.** En la cuenta, en la caja o en la mesa, «Se fue sin pagar», con la 🔐 de supervisión y un detalle
   opcional. La cuenta sale de la cola y de la jornada (el cierre ya no la pide), la mesa queda libre y la deuda guarda al
   cliente, lo consumido, el monto en dólares, quién atendió y quién la marcó. Una cuenta sin cliente (de antes de B6-9)
