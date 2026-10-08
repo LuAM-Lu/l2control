@@ -2,7 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { calendarDay } from "@l2/domain-rates";
 import { periodoPredefinido } from "@l2/domain-cash";
-import type { InformeDeMovimientosDto, InformeDeVentasDto, Resultado } from "@l2/contracts";
+import type { InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, Resultado } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 import { ajustesDelLocal } from "../sucursal/ajustes.servidor";
@@ -64,4 +64,12 @@ export async function informeDeMovimientos(q: ConsultaEnLaDireccion): Promise<Mo
   if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." } };
   const consulta = { desde: pedido.desde, hasta: pedido.hasta, ...(producto ? { producto } : {}), ...(categoria ? { categoria } : {}) };
   return { hoy, pedido, informe: await (await aplicacion()).reportes.movimientos(ctx, consulta) };
+}
+
+/** Reportes → Inventario al momento (B11-2): el inventario de la sucursal a esta hora. */
+export async function informeDeInventario(): Promise<Resultado<InformeDeInventarioDto>> {
+  await connection();
+  const ctx = await contextoActual();
+  if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." };
+  return (await aplicacion()).reportes.inventario(ctx);
 }
