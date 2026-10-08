@@ -5,7 +5,7 @@
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Inventario, respaldos y reportes",
-    "pasos": 90
+    "pasos": 91
   },
   "packageManager": "pnpm@12.3.4",
   "engines": {
