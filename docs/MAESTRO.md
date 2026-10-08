@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.85.0 · 85 de 91 pasos · M-27, M-28, M-29 y M-31 entregados enteros; nada a medias ni reclamado.** M-28 y M-29
+**Versión 0.86.0 · 86 de 91 pasos · M-27, M-28, M-29 y M-31 entregados enteros; nada a medias ni reclamado.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -476,7 +476,7 @@ Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   huella (SHA-256 publicada con la versión), rechaza un ejecutable con la huella equivocada, se cambia sin papel
   pendiente y, si la versión nueva no arranca, la tarea de Windows vuelve a la anterior. Ajustes → Impresoras enseña la
   versión del agente y la disponible, con «Actualizar ahora». Probado en la laptop de caja real.
-  *Hecho el 2026-10-08, en `feat/t-8c`; la comprobación en la laptop de caja real pasa a B7-3.*
+  *Hecho el 2026-10-08 (v0.86.0), en `feat/t-8c`; la comprobación en la laptop de caja real pasa a B7-3.*
   *· Base: `20261114000000_agente_se_actualiza` (solo expande): en `print_agent`, la versión que dice, «Actualizar ahora»
   pedido y el resultado de su último cambio (con sus CHECK: versión acotada; resultado, versión y hora juntos).*
   *· Contrato: `VersionDelAgenteSchema` (versión, SHA-256 y si se pidió), `NotaDeActualizacionSchema` y
@@ -2945,7 +2945,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   a la 1.0.0: T-8c y lo escrito de B8-2 se hacen antes de la visita (§3, orden, punto 10). La ruta pasa a 91.
 - **2026-10-08** · B3-9 entregado como v0.85.0 (M-31): el punto de cobro y la entrada desde la caja. La ruta cuenta 91 en el
   `package.json` (se había quedado en 90, PR #85). Sigue T-8c y lo escrito de B8-2, sin pedir el sí entre pasos.
-- **2026-10-08** · T-8c entregado: el agente de impresión se actualiza solo, ensayado en esta PC con Windows (cambio, huella
+- **2026-10-08** · T-8c entregado como v0.86.0: el agente de impresión se actualiza solo, ensayado en esta PC con Windows (cambio, huella
   equivocada, versión que no arranca y vuelta atrás). En la laptop de caja real se comprueba con B7-3. Sigue lo escrito
   de B8-2.
 
