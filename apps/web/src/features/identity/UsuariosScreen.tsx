@@ -5,6 +5,7 @@ import type { CredencialesDePersonaDto, PermissionExceptionCommand } from "@l2/c
 import {
   Ban,
   CircleCheckBig,
+  Headset,
   KeyRound,
   LayoutDashboard,
   Search,
@@ -122,8 +123,10 @@ export function UsuariosScreen({
 
   const usuario = usuarios.find((u) => u.id === seleccion) ?? null;
   const activas = usuarios.filter((u) => u.active).length;
+  // La cuenta de soporte (T-17) no es personal del local: no cuenta entre quienes entran al panel.
+  const deSoporte = usuarios.filter((u) => u.active && u.soporte !== null).length;
   const conExcepciones = usuarios.filter((u) => u.active && u.exceptions.length > 0).length;
-  const alPanel = usuarios.filter((u) => u.active && (u.role === "ADMIN" || u.role === "SUPERVISOR")).length;
+  const alPanel = usuarios.filter((u) => u.active && u.soporte === null && (u.role === "ADMIN" || u.role === "SUPERVISOR")).length;
 
   const enEstado = (u: UserSummaryDto) =>
     estado === "BAJAS" ? !u.active : estado === "EXCEPCIONES" ? u.active && u.exceptions.length > 0 : u.active;
@@ -198,7 +201,7 @@ export function UsuariosScreen({
           etiqueta="Activas"
           icono={<Users aria-hidden="true" />}
           valor={String(activas)}
-          pie="Entran con su PIN en un equipo aprobado"
+          pie={deSoporte > 0 ? `Entran con su PIN; ${deSoporte} es soporte` : "Entran con su PIN en un equipo aprobado"}
           activo={estado === "ACTIVAS" && filtroRol === "TODOS"}
           onClick={() => {
             setEstado("ACTIVAS");
@@ -301,6 +304,12 @@ export function UsuariosScreen({
                         <span className="block truncate text-[13.5px] font-semibold text-ink">{u.fullName}</span>
                         <span className="flex items-center gap-1.5 text-[11.5px] text-ink-3">
                           {NOMBRE_ROL[u.role]}
+                          {u.soporte !== null && (
+                            <span className="inline-flex items-center gap-0.5 font-semibold text-brand">
+                              <Headset size={11} aria-hidden="true" />
+                              Soporte
+                            </span>
+                          )}
                           {!u.active && <span className="text-[10px] tracking-wide uppercase">· de baja</span>}
                         </span>
                       </span>
@@ -326,6 +335,7 @@ export function UsuariosScreen({
           <Detalle
             key={usuario.id}
             usuario={usuario}
+            autorId={autor.id}
             puedeGestionar={puedeGestionar}
             credenciales={credenciales.find((c) => c.userId === usuario.id) ?? null}
             onCambio={(c) => setCambio(c)}
@@ -378,12 +388,14 @@ export function UsuariosScreen({
 
 function Detalle({
   usuario,
+  autorId,
   credenciales,
   puedeGestionar,
   onCambio,
   onExcepcion,
 }: {
   usuario: UserSummaryDto;
+  autorId: string;
   credenciales: CredencialesDePersonaDto | null;
   puedeGestionar: boolean;
   onCambio: (c: Cambio) => void;
@@ -424,6 +436,11 @@ function Detalle({
                     ? "sucursal única"
                     : `${usuario.branchIds.length} sucursales`}
                 </span>
+                {usuario.soporte !== null && (
+                  <Badge tone="brand" icon={<Headset size={12} aria-hidden="true" />}>
+                    Soporte · {usuario.soporte}
+                  </Badge>
+                )}
                 {!usuario.active && (
                   <Badge tone="idle" icon={<UserMinus size={12} aria-hidden="true" />}>
                     De baja
@@ -449,6 +466,15 @@ function Detalle({
                   >
                     Reponer PIN
                   </Accion>
+                  {/* T-17: la cuenta de soporte es de Administración, y nadie se marca a sí misma. */}
+                  {usuario.role === "ADMIN" && usuario.id !== autorId && (
+                    <Accion
+                      icono={<Headset size={14} aria-hidden="true" />}
+                      onClick={() => onCambio({ kind: usuario.soporte !== null ? "SOPORTE_FIN" : "SOPORTE", usuario })}
+                    >
+                      {usuario.soporte !== null ? "Quitar soporte" : "Cuenta de soporte"}
+                    </Accion>
+                  )}
                   <Accion
                     icono={<UserMinus size={14} aria-hidden="true" />}
                     peligro
@@ -606,6 +632,10 @@ function TITULO_CAMBIO(c: UserSummaryDto["changes"][number]): string {
       return `Cambia de ${NOMBRE_ROL[c.from]} a ${NOMBRE_ROL[c.to]}`;
     case "PIN":
       return "PIN repuesto";
+    case "SOPORTE":
+      return "Marcada como la cuenta de soporte";
+    case "SOPORTE_FIN":
+      return "Deja de ser la cuenta de soporte";
   }
 }
 

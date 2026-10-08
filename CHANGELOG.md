@@ -14,6 +14,20 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+La cuenta de soporte (T-17, M-28).
+
+### Añadido
+- **La cuenta de soporte.** En Ajustes → Personas y equipos, una persona de Administración se marca como «Cuenta de
+  soporte» con un usuario propio (por ejemplo, `soporte.l2`). No sale en «¿Quién entra?»: entra por **«Acceso de
+  soporte»** con ese usuario y su PIN, desde un equipo aprobado y con el mismo bloqueo que todos.
+- Firma como «Nombre (soporte)» en todo lo que hace, se ve como «Soporte» en Inicio mientras está conectada y no cuenta
+  como personal del local (ni en las cifras de Personas ni en la Puesta a punto).
+- En producción no abre turnos ni cobra; en staging sí, para reproducir un error con una copia de la base.
+- «Quitar soporte» la devuelve a la lista como una persona más de Administración. Nadie se marca a sí misma, y la única
+  administración del local no se puede marcar.
+
 ## [0.80.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 El inventario al momento (B11-2, M-29).

@@ -39,7 +39,8 @@ const cuantos = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? un
 
 /** La lista del local, con lo que cada recomendable tiene dejado para después. */
 async function calcular(tx: Transaccion, ctx: Contexto): Promise<PuestaAPuntoDto> {
-  const enSucursal = { branches: { some: { branchId: ctx.branchId } } };
+  // La cuenta de soporte (T-17) no es personal del local: no cuenta para ninguno de estos puntos.
+  const enSucursal = { branches: { some: { branchId: ctx.branchId } }, supportLogin: null };
 
   // De una en una: es la única conexión de la transacción.
   const personas = await tx.staffUser.count({ where: { active: true, pinHash: { not: null }, ...enSucursal } });

@@ -44,12 +44,15 @@ const Contexto = createContext<Operacion>({
   emitir: () => ({ ok: false, motivo: "La operación no está disponible" }),
 });
 
-/** Quién está en cada puesto de servicio: la sesión más antigua de cada uno. */
+/**
+ * Quién está en cada puesto de servicio: la sesión más antigua de cada uno. La cuenta de soporte (T-17) no ocupa el
+ * puesto de nadie: va aparte, como «Soporte», mientras está conectada.
+ */
 function conectadosDe(sesiones: readonly SesionEnCursoDto[]): Record<string, Conectado> {
   const r: Record<string, Conectado> = {};
   for (const s of sesiones) {
-    const puesto = PUESTO_DE_ROL[s.role];
-    r[puesto] ??= { userName: s.userName, role: NOMBRE_ROL[s.role], device: s.deviceLabel, desde: s.desde };
+    const puesto = s.soporte ? "soporte" : PUESTO_DE_ROL[s.role];
+    r[puesto] ??= { userName: s.userName, role: s.soporte ? "Soporte" : NOMBRE_ROL[s.role], device: s.deviceLabel, desde: s.desde };
   }
   return r;
 }

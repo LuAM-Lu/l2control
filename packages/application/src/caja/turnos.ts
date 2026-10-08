@@ -15,7 +15,7 @@ import { calendarDay } from "@l2/domain-rates";
 import { errorDeBase, type Base, type CashShift, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
-import { exigirPermiso, nombreDe, permisoEn } from "../identidad/actor.ts";
+import { esSoporte, exigirPermiso, nombreDe, permisoEn } from "../identidad/actor.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
 
 export interface CasosTurnos {
@@ -47,7 +47,11 @@ export async function turnoParaCobrar(tx: Transaccion, ctx: Contexto): Promise<C
   return turno;
 }
 
-export function casosTurnos(base: Base): CasosTurnos {
+/**
+ * `soporteOpera`: si la cuenta de soporte (T-17) abre turnos. En producción no (el turno es del personal del local); en
+ * staging sí, para reproducir un error con una copia de la base (M-29). Sin decirlo, no (fail-closed).
+ */
+export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
   return {
     async abrir(ctx, entrada, ahora = Date.now()) {
       const v = AbrirTurnoCommandSchema.safeParse(entrada);
@@ -64,6 +68,9 @@ export function casosTurnos(base: Base): CasosTurnos {
         const r = await base.conTenant(ctx.tenantId, async (tx): Promise<ConFondos | Rechazo> => {
           const rechazo = await exigirPermiso(tx, ctx, "turno.abrir");
           if (rechazo) return rechazo;
+          if (!soporteOpera && (await esSoporte(tx, ctx))) {
+            return { ok: false, motivo: "NO_PERMITIDO", mensaje: "La cuenta de soporte no abre turnos aquí: el turno es del personal del local." };
+          }
           // El turno es del equipo (I-06): sin equipo aprobado no hay dónde abrirlo.
           const deviceId = ctx.quien?.deviceId;
           const equipo = deviceId ? await tx.device.findUnique({ where: { id: deviceId } }) : null;

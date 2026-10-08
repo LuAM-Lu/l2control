@@ -124,3 +124,40 @@ describe("gestionar el equipo (F2-11)", () => {
     assert.match(v.ok === false ? v.motivo : "", /no está en el equipo/i);
   });
 });
+
+describe("la cuenta de soporte (T-17, M-28)", () => {
+  const otraAdmin: Actor = { id: "u-ines", role: "ADMIN", branchIds: [SUC] };
+  const CON_DOS: PersonaDelEquipo[] = [...EQUIPO, { id: "u-ines", role: "ADMIN", active: true }];
+  const CON_SOPORTE: PersonaDelEquipo[] = [...EQUIPO, { id: "u-sop", role: "ADMIN", active: true, soporte: true }];
+
+  test("la administración marca a otra persona de Administración, y la quita", () => {
+    assert.equal(revisar({ kind: "SOPORTE", userId: "u-ines" }, admin, CON_DOS).ok, true);
+    assert.equal(revisar({ kind: "SOPORTE_FIN", userId: "u-sop" }, admin, CON_SOPORTE).ok, true);
+  });
+
+  test("nadie se marca a sí misma, y solo la administración marca", () => {
+    assert.match(String((revisar({ kind: "SOPORTE", userId: "u-ines" }, otraAdmin, CON_DOS) as { motivo?: string }).motivo), /a ti misma/);
+    const conGestion: Actor = { ...supervisor, grants: { "usuarios.gestionar": "PERMITIDO" } };
+    assert.match(String((revisar({ kind: "SOPORTE", userId: "u-ines" }, conGestion, CON_DOS) as { motivo?: string }).motivo), /Solo la administración/);
+  });
+
+  test("solo de Administración, activa, y el local no se queda sin su administración", () => {
+    assert.equal(revisar({ kind: "SOPORTE", userId: "u-luis" }, admin, CON_DOS).ok, false);
+    assert.equal(revisar({ kind: "SOPORTE", userId: "u-carla" }, admin, CON_DOS).ok, false);
+    // Ni a sí misma, ni a la única administración del local (se quedaría sin nadie).
+    assert.equal(revisar({ kind: "SOPORTE", userId: "u-ines" }, otraAdmin, CON_DOS).ok, false);
+    const soloInes: PersonaDelEquipo[] = [{ id: "u-ines", role: "ADMIN", active: true }, { id: "u-abi", role: "ADMIN", active: true, soporte: true }];
+    assert.match(String((revisar({ kind: "SOPORTE", userId: "u-ines" }, admin, soloInes) as { motivo?: string }).motivo), /única administración del local/);
+  });
+
+  test("la cuenta de soporte no cuenta como administración del local, no cambia de rol y se puede dar de baja", () => {
+    assert.equal(administradoresActivos(CON_SOPORTE), 1);
+    assert.match(String((revisar({ kind: "ROL", userId: "u-sop", role: "SUPERVISOR" }, admin, CON_SOPORTE) as { motivo?: string }).motivo), /quítale la marca/);
+    assert.equal(revisar({ kind: "BAJA", userId: "u-sop" }, admin, CON_SOPORTE).ok, true);
+    // La única administración del local no se da de baja aunque haya una cuenta de soporte.
+    const abiYSoporte: PersonaDelEquipo[] = [{ id: "u-abi", role: "ADMIN", active: true }, { id: "u-sop", role: "ADMIN", active: true, soporte: true }];
+    const otra: Actor = { id: "u-sop", role: "ADMIN", branchIds: [SUC] };
+    assert.equal(revisar({ kind: "BAJA", userId: "u-abi" }, otra, abiYSoporte).ok, false);
+    assert.equal(revisar({ kind: "SOPORTE_FIN", userId: "u-abi" }, admin, abiYSoporte).ok, false, "no es la de soporte");
+  });
+});

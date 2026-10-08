@@ -22,6 +22,10 @@
  *  5. **Administrador solo lo nombra un administrador.** Aunque a alguien se le
  *     haya concedido gestionar usuarios por excepción, fabricar administradores
  *     queda reservado a quien ya lo es.
+ *  6. **La cuenta de soporte (T-17, M-28) la marca la administración, y no sobre
+ *     sí misma.** Es una persona de Administración que no es del local: no sale en
+ *     «¿Quién entra?», no cuenta como administración del local (la regla 4 cuenta
+ *     sin ella) y no se le cambia el rol mientras lleve la marca.
  *
  * Todo lo que no encaje en una regla escrita aquí se NIEGA (§7.3, fail-closed).
  */
@@ -32,6 +36,8 @@ export type PersonaDelEquipo = Readonly<{
   id: string;
   role: Role;
   active: boolean;
+  /** Si es la cuenta de soporte (T-17): de Administración, pero no del local. */
+  soporte?: boolean;
 }>;
 
 /**
@@ -45,16 +51,18 @@ export type CambioDeEquipo =
   | Readonly<{ kind: "BAJA"; userId: string }>
   | Readonly<{ kind: "REINGRESO"; userId: string }>
   | Readonly<{ kind: "ROL"; userId: string; role: Role }>
-  | Readonly<{ kind: "PIN"; userId: string }>;
+  | Readonly<{ kind: "PIN"; userId: string }>
+  | Readonly<{ kind: "SOPORTE"; userId: string }>
+  | Readonly<{ kind: "SOPORTE_FIN"; userId: string }>;
 
 export type Veredicto = Readonly<{ ok: true }> | Readonly<{ ok: false; motivo: string }>;
 
 const NO = (motivo: string): Veredicto => ({ ok: false, motivo });
 const SI: Veredicto = { ok: true };
 
-/** Cuántas personas con rol de administración siguen activas. */
+/** Cuántas personas con rol de administración siguen activas en el local (la cuenta de soporte no cuenta, T-17). */
 export function administradoresActivos(equipo: readonly PersonaDelEquipo[]): number {
-  return equipo.filter((p) => p.active && p.role === "ADMIN").length;
+  return equipo.filter((p) => p.active && p.role === "ADMIN" && p.soporte !== true).length;
 }
 
 /**
@@ -99,12 +107,19 @@ export function revisarCambio({
   if (esUnoMismo && cambio.kind === "ROL") {
     return NO("No puedes cambiarte el rol a ti misma: pide que lo haga otra persona.");
   }
+  // 6 · la cuenta de soporte la marca y la quita la administración; nadie se marca a sí misma
+  if ((cambio.kind === "SOPORTE" || cambio.kind === "SOPORTE_FIN") && autor.role !== "ADMIN") {
+    return NO("Solo la administración marca la cuenta de soporte.");
+  }
+  if (esUnoMismo && cambio.kind === "SOPORTE") {
+    return NO("No puedes marcarte a ti misma como soporte: pide que lo haga otra persona.");
+  }
 
   switch (cambio.kind) {
     case "BAJA": {
       if (!persona.active) return NO("Esa persona ya está de baja.");
       // 4 · el local no se queda sin administración
-      if (persona.role === "ADMIN" && administradoresActivos(equipo) <= 1) {
+      if (persona.role === "ADMIN" && persona.soporte !== true && administradoresActivos(equipo) <= 1) {
         return NO("Es la única administración activa: nombra a otra antes de darla de baja.");
       }
       return SI;
@@ -116,6 +131,7 @@ export function revisarCambio({
     case "ROL": {
       if (!persona.active) return NO("Dale de alta otra vez antes de cambiarle el rol.");
       if (persona.role === cambio.role) return NO("Ya tiene ese rol.");
+      if (persona.soporte === true) return NO("Es la cuenta de soporte: quítale la marca antes de cambiarle el rol.");
       // 4 · degradar al último administrador es quedarse sin administración
       if (persona.role === "ADMIN" && administradoresActivos(equipo) <= 1) {
         return NO("Es la única administración activa: nombra a otra antes de cambiarle el rol.");
@@ -126,6 +142,19 @@ export function revisarCambio({
     case "PIN":
       // Reponer el PIN de alguien de baja no tiene sentido: no puede entrar.
       return persona.active ? SI : NO("Esa persona está de baja: no puede entrar con un PIN nuevo.");
+
+    case "SOPORTE": {
+      if (!persona.active) return NO("Esa persona está de baja.");
+      if (persona.role !== "ADMIN") return NO("La cuenta de soporte es de Administración: cámbiale el rol primero.");
+      // 4 · marcarla la saca de la administración del local
+      if (persona.soporte !== true && administradoresActivos(equipo) <= 1) {
+        return NO("Es la única administración del local: nombra a otra antes de marcarla como soporte.");
+      }
+      return SI;
+    }
+
+    case "SOPORTE_FIN":
+      return persona.soporte === true ? SI : NO("Esa persona no es la cuenta de soporte.");
 
     default:
       // Un cambio que esta función no conoce se niega, no se deja pasar.

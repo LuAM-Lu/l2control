@@ -60,8 +60,20 @@ export type ResultadoEntrada =
   | (Rechazo & Readonly<{ bloqueo?: Bloqueo; debeElegirPin?: true }>);
 
 export interface CasosSesiones {
-  /** Quién puede entrar en este equipo: las personas activas, con PIN, de su sucursal. */
+  /** Quién puede entrar en este equipo: las personas activas, con PIN, de su sucursal (sin la cuenta de soporte, T-17). */
   personas(dispositivo: string | undefined | null): Promise<PersonaParaAcceso[]>;
+  /**
+   * «Acceso de soporte» (T-17, M-28): la cuenta de soporte entra con su usuario y su PIN, desde un equipo aprobado y con
+   * el mismo bloqueo que todos. Un usuario que no existe responde lo mismo que un PIN errado.
+   */
+  entrarSoporte(p: {
+    dispositivo: string | undefined | null;
+    usuario: string;
+    pin: string;
+    pinNuevo?: string | undefined;
+    ip: string | null;
+    ahora: number;
+  }): Promise<ResultadoEntrada>;
   /**
    * Entrar con PIN. Si el PIN es TEMPORAL (alta o reposición), no se abre sesión hasta que la
    * persona elija el suyo: sin `pinNuevo` responde `debeElegirPin`; con él, lo guarda y entra.
@@ -126,12 +138,38 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
       if (d.estado !== "APROBADO") return [];
       const filas = await base.conTenant(d.tenantId, (tx) =>
         tx.staffUser.findMany({
-          where: { active: true, pinHash: { not: null }, branches: { some: { branchId: d.branchId } } },
+          where: { active: true, pinHash: { not: null }, supportLogin: null, branches: { some: { branchId: d.branchId } } },
           orderBy: { fullName: "asc" },
           select: { id: true, fullName: true, role: true },
         }),
       );
       return filas.flatMap((u) => (esRol(u.role) ? [{ id: u.id, nombre: u.fullName, role: u.role }] : []));
+    },
+
+    async entrarSoporte({ dispositivo, usuario, pin, pinNuevo, ip, ahora }) {
+      const d = await dispositivos.identificar(dispositivo);
+      if (d.estado !== "APROBADO") {
+        return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Este equipo no está autorizado para entrar." };
+      }
+      const login = usuario.trim().toLowerCase();
+      const u = /^[a-z0-9][a-z0-9._-]{2,31}$/.test(login)
+        ? await base.conTenant(d.tenantId, (tx) => tx.staffUser.findFirst({ where: { supportLogin: login }, select: { id: true } }))
+        : null;
+      if (!u) {
+        // Como un PIN errado: el tiempo y la respuesta no dicen si el usuario existe.
+        await verify(await relleno(), pin).catch(() => false);
+        await base.conTenant(d.tenantId, (tx) =>
+          auditar(tx, { tenantId: d.tenantId, branchId: d.branchId, ip, quien: { userId: null, deviceId: d.id } }, {
+            action: "sesion.pin_fallido",
+            outcome: "NEGADO",
+            entityType: "staff_user",
+            reason: "Acceso de soporte con un usuario que no existe",
+          }),
+        );
+        return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Usuario o PIN incorrectos." };
+      }
+      const r = await casos.entrar({ dispositivo, userId: u.id, pin, pinNuevo, ip, ahora });
+      return !r.ok && r.mensaje === "PIN incorrecto." ? { ...r, mensaje: "Usuario o PIN incorrectos." } : r;
     },
 
     async entrar({ dispositivo, userId, pin, pinNuevo, ip, ahora }) {
@@ -311,7 +349,7 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
         });
         return filas.flatMap((s) =>
           esRol(s.user.role)
-            ? [SesionEnCursoSchema.parse({ userName: s.user.fullName, role: s.user.role, deviceLabel: s.device.label, desde: s.openedAt.toISOString() })]
+            ? [SesionEnCursoSchema.parse({ userName: s.user.fullName, role: s.user.role, deviceLabel: s.device.label, desde: s.openedAt.toISOString(), soporte: s.user.supportLogin !== null })]
             : [],
         );
       });

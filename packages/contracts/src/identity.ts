@@ -102,6 +102,9 @@ export const UserChangeSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("REINGRESO"), ...rastro }),
   z.strictObject({ kind: z.literal("ROL"), from: RoleSchema, to: RoleSchema, ...rastro }),
   z.strictObject({ kind: z.literal("PIN"), ...rastro }),
+  /** Marcada como la cuenta de soporte (T-17), o se le quitó la marca. */
+  z.strictObject({ kind: z.literal("SOPORTE"), ...rastro }),
+  z.strictObject({ kind: z.literal("SOPORTE_FIN"), ...rastro }),
 ]);
 export type UserChangeDto = z.infer<typeof UserChangeSchema>;
 
@@ -179,6 +182,11 @@ export const UserSummarySchema = z
     exceptions: z.array(PermissionExceptionSchema),
     /** Su historia, de lo más reciente a lo más antiguo. Vacía es «nunca cambió». */
     changes: z.array(UserChangeSchema).default([]),
+    /**
+     * La cuenta de soporte (T-17, M-28): su nombre de usuario para «Acceso de soporte». Nulo = del local. No sale en
+     * «¿Quién entra?» ni cuenta como personal del local.
+     */
+    soporte: z.string().nullable().default(null),
   })
   .refine(
     (u) => new Set(u.exceptions.map((e) => e.action)).size === u.exceptions.length,
@@ -213,6 +221,13 @@ export type UsersDirectoryDto = z.infer<typeof UsersDirectorySchema>;
  * Quién PUEDE hacerlo no se decide aquí: es `revisarCambio` de
  * `@l2/domain-identity`, que conoce la matriz y el estado del equipo.
  */
+/** El usuario de la cuenta de soporte (T-17): lo que se teclea en «Acceso de soporte», sin acentos ni espacios. */
+export const UsuarioDeSoporteSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9._-]{2,31}$/, "El usuario: de 3 a 32 letras sin acentos, números, punto o guion, sin espacios");
+
 export const UserCommandSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("ALTA"),
@@ -225,6 +240,9 @@ export const UserCommandSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("REINGRESO"), userId: IdSchema, reason: ReasonSchema }),
   z.strictObject({ kind: z.literal("ROL"), userId: IdSchema, role: RoleSchema, reason: ReasonSchema }),
   z.strictObject({ kind: z.literal("PIN"), userId: IdSchema, reason: ReasonSchema }),
+  /** Marcar a una persona de Administración como la cuenta de soporte, con su usuario (o cambiárselo). */
+  z.strictObject({ kind: z.literal("SOPORTE"), userId: IdSchema, usuario: UsuarioDeSoporteSchema, reason: ReasonSchema }),
+  z.strictObject({ kind: z.literal("SOPORTE_FIN"), userId: IdSchema, reason: ReasonSchema }),
 ]);
 export type UserCommand = z.infer<typeof UserCommandSchema>;
 
@@ -362,5 +380,7 @@ export const SesionEnCursoSchema = z.object({
   role: RoleSchema,
   deviceLabel: z.string().min(1).max(120),
   desde: TimestampSchema,
+  /** Es la cuenta de soporte (T-17): Inicio la enseña como «Soporte», no como personal del local. */
+  soporte: z.boolean().default(false),
 });
 export type SesionEnCursoDto = z.infer<typeof SesionEnCursoSchema>;

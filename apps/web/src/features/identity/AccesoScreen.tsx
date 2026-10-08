@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Check,
   Download,
+  Headset,
   Lock,
   MonitorSmartphone,
   RefreshCw,
@@ -15,7 +16,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
-import { aprobarEsteEquipo, desafioParaAprobarEsteEquipo, entrar, renovarSolicitud, salir, solicitarRegistro } from "./acceso.acciones";
+import { aprobarEsteEquipo, desafioParaAprobarEsteEquipo, entrar, entrarSoporte, renovarSolicitud, salir, solicitarRegistro } from "./acceso.acciones";
 import { CamposDeIdentidad, useSegundoFactor } from "./SegundoFactor";
 import { puestoDe, sinPantalla } from "./visibilidad.ts";
 import { esRutaDeEstacion, pedirPantallaCompleta } from "../shell/pantallaCompleta.ts";
@@ -91,6 +92,13 @@ export function AccesoScreen({
   const [temporal, setTemporal] = useState<string | null>(null);
   const [primerNuevo, setPrimerNuevo] = useState<string | null>(null);
   const [operador, setOperador] = useState<Operador | null>(null);
+  /**
+   * «Acceso de soporte» (T-17): la cuenta de soporte no está en la lista; teclea su usuario y después su PIN, como
+   * todos. `pidiendoSoporte` enseña el campo; `usuarioSoporte`, con qué usuario se va a entrar.
+   */
+  const [pidiendoSoporte, setPidiendoSoporte] = useState(false);
+  const [usuarioSoporte, setUsuarioSoporte] = useState<string | null>(null);
+  const [usuarioTecleado, setUsuarioTecleado] = useState("");
   const [pin, setPin] = useState("");
   /** Lo último que dijo el servidor al rechazar un PIN, con su bloqueo si lo hay. */
   const [rechazo, setRechazo] = useState<{ mensaje: string; hasta: number | null; intentosRestantes: number | null } | null>(null);
@@ -164,7 +172,15 @@ export function AccesoScreen({
     setEnviando(true);
     // El PIN va por POST en el cuerpo de la acción: nunca en la URL, en un log ni en el
     // estado que se persiste (§7.6). Lo comprueba el servidor con Argon2id.
-    const r = await (temporal !== null ? entrar(operador.id, temporal, pin) : entrar(operador.id, pin)).catch(() => null);
+    const r = await (
+      usuarioSoporte !== null
+        ? temporal !== null
+          ? entrarSoporte(usuarioSoporte, temporal, pin)
+          : entrarSoporte(usuarioSoporte, pin)
+        : temporal !== null
+          ? entrar(operador.id, temporal, pin)
+          : entrar(operador.id, pin)
+    ).catch(() => null);
     setEnviando(false);
 
     if (r?.ok && sinPantalla(r.valor.actor)) {
@@ -215,6 +231,9 @@ export function AccesoScreen({
   /** Volver a «¿Quién entra?»: con el botón o con Esc. */
   function volver() {
     setOperador(null);
+    setUsuarioSoporte(null);
+    setPidiendoSoporte(false);
+    setUsuarioTecleado("");
     setPin("");
     setTemporal(null);
     setPrimerNuevo(null);
@@ -412,6 +431,46 @@ export function AccesoScreen({
               </li>
             ))}
           </ul>
+
+          {/* T-17: la cuenta de soporte entra por aquí, con su usuario; no sale en la lista. */}
+          <div className="mt-6 flex justify-center">
+            {pidiendoSoporte ? (
+              <form
+                className="flex w-full max-w-sm items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const u = usuarioTecleado.trim().toLowerCase();
+                  if (u.length < 3) return;
+                  setUsuarioSoporte(u);
+                  setOperador({ id: "soporte", nombre: u, rol: "Acceso de soporte", role: "ADMIN" });
+                }}
+              >
+                <Input
+                  surface="tablet"
+                  label="Usuario de soporte"
+                  value={usuarioTecleado}
+                  onChange={(e) => setUsuarioTecleado(e.target.value)}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  autoFocus
+                  className="flex-1"
+                />
+                <Button type="submit" surface="tablet" variant="primary" disabled={usuarioTecleado.trim().length < 3}>
+                  Seguir
+                </Button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPidiendoSoporte(true)}
+                className="flex min-h-12 cursor-pointer items-center gap-2 rounded-full px-4 text-detalle text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                <Headset size={15} aria-hidden="true" />
+                Acceso de soporte
+              </button>
+            )}
+          </div>
         </div>
       </PantallaAcceso>
     );
