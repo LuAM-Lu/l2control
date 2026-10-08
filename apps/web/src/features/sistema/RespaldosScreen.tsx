@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, CircleSlash, Download, FlaskConical, HardDrive, Pin, PinOff, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { CopiaDeRespaldoDto, EstadoDeRespaldosDto, NivelDeRespaldos, Resultado } from "@l2/contracts";
-import { Button, Confirmacion, Container, Dialog, Input, PageHeader, TAMANO_ICONO, avisar, cn } from "@l2/ui";
+import { Button, Confirmacion, Container, Dialog, Input, TAMANO_ICONO, avisar, cn } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -117,7 +118,7 @@ export function RespaldosScreen({ estado: r, servidor }: { estado: Resultado<Est
 
   return (
     <Container ancho="panel" className="py-8">
-      <PageHeader
+      <EncabezadoDePagina
         migas={[{ texto: ajustes.nombre, href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Respaldos" }]}
         titulo="Respaldos"
         descripcion="Cada noche el servidor guarda un respaldo de la base, cifrado con la clave del local, y una PC del local lo baja. Sin esa clave, que no está en el servidor, nadie lo puede abrir."

@@ -213,7 +213,7 @@ export function PuertaDeInstalacion({
 
         {paso === "PERSONA" && (
           <>
-            <p className="text-[14.5px] text-ink-2">Quien administra el local. Después dará de alta al resto desde Ajustes → Usuarios.</p>
+            <p className="text-[14.5px] text-ink-2">Quien administra el local. Después dará de alta al resto desde Ajustes → Personas y equipos.</p>
             <Input label="Tu nombre completo" surface="tablet" autoComplete="name" maxLength={80} value={nombre} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} />
             <Input
               label="PIN de cuatro dígitos"

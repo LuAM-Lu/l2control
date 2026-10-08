@@ -25,7 +25,7 @@ import { usePedidos } from "../mesas/PedidosProvider.tsx";
 import { useSala } from "../park/SalaProvider.tsx";
 import { useTasas, useTasaVigente } from "../cash/TasasProvider.tsx";
 import { useTarifario } from "../park/TarifarioProvider";
-import { rutaSeccion } from "./navigation.ts";
+import { rutaPestana } from "./navigation.ts";
 
 /**
  * El local ahora mismo — F9-08, FLUJOS flujo E, paso 5 de DEC-22.
@@ -245,7 +245,7 @@ export function EnVivo({
             ))}
           </ul>
           <Link
-            href={rutaSeccion("ajustes", "dispositivos")}
+            href={rutaPestana("ajustes", "personas", "dispositivos")}
             className="relative mt-auto flex h-5 items-center gap-1 pt-1 text-[10.5px] text-ink-3 no-underline transition-colors hover:text-brand after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
           >
             Dispositivos

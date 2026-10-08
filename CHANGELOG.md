@@ -14,6 +14,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Ajustes unificados (T-18, M-29).
+
+### Cambiado
+- **Ajustes pasa de 18 secciones a 12.** Lo que va junto vive junto, en pestañas: **Personas y equipos** (usuarios y
+  permisos, roles y accesos, dispositivos), **Tasas de cambio** con sus feriados bancarios y **Sistema** (versión y
+  actualizaciones, respaldos y la semilla del local).
+- **La carta está en Inventario → Productos**, pestaña «En la carta»: un solo sitio para el precio de lo que se vende.
+- Los enlaces guardados a las secciones de antes llevan a su pestaña. Cada pestaña se ve con su permiso: supervisión ve
+  las tasas, pero no los feriados.
+- El manual de la ayuda, al día, con la entrada de Reportes.
+
 ## [0.77.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 La sección Reportes y las ventas (B11-1, M-29).

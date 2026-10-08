@@ -4,14 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, CircleDashed, Clock, Loader2, RefreshCw, RotateCcw, ShieldAlert, Sparkles, TriangleAlert, X } from "lucide-react";
 import type { ActualizacionDto, EstadoDelSistemaDto, Resultado, VersionDisponibleDto } from "@l2/contracts";
-import { Button, Confirmacion, Container, PageHeader, avisar, cn } from "@l2/ui";
+import { Button, Confirmacion, Container, avisar, cn } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { cancelarActualizacion, pedirActualizacion } from "./sistema.acciones";
 
 /**
- * Ajustes → Sistema · Versión y actualizaciones (T-8b, ADR-028). La versión en marcha, las nuevas con sus
+ * Ajustes → Sistema → Versión y actualizaciones (T-8b, ADR-028). La versión en marcha, las nuevas con sus
  * novedades (las del CHANGELOG) y la decisión de administración: «Actualizar ahora» (solo sin turnos
  * abiertos ni niños en sala), «Esta noche al cierre» o dejarlo para más tarde. La web solo pide: la pone
  * el actualizador del servidor, con respaldo, y si la versión nueva no queda sana vuelve sola a la anterior
@@ -100,7 +101,7 @@ export function SistemaScreen({ estado: inicial }: { estado: Resultado<EstadoDel
 
   return (
     <Container ancho="panel" className="py-8">
-      <PageHeader
+      <EncabezadoDePagina
         migas={[{ texto: ajustes.nombre, href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Versión y actualizaciones" }]}
         titulo="Versión y actualizaciones"
         descripcion="La versión en marcha y las nuevas, con lo que traen. Si una versión no queda sana al ponerla, el servidor vuelve solo a la anterior."

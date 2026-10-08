@@ -11,7 +11,7 @@
 # libro de pagos), tomados en la misma instantánea, con la versión en marcha, en un .tar cifrado para la clave
 # pública del local (respaldo-destinatario.pem, junto a .env; se crea con ./restaurar.sh --clave-nueva en otra
 # máquina). La privada no está aquí: sin ella el archivo no se abre. Queda en respaldos/diarios/ (los últimos
-# 7) y la web se lo sirve a la PC del local preparada en Ajustes → Respaldos, que lo baja y lo confirma.
+# 7) y la web se lo sirve a la PC del local preparada en Ajustes → Sistema → Respaldos, que lo baja y lo confirma.
 # Cómo terminó va a la base (backup_copy) con su asiento: el panel lo enseña, también si falló.
 #
 # Una vez por semana (B7-6), el volcado de esa noche, ANTES de cifrarlo, se restaura en una base de usar y tirar

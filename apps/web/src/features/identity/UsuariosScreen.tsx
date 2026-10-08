@@ -29,7 +29,8 @@ import {
   type Permission,
   type Role,
 } from "@l2/domain-identity";
-import { Badge, BarraDeFiltros, Button, CAMPO_DE_FILTRO, Cifra, Container, Dialog, FiltroSegmentado, Initial, PageHeader, Resumen, avisar, cn } from "@l2/ui";
+import { Badge, BarraDeFiltros, Button, CAMPO_DE_FILTRO, Cifra, Container, Dialog, FiltroSegmentado, Initial, Resumen, avisar, cn } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL, etiquetaDe, toActor } from "./permisos.ts";
 import type { Autor } from "./operador.ts";
 import { cambiarPersona, registrarExcepcion } from "./identidad.acciones";
@@ -173,7 +174,7 @@ export function UsuariosScreen({
 
   return (
     <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
-      <PageHeader
+      <EncabezadoDePagina
         className="mb-4"
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },

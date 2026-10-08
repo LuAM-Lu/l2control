@@ -53,7 +53,15 @@ export type Seccion = {
   necesita?: string;
   /** Subtítulo que agrupa secciones dentro de un módulo largo (Ajustes). */
   grupo?: string;
+  /**
+   * Las pestañas de una sección que reúne a sus parientes (T-18): la primera es la que se abre. Cada una con su permiso;
+   * la sección se ve con cualquiera de ellos (`acciones`).
+   */
+  pestanas?: readonly PestanaDeSeccion[];
 };
+
+/** Una pestaña de una sección (T-18): lo que antes era una sección propia. Sin `accion`, la de su sección. */
+export type PestanaDeSeccion = Readonly<{ id: string; nombre: string; accion?: Action }>;
 
 export type Modulo = {
   id: string;
@@ -213,11 +221,16 @@ export const MODULOS: readonly Modulo[] = [
         id: "productos",
         nombre: "Productos",
         href: rutaSeccion("inventario", "productos"),
-        // Lo ve quien da de alta, quien recibe y quien ajusta: cada uno con lo suyo (T-13).
-        acciones: ["inventario.catalogo", "inventario.entrada", "inventario.ajustar"] as Action[],
+        // Lo ve quien da de alta, quien recibe y quien ajusta: cada uno con lo suyo (T-13); y quien arma la carta (T-18).
+        acciones: ["inventario.catalogo", "inventario.entrada", "inventario.ajustar", "catalogo.modificar"] as Action[],
         proposito:
-          "Lo que la caja vende en el mostrador o añade a una cuenta: categoría, IVA y precio con su día. Cambiar un precio no altera lo ya vendido.",
+          "Lo que la caja vende en el mostrador o añade a una cuenta: categoría, IVA y precio con su día, y qué platos están en la carta. Cambiar un precio no altera lo ya vendido.",
         tarea: "F8-02",
+        // T-18: la carta vive aquí, junto al precio (un solo sitio para cambiarlo).
+        pestanas: [
+          { id: "productos", nombre: "Productos" },
+          { id: "carta", nombre: "En la carta", accion: "catalogo.modificar" },
+        ],
       },
       {
         id: "insumos",
@@ -315,15 +328,6 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "B10-1",
       },
       {
-        id: "carta",
-        grupo: "Parque y restaurante",
-        nombre: "Carta y precios",
-        href: rutaSeccion("ajustes", "carta"),
-        proposito:
-          "Platos, categorías y precios. Se edita en borrador y el salón la ve al publicar. Los modificadores llegan después (F6-04).",
-        tarea: "F6-03",
-      },
-      {
         id: "plano",
         grupo: "Parque y restaurante",
         nombre: "Plano del local",
@@ -356,10 +360,14 @@ export const MODULOS: readonly Modulo[] = [
         grupo: "Dinero",
         nombre: "Tasas de cambio",
         href: rutaSeccion("ajustes", "tasas"),
-        accion: "tasa.confirmar",
+        acciones: ["tasa.confirmar", "catalogo.modificar"] as Action[],
         proposito:
-          "La tasa del BCV se aplica sola; aquí se ve su historial, se confirma la que quedó retenida y se carga a mano si la fuente falla.",
+          "La tasa del BCV se aplica sola; aquí se ve su historial, se confirma la que quedó retenida y se carga a mano si la fuente falla. Con los feriados bancarios de cada año.",
         tarea: "F3-04",
+        pestanas: [
+          { id: "tasas", nombre: "Tasas", accion: "tasa.confirmar" },
+          { id: "feriados", nombre: "Feriados bancarios", accion: "catalogo.modificar" },
+        ],
       },
       {
         id: "impuestos",
@@ -371,44 +379,21 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "F3-06",
       },
       {
-        id: "feriados",
-        grupo: "Dinero",
-        nombre: "Feriados bancarios",
-        href: rutaSeccion("ajustes", "feriados"),
-        proposito:
-          "Los feriados bancarios de cada año, copiados del calendario de SUDEBAN. Un feriado no es día hábil: lo cubre la tasa del día hábil anterior.",
-        tarea: "B2-4",
-      },
-      {
-        id: "usuarios",
+        id: "personas",
         grupo: "Equipo",
-        nombre: "Usuarios y permisos",
-        href: rutaSeccion("ajustes", "usuarios"),
-        accion: "usuarios.gestionar",
-        proposito:
-          "Cada persona con su rol fijo, y los permisos adicionales que se le concedan uno a uno (DEC-15).",
-        tarea: "F2-11",
-      },
-      {
-        id: "dispositivos",
-        grupo: "Equipo",
-        nombre: "Dispositivos",
-        href: rutaSeccion("ajustes", "dispositivos"),
-        accion: "usuarios.gestionar",
-        proposito: "Los equipos autorizados, su sucursal y quién tiene sesión abierta en cada uno.",
-        tarea: "F2-02",
-      },
-      {
-        id: "accesos",
-        grupo: "Equipo",
-        nombre: "Roles y accesos",
-        href: rutaSeccion("ajustes", "accesos"),
+        nombre: "Personas y equipos",
+        href: rutaSeccion("ajustes", "personas"),
         // Quien edita esto puede abrirle el back-office a un rol entero: es de
         // administración, y el dominio impide que se regale a sí mismo la llave.
         accion: "usuarios.gestionar",
         proposito:
-          "Qué alcanza cada rol en este local, sobre la matriz de fábrica. Aquí se decide quién entra al back-office.",
-        tarea: "F2-05",
+          "Cada persona con su rol y los permisos que se le concedan uno a uno (DEC-15), qué alcanza cada rol en este local y los equipos autorizados, con quién tiene sesión en cada uno.",
+        tarea: "T-18",
+        pestanas: [
+          { id: "usuarios", nombre: "Usuarios y permisos" },
+          { id: "accesos", nombre: "Roles y accesos" },
+          { id: "dispositivos", nombre: "Dispositivos" },
+        ],
       },
       {
         id: "sucursal",
@@ -430,21 +415,17 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "sistema",
         grupo: "Sistema",
-        nombre: "Versión y actualizaciones",
+        nombre: "Sistema",
         href: rutaSeccion("ajustes", "sistema"),
-        accion: "sistema.actualizar",
+        acciones: ["sistema.actualizar", "catalogo.modificar"] as Action[],
         proposito:
-          "La versión en marcha y las nuevas, con sus novedades: administración decide si se pone ahora o al cierre. Si una versión no queda sana, el servidor vuelve solo a la anterior.",
-        tarea: "T-8b",
-      },
-      {
-        id: "respaldos",
-        grupo: "Sistema",
-        nombre: "Respaldos",
-        href: rutaSeccion("ajustes", "respaldos"),
-        accion: "sistema.actualizar",
-        proposito: "Si el respaldo de anoche se hizo y si la PC del local ya lo bajó: una copia que deja de salir del servidor se ve aquí y en Inicio.",
-        tarea: "B7-4",
+          "La versión en marcha y las nuevas (ahora o al cierre), los respaldos de cada noche con su ensayo de restauración, y la semilla para llevar la configuración de un local a otro.",
+        tarea: "T-18",
+        pestanas: [
+          { id: "version", nombre: "Versión y actualizaciones", accion: "sistema.actualizar" },
+          { id: "respaldos", nombre: "Respaldos", accion: "sistema.actualizar" },
+          { id: "semilla", nombre: "Semilla del local", accion: "catalogo.modificar" },
+        ],
       },
       {
         id: "soporte",
@@ -455,16 +436,6 @@ export const MODULOS: readonly Modulo[] = [
         proposito:
           "Los problemas que reportó el personal, con su captura y los últimos errores: se marcan vistos, en curso o resueltos en una versión, y quien reportó lo ve.",
         tarea: "T-11",
-      },
-      {
-        id: "semilla",
-        grupo: "Sistema",
-        nombre: "Semilla del local",
-        href: rutaSeccion("ajustes", "semilla"),
-        accion: "catalogo.modificar",
-        proposito:
-          "Descarga la configuración de este local (ajustes, tarifas, carta, plano y cumpleaños) y carga la de otro: solo añade lo que falta.",
-        tarea: "B7-2",
       },
     ],
   },
@@ -481,12 +452,12 @@ export const RUTAS_MOVIDAS: Readonly<Record<string, Route>> = {
   // B9-3: «Compras y mermas» se partió en entradas (B9-3) y salidas con conteo (B9-4).
   "inventario/compras": rutaSeccion("inventario", "entradas"),
   "inventario/mermas": rutaSeccion("inventario", "salidas"),
-  "personas/usuarios": rutaSeccion("ajustes", "usuarios"),
-  "personas/dispositivos": rutaSeccion("ajustes", "dispositivos"),
-  "configuracion/accesos": rutaSeccion("ajustes", "accesos"),
+  "personas/usuarios": rutaPestana("ajustes", "personas", "usuarios"),
+  "personas/dispositivos": rutaPestana("ajustes", "personas", "dispositivos"),
+  "configuracion/accesos": rutaPestana("ajustes", "personas", "accesos"),
   "configuracion/sucursal": rutaSeccion("ajustes", "sucursal"),
   "configuracion/impuestos": rutaSeccion("ajustes", "impuestos"),
-  "configuracion/feriados": rutaSeccion("ajustes", "feriados"),
+  "configuracion/feriados": rutaPestana("ajustes", "tasas", "feriados"),
   "configuracion/impresoras": rutaSeccion("ajustes", "impresoras"),
   "caja/medios": rutaSeccion("ajustes", "medios"),
   "caja/tasas": rutaSeccion("ajustes", "tasas"),
@@ -494,7 +465,15 @@ export const RUTAS_MOVIDAS: Readonly<Record<string, Route>> = {
   "caja/turnos": "/turno",
   "parque/tarifas": rutaSeccion("ajustes", "tarifas"),
   "restaurante/plano": rutaSeccion("ajustes", "plano"),
-  "restaurante/carta": rutaSeccion("ajustes", "carta"),
+  "restaurante/carta": rutaPestana("inventario", "productos", "carta"),
+  // T-18 (M-29): Ajustes de 18 secciones a 12. Lo que se juntó es una pestaña de su sección.
+  "ajustes/usuarios": rutaPestana("ajustes", "personas", "usuarios"),
+  "ajustes/accesos": rutaPestana("ajustes", "personas", "accesos"),
+  "ajustes/dispositivos": rutaPestana("ajustes", "personas", "dispositivos"),
+  "ajustes/feriados": rutaPestana("ajustes", "tasas", "feriados"),
+  "ajustes/respaldos": rutaPestana("ajustes", "sistema", "respaldos"),
+  "ajustes/semilla": rutaPestana("ajustes", "sistema", "semilla"),
+  "ajustes/carta": rutaPestana("inventario", "productos", "carta"),
 };
 
 /** Lo de arriba del menú (operar) y lo de abajo (Ajustes), en ese orden. */
@@ -527,4 +506,17 @@ export function rutaSeccion(moduloId: string, seccionId: string): Route {
 
 export function rutaModulo(moduloId: string): Route {
   return `/panel/${moduloId}` as Route;
+}
+
+/** Una pestaña de una sección (T-18): la sección con `?pestana=…`. */
+export function rutaPestana(moduloId: string, seccionId: string, pestanaId: string): Route {
+  return `/panel/${moduloId}/${seccionId}?pestana=${pestanaId}` as Route;
+}
+
+/** La pestaña que se abre: la pedida si la sección la tiene; si no, la primera. */
+export function pestanaPedida(moduloId: string, seccionId: string, pedida: string | string[] | undefined): string {
+  const modulo = buscarModulo(moduloId);
+  const pestanas = (modulo && buscarSeccion(modulo, seccionId)?.pestanas) ?? [];
+  const id = Array.isArray(pedida) ? pedida[0] : pedida;
+  return pestanas.find((p) => p.id === id)?.id ?? pestanas[0]?.id ?? "";
 }

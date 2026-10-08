@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { CalendarOff, Info, Trash2 } from "lucide-react";
 import type { FeriadoDto, FeriadosDto } from "@l2/contracts";
 import { calendarDay, holidayProblem } from "@l2/domain-rates";
-import { Button, Container, Input, PageHeader, avisar, cn } from "@l2/ui";
+import { Button, Container, Input, avisar, cn } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { registrarFeriado, retirarFeriado } from "./feriados.acciones";
@@ -100,7 +101,7 @@ export function FeriadosScreen({ feriados }: { feriados: FeriadosDto }) {
 
   return (
     <Container ancho="panel" className="py-8">
-      <PageHeader
+      <EncabezadoDePagina
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Feriados bancarios" }]}
         titulo="Feriados bancarios"
         descripcion="Un feriado bancario no es día hábil: el BCV no publica tasa y la caja cobra con la del día hábil anterior, como en un fin de semana. Sin registrarlo, ese día exigiría cargar la tasa a mano."

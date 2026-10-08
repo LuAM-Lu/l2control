@@ -26,7 +26,8 @@ import {
   type Permission,
   type Role,
 } from "@l2/domain-identity";
-import { Badge, Button, Cifra, Container, Dialog, EmptyState, FiltroSegmentado, PageHeader, Resumen, Tabs, avisar, cn } from "@l2/ui";
+import { Badge, Button, Cifra, Container, Dialog, EmptyState, FiltroSegmentado, Resumen, Tabs, avisar, cn } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { ACCIONES, AREAS, ETIQUETAS, NOMBRE_ROL } from "./permisos.ts";
 import type { Autor } from "./operador.ts";
 import { ordenarAcceso } from "./identidad.acciones";
@@ -301,7 +302,7 @@ export function AccesosScreen({
 
   return (
     <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
-      <PageHeader
+      <EncabezadoDePagina
         className="mb-4"
         migas={[
           { texto: "Abby Kingdom", href: "/panel" },

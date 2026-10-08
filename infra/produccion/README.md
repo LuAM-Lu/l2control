@@ -94,7 +94,7 @@ Cada minuto, con un cerrojo para que no se pisen dos pasadas:
    CHANGELOG; una versión es **urgente** si esa sección tiene un apartado `### Urgente` (el panel lo destaca).
 2. **En staging** (`L2_ENTORNO=staging`) pide sola la más nueva. Una que ya volvió atrás o falló no la vuelve a pedir:
    se corrige con la siguiente.
-3. **Pone la pedida cuando toca.** En producción la pide administración en Ajustes → Versión y actualizaciones; el
+3. **Pone la pedida cuando toca.** En producción la pide administración en Ajustes → Sistema; el
    actualizador comprueba otra vez que no haya turnos abiertos ni niños en sala (la misma regla que el panel, y una
    «ahora» que se encuentra un turno recién abierto espera como una «al cierre»). La toma con la condición en la base
    (si administración la canceló en ese instante, no se pone), hace `git pull --ff-only`, llama a `./desplegar.sh` y
@@ -130,7 +130,7 @@ scp ~/l2-claves-del-local/respaldo-destinatario.pem l2vps:l2control/infra/produc
 cd ~/l2control/infra/produccion && ./respaldar.sh && ./respaldar.sh --instalar
 ```
 
-3. En el panel, **Ajustes → Respaldos → Preparar una PC del local**: una PC con Windows que esté encendida casi todos
+3. En el panel, **Ajustes → Sistema → Respaldos → Preparar una PC del local**: una PC con Windows que esté encendida casi todos
    los días, y **dónde guarda** (B7-6): un disco externo o una carpeta que se sincroniza con la nube (OneDrive, Google
    Drive) dejan una copia fuera del local (regla 3-2-1); *Documentos* de esa PC es lo más simple, y el panel lo avisa.
    El panel da una orden para pegar en PowerShell en esa PC (no hace falta ser administrador) con esa carpeta y una
@@ -141,10 +141,10 @@ cd ~/l2control/infra/produccion && ./respaldar.sh && ./respaldar.sh --instalar
    y avisa si hay que prepararla otra vez.
 
 El servidor guarda las últimas siete noches (`respaldos/diarios/`); la web se las sirve a esa PC con su credencial
-(`/respaldos/indice`, `/respaldos/archivo/…`, `/respaldos/acuse`) y anota cuándo bajó cada una. Ajustes → Respaldos e
+(`/respaldos/indice`, `/respaldos/archivo/…`, `/respaldos/acuse`) y anota cuándo bajó cada una. Ajustes → Sistema → Respaldos e
 Inicio avisan si el de anoche falló o no se hizo, si no hay PC preparada o si la PC no baja los recientes.
 
-**Fijar un respaldo (B7-6):** en Ajustes → Respaldos, «Fijar» con su nombre («antes de producción»). La retención del
+**Fijar un respaldo (B7-6):** en Ajustes → Sistema → Respaldos, «Fijar» con su nombre («antes de producción»). La retención del
 servidor (`respaldar.sh`) no lo quita aunque pasen las noches, y la PC lo copia a `fijados\`. «Soltar» lo devuelve a
 la retención de siempre; lo que la PC guardó en `fijados\` se queda.
 

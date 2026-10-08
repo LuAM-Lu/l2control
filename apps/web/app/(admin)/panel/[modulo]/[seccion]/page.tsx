@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { SeccionPendienteScreen } from "../../../../../src/features/shell/SeccionPendienteScreen";
-import { RUTAS_MOVIDAS, buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
+import { RUTAS_MOVIDAS, buscarModulo, buscarSeccion, pestanaPedida } from "../../../../../src/features/shell/navigation";
+import { MarcoDeSeccion } from "../../../../../src/features/shell/MarcoDeSeccion";
 import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
 import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
 import { SoporteScreen } from "../../../../../src/features/soporte/SoporteScreen";
@@ -57,22 +58,50 @@ const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.Rea
   "parque/eventos": async () => <EventosScreen catalogo={await catalogoDeEventos()} agenda={await agendaDeEventos()} />,
   "ajustes/cumpleanos": async () => <CumpleanosScreen publicado={await catalogoDeEventos()} productos={await catalogoDelLocal()} />,
   "ajustes/tarifas": async () => <EditorTarifario versiones={await versionesDelTarifario()} />,
-  "ajustes/carta": async () => <CartaScreen catalogo={await catalogoDelLocal()} />,
   "ajustes/plano": () => <EditorPlano />,
   "ajustes/medios": () => <MediosPage />,
   "ajustes/descuentos": async () => <DescuentosScreen descuentos={await descuentosDelLocal()} catalogo={await catalogoDelLocal()} />,
-  "ajustes/tasas": async () => <TasasPage autorizadores={await autorizadoresDeTasa()} historial={await paginaDeTasas()} />,
+  // T-18 (M-29): las secciones con pestañas leen solo lo de la pestaña abierta.
+  "ajustes/tasas": async (q) => {
+    const p = pestanaPedida("ajustes", "tasas", q.pestana);
+    return (
+      <MarcoDeSeccion modulo="ajustes" seccion="tasas" actual={p}>
+        {p === "feriados" ? <FeriadosScreen feriados={await feriadosDelLocal()} /> : <TasasPage autorizadores={await autorizadoresDeTasa()} historial={await paginaDeTasas()} />}
+      </MarcoDeSeccion>
+    );
+  },
   "ajustes/impuestos": async () => <ImpuestosScreen impuestos={await impuestosDelLocal()} />,
-  "ajustes/feriados": async () => <FeriadosScreen feriados={await feriadosDelLocal()} />,
-  "ajustes/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} credenciales={await credencialesDelLocal()} />,
-  "ajustes/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
-  "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
+  "ajustes/personas": async (q) => {
+    const p = pestanaPedida("ajustes", "personas", q.pestana);
+    return (
+      <MarcoDeSeccion modulo="ajustes" seccion="personas" actual={p}>
+        {p === "accesos" ? (
+          <AccesosPage accesos={await accesosDelLocal()} />
+        ) : p === "dispositivos" ? (
+          <DispositivosPage directorio={await dispositivosDelLocal()} />
+        ) : (
+          <UsuariosPage directorio={await directorioDelLocal()} credenciales={await credencialesDelLocal()} />
+        )}
+      </MarcoDeSeccion>
+    );
+  },
   "ajustes/sucursal": async () => <EditorSucursal catalogo={await catalogoDelLocal()} />,
-  "ajustes/semilla": () => <SemillaScreen />,
   "ajustes/soporte": async () => <SoporteScreen inicial={await bandejaDeSoporte()} />,
   "restaurante/atencion": () => <AtencionScreen />,
-  "ajustes/sistema": async () => <SistemaScreen estado={await estadoDelSistema()} />,
-  "ajustes/respaldos": async () => <RespaldosScreen estado={await estadoDeRespaldos()} servidor={entorno().L2_URL_PUBLICA.replace(/\/$/, "")} />,
+  "ajustes/sistema": async (q) => {
+    const p = pestanaPedida("ajustes", "sistema", q.pestana);
+    return (
+      <MarcoDeSeccion modulo="ajustes" seccion="sistema" actual={p}>
+        {p === "respaldos" ? (
+          <RespaldosScreen estado={await estadoDeRespaldos()} servidor={entorno().L2_URL_PUBLICA.replace(/\/$/, "")} />
+        ) : p === "semilla" ? (
+          <SemillaScreen />
+        ) : (
+          <SistemaScreen estado={await estadoDelSistema()} />
+        )}
+      </MarcoDeSeccion>
+    );
+  },
   "ajustes/impresoras": async () => (
     <ImpresorasScreen
       local={await impresorasDelLocal()}
@@ -81,7 +110,14 @@ const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.Rea
       descargable={await agenteDescargable()}
     />
   ),
-  "inventario/productos": async () => <ProductosScreen catalogo={await catalogoDelLocal()} />,
+  "inventario/productos": async (q) => {
+    const p = pestanaPedida("inventario", "productos", q.pestana);
+    return (
+      <MarcoDeSeccion modulo="inventario" seccion="productos" actual={p}>
+        {p === "carta" ? <CartaScreen catalogo={await catalogoDelLocal()} /> : <ProductosScreen catalogo={await catalogoDelLocal()} />}
+      </MarcoDeSeccion>
+    );
+  },
   "inventario/entradas": async () => <EntradasScreen catalogo={await catalogoDelLocal()} entradas={await entradasDelLocal()} />,
   "inventario/salidas": async () => <SalidasScreen catalogo={await catalogoDelLocal()} ajustes={await ajustesDelLocal()} />,
   // Los reportes (Etapa 11) leen su periodo de la dirección: se comparte el enlace y se ve lo mismo.

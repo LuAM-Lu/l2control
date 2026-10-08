@@ -13,13 +13,13 @@ import {
   EmptyState,
   FiltroSegmentado,
   Input,
-  PageHeader,
   Paginacion,
   Resumen,
   Sheet,
   avisar,
   cn,
 } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { usePaginas } from "../shell/usePaginas.ts";
@@ -27,7 +27,7 @@ import { useConElevacion } from "./ElevacionProvider";
 import { leerDispositivos, ordenarDispositivo } from "./dispositivos.acciones";
 
 /**
- * Ajustes → Dispositivos (F2-02, ADR-013; patrón de Ajustes, M-17 y T-7).
+ * Ajustes → Personas y equipos → Dispositivos (T-18; F2-02, ADR-013; patrón de Ajustes, M-17 y T-7).
  *
  * El dispositivo es el primer factor de acceso: el PIN solo abre sesión en un equipo aprobado. Arriba,
  * lo que hay que mirar (pendientes de aprobar, aprobados, con sesión ahora y revocados), y cada cifra
@@ -148,7 +148,7 @@ export function DispositivosScreen({
 
   return (
     <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
-      <PageHeader
+      <EncabezadoDePagina
         className="mb-4"
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Dispositivos" }]}
         titulo="Dispositivos"

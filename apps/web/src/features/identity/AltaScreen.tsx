@@ -64,7 +64,7 @@ export function AltaScreen() {
           <h1 className="font-display mt-3 text-2xl font-bold text-ink">Este enlace ya no vale</h1>
           <p className="mt-2 text-sm text-ink-2">
             Se usó, caducó (dura 24 horas) o se generó otro después. Pide uno nuevo a administración: lo genera en Panel →
-            Ajustes → Usuarios.
+            Ajustes → Personas y equipos.
           </p>
         </div>
       </PantallaAcceso>
