@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.79.0 · 79 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.80.0 · 80 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -2019,7 +2019,7 @@ F9-05).
 - [x] **B11-2 · Inventario al momento** (M-29).
   → Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar, a la hora en que
   se pide. Su PDF.
-  *Hecho el 2026-10-08, en `feat/b11-2`.*
+  *Hecho el 2026-10-08 (v0.80.0), en `feat/b11-2`.*
   *· Contrato: `InformeDeInventarioSchema` (resumen, por categoría y por producto: existencia, mínimo, costo promedio,
   valor al costo, estado y si está retirado).*
   *· Aplicación: `reportes.inventario` (`reportes.verSucursal`, solo lectura), a la hora en que se pide: la existencia y
@@ -2737,6 +2737,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   Sistema, y la carta dentro de Inventario → Productos; las rutas viejas llevan a su pestaña. Sigue B11-3 (movimientos).
 - **2026-10-08** · B11-3 entregado como v0.79.0: Reportes → Movimientos, el kárdex de un producto o una categoría con el
   saldo después de cada movimiento (el final es la existencia) y su PDF. Sigue B11-2 (inventario al momento).
+- **2026-10-08** · B11-2 entregado como v0.80.0: Reportes → Inventario al momento, lo que hay y lo que vale al costo por
+  categoría, con lo agotado, lo bajo mínimo y lo sin contar, y su PDF. La Etapa 11 queda entera. Sigue T-17 (soporte).
 
 ---
 
