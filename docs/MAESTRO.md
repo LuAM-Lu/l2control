@@ -1824,7 +1824,7 @@ antes del cobro en servidor (orden de ejecución).
   su última cuenta. Visto en el navegador en la base de pruebas (sentar, segunda familia, nombre repetido rechazado,
   pedido a la segunda con su comanda, de pie, liberar una y la otra sigue, la caja) a 1366×768, 1280×800, 800×1280 y 390
   px, en los dos temas, sin desplazar la página ni errores de consola.*
-- [ ] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; D-SERV decidida: el mesero marca «Servido»).
+- [~] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; D-SERV decidida: el mesero marca «Servido»). *A cargo: LuAMi, rama `feat/b6-8`.*
   → Administración ve, por cuenta del salón, cuánto lleva sentada, cuánto sin pedir y cuánto esperando lo pedido,
   con aviso de las que pasan del umbral; el día deja su resumen (espera media y máxima).
 
