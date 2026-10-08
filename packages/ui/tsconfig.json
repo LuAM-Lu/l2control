@@ -1,5 +1,7 @@
 {
   "extends": "@l2/config/tsconfig.base.json",
   "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  // Los componentes son de navegador: sin tipos de Node. Sus pruebas sí corren en Node y se comprueban aparte
+  // (tsconfig.pruebas.json), para que un componente no pueda usar una API de Node sin que se note.
+  "exclude": ["node_modules", "src/**/*.test.ts"]
 }

@@ -14,6 +14,14 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.72.1] — 2026-10-07 · Lo pedido en la primera visita
+
+Corrección.
+
+### Corregido
+- Las cifras de cabecera de la entrada, la salida y las mesas, y las etiquetas de estado de las tarjetas de la sala,
+  volvieron a su tamaño: con la escala de títulos de la 0.71.0 salían con el tamaño de texto normal.
+
 ## [0.72.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Reportar un problema (T-11, M-27).

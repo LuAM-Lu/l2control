@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.72.0 · 72 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.72.1 · 72 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -2151,6 +2151,15 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
   guarda con LF (`.gitattributes`). `prisma migrate deploy` y `status` no lo miran, pero `migrate dev` la daría por
   modificada y propondría **resetear la base**: contra la base del cliente, solo `pnpm db:migrar`. Les pasa a
   `20261020000000_impresion` y `20261023000000_pedidos`.
+- **`cn` (tailwind-merge) solo conoce los tamaños que se le declaran.** Una clase de tamaño con nombre propio
+  (`text-detalle`) junto a un color (`text-ink-2`) la toma por otro color y la descarta, sin aviso: con T-16 se perdían el
+  tamaño de las cifras de `StatTile` y de las etiquetas de `StatusCard`. La escala vive en `ESCALA_DE_TEXTO` de
+  `packages/ui/src/cn.ts`, y `cn.test.ts` la compara con los `--text-*` de los tokens (v0.72.1).
+- **Dos PR desde la misma rama.** Un PR abierto con solo el commit de reclamo y fusionado aparte deja el PR del paso sin
+  fusionar («the merge commit cannot be cleanly created»): no se fuerza la rama; se aplica el commit del paso en una rama
+  nueva desde `main` y se cierra el PR viejo (T-11, #52, #53 → #54). Antes de etiquetar, `git log -1 origin/main` tiene que
+  ser el commit del paso: una etiqueta sobre otro commit publica otra cosa (la de v0.72.0 se puso mal, su publicación
+  falló por la versión y se quitó).
 - **En Prisma, `campo: { not: "X" }` deja fuera también los nulos** (en SQL, `NULL <> 'X'` es desconocido). Para «distinto de X,
   nulos incluidos» se escribe `OR: [{ campo: null }, { campo: { not: "X" } }]` (así `SIN_ANULADAS` en el parque, B4-10).
 - `$queryRaw` de Prisma no sabe leer una columna `void`: `SELECT pg_advisory_xact_lock(...)` revienta
@@ -2453,6 +2462,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   comunes, y el panel con el ancho de Inicio. De M-27 quedan B6-8 (espera D-SERV) y T-11 (espera D-SOP).
 - **2026-10-07** · D-SERV y D-SOP decididas (las dos como se propusieron). T-11 entregado como v0.72.0: reportar un
   problema con captura, «Mis reportes», Ajustes → Soporte y el aviso por correo al desarrollo. Sigue B6-8.
+- **2026-10-07** · v0.72.1 (corrección): `cn` perdía los tamaños de la escala de T-16 junto a un color (las cifras de
+  `StatTile` y las etiquetas de `StatusCard` salían con el tamaño de base); ahora los conoce, con su prueba. Y la etiqueta
+  v0.72.0 se puso primero sobre el commit de reclamo (un PR #52 lo fusionó aparte): se quitó y se puso en el de T-11.
 
 ---
 
