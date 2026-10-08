@@ -14,6 +14,24 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+El agente de impresión se actualiza solo (T-8c, ADR-028 punto 5).
+
+### Añadido
+- **El agente de la laptop de caja se actualiza solo.** Dice su versión al servidor; cuando el sistema trae otra, la
+  baja del propio servidor, comprueba que su huella es la publicada y que arranca, y se cambia con la cola vacía, sin
+  papel a medias. Si la versión nueva no arranca, Windows vuelve a poner la anterior y lo avisa.
+- **Ajustes → Impresoras → Agente** enseña la versión de cada agente frente a la disponible, «Actualizar ahora» (no
+  espera a su próxima revisión) y cómo le fue a su último cambio: «Se actualizó a la X», «La X no se instaló: su
+  descarga no tenía la huella publicada» o «La X no arrancó: volvió la anterior». El manual de Impresoras lo explica.
+
+### Cambiado
+- El agente empaquetado lleva al lado su versión (`l2-impresion.exe.version`), que se publica con la versión del
+  sistema.
+- Un agente instalado antes de esta versión no sabe actualizarse: se instala una vez el de Ajustes → Impresoras y
+  desde ahí lo hace solo.
+
 ## [0.85.0] — 2026-10-08 · Hacia la puesta en marcha
 
 El punto de cobro y la entrada desde la caja (B3-9, M-31).

@@ -15,12 +15,17 @@
  *
  * La credencial es una llave: quien la tenga imprime en el local. Retirar el agente desde el panel la
  * invalida.
+ *
+ * Instalado (`.exe`), se actualiza solo (T-8c, `actualizacion.ts`): dice su versión, baja la nueva del servidor, la
+ * comprueba y la cambia con la cola vacía; si la nueva no arranca, vuelve la anterior.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { escpos, type Ancho } from "@l2/domain-printing";
+import { isSea } from "node:sea";
+import { anotarArranque, archivosEn, programarActualizacion } from "./actualizacion.ts";
 import { crearAgente } from "./agente.ts";
 import { imprimir } from "./imprimir.ts";
 import { crearRegistro, type Registro } from "./registro.ts";
@@ -36,13 +41,18 @@ import {
   prepararCarpeta,
   protegerConfig,
   registrarTarea,
+  TAREA,
   ultimasLineas,
 } from "./instalacion.ts";
 
 declare const __VERSION__: string | undefined;
 const VERSION = typeof __VERSION__ === "string" ? __VERSION__ : "desarrollo";
 
-type Config = { servidor: string; credencial: string; nombre: string };
+/**
+ * La credencial y a dónde va. `web`: de dónde baja sus versiones (T-8c); sin ella, del mismo servidor (en producción son
+ * la misma dirección). `tarea`: la tarea de Windows que lo arranca; sin ella, la de la instalación.
+ */
+type Config = { servidor: string; credencial: string; nombre: string; web?: string; tarea?: string };
 
 /** En desarrollo, la credencial va en la carpeta del usuario; instalado, en ProgramData. */
 const CONFIG_DESARROLLO = process.env.L2_AGENTE_CONFIG ?? join(homedir(), ".l2-impresion", "agente.json");
@@ -105,9 +115,10 @@ async function vincular(servidor: string, codigo: string, archivo: string, r: Re
     body: JSON.stringify({ codigo }),
     signal: AbortSignal.timeout(15_000),
   });
-  const cuerpo = (await res.json().catch(() => null)) as { ok?: boolean; mensaje?: string; valor?: { nombre: string; credencial: string } } | null;
+  const cuerpo = (await res.json().catch(() => null)) as { ok?: boolean; mensaje?: string; valor?: { nombre: string; credencial: string; web?: string } } | null;
   if (!cuerpo?.ok || !cuerpo.valor) throw new Error(cuerpo?.mensaje ?? `El servidor respondió ${res.status}.`);
-  const config: Config = { servidor, credencial: cuerpo.valor.credencial, nombre: cuerpo.valor.nombre };
+  const web = typeof cuerpo.valor.web === "string" && /^https?:\/\//.test(cuerpo.valor.web) && cuerpo.valor.web !== servidor ? { web: cuerpo.valor.web } : {};
+  const config: Config = { servidor, credencial: cuerpo.valor.credencial, nombre: cuerpo.valor.nombre, ...web };
   mkdirSync(dirname(archivo), { recursive: true });
   writeFileSync(archivo, JSON.stringify(config, null, 2), { mode: 0o600 });
   // Instalada, la lee la tarea con la cuenta del sistema: nadie más. En desarrollo la lee quien la vinculó.
@@ -138,12 +149,33 @@ function iniciar(archivo: string) {
   const c = JSON.parse(readFileSync(archivo, "utf8")) as Config;
   const r = crearRegistro({ archivo: join(dirname(archivo), "agente.log"), consola: Boolean(process.stdout.isTTY) });
   r.info(`Agente ${VERSION} «${c.nombre}» hacia ${c.servidor}.`);
-  const agente = crearAgente({ servidor: c.servidor, credencial: c.credencial, imprimir: (d, b) => imprimir(d, b), registro: r });
+  // Empaquetado y en Windows se actualiza solo (T-8c). Su arranque queda anotado: el guion del cambio lo mira.
+  const actualiza = isSea() && esWindows;
+  const archivos = archivosEn(dirname(archivo), process.execPath);
+  if (actualiza) {
+    anotarArranque(archivos, VERSION, false);
+    setTimeout(() => anotarArranque(archivos, VERSION, true), 15_000);
+  }
+  const agente = crearAgente({ servidor: c.servidor, credencial: c.credencial, version: VERSION, imprimir: (d, b) => imprimir(d, b), registro: r });
+  let pararActualizacion = () => {};
   const salir = () => {
     r.info("Agente detenido.");
+    pararActualizacion();
     agente.parar();
     process.exit(0);
   };
+  if (actualiza) {
+    pararActualizacion = programarActualizacion({
+      agente,
+      web: (c.web ?? c.servidor).replace(/\/$/, ""),
+      credencial: c.credencial,
+      tarea: c.tarea ?? TAREA,
+      version: VERSION,
+      a: archivos,
+      registro: r,
+      salir,
+    });
+  }
   process.on("SIGINT", salir);
   process.on("SIGTERM", salir);
   // Un error que nadie esperaba: se anota y se sale con error, y Windows lo vuelve a levantar.

@@ -11,6 +11,10 @@
  *    agente reclama hasta vaciarla; además mira solo cada 30 s, por si se perdió un aviso.
  *  · `reclamar` (el agente → el worker): el siguiente trabajo, ya ENVIADO a su nombre, o `null`.
  *  · `resultado` (el agente → el worker): cómo le fue.
+ *  · `revisar-version` (el worker → el agente, T-8c): administración pidió «Actualizar ahora»; el agente revisa ya.
+ *  · `actualizacion` (el agente → el worker, T-8c): cómo le fue a un cambio de versión que no salió.
+ *
+ * El agente dice su versión en el apretón de manos (`auth.version`), junto a su credencial.
  *
  * Este módulo no sabe de la base: recibe los casos de uso. Se prueba con un servidor de verdad.
  */
@@ -21,18 +25,21 @@ import type { AgenteAbierto } from "@l2/application";
 
 /** Lo que el worker usa de la aplicación (en las pruebas, dobles). */
 export interface CasosDelAgente {
-  abrirAgente(credencial: unknown): Promise<AgenteAbierto | null>;
+  abrirAgente(credencial: unknown, version?: unknown): Promise<AgenteAbierto | null>;
   reclamar(agente: AgenteAbierto): Promise<TrabajoParaElAgenteDto | null>;
   responder(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ estado: string }>>;
   vincular(entrada: unknown): Promise<Resultado<unknown>>;
+  anotarActualizacion(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ anotada: true }>>;
 }
 
 export interface AlAgente {
   "hay-trabajo": () => void;
+  "revisar-version": () => void;
 }
 export interface DelAgente {
   reclamar: (responder: (t: TrabajoParaElAgenteDto | null) => void) => void;
   resultado: (r: unknown, responder: (r: Resultado<{ estado: string }>) => void) => void;
+  actualizacion: (n: unknown, responder: (r: Resultado<{ anotada: true }>) => void) => void;
 }
 interface DatosDelAgente {
   agente: AgenteAbierto;
@@ -44,6 +51,8 @@ export interface CanalDeImpresion {
   readonly espacio: Namespace<DelAgente, AlAgente, Record<string, never>, DatosDelAgente>;
   /** Avisa a los agentes de esas sucursales (o a todos) de que hay trabajo. */
   avisar(branchIds: readonly string[] | "todas"): void;
+  /** Les dice que revisen ya la versión disponible: «Actualizar ahora» (T-8c). */
+  revisarVersion(branchIds: readonly string[] | "todas"): void;
   /** Los agentes conectados ahora, sin repetir. */
   conectados(): AgenteAbierto[];
   /** Cierra las conexiones de estos agentes (retirados desde el panel). */
@@ -66,8 +75,9 @@ export function crearCanalDeImpresion(o: {
   const ahora = o.ahora ?? Date.now;
 
   espacio.use((socket, siguiente) => {
+    const auth = socket.handshake.auth as { credencial?: unknown; version?: unknown } | undefined;
     o.casos
-      .abrirAgente((socket.handshake.auth as { credencial?: unknown } | undefined)?.credencial)
+      .abrirAgente(auth?.credencial, auth?.version)
       .then((agente) => {
         if (!agente) return siguiente(new Error("NO_AUTORIZADO"));
         socket.data.agente = agente;
@@ -96,6 +106,17 @@ export function crearCanalDeImpresion(o: {
         });
     });
 
+    socket.on("actualizacion", (n, responder) => {
+      const responde = typeof responder === "function" ? responder : () => undefined;
+      o.casos
+        .anotarActualizacion(agente, n)
+        .then(responde)
+        .catch((e: unknown) => {
+          alError(e, "nota de actualización del agente");
+          responde({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "El servidor no pudo guardar la nota." });
+        });
+    });
+
     socket.on("resultado", (r, responder) => {
       const responde = typeof responder === "function" ? responder : () => undefined;
       o.casos
@@ -115,6 +136,10 @@ export function crearCanalDeImpresion(o: {
     avisar(branchIds) {
       if (branchIds === "todas") espacio.emit("hay-trabajo");
       else for (const b of new Set(branchIds)) espacio.to(salaDeImpresion(b)).emit("hay-trabajo");
+    },
+    revisarVersion(branchIds) {
+      if (branchIds === "todas") espacio.emit("revisar-version");
+      else for (const b of new Set(branchIds)) espacio.to(salaDeImpresion(b)).emit("revisar-version");
     },
     conectados() {
       const vistos = new Map<string, AgenteAbierto>();

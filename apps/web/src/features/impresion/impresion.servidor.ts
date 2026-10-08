@@ -37,10 +37,18 @@ export async function historialDelLocal(): Promise<HistorialDeImpresionDto | nul
 }
 
 /**
- * El agente empaquetado que se puede descargar, con su versión y su huella; `null` si no está. Su versión
- * es la del sistema: se empaqueta con la misma etiqueta (T-8a), y la imagen no lleva el package.json raíz.
+ * El agente empaquetado que se puede descargar, con su versión y su huella; `null` si no está. Su versión la
+ * escribe el empaquetado al lado (`.version`, T-8c); sin ella, la del sistema: se empaqueta con la misma etiqueta
+ * (T-8a), y la imagen no lleva el package.json raíz.
  */
 export async function agenteDescargable(): Promise<{ version: string; sha256: string; mb: number } | null> {
+  const d = await ejecutableDelAgente();
+  // Lo que ve el panel: sin la ruta del archivo en el servidor.
+  return d ? { version: d.version, sha256: d.sha256, mb: d.mb } : null;
+}
+
+/** El ejecutable del agente en este servidor, con su ruta: solo para las rutas que lo sirven. */
+export async function ejecutableDelAgente(): Promise<{ exe: string; version: string; sha256: string; mb: number } | null> {
   const { existsSync, readFileSync, statSync } = await import("node:fs");
   const { resolve } = await import("node:path");
   const { entorno } = await import("../../servidor/entorno");
@@ -48,9 +56,25 @@ export async function agenteDescargable(): Promise<{ version: string; sha256: st
   // La ruta la decide el entorno al arrancar: que `next build` no trace el proyecto entero buscándola.
   const exe = entorno().L2_AGENTE_EXE || resolve(/*turbopackIgnore: true*/ process.cwd(), "..", "printer-agent", "dist", "l2-impresion.exe");
   if (!existsSync(/*turbopackIgnore: true*/ exe)) return null;
-  const huella = `${exe}.sha256`;
-  const sha256 = existsSync(/*turbopackIgnore: true*/ huella) ? (readFileSync(/*turbopackIgnore: true*/ huella, "utf8").split(/\s+/)[0] ?? "") : "";
-  return { version: VERSION.numero, sha256, mb: Math.round(statSync(/*turbopackIgnore: true*/ exe).size / 1_048_576) };
+  const leer = (archivo: string) => (existsSync(/*turbopackIgnore: true*/ archivo) ? readFileSync(/*turbopackIgnore: true*/ archivo, "utf8").trim() : "");
+  const sha256 = leer(`${exe}.sha256`).split(/\s+/)[0] ?? "";
+  const version = leer(`${exe}.version`) || VERSION.numero;
+  return { exe, version, sha256, mb: Math.round(statSync(/*turbopackIgnore: true*/ exe).size / 1_048_576) };
+}
+
+/**
+ * El agente que pide su versión o su ejecutable (T-8c), por su credencial (`Authorization: Bearer`): no tiene sesión,
+ * es el programa de la laptop de caja. Si no vale, la respuesta 401 que hay que devolver.
+ */
+export async function agenteDeLaPeticion(peticion: Request): Promise<{ agenteId: string; pedida: boolean } | Response> {
+  const { entorno } = await import("../../servidor/entorno");
+  const credencial = /^Bearer (\S+)$/.exec(peticion.headers.get("authorization") ?? "")?.[1] ?? "";
+  const a = credencial ? await (await aplicacion()).impresion.actualizacionDe(entorno().L2_TENANT_ID, credencial) : null;
+  if (!a) {
+    log().warn({ ruta: new URL(peticion.url).pathname }, "agente: credencial que no vale");
+    return new Response("El servidor no reconoce este agente: vuélvelo a vincular desde Ajustes → Impresoras.", { status: 401, headers: { "www-authenticate": "Bearer" } });
+  }
+  return a;
 }
 
 /** A dónde se conecta el agente: la misma dirección del canal en vivo (vacía = esta máquina, ese puerto). */

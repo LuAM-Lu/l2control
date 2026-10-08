@@ -1,7 +1,7 @@
 /**
  * Los agentes de impresión con un servidor y clientes de verdad, sin base (ADR-026): la credencial en
  * el apretón de manos, el aviso solo a la sucursal del agente, reclamar y responder, y la vinculación
- * por HTTP con su tope.
+ * por HTTP con su tope. Y lo de T-8c: la versión que dice al entrar, su nota de actualización y «revisar-version».
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -25,10 +25,12 @@ let impresion: CanalDeImpresion;
 let url: string;
 let io: Server;
 const respuestas: unknown[] = [];
+const versiones: unknown[] = [];
+const notas: unknown[] = [];
 const abiertos: Socket[] = [];
 
-function conectar(credencial: string): Promise<Socket> {
-  const s = cliente(`${url}/impresion`, { path: "/tiempo-real", auth: { credencial }, transports: ["websocket"], reconnection: false, forceNew: true });
+function conectar(credencial: string, version?: string): Promise<Socket> {
+  const s = cliente(`${url}/impresion`, { path: "/tiempo-real", auth: { credencial, ...(version ? { version } : {}) }, transports: ["websocket"], reconnection: false, forceNew: true });
   abiertos.push(s);
   return new Promise((ok, mal) => {
     s.on("connect", () => ok(s));
@@ -52,7 +54,10 @@ before(async () => {
   impresion = crearCanalDeImpresion({
     io,
     casos: {
-      abrirAgente: async (c) => (typeof c === "string" ? (AGENTES[c] ?? null) : null),
+      abrirAgente: async (c, v) => {
+        versiones.push(v);
+        return typeof c === "string" ? (AGENTES[c] ?? null) : null;
+      },
       reclamar: async (a) => (a.branchId === B1 ? TRABAJO : null),
       responder: async (_a, r) => {
         respuestas.push(r);
@@ -62,6 +67,10 @@ before(async () => {
         (x as { codigo?: string })?.codigo === "K7MQ-4XPZ"
           ? { ok: true, valor: { agenteId: "a3", nombre: "Nueva", credencial: "l2ag_x" } }
           : { ok: false, motivo: "NO_PERMITIDO", mensaje: "Ese código no vale" },
+      anotarActualizacion: async (a, n) => {
+        notas.push({ agente: a.agenteId, n });
+        return { ok: true, valor: { anotada: true } };
+      },
     },
   });
   await new Promise<void>((ok) => http.listen(0, "127.0.0.1", ok));
@@ -102,6 +111,20 @@ describe("el agente en el apretón de manos", () => {
     impresion.echar(new Set(["a2"]));
     await fuera;
     assert.ok(!impresion.conectados().some((a) => a.agenteId === "a2"));
+  });
+});
+
+describe("la actualización del agente (T-8c)", () => {
+  test("dice su versión al entrar, cuenta su nota y «Actualizar ahora» llega solo a su sucursal", async () => {
+    const b1 = await conectar("l2ag_caja-b1", "0.85.0");
+    const b2 = await conectar("l2ag_caja-b2", "0.85.0");
+    assert.equal(versiones.at(-1), "0.85.0");
+    const nota = { version: "0.86.0", de: "0.85.0", resultado: "HUELLA_EQUIVOCADA", detalle: "No coincide" };
+    assert.deepEqual(await b1.emitWithAck("actualizacion", nota), { ok: true, valor: { anotada: true } });
+    assert.deepEqual(notas.at(-1), { agente: "a1", n: nota });
+    const [en1, en2] = [recibir(b1, "revisar-version"), recibir(b2, "revisar-version")];
+    impresion.revisarVersion([B1]);
+    assert.deepEqual([await en1, await en2], [true, false]);
   });
 });
 

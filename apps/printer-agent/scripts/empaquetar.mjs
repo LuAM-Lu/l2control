@@ -4,7 +4,8 @@
  *  1. esbuild junta el agente y lo que usa (contratos, ESC/POS, Socket.io) en un solo archivo.
  *  2. Node lo convierte en un «single executable application» (SEA): el `node.exe` de esta máquina con
  *     el agente dentro. La laptop de caja no necesita Node ni el proyecto.
- *  3. Se anota su huella SHA-256, para comprobar que el que se instala es este.
+ *  3. Se anota su huella SHA-256, para comprobar que el que se instala es este, y su versión: el servidor las
+ *     publica y el agente instalado las usa para actualizarse solo (T-8c).
  *
  * Se corre en Windows con Node 24: `pnpm agente:empaquetar`.
  */
@@ -57,5 +58,6 @@ for (const f of ["sea.blob", "sea-config.json"]) rmSync(join(dist, f));
 console.log("3/3 Anotando su huella…");
 const huella = createHash("sha256").update(readFileSync(exe)).digest("hex");
 writeFileSync(join(dist, "l2-impresion.exe.sha256"), `${huella}  l2-impresion.exe\n`);
+writeFileSync(join(dist, "l2-impresion.exe.version"), `${version}\n`);
 const mb = Math.round(statSync(exe).size / 1_048_576);
 console.log(`\nListo: ${exe} (${mb} MB, v${version})\nSHA-256 ${huella}`);

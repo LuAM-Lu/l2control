@@ -36,10 +36,40 @@ El registro está en `C:\ProgramData\L2 Control\Impresion\agente.log` (se rota a
 credencial (`agente.json`) solo la leen el sistema y la administración del equipo; retirar el agente desde
 el panel la invalida y lo desconecta en el acto.
 
+## Se actualiza solo (T-8c, ADR-028 punto 5)
+
+Instalado, el agente dice su versión al servidor al conectarse y le pregunta cuál hay
+(`/descargas/agente/version`, con su credencial): al arrancar, cada 30 minutos y cuando administración pulsa
+«Actualizar ahora» en Ajustes → Impresoras (el worker se lo dice al momento). Si hay una posterior:
+
+1. **vacía la cola** (no se cambia con papel pendiente);
+2. **la descarga** del propio servidor (`/descargas/agente/archivo`) y **comprueba su huella** SHA-256 contra la
+   publicada; si no coincide, no instala nada y lo cuenta;
+3. **prueba que arranca**: el ejecutable nuevo tiene que responder `version` con su número;
+4. **se cambia en otra tarea de Windows**, «L2 Control - Impresion (cambio)»: lo que lanzara el agente moriría con
+   su tarea. Esa tarea espera a que el agente se cierre, guarda el anterior (`l2-impresion.anterior.exe`), pone el
+   nuevo y arranca la del agente. Si el nuevo no queda vivo en 90 s (su `arranque.json`, estable a los 15 s), para la
+   tarea, **vuelve a poner el anterior** y la arranca otra vez.
+
+El resultado (`actualizacion.json`) lo cuenta el agente que quede al conectarse, y el panel lo enseña: «Se actualizó
+a la X», «La X no se instaló: su descarga no tenía la huella publicada» o «La X no arrancó: volvió la anterior». Una
+versión que falló aquí no se vuelve a probar sola (`versiones-fallidas.json`); «Actualizar ahora» sí. Un servidor
+que volvió a una versión anterior no arrastra al agente hacia atrás, salvo que se pida.
+
+Solo empaquetado y en Windows: sin empaquetar dice «desarrollo» y no se actualiza. **Un agente instalado antes de
+la 0.86.0 no sabe actualizarse**: se instala una vez el de esta versión y desde ahí lo hace solo.
+
+**Ensayarlo en una PC sin ser administrador** (se hizo así en T-8c): dos ejecutables con versiones distintas, uno
+instalado en una carpeta de prueba y vinculado con `vincular <servidor> <código> --config <carpeta>\agente.json`, con
+`"tarea": "<nombre de una tarea propia>"` en ese `agente.json` y esa tarea registrada a nombre del usuario (los mismos
+ajustes que `registrarTarea`, con `-AtLogOn`). El otro, con su `.sha256` y su `.version`, en `dist/`, que sirve la web.
+En desarrollo la web y el worker van en puertos distintos: la vinculación guarda también la dirección de la web
+(`"web"`), que el worker manda si conoce `L2_URL_PUBLICA`.
+
 ## Construirlo
 
 ```bash
-pnpm agente:empaquetar        # apps/printer-agent/dist/l2-impresion.exe y su .sha256 (en Windows, Node 24)
+pnpm agente:empaquetar        # apps/printer-agent/dist/l2-impresion.exe, su .sha256 y su .version (en Windows, Node 24)
 ```
 
 En desarrollo el agente corre sin empaquetar: `node --experimental-strip-types src/main.ts vincular <servidor>
@@ -53,5 +83,6 @@ levantan su propio servidor TCP de prueba y no necesitan ninguna.
 - **Qué se imprime.** Los bytes los compone el servidor; el agente no sabe de recibos ni de comandas.
 
 ```bash
-pnpm test    # 6 pruebas: lo que llega a la impresora (con un servidor TCP de prueba), reconexión e instalación
+pnpm test    # 14 pruebas: lo que llega a la impresora (con un servidor TCP de prueba), reconexión, instalación y
+             # la actualización (cuándo, la huella equivocada, el que no arranca, la tarea del cambio)
 ```

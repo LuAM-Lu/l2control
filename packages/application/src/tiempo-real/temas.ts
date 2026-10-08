@@ -83,6 +83,11 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "agente.codigo": ["impresion"],
   "agente.vincular": ["impresion"],
   "agente.retirar": ["impresion"],
+  // T-8c: la versión que dijo al conectarse y cómo le fue a su cambio, en Ajustes → Impresoras.
+  "agente.version": ["impresion"],
+  "agente.actualizacion": ["impresion"],
+  // «Actualizar ahora»: el panel lo enseña pedido y el worker se lo dice al agente de esa sucursal.
+  "agente.actualizar": ["impresion", "agente"],
   "venta.imprimir": ["ventas"],
   "venta.reimprimir": ["ventas"],
 
