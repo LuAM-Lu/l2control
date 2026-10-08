@@ -59,7 +59,8 @@ describe("alta con PIN temporal", () => {
     if (!r1.ok) assert.equal(r1.debeElegirPin, true);
     const r2 = await entrar("1234");
     assert.equal(r2.ok, false);
-    const r3 = await entrar("8163");
+    // El temporal es aleatorio: el propio tiene que ser otro (una vez de cada miles coincidían y el CI caía).
+    const r3 = await entrar(temporal === "8163" ? "5927" : "8163");
     assert.ok(r3.ok, JSON.stringify(r3));
     // El temporal ya no abre nada.
     const r4 = await local.app.sesiones.entrar({ dispositivo: equipo, userId: nueva, pin: temporal, ip: null, ahora: Date.now() });
@@ -111,7 +112,9 @@ describe("las cinco puertas, en el servidor", () => {
   });
 
   test("reponer el PIN deja inservible el anterior", async () => {
-    const r = await local.app.equipo.cambiar(ctxAdmin, { kind: "PIN", userId: cajera, reason: razon });
+    let r = await local.app.equipo.cambiar(ctxAdmin, { kind: "PIN", userId: cajera, reason: razon });
+    // La cajera vuelve a su 7391: si el temporal (aleatorio) salió justo ese, se repone otra vez.
+    while (r.ok && r.valor.pinTemporal === "7391") r = await local.app.equipo.cambiar(ctxAdmin, { kind: "PIN", userId: cajera, reason: razon });
     assert.ok(r.ok);
     const viejo = await local.app.sesiones.entrar({ dispositivo: equipo, userId: cajera, pin: "7391", ip: null, ahora: Date.now() });
     assert.equal(viejo.ok, false);

@@ -302,7 +302,8 @@ describe("la puesta a punto", () => {
 
     // La cajera no la ve: no puede arreglar nada de la lista.
     const temporal = alta.valor.pinTemporal!;
-    const caja = await app.sesiones.entrar({ dispositivo: r.valor.credencialEquipo, userId: alta.valor.usuario.id, pin: temporal, pinNuevo: "7391", ip: null, ahora: ahora + 5 });
+    // El temporal es aleatorio: el propio tiene que ser otro.
+    const caja = await app.sesiones.entrar({ dispositivo: r.valor.credencialEquipo, userId: alta.valor.usuario.id, pin: temporal, pinNuevo: temporal === "7391" ? "5927" : "7391", ip: null, ahora: ahora + 5 });
     assert.ok(caja.ok, JSON.stringify(caja));
     const negada = await app.puestaAPunto.leer(contextoDeSesion(caja.sesion, null));
     assert.equal(negada.ok ? "ok" : negada.motivo, "NO_PERMITIDO");
