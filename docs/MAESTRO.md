@@ -219,7 +219,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
-   **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
+   **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); siguen **T-11** → B6-8. B7-3 y T-8c siguen cuando haya visita al local.
 
 Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -475,7 +475,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   y se corrigieron: el inventario inicial proponía bultos (10 eran 240 unidades) y la hoja de categorías cortaba los
   nombres con tres botones.*
 
-- [ ] **T-11 · Reportar un problema** (M-27, P-4; el canal hasta el desarrollo espera D-SOP).
+- [~] **T-11 · Reportar un problema** (M-27, P-4; D-SOP decidida). *A cargo: LuAMi, rama `feat/t-11`.*
   → Desde cualquier pantalla, y desde cada error, la persona cuenta qué pasó; el sistema adjunta la captura, la
   pantalla, la versión, el equipo, su rol y los últimos errores, sin datos de cobro ni PIN (PLAN §7.6). El reporte
   queda en el servidor con sus estados (nuevo, visto, en curso, resuelto en la versión X), que quien lo envió sigue
@@ -1800,7 +1800,7 @@ antes del cobro en servidor (orden de ejecución).
   su última cuenta. Visto en el navegador en la base de pruebas (sentar, segunda familia, nombre repetido rechazado,
   pedido a la segunda con su comanda, de pie, liberar una y la otra sigue, la caja) a 1366×768, 1280×800, 800×1280 y 390
   px, en los dos temas, sin desplazar la página ni errores de consola.*
-- [ ] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; espera D-SERV).
+- [ ] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; D-SERV decidida: el mesero marca «Servido»).
   → Administración ve, por cuenta del salón, cuánto lleva sentada, cuánto sin pedir y cuánto esperando lo pedido,
   con aviso de las que pasan del umbral; el día deja su resumen (espera media y máxima).
 
@@ -1967,8 +1967,8 @@ antes del cobro en servidor (orden de ejecución).
 | ~~F-12~~ | ¿El teléfono entra en el objetivo? | **Sí (M-15):** la monitora trabaja en un teléfono | B4-5 |
 | D-REIMP | ¿Reimprimir un recibo pide 🔐 a la caja? (B7-5) | PLAN §7.3 marca «Reimprimir documento» 🔐 para supervisión y caja; B3-4 lo dejó como copia marcada y auditada, sin autorización, y nadie lo anotó como decisión. **Propuesta:** dejarlo así (el recibo no es un documento fiscal, sale «COPIA», queda en la auditoría y en las excepciones del turno) y anotarlo; o pedir el PIN de supervisión desde la segunda copia | B8-3 |
 | F10-09 | Calendario de actualización de dependencias | **Propuesta:** el CI ya rechaza un aviso alto o crítico; además, cada mes (primera semana) una revisión de `pnpm outdated` con parches y menores en una rama, y las mayores como paso propio | B8-3 |
-| D-SERV | ¿El mesero marca «Servido»? (M-27, P-19) | Para medir cuánto esperó un pedido hay que saber cuándo llegó a la mesa, y ADR-022 retiró «listo/entregado». **Propuesta:** un toque «Servido» por pedido en la tablet; si no se marca, el pedido sigue contando como esperando y el informe lo dice. Sin ese toque, B6-8 mide solo el tiempo sentado y sin pedir | B6-8 |
-| D-SOP | ¿Cómo llega un reporte al desarrollo, y qué es lo «inteligente»? (M-27, P-4) | **Propuesta:** el reporte, con su captura, se queda en el servidor del local y administración lo ve en Ajustes → Soporte; el desarrollo entra con una cuenta de soporte propia (de administración, sin turno) y recibe un aviso por correo sin la captura ni datos del local. Lo «inteligente», sin IA de terceros: ayuda de la pantalla, búsqueda y la solución de cada error conocido por su código. Un asistente con IA (Claude) se puede sumar después: cuesta por uso y saca el texto del servidor | T-11 |
+| ~~D-SERV~~ | ¿El mesero marca «Servido»? (M-27, P-19) | **Decidido el 2026-10-07:** sí, un toque «Servido» por pedido en la tablet; si no se marca, el pedido sigue contando como esperando y el informe lo dice | B6-8 |
+| ~~D-SOP~~ | ¿Cómo llega un reporte al desarrollo, y qué es lo «inteligente»? (M-27, P-4) | **Decidido el 2026-10-07, como se propuso:** el reporte, con su captura, se queda en el servidor del local y administración lo ve en Ajustes → Soporte; el desarrollo entra con una cuenta de soporte propia (de administración, sin turno) y recibe un aviso por correo sin la captura ni datos del local. Lo «inteligente», sin IA de terceros: ayuda de la pantalla, búsqueda y la solución de cada error conocido por su código. Un asistente con IA (Claude) se puede sumar después: cuesta por uso y saca el texto del servidor | T-11 |
 | D-DOM | ¿Dominio propio para producción? (M-22) | Staging va por `sslip.io`, que es de terceros; un dominio propio (unos 10 $ al año) no depende de nadie. Al cambiar, cada persona vuelve a crear su llave de acceso | B8-3 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | ~~D-CORD~~ | Umbral de cordura de la tasa automática (M-8) | **Decidido el 2026-09-28 (V-14):** sin umbral; la del BCV se aplica siempre, y si la API falla se carga a mano | B5-1 |
