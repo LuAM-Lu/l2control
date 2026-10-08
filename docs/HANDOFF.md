@@ -7,20 +7,21 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-08 (cierre) · v0.84.0 · `main` en 1b2d47f más este relevo · nada a medias ni reclamado*
+*2026-10-08 (cierre, 2) · v0.84.0 · `main` en 1a2fd68 más este relevo · nada a medias ni reclamado*
 
 ```text
-Hecho, todo en main y etiquetado: M-28 y M-29 enteros, once pasos de v0.74.0 a v0.84.0 (84 de 90): B9-7, B7-7, B7-6,
-  B11-1, T-18, B11-3, B11-2, T-17, B9-10, B9-9 y B9-8. Cada uno con su PR del paso y su PR de versión aparte.
-  Reportes en PDF (app/informes/), Ajustes en 12 secciones con pestañas (MarcoDeSeccion), cuenta de soporte
-  (Acceso de soporte; soporteOpera fuera de producción), conteo a ciegas, editar en lote y duplicar con sabores.
-Siguiente: nada programable sin el local. B7-3 y T-8c esperan la visita (equipos reales, agente que se actualiza solo);
-  después, la Etapa 8. Criterio de cada uno en MAESTRO §3.
-Para decidir (usuario): D-REL (qué entra en la 1.0.0, §4). Para el usuario: L2_SMTP_URL y L2_CORREO_SOPORTE en el VPS;
-  confirmar P-1, P-3, P-5, P-6 y P-14 de M-27. En el staging: PC de respaldos, semilla y feriados (MAESTRO §1).
-Cuidado: tres pruebas fallaban por azar (un UUID con «1970», un PIN temporal igual al propio): corregidas, ver §5. Tras
-  cambiar @l2/application, reiniciar pnpm dev (guarda aplicacion() al arrancar). Lo fijo en el teléfono va con portal.
-  La rama feat/t-11 sigue en GitHub (la usó otra persona): no se borra sin preguntar.
+Hecho, todo en main y etiquetado: M-27, M-28 y M-29 enteros (v0.61.0 a v0.84.0). 84 de 91.
+Decidido hoy, sin programar: M-30 (B8-2 sin manual aparte: la ayuda de la app ES el manual) y M-31 = B3-9, UNA tarea:
+  el punto de cobro (solo equipos marcados abren turno; en otro, PIN de administración y motivo, auditado y en Inicio)
+  y la entrada desde la caja (registrar y cobrar sin salir de ella, reutilizando Entrada). El aviso «sin pulsera», no.
+  Regla nueva para todo paso: punto 10 de la definición de hecho (ayuda, soporte, data-privado, vivo, permisos…).
+Siguiente, AUTOMÁTICO y sin pedir el sí entre partes (MAESTRO §3, orden 9 y 10): B3-9 → T-8c (programar y probar en
+  una PC con Windows) → lo escrito de B8-2 (hoja del procedimiento en papel y runbooks; B8-2 se cierra en B8-3).
+  Después, en el local: B7-3, B8-1, B8-3 y B8-4 = 1.0.0. La 1.0.0 NO se etiqueta desde aquí.
+Para decidir (usuario): D-REL antes de B8-4. Para el usuario: L2_SMTP_URL y L2_CORREO_SOPORTE en el VPS; P-1, P-3,
+  P-5, P-6 y P-14; dominio propio y firma del alcance (F0-09) antes de B8-3.
+Cuidado: B3-9 parte CheckInScreen en piezas y Entrada debe quedar idéntica (2 niños < 90 s). Pruebas con azar: nunca un
+  literal que el azar pueda dar (§5). Tras cambiar @l2/application, reiniciar pnpm dev. feat/t-11: no se borra.
 ```
 
 ## aemorandin-coder

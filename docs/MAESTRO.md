@@ -34,17 +34,17 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.84.0 · 84 de 92 pasos · M-27, M-28 y M-29 entregados enteros; nada a medias ni reclamado.** M-31 suma dos
-pasos que sí se programan aquí, B3-9 (el punto de cobro) y B4-11 (la entrada desde la caja), cuando el usuario diga
-«empieza». Lo demás para producción ya no se programa desde aquí: **B7-3 y T-8c** esperan la visita al local (los equipos reales), **D-REL**
-espera la decisión del usuario (§4) y la **Etapa 8** es la puesta en marcha (la 1.0.0). M-28 y M-29 (decididos el
-2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
+**Versión 0.84.0 · 84 de 91 pasos · M-27, M-28 y M-29 entregados enteros; nada a medias ni reclamado.** M-28 y M-29
+(decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
 la Etapa 11 entera), Ajustes en 12 secciones con pestañas (T-18), la cuenta de soporte (T-17), el conteo a ciegas con
 su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos con sus sabores (B9-8).
-**Siguiente:** B3-9 y B4-11, con el «empieza» del usuario; y la visita al local (B7-3 y T-8c). **Para decidir:** D-REL
-(qué entra en la 1.0.0, §4).
+**Siguiente, de punta a punta y sin pedir el sí entre partes:** B3-9 (el punto de cobro y la entrada desde la caja,
+M-31); después, hacia la 1.0.0, lo que no necesita el local: T-8c (programado y probado en una PC con Windows) y lo
+escrito de B8-2 (el procedimiento en papel y los runbooks), según §3, orden, punto 10. **En el local:** B7-3 (con T-8c en
+la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
+1.0.0, §4), antes de B8-4.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -125,7 +125,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-28** | **Soporte oculto, catálogo sin existencias y duplicar productos** (2026-10-08, pedido y decisión del usuario) | (1) La cuenta de soporte del desarrollo es una persona de Administración con la marca «soporte»: **no sale en «¿Quién entra?»**, entra con su nombre de usuario y su PIN desde su equipo aprobado (como todos), sin plazo; no abre turnos; se ve como «Soporte» en Usuarios, la auditoría e Inicio, y administración la desactiva cuando quiera. Lo sensible sigue pidiendo contraseña y llave. (2) El catálogo se carga sin existencias y el stock se cuenta otro día: estado «Sin inventario inicial», distinto de «Agotado», que **no se vende** hasta su conteo. (3) «Duplicar» un producto y «Duplicar con otros sabores», cada uno con su propio código de barras. Tres pasos: B9-7, T-17 y B9-8. La ruta pasa a **82** | B9-7, T-17, B9-8 |
 | **M-29** | **Ajustes más cortos, respaldos con control, una corrida limpia, el inventario en lote y Reportes** (2026-10-08, decisiones del usuario) | (1) Ajustes se unifica: **Personas y equipos** (usuarios, roles y dispositivos), **Tasas** con sus feriados, **Sistema** (versión, respaldos y semilla) y la **carta dentro de Inventario → Productos** (un solo sitio para el precio): de 18 secciones a 12 (T-18). (2) Respaldos: **elegir la carpeta** de la PC (disco externo o carpeta en la nube, regla 3-2-1), **fijar** un respaldo para que la escalera nunca lo borre, y su **integridad a la vista** con un ensayo de restauración automático cada semana (B7-6). (3) La corrida limpia de producción no saca partes de un respaldo (rompería la integridad): base nueva y la **semilla con casillas**, que además lleva medios de pago, descuentos, impuestos e impresoras (B7-7). (4) La cuenta de soporte no mueve dinero en producción; en staging sí, con una copia de la base, para reproducir errores (T-17). (5) Inventario: **editar en lote** (B9-9) y la **hoja de conteo a ciegas con su informe de diferencias** (B9-10). (6) Una sección **Reportes** para administración y supervisión (`reportes.verSucursal`), de solo lectura, que sale de los asientos y cuadra con los cierres: **ventas** del día o de un rango, **inventario al momento** y **movimientos** (kárdex); cada uno en **PDF** con su vista de impresión (sin Excel, decisión del usuario); excepciones y lo demás de F9, después del piloto (Etapa 11). Ocho pasos nuevos; la ruta pasa a **90** | T-18, B7-6, B7-7, T-17, B9-9, B9-10, B11-1 a B11-3 |
 | **M-30** | **B8-2 sin manual aparte** (2026-10-08, decisión del usuario) | La ayuda dentro de la app (T-12: el manual de cada pantalla y los recorridos guiados) **es** el manual por rol, y el soporte (T-11, T-17) cubre avisar de un error: B8-2 no escribe otro manual. Queda lo que la app no puede cubrir cuando no está: (1) **el procedimiento en papel**, una hoja impresa junto a la caja que dice cuándo se pasa al papel, quién anota qué y cómo se carga al volver (los formularios ya existen, B3-7); (2) **los runbooks del técnico**, juntos y completos (restaurar un respaldo, volver atrás una actualización, aprobar el equipo que sustituye a uno perdido, cambiar la impresora, los feriados de cada año), partiendo de `infra/produccion/README.md`; (3) **la capacitación por rol**, hecha durante la operación en paralelo (B8-3) con los recorridos de la app, sin material aparte | B8-2 |
-| **M-31** | **Un solo punto de cobro y la entrada desde la caja** (2026-10-08, decisiones del usuario) | (1) **El punto de cobro (opción A, con salida de emergencia):** cada equipo lleva la marca «Punto de cobro» (Ajustes → Personas y equipos → Dispositivos); solo los marcados abren turno como hoy; en uno sin marcar, abrir turno pide el PIN de administración y un motivo, queda en la auditoría e Inicio lo avisa mientras siga abierto. Descartadas: un solo turno por local (impide una segunda caja y bloquea si la laptop se daña con su turno abierto), un tope numérico (no dice cuál equipo), solo avisar (llega tarde) y quitarles el permiso a supervisión y administración (deja sin cubrir la caja). (2) **La entrada desde la caja:** vender la entrada de uno o varios niños sin salir de la caja, reutilizando lo de Entrada (se actualiza, no se rediseña): pulsera leída, tecleada o «sin pulsera»; solo prepago; los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. (3) El aviso de «sin pulsera» en Inicio, **descartado por ahora** (no es viable ni oportuno). Los dos se adaptan a todo lo que ya existe (ayuda y recorridos, atajos, soporte y `data-privado`, cuenta de soporte, tiempo real, auditoría, permisos, Inicio, Reportes, temas y escala): queda como punto 10 de la definición de hecho, para todo paso nuevo. Dos pasos nuevos; la ruta pasa a **92** | B3-9, B4-11 |
+| **M-31** | **Un solo punto de cobro y la entrada desde la caja** (2026-10-08, decisiones del usuario) | (1) **El punto de cobro (opción A, con salida de emergencia):** cada equipo lleva la marca «Punto de cobro» (Ajustes → Personas y equipos → Dispositivos); solo los marcados abren turno como hoy; en uno sin marcar, abrir turno pide el PIN de administración y un motivo, queda en la auditoría e Inicio lo avisa mientras siga abierto. Descartadas: un solo turno por local (impide una segunda caja y bloquea si la laptop se daña con su turno abierto), un tope numérico (no dice cuál equipo), solo avisar (llega tarde) y quitarles el permiso a supervisión y administración (deja sin cubrir la caja). (2) **La entrada desde la caja:** vender la entrada de uno o varios niños sin salir de la caja, reutilizando lo de Entrada (se actualiza, no se rediseña): pulsera leída, tecleada o «sin pulsera»; solo prepago; los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. (3) El aviso de «sin pulsera» en Inicio, **descartado por ahora** (no es viable ni oportuno). Los dos se adaptan a todo lo que ya existe (ayuda y recorridos, atajos, soporte y `data-privado`, cuenta de soporte, tiempo real, auditoría, permisos, Inicio, Reportes, temas y escala): queda como punto 10 de la definición de hecho, para todo paso nuevo. Primero dos pasos (B3-9 y B4-11); el mismo día el usuario los juntó en **uno solo**, que se termina de punta a punta de forma automática: la ruta pasa a **91** | B3-9 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -250,9 +250,14 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
    (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → ~~T-17~~ (cuenta de soporte) → ~~B9-10~~ (conteo
    a ciegas y su informe) → ~~B9-9~~ (editar en lote) → ~~B9-8~~ (duplicar productos).
-9. **M-31**: **B3-9** (el punto de cobro) → **B4-11** (la entrada desde la caja). Sin empezar hasta el «empieza» del usuario.
+9. **M-31**: **B3-9** (el punto de cobro y la entrada desde la caja): una sola tarea, de punta a punta, sin pedir el sí
+   entre sus partes (el usuario, 2026-10-08).
+10. **Hacia la 1.0.0**, lo que no necesita el local: **T-8c** (se programa y se prueba en una PC con Windows como la de
+   caja; en la laptop real se comprueba con B7-3) → **B8-2** (lo que se escribe: la hoja del procedimiento en papel y los
+   runbooks del técnico; la capacitación se da en B8-3, y ahí se cierra). Después, en el local: B7-3, B8-1, B8-3 y
+   **B8-4 = 1.0.0**, con D-REL decidido.
 
-Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -463,8 +468,9 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pantalla tardaba 30 s (el modo degradado) en enterarse; ahora un ticket que no llega lleva a preguntar a `/salud`
   enseguida. Y el modo degradado ya no repinta contra un servidor que no contesta (dejaba la página de error del
   navegador).*
-- [ ] **T-8c · El agente de impresión se actualiza solo** (M-25, [ADR-028](adr/028-actualizaciones.md) punto 5), con B7-3
-  y antes de B8-3.
+- [ ] **T-8c · El agente de impresión se actualiza solo** (M-25, [ADR-028](adr/028-actualizaciones.md) punto 5): se
+  programa y se prueba en una PC con Windows antes de la visita, y se comprueba en la laptop de caja real con B7-3; antes
+  de B8-3.
   → El agente dice su versión al servidor; con una nueva y la cola vacía, la descarga del propio servidor, comprueba su
   huella (SHA-256 publicada con la versión), rechaza un ejecutable con la huella equivocada, se cambia sin papel
   pendiente y, si la versión nueva no arranca, la tarea de Windows vuelve a la anterior. Ajustes → Impresoras enseña la
@@ -1277,8 +1283,8 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   directa (N, Tab hasta el producto, Intro) cobrada «Sin recibo» y después en Ventas del turno con «Imprimir»; a
   1366×768 y 1280×800, en los dos temas, sin desplazamiento. De paso: la prueba de la instalación que buscaba el PIN
   «4826» suelto fallaba por azar cuando salía dentro de un UUID o un hash; ahora lo busca como valor.*
-- [ ] **B3-9 · El punto de cobro** (M-31).
-  → Cada equipo lleva la marca «Punto de cobro» en Ajustes → Personas y equipos → Dispositivos (administración, con la
+- [ ] **B3-9 · El punto de cobro y la entrada desde la caja** (M-31; una sola tarea, de punta a punta).
+  → **El punto de cobro.** Cada equipo lleva la marca «Punto de cobro» en Ajustes → Personas y equipos → Dispositivos (administración, con la
   identidad confirmada). En un equipo marcado, el turno se abre como hoy. En uno sin marcar, abrir turno pide el PIN de
   administración y un motivo («La laptop de caja no enciende»), queda en la auditoría e Inicio avisa «Turno abierto fuera
   del punto de cobro» mientras siga abierto. Al actualizar, los equipos que ya abrieron turno quedan marcados (ninguna
@@ -1288,6 +1294,18 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   de cobro y qué hacer si la laptop falla; el aviso de Inicio, en vivo (tema `turno`); Reportes → Ventas marca el turno
   abierto fuera del punto de cobro; la auditoría dice quién autorizó; la cuenta de soporte pasa por la misma regla (y en
   producción sigue sin abrir turnos); la marca vive en la pestaña Dispositivos con su permiso.
+  → **La entrada desde la caja.** En la caja, una pulsera que no está en la sala (o el botón «Entrada», con su tecla)
+  abre un panel lateral sin salir de ella: cada pulsera leída suma un niño; si no se lee, se teclea su número; «Sin
+  pulsera», con el nombre obligatorio. El paquete más común ya elegido, las medias si el local las vende y el teléfono
+  del representante (la familia conocida se completa sola, DEC-27). «Registrar y cobrar» deja la cuenta elegida en la
+  columna de cobro. El mismo registro del servidor que Entrada (aforo, pulsera de un solo uso, tarifario; la monitora los
+  ve en la sala), sin migración. Solo prepago: los invitados de un cumpleaños, la cuenta abierta y la carga desde papel
+  siguen en Entrada. La lógica de Entrada se separa en piezas que usan las dos pantallas: Entrada se ve y funciona igual
+  (dos niños en menos de 90 s) y la caja no desplaza a 1366×768.
+  Se adapta a lo que hay: el manual de la caja y su recorrido guiado suman la entrada desde la caja, y su tecla sale en
+  la ayuda de atajos; el teléfono del representante lleva `data-privado`; un rechazo (aforo, pulsera usada, sin turno)
+  se dice en el panel, con su aviso; la sala y la cola de la caja se releen solas; la cuenta de soporte en producción no
+  cobra, tampoco desde aquí; registrar pide `parque.checkIn` y cobrar, el permiso de cobro.
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -1522,20 +1540,6 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   ficha del niño, para quien puede, «Regalar su tiempo» (la cortesía de la caja sobre todas sus líneas por cobrar, con una
   autorización) y «Anular la entrada» (motivo y PIN). Visto en el navegador en la base de pruebas: las dos, sin errores de
   consola. Salió al probarlo: la consulta de la pulsera decía «libre» con el niño dentro (trampa de Prisma, §5).*
-- [ ] **B4-11 · La entrada desde la caja** (M-31).
-  → En la caja, una pulsera que no está en la sala (o el botón «Entrada», con su tecla) abre un panel lateral sin salir
-  de ella: cada pulsera leída suma un niño; si no se lee, se teclea su número; «Sin pulsera», con el nombre obligatorio.
-  El paquete más común ya elegido, las medias si el local las vende y el teléfono del representante (la familia conocida
-  se completa sola, DEC-27). «Registrar y cobrar» deja la cuenta elegida en la columna de cobro. El mismo registro del
-  servidor que Entrada (aforo, pulsera de un solo uso, tarifario; la monitora los ve en la sala), sin migración. Solo
-  prepago: los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. La lógica de
-  Entrada se separa en piezas que usan las dos pantallas: Entrada se ve y funciona igual (dos niños en menos de 90 s) y
-  la caja no desplaza a 1366×768.
-  Se adapta a lo que hay (punto 10 de la definición de hecho): el manual de la caja y su recorrido guiado suman la
-  entrada desde la caja, y su tecla sale en la ayuda de atajos; el teléfono del representante lleva `data-privado`; un
-  rechazo (aforo, pulsera usada, sin turno) se dice en el panel, con su aviso; la sala y la cola de la caja se releen
-  solas; la cuenta de soporte en producción no cobra, tampoco desde aquí; registrar pide `parque.checkIn` y cobrar, el
-  permiso de cobro.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -2875,6 +2879,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   los runbooks del técnico y la capacitación por rol durante B8-3. D-REL sigue por decidir.
 - **2026-10-08** · M-31: el punto de cobro (opción A con salida de emergencia, B3-9) y la entrada desde la caja (B4-11);
   el aviso de «sin pulsera», descartado por ahora. La ruta pasa a 92. Sin empezar hasta el «empieza» del usuario.
+- **2026-10-08** · El usuario junta los dos pasos de M-31 en uno (B3-9, de punta a punta y automático) y pide ir después
+  a la 1.0.0: T-8c y lo escrito de B8-2 se hacen antes de la visita (§3, orden, punto 10). La ruta pasa a 91.
 
 ---
 
