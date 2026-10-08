@@ -2016,7 +2016,7 @@ F9-05).
   por medio, origen, cajera y turno, el filtro de cajera, un rango de más de 93 días rechazado con su mensaje y el PDF
   de una página con su número; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar en el
   escritorio, sin desbordes ni errores de consola.*
-- [ ] **B11-2 · Inventario al momento** (M-29).
+- [~] **B11-2 · Inventario al momento** (M-29). *A cargo: LuAMi, rama `feat/b11-2`.*
   → Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar, a la hora en que
   se pide. Su PDF.
 - [x] **B11-3 · Movimientos (kárdex)** (M-29).
