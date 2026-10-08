@@ -32,6 +32,11 @@ export type Seccion = {
   /** Ruta existente, o `null` si la pantalla todavía no está construida. */
   href: Route | null;
   accion?: Action;
+  /**
+   * Se ve con cualquiera de estas acciones (T-13): la sección sirve a varios permisos (Productos la ve quien da de alta,
+   * quien recibe mercancía y quien ajusta). Si está, manda sobre `accion`.
+   */
+  acciones?: readonly Action[];
   /** Qué resuelve. Se muestra en la página del módulo y en la pantalla vacía. */
   proposito: string;
   /**
@@ -198,6 +203,8 @@ export const MODULOS: readonly Modulo[] = [
         id: "productos",
         nombre: "Productos",
         href: rutaSeccion("inventario", "productos"),
+        // Lo ve quien da de alta, quien recibe y quien ajusta: cada uno con lo suyo (T-13).
+        acciones: ["inventario.catalogo", "inventario.entrada", "inventario.ajustar"] as Action[],
         proposito:
           "Lo que la caja vende en el mostrador o añade a una cuenta: categoría, IVA y precio con su día. Cambiar un precio no altera lo ya vendido.",
         tarea: "F8-02",
@@ -222,6 +229,8 @@ export const MODULOS: readonly Modulo[] = [
         id: "entradas",
         nombre: "Entradas de mercancía",
         href: rutaSeccion("inventario", "entradas"),
+        // Lo que pide su servidor (T-13): recibir mercancía, no ajustar existencias.
+        accion: "inventario.entrada" as Action,
         proposito:
           "Lo que llega, por compra o reposición: bultos de tantas unidades a tanto el bulto. Sube la existencia y da el costo promedio de cada producto.",
         tarea: "F8-06",

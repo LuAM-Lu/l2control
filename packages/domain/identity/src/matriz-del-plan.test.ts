@@ -63,6 +63,7 @@ const DESPUES: Readonly<Partial<Record<Action, { fila: Fila; decision: string }>
   "evento.reservar": { fila: ["✅", "✅", "✅", "❌", "❌", "❌"], decision: "B10-1, V-10" },
   "papel.revisar": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "B3-7, ADR-027" },
   "inventario.entrada": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "B9-3" },
+  "inventario.catalogo": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-13, M-27 (P-15): ajustable" },
   "sistema.actualizar": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-8b, ADR-028" },
 };
 

@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.67.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Roles que se pueden dar (T-13, M-27).
+
+### Corregido
+- **Supervisión ya puede hacer inventario.** Dar de alta productos y categorías, y cargar el inventario inicial con
+  productos nuevos, pedía el permiso de cambiar precios y tarifas, que no se regala: aunque administración le diera a
+  supervisión «todo el inventario», no cambiaba nada. Ahora es un permiso propio, «Dar de alta y editar productos y
+  categorías», que se ajusta por rol o se concede a una persona en Roles y accesos, y no pide confirmar identidad.
+  Cambiar un precio sigue siendo de administración.
+- El menú de Inventario muestra cada sección a quien puede trabajar en ella: Entradas, a quien carga mercancía;
+  Productos, a quien da de alta, carga o ajusta.
+
+### Añadido
+- En Roles y accesos, la fila que no se ajusta dice por qué y qué permiso dar en su lugar.
+
 ## [0.66.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Medias en la entrada (B4-9, M-27).

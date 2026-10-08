@@ -119,7 +119,8 @@ export function casosEntradas(base: Base): CasosEntradas {
           // Dar de alta un producto en la entrada (B9-6) es del catálogo: lo mismo que «Nuevo producto».
           const conNuevos = cmd.lineas.some((l) => "nuevo" in l);
           if (conNuevos) {
-            const delCatalogo = await exigirPermiso(tx, ctx, "catalogo.modificar");
+            // Dar de alta lo que llega por primera vez es del inventario (T-13): se puede dar a supervisión.
+            const delCatalogo = await exigirPermiso(tx, ctx, "inventario.catalogo");
             if (delCatalogo) return delCatalogo;
           }
 

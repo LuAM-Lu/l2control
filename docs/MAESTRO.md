@@ -34,9 +34,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.66.0 · 66 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.67.0 · 67 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
-recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala) y B4-9 (medias en la entrada).
+recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada) y T-13 (roles que
+se pueden dar: supervisión ya puede hacer inventario).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -213,7 +214,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
-   ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → **T-13** (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
+   ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → **B3-8** (cobrar con el teclado) → T-14 (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
@@ -496,12 +497,26 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pruebas contra la base. Visto en el navegador en la base de pruebas: el recorrido de la sala solo la primera vez y no
   al recargar, F1, la búsqueda coloquial («pulsera usada», «no imprime»), «Cómo se resuelve» en un error real de las
   mesas, y el recorrido de las mesas entero a 1366×768, 800×1280 y 390 px.*
-- [~] **T-13 · Roles que se pueden dar** (M-27, P-15). *A cargo: LuAMi, rama `feat/t-13`.*
+- [x] **T-13 · Roles que se pueden dar** (M-27, P-15).
   → Acción nueva `inventario.catalogo` (alta y ficha de productos y categorías; cambiar el precio de lo que existe
   sigue en `catalogo.modificar`), ajustable por rol y por persona y sin confirmar identidad: con ella, supervisión
   da de alta productos y carga el inventario inicial. Cada sección del menú pide lo mismo que su servidor (escrito en
   una prueba); Roles y accesos dice por qué una celda no se ajusta; un cambio de permisos llega a la sesión abierta
   sin volver a entrar (visto con dos equipos).
+  *Hecho el 2026-10-07 (LuAMi), v0.67.0.* **Causa:** no era una caché (el servidor recalcula el permiso en cada
+  operación y el tema «personal» refresca la sesión abierta): dar de alta un producto o una categoría, y cargar el
+  inventario inicial con productos nuevos, exigían `catalogo.modificar`, que es intocable y pide confirmar identidad;
+  ningún ajuste lo abría. **Dominio:** `inventario.catalogo` en la matriz (administración de fábrica; ajustable), con su
+  decisión en `matriz-del-plan.test.ts`. **Aplicación:** categorías, alta y ficha de productos y las entradas con
+  productos nuevos piden `inventario.catalogo` y no confirmar identidad; programar un precio y la carta siguen en
+  `catalogo.modificar` con elevación. **Web:** una sección puede abrirse con varias acciones (`acciones`): Productos
+  la ve quien da de alta, carga entradas o ajusta; Entradas, quien carga entradas (antes colgaba de «ajustar»); la
+  ficha esconde el precio a quien no puede cambiarlo; Roles y accesos explica bajo «Modificar carta y tarifas» que no
+  se regala y que el inventario se da con «Dar de alta y editar productos y categorías». Prueba de la web
+  (`visibilidad.test.ts`, 11): cada sección pide lo que pide su servidor, y un permiso dado por rol o por persona la
+  abre. Visto en el navegador en la base de pruebas: con supervisión dentro, se ajusta su rol con el mismo caso de
+  uso que usa Roles y accesos (desde un guion, no desde un segundo equipo) y «Nuevo producto» aparece sin volver a
+  entrar; al retirarlo, desaparece. Roles y accesos, en los dos temas.*
 - [ ] **T-14 · Mi PIN y el acceso con teclado** (M-27, P-13, P-17).
   → «Mi cuenta» cambia el PIN propio (el actual y el nuevo dos veces, con sus reglas y su bloqueo, auditado). En el
   acceso, con teclado físico, cada persona tiene su tecla, el PIN se escribe o se pega, Intro entra y Esc vuelve.
@@ -1964,7 +1979,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Respaldos: con un volcado por noche se puede perder hasta un día (RPO de 24 h); PLAN §10.4 pide 15 minutos con WAL continuo a otro sitio. El ensayo de restauración mensual se anota a mano (no hay registro en el panel) | Antes de B8-3, decidir si basta |
 | El actualizador pregunta a la API de GitHub sin token (60 consultas por hora, cada 5 min): si el repositorio pasa a privado, necesita un token de solo lectura | Si el repositorio deja de ser público |
 | Lo que escribe una versión nueva puede no leerlo la anterior: un pedido de pie (`table_id` nulo, B6-7) o el motivo `ENTRADA_POR_ERROR` (B4-10). La vuelta atrás automática de un despliegue ocurre antes de que nadie los use; una vuelta atrás a mano días después dejaría esas pantallas sin leer | Aceptado (ADR-028 habla de la base, no de los datos nuevos); antes de una vuelta atrás manual, mirar §7 |
-| Crear productos y categorías (y el inventario inicial con productos nuevos) exige `catalogo.modificar`, que no se ajusta por rol ni se concede por persona: supervisión no puede hacer inventario aunque administración se lo dé (P-15) | T-13 |
+| ~~Crear productos y categorías (y el inventario inicial con productos nuevos) exige `catalogo.modificar`, que no se ajusta por rol ni se concede por persona: supervisión no puede hacer inventario aunque administración se lo dé (P-15)~~ | Saldada en T-13: `inventario.catalogo`, ajustable |
 | Sin Storybook | Fuera de la Ruta A |
 | El agente de impresión no va firmado con un certificado de código: Windows avisa al abrirlo («editor desconocido») | B8 (si el cliente compra el certificado) |
 | La instalación del agente como tarea de Windows (con permiso de administrador) no se ha ejecutado de punta a punta en una laptop | Trabajo de campo (B7-3) |
@@ -2348,6 +2363,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-07** · B4-10 entregado como v0.65.0: desde la sala, regalar el tiempo de un niño y anular una entrada por
   error (su pulsera vuelve a servir). Sigue B4-9.
 - **2026-10-07** · B4-9 entregado como v0.66.0: medias en la entrada, que salen del inventario. Sigue T-13 (roles).
+- **2026-10-07** · T-13 entregado como v0.67.0: `inventario.catalogo`, ajustable; supervisión ya puede dar de alta
+  productos y cargar el inventario inicial, y el cambio le llega sin volver a entrar. Sigue B3-8 (cobrar con el teclado).
 
 ---
 

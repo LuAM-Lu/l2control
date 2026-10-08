@@ -48,6 +48,7 @@ export type Action =
   | "catalogo.modificar"
   | "inventario.ajustar"
   | "inventario.entrada"
+  | "inventario.catalogo"
   | "reportes.verSucursal"
   | "reportes.verTodas"
   | "usuarios.gestionar"
@@ -146,6 +147,10 @@ export const MATRIZ: Matriz = Object.freeze({
   // B9-3: recibir mercancía (compra o reposición) no es un ajuste: entra lo que llegó, con su costo.
   // Lo hace quien recibe al proveedor; cada entrada queda con su autor y no se edita.
   "inventario.entrada": fila(P, P, D, D, D, D),
+  // Dar de alta, editar la ficha y apartar productos, y la lista de categorías (T-13, M-27): de administración, y se
+  // puede dar por rol o por persona (p. ej. a supervisión para cargar el inventario inicial). Cambiar precios y la
+  // carta sigue en `catalogo.modificar`, que no se regala.
+  "inventario.catalogo": fila(P, D, D, D, D, D),
 
   "reportes.verSucursal": fila(P, P, D, D, D, D),
   "reportes.verTodas": fila(P, D, D, D, D, D),

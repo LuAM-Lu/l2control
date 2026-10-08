@@ -68,7 +68,8 @@ export function casosCategorias(base: Base): CasosCategorias {
 
       try {
         const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CatalogoDto | Rechazo> => {
-          const rechazo = await exigirPermiso(tx, ctx, "catalogo.modificar");
+          // La lista de categorías es del inventario (T-13), no de los precios: se puede dar por rol o por persona.
+          const rechazo = await exigirPermiso(tx, ctx, "inventario.catalogo");
           if (rechazo) return rechazo;
           const quien = await nombreDe(tx, ctx);
           const hecho = await guardar(tx, ctx, cmd, quien.nombre, ahora);
