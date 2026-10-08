@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, CalendarClock, CheckCircle2, ChefHat, ClipboardList, History, ListPlus, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
+import { AlertTriangle, CalendarClock, Copy, CopyPlus, CheckCircle2, ChefHat, ClipboardList, History, ListPlus, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
@@ -21,6 +21,7 @@ import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { aplicarProducto, fijarMinimo } from "./productos.acciones";
 import { BarraDeLote, EditarEnLote, type CambioDeLote } from "./EditarEnLote.tsx";
+import { DuplicarConSabores, plantillaDe, type Plantilla } from "./DuplicarConSabores.tsx";
 import { EstadoStock, estadoDe as estadoDelStock } from "./EstadoStock.tsx";
 import { AltaEnLote } from "./AltaEnLote.tsx";
 import { categoriasDelCatalogo, periodosDe } from "./catalogo.ts";
@@ -96,6 +97,8 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   /** B9-9: los elegidos en la tabla y el cambio en lote que se está pidiendo. */
   const [elegidos, setElegidos] = useState<ReadonlySet<string>>(new Set());
   const [cambioEnLote, setCambioEnLote] = useState<CambioDeLote | null>(null);
+  /** B9-8: la copia de un producto, sola o con otros sabores. */
+  const [duplicando, setDuplicando] = useState<{ plantilla: Plantilla; modo: "UNO" | "SABORES" } | null>(null);
   const puedeLote = puedeModificar || puedePrecio || actorPuedeRecibir;
   // En el teléfono la barra va abajo, fija: ahí desplaza la ventana y la región del panel no la sostiene.
   const enTelefono = useMediaQuery("(max-width: 47.99rem)");
@@ -262,7 +265,29 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
           }}
         />
       )}
-      <ProductoNuevo abierto={creando !== null} codigoInicial={creando?.codigo ?? ""} onCerrar={() => setCreando(null)} categorias={categorias} enviando={enviando} cambiar={cambiar} />
+      <ProductoNuevo
+        abierto={creando !== null || duplicando?.modo === "UNO"}
+        codigoInicial={creando?.codigo ?? ""}
+        plantilla={duplicando?.modo === "UNO" ? duplicando.plantilla : null}
+        onCerrar={() => {
+          setCreando(null);
+          setDuplicando(null);
+        }}
+        categorias={categorias}
+        enviando={enviando}
+        cambiar={cambiar}
+      />
+      {duplicando?.modo === "SABORES" && (
+        <DuplicarConSabores
+          plantilla={duplicando.plantilla}
+          catalogo={catalogo}
+          onCerrar={() => setDuplicando(null)}
+          onCreados={(c) => {
+            setCatalogo(c);
+            setDuplicando(null);
+          }}
+        />
+      )}
       <FichaProducto
         producto={abierto}
         onCerrar={() => setAbiertoId(null)}
@@ -274,6 +299,12 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
         enviando={enviando}
         cambiar={cambiar}
         adoptar={setCatalogo}
+        onDuplicar={(modo) => {
+          if (!abierto) return;
+          const rige = ahora === null ? null : (periodAt(periodos, abierto.id, ahora)?.amountMinor ?? null);
+          setAbiertoId(null);
+          setDuplicando({ plantilla: plantillaDe(abierto, rige), modo });
+        }}
       />
     </Container>
   );
@@ -439,6 +470,7 @@ function CamposDelProducto({
 function ProductoNuevo({
   abierto,
   codigoInicial,
+  plantilla = null,
   onCerrar,
   categorias,
   enviando,
@@ -447,6 +479,8 @@ function ProductoNuevo({
   abierto: boolean;
   /** El código leído en la lista, si se abrió desde él. */
   codigoInicial: string;
+  /** B9-8: duplicar un producto abre esta hoja con su ficha copiada, para cambiarle el nombre (y el código). */
+  plantilla?: Plantilla | null;
   onCerrar: () => void;
   categorias: readonly string[];
   enviando: string | null;
@@ -464,6 +498,16 @@ function ProductoNuevo({
   useEffect(() => {
     if (abierto) setCodigo(codigoInicial);
   }, [abierto, codigoInicial]);
+  useEffect(() => {
+    if (!abierto || !plantilla) return;
+    setNombre(plantilla.nombre);
+    setCategoria(plantilla.categoria);
+    setTaxCode(plantilla.taxCode);
+    setTipo(plantilla.tipo);
+    setPresentacion(plantilla.presentacion ?? "");
+    setPrecio(plantilla.precioMinor === null ? "" : toMajor(money(BigInt(plantilla.precioMinor), "USD")).replace(".", ","));
+    setCodigo("");
+  }, [abierto, plantilla]);
   // Con la hoja abierta, lo que se lee es el código de este producto.
   useLectorDeCodigos((leido) => {
     setTipo("PRODUCTO");
@@ -500,6 +544,9 @@ function ProductoNuevo({
           precioMinor,
           ...(tipo === "PRODUCTO" && codigo.trim() ? { codigoBarras: normalizeBarcode(codigo) } : {}),
           ...(presentacion.trim() ? { presentacion: presentacion.trim() } : {}),
+          // La copia (B9-8) lleva también el mínimo y la carta del original.
+          ...(plantilla ? { enCarta: plantilla.enCarta } : {}),
+          ...(plantilla && tipo === "PRODUCTO" && plantilla.minimo !== null ? { minimo: plantilla.minimo } : {}),
         },
       },
       "crear",
@@ -520,15 +567,19 @@ function ProductoNuevo({
     <Sheet
       abierto={abierto}
       onCerrar={cerrar}
-      titulo="Nuevo producto"
-      descripcion="Nace a la venta, con su precio rigiendo desde que lo guardes. El SKU lo pone el sistema."
+      titulo={plantilla ? `Duplicar «${plantilla.nombre}»` : "Nuevo producto"}
+      descripcion={
+        plantilla
+          ? "Una copia con su ficha: cámbiale el nombre y, si lleva, el código. Nace con su SKU, sin inventario inicial."
+          : "Nace a la venta, con su precio rigiendo desde que lo guardes. El SKU lo pone el sistema."
+      }
       pie={
         <div className="flex gap-2">
           <Button type="button" variant="ghost" surface="admin" onClick={cerrar} disabled={ocupado}>
             Cancelar
           </Button>
           <Button type="button" variant="primary" surface="admin" className="flex-1" onClick={() => void crear()} disabled={ocupado || !nombre.trim() || !categoria.trim() || !precio.trim()}>
-            {ocupado ? "Guardando…" : "Crear producto"}
+            {ocupado ? "Guardando…" : plantilla ? "Crear la copia" : "Crear producto"}
           </Button>
         </div>
       }
@@ -583,6 +634,7 @@ function FichaProducto({
   enviando,
   cambiar,
   adoptar,
+  onDuplicar,
 }: {
   producto: ProductoDto | null;
   onCerrar: () => void;
@@ -590,6 +642,8 @@ function FichaProducto({
   categorias: readonly string[];
   ahora: number | null;
   puedeModificar: boolean;
+  /** B9-8: duplicarlo, solo o con otros sabores. */
+  onDuplicar: (modo: "UNO" | "SABORES") => void;
   /** Programar su precio (`catalogo.modificar`): no basta con poder darlo de alta. */
   puedePrecio: boolean;
   enviando: string | null;
@@ -726,6 +780,19 @@ function FichaProducto({
       }
     >
       <div className="flex flex-col gap-5">
+        {puedeModificar && (
+          // B9-8: otro igual con otro nombre, o varios de una vez con otros sabores.
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => onDuplicar("UNO")}>
+              <Copy size={TAMANO_ICONO.texto} aria-hidden="true" />
+              Duplicar
+            </Button>
+            <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => onDuplicar("SABORES")}>
+              <CopyPlus size={TAMANO_ICONO.texto} aria-hidden="true" />
+              Con otros sabores
+            </Button>
+          </div>
+        )}
         {producto.controlaStock && <Existencia producto={producto} ahora={ahora} zona={zona} adoptar={adoptar} />}
         <section aria-label="Precio" className="flex flex-col gap-3">
           <h3 className="font-display text-[14px] font-bold text-ink">Precio</h3>

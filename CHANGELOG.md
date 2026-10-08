@@ -14,6 +14,16 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Duplicar un producto y sus sabores (B9-8, M-28).
+
+### Añadido
+- **«Duplicar»** en la ficha de un producto: abre el alta con su ficha copiada (categoría, presentación, precio, IVA,
+  mínimo y carta) para cambiarle el nombre y, si lleva, el código. Nace con su SKU, sin inventario inicial.
+- **«Con otros sabores»**: de «Jugo Naranja», escribiendo «Manzana, Pera y Uva», salen «Jugo Manzana», «Jugo Pera» y
+  «Jugo Uva» de una vez, cada uno con su código de barras si se escribe o se pasa por el lector. Todo o nada.
+
 ## [0.83.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Editar en lote (B9-9, M-29).

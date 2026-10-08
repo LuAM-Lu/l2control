@@ -44,8 +44,9 @@ teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el
 §3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
 corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF), T-18
 (Ajustes de 18 secciones a 12, con pestañas), B11-3 (movimientos: el kárdex con su PDF) y B11-2 (inventario al momento,
-con su PDF): la Etapa 11 entera; T-17 (la cuenta de soporte), B9-10 (conteo a ciegas y su informe de diferencias) y
-B9-9 (editar en lote). **Siguiente:** **B9-8** (duplicar productos), el último de M-28 y M-29.
+con su PDF): la Etapa 11 entera; T-17 (la cuenta de soporte), B9-10 (conteo a ciegas y su informe de diferencias),
+B9-9 (editar en lote) y B9-8 (duplicar productos): **M-28 y M-29 entregados enteros.** **Siguiente:** lo que queda
+espera la visita al local (B7-3 y T-8c) y la decisión D-REL; después, la Etapa 8.
 **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
@@ -68,7 +69,7 @@ B9-9 (editar en lote). **Siguiente:** **B9-8** (duplicar productos), el último 
   el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
   respaldos con carpeta, fijados e integridad (B7-6), la sección Reportes con las ventas y su PDF (B11-1) y Ajustes
   unificados (T-18), los movimientos de inventario (B11-3) y el inventario al momento (B11-2), y la cuenta de
-  soporte (T-17), el conteo a ciegas con su informe (B9-10) y editar en lote (B9-9). Queda duplicar productos (B9-8). **Para
+  soporte (T-17), el conteo a ciegas con su informe (B9-10), editar en lote (B9-9) y duplicar productos (B9-8): los once. **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
   runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
@@ -241,7 +242,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
    semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
    (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → ~~T-17~~ (cuenta de soporte) → ~~B9-10~~ (conteo
-   a ciegas y su informe) → ~~B9-9~~ (editar en lote) → **B9-8** (duplicar productos).
+   a ciegas y su informe) → ~~B9-9~~ (editar en lote) → ~~B9-8~~ (duplicar productos).
 
 Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -1819,11 +1820,25 @@ antes del cobro en servidor (orden de ejecución).
   siguen pendientes; la ficha dice «Inventario inicial: jue 8 oct»; Inicio, «1 agotado · 12 sin inventario inicial», y
   la puesta a punto, «12 productos sin inventario inicial de 16». A 1366×768, 1280×800, 800×1280 y 390 px, en los dos
   temas, sin desbordar ni errores de consola.*
-- [~] **B9-8 · Duplicar un producto y sus sabores** (M-28). *A cargo: LuAMi, rama `feat/b9-8`.*
+- [x] **B9-8 · Duplicar un producto y sus sabores** (M-28).
   → «Duplicar» abre la ficha copiada (categoría, presentación, precio, IVA, mínimo y carta) con el nombre para cambiar:
   SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una
   lista («Naranja, Manzana…» → «Jugo Naranja», «Jugo Manzana»), cada uno con su propio código de barras si se escribe o
   se lee. Cada copia es un producto propio, con su existencia.
+  *Hecho el 2026-10-08, en `feat/b9-8`.*
+  *· Dominio (`@l2/domain-inventory`, `sabores.ts`): `saboresDe` (la lista tecleada, por comas, «y» o renglones, sin
+  vacíos ni repetidos) y `nombresConSabores` (la base y cada sabor). 2 pruebas.*
+  *· Aplicación: sin cambios; la copia es un alta (`productos.aplicar`, CREAR) y los sabores, un alta en lote (B9-7), que
+  ya llevan el mínimo y la carta. 2 pruebas contra la base: cada copia con la ficha del original, su SKU, su código y sin
+  inventario inicial; un nombre repetido no crea ninguna.*
+  *· Web: en la ficha del producto, «Duplicar» (la hoja de alta con la ficha copiada y el precio que rige, para cambiarle
+  el nombre y el código) y «Con otros sabores» (`DuplicarConSabores`: la base, los sabores, cada copia con su código
+  tecleado o leído —el lector llena el primero vacío— y el aviso de un nombre que ya existe).*
+  *· Decidido al construir: «existencia en cero» es la de B9-7: la copia nace «Sin inventario inicial», no con un cero
+  contado, porque nadie la ha contado todavía.*
+  *· Comprobado: en el navegador, contra la base de pruebas: «Duplicar» de «Prueba B97 Jugo 0810» con otro nombre (sale
+  con su precio de $ 1.94) y «Con otros sabores» con «Mango, Parchita y Guayaba» (3 productos nuevos); a 1366×768,
+  1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni errores de consola.*
 - [x] **B9-9 · Editar en lote** (M-29).
   → En Productos se eligen varios y se les cambia la categoría, el mínimo, la carta o el precio (en % o en monto, desde
   una fecha), o se apartan. Una sola confirmación, y cada producto deja su asiento.
