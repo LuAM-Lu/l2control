@@ -469,9 +469,9 @@ Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pantalla tardaba 30 s (el modo degradado) en enterarse; ahora un ticket que no llega lleva a preguntar a `/salud`
   enseguida. Y el modo degradado ya no repinta contra un servidor que no contesta (dejaba la página de error del
   navegador).*
-- [ ] **T-8c · El agente de impresión se actualiza solo** (M-25, [ADR-028](adr/028-actualizaciones.md) punto 5): se
+- [~] **T-8c · El agente de impresión se actualiza solo** (M-25, [ADR-028](adr/028-actualizaciones.md) punto 5): se
   programa y se prueba en una PC con Windows antes de la visita, y se comprueba en la laptop de caja real con B7-3; antes
-  de B8-3.
+  de B8-3. *A cargo: LuAMi, rama `feat/t-8c`.*
   → El agente dice su versión al servidor; con una nueva y la cola vacía, la descarga del propio servidor, comprueba su
   huella (SHA-256 publicada con la versión), rechaza un ejecutable con la huella equivocada, se cambia sin papel
   pendiente y, si la versión nueva no arranca, la tarea de Windows vuelve a la anterior. Ajustes → Impresoras enseña la
