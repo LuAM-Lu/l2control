@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.80.0 · 80 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.81.0 · 81 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -617,7 +617,7 @@ Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   conectada; administración la marca, la desactiva o le repone el PIN. Configuración, precios y personas siguen
   pidiendo contraseña y llave (F2-04). En producción no abre turnos ni cobra; en staging sí, para reproducir un error
   con una copia de la base restaurada del respaldo (M-29).
-  *Hecho el 2026-10-08, en `feat/t-17`.*
+  *Hecho el 2026-10-08 (v0.81.0), en `feat/t-17`.*
   *· Base: `20261112000000_cuenta_de_soporte` (solo expande): `staff_user.support_login` (solo de Administración, en
   minúsculas y único en el tenant, por CHECK e índice) y los cambios `SOPORTE` y `SOPORTE_FIN` en `staff_user_change`.*
   *· Dominio (`revisarCambio`, sexta puerta): la marca la pone y la quita la administración, nadie sobre sí misma, solo a
@@ -2763,6 +2763,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   saldo después de cada movimiento (el final es la existencia) y su PDF. Sigue B11-2 (inventario al momento).
 - **2026-10-08** · B11-2 entregado como v0.80.0: Reportes → Inventario al momento, lo que hay y lo que vale al costo por
   categoría, con lo agotado, lo bajo mínimo y lo sin contar, y su PDF. La Etapa 11 queda entera. Sigue T-17 (soporte).
+- **2026-10-08** · T-17 entregado como v0.81.0: la cuenta de soporte entra por «Acceso de soporte» con su usuario y su
+  PIN, firma «(soporte)», no cuenta como personal del local y en producción no abre turnos ni cobra. Sigue B9-10.
 
 ---
 
