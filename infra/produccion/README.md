@@ -2,6 +2,8 @@
 
 Cómo corre L2 Control en el VPS (staging y producción) y cómo se pone una versión nueva sin miedo
 (T-8a, [ADR-021](../../docs/adr/021-servidor-en-la-nube.md), [ADR-028](../../docs/adr/028-actualizaciones.md)).
+**Lo que hace el técnico cuando algo pasa** (restaurar un respaldo, volver atrás una versión, el equipo que sustituye
+a uno perdido, cambiar la impresora, los feriados del año…) está en [RUNBOOKS.md](RUNBOOKS.md), paso a paso (B8-2).
 
 | Archivo | Qué es |
 |---|---|
@@ -13,6 +15,7 @@ Cómo corre L2 Control en el VPS (staging y producción) y cómo se pone una ver
 | `restaurar.sh` | **Fuera del servidor:** el par de claves del local y el ensayo de restauración en una base limpia (B7-4) |
 | `huella.sql` | Las filas de cada tabla y lo que suma el libro de pagos: lo que compara el ensayo |
 | `entorno.ejemplo` | Las variables del `.env` del servidor (sin valores) |
+| `RUNBOOKS.md` | Los runbooks del técnico: qué hacer cuando algo pasa, paso a paso (B8-2) |
 | `../docker/Dockerfile` | Las tres imágenes: `web`, `worker` y `migrar` |
 
 Lo que el servidor guarda junto a estos archivos y **nunca** entra al repositorio: `.env` (las claves),

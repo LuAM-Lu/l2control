@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { ArrowDownToLine, ArrowUpFromLine, FileText, HandCoins, Lock, Printer, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ClipboardList, FileText, HandCoins, Lock, Printer, TriangleAlert, Wallet } from "lucide-react";
 import type { CargaDePapelDto, CargasDePapelDto, Problema, Rechazo } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Badge, Button, Confirmacion, Container, Input, Tabs, avisar } from "@l2/ui";
@@ -48,14 +48,25 @@ export function PapelScreen({ datos }: { datos: CargasDePapelDto | null }) {
             <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">Carga desde papel</h1>
             <p className="mt-1 text-[13px] text-ink-3">Si caen internet y luz se anota en formularios; al volver, se carga aquí y supervisión lo revisa.</p>
           </div>
-          <Link
-            href={"/formularios-papel" as Route}
-            target="_blank"
-            className="inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] font-semibold text-ink hover:border-line-strong"
-          >
-            <Printer size={16} aria-hidden="true" />
-            Imprimir los formularios
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {/* B8-2: la hoja que va pegada junto a la caja: cuándo se pasa al papel, quién anota qué y cómo se carga. */}
+            <Link
+              href={"/procedimiento-papel" as Route}
+              target="_blank"
+              className="inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] font-semibold text-ink hover:border-line-strong"
+            >
+              <ClipboardList size={16} aria-hidden="true" />
+              El procedimiento
+            </Link>
+            <Link
+              href={"/formularios-papel" as Route}
+              target="_blank"
+              className="inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] font-semibold text-ink hover:border-line-strong"
+            >
+              <Printer size={16} aria-hidden="true" />
+              Imprimir los formularios
+            </Link>
+          </div>
         </Container>
       </header>
 

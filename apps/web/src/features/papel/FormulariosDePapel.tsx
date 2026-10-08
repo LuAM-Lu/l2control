@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, ClipboardList, Printer } from "lucide-react";
 import { Button, cn } from "@l2/ui";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 
@@ -35,10 +35,15 @@ export function FormulariosDePapel() {
               Imprime varias copias de cada hoja y guárdalas junto a la caja. Si caen internet y luz, se anota aquí; al volver, la caja lo carga y supervisión lo revisa.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link href={"/papel" as Route} className="inline-flex min-h-12 items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] font-semibold text-ink hover:border-line-strong">
               <ArrowLeft size={15} aria-hidden="true" />
               Volver
+            </Link>
+            {/* B8-2: con los formularios va la hoja del procedimiento, que se pega junto a la caja. */}
+            <Link href={"/procedimiento-papel" as Route} className="inline-flex min-h-12 items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] font-semibold text-ink hover:border-line-strong">
+              <ClipboardList size={15} aria-hidden="true" />
+              El procedimiento
             </Link>
             <Button surface="tablet" variant="primary" className="gap-1.5" onClick={() => window.print()}>
               <Printer size={16} aria-hidden="true" />

@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Lo escrito de B8-2 (M-30): el procedimiento en papel y los runbooks del técnico. No cuenta como paso todavía: B8-2 se
+cierra con la capacitación por rol, en B8-3.
+
+### Añadido
+- **El procedimiento en papel**, una hoja A4 para pegar junto a la caja: cuándo se pasa al papel, quién anota qué, cómo
+  se carga al volver y a quién se llama. Se imprime desde Caja → Papel («El procedimiento») o desde los formularios. La
+  ayuda tiene la entrada «Carga desde papel».
+- **Los runbooks del técnico** (`infra/produccion/RUNBOOKS.md`): restaurar un respaldo, volver atrás una actualización,
+  el equipo que sustituye a uno perdido, cambiar la impresora, los feriados del año, la laptop de caja que no enciende,
+  el agente que no imprime y la caída de los dos enlaces.
+
+### Corregido
+- Al imprimir los formularios de papel (y la hoja nueva), el fondo de la página ya no sale como una franja bajo la hoja.
+
 ## [0.86.0] — 2026-10-08 · Hacia la puesta en marcha
 
 El agente de impresión se actualiza solo (T-8c, ADR-028 punto 5).
