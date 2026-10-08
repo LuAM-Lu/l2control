@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 import { DocumentoVeSchema, TelefonoVeSchema } from "./pagos.ts";
-import { IdSchema, IdempotencyKeySchema } from "./primitives.ts";
+import { IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 /** La cédula y el teléfono como los escriba una persona: «v 12.345.678», «(0414) 123 45 67». */
 const sinSeparadores = (v: unknown) => (typeof v === "string" ? v.replace(/[\s.()]/g, "").toUpperCase() : v);
@@ -47,12 +47,18 @@ export const BuscarClienteSchema = z
   .refine((b) => (b.cedula ?? "") !== "" || (b.telefono ?? "") !== "", { message: "Escribe la cédula o el teléfono" });
 export type BuscarClienteQuery = z.infer<typeof BuscarClienteSchema>;
 
-/** El cliente del directorio que se encontró. Un representante del parque puede no tener cédula todavía. */
+/**
+ * El cliente del directorio que se encontró. Un representante del parque puede no tener cédula todavía. `deudas`: lo
+ * que dejó sin pagar (B3-11), para avisarlo al encontrarlo.
+ */
 export const ClienteEncontradoSchema = z.object({
   clienteId: IdSchema,
   nombre: z.string(),
   cedula: z.string().nullable(),
   telefono: z.string(),
+  deudas: z
+    .array(z.object({ id: IdSchema, orden: z.number().int().positive(), lugar: z.string(), monto: MoneySchema, marcadaEl: TimestampSchema }))
+    .default([]),
 });
 export type ClienteEncontradoDto = z.infer<typeof ClienteEncontradoSchema>;
 

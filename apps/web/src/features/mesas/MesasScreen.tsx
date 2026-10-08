@@ -19,6 +19,7 @@ import {
   Sparkles,
   TriangleAlert,
   Users,
+  UserX,
   X,
 } from "lucide-react";
 import type { CatalogoDto, DatosDelClienteDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
@@ -54,6 +55,7 @@ import { usePedidos } from "./PedidosProvider.tsx";
 import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
+import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 
 /**
  * Estación del mesero: mesas, cuentas y pedidos — F6-01, F6-02, F6-05, DEC-22, B6-7.
@@ -145,6 +147,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
   const [liberando, setLiberando] = useState<FamilyAccountDto | null>(null);
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
+  /** La cuenta cuyo cliente se fue sin pagar (B3-11), mientras se autoriza dejarla en deuda. */
+  const [seFue, setSeFue] = useState<FamilyAccountDto | null>(null);
   /** El formulario de sentar: el cliente, con nombre, cédula y teléfono (B6-9, M-33), y cuántas personas. */
   const [cliente, setCliente] = useState<DatosDelClienteDto>(SIN_DATOS);
   /** Lo que falta o no vale, después de intentar sentar. */
@@ -646,10 +650,26 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                       ) : (
                         <p className="text-center text-[12.5px] text-ink-3">Pagan en caja. El mesero no cobra (DEC-14).</p>
                       )}
+                      {/* Se fue sin pagar (B3-11): lo que debe queda a nombre de su cliente, con el PIN de supervisión. */}
+                      {chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid) && (
+                        <Button variant="ghost" onClick={() => setSeFue(cuenta)} className="w-full" aria-haspopup="dialog">
+                          <UserX size={16} aria-hidden="true" />
+                          Se fue sin pagar
+                        </Button>
+                      )}
                     </>
                   )
                 )}
               </footer>
+              <MarcarDeudaDialog
+                cuenta={seFue}
+                onCerrar={() => setSeFue(null)}
+                onHecha={(r) => {
+                  setSeFue(null);
+                  // Incobrable: la mesa queda libre (o con sus otras cuentas).
+                  adoptar(r.cuenta);
+                }}
+              />
 
               {cuenta && lugar.tipo === "MESA" && (
                 <VincularPulseras

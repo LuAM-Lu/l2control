@@ -50,6 +50,12 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "cuenta.cambiar_cliente": ["cuentas"],
   // Un representante del parque recibe su cédula al sentarse en el restaurante: cambia el directorio.
   "cliente.completar": PARQUE,
+  // Una deuda (B3-11): la cuenta sale de la cola y del cierre y la mesa queda libre; cobrarla abre una cuenta en la caja.
+  "cuenta.deuda": ["cuentas", "turno"],
+  "deuda.cobrar": ["cuentas"],
+  "deuda.devolver": ["cuentas"],
+  "deuda.cobrada": ["cuentas"],
+  "deuda.perder": ["cuentas"],
   // Una regla nueva o retirada cambia lo que la caja ofrece; marcar una familia VIP, también, y el directorio.
   "descuento.crear": ["descuentos"],
   "descuento.retirar": ["descuentos"],

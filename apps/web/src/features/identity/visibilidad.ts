@@ -30,6 +30,7 @@ export const SUPERFICIE_DE_RUTA: Readonly<Record<string, SurfaceId>> = {
   "/caja": "caja",
   "/turno": "turno",
   "/papel": "papel",
+  "/deudas": "deudas",
   "/mesas": "mesas",
 };
 
@@ -40,6 +41,7 @@ const NOMBRE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, string>>> = {
   caja: "la caja",
   turno: "el turno de caja",
   papel: "la carga desde papel",
+  deudas: "las deudas de clientes",
   mesas: "las mesas",
 };
 

@@ -43,6 +43,7 @@ import {
   type VentaCerradaDto,
 } from "@l2/contracts";
 import { clientesDeCuentas } from "../clientes/de-cuentas.ts";
+import { saldarDeudaDelCobro } from "../deudas/saldar.ts";
 import {
   RetainedAboveThresholdError,
   SettlementImbalanceError,
@@ -182,6 +183,7 @@ export type AccionDeCaja =
   | "cuenta.cortesia"
   | "cuenta.incobrable"
   | "cuenta.cambiarCliente"
+  | "cuenta.deuda"
   | "cuenta.descuento"
   | "turno.corteZ"
   | "turno.abrirFueraDelPunto"
@@ -615,6 +617,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             ...(pagada.status === "POR_COBRAR" && pendingSince ? { pendingSince } : {}),
           });
           await guardarVersion(tx, ctx, nueva, { cause: "COBRO", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          // Si esta cuenta cobra una deuda (B3-11) y queda cobrada entera, la deuda queda cobrada.
+          if (nueva.status === "COBRADA") await saldarDeudaDelCobro(tx, ctx, cuenta.id, cmd.idempotencyKey, ahora, quien.nombre);
           await auditar(tx, ctx, {
             action: "cuenta.cobrar",
             entityType: "account",

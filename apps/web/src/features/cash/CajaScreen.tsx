@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   Smartphone,
   TriangleAlert,
+  UserX,
   Users,
   X,
   Zap,
@@ -88,6 +89,7 @@ import {
   type CatalogoDto,
   type ClienteFacturaDto,
   type CortesiaDto,
+  type DeudaDto,
   type DatosDePagoDto,
   type DescuentosDeCuentaDto,
   type FamilyAccountDto,
@@ -113,6 +115,8 @@ import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
 import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
 import { asignarCliente } from "../clientes/clientes.acciones";
+import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
+import { cobrarDeuda, leerDeudas } from "../deudas/deudas.acciones";
 import {
   ColaCuentas,
   filtrarCola,
@@ -310,6 +314,9 @@ function CobroCuenta({
   /** A nombre de quién sale la factura: consumidor final salvo que se pida (DEC-23). */
   const [cliente, setCliente] = useState<ClienteFacturaDto>(CONSUMIDOR_FINAL);
   const [identificando, setIdentificando] = useState(false);
+  /** «Se fue sin pagar» (B3-11): el diálogo que deja la cuenta en deuda a nombre de su cliente. */
+  const [seFue, setSeFue] = useState(false);
+  const { adoptar: adoptarCuenta } = useCuentas();
   /** Último banco, terminal y red: la siguiente vez ya vienen puestos. */
   const [recordados, setRecordados] = useState<Recordados>({});
   // La lista nunca está vacía aquí: `CajaScreen` no pinta el cobro sin medios.
@@ -927,6 +934,21 @@ function CobroCuenta({
             >
               <ShoppingBag size={13} />
               <span>{mostrarCatalogo ? "Ocultar ítems" : "Añadir ítems"}</span>
+            </button>
+          )}
+          {/* Quien se sentó (o dejó pendiente la venta) y se fue sin pagar deja una deuda a su nombre (B3-11). Sin pagos
+              a medias: lo que ya se pagó se cobra o se anula antes. */}
+          {(cuenta.kind === "MESA" || cuenta.kind === "MOSTRADOR") && pagos.length === 0 && !cuenta.lines.some((l) => l.paid) && (
+            <button
+              type="button"
+              onClick={() => setSeFue(true)}
+              title="Se fue sin pagar: queda en deuda a su nombre"
+              aria-label="Se fue sin pagar"
+              aria-haspopup="dialog"
+              className="inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] font-semibold text-ink-2 transition-all hover:border-state-crit/50 hover:text-state-crit"
+            >
+              <UserX size={14} aria-hidden="true" />
+              <span className="hidden @lg/ticket:inline">Se fue sin pagar</span>
             </button>
           )}
         </div>
@@ -1751,6 +1773,15 @@ function CobroCuenta({
         </div>
       </aside>
 
+      <MarcarDeudaDialog
+        cuenta={seFue ? cuenta : null}
+        onCerrar={() => setSeFue(false)}
+        onHecha={(r) => {
+          setSeFue(false);
+          // Incobrable: sale de la cola; la caja pasa a la siguiente.
+          adoptarCuenta(r.cuenta);
+        }}
+      />
       <ClienteFacturaDialog
         abierto={identificando}
         actual={cliente}
@@ -1917,6 +1948,7 @@ export function CajaScreen({
   serverNow,
   turno,
   vistaDePrecios = "AMBOS",
+  deudasPendientes = [],
   ...cobro
 }: Omit<
   CobroProps,
@@ -1937,6 +1969,8 @@ export function CajaScreen({
   volver: string | null;
   /** Cómo enseña los precios la carta en este equipo, de su cookie (T-15). */
   vistaDePrecios?: VistaDePrecios;
+  /** Las deudas de clientes que siguen pendientes (B3-11): salen al buscar a su cliente en la cola. */
+  deudasPendientes?: readonly DeudaDto[];
 }) {
   const { ajustes } = useSucursal();
   // La vista de precios cambia al momento y se guarda en el equipo; si no se guardó, la próxima vez vuelve la de antes.
@@ -2004,6 +2038,13 @@ export function CajaScreen({
   const [filtro, setFiltro] = useState<FiltroCola>("TODAS");
   const [buscando, setBuscando] = useState(false);
   const buscadorRef = useRef<HTMLInputElement>(null);
+  // Lo que dejaron sin pagar quienes se fueron (B3-11): sale al buscar a su cliente. Se relee con las cuentas.
+  const [deudas, setDeudas] = useState<readonly DeudaDto[]>(deudasPendientes);
+  useAlCambiar(["cuentas"], () => {
+    void leerDeudas()
+      .then((r) => r.ok && setDeudas(r.valor.deudas.filter((d) => d.estado === "PENDIENTE" && !d.enCobro)))
+      .catch(() => undefined);
+  });
   // El buscador de la carta que esté a la vista (B3-10): la «/» va a él antes que a la cola.
   const campoDeLaCarta = useRef<HTMLInputElement | null>(null);
   const enfocarLaCarta = useRef(false);
@@ -2256,6 +2297,25 @@ export function CajaScreen({
     }
   }
 
+  /** Cobrar una deuda (B3-11): su cuenta del mostrador entra en la cola y se elige para cobrarla ya. */
+  async function cobrarLaDeuda(d: DeudaDto) {
+    const r = await cobrarDeuda({ idempotencyKey: globalThis.crypto.randomUUID(), deudaId: d.id }).catch(() => null);
+    if (!r) {
+      avisar.error("Sin conexión con el servidor: la deuda no pasó a la caja. Vuelve a intentarlo.");
+      return;
+    }
+    if (!r.ok) {
+      avisar.error(r.mensaje);
+      return;
+    }
+    creadasAqui.current.add(r.valor.id);
+    adoptarCuenta(r.valor);
+    setDeudas((xs) => xs.filter((x) => x.id !== d.id));
+    setBusqueda("");
+    setFiltro("TODAS");
+    antesDeSalir(() => elegir(r.valor.id));
+  }
+
   function onNuevaVentaDirecta() {
     setVentaNueva(true);
     setVista("cuenta");
@@ -2494,6 +2554,8 @@ export function CajaScreen({
           }
           onVerRecibo={() => setViendoRecibo(true)}
           onVerAtajos={() => setViendoAtajos(true)}
+          deudas={deudas}
+          onCobrarDeuda={(d) => void cobrarLaDeuda(d)}
         />
         {ventaNueva ? (
           <NuevaVentaDirecta

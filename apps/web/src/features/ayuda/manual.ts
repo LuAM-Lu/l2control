@@ -217,6 +217,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
       "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I) si el cliente pide la factura con su cédula o RIF, «Descuento» y «Dividir» en partes iguales, de 2 a 6.",
       "«Cobrar $ …» dice lo que se cobra, el de la parte si está dividida (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
+      "Si el cliente de una mesa o de una venta se fue sin pagar: «Se fue sin pagar» en la cuenta, con el PIN de supervisión. Lo que debe queda a su nombre (Caja → Deudas). Cuando vuelva, al buscarlo en la cola sale «Debe de antes»: tócalo y se cobra como cualquier cuenta.",
     ],
     problemas: [
       {
@@ -263,6 +264,37 @@ export const MANUAL: readonly EntradaDelManual[] = [
       },
     ],
     recorrido: "caja",
+  },
+  {
+    id: "deudas",
+    ruta: "/deudas",
+    titulo: "Deudas de clientes",
+    roles: CAJA,
+    proposito: "Lo que dejaron sin pagar quienes se fueron: a nombre de su cliente, con lo que deben, quién los atendió y quién lo autorizó.",
+    pasos: [
+      "Una deuda nace con «Se fue sin pagar» en la caja, en Mesas o al cerrar el turno, con el PIN de supervisión. La cuenta sale de la cola y del cierre y la mesa queda libre.",
+      "Cuando el cliente vuelve: «Cobrar» pasa a la caja una cuenta con lo que consumió, a su nombre, y se cobra con la tasa de hoy. Cobrada entera, la deuda queda cobrada.",
+      "Si vino pero no pagó: «Devolver a deudas» saca su cuenta de la caja y la deuda sigue pendiente.",
+      "«Dar por perdida» es de administración, con su PIN y un motivo. Nada se borra: queda en «Perdidas».",
+      "Busca por nombre, cédula, teléfono o número de orden. Las cobradas y las perdidas de los últimos 90 días están en sus pestañas.",
+    ],
+    problemas: [
+      {
+        sintoma: "«La deuda es a nombre de alguien»",
+        solucion: "La cuenta no tenía cliente (una venta del mostrador sin datos): escribe su cédula, su teléfono y su nombre en el mismo diálogo.",
+        reconoce: ["la deuda es a nombre de alguien"],
+      },
+      {
+        sintoma: "«Esa deuda tiene un cobro abierto en la caja»",
+        solucion: "Antes de darla por perdida, cobra esa cuenta o «Devolver a deudas».",
+        reconoce: ["tiene un cobro abierto en la caja"],
+      },
+      {
+        sintoma: "«No queda en deuda aquí» en una cuenta del parque",
+        solucion: "La cuenta de una familia del parque o de un cumpleaños se marca incobrable desde el cierre del turno.",
+        reconoce: ["no queda en deuda aqui"],
+      },
+    ],
   },
   {
     id: "turno",
@@ -335,6 +367,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: la comanda sale en la impresora.",
       "Cuando el plato llega a la mesa, toca «Servido» en su pedido: ahí termina su espera. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
       "«Pide la cuenta» la manda a caja. Si no consumieron nada, «Liberar».",
+      "Si se fueron sin pagar: «Se fue sin pagar», con el PIN de supervisión. La mesa queda libre y lo que deben, a nombre del cliente. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
     ],
     problemas: [
       {

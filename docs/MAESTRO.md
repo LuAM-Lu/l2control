@@ -35,8 +35,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 ## 1. Dónde estamos
 
 **Versión 0.88.0 · 88 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
-capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 en curso (saber a quién cobrarle): B6-9
-hecho; siguen B3-11 y B11-4.** M-28 y M-29
+capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 en curso (saber a quién cobrarle): B6-9 y
+B3-11 hechos; sigue B11-4.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -1417,7 +1417,8 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   cobrada con el teclado ($ 50 en efectivo, Ctrl+Intro). A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desplazar la página (en el teléfono, sin desplazar a lo ancho), sin textos cortados ni que se salgan de su tarjeta y sin
   errores de consola.*
-- [~] **B3-11 · Deudas de clientes: quien se va sin pagar** (M-33). *A cargo: LuAMi, rama `feat/b3-11`.*
+- [x] **B3-11 · Deudas de clientes: quien se va sin pagar** (M-33).
+  *Hecho el 2026-10-08, en `feat/b3-11`.*
   → **Marcarla.** En la cuenta, en la caja o en la mesa, «Se fue sin pagar», con la 🔐 de supervisión y un detalle
   opcional. La cuenta sale de la cola y de la jornada (el cierre ya no la pide), la mesa queda libre y la deuda guarda al
   cliente, lo consumido, el monto en dólares, quién atendió y quién la marcó. Una cuenta sin cliente (de antes de B6-9)
@@ -1434,6 +1435,31 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   Se adapta a lo que hay (punto 10): la acción `cuenta.deuda` (supervisión ✅; caja y mesero 🔐) con su fila en la matriz
   del plan, y dar por perdida con `cuenta.incobrable`; asiento y tema en vivo; el manual de Cobrar y el de la pestaña
   nueva; los datos con `data-privado`; la cuenta de soporte (en producción no marca deudas); Inicio.
+  *· Base: `20261116000000_deudas_de_clientes` (solo expande): `customer_debt` (una por cuenta: el cliente como se dio, el
+  monto en dólares, quién lo sentó, quién la marcó y quién lo autorizó), `customer_debt_collection` (la cuenta con que
+  se cobra) y `customer_debt_outcome` (COBRADA o PERDIDA, una por deuda); las tres de solo agregar y aisladas. La cuenta
+  pasa a INCOBRABLE, un estado que ya existía: sale de la cola y del cierre y libera la mesa también para la versión
+  anterior; el turno la lista en sus excepciones («Se fue sin pagar · queda en deuda»).*
+  *· Contrato: `MarcarDeudaCommandSchema` (con el cliente si la cuenta no lo tiene), `CobrarDeudaCommandSchema`,
+  `DevolverDeudaCommandSchema`, `PerderDeudaCommandSchema`, `DeudaSchema`; `deudas` en el cliente encontrado. La acción
+  `cuenta.deuda` (supervisión ✅, caja y mesero 🔐) con su fila en la matriz; dar por perdida es `cuenta.incobrable`.*
+  *· Aplicación: `deudas.marcar`, `cobrar` (una cuenta del mostrador con lo que consumió, sin el producto —ya salió del
+  estante— y con su descuento y su reparto: exactamente lo que debía; una sola), `devolver` (si vino pero no pagó: su
+  cuenta de cobro sale de la caja), `perder` y `leer`; el cobro que deja cobrada una cuenta de cobro salda la deuda en la
+  misma transacción (`deudas/saldar.ts`); `clientes.buscar` avisa de lo que debe. 13 pruebas contra la base.*
+  *· Web: el botón «Se fue sin pagar» en la cuenta de la caja, en Mesas y en el cierre del turno (`MarcarDeudaDialog`,
+  con el PIN de supervisión y los datos del cliente si faltan); Caja → Deudas (`/deudas`, estación con su pestaña:
+  pendientes, cobradas y perdidas de 90 días; cobrar, ir a la caja, devolver y dar por perdida); «Debe de antes» al
+  buscarlo en la cola y al sentarlo; el aviso de Inicio; el manual de Deudas, Cobrar y Mesas.*
+  *· Decidido al construir: la cuenta queda INCOBRABLE (no un estado nuevo, por ADR-028) y la deuda vive aparte; cobrarla
+  abre una cuenta nueva en el turno de hoy (la venta es del día en que se cobra); una cuenta de cobro no se descarta con
+  «guardar» (lo consumido no se quita): se devuelve a las deudas con su mando; con un cobro abierto no se da por perdida.*
+  *· Comprobado en el navegador, en la base de pruebas: sentar, pedir y «Se fue sin pagar» en Mesas con el PIN de
+  administración; la deuda en Deudas con quién lo atendió y quién autorizó; al volver a sentarlo, «Debe $ 5.80 de antes»;
+  en la caja, buscarlo por la cédula, «Debe de antes» y cobrarla con el teclado (queda cobrada); una venta del mostrador
+  sin datos se va sin pagar (pide los datos), se pasa a la caja, se devuelve y se da por perdida; Inicio «1 deuda de
+  clientes · $ 2.90»; la estación con su pestaña. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
+  desplazar ni cortar y sin errores de consola.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -3122,6 +3148,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · El usuario da el sí a M-33 («Dale»): B6-9, B3-11 y B11-4 de corrido. B6-9 entregado como v0.88.0: la mesa y de
   pie piden nombre, cédula y teléfono, el que vuelve se reconoce, la caja pregunta antes de dejar una venta sin cobrar
   y ninguna mesa se abre sin sentar a su cliente.
+- **2026-10-08** · B3-11 entregado: «Se fue sin pagar» deja la cuenta incobrable y una deuda a nombre del cliente, que
+  se cobra cuando vuelve (Caja → Deudas, o al buscarlo) o administración da por perdida. Sigue B11-4.
 
 ---
 

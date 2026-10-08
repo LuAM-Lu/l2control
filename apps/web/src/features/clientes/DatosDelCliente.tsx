@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { UserCheck } from "lucide-react";
+import { TriangleAlert, UserCheck } from "lucide-react";
 import { DatosDelClienteSchema, type ClienteEncontradoDto, type DatosDelClienteDto } from "@l2/contracts";
 import { contactKey, documentKey, documentoLegible, telefonoLegible } from "@l2/domain-park";
-import { Input, type Surface } from "@l2/ui";
+import { money, sum, toMajor } from "@l2/domain-money";
+import { Input, formatMoneyVE, type Surface } from "@l2/ui";
 import { buscarCliente } from "./clientes.acciones";
 
 /**
@@ -145,6 +146,16 @@ export function DatosDelCliente({
         <p role="status" className="flex items-center gap-1.5 text-detalle text-ink-2">
           <UserCheck className="size-(--icono-texto) shrink-0 text-brand" aria-hidden="true" />
           Ya vino antes: sus datos se rellenaron solos.
+        </p>
+      )}
+      {/* Lo que dejó sin pagar (B3-11): se avisa al encontrarlo, y se cobra en la caja. */}
+      {sigueSiendo && conocido.deudas.length > 0 && (
+        <p role="alert" className="flex items-start gap-1.5 rounded-[var(--radius-control)] bg-state-warn-bg px-3 py-2 text-detalle text-state-warn">
+          <TriangleAlert className="mt-0.5 size-(--icono-texto) shrink-0" aria-hidden="true" />
+          <span>
+            Debe {formatMoneyVE(toMajor(sum(conocido.deudas.map((d) => money(BigInt(d.monto.minor), "USD")), "USD")), "USD")} de antes (
+            {conocido.deudas.map((d) => `#${String(d.orden).padStart(4, "0")} · ${d.lugar}`).join("; ")}). Se cobra en la caja.
+          </span>
         </p>
       )}
     </fieldset>

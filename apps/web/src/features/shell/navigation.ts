@@ -207,6 +207,15 @@ export const MODULOS: readonly Modulo[] = [
           "Lo anotado en formularios cuando cayeron internet y luz: la caja lo carga en su turno con la hora real del papel y supervisión lo revisa antes del Z.",
         tarea: "B3-7",
       },
+      {
+        id: "deudas",
+        nombre: "Deudas",
+        href: "/deudas",
+        abre: "estacion",
+        proposito:
+          "Lo que dejaron sin pagar quienes se fueron (B3-11): a nombre de su cliente, con quién lo atendió y quién lo autorizó. Se cobra en la caja cuando vuelven, o administración la da por perdida.",
+        tarea: "B3-11",
+      },
     ],
   },
   {

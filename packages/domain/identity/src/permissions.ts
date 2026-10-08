@@ -32,6 +32,7 @@ export type Action =
   | "cuenta.incobrable"
   | "cuenta.cliente"
   | "cuenta.cambiarCliente"
+  | "cuenta.deuda"
   | "documento.emitir"
   | "documento.notaCredito"
   | "documento.reimprimir"
@@ -120,6 +121,9 @@ export const MATRIZ: Matriz = Object.freeze({
   // autorización de supervisión: es a quien se le cobra si se va.
   "cuenta.cliente": fila(P, P, P, P, D, D),
   "cuenta.cambiarCliente": fila(P, P, A, A, D, D),
+  // B3-11 (M-33): quien se va sin pagar deja una deuda a su nombre. La marca supervisión con su PIN; la caja y el mesero,
+  // con su autorización. Darla por perdida es `cuenta.incobrable`, de administración.
+  "cuenta.deuda": fila(P, P, A, A, D, D),
 
   // DEC-25: solo la caja cobra, lo del parque y lo del restaurante. La
   // monitora registra entradas y salidas y la cuenta pasa a la cola de la
@@ -390,6 +394,7 @@ export type SurfaceId =
   | "caja"
   | "turno"
   | "papel"
+  | "deudas"
   | "mesas"
   | "kds"
   | "inventario"
@@ -405,6 +410,8 @@ export const SURFACE_ACTION: Readonly<Record<SurfaceId, Action>> = Object.freeze
   turno: "turno.corteX",
   // La carga de lo anotado en papel (B3-7): la cajera carga y supervisión revisa; ambas cobran.
   papel: "documento.emitir",
+  // Las deudas de clientes (B3-11): las cobra quien cobra.
+  deudas: "documento.emitir",
   mesas: "pedido.tomar",
   kds: "kds.cambiarEstado",
   inventario: "inventario.ajustar",
