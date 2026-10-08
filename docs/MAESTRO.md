@@ -1372,7 +1372,8 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   nueva, registrado y cobrado con el teclado; una pulsera nueva leída en la cola abre el panel con ella; una que está en
   la sala se rechaza en el panel. Entrada igual: dos niños hasta la caja en 3,4 s. A 1366×768, 1280×800, 800×1280 y
   390 px, en los dos temas: la caja no desplaza y sin errores de consola.*
-- [ ] **B3-10 · La caja más clara: buscar en la carta y el pie compacto** (M-32).
+- [~] **B3-10 · La caja más clara: buscar en la carta y el pie compacto** (M-32). *A cargo: LuAMi, rama
+  `feat/b3-10`.*
   → **La carta de mostrador** (venta directa y «Añadir ítems» de una cuenta). Un buscador arriba filtra al teclear en
   toda la carta, por nombre, SKU o código de barras, sin importar la categoría abierta; con la búsqueda vacía vuelve la
   categoría que estaba e Intro añade el primero que aparece. La tecla «/» busca en lo que está a la vista: la carta si
