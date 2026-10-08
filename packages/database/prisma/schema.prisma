@@ -1915,13 +1915,56 @@ model BackupCopy {
   downloadedBy   String?   @map("downloaded_by") @db.Uuid
   removedAt      DateTime? @map("removed_at") @db.Timestamptz(3)
 
-  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  pc     BackupReceiver? @relation(fields: [tenantId, downloadedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pc       BackupReceiver?   @relation(fields: [tenantId, downloadedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  fijados  BackupPin[]
+  ensayos  BackupRehearsal[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, file])
   @@index([tenantId, madeAt])
   @@map("backup_copy")
+}
+
+/// Un respaldo fijado con su nombre (B7-6, M-29): ni la retención del servidor ni la escalera de la PC lo borran.
+/// Se suelta una vez (`releasedAt`); no se borra ni se reescribe. A lo sumo uno vigente por respaldo.
+model BackupPin {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  copyId         String    @map("copy_id") @db.Uuid
+  /// «Antes de producción».
+  name           String
+  pinnedAt       DateTime  @map("pinned_at") @db.Timestamptz(3)
+  pinnedBy       String?   @map("pinned_by") @db.Uuid
+  pinnedByName   String    @map("pinned_by_name")
+  releasedAt     DateTime? @map("released_at") @db.Timestamptz(3)
+  releasedByName String?   @map("released_by_name")
+
+  copia BackupCopy @relation(fields: [tenantId, copyId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@map("backup_pin")
+}
+
+/// El ensayo de restauración del volcado de una noche en una base de usar y tirar (B7-6, M-29): lo hace
+/// `respaldar.sh` una vez por semana, antes de cifrarlo (la clave privada no está en el servidor). Íntegro = la
+/// base restaurada tiene la misma huella que se tomó al respaldar. Solo se agrega.
+model BackupRehearsal {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  tenantId String   @map("tenant_id") @db.Uuid
+  copyId   String   @map("copy_id") @db.Uuid
+  at       DateTime @default(now()) @db.Timestamptz(3)
+  intact   Boolean
+  /// Cuánto tardó (arrancar la base, restaurar y comprobar).
+  seconds  Int?
+  /// Qué falló; en uno íntegro, el resumen (tablas, filas y asientos).
+  detail   String?
+
+  copia BackupCopy @relation(fields: [tenantId, copyId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, at])
+  @@map("backup_rehearsal")
 }
 
 /// La PC del local que baja los respaldos (B7-4, M-26), preparada desde Ajustes → Respaldos. De su
@@ -1939,6 +1982,11 @@ model BackupReceiver {
   /// La última vez que preguntó qué había, y desde dónde.
   lastSeenAt    DateTime? @map("last_seen_at") @db.Timestamptz(3)
   lastSeenFrom  String?   @map("last_seen_from")
+  /// Lo que la PC dice de sí misma al conectarse (B7-6): dónde guarda, de qué tipo es esa carpeta (EN_LA_PC,
+  /// EXTERNO o NUBE) y la versión de su programa.
+  folder         String?
+  folderKind     String?  @map("folder_kind")
+  programVersion Int?     @map("program_version")
 
   tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   bajados BackupCopy[]

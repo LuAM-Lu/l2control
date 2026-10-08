@@ -52,6 +52,8 @@ const copia = (horas: number, o: Partial<CopiaDeRespaldoDto> = {}): CopiaDeRespa
   detalle: null,
   bajadoEn: null,
   retiradoEn: null,
+  fijado: null,
+  ensayo: null,
   ...o,
 });
 
@@ -176,5 +178,100 @@ describe("la PC del local", () => {
         tx.backupCopy.create({ data: { tenantId: local.sistema.tenantId, state: "HECHO", file: "l2control-20261008T010000Z.l2r", bytes: 1n } }),
       ),
     );
+  });
+});
+
+describe("con control (B7-6)", () => {
+  /** Lo que haría `respaldar.sh` al ensayar una noche. */
+  const ensayo = (copyId: string, horas: number, intact: boolean, detail: string | null = null) =>
+    local.base.conTenant(local.sistema.tenantId, (tx) =>
+      tx.backupRehearsal.create({ data: { tenantId: local.sistema.tenantId, copyId, at: new Date(AHORA - horas * H), intact, seconds: 9, detail } }),
+    );
+
+  test("el ensayo semanal: íntegro al día; uno que falló es lo primero; sin ensayo en una semana, se avisa", () => {
+    const e = (horas: number, integro: boolean) => ({ integro, en: new Date(AHORA - horas * H).toISOString(), detalle: integro ? null : "la huella no coincide" });
+    const bajada = { bajadoEn: new Date(AHORA - 4 * H).toISOString() };
+    assert.match(clasificar([copia(5, bajada)], true, AHORA, e(5, true)).aviso, /ÍNTEGRO/);
+    const roto = clasificar([copia(5, bajada)], true, AHORA, e(5, false));
+    assert.deepEqual([roto.nivel, /la huella no coincide/.test(roto.aviso)], ["NO_INTEGRO", true]);
+    assert.equal(clasificar([copia(5, bajada)], true, AHORA, e(9 * 24, true)).nivel, "SIN_ENSAYO");
+    // Sin ningún ensayo: con respaldos de hace más de una semana, se avisa; con los primeros, todavía no.
+    assert.equal(clasificar([copia(5, bajada), copia(9 * 24)], true, AHORA).nivel, "SIN_ENSAYO");
+    assert.equal(clasificar([copia(5, bajada)], true, AHORA).nivel, "AL_DIA");
+    // Lo que no se hizo pesa más que el ensayo.
+    assert.equal(clasificar([copia(27)], true, AHORA, e(5, false)).nivel, "ATRASADO");
+  });
+
+  test("la PC dice dónde guarda y su programa; el panel lo enseña", async () => {
+    const r = await local.app.respaldos.prepararPc(ctxAdmin, { nombre: "PC de administración" }, AHORA);
+    assert.ok(r.ok);
+    await local.app.respaldos.entrarPc(local.sistema, r.valor.credencial, "190.202.10.4", AHORA, { programa: 2, carpeta: "E:\L2 Control - Respaldos", tipoDeCarpeta: "EXTERNO" });
+    // Una conexión que no dice nada no borra lo que dijo antes.
+    await local.app.respaldos.entrarPc(local.sistema, r.valor.credencial, "190.202.10.4", AHORA + 1000, null);
+    const e = await local.app.respaldos.estado(ctxAdmin, AHORA);
+    assert.ok(e.ok);
+    assert.deepEqual([e.valor.pc?.carpeta, e.valor.pc?.tipoDeCarpeta, e.valor.pc?.programa], ["E:\L2 Control - Respaldos", "EXTERNO", 2]);
+  });
+
+  test("fijar uno con su nombre: la PC lo ve en el índice, el panel lo enseña y no se fija dos veces", async () => {
+    const r = await local.app.respaldos.prepararPc(ctxAdmin, { nombre: "PC de administración" }, AHORA);
+    assert.ok(r.ok);
+    const pc = (await entrar(r.valor.credencial))!;
+    const copiaFijada = await respaldo(6 * H);
+    const sin = await local.app.respaldos.fijar(ctxAdminSinConfirmar, { id: copiaFijada.id, nombre: "antes de producción" }, AHORA);
+    assert.equal(!sin.ok && sin.motivo, "ELEVACION_REQUERIDA");
+    const caja = await local.app.respaldos.fijar(ctxCajera, { id: copiaFijada.id, nombre: "antes de producción" }, AHORA);
+    assert.equal(!caja.ok && caja.motivo, "NO_PERMITIDO");
+
+    const f = await local.app.respaldos.fijar(ctxAdmin, { id: copiaFijada.id, nombre: "antes de producción" }, AHORA);
+    assert.ok(f.ok);
+    assert.deepEqual(f.valor.fijados.map((c) => [c.id, c.fijado?.nombre, c.fijado?.por]), [[copiaFijada.id, "antes de producción", "Abigail Karam"]]);
+    const i = await local.app.respaldos.indice(pc);
+    assert.equal(i.copias.find((c) => c.archivo === copiaFijada.file)?.fijado, "antes de producción");
+    const otraVez = await local.app.respaldos.fijar(ctxAdmin, { id: copiaFijada.id, nombre: "otro nombre" }, AHORA);
+    assert.match(!otraVez.ok ? otraVez.mensaje : "", /ya está fijado como «antes de producción»/);
+    assert.ok(await local.base.conTenant(local.sistema.tenantId, (tx) => tx.auditEntry.findFirst({ where: { action: "respaldo.fijar", entityId: copiaFijada.id } })));
+
+    // Soltarlo lo devuelve a la retención de siempre; el fijado queda con quién y cuándo, sin borrarse.
+    const s = await local.app.respaldos.soltar(ctxAdmin, { id: copiaFijada.id }, AHORA + 1000);
+    assert.ok(s.ok);
+    assert.deepEqual(s.valor.fijados, []);
+    assert.equal((await local.app.respaldos.indice(pc)).copias.find((c) => c.archivo === copiaFijada.file)?.fijado, null);
+    const s2 = await local.app.respaldos.soltar(ctxAdmin, { id: copiaFijada.id }, AHORA + 2000);
+    assert.equal(!s2.ok && s2.motivo, "CONFLICTO");
+    const pines = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupPin.findMany({ where: { copyId: copiaFijada.id } }));
+    assert.deepEqual(pines.map((p) => p.releasedByName), ["Abigail Karam"]);
+  });
+
+  test("lo que ya no está en el servidor no se fija; un fijado no se borra ni se rebautiza", async () => {
+    // Uno que la retención del servidor ya quitó (lo marca respaldar.sh): ya no se puede proteger desde aquí.
+    const quitado = await local.base.conTenant(local.sistema.tenantId, (tx) =>
+      tx.backupCopy.create({
+        data: { tenantId: local.sistema.tenantId, madeAt: new Date(AHORA - 200 * H), state: "HECHO", file: "l2control-20260930T071500Z.l2r", bytes: 1n, sha256: HUELLA, removedAt: new Date(AHORA - 30 * H) },
+      }),
+    );
+    const r = await local.app.respaldos.fijar(ctxAdmin, { id: quitado.id, nombre: "tarde" }, AHORA);
+    assert.match(!r.ok ? r.mensaje : "", /ya no está en el servidor/);
+    const otro = await respaldo(3 * H);
+    assert.ok((await local.app.respaldos.fijar(ctxAdmin, { id: otro.id, nombre: "cierre de octubre" }, AHORA)).ok);
+    const pin = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupPin.findFirstOrThrow({ where: { copyId: otro.id } }));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupPin.update({ where: { id: pin.id }, data: { name: "otro" } })));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupPin.delete({ where: { id: pin.id } })));
+  });
+
+  test("el último ensayo llega al panel; uno que no salió íntegro es lo primero que se ve", async () => {
+    const r = await respaldo(0.5 * H);
+    await ensayo(r.id, 0.4, true, "62 tablas, 1.204 filas, 18 asientos");
+    const bien = await local.app.respaldos.estado(ctxAdmin, AHORA);
+    assert.ok(bien.ok);
+    assert.deepEqual([bien.valor.ensayo?.integro, bien.valor.ensayo?.archivo], [true, r.file]);
+    assert.equal(bien.valor.copias.find((c) => c.id === r.id)?.ensayo?.integro, true);
+    await ensayo(r.id, 0.2, false, "pg_restore: la tabla payment no se pudo crear");
+    const mal = await local.app.respaldos.estado(ctxAdmin, AHORA);
+    assert.ok(mal.ok);
+    assert.equal(mal.valor.nivel, "NO_INTEGRO");
+    assert.match(mal.valor.aviso, /payment no se pudo crear/);
+    // Un ensayo no se cambia.
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupRehearsal.updateMany({ where: { copyId: r.id }, data: { intact: true } })));
   });
 });

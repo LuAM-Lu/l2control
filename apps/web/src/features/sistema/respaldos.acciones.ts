@@ -31,3 +31,24 @@ export async function retirarPcDeRespaldos(entrada: unknown): Promise<Resultado<
   if (r.ok) revalidatePath("/", "layout");
   return r;
 }
+
+/** Fijar un respaldo con su nombre (B7-6): ni el servidor ni la escalera de la PC lo borran. Con la identidad confirmada. */
+export async function fijarRespaldo(entrada: unknown): Promise<Resultado<EstadoDeRespaldosDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).respaldos.fijar(ctx, entrada);
+  if (r.ok) {
+    log().info({ tenantId: ctx.tenantId, fijados: r.valor.fijados.length }, "respaldo fijado");
+    revalidatePath("/", "layout");
+  }
+  return r;
+}
+
+/** Soltar un respaldo fijado (B7-6): vuelve a la retención de siempre. */
+export async function soltarRespaldo(entrada: unknown): Promise<Resultado<EstadoDeRespaldosDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).respaldos.soltar(ctx, entrada);
+  if (r.ok) revalidatePath("/", "layout");
+  return r;
+}

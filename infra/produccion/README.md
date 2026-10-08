@@ -9,7 +9,7 @@ Cómo corre L2 Control en el VPS (staging y producción) y cómo se pone una ver
 | `Caddyfile` | HTTPS automático (Let's Encrypt) y el reparto: el canal en vivo al worker, lo demás a la web |
 | `desplegar.sh` | Respaldo → migraciones → versión nueva → salud; si no queda sana, vuelve sola a la anterior |
 | `actualizador.sh` | Cada minuto (cron): ve las versiones publicadas, pone la que pidió administración (o sola, en staging) con `desplegar.sh` y escribe en la base cómo terminó (T-8b) |
-| `respaldar.sh` | Cada noche (cron): el respaldo cifrado de la base, con su huella, para la PC del local (B7-4) |
+| `respaldar.sh` | Cada noche (cron): el respaldo cifrado de la base, con su huella, para la PC del local (B7-4); una vez por semana, su ensayo de restauración, y la retención respeta los fijados (B7-6) |
 | `restaurar.sh` | **Fuera del servidor:** el par de claves del local y el ensayo de restauración en una base limpia (B7-4) |
 | `huella.sql` | Las filas de cada tabla y lo que suma el libro de pagos: lo que compara el ensayo |
 | `entorno.ejemplo` | Las variables del `.env` del servidor (sin valores) |
@@ -112,7 +112,7 @@ contra el servidor nuevo: sus acciones ya no existen y se niegan.
 `./actualizador.sh --quitar` lo saca del cron. Para ensayarlo en una PC sin GitHub: `L2_SIN_DESCARGAR=si` (imágenes
 locales, sin `git pull`) y `L2_RELEASES_ARCHIVO=lista.json` (las versiones de un archivo con la forma de la API).
 
-## Respaldos (B7-4)
+## Respaldos (B7-4; con control, B7-6)
 
 Cada noche el servidor hace un respaldo de la base, cifrado para la **clave del local**, y una **PC del local** lo
 baja (M-26). La clave privada no está en el servidor: quien se lleve el servidor (o un respaldo) no puede abrirlo.
@@ -131,14 +131,29 @@ cd ~/l2control/infra/produccion && ./respaldar.sh && ./respaldar.sh --instalar
 ```
 
 3. En el panel, **Ajustes → Respaldos → Preparar una PC del local**: una PC con Windows que esté encendida casi todos
-   los días. El panel da una orden para pegar en PowerShell en esa PC (no hace falta ser administrador) y una
+   los días, y **dónde guarda** (B7-6): un disco externo o una carpeta que se sincroniza con la nube (OneDrive, Google
+   Drive) dejan una copia fuera del local (regla 3-2-1); *Documentos* de esa PC es lo más simple, y el panel lo avisa.
+   El panel da una orden para pegar en PowerShell en esa PC (no hace falta ser administrador) con esa carpeta y una
    credencial que se enseña una vez. Queda una tarea programada que los baja cada día a las 7:00 am y al entrar en
-   Windows, comprueba la huella de cada uno, se lo confirma al servidor y guarda la escalera en *Documentos\L2 Control
-   - Respaldos*: los últimos 30 días, una copia por semana (12) y una por mes (todas).
+   Windows, comprueba la huella de cada uno, se lo confirma al servidor y guarda la escalera en esa carpeta: los
+   últimos 30 días, una copia por semana (12) y una por mes (todas), y en `fijados\` los que se fijaron en el panel,
+   que la escalera nunca toca. La PC le dice al servidor dónde guarda y la versión de su programa: el panel lo enseña
+   y avisa si hay que prepararla otra vez.
 
 El servidor guarda las últimas siete noches (`respaldos/diarios/`); la web se las sirve a esa PC con su credencial
 (`/respaldos/indice`, `/respaldos/archivo/…`, `/respaldos/acuse`) y anota cuándo bajó cada una. Ajustes → Respaldos e
 Inicio avisan si el de anoche falló o no se hizo, si no hay PC preparada o si la PC no baja los recientes.
+
+**Fijar un respaldo (B7-6):** en Ajustes → Respaldos, «Fijar» con su nombre («antes de producción»). La retención del
+servidor (`respaldar.sh`) no lo quita aunque pasen las noches, y la PC lo copia a `fijados\`. «Soltar» lo devuelve a
+la retención de siempre; lo que la PC guardó en `fijados\` se queda.
+
+**El ensayo semanal (B7-6):** una vez por semana (`L2_RESPALDOS_ENSAYO_CADA_HORAS`, 160 de fábrica), `respaldar.sh`
+restaura el volcado de esa noche, **antes de cifrarlo**, en un PostgreSQL de usar y tirar (la misma imagen, sin red ni
+volumen, con los papeles de `infra/postgres/init`) y calcula otra vez su huella: **ÍNTEGRO** si coincide, o qué
+falló. Queda en `backup_rehearsal` con su asiento, y el panel e Inicio lo dicen (sin ensayo en ocho días, también).
+`./respaldar.sh --ensayar` hace uno ahora. El servidor no puede descifrar sus respaldos (la clave privada no está): que
+el archivo cifrado llegó entero lo comprueba la PC con su huella, y el ensayo completo, descifrando, es el de abajo.
 
 **Ensayar la restauración (cada mes, PLAN §10.4),** en la PC del técnico, con un respaldo de la carpeta de la PC del
 local:

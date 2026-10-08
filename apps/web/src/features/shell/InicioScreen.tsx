@@ -89,7 +89,7 @@ export function InicioScreen({
   puestaAPunto?: PuestaAPuntoDto | null;
   /** Una versión nueva del sistema (T-8b); `null` si no hay, en staging o para quien no decide. */
   version?: AvisoDeVersion | null;
-  /** Los respaldos (B7-4), solo si algo no va bien; `null` si van al día o para quien no decide. */
+  /** Los respaldos (B7-4): lo que no va bien o, al día, el último ensayo íntegro (B7-6); `null` para quien no decide. */
   respaldos?: AvisoDeRespaldos | null;
 }) {
   const [tabDetalle, setTabDetalle] = useState<"caja" | "excepciones">("caja");
@@ -465,28 +465,38 @@ function AvisoVersion({ version, urgente, pedida }: AvisoDeVersion) {
 }
 
 /**
- * Los respaldos (B7-4): un chip del encabezado solo cuando algo no va bien. Que el de anoche no se hiciera es
- * crítico; que la PC del local no los baje, un aviso.
+ * Los respaldos (B7-4; con el ensayo de restauración, B7-6): un chip del encabezado cuando algo no va bien y, al
+ * día, discreto, que el último ensayo salió íntegro. Que el de anoche no se hiciera o que el ensayo no saliera
+ * íntegro es crítico; que la PC del local no los baje o que no se ensaye en una semana, un aviso.
  */
 const TEXTO_RESPALDOS: Readonly<Record<AvisoDeRespaldos["nivel"], string>> = {
   FALLIDO: "El respaldo falló",
   ATRASADO: "Respaldo atrasado",
+  NO_INTEGRO: "Respaldo NO íntegro",
   SIN_BAJAR: "Respaldo sin bajar",
+  SIN_ENSAYO: "Respaldo sin ensayar",
   SIN_RESPALDOS: "Sin respaldos",
+  AL_DIA: "Respaldo ÍNTEGRO",
 };
 
 function AvisoRespaldos({ nivel, aviso }: AvisoDeRespaldos) {
-  const critico = nivel === "FALLIDO" || nivel === "ATRASADO";
+  const critico = nivel === "FALLIDO" || nivel === "ATRASADO" || nivel === "NO_INTEGRO";
+  const bien = nivel === "AL_DIA";
+  const Icono = bien ? CircleCheck : TriangleAlert;
   return (
     <Link
       href={rutaSeccion("ajustes", "respaldos")}
       title={aviso}
       className={cn(
         "inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand lg:text-[13px]",
-        critico ? "border-state-crit/40 bg-state-crit-bg text-state-crit hover:border-state-crit" : "border-state-warn/40 bg-state-warn-bg text-state-warn hover:border-state-warn",
+        bien
+          ? "border-line bg-surface/80 text-ink-2 hover:bg-surface-2"
+          : critico
+            ? "border-state-crit/40 bg-state-crit-bg text-state-crit hover:border-state-crit"
+            : "border-state-warn/40 bg-state-warn-bg text-state-warn hover:border-state-warn",
       )}
     >
-      <TriangleAlert size={13} className="shrink-0" aria-hidden="true" />
+      <Icono size={13} className={cn("shrink-0", bien && "text-state-ok")} aria-hidden="true" />
       {TEXTO_RESPALDOS[nivel]}
     </Link>
   );

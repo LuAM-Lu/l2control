@@ -14,6 +14,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Respaldos con carpeta, fijados e integridad a la vista (B7-6, M-29).
+
+### Añadido
+- **El ensayo semanal de restauración.** Una vez por semana el servidor restaura el respaldo de esa noche en una base
+  de usar y tirar y comprueba su huella: Ajustes → Respaldos dice «ÍNTEGRO» (o qué falló) e Inicio, «Respaldo ÍNTEGRO»,
+  o avisa si no salió íntegro o si pasó más de una semana sin ensayar.
+- **Fijar un respaldo** con su nombre («antes de producción»): ni el servidor ni la escalera de la PC lo borran, y la
+  PC lo guarda además en su carpeta «fijados». «Soltar» lo devuelve a la retención de siempre.
+- **Elegir dónde guarda la PC** al prepararla: un disco externo, una carpeta en la nube (OneDrive, Google Drive) o
+  Documentos. El panel enseña dónde guarda (y avisa si es la misma PC: la copia no está fuera del local) y si su
+  programa es de una versión anterior.
+- Cada respaldo bajado dice «huella comprobada».
+
 ## [0.75.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 La semilla con casillas (B7-7, M-29): el camino de la corrida limpia de producción.

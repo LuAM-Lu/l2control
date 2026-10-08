@@ -146,6 +146,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "respaldo.bajar": ["sistema"],
   "respaldo.preparar": ["sistema"],
   "respaldo.retirar": ["sistema"],
+  // B7-6: fijar o soltar un respaldo, y el ensayo de restauración que escribe respaldar.sh, se ven en el panel.
+  "respaldo.fijar": ["sistema"],
+  "respaldo.soltar": ["sistema"],
+  "respaldo.ensayar": ["sistema"],
   // La Puesta a punto la lee Inicio de administración al entrar: dejar un punto para después no avisa a nadie.
   "puesta.posponer": NADA,
   "puesta.retomar": NADA,

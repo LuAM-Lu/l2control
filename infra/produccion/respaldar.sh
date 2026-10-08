@@ -3,6 +3,7 @@
 # Los respaldos del servidor (B7-4, M-26, PLAN §10.4). Corren en el VPS, junto a compose.yml:
 #
 #   ./respaldar.sh              un respaldo ahora (lo que hace el cron cada noche)
+#   ./respaldar.sh --ensayar    un respaldo ahora y, además, su ensayo de restauración (sin esperar a la semana)
 #   ./respaldar.sh --instalar   lo deja en el cron del usuario, cada noche a las 3:15 (hora del servidor)
 #   ./respaldar.sh --quitar     lo quita del cron
 #
@@ -12,6 +13,13 @@
 # máquina). La privada no está aquí: sin ella el archivo no se abre. Queda en respaldos/diarios/ (los últimos
 # 7) y la web se lo sirve a la PC del local preparada en Ajustes → Respaldos, que lo baja y lo confirma.
 # Cómo terminó va a la base (backup_copy) con su asiento: el panel lo enseña, también si falló.
+#
+# Una vez por semana (B7-6), el volcado de esa noche, ANTES de cifrarlo, se restaura en una base de usar y tirar
+# (la misma imagen de PostgreSQL, sin red ni volumen) y se le calcula otra vez la huella: íntegro si coincide con la
+# que se tomó al respaldar. Va a backup_rehearsal y el panel y Inicio lo dicen. Aquí no se puede descifrar (la clave
+# privada no está): que el archivo cifrado llegó entero lo comprueba la PC del local con su huella.
+#
+# Un respaldo fijado en el panel (backup_pin, B7-6) no lo quita la retención: se queda aunque pasen las noches.
 #
 # Sin la clave pública no se respalda (fail-closed): un volcado sin cifrar no sale del servidor.
 
@@ -23,11 +31,19 @@ ETIQUETA_ENV=etiqueta.env
 DESTINATARIO=respaldo-destinatario.pem
 DIARIOS=respaldos/diarios
 QUE_SE_GUARDAN=${L2_RESPALDOS_QUE_SE_GUARDAN:-7}
+# El ensayo es semanal: si el último tiene menos de esto, esta noche no se ensaya.
+ENSAYO_CADA_HORAS=${L2_RESPALDOS_ENSAYO_CADA_HORAS:-160}
+IMAGEN_ENSAYO=postgres:17.11-alpine
+ENSAYAR=no
 
 dc() { docker compose --env-file .env --env-file "$ETIQUETA_ENV" "$@"; }
 decir() { printf '%s  %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 del_env() { sed -n "s/^$1=//p" .env | tail -n 1; }
 en_marcha() { sed -n 's/^L2_ETIQUETA=//p' "$ETIQUETA_ENV" 2>/dev/null || true; }
+# Docker para el ensayo. En Git Bash (Windows, el ensayo en la PC del técnico) Docker no entiende /c/Users/…: la ruta
+# del volumen va en su forma de Windows, y a lo que empieza por «/» no se le convierte nada (como restaurar.sh).
+ruta() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
+dk() { MSYS_NO_PATHCONV=1 docker "$@"; }
 
 # La base como superusuario desde su contenedor; los valores, como variables de psql (`:'nombre'`).
 sql() {
@@ -80,6 +96,75 @@ volcar() { # carpeta
   wait "$PG_PID" 2>/dev/null || true
 }
 
+# ¿Toca ensayar esta noche? Si se pidió, si nunca se ensayó o si el último ensayo tiene más de una semana.
+toca_ensayar() {
+  [ "$ENSAYAR" = si ] && return 0
+  local horas
+  horas=$(sql <<<"SELECT coalesce(floor(extract(epoch FROM now() - max(at)) / 3600)::int, 100000) FROM backup_rehearsal WHERE tenant_id = :'t';" 2>/dev/null) || return 1
+  [ "${horas:-0}" -ge "$ENSAYO_CADA_HORAS" ]
+}
+
+# El ensayo de restauración (B7-6): el volcado de esta noche en una base de usar y tirar, y su huella otra vez.
+# Escribe en la base cómo le fue (íntegro, o qué falló) con su asiento. No para el respaldo si falla: lo anota.
+ensayar() { # carpeta-del-volcado id-del-respaldo
+  local tmp=$1 id=$2 inicio obtenida esperada resumen intento detalle integro
+  inicio=$(date +%s)
+  ensayo="l2-ensayo-respaldo-$$"
+  decir "Ensayando la restauración en una base de usar y tirar…"
+  detalle=""
+  if ! dk run -d --name "$ensayo" --network none \
+    -e POSTGRES_PASSWORD="$(openssl rand -hex 16)" -e L2_MIGRATOR_PASSWORD="$(openssl rand -hex 16)" -e L2_APP_PASSWORD="$(openssl rand -hex 16)" \
+    -e L2_BASES=l2control -e L2_MIGRADOR_CREA_BASES=no \
+    -e POSTGRES_INITDB_ARGS="--encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8" \
+    -v "$(ruta "$(pwd)/../postgres/init"):/docker-entrypoint-initdb.d:ro" "$IMAGEN_ENSAYO" >/dev/null 2>"$tmp/ensayo.err"; then
+    detalle="No se pudo arrancar la base de ensayo: $(head -c 200 "$tmp/ensayo.err")"
+  else
+    # Lista cuando terminó de arrancar del todo (la primera vez arranca dos veces) y ya existen los papeles.
+    for intento in $(seq 90); do
+      if [ "$(dk logs "$ensayo" 2>&1 | grep -c 'database system is ready to accept connections')" -ge 2 ] &&
+        [ "$(dk exec "$ensayo" psql -U postgres -d l2control -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'l2_app'" 2>/dev/null)" = "1" ]; then
+        break
+      fi
+      [ "$intento" -lt 90 ] || { detalle="La base de ensayo no arrancó en 90 s."; break; }
+      sleep 1
+    done
+  fi
+  if [ -z "$detalle" ] && ! dk exec -i "$ensayo" pg_restore -U postgres -d l2control --exit-on-error --single-transaction <"$tmp/l2control.dump" 2>"$tmp/ensayo.err"; then
+    detalle="pg_restore no pudo restaurarlo: $(head -c 200 "$tmp/ensayo.err")"
+  fi
+  if [ -z "$detalle" ]; then
+    obtenida=$(grep -v '^--' huella.sql | tr '\n' ' ' | dk exec -i "$ensayo" psql -U postgres -d l2control -X -q -A -t -v ON_ERROR_STOP=1 2>"$tmp/ensayo.err") ||
+      detalle="No se pudo calcular la huella de la base restaurada: $(head -c 200 "$tmp/ensayo.err")"
+  fi
+  if [ -z "$detalle" ]; then
+    esperada=$(cat "$tmp/huella.json")
+    [ "$obtenida" = "$esperada" ] || detalle="La base restaurada no tiene la huella del respaldo: le faltan o le sobran filas."
+  fi
+  if [ -z "$detalle" ]; then
+    resumen=$(dk exec "$ensayo" psql -U postgres -d l2control -X -q -A -t -F ' ' -c \
+      "SELECT count(*), sum((xpath('/row/n/text()', query_to_xml(format('SELECT count(*) AS n FROM public.%I', table_name), false, true, '')))[1]::text::bigint), (SELECT count(*) FROM payment) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'" 2>/dev/null || true)
+    local tablas filas pagos
+    read -r tablas filas pagos <<<"$resumen"
+    detalle="${tablas:-?} tablas, ${filas:-?} filas, ${pagos:-?} asientos en el libro de pagos; la huella coincide."
+    integro=true
+  else
+    integro=false
+  fi
+  dk rm -f "$ensayo" >/dev/null 2>&1 || true
+  ensayo=""
+  local segundos=$(($(date +%s) - inicio))
+  sql -v c="$id" -v i="$integro" -v s="$segundos" -v d="$detalle" <<'SQL' || decir "No se pudo anotar el ensayo en la base."
+WITH e AS (
+  INSERT INTO backup_rehearsal (id, tenant_id, copy_id, intact, seconds, detail)
+  VALUES (gen_random_uuid(), :'t', :'c'::uuid, :'i'::boolean, :'s'::int, :'d')
+  RETURNING id)
+INSERT INTO audit_log (id, tenant_id, branch_id, action, outcome, entity_type, entity_id, after)
+SELECT gen_random_uuid(), :'t', :'b', 'respaldo.ensayar', 'HECHO', 'backup_copy', :'c', jsonb_build_object('integro', :'i'::boolean, 'segundos', :'s'::int, 'detalle', :'d')
+FROM e;
+SQL
+  if [ "$integro" = true ]; then decir "ÍNTEGRO en ${segundos} s: $detalle"; else decir "NO ÍNTEGRO: $detalle"; fi
+}
+
 respaldar() {
   [ -f .env ] || { decir "Falta .env junto a compose.yml."; exit 2; }
   TENANT=$(del_env L2_TENANT_ID)
@@ -98,8 +183,9 @@ respaldar() {
   nombre="l2control-$(date -u +%Y%m%dT%H%M%SZ).l2r"
   # Global: la trampa de salida la borra aunque se salga desde `fallido`.
   tmp=$(mktemp -d "respaldos/.en-curso-XXXXXX")
-  # El volcado sin cifrar vive solo mientras dura esto.
-  trap 'rm -rf "${tmp:-}"' EXIT
+  ensayo=""
+  # El volcado sin cifrar vive solo mientras dura esto; la base de ensayo, tampoco queda.
+  trap 'rm -rf "${tmp:-}"; [ -z "${ensayo:-}" ] || dk rm -f "$ensayo" >/dev/null 2>&1 || true' EXIT
   decir "Respaldando en $nombre…"
   if ! motivo=$(volcar "$tmp"); then fallido "$motivo"; fi
   printf '%s\n' "${VERSION:-desconocida}" >"$tmp/version.txt"
@@ -113,20 +199,27 @@ respaldar() {
   chmod 644 "$tmp/$nombre"
   mv "$tmp/$nombre" "$DIARIOS/$nombre"
 
-  sql -v f="$nombre" -v n="$bytes" -v h="$sha" -v v="$VERSION" <<'SQL'
+  local id_copia
+  id_copia=$(sql -v f="$nombre" -v n="$bytes" -v h="$sha" -v v="$VERSION" <<'SQL'
 WITH c AS (
   INSERT INTO backup_copy (id, tenant_id, state, file, bytes, sha256, version)
   VALUES (gen_random_uuid(), :'t', 'HECHO', :'f', :'n'::bigint, :'h', NULLIF(:'v', ''))
-  RETURNING id)
-INSERT INTO audit_log (id, tenant_id, branch_id, action, outcome, entity_type, entity_id, after)
-SELECT gen_random_uuid(), :'t', :'b', 'respaldo.hacer', 'HECHO', 'backup_copy', c.id::text, jsonb_build_object('archivo', :'f', 'bytes', :'n'::bigint)
-FROM c;
+  RETURNING id),
+a AS (
+  INSERT INTO audit_log (id, tenant_id, branch_id, action, outcome, entity_type, entity_id, after)
+  SELECT gen_random_uuid(), :'t', :'b', 'respaldo.hacer', 'HECHO', 'backup_copy', c.id::text, jsonb_build_object('archivo', :'f', 'bytes', :'n'::bigint)
+  FROM c)
+SELECT id FROM c;
 SQL
+)
   decir "Hecho: $nombre ($(du -h "$DIARIOS/$nombre" | cut -f1), sha256 $sha)."
+  # Una vez por semana, el ensayo de restauración con el volcado de esta noche (que todavía está sin cifrar en $tmp).
+  if [[ $id_copia =~ ^[0-9a-f-]{36}$ ]] && toca_ensayar; then ensayar "$tmp" "$id_copia"; fi
 
-  # Aquí se guardan las últimas noches; la PC del local guarda la escalera larga.
-  local viejo
-  for viejo in $(ls -1 "$DIARIOS"/l2control-*.l2r 2>/dev/null | sort -r | tail -n +$((QUE_SE_GUARDAN + 1))); do
+  # Aquí se guardan las últimas noches, y los fijados aunque sean viejos (B7-6); la PC del local guarda la escalera larga.
+  local viejo fijados
+  fijados=$(sql <<<"SELECT c.file FROM backup_pin p JOIN backup_copy c ON c.tenant_id = p.tenant_id AND c.id = p.copy_id WHERE p.tenant_id = :'t' AND p.released_at IS NULL;" 2>/dev/null || true)
+  for viejo in $(ls -1 "$DIARIOS"/l2control-*.l2r 2>/dev/null | sort -r | grep -vxF -f <(printf '%s\n' $fijados | sed "s|^|$DIARIOS/|") | tail -n +$((QUE_SE_GUARDAN + 1))); do
     rm -f "$viejo"
     sql -v f="$(basename "$viejo")" <<<"UPDATE backup_copy SET removed_at = now() WHERE tenant_id = :'t' AND file = :'f' AND removed_at IS NULL;"
     decir "Retirado del servidor: $(basename "$viejo")."
@@ -148,7 +241,8 @@ main() {
       { crontab -l 2>/dev/null | grep -vF "$GUION" || true; } | crontab -
       echo "Quitado del cron."
       ;;
-    -h | --help) sed -n '3,17p' "$GUION" | sed 's/^# \{0,1\}//' ;;
+    -h | --help) sed -n '3,26p' "$GUION" | sed 's/^# \{0,1\}//' ;;
+    --ensayar) ENSAYAR=si; respaldar ;;
     "") respaldar ;;
     *) echo "No conozco «$1». Mira ./respaldar.sh --help" >&2; exit 2 ;;
   esac

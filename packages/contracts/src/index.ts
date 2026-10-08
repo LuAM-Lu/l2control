@@ -772,6 +772,16 @@ export {
   type EstadoDeRespaldosDto,
   type IndiceDeRespaldosDto,
   type AcuseDeRespaldoCommand,
+  EnsayoDeRestauracionSchema,
+  FijarRespaldoCommandSchema,
+  SoltarRespaldoCommandSchema,
+  TipoDeCarpetaSchema,
+  InformeDeLaPcSchema,
+  VERSION_DEL_PROGRAMA_DE_RESPALDOS,
+  type EnsayoDeRestauracionDto,
+  type FijarRespaldoCommand,
+  type TipoDeCarpeta,
+  type InformeDeLaPcDto,
 } from "./respaldos.ts";
 
 export {
