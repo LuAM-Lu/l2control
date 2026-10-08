@@ -17,7 +17,6 @@ import {
   EmptyState,
   FiltroSegmentado,
   Input,
-  PageHeader,
   Paginacion,
   Resumen,
   Sheet,
@@ -25,6 +24,7 @@ import {
   cn,
   formatMoneyVE,
 } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
@@ -34,7 +34,7 @@ import { aplicarProducto } from "../inventario/productos.acciones";
 import { estadoDe } from "../inventario/EstadoStock.tsx";
 
 /**
- * Ajustes → Carta y precios (B6-1, F6-03; patrón de Ajustes, M-17).
+ * Inventario → Productos → En la carta (B6-1, F6-03; patrón de Ajustes, M-17; junto al precio desde T-18).
  *
  * La carta del restaurante **es el catálogo**: lo que el mesero ofrece es lo que está a la venta y
  * marcado «en la carta». Un solo precio con su calendario, un solo IVA y, si se cuenta, su existencia
@@ -215,7 +215,7 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
 
   return (
     <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
-      <PageHeader
+      <EncabezadoDePagina
         className="mb-4"
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Carta y precios" }]}
         titulo="Carta y precios"
@@ -433,9 +433,9 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
           />
         )}
         <p className="shrink-0 text-[12.5px] text-ink-3">
-          {puede ? "Un plato no se borra: se saca de la carta, y si ya no se vende, se aparta en " : "La carta la arma la administración. Los productos completos están en "}
+          {puede ? "Un plato no se borra: se saca de la carta, y si ya no se vende, se aparta en la pestaña " : "La carta la arma la administración. Los productos completos están en la pestaña "}
           <Link href={"/panel/inventario/productos" as Route} className="font-semibold text-ink underline-offset-2 hover:underline">
-            Inventario → Productos
+            Productos
           </Link>
           .
         </p>

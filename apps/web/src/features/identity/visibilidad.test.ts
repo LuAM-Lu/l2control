@@ -7,19 +7,19 @@
  */
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import type { Action, Actor, Role } from "@l2/domain-identity";
-import { buscarModulo, buscarSeccion } from "../shell/navigation.ts";
+import { can, type Action, type Actor, type Role } from "@l2/domain-identity";
+import { MODULOS, RUTAS_MOVIDAS, buscarModulo, buscarSeccion, pestanaPedida } from "../shell/navigation.ts";
 import { puedeVerSeccion } from "./visibilidad.ts";
 
 /** Lo que exige el servidor para trabajar en cada sección (basta una). */
 const SERVIDOR: Readonly<Record<string, readonly Action[]>> = {
-  "inventario/productos": ["inventario.catalogo", "inventario.entrada", "inventario.ajustar"],
+  "inventario/productos": ["inventario.catalogo", "inventario.entrada", "inventario.ajustar", "catalogo.modificar"],
   "inventario/entradas": ["inventario.entrada"],
   "inventario/salidas": ["inventario.ajustar"],
-  "ajustes/usuarios": ["usuarios.gestionar"],
-  "ajustes/accesos": ["usuarios.gestionar"],
-  "ajustes/sistema": ["sistema.actualizar"],
-  "ajustes/tasas": ["tasa.confirmar"],
+  // T-18: una sección con pestañas se ve con el permiso de cualquiera de ellas.
+  "ajustes/personas": ["usuarios.gestionar"],
+  "ajustes/sistema": ["sistema.actualizar", "catalogo.modificar"],
+  "ajustes/tasas": ["tasa.confirmar", "catalogo.modificar"],
   "ajustes/soporte": ["soporte.gestionar"],
 };
 
@@ -67,5 +67,36 @@ describe("un permiso dado abre su sección (T-13)", () => {
     const supervision = actor("SUPERVISOR", { revokes: ["inventario.entrada", "inventario.ajustar"] });
     assert.equal(ve(supervision, "inventario/entradas"), false);
     assert.equal(ve(supervision, "inventario/productos"), false);
+  });
+});
+
+describe("las secciones con pestañas (T-18)", () => {
+  test("cada pestaña se abre con un permiso que deja ver su sección", () => {
+    for (const modulo of MODULOS) {
+      for (const s of modulo.secciones) {
+        const delMenu = s.acciones ?? [s.accion ?? modulo.accion];
+        for (const p of s.pestanas ?? []) {
+          if (p.accion) assert.ok(delMenu.includes(p.accion), `${modulo.id}/${s.id}: la pestaña ${p.id} pide ${p.accion} y la sección no la deja ver`);
+        }
+      }
+    }
+  });
+
+  test("supervisión ve Tasas pero no sus feriados; administración, las dos", () => {
+    const tasas = buscarSeccion(buscarModulo("ajustes")!, "tasas")!;
+    const visibles = (a: Actor) => tasas.pestanas!.filter((p) => !p.accion || can(a, p.accion) !== "DENEGADO").map((p) => p.id);
+    assert.deepEqual(visibles(actor("SUPERVISOR")), ["tasas"]);
+    assert.deepEqual(visibles(actor("ADMIN")), ["tasas", "feriados"]);
+  });
+
+  test("Ajustes queda en 12 secciones y las viejas llevan a su pestaña", () => {
+    assert.equal(buscarModulo("ajustes")!.secciones.length, 12);
+    assert.equal(RUTAS_MOVIDAS["ajustes/usuarios"], "/panel/ajustes/personas?pestana=usuarios");
+    assert.equal(RUTAS_MOVIDAS["ajustes/feriados"], "/panel/ajustes/tasas?pestana=feriados");
+    assert.equal(RUTAS_MOVIDAS["ajustes/respaldos"], "/panel/ajustes/sistema?pestana=respaldos");
+    assert.equal(RUTAS_MOVIDAS["ajustes/carta"], "/panel/inventario/productos?pestana=carta");
+    assert.equal(pestanaPedida("ajustes", "sistema", undefined), "version");
+    assert.equal(pestanaPedida("ajustes", "sistema", "nada"), "version");
+    assert.equal(pestanaPedida("ajustes", "sistema", ["semilla"]), "semilla");
   });
 });

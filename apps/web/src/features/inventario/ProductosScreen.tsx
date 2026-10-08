@@ -9,7 +9,8 @@ import { can } from "@l2/domain-identity";
 import { barcodeProblem, marginBasisPoints, normalizeBarcode, periodAt } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { invertRate, money, toMajor, type Money } from "@l2/domain-money";
-import { Button, Container, Input, PageHeader, Sheet, TAMANO_ICONO, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
+import { Button, Container, Input, Sheet, TAMANO_ICONO, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
@@ -129,7 +130,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
 
   return (
     <Container ancho="panel" className="py-8">
-      <PageHeader
+      <EncabezadoDePagina
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Inventario", href: "/panel/inventario" }, { texto: "Productos" }]}
         titulo="Productos"
         descripcion="Lo que hay, lo que hay que reponer y lo que deja cada cosa que se vende. El precio se programa con su día: cambiarlo no altera lo ya vendido."

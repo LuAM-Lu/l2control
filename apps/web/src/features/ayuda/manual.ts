@@ -47,7 +47,7 @@ const GENERALES: readonly Problema[] = [
   {
     sintoma: "«Equipo sin registrar» al entrar",
     solucion:
-      "Escribe el nombre del equipo y pulsa «Pedir registro». Administración lo aprueba en Ajustes → Dispositivos (o desde el mismo equipo con «Soy de administración») comparando el código que se ve en pantalla.",
+      "Escribe el nombre del equipo y pulsa «Pedir registro». Administración lo aprueba en Ajustes → Personas y equipos → Dispositivos (o desde el mismo equipo con «Soy de administración») comparando el código que se ve en pantalla.",
     reconoce: ["equipo sin registrar", "equipo no esta aprobado"],
   },
   {
@@ -63,7 +63,7 @@ const GENERALES: readonly Problema[] = [
   },
   {
     sintoma: "«Tu puesto no permite hacer esto»",
-    solucion: "Tu rol no tiene ese permiso. Pídeselo a quien lo tenga, o que administración lo ajuste en Ajustes → Roles y accesos o en tu ficha de Ajustes → Usuarios.",
+    solucion: "Tu rol no tiene ese permiso. Pídeselo a quien lo tenga, o que administración lo ajuste en Ajustes → Personas y equipos: en Roles y accesos, o en tu ficha de Usuarios y permisos.",
     reconoce: ["tu puesto no permite"],
   },
   {
@@ -327,6 +327,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Los productos con su existencia, las entradas de mercancía, las salidas y el conteo.",
     pasos: [
       "Productos: la existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
+      "Productos → En la carta: qué platos ofrece el mesero y su precio con su día (un solo sitio para el precio).",
       "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay).",
       "Salidas y conteo: merma, consumo interno, regalo o devolución, con motivo; el conteo deja la existencia igual a lo contado.",
     ],
@@ -349,13 +350,40 @@ export const MANUAL: readonly EntradaDelManual[] = [
     ruta: "/panel/ajustes",
     titulo: "Ajustes",
     roles: ["ADMIN"],
-    proposito: "La configuración del local: tarifas, carta, plano, medios, impuestos, personas, equipos, impresoras, respaldos y actualizaciones.",
+    proposito:
+      "La configuración del local en 12 secciones: tarifas, cumpleaños, plano, medios, descuentos, tasas (con los feriados), impuestos, personas y equipos, sucursal, impresoras, sistema (versión, respaldos y semilla) y soporte. La carta está en Inventario → Productos.",
     pasos: [
       "Cada sección tiene arriba sus cifras, y el alta y la edición se hacen en una hoja lateral.",
+      "Las que reúnen varias cosas las ponen en pestañas: Personas y equipos (usuarios, roles y dispositivos), Tasas (y feriados) y Sistema (versión, respaldos y semilla).",
       "Lo que cambia precios o personas pide confirmar tu identidad (vale 15 minutos).",
       "Nada se borra: un precio nuevo rige desde su día; lo que ya no se usa se retira.",
     ],
     problemas: GENERALES,
+  },
+  {
+    id: "reportes",
+    ruta: "/panel/reportes",
+    titulo: "Reportes",
+    roles: DIRECCION,
+    proposito: "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas de un día o de un rango, con su PDF.",
+    pasos: [
+      "Elige el periodo (hoy, ayer, esta semana, este mes o el anterior) o un rango de hasta 93 días y, si quieres, una cajera.",
+      "Arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección.",
+      "«PDF» abre la hoja para imprimir: en el diálogo del navegador, elige la impresora o «Guardar como PDF».",
+    ],
+    problemas: [
+      {
+        sintoma: "Un turno sale «No cuadra con su Z»",
+        solucion:
+          "Lo que hoy dicen los asientos de ese turno no es lo que dejó escrito su cierre Z; debajo dice qué no cuadra. Repórtalo desde la ayuda con el día y el punto.",
+        reconoce: ["no cuadra"],
+      },
+      {
+        sintoma: "«Hasta 93 días: parte el periodo»",
+        solucion: "Un informe cabe en un trimestre. Pide el periodo en dos o más partes.",
+        reconoce: ["93 dias", "parte el periodo"],
+      },
+    ],
   },
   {
     id: "atencion",

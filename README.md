@@ -23,7 +23,7 @@ configuración, precios y personas la app pide además **confirmar identidad** c
 contraseña fija de desarrollo: `pnpm db:semilla` imprime el **enlace de alta** de Abigail Karam, que se
 abre en el navegador para poner la contraseña y registrar la llave (y `pnpm credenciales "<nombre>"`
 da otro cuando haga falta). Se entra siempre por `http://localhost:3000`: la llave queda atada a esa
-dirección (`L2_URL_PUBLICA`). En un local de verdad las credenciales se dan desde Ajustes → Usuarios, con
+dirección (`L2_URL_PUBLICA`). En un local de verdad las credenciales se dan desde Ajustes → Personas y equipos, con
 un enlace con QR; la consola queda como puerta de emergencia. Con la base vacía, el acceso ofrece
 **«Instalar L2 Control»** con el código que el servidor escribe en su registro al arrancar. En Chrome,
 «Instalar la app» la instala como PWA.

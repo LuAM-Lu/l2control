@@ -20,7 +20,7 @@ import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 import { ChipEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 import type { AvisoDeVersion } from "../sistema/sistema.servidor.ts";
 import type { AvisoDeRespaldos } from "../sistema/respaldos.servidor.ts";
-import { rutaSeccion } from "./navigation.ts";
+import { rutaPestana, rutaSeccion } from "./navigation.ts";
 
 /**
  * Inicio del back-office — F9-00, §9.10.4.
@@ -485,7 +485,7 @@ function AvisoRespaldos({ nivel, aviso }: AvisoDeRespaldos) {
   const Icono = bien ? CircleCheck : TriangleAlert;
   return (
     <Link
-      href={rutaSeccion("ajustes", "respaldos")}
+      href={rutaPestana("ajustes", "sistema", "respaldos")}
       title={aviso}
       className={cn(
         "inline-flex min-h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand lg:text-[13px]",

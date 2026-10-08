@@ -174,7 +174,7 @@ async function calcular(tx: Transaccion, ctx: Contexto): Promise<PuestaAPuntoDto
       detalle:
         desdeOtrosEquipos >= 1
           ? "Administración puede confirmar también fuera de su equipo"
-          : "Configura la app de autenticación en Ajustes → Usuarios para confirmar desde otros equipos",
+          : "Configura la app de autenticación en Ajustes → Personas y equipos para confirmar desde otros equipos",
     },
   ];
   // Lo dejado para después solo cuenta en un recomendable que sigue sin hacer.

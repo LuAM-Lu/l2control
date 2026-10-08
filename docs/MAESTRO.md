@@ -42,8 +42,8 @@ teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el
 (reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
 «Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. De M-28 y M-29 (decididos el 2026-10-08, once pasos; orden en
 §3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
-corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad) y B11-1 (Reportes y las ventas, con su PDF).
-**Siguiente:** **T-18** (Ajustes unificados).
+corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF) y T-18
+(Ajustes de 18 secciones a 12, con pestañas). **Siguiente:** **B11-3** (movimientos).
 **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
@@ -64,8 +64,8 @@ corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad) y B11-1 (Rep
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
 - **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
   el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
-  respaldos con carpeta, fijados e integridad (B7-6) y la sección Reportes con las ventas y su PDF (B11-1). Quedan
-  inventario al momento y movimientos (B11-2 y B11-3), Ajustes unificados (T-18), la cuenta
+  respaldos con carpeta, fijados e integridad (B7-6), la sección Reportes con las ventas y su PDF (B11-1) y Ajustes
+  unificados (T-18). Quedan inventario al momento y movimientos (B11-2 y B11-3), la cuenta
   de soporte oculta (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
@@ -237,8 +237,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
-   semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → **T-18**
-   (Ajustes unificados) → B11-3 (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
+   semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
+   (Ajustes unificados) → **B11-3** (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
    a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
 
 Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -616,10 +616,26 @@ Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   conectada; administración la marca, la desactiva o le repone el PIN. Configuración, precios y personas siguen
   pidiendo contraseña y llave (F2-04). En producción no abre turnos ni cobra; en staging sí, para reproducir un error
   con una copia de la base restaurada del respaldo (M-29).
-- [~] **T-18 · Ajustes unificados** (M-29). *A cargo: LuAMi, rama `feat/t-18`.*
+- [x] **T-18 · Ajustes unificados** (M-29).
   → **Personas y equipos** (usuarios y permisos, roles y accesos, dispositivos), **Tasas** con su pestaña de feriados,
   **Sistema** (versión y actualizaciones, respaldos, semilla) y la **carta dentro de Inventario → Productos** (pestaña
   «En la carta»: un solo sitio para el precio). Las rutas viejas llevan a las nuevas; el manual y los recorridos, al día.
+  *Hecho el 2026-10-08, en `feat/t-18`.*
+  *· Navegación: una sección puede tener pestañas (`Seccion.pestanas`, cada una con su permiso; la sección se ve con
+  cualquiera de ellos). Ajustes pasa de 18 secciones a 12; Productos gana «En la carta» (y `catalogo.modificar` la
+  deja ver). La pestaña va en la dirección (`?pestana=…`, `rutaPestana`, `pestanaPedida`): se enlaza, se recarga y el
+  servidor lee solo lo de la pestaña abierta. Las siete rutas viejas (`ajustes/usuarios`, `accesos`, `dispositivos`,
+  `feriados`, `respaldos`, `semilla` y `carta`) y las que ya apuntaban a ellas llevan a su pestaña.*
+  *· Web: `MarcoDeSeccion` pone las migas, el nombre de la sección y sus pestañas (las que el permiso alcanza; si la
+  pedida no, va a la primera que sí) y `EncabezadoDePagina` deja en cada pantalla su descripción y sus acciones; las
+  diez pantallas no cambian por dentro. Inicio, la Puesta a punto, «En vivo», los textos que nombraban las secciones
+  viejas y el manual (Ajustes en 12 secciones, la carta en Productos y la entrada nueva de Reportes), al día. Los
+  recorridos guiados son de las estaciones: ninguno nombraba estas secciones.*
+  *· Comprobado: 14 pruebas de visibilidad (3 nuevas: cada pestaña deja ver su sección, supervisión ve Tasas sin los
+  feriados, Ajustes en 12 y las rutas viejas). En el navegador, contra la base de pruebas: las 12 secciones, las siete
+  rutas viejas en su pestaña, las pestañas de Personas y equipos, Sistema y Tasas con la identidad confirmada, la carta
+  dentro de Productos y supervisión con solo «Tasas»; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
+  desbordes ni errores de consola.*
 
 ### Etapa 0 · Cimientos del servidor (local)
 

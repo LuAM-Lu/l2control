@@ -6,7 +6,7 @@ import { aplicacion, log } from "../../servidor/aplicacion";
 import { entorno } from "../../servidor/entorno";
 import { contextoActual, ipDeLaPeticion } from "../../servidor/sesion";
 
-/** Ajustes → Respaldos (B7-4): cómo están, para quien decide el sistema. */
+/** Ajustes → Sistema → Respaldos (B7-4): cómo están, para quien decide el sistema. */
 export async function estadoDeRespaldos(): Promise<Resultado<EstadoDeRespaldosDto>> {
   await connection();
   const ctx = await contextoActual();
@@ -64,7 +64,7 @@ export async function pcDeRespaldos(peticion: Request): Promise<{ pc: PcDeRespal
   const pc = credencial ? await (await aplicacion()).respaldos.entrarPc({ tenantId: e.L2_TENANT_ID, branchId: e.L2_BRANCH_ID }, credencial, ip, Date.now(), informeDe(peticion)) : null;
   if (!pc) {
     log().warn({ ip, ruta: new URL(peticion.url).pathname }, "respaldos: credencial que no vale");
-    return new Response("Credencial de respaldos que no vale: prepara la PC otra vez desde Ajustes → Respaldos.", {
+    return new Response("Credencial de respaldos que no vale: prepara la PC otra vez desde Ajustes → Sistema → Respaldos.", {
       status: 401,
       headers: { "www-authenticate": "Bearer" },
     });

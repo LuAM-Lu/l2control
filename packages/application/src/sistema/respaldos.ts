@@ -57,7 +57,7 @@ export const SIN_ENSAYO_TRAS_MS = 8 * 24 * HORA;
 export type PcDeRespaldos = Readonly<{ ctx: Contexto; id: string; nombre: string }>;
 
 export interface CasosRespaldos {
-  /** Ajustes → Respaldos: cómo están, para quien decide el sistema (sin confirmar la identidad: solo mira). */
+  /** Ajustes → Sistema → Respaldos: cómo están, para quien decide el sistema (sin confirmar la identidad: solo mira). */
   estado(ctx: Contexto, ahora?: number): Promise<Resultado<EstadoDeRespaldosDto>>;
   /** Prepara la PC del local (`PrepararPcDeRespaldosCommandSchema`), con elevación; la anterior deja de valer. */
   prepararPc(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PcPreparadaDto>>;

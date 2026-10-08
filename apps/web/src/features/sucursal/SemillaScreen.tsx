@@ -15,13 +15,14 @@ import {
   type SemillaDto,
 } from "@l2/contracts";
 import { nameKey } from "@l2/domain-inventory";
-import { Button, Container, PageHeader, Sheet, TAMANO_ICONO, avisar, cn } from "@l2/ui";
+import { Button, Container, Sheet, TAMANO_ICONO, avisar, cn } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useReloj, useSucursal } from "./SucursalProvider.tsx";
 import { cargarSemilla, exportarSemilla } from "./semilla.acciones";
 
 /**
- * Ajustes → Semilla del local (B7-2, M-24; con casillas, B7-7, M-29). Lo tedioso de teclear viaja en un
+ * Ajustes → Sistema → Semilla del local (B7-2, M-24; con casillas, B7-7, M-29). Lo tedioso de teclear viaja en un
  * archivo: se descarga de un local y se carga en otro, que solo AÑADE lo que le falta. Es el camino de la
  * corrida limpia de producción: base nueva y la semilla, sin sacar partes de un respaldo.
  *
@@ -217,7 +218,7 @@ export function SemillaScreen() {
 
   return (
     <Container ancho="panel" className="py-8">
-      <PageHeader
+      <EncabezadoDePagina
         migas={[{ texto: ajustes.nombre, href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Semilla del local" }]}
         titulo="Semilla del local"
         descripcion="Lo que se tarda en teclear, en un archivo: se descarga de un local y se carga en otro, que solo añade lo que le falta. Es el camino para arrancar producción en una base limpia."

@@ -7,7 +7,7 @@ import { ArrowRight, ChevronDown, CircleCheck, CircleDashed, Clock, ListChecks, 
 import type { PuestaAPuntoDto, PuntoDePuestaAPuntoDto } from "@l2/contracts";
 import { Sheet, avisar, cn } from "@l2/ui";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
-import { rutaSeccion } from "./navigation.ts";
+import { rutaPestana, rutaSeccion } from "./navigation.ts";
 import { posponerPunto } from "./puesta.acciones";
 
 /**
@@ -26,21 +26,21 @@ import { posponerPunto } from "./puesta.acciones";
  */
 
 const PUNTO: Record<PuntoDePuestaAPuntoDto["id"], { titulo: string; ruta: Route }> = {
-  personas: { titulo: "Personas del equipo, con su rol y su PIN", ruta: rutaSeccion("ajustes", "usuarios") },
-  equipos: { titulo: "Equipos de cada puesto aprobados", ruta: rutaSeccion("ajustes", "dispositivos") },
+  personas: { titulo: "Personas del equipo, con su rol y su PIN", ruta: rutaPestana("ajustes", "personas", "usuarios") },
+  equipos: { titulo: "Equipos de cada puesto aprobados", ruta: rutaPestana("ajustes", "personas", "dispositivos") },
   tarifas: { titulo: "Tarifas del parque publicadas", ruta: rutaSeccion("ajustes", "tarifas") },
   impuestos: { titulo: "Impuestos vigentes", ruta: rutaSeccion("ajustes", "impuestos") },
   tasa: { titulo: "Tasa del BCV", ruta: rutaSeccion("ajustes", "tasas") },
   medios: { titulo: "Medios de pago", ruta: rutaSeccion("ajustes", "medios") },
   catalogo: { titulo: "Catálogo de mostrador", ruta: rutaSeccion("inventario", "productos") },
   impresoras: { titulo: "Impresoras", ruta: rutaSeccion("ajustes", "impresoras") },
-  feriados: { titulo: "Feriados bancarios del año", ruta: rutaSeccion("ajustes", "feriados") },
+  feriados: { titulo: "Feriados bancarios del año", ruta: rutaPestana("ajustes", "tasas", "feriados") },
   carta_y_plano: { titulo: "Carta y plano del restaurante", ruta: rutaSeccion("ajustes", "plano") },
   // Abre la entrada en modo «inventario inicial» (T-10).
   existencias: { titulo: "Existencias iniciales del inventario", ruta: `${rutaSeccion("inventario", "entradas")}?inicial=1` as Route },
   descuentos: { titulo: "Descuentos y familias VIP", ruta: rutaSeccion("ajustes", "descuentos") },
-  segunda_administracion: { titulo: "Segunda administración con sus credenciales", ruta: rutaSeccion("ajustes", "usuarios") },
-  otros_equipos: { titulo: "App de autenticación para otros equipos", ruta: rutaSeccion("ajustes", "usuarios") },
+  segunda_administracion: { titulo: "Segunda administración con sus credenciales", ruta: rutaPestana("ajustes", "personas", "usuarios") },
+  otros_equipos: { titulo: "App de autenticación para otros equipos", ruta: rutaPestana("ajustes", "personas", "usuarios") },
 };
 
 export function PuestaAPunto({ puesta: inicial }: { puesta: PuestaAPuntoDto }) {

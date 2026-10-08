@@ -99,7 +99,7 @@ export function TomaPedido({
 
         {enVenta.length === 0 && (
           <p role="status" className="rounded-[var(--radius-card)] border border-dashed border-line px-4 py-10 text-center text-[13.5px] text-ink-2">
-            La carta está vacía: administración la arma en Ajustes → Carta y precios.
+            La carta está vacía: administración la arma en Inventario → Productos → En la carta.
           </p>
         )}
         <ul className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3 apaisado:min-h-0 apaisado:overflow-y-auto xl:grid-cols-4">

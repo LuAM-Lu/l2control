@@ -1,7 +1,7 @@
 /**
  * La semilla del local — B7-2, M-24; con casillas, B7-7 (M-29).
  *
- * Lo tedioso de teclear, en un archivo: se descarga de un local (Ajustes → Semilla) y se carga en otro,
+ * Lo tedioso de teclear, en un archivo: se descarga de un local (Ajustes → Sistema → Semilla) y se carga en otro,
  * que solo AÑADE lo que le falta y nunca pisa lo que ya tiene. Lleva los ajustes de la sucursal, las
  * tarifas y paquetes del parque, las categorías y la carta con sus precios, el plano del restaurante y
  * los paquetes de cumpleaños; desde la versión 2 (B7-7), también los medios de pago (con los datos que el

@@ -5,7 +5,8 @@ import { AlertTriangle, CalendarClock, Check, CheckCircle2, Clock3, CloudDownloa
 import { POR_PAGINA, type ExchangeRateDto, type FiltroTasas, type HeldReason, type PaginaDeTasasDto, type PorPagina, type RatePair, type RateSource } from "@l2/contracts";
 import { addDays, calendarDay, coversDay, currentRate, needsDoubleCheck } from "@l2/domain-rates";
 import type { Permission } from "@l2/domain-identity";
-import { BarraDeFiltros, Button, CAMPO_DE_FILTRO, Cifra, Container, EmptyState, FiltroSegmentado, Input, PageHeader, Paginacion, Resumen, Sheet, avisar, cn } from "@l2/ui";
+import { BarraDeFiltros, Button, CAMPO_DE_FILTRO, Cifra, Container, EmptyState, FiltroSegmentado, Input, Paginacion, Resumen, Sheet, avisar, cn } from "@l2/ui";
+import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { usePaginas } from "../shell/usePaginas.ts";
 import { leerPaginaDeTasas } from "./tasas.acciones";
@@ -252,7 +253,7 @@ export function TasasScreen({
 
   return (
     <Container ancho="panel" className="flex min-h-0 flex-1 flex-col py-6">
-      <PageHeader
+      <EncabezadoDePagina
         className="mb-4"
         migas={[{ texto: "Abby Kingdom", href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Tasas de cambio" }]}
         titulo="Tasas de cambio"
