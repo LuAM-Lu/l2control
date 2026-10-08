@@ -475,7 +475,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pantalla, la versión, el equipo, su rol y los últimos errores, sin datos de cobro ni PIN (PLAN §7.6). El reporte
   queda en el servidor con sus estados (nuevo, visto, en curso, resuelto en la versión X), que quien lo envió sigue
   en «Mis reportes»; los que traen el mismo error se agrupan y quien reporta ve que ya se conoce.
-- [ ] **T-12 · Ayuda dentro de la app y recorridos guiados** (M-27, P-4).
+- [~] **T-12 · Ayuda dentro de la app y recorridos guiados** (M-27, P-4). *A cargo: LuAMi, rama `feat/t-12`.*
   → Un botón de ayuda en cada pantalla abre lo que dice el manual de esa pantalla para el rol de quien la usa, con
   búsqueda en todo el manual; cada error conocido trae su solución. La primera vez que una persona abre una pantalla
   de operación ve un recorrido corto con spotlight (se salta y se vuelve a pedir desde la ayuda); lo visto se guarda
