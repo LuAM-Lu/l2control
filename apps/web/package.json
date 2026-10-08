@@ -28,6 +28,7 @@
     "@l2/ui": "workspace:*",
     "@simplewebauthn/browser": "14.0.0",
     "@zxing/library": "0.23.0",
+    "html-to-image": "1.11.13",
     "lucide-react": "1.43.0",
     "next": "16.3.8",
     "qrcode-generator": "2.0.4",

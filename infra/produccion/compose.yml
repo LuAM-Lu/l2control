@@ -91,6 +91,10 @@ services:
       <<: *entorno-app
       L2_VALKEY_URL: redis://:${VALKEY_PASSWORD}@valkey:6379
       L2_SINCRONIZAR_TASA: ${L2_SINCRONIZAR_TASA:-si}
+      # El aviso por correo de cada reporte de problema al desarrollo (T-11, D-SOP). Sin las dos primeras, no se avisa.
+      L2_SMTP_URL: ${L2_SMTP_URL:-}
+      L2_CORREO_SOPORTE: ${L2_CORREO_SOPORTE:-}
+      L2_CORREO_DE: ${L2_CORREO_DE:-}
     depends_on:
       postgres:
         condition: service_healthy

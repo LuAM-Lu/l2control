@@ -212,7 +212,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "La cola «Por cobrar» va de la más antigua a la más nueva. Elige una cuenta, o pasa la pulsera de un niño para traer la de su familia.",
       "En una venta de mostrador, añade los productos de la carta (o pasa su código de barras).",
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
-      "Cobra. El recibo sale en la impresora de caja.",
+      "Cobra (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
     ],
     problemas: [
       {
@@ -350,6 +350,28 @@ export const MANUAL: readonly EntradaDelManual[] = [
     ],
     problemas: GENERALES,
   },
+  {
+    id: "soporte",
+    ruta: "/panel/ajustes/soporte",
+    titulo: "Soporte",
+    roles: ["ADMIN"],
+    proposito:
+      "Los problemas que reportó el personal desde la ayuda de su pantalla o desde un aviso de error, con lo que contó, la pantalla, la versión, el equipo, los últimos errores y la captura.",
+    pasos: [
+      "Arriba, cuántos hay nuevos, en curso y resueltos; tocar una cifra filtra la lista.",
+      "Toca un reporte para leerlo entero y ver su captura.",
+      "Márcalo «Visto», «En curso» o «Resuelto» con la versión que lo arregla: quien lo reportó lo ve en su ayuda.",
+      "Los reportes del mismo error dicen cuántos son: lo que más se repite es lo que más urge.",
+    ],
+    problemas: [
+      {
+        sintoma: "«El aviso no salió» en un reporte",
+        solucion:
+          "El servidor no pudo mandar el correo al desarrollo. El reporte está guardado igual; revisa el correo del servidor en su configuración (lo hace quien administra el servidor). Se reintenta solo varias veces.",
+        reconoce: ["aviso no salio"],
+      },
+    ],
+  },
 ];
 
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -413,6 +435,17 @@ export function buscar(texto: string): Resultado[] {
  * El problema conocido que reconoce el texto de un aviso de error, con la pantalla donde está. Primero se mira la
  * pantalla en la que se está (el mismo aviso puede querer decir algo distinto en otra), después el resto.
  */
+/**
+ * El código estable de un problema conocido (T-11): su pantalla y la primera palabra que lo reconoce («caja-sin-tasa»).
+ * Agrupa los reportes del mismo error aunque cambie el orden del manual.
+ */
+export function codigoDelProblema(r: Resultado): string | null {
+  const clave = r.problema?.reconoce?.[0];
+  if (!clave) return null;
+  const codigo = `${r.entrada.id}-${sinAcentos(clave)}`.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+  return /^[a-z0-9][a-z0-9-]{1,59}$/.test(codigo) ? codigo : null;
+}
+
 export function problemaDe(texto: string, ruta?: string): Resultado | null {
   const t = sinAcentos(texto);
   const aqui = ruta ? entradaDe(ruta) : null;

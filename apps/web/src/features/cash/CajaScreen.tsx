@@ -1138,7 +1138,8 @@ function CobroCuenta({
                               )}
                             </span>
                             {p.datos && (
-                              <span className="tnum block truncate text-[11.5px] text-ink-3">
+                              // La referencia de un pago no sale en la captura de un reporte (T-11, PLAN §7.6).
+                              <span data-privado className="tnum block truncate text-[11.5px] text-ink-3">
                                 {resumenDatos(p.datos, terminales)}
                               </span>
                             )}

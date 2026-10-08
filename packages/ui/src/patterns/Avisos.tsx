@@ -98,12 +98,45 @@ export function registrarAyudaDeErrores(f: AyudaDeError | null): void {
   ayudaDeError = f;
 }
 
+/**
+ * Quién recibe el reporte de un error (T-11): la aplicación registra cómo abrir «Reportar un problema» con ese error. Un
+ * error sin solución conocida lleva el botón «Reportar» en su aviso.
+ */
+export type ReporteDeError = (texto: string) => void;
+let reporteDeError: ReporteDeError | null = null;
+
+export function registrarReporteDeErrores(f: ReporteDeError | null): void {
+  reporteDeError = f;
+}
+
+/**
+ * Los últimos errores que enseñó esta pantalla (T-11), del más reciente al más antiguo: un reporte los adjunta. Solo
+ * los textos que se enseñaron, recortados; viven en memoria y se pierden al recargar.
+ */
+const RECIENTES: string[] = [];
+const CUANTOS_RECIENTES = 10;
+
+export function anotarErrorReciente(texto: string): void {
+  const t = texto.replace(/\s+/g, " ").trim().slice(0, 300);
+  if (t === "" || RECIENTES[0] === t) return;
+  RECIENTES.unshift(t);
+  RECIENTES.length = Math.min(RECIENTES.length, CUANTOS_RECIENTES);
+}
+
+export function erroresRecientes(): readonly string[] {
+  return [...RECIENTES];
+}
+
 export const avisar = {
   ok: (texto: string, o?: Opciones) => toast.success(texto, opciones(o, 4000)),
   info: (texto: string, o?: Opciones) => toast.info(texto, opciones(o, 5000)),
   aviso: (texto: string, o?: Opciones) => toast.warning(texto, opciones(o, 6000)),
   error: (texto: string, o?: Opciones) => {
+    anotarErrorReciente(texto);
     const abrir = !o?.accion && ayudaDeError ? ayudaDeError(texto) : null;
-    return toast.error(texto, opciones(abrir ? { ...o, accion: { texto: "Cómo se resuelve", alPulsar: abrir } } : o, 8000));
+    // Con solución conocida, «Cómo se resuelve»; sin ella, «Reportar» (T-11).
+    const reportar = !o?.accion && !abrir && reporteDeError ? reporteDeError : null;
+    const accion = abrir ? { texto: "Cómo se resuelve", alPulsar: abrir } : reportar ? { texto: "Reportar", alPulsar: () => reportar(texto) } : null;
+    return toast.error(texto, opciones(accion ? { ...o, accion } : o, 8000));
   },
 };

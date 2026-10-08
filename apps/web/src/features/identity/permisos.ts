@@ -74,6 +74,7 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "reportes.verTodas": { etiqueta: "Reportes de todas las sucursales", area: "Administración" },
   "usuarios.gestionar": { etiqueta: "Gestionar usuarios y permisos", area: "Administración" },
   "camaras.ver": { etiqueta: "Ver cámaras", area: "Administración" },
+  "soporte.gestionar": { etiqueta: "Atender los reportes de problemas", area: "Administración" },
   "sistema.actualizar": { etiqueta: "Decidir las actualizaciones del sistema", area: "Administración" },
 };
 

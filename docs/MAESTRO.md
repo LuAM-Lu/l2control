@@ -34,13 +34,13 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.71.0 · 71 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.72.0 · 72 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
-se pueden dar: supervisión ya puede hacer inventario), B3-8 (cobrar solo con el teclado y el recibo a elección) y T-14
-(cambiar el PIN propio y entrar con el teclado) y T-15 (la operación de un vistazo: relojes en los paquetes, marquesina,
-código a mano y precios en $, Bs o ambos) y T-16 (escala de texto e iconos en tokens; el panel con el ancho de Inicio).
-Lo que queda de M-27 espera una decisión del cliente: **B6-8** (D-SERV) y **T-11** (D-SOP).
+se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
+teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio) y T-11
+(reportar un problema, con captura y aviso por correo al desarrollo). D-SERV y D-SOP decididas el 2026-10-07; de M-27
+queda **B6-8** (tiempo de atención en el salón, con «Servido»).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -219,7 +219,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
-   **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); siguen **T-11** → B6-8. B7-3 y T-8c siguen cuando haya visita al local.
+   **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → **B6-8**. B7-3 y T-8c siguen cuando haya visita al local.
 
 Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -475,11 +475,35 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   y se corrigieron: el inventario inicial proponía bultos (10 eran 240 unidades) y la hoja de categorías cortaba los
   nombres con tres botones.*
 
-- [~] **T-11 · Reportar un problema** (M-27, P-4; D-SOP decidida). *A cargo: LuAMi, rama `feat/t-11`.*
+- [x] **T-11 · Reportar un problema** (M-27, P-4; D-SOP decidida).
   → Desde cualquier pantalla, y desde cada error, la persona cuenta qué pasó; el sistema adjunta la captura, la
   pantalla, la versión, el equipo, su rol y los últimos errores, sin datos de cobro ni PIN (PLAN §7.6). El reporte
   queda en el servidor con sus estados (nuevo, visto, en curso, resuelto en la versión X), que quien lo envió sigue
   en «Mis reportes»; los que traen el mismo error se agrupan y quien reporta ve que ya se conoce.
+  *Hecho el 2026-10-07 (LuAMi), v0.72.0, con D-SOP como se propuso.* **Base** (`20261108000000_reportes_de_problemas`,
+  solo expande): `support_report` (correlativo por local, quién, rol, equipo, pantalla, versión, texto, código y huella
+  del error, últimos errores), `support_report_capture` (aparte, JPEG o PNG, con tope), `support_report_status` (la
+  historia: el estado es el último paso) y `support_report_notice` (los intentos de aviso); las cuatro con RLS y solo
+  agregar. **Dominio:** `soporte.gestionar` (administración de fábrica, ajustable). **Aplicación**
+  (`sistema/soporte.ts`): reportar (quién, rol y equipo salen de la sesión; la captura se comprueba por sus primeros
+  bytes; el asiento no lleva el texto), mis reportes, la bandeja, la captura (quien la envió y el soporte), el estado
+  (resuelto exige versión) y, para el worker, los pendientes de aviso con reintento y espera (10 min, doblando, 5
+  intentos). Los del mismo error se agrupan por su huella: el código del error conocido o el último error sin cifras ni
+  tildes; quien reporta ve cuántos antes y cómo va el más avanzado. Tema nuevo «soporte». 6 pruebas contra la base y 3
+  de la huella. **Worker** (`soporte.ts`): con `L2_SMTP_URL` y `L2_CORREO_SOPORTE`, un correo por reporte con el
+  número, la versión, la pantalla y el enlace a la bandeja, nunca el texto ni la captura; sale en cuanto entra el reporte
+  (outbox) y en una vuelta cada 2 minutos; si no sale se anota el tipo de fallo, sin la respuesta del servidor
+  (nodemailer 10.0.12). Variables documentadas en `.env.example`, `infra/produccion/entorno.ejemplo` y el compose.
+  **Web:** «Reportar un problema» al pie de la ayuda (F1), «¿No se resolvió? Repórtalo» en la ayuda de un error
+  conocido y «Reportar» en el aviso de un error que el manual no conoce; la captura se toma con la ayuda ya cerrada
+  (html-to-image 1.11.13), sin los campos de PIN ni lo marcado `data-privado` (los datos de un pago), con vista previa
+  y se puede quitar; «Mis reportes» en la ayuda, en vivo; Ajustes → Soporte con cifras, filtros, el reporte entero con
+  su captura (servida solo con sesión por `/soporte/captura/[id]`, sin caché), su historia y los botones de estado; el
+  manual tiene su página. **Cuenta de soporte del desarrollo:** administración la da de alta como una persona más con
+  rol de administración (no pide turno). Visto en el navegador en la base de pruebas, en los dos temas, con un servidor
+  SMTP falso: una pulsera desconocida en la caja → «Reportar» → captura de 1366×768 (100 KB) → reporte n.º 1; la
+  bandeja lo muestra con su captura; «En curso» y «Resuelto en v0.72.0» llegan a «Mis reportes» sin recargar; el
+  correo sale en el mismo segundo y sin el texto; el segundo reporte del mismo error dice que ya quedó resuelto.*
 - [x] **T-12 · Ayuda dentro de la app y recorridos guiados** (M-27, P-4).
   → Un botón de ayuda en cada pantalla abre lo que dice el manual de esa pantalla para el rol de quien la usa, con
   búsqueda en todo el manual; cada error conocido trae su solución. La primera vez que una persona abre una pantalla
@@ -2030,6 +2054,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Seguridad (B7-5), PLAN §7.4 y §7.6 sin hacer: alertas activas sobre la auditoría (anulaciones, descuentos, arqueos), envío de la auditoría fuera de la máquina al instante (hoy sale cada noche con el respaldo), consentimiento y retención de los contactos (DEC-9) | Después del piloto, si se decide |
 | Respaldos: con un volcado por noche se puede perder hasta un día (RPO de 24 h); PLAN §10.4 pide 15 minutos con WAL continuo a otro sitio. El ensayo de restauración mensual se anota a mano (no hay registro en el panel) | Antes de B8-3, decidir si basta |
 | El actualizador pregunta a la API de GitHub sin token (60 consultas por hora, cada 5 min): si el repositorio pasa a privado, necesita un token de solo lectura | Si el repositorio deja de ser público |
+| El aviso por correo de los reportes (T-11) no sale hasta configurar en el VPS `L2_SMTP_URL` (con su contraseña: secreto) y `L2_CORREO_SOPORTE`; sin ellas los reportes se guardan y se ven en Ajustes → Soporte, sin aviso | Al configurar el servidor de correo (lo hace el usuario en el VPS) |
 | Lo que escribe una versión nueva puede no leerlo la anterior: un pedido de pie (`table_id` nulo, B6-7) o el motivo `ENTRADA_POR_ERROR` (B4-10). La vuelta atrás automática de un despliegue ocurre antes de que nadie los use; una vuelta atrás a mano días después dejaría esas pantallas sin leer | Aceptado (ADR-028 habla de la base, no de los datos nuevos); antes de una vuelta atrás manual, mirar §7 |
 | ~~Crear productos y categorías (y el inventario inicial con productos nuevos) exige `catalogo.modificar`, que no se ajusta por rol ni se concede por persona: supervisión no puede hacer inventario aunque administración se lo dé (P-15)~~ | Saldada en T-13: `inventario.catalogo`, ajustable |
 | Sin Storybook | Fuera de la Ruta A |
@@ -2426,6 +2451,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   equipo. Sigue T-16 (jerarquía y ancho).
 - **2026-10-07** · T-16 entregado como v0.71.0: la escala de texto y de iconos en tokens, aplicada a las piezas
   comunes, y el panel con el ancho de Inicio. De M-27 quedan B6-8 (espera D-SERV) y T-11 (espera D-SOP).
+- **2026-10-07** · D-SERV y D-SOP decididas (las dos como se propusieron). T-11 entregado como v0.72.0: reportar un
+  problema con captura, «Mis reportes», Ajustes → Soporte y el aviso por correo al desarrollo. Sigue B6-8.
 
 ---
 

@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.72.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Reportar un problema (T-11, M-27).
+
+### Añadido
+- **Reportar un problema.** Desde la ayuda de cualquier pantalla (F1), desde la ayuda de un error y con «Reportar» en
+  el aviso de un error, cada persona cuenta qué pasó. El sistema adjunta la pantalla, la versión, el equipo, su rol, los
+  últimos errores y una captura de la pantalla (que se ve antes de enviar y se puede quitar). Nunca datos de cobro ni
+  el PIN.
+- **Mis reportes**, en la ayuda: cada reporte con su estado (nuevo, visto, en curso o resuelto en una versión), al día.
+  Si el mismo error ya se había reportado, se dice cómo va.
+- **Ajustes → Soporte:** los reportes del local con su captura y sus errores, para marcarlos vistos, en curso o
+  resueltos. Los del mismo error dicen cuántos son.
+- **Aviso por correo al desarrollo** de cada reporte nuevo, con su número, la versión y la pantalla (sin lo que contó
+  la persona ni la captura), en cuanto se configura el correo del servidor.
+
 ## [0.71.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Jerarquía tipográfica y ancho completo (T-16, M-27).

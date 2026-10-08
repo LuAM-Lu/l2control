@@ -2,7 +2,7 @@
  * El worker de L2 Control — B5-1, ADR-006 («un proceso worker separado para el servidor de tiempo
  * real, la cola de impresión y los trabajos programados») y ADR-025.
  *
- * Hoy hace tres cosas:
+ * Hace cinco cosas:
  *  1. el canal en vivo (Socket.io con adaptador Valkey, ADR-008), con la autorización en el apretón
  *     de manos y una sala por sucursal (`canal.ts`);
  *  2. la vuelta del outbox: lo que ocurre en la base llega a las pantallas en menos de 2 s
@@ -11,7 +11,9 @@
  *  3. la consulta automática de la tasa del BCV, que antes vivía en el servidor web (`tasa.ts`);
  *  4. los agentes de impresión de la laptop de caja (`impresion.ts`, ADR-026): les avisa cuando hay
  *     trabajo, les da lo que reclaman, devuelve a la cola lo enviado que no respondió y echa a los
- *     que se retiraron desde el panel.
+ *     que se retiraron desde el panel;
+ *  5. el aviso por correo de cada reporte de problema al desarrollo (`soporte.ts`, T-11, D-SOP), si hay servidor de
+ *     correo configurado.
  *
  * Si algo de lo imprescindible falla al arrancar (entorno, base, Valkey), no arranca: mejor que
  * arrancar a medias (fail-closed, §10.3). Si se cae, la operación sigue: la web escribe sin él, y
@@ -29,6 +31,7 @@ import { almacenValkey } from "./operacion.ts";
 import { vigilarOutbox } from "./outbox.ts";
 import { programarSincronizacionDeTasa } from "./tasa.ts";
 import { crearCanalDeImpresion, type CanalDeImpresion } from "./impresion.ts";
+import { enviarPorSmtp, programarAvisosDeSoporte, type AvisosDeSoporte } from "./soporte.ts";
 
 /** Cada cuánto se confirma que las sesiones con el canal abierto siguen vivas. */
 const LATIDO_MS = 60_000;
@@ -119,6 +122,13 @@ async function arrancar() {
   };
   const latido = setInterval(() => void latir(), LATIDO_MS);
 
+  // El aviso de los reportes de problemas (T-11, D-SOP): solo con servidor de correo y destinatario. Antes que el
+  // outbox: su primera vuelta ya puede traer un reporte.
+  const soporte: AvisosDeSoporte | null =
+    e.L2_SMTP_URL && e.L2_CORREO_SOPORTE
+      ? programarAvisosDeSoporte(app, { tenantId: e.L2_TENANT_ID, branchId: e.L2_BRANCH_ID, sistema: true }, enviarPorSmtp(e.L2_SMTP_URL, e.L2_CORREO_DE, e.L2_CORREO_SOPORTE), e.L2_URL_PUBLICA ?? null, log)
+      : null;
+
   const vuelta = await vigilarOutbox({
     app,
     tenantId: e.L2_TENANT_ID,
@@ -130,6 +140,8 @@ async function arrancar() {
       if (deCola.length > 0) deImpresion.avisar(deCola.some((a) => a.branchId === null) ? "todas" : deCola.map((a) => a.branchId!));
       // Una salida, una revocación o una baja: quien la sufre deja el canal ya, no al minuto.
       if (avisos.some((a) => a.temas.includes("sesiones"))) void latir();
+      // Entró un reporte de problema: su aviso sale ya (T-11).
+      if (avisos.some((a) => a.temas.includes("soporte"))) soporte?.avisar();
     },
   });
 
@@ -138,7 +150,7 @@ async function arrancar() {
 
   await new Promise<void>((listo) => http.listen(e.L2_TIEMPO_REAL_PUERTO, listo));
   log.info(
-    { version: VERSION, entorno: e.L2_ENTORNO, puerto: e.L2_TIEMPO_REAL_PUERTO, tenantId: e.L2_TENANT_ID, sincronizarTasa: e.L2_SINCRONIZAR_TASA },
+    { version: VERSION, entorno: e.L2_ENTORNO, puerto: e.L2_TIEMPO_REAL_PUERTO, tenantId: e.L2_TENANT_ID, sincronizarTasa: e.L2_SINCRONIZAR_TASA, avisosDeSoporte: soporte !== null },
     "worker en marcha: canal en vivo, outbox, cola de impresión y trabajos programados",
   );
 
@@ -150,6 +162,7 @@ async function arrancar() {
     clearInterval(latido);
     clearInterval(cola);
     pararTasa();
+    soporte?.parar();
     await vuelta.parar();
     await canal.cerrar();
     pub.disconnect();

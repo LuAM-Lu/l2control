@@ -244,7 +244,9 @@ export function DatosPagoDialog({
         </div>
       }
     >
+      {/* Referencias, terminales y TxID: nunca en la captura de un reporte (T-11, PLAN §7.6). */}
       <form
+        data-privado
         id={formId}
         onSubmit={(e) => {
           e.preventDefault();

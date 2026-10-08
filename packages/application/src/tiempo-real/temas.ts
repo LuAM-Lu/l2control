@@ -103,6 +103,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "parque.anular_entrada": ["sala", "cuentas", "turno"],
   // Que una persona vio un recorrido guiado (T-12) no cambia ninguna pantalla de nadie.
   "ayuda.recorrido": NADA,
+  // Un reporte nuevo, su estado y su aviso al desarrollo: la bandeja de soporte y «Mis reportes» (T-11).
+  "soporte.reportar": ["soporte"],
+  "soporte.estado": ["soporte"],
+  "soporte.aviso": ["soporte"],
   "parque.reanudar": ["sala"],
   "parque.recarga": PARQUE,
   "parque.cierre_administrativo": PARQUE,
