@@ -225,6 +225,7 @@ model StaffUser {
   enrollmentLinks EnrollmentLink[]
   trustedDevices  TrustedDevice[]
   totpCredentials TotpCredential[]
+  toursSeen       UserTourSeen[]
 
   paymentsRecorded   Payment[]   @relation("PaymentRecordedBy")
   paymentsAuthorized Payment[]   @relation("PaymentAuthorizedBy")
@@ -1891,4 +1892,24 @@ model BackupReceiver {
   @@unique([tenantId, id])
   @@unique([tenantId, secretSha256])
   @@map("backup_receiver")
+}
+
+/// Qué recorrido guiado vio cada persona (T-12, M-27): el de una pantalla se enseña solo la primera vez que esa
+/// persona la abre. Por persona y no por equipo, porque los equipos del local son compartidos. Solo-agregar.
+model UserTourSeen {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// El recorrido (`entrada`, `sala`, `caja`…) y su versión: uno que cambia sube de versión y se vuelve a enseñar.
+  tour      String
+  version   Int
+  /// Si lo vio entero o lo saltó.
+  completed Boolean
+  seenAt    DateTime @map("seen_at") @db.Timestamptz(3)
+
+  user StaffUser @relation(fields: [tenantId, userId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, userId, tour, version])
+  @@map("user_tour_seen")
 }

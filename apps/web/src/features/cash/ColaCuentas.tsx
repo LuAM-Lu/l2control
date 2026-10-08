@@ -136,6 +136,7 @@ export function ColaCuentas({
 
   return (
     <section
+      data-recorrido="caja-cola"
       aria-label="Cuentas por cobrar"
       className={cn("flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card", className)}
     >

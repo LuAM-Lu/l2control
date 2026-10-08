@@ -31,6 +31,8 @@ import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWork
 import { PuestaAlDia } from "../src/features/shell/PuestaAlDia";
 import { ColaProvider } from "../src/features/impresion/ColaProvider";
 import { trabajosDelLocal } from "../src/features/impresion/impresion.servidor";
+import { AyudaProvider } from "../src/features/ayuda/AyudaProvider";
+import { recorridosVistos } from "../src/features/ayuda/ayuda.servidor";
 
 /* §8.3 — Quicksand para títulos (da el carácter del parque), Inter para
    interfaz y datos. Quicksand NUNCA para cifras: sus numerales no sirven
@@ -108,6 +110,8 @@ export default async function RootLayout({
   const pedidos = sesion ? await pedidosDelLocal() : [];
   // Quién está en cada puesto, de las sesiones de la base (B5-1). Solo para quien ve Inicio.
   const enCurso = sesion ? await sesionesEnCurso() : [];
+  // Los recorridos guiados que ya vio esta persona (T-12): el de una pantalla se enseña solo la primera vez.
+  const vistos = sesion ? await recorridosVistos() : [];
 
   return (
     // El tema de este equipo (oscuro o claro), de su cookie: lo pinta el servidor, sin parpadeo.
@@ -146,7 +150,10 @@ export default async function RootLayout({
                         <CuentasProvider inicial={cuentas}>
                           <PedidosProvider inicial={pedidos}>
                             <VentasProvider inicial={ventas}>
-                              <ColaProvider inicial={trabajos}>{children}</ColaProvider>
+                              <ColaProvider inicial={trabajos}>
+                                {/* La ayuda de cada pantalla, sus recorridos y la solución de los errores conocidos (T-12). */}
+                                <AyudaProvider vistos={vistos}>{children}</AyudaProvider>
+                              </ColaProvider>
                             </VentasProvider>
                           </PedidosProvider>
                         </CuentasProvider>

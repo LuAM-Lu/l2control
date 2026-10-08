@@ -9,6 +9,7 @@ import type { Actor } from "@l2/domain-identity";
 import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { BotonTema } from "./BotonTema.tsx";
+import { BotonAyuda } from "../ayuda/AyudaProvider.tsx";
 import { VERSION } from "./version.ts";
 import { LogoL2 } from "./LogoL2.tsx";
 import { PageTransition } from "./PageTransition.tsx";
@@ -443,6 +444,7 @@ function PieUsuario({
         <p className="truncate text-[13px] font-medium text-ink">{usuario}</p>
         <p className="truncate text-[11.5px] text-ink-3">{rol}</p>
       </div>
+      <BotonAyuda className={cn("size-9", compacto && "hidden xl:grid")} />
       <BotonTema compacto className={cn(compacto && "hidden xl:flex")} />
       <Link
         href="/acceso"

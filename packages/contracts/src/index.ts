@@ -747,3 +747,11 @@ export {
   type IndiceDeRespaldosDto,
   type AcuseDeRespaldoCommand,
 } from "./respaldos.ts";
+
+export {
+  RecorridoIdSchema,
+  RecorridoVistoCommandSchema,
+  RecorridosVistosSchema,
+  type RecorridoVistoCommand,
+  type RecorridosVistosDto,
+} from "./ayuda.ts";

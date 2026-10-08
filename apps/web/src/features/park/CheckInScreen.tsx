@@ -478,7 +478,7 @@ export function CheckInScreen({
       >
         {/* ------------------------------------------------------ niños */}
         <section className={cn("flex min-h-0 min-w-0 flex-col gap-4 max-md:gap-3", pasoMovil === "FAMILIA" && "max-md:hidden")}>
-          <div className="flex shrink-0 items-stretch gap-2">
+          <div data-recorrido="entrada-lector" className="flex shrink-0 items-stretch gap-2">
             <ScannerField
               onScan={handleScan}
               validate={validarPulsera}
@@ -489,7 +489,7 @@ export function CheckInScreen({
             {/* B4-8 (P-1): un niño que no tolera la pulsera entra sin ella, por su nombre. No en un cumpleaños: sus
                 invitados entran con la pulsera de la reserva. */}
             {!cumple && (
-              <Button surface="tablet" variant="neutral" className="shrink-0 gap-1.5" onClick={anadirSinPulsera} aria-label="Añadir un niño sin pulsera">
+              <Button data-recorrido="entrada-sin-pulsera" surface="tablet" variant="neutral" className="shrink-0 gap-1.5" onClick={anadirSinPulsera} aria-label="Añadir un niño sin pulsera">
                 <HandHeart size={18} aria-hidden="true" />
                 <span className="max-sm:hidden">Sin pulsera</span>
               </Button>
@@ -620,6 +620,7 @@ export function CheckInScreen({
 
         {/* ---------------------------------------------- representante */}
         <aside
+          data-recorrido="entrada-representante"
           className={cn(
             "flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface p-5 max-md:p-4 apaisado:max-h-full apaisado:self-start bajo:gap-3 bajo:p-4",
             pasoMovil === "PULSERAS" && "max-md:hidden",
@@ -816,6 +817,7 @@ export function CheckInScreen({
 
               <div className="flex flex-col gap-2 md:max-lg:portrait:w-1/2 md:max-lg:portrait:shrink-0">
                 <Button
+                  data-recorrido="entrada-registrar"
                   surface="pos"
                   variant="primary"
                   disabled={!puedeEnviar}

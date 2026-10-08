@@ -22,6 +22,7 @@ import { casosInstalacion, type CasosInstalacion } from "./identidad/instalacion
 import { leerOrigenWeb } from "./identidad/llaves.ts";
 import { casosPuestaAPunto, type CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
 import { casosSalud, type CasosSalud } from "./sistema/salud.ts";
+import { casosRecorridos, type CasosRecorridos } from "./sistema/recorridos.ts";
 import { casosFactores, type CasosFactores } from "./identidad/factores.ts";
 import { crearCifrador } from "./identidad/cifrado.ts";
 import { casosAccesos, type CasosAccesos } from "./identidad/accesos.ts";
@@ -166,6 +167,8 @@ export interface Aplicacion {
   /** Vincular pulseras a una mesa: el parque pendiente pasa a la cuenta maestra (F6-05, B6-3). */
   readonly mesas: CasosMesas;
   readonly tiempoReal: CasosTiempoReal;
+  /** Los recorridos guiados que vio cada persona (T-12). */
+  readonly recorridos: CasosRecorridos;
   /** Si la base responde: lo pregunta el despliegue antes de dar una versión por buena (T-8a, ADR-028). */
   readonly salud: CasosSalud;
   cerrar(): Promise<void>;
@@ -241,6 +244,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     mesas: casosMesas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     salud: casosSalud(base),
+    recorridos: casosRecorridos(base),
     cerrar: () => base.cerrar(),
   };
 }

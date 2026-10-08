@@ -509,7 +509,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         ancho="operacion"
         className="grid flex-1 content-start gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[3fr_2fr] apaisado:grid-rows-[minmax(0,1fr)] apaisado:content-stretch"
       >
-        <section aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 apaisado:min-h-0 apaisado:overflow-y-auto">
+        <section data-recorrido="mesas-plano" aria-label="Plano de mesas" className="flex min-w-0 flex-col gap-3 apaisado:min-h-0 apaisado:overflow-y-auto">
           {modo === "PLANO" ? (
             <>
               <BotonDePie pie={pie} activo={seleccion === PIE} onElegir={() => elegir(PIE)} />
@@ -522,6 +522,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
 
         <aside
           ref={detalle}
+          data-recorrido="mesas-detalle"
           aria-label="Detalle"
           className="flex min-w-0 scroll-mt-20 flex-col rounded-[var(--radius-card)] border border-line bg-surface apaisado:min-h-0"
         >
@@ -712,6 +713,7 @@ function BotonDePie({ pie, activo, onElegir }: { pie: PieVista; activo: boolean;
   return (
     <button
       type="button"
+      data-recorrido="mesas-de-pie"
       aria-pressed={activo}
       onClick={onElegir}
       className={cn(

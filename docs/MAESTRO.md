@@ -34,8 +34,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.63.0 · 63 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
-(varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida) y B4-8 (entrar sin pulsera).
+**Versión 0.64.0 · 64 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
+(varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera) y T-12 (ayuda y
+recorridos guiados).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -211,7 +212,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → ~~T-8a~~ (publicar y desplegar, M-22) → ~~B7-1~~ (VPS) → ~~T-9~~ (confirmar identidad desde cualquier equipo, M-23) → ~~B7-2 y T-10~~ (la semilla del local y el inventario en lote, M-24) → ~~T-8b~~ (actualizaciones desde el panel, M-25) → ~~B7-4~~ (respaldos, M-26) → ~~B7-5~~ (seguridad), y B7-3 con **T-8c** (el agente se actualiza solo) en el local
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
-   ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → **T-12** (ayuda y recorridos) →
+   ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
    B4-10 (cortesía y anular desde la sala) → B4-9 (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
@@ -475,11 +476,26 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pantalla, la versión, el equipo, su rol y los últimos errores, sin datos de cobro ni PIN (PLAN §7.6). El reporte
   queda en el servidor con sus estados (nuevo, visto, en curso, resuelto en la versión X), que quien lo envió sigue
   en «Mis reportes»; los que traen el mismo error se agrupan y quien reporta ve que ya se conoce.
-- [~] **T-12 · Ayuda dentro de la app y recorridos guiados** (M-27, P-4). *A cargo: LuAMi, rama `feat/t-12`.*
+- [x] **T-12 · Ayuda dentro de la app y recorridos guiados** (M-27, P-4).
   → Un botón de ayuda en cada pantalla abre lo que dice el manual de esa pantalla para el rol de quien la usa, con
   búsqueda en todo el manual; cada error conocido trae su solución. La primera vez que una persona abre una pantalla
   de operación ve un recorrido corto con spotlight (se salta y se vuelve a pedir desde la ayuda); lo visto se guarda
   por persona en el servidor. El manual por rol se escribe una vez y lo reutiliza B8-2.
+  *Hecho el 2026-10-07 (LuAMi), v0.64.0, sin IA (D-SOP sigue abierta).* **Manual** (`features/ayuda/manual.ts`): una
+  entrada por pantalla (acceso, entrada, sala, salida, cobrar, turno, mesas, Inicio, inventario, ajustes) con su
+  propósito, cómo se usa y sus problemas frecuentes, cada uno con su solución y las palabras del aviso que lo reconocen;
+  búsqueda que puntúa por palabras y raíces. **Ayuda:** botón en la barra de las estaciones y en el pie del panel, y F1
+  en cualquier pantalla; la hoja enseña la pantalla actual, busca en todo el manual y, abierta desde un aviso, empieza
+  por «Lo que pasó» y su solución. **Errores:** `avisar.error` de `@l2/ui` pone «Cómo se resuelve» cuando la app
+  reconoce el mensaje (`registrarAyudaDeErrores`; la interfaz no sabe qué errores existen). **Recorridos:** `Recorrido`
+  en `@l2/ui` (velo con hueco sobre el elemento, tarjeta siempre entera en la pantalla, teclado, sin animación si se pide
+  menos movimiento, salta lo que no está en pantalla); cinco recorridos (entrada, sala, salida, caja, mesas) sobre marcas
+  `data-recorrido`; el de una pantalla sale solo la primera vez que cada persona la abre y a petición desde la ayuda.
+  **Servidor:** `user_tour_seen` (migración `20261106000000_recorridos_vistos`, solo expande; una fila por persona,
+  recorrido y versión; solo-agregar), `casosRecorridos` (vistos y marcar, auditado `ayuda.recorrido`, sin tema); 3
+  pruebas contra la base. Visto en el navegador en la base de pruebas: el recorrido de la sala solo la primera vez y no
+  al recargar, F1, la búsqueda coloquial («pulsera usada», «no imprime»), «Cómo se resuelve» en un error real de las
+  mesas, y el recorrido de las mesas entero a 1366×768, 800×1280 y 390 px.*
 - [ ] **T-13 · Roles que se pueden dar** (M-27, P-15).
   → Acción nueva `inventario.catalogo` (alta y ficha de productos y categorías; cambiar el precio de lo que existe
   sigue en `catalogo.modificar`), ajustable por rol y por persona y sin confirmar identidad: con ella, supervisión
@@ -2304,6 +2320,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   la optimización de imágenes (GHSA-cjq9-62q9-8jv4), y `main` habría quedado en rojo sin tocar nada.
 - **2026-10-07** · B4-7 entregado como v0.62.0: la pausa por comida, una por visita y de hasta 10 minutos (ajuste). Sigue B4-8.
 - **2026-10-07** · B4-8 entregado como v0.63.0: niños sin pulsera con un código reservado que pone el servidor. Sigue T-12.
+- **2026-10-07** · T-12 entregado como v0.64.0: ayuda por pantalla (F1), «Cómo se resuelve» en los errores conocidos y
+  recorridos guiados la primera vez, sin IA. Sigue B4-10.
 
 ---
 
