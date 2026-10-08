@@ -2,7 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { calendarDay } from "@l2/domain-rates";
 import { periodoPredefinido } from "@l2/domain-cash";
-import type { InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, Resultado } from "@l2/contracts";
+import type { InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, Resultado } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 import { ajustesDelLocal } from "../sucursal/ajustes.servidor";
@@ -72,4 +72,25 @@ export async function informeDeInventario(): Promise<Resultado<InformeDeInventar
   const ctx = await contextoActual();
   if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." };
   return (await aplicacion()).reportes.inventario(ctx);
+}
+
+/** Lo que se pidió del informe de deudas (de la dirección, o el día de hoy) y lo que el servidor contestó. */
+export type DeudasPedidas = Readonly<{
+  hoy: string;
+  pedido: Readonly<{ desde: string; hasta: string }>;
+  informe: Resultado<InformeDeDeudasDto>;
+}>;
+
+/**
+ * Reportes → Deudas (B11-4, M-33): las deudas de clientes del periodo de la dirección; sin periodo, las de hoy. Lo
+ * revalida y lo arma el caso de uso (`reportes.deudas`).
+ */
+export async function informeDeDeudas(q: ConsultaEnLaDireccion): Promise<DeudasPedidas> {
+  await connection();
+  const hoy = await hoyEnElLocal();
+  const porDefecto = periodoPredefinido("HOY", hoy);
+  const pedido = { desde: uno(q.desde) ?? porDefecto.desde, hasta: uno(q.hasta) ?? porDefecto.hasta };
+  const ctx = await contextoActual();
+  if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." } };
+  return { hoy, pedido, informe: await (await aplicacion()).reportes.deudas(ctx, pedido) };
 }

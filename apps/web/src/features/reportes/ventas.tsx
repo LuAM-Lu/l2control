@@ -1,5 +1,5 @@
 import { CircleCheck, Clock, TriangleAlert } from "lucide-react";
-import type { InformeDeVentasDto, OrigenDeVenta } from "@l2/contracts";
+import type { InformeDeVentasDto, OrigenDeVenta, ResumenDeDeudasDto } from "@l2/contracts";
 import { TAMANO_ICONO, cn } from "@l2/ui";
 import type { Reloj } from "../sucursal/SucursalProvider.tsx";
 import { diaDelInforme, importe, porciento, type SeccionDeInforme } from "./informe.tsx";
@@ -15,6 +15,14 @@ export function direccionDeVentas(base: string, p: { desde: string; hasta: strin
   if (p.cajera) q.set("cajera", p.cajera);
   return `${base}?${q.toString()}`;
 }
+
+/** ¿Hubo algo de deudas en el periodo? (B11-4) Sin nada, el informe de ventas no lo menciona. */
+export const hayDeudas = (d: ResumenDeDeudasDto | undefined): d is ResumenDeDeudasDto =>
+  d !== undefined && d.quedaron.cantidad + d.recuperado.cantidad + d.perdido.cantidad + d.pendienteAlTerminar.cantidad > 0;
+
+/** Las deudas del periodo en una línea: «Quedaron 2 en deuda por $ 20.88 · recuperado $ 10.44 · perdido $ 0.00 · pendiente $ 10.44». */
+export const deudasEnUnaLinea = (d: ResumenDeDeudasDto) =>
+  `Quedaron ${d.quedaron.cantidad} en deuda por ${importe(d.quedaron.monto)} · recuperado ${importe(d.recuperado.monto)} · perdido ${importe(d.perdido.monto)} · pendiente al terminar ${importe(d.pendienteAlTerminar.monto)}`;
 
 export type SeccionDeVentas = "medios" | "origen" | "cajeras" | "turnos" | "anuladas";
 

@@ -119,7 +119,8 @@ muda deja su entrada en `RUTAS_MOVIDAS`: un enlace guardado nunca se rompe.
 **Reportes (Etapa 11).** De solo lectura (`reportes.verSucursal`), sacados de los asientos, por día de negocio del
 local y con el periodo en la dirección. Cada uno arma sus secciones una vez y las pintan la pantalla y su PDF, que es la
 vista de impresión de `app/informes/` con las piezas de `features/reportes/informe.tsx` (`TablaDeInforme`,
-`DocumentoDeInforme`, `FiltroDePeriodo`) y la clase `.l2-informe` de los tokens. Sin librería de PDF ni Excel.
+`DocumentoDeInforme`, `FiltroDePeriodo`) y la clase `.l2-informe` de los tokens. Sin librería de PDF ni Excel. El de
+deudas (B11-4) lleva la cédula y el teléfono del cliente completos, en pantalla con `data-privado` y en el PDF tal cual (M-33).
 
 **La cuenta de soporte (T-17).** Una persona de Administración con `support_login`: no sale en «¿Quién entra?», entra
 por «Acceso de soporte», firma «Nombre (soporte)» y no cuenta como personal del local. Abre turnos y cobra solo con

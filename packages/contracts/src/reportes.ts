@@ -8,6 +8,7 @@
  * El navegador dice qué periodo; el instante del informe, el local y quién lo pide los pone el servidor (ADR-017).
  */
 import { z } from "zod";
+import { ClienteDeCuentaSchema } from "./clientes.ts";
 import { FechaSchema, IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
 /** Hasta cuántos días entra en un informe: un trimestre. Más, se parte. */
@@ -111,8 +112,89 @@ export const InformeDeVentasSchema = z.object({
   ),
   /** Las cajeras que abrieron turno en el periodo, para el filtro. */
   cajeras: z.array(z.object({ id: IdSchema, nombre: z.string() })),
+  /** Las deudas de clientes del periodo (B11-4): lo que quedó en deuda, lo recuperado y lo perdido. El detalle, en su informe. */
+  deudas: z.lazy(() => ResumenDeDeudasSchema).optional(),
 });
 export type InformeDeVentasDto = z.infer<typeof InformeDeVentasSchema>;
+
+/* ─────────────────────────────────────────────── deudas de clientes (B11-4, M-33) */
+
+/** Cuántas y por cuánto. */
+const CuantoSchema = z.object({ cantidad: z.number().int().nonnegative(), monto: MoneySchema });
+
+/**
+ * Las deudas de un periodo en cuatro cifras: las que quedaron (se marcaron en el periodo), lo recuperado y lo perdido
+ * en el periodo (por el día en que se cobraron o se dieron por perdidas) y lo que seguía pendiente al terminar.
+ */
+export const ResumenDeDeudasSchema = z.object({
+  quedaron: CuantoSchema,
+  recuperado: CuantoSchema,
+  perdido: CuantoSchema,
+  pendienteAlTerminar: CuantoSchema,
+});
+export type ResumenDeDeudasDto = z.infer<typeof ResumenDeDeudasSchema>;
+
+/** Pedir el informe de deudas: su periodo. */
+export const ConsultaDeDeudasSchema = PeriodoDeInformeSchema;
+
+/** Un paso en la historia de una deuda, de la mesa al desenlace. */
+export const PasoDeDeudaSchema = z.object({
+  en: TimestampSchema,
+  que: z.enum(["SENTADO", "VENTA", "PEDIDO", "SERVIDO", "SE_FUE", "EN_COBRO", "DEVUELTA", "COBRADA", "PERDIDA"]),
+  quien: z.string(),
+  detalle: z.string(),
+  /** Cuánto: lo que valía un pedido o la venta del mostrador, y lo cobrado al saldarla. */
+  monto: MoneySchema.optional(),
+  /** Con qué se cobró, medio a medio (solo al cobrarla). */
+  medios: z.array(z.object({ nombre: z.string(), monto: MoneySchema })).optional(),
+});
+export type PasoDeDeudaDto = z.infer<typeof PasoDeDeudaSchema>;
+
+/**
+ * El informe de las deudas de clientes (B11-4): su resumen; por mesero (al que sentó al cliente: en el mostrador, la
+ * cajera que la dejó pendiente) y por quien autorizó; y cada deuda que se marcó o terminó en el periodo, con su historia.
+ * El cliente con su cédula y su teléfono completos (M-33, decisión del usuario), también en el PDF.
+ */
+export const InformeDeDeudasSchema = z.object({
+  encabezado: EncabezadoDeInformeSchema,
+  periodo: z.object({ desde: FechaSchema, hasta: FechaSchema }),
+  resumen: ResumenDeDeudasSchema,
+  porMesero: z.array(
+    z.object({
+      nombre: z.string(),
+      deudas: z.number().int().nonnegative(),
+      monto: MoneySchema,
+      cobradas: z.number().int().nonnegative(),
+      perdidas: z.number().int().nonnegative(),
+      pendientes: z.number().int().nonnegative(),
+    }),
+  ),
+  porAutorizador: z.array(
+    z.object({
+      nombre: z.string(),
+      /** Las que autorizó dejar en deuda en el periodo, y por cuánto. */
+      marcadas: z.number().int().nonnegative(),
+      monto: MoneySchema,
+      /** Las que dio por perdidas en el periodo. */
+      perdidas: z.number().int().nonnegative(),
+    }),
+  ),
+  deudas: z.array(
+    z.object({
+      id: IdSchema,
+      orden: z.number().int().positive(),
+      lugar: z.string(),
+      cliente: ClienteDeCuentaSchema,
+      monto: MoneySchema,
+      estado: z.enum(["PENDIENTE", "COBRADA", "PERDIDA"]),
+      /** Una pendiente: los días que lleva desde que se fue (0, desde hoy), al pedir el informe. */
+      diasPendiente: z.number().int().nonnegative().optional(),
+      sentadoPor: z.string(),
+      historia: z.array(PasoDeDeudaSchema),
+    }),
+  ),
+});
+export type InformeDeDeudasDto = z.infer<typeof InformeDeDeudasSchema>;
 
 /**
  * Pedir el kárdex (B11-3): su periodo y un producto o una categoría (si vienen los dos, manda el producto). Sin ninguno,

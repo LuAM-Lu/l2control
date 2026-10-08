@@ -4,14 +4,15 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { Ban, CircleCheck, FileDown, Receipt, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowRight, Ban, CircleCheck, FileDown, HandCoins, Receipt, TriangleAlert, Wallet } from "lucide-react";
 import type { InformeDeVentasDto } from "@l2/contracts";
 import { CAMPO_DE_FILTRO, Cifra, Container, FiltroSegmentado, PageHeader, Resumen, TAMANO_ICONO, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import type { VentasPedidas } from "./reportes.servidor.ts";
 import { FiltroDePeriodo, TablaDeInforme, importe, periodoEnPalabras } from "./informe.tsx";
-import { direccionDeVentas, seccionesDeVentas, type SeccionDeVentas } from "./ventas.tsx";
+import { deudasEnUnaLinea, direccionDeVentas, hayDeudas, seccionesDeVentas, type SeccionDeVentas } from "./ventas.tsx";
+import { direccionDeDeudas } from "./deudas.tsx";
 
 /**
  * Panel → Reportes → Ventas (B11-1, F9-01, M-29). De solo lectura, para administración y supervisión: lo vendido y lo
@@ -135,6 +136,24 @@ function Informe({ informe, cargando }: { informe: InformeDeVentasDto; cargando:
           activo={pestana === "turnos"}
         />
       </Resumen>
+
+      {hayDeudas(informe.deudas) && (
+        // Las deudas de clientes del periodo (B11-4): lo recuperado está en lo vendido (se cobró en su cuenta); lo que quedó y lo perdido, no. El detalle, en su informe.
+        <Link
+          href={direccionDeDeudas("/panel/reportes/deudas", informe.periodo) as Route}
+          className="group flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 text-detalle text-ink-2 hover:border-line-strong"
+        >
+          <span className={cn("inline-flex items-center gap-1.5 font-semibold", informe.deudas.perdido.cantidad > 0 ? "text-state-crit" : "text-state-warn")}>
+            <HandCoins size={TAMANO_ICONO.texto} aria-hidden="true" />
+            Deudas de clientes
+          </span>
+          <span className="tnum">{deudasEnUnaLinea(informe.deudas)}</span>
+          <span className="ml-auto inline-flex items-center gap-1 font-semibold text-brand group-hover:underline">
+            Ver el informe
+            <ArrowRight size={TAMANO_ICONO.texto} aria-hidden="true" />
+          </span>
+        </Link>
+      )}
 
       <FiltroSegmentado<SeccionDeVentas>
         etiqueta="Sección del informe"

@@ -5,7 +5,7 @@ import { TAMANO_ICONO } from "@l2/ui";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import type { VentasPedidas } from "./reportes.servidor.ts";
 import { DocumentoDeInforme, SeccionImpresa, importe, periodoEnPalabras } from "./informe.tsx";
-import { direccionDeVentas, seccionesDeVentas } from "./ventas.tsx";
+import { deudasEnUnaLinea, direccionDeVentas, hayDeudas, seccionesDeVentas } from "./ventas.tsx";
 
 /**
  * El PDF del informe de ventas (B11-1): el mismo informe que la pantalla, en una hoja A4 con todas sus secciones una
@@ -49,6 +49,11 @@ export function VentasImpreso({ pedido, informe }: VentasPedidas) {
         <SeccionImpresa key={s.id} seccion={s} />
       ))}
       {r.desdePapel > 0 && <p className="text-[8.5pt]">{r.desdePapel} de las ventas se cargaron desde los formularios de papel.</p>}
+      {hayDeudas(i.deudas) && (
+        <p className="text-[8.5pt]">
+          <span className="font-bold">Deudas de clientes.</span> {deudasEnUnaLinea(i.deudas)}. Lo recuperado ya está en lo vendido, en la cuenta con que se cobró; lo que quedó y lo perdido, no. El detalle, en el informe de deudas.
+        </p>
+      )}
     </DocumentoDeInforme>
   );
 }

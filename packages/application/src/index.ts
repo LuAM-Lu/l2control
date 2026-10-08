@@ -46,6 +46,7 @@ import { casosActualizaciones, type CasosActualizaciones } from "./sistema/actua
 import { casosRespaldos, type CasosRespaldos } from "./sistema/respaldos.ts";
 import { casosReportes, type CasosReportes } from "./reportes/ventas.ts";
 import { casosMovimientos, type CasosMovimientos } from "./reportes/movimientos.ts";
+import { casosInformeDeDeudas, type CasosInformeDeDeudas } from "./reportes/deudas.ts";
 import { casosInventarioAlMomento, type CasosInventarioAlMomento } from "./reportes/inventario.ts";
 import { casosEntradas, type CasosEntradas } from "./inventario/entradas.ts";
 import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
@@ -162,7 +163,7 @@ export interface Aplicacion {
   /** Los respaldos que hace el servidor y baja la PC del local (B7-4). */
   readonly respaldos: CasosRespaldos;
   /** Los reportes de solo lectura (Etapa 11, M-29). */
-  readonly reportes: CasosReportes & CasosMovimientos & CasosInventarioAlMomento;
+  readonly reportes: CasosReportes & CasosMovimientos & CasosInventarioAlMomento & CasosInformeDeDeudas;
   /** Las entradas de mercancía con su costo (B9-3). */
   readonly entradas: CasosEntradas;
   /** Las salidas con motivo y los conteos físicos, con su autorización (B9-4). */
@@ -264,7 +265,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     semilla: casosSemilla(base, { ajustes, tarifario, plano, eventos, medios, descuentos, impuestos, impresion }),
     actualizaciones: casosActualizaciones(base),
     respaldos: casosRespaldos(base),
-    reportes: { ...casosReportes(base), ...casosMovimientos(base), ...casosInventarioAlMomento(base) },
+    reportes: { ...casosReportes(base), ...casosMovimientos(base), ...casosInventarioAlMomento(base), ...casosInformeDeDeudas(base) },
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
     clientes: casosClientes(base),
