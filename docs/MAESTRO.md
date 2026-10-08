@@ -1279,7 +1279,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   máximo. Visto en el navegador en la base de pruebas: pausar, reloj quieto, terminar y que no se ofrezca otra, a 1366×768
   y en el teléfono en oscuro, sin desplazar la página ni errores de consola. **Propuesta a confirmar (P-14):** el niño en
   pausa sigue contando en el aforo.*
-- [ ] **B4-8 · Entrar sin pulsera** (M-27, P-1).
+- [~] **B4-8 · Entrar sin pulsera** (M-27, P-1). *A cargo: LuAMi, rama `feat/b4-8`.*
   → Un niño entra sin pulsera con su nombre (obligatorio) y una seña; el servidor le da un código interno que un
   lector no puede producir; se le encuentra por nombre en la sala, la salida y la caja, con el chip «Sin pulsera»;
   aforo, tiempo y cobro, como los demás.
