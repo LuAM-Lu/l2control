@@ -216,6 +216,9 @@ model StaffUser {
   /// Retirado con T-4 (ADR-020): ya no se lee ni se escribe. La columna se quita en una migración
   /// de contracción, cuando ninguna versión en marcha la conozca (ADR-028).
   totpSecretEnc    String?   @map("totp_secret_enc")
+  /// La cuenta de soporte (T-17, M-28): su nombre de usuario para «Acceso de soporte». Solo de Administración (CHECK);
+  /// con él, la persona no sale en «¿Quién entra?» ni cuenta como personal del local. Nulo = del local.
+  supportLogin     String?   @map("support_login")
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   branches        StaffUserBranch[]

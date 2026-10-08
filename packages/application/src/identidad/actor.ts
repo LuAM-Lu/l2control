@@ -96,6 +96,14 @@ export function rechazoDePermiso(p: Exclude<Permission, "PERMITIDO">): Rechazo {
 /** Nombre de quien opera, para los historiales que lo muestran («Aprobado por Abigail Karam»). */
 export async function nombreDe(tx: Transaccion, ctx: Contexto): Promise<{ id: string; nombre: string }> {
   if (!ctx.quien?.userId) return { id: "sistema", nombre: "Consola del servidor" };
-  const u = await tx.staffUser.findUnique({ where: { id: ctx.quien.userId }, select: { fullName: true } });
-  return { id: ctx.quien.userId, nombre: u?.fullName ?? "Persona desconocida" };
+  const u = await tx.staffUser.findUnique({ where: { id: ctx.quien.userId }, select: { fullName: true, supportLogin: true } });
+  // La cuenta de soporte (T-17) firma como tal: en cada asiento y en cada papel se ve que no fue el personal del local.
+  return { id: ctx.quien.userId, nombre: u ? (u.supportLogin ? `${u.fullName} (soporte)` : u.fullName) : "Persona desconocida" };
+}
+
+/** ¿Es la cuenta de soporte quien actúa? (T-17) */
+export async function esSoporte(tx: Transaccion, ctx: Contexto): Promise<boolean> {
+  if (!ctx.quien?.userId) return false;
+  const u = await tx.staffUser.findUnique({ where: { id: ctx.quien.userId }, select: { supportLogin: true } });
+  return u?.supportLogin !== null && u?.supportLogin !== undefined;
 }

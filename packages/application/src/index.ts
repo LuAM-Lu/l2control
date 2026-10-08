@@ -197,6 +197,11 @@ export interface OpcionesDeConexion {
    * NO_DISPONIBLE (fail-closed).
    */
   urlPublica?: string | undefined;
+  /**
+   * Si la cuenta de soporte (T-17, M-28) abre turnos y cobra: en staging sí, para reproducir un error con una copia de
+   * la base; en producción no (M-29). Sin decirlo, no (fail-closed).
+   */
+  soporteOpera?: boolean | undefined;
 }
 
 /** Abre la base (y se niega si el usuario se salta la RLS) y devuelve los casos de uso. */
@@ -207,7 +212,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
   const dispositivos = casosDispositivos(base);
   const sesiones = casosSesiones(base, dispositivos);
   const parque = casosParque(base);
-  const cuentas = casosCuentas(base, cifrador);
+  const cuentas = casosCuentas(base, cifrador, opciones.soporteOpera === true);
   const tarifario = casosTarifario(base);
   const ajustes = casosAjustes(base);
   const plano = casosPlano(base);
@@ -235,7 +240,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     tasas: casosTasas(base),
     impuestos,
     pagos: casosPagos(base, cifrador),
-    turnos: casosTurnos(base),
+    turnos: casosTurnos(base, opciones.soporteOpera === true),
     medios,
     cuentas,
     papel: casosPapel(base, parque, cuentas),

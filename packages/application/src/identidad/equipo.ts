@@ -84,6 +84,7 @@ async function resumen(tx: Transaccion, userId: string): Promise<UserSummaryDto>
     role: u.role,
     branchIds: u.branches.map((b) => b.branchId),
     active: u.active,
+    soporte: u.supportLogin,
     exceptions: u.exceptions.map((e) => ({
       effect: e.effect,
       action: e.action,
@@ -151,7 +152,9 @@ export function casosEquipo(base: Base): CasosEquipo {
       if (!cmd.success) return { ok: false, motivo: "INVALIDO", mensaje: "El cambio no es válido.", problemas: problemasDe(cmd.error) };
       const c = cmd.data;
       if (!ctx.quien?.userId) return sinPersona;
-      const accion = ({ ALTA: "usuario.alta", BAJA: "usuario.baja", REINGRESO: "usuario.reingreso", ROL: "usuario.rol", PIN: "usuario.pin" } as const)[c.kind];
+      const accion = (
+        { ALTA: "usuario.alta", BAJA: "usuario.baja", REINGRESO: "usuario.reingreso", ROL: "usuario.rol", PIN: "usuario.pin", SOPORTE: "usuario.soporte", SOPORTE_FIN: "usuario.soporte" } as const
+      )[c.kind];
       const temporal = c.kind === "ALTA" || c.kind === "PIN" ? pinTemporal() : null;
       const temporalHash = temporal ? await hash(temporal) : null;
 
@@ -162,8 +165,8 @@ export function casosEquipo(base: Base): CasosEquipo {
         if (!autor) return sinPersona;
 
         // Las cinco puertas del dominio, sobre el equipo REAL de la base.
-        const equipo = (await tx.staffUser.findMany({ select: { id: true, role: true, active: true } }))
-          .flatMap((u) => (esRol(u.role) ? [{ id: u.id, role: u.role, active: u.active }] : []));
+        const equipo = (await tx.staffUser.findMany({ select: { id: true, role: true, active: true, supportLogin: true } }))
+          .flatMap((u) => (esRol(u.role) ? [{ id: u.id, role: u.role, active: u.active, soporte: u.supportLogin !== null }] : []));
         const cambio =
           c.kind === "ALTA"
             ? ({ kind: "ALTA", role: c.role } as const)
@@ -204,6 +207,15 @@ export function casosEquipo(base: Base): CasosEquipo {
         } else if (c.kind === "ROL") {
           await tx.staffUser.update({ where: { id: c.userId }, data: { role: c.role } });
           mensaje = `${nombre} cambia de rol.`;
+        } else if (c.kind === "SOPORTE") {
+          // T-17: el usuario es único en el tenant; otro con el mismo se dice antes de tocar nada.
+          const otro = await tx.staffUser.findFirst({ where: { supportLogin: c.usuario, NOT: { id: c.userId } }, select: { id: true } });
+          if (otro) return { ok: false, motivo: "INVALIDO", mensaje: `El usuario «${c.usuario}» ya es de otra persona.`, problemas: [{ path: ["usuario"], message: "Ya es de otra persona" }] };
+          await tx.staffUser.update({ where: { id: c.userId }, data: { supportLogin: c.usuario } });
+          mensaje = `${nombre} es la cuenta de soporte: entra por «Acceso de soporte» con el usuario «${c.usuario}».`;
+        } else if (c.kind === "SOPORTE_FIN") {
+          await tx.staffUser.update({ where: { id: c.userId }, data: { supportLogin: null } });
+          mensaje = `${nombre} deja de ser la cuenta de soporte: vuelve a salir en «¿Quién entra?».`;
         } else {
           await tx.staffUser.update({
             where: { id: c.userId },
@@ -218,8 +230,19 @@ export function casosEquipo(base: Base): CasosEquipo {
           action: accion,
           entityType: "staff_user",
           entityId: c.userId,
-          before: { role: antes.role, activo: antes.active },
-          after: c.kind === "ROL" ? { role: c.role } : c.kind === "BAJA" ? { activo: false } : c.kind === "REINGRESO" ? { activo: true } : { pin: "repuesto" },
+          before: { role: antes.role, activo: antes.active, soporte: antes.supportLogin },
+          after:
+            c.kind === "ROL"
+              ? { role: c.role }
+              : c.kind === "BAJA"
+                ? { activo: false }
+                : c.kind === "REINGRESO"
+                  ? { activo: true }
+                  : c.kind === "SOPORTE"
+                    ? { soporte: c.usuario }
+                    : c.kind === "SOPORTE_FIN"
+                      ? { soporte: null }
+                      : { pin: "repuesto" },
           reason: c.reason,
         });
         return {

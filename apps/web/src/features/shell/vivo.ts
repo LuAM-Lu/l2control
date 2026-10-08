@@ -233,6 +233,9 @@ export function panelVivo({
     };
   });
   const vacios = puestos.filter((p) => p.quien === null);
+  // La cuenta de soporte (T-17) se ve mientras está conectada, aparte: no es un puesto del local ni deja uno vacío.
+  const soporte = estado.conectados["soporte"];
+  if (soporte) puestos.push({ id: "soporte", nombre: "Soporte", quien: soporte.userName, rol: soporte.role, desdeMin: minutos(soporte.desde, ahora) });
   const personas: ZonaPersonas = {
     puestos,
     alertas:

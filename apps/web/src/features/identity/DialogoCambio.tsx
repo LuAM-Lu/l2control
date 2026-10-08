@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KeyRound, TriangleAlert, UserMinus, UserPlus, UserRoundCog } from "lucide-react";
-import type { UserCommand, UserSummaryDto } from "@l2/contracts";
+import { Headset, KeyRound, TriangleAlert, UserMinus, UserPlus, UserRoundCog } from "lucide-react";
+import { UsuarioDeSoporteSchema, type UserCommand, type UserSummaryDto } from "@l2/contracts";
 import type { Role } from "@l2/domain-identity";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import { NOMBRE_ROL } from "./permisos.ts";
@@ -26,7 +26,9 @@ export type Cambio =
   | Readonly<{ kind: "BAJA"; usuario: UserSummaryDto }>
   | Readonly<{ kind: "REINGRESO"; usuario: UserSummaryDto }>
   | Readonly<{ kind: "ROL"; usuario: UserSummaryDto }>
-  | Readonly<{ kind: "PIN"; usuario: UserSummaryDto }>;
+  | Readonly<{ kind: "PIN"; usuario: UserSummaryDto }>
+  | Readonly<{ kind: "SOPORTE"; usuario: UserSummaryDto }>
+  | Readonly<{ kind: "SOPORTE_FIN"; usuario: UserSummaryDto }>;
 
 const ROLES: readonly Role[] = [
   "ADMIN",
@@ -68,6 +70,19 @@ const TEXTO = {
     confirmar: "Reponer el PIN",
     Icono: KeyRound,
   },
+  SOPORTE: {
+    titulo: "Cuenta de soporte",
+    descripcion:
+      "No sale en «¿Quién entra?»: entra por «Acceso de soporte» con este usuario y su PIN, desde un equipo aprobado. No cuenta como personal del local y en producción no abre turnos ni cobra.",
+    confirmar: "Marcar como soporte",
+    Icono: Headset,
+  },
+  SOPORTE_FIN: {
+    titulo: "Quitar la marca de soporte",
+    descripcion: "Vuelve a salir en «¿Quién entra?» como una persona más de Administración.",
+    confirmar: "Quitar la marca",
+    Icono: Headset,
+  },
 } as const;
 
 export function DialogoCambio({
@@ -85,6 +100,7 @@ export function DialogoCambio({
   onConfirmar: (comando: UserCommand) => void | Promise<void>;
 }) {
   const [nombre, setNombre] = useState("");
+  const [usuarioSoporte, setUsuarioSoporte] = useState("");
   const [rol, setRol] = useState<Role>("CAJERO");
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +110,7 @@ export function DialogoCambio({
   useEffect(() => {
     if (!cambio) return;
     setNombre("");
+    setUsuarioSoporte(cambio.kind === "SOPORTE" ? (cambio.usuario.soporte ?? "") : "");
     setMotivo("");
     setError(null);
     setRol(cambio.kind === "ROL" ? cambio.usuario.role : "CAJERO");
@@ -130,6 +147,20 @@ export function DialogoCambio({
 
     if (cambio.kind === "ROL") {
       onConfirmar({ kind: "ROL", userId: cambio.usuario.id, role: rol, reason });
+      return;
+    }
+
+    if (cambio.kind === "SOPORTE") {
+      const u = UsuarioDeSoporteSchema.safeParse(usuarioSoporte);
+      if (!u.success) {
+        setError(u.error.issues[0]?.message ?? "Ese usuario no vale.");
+        return;
+      }
+      if (usuarios.some((x) => x.soporte === u.data && x.id !== cambio.usuario.id)) {
+        setError(`El usuario «${u.data}» ya es de otra persona.`);
+        return;
+      }
+      onConfirmar({ kind: "SOPORTE", userId: cambio.usuario.id, usuario: u.data, reason });
       return;
     }
 
@@ -209,6 +240,23 @@ export function DialogoCambio({
               </p>
             )}
           </div>
+        )}
+
+        {cambio.kind === "SOPORTE" && (
+          <Input
+            surface="tablet"
+            label="Usuario de soporte"
+            value={usuarioSoporte}
+            onChange={(e) => {
+              setUsuarioSoporte(e.target.value);
+              setError(null);
+            }}
+            placeholder="soporte.l2"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            autoFocus
+          />
         )}
 
         {cambio.kind === "PIN" && (

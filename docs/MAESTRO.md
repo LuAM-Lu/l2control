@@ -44,7 +44,7 @@ teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el
 §3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
 corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF), T-18
 (Ajustes de 18 secciones a 12, con pestañas), B11-3 (movimientos: el kárdex con su PDF) y B11-2 (inventario al momento,
-con su PDF): la Etapa 11 entera. **Siguiente:** **T-17** (cuenta de soporte).
+con su PDF): la Etapa 11 entera; y T-17 (la cuenta de soporte). **Siguiente:** **B9-10** (conteo a ciegas y su informe).
 **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
@@ -66,8 +66,8 @@ con su PDF): la Etapa 11 entera. **Siguiente:** **T-17** (cuenta de soporte).
 - **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
   el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
   respaldos con carpeta, fijados e integridad (B7-6), la sección Reportes con las ventas y su PDF (B11-1) y Ajustes
-  unificados (T-18), los movimientos de inventario (B11-3) y el inventario al momento (B11-2). Quedan la cuenta
-  de soporte oculta (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
+  unificados (T-18), los movimientos de inventario (B11-3) y el inventario al momento (B11-2), y la cuenta de
+  soporte (T-17). Quedan conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
   runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
@@ -239,7 +239,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
    semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
-   (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → **T-17** (cuenta de soporte) → B9-10 (conteo
+   (Ajustes unificados) → ~~B11-3~~ (movimientos) → ~~B11-2~~ (inventario al momento) → ~~T-17~~ (cuenta de soporte) → **B9-10** (conteo
    a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
 
 Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -610,13 +610,37 @@ Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   vacíos. **De paso:** el pie de la barra lateral en dos renglones (la persona con todo el ancho, debajo ayuda, tema y
   salir): «Abi… Ad…» ya no se corta. Visto en el navegador en la base de pruebas: a 1920×1080 Inicio, Productos y
   Sucursal miden 1600 px y el título de página 28 px, en los dos temas; el pie a 1366, 1100 y 800 de ancho.*
-- [~] **T-17 · Cuenta de soporte** (M-28). *A cargo: LuAMi, rama `feat/t-17`.*
+- [x] **T-17 · Cuenta de soporte** (M-28).
   → Una persona de Administración con la marca «soporte» no sale en «¿Quién entra?»: entra por «Acceso de soporte»
   con su nombre de usuario y su PIN, desde su equipo aprobado (como todos), con el mismo bloqueo; sin plazo. No abre
   turnos ni cuenta como personal del local. Se ve como «Soporte» en Usuarios, en la auditoría y en Inicio mientras está
   conectada; administración la marca, la desactiva o le repone el PIN. Configuración, precios y personas siguen
   pidiendo contraseña y llave (F2-04). En producción no abre turnos ni cobra; en staging sí, para reproducir un error
   con una copia de la base restaurada del respaldo (M-29).
+  *Hecho el 2026-10-08, en `feat/t-17`.*
+  *· Base: `20261112000000_cuenta_de_soporte` (solo expande): `staff_user.support_login` (solo de Administración, en
+  minúsculas y único en el tenant, por CHECK e índice) y los cambios `SOPORTE` y `SOPORTE_FIN` en `staff_user_change`.*
+  *· Dominio (`revisarCambio`, sexta puerta): la marca la pone y la quita la administración, nadie sobre sí misma, solo a
+  una persona de Administración activa; la cuenta de soporte no cuenta como administración del local (no se marca a la
+  única que queda) y no se le cambia el rol con la marca puesta. 4 pruebas.*
+  *· Contrato: `UsuarioDeSoporteSchema`, los comandos `SOPORTE` (con su usuario) y `SOPORTE_FIN`, `soporte` en el
+  directorio y en las sesiones en curso.*
+  *· Aplicación: `equipo.cambiar` marca y quita (usuario único, su asiento `usuario.soporte` y su historia);
+  `sesiones.personas` no la lista; `sesiones.entrarSoporte` la busca por su usuario y entra por el mismo camino que todos
+  (equipo aprobado, bloqueo, PIN temporal); un usuario que no existe responde como un PIN errado. Firma «(soporte)» en
+  cada asiento y papel (`nombreDe`); la Puesta a punto no la cuenta. `turnos.abrir` y `cuentas.cobrar` la rechazan salvo
+  con `soporteOpera`, que la web enciende fuera de producción (`L2_ENTORNO`). 7 pruebas contra la base.*
+  *· Web: «Acceso de soporte» en el acceso (usuario y después el PIN, como todos); en Personas y equipos, «Cuenta de
+  soporte» y «Quitar soporte» con su usuario, la insignia «Soporte · usuario» y la cifra de activas que la cuenta
+  aparte; Inicio la enseña como «Soporte» mientras está conectada, sin ocupar el puesto de nadie. El manual del acceso,
+  al día.*
+  *· Decidido al construir: el usuario de soporte es un nombre aparte (no el de la persona), en minúsculas y sin espacios;
+  firmar «Nombre (soporte)» es lo que hace que se vea en la auditoría, en los turnos y en los papeles. Desarrollo cuenta
+  como staging (la cuenta opera).*
+  *· Comprobado: en el navegador, contra la base de pruebas: alta de «Prueba T17 Soporte» (Administración), marcarla con
+  «prueba.t17», que no salga en la lista del acceso, entrar por «Acceso de soporte» desde otro equipo con el PIN
+  temporal y elegir el suyo, e Inicio con «Soporte»; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
+  desbordes ni errores de consola.*
 - [x] **T-18 · Ajustes unificados** (M-29).
   → **Personas y equipos** (usuarios y permisos, roles y accesos, dispositivos), **Tasas** con su pestaña de feriados,
   **Sistema** (versión y actualizaciones, respaldos, semilla) y la **carta dentro de Inventario → Productos** (pestaña

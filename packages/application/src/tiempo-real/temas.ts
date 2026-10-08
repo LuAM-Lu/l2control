@@ -181,6 +181,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "usuario.reingreso": ["personal"],
   "usuario.rol": ["personal", "sesiones"],
   "usuario.pin": ["personal"],
+  "usuario.soporte": ["personal"],
   "usuario.contrasena": ["personal"],
   "usuario.llave": ["personal"],
   "usuario.enlace": ["personal"],

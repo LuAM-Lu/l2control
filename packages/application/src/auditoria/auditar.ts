@@ -138,6 +138,7 @@ export type AccionAuditada =
   | "usuario.reingreso"
   | "usuario.rol"
   | "usuario.pin"
+  | "usuario.soporte"
   | "usuario.contrasena"
   | "usuario.llave"
   | "usuario.enlace"

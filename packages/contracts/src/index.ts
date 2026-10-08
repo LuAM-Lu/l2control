@@ -309,6 +309,7 @@ export {
   UsersDirectorySchema,
   PermissionExceptionCommandSchema,
   UserCommandSchema,
+  UsuarioDeSoporteSchema,
   DeviceStatusSchema,
   DeviceSchema,
   CodigoEmparejamientoSchema,

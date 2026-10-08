@@ -61,6 +61,28 @@ export async function entrar(userId: unknown, pin: unknown, pinNuevo?: unknown):
   return { ok: true, valor: { nombre: r.sesion.nombre, actor: r.sesion.actor } };
 }
 
+/**
+ * «Acceso de soporte» (T-17, M-28): la cuenta de soporte no sale en la lista; entra con su usuario y su PIN, desde
+ * este equipo aprobado y con el mismo bloqueo. Un usuario que no existe se responde igual que un PIN errado.
+ */
+export async function entrarSoporte(usuario: unknown, pin: unknown, pinNuevo?: unknown): Promise<ResultadoEntrar> {
+  if (typeof usuario !== "string" || typeof pin !== "string" || (pinNuevo !== undefined && typeof pinNuevo !== "string")) {
+    return { ok: false, motivo: "INVALIDO", mensaje: "Datos de acceso incompletos." };
+  }
+  const r = await (await aplicacion()).sesiones.entrarSoporte({
+    dispositivo: await credencialEquipo(),
+    usuario,
+    pin,
+    pinNuevo,
+    ip: await ipDeLaPeticion(),
+    ahora: Date.now(),
+  });
+  if (!r.ok) return r;
+  await guardarCookieSesion(r.credencial);
+  refresh();
+  return { ok: true, valor: { nombre: r.sesion.nombre, actor: r.sesion.actor } };
+}
+
 /** Salir: cierra la sesión EN EL SERVIDOR y borra la cookie. El corte Z también la cierra. */
 export async function salir(motivo: "SALIDA" | "CORTE_Z" = "SALIDA"): Promise<void> {
   await (await aplicacion()).sesiones.salir(await credencialSesion(), motivo === "CORTE_Z" ? "CORTE_Z" : "SALIDA", await ipDeLaPeticion());

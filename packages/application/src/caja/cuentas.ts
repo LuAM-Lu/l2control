@@ -97,7 +97,7 @@ import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Action } from "@l2/domain-identity";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
-import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
+import { esSoporte, exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { autorizadoresPara, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import type { Cifrador } from "../identidad/cifrado.ts";
 import { programadaDeFila } from "../dinero/impuestos.ts";
@@ -252,7 +252,8 @@ const cuentaCambiada: Rechazo = {
 /** Una cuenta con su última versión, leída dentro de la transacción. */
 type Vigente = Readonly<{ cuenta: FamilyAccountDto; version: number }>;
 
-export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuentas {
+/** `soporteOpera`: si la cuenta de soporte (T-17) cobra; en producción no, en staging sí (como en `casosTurnos`). */
+export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera = false): CasosCuentas {
   return {
     async leer(ctx, ahora = Date.now()) {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CuentasDelLocalDto | Rechazo> => {
@@ -406,6 +407,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
         base.conTenant(ctx.tenantId, async (tx): Promise<CuentaYLibroDto | Rechazo> => {
           const rechazo = await exigirPermiso(tx, ctx, "documento.emitir");
           if (rechazo) return rechazo;
+          if (!soporteOpera && (await esSoporte(tx, ctx))) {
+            return { ok: false, motivo: "NO_PERMITIDO", mensaje: "La cuenta de soporte no cobra aquí: cobra el personal del local." };
+          }
 
           // Un doble clic devuelve lo que ya se cobró con esta clave (I-11).
           const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });

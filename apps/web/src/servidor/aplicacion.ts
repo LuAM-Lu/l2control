@@ -16,7 +16,12 @@ export function log(): Logger {
 
 export function aplicacion(): Promise<Aplicacion> {
   const e = entorno();
-  global.__l2Aplicacion ??= conectar(e.L2_DB_APP_URL, { claveCifrado: e.L2_CLAVE_CIFRADO, urlPublica: e.L2_URL_PUBLICA }).catch((error: unknown) => {
+  global.__l2Aplicacion ??= conectar(e.L2_DB_APP_URL, {
+    claveCifrado: e.L2_CLAVE_CIFRADO,
+    urlPublica: e.L2_URL_PUBLICA,
+    // T-17: la cuenta de soporte opera en staging (y en desarrollo), nunca en producción.
+    soporteOpera: e.L2_ENTORNO !== "produccion",
+  }).catch((error: unknown) => {
     // Sin esto, un arranque con la base caída dejaría la promesa rota para siempre.
     global.__l2Aplicacion = undefined;
     throw error;
