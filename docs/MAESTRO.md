@@ -2368,7 +2368,7 @@ F9-05).
   productos; Agua mineral con 20 que entraron y 9 ventas en mesas, mostrador y cumpleaños, saldo 11 = existencia), un
   producto y el PDF de la categoría; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni
   errores de consola.*
-- [ ] **B11-4 · Deudas: el flujo entero** (M-33).
+- [~] **B11-4 · Deudas: el flujo entero** (M-33). *A cargo: LuAMi, rama `feat/b11-4`.*
   → **Reportes → Deudas** (`reportes.verSucursal`), por día de negocio y con el periodo en la dirección, como los demás;
   su PDF en `/informes/deudas`, con las piezas de `features/reportes/informe.tsx`. Sale de los asientos: solo lectura.
   → **Resumen del periodo:** lo que quedó en deuda (cuántas y cuánto), lo recuperado, lo dado por perdido y lo que sigue
