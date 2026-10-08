@@ -78,6 +78,13 @@ export const ImpresoraSchema = z.object({
 });
 export type ImpresoraDto = z.infer<typeof ImpresoraSchema>;
 
+/**
+ * Cómo le fue a un cambio de versión del agente (T-8c): se cambió; la descarga no tenía la huella publicada; el
+ * ejecutable nuevo no arrancó (antes de cambiarlo, o después, y volvió el anterior); u otro error al descargar.
+ */
+export const ResultadoDeActualizacionSchema = z.enum(["ACTUALIZADO", "HUELLA_EQUIVOCADA", "NO_ARRANCA", "NO_ARRANCO", "ERROR"]);
+export type ResultadoDeActualizacion = z.infer<typeof ResultadoDeActualizacionSchema>;
+
 /** Un agente de impresión vinculado (o esperando su código). */
 export const AgenteSchema = z.object({
   id: IdSchema,
@@ -88,6 +95,15 @@ export const AgenteSchema = z.object({
   codigoHasta: TimestampSchema.nullable(),
   ultimaVez: TimestampSchema.nullable(),
   conectado: z.boolean(),
+  /** La versión que dijo al conectarse (T-8c); `null` si es de antes o todavía no se conectó. */
+  version: z.string().nullable().default(null),
+  /** «Actualizar ahora» pedido y aún sin resolver (T-8c). */
+  actualizacionPedida: TimestampSchema.nullable().default(null),
+  /** Cómo le fue a su último cambio de versión (T-8c). */
+  ultimaActualizacion: z
+    .object({ resultado: ResultadoDeActualizacionSchema, version: z.string(), detalle: z.string().nullable(), en: TimestampSchema })
+    .nullable()
+    .default(null),
 });
 export type AgenteDto = z.infer<typeof AgenteSchema>;
 
@@ -116,6 +132,8 @@ export const ImpresoraCommandSchema = z.discriminatedUnion("kind", [
   /** Genera el código de un solo uso con que se vincula el agente de un equipo (ADR-026). */
   z.strictObject({ kind: z.literal("VINCULAR_AGENTE"), nombre: z.string().trim().min(2, "Ponle un nombre al equipo").max(40) }),
   z.strictObject({ kind: z.literal("RETIRAR_AGENTE"), agenteId: z.uuid("Agente desconocido") }),
+  /** «Actualizar ahora» (T-8c): el agente revisa ya la versión disponible y, con la cola vacía, se cambia. */
+  z.strictObject({ kind: z.literal("ACTUALIZAR_AGENTE"), agenteId: z.uuid("Agente desconocido") }),
 ]);
 export type ImpresoraCommand = z.infer<typeof ImpresoraCommandSchema>;
 
@@ -237,3 +255,24 @@ export const ResultadoDelAgenteSchema = z.strictObject({
   error: z.string().trim().max(200).optional(),
 });
 export type ResultadoDelAgenteDto = z.infer<typeof ResultadoDelAgenteSchema>;
+
+/**
+ * La versión del agente que publica el servidor (T-8c): la que viaja con esta versión del sistema, con su huella
+ * SHA-256, y si administración pidió «Actualizar ahora» para este agente.
+ */
+export const VersionDelAgenteSchema = z.object({
+  version: z.string().regex(/^\d+\.\d+\.\d+$/),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  pedida: z.boolean(),
+});
+export type VersionDelAgenteDto = z.infer<typeof VersionDelAgenteSchema>;
+
+/** Lo que el agente cuenta de un cambio de versión (T-8c). */
+export const NotaDeActualizacionSchema = z.strictObject({
+  version: z.string().trim().min(1).max(20),
+  de: z.string().trim().min(1).max(20),
+  resultado: ResultadoDeActualizacionSchema,
+  detalle: z.string().trim().max(200).nullable().optional(),
+  en: TimestampSchema.optional(),
+});
+export type NotaDeActualizacionDto = z.infer<typeof NotaDeActualizacionSchema>;

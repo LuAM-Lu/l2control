@@ -380,6 +380,37 @@ export const MANUAL: readonly EntradaDelManual[] = [
     problemas: GENERALES,
   },
   {
+    id: "impresoras",
+    ruta: "/panel/ajustes/impresoras",
+    titulo: "Impresoras",
+    roles: ["ADMIN"],
+    proposito:
+      "La impresora térmica del local, el agente de la laptop de caja que imprime en ella (por la red del local) y lo que se mandó a imprimir.",
+    pasos: [
+      "Impresoras: la de recibos y cortes y la de comandas, con su IP fija; se prueba antes de encenderla.",
+      "Agente: se descarga, se vincula con un código de un solo uso y queda instalado en la laptop de caja.",
+      "El agente se actualiza solo: cuando el sistema trae otra versión, la baja, comprueba su huella y se cambia con la cola vacía. Aquí se ve su versión y la disponible; «Actualizar ahora» no espera a su próxima revisión.",
+      "Cola e historial: lo que salió, lo que espera y lo que falló, con «Reintentar» o «Descartar».",
+    ],
+    problemas: [
+      {
+        sintoma: "«La X no arrancó: volvió la anterior»",
+        solucion:
+          "La versión nueva del agente no quedó en marcha y Windows volvió a poner la que había: la laptop sigue imprimiendo. No se reintenta sola; repórtalo desde la ayuda, y «Actualizar ahora» lo vuelve a intentar.",
+        reconoce: ["no arranco", "volvio la anterior"],
+      },
+      {
+        sintoma: "«La X no se instaló: su descarga no tenía la huella publicada»",
+        solucion: "Lo descargado no era lo publicado (una descarga cortada o alterada): no se instaló nada. «Actualizar ahora» la descarga otra vez.",
+        reconoce: ["huella publicada"],
+      },
+      {
+        sintoma: "El agente dice «Versión: la dirá al conectarse» y no se actualiza",
+        solucion: "Es un agente instalado antes de que se actualizara solo: se instala una vez la versión de esta pantalla («Descargar el agente») y desde ahí se actualiza solo.",
+      },
+    ],
+  },
+  {
     id: "personas",
     ruta: "/panel/ajustes/personas",
     titulo: "Personas y equipos",

@@ -40,8 +40,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
 la Etapa 11 entera), Ajustes en 12 secciones con pestañas (T-18), la cuenta de soporte (T-17), el conteo a ciegas con
 su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos con sus sabores (B9-8).
-**M-31 entregado:** B3-9, el punto de cobro y la entrada desde la caja. **Siguiente, sin pedir el sí entre pasos:** hacia
-la 1.0.0, lo que no necesita el local: T-8c (programado y probado en una PC con Windows) y lo
+**M-31 entregado:** B3-9, el punto de cobro y la entrada desde la caja. **T-8c hecho:** el agente de impresión se
+actualiza solo (ensayado en una PC con Windows). **Siguiente, sin pedir el sí entre pasos:** lo
 escrito de B8-2 (el procedimiento en papel y los runbooks), según §3, orden, punto 10. **En el local:** B7-3 (con T-8c en
 la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
 1.0.0, §4), antes de B8-4.
@@ -69,7 +69,7 @@ la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Pa
 - **M-28 y M-29 (2026-10-08) entregados enteros:** los once pasos, de v0.74.0 a v0.84.0, sin pedir el sí entre uno y
   otro (lo pidió el usuario). Para usarlos en el staging: la cuenta de soporte se marca en Ajustes → Personas y equipos
   (y allí sí abre turnos y cobra); la corrida limpia de producción es base nueva más la semilla con casillas (B7-7).
-- **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
+- **Después, para producción:** B7-3 en el local, con los equipos reales (y T-8c comprobado en la laptop de caja); y la Etapa 8 (red del local con 4G,
   runbooks del técnico, el procedimiento en papel y la capacitación (M-30: el manual es el de la app), operación en
   paralelo y puesta en marcha, que es la 1.0.0).
 
@@ -253,7 +253,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    a ciegas y su informe) → ~~B9-9~~ (editar en lote) → ~~B9-8~~ (duplicar productos).
 9. **M-31**: ~~B3-9~~ (el punto de cobro y la entrada desde la caja): una sola tarea, de punta a punta, sin pedir el sí
    entre sus partes (el usuario, 2026-10-08).
-10. **Hacia la 1.0.0**, lo que no necesita el local: **T-8c** (se programa y se prueba en una PC con Windows como la de
+10. **Hacia la 1.0.0**, lo que no necesita el local: ~~T-8c~~ (se programa y se prueba en una PC con Windows como la de
    caja; en la laptop real se comprueba con B7-3) → **B8-2** (lo que se escribe: la hoja del procedimiento en papel y los
    runbooks del técnico; la capacitación se da en B8-3, y ahí se cierra). Después, en el local: B7-3, B8-1, B8-3 y
    **B8-4 = 1.0.0**, con D-REL decidido.
@@ -469,13 +469,42 @@ Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pantalla tardaba 30 s (el modo degradado) en enterarse; ahora un ticket que no llega lleva a preguntar a `/salud`
   enseguida. Y el modo degradado ya no repinta contra un servidor que no contesta (dejaba la página de error del
   navegador).*
-- [~] **T-8c · El agente de impresión se actualiza solo** (M-25, [ADR-028](adr/028-actualizaciones.md) punto 5): se
+- [x] **T-8c · El agente de impresión se actualiza solo** (M-25, [ADR-028](adr/028-actualizaciones.md) punto 5): se
   programa y se prueba en una PC con Windows antes de la visita, y se comprueba en la laptop de caja real con B7-3; antes
-  de B8-3. *A cargo: LuAMi, rama `feat/t-8c`.*
+  de B8-3.
   → El agente dice su versión al servidor; con una nueva y la cola vacía, la descarga del propio servidor, comprueba su
   huella (SHA-256 publicada con la versión), rechaza un ejecutable con la huella equivocada, se cambia sin papel
   pendiente y, si la versión nueva no arranca, la tarea de Windows vuelve a la anterior. Ajustes → Impresoras enseña la
   versión del agente y la disponible, con «Actualizar ahora». Probado en la laptop de caja real.
+  *Hecho el 2026-10-08, en `feat/t-8c`; la comprobación en la laptop de caja real pasa a B7-3.*
+  *· Base: `20261114000000_agente_se_actualiza` (solo expande): en `print_agent`, la versión que dice, «Actualizar ahora»
+  pedido y el resultado de su último cambio (con sus CHECK: versión acotada; resultado, versión y hora juntos).*
+  *· Contrato: `VersionDelAgenteSchema` (versión, SHA-256 y si se pidió), `NotaDeActualizacionSchema` y
+  `ResultadoDeActualizacionSchema` (ACTUALIZADO, HUELLA_EQUIVOCADA, NO_ARRANCA, NO_ARRANCO, ERROR); el agente del panel
+  con su versión, lo pedido y su última actualización; la orden `ACTUALIZAR_AGENTE`; el tema `agente`.*
+  *· Aplicación: `abrirAgente(…, version)` anota la versión que dice al conectarse y, si cambió, el cambio («Se
+  actualizó») y resuelve lo pedido; `actualizacionDe` (para la web, por la credencial); `anotarActualizacion` (lo que
+  no salió, al panel y a la auditoría); «Actualizar ahora» con `catalogo.modificar` e identidad confirmada. Asientos
+  `agente.version`, `agente.actualizar` (tema `agente`) y `agente.actualizacion`. 2 pruebas contra la base.*
+  *· Worker: la versión en el apretón de manos, el evento `actualizacion` del agente y `revisar-version` hacia la
+  sucursal cuando se pide; la vinculación devuelve la dirección de la web. 1 prueba.*
+  *· Web: `/descargas/agente/version` y `/descargas/agente/archivo` con la credencial del agente (`Bearer`); la versión
+  empaquetada sale de `l2-impresion.exe.version` (que escribe `empaquetar.mjs` y sube «Publicar»). Ajustes →
+  Impresoras → Agente: su versión frente a la disponible, «Actualizar ahora», lo pedido y su último cambio; la entrada
+  del manual de Impresoras con sus tres avisos.*
+  *· Agente (`actualizacion.ts`): revisa al conectarse, cada 30 min y con `revisar-version`; con la cola vacía
+  descarga, comprueba la huella y que el ejecutable diga su versión; el cambio lo hace otra tarea de Windows, «L2
+  Control - Impresion (cambio)», que vuelve al anterior si el nuevo no queda vivo en 90 s. No reintenta solo una
+  versión que falló; un servidor que volvió atrás no lo arrastra. 8 pruebas.*
+  *· Salió en el ensayo: lanzado como hijo del agente, el guion del cambio moría con la tarea (Windows cierra juntos
+  los procesos de una tarea): por eso el cambio va en su propia tarea. Y el guion se escribe con BOM: PowerShell 5.1
+  lee como ANSI un archivo sin él.*
+  *· Ensayado en esta PC con Windows (sin ser administrador: la tarea del agente, a nombre del usuario, con los mismos
+  ajustes), contra la base de pruebas: la 0.85.0 instalada se cambió sola a la 0.85.1; con «Actualizar ahora», una
+  0.85.2 con la huella equivocada no se instaló; una 0.85.3 que no arranca se puso y Windows volvió a la 0.85.1 en
+  90 s, con «La 0.85.3 no arrancó: volvió la anterior» en el panel; una 0.85.4 se instaló. El panel, a 1366×768,
+  1280×800, 800×1280 y 390 px en los dos temas, sin errores de consola. Un agente instalado antes de la 0.86.0 no sabe
+  actualizarse: se reinstala una vez.*
 - [x] **T-10 · Inventario en lote** (M-24), con B7-2.
   → Una entrada se llena como una hoja de cálculo: una fila por producto (buscado por nombre, SKU o código, o nuevo
   con su ficha corta), Tab entre campos e Intro para la siguiente. Cada línea dice la cantidad en unidades sueltas o en
@@ -2230,7 +2259,9 @@ F9-05).
 - [ ] **B7-3 · Medición con red real**: carga, error y degradación con latencia de verdad (RIE-13); la
   app en el teléfono de la monitora, la tablet del mesero y la laptop de caja reales, también por el 4G
   de respaldo (T-5, M-15); los 12 tamaños otra vez. *El agente de impresión ya está empaquetado e instalable
-  (adelantado el 2026-10-01, v0.39.1): aquí queda instalarlo en la laptop real y medirlo.*
+  (adelantado el 2026-10-01, v0.39.1): aquí queda instalarlo en la laptop real y medirlo.* Con T-8c (hecho y ensayado en
+  una PC con Windows): comprobar en la laptop de caja real que se actualiza sola (una versión nueva publicada, con la
+  cola vacía) y que vuelve a la anterior si la nueva no arranca.
 - [x] **B7-4 · Respaldos**: volcado diario cifrado fuera del VPS y una **restauración ensayada**
   (F10-04, F10-05). Fuera del VPS = una PC del local que lo baja (M-26).
   *Hecho el 2026-10-07 (LuAMi), v0.59.0:* `backup_copy` (cada noche, HECHO o FALLIDO con su motivo; nada se borra: la
@@ -2914,6 +2945,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   a la 1.0.0: T-8c y lo escrito de B8-2 se hacen antes de la visita (§3, orden, punto 10). La ruta pasa a 91.
 - **2026-10-08** · B3-9 entregado como v0.85.0 (M-31): el punto de cobro y la entrada desde la caja. La ruta cuenta 91 en el
   `package.json` (se había quedado en 90, PR #85). Sigue T-8c y lo escrito de B8-2, sin pedir el sí entre pasos.
+- **2026-10-08** · T-8c entregado: el agente de impresión se actualiza solo, ensayado en esta PC con Windows (cambio, huella
+  equivocada, versión que no arranca y vuelta atrás). En la laptop de caja real se comprueba con B7-3. Sigue lo escrito
+  de B8-2.
 
 ---
 

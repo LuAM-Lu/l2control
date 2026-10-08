@@ -4,18 +4,28 @@
  * Se conecta hacia fuera (Socket.io, espacio `/impresion`) con su credencial y no deja de intentarlo:
  * si se cae el internet, vuelve solo. Cuando el worker avisa (`hay-trabajo`), o cada 30 s por si se
  * perdió un aviso, vacía la cola de su sucursal: reclama, imprime y responde, de uno en uno.
+ *
+ * Dice su versión al entrar (T-8c) y cuenta al servidor cómo le fue a un cambio de versión (`informar`).
  */
 import { io, type Socket } from "socket.io-client";
-import { TrabajoParaElAgenteSchema } from "@l2/contracts";
+import { TrabajoParaElAgenteSchema, type NotaDeActualizacionDto } from "@l2/contracts";
 import type { ResultadoDeImpresion } from "./imprimir.ts";
 
 export type Registro = Readonly<{ info: (m: string) => void; error: (m: string) => void }>;
 
-export type Agente = Readonly<{ socket: Socket; vaciar: () => Promise<number>; parar: () => void }>;
+export type Agente = Readonly<{
+  socket: Socket;
+  vaciar: () => Promise<number>;
+  /** Cuenta al servidor cómo le fue a un cambio de versión (T-8c). Devuelve si lo anotó. */
+  informar: (n: NotaDeActualizacionDto) => Promise<boolean>;
+  parar: () => void;
+}>;
 
 export function crearAgente(o: {
   servidor: string;
   credencial: string;
+  /** La versión de este agente: la dice al entrar (T-8c). */
+  version?: string;
   imprimir: (destino: { ip: string; puerto: number }, bytes: Uint8Array) => Promise<ResultadoDeImpresion>;
   registro: Registro;
   /** Cada cuánto mira la cola sin aviso. */
@@ -26,7 +36,7 @@ export function crearAgente(o: {
 }): Agente {
   const socket = io(`${o.servidor.replace(/\/$/, "")}/impresion`, {
     path: "/tiempo-real",
-    auth: { credencial: o.credencial },
+    auth: { credencial: o.credencial, ...(o.version ? { version: o.version } : {}) },
     transports: ["websocket"],
     reconnection: true,
     reconnectionDelay: 1_000,
@@ -96,9 +106,20 @@ export function crearAgente(o: {
   socket.on("hay-trabajo", () => void vaciar());
   const reloj = setInterval(() => void vaciar(), o.mirarMs ?? 30_000);
 
+  async function informar(n: NotaDeActualizacionDto): Promise<boolean> {
+    if (!socket.connected) return false;
+    try {
+      const r = (await socket.timeout(10_000).emitWithAck("actualizacion", n)) as { ok?: boolean } | null;
+      return r?.ok === true;
+    } catch {
+      return false;
+    }
+  }
+
   return {
     socket,
     vaciar,
+    informar,
     parar: () => {
       clearInterval(reloj);
       if (reintento) clearTimeout(reintento);

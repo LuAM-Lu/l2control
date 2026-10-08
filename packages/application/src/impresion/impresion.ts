@@ -21,6 +21,7 @@ import {
   ImpresorasDelLocalSchema,
   ImprimirCorteCommandSchema,
   ImprimirPruebaCommandSchema,
+  NotaDeActualizacionSchema,
   ReintentarTrabajoCommandSchema,
   ResultadoDelAgenteSchema,
   TrabajoDeImpresionSchema,
@@ -97,8 +98,15 @@ export interface CasosImpresion {
 
   /** El agente cambia su código de un solo uso por su credencial. */
   vincular(tenantId: string, entrada: unknown, ahora?: number): Promise<Resultado<AgenteVinculadoDto>>;
-  /** El agente de esa credencial, si sigue vinculado. `null` = no entra. */
-  abrirAgente(tenantId: string, credencial: unknown): Promise<AgenteAbierto | null>;
+  /**
+   * El agente de esa credencial, si sigue vinculado. `null` = no entra. Anota la versión que dice al conectarse (T-8c):
+   * si cambió desde la última, se cambió de versión, y una actualización pedida queda resuelta.
+   */
+  abrirAgente(tenantId: string, credencial: unknown, version?: unknown, ahora?: number): Promise<AgenteAbierto | null>;
+  /** Si administración pidió «Actualizar ahora» para el agente de esa credencial (T-8c); `null` si no la reconoce. */
+  actualizacionDe(tenantId: string, credencial: unknown): Promise<{ agenteId: string; pedida: boolean } | null>;
+  /** Lo que el agente cuenta de un cambio de versión que no salió (`NotaDeActualizacionSchema`): al panel y a la auditoría. */
+  anotarActualizacion(agente: AgenteAbierto, entrada: unknown, ahora?: number): Promise<Resultado<{ anotada: true }>>;
   /** El siguiente trabajo de su sucursal que le toca, ya ENVIADO a su nombre; `null` si no hay. */
   reclamar(agente: AgenteAbierto, ahora?: number): Promise<TrabajoParaElAgenteDto | null>;
   /** Cómo le fue con un trabajo que reclamó (`ResultadoDelAgenteSchema`). */
@@ -110,6 +118,9 @@ export interface CasosImpresion {
 }
 
 const huella = (s: string) => createHash("sha256").update(s).digest("hex");
+const esCredencial = (c: unknown): c is string => typeof c === "string" && c.startsWith("l2ag_") && c.length <= 100;
+/** Lo que el agente dice de su versión (T-8c): «0.85.0», o «desarrollo» sin empaquetar. Lo demás no se anota. */
+const VERSION_DE_AGENTE = /^[0-9A-Za-z._-]{1,20}$/;
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const nuevoCodigo = () => {
   const c = Array.from({ length: 8 }, () => ALFABETO[randomInt(ALFABETO.length)]).join("");
@@ -255,6 +266,12 @@ async function delLocal(tx: Transaccion, branchId: string, ahora: number): Promi
         codigoHasta: a.pairedAt ? null : (a.codeExpiresAt?.toISOString() ?? null),
         ultimaVez: a.lastSeenAt?.toISOString() ?? null,
         conectado: a.lastSeenAt !== null && ahora - a.lastSeenAt.getTime() < AGENTE_CONECTADO_MS,
+        version: a.agentVersion,
+        actualizacionPedida: a.updateRequestedAt?.toISOString() ?? null,
+        ultimaActualizacion:
+          a.updateResult && a.updateVersion && a.updateAt
+            ? { resultado: a.updateResult, version: a.updateVersion, detalle: a.updateDetail, en: a.updateAt.toISOString() }
+            : null,
       })),
   });
 }
@@ -367,6 +384,14 @@ export function casosImpresion(base: Base): CasosImpresion {
               if (!a) return noDisponible("Ese agente no existe en esta sucursal.");
               await tx.printAgent.update({ where: { id: a.id }, data: { retiredAt: new Date(ahora), retiredByName: quien.nombre, codeHash: null, codeExpiresAt: null } });
               await auditar(tx, ctx, { action: "agente.retirar", entityType: "print_agent", entityId: a.id, before: { nombre: a.name } });
+              break;
+            }
+            case "ACTUALIZAR_AGENTE": {
+              // T-8c: el agente revisa ya la versión disponible y, con la cola vacía, se cambia. El worker se lo dice (tema `agente`).
+              const a = await tx.printAgent.findFirst({ where: { id: cmd.agenteId, branchId: ctx.branchId, retiredAt: null } });
+              if (!a || !a.pairedAt) return noDisponible("Ese agente no está vinculado en esta sucursal.");
+              await tx.printAgent.update({ where: { id: a.id }, data: { updateRequestedAt: new Date(ahora) } });
+              await auditar(tx, ctx, { action: "agente.actualizar", entityType: "print_agent", entityId: a.id, after: { nombre: a.name, version: a.agentVersion } });
               break;
             }
           }
@@ -546,11 +571,64 @@ export function casosImpresion(base: Base): CasosImpresion {
       });
     },
 
-    async abrirAgente(tenantId, credencial) {
-      if (typeof credencial !== "string" || !credencial.startsWith("l2ag_") || credencial.length > 100) return null;
+    async abrirAgente(tenantId, credencial, version, ahora = Date.now()) {
+      if (!esCredencial(credencial)) return null;
       return base.conTenant(tenantId, async (tx) => {
         const a = await tx.printAgent.findFirst({ where: { tokenHash: huella(credencial), retiredAt: null } });
-        return a ? { agenteId: a.id, tenantId, branchId: a.branchId, nombre: a.name } : null;
+        if (!a) return null;
+        // La versión que dice (T-8c). Un agente de antes no la dice: no se toca nada.
+        const v = typeof version === "string" && VERSION_DE_AGENTE.test(version) ? version : null;
+        if (v && v !== a.agentVersion) {
+          // Cambió de versión: lo pedido queda resuelto y el panel lo dice. La primera vez que la dice, solo se anota.
+          const cambio = a.agentVersion !== null;
+          await tx.printAgent.update({
+            where: { id: a.id },
+            data: {
+              agentVersion: v,
+              ...(cambio ? { updateRequestedAt: null, updateResult: "ACTUALIZADO", updateVersion: v, updateDetail: `Antes, la ${a.agentVersion}.`, updateAt: new Date(ahora) } : {}),
+            },
+          });
+          await auditar(tx, { tenantId, branchId: a.branchId, sistema: true }, {
+            action: "agente.version",
+            entityType: "print_agent",
+            entityId: a.id,
+            before: { version: a.agentVersion },
+            after: { version: v, nombre: a.name },
+          });
+        }
+        return { agenteId: a.id, tenantId, branchId: a.branchId, nombre: a.name };
+      });
+    },
+
+    async actualizacionDe(tenantId, credencial) {
+      if (!esCredencial(credencial)) return null;
+      return base.conTenant(tenantId, async (tx) => {
+        const a = await tx.printAgent.findFirst({ where: { tokenHash: huella(credencial), retiredAt: null }, select: { id: true, updateRequestedAt: true } });
+        return a ? { agenteId: a.id, pedida: a.updateRequestedAt !== null } : null;
+      });
+    },
+
+    async anotarActualizacion(agente, entrada, ahora = Date.now()) {
+      const v = NotaDeActualizacionSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "La nota del agente no es válida.", problemas: problemasDe(v.error) };
+      const n = v.data;
+      return base.conTenant(agente.tenantId, async (tx): Promise<Resultado<{ anotada: true }>> => {
+        const a = await tx.printAgent.findFirst({ where: { id: agente.agenteId, retiredAt: null } });
+        if (!a) return noDisponible("Ese agente ya no está vinculado.");
+        // Lo que salió bien ya lo dijo su versión al conectarse; esto es lo que no salió (o un éxito que llega tarde).
+        await tx.printAgent.update({
+          where: { id: a.id },
+          data: { updateRequestedAt: null, updateResult: n.resultado, updateVersion: n.version, updateDetail: n.detalle?.trim() ? n.detalle.trim() : null, updateAt: new Date(ahora) },
+        });
+        await auditar(tx, ctxDe(agente), {
+          action: "agente.actualizacion",
+          entityType: "print_agent",
+          entityId: a.id,
+          outcome: n.resultado === "ACTUALIZADO" ? "HECHO" : "NEGADO",
+          ...(n.detalle ? { reason: n.detalle } : {}),
+          after: { resultado: n.resultado, version: n.version, de: n.de },
+        });
+        return { ok: true, valor: { anotada: true } };
       });
     },
 

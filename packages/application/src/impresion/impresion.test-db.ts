@@ -311,3 +311,47 @@ describe("lo que la base impide", () => {
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.printer.delete({ where: { id: impresora } })));
   });
 });
+
+describe("el agente que se actualiza solo (T-8c)", () => {
+  test("dice su versión al entrar; si cambia, el panel lo ve y queda en la auditoría", async () => {
+    const { codigo } = valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "VINCULAR_AGENTE", nombre: "Laptop T8c" }, AHORA));
+    const v = valor(await local.app.impresion.vincular(local.sistema.tenantId, { codigo }, AHORA + MIN));
+    const de = async () => valor(await local.app.impresion.leer(ctxAdmin, AHORA + 2 * MIN)).agentes.find((x) => x.nombre === "Laptop T8c")!;
+    // Uno de antes no dice nada: no se toca.
+    assert.ok(await local.app.impresion.abrirAgente(local.sistema.tenantId, v.credencial));
+    assert.equal((await de()).version, null);
+    // La primera vez solo se anota; una versión que no es texto acotado, no.
+    assert.ok(await local.app.impresion.abrirAgente(local.sistema.tenantId, v.credencial, "0.85.0", AHORA + MIN));
+    assert.ok(await local.app.impresion.abrirAgente(local.sistema.tenantId, v.credencial, "0.85.0; DROP TABLE", AHORA + MIN));
+    assert.equal((await de()).version, "0.85.0");
+    assert.equal((await de()).ultimaActualizacion, null);
+    // «Actualizar ahora»: con la identidad confirmada, queda pedido; la cajera no puede.
+    const id = (await de()).id;
+    rechazo(await local.app.impresion.aplicar(ctxCajera, { kind: "ACTUALIZAR_AGENTE", agenteId: id }, AHORA), "NO_PERMITIDO");
+    valor(await local.app.impresion.aplicar(ctxAdmin, { kind: "ACTUALIZAR_AGENTE", agenteId: id }, AHORA + 2 * MIN));
+    assert.equal((await de()).actualizacionPedida, new Date(AHORA + 2 * MIN).toISOString());
+    assert.deepEqual(await local.app.impresion.actualizacionDe(local.sistema.tenantId, v.credencial), { agenteId: id, pedida: true });
+    assert.equal(await local.app.impresion.actualizacionDe(local.sistema.tenantId, `${v.credencial}x`), null);
+    assert.equal(await otro.app.impresion.actualizacionDe(otro.sistema.tenantId, v.credencial), null, "la credencial no vale en otro tenant");
+    // Entra con otra versión: se cambió, y lo pedido queda resuelto.
+    assert.ok(await local.app.impresion.abrirAgente(local.sistema.tenantId, v.credencial, "0.86.0", AHORA + 3 * MIN));
+    const despues = await de();
+    assert.equal(despues.version, "0.86.0");
+    assert.equal(despues.actualizacionPedida, null);
+    assert.deepEqual(despues.ultimaActualizacion, { resultado: "ACTUALIZADO", version: "0.86.0", detalle: "Antes, la 0.85.0.", en: new Date(AHORA + 3 * MIN).toISOString() });
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "print_agent", entityId: id });
+    assert.ok(asientos.some((x) => x.action === "agente.actualizar"));
+    assert.deepEqual(asientos.find((x) => x.action === "agente.version" && (x.after as { version?: string }).version === "0.86.0")?.before, { version: "0.85.0" });
+  });
+
+  test("lo que no salió lo cuenta el agente: la huella equivocada o la versión que no arrancó", async () => {
+    const a = await agente(local, ctxAdmin, "Laptop nota");
+    rechazo(await local.app.impresion.anotarActualizacion(a, { version: "0.87.0", resultado: "SE_ROMPIO" }), "INVALIDO");
+    valor(await local.app.impresion.anotarActualizacion(a, { version: "0.87.0", de: "0.86.0", resultado: "NO_ARRANCO", detalle: "La 0.87.0 no arrancó: volvió la 0.86.0." }, AHORA + 4 * MIN));
+    const x = valor(await local.app.impresion.leer(ctxAdmin, AHORA + 5 * MIN)).agentes.find((y) => y.nombre === "Laptop nota")!;
+    assert.deepEqual(x.ultimaActualizacion, { resultado: "NO_ARRANCO", version: "0.87.0", detalle: "La 0.87.0 no arrancó: volvió la 0.86.0.", en: new Date(AHORA + 4 * MIN).toISOString() });
+    const [asiento] = (await local.app.auditoria.listar(local.sistema, { entityType: "print_agent", entityId: a.agenteId })).filter((y) => y.action === "agente.actualizacion");
+    assert.equal(asiento!.outcome, "NEGADO");
+    assert.equal(asiento!.reason, "La 0.87.0 no arrancó: volvió la 0.86.0.");
+  });
+});

@@ -119,11 +119,11 @@ export function estadoDeTarea(): string | null {
   }
 }
 
-/** Quita la tarea y la credencial. El agente debe retirarse además desde el panel. */
+/** Quita la tarea (y la de sus cambios de versión, T-8c) y la credencial. El agente debe retirarse además desde el panel. */
 export function desinstalar(): void {
-  powershell(
-    `$x = Get-ScheduledTask -TaskName ${ps(TAREA)} -ErrorAction SilentlyContinue; if ($x) { Stop-ScheduledTask -TaskName ${ps(TAREA)}; Unregister-ScheduledTask -TaskName ${ps(TAREA)} -Confirm:$false }`,
-  );
+  for (const t of [TAREA, `${TAREA} (cambio)`]) {
+    powershell(`$x = Get-ScheduledTask -TaskName ${ps(t)} -ErrorAction SilentlyContinue; if ($x) { Stop-ScheduledTask -TaskName ${ps(t)}; Unregister-ScheduledTask -TaskName ${ps(t)} -Confirm:$false }`);
+  }
   if (existsSync(CONFIG_INSTALADA)) rmSync(CONFIG_INSTALADA, { force: true });
 }
 

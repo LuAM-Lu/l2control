@@ -1572,6 +1572,15 @@ model PrintAgent {
   createdByName String    @map("created_by_name")
   retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
   retiredByName String?   @map("retired_by_name")
+  /// La versión que dijo el agente al conectarse (T-8c, ADR-028 punto 5).
+  agentVersion      String?   @map("agent_version")
+  /// «Actualizar ahora» pedido por administración y aún sin resolver.
+  updateRequestedAt DateTime? @map("update_requested_at") @db.Timestamptz(3)
+  /// Cómo le fue a su último cambio de versión: ACTUALIZADO, HUELLA_EQUIVOCADA, NO_ARRANCA, NO_ARRANCO o ERROR (CHECK).
+  updateResult      String?   @map("update_result")
+  updateVersion     String?   @map("update_version")
+  updateDetail      String?   @map("update_detail")
+  updateAt          DateTime? @map("update_at") @db.Timestamptz(3)
 
   branch Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   jobs   PrintJob[]

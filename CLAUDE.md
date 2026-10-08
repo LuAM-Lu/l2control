@@ -65,7 +65,8 @@ apps/web                  Next.js 16 — todas las superficies
   src/features/<dominio>  pantallas y lógica de aplicación, por dominio (reportes/ tiene las piezas de todo informe)
   src/servidor/           entorno validado, conexión a application y logger (solo servidor)
 apps/worker               canal en vivo (Socket.io + Valkey), outbox, trabajos programados (B5-1) y el aviso por correo de los reportes (T-11)
-apps/printer-agent        agente de impresión de la laptop de caja: cola del servidor → impresora por TCP 9100 (ADR-026)
+apps/printer-agent        agente de impresión de la laptop de caja: cola del servidor → impresora por TCP 9100 (ADR-026);
+                          instalado, se actualiza solo y vuelve a la versión anterior si la nueva no arranca (T-8c)
 packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
 packages/domain/rates     tasa vigente, fracción de conversión y límite de cordura (puro)

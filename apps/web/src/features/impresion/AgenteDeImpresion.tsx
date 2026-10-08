@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Download, Laptop, Wifi, WifiOff } from "lucide-react";
-import type { AgenteDto } from "@l2/contracts";
+import { CircleCheck, Copy, Download, Laptop, RefreshCw, TriangleAlert, Wifi, WifiOff } from "lucide-react";
+import type { AgenteDto, ResultadoDeActualizacion } from "@l2/contracts";
 import { Button, Dialog, Input, avisar, cn } from "@l2/ui";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import type { Mandar } from "./ImpresoraForm.tsx";
@@ -11,9 +11,61 @@ import type { Mandar } from "./ImpresoraForm.tsx";
  * El agente de impresión (ADR-026): el programa de la laptop de caja que recibe los trabajos del
  * servidor y los manda a la impresora por la red del local. Aquí se descarga, se vincula con un código
  * de un solo uso y se retira.
+ *
+ * Se actualiza solo (T-8c): cada agente dice su versión; si hay otra, se cambia con la cola vacía, y aquí se ve su
+ * versión, la disponible, «Actualizar ahora» y cómo le fue a su último cambio.
  */
 
+/** Cómo le fue a un cambio de versión, en palabras (§8.2: color, icono y texto). */
+const RESULTADO: Readonly<Record<ResultadoDeActualizacion, { texto: (v: string) => string; bien: boolean }>> = {
+  ACTUALIZADO: { texto: (v) => `Se actualizó a la ${v}`, bien: true },
+  HUELLA_EQUIVOCADA: { texto: (v) => `La ${v} no se instaló: su descarga no tenía la huella publicada`, bien: false },
+  NO_ARRANCA: { texto: (v) => `La ${v} no se instaló: no arrancaba`, bien: false },
+  NO_ARRANCO: { texto: (v) => `La ${v} no arrancó: volvió la anterior`, bien: false },
+  ERROR: { texto: (v) => `La ${v} no se pudo descargar`, bien: false },
+};
+
 const TARJETA = "flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card";
+
+/** ¿Corre una versión distinta de la que publica el servidor? Uno sin empaquetar («desarrollo») no se actualiza. */
+function atrasado(a: AgenteDto, disponible: string | null): boolean {
+  return disponible !== null && a.version !== null && /^\d+\.\d+\.\d+$/.test(a.version) && a.version !== disponible;
+}
+
+/** La versión del agente frente a la disponible, lo pedido y cómo le fue a su último cambio. */
+function VersionDelAgente({ a, disponible }: { a: AgenteDto; disponible: string | null }) {
+  const reloj = useReloj();
+  const ultima = a.ultimaActualizacion;
+  const r = ultima ? RESULTADO[ultima.resultado] : null;
+  return (
+    <span className="mt-0.5 flex flex-col gap-0.5 text-[11.5px]">
+      <span className={cn("flex items-center gap-1", atrasado(a, disponible) ? "text-state-warn" : "text-ink-3")}>
+        {atrasado(a, disponible) ? <TriangleAlert size={12} aria-hidden="true" /> : null}
+        {a.version === null
+          ? "Versión: la dirá al conectarse"
+          : a.version === "desarrollo"
+            ? "Versión de desarrollo (sin empaquetar): no se actualiza sola"
+            : atrasado(a, disponible)
+              ? `Versión ${a.version} · disponible ${disponible}`
+              : `Versión ${a.version} · al día`}
+      </span>
+      {a.actualizacionPedida && (
+        <span className="flex items-center gap-1 text-ink-2">
+          <RefreshCw size={12} aria-hidden="true" />
+          Actualización pedida a las {reloj.hora(Date.parse(a.actualizacionPedida))}: se cambia al vaciar su cola
+        </span>
+      )}
+      {ultima && r && (
+        <span className={cn("flex items-start gap-1", r.bien ? "text-state-ok" : "text-state-crit")} title={ultima.detalle ?? undefined}>
+          {r.bien ? <CircleCheck size={12} className="mt-px shrink-0" aria-hidden="true" /> : <TriangleAlert size={12} className="mt-px shrink-0" aria-hidden="true" />}
+          <span>
+            {r.texto(ultima.version)} · {reloj.diaYHora(Date.parse(ultima.en))}
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function AgenteDeImpresion({
   agentes,
@@ -74,12 +126,28 @@ export function AgenteDeImpresion({
                     {estado(a)}
                   </span>
                   {a.vinculadoEn && <span className="block text-[11.5px] text-ink-3">Vinculado el {reloj.diaConAnio(Date.parse(a.vinculadoEn))}</span>}
+                  {a.vinculadoEn && <VersionDelAgente a={a} disponible={descargable?.version ?? null} />}
                 </span>
-                {puede && (
-                  <Button type="button" variant="ghost" surface="admin" disabled={enviando} aria-label={`Retirar ${a.nombre}`} onClick={() => setRetirar(a)}>
-                    Retirar
-                  </Button>
-                )}
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  {puede && atrasado(a, descargable?.version ?? null) && a.actualizacionPedida === null && (
+                    <Button
+                      type="button"
+                      variant="neutral"
+                      surface="admin"
+                      disabled={enviando}
+                      className="gap-1.5"
+                      onClick={() => void mandar({ kind: "ACTUALIZAR_AGENTE", agenteId: a.id }, `Pedido: «${a.nombre}» se actualiza al vaciar su cola`)}
+                    >
+                      <RefreshCw size={13} aria-hidden="true" />
+                      Actualizar ahora
+                    </Button>
+                  )}
+                  {puede && (
+                    <Button type="button" variant="ghost" surface="admin" disabled={enviando} aria-label={`Retirar ${a.nombre}`} onClick={() => setRetirar(a)}>
+                      Retirar
+                    </Button>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
@@ -142,6 +210,10 @@ export function AgenteDeImpresion({
           <li>Ábrelo: pide permiso de administrador una vez.</li>
           <li>Pega la dirección y el código que da «Vincular». Queda instalado: arranca solo con la laptop.</li>
         </ol>
+        <p className="text-[12px] text-ink-3">
+          Instalado, se actualiza solo: cuando el sistema trae otra versión del agente, la baja de aquí, comprueba su huella y se cambia con la cola
+          vacía. Si la nueva no arranca, vuelve la anterior.
+        </p>
         {descargable ? (
           <a
             href="/descargas/agente"

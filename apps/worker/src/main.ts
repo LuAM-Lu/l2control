@@ -75,10 +75,16 @@ async function arrancar() {
   impresion = crearCanalDeImpresion({
     io: canal.io,
     casos: {
-      abrirAgente: (c) => app.impresion.abrirAgente(e.L2_TENANT_ID, c),
+      abrirAgente: (c, v) => app.impresion.abrirAgente(e.L2_TENANT_ID, c, v, Date.now()),
       reclamar: (a) => app.impresion.reclamar(a, Date.now()),
       responder: (a, r) => app.impresion.responder(a, r, Date.now()),
-      vincular: (x) => app.impresion.vincular(e.L2_TENANT_ID, x, Date.now()),
+      // Con la credencial va la dirección de la web (T-8c): de ella baja el agente sus versiones. En producción es la
+      // misma que la del servidor; en desarrollo, la web y el worker van en puertos distintos.
+      vincular: async (x) => {
+        const r = await app.impresion.vincular(e.L2_TENANT_ID, x, Date.now());
+        return r.ok && e.L2_URL_PUBLICA ? { ...r, valor: { ...r.valor, web: e.L2_URL_PUBLICA.replace(/\/$/, "") } } : r;
+      },
+      anotarActualizacion: (a, n) => app.impresion.anotarActualizacion(a, n, Date.now()),
     },
     alError: (err, contexto) => log.error({ err, contexto }, "error con un agente de impresión"),
   });
@@ -138,6 +144,9 @@ async function arrancar() {
       // Algo entró en la cola de impresión (o cambió una impresora): que lo sepan los agentes.
       const deCola = avisos.filter((a) => a.temas.includes("impresion"));
       if (deCola.length > 0) deImpresion.avisar(deCola.some((a) => a.branchId === null) ? "todas" : deCola.map((a) => a.branchId!));
+      // «Actualizar ahora» (T-8c): el agente de esa sucursal revisa ya la versión.
+      const deAgente = avisos.filter((a) => a.temas.includes("agente"));
+      if (deAgente.length > 0) deImpresion.revisarVersion(deAgente.some((a) => a.branchId === null) ? "todas" : deAgente.map((a) => a.branchId!));
       // Una salida, una revocación o una baja: quien la sufre deja el canal ya, no al minuto.
       if (avisos.some((a) => a.temas.includes("sesiones"))) void latir();
       // Entró un reporte de problema: su aviso sale ya (T-11).

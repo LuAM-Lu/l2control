@@ -70,9 +70,11 @@ jobs:
       - name: Empaquetar el agente
         run: |
           pnpm agente:empaquetar
-          # Fail-closed: sin el ejecutable y su huella no se publica nada.
+          # Fail-closed: sin el ejecutable, su huella y su versión no se publica nada (la versión la usa el agente
+          # instalado para actualizarse solo, T-8c).
           test -s apps/printer-agent/dist/l2-impresion.exe
           test -s apps/printer-agent/dist/l2-impresion.exe.sha256
+          test -s apps/printer-agent/dist/l2-impresion.exe.version
 
       - name: Release con el agente, su huella y las novedades
         env:
@@ -89,9 +91,9 @@ jobs:
           ' "$ETIQUETA"
           dist=apps/printer-agent/dist
           if gh release view "$ETIQUETA" > /dev/null 2>&1; then
-            gh release upload "$ETIQUETA" "$dist/l2-impresion.exe" "$dist/l2-impresion.exe.sha256" --clobber
+            gh release upload "$ETIQUETA" "$dist/l2-impresion.exe" "$dist/l2-impresion.exe.sha256" "$dist/l2-impresion.exe.version" --clobber
           else
-            gh release create "$ETIQUETA" "$dist/l2-impresion.exe" "$dist/l2-impresion.exe.sha256" \
+            gh release create "$ETIQUETA" "$dist/l2-impresion.exe" "$dist/l2-impresion.exe.sha256" "$dist/l2-impresion.exe.version" \
               --title "$ETIQUETA" --notes-file novedades.md --verify-tag
           fi
 
