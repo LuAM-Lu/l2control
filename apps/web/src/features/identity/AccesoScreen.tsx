@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -212,6 +212,91 @@ export function AccesoScreen({
     setPin("");
   }
 
+  /** Volver a «¿Quién entra?»: con el botón o con Esc. */
+  function volver() {
+    setOperador(null);
+    setPin("");
+    setTemporal(null);
+    setPrimerNuevo(null);
+    setRechazo(null);
+  }
+
+  /**
+   * El acceso con teclado físico (T-14, M-27, P-13). Para elegir persona, su tecla: 1 a 9 por orden, o su inicial (si
+   * la comparten varias, cada pulsación enfoca la siguiente e Intro la abre). En el PIN, los números; Retroceso
+   * borra, Intro entra y Esc vuelve; pegar el PIN también vale. Con la primera tecla se enseñan las teclas, aunque el
+   * equipo sea táctil. El PIN sigue sin salir de la memoria de esta pantalla hasta que viaja en el cuerpo de la acción.
+   */
+  const [conTeclado, setConTeclado] = useState(false);
+  const intentarRef = useRef(intentar);
+  useEffect(() => {
+    intentarRef.current = intentar;
+  });
+  useEffect(() => {
+    if (!revision.ok || entrando) return;
+    const escribiendo = (e: Event) => {
+      const el = e.target as HTMLElement | null;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+    };
+    const sinTilde = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("es");
+    const alTeclear = (e: KeyboardEvent) => {
+      if (typeof e.key !== "string" || e.repeat || e.ctrlKey || e.metaKey || e.altKey || escribiendo(e)) return;
+      if (document.querySelector("dialog[open]")) return;
+      if (!operador) {
+        if (/^[1-9]$/.test(e.key)) {
+          const o = operadores[Number(e.key) - 1];
+          if (!o) return;
+          e.preventDefault();
+          setConTeclado(true);
+          setOperador(o);
+          return;
+        }
+        if (e.key.length !== 1 || !/^\p{L}$/u.test(e.key)) return;
+        const letra = sinTilde(e.key);
+        const con = operadores.filter((o) => sinTilde(o.nombre.trim()).startsWith(letra));
+        if (con.length === 0) return;
+        e.preventDefault();
+        setConTeclado(true);
+        if (con.length === 1) return setOperador(con[0]!);
+        const enfocada = con.findIndex((o) => document.activeElement?.getAttribute("data-persona") === o.id);
+        document.querySelector<HTMLElement>(`[data-persona="${con[(enfocada + 1) % con.length]!.id}"]`)?.focus();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        volver();
+        return;
+      }
+      if (bloqueo.locked) return;
+      if (/^\d$/.test(e.key)) {
+        e.preventDefault();
+        setConTeclado(true);
+        setPin((p) => (p.length < PIN_LENGTH ? p + e.key : p));
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        setPin((p) => p.slice(0, -1));
+      } else if (e.key === "Enter") {
+        // También evita que Intro pulse la tecla del teclado en pantalla que tuviera el foco.
+        e.preventDefault();
+        void intentarRef.current();
+      }
+    };
+    const alPegar = (e: ClipboardEvent) => {
+      if (!operador || bloqueo.locked || escribiendo(e)) return;
+      const digitos = (e.clipboardData?.getData("text") ?? "").replace(/\D/g, "").slice(0, PIN_LENGTH);
+      if (!digitos) return;
+      e.preventDefault();
+      setConTeclado(true);
+      setPin(digitos);
+    };
+    window.addEventListener("keydown", alTeclear);
+    window.addEventListener("paste", alPegar);
+    return () => {
+      window.removeEventListener("keydown", alTeclear);
+      window.removeEventListener("paste", alPegar);
+    };
+  }, [revision.ok, entrando, operador, operadores, bloqueo.locked]);
+
   /* ------------------------------------- dispositivo no autorizado */
 
   // Sin registrar y pendiente son el MISMO componente: al registrarse, el servidor repinta el
@@ -280,14 +365,19 @@ export function AccesoScreen({
       >
         <div className="mx-auto w-full max-w-xl">
           <h1 className="font-display text-3xl font-bold text-ink">¿Quién entra?</h1>
-          <p className="mt-1.5 text-[15px] text-ink-2">Toca tu nombre y escribe tu PIN.</p>
+          <p className="mt-1.5 text-[15px] text-ink-2">
+            Toca tu nombre y escribe tu PIN.
+            <span className={cn("hidden pointer-fine:inline", conTeclado && "inline")}> Con teclado: pulsa tu tecla y escribe o pega tu PIN.</span>
+          </p>
 
           <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-            {operadores.map((o) => (
+            {operadores.map((o, i) => (
               <li key={o.id}>
                 <button
                   type="button"
                   onClick={() => setOperador(o)}
+                  data-persona={o.id}
+                  aria-keyshortcuts={teclaDe(o, i)}
                   className={cn(
                     "group flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-[var(--radius-card)]",
                     "border border-line bg-surface px-5 text-left shadow-card",
@@ -296,7 +386,19 @@ export function AccesoScreen({
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   )}
                 >
-                  <Initial name={o.nombre} tone="idle" className="size-12 text-lg" />
+                  {/* Su tecla (T-14), como insignia de la inicial: donde hay teclado, sin quitarle sitio al nombre. */}
+                  <span className="relative shrink-0">
+                    <Initial name={o.nombre} tone="idle" className="size-12 text-lg" />
+                    <kbd
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute -top-2 -left-2 hidden min-w-6 rounded border border-b-2 border-line-strong bg-surface px-1 text-center font-mono text-[12px] leading-5 font-semibold text-ink shadow-card pointer-fine:block",
+                        conTeclado && "block",
+                      )}
+                    >
+                      {teclaDe(o, i)}
+                    </kbd>
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="font-display block truncate text-[17px] font-bold text-ink">{o.nombre}</span>
                     <span className="block text-[13px] text-ink-3">{o.rol}</span>
@@ -331,13 +433,7 @@ export function AccesoScreen({
         <button
           type="button"
           disabled={entrando}
-          onClick={() => {
-            setOperador(null);
-            setPin("");
-            setTemporal(null);
-            setPrimerNuevo(null);
-            setRechazo(null);
-          }}
+          onClick={volver}
           className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-ink-3 transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ArrowLeft size={15} aria-hidden="true" />
@@ -426,6 +522,10 @@ export function AccesoScreen({
               onSubmit={() => void intentar()}
               submitLabel="Entrar"
             />
+            <p className={cn("mt-3 hidden text-center text-[12px] text-ink-3 pointer-fine:block", conTeclado && "block")}>
+              Escribe o pega tu PIN · <kbd className="font-mono font-semibold text-ink-2">Intro</kbd> entra ·{" "}
+              <kbd className="font-mono font-semibold text-ink-2">Esc</kbd> vuelve
+            </p>
 
             {enviando && (
               <p role="status" className="mt-4 text-center text-[12.5px] text-ink-3">
@@ -453,6 +553,11 @@ export function AccesoScreen({
       </div>
     </PantallaAcceso>
   );
+}
+
+/** La tecla de cada persona en el acceso (T-14): 1 a 9 por orden; de la décima en adelante, su inicial. */
+function teclaDe(o: Operador, i: number): string {
+  return i < 9 ? String(i + 1) : (o.nombre.trim()[0] ?? "").toLocaleUpperCase("es");
 }
 
 /**

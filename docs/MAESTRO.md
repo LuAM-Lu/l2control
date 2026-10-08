@@ -34,10 +34,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.68.0 · 68 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.69.0 · 69 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
-se pueden dar: supervisión ya puede hacer inventario) y B3-8 (cobrar solo con el teclado y el recibo a elección).
+se pueden dar: supervisión ya puede hacer inventario), B3-8 (cobrar solo con el teclado y el recibo a elección) y T-14
+(cambiar el PIN propio y entrar con el teclado).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -214,8 +215,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
-   ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → **T-14** (mi PIN
-   y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
+   ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
+   y el acceso con teclado) → **T-15** (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
 Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -517,9 +518,19 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   abre. Visto en el navegador en la base de pruebas: con supervisión dentro, se ajusta su rol con el mismo caso de
   uso que usa Roles y accesos (desde un guion, no desde un segundo equipo) y «Nuevo producto» aparece sin volver a
   entrar; al retirarlo, desaparece. Roles y accesos, en los dos temas.*
-- [~] **T-14 · Mi PIN y el acceso con teclado** (M-27, P-13, P-17). *A cargo: LuAMi, rama `feat/t-14`.*
+- [x] **T-14 · Mi PIN y el acceso con teclado** (M-27, P-13, P-17).
   → «Mi cuenta» cambia el PIN propio (el actual y el nuevo dos veces, con sus reglas y su bloqueo, auditado). En el
   acceso, con teclado físico, cada persona tiene su tecla, el PIN se escribe o se pega, Intro entra y Esc vuelve.
+  *Hecho el 2026-10-07 (LuAMi), v0.69.0.* **Aplicación:** `sesiones.cambiarPin` (la persona sale de SU sesión): el PIN
+  actual cuenta para el mismo bloqueo que el acceso (un error aquí es un intento más, y bloqueada no cambia ni entra);
+  el nuevo pasa `checkNewPin` y no puede ser el actual; Argon2id, historial de la persona (`PIN`, «Cambió su PIN desde
+  Mi cuenta») y `usuario.pin` en la auditoría, sin el PIN; 4 pruebas contra la base (`mi-pin.test-db.ts`). **Web:**
+  tocar el propio nombre (pie del panel o barra de la estación) abre «Mi cuenta»: PIN actual, nuevo y repetido, con
+  sus reglas a la vista. En el acceso, con teclado: cada persona lleva su tecla en una insignia sobre su inicial (1 a 9
+  por orden; de la décima en adelante, su inicial; una inicial compartida enfoca la siguiente e Intro la abre); en el
+  PIN, los números, Retroceso, Intro entra, Esc vuelve y pegar vale. Las teclas se ven donde hay puntero fino o en
+  cuanto se pulsa una. Visto en el navegador en la base de pruebas, en los dos temas: con 2 y Esc vuelve; el PIN pegado
+  y Intro entran; «Mi cuenta» cambia el PIN y lo devuelve; desde la barra de la caja a 1366 y 800 de ancho.*
 - [ ] **T-15 · La operación se lee de un vistazo** (M-27, P-7, P-8, P-9, P-10, P-12).
   → Paquetes de tiempo con icono y el nombre entero; el código de la pulsera se escribe a mano en la entrada, la sala,
   la salida, la caja y la tablet; «Por cobrar» con marquesina para los nombres largos; medios de pago con el icono
@@ -2383,6 +2394,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   productos y cargar el inventario inicial, y el cambio le llega sin volver a entrar. Sigue B3-8 (cobrar con el teclado).
 - **2026-10-07** · B3-8 entregado como v0.68.0: cobrar de punta a punta solo con el teclado y el interruptor «Imprimir
   recibo» (de fábrica, imprimir; el cobro imprime en su transacción). Sigue T-14 (mi PIN y el acceso con teclado).
+- **2026-10-07** · T-14 entregado como v0.69.0: «Mi cuenta» cambia el PIN propio, y el acceso se usa con el teclado
+  (tecla por persona, PIN escrito o pegado, Intro y Esc). Sigue T-15 (la operación de un vistazo).
 
 ---
 
