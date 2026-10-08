@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.78.0 · 78 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.79.0 · 79 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -2022,7 +2022,7 @@ F9-05).
 - [x] **B11-3 · Movimientos (kárdex)** (M-29).
   → Por producto (o categoría) y periodo: cada entrada, venta, salida, ajuste y conteo con su fecha, quién, el motivo y el
   saldo después de cada uno; el saldo final es la existencia. Su PDF.
-  *Hecho el 2026-10-08, en `feat/b11-3`.*
+  *Hecho el 2026-10-08 (v0.79.0), en `feat/b11-3`.*
   *· Dominio (`@l2/domain-inventory`, `kardex.ts`): `conSaldo` (cada movimiento con el saldo que deja, en orden de
   instante y de llegada) y `resumenDeKardex` (lo que entró, lo que salió y el saldo final). 3 pruebas.*
   *· Contrato: `ConsultaDeMovimientosSchema` (periodo de hasta 93 días y un producto o una categoría; sin ninguno, solo lo
@@ -2722,6 +2722,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   origen, cajera y turno, con su cuadre contra el Z y lo anulado) y su PDF A4. Sigue T-18 (Ajustes unificados).
 - **2026-10-08** · T-18 entregado como v0.78.0: Ajustes en 12 secciones, con pestañas en Personas y equipos, Tasas y
   Sistema, y la carta dentro de Inventario → Productos; las rutas viejas llevan a su pestaña. Sigue B11-3 (movimientos).
+- **2026-10-08** · B11-3 entregado como v0.79.0: Reportes → Movimientos, el kárdex de un producto o una categoría con el
+  saldo después de cada movimiento (el final es la existencia) y su PDF. Sigue B11-2 (inventario al momento).
 
 ---
 
