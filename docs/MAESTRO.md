@@ -1826,7 +1826,7 @@ antes del cobro en servidor (orden de ejecución).
 - [ ] **B9-9 · Editar en lote** (M-29).
   → En Productos se eligen varios y se les cambia la categoría, el mínimo, la carta o el precio (en % o en monto, desde
   una fecha), o se apartan. Una sola confirmación, y cada producto deja su asiento.
-- [ ] **B9-10 · Conteo a ciegas y su informe de diferencias** (M-29).
+- [~] **B9-10 · Conteo a ciegas y su informe de diferencias** (M-29). *A cargo: LuAMi, rama `feat/b9-10`.*
   → La hoja de conteo (impresa o en el teléfono, por categoría o completa) no enseña lo que dice el sistema. Al
   terminar, el informe de diferencias: faltantes y sobrantes por producto y por categoría, valorados al costo, que se
   guarda con su fecha para comparar un conteo con otro; ajustar sigue pidiendo su autorización (B9-4). Se cuenta con el
