@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.87.0 · 87 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.88.0 · 88 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 en curso (saber a quién cobrarle): B6-9
 hecho; siguen B3-11 y B11-4.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
@@ -2176,7 +2176,7 @@ antes del cobro en servidor (orden de ejecución).
   con sus avisos; un pedido de 186 min marcado servido en la tablet («esperó 186 min»); la pantalla de administración
   con 9 cuentas, la que espera su pedido primero, y la espera del día.*
 - [x] **B6-9 · El cliente de la cuenta: nombre, cédula y teléfono** (M-33).
-  *Hecho el 2026-10-08, en `feat/b6-9`.*
+  *Hecho el 2026-10-08 (v0.88.0), en `feat/b6-9`.*
   → **Mesa y de pie.** Sentar a alguien pide nombre y apellido, cédula (V o E y el número) y teléfono, los tres
   obligatorios: el servidor no abre la cuenta sin ellos. Al escribir el teléfono o la cédula, el directorio propone al
   cliente que ya vino y lo rellena; si tiene una deuda pendiente (B3-11), lo dice ahí mismo. Una familia del parque que
@@ -3119,7 +3119,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · M-33, al revisar el plan: el reporte del flujo entero de las deudas (B11-4, Reportes → Deudas con su
   PDF): por mesero que sentó al cliente, por supervisor que autorizó y cada deuda de la mesa al desenlace; el PDF con la
   cédula y el teléfono completos. La ruta pasa a 95.
-- **2026-10-08** · El usuario da el sí a M-33 («Dale»): B6-9, B3-11 y B11-4 de corrido. B6-9 entregado: la mesa y de
+- **2026-10-08** · El usuario da el sí a M-33 («Dale»): B6-9, B3-11 y B11-4 de corrido. B6-9 entregado como v0.88.0: la mesa y de
   pie piden nombre, cédula y teléfono, el que vuelve se reconoce, la caja pregunta antes de dejar una venta sin cobrar
   y ninguna mesa se abre sin sentar a su cliente.
 
