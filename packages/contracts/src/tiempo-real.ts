@@ -54,6 +54,8 @@ export const TemaSchema = z.enum([
   "papel",
   /** Las versiones del sistema y sus actualizaciones (T-8b). */
   "sistema",
+  /** Los reportes de problemas, su estado y su aviso al desarrollo (T-11). */
+  "soporte",
 ]);
 export type Tema = z.infer<typeof TemaSchema>;
 

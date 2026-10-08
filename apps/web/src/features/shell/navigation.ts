@@ -405,6 +405,16 @@ export const MODULOS: readonly Modulo[] = [
         tarea: "B7-4",
       },
       {
+        id: "soporte",
+        grupo: "Sistema",
+        nombre: "Soporte",
+        href: rutaSeccion("ajustes", "soporte"),
+        accion: "soporte.gestionar",
+        proposito:
+          "Los problemas que reportó el personal, con su captura y los últimos errores: se marcan vistos, en curso o resueltos en una versión, y quien reportó lo ve.",
+        tarea: "T-11",
+      },
+      {
         id: "semilla",
         grupo: "Sistema",
         nombre: "Semilla del local",

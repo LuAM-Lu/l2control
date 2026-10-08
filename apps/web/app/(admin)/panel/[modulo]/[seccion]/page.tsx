@@ -3,6 +3,8 @@ import { SeccionPendienteScreen } from "../../../../../src/features/shell/Seccio
 import { RUTAS_MOVIDAS, buscarModulo, buscarSeccion } from "../../../../../src/features/shell/navigation";
 import { UsuariosPage } from "../../../../../src/features/identity/UsuariosPage";
 import { EditorPlano } from "../../../../../src/features/mesas/EditorPlano";
+import { SoporteScreen } from "../../../../../src/features/soporte/SoporteScreen";
+import { bandejaDeSoporte } from "../../../../../src/features/soporte/soporte.servidor";
 import { CartaScreen } from "../../../../../src/features/mesas/CartaScreen";
 import { EditorTarifario } from "../../../../../src/features/park/EditorTarifario";
 import { versionesDelTarifario } from "../../../../../src/features/park/tarifario.servidor";
@@ -64,6 +66,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
   "ajustes/sucursal": async () => <EditorSucursal catalogo={await catalogoDelLocal()} />,
   "ajustes/semilla": () => <SemillaScreen />,
+  "ajustes/soporte": async () => <SoporteScreen inicial={await bandejaDeSoporte()} />,
   "ajustes/sistema": async () => <SistemaScreen estado={await estadoDelSistema()} />,
   "ajustes/respaldos": async () => <RespaldosScreen estado={await estadoDeRespaldos()} servidor={entorno().L2_URL_PUBLICA.replace(/\/$/, "")} />,
   "ajustes/impresoras": async () => (

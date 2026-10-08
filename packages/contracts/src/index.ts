@@ -757,3 +757,23 @@ export {
   type RecorridoVistoCommand,
   type RecorridosVistosDto,
 } from "./ayuda.ts";
+
+export {
+  CAPTURA_MAX_BYTES,
+  ERRORES_ADJUNTOS,
+  CapturaSchema,
+  EstadoDeReporteCommandSchema,
+  EstadoReporteSchema,
+  PasoDeReporteSchema,
+  ReporteEnviadoSchema,
+  ReporteSchema,
+  ReportarCommandSchema,
+  ReportesSchema,
+  type CapturaDto,
+  type EstadoDeReporteCommand,
+  type EstadoReporte,
+  type ReporteDto,
+  type ReporteEnviadoDto,
+  type ReportarCommand,
+  type ReportesDto,
+} from "./soporte.ts";

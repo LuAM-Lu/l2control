@@ -23,6 +23,7 @@ import { leerOrigenWeb } from "./identidad/llaves.ts";
 import { casosPuestaAPunto, type CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
 import { casosSalud, type CasosSalud } from "./sistema/salud.ts";
 import { casosRecorridos, type CasosRecorridos } from "./sistema/recorridos.ts";
+import { casosSoporte, type CasosSoporte } from "./sistema/soporte.ts";
 import { casosFactores, type CasosFactores } from "./identidad/factores.ts";
 import { crearCifrador } from "./identidad/cifrado.ts";
 import { casosAccesos, type CasosAccesos } from "./identidad/accesos.ts";
@@ -101,6 +102,7 @@ export {
 } from "./identidad/llaves.ts";
 export type { CasosPuestaAPunto } from "./sucursal/puesta-a-punto.ts";
 export type { CasosSalud } from "./sistema/salud.ts";
+export { huellaDelError, INTENTOS_DE_AVISO, type CasosSoporte, type ReporteParaAvisar } from "./sistema/soporte.ts";
 export type { CasosFactores } from "./identidad/factores.ts";
 export type { OpcionesDeConfirmacion } from "./identidad/elevacion.ts";
 export {
@@ -169,6 +171,8 @@ export interface Aplicacion {
   readonly tiempoReal: CasosTiempoReal;
   /** Los recorridos guiados que vio cada persona (T-12). */
   readonly recorridos: CasosRecorridos;
+  /** Los reportes de problemas y su aviso al desarrollo (T-11, D-SOP). */
+  readonly soporte: CasosSoporte;
   /** Si la base responde: lo pregunta el despliegue antes de dar una versión por buena (T-8a, ADR-028). */
   readonly salud: CasosSalud;
   cerrar(): Promise<void>;
@@ -245,6 +249,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     salud: casosSalud(base),
     recorridos: casosRecorridos(base),
+    soporte: casosSoporte(base),
     cerrar: () => base.cerrar(),
   };
 }
