@@ -18,7 +18,8 @@ import {
 } from "@l2/contracts";
 import { ORIGENES_DE_VENTA, cuadreConZ, enDolaresConSuTasa, origenDeCuenta, type OrigenDeVenta } from "@l2/domain-cash";
 import { add, money, zero, type CurrencyCode, type Money } from "@l2/domain-money";
-import { frozenRateOf } from "@l2/domain-rates";
+import { addDays, frozenRateOf, startOfDay } from "@l2/domain-rates";
+import { resumenDeDeudas } from "./deudas.ts";
 import type { Base } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
@@ -179,6 +180,11 @@ export function casosReportes(base: Base): CasosReportes {
         const medios = [...porMedio.entries()].sort(([a], [b]) => a.localeCompare(b));
         const cobradoEnDolares = medios.reduce<Money | null>((s, [, m]) => (s === null || m.enDolares === null ? null : add(s, m.enDolares)), zero(FUNCIONAL));
         const cajera = q.cajera ? (cajeras.find((c) => c.id === q.cajera) ?? null) : null;
+        // Las deudas de clientes del periodo (B11-4): lo que quedó en deuda, lo recuperado y lo perdido. No son de una caja: sin
+        // filtro de cajera.
+        const deudas = q.cajera
+          ? null
+          : await resumenDeDeudas(tx, ctx.branchId, new Date(startOfDay(q.desde, ajustes.zonaHoraria)), new Date(startOfDay(addDays(q.hasta, 1), ajustes.zonaHoraria)));
         return InformeDeVentasSchema.parse({
           encabezado: { local: ajustes.nombre, generadoEn: new Date(ahora).toISOString(), generadoPor: quien.nombre },
           periodo: { desde: q.desde, hasta: q.hasta },
@@ -210,6 +216,7 @@ export function casosReportes(base: Base): CasosReportes {
           porTurno,
           anuladas,
           cajeras,
+          ...(deudas ? { deudas } : {}),
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };

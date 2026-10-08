@@ -283,7 +283,7 @@ export const MODULOS: readonly Modulo[] = [
     nombre: "Reportes",
     icon: ChartColumn,
     accion: "reportes.verSucursal",
-    resumen: "Lo que pasó en un periodo, sacado de los asientos: ventas, inventario y movimientos, cada uno con su PDF.",
+    resumen: "Lo que pasó en un periodo, sacado de los asientos: ventas, inventario, movimientos y deudas, cada uno con su PDF.",
     secciones: [
       {
         id: "ventas",
@@ -306,6 +306,13 @@ export const MODULOS: readonly Modulo[] = [
         href: rutaSeccion("reportes", "movimientos"),
         proposito: "El kárdex de un producto o una categoría: cada entrada, venta, salida y conteo con su saldo.",
         tarea: "B11-3",
+      },
+      {
+        id: "deudas",
+        nombre: "Deudas",
+        href: rutaSeccion("reportes", "deudas"),
+        proposito: "Quien se fue sin pagar: lo que quedó en deuda, lo recuperado y lo perdido, por mesero y por quien autorizó, con la historia de cada una.",
+        tarea: "B11-4",
       },
     ],
   },

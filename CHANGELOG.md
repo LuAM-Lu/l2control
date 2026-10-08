@@ -14,6 +14,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Reportes → Deudas (B11-4, M-33): el flujo entero de quien se fue sin pagar.
+
+### Añadido
+- **Reportes → Deudas:** lo que quedó en deuda en el periodo, lo recuperado, lo perdido y lo que sigue pendiente; por
+  mesero (quien sentó al cliente; en el mostrador, la cajera) y por quien autorizó dejarla en deuda o darla por perdida.
+- **La historia de cada deuda:** el número de orden la abre, de la mesa al desenlace: quién lo sentó, cada pedido con lo
+  que valía, «Se fue sin pagar» con quién lo autorizó, su paso por la caja y cómo terminó (cobrada, con qué y en qué
+  turno; perdida, con su motivo; o pendiente, con los días que lleva). El cliente con su cédula y su teléfono.
+- **Su PDF:** el resumen, las tablas y la historia de todas las deudas del periodo.
+- **Ventas** dice en una línea las deudas del periodo, con el enlace a su informe.
+
 ## [0.89.0] — 2026-10-08 · Hacia la puesta en marcha
 
 Deudas de clientes (B3-11, M-33): quien se va sin pagar deja una deuda a su nombre.

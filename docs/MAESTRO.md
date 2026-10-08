@@ -35,8 +35,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 ## 1. Dónde estamos
 
 **Versión 0.89.0 · 89 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
-capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 en curso (saber a quién cobrarle): B6-9 y
-B3-11 hechos; sigue B11-4.** M-28 y M-29
+capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
+cobrarle y su reporte.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -45,9 +45,9 @@ su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos co
 **M-31 entregado:** B3-9, el punto de cobro y la entrada desde la caja. **T-8c hecho:** el agente de impresión se
 actualiza solo (ensayado en una PC con Windows). **B8-2, lo escrito, hecho:** la hoja del procedimiento en papel y los
 runbooks del técnico (la capacitación cierra B8-2 en B8-3). **M-32 entregado:** B3-10, el buscador de la carta de la
-caja, lo que no se vende al final y el pie de la cuenta compacto con «Cobrar $ …». **Para programar antes de B8-3:**
-M-33, el hueco de quien se va sin pagar: la mesa pide nombre, cédula y teléfono (B6-9) y lo que no se cobra queda como
-deuda del cliente (B3-11), con un reporte del flujo entero: mesero, supervisor y desenlace (B11-4). **En el local:** B7-3 (con T-8c en
+caja, lo que no se vende al final y el pie de la cuenta compacto con «Cobrar $ …». **M-33 entregado:** el hueco de
+quien se va sin pagar: la mesa pide nombre, cédula y teléfono (B6-9), lo que no se cobra queda como deuda del cliente
+(B3-11) y Reportes → Deudas cuenta el flujo entero: mesero, supervisor y desenlace (B11-4). **En el local:** B7-3 (con T-8c en
 la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
 1.0.0, §4), antes de B8-4.
 
@@ -267,7 +267,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    **B8-4 = 1.0.0**, con D-REL decidido.
 11. **M-32**: ~~B3-10~~ (la caja más clara), con el sí del usuario. Antes de B8-3: la operación en paralelo y la
    capacitación se hacen con la caja como va a quedar.
-12. **M-33**: B6-9 → B3-11 → B11-4 (saber a quién cobrarle, y su reporte), con el sí del usuario. Antes de B8-3: es un hueco de seguridad, y la
+12. **M-33**: ~~B6-9~~ → ~~B3-11~~ → ~~B11-4~~ (saber a quién cobrarle, y su reporte), con el sí del usuario. Antes de B8-3: es un hueco de seguridad, y la
    capacitación del mesero y de la caja se hace con el flujo nuevo.
 
 Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -2368,7 +2368,8 @@ F9-05).
   productos; Agua mineral con 20 que entraron y 9 ventas en mesas, mostrador y cumpleaños, saldo 11 = existencia), un
   producto y el PDF de la categoría; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni
   errores de consola.*
-- [~] **B11-4 · Deudas: el flujo entero** (M-33). *A cargo: LuAMi, rama `feat/b11-4`.*
+- [x] **B11-4 · Deudas: el flujo entero** (M-33).
+  *Hecho el 2026-10-08, en `feat/b11-4`.*
   → **Reportes → Deudas** (`reportes.verSucursal`), por día de negocio y con el periodo en la dirección, como los demás;
   su PDF en `/informes/deudas`, con las piezas de `features/reportes/informe.tsx`. Sale de los asientos: solo lectura.
   → **Resumen del periodo:** lo que quedó en deuda (cuántas y cuánto), lo recuperado, lo dado por perdido y lo que sigue
@@ -2384,6 +2385,28 @@ F9-05).
   → Reportes → Ventas dice lo que quedó en deuda, lo recuperado y lo perdido del periodo, con el enlace a Deudas.
   Se adapta a lo que hay (punto 10): el manual de Reportes, su tema en vivo (se relee sola), los dos temas, la escala y
   la vista de impresión `.l2-informe`.
+  *· Contrato: `InformeDeDeudasSchema` (resumen, por mesero, por quien autorizó y cada deuda con su historia en
+  `PasoDeDeudaSchema`: sentado o vendido, cada pedido con lo que valía, servido, se fue, en la caja, devuelta y el
+  desenlace) y `ResumenDeDeudasSchema`, que también lleva el informe de ventas. Sin base nueva: sale de la cuenta, sus
+  comandas, la deuda, sus cobros, su desenlace, la venta que la saldó y los asientos de «devolver».*
+  *· Aplicación: `reportes.deudas` (`reportes/deudas.ts`, `reportes.verSucursal`) y `resumenDeDeudas`, que usa
+  también `reportes.ventas` sin filtro de cajera. El resumen cuenta lo que quedó en el periodo (por el día en que se
+  marcó), lo recuperado y lo perdido (por el día de su desenlace) y lo que seguía pendiente al terminar. Una cobrada
+  dice en qué cuenta, en qué turno, por cuánto y con qué medios; una pendiente, los días que lleva. 7 pruebas contra la
+  base (resumen, por mesero, por quien autorizó, la historia, otro día, el resumen en ventas, permiso y aislamiento).*
+  *· Web: Reportes → Deudas (`DeudasReporteScreen`): el periodo en la dirección, cuatro cifras (quedaron, recuperado,
+  perdido, pendiente al terminar) y tres pestañas (las deudas, por mesero, por quien autorizó); el número de orden abre
+  la historia en una hoja lateral, con el cliente y cada paso en una línea de tiempo. Su PDF en `/informes/deudas`:
+  el resumen, las tres tablas y la historia de cada deuda. Ventas dice las deudas del periodo en una línea con el enlace
+  (y en su PDF, aclarando que lo recuperado ya está en lo vendido). El manual de Reportes, al día.*
+  *· Decidido al construir: la historia va en una hoja lateral y no debajo de la tabla, para que el informe no desplace
+  a 1366×768; el PDF sí las lleva todas. Una deuda sale en el periodo si se marcó o terminó en él. Con los precios
+  sin IVA, lo pedido dice «+ IVA» (la deuda ya lo lleva). En una pantalla angosta la tabla deja fuera la hora y el lugar,
+  que están en la historia; el PDF los lleva.*
+  *· Comprobado en el navegador, en la base de pruebas: el mes con tres deudas (una cobrada, una perdida tras volver a
+  deudas, una pendiente), la historia de cada una, por mesero y por quien autorizó, los datos con `data-privado`, el PDF
+  de dos páginas y la línea de Ventas con su enlace. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
+  desplazar a 1366 y 1280, sin desbordes y sin errores de consola.*
 
 ### Etapa 7 · Staging en VPS
 
@@ -2583,7 +2606,7 @@ F9-05).
 | ~~D7~~ | Quién asigna los puestos de trabajo | **Decidido el 2026-09-28:** salen del rol y del equipo aprobado (`PUESTO_DE_ROL`), sin pantalla de asignación | B1-5 |
 | ~~D9~~ | Un niño que sale sin su representante | **Decidido el 2026-09-28:** la salida pregunta «Lo recoge: su representante u otra persona» y, si es otra, su nombre; no bloquea, pero queda constancia. Y una estancia es **huérfana** si sigue abierta desde un día anterior o lleva más de 8 horas: no cuenta en el aforo y la dirección la cierra con motivo, sin tiempo de más | B4-3 |
 | ~~D13~~ | Número de orden continuo o diario | **Decidido el 2026-09-28:** continuo, por sucursal (como está) | B3-4 |
-| — | Informes del panel ejecutivo (F9-01 a F9-07) | Ventas, inventario al momento y movimientos entran antes de producción (M-29, Etapa 11); excepciones, parque frente a restaurante, más vendidos y margen, después del piloto | — |
+| — | Informes del panel ejecutivo (F9-01 a F9-07) | Ventas, inventario al momento y movimientos entran antes de producción (M-29, Etapa 11), y las deudas de clientes (B11-4, M-33); excepciones, parque frente a restaurante, más vendidos y margen, después del piloto | — |
 | ~~F-12~~ | ¿El teléfono entra en el objetivo? | **Sí (M-15):** la monitora trabaja en un teléfono | B4-5 |
 | D-REIMP | ¿Reimprimir un recibo pide 🔐 a la caja? (B7-5) | PLAN §7.3 marca «Reimprimir documento» 🔐 para supervisión y caja; B3-4 lo dejó como copia marcada y auditada, sin autorización, y nadie lo anotó como decisión. **Propuesta:** dejarlo así (el recibo no es un documento fiscal, sale «COPIA», queda en la auditoría y en las excepciones del turno) y anotarlo; o pedir el PIN de supervisión desde la segunda copia | B8-3 |
 | F10-09 | Calendario de actualización de dependencias | **Propuesta:** el CI ya rechaza un aviso alto o crítico; además, cada mes (primera semana) una revisión de `pnpm outdated` con parches y menores en una rama, y las mayores como paso propio | B8-3 |
@@ -2797,7 +2820,7 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
 | F6 · Restaurante | **Hecho en el servidor** (B6-1 a B6-3, B6-5 a B6-8): plano, carta, pedido con comanda impresa, cuenta de la mesa, mesa sin consumo, anular en cocina, varias cuentas por mesa y de pie, y el tiempo de atención con «Servido» | Recetas e insumos de cocina, después del piloto (B6-4) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
 | F8 · Inventario | **Hecho en el servidor** (B9-1 a B9-10): catálogo con tipo, SKU y código de barras, existencias, entradas con costo promedio (y alta de productos), salidas, conteo, mínimos y avisos; catálogo sin existencias con su conteo inicial, duplicar con sabores, editar en lote y conteo a ciegas con su informe de diferencias | Recetas e insumos, después del piloto |
-| F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1); la atención en el salón (B6-8); Reportes en PDF: ventas, inventario al momento y movimientos (Etapa 11) | Excepciones, parque frente a restaurante, más vendidos y margen, después del piloto |
+| F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1); la atención en el salón (B6-8); Reportes en PDF: ventas, inventario al momento, movimientos y deudas de clientes (Etapa 11) | Excepciones, parque frente a restaurante, más vendidos y margen, después del piloto |
 | F10 y F11 | Staging en el VPS con despliegue reversible, respaldos y revisión de seguridad (Etapa 7, salvo B7-3) | B7-3 en el local y la Etapa 8 |
 
 ---
@@ -3150,6 +3173,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   y ninguna mesa se abre sin sentar a su cliente.
 - **2026-10-08** · B3-11 entregado como v0.89.0: «Se fue sin pagar» deja la cuenta incobrable y una deuda a nombre del cliente, que
   se cobra cuando vuelve (Caja → Deudas, o al buscarlo) o administración da por perdida. Sigue B11-4.
+- **2026-10-08** · B11-4 entregado: Reportes → Deudas, con su PDF, cuenta lo que quedó en deuda, lo recuperado y lo
+  perdido, por mesero que sentó al cliente y por quien autorizó, y la historia de cada deuda. M-33 queda entero.
 
 ---
 
