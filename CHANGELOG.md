@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.82.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Conteo a ciegas y su informe de diferencias (B9-10, M-29).
 

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.81.0 · 81 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.82.0 · 82 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -1832,7 +1832,7 @@ antes del cobro en servidor (orden de ejecución).
   terminar, el informe de diferencias: faltantes y sobrantes por producto y por categoría, valorados al costo, que se
   guarda con su fecha para comparar un conteo con otro; ajustar sigue pidiendo su autorización (B9-4). Se cuenta con el
   local cerrado; el conteo ya detecta lo que se vendió mientras se contaba.
-  *Hecho el 2026-10-08, en `feat/b9-10`.*
+  *Hecho el 2026-10-08 (v0.82.0), en `feat/b9-10`.*
   *· Dominio (`@l2/domain-inventory`, `conteo.ts`): `diferenciasDeConteo` suma lo contado, lo que cuadró, lo que faltó y
   lo que sobró, en unidades y al costo, por categoría y en total. 2 pruebas.*
   *· Contrato y aplicación: cada línea de un ajuste trae su categoría; `salidas.uno` vuelve a leer una salida o un conteo
@@ -2784,6 +2784,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   categoría, con lo agotado, lo bajo mínimo y lo sin contar, y su PDF. La Etapa 11 queda entera. Sigue T-17 (soporte).
 - **2026-10-08** · T-17 entregado como v0.81.0: la cuenta de soporte entra por «Acceso de soporte» con su usuario y su
   PIN, firma «(soporte)», no cuenta como personal del local y en producción no abre turnos ni cobra. Sigue B9-10.
+- **2026-10-08** · B9-10 entregado como v0.82.0: «Contar» a ciegas con sus diferencias antes de ajustar, la hoja para
+  imprimir y el informe de diferencias de cada conteo, en PDF. Sigue B9-9 (editar en lote).
 
 ---
 
