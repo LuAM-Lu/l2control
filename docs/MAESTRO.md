@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.86.1 · 86 de 92 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.87.0 · 87 de 92 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
@@ -1374,7 +1374,7 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   la sala se rechaza en el panel. Entrada igual: dos niños hasta la caja en 3,4 s. A 1366×768, 1280×800, 800×1280 y
   390 px, en los dos temas: la caja no desplaza y sin errores de consola.*
 - [x] **B3-10 · La caja más clara: buscar en la carta y el pie compacto** (M-32).
-  *Hecho el 2026-10-08, en `feat/b3-10`.*
+  *Hecho el 2026-10-08 (v0.87.0), en `feat/b3-10`.*
   → **La carta de mostrador** (venta directa y «Añadir ítems» de una cuenta). Un buscador arriba filtra al teclear en
   toda la carta, por nombre, SKU o código de barras, sin importar la categoría abierta; con la búsqueda vacía vuelve la
   categoría que estaba e Intro añade el primero que aparece. La tecla «/» busca en lo que está a la vista: la carta si
@@ -3026,7 +3026,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · M-32: la caja más clara (B3-10), pedido del usuario con las capturas de la caja tras vaciar el
   inventario: buscador y no disponibles al final en la carta, el pie de la cuenta en una fila y «Cobrar $ …». La ruta
   pasa a 92. Sin empezar hasta el sí del usuario.
-- **2026-10-08** · B3-10 entregado (M-32): el buscador de la carta, lo que no se vende al final, el pie de la cuenta en
+- **2026-10-08** · B3-10 entregado como v0.87.0 (M-32): el buscador de la carta, lo que no se vende al final, el pie de la cuenta en
   una fila y «Cobrar $ …». Con muchas categorías (tres renglones), la carta dentro de una cuenta deja poco sitio a los
   productos: el buscador lo cubre; las categorías en una fila que desliza siguen descartadas por ahora.
 
