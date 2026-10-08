@@ -1310,7 +1310,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   salida tiene «Sin pulsera (N)» para elegirlos por su nombre. Visto en el navegador en la base de pruebas: sin nombre
   no entra, con nombre entra como SP-00001, la sala lo marca y la salida lo elige, sin errores de consola. **Propuesta a
   confirmar (P-1):** la seña («camisa roja») va en el apodo; no es un campo propio.*
-- [ ] **B4-9 · Medias en la entrada** (M-27, P-6).
+- [~] **B4-9 · Medias en la entrada** (M-27, P-6). *A cargo: LuAMi, rama `feat/b4-9`.*
   → Con el producto de medias elegido en Ajustes → Sucursal, la entrada pregunta por cada niño si trae medias; si
   no, la cuenta de la familia lleva el par y el inventario lo descuenta; sin existencia, la entrada lo avisa y no lo
   vende.
