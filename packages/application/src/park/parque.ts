@@ -89,7 +89,8 @@ import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identid
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
-import { claveSecundaria, crearCuentaDeMesa, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { catalogoEn, claveSecundaria, crearCuentaDeMesa, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "../caja/papel-en.ts";
 import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
@@ -298,6 +299,20 @@ export function casosParque(base: Base): CasosParque {
           });
           if (pulseras) return pulseras;
 
+          // Medias (B4-9, P-6): quien no las trae paga el par del producto de medias de la sucursal, que sale del
+          // inventario. Sin producto configurado o sin existencia, la entrada no se registra (fail-closed, ADR-023).
+          const sinMedias = cmd.entries.flatMap((e, i) => (e.sinMedias ? [i] : []));
+          let medias: Readonly<{ productId: string; name: string; amountMinor: bigint; taxCode: "GENERAL" | "REDUCIDA" | "EXENTA" }> | null = null;
+          if (sinMedias.length > 0) {
+            const { productoMedias } = await ajustesDe(tx, ctx.branchId);
+            if (!productoMedias) {
+              return invalido("El local no tiene elegido el producto de medias: se elige en Ajustes → Sucursal.", ["entries", sinMedias[0]!, "sinMedias"], "SIN_PRODUCTO_DE_MEDIAS");
+            }
+            const p = (await catalogoEn(tx, ahora))(productoMedias);
+            if (!p) return invalido("Las medias no están a la venta: revísalas en Inventario → Productos.", ["entries", sinMedias[0]!, "sinMedias"], "MEDIAS_NO_SE_VENDEN");
+            medias = { productId: productoMedias, ...p };
+          }
+
           const familia = await representanteDeLaEntrada(tx, ctx, cmd, ahora);
           if ("ok" in familia) return familia;
           const ninos: (string | null)[] = [];
@@ -326,7 +341,8 @@ export function casosParque(base: Base): CasosParque {
             sessionIds: sesiones,
             closedSessionIds: [],
             // El precio es el del tarifario vigente, no el que enseñaba la pantalla.
-            lines: cmd.entries.map((_, i) => ({
+            lines: [
+              ...cmd.entries.map((_, i) => ({
               id: `paq-${sesiones[i]}`,
               concept: `Paquete ${paquetes[i]!.name} · ${codigos[i]}`.slice(0, 80),
               kind: "PAQUETE",
@@ -334,7 +350,23 @@ export function casosParque(base: Base): CasosParque {
               paid: false,
               sessionId: sesiones[i],
             })),
+              // El par de medias de quien no las trajo: una venta del inventario, no tiempo (no lleva `sessionId`).
+              ...(medias
+                ? sinMedias.map((i) => ({
+                    id: `med-${sesiones[i]}`,
+                    concept: `${medias!.name} · ${codigos[i]}`.slice(0, 80),
+                    kind: "RESTAURANTE" as const,
+                    amount: { minor: String(medias!.amountMinor), currency: "USD" as const },
+                    paid: false,
+                    productId: medias!.productId,
+                    taxCode: medias!.taxCode,
+                  }))
+                : []),
+            ],
           });
+          // Lo que entra en la cuenta sale del estante (ADR-023): sin medias que dar, la entrada no se registra.
+          const existencias = await comprobarExistencias(tx, ctx, null, null, cuenta.lines, () => ["entries", sinMedias[0] ?? 0, "sinMedias"]);
+          if ("ok" in existencias) return existencias;
           await tx.account.create({
             data: {
               id: accountId,
@@ -349,6 +381,7 @@ export function casosParque(base: Base): CasosParque {
             },
           });
           await guardarVersion(tx, ctx, cuenta, { cause: "ENTRADA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await asentarExistencias(tx, ctx, existencias, { accountId, version: 1, ahora, quien: quien.nombre });
           const terms: ParkTermsDto = ParkTermsSchema.parse(vigente.tarifario.policy);
           await tx.parkSession.createMany({
             data: cmd.entries.map((_, i) => ({

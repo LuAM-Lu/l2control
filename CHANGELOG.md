@@ -14,6 +14,15 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.66.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Medias en la entrada (B4-9, M-27).
+
+### Añadido
+- **Medias.** Con el producto de medias elegido en Ajustes → Sucursal, la entrada pregunta por cada niño si trae sus
+  medias. Si no, el par se cobra en la cuenta de la familia (el total ya lo incluye) y sale del inventario. Si no quedan,
+  la entrada lo avisa y no se registra hasta corregirlo.
+
 ## [0.65.0] — 2026-10-07 · Lo pedido en la primera visita
 
 La sala para administración: cortesía y anular una entrada (B4-10, M-27).

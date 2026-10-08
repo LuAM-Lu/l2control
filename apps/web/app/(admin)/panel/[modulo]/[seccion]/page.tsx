@@ -62,7 +62,7 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "ajustes/usuarios": async () => <UsuariosPage directorio={await directorioDelLocal()} credenciales={await credencialesDelLocal()} />,
   "ajustes/dispositivos": async () => <DispositivosPage directorio={await dispositivosDelLocal()} />,
   "ajustes/accesos": async () => <AccesosPage accesos={await accesosDelLocal()} />,
-  "ajustes/sucursal": () => <EditorSucursal />,
+  "ajustes/sucursal": async () => <EditorSucursal catalogo={await catalogoDelLocal()} />,
   "ajustes/semilla": () => <SemillaScreen />,
   "ajustes/sistema": async () => <SistemaScreen estado={await estadoDelSistema()} />,
   "ajustes/respaldos": async () => <RespaldosScreen estado={await estadoDeRespaldos()} servidor={entorno().L2_URL_PUBLICA.replace(/\/$/, "")} />,

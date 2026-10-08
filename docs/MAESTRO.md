@@ -34,9 +34,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.65.0 · 65 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
+**Versión 0.66.0 · 66 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
-recorridos guiados) y B4-10 (cortesía y anular una entrada desde la sala).
+recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala) y B4-9 (medias en la entrada).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -213,7 +213,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
-   ~~B4-10~~ (cortesía y anular desde la sala) → **B4-9** (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
+   ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → **T-13** (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
@@ -1310,10 +1310,19 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   salida tiene «Sin pulsera (N)» para elegirlos por su nombre. Visto en el navegador en la base de pruebas: sin nombre
   no entra, con nombre entra como SP-00001, la sala lo marca y la salida lo elige, sin errores de consola. **Propuesta a
   confirmar (P-1):** la seña («camisa roja») va en el apodo; no es un campo propio.*
-- [~] **B4-9 · Medias en la entrada** (M-27, P-6). *A cargo: LuAMi, rama `feat/b4-9`.*
+- [x] **B4-9 · Medias en la entrada** (M-27, P-6).
   → Con el producto de medias elegido en Ajustes → Sucursal, la entrada pregunta por cada niño si trae medias; si
   no, la cuenta de la familia lleva el par y el inventario lo descuenta; sin existencia, la entrada lo avisa y no lo
   vende.
+  *Hecho el 2026-10-07 (LuAMi), v0.66.0.* **Contratos:** el ajuste `productoMedias` (un producto del inventario, `null` de
+  fábrica: los ajustes de antes no preguntan) y `sinMedias` en cada niño de la entrada. **Aplicación:** la entrada añade
+  a la cuenta de la familia una línea del producto de medias por cada niño sin ellas (con su precio y su IVA de ahora;
+  una venta, sin `sessionId`, así que no la toca regalar ni anular su tiempo) y la saca del inventario en la misma
+  transacción; sin producto elegido (`SIN_PRODUCTO_DE_MEDIAS`), si no se vende o sin existencia, la entrada no se
+  registra y no queda nada escrito; 3 pruebas contra la base. **Web:** en la entrada, por cada niño, «Las trae / No trae
+  · $ 1,50» (las trae de fábrica); el total incluye los pares y avisa si no quedan; Ajustes → Sucursal elige el
+  producto entre los que se cuentan. Visto en el navegador en la base de pruebas: un niño sin medias, $ 6,50 con el
+  paquete, registrado. **Propuesta a confirmar (P-6):** «las trae» de fábrica.*
 - [x] **B4-10 · La sala para administración: cortesía y anular una entrada** (M-27, P-7).
   → Desde la tarjeta del niño, administración (supervisión con 🔐) regala su tiempo con un motivo o anula su
   entrada registrada por error: sin cobro, fuera del aforo y su línea fuera de la cuenta si no se cobró. Queda en la
@@ -2338,6 +2347,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   recorridos guiados la primera vez, sin IA. Sigue B4-10.
 - **2026-10-07** · B4-10 entregado como v0.65.0: desde la sala, regalar el tiempo de un niño y anular una entrada por
   error (su pulsera vuelve a servir). Sigue B4-9.
+- **2026-10-07** · B4-9 entregado como v0.66.0: medias en la entrada, que salen del inventario. Sigue T-13 (roles).
 
 ---
 
