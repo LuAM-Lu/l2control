@@ -4,14 +4,13 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { Ban, CircleCheck, FileDown, LoaderCircle, Receipt, TriangleAlert, Wallet } from "lucide-react";
+import { Ban, CircleCheck, FileDown, Receipt, TriangleAlert, Wallet } from "lucide-react";
 import type { InformeDeVentasDto } from "@l2/contracts";
-import { periodoPredefinido, type PeriodoPredefinido } from "@l2/domain-cash";
-import { Button, CAMPO_DE_FILTRO, Cifra, Container, FiltroSegmentado, PageHeader, Resumen, TAMANO_ICONO, cn } from "@l2/ui";
+import { CAMPO_DE_FILTRO, Cifra, Container, FiltroSegmentado, PageHeader, Resumen, TAMANO_ICONO, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import type { VentasPedidas } from "./reportes.servidor.ts";
-import { TablaDeInforme, importe, periodoEnPalabras } from "./informe.tsx";
+import { FiltroDePeriodo, TablaDeInforme, importe, periodoEnPalabras } from "./informe.tsx";
 import { direccionDeVentas, seccionesDeVentas, type SeccionDeVentas } from "./ventas.tsx";
 
 /**
@@ -22,16 +21,6 @@ import { direccionDeVentas, seccionesDeVentas, type SeccionDeVentas } from "./ve
  *
  * Arriba, las cifras; debajo, una sección por pestaña para que la página no desplace en el portátil de caja.
  */
-
-type Periodo = PeriodoPredefinido | "RANGO";
-
-const PERIODOS: readonly { id: PeriodoPredefinido; nombre: string }[] = [
-  { id: "HOY", nombre: "Hoy" },
-  { id: "AYER", nombre: "Ayer" },
-  { id: "SEMANA", nombre: "Esta semana" },
-  { id: "MES", nombre: "Este mes" },
-  { id: "MES_ANTERIOR", nombre: "Mes anterior" },
-];
 
 const PESTANA: Readonly<Record<SeccionDeVentas, string>> = { medios: "Medios de pago", origen: "Origen", cajeras: "Cajeras", turnos: "Turnos", anuladas: "Anuladas" };
 
@@ -45,11 +34,6 @@ export function VentasScreen({ hoy, pedido, informe }: VentasPedidas) {
   const ir = (p: { desde: string; hasta: string; cajera: string | null }) => iniciar(() => router.push(direccionDeVentas(RUTA, p) as Route));
   // Lo de hoy se mueve mientras se mira: cada venta o cierre vuelve a leerlo.
   useAlCambiar(["ventas", "turno"], () => router.refresh());
-
-  const elegido: Periodo = PERIODOS.find((p) => {
-    const r = periodoPredefinido(p.id, hoy);
-    return r.desde === pedido.desde && r.hasta === pedido.hasta;
-  })?.id ?? "RANGO";
 
   return (
     <Container ancho="panel" className="py-8">
@@ -70,15 +54,21 @@ export function VentasScreen({ hoy, pedido, informe }: VentasPedidas) {
         }
       />
 
-      <Filtros
-        key={`${pedido.desde}|${pedido.hasta}`}
-        hoy={hoy}
-        pedido={pedido}
-        elegido={elegido}
-        cajeras={informe.ok ? informe.valor.cajeras : []}
-        cargando={cargando}
-        onIr={ir}
-      />
+      <FiltroDePeriodo key={`${pedido.desde}|${pedido.hasta}`} hoy={hoy} desde={pedido.desde} hasta={pedido.hasta} cargando={cargando} onPeriodo={(p) => ir({ ...p, cajera: pedido.cajera })}>
+        {informe.ok && informe.valor.cajeras.length > 0 && (
+          <label className="flex items-center gap-1.5 text-detalle text-ink-2">
+            Cajera
+            <select value={pedido.cajera ?? ""} onChange={(e) => ir({ desde: pedido.desde, hasta: pedido.hasta, cajera: e.target.value || null })} className={CAMPO_DE_FILTRO}>
+              <option value="">Todas</option>
+              {informe.valor.cajeras.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </FiltroDePeriodo>
 
       {!informe.ok ? (
         <p role="alert" className="mt-4 flex items-center gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-4 py-3 text-detalle font-medium text-state-crit">
@@ -89,78 +79,6 @@ export function VentasScreen({ hoy, pedido, informe }: VentasPedidas) {
         <Informe informe={informe.valor} cargando={cargando} />
       )}
     </Container>
-  );
-}
-
-function Filtros({
-  hoy,
-  pedido,
-  elegido,
-  cajeras,
-  cargando,
-  onIr,
-}: {
-  hoy: string;
-  pedido: VentasPedidas["pedido"];
-  elegido: Periodo;
-  cajeras: InformeDeVentasDto["cajeras"];
-  cargando: boolean;
-  onIr: (p: { desde: string; hasta: string; cajera: string | null }) => void;
-}) {
-  const [desde, setDesde] = useState(pedido.desde);
-  const [hasta, setHasta] = useState(pedido.hasta);
-  const cambiado = desde !== pedido.desde || hasta !== pedido.hasta;
-  const valido = desde !== "" && hasta !== "" && desde <= hasta;
-  return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-      <FiltroSegmentado<Periodo>
-        etiqueta="Periodo"
-        opciones={PERIODOS}
-        valor={elegido}
-        onCambiar={(id) => {
-          if (id === "RANGO") return;
-          onIr({ ...periodoPredefinido(id, hoy), cajera: pedido.cajera });
-        }}
-      />
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (valido) onIr({ desde, hasta, cajera: pedido.cajera });
-        }}
-      >
-        <label className="flex items-center gap-1.5 text-detalle text-ink-2">
-          Desde
-          <input type="date" value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)} className={cn(CAMPO_DE_FILTRO, "tnum")} />
-        </label>
-        <label className="flex items-center gap-1.5 text-detalle text-ink-2">
-          Hasta
-          <input type="date" value={hasta} max={hoy} onChange={(e) => setHasta(e.target.value)} className={cn(CAMPO_DE_FILTRO, "tnum")} />
-        </label>
-        <Button type="submit" surface="admin" variant="neutral" disabled={!cambiado || !valido || cargando}>
-          Ver
-        </Button>
-      </form>
-      {cajeras.length > 0 && (
-        <label className="flex items-center gap-1.5 text-detalle text-ink-2">
-          Cajera
-          <select value={pedido.cajera ?? ""} onChange={(e) => onIr({ desde: pedido.desde, hasta: pedido.hasta, cajera: e.target.value || null })} className={CAMPO_DE_FILTRO}>
-            <option value="">Todas</option>
-            {cajeras.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {cargando && (
-        <span role="status" className="flex items-center gap-1.5 text-detalle text-ink-3">
-          <LoaderCircle size={TAMANO_ICONO.texto} className="animate-spin" aria-hidden="true" />
-          Leyendo…
-        </span>
-      )}
-    </div>
   );
 }
 

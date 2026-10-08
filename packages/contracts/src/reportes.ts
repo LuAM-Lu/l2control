@@ -111,3 +111,65 @@ export const InformeDeVentasSchema = z.object({
   cajeras: z.array(z.object({ id: IdSchema, nombre: z.string() })),
 });
 export type InformeDeVentasDto = z.infer<typeof InformeDeVentasSchema>;
+
+/**
+ * Pedir el kárdex (B11-3): su periodo y un producto o una categoría (si vienen los dos, manda el producto). Sin ninguno,
+ * el informe trae solo lo que se puede elegir.
+ */
+export const ConsultaDeMovimientosSchema = z
+  .strictObject({
+    desde: FechaSchema,
+    hasta: FechaSchema,
+    producto: z.uuid("Producto desconocido").optional(),
+    categoria: z.string().trim().min(1).max(60).optional(),
+  })
+  .refine((p) => p.desde <= p.hasta, { message: "El periodo termina antes de empezar", path: ["hasta"] })
+  .refine((p) => dias(p.desde, p.hasta) <= MAX_DIAS_DE_INFORME, { message: `Hasta ${MAX_DIAS_DE_INFORME} días: parte el periodo`, path: ["desde"] });
+export type ConsultaDeMovimientosDto = z.infer<typeof ConsultaDeMovimientosSchema>;
+
+/** Qué movió la existencia: lo mismo que `stock_movement.kind`, más lo que se contó o arrancó sin mover nada. */
+export const TipoDeMovimientoSchema = z.enum(["VENTA", "DEVOLUCION", "ENTRADA", "SALIDA", "AJUSTE", "CONTEO", "INICIAL"]);
+export type TipoDeMovimiento = z.infer<typeof TipoDeMovimientoSchema>;
+
+/**
+ * El kárdex de un periodo (B11-3): por producto, el saldo al empezar, cada movimiento con su fecha, quién, el motivo y
+ * el saldo que dejó, y el saldo al terminar. Un conteo que cuadró y un inventario inicial en cero salen con cantidad 0.
+ * `existencia` es la de ahora: si el periodo llega a hoy, es el saldo final.
+ */
+export const InformeDeMovimientosSchema = z.object({
+  encabezado: EncabezadoDeInformeSchema,
+  periodo: z.object({ desde: FechaSchema, hasta: FechaSchema }),
+  filtro: z.object({ producto: z.string().nullable(), categoria: z.string().nullable() }),
+  productos: z.array(
+    z.object({
+      id: IdSchema,
+      nombre: z.string(),
+      sku: z.string(),
+      categoria: z.string(),
+      inicial: z.number().int(),
+      entradas: z.number().int().nonnegative(),
+      salidas: z.number().int().nonnegative(),
+      final: z.number().int(),
+      existencia: z.number().int(),
+      movimientos: z.array(
+        z.object({
+          en: TimestampSchema,
+          tipo: TipoDeMovimientoSchema,
+          /** De dónde vino o el motivo: «Compra · Distribuidora X · factura 123», «Merma · vencido», «Venta · Mesa 3». */
+          detalle: z.string(),
+          quien: z.string(),
+          /** Quien autorizó una salida o un conteo. */
+          autorizo: z.string().nullable(),
+          cantidad: z.number().int(),
+          saldo: z.number().int(),
+        }),
+      ),
+    }),
+  ),
+  /** Lo que se puede elegir: los productos que se cuentan y sus categorías. */
+  opciones: z.object({
+    productos: z.array(z.object({ id: IdSchema, nombre: z.string(), sku: z.string(), categoria: z.string() })),
+    categorias: z.array(z.string()),
+  }),
+});
+export type InformeDeMovimientosDto = z.infer<typeof InformeDeMovimientosSchema>;

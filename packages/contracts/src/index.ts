@@ -823,4 +823,10 @@ export {
   type ConsultaDeVentasDto,
   type OrigenDeVenta,
   type InformeDeVentasDto,
+  ConsultaDeMovimientosSchema,
+  TipoDeMovimientoSchema,
+  InformeDeMovimientosSchema,
+  type ConsultaDeMovimientosDto,
+  type TipoDeMovimiento,
+  type InformeDeMovimientosDto,
 } from "./reportes.ts";

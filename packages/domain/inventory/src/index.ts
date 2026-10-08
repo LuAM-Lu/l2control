@@ -58,3 +58,4 @@ export {
   type BarcodeProblem,
   type ProductKind,
 } from "./identificacion.ts";
+export { conSaldo, resumenDeKardex, type FilaDeKardex, type MovimientoDeKardex } from "./kardex.ts";
