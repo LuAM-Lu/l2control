@@ -45,3 +45,4 @@ export {
 export { Avisos, avisar, registrarAyudaDeErrores, type AyudaDeError } from "./patterns/Avisos";
 export { Recorrido, type PasoDeRecorrido } from "./patterns/Recorrido";
 export { Marquesina } from "./patterns/Marquesina";
+export { TAMANO_ICONO } from "./iconos";

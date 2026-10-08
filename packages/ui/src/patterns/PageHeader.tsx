@@ -37,7 +37,7 @@ export function PageHeader({
     <header className={cn("mb-8", className)}>
       {migas && migas.length > 0 && (
         <nav aria-label="Ruta de navegación" className="mb-3">
-          <ol className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
+          <ol className="flex flex-wrap items-center gap-1.5 text-nota">
             {migas.map((m, i) => {
               const ultima = i === migas.length - 1;
               return (
@@ -69,11 +69,11 @@ export function PageHeader({
 
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
-          <h1 className="font-display text-[2rem] leading-tight font-bold tracking-[-0.025em] text-ink">
+          <h1 className="font-display text-pagina font-bold text-ink">
             {titulo}
           </h1>
           {descripcion && (
-            <p className="mt-2 max-w-[62ch] text-[14.5px] leading-relaxed text-ink-2">
+            <p className="mt-2 max-w-[62ch] text-subtitulo text-ink-2">
               {descripcion}
             </p>
           )}

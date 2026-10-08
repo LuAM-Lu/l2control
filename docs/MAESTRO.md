@@ -34,12 +34,13 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.70.0 · 70 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.71.0 · 71 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar: supervisión ya puede hacer inventario), B3-8 (cobrar solo con el teclado y el recibo a elección) y T-14
 (cambiar el PIN propio y entrar con el teclado) y T-15 (la operación de un vistazo: relojes en los paquetes, marquesina,
-código a mano y precios en $, Bs o ambos).
+código a mano y precios en $, Bs o ambos) y T-16 (escala de texto e iconos en tokens; el panel con el ancho de Inicio).
+Lo que queda de M-27 espera una decisión del cliente: **B6-8** (D-SERV) y **T-11** (D-SOP).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -217,7 +218,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
-   y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → **T-16** (jerarquía y ancho). **B6-8** espera D-SERV y
+   y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
 Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -550,10 +551,20 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   base de pruebas: la caja a 1366×768, 1280×800, 800×1280 y 390×844 en los dos temas, sin textos cortados ni
   desplazamiento; la entrada (con un código escrito a mano) y la sala a 800 y 390 en los dos temas; la vista de precios
   cambia al momento y sigue al recargar.*
-- [~] **T-16 · Jerarquía tipográfica y ancho completo** (M-27, P-16, P-18). *A cargo: LuAMi, rama `feat/t-16`.*
+- [x] **T-16 · Jerarquía tipográfica y ancho completo** (M-27, P-16, P-18).
   → La escala de texto (título de página, de sección y de tarjeta, subtítulo, cuerpo, etiqueta, cifra) y la de
   iconos por superficie, en tokens y con su porqué en el README de `@l2/ui`, aplicada a las cabeceras y piezas
   comunes; todas las secciones del panel con el ancho de Inicio.
+  *Hecho el 2026-10-07 (LuAMi), v0.71.0.* **Tokens:** nueve escalones de texto con nombre de trabajo (`text-pagina` 28,
+  `seccion` 18, `tarjeta` 16, `subtitulo` 15, `cuerpo` 14, `detalle` 13, `nota` 12, `etiqueta` 11 con su espaciado,
+  `cifra` 24), al menos un 12 % entre uno y el siguiente; y la escala de iconos por superficie (`--icono-pos` 20,
+  `tablet` 18, `admin` 16, `texto` 14, `etiqueta` 12), con `TAMANO_ICONO` en @l2/ui para el `size` de un icono. El
+  porqué, en el README de @l2/ui. **Aplicada** a `PageHeader` (el título baja de 32 a 28 px), las capas (`Dialog`,
+  `Sheet`, `Confirmacion`), `StatTile`, `StatusCard`, `EmptyState`, `Input` y la cabecera de Inicio. **Ancho:**
+  `Container` `panel` pasa de 1180 a 1600 px, el de Inicio: al navegar el contenido ya no encoge ni deja márgenes
+  vacíos. **De paso:** el pie de la barra lateral en dos renglones (la persona con todo el ancho, debajo ayuda, tema y
+  salir): «Abi… Ad…» ya no se corta. Visto en el navegador en la base de pruebas: a 1920×1080 Inicio, Productos y
+  Sucursal miden 1600 px y el título de página 28 px, en los dos temas; el pie a 1366, 1100 y 800 de ancho.*
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -2413,6 +2424,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-07** · T-15 entregado como v0.70.0: paquetes con su reloj, marquesina en vez de textos cortados, el código
   de la pulsera a mano en todas las pantallas que leen, medios con el icono arriba y la carta en $, Bs o ambos por
   equipo. Sigue T-16 (jerarquía y ancho).
+- **2026-10-07** · T-16 entregado como v0.71.0: la escala de texto y de iconos en tokens, aplicada a las piezas
+  comunes, y el panel con el ancho de Inicio. De M-27 quedan B6-8 (espera D-SERV) y T-11 (espera D-SOP).
 
 ---
 

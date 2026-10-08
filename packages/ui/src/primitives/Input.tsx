@@ -53,7 +53,7 @@ export function Input({
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={inputId}
-        className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase"
+        className="text-etiqueta font-semibold text-ink-2 uppercase"
       >
         {label}
       </label>
@@ -83,11 +83,11 @@ export function Input({
       </div>
 
       {error ? (
-        <p id={`${inputId}-err`} className="text-[12.5px] text-state-crit">
+        <p id={`${inputId}-err`} className="text-nota text-state-crit">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${inputId}-hint`} className="text-[12.5px] text-ink-3">
+        <p id={`${inputId}-hint`} className="text-nota text-ink-3">
           {hint}
         </p>
       ) : null}
