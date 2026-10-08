@@ -41,9 +41,9 @@ se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 
 teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio), T-11
 (reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
 «Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. De M-28 y M-29 (decididos el 2026-10-08, once pasos; orden en
-§3, punto 8) está entregado B9-7 (catálogo sin existencias y su conteo inicial). **Siguiente:** **B7-7** (la semilla con
-casillas para la corrida limpia). **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al
-local; B8 es la puesta en marcha.
+§3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial) y B7-7 (la semilla con casillas para la
+corrida limpia). **Siguiente:** **B7-6** (respaldos con carpeta, fijados e integridad). **Para decidir:** D-REL (qué entra
+en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -62,7 +62,7 @@ local; B8 es la puesta en marcha.
 - **M-27 (2026-10-07) entregado entero:** los 19 pedidos de la primera visita (P-1 a P-19, §2), en 13 pasos. Quedan
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
 - **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
-  el catálogo sin existencias y su conteo inicial (B9-7). Quedan la semilla con casillas para la corrida limpia (B7-7),
+  el catálogo sin existencias y su conteo inicial (B9-7) y la semilla con casillas para la corrida limpia (B7-7). Quedan
   respaldos con carpeta, fijados e integridad (B7-6), Reportes en PDF (Etapa 11), Ajustes unificados (T-18), la cuenta
   de soporte oculta (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
@@ -234,8 +234,8 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
-8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → **B7-7** (la
-   semilla con casillas) → B7-6 (respaldos con carpeta, fijados e integridad) → B11-1 (Reportes y las ventas) → T-18
+8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
+   semilla con casillas) → **B7-6** (respaldos con carpeta, fijados e integridad) → B11-1 (Reportes y las ventas) → T-18
    (Ajustes unificados) → B11-3 (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
    a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
 
@@ -2071,11 +2071,31 @@ F9-05).
   local). Un respaldo se puede **fijar** con su nombre («antes de producción») y la escalera nunca lo borra. Ajustes →
   Sistema → Respaldos dice de cada uno si su huella se comprobó al bajarlo, y el servidor ensaya cada semana la
   restauración del último en una base de usar y tirar: «ÍNTEGRO» o qué falló, en el panel y en Inicio.
-- [~] **B7-7 · La semilla con casillas** (M-29). *A cargo: LuAMi, rama `feat/b7-7`.*
+- [x] **B7-7 · La semilla con casillas** (M-29).
   → Exportar la semilla enseña lo que lleva, con casillas (cada sección y cada producto: los «Prueba…» se desmarcan), y
   además de ajustes, tarifas, categorías, carta, plano y cumpleaños lleva medios de pago, descuentos, impuestos e
   impresoras. Importarla en una base nueva enseña lo mismo antes de cargar. Personas, PIN, llaves y equipos no viajan:
   se dan de alta en la base nueva. Es el camino de la corrida limpia de producción.
+  *Hecho el 2026-10-08, en `feat/b7-7`.*
+  *· Contrato: la semilla pasa a la versión 2 (la 1 se sigue leyendo: lo nuevo llega en `null`) con `medios` (cada medio
+  por su código, los datos de Pago Móvil y Zelle y los terminales), `descuentos` (las reglas vigentes, sin familias VIP),
+  `impuestos` (lo que rige, sin día, y lo programado, con el suyo) e `impresoras`; el informe trae los `elementos` que
+  entrarían de cada lista; `elementosDeSemilla` y `recortarSemilla` (las casillas: una parte desmarcada no viaja y una
+  lista vacía tampoco). 5 pruebas.*
+  *· Aplicación: `semilla.exportar` y `semilla.cargar` con las cuatro partes nuevas, cada una por su caso de uso (y en su
+  orden: ajustes, impuestos, medios, tarifas, catálogo, descuentos, plano, cumpleaños, impresoras). Los impuestos entran
+  solo en un local sin ninguno; de los medios entra lo nuevo, los datos que faltan y los terminales, y se enciende lo
+  nuevo y lo que estaba apagado porque le faltaban los datos que ahora llegan; un descuento no empieza en el pasado ni
+  entra si terminó o le falta su medio; las impresoras entran apagadas. 11 pruebas contra la base (5 nuevas).*
+  *· Web: Ajustes → Semilla del local: «Preparar semilla» abre lo que lleva con casillas por parte y por elemento (lo de
+  prueba desmarcado) y «Descargar lo marcado»; al cargar, el informe con las mismas casillas y «Cargar lo marcado».*
+  *· Decidido al construir: los datos de los medios (Pago Móvil, Zelle, terminales) viajan porque son los que el cliente
+  ve para pagar, con su casilla para dejarlos fuera; las familias VIP no viajan (son clientes); los impuestos no se mezclan
+  con un calendario que ya exista.*
+  *· Comprobado en el navegador, en la base de pruebas: el previo marca 12 de 21 productos (los 9 «Prueba…», fuera) y el
+  archivo descargado no lleva ninguno de prueba; cargar esa semilla con dos productos y una impresora de más enseña solo
+  eso para marcar: «Agua B77» entró sin inventario inicial y la impresora desmarcada no. A 1366×768, 1280×800, 800×1280 y
+  390 px, en los dos temas, sin desbordar ni errores de consola.*
 
 ### Etapa 8 · Producción
 
