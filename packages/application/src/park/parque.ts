@@ -28,6 +28,7 @@ import {
   type EstadoPulseraDto,
   CheckoutCommandSchema,
   CierreHuerfanaCommandSchema,
+  AnularEntradaCommandSchema,
   RecargaCommandSchema,
   EstanciaSchema,
   FamilyAccountSchema,
@@ -51,7 +52,7 @@ import {
   type SettlementLineDto,
   type TarifarioDto,
 } from "@l2/contracts";
-import { chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
+import { annulEntry, chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import {
@@ -85,6 +86,7 @@ import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
+import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { claveSecundaria, crearCuentaDeMesa, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
@@ -115,6 +117,12 @@ export interface CasosParque {
    * B4-7, M-27). Una pausa por visita; el máximo es el de los ajustes de la sucursal al pausar.
    */
   pausa(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstanciaDto>>;
+  /**
+   * Anula la entrada de un niño registrada por error (`AnularEntradaCommandSchema`, B4-10, M-27): sale de la sala sin
+   * cobro, su paquete deja de cobrarse y su pulsera vuelve a servir. `autorizacion` es la 🔐 de administración cuando
+   * quien la pide es supervisión. Si su paquete ya se cobró, primero se anula ese cobro en la caja.
+   */
+  anularEntrada(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<{ account: FamilyAccountDto }>>;
   /** Cierra una estancia huérfana (`CierreHuerfanaCommandSchema`, F5-13): sin tiempo de más, con motivo. */
   cerrarHuerfana(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<{ account: FamilyAccountDto }>>;
   /** Niños que entraron hoy y el mismo día de la semana pasada, en el día del local (Inicio). */
@@ -210,6 +218,12 @@ async function codigosSinPulsera(tx: Transaccion, branchId: string, n: number): 
   const primero = nextWristbandlessNumber(usados.map((u) => u.wristbandCode));
   return Array.from({ length: n }, (_, i) => wristbandlessCode(primero + i));
 }
+
+/**
+ * Las estancias que no son de una entrada anulada (B4-10). En SQL, «distinto de ANULADA» deja fuera también las que no
+ * tienen tipo de cierre (las activas): por eso se dice el nulo aparte.
+ */
+const SIN_ANULADAS = { OR: [{ closureKind: null }, { closureKind: { not: "ANULADA" } }] };
 
 /** Cómo decide la sucursal qué estancia es huérfana: su zona (qué día es hoy) y sus horas (D9, B4-4). */
 type ReglaDeHuerfanas = Readonly<{ zona: string; afterMs: number }>;
@@ -831,6 +845,93 @@ export function casosParque(base: Base): CasosParque {
       }
     },
 
+    async anularEntrada(ctx, entrada, autorizacion, ahora = Date.now()) {
+      const v = AnularEntradaCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "No se anuló: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<{ account: FamilyAccountDto } | Rechazo> => {
+          // Administración por sí misma, confirmando con su PIN; supervisión, con la de administración (B4-10).
+          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "parque.anularEntrada", autorizacion, ahora, { confirmarConPin: true });
+          if (!permiso.ok) return permiso;
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) return previa.cause === "ANULAR_ENTRADA" ? { account: (await vigenteDe(tx, previa.accountId))!.cuenta } : conflictoDeClave;
+          const f = await estancia(tx, { id: cmd.sessionId, branchId: ctx.branchId });
+          if (!f) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa estancia no está en esta sucursal." };
+          if (f.status !== "ACTIVA") return { ok: false, motivo: "CONFLICTO", mensaje: `${nombreDeFila(f)} ya salió: su visita no se anula.` };
+          const actual = (await vigenteDe(tx, f.accountId))!;
+          if (actual.cuenta.status === "INCOBRABLE") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de esta familia se dio por incobrable: la resuelve supervisión." };
+          }
+          if (actual.cuenta.kind === "EVENTO") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Es un invitado de un cumpleaños: su visita es del evento. Registra su salida." };
+          }
+          const quien = await nombreDe(tx, ctx);
+          // Quien autoriza (la administración que puso su PIN, o quien opera si lo puede por sí misma), con su rol.
+          const autorizoId = permiso.autorizadoPor ?? ctx.quien!.userId!;
+          const persona = await tx.staffUser.findUniqueOrThrow({ where: { id: autorizoId }, select: { fullName: true, role: true } });
+          const autorizo = { id: autorizoId, name: persona.fullName, role: persona.role === "SUPERVISOR" ? ("SUPERVISOR" as const) : ("ADMIN" as const) };
+          const instante = new Date(ahora).toISOString();
+          const anulada = annulEntry(actual.cuenta, f.id, {
+            motivo: "ENTRADA_POR_ERROR",
+            detalle: cmd.motivo.slice(0, 120),
+            autorizadaPor: { id: autorizo.id, name: autorizo.name, role: autorizo.role },
+            en: instante,
+          });
+          if (!anulada) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: `El paquete de ${nombreDeFila(f)} ya se cobró: anula ese cobro en la caja y después anula la entrada.`,
+              problemas: [{ path: ["sessionId"], message: "YA_COBRADA" }],
+            };
+          }
+          const { pendingSince: _, ...sinEspera } = anulada;
+          const nueva = FamilyAccountSchema.parse({
+            ...sinEspera,
+            version: actual.version + 1,
+            ...(anulada.status === "POR_COBRAR" ? { pendingSince: actual.cuenta.pendingSince ?? instante } : {}),
+          });
+          await guardarVersion(tx, ctx, nueva, { cause: "ANULAR_ENTRADA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await tx.parkSession.update({
+            where: { id: f.id },
+            data: {
+              status: "CERRADA",
+              endedAt: new Date(ahora),
+              closedBy: ctx.quien?.userId ?? null,
+              closedByName: quien.nombre,
+              checkOutKey: cmd.idempotencyKey,
+              closureKind: "ANULADA",
+              closureReason: cmd.motivo,
+            },
+          });
+          await auditar(tx, ctx, {
+            action: "parque.anular_entrada",
+            entityType: "park_session",
+            entityId: f.id,
+            reason: cmd.motivo,
+            before: { entro: f.startedAt.toISOString(), pulsera: f.wristbandCode, paquete: f.packageName },
+            after: { cuenta: nueva.orderNumber ?? null, status: nueva.status, autorizadoPor: autorizo.name },
+          });
+          return { account: nueva };
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "parque.anular_entrada", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
     async cerrarHuerfana(ctx, entrada, ahora = Date.now()) {
       const v = CierreHuerfanaCommandSchema.safeParse(entrada);
       if (!v.success) {
@@ -916,7 +1017,10 @@ export function casosParque(base: Base): CasosParque {
           const como = [serie.prefijo ? `empiezan por ${serie.prefijo}` : null, serie.longitud ? `tienen ${serie.longitud} caracteres` : null].filter(Boolean).join(" y ");
           return { codigo, estado: "FUERA_DE_SERIE", mensaje: `${codigo} no es de la serie del local: las pulseras ${como}.` };
         }
-        const previa = await tx.parkSession.findFirst({ where: { branchId: ctx.branchId, wristbandCode: codigo }, select: { status: true } });
+        const previa = await tx.parkSession.findFirst({
+          where: { branchId: ctx.branchId, wristbandCode: codigo, ...SIN_ANULADAS },
+          select: { status: true },
+        });
         if (!previa) return { codigo, estado: "LIBRE", mensaje: null };
         return previa.status === "ACTIVA"
           ? { codigo, estado: "ACTIVA", mensaje: `La pulsera ${codigo} ya está activa en sala.` }
@@ -1045,9 +1149,10 @@ export async function comprobarPulserasYAforo(
   const ocupada = codigos.findIndex((c) => ocupadas.has(c));
   // I-04: una pulsera, una estancia activa (también una huérfana, hasta que la dirección la cierre).
   if (ocupada >= 0) return invalido(`La pulsera ${codigos[ocupada]} ya está activa en sala.`, ruta(ocupada), "PULSERA_ACTIVA");
-  // V-1: una pulsera, una visita. Una que ya salió no vuelve a entrar (la base también lo impide).
+  // V-1: una pulsera, una visita. Una que ya salió no vuelve a entrar (la base también lo impide); la de una entrada
+  // anulada por error (B4-10) sí, porque esa visita no existió.
   const usadas = await tx.parkSession.findMany({
-    where: { branchId: ctx.branchId, status: { not: "ACTIVA" }, wristbandCode: { in: [...codigos] } },
+    where: { branchId: ctx.branchId, status: { not: "ACTIVA" }, ...SIN_ANULADAS, wristbandCode: { in: [...codigos] } },
     select: { wristbandCode: true },
   });
   const usada = codigos.findIndex((c) => usadas.some((u) => u.wristbandCode === c));

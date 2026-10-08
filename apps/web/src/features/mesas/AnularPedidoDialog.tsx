@@ -11,6 +11,7 @@ export const TEXTO_MOTIVO_ANULACION: Readonly<Record<MotivoAnulacionPedido, stri
   CLIENTE_DESISTIO: "el cliente desistió",
   SIN_EXISTENCIA: "sin existencia",
   OTRO: "otro",
+  ENTRADA_POR_ERROR: "entrada registrada por error",
 };
 
 const MOTIVOS: { id: MotivoAnulacionPedido; texto: string }[] = [

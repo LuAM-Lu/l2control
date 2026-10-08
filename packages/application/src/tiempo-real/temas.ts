@@ -99,6 +99,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "parque.nombrar": ["sala"],
   // La pausa por comida (B4-7) para y suelta el reloj del niño en la sala.
   "parque.pausar": ["sala"],
+  // Anular una entrada (B4-10) saca al niño de la sala, cambia la cuenta y entra en las excepciones del turno.
+  "parque.anular_entrada": ["sala", "cuentas", "turno"],
   // Que una persona vio un recorrido guiado (T-12) no cambia ninguna pantalla de nadie.
   "ayuda.recorrido": NADA,
   "parque.reanudar": ["sala"],

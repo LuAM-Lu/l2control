@@ -347,6 +347,26 @@ export function registerExit<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_
 }
 
 /**
+ * La cuenta tras anular la entrada de un niño registrada por error (B4-10, M-27): sus líneas sin cobrar dejan de
+ * cobrarse (anuladas, con su importe: nada se borra, regla 5) y su estancia cuenta como cerrada. Con todos los niños
+ * fuera y nada por cobrar, la cuenta queda «sin consumo» (o cobrada, si algo de ella se cobró). `null` si alguna línea
+ * del niño ya se cobró: eso se deshace primero en la caja, anulando el cobro.
+ */
+export function annulEntry<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_ABIERTA" }>(c: A, sessionId: string, anulacion: unknown): A | null {
+  const suyas = c.lines.filter((l) => l.sessionId === sessionId);
+  if (suyas.some((l) => l.paid)) return null;
+  const lines = c.lines.map((l) => (l.sessionId === sessionId && seDebe(l) ? { ...l, anulacion } : l));
+  const cerradas = [...new Set([...c.closedSessionIds, sessionId])];
+  const todos = cerradas.length === c.sessionIds.length;
+  const hayPendiente = chargeableLines({ lines }).length > 0;
+  const algoCobrado = lines.some((l) => l.paid);
+  const status: AccountStatus = todos
+    ? hayPendiente ? "POR_COBRAR" : algoCobrado ? "COBRADA" : "SIN_CONSUMO"
+    : c.mode === "PREPAGO" && hayPendiente ? "POR_COBRAR" : c.status === "POR_COBRAR" && !hayPendiente ? "ABIERTA" : c.status;
+  return { ...c, closedSessionIds: cerradas, lines, status };
+}
+
+/**
  * La cuenta después de una recarga de tiempo (F5-11): una línea más de paquete, sin pagar. En prepago
  * se cobra ya (vuelve a la cola); en cuenta abierta se acumula como lo demás.
  */

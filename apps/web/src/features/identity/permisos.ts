@@ -60,6 +60,7 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "parque.checkOut": { etiqueta: "Salida del parque", area: "Parque" },
   "parque.extenderSinCobro": { etiqueta: "Extender tiempo sin cobrar", area: "Parque" },
   "parque.cerrarHuerfana": { etiqueta: "Cerrar una estancia huérfana", area: "Parque" },
+  "parque.anularEntrada": { etiqueta: "Anular una entrada registrada por error", area: "Parque" },
   "parque.vincularMesa": { etiqueta: "Vincular pulsera a una mesa", area: "Parque" },
   "parque.verContacto": { etiqueta: "Ver contacto del representante", area: "Parque" },
   "evento.reservar": { etiqueta: "Reservar y cancelar cumpleaños", area: "Parque" },

@@ -37,6 +37,7 @@ import {
   type AccountDoc,
   type AccountLineDoc,
   type ProductAtNow,
+  annulEntry,
 } from "./cuenta.ts";
 
 const usd = (minor: string) => ({ minor, currency: "USD" });
@@ -618,5 +619,33 @@ describe("la cuenta del día de un cumpleaños (B10-2)", () => {
 
   test("la reserva no se cancela por la cuenta del día", () => {
     assert.equal(cancelReservationProblem(dia()), "NO_ES_EVENTO");
+  });
+});
+
+describe("anular una entrada registrada por error (B4-10)", () => {
+  const anulacion = { motivo: "ENTRADA_POR_ERROR", detalle: "pulsera equivocada" };
+  const prepago = (extra: Partial<AccountDoc> = {}) => ({ ...familia(extra), mode: "PREPAGO" as const, status: "POR_COBRAR" as const });
+  const abierta = (extra: Partial<AccountDoc> = {}) => ({ ...familia(extra), mode: "CUENTA_ABIERTA" as const });
+
+  test("su paquete deja de cobrarse, con su importe, y su estancia cuenta como cerrada", () => {
+    const c = annulEntry(abierta(), "s1", anulacion)!;
+    assert.deepEqual(c.closedSessionIds, ["s1"]);
+    assert.deepEqual(c.lines.find((l) => l.id === "l1")?.anulacion, anulacion);
+    assert.equal(c.lines.find((l) => l.id === "l1")?.amount.minor, "1000");
+    assert.deepEqual(chargeableLines(c).map((l) => l.id), ["l2"]);
+    assert.equal(c.status, "ABIERTA", "el hermano sigue dentro");
+  });
+
+  test("sin nadie dentro y nada que cobrar, la cuenta queda sin consumo", () => {
+    const uno = annulEntry(prepago(), "s1", anulacion)!;
+    assert.equal(uno.status, "POR_COBRAR", "en prepago, lo del hermano sigue por cobrar");
+    const dos = annulEntry(uno, "s2", anulacion)!;
+    assert.equal(dos.status, "SIN_CONSUMO");
+  });
+
+  test("si algo de la cuenta se cobró, queda cobrada; si se cobró lo del niño, no se anula", () => {
+    const pagado = abierta({ lines: [linea("l1", { sessionId: "s1" }), linea("l2", { sessionId: "s2", paid: true })], closedSessionIds: ["s2"] });
+    assert.equal(annulEntry(pagado, "s1", anulacion)!.status, "COBRADA");
+    assert.equal(annulEntry(pagado, "s2", anulacion), null);
   });
 });

@@ -530,6 +530,18 @@ export const RecargaResultSchema = z.object({
 export type RecargaResult = z.infer<typeof RecargaResultSchema>;
 
 /**
+ * Anular la entrada de un niño registrada por error (B4-10, M-27, P-7): sale de la sala sin cobro y su paquete deja de
+ * cobrarse (si ya se cobró, primero se anula ese cobro en la caja). Nada se borra: la estancia queda anulada con su motivo
+ * y su pulsera vuelve a servir. La autoriza administración (supervisión, con la 🔐 de administración).
+ */
+export const AnularEntradaCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  sessionId: IdSchema,
+  motivo: z.string().trim().min(5, "Explica qué pasó (al menos 5 letras)").max(200),
+});
+export type AnularEntradaCommand = z.infer<typeof AnularEntradaCommandSchema>;
+
+/**
  * Cerrar una estancia huérfana (F5-13, H-19): la dirección la da por terminada con un motivo. No se
  * cobra tiempo de más (nadie sabe cuándo se fue) y no se dice quién lo recogió (nadie lo vio salir).
  */

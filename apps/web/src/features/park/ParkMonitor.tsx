@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play } from "lucide-react";
+import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery, useServerClock } from "@l2/ui";
 import Link from "next/link";
@@ -14,7 +14,10 @@ import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
 import { enPausa, nombreVisible, toMonitorModel } from "./view-model";
 import { useSala } from "./SalaProvider.tsx";
-import { nombrarEstancia, pausarEstancia } from "./parque.acciones";
+import { anularEntrada, nombrarEstancia, pausarEstancia } from "./parque.acciones";
+import { AnularEntradaDialog } from "./AnularEntradaDialog.tsx";
+import { CortesiaDialog } from "../cash/CortesiaDialog.tsx";
+import type { MotivoCortesia, Rechazo } from "@l2/contracts";
 import { RecargarTiempo } from "./RecargarTiempo.tsx";
 import { EstanciasARevisar } from "./EstanciasARevisar.tsx";
 import { useTarifario } from "./TarifarioProvider";
@@ -94,7 +97,7 @@ export function ParkMonitor() {
     );
   }, [model.cards]);
 
-  const { cuentas, adoptar: adoptarCuenta } = useCuentas();
+  const { cuentas, adoptar: adoptarCuenta, cortesia } = useCuentas();
   // En el teléfono de la monitora (V-2) la tarjeta completa ocupa la pantalla entera por niño: allí
   // siempre baldosas, una por renglón. En el panel, solo con la sala llena.
   const telefono = useMediaQuery("(max-width: 767px)");
@@ -115,6 +118,51 @@ export function ParkMonitor() {
    * reloj del servidor en cada pintado de la ficha; lo decide el servidor al pedirla.
    */
   const [pausando, setPausando] = useState(false);
+
+  /**
+   * Lo que administración hace desde la sala (B4-10, M-27): regalar el tiempo de un niño (cortesía de sus líneas por
+   * cobrar: el paquete, sus recargas y su tiempo de más) o anular su entrada registrada por error. Los dos con su 🔐.
+   */
+  const [regalando, setRegalando] = useState(false);
+  const [anulandoEntrada, setAnulandoEntrada] = useState(false);
+  const puedeRegalar = actor !== null && can(actor, "cuenta.cortesia") !== "DENEGADO";
+  const puedeAnularEntrada = actor !== null && can(actor, "parque.anularEntrada") !== "DENEGADO";
+  const lineasDelNino = ficha && cuentaFicha ? cuentaFicha.lines.filter((l) => l.sessionId === ficha.id && !l.paid && !l.movedTo && !l.cortesia && !l.anulacion && !l.porUso) : [];
+  const tiempoARegalar =
+    ficha && lineasDelNino.length > 0
+      ? {
+          ...lineasDelNino[0]!,
+          concept: `Tiempo de ${nombreVisible(ficha)}${lineasDelNino.length > 1 ? ` (${lineasDelNino.length} líneas)` : ""}`,
+          amount: { minor: String(lineasDelNino.reduce((n, l) => n + BigInt(l.amount.minor), 0n)), currency: "USD" as const },
+        }
+      : null;
+
+  async function regalar(motivo: MotivoCortesia | null, detalle: string | undefined, autorizacion: unknown): Promise<Rechazo | null> {
+    if (!cuentaFicha || !motivo) return { ok: false, motivo: "INVALIDO", mensaje: "Elige el motivo de la cortesía." };
+    let version = cuentaFicha.version!;
+    // Cada línea del niño, con la misma autorización: el servidor comprueba el PIN en cada una.
+    for (const l of lineasDelNino) {
+      const r = await cortesia({ idempotencyKey: crypto.randomUUID(), accountId: cuentaFicha.id, version, lineId: l.id, quitar: false, motivo, ...(detalle ? { detalle } : {}) }, autorizacion);
+      if (!r.ok) return r;
+      version = r.valor.version!;
+    }
+    setRegalando(false);
+    avisar.ok(`El tiempo de ${ficha ? nombreVisible(ficha) : "este niño"} es cortesía`, { detalle: "Queda en la cuenta con su importe y en las excepciones del turno." });
+    return null;
+  }
+
+  async function anular(motivo: string, autorizacion: unknown): Promise<Rechazo | null> {
+    if (!ficha) return null;
+    const r = await anularEntrada({ idempotencyKey: crypto.randomUUID(), sessionId: ficha.id, motivo }, autorizacion).catch(() => null);
+    if (!r) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: la entrada no se anuló." };
+    if (!r.ok) return r;
+    adoptarCuenta(r.valor.account);
+    setAnulandoEntrada(false);
+    avisar.ok(`Entrada de ${nombreVisible(ficha)} anulada`, { detalle: "Salió de la sala sin cobro y su pulsera vuelve a servir." });
+    setSelected(null);
+    void refrescar();
+    return null;
+  }
   const ahoraFicha = useServerClock(model.serverNow);
   const pausaFicha = ficha?.pausa ?? null;
   async function pausar(accion: "PAUSAR" | "REANUDAR") {
@@ -300,6 +348,22 @@ export function ParkMonitor() {
                   </Button>
                 )}
               </div>
+              {(puedeRegalar && tiempoARegalar) || puedeAnularEntrada ? (
+                <div className="grid grid-cols-2 gap-2 border-t border-line pt-2">
+                  {puedeRegalar && tiempoARegalar && (
+                    <Button variant="ghost" className="w-full" onClick={() => setRegalando(true)}>
+                      <Gift size={17} aria-hidden="true" />
+                      Regalar su tiempo
+                    </Button>
+                  )}
+                  {puedeAnularEntrada && (
+                    <Button variant="ghost" className="w-full text-state-crit" onClick={() => setAnulandoEntrada(true)}>
+                      <Ban size={17} aria-hidden="true" />
+                      Anular la entrada
+                    </Button>
+                  )}
+                </div>
+              ) : null}
               <Link
                 href={`/salida?pulsera=${ficha.wristbandCode}` as Route}
                 className="flex min-h-14 w-full items-center justify-center rounded-[var(--radius-control)] bg-brand px-5 text-base font-semibold text-on-brand no-underline transition-colors hover:bg-brand-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand mt-2"
@@ -327,6 +391,8 @@ export function ParkMonitor() {
             onCancelar={() => setPoniendoNombre(false)}
           />
         )}
+        <CortesiaDialog linea={regalando ? tiempoARegalar : null} onAplicar={regalar} onCerrar={() => setRegalando(false)} />
+        <AnularEntradaDialog nino={anulandoEntrada && ficha ? nombreVisible(ficha) : null} onAplicar={anular} onCerrar={() => setAnulandoEntrada(false)} />
         {ficha && recargando && (
           <RecargarTiempo
             sessionId={ficha.id}

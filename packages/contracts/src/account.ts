@@ -85,7 +85,11 @@ export type CortesiaDto = z.infer<typeof CortesiaSchema>;
  * Por qué se anula un pedido ya enviado a cocina (F6-14). Lista cerrada (§7.5), distinta de la de la
  * cortesía: anular no es regalar nada, es que ese plato no debió pedirse.
  */
-export const MotivoAnulacionPedidoSchema = z.enum(["PEDIDO_EQUIVOCADO", "CLIENTE_DESISTIO", "SIN_EXISTENCIA", "OTRO"], {
+/**
+ * Por qué se anula una línea. Los cuatro primeros son de un pedido del salón (F6-14); `ENTRADA_POR_ERROR`, de la entrada
+ * de un niño registrada por error (B4-10, M-27): su paquete deja de cobrarse.
+ */
+export const MotivoAnulacionPedidoSchema = z.enum(["PEDIDO_EQUIVOCADO", "CLIENTE_DESISTIO", "SIN_EXISTENCIA", "OTRO", "ENTRADA_POR_ERROR"], {
   error: "Elige el motivo de la anulación",
 });
 export type MotivoAnulacionPedido = z.infer<typeof MotivoAnulacionPedidoSchema>;
