@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.84.0 · 84 de 91 pasos · M-27, M-28 y M-29 entregados enteros; nada a medias ni reclamado.** M-28 y M-29
+**Versión 0.85.0 · 85 de 91 pasos · M-27, M-28, M-29 y M-31 entregados enteros; nada a medias ni reclamado.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -1307,7 +1307,7 @@ Fuera de la cuenta de 91: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   la ayuda de atajos; el teléfono del representante lleva `data-privado`; un rechazo (aforo, pulsera usada, sin turno)
   se dice en el panel, con su aviso; la sala y la cola de la caja se releen solas; la cuenta de soporte en producción no
   cobra, tampoco desde aquí; registrar pide `parque.checkIn` y cobrar, el permiso de cobro.
-  *Hecho el 2026-10-08, en `feat/b3-9`.*
+  *Hecho el 2026-10-08 (v0.85.0), en `feat/b3-9`.*
   *· Base: `20261113000000_punto_de_cobro` (solo expande): `device.cash_point` y, en `cash_shift`, quién autorizó abrir
   fuera del punto, su nombre y el motivo (los tres o ninguno; el disparador de «solo avanza» tampoco deja reescribirlos).
   Al migrar, cada equipo que ya abrió un turno queda como punto de cobro (en la base de pruebas, los cinco que cobraban).*
@@ -2912,7 +2912,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   el aviso de «sin pulsera», descartado por ahora. La ruta pasa a 92. Sin empezar hasta el «empieza» del usuario.
 - **2026-10-08** · El usuario junta los dos pasos de M-31 en uno (B3-9, de punta a punta y automático) y pide ir después
   a la 1.0.0: T-8c y lo escrito de B8-2 se hacen antes de la visita (§3, orden, punto 10). La ruta pasa a 91.
-- **2026-10-08** · B3-9 entregado (M-31): el punto de cobro y la entrada desde la caja. La ruta cuenta 91 en el
+- **2026-10-08** · B3-9 entregado como v0.85.0 (M-31): el punto de cobro y la entrada desde la caja. La ruta cuenta 91 en el
   `package.json` (se había quedado en 90, PR #85). Sigue T-8c y lo escrito de B8-2, sin pedir el sí entre pasos.
 
 ---
