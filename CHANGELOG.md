@@ -14,6 +14,17 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.69.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Mi PIN y el acceso con teclado (T-14, M-27).
+
+### Añadido
+- **Mi cuenta.** Tocando tu nombre (abajo a la izquierda en el panel, arriba a la derecha en caja, entrada, sala o
+  mesas) cambias tu PIN: el actual y el nuevo dos veces. Sigue las reglas de siempre (ni fácil de adivinar ni el
+  mismo), y un PIN actual errado cuenta como un intento del acceso.
+- **Entrar con el teclado.** En «¿Quién entra?» cada persona tiene su tecla (1 a 9; con más personas, su inicial). En
+  el PIN se escribe o se pega, Intro entra, Retroceso borra y Esc vuelve a elegir persona.
+
 ## [0.68.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Cobrar con el teclado y el recibo a elección (B3-8, M-27).

@@ -78,6 +78,18 @@ export interface CasosSesiones {
   consultar(credencial: string | undefined | null, ahora: number): Promise<SesionActiva | null>;
   salir(credencial: string | undefined | null, motivo: "SALIDA" | "CORTE_Z", ip: string | null): Promise<void>;
   /**
+   * Cambiar el PIN propio desde «Mi cuenta» (T-14, M-27, P-17): el actual y el nuevo. El actual cuenta para el mismo
+   * bloqueo que el acceso (un PIN errado aquí es un intento más); el nuevo pasa las reglas de siempre y no puede ser
+   * el actual. Se guarda en Argon2id, queda en el historial de la persona y en la auditoría, sin el PIN.
+   */
+  cambiarPin(p: {
+    sesion: string | undefined | null;
+    pinActual: unknown;
+    pinNuevo: unknown;
+    ip: string | null;
+    ahora: number;
+  }): Promise<Resultado<{ cambiado: true }> & Readonly<{ bloqueo?: Bloqueo }>>;
+  /**
    * Quién está en sesión ahora en la sucursal, y en qué equipo (F9-08, D7, B5-1): lo que Inicio
    * enseña por puesto. Lo ve quien ve el resumen de la sucursal.
    */
@@ -108,7 +120,7 @@ let hashDeRelleno: Promise<string> | null = null;
 const relleno = () => (hashDeRelleno ??= hash("l2-sin-persona"));
 
 export function casosSesiones(base: Base, dispositivos: CasosDispositivos): CasosSesiones {
-  return {
+  const casos: CasosSesiones = {
     async personas(texto) {
       const d = await dispositivos.identificar(texto);
       if (d.estado !== "APROBADO") return [];
@@ -321,5 +333,50 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
         });
       });
     },
+
+    async cambiarPin({ sesion, pinActual, pinNuevo, ip, ahora }) {
+      const s = await casos.consultar(sesion, ahora);
+      if (!s) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "No hay sesión abierta en este equipo: entra otra vez." };
+      if (typeof pinActual !== "string" || !PIN.test(pinActual)) return { ok: false, motivo: "INVALIDO", mensaje: "Tu PIN actual son cuatro números." };
+      if (typeof pinNuevo !== "string") return { ok: false, motivo: "INVALIDO", mensaje: "Escribe tu PIN nuevo." };
+      const ctx = contextoDeSesion(s, ip);
+
+      const u = await base.conTenant(s.tenantId, (tx) => tx.staffUser.findUnique({ where: { id: s.userId } }));
+      if (!u?.pinHash) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu cuenta no tiene PIN: pídele a administración uno temporal." };
+
+      // El mismo bloqueo que el acceso (§7.2 A07): mientras dure, ni se comprueba.
+      const bloqueo = computeLockout(u.pinFailures, u.pinLastFailureAt?.getTime() ?? null, ahora, DEFAULT_LOCKOUT_POLICY);
+      if (bloqueo.locked) {
+        await base.conTenant(s.tenantId, (tx) => auditar(tx, ctx, { action: "sesion.bloqueada", outcome: "NEGADO", reason: describeLockout(bloqueo) ?? "Bloqueada" }));
+        return { ok: false, motivo: "NO_PERMITIDO", mensaje: describeLockout(bloqueo) ?? "Bloqueado.", bloqueo: bloqueoDe(bloqueo) };
+      }
+      if (!(await verify(u.pinHash, pinActual).catch(() => false))) {
+        const tras = await base.conTenant(s.tenantId, async (tx) => {
+          const f = await tx.staffUser.update({
+            where: { id: u.id },
+            data: { pinFailures: { increment: 1 }, pinLastFailureAt: new Date(ahora) },
+            select: { pinFailures: true },
+          });
+          await auditar(tx, ctx, { action: "sesion.pin_fallido", outcome: "NEGADO", reason: "Cambiar su PIN", after: { fallosSeguidos: f.pinFailures } });
+          return computeLockout(f.pinFailures, ahora, ahora, DEFAULT_LOCKOUT_POLICY);
+        });
+        return { ok: false, motivo: "NO_PERMITIDO", mensaje: describeLockout(tras) ?? "Tu PIN actual no es ese.", bloqueo: bloqueoDe(tras) };
+      }
+
+      const revision = checkNewPin(pinNuevo);
+      if (!revision.ok) return { ok: false, motivo: "INVALIDO", mensaje: revision.message };
+      if (pinNuevo === pinActual) return { ok: false, motivo: "INVALIDO", mensaje: "El PIN nuevo es el mismo que tienes: elige otro." };
+
+      const nuevo = await hash(pinNuevo);
+      await base.conTenant(s.tenantId, async (tx) => {
+        await tx.staffUser.update({ where: { id: u.id }, data: { pinHash: nuevo, pinMustChange: false, pinFailures: 0, pinLastFailureAt: null } });
+        await tx.staffUserChange.create({
+          data: { tenantId: s.tenantId, userId: u.id, kind: "PIN", reason: "Cambió su PIN desde Mi cuenta", byUserId: u.id, byName: u.fullName },
+        });
+        await auditar(tx, ctx, { action: "usuario.pin", entityType: "staff_user", entityId: u.id, reason: "Cambió su PIN desde Mi cuenta" });
+      });
+      return { ok: true, valor: { cambiado: true } };
+    },
   };
+  return casos;
 }

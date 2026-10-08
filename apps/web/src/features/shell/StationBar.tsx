@@ -38,6 +38,7 @@ import { formatClock } from "../park/time-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 import { BotonAyuda } from "../ayuda/AyudaProvider.tsx";
+import { MiCuenta } from "../identity/MiCuenta.tsx";
 
 /**
  * Barra permanente de las estaciones — §8.5 y §9.10.2.
@@ -372,24 +373,24 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
           {/* La ayuda de esta pantalla (T-12): también con F1. */}
           <BotonAyuda className={cn(PILDORA, "size-12 px-0")} />
           <span className={cn(PILDORA, "h-12 gap-2 pr-1 pl-1 text-ink-2")}>
-            <Initial
-              name={operador?.nombre ?? "?"}
-              tone={operador ? "idle" : "warn"}
-              className="size-8 rounded-[0.45rem] text-[11.5px]"
-            />
-            <span className="hidden leading-tight xl:block">
-              <span
-                className={cn(
-                  "block text-[12.5px] font-medium",
-                  operador ? "text-ink" : "text-state-warn",
-                )}
-              >
-                {operador?.nombre ?? "Sin identificar"}
-              </span>
-              <span className="block text-[11px] text-ink-3">
-                {operador?.rol ?? "Entra por el acceso"}
-              </span>
-            </span>
+            {operador ? (
+              // Tocar el propio nombre abre «Mi cuenta» (T-14): cambiar el PIN.
+              <MiCuenta nombre={operador.nombre} rol={operador.rol} className="flex h-10 items-center gap-2 px-1">
+                <Initial name={operador.nombre} tone="idle" className="size-8 rounded-[0.45rem] text-[11.5px]" />
+                <span className="hidden leading-tight xl:block">
+                  <span className="block text-[12.5px] font-medium text-ink">{operador.nombre}</span>
+                  <span className="block text-[11px] text-ink-3">{operador.rol}</span>
+                </span>
+              </MiCuenta>
+            ) : (
+              <>
+                <Initial name="?" tone="warn" className="size-8 rounded-[0.45rem] text-[11.5px]" />
+                <span className="hidden leading-tight xl:block">
+                  <span className="block text-[12.5px] font-medium text-state-warn">Sin identificar</span>
+                  <span className="block text-[11px] text-ink-3">Entra por el acceso</span>
+                </span>
+              </>
+            )}
             <Link
               href="/acceso"
               onClick={salir}

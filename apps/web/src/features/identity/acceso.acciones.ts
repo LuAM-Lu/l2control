@@ -107,6 +107,20 @@ export async function elevar(
   return r;
 }
 
+/**
+ * Cambiar el PIN propio desde «Mi cuenta» (T-14, P-17). La persona sale de SU sesión, nunca de lo que diga la página;
+ * los dos PIN van en el cuerpo de la acción y no se registran.
+ */
+export async function cambiarMiPin(pinActual: unknown, pinNuevo: unknown): Promise<Resultado<{ cambiado: true }> & { bloqueo?: Bloqueo }> {
+  return (await aplicacion()).sesiones.cambiarPin({
+    sesion: await credencialSesion(),
+    pinActual,
+    pinNuevo,
+    ip: await ipDeLaPeticion(),
+    ahora: Date.now(),
+  });
+}
+
 /** El desafío para aprobar ESTE equipo con una llave: la que responda dirá de quién es. */
 export async function desafioParaAprobarEsteEquipo(): Promise<Resultado<Desafio<OpcionesDeFirma>>> {
   return (await aplicacion()).elevacion.desafioDeEquipo({ dispositivo: await credencialEquipo(), ahora: Date.now() });

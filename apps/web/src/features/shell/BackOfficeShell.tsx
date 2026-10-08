@@ -10,6 +10,7 @@ import { Initial, cn } from "@l2/ui";
 import { INICIO, buscarModulo, buscarSeccion, modulosDeZona, rutaModulo, rutaSeccion, type Modulo } from "./navigation.ts";
 import { BotonTema } from "./BotonTema.tsx";
 import { BotonAyuda } from "../ayuda/AyudaProvider.tsx";
+import { MiCuenta } from "../identity/MiCuenta.tsx";
 import { VERSION } from "./version.ts";
 import { LogoL2 } from "./LogoL2.tsx";
 import { PageTransition } from "./PageTransition.tsx";
@@ -439,11 +440,14 @@ function PieUsuario({
         compacto && "justify-center xl:justify-start xl:px-4",
       )}
     >
-      <Initial name={usuario} tone="idle" className="size-8 shrink-0 text-sm" />
-      <div className={cn("min-w-0 flex-1", compacto && "hidden xl:block")}>
-        <p className="truncate text-[13px] font-medium text-ink">{usuario}</p>
-        <p className="truncate text-[11.5px] text-ink-3">{rol}</p>
-      </div>
+      {/* Tocar el propio nombre abre «Mi cuenta» (T-14): cambiar el PIN. */}
+      <MiCuenta nombre={usuario} rol={rol} className={cn("-my-1 -ml-1 flex min-w-0 items-center gap-3 p-1", !compacto && "flex-1", compacto && "xl:flex-1")}>
+        <Initial name={usuario} tone="idle" className="size-8 shrink-0 text-sm" />
+        <span className={cn("min-w-0 flex-1", compacto && "hidden xl:block")}>
+          <span className="block truncate text-[13px] font-medium text-ink">{usuario}</span>
+          <span className="block truncate text-[11.5px] text-ink-3">{rol}</span>
+        </span>
+      </MiCuenta>
       <BotonAyuda className={cn("size-9", compacto && "hidden xl:grid")} />
       <BotonTema compacto className={cn(compacto && "hidden xl:flex")} />
       <Link
