@@ -610,7 +610,7 @@ Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   vacíos. **De paso:** el pie de la barra lateral en dos renglones (la persona con todo el ancho, debajo ayuda, tema y
   salir): «Abi… Ad…» ya no se corta. Visto en el navegador en la base de pruebas: a 1920×1080 Inicio, Productos y
   Sucursal miden 1600 px y el título de página 28 px, en los dos temas; el pie a 1366, 1100 y 800 de ancho.*
-- [ ] **T-17 · Cuenta de soporte** (M-28).
+- [~] **T-17 · Cuenta de soporte** (M-28). *A cargo: LuAMi, rama `feat/t-17`.*
   → Una persona de Administración con la marca «soporte» no sale en «¿Quién entra?»: entra por «Acceso de soporte»
   con su nombre de usuario y su PIN, desde su equipo aprobado (como todos), con el mismo bloqueo; sin plazo. No abre
   turnos ni cuenta como personal del local. Se ve como «Soporte» en Usuarios, en la auditoría y en Inicio mientras está
