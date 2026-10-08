@@ -25,6 +25,8 @@
      por eso `brand` y `state-warn` son variables distintas aunque el tono
      sea parecido. Mezclarlas es el conflicto que advierte §8.2.         */
   --color-brand: #eab308;
+  /* El velo de un recorrido guiado (T-12): oscurece todo menos el elemento del paso. Igual en los dos temas. */
+  --color-velo: rgb(0 0 0 / 0.6);
   --color-brand-2: #f97316;
   --color-on-brand: #0f172a;
 
@@ -411,7 +413,12 @@ html:has(dialog[open]) { overflow: hidden; }
   .l2-codigos .l2-no-imprime { display: none; }
 }
 
+/* El recorrido guiado (T-12): el anillo y la tarjeta acompañan al paso con una transición corta. */
+.l2-recorrido-anillo { transition: x var(--dur-normal) var(--ease-salida), y var(--dur-normal) var(--ease-salida), width var(--dur-normal) var(--ease-salida), height var(--dur-normal) var(--ease-salida); }
+.l2-recorrido-tarjeta { transition: top var(--dur-normal) var(--ease-salida), left var(--dur-normal) var(--ease-salida), bottom var(--dur-normal) var(--ease-salida); }
+
 @media (prefers-reduced-motion: reduce) {
+  .l2-recorrido-anillo, .l2-recorrido-tarjeta { transition: none; }
   .l2-destello { animation: none; }
   .l2-punto, .l2-sacudida, .l2-recorre { animation: none; }
   /* El aviso crítico deja de latir: lo urgente se dice con color, icono y

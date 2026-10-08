@@ -857,6 +857,7 @@ function CobroCuenta({
     <>
       {/* ═══════════════════════ la cuenta ═══════════════════════════ */}
       <section
+        data-recorrido="caja-cuenta"
         className={cn(
           "flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card @container/ticket",
           PLACEMENT_TICKET,
@@ -1390,6 +1391,7 @@ function CobroCuenta({
             dos columnas con «Cobrar exacto» y «Cerrar cobro». Cambiar de medio o
             teclear no mueve nada de sitio, y no hay que abrir nada para teclear. */}
       <aside
+        data-recorrido="caja-cobro"
         className={cn(
           "flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto rounded-[var(--radius-card)] border border-line bg-surface p-3 shadow-card [&>*]:shrink-0",
           PLACEMENT_COBRO,

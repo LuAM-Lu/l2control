@@ -37,6 +37,7 @@ import { formatTasaVE } from "../cash/tasa-format.ts";
 import { formatClock } from "../park/time-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
+import { BotonAyuda } from "../ayuda/AyudaProvider.tsx";
 
 /**
  * Barra permanente de las estaciones — §8.5 y §9.10.2.
@@ -368,6 +369,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             )}
           </button>
 
+          {/* La ayuda de esta pantalla (T-12): también con F1. */}
+          <BotonAyuda className={cn(PILDORA, "size-12 px-0")} />
           <span className={cn(PILDORA, "h-12 gap-2 pr-1 pl-1 text-ink-2")}>
             <Initial
               name={operador?.nombre ?? "?"}

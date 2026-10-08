@@ -75,6 +75,7 @@ export type AccionAuditada =
   | "parque.salida"
   | "parque.nombrar"
   | "parque.pausar"
+  | "ayuda.recorrido"
   | "parque.reanudar"
   | "parque.recarga"
   | "parque.cierre_administrativo"

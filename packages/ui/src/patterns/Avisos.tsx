@@ -86,9 +86,24 @@ function opciones(o: Opciones | undefined, base: number) {
   };
 }
 
+/**
+ * Quién ofrece ayuda para un error (T-12): la aplicación registra una función que, dado el texto del error, dice si
+ * conoce su solución y cómo abrirla. Esta capa no sabe qué errores existen: si hay solución, el aviso lleva el botón
+ * «Cómo se resuelve».
+ */
+export type AyudaDeError = (texto: string) => (() => void) | null;
+let ayudaDeError: AyudaDeError | null = null;
+
+export function registrarAyudaDeErrores(f: AyudaDeError | null): void {
+  ayudaDeError = f;
+}
+
 export const avisar = {
   ok: (texto: string, o?: Opciones) => toast.success(texto, opciones(o, 4000)),
   info: (texto: string, o?: Opciones) => toast.info(texto, opciones(o, 5000)),
   aviso: (texto: string, o?: Opciones) => toast.warning(texto, opciones(o, 6000)),
-  error: (texto: string, o?: Opciones) => toast.error(texto, opciones(o, 8000)),
+  error: (texto: string, o?: Opciones) => {
+    const abrir = !o?.accion && ayudaDeError ? ayudaDeError(texto) : null;
+    return toast.error(texto, opciones(abrir ? { ...o, accion: { texto: "Cómo se resuelve", alPulsar: abrir } } : o, 8000));
+  },
 };

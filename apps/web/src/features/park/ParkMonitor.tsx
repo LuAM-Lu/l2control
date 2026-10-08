@@ -142,7 +142,7 @@ export function ParkMonitor() {
       {/* Las cifras de sala van grandes y solas: se leen de un vistazo, en el teléfono de la
           monitora (V-2) o en el panel. El título «Monitor de parque» sobraba: la pestaña «Sala» de
           la barra ya dice dónde estás. En el teléfono, las tres en una fila. */}
-      <header className="border-b border-line">
+      <header data-recorrido="sala-cifras" className="border-b border-line">
         <h1 className="sr-only">Monitor de parque</h1>
         <Container ancho="muro" className="flex flex-wrap items-start gap-x-14 gap-y-3 py-2.5 max-md:grid max-md:grid-cols-3 max-md:gap-x-3">
           <Contador
@@ -172,7 +172,7 @@ export function ParkMonitor() {
 
       <Container as="main" ancho="muro" className="flex min-h-0 flex-1 flex-col py-4 max-md:py-3">
         <div className="mb-3 shrink-0">
-          <div className="flex items-stretch gap-2">
+          <div data-recorrido="sala-lector" className="flex items-stretch gap-2">
             <ScannerField onScan={handleScan} validate={validarPulsera} className="min-w-0 flex-1" />
             <BotonCamara activa={camara} onCambiar={setCamara} />
           </div>
@@ -216,7 +216,7 @@ export function ParkMonitor() {
         ) : (
           // La rejilla se desplaza por dentro si hiciera falta; con la sala
           // llena pasa a baldosas compactas para que no haga falta (§8.8).
-          <div className="-m-1 min-h-0 flex-1 overflow-y-auto p-1">
+          <div data-recorrido="sala-tarjetas" className="-m-1 min-h-0 flex-1 overflow-y-auto p-1">
             <div
               className={cn(
                 "grid items-stretch",

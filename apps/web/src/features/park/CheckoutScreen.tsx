@@ -370,7 +370,7 @@ export function CheckoutScreen({
 
       <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 max-md:min-h-0 max-md:grid-rows-[minmax(0,1fr)] max-md:py-3 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3">
         <section className={cn("flex min-w-0 flex-col gap-4 max-md:min-h-0 max-md:gap-3 apaisado:min-h-0", pasoMovil === "LIQUIDACION" && "max-md:hidden")}>
-          <div className="flex shrink-0 items-stretch gap-2">
+          <div data-recorrido="salida-lector" className="flex shrink-0 items-stretch gap-2">
             <ScannerField
               onScan={handleScan}
               validate={validarPulsera}
@@ -680,6 +680,7 @@ export function CheckoutScreen({
             )}
 
             <Button
+              data-recorrido="salida-registrar"
               surface="pos"
               variant="primary"
               disabled={!hayAlgo || enviando || faltaRecogida || (destino === "MESA" && !opcionElegida)}

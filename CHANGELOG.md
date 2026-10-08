@@ -14,6 +14,20 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.64.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Ayuda dentro de la app y recorridos guiados (T-12, M-27).
+
+### Añadido
+- **Ayuda en cada pantalla.** El botón de ayuda (o la tecla F1) abre lo que dice el manual de la pantalla en la que se
+  está: para qué sirve, cómo se usa y sus problemas frecuentes con su solución. Se puede buscar en todo el manual con
+  las palabras de cada uno («pulsera usada», «no imprime»).
+- **«Cómo se resuelve».** Cuando sale un error que el manual conoce, su aviso trae ese botón y abre la ayuda con la
+  solución.
+- **Recorridos guiados.** La primera vez que cada persona abre la entrada, la sala, la salida, la caja o las mesas, un
+  recorrido corto le enseña lo principal, señalando cada parte. Se salta cuando se quiera y se puede volver a ver desde
+  la ayuda. Queda guardado por persona, no por equipo.
+
 ## [0.63.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Entrar sin pulsera (B4-8, M-27).
