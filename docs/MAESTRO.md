@@ -34,9 +34,9 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.87.0 · 87 de 94 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
-capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. Decidido M-33 (B6-9 y B3-11: saber a quién
-cobrarle), sin empezar hasta el sí del usuario.** M-28 y M-29
+**Versión 0.87.0 · 87 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. Decidido M-33 (B6-9, B3-11 y B11-4: saber a
+quién cobrarle), sin empezar hasta el sí del usuario.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -47,7 +47,7 @@ actualiza solo (ensayado en una PC con Windows). **B8-2, lo escrito, hecho:** la
 runbooks del técnico (la capacitación cierra B8-2 en B8-3). **M-32 entregado:** B3-10, el buscador de la carta de la
 caja, lo que no se vende al final y el pie de la cuenta compacto con «Cobrar $ …». **Para programar antes de B8-3:**
 M-33, el hueco de quien se va sin pagar: la mesa pide nombre, cédula y teléfono (B6-9) y lo que no se cobra queda como
-deuda del cliente (B3-11). **En el local:** B7-3 (con T-8c en
+deuda del cliente (B3-11), con un reporte del flujo entero: mesero, supervisor y desenlace (B11-4). **En el local:** B7-3 (con T-8c en
 la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
 1.0.0, §4), antes de B8-4.
 
@@ -134,7 +134,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-30** | **B8-2 sin manual aparte** (2026-10-08, decisión del usuario) | La ayuda dentro de la app (T-12: el manual de cada pantalla y los recorridos guiados) **es** el manual por rol, y el soporte (T-11, T-17) cubre avisar de un error: B8-2 no escribe otro manual. Queda lo que la app no puede cubrir cuando no está: (1) **el procedimiento en papel**, una hoja impresa junto a la caja que dice cuándo se pasa al papel, quién anota qué y cómo se carga al volver (los formularios ya existen, B3-7); (2) **los runbooks del técnico**, juntos y completos (restaurar un respaldo, volver atrás una actualización, aprobar el equipo que sustituye a uno perdido, cambiar la impresora, los feriados de cada año), partiendo de `infra/produccion/README.md`; (3) **la capacitación por rol**, hecha durante la operación en paralelo (B8-3) con los recorridos de la app, sin material aparte | B8-2 |
 | **M-31** | **Un solo punto de cobro y la entrada desde la caja** (2026-10-08, decisiones del usuario) | (1) **El punto de cobro (opción A, con salida de emergencia):** cada equipo lleva la marca «Punto de cobro» (Ajustes → Personas y equipos → Dispositivos); solo los marcados abren turno como hoy; en uno sin marcar, abrir turno pide el PIN de administración y un motivo, queda en la auditoría e Inicio lo avisa mientras siga abierto. Descartadas: un solo turno por local (impide una segunda caja y bloquea si la laptop se daña con su turno abierto), un tope numérico (no dice cuál equipo), solo avisar (llega tarde) y quitarles el permiso a supervisión y administración (deja sin cubrir la caja). (2) **La entrada desde la caja:** vender la entrada de uno o varios niños sin salir de la caja, reutilizando lo de Entrada (se actualiza, no se rediseña): pulsera leída, tecleada o «sin pulsera»; solo prepago; los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. (3) El aviso de «sin pulsera» en Inicio, **descartado por ahora** (no es viable ni oportuno). Los dos se adaptan a todo lo que ya existe (ayuda y recorridos, atajos, soporte y `data-privado`, cuenta de soporte, tiempo real, auditoría, permisos, Inicio, Reportes, temas y escala): queda como punto 10 de la definición de hecho, para todo paso nuevo. Primero dos pasos (B3-9 y B4-11); el mismo día el usuario los juntó en **uno solo**, que se termina de punta a punta de forma automática: la ruta pasa a **91** | B3-9 |
 | **M-32** | **La caja más clara** (2026-10-08, decisiones del usuario, con las capturas de la caja tras vaciar el inventario) | (1) **La carta de mostrador** (venta directa y «Añadir ítems»): con el catálogo en hoja (B9-7) aparecen todos los productos y la lista se pierde hacia abajo. Lleva **un buscador** arriba que filtra al teclear en toda la carta (nombre, SKU o código de barras), sin importar la categoría abierta; con la búsqueda vacía vuelve la categoría que estaba; Intro añade el primero. La tecla «/» busca en lo que está a la vista: la carta si está abierta, la cola si no. **Los que no se venden ahora** (sin contar, agotados) van al final, atenuados, bajo un título con cuántos son y cada uno con su motivo. La rejilla desplaza dentro de su tarjeta: el panel nunca se sale de la pantalla. (2) **El pie de la cuenta, compacto:** los ítems que se le cobran a la persona son lo que más se tiene que ver. «Factura a», «Descuento» y «Dividir» pasan a **una fila de tres botones** que dicen su estado («Consumidor final» o el nombre, «−10 %», «Entre 3»); dividir abre un menú de 2 a 6 con «Sin dividir». Subtotal e impuestos en un renglón chico y el total, grande. Las reglas no cambian. (3) **«Cerrar cobro» pasa a «Cobrar $ 13.00»**, con el monto que se cobra (el de la parte, si está dividida). (4) **Los botones de categoría, de 44 px** (pedido del usuario durante el paso): con muchas categorías cada renglón cuenta; es una excepción a los 56 px del POS (§8.4), que se queda para todo lo demás de la caja. Descartados por ahora: más columnas en pantallas anchas, una pestaña «Más vendidos» y las categorías en una sola fila que desliza. La ruta pasa a **92** | B3-10 |
-| **M-33** | **Saber a quién cobrarle** (2026-10-08, decisiones del usuario: quien se sienta junto a la salida, consume y se va con el local lleno) | (1) **Mesa y de pie, con el cliente identificado:** sentar a alguien (o abrirle cuenta de pie) pide **nombre, cédula y teléfono**, los tres obligatorios; «Nombre de la familia (opcional)» desaparece. El directorio de representantes (B4-1) pasa a ser el de clientes y gana la cédula: encuentra al que vuelve por teléfono o cédula para no teclearlo dos veces, y una familia del parque ya trae nombre y teléfono. **Cambia DEC-9** (el directorio no llevaba documento) para quien abre una cuenta en el restaurante; la entrada al parque sigue sin pedir la cédula. (2) **Mostrador:** sigue «Consumidor final» y se cobra al momento (DEC-23 no cambia); una venta directa que la cajera deja en la cola sin cobrar pide los mismos tres datos. (3) **Quien se va sin pagar deja una deuda:** se marca con la 🔐 de supervisión; la cuenta sale de la jornada sin bloquear el cierre y pasa a «Deudas de clientes» con sus datos, lo consumido y quién atendió; cuando vuelve (al buscarlo por cédula o teléfono, en la mesa o en la caja) se avisa y se cobra con la tasa del día; administración puede darla por perdida (incobrable). (4) **Quién ve los datos:** todo el que atiende ve la cédula y el teléfono completos (decisión del usuario; se propuso enmascararlos salvo a supervisión); nunca en los registros, la URL ni la captura de un reporte (`data-privado`, PLAN §7.6). «Factura a» sigue en consumidor final y ofrece al cliente de la cuenta con un toque. Descartados por ahora: la cédula en la entrada del parque y «paga al pedir» sin datos en la mesa. La ruta pasa a **94** | B6-9, B3-11 |
+| **M-33** | **Saber a quién cobrarle** (2026-10-08, decisiones del usuario: quien se sienta junto a la salida, consume y se va con el local lleno) | (1) **Mesa y de pie, con el cliente identificado:** sentar a alguien (o abrirle cuenta de pie) pide **nombre, cédula y teléfono**, los tres obligatorios; «Nombre de la familia (opcional)» desaparece. El directorio de representantes (B4-1) pasa a ser el de clientes y gana la cédula: encuentra al que vuelve por teléfono o cédula para no teclearlo dos veces, y una familia del parque ya trae nombre y teléfono. **Cambia DEC-9** (el directorio no llevaba documento) para quien abre una cuenta en el restaurante; la entrada al parque sigue sin pedir la cédula. (2) **Mostrador:** sigue «Consumidor final» y se cobra al momento (DEC-23 no cambia); una venta directa que la cajera deja en la cola sin cobrar pide los mismos tres datos. (3) **Quien se va sin pagar deja una deuda:** se marca con la 🔐 de supervisión; la cuenta sale de la jornada sin bloquear el cierre y pasa a «Deudas de clientes» con sus datos, lo consumido y quién atendió; cuando vuelve (al buscarlo por cédula o teléfono, en la mesa o en la caja) se avisa y se cobra con la tasa del día; administración puede darla por perdida (incobrable). (4) **Quién ve los datos:** todo el que atiende ve la cédula y el teléfono completos (decisión del usuario; se propuso enmascararlos salvo a supervisión); nunca en los registros, la URL ni la captura de un reporte (`data-privado`, PLAN §7.6). «Factura a» sigue en consumidor final y ofrece al cliente de la cuenta con un toque. (5) **El reporte del flujo entero** (pedido del usuario al revisar el plan): Reportes → Deudas, con su PDF; por mesero (el que sentó al cliente), por supervisor que autorizó y cada deuda con su historia, de la mesa al desenlace. El PDF lleva la cédula y el teléfono completos (decisión del usuario; se propuso enmascararlos en el papel). Descartados por ahora: la cédula en la entrada del parque y «paga al pedir» sin datos en la mesa. La ruta pasa a **95** | B6-9, B3-11, B11-4 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -267,10 +267,10 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    **B8-4 = 1.0.0**, con D-REL decidido.
 11. **M-32**: ~~B3-10~~ (la caja más clara), con el sí del usuario. Antes de B8-3: la operación en paralelo y la
    capacitación se hacen con la caja como va a quedar.
-12. **M-33**: B6-9 → B3-11 (saber a quién cobrarle), con el sí del usuario. Antes de B8-3: es un hueco de seguridad, y la
+12. **M-33**: B6-9 → B3-11 → B11-4 (saber a quién cobrarle, y su reporte), con el sí del usuario. Antes de B8-3: es un hueco de seguridad, y la
    capacitación del mesero y de la caja se hace con el flujo nuevo.
 
-Fuera de la cuenta de 94: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -1427,14 +1427,13 @@ Fuera de la cuenta de 94: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   el turno de hoy y con la tasa de hoy. «Dar por perdida», administración con su 🔐 y un motivo (queda incobrable).
   → **Cuando vuelve.** Al buscar al cliente, en la mesa (B6-9) o en la caja, se avisa: «Tiene una deuda de $ 7.00 del
   8/10 (Mesa 2)», con «Cobrarla».
-  → **Inicio y Reportes.** Inicio dice cuántas deudas hay pendientes y por cuánto; Reportes → Ventas, lo que quedó en
-  deuda, lo recuperado y lo perdido en el periodo.
+  → **Inicio** dice cuántas deudas hay pendientes y por cuánto. El reporte del flujo entero es B11-4.
   → **Base (solo expande).** La deuda y su desenlace (cobrada o perdida) en tablas propias, solo agregar, sin valores
   nuevos en lo que ya se guarda: una versión anterior vería la cuenta como por cobrar y no cerraría sin resolverla, que es
   lo seguro.
   Se adapta a lo que hay (punto 10): la acción `cuenta.deuda` (supervisión ✅; caja y mesero 🔐) con su fila en la matriz
   del plan, y dar por perdida con `cuenta.incobrable`; asiento y tema en vivo; el manual de Cobrar y el de la pestaña
-  nueva; los datos con `data-privado`; la cuenta de soporte (en producción no marca deudas); Inicio y Reportes.
+  nueva; los datos con `data-privado`; la cuenta de soporte (en producción no marca deudas); Inicio.
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -2314,6 +2313,22 @@ F9-05).
   productos; Agua mineral con 20 que entraron y 9 ventas en mesas, mostrador y cumpleaños, saldo 11 = existencia), un
   producto y el PDF de la categoría; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni
   errores de consola.*
+- [ ] **B11-4 · Deudas: el flujo entero** (M-33).
+  → **Reportes → Deudas** (`reportes.verSucursal`), por día de negocio y con el periodo en la dirección, como los demás;
+  su PDF en `/informes/deudas`, con las piezas de `features/reportes/informe.tsx`. Sale de los asientos: solo lectura.
+  → **Resumen del periodo:** lo que quedó en deuda (cuántas y cuánto), lo recuperado, lo dado por perdido y lo que sigue
+  pendiente. **Por mesero:** cuántas deudas y por cuánto, atribuidas al que sentó al cliente (el que abrió la cuenta y
+  pidió sus datos; en el mostrador, la cajera que la dejó pendiente). **Por quien autorizó:** cuántas marcó cada
+  supervisor con su PIN, y cuántas dio por perdidas administración.
+  → **Cada deuda con su historia, en orden:** sentado por (mesero, mesa y hora); cada pedido (quién lo tomó, qué y
+  cuánto, y si se marcó servido); «Se fue sin pagar» (quién lo marcó, quién lo autorizó con su PIN, la hora y el
+  detalle); y el desenlace: cobrada (quién, en qué turno, cuándo y con qué medios), dada por perdida (quién, cuándo y por
+  qué) o pendiente, con los días que lleva. El cliente con nombre, cédula y teléfono completos, en pantalla y en el PDF
+  (M-33, decisión del usuario); en pantalla con `data-privado`, para que la captura de un reporte de problema no los
+  lleve.
+  → Reportes → Ventas dice lo que quedó en deuda, lo recuperado y lo perdido del periodo, con el enlace a Deudas.
+  Se adapta a lo que hay (punto 10): el manual de Reportes, su tema en vivo (se relee sola), los dos temas, la escala y
+  la vista de impresión `.l2-informe`.
 
 ### Etapa 7 · Staging en VPS
 
@@ -3072,6 +3087,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   caso de quien se va sin pagar con el local lleno: la mesa pide nombre, cédula y teléfono, el mostrador solo si la venta
   queda pendiente, y lo que no se cobra queda como deuda del cliente. Cambia DEC-9 para el restaurante. La ruta pasa a
   94. Sin empezar hasta el sí del usuario.
+- **2026-10-08** · M-33, al revisar el plan: el reporte del flujo entero de las deudas (B11-4, Reportes → Deudas con su
+  PDF): por mesero que sentó al cliente, por supervisor que autorizó y cada deuda de la mesa al desenlace; el PDF con la
+  cédula y el teléfono completos. La ruta pasa a 95.
 
 ---
 
