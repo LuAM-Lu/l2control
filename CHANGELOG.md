@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.75.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 La semilla con casillas (B7-7, M-29): el camino de la corrida limpia de producción.
 
