@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.88.0 · 88 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.89.0 · 89 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 en curso (saber a quién cobrarle): B6-9 y
 B3-11 hechos; sigue B11-4.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
@@ -1418,7 +1418,7 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   desplazar la página (en el teléfono, sin desplazar a lo ancho), sin textos cortados ni que se salgan de su tarjeta y sin
   errores de consola.*
 - [x] **B3-11 · Deudas de clientes: quien se va sin pagar** (M-33).
-  *Hecho el 2026-10-08, en `feat/b3-11`.*
+  *Hecho el 2026-10-08 (v0.89.0), en `feat/b3-11`.*
   → **Marcarla.** En la cuenta, en la caja o en la mesa, «Se fue sin pagar», con la 🔐 de supervisión y un detalle
   opcional. La cuenta sale de la cola y de la jornada (el cierre ya no la pide), la mesa queda libre y la deuda guarda al
   cliente, lo consumido, el monto en dólares, quién atendió y quién la marcó. Una cuenta sin cliente (de antes de B6-9)
@@ -3148,7 +3148,7 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · El usuario da el sí a M-33 («Dale»): B6-9, B3-11 y B11-4 de corrido. B6-9 entregado como v0.88.0: la mesa y de
   pie piden nombre, cédula y teléfono, el que vuelve se reconoce, la caja pregunta antes de dejar una venta sin cobrar
   y ninguna mesa se abre sin sentar a su cliente.
-- **2026-10-08** · B3-11 entregado: «Se fue sin pagar» deja la cuenta incobrable y una deuda a nombre del cliente, que
+- **2026-10-08** · B3-11 entregado como v0.89.0: «Se fue sin pagar» deja la cuenta incobrable y una deuda a nombre del cliente, que
   se cobra cuando vuelve (Caja → Deudas, o al buscarlo) o administración da por perdida. Sigue B11-4.
 
 ---
