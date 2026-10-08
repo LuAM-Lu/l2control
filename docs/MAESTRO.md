@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.82.0 · 82 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.83.0 · 83 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -1827,7 +1827,7 @@ antes del cobro en servidor (orden de ejecución).
 - [x] **B9-9 · Editar en lote** (M-29).
   → En Productos se eligen varios y se les cambia la categoría, el mínimo, la carta o el precio (en % o en monto, desde
   una fecha), o se apartan. Una sola confirmación, y cada producto deja su asiento.
-  *Hecho el 2026-10-08, en `feat/b9-9`.*
+  *Hecho el 2026-10-08 (v0.83.0), en `feat/b9-9`.*
   *· Dominio (`catalogo.ts`): `adjustedPrice`, el precio tras un ajuste en puntos básicos (redondeado al céntimo, la
   mitad hacia arriba) o con un monto; si vale lo sigue diciendo `priceProblem`. 1 prueba.*
   *· Contrato: `EditarEnLoteCommandSchema` (hasta 300 productos, sin repetir) con un cambio: `CATEGORIA`, `MINIMO`,
@@ -2802,6 +2802,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   PIN, firma «(soporte)», no cuenta como personal del local y en producción no abre turnos ni cobra. Sigue B9-10.
 - **2026-10-08** · B9-10 entregado como v0.82.0: «Contar» a ciegas con sus diferencias antes de ajustar, la hoja para
   imprimir y el informe de diferencias de cada conteo, en PDF. Sigue B9-9 (editar en lote).
+- **2026-10-08** · B9-9 entregado como v0.83.0: en Productos se eligen varios y se les cambia la categoría, el mínimo, la
+  carta o el precio (en % o en monto, desde un día), o se apartan; todo o nada, cada uno con su asiento. Sigue B9-8.
 
 ---
 
