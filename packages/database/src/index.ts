@@ -47,7 +47,9 @@ export type {
   ShiftCut,
   SystemUpdate,
   BackupCopy,
+  BackupPin,
   BackupReceiver,
+  BackupRehearsal,
   Tenant,
 } from "./generated/client.ts";
 export { errorDeBase, type ErrorDeBase, type MotivoDeBase } from "./errores.ts";

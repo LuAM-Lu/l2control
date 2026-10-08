@@ -41,9 +41,9 @@ se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 
 teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio), T-11
 (reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
 «Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. De M-28 y M-29 (decididos el 2026-10-08, once pasos; orden en
-§3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial) y B7-7 (la semilla con casillas para la
-corrida limpia). **Siguiente:** **B7-6** (respaldos con carpeta, fijados e integridad). **Para decidir:** D-REL (qué entra
-en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
+§3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
+corrida limpia) y B7-6 (respaldos con carpeta, fijados e integridad). **Siguiente:** **B11-1** (Reportes y las ventas).
+**Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -62,8 +62,8 @@ en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en march
 - **M-27 (2026-10-07) entregado entero:** los 19 pedidos de la primera visita (P-1 a P-19, §2), en 13 pasos. Quedan
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
 - **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
-  el catálogo sin existencias y su conteo inicial (B9-7) y la semilla con casillas para la corrida limpia (B7-7). Quedan
-  respaldos con carpeta, fijados e integridad (B7-6), Reportes en PDF (Etapa 11), Ajustes unificados (T-18), la cuenta
+  el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7) y los
+  respaldos con carpeta, fijados e integridad (B7-6). Quedan Reportes en PDF (Etapa 11), Ajustes unificados (T-18), la cuenta
   de soporte oculta (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
@@ -235,7 +235,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
-   semilla con casillas) → **B7-6** (respaldos con carpeta, fijados e integridad) → B11-1 (Reportes y las ventas) → T-18
+   semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → **B11-1** (Reportes y las ventas) → T-18
    (Ajustes unificados) → B11-3 (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
    a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
 
@@ -2066,11 +2066,41 @@ F9-05).
   `Caddyfile` y `git pull` lo reemplaza por otro archivo, así que dentro seguía el viejo (en Windows, Docker Desktop no
   lo reproduce). `desplegar.sh` compara el de dentro con el del disco y, si difieren, recrea Caddy. En el staging se
   recreó a mano y las cabeceras ya salen.*
-- [~] **B7-6 · Respaldos con carpeta, fijados e integridad a la vista** (M-29). *A cargo: LuAMi, rama `feat/b7-6`.*
+- [x] **B7-6 · Respaldos con carpeta, fijados e integridad a la vista** (M-29).
   → Al preparar la PC se elige la carpeta (un disco externo o una carpeta sincronizada con la nube: una copia fuera del
   local). Un respaldo se puede **fijar** con su nombre («antes de producción») y la escalera nunca lo borra. Ajustes →
   Sistema → Respaldos dice de cada uno si su huella se comprobó al bajarlo, y el servidor ensaya cada semana la
   restauración del último en una base de usar y tirar: «ÍNTEGRO» o qué falló, en el panel y en Inicio.
+  *Hecho el 2026-10-08, en `feat/b7-6`.*
+  *· Base: `20261111000000_respaldos_con_control` (solo expande): `backup_pin` (fijar con su nombre; se suelta una vez,
+  no se borra ni se rebautiza; uno vigente por respaldo), `backup_rehearsal` (el ensayo: íntegro o qué falló, con sus
+  segundos; solo-agregar) y en `backup_receiver` la carpeta, su tipo (EN_LA_PC, EXTERNO, NUBE) y la versión del
+  programa de la PC, que la aplicación solo puede escribir en esas columnas.*
+  *· Contrato: los niveles `NO_INTEGRO` y `SIN_ENSAYO`; la copia trae su fijado y su ensayo; el estado, el último ensayo y
+  los fijados vigentes; el índice de la PC, el nombre del fijado; `FijarRespaldoCommandSchema`, `SoltarRespaldoCommandSchema`
+  e `InformeDeLaPcSchema` (lo que la PC dice de sí misma).*
+  *· Aplicación: `respaldos.fijar` y `soltar` (`sistema.actualizar`, con elevación; lo que el servidor ya quitó no se
+  fija); `entrarPc` anota la carpeta, su tipo y el programa; `clasificar` pone el ensayo que no salió íntegro tras lo
+  atrasado y avisa sin ensayo en ocho días. 11 pruebas contra la base (5 nuevas).*
+  *· Servidor: `respaldar.sh` ensaya una vez por semana (o con `--ensayar`) el volcado de esa noche, antes de cifrarlo, en
+  un PostgreSQL de usar y tirar sin red, y anota el resultado con su asiento; la retención no quita los fijados.*
+  *· La PC (`l2-respaldos.ps1`, programa 2): la carpeta se elige al prepararla (`-Carpeta`), dice su tipo, su ruta y su
+  versión en cada pasada, y copia los fijados a `fijados\`, que la escalera no toca; con un disco externo desconectado no
+  crea una carpeta vacía en su lugar.*
+  *· Web: Ajustes → Respaldos con la cifra «Ensayo de restauración» (ÍNTEGRO o NO ÍNTEGRO), la carpeta de la PC (aviso si
+  es la misma PC o su programa es viejo), «huella comprobada» en lo bajado, «Fijar» y «Soltar»; preparar una PC elige
+  entre disco externo, carpeta en la nube o Documentos, y la orden lleva esa carpeta; Inicio dice «Respaldo ÍNTEGRO» o qué
+  falló.*
+  *· Decidido al construir: el servidor no puede descifrar sus respaldos (la clave privada no está), así que el ensayo
+  semanal restaura el volcado antes de cifrarlo; que el cifrado llegó entero lo comprueba la huella en la PC, y el ensayo
+  completo descifrando sigue siendo `restaurar.sh` en la PC del técnico. Un ensayo que no pudo ni arrancar cuenta como «NO
+  ÍNTEGRO», con su motivo (fail-closed).*
+  *· Comprobado: en la pila de ensayo local, `respaldar.sh --ensayar` dio «ÍNTEGRO en 4 s: 68 tablas, 471 filas»; sin la
+  marca no volvió a ensayar en la misma semana, y con la retención en 1 quitó todo menos el más nuevo y el fijado. El
+  programa de la PC, sin errores de sintaxis, con sus tipos de carpeta y los fijados probados sueltos. En el navegador,
+  contra la base de pruebas: el ensayo ÍNTEGRO, la carpeta de la PC, fijar «antes de producción» confirmando la
+  identidad y soltarlo, preparar una PC con la carpeta en la nube, e Inicio con «Respaldo ÍNTEGRO»; a 1366×768, 1280×800,
+  800×1280 y 390 px, en los dos temas, sin desbordar ni errores de consola.*
 - [x] **B7-7 · La semilla con casillas** (M-29).
   → Exportar la semilla enseña lo que lleva, con casillas (cada sección y cada producto: los «Prueba…» se desmarcan), y
   además de ajustes, tarifas, categorías, carta, plano y cumpleaños lleva medios de pago, descuentos, impuestos e
