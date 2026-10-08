@@ -14,6 +14,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+La sección Reportes y las ventas (B11-1, M-29).
+
+### Añadido
+- **Reportes, en el panel**, para administración y supervisión: de solo lectura y sacado de los asientos. Llega con
+  **Ventas**; Inventario al momento y Movimientos vienen detrás.
+- **Reportes → Ventas** de hoy, ayer, esta semana, este mes, el mes anterior o un rango (hasta 93 días), de todas las
+  cajeras o de una: lo vendido, lo cobrado en dólares con la tasa con que se cobró cada pago, lo anulado y cuántos
+  turnos tienen su Z. Debajo, por medio de pago y moneda, por origen (parque, restaurante, mostrador y cumpleaños), por
+  cajera, por turno (con «Cuadra con su Z», «No cuadra» y qué, o «Sin Z todavía») y las ventas anuladas con su motivo y
+  quién lo autorizó. El periodo va en la dirección: el enlace se guarda o se comparte. Lo de hoy se pone al día solo.
+- **Su PDF:** «PDF» abre la hoja A4 del informe, en blanco y negro, con el local, el periodo, quién lo pidió y cuándo,
+  y el número de página; «Imprimir o guardar PDF» abre el diálogo del navegador.
+
 ## [0.76.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Respaldos con carpeta, fijados e integridad a la vista (B7-6, M-29).

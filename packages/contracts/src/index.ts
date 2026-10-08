@@ -811,3 +811,16 @@ export {
   type ReportarCommand,
   type ReportesDto,
 } from "./soporte.ts";
+
+export {
+  MAX_DIAS_DE_INFORME,
+  PeriodoDeInformeSchema,
+  ConsultaDeVentasSchema,
+  OrigenDeVentaSchema,
+  EncabezadoDeInformeSchema,
+  InformeDeVentasSchema,
+  type PeriodoDeInformeDto,
+  type ConsultaDeVentasDto,
+  type OrigenDeVenta,
+  type InformeDeVentasDto,
+} from "./reportes.ts";

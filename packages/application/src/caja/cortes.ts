@@ -115,7 +115,7 @@ const TEXTO_CORTESIA: Record<string, string> = {
   CONSUMO_DE_PERSONAL: "Consumo de personal",
   OTRO: "Otro",
 };
-const TEXTO_ANULACION: Record<string, string> = {
+export const TEXTO_ANULACION: Record<string, string> = {
   ERROR_EN_COBRO: "Error en el cobro",
   CLIENTE_DESISTIO: "El cliente desistió",
   NO_ENTREGADO: "No se entregó lo cobrado",
@@ -150,7 +150,7 @@ async function puedeSobre(tx: Transaccion, ctx: Contexto, accion: Action, propio
 }
 
 
-function porMedioDe(libro: Libro): MovimientoPorMedioDto[] {
+export function porMedioDe(libro: Libro): MovimientoPorMedioDto[] {
   return tallyShift(ledgerMovements(libro.entradas)).byMethod.map((m) => ({
     methodCode: m.methodCode,
     label: libro.medio.get(m.methodCode)?.label ?? m.methodCode,
@@ -163,7 +163,7 @@ function porMedioDe(libro: Libro): MovimientoPorMedioDto[] {
 
 
 /** Las ventas del turno y sus excepciones (F4-08), con quién, cuándo, por qué y quién autorizó. */
-async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
+export async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: Date) {
   const ventas = await tx.sale.findMany({ where: { shiftId: t.id }, include: { prints: true, voids: true }, orderBy: { closedAt: "asc" } });
   const excepciones: ExcepcionDto[] = [];
   let total = zero(FUNCIONAL);

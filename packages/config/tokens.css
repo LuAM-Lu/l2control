@@ -453,6 +453,25 @@ html:has(dialog[open]) { overflow: hidden; }
   .l2-formulario:last-of-type { break-after: auto; }
 }
 
+/* Los informes de Reportes (Etapa 11): una hoja A4 en blanco y negro, en pantalla y en el papel. El navegador la
+   imprime o la guarda como PDF; cada hoja lleva su número abajo a la derecha (página con nombre: el recibo y los
+   formularios no la llevan). */
+.l2-informe { background: white; color: black; }
+@page informe {
+  size: A4 portrait;
+  margin: 12mm 10mm 14mm;
+  @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 8pt; }
+}
+@media print {
+  .l2-informe, .l2-informe * { visibility: visible; }
+  html:has(.l2-informe), body:has(.l2-informe) { background: white !important; }
+  .l2-informe-zona { position: static !important; overflow: visible !important; background: white !important; }
+  .l2-informe { page: informe; width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+  .l2-informe thead { display: table-header-group; }
+  .l2-informe tr { break-inside: avoid; }
+  .l2-informe-zona .l2-no-imprime { display: none !important; }
+}
+
 /* Un código QR se lee en negro sobre blanco, también con el tema oscuro: invertido, muchas
    cámaras no lo reconocen. Sus módulos se pintan con `currentColor`. */
 .l2-qr { background: white; color: black; }

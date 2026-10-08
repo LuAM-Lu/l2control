@@ -42,6 +42,8 @@ import { ajustesDelLocal } from "../../../../../src/features/inventario/salidas.
 import { EventosScreen } from "../../../../../src/features/eventos/EventosScreen";
 import { CumpleanosScreen } from "../../../../../src/features/eventos/CumpleanosScreen";
 import { agendaDeEventos, catalogoDeEventos } from "../../../../../src/features/eventos/eventos.servidor";
+import { VentasScreen } from "../../../../../src/features/reportes/VentasScreen";
+import { informeDeVentas, type ConsultaEnLaDireccion } from "../../../../../src/features/reportes/reportes.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -50,7 +52,7 @@ import { agendaDeEventos, catalogoDeEventos } from "../../../../../src/features/
  * carpeta `ajustes/` junto a `[modulo]/` haría que `/panel/ajustes` dejara
  * de encontrar la página del módulo. Añadir una pantalla es una línea.
  */
-const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.ReactNode>>> = {
+const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.ReactNode | Promise<React.ReactNode>>> = {
   "parque/representantes": async () => <RepresentantesPage inicial={await directorioDeFamilias()} descuentos={await descuentosDelLocal()} />,
   "parque/eventos": async () => <EventosScreen catalogo={await catalogoDeEventos()} agenda={await agendaDeEventos()} />,
   "ajustes/cumpleanos": async () => <CumpleanosScreen publicado={await catalogoDeEventos()} productos={await catalogoDelLocal()} />,
@@ -82,6 +84,8 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
   "inventario/productos": async () => <ProductosScreen catalogo={await catalogoDelLocal()} />,
   "inventario/entradas": async () => <EntradasScreen catalogo={await catalogoDelLocal()} entradas={await entradasDelLocal()} />,
   "inventario/salidas": async () => <SalidasScreen catalogo={await catalogoDelLocal()} ajustes={await ajustesDelLocal()} />,
+  // Los reportes (Etapa 11) leen su periodo de la dirección: se comparte el enlace y se ve lo mismo.
+  "reportes/ventas": async (q) => <VentasScreen {...await informeDeVentas(q)} />,
 };
 
 /**
@@ -94,8 +98,10 @@ const PANTALLAS: Readonly<Record<string, () => React.ReactNode | Promise<React.R
  */
 export default async function SeccionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ modulo: string; seccion: string }>;
+  searchParams: Promise<ConsultaEnLaDireccion>;
 }) {
   const { modulo: moduloId, seccion: seccionId } = await params;
   // Lo que se mudó con M-13 (Ajustes, Turno) lleva a su sitio nuevo.
@@ -105,7 +111,7 @@ export default async function SeccionPage({
   if (!modulo) notFound();
 
   const Pantalla = PANTALLAS[`${moduloId}/${seccionId}`];
-  if (Pantalla) return await Pantalla();
+  if (Pantalla) return await Pantalla(await searchParams);
 
   const seccion = buscarSeccion(modulo, seccionId);
   if (!seccion || seccion.href !== null) notFound();
