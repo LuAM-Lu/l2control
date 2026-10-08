@@ -34,20 +34,15 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.84.0 · 84 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
-(varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
-recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
-se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
-teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio), T-11
-(reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
-«Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. De M-28 y M-29 (decididos el 2026-10-08, once pasos; orden en
-§3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
-corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF), T-18
-(Ajustes de 18 secciones a 12, con pestañas), B11-3 (movimientos: el kárdex con su PDF) y B11-2 (inventario al momento,
-con su PDF): la Etapa 11 entera; T-17 (la cuenta de soporte), B9-10 (conteo a ciegas y su informe de diferencias),
-B9-9 (editar en lote) y B9-8 (duplicar productos): **M-28 y M-29 entregados enteros.** **Siguiente:** lo que queda
-espera la visita al local (B7-3 y T-8c) y la decisión D-REL; después, la Etapa 8.
-**Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
+**Versión 0.84.0 · 84 de 90 pasos · M-27, M-28 y M-29 entregados enteros; nada a medias ni reclamado.** Lo que queda
+para producción ya no se programa desde aquí: **B7-3 y T-8c** esperan la visita al local (los equipos reales), **D-REL**
+espera la decisión del usuario (§4) y la **Etapa 8** es la puesta en marcha (la 1.0.0). M-28 y M-29 (decididos el
+2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
+(B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
+la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
+la Etapa 11 entera), Ajustes en 12 secciones con pestañas (T-18), la cuenta de soporte (T-17), el conteo a ciegas con
+su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos con sus sabores (B9-8).
+**Siguiente:** la visita al local (B7-3 y T-8c). **Para decidir:** D-REL (qué entra en la 1.0.0, §4).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -56,21 +51,21 @@ espera la visita al local (B7-3 y T-8c) y la decisión D-REL; después, la Etapa
   e impresión por un agente en la laptop de caja. Con M-27 (v0.61.0 a v0.73.0): varias cuentas por mesa y de pie,
   pausa por comida, entrar sin pulsera, medias, cortesía y anular desde la sala, ayuda con recorridos guiados, roles que
   se pueden dar, cobrar con el teclado y el recibo a elección, «Mi cuenta» y el acceso con teclado, la operación de un
-  vistazo, la escala de texto e iconos, reportar un problema con captura y la atención en el salón. El detalle de cada
-  paso está en su casilla de §3 y en `CHANGELOG.md`.
+  vistazo, la escala de texto e iconos, reportar un problema con captura y la atención en el salón. Con M-28 y M-29
+  (v0.74.0 a v0.84.0): Reportes en PDF (ventas, inventario al momento y kárdex), Ajustes en 12 secciones con pestañas,
+  la cuenta de soporte, el catálogo en hoja sin cantidades con su conteo inicial, el conteo a ciegas con su informe,
+  editar en lote, duplicar con sabores, la semilla con casillas y los respaldos con carpeta, fijados e integridad. El
+  detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
 - **Staging:** `https://217-216-48-54.sslip.io` (Etapa 7). Se pone al día solo con cada versión publicada (T-8b),
   hace un respaldo cifrado cada noche que baja una PC del local (B7-4) y pasó la revisión de seguridad (B7-5).
-  **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Respaldos), cargar la semilla
-  (Ajustes → Semilla del local) y los feriados; y del usuario, poner `L2_SMTP_URL` y `L2_CORREO_SOPORTE` para que los
+  **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Sistema → Respaldos), cargar la
+  semilla (Ajustes → Sistema → Semilla del local) y los feriados (Ajustes → Tasas de cambio → Feriados); y del usuario, poner `L2_SMTP_URL` y `L2_CORREO_SOPORTE` para que los
   reportes de problemas avisen por correo (T-11).
 - **M-27 (2026-10-07) entregado entero:** los 19 pedidos de la primera visita (P-1 a P-19, §2), en 13 pasos. Quedan
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
-- **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
-  el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
-  respaldos con carpeta, fijados e integridad (B7-6), la sección Reportes con las ventas y su PDF (B11-1) y Ajustes
-  unificados (T-18), los movimientos de inventario (B11-3) y el inventario al momento (B11-2), y la cuenta de
-  soporte (T-17), el conteo a ciegas con su informe (B9-10), editar en lote (B9-9) y duplicar productos (B9-8): los once. **Para
-  decidir:** D-REL, qué entra en la 1.0.0 (§4).
+- **M-28 y M-29 (2026-10-08) entregados enteros:** los once pasos, de v0.74.0 a v0.84.0, sin pedir el sí entre uno y
+  otro (lo pidió el usuario). Para usarlos en el staging: la cuenta de soporte se marca en Ajustes → Personas y equipos
+  (y allí sí abre turnos y cobra); la corrida limpia de producción es base nueva más la semilla con casillas (B7-7).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
   runbooks y manual, operación en paralelo y puesta en marcha, que es la 1.0.0).
 
@@ -2489,6 +2484,16 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
   al volver. Se castea (`::text`).
 - El servidor del BCV manda incompleta su cadena TLS: su lector añade el intermediario de Sectigo
   (`certificado-bcv.ts`, vence en 2036). Nunca se apaga la verificación.
+- **Una prueba con un valor aleatorio no se compara con un literal que el azar puede producir.** Dos casos rompieron el
+  CI una vez de cada miles: buscar «1970» (el PIN) en un asiento entero, cuyo UUID lo contenía, y elegir un PIN propio
+  fijo que coincidía con el temporal aleatorio («Elige un PIN distinto del temporal»). Se mira solo el campo que importa
+  y el valor fijo se elige distinto del aleatorio (v0.84.0).
+- **La región del panel no sostiene lo fijo en el teléfono.** `PageTransition` tiene `overflow-y: auto` y una
+  transformación: dentro de ella, `sticky` no engancha cuando desplaza la ventana (el teléfono) y `fixed` se mide contra
+  la región, no contra la pantalla. Una barra fija abajo en el teléfono va con `createPortal` al `body` (la barra de
+  «N elegidos» de Productos, B9-9); en el escritorio, `sticky top-0` sí sirve.
+- **El servidor de desarrollo guarda `aplicacion()` al arrancar:** un caso de uso nuevo de `@l2/application` responde
+  «… is not a function» hasta reiniciar `pnpm dev` (lo de la web sí se recarga solo).
 
 ---
 
@@ -2498,14 +2503,14 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
 |---|---|---|
 | F0 · Decisiones | 29 decisiones cerradas | Datos maestros, relevamiento y firma (§4) |
 | F1 · Cimientos | **Hecha:** monorepo, fronteras, contratos, Prisma con RLS, CI, imágenes, staging, semilla y actualizaciones | — |
-| F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) | — |
+| F2 · Identidad | **Hecha en el servidor** (Etapa 1, más M-7), con el canal en vivo autorizado en el apretón de manos (B5-1) y la cuenta de soporte (T-17) | — |
 | F3 · Dinero | **Hecha en el servidor** (Etapa 2): tasas automáticas y en vivo, impuestos con vigencia, libro de pagos, día de negocio y feriados | **Sin F3-08** (M-3) |
 | F4 · Caja | **Hecha en el servidor** (Etapa 3): turno, medios, cobro mixto, ventas, cortes X y Z, arqueo a ciegas, relevo, jornada, incobrables, descuentos y carga de lo anotado en papel | — |
 | F5 · Parque | **Hecho en el servidor** (B4-1 a B4-10): estancias, directorio, cronómetro, recarga, salida con D9, huérfanas, los ajustes de la sucursal, el teléfono de la monitora con la cámara, las pulseras de un solo uso, la pausa por comida, entrar sin pulsera, las medias, y la cortesía y la anulación desde la sala | — |
 | F6 · Restaurante | **Hecho en el servidor** (B6-1 a B6-3, B6-5 a B6-8): plano, carta, pedido con comanda impresa, cuenta de la mesa, mesa sin consumo, anular en cocina, varias cuentas por mesa y de pie, y el tiempo de atención con «Servido» | Recetas e insumos de cocina, después del piloto (B6-4) |
 | F7 · Fiscal | **Fuera** (M-3) | — |
-| F8 · Inventario | **Hecho en el servidor** (B9-1 a B9-6): catálogo con tipo, SKU y código de barras, existencias, entradas con costo promedio (y alta de productos), salidas, conteo, mínimos y avisos | M-28 y M-29: catálogo sin existencias (B9-7), duplicar (B9-8), editar en lote (B9-9) y conteo a ciegas con su informe (B9-10) |
-| F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1); la atención en el salón (B6-8) | Reportes en PDF: ventas, inventario al momento y movimientos (Etapa 11, M-29); excepciones, parque frente a restaurante, más vendidos y margen, después del piloto |
+| F8 · Inventario | **Hecho en el servidor** (B9-1 a B9-10): catálogo con tipo, SKU y código de barras, existencias, entradas con costo promedio (y alta de productos), salidas, conteo, mínimos y avisos; catálogo sin existencias con su conteo inicial, duplicar con sabores, editar en lote y conteo a ciegas con su informe de diferencias | Recetas e insumos, después del piloto |
+| F9 · Panel | Inicio con el día del libro (B3-5) y en vivo, con quién está en cada puesto (B5-1); la atención en el salón (B6-8); Reportes en PDF: ventas, inventario al momento y movimientos (Etapa 11) | Excepciones, parque frente a restaurante, más vendidos y margen, después del piloto |
 | F10 y F11 | Staging en el VPS con despliegue reversible, respaldos y revisión de seguridad (Etapa 7, salvo B7-3) | B7-3 en el local y la Etapa 8 |
 
 ---
@@ -2822,6 +2827,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · B9-8 entregado como v0.84.0: «Duplicar» y «Con otros sabores» en la ficha de un producto. Con él,
   M-28 y M-29 quedan enteros (once pasos, v0.74.0 a v0.84.0). Lo que queda espera la visita al local (B7-3, T-8c) y
   D-REL; después, la Etapa 8.
+- **2026-10-08** · Relevo (LuAMi): M-28 y M-29 entregados en una sola sesión, sin pedir el sí entre pasos (lo pidió el
+  usuario). Tres pruebas intermitentes corregidas (§5). CLAUDE.md al día con lo que dejaron (pestañas, informes, soporte).
 
 ---
 
