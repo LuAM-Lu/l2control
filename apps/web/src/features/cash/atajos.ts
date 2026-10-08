@@ -124,6 +124,7 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "Enter", que: "Añadir el pago tecleado" },
   { teclas: "+", que: "Cobrar exacto con el medio elegido (no en efectivo)" },
   { teclas: "Ctrl + Enter", que: "Cerrar el cobro (solo si está cubierto)" },
+  { teclas: "*", que: "Imprimir o no el recibo de este cobro" },
   { teclas: "E · B · P · T · Z · U", que: "Efectivo $ · Efectivo Bs · Pago Móvil · Tarjeta (punto) · Zelle · USDT" },
   { teclas: "↑ ↓", que: "Cuenta anterior o siguiente de la cola" },
   { teclas: "/", que: "Buscar en la cola" },

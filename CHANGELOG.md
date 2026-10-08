@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.68.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Cobrar con el teclado y el recibo a elección (B3-8, M-27).
+
+### Añadido
+- **Imprimir recibo, a elección.** Junto a «Cerrar cobro», un interruptor «Recibo / Sin recibo» (tecla `*`) decide si
+  el recibo sale al cobrar. Arranca con lo que diga Ajustes → Sucursal («Recibo al cobrar»: se imprime, de fábrica, o a
+  pedido). Lo que no se imprimió se saca después desde Ventas del turno. Si no hay impresora de recibos encendida, el
+  cobro se cierra igual y la caja avisa de que el recibo no salió.
+- **Cobrar sin el ratón.** Cada medio de pago muestra su letra (E, B, P, T, Z, U) y en la búsqueda de la cola (`/`)
+  Intro elige la primera cuenta encontrada: buscar, medio, monto, recibo y Ctrl+Intro, todo con el teclado.
+
+### Cambiado
+- Antes el cobro no imprimía solo: el recibo salía si se abría «Ver recibo» y se pulsaba «Imprimir». Ahora, de
+  fábrica, sale al cobrar.
+
 ## [0.67.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Roles que se pueden dar (T-13, M-27).

@@ -196,6 +196,11 @@ export const AjustesSucursalSchema = z
      * `null`, la entrada no pregunta. Los ajustes publicados antes no lo traen: sin medias.
      */
     productoMedias: z.uuid("Elige un producto del inventario").nullable().default(null),
+    /**
+     * Con qué arranca el interruptor «Imprimir recibo» de cada cobro (B3-8, M-27, P-5): la caja lo cambia en
+     * cada uno. De fábrica, imprimir. Los ajustes publicados antes no lo traen: imprimir.
+     */
+    imprimirRecibo: z.boolean().default(true),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

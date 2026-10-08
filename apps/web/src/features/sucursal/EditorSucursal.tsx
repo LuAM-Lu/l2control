@@ -419,6 +419,23 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               {errores.preciosConIva ?? (borrador.preciosConIva ? "El precio es lo que paga el cliente; el IVA va dentro." : "La caja suma el IVA al precio.") + " Se cambia sin turnos abiertos."}
             </p>
           </div>
+          {/* B3-8 (P-5): con qué arranca «Imprimir recibo» en cada cobro; la caja lo cambia en cada uno. */}
+          <div className="flex flex-col gap-1.5">
+            <span className={ETIQUETA}>Recibo al cobrar</span>
+            <div className="flex items-center gap-1" role="group" aria-label="Recibo al cobrar">
+              <button type="button" aria-pressed={borrador.imprimirRecibo} className={segmento(borrador.imprimirRecibo)} onClick={() => cambiar({ imprimirRecibo: true })}>
+                Se imprime
+              </button>
+              <button type="button" aria-pressed={!borrador.imprimirRecibo} className={segmento(!borrador.imprimirRecibo)} onClick={() => cambiar({ imprimirRecibo: false })}>
+                A pedido
+              </button>
+            </div>
+            <p className="text-[12px] text-ink-3">
+              {borrador.imprimirRecibo
+                ? "Cada cobro arranca imprimiendo; la caja lo apaga si el cliente no lo quiere."
+                : "Cada cobro arranca sin imprimir; la caja lo enciende o lo saca después desde Ventas."}
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Residuo ($)"

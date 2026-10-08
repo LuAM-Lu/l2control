@@ -212,7 +212,8 @@ export function ColaCuentas({
                     e.preventDefault();
                     cerrarBuscador();
                     e.currentTarget.blur();
-                  } else if (e.key === "Enter" && cuentas.length === 1) {
+                  } else if (e.key === "Enter" && cuentas.length > 0) {
+                    // La primera de lo encontrado (B3-8): buscar y cobrar sin soltar el teclado.
                     e.preventDefault();
                     onElegir(cuentas[0]!.id);
                     e.currentTarget.blur();

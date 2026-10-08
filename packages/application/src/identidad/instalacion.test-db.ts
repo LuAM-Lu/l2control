@@ -122,7 +122,8 @@ describe("lo que se pide", () => {
     assert.ok(p.ok);
     const desafio = await base.conTenant(lugar.tenantId, (tx) => tx.authChallenge.findFirst());
     const texto = JSON.stringify(desafio) + JSON.stringify(p.valor);
-    assert.ok(!texto.includes("parque de niños 2026") && !texto.includes("4826"));
+    // El PIN, como valor (entre comillas): «4826» suelto sale a veces por azar dentro de un UUID o de un hash.
+    assert.ok(!texto.includes("parque de niños 2026") && !texto.includes('"4826"'));
     assert.match(JSON.stringify(desafio!.payload), /argon2id/);
     assert.ok(!JSON.stringify(p.valor).includes("argon2id"), "al navegador no le llega ni el hash");
   });

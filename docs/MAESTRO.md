@@ -34,10 +34,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.67.0 · 67 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.68.0 · 68 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
-recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada) y T-13 (roles que
-se pueden dar: supervisión ya puede hacer inventario).
+recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
+se pueden dar: supervisión ya puede hacer inventario) y B3-8 (cobrar solo con el teclado y el recibo a elección).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -138,7 +138,7 @@ confirma con el cliente al verlo (como D-AUT o D13); lo que de verdad espera una
 | **P-2** | Clientes que no están en una mesa: de pie, haciendo pedidos | El mesero abre desde la tablet una **cuenta de pie** con un nombre o una seña y le pide como a una mesa; su comanda sale «DE PIE · nombre» y se cobra en la caja como cualquier cuenta | B6-7 |
 | **P-3** | Mesas compartidas: familias distintas en la misma mesa por el aforo | **Propuesta:** **varias cuentas en una mesa**, una por familia y con su nombre. El mesero elige a cuál pide, la comanda dice «Mesa 3 · Familia Pérez», y cada una se cobra, se vincula y se libera por separado; la mesa queda libre cuando no le queda ninguna. Cambia I-05. La ocupación del plano pasa a salir del servidor (las cuentas abiertas), lo que salda la deuda del bus (§5) | B6-7 |
 | **P-4** | Una sección para que el personal reporte problemas y reciba ayuda: captura, errores reconocidos, ayuda que resuelve, manual y un recorrido con spotlight | **Reportar** desde cualquier pantalla (y desde cada error) con la captura y el contexto que el sistema pone solo; una bandeja con estados que quien reporta sigue, y los reportes del mismo error agrupados («ya está reportado»), en T-11. **Ayuda** de la pantalla en la que se está, manual por rol con búsqueda, la solución de cada error conocido y **recorridos guiados**, en T-12. **Recomendación sobre el recorrido:** automático la primera vez que cada persona abre cada pantalla de operación (corto, de 3 a 5 pasos, se puede saltar) y a petición desde el botón de ayuda; lo visto se guarda por persona en el servidor, porque los equipos del local son compartidos. El canal hasta el desarrollo y lo «inteligente», D-SOP | T-11, T-12 |
-| **P-5** | ¿Imprimir o no el ticket de caja? | **Recomendación:** un interruptor «Imprimir recibo» en el cobro, a la vista y con su tecla, que arranca con lo que diga un ajuste de la sucursal (de fábrica, imprimir, que es lo de hoy). Sin imprimir, el recibo se saca después desde Ventas. El corte Z y las comandas se imprimen siempre | B3-8 |
+| **P-5** | ¿Imprimir o no el ticket de caja? | **Recomendación:** un interruptor «Imprimir recibo» en el cobro, a la vista y con su tecla, que arranca con lo que diga un ajuste de la sucursal (de fábrica, imprimir; hasta B3-8 el cobro no imprimía solo: había que abrir el recibo y pulsar «Imprimir»). Sin imprimir, el recibo se saca después desde Ventas. El corte Z y las comandas se imprimen siempre | B3-8 |
 | **P-6** | Medias: quien no las trae las paga | **Propuesta:** un ajuste de la sucursal elige el producto «Medias» del inventario; la entrada pregunta por cada niño «Trae medias» (sí, de fábrica) y, si no, carga el par a la cuenta de la familia. Sale del inventario y, sin existencia, no se vende (ADR-023): la monitora lo ve | B4-9 |
 | **P-7** | Recepción: los botones de tiempo (30 min, 1 hora…) cortan el texto; administración quiere dar cortesía o eliminar una pulsera | Los paquetes, como tarjetas con un icono que dice la duración (un arco de reloj; el pase libre, infinito), el nombre entero y el precio debajo (T-15). Desde la sala, administración (supervisión con 🔐) **regala el tiempo** de un niño con un motivo o **anula su entrada** registrada por error: sale sin cobro y deja el aforo; nada se borra (B4-10) | T-15, B4-10 |
 | **P-8** | La pulsera se tiene que poder escribir a mano en el parque, la caja y la tablet | El lector admite **escribir el código** (botón «Escribir», con la misma validación) en la entrada, la sala, la salida, la caja y la tablet del mesero | T-15 |
@@ -214,7 +214,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
-   ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → **B3-8** (cobrar con el teclado) → T-14 (mi PIN
+   ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → **T-14** (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
@@ -1114,11 +1114,27 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   rechazadas; la revisión con PIN; las hojas en pantalla y en PDF (2 páginas); a 1366×768, 1280×800 y 800×1280 sin
   desplazar el documento y sin errores de consola. `pnpm verify:db` en verde.*
 
-- [~] **B3-8 · Cobrar con el teclado y el recibo a elección** (M-27, P-5, P-11). *A cargo: LuAMi, rama `feat/b3-8`.*
-  → Una cuenta se cobra de punta a punta sin el ratón: buscarla o leer su pulsera, el medio por su número, el monto,
-  el recibo y confirmar, con los atajos a la vista. El interruptor «Imprimir recibo» arranca con el ajuste de la
-  sucursal (de fábrica, imprimir); lo que no se imprimió se saca después desde Ventas. Medido con Playwright solo
-  con el teclado.
+- [x] **B3-8 · Cobrar con el teclado y el recibo a elección** (M-27, P-5, P-11).
+  → Una cuenta se cobra de punta a punta sin el ratón: buscarla o leer su pulsera, el medio por su letra (los números
+  son del monto), el monto, el recibo y confirmar, con los atajos a la vista. El interruptor «Imprimir recibo» arranca
+  con el ajuste de la sucursal (de fábrica, imprimir); lo que no se imprimió se saca después desde Ventas. Medido con
+  Playwright solo con el teclado.
+  *Hecho el 2026-10-07 (LuAMi), v0.68.0.* **Antes:** el cobro nunca imprimía solo: el recibo salía si la caja abría
+  «Ver recibo» y pulsaba «Imprimir». La mayor parte del camino con teclado ya existía (C5): faltaban el recibo, ver
+  las letras de los medios y elegir con Intro en la búsqueda cuando hay más de un resultado. **Contratos:**
+  `imprimirRecibo` en el cobro (sin decirlo, no imprime: lo de antes) y en los ajustes (`true` de fábrica; los
+  publicados antes no lo traen: imprimir); `reciboNoImpreso` en la respuesta. **Aplicación:** el cobro que lo pide
+  imprime en su misma transacción (`imprimirVentaEn`, la misma de «Imprimir» de Ventas: original, impresión anotada y
+  su asiento); el doble clic no imprime dos veces; sin impresora de recibos el cobro se cierra igual y dice por qué no
+  salió (un recibo no detiene un cobro); desde papel no se imprime. 2 pruebas contra la base. **Web:** un interruptor
+  «Recibo / Sin recibo» con icono junto a «Cerrar cobro», con la tecla `*` (y en la chuleta), que arranca con el
+  ajuste (apagado al cargar desde papel); la letra de cada medio en su botón; Intro en la búsqueda elige la primera
+  cuenta encontrada; si el recibo no salió, un aviso con «Ver recibo»; Ajustes → Sucursal, «Recibo al cobrar: Se
+  imprime / A pedido». Visto en el navegador en la base de pruebas, solo con el teclado tras entrar: `/`, «B67»,
+  Intro, `E`, 5-0-0, Intro, `*` dos veces, Ctrl+Intro: cobrada en 6 s con el recibo a la impresora; una venta
+  directa (N, Tab hasta el producto, Intro) cobrada «Sin recibo» y después en Ventas del turno con «Imprimir»; a
+  1366×768 y 1280×800, en los dos temas, sin desplazamiento. De paso: la prueba de la instalación que buscaba el PIN
+  «4826» suelto fallaba por azar cuando salía dentro de un UUID o un hash; ahora lo busca como valor.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -2365,6 +2381,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-07** · B4-9 entregado como v0.66.0: medias en la entrada, que salen del inventario. Sigue T-13 (roles).
 - **2026-10-07** · T-13 entregado como v0.67.0: `inventario.catalogo`, ajustable; supervisión ya puede dar de alta
   productos y cargar el inventario inicial, y el cambio le llega sin volver a entrar. Sigue B3-8 (cobrar con el teclado).
+- **2026-10-07** · B3-8 entregado como v0.68.0: cobrar de punta a punta solo con el teclado y el interruptor «Imprimir
+  recibo» (de fábrica, imprimir; el cobro imprime en su transacción). Sigue T-14 (mi PIN y el acceso con teclado).
 
 ---
 

@@ -116,7 +116,7 @@ import { historialParaCobrar } from "../dinero/tasas.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
-import { ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
+import { imprimirVentaDelCobro, ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 import { asentarExistencias, comprobarExistencias, existenciasDe } from "../inventario/existencias.ts";
 import { asentarAjuste } from "../inventario/salidas.ts";
 import { encolarEn } from "../impresion/impresion.ts";
@@ -689,6 +689,14 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               content: venta,
             },
           });
+          // El recibo, si se pidió (B3-8), en la misma transacción: si el cobro no se asienta, tampoco sale el
+          // papel. Sin impresora de recibos el cobro se cierra igual y se dice por qué no salió (un recibo no
+          // detiene un cobro: se imprime después desde Ventas). Desde papel no: el cliente ya se llevó el suyo.
+          let reciboNoImpreso: string | undefined;
+          if (cmd.imprimirRecibo && !papel) {
+            const impreso = await imprimirVentaDelCobro(tx, ctx, cmd.idempotencyKey, cifrador, ahora);
+            if ("ok" in impreso) reciboNoImpreso = impreso.mensaje;
+          }
           if (carga && papel) {
             await asentarRegistroEn(tx, ctx, carga, papel, {
               tipo: "COBRO",
@@ -704,7 +712,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null): CasosCuenta
               },
             });
           }
-          return cuentaYLibro(tx, cmd.accountId, cmd.idempotencyKey, cifrador);
+          const hecho = await cuentaYLibro(tx, cmd.accountId, cmd.idempotencyKey, cifrador);
+          return reciboNoImpreso ? { ...hecho, reciboNoImpreso } : hecho;
         });
 
       try {

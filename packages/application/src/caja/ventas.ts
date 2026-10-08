@@ -85,6 +85,55 @@ export async function ventaDelCobro(tx: Transaccion, cobroKey: string, cifrador:
   return s ? ventaDe(s, cifrador) : null;
 }
 
+/**
+ * Imprime una venta dentro de una transacción ya abierta: el trabajo en la cola de recibos, la impresión anotada
+ * (la primera es el original; las siguientes, copias) y su asiento. Sin impresora de recibos, el rechazo, sin
+ * escribir nada. Lo usan «Imprimir» de Ventas y el cobro que pide su recibo (B3-8).
+ */
+export async function imprimirVentaEn(
+  tx: Transaccion,
+  ctx: Contexto,
+  venta: VentaConTodo,
+  cifrador: Cifrador | null,
+  ahora: number,
+): Promise<VentaCerradaDto | Rechazo> {
+  const copia = venta.prints.length > 0;
+  const dto = ventaDe(venta, cifrador);
+  const trabajo = await encolarEn(
+    tx,
+    ctx,
+    { tipo: "RECIBO", titulo: `Recibo #${String(venta.orderNumber).padStart(4, "0")}`, copia, saleId: venta.id, documento: documentoDeRecibo(dto, await ajustesDe(tx, ctx.branchId), copia), para: "recibos" },
+    ahora,
+  );
+  if ("ok" in trabajo) return trabajo;
+  const quien = await nombreDe(tx, ctx);
+  const impresion = await tx.salePrint.create({
+    data: {
+      tenantId: ctx.tenantId,
+      saleId: venta.id,
+      printedAt: new Date(ahora),
+      printedBy: ctx.quien?.userId ?? null,
+      printedByName: quien.nombre,
+      deviceId: ctx.quien?.deviceId ?? null,
+      copy: copia,
+    },
+  });
+  await auditar(tx, ctx, {
+    action: copia ? "venta.reimprimir" : "venta.imprimir",
+    entityType: "sale",
+    entityId: venta.id,
+    after: { orderNumber: venta.orderNumber, copia, impresiones: venta.prints.length + 1 },
+  });
+  return ventaDe({ ...venta, prints: [...venta.prints, impresion] }, cifrador);
+}
+
+/** Imprime el recibo de un cobro recién cerrado (B3-8), por la clave del cobro, en su transacción. */
+export async function imprimirVentaDelCobro(tx: Transaccion, ctx: Contexto, cobroKey: string, cifrador: Cifrador | null, ahora: number): Promise<VentaCerradaDto | Rechazo> {
+  const venta = await tx.sale.findFirst({ where: { operationKey: cobroKey }, include: CON_TODO });
+  if (!venta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "El cobro no dejó su venta: no hay recibo que imprimir." };
+  return imprimirVentaEn(tx, ctx, venta, cifrador, ahora);
+}
+
 export function casosVentas(base: Base, cifrador: Cifrador | null): CasosVentas {
   return {
     async delTurno(ctx) {
@@ -107,34 +156,7 @@ export function casosVentas(base: Base, cifrador: Cifrador | null): CasosVentas 
         if (rechazo) return rechazo;
         const venta = await tx.sale.findUnique({ where: { id: v.data.saleId }, include: CON_TODO });
         if (!venta || venta.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa venta no existe en esta sucursal." };
-        const copia = venta.prints.length > 0;
-        const dto = ventaDe(venta, cifrador);
-        const trabajo = await encolarEn(
-          tx,
-          ctx,
-          { tipo: "RECIBO", titulo: `Recibo #${String(venta.orderNumber).padStart(4, "0")}`, copia, saleId: venta.id, documento: documentoDeRecibo(dto, await ajustesDe(tx, ctx.branchId), copia), para: "recibos" },
-          ahora,
-        );
-        if ("ok" in trabajo) return trabajo;
-        const quien = await nombreDe(tx, ctx);
-        const impresion = await tx.salePrint.create({
-          data: {
-            tenantId: ctx.tenantId,
-            saleId: venta.id,
-            printedAt: new Date(ahora),
-            printedBy: ctx.quien?.userId ?? null,
-            printedByName: quien.nombre,
-            deviceId: ctx.quien?.deviceId ?? null,
-            copy: copia,
-          },
-        });
-        await auditar(tx, ctx, {
-          action: copia ? "venta.reimprimir" : "venta.imprimir",
-          entityType: "sale",
-          entityId: venta.id,
-          after: { orderNumber: venta.orderNumber, copia, impresiones: venta.prints.length + 1 },
-        });
-        return ventaDe({ ...venta, prints: [...venta.prints, impresion] }, cifrador);
+        return imprimirVentaEn(tx, ctx, venta, cifrador, ahora);
       });
       if ("ok" in r) {
         if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "venta.imprimir", reason: r.mensaje });
