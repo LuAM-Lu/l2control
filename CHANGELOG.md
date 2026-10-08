@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.86.1] — 2026-10-08 · Hacia la puesta en marcha
 
 Lo escrito de B8-2 (M-30): el procedimiento en papel y los runbooks del técnico. No cuenta como paso todavía: B8-2 se
 cierra con la capacitación por rol, en B8-3.
