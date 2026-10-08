@@ -3,7 +3,7 @@
 Sistema de gestión para parque infantil + restaurante (Abby Kingdom, Venezuela).
 
 **Un solo documento vivo: [`docs/MAESTRO.md`](docs/MAESTRO.md).** Ahí están el estado, la ruta
-hasta producción (etapas B0 a B8), lo que bloquea y el handoff. Empieza siempre por su §1.
+hasta producción (Etapas 0 a 11; la puesta en marcha es la 8), lo que bloquea y el handoff. Empieza siempre por su §1.
 
 **El plan manda.** `docs/PLAN.md` es la especificación congelada: 17 ADRs, 29 decisiones del cliente y
 las tareas `Fn-nn` con su criterio de aceptación en §12. Antes de construir algo, busca su paso en
@@ -60,8 +60,9 @@ Una excepción se escribe `lint-permitido: <regla> — <motivo>`, y sin motivo n
 
 ```
 apps/web                  Next.js 16 — todas las superficies
-  app/                    rutas
-  src/features/<dominio>  pantallas y lógica de aplicación, por dominio
+  app/                    rutas; app/informes/ son las vistas de impresión A4 (los PDF de Reportes, la hoja de conteo
+                          y el informe de diferencias), fuera de la cáscara del panel
+  src/features/<dominio>  pantallas y lógica de aplicación, por dominio (reportes/ tiene las piezas de todo informe)
   src/servidor/           entorno validado, conexión a application y logger (solo servidor)
 apps/worker               canal en vivo (Socket.io + Valkey), outbox, trabajos programados (B5-1) y el aviso por correo de los reportes (T-11)
 apps/printer-agent        agente de impresión de la laptop de caja: cola del servidor → impresora por TCP 9100 (ADR-026)
@@ -69,10 +70,11 @@ packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
 packages/domain/rates     tasa vigente, fracción de conversión y límite de cordura (puro)
 packages/domain/tax       IVA con vigencias e IGTF por medio (puro)
-packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones, carga desde papel (puro)
+packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones, carga desde papel e informe de ventas (puro)
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
-packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
-packages/domain/inventory catálogo con precio por día, existencia, costo promedio, mínimos y conteo (puro)
+packages/domain/identity  permisos, autorizaciones, dispositivos, PIN y las puertas del equipo con la cuenta de soporte (puro)
+packages/domain/inventory catálogo con precio por día, existencia, costo promedio, mínimos, conteo y su informe,
+                          kárdex, ajuste de precio en lote y sabores (puro)
 packages/domain/orders    plano del restaurante, pedido del mesero con su comanda y la atención en el salón (puro)
 packages/domain/printing  ticket impreso (ESC/POS) y cola de impresión (puro)
 packages/application      casos de uso: contrato + dominio + base en la transacción del tenant
@@ -99,6 +101,20 @@ vuelve a leer lo suyo (`useAlCambiar` o `router.refresh()`). Nada de sondeos. El
 (`features/operacion`) viaja por el worker con el estado de las mesas hasta B6-3; los pedidos ya son del
 servidor (B6-2).
 
+**Secciones con pestañas (T-18).** Lo que va junto vive en una sección con `pestanas` en `shell/navigation.ts`, cada
+pestaña con su permiso (la sección se ve con cualquiera de ellos). La pestaña va en la dirección (`?pestana=…`,
+`rutaPestana`, `pestanaPedida`) y la ruta del panel lee solo la abierta, dentro de `MarcoDeSeccion`. Una ruta que se
+muda deja su entrada en `RUTAS_MOVIDAS`: un enlace guardado nunca se rompe.
+
+**Reportes (Etapa 11).** De solo lectura (`reportes.verSucursal`), sacados de los asientos, por día de negocio del
+local y con el periodo en la dirección. Cada uno arma sus secciones una vez y las pintan la pantalla y su PDF, que es la
+vista de impresión de `app/informes/` con las piezas de `features/reportes/informe.tsx` (`TablaDeInforme`,
+`DocumentoDeInforme`, `FiltroDePeriodo`) y la clase `.l2-informe` de los tokens. Sin librería de PDF ni Excel.
+
+**La cuenta de soporte (T-17).** Una persona de Administración con `support_login`: no sale en «¿Quién entra?», entra
+por «Acceso de soporte», firma «Nombre (soporte)» y no cuenta como personal del local. Abre turnos y cobra solo con
+`soporteOpera`, que la web enciende cuando `L2_ENTORNO` no es `produccion`.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 
@@ -123,6 +139,10 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
   `ESCALA_DE_TEXTO` de `packages/ui/src/cn.ts`: si no, `cn` lo toma por un color y lo descarta junto a otro color.
 - **Un nombre que no cabe no se corta con «…»:** `Marquesina` de `@l2/ui` lo desliza y, con movimiento reducido, lo
   parte en renglones (T-15).
+- **Una pantalla que vive en una pestaña** pone su cabecera con `EncabezadoDePagina` (`shell/MarcoDeSeccion.tsx`), no con
+  `PageHeader`: el marco ya pone las migas, el nombre de la sección y las pestañas; queda su descripción y sus acciones.
+- **Lo que va fijo en el teléfono** (una barra abajo) va con `createPortal` al `body`: dentro de la región del panel ni
+  `sticky` ni `fixed` se sostienen (MAESTRO §5).
 - **Lo privado en pantalla lleva `data-privado`** (referencias de un pago, sus datos): la captura de un reporte de
   problema no lo lleva, ni los campos de PIN o contraseña (T-11, PLAN §7.6).
 - Objetivos táctiles por superficie: POS 56 px, tablet y teléfono 48 px, admin 32 px (§8.4). El KDS de

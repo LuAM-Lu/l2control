@@ -7,20 +7,20 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-08 · v0.73.0 · `main` en 9ca1c8b más este relevo · nada a medias ni reclamado*
+*2026-10-08 (cierre) · v0.84.0 · `main` en 1b2d47f más este relevo · nada a medias ni reclamado*
 
 ```text
-Hecho, todo en main: M-27 entero (19 pedidos de la primera visita) de v0.61.0 a v0.73.0, y v0.72.1 (corrección). 73 de 90.
-  T-11 (reportes con captura, Ajustes → Soporte, aviso por correo desde el worker) y B6-8 («Servido», Atención en el salón).
-Decidido y escrito en el plan, SIN empezar: M-28 (B9-7, T-17, B9-8) y M-29 (B7-6, B7-7, T-18, B9-9, B9-10, Reportes
-  B11-1 a B11-3, en PDF por vista de impresión). Orden en MAESTRO §3, punto 8. No programar hasta el sí del usuario.
-Siguiente: B9-7 · catálogo sin existencias. Criterio: alta en hoja sin cantidades; «Sin inventario inicial» ≠ «Agotado»,
-  no se vende; los pendientes contados en Inventario y la puesta a punto; el inventario inicial trae solo esos.
-Para decidir: D-REL (qué entra en la 1.0.0, MAESTRO §4). Para el usuario: L2_SMTP_URL y L2_CORREO_SOPORTE en el VPS;
-  confirmar P-1, P-3, P-5, P-6 y P-14 de M-27. La rama vieja feat/t-11 sigue en GitHub (la usó otra persona).
-Cuidado: antes de etiquetar, git log -1 origin/main tiene que ser el commit del paso (un PR #52 fusionó aparte un reclamo
-  y una etiqueta cayó en el commit equivocado; se rehízo). Si pasa: rama nueva desde main y cherry-pick, nunca --force.
-  cn (tailwind-merge) solo conoce la escala ESCALA_DE_TEXTO de packages/ui/src/cn.ts: un escalón nuevo va también ahí.
+Hecho, todo en main y etiquetado: M-28 y M-29 enteros, once pasos de v0.74.0 a v0.84.0 (84 de 90): B9-7, B7-7, B7-6,
+  B11-1, T-18, B11-3, B11-2, T-17, B9-10, B9-9 y B9-8. Cada uno con su PR del paso y su PR de versión aparte.
+  Reportes en PDF (app/informes/), Ajustes en 12 secciones con pestañas (MarcoDeSeccion), cuenta de soporte
+  (Acceso de soporte; soporteOpera fuera de producción), conteo a ciegas, editar en lote y duplicar con sabores.
+Siguiente: nada programable sin el local. B7-3 y T-8c esperan la visita (equipos reales, agente que se actualiza solo);
+  después, la Etapa 8. Criterio de cada uno en MAESTRO §3.
+Para decidir (usuario): D-REL (qué entra en la 1.0.0, §4). Para el usuario: L2_SMTP_URL y L2_CORREO_SOPORTE en el VPS;
+  confirmar P-1, P-3, P-5, P-6 y P-14 de M-27. En el staging: PC de respaldos, semilla y feriados (MAESTRO §1).
+Cuidado: tres pruebas fallaban por azar (un UUID con «1970», un PIN temporal igual al propio): corregidas, ver §5. Tras
+  cambiar @l2/application, reiniciar pnpm dev (guarda aplicacion() al arrancar). Lo fijo en el teléfono va con portal.
+  La rama feat/t-11 sigue en GitHub (la usó otra persona): no se borra sin preguntar.
 ```
 
 ## aemorandin-coder
