@@ -517,7 +517,7 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   abre. Visto en el navegador en la base de pruebas: con supervisión dentro, se ajusta su rol con el mismo caso de
   uso que usa Roles y accesos (desde un guion, no desde un segundo equipo) y «Nuevo producto» aparece sin volver a
   entrar; al retirarlo, desaparece. Roles y accesos, en los dos temas.*
-- [ ] **T-14 · Mi PIN y el acceso con teclado** (M-27, P-13, P-17).
+- [~] **T-14 · Mi PIN y el acceso con teclado** (M-27, P-13, P-17). *A cargo: LuAMi, rama `feat/t-14`.*
   → «Mi cuenta» cambia el PIN propio (el actual y el nuevo dos veces, con sus reglas y su bloqueo, auditado). En el
   acceso, con teclado físico, cada persona tiene su tecla, el PIN se escribe o se pega, Intro entra y Esc vuelve.
 - [ ] **T-15 · La operación se lee de un vistazo** (M-27, P-7, P-8, P-9, P-10, P-12).
