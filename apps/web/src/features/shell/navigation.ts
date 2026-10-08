@@ -1,5 +1,6 @@
 import {
   Baby,
+  ChartColumn,
   CreditCard,
   House,
   LayoutGrid,
@@ -251,6 +252,38 @@ export const MODULOS: readonly Modulo[] = [
         proposito:
           "Merma, consumo interno, regalo y devolución al proveedor, con motivo y autorización, y el conteo físico.",
         tarea: "F8-07",
+      },
+    ],
+  },
+  {
+    // Etapa 11 (M-29): de solo lectura, para administración y supervisión. Sale de los asientos y cuadra con los cierres.
+    id: "reportes",
+    nombre: "Reportes",
+    icon: ChartColumn,
+    accion: "reportes.verSucursal",
+    resumen: "Lo que pasó en un periodo, sacado de los asientos: ventas, inventario y movimientos, cada uno con su PDF.",
+    secciones: [
+      {
+        id: "ventas",
+        nombre: "Ventas",
+        href: rutaSeccion("reportes", "ventas"),
+        proposito:
+          "Lo vendido y lo cobrado de un día o de un rango: por medio de pago y moneda, por origen y por cajera y turno, con lo anulado aparte. Cuadra con los cierres Z.",
+        tarea: "B11-1",
+      },
+      {
+        id: "inventario",
+        nombre: "Inventario al momento",
+        href: null,
+        proposito: "Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar.",
+        tarea: "B11-2",
+      },
+      {
+        id: "movimientos",
+        nombre: "Movimientos",
+        href: null,
+        proposito: "El kárdex de un producto o una categoría: cada entrada, venta, salida y conteo con su saldo.",
+        tarea: "B11-3",
       },
     ],
   },

@@ -42,7 +42,8 @@ teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el
 (reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
 «Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. De M-28 y M-29 (decididos el 2026-10-08, once pasos; orden en
 §3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
-corrida limpia) y B7-6 (respaldos con carpeta, fijados e integridad). **Siguiente:** **B11-1** (Reportes y las ventas).
+corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad) y B11-1 (Reportes y las ventas, con su PDF).
+**Siguiente:** **T-18** (Ajustes unificados).
 **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
@@ -62,8 +63,9 @@ corrida limpia) y B7-6 (respaldos con carpeta, fijados e integridad). **Siguient
 - **M-27 (2026-10-07) entregado entero:** los 19 pedidos de la primera visita (P-1 a P-19, §2), en 13 pasos. Quedan
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
 - **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
-  el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7) y los
-  respaldos con carpeta, fijados e integridad (B7-6). Quedan Reportes en PDF (Etapa 11), Ajustes unificados (T-18), la cuenta
+  el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
+  respaldos con carpeta, fijados e integridad (B7-6) y la sección Reportes con las ventas y su PDF (B11-1). Quedan
+  inventario al momento y movimientos (B11-2 y B11-3), Ajustes unificados (T-18), la cuenta
   de soporte oculta (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
@@ -235,7 +237,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
-   semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → **B11-1** (Reportes y las ventas) → T-18
+   semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → **T-18**
    (Ajustes unificados) → B11-3 (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
    a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
 
@@ -1971,9 +1973,32 @@ periodo, quién y cuándo), los totales y el número de página, que el navegado
 decisión del usuario). Excepciones, parque frente a restaurante, más vendidos y margen: después del piloto (F9-02 a
 F9-05).
 
-- [~] **B11-1 · La sección Reportes y las ventas** (M-29, F9-01). *A cargo: LuAMi, rama `feat/b11-1`.*
+- [x] **B11-1 · La sección Reportes y las ventas** (M-29, F9-01).
   → Reportes → Ventas del día o de un rango: por medio de pago y moneda, por origen (parque, restaurante, mostrador,
   cumpleaños) y por cajera y turno, con lo anulado aparte; los totales cuadran con los cierres Z del periodo. Su PDF.
+  *Hecho el 2026-10-08, en `feat/b11-1`.*
+  *· Dominio (`@l2/domain-cash`, `reporte.ts`): el origen de una venta por la cuenta en que se cobró, cada asiento en
+  dólares con la tasa con que se cobró (ADR-005; en bolívares sin tasa no se inventa), el cuadre de un turno con su Z en
+  palabras y los periodos de un toque (hoy, ayer, esta semana, este mes y el anterior). 4 pruebas.*
+  *· Contrato: `ConsultaDeVentasSchema` (hasta 93 días y, si se quiere, una cajera) e `InformeDeVentasSchema` (resumen,
+  por medio y moneda, por origen, por cajera, por turno con su cuadre, lo anulado y el encabezado del PDF).*
+  *· Aplicación: `reportes.ventas` (`reportes.verSucursal`, solo lectura) calcula cada turno con lo mismo que su corte
+  (`libroDelTurno`, `porMedioDe`, `ventasYExcepciones`): un turno con su Z da lo mismo que su Z y, si no, dice qué no
+  cuadra. 6 pruebas contra la base.*
+  *· Web: el módulo Reportes del panel (Ventas; Inventario al momento y Movimientos, pendientes). Reportes → Ventas con
+  los periodos de un toque, un rango y la cajera en la dirección (el enlace se guarda o se comparte), cuatro cifras
+  (vendido, cobrado, anuladas y cierres Z) y una sección por pestaña; se relee sola con cada venta o cierre. Su PDF en
+  `/informes/ventas`: una hoja A4 en blanco y negro con todas las secciones, el encabezado (local, periodo, quién y
+  cuándo) y el número de página, que el navegador imprime o guarda como PDF. Las piezas (`informe.tsx`: la tabla, el
+  documento A4) son las de B11-2 y B11-3.*
+  *· Decidido al construir: el origen es la cuenta en que se cobró (familia → parque, mesa o de pie → restaurante,
+  mostrador, evento → cumpleaños); separar parque y restaurante línea por línea dentro de una cuenta es F9-03, después
+  del piloto. El periodo va por día de negocio y cabe en 93 días (más, se parte). El PDF es la impresión del navegador,
+  sin librería en el servidor.*
+  *· Comprobado: en el navegador, contra la base de pruebas: el mes con 15 ventas en 5 turnos (los 2 con su Z cuadran),
+  por medio, origen, cajera y turno, el filtro de cajera, un rango de más de 93 días rechazado con su mensaje y el PDF
+  de una página con su número; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar en el
+  escritorio, sin desbordes ni errores de consola.*
 - [ ] **B11-2 · Inventario al momento** (M-29).
   → Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar, a la hora en que
   se pide. Su PDF.
