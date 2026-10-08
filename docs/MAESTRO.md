@@ -42,8 +42,9 @@ teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el
 (reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
 «Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. De M-28 y M-29 (decididos el 2026-10-08, once pasos; orden en
 §3, punto 8) están entregados B9-7 (catálogo sin existencias y su conteo inicial), B7-7 (la semilla con casillas para la
-corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF) y T-18
-(Ajustes de 18 secciones a 12, con pestañas). **Siguiente:** **B11-3** (movimientos).
+corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Reportes y las ventas, con su PDF), T-18
+(Ajustes de 18 secciones a 12, con pestañas) y B11-3 (movimientos: el kárdex con su PDF). **Siguiente:** **B11-2**
+(inventario al momento).
 **Para decidir:** D-REL (qué entra en la 1.0.0, §4). B7-3 y T-8c esperan visita al local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
@@ -65,7 +66,7 @@ corrida limpia), B7-6 (respaldos con carpeta, fijados e integridad), B11-1 (Repo
 - **Ahora (M-28 y M-29, 2026-10-08):** once pasos decididos con el usuario (§3, orden de ejecución, punto 8). Entregado:
   el catálogo sin existencias y su conteo inicial (B9-7), la semilla con casillas para la corrida limpia (B7-7), los
   respaldos con carpeta, fijados e integridad (B7-6), la sección Reportes con las ventas y su PDF (B11-1) y Ajustes
-  unificados (T-18). Quedan inventario al momento y movimientos (B11-2 y B11-3), la cuenta
+  unificados (T-18) y los movimientos de inventario (B11-3). Quedan inventario al momento (B11-2), la cuenta
   de soporte oculta (T-17), conteo a ciegas (B9-10), editar en lote (B9-9) y duplicar productos (B9-8). **Para
   decidir:** D-REL, qué entra en la 1.0.0 (§4).
 - **Después, para producción:** B7-3 y T-8c en el local, con los equipos reales; y la Etapa 8 (red del local con 4G,
@@ -238,7 +239,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
 8. **M-28 y M-29**, del más complejo al más simple: ~~B9-7~~ (catálogo sin existencias y su conteo inicial) → ~~B7-7~~ (la
    semilla con casillas) → ~~B7-6~~ (respaldos con carpeta, fijados e integridad) → ~~B11-1~~ (Reportes y las ventas) → ~~T-18~~
-   (Ajustes unificados) → **B11-3** (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
+   (Ajustes unificados) → ~~B11-3~~ (movimientos) → **B11-2** (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
    a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
 
 Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -2018,9 +2019,32 @@ F9-05).
 - [ ] **B11-2 · Inventario al momento** (M-29).
   → Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar, a la hora en que
   se pide. Su PDF.
-- [~] **B11-3 · Movimientos (kárdex)** (M-29). *A cargo: LuAMi, rama `feat/b11-3`.*
+- [x] **B11-3 · Movimientos (kárdex)** (M-29).
   → Por producto (o categoría) y periodo: cada entrada, venta, salida, ajuste y conteo con su fecha, quién, el motivo y el
   saldo después de cada uno; el saldo final es la existencia. Su PDF.
+  *Hecho el 2026-10-08, en `feat/b11-3`.*
+  *· Dominio (`@l2/domain-inventory`, `kardex.ts`): `conSaldo` (cada movimiento con el saldo que deja, en orden de
+  instante y de llegada) y `resumenDeKardex` (lo que entró, lo que salió y el saldo final). 3 pruebas.*
+  *· Contrato: `ConsultaDeMovimientosSchema` (periodo de hasta 93 días y un producto o una categoría; sin ninguno, solo lo
+  que se puede elegir) e `InformeDeMovimientosSchema` (por producto: al empezar, cada movimiento con quién, quién
+  autorizó, el detalle y el saldo, al terminar y la existencia de ahora).*
+  *· Aplicación: `reportes.movimientos` (`reportes.verSucursal`, solo lectura). El periodo va por días del local (de su
+  medianoche a la del día siguiente al último); el saldo al empezar es la suma de lo de antes. Además de
+  `stock_movement`, lo que pasó sin mover nada: el conteo que cuadró y el inventario inicial en cero. Una entrada dice
+  de dónde vino (compra, proveedor, factura, bultos), una salida su motivo y quién la autorizó, un conteo qué se esperaba
+  y qué se contó, y una venta dónde se vendió (la mesa, el parque, el mostrador o un cumpleaños), nunca a quién. 5
+  pruebas contra la base.*
+  *· Web: Reportes → Movimientos con el periodo (el filtro de periodo es ahora una pieza común con Ventas), el producto
+  (por categoría) o la categoría en la dirección; con una categoría, un renglón por producto y el kárdex del que se
+  toque (se abre el que se movió); cuatro cifras (al empezar, entraron, salieron, al terminar) y la tabla con el saldo.
+  Se relee sola cuando cambia la existencia. Su PDF en `/informes/movimientos`: el resumen de la categoría y el kárdex de
+  cada producto. El manual de Reportes, al día.*
+  *· Decidido al construir: el kárdex va en unidades de venta (el valor al costo es de B11-2); una venta no nombra a la
+  familia (el lugar basta para el kárdex y el PDF circula).*
+  *· Comprobado: en el navegador, contra la base de pruebas: sin elegir (lo que se puede elegir), Bebidas del mes (4
+  productos; Agua mineral con 20 que entraron y 9 ventas en mesas, mostrador y cumpleaños, saldo 11 = existencia), un
+  producto y el PDF de la categoría; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni
+  errores de consola.*
 
 ### Etapa 7 · Staging en VPS
 

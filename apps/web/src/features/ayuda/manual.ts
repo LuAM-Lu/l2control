@@ -365,10 +365,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
     ruta: "/panel/reportes",
     titulo: "Reportes",
     roles: DIRECCION,
-    proposito: "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas de un día o de un rango, con su PDF.",
+    proposito:
+      "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas de un día o de un rango y los movimientos de inventario (el kárdex), cada uno con su PDF.",
     pasos: [
       "Elige el periodo (hoy, ayer, esta semana, este mes o el anterior) o un rango de hasta 93 días y, si quieres, una cajera.",
-      "Arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección.",
+      "Ventas: arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección.",
+      "Movimientos: elige un producto o una categoría; cada entrada, venta, salida y conteo sale con quién, el motivo y el saldo que dejó.",
       "«PDF» abre la hoja para imprimir: en el diálogo del navegador, elige la impresora o «Guardar como PDF».",
     ],
     problemas: [

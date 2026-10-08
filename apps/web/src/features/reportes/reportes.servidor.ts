@@ -2,7 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { calendarDay } from "@l2/domain-rates";
 import { periodoPredefinido } from "@l2/domain-cash";
-import type { InformeDeVentasDto, Resultado } from "@l2/contracts";
+import type { InformeDeMovimientosDto, InformeDeVentasDto, Resultado } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 import { ajustesDelLocal } from "../sucursal/ajustes.servidor";
@@ -40,4 +40,28 @@ export async function informeDeVentas(q: ConsultaEnLaDireccion): Promise<VentasP
   if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." } };
   const consulta = { desde: pedido.desde, hasta: pedido.hasta, ...(cajera ? { cajera } : {}) };
   return { hoy, pedido, informe: await (await aplicacion()).reportes.ventas(ctx, consulta) };
+}
+
+/** Lo que se pidió del kárdex (de la dirección, o el día de hoy sin producto) y lo que el servidor contestó. */
+export type MovimientosPedidos = Readonly<{
+  hoy: string;
+  pedido: Readonly<{ desde: string; hasta: string; producto: string | null; categoria: string | null }>;
+  informe: Resultado<InformeDeMovimientosDto>;
+}>;
+
+/**
+ * Reportes → Movimientos (B11-3): el kárdex del periodo y del producto o la categoría de la dirección. Sin periodo, el
+ * de hoy; sin producto ni categoría, el informe trae solo lo que se puede elegir.
+ */
+export async function informeDeMovimientos(q: ConsultaEnLaDireccion): Promise<MovimientosPedidos> {
+  await connection();
+  const hoy = await hoyEnElLocal();
+  const porDefecto = periodoPredefinido("HOY", hoy);
+  const producto = uno(q.producto) ?? null;
+  const categoria = producto ? null : (uno(q.categoria) ?? null);
+  const pedido = { desde: uno(q.desde) ?? porDefecto.desde, hasta: uno(q.hasta) ?? porDefecto.hasta, producto, categoria };
+  const ctx = await contextoActual();
+  if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." } };
+  const consulta = { desde: pedido.desde, hasta: pedido.hasta, ...(producto ? { producto } : {}), ...(categoria ? { categoria } : {}) };
+  return { hoy, pedido, informe: await (await aplicacion()).reportes.movimientos(ctx, consulta) };
 }

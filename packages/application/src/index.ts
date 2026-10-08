@@ -45,6 +45,7 @@ import { casosSemilla, type CasosSemilla } from "./sucursal/semilla.ts";
 import { casosActualizaciones, type CasosActualizaciones } from "./sistema/actualizaciones.ts";
 import { casosRespaldos, type CasosRespaldos } from "./sistema/respaldos.ts";
 import { casosReportes, type CasosReportes } from "./reportes/ventas.ts";
+import { casosMovimientos, type CasosMovimientos } from "./reportes/movimientos.ts";
 import { casosEntradas, type CasosEntradas } from "./inventario/entradas.ts";
 import { casosSalidas, type CasosSalidas } from "./inventario/salidas.ts";
 import { casosTiempoReal, type CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
@@ -158,7 +159,7 @@ export interface Aplicacion {
   /** Los respaldos que hace el servidor y baja la PC del local (B7-4). */
   readonly respaldos: CasosRespaldos;
   /** Los reportes de solo lectura (Etapa 11, M-29). */
-  readonly reportes: CasosReportes;
+  readonly reportes: CasosReportes & CasosMovimientos;
   /** Las entradas de mercancía con su costo (B9-3). */
   readonly entradas: CasosEntradas;
   /** Las salidas con motivo y los conteos físicos, con su autorización (B9-4). */
@@ -251,7 +252,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     semilla: casosSemilla(base, { ajustes, tarifario, plano, eventos, medios, descuentos, impuestos, impresion }),
     actualizaciones: casosActualizaciones(base),
     respaldos: casosRespaldos(base),
-    reportes: casosReportes(base),
+    reportes: { ...casosReportes(base), ...casosMovimientos(base) },
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),

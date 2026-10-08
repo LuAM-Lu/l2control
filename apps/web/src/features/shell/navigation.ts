@@ -294,7 +294,7 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "movimientos",
         nombre: "Movimientos",
-        href: null,
+        href: rutaSeccion("reportes", "movimientos"),
         proposito: "El kárdex de un producto o una categoría: cada entrada, venta, salida y conteo con su saldo.",
         tarea: "B11-3",
       },

@@ -1,12 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, LoaderCircle, Printer } from "lucide-react";
 import type { MoneyDto } from "@l2/contracts";
+import { periodoPredefinido, type PeriodoPredefinido } from "@l2/domain-cash";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
-import { Button, TAMANO_ICONO, cn, formatMoneyVE } from "@l2/ui";
+import { Button, CAMPO_DE_FILTRO, FiltroSegmentado, TAMANO_ICONO, cn, formatMoneyVE } from "@l2/ui";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 
 /**
@@ -165,5 +166,82 @@ export function SeccionImpresa({ seccion }: { seccion: SeccionDeInforme }) {
       <h2 className="mb-1 text-[11pt] font-bold [break-after:avoid]">{seccion.titulo}</h2>
       <TablaDeInforme seccion={seccion} papel />
     </section>
+  );
+}
+
+const PERIODOS: readonly { id: PeriodoPredefinido; nombre: string }[] = [
+  { id: "HOY", nombre: "Hoy" },
+  { id: "AYER", nombre: "Ayer" },
+  { id: "SEMANA", nombre: "Esta semana" },
+  { id: "MES", nombre: "Este mes" },
+  { id: "MES_ANTERIOR", nombre: "Mes anterior" },
+];
+
+/**
+ * El periodo de un informe: los de un toque (hoy, ayer, esta semana, este mes y el anterior) y un rango a mano, con lo
+ * que cada informe filtre además (`children`). Quien lo usa le pone `key` con el periodo pedido, para que el rango a mano
+ * vuelva a lo pedido al navegar.
+ */
+export function FiltroDePeriodo({
+  hoy,
+  desde: pedidoDesde,
+  hasta: pedidoHasta,
+  cargando,
+  onPeriodo,
+  children,
+}: {
+  hoy: string;
+  desde: string;
+  hasta: string;
+  cargando: boolean;
+  onPeriodo: (p: { desde: string; hasta: string }) => void;
+  children?: ReactNode;
+}) {
+  const [desde, setDesde] = useState(pedidoDesde);
+  const [hasta, setHasta] = useState(pedidoHasta);
+  const cambiado = desde !== pedidoDesde || hasta !== pedidoHasta;
+  const valido = desde !== "" && hasta !== "" && desde <= hasta;
+  const elegido =
+    PERIODOS.find((p) => {
+      const r = periodoPredefinido(p.id, hoy);
+      return r.desde === pedidoDesde && r.hasta === pedidoHasta;
+    })?.id ?? "RANGO";
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <FiltroSegmentado<PeriodoPredefinido | "RANGO">
+        etiqueta="Periodo"
+        opciones={PERIODOS}
+        valor={elegido}
+        onCambiar={(id) => {
+          if (id !== "RANGO") onPeriodo(periodoPredefinido(id, hoy));
+        }}
+      />
+      <form
+        className="flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (valido) onPeriodo({ desde, hasta });
+        }}
+      >
+        <label className="flex items-center gap-1.5 text-detalle text-ink-2">
+          Desde
+          <input type="date" value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)} className={cn(CAMPO_DE_FILTRO, "tnum")} />
+        </label>
+        <label className="flex items-center gap-1.5 text-detalle text-ink-2">
+          Hasta
+          <input type="date" value={hasta} max={hoy} onChange={(e) => setHasta(e.target.value)} className={cn(CAMPO_DE_FILTRO, "tnum")} />
+        </label>
+        <Button type="submit" surface="admin" variant="neutral" disabled={!cambiado || !valido || cargando}>
+          Ver
+        </Button>
+      </form>
+      {children}
+      {cargando && (
+        <span role="status" className="flex items-center gap-1.5 text-detalle text-ink-3">
+          <LoaderCircle size={TAMANO_ICONO.texto} className="animate-spin" aria-hidden="true" />
+          Leyendo…
+        </span>
+      )}
+    </div>
   );
 }

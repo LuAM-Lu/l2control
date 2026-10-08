@@ -44,7 +44,8 @@ import { EventosScreen } from "../../../../../src/features/eventos/EventosScreen
 import { CumpleanosScreen } from "../../../../../src/features/eventos/CumpleanosScreen";
 import { agendaDeEventos, catalogoDeEventos } from "../../../../../src/features/eventos/eventos.servidor";
 import { VentasScreen } from "../../../../../src/features/reportes/VentasScreen";
-import { informeDeVentas, type ConsultaEnLaDireccion } from "../../../../../src/features/reportes/reportes.servidor";
+import { MovimientosScreen } from "../../../../../src/features/reportes/MovimientosScreen";
+import { informeDeMovimientos, informeDeVentas, type ConsultaEnLaDireccion } from "../../../../../src/features/reportes/reportes.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -122,6 +123,7 @@ const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.Rea
   "inventario/salidas": async () => <SalidasScreen catalogo={await catalogoDelLocal()} ajustes={await ajustesDelLocal()} />,
   // Los reportes (Etapa 11) leen su periodo de la dirección: se comparte el enlace y se ve lo mismo.
   "reportes/ventas": async (q) => <VentasScreen {...await informeDeVentas(q)} />,
+  "reportes/movimientos": async (q) => <MovimientosScreen {...await informeDeMovimientos(q)} />,
 };
 
 /**

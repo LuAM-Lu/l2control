@@ -14,6 +14,18 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Movimientos de inventario: el kárdex (B11-3, M-29).
+
+### Añadido
+- **Reportes → Movimientos**: de un producto o de una categoría, en un día o un rango (hasta 93 días), cada entrada,
+  venta, salida, ajuste y conteo con su fecha, quién (y quién autorizó), de dónde vino o por qué, y el saldo que dejó.
+  Arriba, lo que había al empezar, lo que entró, lo que salió y lo que quedó, que es la existencia a esa hora. Con una
+  categoría, un renglón por producto y el kárdex del que se toque.
+- Un conteo que cuadró y un inventario inicial en cero también se ven, con cantidad 0.
+- **Su PDF:** el resumen de la categoría y el kárdex de cada producto, en hojas A4 con su número.
+
 ## [0.78.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Ajustes unificados (T-18, M-29).
