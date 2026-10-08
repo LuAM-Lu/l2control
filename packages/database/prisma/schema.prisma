@@ -1606,15 +1606,33 @@ model KitchenOrder {
   createdByName String   @map("created_by_name")
   deviceId      String?  @map("device_id") @db.Uuid
 
-  branch    Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  account   Account    @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch    Branch              @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account   Account             @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   printJobs PrintJob[]
+  served    KitchenOrderServed?
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, number])
   @@index([tenantId, branchId, createdAt])
   @@index([tenantId, accountId])
   @@map("kitchen_order")
+}
+
+/// Un pedido servido en la mesa (B6-8, D-SERV): ahí termina su espera. Uno por pedido; solo se agrega.
+model KitchenOrderServed {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  orderId    String   @map("order_id") @db.Uuid
+  servedAt   DateTime @map("served_at") @db.Timestamptz(3)
+  servedBy   String?  @map("served_by") @db.Uuid
+  servedName String   @map("served_name")
+  deviceId   String?  @map("device_id") @db.Uuid
+
+  order KitchenOrder @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, orderId])
+  @@map("kitchen_order_served")
 }
 
 /// Los paquetes de cumpleaños y el anticipo publicados (B10-1, D-EVT): cada publicación es una versión

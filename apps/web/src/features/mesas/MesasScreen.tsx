@@ -6,6 +6,7 @@ import {
   Baby,
   CircleCheckBig,
   Clock,
+  Hourglass,
   DoorOpen,
   HandPlatter,
   Link2,
@@ -33,6 +34,7 @@ import { nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas
 import {
   loQuePideAtencion,
   minutosDesde,
+  paraAtender,
   vistaDePie,
   vistaDelPlano,
   type EstadoVisible,
@@ -47,7 +49,7 @@ import { cartaDelMesero } from "../inventario/catalogo.ts";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
 import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
-import { useHora } from "../sucursal/SucursalProvider.tsx";
+import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { usePedidos } from "./PedidosProvider.tsx";
 import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
@@ -106,7 +108,9 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // Las cuentas del salón (F6-05, D2, B6-7): una por familia en cada mesa, y las de pie.
   const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta } = useCuentas();
   // Los pedidos y su comanda, del servidor (B6-2).
-  const { pedidos, enviar: enviarPedido, reimprimir } = usePedidos();
+  const { pedidos, enviar: enviarPedido, reimprimir, servir } = usePedidos();
+  // Los umbrales de la atención en el salón (B6-8).
+  const { atencionSinPedirMin, atencionEsperaMin } = useSucursal().ajustes;
   const op = useOperacion();
   const ahora = useAhoraLocal();
   const { estado } = op;
@@ -516,7 +520,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
               <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion === PIE ? null : seleccion} onElegir={(id) => elegir(id)} className="apaisado:min-h-0" />
             </>
           ) : (
-            <Atender filas={loQuePideAtencion(mesas, pie, ahora)} elegida={seleccion} onElegir={(f) => elegir(f.lugar, f.cuentaId)} onDePie={() => elegir(PIE)} pie={pie} />
+            <Atender filas={loQuePideAtencion(mesas, pie, ahora, { pedidos: pedidos.map((p) => paraAtender(p, cuentas)), umbrales: { sinPedirMin: atencionSinPedirMin, esperaMin: atencionEsperaMin } })} elegida={seleccion} onElegir={(f) => elegir(f.lugar, f.cuentaId)} onDePie={() => elegir(PIE)} pie={pie} />
           )}
         </section>
 
@@ -574,6 +578,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                       borrador={(borradores[cuenta.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
                       onReimprimir={(p) => void volverAImprimir(p)}
                       onAnular={(p) => setAnulando(p)}
+                      esperaMin={atencionEsperaMin}
+                      onServir={(p) =>
+                        void servir(p.id).then((r) => {
+                          if (!r.ok) avisar.error(r.mensaje);
+                        })
+                      }
                     />
                   </div>
                 )
@@ -1030,6 +1040,8 @@ function PedidosDeLaCuenta({
   borrador,
   onReimprimir,
   onAnular,
+  onServir,
+  esperaMin,
 }: {
   pedidos: readonly PedidoDto[];
   cuenta: FamilyAccountDto;
@@ -1037,6 +1049,10 @@ function PedidosDeLaCuenta({
   borrador: number;
   onReimprimir: (p: PedidoDto) => void;
   onAnular: (p: PedidoDto) => void;
+  /** Marca el pedido servido en la mesa (B6-8, D-SERV). */
+  onServir: (p: PedidoDto) => void;
+  /** A partir de cuántos minutos esperando se avisa. */
+  esperaMin: number;
 }) {
   const hora = useHora();
   return (
@@ -1072,6 +1088,30 @@ function PedidosDeLaCuenta({
                   </span>
                 </div>
                 <p className="mt-1.5 text-[13px] text-ink">{p.lineas.map((l) => `${l.cantidad}× ${l.nombre}${l.nota ? ` («${l.nota}»)` : ""}`).join(" · ")}</p>
+                {/* B6-8 (D-SERV): servido en la mesa, o cuánto lleva esperando. */}
+                {!anulado &&
+                  (p.servido ? (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-state-ok">
+                      <CircleCheckBig size={14} aria-hidden="true" />
+                      Servido{ahora > 0 ? ` a las ${hora(Date.parse(p.servido.en))} · esperó ${Math.max(0, Math.floor((Date.parse(p.servido.en) - Date.parse(p.enviadoEn)) / 60_000))} min` : ""}
+                    </p>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "flex items-center gap-1.5 text-[12.5px]",
+                          minutosDesde(p.enviadoEn, ahora) >= esperaMin ? "font-semibold text-state-warn" : "text-ink-3",
+                        )}
+                      >
+                        <Hourglass size={14} aria-hidden="true" />
+                        Esperando · {minutosDesde(p.enviadoEn, ahora)} min
+                      </span>
+                      <Button variant="primary" onClick={() => onServir(p)} className="ml-auto">
+                        <HandPlatter size={16} aria-hidden="true" />
+                        Servido
+                      </Button>
+                    </div>
+                  ))}
                 {fallo && p.comanda.error && <p className="mt-1 text-[12.5px] text-state-crit">{p.comanda.error}</p>}
                 {p.anulacion && (
                   <p

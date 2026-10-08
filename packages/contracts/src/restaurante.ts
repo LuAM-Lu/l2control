@@ -208,6 +208,9 @@ export type EnviarPedidoCommand = z.infer<typeof EnviarPedidoCommandSchema>;
 /** Volver a imprimir la comanda de un pedido (sale marcada «reimpresión»). */
 export const ReimprimirComandaCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido") });
 
+/** El mesero marca un pedido servido en la mesa (B6-8, D-SERV): ahí termina su espera. Una vez por pedido. */
+export const ServirPedidoCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido") });
+
 /** Lo que importa de una comanda (ADR-022 §2): si salió en papel. `@l2/domain-orders` lo decide. */
 export const EstadoDeComandaSchema = z.enum(["EN_COLA", "IMPRESA", "NO_SALIO", "DESCARTADA"]);
 export type EstadoDeComandaDto = z.infer<typeof EstadoDeComandaSchema>;
@@ -245,6 +248,8 @@ export const PedidoSchema = z.object({
    * cuando la cocina no se enteró. `null` si no se anuló nada.
    */
   anulacion: z.object({ estado: EstadoDeComandaSchema, error: z.string().nullable() }).nullable().default(null),
+  /** Cuándo y quién lo marcó servido en la mesa (B6-8, D-SERV); sin marcar, `null`: sigue esperando. */
+  servido: z.object({ en: TimestampSchema, por: z.string() }).nullable().default(null),
 });
 export type PedidoDto = z.infer<typeof PedidoSchema>;
 

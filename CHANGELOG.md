@@ -14,6 +14,17 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.73.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Tiempo de atención en el salón (B6-8, M-27). Con él, lo pedido en la primera visita queda entregado entero.
+
+### Añadido
+- **«Servido» en la tablet.** Cada pedido dice cuánto lleva esperando y tiene su botón «Servido»; al tocarlo queda la
+  hora y cuánto esperó. En «Atender» salen las mesas que esperan su pedido o que no han pedido, pasado su tiempo.
+- **Restaurante → Atención en el salón**, para administración y supervisión: cada mesa con cuánto lleva sentada, sin
+  pedir y esperando, la que más pide atención primero, y la espera media y máxima del día.
+- En Ajustes → Sucursal, a partir de cuántos minutos sin pedir o esperando se avisa (de fábrica, 15 y 20).
+
 ## [0.72.1] — 2026-10-07 · Lo pedido en la primera visita
 
 Corrección.

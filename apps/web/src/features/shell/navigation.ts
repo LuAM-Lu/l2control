@@ -156,6 +156,15 @@ export const MODULOS: readonly Modulo[] = [
         proposito:
           "El plano de sala: qué mesa está ocupada, desde cuándo y qué pidió, y si su comanda salió en papel. Se vincula a las pulseras de los niños y el pedido se confirma antes de ir a cocina.",
       },
+      {
+        id: "atencion",
+        nombre: "Atención en el salón",
+        href: rutaSeccion("restaurante", "atencion"),
+        accion: "reportes.verSucursal",
+        proposito:
+          "Cuánto lleva cada mesa sentada, sin pedir y esperando lo que pidió, con aviso de las que pasan del umbral, y la espera media y máxima del día.",
+        tarea: "B6-8",
+      },
     ],
   },
   {

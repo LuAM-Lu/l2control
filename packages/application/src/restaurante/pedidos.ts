@@ -24,6 +24,7 @@ import {
   PedidoSchema,
   PedidosDelLocalSchema,
   ReimprimirComandaCommandSchema,
+  ServirPedidoCommandSchema,
   problemasDe,
   type AccountLineDto,
   type FamilyAccountDto,
@@ -62,6 +63,11 @@ export interface CasosPedidos {
    * ya salió y se perdió el papel, sale una copia marcada «reimpresión». Mientras se imprime, no.
    */
   reimprimir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PedidoDto>>;
+  /**
+   * Marca un pedido servido en la mesa (`ServirPedidoCommandSchema`, B6-8, D-SERV): ahí termina su espera. Lo hace
+   * quien toma pedidos. Una vez: marcarlo otra vez devuelve el pedido como estaba.
+   */
+  servir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PedidoDto>>;
 }
 
 /** Quién ve los pedidos: quien los toma y la caja, que cobra la mesa y ve si salió la comanda. */
@@ -283,6 +289,46 @@ export function casosPedidos(base: Base): CasosPedidos {
       }
       return { ok: true, valor: r };
     },
+
+    async servir(ctx, entrada, ahora = Date.now()) {
+      const v = ServirPedidoCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "No se marcó: el pedido no es válido.", problemas: problemasDe(v.error) };
+      const marcar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<PedidoDto | Rechazo> => {
+          const rechazo = await exigirPermiso(tx, ctx, "pedido.tomar");
+          if (rechazo) return rechazo;
+          const fila = await tx.kitchenOrder.findUnique({ where: { id: v.data.pedidoId } });
+          if (!fila || fila.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese pedido no existe en esta sucursal." };
+          // Una vez: si otra tablet ya lo marcó, queda como estaba.
+          const ya = await tx.kitchenOrderServed.findUnique({ where: { tenantId_orderId: { tenantId: ctx.tenantId, orderId: fila.id } } });
+          if (!ya) {
+            const quien = await nombreDe(tx, ctx);
+            await tx.kitchenOrderServed.create({
+              data: { tenantId: ctx.tenantId, orderId: fila.id, servedAt: new Date(ahora), servedBy: ctx.quien?.userId ?? null, servedName: quien.nombre, deviceId: ctx.quien?.deviceId ?? null },
+            });
+            await auditar(tx, ctx, {
+              action: "pedido.servir",
+              entityType: "kitchen_order",
+              entityId: fila.id,
+              after: { comanda: fila.number, mesa: fila.tableLabel, esperaMin: Math.max(0, Math.floor((ahora - fila.createdAt.getTime()) / 60_000)) },
+            });
+          }
+          return (await pedidosDe(tx, [fila]))[0]!;
+        });
+      try {
+        const r = await marcar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "pedido.servir", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        // Dos tablets a la vez: la segunda lee el que marcó la primera.
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await marcar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
   };
 }
 
@@ -350,6 +396,13 @@ async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, 
 /** Los pedidos con su comanda, como los lee una pantalla. Los trabajos, en su propia consulta. */
 async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise<PedidoDto[]> {
   if (filas.length === 0) return [];
+  // Cuándo se sirvió cada uno (B6-8): sin marca, sigue esperando.
+  const servidos = new Map(
+    (await tx.kitchenOrderServed.findMany({ where: { orderId: { in: filas.map((f) => f.id) } }, select: { orderId: true, servedAt: true, servedName: true } })).map((s) => [
+      s.orderId,
+      { en: s.servedAt.toISOString(), por: s.servedName },
+    ]),
+  );
   const trabajos = await tx.printJob.findMany({
     where: { orderId: { in: filas.map((f) => f.id) } },
     select: { orderId: true, kind: true, status: true, createdAt: true, copy: true, lastError: true, printerId: true },
@@ -384,6 +437,7 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
       anulacion: anulacion && estadoAnulacion
         ? { estado: estadoAnulacion, error: estadoAnulacion === "NO_SALIO" ? (anulacion.lastError ?? "No salió") : null }
         : null,
+      servido: servidos.get(f.id) ?? null,
     });
   });
 }

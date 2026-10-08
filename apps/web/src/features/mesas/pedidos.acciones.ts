@@ -35,3 +35,10 @@ export async function leerPedidos(): Promise<Resultado<PedidosDelLocalDto>> {
   if (!ctx) return sinSesion;
   return (await aplicacion()).pedidos.leer(ctx);
 }
+
+/** Marca un pedido servido en la mesa (B6-8, D-SERV): ahí termina su espera. */
+export async function servirPedido(entrada: unknown): Promise<Resultado<PedidoDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).pedidos.servir(ctx, entrada);
+}

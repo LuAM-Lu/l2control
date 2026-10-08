@@ -362,3 +362,30 @@ describe("anular en cocina, con papel e inventario (B6-6, M-18)", () => {
     assert.deepEqual((await trabajosDe(pedidoId)).map((t) => t.kind), ["COMANDA"]);
   });
 });
+
+describe("servido en la mesa (B6-8, D-SERV)", () => {
+  test("el mesero lo marca una vez: ahí termina su espera, queda en el pedido y en la auditoría", async () => {
+    const id = randomUUID();
+    valor(await enviar(mesero, "mesa-4", [linea("Refresco")], id, AHORA));
+    const r = valor(await l.app.pedidos.servir(mesero, { pedidoId: id }, AHORA + 12 * MIN));
+    assert.deepEqual(r.servido, { en: new Date(AHORA + 12 * MIN).toISOString(), por: "Pedro Díaz" });
+    // Otra tablet lo marca después: queda como estaba.
+    const otra = valor(await l.app.pedidos.servir(cajera, { pedidoId: id }, AHORA + 20 * MIN));
+    assert.deepEqual(otra.servido, r.servido);
+    const leidos = valor(await l.app.pedidos.leer(mesero, AHORA + 21 * MIN)).pedidos;
+    assert.deepEqual(leidos.find((p) => p.id === id)?.servido, r.servido);
+    const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "kitchen_order", entityId: id });
+    assert.deepEqual(asientos.filter((a) => a.action === "pedido.servir").map((a) => (a.after as { esperaMin: number }).esperaMin), [12]);
+    assert.deepEqual([...temasDe("pedido.servir")], ["pedidos"]);
+  });
+
+  test("quien no toma pedidos no lo marca; un pedido de otro local no existe aquí", async () => {
+    const id = randomUUID();
+    valor(await enviar(mesero, "mesa-4", [linea("Refresco")], id, AHORA));
+    const r = await l.app.pedidos.servir(monitora, { pedidoId: id }, AHORA);
+    assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
+    const ajeno = await l.app.pedidos.servir(otroMesero, { pedidoId: id }, AHORA);
+    assert.equal(ajeno.ok, false);
+    assert.equal(valor(await l.app.pedidos.leer(mesero, AHORA)).pedidos.find((p) => p.id === id)?.servido, null);
+  });
+});

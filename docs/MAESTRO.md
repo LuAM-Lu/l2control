@@ -34,13 +34,14 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.72.1 · 72 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.73.0 · 73 de 79 pasos · M-27 (lo pedido en la primera visita) entregado entero.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
 teclado), T-15 (la operación de un vistazo), T-16 (escala de texto e iconos; el panel con el ancho de Inicio) y T-11
-(reportar un problema, con captura y aviso por correo al desarrollo). D-SERV y D-SOP decididas el 2026-10-07; de M-27
-queda **B6-8** (tiempo de atención en el salón, con «Servido»).
+(reportar un problema, con captura y aviso por correo al desarrollo) y B6-8 (tiempo de atención en el salón, con
+«Servido»). D-SERV y D-SOP se decidieron el 2026-10-07. Lo que queda de la ruta sigue en §3: B7-3 y T-8c esperan visita al
+local; B8 es la puesta en marcha.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -219,7 +220,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
-   **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → **B6-8**. B7-3 y T-8c siguen cuando haya visita al local.
+   **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
 
 Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -1824,9 +1825,22 @@ antes del cobro en servidor (orden de ejecución).
   su última cuenta. Visto en el navegador en la base de pruebas (sentar, segunda familia, nombre repetido rechazado,
   pedido a la segunda con su comanda, de pie, liberar una y la otra sigue, la caja) a 1366×768, 1280×800, 800×1280 y 390
   px, en los dos temas, sin desplazar la página ni errores de consola.*
-- [~] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; D-SERV decidida: el mesero marca «Servido»). *A cargo: LuAMi, rama `feat/b6-8`.*
+- [x] **B6-8 · Tiempo de atención en el salón** (M-27, P-19; D-SERV decidida: el mesero marca «Servido»).
   → Administración ve, por cuenta del salón, cuánto lleva sentada, cuánto sin pedir y cuánto esperando lo pedido,
   con aviso de las que pasan del umbral; el día deja su resumen (espera media y máxima).
+  *Hecho el 2026-10-07 (LuAMi), v0.73.0.* **Dominio** (`@l2/domain-orders`, `atencion.ts`, puro): `atencionDeCuentas`
+  (sentada, sin pedir mientras no hay pedido, esperando desde el pedido sin servir más viejo; aviso «esperando» antes que
+  «sin pedir»; lo anulado no espera) y `resumenDeEspera` (media y máxima de lo servido, redondeadas igual, y cuántos
+  sin marcar); 4 pruebas. **Base** (`20261109000000_pedido_servido`, solo expande): `kitchen_order_served`, uno por
+  pedido, solo agregar. **Contratos:** `servido` en el pedido, `ServirPedidoCommandSchema` y los umbrales
+  `atencionSinPedirMin` (15) y `atencionEsperaMin` (20) en los ajustes. **Aplicación:** `pedidos.servir` (quien toma
+  pedidos; una vez: otra tablet lee el que ya está; el asiento `pedido.servir` lleva la espera), tema «pedidos»; 2
+  pruebas contra la base. **Web:** en la tablet, cada pedido dice «Esperando · N min» (en aviso al pasar el umbral) con
+  su botón «Servido», y luego «Servido a las … · esperó N min»; «Atender» suma «Espera su pedido» y «Sin pedir»; Restaurante
+  → Atención en el salón (administración y supervisión) con las cifras del día y cada cuenta, en vivo; los umbrales en
+  Ajustes → Sucursal; su página en el manual. Visto en el navegador en la base de pruebas, en los dos temas: «Atender»
+  con sus avisos; un pedido de 186 min marcado servido en la tablet («esperó 186 min»); la pantalla de administración
+  con 9 cuentas, la que espera su pedido primero, y la espera del día.*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
@@ -2465,6 +2479,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-07** · v0.72.1 (corrección): `cn` perdía los tamaños de la escala de T-16 junto a un color (las cifras de
   `StatTile` y las etiquetas de `StatusCard` salían con el tamaño de base); ahora los conoce, con su prueba. Y la etiqueta
   v0.72.0 se puso primero sobre el commit de reclamo (un PR #52 lo fusionó aparte): se quitó y se puso en el de T-11.
+- **2026-10-07** · B6-8 entregado como v0.73.0: «Servido» en la tablet y la atención en el salón para administración.
+  Con él, M-27 (los 19 pedidos de la primera visita) queda entregado entero.
 
 ---
 
