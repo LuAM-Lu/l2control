@@ -63,7 +63,7 @@ apps/web                  Next.js 16 — todas las superficies
   app/                    rutas
   src/features/<dominio>  pantallas y lógica de aplicación, por dominio
   src/servidor/           entorno validado, conexión a application y logger (solo servidor)
-apps/worker               canal en vivo (Socket.io + Valkey), outbox y trabajos programados (B5-1)
+apps/worker               canal en vivo (Socket.io + Valkey), outbox, trabajos programados (B5-1) y el aviso por correo de los reportes (T-11)
 apps/printer-agent        agente de impresión de la laptop de caja: cola del servidor → impresora por TCP 9100 (ADR-026)
 packages/contracts        contratos Zod: la forma de cada dato, una vez
 packages/domain/money     aritmética de dinero (puro)
@@ -73,17 +73,17 @@ packages/domain/cash      cobro mixto, vuelto, cuadre, turno, devoluciones, carg
 packages/domain/park      tiempo, gracia, penalización, aforo (puro)
 packages/domain/identity  permisos, autorizaciones, dispositivos, PIN (puro)
 packages/domain/inventory catálogo con precio por día, existencia, costo promedio, mínimos y conteo (puro)
-packages/domain/orders    plano del restaurante y pedido del mesero con su comanda (puro)
+packages/domain/orders    plano del restaurante, pedido del mesero con su comanda y la atención en el salón (puro)
 packages/domain/printing  ticket impreso (ESC/POS) y cola de impresión (puro)
 packages/application      casos de uso: contrato + dominio + base en la transacción del tenant
 packages/database         Prisma, migraciones y RLS forzada; solo lo importa application
 packages/observability    logger JSON con redacción y entorno validado al arrancar (solo servidor)
-packages/ui               nivel 1 primitivos + nivel 2 patrones
+packages/ui               nivel 1 primitivos + nivel 2 patrones; `cn` conoce la escala de texto (T-16)
 packages/config           tokens de diseño + tsconfig base
 docs/MAESTRO.md           estado, ruta a producción y protocolo de handoff (el único vivo)
 docs/HANDOFF.md           el último relevo de cada persona («siguiente» lo lee, «handoff» lo reescribe)
 docs/PLAN.md, FLUJOS.md   especificación y flujos del local (referencia, no se editan)
-docs/adr/                 las 29 decisiones, una por archivo
+docs/adr/                 las 30 decisiones, una por archivo
 ```
 
 **No hay modo demo ni simulador** (retirados el 2026-09-26, M-6): la app corre siempre contra su
@@ -117,6 +117,14 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
   siempre lo mismo y nunca se usan como decoración.
 - El estado se comunica por **color + icono + texto**, nunca solo por color (§8.2).
 - Cifras que se comparan o suman: clase `tnum`.
+- **Tamaños de la escala (T-16), no píxeles sueltos:** `text-pagina`, `text-seccion`, `text-tarjeta`,
+  `text-subtitulo`, `text-cuerpo`, `text-detalle`, `text-nota`, `text-etiqueta` y `text-cifra`; iconos con
+  `size-(--icono-pos|tablet|admin|texto|etiqueta)` o `TAMANO_ICONO`. Un escalón nuevo va en los tokens **y** en
+  `ESCALA_DE_TEXTO` de `packages/ui/src/cn.ts`: si no, `cn` lo toma por un color y lo descarta junto a otro color.
+- **Un nombre que no cabe no se corta con «…»:** `Marquesina` de `@l2/ui` lo desliza y, con movimiento reducido, lo
+  parte en renglones (T-15).
+- **Lo privado en pantalla lleva `data-privado`** (referencias de un pago, sus datos): la captura de un reporte de
+  problema no lo lleva, ni los campos de PIN o contraseña (T-11, PLAN §7.6).
 - Objetivos táctiles por superficie: POS 56 px, tablet y teléfono 48 px, admin 32 px (§8.4). El KDS de
   64 px se retira con ADR-022: la cocina trabaja con la comanda impresa.
 - Estados de carga, vacío y **error visibles**. Los errores ocultos son antipatrón explícito.
@@ -149,6 +157,10 @@ Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
   Con `main` protegido se fusiona con `gh pr merge --rebase --delete-branch` (historial lineal).
 - **Antes de empezar un paso, se reclama:** su casilla de MAESTRO §3 pasa a `[~]` con «a cargo: <persona>»
   y la rama, en un commit pequeño que se sube enseguida. Si ya tiene dueño, se habla antes de tocarlo.
+- **Antes de etiquetar,** `git log -1 origin/main` tiene que ser el commit del paso y su `package.json`, esa versión:
+  una etiqueta sobre otro commit publica otra cosa. Si alguien fusiona aparte el commit de reclamo y el PR del paso ya
+  no se puede fusionar, se aplica el commit del paso en una rama nueva desde `main` (cherry-pick) y se cierra el PR
+  viejo; nunca `push --force` en una rama que otro usó (pasó con T-11, MAESTRO §5).
 - **Un commit por paso**, con título en español que diga qué cambia para quien usa el sistema, y un
   cuerpo con el porqué. El mismo commit marca el paso en `docs/MAESTRO.md` §3.
 - **Versionado semántico (M-10):** cada paso entregado sube el MINOR (`0.14.0`), cada corrección entre

@@ -3,6 +3,8 @@
 - **Estado:** Aceptada (2026-09-28, decisión del cliente tras la visita técnica, M-15). **Cambia DEC-19**
   (pantalla de cocina más comanda impresa): se retira la pantalla. ADR-015 (impresión en cola con
   confirmación) sigue entero y pasa a ser la única vía a la cocina.
+  **Superseded en parte por [ADR-030](030-el-mesero-marca-servido.md)** (2026-10-07): el mesero marca «Servido» y ahí
+  termina la espera de un pedido; la cocina sigue sin pantalla y sin «en fuego» ni «listo».
 - **Fecha:** 2026-09-28
 - **Situación en el código:** aplicada con B6-2 (v0.41.0, 2026-10-02): el pedido (`kitchen_order`) y su comanda
   en la cola se escriben en una transacción (`@l2/application`, `restaurante/pedidos.ts`); la estación de cocina, la
