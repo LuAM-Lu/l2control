@@ -207,6 +207,10 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
   const ajustes = casosAjustes(base);
   const plano = casosPlano(base);
   const eventos = casosEventos(base);
+  const impuestos = casosImpuestos(base);
+  const medios = casosMedios(base, cifrador);
+  const descuentos = casosDescuentos(base);
+  const impresion = casosImpresion(base);
   return {
     tarifario,
     parque,
@@ -224,14 +228,14 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     puestaAPunto: casosPuestaAPunto(base),
     accesos: casosAccesos(base),
     tasas: casosTasas(base),
-    impuestos: casosImpuestos(base),
+    impuestos,
     pagos: casosPagos(base, cifrador),
     turnos: casosTurnos(base),
-    medios: casosMedios(base, cifrador),
+    medios,
     cuentas,
     papel: casosPapel(base, parque, cuentas),
-    descuentos: casosDescuentos(base),
-    impresion: casosImpresion(base),
+    descuentos,
+    impresion,
     ventas: casosVentas(base, cifrador),
     cortes: casosCortes(base),
     feriados: casosFeriados(base),
@@ -241,7 +245,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     salidas: casosSalidas(base),
     plano,
     eventos,
-    semilla: casosSemilla(base, { ajustes, tarifario, plano, eventos }),
+    semilla: casosSemilla(base, { ajustes, tarifario, plano, eventos, medios, descuentos, impuestos, impresion }),
     actualizaciones: casosActualizaciones(base),
     respaldos: casosRespaldos(base),
     pedidos: casosPedidos(base),

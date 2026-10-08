@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+La semilla con casillas (B7-7, M-29): el camino de la corrida limpia de producción.
+
+### Añadido
+- **La semilla lleva también los impuestos, los medios de pago con los datos que el cliente ve para pagar (Pago
+  Móvil, Zelle y los terminales del punto), los descuentos vigentes y las impresoras.** Nunca personas, PIN, llaves,
+  equipos ni existencias. Al cargarla en una base nueva, los medios que traen sus datos se encienden, los impuestos
+  rigen desde ese día (lo programado, en su día) y las impresoras entran apagadas hasta comprobar que imprimen.
+- **Casillas al descargar y al cargar.** «Preparar semilla» enseña lo que lleva, parte por parte y elemento por
+  elemento, con lo que se llama «Prueba…» desmarcado, y el archivo lleva solo lo marcado. Al cargar, el informe dice
+  qué entra y deja elegir lo mismo antes de «Cargar lo marcado».
+
+### Cambiado
+- El formato de la semilla pasa a la versión 2; las de la versión 1 se siguen cargando.
+
 ## [0.74.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Catálogo sin existencias y su conteo inicial (B9-7, M-28).
