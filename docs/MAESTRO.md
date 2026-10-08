@@ -35,7 +35,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 ## 1. Dónde estamos
 
 **Versión 0.86.1 · 86 de 92 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
-capacitación, en B8-3. Decidido M-32 (B3-10, la caja más clara), sin empezar hasta el sí del usuario.** M-28 y M-29
+capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -43,9 +43,9 @@ la Etapa 11 entera), Ajustes en 12 secciones con pestañas (T-18), la cuenta de 
 su informe de diferencias (B9-10), editar en lote (B9-9) y duplicar productos con sus sabores (B9-8).
 **M-31 entregado:** B3-9, el punto de cobro y la entrada desde la caja. **T-8c hecho:** el agente de impresión se
 actualiza solo (ensayado en una PC con Windows). **B8-2, lo escrito, hecho:** la hoja del procedimiento en papel y los
-runbooks del técnico (la capacitación cierra B8-2 en B8-3). **Para programar, uno más:** B3-10 (M-32): en la carta
-de la caja, un buscador y los productos que no se venden al final, y el pie de la cuenta compacto para que se vean los
-ítems; va antes de B8-3, porque la caja es lo que se capacita. **En el local:** B7-3 (con T-8c en
+runbooks del técnico (la capacitación cierra B8-2 en B8-3). **M-32 entregado:** B3-10, el buscador de la carta de la
+caja, lo que no se vende al final y el pie de la cuenta compacto con «Cobrar $ …». **Desde aquí ya no se programa nada
+para la 1.0.0. En el local:** B7-3 (con T-8c en
 la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
 1.0.0, §4), antes de B8-4.
 
@@ -61,7 +61,8 @@ la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Pa
   la cuenta de soporte, el catálogo en hoja sin cantidades con su conteo inicial, el conteo a ciegas con su informe,
   editar en lote, duplicar con sabores, la semilla con casillas y los respaldos con carpeta, fijados e integridad. Con
   M-31 (B3-9): el punto de cobro (fuera de él, el turno se abre con el PIN de administración y queda avisado) y la
-  entrada al parque desde la caja. El detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
+  entrada al parque desde la caja. Con M-32 (B3-10): un buscador en la carta de la caja, lo que no se vende al final y
+  el pie de la cuenta en una fila, con «Cobrar $ …». El detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
 - **Staging:** `https://217-216-48-54.sslip.io` (Etapa 7). Se pone al día solo con cada versión publicada (T-8b),
   hace un respaldo cifrado cada noche que baja una PC del local (B7-4) y pasó la revisión de seguridad (B7-5).
   **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Sistema → Respaldos), cargar la
@@ -130,7 +131,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-29** | **Ajustes más cortos, respaldos con control, una corrida limpia, el inventario en lote y Reportes** (2026-10-08, decisiones del usuario) | (1) Ajustes se unifica: **Personas y equipos** (usuarios, roles y dispositivos), **Tasas** con sus feriados, **Sistema** (versión, respaldos y semilla) y la **carta dentro de Inventario → Productos** (un solo sitio para el precio): de 18 secciones a 12 (T-18). (2) Respaldos: **elegir la carpeta** de la PC (disco externo o carpeta en la nube, regla 3-2-1), **fijar** un respaldo para que la escalera nunca lo borre, y su **integridad a la vista** con un ensayo de restauración automático cada semana (B7-6). (3) La corrida limpia de producción no saca partes de un respaldo (rompería la integridad): base nueva y la **semilla con casillas**, que además lleva medios de pago, descuentos, impuestos e impresoras (B7-7). (4) La cuenta de soporte no mueve dinero en producción; en staging sí, con una copia de la base, para reproducir errores (T-17). (5) Inventario: **editar en lote** (B9-9) y la **hoja de conteo a ciegas con su informe de diferencias** (B9-10). (6) Una sección **Reportes** para administración y supervisión (`reportes.verSucursal`), de solo lectura, que sale de los asientos y cuadra con los cierres: **ventas** del día o de un rango, **inventario al momento** y **movimientos** (kárdex); cada uno en **PDF** con su vista de impresión (sin Excel, decisión del usuario); excepciones y lo demás de F9, después del piloto (Etapa 11). Ocho pasos nuevos; la ruta pasa a **90** | T-18, B7-6, B7-7, T-17, B9-9, B9-10, B11-1 a B11-3 |
 | **M-30** | **B8-2 sin manual aparte** (2026-10-08, decisión del usuario) | La ayuda dentro de la app (T-12: el manual de cada pantalla y los recorridos guiados) **es** el manual por rol, y el soporte (T-11, T-17) cubre avisar de un error: B8-2 no escribe otro manual. Queda lo que la app no puede cubrir cuando no está: (1) **el procedimiento en papel**, una hoja impresa junto a la caja que dice cuándo se pasa al papel, quién anota qué y cómo se carga al volver (los formularios ya existen, B3-7); (2) **los runbooks del técnico**, juntos y completos (restaurar un respaldo, volver atrás una actualización, aprobar el equipo que sustituye a uno perdido, cambiar la impresora, los feriados de cada año), partiendo de `infra/produccion/README.md`; (3) **la capacitación por rol**, hecha durante la operación en paralelo (B8-3) con los recorridos de la app, sin material aparte | B8-2 |
 | **M-31** | **Un solo punto de cobro y la entrada desde la caja** (2026-10-08, decisiones del usuario) | (1) **El punto de cobro (opción A, con salida de emergencia):** cada equipo lleva la marca «Punto de cobro» (Ajustes → Personas y equipos → Dispositivos); solo los marcados abren turno como hoy; en uno sin marcar, abrir turno pide el PIN de administración y un motivo, queda en la auditoría e Inicio lo avisa mientras siga abierto. Descartadas: un solo turno por local (impide una segunda caja y bloquea si la laptop se daña con su turno abierto), un tope numérico (no dice cuál equipo), solo avisar (llega tarde) y quitarles el permiso a supervisión y administración (deja sin cubrir la caja). (2) **La entrada desde la caja:** vender la entrada de uno o varios niños sin salir de la caja, reutilizando lo de Entrada (se actualiza, no se rediseña): pulsera leída, tecleada o «sin pulsera»; solo prepago; los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. (3) El aviso de «sin pulsera» en Inicio, **descartado por ahora** (no es viable ni oportuno). Los dos se adaptan a todo lo que ya existe (ayuda y recorridos, atajos, soporte y `data-privado`, cuenta de soporte, tiempo real, auditoría, permisos, Inicio, Reportes, temas y escala): queda como punto 10 de la definición de hecho, para todo paso nuevo. Primero dos pasos (B3-9 y B4-11); el mismo día el usuario los juntó en **uno solo**, que se termina de punta a punta de forma automática: la ruta pasa a **91** | B3-9 |
-| **M-32** | **La caja más clara** (2026-10-08, decisiones del usuario, con las capturas de la caja tras vaciar el inventario) | (1) **La carta de mostrador** (venta directa y «Añadir ítems»): con el catálogo en hoja (B9-7) aparecen todos los productos y la lista se pierde hacia abajo. Lleva **un buscador** arriba que filtra al teclear en toda la carta (nombre, SKU o código de barras), sin importar la categoría abierta; con la búsqueda vacía vuelve la categoría que estaba; Intro añade el primero. La tecla «/» busca en lo que está a la vista: la carta si está abierta, la cola si no. **Los que no se venden ahora** (sin contar, agotados) van al final, atenuados, bajo un título con cuántos son y cada uno con su motivo. La rejilla desplaza dentro de su tarjeta: el panel nunca se sale de la pantalla. (2) **El pie de la cuenta, compacto:** los ítems que se le cobran a la persona son lo que más se tiene que ver. «Factura a», «Descuento» y «Dividir» pasan a **una fila de tres botones** que dicen su estado («Consumidor final» o el nombre, «−10 %», «Entre 3»); dividir abre un menú de 2 a 6 con «Sin dividir». Subtotal e impuestos en un renglón chico y el total, grande. Las reglas no cambian. (3) **«Cerrar cobro» pasa a «Cobrar $ 13.00»**, con el monto que se cobra (el de la parte, si está dividida). Descartados por ahora: más columnas en pantallas anchas, una pestaña «Más vendidos» y las categorías en una sola fila que desliza. La ruta pasa a **92** | B3-10 |
+| **M-32** | **La caja más clara** (2026-10-08, decisiones del usuario, con las capturas de la caja tras vaciar el inventario) | (1) **La carta de mostrador** (venta directa y «Añadir ítems»): con el catálogo en hoja (B9-7) aparecen todos los productos y la lista se pierde hacia abajo. Lleva **un buscador** arriba que filtra al teclear en toda la carta (nombre, SKU o código de barras), sin importar la categoría abierta; con la búsqueda vacía vuelve la categoría que estaba; Intro añade el primero. La tecla «/» busca en lo que está a la vista: la carta si está abierta, la cola si no. **Los que no se venden ahora** (sin contar, agotados) van al final, atenuados, bajo un título con cuántos son y cada uno con su motivo. La rejilla desplaza dentro de su tarjeta: el panel nunca se sale de la pantalla. (2) **El pie de la cuenta, compacto:** los ítems que se le cobran a la persona son lo que más se tiene que ver. «Factura a», «Descuento» y «Dividir» pasan a **una fila de tres botones** que dicen su estado («Consumidor final» o el nombre, «−10 %», «Entre 3»); dividir abre un menú de 2 a 6 con «Sin dividir». Subtotal e impuestos en un renglón chico y el total, grande. Las reglas no cambian. (3) **«Cerrar cobro» pasa a «Cobrar $ 13.00»**, con el monto que se cobra (el de la parte, si está dividida). (4) **Los botones de categoría, de 44 px** (pedido del usuario durante el paso): con muchas categorías cada renglón cuenta; es una excepción a los 56 px del POS (§8.4), que se queda para todo lo demás de la caja. Descartados por ahora: más columnas en pantallas anchas, una pestaña «Más vendidos» y las categorías en una sola fila que desliza. La ruta pasa a **92** | B3-10 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -261,7 +262,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    caja; en la laptop real se comprueba con B7-3) → **B8-2** (~~lo que se escribe~~: la hoja del procedimiento en papel y
    los runbooks del técnico; la capacitación se da en B8-3, y ahí se cierra). Después, en el local: B7-3, B8-1, B8-3 y
    **B8-4 = 1.0.0**, con D-REL decidido.
-11. **M-32**: B3-10 (la caja más clara), con el sí del usuario. Antes de B8-3: la operación en paralelo y la
+11. **M-32**: ~~B3-10~~ (la caja más clara), con el sí del usuario. Antes de B8-3: la operación en paralelo y la
    capacitación se hacen con la caja como va a quedar.
 
 Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -1372,13 +1373,14 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   nueva, registrado y cobrado con el teclado; una pulsera nueva leída en la cola abre el panel con ella; una que está en
   la sala se rechaza en el panel. Entrada igual: dos niños hasta la caja en 3,4 s. A 1366×768, 1280×800, 800×1280 y
   390 px, en los dos temas: la caja no desplaza y sin errores de consola.*
-- [~] **B3-10 · La caja más clara: buscar en la carta y el pie compacto** (M-32). *A cargo: LuAMi, rama
-  `feat/b3-10`.*
+- [x] **B3-10 · La caja más clara: buscar en la carta y el pie compacto** (M-32).
+  *Hecho el 2026-10-08, en `feat/b3-10`.*
   → **La carta de mostrador** (venta directa y «Añadir ítems» de una cuenta). Un buscador arriba filtra al teclear en
   toda la carta, por nombre, SKU o código de barras, sin importar la categoría abierta; con la búsqueda vacía vuelve la
   categoría que estaba e Intro añade el primero que aparece. La tecla «/» busca en lo que está a la vista: la carta si
   está abierta, la cola si no. Los productos que se pueden vender van primero; debajo, un título «No se venden ahora · N»
-  y los sin contar y agotados, atenuados y cada uno con su motivo. La rejilla desplaza dentro de su tarjeta: con 200
+  y los sin contar y agotados, atenuados y cada uno con su motivo. Los botones de categoría, de 44 px (M-32, excepción a
+  los 56 del POS). La rejilla desplaza dentro de su tarjeta: con 200
   productos la página no desplaza a 1366×768 ni a 1280×800, y en 800×1280 y 390 px la carta no empuja la cuenta fuera
   de su sitio.
   → **El pie de la cuenta.** «Factura a», «Descuento» y «Dividir» son una fila de tres botones que dicen su estado
@@ -1390,6 +1392,26 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   Se adapta a lo que hay (punto 10 de la definición de hecho): el manual de Cobrar con el buscador y el pie nuevo, el
   recorrido de la caja si cambian sus puntos, la ayuda de atajos con la «/» de la carta; los dos temas, la escala y
   56 px en el POS. Solo web: sin contrato, caso de uso ni migración.
+  *· Carta (`CartaMostrador`): el buscador busca por nombre y categoría, cada palabra en cualquier sitio y sin tildes, y
+  por SKU o código de barras desde su comienzo (un «155» no trae el SKU «PRU-0155»). Intro con un producto que no se
+  vende dice por qué (el mismo aviso del lector, `avisarNoSeVende`); el Intro del lector de códigos sigue siendo suyo.
+  Si la venta directa nace del buscador, su cuenta abre la carta con el cursor en el buscador. Con una cuenta abierta,
+  la carta ocupa como mucho el 55 % de la tarjeta y los ítems, al menos 7,5 rem; en la venta directa, todo su alto (en el
+  teléfono, el 70 % de la pantalla). Las filas de la rejilla miden lo que su tarjeta (`auto-rows-min`), y las columnas
+  salen del ancho de la carta (`@container/carta`): dos si es angosta, tres desde 32 rem; antes, en la tablet, «Quedan N»
+  se salía de la tarjeta.*
+  *· Pie: `BotonDelPie` (etiqueta, estado y su tecla, que en una cuenta angosta se oculta); dividir y el descuento
+  puesto se abren debajo de la fila. Los bloqueos dicen su porqué en el botón. El botón de cobro pasa el monto a otro
+  renglón si no cabe («$ 1,234.56» en la columna angosta). Manual de Cobrar con dos problemas nuevos, recorrido de la
+  caja v3 con el paso del pie, atajos con la «/» de la carta.*
+  *· Comprobado en el navegador, en la base de pruebas, con 206 productos (180 «Prueba B310» por alta en lote, 30 con
+  inventario inicial): la venta directa no desplaza la página y su rejilla desplaza por dentro; «/» va a la carta y, con
+  ella cerrada, a la cola; buscar en una categoría pasa a «Todos» y al borrar vuelve; Intro sobre uno sin contar lo
+  avisa; Intro «agua» crea la venta con el cursor en el buscador y «cafe con» (sin tilde) añade el segundo; ocho ítems
+  con la carta cerrada se ven enteros a 1366×768; entre 3 dice «Parte 1 de 3» y bloquea el descuento con su motivo;
+  cobrada con el teclado ($ 50 en efectivo, Ctrl+Intro). A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
+  desplazar la página (en el teléfono, sin desplazar a lo ancho), sin textos cortados ni que se salgan de su tarjeta y sin
+  errores de consola.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -3004,6 +3026,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · M-32: la caja más clara (B3-10), pedido del usuario con las capturas de la caja tras vaciar el
   inventario: buscador y no disponibles al final en la carta, el pie de la cuenta en una fila y «Cobrar $ …». La ruta
   pasa a 92. Sin empezar hasta el sí del usuario.
+- **2026-10-08** · B3-10 entregado (M-32): el buscador de la carta, lo que no se vende al final, el pie de la cuenta en
+  una fila y «Cobrar $ …». Con muchas categorías (tres renglones), la carta dentro de una cuenta deja poco sitio a los
+  productos: el buscador lo cubre; las categorías en una fila que desliza siguen descartadas por ahora.
 
 ---
 
