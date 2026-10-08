@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.73.0 · 73 de 82 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 en curso.** Entregados de M-27: B6-7
+**Versión 0.73.0 · 73 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -109,6 +109,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-26** | **Los respaldos los baja una PC del local** (2026-10-07, decisión del usuario para B7-4, frente a Backblaze B2 o Google Drive) | Sin terceros ni cuentas nuevas: el VPS hace cada noche un volcado **cifrado con una clave pública** (la privada no está en el servidor) y una tarea programada de Windows en una PC del local lo descarga por HTTPS con su usuario y contraseña, comprueba su huella y guarda la escalera (diarios, semanales, mensuales). El servidor anota cuándo lo bajó la PC, y el panel avisa si el respaldo no se hizo o si la PC no lo bajó: una copia que dejó de salir no puede pasar en silencio. El riesgo aceptado: si esa PC pasa días apagada, la única copia es la del VPS. Con un volcado diario, lo que se puede perder es hasta un día (PLAN §10.4 pide 15 minutos con WAL continuo: queda en §5) |
 | **M-27** | **Lo pedido en la primera visita con el sistema** (2026-10-07, el cliente lo vio funcionar en el local) | Diecinueve pedidos (P-1 a P-19, abajo) que se vuelven **13 pasos nuevos**: B3-8, B4-7 a B4-10, B6-7, B6-8 y T-11 a T-16. Se construyen del más complejo al más simple y, si uno espera una decisión, se sigue con el siguiente que no la espera (regla del usuario). Cambia I-05: una mesa admite varias cuentas abiertas (B6-7). Dos decisiones nuevas, D-SERV y D-SOP (§4). La ruta pasa a **79** |
 | **M-28** | **Soporte oculto, catálogo sin existencias y duplicar productos** (2026-10-08, pedido y decisión del usuario) | (1) La cuenta de soporte del desarrollo es una persona de Administración con la marca «soporte»: **no sale en «¿Quién entra?»**, entra con su nombre de usuario y su PIN desde su equipo aprobado (como todos), sin plazo; no abre turnos; se ve como «Soporte» en Usuarios, la auditoría e Inicio, y administración la desactiva cuando quiera. Lo sensible sigue pidiendo contraseña y llave. (2) El catálogo se carga sin existencias y el stock se cuenta otro día: estado «Sin inventario inicial», distinto de «Agotado», que **no se vende** hasta su conteo. (3) «Duplicar» un producto y «Duplicar con otros sabores», cada uno con su propio código de barras. Tres pasos: B9-7, T-17 y B9-8. La ruta pasa a **82** | B9-7, T-17, B9-8 |
+| **M-29** | **Ajustes más cortos, respaldos con control, una corrida limpia, el inventario en lote y Reportes** (2026-10-08, decisiones del usuario) | (1) Ajustes se unifica: **Personas y equipos** (usuarios, roles y dispositivos), **Tasas** con sus feriados, **Sistema** (versión, respaldos y semilla) y la **carta dentro de Inventario → Productos** (un solo sitio para el precio): de 18 secciones a 12 (T-18). (2) Respaldos: **elegir la carpeta** de la PC (disco externo o carpeta en la nube, regla 3-2-1), **fijar** un respaldo para que la escalera nunca lo borre, y su **integridad a la vista** con un ensayo de restauración automático cada semana (B7-6). (3) La corrida limpia de producción no saca partes de un respaldo (rompería la integridad): base nueva y la **semilla con casillas**, que además lleva medios de pago, descuentos, impuestos e impresoras (B7-7). (4) La cuenta de soporte no mueve dinero en producción; en staging sí, con una copia de la base, para reproducir errores (T-17). (5) Inventario: **editar en lote** (B9-9) y la **hoja de conteo a ciegas con su informe de diferencias** (B9-10). (6) Una sección **Reportes** para administración y supervisión (`reportes.verSucursal`), de solo lectura, que sale de los asientos y cuadra con los cierres: **ventas** del día o de un rango, **inventario al momento** y **movimientos** (kárdex); cada uno en **PDF** con su vista de impresión (sin Excel, decisión del usuario); excepciones y lo demás de F9, después del piloto (Etapa 11). Ocho pasos nuevos; la ruta pasa a **90** | T-18, B7-6, B7-7, T-17, B9-9, B9-10, B11-1 a B11-3 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -222,10 +223,12 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
    y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → ~~T-16~~ (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: decididas el 2026-10-07 (las dos como se propusieron); ~~T-11~~ → ~~B6-8~~: M-27 cerrado. B7-3 y T-8c siguen cuando haya visita al local.
-8. **M-28** (soporte oculto, catálogo sin existencias y duplicar), del más complejo al más simple: **B9-7** (catálogo sin
-   existencias y su conteo inicial) → T-17 (cuenta de soporte) → B9-8 (duplicar productos).
+8. **M-28 y M-29**, del más complejo al más simple: **B9-7** (catálogo sin existencias y su conteo inicial) → B7-7 (la
+   semilla con casillas) → B7-6 (respaldos con carpeta, fijados e integridad) → B11-1 (Reportes y las ventas) → T-18
+   (Ajustes unificados) → B11-3 (movimientos) → B11-2 (inventario al momento) → T-17 (cuenta de soporte) → B9-10 (conteo
+   a ciegas y su informe) → B9-9 (editar en lote) → B9-8 (duplicar productos).
 
-Fuera de la cuenta de 82: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -598,7 +601,12 @@ Fuera de la cuenta de 82: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   con su nombre de usuario y su PIN, desde su equipo aprobado (como todos), con el mismo bloqueo; sin plazo. No abre
   turnos ni cuenta como personal del local. Se ve como «Soporte» en Usuarios, en la auditoría y en Inicio mientras está
   conectada; administración la marca, la desactiva o le repone el PIN. Configuración, precios y personas siguen
-  pidiendo contraseña y llave (F2-04).
+  pidiendo contraseña y llave (F2-04). En producción no abre turnos ni cobra; en staging sí, para reproducir un error
+  con una copia de la base restaurada del respaldo (M-29).
+- [ ] **T-18 · Ajustes unificados** (M-29).
+  → **Personas y equipos** (usuarios y permisos, roles y accesos, dispositivos), **Tasas** con su pestaña de feriados,
+  **Sistema** (versión y actualizaciones, respaldos, semilla) y la **carta dentro de Inventario → Productos** (pestaña
+  «En la carta»: un solo sitio para el precio). Las rutas viejas llevan a las nuevas; el manual y los recorridos, al día.
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -1731,6 +1739,14 @@ antes del cobro en servidor (orden de ejecución).
   SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una
   lista («Naranja, Manzana…» → «Jugo Naranja», «Jugo Manzana»), cada uno con su propio código de barras si se escribe o
   se lee. Cada copia es un producto propio, con su existencia.
+- [ ] **B9-9 · Editar en lote** (M-29).
+  → En Productos se eligen varios y se les cambia la categoría, el mínimo, la carta o el precio (en % o en monto, desde
+  una fecha), o se apartan. Una sola confirmación, y cada producto deja su asiento.
+- [ ] **B9-10 · Conteo a ciegas y su informe de diferencias** (M-29).
+  → La hoja de conteo (impresa o en el teléfono, por categoría o completa) no enseña lo que dice el sistema. Al
+  terminar, el informe de diferencias: faltantes y sobrantes por producto y por categoría, valorados al costo, que se
+  guarda con su fecha para comparar un conteo con otro; ajustar sigue pidiendo su autorización (B9-4). Se cuenta con el
+  local cerrado; el conteo ya detecta lo que se vendió mientras se contaba.
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
@@ -1904,6 +1920,26 @@ antes del cobro en servidor (orden de ejecución).
   de la hora del evento (hoy, «en gracia» como aviso, sin cobro) y que los que sobran de lo reservado entren como
   visita normal.*
 
+### Etapa 11 · Reportes (F9, M-29)
+
+Una sección **Reportes** para administración y supervisión (`reportes.verSucursal`), de solo lectura: sale de los
+asientos (el libro de pagos, los movimientos de stock, los cierres), cuenta por día de negocio de Caracas, cada pago en
+su moneda con la tasa con que se cobró, y un día con su Z cerrado da siempre lo mismo. Cada informe con su periodo (hoy,
+ayer, semana, mes, rango), sus filtros, su tabla y su **PDF**: una vista de impresión A4 con el encabezado (local,
+periodo, quién y cuándo), los totales y el número de página, que el navegador guarda como PDF o imprime (sin Excel,
+decisión del usuario). Excepciones, parque frente a restaurante, más vendidos y margen: después del piloto (F9-02 a
+F9-05).
+
+- [ ] **B11-1 · La sección Reportes y las ventas** (M-29, F9-01).
+  → Reportes → Ventas del día o de un rango: por medio de pago y moneda, por origen (parque, restaurante, mostrador,
+  cumpleaños) y por cajera y turno, con lo anulado aparte; los totales cuadran con los cierres Z del periodo. Su PDF.
+- [ ] **B11-2 · Inventario al momento** (M-29).
+  → Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar, a la hora en que
+  se pide. Su PDF.
+- [ ] **B11-3 · Movimientos (kárdex)** (M-29).
+  → Por producto (o categoría) y periodo: cada entrada, venta, salida, ajuste y conteo con su fecha, quién, el motivo y el
+  saldo después de cada uno; el saldo final es la existencia. Su PDF.
+
 ### Etapa 7 · Staging en VPS
 
 - [x] **B7-1 · VPS con Docker, HTTPS y dominio**; despliegue reversible y migraciones ensayadas antes
@@ -1989,6 +2025,16 @@ antes del cobro en servidor (orden de ejecución).
   `Caddyfile` y `git pull` lo reemplaza por otro archivo, así que dentro seguía el viejo (en Windows, Docker Desktop no
   lo reproduce). `desplegar.sh` compara el de dentro con el del disco y, si difieren, recrea Caddy. En el staging se
   recreó a mano y las cabeceras ya salen.*
+- [ ] **B7-6 · Respaldos con carpeta, fijados e integridad a la vista** (M-29).
+  → Al preparar la PC se elige la carpeta (un disco externo o una carpeta sincronizada con la nube: una copia fuera del
+  local). Un respaldo se puede **fijar** con su nombre («antes de producción») y la escalera nunca lo borra. Ajustes →
+  Sistema → Respaldos dice de cada uno si su huella se comprobó al bajarlo, y el servidor ensaya cada semana la
+  restauración del último en una base de usar y tirar: «ÍNTEGRO» o qué falló, en el panel y en Inicio.
+- [ ] **B7-7 · La semilla con casillas** (M-29).
+  → Exportar la semilla enseña lo que lleva, con casillas (cada sección y cada producto: los «Prueba…» se desmarcan), y
+  además de ajustes, tarifas, categorías, carta, plano y cumpleaños lleva medios de pago, descuentos, impuestos e
+  impresoras. Importarla en una base nueva enseña lo mismo antes de cargar. Personas, PIN, llaves y equipos no viajan:
+  se dan de alta en la base nueva. Es el camino de la corrida limpia de producción.
 
 ### Etapa 8 · Producción
 
@@ -2020,7 +2066,7 @@ antes del cobro en servidor (orden de ejecución).
 | ~~D7~~ | Quién asigna los puestos de trabajo | **Decidido el 2026-09-28:** salen del rol y del equipo aprobado (`PUESTO_DE_ROL`), sin pantalla de asignación | B1-5 |
 | ~~D9~~ | Un niño que sale sin su representante | **Decidido el 2026-09-28:** la salida pregunta «Lo recoge: su representante u otra persona» y, si es otra, su nombre; no bloquea, pero queda constancia. Y una estancia es **huérfana** si sigue abierta desde un día anterior o lleva más de 8 horas: no cuenta en el aforo y la dirección la cierra con motivo, sin tiempo de más | B4-3 |
 | ~~D13~~ | Número de orden continuo o diario | **Decidido el 2026-09-28:** continuo, por sucursal (como está) | B3-4 |
-| — | Informes del panel ejecutivo (F9-01 a F9-07) | Después del piloto; Inicio ya enseña el día | — |
+| — | Informes del panel ejecutivo (F9-01 a F9-07) | Ventas, inventario al momento y movimientos entran antes de producción (M-29, Etapa 11); excepciones, parque frente a restaurante, más vendidos y margen, después del piloto | — |
 | ~~F-12~~ | ¿El teléfono entra en el objetivo? | **Sí (M-15):** la monitora trabaja en un teléfono | B4-5 |
 | D-REIMP | ¿Reimprimir un recibo pide 🔐 a la caja? (B7-5) | PLAN §7.3 marca «Reimprimir documento» 🔐 para supervisión y caja; B3-4 lo dejó como copia marcada y auditada, sin autorización, y nadie lo anotó como decisión. **Propuesta:** dejarlo así (el recibo no es un documento fiscal, sale «COPIA», queda en la auditoría y en las excepciones del turno) y anotarlo; o pedir el PIN de supervisión desde la segunda copia | B8-3 |
 | F10-09 | Calendario de actualización de dependencias | **Propuesta:** el CI ya rechaza un aviso alto o crítico; además, cada mes (primera semana) una revisión de `pnpm outdated` con parches y menores en una rama, y las mayores como paso propio | B8-3 |
@@ -2503,6 +2549,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · M-28 decidido con el usuario: la cuenta de soporte oculta del acceso (con PIN, sin plazo, con su
   equipo), el catálogo sin existencias que no se vende hasta su conteo, y duplicar productos con sus sabores. Tres pasos
   nuevos (B9-7, T-17, B9-8); la ruta pasa a 82. Sigue B9-7.
+- **2026-10-08** · M-29 decidido con el usuario: Ajustes unificados (T-18), respaldos con carpeta, fijados e integridad
+  (B7-6), la semilla con casillas para la corrida limpia (B7-7), editar en lote (B9-9) y el conteo a ciegas con su
+  informe de diferencias (B9-10); la cuenta de soporte no mueve dinero en producción (T-17); y la sección Reportes
+  (Etapa 11: ventas, inventario al momento y movimientos, en PDF, para administración y supervisión). La ruta pasa a 90.
 
 ---
 
