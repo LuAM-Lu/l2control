@@ -97,7 +97,8 @@ test("lo sensible no llega al registro", async () => {
     }),
   );
   const [asiento] = await app.auditoria.listar(A, { entityId: "u-prueba" });
-  const texto = JSON.stringify(asiento);
+  // Solo lo que se redacta: los identificadores son aleatorios y un UUID puede contener «1970» por azar.
+  const texto = JSON.stringify({ before: asiento?.before, after: asiento?.after });
   assert.ok(!texto.includes("1970") && !texto.includes("argon2id") && !texto.includes("1234567"), texto);
   assert.ok(texto.includes("Marisol"));
 });
