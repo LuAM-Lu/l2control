@@ -173,3 +173,42 @@ export const InformeDeMovimientosSchema = z.object({
   }),
 });
 export type InformeDeMovimientosDto = z.infer<typeof InformeDeMovimientosSchema>;
+
+/** El estado de un producto que se cuenta (B9-5, B9-7): lo mismo que dice Inventario → Productos. */
+export const EstadoDeExistenciaSchema = z.enum(["SIN_INICIAL", "AGOTADO", "BAJO_MINIMO", "BIEN"]);
+
+/**
+ * El inventario al momento (B11-2): a la hora en que se pide, cada producto que se cuenta con su existencia, su costo
+ * promedio y su valor al costo, por categoría, con lo agotado, lo bajo mínimo y lo sin contar. El valor es la suma de
+ * los movimientos al costo (B9-3): el mismo que da el costo promedio de Productos.
+ */
+export const InformeDeInventarioSchema = z.object({
+  encabezado: EncabezadoDeInformeSchema,
+  resumen: z.object({
+    productos: z.number().int().nonnegative(),
+    unidades: z.number().int(),
+    valor: MoneySchema,
+    agotados: z.number().int().nonnegative(),
+    bajoMinimo: z.number().int().nonnegative(),
+    sinInicial: z.number().int().nonnegative(),
+  }),
+  categorias: z.array(z.object({ categoria: z.string(), productos: z.number().int().nonnegative(), unidades: z.number().int(), valor: MoneySchema })),
+  productos: z.array(
+    z.object({
+      id: IdSchema,
+      nombre: z.string(),
+      sku: z.string(),
+      presentacion: z.string().nullable(),
+      categoria: z.string(),
+      existencia: z.number().int(),
+      minimo: z.number().int().nullable(),
+      /** El costo promedio de una unidad; `null` sin existencia. */
+      costoPromedio: MoneySchema.nullable(),
+      valor: MoneySchema,
+      estado: EstadoDeExistenciaSchema,
+      /** Retirado de la venta, pero con existencia: sigue contando en el valor. */
+      retirado: z.boolean(),
+    }),
+  ),
+});
+export type InformeDeInventarioDto = z.infer<typeof InformeDeInventarioSchema>;

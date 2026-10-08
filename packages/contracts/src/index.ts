@@ -829,4 +829,7 @@ export {
   type ConsultaDeMovimientosDto,
   type TipoDeMovimiento,
   type InformeDeMovimientosDto,
+  EstadoDeExistenciaSchema,
+  InformeDeInventarioSchema,
+  type InformeDeInventarioDto,
 } from "./reportes.ts";

@@ -14,6 +14,17 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+El inventario al momento (B11-2, M-29).
+
+### Añadido
+- **Reportes → Inventario al momento**: lo que hay a esta hora y lo que vale al costo, por categoría y producto, con su
+  existencia, su mínimo, su costo promedio y su estado (sin inventario inicial, agotado, bajo mínimo o bien). Arriba, el
+  valor al costo, los agotados, lo bajo mínimo y lo sin contar, que filtran; también por categoría. Un producto retirado
+  que todavía tiene existencia sigue contando.
+- **Su PDF**, con el filtro que se puso en la pantalla.
+
 ## [0.79.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Movimientos de inventario: el kárdex (B11-3, M-29).

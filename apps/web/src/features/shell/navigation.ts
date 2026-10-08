@@ -287,7 +287,7 @@ export const MODULOS: readonly Modulo[] = [
       {
         id: "inventario",
         nombre: "Inventario al momento",
-        href: null,
+        href: rutaSeccion("reportes", "inventario"),
         proposito: "Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar.",
         tarea: "B11-2",
       },
