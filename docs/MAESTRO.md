@@ -1,6 +1,6 @@
 # L2 Control — documento maestro
 
-> **El único documento vivo del proyecto.** Actualizado: **2026-10-07**.
+> **El único documento vivo del proyecto.** Actualizado: **2026-10-08**.
 >
 > Aquí están el estado, la ruta hasta producción, lo que bloquea y el handoff. Nada de esto se escribe
 > en otro sitio. Hay cuatro referencias que **no se editan** y se citan por sección:
@@ -2619,6 +2619,14 @@ aquí en el paso que la sustituyó, y T-2 lo cierra: desde entonces `pnpm lint` 
   «N elegidos» de Productos, B9-9); en el escritorio, `sticky top-0` sí sirve.
 - **El servidor de desarrollo guarda `aplicacion()` al arrancar:** un caso de uso nuevo de `@l2/application` responde
   «… is not a function» hasta reiniciar `pnpm dev` (lo de la web sí se recarga solo).
+- **Windows cierra juntos los procesos de una tarea programada (T-8c).** Lo que lanza el agente (aunque sea
+  `detached`) muere cuando su tarea termina: el guion que cambia el ejecutable va en su propia tarea, «(cambio)». Y un
+  `.ps1` sin BOM lo lee PowerShell 5.1 como ANSI: los acentos se rompen (lo mismo que los JSON sin `charset`, B7-6).
+- **Una prueba que depende del sistema operativo:** `path.join` da `\` en Windows y `/` en el CI (Linux). Una ruta
+  esperada se arma con la misma función que la calcula, no se escribe a mano (T-8c).
+- **El build de la imagen de la web falla a veces en el CI sin motivo** (dos veces: B9-10 y la 0.86.1): el otro
+  `verify:db` del mismo código pasa. Se repite solo el trabajo que falló (`gh run rerun <id> --failed`); si vuelve a
+  fallar, es de verdad.
 
 ---
 
@@ -2968,6 +2976,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-08** · B8-2, lo escrito, como v0.86.1 (corrección: el paso cuenta al cerrarse con la capacitación en B8-3): la
   hoja del procedimiento en papel (`/procedimiento-papel`) y los runbooks del técnico (`infra/produccion/RUNBOOKS.md`).
   Con esto, lo que se programa para la 1.0.0 está hecho: queda el local (B7-3, B8-1, B8-3, B8-4) y D-REL.
+- **2026-10-08** · Relevo (cierre, 3): B3-9, T-8c y lo escrito de B8-2 entregados de una vez, sin pedir el sí entre pasos
+  (v0.85.0 a v0.86.1). Desde aquí ya no se programa nada para la 1.0.0: todo lo que falta es en el local, y D-REL.
 
 ---
 
