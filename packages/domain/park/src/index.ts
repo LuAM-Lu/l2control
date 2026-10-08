@@ -439,6 +439,37 @@ export function becomesOrphanAt(startedAt: EpochMs, afterMs: number, startOfNext
 }
 
 /** El formato de la serie de pulseras del local (V-1): prefijo y longitud total. `null` = sin fijar. */
+/* -------------------------------------------------------- sin pulsera (B4-8) */
+
+/**
+ * El prefijo de los niños que entran SIN pulsera (B4-8, M-27, P-1): niños con capacidades especiales que no la
+ * toleran. El código lo pone el servidor y ningún lote lo trae: una pulsera física con este prefijo se rechaza,
+ * para que nadie confunda a un niño sin pulsera con otro. Con el código, la sala, la salida y la caja lo tratan
+ * como a cualquiera; a él se le reconoce por su nombre.
+ */
+export const WRISTBANDLESS_PREFIX = "SP-";
+
+/** ¿Es el código de un niño sin pulsera? */
+export function isWristbandless(code: string): boolean {
+  return code.toUpperCase().startsWith(WRISTBANDLESS_PREFIX);
+}
+
+/** El código del n-ésimo niño sin pulsera de la sucursal: «SP-00001». */
+export function wristbandlessCode(n: number): string {
+  if (!Number.isInteger(n) || n < 1 || n > 99_999) throw new RangeError(`Número de niño sin pulsera fuera de rango: ${n}`);
+  return `${WRISTBANDLESS_PREFIX}${String(n).padStart(5, "0")}`;
+}
+
+/** El siguiente número libre, a partir de los códigos sin pulsera que ya se usaron (una visita cada uno, V-1). */
+export function nextWristbandlessNumber(used: readonly string[]): number {
+  let max = 0;
+  for (const c of used) {
+    const m = /^SP-(\d+)$/i.exec(c);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max + 1;
+}
+
 export type WristbandSeries = Readonly<{ prefix: string | null; length: number | null }>;
 
 /** Por qué un código no es de la serie del local. */

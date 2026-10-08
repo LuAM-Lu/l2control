@@ -67,6 +67,10 @@ import {
   paquetePorUso,
   pauseProblem,
   pausedMs,
+  isWristbandless,
+  nextWristbandlessNumber,
+  wristbandlessCode,
+  WRISTBANDLESS_PREFIX,
   resumeProblem,
   settleAtExit,
   withRecharges,
@@ -195,6 +199,18 @@ async function estanciaQueExiste(tx: Transaccion, where: NonNullable<BusquedaDeE
   return f;
 }
 
+/**
+ * Los códigos de `n` niños que entran sin pulsera (B4-8): correlativos por sucursal («SP-00001»), sobre los que ya
+ * se usaron (cada uno es de una visita, V-1). Con el candado del parque: dos entradas a la vez no repiten código.
+ */
+async function codigosSinPulsera(tx: Transaccion, branchId: string, n: number): Promise<string[]> {
+  if (n === 0) return [];
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`parque:${branchId}`}, 0))::text AS candado`;
+  const usados = await tx.parkSession.findMany({ where: { branchId, wristbandCode: { startsWith: WRISTBANDLESS_PREFIX } }, select: { wristbandCode: true } });
+  const primero = nextWristbandlessNumber(usados.map((u) => u.wristbandCode));
+  return Array.from({ length: n }, (_, i) => wristbandlessCode(primero + i));
+}
+
 /** Cómo decide la sucursal qué estancia es huérfana: su zona (qué día es hoy) y sus horas (D9, B4-4). */
 type ReglaDeHuerfanas = Readonly<{ zona: string; afterMs: number }>;
 
@@ -257,8 +273,15 @@ export function casosParque(base: Base): CasosParque {
             if (!p) return invalido("Ese paquete ya no está a la venta: elige otro.", ["entries", i, "packageId"], "PAQUETE_QUE_NO_SE_VENDE");
             paquetes.push(p);
           }
+          // Los niños sin pulsera (B4-8) reciben aquí su código reservado, con el candado del parque.
+          const generados = await codigosSinPulsera(tx, ctx.branchId, cmd.entries.filter((e) => e.sinPulsera).length);
+          let siguiente = 0;
+          const codigos = cmd.entries.map((e) => e.wristbandCode ?? generados[siguiente++]!);
           // Lo anotado en papel ya ocurrió: no se le cuenta el aforo (los niños que salieron ya no están).
-          const pulseras = await comprobarPulserasYAforo(tx, ctx, cmd.entries.map((e) => e.wristbandCode), vigente.tarifario.policy.capacityLimit, ahora, (i) => ["entries", i, "wristbandCode"], { sinAforo: carga !== null });
+          const pulseras = await comprobarPulserasYAforo(tx, ctx, codigos, vigente.tarifario.policy.capacityLimit, ahora, (i) => ["entries", i, "wristbandCode"], {
+            sinAforo: carga !== null,
+            generados: new Set(generados),
+          });
           if (pulseras) return pulseras;
 
           const familia = await representanteDeLaEntrada(tx, ctx, cmd, ahora);
@@ -289,9 +312,9 @@ export function casosParque(base: Base): CasosParque {
             sessionIds: sesiones,
             closedSessionIds: [],
             // El precio es el del tarifario vigente, no el que enseñaba la pantalla.
-            lines: cmd.entries.map((e, i) => ({
+            lines: cmd.entries.map((_, i) => ({
               id: `paq-${sesiones[i]}`,
-              concept: `Paquete ${paquetes[i]!.name} · ${e.wristbandCode}`.slice(0, 80),
+              concept: `Paquete ${paquetes[i]!.name} · ${codigos[i]}`.slice(0, 80),
               kind: "PAQUETE",
               amount: paquetes[i]!.price,
               paid: false,
@@ -314,14 +337,14 @@ export function casosParque(base: Base): CasosParque {
           await guardarVersion(tx, ctx, cuenta, { cause: "ENTRADA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
           const terms: ParkTermsDto = ParkTermsSchema.parse(vigente.tarifario.policy);
           await tx.parkSession.createMany({
-            data: cmd.entries.map((e, i) => ({
+            data: cmd.entries.map((_, i) => ({
               id: sesiones[i]!,
               tenantId: ctx.tenantId,
               branchId: ctx.branchId,
               accountId,
               guardianId: familia.id,
               kidId: ninos[i]!,
-              wristbandCode: e.wristbandCode,
+              wristbandCode: codigos[i]!,
               packageId: paquetes[i]!.id,
               packageName: paquetes[i]!.name,
               mode: paquetes[i]!.mode,
@@ -347,7 +370,8 @@ export function casosParque(base: Base): CasosParque {
               orderNumber,
               modo: cmd.paymentMode,
               ninos: cmd.entries.length,
-              pulseras: cmd.entries.map((e) => e.wristbandCode),
+              pulseras: codigos,
+              ...(generados.length > 0 ? { sinPulsera: generados } : {}),
               tarifario: vigente.version,
               total: { minor: String(total.amount), currency: "USD" },
               ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
@@ -364,7 +388,7 @@ export function casosParque(base: Base): CasosParque {
                 orden: orderNumber,
                 familia: familia.fullName,
                 modo: cmd.paymentMode,
-                ninos: cmd.entries.map((e) => ({ pulsera: e.wristbandCode, nombre: e.kid.name ?? null })),
+                ninos: cmd.entries.map((e, i) => ({ pulsera: codigos[i]!, nombre: e.kid.name ?? null })),
                 total: { minor: String(total.amount), currency: "USD" },
               },
             });
@@ -883,6 +907,10 @@ export function casosParque(base: Base): CasosParque {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<EstadoPulseraDto | Rechazo> => {
         const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
         if (rechazo) return rechazo;
+        // El prefijo de los niños sin pulsera (B4-8) es del servidor: una pulsera con él no es del lote.
+        if (isWristbandless(codigo)) {
+          return { codigo, estado: "FUERA_DE_SERIE", mensaje: `Los códigos que empiezan por ${WRISTBANDLESS_PREFIX} son de los niños que entran sin pulsera: pasa una pulsera del lote.` };
+        }
         const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
         if (wristbandSeriesProblem(codigo, { prefix: serie.prefijo, length: serie.longitud })) {
           const como = [serie.prefijo ? `empiezan por ${serie.prefijo}` : null, serie.longitud ? `tienen ${serie.longitud} caracteres` : null].filter(Boolean).join(" y ");
@@ -991,11 +1019,17 @@ export async function comprobarPulserasYAforo(
   aforo: number,
   ahora: number,
   ruta: (i: number) => (string | number)[],
-  opciones: Readonly<{ sinAforo?: boolean }> = {},
+  opciones: Readonly<{ sinAforo?: boolean; generados?: ReadonlySet<string> }> = {},
 ): Promise<Rechazo | null> {
   // V-1: la serie de pulseras del local, si ya se fijó con el primer lote (D-PUL).
   const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
+  const generados = opciones.generados ?? new Set<string>();
   for (const [i, codigo] of codigos.entries()) {
+    // El código de un niño sin pulsera (B4-8) lo pone el servidor: no es de ningún lote ni se puede traer de fuera.
+    if (generados.has(codigo)) continue;
+    if (isWristbandless(codigo)) {
+      return invalido(`Los códigos que empiezan por ${WRISTBANDLESS_PREFIX} son de los niños que entran sin pulsera: pasa una pulsera del lote.`, ruta(i), "PULSERA_RESERVADA");
+    }
     const problema = wristbandSeriesProblem(codigo, { prefix: serie.prefijo, length: serie.longitud });
     if (problema) {
       const como = [serie.prefijo ? `empiezan por ${serie.prefijo}` : null, serie.longitud ? `tienen ${serie.longitud} caracteres` : null].filter(Boolean).join(" y ");

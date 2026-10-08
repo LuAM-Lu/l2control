@@ -24,7 +24,8 @@ import {
   formatMoneyVE,
   useServerClock,
 } from "@l2/ui";
-import { HandPlatter, PackageOpen } from "lucide-react";
+import { HandHeart, HandPlatter, PackageOpen } from "lucide-react";
+import { isWristbandless } from "@l2/domain-park";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { sum, toMajor } from "@l2/domain-money";
@@ -134,6 +135,10 @@ export function CheckoutScreen({
   );
 
   const itemRefs = useRef(new Map<string, HTMLLIElement | null>());
+
+  /** Los niños en sala que entraron sin pulsera (B4-8): la salida los elige por su nombre. */
+  const sinPulsera = useMemo(() => snapshot.sessions.filter((s) => isWristbandless(s.wristbandCode)), [snapshot.sessions]);
+  const [eligiendoSinPulsera, setEligiendoSinPulsera] = useState(false);
 
   const handleScan = useCallback(
     (code: string) => {
@@ -373,7 +378,34 @@ export function CheckoutScreen({
               className="min-w-0 flex-1"
             />
             <BotonCamara activa={camara} onCambiar={setCamara} />
+            {/* B4-8: un niño sin pulsera no se lee: se elige por su nombre. */}
+            {sinPulsera.length > 0 && (
+              <Button surface="tablet" variant={eligiendoSinPulsera ? "primary" : "neutral"} className="shrink-0 gap-1.5" aria-pressed={eligiendoSinPulsera} onClick={() => setEligiendoSinPulsera((v) => !v)}>
+                <HandHeart size={18} aria-hidden="true" />
+                <span className="max-sm:hidden">Sin pulsera ({sinPulsera.length})</span>
+              </Button>
+            )}
           </div>
+
+          {eligiendoSinPulsera && sinPulsera.length > 0 && (
+            <div role="group" aria-label="Niños sin pulsera en sala" className="flex shrink-0 flex-wrap gap-1.5 rounded-[var(--radius-card)] border border-line bg-surface p-2">
+              {sinPulsera.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    handleScan(s.wristbandCode);
+                    setEligiendoSinPulsera(false);
+                  }}
+                  className="flex min-h-12 cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border border-line bg-base/40 px-3 text-left text-[14px] font-semibold text-ink hover:border-line-strong focus-visible:outline-2 focus-visible:outline-brand"
+                >
+                  <HandHeart size={15} aria-hidden="true" className="text-brand" />
+                  {nombreDeEstancia(s)}
+                  <span className="text-[12px] font-normal text-ink-3">· {s.guardianName}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {camara && <LectorCamara onCerrar={() => setCamara(false)} className="h-[36dvh] max-h-80 shrink-0 md:h-64" />}
 
