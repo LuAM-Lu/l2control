@@ -1971,7 +1971,7 @@ periodo, quién y cuándo), los totales y el número de página, que el navegado
 decisión del usuario). Excepciones, parque frente a restaurante, más vendidos y margen: después del piloto (F9-02 a
 F9-05).
 
-- [ ] **B11-1 · La sección Reportes y las ventas** (M-29, F9-01).
+- [~] **B11-1 · La sección Reportes y las ventas** (M-29, F9-01). *A cargo: LuAMi, rama `feat/b11-1`.*
   → Reportes → Ventas del día o de un rango: por medio de pago y moneda, por origen (parque, restaurante, mostrador,
   cumpleaños) y por cajera y turno, con lo anulado aparte; los totales cuadran con los cierres Z del periodo. Su PDF.
 - [ ] **B11-2 · Inventario al momento** (M-29).
