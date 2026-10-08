@@ -34,8 +34,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.61.0 · 61 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Último entregado: B6-7
-(varias cuentas en una mesa y cuentas de pie).
+**Versión 0.62.0 · 62 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Últimos entregados: B6-7
+(varias cuentas en una mesa y cuentas de pie) y B4-7 (pausa por comida).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -211,7 +211,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    → ~~T-8a~~ (publicar y desplegar, M-22) → ~~B7-1~~ (VPS) → ~~T-9~~ (confirmar identidad desde cualquier equipo, M-23) → ~~B7-2 y T-10~~ (la semilla del local y el inventario en lote, M-24) → ~~T-8b~~ (actualizaciones desde el panel, M-25) → ~~B7-4~~ (respaldos, M-26) → ~~B7-5~~ (seguridad), y B7-3 con **T-8c** (el agente se actualiza solo) en el local
    → Etapa 8 (producción, 1.0.0); T-8b tiene que estar antes de B8-3.
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
-   ~~B6-7~~ (varias cuentas por mesa y de pie) → **B4-7** (pausa) → B4-8 (sin pulsera) → T-12 (ayuda y recorridos) →
+   ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → **B4-8** (sin pulsera) → T-12 (ayuda y recorridos) →
    B4-10 (cortesía y anular desde la sala) → B4-9 (medias) → T-13 (roles) → B3-8 (cobrar con el teclado) → T-14 (mi PIN
    y el acceso con teclado) → T-15 (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
@@ -1260,10 +1260,25 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   pinta lo «cambiado por uso» tachado (`agruparFilas`). Navegador en la base de pruebas a 1366×768, 1280×800 y
   800×1280. El caso de la mesa se comprobó contra la base, no en el navegador.*
 
-- [~] **B4-7 · Pausa por comida** (M-27, P-14). *A cargo: LuAMi, rama `feat/b4-7`.*
+- [x] **B4-7 · Pausa por comida** (M-27, P-14).
   → La monitora pausa el reloj de un niño una vez por visita; a los 10 minutos (ajuste de la sucursal) vuelve a
   correr solo, o antes si ella lo reanuda. Una segunda pausa la niega el servidor; la salida y el tiempo de más
   cuentan sin la pausa; la sala enseña «En pausa» con lo que le queda. Solo-agregar.
+  *Hecho el 2026-10-07 (LuAMi), v0.62.0.* **Dominio:** la estancia lleva `pause` (inicio, fin a mano o nulo, máximo);
+  `pausedMs` y `pauseEndsAt` (lo que llegue antes: el fin a mano o el máximo); `computeSessionView` descuenta la pausa
+  del tiempo en sala (también en tiempo abierto) y dice `paused` y `pauseRemainingMs`; `pauseProblem` (una por visita) y
+  `resumeProblem` (sin pausa, o ya terminó); 7 pruebas. **Contratos:** `PausaSchema` en la estancia, `PausaCommandSchema`
+  (PAUSAR o REANUDAR) y el ajuste `pausaMaximaMin` (1 a 30, 10 de fábrica; los ajustes de antes lo toman así). **Base:**
+  `park_session_pause` (migración `20261105000000_pausa_por_comida`, solo expande): PAUSA con su máximo y REANUDA, una de
+  cada por estancia por índice único (dos equipos a la vez dejan una), solo-agregar, RLS, y un disparador que solo deja
+  pausar una estancia activa y reanudar una pausa que existe. **Aplicación:** `casosParque.pausa` con `parque.checkIn`,
+  reintento por clave, auditado (`parque.pausar`/`parque.reanudar`, tema `sala`); la sala y la salida (tiempo de más y
+  paquete por uso) miden sin la pausa; 12 pruebas contra la base. **Web:** «Pausa por comida» en la ficha del niño y
+  «Terminar la pausa» mientras dura; la tarjeta dice «En pausa · 09:48» con el reloj quieto, y la ficha, la pausa en curso
+  o usada; los botones de la ficha en dos columnas (con cuatro en fila el texto se partía); Ajustes → Sucursal tiene el
+  máximo. Visto en el navegador en la base de pruebas: pausar, reloj quieto, terminar y que no se ofrezca otra, a 1366×768
+  y en el teléfono en oscuro, sin desplazar la página ni errores de consola. **Propuesta a confirmar (P-14):** el niño en
+  pausa sigue contando en el aforo.*
 - [ ] **B4-8 · Entrar sin pulsera** (M-27, P-1).
   → Un niño entra sin pulsera con su nombre (obligatorio) y una seña; el servidor le da un código interno que un
   lector no puede producir; se le encuentra por nombre en la sala, la salida y la caja, con el chip «Sin pulsera»;
@@ -2274,6 +2289,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-07** · B6-7 entregado como v0.61.0: una mesa admite una cuenta por familia y quien pide de pie tiene la suya;
   el plano lee la ocupación de las cuentas, no del bus. Salió al probarlo: una cuenta de pie recién abierta se escondía
   como borrador de mostrador vacío. Sigue B4-7.
+- **2026-10-07** · v0.61.0 llevó también Next 16.3.8: la auditoría del CI marcó como alta una falsificación de peticiones en
+  la optimización de imágenes (GHSA-cjq9-62q9-8jv4), y `main` habría quedado en rojo sin tocar nada.
+- **2026-10-07** · B4-7 entregado como v0.62.0: la pausa por comida, una por visita y de hasta 10 minutos (ajuste). Sigue B4-8.
 
 ---
 

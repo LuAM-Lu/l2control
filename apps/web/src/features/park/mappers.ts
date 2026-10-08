@@ -79,5 +79,9 @@ export function toParkSession(dto: ParkSessionDto): ParkSession {
     mode: dto.mode,
     duration: toDuration(dto.duration),
     startedAt: toEpochMs(dto.startedAt),
+    // La pausa por comida (B4-7): lo que estuvo comiendo no cuenta como tiempo en sala.
+    ...(dto.pausa
+      ? { pause: { startedAt: toEpochMs(dto.pausa.desde), endedAt: dto.pausa.hasta ? toEpochMs(dto.pausa.hasta) : null, maxMinutes: dto.pausa.maxMin } }
+      : {}),
   };
 }

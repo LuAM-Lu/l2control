@@ -122,7 +122,33 @@ export type ParkSession = Readonly<{
   mode: SessionMode;
   duration: Duration;
   startedAt: EpochMs;
+  /** La pausa por comida (B4-7, M-27), si la tuvo: una por visita. Mientras dura, el reloj no corre. */
+  pause?: Pause;
 }>;
+
+/**
+ * La pausa de una estancia (B4-7, M-27, P-14): el niño sale a comer y su tiempo se detiene. Dura hasta
+ * `maxMinutes` (un ajuste de la sucursal, 10 de fábrica) y entonces vuelve a correr sola; o antes, si la
+ * monitora la termina (`endedAt`). Una sola por visita: la segunda la niega quien la registra.
+ */
+export type Pause = Readonly<{
+  startedAt: EpochMs;
+  /** Cuándo la terminó la monitora; `null` si no la terminó (sigue, o se acabó sola al cumplirse). */
+  endedAt: EpochMs | null;
+  maxMinutes: number;
+}>;
+
+/** Cuándo termina la pausa: al terminarla la monitora o al cumplirse su máximo, lo que llegue antes. */
+export function pauseEndsAt(p: Pause): EpochMs {
+  const tope = p.startedAt + p.maxMinutes * MS_PER_MINUTE;
+  return epochMs(p.endedAt === null ? tope : Math.min(p.endedAt, tope));
+}
+
+/** Cuánto lleva o llevó en pausa en `now`: lo que no se cuenta como tiempo en sala. */
+export function pausedMs(p: Pause | undefined, now: EpochMs): number {
+  if (!p || now <= p.startedAt) return 0;
+  return Math.min(now, pauseEndsAt(p)) - p.startedAt;
+}
 
 export type SessionView = Readonly<{
   status: SessionStatus;
@@ -134,6 +160,10 @@ export type SessionView = Readonly<{
   overdueMs: number;
   /** Excedente que ya superó la gracia y por tanto se cobra. */
   billableOverdueMs: number;
+  /** Si está en su pausa por comida ahora mismo (B4-7): el reloj está quieto. */
+  paused: boolean;
+  /** Lo que le queda a la pausa; `null` si no está en pausa. */
+  pauseRemainingMs: number | null;
 }>;
 
 /**
@@ -147,7 +177,10 @@ export function computeSessionView(
   policy: ParkPolicy,
   now: EpochMs,
 ): SessionView {
-  const elapsedMs = Math.max(0, now - session.startedAt);
+  // La pausa por comida (B4-7) no cuenta como tiempo en sala: ni lo consume ni se cobra.
+  const elapsedMs = Math.max(0, now - session.startedAt - pausedMs(session.pause, now));
+  const enPausa = session.pause !== undefined && now >= session.pause.startedAt && now < pauseEndsAt(session.pause);
+  const pausa = { paused: enPausa, pauseRemainingMs: enPausa ? pauseEndsAt(session.pause!) - now : null };
 
   if (session.duration.kind === "openEnded") {
     // Postpago o pase libre: cuenta hacia adelante y nunca vence solo.
@@ -157,6 +190,7 @@ export function computeSessionView(
       remainingMs: null,
       overdueMs: 0,
       billableOverdueMs: 0,
+      ...pausa,
     });
   }
 
@@ -176,7 +210,23 @@ export function computeSessionView(
           ? "POR_VENCER"
           : "ACTIVA";
 
-  return Object.freeze({ status, elapsedMs, remainingMs, overdueMs, billableOverdueMs });
+  return Object.freeze({ status, elapsedMs, remainingMs, overdueMs, billableOverdueMs, ...pausa });
+}
+
+/** Por qué no se puede pausar una estancia (B4-7): ya usó su pausa. */
+export type PauseProblem = "YA_PAUSO";
+
+/** ¿Puede pausarse? Una sola pausa por visita (P-14): la pulsera es de un solo uso (V-1) y la pausa también. */
+export function pauseProblem(session: Pick<ParkSession, "pause">): PauseProblem | null {
+  return session.pause ? "YA_PAUSO" : null;
+}
+
+/** Por qué no se puede terminar una pausa antes de tiempo: no la hay, o ya terminó (sola o a mano). */
+export type ResumeProblem = "SIN_PAUSA" | "YA_TERMINO";
+
+export function resumeProblem(session: Pick<ParkSession, "pause">, now: EpochMs): ResumeProblem | null {
+  if (!session.pause) return "SIN_PAUSA";
+  return now >= pauseEndsAt(session.pause) ? "YA_TERMINO" : null;
 }
 
 /**

@@ -14,6 +14,20 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.62.0] — 2026-10-07 · Lo pedido en la primera visita
+
+Pausa por comida (B4-7, M-27).
+
+### Añadido
+- **Pausa por comida.** Cuando un niño sale a comer, la monitora pausa su tiempo desde su ficha en la sala: el reloj se
+  queda quieto y la tarjeta dice «En pausa» con lo que le queda. A los 10 minutos vuelve a correr solo, o antes con
+  «Terminar la pausa». Hay una sola pausa por visita, y lo que estuvo comiendo no cuenta ni como tiempo consumido ni
+  como tiempo de más.
+- El máximo de la pausa es un ajuste de la sucursal (Ajustes → Sucursal), de 1 a 30 minutos; 10 de fábrica.
+
+### Cambiado
+- Los botones de la ficha del niño van en dos columnas: con cuatro en una fila, el texto se partía en tres líneas.
+
 ## [0.61.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Varias cuentas en una mesa y cuentas de pie (B6-7, M-27).

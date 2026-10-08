@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus } from "lucide-react";
+import { Baby, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
+import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery, useServerClock } from "@l2/ui";
 import Link from "next/link";
 import type { Route } from "next";
 import { toMajor } from "@l2/domain-money";
@@ -12,9 +12,9 @@ import { nombreDeCuenta, pendiente } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
-import { nombreVisible, toMonitorModel } from "./view-model";
+import { enPausa, nombreVisible, toMonitorModel } from "./view-model";
 import { useSala } from "./SalaProvider.tsx";
-import { nombrarEstancia } from "./parque.acciones";
+import { nombrarEstancia, pausarEstancia } from "./parque.acciones";
 import { RecargarTiempo } from "./RecargarTiempo.tsx";
 import { EstanciasARevisar } from "./EstanciasARevisar.tsx";
 import { useTarifario } from "./TarifarioProvider";
@@ -24,6 +24,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { PonerNombre } from "./PonerNombre.tsx";
 import { VincularAMesa } from "./VincularAMesa.tsx";
 import { vincularPulseras } from "../mesas/mesas.acciones.ts";
+import { formatDuration } from "@l2/domain-park";
 
 /**
  * Monitor de parque — F5-08.
@@ -108,6 +109,33 @@ export function ParkMonitor() {
   const estanciaFicha = ficha ? (sala?.sessions.find((s) => s.id === ficha.id) ?? null) : null;
 
   const mesaActual = ficha ? (cuentas.find((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.sessionIds.includes(ficha.id)) ?? null) : null;
+
+  /**
+   * La pausa por comida (B4-7, M-27): una por visita, hasta el máximo de la sucursal. El estado se mira con el
+   * reloj del servidor en cada pintado de la ficha; lo decide el servidor al pedirla.
+   */
+  const [pausando, setPausando] = useState(false);
+  const ahoraFicha = useServerClock(model.serverNow);
+  const pausaFicha = ficha?.pausa ?? null;
+  async function pausar(accion: "PAUSAR" | "REANUDAR") {
+    if (!ficha) return;
+    setPausando(true);
+    const r = await pausarEstancia({ idempotencyKey: crypto.randomUUID(), sessionId: ficha.id, accion }).catch(() => null);
+    setPausando(false);
+    if (!r) {
+      avisar.error("Sin conexión con el servidor: la pausa no se registró.");
+      return;
+    }
+    if (!r.ok) {
+      avisar.error(r.mensaje);
+      return;
+    }
+    avisar.ok(
+      accion === "PAUSAR" ? `${nombreVisible(ficha)} en pausa: su tiempo no corre` : `${nombreVisible(ficha)}: su tiempo vuelve a correr`,
+      accion === "PAUSAR" && r.valor.pausa ? { detalle: `Hasta ${r.valor.pausa.maxMin} minutos; después corre solo. Una pausa por visita.` } : undefined,
+    );
+    void refrescar();
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -233,16 +261,28 @@ export function ParkMonitor() {
         pie={
           ficha && !poniendoNombre && !recargando && (
             <div className="flex flex-col gap-2 w-full">
-              <div className="flex gap-2 flex-wrap">
+              {/* Dos por fila: con cuatro en una, el texto se partía en tres líneas y los iconos no se veían. */}
+              <div className="grid grid-cols-2 gap-2">
                 {ficha.contractedMinutes !== null && (
-                  <Button variant="neutral" className="flex-1" onClick={() => setRecargando(true)}>
+                  <Button variant="neutral" className="w-full" onClick={() => setRecargando(true)}>
                     <Plus size={17} aria-hidden="true" />
                     Recargar tiempo
                   </Button>
                 )}
+                {pausaFicha === null ? (
+                  <Button variant="neutral" className="w-full" disabled={pausando} onClick={() => void pausar("PAUSAR")}>
+                    <UtensilsCrossed size={17} aria-hidden="true" />
+                    Pausa por comida
+                  </Button>
+                ) : enPausa(pausaFicha, ahoraFicha) ? (
+                  <Button variant="neutral" className="w-full" disabled={pausando} onClick={() => void pausar("REANUDAR")}>
+                    <Play size={17} aria-hidden="true" />
+                    Terminar la pausa
+                  </Button>
+                ) : null}
                 <Button
                   variant="neutral"
-                  className="flex-1"
+                  className="w-full"
                   onClick={() => setPoniendoNombre(true)}
                 >
                   <NotebookPen size={17} aria-hidden="true" />
@@ -252,7 +292,7 @@ export function ParkMonitor() {
                 {puedeVincular && !mesaActual && (
                   <Button
                     variant="neutral"
-                    className="flex-1"
+                    className="w-full"
                     onClick={() => setVinculandoAMesa(true)}
                   >
                     <Link2 size={17} aria-hidden="true" />
@@ -318,6 +358,16 @@ export function ParkMonitor() {
                 <dt className="text-ink-3">Recargas</dt>
                 <dd className="tnum text-right text-ink">
                   {estanciaFicha!.recargas.map((r) => `+${r.minutes} min`).join(" · ")}
+                </dd>
+              </div>
+            )}
+            {pausaFicha && (
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-ink-3">Pausa por comida</dt>
+                <dd className="tnum text-right text-ink">
+                  {enPausa(pausaFicha, ahoraFicha)
+                    ? `En curso · quedan ${formatDuration(pausaFicha.fin - ahoraFicha)}`
+                    : `Usada · ${Math.max(1, Math.round((pausaFicha.fin - pausaFicha.inicio) / 60_000))} min`}
                 </dd>
               </div>
             )}

@@ -491,8 +491,23 @@ export function EditorSucursal() {
               {errores["servicio.basisPoints"] && <p className="text-[12px] font-medium text-state-crit">{errores["servicio.basisPoints"]}</p>}
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Pausa por comida (min)"
+              surface="admin"
+              type="number"
+              min={1}
+              max={30}
+              step={1}
+              className="tnum"
+              value={String(borrador.pausaMaximaMin)}
+              error={errores.pausaMaximaMin}
+              hint="Una por visita; de 1 a 30"
+              onChange={(e) => cambiar({ pausaMaximaMin: Number(e.target.value) })}
+            />
+          </div>
           <p className="text-[12px] text-ink-3">
-            El residuo es lo que la caja se queda si no hay vuelto exacto. Una estancia que pasa de sus horas (o del día) queda a revisar y deja de contar en el aforo.
+            El residuo es lo que la caja se queda si no hay vuelto exacto. Una estancia que pasa de sus horas (o del día) queda a revisar y deja de contar en el aforo. Un niño que sale a comer puede pausar su tiempo una vez; pasado el máximo, vuelve a correr solo.
           </p>
         </section>
       </div>

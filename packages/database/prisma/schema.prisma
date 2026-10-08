@@ -1228,6 +1228,7 @@ model ParkSession {
   guardian         Guardian               @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   kid              Kid?                   @relation(fields: [tenantId, kidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   extensions       ParkSessionExtension[]
+  pauses           ParkSessionPause[]
   eventReservation EventReservation?      @relation(fields: [tenantId, eventReservationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
@@ -1259,6 +1260,29 @@ model ParkSessionExtension {
   @@unique([tenantId, operationKey])
   @@index([tenantId, sessionId])
   @@map("park_session_extension")
+}
+
+/// La pausa por comida de una estancia (B4-7, M-27): PAUSA (cuándo y con qué máximo) y, si la monitora la
+/// terminó antes, REANUDA. Una de cada por visita; solo-agregar.
+model ParkSessionPause {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  sessionId     String   @map("session_id") @db.Uuid
+  /// PAUSA o REANUDA (CHECK).
+  kind          String
+  at            DateTime @db.Timestamptz(3)
+  /// El máximo que regía al pausar; nulo en REANUDA (CHECK).
+  maxMinutes    Int?     @map("max_minutes")
+  operationKey  String   @map("operation_key") @db.Uuid
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+
+  session ParkSession @relation(fields: [tenantId, sessionId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, sessionId, kind])
+  @@unique([tenantId, operationKey])
+  @@map("park_session_pause")
 }
 
 /**
