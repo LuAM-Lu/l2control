@@ -2018,7 +2018,7 @@ F9-05).
 - [ ] **B11-2 · Inventario al momento** (M-29).
   → Existencia y valor al costo por categoría y producto, lo bajo mínimo, lo agotado y lo sin contar, a la hora en que
   se pide. Su PDF.
-- [ ] **B11-3 · Movimientos (kárdex)** (M-29).
+- [~] **B11-3 · Movimientos (kárdex)** (M-29). *A cargo: LuAMi, rama `feat/b11-3`.*
   → Por producto (o categoría) y periodo: cada entrada, venta, salida, ajuste y conteo con su fecha, quién, el motivo y el
   saldo después de cada uno; el saldo final es la existencia. Su PDF.
 
