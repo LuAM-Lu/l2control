@@ -313,6 +313,40 @@ export async function familiaDePrueba(
 }
 
 /**
+ * Un cliente de prueba (B6-9): nombre, cédula y teléfono que no chocan con los de otro cliente de la misma corrida.
+ */
+export function clienteDePrueba(nombre?: string): { nombre: string; cedula: string; telefono: string } {
+  const n = ++ordenDePrueba;
+  return { nombre: nombre ?? `Prueba Cliente ${n}`, cedula: `V-${30_000_000 + n}`, telefono: `0414-${String(3_000_000 + n)}` };
+}
+
+/**
+ * Sienta a un cliente de prueba en una mesa, o de pie sin `tableId` (B6-7, B6-9): desde B6-9 una mesa sin cuenta no
+ * recibe pedidos, pulseras ni salidas del parque, así que las pruebas sientan primero, como en el local.
+ */
+export async function sentarDePrueba(
+  local: LocalDePrueba,
+  ctx: Contexto,
+  tableId: string | undefined,
+  ahora: number,
+  extra: Readonly<{ nombre?: string; comensales?: number; vistas?: number }> = {},
+): Promise<import("@l2/contracts").FamilyAccountDto> {
+  const r = await local.app.mesas.abrir(
+    ctx,
+    {
+      cuentaId: randomUUID(),
+      ...(tableId ? { tableId } : {}),
+      cliente: clienteDePrueba(extra.nombre),
+      comensales: extra.comensales ?? 2,
+      vistas: extra.vistas ?? 0,
+    },
+    ahora,
+  );
+  if (!r.ok) throw new Error(r.mensaje);
+  return r.valor;
+}
+
+/**
  * Una impresora de recibos y comandas encendida en el local (B5-2): sin ella, imprimir un recibo se
  * niega. Su dirección no existe: los trabajos esperan en la cola, que es lo que prueban estas pruebas.
  */

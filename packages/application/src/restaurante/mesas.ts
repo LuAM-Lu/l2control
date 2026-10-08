@@ -35,7 +35,8 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import { claveSecundaria, crearCuentaDeMesa, crearCuentaDePie, guardarVersion, vigenteDe } from "../caja/cuentas.ts";
-import { candadoDeMesas, cuentaDeMesaPara, cuentasDePieEn, mesaParaCuentaNueva, sessionsVinculadas } from "./plano.ts";
+import { anotarCliente, resolverCliente } from "../clientes/clientes.ts";
+import { candadoDeMesas, cuentaDeMesaPara, cuentasDePieEn, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "./plano.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
 
 export interface CasosMesas {
@@ -75,30 +76,30 @@ export function casosMesas(base: Base): CasosMesas {
 
           await candadoDeMesas(tx, ctx.branchId);
           const quien = await nombreDe(tx, ctx);
-          let cuenta: FamilyAccountDto;
+          // La cuenta se llama como su cliente (B6-9): nombre, cédula y teléfono, reconocido en el directorio o dado de alta.
+          const nombre = cmd.cliente.nombre;
+          // Primero lo que puede negarse (la mesa, el nombre de pie); después, lo que escribe. Un rechazo no deshace la
+          // transacción: nada se escribe antes de saber que se puede.
+          let mesa: Readonly<{ tableId: string; label: string }> | null = null;
           if (cmd.tableId !== undefined) {
-            const r = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId, { ...(cmd.nombre ? { nombre: cmd.nombre } : {}), vistas: cmd.vistas });
+            const r = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId, { nombre, vistas: cmd.vistas });
             if ("ok" in r) return { ...r, ...(r.problemas ? { problemas: r.problemas.map((p) => ({ ...p, path: p.path[0] === "cuenta" ? ["tableId"] : p.path })) } : {}) };
-            cuenta = await crearCuentaDeMesa(tx, ctx, {
-              id: cmd.cuentaId,
-              tableId: cmd.tableId,
-              label: r.label,
-              ...(cmd.nombre ? { nombre: cmd.nombre } : {}),
-              comensales: cmd.comensales,
-              lines: [],
-              ahora,
-              quien: quien.nombre,
-            });
+            mesa = { tableId: cmd.tableId, label: r.label };
           } else {
             // Dos cuentas de pie con el mismo nombre se confunden al llamarlas: la segunda lleva otro.
-            const nombre = cmd.nombre!;
             const dePie = await cuentasDePieEn(tx, ctx.branchId);
             if (dePie.some((c) => c.nombre.localeCompare(nombre, "es", { sensitivity: "base" }) === 0)) {
-              return { ok: false, motivo: "CONFLICTO", mensaje: `Ya hay una cuenta de pie «${nombre}»: usa otro nombre o una seña.`, problemas: [{ path: ["nombre"], message: "NOMBRE_REPETIDO" }] };
+              return { ok: false, motivo: "CONFLICTO", mensaje: `Ya hay una cuenta de pie a nombre de «${nombre}».`, problemas: [{ path: ["cliente", "nombre"], message: "NOMBRE_REPETIDO" }] };
             }
-            cuenta = await crearCuentaDePie(tx, ctx, { id: cmd.cuentaId, nombre, comensales: cmd.comensales, lines: [], ahora, quien: quien.nombre });
           }
+          const c = await resolverCliente(tx, ctx, cmd.cliente, ahora);
+          if ("ok" in c) return c;
+          const cuenta: FamilyAccountDto = mesa
+            ? await crearCuentaDeMesa(tx, ctx, { id: cmd.cuentaId, ...mesa, nombre, comensales: cmd.comensales, lines: [], ahora, quien: quien.nombre })
+            : await crearCuentaDePie(tx, ctx, { id: cmd.cuentaId, nombre, comensales: cmd.comensales, lines: [], ahora, quien: quien.nombre });
           await guardarVersion(tx, ctx, cuenta, { cause: "GUARDAR", operationKey: null, ahora, quien: quien.nombre });
+          const cliente = await anotarCliente(tx, ctx, cuenta.id, c, ahora, quien.nombre);
+          // El asiento nombra al cliente del directorio, no su cédula ni su teléfono (PLAN §7.6).
           await auditar(tx, ctx, {
             action: "cuenta.abrir",
             entityType: "account",
@@ -108,9 +109,11 @@ export function casosMesas(base: Base): CasosMesas {
               nombre: cuenta.family,
               comensales: cmd.comensales,
               orden: cuenta.orderNumber ?? null,
+              clienteId: c.guardianId,
+              clienteNuevo: c.nuevo,
             },
           });
-          return cuenta;
+          return { ...cuenta, cliente };
         });
 
       try {
@@ -181,15 +184,15 @@ export function casosMesas(base: Base): CasosMesas {
           if ("ok" in destino) return destino;
           const abierta = destino.abierta;
           const mesaVigente = abierta ? await vigenteDe(tx, abierta) : null;
-          let label: string;
-          if (mesaVigente) {
-            label = mesaVigente.cuenta.tableLabel ?? "?";
-          } else {
+          // Una mesa sin cuenta no la abre una pulsera: se sienta primero a su cliente, con sus datos (B6-9, M-33). Antes,
+          // si la mesa no está en el salón, se dice eso.
+          if (!mesaVigente) {
             const r = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId);
             if ("ok" in r) return { ...r, ...(r.problemas ? { problemas: r.problemas.map((p) => ({ ...p, path: ["tableId"] })) } : {}) };
-            label = r.label;
+            return mesaSinCuenta(["tableId"]);
           }
-          const mesaAccountId = abierta ?? randomUUID();
+          const label = mesaVigente.cuenta.tableLabel ?? "?";
+          const mesaAccountId = mesaVigente.cuenta.id;
 
           // Por cuenta de familia: cada estancia mueve lo pendiente de su propia cuenta.
           const porCuenta = new Map<string, string[]>();
@@ -211,22 +214,12 @@ export function casosMesas(base: Base): CasosMesas {
             familias.push(nuevaFamilia);
           }
 
-          const mesa: FamilyAccountDto = mesaVigente
-            ? FamilyAccountSchema.parse({
-                ...mesaVigente.cuenta,
-                sessionIds: [...new Set([...mesaVigente.cuenta.sessionIds, ...cmd.sessionIds])],
-                lines: [...mesaVigente.cuenta.lines, ...lineasParaLaMesa],
-                version: mesaVigente.version + 1,
-              })
-            : await crearCuentaDeMesa(tx, ctx, {
-                id: mesaAccountId,
-                tableId: cmd.tableId,
-                label,
-                lines: lineasParaLaMesa,
-                sessionIds: cmd.sessionIds,
-                ahora,
-                quien: quien.nombre,
-              });
+          const mesa: FamilyAccountDto = FamilyAccountSchema.parse({
+            ...mesaVigente.cuenta,
+            sessionIds: [...new Set([...mesaVigente.cuenta.sessionIds, ...cmd.sessionIds])],
+            lines: [...mesaVigente.cuenta.lines, ...lineasParaLaMesa],
+            version: mesaVigente.version + 1,
+          });
           await guardarVersion(tx, ctx, mesa, { cause: "VINCULAR", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
 
           const movido = lineasParaLaMesa.reduce((acc, l) => add(acc, money(BigInt(l.amount.minor), "USD")), money(0n, "USD"));

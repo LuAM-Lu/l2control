@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { InformeDeVentasDto, TurnoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -39,26 +39,23 @@ let turnoB: TurnoDto;
 
 /** Una cuenta (de mostrador o de una mesa) con un agua de $ 1,00, cobrada como se diga. */
 async function vender(ctx: Contexto, pago: "EFECTIVO_USD" | "EFECTIVO_VES", mesa = false) {
-  const c = valor(
-    await l.app.cuentas.guardar(
-      ctx,
-      {
-        cuenta: {
-          id: randomUUID(),
-          kind: mesa ? "MESA" : "MOSTRADOR",
-          family: mesa ? "Mesa 1" : "Mostrador",
-          ...(mesa ? { tableId: "mesa-1", tableLabel: "1" } : {}),
-          mode: "PREPAGO",
-          status: "POR_COBRAR",
-          openedAt: new Date(AHORA).toISOString(),
-          sessionIds: [],
-          closedSessionIds: [],
-          lines: [{ id: randomUUID(), concept: "Agua mineral", kind: "RESTAURANTE", amount: usd("100"), paid: false, productId: agua, taxCode: "GENERAL" }],
-        },
-      },
-      AHORA,
-    ),
-  );
+  const lines = [{ id: randomUUID(), concept: "Agua mineral", kind: "RESTAURANTE", amount: usd("100"), paid: false, productId: agua, taxCode: "GENERAL" }];
+  // Una mesa se abre sentando a su cliente (B6-9); después se le añade lo pedido y pasa a la caja.
+  const sentada = mesa ? await sentarDePrueba(l, ctx, "mesa-1", AHORA - MIN) : null;
+  const cuenta = sentada
+    ? { ...sentada, status: "POR_COBRAR", lines }
+    : {
+        id: randomUUID(),
+        kind: "MOSTRADOR",
+        family: "Mostrador",
+        mode: "PREPAGO",
+        status: "POR_COBRAR",
+        openedAt: new Date(AHORA).toISOString(),
+        sessionIds: [],
+        closedSessionIds: [],
+        lines,
+      };
+  const c = valor(await l.app.cuentas.guardar(ctx, { cuenta }, AHORA));
   // $ 5,00 en efectivo llevan $ 0,15 de IGTF: total $ 1,31. Bs. 1.000,00 a 855,6625 son $ 1,17 de $ 1,16.
   const cmd =
     pago === "EFECTIVO_USD"

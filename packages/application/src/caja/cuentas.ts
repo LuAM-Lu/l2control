@@ -29,6 +29,7 @@ import {
   IncobrableCommandSchema,
   CuentasDelLocalSchema,
   FamilyAccountSchema,
+  type ClienteDeCuentaDto,
   GuardarCuentaCommandSchema,
   enmascararDocumento,
   problemasDe,
@@ -41,6 +42,7 @@ import {
   type Resultado,
   type VentaCerradaDto,
 } from "@l2/contracts";
+import { clientesDeCuentas } from "../clientes/de-cuentas.ts";
 import {
   RetainedAboveThresholdError,
   SettlementImbalanceError,
@@ -122,7 +124,7 @@ import { asentarAjuste } from "../inventario/salidas.ts";
 import { encolarEn } from "../impresion/impresion.ts";
 import { documentoDeAnulacion, rotuloDePedido } from "../impresion/plantillas.ts";
 import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
-import { mesaParaCuentaNueva } from "../restaurante/plano.ts";
+import { mesaSinCuenta } from "../restaurante/plano.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "./papel-en.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
@@ -179,6 +181,7 @@ export type AccionDeCaja =
   | "cobro.anular"
   | "cuenta.cortesia"
   | "cuenta.incobrable"
+  | "cuenta.cambiarCliente"
   | "cuenta.descuento"
   | "turno.corteZ"
   | "turno.abrirFueraDelPunto"
@@ -269,9 +272,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
         // Las cobradas (y las incobrables) se enseñan el día en que se cerraron; las demás, hasta que se cobran.
         const zona = await zonaDe(tx, ctx.branchId);
         const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), zona), zona));
-        const filas = await tx.$queryRaw<{ version: number; content: unknown }[]>`
-          SELECT ultima.version, ultima.content FROM (
-            SELECT DISTINCT ON (v.account_id) v.version, v.content, v.status, v.saved_at
+        const filas = await tx.$queryRaw<{ account_id: string; version: number; content: unknown }[]>`
+          SELECT ultima.account_id, ultima.version, ultima.content FROM (
+            SELECT DISTINCT ON (v.account_id) v.account_id, v.version, v.content, v.status, v.saved_at
             FROM account_version v
             JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
             WHERE a.branch_id = ${ctx.branchId}::uuid
@@ -280,7 +283,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           WHERE ultima.status NOT IN ('COBRADA', 'INCOBRABLE', 'SIN_CONSUMO') OR ultima.saved_at >= ${desde}
           ORDER BY ultima.saved_at`;
         // Se revalida al salir: lo que no cumple el contrato no llega a ninguna estación (fail-closed).
-        const cuentas = filas.map((f) => deVersion(f.content, f.version)).filter((c) => !isDiscardedDraft(c));
+        const clientes = await clientesDeCuentas(tx, filas.map((f) => f.account_id));
+        const cuentas = filas.map((f) => deVersion(f.content, f.version, clientes.get(f.account_id))).filter((c) => !isDiscardedDraft(c));
         return CuentasDelLocalSchema.parse({ cuentas });
       });
       if ("ok" in r) return r;
@@ -328,14 +332,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // Guardar lo mismo no añade versión: el sondeo de una pantalla no llena el historial.
           if (antes && mismaCuenta(antes, enviada)) return antes;
 
-          // Una cuenta de mesa nace en una mesa del salón, y una mesa tiene una sola abierta (I-05). Su
-          // número lo dice el plano, no la pantalla. Después la mesa ya no cambia (MESA_CAMBIADA).
-          let mesa: Readonly<{ label: string }> | null = null;
-          if (!antes && enviada.kind === "MESA") {
-            const r = await mesaParaCuentaNueva(tx, ctx.branchId, enviada.tableId!);
-            if ("ok" in r) return r;
-            mesa = r;
-          }
+          // Una cuenta de mesa nace al sentar a su cliente (B6-7, B6-9), no al guardar: así toda cuenta del salón tiene a
+          // quién cobrarle. Después la mesa ya no cambia (MESA_CAMBIADA).
+          if (!antes && enviada.kind === "MESA") return mesaSinCuenta(["cuenta", "tableId"]);
 
           // Lo que entra en la cuenta sale del estante (ADR-023): se comprueba antes de escribir nada.
           const existencias = await comprobarExistencias(tx, ctx, antes ? enviada.id : null, antes?.lines ?? null, enviada.lines, (productId) => {
@@ -348,10 +347,11 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           const orderNumber = antes?.orderNumber ?? (await siguienteNumero(tx, ctx));
           const version = (actual?.version ?? 0) + 1;
           // La cola se ordena por cuánto lleva esperando: la hora de entrar en ella la pone el servidor.
-          const { pendingSince: _, ...sinEspera } = enviada;
+          // Y su cliente lo pone su mando (B6-9): el que mande la pantalla se ignora; se queda el que tenía.
+          const { pendingSince: _, cliente: _cliente, ...sinEspera } = enviada;
           const cuenta = FamilyAccountSchema.parse({
             ...sinEspera,
-            ...(mesa ? { tableLabel: mesa.label } : {}),
+            ...(antes?.cliente ? { cliente: antes.cliente } : {}),
             version,
             orderNumber,
             openedAt: antes?.openedAt ?? instante,
@@ -1314,15 +1314,20 @@ async function puedeAlguna(tx: Transaccion, ctx: Contexto, acciones: readonly Ac
   return false;
 }
 
-/** La cuenta de una versión guardada, con su número de versión, validada con el contrato. */
-function deVersion(content: unknown, version: number): FamilyAccountDto {
-  return FamilyAccountSchema.parse({ ...(content as object), version });
+/**
+ * La cuenta de una versión guardada, con su número de versión y su cliente (B6-9, de su propia tabla), validada con el
+ * contrato.
+ */
+function deVersion(content: unknown, version: number, cliente?: ClienteDeCuentaDto): FamilyAccountDto {
+  return FamilyAccountSchema.parse({ ...(content as object), version, ...(cliente ? { cliente } : {}) });
 }
 
 /** La última versión de una cuenta que existe, dentro de la transacción. */
 export async function vigenteDe(tx: Transaccion, accountId: string): Promise<Vigente | null> {
   const v = await tx.accountVersion.findFirst({ where: { accountId }, orderBy: { version: "desc" } });
-  return v ? { cuenta: deVersion(v.content, v.version), version: v.version } : null;
+  if (!v) return null;
+  const cliente = (await clientesDeCuentas(tx, [accountId])).get(accountId);
+  return { cuenta: deVersion(v.content, v.version, cliente), version: v.version };
 }
 
 /** La cuenta vigente, su libro y la venta del cobro: la respuesta de un cobro o de una anulación. */
@@ -1362,8 +1367,9 @@ export async function guardarVersion(
     quien: string;
   }>,
 ): Promise<void> {
-  // El número de versión vive en su columna: el contenido es la cuenta sin él.
-  const { version, ...contenido } = cuenta;
+  // El número de versión vive en su columna, y el cliente en su tabla (B6-9): el contenido es la cuenta sin ellos. Lo
+  // que una pantalla mande como cliente al guardar la cuenta se ignora así: el cliente solo cambia por su mando.
+  const { version, cliente: _cliente, ...contenido } = cuenta;
   await tx.accountVersion.create({
     data: {
       tenantId: ctx.tenantId,

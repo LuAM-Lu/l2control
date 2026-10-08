@@ -102,6 +102,12 @@ vuelve a leer lo suyo (`useAlCambiar` o `router.refresh()`). Nada de sondeos. El
 (`features/operacion`) viaja por el worker con el estado de las mesas hasta B6-3; los pedidos ya son del
 servidor (B6-2).
 
+**El cliente de la cuenta (B6-9, M-33).** Toda cuenta del salón nace al sentar a su cliente (nombre, cédula y teléfono,
+`mesas.abrir`): un pedido, una pulsera, una salida del parque o un «guardar» no abren una mesa (`MESA_SIN_CUENTA`). El
+cliente vive en `account_customer` (solo agregar), no en el contenido de la versión: `vigenteDe` y `cuentas.leer` lo
+ponen y `guardarVersion` lo quita. El directorio es el de representantes, con la cédula. Las pruebas sientan con
+`sentarDePrueba`. La caja pregunta antes de dejar una venta del mostrador sin cobrar ni cliente (`VentaSinCobrar`).
+
 **Secciones con pestañas (T-18).** Lo que va junto vive en una sección con `pestanas` en `shell/navigation.ts`, cada
 pestaña con su permiso (la sección se ve con cualquiera de ellos). La pestaña va en la dirección (`?pestana=…`,
 `rutaPestana`, `pestanaPedida`) y la ruta del panel lee solo la abierta, dentro de `MarcoDeSeccion`. Una ruta que se

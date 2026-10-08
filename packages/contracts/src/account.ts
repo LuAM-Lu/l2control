@@ -13,6 +13,7 @@
  * para las tres y para el servidor (ADR-017).
  */
 import { z } from "zod";
+import { ClienteDeCuentaSchema } from "./clientes.ts";
 import { DescuentoAplicadoSchema } from "./descuentos.ts";
 import { TaxCodeSchema } from "./impuestos.ts";
 import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
@@ -270,6 +271,12 @@ export const FamilyAccountSchema = z
      * servidor, con su autorización; el cobro lo consume y queda en la venta.
      */
     descuento: DescuentoAplicadoSchema.optional(),
+    /**
+     * A quién es (B6-9, M-33): nombre, cédula y teléfono. Lo lleva toda cuenta del salón abierta desde B6-9 y una
+     * venta del mostrador que se dejó pendiente. No viaja en el contenido de la versión: el servidor lo lee de su
+     * propia tabla y lo pone aquí; lo que mande una pantalla al guardar la cuenta se ignora.
+     */
+    cliente: ClienteDeCuentaSchema.optional(),
   })
   .superRefine((c, ctx) => {
     // Lo que queda por cobrar. Una línea regalada o anulada NO cuenta: no se

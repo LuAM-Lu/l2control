@@ -89,10 +89,10 @@ import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identid
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
-import { catalogoEn, claveSecundaria, crearCuentaDeMesa, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
+import { catalogoEn, claveSecundaria, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "../caja/papel-en.ts";
-import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva } from "../restaurante/plano.ts";
+import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva, mesaSinCuenta } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
 
 export interface CasosParque {
@@ -505,7 +505,7 @@ export function casosParque(base: Base): CasosParque {
 
           // Cargar la deuda a una mesa (F5-14, D-RES, B6-3): la «cuenta unificada» que es el diferencial
           // del producto. El candado de las mesas (I-05) es el mismo de la vinculación y del plano.
-          let mesaInfo: Readonly<{ accountId: string; tableId: string; label: string; vigente: Awaited<ReturnType<typeof vigenteDe>> }> | null = null;
+          let mesaInfo: Readonly<{ accountId: string; tableId: string; label: string; vigente: NonNullable<Awaited<ReturnType<typeof vigenteDe>>> }> | null = null;
           if (cmd.disposition.kind === "MESA") {
             const tableId = cmd.disposition.tableId;
             await candadoDeMesas(tx, ctx.branchId);
@@ -514,15 +514,13 @@ export function casosParque(base: Base): CasosParque {
             if ("ok" in destino) return { ...destino, ...(destino.problemas ? { problemas: destino.problemas.map((p) => ({ ...p, path: ["disposition", "cuentaId"] })) } : {}) };
             const abierta = destino.abierta;
             const vigente = abierta ? await vigenteDe(tx, abierta) : null;
-            let label: string;
-            if (vigente) {
-              label = vigente.cuenta.tableLabel ?? "?";
-            } else {
+            // Una mesa sin cuenta no la abre una salida del parque: el mesero sienta primero a la familia (B6-9, M-33).
+            if (!vigente) {
               const r = await mesaParaCuentaNueva(tx, ctx.branchId, tableId);
               if ("ok" in r) return { ...r, ...(r.problemas ? { problemas: r.problemas.map((p) => ({ ...p, path: ["disposition", "tableId"] })) } : {}) };
-              label = r.label;
+              return mesaSinCuenta(["disposition", "tableId"]);
             }
-            mesaInfo = { accountId: abierta ?? randomUUID(), tableId, label, vigente };
+            mesaInfo = { accountId: vigente.cuenta.id, tableId, label: vigente.cuenta.tableLabel ?? "?", vigente };
           }
 
           // Salir antes de tiempo en cuenta abierta (B4-6, M-18): se cobra el paquete que cubre lo que estuvo.
@@ -586,8 +584,8 @@ export function casosParque(base: Base): CasosParque {
             // El mismo candado que la vinculación y el plano (I-05); en la misma transacción se puede volver a tomar.
             await candadoDeMesas(tx, ctx.branchId);
             for (const mesaId of [...(await cuentasDeLasMesas(tx, ctx.branchId)).values()].flat().map((c) => c.id)) {
-              const esLaDestino = mesaInfo?.vigente && mesaInfo.accountId === mesaId;
-              const vigente = esLaDestino ? mesaInfo!.vigente! : (await vigenteDe(tx, mesaId))!;
+              const esLaDestino = mesaInfo !== null && mesaInfo.accountId === mesaId;
+              const vigente = esLaDestino ? mesaInfo!.vigente : (await vigenteDe(tx, mesaId))!;
               let cuenta = vigente.cuenta;
               for (const i of enUnaMesa) {
                 const c = chargeByUsage(cuenta, enOrden[i]!.id, lineaPorUso(enOrden[i]!, i));
@@ -605,22 +603,12 @@ export function casosParque(base: Base): CasosParque {
             }
           }
           if (mesaInfo) {
-            const mesa: FamilyAccountDto = mesaInfo.vigente
-              ? FamilyAccountSchema.parse({
-                  ...mesaInfo.vigente.cuenta,
-                  sessionIds: [...new Set([...mesaInfo.vigente.cuenta.sessionIds, ...cmd.sessionIds])],
-                  lines: [...mesaInfo.vigente.cuenta.lines, ...lineasParaLaMesa],
-                  version: mesaInfo.vigente.version + 1,
-                })
-              : await crearCuentaDeMesa(tx, ctx, {
-                  id: mesaInfo.accountId,
-                  tableId: mesaInfo.tableId,
-                  label: mesaInfo.label,
-                  lines: lineasParaLaMesa,
-                  sessionIds: cmd.sessionIds,
-                  ahora,
-                  quien: quien.nombre,
-                });
+            const mesa: FamilyAccountDto = FamilyAccountSchema.parse({
+              ...mesaInfo.vigente.cuenta,
+              sessionIds: [...new Set([...mesaInfo.vigente.cuenta.sessionIds, ...cmd.sessionIds])],
+              lines: [...mesaInfo.vigente.cuenta.lines, ...lineasParaLaMesa],
+              version: mesaInfo.vigente.version + 1,
+            });
             await guardarVersion(tx, ctx, mesa, { cause: "SALIDA", operationKey: claveSecundaria(cmd.idempotencyKey, mesaInfo.accountId), ahora, quien: quien.nombre });
           }
           await tx.parkSession.updateMany({

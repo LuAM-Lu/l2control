@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import type { CatalogoDto, PedidoEnviadoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
 import { temasDe } from "../tiempo-real/temas.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 /** Viernes 2 de octubre de 2026, 1:00 pm en Caracas. */
@@ -87,6 +87,8 @@ before(async () => {
       AHORA - 8 * MIN,
     ),
   );
+  // Una mesa sin cuenta no recibe pedidos (B6-9): se sienta primero a su cliente, como en el local.
+  for (const mesa of ["mesa-1", "mesa-2", "mesa-4"]) await sentarDePrueba(l, mesero, mesa, AHORA - 5 * MIN);
 });
 
 after(async () => {
@@ -106,7 +108,7 @@ describe("enviar un pedido", () => {
     assert.equal(cuentas, 0);
   });
 
-  test("abre la cuenta de la mesa con sus platos y deja la comanda en la cola, todo junto", async () => {
+  test("entra en la cuenta de la mesa con sus platos y deja la comanda en la cola, todo junto", async () => {
     primero = valor(await enviar(mesero, "mesa-1", [linea("Tequeños", 2, { nota: "  sin salsa " })], pedidoId));
     const { pedido, cuenta } = primero;
     assert.equal(pedido.numero, 1);
@@ -128,7 +130,8 @@ describe("enviar un pedido", () => {
     const [trabajo, ...mas] = await trabajosDe(pedidoId);
     assert.equal(mas.length, 0);
     assert.equal(trabajo!.kind, "COMANDA");
-    assert.equal(trabajo!.title, "Comanda #0001 · Mesa 1");
+    // La cuenta se llama como su cliente (B6-9): la comanda dice la mesa y su nombre, nunca su cédula ni su teléfono.
+    assert.match(trabajo!.title, /^Comanda #0001 · Mesa 1 · Prueba Cliente \d+$/);
     assert.equal(trabajo!.copy, false);
     const papel = JSON.stringify(trabajo!.content);
     assert.match(papel, /MESA 1/);
@@ -183,6 +186,11 @@ describe("enviar un pedido", () => {
   test("una mesa fuera del plano no recibe pedidos", async () => {
     const r = await enviar(mesero, "mesa-99", [linea("Tequeños")]);
     assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_FUERA_DEL_PLANO", JSON.stringify(r));
+  });
+
+  test("una mesa sin cuenta no la abre un pedido: se sienta primero a su cliente (B6-9)", async () => {
+    const r = await enviar(mesero, "mesa-3", [linea("Tequeños")]);
+    assert.equal(!r.ok && r.problemas?.[0]?.message, "MESA_SIN_CUENTA", JSON.stringify(r));
   });
 
   test("quien no toma pedidos no los envía, y el intento queda en la auditoría", async () => {

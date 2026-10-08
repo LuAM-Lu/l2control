@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { Contexto } from "../index.ts";
 import { temasDe } from "../tiempo-real/temas.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 /** Viernes 2 de octubre de 2026, 1:00 pm en Caracas. */
@@ -47,6 +47,8 @@ before(async () => {
 
   await planoDePrueba(l, 12);
   await planoDePrueba(otro);
+  // Una mesa sin cuenta no la abre una pulsera (B6-9): las familias se sientan primero, como en el local.
+  for (let i = 1; i <= 12; i++) await sentarDePrueba(l, mesero, `mesa-${i}`, AHORA - 10 * MIN);
 });
 
 after(async () => {
@@ -55,7 +57,7 @@ after(async () => {
 });
 
 describe("vincular pulseras a una mesa", () => {
-  test("mueve el paquete pendiente de la estancia a una cuenta nueva de la mesa", async () => {
+  test("mueve el paquete pendiente de la estancia a la cuenta de la mesa", async () => {
     const familia = await familiaDePrueba(l, monitora, AHORA, "CUENTA_ABIERTA");
     const sessionId = familia.sessionIds[0]!;
     const { mesa, familias } = valor(await vincular(mesero, "mesa-1", [sessionId]));

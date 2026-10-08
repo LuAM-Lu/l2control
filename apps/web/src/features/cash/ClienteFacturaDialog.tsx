@@ -19,6 +19,7 @@ export function ClienteFacturaDialog({
   abierto,
   actual,
   nombrePropuesto,
+  documentoPropuesto = "",
   onConfirmar,
   onCerrar,
 }: {
@@ -26,6 +27,8 @@ export function ClienteFacturaDialog({
   actual: ClienteFacturaDto;
   /** Nombre que se ofrece de entrada: el del representante de la cuenta. */
   nombrePropuesto: string;
+  /** La cédula que se ofrece de entrada: la del cliente de la cuenta (B6-9), si la dio al sentarse. */
+  documentoPropuesto?: string;
   onConfirmar: (cliente: ClienteFacturaDto) => void;
   onCerrar: () => void;
 }) {
@@ -42,7 +45,7 @@ export function ClienteFacturaDialog({
       setCampos(
         actual.kind === "IDENTIFICADO"
           ? { document: actual.document, name: actual.name, fiscalAddress: actual.fiscalAddress ?? "" }
-          : { document: "", name: nombrePropuesto, fiscalAddress: "" },
+          : { document: documentoPropuesto, name: nombrePropuesto, fiscalAddress: "" },
       );
     }
   }

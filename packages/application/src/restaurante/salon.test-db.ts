@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { CUENTAS_POR_MESA, type CatalogoDto, type FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, clienteDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 /** Viernes 2 de octubre de 2026, 1:00 pm en Caracas. */
@@ -42,7 +42,8 @@ const sentar = (ctx: Contexto, s: Sentar, ahora = AHORA) =>
     {
       cuentaId: s.cuentaId ?? randomUUID(),
       ...(s.tableId ? { tableId: s.tableId } : {}),
-      ...(s.nombre ? { nombre: s.nombre } : {}),
+      // Desde B6-9 toda cuenta del salón es de un cliente con nombre, cédula y teléfono.
+      cliente: clienteDePrueba(s.nombre),
       comensales: s.comensales ?? 2,
       vistas: s.vistas ?? 0,
     },
@@ -88,11 +89,12 @@ after(async () => {
 describe("sentar a una familia", () => {
   let primera: FamilyAccountDto;
 
-  test("abre la cuenta de la mesa con sus comensales, sin nombre propio: se llama como la mesa", async () => {
-    primera = valor(await sentar(mesero, { tableId: "mesa-1", comensales: 3 }));
+  test("abre la cuenta de la mesa con sus comensales, a nombre de su cliente (B6-9)", async () => {
+    primera = valor(await sentar(mesero, { tableId: "mesa-1", nombre: "Familia Rojas", comensales: 3 }));
     assert.equal(primera.kind, "MESA");
     assert.equal(primera.tableId, "mesa-1");
-    assert.equal(primera.family, "Mesa 1");
+    assert.equal(primera.family, "Familia Rojas");
+    assert.equal(primera.cliente?.nombre, "Familia Rojas");
     assert.equal(primera.comensales, 3);
     assert.equal(primera.status, "ABIERTA");
     assert.deepEqual(primera.lines, []);
@@ -108,12 +110,6 @@ describe("sentar a una familia", () => {
     assert.equal(cuentas, 1);
   });
 
-  test("una mesa compartida: la segunda cuenta necesita nombre", async () => {
-    const r = rechazo(await sentar(mesero, { tableId: "mesa-1", vistas: 1 }));
-    assert.equal(r.motivo, "INVALIDO", JSON.stringify(r));
-    assert.equal(r.problemas?.[0]?.message, "NOMBRE_OBLIGATORIO");
-  });
-
   test("con nombre, la mesa admite otra cuenta; con el mismo nombre que otra, no", async () => {
     const perez = valor(await sentar(mesero, { tableId: "mesa-1", nombre: "Familia Pérez", comensales: 4, vistas: 1 }));
     assert.equal(perez.family, "Familia Pérez");
@@ -121,8 +117,8 @@ describe("sentar a una familia", () => {
     const repetida = rechazo(await sentar(mesero, { tableId: "mesa-1", nombre: "familia perez", vistas: 2 }));
     assert.equal(repetida.motivo, "CONFLICTO");
     assert.equal(repetida.problemas?.[0]?.message, "NOMBRE_REPETIDO");
-    const comoLaMesa = rechazo(await sentar(mesero, { tableId: "mesa-1", nombre: "Mesa 1", vistas: 2 }));
-    assert.equal(comoLaMesa.problemas?.[0]?.message, "NOMBRE_REPETIDO", "la primera se llama «Mesa 1»");
+    const comoLaPrimera = rechazo(await sentar(mesero, { tableId: "mesa-1", nombre: "FAMILIA ROJAS", vistas: 2 }));
+    assert.equal(comoLaPrimera.problemas?.[0]?.message, "NOMBRE_REPETIDO", "la primera es de «Familia Rojas»");
   });
 
   test("si otro equipo abrió una cuenta en la mesa mientras tanto, choca en vez de abrir otra", async () => {
@@ -181,18 +177,18 @@ describe("pedir en una mesa compartida", () => {
     assert.equal(r.problemas?.[0]?.message, "CUENTA_CERRADA");
   });
 
-  test("en una mesa con una sola cuenta, el pedido va a ella sin nombrarla, y la comanda no lleva nombre", async () => {
+  test("en una mesa con una sola cuenta, el pedido va a ella sin nombrarla, y la comanda lleva el nombre de su cliente", async () => {
     const enviado = valor(await pedir(mesero, { tableId: "mesa-2" }));
-    assert.equal(enviado.pedido.nombreCuenta, null);
-    assert.equal(enviado.cuenta.family, "Mesa 2");
+    assert.equal(enviado.pedido.nombreCuenta, enviado.cuenta.family);
+    assert.match(enviado.cuenta.family, /^Prueba Cliente \d+$/);
   });
 });
 
 describe("cuentas de pie", () => {
   let luis: FamilyAccountDto;
 
-  test("sin nombre no se abre: se la llama de alguna forma", async () => {
-    const r = rechazo(await sentar(mesero, { comensales: 1 }));
+  test("sin su cliente no se abre (B6-9)", async () => {
+    const r = rechazo(await l.app.mesas.abrir(mesero, { cuentaId: randomUUID(), comensales: 1, vistas: 0 }, AHORA));
     assert.equal(r.motivo, "INVALIDO");
   });
 
@@ -250,7 +246,7 @@ describe("vincular en una mesa compartida", () => {
 describe("liberar en una mesa compartida", () => {
   test("liberar una cuenta sin consumo deja la otra abierta en la mesa", async () => {
     const cuentas = valor(await l.app.cuentas.leer(mesero, AHORA)).cuentas;
-    const mesa1 = cuentas.find((c) => c.family === "Mesa 1")!;
+    const mesa1 = cuentas.find((c) => c.family === "Familia Rojas")!;
     const liberada = valor(await l.app.cuentas.liberarMesa(mesero, { idempotencyKey: randomUUID(), accountId: mesa1.id, version: mesa1.version! }, AHORA + 2 * MIN));
     assert.equal(liberada.status, "SIN_CONSUMO");
     const despues = valor(await l.app.cuentas.leer(mesero, AHORA + 2 * MIN)).cuentas;

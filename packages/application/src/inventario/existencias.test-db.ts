@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -114,8 +114,9 @@ describe("sin existencia no se vende (ADR-023 §3)", () => {
   });
 
   test("tampoco en la tablet del mesero", async () => {
-    const mesa = { ...mostrador([linea("Galleta")]), kind: "MESA", family: "Mesa 3", status: "ABIERTA", tableId: "mesa-3", tableLabel: "3" };
-    const r = await guardar(mesa, ctxMesero);
+    // La mesa se abre sentando a su cliente (B6-9); lo pedido pasa por la misma regla.
+    const sentada = await sentarDePrueba(local, ctxMesero, "mesa-3", AHORA - MIN);
+    const r = await guardar({ ...sentada, lines: [linea("Galleta")] }, ctxMesero);
     assert.match(!r.ok ? r.mensaje : "", /«Galleta» todavía no tiene inventario inicial/);
   });
 

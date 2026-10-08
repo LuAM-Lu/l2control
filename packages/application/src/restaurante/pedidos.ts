@@ -47,7 +47,7 @@ import { asentarExistencias, comprobarExistencias } from "../inventario/existenc
 import { encolarEn } from "../impresion/impresion.ts";
 import { documentoDeComanda, rotuloDePedido } from "../impresion/plantillas.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
-import { candadoDeMesas, cuentaDeMesaPara, mesaParaCuentaNueva } from "./plano.ts";
+import { candadoDeMesas, cuentaDeMesaPara, mesaParaCuentaNueva, mesaSinCuenta } from "./plano.ts";
 
 export interface CasosPedidos {
   /** Los pedidos de hoy en la sucursal, con su comanda: del más nuevo al más viejo. */
@@ -358,9 +358,11 @@ async function destinoDelPedido(tx: Transaccion, ctx: Contexto, cmd: EnviarPedid
     const vigente = (await vigenteDe(tx, r.abierta))!;
     return { actual: vigente, tableId: cmd.tableId, mesa: vigente.cuenta.tableLabel ?? "?" };
   }
-  const nueva = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId);
-  if ("ok" in nueva) return { ...nueva, ...(nueva.problemas ? { problemas: nueva.problemas.map((p) => ({ ...p, path: ["tableId"] })) } : {}) };
-  return { actual: null, tableId: cmd.tableId, mesa: nueva.label };
+  // Una mesa sin cuenta no la abre un pedido: se sienta primero a su cliente (B6-9, M-33). Antes, si la mesa no está en
+  // el salón, se dice eso.
+  const enElSalon = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId);
+  if ("ok" in enElSalon) return { ...enElSalon, ...(enElSalon.problemas ? { problemas: enElSalon.problemas.map((p) => ({ ...p, path: ["tableId"] })) } : {}) };
+  return mesaSinCuenta(["tableId"]);
 }
 
 /** La comanda de un pedido en la cola de la impresora de comandas; `copia`, si es una reimpresión. */

@@ -30,6 +30,8 @@ export type Action =
   | "cuenta.descuento"
   | "cuenta.cortesia"
   | "cuenta.incobrable"
+  | "cuenta.cliente"
+  | "cuenta.cambiarCliente"
   | "documento.emitir"
   | "documento.notaCredito"
   | "documento.reimprimir"
@@ -113,6 +115,11 @@ export const MATRIZ: Matriz = Object.freeze({
   "cuenta.cortesia": fila(P, A, A, D, D, D),
   // D-JOR: una cuenta que no se va a cobrar se marca incobrable con motivo y 🔐 de supervisión.
   "cuenta.incobrable": fila(P, A, A, D, D, D),
+  // B6-9 (M-33): una cuenta del salón es de un cliente con nombre, cédula y teléfono. Ponérselo a una que no lo tiene
+  // (una venta del mostrador que se deja pendiente) lo hace quien atiende; cambiarlo (un dato mal escrito), con la
+  // autorización de supervisión: es a quien se le cobra si se va.
+  "cuenta.cliente": fila(P, P, P, P, D, D),
+  "cuenta.cambiarCliente": fila(P, P, A, A, D, D),
 
   // DEC-25: solo la caja cobra, lo del parque y lo del restaurante. La
   // monitora registra entradas y salidas y la cuenta pasa a la cola de la

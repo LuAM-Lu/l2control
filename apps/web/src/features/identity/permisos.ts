@@ -42,6 +42,8 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "cuenta.descuento": { etiqueta: "Aplicar descuento", area: "Cobro y cuenta" },
   "cuenta.cortesia": { etiqueta: "Dar cortesía", area: "Cobro y cuenta" },
   "cuenta.incobrable": { etiqueta: "Marcar una cuenta incobrable", area: "Cobro y cuenta" },
+  "cuenta.cliente": { etiqueta: "Poner el cliente de una cuenta (nombre, cédula y teléfono)", area: "Cobro y cuenta" },
+  "cuenta.cambiarCliente": { etiqueta: "Cambiar el cliente de una cuenta", area: "Cobro y cuenta" },
   "documento.reimprimir": { etiqueta: "Reimprimir documento", area: "Cobro y cuenta" },
   "cobro.anular": { etiqueta: "Anular un cobro", area: "Cobro y cuenta" },
   "documento.notaCredito": { etiqueta: "Emitir nota de crédito", area: "Cobro y cuenta" },

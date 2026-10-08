@@ -45,6 +45,11 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   // Poner o quitar un descuento cambia lo que se cobra de esa cuenta (B3-6).
   "cuenta.descuento": ["cuentas"],
   "cuenta.quitar_descuento": ["cuentas"],
+  // El cliente de una cuenta (B6-9): la cuenta se llama como él, y la cola lo busca por su cédula y su teléfono.
+  "cuenta.cliente": ["cuentas"],
+  "cuenta.cambiar_cliente": ["cuentas"],
+  // Un representante del parque recibe su cédula al sentarse en el restaurante: cambia el directorio.
+  "cliente.completar": PARQUE,
   // Una regla nueva o retirada cambia lo que la caja ofrece; marcar una familia VIP, también, y el directorio.
   "descuento.crear": ["descuentos"],
   "descuento.retirar": ["descuentos"],

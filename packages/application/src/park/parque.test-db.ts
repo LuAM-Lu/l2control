@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import type { CheckInResult } from "@l2/contracts";
 import { chargeableLines } from "@l2/domain-cash";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -88,6 +88,8 @@ before(async () => {
   valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
   valor(await otro.app.tarifario.publicar(otro.sistema, TARIFARIO));
   await planoDePrueba(local, 12);
+  // Una mesa sin cuenta no recibe la salida del parque ni pulseras (B6-9): sus familias se sientan primero.
+  for (const mesa of ["mesa-10", "mesa-11"]) await sentarDePrueba(local, ctxMesero, mesa, AHORA - 60 * MIN);
 });
 
 after(async () => {

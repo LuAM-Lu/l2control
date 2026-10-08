@@ -370,6 +370,31 @@ export function contactKey(reference: string): string | null {
   return digitos.length >= 4 && digitos.length <= 20 ? digitos : null;
 }
 
+/**
+ * La llave de un documento (B6-9, M-33): la cédula o el RIF en mayúscula y sin separadores, para reconocer al
+ * cliente escriba como escriba. «v-12.345.678», «V 12345678» y «V12345678» son la misma persona. `null` si no es una
+ * letra (V o E de cédula; J, P o G de RIF) seguida de 5 a 10 dígitos.
+ */
+export function documentKey(documento: string): string | null {
+  const limpio = documento.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return /^[VEJPG]\d{5,10}$/.test(limpio) ? limpio : null;
+}
+
+/** El documento como se escribe en pantalla y en papel: «V-12345678», y un RIF con su dígito, «J-40123456-7». */
+export function documentoLegible(documento: string): string | null {
+  const llave = documentKey(documento);
+  if (!llave) return null;
+  const letra = llave.slice(0, 1);
+  const digitos = llave.slice(1);
+  return "JPG".includes(letra) && digitos.length === 9 ? `${letra}-${digitos.slice(0, 8)}-${digitos.slice(8)}` : `${letra}-${digitos}`;
+}
+
+/** Un teléfono de Venezuela como se escribe: «0414-1234567». `null` si no son los once dígitos de uno. */
+export function telefonoLegible(telefono: string): string | null {
+  const llave = contactKey(telefono);
+  return llave !== null && /^0\d{10}$/.test(llave) ? `${llave.slice(0, 4)}-${llave.slice(4)}` : null;
+}
+
 /* ------------------------------------------------- salir antes de tiempo (B4-6) */
 
 /** Un paquete del tarifario, como lo mira la salida para cobrar por uso. */
