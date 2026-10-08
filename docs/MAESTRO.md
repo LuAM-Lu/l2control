@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.83.0 · 83 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.84.0 · 84 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -1825,7 +1825,7 @@ antes del cobro en servidor (orden de ejecución).
   SKU nuevo, código de barras vacío, existencia en cero. «Duplicar con otros sabores» crea varios de una vez desde una
   lista («Naranja, Manzana…» → «Jugo Naranja», «Jugo Manzana»), cada uno con su propio código de barras si se escribe o
   se lee. Cada copia es un producto propio, con su existencia.
-  *Hecho el 2026-10-08, en `feat/b9-8`.*
+  *Hecho el 2026-10-08 (v0.84.0), en `feat/b9-8`.*
   *· Dominio (`@l2/domain-inventory`, `sabores.ts`): `saboresDe` (la lista tecleada, por comas, «y» o renglones, sin
   vacíos ni repetidos) y `nombresConSabores` (la base y cada sabor). 2 pruebas.*
   *· Aplicación: sin cambios; la copia es un alta (`productos.aplicar`, CREAR) y los sabores, un alta en lote (B9-7), que
@@ -2819,6 +2819,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   imprimir y el informe de diferencias de cada conteo, en PDF. Sigue B9-9 (editar en lote).
 - **2026-10-08** · B9-9 entregado como v0.83.0: en Productos se eligen varios y se les cambia la categoría, el mínimo, la
   carta o el precio (en % o en monto, desde un día), o se apartan; todo o nada, cada uno con su asiento. Sigue B9-8.
+- **2026-10-08** · B9-8 entregado como v0.84.0: «Duplicar» y «Con otros sabores» en la ficha de un producto. Con él,
+  M-28 y M-29 quedan enteros (once pasos, v0.74.0 a v0.84.0). Lo que queda espera la visita al local (B7-3, T-8c) y
+  D-REL; después, la Etapa 8.
 
 ---
 
