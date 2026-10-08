@@ -12,10 +12,12 @@ import {
   Copy,
   CreditCard,
   HandCoins,
+  IdCard,
   Pencil,
   PackageX,
   PiggyBank,
   Printer,
+  Search,
   ShoppingBag,
   Smartphone,
   TriangleAlert,
@@ -75,7 +77,7 @@ import { nombreBanco } from "./bancos.ts";
 import type { MedioPago } from "./medios.ts";
 import { BILLETES_USD } from "./billetes.ts";
 import { categoriesOf, nameKey } from "@l2/domain-inventory";
-import { productosALaVenta, type ProductoALaVenta } from "../inventario/catalogo.ts";
+import { disponible, productosALaVenta, type ProductoALaVenta } from "../inventario/catalogo.ts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -293,7 +295,7 @@ function CobroCuenta({
   const tasaId = rateVivo === null ? null : (congelada?.id ?? tasaIdViva);
   /**
    * La vigente ya no es la de este cobro y nadie ha decidido: se avisa en la franja del medio,
-   * que mide siempre lo mismo, para que el teclado y «Cerrar cobro» no se muevan.
+   * que mide siempre lo mismo, para que el teclado y «Cobrar» no se muevan.
    */
   const tasaCambio =
     congelada !== null &&
@@ -371,6 +373,8 @@ function CobroCuenta({
   const [ofrecidos, setOfrecidos] = useState<DescuentosDeCuentaDto | null>(null);
   const [viendoDescuento, setViendoDescuento] = useState(false);
   const [quitandoDescuento, setQuitandoDescuento] = useState(false);
+  /** Lo que el pie de la cuenta tiene abierto debajo de su fila de botones (B3-10): las partes o el descuento puesto. */
+  const [enElPie, setEnElPie] = useState<"dividir" | "descuento" | null>(null);
   const [releerOfrecidos, setReleerOfrecidos] = useState(0);
   useAlCambiar(["descuentos"], () => setReleerOfrecidos((n) => n + 1));
   const ofreceDescuentos = onDescuento !== undefined && permisoDescuento !== "DENEGADO" && cuenta.status === "POR_COBRAR";
@@ -475,6 +479,21 @@ function CobroCuenta({
 
   /** Lo que realmente hay que cobrar: la parte + el IGTF de los pagos hechos. */
   const aCobrar = add(porParte, igtfTotal);
+
+  /**
+   * Por qué no se puede dividir o descontar ahora, o `null` si se puede. Ya cobrada una parte, el reparto no cambia a
+   * mitad de camino (alguien pagaría de más o de menos); el reparto y el descuento salen del total, así que no van
+   * juntos (B3-6); y con pagos puestos, ninguno de los dos.
+   */
+  const bloqueoDividir =
+    (cuenta.split?.paid ?? 0) > 0
+      ? "Ya se cobró una parte: el reparto no cambia"
+      : pagos.length > 0
+        ? "Quita primero los pagos"
+        : descuento
+          ? "Quita el descuento para dividir"
+          : null;
+  const bloqueoDescuento = pagos.length > 0 ? "Quita primero los pagos" : partes > 1 ? "Une la cuenta para aplicar un descuento" : null;
 
   /* --------------------------------------------------------- balance */
 
@@ -910,18 +929,19 @@ function CobroCuenta({
           )}
         </div>
 
-        {/* Catálogo táctil de mostrador (snacks, bebidas, golosinas) */}
+        {/* Catálogo táctil de mostrador (snacks, bebidas, golosinas). Cede su sitio a los ítems (B3-10): como mucho la
+            mitad larga de la tarjeta, y menos si hace falta para que se vean al menos dos o tres. */}
         {mostrarCatalogo && onAgregarProducto && (
-          <div className="border-b border-line bg-base/50 p-3">
+          <div className="flex max-h-[26rem] min-h-0 flex-col border-b border-line bg-base/50 p-3 md:max-h-[55%]">
             <CartaMostrador
               aBolivares={aBolivares}
               onElegir={onAgregarProducto}
-              alto="max-h-52"
+              className="flex-1"
             />
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-[7.5rem] flex-1 overflow-y-auto px-5 py-4">
           {/* Estilo factura: concepto a la izquierda, importe alineado a la
                 derecha, filas compactas y sin numerar. Lo que se añadió en
                 mostrador se toca para quitarlo: la fila crece y enseña el
@@ -1180,225 +1200,171 @@ function CobroCuenta({
           )}
         </div>
 
-        {/* Los totales quedan CLAVADOS abajo */}
-        <dl className="flex flex-col gap-1.5 border-t border-line bg-base/40 px-5 pt-2 pb-4 text-sm">
-          {/* A quién se factura: un toque solo cuando el cliente lo pide (DEC-23). */}
-          <div className="flex items-center justify-between gap-3 border-b border-line/60 pb-2">
-            <dt className="shrink-0 whitespace-nowrap text-ink-2">Factura a</dt>
-            <dd className="flex min-w-0 items-center gap-2">
-              <Marquesina className="font-semibold text-ink">
-                {cliente.kind === "CONSUMIDOR_FINAL"
-                  ? "Consumidor final"
-                  : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`}
-              </Marquesina>
-              <Button
-                surface="pos"
-                variant="neutral"
-                className="shrink-0 text-[13px]"
-                onClick={() => setIdentificando(true)}
-              >
-                {cliente.kind === "CONSUMIDOR_FINAL"
-                  ? "Identificar"
-                  : "Cambiar"}
-                <PistaTecla tecla="I" />
-              </Button>
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-ink-2">Subtotal</dt>
-            <dd>
-              <MoneyDisplay
-                value={toMajor(doc.subtotal)}
-                currency="USD"
-                size="sm"
-                tone="muted"
-              />
-            </dd>
-          </div>
-          {(descuento || (ofreceDescuentos && !cuenta.split)) && (
-            <div className="flex items-center justify-between gap-3">
-              <dt className="flex min-w-0 flex-col text-ink-2">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <BadgePercent size={14} className="shrink-0" aria-hidden="true" />
-                  <span className="truncate">{descuento ? descuento.nombre : "Descuento"}</span>
-                </span>
-                {descuento ? (
-                  <span className="truncate text-[11.5px] text-ink-3">
-                    {textoValor(descuento.valor)}
-                    {descuento.alcance.tipo === "CUENTA" ? "" : ` sobre ${textoAlcance(descuento.alcance)}`} ·{" "}
-                    {descuento.origen === "MEDIO"
-                      ? `toda la cuenta con ${mediosDisponibles.find((m) => m.code === descuento.medio)?.label ?? descuento.medio}`
-                      : descuento.autorizadoPor
-                        ? `autorizó ${descuento.autorizadoPor.name}`
-                        : "familia VIP"}
-                  </span>
-                ) : ofrecidos && ofrecidos.candidatos.length > 0 ? (
-                  <span className="text-[11.5px] text-ink-3">
-                    {ofrecidos.candidatos.length === 1 ? "1 disponible" : `${ofrecidos.candidatos.length} disponibles`}
-                  </span>
-                ) : null}
-              </dt>
-              <dd className="flex shrink-0 items-center gap-2">
-                {descuento && (
-                  <span className="tnum text-[14px] font-semibold text-ink">− {formatMoneyVE(toMajor(doc.discountTotal), "USD")}</span>
-                )}
-                {descuento ? (
-                  onQuitarDescuento && (
-                    <Button
-                      surface="pos"
-                      variant="neutral"
-                      className="text-[13px]"
-                      disabled={pagos.length > 0 || quitandoDescuento}
-                      title={pagos.length > 0 ? "Quita primero los pagos" : undefined}
-                      onClick={async () => {
-                        setQuitandoDescuento(true);
-                        const r = await onQuitarDescuento();
-                        setQuitandoDescuento(false);
-                        if (r) setError(r.mensaje);
-                      }}
-                    >
-                      Quitar
-                    </Button>
-                  )
-                ) : (
-                  <Button
-                    surface="pos"
-                    variant="neutral"
-                    className="text-[13px]"
-                    disabled={pagos.length > 0}
-                    title={pagos.length > 0 ? "Quita primero los pagos" : undefined}
-                    onClick={() => setViendoDescuento(true)}
-                  >
-                    Aplicar
-                  </Button>
-                )}
-              </dd>
-            </div>
-          )}
-          {doc.buckets.map((b) => (
-            <div
-              key={b.code}
-              className="flex items-baseline justify-between gap-3"
+        {/* El pie de la cuenta (B3-10, M-32): compacto, para que los ítems sean lo que más se ve. A quién se factura, el
+              descuento y dividir son una fila de botones que dicen su estado; los impuestos, un renglón; el total, grande. */}
+        <div className="flex shrink-0 flex-col gap-2 border-t border-line bg-base/40 px-4 pt-2.5 pb-3">
+          <div data-recorrido="caja-pie" role="group" aria-label="Factura, descuento y dividir" className="grid auto-cols-fr grid-flow-col gap-1.5">
+            {/* A quién se factura: un toque solo cuando el cliente lo pide (DEC-23). */}
+            <BotonDelPie
+              icono={IdCard}
+              etiqueta="Factura a"
+              tecla="I"
+              activo={cliente.kind === "IDENTIFICADO"}
+              aria-haspopup="dialog"
+              title={cliente.kind === "IDENTIFICADO" ? `${cliente.name} · ${documentoEnmascarado(cliente.document)}` : "Identificar al cliente de la factura (tecla I)"}
+              onClick={() => setIdentificando(true)}
             >
-              <dt className="text-ink-2">
-                IVA {b.basisPoints / 100}%{doc.taxIncluded ? " incluido" : ""}
-                <span className="tnum ml-1.5 text-ink-3">
-                  {doc.taxIncluded ? "base" : "sobre"} {toMajor(b.base)}
-                </span>
-              </dt>
-              <dd>
-                <MoneyDisplay
-                  value={toMajor(b.tax)}
-                  currency="USD"
-                  size="sm"
-                  tone="muted"
-                />
-              </dd>
-            </div>
-          ))}
-
-          {igtfTotal.amount > 0n && (
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-ink-2">
-                IGTF {igtfBasisPoints / 100}%
-                <span className="ml-1.5 text-ink-3">
-                  solo sobre lo pagado en divisas
-                </span>
-              </dt>
-              <dd>
-                <MoneyDisplay
-                  value={toMajor(igtfTotal)}
-                  currency="USD"
-                  size="sm"
-                  tone="muted"
-                />
-              </dd>
-            </div>
-          )}
-
-          {/* Dividir: «pagamos entre tres» es lo que más se pide en una mesa.
-                Cada parte se cobra por separado y con su propio recibo; la
-                cuenta sigue en la cola hasta que se paga la última. */}
-          {onDividir && (pagos.length === 0 || partes > 1) && (
-            <div className="flex flex-col gap-2 border-b border-line/60 pb-2 @md/ticket:flex-row @md/ticket:items-center @md/ticket:justify-between">
-              <dt className="flex items-center gap-1.5 text-ink-2">
-                <Users size={14} aria-hidden="true" />
-                {partes > 1 ? (
-                  <>
-                    Parte{" "}
-                    <span className="tnum font-semibold text-ink">
-                      {parteActual}
-                    </span>{" "}
-                    de {partes}
-                    <span className="ml-1 text-[12px] text-ink-3">
-                      · total {formatMoneyVE(toMajor(doc.total), "USD")}
-                    </span>
-                  </>
-                ) : (
-                  "Dividir la cuenta"
-                )}
-              </dt>
-              {/* grupo a todo el ancho, 56 de alto, el ancho lo reparte la fila */}
-              <dd
-                className="grid w-full grid-cols-6 gap-1 @md/ticket:flex @md/ticket:w-auto"
-                role="group"
-                aria-label="Dividir la cuenta"
+              {cliente.kind === "IDENTIFICADO" ? cliente.name : "Consumidor final"}
+            </BotonDelPie>
+            {(descuento || ofreceDescuentos) && (
+              <BotonDelPie
+                icono={BadgePercent}
+                etiqueta="Descuento"
+                activo={descuento !== undefined}
+                {...(descuento ? { "aria-expanded": enElPie === "descuento" } : { "aria-haspopup": "dialog" as const })}
+                disabled={!descuento && bloqueoDescuento !== null}
+                title={descuento ? descuento.nombre : (bloqueoDescuento ?? "Aplicar un descuento a la cuenta")}
+                onClick={() => (descuento ? setEnElPie((x) => (x === "descuento" ? null : "descuento")) : setViendoDescuento(true))}
               >
-                {[1, 2, 3, 4, 5, 6].map((n) => {
-                  // Ya cobrada alguna parte: el reparto no se cambia a mitad
-                  // de camino, o alguien pagaría de más o de menos.
-                  const bloqueado =
-                    (cuenta.split?.paid ?? 0) > 0 ||
-                    (pagos.length > 0 && n !== partes) ||
-                    // El reparto sale del total: con un descuento, la cuenta no se divide (B3-6).
-                    (descuento !== undefined && n !== partes);
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      aria-pressed={n === partes}
-                      disabled={bloqueado}
-                      title={descuento && n !== partes ? "Quita el descuento para dividir" : n === 1 ? "Sin dividir" : `Entre ${n}`}
-                      onClick={() => onDividir(n)}
-                      className={cn(
-                        "tnum h-14 w-full cursor-pointer rounded-[var(--radius-control)] border text-[13px] font-semibold transition-colors @md/ticket:size-14",
-                        n === partes
-                          ? "border-brand bg-brand/15 text-ink"
-                          : "border-line text-ink-3 hover:text-ink",
-                        "disabled:cursor-not-allowed disabled:opacity-40",
-                      )}
-                    >
-                      {n === 1 ? "—" : n}
-                    </button>
-                  );
-                })}
-              </dd>
-            </div>
-          )}
-          <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-line pt-2.5">
-            <dt className="font-display text-base font-bold text-ink">
-              {partes > 1
-                ? `Esta parte (${parteActual} de ${partes})`
-                : "Total a cobrar"}
-            </dt>
-            <dd>
-              <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
-            </dd>
+                {descuento
+                  ? `− ${textoValor(descuento.valor)}`
+                  : ofrecidos && ofrecidos.candidatos.length > 0
+                    ? ofrecidos.candidatos.length === 1
+                      ? "1 disponible"
+                      : `${ofrecidos.candidatos.length} disponibles`
+                    : "Ninguno"}
+              </BotonDelPie>
+            )}
+            {onDividir && (
+              <BotonDelPie
+                icono={Users}
+                etiqueta="Dividir"
+                activo={partes > 1}
+                aria-expanded={enElPie === "dividir"}
+                disabled={bloqueoDividir !== null}
+                title={bloqueoDividir ?? "Dividir la cuenta en partes iguales"}
+                onClick={() => setEnElPie((x) => (x === "dividir" ? null : "dividir"))}
+              >
+                {partes > 1 ? `Entre ${partes}` : "Sin dividir"}
+              </BotonDelPie>
+            )}
           </div>
 
-          {igtfTotal.amount > 0n && (
-            <p className="mt-0.5 text-[11.5px] text-ink-3">
-              El IGTF grava el medio de pago, no la venta: solo lo pagado en
-              divisas o cripto.
-            </p>
+          {/* Dividir: «pagamos entre tres» es lo que más se pide en una mesa. Cada parte se cobra por separado y con su
+                propio recibo; la cuenta sigue en la cola hasta que se paga la última. */}
+          {enElPie === "dividir" && onDividir && bloqueoDividir === null && (
+            <div role="group" aria-label="Dividir la cuenta" className="flex gap-1">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={n === partes}
+                  aria-label={n === 1 ? "Sin dividir" : `Entre ${n}`}
+                  onClick={() => {
+                    if (n !== partes) onDividir(n);
+                    setEnElPie(null);
+                  }}
+                  className={cn(
+                    "tnum min-h-14 cursor-pointer rounded-[var(--radius-control)] border font-semibold transition-colors",
+                    n === 1 ? "shrink-0 px-3 text-detalle" : "min-w-0 flex-1 text-cuerpo",
+                    n === partes
+                      ? "border-brand bg-brand/15 text-ink"
+                      : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
+                  )}
+                >
+                  {n === 1 ? "Sin dividir" : n}
+                </button>
+              ))}
+            </div>
           )}
-        </dl>
+
+          {/* El descuento puesto: de qué es, quién lo autorizó y quitarlo (con pagos, no). */}
+          {enElPie === "descuento" && descuento && (
+            <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-line bg-surface py-1 pr-1 pl-3">
+              <p className="min-w-0 flex-1 text-detalle text-ink-2">
+                <span className="font-semibold text-ink">{descuento.nombre}</span> · {textoValor(descuento.valor)}
+                {descuento.alcance.tipo === "CUENTA" ? "" : ` sobre ${textoAlcance(descuento.alcance)}`} ·{" "}
+                {descuento.origen === "MEDIO"
+                  ? `toda la cuenta con ${mediosDisponibles.find((m) => m.code === descuento.medio)?.label ?? descuento.medio}`
+                  : descuento.autorizadoPor
+                    ? `autorizó ${descuento.autorizadoPor.name}`
+                    : "familia VIP"}
+              </p>
+              {onQuitarDescuento && (
+                <Button
+                  surface="pos"
+                  variant="neutral"
+                  className="shrink-0 text-[13px]"
+                  disabled={pagos.length > 0 || quitandoDescuento}
+                  title={pagos.length > 0 ? "Quita primero los pagos" : undefined}
+                  onClick={async () => {
+                    setQuitandoDescuento(true);
+                    const r = await onQuitarDescuento();
+                    setQuitandoDescuento(false);
+                    if (r) setError(r.mensaje);
+                    else setEnElPie(null);
+                  }}
+                >
+                  Quitar
+                </Button>
+              )}
+            </div>
+          )}
+
+          <dl className="tnum flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-detalle text-ink-3">
+            <div className="flex items-baseline gap-1.5">
+              <dt>Subtotal</dt>
+              <dd className="text-ink-2">{formatMoneyVE(toMajor(doc.subtotal), "USD")}</dd>
+            </div>
+            {descuento && (
+              <div className="flex items-baseline gap-1.5">
+                <dt>Descuento</dt>
+                <dd className="font-semibold text-ink">− {formatMoneyVE(toMajor(doc.discountTotal), "USD")}</dd>
+              </div>
+            )}
+            {doc.buckets.map((b) => (
+              <div
+                key={b.code}
+                className="flex items-baseline gap-1.5"
+                title={`${doc.taxIncluded ? "Base" : "Sobre"} ${formatMoneyVE(toMajor(b.base), "USD")}`}
+              >
+                <dt>
+                  IVA {b.basisPoints / 100} %{doc.taxIncluded ? " incluido" : ""}
+                </dt>
+                <dd className="text-ink-2">{formatMoneyVE(toMajor(b.tax), "USD")}</dd>
+              </div>
+            ))}
+            {igtfTotal.amount > 0n && (
+              <div className="flex items-baseline gap-1.5" title="El IGTF grava el medio de pago, no la venta: solo lo pagado en divisas o cripto.">
+                <dt>IGTF {igtfBasisPoints / 100} %</dt>
+                <dd className="text-ink-2">{formatMoneyVE(toMajor(igtfTotal), "USD")}</dd>
+              </div>
+            )}
+          </dl>
+          <div className="flex items-baseline justify-between gap-3 border-t border-line pt-2">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 font-display text-base font-bold text-ink">
+              {partes > 1 ? (
+                <>
+                  <span>
+                    Parte <span className="tnum">{parteActual}</span> de {partes}
+                  </span>
+                  <span className="tnum font-sans text-detalle font-normal text-ink-3">
+                    total {formatMoneyVE(toMajor(doc.total), "USD")}
+                  </span>
+                </>
+              ) : (
+                "Total a cobrar"
+              )}
+            </p>
+            <MoneyDisplay value={toMajor(aCobrar)} currency="USD" size="lg" />
+          </div>
+        </div>
       </section>
 
       {/* ═══════════════════════ cobrar ══════════════════════════════
             Estructura FIJA, pedida por el cliente: visor, medios, una franja de
             alto fijo según el medio, el teclado siempre a la vista y una fila de
-            dos columnas con «Cobrar exacto» y «Cerrar cobro». Cambiar de medio o
+            dos columnas con «Cobrar exacto» y «Cobrar». Cambiar de medio o
             teclear no mueve nada de sitio, y no hay que abrir nada para teclear. */}
       <aside
         data-recorrido="caja-cobro"
@@ -1706,8 +1672,8 @@ function CobroCuenta({
           )}
         </div>
 
-        {/* ── una fila: el recibo · cobrar exacto · cerrar cobro. En efectivo, solo
-              cerrar, a lo que queda: la fila no cambia de alto ni de sitio. ── */}
+        {/* ── una fila: el recibo · cobrar exacto · cobrar. En efectivo, solo
+              cobrar, a lo que queda: la fila no cambia de alto ni de sitio. ── */}
         <div className="md:bajo:col-start-1 md:bajo:row-start-5 mt-auto grid grid-cols-[4.5rem_1fr_1fr] gap-2">
           {/* «Imprimir recibo» (B3-8): un interruptor a la vista, con su tecla. Icono, texto y color: no solo color. */}
           <button
@@ -1764,15 +1730,20 @@ function CobroCuenta({
               puedeCobrar && "bg-state-ok text-on-brand hover:bg-state-ok/90",
             )}
           >
-            <span className="flex items-center gap-1.5 text-[14px] font-bold">
+            {/* «Cobrar $ 13.00» (M-32): lo que se cobra, el de la parte si está dividida. Debajo, lo que falta o la tecla. */}
+            {/* Un monto largo («$ 1,234.56») en la columna angosta pasa a su propio renglón: no se sale del botón. */}
+            <span className="flex flex-wrap items-center justify-center gap-x-1.5 text-[14px] font-bold">
               {puedeCobrar && <CircleCheckBig size={15} aria-hidden="true" />}
-              {enviando ? "Cobrando…" : "Cerrar cobro"}
-              <PistaTecla tecla="Ctrl ⏎" />
+              {enviando ? (
+                "Cobrando…"
+              ) : (
+                <>
+                  Cobrar <span className="tnum whitespace-nowrap">{formatMoneyVE(toMajor(aCobrar), "USD")}</span>
+                </>
+              )}
             </span>
             <span className="tnum text-[12px] font-semibold opacity-80">
-              {puedeCobrar
-                ? formatMoneyVE(toMajor(aCobrar), "USD")
-                : `Falta ${formatMoneyVE(toMajor(falta), "USD")}`}
+              {puedeCobrar ? <PistaTecla tecla="Ctrl ⏎" /> : `Falta ${formatMoneyVE(toMajor(falta), "USD")}`}
             </span>
           </Button>
         </div>
@@ -2029,6 +2000,10 @@ export function CajaScreen({
   const [filtro, setFiltro] = useState<FiltroCola>("TODAS");
   const [buscando, setBuscando] = useState(false);
   const buscadorRef = useRef<HTMLInputElement>(null);
+  // El buscador de la carta que esté a la vista (B3-10): la «/» va a él antes que a la cola.
+  const campoDeLaCarta = useRef<HTMLInputElement | null>(null);
+  const enfocarLaCarta = useRef(false);
+  const buscadorDeLaCarta = useMemo<RefDelBuscador>(() => ({ campo: campoDeLaCarta, enfocarAlMontar: enfocarLaCarta }), []);
   const visibles = useMemo(
     () => filtrarCola(porCobrar, busqueda, filtro),
     [porCobrar, busqueda, filtro],
@@ -2115,12 +2090,8 @@ export function CajaScreen({
         avisar.error("La caja no vende sin turno abierto", { detalle: "Abre el turno de este equipo." });
         return;
       }
-      if (producto.sinInventarioInicial) {
-        avisar.error(`«${producto.nombre}» todavía no tiene inventario inicial`, { detalle: "Se vende cuando se cuente: Inventario → Entradas → Inventario inicial." });
-        return;
-      }
-      if (producto.existencia === 0) {
-        avisar.error(`«${producto.nombre}» se agotó`, { detalle: "Lo que no hay no se vende: hay que cargar la entrada de mercancía." });
+      if (!seVendeAhora(producto)) {
+        avisarNoSeVende(producto);
         return;
       }
       if (actual && actual.kind !== "EVENTO" && !ventaNueva && vistaEfectiva === "cuenta") onAgregarProductoACuenta(producto);
@@ -2173,7 +2144,14 @@ export function CajaScreen({
       return true;
     }
     if (t.key === "/") {
-      // Si el buscador ya está a la vista (cola larga), se enfoca aquí; si no,
+      // «/» busca en lo que está a la vista (B3-10): la carta, si está abierta y se ve.
+      const carta = campoDeLaCarta.current;
+      if (carta && carta.getClientRects().length > 0) {
+        carta.focus();
+        carta.select();
+        return true;
+      }
+      // Si el buscador de la cola ya está a la vista (cola larga), se enfoca aquí; si no,
       // lo enfoca la cola al mostrarlo.
       setBuscando(true);
       buscadorRef.current?.focus();
@@ -2384,6 +2362,7 @@ export function CajaScreen({
   return (
     <ALaVenta.Provider value={aLaVenta}>
     <VistaPrecios.Provider value={vistaPrecios}>
+    <BuscadorDeLaCarta.Provider value={buscadorDeLaCarta}>
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Sin cabecera visible: lo que decía («2 por cobrar · mostrador») ya está en
           la cola. El título sigue para los lectores de pantalla. */}
@@ -2597,6 +2576,7 @@ export function CajaScreen({
         />
       )}
     </div>
+    </BuscadorDeLaCarta.Provider>
     </VistaPrecios.Provider>
     </ALaVenta.Provider>
   );
@@ -2648,33 +2628,162 @@ function BotonCopiar({
   );
 }
 
+/**
+ * Un botón del pie de la cuenta (B3-10, M-32): qué es, en chico, y debajo su estado («Consumidor final», «− 10 %»,
+ * «Entre 3»). Con algo puesto lleva el color de marca, y el texto lo dice igual: no solo el color.
+ */
+function BotonDelPie({
+  icono: Icono,
+  etiqueta,
+  tecla,
+  activo,
+  children,
+  className,
+  ...resto
+}: {
+  icono: typeof Users;
+  etiqueta: string;
+  /** Su atajo de teclado, si tiene. */
+  tecla?: string;
+  activo: boolean;
+  children: React.ReactNode;
+} & Omit<React.ComponentProps<"button">, "children">) {
+  return (
+    <button
+      type="button"
+      {...resto}
+      className={cn(
+        "flex min-h-14 min-w-0 cursor-pointer flex-col items-start justify-center gap-0.5 rounded-[var(--radius-control)] border px-2.5 py-1 text-left transition-colors",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "disabled:cursor-not-allowed disabled:opacity-45",
+        activo ? "border-brand/60 bg-brand/10" : "border-line bg-surface enabled:hover:border-line-strong",
+        className,
+      )}
+    >
+      <span className="flex w-full items-center gap-1 text-etiqueta font-semibold whitespace-nowrap text-ink-3 uppercase">
+        <Icono className={cn("size-(--icono-etiqueta) shrink-0", activo && "text-brand")} aria-hidden="true" />
+        {etiqueta}
+        {/* En una cuenta angosta (la tablet) no hay teclado: la pista cede su sitio a la etiqueta. */}
+        {tecla && (
+          <span className="ml-auto normal-case @max-md/ticket:hidden">
+            <PistaTecla tecla={tecla} />
+          </span>
+        )}
+      </span>
+      {/* Lo que no cabe en un renglón pasa al siguiente: ni se corta ni se mueve (T-15). */}
+      <span className="w-full text-detalle leading-tight font-semibold break-words text-ink">{children}</span>
+    </button>
+  );
+}
+
 /** Columnas de la factura: cantidad, concepto, precio unitario e importe. */
 const COLUMNAS =
   "grid grid-cols-[2.25rem_minmax(0,1fr)_5.75rem] @md/ticket:grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.75rem] items-baseline gap-x-3";
 
+/** ¿Se vende ahora? Lo que nunca se contó (B9-7) y lo agotado (ADR-023), no: se ven al final, con su motivo. */
+const seVendeAhora = (p: ProductoALaVenta): boolean => !p.sinInventarioInicial && disponible(p);
+
+/** Por qué no se vende un producto que se intenta vender: lo dicen igual el lector, la carta y la fila de una cuenta. */
+function avisarNoSeVende(p: ProductoALaVenta) {
+  if (p.sinInventarioInicial) {
+    avisar.error(`«${p.nombre}» todavía no tiene inventario inicial`, { detalle: "Se vende cuando se cuente: Inventario → Entradas → Inventario inicial." });
+  } else {
+    avisar.error(`«${p.nombre}» se agotó`, { detalle: "Lo que no hay no se vende: hay que cargar la entrada de mercancía." });
+  }
+}
+
+/**
+ * ¿Es lo que se busca? (B3-10). Por el nombre y la categoría, cada palabra en cualquier sitio y sin tildes ni
+ * mayúsculas («agua min», «bebidas»); por el SKU o el código de barras, desde su comienzo («beb-00», «7591…»): un
+ * «155» no trae el producto cuyo SKU es «PRU-0155».
+ */
+function coincide(p: ProductoALaVenta, consulta: string): boolean {
+  const empieza = (codigo: string | null) => codigo !== null && nameKey(codigo).startsWith(consulta);
+  if (empieza(p.sku) || empieza(p.codigoBarras)) return true;
+  const donde = nameKey(`${p.nombre} ${p.categoria}`);
+  return consulta.split(" ").every((palabra) => donde.includes(palabra));
+}
+
+/**
+ * El buscador de la carta que está a la vista (B3-10). La «/» de la caja lo enfoca si se ve; si no, busca en la cola.
+ * `enfocarAlMontar`: el primer producto de una venta directa, elegido desde el buscador, abre su cuenta con otra carta,
+ * y esa carta vuelve a poner el cursor en su buscador para seguir tecleando.
+ */
+type RefDelBuscador = Readonly<{ campo: { current: HTMLInputElement | null }; enfocarAlMontar: { current: boolean } }>;
+const BuscadorDeLaCarta = createContext<RefDelBuscador | null>(null);
+
+/**
+ * La carta de mostrador: una rejilla táctil por categorías. La usan la venta directa y «Añadir ítems» de una cuenta
+ * abierta, así que vive una vez. Arriba, el buscador (B3-10, M-32): al teclear filtra en toda la carta y, al vaciarlo,
+ * vuelve la categoría que estaba. Lo que no se vende ahora va al final, atenuado y con su motivo. La rejilla desplaza
+ * dentro de su sitio: quien la usa le da el alto con `className`.
+ */
 function CartaMostrador({
   aBolivares,
   onElegir,
-  alto,
+  className,
 }: {
   aBolivares: FrozenRate | null;
   onElegir: (p: ProductoALaVenta) => void;
-  /** Alto máximo de la rejilla, que se desplaza por dentro si no cabe. */
-  alto?: string;
+  /** El alto que le toca: la rejilla desplaza por dentro si no cabe. */
+  className?: string;
 }) {
   const aLaVenta = useContext(ALaVenta);
   const { vista, cambiar } = useContext(VistaPrecios);
+  const buscador = useContext(BuscadorDeLaCarta);
   // Las pestañas salen de lo que se vende: una categoría existe si hay algo en ella (B9-1).
   const categorias = useMemo(
     () => ["Todos", ...categoriesOf(aLaVenta.map((p) => ({ category: p.categoria })))],
     [aLaVenta],
   );
   const [elegida, setCategoria] = useState("Todos");
-  const categoria = categorias.includes(elegida) ? elegida : "Todos";
-  const productos =
-    categoria === "Todos"
+  const [busqueda, setBusqueda] = useState("");
+  const consulta = nameKey(busqueda);
+  const buscando = consulta !== "";
+  // Buscando, la carta entera: la categoría elegida espera y vuelve al borrar la búsqueda.
+  const categoria = buscando ? "Todos" : categorias.includes(elegida) ? elegida : "Todos";
+  const productos = buscando
+    ? aLaVenta.filter((p) => coincide(p, consulta))
+    : categoria === "Todos"
       ? aLaVenta
       : aLaVenta.filter((p) => nameKey(p.categoria) === nameKey(categoria));
+  const seVenden = productos.filter(seVendeAhora);
+  const noSeVenden = productos.filter((p) => !seVendeAhora(p));
+
+  // El campo se anota en la caja para la «/»; si esta carta nace de una venta que empezó en el buscador, lo enfoca.
+  const campo = useRef<HTMLInputElement | null>(null);
+  const registrar = useCallback(
+    (el: HTMLInputElement | null) => {
+      if (buscador) {
+        if (el) buscador.campo.current = el;
+        else if (buscador.campo.current === campo.current) buscador.campo.current = null;
+        if (el && buscador.enfocarAlMontar.current) {
+          buscador.enfocarAlMontar.current = false;
+          el.focus();
+        }
+      }
+      campo.current = el;
+    },
+    [buscador],
+  );
+
+  /** Intro en el buscador: el primero que se vende. Si la venta nace aquí, su carta sigue con el cursor en el buscador. */
+  function elegirElPrimero() {
+    const primero = seVenden[0];
+    if (!primero) {
+      if (noSeVenden[0]) avisarNoSeVende(noSeVenden[0]);
+      return;
+    }
+    if (buscador) {
+      buscador.enfocarAlMontar.current = true;
+      window.setTimeout(() => {
+        buscador.enfocarAlMontar.current = false;
+      }, 0);
+    }
+    onElegir(primero);
+    setBusqueda("");
+  }
+
   if (aLaVenta.length === 0) {
     return (
       <p
@@ -2685,31 +2794,115 @@ function CartaMostrador({
       </p>
     );
   }
-  return (
-    <div className="flex min-h-0 flex-col gap-2">
-      <div
-        role="group"
-        aria-label="Categorías de mostrador"
-        className="flex flex-wrap gap-1.5"
+
+  const tarjeta = (p: ProductoALaVenta) => {
+    const usd = p.precio;
+    const bs = aBolivares ? convert(usd, aBolivares) : null;
+    // Sin existencia no se vende (ADR-023): se ve, pero no se toca. Lo que nunca se contó (B9-7) dice eso,
+    // no «agotado»: no se acabó, falta contarlo.
+    const seVende = seVendeAhora(p);
+    const sinContar = p.sinInventarioInicial;
+    return (
+      <button
+        key={p.id}
+        type="button"
+        onClick={() => onElegir(p)}
+        disabled={!seVende}
+        aria-label={sinContar ? `${p.nombre}, sin inventario inicial` : !seVende ? `${p.nombre}, agotado` : undefined}
+        title={sinContar ? "Sin inventario inicial: se vende cuando se cuente" : undefined}
+        className={cn(
+          "flex min-h-14 flex-col items-start justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-left transition-all",
+          seVende
+            ? "cursor-pointer hover:border-brand hover:bg-brand/10 active:scale-[0.98]"
+            : "cursor-not-allowed border-dashed opacity-55",
+        )}
       >
-        {categorias.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            aria-pressed={categoria === cat}
-            onClick={() => setCategoria(cat)}
+        <span className="flex w-full items-start justify-between gap-1.5">
+          <span className="text-[12.5px] leading-tight font-bold text-ink">
+            {p.nombre}
+          </span>
+          {p.existencia !== null && (
+            <span
+              className={cn(
+                "tnum flex shrink-0 items-center gap-0.5 text-[10px] font-semibold whitespace-nowrap",
+                seVende ? "text-ink-3" : "text-ink-2",
+              )}
+            >
+              {sinContar ? <ClipboardList size={11} aria-hidden="true" /> : !seVende && <PackageX size={11} aria-hidden="true" />}
+              {sinContar ? "Sin contar" : !seVende ? "Agotado" : `Quedan ${p.existencia}`}
+            </span>
+          )}
+        </span>
+        <span className="mt-1 flex w-full flex-wrap items-baseline justify-between gap-x-2">
+          {/* En bolívares solos, sin tasa no hay precio que enseñar: se ve el de dólares (fail-closed: nada inventado). */}
+          {vista === "VES" && bs ? (
+            <span className="tnum text-xs font-bold text-brand">{formatMoneyVE(toMajor(bs), "VES")}</span>
+          ) : (
+            <span className="tnum text-xs font-bold text-brand">{formatMoneyVE(toMajor(usd), "USD")}</span>
+          )}
+          {vista === "AMBOS" && bs && (
+            <span className="tnum text-[10px] font-medium text-ink-3">
+              {formatMoneyVE(toMajor(bs), "VES")}
+            </span>
+          )}
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <div className={cn("@container/carta flex min-h-0 flex-col gap-2", className)}>
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-(--icono-tablet) -translate-y-1/2 text-ink-3" aria-hidden="true" />
+          <input
+            ref={registrar}
+            type="search"
+            aria-label="Buscar en la carta"
+            placeholder="Buscar producto o código"
+            autoComplete="off"
+            spellCheck={false}
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                if (busqueda !== "") {
+                  e.preventDefault();
+                  setBusqueda("");
+                } else e.currentTarget.blur();
+                return;
+              }
+              // El Intro del lector de códigos ya lo canceló él (vende el producto leído): aquí, solo el de una persona.
+              if (e.key !== "Enter" || e.defaultPrevented || !buscando) return;
+              e.preventDefault();
+              elegirElPrimero();
+            }}
             className={cn(
-              "min-h-14 cursor-pointer rounded-[var(--radius-control)] px-3 text-xs font-semibold transition-colors",
-              categoria === cat
-                ? "bg-brand text-on-brand"
-                : "border border-line/60 bg-surface text-ink-2 hover:bg-surface-2",
+              "min-h-14 w-full rounded-[var(--radius-control)] border border-line bg-surface pr-12 pl-9 text-cuerpo text-ink placeholder:text-ink-3",
+              "focus-visible:border-brand focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand/40",
+              "[&::-webkit-search-cancel-button]:appearance-none",
             )}
-          >
-            {cat}
-          </button>
-        ))}
-        {/* La vista de precios (T-15, P-12): al final de la fila, recordada por este equipo. */}
-        <div role="radiogroup" aria-label="Precios de la carta" className="ml-auto flex shrink-0 gap-1 rounded-[var(--radius-control)] bg-surface-2 p-1">
+          />
+          {busqueda !== "" ? (
+            <button
+              type="button"
+              aria-label="Borrar la búsqueda"
+              onClick={() => {
+                setBusqueda("");
+                campo.current?.focus();
+              }}
+              className="absolute top-1/2 right-1 grid size-12 -translate-y-1/2 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 hover:bg-surface-2 hover:text-ink"
+            >
+              <X className="size-(--icono-tablet)" aria-hidden="true" />
+            </button>
+          ) : (
+            <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">
+              <PistaTecla tecla="/" />
+            </span>
+          )}
+        </div>
+        {/* La vista de precios (T-15, P-12): junto al buscador, recordada por este equipo. */}
+        <div role="radiogroup" aria-label="Precios de la carta" className="flex shrink-0 gap-1 rounded-[var(--radius-control)] bg-surface-2 p-1">
           {VISTAS.map((v) => (
             <button
               key={v.id}
@@ -2730,65 +2923,59 @@ function CartaMostrador({
         </div>
       </div>
       <div
-        className={cn(
-          "grid grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3",
-          alto,
-        )}
+        role="group"
+        aria-label="Categorías de mostrador"
+        className="flex shrink-0 flex-wrap gap-1.5"
       >
-        {productos.map((p) => {
-          const usd = p.precio;
-          const bs = aBolivares ? convert(usd, aBolivares) : null;
-          // Sin existencia no se vende (ADR-023): se ve, pero no se toca. Lo que nunca se contó (B9-7) dice eso,
-          // no «agotado»: no se acabó, falta contarlo.
-          const agotado = p.existencia === 0;
-          const sinContar = p.sinInventarioInicial;
-          return (
+        {categorias.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            aria-pressed={categoria === cat}
+            onClick={() => {
+              setBusqueda("");
+              setCategoria(cat);
+            }}
+            className={cn(
+              // 44 px y no los 56 del POS (M-32, decisión del usuario): con muchas categorías, cada renglón cuenta.
+              "min-h-11 cursor-pointer rounded-[var(--radius-control)] px-3 text-xs font-semibold transition-colors",
+              categoria === cat
+                ? "bg-brand text-on-brand"
+                : "border border-line/60 bg-surface text-ink-2 hover:bg-surface-2",
+            )}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+      <div
+        role="group"
+        aria-label={buscando ? `Productos que coinciden con «${busqueda.trim()}»` : `Productos de ${categoria}`}
+        className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 content-start gap-1.5 overflow-y-auto overscroll-contain pr-1 @lg/carta:grid-cols-3"
+      >
+        {seVenden.map(tarjeta)}
+        {noSeVenden.length > 0 && (
+          <h3 className="col-span-full mt-1 flex items-center gap-1.5 border-t border-line/60 pt-2 text-etiqueta font-semibold text-ink-3 uppercase first:mt-0 first:border-t-0 first:pt-0">
+            <PackageX className="size-(--icono-etiqueta)" aria-hidden="true" />
+            No se venden ahora · <span className="tnum">{noSeVenden.length}</span>
+          </h3>
+        )}
+        {noSeVenden.map(tarjeta)}
+        {productos.length === 0 && (
+          <p role="status" className="col-span-full flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-[var(--radius-control)] border border-dashed border-line px-4 py-5 text-center text-detalle text-ink-2">
+            Nada en la carta coincide con «{busqueda.trim()}».
             <button
-              key={p.id}
               type="button"
-              onClick={() => onElegir(p)}
-              disabled={agotado}
-              aria-label={sinContar ? `${p.nombre}, sin inventario inicial` : agotado ? `${p.nombre}, agotado` : undefined}
-              title={sinContar ? "Sin inventario inicial: se vende cuando se cuente" : undefined}
-              className={cn(
-                "flex min-h-14 flex-col items-start justify-between rounded-[var(--radius-control)] border border-line bg-surface p-2 text-left transition-all",
-                agotado
-                  ? "cursor-not-allowed opacity-55"
-                  : "cursor-pointer hover:border-brand hover:bg-brand/10 active:scale-[0.98]",
-              )}
+              onClick={() => {
+                setBusqueda("");
+                campo.current?.focus();
+              }}
+              className="min-h-12 cursor-pointer font-semibold text-brand underline-offset-2 hover:underline"
             >
-              <span className="flex w-full items-start justify-between gap-1.5">
-                <span className="text-[12.5px] leading-tight font-bold text-ink">
-                  {p.nombre}
-                </span>
-                {p.existencia !== null && (
-                  <span
-                    className={cn(
-                      "tnum flex shrink-0 items-center gap-0.5 text-[10px] font-semibold whitespace-nowrap",
-                      agotado ? "text-ink-2" : "text-ink-3",
-                    )}
-                  >
-                    {sinContar ? <ClipboardList size={11} aria-hidden="true" /> : agotado && <PackageX size={11} aria-hidden="true" />}
-                    {sinContar ? "Sin contar" : agotado ? "Agotado" : `Quedan ${p.existencia}`}
-                  </span>
-                )}
-              </span>
-              <span className="mt-1 flex w-full flex-wrap items-baseline justify-between gap-x-2">
-                {/* En bolívares solos, sin tasa no hay precio que enseñar: se ve el de dólares (fail-closed: nada inventado). */}
-                {vista === "VES" && bs ? (
-                  <span className="tnum text-xs font-bold text-brand">{formatMoneyVE(toMajor(bs), "VES")}</span>
-                ) : (
-                  <span className="tnum text-xs font-bold text-brand">{formatMoneyVE(toMajor(usd), "USD")}</span>
-                )}
-                {vista === "AMBOS" && bs && (
-                  <span className="tnum text-[10px] font-medium text-ink-3">
-                    {formatMoneyVE(toMajor(bs), "VES")}
-                  </span>
-                )}
-              </span>
+              Borrar la búsqueda
             </button>
-          );
-        })}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -2824,11 +3011,12 @@ function NuevaVentaDirecta({
             Toca el primer producto: la venta nace con él. Nada se cobra antes.
           </p>
         </div>
-        <div className="min-h-0 flex-1 p-3">
+        {/* En el teléfono la carta tiene su alto y desplaza por dentro; desde md ocupa lo que le deja la tarjeta. */}
+        <div className="flex min-h-0 flex-1 flex-col p-3">
           <CartaMostrador
             aBolivares={aBolivares}
             onElegir={onElegir}
-            alto="lg:max-h-none"
+            className="max-h-[70svh] flex-1 md:max-h-none"
           />
         </div>
       </section>

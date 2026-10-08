@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
  *    60 ms antes de ejecutarse; si llega otra en ráfaga, se descartan todas.
  *    Así «AK-0142⏎» nunca elige un medio con la «A» ni añade un pago con el
  *    Enter. 60 ms no se notan al teclear.
- * 3. **Nada irreversible con una sola tecla.** Cerrar el cobro pide Ctrl+Enter.
+ * 3. **Nada irreversible con una sola tecla.** Cobrar pide Ctrl+Enter.
  *
  * Solo sirve en equipos con teclado: en la tablet no hay teclas que pulsar, y
  * las pistas en pantalla se ocultan donde no hay puntero fino.
@@ -123,11 +123,11 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "⌫", que: "Borrar el último dígito" },
   { teclas: "Enter", que: "Añadir el pago tecleado" },
   { teclas: "+", que: "Cobrar exacto con el medio elegido (no en efectivo)" },
-  { teclas: "Ctrl + Enter", que: "Cerrar el cobro (solo si está cubierto)" },
+  { teclas: "Ctrl + Enter", que: "Cobrar (solo si está cubierto)" },
   { teclas: "*", que: "Imprimir o no el recibo de este cobro" },
   { teclas: "E · B · P · T · Z · U", que: "Efectivo $ · Efectivo Bs · Pago Móvil · Tarjeta (punto) · Zelle · USDT" },
   { teclas: "↑ ↓", que: "Cuenta anterior o siguiente de la cola" },
-  { teclas: "/", que: "Buscar en la cola" },
+  { teclas: "/", que: "Buscar: en la carta si está abierta (Intro añade el primero; Esc borra), si no en la cola" },
   { teclas: "N", que: "Nueva venta directa" },
   { teclas: "A", que: "Entrada al parque: registrar y cobrar niños sin salir de la caja" },
   { teclas: "I", que: "Identificar al cliente de la factura" },

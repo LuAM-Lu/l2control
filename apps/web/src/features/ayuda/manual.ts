@@ -212,9 +212,10 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "La cola «Por cobrar» va de la más antigua a la más nueva. Elige una cuenta, o pasa la pulsera de un niño para traer la de su familia.",
       "Una familia que llega directo a la caja: «Entrada» (tecla A), o pasa una pulsera que no está en la sala. En el panel, cada pulsera suma un niño (si no se lee, «Escribir» su número; «Sin pulsera» con su nombre), el paquete y el teléfono del representante; «Registrar y cobrar» deja su cuenta lista. Se paga ahora: la cuenta abierta y los invitados de un cumpleaños, en Entrada.",
-      "En una venta de mostrador, añade los productos de la carta (o pasa su código de barras).",
+      "En una venta de mostrador, añade los productos de la carta (o pasa su código de barras). Para no buscarlos a ojo, escribe en «Buscar producto o código» (tecla /): busca en toda la carta por nombre, SKU o código, e Intro añade el primero. Lo que no se vende ahora (sin contar o agotado) va al final, atenuado.",
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
-      "Cobra (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
+      "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I) si el cliente pide la factura con su cédula o RIF, «Descuento» y «Dividir» en partes iguales, de 2 a 6.",
+      "«Cobrar $ …» dice lo que se cobra, el de la parte si está dividida (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
     ],
     problemas: [
       {
@@ -241,6 +242,18 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«Aforo completo» o «La pulsera ya se usó en otra visita» en la entrada desde la caja",
         solucion: "Lo mismo que en Entrada: espera a que salga alguien, o pon una pulsera nueva del lote. El niño no queda registrado hasta que el panel lo acepta.",
         reconoce: ["aforo completo", "ya se uso en otra visita"],
+      },
+      {
+        sintoma: "Un producto sale atenuado al final de la carta, en «No se venden ahora»",
+        solucion:
+          "«Sin contar»: todavía no tiene su inventario inicial (Inventario → Entradas → Inventario inicial). «Agotado»: no queda; se vende de nuevo al cargar la entrada de mercancía.",
+        reconoce: ["no se venden ahora", "todavia no tiene inventario inicial", "se agoto"],
+      },
+      {
+        sintoma: "«Dividir» o «Descuento» no se dejan tocar",
+        solucion:
+          "Con pagos puestos no se divide ni se descuenta: quítalos primero. Una cuenta dividida no lleva descuento, ni una con descuento se divide. Cobrada ya una parte, el reparto se queda como está.",
+        reconoce: ["quita primero los pagos", "une la cuenta", "quita el descuento para dividir", "ya se cobro una parte"],
       },
       {
         sintoma: "«La cuenta cambió» al cobrar",

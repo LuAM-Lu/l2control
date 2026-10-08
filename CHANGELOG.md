@@ -5,7 +5,7 @@ Qué cambia en cada versión, para quien usa el sistema. Formato de
 según M-10 (docs/MAESTRO.md §2):
 
 - **MINOR** +1 por cada paso de la ruta a producción entregado: el número del medio dice cuántos van
-  (de 91). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
+  (de 92). **PATCH** +1 por cada corrección entre pasos. **1.0.0** es la puesta en marcha (B8-4).
 - Cada rama escribe lo suyo en `## [Sin publicar]`; al fusionar en `main`, quien fusiona le pone número y
   fecha y crea la etiqueta (M-20).
 - La fuente es `version` del `package.json` raíz, con su etapa en `l2.etapa`. `pnpm verify` falla si
@@ -13,6 +13,33 @@ según M-10 (docs/MAESTRO.md §2):
 
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
+
+## [Sin publicar]
+
+La caja más clara (B3-10, M-32): con todo el catálogo en la carta, buscar en vez de recorrerla, y los ítems que se
+cobran a la vista.
+
+### Añadido
+- **Un buscador en la carta de la caja** (venta directa y «Añadir ítems»): al escribir busca en toda la carta, por
+  nombre (sin tildes), categoría, SKU o código de barras, e Intro añade el primero. Al borrarlo vuelve la categoría que
+  estaba. La tecla «/» busca en lo que está a la vista: en la carta si está abierta, si no en la cola.
+
+### Cambiado
+- **Lo que no se vende ahora va al final de la carta**, atenuado y bajo «No se venden ahora · N», cada uno con su
+  motivo («Sin contar» o «Agotado»). Lo que se vende, primero.
+- Los botones de categoría de la carta son más bajos (44 px): con muchas categorías, los productos se ven antes.
+- **El pie de la cuenta, compacto:** «Factura a», «Descuento» y «Dividir» son una fila de tres botones que dicen cómo
+  está cada uno («Consumidor final», «− 10 %», «Entre 3»); dividir abre las partes de 2 a 6 con «Sin dividir». El
+  subtotal y los impuestos van en un renglón y el total, grande; dividida, dice «Parte 1 de 3». Con ocho ítems se ven
+  todos sin desplazar.
+- **«Cerrar cobro» ahora dice «Cobrar $ 13.00»**, con el monto que se cobra (el de la parte, si está dividida).
+- La ayuda de Cobrar, el recorrido de la caja (se vuelve a enseñar una vez) y los atajos lo cuentan.
+
+### Corregido
+- La carta de la venta directa ya no se sale de su tarjeta con muchos productos: desplaza por dentro, en el
+  escritorio, la tablet y el teléfono. Con la carta abierta en una cuenta, los ítems siguen a la vista.
+- En la tablet, «Quedan N» ya no se sale de la tarjeta del producto: la carta pone dos columnas cuando es angosta y
+  tres cuando hay sitio.
 
 ## [0.86.1] — 2026-10-08 · Hacia la puesta en marcha
 
