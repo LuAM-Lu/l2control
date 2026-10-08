@@ -17,6 +17,7 @@
 import {
   AltaEnLoteCommandSchema,
   CatalogoSchema,
+  EditarEnLoteCommandSchema,
   FijarMinimoCommandSchema,
   ProductoCommandSchema,
   problemasDe,
@@ -27,6 +28,7 @@ import {
 } from "@l2/contracts";
 import { addDays, calendarDay, startOfDay } from "@l2/domain-rates";
 import {
+  adjustedPrice,
   averageUnitCostMinor,
   barcodeProblem,
   changesTimeline,
@@ -70,6 +72,12 @@ export interface CasosProductos {
    * ninguno. Lo que se cuenta nace «Sin inventario inicial». Devuelve cómo queda el catálogo.
    */
   altaEnLote(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CatalogoDto>>;
+  /**
+   * Edita varios productos de una vez (`EditarEnLoteCommandSchema`, B9-9): la categoría, el mínimo, la carta o el precio
+   * (en % o en monto, desde un día), o los aparta. Todo o nada; cada producto deja su asiento, como si se hubiera
+   * cambiado solo. Lo que ya estaba así no se toca.
+   */
+  editarEnLote(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CatalogoDto>>;
 }
 
 /**
@@ -215,6 +223,90 @@ export function casosProductos(base: Base): CasosProductos {
         if (e instanceof Deshacer) return e.rechazo;
         // Otra persona dio de alta el mismo nombre o el mismo código a la vez.
         if (errorDeBase(e)?.motivo === "DUPLICADO") return invalido("Ya hay un producto con uno de esos nombres o códigos de barras.", ["productos"], "Nombre o código repetido");
+        throw e;
+      }
+    },
+
+    async editarEnLote(ctx, entrada, ahora = Date.now()) {
+      const v = EditarEnLoteCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "No se guardó nada: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const { productIds, cambio } = v.data;
+
+      // El día de un precio, como en `aplicar`: ni hacia atrás ni más allá de lo que se programa.
+      let desde = ahora;
+      if (cambio.kind === "PRECIO") {
+        const zona = await base.conTenant(ctx.tenantId, (tx) => zonaDe(tx, ctx.branchId));
+        const hoy = calendarDay(new Date(ahora).toISOString(), zona);
+        if (cambio.dia < hoy) return invalido("Un precio no se programa hacia atrás: lo ya vendido se queda con el que tenía.", ["cambio", "dia"], "Día pasado");
+        if (cambio.dia > addDays(hoy, DIAS_POR_ADELANTADO_PRECIOS)) {
+          return invalido(`Solo se programa con hasta ${DIAS_POR_ADELANTADO_PRECIOS} días de adelanto.`, ["cambio", "dia"], "Día fuera de rango");
+        }
+        desde = cambio.dia === hoy ? ahora : startOfDay(cambio.dia, zona);
+      }
+      // Lo mismo que pide cada cambio suelto: el precio y la carta, con elevación; la ficha y apartar, del inventario; el
+      // mínimo, de quien recibe la mercancía.
+      const permiso = cambio.kind === "PRECIO" || cambio.kind === "EN_CARTA" ? "catalogo.modificar" : cambio.kind === "MINIMO" ? "inventario.entrada" : "inventario.catalogo";
+      const accion: AccionAuditada =
+        cambio.kind === "PRECIO" ? "precio.programar" : cambio.kind === "EN_CARTA" ? "producto.carta" : cambio.kind === "MINIMO" ? "producto.minimo" : cambio.kind === "APARTAR" ? "producto.apartar" : "producto.editar";
+
+      try {
+        const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CatalogoDto | Rechazo> => {
+          const rechazo = await exigirPermiso(tx, ctx, permiso);
+          if (rechazo) return rechazo;
+          const quien = await nombreDe(tx, ctx);
+          const filas = await tx.product.findMany({ where: { id: { in: [...productIds] } } });
+          const porId = new Map(filas.map((p) => [p.id, p]));
+          const precios = cambio.kind === "PRECIO" ? (await tx.productPrice.findMany({ where: { productId: { in: [...productIds] } } })).map(programadoDeFila) : [];
+          const calendario = priceTimeline(precios);
+
+          for (const [i, id] of productIds.entries()) {
+            const p = porId.get(id);
+            if (!p) throw new Deshacer(invalido("Uno de los productos ya no existe en este local.", ["productIds", i], "Producto desconocido"));
+            // Cada producto, por el mismo camino que su cambio suelto.
+            let suelto: ProductoCommand | null = null;
+            switch (cambio.kind) {
+              case "CATEGORIA":
+                if (p.category === (await categoriaComoEnLista(tx, cambio.categoria))) continue;
+                suelto = { kind: "EDITAR", productId: id, nombre: p.name, categoria: cambio.categoria, taxCode: p.taxCode as never, tipo: p.kind as never, codigoBarras: p.barcode, presentacion: p.presentation };
+                break;
+              case "APARTAR":
+                suelto = { kind: "ACTIVAR", productId: id, activo: false };
+                break;
+              case "EN_CARTA":
+                suelto = { kind: "EN_CARTA", productId: id, enCarta: cambio.enCarta };
+                break;
+              case "PRECIO": {
+                const rige = periodAt(calendario, id, desde);
+                if (!rige) throw new Deshacer(invalido(`${p.name} no tiene precio ese día.`, ["productIds", i], "Sin precio"));
+                const nuevo = adjustedPrice(rige.amountMinor, cambio.ajuste.modo === "PORCENTAJE" ? cambio.ajuste : { modo: "MONTO", minor: BigInt(cambio.ajuste.minor) });
+                const problema = priceProblem({ amountMinor: nuevo, effectiveFrom: desde }, ahora);
+                if (problema) throw new Deshacer(invalido(`${p.name}: ${MENSAJE_PRECIO[problema].toLowerCase()}.`, ["productIds", i], MENSAJE_PRECIO[problema]));
+                if (nuevo === rige.amountMinor) continue;
+                suelto = { kind: "PROGRAMAR_PRECIO", productId: id, precioMinor: String(nuevo), dia: cambio.dia };
+                break;
+              }
+              case "MINIMO": {
+                if (!p.tracksStock) throw new Deshacer(invalido(`${p.name} no lleva existencia: no tiene mínimo.`, ["productIds", i], "SIN_CONTROL_DE_STOCK"));
+                if (p.minStock === cambio.minimo) continue;
+                await tx.product.update({ where: { id }, data: { minStock: cambio.minimo } });
+                await auditar(tx, ctx, { action: "producto.minimo", entityType: "product", entityId: id, before: { nombre: p.name, minimo: p.minStock }, after: { nombre: p.name, minimo: cambio.minimo }, reason: "Editado en lote" });
+                continue;
+              }
+            }
+            const asiento = await guardar(tx, ctx, suelto, quien.nombre, ahora, desde);
+            if ("ok" in asiento) throw new Deshacer({ ...asiento, mensaje: `${p.name}: ${asiento.mensaje}` });
+            if (asiento.cambio) await auditar(tx, ctx, { ...asiento.cambio, reason: "Editado en lote" });
+          }
+          return cargar(tx, ctx.branchId);
+        });
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: accion, reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (e instanceof Deshacer) return e.rechazo;
+        if (errorDeBase(e)?.motivo === "DUPLICADO") return { ok: false, motivo: "CONFLICTO", mensaje: "Otra persona cambió uno de esos productos a la vez. Vuelve a intentarlo." };
         throw e;
       }
     },

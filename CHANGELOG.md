@@ -14,6 +14,18 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Editar en lote (B9-9, M-29).
+
+### Añadido
+- **Editar varios productos a la vez.** En Inventario → Productos se eligen con las casillas de la tabla (uno a uno o
+  «todos los que se ven») y la barra ofrece cambiarles la categoría, el mínimo, la carta o el precio, o apartarlos.
+- **El precio en lote**: en por ciento (+10, −5) o en dólares (+0,50), desde un día. La hoja enseña cómo queda cada
+  uno antes de aplicar.
+- Una sola confirmación: todo o nada (si uno no puede, no cambia ninguno, y dice cuál), y cada producto queda en la
+  auditoría como si se hubiera cambiado solo.
+
 ## [0.82.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Conteo a ciegas y su informe de diferencias (B9-10, M-29).
