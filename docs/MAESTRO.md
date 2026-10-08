@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.77.0 · 77 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.78.0 · 78 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -620,7 +620,7 @@ Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   → **Personas y equipos** (usuarios y permisos, roles y accesos, dispositivos), **Tasas** con su pestaña de feriados,
   **Sistema** (versión y actualizaciones, respaldos, semilla) y la **carta dentro de Inventario → Productos** (pestaña
   «En la carta»: un solo sitio para el precio). Las rutas viejas llevan a las nuevas; el manual y los recorridos, al día.
-  *Hecho el 2026-10-08, en `feat/t-18`.*
+  *Hecho el 2026-10-08 (v0.78.0), en `feat/t-18`.*
   *· Navegación: una sección puede tener pestañas (`Seccion.pestanas`, cada una con su permiso; la sección se ve con
   cualquiera de ellos). Ajustes pasa de 18 secciones a 12; Productos gana «En la carta» (y `catalogo.modificar` la
   deja ver). La pestaña va en la dirección (`?pestana=…`, `rutaPestana`, `pestanaPedida`): se enlaza, se recarga y el
@@ -2696,6 +2696,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   fijan con su nombre y la PC guarda donde se elija (disco externo, nube o Documentos). Sigue B11-1 (Reportes y ventas).
 - **2026-10-08** · B11-1 entregado como v0.77.0: la sección Reportes con las ventas de un día o de un rango (por medio,
   origen, cajera y turno, con su cuadre contra el Z y lo anulado) y su PDF A4. Sigue T-18 (Ajustes unificados).
+- **2026-10-08** · T-18 entregado como v0.78.0: Ajustes en 12 secciones, con pestañas en Personas y equipos, Tasas y
+  Sistema, y la carta dentro de Inventario → Productos; las rutas viejas llevan a su pestaña. Sigue B11-3 (movimientos).
 
 ---
 
