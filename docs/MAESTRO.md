@@ -616,7 +616,7 @@ Fuera de la cuenta de 90: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   conectada; administración la marca, la desactiva o le repone el PIN. Configuración, precios y personas siguen
   pidiendo contraseña y llave (F2-04). En producción no abre turnos ni cobra; en staging sí, para reproducir un error
   con una copia de la base restaurada del respaldo (M-29).
-- [ ] **T-18 · Ajustes unificados** (M-29).
+- [~] **T-18 · Ajustes unificados** (M-29). *A cargo: LuAMi, rama `feat/t-18`.*
   → **Personas y equipos** (usuarios y permisos, roles y accesos, dispositivos), **Tasas** con su pestaña de feriados,
   **Sistema** (versión y actualizaciones, respaldos, semilla) y la **carta dentro de Inventario → Productos** (pestaña
   «En la carta»: un solo sitio para el precio). Las rutas viejas llevan a las nuevas; el manual y los recorridos, al día.
