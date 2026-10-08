@@ -139,6 +139,9 @@ Se agrupa **por dominio, no por capa técnica**. La pregunta «¿dónde va esto?
   `ESCALA_DE_TEXTO` de `packages/ui/src/cn.ts`: si no, `cn` lo toma por un color y lo descarta junto a otro color.
 - **Un nombre que no cabe no se corta con «…»:** `Marquesina` de `@l2/ui` lo desliza y, con movimiento reducido, lo
   parte en renglones (T-15).
+- **Lo nuevo se suma a lo que ya existe** (MAESTRO §3, definición de hecho, punto 10): su entrada en el manual de la
+  ayuda y, si cambia el flujo de un puesto, su recorrido guiado; su tecla en la ayuda de atajos; lo privado con
+  `data-privado`; lo que la cuenta de soporte puede en producción; su tema en vivo, su asiento y su permiso.
 - **Una pantalla que vive en una pestaña** pone su cabecera con `EncabezadoDePagina` (`shell/MarcoDeSeccion.tsx`), no con
   `PageHeader`: el marco ya pone las migas, el nombre de la sección y las pestañas; queda su descripción y sus acciones.
 - **Lo que va fijo en el teléfono** (una barra abajo) va con `createPortal` al `body`: dentro de la región del panel ni

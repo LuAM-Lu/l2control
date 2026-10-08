@@ -125,7 +125,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-28** | **Soporte oculto, catálogo sin existencias y duplicar productos** (2026-10-08, pedido y decisión del usuario) | (1) La cuenta de soporte del desarrollo es una persona de Administración con la marca «soporte»: **no sale en «¿Quién entra?»**, entra con su nombre de usuario y su PIN desde su equipo aprobado (como todos), sin plazo; no abre turnos; se ve como «Soporte» en Usuarios, la auditoría e Inicio, y administración la desactiva cuando quiera. Lo sensible sigue pidiendo contraseña y llave. (2) El catálogo se carga sin existencias y el stock se cuenta otro día: estado «Sin inventario inicial», distinto de «Agotado», que **no se vende** hasta su conteo. (3) «Duplicar» un producto y «Duplicar con otros sabores», cada uno con su propio código de barras. Tres pasos: B9-7, T-17 y B9-8. La ruta pasa a **82** | B9-7, T-17, B9-8 |
 | **M-29** | **Ajustes más cortos, respaldos con control, una corrida limpia, el inventario en lote y Reportes** (2026-10-08, decisiones del usuario) | (1) Ajustes se unifica: **Personas y equipos** (usuarios, roles y dispositivos), **Tasas** con sus feriados, **Sistema** (versión, respaldos y semilla) y la **carta dentro de Inventario → Productos** (un solo sitio para el precio): de 18 secciones a 12 (T-18). (2) Respaldos: **elegir la carpeta** de la PC (disco externo o carpeta en la nube, regla 3-2-1), **fijar** un respaldo para que la escalera nunca lo borre, y su **integridad a la vista** con un ensayo de restauración automático cada semana (B7-6). (3) La corrida limpia de producción no saca partes de un respaldo (rompería la integridad): base nueva y la **semilla con casillas**, que además lleva medios de pago, descuentos, impuestos e impresoras (B7-7). (4) La cuenta de soporte no mueve dinero en producción; en staging sí, con una copia de la base, para reproducir errores (T-17). (5) Inventario: **editar en lote** (B9-9) y la **hoja de conteo a ciegas con su informe de diferencias** (B9-10). (6) Una sección **Reportes** para administración y supervisión (`reportes.verSucursal`), de solo lectura, que sale de los asientos y cuadra con los cierres: **ventas** del día o de un rango, **inventario al momento** y **movimientos** (kárdex); cada uno en **PDF** con su vista de impresión (sin Excel, decisión del usuario); excepciones y lo demás de F9, después del piloto (Etapa 11). Ocho pasos nuevos; la ruta pasa a **90** | T-18, B7-6, B7-7, T-17, B9-9, B9-10, B11-1 a B11-3 |
 | **M-30** | **B8-2 sin manual aparte** (2026-10-08, decisión del usuario) | La ayuda dentro de la app (T-12: el manual de cada pantalla y los recorridos guiados) **es** el manual por rol, y el soporte (T-11, T-17) cubre avisar de un error: B8-2 no escribe otro manual. Queda lo que la app no puede cubrir cuando no está: (1) **el procedimiento en papel**, una hoja impresa junto a la caja que dice cuándo se pasa al papel, quién anota qué y cómo se carga al volver (los formularios ya existen, B3-7); (2) **los runbooks del técnico**, juntos y completos (restaurar un respaldo, volver atrás una actualización, aprobar el equipo que sustituye a uno perdido, cambiar la impresora, los feriados de cada año), partiendo de `infra/produccion/README.md`; (3) **la capacitación por rol**, hecha durante la operación en paralelo (B8-3) con los recorridos de la app, sin material aparte | B8-2 |
-| **M-31** | **Un solo punto de cobro y la entrada desde la caja** (2026-10-08, decisiones del usuario) | (1) **El punto de cobro (opción A, con salida de emergencia):** cada equipo lleva la marca «Punto de cobro» (Ajustes → Personas y equipos → Dispositivos); solo los marcados abren turno como hoy; en uno sin marcar, abrir turno pide el PIN de administración y un motivo, queda en la auditoría e Inicio lo avisa mientras siga abierto. Descartadas: un solo turno por local (impide una segunda caja y bloquea si la laptop se daña con su turno abierto), un tope numérico (no dice cuál equipo), solo avisar (llega tarde) y quitarles el permiso a supervisión y administración (deja sin cubrir la caja). (2) **La entrada desde la caja:** vender la entrada de uno o varios niños sin salir de la caja, reutilizando lo de Entrada (se actualiza, no se rediseña): pulsera leída, tecleada o «sin pulsera»; solo prepago; los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. (3) El aviso de «sin pulsera» en Inicio, **descartado por ahora** (no es viable ni oportuno). Dos pasos nuevos; la ruta pasa a **92** | B3-9, B4-11 |
+| **M-31** | **Un solo punto de cobro y la entrada desde la caja** (2026-10-08, decisiones del usuario) | (1) **El punto de cobro (opción A, con salida de emergencia):** cada equipo lleva la marca «Punto de cobro» (Ajustes → Personas y equipos → Dispositivos); solo los marcados abren turno como hoy; en uno sin marcar, abrir turno pide el PIN de administración y un motivo, queda en la auditoría e Inicio lo avisa mientras siga abierto. Descartadas: un solo turno por local (impide una segunda caja y bloquea si la laptop se daña con su turno abierto), un tope numérico (no dice cuál equipo), solo avisar (llega tarde) y quitarles el permiso a supervisión y administración (deja sin cubrir la caja). (2) **La entrada desde la caja:** vender la entrada de uno o varios niños sin salir de la caja, reutilizando lo de Entrada (se actualiza, no se rediseña): pulsera leída, tecleada o «sin pulsera»; solo prepago; los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. (3) El aviso de «sin pulsera» en Inicio, **descartado por ahora** (no es viable ni oportuno). Los dos se adaptan a todo lo que ya existe (ayuda y recorridos, atajos, soporte y `data-privado`, cuenta de soporte, tiempo real, auditoría, permisos, Inicio, Reportes, temas y escala): queda como punto 10 de la definición de hecho, para todo paso nuevo. Dos pasos nuevos; la ruta pasa a **92** | B3-9, B4-11 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -212,9 +212,16 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    `Resultado`) y el proveedor adopta lo que devuelve. Nada de negocio en el almacenamiento del navegador.
 8. **Limpieza:** se borra lo provisional o simulado del paso, tanto el archivo de `src/demo` como su
    fila de §5 (M-11).
-9. **Navegador:** el flujo real, con Playwright, a 1366×768, 1280×800 y 800×1280; sin errores de
-   consola; estados de carga, vacío y error visibles.
-10. **Cierre:** `pnpm verify:db` en verde, versión +1 MINOR con su entrada en `CHANGELOG.md` y su
+9. **Navegador:** el flujo real, con Playwright, a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas; sin
+   errores de consola; estados de carga, vacío y error visibles.
+10. **Integración (M-31):** lo nuevo se suma a lo que ya existe y no queda aparte. La **ayuda**: la entrada del manual
+    de su pantalla (`ayuda/manual.ts`) y, si cambia el flujo de un puesto, su recorrido guiado (`ayuda/recorridos.ts`);
+    una tecla nueva, en la ayuda de atajos. El **soporte**: lo privado con `data-privado` (la captura de un reporte de
+    problema no lo lleva), los errores visibles con su aviso (de ahí se reporta) y lo que la **cuenta de soporte** puede o
+    no en producción. El **tiempo real** (su tema se relee solo), la **auditoría** (cada acción con su asiento y su tema),
+    los **permisos** (por pestaña si vive en una), Inicio y la **Puesta a punto** si avisa o pide algo, **Reportes** si
+    cambia lo que cuentan, y los dos temas con la escala de texto, la marquesina y los objetivos táctiles.
+11. **Cierre:** `pnpm verify:db` en verde, versión +1 MINOR con su entrada en `CHANGELOG.md` y su
     etiqueta (M-10), y la casilla de este archivo marcada en el mismo commit.
 
 **Orden de ejecución.** Es el camino crítico, y no coincide con el número de etapa:
@@ -1277,6 +1284,10 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   del punto de cobro» mientras siga abierto. Al actualizar, los equipos que ya abrieron turno quedan marcados (ninguna
   caja se bloquea ese día) y la Puesta a punto pide uno si no hay ninguno. Un equipo, un turno (I-06) sigue igual, y el
   relevo, en el mismo equipo. La migración solo expande.
+  Se adapta a lo que hay (punto 10 de la definición de hecho): el manual de Turno y de Dispositivos dice qué es el punto
+  de cobro y qué hacer si la laptop falla; el aviso de Inicio, en vivo (tema `turno`); Reportes → Ventas marca el turno
+  abierto fuera del punto de cobro; la auditoría dice quién autorizó; la cuenta de soporte pasa por la misma regla (y en
+  producción sigue sin abrir turnos); la marca vive en la pestaña Dispositivos con su permiso.
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -1520,6 +1531,11 @@ Fuera de la cuenta de 92: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   prepago: los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. La lógica de
   Entrada se separa en piezas que usan las dos pantallas: Entrada se ve y funciona igual (dos niños en menos de 90 s) y
   la caja no desplaza a 1366×768.
+  Se adapta a lo que hay (punto 10 de la definición de hecho): el manual de la caja y su recorrido guiado suman la
+  entrada desde la caja, y su tecla sale en la ayuda de atajos; el teléfono del representante lleva `data-privado`; un
+  rechazo (aforo, pulsera usada, sin turno) se dice en el panel, con su aviso; la sala y la cola de la caja se releen
+  solas; la cuenta de soporte en producción no cobra, tampoco desde aquí; registrar pide `parque.checkIn` y cobrar, el
+  permiso de cobro.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
