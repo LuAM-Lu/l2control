@@ -61,6 +61,7 @@ import {
   Button,
   Container,
   Dialog,
+  Marquesina,
   MoneyDisplay,
   NumericKeypad,
   Stepper,
@@ -104,6 +105,7 @@ import {
   documentoEnmascarado,
 } from "./ClienteFacturaDialog.tsx";
 import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
+import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import {
   ColaCuentas,
@@ -829,7 +831,7 @@ function CobroCuenta({
                     : `${m.label}${TECLA_MEDIO[m.code] ? ` (tecla ${TECLA_MEDIO[m.code]})` : ""}`
                 }
                 className={cn(
-                  "flex h-14 cursor-pointer flex-col items-start justify-center overflow-hidden rounded-[var(--radius-control)] border px-1.5 text-left",
+                  "relative flex h-14 cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[var(--radius-control)] border px-1.5 text-center",
                   "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   "disabled:cursor-not-allowed disabled:opacity-35",
@@ -838,43 +840,23 @@ function CobroCuenta({
                     : "border-line bg-base text-ink-2 hover:border-line-strong hover:text-ink",
                 )}
               >
-                {/* Icono junto al nombre; debajo, moneda, IGTF y la letra del
-                      atajo (B3-8): junto al nombre le quitaba sitio («Punto dé…»). */}
-                <span className="flex w-full min-w-0 items-center gap-1">
-                  <Icon
-                    size={12}
-                    className={cn(
-                      "shrink-0",
-                      activo ? "text-brand" : "text-ink-3",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className="truncate text-[12px] leading-tight font-bold">
-                    {m.label}
-                  </span>
-                  {alPulsar && <ChevronDown size={12} className="ml-auto shrink-0 text-ink-3" aria-hidden="true" />}
+                {/* El icono arriba, el nombre debajo y, debajo, la moneda (T-15, P-10): el icono se reconoce antes de
+                      leer, y el nombre tiene todo el ancho. La letra del atajo, en su esquina. */}
+                <Icon size={18} className={cn("shrink-0", activo ? "text-brand" : "text-ink-3")} aria-hidden="true" />
+                <span className="w-full truncate text-[12px] leading-tight font-bold">{m.label}</span>
+                <span className="flex items-center gap-1 text-[10px] leading-none whitespace-nowrap">
+                  <span className={cn(m.currency === "VES" ? "font-semibold text-ink-2" : "text-ink-3")}>{m.currency}</span>
+                  {/* El IGTF solo existe en divisas: en bolívares no se dice nada. */}
+                  {m.triggersIgtf && igtfBasisPoints > 0 && (
+                    <span className="rounded border border-line-strong px-1 font-semibold text-ink-2">+{igtfBasisPoints / 100}% IGTF</span>
+                  )}
                 </span>
-                <div className="mt-0.5 flex w-full items-center justify-between gap-1 text-[10px] whitespace-nowrap">
-                  <span
-                    className={cn(
-                      m.currency === "VES"
-                        ? "font-semibold text-ink-2"
-                        : "text-ink-3",
-                    )}
-                  >
-                    {m.currency}
+                {alPulsar && <ChevronDown size={12} className="absolute top-1 left-1 text-ink-3" aria-hidden="true" />}
+                {TECLA_MEDIO[m.code] && (
+                  <span className="absolute top-1 right-1 leading-none">
+                    <PistaTecla tecla={TECLA_MEDIO[m.code]!} />
                   </span>
-                  {/* El IGTF solo existe en divisas: en bolívares no se dice
-                        nada, en vez de un «0% IGTF» que hay que leer para nada. */}
-                  <span className="flex shrink-0 items-center gap-1">
-                    {m.triggersIgtf && igtfBasisPoints > 0 && (
-                      <span className="shrink-0 rounded border border-line-strong px-1 font-semibold text-ink-2">
-                        +{igtfBasisPoints / 100}% IGTF
-                      </span>
-                    )}
-                    {TECLA_MEDIO[m.code] && <PistaTecla tecla={TECLA_MEDIO[m.code]!} />}
-                  </span>
-                </div>
+                )}
               </button>
             );
   };
@@ -896,9 +878,8 @@ function CobroCuenta({
             <span className="font-display tnum text-lg leading-none font-bold text-ink">
               {numeroDeOrden(cuenta)}
             </span>
-            <span className="truncate text-[14px] font-semibold text-ink-2">
-              {nombreDeCuenta(cuenta)}
-            </span>
+            {/* Un nombre largo no se corta: va y vuelve (T-15). */}
+            <Marquesina className="max-w-full text-[14px] font-semibold text-ink-2">{nombreDeCuenta(cuenta)}</Marquesina>
             <span className="text-[12px] text-ink-3">
               {esVentaDirecta(cuenta)
                 ? "Mostrador"
@@ -1202,11 +1183,11 @@ function CobroCuenta({
           <div className="flex items-center justify-between gap-3 border-b border-line/60 pb-2">
             <dt className="shrink-0 whitespace-nowrap text-ink-2">Factura a</dt>
             <dd className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-semibold text-ink">
+              <Marquesina className="font-semibold text-ink">
                 {cliente.kind === "CONSUMIDOR_FINAL"
                   ? "Consumidor final"
                   : `${cliente.name} · ${documentoEnmascarado(cliente.document)}`}
-              </span>
+              </Marquesina>
               <Button
                 surface="pos"
                 variant="neutral"
@@ -1957,6 +1938,7 @@ export function CajaScreen({
   catalogo,
   serverNow,
   turno,
+  vistaDePrecios = "AMBOS",
   ...cobro
 }: Omit<
   CobroProps,
@@ -1975,8 +1957,22 @@ export function CajaScreen({
   turno: TurnoDto | null;
   cuentaInicial: string | null;
   volver: string | null;
+  /** Cómo enseña los precios la carta en este equipo, de su cookie (T-15). */
+  vistaDePrecios?: VistaDePrecios;
 }) {
   const { ajustes } = useSucursal();
+  // La vista de precios cambia al momento y se guarda en el equipo; si no se guardó, la próxima vez vuelve la de antes.
+  const [vistaPrecio, setVistaPrecio] = useState<VistaDePrecios>(vistaDePrecios);
+  const vistaPrecios = useMemo(
+    () => ({
+      vista: vistaPrecio,
+      cambiar: (v: VistaDePrecios) => {
+        setVistaPrecio(v);
+        void cambiarVistaDePrecios(v).catch(() => undefined);
+      },
+    }),
+    [vistaPrecio],
+  );
   const maxRetained: Money = {
     amount: BigInt(ajustes.maxRetenido.minor),
     currency: ajustes.maxRetenido.currency,
@@ -2353,6 +2349,7 @@ export function CajaScreen({
 
   return (
     <ALaVenta.Provider value={aLaVenta}>
+    <VistaPrecios.Provider value={vistaPrecios}>
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Sin cabecera visible: lo que decía («2 por cobrar · mostrador») ya está en
           la cola. El título sigue para los lectores de pantalla. */}
@@ -2548,6 +2545,7 @@ export function CajaScreen({
         onCerrar={() => setViendoAtajos(false)}
       />
     </div>
+    </VistaPrecios.Provider>
     </ALaVenta.Provider>
   );
 }
@@ -2613,6 +2611,7 @@ function CartaMostrador({
   alto?: string;
 }) {
   const aLaVenta = useContext(ALaVenta);
+  const { vista, cambiar } = useContext(VistaPrecios);
   // Las pestañas salen de lo que se vende: una categoría existe si hay algo en ella (B9-1).
   const categorias = useMemo(
     () => ["Todos", ...categoriesOf(aLaVenta.map((p) => ({ category: p.categoria })))],
@@ -2657,6 +2656,26 @@ function CartaMostrador({
             {cat}
           </button>
         ))}
+        {/* La vista de precios (T-15, P-12): al final de la fila, recordada por este equipo. */}
+        <div role="radiogroup" aria-label="Precios de la carta" className="ml-auto flex shrink-0 gap-1 rounded-[var(--radius-control)] bg-surface-2 p-1">
+          {VISTAS.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              role="radio"
+              aria-checked={vista === v.id}
+              aria-label={v.nombre}
+              title={v.nombre}
+              onClick={() => cambiar(v.id)}
+              className={cn(
+                "tnum min-h-12 cursor-pointer rounded-[calc(var(--radius-control)-2px)] px-2.5 text-xs font-bold whitespace-nowrap transition-colors",
+                vista === v.id ? "bg-surface text-ink shadow-card" : "text-ink-3 hover:text-ink",
+              )}
+            >
+              {v.texto}
+            </button>
+          ))}
+        </div>
       </div>
       <div
         className={cn(
@@ -2700,10 +2719,13 @@ function CartaMostrador({
                 )}
               </span>
               <span className="mt-1 flex w-full flex-wrap items-baseline justify-between gap-x-2">
-                <span className="tnum text-xs font-bold text-brand">
-                  {formatMoneyVE(toMajor(usd), "USD")}
-                </span>
-                {bs && (
+                {/* En bolívares solos, sin tasa no hay precio que enseñar: se ve el de dólares (fail-closed: nada inventado). */}
+                {vista === "VES" && bs ? (
+                  <span className="tnum text-xs font-bold text-brand">{formatMoneyVE(toMajor(bs), "VES")}</span>
+                ) : (
+                  <span className="tnum text-xs font-bold text-brand">{formatMoneyVE(toMajor(usd), "USD")}</span>
+                )}
+                {vista === "AMBOS" && bs && (
                   <span className="tnum text-[10px] font-medium text-ink-3">
                     {formatMoneyVE(toMajor(bs), "VES")}
                   </span>
@@ -2781,6 +2803,15 @@ type ItemDeMostrador = Readonly<{ concepto: string; priceMinor: string; productI
 
 /** Lo que la caja vende ahora (B9-1), para la carta y para sumar unidades a una fila. */
 const ALaVenta = createContext<readonly ProductoALaVenta[]>([]);
+
+/** Cómo enseña los precios la carta en este equipo (T-15, P-12), y cómo cambiarlo. */
+type VistaDePrecios = "USD" | "VES" | "AMBOS";
+const VistaPrecios = createContext<{ vista: VistaDePrecios; cambiar: (v: VistaDePrecios) => void }>({ vista: "AMBOS", cambiar: () => undefined });
+const VISTAS: readonly { id: VistaDePrecios; texto: string; nombre: string }[] = [
+  { id: "USD", texto: "$", nombre: "Precios en dólares" },
+  { id: "VES", texto: "Bs", nombre: "Precios en bolívares" },
+  { id: "AMBOS", texto: "$ · Bs", nombre: "Precios en dólares y en bolívares" },
+];
 
 /**
  * Una línea de mostrador para la cuenta. COPIA el concepto, el precio y el trato del IVA del

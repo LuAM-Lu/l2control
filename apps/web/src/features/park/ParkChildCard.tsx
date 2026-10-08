@@ -4,6 +4,7 @@ import { CheckCircle2, HandHeart, TimerReset, TriangleAlert, OctagonAlert, Utens
 import {
   CountdownDisplay,
   Initial,
+  Marquesina,
   MoneyDisplay,
   StatusCard,
   TimeBar,
@@ -94,9 +95,7 @@ export function ParkChildCard({
           className={cn("shrink-0", ETIQUETA[status.tone], status.urgent && "l2-pulse")}
         />
         <span className="min-w-0 flex-1">
-          <span className="font-display block truncate text-[15px] leading-tight font-bold text-ink">
-            {nombreVisible(model)}
-          </span>
+          <Marquesina className="font-display text-[15px] leading-tight font-bold text-ink">{nombreVisible(model)}</Marquesina>
           <span
             className={cn(
               // truncate: con una cuenta de horas (01:50:26) la cifra ensancha

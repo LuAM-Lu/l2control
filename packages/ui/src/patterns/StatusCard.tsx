@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "../cn";
+import { Marquesina } from "./Marquesina";
 import type { Tone } from "../primitives/Badge";
 
 /**
@@ -117,8 +118,9 @@ export function StatusCard({
         <div className="flex items-start gap-3">
           {leading}
           <div className="min-w-0 flex-1">
-            <h3 className="font-display truncate text-lg leading-tight font-bold text-ink">
-              {title}
+            {/* Un nombre largo no se corta: va y vuelve (T-15). */}
+            <h3 className="font-display text-lg leading-tight font-bold text-ink">
+              <Marquesina>{title}</Marquesina>
             </h3>
             {subtitle && <p className="mt-0.5 truncate text-[13px] text-ink-2">{subtitle}</p>}
           </div>

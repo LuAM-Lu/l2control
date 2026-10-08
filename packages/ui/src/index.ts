@@ -44,3 +44,4 @@ export {
 } from "./patterns/Listado";
 export { Avisos, avisar, registrarAyudaDeErrores, type AyudaDeError } from "./patterns/Avisos";
 export { Recorrido, type PasoDeRecorrido } from "./patterns/Recorrido";
+export { Marquesina } from "./patterns/Marquesina";

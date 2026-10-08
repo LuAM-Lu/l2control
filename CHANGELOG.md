@@ -14,6 +14,22 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [0.70.0] — 2026-10-07 · Lo pedido en la primera visita
+
+La operación se lee de un vistazo (T-15, M-27).
+
+### Añadido
+- **El código de la pulsera, a mano.** Junto a «Pasa la pulsera», «Escribir» deja teclear el código de una pulsera
+  que el lector no lee, en la entrada, la sala, la salida, la caja y la tablet del mesero.
+- **Precios de la carta en $, Bs o los dos.** En la caja, al final de las categorías: cada equipo recuerda su vista.
+- **Paquetes con su reloj.** Cada paquete de tiempo lleva un anillo que dice cuánto dura («30'», «1h», «2h»; el pase
+  libre, el infinito) y su nombre entero.
+
+### Cambiado
+- **Nada de nombres cortados.** En «Por cobrar», la cabecera de la cuenta, la factura y las tarjetas de la sala, un
+  nombre que no cabe se desliza despacio y vuelve, en vez de terminar en «…».
+- **Medios de pago:** el icono arriba, el nombre debajo y la moneda debajo; la letra del atajo, en su esquina.
+
 ## [0.69.0] — 2026-10-07 · Lo pedido en la primera visita
 
 Mi PIN y el acceso con teclado (T-14, M-27).

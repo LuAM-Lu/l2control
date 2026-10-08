@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ScanLine } from "lucide-react";
+import { Keyboard, ScanLine, X } from "lucide-react";
 import { cn } from "../cn";
 
 /**
@@ -228,6 +228,13 @@ export function ScannerField({
   className?: string;
 }) {
   const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  /**
+   * Escribir el código a mano (T-15, P-8): una pulsera que el lector no lee (doblada, mojada) o un equipo sin lector.
+   * Pasa por el MISMO camino que una lectura: se valida igual y llega igual a la pantalla. Se escribe a velocidad de
+   * persona, así que el lector global no lo toma por una lectura.
+   */
+  const [escribiendo, setEscribiendo] = useState(false);
+  const [escrito, setEscrito] = useState("");
 
   // Las funciones más recientes, sin reinstalar el receptor en cada render.
   const alLeer = useRef(onScan);
@@ -237,18 +244,27 @@ export function ScannerField({
     validar.current = validate;
   });
 
-  useEffect(
-    () =>
-      escuchar((code) => {
-        if (!validar.current(code)) {
-          setFeedback({ kind: "error", text: `Código no reconocido: ${code.slice(0, 16)}` });
-          return;
-        }
-        setFeedback({ kind: "ok", text: `Leído ${code}` });
-        alLeer.current(code);
-      }),
-    [],
-  );
+  /** Una lectura, del lector o escrita: se valida y se entrega. Devuelve si valió. */
+  const leer = useRef((code: string) => {
+    if (!validar.current(code)) {
+      setFeedback({ kind: "error", text: `Código no reconocido: ${code.slice(0, 16)}` });
+      return false;
+    }
+    setFeedback({ kind: "ok", text: `Leído ${code}` });
+    alLeer.current(code);
+    return true;
+  });
+
+  useEffect(() => escuchar((code) => void leer.current(code)), []);
+
+  const usarEscrito = () => {
+    const code = escrito.trim().toUpperCase();
+    if (code === "") return;
+    if (leer.current(code)) {
+      setEscrito("");
+      setEscribiendo(false);
+    }
+  };
 
   useEffect(() => {
     if (!feedback) return;
@@ -259,10 +275,73 @@ export function ScannerField({
   const tone =
     feedback?.kind === "error" ? "crit" : feedback?.kind === "ok" ? "ok" : "idle";
 
+  if (escribiendo) {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          usarEscrito();
+        }}
+        className={cn(
+          "flex items-center gap-2 rounded-[var(--radius-control)] border py-1.5 pr-1.5 pl-3",
+          tone === "crit" ? "border-state-crit/50 bg-state-crit-bg" : "border-brand bg-surface",
+          className,
+        )}
+      >
+        <Keyboard size={18} aria-hidden="true" className={tone === "crit" ? "shrink-0 text-state-crit" : "shrink-0 text-brand"} />
+        <input
+          // Abrir «Escribir» es pedir el teclado: el foco va al campo.
+          autoFocus
+          value={escrito}
+          onChange={(e) => setEscrito(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setEscribiendo(false);
+              setEscrito("");
+            }
+          }}
+          aria-label="Código de la pulsera"
+          aria-invalid={tone === "crit" || undefined}
+          placeholder="Escribe el código de la pulsera"
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          maxLength={MAX_BUFFER}
+          className="min-h-12 min-w-0 flex-1 bg-transparent font-mono text-[15px] text-ink uppercase outline-none placeholder:font-sans placeholder:text-[13px] placeholder:normal-case placeholder:text-ink-3"
+        />
+        <button
+          type="submit"
+          disabled={escrito.trim() === ""}
+          className="min-h-12 shrink-0 cursor-pointer rounded-[var(--radius-control)] bg-brand px-3 text-[13px] font-semibold text-on-brand disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Usar
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEscribiendo(false);
+            setEscrito("");
+          }}
+          aria-label="Volver al lector"
+          className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 hover:bg-surface-2 hover:text-ink"
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
+        {feedback?.kind === "error" && (
+          <span role="status" className="sr-only">
+            {feedback.text}
+          </span>
+        )}
+      </form>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-[var(--radius-control)] border px-4 py-2.5",
+        // Contenedor: en una columna estrecha (la cola de la caja) «Escribir» se queda en su icono.
+        "@container/lector flex items-center gap-3 rounded-[var(--radius-control)] border px-4 py-2.5",
         tone === "crit"
           ? "border-state-crit/50 bg-state-crit-bg"
           : tone === "ok"
@@ -291,11 +370,30 @@ export function ScannerField({
       >
         {feedback?.text ?? placeholder}
       </span>
-      {!feedback && (
-        <span className="ml-auto hidden text-[11px] text-ink-3 sm:block">
-          No hace falta hacer clic en ningún campo
-        </span>
-      )}
+      {/* La pista y «Escribir» (T-15), juntas a la derecha. */}
+      <span className="ml-auto flex shrink-0 items-center gap-3">
+        {!feedback && (
+          <span data-pista className="hidden text-[11px] text-ink-3 lg:block">
+            No hace falta hacer clic en ningún campo
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setFeedback(null);
+            setEscribiendo(true);
+          }}
+          title="Escribir el código a mano"
+          aria-label="Escribir el código a mano"
+          className={cn(
+            "-my-1 flex min-h-12 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-2.5 text-[13px] font-semibold text-ink-2",
+            "transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand",
+          )}
+        >
+          <Keyboard size={16} aria-hidden="true" />
+          <span className="hidden @[16rem]/lector:inline">Escribir</span>
+        </button>
+      </span>
     </div>
   );
 }

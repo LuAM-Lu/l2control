@@ -34,11 +34,12 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.69.0 · 69 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
+**Versión 0.70.0 · 70 de 79 pasos · etapa en curso: lo pedido en la primera visita (M-27).** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar: supervisión ya puede hacer inventario), B3-8 (cobrar solo con el teclado y el recibo a elección) y T-14
-(cambiar el PIN propio y entrar con el teclado).
+(cambiar el PIN propio y entrar con el teclado) y T-15 (la operación de un vistazo: relojes en los paquetes, marquesina,
+código a mano y precios en $, Bs o ambos).
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -216,7 +217,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
 7. **M-27** (lo pedido en la primera visita), del más complejo al más simple, saltando lo que espera una decisión:
    ~~B6-7~~ (varias cuentas por mesa y de pie) → ~~B4-7~~ (pausa) → ~~B4-8~~ (sin pulsera) → ~~T-12~~ (ayuda y recorridos) →
    ~~B4-10~~ (cortesía y anular desde la sala) → ~~B4-9~~ (medias) → ~~T-13~~ (roles) → ~~B3-8~~ (cobrar con el teclado) → ~~T-14~~ (mi PIN
-   y el acceso con teclado) → **T-15** (la operación de un vistazo) → T-16 (jerarquía y ancho). **B6-8** espera D-SERV y
+   y el acceso con teclado) → ~~T-15~~ (la operación de un vistazo) → **T-16** (jerarquía y ancho). **B6-8** espera D-SERV y
    **T-11**, D-SOP: entran en cuanto se decidan. B7-3 y T-8c siguen cuando haya visita al local.
 
 Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
@@ -531,11 +532,24 @@ Fuera de la cuenta de 79: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   PIN, los números, Retroceso, Intro entra, Esc vuelve y pegar vale. Las teclas se ven donde hay puntero fino o en
   cuanto se pulsa una. Visto en el navegador en la base de pruebas, en los dos temas: con 2 y Esc vuelve; el PIN pegado
   y Intro entran; «Mi cuenta» cambia el PIN y lo devuelve; desde la barra de la caja a 1366 y 800 de ancho.*
-- [~] **T-15 · La operación se lee de un vistazo** (M-27, P-7, P-8, P-9, P-10, P-12). *A cargo: LuAMi, rama `feat/t-15`.*
+- [x] **T-15 · La operación se lee de un vistazo** (M-27, P-7, P-8, P-9, P-10, P-12).
   → Paquetes de tiempo con icono y el nombre entero; el código de la pulsera se escribe a mano en la entrada, la sala,
   la salida, la caja y la tablet; «Por cobrar» con marquesina para los nombres largos; medios de pago con el icono
   arriba y el nombre debajo; la carta de la caja en $, en Bs o con los dos, recordado por equipo. Ningún texto
   cortado a 1366×768, 1280×800, 800×1280 ni a 390 px, en los dos temas.
+  *Hecho el 2026-10-07 (LuAMi), v0.70.0.* **@l2/ui:** `Marquesina` (un renglón que no cabe se desliza hasta su final y
+  vuelve, con pausa en cada extremo; mide con `ResizeObserver`; con movimiento reducido no se mueve y se parte en
+  renglones), que también usa `StatusCard` en su título; `ScannerField` con «Escribir»: el código a mano pasa por el
+  mismo camino que una lectura (misma validación, misma pantalla), y en una columna estrecha se queda en su icono;
+  animaciones `l2-marquesina` y `l2-anillo` en los tokens, anuladas con movimiento reducido. **Web:** cada paquete
+  lleva su reloj (un anillo que se llena según dura, lleno a las dos horas, con «30'», «1h», «2h» dentro; el pase libre,
+  el infinito) que se dibuja al elegirlo, y el nombre entero; «Por cobrar», la cabecera de la cuenta, la factura y las
+  tarjetas de la sala con marquesina; los medios con el icono arriba, el nombre debajo y la moneda debajo, y la letra
+  del atajo en su esquina; la carta de la caja en «$», «Bs» o «$ · Bs», guardado en la cookie del equipo (`l2_precios`,
+  como el tema: no es un dato del negocio); en «Bs» sin tasa se ve el precio en dólares. Visto en el navegador en la
+  base de pruebas: la caja a 1366×768, 1280×800, 800×1280 y 390×844 en los dos temas, sin textos cortados ni
+  desplazamiento; la entrada (con un código escrito a mano) y la sala a 800 y 390 en los dos temas; la vista de precios
+  cambia al momento y sigue al recargar.*
 - [ ] **T-16 · Jerarquía tipográfica y ancho completo** (M-27, P-16, P-18).
   → La escala de texto (título de página, de sección y de tarjeta, subtítulo, cuerpo, etiqueta, cifra) y la de
   iconos por superficie, en tokens y con su porqué en el README de `@l2/ui`, aplicada a las cabeceras y piezas
@@ -2396,6 +2410,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   recibo» (de fábrica, imprimir; el cobro imprime en su transacción). Sigue T-14 (mi PIN y el acceso con teclado).
 - **2026-10-07** · T-14 entregado como v0.69.0: «Mi cuenta» cambia el PIN propio, y el acceso se usa con el teclado
   (tecla por persona, PIN escrito o pegado, Intro y Esc). Sigue T-15 (la operación de un vistazo).
+- **2026-10-07** · T-15 entregado como v0.70.0: paquetes con su reloj, marquesina en vez de textos cortados, el código
+  de la pulsera a mano en todas las pantallas que leen, medios con el icono arriba y la carta en $, Bs o ambos por
+  equipo. Sigue T-16 (jerarquía y ancho).
 
 ---
 
