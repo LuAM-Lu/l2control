@@ -74,6 +74,7 @@ model Branch {
   stockMovements    StockMovement[]
   stockEntries      StockEntry[]
   stockAdjustments  StockAdjustment[]
+  stockStarts       StockStart[]
   printers          Printer[]
   printAgents       PrintAgent[]
   printJobs         PrintJob[]
@@ -898,6 +899,7 @@ model Product {
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   prices         ProductPrice[]
   stockMovements StockMovement[]
+  stockStarts    StockStart[]
 
   /// Destino de la FK compuesta de los precios: un precio es de un producto de SU tenant.
   @@unique([tenantId, id])
@@ -1384,6 +1386,7 @@ model StockEntry {
 
   branch    Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   movements StockMovement[]
+  starts    StockStart[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, operationKey])
@@ -1416,11 +1419,42 @@ model StockAdjustment {
 
   branch    Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   movements StockMovement[]
+  starts    StockStart[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, operationKey])
   @@index([tenantId, branchId, at])
   @@map("stock_adjustment")
+}
+
+/// El arranque de la existencia de un producto en una sucursal (B9-7, M-28): su inventario inicial, su primera
+/// entrada o su primer conteo, con lo que se contó (también cero, que ningún movimiento dice) y cuándo. Uno por
+/// producto y sucursal; solo-agregar. Un producto que se cuenta, sin esta fila y sin ningún movimiento, está «Sin
+/// inventario inicial»: no se vende (ADR-023) hasta que se cuente.
+model StockStart {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  productId     String   @map("product_id") @db.Uuid
+  /// Lo que había al arrancar: lo que entró o lo que se contó. Cero vale (se contó y no había).
+  quantity      Int
+  startedAt     DateTime @map("started_at") @db.Timestamptz(3)
+  /// La entrada (el inventario inicial, una compra o una reposición) o el conteo que la arrancó (CHECK: uno solo).
+  entryId       String?  @map("entry_id") @db.Uuid
+  adjustmentId  String?  @map("adjustment_id") @db.Uuid
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+  deviceId      String?  @map("device_id") @db.Uuid
+
+  branch  Branch           @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  product Product          @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  entrada StockEntry?      @relation(fields: [tenantId, entryId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  ajuste  StockAdjustment? @relation(fields: [tenantId, adjustmentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  /// Un producto arranca una vez en cada sucursal: dos inventarios iniciales a la vez tropiezan aquí.
+  @@unique([tenantId, branchId, productId])
+  @@map("stock_start")
 }
 
 /// Una regla de descuento (B3-6, V-9): por medio de pago, VIP o manual; un porcentaje o un monto;

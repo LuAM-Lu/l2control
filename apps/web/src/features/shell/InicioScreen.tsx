@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, CircleCheck, Clock, FileText, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, ClipboardList, Clock, FileText, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import type { PuestaAPuntoDto, ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn } from "@l2/ui";
@@ -82,7 +82,7 @@ export function InicioScreen({
   /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
   enServicio: boolean;
   /** Lo que hay que reponer (B9-5); `null` si nada a la venta lleva existencia. */
-  inventario?: Readonly<{ agotados: number; bajoMinimo: number }> | null;
+  inventario?: Readonly<{ sinInicial: number; agotados: number; bajoMinimo: number }> | null;
   /** Los cumpleaños de hoy que siguen en pie (B10-1): «Hoy hay un evento». */
   eventosHoy?: readonly ReservaEventoDto[];
   /** Lo que falta para el primer día (JORNADA §2); `null` para quien no gestiona personas. */
@@ -325,11 +325,18 @@ function AvisoDePapel({ porRevisar }: { porRevisar: number }) {
   );
 }
 
-/** Agotados y bajo mínimo del inventario (B9-5). Sin nada que reponer, lo dice en verde. */
-function AvisoInventario({ agotados, bajoMinimo }: { agotados: number; bajoMinimo: number }) {
-  const tono = agotados > 0 ? "crit" : bajoMinimo > 0 ? "warn" : "ok";
-  const Icono = tono === "crit" ? PackageX : tono === "warn" ? TriangleAlert : CircleCheck;
-  const partes = [agotados > 0 ? `${agotados} ${agotados === 1 ? "agotado" : "agotados"}` : null, bajoMinimo > 0 ? `${bajoMinimo} bajo mínimo` : null].filter(Boolean);
+/**
+ * Agotados y bajo mínimo del inventario (B9-5), y lo que todavía no tiene su inventario inicial (B9-7). Sin nada que
+ * reponer ni que contar, lo dice en verde.
+ */
+function AvisoInventario({ sinInicial, agotados, bajoMinimo }: { sinInicial: number; agotados: number; bajoMinimo: number }) {
+  const tono = agotados > 0 ? "crit" : bajoMinimo > 0 ? "warn" : sinInicial > 0 ? "idle" : "ok";
+  const Icono = tono === "crit" ? PackageX : tono === "warn" ? TriangleAlert : tono === "idle" ? ClipboardList : CircleCheck;
+  const partes = [
+    agotados > 0 ? `${agotados} ${agotados === 1 ? "agotado" : "agotados"}` : null,
+    bajoMinimo > 0 ? `${bajoMinimo} bajo mínimo` : null,
+    sinInicial > 0 ? `${sinInicial} sin inventario inicial` : null,
+  ].filter(Boolean);
   return (
     <Link
       href={"/panel/inventario/productos" as Route}
@@ -337,6 +344,7 @@ function AvisoInventario({ agotados, bajoMinimo }: { agotados: number; bajoMinim
         "group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border px-3 py-1.5 text-xs lg:text-[13px] font-medium shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand",
         tono === "crit" && "border-state-crit/40 bg-state-crit-bg text-state-crit",
         tono === "warn" && "border-state-warn/40 bg-state-warn-bg text-state-warn",
+        tono === "idle" && "border-line bg-state-idle-bg text-ink-2 hover:bg-surface-2",
         tono === "ok" && "border-line bg-surface/80 text-ink-2 hover:bg-surface-2",
       )}
     >

@@ -45,9 +45,9 @@ export default async function InicioPage() {
     // Los respaldos (B7-4), solo si algo no va bien y para quien decide el sistema.
     avisoDeRespaldos(),
   ]);
-  // B9-5: lo que hay que reponer. Solo si algún producto a la venta lleva existencia.
+  // B9-5: lo que hay que reponer; B9-7: lo que falta contar. Solo si algún producto a la venta lleva existencia.
   const contables = catalogo.productos.filter((p) => p.activo && p.controlaStock);
-  const inventario = contables.length > 0 ? stockAlerts(contables) : null;
+  const inventario = contables.length > 0 ? stockAlerts(contables.map((p) => ({ ...p, iniciado: p.inventarioInicialEl !== null }))) : null;
   // Un turno que sigue abierto de un día anterior (un corte de luz, un equipo dañado) va delante:
   // lo cierra supervisión antes de nada (JORNADA §3).
   const deAntes = turnos

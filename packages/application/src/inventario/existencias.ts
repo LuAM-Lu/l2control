@@ -36,6 +36,59 @@ export async function existenciasDe(tx: Transaccion, branchId: string, productId
   return new Map(filas.map((f) => [f.productId, { quantity: f._sum.quantity ?? 0, valueMinor: f._sum.valueMinor ?? 0n }]));
 }
 
+/**
+ * Cuándo arrancó la existencia de cada producto en la sucursal (B9-7): su fila de arranque o, si no la
+ * tiene (lo cargado antes de B9-7, o con la versión anterior durante una vuelta atrás), su primer
+ * movimiento; lo que llegue antes. Un producto que se cuenta y no sale aquí está «Sin inventario
+ * inicial». Sin `productIds`, de todos.
+ */
+export async function arranquesDe(tx: Transaccion, branchId: string, productIds?: readonly string[]): Promise<Map<string, Date>> {
+  const where = { branchId, ...(productIds ? { productId: { in: [...productIds] } } : {}) };
+  const primeros = await tx.stockMovement.groupBy({ by: ["productId"], where, _min: { at: true } });
+  const filas = await tx.stockStart.findMany({ where, select: { productId: true, startedAt: true } });
+  const arranque = new Map<string, Date>();
+  for (const f of primeros) if (f._min.at) arranque.set(f.productId, f._min.at);
+  for (const f of filas) {
+    const otro = arranque.get(f.productId);
+    if (!otro || f.startedAt < otro) arranque.set(f.productId, f.startedAt);
+  }
+  return arranque;
+}
+
+/** Lo que arranca la existencia de un producto: lo que entró o lo que se contó (también cero). */
+export type Arranque = Readonly<{ productId: string; quantity: number }>;
+
+/**
+ * Deja el arranque de los productos que todavía no lo tienen en la sucursal (B9-7), citando la entrada o
+ * el conteo que los arranca. Se llama en su transacción, con los candados de los productos ya tomados y
+ * ANTES de asentar sus movimientos: lo que ya tenía existencia no vuelve a arrancar.
+ */
+export async function asentarArranques(
+  tx: Transaccion,
+  ctx: Contexto,
+  arranques: readonly Arranque[],
+  causa: Readonly<{ entryId: string; adjustmentId?: undefined } | { adjustmentId: string; entryId?: undefined }> & Readonly<{ ahora: number; quien: string }>,
+): Promise<void> {
+  if (arranques.length === 0) return;
+  const ya = await arranquesDe(tx, ctx.branchId, arranques.map((a) => a.productId));
+  const nuevos = arranques.filter((a) => !ya.has(a.productId));
+  if (nuevos.length === 0) return;
+  await tx.stockStart.createMany({
+    data: nuevos.map((a) => ({
+      tenantId: ctx.tenantId,
+      branchId: ctx.branchId,
+      productId: a.productId,
+      quantity: a.quantity,
+      startedAt: new Date(causa.ahora),
+      entryId: causa.entryId ?? null,
+      adjustmentId: causa.adjustmentId ?? null,
+      createdBy: ctx.quien?.userId ?? null,
+      createdByName: causa.quien,
+      deviceId: ctx.quien?.deviceId ?? null,
+    })),
+  });
+}
+
 /** El candado de la existencia de un producto: quien vende, devuelve o recibe lo toma antes de sumar. */
 export async function bloquearProducto(tx: Transaccion, branchId: string, productId: string): Promise<void> {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`existencia:${branchId}:${productId}`}, 0))::text AS candado`;
@@ -88,8 +141,20 @@ export async function comprobarExistencias(
   }
 
   const nombre = new Map(productos.map((p) => [p.id, p.name]));
+  // Lo que nunca se contó (B9-7) no está agotado: le falta su inventario inicial, y eso es lo que se dice.
+  const arrancados = await arranquesDe(tx, ctx.branchId, faltan.map((f) => f.productId));
+  const sinInicial = faltan.filter((f) => !arrancados.has(f.productId));
   const primero = faltan[0]!;
   const quedan = (n: number) => (n === 0 ? "no queda ninguno" : n === 1 ? "queda 1" : `quedan ${n}`);
+  if (sinInicial.length === faltan.length) {
+    const nombres = sinInicial.map((f) => `«${nombre.get(f.productId) ?? "ese producto"}»`).join(", ");
+    return {
+      ok: false,
+      motivo: "INVALIDO",
+      mensaje: `${nombres} ${sinInicial.length === 1 ? "todavía no tiene" : "todavía no tienen"} inventario inicial: se vende cuando se cuente (Inventario → Entradas → Inventario inicial).`,
+      problemas: sinInicial.map((f) => ({ path: rutaDe(f.productId), message: "SIN_INVENTARIO_INICIAL" })),
+    };
+  }
   return {
     ok: false,
     motivo: "INVALIDO",
@@ -97,7 +162,7 @@ export async function comprobarExistencias(
       faltan.length === 1
         ? `Sin existencia de ${nombre.get(primero.productId) ?? "ese producto"}: ${quedan(primero.available)}. Hay que cargar la entrada de mercancía.`
         : `Sin existencia de ${faltan.map((f) => nombre.get(f.productId) ?? "un producto").join(", ")}. Hay que cargar la entrada de mercancía.`,
-    problemas: faltan.map((f) => ({ path: rutaDe(f.productId), message: `SIN_EXISTENCIA: ${quedan(f.available)}` })),
+    problemas: faltan.map((f) => ({ path: rutaDe(f.productId), message: arrancados.has(f.productId) ? `SIN_EXISTENCIA: ${quedan(f.available)}` : "SIN_INVENTARIO_INICIAL" })),
   };
 }
 

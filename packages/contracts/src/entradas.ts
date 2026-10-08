@@ -53,15 +53,33 @@ export const LineaEntradaSchema = z.union([
 ]);
 export type LineaEntradaDto = z.infer<typeof LineaEntradaSchema>;
 
-/** Registrar una entrada. `idempotencyKey`: un doble clic no carga dos veces lo mismo. */
+/** Hasta cuántos productos entran en una entrada: el inventario inicial trae todos los que faltan de una vez. */
+export const MAX_LINEAS_ENTRADA = 300;
+
+/**
+ * Registrar una entrada. `idempotencyKey`: un doble clic no carga dos veces lo mismo.
+ *
+ * En el inventario inicial (B9-7), `enCero` son los productos que se contaron y no hay: no mueven nada,
+ * pero dejan de estar «Sin inventario inicial» y pasan a «Agotado». Un inventario inicial puede ser solo
+ * de ellos.
+ */
 export const RegistrarEntradaCommandSchema = z
   .strictObject({
     idempotencyKey: z.uuid(),
     tipo: TipoEntradaSchema,
     proveedor: z.string().trim().min(2, "Nombre del proveedor demasiado corto").max(80, "Hasta 80 caracteres").optional(),
     factura: z.string().trim().min(1).max(40, "Hasta 40 caracteres").optional(),
-    // Hasta 300: el inventario inicial trae todos los productos que se cuentan de una vez.
-    lineas: z.array(LineaEntradaSchema).min(1, "Añade al menos un producto").max(300, "Hasta 300 productos por entrada"),
+    lineas: z.array(LineaEntradaSchema).max(MAX_LINEAS_ENTRADA, `Hasta ${MAX_LINEAS_ENTRADA} productos por entrada`),
+    enCero: z.array(z.uuid("Producto desconocido")).max(MAX_LINEAS_ENTRADA).optional(),
+  })
+  .refine((e) => e.lineas.length + (e.enCero?.length ?? 0) > 0, { message: "Añade al menos un producto", path: ["lineas"] })
+  .refine((e) => e.lineas.length + (e.enCero?.length ?? 0) <= MAX_LINEAS_ENTRADA, {
+    message: `Hasta ${MAX_LINEAS_ENTRADA} productos por entrada`,
+    path: ["lineas"],
+  })
+  .refine((e) => e.tipo === "INICIAL" || e.enCero === undefined || e.enCero.length === 0, {
+    message: "Solo el inventario inicial cuenta productos en cero",
+    path: ["enCero"],
   })
   .refine((e) => e.tipo !== "INICIAL" || (e.proveedor === undefined && e.factura === undefined), {
     message: "El inventario inicial no tiene proveedor ni factura",
@@ -69,7 +87,7 @@ export const RegistrarEntradaCommandSchema = z
   })
   .refine(
     (e) => {
-      const ids = e.lineas.flatMap((l) => ("productId" in l ? [l.productId] : []));
+      const ids = [...e.lineas.flatMap((l) => ("productId" in l ? [l.productId] : [])), ...(e.enCero ?? [])];
       const nombres = e.lineas.flatMap((l) => ("nuevo" in l ? [l.nuevo.nombre.toLowerCase()] : []));
       const codigos = e.lineas.flatMap((l) => ("nuevo" in l && l.nuevo.codigoBarras ? [l.nuevo.codigoBarras] : []));
       return new Set(ids).size === ids.length && new Set(nombres).size === nombres.length && new Set(codigos).size === codigos.length;
@@ -97,6 +115,8 @@ export const EntradaSchema = z.object({
     }),
   ),
   total: MoneySchema,
+  /** Los del inventario inicial que se contaron y no había (B9-7): arrancan en cero, sin moverse. */
+  enCero: z.array(z.object({ productId: IdSchema, nombre: z.string().min(1) })).default([]),
 });
 export type EntradaDto = z.infer<typeof EntradaSchema>;
 

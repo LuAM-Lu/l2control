@@ -6,7 +6,7 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { CatalogoSchema, ProductoCommandSchema, ProductoNuevoSchema, ProductoSchema, TramoPrecioSchema } from "./productos.ts";
+import { AltaEnLoteCommandSchema, CatalogoSchema, MAX_ALTA_EN_LOTE, ProductoCommandSchema, ProductoNuevoSchema, ProductoSchema, TramoPrecioSchema } from "./productos.ts";
 
 const ID = "0192f0a0-0000-7000-8000-000000000001";
 const nuevo = { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "100" };
@@ -111,5 +111,41 @@ describe("identificación y tipo (B9-6)", () => {
     assert.equal(ProductoSchema.safeParse(p).success, true);
     assert.equal(ProductoSchema.safeParse({ ...p, tipo: "SERVICIO" }).success, false);
     assert.equal(ProductoSchema.safeParse({ ...p, sku: "beb-1" }).success, false);
+  });
+});
+
+describe("el catálogo sin existencias (B9-7)", () => {
+  const tramo = { id: "t1", precio: { minor: "100", currency: "USD" }, desde: "2026-09-27T14:00:00.000Z", hasta: null, programadoEl: "2026-09-27T14:00:00.000Z", programadoPor: "Abigail Karam" };
+  const p = { id: "p1", nombre: "Agua", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", controlaStock: true, sku: "BEB-0001", codigoBarras: null, presentacion: null, activo: true, enCarta: true, precios: [tramo], existencia: 0, costoPromedio: null, ultimoBulto: null, minimo: null, valor: { minor: "0", currency: "USD" } };
+
+  test("sin decir cuándo arrancó, no se sabe que se contó: queda sin inventario inicial", () => {
+    const r = ProductoSchema.safeParse(p);
+    assert.equal(r.success && r.data.inventarioInicialEl, null);
+    assert.equal(ProductoSchema.safeParse({ ...p, inventarioInicialEl: "2026-10-08T14:00:00.000Z" }).success, true);
+    // Lo que no se cuenta no tiene inventario inicial.
+    const cafe = { ...p, tipo: "PREPARADO", controlaStock: false, existencia: null, valor: null };
+    assert.equal(ProductoSchema.safeParse(cafe).success, true);
+    assert.equal(ProductoSchema.safeParse({ ...cafe, inventarioInicialEl: "2026-10-08T14:00:00.000Z" }).success, false);
+  });
+
+  test("el alta lleva su mínimo, solo en lo que se cuenta", () => {
+    assert.equal(ProductoNuevoSchema.safeParse({ ...nuevo, minimo: 6 }).success, true);
+    assert.equal(ProductoNuevoSchema.safeParse({ ...nuevo, minimo: -1 }).success, false);
+    assert.equal(ProductoNuevoSchema.safeParse({ ...nuevo, minimo: 1.5 }).success, false);
+    assert.equal(ProductoNuevoSchema.safeParse({ ...nuevo, tipo: "SERVICIO", minimo: 6 }).success, false);
+  });
+
+  test("el alta en lote: de 1 a 300, cada uno una vez y con su propio código", () => {
+    const uno = (i: number) => ({ ...nuevo, nombre: `Producto ${i}` });
+    assert.equal(AltaEnLoteCommandSchema.safeParse({ productos: [uno(1), uno(2)] }).success, true);
+    assert.equal(AltaEnLoteCommandSchema.safeParse({ productos: [] }).success, false);
+    assert.equal(AltaEnLoteCommandSchema.safeParse({ productos: Array.from({ length: MAX_ALTA_EN_LOTE }, (_, i) => uno(i)) }).success, true);
+    assert.equal(AltaEnLoteCommandSchema.safeParse({ productos: Array.from({ length: MAX_ALTA_EN_LOTE + 1 }, (_, i) => uno(i)) }).success, false);
+    // El mismo nombre (sin contar mayúsculas) o el mismo código, dos veces, no.
+    assert.equal(AltaEnLoteCommandSchema.safeParse({ productos: [uno(1), { ...uno(1), nombre: "PRODUCTO 1" }] }).success, false);
+    const conCodigo = (i: number) => ({ ...uno(i), codigoBarras: "4006381333931" });
+    assert.equal(AltaEnLoteCommandSchema.safeParse({ productos: [conCodigo(1), conCodigo(2)] }).success, false);
+    // Sin cantidades: el stock se cuenta otro día.
+    assert.equal(AltaEnLoteCommandSchema.safeParse({ productos: [{ ...uno(1), existencia: 5 }] }).success, false);
   });
 });

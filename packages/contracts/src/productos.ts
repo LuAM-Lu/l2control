@@ -125,6 +125,13 @@ export const ProductoSchema = z
     minimo: z.number().int().min(0).nullable(),
     /** Lo que vale al costo lo que queda (B9-6): la suma del valor de sus movimientos. `null` si no lleva existencia. */
     valor: MoneySchema.nullable(),
+    /**
+     * Cuándo arrancó su existencia en la sucursal de quien lee (B9-7, M-28): su inventario inicial, su primera
+     * entrada o su primer conteo, aunque se contara en cero. `null` en lo que se cuenta es «Sin inventario
+     * inicial»: el catálogo se cargó sin existencias, todavía no se contó y no se vende (ADR-023). Sin decirlo,
+     * `null`: lo que no se sabe que se contó, no se vende.
+     */
+    inventarioInicialEl: TimestampSchema.nullable().default(null),
   })
   .refine((p) => p.controlaStock === (p.tipo === "PRODUCTO"), {
     message: "Solo el producto lleva existencia",
@@ -141,6 +148,10 @@ export const ProductoSchema = z
   .refine((p) => p.minimo === null || p.controlaStock, {
     message: "Solo tiene mínimo lo que lleva existencia",
     path: ["minimo"],
+  })
+  .refine((p) => p.inventarioInicialEl === null || p.controlaStock, {
+    message: "Solo tiene inventario inicial lo que lleva existencia",
+    path: ["inventarioInicialEl"],
   });
 export type ProductoDto = z.infer<typeof ProductoSchema>;
 
@@ -164,7 +175,13 @@ export const CatalogoSchema = z
   });
 export type CatalogoDto = z.infer<typeof CatalogoSchema>;
 
-/** Un producto nuevo: nace a la venta, con su primer precio rigiendo desde que se guarda. */
+/** El stock mínimo (B9-5): unidades enteras, su punto de reorden. */
+export const MinimoSchema = z.number().int("Unidades enteras").min(0, "El mínimo no puede ser negativo").max(1_000_000, "Mínimo desmesurado");
+
+/**
+ * Un producto nuevo: nace a la venta, con su primer precio rigiendo desde que se guarda. Lo que se cuenta
+ * nace «Sin inventario inicial» (B9-7): no se vende hasta que se cuente.
+ */
 export const ProductoNuevoSchema = z
   .strictObject({
     nombre: NombreProductoSchema,
@@ -176,12 +193,40 @@ export const ProductoNuevoSchema = z
     presentacion: PresentacionSchema.optional(),
     /** Si el mesero lo ofrece (B6-1). Sin decirlo: sí, salvo un servicio. */
     enCarta: z.boolean().optional(),
+    /** Su stock mínimo desde el alta (B9-7). Sin decirlo, sin mínimo. */
+    minimo: MinimoSchema.optional(),
   })
   .refine((p) => p.codigoBarras === undefined || p.tipo === "PRODUCTO", {
     message: "Solo un producto que se cuenta lleva código de barras",
     path: ["codigoBarras"],
+  })
+  .refine((p) => p.minimo === undefined || p.tipo === "PRODUCTO", {
+    message: "Solo un producto que se cuenta lleva mínimo",
+    path: ["minimo"],
   });
 export type ProductoNuevoDto = z.infer<typeof ProductoNuevoSchema>;
+
+/** Cuántos productos entran de una vez en el alta en lote: los de una hoja de cálculo. */
+export const MAX_ALTA_EN_LOTE = 300;
+
+/**
+ * El alta del catálogo en una hoja, sin cantidades (B9-7, M-28): nombre, categoría, presentación, precio,
+ * IVA, mínimo y código de barras de cada uno. Todos o ninguno: si uno no vale, no se crea nada. Lo que se
+ * cuenta nace «Sin inventario inicial» y se cuenta otro día.
+ */
+export const AltaEnLoteCommandSchema = z
+  .strictObject({
+    productos: z.array(ProductoNuevoSchema).min(1, "Añade al menos un producto").max(MAX_ALTA_EN_LOTE, `Hasta ${MAX_ALTA_EN_LOTE} productos de una vez`),
+  })
+  .refine(
+    (c) => {
+      const nombres = c.productos.map((p) => p.nombre.toLowerCase());
+      const codigos = c.productos.flatMap((p) => (p.codigoBarras ? [p.codigoBarras] : []));
+      return new Set(nombres).size === nombres.length && new Set(codigos).size === codigos.length;
+    },
+    { message: "Cada producto va una vez, con su propio código de barras", path: ["productos"] },
+  );
+export type AltaEnLoteCommand = z.infer<typeof AltaEnLoteCommandSchema>;
 
 /**
  * Los cambios posibles.
@@ -221,6 +266,6 @@ export type ProductoCommand = z.infer<typeof ProductoCommandSchema>;
  */
 export const FijarMinimoCommandSchema = z.strictObject({
   productId: z.uuid("Producto desconocido"),
-  minimo: z.number().int("Unidades enteras").min(0, "El mínimo no puede ser negativo").max(1_000_000, "Mínimo desmesurado").nullable(),
+  minimo: MinimoSchema.nullable(),
 });
 export type FijarMinimoCommand = z.infer<typeof FijarMinimoCommandSchema>;

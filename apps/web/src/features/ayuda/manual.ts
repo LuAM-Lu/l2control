@@ -326,15 +326,21 @@ export const MANUAL: readonly EntradaDelManual[] = [
     roles: DIRECCION,
     proposito: "Los productos con su existencia, las entradas de mercancía, las salidas y el conteo.",
     pasos: [
-      "Productos: la existencia de cada uno, su mínimo y su costo promedio.",
-      "Entradas de mercancía: una tabla; se puede pegar desde Excel. El primer día, «Inventario inicial».",
+      "Productos: la existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
+      "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay).",
       "Salidas y conteo: merma, consumo interno, regalo o devolución, con motivo; el conteo deja la existencia igual a lo contado.",
     ],
     problemas: [
       {
         sintoma: "Un producto sale «Agotado» en la caja",
-        solucion: "Sin existencia no se vende. Carga su entrada de mercancía (o el inventario inicial).",
+        solucion: "Sin existencia no se vende. Carga su entrada de mercancía.",
         reconoce: ["agotado", "no queda"],
+      },
+      {
+        sintoma: "Un producto sale «Sin contar» o «Sin inventario inicial»",
+        solucion:
+          "Se dio de alta sin cantidades y todavía no se contó: no se vende hasta entonces. Cuéntalo en Entradas → Inventario inicial (escribe 0 si no hay ninguno) o en un conteo.",
+        reconoce: ["sin inventario inicial", "sin contar", "inventario inicial"],
       },
     ],
   },

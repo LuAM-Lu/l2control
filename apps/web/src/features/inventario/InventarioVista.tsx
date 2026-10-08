@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChefHat, LayoutGrid, LayoutList, Package, PackageX, ScanLine, Search, Ticket, TriangleAlert, Boxes, Wallet } from "lucide-react";
+import { ChefHat, ClipboardList, LayoutGrid, LayoutList, Package, PackageX, ScanLine, Search, Ticket, TriangleAlert, Boxes, Wallet } from "lucide-react";
 import type { CatalogoDto, ProductoDto, TipoProducto } from "@l2/contracts";
-import { categoriesOf, marginBasisPoints, nameKey, periodAt, stockStatus, type PricePeriod, type StockStatus } from "@l2/domain-inventory";
+import { categoriesOf, marginBasisPoints, nameKey, periodAt, type PricePeriod, type StockStatus } from "@l2/domain-inventory";
 import { convert, money, sum, toMajor, type FrozenRate } from "@l2/domain-money";
 import { MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
-import { EstadoStock } from "./EstadoStock.tsx";
+import { EstadoStock, estadoDe } from "./EstadoStock.tsx";
 
 /**
  * La vista del inventario (B9-6, M-16): el stock es lo protagonista. Arriba, lo que hay que mirar
- * (agotados, bajo mínimo, unidades y valor al costo), que también filtra; debajo, la tabla o las
- * tarjetas, por tipo (Productos, Preparados, Servicios), con lo que exige atención primero.
+ * (sin inventario inicial, agotados, bajo mínimo, unidades y valor al costo), que también filtra; debajo,
+ * la tabla o las tarjetas, por tipo (Productos, Preparados, Servicios), con lo que exige atención primero.
  *
  * Solo pinta y filtra: los datos son del servidor (el catálogo con su existencia, costo y mínimo), y
  * el estado lo decide el dominio (`stockStatus`), el mismo que usa Inicio para avisar.
@@ -25,7 +25,7 @@ const TIPOS: readonly { id: TipoProducto; nombre: string; Icono: typeof Package 
   { id: "PREPARADO", nombre: "Preparados", Icono: ChefHat },
   { id: "SERVICIO", nombre: "Servicios", Icono: Ticket },
 ];
-const URGENCIA: Readonly<Record<StockStatus, number>> = { AGOTADO: 0, BAJO_MINIMO: 1, BIEN: 2 };
+const URGENCIA: Readonly<Record<StockStatus, number>> = { AGOTADO: 0, SIN_INICIAL: 1, BAJO_MINIMO: 2, BIEN: 3 };
 const PORCENTAJE = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const CAMPO =
   "min-h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] text-ink " +
@@ -91,7 +91,7 @@ export function InventarioVista({
         const costo = p.costoPromedio ? BigInt(p.costoPromedio.minor) : null;
         return {
           p,
-          estado: p.existencia === null ? null : stockStatus(p.existencia, p.minimo),
+          estado: estadoDe(p),
           precio,
           costo,
           margen: precio === null ? null : marginBasisPoints(precio, costo),
@@ -102,6 +102,7 @@ export function InventarioVista({
 
   // El resumen es de lo que está a la venta y se cuenta: lo apartado no se ofrece.
   const contables = filas.filter((f) => f.p.tipo === "PRODUCTO" && f.p.activo);
+  const sinInicial = contables.filter((f) => f.estado === "SIN_INICIAL").length;
   const agotados = contables.filter((f) => f.estado === "AGOTADO").length;
   const bajoMinimo = contables.filter((f) => f.estado === "BAJO_MINIMO").length;
   const unidades = contables.reduce((n, f) => n + (f.p.existencia ?? 0), 0);
@@ -127,7 +128,17 @@ export function InventarioVista({
   return (
     <div className="flex flex-col gap-4">
       {/* ── lo que hay que mirar ── */}
-      <section aria-label="Resumen del inventario" className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-4">
+      <section aria-label="Resumen del inventario" className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line shadow-card lg:grid-cols-5">
+        {/* B9-7: el catálogo se cargó sin existencias y lo que falta se cuenta otro día. No se vende, pero no se acabó. */}
+        <Cifra
+          etiqueta="Sin inventario inicial"
+          Icono={ClipboardList}
+          tono="idle"
+          valor={String(sinInicial)}
+          pie={sinInicial > 0 ? "No se venden hasta contarlos" : "Todo lo que se cuenta, contado"}
+          activo={estado === "SIN_INICIAL" && tipo === "PRODUCTO"}
+          onClick={() => filtrarEstado("SIN_INICIAL")}
+        />
         <Cifra
           etiqueta="Agotados"
           Icono={PackageX}
@@ -153,6 +164,7 @@ export function InventarioVista({
           tono="idle"
           valor={<MoneyDisplay value={toMajor(valor)} currency="USD" size="lg" />}
           pie="Al costo promedio"
+          className="max-lg:col-span-2"
         />
       </section>
 
@@ -203,6 +215,7 @@ export function InventarioVista({
             <span className="sr-only">Estado del stock</span>
             <select className={CAMPO} value={estado} onChange={(e) => setEstado(e.target.value as FiltroEstado)}>
               <option value="TODOS">Todo el stock</option>
+              <option value="SIN_INICIAL">Sin inventario inicial</option>
               <option value="AGOTADO">Agotados</option>
               <option value="BAJO_MINIMO">Bajo mínimo</option>
               <option value="BIEN">Bien</option>
@@ -248,6 +261,7 @@ function Cifra({
   pie,
   activo = false,
   onClick,
+  className,
 }: {
   etiqueta: string;
   Icono: typeof Package;
@@ -256,6 +270,7 @@ function Cifra({
   pie: string;
   activo?: boolean;
   onClick?: () => void;
+  className?: string;
 }) {
   const color = tono === "crit" ? "text-state-crit" : tono === "warn" ? "text-state-warn" : "text-ink";
   const contenido = (
@@ -268,7 +283,7 @@ function Cifra({
       <span className="text-[12px] text-ink-3">{pie}</span>
     </>
   );
-  const clase = cn("flex min-w-0 flex-col items-start gap-0.5 bg-surface px-4 py-3 text-left", activo && "ring-2 ring-brand ring-inset");
+  const clase = cn("flex min-w-0 flex-col items-start gap-0.5 bg-surface px-4 py-3 text-left", activo && "ring-2 ring-brand ring-inset", className);
   return onClick ? (
     <button type="button" aria-pressed={activo} onClick={onClick} className={cn(clase, "cursor-pointer transition-colors hover:bg-surface-2")}>
       {contenido}
@@ -305,7 +320,10 @@ function Tabla({ filas, tipo, tasa, onAbrir }: { filas: readonly Fila[]; tipo: T
               {cuenta && (
                 <td className={TD}>
                   <span className="flex items-center gap-2.5 max-lg:flex-col max-lg:items-start max-lg:gap-1">
-                    <span className={cn("tnum min-w-10 font-display text-[22px] leading-none font-bold", estado === "AGOTADO" ? "text-state-crit" : "text-ink")}>{p.existencia}</span>
+                    {/* Sin contar no hay un cero que enseñar: no se sabe cuántas hay. */}
+                    <span className={cn("tnum min-w-10 font-display text-[22px] leading-none font-bold", estado === "AGOTADO" ? "text-state-crit" : estado === "SIN_INICIAL" ? "text-ink-3" : "text-ink")}>
+                      {estado === "SIN_INICIAL" ? "—" : p.existencia}
+                    </span>
                     {estado && <EstadoStock estado={estado} />}
                   </span>
                 </td>
@@ -371,7 +389,7 @@ function Tarjetas({ filas, tipo, onAbrir }: { filas: readonly Fila[]; tipo: Tipo
               className={cn(
                 "flex h-full w-full cursor-pointer flex-col gap-2 rounded-[var(--radius-card)] border bg-surface p-3.5 text-left shadow-card transition-colors hover:bg-surface-2",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                estado === "AGOTADO" ? "border-state-crit/40" : estado === "BAJO_MINIMO" ? "border-state-warn/40" : "border-line",
+                estado === "AGOTADO" ? "border-state-crit/40" : estado === "BAJO_MINIMO" ? "border-state-warn/40" : estado === "SIN_INICIAL" ? "border-dashed border-line-strong" : "border-line",
               )}
             >
               <span className="flex items-center justify-between gap-2">
@@ -389,7 +407,9 @@ function Tarjetas({ filas, tipo, onAbrir }: { filas: readonly Fila[]; tipo: Tipo
                 <span className="truncate text-[14.5px] font-bold text-ink">{p.nombre}</span>
                 <span className="truncate text-[12px] text-ink-3">{p.presentacion ?? p.categoria}</span>
               </span>
-              {estado && (
+              {estado === "SIN_INICIAL" ? (
+                <span className="text-detalle text-ink-3">{p.minimo !== null ? `Sin contar · mín. ${p.minimo}` : "Sin contar: no se vende"}</span>
+              ) : estado && (
                 <span className="flex flex-col gap-1.5">
                   <span className="flex items-baseline gap-1.5">
                     <span className={cn("tnum font-display text-[32px] leading-none font-bold", estado === "AGOTADO" ? "text-state-crit" : "text-ink")}>{p.existencia}</span>

@@ -179,6 +179,10 @@ export {
   type TipoProducto,
   CategoriaSchema,
   type CategoriaDto,
+  MinimoSchema,
+  MAX_ALTA_EN_LOTE,
+  AltaEnLoteCommandSchema,
+  type AltaEnLoteCommand,
 } from "./productos.ts";
 
 export { CategoriaCommandSchema, type CategoriaCommand } from "./categorias.ts";
@@ -192,6 +196,7 @@ export {
   ProductoDeEntradaSchema,
   type ProductoDeEntradaDto,
   RegistrarEntradaCommandSchema,
+  MAX_LINEAS_ENTRADA,
   EntradaSchema,
   EntradasSchema,
   type TipoEntrada,

@@ -15,6 +15,7 @@
  * el siguiente. Lo vendido copió su concepto, su precio y su trato del IVA al venderse.
  */
 import {
+  AltaEnLoteCommandSchema,
   CatalogoSchema,
   FijarMinimoCommandSchema,
   ProductoCommandSchema,
@@ -48,7 +49,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo, type AccionAuditada, type Asiento } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
-import { existenciasDe } from "./existencias.ts";
+import { arranquesDe, existenciasDe } from "./existencias.ts";
 import { asegurarCategoria, categoriaComoEnLista, categoriasDe } from "./lista-de-categorias.ts";
 
 /** Hasta cuántos días por delante se programa un precio: una lista nueva llega con semanas. */
@@ -64,6 +65,23 @@ export interface CasosProductos {
   aplicar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CatalogoDto>>;
   /** Fija o quita el stock mínimo de un producto (`FijarMinimoCommandSchema`, B9-5). */
   fijarMinimo(ctx: Contexto, entrada: unknown): Promise<Resultado<CatalogoDto>>;
+  /**
+   * Da de alta varios productos de una vez, sin cantidades (`AltaEnLoteCommandSchema`, B9-7): todos o
+   * ninguno. Lo que se cuenta nace «Sin inventario inicial». Devuelve cómo queda el catálogo.
+   */
+  altaEnLote(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CatalogoDto>>;
+}
+
+/**
+ * Un rechazo a mitad de una operación de varias filas, cuando ya se escribió algo (un producto de una fila
+ * anterior): se lanza para que la transacción se deshaga entera. Devolverlo la confirmaría con lo escrito.
+ */
+export class Deshacer extends Error {
+  readonly rechazo: Rechazo;
+  constructor(rechazo: Rechazo) {
+    super(rechazo.mensaje);
+    this.rechazo = rechazo;
+  }
 }
 
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({
@@ -87,6 +105,8 @@ export async function cargarCatalogo(tx: Transaccion, branchId: string): Promise
     const productos = await tx.product.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
     const precios = await tx.productPrice.findMany({ orderBy: { scheduledAt: "asc" } });
     const existencias = await existenciasDe(tx, branchId);
+    // Cuándo arrancó la existencia de cada uno (B9-7): sin arranque, lo que se cuenta está sin inventario inicial.
+    const arranques = await arranquesDe(tx, branchId);
     // Cómo venía el bulto de la última entrada de cada producto y lo que costó: la pantalla de entradas
     // lo propone (T-10).
     const ultimas = await tx.stockMovement.findMany({
@@ -120,6 +140,7 @@ export async function cargarCatalogo(tx: Transaccion, branchId: string): Promise
         ultimoCostoBulto: costoDeBulto(costoBulto.get(p.id) ?? null),
         minimo: p.tracksStock ? p.minStock : null,
         valor: p.tracksStock ? { minor: String(existencias.get(p.id)?.valueMinor ?? 0n), currency: "USD" } : null,
+        inventarioInicialEl: p.tracksStock ? (arranques.get(p.id)?.toISOString() ?? null) : null,
       })),
       zonaHoraria: await zonaDe(tx, branchId),
       diasPorAdelantado: DIAS_POR_ADELANTADO_PRECIOS,
@@ -157,6 +178,45 @@ export function casosProductos(base: Base): CasosProductos {
         return r;
       }
       return { ok: true, valor: r };
+    },
+
+    async altaEnLote(ctx, entrada, ahora = Date.now()) {
+      const v = AltaEnLoteCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "El catálogo no se cargó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+      for (const [i, p] of cmd.productos.entries()) {
+        const problema = priceProblem({ amountMinor: BigInt(p.precioMinor), effectiveFrom: ahora }, ahora);
+        if (problema) return invalido("El catálogo no se cargó: hay datos que corregir.", ["productos", i, "precioMinor"], MENSAJE_PRECIO[problema]);
+      }
+      try {
+        const r = await base.conTenant(ctx.tenantId, async (tx): Promise<CatalogoDto | Rechazo> => {
+          // El alta es del inventario (T-13), como «Nuevo producto»: se puede dar por rol o por persona.
+          const rechazo = await exigirPermiso(tx, ctx, "inventario.catalogo");
+          if (rechazo) return rechazo;
+          const quien = await nombreDe(tx, ctx);
+          // Los nombres del local se leen una vez y cada alta se suma: el siguiente choca con el anterior.
+          const conocidos = await productosDe(tx);
+          for (const [i, p] of cmd.productos.entries()) {
+            const creado = await crearProductoEn(tx, ctx, p, quien.nombre, ahora, ["productos", i], conocidos);
+            // Las filas anteriores ya están creadas: nada del lote queda.
+            if ("ok" in creado) throw new Deshacer(creado);
+            await auditar(tx, ctx, creado.asiento);
+          }
+          return cargar(tx, ctx.branchId);
+        });
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "producto.crear", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (e instanceof Deshacer) return e.rechazo;
+        // Otra persona dio de alta el mismo nombre o el mismo código a la vez.
+        if (errorDeBase(e)?.motivo === "DUPLICADO") return invalido("Ya hay un producto con uno de esos nombres o códigos de barras.", ["productos"], "Nombre o código repetido");
+        throw e;
+      }
     },
 
     async aplicar(ctx, entrada, ahora = Date.now()) {
@@ -260,6 +320,8 @@ export type ProductoAlta = Readonly<{
   presentacion?: string | undefined;
   /** Si el mesero lo ofrece (B6-1). Sin decirlo: sí, salvo un servicio. */
   enCarta?: boolean | undefined;
+  /** Su stock mínimo desde el alta (B9-7), solo en lo que se cuenta. Sin decirlo, sin mínimo. */
+  minimo?: number | undefined;
 }>;
 
 /**
@@ -285,9 +347,15 @@ export async function crearProductoEn(
   quien: string,
   ahora: number,
   ruta: (string | number)[],
+  /**
+   * Los productos del local para comparar el nombre, si quien llama ya los leyó (el alta en lote): el creado
+   * se les suma. Sin ellos, se leen.
+   */
+  conocidos?: { id: string; name: string; category: string; active: boolean }[],
 ): Promise<{ fila: Product; asiento: Asiento } | Rechazo> {
-  const choca = nameClash(await productosDe(tx), p.nombre);
+  const choca = nameClash(conocidos ?? (await productosDe(tx)), p.nombre);
   if (choca) return invalido("Ya hay un producto con ese nombre.", [...ruta, "nombre"], mensajeDeChoque(choca));
+  if (p.minimo !== undefined && !kindTracksStock(p.tipo)) return invalido("Solo un producto que se cuenta lleva mínimo.", [...ruta, "minimo"], "Sin mínimo para este tipo");
   if (p.codigoBarras !== undefined) {
     if (!kindTracksStock(p.tipo)) return invalido("Solo un producto que se cuenta lleva código de barras.", [...ruta, "codigoBarras"], "Sin código para este tipo");
     const malo = await problemaDeCodigo(tx, p.codigoBarras, [...ruta, "codigoBarras"]);
@@ -309,6 +377,7 @@ export async function crearProductoEn(
       sku: nextSku(prefijo, existentes.map((x) => x.sku)),
       barcode: p.codigoBarras ?? null,
       presentation: p.presentacion ?? null,
+      minStock: p.minimo ?? null,
       active: true,
       onMenu: p.enCarta ?? p.tipo !== "SERVICIO",
       createdAt: new Date(ahora),
@@ -327,7 +396,16 @@ export async function crearProductoEn(
       scheduledByName: quien,
     },
   });
-  return { fila, asiento: { action: "producto.crear", entityType: "product", entityId: fila.id, after: { ...fotoDe(fila), precio: { minor: p.precioMinor, currency: "USD" } } } };
+  conocidos?.push({ id: fila.id, name: fila.name, category: fila.category, active: fila.active });
+  return {
+    fila,
+    asiento: {
+      action: "producto.crear",
+      entityType: "product",
+      entityId: fila.id,
+      after: { ...fotoDe(fila), precio: { minor: p.precioMinor, currency: "USD" }, ...(fila.minStock !== null ? { minimo: fila.minStock } : {}) },
+    },
+  };
 }
 
 /**

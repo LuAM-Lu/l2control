@@ -22,6 +22,7 @@ import type { Base, Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar } from "../auditoria/auditar.ts";
 import { nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
+import { arranquesDe } from "../inventario/existencias.ts";
 
 export interface CasosPuestaAPunto {
   leer(ctx: Contexto): Promise<Resultado<PuestaAPuntoDto>>;
@@ -54,8 +55,10 @@ async function calcular(tx: Transaccion, ctx: Contexto): Promise<PuestaAPuntoDto
   const feriados = await tx.bankHoliday.count({ where: { retiredAt: null } });
   const plano = await tx.floorPlanVersion.count({ where: { branchId: ctx.branchId } });
   const enCarta = await tx.product.count({ where: { active: true, onMenu: true } });
-  const conExistencia = await tx.product.count({ where: { active: true, tracksStock: true } });
-  const movimientos = await tx.stockMovement.count({ where: { branchId: ctx.branchId } });
+  // Lo que se cuenta y todavía no tiene su inventario inicial (B9-7): no se vende hasta contarlo.
+  const contables = await tx.product.findMany({ where: { active: true, tracksStock: true }, select: { id: true } });
+  const arrancados = await arranquesDe(tx, ctx.branchId);
+  const sinInicial = contables.filter((p) => !arrancados.has(p.id)).length;
   const descuentos = await tx.discountRule.count({ where: { retiredAt: null } });
   const vip = await tx.guardianVip.count();
   // Con contraseña ya confirma identidad (en su equipo de confianza, con la app, la llave o un código).
@@ -137,17 +140,17 @@ async function calcular(tx: Transaccion, ctx: Contexto): Promise<PuestaAPuntoDto
     },
     {
       id: "existencias",
-      // Sin nada que lleve existencia no hay nada que cargar.
-      hecho: conExistencia === 0 ? productos > 0 : movimientos > 0,
+      // Hecho cuando todo lo que se cuenta tiene su inventario inicial; sin nada que se cuente, con el catálogo.
+      hecho: contables.length === 0 ? productos > 0 : sinInicial === 0,
       bloquea: "Vender lo que lleva existencia",
       detalle:
-        conExistencia === 0
+        contables.length === 0
           ? productos > 0
             ? "Ningún producto lleva existencia"
             : "Se cargan después del catálogo"
-          : movimientos > 0
-            ? "Hay entradas de mercancía cargadas"
-            : "Sin existencia no se vende: carga la primera entrada de mercancía",
+          : sinInicial === 0
+            ? `${cuantos(contables.length, "producto contado", "productos contados")}: todos tienen su inventario inicial`
+            : `${cuantos(sinInicial, "producto sin inventario inicial", "productos sin inventario inicial")} de ${contables.length}: no se venden hasta contarlos`,
     },
     {
       id: "descuentos",

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ClipboardPaste, ListChecks, PackagePlus, Plus, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
+import { ClipboardList, ClipboardPaste, ListChecks, PackagePlus, Plus, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
 import type { CatalogoDto, CostoPor, EntradaDto, EntradasDto, Problema, ProductoDto, TaxCodeDelCatalogo, TipoEntrada } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { averageUnitCostMinor, barcodeProblem, entryLineTotals, nameKey, normalizeBarcode, type EntryCostBasis } from "@l2/domain-inventory";
@@ -13,6 +13,7 @@ import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { categoriasDelCatalogo } from "./catalogo.ts";
+import { estadoDe } from "./EstadoStock.tsx";
 import { registrarEntrada } from "./entradas.acciones";
 
 /**
@@ -132,10 +133,19 @@ function lineaDe(b: Borrador) {
   return b.productId ? { linea: { productId: b.productId, ...cantidades }, ...t } : null;
 }
 
-/** ¿La fila no dice nada? Se ignora al registrar. En el inventario inicial, tampoco un producto sin cantidad ni costo. */
+/**
+ * ¿La fila no dice nada? Se ignora al registrar. En el inventario inicial, tampoco un producto sin cantidad:
+ * sigue sin inventario inicial (B9-7).
+ */
 const ignorada = (b: Borrador, inicial: boolean) =>
   (!b.productId && !b.nuevo && b.texto.trim() === "" && b.cantidad.trim() === "" && b.costo.trim() === "") ||
-  (inicial && !!b.productId && (b.cantidad.trim() === "" || entero(b.cantidad) === 0));
+  (inicial && !!b.productId && b.cantidad.trim() === "");
+
+/** En el inventario inicial, un producto contado en cero (B9-7): no entra nada, pero queda contado (agotado). */
+const enCeroDe = (b: Borrador, inicial: boolean) => inicial && !!b.productId && !b.nuevo && b.cantidad.trim() !== "" && entero(b.cantidad) === 0;
+
+/** «jue 8 oct»: el día de un instante, como lo dice el reloj del local. */
+type DiaDe = (instante: number) => string;
 
 export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: CatalogoDto; entradas: EntradasDto | null }) {
   const actor = useActorEnSesion();
@@ -159,13 +169,14 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
 
   /** `null` = cerrada; si no, con qué tipo se abre. */
   const [abierta, setAbierta] = useState<TipoEntrada | null>(null);
-  // «Cargar entrada» desde la ficha de un producto llega con `?producto=`; la Puesta a punto, con `?inicial=1`.
+  // «Cargar entrada» desde la ficha de un producto llega con `?producto=`; la Puesta a punto, con `?inicial=1`; y
+  // «Contarlo» desde la ficha de uno sin inventario inicial (B9-7), con los dos.
   const desdeProducto = params.get("producto");
   const productoInicial = desdeProducto && contables.some((p) => p.id === desdeProducto) ? desdeProducto : null;
   useEffect(() => {
     if (!puedeRecibir) return;
-    if (productoInicial) setAbierta("COMPRA");
-    else if (params.get("inicial") === "1") setAbierta("INICIAL");
+    if (params.get("inicial") === "1") setAbierta("INICIAL");
+    else if (productoInicial) setAbierta("COMPRA");
   }, [productoInicial, puedeRecibir]);
 
   const sinMovimientos = entradas !== null && entradas.length === 0;
@@ -203,7 +214,7 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
       ) : sinMovimientos ? (
         <Vacio
           titulo="Todavía no llegó nada"
-          detalle="Lo que lleva existencia sale «Agotado» en la caja hasta que se carga su primera entrada. El primer día, el inventario inicial trae todos los productos para escribir lo que hay."
+          detalle="Lo que se cuenta sale «Sin inventario inicial» en la caja y no se vende hasta que se cuenta. El inventario inicial trae los que faltan para escribir lo que hay de cada uno."
           accion={
             puedeRecibir && (
               <div className="flex flex-wrap justify-center gap-2">
@@ -234,7 +245,8 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
           contables={contables}
           categorias={categorias}
           puedeCrear={puedeCrear}
-          productoInicial={abierta === "COMPRA" ? productoInicial : null}
+          productoInicial={productoInicial}
+          diaDe={(t) => reloj.dia(t)}
           onCerrar={() => setAbierta(null)}
           onRegistrada={(e) => {
             setEntradas((prev) => [e, ...(prev ?? []).filter((x) => x.id !== e.id)]);
@@ -275,6 +287,13 @@ function FilaEntrada({ entrada: e, cuando }: { entrada: EntradaDto; cuando: stri
             <span className="tnum text-ink-3">{l.unidadesPorBulto === 1 ? `${l.unidades} u` : `${l.bultos} × ${l.unidadesPorBulto} = ${l.unidades} u`}</span>
           </span>
         ))}
+        {e.enCero.length > 0 && (
+          <span>
+            {e.lineas.length > 0 && <span className="text-ink-3"> · </span>}
+            <span className="text-ink-3">contados en cero: </span>
+            {e.enCero.map((x) => x.nombre).join(", ")}
+          </span>
+        )}
       </p>
       <p className="tnum mt-0.5 text-[12px] text-ink-3">
         {cuando} · recibió {e.recibidaPor}
@@ -290,6 +309,7 @@ function NuevaEntrada({
   categorias,
   puedeCrear,
   productoInicial,
+  diaDe,
   onCerrar,
   onRegistrada,
 }: {
@@ -299,6 +319,7 @@ function NuevaEntrada({
   categorias: readonly string[];
   puedeCrear: boolean;
   productoInicial: string | null;
+  diaDe: DiaDe;
   onCerrar: () => void;
   onRegistrada: (e: EntradaDto) => void;
 }) {
@@ -308,7 +329,7 @@ function NuevaEntrada({
   const [factura, setFactura] = useState("");
   const [filas, setFilas] = useState<Borrador[]>(() => {
     const p = productoInicial ? porId.get(productoInicial) : undefined;
-    return [p ? conProducto(filaVacia(), p) : filaVacia()];
+    return [p ? conProducto(filaVacia(), p, tipoInicial === "INICIAL") : filaVacia()];
   });
   const conElevacion = useConElevacion();
   const [errores, setErrores] = useState<Readonly<Record<string, string>>>({});
@@ -322,8 +343,13 @@ function NuevaEntrada({
 
   const inicial = tipo === "INICIAL";
   const cuentan = filas.filter((b) => !ignorada(b, inicial));
-  const entendidas = cuentan.map(lineaDe);
-  const listas = cuentan.length > 0 && entendidas.every((l) => l !== null);
+  // Lo contado en cero no es una línea (no entra nada): va aparte, y deja el producto contado (B9-7).
+  const ceros = cuentan.filter((b) => enCeroDe(b, inicial));
+  const conCantidad = cuentan.filter((b) => !enCeroDe(b, inicial));
+  const entendidas = conCantidad.map(lineaDe);
+  // El inventario inicial es de lo que todavía no lo tiene: lo ya contado se corrige con un conteo.
+  const yaContados = inicial ? cuentan.filter((b) => (porId.get(b.productId)?.inventarioInicialEl ?? null) !== null) : [];
+  const listas = cuentan.length > 0 && entendidas.every((l) => l !== null) && yaContados.length === 0;
   const existentes = cuentan.filter((b) => !b.nuevo && b.productId).map((b) => b.productId);
   const repetido = new Set(existentes).size !== existentes.length;
   const demasiadas = cuentan.length > MAX_LINEAS;
@@ -360,12 +386,19 @@ function NuevaEntrada({
     enfocar(nueva.uid, "producto");
   }
 
-  function traerTodos() {
+  // Lo que se cuenta, está a la venta y todavía no tiene su inventario inicial (B9-7).
+  const pendientes = contables.filter((p) => p.activo && estadoDe(p) === "SIN_INICIAL");
+  function traerPendientes() {
     const ya = new Set(filas.map((b) => b.productId).filter(Boolean));
-    const faltan = contables.filter((p) => p.activo && !ya.has(p.id)).map((p) => conProducto(filaVacia(), p, true));
-    if (faltan.length === 0) return avisar.info("Todos los productos que se cuentan ya están en la tabla");
+    const faltan = pendientes.filter((p) => !ya.has(p.id)).map((p) => conProducto(filaVacia(), p, true));
+    if (pendientes.length === 0) {
+      return avisar.info("Todo lo que se cuenta ya tiene su inventario inicial", { detalle: "Lo que falte o sobre se corrige con un conteo, en Salidas y conteo." });
+    }
+    if (faltan.length === 0) return avisar.info("Los que faltan ya están en la tabla");
     añadir(faltan);
-    avisar.info(`${faltan.length} productos en la tabla`, { detalle: "Escribe lo que hay de cada uno. Los que dejes sin cantidad no se cargan." });
+    avisar.info(`${faltan.length} ${faltan.length === 1 ? "producto sin contar" : "productos sin contar"} en la tabla`, {
+      detalle: "Escribe lo que hay de cada uno, 0 si no hay ninguno. Los que dejes en blanco siguen sin inventario inicial.",
+    });
   }
 
   // El lector dentro de la hoja (B9-6): un código conocido suma uno a su fila (o la abre); uno desconocido
@@ -397,19 +430,21 @@ function NuevaEntrada({
         ...(tipo === "COMPRA" && proveedor.trim() ? { proveedor: proveedor.trim() } : {}),
         ...(tipo === "COMPRA" && factura.trim() ? { factura: factura.trim() } : {}),
         lineas: entendidas.map((l) => l!.linea),
+        ...(ceros.length > 0 ? { enCero: ceros.map((b) => b.productId) } : {}),
       };
       // Con altas, la entrada es también del catálogo: pide confirmar la identidad, como «Nuevo producto».
       const conAltas = cuentan.some((b) => b.nuevo);
       const r = conAltas ? await conElevacion(() => registrarEntrada(mando)) : await registrarEntrada(mando);
       if (r.ok) {
         const n = r.valor.lineas.reduce((x, l) => x + l.unidades, 0);
+        const enCero = r.valor.enCero.length;
         avisar.ok(`${tipo === "INICIAL" ? "Inventario inicial registrado" : "Entrada registrada"}: ${n} ${n === 1 ? "unidad" : "unidades"}`, {
-          detalle: `${usd(minor(r.valor.total))}. La caja ya las ofrece.`,
+          detalle: `${usd(minor(r.valor.total))}. ${n > 0 ? "La caja ya las ofrece." : ""}${enCero > 0 ? ` ${enCero === 1 ? "1 producto contado en cero queda agotado" : `${enCero} productos contados en cero quedan agotados`}.` : ""}`.trim(),
         });
         onRegistrada(r.valor);
         return;
       }
-      setErrores(porFila(r.problemas ?? [], cuentan));
+      setErrores(porFila(r.problemas ?? [], conCantidad, ceros, cuentan));
       setGeneral(r.mensaje);
     } catch {
       setGeneral("No hubo respuesta del servidor. No se cargó nada: vuelve a intentarlo.");
@@ -424,7 +459,14 @@ function NuevaEntrada({
       activo ? "border-brand bg-brand font-semibold text-on-brand" : "border-line bg-surface text-ink-2 hover:text-ink",
     );
 
-  const faltaAlgo = cuentan.length === 0 ? "Añade al menos un producto con su cantidad y su costo." : "Falta el producto (o su ficha: categoría y precio), la cantidad o el costo de alguna fila.";
+  const faltaAlgo =
+    cuentan.length === 0
+      ? inicial
+        ? "Escribe lo que hay de al menos un producto (0 si no hay ninguno)."
+        : "Añade al menos un producto con su cantidad y su costo."
+      : yaContados.length > 0
+        ? "Quita lo que ya tiene su inventario inicial: se corrige con un conteo."
+        : "Falta el producto (o su ficha: categoría y precio), la cantidad o el costo de alguna fila.";
 
   return (
     <Sheet
@@ -434,7 +476,7 @@ function NuevaEntrada({
       titulo={inicial ? "Inventario inicial" : "Nueva entrada"}
       descripcion={
         inicial
-          ? "Lo que ya hay en el local, con lo que costó cada cosa: queda como su existencia de arranque."
+          ? "Lo que hay de cada producto que falta por contar, con lo que costó: queda como su existencia de arranque. 0 si no hay ninguno; en blanco, sigue sin contar."
           : "Lo que llegó, una fila por producto: en unidades sueltas o en bultos, y el costo como venga en la factura."
       }
       pie={
@@ -501,9 +543,9 @@ function NuevaEntrada({
           </p>
           <div className="ml-auto flex flex-wrap gap-2">
             {inicial && (
-              <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={traerTodos}>
-                <ListChecks size={15} aria-hidden="true" />
-                Traer todos los productos
+              <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={traerPendientes}>
+                <ClipboardList size={15} aria-hidden="true" />
+                Traer los que faltan · {pendientes.length}
               </Button>
             )}
             <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => setPegando(true)}>
@@ -523,12 +565,16 @@ function NuevaEntrada({
           </div>
           {filas.map((b) => {
             const i = cuentan.indexOf(b);
+            const j = conCantidad.indexOf(b);
+            const elegido = porId.get(b.productId) ?? null;
             return (
               <FilaDeLaTabla
                 key={b.uid}
                 b={b}
                 n={filas.indexOf(b) + 1}
-                linea={i >= 0 ? (entendidas[i] ?? null) : null}
+                linea={j >= 0 ? (entendidas[j] ?? null) : null}
+                enCero={enCeroDe(b, inicial)}
+                yaContado={inicial && elegido?.inventarioInicialEl ? diaDe(Date.parse(elegido.inventarioInicialEl)) : null}
                 errores={errores}
                 indice={i}
                 producto={porId.get(b.productId) ?? null}
@@ -574,6 +620,7 @@ function NuevaEntrada({
           todos={catalogo.productos}
           puedeCrear={puedeCrear}
           enTabla={new Set(filas.map((b) => b.productId).filter(Boolean))}
+          inicial={inicial}
           onCerrar={() => setPegando(false)}
           onAñadir={(nuevas) => {
             añadir(nuevas);
@@ -591,6 +638,8 @@ function FilaDeLaTabla({
   b,
   n,
   linea,
+  enCero,
+  yaContado,
   errores,
   indice,
   producto,
@@ -609,6 +658,10 @@ function FilaDeLaTabla({
   b: Borrador;
   n: number;
   linea: ReturnType<typeof lineaDe>;
+  /** En el inventario inicial, contado en cero (B9-7). */
+  enCero: boolean;
+  /** En el inventario inicial, el día en que ya se contó, si ya tiene el suyo. */
+  yaContado: string | null;
   errores: Readonly<Record<string, string>>;
   indice: number;
   producto: ProductoDto | null;
@@ -635,7 +688,7 @@ function FilaDeLaTabla({
       aria-label={`Fila ${n}`}
       className={cn(
         "flex flex-col gap-2 rounded-[var(--radius-control)] border bg-base p-2",
-        errorProducto || error("bultos") || error("costo") ? "border-state-crit/60" : "border-line",
+        errorProducto || error("bultos") || error("costo") || yaContado ? "border-state-crit/60" : "border-line",
         ignorada && inicial && b.productId && "opacity-75",
       )}
     >
@@ -663,7 +716,7 @@ function FilaDeLaTabla({
             aria-label={`Cantidad de la fila ${n}`}
             inputMode="numeric"
             className={cn(CAMPO, "tnum text-right", error("bultos") ? "border-state-crit" : "border-line")}
-            placeholder={inicial ? "0" : "1"}
+            placeholder={inicial ? "—" : "1"}
             value={b.cantidad}
             onChange={(e) => onCambiar({ cantidad: e.target.value.replace(/[^\d]/g, "") })}
           />
@@ -698,8 +751,9 @@ function FilaDeLaTabla({
             aria-label={`Costo de la fila ${n}`}
             inputMode="decimal"
             className={cn(CAMPO, "tnum text-right", error("costo") ? "border-state-crit" : "border-line")}
-            placeholder="0,00"
-            value={b.costo}
+            placeholder={enCero ? "—" : "0,00"}
+            disabled={enCero}
+            value={enCero ? "" : b.costo}
             onChange={(e) => onCambiar({ costo: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -725,7 +779,7 @@ function FilaDeLaTabla({
           </select>
         </label>
         <div role="cell" className="tnum flex flex-col items-end justify-center text-right">
-          <span className="text-[14px] font-semibold text-ink">{linea ? usd(money(linea.valueMinor, "USD")) : "—"}</span>
+          <span className="text-[14px] font-semibold text-ink">{enCero ? "En cero" : linea ? usd(money(linea.valueMinor, "USD")) : "—"}</span>
           {linea && (
             <span className="text-[11.5px] text-ink-3">
               {linea.units} u{unitario !== null && ` · ${usd(money(unitario, "USD"))} c/u`}
@@ -748,6 +802,10 @@ function FilaDeLaTabla({
       {(error("bultos") || error("unidadesPorBulto") || error("costo")) && (
         <p className="text-[12px] text-state-crit">{error("bultos") ?? error("unidadesPorBulto") ?? error("costo")}</p>
       )}
+      {yaContado && (
+        <p className="text-[12px] text-state-crit">Ya tiene su inventario inicial (del {yaContado}): lo que falte o sobre se corrige con un conteo. Quita esta fila.</p>
+      )}
+      {enCero && !yaContado && <p className="text-[11.5px] text-ink-3">Contado en cero: queda «Agotado», sin costo.</p>}
       {producto?.costoPromedio && linea && <p className="tnum text-[11.5px] text-ink-3">Hoy cuesta {usd(minor(producto.costoPromedio))} de promedio; quedan {producto.existencia ?? 0}.</p>}
       {b.nuevo && <FichaCorta nuevo={b.nuevo} n={n} categorias={categorias} error={(c) => error(`nuevo.${c}`)} onCambiar={(c) => onCambiar({ nuevo: { ...b.nuevo!, ...c } })} />}
     </div>
@@ -849,7 +907,9 @@ function BuscadorDeProducto({
           }}
         />
         {elegido && (
-          <span className="tnum pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[11.5px] text-ink-3">quedan {elegido.existencia ?? 0}</span>
+          <span className="tnum pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[11.5px] text-ink-3">
+            {estadoDe(elegido) === "SIN_INICIAL" ? "sin contar" : `quedan ${elegido.existencia ?? 0}`}
+          </span>
         )}
         {esNuevo && (
           <span className="pointer-events-none absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1 text-[11.5px] font-semibold text-brand">
@@ -876,7 +936,7 @@ function BuscadorDeProducto({
             >
               <span className="min-w-0 flex-1 truncate font-medium text-ink">{p.nombre}</span>
               <span className="tnum shrink-0 text-[11.5px] text-ink-3">
-                {p.sku} · quedan {p.existencia ?? 0}
+                {p.sku} · {estadoDe(p) === "SIN_INICIAL" ? "sin contar" : `quedan ${p.existencia ?? 0}`}
               </span>
             </li>
           ))}
@@ -965,7 +1025,15 @@ type Pegada = Readonly<{ fila: number; nombre: string; borrador: Borrador | null
  * unidad y, para los nuevos, categoría, precio de venta y código de barras. Una primera fila de títulos
  * se salta sola. Las celdas van separadas por tabuladores (lo que copia una hoja de cálculo) o por «;».
  */
-function entenderPegado(texto: string, contables: readonly ProductoDto[], todos: readonly ProductoDto[], puedeCrear: boolean, enTabla: ReadonlySet<string>): Pegada[] {
+function entenderPegado(
+  texto: string,
+  contables: readonly ProductoDto[],
+  todos: readonly ProductoDto[],
+  puedeCrear: boolean,
+  enTabla: ReadonlySet<string>,
+  /** En el inventario inicial, un 0 de un producto que ya existe vale: se contó y no hay (B9-7). */
+  inicial: boolean,
+): Pegada[] {
   const lineas = texto.split(/\r?\n/).filter((l) => l.trim() !== "");
   const separador = lineas.some((l) => l.includes("\t")) ? "\t" : ";";
   const vistos = new Set<string>();
@@ -980,12 +1048,12 @@ function entenderPegado(texto: string, contables: readonly ProductoDto[], todos:
       filas.push({ fila, nombre: "", borrador: null, estado: "ERROR", nota: "Sin producto" });
       continue;
     }
-    if (cantidad === null || cantidad < 1) {
+    if (cantidad === null || cantidad < (inicial ? 0 : 1)) {
       filas.push({ fila, nombre, borrador: null, estado: "ERROR", nota: `Cantidad «${cantidadTxt}»: un número entero` });
       continue;
     }
     const costo = importe(costoTxt);
-    if (!costo) {
+    if (!costo && cantidad > 0) {
       filas.push({ fila, nombre, borrador: null, estado: "ERROR", nota: `Costo «${costoTxt}»: un importe en dólares` });
       continue;
     }
@@ -999,7 +1067,12 @@ function entenderPegado(texto: string, contables: readonly ProductoDto[], todos:
     vistos.add(clave);
     const base = { ...filaVacia(), cantidad: String(cantidad), costo: costoTxt.replace(/US\$|\$|USD/gi, "").trim(), costoPor: "UNIDAD" as const, en: "UNIDADES" as const };
     if (existente) {
-      filas.push({ fila, nombre: existente.nombre, borrador: { ...base, texto: existente.nombre, productId: existente.id }, estado: "CONOCIDO", nota: `${existente.sku} · quedan ${existente.existencia ?? 0}` });
+      const nota = estadoDe(existente) === "SIN_INICIAL" ? `${existente.sku} · sin contar` : `${existente.sku} · quedan ${existente.existencia ?? 0}`;
+      filas.push({ fila, nombre: existente.nombre, borrador: { ...base, texto: existente.nombre, productId: existente.id }, estado: "CONOCIDO", nota: cantidad === 0 ? `${nota} · en cero` : nota });
+      continue;
+    }
+    if (cantidad === 0) {
+      filas.push({ fila, nombre, borrador: null, estado: "ERROR", nota: "Un producto nuevo entra con su cantidad: sin ella, dalo de alta en Productos → Alta en lote" });
       continue;
     }
     if (todos.some((p) => nameKey(p.nombre) === nameKey(nombre))) {
@@ -1028,6 +1101,7 @@ function PegarLista({
   todos,
   puedeCrear,
   enTabla,
+  inicial,
   onCerrar,
   onAñadir,
 }: {
@@ -1035,11 +1109,12 @@ function PegarLista({
   todos: readonly ProductoDto[];
   puedeCrear: boolean;
   enTabla: ReadonlySet<string>;
+  inicial: boolean;
   onCerrar: () => void;
   onAñadir: (filas: Borrador[]) => void;
 }) {
   const [texto, setTexto] = useState("");
-  const filas = useMemo(() => entenderPegado(texto, contables, todos, puedeCrear, enTabla), [texto, contables, todos, puedeCrear, enTabla]);
+  const filas = useMemo(() => entenderPegado(texto, contables, todos, puedeCrear, enTabla, inicial), [texto, contables, todos, puedeCrear, enTabla, inicial]);
   const buenas = filas.flatMap((f) => (f.borrador ? [f.borrador] : []));
   const cuenta = (e: Pegada["estado"]) => filas.filter((f) => f.estado === e).length;
   const COLOR = { CONOCIDO: "text-state-ok", NUEVO: "text-brand", INCOMPLETO: "text-state-warn", ERROR: "text-state-crit" } as const;
@@ -1093,14 +1168,26 @@ function PegarLista({
   );
 }
 
-/** Los problemas del servidor por fila y campo: «lineas.0.costo» → «0.costo». Las filas son las que cuentan. */
-function porFila(problemas: readonly Problema[], filas: readonly Borrador[]): Record<string, string> {
+/** Lo que dicen los códigos del servidor, para una persona. */
+const MENSAJE_DE_CODIGO: Readonly<Record<string, string>> = {
+  SIN_CONTROL_DE_STOCK: "No lleva existencia",
+  YA_TIENE_INVENTARIO_INICIAL: "Ya tiene su inventario inicial: se corrige con un conteo",
+};
+
+/**
+ * Los problemas del servidor por fila y campo, con el índice de la fila entre las que cuentan: «lineas.0.costo» es
+ * la primera con cantidad; «enCero.0», la primera contada en cero (B9-7).
+ */
+function porFila(problemas: readonly Problema[], conCantidad: readonly Borrador[], ceros: readonly Borrador[], cuentan: readonly Borrador[]): Record<string, string> {
   const e: Record<string, string> = {};
   for (const p of problemas) {
-    if (p.path[0] !== "lineas" || typeof p.path[1] !== "number" || !filas[p.path[1]]) continue;
+    if (typeof p.path[1] !== "number") continue;
+    const fila = p.path[0] === "lineas" ? conCantidad[p.path[1]] : p.path[0] === "enCero" ? ceros[p.path[1]] : undefined;
+    if (!fila) continue;
+    const i = cuentan.indexOf(fila);
     // La ficha corta señala su campo («lineas.1.nuevo.codigoBarras» → «1.nuevo.codigoBarras»).
-    const campo = p.path[2] === "nuevo" ? `${p.path[1]}.nuevo.${String(p.path[3] ?? "nombre")}` : `${p.path[1]}.${String(p.path[2] ?? "productId")}`;
-    e[campo] ??= p.message === "SIN_CONTROL_DE_STOCK" ? "No lleva existencia" : p.message;
+    const campo = p.path[0] === "enCero" ? `${i}.productId` : p.path[2] === "nuevo" ? `${i}.nuevo.${String(p.path[3] ?? "nombre")}` : `${i}.${String(p.path[2] ?? "productId")}`;
+    e[campo] ??= MENSAJE_DE_CODIGO[p.message] ?? p.message;
   }
   return e;
 }

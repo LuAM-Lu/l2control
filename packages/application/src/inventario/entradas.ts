@@ -30,8 +30,8 @@ import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
-import { bloquearProducto } from "./existencias.ts";
-import { crearProductoEn } from "./productos.ts";
+import { arranquesDe, asentarArranques, bloquearProducto } from "./existencias.ts";
+import { Deshacer, crearProductoEn } from "./productos.ts";
 
 /** Cuántas entradas enseña la pantalla: las más recientes. */
 export const ENTRADAS_RECIENTES = 60;
@@ -58,18 +58,6 @@ const lineaDelDominio = (l: { bultos: number; unidadesPorBulto: number; costo: {
   packSize: l.unidadesPorBulto,
   cost: { per: BASE_DEL_COSTO[l.costo.por], minor: BigInt(l.costo.minor) },
 });
-
-/**
- * Un rechazo a mitad de la entrada, cuando ya se escribió algo (un producto nuevo de una línea anterior):
- * se lanza para que la transacción se deshaga entera. Devolverlo la confirmaría con lo escrito.
- */
-class Deshacer extends Error {
-  readonly rechazo: Rechazo;
-  constructor(rechazo: Rechazo) {
-    super(rechazo.mensaje);
-    this.rechazo = rechazo;
-  }
-}
 
 const invalido = (mensaje: string, path: (string | number)[], message: string): Rechazo => ({
   ok: false,
@@ -125,15 +113,21 @@ export function casosEntradas(base: Base): CasosEntradas {
           }
 
           const existentes = cmd.lineas.flatMap((l) => ("productId" in l ? [l.productId] : []));
-          const productos = await tx.product.findMany({ where: { id: { in: existentes } }, select: { id: true, name: true, tracksStock: true } });
+          const enCero = cmd.enCero ?? [];
+          const productos = await tx.product.findMany({ where: { id: { in: [...existentes, ...enCero] } }, select: { id: true, name: true, tracksStock: true } });
           const porId = new Map(productos.map((p) => [p.id, { name: p.name }]));
+          const sinContar = (p: { name: string }) =>
+            `${p.name} no se cuenta: es un preparado o un servicio. Cámbiale el tipo en Productos si se quiere contar.`;
           for (const [i, l] of cmd.lineas.entries()) {
             if (!("productId" in l)) continue;
             const p = productos.find((x) => x.id === l.productId);
             if (!p) return invalido("Ese producto no existe en este local.", ["lineas", i, "productId"], "Producto desconocido");
-            if (!p.tracksStock) {
-              return invalido(`${p.name} no se cuenta: es un preparado o un servicio. Cámbiale el tipo en Productos si se quiere contar.`, ["lineas", i, "productId"], "SIN_CONTROL_DE_STOCK");
-            }
+            if (!p.tracksStock) return invalido(sinContar(p), ["lineas", i, "productId"], "SIN_CONTROL_DE_STOCK");
+          }
+          for (const [i, id] of enCero.entries()) {
+            const p = productos.find((x) => x.id === id);
+            if (!p) return invalido("Ese producto no existe en este local.", ["enCero", i], "Producto desconocido");
+            if (!p.tracksStock) return invalido(sinContar(p), ["enCero", i], "SIN_CONTROL_DE_STOCK");
           }
 
           const quien = await nombreDe(tx, ctx);
@@ -154,7 +148,23 @@ export function casosEntradas(base: Base): CasosEntradas {
           }
 
           // Los candados en orden de producto, como la venta: nadie lee el costo a medias.
-          for (const id of [...ids].sort()) await bloquearProducto(tx, ctx.branchId, id);
+          for (const id of [...ids, ...enCero].sort()) await bloquearProducto(tx, ctx.branchId, id);
+
+          // El inventario inicial es de lo que todavía no lo tiene (B9-7): lo que ya arrancó se corrige con un
+          // conteo, que compara con lo que dice el sistema. Se mira con los candados tomados.
+          const arrancados = await arranquesDe(tx, ctx.branchId, [...existentes, ...enCero]);
+          if (cmd.tipo === "INICIAL") {
+            const ya = [
+              ...cmd.lineas.flatMap((l, i) => ("productId" in l && arrancados.has(l.productId) ? [{ id: l.productId, path: ["lineas", i, "productId"] }] : [])),
+              ...enCero.flatMap((id, i) => (arrancados.has(id) ? [{ id, path: ["enCero", i] }] : [])),
+            ];
+            if (ya.length > 0) throw new Deshacer({
+              ok: false,
+              motivo: "INVALIDO",
+              mensaje: `${ya.length === 1 ? `«${porId.get(ya[0]!.id)!.name}» ya tiene` : `${ya.length} productos ya tienen`} inventario inicial: lo que falte o sobre se corrige con un conteo.`,
+              problemas: ya.map((x) => ({ path: x.path, message: "YA_TIENE_INVENTARIO_INICIAL" })),
+            });
+          }
 
           const fila = await tx.stockEntry.create({
             data: {
@@ -174,6 +184,13 @@ export function casosEntradas(base: Base): CasosEntradas {
             const t = entryLineTotals(lineaDelDominio(l));
             return { productId: ids[i]!, bultos: l.bultos, unidadesPorBulto: l.unidadesPorBulto, unidades: t.units, valorMinor: t.valueMinor, costo: l.costo };
           });
+          // Lo que no había arrancado arranca aquí (B9-7): con lo que entra, o en cero lo que se contó y no hay.
+          await asentarArranques(
+            tx,
+            ctx,
+            [...lineas.map((l) => ({ productId: l.productId, quantity: l.unidades })), ...enCero.map((productId) => ({ productId, quantity: 0 }))],
+            { entryId: fila.id, ahora, quien: quien.nombre },
+          );
           await tx.stockMovement.createMany({
             data: lineas.map((l) => ({
               tenantId: ctx.tenantId,
@@ -208,6 +225,7 @@ export function casosEntradas(base: Base): CasosEntradas {
                 // Cómo se tecleó: por unidad, por bulto o el total de la línea (M-24).
                 tecleado: { por: l.costo.por, minor: l.costo.minor },
               })),
+              ...(enCero.length > 0 ? { enCero: enCero.map((id) => porId.get(id)!.name) } : {}),
             },
           });
           return entradaDe(tx, fila.id);
@@ -242,6 +260,11 @@ async function entradaDe(tx: Transaccion, id: string): Promise<EntradaDto> {
   const movs = await tx.stockMovement.findMany({ where: { entryId: id }, orderBy: { productId: "asc" } });
   const nombres = new Map((await tx.product.findMany({ where: { id: { in: movs.map((m) => m.productId) } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]));
   const total = sum(movs.map((m) => money(m.valueMinor, "USD")), "USD");
+  // Lo que el inventario inicial contó en cero no movió nada: lo dice su arranque (B9-7).
+  const ceros = await tx.stockStart.findMany({ where: { entryId: id, quantity: 0 }, orderBy: { productId: "asc" }, select: { productId: true } });
+  const nombresCero = new Map(
+    (await tx.product.findMany({ where: { id: { in: ceros.map((c) => c.productId) } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]),
+  );
   return {
     id: e.id,
     tipo: e.kind as EntradaDto["tipo"],
@@ -258,5 +281,6 @@ async function entradaDe(tx: Transaccion, id: string): Promise<EntradaDto> {
       costo: { minor: String(m.valueMinor), currency: "USD" },
     })),
     total: { minor: String(total.amount), currency: "USD" },
+    enCero: ceros.map((c) => ({ productId: c.productId, nombre: nombresCero.get(c.productId) ?? "Producto" })),
   };
 }

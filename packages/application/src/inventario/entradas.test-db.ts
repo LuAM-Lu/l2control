@@ -265,11 +265,14 @@ describe("la línea flexible y el inventario inicial (T-10, M-24)", () => {
   });
 
   test("el inventario inicial queda como tal, sin proveedor ni factura", async () => {
-    const e = valor(await registrar({ idempotencyKey: randomUUID(), tipo: "INICIAL", lineas: [{ productId: ids.Refresco!, bultos: 10, unidadesPorBulto: 1, costo: { por: "UNIDAD", minor: "55" } }] }, ctxAdmin));
+    // De algo que todavía no lo tiene (B9-7): lo que ya arrancó se corrige con un conteo.
+    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre: "Agua de coco", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "200" } }, AHORA - MIN));
+    const coco = c.productos.find((p) => p.nombre === "Agua de coco")!.id;
+    const conProveedor = await registrar({ idempotencyKey: randomUUID(), tipo: "INICIAL", proveedor: "Distribuidora Polar", lineas: [{ productId: coco, bultos: 1, unidadesPorBulto: 1, costo: { por: "UNIDAD", minor: "55" } }] }, ctxAdmin);
+    assert.equal(!conProveedor.ok && conProveedor.motivo, "INVALIDO");
+    const e = valor(await registrar({ idempotencyKey: randomUUID(), tipo: "INICIAL", lineas: [{ productId: coco, bultos: 10, unidadesPorBulto: 1, costo: { por: "UNIDAD", minor: "55" } }] }, ctxAdmin));
     assert.deepEqual([e.tipo, e.proveedor, e.factura], ["INICIAL", null, null]);
     assert.ok(valor(await local.app.entradas.leer(ctxAdmin)).entradas.some((x) => x.id === e.id && x.tipo === "INICIAL"));
-    const conProveedor = await registrar({ idempotencyKey: randomUUID(), tipo: "INICIAL", proveedor: "Distribuidora Polar", lineas: [{ productId: ids.Refresco!, bultos: 1, unidadesPorBulto: 1, costo: { por: "UNIDAD", minor: "55" } }] }, ctxAdmin);
-    assert.equal(!conProveedor.ok && conProveedor.motivo, "INVALIDO");
   });
 
   test("varios productos nuevos de una vez: si uno no vale, no queda creado ninguno (nada a medias)", async () => {
