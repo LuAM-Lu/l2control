@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Cake,
   CircleCheckBig,
+  Footprints,
   HandHeart,
   Phone,
   ScanLine,
@@ -18,6 +19,7 @@ import {
   GuardianSchema,
   type PaymentMode,
   type RepresentanteEncontradoDto,
+  type CatalogoDto,
   type ReservaEventoDto,
   WristbandCodeSchema,
 } from "@l2/contracts";
@@ -47,6 +49,8 @@ import { horario } from "../eventos/formato.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 import { useSala } from "./SalaProvider.tsx";
+import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
+import { productosALaVenta } from "../inventario/catalogo.ts";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
 import { useTarifario } from "./TarifarioProvider";
@@ -84,6 +88,8 @@ type Entrada = {
   packageId: string;
   /** Opcional (DEC-28): vacío, el niño entra solo con su pulsera. Sin pulsera, obligatorio. */
   nombre: string;
+  /** Si trae sus medias (B4-9, P-6). Sin ellas, el par va a la cuenta de la familia. */
+  traeMedias: boolean;
 };
 
 /** Un nombre como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
@@ -97,9 +103,12 @@ const DIGITOS_PARA_BUSCAR = 7;
 
 export function CheckInScreen({
   cumpleanos = [],
+  catalogo,
 }: {
   /** Los cumpleaños de hoy que reciben invitados (B10-2): la entrada los ofrece además de la visita normal. */
   cumpleanos?: readonly ReservaEventoDto[];
+  /** El catálogo, para las medias de quien no las trae (B4-9). */
+  catalogo?: CatalogoDto;
 } = {}) {
   const { sala, adoptar: adoptarEstancias } = useSala();
   const activeSessions = sala?.sessions.length ?? 0;
@@ -119,7 +128,16 @@ export function CheckInScreen({
     paquetesActivos[0]?.id ??
     "";
   const capacityLimit = tarifario.policy.capacityLimit;
-  const { formatoHora } = useSucursal().ajustes;
+  const { formatoHora, productoMedias } = useSucursal().ajustes;
+  /**
+   * Las medias de quien no las trae (B4-9, P-6): el producto que eligió la sucursal, con su precio de ahora y cuántas
+   * quedan. Sin producto elegido, la entrada no pregunta.
+   */
+  const ahoraMedias = useAhoraLocal();
+  const medias = useMemo(
+    () => (productoMedias && catalogo && ahoraMedias > 0 ? (productosALaVenta(catalogo, ahoraMedias).find((p) => p.id === productoMedias) ?? null) : null),
+    [productoMedias, catalogo, ahoraMedias],
+  );
   /** A qué entra esta tanda (B10-2): una visita normal (`null`) o un cumpleaños de hoy, por su reserva. */
   const [reservaId, setReservaId] = useState<string | null>(null);
   const cumple = cumpleanos.find((r) => r.id === reservaId) ?? null;
@@ -208,7 +226,7 @@ export function CheckInScreen({
       const uid = NUEVO_UID();
       setEntradas((prev) => [
         ...prev,
-        { uid, wristbandCode: limpio, sinPulsera: false, packageId: defaultPackageId, nombre: "" },
+        { uid, wristbandCode: limpio, sinPulsera: false, packageId: defaultPackageId, nombre: "", traeMedias: true },
       ]);
       setAviso(null);
       setPasoMovil("PULSERAS");
@@ -248,7 +266,7 @@ export function CheckInScreen({
       return;
     }
     const uid = NUEVO_UID();
-    setEntradas((prev) => [...prev, { uid, wristbandCode: "", sinPulsera: true, packageId: defaultPackageId, nombre: "" }]);
+    setEntradas((prev) => [...prev, { uid, wristbandCode: "", sinPulsera: true, packageId: defaultPackageId, nombre: "", traeMedias: true }]);
     setAviso(null);
     setPasoMovil("PULSERAS");
     queueMicrotask(() => document.getElementById(`nombre-${uid}`)?.focus());
@@ -274,8 +292,13 @@ export function CheckInScreen({
       const p = tarifario.packages.find((x) => x.id === e.packageId);
       return p ? toMoney(p.price) : zero("USD");
     });
-    return sum(precios, "USD");
-  }, [entradas, tarifario.packages]);
+    // Las medias de quien no las trae también se cobran (B4-9).
+    const deMedias = medias ? entradas.filter((e) => !e.traeMedias).map(() => medias.precio) : [];
+    return sum([...precios, ...deMedias], "USD");
+  }, [entradas, tarifario.packages, medias]);
+  /** Cuántos pares hacen falta y si quedan: sin existencia, el servidor no registra la entrada (ADR-023). */
+  const paresQueFaltan = entradas.filter((e) => !e.traeMedias).length;
+  const sinMediasQueDar = medias !== null && medias.existencia !== null && paresQueFaltan > medias.existencia;
 
   /* ------------------------------------------------------------- envío */
 
@@ -311,6 +334,7 @@ export function CheckInScreen({
       paymentMode: modo,
       entries: entradas.map((e) => ({
         ...(e.sinPulsera ? { sinPulsera: true as const } : { wristbandCode: e.wristbandCode }),
+        ...(medias && !e.traeMedias ? { sinMedias: true as const } : {}),
         kid: ninoDe(e.nombre),
         packageId: e.packageId,
       })),
@@ -577,6 +601,30 @@ export function CheckInScreen({
                         <X size={16} aria-hidden="true" />
                       </button>
                     </div>
+                    {/* B4-9: si no trae medias, se le cobra el par. «Trae» de fábrica: es lo que pide el local. */}
+                    {medias && !cumple && (
+                      <div role="radiogroup" aria-label={`Medias de ${e.sinPulsera ? (e.nombre || "este niño") : e.wristbandCode}`} className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-[13px] text-ink-2">
+                          <Footprints size={15} aria-hidden="true" className="text-ink-3" />
+                          Medias
+                        </span>
+                        {([true, false] as const).map((trae) => (
+                          <button
+                            key={String(trae)}
+                            type="button"
+                            role="radio"
+                            aria-checked={e.traeMedias === trae}
+                            onClick={() => actualizar(e.uid, { traeMedias: trae })}
+                            className={cn(
+                              "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13.5px] font-semibold",
+                              e.traeMedias === trae ? "border-brand bg-brand/15 text-ink" : "border-line bg-base/40 text-ink-2 hover:border-line-strong",
+                            )}
+                          >
+                            {trae ? "Las trae" : `No trae · ${formatMoneyVE(toMajor(medias.precio), "USD")}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. Los invitados
                         de un cumpleaños no son de la familia que reservó: se nombran después, desde la sala. */}
                     {!cumple && <input
@@ -808,6 +856,15 @@ export function CheckInScreen({
                     size="lg"
                   />
                 </div>
+                {sinMediasQueDar && (
+                  <p role="alert" className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-state-crit">
+                    <TriangleAlert size={14} aria-hidden="true" />
+                    {medias!.existencia === 0 ? "No quedan medias en el inventario" : `Quedan ${medias!.existencia} pares de medias y hacen falta ${paresQueFaltan}`}
+                  </p>
+                )}
+                {paresQueFaltan > 0 && medias && !sinMediasQueDar && (
+                  <p className="mt-1 text-[12px] text-ink-3">Incluye {paresQueFaltan === 1 ? "un par de medias" : `${paresQueFaltan} pares de medias`}</p>
+                )}
                 <p className="mt-1 text-[12px] text-ink-3">
                   {entradas.length === 0
                     ? "Sin niños en la entrada"

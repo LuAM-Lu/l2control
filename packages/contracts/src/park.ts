@@ -356,6 +356,11 @@ export const CheckInCommandSchema = z
              * es obligatorio (o un niño ya conocido de la familia).
              */
             sinPulsera: z.literal(true).optional(),
+            /**
+             * El niño no trae medias (B4-9, M-27, P-6): el par del producto de medias de la sucursal va a la cuenta de la
+             * familia y sale del inventario. Sin existencia, la entrada no se registra.
+             */
+            sinMedias: z.literal(true).optional(),
             kid: KidSchema,
             packageId: IdSchema,
           })

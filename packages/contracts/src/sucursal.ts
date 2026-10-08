@@ -191,6 +191,11 @@ export const AjustesSucursalSchema = z
       .min(1, "Al menos un minuto")
       .max(30, "Más de media hora ya no es una pausa: es otra visita")
       .default(10),
+    /**
+     * El producto que se cobra a quien entra al parque sin medias (B4-9, M-27, P-6): uno del inventario, que se cuenta.
+     * `null`, la entrada no pregunta. Los ajustes publicados antes no lo traen: sin medias.
+     */
+    productoMedias: z.uuid("Elige un producto del inventario").nullable().default(null),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

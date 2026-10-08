@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Info, RotateCcw, Save, TriangleAlert } from "lucide-react";
-import { AjustesSucursalSchema, HorarioDelDiaSchema, type AjustesSucursalDto, type DiaSemana, type HorarioDelDiaDto } from "@l2/contracts";
+import { AjustesSucursalSchema, HorarioDelDiaSchema, type AjustesSucursalDto, type CatalogoDto, type DiaSemana, type HorarioDelDiaDto } from "@l2/contracts";
 import { fromMajor, money, toMajor } from "@l2/domain-money";
 import { Button, Container, Input, PageHeader, avisar, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "./SucursalProvider";
@@ -82,7 +82,9 @@ function erroresDe(issues: readonly { path: readonly PropertyKey[]; message: str
   return e;
 }
 
-export function EditorSucursal() {
+export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
+  // Los productos que se cuentan: entre ellos se elige el de las medias de la entrada (B4-9).
+  const productosConStock = useMemo(() => (catalogo?.productos ?? []).filter((p) => p.activo && p.controlaStock).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")), [catalogo]);
   const { ajustes: vigentes, version, publicadoEn, publicadoPor, publicar } = useSucursal();
   const reloj = useReloj();
   const [borrador, setBorrador] = useState<AjustesSucursalDto>(vigentes);
@@ -505,6 +507,22 @@ export function EditorSucursal() {
               hint="Una por visita; de 1 a 30"
               onChange={(e) => cambiar({ pausaMaximaMin: Number(e.target.value) })}
             />
+            <label className="flex flex-col gap-1.5">
+              <span className={ETIQUETA}>Medias de la entrada</span>
+              <select
+                className={cn(CAMPO, "border-line")}
+                value={borrador.productoMedias ?? ""}
+                onChange={(e) => cambiar({ productoMedias: e.target.value === "" ? null : e.target.value })}
+              >
+                <option value="">No se cobran medias</option>
+                {productosConStock.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[12px] text-ink-3">Quien entra sin medias paga este producto</span>
+            </label>
           </div>
           <p className="text-[12px] text-ink-3">
             El residuo es lo que la caja se queda si no hay vuelto exacto. Una estancia que pasa de sus horas (o del día) queda a revisar y deja de contar en el aforo. Un niño que sale a comer puede pausar su tiempo una vez; pasado el máximo, vuelve a correr solo.
