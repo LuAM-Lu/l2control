@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.87.0] — 2026-10-08 · Hacia la puesta en marcha
 
 La caja más clara (B3-10, M-32): con todo el catálogo en la carta, buscar en vez de recorrerla, y los ítems que se
 cobran a la vista.
