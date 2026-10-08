@@ -2384,8 +2384,9 @@ F9-05).
   principal y router 4G de respaldo con conmutación automática, UPS en router, módem y WiFi, y los equipos
   del local aprobados (F10-03).
   → Con el enlace principal desconectado, la caja cobra y la sala se actualiza por el 4G.
-- [ ] **B8-2 · Runbooks, contingencia en papel y capacitación por rol** (F10-10, F11-02, F11-03, F11-08; sin
-  manual aparte desde M-30: el de la app es el manual).
+- [~] **B8-2 · Runbooks, contingencia en papel y capacitación por rol** (F10-10, F11-02, F11-03, F11-08; sin
+  manual aparte desde M-30: el de la app es el manual). *A cargo: LuAMi, rama `docs/b8-2` (lo escrito; la capacitación,
+  en B8-3).*
   → Una hoja impresa junto a la caja con el procedimiento en papel para cuando caigan los dos enlaces (cuándo se pasa
   al papel, quién anota qué y cómo se carga al volver; los formularios y su carga son B3-7). Los runbooks del técnico,
   juntos y completos a partir de `infra/produccion/README.md`: restaurar un respaldo, volver atrás una actualización,
