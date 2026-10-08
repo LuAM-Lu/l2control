@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.74.0] — 2026-10-08 · Inventario, respaldos y reportes
 
 Catálogo sin existencias y su conteo inicial (B9-7, M-28).
 

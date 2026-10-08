@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.73.0 · 73 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
+**Versión 0.74.0 · 74 de 90 pasos · M-27 (lo pedido en la primera visita) entregado entero; M-28 y M-29 en curso.** Entregados de M-27: B6-7
 (varias cuentas en una mesa y cuentas de pie), B4-7 (pausa por comida), B4-8 (entrar sin pulsera), T-12 (ayuda y
 recorridos guiados), B4-10 (cortesía y anular una entrada desde la sala), B4-9 (medias en la entrada), T-13 (roles que
 se pueden dar), B3-8 (cobrar solo con el teclado y el recibo a elección), T-14 (cambiar el PIN propio y entrar con el
@@ -1745,7 +1745,7 @@ antes del cobro en servidor (orden de ejecución).
   código de barras). Un producto que se cuenta y nunca tuvo existencia queda «Sin inventario inicial», distinto de
   «Agotado»: no se vende (ADR-023) y la caja, la carta y la lista dicen por qué. Inventario y la puesta a punto cuentan
   los pendientes; el inventario inicial trae solo los que faltan, con la fecha del conteo.
-  *Hecho el 2026-10-08, en `feat/b9-7`.*
+  *Hecho el 2026-10-08 (v0.74.0), en `feat/b9-7`.*
   *· Base: `20261110000000_inventario_inicial` (solo expande): `stock_start`, el arranque de la existencia de un producto
   en una sucursal (lo que entró o lo que se contó, también cero, con la entrada o el conteo que lo arrancó), uno por
   producto y sucursal, solo-agregar y con RLS. Arranca un producto lo que no tenía fila ni movimientos; lo cargado antes
@@ -2596,6 +2596,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   informe de diferencias (B9-10); la cuenta de soporte no mueve dinero en producción (T-17); y la sección Reportes
   (Etapa 11: ventas, inventario al momento y movimientos, en PDF, para administración y supervisión). La ruta pasa a 90.
 - **2026-10-08** · Relevo (LuAMi): M-27 entregado; M-28 y M-29 en el plan, sin empezar; D-REL para decidir. Sigue B9-7.
+- **2026-10-08** · B9-7 entregado como v0.74.0: el catálogo se da de alta en una hoja sin cantidades, lo que se cuenta
+  queda «Sin inventario inicial» (distinto de «Agotado», no se vende) y el inventario inicial trae solo los que faltan,
+  con el cero. La versión se puso al fusionar, en su propio PR (regla de CLAUDE.md). Sigue B7-7 (semilla con casillas).
 
 ---
 
