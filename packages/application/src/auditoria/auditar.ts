@@ -112,6 +112,8 @@ export type AccionAuditada =
   | "producto.crear"
   | "producto.editar"
   | "producto.activar"
+  | "producto.retirar"
+  | "producto.devolver"
   | "producto.apartar"
   | "producto.minimo"
   | "categoria.crear"

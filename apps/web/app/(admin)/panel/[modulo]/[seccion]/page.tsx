@@ -117,7 +117,7 @@ const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.Rea
     const p = pestanaPedida("inventario", "productos", q.pestana);
     return (
       <MarcoDeSeccion modulo="inventario" seccion="productos" actual={p}>
-        {p === "carta" ? <CartaScreen catalogo={await catalogoDelLocal()} /> : <ProductosScreen catalogo={await catalogoDelLocal()} />}
+        {p === "carta" ? <CartaScreen catalogo={await catalogoDelLocal()} /> : <ProductosScreen catalogo={await catalogoDelLocal({ conRetirados: true })} />}
       </MarcoDeSeccion>
     );
   },

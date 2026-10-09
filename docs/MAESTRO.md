@@ -2312,7 +2312,8 @@ antes del cobro en servidor (orden de ejecución).
   diferencias (8 contados, 7 cuadran, falta 1), registrar con el PIN de administración, el informe de diferencias en PDF
   y la hoja para imprimir; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni errores de
   consola.*
-- [ ] **B9-11 · Productos: editar a la vista, retirar y la carga por lista** (M-34, S-2, S-3).
+- [x] **B9-11 · Productos: editar a la vista, retirar y la carga por lista** (M-34, S-2, S-3).
+  *Hecho el 2026-10-09, en `feat/b9-11`.*
   → **Editar,** en la cabecera de la ficha (los datos arriba, el precio debajo) y desde la fila.
   → **Retirar** (administración, con su 🔐): el producto sale de Productos, la caja, la carta, la tablet y las listas de
   carga; su historia (ventas, entradas, movimientos) queda en Reportes y el kárdex. Un filtro «Retirados» los muestra y
@@ -2323,6 +2324,15 @@ antes del cobro en servidor (orden de ejecución).
   una lista que se despliega (también en «Alta en lote»), y se puede escribir una nueva.
   → **Base (solo expande).** El retiro y su vuelta como asientos del producto; una versión anterior lo ve apartado de la
   venta.
+  *· Hecho: `product_retirement` (migración `20261119000000_producto_retirado`, solo expande, solo agregar; RETIRO/VUELTA
+  con su motivo, quién, quién autorizó y la salida que sacó lo que había). `casosRetiro` (`app.retiro`): retirar con
+  `inventario.ajustar` y el PIN de administración; con existencia exige cómo sale (`TIENE_EXISTENCIA`) y la saca al costo
+  con `asentarAjuste` en la misma transacción; deja el producto apartado. Devolver lo trae apartado. El catálogo dice
+  `retirado`; `catalogoDelLocal()` los deja fuera de toda pantalla salvo Productos («Retirados (N)», con su ficha y
+  «Devolver al catálogo»). La ficha: los datos arriba, existencia y precio debajo; «Editar» en cada fila de la tabla. En
+  la entrada y el inventario inicial, la fila dice categoría, presentación y SKU, con «Ver o editar su ficha» encima de la
+  lista (`FichaProducto` exportada). `CampoCategoria`: lista desplegable con «Escribir una nueva…», en la ficha, «Alta
+  en lote» y la ficha corta de la entrada. 3 pruebas contra la base.*
 - [ ] **B9-12 · Corregir una entrada mal cargada** (M-34, S-4).
   → **Anular una entrada.** Una compra, una reposición o un inventario inicial se anula con su asiento de reverso (nada se
   borra), con la 🔐 de administración y un motivo: cada línea sale a su costo de esa entrada y el costo promedio se

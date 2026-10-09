@@ -50,6 +50,20 @@ El parque en una pantalla, con un solo lector (B4-12, M-34).
 - **Sumar a la familia:** si el representante tiene niños en la sala, el que llega después entra en su cuenta, con su
   tiempo desde que entra, y sale con ella.
 
+Productos: editar a la vista, retirar y la carga por lista (B9-11, M-34).
+
+### Añadido
+- **Retirar un producto** (también lo creado en la carga inicial): sale de Productos, la caja, la carta, la tablet y las
+  listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra:
+  «Retirados» los muestra y se pueden devolver al catálogo.
+- **En una entrada y en el inventario inicial**, cada fila dice la categoría y la presentación del producto, y su ficha se
+  abre encima sin perder la lista.
+
+### Cambiado
+- **«Editar» en cada fila de Productos,** y la ficha con los datos arriba y el precio debajo.
+- **La categoría se elige de una lista** que se despliega (en la ficha, «Alta en lote» y la entrada); «Escribir una
+  nueva…» para la que no está.
+
 ## [0.95.0] — 2026-10-09 · Hacia la puesta en marcha
 
 El cobro en curso no se pierde (B3-13, M-34).
