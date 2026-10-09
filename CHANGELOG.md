@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.104.1] — 2026-10-09 · Hacia la puesta en marcha
+
+El servidor no se queda sin disco con las actualizaciones.
+
+### Corregido
+- **Las versiones viejas se borran del servidor:** cada actualización dejaba sus imágenes (unos 3 GB) y en el staging
+  llenaron el disco; de la 0.94.0 en adelante ninguna se pudo poner («Se cortó a mitad», «No se pudieron descargar»).
+  Ahora, antes de descargar, se mira que quepa (y si no, se borran las viejas), y con la nueva en marcha quedan solo
+  ella y la anterior, que es la vuelta atrás.
+- **Con el disco lleno ya no se pierde qué versión está en marcha:** al no poder escribirla, se borraba, y el
+  actualizador creía que no había nada desplegado y no ponía ninguna. Ahora se escribe de una vez y, si faltara, el
+  actualizador la rehace con la de la web en marcha.
+
 ## [0.104.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Notas rápidas del mesero (B6-12, M-34).

@@ -18,6 +18,7 @@ servidor se escriben en `~/l2control/infra/produccion` del VPS, con el usuario q
 | 6 | [La laptop de caja no enciende](#6-la-laptop-de-caja-no-enciende) | En plena jornada |
 | 7 | [El agente de impresión no imprime](#7-el-agente-de-impresión-no-imprime) | Nada sale en papel |
 | 8 | [Se cayeron los dos enlaces](#8-se-cayeron-los-dos-enlaces) | Sin internet principal ni 4G |
+| 9 | [El servidor se quedó sin disco](#9-el-servidor-se-quedó-sin-disco) | Las versiones no se ponen («No se pudieron descargar», «Se cortó a mitad», «Sin espacio») |
 
 **Dos reglas que valen para todos:**
 
@@ -173,3 +174,28 @@ y Semana Santa cambian cada año.
 3. Al volver: la cajera carga el papel en Caja → Papel y supervisión lo revisa con su PIN; sin revisar, no se cierra
    el turno ni la jornada.
 4. **Salió** si las cargas de papel quedaron revisadas y el corte Z del día las cuenta («Desde papel» en las ventas).
+
+## 9. El servidor se quedó sin disco
+
+Cada versión son unos 3 GB de imágenes. Desde la 0.104.1, `desplegar.sh` mira antes de descargar que haya 6 GB libres
+(si no, borra las imágenes de versiones viejas) y, con la nueva en marcha, deja solo ella y la anterior. Antes de eso
+se acumulaban: en el staging, 145 imágenes llenaron los 96 GB y de la 0.94.0 en adelante ninguna se pudo poner.
+
+1. Mira el disco y lo que ocupa Docker: `df -h /` y `docker system df`.
+2. Mira qué está en marcha: `docker ps --format "{{.Names}}	{{.Image}}"` (la versión es la etiqueta de la imagen de
+   la web) y `cat etiqueta.env`. **Si `etiqueta.env` no existe** (antes de la 0.104.1, el disco lleno lo borraba),
+   escríbelo con esa versión: `printf "L2_ETIQUETA=%s
+" 0.93.0 > etiqueta.env` (con la tuya). Sin él, el actualizador
+   cree que no hay nada desplegado y no pone ninguna. Desde la 0.104.1 lo rehace solo.
+3. Borra las imágenes de L2 Control de versiones viejas, menos la que está en marcha y la anterior (aquí, 0.93.0 y
+   0.92.0; las de un contenedor en marcha Docker no las borra):
+   ```
+   docker images --format "{{.Repository}}:{{.Tag}}" | grep "^ghcr.io/luam-lu/l2control-"      | grep -v ":0.93.0$" | grep -v ":0.92.0$" | xargs -r docker rmi
+   docker image prune -f
+   ```
+   Se pueden volver a descargar: están en ghcr.io.
+4. Las versiones que fallaron por el disco no se vuelven a pedir solas en staging, pero la más nueva sí: en el
+   siguiente minuto el actualizador la pide y la pone (`tail -f actualizador.log`). En producción, administración la
+   pide desde Ajustes → Sistema.
+5. **Salió** si `df -h /` tiene espacio, `./desplegar.sh --estado` dice la versión nueva con salud y `historial.log`
+   termina en «EN MARCHA».
