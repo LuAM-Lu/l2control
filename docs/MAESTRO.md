@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.100.0 · 100 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.101.0 · 101 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -2536,7 +2536,7 @@ antes del cobro en servidor (orden de ejecución).
   «Descartar la venta». A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas: el formulario y la pregunta sin
   desplazar ni cortar y sin errores de consola.*
 - [x] **B6-10 · Comanda de barra y de cocina** (M-34, S-5).
-  *Hecho el 2026-10-09, en `feat/b6-10`.*
+  *Hecho el 2026-10-09 (v0.101.0), en `feat/b6-10`.*
   → **El área de cada producto:** Cocina o Barra si es preparado (de fábrica, Cocina); Barra de fábrica si es de nevera;
   o «Sin papel». Se pone en la carta, en la ficha, en «Alta en lote» y en «Editar en lote».
   → **Un papel por área.** El pedido saca la comanda de cocina y la de barra, cada una rotulada («COCINA», «BARRA») con
