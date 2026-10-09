@@ -114,6 +114,7 @@ import {
   ClienteFacturaDialog,
   documentoEnmascarado,
 } from "./ClienteFacturaDialog.tsx";
+import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
 import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
@@ -317,8 +318,15 @@ function CobroCuenta({
     !sameRate(rateVivo, congelada.rate) &&
     tasaValorViva !== tasaMantenida;
 
-  /** A nombre de quién sale la factura: consumidor final salvo que se pida (DEC-23). */
-  const [cliente, setCliente] = useState<ClienteFacturaDto>(CONSUMIDOR_FINAL);
+  /**
+   * A nombre de quién sale la factura (T-19, M-34; antes DEC-23, consumidor final salvo que se pidiera): la cuenta que
+   * nació con su cliente (B6-9) ya viene a su nombre. La venta del mostrador sin cliente lo pide: se cobra a alguien.
+   */
+  const [cliente, setCliente] = useState<ClienteFacturaDto>(() =>
+    cuenta.cliente ? { kind: "IDENTIFICADO", name: cuenta.cliente.nombre, document: cuenta.cliente.cedula } : CONSUMIDOR_FINAL,
+  );
+  /** Una venta del mostrador sin su cliente no se cobra: el servidor tampoco la deja (FALTA_EL_CLIENTE). */
+  const faltaCliente = cuenta.kind === "MOSTRADOR" && !cuenta.cliente && cliente.kind !== "IDENTIFICADO";
   const [identificando, setIdentificando] = useState(false);
   /** «Se fue sin pagar» (B3-11): el diálogo que deja la cuenta en deuda a nombre de su cliente. */
   const [seFue, setSeFue] = useState(false);
@@ -785,7 +793,7 @@ function CobroCuenta({
   }
 
   const puedeCobrar =
-    balance !== null && falta.amount === 0n && pagos.length > 0;
+    balance !== null && falta.amount === 0n && pagos.length > 0 && !faltaCliente;
 
   /* --------------------------------------------------------- conversiones y atajos */
 
@@ -1353,8 +1361,9 @@ function CobroCuenta({
               aria-haspopup="dialog"
               title={cliente.kind === "IDENTIFICADO" ? `${cliente.name} · ${documentoEnmascarado(cliente.document)}` : "Identificar al cliente de la factura (tecla I)"}
               onClick={() => setIdentificando(true)}
+              className={faltaCliente ? "border-state-warn/70 bg-state-warn-bg/25" : undefined}
             >
-              {cliente.kind === "IDENTIFICADO" ? cliente.name : "Consumidor final"}
+              {cliente.kind === "IDENTIFICADO" ? cliente.name : faltaCliente ? "Falta el cliente" : "Consumidor final"}
             </BotonDelPie>
             {(descuento || ofreceDescuentos) && (
               <BotonDelPie
@@ -1883,7 +1892,13 @@ function CobroCuenta({
               )}
             </span>
             <span className="tnum text-[12px] font-semibold opacity-80">
-              {puedeCobrar ? <PistaTecla tecla="Ctrl ⏎" /> : `Falta ${formatMoneyVE(toMajor(falta), "USD")}`}
+              {puedeCobrar ? (
+                <PistaTecla tecla="Ctrl ⏎" />
+              ) : faltaCliente && cubierto ? (
+                "Falta el cliente: Factura a (I)"
+              ) : (
+                `Falta ${formatMoneyVE(toMajor(falta), "USD")}`
+              )}
             </span>
           </Button>
         </div>
@@ -1904,6 +1919,7 @@ function CobroCuenta({
         // El cliente de la cuenta (B6-9) se ofrece con un toque: su nombre y su cédula ya puestos.
         nombrePropuesto={cuenta.cliente?.nombre ?? (esVentaDirecta(cuenta) ? "" : cuenta.family)}
         documentoPropuesto={cuenta.cliente?.cedula ?? ""}
+        exigido={cuenta.kind === "MOSTRADOR" && !cuenta.cliente}
         onConfirmar={(c) => {
           setCliente(c);
           setIdentificando(false);
@@ -2232,6 +2248,9 @@ export function CajaScreen({
     }, 2600);
   }, [porCobrar, cargado]);
 
+  /** El buscador de clientes (T-19, tecla C). */
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
+
   function elegir(id: string) {
     setVentaNueva(false);
     setElegida(id);
@@ -2355,6 +2374,10 @@ export function CajaScreen({
     }
     if (letra === "A" && puedeRegistrarEntrada) {
       antesDeSalir(() => abrirEntrada(null));
+      return true;
+    }
+    if (letra === "C") {
+      setBuscandoCliente(true);
       return true;
     }
     return false;
@@ -2649,6 +2672,7 @@ export function CajaScreen({
           onElegir={elegirOtra}
           onNuevaVentaDirecta={() => antesDeSalir(onNuevaVentaDirecta)}
           onEntrada={puedeRegistrarEntrada ? () => antesDeSalir(() => abrirEntrada(null)) : null}
+          onBuscarCliente={() => setBuscandoCliente(true)}
           ventaNueva={ventaNueva}
           puntoDeCobro={turno?.punto ?? null}
           recientes={recientes}
@@ -2776,6 +2800,16 @@ export function CajaScreen({
         onDescartar={() => {
           if (actual) descartar(actual.id);
           seguirSaliendo();
+        }}
+      />
+      <BuscadorDeClientes
+        abierto={buscandoCliente}
+        onCerrar={() => setBuscandoCliente(false)}
+        // La caja abre lo que está por cobrar; lo demás (una mesa comiendo) se ve, pero no se cobra todavía.
+        puedeAbrir={(c) => c.status === "POR_COBRAR"}
+        alAbrirCuenta={(c) => {
+          setBuscandoCliente(false);
+          elegirOtra(c.id);
         }}
       />
       {puedeRegistrarEntrada && (

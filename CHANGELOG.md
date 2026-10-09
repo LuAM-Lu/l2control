@@ -16,6 +16,24 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+El cliente por su cédula, en todo, y el buscador (T-19, M-34).
+
+### Cambiado
+- **La cédula, lo primero en la entrada al parque** (también desde la caja): tras la primera pulsera el cursor va a
+  ella; si la familia ya vino, aparece sola con sus niños y no hay que escribir nada más. Si es nueva, su teléfono y su
+  nombre. A un representante de antes que no la tenía se le pide una vez y queda anotada.
+- **La venta del mostrador se cobra a alguien.** Sin cliente, «Factura a» dice «Falta el cliente» y pide su cédula (o el
+  RIF de su empresa) y su nombre; ya no ofrece «Consumidor final». La cuenta que nació con su cliente (una mesa, de pie)
+  viene a su nombre.
+
+### Añadido
+- **Campos que ayudan a llenar la cédula y el teléfono:** la letra (V, E, J, G, P) aparte y los números con su teclado,
+  con sus puntos mientras se escriben; lo pegado se entiende («v-12.345.678», «+58 414 1234567»). Lo que falta se dice al
+  salir del campo, e Intro pasa al siguiente. En la entrada, al sentar, «Factura a», Pago Móvil, Eventos y el papel.
+- **Buscar cliente**, en la caja (tecla C), en Mesas y en la sala: por su nombre, su cédula o su teléfono, dice lo que
+  tiene abierto (y lo abre), sus niños en la sala con su pulsera y lo que debe de antes.
+- **El formulario de entradas en papel tiene la columna de la cédula.**
+
 El cobro en curso no se pierde (B3-13, M-34).
 
 ### Añadido

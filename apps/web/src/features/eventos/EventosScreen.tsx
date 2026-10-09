@@ -23,6 +23,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { buscarRepresentante } from "../park/parque.acciones";
+import { CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import { cancelarReserva, empezarEvento, reservarEvento } from "./eventos.acciones";
 import { AL_DIA, ESTADO, POR_COBRAR, fechaCorta, fechaLarga, horaDelDia, horario } from "./formato.ts";
 
@@ -593,17 +594,14 @@ function NuevaReserva({
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Input
+          <CampoTelefono
             surface="admin"
             label="Teléfono de la familia"
-            inputMode="tel"
-            autoComplete="off"
-            placeholder="0414-1234567"
-            value={telefono}
+            valor={telefono}
             error={errores.telefono || undefined}
             hint={encontrado ? "Ya vino: es de esta familia" : buscada ? "No la tenemos: escribe su nombre" : "Si ya vino, aparece sola"}
-            onChange={(e) => {
-              setTelefono(e.target.value);
+            onCambio={(v) => {
+              setTelefono(v);
               limpiar("telefono");
             }}
           />

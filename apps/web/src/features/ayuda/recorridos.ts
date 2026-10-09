@@ -20,7 +20,7 @@ export const RECORRIDOS: readonly RecorridoDePantalla[] = [
     pasos: [
       { objetivo: en("entrada-lector"), titulo: "Empieza por la pulsera", texto: "Pasa la pulsera de cada niño por el lector, sin tocar la pantalla. Si el lector no responde, usa la cámara." },
       { objetivo: en("entrada-sin-pulsera"), titulo: "Niños sin pulsera", texto: "Un niño que no tolera la pulsera entra desde aquí, por su nombre. El sistema le da su propio código." },
-      { objetivo: en("entrada-representante"), titulo: "Quién los trae", texto: "El teléfono del representante: si ya vino, aparece solo con sus niños y no hay que teclear nada más." },
+      { objetivo: en("entrada-representante"), titulo: "Quién los trae", texto: "La cédula del representante, lo primero: si ya vino, aparece solo con sus niños y no hay que teclear nada más. Si es nuevo, su teléfono y su nombre." },
       { objetivo: en("entrada-registrar"), titulo: "Cómo paga y registrar", texto: "Ahora (prepago) o todo al salir (cuenta abierta). Al registrar, el tiempo de cada niño empieza a correr." },
     ],
   },

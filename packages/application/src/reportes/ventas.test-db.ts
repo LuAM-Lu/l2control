@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { InformeDeVentasDto, TurnoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba, FACTURA_DE_PRUEBA } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -62,7 +62,7 @@ async function vender(ctx: Contexto, pago: "EFECTIVO_USD" | "EFECTIVO_VES", mesa
       ? { total: usd("131"), pagos: [{ method: "EFECTIVO_USD", amount: usd("500") }] }
       : { total: usd("116"), pagos: [{ method: "EFECTIVO_VES", amount: ves("100000") }], rateId: tasa };
   const clave = randomUUID();
-  const r = valor(await l.app.cuentas.cobrar(ctx, { idempotencyKey: clave, accountId: c.id, version: c.version, lineIds: c.lines.map((x) => x.id), destinoSobra: "VUELTO", ...cmd }, AHORA));
+  const r = valor(await l.app.cuentas.cobrar(ctx, { idempotencyKey: clave, accountId: c.id, version: c.version, lineIds: c.lines.map((x) => x.id), destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA, ...cmd }, AHORA));
   return { cuenta: r.cuenta, clave };
 }
 

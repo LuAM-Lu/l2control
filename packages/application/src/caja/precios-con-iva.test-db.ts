@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, type LocalDePrueba, FACTURA_DE_PRUEBA } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -54,7 +54,7 @@ const mostrador = (n: number) =>
 const cobrar = (c: FamilyAccountDto, total: string, entregado: string) =>
   l.app.cuentas.cobrar(
     ctxCajera,
-    { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineIds: c.lines.map((x) => x.id), total: usd(total), pagos: [{ method: "EFECTIVO_USD", amount: usd(entregado) }], destinoSobra: "VUELTO" },
+    { idempotencyKey: randomUUID(), accountId: c.id, version: c.version, lineIds: c.lines.map((x) => x.id), total: usd(total), pagos: [{ method: "EFECTIVO_USD", amount: usd(entregado) }], destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA },
     AHORA,
   );
 

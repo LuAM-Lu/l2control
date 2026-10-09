@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, sentarDePrueba, type LocalDePrueba, FACTURA_DE_PRUEBA } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -188,7 +188,7 @@ describe("la existencia sale al entrar en la cuenta", () => {
           lineIds: c.lines.map((l) => l.id),
           total: usd("232"), // $ 2,00 + IVA 16 %
           pagos: [{ method: "EFECTIVO_USD", amount: usd("232") }],
-          destinoSobra: "VUELTO",
+          destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA,
         },
         AHORA,
       ),

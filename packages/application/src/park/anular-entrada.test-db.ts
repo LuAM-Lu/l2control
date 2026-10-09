@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { EstanciaDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba, cedulaDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 /** Domingo 27 de septiembre de 2026, 10:00 am en Caracas. */
@@ -40,7 +40,7 @@ async function entra(code: string): Promise<EstanciaDto> {
         idempotencyKey: randomUUID(),
         paymentMode: "CUENTA_ABIERTA",
         entries: [{ wristbandCode: code, kid: {}, packageId: "pkg-60" }],
-        guardian: { fullName: "Familia Anular", contactReference: `0424-${String(5_000_000 + ++telefono)}` },
+        guardian: { fullName: "Familia Anular", contactReference: `0424-${String(5_000_000 + ++telefono)}` }, guardianDocument: cedulaDePrueba(`0424-${String(5_000_000 + ++telefono)}`),
       },
       AHORA,
     ),

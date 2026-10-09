@@ -61,18 +61,21 @@ export function FormulariosDePapel() {
           <thead>
             <tr>
               <th className={cn(ENCABEZADO, "w-7")}>N.º</th>
-              <th className={cn(ENCABEZADO, "w-[14%]")}>Hora de entrada</th>
+              <th className={cn(ENCABEZADO, "w-[12%]")}>Hora de entrada</th>
+              {/* T-19: la cédula, lo primero; con ella se reconoce a la familia al cargarla. */}
+              <th className={cn(ENCABEZADO, "w-[13%]")}>Cédula</th>
               <th className={ENCABEZADO}>Representante y teléfono</th>
               <th className={ENCABEZADO}>Pulsera(s) y niño(s)</th>
               <th className={cn(ENCABEZADO, "w-[11%]")}>Paquete</th>
               <th className={cn(ENCABEZADO, "w-[8%]")}>¿Pagó?</th>
-              <th className={cn(ENCABEZADO, "w-[14%]")}>Hora de salida</th>
+              <th className={cn(ENCABEZADO, "w-[12%]")}>Hora de salida</th>
             </tr>
           </thead>
           <tbody>
             {filas.map((n) => (
               <tr key={n}>
                 <td className={cn(CELDA, "text-center text-[10px]")}>{n}</td>
+                <td className={CELDA} />
                 <td className={CELDA} />
                 <td className={CELDA} />
                 <td className={CELDA} />

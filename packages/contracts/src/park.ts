@@ -11,6 +11,10 @@ import { IdSchema, MoneySchema, TimestampSchema, IdempotencyKeySchema, PaginaSch
 // La tasa tiene su propio módulo (§5.2): aquí solo se usa para pintar el monitor.
 import { ExchangeRateSchema } from "./tasas.ts";
 import { FamilyAccountSchema, PaymentModeSchema } from "./account.ts";
+import { DocumentoVeSchema } from "./pagos.ts";
+
+/** La cédula como la escriba una persona: «v 12.345.678». */
+const cedulaEscrita = z.preprocess((v) => (typeof v === "string" ? v.replace(/[\s.()]/g, "").toUpperCase() : v), DocumentoVeSchema);
 
 /* ------------------------------------------------------------- pulsera */
 
@@ -377,6 +381,11 @@ export const CheckInCommandSchema = z
       .max(10, "Demasiados niños en un mismo registro"),
     guardianId: IdSchema.optional(),
     guardian: GuardianSchema.optional(),
+    /**
+     * La cédula del representante (T-19, M-34): lo primero que se pide. Con ella se reconoce a la familia que vuelve; a
+     * un representante de antes que no la tenía, se le anota. El servidor la exige (salvo lo cargado desde papel).
+     */
+    guardianDocument: cedulaEscrita.optional(),
   })
   .refine((v) => Boolean(v.guardianId) !== Boolean(v.guardian), {
     message: "Indica un representante existente o crea uno nuevo, no ambos",
@@ -494,15 +503,21 @@ export const EstadoPulseraSchema = z.object({
 });
 export type EstadoPulseraDto = z.infer<typeof EstadoPulseraSchema>;
 
-export const BuscarRepresentanteSchema = z.strictObject({
-  contacto: z.string().trim().min(4).max(40),
-});
+export const BuscarRepresentanteSchema = z
+  .strictObject({
+    contacto: z.string().trim().min(4).max(40).optional(),
+    /** Por la cédula (T-19): lo primero que se pide en la entrada. */
+    documento: z.string().trim().min(5).max(20).optional(),
+  })
+  .refine((b) => Boolean(b.contacto) || Boolean(b.documento), { message: "Escribe la cédula o el teléfono" });
 
 /** La familia encontrada: su nombre y sus niños con nombre. Sin el contacto, que ya se tecleó. */
 export const RepresentanteEncontradoSchema = z.object({
   id: IdSchema,
   fullName: z.string().trim().min(2).max(80),
   kids: z.array(KidSchema.extend({ id: IdSchema, name: z.string().trim().min(2).max(60) })),
+  /** Si ya tiene la cédula anotada; si no, la entrada la pide para completarlo (T-19). */
+  tieneCedula: z.boolean().default(false),
 });
 export type RepresentanteEncontradoDto = z.infer<typeof RepresentanteEncontradoSchema>;
 

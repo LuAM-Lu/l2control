@@ -445,6 +445,14 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // Lo que la pantalla cobraba es lo que hay por cobrar, ni una línea más ni una menos.
           const porCobrar = chargeableLines(cuenta).map((l) => l.id);
           if (porCobrar.length !== cmd.lineIds.length || porCobrar.some((id) => !cmd.lineIds.includes(id))) return cuentaCambiada;
+          // T-19 (M-34): la venta del mostrador se cobra a alguien. Si la cuenta no nació con su cliente (de pie, una
+          // deuda), «Factura a» lleva su cédula y su nombre. Lo cargado desde papel, no: se anotó o no.
+          if (cuenta.kind === "MOSTRADOR" && !carga && cmd.cliente?.kind !== "IDENTIFICADO") {
+            const conCliente = await tx.accountCustomer.findFirst({ where: { accountId: cuenta.id }, select: { id: true } });
+            if (!conCliente) {
+              return invalido("Una venta del mostrador se cobra con la cédula y el nombre del cliente: escríbelos en «Factura a».", ["cliente"], "FALTA_EL_CLIENTE");
+            }
+          }
 
           // Sin turno abierto en el equipo no se cobra (F4-01).
           const turno = await turnoParaCobrar(tx, ctx);

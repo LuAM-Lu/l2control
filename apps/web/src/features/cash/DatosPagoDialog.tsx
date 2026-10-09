@@ -10,6 +10,7 @@ import {
   type TipoDeDatosDePago,
 } from "@l2/contracts";
 import { Button, Dialog, Input, cn } from "@l2/ui";
+import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import { BANCOS_VE, nombreBanco } from "./bancos.ts";
 
 /**
@@ -369,25 +370,8 @@ export function DatosPagoDialog({
             <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">
               Quien paga (opcional)
             </legend>
-            <Input
-              label="Teléfono"
-              surface="tablet"
-              inputMode="tel"
-              autoComplete="off"
-              placeholder="0414-1234567"
-              value={campos.payerPhone ?? ""}
-              onChange={(e) => poner("payerPhone", e.target.value)}
-              error={errores.payerPhone}
-            />
-            <Input
-              label="Cédula"
-              surface="tablet"
-              autoComplete="off"
-              placeholder="V-12345678"
-              value={campos.payerDocument ?? ""}
-              onChange={(e) => poner("payerDocument", e.target.value)}
-              error={errores.payerDocument}
-            />
+            <CampoTelefono valor={campos.payerPhone ?? ""} onCambio={(v) => poner("payerPhone", v)} error={errores.payerPhone} />
+            <CampoCedula valor={campos.payerDocument ?? ""} onCambio={(v) => poner("payerDocument", v)} error={errores.payerDocument} />
           </fieldset>
         )}
 

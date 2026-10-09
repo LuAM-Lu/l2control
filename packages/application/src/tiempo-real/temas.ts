@@ -135,6 +135,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "representante.corregir": PARQUE,
   // Una consulta no cambia nada: se audita (§7.6) y no avisa a nadie.
   "representante.consultar": NADA,
+  "cliente.buscar": NADA,
   "nino.corregir": ["sala"],
 
   "medio.crear": ["medios"],

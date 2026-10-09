@@ -20,6 +20,7 @@ import {
   TriangleAlert,
   Users,
   UserX,
+  UserSearch,
   X,
 } from "lucide-react";
 import type { CatalogoDto, DatosDelClienteDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
@@ -56,6 +57,7 @@ import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acci
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
+import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 
 /**
  * Estación del mesero: mesas, cuentas y pedidos — F6-01, F6-02, F6-05, DEC-22, B6-7.
@@ -126,6 +128,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const [cuentaSel, setCuentaSel] = useState<string | null>(null);
   /** Sentando a una familia más en una mesa ya ocupada, o abriendo otra cuenta de pie. */
   const [sentando, setSentando] = useState(false);
+  /** El buscador de clientes (T-19): ¿dónde está sentado, qué tiene abierto, qué debe? */
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [vista, setVista] = useState<"plano" | "pedido">("plano");
   /**
    * Plano espacial o «Atender» (V3).
@@ -486,6 +490,10 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         }
         cifras={
           <>
+            <Button variant="neutral" onClick={() => setBuscandoCliente(true)} className="self-center">
+              <UserSearch size={16} aria-hidden="true" />
+              Buscar cliente
+            </Button>
             <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${mesas.length}`} />
             <StatTile label="De pie" value={pie.cuentas.length} icon={<PersonStanding size={11} aria-hidden="true" />} />
             <StatTile
@@ -502,6 +510,18 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
             />
           </>
         }
+      />
+
+      <BuscadorDeClientes
+        abierto={buscandoCliente}
+        onCerrar={() => setBuscandoCliente(false)}
+        // El salón abre las cuentas de sus mesas y las de pie; la de una familia del parque es de la caja.
+        puedeAbrir={(c) => c.kind === "MESA" || (c.kind === "MOSTRADOR" && c.dePie === true)}
+        alAbrirCuenta={(c) => {
+          setBuscandoCliente(false);
+          setModo("PLANO");
+          elegir(c.tableId ?? PIE, c.id);
+        }}
       />
 
       {sinSalir.length > 0 && (

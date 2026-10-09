@@ -48,6 +48,15 @@ export const BuscarClienteSchema = z
 export type BuscarClienteQuery = z.infer<typeof BuscarClienteSchema>;
 
 /**
+ * El buscador de clientes (T-19, M-34): por su nombre, su cédula o su teléfono, como se escriba. Encuentra en el
+ * directorio; lo abierto (sus cuentas, sus niños en la sala) lo pone cada pantalla con lo que ya tiene.
+ */
+export const EncontrarClienteSchema = z.strictObject({
+  texto: z.string().trim().min(3, "Escribe al menos 3 letras o dígitos").max(80),
+});
+export type EncontrarClienteQuery = z.infer<typeof EncontrarClienteSchema>;
+
+/**
  * El cliente del directorio que se encontró. Un representante del parque puede no tener cédula todavía. `deudas`: lo
  * que dejó sin pagar (B3-11), para avisarlo al encontrarlo.
  */

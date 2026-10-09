@@ -755,7 +755,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   rutas viejas en su pestaña, las pestañas de Personas y equipos, Sistema y Tasas con la identidad confirmada, la carta
   dentro de Productos y supervisión con solo «Tasas»; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desbordes ni errores de consola.*
-- [ ] **T-19 · El cliente por su cédula, en todo, y el buscador** (M-34, S-15, S-22; cambia DEC-9 y DEC-23).
+- [x] **T-19 · El cliente por su cédula, en todo, y el buscador** (M-34, S-15, S-22; cambia DEC-9 y DEC-23).
+  *Hecho el 2026-10-09, en `feat/t-19`.*
   → **La cédula, lo primero en todo proceso:** sentar a alguien o abrir una cuenta de pie, el representante en la entrada
   al parque (también desde la caja y los invitados de un cumpleaños), la venta del mostrador y «Factura a». Al teclearla,
   el directorio trae al cliente con su nombre y su teléfono; si es nuevo, los pide. En el mostrador sustituye a
@@ -771,6 +772,17 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   carga desde papel admite «no se anotó», que supervisión ve al revisar.
   Se adapta a lo que hay (punto 10): `data-privado` en la cédula y el teléfono, nunca en registros, URL ni asientos; los
   formularios en papel ganan la columna de la cédula; el manual de cada pantalla que la pide.
+  *· Hecho: la entrada exige `guardianDocument` (`representanteDeLaEntrada` con `exigirCedula`, salvo papel): reconoce por la
+  cédula, completa al de antes con su asiento `cliente.completar` y rechaza `OTRA_CEDULA`, `CEDULA_DE_OTRO` y
+  `FALTA_LA_CEDULA`; `representantes.buscar` busca por `documento` y dice `tieneCedula`. La venta del mostrador sin
+  `account_customer` no se cobra sin «Factura a» identificado (`FALTA_EL_CLIENTE`), salvo papel; la cuenta con cliente
+  viene ya a su nombre. `clientes.encontrar`: hasta 12 del directorio por nombre, cédula (con o sin letra) o teléfono, con
+  sus deudas, para quien atiende cuentas o la sala; el asiento `cliente.buscar` lleva cuántos, no qué. En la web,
+  `CampoCedula` (letra aparte, solo números, puntos al escribir, lo pegado se entiende) y `CampoTelefono` (+58, el 0 que
+  falta, 0414-123.45.67), con el error al salir y Intro al campo siguiente, en la entrada, los datos del cliente, «Factura
+  a», Pago Móvil, Medios, Eventos y el papel; `BuscadorDeClientes` en la caja (tecla C), Mesas y la sala. Lo que no:
+  la reserva de un cumpleaños sigue por el teléfono (la cédula se pide a quien entra), y la revisión del papel no marca
+  la entrada sin cédula. 6 pruebas de la máscara, 4 de la entrada, 1 del mostrador y 2 del buscador; 750 contra la base.*
 
 ### Etapa 0 · Cimientos del servidor (local)
 
