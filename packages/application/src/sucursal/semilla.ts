@@ -462,16 +462,23 @@ export function casosSemilla(base: Base, deps: Dependencias): CasosSemilla {
               .map((r) => ({ nombre: r.nombre, tipo: r.tipo, valor: r.valor, alcance: r.alcance, medio: r.medio, desde: r.desde, hasta: r.hasta }))
           : null,
         impresoras: impresoras.ok
-          ? impresoras.valor.impresoras.map((i) => ({
-              nombre: i.nombre,
-              ip: i.ip,
-              puerto: i.puerto,
-              ancho: i.ancho,
-              recibos: i.recibos,
-              comandas: i.comandas,
-              enVlanDeHardware: i.enVlanDeHardware,
-              ipFija: i.ipFija,
-            }))
+          ? impresoras.valor.impresoras
+              // Solo las de red: una por USB es de un equipo con su agente, y la semilla no lleva equipos (B5-4). Se
+              // da de alta en el local que la recibe.
+              .filter((i) => i.conexion === "RED")
+              .map((i) => ({
+                nombre: i.nombre,
+                conexion: "RED" as const,
+                ip: i.ip,
+                puerto: i.puerto,
+                ancho: i.ancho,
+                pagina: i.pagina,
+                oscura: i.oscura,
+                recibos: i.recibos,
+                comandas: i.comandas,
+                enVlanDeHardware: i.enVlanDeHardware,
+                ipFija: i.ipFija,
+              }))
           : null,
       });
       return { ok: true, valor: semilla };

@@ -30,6 +30,8 @@ export interface CasosDelAgente {
   responder(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ estado: string }>>;
   vincular(entrada: unknown): Promise<Resultado<unknown>>;
   anotarActualizacion(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ anotada: true }>>;
+  /** Las impresoras que el agente ve en Windows (B5-4). */
+  anotarImpresorasDeWindows(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ anotadas: number }>>;
 }
 
 export interface AlAgente {
@@ -40,6 +42,8 @@ export interface DelAgente {
   reclamar: (responder: (t: TrabajoParaElAgenteDto | null) => void) => void;
   resultado: (r: unknown, responder: (r: Resultado<{ estado: string }>) => void) => void;
   actualizacion: (n: unknown, responder: (r: Resultado<{ anotada: true }>) => void) => void;
+  /** Las impresoras que ve en Windows, al conectarse y cada tanto (B5-4). */
+  "impresoras-windows": (l: unknown, responder: (r: Resultado<{ anotadas: number }>) => void) => void;
 }
 interface DatosDelAgente {
   agente: AgenteAbierto;
@@ -114,6 +118,21 @@ export function crearCanalDeImpresion(o: {
         .catch((e: unknown) => {
           alError(e, "nota de actualización del agente");
           responde({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "El servidor no pudo guardar la nota." });
+        });
+    });
+
+    socket.on("impresoras-windows", (l, responder) => {
+      const responde = typeof responder === "function" ? responder : () => undefined;
+      o.casos
+        .anotarImpresorasDeWindows(agente, l)
+        .then((r) => {
+          responde(r);
+          // Con sus impresoras contadas ya puede tomar lo de las suyas por USB: que mire la cola.
+          if (r.ok) socket.emit("hay-trabajo");
+        })
+        .catch((e: unknown) => {
+          alError(e, "impresoras de Windows del agente");
+          responde({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "El servidor no pudo guardar la lista." });
         });
     });
 

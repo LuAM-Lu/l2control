@@ -28,6 +28,7 @@ import { isSea } from "node:sea";
 import { anotarArranque, archivosEn, programarActualizacion } from "./actualizacion.ts";
 import { crearAgente } from "./agente.ts";
 import { imprimir } from "./imprimir.ts";
+import { imprimirEnWindows, listarImpresorasDeWindows } from "./windows.ts";
 import { crearRegistro, type Registro } from "./registro.ts";
 import { leerVinculacion } from "./vinculacion.ts";
 import {
@@ -156,7 +157,15 @@ function iniciar(archivo: string) {
     anotarArranque(archivos, VERSION, false);
     setTimeout(() => anotarArranque(archivos, VERSION, true), 15_000);
   }
-  const agente = crearAgente({ servidor: c.servidor, credencial: c.credencial, version: VERSION, imprimir: (d, b) => imprimir(d, b), registro: r });
+  const agente = crearAgente({
+    servidor: c.servidor,
+    credencial: c.credencial,
+    version: VERSION,
+    // Por la red, o por USB en este equipo (B5-4): solo en Windows.
+    imprimir: (d, b) => ("impresoraDeWindows" in d ? imprimirEnWindows(d.impresoraDeWindows, b) : imprimir(d, b)),
+    ...(esWindows ? { impresorasDeWindows: () => listarImpresorasDeWindows() } : {}),
+    registro: r,
+  });
   let pararActualizacion = () => {};
   const salir = () => {
     r.info("Agente detenido.");

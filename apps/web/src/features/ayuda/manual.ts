@@ -474,9 +474,10 @@ export const MANUAL: readonly EntradaDelManual[] = [
     titulo: "Impresoras",
     roles: ["ADMIN"],
     proposito:
-      "La impresora térmica del local, el agente de la laptop de caja que imprime en ella (por la red del local) y lo que se mandó a imprimir.",
+      "La impresora térmica del local, el agente de la laptop de caja que imprime en ella (por la red del local o por USB) y lo que se mandó a imprimir.",
     pasos: [
-      "Impresoras: la de recibos y cortes y la de comandas, con su IP fija; se prueba antes de encenderla.",
+      "Impresoras: la de recibos y cortes y la de comandas; se prueba antes de encenderla. Por red, con su IP fija; por USB, se elige el equipo al que está enchufada y su nombre en Windows (el agente de ese equipo la imprime).",
+      "En «Editar», «Imprimir la prueba de acentos» saca las tildes con cada página de códigos, numeradas: en «Página de las tildes» se elige la que se leyó bien. «Impresión oscura» pone todo en negrita y con doble pasada, para la que marca pálido.",
       "Agente: se descarga, se vincula con un código de un solo uso y queda instalado en la laptop de caja.",
       "El agente se actualiza solo: cuando el sistema trae otra versión, la baja, comprueba su huella y se cambia con la cola vacía. Aquí se ve su versión y la disponible; «Actualizar ahora» no espera a su próxima revisión.",
       "Cola e historial: lo que salió, lo que espera y lo que falló, con «Reintentar» o «Descartar».",
@@ -492,6 +493,22 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«La X no se instaló: su descarga no tenía la huella publicada»",
         solucion: "Lo descargado no era lo publicado (una descarga cortada o alterada): no se instaló nada. «Actualizar ahora» la descarga otra vez.",
         reconoce: ["huella publicada"],
+      },
+      {
+        sintoma: "Salen símbolos chinos o letras raras en lugar de las tildes",
+        solucion:
+          "En «Editar» de esa impresora, «Imprimir la prueba de acentos»: sale el mismo texto con cada página, numerado. Elige ahí la que se leyó bien. Si ninguna, la impresora puede tener su propia página fijada: se cambia con su utilidad, el día de la instalación.",
+      },
+      {
+        sintoma: "«El agente de … no imprime por USB: actualízalo»",
+        solucion: "Ese agente es de una versión que no imprime por USB: «Actualizar ahora» en la pestaña Agente. Mientras, lo de esa impresora espera en la cola.",
+        reconoce: ["no imprime por usb"],
+      },
+      {
+        sintoma: "«Windows no tiene una impresora …» o «… no ve … en Windows»",
+        solucion:
+          "El nombre no coincide con el de Windows, o la impresora no está enchufada o encendida. Mírala en Configuración de Windows → Impresoras de ese equipo (instalada para todo el equipo, no solo para un usuario) y elígela otra vez en «Editar».",
+        reconoce: ["windows no tiene una impresora", "en windows"],
       },
       {
         sintoma: "El agente dice «Versión: la dirá al conectarse» y no se actualiza",

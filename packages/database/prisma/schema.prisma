@@ -964,7 +964,7 @@ model Account {
   openedByName String   @map("opened_by_name")
   deviceId     String?  @map("device_id") @db.Uuid
 
-  branch            Branch             @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch            Branch                   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   versions          AccountVersion[]
   payments          Payment[]
   sales             Sale[]
@@ -1660,8 +1660,17 @@ model Printer {
   tenantId      String    @map("tenant_id") @db.Uuid
   branchId      String    @map("branch_id") @db.Uuid
   name          String
+  /// RED o USB (CHECK, B5-4). Por USB, ip vacía y puerto 0: la imprime su agente por su nombre en Windows.
+  connection    String    @default("RED")
   ip            String
   port          Int
+  /// Por USB: el agente del equipo al que está enchufada y su nombre en Windows (B5-4).
+  agentId       String?   @map("agent_id") @db.Uuid
+  windowsName   String?   @map("windows_name")
+  /// La página de códigos de las tildes: PC850, PC858, WPC1252 o PC437 (CHECK, B5-4).
+  codePage      String    @default("PC850") @map("code_page")
+  /// Todo en negrita y con doble pasada (B5-4).
+  dark          Boolean   @default(false)
   /// 58 u 80 mm (CHECK).
   width         Int       @db.SmallInt
   forReceipts   Boolean   @map("for_receipts")
@@ -1674,31 +1683,33 @@ model Printer {
   retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
   retiredByName String?   @map("retired_by_name")
 
-  branch Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  branch Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  agent  PrintAgent? @relation(fields: [tenantId, agentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   jobs   PrintJob[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, id])
   @@index([tenantId, branchId])
+  @@index([tenantId, agentId])
   @@map("printer")
 }
 
 /// El agente de impresión de un equipo del local (ADR-026). Nace con un código de un solo uso (solo su
 /// huella y su plazo) y, al vincularse, guarda la huella de su credencial. Se retira una vez.
 model PrintAgent {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  tenantId      String    @map("tenant_id") @db.Uuid
-  branchId      String    @map("branch_id") @db.Uuid
-  name          String
-  codeHash      String?   @map("code_hash")
-  codeExpiresAt DateTime? @map("code_expires_at") @db.Timestamptz(3)
-  tokenHash     String?   @map("token_hash")
-  pairedAt      DateTime? @map("paired_at") @db.Timestamptz(3)
-  lastSeenAt    DateTime? @map("last_seen_at") @db.Timestamptz(3)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  createdByName String    @map("created_by_name")
-  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
-  retiredByName String?   @map("retired_by_name")
+  id                String    @id @default(uuid(7)) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  branchId          String    @map("branch_id") @db.Uuid
+  name              String
+  codeHash          String?   @map("code_hash")
+  codeExpiresAt     DateTime? @map("code_expires_at") @db.Timestamptz(3)
+  tokenHash         String?   @map("token_hash")
+  pairedAt          DateTime? @map("paired_at") @db.Timestamptz(3)
+  lastSeenAt        DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdByName     String    @map("created_by_name")
+  retiredAt         DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredByName     String?   @map("retired_by_name")
   /// La versión que dijo el agente al conectarse (T-8c, ADR-028 punto 5).
   agentVersion      String?   @map("agent_version")
   /// «Actualizar ahora» pedido por administración y aún sin resolver.
@@ -1708,9 +1719,13 @@ model PrintAgent {
   updateVersion     String?   @map("update_version")
   updateDetail      String?   @map("update_detail")
   updateAt          DateTime? @map("update_at") @db.Timestamptz(3)
+  /// Las impresoras que ve en Windows (lista de nombres, B5-4); NULL si nunca las contó: no imprime por USB.
+  windowsPrinters   Json?     @map("windows_printers")
+  windowsPrintersAt DateTime? @map("windows_printers_at") @db.Timestamptz(3)
 
-  branch Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  jobs   PrintJob[]
+  branch   Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  jobs     PrintJob[]
+  printers Printer[]
 
   @@unique([tenantId, id])
   @@index([tenantId, branchId])
@@ -2064,10 +2079,10 @@ model BackupCopy {
   downloadedBy   String?   @map("downloaded_by") @db.Uuid
   removedAt      DateTime? @map("removed_at") @db.Timestamptz(3)
 
-  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  pc       BackupReceiver?   @relation(fields: [tenantId, downloadedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  fijados  BackupPin[]
-  ensayos  BackupRehearsal[]
+  tenant  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pc      BackupReceiver?   @relation(fields: [tenantId, downloadedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  fijados BackupPin[]
+  ensayos BackupRehearsal[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, file])
@@ -2120,22 +2135,22 @@ model BackupRehearsal {
 /// credencial solo se guarda la huella: la credencial se enseña una vez y la escribe quien la prepara en
 /// esa PC. Una en uso a la vez; preparar otra retira la anterior. Nada se borra.
 model BackupReceiver {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  tenantId      String    @map("tenant_id") @db.Uuid
-  name          String
-  secretSha256  String    @map("secret_sha256")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  createdByName String    @map("created_by_name")
-  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
-  revokedByName String?   @map("revoked_by_name")
+  id             String    @id @default(uuid(7)) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  name           String
+  secretSha256   String    @map("secret_sha256")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  createdByName  String    @map("created_by_name")
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedByName  String?   @map("revoked_by_name")
   /// La última vez que preguntó qué había, y desde dónde.
-  lastSeenAt    DateTime? @map("last_seen_at") @db.Timestamptz(3)
-  lastSeenFrom  String?   @map("last_seen_from")
+  lastSeenAt     DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  lastSeenFrom   String?   @map("last_seen_from")
   /// Lo que la PC dice de sí misma al conectarse (B7-6): dónde guarda, de qué tipo es esa carpeta (EN_LA_PC,
   /// EXTERNO o NUBE) y la versión de su programa.
   folder         String?
-  folderKind     String?  @map("folder_kind")
-  programVersion Int?     @map("program_version")
+  folderKind     String?   @map("folder_kind")
+  programVersion Int?      @map("program_version")
 
   tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   bajados BackupCopy[]

@@ -14,6 +14,21 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+La impresora por red o por USB, con sus acentos y su tinta (B5-4, M-34).
+
+### Añadido
+- **Impresora por USB:** en Ajustes → Impresoras, «Conectada por» red (como siempre) o USB en un equipo: se elige el
+  equipo y su impresora de la lista que da su agente. El agente de esa laptop la imprime en modo directo.
+- **La página de las tildes**, por impresora, con «Imprimir la prueba de acentos»: sale el mismo texto con cada página,
+  numerado, para elegir la que se lee bien. Lo que una página no tiene sale sin tilde, nunca como un signo raro.
+- **Impresión oscura**, por impresora: todo en negrita y con doble pasada, para la que marca pálido.
+
+### Cambiado
+- Un agente de antes no recibe trabajos por USB: la tarjeta de la impresora avisa que se actualice y lo suyo espera en
+  la cola.
+
 ## [0.91.0] — 2026-10-08 · Hacia la puesta en marcha
 
 El reloj de la sala no se queda pegado (B4-13, M-34).

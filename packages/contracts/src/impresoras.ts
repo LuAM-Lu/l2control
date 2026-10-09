@@ -34,14 +34,38 @@ export const IpLocalSchema = z
   )
   .refine((ip) => ip.split(".").every((o) => Number(o) <= 255), "Cada número va de 0 a 255");
 
+/**
+ * Cómo se llega a la impresora (B5-4, M-34): por la **red** del local (IP y puerto, ADR-015) o por **USB** en un equipo
+ * con su agente, que imprime en la impresora de Windows por su nombre.
+ */
+export const ConexionImpresoraSchema = z.enum(["RED", "USB"], { error: "Elige cómo está conectada: red o USB" });
+export type ConexionImpresora = z.infer<typeof ConexionImpresoraSchema>;
+
+/** La página de códigos con que se escriben las tildes (B5-4); la que entiende cada modelo se prueba con «Probar acentos». */
+export const PaginaDeCodigosSchema = z.enum(["PC850", "PC858", "WPC1252", "PC437"], { error: "Elige la página de códigos" });
+export type PaginaDeCodigosDto = z.infer<typeof PaginaDeCodigosSchema>;
+
+/** El nombre de una impresora en Windows, como lo dice el agente. */
+export const NombreEnWindowsSchema = z.string().trim().min(1, "Elige la impresora de Windows").max(120, "Nombre demasiado largo");
+
 /** Lo que se configura de una impresora. */
 export const DatosImpresoraSchema = z
   .object({
     nombre: z.string().trim().min(2, "Ponle un nombre que se reconozca").max(40, "Nombre demasiado largo"),
-    ip: IpLocalSchema,
+    /** Red, de fábrica (lo de antes de B5-4). */
+    conexion: ConexionImpresoraSchema.default("RED"),
+    /** Por red: su IP y su puerto. */
+    ip: IpLocalSchema.optional(),
     /** 9100 es el puerto de impresión directa (ADR-015). Se deja cambiar. */
-    puerto: z.number().int("Un puerto es un número entero").min(1, "Puerto de 1 a 65535").max(65_535, "Puerto de 1 a 65535"),
+    puerto: z.number().int("Un puerto es un número entero").min(1, "Puerto de 1 a 65535").max(65_535, "Puerto de 1 a 65535").optional(),
+    /** Por USB: el agente del equipo al que está enchufada y su nombre en Windows. */
+    agenteId: z.uuid("Elige el equipo al que está conectada").optional(),
+    nombreEnWindows: NombreEnWindowsSchema.optional(),
     ancho: AnchoPapelSchema,
+    /** La página de las tildes (B5-4). */
+    pagina: PaginaDeCodigosSchema.default("PC850"),
+    /** Todo en negrita y con doble pasada, para la que marca pálido (B5-4). */
+    oscura: z.boolean().default(false),
     /** Recibos y tickets de corte. */
     recibos: z.boolean(),
     /** Comandas del restaurante (V-4). */
@@ -50,10 +74,19 @@ export const DatosImpresoraSchema = z
      * Que esté en la VLAN de hardware con IP fija. No es decorativo: sin las dos cosas, cualquiera en la
      * red del local imprime en ella, y la IP se pierde al reiniciar el router (ADR-015).
      */
-    enVlanDeHardware: z.boolean(),
-    ipFija: z.boolean(),
+    enVlanDeHardware: z.boolean().default(false),
+    ipFija: z.boolean().default(false),
   })
-  .refine((d) => d.recibos || d.comandas, { message: "Elige para qué sirve: recibos, comandas o las dos", path: ["recibos"] });
+  .refine((d) => d.recibos || d.comandas, { message: "Elige para qué sirve: recibos, comandas o las dos", path: ["recibos"] })
+  .superRefine((d, c) => {
+    if (d.conexion === "RED") {
+      if (!d.ip) c.addIssue({ code: "custom", message: "Escribe su IP", path: ["ip"] });
+      if (d.puerto === undefined) c.addIssue({ code: "custom", message: "Escribe su puerto (9100 casi siempre)", path: ["puerto"] });
+    } else {
+      if (!d.agenteId) c.addIssue({ code: "custom", message: "Elige el equipo al que está conectada", path: ["agenteId"] });
+      if (!d.nombreEnWindows) c.addIssue({ code: "custom", message: "Elige la impresora de Windows", path: ["nombreEnWindows"] });
+    }
+  });
 export type DatosImpresoraDto = z.infer<typeof DatosImpresoraSchema>;
 
 export const EstadoTrabajoSchema = z.enum(["PENDIENTE", "ENVIADO", "CONFIRMADO", "FALLIDO", "DESCARTADO"]);
@@ -66,9 +99,16 @@ export type TipoTrabajo = z.infer<typeof TipoTrabajoSchema>;
 export const ImpresoraSchema = z.object({
   id: IdSchema,
   nombre: z.string(),
+  conexion: ConexionImpresoraSchema.default("RED"),
+  /** Por red; por USB, vacíos. */
   ip: z.string(),
   puerto: z.number().int(),
+  /** Por USB: el agente que la imprime y su nombre en Windows. */
+  agenteId: IdSchema.nullable().default(null),
+  nombreEnWindows: z.string().nullable().default(null),
   ancho: AnchoPapelSchema,
+  pagina: PaginaDeCodigosSchema.default("PC850"),
+  oscura: z.boolean().default(false),
   recibos: z.boolean(),
   comandas: z.boolean(),
   enVlanDeHardware: z.boolean(),
@@ -104,6 +144,11 @@ export const AgenteSchema = z.object({
     .object({ resultado: ResultadoDeActualizacionSchema, version: z.string(), detalle: z.string().nullable(), en: TimestampSchema })
     .nullable()
     .default(null),
+  /**
+   * Las impresoras que ve en Windows, como las contó al conectarse (B5-4); `null` si nunca las contó: es de una versión
+   * que no imprime por USB.
+   */
+  impresorasDeWindows: z.array(z.string()).nullable().default(null),
 });
 export type AgenteDto = z.infer<typeof AgenteSchema>;
 
@@ -173,7 +218,8 @@ export const TrabajosDeImpresionSchema = z.object({ trabajos: z.array(TrabajoDeI
 export type TrabajosDeImpresionDto = z.infer<typeof TrabajosDeImpresionSchema>;
 
 export const ImprimirCorteCommandSchema = z.strictObject({ corteId: z.uuid("Corte desconocido") });
-export const ImprimirPruebaCommandSchema = z.strictObject({ impresoraId: z.uuid("Impresora desconocida") });
+/** La prueba de una impresora; `acentos`, la de las páginas de códigos para elegir la suya (B5-4). */
+export const ImprimirPruebaCommandSchema = z.strictObject({ impresoraId: z.uuid("Impresora desconocida"), acentos: z.boolean().optional() });
 export const ReintentarTrabajoCommandSchema = z.strictObject({ trabajoId: z.uuid("Trabajo desconocido") });
 
 /**
@@ -239,14 +285,28 @@ export const VincularAgenteSchema = z.strictObject({
 export const AgenteVinculadoSchema = z.object({ agenteId: IdSchema, nombre: z.string(), credencial: z.string().min(40) });
 export type AgenteVinculadoDto = z.infer<typeof AgenteVinculadoSchema>;
 
-/** Un trabajo como lo recibe el agente: a qué IP y puerto mandar qué bytes (base64). */
-export const TrabajoParaElAgenteSchema = z.object({
-  id: IdSchema,
-  ip: IpLocalSchema,
-  puerto: z.number().int().min(1).max(65_535),
-  bytes: z.string().min(4),
-});
+/**
+ * Un trabajo como lo recibe el agente: qué bytes (base64) mandar a qué IP y puerto o, por USB (B5-4), a qué impresora de
+ * Windows. Un agente de antes solo entiende el de red, y por eso nunca recibe uno por USB (no contó sus impresoras).
+ */
+export const TrabajoParaElAgenteSchema = z
+  .object({
+    id: IdSchema,
+    ip: IpLocalSchema.optional(),
+    puerto: z.number().int().min(1).max(65_535).optional(),
+    impresoraDeWindows: NombreEnWindowsSchema.optional(),
+    bytes: z.string().min(4),
+  })
+  .refine((t) => (t.ip !== undefined && t.puerto !== undefined) !== (t.impresoraDeWindows !== undefined), {
+    message: "Un trabajo va por red o por USB",
+  });
 export type TrabajoParaElAgenteDto = z.infer<typeof TrabajoParaElAgenteSchema>;
+
+/** Las impresoras que el agente ve en Windows (B5-4): las cuenta al conectarse y cada tanto. */
+export const ImpresorasDeWindowsSchema = z.strictObject({
+  impresoras: z.array(NombreEnWindowsSchema).max(50),
+});
+export type ImpresorasDeWindowsDto = z.infer<typeof ImpresorasDeWindowsSchema>;
 
 /** Cómo le fue: bien, o mal con su motivo («Sin papel», «No responde en 192.168.1.50:9100»). */
 export const ResultadoDelAgenteSchema = z.strictObject({

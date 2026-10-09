@@ -170,7 +170,7 @@ export function documentoDeCorte(c: CorteDto, local: AjustesSucursalDto): Docume
 
 /** La prueba de una impresora: su nombre y dirección, las letras del español y una regla del ancho. */
 export function documentoDePrueba(
-  impresora: Readonly<{ nombre: string; ip: string; puerto: number; ancho: Ancho }>,
+  impresora: Readonly<{ nombre: string; direccion: string; ancho: Ancho }>,
   local: AjustesSucursalDto,
   ahora: number,
   quien: string,
@@ -184,7 +184,7 @@ export function documentoDePrueba(
       { tipo: "TEXTO", texto: fechaYHora(ahora, local.formatoHora, local.zonaHoraria), alinear: "CENTRO" },
       { tipo: "LINEA" },
       { tipo: "PAR", izq: "Impresora", der: impresora.nombre },
-      { tipo: "PAR", izq: "Dirección", der: `${impresora.ip}:${impresora.puerto}` },
+      { tipo: "PAR", izq: "Dirección", der: impresora.direccion },
       { tipo: "PAR", izq: "Papel", der: `${impresora.ancho} mm · ${cols} columnas` },
       { tipo: "PAR", izq: "Pidió", der: quien },
       { tipo: "LINEA" },

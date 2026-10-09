@@ -85,6 +85,7 @@ async function arrancar() {
         return r.ok && e.L2_URL_PUBLICA ? { ...r, valor: { ...r.valor, web: e.L2_URL_PUBLICA.replace(/\/$/, "") } } : r;
       },
       anotarActualizacion: (a, n) => app.impresion.anotarActualizacion(a, n, Date.now()),
+      anotarImpresorasDeWindows: (a, l) => app.impresion.anotarImpresorasDeWindows(a, l, Date.now()),
     },
     alError: (err, contexto) => log.error({ err, contexto }, "error con un agente de impresión"),
   });

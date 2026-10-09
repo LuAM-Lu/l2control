@@ -19,6 +19,7 @@ import {
   ImpresoraCommandSchema,
   ImpresorasAplicadasSchema,
   ImpresorasDelLocalSchema,
+  ImpresorasDeWindowsSchema,
   ImprimirCorteCommandSchema,
   ImprimirPruebaCommandSchema,
   NotaDeActualizacionSchema,
@@ -50,6 +51,9 @@ import {
   comoTexto,
   descarteProblem,
   escpos,
+  NUMERO_DE_PAGINA,
+  PAGINAS,
+  pruebaDeAcentos,
   reclamado,
   reintentado,
   reintentoProblem,
@@ -59,6 +63,7 @@ import {
   type Ancho,
   type Documento,
   type EstadoTrabajo,
+  type PaginaDeCodigos,
 } from "@l2/domain-printing";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Action } from "@l2/domain-identity";
@@ -109,6 +114,11 @@ export interface CasosImpresion {
   anotarActualizacion(agente: AgenteAbierto, entrada: unknown, ahora?: number): Promise<Resultado<{ anotada: true }>>;
   /** El siguiente trabajo de su sucursal que le toca, ya ENVIADO a su nombre; `null` si no hay. */
   reclamar(agente: AgenteAbierto, ahora?: number): Promise<TrabajoParaElAgenteDto | null>;
+  /**
+   * Las impresoras que el agente ve en Windows (`ImpresorasDeWindowsSchema`, B5-4): para elegir una por USB en el panel.
+   * Haberlas contado es lo que le deja reclamar los trabajos de las suyas por USB.
+   */
+  anotarImpresorasDeWindows(agente: AgenteAbierto, entrada: unknown, ahora?: number): Promise<Resultado<{ anotadas: number }>>;
   /** Cómo le fue con un trabajo que reclamó (`ResultadoDelAgenteSchema`). */
   responder(agente: AgenteAbierto, entrada: unknown, ahora?: number): Promise<Resultado<{ estado: EstadoTrabajo }>>;
   /** Lo enviado que no respondió en 30 s vuelve a la cola (o falla). Devuelve cuántos. */
@@ -180,6 +190,8 @@ export type Encargo = Readonly<{
   /** El pedido del mesero que imprime una COMANDA (B6-2) o corrige una ANULACION (B6-6): las dos llevan el suyo. */
   orderId?: string;
   documento: Documento;
+  /** Los bytes, si no salen del documento (la prueba de acentos, B5-4): el documento queda como vista previa. */
+  bytes?: Uint8Array;
 }> &
   (Readonly<{ para: "recibos" | "comandas" }> | Readonly<{ impresoraId: string }>);
 
@@ -211,7 +223,8 @@ export async function encolarEn(tx: Transaccion, ctx: Contexto, e: Encargo, ahor
       cutId: e.cutId ?? null,
       orderId: e.orderId ?? null,
       content: e.documento as object,
-      payload: Buffer.from(escpos(e.documento, impresora.width as Ancho)),
+      // Con la página de códigos y la tinta de su impresora (B5-4).
+      payload: Buffer.from(e.bytes ?? escpos(e.documento, impresora.width as Ancho, { pagina: impresora.codePage as PaginaDeCodigos, oscura: impresora.dark })),
       status: "PENDIENTE",
       attempts: 0,
       nextAttemptAt: new Date(ahora),
@@ -245,9 +258,14 @@ async function delLocal(tx: Transaccion, branchId: string, ahora: number): Promi
       return {
         id: i.id,
         nombre: i.name,
+        conexion: i.connection,
         ip: i.ip,
         puerto: i.port,
+        agenteId: i.agentId,
+        nombreEnWindows: i.windowsName,
         ancho: i.width,
+        pagina: i.codePage,
+        oscura: i.dark,
         recibos: i.forReceipts,
         comandas: i.forOrders,
         enVlanDeHardware: i.inHardwareLan,
@@ -272,6 +290,7 @@ async function delLocal(tx: Transaccion, branchId: string, ahora: number): Promi
           a.updateResult && a.updateVersion && a.updateAt
             ? { resultado: a.updateResult, version: a.updateVersion, detalle: a.updateDetail, en: a.updateAt.toISOString() }
             : null,
+        impresorasDeWindows: Array.isArray(a.windowsPrinters) ? (a.windowsPrinters as string[]) : null,
       })),
   });
 }
@@ -303,15 +322,27 @@ export function casosImpresion(base: Base): CasosImpresion {
             case "CREAR":
             case "EDITAR": {
               const d = cmd.datos;
+              const usb = d.conexion === "USB";
+              // Por USB, la imprime el agente del equipo al que está enchufada: tiene que ser de esta sucursal y estar
+              // vinculado (B5-4). La IP queda vacía y el puerto en 0; las garantías de la red no aplican.
+              if (usb) {
+                const agente = await tx.printAgent.findFirst({ where: { id: d.agenteId!, branchId: ctx.branchId, retiredAt: null } });
+                if (!agente || agente.pairedAt === null) return invalido("Ese equipo no tiene un agente vinculado en esta sucursal.", ["datos", "agenteId"], "Equipo sin agente");
+              }
               const datos = {
                 name: d.nombre,
-                ip: d.ip,
-                port: d.puerto,
+                connection: d.conexion,
+                ip: usb ? "" : d.ip!,
+                port: usb ? 0 : d.puerto!,
+                agentId: usb ? d.agenteId! : null,
+                windowsName: usb ? d.nombreEnWindows! : null,
+                codePage: d.pagina,
+                dark: d.oscura,
                 width: d.ancho,
                 forReceipts: d.recibos,
                 forOrders: d.comandas,
-                inHardwareLan: d.enVlanDeHardware,
-                fixedIp: d.ipFija,
+                inHardwareLan: usb ? false : d.enVlanDeHardware,
+                fixedIp: usb ? false : d.ipFija,
               };
               if (cmd.kind === "CREAR") {
                 // Nace apagada: se enciende cuando se comprueba que imprime (y con sus garantías).
@@ -320,7 +351,7 @@ export function casosImpresion(base: Base): CasosImpresion {
               } else {
                 const antes = await buscar(cmd.impresoraId);
                 if (!antes) return noDisponible("Esa impresora no existe en esta sucursal.");
-                if (antes.active && !(d.enVlanDeHardware && d.ipFija)) {
+                if (antes.active && !usb && !(d.enVlanDeHardware && d.ipFija)) {
                   return invalido("Una impresora encendida va en la VLAN de hardware y con IP fija (ADR-015): apágala antes.", ["datos", "ipFija"], "Sin garantías");
                 }
                 await tx.printer.update({ where: { id: antes.id }, data: datos });
@@ -328,7 +359,18 @@ export function casosImpresion(base: Base): CasosImpresion {
                   action: "impresora.editar",
                   entityType: "printer",
                   entityId: antes.id,
-                  before: { name: antes.name, ip: antes.ip, port: antes.port, width: antes.width, forReceipts: antes.forReceipts, forOrders: antes.forOrders },
+                  before: {
+                    name: antes.name,
+                    connection: antes.connection,
+                    ip: antes.ip,
+                    port: antes.port,
+                    windowsName: antes.windowsName,
+                    codePage: antes.codePage,
+                    dark: antes.dark,
+                    width: antes.width,
+                    forReceipts: antes.forReceipts,
+                    forOrders: antes.forOrders,
+                  },
                   after: datos,
                 });
               }
@@ -337,7 +379,7 @@ export function casosImpresion(base: Base): CasosImpresion {
             case "ACTIVAR": {
               const i = await buscar(cmd.impresoraId);
               if (!i) return noDisponible("Esa impresora no existe en esta sucursal.");
-              if (cmd.activa && !(i.inHardwareLan && i.fixedIp)) {
+              if (cmd.activa && i.connection === "RED" && !(i.inHardwareLan && i.fixedIp)) {
                 return invalido("Antes de encenderla, confirma que está en la VLAN de hardware y con IP fija (ADR-015).", ["impresoraId"], "Sin garantías");
               }
               if (cmd.activa) {
@@ -433,7 +475,26 @@ export function casosImpresion(base: Base): CasosImpresion {
         const i = await tx.printer.findFirst({ where: { id: v.data.impresoraId, branchId: ctx.branchId, retiredAt: null } });
         if (!i) return noDisponible("Esa impresora no existe en esta sucursal.");
         const quien = await nombreDe(tx, ctx);
-        const doc = documentoDePrueba({ nombre: i.name, ip: i.ip, puerto: i.port, ancho: i.width as Ancho }, await ajustesDe(tx, ctx.branchId), ahora, quien.nombre);
+        const direccion = i.connection === "USB" ? `USB · ${i.windowsName ?? ""}` : `${i.ip}:${i.port}`;
+        if (v.data.acentos) {
+          // La prueba de acentos (B5-4): el mismo texto en cada página de códigos, para elegir la que se lee bien. La
+          // vista previa lo dice en palabras; los bytes, con su página cada uno.
+          const doc: Documento = {
+            renglones: [
+              { tipo: "TEXTO", texto: "PRUEBA DE ACENTOS", alinear: "CENTRO", negrita: true },
+              { tipo: "PAR", izq: "Impresora", der: `${i.name} · ${direccion}` },
+              { tipo: "LINEA" },
+              ...PAGINAS.map((p, n) => ({ tipo: "TEXTO" as const, texto: `${n + 1} - página ${p} (ESC t ${NUMERO_DE_PAGINA[p]})` })),
+            ],
+          };
+          return encolarEn(
+            tx,
+            ctx,
+            { tipo: "PRUEBA", titulo: `Prueba de acentos · ${i.name}`, documento: doc, bytes: pruebaDeAcentos(i.width as Ancho), impresoraId: i.id },
+            ahora,
+          );
+        }
+        const doc = documentoDePrueba({ nombre: i.name, direccion, ancho: i.width as Ancho }, await ajustesDe(tx, ctx.branchId), ahora, quien.nombre);
         return encolarEn(tx, ctx, { tipo: "PRUEBA", titulo: `Prueba · ${i.name}`, documento: doc, impresoraId: i.id }, ahora);
       });
       return "ok" in r ? r : { ok: true, valor: r };
@@ -634,13 +695,17 @@ export function casosImpresion(base: Base): CasosImpresion {
 
     async reclamar(agente, ahora = Date.now()) {
       return base.conTenant(agente.tenantId, async (tx) => {
-        // Dos agentes (o dos vueltas) a la vez: cada trabajo lo toma uno.
+        // Dos agentes (o dos vueltas) a la vez: cada trabajo lo toma uno. Lo de una impresora por USB (B5-4) solo lo
+        // toma el agente de su equipo, y solo si contó sus impresoras de Windows: uno de antes no sabría imprimirlo.
         const [libre] = await tx.$queryRaw<{ id: string }[]>`
-          SELECT id FROM print_job
-          WHERE branch_id = ${agente.branchId}::uuid AND status = 'PENDIENTE' AND next_attempt_at <= ${new Date(ahora)}
-          ORDER BY created_at, id
+          SELECT j.id FROM print_job j JOIN printer p ON p.id = j.printer_id
+          WHERE j.branch_id = ${agente.branchId}::uuid AND j.status = 'PENDIENTE' AND j.next_attempt_at <= ${new Date(ahora)}
+            AND (p.connection = 'RED'
+              OR (p.agent_id = ${agente.agenteId}::uuid
+                AND EXISTS (SELECT 1 FROM print_agent a WHERE a.id = ${agente.agenteId}::uuid AND a.windows_printers IS NOT NULL)))
+          ORDER BY j.created_at, j.id
           LIMIT 1
-          FOR UPDATE SKIP LOCKED`;
+          FOR UPDATE OF j SKIP LOCKED`;
         if (!libre) return null;
         const t = await tx.printJob.findUniqueOrThrow({ where: { id: libre.id }, include: { printer: true } });
         const r = reclamado({ estado: "PENDIENTE" as EstadoTrabajo, intentos: t.attempts, proximoIntento: t.nextAttemptAt.getTime(), enviadoEn: null }, ahora);
@@ -653,7 +718,24 @@ export function casosImpresion(base: Base): CasosImpresion {
           return null;
         }
         await tx.printJob.update({ where: { id: t.id }, data: { status: "ENVIADO", attempts: r.intentos, sentAt: new Date(ahora), agentId: agente.agenteId } });
-        return TrabajoParaElAgenteSchema.parse({ id: t.id, ip: t.printer.ip, puerto: t.printer.port, bytes: Buffer.from(t.payload).toString("base64") });
+        const bytes = Buffer.from(t.payload).toString("base64");
+        return TrabajoParaElAgenteSchema.parse(
+          t.printer.connection === "USB" ? { id: t.id, impresoraDeWindows: t.printer.windowsName, bytes } : { id: t.id, ip: t.printer.ip, puerto: t.printer.port, bytes },
+        );
+      });
+    },
+
+    async anotarImpresorasDeWindows(agente, entrada, ahora = Date.now()) {
+      const v = ImpresorasDeWindowsSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Lista de impresoras mal formada.", problemas: problemasDe(v.error) };
+      // Sin repetidas y en orden: así se eligen en el panel.
+      const impresoras = [...new Set(v.data.impresoras)].sort((a, b) => a.localeCompare(b, "es"));
+      return base.conTenant(agente.tenantId, async (tx): Promise<Resultado<{ anotadas: number }>> => {
+        const a = await tx.printAgent.findFirst({ where: { id: agente.agenteId, branchId: agente.branchId, retiredAt: null } });
+        if (!a) return noDisponible("Ese agente ya no está vinculado.");
+        // Lo que ve un equipo no es un cambio de nadie: no va a la auditoría (como su último latido).
+        await tx.printAgent.update({ where: { id: a.id }, data: { windowsPrinters: impresoras, windowsPrintersAt: new Date(ahora) } });
+        return { ok: true, valor: { anotadas: impresoras.length } };
       });
     },
 
