@@ -36,8 +36,8 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 **Versión 0.104.0 · 104 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
-cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
-1.0.0), en curso.** M-28 y M-29
+cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
+v0.104.0): ya no queda código antes de B8-3.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -48,8 +48,9 @@ actualiza solo (ensayado en una PC con Windows). **B8-2, lo escrito, hecho:** la
 runbooks del técnico (la capacitación cierra B8-2 en B8-3). **M-32 entregado:** B3-10, el buscador de la carta de la
 caja, lo que no se vende al final y el pie de la cuenta compacto con «Cobrar $ …». **M-33 entregado:** el hueco de
 quien se va sin pagar: la mesa pide nombre, cédula y teléfono (B6-9), lo que no se cobra queda como deuda del cliente
-(B3-11) y Reportes → Deudas cuenta el flujo entero: mesero, supervisor y desenlace (B11-4). **Para programar antes de B8-3:** M-34, lo visto en la segunda visita (§2, y §3 punto 13; D-REL decidida: todo
-antes de la 1.0.0). **En el local:** B7-3 (con T-8c en la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es
+(B3-11) y Reportes → Deudas cuenta el flujo entero: mesero, supervisor y desenlace (B11-4). **M-34 entregado entero (2026-10-09):** lo visto en la segunda visita (§2, y §3 punto 13; D-REL: todo antes de la
+1.0.0), del recibo y la impresora a la sala en una pantalla, las devoluciones, la comanda de barra, servido por plato, el
+aviso de pulseras por vencer y las notas rápidas. **En el local:** B7-3 (con T-8c en la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es
 la 1.0.0.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
