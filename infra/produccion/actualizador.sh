@@ -181,6 +181,7 @@ resultado_de() { # versión anterior líneas-que-había
     "VUELTA ATRAS") echo "VUELTA_ATRAS	No quedó sana y volvió sola a la $2. No se perdió nada." ;;
     "VUELTA ATRAS SIN SALUD") echo "FALLIDA	No quedó sana y la $2 tampoco responde: hay que revisar el servidor." ;;
     "NO DESCARGADA") echo "FALLIDA	No se pudieron descargar sus imágenes. No se tocó nada." ;;
+    "SIN ESPACIO") echo "FALLIDA	El servidor no tiene espacio para descargarla, ni borrando las versiones viejas. No se tocó nada." ;;
     "SIN RESPALDO") echo "FALLIDA	El respaldo falló y sin respaldo no se migra. No se tocó nada." ;;
     "MIGRACION FALLIDA") echo "FALLIDA	Las migraciones fallaron. Sigue la $2, sin cambios." ;;
     "SIN SALUD") echo "FALLIDA	No quedó sana y no había versión anterior." ;;
@@ -238,8 +239,17 @@ pasada() {
   [ -f .env ] || { decir "Falta .env junto a compose.yml."; exit 2; }
   command -v jq >/dev/null || { decir "Falta jq (sudo apt install jq)."; exit 2; }
   marcha=$(en_marcha)
+  # Sin etiqueta pero con la web en marcha (se borró: el disco lleno lo hacía antes de la 0.104.1), se rehace con la
+  # versión de su imagen, en vez de quedarse parado creyendo que no hay nada desplegado.
+  if [ -z "$marcha" ]; then
+    marcha=$(docker ps --filter label=com.docker.compose.service=web --format '{{.Image}}' 2>/dev/null | head -n 1 | sed -n 's/^.*:\([0-9][0-9.]*\)$/\1/p')
+    if [ -n "$marcha" ]; then
+      printf 'L2_ETIQUETA=%s\n' "$marcha" >"$ETIQUETA_ENV.nuevo" && mv -f "$ETIQUETA_ENV.nuevo" "$ETIQUETA_ENV" &&
+        decir "Faltaba $ETIQUETA_ENV: se rehízo con la versión en marcha, la $marcha."
+    fi
+  fi
   # Sin versión desplegada todavía, no hay nada que actualizar: la primera se pone a mano.
-  [ -n "$marcha" ] || exit 0
+  [ -n "$marcha" ] && [ -f "$ETIQUETA_ENV" ] || exit 0
   TENANT=$(del_env L2_TENANT_ID)
   SUCURSAL=$(del_env L2_BRANCH_ID)
   entorno=$(del_env L2_ENTORNO)
