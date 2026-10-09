@@ -16,6 +16,24 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.97.0] — 2026-10-09 · Hacia la puesta en marcha
+
+El parque en una pantalla, con un solo lector (B4-12, M-34).
+
+### Cambiado
+- **Sala, Entrada y Salida son una pantalla: «Parque».** Su lector hace lo que toca: una pulsera nueva abre la entrada
+  con ella; la de un niño en la sala, su ficha. En la ficha, «Dar salida» o «Toda la familia», que trae a todos los niños
+  de su cuenta marcados. «Sin pulsera» y «Buscar» están junto al lector. Los enlaces de antes (`/entrada`, `/salida`)
+  llevan aquí.
+- **La entrada en escritorio, compacta:** el representante arriba, un renglón por niño (pulsera, nombre, paquete y
+  medias) y el total con «Registrar» fijos. La entrada desde la caja es la misma.
+- **Las medias de seguridad no vienen marcadas:** hay que responder por cada niño, y al lado dice cuántos pares quedan.
+- **Iconos en las pestañas** de la caja, Mesas y Parque.
+
+### Añadido
+- **Sumar a la familia:** si el representante tiene niños en la sala, el que llega después entra en su cuenta, con su
+  tiempo desde que entra, y sale con ella.
+
 ## [0.96.0] — 2026-10-09 · Hacia la puesta en marcha
 
 El cliente por su cédula, en todo, y el buscador (T-19, M-34).
@@ -35,22 +53,6 @@ El cliente por su cédula, en todo, y el buscador (T-19, M-34).
 - **Buscar cliente**, en la caja (tecla C), en Mesas y en la sala: por su nombre, su cédula o su teléfono, dice lo que
   tiene abierto (y lo abre), sus niños en la sala con su pulsera y lo que debe de antes.
 - **El formulario de entradas en papel tiene la columna de la cédula.**
-
-El parque en una pantalla, con un solo lector (B4-12, M-34).
-
-### Cambiado
-- **Sala, Entrada y Salida son una pantalla: «Parque».** Su lector hace lo que toca: una pulsera nueva abre la entrada
-  con ella; la de un niño en la sala, su ficha. En la ficha, «Dar salida» o «Toda la familia», que trae a todos los niños
-  de su cuenta marcados. «Sin pulsera» y «Buscar» están junto al lector. Los enlaces de antes (`/entrada`, `/salida`)
-  llevan aquí.
-- **La entrada en escritorio, compacta:** el representante arriba, un renglón por niño (pulsera, nombre, paquete y
-  medias) y el total con «Registrar» fijos. La entrada desde la caja es la misma.
-- **Las medias de seguridad no vienen marcadas:** hay que responder por cada niño, y al lado dice cuántos pares quedan.
-- **Iconos en las pestañas** de la caja, Mesas y Parque.
-
-### Añadido
-- **Sumar a la familia:** si el representante tiene niños en la sala, el que llega después entra en su cuenta, con su
-  tiempo desde que entra, y sale con ella.
 
 ## [0.95.0] — 2026-10-09 · Hacia la puesta en marcha
 

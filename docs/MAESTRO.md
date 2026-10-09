@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.96.0 · 96 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.97.0 · 97 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1819,7 +1819,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   autorización) y «Anular la entrada» (motivo y PIN). Visto en el navegador en la base de pruebas: las dos, sin errores de
   consola. Salió al probarlo: la consulta de la pulsera decía «libre» con el niño dentro (trampa de Prisma, §5).*
 - [x] **B4-12 · El parque en una pantalla, con un solo lector** (M-34, S-8, S-12, S-14, S-16, S-17, S-20).
-  *Hecho el 2026-10-09, en `feat/b4-12`.*
+  *Hecho el 2026-10-09 (v0.97.0), en `feat/b4-12`.*
   → **Un lector.** Sala, Entrada y Salida pasan a ser una sola pantalla, «Parque», con un solo lector (la cámara, el lector
   o «Escribir»). Una pulsera nueva abre la entrada con ella; una que está en sala abre su ficha con «Dar salida», «Salida
   de la familia» (todos los niños de su cuenta, marcados; cada uno se desmarca), recargar, la pausa y lo que ya tenía.
