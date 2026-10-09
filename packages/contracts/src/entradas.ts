@@ -11,7 +11,7 @@
  * servidor (ADR-017).
  */
 import { z } from "zod";
-import { IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
+import { FechaSchema, IdSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 import { CategoriaProductoSchema, CodigoBarrasSchema, NombreProductoSchema, PrecioMinorSchema, PresentacionSchema } from "./productos.ts";
 import { TaxCodeDelCatalogoSchema } from "./impuestos.ts";
 
@@ -132,6 +132,39 @@ export const AnularEntradaDeMercanciaCommandSchema = z.strictObject({
 });
 export type AnularEntradaDeMercanciaCommand = z.infer<typeof AnularEntradaDeMercanciaCommandSchema>;
 
-/** Las entradas recientes de la sucursal, de la más nueva a la más vieja. */
-export const EntradasSchema = z.object({ entradas: z.array(EntradaSchema) });
+/** Cuántas entradas trae cada página (B9-13). */
+export const ENTRADAS_POR_PAGINA = 20;
+
+/** Qué entradas se ven (B9-13, M-35): las vigentes, las anuladas o todas. Ocultar no es borrar (regla 5). */
+export const EstadoDeEntradasSchema = z.enum(["VIGENTES", "ANULADAS", "TODAS"]);
+export type EstadoDeEntradas = z.infer<typeof EstadoDeEntradasSchema>;
+
+/**
+ * Pedir las entradas (B9-13): por estado, por periodo de días de negocio (del primero al último incluidos; sin él, desde
+ * siempre) y por página. Sin nada, todas, de la más nueva a la más vieja.
+ */
+export const ConsultaDeEntradasSchema = z
+  .strictObject({
+    estado: EstadoDeEntradasSchema.default("TODAS"),
+    desde: FechaSchema.optional(),
+    hasta: FechaSchema.optional(),
+    pagina: z.number().int().min(1).max(100_000).default(1),
+  })
+  .refine((c) => !c.desde || !c.hasta || c.desde <= c.hasta, { message: "El periodo termina antes de empezar", path: ["hasta"] });
+export type ConsultaDeEntradas = z.input<typeof ConsultaDeEntradasSchema>;
+
+/**
+ * Una página de las entradas de la sucursal, de la más nueva a la más vieja (B9-13): cuántas hay con ese filtro, y del
+ * periodo, cuántas vigentes y cuántas anuladas. `existe`: si la sucursal tiene alguna (sin ninguna, se dice «todavía
+ * no llegó nada»; con alguna fuera del filtro, que no hay en ese periodo).
+ */
+export const EntradasSchema = z.object({
+  entradas: z.array(EntradaSchema),
+  total: z.number().int().min(0).default(0),
+  pagina: z.number().int().min(1).default(1),
+  porPagina: z.number().int().min(1).default(ENTRADAS_POR_PAGINA),
+  vigentes: z.number().int().min(0).default(0),
+  anuladas: z.number().int().min(0).default(0),
+  existe: z.boolean().default(false),
+});
 export type EntradasDto = z.infer<typeof EntradasSchema>;

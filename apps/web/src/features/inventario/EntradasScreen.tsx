@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
+import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Ban, ClipboardList, ClipboardPaste, ListChecks, PackagePlus, Pencil, Plus, RotateCcw, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
-import type { CatalogoDto, CostoPor, EntradaDto, EntradasDto, Problema, ProductoDto, Rechazo, TaxCodeDelCatalogo, TipoEntrada } from "@l2/contracts";
+import { ENTRADAS_POR_PAGINA, type CatalogoDto, type CostoPor, type EntradaDto, type EstadoDeEntradas, type Problema, type ProductoDto, type Rechazo, type TaxCodeDelCatalogo, type TipoEntrada } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { averageUnitCostMinor, barcodeProblem, entryLineTotals, nameKey, normalizeBarcode, type EntryCostBasis } from "@l2/domain-inventory";
 import { money, sum, toMajor, type Money } from "@l2/domain-money";
-import { Button, Container, Dialog, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
+import { Button, Container, Dialog, FiltroSegmentado, Input, PageHeader, Paginacion, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -18,6 +19,8 @@ import { CampoCategoria } from "./CampoCategoria.tsx";
 import { FichaProducto, useAplicarProducto } from "./ProductosScreen.tsx";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { anularEntrada, registrarEntrada } from "./entradas.acciones";
+import type { EntradasPedidas } from "./entradas.servidor.ts";
+import { FiltroDePeriodo, periodoEnPalabras } from "../reportes/informe.tsx";
 import { autorizadoresDeInventario } from "./salidas.acciones";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "../cash/Autorizacion.tsx";
 
@@ -152,7 +155,16 @@ const enCeroDe = (b: Borrador, inicial: boolean) => inicial && !!b.productId && 
 /** «jue 8 oct»: el día de un instante, como lo dice el reloj del local. */
 type DiaDe = (instante: number) => string;
 
-export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: CatalogoDto; entradas: EntradasDto | null }) {
+/** La dirección de las entradas con su filtro (B9-13): la página 1 no se escribe. */
+function direccionDeEntradas(p: EntradasPedidas["pedido"]): string {
+  const q = new URLSearchParams({ estado: p.estado, desde: p.desde, hasta: p.hasta });
+  if (p.pagina > 1) q.set("pagina", String(p.pagina));
+  return `/panel/inventario/entradas?${q.toString()}`;
+}
+
+const NOMBRE_DEL_ESTADO: Record<EstadoDeEntradas, string> = { VIGENTES: "vigente", ANULADAS: "anulada", TODAS: "" };
+
+export function EntradasScreen({ catalogo, hoy, pedido, entradas: inicial }: { catalogo: CatalogoDto } & EntradasPedidas) {
   const actor = useActorEnSesion();
   const puedeRecibir = actor !== null && can(actor, "inventario.entrada") !== "DENEGADO";
   // Dar de alta en la entrada es del catálogo (B9-6): lo mismo que «Nuevo producto».
@@ -160,6 +172,10 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
   const { ajustes } = useSucursal();
   const reloj = useReloj();
   const params = useSearchParams();
+  // B9-13: el estado, el periodo y la página van en la dirección; cambiarlos vuelve a leer en el servidor.
+  const router = useRouter();
+  const [cargando, iniciar] = useTransition();
+  const ir = (p: EntradasPedidas["pedido"]) => iniciar(() => router.push(direccionDeEntradas(p) as Route));
 
   const [entradas, setEntradas] = useState(inicial?.entradas ?? null);
   const huella = JSON.stringify(inicial);
@@ -184,7 +200,8 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
     else if (productoInicial) setAbierta("COMPRA");
   }, [productoInicial, puedeRecibir]);
 
-  const sinMovimientos = entradas !== null && entradas.length === 0;
+  // Sin ninguna entrada en la sucursal, «todavía no llegó nada»; con alguna fuera del filtro, que no hay en ese periodo.
+  const sinMovimientos = inicial !== null && !inicial.existe;
   /** B9-12: la entrada que se está anulando, y la anulada que se carga de nuevo para corregirla. */
   const puedeAnular = actor !== null && can(actor, "inventario.ajustar") !== "DENEGADO";
   const [anulando, setAnulando] = useState<EntradaDto | null>(null);
@@ -240,18 +257,52 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
           }
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {entradas.map((e) => (
-            <FilaEntrada
-              key={e.id}
-              entrada={e}
-              cuando={`${reloj.diaConAnio(Date.parse(e.recibidaEn))} · ${reloj.hora(Date.parse(e.recibidaEn))}`}
-              cuandoAnulada={e.anulada ? `${reloj.diaConAnio(Date.parse(e.anulada.en))} · ${reloj.hora(Date.parse(e.anulada.en))}` : null}
-              onAnular={puedeAnular && !e.anulada ? () => setAnulando(e) : null}
-              onCargarDeNuevo={puedeRecibir && e.anulada ? () => setDeNuevo(e) : null}
+        <>
+          {/* B9-13 (M-35): vigentes, anuladas o todas, del periodo; «limpiar» es ocultar, nada se borra. */}
+          <FiltroDePeriodo key={`${pedido.desde}|${pedido.hasta}`} hoy={hoy} desde={pedido.desde} hasta={pedido.hasta} cargando={cargando} onPeriodo={(p) => ir({ ...pedido, ...p, pagina: 1 })}>
+            <FiltroSegmentado<EstadoDeEntradas>
+              etiqueta="Qué entradas"
+              opciones={[
+                { id: "VIGENTES", nombre: "Vigentes", cuenta: inicial?.vigentes },
+                { id: "ANULADAS", nombre: "Anuladas", cuenta: inicial?.anuladas },
+                { id: "TODAS", nombre: "Todas", cuenta: inicial ? inicial.vigentes + inicial.anuladas : undefined },
+              ]}
+              valor={pedido.estado}
+              onCambiar={(estado) => ir({ ...pedido, estado, pagina: 1 })}
             />
-          ))}
-        </ul>
+          </FiltroDePeriodo>
+          {entradas.length === 0 ? (
+            <p className="rounded-[var(--radius-card)] border border-dashed border-line px-6 py-8 text-center text-cuerpo text-ink-2">
+              Ninguna entrada {NOMBRE_DEL_ESTADO[pedido.estado]} · {periodoEnPalabras(pedido)}. {pedido.estado === "TODAS" ? "Elige otro periodo." : "Elige otro periodo o «Todas»."}
+            </p>
+          ) : (
+            <ul className={cn("flex flex-col gap-2", cargando && "opacity-60")}>
+              {entradas.map((e) => (
+                <FilaEntrada
+                  key={e.id}
+                  entrada={e}
+                  cuando={`${reloj.diaConAnio(Date.parse(e.recibidaEn))} · ${reloj.hora(Date.parse(e.recibidaEn))}`}
+                  cuandoAnulada={e.anulada ? `${reloj.diaConAnio(Date.parse(e.anulada.en))} · ${reloj.hora(Date.parse(e.anulada.en))}` : null}
+                  onAnular={puedeAnular && !e.anulada ? () => setAnulando(e) : null}
+                  onCargarDeNuevo={puedeRecibir && e.anulada ? () => setDeNuevo(e) : null}
+                />
+              ))}
+            </ul>
+          )}
+          {inicial && inicial.total > inicial.porPagina && (
+            <div className="mt-4">
+              <Paginacion
+                etiqueta="Páginas de entradas"
+                pagina={inicial.pagina}
+                porPagina={ENTRADAS_POR_PAGINA}
+                opciones={[ENTRADAS_POR_PAGINA]}
+                total={inicial.total}
+                cargando={cargando}
+                onCambiar={({ pagina }) => pagina && ir({ ...pedido, pagina })}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {anulando && (
@@ -261,6 +312,8 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
           onHecha={(e) => {
             setEntradas((prev) => (prev ?? []).map((x) => (x.id === e.id ? e : x)));
             setAnulando(null);
+            // Las cuentas de vigentes y anuladas cambian; en «Vigentes», la anulada se va.
+            router.refresh();
           }}
         />
       )}
@@ -278,6 +331,7 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
           onRegistrada={(e) => {
             setEntradas((prev) => [e, ...(prev ?? []).filter((x) => x.id !== e.id)]);
             setDeNuevo(null);
+            router.refresh();
           }}
         />
       )}
@@ -294,6 +348,7 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
           onRegistrada={(e) => {
             setEntradas((prev) => [e, ...(prev ?? []).filter((x) => x.id !== e.id)]);
             setAbierta(null);
+            router.refresh();
           }}
         />
       )}
