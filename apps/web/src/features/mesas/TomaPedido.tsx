@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Send, StickyNote, Trash2, TriangleAlert } from "lucide-react";
 import { multiply, toMajor } from "@l2/domain-money";
 import { Badge, Button, Dialog, Input, MoneyDisplay, Stepper, cn, formatMoneyVE } from "@l2/ui";
 import { anadir, totalBorrador, type LineaBorrador } from "./mesas.ts";
 import { disponible, type ProductoALaVenta } from "../inventario/catalogo.ts";
+import { conNotaRapida } from "@l2/domain-orders";
+import { notasRapidas } from "./pedidos.acciones";
 
 /**
  * Tomar un pedido — F6-03, pasos B4 y B5.
@@ -50,6 +52,20 @@ export function TomaPedido({
   const [categoria, setCategoria] = useState<string>(categorias[0] ?? "");
   const [notaDe, setNotaDe] = useState<number | null>(null);
   const [notaTexto, setNotaTexto] = useState("");
+  // B6-12: las notas más escritas para el plato (y su categoría), al abrir su nota. `null` mientras llegan.
+  const [frecuentes, setFrecuentes] = useState<{ notas: readonly string[]; error: boolean } | null>(null);
+  const productoDeLaNota = notaDe !== null ? (lineas[notaDe]?.itemId ?? null) : null;
+  useEffect(() => {
+    if (!productoDeLaNota) return;
+    let vivo = true;
+    setFrecuentes(null);
+    notasRapidas(productoDeLaNota)
+      .then((r) => vivo && setFrecuentes(r.ok ? { notas: r.valor.notas, error: false } : { notas: [], error: true }))
+      .catch(() => vivo && setFrecuentes({ notas: [], error: true }));
+    return () => {
+      vivo = false;
+    };
+  }, [productoDeLaNota]);
   const [confirmar, setConfirmar] = useState(false);
   const [descartar, setDescartar] = useState(false);
 
@@ -289,14 +305,35 @@ export function TomaPedido({
           </div>
         }
       >
-        <Input
-          label="Nota para cocina"
-          surface="tablet"
-          maxLength={80}
-          value={notaTexto}
-          onChange={(e) => setNotaTexto(e.target.value)}
-          hint={`${notaTexto.length} de 80 caracteres`}
-        />
+        <div className="flex flex-col gap-3">
+          {/* B6-12: un toque la añade; lo escrito se queda. */}
+          <section aria-label="Notas frecuentes" className="flex flex-col gap-1.5">
+            <span className="text-etiqueta font-semibold tracking-[0.07em] text-ink-3 uppercase">Las más pedidas</span>
+            {frecuentes === null ? (
+              <p className="text-detalle text-ink-3">Buscando las notas de este plato…</p>
+            ) : frecuentes.error ? (
+              <p role="alert" className="text-detalle text-state-warn">No se pudieron traer las notas frecuentes: escríbela.</p>
+            ) : frecuentes.notas.length === 0 ? (
+              <p className="text-detalle text-ink-3">Todavía no hay notas para este plato: las que escribas aparecerán aquí.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {frecuentes.notas.map((n) => (
+                  <Button key={n} variant="neutral" surface="tablet" onClick={() => setNotaTexto((t) => conNotaRapida(t, n))}>
+                    {n}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </section>
+          <Input
+            label="Nota para cocina"
+            surface="tablet"
+            maxLength={80}
+            value={notaTexto}
+            onChange={(e) => setNotaTexto(e.target.value)}
+            hint={`${notaTexto.length} de 80 caracteres`}
+          />
+        </div>
       </Dialog>
 
       {/* ── confirmación: se le lee el pedido a la mesa ── */}

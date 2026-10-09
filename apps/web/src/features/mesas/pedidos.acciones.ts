@@ -1,6 +1,6 @@
 "use server";
 
-import type { PedidoDto, PedidoEnviadoDto, PedidosDelLocalDto, Resultado } from "@l2/contracts";
+import type { NotasRapidasDto, PedidoDto, PedidoEnviadoDto, PedidosDelLocalDto, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -41,6 +41,13 @@ export async function servirPedido(entrada: unknown): Promise<Resultado<PedidoDt
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).pedidos.servir(ctx, entrada);
+}
+
+/** Las notas rápidas de un plato (B6-12): las más escritas para ese producto, y las de su categoría. */
+export async function notasRapidas(productId: string): Promise<Resultado<NotasRapidasDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).pedidos.notasRapidas(ctx, { productId });
 }
 
 /** Deshace, en el momento, un plato marcado servido por error (B6-11). */
