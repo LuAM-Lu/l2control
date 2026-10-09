@@ -495,6 +495,37 @@ describe("salir antes de tiempo (B4-6, M-18)", () => {
   });
 });
 
+describe("la pulsera vinculada sale a su mesa (B4-14)", () => {
+  test("aunque la salida diga caja, lo que debe, con su tiempo de más, va a la cuenta de su mesa", async () => {
+    await vaciarSala(AHORA);
+    const r = await entrar(entrada([{ packageId: "pkg-60" }]));
+    const id = r.sessions[0]!.id;
+    const { mesa } = valor(await local.app.mesas.vincular(ctxMesero, { idempotencyKey: randomUUID(), tableId: "mesa-10", sessionIds: [id] }, AHORA + 5 * MIN));
+    // 80 minutos con un paquete de 60: un bloque de más, después de la gracia.
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([id]), AHORA + 80 * MIN));
+    assert.equal(s.lines[0]!.penaltyBlocks, 1);
+    assert.deepEqual(chargeableLines(s.account).map((l) => l.amount.minor), [], "la familia no debe nada: todo está en la mesa");
+    const enMesa = valor(await local.app.cuentas.leer(ctxCajera, AHORA + 81 * MIN)).cuentas.find((c) => c.id === mesa.id)!;
+    assert.ok(enMesa.lines.some((l) => l.sessionId === id && l.amount.minor === "150"), "el tiempo de más está en la mesa");
+  });
+
+  test("vinculados con sueltos, o hacia otra mesa, no salen juntos: se dice por qué", async () => {
+    await vaciarSala(AHORA + 90 * MIN);
+    const r = await entrar(entrada([{}, {}]), ctxMonitora, AHORA + 90 * MIN);
+    const [a, b] = r.sessions.map((x) => x.id) as [string, string];
+    valor(await local.app.mesas.vincular(ctxMesero, { idempotencyKey: randomUUID(), tableId: "mesa-10", sessionIds: [a] }, AHORA + 91 * MIN));
+    const mezcla = await local.app.parque.salir(ctxMonitora, salida([a, b]), AHORA + 100 * MIN);
+    assert.equal(mezcla.ok, false);
+    assert.match((mezcla as { mensaje: string }).mensaje, /por separado/);
+    const otra = await local.app.parque.salir(ctxMonitora, salida([a], { disposition: { kind: "MESA", tableId: "mesa-11" } }), AHORA + 100 * MIN);
+    assert.equal(otra.ok, false);
+    assert.match((otra as { mensaje: string }).mensaje, /vinculada a la mesa/);
+    // Por separado, cada una a lo suyo.
+    valor(await local.app.parque.salir(ctxMonitora, salida([a]), AHORA + 100 * MIN));
+    valor(await local.app.parque.salir(ctxMonitora, salida([b]), AHORA + 100 * MIN));
+  });
+});
+
 describe("la sala, los permisos y el aislamiento", () => {
   test("la sala es de quien trabaja con el parque o con sus cuentas, y trae la hora del servidor", async () => {
     await entrar(entrada([{}]));

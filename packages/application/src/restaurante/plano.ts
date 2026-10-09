@@ -107,9 +107,12 @@ export async function candadoDeMesas(tx: Transaccion, branchId: string): Promise
  * Las estancias ya vinculadas a alguna mesa de la sucursal (F6-05): su id → a qué mesa y con qué
  * etiqueta. Un niño vinculado no se ofrece para otra mesa: su parque se cobraría dos veces (R3).
  */
-export async function sessionsVinculadas(tx: Transaccion, branchId: string): Promise<Map<string, Readonly<{ tableId: string; label: string }>>> {
-  const filas = await tx.$queryRaw<{ content: unknown }[]>`
-    SELECT ultima.content FROM (
+export async function sessionsVinculadas(
+  tx: Transaccion,
+  branchId: string,
+): Promise<Map<string, Readonly<{ tableId: string; label: string; accountId: string }>>> {
+  const filas = await tx.$queryRaw<{ account_id: string; content: unknown }[]>`
+    SELECT ultima.account_id, ultima.content FROM (
       SELECT DISTINCT ON (v.account_id) v.account_id, v.content, v.status
       FROM account_version v
       JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
@@ -117,10 +120,10 @@ export async function sessionsVinculadas(tx: Transaccion, branchId: string): Pro
       ORDER BY v.account_id, v.version DESC
     ) ultima
     WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')`;
-  const mapa = new Map<string, Readonly<{ tableId: string; label: string }>>();
+  const mapa = new Map<string, Readonly<{ tableId: string; label: string; accountId: string }>>();
   for (const f of filas) {
     const c = f.content as { tableId?: string; tableLabel?: string; sessionIds?: string[] };
-    for (const id of c.sessionIds ?? []) mapa.set(id, { tableId: c.tableId ?? "", label: c.tableLabel ?? "?" });
+    for (const id of c.sessionIds ?? []) mapa.set(id, { tableId: c.tableId ?? "", label: c.tableLabel ?? "?", accountId: f.account_id });
   }
   return mapa;
 }

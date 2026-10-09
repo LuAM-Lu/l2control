@@ -14,6 +14,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+La pulsera vinculada sale a su mesa (B4-14, M-34).
+
+### Corregido
+- **Una pulsera vinculada a una mesa sale a su mesa, sin elegir:** lo que debe y su tiempo de más van a la cuenta de la
+  mesa. Antes, si en la salida quedaba «En caja», el tiempo de más caía en la cuenta de la familia. El servidor lo hace
+  aunque la pantalla diga otra cosa, y niega sacar juntos niños vinculados con otros sueltos (o de otra mesa).
+
+### Añadido
+- **Los niños de la mesa, con lo suyo:** en la tablet y en la caja, cada niño vinculado dice «en la cuenta» o «pagado»
+  (si pagó su parque antes de vincularse: no se cobra otra vez).
+
 ## [0.93.0] — 2026-10-09 · Hacia la puesta en marcha
 
 El recibo dice lo que pasó en la caja (B3-12, M-34).

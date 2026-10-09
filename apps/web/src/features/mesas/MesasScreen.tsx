@@ -31,7 +31,7 @@ import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
-import { nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
+import { ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
 import {
   loQuePideAtencion,
   minutosDesde,
@@ -1042,10 +1042,11 @@ function NinosDeLaCuenta({ cuenta, onVincular }: { cuenta: FamilyAccountDto; onV
         <p className="text-[13px] text-ink-3">Ninguno. Si la familia tiene niños jugando, vincúlalos: pagan todo junto.</p>
       ) : (
         <ul className="flex flex-wrap gap-1.5">
-          {ids.map((id) => (
-            <li key={id}>
-              <Badge tone="idle" icon={<Baby size={12} aria-hidden="true" />}>
-                {nombre(id)}
+          {ninosDeLaMesa(cuenta).map((n) => (
+            <li key={n.sessionId}>
+              {/* Lo suyo en esta cuenta, o ya pagado aparte (B4-14): un prepago vinculado no se cobra otra vez. */}
+              <Badge tone={n.enLaCuenta ? "idle" : "ok"} icon={<Baby size={12} aria-hidden="true" />}>
+                {nombre(n.sessionId)} · {n.enLaCuenta ? "en la cuenta" : "pagado"}
               </Badge>
             </li>
           ))}

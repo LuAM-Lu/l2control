@@ -1834,13 +1834,25 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   93 s menos en 93 s. La sala abierta 18 minutos sin que nada la releyera: «Por vencer» subió sola de 0 a 6 a la hora de
   cada niño y el primero pasó a «Tiempo cumplido» al acabar su gracia. El aviso sin red en 1,5 s con su hora, y se quita al
   volver. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar ni cortar y sin errores de consola.*
-- [ ] **B4-14 · La pulsera vinculada sale a su mesa** (M-34, S-19).
+- [x] **B4-14 · La pulsera vinculada sale a su mesa** (M-34, S-19).
+  *Hecho el 2026-10-09, en `feat/b4-14`.*
   → **A su mesa, sin preguntar.** La salida de una pulsera vinculada va a la cuenta de su mesa, con el paquete por uso y
   el tiempo de más; para ella no se ofrece «Caja / A una mesa», y se dice por qué. Hoy, si no se elige la mesa, el tiempo
   de más cae en la cuenta de la familia.
   → **Lo pagado se ve y no se cobra.** Un niño que pagó su parque y después se vincula aparece en la cuenta de la mesa como
   «Pagado», sin importe (vincular ya mueve solo lo pendiente). En la caja y en la tablet, la cuenta de la mesa lista sus
   pulseras con su estado: en sala o salió, pagado o por cobrar.
+  *· Hecho: en el servidor, `parque.salir` mira las pulseras vinculadas (`sessionsVinculadas`, que ahora da la cuenta de
+  la mesa): si lo están, la salida va a esa cuenta aunque el mando diga caja; mezcladas con sueltas o con otra mesa, se
+  niega con el motivo. En la salida, la nota «Vinculada a la mesa 3 · …» sustituye a la elección, y el botón dice «Registrar
+  salida a la mesa 3». En la tablet y en la caja, cada niño de la cuenta dice «en la cuenta» o «pagado» (`ninosDeLaMesa`:
+  si ninguna línea de la mesa es suya, lo pagó aparte).*
+  *· Comprobado: 2 pruebas nuevas contra la base (el tiempo de más de una vinculada va a su mesa aunque la salida diga caja;
+  vinculadas con sueltas y otra mesa se niegan) y las 38 del parque. En el navegador, en la base de pruebas: Ana pagó su
+  entrada y Beto no; los dos vinculados a la mesa 3; la tablet y la caja dicen «Ana · pagado» y «Beto · en la cuenta», y
+  la caja cobra solo el paquete de Beto; la salida de Ana dice su mesa sin ofrecer elegir y queda «Cargado a la mesa 3».
+  A 1366×768, 1280×800, 800×1280 y 390 px (en el teléfono, en el segundo paso), en los dos temas, sin errores.*
+  *· Visto de paso: el botón de quien recoge en la salida corta el nombre con «…»; va con el rediseño del parque (B4-12).*
 - [ ] **B4-15 · Aviso de pulseras por vencer** (M-34, S-10).
   → **El aviso.** Con sonido en las pantallas del parque y en la caja, y vibración en Android: uno por niño al entrar en
   «por vencer» (el umbral del tarifario) y otro al cumplirse su tiempo; un toque lleva a su ficha. Se calla por equipo

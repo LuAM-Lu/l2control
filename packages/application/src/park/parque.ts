@@ -92,7 +92,7 @@ import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { catalogoEn, claveSecundaria, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "../caja/papel-en.ts";
-import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva, mesaSinCuenta } from "../restaurante/plano.ts";
+import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
 
 export interface CasosParque {
@@ -503,14 +503,36 @@ export function casosParque(base: Base): CasosParque {
             return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de esta familia se dio por incobrable: la salida la resuelve supervisión." };
           }
 
+          // Una pulsera vinculada a una mesa sale a su mesa, sin preguntar (B4-14, M-34): lo que se debe de ella, con
+          // su tiempo de más, va a esa cuenta aunque la pantalla diga otra cosa. Mezclar vinculadas con sueltas, o con
+          // otra mesa, se niega: cada cuenta sale por su lado.
+          const vinculadas = await sessionsVinculadas(tx, ctx.branchId);
+          const susMesas = enOrden.map((f) => vinculadas.get(f.id) ?? null);
+          let disposicion = cmd.disposition;
+          if (susMesas.some((m) => m !== null)) {
+            const mesas = new Set(susMesas.map((m) => m?.accountId ?? "suelta"));
+            if (mesas.size > 1) {
+              return invalido(
+                "Unos niños están vinculados a una mesa y otros no (o a mesas distintas): registra su salida por separado.",
+                ["sessionIds"],
+                "VINCULADAS_MEZCLADAS",
+              );
+            }
+            const suya = susMesas[0]!;
+            if (cmd.disposition.kind === "MESA" && (cmd.disposition.tableId !== suya.tableId || (cmd.disposition.cuentaId !== undefined && cmd.disposition.cuentaId !== suya.accountId))) {
+              return { ok: false, motivo: "CONFLICTO", mensaje: `Esa pulsera está vinculada a la mesa ${suya.label}: su salida va a esa cuenta.` };
+            }
+            disposicion = { kind: "MESA", tableId: suya.tableId, cuentaId: suya.accountId };
+          }
+
           // Cargar la deuda a una mesa (F5-14, D-RES, B6-3): la «cuenta unificada» que es el diferencial
           // del producto. El candado de las mesas (I-05) es el mismo de la vinculación y del plano.
           let mesaInfo: Readonly<{ accountId: string; tableId: string; label: string; vigente: NonNullable<Awaited<ReturnType<typeof vigenteDe>>> }> | null = null;
-          if (cmd.disposition.kind === "MESA") {
-            const tableId = cmd.disposition.tableId;
+          if (disposicion.kind === "MESA") {
+            const tableId = disposicion.tableId;
             await candadoDeMesas(tx, ctx.branchId);
             // A cuál de las cuentas de la mesa (B6-7): la que eligió la salida, o la única.
-            const destino = await cuentaDeMesaPara(tx, ctx.branchId, tableId, cmd.disposition.cuentaId);
+            const destino = await cuentaDeMesaPara(tx, ctx.branchId, tableId, disposicion.cuentaId);
             if ("ok" in destino) return { ...destino, ...(destino.problemas ? { problemas: destino.problemas.map((p) => ({ ...p, path: ["disposition", "cuentaId"] })) } : {}) };
             const abierta = destino.abierta;
             const vigente = abierta ? await vigenteDe(tx, abierta) : null;

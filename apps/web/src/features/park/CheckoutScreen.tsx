@@ -111,7 +111,19 @@ export function CheckoutScreen({
       }),
     [mesas, cuentas],
   );
-  const opcionElegida = opcionesDeMesa.find((o) => o.clave === mesaElegida) ?? null;
+  /**
+   * Las pulseras vinculadas a una mesa salen a su mesa, sin elegir (B4-14, M-34): la cuenta del salón que las tiene. Si
+   * se mezclan con otras (sueltas o de otra mesa), salen por separado.
+   */
+  const deMesa = useMemo(() => {
+    if (seleccionados.length === 0) return { mesa: null, mezcla: false };
+    const suyas = seleccionados.map((id) => cuentas.find((c) => c.kind === "MESA" && c.status !== "COBRADA" && c.sessionIds.includes(id)) ?? null);
+    const distintas = new Set(suyas.map((c) => c?.id ?? "suelta"));
+    if (suyas.every((c) => c === null)) return { mesa: null, mezcla: false };
+    return { mesa: distintas.size === 1 ? suyas[0]! : null, mezcla: distintas.size > 1 };
+  }, [seleccionados, cuentas]);
+  const opcionVinculada = deMesa.mesa ? (opcionesDeMesa.find((o) => o.cuentaId === deMesa.mesa!.id) ?? opcionesDeMesa.find((o) => o.tableId === deMesa.mesa!.tableId) ?? null) : null;
+  const opcionElegida = opcionVinculada ?? opcionesDeMesa.find((o) => o.clave === mesaElegida) ?? null;
   const etiquetaDeMesa = opcionElegida ? `${opcionElegida.mesa}${opcionElegida.familia ? ` · ${opcionElegida.familia}` : ""}` : null;
 
   const actor = useActorEnSesion();
@@ -252,13 +264,17 @@ export function CheckoutScreen({
       setAviso("Marca a quién se entrega cada familia antes de registrar la salida.");
       return;
     }
+    if (deMesa.mezcla) {
+      setAviso("Unos niños están vinculados a una mesa y otros no: registra su salida por separado.");
+      return;
+    }
     if (destino === "MESA" && !opcionElegida) {
       setAviso("Elige la mesa a la que se carga la salida.");
       return;
     }
     // Con mesa, lo pendiente de estos niños pasa a la cuenta de la mesa (el servidor lo comprueba: I-05).
     const disposicion =
-      destino === "MESA" && opcionElegida
+      (destino === "MESA" || opcionVinculada) && opcionElegida
         ? { kind: "MESA" as const, tableId: opcionElegida.tableId, ...(opcionElegida.cuentaId ? { cuentaId: opcionElegida.cuentaId } : {}) }
         : { kind: "CAJA" as const };
     if (plan.sinCuenta.length > 0) {
@@ -634,7 +650,21 @@ export function CheckoutScreen({
               </p>
             </div>
 
-            {porCobrar.length > 0 && (
+            {deMesa.mezcla && (
+              <p role="alert" className="text-[12.5px] font-medium text-state-warn">
+                Unos niños están vinculados a una mesa y otros no: registra su salida por separado.
+              </p>
+            )}
+            {opcionVinculada && (
+              <p className="flex items-start gap-1.5 rounded-[var(--radius-control)] border border-line bg-base/40 px-3 py-2 text-[12.5px] text-ink-2">
+                <HandPlatter size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Vinculada a la <strong className="text-ink">mesa {opcionVinculada.mesa}</strong>
+                  {opcionVinculada.familia ? ` · ${opcionVinculada.familia}` : ""}: lo que debe y su tiempo de más van a esa cuenta.
+                </span>
+              </p>
+            )}
+            {porCobrar.length > 0 && !opcionVinculada && (
               <div className="flex flex-col gap-2">
                 <FiltroSegmentado
                   etiqueta="Dónde se paga"
@@ -682,13 +712,15 @@ export function CheckoutScreen({
               data-recorrido="salida-registrar"
               surface="pos"
               variant="primary"
-              disabled={!hayAlgo || enviando || faltaRecogida || (destino === "MESA" && !opcionElegida)}
+              disabled={!hayAlgo || enviando || faltaRecogida || deMesa.mezcla || (destino === "MESA" && !opcionElegida)}
               onClick={() => void confirmarSalida()}
               className="w-full"
             >
               <Wallet size={17} aria-hidden="true" />
               {enviando
                 ? "Registrando la salida…"
+                : opcionVinculada
+                ? `Registrar salida a la mesa ${opcionVinculada.mesa}`
                 : porCobrar.length === 0
                 ? "Registrar salida sin cargo"
                 : destino === "MESA"
