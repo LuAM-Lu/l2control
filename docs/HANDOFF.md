@@ -7,22 +7,21 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-08 (cierre, 3) · v0.86.1 · `main` en dac7d93 más este relevo · B8-2 a medias: lo escrito, hecho; la capacitación, en B8-3*
+*2026-10-09 (cierre) · v0.111.0 · `main` en 6dda47d más este relevo · B8-3 en curso (el usuario, en el local)*
 
 ```text
-Hecho hoy, todo en main y etiquetado (86 de 91): B3-9 (v0.85.0: el punto de cobro, con PIN de administración y motivo
-  fuera de él; y la entrada desde la caja, con la lógica de Entrada en useEntradaDeNinos y EntradaPiezas), T-8c (v0.86.0:
-  el agente se actualiza solo y Windows vuelve a la anterior si la nueva no arranca; ensayado en una PC con Windows) y
-  lo escrito de B8-2 (v0.86.1: /procedimiento-papel y infra/produccion/RUNBOOKS.md). Staging al día solo.
-Ya NO queda nada que programar para la 1.0.0. Todo lo que sigue es en el local, con los equipos reales:
-  B7-3 (medir con la red real; instalar el agente 0.86.x en la laptop de caja y ver que se actualiza y vuelve atrás),
-  B8-1 (red con 4G y UPS), B8-3 (operación en paralelo + capacitación por rol: ahí se cierra B8-2) y B8-4 = 1.0.0.
-  La 1.0.0 NO se etiqueta desde aquí.
-Para decidir (usuario): D-REL antes de B8-4. Para el usuario: L2_SMTP_URL y L2_CORREO_SOPORTE en el VPS; P-1, P-3,
-  P-5, P-6 y P-14; dominio propio y firma del alcance (F0-09) antes de B8-3. En el staging: PC de respaldos, semilla y
-  feriados; el punto de cobro lo marcó la migración en los equipos que ya cobraban (revisarlo en Dispositivos).
-Cuidado: un agente instalado antes de la 0.86.0 no sabe actualizarse (se reinstala una vez); la tarea «(cambio)» del
-  agente no se borra. turnos.abrir es ahora (ctx, entrada, autorizacion?, ahora?). feat/t-11: no se borra.
+Hecho hoy, todo en main y etiquetado: el fin de M-34 (v0.94.0 a v0.104.0), el disco lleno del VPS (v0.104.1: limpia
+  imágenes viejas) y M-35 entera (v0.104.2 a v0.111.0: la caja cerrada no mueve dinero, servir y cerrar la mesa, por
+  limpiar en la base, medias con interruptor, entradas por periodo, «Respaldar ahora» y los PDF compactos). 111 de 116.
+M-36: el VPS ES la operación real (perfiles, equipos e inventario reales), en modo staging (D-ENT). Se pone al día
+  solo con cada etiqueta: NO etiquetar sin avisar al usuario. Fusionar sin etiqueta no publica nada.
+El usuario: B8-3 (paralelo con el método escrito hasta que los totales coincidan; capacitación por rol), B8-1 (4G y
+  UPS; probar sin el internet principal) y B7-3 (la Xprinter por USB; la app por el 4G). Opcional: L2_SMTP_URL y
+  L2_CORREO_SOPORTE en el VPS.
+Siguiente para Claude: lo que salga de B8-3, como PATCH, publicado cuando el usuario diga. Para B8-4: listar (solo
+  leyendo) lo que quedó de prueba en la base del VPS; pasar a modo producción con su sí y la hora; etiqueta 1.0.0.
+Cuidado: «Respaldar ahora» solo se probó con el SQL simulado (pulsarlo una vez en el VPS). «Dales salida antes»
+  solo con prueba unitaria. La PC de respaldos bajó el último el 8 oct.: debe encenderse para bajar los nuevos.
 ```
 
 ## aemorandin-coder

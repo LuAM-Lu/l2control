@@ -98,9 +98,13 @@ del restaurante) salió con B6-1 y la carpeta ya no existe. **Una pantalla nueva
 `<x>.acciones.ts` (`"use server"`, recibe `unknown`, devuelve `Resultado`); la ruta o el layout lee
 en el servidor y el proveedor escribe con la acción. El modelo es el tarifario. **En vivo (B5-1, ADR-025):** toda escritura audita, y el asiento deja su evento en el
 outbox en la misma transacción; el worker cuenta a cada sucursal qué temas cambiaron y cada pantalla
-vuelve a leer lo suyo (`useAlCambiar` o `router.refresh()`). Nada de sondeos. El bus del restaurante
-(`features/operacion`) viaja por el worker con el estado de las mesas hasta B6-3; los pedidos ya son del
-servidor (B6-2).
+vuelve a leer lo suyo (`useAlCambiar` o `router.refresh()`). Nada de sondeos. Las mesas también son del servidor:
+los pedidos (B6-2) y «por limpiar» (B6-14, `dining_table_cleaned`, tema `mesas`, `usePorLimpiar`); del bus del
+restaurante (`features/operacion`) quedan sus eventos viejos, sin uso.
+
+**La caja cerrada (B3-15).** Sin un turno abierto en el local nada mueve dinero (cobrar, cortesía, descuento): lo niega
+el servidor. El corte Z decide solo: con otra caja abierta es RELEVO y cierra solo esa; la última es JORNADA y no cierra
+con cuentas pendientes ni niños en la sala. Cerrar la caja de otro equipo es de supervisión y administración.
 
 **El cliente de la cuenta (B6-9, M-33).** Toda cuenta del salón nace al sentar a su cliente (nombre, cédula y teléfono,
 `mesas.abrir`): un pedido, una pulsera, una salida del parque o un «guardar» no abren una mesa (`MESA_SIN_CUENTA`). El
@@ -188,6 +192,9 @@ Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
 ## Flujo de trabajo
 
+- **El VPS es la operación real (M-36).** Trabaja con datos reales y está en modo staging: **se pone al día solo con
+  cada etiqueta `vX.Y.Z`**, aunque haya gente trabajando (un corte de un minuto). **No se etiqueta sin avisar al
+  usuario.** Fusionar en `main` sin etiqueta no publica nada.
 - **Somos dos (M-20).** Nada entra en `main` sin PR y sin el CI en verde: `main` está protegido y **siempre
   en verde**. Cada trabajo va en su rama desde `main` actualizado: `feat/<tema>`, `fix/<tema>` o
   `docs/<tema>`; no se reescribe historia compartida (nada de `push --force` en una rama que otro usa).
