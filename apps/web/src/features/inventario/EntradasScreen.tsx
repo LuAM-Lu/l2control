@@ -2,12 +2,12 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ClipboardList, ClipboardPaste, ListChecks, PackagePlus, Pencil, Plus, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
-import type { CatalogoDto, CostoPor, EntradaDto, EntradasDto, Problema, ProductoDto, TaxCodeDelCatalogo, TipoEntrada } from "@l2/contracts";
+import { Ban, ClipboardList, ClipboardPaste, ListChecks, PackagePlus, Pencil, Plus, RotateCcw, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
+import type { CatalogoDto, CostoPor, EntradaDto, EntradasDto, Problema, ProductoDto, Rechazo, TaxCodeDelCatalogo, TipoEntrada } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { averageUnitCostMinor, barcodeProblem, entryLineTotals, nameKey, normalizeBarcode, type EntryCostBasis } from "@l2/domain-inventory";
 import { money, sum, toMajor, type Money } from "@l2/domain-money";
-import { Button, Container, Dialog, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
+import { Button, Container, Dialog, Input, PageHeader, Sheet, avisar, cn, formatMoneyVE, useLectorDeCodigos } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -17,7 +17,9 @@ import { estadoDe } from "./EstadoStock.tsx";
 import { CampoCategoria } from "./CampoCategoria.tsx";
 import { FichaProducto, useAplicarProducto } from "./ProductosScreen.tsx";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
-import { registrarEntrada } from "./entradas.acciones";
+import { anularEntrada, registrarEntrada } from "./entradas.acciones";
+import { autorizadoresDeInventario } from "./salidas.acciones";
+import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "../cash/Autorizacion.tsx";
 
 /**
  * Panel → Inventario → Entradas de mercancía (B9-3, F8-06; en tabla desde T-10, M-24). Lo que llega,
@@ -183,6 +185,10 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
   }, [productoInicial, puedeRecibir]);
 
   const sinMovimientos = entradas !== null && entradas.length === 0;
+  /** B9-12: la entrada que se está anulando, y la anulada que se carga de nuevo para corregirla. */
+  const puedeAnular = actor !== null && can(actor, "inventario.ajustar") !== "DENEGADO";
+  const [anulando, setAnulando] = useState<EntradaDto | null>(null);
+  const [deNuevo, setDeNuevo] = useState<EntradaDto | null>(null);
 
   return (
     <Container ancho="panel" className="py-8">
@@ -236,11 +242,45 @@ export function EntradasScreen({ catalogo, entradas: inicial }: { catalogo: Cata
       ) : (
         <ul className="flex flex-col gap-2">
           {entradas.map((e) => (
-            <FilaEntrada key={e.id} entrada={e} cuando={`${reloj.diaConAnio(Date.parse(e.recibidaEn))} · ${reloj.hora(Date.parse(e.recibidaEn))}`} />
+            <FilaEntrada
+              key={e.id}
+              entrada={e}
+              cuando={`${reloj.diaConAnio(Date.parse(e.recibidaEn))} · ${reloj.hora(Date.parse(e.recibidaEn))}`}
+              cuandoAnulada={e.anulada ? `${reloj.diaConAnio(Date.parse(e.anulada.en))} · ${reloj.hora(Date.parse(e.anulada.en))}` : null}
+              onAnular={puedeAnular && !e.anulada ? () => setAnulando(e) : null}
+              onCargarDeNuevo={puedeRecibir && e.anulada ? () => setDeNuevo(e) : null}
+            />
           ))}
         </ul>
       )}
 
+      {anulando && (
+        <AnularEntrada
+          entrada={anulando}
+          onCerrar={() => setAnulando(null)}
+          onHecha={(e) => {
+            setEntradas((prev) => (prev ?? []).map((x) => (x.id === e.id ? e : x)));
+            setAnulando(null);
+          }}
+        />
+      )}
+      {deNuevo && (
+        <NuevaEntrada
+          tipoInicial={deNuevo.tipo}
+          catalogo={catalogo}
+          contables={contables}
+          categorias={categorias}
+          puedeCrear={puedeCrear}
+          productoInicial={null}
+          cargaDe={deNuevo}
+          diaDe={(t) => reloj.dia(t)}
+          onCerrar={() => setDeNuevo(null)}
+          onRegistrada={(e) => {
+            setEntradas((prev) => [e, ...(prev ?? []).filter((x) => x.id !== e.id)]);
+            setDeNuevo(null);
+          }}
+        />
+      )}
       {abierta && (
         <NuevaEntrada
           tipoInicial={abierta}
@@ -272,17 +312,38 @@ function Vacio({ titulo, detalle, accion }: { titulo: string; detalle: string; a
   );
 }
 
-function FilaEntrada({ entrada: e, cuando }: { entrada: EntradaDto; cuando: string }) {
+function FilaEntrada({
+  entrada: e,
+  cuando,
+  cuandoAnulada,
+  onAnular,
+  onCargarDeNuevo,
+}: {
+  entrada: EntradaDto;
+  cuando: string;
+  cuandoAnulada: string | null;
+  /** B9-12: anularla (administración, con su PIN); `null` si no se puede o ya está anulada. */
+  onAnular: (() => void) | null;
+  /** Abrir una entrada con sus líneas, para corregirlas. */
+  onCargarDeNuevo: (() => void) | null;
+}) {
   const quien = e.proveedor ?? (e.tipo === "COMPRA" ? "Proveedor sin declarar" : e.tipo === "INICIAL" ? "Existencia de arranque" : "Del depósito");
+  const anulada = e.anulada;
   return (
-    <li className="rounded-[var(--radius-card)] border border-line bg-surface px-4 py-3 shadow-card">
+    <li className={cn("rounded-[var(--radius-card)] border bg-surface px-4 py-3 shadow-card", anulada ? "border-line/70 opacity-80" : "border-line")}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="rounded-full border border-line px-2 py-0.5 text-[11px] font-semibold text-ink-2">{NOMBRE_TIPO[e.tipo]}</span>
-        <span className="text-[14px] font-semibold text-ink">{quien}</span>
+        {anulada && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-state-crit/50 px-2 py-0.5 text-[11px] font-semibold text-state-crit">
+            <Ban size={11} aria-hidden="true" />
+            Anulada
+          </span>
+        )}
+        <span className={cn("text-[14px] font-semibold text-ink", anulada && "line-through decoration-ink-3")}>{quien}</span>
         {e.factura && <span className="tnum text-[12.5px] text-ink-3">Factura {e.factura}</span>}
-        <span className="tnum ml-auto text-[15px] font-bold text-ink">{usd(minor(e.total))}</span>
+        <span className={cn("tnum ml-auto text-[15px] font-bold text-ink", anulada && "line-through decoration-ink-3")}>{usd(minor(e.total))}</span>
       </div>
-      <p className="mt-1 text-[12.5px] text-ink-2">
+      <p className={cn("mt-1 text-[12.5px] text-ink-2", anulada && "line-through decoration-ink-3")}>
         {e.lineas.map((l, i) => (
           <span key={l.productId}>
             {i > 0 && <span className="text-ink-3"> · </span>}
@@ -301,8 +362,108 @@ function FilaEntrada({ entrada: e, cuando }: { entrada: EntradaDto; cuando: stri
       <p className="tnum mt-0.5 text-[12px] text-ink-3">
         {cuando} · recibió {e.recibidaPor}
       </p>
+      {anulada && (
+        <p className="mt-1 text-[12px] text-ink-2">
+          Anulada {cuandoAnulada ? `el ${cuandoAnulada}` : ""} por {anulada.por}
+          {anulada.autorizo && anulada.autorizo !== anulada.por ? `, autorizó ${anulada.autorizo}` : ""}: «{anulada.motivo}»
+        </p>
+      )}
+      {(onAnular || onCargarDeNuevo) && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {onCargarDeNuevo && (
+            <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={onCargarDeNuevo}>
+              <RotateCcw size={14} aria-hidden="true" />
+              Cargarla de nuevo
+            </Button>
+          )}
+          {onAnular && (
+            <Button type="button" variant="ghost" surface="admin" className="gap-1.5 text-state-crit" onClick={onAnular}>
+              <Ban size={14} aria-hidden="true" />
+              Anular
+            </Button>
+          )}
+        </div>
+      )}
     </li>
   );
+}
+
+/** B9-12: anular una entrada mal cargada, con su motivo y el PIN de administración. */
+function AnularEntrada({ entrada, onCerrar, onHecha }: { entrada: EntradaDto; onCerrar: () => void; onHecha: (e: EntradaDto) => void }) {
+  const a = useAutorizacion("inventario.ajustar", true, { cargar: autorizadoresDeInventario });
+  const [motivo, setMotivo] = useState("");
+  const [errores, setErrores] = useState<Record<string, string>>({});
+  const [enviando, setEnviando] = useState(false);
+  async function confirmar() {
+    const falta = a.falta();
+    if (motivo.trim().length < 3 || falta) {
+      setErrores({ ...(motivo.trim().length < 3 ? { motivo: "Di por qué se anula" } : {}), ...((falta ?? {}) as Record<string, string>) });
+      return;
+    }
+    setEnviando(true);
+    const r = await anularEntrada({ entryId: entrada.id, motivo: motivo.trim() }, a.autorizacion(`Anular la entrada de ${usd(minor(entrada.total))}: ${motivo.trim()}`)).catch(
+      () => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: no se anuló nada." }) as Rechazo,
+    );
+    setEnviando(false);
+    if (r.ok) {
+      avisar.ok("Entrada anulada", { detalle: "Cada línea salió a su costo de esa entrada. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas." });
+      onHecha(r.valor);
+      return;
+    }
+    const ep = erroresDeRechazo(r.mensaje);
+    if (ep.pin) a.borrarPin();
+    setErrores({ general: r.mensaje, ...(ep as Record<string, string>) });
+  }
+  return (
+    <Sheet
+      abierto
+      onCerrar={onCerrar}
+      titulo="Anular la entrada"
+      descripcion="Cada línea sale a su costo de esa entrada y el costo promedio se recalcula. No se borra: queda tachada, con quién y por qué. Si ya se vendió o se sacó algo, no se anula: se corrige con un conteo."
+      pie={
+        <div className="flex w-full flex-col gap-2">
+          {errores.general && (
+            <p role="alert" className="flex items-start gap-1.5 text-[12.5px] font-medium text-state-crit">
+              <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {errores.general}
+            </p>
+          )}
+          <Button surface="admin" variant="danger" className="w-full gap-1.5" disabled={enviando} onClick={() => void confirmar()}>
+            <Ban size={15} aria-hidden="true" />
+            {enviando ? "Anulando…" : "Anular la entrada"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        <p className="text-[13px] text-ink-2">
+          {NOMBRE_TIPO[entrada.tipo]} de {usd(minor(entrada.total))}: {entrada.lineas.map((l) => `${l.nombre} ${l.unidades} u`).join(", ")}
+          {entrada.enCero.length > 0 ? `; en cero: ${entrada.enCero.map((x) => x.nombre).join(", ")}` : ""}.
+        </p>
+        <Input label="1 · Por qué se anula" surface="admin" value={motivo} maxLength={200} placeholder="Se cargó la factura equivocada…" error={errores.motivo} autoFocus onChange={(e) => setMotivo(e.target.value)} />
+        <CampoAutorizacion a={a} numero={2} denegado="Tu puesto no puede anular entradas: lo hace administración." errores={errores} deshabilitado={enviando} onConfirmar={() => void confirmar()} />
+      </div>
+    </Sheet>
+  );
+}
+
+/** Las filas de una entrada anulada, para cargarla de nuevo y corregirla (B9-12). */
+function filasDe(e: EntradaDto, porId: ReadonlyMap<string, ProductoDto>): Borrador[] {
+  const filas: Borrador[] = e.lineas.map((l) => {
+    const p = porId.get(l.productId);
+    const enBultos = l.unidadesPorBulto > 1;
+    return {
+      ...filaVacia(),
+      texto: p?.nombre ?? l.nombre,
+      productId: p ? l.productId : "",
+      cantidad: String(enBultos ? l.bultos : l.unidades),
+      en: enBultos ? "BULTOS" : "UNIDADES",
+      porBulto: enBultos ? String(l.unidadesPorBulto) : "",
+      costo: costoTecleable(l.costo),
+      costoPor: "TOTAL",
+    };
+  });
+  return filas.length > 0 ? filas : [filaVacia()];
 }
 
 function NuevaEntrada({
@@ -312,10 +473,13 @@ function NuevaEntrada({
   categorias,
   puedeCrear,
   productoInicial,
+  cargaDe = null,
   diaDe,
   onCerrar,
   onRegistrada,
 }: {
+  /** B9-12: una entrada anulada, para cargarla de nuevo con sus líneas y corregirlas. */
+  cargaDe?: EntradaDto | null;
   tipoInicial: TipoEntrada;
   catalogo: CatalogoDto;
   contables: readonly ProductoDto[];
@@ -339,9 +503,10 @@ function NuevaEntrada({
   const puedePrecioFicha = actorFicha !== null && can(actorFicha, "catalogo.modificar") !== "DENEGADO";
   const ahoraFicha = useAhoraLocal();
   const [tipo, setTipo] = useState<TipoEntrada>(tipoInicial);
-  const [proveedor, setProveedor] = useState("");
-  const [factura, setFactura] = useState("");
+  const [proveedor, setProveedor] = useState(cargaDe?.proveedor ?? "");
+  const [factura, setFactura] = useState(cargaDe?.factura ?? "");
   const [filas, setFilas] = useState<Borrador[]>(() => {
+    if (cargaDe) return filasDe(cargaDe, porId);
     const p = productoInicial ? porId.get(productoInicial) : undefined;
     return [p ? conProducto(filaVacia(), p, tipoInicial === "INICIAL") : filaVacia()];
   });

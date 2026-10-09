@@ -44,8 +44,11 @@ export async function existenciasDe(tx: Transaccion, branchId: string, productId
  */
 export async function arranquesDe(tx: Transaccion, branchId: string, productIds?: readonly string[]): Promise<Map<string, Date>> {
   const where = { branchId, ...(productIds ? { productId: { in: [...productIds] } } : {}) };
-  const primeros = await tx.stockMovement.groupBy({ by: ["productId"], where, _min: { at: true } });
-  const filas = await tx.stockStart.findMany({ where, select: { productId: true, startedAt: true } });
+  // Lo de una entrada anulada no arranca nada (B9-12): un inventario inicial anulado vuelve a «Sin inventario inicial».
+  const anuladas = (await tx.stockEntryVoid.findMany({ where: { branchId }, select: { entryId: true } })).map((a) => a.entryId);
+  const sinAnuladas = anuladas.length > 0 ? { OR: [{ entryId: null }, { entryId: { notIn: anuladas } }] } : {};
+  const primeros = await tx.stockMovement.groupBy({ by: ["productId"], where: { ...where, kind: { not: "ANULACION" }, ...sinAnuladas }, _min: { at: true } });
+  const filas = await tx.stockStart.findMany({ where: { ...where, ...sinAnuladas }, select: { productId: true, startedAt: true } });
   const arranque = new Map<string, Date>();
   for (const f of primeros) if (f._min.at) arranque.set(f.productId, f._min.at);
   for (const f of filas) {

@@ -208,6 +208,8 @@ export {
   type RegistrarEntradaCommand,
   type EntradaDto,
   type EntradasDto,
+  AnularEntradaDeMercanciaCommandSchema,
+  type AnularEntradaDeMercanciaCommand,
 } from "./entradas.ts";
 
 export {

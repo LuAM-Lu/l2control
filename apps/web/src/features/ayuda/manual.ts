@@ -468,6 +468,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Uno creado por error (también en la carga inicial): en su ficha, «Retirar». Sale de la caja, la carta, la tablet y las listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra: «Retirados» los muestra y, en su ficha, «Devolver al catálogo».",
       "Productos → En la carta: qué platos ofrece el mesero y su precio con su día (un solo sitio para el precio).",
       "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay). Cada fila dice la categoría y la presentación del producto, y «Ver o editar su ficha» la abre encima sin perder la lista.",
+      "Una entrada mal cargada (una compra, una reposición o el inventario inicial): «Anular», con el motivo y el PIN de administración. Cada línea sale a su costo de esa entrada y el costo promedio se recalcula; queda tachada, con quién y por qué. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.",
       "Salidas y conteo: merma, consumo interno, regalo o devolución, con motivo; el conteo deja la existencia igual a lo contado.",
     ],
     problemas: [
@@ -481,6 +482,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
         solucion:
           "Se dio de alta sin cantidades y todavía no se contó: no se vende hasta entonces. Cuéntalo en Entradas → Inventario inicial (escribe 0 si no hay ninguno) o en un conteo.",
         reconoce: ["sin inventario inicial", "sin contar", "inventario inicial"],
+      },
+      {
+        sintoma: "«Ya salieron N desde esta entrada» al anularla",
+        solucion: "De ese producto ya se vendió o se sacó algo después de la entrada: no se sabe qué parte era suya. Corrige la existencia con un conteo en Salidas y conteo.",
+        reconoce: ["desde esta entrada", "no se sabe que parte era suya"],
       },
     ],
   },

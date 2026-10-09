@@ -15,6 +15,7 @@
  *    a la vez lee el costo de después), la transacción y su asiento.
  */
 import {
+  AnularEntradaDeMercanciaCommandSchema,
   EntradasSchema,
   RegistrarEntradaCommandSchema,
   problemasDe,
@@ -31,6 +32,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { arranquesDe, asentarArranques, bloquearProducto } from "./existencias.ts";
+import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { Deshacer, crearProductoEn } from "./productos.ts";
 
 /** Cuántas entradas enseña la pantalla: las más recientes. */
@@ -41,7 +43,15 @@ export interface CasosEntradas {
   leer(ctx: Contexto): Promise<Resultado<EntradasDto>>;
   /** Registra una entrada (`RegistrarEntradaCommandSchema`). Devuelve cómo quedó. */
   registrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EntradaDto>>;
+  /**
+   * Anula una entrada mal cargada (`AnularEntradaDeMercanciaCommandSchema`, B9-12): cada línea sale a su costo de esa entrada. Si
+   * de algún producto ya se vendió o se sacó algo desde entonces, se niega y dice cuánto (eso se corrige con un conteo).
+   * `autorizacion`: el PIN de administración.
+   */
+  anular(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<EntradaDto>>;
 }
+
+const CON_PIN = { confirmarConPin: true } as const;
 
 const MENSAJE_LINEA: Record<EntryLineProblem, string> = {
   BULTOS: "Bultos enteros, de 1 a 10.000",
@@ -251,12 +261,96 @@ export function casosEntradas(base: Base): CasosEntradas {
         return "ok" in r ? r : { ok: true, valor: r };
       }
     },
+
+    async anular(ctx, entrada, autorizacion, ahora = Date.now()) {
+      const v = AnularEntradaDeMercanciaCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "La entrada no se anuló: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<EntradaDto | Rechazo> => {
+        const p = await permisoEn(tx, ctx, "inventario.ajustar");
+        if (p === "DENEGADO") return rechazoDePermiso(p);
+        const e = await tx.stockEntry.findUnique({ where: { id: cmd.entryId } });
+        if (!e || e.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa entrada no está en esta sucursal." };
+        if (await tx.stockEntryVoid.findFirst({ where: { entryId: e.id } })) return { ok: false, motivo: "CONFLICTO", mensaje: "Esa entrada ya está anulada." };
+        const movs = await tx.stockMovement.findMany({ where: { entryId: e.id }, orderBy: { productId: "asc" } });
+        for (const m of movs) await bloquearProducto(tx, ctx.branchId, m.productId);
+        // Si de algún producto ya se vendió o se sacó algo desde esta entrada, no se sabe qué parte era suya: se niega.
+        const problemas: { path: (string | number)[]; message: string }[] = [];
+        const nombres = new Map((await tx.product.findMany({ where: { id: { in: movs.map((m) => m.productId) } }, select: { id: true, name: true } })).map((x) => [x.id, x.name]));
+        let primero: string | null = null;
+        for (const m of movs) {
+          const salio = await tx.stockMovement.aggregate({ where: { branchId: ctx.branchId, productId: m.productId, quantity: { lt: 0 }, at: { gte: e.receivedAt } }, _sum: { quantity: true } });
+          const n = -(salio._sum.quantity ?? 0);
+          if (n > 0) {
+            problemas.push({ path: ["lineas", m.productId], message: `YA_SALIO: ${n}` });
+            primero ??= `De ${nombres.get(m.productId) ?? "un producto"} ya ${n === 1 ? "salió 1" : `salieron ${n}`} desde esta entrada`;
+          }
+        }
+        if (primero) {
+          return { ok: false, motivo: "CONFLICTO", mensaje: `${primero}: no se sabe qué parte era suya. Corrígelo con un conteo.`, problemas };
+        }
+        // La autorización se comprueba y se registra ANTES de mover nada (§7.3).
+        const permiso = await exigirPermisoOAutorizacion(tx, ctx, "inventario.ajustar", autorizacion, ahora, CON_PIN);
+        if (!permiso.ok) return permiso;
+        const quien = await nombreDe(tx, ctx);
+        const autorizador = permiso.autorizadoPor ? await tx.staffUser.findUnique({ where: { id: permiso.autorizadoPor }, select: { fullName: true } }) : null;
+        const anulacion = await tx.stockEntryVoid.create({
+          data: {
+            tenantId: ctx.tenantId,
+            branchId: ctx.branchId,
+            entryId: e.id,
+            reason: cmd.motivo,
+            at: new Date(ahora),
+            createdBy: ctx.quien?.userId ?? null,
+            createdByName: quien.nombre,
+            deviceId: ctx.quien?.deviceId ?? null,
+            authorizedBy: permiso.autorizadoPor ?? null,
+            authorizedByName: autorizador?.fullName ?? null,
+          },
+        });
+        // Cada línea sale a su costo de esa entrada: el costo promedio se recalcula solo (la suma de los movimientos).
+        if (movs.length > 0) {
+          await tx.stockMovement.createMany({
+            data: movs.map((m) => ({
+              tenantId: ctx.tenantId,
+              branchId: ctx.branchId,
+              productId: m.productId,
+              quantity: -m.quantity,
+              kind: "ANULACION",
+              valueMinor: -m.valueMinor,
+              entryVoidId: anulacion.id,
+              at: new Date(ahora),
+              createdBy: ctx.quien?.userId ?? null,
+              createdByName: quien.nombre,
+              deviceId: ctx.quien?.deviceId ?? null,
+            })),
+          });
+        }
+        const total = movs.reduce((t, m) => t + m.valueMinor, 0n);
+        await auditar(tx, ctx, {
+          action: "inventario.anular_entrada",
+          entityType: "stock_entry",
+          entityId: e.id,
+          ...(permiso.autorizadoPor ? { authorizedBy: permiso.autorizadoPor } : {}),
+          reason: cmd.motivo,
+          before: { tipo: e.kind, lineas: movs.length, unidades: movs.reduce((t, m) => t + m.quantity, 0), total: { minor: String(total), currency: "USD" } },
+          after: { anulada: true },
+        });
+        return entradaDe(tx, e.id);
+      });
+      if ("ok" in r) {
+        if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "inventario.anular_entrada", reason: r.mensaje });
+        return r;
+      }
+      return { ok: true, valor: r };
+    },
   };
 }
 
 /** Una entrada con sus líneas, como la lee la pantalla. Dentro de la transacción, consulta a consulta. */
 async function entradaDe(tx: Transaccion, id: string): Promise<EntradaDto> {
   const e = await tx.stockEntry.findUniqueOrThrow({ where: { id } });
+  const anulacion = await tx.stockEntryVoid.findFirst({ where: { entryId: id } });
   const movs = await tx.stockMovement.findMany({ where: { entryId: id }, orderBy: { productId: "asc" } });
   const nombres = new Map((await tx.product.findMany({ where: { id: { in: movs.map((m) => m.productId) } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]));
   const total = sum(movs.map((m) => money(m.valueMinor, "USD")), "USD");
@@ -282,5 +376,6 @@ async function entradaDe(tx: Transaccion, id: string): Promise<EntradaDto> {
     })),
     total: { minor: String(total.amount), currency: "USD" },
     enCero: ceros.map((c) => ({ productId: c.productId, nombre: nombresCero.get(c.productId) ?? "Producto" })),
+    anulada: anulacion ? { por: anulacion.createdByName, autorizo: anulacion.authorizedByName, motivo: anulacion.reason, en: anulacion.at.toISOString() } : null,
   };
 }

@@ -88,6 +88,7 @@ export function casosMovimientos(base: Base): CasosMovimientos {
             entrada: { select: { kind: true, supplier: true, invoice: true } },
             ajuste: { select: { kind: true, reason: true, note: true, content: true, authorizedByName: true } },
             causa: { select: { content: true } },
+            anulada: { select: { reason: true, authorizedByName: true, entrada: { select: { kind: true, receivedAt: true } } } },
           },
           orderBy: [{ at: "asc" }, { id: "asc" }],
         });
@@ -110,6 +111,10 @@ export function casosMovimientos(base: Base): CasosMovimientos {
             fila.detalle = `Venta · ${lugarDe(m.causa?.content)}`;
           } else if (m.kind === "DEVOLUCION") {
             fila.detalle = `Quitado de una cuenta sin cobrar · ${lugarDe(m.causa?.content)}`;
+          } else if (m.kind === "ANULACION" && m.anulada) {
+            // B9-12: la entrada mal cargada, anulada con su reverso.
+            fila.detalle = con(`Anulación: ${(ENTRADA[m.anulada.entrada.kind] ?? "entrada").toLowerCase()}`, m.anulada.reason);
+            fila.autorizo = m.anulada.authorizedByName;
           }
           filas.get(m.productId)!.push(fila);
         }

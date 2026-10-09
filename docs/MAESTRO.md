@@ -2333,13 +2333,22 @@ antes del cobro en servidor (orden de ejecución).
   la entrada y el inventario inicial, la fila dice categoría, presentación y SKU, con «Ver o editar su ficha» encima de la
   lista (`FichaProducto` exportada). `CampoCategoria`: lista desplegable con «Escribir una nueva…», en la ficha, «Alta
   en lote» y la ficha corta de la entrada. 3 pruebas contra la base.*
-- [ ] **B9-12 · Corregir una entrada mal cargada** (M-34, S-4).
+- [x] **B9-12 · Corregir una entrada mal cargada** (M-34, S-4).
+  *Hecho el 2026-10-09, en `feat/b9-12`.*
   → **Anular una entrada.** Una compra, una reposición o un inventario inicial se anula con su asiento de reverso (nada se
   borra), con la 🔐 de administración y un motivo: cada línea sale a su costo de esa entrada y el costo promedio se
   recalcula. Si ya se vendió o se sacó parte, se niega y dice cuánto: eso se corrige con un conteo. Un inventario inicial
   anulado deja el producto «Sin inventario inicial». La entrada anulada se ve tachada, con quién y por qué, y «Cargarla de
   nuevo» abre una entrada con sus líneas para corregirlas.
   → **Base (solo expande).** La anulación y su movimiento de reverso.
+  *· Hecho: migración `20261120000000_anular_entrada` (solo expande): `stock_entry_void` (solo agregar, una por entrada),
+  `stock_movement.entry_void_id` y el tipo ANULACION en su CHECK (sale lo que entró, a su costo), y `stock_start` deja de
+  ser único por producto (anulado el inventario inicial, se vuelve a contar). `entradas.anular` (`inventario.ajustar` con
+  el PIN de administración): se niega si de algún producto salió algo desde la entrada y dice cuánto; `arranquesDe`
+  ignora lo de una entrada anulada, así el producto vuelve a «Sin inventario inicial»; el kárdex muestra «Entrada
+  anulada» con su motivo. En Entradas, la fila anulada tachada con quién, quién autorizó y por qué; «Anular» y «Cargarla
+  de nuevo». La acción de auditoría es `inventario.anular_entrada` (las acciones van en minúsculas: CHECK de audit_log).
+  4 pruebas contra la base.*
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
