@@ -163,7 +163,7 @@ export function panelVivo({
         ? [aviso(`${huerfanas} ${huerfanas === 1 ? "estancia" : "estancias"} a revisar: sin salida registrada`, "warn", "/monitor", "Revisar")]
         : []),
       ...(estado.sesiones.length >= politica.capacityLimit
-        ? [aviso("Aforo lleno", "warn", "/entrada", "Ver la entrada")]
+        ? [aviso("Aforo lleno", "warn", "/monitor", "Ver el parque")]
         : []),
     ],
   };

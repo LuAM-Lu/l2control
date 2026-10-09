@@ -1,20 +1,10 @@
-import { CheckoutScreen } from "../../../src/features/park/CheckoutScreen";
+import { redirect } from "next/navigation";
 
 /**
- * Salida y liquidación del parque (F5-14).
- *
- * `?pulsera=` llega desde la ficha del niño en el monitor y lo deja elegido.
- * Es un dato de la URL: la pantalla lo valida con el mismo contrato que un
- * escaneo antes de usarlo. La sala y su hora son del servidor (B4-2), y la
- * salida la liquida el servidor (B4-3).
+ * La salida del parque vive en «Parque» desde B4-12 (M-34). Un enlace a `/salida?pulsera=` (la ficha de antes, el cierre
+ * del turno) no se rompe: abre la salida de ese niño allí. La pulsera se valida igual que un escaneo.
  */
-export const dynamic = "force-dynamic";
-
-export default async function SalidaPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ pulsera?: string }>;
-}) {
+export default async function SalidaPage({ searchParams }: { searchParams: Promise<{ pulsera?: string }> }): Promise<never> {
   const { pulsera } = await searchParams;
-  return <CheckoutScreen pulseraInicial={pulsera ?? null} />;
+  redirect(pulsera ? `/monitor?salida=${encodeURIComponent(pulsera)}` : "/monitor");
 }

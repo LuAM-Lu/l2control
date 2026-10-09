@@ -336,6 +336,45 @@ describe("la cédula del representante (T-19)", () => {
   });
 });
 
+describe("sumar a la familia (B4-12)", () => {
+  const motivoDe = (r: { ok: boolean; problemas?: readonly { message: string }[] | undefined }) => (r.ok ? "OK" : r.problemas?.[0]?.message);
+
+  test("el niño que llega después entra en la cuenta de su familia, con su propio tiempo, y salen juntos", async () => {
+    const primera = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA", guardian: { fullName: "Inés Suma", contactReference: "0414-400.00.01" }, guardianDocument: "V-18400001" }));
+    const g = primera.sessions[0]!.guardianId;
+    const despues = await entrar(entrada([{}], { guardian: undefined, guardianId: g, sumarA: primera.account.id }), ctxMonitora, AHORA + 20 * MIN);
+    assert.equal(despues.account.id, primera.account.id);
+    assert.equal(despues.account.orderNumber, primera.account.orderNumber);
+    assert.equal(despues.account.sessionIds.length, 2);
+    assert.equal(despues.account.status, "ABIERTA");
+    assert.equal(Date.parse(despues.sessions[0]!.startedAt), AHORA + 20 * MIN);
+    assert.equal(despues.sessions.length, 1, "la respuesta trae solo a los que entraron ahora");
+    // Salen juntos: una salida de la familia.
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida(despues.account.sessionIds), AHORA + 50 * MIN));
+    assert.equal(s.lines.length, 2);
+    await vaciarSala(AHORA + 50 * MIN);
+  });
+
+  test("en prepago, lo nuevo va a la caja como una recarga", async () => {
+    const primera = await entrar(entrada([{}], { guardian: { fullName: "Inés Prepago", contactReference: "0414-400.00.02" }, guardianDocument: "V-18400002" }));
+    const despues = await entrar(entrada([{}], { guardian: undefined, guardianId: primera.sessions[0]!.guardianId, sumarA: primera.account.id }), ctxMonitora, AHORA + MIN);
+    assert.equal(despues.account.status, "POR_COBRAR");
+    assert.equal(despues.account.pendingSince, primera.account.pendingSince);
+    assert.equal(chargeableLines(despues.account).length, 2);
+    await vaciarSala(AHORA + MIN);
+  });
+
+  test("no se suma a la cuenta de otro representante, ni a la de una familia que ya salió", async () => {
+    const de = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA", guardian: { fullName: "Inés Otra", contactReference: "0414-400.00.03" }, guardianDocument: "V-18400003" }));
+    const ajena = await local.app.parque.entrar(ctxMonitora, entrada([{}], { sumarA: de.account.id }), AHORA);
+    assert.equal(motivoDe(ajena), "NO_SE_SUMA");
+    valor(await local.app.parque.salir(ctxMonitora, salida(de.account.sessionIds), AHORA + MIN));
+    const tarde = await local.app.parque.entrar(ctxMonitora, entrada([{}], { guardian: undefined, guardianId: de.sessions[0]!.guardianId, sumarA: de.account.id }), AHORA + 2 * MIN);
+    assert.equal(motivoDe(tarde), "NO_SE_SUMA");
+    await vaciarSala(AHORA + 2 * MIN);
+  });
+});
+
 describe("la salida (B4-3)", () => {
   test("prepago sin pasarse: sale sin cargo y la cuenta queda como estaba", async () => {
     const r = await entrar(entrada([{}]));
