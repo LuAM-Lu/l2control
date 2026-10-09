@@ -464,8 +464,10 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Los productos con su existencia, las entradas de mercancía, las salidas y el conteo.",
     pasos: [
       "Productos: la existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
+      "«Editar» en cada fila abre su ficha: los datos arriba (nombre, categoría, presentación), el precio debajo. La categoría se elige de la lista; «Escribir una nueva…» para la que no está.",
+      "Uno creado por error (también en la carga inicial): en su ficha, «Retirar». Sale de la caja, la carta, la tablet y las listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra: «Retirados» los muestra y, en su ficha, «Devolver al catálogo».",
       "Productos → En la carta: qué platos ofrece el mesero y su precio con su día (un solo sitio para el precio).",
-      "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay).",
+      "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay). Cada fila dice la categoría y la presentación del producto, y «Ver o editar su ficha» la abre encima sin perder la lista.",
       "Salidas y conteo: merma, consumo interno, regalo o devolución, con motivo; el conteo deja la existencia igual a lo contado.",
     ],
     problemas: [

@@ -915,11 +915,34 @@ model Product {
   prices         ProductPrice[]
   stockMovements StockMovement[]
   stockStarts    StockStart[]
+  retirements    ProductRetirement[]
 
   /// Destino de la FK compuesta de los precios: un precio es de un producto de SU tenant.
   @@unique([tenantId, id])
   @@unique([tenantId, sku])
   @@map("product")
+}
+
+/// El retiro de un producto del catálogo y su vuelta (B9-11, M-34). Solo agregar: el estado es la última fila. Al
+/// retirarlo, el producto queda además apartado (`active = false`) y, si tenía existencia, la salida que la sacó se cita.
+model ProductRetirement {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  productId        String   @map("product_id") @db.Uuid
+  /// RETIRO o VUELTA (CHECK).
+  kind             String
+  reason           String
+  adjustmentId     String?  @map("adjustment_id") @db.Uuid
+  at               DateTime @db.Timestamptz(3)
+  createdBy        String?  @map("created_by") @db.Uuid
+  createdByName    String   @map("created_by_name")
+  authorizedBy     String?  @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+
+  product Product @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([tenantId, productId, at])
+  @@map("product_retirement")
 }
 
 /// Un precio programado (B9-1, F8-02). Solo-agregar: cambiar el precio programa la fila siguiente

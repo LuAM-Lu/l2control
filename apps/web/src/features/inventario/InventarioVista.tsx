@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChefHat, ClipboardList, LayoutGrid, LayoutList, Package, PackageX, ScanLine, Search, Ticket, TriangleAlert, Boxes, Wallet } from "lucide-react";
+import { ChefHat, ClipboardList, LayoutGrid, LayoutList, Package, PackageX, Pencil, ScanLine, Search, Ticket, TriangleAlert, Boxes, Wallet } from "lucide-react";
 import type { CatalogoDto, ProductoDto, TipoProducto } from "@l2/contracts";
 import { categoriesOf, marginBasisPoints, nameKey, periodAt, type PricePeriod, type StockStatus } from "@l2/domain-inventory";
 import { convert, money, sum, toMajor, type FrozenRate } from "@l2/domain-money";
@@ -50,6 +50,7 @@ export function InventarioVista({
   tasa,
   onAbrir,
   seleccion,
+  retirados = false,
 }: {
   catalogo: CatalogoDto;
   periodos: readonly PricePeriod[];
@@ -59,6 +60,8 @@ export function InventarioVista({
   onAbrir: (id: string) => void;
   /** B9-9: los elegidos para editarlos en lote (solo en la tabla); sin ella, no se elige. */
   seleccion?: Seleccion | undefined;
+  /** B9-11: la vista de los retirados (todos apartados): se ven todos, sin el filtro de apartados. */
+  retirados?: boolean;
 }) {
   const [tipo, setTipo] = useState<TipoProducto>("PRODUCTO");
   const [estado, setEstado] = useState<FiltroEstado>("TODOS");
@@ -111,11 +114,11 @@ export function InventarioVista({
   const unidades = contables.reduce((n, f) => n + (f.p.existencia ?? 0), 0);
   const valor = sum(contables.map((f) => money(BigInt(f.p.valor?.minor ?? "0"), "USD")), "USD");
 
-  const porTipo = (t: TipoProducto) => filas.filter((f) => f.p.tipo === t && f.p.activo !== apartados).length;
+  const porTipo = (t: TipoProducto) => filas.filter((f) => f.p.tipo === t && (retirados || f.p.activo !== apartados)).length;
   const categorias = useMemo(() => categoriesOf(filas.filter((f) => f.p.tipo === tipo).map((f) => ({ category: f.p.categoria }))), [filas, tipo]);
   const q = nameKey(busqueda);
   const visibles = filas
-    .filter((f) => f.p.tipo === tipo && f.p.activo !== apartados)
+    .filter((f) => f.p.tipo === tipo && (retirados || f.p.activo !== apartados))
     .filter((f) => categoria === "" || nameKey(f.p.categoria) === nameKey(categoria))
     .filter((f) => tipo !== "PRODUCTO" || estado === "TODOS" || f.estado === estado)
     .filter((f) => q === "" || nameKey(f.p.nombre).includes(q) || f.p.sku.toLowerCase().includes(busqueda.trim().toLowerCase()) || (f.p.codigoBarras ?? "").includes(busqueda.trim().toUpperCase()))
@@ -225,10 +228,12 @@ export function InventarioVista({
             </select>
           </label>
         )}
-        <label className="flex min-h-9 cursor-pointer items-center gap-2 text-[13px] text-ink-2">
-          <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={apartados} onChange={(e) => setApartados(e.target.checked)} />
-          Apartados
-        </label>
+        {!retirados && (
+          <label className="flex min-h-9 cursor-pointer items-center gap-2 text-[13px] text-ink-2">
+            <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={apartados} onChange={(e) => setApartados(e.target.checked)} />
+            Apartados
+          </label>
+        )}
         <p className="ml-auto flex items-center gap-1.5 text-[12px] text-ink-3">
           <ScanLine size={13} aria-hidden="true" />
           Pasa un código por el lector para abrir su ficha.
@@ -336,6 +341,9 @@ function Tabla({ filas, tipo, tasa, onAbrir, seleccion }: { filas: readonly Fila
             {cuenta && <th className={cn(TH, "text-right max-lg:hidden")}>Costo</th>}
             <th className={cn(TH, "text-right")}>Precio</th>
             {cuenta && <th className={cn(TH, "text-right")}>Margen</th>}
+            <th className={cn(TH, "w-24")}>
+              <span className="sr-only">Editar</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -401,6 +409,21 @@ function Tabla({ filas, tipo, tasa, onAbrir, seleccion }: { filas: readonly Fila
                   {margen === null ? "—" : `${PORCENTAJE.format(margen / 100)} %`}
                 </td>
               )}
+              {/* B9-11: editar a la vista, desde la fila: abre su ficha con los datos arriba. */}
+              <td className={TD}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAbrir(p.id);
+                  }}
+                  aria-label={`Editar ${p.nombre}`}
+                  className="flex min-h-8 cursor-pointer items-center gap-1 rounded-[var(--radius-control)] border border-line px-2 text-[12.5px] font-semibold text-ink-2 hover:border-brand/50 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+                >
+                  <Pencil size={13} aria-hidden="true" />
+                  <span className="max-lg:sr-only">Editar</span>
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

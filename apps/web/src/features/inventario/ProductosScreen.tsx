@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, CalendarClock, Copy, CopyPlus, CheckCircle2, ChefHat, ClipboardList, History, ListPlus, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
+import { AlertTriangle, ArchiveRestore, ArchiveX, CalendarClock, Copy, CopyPlus, CheckCircle2, ChefHat, ClipboardList, History, ListPlus, Package, PackageOpen, PackagePlus, PackageX, Plus, ScanLine, Tags, Ticket } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
@@ -27,6 +28,8 @@ import { AltaEnLote } from "./AltaEnLote.tsx";
 import { categoriasDelCatalogo, periodosDe } from "./catalogo.ts";
 import { InventarioVista } from "./InventarioVista.tsx";
 import { CategoriasSheet } from "./CategoriasSheet.tsx";
+import { RetirarProducto } from "./RetirarProducto.tsx";
+import { CampoCategoria } from "./CampoCategoria.tsx";
 
 /**
  * Panel → Inventario → Productos (B9-1, F8-02; rediseñada en B9-6, M-16). El stock es lo protagonista:
@@ -70,6 +73,29 @@ function diaEnPalabras(instante: number, zona: string): string {
 
 type Aplicar = (cmd: ProductoCommand, que: string) => Promise<Resultado<CatalogoDto> | null>;
 
+/**
+ * Aplicar un cambio a un producto con la elevación de identidad si hace falta, y adoptar el catálogo como quedó. Lo usan
+ * Productos y la ficha abierta desde una entrada (B9-11).
+ */
+export function useAplicarProducto(alCambiar: (c: CatalogoDto) => void): { cambiar: Aplicar; enviando: string | null } {
+  const conElevacion = useConElevacion();
+  const [enviando, setEnviando] = useState<string | null>(null);
+  const cambiar: Aplicar = async (cmd, que) => {
+    setEnviando(que);
+    try {
+      const r = await conElevacion(() => aplicarProducto(cmd));
+      if (r.ok) alCambiar(r.valor);
+      return r;
+    } catch {
+      avisar.error("No se pudo hablar con el servidor. No se guardó nada.");
+      return null;
+    } finally {
+      setEnviando(null);
+    }
+  };
+  return { cambiar, enviando };
+}
+
 export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
   const actor = useActorEnSesion();
   // El alta, la ficha y apartar son del inventario (T-13); el precio, de `catalogo.modificar`.
@@ -104,6 +130,11 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
   const enTelefono = useMediaQuery("(max-width: 47.99rem)");
   /** Qué se está guardando: bloquea ese control mientras el servidor responde. */
   const [enviando, setEnviando] = useState<string | null>(null);
+  /** B9-11: los retirados se ven aparte («Retirados»); retirar y devolver, con el PIN de administración. */
+  const [verRetirados, setVerRetirados] = useState(false);
+  const [retiro, setRetiro] = useState<{ producto: ProductoDto; modo: "RETIRAR" | "DEVOLVER" } | null>(null);
+  const puedeRetirar = actor !== null && can(actor, "inventario.ajustar") !== "DENEGADO";
+  const router = useRouter();
 
   const cambiar: Aplicar = async (cmd, que) => {
     setEnviando(que);
@@ -119,6 +150,12 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
     }
   };
 
+  const retirados = catalogo.productos.filter((p) => p.retirado).length;
+  /** Lo que se ve: los del catálogo, o solo los retirados. */
+  const aLaVista = useMemo(
+    () => ({ ...catalogo, productos: catalogo.productos.filter((p) => p.retirado === verRetirados) }),
+    [catalogo, verRetirados],
+  );
   const periodos = useMemo(() => periodosDe(catalogo.productos), [catalogo]);
   const categorias = useMemo(() => categoriasDelCatalogo(catalogo), [catalogo]);
   const abierto = catalogo.productos.find((p) => p.id === abiertoId) ?? null;
@@ -169,6 +206,12 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
               <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => setEnLote(true)}>
                 <ListPlus size={TAMANO_ICONO.admin} aria-hidden="true" />
                 Alta en lote
+              </Button>
+            )}
+            {(retirados > 0 || verRetirados) && (
+              <Button type="button" variant={verRetirados ? "primary" : "neutral"} surface="admin" className="gap-1.5" aria-pressed={verRetirados} onClick={() => setVerRetirados((v) => !v)}>
+                <ArchiveX size={TAMANO_ICONO.admin} aria-hidden="true" />
+                {verRetirados ? "Volver al catálogo" : `Retirados (${retirados})`}
               </Button>
             )}
             {puedeModificar && (
@@ -227,13 +270,20 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
                 <div className="sticky top-0 z-30 mb-3 bg-base py-1">{barra}</div>
               );
             })()}
+          {verRetirados && (
+            <p className="mb-3 flex items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 text-detalle text-ink-2">
+              <ArchiveX size={TAMANO_ICONO.texto} className="shrink-0 text-ink-3" aria-hidden="true" />
+              Retirados del catálogo: no salen en la caja, la carta, la tablet ni las listas de carga. Su historia queda. Abre uno para devolverlo.
+            </p>
+          )}
           <InventarioVista
-            catalogo={catalogo}
+            catalogo={aLaVista}
             periodos={periodos}
             ahora={ahora}
             tasa={tasa}
             onAbrir={setAbiertoId}
-            seleccion={puedeLote ? { elegidos, onCambiar: setElegidos } : undefined}
+            retirados={verRetirados}
+            seleccion={puedeLote && !verRetirados ? { elegidos, onCambiar: setElegidos } : undefined}
           />
         </>
       )}
@@ -299,6 +349,15 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
         enviando={enviando}
         cambiar={cambiar}
         adoptar={setCatalogo}
+        onRetiro={
+          puedeRetirar
+            ? (modo) => {
+                if (!abierto) return;
+                setRetiro({ producto: abierto, modo });
+                setAbiertoId(null);
+              }
+            : null
+        }
         onDuplicar={(modo) => {
           if (!abierto) return;
           const rige = ahora === null ? null : (periodAt(periodos, abierto.id, ahora)?.amountMinor ?? null);
@@ -306,6 +365,18 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
           setDuplicando({ plantilla: plantillaDe(abierto, rige), modo });
         }}
       />
+      {retiro && (
+        <RetirarProducto
+          producto={retiro.producto}
+          modo={retiro.modo}
+          onCerrar={() => setRetiro(null)}
+          onHecho={() => {
+            setRetiro(null);
+            // El catálogo como quedó: la página se vuelve a leer en el servidor.
+            router.refresh();
+          }}
+        />
+      )}
     </Container>
   );
 }
@@ -432,23 +503,16 @@ function CamposDelProducto({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Input
-          surface="admin"
-          label="Categoría"
-          placeholder="Bebidas"
-          autoComplete="off"
-          list={`${prefijo}-categorias`}
-          value={categoria}
-          error={errores["categoria"]}
-          hint="Es una pestaña de la caja"
-          disabled={deshabilitado}
-          onChange={(e) => setCategoria(e.target.value)}
-        />
-        <datalist id={`${prefijo}-categorias`}>
-          {categorias.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
+        {/* B9-11: la categoría, de una lista que se despliega; «Escribir una nueva…» para la que no está. */}
+        <div className="flex flex-col gap-1.5">
+          <span className={ETIQUETA}>Categoría</span>
+          {deshabilitado ? (
+            <span className="flex min-h-9 items-center text-[14px] text-ink">{categoria}</span>
+          ) : (
+            <CampoCategoria etiqueta="Categoría" className={cn(CAMPO, errores["categoria"] ? "border-state-crit" : "")} valor={categoria} categorias={categorias} onCambio={setCategoria} />
+          )}
+          {errores["categoria"] ? <p className="text-nota text-state-crit">{errores["categoria"]}</p> : <p className="text-nota text-ink-3">Es una pestaña de la caja</p>}
+        </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor={`${prefijo}-iva`} className={ETIQUETA}>
             IVA
@@ -622,8 +686,11 @@ function ProductoNuevo({
   );
 }
 
-/** La ficha de un producto: sus datos, su precio con su calendario, y apartarlo o volver a venderlo. */
-function FichaProducto({
+/**
+ * La ficha de un producto: sus datos arriba, su precio con su calendario debajo, y apartarlo, retirarlo o volver a
+ * venderlo. La abren Productos y la carga por lista (una entrada, el inventario inicial), sin perder la lista (B9-11).
+ */
+export function FichaProducto({
   producto,
   onCerrar,
   catalogo,
@@ -635,6 +702,7 @@ function FichaProducto({
   cambiar,
   adoptar,
   onDuplicar,
+  onRetiro,
 }: {
   producto: ProductoDto | null;
   onCerrar: () => void;
@@ -642,14 +710,16 @@ function FichaProducto({
   categorias: readonly string[];
   ahora: number | null;
   puedeModificar: boolean;
-  /** B9-8: duplicarlo, solo o con otros sabores. */
-  onDuplicar: (modo: "UNO" | "SABORES") => void;
+  /** B9-8: duplicarlo, solo o con otros sabores. Sin él (abierta desde una entrada), no se ofrece. */
+  onDuplicar?: ((modo: "UNO" | "SABORES") => void) | undefined;
   /** Programar su precio (`catalogo.modificar`): no basta con poder darlo de alta. */
   puedePrecio: boolean;
   enviando: string | null;
   cambiar: Aplicar;
   /** El catálogo como quedó tras fijar el mínimo (B9-5). */
   adoptar: (c: CatalogoDto) => void;
+  /** B9-11: retirarlo del catálogo o devolverlo (administración, con su PIN). `null` si no se puede. */
+  onRetiro?: ((modo: "RETIRAR" | "DEVOLVER") => void) | null;
 }) {
   const { ajustes } = useSucursal();
   const zona = catalogo.zonaHoraria;
@@ -761,13 +831,36 @@ function FichaProducto({
       abierto
       onCerrar={onCerrar}
       titulo={nombreFila}
-      descripcion={`${producto.sku} · ${producto.activo ? `${producto.categoria} · a la venta` : `${producto.categoria} · apartado: la caja no lo ofrece`} · ${existenciaEnPalabras(producto)}`}
+      descripcion={
+        producto.retirado
+          ? `${producto.sku} · ${producto.categoria} · retirado del catálogo: no sale en ninguna lista`
+          : `${producto.sku} · ${producto.activo ? `${producto.categoria} · a la venta` : `${producto.categoria} · apartado: la caja no lo ofrece`} · ${existenciaEnPalabras(producto)}`
+      }
       pie={
-        puedeModificar ? (
+        producto.retirado ? (
           <div className="flex gap-2">
             <Button type="button" variant="ghost" surface="admin" onClick={onCerrar}>
               Cerrar
             </Button>
+            {onRetiro && (
+              <Button type="button" variant="primary" surface="admin" className="flex-1 gap-1.5" onClick={() => onRetiro("DEVOLVER")}>
+                <ArchiveRestore size={TAMANO_ICONO.texto} aria-hidden="true" />
+                Devolver al catálogo
+              </Button>
+            )}
+          </div>
+        ) : puedeModificar ? (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="ghost" surface="admin" onClick={onCerrar}>
+              Cerrar
+            </Button>
+            {/* B9-11: sacarlo del catálogo (también lo creado en la carga inicial). Nada se borra. */}
+            {onRetiro && (
+              <Button type="button" variant="ghost" surface="admin" className="gap-1.5 text-state-crit" onClick={() => onRetiro("RETIRAR")}>
+                <ArchiveX size={TAMANO_ICONO.texto} aria-hidden="true" />
+                Retirar
+              </Button>
+            )}
             <Button type="button" variant="neutral" surface="admin" className="flex-1" disabled={enviando === "activar"} onClick={() => void activar(!producto.activo)}>
               {enviando === "activar" ? "Guardando…" : producto.activo ? "Apartar de la venta" : "Volver a la venta"}
             </Button>
@@ -780,7 +873,7 @@ function FichaProducto({
       }
     >
       <div className="flex flex-col gap-5">
-        {puedeModificar && (
+        {puedeModificar && onDuplicar && (
           // B9-8: otro igual con otro nombre, o varios de una vez con otros sabores.
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="neutral" surface="admin" className="gap-1.5" onClick={() => onDuplicar("UNO")}>
@@ -793,8 +886,35 @@ function FichaProducto({
             </Button>
           </div>
         )}
+        <section id="ficha-datos" aria-label="Datos del producto" className="flex flex-col gap-3">
+          <CamposDelProducto
+            prefijo="ficha"
+            nombre={nombre}
+            setNombre={setNombre}
+            categoria={categoria}
+            setCategoria={setCategoria}
+            taxCode={taxCode}
+            setTaxCode={setTaxCode}
+            tipo={tipo}
+            setTipo={setTipo}
+            codigo={codigo}
+            setCodigo={setCodigo}
+            presentacion={presentacion}
+            setPresentacion={setPresentacion}
+            tipoBloqueado={producto.tipo === "PRODUCTO" && (producto.existencia ?? 0) !== 0 ? `Tiene ${producto.existencia} en stock: sácalas o cuéntalas antes de cambiar su tipo.` : null}
+            categorias={categorias}
+            errores={errores}
+            deshabilitado={!puedeModificar}
+          />
+          {puedeModificar && (
+            <Button type="button" variant="neutral" surface="admin" disabled={enviando === "editar"} onClick={() => void guardar()}>
+              {enviando === "editar" ? "Guardando…" : "Guardar datos"}
+            </Button>
+          )}
+          <p className="text-[12px] text-ink-3">El SKU ({producto.sku}) no cambia. Lo ya vendido conserva el nombre y el IVA con que se vendió.</p>
+        </section>
         {producto.controlaStock && <Existencia producto={producto} ahora={ahora} zona={zona} adoptar={adoptar} />}
-        <section aria-label="Precio" className="flex flex-col gap-3">
+        <section aria-label="Precio" className="flex flex-col gap-3 border-t border-line pt-4">
           <h3 className="font-display text-[14px] font-bold text-ink">Precio</h3>
           <ul className="flex flex-col divide-y divide-line rounded-[var(--radius-control)] border border-line">
             {tramos.map((t) => {
@@ -856,34 +976,6 @@ function FichaProducto({
           )}
         </section>
 
-        <section aria-label="Datos del producto" className="flex flex-col gap-3 border-t border-line pt-4">
-          <h3 className="font-display text-[14px] font-bold text-ink">Datos</h3>
-          <CamposDelProducto
-            prefijo="ficha"
-            nombre={nombre}
-            setNombre={setNombre}
-            categoria={categoria}
-            setCategoria={setCategoria}
-            taxCode={taxCode}
-            setTaxCode={setTaxCode}
-            tipo={tipo}
-            setTipo={setTipo}
-            codigo={codigo}
-            setCodigo={setCodigo}
-            presentacion={presentacion}
-            setPresentacion={setPresentacion}
-            tipoBloqueado={producto.tipo === "PRODUCTO" && (producto.existencia ?? 0) !== 0 ? `Tiene ${producto.existencia} en stock: sácalas o cuéntalas antes de cambiar su tipo.` : null}
-            categorias={categorias}
-            errores={errores}
-            deshabilitado={!puedeModificar}
-          />
-          {puedeModificar && (
-            <Button type="button" variant="neutral" surface="admin" disabled={enviando === "editar"} onClick={() => void guardar()}>
-              {enviando === "editar" ? "Guardando…" : "Guardar datos"}
-            </Button>
-          )}
-          <p className="text-[12px] text-ink-3">El SKU ({producto.sku}) no cambia. Lo ya vendido conserva el nombre y el IVA con que se vendió.</p>
-        </section>
         {general && <Aviso mensaje={general} />}
       </div>
     </Sheet>
