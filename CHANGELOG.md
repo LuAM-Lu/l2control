@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.92.0] — 2026-10-08 · Hacia la puesta en marcha
 
 La impresora por red o por USB, con sus acentos y su tinta (B5-4, M-34).
 
