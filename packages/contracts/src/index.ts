@@ -901,3 +901,11 @@ export {
   type GuardarBorradorCommand,
   type BorradorGuardadoDto,
 } from "./borrador.ts";
+export {
+  RetirarProductoCommandSchema,
+  DevolverProductoCommandSchema,
+  RetiroHechoSchema,
+  type RetirarProductoCommand,
+  type DevolverProductoCommand,
+  type RetiroHechoDto,
+} from "./retiro.ts";

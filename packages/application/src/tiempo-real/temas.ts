@@ -148,6 +148,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "producto.crear": ["catalogo"],
   "producto.editar": ["catalogo"],
   "producto.activar": ["catalogo"],
+  "producto.retirar": ["catalogo"],
+  "producto.devolver": ["catalogo"],
   "producto.apartar": ["catalogo"],
   "precio.programar": ["catalogo"],
   "producto.minimo": ["catalogo"],

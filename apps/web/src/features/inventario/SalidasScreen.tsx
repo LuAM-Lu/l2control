@@ -23,13 +23,13 @@ const CAMPO =
   "min-h-9 w-full rounded-[var(--radius-control)] border bg-surface px-2.5 text-[14px] text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50";
 
-const MOTIVOS: readonly { id: MotivoSalida; texto: string; detalle: string }[] = [
+export const MOTIVOS: readonly { id: MotivoSalida; texto: string; detalle: string }[] = [
   { id: "MERMA", texto: "Merma o daño", detalle: "Se rompió, se venció o se perdió" },
   { id: "CONSUMO_INTERNO", texto: "Consumo interno", detalle: "Lo usó el personal o el local" },
   { id: "REGALO", texto: "Regalo", detalle: "Se dio fuera de una cuenta" },
   { id: "DEVOLUCION_PROVEEDOR", texto: "Devolución al proveedor", detalle: "Volvió a quien lo vendió" },
 ];
-const NOMBRE_MOTIVO = Object.fromEntries(MOTIVOS.map((m) => [m.id, m.texto])) as Record<MotivoSalida, string>;
+export const NOMBRE_MOTIVO = Object.fromEntries(MOTIVOS.map((m) => [m.id, m.texto])) as Record<MotivoSalida, string>;
 
 /** Un importe con su signo, sin el «-» pegado al símbolo: «− $ 2.00». */
 const conSigno = (m: { minor: string }) => {

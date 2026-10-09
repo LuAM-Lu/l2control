@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { ClipboardList, ClipboardPaste, ListChecks, PackagePlus, Plus, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ClipboardList, ClipboardPaste, ListChecks, PackagePlus, Pencil, Plus, ScanLine, Sparkles, TriangleAlert, Truck, X } from "lucide-react";
 import type { CatalogoDto, CostoPor, EntradaDto, EntradasDto, Problema, ProductoDto, TaxCodeDelCatalogo, TipoEntrada } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { averageUnitCostMinor, barcodeProblem, entryLineTotals, nameKey, normalizeBarcode, type EntryCostBasis } from "@l2/domain-inventory";
@@ -14,6 +14,9 @@ import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { categoriasDelCatalogo } from "./catalogo.ts";
 import { estadoDe } from "./EstadoStock.tsx";
+import { CampoCategoria } from "./CampoCategoria.tsx";
+import { FichaProducto, useAplicarProducto } from "./ProductosScreen.tsx";
+import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { registrarEntrada } from "./entradas.acciones";
 
 /**
@@ -324,6 +327,17 @@ function NuevaEntrada({
   onRegistrada: (e: EntradaDto) => void;
 }) {
   const porId = useMemo(() => new Map(contables.map((p) => [p.id, p])), [contables]);
+  /**
+   * B9-11: la ficha de un producto de la lista, en una capa encima, sin perder lo escrito. Lo que se cambia en ella se
+   * guarda en su ficha y la página se vuelve a leer: las filas siguen.
+   */
+  const [fichaId, setFichaId] = useState<string | null>(null);
+  const router = useRouter();
+  const { cambiar: cambiarProducto, enviando: guardandoProducto } = useAplicarProducto(() => router.refresh());
+  const actorFicha = useActorEnSesion();
+  const puedeFicha = actorFicha !== null && can(actorFicha, "inventario.catalogo") !== "DENEGADO";
+  const puedePrecioFicha = actorFicha !== null && can(actorFicha, "catalogo.modificar") !== "DENEGADO";
+  const ahoraFicha = useAhoraLocal();
   const [tipo, setTipo] = useState<TipoEntrada>(tipoInicial);
   const [proveedor, setProveedor] = useState("");
   const [factura, setFactura] = useState("");
@@ -469,6 +483,7 @@ function NuevaEntrada({
         : "Falta el producto (o su ficha: categoría y precio), la cantidad o el costo de alguna fila.";
 
   return (
+    <>
     <Sheet
       abierto
       onCerrar={onCerrar}
@@ -592,6 +607,7 @@ function NuevaEntrada({
                 }}
                 onSiguiente={() => siguiente(b.uid)}
                 onQuitar={filas.length > 1 ? () => setFilas((fs) => fs.filter((x) => x.uid !== b.uid)) : null}
+                onVerFicha={elegido ? () => setFichaId(elegido.id) : null}
               />
             );
           })}
@@ -630,6 +646,20 @@ function NuevaEntrada({
         />
       )}
     </Sheet>
+      {/* B9-11: la ficha del producto de una fila, encima de la lista. */}
+      <FichaProducto
+        producto={fichaId ? (catalogo.productos.find((p) => p.id === fichaId) ?? null) : null}
+        onCerrar={() => setFichaId(null)}
+        catalogo={catalogo}
+        categorias={categorias}
+        ahora={ahoraFicha === 0 ? null : ahoraFicha}
+        puedeModificar={puedeFicha}
+        puedePrecio={puedePrecioFicha}
+        enviando={guardandoProducto}
+        cambiar={cambiarProducto}
+        adoptar={() => router.refresh()}
+      />
+    </>
   );
 }
 
@@ -654,6 +684,7 @@ function FilaDeLaTabla({
   onElegir,
   onSiguiente,
   onQuitar,
+  onVerFicha,
 }: {
   b: Borrador;
   n: number;
@@ -676,6 +707,8 @@ function FilaDeLaTabla({
   onElegir: (p: ProductoDto) => void;
   onSiguiente: () => void;
   onQuitar: (() => void) | null;
+  /** B9-11: abrir la ficha del producto elegido, encima de la lista. */
+  onVerFicha: (() => void) | null;
 }) {
   const error = (campo: string) => (indice >= 0 ? errores[`${indice}.${campo}`] : undefined);
   const unitario = linea ? averageUnitCostMinor({ quantity: linea.units, valueMinor: linea.valueMinor }) : null;
@@ -806,6 +839,25 @@ function FilaDeLaTabla({
         <p className="text-[12px] text-state-crit">Ya tiene su inventario inicial (del {yaContado}): lo que falte o sobre se corrige con un conteo. Quita esta fila.</p>
       )}
       {enCero && !yaContado && <p className="text-[11.5px] text-ink-3">Contado en cero: queda «Agotado», sin costo.</p>}
+      {/* B9-11: el producto elegido, con su categoría y su presentación; su ficha, sin perder la lista. */}
+      {producto && !b.nuevo && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-ink-3">
+          <span>
+            {producto.categoria}
+            {producto.presentacion ? ` · ${producto.presentacion}` : ""} · <span className="tnum font-mono">{producto.sku}</span>
+          </span>
+          {onVerFicha && (
+            <button
+              type="button"
+              onClick={onVerFicha}
+              className="inline-flex min-h-7 cursor-pointer items-center gap-1 rounded-[var(--radius-control)] border border-line px-2 font-semibold text-ink-2 hover:border-brand/50 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              <Pencil size={12} aria-hidden="true" />
+              Ver o editar su ficha
+            </button>
+          )}
+        </p>
+      )}
       {producto?.costoPromedio && linea && <p className="tnum text-[11.5px] text-ink-3">Hoy cuesta {usd(minor(producto.costoPromedio))} de promedio; quedan {producto.existencia ?? 0}.</p>}
       {b.nuevo && <FichaCorta nuevo={b.nuevo} n={n} categorias={categorias} error={(c) => error(`nuevo.${c}`)} onCambiar={(c) => onCambiar({ nuevo: { ...b.nuevo!, ...c } })} />}
     </div>
@@ -975,7 +1027,6 @@ function FichaCorta({
   error: (campo: string) => string | undefined;
   onCambiar: (c: Partial<Nuevo>) => void;
 }) {
-  const lista = useId();
   const problema = f.codigo.trim() === "" ? null : barcodeProblem(normalizeBarcode(f.codigo));
   const campo = (nombre: string, extra = "") => cn(CAMPO, extra, error(nombre) ? "border-state-crit" : "border-line");
   const nueva = f.categoria.trim().length >= 2 && !categorias.some((c) => nameKey(c) === nameKey(f.categoria));
@@ -983,12 +1034,8 @@ function FichaCorta({
     <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-control)] border border-dashed border-brand/50 p-2 sm:grid-cols-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_8rem_9rem]">
       <label className="flex flex-col gap-1">
         <span className={ETIQUETA}>Categoría</span>
-        <input aria-label={`Categoría del producto nuevo de la fila ${n}`} className={campo("categoria")} list={lista} autoComplete="off" placeholder="Bebidas" value={f.categoria} onChange={(e) => onCambiar({ categoria: e.target.value })} />
-        <datalist id={lista}>
-          {categorias.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
+        {/* B9-11: de una lista que se despliega; «Escribir una nueva…» para la que no está. */}
+        <CampoCategoria etiqueta={`Categoría del producto nuevo de la fila ${n}`} className={campo("categoria")} valor={f.categoria} categorias={categorias} onCambio={(categoria) => onCambiar({ categoria })} />
         {nueva && <span className="text-[11.5px] text-ink-3">Nueva: entra en la lista.</span>}
       </label>
       <label className="flex flex-col gap-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ClipboardPaste, ListPlus, Plus, ScanLine, TriangleAlert, X } from "lucide-react";
 import { MAX_ALTA_EN_LOTE, type CatalogoDto, type Problema, type TaxCodeDelCatalogo } from "@l2/contracts";
 import { barcodeProblem, nameKey, normalizeBarcode } from "@l2/domain-inventory";
@@ -8,6 +8,7 @@ import { Button, Dialog, Sheet, TAMANO_ICONO, avisar, cn, useLectorDeCodigos } f
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { altaEnLote } from "./productos.acciones";
+import { CampoCategoria } from "./CampoCategoria.tsx";
 
 /**
  * Inventario → Productos → «Alta en lote» (B9-7, M-28). El catálogo se carga de una vez, en una hoja y
@@ -107,7 +108,6 @@ export function AltaEnLote({
   onCerrar: () => void;
   onCreados: (c: CatalogoDto) => void;
 }) {
-  const lista = useId();
   const conElevacion = useConElevacion();
   const [filas, setFilas] = useState<Fila[]>(() => [filaVacia()]);
   const [delServidor, setDelServidor] = useState<Readonly<Record<string, string>>>({});
@@ -245,12 +245,6 @@ export function AltaEnLote({
           </Button>
         </div>
 
-        <datalist id={lista}>
-          {categorias.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-
         <div role="table" aria-label="Productos del alta" className="flex flex-col gap-2">
           <div role="row" className={cn("hidden gap-2 px-2 lg:grid", COLUMNAS)}>
             {["Nombre", "Categoría", "Presentación", "Precio ($)", "IVA", "Mínimo", "Código de barras", ""].map((t, i) => (
@@ -268,7 +262,7 @@ export function AltaEnLote({
                 key={f.uid}
                 f={f}
                 n={n + 1}
-                lista={lista}
+                categorias={categorias}
                 error={error}
                 casilla={(campo, el) => casillas.current.set(`${f.uid}:${campo}`, el)}
                 onFoco={() => {
@@ -316,7 +310,7 @@ export function AltaEnLote({
 function FilaDelAlta({
   f,
   n,
-  lista,
+  categorias,
   error,
   casilla,
   onFoco,
@@ -326,7 +320,7 @@ function FilaDelAlta({
 }: {
   f: Fila;
   n: number;
-  lista: string;
+  categorias: readonly string[];
   error: (campo: Campo) => string | undefined;
   casilla: (campo: "nombre" | "codigo", el: HTMLInputElement | null) => void;
   onFoco: () => void;
@@ -365,7 +359,8 @@ function FilaDelAlta({
         </div>
         <label role="cell" className="flex flex-col gap-1 lg:block">
           <span className={cn(ETIQUETA, "lg:sr-only")}>Categoría</span>
-          <input aria-label={`Categoría de la fila ${n}`} className={campo("categoria")} list={lista} autoComplete="off" placeholder="Bebidas" value={f.categoria} onChange={(e) => onCambiar({ categoria: e.target.value })} />
+          {/* B9-11: la categoría, de una lista que se despliega; «Escribir una nueva…» para la que no está. */}
+          <CampoCategoria etiqueta={`Categoría de la fila ${n}`} className={campo("categoria")} valor={f.categoria} categorias={categorias} onCambio={(categoria) => onCambiar({ categoria })} />
         </label>
         <label role="cell" className="flex flex-col gap-1 lg:block">
           <span className={cn(ETIQUETA, "lg:sr-only")}>Presentación</span>

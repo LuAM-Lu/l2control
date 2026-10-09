@@ -52,6 +52,7 @@ import { auditar, auditarRechazo, type AccionAuditada, type Asiento } from "../a
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
 import { arranquesDe, existenciasDe } from "./existencias.ts";
+import { retiradosDe } from "./retiro.ts";
 import { asegurarCategoria, categoriaComoEnLista, categoriasDe } from "./lista-de-categorias.ts";
 
 /** Hasta cuántos días por delante se programa un precio: una lista nueva llega con semanas. */
@@ -127,6 +128,8 @@ export async function cargarCatalogo(tx: Transaccion, branchId: string): Promise
     const bulto = new Map(ultimas.map((u) => [u.productId, u.packSize]));
     const costoBulto = new Map(ultimas.map((u) => [u.productId, u.packs === null ? null : packCostOf({ packs: u.packs, valueMinor: u.valueMinor })]));
     const categorias = await categoriasDe(tx);
+    // Los retirados (B9-11): fuera de toda lista salvo «Retirados».
+    const retirados = await retiradosDe(tx);
     // Se revalida al salir: lo que no cumple el contrato no llega a la caja (fail-closed).
     return CatalogoSchema.parse({
       productos: productos.map((p) => ({
@@ -140,6 +143,7 @@ export async function cargarCatalogo(tx: Transaccion, branchId: string): Promise
         codigoBarras: p.barcode,
         presentacion: p.presentation,
         activo: p.active,
+        retirado: retirados.has(p.id),
         enCarta: p.onMenu,
         precios: tramosDe(precios.filter((x) => x.productId === p.id)),
         existencia: p.tracksStock ? (existencias.get(p.id)?.quantity ?? 0) : null,

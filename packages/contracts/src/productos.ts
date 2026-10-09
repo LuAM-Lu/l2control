@@ -101,6 +101,11 @@ export const ProductoSchema = z
     /** Uno apartado no se ofrece en la caja. No se borra: lo vendido lo nombra. */
     activo: z.boolean(),
     /**
+     * Retirado del catálogo (B9-11): no sale en Productos (salvo en «Retirados»), ni en la caja, la carta, la tablet o las
+     * listas de carga. Su historia queda. Un retirado está también apartado.
+     */
+    retirado: z.boolean().default(false),
+    /**
      * Si el mesero lo ofrece en las mesas (B6-1): la carta del restaurante es el catálogo con esta marca.
      * La caja vende todo lo activo; las mesas, solo lo de la carta.
      */
