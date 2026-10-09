@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.104.0] — 2026-10-09 · Hacia la puesta en marcha
+
 Notas rápidas del mesero (B6-12, M-34).
 
 ### Añadido
