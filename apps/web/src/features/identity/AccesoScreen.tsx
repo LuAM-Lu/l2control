@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,7 +16,7 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from "lucide-react";
-import { checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
+import { can, checkDevice, describeLockout, type Device, type LockoutState, type Role } from "@l2/domain-identity";
 import { aprobarEsteEquipo, desafioParaAprobarEsteEquipo, entrar, entrarSoporte, renovarSolicitud, salir, solicitarRegistro } from "./acceso.acciones";
 import { CamposDeIdentidad, useSegundoFactor } from "./SegundoFactor";
 import { puestoDe, sinPantalla } from "./visibilidad.ts";
@@ -199,7 +200,10 @@ export function AccesoScreen({
     if (r?.ok) {
       // Entrar es IR al puesto de trabajo. El sello verde ocupa el lugar de una pantalla de
       // «bienvenido» y dura lo que tarda en leerse.
-      const puesto = puestoDe(r.valor.actor);
+      // Llegó desde un aviso de pulsera por vencer (B4-15): a la ficha de ese niño, si ve la sala.
+      const pulsera = new URLSearchParams(window.location.search).get("pulsera");
+      const veLaSala = (["parque.checkIn", "parque.checkOut", "documento.emitir"] as const).some((a) => can(r.valor.actor, a) !== "DENEGADO");
+      const puesto = pulsera && veLaSala ? { ruta: `/monitor?pulsera=${encodeURIComponent(pulsera)}` as Route, nombre: "su ficha" } : puestoDe(r.valor.actor);
       setDestino(puesto);
       setEntrando(true);
       setRechazo(null);

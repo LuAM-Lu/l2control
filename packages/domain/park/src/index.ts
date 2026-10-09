@@ -213,6 +213,30 @@ export function computeSessionView(
   return Object.freeze({ status, elapsedMs, remainingMs, overdueMs, billableOverdueMs, ...pausa });
 }
 
+/**
+ * Los dos avisos de una estancia de tiempo fijo (B4-15): cuándo entra en «por vencer» (con el aviso de sus condiciones)
+ * y cuándo se cumple su tiempo. La pausa por comida los corre lo que dura, si empieza antes. Sin tiempo fijo, `null`:
+ * no vence.
+ */
+export type InstantesDeAviso = Readonly<{ porVencer: EpochMs; vence: EpochMs }>;
+
+export function instantesDeAviso(session: ParkSession, policy: Pick<ParkPolicy, "warnBeforeMinutes">): InstantesDeAviso | null {
+  if (session.duration.kind !== "fixed") return null;
+  const totalMs = session.duration.minutes * MS_PER_MINUTE;
+  return {
+    porVencer: alTranscurrir(session, Math.max(0, totalMs - policy.warnBeforeMinutes * MS_PER_MINUTE)),
+    vence: alTranscurrir(session, totalMs),
+  };
+}
+
+/** El instante en que una estancia lleva `ms` en sala: su pausa no cuenta, si empieza antes. */
+function alTranscurrir(session: ParkSession, ms: number): EpochMs {
+  const sinPausa = session.startedAt + ms;
+  const p = session.pause;
+  if (!p || sinPausa <= p.startedAt) return epochMs(sinPausa);
+  return epochMs(sinPausa + (pauseEndsAt(p) - p.startedAt));
+}
+
 /** Por qué no se puede pausar una estancia (B4-7): ya usó su pausa. */
 export type PauseProblem = "YA_PAUSO";
 

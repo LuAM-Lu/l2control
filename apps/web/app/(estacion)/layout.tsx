@@ -2,6 +2,7 @@ import { DEFAULT_STATION_IDLE } from "@l2/domain-identity";
 import { Avisos } from "@l2/ui";
 import { GuardiaEstacion } from "../../src/features/shell/GuardiaEstacion";
 import { IdleGuard } from "../../src/features/shell/IdleGuard";
+import { AvisoDePulseras } from "../../src/features/park/AvisoDePulseras";
 import { PageTransition } from "../../src/features/shell/PageTransition";
 import { StationBar } from "../../src/features/shell/StationBar";
 import { turnoDelEquipo } from "../../src/features/cash/turno.servidor";
@@ -48,6 +49,8 @@ export default async function EstacionLayout({ children }: { children: React.Rea
           TODO(backend): la política vendrá de la configuración de la
           sucursal; la forma ya es la definitiva. */}
       <IdleGuard politica={DEFAULT_STATION_IDLE} />
+      {/* B4-15: las pulseras por vencer, en el parque, la caja y, bloqueado, la pantalla del PIN. */}
+      <AvisoDePulseras />
     </div>
 
   );

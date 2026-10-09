@@ -46,6 +46,7 @@ import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 import { BotonAyuda } from "../ayuda/AyudaProvider.tsx";
 import { MiCuenta } from "../identity/MiCuenta.tsx";
+import { BotonSonidoDeAvisos } from "../park/BotonSonidoDeAvisos.tsx";
 
 /**
  * Barra permanente de las estaciones — §8.5 y §9.10.2.
@@ -379,6 +380,9 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
               <Maximize size={18} aria-hidden="true" />
             )}
           </button>
+
+          {/* B4-15: el sonido de los avisos de pulseras, en el parque y la caja. */}
+          {["/monitor", "/caja"].some((r) => pathname === r || pathname.startsWith(`${r}/`)) && <BotonSonidoDeAvisos />}
 
           {/* La ayuda de esta pantalla (T-12): también con F1. */}
           <BotonAyuda className={cn(PILDORA, "size-12 px-0")} />

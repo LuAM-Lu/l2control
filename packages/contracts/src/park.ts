@@ -313,6 +313,16 @@ export type EstanciaDto = z.infer<typeof EstanciaSchema>;
  * `serverNow` es la pieza que hace cumplible ADR-010: el cliente no consulta
  * su propio reloj para decidir nada, solo interpola desde este instante.
  */
+/**
+ * Lo que avisa la pantalla del PIN de un equipo aprobado (B4-15): cada pulsera en sala y sus dos instantes, cuando entra
+ * en «por vencer» y cuando se cumple su tiempo. Sin nombres: el equipo está bloqueado y cualquiera lo ve.
+ */
+export const AvisosDeSalaSchema = z.object({
+  serverNow: TimestampSchema,
+  pulseras: z.array(z.object({ codigo: WristbandCodeSchema, porVencer: TimestampSchema, vence: TimestampSchema })),
+});
+export type AvisosDeSalaDto = z.infer<typeof AvisosDeSalaSchema>;
+
 export const MonitorSnapshotSchema = z.object({
   serverNow: TimestampSchema,
   policy: ParkPolicySchema,

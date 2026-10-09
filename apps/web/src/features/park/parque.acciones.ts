@@ -1,6 +1,7 @@
 "use server";
 
 import type {
+  AvisosDeSalaDto,
   CheckInResult,
   CheckoutResult,
   DirectorioRepresentantesDto,
@@ -13,7 +14,7 @@ import type {
   Resultado,
 } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
-import { contextoActual } from "../../servidor/sesion";
+import { contextoActual, credencialEquipo } from "../../servidor/sesion";
 
 /**
  * El parque en el servidor (B4-1 a B4-3). Todo opera como la persona de la sesión; lo que llega es
@@ -22,6 +23,15 @@ import { contextoActual } from "../../servidor/sesion";
  */
 
 const sinSesion = { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar." } as const;
+
+/**
+ * Los avisos de pulseras por vencer para la pantalla del PIN (B4-15): sin sesión, solo un equipo aprobado (su cookie,
+ * resuelta aquí en el servidor), y solo la pulsera con sus dos instantes, sin nombres.
+ */
+export async function avisosDeSalaDelEquipo(): Promise<Resultado<AvisosDeSalaDto>> {
+  const app = await aplicacion();
+  return app.parque.avisosDelEquipo(await app.dispositivos.identificar(await credencialEquipo()));
+}
 
 /** La sala con la hora del servidor: la vuelven a leer las estaciones cuando cambia (B5-1). */
 export async function leerSala(): Promise<Resultado<MonitorSnapshotDto>> {

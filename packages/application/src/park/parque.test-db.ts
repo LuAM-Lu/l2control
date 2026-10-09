@@ -757,3 +757,26 @@ describe("las estancias huérfanas (B4-3, F5-13, H-19)", () => {
     await vaciarSala(AHORA + 6 * MIN);
   });
 });
+
+describe("los avisos de pulseras por vencer en la pantalla del PIN (B4-15)", () => {
+  const equipo = (estado: "APROBADO" | "PENDIENTE") =>
+    ({ estado, id: randomUUID(), tenantId: local.sistema.tenantId, branchId: local.sistema.branchId, label: "Parque", codigo: "0000", caducada: false }) as const;
+
+  test("un equipo aprobado ve cada pulsera con sus dos instantes, sin nombres; uno pendiente, nada", async () => {
+    const codigo = nuevaPulsera();
+    const libre = nuevaPulsera();
+    await entrar(entrada([{ code: codigo, kid: { name: "Valentina Rojas" } }, { code: libre, packageId: "libre" }]));
+    const r = valor(await local.app.parque.avisosDelEquipo(equipo("APROBADO"), AHORA + MIN));
+    const suya = r.pulseras.find((p) => p.codigo === codigo)!;
+    // 1 hora con aviso de 10 min: por vencer a los 50 y vence a los 60.
+    assert.equal(suya.porVencer, new Date(AHORA + 50 * MIN).toISOString());
+    assert.equal(suya.vence, new Date(AHORA + 60 * MIN).toISOString());
+    assert.equal(r.pulseras.some((p) => p.codigo === libre), false, "el pase libre no vence");
+    assert.doesNotMatch(JSON.stringify(r), /Valentina|María|Pérez|0412/);
+    const pendiente = await local.app.parque.avisosDelEquipo(equipo("PENDIENTE"), AHORA + MIN);
+    assert.equal(!pendiente.ok && pendiente.motivo, "NO_PERMITIDO");
+    const desconocido = await local.app.parque.avisosDelEquipo({ estado: "DESCONOCIDO" }, AHORA + MIN);
+    assert.equal(desconocido.ok, false);
+    await vaciarSala(AHORA + 2 * MIN);
+  });
+});
