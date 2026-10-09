@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.99.0] — 2026-10-09 · Hacia la puesta en marcha
+
+Corregir una entrada mal cargada (B9-12, M-34).
+
+### Añadido
+- **Anular una entrada** (una compra, una reposición o el inventario inicial) con su motivo y el PIN de administración:
+  cada línea sale a su costo de esa entrada y el costo promedio se recalcula. No se borra: queda tachada, con quién y por
+  qué. Si ya se vendió o se sacó algo, dice cuánto y se corrige con un conteo. Un inventario inicial anulado se vuelve a
+  contar. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.
+
 ## [0.98.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Productos: editar a la vista, retirar y la carga por lista (B9-11, M-34).
@@ -69,14 +79,6 @@ El cliente por su cédula, en todo, y el buscador (T-19, M-34).
 - **Buscar cliente**, en la caja (tecla C), en Mesas y en la sala: por su nombre, su cédula o su teléfono, dice lo que
   tiene abierto (y lo abre), sus niños en la sala con su pulsera y lo que debe de antes.
 - **El formulario de entradas en papel tiene la columna de la cédula.**
-
-Corregir una entrada mal cargada (B9-12, M-34).
-
-### Añadido
-- **Anular una entrada** (una compra, una reposición o el inventario inicial) con su motivo y el PIN de administración:
-  cada línea sale a su costo de esa entrada y el costo promedio se recalcula. No se borra: queda tachada, con quién y por
-  qué. Si ya se vendió o se sacó algo, dice cuánto y se corrige con un conteo. Un inventario inicial anulado se vuelve a
-  contar. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.
 
 ## [0.95.0] — 2026-10-09 · Hacia la puesta en marcha
 
