@@ -99,7 +99,11 @@ import {
   type Rechazo,
   type VentaCerradaDto,
   type PosTerminalDto,
+  type BorradorDeCobroDto,
+  type BorradorGuardadoDto,
 } from "@l2/contracts";
+import { frozenRateOf } from "@l2/domain-rates";
+import { descartarBorrador, guardarBorrador, leerBorrador } from "./borrador.acciones";
 import {
   DatosPagoDialog,
   claveDeReferencia,
@@ -622,6 +626,89 @@ function CobroCuenta({
   const { imprimirRecibo: reciboDeFabrica } = useSucursal().ajustes;
   const [imprimirRecibo, setImprimirRecibo] = useState(reciboDeFabrica && !modoPapel);
   const [enviando, setEnviando] = useState(false);
+
+  /**
+   * El cobro en curso, guardado en el servidor (B3-13, M-34): lo que se lleva escrito aguanta cambiar de cuenta o de
+   * pestaña, recargar y un corte de luz. Al abrir la cuenta se lee; si es de esta persona se retoma solo, y si es de
+   * otra se avisa y se elige retomarlo o descartarlo. Mientras se teclea se guarda un poco después de cada cambio, con
+   * su versión: si otra caja lo cambió, se vuelve a leer. Desde papel no se guarda: esa carga tiene su propio flujo.
+   */
+  const yo = useActorEnSesion()?.id ?? null;
+  const [borrador, setBorrador] = useState<{ listo: boolean; version: number | null; ajeno: BorradorGuardadoDto | null }>({
+    listo: Boolean(modoPapel),
+    version: null,
+    ajeno: null,
+  });
+  const ultimoGuardado = useRef<string>("");
+  const retomar = useCallback(
+    (b: BorradorGuardadoDto) => {
+      const faltan: string[] = [];
+      const recuperados = b.borrador.pagos.flatMap((p) => {
+        const medio = mediosDisponibles.find((m) => m.code === p.medio);
+        if (!medio) {
+          faltan.push(p.medio);
+          return [];
+        }
+        return [{ uid: globalThis.crypto.randomUUID(), medio, amount: money(BigInt(p.amount.minor), p.amount.currency as CurrencyCode), ...(p.datos ? { datos: p.datos } : {}) }];
+      });
+      setTasaDelCobro(b.borrador.tasa ? { rate: frozenRateOf({ pair: "USD/VES", value: b.borrador.tasa.valor }), valor: b.borrador.tasa.valor, id: b.borrador.tasa.id } : null);
+      setPagos(recuperados);
+      setDestinoVuelto(b.borrador.destinoVuelto);
+      setCliente(b.borrador.cliente);
+      setImprimirRecibo(b.borrador.imprimirRecibo);
+      if (faltan.length > 0) avisar.error("Un pago del cobro en curso ya no se puede usar", { detalle: "Su medio de pago se apagó: vuelve a cobrarlo con otro." });
+    },
+    [mediosDisponibles],
+  );
+  const leerElBorrador = useCallback(async () => {
+    const r = await leerBorrador(cuenta.id).catch(() => null);
+    if (!r?.ok) {
+      setBorrador({ listo: true, version: null, ajeno: null });
+      return;
+    }
+    const b = r.valor;
+    if (b && b.porId === yo) {
+      retomar(b);
+      ultimoGuardado.current = JSON.stringify(b.borrador);
+      setBorrador({ listo: true, version: b.version, ajeno: null });
+    } else setBorrador({ listo: true, version: b?.version ?? null, ajeno: b });
+  }, [cuenta.id, yo, retomar]);
+  useEffect(() => {
+    if (!modoPapel) void leerElBorrador();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cuenta.id]);
+  useEffect(() => {
+    if (modoPapel || !borrador.listo || borrador.ajeno) return;
+    const contenido: BorradorDeCobroDto = {
+      pagos: pagos.map((p) => ({ medio: p.medio.code, amount: { minor: String(p.amount.amount), currency: p.amount.currency }, ...(p.datos ? { datos: p.datos } : {}) })),
+      tasa: tasaDelCobro ? { id: tasaDelCobro.id, valor: tasaDelCobro.valor } : null,
+      destinoVuelto,
+      cliente,
+      imprimirRecibo,
+    };
+    const huella = JSON.stringify(contenido);
+    // Nada nuevo, o nada que guardar todavía.
+    if (huella === ultimoGuardado.current || (pagos.length === 0 && borrador.version === null)) return;
+    const t = window.setTimeout(() => {
+      void guardarBorrador({ accountId: cuenta.id, version: borrador.version, borrador: contenido }).then((r) => {
+        if (r.ok) {
+          ultimoGuardado.current = huella;
+          setBorrador((b) => ({ ...b, version: r.valor?.version ?? null }));
+        } else if (r.motivo === "CONFLICTO") {
+          avisar.info("Este cobro cambió en otra caja", { detalle: r.mensaje });
+          void leerElBorrador();
+        }
+      });
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [modoPapel, borrador.listo, borrador.ajeno, borrador.version, pagos, tasaDelCobro, destinoVuelto, cliente, imprimirRecibo, cuenta.id, leerElBorrador]);
+  async function descartarAjeno() {
+    const r = await descartarBorrador({ accountId: cuenta.id }).catch(() => null);
+    if (!r?.ok) return avisar.error(r?.mensaje ?? "Sin conexión con el servidor: no se descartó.");
+    ultimoGuardado.current = "";
+    setBorrador({ listo: true, version: null, ajeno: null });
+    avisar.info("Cobro en curso descartado");
+  }
   /** La clave del intento en curso: un reintento de lo mismo (se cayó la red) no cobra dos veces. */
   const intento = useRef<{ huella: string; clave: string } | null>(null);
 
@@ -1136,6 +1223,31 @@ function CobroCuenta({
             })}
           </ul>
 
+          {/* El cobro que llevaba otra persona (B3-13): se retoma con su tasa, o se descarta (queda dicho quién). */}
+          {borrador.ajeno && (
+            <div role="status" className="mt-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2 text-[12.5px] text-ink">
+              <span className="min-w-0 flex-1">
+                Cobro en curso por <strong>{borrador.ajeno.por}</strong> ·{" "}
+                {borrador.ajeno.borrador.pagos
+                  .map((p) => `${mediosDisponibles.find((m) => m.code === p.medio)?.label ?? p.medio} ${formatMoneyVE(toMajor(money(BigInt(p.amount.minor), p.amount.currency as CurrencyCode)), p.amount.currency as CurrencyCode)}`)
+                  .join(" · ")}
+              </span>
+              <Button
+                type="button"
+                variant="neutral"
+                surface="pos"
+                onClick={() => {
+                  retomar(borrador.ajeno!);
+                  setBorrador((b) => ({ ...b, ajeno: null }));
+                }}
+              >
+                Retomar
+              </Button>
+              <Button type="button" variant="ghost" surface="pos" onClick={() => void descartarAjeno()}>
+                Descartar
+              </Button>
+            </div>
+          )}
           {/* Los pagos son parte del mismo documento, no una tarjeta aparte. */}
           {pagos.length === 0 ? (
             <p className="mt-3 border-t border-line/40 pt-3 text-[12.5px] text-ink-3">

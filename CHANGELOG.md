@@ -14,6 +14,18 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+El cobro en curso no se pierde (B3-13, M-34).
+
+### Añadido
+- **Lo que se lleva de un cobro se guarda solo, en el servidor:** los pagos con sus datos (un Pago Móvil con su
+  referencia, el efectivo…), la tasa con que se congeló, el vuelto, «Factura a» y el recibo. Aguanta cambiar de cuenta o
+  de pestaña, recargar y un corte de luz: al volver a la cuenta, sigue ahí. Cifrado, como los datos de los pagos.
+- **Otra caja lo ve:** «Cobro en curso por Marisol · Pago Móvil Bs. 1.000,00», con «Retomar» (sigue con sus pagos y su
+  tasa) o «Descartar». Si dos lo tocan a la vez, el segundo lo vuelve a leer. Cobrar lo borra.
+- **Al abrir el turno, a Cobrar.**
+
 ## [0.94.0] — 2026-10-09 · Hacia la puesta en marcha
 
 La pulsera vinculada sale a su mesa (B4-14, M-34).

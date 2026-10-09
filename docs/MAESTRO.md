@@ -1536,7 +1536,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   navegador, en la base de pruebas: la cuenta #0066 cobrada con Pago Móvil Bs. 1.000,00 y $ 5 en efectivo; el recibo de
   la pantalla y el papel de esa venta dicen lo mismo renglón por renglón (= $ 1.14, Pagado $ 6.14, vuelto $ 3.24 y
   Bs. 2.834,13); a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni errores de consola.*
-- [ ] **B3-13 · El cobro en curso no se pierde** (M-34, S-6, S-17).
+- [x] **B3-13 · El cobro en curso no se pierde** (M-34, S-6, S-17).
+  *Hecho el 2026-10-09, en `feat/b3-13`.*
   → **Un borrador en el servidor.** Lo que se lleva de un cobro (los medios, los montos, las referencias y los datos de
   pago, el destino del vuelto, «Factura a» y el recibo a elección) se guarda como borrador de la cuenta mientras se
   escribe, con las referencias cifradas como las de los pagos. Aguanta cambiar de cuenta o de pestaña, recargar, un corte
@@ -1547,6 +1548,19 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Base (solo expande).** El borrador en su tabla, atado a la cuenta y a su versión; una versión anterior lo ignora.
   Se adapta a lo que hay (punto 10): el manual y el recorrido de Cobrar; su tema en vivo; la referencia con
   `data-privado`; el asiento al retomar o descartar el de otra persona, no por cada tecla.
+  *· Hecho: `charge_draft` (migración `20261118000000_cobro_en_curso`, solo expande), una fila por cuenta con su versión y
+  el borrador entero cifrado (`BorradorDeCobroSchema`); `casosBorrador` (leer, guardar con versión y candado de la cuenta,
+  descartar), y `cuentas.cobrar` lo borra en su transacción. Una cuenta que ya no está por cobrar no guarda borrador (un
+  guardado tardío no lo revive). Asientos `cobro.retomar` (guardar sobre el de otra persona) y `cobro.descartar`. En la
+  caja, `CobroCuenta` lo lee al abrir la cuenta y lo guarda 600 ms después de cada cambio; abrir el turno lleva a Cobrar.*
+  *· Decidido al construir: un borrador es de quien lo escribió (su usuario), no del equipo: en otro equipo, la misma
+  persona lo retoma sola; otra persona ve el aviso. El aviso no lleva `data-privado` porque no muestra datos del pago,
+  solo el medio y el monto.*
+  *· Comprobado: 5 pruebas contra la base (cifrado: la referencia no queda en claro; la versión que choca; retomar el de
+  otra persona con su asiento; vaciarlo y descartarlo; quien no cobra y otro local no lo ven). En el navegador, en la base
+  de pruebas: Marisol pone un Pago Móvil en la #0041, cambia de cuenta y vuelve, y recarga: sigue ahí; en otra caja,
+  Abigail ve «Cobro en curso por Marisol Prieto · Pago Móvil Bs. 1.000,00» y lo retoma; Marisol ve luego el de Abigail y lo
+  descarta. Sin errores de consola.*
 - [ ] **B3-14 · Un cliente devuelve parte de lo que compró** (M-34, S-4).
   → **Devolver.** Desde la venta (Turno → Ventas del turno, o buscándola por su número), se eligen los ítems y las
   cantidades (nunca más de lo vendido, contando las devoluciones anteriores), con la 🔐 de supervisión y un motivo. El
