@@ -212,7 +212,7 @@ export const ConsultaDeMovimientosSchema = z
 export type ConsultaDeMovimientosDto = z.infer<typeof ConsultaDeMovimientosSchema>;
 
 /** Qué movió la existencia: lo mismo que `stock_movement.kind`, más lo que se contó o arrancó sin mover nada. */
-export const TipoDeMovimientoSchema = z.enum(["VENTA", "DEVOLUCION", "ENTRADA", "SALIDA", "AJUSTE", "CONTEO", "INICIAL"]);
+export const TipoDeMovimientoSchema = z.enum(["VENTA", "DEVOLUCION", "ENTRADA", "SALIDA", "AJUSTE", "CONTEO", "INICIAL", "ANULACION"]);
 export type TipoDeMovimiento = z.infer<typeof TipoDeMovimientoSchema>;
 
 /**

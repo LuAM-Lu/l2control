@@ -23,3 +23,16 @@ export async function registrarEntrada(entrada: unknown): Promise<Resultado<Entr
   }
   return resultado;
 }
+
+/**
+ * Anula una entrada mal cargada (B9-12): cada línea sale a su costo de esa entrada. Con la autorización de
+ * administración (quién y su PIN), que el caso de uso comprueba y registra antes de mover nada. El PIN no va al registro.
+ */
+export async function anularEntrada(entrada: unknown, autorizacion: unknown): Promise<Resultado<EntradaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Tu sesión terminó. Vuelve a entrar." };
+  const r = await (await aplicacion()).entradas.anular(ctx, entrada, autorizacion);
+  if (r.ok) revalidatePath("/", "layout");
+  log()[r.ok ? "info" : "warn"]({ tenantId: ctx.tenantId, ...(r.ok ? { entrada: r.valor.id } : { motivo: r.motivo }) }, r.ok ? "entrada de mercancía anulada" : "anulación de entrada rechazada");
+  return r;
+}

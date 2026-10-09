@@ -117,8 +117,20 @@ export const EntradaSchema = z.object({
   total: MoneySchema,
   /** Los del inventario inicial que se contaron y no había (B9-7): arrancan en cero, sin moverse. */
   enCero: z.array(z.object({ productId: IdSchema, nombre: z.string().min(1) })).default([]),
+  /** Si se anuló (B9-12): quién, quién lo autorizó, por qué y cuándo. Se ve tachada; nada se borra. */
+  anulada: z.object({ por: z.string(), autorizo: z.string().nullable(), motivo: z.string(), en: TimestampSchema }).nullable().default(null),
 });
 export type EntradaDto = z.infer<typeof EntradaSchema>;
+
+/**
+ * Anular una entrada mal cargada (B9-12, M-34): una compra, una reposición o un inventario inicial. Cada línea sale a su
+ * costo de esa entrada (asiento de reverso) y el costo promedio se recalcula. Con la 🔐 de administración y un motivo.
+ */
+export const AnularEntradaDeMercanciaCommandSchema = z.strictObject({
+  entryId: IdSchema,
+  motivo: z.string().trim().min(3, "Di por qué se anula (al menos 3 letras)").max(200, "Hasta 200 caracteres"),
+});
+export type AnularEntradaDeMercanciaCommand = z.infer<typeof AnularEntradaDeMercanciaCommandSchema>;
 
 /** Las entradas recientes de la sucursal, de la más nueva a la más vieja. */
 export const EntradasSchema = z.object({ entradas: z.array(EntradaSchema) });
