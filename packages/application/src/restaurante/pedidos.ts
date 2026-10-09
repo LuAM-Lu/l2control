@@ -28,6 +28,7 @@ import {
   PedidosDelLocalSchema,
   ReimprimirComandaCommandSchema,
   ServirPedidoCommandSchema,
+  DeshacerServidoCommandSchema,
   problemasDe,
   type AccountLineDto,
   type FamilyAccountDto,
@@ -37,7 +38,19 @@ import {
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
-import { estadoDeComanda, estadoDelPedido, lineasDelPedido, partesDelPedido, type AreaDeComanda, type EstadoDeComanda, type EstadoDeTrabajo } from "@l2/domain-orders";
+import {
+  estadoDeComanda,
+  estadoDelPedido,
+  lineasDelPedido,
+  partesDelPedido,
+  problemaParaDeshacer,
+  servidoDelPedido,
+  servidoPorPlato,
+  type AreaDeComanda,
+  type EstadoDeComanda,
+  type EstadoDeTrabajo,
+  type MarcaDePlato,
+} from "@l2/domain-orders";
 import { reintentado } from "@l2/domain-printing";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
@@ -68,10 +81,13 @@ export interface CasosPedidos {
    */
   reimprimir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PedidoDto>>;
   /**
-   * Marca un pedido servido en la mesa (`ServirPedidoCommandSchema`, B6-8, D-SERV): ahí termina su espera. Lo hace
-   * quien toma pedidos. Una vez: marcarlo otra vez devuelve el pedido como estaba.
+   * Marca servidos platos de un pedido (`ServirPedidoCommandSchema`, B6-8, D-SERV, B6-11): los que diga o, sin decirlos,
+   * todo lo que falte. Ahí termina su espera; el pedido, cuando se sirve su último plato. Lo hace quien toma pedidos. Lo
+   * ya servido queda como estaba.
    */
   servir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PedidoDto>>;
+  /** Deshace, en el momento, un plato marcado servido por error (`DeshacerServidoCommandSchema`, B6-11). */
+  deshacerServido(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PedidoDto>>;
 }
 
 /** Quién ve los pedidos: quien los toma y la caja, que cobra la mesa y ve si salió la comanda. */
@@ -325,18 +341,41 @@ export function casosPedidos(base: Base): CasosPedidos {
           if (rechazo) return rechazo;
           const fila = await tx.kitchenOrder.findUnique({ where: { id: v.data.pedidoId } });
           if (!fila || fila.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese pedido no existe en esta sucursal." };
-          // Una vez: si otra tablet ya lo marcó, queda como estaba.
-          const ya = await tx.kitchenOrderServed.findUnique({ where: { tenantId_orderId: { tenantId: ctx.tenantId, orderId: fila.id } } });
-          if (!ya) {
+          // Las marcas de un pedido, de una en una: dos tablets a la vez no lo sirven dos veces.
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`servido:${fila.id}`}, 0))::text AS candado`;
+          const lineas = fila.items as unknown as LineaGuardada[];
+          const pedidas = v.data.lineas ?? lineas.map((_, i) => i);
+          const fuera = pedidas.find((i) => i >= lineas.length);
+          if (fuera !== undefined) return { ok: false, motivo: "INVALIDO", mensaje: "Ese plato no es de este pedido.", problemas: [{ path: ["lineas"], message: "PLATO_DESCONOCIDO" }] };
+          const antes = await servidosDe(tx, fila);
+          // Lo ya servido queda como estaba (otra tablet lo marcó, o se pidió dos veces).
+          const nuevas = [...new Set(pedidas)].filter((i) => antes[i] === null);
+          if (nuevas.length > 0) {
             const quien = await nombreDe(tx, ctx);
-            await tx.kitchenOrderServed.create({
-              data: { tenantId: ctx.tenantId, orderId: fila.id, servedAt: new Date(ahora), servedBy: ctx.quien?.userId ?? null, servedName: quien.nombre, deviceId: ctx.quien?.deviceId ?? null },
-            });
+            for (const i of nuevas) {
+              await tx.kitchenOrderLineServed.create({
+                data: { tenantId: ctx.tenantId, orderId: fila.id, lineIndex: i, kind: "SERVIDO", at: new Date(ahora), by: ctx.quien?.userId ?? null, byName: quien.nombre, deviceId: ctx.quien?.deviceId ?? null },
+              });
+            }
+            const despues = await servidosDe(tx, fila);
+            const entero = servidoDelPedido(despues);
+            // El último plato: el pedido queda servido, también para la versión de antes (que lee kitchen_order_served).
+            if (entero && !(await tx.kitchenOrderServed.findUnique({ where: { tenantId_orderId: { tenantId: ctx.tenantId, orderId: fila.id } } }))) {
+              await tx.kitchenOrderServed.create({
+                data: { tenantId: ctx.tenantId, orderId: fila.id, servedAt: new Date(ahora), servedBy: ctx.quien?.userId ?? null, servedName: quien.nombre, deviceId: ctx.quien?.deviceId ?? null },
+              });
+            }
             await auditar(tx, ctx, {
               action: "pedido.servir",
               entityType: "kitchen_order",
               entityId: fila.id,
-              after: { comanda: fila.number, mesa: fila.tableLabel, esperaMin: Math.max(0, Math.floor((ahora - fila.createdAt.getTime()) / 60_000)) },
+              after: {
+                comanda: fila.number,
+                mesa: fila.tableLabel,
+                platos: nuevas.map((i) => lineas[i]!.nombre),
+                esperaMin: Math.max(0, Math.floor((ahora - fila.createdAt.getTime()) / 60_000)),
+                pedidoServido: entero !== null,
+              },
             });
           }
           return (await pedidosDe(tx, [fila]))[0]!;
@@ -355,7 +394,69 @@ export function casosPedidos(base: Base): CasosPedidos {
         return "ok" in r ? r : { ok: true, valor: r };
       }
     },
+
+    async deshacerServido(ctx, entrada, ahora = Date.now()) {
+      const v = DeshacerServidoCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "No se deshizo: el plato no es válido.", problemas: problemasDe(v.error) };
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<PedidoDto | Rechazo> => {
+        const rechazo = await exigirPermiso(tx, ctx, "pedido.tomar");
+        if (rechazo) return rechazo;
+        const fila = await tx.kitchenOrder.findUnique({ where: { id: v.data.pedidoId } });
+        if (!fila || fila.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese pedido no existe en esta sucursal." };
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`servido:${fila.id}`}, 0))::text AS candado`;
+        const lineas = fila.items as unknown as LineaGuardada[];
+        if (v.data.linea >= lineas.length) return { ok: false, motivo: "INVALIDO", mensaje: "Ese plato no es de este pedido.", problemas: [{ path: ["linea"], message: "PLATO_DESCONOCIDO" }] };
+        const plato = (await servidosDe(tx, fila))[v.data.linea] ?? null;
+        const problema = problemaParaDeshacer(plato, ahora);
+        if (problema === "NO_SERVIDO") return (await pedidosDe(tx, [fila]))[0]!; // ya estaba sin servir: nada que deshacer
+        if (problema === "YA_NO") return { ok: false, motivo: "CONFLICTO", mensaje: "Se marcó servido hace rato: ya no se deshace." };
+        const quien = await nombreDe(tx, ctx);
+        await tx.kitchenOrderLineServed.create({
+          data: { tenantId: ctx.tenantId, orderId: fila.id, lineIndex: v.data.linea, kind: "DESHECHO", at: new Date(ahora), by: ctx.quien?.userId ?? null, byName: quien.nombre, deviceId: ctx.quien?.deviceId ?? null },
+        });
+        await auditar(tx, ctx, {
+          action: "pedido.deshacer_servido",
+          entityType: "kitchen_order",
+          entityId: fila.id,
+          after: { comanda: fila.number, mesa: fila.tableLabel, plato: lineas[v.data.linea]!.nombre },
+        });
+        return (await pedidosDe(tx, [fila]))[0]!;
+      });
+      if ("ok" in r) {
+        if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "pedido.deshacer_servido", reason: r.mensaje });
+        return r;
+      }
+      return { ok: true, valor: r };
+    },
   };
+}
+
+/** Lo servido de cada plato de un pedido (B6-11): sus marcas sobre lo marcado por pedido antes de este paso. */
+async function servidosDe(tx: Transaccion, fila: FilaPedido) {
+  return (await servidosDeVarios(tx, [fila])).get(fila.id)!;
+}
+
+/** Lo servido de cada plato de varios pedidos, en dos consultas. */
+async function servidosDeVarios(tx: Transaccion, filas: readonly FilaPedido[]) {
+  const ids = filas.map((f) => f.id);
+  const enteros = new Map(
+    (await tx.kitchenOrderServed.findMany({ where: { orderId: { in: ids } }, select: { orderId: true, servedAt: true, servedName: true } })).map((s) => [
+      s.orderId,
+      { en: s.servedAt.getTime(), por: s.servedName },
+    ]),
+  );
+  const marcas = await tx.kitchenOrderLineServed.findMany({ where: { orderId: { in: ids } }, orderBy: [{ at: "asc" }, { id: "asc" }] });
+  // Lo marcado por pedido ANTES de B6-11 vale como todo servido: es anterior a toda marca de plato. El que este paso
+  // escribe al servir el último plato, no (va con la marca de ese plato, en el mismo instante, y sus platos ya tienen las
+  // suyas): deshacer uno tiene que poder dejar el pedido sin servir.
+  return new Map(
+    filas.map((f) => {
+      const suyas: MarcaDePlato[] = marcas.filter((m) => m.orderId === f.id).map((m) => ({ linea: m.lineIndex, tipo: m.kind as MarcaDePlato["tipo"], en: m.at.getTime(), por: m.byName }));
+      const marcado = enteros.get(f.id) ?? null;
+      const entero = marcado && suyas.every((m) => m.en > marcado.en) ? marcado : null;
+      return [f.id, servidoPorPlato((f.items as unknown as LineaGuardada[]).length, suyas, entero)];
+    }),
+  );
 }
 
 type VigenteDeCuenta = NonNullable<Awaited<ReturnType<typeof vigenteDe>>>;
@@ -433,13 +534,9 @@ async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, 
 /** Los pedidos con su comanda, como los lee una pantalla. Los trabajos, en su propia consulta. */
 async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise<PedidoDto[]> {
   if (filas.length === 0) return [];
-  // Cuándo se sirvió cada uno (B6-8): sin marca, sigue esperando.
-  const servidos = new Map(
-    (await tx.kitchenOrderServed.findMany({ where: { orderId: { in: filas.map((f) => f.id) } }, select: { orderId: true, servedAt: true, servedName: true } })).map((s) => [
-      s.orderId,
-      { en: s.servedAt.toISOString(), por: s.servedName },
-    ]),
-  );
+  // Cuándo se sirvió cada plato (B6-8, B6-11): sin marca, sigue esperando.
+  const servidos = await servidosDeVarios(tx, filas);
+  const iso = (s: { en: number; por: string } | null) => (s ? { en: new Date(s.en).toISOString(), por: s.por } : null);
   const trabajos = await tx.printJob.findMany({
     where: { orderId: { in: filas.map((f) => f.id) } },
     select: { orderId: true, kind: true, status: true, createdAt: true, copy: true, lastError: true, printerId: true, area: true },
@@ -481,7 +578,7 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
       mesa: f.tableLabel,
       nombreCuenta: f.accountLabel,
       cuentaId: f.accountId,
-      lineas: f.items,
+      lineas: (f.items as unknown as LineaGuardada[]).map((l, i) => ({ ...l, servido: iso(servidos.get(f.id)![i] ?? null) })),
       enviadoEn: f.createdAt.toISOString(),
       enviadoPor: f.createdByName,
       comandas,
@@ -493,7 +590,7 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
       },
       anulacion: anulacion ? { estado: anulacion.estado, error: anulacion.error } : null,
       anulaciones,
-      servido: servidos.get(f.id) ?? null,
+      servido: iso(servidoDelPedido(servidos.get(f.id)!)),
     });
   });
 }

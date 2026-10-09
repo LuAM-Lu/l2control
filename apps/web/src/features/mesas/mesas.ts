@@ -221,7 +221,10 @@ export function anadir(lineas: readonly LineaBorrador[], itemId: string): LineaB
   return lineas.map((l, j) => (j === i ? { ...l, cantidad: Math.min(50, l.cantidad + 1) } : l));
 }
 
-/** Un pedido como lo necesita la atención en el salón (B6-8): anulado si su cuenta anuló todo lo que pidió. */
+/**
+ * Un pedido como lo necesita la atención en el salón (B6-8): anulado si su cuenta anuló todo lo que pidió; y sus platos
+ * (B6-11), cada uno con cuándo se sirvió y si se anuló.
+ */
 export function paraAtender(p: PedidoDto, cuentas: readonly FamilyAccountDto[]): PedidoParaAtencion {
   const propias = cuentas.find((c) => c.id === p.cuentaId)?.lines.filter((l) => l.orderId === p.id) ?? [];
   return {
@@ -229,5 +232,12 @@ export function paraAtender(p: PedidoDto, cuentas: readonly FamilyAccountDto[]):
     enviadoEn: Date.parse(p.enviadoEn),
     servidoEn: p.servido ? Date.parse(p.servido.en) : null,
     anulado: propias.length > 0 && propias.every((l) => l.anulacion !== undefined),
+    platos: p.lineas.map((l) => ({ servidoEn: l.servido ? Date.parse(l.servido.en) : null, anulado: platoAnulado(l.productId, propias) })),
   };
+}
+
+/** Un plato del pedido está anulado si su cuenta anuló todas las unidades de ese producto que el pedido trajo. */
+export function platoAnulado(productId: string, propias: readonly FamilyAccountDto["lines"][number][]): boolean {
+  const suyas = propias.filter((l) => l.productId === productId);
+  return suyas.length > 0 && suyas.every((l) => l.anulacion !== undefined);
 }

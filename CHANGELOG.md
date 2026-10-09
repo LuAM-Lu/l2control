@@ -16,6 +16,14 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+Servido por plato (B6-11, M-34).
+
+### Cambiado
+- **Cada plato se marca servido** en su renglón del pedido, o «Servir todo» lo que falte; el pedido queda servido con
+  su último plato. Lo marcado por error se deshace en los 5 minutos siguientes.
+- **La atención en el salón mide la espera por plato:** una mesa espera mientras le falte uno, y la espera media y la
+  máxima del día cuentan cada plato. Lo marcado antes por pedido cuenta como todo servido.
+
 ## [0.101.0] — 2026-10-09 · Hacia la puesta en marcha
 
 La comanda de cocina y la de barra (B6-10, M-34).

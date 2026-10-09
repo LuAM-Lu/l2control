@@ -2557,11 +2557,20 @@ antes del cobro en servidor (orden de ejecución).
   el alta, «Alta en lote», «Editar en lote» y la carta; la semilla la lleva. Un pedido de antes sigue siendo un solo papel
   con todo, en la de cocina. Lo que no: la caja no tiene vista propia de las comandas; las ve en Mesas e Inicio, como
   antes. 4 pruebas del dominio y 6 contra la base.*
-- [ ] **B6-11 · Servido por plato** (M-34, S-9; cambia en parte ADR-030).
+- [x] **B6-11 · Servido por plato** (M-34, S-9; cambia en parte ADR-030).
+  *Hecho el 2026-10-09, en `feat/b6-11`.*
   → En la tablet, cada plato de un pedido se marca servido, o «Servir todo» lo que falte; se puede deshacer en el
   momento. El pedido cuenta como servido cuando lo está su último plato. La atención en el salón (B6-8) mide la espera por
   plato, y lo marcado por pedido antes de este paso cuenta como todo servido.
   → **Base (solo expande).** Lo servido por línea, solo agregar.
+  *· Hecho: migración `20261123000000_servido_por_plato` (solo expande): `kitchen_order_line_served` (solo agregar), una
+  marca SERVIDO o DESHECHO por plato (su posición en el pedido); vale la última. Al servirse el último plato se escribe
+  además `kitchen_order_served`, así la versión anterior lo ve servido. En `@l2/domain-orders`, `servidoPorPlato`,
+  `servidoDelPedido` y `problemaParaDeshacer` (`DESHACER_SERVIDO_MS`, 5 min); la atención (`atencionDeCuentas`,
+  `resumenDeEspera`) cuenta por plato. Lo marcado por pedido antes de este paso es anterior a toda marca de plato y vale
+  como todo servido. `pedidos.servir` con `lineas` (sin ellas, todo lo que falte) y `pedidos.deshacerServido`
+  (`pedido.deshacer_servido`). Mesas: un renglón por plato con «Servido», su hora y «Deshacer»; «Servir todo» con dos o
+  más por servir. 5 pruebas del dominio y 4 contra la base.*
 - [ ] **B6-12 · Notas rápidas del mesero** (M-34, S-11).
   → Al poner una nota a un plato, la tablet ofrece las 5 más escritas para ese producto en los últimos 60 días (y las de
   su categoría, si el plato tiene pocas); un toque la añade y el texto libre se queda. Las aprende sola: nadie las

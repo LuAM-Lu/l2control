@@ -77,6 +77,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "pedido.reimprimir": ["pedidos"],
   // Servido en la mesa (B6-8): termina la espera del pedido.
   "pedido.servir": ["pedidos"],
+  "pedido.deshacer_servido": ["pedidos"],
   // Anular un plato ya enviado cambia la cuenta de la mesa, no su comanda (ya se imprimió, B6-3).
   "pedido.anular": ["cuentas"],
   "mesa.liberar": ["cuentas"],
