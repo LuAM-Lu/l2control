@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen } from "lucide-react";
 import { WristbandCodeSchema, type CatalogoDto, type ReservaEventoDto } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
@@ -54,8 +54,11 @@ export function ParkMonitor({
   catalogo?: CatalogoDto;
   /** Los cumpleaños de hoy que reciben invitados (B10-2): la entrada los ofrece. */
   cumpleanos?: readonly ReservaEventoDto[];
-  /** Lo que pide la dirección (los enlaces de `/entrada` y `/salida`, B4-12): abrir la entrada, o la salida de una pulsera. */
-  abrir?: Readonly<{ entrada?: boolean; salida?: string | null }>;
+  /**
+   * Lo que pide la dirección (los enlaces de `/entrada` y `/salida`, B4-12): abrir la entrada, o la salida de una pulsera;
+   * o la ficha de una pulsera (un aviso de por vencer, B4-15).
+   */
+  abrir?: Readonly<{ entrada?: boolean; salida?: string | null; pulsera?: string | null }>;
 } = {}) {
   const op = useOperacion();
   const router = useRouter();
@@ -87,6 +90,15 @@ export function ParkMonitor({
   const [entrada, setEntrada] = useState<PedidoDeEntrada | null>(abrir.entrada ? { codigo: null, n: 1 } : null);
   const [salida, setSalida] = useState<readonly string[] | null>(abrir.salida ? [abrir.salida] : null);
   const pedidos = useRef(1);
+  // B4-15: el aviso lleva a la ficha del niño, en cuanto la sala lo trae.
+  const fichaPedida = useRef<string | null>(null);
+  useEffect(() => {
+    if (!abrir.pulsera || fichaPedida.current === abrir.pulsera) return;
+    const card = model.cards.find((c) => c.wristbandCode === abrir.pulsera);
+    if (!card) return;
+    fichaPedida.current = abrir.pulsera;
+    setSelected(card.id);
+  }, [abrir.pulsera, model.cards]);
   const abrirEntrada = (p: Omit<PedidoDeEntrada, "n">) => {
     setSelected(null);
     setEntrada({ ...p, n: ++pedidos.current });

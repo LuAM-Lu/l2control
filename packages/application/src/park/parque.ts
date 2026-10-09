@@ -33,6 +33,8 @@ import {
   EstanciaSchema,
   FamilyAccountSchema,
   MonitorSnapshotSchema,
+  AvisosDeSalaSchema,
+  type AvisosDeSalaDto,
   NombrarEstanciaCommandSchema,
   PausaCommandSchema,
   ParkTermsSchema,
@@ -75,6 +77,7 @@ import {
   resumeProblem,
   settleAtExit,
   withRecharges,
+  instantesDeAviso,
   type Duration,
   type PaqueteDeUso,
   type ParkPolicy,
@@ -94,10 +97,16 @@ import { asentarExistencias, comprobarExistencias } from "../inventario/existenc
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "../caja/papel-en.ts";
 import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
+import type { EstadoDispositivo } from "../identidad/dispositivos.ts";
 
 export interface CasosParque {
   /** Los niños en sala, con la hora del servidor y la política vigente (aforo, avisos). */
   sala(ctx: Contexto, ahora?: number): Promise<Resultado<MonitorSnapshotDto>>;
+  /**
+   * Los avisos de pulseras por vencer para la pantalla del PIN (B4-15): solo un equipo APROBADO, sin sesión, y solo la
+   * pulsera con sus dos instantes, sin nombres. `equipo` es lo que dice `dispositivos.identificar` de su cookie.
+   */
+  avisosDelEquipo(equipo: EstadoDispositivo, ahora?: number): Promise<Resultado<AvisosDeSalaDto>>;
   /**
    * Registra una entrada (`CheckInCommandSchema`): estancias y cuenta de la familia, juntas. `papel` solo lo
    * pasa `casosPapel` (B3-7, ADR-027): lo anotado en el formulario, con su hora real en `ahora`; no cuenta el
@@ -259,6 +268,23 @@ export function casosParque(base: Base): CasosParque {
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };
+    },
+
+    async avisosDelEquipo(equipo, ahora = Date.now()) {
+      if (equipo.estado !== "APROBADO") return rechazoDePermiso("DENEGADO");
+      return base.conTenant(equipo.tenantId, async (tx): Promise<Resultado<AvisosDeSalaDto>> => {
+        const filas = await estancias(tx, { where: { branchId: equipo.branchId, status: "ACTIVA" }, orderBy: { startedAt: "asc" } });
+        const regla = await reglaDeHuerfanas(tx, equipo.branchId);
+        const pulseras = filas
+          // Las huérfanas esperan la revisión de la dirección: no avisan.
+          .filter((f) => !huerfana(f, ahora, regla))
+          .flatMap((f) => {
+            const { sesion, politica } = paraMedir(f);
+            const a = instantesDeAviso(sesion, politica);
+            return a ? [{ codigo: f.wristbandCode, porVencer: new Date(a.porVencer).toISOString(), vence: new Date(a.vence).toISOString() }] : [];
+          });
+        return { ok: true, valor: AvisosDeSalaSchema.parse({ serverNow: new Date(ahora).toISOString(), pulseras }) };
+      });
     },
 
     async entrar(ctx, entrada, ahora = Date.now(), papel) {

@@ -1904,7 +1904,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   la caja cobra solo el paquete de Beto; la salida de Ana dice su mesa sin ofrecer elegir y queda «Cargado a la mesa 3».
   A 1366×768, 1280×800, 800×1280 y 390 px (en el teléfono, en el segundo paso), en los dos temas, sin errores.*
   *· Visto de paso: el botón de quien recoge en la salida corta el nombre con «…»; va con el rediseño del parque (B4-12).*
-- [ ] **B4-15 · Aviso de pulseras por vencer** (M-34, S-10).
+- [x] **B4-15 · Aviso de pulseras por vencer** (M-34, S-10).
+  *Hecho el 2026-10-09, en `feat/b4-15`.*
   → **El aviso.** Con sonido en las pantallas del parque y en la caja, y vibración en Android: uno por niño al entrar en
   «por vencer» (el umbral del tarifario) y otro al cumplirse su tiempo; un toque lleva a su ficha. Se calla por equipo
   durante un rato. Funciona con la app abierta: no es una notificación del sistema.
@@ -1912,6 +1913,17 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   solo con el código de la pulsera y los minutos, sin nombres, y vibra; un toque pide el PIN y lleva al niño. El bloqueo
   se queda.
   Se adapta a lo que hay (punto 10): un ajuste del equipo para el sonido; el manual de la sala.
+  *· Hecho: sin migración. En `@l2/domain-park`, `instantesDeAviso`: cuándo entra en «por vencer» (con el aviso de sus
+  condiciones) y cuándo se cumple su tiempo, corridos por la pausa si empieza antes; coinciden con `computeSessionView`.
+  `parque.avisosDelEquipo` da a un equipo APROBADO, sin sesión, cada pulsera con sus dos instantes y nada más
+  (`AvisosDeSalaSchema`); lo pide `avisosDeSalaDelEquipo` con la cookie del equipo, resuelta en el servidor.
+  `park/AvisoDePulseras.tsx`, en la cáscara de las estaciones: en el parque y la caja (con la sala de la sesión y la hora
+  del servidor) y, sin sesión, en el PIN (lo del equipo, al abrirse y al volver a verse: sin sondeo). Avisa una vez por
+  pulsera y nivel (no al abrir lo que ya pasó), suena con Web Audio y vibra; «Silenciar» 15 min y el altavoz de la barra
+  son preferencias del equipo (en su navegador, con `lint-permitido`). El toque va a `/monitor?pulsera=` o, sin sesión, a
+  `/acceso?pulsera=`, que tras el PIN abre su ficha si quien entra ve la sala. Lo que no: un niño que entra por otro equipo
+  mientras este está bloqueado no avisa hasta que la pantalla vuelve a verse. 3 pruebas del dominio y 1 contra la base;
+  en el navegador con el reloj de Playwright (claro 1366, oscuro 390).*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
