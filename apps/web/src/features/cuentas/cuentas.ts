@@ -263,3 +263,11 @@ export function pasarACaja(c: FamilyAccountDto): FamilyAccountDto {
     status: hayPendiente ? "POR_COBRAR" : c.status,
   });
 }
+
+/**
+ * Los niños de una cuenta del salón (B4-14, M-34), con si lo suyo está en esta cuenta o ya se pagó aparte: un niño que
+ * pagó su parque y después se vinculó se ve «Pagado», sin cobrarse otra vez (vincular solo mueve lo pendiente).
+ */
+export function ninosDeLaMesa(c: FamilyAccountDto): readonly Readonly<{ sessionId: string; enLaCuenta: boolean }>[] {
+  return c.sessionIds.map((sessionId) => ({ sessionId, enLaCuenta: c.lines.some((l) => l.sessionId === sessionId) }));
+}

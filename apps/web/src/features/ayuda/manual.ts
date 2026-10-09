@@ -188,7 +188,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Pasa la pulsera de quien se va (o elige en «Sin pulsera» a un niño que entró sin ella). Si se va la familia entera, pasa todas seguidas.",
       "Revisa el desglose: en cuenta abierta, si salió antes, se cobra el paquete más barato que cubre lo que estuvo.",
       "Marca quién lo recoge: su representante u otra persona, con su nombre.",
-      "Elige dónde se paga: en caja o cargado a una mesa (la cuenta de su familia en esa mesa), y registra.",
+      "Elige dónde se paga: en caja o cargado a una mesa (la cuenta de su familia en esa mesa), y registra. Una pulsera vinculada a una mesa sale a su mesa sin elegir: lo que debe y su tiempo de más van a esa cuenta.",
     ],
     problemas: [
       {

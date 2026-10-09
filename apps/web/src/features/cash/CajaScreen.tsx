@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Baby,
   BadgePercent,
   Banknote,
   Check,
@@ -143,6 +144,7 @@ import {
   numeroDeOrden,
   puedeDescartarse,
   unirCuenta,
+  ninosDeLaMesa,
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useSala } from "../park/SalaProvider.tsx";
@@ -952,6 +954,8 @@ function CobroCuenta({
             </button>
           )}
         </div>
+        {/* Los niños vinculados a la mesa (B4-14): lo suyo en esta cuenta, o ya pagado aparte (no se cobra otra vez). */}
+        {cuenta.kind === "MESA" && cuenta.sessionIds.length > 0 && <NinosDeLaMesa cuenta={cuenta} />}
 
         {/* Catálogo táctil de mostrador (snacks, bebidas, golosinas). Cede su sitio a los ítems (B3-10): como mucho la
             mitad larga de la tarjeta, y menos si hace falta para que se vean al menos dos o tres. */}
@@ -3434,5 +3438,26 @@ function SinCuentas() {
         </Link>
       </div>
     </section>
+  );
+}
+
+/** Los niños de una cuenta de mesa, en un renglón (B4-14): su nombre o su pulsera, y si lo suyo está aquí o ya se pagó. */
+function NinosDeLaMesa({ cuenta }: { cuenta: FamilyAccountDto }) {
+  const { sala } = useSala();
+  const nombre = (id: string) => {
+    const s = sala?.sessions.find((x) => x.id === id);
+    return s ? (s.kid.nickname ?? s.kid.name ?? s.wristbandCode) : "ya salió";
+  };
+  return (
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-5 py-1.5 text-[12px] text-ink-3">
+      <span className="font-semibold tracking-[0.06em] uppercase">Niños</span>
+      {ninosDeLaMesa(cuenta).map((n) => (
+        <span key={n.sessionId} className="inline-flex items-center gap-1">
+          <Baby size={12} aria-hidden="true" />
+          {nombre(n.sessionId)} ·{" "}
+          {n.enLaCuenta ? "en la cuenta" : <span className="font-semibold text-state-ok">pagado</span>}
+        </span>
+      ))}
+    </p>
   );
 }
