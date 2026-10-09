@@ -9,7 +9,6 @@ import {
   StatusCard,
   TimeBar,
   type Tone,
-  useServerClock,
   cn,
 } from "@l2/ui";
 import { formatDuration, isWristbandless, type SessionStatus } from "@l2/domain-park";
@@ -36,14 +35,15 @@ const STATUS: Record<
 
 export function ParkChildCard({
   model,
-  serverNow,
+  ahora,
   selected,
   onSelect,
   hora,
   densidad = "normal",
 }: {
   model: SessionCardModel;
-  serverNow: number;
+  /** La hora del servidor según el reloj de la sala (`useAhoraDeLaSala`, B4-13): todas las tarjetas laten con ella. */
+  ahora: number;
   selected?: boolean;
   onSelect: (id: string) => void;
   /** Configurable por sucursal (F5-08b); 24 h por defecto. */
@@ -56,8 +56,8 @@ export function ParkChildCard({
    */
   densidad?: "normal" | "compacta";
 }) {
-  // Un solo reloj por tarjeta: cifra y barra laten juntas.
-  const now = useServerClock(serverNow);
+  // El reloj es el de la sala: cifra, barra y estado laten juntos en todas las tarjetas.
+  const now = ahora;
   // La pausa por comida (B4-7): mientras dura, el reloj no corre (el objetivo se corre lo que lleva en pausa)
   // y la tarjeta lo dice con su icono y lo que le queda. No es un color de estado: es una espera.
   const pausado = enPausa(model.pausa, now);

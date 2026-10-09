@@ -22,7 +22,6 @@ import {
   avisar,
   cn,
   formatMoneyVE,
-  useServerClock,
 } from "@l2/ui";
 import { HandHeart, HandPlatter, PackageOpen } from "lucide-react";
 import { isWristbandless } from "@l2/domain-park";
@@ -34,7 +33,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { cuentasDeLaMesa } from "../mesas/mesas.ts";
-import { useSala } from "./SalaProvider.tsx";
+import { useAhoraDeLaSala, useSala } from "./SalaProvider.tsx";
 import { nombreDeEstancia } from "./view-model";
 import { registrarSalida } from "./parque.acciones";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -118,8 +117,8 @@ export function CheckoutScreen({
   const actor = useActorEnSesion();
   const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
 
-  // La hora del servidor, interpolada entre lecturas (ADR-010): el anticipo corre con ella.
-  const ahora = useServerClock(sala ? Date.parse(sala.serverNow) : 0);
+  // La hora del servidor según el reloj de la sala (ADR-010, B4-13): el desglose corre con ella.
+  const ahora = useAhoraDeLaSala();
   const snapshot: MonitorSnapshotDto = useMemo(
     () =>
       sala

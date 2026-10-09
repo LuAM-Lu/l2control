@@ -14,6 +14,19 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+El reloj de la sala no se queda pegado (B4-13, M-34).
+
+### Corregido
+- **El reloj de cada niño ya no se atrasa** al volver a la sala desde Entrada o Salida, ni al despertar el teléfono: se
+  quedaba atrás lo que tuviera de vieja la última lectura, hasta recargar. Ahora la sala mide la hora del servidor al
+  recibir cada lectura y se vuelve a leer al volver a la pestaña o a la red.
+- **El estado de cada niño avanza solo:** pasa a «Por vencer» y a «Tiempo cumplido» a su hora, con las cifras de arriba
+  y el orden por urgencia, sin que nadie tenga que recargar.
+- **Sin conexión, la sala lo dice al instante** («Sin conexión con el servidor desde las 9:48 pm»): los relojes siguen
+  contando; lo de otros equipos llega al volver.
+
 ## [0.90.2] — 2026-10-08 · Hacia la puesta en marcha
 
 Los papeles con sus acentos (M-34, S-21).

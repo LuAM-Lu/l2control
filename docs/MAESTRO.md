@@ -1794,7 +1794,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Iconos** en las pestañas de la barra de las estaciones (Parque, Cobrar, Turno, Papel, Deudas, Mesas).
   Se adapta a lo que hay (punto 10): los recorridos de Entrada y Salida pasan a uno de Parque; el manual; los atajos; 48 px
   en el teléfono y 56 en la caja.
-- [~] **B4-13 · El reloj de la sala no se queda pegado** (M-34, S-13). *A cargo: LuAMi, rama `feat/b4-13`.*
+- [x] **B4-13 · El reloj de la sala no se queda pegado** (M-34, S-13).
+  *Hecho el 2026-10-08, en `feat/b4-13`.*
   → **El fallo.** El desfase con el servidor se mide al pintar la tarjeta (`useServerClock`) y no al recibir la lectura:
   si la sala se vuelve a pintar con una lectura de hace 10 minutos (volver a la pestaña, despertar el teléfono), el reloj
   queda 10 minutos atrás hasta recargar. Lo mismo pasa en la salida y en los impuestos vigentes de la caja.
@@ -1802,6 +1803,23 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Al volver a la pestaña, al despertar el equipo y al reconectar el canal, la sala se vuelve a leer. Si la lectura tiene
   más de un minuto, la sala lo dice («Actualizado hace 2 min»).
   → Se reproduce antes del arreglo (prueba del gancho con un reloj falso, y en el navegador) y se comprueba después.
+  *· Encontrado al construir: había una segunda causa. El estado de cada niño (en tiempo, por vencer, cumplido), las cifras
+  de arriba, el orden por urgencia y el excedente se calculaban a la hora de la LECTURA: solo la cifra de cada tarjeta
+  avanzaba, así que un niño se quedaba «En tiempo» con el tiempo cumplido hasta que algo releía la sala.*
+  *· Arreglo: `SalaProvider` mide el desfase al recibir cada lectura (`reloj-de-la-sala.ts`, el punto medio del ida y
+  vuelta), no acepta una lectura más vieja que la que tiene (la caché de la navegación) y relee al volver a la pestaña, al
+  volver la red y al restaurar la página. `useAhoraDeLaSala` es el único reloj de la sala: el modelo
+  (`toMonitorModel(sala, ahora)`), las tarjetas, la ficha, la salida y los impuestos vigentes de la caja laten con él.
+  El aviso «Sin conexión con el servidor desde las …» sale al perder la red (al instante, con el evento del navegador) o
+  el canal, y se quita solo al volver.*
+  *· Decidido al construir: «Actualizado hace 2 min» no se dice si la conexión está bien: una lectura sin cambios no está
+  vieja (nada pasó); lo que se avisa es la conexión perdida, con la hora de la última lectura.*
+  *· Comprobado: 4 pruebas nuevas (`reloj-de-la-sala.test.ts`: el desfase al recibir, el punto medio, una lectura vieja
+  no pisa a la nueva y el estado que avanza con el reloj). En el navegador, en la base de pruebas: con el código de antes,
+  la sala abierta 90 s y de vuelta desde Entrada, al niño le quedaban 90 s MÁS (27:55 → 26:25 → 27:56); con el arreglo,
+  93 s menos en 93 s. La sala abierta 18 minutos sin que nada la releyera: «Por vencer» subió sola de 0 a 6 a la hora de
+  cada niño y el primero pasó a «Tiempo cumplido» al acabar su gracia. El aviso sin red en 1,5 s con su hora, y se quita al
+  volver. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar ni cortar y sin errores de consola.*
 - [ ] **B4-14 · La pulsera vinculada sale a su mesa** (M-34, S-19).
   → **A su mesa, sin preguntar.** La salida de una pulsera vinculada va a la cuenta de su mesa, con el paquete por uso y
   el tiempo de más; para ella no se ofrece «Caja / A una mesa», y se dice por qué. Hoy, si no se elige la mesa, el tiempo
@@ -3357,6 +3375,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   en la app, también en la pantalla del PIN; medias sin marcar (las entrega la monitora); retirar en lugar de borrar;
   corregir una entrada y la devolución de un cliente; notas aprendidas; la cédula primero en todo (cambian DEC-9 y
   DEC-23). **D-REL decidida: todo antes de la 1.0.0.** La ruta pasa a 109. El usuario autoriza encadenar sin pedir el sí.
+- **2026-10-08** · Correcciones v0.90.1 (la entrada desde la caja ya no parte los paquetes) y v0.90.2 (los papeles con
+  acentos: cada uno apaga el modo chino; la impresora del local es una Xprinter XP-80C). B4-13 entregado: el reloj de la
+  sala ya no se queda pegado y el estado de cada niño avanza solo. Al probar B5-4 en un worktree, `prisma migrate deploy`
+  a secas aplicó su migración (solo expande) en la base local del cliente antes de fusionarse: no se edita más.
 
 ---
 
