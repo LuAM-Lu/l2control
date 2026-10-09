@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.96.0] — 2026-10-09 · Hacia la puesta en marcha
+
 El cliente por su cédula, en todo, y el buscador (T-19, M-34).
 
 ### Cambiado
