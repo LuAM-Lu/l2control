@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.90.1] — 2026-10-08 · Hacia la puesta en marcha
 
 La entrada al parque desde la caja, legible (M-34, S-12).
 
