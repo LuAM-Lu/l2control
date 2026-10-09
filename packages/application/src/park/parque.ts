@@ -313,7 +313,8 @@ export function casosParque(base: Base): CasosParque {
             medias = { productId: productoMedias, ...p };
           }
 
-          const familia = await representanteDeLaEntrada(tx, ctx, cmd, ahora);
+          // La cédula del representante se exige (T-19), salvo en lo cargado desde papel: se anotó o no.
+          const familia = await representanteDeLaEntrada(tx, ctx, cmd, ahora, !papel);
           if ("ok" in familia) return familia;
           const ninos: (string | null)[] = [];
           for (const [i, e] of cmd.entries.entries()) {

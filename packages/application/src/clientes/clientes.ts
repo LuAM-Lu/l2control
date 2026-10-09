@@ -18,6 +18,7 @@ import {
   AsignarClienteCommandSchema,
   BuscarClienteSchema,
   ClienteEncontradoSchema,
+  EncontrarClienteSchema,
   FamilyAccountSchema,
   problemasDe,
   type ClienteDeCuentaDto,
@@ -31,7 +32,7 @@ import { contactKey, documentKey, documentoLegible, telefonoLegible } from "@l2/
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
-import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
+import { exigirPermiso, nombreDe, permisoEn } from "../identidad/actor.ts";
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { guardarVersion, vigenteDe } from "../caja/cuentas.ts";
 import { avisosDeDeuda } from "../deudas/lectura.ts";
@@ -136,6 +137,12 @@ export interface CasosClientes {
   /** El cliente del directorio con esa cédula o ese teléfono (completos), o `null` si no ha venido. */
   buscar(ctx: Contexto, entrada: unknown): Promise<Resultado<ClienteEncontradoDto | null>>;
   /**
+   * El buscador (T-19, `EncontrarClienteSchema`): los clientes del directorio por su cédula o su teléfono completos, o
+   * por una parte de su nombre; hasta 12, con lo que deben. Lo usan la caja, el salón y la sala; cada consulta queda en
+   * la auditoría con cuántos encontró y no qué se buscó (PLAN §7.6).
+   */
+  encontrar(ctx: Contexto, entrada: unknown): Promise<Resultado<ClienteEncontradoDto[]>>;
+  /**
    * Pone el cliente de una cuenta abierta del salón o del mostrador (`AsignarClienteCommandSchema`), o lo cambia: un
    * dato mal escrito. Ponerlo es de quien atiende; cambiarlo pide la autorización de supervisión. La cuenta pasa a
    * llamarse como el cliente. Reenviar el mismo cliente no cambia nada.
@@ -168,6 +175,49 @@ export function casosClientes(base: Base): CasosClientes {
         });
       });
       return r !== null && "ok" in r ? r : { ok: true, valor: r };
+    },
+
+    async encontrar(ctx, entrada) {
+      const v = EncontrarClienteSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Escribe al menos 3 letras o dígitos.", problemas: problemasDe(v.error) };
+      const texto = v.data.texto;
+      const cedulaKey = documentKey(texto);
+      const digitos = texto.replace(/\D/g, "");
+      // Un número sin letra de documento: un teléfono entero, o una cédula escrita sin su letra («12345678»).
+      const telefonoKey = /^[\d\s.()+-]+$/.test(texto) && digitos.length >= 10 ? contactKey(texto) : null;
+      const sinLetra = /^[\d\s.]+$/.test(texto) && digitos.length >= 6 && digitos.length <= 9 ? digitos : null;
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<ClienteEncontradoDto[]>> => {
+        // Quien atiende a un cliente (la caja, el salón) o a una familia (la sala).
+        const deCuenta = await permisoEn(tx, ctx, "cuenta.cliente");
+        const deSala = deCuenta === "PERMITIDO" ? deCuenta : await permisoEn(tx, ctx, "parque.checkIn");
+        if (deSala !== "PERMITIDO") {
+          const rechazo = await exigirPermiso(tx, ctx, "cuenta.cliente");
+          if (rechazo) return rechazo;
+        }
+        const donde = cedulaKey
+          ? { documentKey: cedulaKey }
+          : telefonoKey
+            ? { contactKey: telefonoKey }
+            : sinLetra
+              ? { documentKey: { in: ["V", "E"].map((l) => `${l}${sinLetra}`) } }
+              : { fullName: { contains: texto, mode: "insensitive" as const } };
+        const filas = await tx.guardian.findMany({ where: donde, orderBy: { fullName: "asc" }, take: 12 });
+        const encontrados: ClienteEncontradoDto[] = [];
+        for (const g of filas) {
+          encontrados.push(
+            ClienteEncontradoSchema.parse({
+              clienteId: g.id,
+              nombre: g.fullName,
+              cedula: g.document,
+              telefono: telefonoLegible(g.contactReference) ?? g.contactReference,
+              deudas: await avisosDeDeuda(tx, { guardianId: g.id, documentKey: g.documentKey, phoneKey: g.contactKey }),
+            }),
+          );
+        }
+        // PLAN §7.6: cuántos, no cuáles ni qué se escribió.
+        await auditar(tx, ctx, { action: "cliente.buscar", entityType: "guardian", after: { encontrados: encontrados.length } });
+        return { ok: true, valor: encontrados };
+      });
     },
 
     async asignar(ctx, entrada, autorizacion, ahora = Date.now()) {

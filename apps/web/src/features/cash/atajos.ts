@@ -131,6 +131,7 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "N", que: "Nueva venta directa" },
   { teclas: "A", que: "Entrada al parque: registrar y cobrar niños sin salir de la caja" },
   { teclas: "I", que: "Identificar al cliente de la factura" },
+  { teclas: "C", que: "Buscar un cliente por su nombre, cédula o teléfono: lo que tiene abierto, sus niños y lo que debe" },
   { teclas: "R", que: "Ver el recibo del último cobro" },
   { teclas: "?", que: "Ver estos atajos" },
 ];

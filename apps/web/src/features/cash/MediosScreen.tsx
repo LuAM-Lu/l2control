@@ -6,6 +6,7 @@ import type { MedioCommand, MediosDePagoDto, Resultado } from "@l2/contracts";
 import { offerProblem } from "@l2/domain-cash";
 import { Button, Container, Input, PageHeader, Sheet, Tabs, avisar, cn } from "@l2/ui";
 import { useMedios } from "./MediosProvider.tsx";
+import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import { BANCOS_VE, nombreBanco } from "./bancos.ts";
 
 /**
@@ -372,8 +373,8 @@ function DatosDelLocal({ config, puedeModificar, enviando, cambiar }: Parte) {
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input surface="admin" label="Teléfono" placeholder="0414-1234567" value={pmPhone} onChange={(e) => setPmPhone(e.target.value)} disabled={!puedeModificar} />
-            <Input surface="admin" label="RIF" placeholder="J-40123456-7" value={pmDoc} onChange={(e) => setPmDoc(e.target.value)} disabled={!puedeModificar} />
+            <CampoTelefono surface="admin" valor={pmPhone} onCambio={setPmPhone} disabled={!puedeModificar} />
+            <CampoCedula surface="admin" label="Cédula o RIF" valor={pmDoc} onCambio={setPmDoc} disabled={!puedeModificar} />
           </div>
           <AvisoDelContrato mensaje={errores["pagoMovil"] ?? null} />
           {puedeModificar && (

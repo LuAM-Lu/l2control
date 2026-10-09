@@ -10,8 +10,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CheckInResult } from "@l2/contracts";
 import { chargeableLines } from "@l2/domain-cash";
+import { contactKey } from "@l2/domain-park";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, planoDePrueba, sentarDePrueba, type LocalDePrueba, cedulaDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -51,6 +52,8 @@ const entrada = (ninos: { code?: string; packageId?: string; kid?: Record<string
   paymentMode: "PREPAGO",
   entries: ninos.map((n) => ({ wristbandCode: n.code ?? nuevaPulsera(), kid: n.kid ?? {}, packageId: n.packageId ?? "pkg-60" })),
   guardian: { fullName: "María Pérez", contactReference: `0412-${String(1_000_000 + pulsera)}` },
+  // La cédula va con la familia nueva; la conocida ya la tiene (T-19).
+  ...("guardianId" in extra ? {} : { guardianDocument: cedulaDePrueba(`0412-${String(1_000_000 + pulsera)}`) }),
   ...extra,
 });
 const entrar = async (cmd: unknown, ctx: Contexto = ctxMonitora, ahora = AHORA): Promise<CheckInResult> => valor(await local.app.parque.entrar(ctx, cmd, ahora));
@@ -225,20 +228,20 @@ describe("la entrada (B4-2)", () => {
 
 describe("el directorio (B4-1)", () => {
   test("una familia que vuelve se reconoce por su teléfono, escrito como se escriba", async () => {
-    const primera = await entrar(entrada([{}], { guardian: { fullName: "José Díaz", contactReference: "0424-555.12.34" } }));
+    const primera = await entrar(entrada([{}], { guardian: { fullName: "José Díaz", contactReference: "0424-555.12.34" }, guardianDocument: cedulaDePrueba("0424-555.12.34") }));
     const encontrada = valor(await local.app.representantes.buscar(ctxMonitora, { contacto: "+58 424 5551234" }));
     assert.equal(encontrada?.fullName, "José Díaz");
     assert.equal(encontrada?.id, primera.sessions[0]!.guardianId);
     // Entrar otra vez con su id no crea otra familia; darla por nueva con su teléfono, tampoco.
     await entrar(entrada([{}], { guardian: undefined, guardianId: encontrada!.id }));
-    const repetida = await entrar(entrada([{}], { guardian: { fullName: "Jose Diaz", contactReference: "04245551234" } }));
+    const repetida = await entrar(entrada([{}], { guardian: { fullName: "Jose Diaz", contactReference: "04245551234" }, guardianDocument: cedulaDePrueba("04245551234") }));
     assert.equal(repetida.sessions[0]!.guardianId, encontrada!.id);
     assert.equal(valor(await local.app.representantes.buscar(ctxMonitora, { contacto: "0424-555-9999" })), null);
     await vaciarSala();
   });
 
   test("un niño se nombra desde la sala y queda en el directorio de su familia (DEC-28)", async () => {
-    const r = await entrar(entrada([{}], { guardian: { fullName: "Carmen Silva", contactReference: "0414-777-0001" } }));
+    const r = await entrar(entrada([{}], { guardian: { fullName: "Carmen Silva", contactReference: "0414-777-0001" }, guardianDocument: cedulaDePrueba("0414-777-0001") }));
     const s = r.sessions[0]!;
     assert.deepEqual(s.kid, {});
     const nombrada = valor(await local.app.parque.nombrar(ctxMonitora, { sessionId: s.id, name: "Valentina", nickname: "Vale" }));
@@ -269,6 +272,67 @@ describe("el directorio (B4-1)", () => {
     );
     assert.equal(consultas.length, 1);
     assert.deepEqual(consultas[0]!.after, { representantes: d.representantes.length });
+  });
+});
+
+describe("la cédula del representante (T-19)", () => {
+  const motivoDe = (r: { ok: boolean; problemas?: readonly { message: string }[] | undefined }) => (r.ok ? "OK" : r.problemas?.[0]?.message);
+
+  test("sin cédula no entra una familia nueva; con ella, entra y queda anotada", async () => {
+    const sin = await local.app.parque.entrar(ctxMonitora, entrada([{}], { guardian: { fullName: "Rosa Mena", contactReference: "0416-300.00.01" }, guardianDocument: undefined }), AHORA);
+    assert.equal(motivoDe(sin), "FALTA_LA_CEDULA");
+    const con = await entrar(entrada([{}], { guardian: { fullName: "Rosa Mena", contactReference: "0416-300.00.01" }, guardianDocument: "v 18.300.001" }));
+    const porCedula = valor(await local.app.representantes.buscar(ctxMonitora, { documento: "V-18300001" }));
+    assert.equal(porCedula?.id, con.sessions[0]!.guardianId);
+    assert.equal(porCedula?.tieneCedula, true);
+    await vaciarSala();
+  });
+
+  test("la familia que vuelve se reconoce por su cédula, aunque traiga otro teléfono", async () => {
+    const r = await entrar(entrada([{}], { guardian: { fullName: "Rosa Mena", contactReference: "0424-999.00.01" }, guardianDocument: "V18300001" }));
+    const rosa = valor(await local.app.representantes.buscar(ctxMonitora, { documento: "v-18.300.001" }));
+    assert.equal(r.sessions[0]!.guardianId, rosa!.id);
+    await vaciarSala();
+  });
+
+  test("al representante de antes, sin cédula, se le pide y se le anota con su asiento", async () => {
+    // Uno de antes de T-19: entró sin cédula (se crea como entonces, directo en la base).
+    const id = await local.base.conTenant(local.sistema.tenantId, async (tx) => {
+      const g = await tx.guardian.create({
+        data: { tenantId: local.sistema.tenantId, fullName: "Pablo Antes", contactReference: "0412-300.00.09", contactKey: contactKey("0412-300.00.09")!, createdAt: new Date(AHORA - 86_400_000) },
+        select: { id: true },
+      });
+      return g.id;
+    });
+    const encontrado = valor(await local.app.representantes.buscar(ctxMonitora, { contacto: "04123000009" }));
+    assert.equal(encontrado?.tieneCedula, false);
+    const sin = await local.app.parque.entrar(ctxMonitora, entrada([{}], { guardian: undefined, guardianId: id, guardianDocument: undefined }), AHORA);
+    assert.equal(motivoDe(sin), "FALTA_LA_CEDULA");
+    await entrar(entrada([{}], { guardian: undefined, guardianId: id, guardianDocument: "V-18300009" }));
+    assert.equal(valor(await local.app.representantes.buscar(ctxMonitora, { documento: "V18300009" }))?.id, id);
+    const asientos = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.auditEntry.findMany({ where: { action: "cliente.completar", entityId: id } }));
+    assert.equal(asientos.length, 1);
+    assert.ok(!JSON.stringify(asientos[0]!.after).includes("18300009"), "la cédula no va al asiento");
+    // Ya con ella, vuelve a entrar sin escribirla.
+    await entrar(entrada([{}], { guardian: undefined, guardianId: id, guardianDocument: undefined }), ctxMonitora, AHORA + MIN);
+    await vaciarSala(AHORA + MIN);
+  });
+
+  test("una cédula que no es la suya, o que es de otro, no entra: se dice por qué", async () => {
+    const rosa = valor(await local.app.representantes.buscar(ctxMonitora, { documento: "V-18300001" }))!;
+    const otra = await local.app.parque.entrar(ctxMonitora, entrada([{}], { guardian: undefined, guardianId: rosa.id, guardianDocument: "V-18300002" }), AHORA);
+    assert.equal(motivoDe(otra), "OTRA_CEDULA");
+    const nuevo = await local.app.parque.entrar(ctxMonitora, entrada([{}], { guardian: { fullName: "Luis Nuevo", contactReference: "0414-300.00.03" }, guardianDocument: "V-18300003" }), AHORA);
+    assert.ok(nuevo.ok);
+    // Un representante de antes, sin cédula, no se queda con la de otra persona.
+    const antes = await local.base.conTenant(local.sistema.tenantId, async (tx) => {
+      return (await tx.guardian.create({ data: { tenantId: local.sistema.tenantId, fullName: "Ana Antes", contactReference: "0412-300.00.08", contactKey: contactKey("0412-300.00.08")!, createdAt: new Date(AHORA - 86_400_000) }, select: { id: true } })).id;
+    });
+    const deOtro = await local.app.parque.entrar(ctxMonitora, entrada([{}], { guardian: undefined, guardianId: antes, guardianDocument: "V-18300003" }), AHORA);
+    assert.equal(motivoDe(deOtro), "CEDULA_DE_OTRO");
+    const rara = await local.app.parque.entrar(ctxMonitora, entrada([{}], { guardianDocument: "12" }), AHORA);
+    assert.equal(rara.ok, false);
+    await vaciarSala();
   });
 });
 

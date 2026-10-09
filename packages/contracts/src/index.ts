@@ -552,11 +552,13 @@ export {
 export {
   AsignarClienteCommandSchema,
   BuscarClienteSchema,
+  EncontrarClienteSchema,
   ClienteDeCuentaSchema,
   ClienteEncontradoSchema,
   DatosDelClienteSchema,
   type AsignarClienteCommand,
   type BuscarClienteQuery,
+  type EncontrarClienteQuery,
   type ClienteDeCuentaDto,
   type ClienteEncontradoDto,
   type DatosDelClienteDto,

@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CargaDePapelDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, type LocalDePrueba, cedulaDePrueba, FACTURA_DE_PRUEBA } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const HOY = "2026-09-27";
@@ -73,7 +73,7 @@ const entrada = (extra: Record<string, unknown> = {}) => ({
   idempotencyKey: randomUUID(),
   paymentMode: "PREPAGO",
   entries: [{ wristbandCode: `PAP-${++pulsera}`, kid: { name: "Valentina" }, packageId: "pkg-60" }],
-  guardian: { fullName: "Familia Rojas", contactReference: `0412-${String(5_550_000 + pulsera)}` },
+  guardian: { fullName: "Familia Rojas", contactReference: `0412-${String(5_550_000 + pulsera)}` }, guardianDocument: cedulaDePrueba(`0412-${String(5_550_000 + pulsera)}`),
   ...extra,
 });
 const entrar = (ctx: Contexto, c: CargaDePapelDto, ocurrioEn: string, cmd = entrada()) => l.app.papel.entrar(ctx, cmd, papel(c, ocurrioEn), T_CARGA);
@@ -86,7 +86,7 @@ const cobroEnEfectivo = (cuenta: { id: string; version?: number | undefined; lin
   lineIds: cuenta.lines.map((x) => x.id),
   total: usd("1196"),
   pagos: [{ method: "EFECTIVO_USD", amount: usd("1200") }],
-  destinoSobra: "VUELTO",
+  destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA,
   ...extra,
 });
 
@@ -400,7 +400,7 @@ describe("un cobro anotado en el papel", () => {
     const r = valor(
       await l.app.cuentas.cobrar(
         ctx,
-        { idempotencyKey: randomUUID(), accountId: guardada.id, version: guardada.version, lineIds: guardada.lines.map((x) => x.id), total: usd("122"), pagos: [{ method: "EFECTIVO_USD", amount: usd("200") }], destinoSobra: "VUELTO" },
+        { idempotencyKey: randomUUID(), accountId: guardada.id, version: guardada.version, lineIds: guardada.lines.map((x) => x.id), total: usd("122"), pagos: [{ method: "EFECTIVO_USD", amount: usd("200") }], destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA },
         T_CARGA,
       ),
     );
@@ -422,7 +422,7 @@ describe("un cobro anotado en el papel", () => {
       total: usd("1160"),
       pagos: [{ method: "EFECTIVO_VES", amount: ves("993000") }],
       rateId: tasa,
-      destinoSobra: "RESIDUO",
+      destinoSobra: "RESIDUO", cliente: FACTURA_DE_PRUEBA,
     };
     const r = valor(await l.app.papel.cobrar(ctx, cobro, papel(c, a("12:30")), T_CARGA));
     assert.equal(r.venta.tasa?.id, tasa);
@@ -442,7 +442,7 @@ describe("un cobro anotado en el papel", () => {
       total: usd("1160"),
       pagos: [{ method: "EFECTIVO_VES", amount: ves("993000") }],
       rateId: tasa,
-      destinoSobra: "RESIDUO",
+      destinoSobra: "RESIDUO", cliente: FACTURA_DE_PRUEBA,
     };
     const r = rechazo(await l.app.papel.cobrar(ctx, cobro, papel(c, a("06:30")), T_CARGA));
     assert.equal(r.motivo, "CONFLICTO");
@@ -481,7 +481,7 @@ describe("un cobro anotado en el papel", () => {
     const r = valor(
       await l.app.papel.cobrar(
         ctx,
-        { idempotencyKey: randomUUID(), accountId: guardada.id, version: guardada.version, lineIds: guardada.lines.map((x) => x.id), total: usd("241"), pagos: [{ method: "EFECTIVO_USD", amount: usd("300") }], destinoSobra: "VUELTO" },
+        { idempotencyKey: randomUUID(), accountId: guardada.id, version: guardada.version, lineIds: guardada.lines.map((x) => x.id), total: usd("241"), pagos: [{ method: "EFECTIVO_USD", amount: usd("300") }], destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA },
         papel(c, a("12:40")),
         T_CARGA,
       ),

@@ -12,7 +12,7 @@ import { useEntradaDeNinos } from "../park/useEntradaDeNinos.ts";
  *
  * Una familia que llega directo a la caja a comprar la entrada de uno o varios niños se registra y se cobra sin salir de
  * ella: un panel lateral con lo mismo que Entrada (la pulsera leída o tecleada, «Sin pulsera», el paquete más común ya
- * elegido, las medias y el teléfono del representante) y el mismo registro del servidor (aforo, pulsera de un solo uso,
+ * elegido, las medias y la cédula del representante) y el mismo registro del servidor (aforo, pulsera de un solo uso,
  * tarifario; la monitora los ve en la sala). «Registrar y cobrar» deja la cuenta elegida en la columna de cobro.
  *
  * Solo prepago: los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada.
@@ -34,8 +34,8 @@ export function EntradaDesdeCaja({
   onCerrar: () => void;
   onRegistrada: (cuenta: FamilyAccountDto) => void;
 }) {
-  const telefonoRef = useRef<HTMLInputElement>(null);
-  const e = useEntradaDeNinos({ catalogo, alPrimeraPulsera: () => telefonoRef.current?.focus() });
+  const cedulaRef = useRef<HTMLInputElement>(null);
+  const e = useEntradaDeNinos({ catalogo, alPrimeraPulsera: () => cedulaRef.current?.focus() });
   const { entradas, capacidad, capacityLimit, medias, encontrado, aviso, enviando } = e;
 
   // La pulsera que abrió el panel se suma una sola vez (en desarrollo, React repite los efectos).
@@ -146,15 +146,7 @@ export function EntradaDesdeCaja({
 
             <section aria-label="Representante" className="flex flex-col gap-4 border-t border-line pt-4">
               <h3 className="font-display text-tarjeta font-bold text-ink">Representante</h3>
-              <CampoRepresentante
-                telefono={e.telefono}
-                onTelefono={e.setTelefono}
-                telefonoRef={telefonoRef}
-                encontrado={encontrado}
-                esNuevo={e.esNuevo}
-                nombreNuevo={e.nombreNuevo}
-                onNombreNuevo={e.setNombreNuevo}
-              />
+              <CampoRepresentante entrada={e} cedulaRef={cedulaRef} />
             </section>
           </div>
         ))}

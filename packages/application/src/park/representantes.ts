@@ -23,7 +23,7 @@ import {
   type RepresentanteEncontradoDto,
   type Resultado,
 } from "@l2/contracts";
-import { contactKey } from "@l2/domain-park";
+import { contactKey, documentKey, documentoLegible } from "@l2/domain-park";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar } from "../auditoria/auditar.ts";
@@ -46,13 +46,15 @@ export function casosRepresentantes(base: Base): CasosRepresentantes {
     async buscar(ctx, entrada) {
       const v = BuscarRepresentanteSchema.safeParse(entrada);
       if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Ese contacto no se puede buscar.", problemas: problemasDe(v.error) };
-      const llave = contactKey(v.data.contacto);
-      if (!llave) return { ok: true, valor: null };
+      // Por la cédula (T-19) o por el teléfono: una de las dos, completa.
+      const porCedula = v.data.documento ? documentKey(v.data.documento) : null;
+      const llave = v.data.contacto ? contactKey(v.data.contacto) : null;
+      if (!porCedula && !llave) return { ok: true, valor: null };
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<RepresentanteEncontradoDto | null | Rechazo> => {
         const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
         if (rechazo) return rechazo;
         const g = await tx.guardian.findFirst({
-          where: { contactKey: llave },
+          where: porCedula ? { documentKey: porCedula } : { contactKey: llave! },
           include: { kids: { select: { id: true, name: true, nickname: true }, orderBy: { createdAt: "asc" } } },
         });
         if (!g) return null;
@@ -60,6 +62,7 @@ export function casosRepresentantes(base: Base): CasosRepresentantes {
           id: g.id,
           fullName: g.fullName,
           kids: g.kids.map((k) => ({ id: k.id, name: k.name, ...(k.nickname ? { nickname: k.nickname } : {}) })),
+          tieneCedula: g.documentKey !== null,
         });
       });
       return r !== null && "ok" in r ? r : { ok: true, valor: r };
@@ -131,12 +134,41 @@ export function claveDeNombre(n: string): string {
 export async function representanteDeLaEntrada(
   tx: Transaccion,
   ctx: Contexto,
-  cmd: Pick<CheckInCommand, "guardianId" | "guardian">,
+  cmd: Pick<CheckInCommand, "guardianId" | "guardian"> & Readonly<{ guardianDocument?: string | undefined }>,
   ahora: number,
+  exigirCedula = false,
 ): Promise<{ id: string; fullName: string } | Rechazo> {
+  // La cédula (T-19, M-34): manda para reconocer, y al que no la tenía se le anota.
+  const cedula = cmd.guardianDocument ? { legible: documentoLegible(cmd.guardianDocument), llave: documentKey(cmd.guardianDocument) } : null;
+  if (cmd.guardianDocument && (!cedula?.legible || !cedula.llave)) {
+    return { ok: false, motivo: "INVALIDO", mensaje: "Esa cédula no se entiende.", problemas: [{ path: ["guardianDocument"], message: "CEDULA_NO_SE_ENTIENDE" }] };
+  }
+  const completar = async (g: { id: string; fullName: string; documentKey: string | null }): Promise<{ id: string; fullName: string } | Rechazo> => {
+    if (g.documentKey !== null) {
+      if (cedula && cedula.llave !== g.documentKey) {
+        return { ok: false, motivo: "CONFLICTO", mensaje: `Esa no es la cédula de ${g.fullName}.`, problemas: [{ path: ["guardianDocument"], message: "OTRA_CEDULA" }] };
+      }
+      return { id: g.id, fullName: g.fullName };
+    }
+    if (cedula) {
+      const de = await tx.guardian.findFirst({ where: { documentKey: cedula.llave! }, select: { fullName: true } });
+      if (de) return { ok: false, motivo: "CONFLICTO", mensaje: `Esa cédula ya es de ${de.fullName}.`, problemas: [{ path: ["guardianDocument"], message: "CEDULA_DE_OTRO" }] };
+      await tx.guardian.update({ where: { id: g.id }, data: { document: cedula.legible!, documentKey: cedula.llave! } });
+      await auditar(tx, ctx, { action: "cliente.completar", entityType: "guardian", entityId: g.id, after: { cedula: "anotada" } });
+      return { id: g.id, fullName: g.fullName };
+    }
+    if (exigirCedula) {
+      return { ok: false, motivo: "INVALIDO", mensaje: "Escribe la cédula del representante.", problemas: [{ path: ["guardianDocument"], message: "FALTA_LA_CEDULA" }] };
+    }
+    return { id: g.id, fullName: g.fullName };
+  };
   if (cmd.guardianId) {
-    const g = await tx.guardian.findUnique({ where: { id: cmd.guardianId }, select: { id: true, fullName: true } });
-    return g ?? { ...noEsta, problemas: [{ path: ["guardianId"], message: "REPRESENTANTE_DESCONOCIDO" }] };
+    const g = await tx.guardian.findUnique({ where: { id: cmd.guardianId }, select: { id: true, fullName: true, documentKey: true } });
+    return g ? completar(g) : { ...noEsta, problemas: [{ path: ["guardianId"], message: "REPRESENTANTE_DESCONOCIDO" }] };
+  }
+  if (cedula) {
+    const porCedula = await tx.guardian.findFirst({ where: { documentKey: cedula.llave! }, select: { id: true, fullName: true, documentKey: true } });
+    if (porCedula) return completar(porCedula);
   }
   const nuevo = cmd.guardian!;
   const llave = contactKey(nuevo.contactReference);
@@ -148,14 +180,18 @@ export async function representanteDeLaEntrada(
       problemas: [{ path: ["guardian", "contactReference"], message: "CONTACTO_SIN_NUMEROS" }],
     };
   }
-  const ya = await tx.guardian.findFirst({ where: { contactKey: llave }, select: { id: true, fullName: true } });
-  if (ya) return ya;
+  const ya = await tx.guardian.findFirst({ where: { contactKey: llave }, select: { id: true, fullName: true, documentKey: true } });
+  if (ya) return completar(ya);
+  if (exigirCedula && !cedula) {
+    return { ok: false, motivo: "INVALIDO", mensaje: "Escribe la cédula del representante.", problemas: [{ path: ["guardianDocument"], message: "FALTA_LA_CEDULA" }] };
+  }
   return tx.guardian.create({
     data: {
       tenantId: ctx.tenantId,
       fullName: nuevo.fullName,
       contactReference: nuevo.contactReference,
       contactKey: llave,
+      ...(cedula ? { document: cedula.legible!, documentKey: cedula.llave! } : {}),
       createdAt: new Date(ahora),
       createdBy: ctx.quien?.userId ?? null,
     },
