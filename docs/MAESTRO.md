@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.99.0 · 99 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.100.0 · 100 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1574,7 +1574,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Abigail ve «Cobro en curso por Marisol Prieto · Pago Móvil Bs. 1.000,00» y lo retoma; Marisol ve luego el de Abigail y lo
   descarta. Sin errores de consola.*
 - [x] **B3-14 · Un cliente devuelve parte de lo que compró** (M-34, S-4).
-  *Hecho el 2026-10-09, en `feat/b3-14`.*
+  *Hecho el 2026-10-09 (v0.100.0), en `feat/b3-14`.*
   → **Devolver.** Desde la venta (Turno → Ventas del turno, o buscándola por su número), se eligen los ítems y las
   cantidades (nunca más de lo vendido, contando las devoluciones anteriores), con la 🔐 de supervisión y un motivo. El
   dinero se reintegra por su medio, como en la anulación (la referencia de la devolución; el efectivo, de la gaveta), en el
