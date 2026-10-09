@@ -70,6 +70,8 @@ export function casosReportes(base: Base): CasosReportes {
         let vendido = zero(FUNCIONAL);
         let anulado = zero(FUNCIONAL);
         let nAnuladas = 0;
+        let nDevoluciones = 0;
+        let devuelto = zero(FUNCIONAL);
         let desdePapel = 0;
         let igtf = zero(FUNCIONAL);
 
@@ -81,7 +83,8 @@ export function casosReportes(base: Base): CasosReportes {
           const medios = porMedioDe(libro);
 
           // Cada asiento que mueve dinero (el cobro y el vuelto), en dólares con su tasa.
-          const asientos = await tx.payment.findMany({ where: { shiftId: t.id, kind: { in: ["COBRO", "VUELTO"] } }, select: { method: true, currency: true, kind: true, amountMinor: true, rateValue: true } });
+          // Lo devuelto a un cliente (B3-14) va con su signo: resta de su medio.
+          const asientos = await tx.payment.findMany({ where: { shiftId: t.id, kind: { in: ["COBRO", "VUELTO", "DEVOLUCION"] } }, select: { method: true, currency: true, kind: true, amountMinor: true, rateValue: true } });
           const enDolares = new Map<string, Money | null>();
           for (const a of asientos) {
             const clave = `${a.method}|${a.currency}`;
@@ -137,6 +140,16 @@ export function casosReportes(base: Base): CasosReportes {
               o.vendido = add(o.vendido, total);
             }
             porCajera.set(s.cashierName, cajera);
+          }
+          // Lo que los clientes devolvieron en este turno (B3-14): se resta de lo vendido, y de la cajera que lo devolvió.
+          for (const d of await tx.saleReturn.findMany({ where: { shiftId: t.id }, select: { totalMinor: true, requestedByName: true } })) {
+            const devuelta = money(d.totalMinor, FUNCIONAL);
+            nDevoluciones += 1;
+            devuelto = add(devuelto, devuelta);
+            vendido = add(vendido, money(-devuelta.amount, FUNCIONAL));
+            const quien = porCajera.get(d.requestedByName) ?? { ventas: 0, vendido: zero(FUNCIONAL), anuladas: 0 };
+            quien.vendido = add(quien.vendido, money(-devuelta.amount, FUNCIONAL));
+            porCajera.set(d.requestedByName, quien);
           }
           desdePapel += delTurno.ventas.desdePapel;
 
@@ -195,6 +208,8 @@ export function casosReportes(base: Base): CasosReportes {
             igtf: dinero(igtf),
             anuladas: nAnuladas,
             anulado: dinero(anulado),
+            devoluciones: nDevoluciones,
+            devuelto: dinero(devuelto),
             desdePapel,
             turnos: turnos.length,
             turnosSinZ: turnos.filter((t) => t.cuts.length === 0).length,

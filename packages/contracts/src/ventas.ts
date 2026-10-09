@@ -15,6 +15,7 @@
 import { z } from "zod";
 import { AccountKindSchema, MotivoCortesiaSchema } from "./account.ts";
 import { DescuentoDeVentaSchema } from "./descuentos.ts";
+import { TaxCodeSchema } from "./impuestos.ts";
 import { MarcaDePapelSchema } from "./papel.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 
@@ -135,6 +136,29 @@ export const AnulacionSchema = z.object({
 });
 export type AnulacionDto = z.infer<typeof AnulacionSchema>;
 
+/** A dónde va lo que un cliente devuelve (B3-14): al estante (vuelve a venderse) o a merma. */
+export const DestinoDevueltoSchema = z.enum(["ESTANTE", "MERMA"], { error: "Elige si vuelve al estante o va a merma" });
+export type DestinoDevuelto = z.infer<typeof DestinoDevueltoSchema>;
+
+/**
+ * Una devolución de parte de una venta, como la guardó el servidor — B3-14 (M-34). Qué líneas y a dónde fue cada una,
+ * lo que volvió con su descuento, IVA e IGTF, cómo volvió por cada pago (la referencia, enmascarada), quién y por qué.
+ */
+export const DevolucionDeVentaSchema = z.object({
+  id: IdSchema,
+  at: TimestampSchema,
+  por: Texto(80),
+  autorizo: Texto(80).nullable(),
+  motivo: Texto(200),
+  lineas: z.array(z.object({ lineId: IdSchema, concept: Texto(80), amount: MoneySchema, destino: DestinoDevueltoSchema })).min(1),
+  descuento: MoneySchema,
+  iva: MoneySchema,
+  igtf: MoneySchema,
+  total: MoneySchema,
+  reintegros: z.array(z.object({ paymentIndex: z.number().int().nonnegative(), amount: MoneySchema, reference: Texto(20).nullable() })),
+});
+export type DevolucionDeVentaDto = z.infer<typeof DevolucionDeVentaSchema>;
+
 /** A quién sale la factura, con el documento enmascarado (§7.6). */
 export const ClienteDeLaVentaSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("CONSUMIDOR_FINAL") }),
@@ -159,7 +183,16 @@ export const VentaCerradaSchema = z
     cliente: ClienteDeLaVentaSchema,
     /** Lo que se cobró y lo que se regaló en el cobro, línea a línea, con su importe. */
     lineas: z
-      .array(z.object({ lineId: IdSchema, concept: Texto(80), amount: MoneySchema, cortesia: MotivoCortesiaSchema.nullable() }))
+      .array(
+        z.object({
+          lineId: IdSchema,
+          concept: Texto(80),
+          amount: MoneySchema,
+          cortesia: MotivoCortesiaSchema.nullable(),
+          /** El trato del IVA con que se vendió (B3-14); las ventas de antes no lo traen: IVA general. */
+          taxCode: TaxCodeSchema.optional(),
+        }),
+      )
       .min(1),
     subtotal: MoneySchema,
     /** El descuento del cobro (B3-6): el subtotal es antes de él, y el IVA, después. Las de antes no lo traen. */
@@ -175,6 +208,8 @@ export const VentaCerradaSchema = z
     sobra: z.object({ amount: MoneySchema, destino: DestinoSobraSchema }).nullable(),
     prints: z.array(ImpresionSchema),
     voided: AnulacionSchema.nullable(),
+    /** Lo que el cliente devolvió después (B3-14), en orden. Lo que queda de cada pago ya lo descuenta. */
+    devoluciones: z.array(DevolucionDeVentaSchema).default([]),
     /**
      * Si el cobro se cargó desde papel (B3-7, ADR-027): de qué carga es y cuándo se cargó. `closedAt` es
      * entonces la hora real que se anotó en el formulario. Las ventas de antes, y las que no vienen del
@@ -206,6 +241,42 @@ export type VentaCerradaDto = z.infer<typeof VentaCerradaSchema>;
 /** Las ventas del turno abierto del equipo, de la más reciente a la más antigua. */
 export const VentasDelTurnoSchema = z.object({ ventas: z.array(VentaCerradaSchema) });
 export type VentasDelTurnoDto = z.infer<typeof VentasDelTurnoSchema>;
+
+/**
+ * Un cliente devuelve parte de lo que compró (B3-14, M-34): las líneas (cada una, una unidad) y a dónde va cada una, cómo
+ * vuelve el dinero por cada pago (en su moneda; un pago electrónico, con la referencia de su devolución) y el motivo.
+ * Supervisión lo hace; la caja, con su autorización. El tiempo del parque y los servicios no se devuelven por aquí.
+ */
+export const DevolverVentaCommandSchema = z
+  .strictObject({
+    idempotencyKey: IdempotencyKeySchema,
+    saleId: z.uuid("Venta desconocida"),
+    lineas: z
+      .array(z.strictObject({ lineId: IdSchema, destino: DestinoDevueltoSchema }))
+      .min(1, "Elige lo que se devuelve")
+      .max(200),
+    reintegros: z
+      .array(
+        z.strictObject({
+          paymentIndex: z.number().int().nonnegative(),
+          amount: MoneySchema,
+          reference: z.string().trim().min(4, "Referencia demasiado corta").max(40).optional(),
+        }),
+      )
+      .min(1, "Di cómo vuelve el dinero")
+      .max(20),
+    motivo: z.string().trim().min(3, "Di por qué devuelve (al menos 3 letras)").max(200, "Hasta 200 caracteres"),
+  })
+  .refine((c) => new Set(c.lineas.map((l) => l.lineId)).size === c.lineas.length, { message: "Cada línea va una vez", path: ["lineas"] })
+  .refine((c) => new Set(c.reintegros.map((r) => r.paymentIndex)).size === c.reintegros.length, { message: "Cada pago va una vez", path: ["reintegros"] });
+export type DevolverVentaCommand = z.infer<typeof DevolverVentaCommandSchema>;
+
+/** Lo que deja una devolución: la venta como quedó y, si su comprobante no salió, por qué. */
+export const DevolucionHechaSchema = z.object({ venta: VentaCerradaSchema, comprobanteNoImpreso: z.string().nullable() });
+export type DevolucionHechaDto = z.infer<typeof DevolucionHechaSchema>;
+
+/** Buscar una venta por su número de orden (B3-14): la más reciente con ese número en la sucursal. */
+export const BuscarVentaSchema = z.strictObject({ orden: z.number().int().positive("Escribe el número de la orden") });
 
 /** Imprimir el recibo de una venta: el servidor anota quién y cuándo, y si ya era una copia. */
 export const ImprimirVentaCommandSchema = z.strictObject({ saleId: z.uuid("Venta desconocida") });

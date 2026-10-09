@@ -60,6 +60,9 @@ export const InformeDeVentasSchema = z.object({
     anuladas: z.number().int().nonnegative(),
     /** Lo que se anuló, en dólares. */
     anulado: MoneySchema,
+    /** Lo que los clientes devolvieron en el periodo (B3-14): ya restado de lo vendido. */
+    devoluciones: z.number().int().nonnegative().default(0),
+    devuelto: MoneySchema.default({ minor: "0", currency: "USD" }),
     desdePapel: z.number().int().nonnegative(),
     turnos: z.number().int().nonnegative(),
     /** Turnos del periodo que todavía no tienen su Z: sus cifras pueden cambiar. */
@@ -212,7 +215,7 @@ export const ConsultaDeMovimientosSchema = z
 export type ConsultaDeMovimientosDto = z.infer<typeof ConsultaDeMovimientosSchema>;
 
 /** Qué movió la existencia: lo mismo que `stock_movement.kind`, más lo que se contó o arrancó sin mover nada. */
-export const TipoDeMovimientoSchema = z.enum(["VENTA", "DEVOLUCION", "ENTRADA", "SALIDA", "AJUSTE", "CONTEO", "INICIAL", "ANULACION"]);
+export const TipoDeMovimientoSchema = z.enum(["VENTA", "DEVOLUCION", "ENTRADA", "SALIDA", "AJUSTE", "CONTEO", "INICIAL", "ANULACION", "RETORNO"]);
 export type TipoDeMovimiento = z.infer<typeof TipoDeMovimientoSchema>;
 
 /**

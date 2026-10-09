@@ -94,6 +94,7 @@ export async function aplicarDescuento(entrada: unknown, autorizacion?: unknown)
 /** Las acciones de la caja con 🔐 cuya lista de autorizadores puede pedir la pantalla. */
 const CON_AUTORIZADORES = [
   "cobro.anular",
+  "venta.devolver",
   "cuenta.cortesia",
   "cuenta.incobrable",
   "cuenta.cambiarCliente",

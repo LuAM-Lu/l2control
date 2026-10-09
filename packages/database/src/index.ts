@@ -43,6 +43,7 @@ export type {
   Sale,
   SalePrint,
   SaleVoid,
+  SaleReturn,
   ShiftCount,
   ShiftCut,
   SystemUpdate,

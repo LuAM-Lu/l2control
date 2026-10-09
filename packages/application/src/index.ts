@@ -41,6 +41,7 @@ import { casosCortes, type CasosCortes } from "./caja/cortes.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
 import { casosRetiro, type CasosRetiro } from "./inventario/retiro.ts";
+import { casosDevoluciones, type CasosDevoluciones } from "./caja/devoluciones.ts";
 import { casosCategorias, type CasosCategorias } from "./inventario/categorias.ts";
 import { casosSemilla, type CasosSemilla } from "./sucursal/semilla.ts";
 import { casosActualizaciones, type CasosActualizaciones } from "./sistema/actualizaciones.ts";
@@ -161,6 +162,8 @@ export interface Aplicacion {
   readonly productos: CasosProductos;
   /** Retirar un producto del catálogo y devolverlo (B9-11). */
   readonly retiro: CasosRetiro;
+  /** Un cliente devuelve parte de lo que compró (B3-14). */
+  readonly devoluciones: CasosDevoluciones;
   readonly categorias: CasosCategorias;
   readonly semilla: CasosSemilla;
   readonly actualizaciones: CasosActualizaciones;
@@ -264,6 +267,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     feriados: casosFeriados(base),
     productos: casosProductos(base),
     retiro: casosRetiro(base),
+    devoluciones: casosDevoluciones(base, cifrador, opciones.soporteOpera === true),
     categorias: casosCategorias(base),
     entradas: casosEntradas(base),
     salidas: casosSalidas(base),

@@ -269,6 +269,19 @@ export async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: D
       importe: despues.pendiente ?? null,
     });
   }
+  // Lo que un cliente devolvió en este turno (B3-14), de cualquier venta: sale de su gaveta y de sus medios.
+  const devueltas = await tx.saleReturn.findMany({ where: { shiftId: t.id }, include: { sale: { select: { orderNumber: true } } }, orderBy: { returnedAt: "asc" } });
+  for (const d of devueltas) {
+    excepciones.push({
+      at: d.returnedAt.toISOString(),
+      tipo: "DEVOLUCION",
+      detalle: `Orden ${orden(d.sale.orderNumber)} · ${(d.lines as { concept: string }[]).length} devuelto`.slice(0, 160),
+      usuario: d.requestedByName,
+      motivo: d.reason.slice(0, 280),
+      autorizadoPor: d.authorizedByName,
+      importe: { minor: String(d.totalMinor), currency: d.currency as "USD" },
+    });
+  }
   // Lo cargado desde papel es una excepción del turno (B3-7): sale en el corte y en el resumen del día con su
   // responsable y, si ya la revisó supervisión, con quién. Una descartada no cargó nada: no cuenta.
   const cargas = await tx.paperLoad.findMany({ where: { shiftId: t.id, status: { not: "DESCARTADA" } }, orderBy: { openedAt: "asc" } });
