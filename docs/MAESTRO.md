@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.107.0 · 107 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.108.0 · 108 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
@@ -1971,7 +1971,8 @@ Fuera de la cuenta de 116: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   mientras este está bloqueado no avisa hasta que la pantalla vuelve a verse. 3 pruebas del dominio y 1 contra la base;
   en el navegador con el reloj de Playwright (claro 1366, oscuro 390).*
 
-- [ ] **B4-16 · Medias con interruptor** (M-35, R-5).
+- [x] **B4-16 · Medias con interruptor** (M-35, R-5).
+  *Hecho el 2026-10-09 (v0.108.0), en `feat/b4-16`.*
   → Por niño, un interruptor **«Compra medias · $2»**, apagado de entrada, con un icono de medias (el de Font Awesome
   Free, `FaSocks`, como icono propio con su atribución CC BY 4.0: sin añadir `react-icons`). Al registrar, si alguno
   está apagado, **una sola confirmación** para todos: «Confirmo que los N niños traen sus medias». En el parque y en la
@@ -1979,6 +1980,13 @@ Fuera de la cuenta de 116: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Sin medias en existencia**, el niño entra y no se cobran: el interruptor lo dice y queda apagado (decisión del
   usuario: el aviso de inventario de Inicio ya avisa de lo agotado; conviene ponerles un mínimo). Hoy la entrada entera
   se rechaza.
+  *· Hecho: por niño, el interruptor «Compra medias · $…» (`Entrada.compraMedias`, apagado de entrada) con el icono
+  «socks» de Font Awesome Free 7.2.0 como pieza propia (`park/IconoMedias.tsx`, con su atribución CC BY 4.0; sin
+  `react-icons`). Al registrar, si alguno queda apagado, «¿Traen sus medias?» una sola vez por todos («Sí, las traen» o
+  «Volver»). Es la misma pieza en el parque y en la caja (`EntradaEnCapa`). Sin un par más que dar, el interruptor dice
+  «Sin medias en existencia» y queda apagado; sin ninguno, no se pregunta y el total dice «entran sin cobrárselas».
+  **Servidor:** `parque.entrar` ya no rechaza la entrada sin existencia: con el candado del producto cobra los pares que
+  quedan (a los primeros) y el resto entra sin ellas. 2 pruebas contra la base nuevas (`medias.test-db.ts`).*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 

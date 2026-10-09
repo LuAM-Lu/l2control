@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.108.0] — 2026-10-09 · Hacia la puesta en marcha
+
+Medias con interruptor (B4-16, M-35).
+
+### Cambiado
+- **«Compra medias» es un interruptor por niño**, apagado de entrada y con el icono de medias. Al registrar, si alguno
+  queda apagado, una sola pregunta confirma que esos niños traen sus medias. En el parque y en la caja.
+- **Sin medias en el inventario, el niño entra y no se le cobran**: el interruptor dice «Sin medias en existencia» y la
+  entrada se registra. Antes se rechazaba la entrada entera. Se cobran los pares que queden.
+
 ## [0.107.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Por limpiar y los avisos del salón (B6-14, M-35).
