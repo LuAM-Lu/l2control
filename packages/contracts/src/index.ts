@@ -890,3 +890,12 @@ export {
   InformeDeInventarioSchema,
   type InformeDeInventarioDto,
 } from "./reportes.ts";
+export {
+  BorradorDeCobroSchema,
+  GuardarBorradorCommandSchema,
+  DescartarBorradorCommandSchema,
+  BorradorGuardadoSchema,
+  type BorradorDeCobroDto,
+  type GuardarBorradorCommand,
+  type BorradorGuardadoDto,
+} from "./borrador.ts";

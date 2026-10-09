@@ -238,6 +238,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["sin tasa", "tasa vigente"],
       },
       {
+        sintoma: "«Cobro en curso por …»",
+        solucion:
+          "Otra persona (u otra caja) empezó a cobrar esa cuenta y no terminó: lo que llevaba se guardó solo. «Retomar» sigue con sus pagos y su tasa; «Descartar» los quita (queda dicho quién). Lo que tú llevas escrito también se guarda solo: si cambias de cuenta, recargas o se va la luz, al volver sigue ahí.",
+        reconoce: ["cobro en curso"],
+      },
+      {
         sintoma: "«N sin imprimir» o el recibo no sale",
         solucion: "Revisa que la impresora tenga papel y esté encendida, y que el agente de impresión de la laptop de caja esté en marcha. Luego «Reintentar» en el aviso.",
         reconoce: ["sin imprimir", "la impresora no responde", "no salio", "no imprime", "recibo"],

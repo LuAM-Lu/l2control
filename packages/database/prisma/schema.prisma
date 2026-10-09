@@ -66,6 +66,7 @@ model Branch {
   posTerminals      PosTerminal[]
   accounts          Account[]
   customerDebts     CustomerDebt[]
+  chargeDrafts      ChargeDraft[]
   sales             Sale[]
   parkSessions      ParkSession[]
   outbox            OutboxEvent[]
@@ -970,6 +971,7 @@ model Account {
   sales             Sale[]
   parkSessions      ParkSession[]
   kitchenOrders     KitchenOrder[]
+  chargeDraft       ChargeDraft?
   eventReservations EventReservation[]
   eventDays         EventDay[]
   paperItems        PaperLoadItem[]
@@ -2269,4 +2271,28 @@ model SupportReportNotice {
   @@unique([tenantId, id])
   @@index([tenantId, reportId, at])
   @@map("support_report_notice")
+}
+
+/// El cobro en curso de una cuenta (B3-13, M-34): lo que la caja lleva escrito y todavía no cobró, cifrado como los datos
+/// de los pagos (B3-2). No es un pago ni un asiento: se reescribe mientras se teclea (con su versión, para que dos cajas
+/// no se pisen) y se borra al cobrar. Uno por cuenta.
+model ChargeDraft {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  accountId     String   @map("account_id") @db.Uuid
+  version       Int
+  /// El borrador entero (`BorradorDeCobroSchema`), cifrado.
+  contentCipher String   @map("content_cipher")
+  updatedBy     String?  @map("updated_by") @db.Uuid
+  updatedByName String   @map("updated_by_name")
+  deviceId      String?  @map("device_id") @db.Uuid
+  updatedAt     DateTime @map("updated_at") @db.Timestamptz(3)
+
+  branch  Branch  @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account Account @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, accountId])
+  @@index([tenantId, branchId])
+  @@map("charge_draft")
 }

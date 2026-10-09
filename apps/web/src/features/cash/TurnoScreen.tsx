@@ -126,7 +126,8 @@ function AperturaTurno({
       );
       if (r.ok) {
         avisar.ok(`Turno abierto en ${r.valor.punto}: ya se puede cobrar`, r.valor.fueraDelPunto ? { detalle: `Fuera del punto de cobro, autorizado por ${r.valor.fueraDelPunto.autorizadoPor}.` } : undefined);
-        router.refresh();
+        // Abierto, a cobrar (B3-13, M-34): lo siguiente que se hace con un turno abierto es la caja.
+        router.push("/caja" as Route);
       } else if (fuera && /PIN|autorizar/i.test(r.mensaje)) {
         // Lo del PIN o de quién autoriza, junto al PIN: el aviso suelto se perdería.
         setErroresFuera(erroresDeRechazo(r.mensaje));

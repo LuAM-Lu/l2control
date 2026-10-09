@@ -56,6 +56,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "deuda.devolver": ["cuentas"],
   "deuda.cobrada": ["cuentas"],
   "deuda.perder": ["cuentas"],
+  // El cobro en curso de otra caja (B3-13): quien lo tenía abierto lo vuelve a leer.
+  "cobro.borrador": [],
+  "cobro.retomar": ["cuentas"],
+  "cobro.descartar": ["cuentas"],
   // Una regla nueva o retirada cambia lo que la caja ofrece; marcar una familia VIP, también, y el directorio.
   "descuento.crear": ["descuentos"],
   "descuento.retirar": ["descuentos"],

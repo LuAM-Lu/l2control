@@ -120,6 +120,7 @@ import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { imprimirVentaDelCobro, ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
+import { borrarBorradorEn } from "./borrador.ts";
 import { asentarExistencias, comprobarExistencias, existenciasDe } from "../inventario/existencias.ts";
 import { asentarAjuste } from "../inventario/salidas.ts";
 import { encolarEn } from "../impresion/impresion.ts";
@@ -708,6 +709,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // El recibo, si se pidió (B3-8), en la misma transacción: si el cobro no se asienta, tampoco sale el
           // papel. Sin impresora de recibos el cobro se cierra igual y se dice por qué no salió (un recibo no
           // detiene un cobro: se imprime después desde Ventas). Desde papel no: el cliente ya se llevó el suyo.
+          // Cobrado, el cobro en curso se acaba (B3-13): su borrador se va con él, en la misma transacción.
+          await borrarBorradorEn(tx, cuenta.id);
           let reciboNoImpreso: string | undefined;
           if (cmd.imprimirRecibo && !papel) {
             const impreso = await imprimirVentaDelCobro(tx, ctx, cmd.idempotencyKey, cifrador, ahora);
