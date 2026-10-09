@@ -140,6 +140,8 @@ export const CorteSchema = z.object({
       justificacion: Texto(280).nullable(),
       quedaEnGaveta: z.array(MoneySchema),
       retirado: z.array(MoneySchema),
+      /** El equipo desde el que se cerró, si no es el suyo (B3-15: la caja de otro equipo la cierra supervisión). */
+      cerradoDesde: Texto(80).nullable().default(null),
     })
     .nullable(),
 });
@@ -157,7 +159,11 @@ export const CorteZCommandSchema = z.strictObject({
   idempotencyKey: IdempotencyKeySchema,
   turnoId: z.uuid("Turno desconocido"),
   arqueoId: z.uuid("Arqueo desconocido"),
-  cierre: TipoDeCierreSchema,
+  /**
+   * Lo decide el servidor (B3-15, M-35): con otra caja abierta en el local, se cierra esta (RELEVO); si es la última, es
+   * el cierre del día (JORNADA) y no se deja con pendientes. Si se manda, no cuenta: ya no hay que elegirlo.
+   */
+  cierre: TipoDeCierreSchema.optional(),
   quedaEnGaveta: z.array(Positivo).max(2),
   justificacion: z.string().trim().max(280).optional(),
 });
@@ -222,6 +228,11 @@ export const ComprobacionAperturaSchema = z.object({
    * pide el PIN de administración y un motivo.
    */
   puntoDeCobro: z.object({ esEste: z.boolean(), puntos: z.array(Texto(40)) }).default({ esEste: true, puntos: [] }),
+  /**
+   * Un día que quedó sin cerrar (B3-15): ninguna caja abierta y su último corte Z no fue el del día (las cajas de antes se
+   * cerraban como relevo sin que nadie siguiera). Lo que dejó pendiente, para cerrarlo con el próximo turno.
+   */
+  jornadaSinCerrar: z.object({ dia: FechaSchema, cuentas: z.number().int().nonnegative(), ninos: z.number().int().nonnegative() }).nullable().default(null),
 });
 export type ComprobacionAperturaDto = z.infer<typeof ComprobacionAperturaSchema>;
 

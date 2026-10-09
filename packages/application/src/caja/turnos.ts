@@ -46,6 +46,16 @@ export function turnoSinCorteDe(tx: Transaccion, deviceId: string) {
  * El turno en el que puede cobrar el equipo de `ctx`, o el rechazo (F4-01, I-14): sin turno
  * abierto no se cobra, y con corte Z tampoco.
  */
+/**
+ * B3-15 (M-35): la cortesía y el descuento cambian lo que se cobra, y sin ninguna caja abierta en el local nadie va a
+ * cobrar esa cuenta. Se dan con alguna abierta (no en el equipo: la cortesía desde la sala la da supervisión en su
+ * teléfono, que no es una caja, M-27). Cobrar, anular, devolver y revertir piden el turno de ESE equipo.
+ */
+export async function sinCajaAbiertaEnElLocal(tx: Transaccion, ctx: Contexto, que: string): Promise<Rechazo | null> {
+  const abiertas = await tx.cashShift.count({ where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" } } });
+  return abiertas > 0 ? null : { ok: false, motivo: "NO_DISPONIBLE", mensaje: `Con todas las cajas cerradas no se dan ${que}: abre un turno.` };
+}
+
 export async function turnoParaCobrar(tx: Transaccion, ctx: Contexto): Promise<CashShift | Rechazo> {
   const turno = ctx.quien?.deviceId ? await turnoSinCorteDe(tx, ctx.quien.deviceId) : null;
   const problema = chargeProblem(turno ? { status: turno.status as ShiftStatus } : null);

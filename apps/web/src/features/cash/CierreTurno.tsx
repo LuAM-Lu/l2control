@@ -42,11 +42,18 @@ const aTexto = (m: Money) => toMajor(m).replace(".", ",");
 export function CierreTurno({
   turno,
   tipo,
+  otras = [],
   ajeno,
   onVolver,
 }: {
   turno: TurnoDto;
+  /**
+   * Lo decide el servidor (B3-15): con otra caja abierta se cierra esta (RELEVO); si es la última, el día (JORNADA). La
+   * pantalla lo sabe al abrir el cierre para enseñar los pasos; si cambia mientras tanto, manda el servidor.
+   */
   tipo: TipoDeCierre;
+  /** Las otras cajas abiertas, si las hay: lo abierto sigue para ellas. */
+  otras?: readonly string[];
   /** Supervisión cierra el turno de otro equipo (JORNADA §5). */
   ajeno: boolean;
   onVolver: () => void;
@@ -60,6 +67,12 @@ export function CierreTurno({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Pasos paso={paso} jornada={tipo === "JORNADA"} />
+      {/* B3-15: qué cierre es, desde el principio; lo decidió el servidor. */}
+      <p role="note" className="border-b border-line bg-surface-2/60 px-4 py-2 text-detalle text-ink-2 md:px-6">
+        {tipo === "JORNADA"
+          ? "Es la última caja abierta: al cerrarla se cierra el día, y no se hace con nada pendiente."
+          : `Siguen abiertas: ${otras.length > 0 ? otras.map((o) => `«${o}»`).join(", ") : "otras cajas"}. Cierras solo esta caja; el día lo cierra la última.`}
+      </p>
       {paso === "pendientes" && <PendientesDelCierre turnoId={turno.id} onListo={() => setPaso("contar")} />}
       {paso === "contar" && (
         <Contar
@@ -78,6 +91,7 @@ export function CierreTurno({
         <Revisar
           turno={turno}
           tipo={tipo}
+          otras={otras}
           arqueo={arqueo}
           onRecontar={(motivo) => {
             setAviso(motivo);
@@ -253,12 +267,14 @@ function Contar({
 function Revisar({
   turno,
   tipo,
+  otras,
   arqueo,
   onRecontar,
   onSellado,
 }: {
   turno: TurnoDto;
   tipo: TipoDeCierre;
+  otras: readonly string[];
   arqueo: ArqueoDto;
   onRecontar: (motivo: string | null) => void;
   onSellado: (z: CorteDto) => void;
@@ -300,13 +316,13 @@ function Revisar({
       return;
     }
     setEnviando(true);
-    const motivo = tipo === "JORNADA" ? "Cierre de la jornada" : "Relevo de caja";
+    const motivo = tipo === "JORNADA" ? "Cierre del día" : "Cierre de la caja";
+    // El tipo de cierre no se manda: lo decide el servidor (B3-15).
     const r = await sellarCorteZ(
       {
         idempotencyKey: clave,
         turnoId: turno.id,
         arqueoId: arqueo.id,
-        cierre: tipo,
         quedaEnGaveta: MONEDAS.map((m) => deDinero(quedaEn(m)!)),
         ...(supervision ? { justificacion: justificacion.trim() } : {}),
       },
@@ -314,7 +330,7 @@ function Revisar({
     ).catch((): Rechazo => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: el turno sigue abierto." }));
     setEnviando(false);
     if (r.ok) {
-      avisar.ok(tipo === "JORNADA" ? "Jornada cerrada: el turno quedó sellado con su corte Z" : "Turno sellado con su corte Z");
+      avisar.ok(r.valor.cierre?.tipo === "JORNADA" ? "Día cerrado: la caja quedó sellada con su corte Z" : "Caja cerrada con su corte Z");
       onSellado(r.valor);
       return;
     }
@@ -397,8 +413,8 @@ function Revisar({
           <legend className="font-display px-1 text-base font-bold text-ink">Qué se deja en la gaveta</legend>
           <p className="mb-3 text-[12.5px] text-ink-2">
             {tipo === "RELEVO"
-              ? "Se deja el fondo para quien entra, que lo declara al abrir su turno. Lo demás se retira."
-              : "Lo que se deja queda para la apertura de mañana. Lo demás se retira."}
+              ? `Se deja el fondo en la gaveta, para la próxima apertura de esta caja. Lo demás se retira.${otras.length > 0 ? ` Siguen abiertas: ${otras.join(", ")}; lo que quede abierto sigue para ellas.` : ""}`
+              : "Es la última caja abierta: se cierra el día. Lo que se deja queda para la apertura de mañana. Lo demás se retira."}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {MONEDAS.map((m) => {
@@ -428,7 +444,7 @@ function Revisar({
       </section>
 
       <aside className="flex min-w-0 flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card apaisado:min-h-0 apaisado:overflow-y-auto">
-        <h2 className="font-display text-base font-bold text-ink">{tipo === "JORNADA" ? "Cerrar la jornada" : "Cerrar el turno"}</h2>
+        <h2 className="font-display text-base font-bold text-ink">{tipo === "JORNADA" ? "Cerrar el día" : "Cerrar esta caja"}</h2>
         {supervision && (
           <Input
             surface="tablet"

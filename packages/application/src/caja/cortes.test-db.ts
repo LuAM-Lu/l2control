@@ -339,6 +339,8 @@ describe("el arqueo a ciegas y el corte Z (F4-06, F4-07)", () => {
       // Deja el fondo y retira lo vendido (D-JOR).
       quedaEnGaveta: [usd("2000"), ves("149500")],
       retirado: [usd("131"), ves("0")],
+      // La cerró ella, en su equipo (B3-15).
+      cerradoDesde: null,
     });
     // La diferencia es una excepción del turno, dentro del umbral.
     const dif = z.excepciones.find((e) => e.tipo === "DIFERENCIA")!;
@@ -500,6 +502,8 @@ describe("el arqueo a ciegas y el corte Z (F4-06, F4-07)", () => {
     assert.equal(a.contadoPor, "Luis Guerrero");
     const z = valor(await m.l.app.cortes.corteZ(m.ctxSupervisor, corteZ(turno.id, a.id), pinDe(m.supervisor, PIN.supervisor), AHORA));
     assert.equal(z.cierre!.firmadoPor, "Luis Guerrero");
+    // Queda dicho desde qué equipo se cerró (B3-15): no es el suyo.
+    assert.ok(z.cierre!.cerradoDesde && z.cierre!.cerradoDesde.length > 0, "dice el equipo de supervisión");
     assert.equal(z.turno.estado, "CERRADO_Z");
     // La cajera que dejó el equipo ya no tiene turno en él.
     assert.equal(await m.l.app.turnos.delEquipo(ctx), null);
@@ -532,7 +536,7 @@ describe("la jornada (JORNADA §5) y las cuentas incobrables (D-JOR)", () => {
     await j.l.cerrar();
   });
 
-  test("la jornada no se cierra con pendientes; un relevo sí", async () => {
+  test("con otra caja abierta se cierra la caja aunque haya pendientes; la última es el cierre del día y no se deja con pendientes (B3-15)", async () => {
     const principal = await caja(j, "Caja principal");
     ctxPrincipal = principal.ctx;
     const segunda = await caja(j, "Caja taquilla", j.cajera2, PIN.cajera2);
@@ -567,22 +571,22 @@ describe("la jornada (JORNADA §5) y las cuentas incobrables (D-JOR)", () => {
     assert.deepEqual(p.huerfanas, []);
     assert.deepEqual(p.turnos.map((t) => t.id), [segunda.turno.id]);
 
+    // La taquilla cierra primero, con la principal abierta: es el cierre de su caja, y lo abierto sigue para la otra. Lo
+    // que pida la pantalla no cuenta (antes se elegía): aquí pide «el día» y el servidor cierra solo esta caja.
+    const b = await arquear(j, segunda.ctx, segunda.turno.id, 2000n, 150000n);
+    const deLaTaquilla = valor(await j.l.app.cortes.corteZ(segunda.ctx, corteZ(segunda.turno.id, b.id, { cierre: "JORNADA" }), pinDe(j.cajera2, PIN.cajera2), AHORA));
+    assert.equal(deLaTaquilla.cierre?.tipo, "RELEVO");
+
+    // La principal es la última: su cierre es el del día, y con pendientes no se deja, aunque la pantalla pida otra cosa.
     const a = await arquear(j, principal.ctx, principal.turno.id, 2131n, 150000n);
-    const jornada = await j.l.app.cortes.corteZ(principal.ctx, corteZ(principal.turno.id, a.id, { cierre: "JORNADA" }), pinDe(j.cajera, PIN.cajera), AHORA);
+    const jornada = await j.l.app.cortes.corteZ(principal.ctx, corteZ(principal.turno.id, a.id, { cierre: "RELEVO" }), pinDe(j.cajera, PIN.cajera), AHORA);
     assert.equal(!jornada.ok && jornada.motivo, "CONFLICTO");
-    assert.equal(
-      !jornada.ok && jornada.mensaje,
-      "La jornada no se cierra con pendientes: 2 cuentas pendientes, 1 niño en sala y 1 turno abierto en otro equipo.",
-    );
+    assert.equal(!jornada.ok && jornada.mensaje, "La jornada no se cierra con pendientes: 2 cuentas pendientes y 1 niño en sala.");
     // Lo que no se dejó cerrar queda en la auditoría, con su porqué (v0.104.2).
     const negados = await j.l.base.conTenant(j.l.sistema.tenantId, (tx) =>
       tx.auditEntry.findMany({ where: { action: "turno.corte_z", outcome: "NEGADO" }, orderBy: { occurredAt: "desc" }, take: 1 }),
     );
     assert.match(negados[0]?.reason ?? "", /La jornada no se cierra con pendientes/);
-
-    // El relevo de la taquilla no espera a los pendientes: las cuentas no son de un turno.
-    const b = await arquear(j, segunda.ctx, segunda.turno.id, 2000n, 150000n);
-    valor(await j.l.app.cortes.corteZ(segunda.ctx, corteZ(segunda.turno.id, b.id), pinDe(j.cajera2, PIN.cajera2), AHORA));
   });
 
   test("una cuenta que no se va a cobrar se marca incobrable con 🔐; con niños en sala, todavía no", async () => {
@@ -652,6 +656,40 @@ describe("la jornada (JORNADA §5) y las cuentas incobrables (D-JOR)", () => {
       ],
     );
     assert.match(incobrables[0]!.motivo, /Se fue sin pagar · Se fue sin pagar el agua/);
+  });
+
+  test("con todas las cajas cerradas no se dan cortesías ni descuentos; y el día cerrado no avisa al abrir (B3-15)", async () => {
+    const ctx = ctxPrincipal!;
+    const id = randomUUID();
+    const cuenta = valor(
+      await j.l.app.cuentas.guardar(
+        ctx,
+        {
+          cuenta: {
+            id,
+            kind: "MOSTRADOR",
+            family: "Mostrador",
+            mode: "PREPAGO",
+            status: "ABIERTA",
+            openedAt: new Date(AHORA).toISOString(),
+            sessionIds: [],
+            closedSessionIds: [],
+            lines: [{ id: randomUUID(), concept: "Agua mineral", kind: "RESTAURANTE", amount: usd("100"), paid: false, productId: j.agua, taxCode: "GENERAL" }],
+          },
+        },
+        AHORA + 2 * MIN,
+      ),
+    );
+    const cortesia = await j.l.app.cuentas.cortesia(
+      j.l.sistema,
+      { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, lineId: cuenta.lines[0]!.id, motivo: "INVITACION", quitar: false },
+      undefined,
+      AHORA + 2 * MIN,
+    );
+    assert.equal(!cortesia.ok && cortesia.motivo, "NO_DISPONIBLE", JSON.stringify(cortesia));
+    assert.match(!cortesia.ok ? cortesia.mensaje : "", /todas las cajas cerradas/);
+    const apertura = await j.l.app.cortes.comprobarApertura(ctx, AHORA + 3 * MIN);
+    assert.equal(apertura.jornadaSinCerrar, null, "el último Z fue el del día");
   });
 
   test("el resumen del día sale del libro de todos los turnos, con sus diferencias; la cajera no lo ve", async () => {

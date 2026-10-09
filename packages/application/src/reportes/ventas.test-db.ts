@@ -112,6 +112,10 @@ before(async () => {
       AHORA + MIN,
     ),
   );
+  // La caja 2 abre antes de que la 1 cierre: así el Z de la 1 es el de su caja, no el del día (B3-15).
+  const b = await caja("Caja 2", ids.cajera2, PIN.cajera2);
+  turnoB = b.turno;
+
   // Esperado en la gaveta: $ 20,00 + 1,31 + 1,31 = $ 22,62, y Bs. 1.500,00 + 1.000,00 - el vuelto de un céntimo.
   const esperado = (await l.app.cortes.corteX(ctxSupervisor, { turnoId: turnoA.id }, AHORA + 2 * MIN)) as { ok: true; valor: { gaveta: { currency: string; esperado: { minor: string } }[] } };
   const enGaveta = (c: string) => BigInt(esperado.valor.gaveta.find((g) => g.currency === c)!.esperado.minor);
@@ -129,15 +133,13 @@ before(async () => {
   valor(
     await l.app.cortes.corteZ(
       a.ctx,
-      { idempotencyKey: randomUUID(), turnoId: turnoA.id, arqueoId: arqueo.id, cierre: "RELEVO", quedaEnGaveta: [usd("2000"), ves("150000")] },
+      { idempotencyKey: randomUUID(), turnoId: turnoA.id, arqueoId: arqueo.id, quedaEnGaveta: [usd("2000"), ves("150000")] },
       pinDe(ids.cajera, PIN.cajera, "Cierro el turno"),
       AHORA + 4 * MIN,
     ),
   );
 
   // Turno B (Carla), abierto: una venta.
-  const b = await caja("Caja 2", ids.cajera2, PIN.cajera2);
-  turnoB = b.turno;
   await vender(b.ctx, "EFECTIVO_USD");
 });
 

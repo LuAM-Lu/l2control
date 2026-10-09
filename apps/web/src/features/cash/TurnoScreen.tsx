@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, CircleCheckBig, FileText, Laptop, Lock, Repeat, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowLeft, CalendarClock, CircleCheckBig, FileText, Laptop, Lock, TriangleAlert, Wallet } from "lucide-react";
 import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
@@ -14,7 +14,7 @@ import { CierreTurno } from "./CierreTurno.tsx";
 import { EntradasPorMedio, porMedioDelLibro } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { abrirTurno } from "./turno.acciones";
-import { hacerCorteX, leerVistaDelTurno } from "./cortes.acciones";
+import { hacerCorteX, leerPendientesDelCierre, leerVistaDelTurno } from "./cortes.acciones";
 import { importeTecleado } from "./importe.ts";
 import { VentasDelTurno } from "./VentasDelTurno.tsx";
 import { useVentas } from "./VentasProvider.tsx";
@@ -29,7 +29,7 @@ import { TarjetaEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
  *  · **Sin turno**, la apertura: el fondo por moneda, lo que falta para trabajar (tasa, impuestos,
  *    medios, tarifario) y, antes que nada, los turnos que quedaron abiertos en otros equipos.
  *  · **Con turno**, una sola sección (M-13): el resumen del libro (fondo, lo cobrado por medio, las
- *    excepciones), las ventas del turno y, al pie, «Cambiar de cajera» y «Cerrar la jornada», que
+ *    excepciones), las ventas del turno y, al pie, «Cerrar la caja» (B3-15: la última que se cierra cierra el día), que
  *    llevan al arqueo a ciegas y al corte Z (`CierreTurno`).
  *  · **El de otro equipo** (`?turno=`), para supervisión: la cajera se fue o el equipo falló.
  *
@@ -223,6 +223,7 @@ function AperturaTurno({
 
       <div className="flex w-full max-w-md flex-col gap-4">
         {fuera && comprobacion && <AvisoFueraDelPunto puntos={comprobacion.puntoDeCobro.puntos} />}
+        {comprobacion?.jornadaSinCerrar && <AvisoDiaSinCerrar dia={comprobacion.jornadaSinCerrar} />}
         <TarjetaEventosDeHoy reservas={eventosHoy} />
         {deAntes.length > 0 && (
           <section className="rounded-[var(--radius-card)] border border-state-warn/40 bg-state-warn-bg p-4">
@@ -292,6 +293,29 @@ function AperturaTurno({
  * Este equipo no es el punto de cobro (B3-9, M-31): se dice cuál lo es y qué hacer. Abrir aquí es la salida de emergencia
  * cuando el punto falla, no la manera de trabajar.
  */
+/**
+ * B3-15: un día que quedó sin cerrar (sus cajas se cerraron como relevo sin que nadie siguiera, antes de la 0.105.0). Lo
+ * que dejó pendiente se resuelve al cerrar el turno que se abre ahora: será la última caja y cerrará el día.
+ */
+function AvisoDiaSinCerrar({ dia }: { dia: NonNullable<ComprobacionAperturaDto["jornadaSinCerrar"]> }) {
+  const partes = [
+    dia.cuentas > 0 ? `${dia.cuentas} ${dia.cuentas === 1 ? "cuenta abierta" : "cuentas abiertas"}` : null,
+    dia.ninos > 0 ? `${dia.ninos} ${dia.ninos === 1 ? "niño en sala" : "niños en sala"}` : null,
+  ].filter(Boolean);
+  return (
+    <section role="note" className="rounded-[var(--radius-card)] border border-state-warn/40 bg-state-warn-bg p-4">
+      <h2 className="flex items-center gap-1.5 font-display text-sm font-bold text-state-warn">
+        <TriangleAlert size={15} aria-hidden="true" />
+        La jornada del {diaEnPalabras(dia.dia)} sigue abierta
+      </h2>
+      <p className="mt-1.5 text-[13px] text-ink-2">
+        {partes.length > 0 ? `Quedó con ${partes.join(" y ")}. ` : ""}Al cerrar la última caja de hoy se cierra también: resuelve lo
+        pendiente (cobrar, incobrable o anular) antes.
+      </p>
+    </section>
+  );
+}
+
 function AvisoFueraDelPunto({ puntos }: { puntos: readonly string[] }) {
   return (
     <section role="note" className="rounded-[var(--radius-card)] border border-state-warn/40 bg-state-warn-bg p-4">
@@ -330,8 +354,22 @@ function SinTurnoAjeno({ mensaje }: { mensaje: string }) {
 function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaInicial: CorteDto | null; ajeno: boolean }) {
   const router = useRouter();
   const { ajustes } = useSucursal();
-  const [cierre, setCierre] = useState<TipoDeCierre | null>(null);
+  // B3-15: el cierre no se elige. Al pedirlo se pregunta al servidor si quedan otras cajas abiertas: con alguna, se cierra
+  // esta; si es la última, es el cierre del día.
+  const [cierre, setCierre] = useState<{ tipo: TipoDeCierre; otras: string[] } | null>(null);
+  const [decidiendo, setDecidiendo] = useState(false);
   const vista = useVistaDelTurno(turno.id, vistaInicial, ajeno);
+  async function pedirCierre() {
+    setDecidiendo(true);
+    const r = await leerPendientesDelCierre(ajeno ? turno.id : undefined).catch(() => null);
+    setDecidiendo(false);
+    if (!r || !r.ok) {
+      avisar.error(r?.mensaje ?? "Sin conexión con el servidor: la caja sigue abierta. Vuelve a intentarlo.");
+      return;
+    }
+    const otras = r.valor.turnos.map((t) => t.punto);
+    setCierre({ tipo: otras.length > 0 ? "RELEVO" : "JORNADA", otras });
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -339,7 +377,7 @@ function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaIn
         <Container ancho="muro" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3 apaisado:bajo:py-2">
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">
-              {cierre === "JORNADA" ? "Cerrar la jornada" : cierre && ajeno ? `Cerrar el turno de ${turno.punto}` : cierre ? "Cambiar de cajera" : ajeno ? `Turno de ${turno.punto}` : "Turno de caja"}
+              {cierre?.tipo === "JORNADA" ? "Cerrar el día" : cierre && ajeno ? `Cerrar la caja de ${turno.punto}` : cierre ? "Cerrar esta caja" : ajeno ? `Turno de ${turno.punto}` : "Turno de caja"}
             </h1>
             <p className="tnum flex items-center gap-1.5 text-[13px] text-ink-3">
               <CalendarClock size={14} aria-hidden="true" />
@@ -373,7 +411,8 @@ function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaIn
       {cierre ? (
         <CierreTurno
           turno={turno}
-          tipo={cierre}
+          tipo={cierre.tipo}
+          otras={cierre.otras}
           ajeno={ajeno}
           onVolver={() => {
             setCierre(null);
@@ -386,7 +425,7 @@ function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaIn
           ancho="muro"
           className="grid flex-1 gap-4 py-4 apaisado:min-h-0 apaisado:grid-cols-[clamp(260px,22vw,300px)_minmax(0,1fr)] apaisado:grid-rows-[minmax(0,1fr)] apaisado:bajo:py-3"
         >
-          <ResumenTurno turno={turno} vista={vista} ajeno={ajeno} onCerrar={setCierre} />
+          <ResumenTurno turno={turno} vista={vista} ajeno={ajeno} decidiendo={decidiendo} onCerrar={() => void pedirCierre()} />
           {ajeno ? (
             <ExcepcionesTurno excepciones={vista?.excepciones ?? []} className="apaisado:min-h-0" />
           ) : (
@@ -426,19 +465,22 @@ function useVistaDelTurno(turnoId: string, inicial: CorteDto | null, ajeno: bool
 const aDinero = (m: MoneyDto) => money(BigInt(m.minor), m.currency as CurrencyCode);
 
 /**
- * Cómo va el turno: el fondo, lo cobrado por medio y las excepciones, del libro. Al pie, los dos
- * cierres: el relevo y el de la jornada. El corte X, a un toque.
+ * Cómo va el turno: el fondo, lo cobrado por medio y las excepciones, del libro. Al pie, «Cerrar la caja»: el servidor
+ * decide si es solo esta caja o el día (B3-15). El corte X, a un toque.
  */
 function ResumenTurno({
   turno,
   vista,
   ajeno,
+  decidiendo,
   onCerrar,
 }: {
   turno: TurnoDto;
   vista: CorteDto | null;
   ajeno: boolean;
-  onCerrar: (tipo: TipoDeCierre) => void;
+  /** Mientras se pregunta al servidor si quedan otras cajas abiertas (B3-15). */
+  decidiendo: boolean;
+  onCerrar: () => void;
 }) {
   const [verExcepciones, setVerExcepciones] = useState(false);
   const [corteX, setCorteX] = useState<CorteDto | null>(null);
@@ -529,25 +571,11 @@ function ResumenTurno({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-line p-3">
-        {ajeno ? (
-          // El turno de otro equipo se cierra como un relevo: su arqueo y su Z. La jornada la cierra
-          // la última caja abierta.
-          <Button surface="pos" variant="primary" className="w-full gap-2" onClick={() => onCerrar("RELEVO")}>
-            <Lock size={17} aria-hidden="true" />
-            Cerrar este turno
-          </Button>
-        ) : (
-          <>
-            <Button surface="pos" variant="primary" className="w-full gap-2" onClick={() => onCerrar("RELEVO")}>
-              <Repeat size={17} aria-hidden="true" />
-              Cambiar de cajera
-            </Button>
-            <Button surface="pos" variant="neutral" className="w-full gap-2" onClick={() => onCerrar("JORNADA")}>
-              <Lock size={17} aria-hidden="true" />
-              Cerrar la jornada
-            </Button>
-          </>
-        )}
+        {/* B3-15: un solo cierre. Con otra caja abierta se cierra esta; si es la última, el día (lo dice al abrirlo). */}
+        <Button surface="pos" variant="primary" className="w-full gap-2" disabled={decidiendo} onClick={onCerrar}>
+          <Lock size={17} aria-hidden="true" />
+          {decidiendo ? "Mirando las otras cajas…" : ajeno ? "Cerrar esta caja" : "Cerrar la caja"}
+        </Button>
       </div>
 
       <Sheet abierto={verExcepciones} onCerrar={() => setVerExcepciones(false)} titulo="Excepciones del turno">

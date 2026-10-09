@@ -117,7 +117,7 @@ import {
 } from "../dinero/pagos.ts";
 import { historialParaCobrar } from "../dinero/tasas.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
-import { turnoParaCobrar } from "./turnos.ts";
+import { sinCajaAbiertaEnElLocal, turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { imprimirVentaDelCobro, ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 import { borrarBorradorEn } from "./borrador.ts";
@@ -970,6 +970,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           if (actual.version !== cmd.version) return cuentaCambiada;
           const problema = courtesyProblem(actual.cuenta, cmd.lineId, cmd.quitar);
           if (problema) return invalido(MENSAJE_CORTESIA[problema], ["lineId"], problema);
+          // B3-15: con todas las cajas cerradas, nada que cambie lo que se cobra.
+          const cerrada = await sinCajaAbiertaEnElLocal(tx, ctx, "cortesías");
+          if (cerrada) return cerrada;
 
           // La autorización se comprueba y se registra ANTES de regalar nada (§7.3).
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cuenta.cortesia", autorizacion, ahora, CON_PIN);

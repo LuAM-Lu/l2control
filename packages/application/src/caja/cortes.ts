@@ -585,8 +585,15 @@ export function casosCortes(base: Base): CasosCortes {
             };
           }
 
+          // B3-15 (M-35): el tipo de cierre lo decide el servidor, no la pantalla. Con otra caja abierta se cierra esta
+          // (su dinero; lo abierto sigue para la otra); si es la última, es el cierre del día. Antes se elegía, y el
+          // 8 oct. las dos cajas se cerraron como relevo sin que nadie siguiera: el día quedó abierto con 11 cuentas.
+          const otrasAbiertas = await tx.cashShift.count({ where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" }, id: { not: o.turno.id } } });
+          const cierre: "RELEVO" | "JORNADA" = otrasAbiertas > 0 ? "RELEVO" : "JORNADA";
+          const cerradoDesde = o.propio || !ctx.quien?.deviceId ? null : ((await tx.device.findUnique({ where: { id: ctx.quien.deviceId }, select: { label: true } }))?.label ?? null);
+
           // La jornada no se cierra con pendientes (JORNADA §5, C2).
-          if (cmd.cierre === "JORNADA") {
+          if (cierre === "JORNADA") {
             const falta = textoDePendientes(await pendientesEn(tx, ctx, o.turno.id, ahora));
             if (falta) return { ok: false, motivo: "CONFLICTO", mensaje: `La jornada no se cierra con pendientes: ${falta}.` };
           }
@@ -636,7 +643,8 @@ export function casosCortes(base: Base): CasosCortes {
             excepciones,
             arqueo,
             cierre: {
-              tipo: cmd.cierre,
+              tipo: cierre,
+              cerradoDesde,
               firma,
               firmadoPor: quien.nombre,
               autorizadoPor: autorizador?.fullName ?? null,
@@ -656,7 +664,7 @@ export function casosCortes(base: Base): CasosCortes {
               deviceId: ctx.quien?.deviceId ?? null,
               content: corte,
               countId: conteo.id,
-              closing: cmd.cierre,
+              closing: cierre,
               signer: firma,
               authorizedBy: firma === "SUPERVISION" ? permiso.autorizadoPor : null,
               authorizedByName: autorizador?.fullName ?? null,
@@ -671,7 +679,7 @@ export function casosCortes(base: Base): CasosCortes {
             entityId: o.turno.id,
             ...(firma === "SUPERVISION" && permiso.autorizadoPor ? { authorizedBy: permiso.autorizadoPor } : {}),
             ...(justificacion ? { reason: justificacion } : {}),
-            after: { corte: fila.id, cierre: cmd.cierre, firma, diferencia: arqueo.diferenciaEnDolares, propio: o.propio },
+            after: { corte: fila.id, cierre, firma, diferencia: arqueo.diferenciaEnDolares, propio: o.propio, ...(cerradoDesde ? { cerradoDesde } : {}) },
           });
           // El ticket del corte sale solo (JORNADA C5, R4). Sin impresora, el Z se sella igual y se
           // imprime después: lo que se sella no depende del papel.
@@ -744,7 +752,21 @@ export function casosCortes(base: Base): CasosCortes {
         // El punto de cobro (B3-9, M-31): fuera de él, abrir pide el PIN de administración y un motivo.
         const equipo = ctx.quien?.deviceId ? await tx.device.findUnique({ where: { id: ctx.quien.deviceId }, select: { cashPoint: true } }) : null;
         const puntos = await tx.device.findMany({ where: { branchId: ctx.branchId, status: "APROBADO", cashPoint: true }, select: { label: true }, orderBy: { label: "asc" } });
-        return ComprobacionAperturaSchema.parse({ faltan, puntoDeCobro: { esEste: equipo?.cashPoint ?? false, puntos: puntos.map((p) => p.label) } });
+        // Un día que quedó sin cerrar (B3-15): ninguna caja abierta y su último Z no fue el del día. Se dice, con lo que
+        // dejó pendiente: el próximo turno, al ser la última caja que se cierre, cerrará el día.
+        let jornadaSinCerrar: ComprobacionAperturaDto["jornadaSinCerrar"] = null;
+        if ((await tx.cashShift.count({ where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" } } })) === 0) {
+          const ultimo = await tx.shiftCut.findFirst({
+            where: { kind: "Z", shift: { branchId: ctx.branchId } },
+            orderBy: { madeAt: "desc" },
+            select: { closing: true, shift: { select: { businessDate: true } } },
+          });
+          if (ultimo?.closing === "RELEVO") {
+            const p = await pendientesEn(tx, ctx, null, ahora);
+            jornadaSinCerrar = { dia: ultimo.shift.businessDate.toISOString().slice(0, 10), cuentas: p.cuentas.length, ninos: p.ninos.length };
+          }
+        }
+        return ComprobacionAperturaSchema.parse({ faltan, puntoDeCobro: { esEste: equipo?.cashPoint ?? false, puntos: puntos.map((p) => p.label) }, jornadaSinCerrar });
       });
     },
 
