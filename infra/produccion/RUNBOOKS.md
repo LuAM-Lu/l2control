@@ -107,15 +107,20 @@ su app de autenticación, su llave o un código de recuperación).
 ## 4. Cambiar la impresora
 
 **Hace falta:** la impresora nueva conectada a la red del local, con **IP fija** (reserva en el router) y en la **red
-de hardware**; su ancho de papel (80 o 58 mm).
+de hardware**; o por **USB** a la laptop de caja, con su controlador instalado **para todo el equipo** (el agente
+corre con la cuenta del sistema y no ve las impresoras de un solo usuario). Su ancho de papel (80 o 58 mm).
 
-1. Ajustes → Impresoras → «Nueva impresora»: nombre, IP, puerto (9100), ancho y para qué (recibos y cortes, comandas).
-   Nace **apagada**.
-2. «Probar»: sale una hoja de prueba por el agente. Si no sale, revisa la IP, el cable y el papel (runbook 7).
-3. **Apaga o retira la vieja** (una sola encendida por papel: el sistema no deja dos para lo mismo) y **enciende la
+1. Ajustes → Impresoras → «Nueva impresora»: nombre, «Conectada por» (red: IP y puerto 9100; USB: el equipo y su
+   nombre en Windows, de la lista que da el agente), ancho y para qué (recibos y cortes, comandas). Nace **apagada**.
+2. «Probar»: sale una hoja de prueba por el agente. Si no sale, revisa la IP, el cable y el papel (runbook 7); por USB,
+   que el agente de ese equipo esté al día y que Windows la vea.
+3. En «Editar», «Imprimir la prueba de acentos»: sale el mismo texto con cada página de códigos, numerado. En «Página de las tildes», elige la
+   que se leyó bien (las genéricas, como la Xprinter XP-80C, suelen ir con la 850). Si sale pálido, «Impresión
+   oscura»; si sigue pálido, la densidad se sube con la utilidad de la impresora.
+4. **Apaga o retira la vieja** (una sola encendida por papel: el sistema no deja dos para lo mismo) y **enciende la
    nueva**. Retirarla no la borra: su historial queda.
-4. El agente de impresión no cambia: hay uno por local y llega a cualquier IP de la red.
-5. **Salió** si un recibo de prueba (Caja → un cobro, o Ajustes → Impresoras → «Probar») y una comanda salen en la
+5. El agente de impresión no cambia: llega a cualquier IP de la red; por USB, imprime la del equipo donde está.
+6. **Salió** si un recibo de prueba (Caja → un cobro, o Ajustes → Impresoras → «Probar») y una comanda salen en la
    nueva.
 
 ## 5. Los feriados de cada año

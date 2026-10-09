@@ -6,12 +6,21 @@
  * perdió un aviso, vacía la cola de su sucursal: reclama, imprime y responde, de uno en uno.
  *
  * Dice su versión al entrar (T-8c) y cuenta al servidor cómo le fue a un cambio de versión (`informar`).
+ *
+ * Por USB (B5-4): al conectarse, y cada 10 minutos si cambió, cuenta las impresoras que ve en Windows; sin contarlas, el
+ * servidor no le da trabajos por USB. Cada trabajo dice a dónde: una IP y un puerto, o una impresora de Windows.
  */
 import { io, type Socket } from "socket.io-client";
 import { TrabajoParaElAgenteSchema, type NotaDeActualizacionDto } from "@l2/contracts";
 import type { ResultadoDeImpresion } from "./imprimir.ts";
 
 export type Registro = Readonly<{ info: (m: string) => void; error: (m: string) => void }>;
+
+/** A dónde va un trabajo: la impresora en la red, o la de Windows por su nombre (B5-4). */
+export type Destino = Readonly<{ ip: string; puerto: number }> | Readonly<{ impresoraDeWindows: string }>;
+
+/** Cómo se dice un destino en el registro. */
+export const destinoEnPalabras = (d: Destino) => ("impresoraDeWindows" in d ? `«${d.impresoraDeWindows}» (USB)` : `${d.ip}:${d.puerto}`);
 
 export type Agente = Readonly<{
   socket: Socket;
@@ -26,7 +35,11 @@ export function crearAgente(o: {
   credencial: string;
   /** La versión de este agente: la dice al entrar (T-8c). */
   version?: string;
-  imprimir: (destino: { ip: string; puerto: number }, bytes: Uint8Array) => Promise<ResultadoDeImpresion>;
+  imprimir: (destino: Destino, bytes: Uint8Array) => Promise<ResultadoDeImpresion>;
+  /** Las impresoras de Windows de este equipo (B5-4); sin ella (fuera de Windows) no imprime por USB. */
+  impresorasDeWindows?: () => Promise<string[]>;
+  /** Cada cuánto vuelve a contarlas. */
+  contarMs?: number;
   registro: Registro;
   /** Cada cuánto mira la cola sin aviso. */
   mirarMs?: number;
@@ -64,11 +77,13 @@ export function crearAgente(o: {
             o.registro.error("El servidor mandó un trabajo mal formado: se ignora.");
             break;
           }
-          const r = await o.imprimir({ ip: t.data.ip, puerto: t.data.puerto }, Buffer.from(t.data.bytes, "base64"));
+          const destino: Destino =
+            t.data.impresoraDeWindows !== undefined ? { impresoraDeWindows: t.data.impresoraDeWindows } : { ip: t.data.ip!, puerto: t.data.puerto! };
+          const r = await o.imprimir(destino, Buffer.from(t.data.bytes, "base64"));
           await socket.timeout(10_000).emitWithAck("resultado", { trabajoId: t.data.id, ok: r.ok, ...(r.ok ? {} : { error: r.error }) });
           if (r.ok) {
             n += 1;
-            o.registro.info(`Impreso ${t.data.id} en ${t.data.ip}:${t.data.puerto}${r.aviso ? ` (${r.aviso})` : ""}`);
+            o.registro.info(`Impreso ${t.data.id} en ${destinoEnPalabras(destino)}${r.aviso ? ` (${r.aviso})` : ""}`);
           } else o.registro.error(`No se imprimió ${t.data.id}: ${r.error}`);
         }
       } while (otraVez && socket.connected);
@@ -93,7 +108,25 @@ export function crearAgente(o: {
       if (!socket.connected) socket.connect();
     }, ms);
   };
-  socket.on("connect", () => o.registro.info("Conectado al servidor."));
+  /** Lo último que contó: se vuelve a decir al reconectar y, cada tanto, solo si cambió. */
+  let contadas: string | null = null;
+  async function contar(siempre: boolean) {
+    if (!o.impresorasDeWindows || !socket.connected) return;
+    try {
+      const lista = await o.impresorasDeWindows();
+      const huella = JSON.stringify(lista);
+      if (!siempre && huella === contadas) return;
+      const r = (await socket.timeout(10_000).emitWithAck("impresoras-windows", { impresoras: lista })) as { ok?: boolean } | null;
+      if (r?.ok) contadas = huella;
+    } catch (e) {
+      o.registro.error(`No se pudieron contar las impresoras de Windows: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  socket.on("connect", () => {
+    o.registro.info("Conectado al servidor.");
+    void contar(true);
+  });
+  const recuento = setInterval(() => void contar(false), o.contarMs ?? 10 * 60_000);
   socket.on("disconnect", (motivo) => {
     o.registro.error(`Desconectado del servidor (${motivo}).`);
     if (motivo === "io server disconnect") reintentar(o.esperaRechazoMs ?? 60_000);
@@ -122,6 +155,7 @@ export function crearAgente(o: {
     informar,
     parar: () => {
       clearInterval(reloj);
+      clearInterval(recuento);
       if (reintento) clearTimeout(reintento);
       socket.off("disconnect");
       socket.off("connect_error");

@@ -8,7 +8,11 @@ import {
   comoTexto,
   componer,
   enCp850,
+  enPagina,
   escpos,
+  NUMERO_DE_PAGINA,
+  PAGINAS,
+  pruebaDeAcentos,
   esperaTrasFallo,
   importeVE,
   MAX_INTENTOS,
@@ -102,6 +106,44 @@ test("los importes como en la pantalla", () => {
   assert.equal(importeVE(123456n, "USD"), "$ 1,234.56");
   assert.equal(importeVE(123456789n, "VES"), "Bs. 1.234.567,89");
   assert.equal(importeVE(-100n, "USD"), "$ -1.00");
+});
+
+describe("las páginas de códigos y la impresión oscura (B5-4)", () => {
+  test("cada página pone su número tras apagar el modo chino", () => {
+    for (const p of PAGINAS) {
+      const b = escpos(recibo, 80, { pagina: p });
+      assert.deepEqual([...b.slice(0, 7)], [0x1b, 0x40, 0x1c, 0x2e, 0x1b, 0x74, NUMERO_DE_PAGINA[p]]);
+    }
+  });
+
+  test("la 1252 usa los números latinos, la 858 tiene el euro y lo que falta sale sin tilde", () => {
+    assert.deepEqual(enPagina("ñáÓ¿", "WPC1252"), [0xf1, 0xe1, 0xd3, 0xbf]);
+    assert.deepEqual(enPagina("€", "PC858"), [0xd5]);
+    assert.deepEqual(enPagina("€", "PC850"), [0x3f]);
+    // La 437 no tiene la Ó: sale O, que se lee, en lugar de un signo raro.
+    assert.deepEqual(enPagina("Ó ó", "PC437"), [0x4f, 0x20, 0xa2]);
+    assert.deepEqual(enCp850("Ó"), [0xe0]);
+  });
+
+  test("oscura: doble pasada y todo en negrita, y nada queda encendido al final", () => {
+    const b = [...escpos(recibo, 58, { oscura: true })];
+    const veces = (seq: number[]) => b.filter((_, i) => seq.every((x, k) => b[i + k] === x)).length;
+    assert.equal(veces([0x1b, 0x47, 1]), 1);
+    assert.equal(veces([0x1b, 0x47, 0]), 1);
+    // Se enciende una sola vez la negrita: ningún renglón la apaga.
+    assert.equal(veces([0x1b, 0x45, 1]), 1);
+    assert.equal(veces([0x1b, 0x45, 0]), 1);
+    assert.deepEqual(b.slice(0, 10), [0x1b, 0x40, 0x1c, 0x2e, 0x1b, 0x74, 0x02, 0x1b, 0x47, 1]);
+  });
+
+  test("probar acentos imprime el texto en cada página, con su número delante", () => {
+    const b = [...pruebaDeAcentos(58)];
+    for (const p of PAGINAS) {
+      const i = b.findIndex((_, k) => b[k] === 0x1b && b[k + 1] === 0x74 && b[k + 2] === NUMERO_DE_PAGINA[p]);
+      assert.ok(i > 0, p);
+    }
+    assert.deepEqual(b.slice(-4), [0x1d, 0x56, 0x42, 0x00]);
+  });
 });
 
 describe("la cola", () => {

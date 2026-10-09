@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { History, Info, ListOrdered, Pencil, Plus, Power, Printer, Trash2, TriangleAlert, Wifi, WifiOff } from "lucide-react";
-import type { HistorialDeImpresionDto, ImpresoraDto, ImpresorasDelLocalDto } from "@l2/contracts";
+import type { AgenteDto, HistorialDeImpresionDto, ImpresoraDto, ImpresorasDelLocalDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Badge, Button, Cifra, Confirmacion, Container, EmptyState, PageHeader, Resumen, Tabs, avisar } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
@@ -84,12 +84,16 @@ export function ImpresorasScreen({
     }
   };
 
-  async function prueba(i: ImpresoraDto) {
-    const r = await imprimirPrueba({ impresoraId: i.id }).catch(() => null);
+  async function prueba(i: ImpresoraDto, acentos = false) {
+    const r = await imprimirPrueba({ impresoraId: i.id, ...(acentos ? { acentos: true } : {}) }).catch(() => null);
     if (!r) avisar.error("No se pudo hablar con el servidor.");
     else if (!r.ok) avisar.error(r.mensaje);
     else {
-      avisar.info(`Prueba enviada a ${i.nombre}`, { detalle: "Si el agente está conectado, sale en segundos." });
+      avisar.info(acentos ? `Prueba de acentos enviada a ${i.nombre}` : `Prueba enviada a ${i.nombre}`, {
+        detalle: acentos
+          ? "Sale el mismo texto con cada página, numerado: elige aquí la que se lee bien."
+          : "Si el agente está conectado, sale en segundos.",
+      });
       void releerCola();
       void historial.releer();
     }
@@ -140,8 +144,10 @@ export function ImpresorasScreen({
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-[14px] font-semibold text-ink">{i.nombre}</span>
-                        <span className="tnum block truncate text-[12px] text-ink-3">
-                          {i.ip}:{i.puerto} · {i.ancho} mm
+                        {/* La dirección entera, en su renglón: por USB es larga y no se corta (T-15). */}
+                        <span className="tnum block text-[12px] break-words text-ink-3">{direccionDe(i, local.agentes)}</span>
+                        <span className="tnum block text-[12px] text-ink-3">
+                          {i.ancho} mm · página {i.pagina.replace("WPC", "").replace("PC", "")}
                         </span>
                       </span>
                     </span>
@@ -152,10 +158,17 @@ export function ImpresorasScreen({
                   <div className="flex flex-wrap gap-1.5">
                     {i.recibos && <Badge tone="brand">Recibos y cortes</Badge>}
                     {i.comandas && <Badge tone="brand">Comandas</Badge>}
+                    {i.conexion === "USB" && <Badge tone="idle">USB</Badge>}
+                    {i.oscura && <Badge tone="idle">Oscura</Badge>}
                   </div>
-                  {!(i.enVlanDeHardware && i.ipFija) && (
+                  {i.conexion === "RED" && !(i.enVlanDeHardware && i.ipFija) && (
                     <p className="flex items-center gap-1.5 text-[12px] text-state-warn">
                       <TriangleAlert size={13} aria-hidden="true" /> Falta confirmar la red para encenderla
+                    </p>
+                  )}
+                  {avisoUsb(i, local.agentes) && (
+                    <p className="flex items-center gap-1.5 text-[12px] text-state-warn">
+                      <TriangleAlert size={13} className="shrink-0" aria-hidden="true" /> {avisoUsb(i, local.agentes)}
                     </p>
                   )}
                 </div>
@@ -297,7 +310,7 @@ export function ImpresorasScreen({
         ]}
       />
 
-      <ImpresoraForm abierta={hojaAbierta} impresora={editando} onCerrar={() => setHojaAbierta(false)} mandar={mandar} enviando={enviando} />
+      <ImpresoraForm abierta={hojaAbierta} impresora={editando} agentes={vinculados} onProbarAcentos={(i) => void prueba(i, true)} onCerrar={() => setHojaAbierta(false)} mandar={mandar} enviando={enviando} />
 
       <Confirmacion
         abierto={retirar !== null}
@@ -315,4 +328,21 @@ export function ImpresorasScreen({
       </Confirmacion>
     </Container>
   );
+}
+
+/** Dónde está una impresora: su IP y puerto, o «USB · nombre en Windows en el equipo» (B5-4). */
+function direccionDe(i: ImpresoraDto, agentes: readonly AgenteDto[]): string {
+  if (i.conexion === "RED") return `${i.ip}:${i.puerto}`;
+  const a = agentes.find((x) => x.id === i.agenteId);
+  return `USB · ${i.nombreEnWindows ?? "?"}${a ? ` en ${a.nombre}` : ""}`;
+}
+
+/** Lo que le falta a una impresora por USB para imprimir: su agente al día y que la vea (B5-4). */
+function avisoUsb(i: ImpresoraDto, agentes: readonly AgenteDto[]): string | null {
+  if (i.conexion !== "USB") return null;
+  const a = agentes.find((x) => x.id === i.agenteId);
+  if (!a) return "Su equipo ya no tiene el agente vinculado";
+  if (a.impresorasDeWindows === null) return `El agente de «${a.nombre}» no imprime por USB: actualízalo en la pestaña Agente`;
+  if (i.nombreEnWindows && !a.impresorasDeWindows.includes(i.nombreEnWindows)) return `«${a.nombre}» no ve «${i.nombreEnWindows}» en Windows: ¿está enchufada y encendida?`;
+  return null;
 }

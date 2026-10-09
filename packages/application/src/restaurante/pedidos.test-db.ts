@@ -42,7 +42,7 @@ const linea = (nombre: string, cantidad = 1, extra: Record<string, unknown> = {}
 const enviar = (ctx: Contexto, tableId: string, lineas: unknown[], pedidoId = randomUUID(), ahora = AHORA) =>
   l.app.pedidos.enviar(ctx, { pedidoId, tableId, lineas }, ahora);
 const trabajosDe = (pedidoId: string) =>
-  l.base.conTenant(l.sistema.tenantId, (tx) => tx.printJob.findMany({ where: { orderId: pedidoId }, orderBy: { createdAt: "asc" } }));
+  l.base.conTenant(l.sistema.tenantId, (tx) => tx.printJob.findMany({ where: { orderId: pedidoId }, orderBy: [{ createdAt: "asc" }, { kind: "desc" }] }));
 /** La cola avanza como la mueve el agente: lo toma (ENVIADO) y luego sale o falla. */
 const mover = (trabajoId: string, a: "CONFIRMADO" | "FALLIDO") =>
   l.base.conTenant(l.sistema.tenantId, async (tx) => {

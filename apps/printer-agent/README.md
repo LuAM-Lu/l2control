@@ -3,7 +3,10 @@
 El agente de impresión de la laptop de caja (ADR-026). El servidor está en la nube y no alcanza la
 impresora del local; este programa sí: se conecta **hacia fuera** al worker (Socket.io, espacio
 `/impresion`), recibe los trabajos de su sucursal ya compuestos en ESC/POS y los manda a la impresora por
-**TCP 9100** en la red del local. Antes pregunta por el papel; si no hay, el trabajo falla con ese motivo.
+**TCP 9100** en la red del local (antes pregunta por el papel; si no hay, el trabajo falla con ese motivo) o, por
+**USB** (B5-4), a la impresora de Windows de su equipo por su nombre, en modo directo (RAW): PowerShell llama a
+`winspool.drv`, sin módulos nativos (`src/windows.ts`). Al conectarse cuenta las impresoras que ve en Windows; sin
+contarlas, el servidor no le da trabajos por USB.
 Si el servidor lo rechaza un momento o se cae la red, vuelve a intentarlo solo, sin rendirse nunca.
 
 ## Instalarlo en la laptop de caja
@@ -83,6 +86,7 @@ levantan su propio servidor TCP de prueba y no necesitan ninguna.
 - **Qué se imprime.** Los bytes los compone el servidor; el agente no sabe de recibos ni de comandas.
 
 ```bash
-pnpm test    # 14 pruebas: lo que llega a la impresora (con un servidor TCP de prueba), reconexión, instalación y
+pnpm test    # 16 pruebas: lo que llega a la impresora (con un servidor TCP de prueba), reconexión, USB (con un
+             # PowerShell de mentira), instalación y
              # la actualización (cuándo, la huella equivocada, el que no arranca, la tarea del cambio)
 ```

@@ -67,6 +67,7 @@ before(async () => {
         (x as { codigo?: string })?.codigo === "K7MQ-4XPZ"
           ? { ok: true, valor: { agenteId: "a3", nombre: "Nueva", credencial: "l2ag_x" } }
           : { ok: false, motivo: "NO_PERMITIDO", mensaje: "Ese código no vale" },
+      anotarImpresorasDeWindows: async () => ({ ok: true, valor: { anotadas: 0 } }),
       anotarActualizacion: async (a, n) => {
         notas.push({ agente: a.agenteId, n });
         return { ok: true, valor: { anotada: true } };

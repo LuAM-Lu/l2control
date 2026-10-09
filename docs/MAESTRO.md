@@ -1926,7 +1926,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   caja y Turno a 1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - ~~**B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09)~~. **Retirado el 2026-09-28
   (D-GAV):** la impresora de caja no lleva gaveta electrónica; la gaveta es manual. No cuenta en la ruta.
-- [~] **B5-4 · La impresora: acentos, USB y tinta oscura** (M-34, S-1, S-18, S-21). *A cargo: LuAMi, rama `feat/b5-4`.*
+- [x] **B5-4 · La impresora: acentos, USB y tinta oscura** (M-34, S-1, S-18, S-21).
+  *Hecho el 2026-10-08, en `feat/b5-4`.*
   → **Acentos.** Cada papel apaga el modo chino (FS .) antes de elegir la página de códigos (desde v0.90.2), y la página
   se elige en la ficha de la impresora (850 de fábrica; 858, 1252 y las que use el modelo), con «Probar acentos», que
   imprime «áéíóú ñ ¿¡ $ Bs.» con cada una para elegir la que sale bien.
@@ -1938,6 +1939,27 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → El agente nuevo llega solo (T-8c); uno viejo que recibe un trabajo por USB lo falla a la vista («actualiza el agente»).
   → **Base (solo expande).** La conexión, el nombre en Windows, la página y la impresión oscura, con los valores de hoy de
   fábrica.
+  *· Hecho: `printer` gana `connection`, `agent_id`, `windows_name`, `code_page` y `dark`, y `print_agent`, la lista de
+  impresoras de Windows que contó (migración `20261117000000_impresora_usb`): las reglas de la red (IP privada, puerto, VLAN
+  e IP fija, una por dirección) valen solo para las de red; una por USB lleva su agente y su nombre, una por equipo y
+  nombre. `@l2/domain-printing`: `enPagina` (850, 858, 1252 y 437; lo que una página no tiene sale sin tilde, no «?»),
+  `escpos(doc, ancho, { pagina, oscura })` y `pruebaDeAcentos`. Reclamar: lo de una impresora por USB lo toma solo el
+  agente de su equipo y solo si contó sus impresoras (uno de antes nunca lo recibe). El agente (`windows.ts`) imprime en
+  modo directo por `winspool.drv` desde PowerShell y cuenta las impresoras al conectarse y cada 10 min si cambian.*
+  *· Decidido al construir: «Imprimir la prueba de acentos» va en la hoja de editar, junto a «Página de las tildes» (se
+  prueba y se elige en el mismo sitio; en la tarjeta partía en dos la fila de acciones). La dirección de la tarjeta va en
+  su renglón, entera. La semilla del local (B7-2) lleva solo las de red, con su página y su tinta: una por USB es de un
+  equipo con su agente, que la semilla no lleva, y se da de alta en el local que la recibe.*
+  *· Visto: la impresora del local es una Xprinter XP-80C (instalada en esta PC, apuntando a 192.168.1.194). En B7-3, con
+  ella: «Imprimir la prueba de acentos», elegir la página y probar la impresión oscura; si va por USB, instalar su
+  controlador para todo el equipo.*
+  *· Comprobado: 4 pruebas nuevas del dominio, 2 del agente (USB con un PowerShell de mentira) y 3 contra la base
+  (`usb.test-db.ts`: alta por USB sin garantías de red, quién reclama, página y oscura en los bytes, la prueba de acentos).
+  En esta PC, el agente listó las impresoras de Windows de verdad y una impresora inexistente falló con su motivo. En el
+  navegador, en la base de pruebas: un agente de desarrollo vinculado contó «Microsoft Print to PDF», «OneNote» y
+  «XP-80C», y la impresora nueva se eligió de esa lista; con el agente viejo, la tarjeta avisa que no imprime por USB y su
+  trabajo espera. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar a lo ancho ni errores de
+  consola. No se mandó nada a imprimir (la XP-80C de esta PC apunta al local).*
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 
@@ -3379,6 +3401,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   acentos: cada uno apaga el modo chino; la impresora del local es una Xprinter XP-80C). B4-13 entregado: el reloj de la
   sala ya no se queda pegado y el estado de cada niño avanza solo. Al probar B5-4 en un worktree, `prisma migrate deploy`
   a secas aplicó su migración (solo expande) en la base local del cliente antes de fusionarse: no se edita más.
+- **2026-10-08** · B4-13 publicado como v0.91.0. B5-4 entregado: la impresora por red o por USB, la página de las tildes
+  con su prueba y la impresión oscura.
 
 ---
 
