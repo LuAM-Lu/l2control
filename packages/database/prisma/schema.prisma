@@ -76,6 +76,7 @@ model Branch {
   stockMovements    StockMovement[]
   stockEntries      StockEntry[]
   stockEntryVoids   StockEntryVoid[]
+  saleReturns       SaleReturn[]
   stockAdjustments  StockAdjustment[]
   stockStarts       StockStart[]
   printers          Printer[]
@@ -668,6 +669,8 @@ model Payment {
   rateId           String?  @map("rate_id") @db.Uuid
   rateValue        String?  @map("rate_value")
   reversesId       String?  @map("reverses_id") @db.Uuid
+  /// Solo en una DEVOLUCION (B3-14): el cobro original del que vuelve una parte, por su mismo medio.
+  refundsId        String?  @map("refunds_id") @db.Uuid
   /// Solo en una reversión: motivo de la lista cerrada (DEC-24) y su explicación.
   reason           String?
   reasonDetail     String?  @map("reason_detail")
@@ -692,6 +695,8 @@ model Payment {
   rate       ExchangeRate? @relation(fields: [tenantId, rateId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   reverses   Payment?      @relation("PaymentReversal", fields: [tenantId, reversesId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   reversedBy Payment[]     @relation("PaymentReversal")
+  refunds    Payment?      @relation("PaymentRefund", fields: [tenantId, refundsId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  refundedBy Payment[]     @relation("PaymentRefund")
   recorder   StaffUser?    @relation("PaymentRecordedBy", fields: [tenantId, recordedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   authorizer StaffUser?    @relation("PaymentAuthorizedBy", fields: [tenantId, authorizedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   device     Device?       @relation(fields: [tenantId, deviceId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -818,6 +823,7 @@ model CashShift {
   floats            CashShiftFloat[]
   payments          Payment[]
   sales             Sale[]
+  returns           SaleReturn[]
   counts            ShiftCount[]
   cuts              ShiftCut[]
   paperLoads        PaperLoad[]
@@ -1065,11 +1071,54 @@ model Sale {
   prints  SalePrint[]
   voids   SaleVoid[]
   jobs    PrintJob[]
+  returns SaleReturn[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, operationKey])
   @@index([tenantId, shiftId, closedAt])
   @@map("sale")
+}
+
+/// La devolución de parte de una venta (B3-14, M-34): qué líneas, a dónde va cada una (estante o merma), lo que vuelve
+/// con su descuento, IVA e IGTF, cómo vuelve por cada pago (la referencia de un pago electrónico, cifrada), el motivo,
+/// quién y quién autorizó. El dinero vuelve en el libro (asientos DEVOLUCION, por la misma clave); lo que vuelve al
+/// estante, en movimientos RETORNO. Solo agregar.
+model SaleReturn {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  saleId           String   @map("sale_id") @db.Uuid
+  /// El turno de HOY en que se devolvió (el dinero sale de su gaveta), no el de la venta.
+  shiftId          String   @map("shift_id") @db.Uuid
+  operationKey     String   @map("operation_key") @db.Uuid
+  returnedAt       DateTime @map("returned_at") @db.Timestamptz(3)
+  /// [{ lineId, concept, productId?, amount: { minor, currency }, destino: ESTANTE | MERMA }]
+  lines            Json
+  subtotalMinor    BigInt   @map("subtotal_minor")
+  discountMinor    BigInt   @map("discount_minor")
+  taxMinor         BigInt   @map("tax_minor")
+  igtfMinor        BigInt   @map("igtf_minor")
+  totalMinor       BigInt   @map("total_minor")
+  currency         String
+  /// [{ paymentIndex, amountMinor, currency, referenceCipher }]
+  refunds          Json
+  reason           String
+  requestedBy      String?  @map("requested_by") @db.Uuid
+  requestedByName  String   @map("requested_by_name")
+  authorizedBy     String?  @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+  deviceId         String?  @map("device_id") @db.Uuid
+
+  branch    Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  sale      Sale            @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  shift     CashShift       @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  movements StockMovement[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, saleId])
+  @@index([tenantId, shiftId, returnedAt])
+  @@map("sale_return")
 }
 
 /// Una impresión del recibo de una venta (§5.4): la primera es el original; las demás, copias.
@@ -1513,6 +1562,8 @@ model StockMovement {
   adjustmentId   String?  @map("adjustment_id") @db.Uuid
   /// La anulación de una entrada que lo causó (ANULACION, B9-12): sale lo que entró, a su costo de esa entrada.
   entryVoidId    String?  @map("entry_void_id") @db.Uuid
+  /// La devolución de un cliente que lo devolvió al estante (RETORNO, B3-14), al costo con que salió.
+  saleReturnId   String?  @map("sale_return_id") @db.Uuid
   at             DateTime @db.Timestamptz(3)
   createdBy      String?  @map("created_by") @db.Uuid
   createdByName  String   @map("created_by_name")
@@ -1524,10 +1575,13 @@ model StockMovement {
   entrada StockEntry?      @relation(fields: [tenantId, entryId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   ajuste  StockAdjustment? @relation(fields: [tenantId, adjustmentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   anulada StockEntryVoid?  @relation(fields: [tenantId, entryVoidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  retorno SaleReturn?      @relation(fields: [tenantId, saleReturnId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   /// La anulación de una entrada saca cada producto una vez.
   @@unique([tenantId, entryVoidId, productId])
+  /// Una devolución devuelve cada producto una vez.
+  @@unique([tenantId, saleReturnId, productId])
   /// Una versión de una cuenta mueve cada producto una sola vez: un reintento tropieza aquí.
   @@unique([tenantId, accountId, accountVersion, productId])
   /// Una entrada recibe cada producto una vez.

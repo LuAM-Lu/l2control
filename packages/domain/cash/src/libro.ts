@@ -13,7 +13,8 @@ import { type CurrencyCode, type FrozenRate, type Money, add, convert, money, su
 import type { LedgerMethodSpec, PaymentDataKind } from "./medios.ts";
 
 /** Qué es el asiento (§5.6): el vuelto, la propina y el residuo son asientos, no restas. */
-export type LedgerKind = "COBRO" | "VUELTO" | "PROPINA" | "RESIDUO";
+/** DEVOLUCION (B3-14): parte de un cobro que vuelve al cliente, negativa, por su mismo medio. */
+export type LedgerKind = "COBRO" | "VUELTO" | "PROPINA" | "RESIDUO" | "DEVOLUCION";
 
 /**
  * El medio de un asiento: el código de un medio del catálogo del local (`medios.ts`). Ya no es una
@@ -99,6 +100,8 @@ export function reversalOf(target: LedgerEntry): Omit<LedgerEntry, "id"> {
 export type LedgerBalance = Readonly<{
   /** Lo cobrado, neto de reversiones, en moneda funcional. */
   collected: Money;
+  /** Lo devuelto a un cliente (B3-14), negativo, en moneda funcional. */
+  refunded: Money;
   changeOut: Money;
   tip: Money;
   retained: Money;
@@ -126,11 +129,13 @@ export function ledgerBalance(entries: readonly LedgerEntry[], functional: Curre
       functional,
     );
   const collected = deTipo("COBRO");
+  // Lo devuelto a un cliente (B3-14): negativo, resta de lo aplicado.
+  const refunded = deTipo("DEVOLUCION");
   const changeOut = deTipo("VUELTO");
   const tip = deTipo("PROPINA");
   const retained = deTipo("RESIDUO");
   const byCurrency: Partial<Record<CurrencyCode, Money>> = {};
-  for (const e of entries.filter((x) => x.kind === "COBRO")) {
+  for (const e of entries.filter((x) => x.kind === "COBRO" || x.kind === "DEVOLUCION")) {
     const c = e.amount.currency;
     byCurrency[c] = add(byCurrency[c] ?? zero(c), e.amount);
   }
@@ -139,7 +144,8 @@ export function ledgerBalance(entries: readonly LedgerEntry[], functional: Curre
     changeOut,
     tip,
     retained,
-    applied: sum([collected, money(-changeOut.amount, functional), money(-tip.amount, functional), money(-retained.amount, functional)], functional),
+    refunded,
+    applied: sum([collected, refunded, money(-changeOut.amount, functional), money(-tip.amount, functional), money(-retained.amount, functional)], functional),
     igtf: deTipo("COBRO", "igtf"),
     byCurrency: Object.freeze(byCurrency),
   });

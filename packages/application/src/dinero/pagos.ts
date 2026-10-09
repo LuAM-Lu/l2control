@@ -447,6 +447,58 @@ export async function revertirAsientoEn(
   return fila;
 }
 
+/**
+ * Añade la DEVOLUCION de una parte de `original` (B3-14) dentro de `tx`: por su mismo medio, moneda y tasa, negativa, en
+ * el turno de este equipo, con su motivo y quién la autorizó. La base impone que entre todas no pase de lo que entró. Lo
+ * que decide si se puede (el permiso, la autorización, cuánto queda) lo comprueba quien llama.
+ */
+export async function devolverParteEn(
+  tx: Transaccion,
+  ctx: Contexto,
+  r: Readonly<{ original: Payment; turno: CashShift; operationKey: string; line: number; monto: bigint; motivo: string; autorizadoPor: string | null; ahora: number }>,
+): Promise<Payment> {
+  const { original, turno } = r;
+  const quien = await nombreDe(tx, ctx);
+  const autorizador = r.autorizadoPor ? await tx.staffUser.findUnique({ where: { id: r.autorizadoPor }, select: { fullName: true } }) : null;
+  const fila = await tx.payment.create({
+    data: {
+      tenantId: ctx.tenantId,
+      branchId: original.branchId,
+      documentId: original.documentId,
+      shiftId: turno.id,
+      businessDate: turno.businessDate,
+      operationKey: r.operationKey,
+      line: r.line,
+      kind: "DEVOLUCION",
+      method: original.method,
+      currency: original.currency,
+      amountMinor: -r.monto,
+      igtfMinor: 0n,
+      rateId: original.rateId,
+      rateValue: original.rateValue,
+      refundsId: original.id,
+      reason: "DEVOLUCION",
+      reasonDetail: r.motivo,
+      recordedAt: new Date(r.ahora),
+      recordedBy: ctx.quien?.userId ?? null,
+      recordedByName: quien.nombre,
+      deviceId: ctx.quien?.deviceId ?? null,
+      authorizedBy: r.autorizadoPor,
+      authorizedByName: autorizador?.fullName ?? null,
+    },
+  });
+  await auditar(tx, ctx, {
+    action: "pago.devolver",
+    entityType: "payment",
+    entityId: original.id,
+    ...(r.autorizadoPor ? { authorizedBy: r.autorizadoPor } : {}),
+    reason: r.motivo,
+    before: resumen(original),
+    after: { devolucion: resumen(fila) },
+  });
+  return fila;
+}
+
 export const conflictoDeClave: Rechazo = {
   ok: false,
   motivo: "CONFLICTO",

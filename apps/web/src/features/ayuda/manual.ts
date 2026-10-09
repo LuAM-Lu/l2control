@@ -337,8 +337,14 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "El corte X enseña lo cobrado sin cerrar nada.",
       "Para cerrar: cuenta lo que hay (arqueo a ciegas) y sella el corte Z. Hasta $ 1,00 de diferencia lo firma la cajera; más, supervisión.",
       "En un relevo, la que sale retira lo vendido y deja el fondo; la que entra lo declara al abrir.",
+      "Si un cliente devuelve parte de lo que compró: en Ventas del turno, la venta y «Devolver…» (la de otro día, por su número en «Devolver de otra venta»). Elige cuántas de cada cosa y si vuelven al estante o a merma; el dinero vuelve por su pago, en su moneda (uno electrónico, con la referencia de la devolución), con el descuento y el IVA ya calculados. Lo autoriza supervisión. Sale su comprobante, y el corte lo cuenta.",
     ],
     problemas: [
+      {
+        sintoma: "«No se devuelve por aquí» o «ya se devolvió»",
+        solucion: "Solo se devuelven productos y lo preparado (que va a merma); el tiempo del parque y los servicios, no. Lo ya devuelto no vuelve otra vez. Una venta con devoluciones ya no se anula entera.",
+        reconoce: ["no se devuelve por aqui", "ya se devolvio", "ya tiene devoluciones"],
+      },
       {
         sintoma: "La jornada no se cierra",
         solucion: "No se cierra con pendientes: cuentas por cobrar o abiertas (incluidas mesas y cuentas de pie), niños en sala, estancias a revisar u otros turnos abiertos. Inicio los enumera.",

@@ -113,7 +113,11 @@ function Informe({ informe, cargando }: { informe: InformeDeVentasDto; cargando:
           etiqueta="Anuladas"
           icono={<Ban />}
           valor={String(resumen.anuladas)}
-          pie={resumen.anuladas > 0 ? `${importe(resumen.anulado)} en total` : "Ninguna"}
+          pie={
+            resumen.anuladas > 0 || resumen.devoluciones > 0
+              ? [resumen.anuladas > 0 ? `${importe(resumen.anulado)} anulado` : null, resumen.devoluciones > 0 ? `${resumen.devoluciones} ${resumen.devoluciones === 1 ? "devolución" : "devoluciones"}: ${importe(resumen.devuelto)}` : null].filter(Boolean).join(" · ")
+              : "Ninguna"
+          }
           tono={resumen.anuladas > 0 ? "warn" : "idle"}
           onClick={() => setPestana("anuladas")}
           activo={pestana === "anuladas"}

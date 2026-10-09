@@ -113,6 +113,8 @@ export type AccionAuditada =
   | "producto.editar"
   | "producto.activar"
   | "producto.retirar"
+  | "venta.devolver"
+  | "pago.devolver"
   | "inventario.anular_entrada"
   | "producto.devolver"
   | "producto.apartar"

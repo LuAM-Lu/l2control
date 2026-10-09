@@ -19,6 +19,7 @@ import { autorizadoresDeCaja } from "../cuentas/cuentas.acciones";
 
 export type AccionConPin =
   | "cobro.anular"
+  | "venta.devolver"
   | "cuenta.cortesia"
   | "cuenta.incobrable"
   | "cuenta.cambiarCliente"

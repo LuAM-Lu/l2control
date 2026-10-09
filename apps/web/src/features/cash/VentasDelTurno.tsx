@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Ban, FileText, MessageCircle, Printer, ReceiptText, Search, X } from "lucide-react";
+import { Ban, FileText, MessageCircle, Printer, ReceiptText, Search, Undo2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
@@ -12,6 +12,8 @@ import { Button, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { AnularCobroDialog, type PedidoDeAnulacion } from "./AnularCobroDialog.tsx";
+import { DevolverVentaDialog } from "./DevolverVentaDialog.tsx";
+import { buscarVentaPorOrden } from "./ventas.acciones";
 import { textoDinero, textoMotivo } from "./anulacion.ts";
 import { reciboDeVenta, ordenDe } from "./recibo.ts";
 import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -68,6 +70,20 @@ export function VentasDelTurno({ className }: { className?: string }) {
   const [anulando, setAnulando] = useState(false);
   const actor = useActorEnSesion();
   const puedeAnular = actor !== null && can(actor, "cobro.anular") !== "DENEGADO";
+  /** B3-14: un cliente devuelve parte de lo que compró; la venta de otro día se busca por su número. */
+  const puedeDevolver = actor !== null && can(actor, "venta.devolver") !== "DENEGADO";
+  const [devolviendo, setDevolviendo] = useState<VentaCerradaDto | null>(null);
+  const [ordenBuscada, setOrdenBuscada] = useState("");
+  async function buscarParaDevolver() {
+    const n = Number(ordenBuscada.replace(/\D/g, ""));
+    if (!Number.isInteger(n) || n <= 0) return;
+    const r = await buscarVentaPorOrden(n).catch(() => null);
+    if (!r) return avisar.error("Sin conexión con el servidor: no se pudo buscar la venta.");
+    if (!r.ok) return avisar.error(r.mensaje);
+    if (!r.valor) return avisar.info(`No hay una venta con la orden #${String(n).padStart(4, "0")}.`);
+    if (r.valor.voided) return avisar.info(`La orden #${String(n).padStart(4, "0")} está anulada: no hay nada que devolver.`);
+    setDevolviendo(r.valor);
+  }
   const [texto, setTexto] = useState("");
   const [medio, setMedio] = useState<string | null>(null);
   const [elegida, setElegida] = useState<string | null>(null);
@@ -77,9 +93,15 @@ export function VentasDelTurno({ className }: { className?: string }) {
   const medios = useMemo(() => [...new Set(ventas.flatMap(mediosDe))], [ventas]);
   const visibles = useMemo(() => filtrar(ventas, texto, medio), [ventas, texto, medio]);
   const actual = visibles.find((v) => v.id === elegida) ?? visibles[0] ?? null;
-  // Lo cobrado no cuenta lo anulado: ese dinero volvió al cliente.
+  // Lo cobrado no cuenta lo anulado ni lo devuelto (B3-14): ese dinero volvió al cliente.
   const total = useMemo(
-    () => sum(ventas.filter((v) => !v.voided).map((v) => money(BigInt(v.total.minor), "USD")), "USD"),
+    () =>
+      sum(
+        ventas
+          .filter((v) => !v.voided)
+          .flatMap((v) => [money(BigInt(v.total.minor), "USD"), ...v.devoluciones.map((d) => money(-BigInt(d.total.minor), "USD"))]),
+        "USD",
+      ),
     [ventas],
   );
   const anuladas = ventas.filter((v) => v.voided).length;
@@ -163,6 +185,31 @@ export function VentasDelTurno({ className }: { className?: string }) {
             </p>
           </div>
 
+          {puedeDevolver && (
+            <form
+              className="flex items-center gap-2 border-b border-line/40 px-3 pt-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void buscarParaDevolver();
+              }}
+            >
+              <label className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-base px-2.5 text-[13px] focus-within:border-brand">
+                <Undo2 size={15} className="shrink-0 text-ink-3" aria-hidden="true" />
+                <span className="sr-only">Devolver de otra venta: su número de orden</span>
+                <input
+                  inputMode="numeric"
+                  value={ordenBuscada}
+                  onChange={(e) => setOrdenBuscada(e.target.value.replace(/[^\d#]/g, ""))}
+                  placeholder="Devolver de otra venta: #orden"
+                  autoComplete="off"
+                  className="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-3"
+                />
+              </label>
+              <Button type="submit" surface="tablet" variant="neutral" disabled={!ordenBuscada.replace(/\D/g, "")}>
+                Buscar
+              </Button>
+            </form>
+          )}
           <div className="flex flex-col gap-2 border-b border-line/40 p-3 sm:flex-row sm:items-center">
             <label className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-base px-2.5 focus-within:border-brand">
               <Search size={15} className="shrink-0 text-ink-3" aria-hidden="true" />
@@ -339,6 +386,27 @@ export function VentasDelTurno({ className }: { className?: string }) {
                   </ul>
                 </div>
               )}
+              {/* B3-14: lo que el cliente devolvió, con lo que volvió por cada pago. */}
+              {actual.devoluciones.map((d) => (
+                <div key={d.id} className="border-t border-line px-4 py-2 text-[12px] text-ink-2">
+                  <p className="flex items-center gap-1.5 font-semibold text-ink">
+                    <Undo2 size={13} aria-hidden="true" />
+                    Devolución a las {hora(Date.parse(d.at))} · {textoDinero(d.total)}
+                  </p>
+                  <p className="text-ink-3">
+                    {d.lineas.length} {d.lineas.length === 1 ? "cosa" : "cosas"}: {[...new Set(d.lineas.map((l) => l.concept))].join(", ")} · «{d.motivo}» · {d.por}
+                    {d.autorizo && d.autorizo !== d.por ? `, autorizó ${d.autorizo}` : ""}
+                  </p>
+                  <ul className="tnum mt-0.5 text-ink-3">
+                    {d.reintegros.map((r) => (
+                      <li key={r.paymentIndex}>
+                        {actual.payments[r.paymentIndex]?.label ?? "Pago"}: {textoDinero(r.amount)}
+                        {r.reference ? ` · Ref. ${r.reference}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
               {/* Lo cargado desde papel (B3-7): la hora del recibo es la anotada; aquí, cuándo se cargó. */}
               {actual.desdePapel && (
                 <div className="border-t border-line px-4 py-2 text-[12px] text-ink-2">
@@ -388,7 +456,13 @@ export function VentasDelTurno({ className }: { className?: string }) {
                   </Button>
                   {/* Destructivo y auditado: discreto, lejos del botón principal y
                       con su propia confirmación. Solo para quien puede pedirlo. */}
-                  {puedeAnular && (
+                  {puedeDevolver && !actual.parte && (
+                    <Button surface="tablet" variant="neutral" className="col-span-2 text-[13px]" onClick={() => setDevolviendo(actual)}>
+                      <Undo2 size={15} aria-hidden="true" />
+                      Devolver…
+                    </Button>
+                  )}
+                  {puedeAnular && actual.devoluciones.length === 0 && (
                     <Button surface="tablet" variant="ghost" className="col-span-2 text-[13px]" onClick={() => setAnulando(true)}>
                       <Ban size={15} aria-hidden="true" />
                       Anular cobro…
@@ -408,6 +482,19 @@ export function VentasDelTurno({ className }: { className?: string }) {
         ventas={ventas}
         onAnular={aplicarAnulacion}
         onCerrar={() => setAnulando(false)}
+      />
+
+      <DevolverVentaDialog
+        venta={devolviendo}
+        onCerrar={() => setDevolviendo(null)}
+        onHecha={(h) => {
+          adoptar(h.venta);
+          setDevolviendo(null);
+          const d = h.venta.devoluciones.at(-1);
+          avisar.ok(`Devolución de la orden ${ordenDe(h.venta.orderNumber)}`, {
+            detalle: `${d ? `Se devuelve ${textoDinero(d.total)}: ${d.reintegros.map((r) => `${textoDinero(r.amount)} por ${h.venta.payments[r.paymentIndex]?.label ?? "su pago"}`).join(" · ")}.` : ""}${h.comprobanteNoImpreso ? ` El comprobante no salió: ${h.comprobanteNoImpreso}` : " El comprobante sale en la impresora de caja."}`,
+          });
+        }}
       />
 
       <ReciboDialog

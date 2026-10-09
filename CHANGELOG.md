@@ -72,6 +72,15 @@ Corregir una entrada mal cargada (B9-12, M-34).
   qué. Si ya se vendió o se sacó algo, dice cuánto y se corrige con un conteo. Un inventario inicial anulado se vuelve a
   contar. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.
 
+Un cliente devuelve parte de lo que compró (B3-14, M-34).
+
+### Añadido
+- **Devolver parte de una venta** desde Turno → Ventas (o la de otro día, por su número): cuántas de cada cosa y si
+  vuelven al estante o a merma. El dinero vuelve por su pago y en su moneda, con su parte del descuento y su IVA; un
+  pago electrónico, con la referencia de la devolución. Lo autoriza supervisión. Sale su comprobante.
+- **El corte X y el Z lo cuentan** (como excepción, y neto por medio de pago); Reportes → Ventas lo resta de lo vendido y
+  lo dice aparte; el kárdex dice «Devuelto por un cliente».
+
 ## [0.95.0] — 2026-10-09 · Hacia la puesta en marcha
 
 El cobro en curso no se pierde (B3-13, M-34).

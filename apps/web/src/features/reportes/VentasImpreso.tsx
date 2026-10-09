@@ -42,7 +42,7 @@ export function VentasImpreso({ pedido, informe }: VentasPedidas) {
       <dl className="mb-3 grid grid-cols-4 gap-x-3 gap-y-1 border-b border-current/40 pb-2 text-[9.5pt]">
         <Dato termino="Vendido" valor={importe(r.vendido)} pie={`${r.ventas} ${r.ventas === 1 ? "venta" : "ventas"}`} />
         <Dato termino="Cobrado en dólares" valor={r.cobradoEnDolares ? importe(r.cobradoEnDolares) : "Sin tasa"} pie="con la tasa de cada cobro" />
-        <Dato termino="Anuladas" valor={String(r.anuladas)} pie={importe(r.anulado)} />
+        <Dato termino="Anuladas" valor={String(r.anuladas)} pie={`${importe(r.anulado)}${r.devoluciones > 0 ? ` · devuelto ${importe(r.devuelto)}` : ""}`} />
         <Dato termino="Turnos con su Z" valor={`${r.turnos - r.turnosSinZ} de ${r.turnos}`} pie={r.turnosSinZ > 0 ? "sin Z, sus cifras pueden cambiar" : "todos cerrados"} />
       </dl>
       {seccionesDeVentas(i, reloj, true).map((s) => (

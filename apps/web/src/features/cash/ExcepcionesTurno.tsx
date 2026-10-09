@@ -26,6 +26,8 @@ const TIPO: Record<ExcepcionDto["tipo"], { texto: string; tono: "crit" | "warn" 
   REIMPRESION: { texto: "Reimpresión", tono: "neutro" },
   // Lo cargado desde papel (B3-7): sin revisar pide atención; revisado ya no.
   PAPEL: { texto: "Desde papel", tono: "warn" },
+  // Lo que un cliente devolvió (B3-14): dinero que salió de la gaveta o de su medio.
+  DEVOLUCION: { texto: "Devolución", tono: "warn" },
 };
 
 export function ExcepcionesTurno({
