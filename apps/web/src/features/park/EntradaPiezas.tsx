@@ -48,7 +48,7 @@ export function FilaDeEntrada({
   onQuitar: () => void;
 }) {
   return (
-    <li className="rounded-[var(--radius-card)] border border-line bg-surface p-4">
+    <li className="@container/fila rounded-[var(--radius-card)] border border-line bg-surface p-4">
       <div className="flex flex-wrap items-center gap-3">
         <Initial name={String(numero)} tone="brand" />
 
@@ -62,12 +62,13 @@ export function FilaDeEntrada({
           </Badge>
         )}
 
-        {/* En el teléfono el paquete va en su renglón, en 2×2: en la fila, cuatro no caben. Un
-            invitado de cumpleaños no elige paquete: lo cubre el del evento (B10-2). */}
+        {/* Donde la fila es angosta (el teléfono, la hoja de la caja) el paquete va en su renglón, en 2×2: en la
+            fila, cuatro no caben. Se mide la fila, no la pantalla (v0.90.1). Un invitado de cumpleaños no elige
+            paquete: lo cubre el del evento (B10-2). */}
         {invitadoDe ? (
           <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">Invitado · Cumpleaños de {invitadoDe}</span>
         ) : (
-          <div className="min-w-[200px] flex-1 max-md:order-last max-md:basis-full">
+          <div className="min-w-[200px] flex-1 @max-2xl/fila:order-last @max-2xl/fila:basis-full">
             <PackagePicker packages={paquetes} selectedId={e.packageId} onSelect={(id) => onActualizar({ packageId: id })} compact />
           </div>
         )}
@@ -76,7 +77,7 @@ export function FilaDeEntrada({
           type="button"
           onClick={onQuitar}
           aria-label={e.sinPulsera ? `Quitar al niño sin pulsera ${e.nombre}` : `Quitar la pulsera ${e.wristbandCode}`}
-          className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit max-md:ml-auto"
+          className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit @max-2xl/fila:ml-auto"
         >
           <X size={16} aria-hidden="true" />
         </button>

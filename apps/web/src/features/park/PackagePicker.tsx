@@ -26,46 +26,50 @@ export function PackagePicker({
   onSelect: (id: string) => void;
   compact?: boolean;
 }) {
+  // Cuatro en fila solo si cabe donde está, no según la pantalla: en la hoja de la caja (480 px, en una laptop) cuatro
+  // columnas partían los nombres letra por letra (v0.90.1, M-34).
   return (
-    <div
-      role="radiogroup"
-      aria-label="Paquete de tiempo"
-      className={cn("grid gap-2", compact ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 sm:grid-cols-4")}
-    >
-      {packages.map((p) => {
-        const active = p.id === selectedId;
-        return (
-          <button
-            key={p.id}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onSelect(p.id)}
-            className={cn(
-              // §8.4: superficie POS, objetivo mínimo de 56 px. El reloj a la izquierda; el nombre entero, sin cortar.
-              "flex min-h-14 cursor-pointer items-center gap-2.5",
-              "rounded-[var(--radius-control)] border px-2.5 py-2 text-left transition-colors",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-              active
-                ? "border-brand bg-brand/20 text-ink"
-                : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
-            )}
-          >
-            <RelojDelPaquete duracion={p.duration} activo={active} />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className={cn("text-[13px] leading-tight font-semibold break-words text-balance", active && "text-brand")}>
-                {p.name}
+    <div className="@container">
+      <div
+        role="radiogroup"
+        aria-label="Paquete de tiempo"
+        className={cn("grid grid-cols-2 gap-2", compact ? "@xl:grid-cols-4" : "@lg:grid-cols-4")}
+      >
+        {packages.map((p) => {
+          const active = p.id === selectedId;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onSelect(p.id)}
+              className={cn(
+                // §8.4: superficie POS, objetivo mínimo de 56 px. El reloj a la izquierda; el nombre entero, sin cortar.
+                "flex min-h-14 cursor-pointer items-center gap-2.5",
+                "rounded-[var(--radius-control)] border px-2.5 py-2 text-left transition-colors",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                active
+                  ? "border-brand bg-brand/20 text-ink"
+                  : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
+              )}
+            >
+              <RelojDelPaquete duracion={p.duration} activo={active} />
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className={cn("text-[13px] leading-tight font-semibold break-words text-balance", active && "text-brand")}>
+                  {p.name}
+                </span>
+                <MoneyDisplay
+                  value={toMajor(toMoney(p.price))}
+                  currency={p.price.currency}
+                  size="sm"
+                  tone={active ? "default" : "muted"}
+                />
               </span>
-              <MoneyDisplay
-                value={toMajor(toMoney(p.price))}
-                currency={p.price.currency}
-                size="sm"
-                tone={active ? "default" : "muted"}
-              />
-            </span>
-          </button>
-        );
-      })}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
