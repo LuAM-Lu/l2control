@@ -574,6 +574,11 @@ describe("la jornada (JORNADA §5) y las cuentas incobrables (D-JOR)", () => {
       !jornada.ok && jornada.mensaje,
       "La jornada no se cierra con pendientes: 2 cuentas pendientes, 1 niño en sala y 1 turno abierto en otro equipo.",
     );
+    // Lo que no se dejó cerrar queda en la auditoría, con su porqué (v0.104.2).
+    const negados = await j.l.base.conTenant(j.l.sistema.tenantId, (tx) =>
+      tx.auditEntry.findMany({ where: { action: "turno.corte_z", outcome: "NEGADO" }, orderBy: { occurredAt: "desc" }, take: 1 }),
+    );
+    assert.match(negados[0]?.reason ?? "", /La jornada no se cierra con pendientes/);
 
     // El relevo de la taquilla no espera a los pendientes: las cuentas no son de un turno.
     const b = await arquear(j, segunda.ctx, segunda.turno.id, 2000n, 150000n);

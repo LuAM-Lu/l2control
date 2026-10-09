@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.104.2] — 2026-10-09 · Hacia la puesta en marcha
+
+Tres correcciones de lo que se vio al usar el staging (M-35).
+
+### Corregido
+- **En el inventario inicial, la fila de un producto ya contado se puede quitar** (aunque sea la única), y el buscador ya
+  no deja elegir lo ya contado: lo enseña apagado, con el día y «se corrige con un conteo».
+- **Un respaldo que no se puede hacer queda dicho:** si falta la etiqueta de la versión en marcha, se rehace con la de la
+  web y se respalda (el del 9 oct. se saltó sin anotarse).
+- **Un cierre de caja que no se deja hacer queda en la auditoría** con su motivo (por ejemplo, la jornada con pendientes).
+
 ## [0.104.1] — 2026-10-09 · Hacia la puesta en marcha
 
 El servidor no se queda sin disco con las actualizaciones.
