@@ -14,6 +14,16 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+El recibo dice lo que pasó en la caja (B3-12, M-34).
+
+### Cambiado
+- **Cada pago en su moneda y, si es en bolívares, con lo que vale en dólares** a la tasa del cobro; **«Pagado»**, cuando
+  hubo varios pagos, otra moneda o algo de más; y **el vuelto también en bolívares**. Lo pagado menos el vuelto es el
+  total, a la vista. Igual en el papel y en el recibo de la pantalla (y en el de WhatsApp): las cuentas se hacen una vez.
+- En el papel, la orden y la hora van cada una en su renglón: a 58 mm la hora ya no se parte.
+
 ## [0.92.0] — 2026-10-08 · Hacia la puesta en marcha
 
 La impresora por red o por USB, con sus acentos y su tinta (B5-4, M-34).

@@ -15,6 +15,7 @@
  * enmascarados. Un recibo viaja por WhatsApp y se reenvía.
  */
 import { TelefonoVeSchema, type AjustesSucursalDto, type MoneyDto, type ReciboDto, type VentaCerradaDto } from "@l2/contracts";
+import { cuentasDelCobro } from "@l2/domain-cash";
 import { convert, invertRate, money, multiply, toMajor, type CurrencyCode, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { formatMoneyVE } from "@l2/ui";
@@ -60,6 +61,13 @@ export function reciboDeVenta(v: VentaCerradaDto, local: AjustesSucursalDto): Re
   // El total en bolívares con la tasa congelada del cobro (ADR-005), nunca con la de hoy.
   const aBolivares = v.tasa ? invertRate(frozenRateOf({ pair: "USD/VES", value: v.tasa.value })) : null;
   const igtf = aDinero(v.igtf.amount);
+  // Las mismas cuentas que el papel (B3-12): cada pago con su equivalente, lo pagado y el vuelto en bolívares.
+  const cuentas = cuentasDelCobro({
+    total,
+    pagos: v.payments.map((p) => ({ medio: p.label, pagado: aDinero(p.paid), referencia: p.referencia })),
+    sobra: v.sobra ? { monto: aDinero(v.sobra.amount), destino: v.sobra.destino } : null,
+    aBolivares,
+  });
   return {
     local: { nombre: local.nombre, rif: local.rif, direccion: local.direccionFiscal },
     orden: ordenDe(v.orderNumber),
@@ -90,8 +98,10 @@ export function reciboDeVenta(v: VentaCerradaDto, local: AjustesSucursalDto): Re
     total: texto(total),
     totalBs: aBolivares ? texto(convert(total, aBolivares)) : null,
     tasa: v.tasa ? `${formatTasaVE(v.tasa.value)} Bs/$` : null,
-    pagos: v.payments.map((p) => ({ medio: p.label, detalle: p.referencia, monto: texto(aDinero(p.paid)) })),
-    vuelto: v.sobra ? texto(aDinero(v.sobra.amount)) : null,
+    pagos: cuentas.pagos.map((p) => ({ medio: p.medio, detalle: p.referencia, monto: texto(p.pagado), equivalente: p.enFuncional ? texto(p.enFuncional) : null })),
+    pagado: cuentas.diceElPagado ? texto(cuentas.pagado) : null,
+    vuelto: cuentas.sobra ? texto(cuentas.sobra.monto) : null,
+    vueltoBs: cuentas.sobra?.enBolivares ? texto(cuentas.sobra.enBolivares) : null,
     destinoVuelto: v.sobra ? DESTINO[v.sobra.destino] : null,
     cajera: v.cashier,
     // TODO(F5-03/backend): el teléfono del representante vendrá con la cuenta.
@@ -121,8 +131,9 @@ export function textoRecibo(r: Recibo, copia = false): string {
     ...r.impuestos.map((i) => `${i.etiqueta}: ${i.monto}`),
     `*Total: ${r.total}*${r.totalBs ? ` (${r.totalBs})` : ""}`,
     "",
-    ...r.pagos.map((p) => `Pagado con ${p.medio}: ${p.monto}`),
-    ...(r.vuelto ? [`${r.destinoVuelto ?? "Vuelto"}: ${r.vuelto}`] : []),
+    ...r.pagos.map((p) => `Pagado con ${p.medio}: ${p.monto}${p.equivalente ? ` (= ${p.equivalente})` : ""}`),
+    ...(r.pagado ? [`Pagado: ${r.pagado}`] : []),
+    ...(r.vuelto ? [`${r.destinoVuelto ?? "Vuelto"}: ${r.vuelto}${r.vueltoBs ? ` (${r.vueltoBs})` : ""}`] : []),
     "",
     "¡Gracias por visitarnos!",
   ];
