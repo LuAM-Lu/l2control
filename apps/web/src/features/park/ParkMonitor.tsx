@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch } from "lucide-react";
-import { WristbandCodeSchema } from "@l2/contracts";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen } from "lucide-react";
+import { WristbandCodeSchema, type CatalogoDto, type ReservaEventoDto } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
-import Link from "next/link";
 import type { Route } from "next";
+import { useRouter } from "next/navigation";
 import { toMajor } from "@l2/domain-money";
 import { can } from "@l2/domain-identity";
 import { nombreDeCuenta, pendiente } from "../cuentas/cuentas.ts";
@@ -25,6 +25,9 @@ import { useTarifario } from "./TarifarioProvider";
 import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
+import { puedeAbrirRuta } from "../identity/visibilidad.ts";
+import { CheckoutScreen } from "./CheckoutScreen";
+import { EntradaEnCapa, type PedidoDeEntrada } from "./EntradaEnCapa.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { PonerNombre } from "./PonerNombre.tsx";
 import { VincularAMesa } from "./VincularAMesa.tsx";
@@ -42,8 +45,20 @@ import { formatDuration } from "@l2/domain-park";
  */
 const SALA_VACIA = { serverNow: 0, capacityLimit: 1, shiftLabel: "", rateValue: null, rateSource: null, rateConfirmed: false, cards: [] };
 
-export function ParkMonitor() {
+export function ParkMonitor({
+  catalogo,
+  cumpleanos = [],
+  abrir = {},
+}: {
+  /** El catálogo, para las medias de la entrada (B4-9). */
+  catalogo?: CatalogoDto;
+  /** Los cumpleaños de hoy que reciben invitados (B10-2): la entrada los ofrece. */
+  cumpleanos?: readonly ReservaEventoDto[];
+  /** Lo que pide la dirección (los enlaces de `/entrada` y `/salida`, B4-12): abrir la entrada, o la salida de una pulsera. */
+  abrir?: Readonly<{ entrada?: boolean; salida?: string | null }>;
+} = {}) {
   const op = useOperacion();
+  const router = useRouter();
   const { sala, sinConexion, hora: lectura, refrescar } = useSala();
   // Un solo reloj para toda la sala (B4-13): la cifra, el estado de cada niño, las cuentas y el orden avanzan juntos.
   const ahora = useAhoraDeLaSala();
@@ -58,20 +73,41 @@ export function ParkMonitor() {
 
   const actor = useActorEnSesion();
   const puedeVincular = actor !== null && can(actor, "parque.vincularMesa") !== "DENEGADO";
+  const puedeCobrar = actor !== null && puedeAbrirRuta(actor, "/caja");
   const puedeCerrarHuerfanas = actor !== null && can(actor, "parque.cerrarHuerfana") === "PERMITIDO";
 
   const [poniendoNombre, setPoniendoNombre] = useState(false);
   const [vinculandoAMesa, setVinculandoAMesa] = useState(false);
 
-  // F5-10: pasar la pulsera abre el perfil del niño, desde cualquier pantalla
-  // del monitor y sin foco previo en un campo.
+  /**
+   * B4-12 (M-34): un solo lector para el parque. Una pulsera que está en la sala abre su ficha (F5-10); una nueva abre la
+   * entrada con ella. Mientras la entrada o la salida están abiertas, su lector es el que recibe.
+   */
+  const puedeEntrar = actor !== null && can(actor, "parque.checkIn") !== "DENEGADO";
+  const [entrada, setEntrada] = useState<PedidoDeEntrada | null>(abrir.entrada ? { codigo: null, n: 1 } : null);
+  const [salida, setSalida] = useState<readonly string[] | null>(abrir.salida ? [abrir.salida] : null);
+  const pedidos = useRef(1);
+  const abrirEntrada = (p: Omit<PedidoDeEntrada, "n">) => {
+    setSelected(null);
+    setEntrada({ ...p, n: ++pedidos.current });
+  };
   const handleScan = useCallback(
     (code: string) => {
       const match = model.cards.find((c) => c.wristbandCode === code);
-      setSelected(match ? match.id : null);
-      setScanError(match ? null : `La pulsera ${code} no está activa en sala`);
+      if (match) {
+        setSelected(match.id);
+        setScanError(null);
+        return;
+      }
+      setSelected(null);
+      if (!puedeEntrar) {
+        setScanError(`La pulsera ${code} no está activa en sala`);
+        return;
+      }
+      setScanError(null);
+      setEntrada({ codigo: code, n: ++pedidos.current });
     },
-    [model.cards],
+    [model.cards, puedeEntrar],
   );
 
   // La misma regla que usa el servidor: una sola definición (§9.7).
@@ -114,6 +150,11 @@ export function ParkMonitor() {
   /** El buscador de clientes (T-19). */
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
+  /** Los niños de su misma cuenta en la sala (con él): la «Salida de la familia» (B4-12). */
+  const hermanos = useMemo(() => {
+    const cuentaDe = sala?.sessions.find((s) => s.id === selected)?.accountId;
+    return cuentaDe ? (sala?.sessions.filter((s) => s.accountId === cuentaDe).map((s) => s.wristbandCode) ?? []) : [];
+  }, [sala, selected]);
   const cuentaFicha = ficha ? (cuentas.find((c) => c.id === ficha.accountId) ?? null) : null;
   const familiaRegistrada = ficha?.guardianName ?? null;
   const estanciaFicha = ficha ? (sala?.sessions.find((s) => s.id === ficha.id) ?? null) : null;
@@ -230,13 +271,47 @@ export function ParkMonitor() {
           <div data-recorrido="sala-lector" className="flex items-stretch gap-2">
             <ScannerField onScan={handleScan} validate={validarPulsera} className="min-w-0 flex-1" />
             <BotonCamara activa={camara} onCambiar={setCamara} />
+            {/* B4-8 (P-1): un niño que no tolera la pulsera entra sin ella, por su nombre. */}
+            {puedeEntrar && (
+              <Button data-recorrido="parque-sin-pulsera" surface="tablet" variant="neutral" className="shrink-0 gap-1.5" onClick={() => abrirEntrada({ codigo: null, sinPulsera: true })} aria-label="Entrada de un niño sin pulsera">
+                <HandHeart size={18} aria-hidden="true" />
+                <span className="max-md:sr-only">Sin pulsera</span>
+              </Button>
+            )}
             {/* T-19: ¿de quién es este niño, o dónde están los de esta familia? Por nombre, cédula o teléfono. */}
-            <Button type="button" surface="tablet" variant="neutral" className="shrink-0" onClick={() => setBuscandoCliente(true)} aria-label="Buscar cliente" title="Buscar cliente por nombre, cédula o teléfono">
+            <Button data-recorrido="sala-buscar" type="button" surface="tablet" variant="neutral" className="shrink-0" onClick={() => setBuscandoCliente(true)} aria-label="Buscar cliente" title="Buscar cliente por nombre, cédula o teléfono">
               <UserSearch size={18} aria-hidden="true" />
               <span className="max-md:sr-only">Buscar</span>
             </Button>
           </div>
           <BuscadorDeClientes abierto={buscandoCliente} onCerrar={() => setBuscandoCliente(false)} />
+          {/* B4-12: la entrada y la salida, en capas sobre la sala. */}
+          <EntradaEnCapa
+            abierto={entrada !== null}
+            pedido={entrada}
+            catalogo={catalogo}
+            desde="PARQUE"
+            cumpleanos={cumpleanos}
+            puedeCobrar={puedeCobrar}
+            onCerrar={() => setEntrada(null)}
+            onRegistrada={(cuenta, modo, n) => {
+              setEntrada(null);
+              void refrescar();
+              if (modo === "PREPAGO" && cuenta.status === "POR_COBRAR") {
+                // Prepago: el paquete se cobra ya. Quien cobra va a la caja y vuelve aquí (§9.10.9).
+                if (puedeCobrar) {
+                  router.push(`/caja?cuenta=${cuenta.id}&volver=/monitor` as Route);
+                  return;
+                }
+                avisar.ok(`Cuenta enviada a caja: ${cuenta.family}`, { detalle: `${n} ${n === 1 ? "niño" : "niños"}. Se cobra en la caja.` });
+                return;
+              }
+              avisar.ok(`${n === 1 ? "Entró 1 niño" : `Entraron ${n} niños`}: ${cuenta.family}`, { detalle: "Se cobra todo junto al salir." });
+            }}
+          />
+          <Sheet abierto={salida !== null} onCerrar={() => setSalida(null)} titulo="Salida del parque" descripcion="Pasa la pulsera de quien se va; quita de la lista a quien se queda." className="md:w-[min(64rem,100vw)]">
+            {salida && <CheckoutScreen key={salida.join(",")} pulserasIniciales={salida} alTerminar={() => setSalida(null)} />}
+          </Sheet>
           {camara && <LectorCamara onCerrar={() => setCamara(false)} className="mt-3 h-[30dvh] max-h-72 md:h-56" />}
           {scanError && (
             <p role="status" className="mt-2 text-[13px] text-state-warn">
@@ -380,12 +455,35 @@ export function ParkMonitor() {
                   )}
                 </div>
               ) : null}
-              <Link
-                href={`/salida?pulsera=${ficha.wristbandCode}` as Route}
-                className="flex min-h-14 w-full items-center justify-center rounded-[var(--radius-control)] bg-brand px-5 text-base font-semibold text-on-brand no-underline transition-colors hover:bg-brand-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand mt-2"
-              >
-                Registrar su salida
-              </Link>
+              {/* B4-12: la salida, aquí mismo. La de la familia trae a todos los de su cuenta, marcados. */}
+              <div className={cn("mt-2 grid gap-2", hermanos.length > 1 && "grid-cols-2")}>
+                <Button
+                  surface="pos"
+                  variant="primary"
+                  className="w-full"
+                  onClick={() => {
+                    setSelected(null);
+                    setSalida([ficha.wristbandCode]);
+                  }}
+                >
+                  <DoorOpen size={18} aria-hidden="true" />
+                  Dar salida
+                </Button>
+                {hermanos.length > 1 && (
+                  <Button
+                    surface="pos"
+                    variant="neutral"
+                    className="w-full"
+                    onClick={() => {
+                      setSelected(null);
+                      setSalida(hermanos);
+                    }}
+                  >
+                    <Users size={18} aria-hidden="true" />
+                    Toda la familia ({hermanos.length})
+                  </Button>
+                )}
+              </div>
             </div>
           )
         }

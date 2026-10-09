@@ -96,16 +96,18 @@ export const MANUAL: readonly EntradaDelManual[] = [
   },
   {
     id: "entrada",
-    ruta: "/entrada",
-    titulo: "Entrada al parque",
+    // B4-12: la entrada vive en «Parque», en una capa: esta entrada del manual se encuentra buscando.
+    ruta: "/monitor#entrada",
+    titulo: "Parque · la entrada",
     roles: OPERACION_PARQUE,
     proposito: "Registrar la llegada de los niños: su pulsera, su paquete de tiempo y quién los trae y a quién se llama.",
     pasos: [
-      "Pasa la pulsera de cada niño por el lector, o usa la cámara. Cada pulsera crea una fila.",
-      "Elige el paquete de tiempo de cada niño. El nombre es opcional y se puede poner después.",
+      "En «Parque», pasa la pulsera nueva por el lector (o la cámara): se abre la entrada con ella. Cada pulsera que pases después suma un niño.",
+      "Cada niño en su renglón: el nombre (opcional, se puede poner después), el paquete y si trae medias de seguridad. Las medias no vienen marcadas: hay que responder por cada niño; al lado dice cuántos pares quedan.",
       "Un niño que no tolera la pulsera entra con «Sin pulsera»: su nombre es obligatorio, porque es como se le reconoce.",
       "Escribe la cédula del representante (lo primero; el foco va a ella tras la primera pulsera): si ya vino, aparece solo, con sus niños, y no hay que escribir nada más. Si es nuevo, su teléfono y su nombre. La letra (V, E, J, G, P) se elige al lado; los puntos los pone el campo. El teléfono se entiende escrito como sea, también con +58.",
       "Un representante de antes, sin cédula, aparece por su teléfono y dice «escribe su cédula»: se le anota al registrar.",
+      "Si su familia ya tiene niños en la sala, sale marcado «Sumar a la familia …»: el que llega entra en esa cuenta, con su tiempo desde que entra, y sale con ella. Desmárcalo si va aparte.",
       "Elige cómo paga: ahora (prepago, no se devuelve si sale antes) o todo al salir (cuenta abierta, por lo que usó), y registra.",
     ],
     problemas: [
@@ -116,7 +118,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       },
       {
         sintoma: "«La pulsera ya está activa en sala»",
-        solucion: "Ese niño ya está dentro. Búscalo en la sala; si se fue sin registrar su salida, regístrala en Salida.",
+        solucion: "Ese niño ya está dentro. Cierra la entrada y pasa su pulsera: se abre su ficha; si se fue sin registrar su salida, «Dar salida».",
         reconoce: ["ya esta activa en sala"],
       },
       {
@@ -150,20 +152,20 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["ya no esta a la venta", "no hay tarifario"],
       },
     ],
-    recorrido: "entrada",
+    recorrido: "parque",
   },
   {
     id: "sala",
     ruta: "/monitor",
-    titulo: "Sala del parque",
+    titulo: "Parque",
     roles: OPERACION_PARQUE,
-    proposito: "Ver a cada niño con el tiempo que le queda, y atenderlo desde su ficha.",
+    proposito: "La sala, la entrada y la salida en una pantalla, con un solo lector: ver a cada niño con el tiempo que le queda y atenderlo.",
     pasos: [
+      "Un solo lector: pasa cualquier pulsera. Una nueva abre la entrada con ella; la de un niño en la sala abre su ficha. Si el lector no responde, la cámara o «Escribir».",
       "Cada tarjeta dice el tiempo: verde en tiempo, amarillo por vencer o en gracia, rojo con el tiempo cumplido (con lo que va de más).",
-      "Toca un niño, o pasa su pulsera por el lector, para abrir su ficha.",
       "En la ficha: recargar tiempo, pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa.",
-      "«Registrar su salida» lleva a la salida con ese niño.",
-      "«Buscar» (junto a la cámara): por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",
+      "«Dar salida» abre su salida aquí mismo; «Toda la familia» trae a todos los niños de su cuenta, marcados: quita de la lista a quien se queda.",
+      "«Sin pulsera» abre la entrada de un niño que no la tolera. «Buscar»: por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",
     ],
     problemas: [
       {
@@ -188,16 +190,17 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["sin conexion con el servidor desde"],
       },
     ],
-    recorrido: "sala",
+    recorrido: "parque",
   },
   {
     id: "salida",
-    ruta: "/salida",
-    titulo: "Salida del parque",
+    // B4-12: la salida vive en «Parque», en una capa: esta entrada del manual se encuentra buscando.
+    ruta: "/monitor#salida",
+    titulo: "Parque · la salida",
     roles: OPERACION_PARQUE,
     proposito: "Cerrar la visita de los niños: lo que usaron, el tiempo de más y dónde se paga.",
     pasos: [
-      "Pasa la pulsera de quien se va (o elige en «Sin pulsera» a un niño que entró sin ella). Si se va la familia entera, pasa todas seguidas.",
+      "En «Parque», pasa la pulsera de quien se va y, en su ficha, «Dar salida»; si se va la familia entera, «Toda la familia» (quita a quien se queda). Dentro de la salida, cada pulsera que pases se suma; un niño que entró sin pulsera se elige en «Sin pulsera».",
       "Revisa el desglose: en cuenta abierta, si salió antes, se cobra el paquete más barato que cubre lo que estuvo.",
       "Marca quién lo recoge: su representante u otra persona, con su nombre.",
       "Elige dónde se paga: en caja o cargado a una mesa (la cuenta de su familia en esa mesa), y registra. Una pulsera vinculada a una mesa sale a su mesa sin elegir: lo que debe y su tiempo de más van a esa cuenta.",
@@ -219,7 +222,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["incobrable"],
       },
     ],
-    recorrido: "salida",
+    recorrido: "parque",
   },
   {
     id: "caja",

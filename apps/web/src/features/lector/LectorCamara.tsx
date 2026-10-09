@@ -47,7 +47,8 @@ export function BotonCamara({ activa, onCambiar, className }: { activa: boolean;
       onClick={() => onCambiar(!activa)}
     >
       <Camera size={18} aria-hidden="true" />
-      {activa ? "Cámara abierta" : "Cámara"}
+      {/* En el teléfono, solo el icono: el lector necesita el ancho (B4-12). El nombre queda para el lector de pantalla. */}
+      <span className="max-md:sr-only">{activa ? "Cámara abierta" : "Cámara"}</span>
     </Button>
   );
 }

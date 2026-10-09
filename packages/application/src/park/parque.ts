@@ -323,26 +323,17 @@ export function casosParque(base: Base): CasosParque {
             ninos.push(k);
           }
 
+          // Sumar a la familia (B4-12): la cuenta abierta de este representante, con niños en la sala.
+          const sumada = cmd.sumarA ? await cuentaParaSumar(tx, ctx, cmd.sumarA, familia.id, carga !== null) : null;
+          if (sumada && "ok" in sumada) return sumada;
+
           const quien = await nombreDe(tx, ctx);
           const instante = new Date(ahora).toISOString();
-          const accountId = randomUUID();
+          const accountId = sumada ? sumada.cuenta.id : randomUUID();
           const sesiones = cmd.entries.map(() => randomUUID());
-          const orderNumber = await siguienteNumero(tx, ctx);
-          const status = cmd.paymentMode === "PREPAGO" ? "POR_COBRAR" : "ABIERTA";
-          const cuenta = FamilyAccountSchema.parse({
-            id: accountId,
-            kind: "FAMILIA",
-            version: 1,
-            family: familia.fullName,
-            mode: cmd.paymentMode,
-            status,
-            orderNumber,
-            openedAt: instante,
-            ...(status === "POR_COBRAR" ? { pendingSince: instante } : {}),
-            sessionIds: sesiones,
-            closedSessionIds: [],
-            // El precio es el del tarifario vigente, no el que enseñaba la pantalla.
-            lines: [
+          const orderNumber = sumada?.cuenta.orderNumber ?? (await siguienteNumero(tx, ctx));
+          // El precio es el del tarifario vigente, no el que enseñaba la pantalla.
+          const lineasNuevas = [
               ...cmd.entries.map((_, i) => ({
               id: `paq-${sesiones[i]}`,
               concept: `Paquete ${paquetes[i]!.name} · ${codigos[i]}`.slice(0, 80),
@@ -363,12 +354,46 @@ export function casosParque(base: Base): CasosParque {
                     taxCode: medias!.taxCode,
                   }))
                 : []),
-            ],
-          });
+            ];
+          let cuenta: FamilyAccountDto;
+          if (sumada) {
+            // Como una recarga: en prepago, lo nuevo vuelve a la caja; en cuenta abierta, se cobra todo al salir.
+            const antes = sumada.cuenta;
+            const status = antes.mode === "PREPAGO" || antes.status === "POR_COBRAR" ? "POR_COBRAR" : "ABIERTA";
+            const { pendingSince: _, ...sinEspera } = antes;
+            cuenta = FamilyAccountSchema.parse({
+              ...sinEspera,
+              version: sumada.version + 1,
+              status,
+              ...(status === "POR_COBRAR" ? { pendingSince: antes.status === "POR_COBRAR" ? (antes.pendingSince ?? instante) : instante } : {}),
+              sessionIds: [...antes.sessionIds, ...sesiones],
+              lines: [...antes.lines, ...lineasNuevas],
+            });
+          } else {
+            const status = cmd.paymentMode === "PREPAGO" ? "POR_COBRAR" : "ABIERTA";
+            cuenta = FamilyAccountSchema.parse({
+              id: accountId,
+              kind: "FAMILIA",
+              version: 1,
+              family: familia.fullName,
+              mode: cmd.paymentMode,
+              status,
+              orderNumber,
+              openedAt: instante,
+              ...(status === "POR_COBRAR" ? { pendingSince: instante } : {}),
+              sessionIds: sesiones,
+              closedSessionIds: [],
+              lines: lineasNuevas,
+            });
+          }
           // Lo que entra en la cuenta sale del estante (ADR-023): sin medias que dar, la entrada no se registra.
-          const existencias = await comprobarExistencias(tx, ctx, null, null, cuenta.lines, () => ["entries", sinMedias[0] ?? 0, "sinMedias"]);
+          const existencias = await comprobarExistencias(tx, ctx, sumada ? accountId : null, sumada ? sumada.cuenta.lines : null, cuenta.lines, () => [
+            "entries",
+            sinMedias[0] ?? 0,
+            "sinMedias",
+          ]);
           if ("ok" in existencias) return existencias;
-          await tx.account.create({
+          if (!sumada) await tx.account.create({
             data: {
               id: accountId,
               tenantId: ctx.tenantId,
@@ -382,7 +407,7 @@ export function casosParque(base: Base): CasosParque {
             },
           });
           await guardarVersion(tx, ctx, cuenta, { cause: "ENTRADA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
-          await asentarExistencias(tx, ctx, existencias, { accountId, version: 1, ahora, quien: quien.nombre });
+          await asentarExistencias(tx, ctx, existencias, { accountId, version: sumada ? sumada.version + 1 : 1, ahora, quien: quien.nombre });
           const terms: ParkTermsDto = ParkTermsSchema.parse(vigente.tarifario.policy);
           await tx.parkSession.createMany({
             data: cmd.entries.map((_, i) => ({
@@ -416,7 +441,8 @@ export function casosParque(base: Base): CasosParque {
             entityId: accountId,
             after: {
               orderNumber,
-              modo: cmd.paymentMode,
+              modo: cuenta.mode,
+              ...(sumada ? { sumadaALaFamilia: true } : {}),
               ninos: cmd.entries.length,
               pulseras: codigos,
               ...(generados.length > 0 ? { sinPulsera: generados } : {}),
@@ -1339,6 +1365,30 @@ function liquidacionDe(f: FilaDeEstancia, hasta: number, porUso: PaqueteDeUso | 
 }
 
 /** Lo que dejó una entrada: sus estancias y la cuenta de la familia como está ahora. */
+/**
+ * La cuenta a la que se suma una entrada (B4-12): de una familia (no un cumpleaños), de este representante, con algún
+ * niño todavía en la sala y que no se dio por perdida. Desde papel no se suma: lo anotado entra como se anotó.
+ */
+async function cuentaParaSumar(
+  tx: Transaccion,
+  ctx: Contexto,
+  accountId: string,
+  guardianId: string,
+  desdePapel: boolean,
+): Promise<Readonly<{ cuenta: FamilyAccountDto; version: number }> | Rechazo> {
+  const noSeSuma = (mensaje: string): Rechazo => ({ ok: false, motivo: "CONFLICTO", mensaje, problemas: [{ path: ["sumarA"], message: "NO_SE_SUMA" }] });
+  if (desdePapel) return noSeSuma("Lo cargado desde papel entra como se anotó: no se suma a otra cuenta.");
+  const fila = await tx.account.findUnique({ where: { id: accountId }, select: { branchId: true, kind: true } });
+  if (!fila || fila.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa cuenta no está en esta sucursal." };
+  if (fila.kind !== "FAMILIA") return noSeSuma("Solo se suma a la cuenta de una familia del parque.");
+  const vigente = (await vigenteDe(tx, accountId))!;
+  if (vigente.cuenta.status === "INCOBRABLE") return noSeSuma("Esa cuenta se dio por incobrable: abre una nueva.");
+  const enSala = await tx.parkSession.findMany({ where: { accountId, status: "ACTIVA" }, select: { guardianId: true } });
+  if (enSala.length === 0) return noSeSuma("Esa familia ya no tiene niños en la sala: entra con una cuenta nueva.");
+  if (enSala.some((s) => s.guardianId !== guardianId)) return noSeSuma("Esa cuenta es de otro representante.");
+  return { cuenta: vigente.cuenta, version: vigente.version };
+}
+
 export async function entradaHecha(tx: Transaccion, clave: string, accountId: string): Promise<CheckInResult> {
   const filas = await estancias(tx, { where: { checkInKey: clave }, orderBy: { wristbandCode: "asc" } });
   const cuenta: FamilyAccountDto = (await vigenteDe(tx, accountId))!.cuenta;

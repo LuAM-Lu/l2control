@@ -35,7 +35,7 @@ export const SUPERFICIE_DE_RUTA: Readonly<Record<string, SurfaceId>> = {
 };
 
 const NOMBRE_SUPERFICIE: Readonly<Partial<Record<SurfaceId, string>>> = {
-  monitor: "la sala del parque",
+  monitor: "el parque",
   entrada: "la entrada del parque",
   salida: "la salida del parque",
   caja: "la caja",
