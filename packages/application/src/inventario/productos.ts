@@ -47,6 +47,7 @@ import {
   type StockValue,
 } from "@l2/domain-inventory";
 import { errorDeBase, type Base, type Product, type ProductPrice, type Transaccion } from "@l2/database";
+import { areaDe, type AreaDeProducto } from "@l2/domain-orders";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo, type AccionAuditada, type Asiento } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
@@ -145,6 +146,8 @@ export async function cargarCatalogo(tx: Transaccion, branchId: string): Promise
         activo: p.active,
         retirado: retirados.has(p.id),
         enCarta: p.onMenu,
+        area: areaDe(p.kind as ProductKind, p.prepArea as AreaDeProducto | null),
+        areaDeSuTipo: p.prepArea === null,
         precios: tramosDe(precios.filter((x) => x.productId === p.id)),
         existencia: p.tracksStock ? (existencias.get(p.id)?.quantity ?? 0) : null,
         costoPromedio: costoDe(p.tracksStock ? existencias.get(p.id) : undefined),
@@ -279,6 +282,9 @@ export function casosProductos(base: Base): CasosProductos {
               case "EN_CARTA":
                 suelto = { kind: "EN_CARTA", productId: id, enCarta: cambio.enCarta };
                 break;
+              case "AREA":
+                suelto = { kind: "AREA", productId: id, area: cambio.area };
+                break;
               case "PRECIO": {
                 const rige = periodAt(calendario, id, desde);
                 if (!rige) throw new Deshacer(invalido(`${p.name} no tiene precio ese día.`, ["productIds", i], "Sin precio"));
@@ -383,13 +389,15 @@ function accionDe(cmd: ProductoCommand): AccionAuditada {
       return cmd.activo ? "producto.activar" : "producto.apartar";
     case "EN_CARTA":
       return "producto.carta";
+    case "AREA":
+      return "producto.editar";
     case "PROGRAMAR_PRECIO":
       return "precio.programar";
   }
 }
 
 /** Lo que dice la auditoría de un producto: sin identificadores de la base, legible. */
-const fotoDe = (p: Pick<Product, "name" | "category" | "taxCode" | "kind" | "sku" | "barcode" | "presentation" | "active">) => ({
+const fotoDe = (p: Pick<Product, "name" | "category" | "taxCode" | "kind" | "sku" | "barcode" | "presentation" | "active" | "prepArea">) => ({
   nombre: p.name,
   sku: p.sku,
   categoria: p.category,
@@ -398,6 +406,7 @@ const fotoDe = (p: Pick<Product, "name" | "category" | "taxCode" | "kind" | "sku
   codigoBarras: p.barcode,
   presentacion: p.presentation,
   activo: p.active,
+  area: areaDe(p.kind as ProductKind, p.prepArea as AreaDeProducto | null),
 });
 
 const MENSAJE_CODIGO: Record<BarcodeProblem, string> = {
@@ -418,6 +427,8 @@ export type ProductoAlta = Readonly<{
   enCarta?: boolean | undefined;
   /** Su stock mínimo desde el alta (B9-7), solo en lo que se cuenta. Sin decirlo, sin mínimo. */
   minimo?: number | undefined;
+  /** En qué comanda sale (B6-10). Sin decirlo, la de su tipo. */
+  area?: AreaDeProducto | undefined;
 }>;
 
 /**
@@ -474,6 +485,8 @@ export async function crearProductoEn(
       barcode: p.codigoBarras ?? null,
       presentation: p.presentacion ?? null,
       minStock: p.minimo ?? null,
+      // Solo si se eligió otra que la de su tipo (B6-10): sin elegir, la de su tipo.
+      prepArea: p.area !== undefined && p.area !== areaDe(p.tipo, null) ? p.area : null,
       active: true,
       onMenu: p.enCarta ?? p.tipo !== "SERVICIO",
       createdAt: new Date(ahora),
@@ -536,6 +549,8 @@ async function guardar(
         tracksStock: kindTracksStock(cmd.tipo),
         barcode: cmd.codigoBarras,
         presentation: cmd.presentacion,
+        // El área (B6-10): la elegida, o ninguna si es la de su tipo. Sin decirla, la que tenía.
+        prepArea: cmd.area === undefined ? antes.prepArea : cmd.area === areaDe(cmd.tipo, null) ? null : cmd.area,
       };
       if (
         antes.name === datos.name &&
@@ -543,7 +558,8 @@ async function guardar(
         antes.taxCode === datos.taxCode &&
         antes.kind === datos.kind &&
         antes.barcode === datos.barcode &&
-        antes.presentation === datos.presentation
+        antes.presentation === datos.presentation &&
+        antes.prepArea === datos.prepArea
       ) {
         return invalido("No cambia nada.", ["nombre"], "El producto ya está así");
       }
@@ -576,6 +592,24 @@ async function guardar(
       if (antes.onMenu === cmd.enCarta) return { cambio: null };
       const fila = await tx.product.update({ where: { id: cmd.productId }, data: { onMenu: cmd.enCarta } });
       return { cambio: { action, entityType: "product", entityId: fila.id, before: { nombre: antes.name, enCarta: antes.onMenu }, after: { nombre: fila.name, enCarta: fila.onMenu } } };
+    }
+    case "AREA": {
+      const antes = await tx.product.findUnique({ where: { id: cmd.productId } });
+      if (!antes) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese producto no existe en este local." };
+      const kind = antes.kind as ProductKind;
+      // La de su tipo se guarda como «sin elegir»: si el tipo cambia, el área lo sigue.
+      const prepArea = cmd.area === areaDe(kind, null) ? null : cmd.area;
+      if (antes.prepArea === prepArea) return { cambio: null };
+      const fila = await tx.product.update({ where: { id: cmd.productId }, data: { prepArea } });
+      return {
+        cambio: {
+          action,
+          entityType: "product",
+          entityId: fila.id,
+          before: { nombre: antes.name, area: areaDe(kind, antes.prepArea as AreaDeProducto | null) },
+          after: { nombre: fila.name, area: cmd.area },
+        },
+      };
     }
     case "PROGRAMAR_PRECIO": {
       const producto = await tx.product.findUnique({ where: { id: cmd.productId } });

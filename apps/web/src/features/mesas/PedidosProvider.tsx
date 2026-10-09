@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import type { EnviarPedidoCommand, PedidoDto, PedidoEnviadoDto, Rechazo, Resultado } from "@l2/contracts";
+import type { AreaDeComandaDto, EnviarPedidoCommand, PedidoDto, PedidoEnviadoDto, Rechazo, Resultado } from "@l2/contracts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { enviarPedido, leerPedidos, reimprimirComanda, servirPedido } from "./pedidos.acciones";
@@ -21,7 +21,8 @@ type Valor = Readonly<{
   pedidos: readonly PedidoDto[];
   /** Envía un pedido y adopta la cuenta de la mesa como quedó. Nunca lanza por un rechazo: lo devuelve. */
   enviar: (cmd: EnviarPedidoCommand) => Promise<Resultado<PedidoEnviadoDto>>;
-  reimprimir: (pedidoId: string) => Promise<Resultado<PedidoDto>>;
+  /** La comanda de un área (B6-10); sin ella, la única que tenga. */
+  reimprimir: (pedidoId: string, area?: AreaDeComandaDto | null) => Promise<Resultado<PedidoDto>>;
   /** Marca un pedido servido en la mesa (B6-8): termina su espera. */
   servir: (pedidoId: string) => Promise<Resultado<PedidoDto>>;
 }>;
@@ -34,7 +35,7 @@ const conPedido = (lista: readonly PedidoDto[], p: PedidoDto) =>
 export function PedidosProvider({ inicial, children }: { inicial: readonly PedidoDto[]; children: React.ReactNode }) {
   const [pedidos, setPedidos] = useState<readonly PedidoDto[]>(inicial);
   const { adoptar } = useCuentas();
-  const huella = JSON.stringify(inicial.map((p) => [p.id, p.comanda.estado, p.comanda.reimpresiones, p.servido?.en ?? null]));
+  const huella = JSON.stringify(inicial.map((p) => [p.id, p.comanda.estado, p.comanda.reimpresiones, p.comandas.map((c) => c.estado).join(), p.servido?.en ?? null]));
   useEffect(() => {
     setPedidos(inicial);
   }, [huella]);
@@ -57,8 +58,8 @@ export function PedidosProvider({ inicial, children }: { inicial: readonly Pedid
     [adoptar],
   );
 
-  const reimprimir = useCallback(async (pedidoId: string) => {
-    const r = await reimprimirComanda({ pedidoId }).catch((): Rechazo => ({ ...sinConexion, mensaje: "Sin conexión con el servidor: la comanda no se reimprimió." }));
+  const reimprimir = useCallback(async (pedidoId: string, area?: AreaDeComandaDto | null) => {
+    const r = await reimprimirComanda({ pedidoId, ...(area ? { area } : {}) }).catch((): Rechazo => ({ ...sinConexion, mensaje: "Sin conexión con el servidor: la comanda no se reimprimió." }));
     if (r.ok) setPedidos((l) => conPedido(l, r.valor));
     return r;
   }, []);

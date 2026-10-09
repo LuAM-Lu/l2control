@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { TriangleAlert } from "lucide-react";
-import type { CatalogoDto, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
+import type { AreaDeProductoDto, CatalogoDto, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
 import { barcodeProblem, nameKey, nombresConSabores, normalizeBarcode } from "@l2/domain-inventory";
 import { Button, Input, Sheet, TAMANO_ICONO, avisar, cn, useLectorDeCodigos } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
@@ -25,6 +25,8 @@ export type Plantilla = Readonly<{
   precioMinor: string | null;
   minimo: number | null;
   enCarta: boolean;
+  /** En qué comanda sale (B6-10); `null`, la de su tipo. */
+  area: AreaDeProductoDto | null;
 }>;
 
 /** La ficha de un producto como plantilla de sus copias, con el precio que rige ahora. */
@@ -38,6 +40,7 @@ export function plantillaDe(p: ProductoDto, precioMinor: bigint | null): Plantil
     precioMinor: precioMinor === null ? null : String(precioMinor),
     minimo: p.minimo,
     enCarta: p.enCarta,
+    area: p.areaDeSuTipo ? null : p.area,
   };
 }
 
@@ -53,6 +56,7 @@ export function productoDeCopia(t: Plantilla, nombre: string, codigo: string | n
     ...(t.tipo === "PRODUCTO" && codigo ? { codigoBarras: codigo } : {}),
     ...(t.tipo === "PRODUCTO" && t.minimo !== null ? { minimo: t.minimo } : {}),
     enCarta: t.enCarta,
+    ...(t.area ? { area: t.area } : {}),
   };
 }
 

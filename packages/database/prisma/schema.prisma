@@ -914,6 +914,9 @@ model Product {
   active        Boolean
   /// Si el mesero lo ofrece en las mesas (B6-1): la carta del restaurante es el catálogo con esta marca.
   onMenu        Boolean  @default(true) @map("on_menu")
+  /// COCINA, BARRA o SIN_PAPEL (CHECK, B6-10): en qué comanda sale. Nulo = la de su tipo (preparado, cocina; producto, barra;
+  /// servicio, sin papel).
+  prepArea      String?  @map("prep_area")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   createdBy     String?  @map("created_by") @db.Uuid
   createdByName String   @map("created_by_name")
@@ -1786,7 +1789,10 @@ model Printer {
   /// 58 u 80 mm (CHECK).
   width         Int       @db.SmallInt
   forReceipts   Boolean   @map("for_receipts")
+  /// Las comandas de cocina (B6-10: antes, todas).
   forOrders     Boolean   @map("for_orders")
+  /// Las comandas de barra (B6-10). La migración la encendió donde ya imprimía las comandas.
+  forBarOrders  Boolean   @default(false) @map("for_bar_orders")
   inHardwareLan Boolean   @map("in_hardware_lan")
   fixedIp       Boolean   @map("fixed_ip")
   active        Boolean
@@ -1878,6 +1884,8 @@ model PrintJob {
   discardedByName String?   @map("discarded_by_name")
   /// El pedido del mesero que imprime una COMANDA (B6-2): toda comanda lleva el suyo (CHECK).
   orderId         String?   @map("order_id") @db.Uuid
+  /// COCINA o BARRA (CHECK, B6-10): de qué área es una COMANDA o su ANULACION. Nula en las de antes: una sola con todo.
+  area            String?
 
   branch  Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   printer Printer       @relation(fields: [tenantId, branchId, printerId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)

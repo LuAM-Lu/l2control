@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+La comanda de cocina y la de barra (B6-10, M-34).
+
+### Añadido
+- **Un papel por área:** el pedido saca la comanda de cocina y la de barra, rotuladas («COCINA», «BARRA»), con el mismo
+  número y «1 de 2». Cada una se sigue, se reimprime y se anula por separado; la tablet ve el estado de cada una.
+- **Dónde se prepara cada producto:** Cocina, Barra o Sin papel, en la ficha, el alta, «Alta en lote», «Editar en lote»
+  y la carta. Sin elegir, lo preparado va a cocina, lo de nevera a barra y un servicio sin papel.
+- **Las impresoras por área:** cada una marca si imprime recibos, comandas de cocina o de barra. La que ya imprimía las
+  comandas imprime las dos áreas hasta que se reparta.
+
 El cliente por su cédula, en todo, y el buscador (T-19, M-34).
 
 ### Cambiado

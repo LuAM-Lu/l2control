@@ -2535,7 +2535,8 @@ antes del cobro en servidor (orden de ejecución).
   nueva; la cola la encuentra por la cédula; «Factura a» propone su cédula y su nombre; elegir otra cuenta y
   «Descartar la venta». A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas: el formulario y la pregunta sin
   desplazar ni cortar y sin errores de consola.*
-- [ ] **B6-10 · Comanda de barra y de cocina** (M-34, S-5).
+- [x] **B6-10 · Comanda de barra y de cocina** (M-34, S-5).
+  *Hecho el 2026-10-09, en `feat/b6-10`.*
   → **El área de cada producto:** Cocina o Barra si es preparado (de fábrica, Cocina); Barra de fábrica si es de nevera;
   o «Sin papel». Se pone en la carta, en la ficha, en «Alta en lote» y en «Editar en lote».
   → **Un papel por área.** El pedido saca la comanda de cocina y la de barra, cada una rotulada («COCINA», «BARRA») con
@@ -2546,6 +2547,16 @@ antes del cobro en servidor (orden de ejecución).
   reparten sin programar.
   → **Base (solo expande).** El área del producto y las marcas de la impresora (la marca de comandas de hoy vale para las
   dos áreas); cada trabajo dice su área.
+  *· Hecho: migración `20261122000000_comanda_por_area` (solo expande): `product.prep_area` (nula = la de su tipo),
+  `printer.for_bar_orders` (una sola activa) y `print_job.area`; `20261122000001_barra_donde_ya_imprimia` la enciende donde ya
+  imprimía las comandas (con la RLS suspendida solo mientras rellena, como `punto_de_cobro`, y sin tocar las retiradas). En
+  `@l2/domain-orders`, `areaDe`, `partesDelPedido` y `estadoDelPedido`; `restaurante/comandas.ts` reparte cada pedido por
+  área (el área de cada plato queda guardada en el pedido). Enviar exige la impresora de cada área que lleva papel;
+  reimprimir es por área (con dos, se dice cuál); la anulación saca un «ANULAR» por área. `PedidoDto.comandas` y
+  `anulaciones`, con `comanda` como el estado del pedido entero (`SIN_PAPEL` si no lleva). El área se elige en la ficha,
+  el alta, «Alta en lote», «Editar en lote» y la carta; la semilla la lleva. Un pedido de antes sigue siendo un solo papel
+  con todo, en la de cocina. Lo que no: la caja no tiene vista propia de las comandas; las ve en Mesas e Inicio, como
+  antes. 4 pruebas del dominio y 6 contra la base.*
 - [ ] **B6-11 · Servido por plato** (M-34, S-9; cambia en parte ADR-030).
   → En la tablet, cada plato de un pedido se marca servido, o «Servir todo» lo que falte; se puede deshacer en el
   momento. El pedido cuenta como servido cuando lo está su último plato. La atención en el salón (B6-8) mide la espera por

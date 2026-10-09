@@ -192,13 +192,27 @@ export type Encargo = Readonly<{
   documento: Documento;
   /** Los bytes, si no salen del documento (la prueba de acentos, B5-4): el documento queda como vista previa. */
   bytes?: Uint8Array;
+  /** De qué área es una COMANDA o su ANULACION (B6-10). */
+  area?: "COCINA" | "BARRA";
 }> &
-  (Readonly<{ para: "recibos" | "comandas" }> | Readonly<{ impresoraId: string }>);
+  (Readonly<{ para: Oficio }> | Readonly<{ impresoraId: string }>);
 
-const SIN_IMPRESORA: Record<"recibos" | "comandas", string> = {
+/** Para qué sirve una impresora (B6-10): «comandas» es la de cocina; «barra», la de barra. */
+export type Oficio = "recibos" | "comandas" | "barra";
+
+const SIN_IMPRESORA: Record<Oficio, string> = {
   recibos: "No hay impresora de recibos encendida: configúrala en Ajustes → Impresoras.",
-  comandas: "No hay impresora de comandas encendida: configúrala en Ajustes → Impresoras.",
+  comandas: "No hay impresora de comandas de cocina encendida: configúrala en Ajustes → Impresoras.",
+  barra: "No hay impresora de comandas de barra encendida: configúrala en Ajustes → Impresoras.",
 };
+
+/** La marca de la impresora de cada oficio. */
+export const MARCA_DE: Record<Oficio, "forReceipts" | "forOrders" | "forBarOrders"> = { recibos: "forReceipts", comandas: "forOrders", barra: "forBarOrders" };
+
+/** La impresora encendida de un oficio en la sucursal, o `null`. */
+export function impresoraDe(tx: Transaccion, branchId: string, oficio: Oficio) {
+  return tx.printer.findFirst({ where: { branchId, active: true, [MARCA_DE[oficio]]: true }, select: { id: true, name: true } });
+}
 
 /**
  * Pone un trabajo en la cola, dentro de la transacción de quien lo pide: si lo que pidió imprimir no
@@ -207,7 +221,7 @@ const SIN_IMPRESORA: Record<"recibos" | "comandas", string> = {
 export async function encolarEn(tx: Transaccion, ctx: Contexto, e: Encargo, ahora: number): Promise<TrabajoDeImpresionDto | Rechazo> {
   const impresora =
     "para" in e
-      ? await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, ...(e.para === "recibos" ? { forReceipts: true } : { forOrders: true }) } })
+      ? await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, [MARCA_DE[e.para]]: true } })
       : await tx.printer.findFirst({ where: { id: e.impresoraId, branchId: ctx.branchId, retiredAt: null } });
   if (!impresora) return noDisponible("para" in e ? SIN_IMPRESORA[e.para] : "Esa impresora no existe en esta sucursal.");
   const quien = await nombreDe(tx, ctx);
@@ -222,6 +236,7 @@ export async function encolarEn(tx: Transaccion, ctx: Contexto, e: Encargo, ahor
       saleId: e.saleId ?? null,
       cutId: e.cutId ?? null,
       orderId: e.orderId ?? null,
+      area: e.area ?? null,
       content: e.documento as object,
       // Con la página de códigos y la tinta de su impresora (B5-4).
       payload: Buffer.from(e.bytes ?? escpos(e.documento, impresora.width as Ancho, { pagina: impresora.codePage as PaginaDeCodigos, oscura: impresora.dark })),
@@ -268,6 +283,7 @@ async function delLocal(tx: Transaccion, branchId: string, ahora: number): Promi
         oscura: i.dark,
         recibos: i.forReceipts,
         comandas: i.forOrders,
+        barra: i.forBarOrders,
         enVlanDeHardware: i.inHardwareLan,
         ipFija: i.fixedIp,
         activa: i.active,
@@ -341,6 +357,7 @@ export function casosImpresion(base: Base): CasosImpresion {
                 width: d.ancho,
                 forReceipts: d.recibos,
                 forOrders: d.comandas,
+                forBarOrders: d.barra,
                 inHardwareLan: usb ? false : d.enVlanDeHardware,
                 fixedIp: usb ? false : d.ipFija,
               };
@@ -370,6 +387,7 @@ export function casosImpresion(base: Base): CasosImpresion {
                     width: antes.width,
                     forReceipts: antes.forReceipts,
                     forOrders: antes.forOrders,
+                    forBarOrders: antes.forBarOrders,
                   },
                   after: datos,
                 });
@@ -384,9 +402,18 @@ export function casosImpresion(base: Base): CasosImpresion {
               }
               if (cmd.activa) {
                 const otra = await tx.printer.findFirst({
-                  where: { branchId: ctx.branchId, active: true, id: { not: i.id }, OR: [...(i.forReceipts ? [{ forReceipts: true }] : []), ...(i.forOrders ? [{ forOrders: true }] : [])] },
+                  where: {
+                    branchId: ctx.branchId,
+                    active: true,
+                    id: { not: i.id },
+                    OR: [...(i.forReceipts ? [{ forReceipts: true }] : []), ...(i.forOrders ? [{ forOrders: true }] : []), ...(i.forBarOrders ? [{ forBarOrders: true }] : [])],
+                  },
                 });
-                if (otra) return { ok: false, motivo: "CONFLICTO", mensaje: `«${otra.name}» ya imprime ${i.forReceipts && otra.forReceipts ? "los recibos" : "las comandas"}: apágala primero.` };
+                if (otra) {
+                  const que =
+                    i.forReceipts && otra.forReceipts ? "los recibos" : i.forOrders && otra.forOrders ? "las comandas de cocina" : "las comandas de barra";
+                  return { ok: false, motivo: "CONFLICTO", mensaje: `«${otra.name}» ya imprime ${que}: apágala primero o quítale esa marca.` };
+                }
               }
               if (i.active === cmd.activa) break;
               await tx.printer.update({ where: { id: i.id }, data: { active: cmd.activa } });
