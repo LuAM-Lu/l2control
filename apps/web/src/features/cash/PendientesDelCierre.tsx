@@ -144,7 +144,7 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
                       <span className="text-ink-3"> · {s.guardianName} · desde {hora(s.startedAt)}</span>
                     </span>
                     <Link
-                      href={`/salida?pulsera=${encodeURIComponent(s.wristbandCode)}` as Route}
+                      href={`/monitor?salida=${encodeURIComponent(s.wristbandCode)}` as Route}
                       className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] border border-line px-3 text-[13px] font-semibold text-ink hover:border-line-strong"
                     >
                       Registrar la salida

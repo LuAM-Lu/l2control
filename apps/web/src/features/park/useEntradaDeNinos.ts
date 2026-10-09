@@ -26,7 +26,7 @@ import { useTarifario } from "./TarifarioProvider";
 /**
  * La lógica de la entrada al parque — F5-02 a F5-04, B4-2, B3-9 (M-31).
  *
- * La comparten Entrada (`CheckInScreen`) y la entrada desde la caja (`EntradaDesdeCaja`): las pulseras que crean cada
+ * La usa la entrada en capa (`EntradaEnCapa`), la del parque y la de la caja (B4-12): las pulseras que crean cada
  * fila, el niño sin pulsera, el paquete más común ya elegido, las medias de quien no las trae, el representante
  * buscado por su cédula (T-19) o, si no la tenía, por su teléfono, y el registro en el servidor, que pone el precio del tarifario, comprueba el aforo y las
  * pulseras con lo que hay en sala y abre la cuenta de la familia. Lo que se calcula aquí (total, aforo) es un anticipo
@@ -42,8 +42,11 @@ export type Entrada = {
   packageId: string;
   /** Opcional (DEC-28): vacío, el niño entra solo con su pulsera. Sin pulsera, obligatorio. */
   nombre: string;
-  /** Si trae sus medias (B4-9, P-6). Sin ellas, el par va a la cuenta de la familia. */
-  traeMedias: boolean;
+  /**
+   * Si trae sus medias de seguridad (B4-9, P-6). Sin ellas, el par va a la cuenta de la familia. `null`: sin responder
+   * todavía (B4-12, M-34): no hay respuesta de fábrica, y la entrada no se registra hasta responder por cada niño.
+   */
+  traeMedias: boolean | null;
 };
 
 /** Un nombre como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
@@ -139,6 +142,21 @@ export function useEntradaDeNinos({
   /** A la familia de antes, sin cédula, se le pide y se le anota al registrar. */
   const faltaSuCedula = encontrado !== null && !encontrado.tieneCedula && !cedulaValida;
 
+  /**
+   * Su familia en la sala (B4-12, M-34): si el representante encontrado tiene niños dentro, el que llega después se suma
+   * a esa cuenta, con su propio tiempo desde que entra, y sale con ella. Se ofrece marcado; se puede desmarcar.
+   */
+  const { cuentas } = useCuentas();
+  const familiaEnSala = useMemo(() => {
+    if (!encontrado) return null;
+    const suyas = sala?.sessions.filter((s) => s.guardianId === encontrado.id) ?? [];
+    const cuenta = cuentas.find((c) => c.kind === "FAMILIA" && suyas.some((s) => s.accountId === c.id));
+    if (!cuenta) return null;
+    return { accountId: cuenta.id, familia: cuenta.family, mode: cuenta.mode, ninos: suyas.filter((s) => s.accountId === cuenta.id).length };
+  }, [encontrado, sala, cuentas]);
+  const [sumar, setSumar] = useState(true);
+  const sumarA = familiaEnSala && sumar ? familiaEnSala.accountId : null;
+
   /* ------------------------------------------------------------ escaneo */
 
   /** Suma la fila de una pulsera leída o tecleada. Devuelve si la sumó (si no, el aviso dice por qué). */
@@ -167,7 +185,7 @@ export function useEntradaDeNinos({
       }
 
       const uid = NUEVO_UID();
-      setEntradas((prev) => [...prev, { uid, wristbandCode: limpio, sinPulsera: false, packageId: defaultPackageId, nombre: "", traeMedias: true }]);
+      setEntradas((prev) => [...prev, { uid, wristbandCode: limpio, sinPulsera: false, packageId: defaultPackageId, nombre: "", traeMedias: null }]);
       setAviso(null);
       // V-1: el servidor dice ya si la pulsera se usó en otra visita o no es de la serie; la fila
       // se quita en vez de descubrirlo al registrar. Sin respuesta, lo comprueba la entrada.
@@ -195,9 +213,10 @@ export function useEntradaDeNinos({
       return null;
     }
     const uid = NUEVO_UID();
-    setEntradas((prev) => [...prev, { uid, wristbandCode: "", sinPulsera: true, packageId: defaultPackageId, nombre: "", traeMedias: true }]);
+    setEntradas((prev) => [...prev, { uid, wristbandCode: "", sinPulsera: true, packageId: defaultPackageId, nombre: "", traeMedias: null }]);
     setAviso(null);
-    queueMicrotask(() => document.getElementById(`nombre-${uid}`)?.focus());
+    // Cuando su fila ya está pintada (en una capa recién abierta, después de que la capa toma el foco).
+    window.setTimeout(() => document.getElementById(`nombre-${uid}`)?.focus(), 80);
     return uid;
   }
 
@@ -215,25 +234,29 @@ export function useEntradaDeNinos({
       return p ? toMoney(p.price) : zero("USD");
     });
     // Las medias de quien no las trae también se cobran (B4-9).
-    const deMedias = medias ? entradas.filter((e) => !e.traeMedias).map(() => medias.precio) : [];
+    const deMedias = medias ? entradas.filter((e) => e.traeMedias === false).map(() => medias.precio) : [];
     return sum([...precios, ...deMedias], "USD");
   }, [entradas, tarifario.packages, medias]);
   /** Cuántos pares hacen falta y si quedan: sin existencia, el servidor no registra la entrada (ADR-023). */
-  const paresQueFaltan = entradas.filter((e) => !e.traeMedias).length;
+  const paresQueFaltan = entradas.filter((e) => e.traeMedias === false).length;
+  /** Niños sin responder si traen medias (B4-12): con producto de medias elegido, hay que responder por cada uno. */
+  const mediasSinResponder = medias ? entradas.filter((e) => e.traeMedias === null).length : 0;
   const sinMediasQueDar = medias !== null && medias.existencia !== null && paresQueFaltan > medias.existencia;
 
   /* ------------------------------------------------------------- envío */
 
   const telefonoValido = GuardianSchema.shape.contactReference.safeParse(telefono).success;
   const representanteListo = encontrado ? !faltaSuCedula : esNuevo && cedulaValida && telefonoValido && nombreNuevo.trim().length >= 2;
-  const puedeEnviar = entradas.length > 0 && representanteListo && !capacidad.isFull && !enviando;
+  const puedeEnviar = entradas.length > 0 && representanteListo && mediasSinResponder === 0 && !capacidad.isFull && !enviando;
   /** §8.7: el motivo por el que el botón está deshabilitado se dice, no se deja adivinar. */
   const porQueNo =
     puedeEnviar || enviando || entradas.length === 0
       ? null
       : capacidad.isFull
         ? "Aforo completo"
-        : faltaSuCedula
+        : mediasSinResponder > 0
+          ? `Responde si ${mediasSinResponder === 1 ? "el niño trae" : `los ${mediasSinResponder} niños traen`} medias de seguridad`
+          : faltaSuCedula
           ? `Falta la cédula de ${encontrado!.fullName}`
           : !cedula.trim()
             ? "Falta la cédula del representante"
@@ -270,6 +293,9 @@ export function useEntradaDeNinos({
     setCedula("");
     setTelefono("");
     setNombreNuevo("");
+    setSumar(true);
+    // Lo buscado se olvida: la familia que acaba de entrar ya no es «nueva» (B4-12).
+    setBuscadas(new Map());
     setAviso(null);
   }
 
@@ -287,7 +313,7 @@ export function useEntradaDeNinos({
       paymentMode: modo,
       entries: entradas.map((e) => ({
         ...(e.sinPulsera ? { sinPulsera: true as const } : { wristbandCode: e.wristbandCode }),
-        ...(medias && !e.traeMedias ? { sinMedias: true as const } : {}),
+        ...(medias && e.traeMedias === false ? { sinMedias: true as const } : {}),
         kid: ninoDe(e.nombre),
         packageId: e.packageId,
       })),
@@ -302,6 +328,8 @@ export function useEntradaDeNinos({
       // La cédula (T-19): con la familia nueva y con la de antes que no la tenía. Si ya la tiene, va igual: el
       // servidor comprueba que sea la suya.
       ...(cedulaValida ? { guardianDocument: cedula } : {}),
+      // Sumar a la familia (B4-12): a su cuenta; cómo paga es el de esa cuenta.
+      ...(sumarA ? { sumarA } : {}),
     };
 
     const resultado = CheckInCommandSchema.safeParse(comando);
@@ -351,6 +379,11 @@ export function useEntradaDeNinos({
     nombreNuevo,
     setNombreNuevo,
     encontrado,
+    familiaEnSala,
+    sumar,
+    setSumar,
+    sumarA,
+    mediasSinResponder,
     porSuCedula,
     faltaSuCedula,
     telefonoDeOtro,

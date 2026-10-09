@@ -1818,7 +1818,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   ficha del niño, para quien puede, «Regalar su tiempo» (la cortesía de la caja sobre todas sus líneas por cobrar, con una
   autorización) y «Anular la entrada» (motivo y PIN). Visto en el navegador en la base de pruebas: las dos, sin errores de
   consola. Salió al probarlo: la consulta de la pulsera decía «libre» con el niño dentro (trampa de Prisma, §5).*
-- [ ] **B4-12 · El parque en una pantalla, con un solo lector** (M-34, S-8, S-12, S-14, S-16, S-17, S-20).
+- [x] **B4-12 · El parque en una pantalla, con un solo lector** (M-34, S-8, S-12, S-14, S-16, S-17, S-20).
+  *Hecho el 2026-10-09, en `feat/b4-12`.*
   → **Un lector.** Sala, Entrada y Salida pasan a ser una sola pantalla, «Parque», con un solo lector (la cámara, el lector
   o «Escribir»). Una pulsera nueva abre la entrada con ella; una que está en sala abre su ficha con «Dar salida», «Salida
   de la familia» (todos los niños de su cuenta, marcados; cada uno se desmarca), recargar, la pausa y lo que ya tenía.
@@ -1834,6 +1835,18 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Iconos** en las pestañas de la barra de las estaciones (Parque, Cobrar, Turno, Papel, Deudas, Mesas).
   Se adapta a lo que hay (punto 10): los recorridos de Entrada y Salida pasan a uno de Parque; el manual; los atajos; 48 px
   en el teléfono y 56 en la caja.
+  *· Hecho: `/monitor` es «Parque» (la pestaña única del puesto, con su icono como las de la caja y Mesas); su lector abre
+  la ficha de un niño en sala o, con una pulsera nueva, `EntradaEnCapa` con ella; «Sin pulsera» y «Buscar» al lado. La
+  ficha da «Dar salida» y «Toda la familia (N)», que abren `CheckoutScreen` en una capa con los niños marcados.
+  `/entrada` y `/salida?pulsera=` redirigen a `/monitor?entrada=1` y `?salida=` (los enlaces de antes, el cierre del
+  turno, la caja al volver). `EntradaEnCapa` la usan el parque y la caja (`EntradaDesdeCaja` es esa capa en prepago):
+  el representante arriba, la cédula y el teléfono lado a lado, un renglón por niño desde 48 rem (pulsera, nombre,
+  paquete en lista y medias), el total, cómo paga y «Registrar» fijos al pie. «Sumar a la familia» (`sumarA` en la
+  entrada): la cuenta FAMILIA de ese representante con niños en sala recibe las estancias y sus líneas, como una recarga
+  (en prepago vuelve a la caja); no se suma a otro representante, a una familia que ya salió, a un cumpleaños ni desde
+  papel (`NO_SE_SUMA`). Las medias empiezan sin responder y la entrada no se registra hasta responder por cada niño; el
+  pie dice cuántos pares quedan. «Lo recoge» ya no corta el nombre. Un recorrido «Parque» en lugar de tres; el manual,
+  con la entrada y la salida como partes de Parque. 3 pruebas de sumar contra la base.*
 - [x] **B4-13 · El reloj de la sala no se queda pegado** (M-34, S-13).
   *Hecho el 2026-10-08 (v0.91.0), en `feat/b4-13`.*
   → **El fallo.** El desfase con el servidor se mide al pintar la tarjeta (`useServerClock`) y no al recibir la lectura:

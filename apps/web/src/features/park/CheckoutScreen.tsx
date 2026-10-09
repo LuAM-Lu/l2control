@@ -15,6 +15,7 @@ import {
   Container,
   FiltroSegmentado,
   Initial,
+  Marquesina,
   MoneyDisplay,
   ScannerField,
   ScanPrompt,
@@ -63,11 +64,21 @@ import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
  */
 export function CheckoutScreen({
   pulseraInicial = null,
+  pulserasIniciales = [],
+  alTerminar,
 }: {
   /** Desde la ficha del monitor: el niño ya viene elegido. Se valida igual
    *  que un escaneo, porque llega por la URL. */
   pulseraInicial?: string | null;
+  /** Desde la ficha en «Parque» (B4-12): el niño, o toda su familia («Salida de la familia»), ya elegidos. */
+  pulserasIniciales?: readonly string[];
+  /**
+   * En una capa del parque (B4-12): sin su cabecera (la sala ya enseña sus cifras) y, al cerrar la salida, se avisa
+   * para cerrar la capa.
+   */
+  alTerminar?: () => void;
 }) {
+  const embebida = alTerminar !== undefined;
   const hora = useHora();
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -182,13 +193,19 @@ export function CheckoutScreen({
     [snapshot.sessions, seleccionados],
   );
 
-  const inicial = useRef(pulseraInicial);
+  const inicial = useRef<readonly string[]>(pulseraInicial ? [pulseraInicial, ...pulserasIniciales] : pulserasIniciales);
   useEffect(() => {
-    const codigo = inicial.current;
-    if (!codigo) return;
-    inicial.current = null;
-    handleScan(codigo);
-  }, [handleScan]);
+    const codigos = inicial.current;
+    if (codigos.length === 0 || !sala) return;
+    inicial.current = [];
+    // La familia entera, marcada: cada uno se desmarca quitándolo de la lista.
+    const ids = codigos.map((c) => snapshot.sessions.find((s) => s.wristbandCode === c)?.id).filter((id): id is string => id !== undefined);
+    if (ids.length === 0) {
+      setAviso(`La pulsera ${codigos[0]} no corresponde a ningún niño en sala`);
+      return;
+    }
+    setSeleccionados((prev) => [...new Set([...prev, ...ids])]);
+  }, [sala, snapshot.sessions]);
 
   const validarPulsera = useCallback(
     (code: string) => WristbandCodeSchema.safeParse(code).success,
@@ -324,6 +341,7 @@ export function CheckoutScreen({
     if (disposicion.kind === "MESA") {
       // Lo cargado no sale a la caja: la cuenta de la mesa lo guarda hasta que se cobre allí.
       anunciarCierre({ ninos, total: toMajor(aCobrar), destino: `cargado a la mesa ${etiquetaDeMesa ?? "?"}` });
+      alTerminar?.();
       return;
     }
     const aCaja = hechas.filter((c) => c.status === "POR_COBRAR" && c.kind !== "EVENTO");
@@ -331,17 +349,21 @@ export function CheckoutScreen({
     const unica = aCaja[0];
     if (aCaja.length === 1 && unica) {
       if (puedeCobrar) {
-        router.push(`/caja?cuenta=${unica.id}&volver=/salida` as Route);
+        alTerminar?.();
+        router.push(`/caja?cuenta=${unica.id}&volver=/monitor` as Route);
       } else {
         anunciarCierre({ ninos, total: toMajor(monto), destino: "enviado a caja" });
+        alTerminar?.();
       }
       return;
     }
     if (aCaja.length > 1) {
       if (puedeCobrar) {
-        router.push("/caja?volver=/salida" as Route);
+        alTerminar?.();
+        router.push("/caja?volver=/monitor" as Route);
       } else {
         anunciarCierre({ ninos, total: toMajor(monto), destino: "enviado a caja" });
+        alTerminar?.();
       }
       return;
     }
@@ -354,10 +376,12 @@ export function CheckoutScreen({
           ? "sin cargo por ahora: la familia sigue con niños dentro"
           : "sin cargo: estaba todo pagado",
     });
+    alTerminar?.();
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {!embebida && (
       <header className="border-b border-line">
         <Container ancho="operacion" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 py-4 max-md:py-2 bajo:py-2">
           {/* En el teléfono el título lo dice la pestaña: queda para el lector de pantalla. */}
@@ -382,15 +406,25 @@ export function CheckoutScreen({
           </div>
         </Container>
       </header>
+      )}
 
-      <Container as="main" ancho="operacion" className="grid flex-1 gap-5 py-4 max-md:min-h-0 max-md:grid-rows-[minmax(0,1fr)] max-md:py-3 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3">
+      <Container
+        as="main"
+        ancho="operacion"
+        className={cn(
+          "grid flex-1 gap-5 py-4 max-md:min-h-0 max-md:grid-rows-[minmax(0,1fr)] max-md:py-3 apaisado:min-h-0 apaisado:grid-cols-[minmax(0,1fr)_360px] apaisado:grid-rows-[minmax(0,1fr)] bajo:py-3",
+          // En la capa del parque (B4-12): sin el acolchado de la pantalla (la capa ya tiene el suyo) y en dos columnas
+          // solo si caben; en el teléfono, una.
+          embebida && "px-0 py-0 sm:px-0 lg:px-0 max-md:py-0 bajo:py-0 apaisado:grid-cols-[minmax(0,1fr)_320px]",
+        )}
+      >
         <section className={cn("flex min-w-0 flex-col gap-4 max-md:min-h-0 max-md:gap-3 apaisado:min-h-0", pasoMovil === "LIQUIDACION" && "max-md:hidden")}>
           <div data-recorrido="salida-lector" className="flex shrink-0 items-stretch gap-2">
             <ScannerField
               onScan={handleScan}
               validate={validarPulsera}
               placeholder="Pasa la pulsera de quien se va…"
-              className="min-w-0 flex-1"
+              className={cn("min-w-0 flex-1", embebida && "[&_[data-pista]]:hidden")}
             />
             <BotonCamara activa={camara} onCambiar={setCamara} />
             {/* B4-8: un niño sin pulsera no se lee: se elige por su nombre. */}
@@ -768,7 +802,10 @@ function Recogida({
       <legend className="mb-1 text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">Lo recoge</legend>
       <div className="grid grid-cols-2 gap-1.5">
         <button type="button" aria-pressed={valor?.kind === "REPRESENTANTE"} onClick={() => onCambio({ kind: "REPRESENTANTE" })} className={opcion(valor?.kind === "REPRESENTANTE")}>
-          <span className="truncate">{representante}</span>
+          {/* Un nombre largo no se corta con «…» (T-15): se desliza. */}
+          <span className="min-w-0" data-privado="">
+            <Marquesina>{representante}</Marquesina>
+          </span>
         </button>
         <button
           type="button"

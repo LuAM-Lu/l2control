@@ -2050,8 +2050,10 @@ function CobroCuenta({
 /** A dónde puede volver la caja. Solo rutas conocidas: un `?volver=` libre
  *  sería una redirección abierta. */
 const ORIGEN: Readonly<Record<string, { ruta: Route; nombre: string }>> = {
-  "/entrada": { ruta: "/entrada", nombre: "Entrada" },
-  "/salida": { ruta: "/salida", nombre: "Salida" },
+  // B4-12: la entrada y la salida viven en «Parque»; los `volver` de antes llevan allí.
+  "/monitor": { ruta: "/monitor", nombre: "Parque" },
+  "/entrada": { ruta: "/monitor", nombre: "Parque" },
+  "/salida": { ruta: "/monitor", nombre: "Parque" },
 };
 
 /* ── colocación en la rejilla de la caja ──────────────────────────────────
@@ -3571,16 +3573,10 @@ function SinCuentas() {
       </p>
       <div className="mt-2 flex flex-wrap justify-center gap-2">
         <Link
-          href="/entrada"
+          href="/monitor"
           className="flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
         >
-          Ir a la entrada
-        </Link>
-        <Link
-          href="/salida"
-          className="flex min-h-14 items-center rounded-[var(--radius-control)] border border-line px-4 text-[13.5px] text-ink-2 no-underline transition-colors hover:border-brand/45 hover:text-ink"
-        >
-          Ir a la salida
+          Ir al parque
         </Link>
       </div>
     </section>

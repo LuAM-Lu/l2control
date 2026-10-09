@@ -103,29 +103,16 @@ export const MODULOS: readonly Modulo[] = [
     icon: Baby,
     accion: "parque.checkIn",
     resumen:
-      "El tiempo que se cobra. Entrada, monitor de sala con su cronómetro, salida con el desglose y las familias que vuelven.",
+      "El tiempo que se cobra. La sala con su cronómetro, la entrada y la salida en una pantalla, y las familias que vuelven.",
     secciones: [
       {
+        // B4-12 (M-34): la sala, la entrada y la salida son una pantalla, con un solo lector.
         id: "sala",
-        nombre: "Monitor de sala",
+        nombre: "Sala, entrada y salida",
         href: "/monitor",
         abre: "estacion",
         proposito:
-          "Las estancias abiertas, ordenadas por urgencia, con el cronómetro contra el reloj del servidor.",
-      },
-      {
-        id: "entrada",
-        nombre: "Entrada",
-        href: "/entrada",
-        abre: "estacion",
-        proposito: "Registrar niños con el lector de pulseras y su representante.",
-      },
-      {
-        id: "salida",
-        nombre: "Salida",
-        href: "/salida",
-        abre: "estacion",
-        proposito: "Cerrar la estancia y calcular el excedente con su desglose.",
+          "Un solo lector: una pulsera nueva abre la entrada; una que está en la sala, su ficha con su salida. Las estancias, por urgencia, con el reloj del servidor.",
       },
       {
         id: "representantes",

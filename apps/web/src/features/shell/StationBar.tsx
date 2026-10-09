@@ -4,15 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
+  Baby,
   ChevronLeft,
   Clock,
+  FileText,
+  HandCoins,
+  HandPlatter,
   LayoutDashboard,
   LogOut,
   Maximize,
   Minimize,
+  Receipt,
+  Timer,
   TrendingUp,
   TriangleAlert,
   WifiOff,
+  type LucideIcon,
 } from "lucide-react";
 import { Initial, Sheet, cn } from "@l2/ui";
 import { can } from "@l2/domain-identity";
@@ -70,8 +77,6 @@ import { MiCuenta } from "../identity/MiCuenta.tsx";
 
 type Ruta =
   | "/monitor"
-  | "/entrada"
-  | "/salida"
   | "/caja"
   | "/turno"
   | "/papel"
@@ -81,7 +86,8 @@ type Ruta =
 type Puesto = {
   id: string;
   nombre: string;
-  superficies: { href: Ruta; corto: string; largo: string }[];
+  /** Cada pestaña con su icono (B4-12): se reconoce sin leer, también en el teléfono. */
+  superficies: { href: Ruta; corto: string; largo: string; icono: LucideIcon }[];
 };
 
 const PUESTOS: Puesto[] = [
@@ -89,28 +95,27 @@ const PUESTOS: Puesto[] = [
     id: "parque",
     nombre: "Parque",
     superficies: [
-      { href: "/monitor", corto: "Sala", largo: "Monitor de parque" },
-      { href: "/entrada", corto: "Entrada", largo: "Entrada al parque" },
-      { href: "/salida", corto: "Salida", largo: "Salida del parque" },
+      // B4-12 (M-34): la sala, la entrada y la salida son una pantalla, con un solo lector.
+      { href: "/monitor", corto: "Parque", largo: "Parque: sala, entrada y salida", icono: Baby },
     ],
   },
   {
     id: "caja",
     nombre: "Caja",
     superficies: [
-      { href: "/caja", corto: "Cobrar", largo: "Caja" },
-      { href: "/turno", corto: "Turno", largo: "Turno de caja" },
+      { href: "/caja", corto: "Cobrar", largo: "Caja", icono: Receipt },
+      { href: "/turno", corto: "Turno", largo: "Turno de caja", icono: Timer },
       // Lo anotado en papel cuando cayeron los dos enlaces (B3-7, V-12).
-      { href: "/papel", corto: "Papel", largo: "Carga desde papel" },
+      { href: "/papel", corto: "Papel", largo: "Carga desde papel", icono: FileText },
       // Lo que dejaron sin pagar quienes se fueron (B3-11).
-      { href: "/deudas", corto: "Deudas", largo: "Deudas de clientes" },
+      { href: "/deudas", corto: "Deudas", largo: "Deudas de clientes", icono: HandCoins },
     ],
   },
   {
     id: "restaurante",
     nombre: "Restaurante",
     superficies: [
-      { href: "/mesas", corto: "Mesas", largo: "Mesas y pedidos" },
+      { href: "/mesas", corto: "Mesas", largo: "Mesas y pedidos", icono: HandPlatter },
     ],
   },
 ];
@@ -250,6 +255,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
               {puesto &&
                 puesto.superficies.map((s) => {
                   const activa = s.href === pathname;
+                  const Icono = s.icono;
                   return (
                     <li key={s.href} className="flex-1 apaisado:flex-none">
                       <Link
@@ -257,7 +263,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
                         aria-current={activa ? "page" : undefined}
                         title={s.largo}
                         className={cn(
-                          "flex h-12 flex-1 items-center justify-center rounded-[0.4rem] px-4 text-sm",
+                          "flex h-12 flex-1 items-center justify-center gap-1.5 rounded-[0.4rem] px-4 text-sm",
                           "whitespace-nowrap no-underline apaisado:flex-none apaisado:justify-start",
                           "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
@@ -266,6 +272,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
                             : "text-ink-2 hover:bg-surface-2 hover:text-ink",
                         )}
                       >
+                        <Icono className="size-(--icono-texto) shrink-0" aria-hidden="true" />
                         {s.corto}
                         {s.href === "/caja" && !activa && porCobrar > 0 && (
                           <span className="tnum ml-2 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
