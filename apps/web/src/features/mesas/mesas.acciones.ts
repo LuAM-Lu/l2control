@@ -1,6 +1,6 @@
 "use server";
 
-import type { FamilyAccountDto, Resultado, VincularPulserasResultDto } from "@l2/contracts";
+import type { FamilyAccountDto, Resultado, VincularPulserasResultDto, MesasPorLimpiarDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -43,6 +43,20 @@ export async function anularPedido(entrada: unknown, autorizacion?: unknown): Pr
   if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id }, "pedido anulado en producción");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "anular pedido rechazado");
   return r;
+}
+
+/** Las mesas por limpiar (B6-14): del servidor, calculadas con el cierre de su última cuenta y su última limpieza. */
+export async function leerMesasPorLimpiar(): Promise<Resultado<MesasPorLimpiarDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).mesas.porLimpiar(ctx);
+}
+
+/** Deja limpia una mesa (B6-14): el mesero, y la caja y supervisión de respaldo. */
+export async function marcarMesaLimpia(entrada: unknown): Promise<Resultado<MesasPorLimpiarDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).mesas.marcarLimpia(ctx, entrada);
 }
 
 /** Cierra una mesa sin cobrar (B6-13): anula todo lo que debe y la libera. De supervisión y administración, con su PIN. */

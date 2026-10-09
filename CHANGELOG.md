@@ -16,6 +16,20 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.107.0] — 2026-10-09 · Hacia la puesta en marcha
+
+Por limpiar y los avisos del salón (B6-14, M-35).
+
+### Añadido
+- **«Por limpiar» se guarda en el servidor**: la mesa cuya última cuenta se cobró (o se cerró sin cobrar) queda por
+  limpiar en todas las pantallas, también tras un reinicio. La deja limpia el mesero; si se olvida, la caja tiene la
+  fila «Por limpiar» en su cola, con los números de las mesas: un toque la deja limpia y libre.
+- **La caja ve la mesa**: una cuenta del salón dice hace cuánto pidió la cuenta, lo que falta servir y sus niños, con
+  su tiempo si siguen en la sala. Cobrarla con niños suyos en la sala avisa «Dales salida antes» («Cobrar igual» sigue).
+- **Avisos suaves, sin sonido y una vez por mesa**: al salón, la mesa sentada sin pedir, la que espera su pedido y la
+  que sigue por limpiar; a la caja, la cuenta del salón que pidió y sigue sin cobrar.
+- **Ajustes → Sucursal**: los minutos de «Pidió la cuenta» y «Por limpiar» (10 de fábrica).
+
 ## [0.106.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Servir y cerrar la mesa (B6-13, M-35).

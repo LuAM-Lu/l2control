@@ -244,6 +244,9 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Cobrar $ …» dice lo que se cobra, el de la parte si está dividida (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
       "El recibo dice lo que pasó: cada pago en su moneda (el de bolívares, con lo que vale en dólares a la tasa del cobro), lo pagado y el vuelto, también en bolívares. Lo pagado menos el vuelto es el total.",
       "Si el cliente de una mesa o de una venta se fue sin pagar: «Se fue sin pagar» en la cuenta, con el PIN de supervisión. Lo que debe queda a su nombre (Caja → Deudas). Cuando vuelva, al buscarlo en la cola sale «Debe de antes»: tócalo y se cobra como cualquier cuenta.",
+      "Una cuenta del salón dice, debajo de su nombre, su mesa (o «De pie»), hace cuánto pidió la cuenta, lo que sigue sin servir y sus niños, con su tiempo si siguen en la sala. Si al cobrarla hay niños suyos en la sala, la caja avisa «Dales salida antes»: pasa su pulsera o dales salida, y su tiempo se suma a la cuenta. «Cobrar igual» sigue sin esperar.",
+      "Cobrada la última cuenta de una mesa, la mesa queda por limpiar. La limpia el mesero; si se olvida, la cola dice «Por limpiar» con sus números: un toque la deja limpia y libre.",
+      "Una cuenta del salón que pidió y sigue sin cobrar pasados unos minutos (10, de fábrica) sale en un aviso suave, sin sonido, una vez. Los minutos, en Ajustes → Sucursal.",
     ],
     problemas: [
       {
@@ -411,6 +414,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Cuando un plato llega a la mesa, toca «Servido» en su renglón (o «Servir todo» lo que falte): ahí termina su espera, y el pedido queda servido con su último plato. Si lo marcaste por error, «Deshacer» en los 5 minutos siguientes. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
       "«Pide la cuenta» la manda a caja. Si queda algún plato sin marcar servido, pregunta «¿Ya se sirvió todo?»: «Sí, todo servido» los marca sin hora exacta (no cuentan como espera). Si no consumieron nada, «Liberar».",
       "Supervisión y administración cierran una mesa sin cobrar con «Cerrar la mesa sin cobrar…» y su PIN: «Se fue sin pagar» deja lo que debe a nombre del cliente; «No consumió o fue un error» anula todo lo que pidió (al estante o a merma, con su papel «ANULAR»). La mesa queda libre. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
+      "Cobrada (o cerrada) la última cuenta de una mesa, queda «Por limpiar» en todas las tablets. Al limpiarla, «Mesa limpia: dejarla libre». La caja y supervisión también pueden, por si se olvida.",
+      "Los avisos suaves, sin sonido y una vez por mesa: la que lleva sentada sin pedir, la que espera su pedido y la que sigue por limpiar, pasados sus minutos (Ajustes → Sucursal).",
     ],
     problemas: [
       {

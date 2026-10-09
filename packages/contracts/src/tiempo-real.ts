@@ -48,6 +48,8 @@ export const TemaSchema = z.enum([
   "plano",
   /** Los pedidos del mesero y su comanda (B6-2). */
   "pedidos",
+  /** Las mesas por limpiar y las que se dejaron limpias (B6-14). */
+  "mesas",
   /** Los cumpleaños: los paquetes y la agenda de reservas (B10-1). */
   "eventos",
   /** Lo cargado desde papel: las cargas, sus registros y su revisión (B3-7). */

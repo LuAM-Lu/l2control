@@ -207,6 +207,12 @@ export const AjustesSucursalSchema = z
      */
     atencionSinPedirMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(15),
     atencionEsperaMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(20),
+    /**
+     * Los avisos suaves del salón (B6-14, M-35): a partir de cuántos minutos la caja oye de una cuenta que pidió y sigue
+     * sin cobrar, y el salón de una mesa que sigue por limpiar. Los ajustes publicados antes no los traen: 10 y 10.
+     */
+    atencionCuentaMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
+    atencionLimpiarMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

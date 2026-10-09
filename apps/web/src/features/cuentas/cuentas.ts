@@ -271,3 +271,13 @@ export function pasarACaja(c: FamilyAccountDto): FamilyAccountDto {
 export function ninosDeLaMesa(c: FamilyAccountDto): readonly Readonly<{ sessionId: string; enLaCuenta: boolean }>[] {
   return c.sessionIds.map((sessionId) => ({ sessionId, enLaCuenta: c.lines.some((l) => l.sessionId === sessionId) }));
 }
+
+/**
+ * Los niños de la mesa que siguen en la sala con lo suyo en esta cuenta (B6-14): cobrarla ahora deja su tiempo sin
+ * cerrar, así que la caja avisa «Dales salida antes». Los que ya pagaron aparte no cuentan.
+ */
+export function ninosEnSalaDeLaCuenta<E extends { id: string }>(cuenta: FamilyAccountDto, enSala: readonly E[]): E[] {
+  if (cuenta.kind !== "MESA") return [];
+  const suyos = new Set(ninosDeLaMesa(cuenta).filter((n) => n.enLaCuenta).map((n) => n.sessionId));
+  return enSala.filter((s) => suyos.has(s.id));
+}

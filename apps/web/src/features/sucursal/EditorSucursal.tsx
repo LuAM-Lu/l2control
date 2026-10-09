@@ -541,7 +541,8 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               <span className="text-[12px] text-ink-3">Quien entra sin medias paga este producto</span>
             </label>
           </div>
-          {/* B6-8 (P-19): a partir de cuántos minutos una mesa pide atención, en la tablet y en Atención en el salón. */}
+          {/* B6-8 (P-19): a partir de cuántos minutos una mesa pide atención, en la tablet y en Atención en el salón. B6-14:
+              y los avisos suaves de la cuenta que espera cobro y de la mesa por limpiar. */}
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Sin pedir (min)"
@@ -568,6 +569,32 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               error={errores.atencionEsperaMin}
               hint="Su pedido sin servir"
               onChange={(e) => cambiar({ atencionEsperaMin: Number(e.target.value) })}
+            />
+            <Input
+              label="Pidió la cuenta (min)"
+              surface="admin"
+              type="number"
+              min={1}
+              max={120}
+              step={1}
+              className="tnum"
+              value={String(borrador.atencionCuentaMin)}
+              error={errores.atencionCuentaMin}
+              hint="Aviso a la caja"
+              onChange={(e) => cambiar({ atencionCuentaMin: Number(e.target.value) })}
+            />
+            <Input
+              label="Por limpiar (min)"
+              surface="admin"
+              type="number"
+              min={1}
+              max={120}
+              step={1}
+              className="tnum"
+              value={String(borrador.atencionLimpiarMin)}
+              error={errores.atencionLimpiarMin}
+              hint="Aviso al salón"
+              onChange={(e) => cambiar({ atencionLimpiarMin: Number(e.target.value) })}
             />
           </div>
           <p className="text-[12px] text-ink-3">

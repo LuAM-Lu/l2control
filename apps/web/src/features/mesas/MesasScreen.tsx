@@ -51,6 +51,8 @@ import {
   minutosDesde,
   paraAtender,
   platoAnulado,
+  platosSinServir,
+  textoDePlatos,
   vistaDePie,
   vistaDelPlano,
   type EstadoVisible,
@@ -72,6 +74,8 @@ import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
+import { usePorLimpiar } from "./porLimpiar.ts";
+import { AvisosDelSalon } from "./AvisosDelSalon.tsx";
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 
 /**
@@ -138,6 +142,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta, cerrarSinCobrar } = useCuentas();
   // B6-13: cerrar la mesa sin cobrar es de supervisión y administración (M-35).
   const actor = useActorEnSesion();
+  // B6-14: las mesas por limpiar, del servidor.
+  const { porId: porLimpiar, marcarLimpia } = usePorLimpiar();
   const cierraSinCobrar = actor?.role === "ADMIN" || actor?.role === "SUPERVISOR";
   // Los pedidos y su comanda, del servidor (B6-2).
   const { pedidos, enviar: enviarPedido, reimprimir, servir, deshacer } = usePedidos();
@@ -201,8 +207,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
 
   // Una mesa retirada ya no está en el salón: no se pinta ni se puede abrir.
   const mesas = useMemo(
-    () => vistaDelPlano((plano?.tables ?? []).filter((m) => !m.retiredAt), estado, cuentas, pedidos, ahora),
-    [plano, estado, cuentas, pedidos, ahora],
+    () => vistaDelPlano((plano?.tables ?? []).filter((m) => !m.retiredAt), porLimpiar, cuentas, pedidos, ahora),
+    [plano, porLimpiar, cuentas, pedidos, ahora],
   );
   const pie = useMemo(() => vistaDePie(cuentas, pedidos, ahora), [cuentas, pedidos, ahora]);
   const lugar: Lugar | null =
@@ -256,13 +262,6 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     }
   };
 
-  const emitir = (ev: Parameters<typeof op.emitir>[0], exito: string | null): boolean => {
-    const r = op.emitir(ev);
-    if (r.ok && exito) avisar.ok(exito);
-    else if (!r.ok) avisar.error(r.motivo);
-    return r.ok;
-  };
-
   /* ── acciones: cada una va al servidor y adopta lo que devuelve ── */
 
   /**
@@ -298,8 +297,6 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       return;
     }
     adoptar(r.valor);
-    // Una mesa por limpiar en la que se sienta alguien ya está limpia: el bus lo olvida.
-    if (l.tipo === "MESA" && l.vista.estado === "POR_LIMPIAR") emitir({ type: "mesa.libre", tableId: l.vista.mesa.id }, null);
     setCuentaSel(r.valor.id);
     setSentando(false);
     reiniciarFormulario(seleccion);
@@ -443,14 +440,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    * servido sin hora exacta (la atención no lo mide) y pide la cuenta; «Pedir la cuenta igual» la pide sin marcar nada.
    */
   function pedirLaCuentaConServido(c: FamilyAccountDto) {
-    const propias = c.lines;
-    const platos = pedidos
-      .filter((p) => p.cuentaId === c.id)
-      .map((p) => ({
-        pedido: p,
-        lineas: p.lineas.flatMap((l, i) => (l.servido === null && !platoAnulado(l.productId, propias.filter((x) => x.orderId === p.id)) ? [i] : [])),
-      }))
-      .filter((x) => x.lineas.length > 0);
+    const platos = platosSinServir(c, pedidos);
     if (platos.length === 0) return pedirLaCuenta(c);
     setSinServir({ cuenta: c, platos });
   }
@@ -538,6 +528,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const enEspera = (borradores[cuenta?.id ?? ""] ?? []).length > 0;
   return (
     <div className="flex flex-1 flex-col apaisado:min-h-0">
+      {/* B6-14: los avisos suaves al salón (sin pedir, esperando, por limpiar). */}
+      <AvisosDelSalon para="SALON" porLimpiar={porLimpiar} />
       <Cabecera
         titulo="Mesas"
         subtitulo="Toca una mesa, o «De pie», para atenderla"
@@ -720,7 +712,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                       </Button>
                     )}
                     {lugar.tipo === "MESA" && lugar.vista.estado === "POR_LIMPIAR" && (
-                      <Button variant="neutral" onClick={() => emitir({ type: "mesa.libre", tableId: lugar.vista.mesa.id }, `Mesa ${lugar.vista.mesa.label} libre`)} className="w-full">
+                      <Button
+                        variant="neutral"
+                        onClick={() =>
+                          void marcarLimpia(lugar.vista.mesa.id).then((r) => (r.ok ? avisar.ok(`Mesa ${lugar.vista.mesa.label} limpia y libre`) : avisar.error(r.mensaje)))
+                        }
+                        className="w-full"
+                      >
                         <Sparkles size={16} aria-hidden="true" />
                         Mesa limpia: dejarla libre
                       </Button>
@@ -876,13 +874,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                 titulo="¿Ya se sirvió todo?"
                 descripcion={
                   sinServir
-                    ? `Falta marcar servido: ${[
-                        ...sinServir.platos
-                          .flatMap(({ pedido, lineas }) => lineas.map((i) => pedido.lineas[i]!))
-                          .reduce((m, l) => m.set(l.nombre, (m.get(l.nombre) ?? 0) + l.cantidad), new Map<string, number>()),
-                      ]
-                        .map(([nombre, n]) => `${n}× ${nombre}`)
-                        .join(", ")}.`
+                    ? `Falta marcar servido: ${textoDePlatos(sinServir.platos)}.`
                     : ""
                 }
                 pie={

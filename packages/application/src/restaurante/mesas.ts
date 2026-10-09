@@ -21,7 +21,10 @@ import { randomUUID } from "node:crypto";
 import {
   AbrirCuentaDelSalonCommandSchema,
   FamilyAccountSchema,
+  MarcarMesaLimpiaCommandSchema,
+  MesasPorLimpiarSchema,
   VincularPulserasCommandSchema,
+  type MesasPorLimpiarDto,
   problemasDe,
   type FamilyAccountDto,
   type Rechazo,
@@ -30,10 +33,13 @@ import {
 } from "@l2/contracts";
 import { moveSessionLines, type AccountLineDoc } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
-import { errorDeBase, type Base } from "@l2/database";
+import { errorDeBase, type Base, type Transaccion } from "@l2/database";
+import type { Action } from "@l2/domain-identity";
+import { calendarDay, startOfDay } from "@l2/domain-rates";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
-import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
+import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
+import { zonaDe } from "../sucursal/ajustes.ts";
 import { claveSecundaria, crearCuentaDeMesa, crearCuentaDePie, guardarVersion, vigenteDe } from "../caja/cuentas.ts";
 import { anotarCliente, resolverCliente } from "../clientes/clientes.ts";
 import { candadoDeMesas, cuentaDeMesaPara, cuentasDePieEn, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "./plano.ts";
@@ -50,10 +56,42 @@ export interface CasosMesas {
    * devuelve lo que ya quedó, sin volver a mover nada.
    */
   vincular(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<VincularPulserasResultDto>>;
+  /**
+   * Las mesas por limpiar (B6-14, M-35): sin cuentas abiertas y con su última cuenta de hoy cerrada después de la última
+   * vez que se dejaron limpias. Se calcula: vale igual si se cobró, se liberó, quedó en deuda o se cerró sin cobrar.
+   */
+  porLimpiar(ctx: Contexto, ahora?: number): Promise<Resultado<MesasPorLimpiarDto>>;
+  /** Deja limpia una mesa (`MarcarMesaLimpiaCommandSchema`, B6-14): el mesero, y la caja y supervisión de respaldo. */
+  marcarLimpia(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<MesasPorLimpiarDto>>;
 }
 
 export function casosMesas(base: Base): CasosMesas {
   return {
+    async porLimpiar(ctx, ahora = Date.now()) {
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<MesasPorLimpiarDto>> => {
+        if (!(await puedeAlgunaDe(tx, ctx, VEN_EL_SALON))) return rechazoDePermiso("DENEGADO");
+        return { ok: true, valor: await mesasPorLimpiar(tx, ctx.branchId, ahora) };
+      });
+    },
+
+    async marcarLimpia(ctx, entrada, ahora = Date.now()) {
+      const v = MarcarMesaLimpiaCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "No se marcó: la mesa no es válida.", problemas: problemasDe(v.error) };
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<MesasPorLimpiarDto>> => {
+        if (!(await puedeAlgunaDe(tx, ctx, VEN_EL_SALON))) return rechazoDePermiso("DENEGADO");
+        const antes = await mesasPorLimpiar(tx, ctx.branchId, ahora);
+        // Una mesa que no está por limpiar queda como estaba (otro equipo la marcó, o un doble toque).
+        if (antes.mesas.some((m) => m.tableId === v.data.tableId)) {
+          const quien = await nombreDe(tx, ctx);
+          const fila = await tx.diningTableCleaned.create({
+            data: { tenantId: ctx.tenantId, branchId: ctx.branchId, tableId: v.data.tableId, cleanedAt: new Date(ahora), by: ctx.quien?.userId ?? null, byName: quien.nombre, deviceId: ctx.quien?.deviceId ?? null },
+          });
+          await auditar(tx, ctx, { action: "mesa.limpia", entityType: "dining_table", entityId: fila.tableId, after: { mesa: fila.tableId } });
+        }
+        return { ok: true, valor: await mesasPorLimpiar(tx, ctx.branchId, ahora) };
+      });
+    },
+
     async abrir(ctx, entrada, ahora = Date.now()) {
       const v = AbrirCuentaDelSalonCommandSchema.safeParse(entrada);
       if (!v.success) {
@@ -251,4 +289,43 @@ export function casosMesas(base: Base): CasosMesas {
       }
     },
   };
+}
+
+/** Quien ve el salón: quien atiende las mesas y la caja (supervisión y administración tienen las dos). */
+const VEN_EL_SALON: readonly Action[] = ["pedido.tomar", "documento.emitir"];
+
+async function puedeAlgunaDe(tx: Transaccion, ctx: Contexto, acciones: readonly Action[]): Promise<boolean> {
+  for (const a of acciones) if ((await permisoEn(tx, ctx, a)) !== "DENEGADO") return true;
+  return false;
+}
+
+/**
+ * Las mesas por limpiar (B6-14): de las cuentas de mesa abiertas hoy, por mesa, si alguna sigue abierta y cuándo se
+ * cerró la última; por limpiar, la que no tiene ninguna abierta y se cerró después de la última limpieza.
+ */
+export async function mesasPorLimpiar(tx: Transaccion, branchId: string, ahora: number): Promise<MesasPorLimpiarDto> {
+  const zona = await zonaDe(tx, branchId);
+  const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), zona), zona));
+  const filas = await tx.$queryRaw<{ table_id: string; abierta: boolean; cerrada: Date | null }[]>`
+    SELECT u.table_id,
+           bool_or(u.status IN ('ABIERTA', 'POR_COBRAR')) AS abierta,
+           max(u.saved_at) FILTER (WHERE u.status NOT IN ('ABIERTA', 'POR_COBRAR')) AS cerrada
+    FROM (
+      SELECT DISTINCT ON (v.account_id) v.status, v.saved_at, v.content->>'tableId' AS table_id
+      FROM account_version v
+      JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
+      WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA' AND a.opened_at >= ${desde}
+      ORDER BY v.account_id, v.version DESC
+    ) u
+    WHERE u.table_id IS NOT NULL
+    GROUP BY u.table_id`;
+  const limpias = new Map(
+    (await tx.diningTableCleaned.groupBy({ by: ["tableId"], where: { branchId, cleanedAt: { gte: desde } }, _max: { cleanedAt: true } })).map((g) => [g.tableId, g._max.cleanedAt!.getTime()]),
+  );
+  return MesasPorLimpiarSchema.parse({
+    mesas: filas
+      .filter((f) => !f.abierta && f.cerrada !== null && f.cerrada.getTime() > (limpias.get(f.table_id) ?? 0))
+      .map((f) => ({ tableId: f.table_id, desde: f.cerrada!.toISOString() }))
+      .sort((a, b) => a.desde.localeCompare(b.desde)),
+  });
 }

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.106.0 · 106 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.107.0 · 107 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
@@ -2671,13 +2671,26 @@ antes del cobro en servidor (orden de ejecución).
   o «No consumió o fue un error». **Decidido al construir:** se mira el rol y no «permitido», porque supervisión anula
   autorizándose con su PIN (D-AUT). 1 prueba del dominio y 2 contra la base.*
 
-- [ ] **B6-14 · Por limpiar y los avisos del salón** (M-35, R-8).
+- [x] **B6-14 · Por limpiar y los avisos del salón** (M-35, R-8).
+  *Hecho el 2026-10-09 (v0.107.0), en `feat/b6-14`.*
   → **«Por limpiar» en la base** (solo agregar): hoy viaja por el canal en vivo y se pierde si el servidor se reinicia. Lo
   quita el mesero; la caja (en su cola, «Mesas por limpiar: 3, 7») y supervisión (en Mesas) también, por si se olvida.
   → **La cuenta en la caja dice su mesa:** platos sin servir, si pidió la cuenta y los niños de la familia que siguen en
   la sala, con su tiempo; cobrar con niños en sala avisa «Dales salida antes».
   → **Avisos suaves:** uno por mesa y por umbral (sin pedir, esperando, pidió la cuenta sin cobrar, por limpiar), sin
   sonido, a quien le toca; los umbrales en Ajustes → Sucursal (dos ya existen, B6-8).
+  *· Hecho: migración `20261125000000_mesa_limpia` (solo expande): `dining_table_cleaned`, solo agregar y con RLS.
+  «Por limpiar» ya no viaja por el bus: lo calcula el servidor (`mesas.porLimpiar`), la mesa sin cuentas abiertas cuya
+  última cuenta de hoy se cerró después de su última limpieza (vale igual cobrada, liberada, en deuda o cerrada sin
+  cobrar); `mesas.marcarLimpia` (`mesa.limpia`) la deja limpia, para quien atiende las mesas o la caja. Tema en vivo
+  `mesas`. Web: `usePorLimpiar` lo leen Mesas, la caja (la fila «Por limpiar» de la cola, un toque la deja libre) y el
+  panel en vivo. En la caja, una cuenta del salón dice hace cuánto pidió la cuenta, lo que falta servir y sus niños con
+  su tiempo en la sala (`SalonDeLaCuenta`, en lugar de `NinosDeLaMesa`); cobrarla con niños suyos en la sala avisa
+  «Dales salida antes» una vez («Cobrar igual» sigue). Avisos suaves (`avisosDelSalon`, `AvisosDelSalon`): al salón, sin
+  pedir, esperando y por limpiar; a la caja, la cuenta que pidió y sigue sin cobrar; uno por mesa y por umbral, sin
+  sonido. Ajustes → Sucursal: «Pidió la cuenta» y «Por limpiar» (10 min de fábrica). **Decidido al construir:** lo que
+  ya pasaba al abrir la pantalla se da por visto (está en «Atender» y en la cola): sin ráfaga de avisos al entrar. 2
+  pruebas contra la base y 5 de la web.*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 

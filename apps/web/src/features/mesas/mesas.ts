@@ -68,17 +68,15 @@ function estadoDe(cuentas: readonly FamilyAccountDto[], pedidos: readonly Pedido
 
 export function vistaDelPlano(
   plano: readonly DiningTableDto[],
-  estado: EstadoLocal,
+  porLimpiar: ReadonlyMap<string, string>,
   cuentas: readonly FamilyAccountDto[],
   pedidos: readonly PedidoDto[],
   ahora: number,
 ): MesaVista[] {
   return plano.map((mesa) => {
     const suyas = cuentasDeLaMesa(cuentas, mesa.id);
-    // «Por limpiar» viaja por el bus: lo marca la caja al cobrar la última cuenta y lo quita el mesero.
-    const bus = estado.mesas[mesa.id];
-    const porLimpiar = bus?.estado === "POR_LIMPIAR" ? bus.desde : null;
-    return { mesa, cuentas: suyas, ...estadoDe(suyas, pedidos, porLimpiar, ahora) };
+    // «Por limpiar» es del servidor (B6-14): la mesa sin cuentas abiertas cuya última cuenta se cerró después de limpiarla.
+    return { mesa, cuentas: suyas, ...estadoDe(suyas, pedidos, porLimpiar.get(mesa.id) ?? null, ahora) };
   });
 }
 
@@ -240,4 +238,90 @@ export function paraAtender(p: PedidoDto, cuentas: readonly FamilyAccountDto[]):
 export function platoAnulado(productId: string, propias: readonly FamilyAccountDto["lines"][number][]): boolean {
   const suyas = propias.filter((l) => l.productId === productId);
   return suyas.length > 0 && suyas.every((l) => l.anulacion !== undefined);
+}
+
+/**
+ * Lo que falta por marcar servido de una cuenta (B6-13, B6-14): por pedido, los platos sin servir y sin anular. Lo usan
+ * «¿Ya se sirvió todo?» al pedir la cuenta y la caja, que lo enseña al cobrar.
+ */
+export function platosSinServir(cuenta: FamilyAccountDto, pedidos: readonly PedidoDto[]): { pedido: PedidoDto; lineas: number[] }[] {
+  return pedidos
+    .filter((p) => p.cuentaId === cuenta.id)
+    .map((p) => {
+      const propias = cuenta.lines.filter((x) => x.orderId === p.id);
+      return { pedido: p, lineas: p.lineas.flatMap((l, i) => (l.servido === null && !platoAnulado(l.productId, propias) ? [i] : [])) };
+    })
+    .filter((x) => x.lineas.length > 0);
+}
+
+/** Los platos sin servir, juntos por nombre y en palabras («2× Jugo natural, 1× Pasta»). */
+export function textoDePlatos(platos: readonly { pedido: PedidoDto; lineas: readonly number[] }[]): string {
+  const cuenta = new Map<string, number>();
+  for (const { pedido, lineas } of platos) {
+    for (const i of lineas) {
+      const l = pedido.lineas[i]!;
+      cuenta.set(l.nombre, (cuenta.get(l.nombre) ?? 0) + l.cantidad);
+    }
+  }
+  return [...cuenta].map(([nombre, n]) => `${n}× ${nombre}`).join(", ");
+}
+
+export type AvisoDelSalon = Readonly<{ clave: string; texto: string; detalle: string }>;
+/** Los umbrales de los avisos del salón (B6-14): los de la atención (B6-8) y los de la cuenta y la limpieza. */
+export type UmbralesDelSalon = UmbralesDeAtencion & Readonly<{ cuentaMin: number; limpiarMin: number }>;
+
+/**
+ * Los avisos suaves del salón (B6-14, M-35): uno por mesa y por umbral, a quien le toca. Al salón (el mesero y
+ * supervisión, en Mesas): la cuenta sentada sin pedir, el pedido que espera y la mesa que sigue por limpiar. A la caja:
+ * la cuenta que pidió y sigue sin cobrar. La clave dice qué se avisó, para no repetirlo: un pedido nuevo que espera, o
+ * otra vez por limpiar, es otro aviso.
+ */
+export function avisosDelSalon(
+  para: "SALON" | "CAJA",
+  datos: Readonly<{
+    cuentas: readonly FamilyAccountDto[];
+    pedidos: readonly PedidoDto[];
+    plano: readonly DiningTableDto[];
+    porLimpiar: ReadonlyMap<string, string>;
+  }>,
+  ahora: number,
+  umbrales: UmbralesDelSalon,
+): AvisoDelSalon[] {
+  if (ahora <= 0) return [];
+  const { cuentas, pedidos, plano, porLimpiar } = datos;
+  const rotuloDeMesa = (tableId: string) => {
+    const m = plano.find((t) => t.id === tableId);
+    return m ? `Mesa ${m.label}` : "Una mesa";
+  };
+  const rotulo = (c: FamilyAccountDto) => (c.dePie ? "De pie" : c.tableLabel ? `Mesa ${c.tableLabel}` : c.tableId ? rotuloDeMesa(c.tableId) : "Una mesa");
+  const delSalon = cuentas.filter((c) => c.kind === "MESA" || c.dePie === true);
+  const avisos: AvisoDelSalon[] = [];
+  if (para === "CAJA") {
+    for (const c of delSalon.filter((x) => x.status === "POR_COBRAR")) {
+      const desde = c.pendingSince ?? c.openedAt;
+      const min = minutosDesde(desde, ahora);
+      if (min >= umbrales.cuentaMin) avisos.push({ clave: `CUENTA:${c.id}:${desde}`, texto: `${rotulo(c)} pidió la cuenta hace ${min} min`, detalle: nombreDeCuenta(c) });
+    }
+    return avisos;
+  }
+  for (const c of delSalon.filter((x) => x.status === "ABIERTA")) {
+    const suyos = pedidos.filter((p) => p.cuentaId === c.id).map((p) => ({ p, a: paraAtender(p, cuentas) })).filter((x) => !x.a.anulado);
+    if (suyos.length === 0) {
+      const min = minutosDesde(c.openedAt, ahora);
+      if (min >= umbrales.sinPedirMin) avisos.push({ clave: `SIN_PEDIR:${c.id}`, texto: `${rotulo(c)} lleva ${min} min sin pedir`, detalle: nombreDeCuenta(c) });
+      continue;
+    }
+    const esperando = suyos
+      .filter((x) => (x.a.platos ?? []).some((pl) => !pl.anulado && pl.servidoEn === null))
+      .sort((x, y) => x.a.enviadoEn - y.a.enviadoEn)[0];
+    if (esperando) {
+      const min = minutosDesde(esperando.p.enviadoEn, ahora);
+      if (min >= umbrales.esperaMin) avisos.push({ clave: `ESPERANDO:${esperando.p.id}`, texto: `${rotulo(c)} espera su pedido hace ${min} min`, detalle: nombreDeCuenta(c) });
+    }
+  }
+  for (const [tableId, desde] of porLimpiar) {
+    const min = minutosDesde(desde, ahora);
+    if (min >= umbrales.limpiarMin) avisos.push({ clave: `LIMPIAR:${tableId}:${desde}`, texto: `${rotuloDeMesa(tableId)} lleva ${min} min por limpiar`, detalle: "Al limpiarla, márcala «Mesa limpia»" });
+  }
+  return avisos;
 }
