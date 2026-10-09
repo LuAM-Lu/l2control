@@ -34,9 +34,10 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.90.0 · 90 de 95 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.90.0 · 90 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
-cobrarle y su reporte.** M-28 y M-29
+cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
+1.0.0), en curso.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -47,9 +48,9 @@ actualiza solo (ensayado en una PC con Windows). **B8-2, lo escrito, hecho:** la
 runbooks del técnico (la capacitación cierra B8-2 en B8-3). **M-32 entregado:** B3-10, el buscador de la carta de la
 caja, lo que no se vende al final y el pie de la cuenta compacto con «Cobrar $ …». **M-33 entregado:** el hueco de
 quien se va sin pagar: la mesa pide nombre, cédula y teléfono (B6-9), lo que no se cobra queda como deuda del cliente
-(B3-11) y Reportes → Deudas cuenta el flujo entero: mesero, supervisor y desenlace (B11-4). **En el local:** B7-3 (con T-8c en
-la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Para decidir:** D-REL (qué entra en la
-1.0.0, §4), antes de B8-4.
+(B3-11) y Reportes → Deudas cuenta el flujo entero: mesero, supervisor y desenlace (B11-4). **Para programar antes de B8-3:** M-34, lo visto en la segunda visita (§2, y §3 punto 13; D-REL decidida: todo
+antes de la 1.0.0). **En el local:** B7-3 (con T-8c en la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es
+la 1.0.0.
 
 - **Hecho:** la Ruta A entera corre contra el servidor: identidad y auditoría, dinero (tasas del BCV en vivo,
   impuestos con vigencia, libro de pagos), caja (turno, cobro mixto, cortes, descuentos, papel), parque (entrada,
@@ -68,7 +69,7 @@ la laptop real), B8-1, B8-3 (con la capacitación) y B8-4, que es la 1.0.0. **Pa
 - **Staging:** `https://217-216-48-54.sslip.io` (Etapa 7). Se pone al día solo con cada versión publicada (T-8b),
   hace un respaldo cifrado cada noche que baja una PC del local (B7-4) y pasó la revisión de seguridad (B7-5).
   **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Sistema → Respaldos), cargar la
-  semilla (Ajustes → Sistema → Semilla del local) y los feriados (Ajustes → Tasas de cambio → Feriados); y del usuario, poner `L2_SMTP_URL` y `L2_CORREO_SOPORTE` para que los
+  semilla (Ajustes → Sistema → Semilla del local) y los feriados (Ajustes → Tasas de cambio → Feriados), y elegir el producto «Medias» en Ajustes → Sucursal (M-34); y del usuario, poner `L2_SMTP_URL` y `L2_CORREO_SOPORTE` para que los
   reportes de problemas avisen por correo (T-11).
 - **M-27 (2026-10-07) entregado entero:** los 19 pedidos de la primera visita (P-1 a P-19, §2), en 13 pasos. Quedan
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
@@ -135,6 +136,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-31** | **Un solo punto de cobro y la entrada desde la caja** (2026-10-08, decisiones del usuario) | (1) **El punto de cobro (opción A, con salida de emergencia):** cada equipo lleva la marca «Punto de cobro» (Ajustes → Personas y equipos → Dispositivos); solo los marcados abren turno como hoy; en uno sin marcar, abrir turno pide el PIN de administración y un motivo, queda en la auditoría e Inicio lo avisa mientras siga abierto. Descartadas: un solo turno por local (impide una segunda caja y bloquea si la laptop se daña con su turno abierto), un tope numérico (no dice cuál equipo), solo avisar (llega tarde) y quitarles el permiso a supervisión y administración (deja sin cubrir la caja). (2) **La entrada desde la caja:** vender la entrada de uno o varios niños sin salir de la caja, reutilizando lo de Entrada (se actualiza, no se rediseña): pulsera leída, tecleada o «sin pulsera»; solo prepago; los invitados de un cumpleaños, la cuenta abierta y la carga desde papel siguen en Entrada. (3) El aviso de «sin pulsera» en Inicio, **descartado por ahora** (no es viable ni oportuno). Los dos se adaptan a todo lo que ya existe (ayuda y recorridos, atajos, soporte y `data-privado`, cuenta de soporte, tiempo real, auditoría, permisos, Inicio, Reportes, temas y escala): queda como punto 10 de la definición de hecho, para todo paso nuevo. Primero dos pasos (B3-9 y B4-11); el mismo día el usuario los juntó en **uno solo**, que se termina de punta a punta de forma automática: la ruta pasa a **91** | B3-9 |
 | **M-32** | **La caja más clara** (2026-10-08, decisiones del usuario, con las capturas de la caja tras vaciar el inventario) | (1) **La carta de mostrador** (venta directa y «Añadir ítems»): con el catálogo en hoja (B9-7) aparecen todos los productos y la lista se pierde hacia abajo. Lleva **un buscador** arriba que filtra al teclear en toda la carta (nombre, SKU o código de barras), sin importar la categoría abierta; con la búsqueda vacía vuelve la categoría que estaba; Intro añade el primero. La tecla «/» busca en lo que está a la vista: la carta si está abierta, la cola si no. **Los que no se venden ahora** (sin contar, agotados) van al final, atenuados, bajo un título con cuántos son y cada uno con su motivo. La rejilla desplaza dentro de su tarjeta: el panel nunca se sale de la pantalla. (2) **El pie de la cuenta, compacto:** los ítems que se le cobran a la persona son lo que más se tiene que ver. «Factura a», «Descuento» y «Dividir» pasan a **una fila de tres botones** que dicen su estado («Consumidor final» o el nombre, «−10 %», «Entre 3»); dividir abre un menú de 2 a 6 con «Sin dividir». Subtotal e impuestos en un renglón chico y el total, grande. Las reglas no cambian. (3) **«Cerrar cobro» pasa a «Cobrar $ 13.00»**, con el monto que se cobra (el de la parte, si está dividida). (4) **Los botones de categoría, de 44 px** (pedido del usuario durante el paso): con muchas categorías cada renglón cuenta; es una excepción a los 56 px del POS (§8.4), que se queda para todo lo demás de la caja. Descartados por ahora: más columnas en pantallas anchas, una pestaña «Más vendidos» y las categorías en una sola fila que desliza. La ruta pasa a **92** | B3-10 |
 | **M-33** | **Saber a quién cobrarle** (2026-10-08, decisiones del usuario: quien se sienta junto a la salida, consume y se va con el local lleno) | (1) **Mesa y de pie, con el cliente identificado:** sentar a alguien (o abrirle cuenta de pie) pide **nombre, cédula y teléfono**, los tres obligatorios; «Nombre de la familia (opcional)» desaparece. El directorio de representantes (B4-1) pasa a ser el de clientes y gana la cédula: encuentra al que vuelve por teléfono o cédula para no teclearlo dos veces, y una familia del parque ya trae nombre y teléfono. **Cambia DEC-9** (el directorio no llevaba documento) para quien abre una cuenta en el restaurante; la entrada al parque sigue sin pedir la cédula. (2) **Mostrador:** sigue «Consumidor final» y se cobra al momento (DEC-23 no cambia); una venta directa que la cajera deja en la cola sin cobrar pide los mismos tres datos. (3) **Quien se va sin pagar deja una deuda:** se marca con la 🔐 de supervisión; la cuenta sale de la jornada sin bloquear el cierre y pasa a «Deudas de clientes» con sus datos, lo consumido y quién atendió; cuando vuelve (al buscarlo por cédula o teléfono, en la mesa o en la caja) se avisa y se cobra con la tasa del día; administración puede darla por perdida (incobrable). (4) **Quién ve los datos:** todo el que atiende ve la cédula y el teléfono completos (decisión del usuario; se propuso enmascararlos salvo a supervisión); nunca en los registros, la URL ni la captura de un reporte (`data-privado`, PLAN §7.6). «Factura a» sigue en consumidor final y ofrece al cliente de la cuenta con un toque. (5) **El reporte del flujo entero** (pedido del usuario al revisar el plan): Reportes → Deudas, con su PDF; por mesero (el que sentó al cliente), por supervisor que autorizó y cada deuda con su historia, de la mesa al desenlace. El PDF lleva la cédula y el teléfono completos (decisión del usuario; se propuso enmascararlos en el papel). Descartados por ahora: la cédula en la entrada del parque y «paga al pedir» sin datos en la mesa. La ruta pasa a **95** | B6-9, B3-11, B11-4 |
+| **M-34** | **Lo visto en la segunda visita al local** (2026-10-08, el usuario con el sistema funcionando en el local; decidido en cuatro rondas de preguntas) | Veinte pedidos y dos que llegaron al revisarlos (S-1 a S-22, abajo). Primero **dos correcciones** de lo que el local ve cada día: v0.90.1, la entrada desde la caja parte los paquetes letra por letra en su hoja de 480 px, y v0.90.2, los papeles salen sin acentos y con símbolos chinos porque la impresora queda en modo chino. Después **14 pasos nuevos**: B3-12 a B3-14, B4-12 a B4-15, B5-4, B6-10 a B6-12, B9-11, B9-12 y T-19. **D-REL queda decidida:** todo entra antes de la 1.0.0 y la capacitación (B8-3) se da con todo hecho. **Cambian DEC-9 y DEC-23:** la cédula es lo primero que se pide en todo proceso (mesa, de pie, parque y mostrador), con campos que ayudan a llenarla. **Cambia ADR-030 en parte:** «Servido» pasa a ser por plato. Con la sala unificada, Entrada y Salida dejan de ser pestañas. El usuario autorizó encadenar los pasos sin pedir el sí entre ellos. La ruta pasa a **109** | B3-12 a T-19 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -192,6 +194,34 @@ escribirlo o pegarlo; «sección inteligente» y «manual inteligente», sin IA 
 cosa; «Botones de Tiempo… estamos el monitor de parque» se lee como que el monitor de parque trabaja con ellos en el
 teléfono, así que T-15 los mide también a 390 px; la pausa «máxima 10 min» se hace ajuste con 10 de fábrica, y «una
 pausa por pulsera» es una por visita (la pulsera ya es de un solo uso, V-1).
+
+**M-34 en detalle.** Lo que se vio en la segunda visita y lo que se hará; las preguntas y sus respuestas están en el
+registro (§7). Donde el texto no decidía, se leyó como dice la columna del medio.
+
+| # | Lo que se vio | Lo que se hará | Paso |
+|---|---|---|---|
+| **S-1** | Configurar la impresora por USB | Cada impresora se conecta por red (como hoy) o por USB en la laptop de caja, a elegir | B5-4 |
+| **S-2** | Eliminar productos o editar sus datos | Editar ya existía, al fondo de la ficha: pasa arriba. «Retirar» en lugar de borrar (regla 5), también para lo creado en la carga inicial | B9-11 |
+| **S-3** | La carga inicial por lista no muestra la categoría ni deja editar un producto existente | Cada fila con su categoría y su presentación, y su ficha en una capa sin perder la lista | B9-11 |
+| **S-4** | Posible devolución de ítems en compra | Leído en la ronda: corregir una entrada mal cargada (anularla con su reverso) y que un cliente devuelva parte de lo que compró en la caja | B9-12, B3-14 |
+| **S-5** | Barra y cocina, cada una con su comanda | El área de cada producto y un papel por área en la misma impresora; cada impresora elige qué imprime, para repartirlas cuando haya más de una (pedido del usuario al revisar) | B6-10 |
+| **S-6** | En la caja, si se cambia de ventana se pierde lo llenado (Pago Móvil, efectivo…) | El cobro en curso se guarda en el servidor como borrador de la cuenta | B3-13 |
+| **S-7** | Recibo | Con S-18 y S-21 | B3-12 |
+| **S-8** | Un padre con varias pulseras, o su teléfono de antes, para contar a sus niños juntos | Una entrada ya admitía varios niños con un representante; se suma un niño a su familia en sala, con su propio tiempo (decisión del usuario) | B4-12 |
+| **S-9** | Servido por ítem o servido todo | Por plato, con «Servir todo» | B6-11 |
+| **S-10** | Vibrar en el teléfono o un aviso de las pulseras por vencer | Aviso en la app con sonido y vibración; con el equipo bloqueado por inactividad, la pantalla del PIN sigue avisando (pregunta del usuario al revisar) | B4-15 |
+| **S-11** | Notas de los pedidos prellenadas («sin cebolla») | Las más escritas para ese plato, aprendidas solas (decisión del usuario) | B6-12 |
+| **S-12** | Agregar pulsera en escritorio está horrible | En la caja, su hoja parte los paquetes letra por letra (corrección v0.90.1); la entrada en escritorio, compacta | B4-12 |
+| **S-13** | Mantener el tiempo real de las pulseras tras F5, recargar o perder internet | Leído en la ronda: «a veces queda pegado y hay que recargar». Fallo encontrado: el desfase con el servidor se mide al pintar, no al recibir | B4-13 |
+| **S-14** | Medias en el inventario: preguntar si trae; si no, cobrarla y descontarla | Ya existía (B4-9). La pregunta deja de venir marcada; las entrega la monitora. Administración crea «Medias» ($ 2, con existencia) y la elige en Ajustes → Sucursal | B4-12 |
+| **S-15** | Búsquedas entre mesas, pulseras y ventas por teléfono y cédula | El buscador de clientes en la caja, la tablet y la sala | T-19 |
+| **S-16** | Unificar Entrada y Salida; el monitor del parque tiene secciones de más | Una pantalla con un solo lector | B4-12 |
+| **S-17** | Al abrir el turno, ir a Cobrar; ¿«Cobrar» o «Caja»?; iconos en las pestañas | Abrir el turno lleva a Cobrar; «Cobrar» se queda (el puesto ya se llama Caja); iconos en la barra | B3-13, B4-12 |
+| **S-18** | Recibos más negros, y fieles a lo hecho en la caja: pagos mixtos, vuelto, descuento | Impresión oscura por impresora, y el recibo comparado con la pantalla caso por caso | B5-4, B3-12 |
+| **S-19** | Pulsera vinculada a una mesa: su salida recae en la mesa; si pagó antes, mostrarla sin cobrar | La salida va sola a su mesa; lo ya pagado se ve «Pagado» | B4-14 |
+| **S-20** | Salidas en grupo de los niños de un mismo padre | «Salida de la familia» al pasar una pulsera | B4-12 |
+| **S-21** | Los recibos no imprimen acentos y salen símbolos chinos | Fallo: la impresora queda en modo chino y se come la página de códigos. Se apaga en cada papel (v0.90.2) y la página se elige por impresora | B5-4 |
+| **S-22** | La cédula, lo primero que se pida en todo proceso | En la mesa, de pie, el parque y el mostrador, con campos que ayudan: letra, solo números, formato al escribir, lo pegado se entiende; igual el teléfono | T-19 |
 
 ---
 
@@ -269,8 +299,14 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    capacitación se hacen con la caja como va a quedar.
 12. **M-33**: ~~B6-9~~ → ~~B3-11~~ → ~~B11-4~~ (saber a quién cobrarle, y su reporte), con el sí del usuario. Antes de B8-3: es un hueco de seguridad, y la
    capacitación del mesero y de la caja se hace con el flujo nuevo.
+13. **M-34** (la segunda visita), todo antes de B8-3 y sin pedir el sí entre pasos (el usuario, 2026-10-08). Primero las
+   dos correcciones: **v0.90.1** (la entrada desde la caja) y **v0.90.2** (la impresora sin modo chino). Después los
+   fallos y el dinero: B4-13 (el reloj) → B5-4 (la impresora) → B3-12 (el recibo) → B4-14 (la pulsera vinculada) → B3-13
+   (el cobro en curso). Después lo que cambia los flujos que se enseñan: T-19 (la cédula primero y el buscador) → B4-12
+   (el parque en una pantalla) → B9-11 (productos) → B9-12 (corregir una entrada) → B3-14 (devoluciones) → B6-10 (barra
+   y cocina) → B6-11 (servido por plato) → B4-15 (el aviso) → B6-12 (notas rápidas).
 
-Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -719,6 +755,22 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   rutas viejas en su pestaña, las pestañas de Personas y equipos, Sistema y Tasas con la identidad confirmada, la carta
   dentro de Productos y supervisión con solo «Tasas»; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desbordes ni errores de consola.*
+- [ ] **T-19 · El cliente por su cédula, en todo, y el buscador** (M-34, S-15, S-22; cambia DEC-9 y DEC-23).
+  → **La cédula, lo primero en todo proceso:** sentar a alguien o abrir una cuenta de pie, el representante en la entrada
+  al parque (también desde la caja y los invitados de un cumpleaños), la venta del mostrador y «Factura a». Al teclearla,
+  el directorio trae al cliente con su nombre y su teléfono; si es nuevo, los pide. En el mostrador sustituye a
+  «Consumidor final».
+  → **Campos que ayudan a llenar.** La cédula con su letra (V, E, J o P) a un toque y solo números, con sus puntos
+  mientras se escribe (V-12.345.678); lo pegado («v12345678», «12.345.678») se entiende. El teléfono con el prefijo de su
+  operadora (0412, 0414, 0416, 0422, 0424, 0426 o un fijo 02xx) y su formato (0414-123.45.67), también lo pegado con +58.
+  Teclado numérico en el teléfono y la tablet; el error se dice en el campo al salir de él, no mientras se teclea; Intro
+  avanza.
+  → **El buscador.** Por nombre, cédula o teléfono, en la caja, la tablet y la sala: dice dónde está la persona ahora (su
+  cuenta o su mesa, sus niños en sala con su tiempo) y sus deudas, y un toque lleva ahí.
+  → **Lo que ya existía sin cédula.** Un representante de antes que vuelve por su teléfono la pide para completarse; la
+  carga desde papel admite «no se anotó», que supervisión ve al revisar.
+  Se adapta a lo que hay (punto 10): `data-privado` en la cédula y el teléfono, nunca en registros, URL ni asientos; los
+  formularios en papel ganan la columna de la cédula; el manual de cada pantalla que la pide.
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -1460,6 +1512,38 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   sin datos se va sin pagar (pide los datos), se pasa a la caja, se devuelve y se da por perdida; Inicio «1 deuda de
   clientes · $ 2.90»; la estación con su pestaña. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desplazar ni cortar y sin errores de consola.*
+- [ ] **B3-12 · El recibo dice lo que pasó en la caja** (M-34, S-7, S-18).
+  → **Lo que dice.** Cada pago con su medio y su monto en su moneda y, si es en bolívares, su equivalente en dólares a la
+  tasa del cobro; lo recibido; el vuelto con su moneda y su medio (o la propina, o el redondeo); el descuento con su nombre
+  y su importe; el subtotal, el IVA y el total en dólares y en bolívares. Cuadra a la vista: lo pagado menos el vuelto es
+  el total.
+  → **Una sola fuente.** El resumen del cobro en la pantalla, el recibo en pantalla (`recibo.ts`) y el papel salen de la
+  misma venta guardada. Una batería de casos los compara renglón por renglón: mixto en dólares y bolívares, vuelto en otra
+  moneda, descuento por porcentaje y por monto, cortesía, cuenta dividida, prepago del parque, deuda cobrada y salida a una
+  mesa. Lo que no cuadre se corrige; las fotos de los recibos que salieron mal en el local, si llegan, entran como casos.
+  Se adapta a lo que hay (punto 10): el manual de Cobrar y de Turno (reimprimir); en el papel, la referencia enmascarada.
+- [ ] **B3-13 · El cobro en curso no se pierde** (M-34, S-6, S-17).
+  → **Un borrador en el servidor.** Lo que se lleva de un cobro (los medios, los montos, las referencias y los datos de
+  pago, el destino del vuelto, «Factura a» y el recibo a elección) se guarda como borrador de la cuenta mientras se
+  escribe, con las referencias cifradas como las de los pagos. Aguanta cambiar de cuenta o de pestaña, recargar, un corte
+  de luz y abrir la cuenta en otro equipo de caja, que ve «Cobro en curso por Marisol · 2 pagos, $ 10.00» y lo retoma o lo
+  deja; si dos lo tocan a la vez, el segundo choca (versión). Cobrar o descartar lo borra. Un borrador no es un pago: no
+  entra en el libro, ni en el corte, ni en Reportes.
+  → **Al abrir el turno, a Cobrar.** «Cobrar» conserva su nombre: el puesto ya se llama Caja.
+  → **Base (solo expande).** El borrador en su tabla, atado a la cuenta y a su versión; una versión anterior lo ignora.
+  Se adapta a lo que hay (punto 10): el manual y el recorrido de Cobrar; su tema en vivo; la referencia con
+  `data-privado`; el asiento al retomar o descartar el de otra persona, no por cada tecla.
+- [ ] **B3-14 · Un cliente devuelve parte de lo que compró** (M-34, S-4).
+  → **Devolver.** Desde la venta (Turno → Ventas del turno, o buscándola por su número), se eligen los ítems y las
+  cantidades (nunca más de lo vendido, contando las devoluciones anteriores), con la 🔐 de supervisión y un motivo. El
+  dinero se reintegra por su medio, como en la anulación (la referencia de la devolución; el efectivo, de la gaveta), en el
+  turno de hoy; el descuento se reparte en proporción y el IVA se recalcula. Cada ítem vuelve al estante o va a merma, como
+  elija la caja. El tiempo del parque y los servicios no se devuelven por aquí.
+  → **Papel y cuentas.** La devolución imprime su comprobante, y la cuentan el corte X y el Z, Reportes → Ventas y el
+  kárdex. Anular la venta entera sigue como está.
+  → **Base (solo expande).** La devolución y sus líneas, solo agregar; el reintegro, en el libro como reversión (ADR-005).
+  Se adapta a lo que hay (punto 10): la acción `venta.devolver` en la matriz (supervisión ✅; caja 🔐); su asiento y sus
+  temas en vivo; el manual de Turno; la cuenta de soporte, que en producción no devuelve.
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -1694,6 +1778,45 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   ficha del niño, para quien puede, «Regalar su tiempo» (la cortesía de la caja sobre todas sus líneas por cobrar, con una
   autorización) y «Anular la entrada» (motivo y PIN). Visto en el navegador en la base de pruebas: las dos, sin errores de
   consola. Salió al probarlo: la consulta de la pulsera decía «libre» con el niño dentro (trampa de Prisma, §5).*
+- [ ] **B4-12 · El parque en una pantalla, con un solo lector** (M-34, S-8, S-12, S-14, S-16, S-17, S-20).
+  → **Un lector.** Sala, Entrada y Salida pasan a ser una sola pantalla, «Parque», con un solo lector (la cámara, el lector
+  o «Escribir»). Una pulsera nueva abre la entrada con ella; una que está en sala abre su ficha con «Dar salida», «Salida
+  de la familia» (todos los niños de su cuenta, marcados; cada uno se desmarca), recargar, la pausa y lo que ya tenía.
+  «Sin pulsera» y «Buscar» son botones. La sala, con sus cifras y su lista, queda a la vista. `/entrada` y `/salida`
+  llevan a la nueva (`RUTAS_MOVIDAS`).
+  → **La entrada en escritorio, compacta:** un renglón por niño (pulsera, nombre, paquete y medias), el representante
+  arriba y el total con «Registrar» fijos; en el teléfono, como hoy. La entrada desde la caja usa las mismas piezas, en una
+  capa donde caben sin partir ningún texto.
+  → **Una familia.** Al escribir la cédula del representante (T-19), si su familia tiene niños en sala, «Sumar a la
+  familia Pérez (2 en sala)»: el niño nuevo entra en su cuenta con su propio tiempo, desde que entra él, y sale con ella.
+  → **Medias sin marcar.** «Medias de seguridad: Las trae / No trae · $ 2.00», sin respuesta de fábrica: la entrada no
+  se registra hasta responder por cada niño; al lado, cuántos pares quedan.
+  → **Iconos** en las pestañas de la barra de las estaciones (Parque, Cobrar, Turno, Papel, Deudas, Mesas).
+  Se adapta a lo que hay (punto 10): los recorridos de Entrada y Salida pasan a uno de Parque; el manual; los atajos; 48 px
+  en el teléfono y 56 en la caja.
+- [ ] **B4-13 · El reloj de la sala no se queda pegado** (M-34, S-13).
+  → **El fallo.** El desfase con el servidor se mide al pintar la tarjeta (`useServerClock`) y no al recibir la lectura:
+  si la sala se vuelve a pintar con una lectura de hace 10 minutos (volver a la pestaña, despertar el teléfono), el reloj
+  queda 10 minutos atrás hasta recargar. Lo mismo pasa en la salida y en los impuestos vigentes de la caja.
+  → **El arreglo.** Cada lectura guarda el instante del servidor junto al del equipo al recibirla, y el reloj sale de ahí.
+  Al volver a la pestaña, al despertar el equipo y al reconectar el canal, la sala se vuelve a leer. Si la lectura tiene
+  más de un minuto, la sala lo dice («Actualizado hace 2 min»).
+  → Se reproduce antes del arreglo (prueba del gancho con un reloj falso, y en el navegador) y se comprueba después.
+- [ ] **B4-14 · La pulsera vinculada sale a su mesa** (M-34, S-19).
+  → **A su mesa, sin preguntar.** La salida de una pulsera vinculada va a la cuenta de su mesa, con el paquete por uso y
+  el tiempo de más; para ella no se ofrece «Caja / A una mesa», y se dice por qué. Hoy, si no se elige la mesa, el tiempo
+  de más cae en la cuenta de la familia.
+  → **Lo pagado se ve y no se cobra.** Un niño que pagó su parque y después se vincula aparece en la cuenta de la mesa como
+  «Pagado», sin importe (vincular ya mueve solo lo pendiente). En la caja y en la tablet, la cuenta de la mesa lista sus
+  pulseras con su estado: en sala o salió, pagado o por cobrar.
+- [ ] **B4-15 · Aviso de pulseras por vencer** (M-34, S-10).
+  → **El aviso.** Con sonido en las pantallas del parque y en la caja, y vibración en Android: uno por niño al entrar en
+  «por vencer» (el umbral del tarifario) y otro al cumplirse su tiempo; un toque lleva a su ficha. Se calla por equipo
+  durante un rato. Funciona con la app abierta: no es una notificación del sistema.
+  → **Con el equipo bloqueado** (3 minutos sin tocar, DEC-17): la pantalla del PIN de un equipo aprobado sigue avisando,
+  solo con el código de la pulsera y los minutos, sin nombres, y vibra; un toque pide el PIN y lleva al niño. El bloqueo
+  se queda.
+  Se adapta a lo que hay (punto 10): un ajuste del equipo para el sonido; el manual de la sala.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -1785,6 +1908,18 @@ Fuera de la cuenta de 95: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de co
   caja y Turno a 1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - ~~**B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09)~~. **Retirado el 2026-09-28
   (D-GAV):** la impresora de caja no lleva gaveta electrónica; la gaveta es manual. No cuenta en la ruta.
+- [ ] **B5-4 · La impresora: acentos, USB y tinta oscura** (M-34, S-1, S-18, S-21).
+  → **Acentos.** Cada papel apaga el modo chino (FS .) antes de elegir la página de códigos (desde v0.90.2), y la página
+  se elige en la ficha de la impresora (850 de fábrica; 858, 1252 y las que use el modelo), con «Probar acentos», que
+  imprime «áéíóú ñ ¿¡ $ Bs.» con cada una para elegir la que sale bien.
+  → **USB.** Cada impresora se conecta por **red** (IP y puerto, como hoy) o por **USB en la laptop de caja**: el agente
+  dice qué impresoras ve en Windows y se elige por su nombre; imprime en modo directo (RAW) con el mismo ESC/POS. Por USB
+  no se pregunta por el papel (Windows no lo deja): el trabajo se confirma cuando Windows lo acepta.
+  → **Impresión oscura**, un ajuste por impresora: todo en negrita y con doble pasada (ESC E, ESC G). Lo demás es la
+  densidad de la impresora, que se sube con su utilidad en B7-3.
+  → El agente nuevo llega solo (T-8c); uno viejo que recibe un trabajo por USB lo falla a la vista («actualiza el agente»).
+  → **Base (solo expande).** La conexión, el nombre en Windows, la página y la impresión oscura, con los valores de hoy de
+  fábrica.
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 
@@ -2072,6 +2207,24 @@ antes del cobro en servidor (orden de ejecución).
   diferencias (8 contados, 7 cuadran, falta 1), registrar con el PIN de administración, el informe de diferencias en PDF
   y la hoja para imprimir; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni errores de
   consola.*
+- [ ] **B9-11 · Productos: editar a la vista, retirar y la carga por lista** (M-34, S-2, S-3).
+  → **Editar,** en la cabecera de la ficha (los datos arriba, el precio debajo) y desde la fila.
+  → **Retirar** (administración, con su 🔐): el producto sale de Productos, la caja, la carta, la tablet y las listas de
+  carga; su historia (ventas, entradas, movimientos) queda en Reportes y el kárdex. Un filtro «Retirados» los muestra y
+  «Devolver al catálogo» lo recupera. Con existencia, el retiro la saca en el mismo paso como una salida con su motivo.
+  Sirve para los productos creados en la carga inicial. Nada se borra.
+  → **La carga por lista.** En el inventario inicial y en las entradas, la fila de un producto que existe muestra su
+  categoría y su presentación, con un botón que abre su ficha en una capa sin perder la lista. La categoría se elige de
+  una lista que se despliega (también en «Alta en lote»), y se puede escribir una nueva.
+  → **Base (solo expande).** El retiro y su vuelta como asientos del producto; una versión anterior lo ve apartado de la
+  venta.
+- [ ] **B9-12 · Corregir una entrada mal cargada** (M-34, S-4).
+  → **Anular una entrada.** Una compra, una reposición o un inventario inicial se anula con su asiento de reverso (nada se
+  borra), con la 🔐 de administración y un motivo: cada línea sale a su costo de esa entrada y el costo promedio se
+  recalcula. Si ya se vendió o se sacó parte, se niega y dice cuánto: eso se corrige con un conteo. Un inventario inicial
+  anulado deja el producto «Sin inventario inicial». La entrada anulada se ve tachada, con quién y por qué, y «Cargarla de
+  nuevo» abre una entrada con sus líneas para corregirlas.
+  → **Base (solo expande).** La anulación y su movimiento de reverso.
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
@@ -2246,6 +2399,26 @@ antes del cobro en servidor (orden de ejecución).
   nueva; la cola la encuentra por la cédula; «Factura a» propone su cédula y su nombre; elegir otra cuenta y
   «Descartar la venta». A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas: el formulario y la pregunta sin
   desplazar ni cortar y sin errores de consola.*
+- [ ] **B6-10 · Comanda de barra y de cocina** (M-34, S-5).
+  → **El área de cada producto:** Cocina o Barra si es preparado (de fábrica, Cocina); Barra de fábrica si es de nevera;
+  o «Sin papel». Se pone en la carta, en la ficha, en «Alta en lote» y en «Editar en lote».
+  → **Un papel por área.** El pedido saca la comanda de cocina y la de barra, cada una rotulada («COCINA», «BARRA») con
+  el mismo número de pedido y «1 de 2»; cada una se reimprime y se anula por separado, y la tablet y la caja ven el estado
+  de cada una.
+  → **Las impresoras por área.** Cada impresora marca lo que imprime: **recibos**, **comandas de cocina** y **comandas de
+  barra**, en cualquier combinación, con una sola activa por tipo. Con una impresora, las tres en ella; con más, se
+  reparten sin programar.
+  → **Base (solo expande).** El área del producto y las marcas de la impresora (la marca de comandas de hoy vale para las
+  dos áreas); cada trabajo dice su área.
+- [ ] **B6-11 · Servido por plato** (M-34, S-9; cambia en parte ADR-030).
+  → En la tablet, cada plato de un pedido se marca servido, o «Servir todo» lo que falte; se puede deshacer en el
+  momento. El pedido cuenta como servido cuando lo está su último plato. La atención en el salón (B6-8) mide la espera por
+  plato, y lo marcado por pedido antes de este paso cuenta como todo servido.
+  → **Base (solo expande).** Lo servido por línea, solo agregar.
+- [ ] **B6-12 · Notas rápidas del mesero** (M-34, S-11).
+  → Al poner una nota a un plato, la tablet ofrece las 5 más escritas para ese producto en los últimos 60 días (y las de
+  su categoría, si el plato tiene pocas); un toque la añade y el texto libre se queda. Las aprende sola: nadie las
+  configura. Se comparan sin mayúsculas ni espacios de más.
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
@@ -2613,7 +2786,7 @@ F9-05).
 | ~~D-SERV~~ | ¿El mesero marca «Servido»? (M-27, P-19) | **Decidido el 2026-10-07 ([ADR-030](adr/030-el-mesero-marca-servido.md), supersede en parte ADR-022):** sí, un toque «Servido» por pedido en la tablet; si no se marca, el pedido sigue contando como esperando y el informe lo dice | B6-8 |
 | ~~D-SOP~~ | ¿Cómo llega un reporte al desarrollo, y qué es lo «inteligente»? (M-27, P-4) | **Decidido el 2026-10-07, como se propuso:** el reporte, con su captura, se queda en el servidor del local y administración lo ve en Ajustes → Soporte; el desarrollo entra con una cuenta de soporte propia (de administración, sin turno) y recibe un aviso por correo sin la captura ni datos del local. Lo «inteligente», sin IA de terceros: ayuda de la pantalla, búsqueda y la solución de cada error conocido por su código. Un asistente con IA (Claude) se puede sumar después: cuesta por uso y saca el texto del servidor | T-11 |
 | D-DOM | ¿Dominio propio para producción? (M-22) | Staging va por `sslip.io`, que es de terceros; un dominio propio (unos 10 $ al año) no depende de nadie. Al cambiar, cada persona vuelve a crear su llave de acceso | B8-3 |
-| D-REL | ¿Qué entra en la 1.0.0? (2026-10-08) | **Propuesta:** la 1.0.0 es la puesta en marcha (B8-4), con solo lo que el día uno necesita de M-28 y M-29: B9-7 (catálogo sin existencias y su conteo), B7-7 (semilla con casillas para la corrida limpia), B7-6 (respaldos fijados y con integridad), T-17 (cuenta de soporte) y B11-1 (ventas); más B7-3 y T-8c en el local y la Etapa 8. Pasan a la 1.x: T-18, B11-2, B11-3, B9-8, B9-9 y B9-10. Desde la 1.0.0, PATCH = errores (lo que toca dinero, cobro o acceso, el mismo día) y MINOR = mejoras y añadidos, apagados de fábrica con un ajuste: M-10 se enmienda (el MINOR deja de contar pasos) | B8-4 |
+| ~~D-REL~~ | ¿Qué entra en la 1.0.0? (2026-10-08) | **Decidido el 2026-10-08 (M-34): todo antes de la 1.0.0.** La 1.0.0 es la puesta en marcha (B8-4) con todo lo programado: M-28, M-29 y M-31 a M-33 (ya entregados) y M-34 entero, antes de la capacitación (B8-3); más B7-3 y T-8c en el local y la Etapa 8. Desde la 1.0.0, como se propuso: PATCH = errores (lo que toca dinero, cobro o acceso, el mismo día) y MINOR = mejoras y añadidos, apagados de fábrica con un ajuste; M-10 se enmienda (el MINOR deja de contar pasos) | B8-4 |
 | F0-09 | Firma formal del alcance | Las 29 decisiones están cerradas | B8-3 |
 | ~~D-CORD~~ | Umbral de cordura de la tasa automática (M-8) | **Decidido el 2026-09-28 (V-14):** sin umbral; la del BCV se aplica siempre, y si la API falla se carga a mano | B5-1 |
 | ~~D-FER~~ | Calendario de feriados bancarios de Venezuela | **Decidido el 2026-09-27:** se carga por año desde el panel copiando el calendario de SUDEBAN (cambia cada año: Carnaval, Semana Santa y feriados trasladados) | B2-4 |
@@ -3175,6 +3348,15 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   se cobra cuando vuelve (Caja → Deudas, o al buscarlo) o administración da por perdida. Sigue B11-4.
 - **2026-10-08** · B11-4 entregado como v0.90.0: Reportes → Deudas, con su PDF, cuenta lo que quedó en deuda, lo recuperado y lo
   perdido, por mesero que sentó al cliente y por quien autorizó, y la historia de cada deuda. M-33 queda entero.
+- **2026-10-08** · M-34, la segunda visita al local: veinte pedidos y dos más al revisarlos (S-1 a S-22). Revisados contra
+  el código: las medias y editar productos ya existían; dos fallos que el local ve cada día pasan delante como
+  correcciones (la entrada desde la caja se solapa; los papeles sin acentos y con símbolos chinos, por el modo chino de la
+  impresora); el reloj de la sala se queda pegado por el desfase medido al pintar. Decidido en cuatro rondas: impresora por
+  red o USB; dos papeles, barra y cocina, con cada impresora eligiendo qué imprime; el parque en una pantalla con un solo
+  lector; el cobro en curso en el servidor; el niño que se suma a su familia, con su propio tiempo; el aviso de por vencer
+  en la app, también en la pantalla del PIN; medias sin marcar (las entrega la monitora); retirar en lugar de borrar;
+  corregir una entrada y la devolución de un cliente; notas aprendidas; la cédula primero en todo (cambian DEC-9 y
+  DEC-23). **D-REL decidida: todo antes de la 1.0.0.** La ruta pasa a 109. El usuario autoriza encadenar sin pedir el sí.
 
 ---
 
