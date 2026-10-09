@@ -339,7 +339,9 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Si la laptop de caja falla, el turno se abre en otro equipo con el PIN de administración y el motivo: queda en la auditoría e Inicio lo avisa mientras siga abierto.",
       "El corte X enseña lo cobrado sin cerrar nada.",
       "Para cerrar: cuenta lo que hay (arqueo a ciegas) y sella el corte Z. Hasta $ 1,00 de diferencia lo firma la cajera; más, supervisión.",
-      "En un relevo, la que sale retira lo vendido y deja el fondo; la que entra lo declara al abrir.",
+      "«Cerrar la caja» no pregunta qué cierre es: si queda otra caja abierta, cierras la tuya (tu conteo y tu dinero; lo abierto sigue para la otra); si es la última, es el cierre del día, que no se hace con nada pendiente.",
+      "Con la caja cerrada no se cobra, ni se devuelve, ni se anula un cobro; con todas cerradas, tampoco se dan cortesías ni descuentos. Sí se consulta, se registran entradas al parque y se toman pedidos.",
+      "La caja de otro equipo (una laptop dañada) la cierran supervisión o administración desde el suyo, con el conteo de su gaveta: queda dicho desde dónde se cerró.",
       "Si un cliente devuelve parte de lo que compró: en Ventas del turno, la venta y «Devolver…» (la de otro día, por su número en «Devolver de otra venta»). Elige cuántas de cada cosa y si vuelven al estante o a merma; el dinero vuelve por su pago, en su moneda (uno electrónico, con la referencia de la devolución), con el descuento y el IVA ya calculados. Lo autoriza supervisión. Sale su comprobante, y el corte lo cuenta.",
     ],
     problemas: [
@@ -350,7 +352,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       },
       {
         sintoma: "La jornada no se cierra",
-        solucion: "No se cierra con pendientes: cuentas por cobrar o abiertas (incluidas mesas y cuentas de pie), niños en sala, estancias a revisar u otros turnos abiertos. Inicio los enumera.",
+        solucion: "La última caja que se cierra cierra el día, y no se hace con pendientes: cuentas por cobrar o abiertas (incluidas mesas y cuentas de pie), niños en sala o estancias a revisar. El cierre los enumera y se resuelven ahí. Si al abrir el turno dice «La jornada del … sigue abierta», lo pendiente se resuelve al cerrar el turno de hoy.",
         reconoce: ["no se cierra", "pendientes"],
       },
       {

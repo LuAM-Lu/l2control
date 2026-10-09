@@ -51,6 +51,7 @@ import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identid
 import { AutorizacionSchema, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { ajustesDe } from "../sucursal/ajustes.ts";
 import { guardarVersion, vigenteDe } from "./cuentas.ts";
+import { sinCajaAbiertaEnElLocal } from "./turnos.ts";
 import { categoriasDe, marcaVip, reglaDeFila, reglasDe, resumenDeRegla, TEXTO_MOTIVO_DESCUENTO, vipDeCuenta } from "./reglas-de-descuento.ts";
 
 export interface CasosDescuentos {
@@ -272,6 +273,9 @@ export function casosDescuentos(base: Base): CasosDescuentos {
           }
           const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
           if (!fila || fila.branchId !== ctx.branchId) return noExiste;
+          // B3-15: con todas las cajas cerradas, nada que cambie lo que se cobra.
+          const cerrada = await sinCajaAbiertaEnElLocal(tx, ctx, "descuentos");
+          if (cerrada) return cerrada;
           const actual = (await vigenteDe(tx, cmd.accountId))!;
           if (actual.version !== cmd.version) return cuentaCambiada;
           const cuenta = actual.cuenta;

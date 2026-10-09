@@ -16,6 +16,21 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.105.0] — 2026-10-09 · Hacia la puesta en marcha
+
+La caja cerrada no mueve dinero, y el cierre se decide solo (B3-15, M-35).
+
+### Cambiado
+- **Un solo «Cerrar la caja»:** si queda otra caja abierta, se cierra la tuya (tu conteo y tu dinero; lo abierto sigue
+  para la otra); si es la última, es el cierre del día, que no se hace con nada pendiente. Ya no se elige «Cambiar de
+  cajera»: el 8 oct. dos cajas se cerraron así sin que nadie siguiera y el día quedó abierto.
+- **Con todas las cajas cerradas no se dan cortesías ni descuentos** (cobrar, devolver y anular ya pedían el turno del
+  equipo).
+
+### Añadido
+- **Al abrir turno, «La jornada del … sigue abierta»** si un día quedó sin cerrar, con lo que dejó pendiente.
+- **La caja de otro equipo** que cierra supervisión dice desde qué equipo se cerró.
+
 ## [0.104.2] — 2026-10-09 · Hacia la puesta en marcha
 
 Tres correcciones de lo que se vio al usar el staging (M-35).

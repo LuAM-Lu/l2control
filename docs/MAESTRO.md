@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.104.2 · 104 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.105.0 · 105 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
@@ -1617,7 +1617,8 @@ Fuera de la cuenta de 116: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   «Devuelto por un cliente». Lo que no: los reintegros se reparten en el orden de los pagos (la caja no elige otro reparto).
   7 pruebas del dominio y 5 contra la base.*
 
-- [ ] **B3-15 · La caja cerrada no mueve dinero** (M-35, R-6, R-7).
+- [x] **B3-15 · La caja cerrada no mueve dinero** (M-35, R-6, R-7).
+  *Hecho el 2026-10-09 (v0.105.0), en `feat/b3-15`.*
   → **Sin turno abierto en ese equipo, nada que mueva dinero**, negado en el servidor (no solo escondido): cobrar, cobrar
   una deuda o un anticipo de cumpleaños, devolver, anular un cobro, cortesía y descuentos. Sí: consultar cuentas,
   registrar entradas al parque (la cuenta queda abierta), tomar pedidos, inventario y reportes. La pantalla lo dice:
@@ -1632,6 +1633,15 @@ Fuera de la cuenta de 116: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   pendiente.
   → Lo que se vio (R-6): el 8 oct. las dos cajas se cerraron como RELEVO sin que nadie siguiera; el día quedó abierto con
   11 cuentas.
+  *· Hecho: sin migración. Cobrar, anular un cobro, devolver y revertir ya pedían el turno de ESE equipo
+  (`turnoParaCobrar`); la cortesía y el descuento piden ahora alguna caja abierta en el local (`sinCajaAbiertaEnElLocal`).
+  **Decidido al construir:** en el local, no en el equipo, porque la cortesía desde la sala (M-27) la da supervisión en su
+  teléfono, que no es una caja. El tipo de cierre lo decide el servidor en el corte Z (`CorteZCommand.cierre` es
+  opcional y no cuenta): con otra caja abierta, RELEVO (esta caja); si es la última, JORNADA, con los pendientes. El corte
+  dice `cerradoDesde` cuando lo cierra otro equipo. `ComprobacionApertura.jornadaSinCerrar`: ninguna caja abierta y el
+  último Z fue RELEVO, con lo pendiente. Turno: un solo «Cerrar la caja», que pregunta al servidor si quedan otras
+  abiertas y lo dice bajo los pasos; al abrir, «La jornada del … sigue abierta». 2 pruebas nuevas contra la base y la de
+  la jornada reescrita con la regla nueva.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
