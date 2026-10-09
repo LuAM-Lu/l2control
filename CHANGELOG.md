@@ -14,6 +14,16 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+La entrada al parque desde la caja, legible (M-34, S-12).
+
+### Corregido
+- **La entrada desde la caja** partía los nombres de los paquetes letra por letra y montaba el precio sobre el borde: en
+  una laptop elegía cuatro columnas por el ancho de la pantalla, aunque su hoja mide 480 px. Ahora los paquetes miden
+  el sitio donde están: en la hoja (y en el teléfono) van en 2×2, enteros; en la entrada del parque, en fila si caben.
+  Lo mismo para recargar tiempo y la entrada de la carga desde papel.
+
 ## [0.90.0] — 2026-10-08 · Hacia la puesta en marcha
 
 Reportes → Deudas (B11-4, M-33): el flujo entero de quien se fue sin pagar.
