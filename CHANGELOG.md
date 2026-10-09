@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.95.0] — 2026-10-09 · Hacia la puesta en marcha
+
 El cobro en curso no se pierde (B3-13, M-34).
 
 ### Añadido
