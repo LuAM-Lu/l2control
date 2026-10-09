@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.92.0 · 92 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.93.0 · 93 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1513,7 +1513,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   clientes · $ 2.90»; la estación con su pestaña. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desplazar ni cortar y sin errores de consola.*
 - [x] **B3-12 · El recibo dice lo que pasó en la caja** (M-34, S-7, S-18).
-  *Hecho el 2026-10-08, en `feat/b3-12`.*
+  *Hecho el 2026-10-08 (v0.93.0), en `feat/b3-12`.*
   → **Lo que dice.** Cada pago con su medio y su monto en su moneda y, si es en bolívares, su equivalente en dólares a la
   tasa del cobro; lo recibido; el vuelto con su moneda y su medio (o la propina, o el redondeo); el descuento con su nombre
   y su importe; el subtotal, el IVA y el total en dólares y en bolívares. Cuadra a la vista: lo pagado menos el vuelto es
