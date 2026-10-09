@@ -59,14 +59,14 @@ export function AtencionScreen() {
             icono={<Timer aria-hidden="true" />}
             tono={resumen.mediaMin !== null && resumen.mediaMin >= atencionEsperaMin ? "warn" : "idle"}
             valor={resumen.mediaMin === null ? "—" : `${resumen.mediaMin} min`}
-            pie={resumen.servidos === 0 ? "Nada servido todavía" : `De ${resumen.servidos} ${resumen.servidos === 1 ? "pedido servido" : "pedidos servidos"}`}
+            pie={resumen.servidos === 0 ? "Nada servido todavía" : `De ${resumen.servidos} ${resumen.servidos === 1 ? "plato servido" : "platos servidos"}`}
           />
           <Cifra
             etiqueta="Espera máxima hoy"
             icono={<Hourglass aria-hidden="true" />}
             tono={resumen.maximaMin !== null && resumen.maximaMin >= atencionEsperaMin ? "warn" : "idle"}
             valor={resumen.maximaMin === null ? "—" : `${resumen.maximaMin} min`}
-            pie={resumen.sinServir > 0 ? `${resumen.sinServir} sin marcar servido` : "Todo marcado"}
+            pie={resumen.sinServir > 0 ? `${resumen.sinServir} ${resumen.sinServir === 1 ? "plato" : "platos"} sin marcar servido` : "Todo marcado"}
           />
         </Resumen>
 
@@ -111,7 +111,7 @@ export function AtencionScreen() {
         )}
         <p className="flex items-center gap-1.5 text-nota text-ink-3">
           <Clock size={12} aria-hidden="true" />
-          Un pedido que nadie marca «Servido» sigue contando como esperando: si sale aquí y ya comieron, pídele al mesero que lo marque.
+          Un plato que nadie marca «Servido» sigue contando como esperando: si sale aquí y ya comieron, pídele al mesero que lo marque.
         </p>
       </div>
     </Container>

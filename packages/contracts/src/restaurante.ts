@@ -212,8 +212,18 @@ export type EnviarPedidoCommand = z.infer<typeof EnviarPedidoCommandSchema>;
  */
 export const ReimprimirComandaCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido"), area: AreaDeComandaSchema.optional() });
 
-/** El mesero marca un pedido servido en la mesa (B6-8, D-SERV): ahí termina su espera. Una vez por pedido. */
-export const ServirPedidoCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido") });
+/**
+ * El mesero marca servido lo que llega a la mesa (B6-8, D-SERV; B6-11): los platos `lineas` (su posición en el pedido) o,
+ * sin decirlos, «Servir todo» lo que falte. Lo ya servido queda como estaba.
+ */
+export const ServirPedidoCommandSchema = z.strictObject({
+  pedidoId: z.uuid("Pedido desconocido"),
+  lineas: z.array(z.number().int().min(0).max(39)).min(1, "Elige un plato").max(40).optional(),
+});
+
+/** Deshacer, en el momento, un plato marcado servido por error (B6-11). */
+export const DeshacerServidoCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido"), linea: z.number().int().min(0).max(39) });
+export type DeshacerServidoCommand = z.infer<typeof DeshacerServidoCommandSchema>;
 
 /** Lo que importa de una comanda (ADR-022 §2): si salió en papel. `@l2/domain-orders` lo decide. */
 export const EstadoDeComandaSchema = z.enum(["EN_COLA", "IMPRESA", "NO_SALIO", "DESCARTADA"]);
@@ -258,6 +268,8 @@ export const PedidoSchema = z.object({
         nota: z.string().nullable(),
         /** En qué papel salió (B6-10). Sin ella, un pedido de antes: todo en uno. */
         area: AreaDeProductoSchema.optional(),
+        /** Cuándo y quién lo sirvió en la mesa (B6-11); sin servir, `null`. */
+        servido: z.object({ en: TimestampSchema, por: z.string() }).nullable().default(null),
       }),
     )
     .min(1),
@@ -282,7 +294,7 @@ export const PedidoSchema = z.object({
   anulacion: z.object({ estado: EstadoDeComandaSchema, error: z.string().nullable() }).nullable().default(null),
   /** Cada papel «ANULAR» por área (B6-10): el último de cada una. */
   anulaciones: z.array(z.object({ area: AreaDeComandaSchema.nullable(), estado: EstadoDeComandaSchema, error: z.string().nullable() })).default([]),
-  /** Cuándo y quién lo marcó servido en la mesa (B6-8, D-SERV); sin marcar, `null`: sigue esperando. */
+  /** Cuándo se sirvió su último plato y quién (B6-8, D-SERV; B6-11); si falta alguno, `null`: sigue esperando. */
   servido: z.object({ en: TimestampSchema, por: z.string() }).nullable().default(null),
 });
 export type PedidoDto = z.infer<typeof PedidoSchema>;

@@ -61,6 +61,7 @@ export type AccionAuditada =
   | "pedido.enviar"
   | "pedido.reimprimir"
   | "pedido.servir"
+  | "pedido.deshacer_servido"
   | "pedido.anular"
   | "mesa.liberar"
   | "evento.catalogo"

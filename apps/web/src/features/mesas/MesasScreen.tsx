@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Sparkles,
   TriangleAlert,
+  Undo2,
   Users,
   UserX,
   UserSearch,
@@ -41,6 +42,7 @@ import { Badge, Button, Confirmacion, Container, MoneyDisplay, StatTile, Stepper
 import { chargeableLines } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
+import { DESHACER_SERVIDO_MS } from "@l2/domain-orders";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
 import { ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
@@ -48,6 +50,7 @@ import {
   loQuePideAtencion,
   minutosDesde,
   paraAtender,
+  platoAnulado,
   vistaDePie,
   vistaDelPlano,
   type EstadoVisible,
@@ -133,7 +136,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // Las cuentas del salón (F6-05, D2, B6-7): una por familia en cada mesa, y las de pie.
   const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta } = useCuentas();
   // Los pedidos y su comanda, del servidor (B6-2).
-  const { pedidos, enviar: enviarPedido, reimprimir, servir } = usePedidos();
+  const { pedidos, enviar: enviarPedido, reimprimir, servir, deshacer } = usePedidos();
   // Los umbrales de la atención en el salón (B6-8).
   const { atencionSinPedirMin, atencionEsperaMin } = useSucursal().ajustes;
   const op = useOperacion();
@@ -638,8 +641,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                       onReimprimir={(p, c) => void volverAImprimir(p, c)}
                       onAnular={(p) => setAnulando(p)}
                       esperaMin={atencionEsperaMin}
-                      onServir={(p) =>
-                        void servir(p.id).then((r) => {
+                      onServir={(p, lineas) =>
+                        void servir(p.id, lineas).then((r) => {
+                          if (!r.ok) avisar.error(r.mensaje);
+                        })
+                      }
+                      onDeshacer={(p, linea) =>
+                        void deshacer(p.id, linea).then((r) => {
                           if (!r.ok) avisar.error(r.mensaje);
                         })
                       }
@@ -1109,6 +1117,7 @@ function PedidosDeLaCuenta({
   onReimprimir,
   onAnular,
   onServir,
+  onDeshacer,
   esperaMin,
 }: {
   pedidos: readonly PedidoDto[];
@@ -1118,8 +1127,10 @@ function PedidosDeLaCuenta({
   /** Un papel del pedido (B6-10): el de cocina o el de barra. */
   onReimprimir: (p: PedidoDto, c: ComandaDelPedidoDto) => void;
   onAnular: (p: PedidoDto) => void;
-  /** Marca el pedido servido en la mesa (B6-8, D-SERV). */
-  onServir: (p: PedidoDto) => void;
+  /** Marca servidos platos del pedido (B6-11) o, sin decirlos, todo lo que falte (B6-8, D-SERV). */
+  onServir: (p: PedidoDto, lineas?: readonly number[]) => void;
+  /** Deshace, en el momento, un plato marcado servido (B6-11). */
+  onDeshacer: (p: PedidoDto, linea: number) => void;
   /** A partir de cuántos minutos esperando se avisa. */
   esperaMin: number;
 }) {
@@ -1159,8 +1170,43 @@ function PedidosDeLaCuenta({
                     {comanda(p.numero)} · {ahora > 0 ? `${hora(Date.parse(p.enviadoEn))} · hace ${minutosDesde(p.enviadoEn, ahora)} min` : ""}
                   </span>
                 </div>
-                <p className="mt-1.5 text-[13px] text-ink">{p.lineas.map((l) => `${l.cantidad}× ${l.nombre}${l.nota ? ` («${l.nota}»)` : ""}`).join(" · ")}</p>
-                {/* B6-8 (D-SERV): servido en la mesa, o cuánto lleva esperando. */}
+                {/* B6-11: cada plato con su «Servido»; servido, su hora y, en el momento, «Deshacer». */}
+                <ul aria-label={`Platos del pedido ${comanda(p.numero)}`} className="mt-1.5 flex flex-col divide-y divide-line/60">
+                  {p.lineas.map((l, i) => {
+                    const fuera = anulado || platoAnulado(l.productId, propias);
+                    const deshacible = l.servido !== null && ahora > 0 && ahora - Date.parse(l.servido.en) <= DESHACER_SERVIDO_MS;
+                    return (
+                      <li key={i} className="flex min-h-12 items-center gap-2 py-1">
+                        <span className={cn("min-w-0 flex-1 text-[13px]", fuera ? "text-ink-3 line-through" : "text-ink")}>
+                          {l.cantidad}× {l.nombre}
+                          {l.nota ? <span className="text-ink-3"> («{l.nota}»)</span> : null}
+                        </span>
+                        {!fuera &&
+                          (l.servido ? (
+                            <>
+                              {/* Con la tinta del bloque: dentro de un aviso rojo, el verde no se lee. */}
+                              <span className="tnum flex items-center gap-1 text-[12.5px] font-medium text-ink-2">
+                                <CircleCheckBig size={14} aria-hidden="true" />
+                                Servido{ahora > 0 ? ` ${hora(Date.parse(l.servido.en))}` : ""}
+                              </span>
+                              {deshacible && (
+                                <Button variant="ghost" onClick={() => onDeshacer(p, i)} aria-label={`Deshacer: ${l.nombre} no está servido`}>
+                                  <Undo2 size={15} aria-hidden="true" />
+                                  Deshacer
+                                </Button>
+                              )}
+                            </>
+                          ) : (
+                            <Button variant="neutral" onClick={() => onServir(p, [i])} aria-label={`Servido: ${l.nombre}`}>
+                              <HandPlatter size={16} aria-hidden="true" />
+                              Servido
+                            </Button>
+                          ))}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {/* B6-8 (D-SERV): el pedido servido con su último plato, o cuánto lleva esperando y «Servir todo». */}
                 {!anulado &&
                   (p.servido ? (
                     <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-state-ok">
@@ -1178,10 +1224,12 @@ function PedidosDeLaCuenta({
                         <Hourglass size={14} aria-hidden="true" />
                         Esperando · {minutosDesde(p.enviadoEn, ahora)} min
                       </span>
-                      <Button variant="primary" onClick={() => onServir(p)} className="ml-auto">
-                        <HandPlatter size={16} aria-hidden="true" />
-                        Servido
-                      </Button>
+                      {p.lineas.filter((l) => l.servido === null && !platoAnulado(l.productId, propias)).length > 1 && (
+                        <Button variant="primary" onClick={() => onServir(p)} className="ml-auto">
+                          <HandPlatter size={16} aria-hidden="true" />
+                          Servir todo
+                        </Button>
+                      )}
                     </div>
                   ))}
                 {!anulado && p.comandas.length > 1 && (
