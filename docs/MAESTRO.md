@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.90.2 · 90 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.91.0 · 91 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1795,7 +1795,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Se adapta a lo que hay (punto 10): los recorridos de Entrada y Salida pasan a uno de Parque; el manual; los atajos; 48 px
   en el teléfono y 56 en la caja.
 - [x] **B4-13 · El reloj de la sala no se queda pegado** (M-34, S-13).
-  *Hecho el 2026-10-08, en `feat/b4-13`.*
+  *Hecho el 2026-10-08 (v0.91.0), en `feat/b4-13`.*
   → **El fallo.** El desfase con el servidor se mide al pintar la tarjeta (`useServerClock`) y no al recibir la lectura:
   si la sala se vuelve a pintar con una lectura de hace 10 minutos (volver a la pestaña, despertar el teléfono), el reloj
   queda 10 minutos atrás hasta recargar. Lo mismo pasa en la salida y en los impuestos vigentes de la caja.
