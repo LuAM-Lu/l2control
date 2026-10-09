@@ -470,6 +470,8 @@ html:has(dialog[open]) { overflow: hidden; }
   .l2-informe-zona { position: static !important; overflow: visible !important; background: white !important; }
   .l2-informe { page: informe; width: auto !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
   .l2-informe thead { display: table-header-group; }
+  /* El total, una vez al final: el navegador repite el pie de una tabla en cada hoja (B11-5). */
+  .l2-informe tfoot { display: table-row-group; }
   .l2-informe tr { break-inside: avoid; }
   .l2-informe-zona .l2-no-imprime { display: none !important; }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowLeft, LoaderCircle, Printer } from "lucide-react";
@@ -35,12 +35,17 @@ export function porciento(parte: bigint, total: bigint): string {
 
 export type Columna = Readonly<{ titulo: string; derecha?: boolean; clase?: string }>;
 
+/** Un grupo de filas de una tabla impresa (B11-5): una categoría, con su franja arriba y su subtotal debajo. */
+export type GrupoDeInforme = Readonly<{ titulo: string; filas: readonly (readonly ReactNode[])[]; pie?: readonly ReactNode[] | undefined }>;
+
 /** Una sección de un informe: su tabla, su total y qué decir si no hay nada. */
 export type SeccionDeInforme<T extends string = string> = Readonly<{
   id: T;
   titulo: string;
   columnas: readonly Columna[];
   filas: readonly (readonly ReactNode[])[];
+  /** Las filas por grupo, cada uno con su franja y su subtotal, en la misma tabla (B11-5). Con grupos, `filas` va vacía. */
+  grupos?: readonly GrupoDeInforme[];
   /** La fila del total, si la lleva. */
   pie?: readonly ReactNode[];
   vacio: string;
@@ -48,16 +53,28 @@ export type SeccionDeInforme<T extends string = string> = Readonly<{
   nota?: string;
 }>;
 
-/** La tabla de una sección. En `papel`, tinta negra y bordes finos; en la pantalla, la de las tablas del panel. */
+/**
+ * La tabla de una sección. En `papel`, tinta negra, bordes finos y 9 pt, compacta (B11-5: un renglón por fila, unos 40 por
+ * hoja); el encabezado se repite en cada página. En la pantalla, la de las tablas del panel.
+ */
 export function TablaDeInforme({ seccion, papel = false }: { seccion: SeccionDeInforme; papel?: boolean }) {
-  const { columnas, filas, pie, vacio, nota } = seccion;
-  const th = papel ? "border-b border-current/60 px-1.5 py-1 text-left text-[9pt] font-bold" : "px-3 py-2 text-left text-etiqueta font-semibold tracking-[0.06em] text-ink-2 uppercase";
-  const td = papel ? "px-1.5 py-0.5 align-top" : "px-3 py-2 align-top";
-  if (filas.length === 0) return <p className={papel ? "py-1 text-[9.5pt]" : "rounded-[var(--radius-card)] border border-dashed border-line px-4 py-6 text-center text-cuerpo text-ink-3"}>{vacio}</p>;
+  const { columnas, filas, grupos, pie, vacio, nota } = seccion;
+  const th = papel ? "border-b border-current/60 px-1.5 py-0.5 text-left text-[8.5pt] font-bold whitespace-nowrap" : "px-3 py-2 text-left text-etiqueta font-semibold tracking-[0.06em] text-ink-2 uppercase";
+  const td = papel ? "px-1.5 py-px align-top" : "px-3 py-2 align-top";
+  if (filas.length === 0 && !grupos?.length) return <p className={papel ? "py-1 text-[9pt]" : "rounded-[var(--radius-card)] border border-dashed border-line px-4 py-6 text-center text-cuerpo text-ink-3"}>{vacio}</p>;
+  const fila = (f: readonly ReactNode[], i: number | string) => (
+    <tr key={i} className={papel ? "border-b border-current/20" : undefined}>
+      {f.map((celda, j) => (
+        <td key={j} className={cn(td, columnas[j]?.derecha && "tnum text-right whitespace-nowrap", columnas[j]?.clase)}>
+          {celda}
+        </td>
+      ))}
+    </tr>
+  );
   return (
     <>
       <div className={papel ? "" : "overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface shadow-card"}>
-        <table className={cn("w-full border-collapse", papel ? "text-[9.5pt]" : "text-detalle")}>
+        <table className={cn("w-full border-collapse", papel ? "text-[9pt] leading-tight" : "text-detalle")}>
           <thead className={papel ? "" : "bg-surface-2"}>
             <tr>
               {columnas.map((c, i) => (
@@ -68,14 +85,34 @@ export function TablaDeInforme({ seccion, papel = false }: { seccion: SeccionDeI
             </tr>
           </thead>
           <tbody className={papel ? "" : "divide-y divide-line"}>
-            {filas.map((f, i) => (
-              <tr key={i} className={papel ? "border-b border-current/20" : undefined}>
-                {f.map((celda, j) => (
-                  <td key={j} className={cn(td, columnas[j]?.derecha && "tnum text-right whitespace-nowrap", columnas[j]?.clase)}>
-                    {celda}
-                  </td>
-                ))}
-              </tr>
+            {filas.map((f, i) => fila(f, i))}
+            {/* B11-5: cada grupo con su franja (no se separa de su primera fila) y su subtotal. */}
+            {grupos?.map((g, k) => (
+              <Fragment key={`g-${k}`}>
+                <tr className="[break-after:avoid]">
+                  <th
+                    colSpan={columnas.length}
+                    scope="colgroup"
+                    className={
+                      papel
+                        ? "bg-current/10 px-1.5 py-0.5 text-left text-[8.5pt] font-bold tracking-[0.04em] uppercase"
+                        : "bg-surface-2 px-3 py-1.5 text-left text-etiqueta font-semibold tracking-[0.06em] text-ink-2 uppercase"
+                    }
+                  >
+                    {g.titulo}
+                  </th>
+                </tr>
+                {g.filas.map((f, i) => fila(f, `${k}-${i}`))}
+                {g.pie && (
+                  <tr className={papel ? "border-b border-current/50 font-semibold" : "bg-surface-2/50 font-semibold text-ink"}>
+                    {g.pie.map((celda, j) => (
+                      <td key={j} className={cn(td, columnas[j]?.derecha && "tnum text-right whitespace-nowrap", columnas[j]?.clase)}>
+                        {celda}
+                      </td>
+                    ))}
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
           {pie && (
@@ -91,7 +128,7 @@ export function TablaDeInforme({ seccion, papel = false }: { seccion: SeccionDeI
           )}
         </table>
       </div>
-      {nota && <p className={papel ? "mt-0.5 text-[8.5pt]" : "mt-1.5 text-nota text-ink-3"}>{nota}</p>}
+      {nota && <p className={papel ? "mt-0.5 text-[8pt]" : "mt-1.5 text-nota text-ink-3"}>{nota}</p>}
     </>
   );
 }
@@ -164,10 +201,48 @@ export function DocumentoDeInforme({
 /** Una sección del documento: su título y su tabla, sin partir el título de su tabla. */
 export function SeccionImpresa({ seccion }: { seccion: SeccionDeInforme }) {
   return (
-    <section className="mb-3">
-      <h2 className="mb-1 text-[11pt] font-bold [break-after:avoid]">{seccion.titulo}</h2>
+    <section className="mb-2.5">
+      <h2 className="mb-0.5 text-[10.5pt] font-bold [break-after:avoid]">{seccion.titulo}</h2>
       <TablaDeInforme seccion={seccion} papel />
     </section>
+  );
+}
+
+/**
+ * En el papel (B11-5, M-35): las secciones de cada categoría juntas en una sola tabla, con la categoría como franja y su
+ * subtotal debajo. Un solo encabezado de columnas, que se repite en cada página, en vez de uno por categoría. Las
+ * secciones tienen las mismas columnas.
+ */
+export function enBandas(id: string, titulo: string, secciones: readonly SeccionDeInforme[], pie?: readonly ReactNode[]): SeccionDeInforme {
+  return {
+    id,
+    titulo,
+    columnas: secciones[0]?.columnas ?? [],
+    filas: [],
+    grupos: secciones.map((s) => ({ titulo: s.titulo, filas: s.filas, pie: s.pie })),
+    ...(pie ? { pie } : {}),
+    vacio: secciones[0]?.vacio ?? "",
+  };
+}
+
+/**
+ * El nombre de un producto en una fila (B11-5): en el papel, en un renglón, con su presentación o su SKU al lado en letra
+ * menor; en la pantalla, debajo.
+ */
+export function NombreDeProducto({ nombre, detalle, papel = false }: { nombre: ReactNode; detalle?: string | null | undefined; papel?: boolean }) {
+  if (papel) {
+    return (
+      <span>
+        <span className="font-semibold">{nombre}</span>
+        {detalle && <span className="text-[7.5pt]"> · {detalle}</span>}
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-col">
+      <span className="font-semibold text-ink">{nombre}</span>
+      {detalle && <span className="text-nota text-ink-3">{detalle}</span>}
+    </span>
   );
 }
 

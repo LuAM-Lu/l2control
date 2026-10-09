@@ -1,6 +1,6 @@
 import type { InformeDeInventarioDto } from "@l2/contracts";
 import { EstadoStock } from "../inventario/EstadoStock.tsx";
-import { importe, type SeccionDeInforme } from "./informe.tsx";
+import { NombreDeProducto, importe, type SeccionDeInforme } from "./informe.tsx";
 
 /**
  * Las secciones del inventario al momento (B11-2): una por categoría, con su subtotal. Las pintan la pantalla y el
@@ -38,20 +38,16 @@ export function seccionesDeInventario(i: InformeDeInventarioDto, f: FiltroDeInve
       titulo: `${categoria} · ${de.length} ${de.length === 1 ? "producto" : "productos"}`,
       columnas: [
         { titulo: "Producto" },
-        { titulo: "Estado" },
+        // B11-5: «Sin inventario inicial» en un renglón: partido, duplicaba el alto de cada fila del PDF.
+        { titulo: "Estado", clase: "whitespace-nowrap" },
         { titulo: "Existencia", derecha: true },
         { titulo: "Mínimo", derecha: true },
         { titulo: "Costo prom.", derecha: true },
         { titulo: "Valor al costo", derecha: true },
       ],
       filas: de.map((p) => [
-        <span key="n" className="flex flex-col">
-          <span className={papel ? "" : "font-semibold text-ink"}>
-            {p.nombre}
-            {p.retirado ? " (retirado)" : ""}
-          </span>
-          <span className={papel ? "text-[8.5pt]" : "text-nota text-ink-3"}>{[p.sku, p.presentacion].filter(Boolean).join(" · ")}</span>
-        </span>,
+        // B11-5: en el papel, el nombre y su SKU y presentación en un renglón.
+        <NombreDeProducto key="n" nombre={`${p.nombre}${p.retirado ? " (retirado)" : ""}`} detalle={[p.sku, p.presentacion].filter(Boolean).join(" · ")} papel={papel} />,
         papel ? TEXTO_ESTADO[p.estado] : <EstadoStock key="e" estado={p.estado} />,
         p.estado === "SIN_INICIAL" ? "—" : p.existencia,
         p.minimo ?? "—",
