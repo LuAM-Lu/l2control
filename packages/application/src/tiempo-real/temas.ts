@@ -81,6 +81,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   // Anular un plato ya enviado cambia la cuenta de la mesa, no su comanda (ya se imprimió, B6-3).
   "pedido.anular": ["cuentas"],
   "mesa.liberar": ["cuentas"],
+  "mesa.cerrar_sin_cobrar": ["cuentas", "pedidos"],
   // Vincular pulseras mueve dinero entre la cuenta de la mesa y la de cada familia tocada (F6-05).
   "mesa.vincular": ["cuentas", "sala"],
   // Los cumpleaños (B10-1): reservar abre la cuenta del anticipo en la cola de la caja; cancelar la

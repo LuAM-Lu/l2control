@@ -436,6 +436,8 @@ export {
   AnularCobroCommandSchema,
   CortesiaCommandSchema,
   AnularPedidoCommandSchema,
+  CerrarMesaSinCobrarCommandSchema,
+  type CerrarMesaSinCobrarCommand,
   LiberarMesaCommandSchema,
   type CortesiaCommand,
   type AnularPedidoCommand,

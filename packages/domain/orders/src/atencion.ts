@@ -20,7 +20,7 @@ export type PedidoParaAtencion = Readonly<{
    * Sus platos (B6-11): cuándo se sirvió cada uno y si se anuló. Sin ellos, el pedido cuenta como un solo plato servido
    * cuando `servidoEn`.
    */
-  platos?: readonly Readonly<{ servidoEn: number | null; anulado: boolean }>[] | undefined;
+  platos?: readonly Readonly<{ servidoEn: number | null; anulado: boolean; sinHora?: boolean | undefined }>[] | undefined;
 }>;
 
 /** Los platos que se esperan de un pedido: los suyos sin anular, o el pedido como uno solo. */
@@ -83,7 +83,10 @@ export type ResumenDeEspera = Readonly<{
 
 /** El resumen del día, por plato: cuánto se esperó lo servido, de media y como mucho, y cuántos siguen sin servir. */
 export function resumenDeEspera(pedidos: readonly PedidoParaAtencion[]): ResumenDeEspera {
-  const platos = pedidos.filter((p) => !p.anulado).flatMap((p) => platosDe(p).map((x) => ({ enviadoEn: p.enviadoEn, servidoEn: x.servidoEn })));
+  // Lo servido sin hora exacta (B6-13, marcado al pedir la cuenta) no espera, pero tampoco se mide.
+  const platos = pedidos
+    .filter((p) => !p.anulado)
+    .flatMap((p) => platosDe(p).filter((x) => !("sinHora" in x && x.sinHora)).map((x) => ({ enviadoEn: p.enviadoEn, servidoEn: x.servidoEn })));
   const esperas = platos.filter((x) => x.servidoEn !== null).map((x) => Math.max(0, x.servidoEn! - x.enviadoEn));
   const validos = platos;
   return {

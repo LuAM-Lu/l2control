@@ -38,7 +38,7 @@ import type {
 } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, Confirmacion, Container, MoneyDisplay, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
+import { Badge, Button, Confirmacion, Container, Dialog, MoneyDisplay, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
 import { chargeableLines } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
@@ -71,6 +71,7 @@ import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acci
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 
 /**
@@ -134,7 +135,10 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // El plano lo publica administración desde el panel (V4, B6-1); aquí solo se lee.
   const { plano } = usePlano();
   // Las cuentas del salón (F6-05, D2, B6-7): una por familia en cada mesa, y las de pie.
-  const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta } = useCuentas();
+  const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta, cerrarSinCobrar } = useCuentas();
+  // B6-13: cerrar la mesa sin cobrar es de supervisión y administración (M-35).
+  const actor = useActorEnSesion();
+  const cierraSinCobrar = actor?.role === "ADMIN" || actor?.role === "SUPERVISOR";
   // Los pedidos y su comanda, del servidor (B6-2).
   const { pedidos, enviar: enviarPedido, reimprimir, servir, deshacer } = usePedidos();
   // Los umbrales de la atención en el salón (B6-8).
@@ -176,6 +180,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
   /** La cuenta cuyo cliente se fue sin pagar (B3-11), mientras se autoriza dejarla en deuda. */
   const [seFue, setSeFue] = useState<FamilyAccountDto | null>(null);
+  /** B6-13: la mesa que se cierra sin cobrar (elegir: deuda o anular) y la que se anula entera. */
+  const [cerrandoSinCobrar, setCerrandoSinCobrar] = useState<FamilyAccountDto | null>(null);
+  const [anulandoMesa, setAnulandoMesa] = useState<FamilyAccountDto | null>(null);
+  /** B6-13: al pedir la cuenta con platos sin marcar servidos, «¿Ya se sirvió todo?». */
+  const [sinServir, setSinServir] = useState<{ cuenta: FamilyAccountDto; platos: { pedido: PedidoDto; lineas: number[] }[] } | null>(null);
+  const [sirviendoTodo, setSirviendoTodo] = useState(false);
   /** El formulario de sentar: el cliente, con nombre, cédula y teléfono (B6-9, M-33), y cuántas personas. */
   const [cliente, setCliente] = useState<DatosDelClienteDto>(SIN_DATOS);
   /** Lo que falta o no vale, después de intentar sentar. */
@@ -426,6 +436,40 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     setLiberando(null);
     setCuentaSel(null);
     avisar.ok(`${nombreDeCuenta(c)}: libre, no hubo nada que cobrar`);
+  }
+
+  /**
+   * B6-13: antes de pedir la cuenta, lo que falta por marcar servido. Si hay algo, «¿Ya se sirvió todo?»: «Sí» lo marca
+   * servido sin hora exacta (la atención no lo mide) y pide la cuenta; «Pedir la cuenta igual» la pide sin marcar nada.
+   */
+  function pedirLaCuentaConServido(c: FamilyAccountDto) {
+    const propias = c.lines;
+    const platos = pedidos
+      .filter((p) => p.cuentaId === c.id)
+      .map((p) => ({
+        pedido: p,
+        lineas: p.lineas.flatMap((l, i) => (l.servido === null && !platoAnulado(l.productId, propias.filter((x) => x.orderId === p.id)) ? [i] : [])),
+      }))
+      .filter((x) => x.lineas.length > 0);
+    if (platos.length === 0) return pedirLaCuenta(c);
+    setSinServir({ cuenta: c, platos });
+  }
+
+  async function servirTodoYPedir() {
+    if (!sinServir) return;
+    setSirviendoTodo(true);
+    for (const { pedido, lineas } of sinServir.platos) {
+      const r = await servir(pedido.id, lineas, true);
+      if (!r.ok) {
+        setSirviendoTodo(false);
+        avisar.error(r.mensaje);
+        return;
+      }
+    }
+    setSirviendoTodo(false);
+    const c = sinServir.cuenta;
+    setSinServir(null);
+    pedirLaCuenta(c);
   }
 
   /** La cuenta se pide: el mesero no cobra (DEC-14), la manda a caja. */
@@ -696,18 +740,19 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                           {lugar.tipo === "PIE" || cuentasDelLugar.length > 1 ? "Liberar esta cuenta" : "Liberar mesa"}
                         </Button>
                       ) : cuenta.status === "ABIERTA" ? (
-                        <Button variant="neutral" onClick={() => pedirLaCuenta(cuenta)} className="w-full">
+                        <Button variant="neutral" onClick={() => pedirLaCuentaConServido(cuenta)} className="w-full">
                           <Receipt size={16} aria-hidden="true" />
                           Pide la cuenta
                         </Button>
                       ) : (
                         <p className="text-center text-[12.5px] text-ink-3">Pagan en caja. El mesero no cobra (DEC-14).</p>
                       )}
-                      {/* Se fue sin pagar (B3-11): lo que debe queda a nombre de su cliente, con el PIN de supervisión. */}
-                      {chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid) && (
-                        <Button variant="ghost" onClick={() => setSeFue(cuenta)} className="w-full" aria-haspopup="dialog">
+                      {/* B6-13: cerrar la mesa sin cobrar, de supervisión y administración: se fue sin pagar (deuda, B3-11) o
+                          no consumió / fue un error (se anula todo). */}
+                      {cierraSinCobrar && chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid) && (
+                        <Button variant="ghost" onClick={() => setCerrandoSinCobrar(cuenta)} className="w-full" aria-haspopup="dialog">
                           <UserX size={16} aria-hidden="true" />
-                          Se fue sin pagar
+                          Cerrar la mesa sin cobrar…
                         </Button>
                       )}
                     </>
@@ -751,6 +796,123 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                   <p className="mt-2 text-state-warn">El pedido sin enviar de esta cuenta se descarta.</p>
                 )}
               </Confirmacion>
+              {/* B6-13: cerrar la mesa sin cobrar: elegir el camino. */}
+              <Dialog
+                abierto={cerrandoSinCobrar !== null}
+                onCerrar={() => setCerrandoSinCobrar(null)}
+                titulo={`Cerrar sin cobrar · ${cerrandoSinCobrar ? nombreDeCuenta(cerrandoSinCobrar) : ""}`}
+                descripcion="Nada se borra: queda como deuda a su nombre, o se anula con su motivo. Lo autoriza tu PIN."
+                pie={
+                  <Button surface="pos" variant="neutral" className="w-full" onClick={() => setCerrandoSinCobrar(null)}>
+                    Volver
+                  </Button>
+                }
+              >
+                <div className="flex flex-col gap-2">
+                  {[
+                    {
+                      titulo: "Se fue sin pagar",
+                      detalle: "Lo que debe queda como deuda a nombre de su cliente, y se cobra cuando vuelva.",
+                      icono: <UserX size={18} aria-hidden="true" />,
+                      ir: () => {
+                        setSeFue(cerrandoSinCobrar);
+                        setCerrandoSinCobrar(null);
+                      },
+                    },
+                    {
+                      titulo: "No consumió o fue un error",
+                      detalle: "Se anula todo lo que pidió (vuelve al estante o va a merma) y a cada área le sale su papel «ANULAR».",
+                      icono: <Ban size={18} aria-hidden="true" />,
+                      ir: () => {
+                        setAnulandoMesa(cerrandoSinCobrar);
+                        setCerrandoSinCobrar(null);
+                      },
+                    },
+                  ].map((o) => (
+                    <button
+                      key={o.titulo}
+                      type="button"
+                      onClick={o.ir}
+                      className="flex min-h-14 cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong"
+                    >
+                      <span className="mt-0.5 text-ink-2">{o.icono}</span>
+                      <span>
+                        <span className="block text-cuerpo font-semibold text-ink">{o.titulo}</span>
+                        <span className="block text-detalle text-ink-3">{o.detalle}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </Dialog>
+              <AnularPedidoDialog
+                pedido={
+                  anulandoMesa
+                    ? {
+                        id: anulandoMesa.id,
+                        numero: anulandoMesa.orderNumber ?? 0,
+                        lineas: [...chargeableLines(anulandoMesa).reduce((m, l) => m.set(l.concept, (m.get(l.concept) ?? 0) + 1), new Map<string, number>())].map(([nombre, cantidad]) => ({ nombre, cantidad })),
+                      }
+                    : null
+                }
+                titulo={anulandoMesa ? `Anular todo · ${nombreDeCuenta(anulandoMesa)}` : undefined}
+                descripcion="Se anula todo lo que debe esta cuenta, de todos sus pedidos, con su motivo, y la mesa queda libre. A cada área le sale su papel «ANULAR»."
+                onCerrar={() => setAnulandoMesa(null)}
+                onAplicar={async (motivo, detalle, preparado, autorizacion) => {
+                  const c = anulandoMesa!;
+                  const r = await cerrarSinCobrar(
+                    { idempotencyKey: crypto.randomUUID(), accountId: c.id, version: c.version!, motivo, preparado, ...(detalle ? { detalle } : {}) },
+                    autorizacion,
+                  );
+                  if (!r.ok) return r;
+                  setAnulandoMesa(null);
+                  avisar.ok(`${nombreDeCuenta(c)}: cerrada sin cobrar`, { detalle: `Se anuló lo que debía. ${preparado ? "Sale como merma." : "Vuelve al inventario."}` });
+                  return null;
+                }}
+              />
+              {/* B6-13: «¿Ya se sirvió todo?» al pedir la cuenta. */}
+              <Dialog
+                abierto={sinServir !== null}
+                onCerrar={() => setSinServir(null)}
+                titulo="¿Ya se sirvió todo?"
+                descripcion={
+                  sinServir
+                    ? `Falta marcar servido: ${[
+                        ...sinServir.platos
+                          .flatMap(({ pedido, lineas }) => lineas.map((i) => pedido.lineas[i]!))
+                          .reduce((m, l) => m.set(l.nombre, (m.get(l.nombre) ?? 0) + l.cantidad), new Map<string, number>()),
+                      ]
+                        .map(([nombre, n]) => `${n}× ${nombre}`)
+                        .join(", ")}.`
+                    : ""
+                }
+                pie={
+                  <div className="flex flex-col gap-2">
+                    <Button surface="pos" variant="primary" disabled={sirviendoTodo} onClick={() => void servirTodoYPedir()}>
+                      <HandPlatter size={17} aria-hidden="true" />
+                      {sirviendoTodo ? "Marcando…" : "Sí, todo servido"}
+                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button surface="pos" variant="neutral" disabled={sirviendoTodo} onClick={() => setSinServir(null)}>
+                        Volver
+                      </Button>
+                      <Button
+                        surface="pos"
+                        variant="ghost"
+                        disabled={sirviendoTodo}
+                        onClick={() => {
+                          const c = sinServir!.cuenta;
+                          setSinServir(null);
+                          pedirLaCuenta(c);
+                        }}
+                      >
+                        Pedir la cuenta igual
+                      </Button>
+                    </div>
+                  </div>
+                }
+              >
+                <p className="text-detalle text-ink-2">Se marcan servidos sin hora exacta: la atención en el salón no los cuenta como espera.</p>
+              </Dialog>
               <AnularPedidoDialog
                 pedido={anulando}
                 onCerrar={() => setAnulando(null)}

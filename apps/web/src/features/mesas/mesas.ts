@@ -232,7 +232,7 @@ export function paraAtender(p: PedidoDto, cuentas: readonly FamilyAccountDto[]):
     enviadoEn: Date.parse(p.enviadoEn),
     servidoEn: p.servido ? Date.parse(p.servido.en) : null,
     anulado: propias.length > 0 && propias.every((l) => l.anulacion !== undefined),
-    platos: p.lineas.map((l) => ({ servidoEn: l.servido ? Date.parse(l.servido.en) : null, anulado: platoAnulado(l.productId, propias) })),
+    platos: p.lineas.map((l) => ({ servidoEn: l.servido ? Date.parse(l.servido.en) : null, anulado: platoAnulado(l.productId, propias), sinHora: l.servido?.sinHora ?? false })),
   };
 }
 

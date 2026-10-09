@@ -219,6 +219,11 @@ export const ReimprimirComandaCommandSchema = z.strictObject({ pedidoId: z.uuid(
 export const ServirPedidoCommandSchema = z.strictObject({
   pedidoId: z.uuid("Pedido desconocido"),
   lineas: z.array(z.number().int().min(0).max(39)).min(1, "Elige un plato").max(40).optional(),
+  /**
+   * Al pedir la cuenta, «¿Ya se sirvió todo?» → «Sí» (B6-13): se marcan servidos sin hora exacta (no se sabe cuándo
+   * llegaron), y la atención no los mide como espera.
+   */
+  sinHora: z.boolean().optional(),
 });
 
 /** Las notas rápidas de un plato (B6-12): las más escritas para ese producto en los últimos 60 días, y las de su categoría. */
@@ -274,7 +279,7 @@ export const PedidoSchema = z.object({
         /** En qué papel salió (B6-10). Sin ella, un pedido de antes: todo en uno. */
         area: AreaDeProductoSchema.optional(),
         /** Cuándo y quién lo sirvió en la mesa (B6-11); sin servir, `null`. */
-        servido: z.object({ en: TimestampSchema, por: z.string() }).nullable().default(null),
+        servido: z.object({ en: TimestampSchema, por: z.string(), sinHora: z.boolean().default(false) }).nullable().default(null),
       }),
     )
     .min(1),

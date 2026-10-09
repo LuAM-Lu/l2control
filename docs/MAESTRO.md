@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.105.0 · 105 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.106.0 · 106 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
@@ -2654,12 +2654,22 @@ antes del cobro en servidor (orden de ejecución).
   días con una consulta (`jsonb_array_elements`), del producto y de su categoría (`pedido.tomar`). La tablet, al abrir la
   nota de un plato, «Las más pedidas», con su carga, vacío y error a la vista. 3 pruebas del dominio y 1 contra la base.*
 
-- [ ] **B6-13 · Servir y cerrar la mesa** (M-35, R-8).
+- [x] **B6-13 · Servir y cerrar la mesa** (M-35, R-8).
+  *Hecho el 2026-10-09 (v0.106.0), en `feat/b6-13`.*
   → **«Pide la cuenta» con platos sin marcar** pregunta «¿Ya se sirvió todo?» → «Sí, todo servido»: esos platos quedan
   servidos **sin hora exacta** (una marca propia) y la atención en el salón no los mide como espera. No bloquea la cuenta.
   → **«Cerrar la mesa sin cobrar»**, de administración y supervisión, con PIN y motivo: **anular** lo consumido (no lo
   consumió o fue un error de registro: al estante o a merma, como B6-6) o **dejarlo como deuda** (se fue sin pagar,
   B3-11). Un camino para los dos; nada se borra.
+  *· Hecho: migración `20261124000000_servido_sin_hora` (solo expande): `kitchen_order_line_served.sin_hora`. En
+  `@l2/domain-orders`, `Servido.sinHora`; `resumenDeEspera` no mide lo servido sin hora. `pedidos.servir` con `sinHora`
+  (Mesas: «¿Ya se sirvió todo?» al pedir la cuenta, con «Sí, todo servido», «Volver» y «Pedir la cuenta igual»).
+  `cuentas.cerrarSinCobrar` (`mesa.cerrar_sin_cobrar`): por su rol, supervisión o administración, con su PIN; anula todo
+  lo anulable de todos los pedidos (cada uno con su papel «ANULAR» por área y su inventario) y libera la mesa, en una
+  transacción; si queda tiempo del parque, no. La anulación de B6-6 se partió en `prepararAnulacion` y `asentarAnulacion`
+  y las usan los dos. Mesas: «Cerrar la mesa sin cobrar…» (solo para ellos) con «Se fue sin pagar» (la deuda de B3-11)
+  o «No consumió o fue un error». **Decidido al construir:** se mira el rol y no «permitido», porque supervisión anula
+  autorizándose con su PIN (D-AUT). 1 prueba del dominio y 2 contra la base.*
 
 - [ ] **B6-14 · Por limpiar y los avisos del salón** (M-35, R-8).
   → **«Por limpiar» en la base** (solo agregar): hoy viaja por el canal en vivo y se pierde si el servidor se reinicia. Lo

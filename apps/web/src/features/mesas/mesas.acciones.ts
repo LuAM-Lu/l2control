@@ -45,6 +45,16 @@ export async function anularPedido(entrada: unknown, autorizacion?: unknown): Pr
   return r;
 }
 
+/** Cierra una mesa sin cobrar (B6-13): anula todo lo que debe y la libera. De supervisión y administración, con su PIN. */
+export async function cerrarMesaSinCobrar(entrada: unknown, autorizacion?: unknown): Promise<Resultado<FamilyAccountDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cuentas.cerrarSinCobrar(ctx, entrada, autorizacion);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id }, "mesa cerrada sin cobrar");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cerrar mesa sin cobrar rechazado");
+  return r;
+}
+
 /** Libera una mesa sin nada que cobrar: su cuenta se cierra «sin consumo» (B6-5, M-18). Sin PIN. */
 export async function liberarMesa(entrada: unknown): Promise<Resultado<FamilyAccountDto>> {
   const ctx = await contextoActual();

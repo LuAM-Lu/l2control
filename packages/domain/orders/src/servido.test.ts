@@ -59,3 +59,24 @@ describe("servido por plato", () => {
     assert.deepEqual(resumenDeEspera([{ ...pedido, platos: undefined, servidoEn: 5 * MIN }]), { servidos: 1, mediaMin: 5, maximaMin: 5, sinServir: 0 });
   });
 });
+
+describe("servido sin hora exacta (B6-13)", () => {
+  test("queda servido, el pedido también, y la atención no lo mide como espera", () => {
+    const platos = servidoPorPlato(2, [marca(0, "SERVIDO", 10 * MIN), { linea: 1, tipo: "SERVIDO", en: 40 * MIN, por: "Pedro", sinHora: true }], null);
+    assert.equal(platos[1]?.sinHora, true);
+    assert.notEqual(servidoDelPedido(platos), null);
+    const pedido = {
+      cuentaId: "c1",
+      enviadoEn: 0,
+      servidoEn: 40 * MIN,
+      anulado: false,
+      platos: [
+        { servidoEn: 10 * MIN, anulado: false },
+        { servidoEn: 40 * MIN, anulado: false, sinHora: true },
+      ],
+    };
+    assert.deepEqual(resumenDeEspera([pedido]), { servidos: 1, mediaMin: 10, maximaMin: 10, sinServir: 0 });
+    const [a] = atencionDeCuentas([{ id: "c1", abiertaEn: 0 }], [pedido], 60 * MIN, { sinPedirMin: 10, esperaMin: 20 });
+    assert.equal(a!.esperandoMin, null);
+  });
+});
