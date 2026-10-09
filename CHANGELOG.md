@@ -70,6 +70,14 @@ El cliente por su cédula, en todo, y el buscador (T-19, M-34).
   tiene abierto (y lo abre), sus niños en la sala con su pulsera y lo que debe de antes.
 - **El formulario de entradas en papel tiene la columna de la cédula.**
 
+Corregir una entrada mal cargada (B9-12, M-34).
+
+### Añadido
+- **Anular una entrada** (una compra, una reposición o el inventario inicial) con su motivo y el PIN de administración:
+  cada línea sale a su costo de esa entrada y el costo promedio se recalcula. No se borra: queda tachada, con quién y por
+  qué. Si ya se vendió o se sacó algo, dice cuánto y se corrige con un conteo. Un inventario inicial anulado se vuelve a
+  contar. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.
+
 ## [0.95.0] — 2026-10-09 · Hacia la puesta en marcha
 
 El cobro en curso no se pierde (B3-13, M-34).
