@@ -16,7 +16,7 @@ import {
   type VentaCerradaDto,
   type VentasDelTurnoDto,
 } from "@l2/contracts";
-import type { Base, Sale, SalePrint, SaleVoid, Transaccion } from "@l2/database";
+import type { Base, Sale, SalePrint, SaleReturn, SaleVoid, Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
@@ -45,10 +45,15 @@ export type DevolucionGuardada = Readonly<{
   referenceCipher: string | null;
 }>;
 
-type VentaConTodo = Sale & { prints: SalePrint[]; voids: SaleVoid[] };
+type VentaConTodo = Sale & { prints: SalePrint[]; voids: SaleVoid[]; returns: SaleReturn[] };
 
-/** Cómo se lee una venta con sus impresiones y su anulación. */
-export const CON_TODO = { prints: { orderBy: { printedAt: "asc" } }, voids: true } as const;
+/** Cómo se lee una venta con sus impresiones, su anulación y sus devoluciones (B3-14). */
+export const CON_TODO = { prints: { orderBy: { printedAt: "asc" } }, voids: true, returns: { orderBy: { returnedAt: "asc" } } } as const;
+
+/** Un reintegro de una devolución como se guarda: la referencia, solo cifrada (§7.6). */
+export type ReintegroGuardado = Readonly<{ paymentIndex: number; amountMinor: string; currency: string; referenceCipher: string | null }>;
+/** Una línea devuelta como se guarda. */
+export type LineaDevueltaGuardada = Readonly<{ lineId: string; concept: string; productId: string | null; amount: { minor: string; currency: string }; destino: "ESTANTE" | "MERMA" }>;
 
 /** «···4821»: la referencia de una devolución a la vista (§7.6). */
 const enmascarar = (ref: string) => `···${ref.slice(-4)}`;
@@ -56,8 +61,31 @@ const enmascarar = (ref: string) => `···${ref.slice(-4)}`;
 /** La venta en la forma del contrato, revalidada (fail-closed): lo guardado más lo añadido. */
 export function ventaDe(s: VentaConTodo, cifrador: Cifrador | null): VentaCerradaDto {
   const a = s.voids[0];
+  const contenido = s.content as { payments?: { refundable: { minor: string; currency: string } }[] };
+  // Lo que queda por devolver de cada pago: lo de la venta menos lo ya devuelto (B3-14).
+  const devuelto = new Map<number, bigint>();
+  for (const d of s.returns) for (const r of d.refunds as ReintegroGuardado[]) devuelto.set(r.paymentIndex, (devuelto.get(r.paymentIndex) ?? 0n) + BigInt(r.amountMinor));
+  const payments = (contenido.payments ?? []).map((p, i) => ({ ...p, refundable: { ...p.refundable, minor: String(BigInt(p.refundable.minor) - (devuelto.get(i) ?? 0n)) } }));
   return VentaCerradaSchema.parse({
     ...(s.content as object),
+    payments,
+    devoluciones: s.returns.map((d) => ({
+      id: d.id,
+      at: d.returnedAt.toISOString(),
+      por: d.requestedByName,
+      autorizo: d.authorizedByName,
+      motivo: d.reason,
+      lineas: (d.lines as LineaDevueltaGuardada[]).map((l) => ({ lineId: l.lineId, concept: l.concept, amount: l.amount, destino: l.destino })),
+      descuento: { minor: String(d.discountMinor), currency: d.currency },
+      iva: { minor: String(d.taxMinor), currency: d.currency },
+      igtf: { minor: String(d.igtfMinor), currency: d.currency },
+      total: { minor: String(d.totalMinor), currency: d.currency },
+      reintegros: (d.refunds as ReintegroGuardado[]).map((r) => ({
+        paymentIndex: r.paymentIndex,
+        amount: { minor: r.amountMinor, currency: r.currency },
+        reference: r.referenceCipher ? (cifrador ? enmascarar(cifrador.descifrar(r.referenceCipher)) : "Cifrada") : null,
+      })),
+    })),
     id: s.id,
     prints: s.prints.map((p) => ({ at: p.printedAt.toISOString(), by: p.printedByName, copia: p.copy })),
     voided: a

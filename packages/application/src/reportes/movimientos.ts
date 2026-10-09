@@ -89,6 +89,7 @@ export function casosMovimientos(base: Base): CasosMovimientos {
             ajuste: { select: { kind: true, reason: true, note: true, content: true, authorizedByName: true } },
             causa: { select: { content: true } },
             anulada: { select: { reason: true, authorizedByName: true, entrada: { select: { kind: true, receivedAt: true } } } },
+            retorno: { select: { reason: true, authorizedByName: true, sale: { select: { orderNumber: true } } } },
           },
           orderBy: [{ at: "asc" }, { id: "asc" }],
         });
@@ -111,6 +112,10 @@ export function casosMovimientos(base: Base): CasosMovimientos {
             fila.detalle = `Venta · ${lugarDe(m.causa?.content)}`;
           } else if (m.kind === "DEVOLUCION") {
             fila.detalle = `Quitado de una cuenta sin cobrar · ${lugarDe(m.causa?.content)}`;
+          } else if (m.kind === "RETORNO" && m.retorno) {
+            // B3-14: lo que un cliente devolvió y volvió al estante.
+            fila.detalle = con(`Devuelto por un cliente · orden #${String(m.retorno.sale.orderNumber).padStart(4, "0")}`, m.retorno.reason);
+            fila.autorizo = m.retorno.authorizedByName;
           } else if (m.kind === "ANULACION" && m.anulada) {
             // B9-12: la entrada mal cargada, anulada con su reverso.
             fila.detalle = con(`Anulación: ${(ENTRADA[m.anulada.entrada.kind] ?? "entrada").toLowerCase()}`, m.anulada.reason);

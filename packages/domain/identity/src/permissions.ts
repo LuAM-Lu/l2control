@@ -37,6 +37,7 @@ export type Action =
   | "documento.notaCredito"
   | "documento.reimprimir"
   | "cobro.anular"
+  | "venta.devolver"
   | "mesa.reabrir"
   | "kds.cambiarEstado"
   | "parque.checkIn"
@@ -135,6 +136,8 @@ export const MATRIZ: Matriz = Object.freeze({
   // DEC-24: anular un cobro ya cerrado. Lo pide quien cobra; lo autoriza un
   // supervisor con su PIN o el administrador.
   "cobro.anular": fila(P, A, A, D, D, D),
+  // B3-14 (M-34): un cliente devuelve parte de lo que compró. Supervisión lo hace; la caja, con su autorización.
+  "venta.devolver": fila(P, P, A, D, D, D),
 
   "mesa.reabrir": fila(P, A, D, D, D, D),
   "kds.cambiarEstado": fila(P, P, D, D, D, P),

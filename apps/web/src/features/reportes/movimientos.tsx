@@ -18,6 +18,7 @@ export const NOMBRE_MOVIMIENTO: Readonly<Record<TipoDeMovimiento, string>> = {
   CONTEO: "Conteo",
   INICIAL: "Inventario inicial",
   ANULACION: "Entrada anulada",
+  RETORNO: "Devuelto por un cliente",
 };
 
 /** Una cantidad con su signo: «+24», «−2», «0». */

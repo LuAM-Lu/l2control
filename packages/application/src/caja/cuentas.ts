@@ -189,7 +189,8 @@ export type AccionDeCaja =
   | "turno.corteZ"
   | "turno.abrirFueraDelPunto"
   | "pedido.anularEnProduccion"
-  | "parque.anularEntrada";
+  | "parque.anularEntrada"
+  | "venta.devolver";
 
 /** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
 const CON_PIN = { confirmarConPin: true } as const;
@@ -663,7 +664,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             // Lo que se cobra y lo que se regala en este cobro (lo regalado, con su motivo).
             lineas: cuenta.lines
               .filter((l) => !l.paid && !l.movedTo)
-              .map((l) => ({ lineId: l.id, concept: l.concept, amount: l.amount, cortesia: l.cortesia?.motivo ?? null })),
+              // El IVA de cada línea (B3-14): una devolución lo recalcula por alícuota.
+              .map((l) => ({ lineId: l.id, concept: l.concept, amount: l.amount, cortesia: l.cortesia?.motivo ?? null, ...(l.taxCode ? { taxCode: l.taxCode } : {}) })),
             subtotal: conDinero(doc.subtotal),
             // El descuento del cobro, con quién lo autorizó (B3-6): sale en el recibo y en las excepciones.
             descuento: cuenta.descuento
@@ -797,6 +799,10 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // explicándolo.
           const venta = await ventaDelCobro(tx, cmd.cobroKey, cifrador);
           if (!venta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay venta de ese cobro." };
+          // B3-14: con devoluciones, anularla entera devolvería dos veces lo mismo; lo que queda se devuelve por ahí.
+          if (venta.devoluciones.length > 0) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa venta ya tiene devoluciones: lo que queda se devuelve con «Devolver», no se anula entera." };
+          }
           // El corte Z ya la contó: después del Z nada toca ese turno (F4-06; la base también lo impone).
           const suTurno = await tx.sale.findFirst({ where: { operationKey: cmd.cobroKey }, select: { shift: { select: { status: true } } } });
           if (suTurno?.shift.status === "CERRADO_Z") {

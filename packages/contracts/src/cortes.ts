@@ -73,7 +73,7 @@ export type ArqueoDto = z.infer<typeof ArqueoSchema>;
 /** Una excepción del turno (F4-08, §7.5): con quién, cuándo, por qué y quién la autorizó. */
 export const ExcepcionSchema = z.object({
   at: TimestampSchema,
-  tipo: z.enum(["ANULACION", "DESCUENTO", "CORTESIA", "REIMPRESION", "RESIDUO", "INCOBRABLE", "DIFERENCIA", "PAPEL"]),
+  tipo: z.enum(["ANULACION", "DESCUENTO", "CORTESIA", "REIMPRESION", "RESIDUO", "INCOBRABLE", "DIFERENCIA", "PAPEL", "DEVOLUCION"]),
   detalle: Texto(160),
   usuario: Texto(80),
   motivo: Texto(280),

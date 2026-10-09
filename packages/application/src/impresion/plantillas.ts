@@ -11,7 +11,7 @@
  *
  * ⚠ §7.6: las referencias de pago y el documento del cliente llegan enmascarados desde la venta.
  */
-import type { AjustesSucursalDto, CorteDto, ExcepcionDto, MoneyDto, VentaCerradaDto } from "@l2/contracts";
+import type { AjustesSucursalDto, CorteDto, DevolucionDeVentaDto, ExcepcionDto, MoneyDto, VentaCerradaDto } from "@l2/contracts";
 import { cuentasDelCobro } from "@l2/domain-cash";
 import { convert, invertRate, money, multiply, type CurrencyCode, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
@@ -46,6 +46,50 @@ function cabecera(local: AjustesSucursalDto): Renglon[] {
  * tasa del cobro; «Pagado», si hubo más de uno, otra moneda o algo de más; y el vuelto también en bolívares. Las
  * cuentas las hace `cuentasDelCobro` (`@l2/domain-cash`), la misma que usa el recibo de la pantalla.
  */
+/**
+ * El comprobante de una devolución (B3-14, M-34): de qué venta, qué volvió y a dónde (estante o merma), lo que se devolvió
+ * con su descuento, IVA e IGTF, y por qué pago, con la referencia enmascarada. Quién y quién autorizó.
+ */
+export function documentoDeDevolucion(v: VentaCerradaDto, d: DevolucionDeVentaDto, local: AjustesSucursalDto): Documento {
+  const filas = new Map<string, { cantidad: number; concepto: string; precio: Money; destino: string }>();
+  for (const l of d.lineas) {
+    const clave = `${l.concept}|${l.amount.minor}|${l.destino}`;
+    const f = filas.get(clave);
+    if (f) f.cantidad += 1;
+    else filas.set(clave, { cantidad: 1, concepto: l.concept, precio: dinero(l.amount), destino: l.destino === "ESTANTE" ? "al estante" : "a merma" });
+  }
+  const renglones: Renglon[] = [
+    ...cabecera(local),
+    { tipo: "TEXTO", texto: "DEVOLUCIÓN", alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: `De la orden ${orden(v.orderNumber)}`, alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: fechaYHora(Date.parse(d.at), local.formatoHora, local.zonaHoraria), alinear: "CENTRO" },
+    { tipo: "TEXTO", texto: `Factura a: ${v.cliente.kind === "CONSUMIDOR_FINAL" ? "Consumidor final" : `${v.cliente.name} · ${v.cliente.document}`}` },
+    { tipo: "LINEA" },
+    ...[...filas.values()].flatMap((f): Renglon[] => [
+      { tipo: "PAR", izq: `${f.cantidad} × ${f.concepto}`, der: texto(multiply(f.precio, BigInt(f.cantidad))) },
+      { tipo: "TEXTO", texto: `  ${f.destino}` },
+    ]),
+    { tipo: "LINEA" },
+    ...(BigInt(d.descuento.minor) > 0n ? [{ tipo: "PAR", izq: "Descuento", der: `- ${texto(dinero(d.descuento))}` } as const] : []),
+    ...(BigInt(d.iva.minor) > 0n ? [{ tipo: "PAR", izq: "IVA", der: texto(dinero(d.iva)) } as const] : []),
+    ...(BigInt(d.igtf.minor) > 0n ? [{ tipo: "PAR", izq: "IGTF", der: texto(dinero(d.igtf)) } as const] : []),
+    { tipo: "LINEA", caracter: "=" },
+    { tipo: "PAR", izq: "SE DEVUELVE", der: texto(dinero(d.total)), negrita: true, grande: true },
+    { tipo: "LINEA" },
+    ...d.reintegros.flatMap((r): Renglon[] => {
+      const p = v.payments[r.paymentIndex];
+      return [
+        { tipo: "PAR", izq: p?.label ?? "Pago", der: texto(dinero(r.amount)) },
+        ...(r.reference ? [{ tipo: "TEXTO", texto: `  Ref. ${r.reference}` } as const] : []),
+      ];
+    }),
+    { tipo: "LINEA" },
+    { tipo: "TEXTO", texto: `Motivo: ${d.motivo}` },
+    { tipo: "TEXTO", texto: `Atendió: ${d.por}${d.autorizo && d.autorizo !== d.por ? ` · autorizó ${d.autorizo}` : ""}` },
+  ];
+  return { renglones };
+}
+
 export function documentoDeRecibo(v: VentaCerradaDto, local: AjustesSucursalDto, copia: boolean): Documento {
   const filas = new Map<string, { cantidad: number; concepto: string; precio: Money; cortesia: string | null }>();
   for (const l of v.lineas) {
@@ -131,6 +175,7 @@ const TIPO_EXCEPCION: Readonly<Record<ExcepcionDto["tipo"], string>> = {
   INCOBRABLE: "Incobrable",
   DIFERENCIA: "Diferencia",
   PAPEL: "Desde papel",
+  DEVOLUCION: "Devolución",
 };
 
 /** El ticket de un corte X o Z (JORNADA §5, C5 y R4): lo vendido, por medio, la gaveta y la firma. */

@@ -1573,7 +1573,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   de pruebas: Marisol pone un Pago Móvil en la #0041, cambia de cuenta y vuelve, y recarga: sigue ahí; en otra caja,
   Abigail ve «Cobro en curso por Marisol Prieto · Pago Móvil Bs. 1.000,00» y lo retoma; Marisol ve luego el de Abigail y lo
   descarta. Sin errores de consola.*
-- [ ] **B3-14 · Un cliente devuelve parte de lo que compró** (M-34, S-4).
+- [x] **B3-14 · Un cliente devuelve parte de lo que compró** (M-34, S-4).
+  *Hecho el 2026-10-09, en `feat/b3-14`.*
   → **Devolver.** Desde la venta (Turno → Ventas del turno, o buscándola por su número), se eligen los ítems y las
   cantidades (nunca más de lo vendido, contando las devoluciones anteriores), con la 🔐 de supervisión y un motivo. El
   dinero se reintegra por su medio, como en la anulación (la referencia de la devolución; el efectivo, de la gaveta), en el
@@ -1584,6 +1585,17 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Base (solo expande).** La devolución y sus líneas, solo agregar; el reintegro, en el libro como reversión (ADR-005).
   Se adapta a lo que hay (punto 10): la acción `venta.devolver` en la matriz (supervisión ✅; caja 🔐); su asiento y sus
   temas en vivo; el manual de Turno; la cuenta de soporte, que en producción no devuelve.
+  *· Hecho: migración `20261121000000_devolucion_de_cliente` (solo expande): `sale_return` (solo agregar); en el libro, el
+  asiento DEVOLUCION con `refunds_id` al cobro original (la base impone mismo documento, medio, moneda y tasa, que entre
+  todas no pase de lo que entró, y que un cobro con devoluciones ya no se revierta entero); en el inventario, RETORNO al
+  costo con que salió. `devolucionDe` / `repartirDevolucion` / `cuadraLaDevolucion` en `@l2/domain-cash` (el descuento en
+  proporción, el IVA por alícuota, el IGTF en proporción); la pantalla y el servidor hacen la misma cuenta, y la venta
+  guarda desde ahora el IVA de cada línea. `casosDevoluciones` (`app.devoluciones`: devolver y buscar por número),
+  `venta.devolver` en la matriz (supervisión ✅, caja 🔐). Turno → Ventas: «Devolver…», «Devolver de otra venta: #orden»,
+  lo devuelto en el detalle. El comprobante sale por la cola de recibos (`documentoDeDevolucion`). El corte X/Z lo lista
+  como excepción y el dinero por medio sale neto; Reportes → Ventas lo resta de lo vendido y lo dice aparte; el kárdex,
+  «Devuelto por un cliente». Lo que no: los reintegros se reparten en el orden de los pagos (la caja no elige otro reparto).
+  7 pruebas del dominio y 5 contra la base.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 

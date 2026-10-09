@@ -41,6 +41,8 @@ const MOVIMIENTO: Readonly<Record<LedgerKind, MovimientoDelTurno["kind"] | null>
   VUELTO: "CHANGE_OUT",
   PROPINA: null,
   RESIDUO: null,
+  // B3-14: lo devuelto a un cliente sale por su medio (el efectivo, de la gaveta): un cobro con signo negativo.
+  DEVOLUCION: "PAYMENT",
 };
 
 /**

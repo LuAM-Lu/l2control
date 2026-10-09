@@ -47,6 +47,7 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "cuenta.deuda": { etiqueta: "Marcar «Se fue sin pagar» (deja una deuda)", area: "Cobro y cuenta" },
   "documento.reimprimir": { etiqueta: "Reimprimir documento", area: "Cobro y cuenta" },
   "cobro.anular": { etiqueta: "Anular un cobro", area: "Cobro y cuenta" },
+  "venta.devolver": { etiqueta: "Devolver parte de una venta", area: "Cobro y cuenta" },
   "documento.notaCredito": { etiqueta: "Emitir nota de crédito", area: "Cobro y cuenta" },
 
   "pedido.tomar": { etiqueta: "Tomar pedidos", area: "Pedidos y mesas" },
