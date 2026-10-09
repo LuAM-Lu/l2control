@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CatalogoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba, cedulaDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 /** Domingo 27 de septiembre de 2026, 10:00 am en Caracas. */
@@ -34,7 +34,7 @@ const entrada = (ninos: { sinMedias?: true }[]) => ({
   idempotencyKey: randomUUID(),
   paymentMode: "CUENTA_ABIERTA",
   entries: ninos.map((n) => ({ wristbandCode: `MD-${String(++pulsera).padStart(4, "0")}`, ...(n.sinMedias ? { sinMedias: true } : {}), kid: {}, packageId: "pkg-60" })),
-  guardian: { fullName: "Familia Medias", contactReference: `0426-${String(6_000_000 + ++telefono)}` },
+  guardian: { fullName: "Familia Medias", contactReference: `0426-${String(6_000_000 + ++telefono)}` }, guardianDocument: cedulaDePrueba(`0426-${String(6_000_000 + ++telefono)}`),
 });
 const existenciaDeMedias = async () => (await l.app.productos.leer(l.sistema)).productos.find((p) => p.id === medias)!.existencia;
 

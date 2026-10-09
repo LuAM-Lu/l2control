@@ -104,7 +104,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Pasa la pulsera de cada niño por el lector, o usa la cámara. Cada pulsera crea una fila.",
       "Elige el paquete de tiempo de cada niño. El nombre es opcional y se puede poner después.",
       "Un niño que no tolera la pulsera entra con «Sin pulsera»: su nombre es obligatorio, porque es como se le reconoce.",
-      "Escribe el teléfono del representante: si ya vino, aparece solo, con sus niños.",
+      "Escribe la cédula del representante (lo primero; el foco va a ella tras la primera pulsera): si ya vino, aparece solo, con sus niños, y no hay que escribir nada más. Si es nuevo, su teléfono y su nombre. La letra (V, E, J, G, P) se elige al lado; los puntos los pone el campo. El teléfono se entiende escrito como sea, también con +58.",
+      "Un representante de antes, sin cédula, aparece por su teléfono y dice «escribe su cédula»: se le anota al registrar.",
       "Elige cómo paga: ahora (prepago, no se devuelve si sale antes) o todo al salir (cuenta abierta, por lo que usó), y registra.",
     ],
     problemas: [
@@ -122,6 +123,16 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«No es de la serie del local» o «son de los niños que entran sin pulsera»",
         solucion: "Usa una pulsera del lote del local. La serie (prefijo y largo) está en Ajustes → Sucursal. Los códigos SP- los pone el sistema a los niños sin pulsera.",
         reconoce: ["no es de la serie del local", "son de los ninos que entran sin pulsera"],
+      },
+      {
+        sintoma: "«Esa no es la cédula de …» o «Esa cédula ya es de …»",
+        solucion: "La familia encontrada ya tiene otra cédula, o esa cédula es de otra persona del directorio. Revisa la cédula con el representante; si el teléfono es de otra persona, escribe el suyo.",
+        reconoce: ["esa no es la cedula de", "esa cedula ya es de", "ese telefono es de"],
+      },
+      {
+        sintoma: "«Falta la cédula del representante»",
+        solucion: "Toda entrada lleva la cédula de quien trae a los niños: con ella se le reconoce la próxima vez. Lo cargado desde el formulario de papel no la exige.",
+        reconoce: ["falta la cedula", "escribe la cedula del representante"],
       },
       {
         sintoma: "«Un niño sin pulsera se reconoce por su nombre»",
@@ -152,6 +163,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Toca un niño, o pasa su pulsera por el lector, para abrir su ficha.",
       "En la ficha: recargar tiempo, pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa.",
       "«Registrar su salida» lleva a la salida con ese niño.",
+      "«Buscar» (junto a la cámara): por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",
     ],
     problemas: [
       {
@@ -217,11 +229,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Cobrar lo que se debe: la cola de cuentas por cobrar (parque, mesas, de pie, mostrador) y las ventas directas.",
     pasos: [
       "La cola «Por cobrar» va de la más antigua a la más nueva. Elige una cuenta, o pasa la pulsera de un niño para traer la de su familia.",
-      "Una familia que llega directo a la caja: «Entrada» (tecla A), o pasa una pulsera que no está en la sala. En el panel, cada pulsera suma un niño (si no se lee, «Escribir» su número; «Sin pulsera» con su nombre), el paquete y el teléfono del representante; «Registrar y cobrar» deja su cuenta lista. Se paga ahora: la cuenta abierta y los invitados de un cumpleaños, en Entrada.",
+      "Una familia que llega directo a la caja: «Entrada» (tecla A), o pasa una pulsera que no está en la sala. En el panel, cada pulsera suma un niño (si no se lee, «Escribir» su número; «Sin pulsera» con su nombre), el paquete y la cédula del representante; «Registrar y cobrar» deja su cuenta lista. Se paga ahora: la cuenta abierta y los invitados de un cumpleaños, en Entrada.",
       "Si dejas una venta del mostrador sin cobrar (eliges otra cuenta, empiezas otra venta o la entrada), la caja pregunta: cobrarla ahora, dejarla pendiente a nombre del cliente (cédula, teléfono y nombre) o descartarla. En la cola, una venta pendiente sin datos dice «Sin datos». La búsqueda de la cola encuentra también por cédula y teléfono.",
       "En una venta de mostrador, añade los productos de la carta (o pasa su código de barras). Para no buscarlos a ojo, escribe en «Buscar producto o código» (tecla /): busca en toda la carta por nombre, SKU o código, e Intro añade el primero. Lo que no se vende ahora (sin contar o agotado) va al final, atenuado.",
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
-      "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I) si el cliente pide la factura con su cédula o RIF, «Descuento» y «Dividir» en partes iguales, de 2 a 6.",
+      "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I), «Descuento» y «Dividir» en partes iguales, de 2 a 6. La cuenta que nació con su cliente (una mesa, de pie) ya viene a su nombre. Una venta del mostrador se cobra a alguien: si no tiene cliente, «Factura a» dice «Falta el cliente» y pide su cédula (o el RIF de su empresa) y su nombre.",
+      "«Buscar cliente» (tecla C, o el icono de la persona en la cola): por su nombre, su cédula o su teléfono, dice lo que tiene abierto (y lo abre para cobrar), sus niños en la sala y lo que debe. Está también en Mesas y en la sala.",
       "«Cobrar $ …» dice lo que se cobra, el de la parte si está dividida (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
       "El recibo dice lo que pasó: cada pago en su moneda (el de bolívares, con lo que vale en dólares a la tasa del cobro), lo pagado y el vuelto, también en bolívares. Lo pagado menos el vuelto es el total.",
       "Si el cliente de una mesa o de una venta se fue sin pagar: «Se fue sin pagar» en la cuenta, con el PIN de supervisión. Lo que debe queda a su nombre (Caja → Deudas). Cuando vuelva, al buscarlo en la cola sale «Debe de antes»: tócalo y se cobra como cualquier cuenta.",
@@ -374,7 +387,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
     roles: SALON,
     proposito: "Atender el salón: sentar a las familias, tomar sus pedidos (la comanda sale en papel) y mandar la cuenta a caja.",
     pasos: [
-      "Toca una mesa libre y «Sentar»: pide la cédula, el teléfono y el nombre del cliente (los tres, obligatorios) y cuántas personas son. Quien consume primero y paga al final deja sus datos: si se va sin pagar, hay a quién cobrarle. Si ya vino antes, al escribir su cédula o su teléfono lo demás se rellena solo.",
+      "Toca una mesa libre y «Sentar»: pide la cédula, el teléfono y el nombre del cliente (los tres, obligatorios) y cuántas personas son. Quien consume primero y paga al final deja sus datos: si se va sin pagar, hay a quién cobrarle. Si ya vino antes, al escribir su cédula o su teléfono lo demás se rellena solo. La letra de la cédula se elige al lado y los puntos los pone el campo.",
+      "«Buscar cliente»: por su nombre, su cédula o su teléfono, dice dónde está sentado (toca su cuenta para abrir su mesa), sus niños en la sala y si debe algo de antes.",
       "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, sus datos, su pedido y su cobro.",
       "Quien pide sin mesa: «De pie», con sus mismos datos.",
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: la comanda sale en la impresora.",
@@ -412,6 +426,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«Faltan los datos del cliente» o «Documento no válido»",
         solucion: "La cédula va con su letra (V-12345678; un RIF, J-40123456-7) y el teléfono con su código (0414-1234567). Sin los tres datos la cuenta no se abre.",
         reconoce: ["faltan los datos del cliente", "documento no valido", "telefono no valido"],
+      },
+      {
+        sintoma: "«Cobrar» dice «Falta el cliente: Factura a (I)»",
+        solucion: "Una venta del mostrador se cobra a alguien: toca «Factura a» (tecla I) y escribe su cédula o el RIF de su empresa y su nombre. Lo cargado desde papel no lo pide.",
+        reconoce: ["falta el cliente", "se cobra con la cedula y el nombre del cliente"],
       },
       {
         sintoma: "«Esa mesa no tiene cuenta abierta»",

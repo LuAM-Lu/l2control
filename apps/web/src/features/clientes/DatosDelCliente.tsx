@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { TriangleAlert, UserCheck } from "lucide-react";
 import { DatosDelClienteSchema, type ClienteEncontradoDto, type DatosDelClienteDto } from "@l2/contracts";
-import { contactKey, documentKey, documentoLegible, telefonoLegible } from "@l2/domain-park";
+import { contactKey, documentKey, telefonoLegible } from "@l2/domain-park";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { Input, formatMoneyVE, type Surface } from "@l2/ui";
+import { CampoCedula, CampoTelefono } from "./CamposDelCliente.tsx";
 import { buscarCliente } from "./clientes.acciones";
 
 /**
@@ -94,43 +95,9 @@ export function DatosDelCliente({
   return (
     <fieldset className="flex flex-col gap-3">
       <legend className="sr-only">Datos del cliente</legend>
-      <Input
-        label="Cédula o RIF"
-        surface={surface}
-        value={valor.cedula}
-        onChange={(e) => onCambio({ ...valor, cedula: e.target.value })}
-        onBlur={() => {
-          const legible = documentoLegible(valor.cedula);
-          if (legible && legible !== valor.cedula) onCambio({ ...valor, cedula: legible });
-        }}
-        maxLength={16}
-        autoComplete="off"
-        autoCapitalize="characters"
-        spellCheck={false}
-        placeholder="V-12345678"
-        aria-required="true"
-        autoFocus={autoFocus}
-        data-privado=""
-        error={errores?.cedula}
-      />
-      <Input
-        label="Teléfono"
-        surface={surface}
-        type="tel"
-        inputMode="tel"
-        value={valor.telefono}
-        onChange={(e) => onCambio({ ...valor, telefono: e.target.value })}
-        onBlur={() => {
-          const legible = telefonoLegible(valor.telefono);
-          if (legible && legible !== valor.telefono) onCambio({ ...valor, telefono: legible });
-        }}
-        maxLength={16}
-        autoComplete="off"
-        placeholder="0414-1234567"
-        aria-required="true"
-        data-privado=""
-        error={errores?.telefono}
-      />
+      {/* La cédula y el teléfono, con los campos que ayudan a llenarlos (T-19). */}
+      <CampoCedula label="Cédula o RIF" surface={surface} valor={valor.cedula} onCambio={(cedula) => onCambio({ ...valor, cedula })} autoFocus={autoFocus} required error={errores?.cedula} />
+      <CampoTelefono surface={surface} valor={valor.telefono} onCambio={(telefono) => onCambio({ ...valor, telefono })} required error={errores?.telefono} />
       <Input
         label="Nombre y apellido"
         surface={surface}

@@ -12,7 +12,8 @@ import {
   type RepresentanteEncontradoDto,
 } from "@l2/contracts";
 import { sum, zero, type Money } from "@l2/domain-money";
-import { computeCapacity, contactKey } from "@l2/domain-park";
+import { computeCapacity, contactKey, documentKey } from "@l2/domain-park";
+import { problemaDelDocumento } from "../clientes/escritura.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { productosALaVenta, type ProductoALaVenta } from "../inventario/catalogo.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
@@ -27,7 +28,7 @@ import { useTarifario } from "./TarifarioProvider";
  *
  * La comparten Entrada (`CheckInScreen`) y la entrada desde la caja (`EntradaDesdeCaja`): las pulseras que crean cada
  * fila, el niño sin pulsera, el paquete más común ya elegido, las medias de quien no las trae, el representante
- * buscado por su teléfono y el registro en el servidor, que pone el precio del tarifario, comprueba el aforo y las
+ * buscado por su cédula (T-19) o, si no la tenía, por su teléfono, y el registro en el servidor, que pone el precio del tarifario, comprueba el aforo y las
  * pulseras con lo que hay en sala y abre la cuenta de la familia. Lo que se calcula aquí (total, aforo) es un anticipo
  * para quien atiende; manda el servidor. Cada pantalla pone su forma; la lógica vive una vez.
  */
@@ -53,6 +54,8 @@ const NUEVO_UID = () => globalThis.crypto.randomUUID();
 
 /** Dígitos que hacen falta para buscar a una familia: un teléfono entero, no un pedazo. */
 const DIGITOS_PARA_BUSCAR = 7;
+/** Y por la cédula: de 6 dígitos en adelante (una a medias no busca a nadie). */
+const DIGITOS_DE_CEDULA_PARA_BUSCAR = 6;
 
 export type Registrada = Readonly<{ cuenta: FamilyAccountDto; sessions: readonly EstanciaDto[]; total: Money }>;
 
@@ -62,7 +65,7 @@ export function useEntradaDeNinos({
 }: {
   /** El catálogo, para las medias de quien no las trae (B4-9). */
   catalogo?: CatalogoDto | undefined;
-  /** Tras la primera pulsera, con el teléfono vacío: la pantalla pone el foco en él. */
+  /** Tras la primera pulsera, con la cédula vacía: la pantalla pone el foco en ella. */
   alPrimeraPulsera?: () => void;
 } = {}) {
   const { sala, adoptar: adoptarEstancias } = useSala();
@@ -90,6 +93,7 @@ export function useEntradaDeNinos({
 
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [cedula, setCedula] = useState("");
   const [telefono, setTelefono] = useState("");
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -101,25 +105,39 @@ export function useEntradaDeNinos({
 
   /* ----------------------------------------------------- representante */
 
-  // F5-03: se busca por teléfono, que es lo que el representante recuerda. Lo busca el servidor
-  // con el número entero: nadie recorre el directorio tecleando pedazos.
+  // T-19: la cédula es lo primero; con ella se reconoce a la familia que vuelve. Si no está (un representante de antes
+  // de la cédula), se busca por el teléfono, como en F5-03. Lo busca el servidor con el dato entero: nadie recorre el
+  // directorio tecleando pedazos.
+  const cedulaKey = documentKey(cedula);
+  const cedulaValida = cedula.trim() !== "" && problemaDelDocumento(cedula) === null;
+  const llaveCedula = cedulaValida && cedulaKey && cedulaKey.length > DIGITOS_DE_CEDULA_PARA_BUSCAR ? `c:${cedulaKey}` : null;
   const llave = contactKey(telefono);
-  const buscable = llave !== null && llave.length >= DIGITOS_PARA_BUSCAR;
-  const [busqueda, setBusqueda] = useState<{ llave: string; familia: RepresentanteEncontradoDto | null } | null>(null);
+  const llaveTelefono = llave !== null && llave.length >= DIGITOS_PARA_BUSCAR ? `t:${llave}` : null;
+  const [buscadas, setBuscadas] = useState<ReadonlyMap<string, RepresentanteEncontradoDto | null>>(new Map());
+  const pendiente = [llaveCedula, llaveTelefono].find((k): k is string => k !== null && !buscadas.has(k)) ?? null;
   useEffect(() => {
-    if (!buscable || busqueda?.llave === llave) return;
+    if (!pendiente) return;
+    const consulta = pendiente.startsWith("c:") ? { documento: cedula } : { contacto: telefono };
     const id = window.setTimeout(() => {
-      void buscarRepresentante({ contacto: telefono })
+      void buscarRepresentante(consulta)
         .then((r) => {
-          if (r.ok) setBusqueda({ llave: llave!, familia: r.valor });
+          if (r.ok) setBuscadas((m) => new Map(m).set(pendiente, r.valor));
         })
         .catch(() => undefined);
     }, 300);
     return () => window.clearTimeout(id);
-  }, [buscable, llave, telefono, busqueda?.llave]);
-  const buscada = buscable && busqueda?.llave === llave ? busqueda : null;
-  const encontrado = buscada?.familia ?? null;
-  const esNuevo = buscada !== null && !encontrado;
+  }, [pendiente, cedula, telefono]);
+  const porCedula = llaveCedula ? buscadas.get(llaveCedula) : undefined;
+  const porTelefono = llaveTelefono ? buscadas.get(llaveTelefono) : undefined;
+  /** Un teléfono de otra persona que ya tiene su cédula, y no es esta: no se le pega la entrada (T-19). */
+  const telefonoDeOtro = porCedula === null && porTelefono?.tieneCedula === true ? porTelefono : null;
+  /** Por la cédula manda; si no está, por el teléfono (una familia de antes, sin cédula). */
+  const encontrado = porCedula ?? (llaveCedula === null || porCedula === null ? (telefonoDeOtro ? null : (porTelefono ?? null)) : null);
+  /** Encontrada por la cédula: el teléfono ya lo tiene el directorio. */
+  const porSuCedula = Boolean(porCedula);
+  const esNuevo = !encontrado && !telefonoDeOtro && porCedula === null && porTelefono === null;
+  /** A la familia de antes, sin cédula, se le pide y se le anota al registrar. */
+  const faltaSuCedula = encontrado !== null && !encontrado.tieneCedula && !cedulaValida;
 
   /* ------------------------------------------------------------ escaneo */
 
@@ -160,11 +178,11 @@ export function useEntradaDeNinos({
           setAviso(r.valor.mensaje);
         })
         .catch(() => undefined);
-      // El foco salta solo al teléfono tras la primera pulsera si está vacío.
-      if (entradas.length === 0 && !telefono) queueMicrotask(() => alPrimeraPulsera?.());
+      // El foco salta solo a la cédula tras la primera pulsera si está vacía (T-19).
+      if (entradas.length === 0 && !cedula) queueMicrotask(() => alPrimeraPulsera?.());
       return true;
     },
-    [entradas, occupiedWristbands, activeSessions, capacityLimit, defaultPackageId, telefono, alPrimeraPulsera],
+    [entradas, occupiedWristbands, activeSessions, capacityLimit, defaultPackageId, cedula, alPrimeraPulsera],
   );
 
   /**
@@ -206,22 +224,32 @@ export function useEntradaDeNinos({
 
   /* ------------------------------------------------------------- envío */
 
-  const faltaRepresentante = !encontrado && (!esNuevo || nombreNuevo.trim().length < 2);
   const telefonoValido = GuardianSchema.shape.contactReference.safeParse(telefono).success;
-  const puedeEnviar = entradas.length > 0 && telefonoValido && !faltaRepresentante && !capacidad.isFull && !enviando;
+  const representanteListo = encontrado ? !faltaSuCedula : esNuevo && cedulaValida && telefonoValido && nombreNuevo.trim().length >= 2;
+  const puedeEnviar = entradas.length > 0 && representanteListo && !capacidad.isFull && !enviando;
   /** §8.7: el motivo por el que el botón está deshabilitado se dice, no se deja adivinar. */
   const porQueNo =
     puedeEnviar || enviando || entradas.length === 0
       ? null
       : capacidad.isFull
         ? "Aforo completo"
-        : !telefonoValido
-          ? "Falta el teléfono del representante"
-          : !buscable
-            ? "Escribe el teléfono completo"
-            : !buscada
-              ? "Buscando a la familia…"
-              : "Falta el nombre del representante";
+        : faltaSuCedula
+          ? `Falta la cédula de ${encontrado!.fullName}`
+          : !cedula.trim()
+            ? "Falta la cédula del representante"
+            : !cedulaValida
+              ? "Escribe la cédula completa"
+              : llaveCedula && porCedula === undefined
+                ? "Buscando a la familia…"
+                : telefonoDeOtro
+                  ? `Ese teléfono es de ${telefonoDeOtro.fullName}, con otra cédula`
+                  : !telefonoValido
+                    ? "Falta el teléfono del representante"
+                    : !llaveTelefono
+                      ? "Escribe el teléfono completo"
+                      : porTelefono === undefined
+                        ? "Buscando a la familia…"
+                        : "Falta el nombre del representante";
 
   /**
    * El niño de una fila: uno que la familia ya tiene en el directorio (por su nombre), uno nuevo con
@@ -239,9 +267,9 @@ export function useEntradaDeNinos({
   /** Vuelve a empezar: la lista, la familia y el aviso. */
   function limpiar() {
     setEntradas([]);
+    setCedula("");
     setTelefono("");
     setNombreNuevo("");
-    setBusqueda(null);
     setAviso(null);
   }
 
@@ -271,6 +299,9 @@ export function useEntradaDeNinos({
               contactReference: telefono.trim(),
             },
           }),
+      // La cédula (T-19): con la familia nueva y con la de antes que no la tenía. Si ya la tiene, va igual: el
+      // servidor comprueba que sea la suya.
+      ...(cedulaValida ? { guardianDocument: cedula } : {}),
     };
 
     const resultado = CheckInCommandSchema.safeParse(comando);
@@ -313,11 +344,16 @@ export function useEntradaDeNinos({
     setEntradas,
     aviso,
     setAviso,
+    cedula,
+    setCedula,
     telefono,
     setTelefono,
     nombreNuevo,
     setNombreNuevo,
     encontrado,
+    porSuCedula,
+    faltaSuCedula,
+    telefonoDeOtro,
     esNuevo,
     enviando,
     setEnviando,

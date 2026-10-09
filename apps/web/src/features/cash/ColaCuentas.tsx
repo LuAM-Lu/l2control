@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Clock, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UserX, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Clock, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
 import { money, toMajor } from "@l2/domain-money";
 import { WristbandCodeSchema, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
 import { Marquesina, MoneyDisplay, ScannerField, cn } from "@l2/ui";
@@ -87,6 +87,7 @@ export function ColaCuentas({
   onElegir,
   onNuevaVentaDirecta,
   onEntrada,
+  onBuscarCliente,
   ventaNueva,
   puntoDeCobro,
   recientes,
@@ -114,6 +115,8 @@ export function ColaCuentas({
   onNuevaVentaDirecta: () => void;
   /** La entrada al parque desde la caja (B3-9); `null` para quien no registra entradas. */
   onEntrada: (() => void) | null;
+  /** El buscador de clientes (T-19): por nombre, cédula o teléfono, con lo que tienen abierto y lo que deben. */
+  onBuscarCliente: () => void;
   ventaNueva: boolean;
   /** El equipo desde el que se cobra (su turno, B3-1); `null` sin turno abierto. */
   puntoDeCobro: string | null;
@@ -183,6 +186,15 @@ export function ColaCuentas({
               <Search size={16} aria-hidden="true" />
             </button>
           )}
+          <button
+            type="button"
+            onClick={onBuscarCliente}
+            aria-label="Buscar cliente"
+            title="Buscar cliente por nombre, cédula o teléfono (C)"
+            className="grid size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            <UserSearch size={16} aria-hidden="true" />
+          </button>
           {/* Solo donde hay teclado: en la tablet no hay teclas que enseñar. */}
           <button
             type="button"

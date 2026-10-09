@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { FamilyAccountDto, ReglaDescuentoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, familiaDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, familiaDePrueba, type LocalDePrueba, FACTURA_DE_PRUEBA } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-10-01T14:00:00.000Z");
@@ -86,7 +86,7 @@ const cobro = (c: FamilyAccountDto, total: string, pagos: unknown[]) => ({
   lineIds: c.lines.filter((l) => !l.paid && !l.movedTo && !l.cortesia).map((l) => l.id),
   total: usd(total),
   pagos,
-  destinoSobra: "VUELTO",
+  destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA,
 });
 const enZelle = (minor: string) => ({ method: "ZELLE", amount: usd(minor), datos: { kind: "ZELLE", holder: "cliente@ejemplo.com", confirmation: `Z${randomUUID().slice(0, 8)}` } });
 const enEfectivo = (minor: string) => ({ method: "EFECTIVO_USD", amount: usd(minor) });

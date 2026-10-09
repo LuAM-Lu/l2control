@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CuentaYLibroDto, FamilyAccountDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, clienteDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, clienteDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba, FACTURA_DE_PRUEBA } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -90,7 +90,7 @@ const enEfectivo = (c: FamilyAccountDto, minor: string, total: string, extra: Re
   lineIds: c.lines.filter((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion).map((l) => l.id),
   total: usd(total),
   pagos: [{ method: "EFECTIVO_USD", amount: usd(minor) }],
-  destinoSobra: "VUELTO",
+  destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA,
   ...extra,
 });
 /** Un cobro en efectivo en bolívares, con la tasa del día. */
@@ -267,13 +267,13 @@ describe("cobrar una cuenta (F4-03, §5.6)", () => {
     const conVuelto = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(await abrir(mostrador([lineaDeAgua()])), "500", "131"), AHORA));
     assert.deepEqual(conVuelto.libro.vuelto, usd("369"));
     assert.deepEqual(conVuelto.libro.asientos.map((a) => a.kind), ["COBRO", "VUELTO"]);
-    const conPropina = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(await abrir(mostrador([lineaDeAgua()])), "500", "131", { destinoSobra: "PROPINA" }), AHORA));
+    const conPropina = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(await abrir(mostrador([lineaDeAgua()])), "500", "131", { destinoSobra: "PROPINA", cliente: FACTURA_DE_PRUEBA }), AHORA));
     assert.deepEqual(conPropina.libro.propina, usd("369"));
     const c = await abrir(mostrador([lineaDeAgua()]));
-    const residuoGrande = await local.app.cuentas.cobrar(ctxCajera, enEfectivo(c, "500", "131", { destinoSobra: "RESIDUO" }), AHORA);
+    const residuoGrande = await local.app.cuentas.cobrar(ctxCajera, enEfectivo(c, "500", "131", { destinoSobra: "RESIDUO", cliente: FACTURA_DE_PRUEBA }), AHORA);
     assert.equal(!residuoGrande.ok && residuoGrande.motivo, "INVALIDO");
     // Bs. 1.000,00 son $ 1,17: sobra un céntimo, y ese sí se queda en caja.
-    const residuo = valor(await local.app.cuentas.cobrar(ctxCajera, { ...enBolivares(c, "100000", "116"), destinoSobra: "RESIDUO" }, AHORA));
+    const residuo = valor(await local.app.cuentas.cobrar(ctxCajera, { ...enBolivares(c, "100000", "116"), destinoSobra: "RESIDUO", cliente: FACTURA_DE_PRUEBA }, AHORA));
     assert.deepEqual(residuo.libro.residuo, usd("1"));
   });
 
@@ -416,6 +416,16 @@ describe("la venta de cada cobro (B3-4, C12)", () => {
     assert.deepEqual(venta.cliente, { kind: "IDENTIFICADO", name: "Pedro Pérez", document: "V-12···678" });
     assert.deepEqual(venta.prints, []);
     assert.equal(venta.voided, null);
+  });
+
+  test("la venta del mostrador se cobra a alguien (T-19): sin cédula y nombre en «Factura a», no", async () => {
+    const c = await abrir(mostrador([lineaDeAgua()]));
+    const { cliente: _, ...sinCliente } = enEfectivo(c, "500", "131");
+    for (const cmd of [sinCliente, { ...sinCliente, cliente: { kind: "CONSUMIDOR_FINAL" } }]) {
+      const r = await local.app.cuentas.cobrar(ctxCajera, cmd, AHORA);
+      assert.equal(!r.ok && r.problemas?.[0]?.message, "FALTA_EL_CLIENTE", JSON.stringify(r));
+    }
+    valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(c, "500", "131"), AHORA));
   });
 
   test("las ventas del turno del equipo; imprimir anota el original y después copias", async () => {

@@ -126,6 +126,8 @@ describe("sentar a alguien con sus datos (B6-9)", () => {
   test("un representante del parque se reconoce por su teléfono y recibe su cédula", async () => {
     const familia = await familiaDePrueba(l, monitora, AHORA - 30 * MIN);
     const guardian = (await l.base.conTenant(l.sistema.tenantId, (tx) => tx.parkSession.findFirstOrThrow({ where: { accountId: familia.id } }))).guardianId;
+    // Uno de antes de T-19, cuando la entrada no pedía la cédula.
+    await l.base.conTenant(l.sistema.tenantId, (tx) => tx.guardian.update({ where: { id: guardian }, data: { document: null, documentKey: null } }));
     const g = (await directorio()).find((x) => x.id === guardian)!;
     assert.equal(g.documentKey, null);
     const cuenta = valor(await sentar(mesero, "mesa-3", { nombre: "Familia Pérez", cedula: "V-30000777", telefono: g.contactReference }));
@@ -168,6 +170,27 @@ describe("buscar al cliente (B6-9)", () => {
   test("la monitora no busca clientes del restaurante; otro local no los ve", async () => {
     assert.equal(rechazo(await l.app.clientes.buscar(monitora, { cedula: "V-30000801" })).motivo, "NO_PERMITIDO");
     assert.equal(valor(await otro.app.clientes.buscar(otroMesero, { cedula: "V-30000801" })), null);
+  });
+});
+
+describe("el buscador de clientes (T-19)", () => {
+  test("por su nombre, su cédula (con o sin letra) o su teléfono, como se escriban", async () => {
+    const porNombre = valor(await l.app.clientes.encontrar(cajera, { texto: "maría pér" }));
+    assert.ok(porNombre.some((c) => c.nombre === "Prueba María Pérez"), JSON.stringify(porNombre));
+    const id = porNombre.find((c) => c.nombre === "Prueba María Pérez")!.clienteId;
+    assert.equal(valor(await l.app.clientes.encontrar(mesero, { texto: "v-30.000.801" }))[0]?.clienteId, id);
+    assert.equal(valor(await l.app.clientes.encontrar(mesero, { texto: "30.000.801" }))[0]?.clienteId, id);
+    assert.equal(valor(await l.app.clientes.encontrar(mesero, { texto: "0414 123 4801" }))[0]?.clienteId, id);
+    assert.deepEqual(valor(await l.app.clientes.encontrar(mesero, { texto: "Nadie Así" })), []);
+    assert.equal(rechazo(await l.app.clientes.encontrar(mesero, { texto: "ma" })).motivo, "INVALIDO");
+  });
+
+  test("la monitora también busca (a las familias de la sala); cada consulta queda en la auditoría, sin lo buscado", async () => {
+    valor(await l.app.clientes.encontrar(monitora, { texto: "Pérez" }));
+    const asientos = await l.base.conTenant(l.sistema.tenantId, (tx) => tx.auditEntry.findMany({ where: { action: "cliente.buscar" } }));
+    assert.ok(asientos.length >= 2);
+    assert.ok(asientos.every((a) => !JSON.stringify(a).toLowerCase().includes("pérez") && !JSON.stringify(a).includes("30000801")));
+    assert.deepEqual(valor(await otro.app.clientes.encontrar(otroMesero, { texto: "Pérez" })), []);
   });
 });
 

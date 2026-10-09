@@ -25,6 +25,12 @@ export const CLAVE_DE_PRUEBA = Buffer.alloc(32, 9).toString("base64");
 /** La dirección pública de las pruebas: las llaves de `LlaveDePrueba` firman para ella. */
 export const URL_DE_PRUEBA = "http://localhost:3000";
 
+/** Una cédula de prueba estable para un teléfono (T-19): la misma familia trae siempre la misma. */
+export const cedulaDePrueba = (telefono: string): string => `V-${telefono.replace(/\D/g, "").slice(-8)}`;
+
+/** «Factura a» de prueba (T-19): la venta del mostrador se cobra a alguien con su cédula y su nombre. */
+export const FACTURA_DE_PRUEBA = { kind: "IDENTIFICADO" as const, name: "Prueba Cliente del mostrador", document: "V-30999999" };
+
 export async function abrirLocalDePrueba(url: string, nombre: string): Promise<LocalDePrueba> {
   const app = await conectar(url, { claveCifrado: CLAVE_DE_PRUEBA, urlPublica: URL_DE_PRUEBA });
   const base = await abrirBase(url);
@@ -304,7 +310,7 @@ export async function familiaDePrueba(
       idempotencyKey: randomUUID(),
       paymentMode,
       entries: [{ wristbandCode: `PRUEBA-${n}`, kid: {}, packageId: "pkg-60" }],
-      guardian: { fullName: "Familia Pérez", contactReference: `0412-${String(2_000_000 + n)}` },
+      guardian: { fullName: "Familia Pérez", contactReference: `0412-${String(2_000_000 + n)}` }, guardianDocument: cedulaDePrueba(`0412-${String(2_000_000 + n)}`),
     },
     ahora,
   );

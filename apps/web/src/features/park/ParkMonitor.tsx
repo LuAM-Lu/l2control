@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play } from "lucide-react";
+import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
 import Link from "next/link";
@@ -24,6 +24,7 @@ import { EstanciasARevisar } from "./EstanciasARevisar.tsx";
 import { useTarifario } from "./TarifarioProvider";
 import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
+import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { PonerNombre } from "./PonerNombre.tsx";
 import { VincularAMesa } from "./VincularAMesa.tsx";
@@ -110,6 +111,8 @@ export function ParkMonitor() {
   const { horasHuerfana } = useSucursal().ajustes;
   /** La cámara del teléfono como lector (V-2): pasar la pulsera abre la ficha del niño. */
   const [camara, setCamara] = useState(false);
+  /** El buscador de clientes (T-19). */
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
   const ficha = selected ? (model.cards.find((c) => c.id === selected) ?? null) : null;
   const cuentaFicha = ficha ? (cuentas.find((c) => c.id === ficha.accountId) ?? null) : null;
   const familiaRegistrada = ficha?.guardianName ?? null;
@@ -227,7 +230,13 @@ export function ParkMonitor() {
           <div data-recorrido="sala-lector" className="flex items-stretch gap-2">
             <ScannerField onScan={handleScan} validate={validarPulsera} className="min-w-0 flex-1" />
             <BotonCamara activa={camara} onCambiar={setCamara} />
+            {/* T-19: ¿de quién es este niño, o dónde están los de esta familia? Por nombre, cédula o teléfono. */}
+            <Button type="button" surface="tablet" variant="neutral" className="shrink-0" onClick={() => setBuscandoCliente(true)} aria-label="Buscar cliente" title="Buscar cliente por nombre, cédula o teléfono">
+              <UserSearch size={18} aria-hidden="true" />
+              <span className="max-md:sr-only">Buscar</span>
+            </Button>
           </div>
+          <BuscadorDeClientes abierto={buscandoCliente} onCerrar={() => setBuscandoCliente(false)} />
           {camara && <LectorCamara onCerrar={() => setCamara(false)} className="mt-3 h-[30dvh] max-h-72 md:h-56" />}
           {scanError && (
             <p role="status" className="mt-2 text-[13px] text-state-warn">

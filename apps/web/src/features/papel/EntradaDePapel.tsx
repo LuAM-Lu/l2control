@@ -18,6 +18,8 @@ import { buscarRepresentante, registrarEntrada } from "../park/parque.acciones";
 import { PackagePicker } from "../park/PackagePicker";
 import { useSala } from "../park/SalaProvider.tsx";
 import { useTarifario } from "../park/TarifarioProvider";
+import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
+import { problemaDelDocumento } from "../clientes/escritura.ts";
 import { CampoHoraReal, useHoraReal } from "./CampoHoraReal.tsx";
 
 /**
@@ -46,6 +48,8 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
   const [paqueteId, setPaqueteId] = useState("");
   const [modo, setModo] = useState<PaymentMode>("PREPAGO");
   const [telefono, setTelefono] = useState("");
+  /** La cédula, si el formulario la trae (T-19): lo cargado desde papel no la exige, porque se anotó o no. */
+  const [cedula, setCedula] = useState("");
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [filas, setFilas] = useState<Fila[]>([nueva()]);
   const [enviando, setEnviando] = useState(false);
@@ -85,6 +89,7 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
   function limpiar() {
     setFilas([nueva()]);
     setTelefono("");
+    setCedula("");
     setNombreNuevo("");
     setBusqueda(null);
     setError(null);
@@ -109,6 +114,7 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
       paymentMode: modo,
       entries: filas.map((f) => ({ wristbandCode: f.pulsera, kid: ninoDe(f.nombre), packageId: elegido })),
       ...(encontrada ? { guardianId: encontrada.id } : { guardian: { fullName: nombreNuevo.trim(), contactReference: telefono.trim() } }),
+      ...(cedula && !problemaDelDocumento(cedula) ? { guardianDocument: cedula } : {}),
     };
     const v = CheckInCommandSchema.safeParse(comando);
     if (!v.success) {
@@ -160,16 +166,14 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
 
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Familia</legend>
-          <Input
+          <CampoTelefono
             label="Teléfono del representante"
-            surface="tablet"
-            inputMode="tel"
-            autoComplete="off"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
+            valor={telefono}
+            onCambio={setTelefono}
             error={telefono !== "" && !telefonoValido ? "Contacto demasiado corto" : undefined}
             hint={encontrada ? `Ya vino: ${encontrada.fullName}.` : esNueva ? "No ha venido antes: escribe su nombre." : "Con el teléfono entero se reconoce a la familia."}
           />
+          <CampoCedula label="Cédula del representante (si se anotó)" valor={cedula} onCambio={setCedula} />
           {esNueva && <Input label="Nombre del representante" surface="tablet" autoComplete="off" value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)} />}
         </fieldset>
 

@@ -24,10 +24,10 @@ import { useEntradaDeNinos } from "./useEntradaDeNinos.ts";
  *
  *  · Se escanea primero y lo demás sigue. La pulsera crea la fila; no hay un
  *    botón «añadir niño» que haya que buscar.
- *  · El foco salta solo al teléfono tras la primera pulsera (si está vacío).
+ *  · El foco salta solo a la cédula tras la primera pulsera (si está vacía).
  *  · El paquete viene preseleccionado con el más común, y se cambia en un
  *    toque sobre un botón grande, no en un desplegable.
- *  · Al representante se le busca por teléfono; si ya vino, no se vuelve a
+ *  · Al representante se le busca por su cédula (o su teléfono); si ya vino, no se vuelve a
  *    teclear nada. El nombre de cada niño es **opcional** (DEC-28): se puede
  *    poner aquí mismo si hay tiempo, y si la familia ya vino se proponen sus
  *    niños conocidos; si no, se pone después desde la sala.
@@ -49,8 +49,8 @@ export function CheckInScreen({
   /** El catálogo, para las medias de quien no las trae (B4-9). */
   catalogo?: CatalogoDto;
 } = {}) {
-  const phoneRef = useRef<HTMLInputElement>(null);
-  const e = useEntradaDeNinos({ catalogo, alPrimeraPulsera: () => phoneRef.current?.focus() });
+  const cedulaRef = useRef<HTMLInputElement>(null);
+  const e = useEntradaDeNinos({ catalogo, alPrimeraPulsera: () => cedulaRef.current?.focus() });
   const { entradas, capacidad, capacityLimit, medias, encontrado, aviso, enviando } = e;
   const { formatoHora } = useSucursal().ajustes;
   /** A qué entra esta tanda (B10-2): una visita normal (`null`) o un cumpleaños de hoy, por su reserva. */
@@ -321,15 +321,7 @@ export function CheckInScreen({
               ) : (
                 <>
                   <h2 className="font-display text-lg font-bold text-ink">Representante</h2>
-                  <CampoRepresentante
-                    telefono={e.telefono}
-                    onTelefono={e.setTelefono}
-                    telefonoRef={phoneRef}
-                    encontrado={encontrado}
-                    esNuevo={e.esNuevo}
-                    nombreNuevo={e.nombreNuevo}
-                    onNombreNuevo={e.setNombreNuevo}
-                  />
+                  <CampoRepresentante entrada={e} cedulaRef={cedulaRef} />
                 </>
               )}
             </div>

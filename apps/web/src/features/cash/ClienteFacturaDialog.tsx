@@ -3,14 +3,14 @@
 import { useId, useState } from "react";
 import { ClienteFacturaSchema, CONSUMIDOR_FINAL, type ClienteFacturaDto } from "@l2/contracts";
 import { Button, Dialog, Input } from "@l2/ui";
+import { CampoCedula } from "../clientes/CamposDelCliente.tsx";
 
 /**
- * A nombre de quién sale la factura — DEC-23.
+ * A nombre de quién sale la factura — DEC-23, T-19 (M-34).
  *
- * Solo se abre cuando el cliente pide la factura a su nombre o al de su
- * empresa; el resto de las ventas va a «Consumidor final» sin tocar nada.
- * El nombre viene propuesto con el del representante, que casi siempre es
- * quien la pide: se corrige si es otra persona o una empresa.
+ * La cuenta que nació con su cliente ya viene a su nombre; la venta del mostrador sin cliente lo pide (`exigido`): se
+ * cobra a alguien, y «Consumidor final» no se ofrece. El nombre viene propuesto con el del representante, que casi
+ * siempre es quien la pide: se corrige si es otra persona o una empresa.
  *
  * ⚠ §7.6: la cédula y el RIF son datos personales. No se escriben en ningún
  * log y en la caja se muestran enmascarados.
@@ -20,9 +20,12 @@ export function ClienteFacturaDialog({
   actual,
   nombrePropuesto,
   documentoPropuesto = "",
+  exigido = false,
   onConfirmar,
   onCerrar,
 }: {
+  /** La venta del mostrador sin cliente (T-19): sin «Consumidor final». */
+  exigido?: boolean;
   abierto: boolean;
   actual: ClienteFacturaDto;
   /** Nombre que se ofrece de entrada: el del representante de la cuenta. */
@@ -83,18 +86,14 @@ export function ClienteFacturaDialog({
       abierto={abierto}
       onCerrar={onCerrar}
       titulo="Factura a nombre de…"
-      descripcion="Solo si el cliente la pide con su cédula o el RIF de su empresa."
+      descripcion={exigido ? "La venta del mostrador se cobra a alguien: su cédula (o el RIF de su empresa) y su nombre." : "Su cédula o el RIF de su empresa."}
       pie={
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            surface="pos"
-            variant="neutral"
-            onClick={() => {
-              onConfirmar(CONSUMIDOR_FINAL);
-            }}
-          >
-            Consumidor final
-          </Button>
+        <div className={exigido ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"}>
+          {!exigido && (
+            <Button surface="pos" variant="neutral" onClick={() => onConfirmar(CONSUMIDOR_FINAL)}>
+              Consumidor final
+            </Button>
+          )}
           <Button surface="pos" variant="primary" type="submit" form={formId}>
             Usar estos datos
           </Button>
@@ -109,16 +108,7 @@ export function ClienteFacturaDialog({
         }}
         className="flex flex-col gap-3"
       >
-        <Input
-          label="Cédula o RIF"
-          surface="pos"
-          autoComplete="off"
-          autoFocus
-          placeholder="V-12345678 o J-40123456-7"
-          value={campos.document}
-          onChange={(e) => poner("document", e.target.value)}
-          error={errores.document}
-        />
+        <CampoCedula label="Cédula o RIF" surface="pos" autoFocus valor={campos.document} onCambio={(v) => poner("document", v)} error={errores.document} />
         <Input
           label="Nombre o razón social"
           surface="pos"

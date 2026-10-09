@@ -4,10 +4,11 @@ import type { Ref } from "react";
 import { CircleCheckBig, Footprints, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
 import type { PricePackageDto, RepresentanteEncontradoDto } from "@l2/contracts";
 import { toMajor, type Money } from "@l2/domain-money";
-import { Badge, Initial, Input, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
+import { Badge, Initial, Input, Marquesina, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import { PackagePicker } from "./PackagePicker";
-import type { Entrada } from "./useEntradaDeNinos.ts";
+import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
+import type { Entrada, EntradaDeNinos } from "./useEntradaDeNinos.ts";
 
 /**
  * Las piezas de la entrada al parque que usan Entrada y la entrada desde la caja (B3-9, M-31): la fila de cada niño, el
@@ -137,54 +138,91 @@ export function FilaDeEntrada({
  * T-11) y, si ya vino, su nombre; si no, se pide.
  */
 export function CampoRepresentante({
-  telefono,
-  onTelefono,
-  telefonoRef,
-  encontrado,
-  esNuevo,
-  nombreNuevo,
-  onNombreNuevo,
+  entrada: e,
+  cedulaRef,
 }: {
-  telefono: string;
-  onTelefono: (v: string) => void;
-  telefonoRef?: Ref<HTMLInputElement>;
-  encontrado: RepresentanteEncontradoDto | null;
-  esNuevo: boolean;
-  nombreNuevo: string;
-  onNombreNuevo: (v: string) => void;
+  /** El estado de la entrada (`useEntradaDeNinos`): la cédula, el teléfono, la familia encontrada y el nombre nuevo. */
+  entrada: Pick<
+    EntradaDeNinos,
+    | "cedula"
+    | "setCedula"
+    | "telefono"
+    | "setTelefono"
+    | "encontrado"
+    | "porSuCedula"
+    | "faltaSuCedula"
+    | "telefonoDeOtro"
+    | "esNuevo"
+    | "nombreNuevo"
+    | "setNombreNuevo"
+  >;
+  /** Tras la primera pulsera, el foco va a la cédula. */
+  cedulaRef?: Ref<HTMLInputElement>;
 }) {
+  const { encontrado } = e;
+  // Encontrada por su cédula, el teléfono ya lo tiene el directorio: no se pide.
+  const pedirTelefono = !e.porSuCedula || e.telefono.trim() !== "";
   return (
     <>
-      <Input
-        label="Teléfono"
-        value={telefono}
-        onChange={(ev) => onTelefono(ev.target.value)}
-        placeholder="0412-1234567"
-        inputMode="tel"
-        autoComplete="off"
-        {...(telefonoRef ? { ref: telefonoRef } : {})}
-        data-privado=""
-        leading={<Phone size={16} aria-hidden="true" />}
-        hint="A quién llamamos si pasa algo. Si ya vino, aparece solo"
+      {/* T-19: la cédula, lo primero. Con ella se reconoce a la familia que vuelve. */}
+      <CampoCedula
+        label="Cédula del representante"
+        valor={e.cedula}
+        onCambio={e.setCedula}
+        inputRef={cedulaRef}
+        surface="pos"
+        required
+        hint={e.cedula ? undefined : "Lo primero: si ya vino, aparece sola"}
       />
 
+      {pedirTelefono && (
+        <CampoTelefono
+          valor={e.telefono}
+          onCambio={e.setTelefono}
+          surface="pos"
+          leading={<Phone size={16} aria-hidden="true" />}
+          required={!encontrado}
+          hint={encontrado ? "Ya lo tenemos" : undefined}
+        />
+      )}
+
+      {e.telefonoDeOtro && (
+        <p role="alert" className="flex items-start gap-1.5 rounded-[var(--radius-control)] bg-state-warn-bg px-3 py-2 text-detalle text-state-warn">
+          <TriangleAlert className="mt-0.5 size-(--icono-texto) shrink-0" aria-hidden="true" />
+          <span data-privado="">
+            Ese teléfono es de {e.telefonoDeOtro.fullName}, con otra cédula. Revisa la cédula, o usa otro teléfono.
+          </span>
+        </p>
+      )}
+
       {encontrado && (
-        <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok-bg px-3 py-2.5">
-          <CircleCheckBig size={16} className="shrink-0 text-state-ok" aria-hidden="true" />
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2.5",
+            e.faltaSuCedula ? "border-state-warn/40 bg-state-warn-bg" : "border-state-ok/40 bg-state-ok-bg",
+          )}
+        >
+          {e.faltaSuCedula ? (
+            <TriangleAlert size={16} className="shrink-0 text-state-warn" aria-hidden="true" />
+          ) : (
+            <CircleCheckBig size={16} className="shrink-0 text-state-ok" aria-hidden="true" />
+          )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink" data-privado="">
-              {encontrado.fullName}
+            <p className="text-sm font-semibold text-ink" data-privado="">
+              <Marquesina>{encontrado.fullName}</Marquesina>
             </p>
-            <p className="text-[12px] text-ink-2">Ya registrado · no hay que teclear nada</p>
+            <p className="text-[12px] text-ink-2">
+              {e.faltaSuCedula ? "Ya vino · escribe su cédula y queda anotada" : "Ya registrado · no hay que teclear nada más"}
+            </p>
           </div>
         </div>
       )}
 
-      {esNuevo && (
+      {e.esNuevo && (
         <Input
           label="Nombre del representante"
-          value={nombreNuevo}
-          onChange={(ev) => onNombreNuevo(ev.target.value)}
+          value={e.nombreNuevo}
+          onChange={(ev) => e.setNombreNuevo(ev.target.value)}
           placeholder="Nombre y apellido"
           autoComplete="off"
           data-privado=""

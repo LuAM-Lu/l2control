@@ -31,3 +31,13 @@ export async function asignarCliente(entrada: unknown, autorizacion?: unknown): 
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cliente de la cuenta rechazado");
   return r;
 }
+
+/**
+ * El buscador de clientes (T-19): por su nombre, su cédula o su teléfono. Lo buscado no sale en el registro ni en la
+ * auditoría (PLAN §7.6): solo cuántos se encontraron.
+ */
+export async function encontrarClientes(entrada: unknown): Promise<Resultado<ClienteEncontradoDto[]>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).clientes.encontrar(ctx, entrada);
+}

@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { ArqueoDto, TurnoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, familiaDePrueba, impresoraDePrueba, type LocalDePrueba, FACTURA_DE_PRUEBA } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-09-27T14:00:00.000Z");
@@ -127,7 +127,7 @@ async function vender(m: Montado, ctx: Contexto, pago: "EFECTIVO_USD" | "EFECTIV
       : { total: usd("116"), pagos: [{ method: "EFECTIVO_VES", amount: ves("100000") }], rateId: m.tasa };
   const clave = randomUUID();
   const r = valor(
-    await m.l.app.cuentas.cobrar(ctx, { idempotencyKey: clave, accountId: c.id, version: c.version, lineIds: c.lines.map((x) => x.id), destinoSobra, ...cmd }, ahora),
+    await m.l.app.cuentas.cobrar(ctx, { idempotencyKey: clave, accountId: c.id, version: c.version, lineIds: c.lines.map((x) => x.id), destinoSobra, cliente: FACTURA_DE_PRUEBA, ...cmd }, ahora),
   );
   return { cuenta: r.cuenta, clave };
 }
@@ -266,7 +266,7 @@ describe("cómo va el turno: la vista y el corte X (F4-05)", () => {
     valor(
       await m.l.app.cuentas.cobrar(
         ctx,
-        { idempotencyKey: clave, accountId: c.id, version: regalada.version, lineIds: [c.lines[1]!.id], total: usd("131"), pagos: [{ method: "EFECTIVO_USD", amount: usd("500") }], destinoSobra: "VUELTO" },
+        { idempotencyKey: clave, accountId: c.id, version: regalada.version, lineIds: [c.lines[1]!.id], total: usd("131"), pagos: [{ method: "EFECTIVO_USD", amount: usd("500") }], destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA },
         AHORA,
       ),
     );
@@ -380,7 +380,7 @@ describe("el arqueo a ciegas y el corte Z (F4-06, F4-07)", () => {
     );
     const cobro = await m.l.app.cuentas.cobrar(
       ctx,
-      { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, lineIds: cuenta.lines.map((l) => l.id), total: usd("131"), pagos: [{ method: "EFECTIVO_USD", amount: usd("500") }], destinoSobra: "VUELTO" },
+      { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, lineIds: cuenta.lines.map((l) => l.id), total: usd("131"), pagos: [{ method: "EFECTIVO_USD", amount: usd("500") }], destinoSobra: "VUELTO", cliente: FACTURA_DE_PRUEBA },
       AHORA,
     );
     assert.equal(cobro.ok, false);
@@ -759,7 +759,7 @@ describe("los umbrales de la caja son del local (B4-4)", () => {
             accountId: c.id,
             version: c.version,
             lineIds: c.lines.map((x) => x.id),
-            destinoSobra: "RESIDUO",
+            destinoSobra: "RESIDUO", cliente: FACTURA_DE_PRUEBA,
             total: usd("116"),
             pagos: [{ method: "EFECTIVO_VES", amount: ves("105000") }],
             rateId: u.tasa,
