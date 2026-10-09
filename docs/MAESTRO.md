@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.101.0 · 101 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.102.0 · 102 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -2558,7 +2558,7 @@ antes del cobro en servidor (orden de ejecución).
   con todo, en la de cocina. Lo que no: la caja no tiene vista propia de las comandas; las ve en Mesas e Inicio, como
   antes. 4 pruebas del dominio y 6 contra la base.*
 - [x] **B6-11 · Servido por plato** (M-34, S-9; cambia en parte ADR-030).
-  *Hecho el 2026-10-09, en `feat/b6-11`.*
+  *Hecho el 2026-10-09 (v0.102.0), en `feat/b6-11`.*
   → En la tablet, cada plato de un pedido se marca servido, o «Servir todo» lo que falte; se puede deshacer en el
   momento. El pedido cuenta como servido cuando lo está su último plato. La atención en el salón (B6-8) mide la espera por
   plato, y lo marcado por pedido antes de este paso cuenta como todo servido.

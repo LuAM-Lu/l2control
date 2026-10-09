@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.102.0] — 2026-10-09 · Hacia la puesta en marcha
+
 Servido por plato (B6-11, M-34).
 
 ### Cambiado
