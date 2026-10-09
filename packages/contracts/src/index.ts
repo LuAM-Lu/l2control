@@ -516,6 +516,8 @@ export {
   PedidosDelLocalSchema,
   ReimprimirComandaCommandSchema,
   ServirPedidoCommandSchema,
+  DeshacerServidoCommandSchema,
+  type DeshacerServidoCommand,
   VincularPulserasCommandSchema,
   VincularPulserasResultSchema,
   type EnviarPedidoCommand,

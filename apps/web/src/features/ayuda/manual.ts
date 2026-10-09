@@ -402,7 +402,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Quien pide sin mesa: «De pie», con sus mismos datos.",
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: sale un papel por área, la comanda de cocina y la de barra, con el mismo número y «1 de 2». Lo que se sirve sin papel no sale.",
       "En el pedido se ve cada papel: «Cocina: impresa», «Barra: no salió». Cada uno se vuelve a imprimir por su cuenta.",
-      "Cuando el plato llega a la mesa, toca «Servido» en su pedido: ahí termina su espera. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
+      "Cuando un plato llega a la mesa, toca «Servido» en su renglón (o «Servir todo» lo que falte): ahí termina su espera, y el pedido queda servido con su último plato. Si lo marcaste por error, «Deshacer» en los 5 minutos siguientes. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
       "«Pide la cuenta» la manda a caja. Si no consumieron nada, «Liberar».",
       "Si se fueron sin pagar: «Se fue sin pagar», con el PIN de supervisión. La mesa queda libre y lo que deben, a nombre del cliente. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
     ],
@@ -621,13 +621,13 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Arriba, cuántas mesas piden atención y la espera media y máxima de hoy.",
       "Cada cuenta del salón, la que más pide atención primero: «Esperando su pedido» o «Sin atender».",
-      "La espera de un pedido termina cuando el mesero toca «Servido»; uno sin marcar sigue contando.",
+      "La espera se mide por plato: termina cuando el mesero lo marca «Servido»; uno sin marcar sigue contando, y la mesa espera mientras le falte uno.",
       "Los minutos a partir de los cuales se avisa se cambian en Ajustes → Sucursal.",
     ],
     problemas: [
       {
         sintoma: "Una mesa sale «Esperando su pedido» y ya comieron",
-        solucion: "Nadie marcó «Servido» en su pedido. Pídele al mesero que lo marque desde la mesa: deja de contar.",
+        solucion: "A su pedido le falta algún plato por marcar «Servido». Pídele al mesero que lo marque desde la mesa (o «Servir todo»): deja de contar.",
       },
     ],
   },

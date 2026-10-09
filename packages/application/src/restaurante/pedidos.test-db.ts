@@ -138,7 +138,7 @@ describe("enviar un pedido", () => {
     assert.equal(pedido.numero, 1);
     assert.equal(pedido.mesa, "1");
     assert.equal(pedido.enviadoPor, "Pedro Díaz");
-    assert.deepEqual(pedido.lineas, [{ productId: ids["Tequeños"], nombre: "Tequeños", cantidad: 2, nota: "sin salsa", area: "COCINA" }]);
+    assert.deepEqual(pedido.lineas, [{ productId: ids["Tequeños"], nombre: "Tequeños", cantidad: 2, nota: "sin salsa", area: "COCINA", servido: null }]);
     assert.equal(pedido.comanda.estado, "EN_COLA");
     assert.equal(pedido.comanda.impresora, "Caja de prueba");
     assert.equal(cuenta.kind, "MESA");
@@ -427,6 +427,89 @@ describe("servido en la mesa (B6-8, D-SERV)", () => {
     const ajeno = await l.app.pedidos.servir(otroMesero, { pedidoId: id }, AHORA);
     assert.equal(ajeno.ok, false);
     assert.equal(valor(await l.app.pedidos.leer(mesero, AHORA)).pedidos.find((p) => p.id === id)?.servido, null);
+  });
+});
+
+describe("servido por plato (B6-11)", () => {
+  const marcasDe = (id: string) => l.base.conTenant(l.sistema.tenantId, (tx) => tx.kitchenOrderLineServed.findMany({ where: { orderId: id }, orderBy: { at: "asc" } }));
+  const enteroDe = (id: string) => l.base.conTenant(l.sistema.tenantId, (tx) => tx.kitchenOrderServed.findMany({ where: { orderId: id } }));
+  const iso = (ms: number) => new Date(ms).toISOString();
+
+  test("cada plato se marca solo; el pedido queda servido con el último, también para la versión de antes", async () => {
+    const id = randomUUID();
+    valor(await enviar(mesero, "mesa-4", [linea("Refresco"), linea("Tequeños")], id, AHORA));
+    let p = valor(await l.app.pedidos.servir(mesero, { pedidoId: id, lineas: [1] }, AHORA + 5 * MIN));
+    assert.deepEqual(
+      p.lineas.map((x) => x.servido?.en ?? null),
+      [null, iso(AHORA + 5 * MIN)],
+    );
+    assert.equal(p.servido, null, "le falta un plato: sigue esperando");
+    assert.equal((await enteroDe(id)).length, 0);
+    // «Servir todo»: lo que falte; lo ya servido queda como estaba.
+    p = valor(await l.app.pedidos.servir(cajera, { pedidoId: id }, AHORA + 9 * MIN));
+    assert.deepEqual(
+      p.lineas.map((x) => x.servido?.en ?? null),
+      [iso(AHORA + 9 * MIN), iso(AHORA + 5 * MIN)],
+    );
+    assert.deepEqual(p.servido, { en: iso(AHORA + 9 * MIN), por: "Marisol Prieto" });
+    assert.equal((await enteroDe(id)).length, 1, "la versión de antes lo ve servido");
+    assert.equal((await marcasDe(id)).length, 2);
+    const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "kitchen_order", entityId: id });
+    assert.deepEqual(
+      asientos.filter((a) => a.action === "pedido.servir").flatMap((a) => (a.after as { platos: string[] }).platos).sort(),
+      ["Refresco", "Tequeños"],
+    );
+  });
+
+  test("deshacer en el momento deja el plato y el pedido sin servir; pasado el momento, no", async () => {
+    const id = randomUUID();
+    valor(await enviar(mesero, "mesa-4", [linea("Refresco"), linea("Tequeños")], id, AHORA));
+    valor(await l.app.pedidos.servir(mesero, { pedidoId: id }, AHORA + 10 * MIN));
+    let p = valor(await l.app.pedidos.deshacerServido(mesero, { pedidoId: id, linea: 0 }, AHORA + 12 * MIN));
+    assert.equal(p.lineas[0]!.servido, null);
+    assert.notEqual(p.lineas[1]!.servido, null);
+    assert.equal(p.servido, null, "le vuelve a faltar un plato");
+    // Deshacer lo que no está servido no hace nada.
+    p = valor(await l.app.pedidos.deshacerServido(mesero, { pedidoId: id, linea: 0 }, AHORA + 12 * MIN));
+    assert.equal((await marcasDe(id)).filter((m) => m.kind === "DESHECHO").length, 1);
+    p = valor(await l.app.pedidos.servir(mesero, { pedidoId: id, lineas: [0] }, AHORA + 13 * MIN));
+    assert.equal(p.servido?.en, iso(AHORA + 13 * MIN));
+    const tarde = await l.app.pedidos.deshacerServido(mesero, { pedidoId: id, linea: 0 }, AHORA + 13 * MIN + 6 * MIN);
+    assert.equal(!tarde.ok && tarde.motivo, "CONFLICTO");
+    const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "kitchen_order", entityId: id });
+    assert.deepEqual(asientos.filter((a) => a.action === "pedido.deshacer_servido").map((a) => (a.after as { plato: string }).plato), ["Refresco"]);
+    assert.deepEqual([...temasDe("pedido.deshacer_servido")], ["pedidos"]);
+  });
+
+  test("lo marcado por pedido antes de este paso cuenta como todo servido, y se deshace un plato sin tocar los otros", async () => {
+    const id = randomUUID();
+    valor(await enviar(mesero, "mesa-4", [linea("Refresco"), linea("Tequeños")], id, AHORA));
+    // Como lo dejaba B6-8: el pedido entero, sin marcas por plato.
+    await l.base.conTenant(l.sistema.tenantId, (tx) =>
+      tx.kitchenOrderServed.create({ data: { tenantId: l.sistema.tenantId, orderId: id, servedAt: new Date(AHORA + 8 * MIN), servedName: "Pedro Díaz" } }),
+    );
+    let p = valor(await l.app.pedidos.leer(mesero, AHORA + 9 * MIN)).pedidos.find((x) => x.id === id)!;
+    assert.deepEqual(
+      p.lineas.map((x) => x.servido?.en ?? null),
+      [iso(AHORA + 8 * MIN), iso(AHORA + 8 * MIN)],
+    );
+    assert.equal(p.servido?.en, iso(AHORA + 8 * MIN));
+    p = valor(await l.app.pedidos.deshacerServido(mesero, { pedidoId: id, linea: 1 }, AHORA + 10 * MIN));
+    assert.deepEqual(
+      p.lineas.map((x) => x.servido?.en ?? null),
+      [iso(AHORA + 8 * MIN), null],
+    );
+    assert.equal(p.servido, null);
+  });
+
+  test("un plato que no es del pedido no se marca, y las marcas no se cambian ni se borran", async () => {
+    const id = randomUUID();
+    valor(await enviar(mesero, "mesa-4", [linea("Tequeños")], id, AHORA));
+    const r = await l.app.pedidos.servir(mesero, { pedidoId: id, lineas: [3] }, AHORA);
+    assert.equal(!r.ok && r.motivo, "INVALIDO");
+    valor(await l.app.pedidos.servir(mesero, { pedidoId: id }, AHORA));
+    await assert.rejects(l.base.conTenant(l.sistema.tenantId, (tx) => tx.kitchenOrderLineServed.updateMany({ where: { orderId: id }, data: { kind: "DESHECHO" } })));
+    await assert.rejects(l.base.conTenant(l.sistema.tenantId, (tx) => tx.kitchenOrderLineServed.deleteMany({ where: { orderId: id } })));
   });
 });
 

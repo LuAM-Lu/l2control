@@ -26,6 +26,14 @@ export {
   type UnidadPedida,
 } from "./pedido.ts";
 export {
+  DESHACER_SERVIDO_MS,
+  problemaParaDeshacer,
+  servidoDelPedido,
+  servidoPorPlato,
+  type MarcaDePlato,
+  type Servido,
+} from "./servido.ts";
+export {
   atencionDeCuentas,
   resumenDeEspera,
   type AtencionDeCuenta,
