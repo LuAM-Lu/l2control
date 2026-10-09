@@ -6,7 +6,8 @@ import { AlertTriangle, ArchiveRestore, ArchiveX, CalendarClock, Copy, CopyPlus,
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
+import type { AreaDeProductoDto, CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo, TipoProducto } from "@l2/contracts";
+import { areaDe } from "@l2/domain-orders";
 import { can } from "@l2/domain-identity";
 import { barcodeProblem, marginBasisPoints, normalizeBarcode, periodAt } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
@@ -25,6 +26,7 @@ import { BarraDeLote, EditarEnLote, type CambioDeLote } from "./EditarEnLote.tsx
 import { DuplicarConSabores, plantillaDe, type Plantilla } from "./DuplicarConSabores.tsx";
 import { EstadoStock, estadoDe as estadoDelStock } from "./EstadoStock.tsx";
 import { AltaEnLote } from "./AltaEnLote.tsx";
+import { ElegirArea } from "./ElegirArea.tsx";
 import { categoriasDelCatalogo, periodosDe } from "./catalogo.ts";
 import { InventarioVista } from "./InventarioVista.tsx";
 import { CategoriasSheet } from "./CategoriasSheet.tsx";
@@ -258,7 +260,7 @@ export function ProductosScreen({ catalogo: inicial }: { catalogo: CatalogoDto }
               const barra = (
                 <BarraDeLote
                   cuantos={elegidos.size}
-                  puede={{ CATEGORIA: puedeModificar, APARTAR: puedeModificar, MINIMO: actorPuedeRecibir, EN_CARTA: puedePrecio, PRECIO: puedePrecio }}
+                  puede={{ CATEGORIA: puedeModificar, APARTAR: puedeModificar, MINIMO: actorPuedeRecibir, EN_CARTA: puedePrecio, PRECIO: puedePrecio, AREA: puedeModificar }}
                   onAccion={setCambioEnLote}
                   onLimpiar={() => setElegidos(new Set())}
                 />
@@ -415,6 +417,8 @@ function CamposDelProducto({
   setCodigo,
   presentacion,
   setPresentacion,
+  area,
+  setArea,
   categorias,
   errores,
   deshabilitado,
@@ -433,6 +437,9 @@ function CamposDelProducto({
   setCodigo: (v: string) => void;
   presentacion: string;
   setPresentacion: (v: string) => void;
+  /** En qué comanda sale (B6-10); `null`, la de su tipo. */
+  area: AreaDeProductoDto | null;
+  setArea: (v: AreaDeProductoDto | null) => void;
   categorias: readonly string[];
   errores: Record<string, string>;
   deshabilitado?: boolean;
@@ -526,6 +533,11 @@ function CamposDelProducto({
           </select>
         </div>
       </div>
+      <fieldset className="flex flex-col gap-1.5" disabled={deshabilitado}>
+        <legend className={cn(ETIQUETA, "mb-1.5")}>Dónde se prepara</legend>
+        <ElegirArea tipo={tipo} valor={area} onCambio={setArea} deshabilitado={deshabilitado} />
+        {errores["area"] ? <p className="text-nota text-state-crit">{errores["area"]}</p> : <p className="text-nota text-ink-3">El mesero lo pide y sale en la impresora de esa área</p>}
+      </fieldset>
     </>
   );
 }
@@ -556,6 +568,7 @@ function ProductoNuevo({
   const [tipo, setTipo] = useState<TipoProducto>("PRODUCTO");
   const [codigo, setCodigo] = useState("");
   const [presentacion, setPresentacion] = useState("");
+  const [area, setArea] = useState<AreaDeProductoDto | null>(null);
   const [precio, setPrecio] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [general, setGeneral] = useState<string | null>(null);
@@ -569,6 +582,7 @@ function ProductoNuevo({
     setTaxCode(plantilla.taxCode);
     setTipo(plantilla.tipo);
     setPresentacion(plantilla.presentacion ?? "");
+    setArea(plantilla.area);
     setPrecio(plantilla.precioMinor === null ? "" : toMajor(money(BigInt(plantilla.precioMinor), "USD")).replace(".", ","));
     setCodigo("");
   }, [abierto, plantilla]);
@@ -585,6 +599,7 @@ function ProductoNuevo({
     setTipo("PRODUCTO");
     setCodigo("");
     setPresentacion("");
+    setArea(null);
     setPrecio("");
     setErrores({});
     setGeneral(null);
@@ -608,6 +623,7 @@ function ProductoNuevo({
           precioMinor,
           ...(tipo === "PRODUCTO" && codigo.trim() ? { codigoBarras: normalizeBarcode(codigo) } : {}),
           ...(presentacion.trim() ? { presentacion: presentacion.trim() } : {}),
+          ...(area ? { area } : {}),
           // La copia (B9-8) lleva también el mínimo y la carta del original.
           ...(plantilla ? { enCarta: plantilla.enCarta } : {}),
           ...(plantilla && tipo === "PRODUCTO" && plantilla.minimo !== null ? { minimo: plantilla.minimo } : {}),
@@ -621,7 +637,7 @@ function ProductoNuevo({
       cerrar();
       return;
     }
-    const e = porCampo(r, ["nombre", "categoria", "taxCode", "precioMinor", "tipo", "codigoBarras", "presentacion"]);
+    const e = porCampo(r, ["nombre", "categoria", "taxCode", "precioMinor", "tipo", "codigoBarras", "presentacion", "area"]);
     setErrores(e.errores);
     setGeneral(e.general);
   };
@@ -663,6 +679,8 @@ function ProductoNuevo({
           setCodigo={setCodigo}
           presentacion={presentacion}
           setPresentacion={setPresentacion}
+          area={area}
+          setArea={setArea}
           categorias={categorias}
           errores={errores}
         />
@@ -732,6 +750,7 @@ export function FichaProducto({
   const [tipo, setTipo] = useState<TipoProducto>("PRODUCTO");
   const [codigo, setCodigo] = useState("");
   const [presentacion, setPresentacion] = useState("");
+  const [area, setArea] = useState<AreaDeProductoDto | null>(null);
   const [precio, setPrecio] = useState("");
   const [dia, setDia] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -749,6 +768,7 @@ export function FichaProducto({
     setTipo(producto.tipo);
     setCodigo(producto.codigoBarras ?? "");
     setPresentacion(producto.presentacion ?? "");
+    setArea(producto.areaDeSuTipo ? null : producto.area);
     setPrecio("");
     setDia(null);
     setErrores({});
@@ -776,6 +796,8 @@ export function FichaProducto({
         tipo,
         codigoBarras: tipo === "PRODUCTO" && codigo.trim() ? normalizeBarcode(codigo) : null,
         presentacion: presentacion.trim() ? presentacion.trim() : null,
+        // Sin elegir, la de su tipo (el servidor la guarda como «sin elegir»).
+        area: area ?? areaDe(tipo, null),
       },
       "editar",
     );
@@ -786,7 +808,7 @@ export function FichaProducto({
       setGeneral(null);
       return;
     }
-    const e = porCampo(r, ["nombre", "categoria", "taxCode", "tipo", "codigoBarras", "presentacion"]);
+    const e = porCampo(r, ["nombre", "categoria", "taxCode", "tipo", "codigoBarras", "presentacion", "area"]);
     setErrores(e.errores);
     setGeneral(e.general);
   };
@@ -901,6 +923,8 @@ export function FichaProducto({
             setCodigo={setCodigo}
             presentacion={presentacion}
             setPresentacion={setPresentacion}
+            area={area}
+            setArea={setArea}
             tipoBloqueado={producto.tipo === "PRODUCTO" && (producto.existencia ?? 0) !== 0 ? `Tiene ${producto.existencia} en stock: sácalas o cuéntalas antes de cambiar su tipo.` : null}
             categorias={categorias}
             errores={errores}

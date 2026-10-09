@@ -124,6 +124,8 @@ import { borrarBorradorEn } from "./borrador.ts";
 import { asentarExistencias, comprobarExistencias, existenciasDe } from "../inventario/existencias.ts";
 import { asentarAjuste } from "../inventario/salidas.ts";
 import { encolarEn } from "../impresion/impresion.ts";
+import { NOMBRE_DE_AREA, areaEnElPedido, areaSinImpresora, oficioDe, sinImpresoraPara, type LineaGuardada } from "../restaurante/comandas.ts";
+import { AREAS_DE_COMANDA, type AreaDeComanda } from "@l2/domain-orders";
 import { documentoDeAnulacion, rotuloDePedido } from "../impresion/plantillas.ts";
 import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
 import { mesaSinCuenta } from "../restaurante/plano.ts";
@@ -1108,11 +1110,18 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           const anuladas = actual.cuenta.lines.filter((l) => cmd.lineIds.includes(l.id));
           const pedido = await tx.kitchenOrder.findUnique({ where: { id: anuladas[0]!.orderId! } });
           if (!pedido || pedido.branchId !== ctx.branchId) return noExiste;
-          // Sin impresora de comandas la cocina no se entera (M-18): como al enviar, no se anula a ciegas.
-          const impresora = await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, forOrders: true }, select: { id: true } });
-          if (!impresora) {
-            return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "No hay impresora de comandas encendida: la cocina no se enteraría de la anulación. Configúrala en Ajustes → Impresoras." };
+          // El papel «ANULAR» va al área de cada plato (B6-10): lo de cocina a la cocina, lo de barra a la barra; lo que se
+          // sirvió sin papel no lo lleva. Sin la impresora de un área, esa área no se entera (M-18): no se anula a ciegas.
+          const delPedido = pedido.items as unknown as LineaGuardada[];
+          const porArea = new Map<AreaDeComanda | null, typeof anuladas>();
+          for (const l of anuladas) {
+            const area = areaEnElPedido(delPedido, l.productId);
+            if (area === "SIN_PAPEL") continue;
+            porArea.set(area, [...(porArea.get(area) ?? []), l]);
           }
+          const papeles = [...porArea].sort(([a], [b]) => (a === null ? -1 : AREAS_DE_COMANDA.indexOf(a)) - (b === null ? -1 : AREAS_DE_COMANDA.indexOf(b)));
+          const falta = await areaSinImpresora(tx, ctx.branchId, papeles.map(([a]) => a));
+          if (falta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: sinImpresoraPara(falta, `${falta === "BARRA" ? "la barra" : "la cocina"} no se enteraría de la anulación`) };
 
           // La autorización se comprueba y se registra ANTES de anular nada (§7.3).
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "pedido.anularEnProduccion", autorizacion, ahora, CON_PIN);
@@ -1164,33 +1173,37 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             });
           }
 
-          // El papel «ANULAR» en la impresora de comandas, en la misma transacción (M-18).
-          const porPlato = new Map<string, number>();
-          for (const l of anuladas) porPlato.set(l.concept, (porPlato.get(l.concept) ?? 0) + 1);
-          const trabajo = await encolarEn(
-            tx,
-            ctx,
-            {
-              tipo: "ANULACION",
-              para: "comandas",
-              titulo: `Anular · comanda ${orden(pedido.number)} · ${rotuloDePedido(pedido)}`,
-              orderId: pedido.id,
-              documento: documentoDeAnulacion(
-                {
-                  numero: pedido.number,
-                  mesa: pedido.tableId === null ? null : pedido.tableLabel,
-                  nombreCuenta: pedido.accountLabel,
-                  anuladoEn: ahora,
-                  autorizadoPor: autorizador.fullName,
-                  motivo: `${TEXTO_MOTIVO_ANULACION[cmd.motivo]}${cmd.detalle ? `: ${cmd.detalle}` : ""}`,
-                  lineas: [...porPlato].map(([nombre, cantidad]) => ({ nombre, cantidad })),
-                },
-                await ajustesDe(tx, ctx.branchId),
-              ),
-            },
-            ahora,
-          );
-          if ("ok" in trabajo) throw new Error(`La anulación no encoló su papel: ${trabajo.mensaje}`);
+          // El papel «ANULAR» de cada área en su impresora, en la misma transacción (M-18, B6-10).
+          for (const [area, lineas] of papeles) {
+            const porPlato = new Map<string, number>();
+            for (const l of lineas) porPlato.set(l.concept, (porPlato.get(l.concept) ?? 0) + 1);
+            const trabajo = await encolarEn(
+              tx,
+              ctx,
+              {
+                tipo: "ANULACION",
+                para: oficioDe(area),
+                ...(area ? { area } : {}),
+                titulo: `Anular · comanda ${orden(pedido.number)}${area ? ` · ${NOMBRE_DE_AREA[area]}` : ""} · ${rotuloDePedido(pedido)}`,
+                orderId: pedido.id,
+                documento: documentoDeAnulacion(
+                  {
+                    numero: pedido.number,
+                    mesa: pedido.tableId === null ? null : pedido.tableLabel,
+                    nombreCuenta: pedido.accountLabel,
+                    anuladoEn: ahora,
+                    autorizadoPor: autorizador.fullName,
+                    motivo: `${TEXTO_MOTIVO_ANULACION[cmd.motivo]}${cmd.detalle ? `: ${cmd.detalle}` : ""}`,
+                    lineas: [...porPlato].map(([nombre, cantidad]) => ({ nombre, cantidad })),
+                    area,
+                  },
+                  await ajustesDe(tx, ctx.branchId),
+                ),
+              },
+              ahora,
+            );
+            if ("ok" in trabajo) throw new Error(`La anulación no encoló su papel: ${trabajo.mensaje}`);
+          }
 
           await auditar(tx, ctx, {
             action: "pedido.anular",

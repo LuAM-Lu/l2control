@@ -21,7 +21,7 @@ import { BasisPointsSchema, ImpuestoSchema, TaxCodeDelCatalogoSchema, TratoProgr
 import { CodigoMedioSchema, DatosPagoMovilSchema, DatosZelleSchema, MonedaSchema, TipoDatosSchema } from "./medios.ts";
 import { AlcanceDescuentoSchema, TipoReglaDescuentoSchema, ValorDescuentoSchema } from "./descuentos.ts";
 import { DatosImpresoraSchema } from "./impresoras.ts";
-import { CategoriaProductoSchema, CodigoBarrasSchema, NombreProductoSchema, PrecioMinorSchema, PresentacionSchema, TipoProductoSchema } from "./productos.ts";
+import { AreaDeProductoSchema, CategoriaProductoSchema, CodigoBarrasSchema, NombreProductoSchema, PrecioMinorSchema, PresentacionSchema, TipoProductoSchema } from "./productos.ts";
 import { TarifarioSchema } from "./park.ts";
 import { PlanoLocalSchema } from "./restaurante.ts";
 import { PaqueteEventoSchema } from "./reservas.ts";
@@ -38,6 +38,8 @@ export const ProductoDeSemillaSchema = z.strictObject({
   codigoBarras: CodigoBarrasSchema.nullable(),
   enCarta: z.boolean(),
   minimo: z.number().int().min(0).max(1_000_000).nullable(),
+  /** En qué comanda sale, si no es la de su tipo (B6-10). Una semilla de antes no la trae. */
+  area: AreaDeProductoSchema.optional(),
 });
 export type ProductoDeSemillaDto = z.infer<typeof ProductoDeSemillaSchema>;
 

@@ -187,6 +187,10 @@ export {
   MAX_ALTA_EN_LOTE,
   AltaEnLoteCommandSchema,
   type AltaEnLoteCommand,
+  AreaDeProductoSchema,
+  AreaDeComandaSchema,
+  type AreaDeProductoDto,
+  type AreaDeComandaDto,
 } from "./productos.ts";
 
 export { CategoriaCommandSchema, type CategoriaCommand } from "./categorias.ts";
@@ -502,6 +506,10 @@ export {
   type AbrirCuentaDelSalonCommand,
   EnviarPedidoCommandSchema,
   EstadoDeComandaSchema,
+  EstadoDelPedidoSchema,
+  ComandaDelPedidoSchema,
+  type EstadoDelPedidoDto,
+  type ComandaDelPedidoDto,
   LineaPedidaSchema,
   PedidoEnviadoSchema,
   PedidoSchema,

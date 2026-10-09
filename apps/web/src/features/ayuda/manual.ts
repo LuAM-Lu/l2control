@@ -400,7 +400,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Buscar cliente»: por su nombre, su cédula o su teléfono, dice dónde está sentado (toca su cuenta para abrir su mesa), sus niños en la sala y si debe algo de antes.",
       "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, sus datos, su pedido y su cobro.",
       "Quien pide sin mesa: «De pie», con sus mismos datos.",
-      "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: la comanda sale en la impresora.",
+      "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: sale un papel por área, la comanda de cocina y la de barra, con el mismo número y «1 de 2». Lo que se sirve sin papel no sale.",
+      "En el pedido se ve cada papel: «Cocina: impresa», «Barra: no salió». Cada uno se vuelve a imprimir por su cuenta.",
       "Cuando el plato llega a la mesa, toca «Servido» en su pedido: ahí termina su espera. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
       "«Pide la cuenta» la manda a caja. Si no consumieron nada, «Liberar».",
       "Si se fueron sin pagar: «Se fue sin pagar», con el PIN de supervisión. La mesa queda libre y lo que deben, a nombre del cliente. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
@@ -412,9 +413,9 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["otro equipo le abrio una cuenta"],
       },
       {
-        sintoma: "«No hay impresora de comandas»",
-        solucion: "El pedido no se envía sin papel para la cocina. Administración la configura en Ajustes → Impresoras (marca «comandas»).",
-        reconoce: ["no hay impresora de comandas"],
+        sintoma: "«No hay impresora de comandas de cocina (o de barra)»",
+        solucion: "El pedido no se envía sin papel para esa área. Administración marca qué imprime cada impresora en Ajustes → Impresoras (con una sola, las tres marcas en ella).",
+        reconoce: ["no hay impresora de comandas", "comandas de barra encendida", "comandas de cocina encendida"],
       },
       {
         sintoma: "«La comanda no salió»",
@@ -472,7 +473,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Productos: la existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
       "«Editar» en cada fila abre su ficha: los datos arriba (nombre, categoría, presentación), el precio debajo. La categoría se elige de la lista; «Escribir una nueva…» para la que no está.",
       "Uno creado por error (también en la carga inicial): en su ficha, «Retirar». Sale de la caja, la carta, la tablet y las listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra: «Retirados» los muestra y, en su ficha, «Devolver al catálogo».",
-      "Productos → En la carta: qué platos ofrece el mesero y su precio con su día (un solo sitio para el precio).",
+      "Productos → En la carta: qué platos ofrece el mesero, su precio con su día (un solo sitio para el precio) y dónde se prepara.",
+      "Dónde se prepara cada producto (en su ficha, en «Alta en lote», en la carta o con varios elegidos): Cocina, Barra o Sin papel. Sin elegir, lo preparado va a cocina, lo de nevera a barra y un servicio sin papel.",
       "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay). Cada fila dice la categoría y la presentación del producto, y «Ver o editar su ficha» la abre encima sin perder la lista.",
       "Una entrada mal cargada (una compra, una reposición o el inventario inicial): «Anular», con el motivo y el PIN de administración. Cada línea sale a su costo de esa entrada y el costo promedio se recalcula; queda tachada, con quién y por qué. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.",
       "Salidas y conteo: merma, consumo interno, regalo o devolución, con motivo; el conteo deja la existencia igual a lo contado.",
@@ -519,7 +521,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito:
       "La impresora térmica del local, el agente de la laptop de caja que imprime en ella (por la red del local o por USB) y lo que se mandó a imprimir.",
     pasos: [
-      "Impresoras: la de recibos y cortes y la de comandas; se prueba antes de encenderla. Por red, con su IP fija; por USB, se elige el equipo al que está enchufada y su nombre en Windows (el agente de ese equipo la imprime).",
+      "Impresoras: cada una marca qué imprime (recibos y cortes, comandas de cocina, comandas de barra), una sola encendida por marca; con una sola impresora, las tres en ella. Se prueba antes de encenderla. Por red, con su IP fija; por USB, se elige el equipo al que está enchufada y su nombre en Windows (el agente de ese equipo la imprime).",
       "En «Editar», «Imprimir la prueba de acentos» saca las tildes con cada página de códigos, numeradas: en «Página de las tildes» se elige la que se leyó bien. «Impresión oscura» pone todo en negrita y con doble pasada, para la que marca pálido.",
       "Agente: se descarga, se vincula con un código de un solo uso y queda instalado en la laptop de caja.",
       "El agente se actualiza solo: cuando el sistema trae otra versión, la baja, comprueba su huella y se cambia con la cola vacía. Aquí se ve su versión y la disponible; «Actualizar ahora» no espera a su próxima revisión.",

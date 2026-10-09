@@ -37,6 +37,8 @@ type Form = {
   oscura: boolean;
   recibos: boolean;
   comandas: boolean;
+  /** Comandas de barra (B6-10). */
+  barra: boolean;
   enVlanDeHardware: boolean;
   ipFija: boolean;
 };
@@ -52,6 +54,7 @@ const VACIO: Form = {
   oscura: false,
   recibos: true,
   comandas: true,
+  barra: true,
   enVlanDeHardware: false,
   ipFija: false,
 };
@@ -67,6 +70,7 @@ const deImpresora = (i: ImpresoraDto): Form => ({
   oscura: i.oscura,
   recibos: i.recibos,
   comandas: i.comandas,
+  barra: i.barra,
   enVlanDeHardware: i.enVlanDeHardware,
   ipFija: i.ipFija,
 });
@@ -136,7 +140,7 @@ export function ImpresoraForm({
     error: errores[k] || undefined,
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => cambiar({ [k]: e.target.value }),
   });
-  const marca = (k: "recibos" | "comandas" | "enVlanDeHardware" | "ipFija" | "oscura", texto: string, pista?: string) => (
+  const marca = (k: "recibos" | "comandas" | "barra" | "enVlanDeHardware" | "ipFija" | "oscura", texto: string, pista?: string) => (
     <label className="flex min-h-9 cursor-pointer items-start gap-2 text-[13px] text-ink">
       <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand)]" checked={form[k]} onChange={(e) => cambiar({ [k]: e.target.checked }, ["recibos"])} />
       <span>
@@ -281,7 +285,8 @@ export function ImpresoraForm({
         <fieldset className="flex flex-col gap-0.5">
           <legend className={cn(ETIQUETA, "mb-1")}>Imprime</legend>
           {marca("recibos", "Recibos y ticket del corte")}
-          {marca("comandas", "Comandas del restaurante", "Hoy la de caja; mañana, la de la cocina")}
+          {marca("comandas", "Comandas de cocina", "Lo preparado en la cocina")}
+          {marca("barra", "Comandas de barra", "Bebidas y lo de nevera. Con una sola impresora, las tres marcas en ella")}
           {error("recibos")}
         </fieldset>
         {form.conexion === "RED" && (
@@ -298,5 +303,5 @@ export function ImpresoraForm({
 
 /** Lo que va igual por red y por USB. */
 function base(f: Form) {
-  return { nombre: f.nombre, ancho: f.ancho, pagina: f.pagina, oscura: f.oscura, recibos: f.recibos, comandas: f.comandas };
+  return { nombre: f.nombre, ancho: f.ancho, pagina: f.pagina, oscura: f.oscura, recibos: f.recibos, comandas: f.comandas, barra: f.barra };
 }

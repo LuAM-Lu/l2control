@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.ts";
-import { PrecioMinorSchema } from "./productos.ts";
+import { AreaDeComandaSchema, AreaDeProductoSchema, PrecioMinorSchema } from "./productos.ts";
 import { FamilyAccountSchema } from "./account.ts";
 import { DatosDelClienteSchema } from "./clientes.ts";
 
@@ -206,8 +206,11 @@ export const EnviarPedidoCommandSchema = z
   .refine((c) => c.tableId !== undefined || c.cuentaId !== undefined, { path: ["cuentaId"], message: "El pedido es de una mesa o de una cuenta de pie" });
 export type EnviarPedidoCommand = z.infer<typeof EnviarPedidoCommandSchema>;
 
-/** Volver a imprimir la comanda de un pedido (sale marcada «reimpresión»). */
-export const ReimprimirComandaCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido") });
+/**
+ * Volver a imprimir la comanda de un pedido (sale marcada «reimpresión»). Con cocina y barra (B6-10), `area` dice cuál;
+ * sin ella, la única que tenga.
+ */
+export const ReimprimirComandaCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido"), area: AreaDeComandaSchema.optional() });
 
 /** El mesero marca un pedido servido en la mesa (B6-8, D-SERV): ahí termina su espera. Una vez por pedido. */
 export const ServirPedidoCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido") });
@@ -215,6 +218,22 @@ export const ServirPedidoCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedi
 /** Lo que importa de una comanda (ADR-022 §2): si salió en papel. `@l2/domain-orders` lo decide. */
 export const EstadoDeComandaSchema = z.enum(["EN_COLA", "IMPRESA", "NO_SALIO", "DESCARTADA"]);
 export type EstadoDeComandaDto = z.infer<typeof EstadoDeComandaSchema>;
+/** El de un pedido entero (B6-10): el de sus papeles, o `SIN_PAPEL` si todo lo suyo se sirve sin comanda. */
+export const EstadoDelPedidoSchema = z.enum(["EN_COLA", "IMPRESA", "NO_SALIO", "DESCARTADA", "SIN_PAPEL"]);
+export type EstadoDelPedidoDto = z.infer<typeof EstadoDelPedidoSchema>;
+
+/** Un papel de un pedido (B6-10): la comanda de cocina o la de barra. `area: null`, la de un pedido de antes, con todo. */
+export const ComandaDelPedidoSchema = z.object({
+  area: AreaDeComandaSchema.nullable(),
+  estado: EstadoDeComandaSchema,
+  /** Dónde salió o tenía que salir. */
+  impresora: z.string().nullable(),
+  /** Por qué no salió, si no salió. */
+  error: z.string().nullable(),
+  /** Cuántas veces se volvió a imprimir. */
+  reimpresiones: z.number().int().min(0),
+});
+export type ComandaDelPedidoDto = z.infer<typeof ComandaDelPedidoSchema>;
 
 export const PedidoSchema = z.object({
   id: IdSchema,
@@ -231,12 +250,24 @@ export const PedidoSchema = z.object({
   nombreCuenta: z.string().nullable(),
   cuentaId: IdSchema,
   lineas: z
-    .array(z.object({ productId: IdSchema, nombre: z.string(), cantidad: z.number().int().min(1), nota: z.string().nullable() }))
+    .array(
+      z.object({
+        productId: IdSchema,
+        nombre: z.string(),
+        cantidad: z.number().int().min(1),
+        nota: z.string().nullable(),
+        /** En qué papel salió (B6-10). Sin ella, un pedido de antes: todo en uno. */
+        area: AreaDeProductoSchema.optional(),
+      }),
+    )
     .min(1),
   enviadoEn: TimestampSchema,
   enviadoPor: z.string(),
+  /** Sus papeles (B6-10), cocina primero; vacío si todo se sirve sin comanda. */
+  comandas: z.array(ComandaDelPedidoSchema).default([]),
+  /** El pedido entero: lo que más atención pide de sus papeles (`comandas`), con la impresora y el error de ese. */
   comanda: z.object({
-    estado: EstadoDeComandaSchema,
+    estado: EstadoDelPedidoSchema,
     /** Dónde salió o tenía que salir (la impresora de comandas). */
     impresora: z.string().nullable(),
     /** Por qué no salió, si no salió. */
@@ -249,6 +280,8 @@ export const PedidoSchema = z.object({
    * cuando la cocina no se enteró. `null` si no se anuló nada.
    */
   anulacion: z.object({ estado: EstadoDeComandaSchema, error: z.string().nullable() }).nullable().default(null),
+  /** Cada papel «ANULAR» por área (B6-10): el último de cada una. */
+  anulaciones: z.array(z.object({ area: AreaDeComandaSchema.nullable(), estado: EstadoDeComandaSchema, error: z.string().nullable() })).default([]),
   /** Cuándo y quién lo marcó servido en la mesa (B6-8, D-SERV); sin marcar, `null`: sigue esperando. */
   servido: z.object({ en: TimestampSchema, por: z.string() }).nullable().default(null),
 });

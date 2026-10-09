@@ -77,3 +77,35 @@ export function estadoDeComanda(trabajos: readonly Readonly<{ estado: EstadoDeTr
 
 /** ¿Hay que avisar de esta comanda? Lo que no salió, sí: ningún pedido se queda sin papel sin que alguien lo vea. */
 export const comandaPideAtencion = (e: EstadoDeComanda): boolean => e === "NO_SALIO";
+
+/* ──────────────────────────────── la comanda de cocina y la de barra (B6-10, M-34) */
+
+/** Dónde se prepara un producto y en qué papel sale. `SIN_PAPEL`: se sirve sin comanda (un servicio, algo de mostrador). */
+export type AreaDeProducto = "COCINA" | "BARRA" | "SIN_PAPEL";
+/** Las áreas que tienen papel, en el orden en que salen. */
+export type AreaDeComanda = "COCINA" | "BARRA";
+export const AREAS_DE_COMANDA: readonly AreaDeComanda[] = ["COCINA", "BARRA"];
+
+/** El área de un producto: la elegida o, sin elegir, la de su tipo (lo preparado, cocina; lo de nevera, barra; un servicio, sin papel). */
+export function areaDe(tipo: "PRODUCTO" | "PREPARADO" | "SERVICIO", elegida: AreaDeProducto | null | undefined): AreaDeProducto {
+  if (elegida) return elegida;
+  return tipo === "PREPARADO" ? "COCINA" : tipo === "PRODUCTO" ? "BARRA" : "SIN_PAPEL";
+}
+
+/**
+ * Los papeles de un pedido: uno por área con algo que preparar, cocina primero. Un pedido de antes de B6-10 (sus
+ * líneas no dicen área) es un solo papel con todo, sin área (`null`). Uno de solo cosas sin papel no tiene ninguno.
+ */
+export function partesDelPedido<L extends Readonly<{ area?: AreaDeProducto | null | undefined }>>(
+  lineas: readonly L[],
+): Readonly<{ area: AreaDeComanda | null; lineas: L[] }>[] {
+  if (lineas.some((l) => l.area === undefined || l.area === null)) return [{ area: null, lineas: [...lineas] }];
+  return AREAS_DE_COMANDA.map((area) => ({ area, lineas: lineas.filter((l) => l.area === area) })).filter((p) => p.lineas.length > 0);
+}
+
+/** En qué quedó un pedido entero: lo que pide más atención de sus papeles. Sin ninguno, `SIN_PAPEL`. */
+export function estadoDelPedido(estados: readonly EstadoDeComanda[]): EstadoDeComanda | "SIN_PAPEL" {
+  if (estados.length === 0) return "SIN_PAPEL";
+  for (const e of ["NO_SALIO", "EN_COLA", "DESCARTADA"] as const) if (estados.includes(e)) return e;
+  return "IMPRESA";
+}

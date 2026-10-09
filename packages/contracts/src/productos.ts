@@ -47,6 +47,16 @@ export type CategoriaDto = z.infer<typeof CategoriaSchema>;
  * paquetes).
  */
 export const TipoProductoSchema = z.enum(["PRODUCTO", "PREPARADO", "SERVICIO"], { error: "Elige el tipo" });
+
+/**
+ * En qué comanda sale un producto (B6-10): la de cocina, la de barra o ninguna. Sin elegir, la de su tipo (lo preparado,
+ * cocina; lo de nevera, barra; un servicio, sin papel): `areaDe` de `@l2/domain-orders`.
+ */
+export const AreaDeProductoSchema = z.enum(["COCINA", "BARRA", "SIN_PAPEL"], { error: "Elige dónde se prepara" });
+export type AreaDeProductoDto = z.infer<typeof AreaDeProductoSchema>;
+/** Las áreas con papel. */
+export const AreaDeComandaSchema = z.enum(["COCINA", "BARRA"]);
+export type AreaDeComandaDto = z.infer<typeof AreaDeComandaSchema>;
 export type TipoProducto = z.infer<typeof TipoProductoSchema>;
 
 /** El código de barras del empaque, como se guarda: sin espacios y en mayúsculas. El dígito de control lo mira el dominio. */
@@ -110,6 +120,10 @@ export const ProductoSchema = z
      * La caja vende todo lo activo; las mesas, solo lo de la carta.
      */
     enCarta: z.boolean(),
+    /** En qué comanda sale (B6-10): la elegida o la de su tipo. */
+    area: AreaDeProductoSchema.default("COCINA"),
+    /** Si el área es la de su tipo (nadie la eligió). */
+    areaDeSuTipo: z.boolean().default(true),
     /** El calendario de precios, del más viejo al más nuevo. */
     precios: z.array(TramoPrecioSchema),
     /**
@@ -200,6 +214,8 @@ export const ProductoNuevoSchema = z
     enCarta: z.boolean().optional(),
     /** Su stock mínimo desde el alta (B9-7). Sin decirlo, sin mínimo. */
     minimo: MinimoSchema.optional(),
+    /** En qué comanda sale (B6-10). Sin decirlo, la de su tipo. */
+    area: AreaDeProductoSchema.optional(),
   })
   .refine((p) => p.codigoBarras === undefined || p.tipo === "PRODUCTO", {
     message: "Solo un producto que se cuenta lleva código de barras",
@@ -252,10 +268,14 @@ export const ProductoCommandSchema = z.discriminatedUnion("kind", [
     /** `null` lo quita. */
     codigoBarras: CodigoBarrasSchema.nullable(),
     presentacion: PresentacionSchema.nullable(),
+    /** En qué comanda sale (B6-10). Sin decirlo, la que tenía. */
+    area: AreaDeProductoSchema.optional(),
   }),
   z.strictObject({ kind: z.literal("ACTIVAR"), productId: z.uuid("Producto desconocido"), activo: z.boolean() }),
   /** Ponerlo en la carta de las mesas o quitarlo (B6-1). La caja lo sigue vendiendo si está activo. */
   z.strictObject({ kind: z.literal("EN_CARTA"), productId: z.uuid("Producto desconocido"), enCarta: z.boolean() }),
+  /** En qué comanda sale (B6-10): cocina, barra o sin papel. */
+  z.strictObject({ kind: z.literal("AREA"), productId: z.uuid("Producto desconocido"), area: AreaDeProductoSchema }),
   z.strictObject({
     kind: z.literal("PROGRAMAR_PRECIO"),
     productId: z.uuid("Producto desconocido"),
@@ -305,6 +325,7 @@ export const EditarEnLoteCommandSchema = z.strictObject({
     z.strictObject({ kind: z.literal("CATEGORIA"), categoria: CategoriaProductoSchema }),
     z.strictObject({ kind: z.literal("MINIMO"), minimo: MinimoSchema.nullable() }),
     z.strictObject({ kind: z.literal("EN_CARTA"), enCarta: z.boolean() }),
+    z.strictObject({ kind: z.literal("AREA"), area: AreaDeProductoSchema }),
     z.strictObject({ kind: z.literal("PRECIO"), ajuste: AjusteDePrecioSchema, dia: FechaSchema }),
     z.strictObject({ kind: z.literal("APARTAR") }),
   ]),

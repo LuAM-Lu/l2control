@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArchiveX, BookOpen, FolderInput, Gauge, Tag, TriangleAlert, X } from "lucide-react";
+import { ArchiveX, BookOpen, ChefHat, FolderInput, Gauge, Tag, TriangleAlert, X } from "lucide-react";
 import type { CatalogoDto, EditarEnLoteCommand, Resultado } from "@l2/contracts";
 import { adjustedPrice, periodAt, priceProblem, type AjusteDePrecio, type PricePeriod } from "@l2/domain-inventory";
 import { addDays, calendarDay } from "@l2/domain-rates";
@@ -10,10 +10,12 @@ import { Button, Input, Sheet, TAMANO_ICONO, avisar, cn, formatMoneyVE } from "@
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { editarEnLote } from "./productos.acciones";
+import { AREAS, NOMBRE_DE_AREA } from "./ElegirArea.tsx";
+import type { AreaDeProductoDto } from "@l2/contracts";
 
 /**
  * Editar en lote (B9-9, M-29). Con varios productos elegidos en la tabla, una barra ofrece lo que se les puede cambiar a
- * la vez: la categoría, el mínimo, la carta, el precio (en % o en monto, desde un día) o apartarlos. Cada cambio abre su
+ * la vez: la categoría, el mínimo, la carta, dónde se prepara (B6-10), el precio (en % o en monto, desde un día) o apartarlos. Cada cambio abre su
  * hoja, que enseña a quiénes toca y, con el precio, cómo queda cada uno. Una sola confirmación: todo o nada, y cada
  * producto deja su asiento. Quién puede lo decide el servidor (el precio y la carta piden confirmar la identidad).
  */
@@ -24,6 +26,7 @@ const ACCIONES: readonly { id: CambioDeLote; nombre: string; Icono: typeof Tag }
   { id: "CATEGORIA", nombre: "Categoría", Icono: FolderInput },
   { id: "MINIMO", nombre: "Mínimo", Icono: Gauge },
   { id: "EN_CARTA", nombre: "Carta", Icono: BookOpen },
+  { id: "AREA", nombre: "Dónde se prepara", Icono: ChefHat },
   { id: "PRECIO", nombre: "Precio", Icono: Tag },
   { id: "APARTAR", nombre: "Apartar", Icono: ArchiveX },
 ];
@@ -66,6 +69,7 @@ const TITULO: Readonly<Record<CambioDeLote, string>> = {
   CATEGORIA: "Cambiar la categoría",
   MINIMO: "Cambiar el mínimo",
   EN_CARTA: "La carta",
+  AREA: "Dónde se prepara",
   PRECIO: "Cambiar el precio",
   APARTAR: "Apartar",
 };
@@ -94,6 +98,7 @@ export function EditarEnLote({
   const [categoria, setCategoria] = useState("");
   const [minimo, setMinimo] = useState("");
   const [enCarta, setEnCarta] = useState(true);
+  const [area, setArea] = useState<AreaDeProductoDto>("COCINA");
   const [modo, setModo] = useState<"PORCENTAJE" | "MONTO">("PORCENTAJE");
   const [valor, setValor] = useState("");
   const [dia, setDia] = useState(hoy);
@@ -135,6 +140,8 @@ export function EditarEnLote({
       }
       case "EN_CARTA":
         return { kind: "EN_CARTA", enCarta };
+      case "AREA":
+        return { kind: "AREA", area };
       case "PRECIO":
         if (!ajuste) return modo === "PORCENTAJE" ? "Escribe el por ciento, por ejemplo 10 o -5." : "Escribe el monto, por ejemplo 0,50 o -0,25.";
         if (hayProblema) return "Algún precio no queda bien: revisa la lista.";
@@ -233,6 +240,29 @@ export function EditarEnLote({
             ))}
           </div>
         )}
+        {cambio === "AREA" && (
+          <div role="radiogroup" aria-label="Dónde se prepara" className="grid grid-cols-3 gap-2">
+            {AREAS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                role="radio"
+                aria-checked={area === a.id}
+                onClick={() => setArea(a.id)}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 rounded-[var(--radius-control)] border px-3 py-2 text-left",
+                  area === a.id ? "border-brand bg-brand/10" : "border-line hover:border-line-strong",
+                )}
+              >
+                <span className="flex items-center gap-1.5 text-detalle font-semibold text-ink">
+                  <a.Icono size={TAMANO_ICONO.texto} aria-hidden="true" />
+                  {a.nombre}
+                </span>
+                <span className="text-nota text-ink-3">{a.detalle}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {cambio === "PRECIO" && (
           <>
             <div role="radiogroup" aria-label="Cómo se ajusta" className="flex gap-1 rounded-[var(--radius-control)] bg-surface-2 p-1">
@@ -278,7 +308,7 @@ export function EditarEnLote({
                   </span>
                 )
               ) : (
-                <span className="text-nota text-ink-3">{cambio === "MINIMO" ? `Mínimo ${p.minimo ?? "—"}` : cambio === "CATEGORIA" ? p.categoria : cambio === "EN_CARTA" ? (p.enCarta ? "En la carta" : "Fuera") : p.sku}</span>
+                <span className="text-nota text-ink-3">{cambio === "MINIMO" ? `Mínimo ${p.minimo ?? "—"}` : cambio === "CATEGORIA" ? p.categoria : cambio === "EN_CARTA" ? (p.enCarta ? "En la carta" : "Fuera") : cambio === "AREA" ? NOMBRE_DE_AREA[p.area] : p.sku}</span>
               )}
             </li>
           ))}

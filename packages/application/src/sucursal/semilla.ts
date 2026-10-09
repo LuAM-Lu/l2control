@@ -358,6 +358,7 @@ export function casosSemilla(base: Base, deps: Dependencias): CasosSemilla {
           ...(p.presentacion ? { presentacion: p.presentacion } : {}),
           ...(p.minimo !== null && p.tipo === "PRODUCTO" ? { minimo: p.minimo } : {}),
           enCarta: p.enCarta,
+          ...(p.area ? { area: p.area } : {}),
         },
         quien,
         ahora,
@@ -404,6 +405,7 @@ export function casosSemilla(base: Base, deps: Dependencias): CasosSemilla {
           codigoBarras: p.codigoBarras,
           enCarta: p.enCarta,
           minimo: p.minimo,
+          ...(p.areaDeSuTipo ? {} : { area: p.area }),
         });
       }
       const semilla = SemillaSchema.parse({
@@ -476,6 +478,7 @@ export function casosSemilla(base: Base, deps: Dependencias): CasosSemilla {
                 oscura: i.oscura,
                 recibos: i.recibos,
                 comandas: i.comandas,
+                barra: i.barra,
                 enVlanDeHardware: i.enVlanDeHardware,
                 ipFija: i.ipFija,
               }))
