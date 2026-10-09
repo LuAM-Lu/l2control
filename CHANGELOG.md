@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.111.0] — 2026-10-09 · Hacia la puesta en marcha
+
+Los PDF compactos (B11-5, M-35).
+
+### Cambiado
+- **Los PDF de lista gastan la mitad del papel**: un renglón por producto, con su presentación al lado, la categoría
+  como franja con su subtotal, el encabezado de columnas en cada hoja, 9 pt y «Página X de Y». La hoja de conteo (sigue
+  a ciegas) pasa de unos 18 a unos 40 productos por hoja; el inventario al momento, de 10 hojas a 5 con 198 productos.
+  El total sale una vez, al final.
+
 ## [0.110.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Respaldar ahora (B7-8, M-35).

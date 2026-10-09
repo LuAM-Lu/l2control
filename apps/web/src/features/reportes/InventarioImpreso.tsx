@@ -4,7 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import type { InformeDeInventarioDto, Resultado } from "@l2/contracts";
 import { TAMANO_ICONO } from "@l2/ui";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
-import { DocumentoDeInforme, SeccionImpresa, importe } from "./informe.tsx";
+import { DocumentoDeInforme, SeccionImpresa, enBandas, importe } from "./informe.tsx";
 import { productosFiltrados, seccionesDeInventario, type FiltroDeInventario } from "./inventario.tsx";
 
 /**
@@ -50,12 +50,18 @@ export function InventarioImpreso({ informe, filtro }: { informe: Resultado<Info
         <Dato termino="Sin contar" valor={String(r.sinInicial)} pie="sin inventario inicial" />
       </dl>
       {filtros && <p className="mb-2 text-[8.5pt]">Con el filtro puesto salen {productosFiltrados(i, filtro).length} de {r.productos} productos; el resumen es del inventario entero.</p>}
-      {seccionesDeInventario(i, filtro, true).map((s) => (
-        <SeccionImpresa key={s.id} seccion={s} />
-      ))}
+      {/* B11-5: una sola tabla, la categoría como franja con su subtotal, y el total al final. */}
+      <SeccionImpresa seccion={enBandas("productos", "Por categoría", seccionesDeInventario(i, filtro, true), totalFiltrado(i, filtro))} />
       <p className="text-[8.5pt]">El valor al costo es la suma de los movimientos al costo promedio (lo que costó lo que entró, menos lo que salió).</p>
     </DocumentoDeInforme>
   );
+}
+
+/** El total de lo que sale con el filtro: unidades y valor al costo. */
+function totalFiltrado(i: InformeDeInventarioDto, filtro: FiltroDeInventario) {
+  const de = productosFiltrados(i, filtro);
+  const valor = de.reduce((s, p) => s + BigInt(p.valor.minor), 0n);
+  return ["Total", "", de.reduce((s, p) => s + p.existencia, 0), "", "", importe({ minor: String(valor), currency: "USD" })];
 }
 
 function Dato({ termino, valor, pie }: { termino: string; valor: string; pie: string }) {

@@ -5,7 +5,7 @@ import type { AjusteInventarioDto, Resultado } from "@l2/contracts";
 import { diferenciasDeConteo } from "@l2/domain-inventory";
 import { TAMANO_ICONO } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
-import { DocumentoDeInforme, SeccionImpresa, importe } from "../reportes/informe.tsx";
+import { DocumentoDeInforme, SeccionImpresa, enBandas, importe } from "../reportes/informe.tsx";
 
 /**
  * El informe de diferencias de un conteo (B9-10, M-29): lo que faltó y lo que sobró, por categoría y por producto, al
@@ -71,10 +71,12 @@ export function InformeDeConteo({ ajuste }: { ajuste: Resultado<AjusteInventario
           vacio: "",
         }}
       />
-      {categorias.map((c) => (
-        <SeccionImpresa
-          key={c}
-          seccion={{
+      {/* B11-5: un renglón por producto, la categoría como franja, en una sola tabla. */}
+      <SeccionImpresa
+        seccion={enBandas(
+          "productos",
+          "Por producto",
+          categorias.map((c) => ({
             id: c,
             titulo: c,
             columnas: [
@@ -94,9 +96,9 @@ export function InformeDeConteo({ ajuste }: { ajuste: Resultado<AjusteInventario
                 l.valorMinor === 0n ? "—" : l.valorMinor < 0n ? `− ${usd(-l.valorMinor)}` : `+ ${usd(l.valorMinor)}`,
               ]),
             vacio: "",
-          }}
-        />
-      ))}
+          })),
+        )}
+      />
       <p className="text-[8.5pt]">
         Lo que faltó salió al costo promedio; lo que sobró entró al costo promedio o, sin existencia, al de su última entrada.
         «Sistema» es lo que el sistema decía al empezar a contar cada producto.

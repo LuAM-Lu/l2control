@@ -34,11 +34,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.110.0 · 110 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.111.0 · 111 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
-v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
-pasos y tres correcciones, todo antes de la 1.0.0), en curso.** M-28 y M-29
+v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
+respaldo y PDF; tres correcciones y siete pasos, v0.104.2 a v0.111.0).** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -2869,11 +2869,21 @@ F9-05).
   de dos páginas y la línea de Ventas con su enlace. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desplazar a 1366 y 1280, sin desbordes y sin errores de consola.*
 
-- [ ] **B11-5 · Los PDF compactos** (M-35, R-3).
+- [x] **B11-5 · Los PDF compactos** (M-35, R-3).
+  *Hecho el 2026-10-09 (v0.111.0), en `feat/b11-5`.*
   → La hoja de conteo (**sigue a ciegas**, decisión del usuario; las diferencias, en el informe), el informe de
   diferencias, el inventario al momento, las ventas, los movimientos y las deudas: **un renglón por producto** (la
   presentación al lado del nombre), la categoría como franja, el encabezado de columnas repetido en cada página, 9 pt y
   «Página X de Y». Unos 40 productos por hoja en lugar de 20. Los formularios en papel no (se llenan a mano).
+  *· Hecho: en `features/reportes/informe.tsx`, la tabla impresa a 9 pt con filas de un renglón, el encabezado de
+  columnas sin partir y `grupos` (la categoría como franja, sus filas y su subtotal en la misma tabla); `enBandas` junta
+  las secciones de cada categoría en una sola tabla y `NombreDeProducto` pone la presentación o el SKU al lado del
+  nombre. En los tokens, el pie de una tabla impresa sale una vez, al final (el navegador lo repetía en cada hoja). La
+  hoja de conteo (sigue a ciegas, con la casilla alta para escribir), el informe de diferencias y el inventario al
+  momento van en bandas; ventas, movimientos y deudas, más apretados. Medido con el PDF del navegador en la base de
+  pruebas (198 productos): la hoja de conteo pasa de 11 hojas a 5 (de 18 a unos 40 productos por hoja), el inventario de
+  10 a 5 y las ventas de 2 a 1. **Decidido al construir:** el estado «Sin inventario inicial» no se parte: partido,
+  duplicaba el alto de cada fila.*
 
 ### Etapa 7 · Staging en VPS
 
