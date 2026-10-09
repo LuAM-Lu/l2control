@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.103.0 · 103 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.104.0 · 104 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -2584,7 +2584,7 @@ antes del cobro en servidor (orden de ejecución).
   (`pedido.deshacer_servido`). Mesas: un renglón por plato con «Servido», su hora y «Deshacer»; «Servir todo» con dos o
   más por servir. 5 pruebas del dominio y 4 contra la base.*
 - [x] **B6-12 · Notas rápidas del mesero** (M-34, S-11).
-  *Hecho el 2026-10-09, en `feat/b6-12`.*
+  *Hecho el 2026-10-09 (v0.104.0), en `feat/b6-12`.*
   → Al poner una nota a un plato, la tablet ofrece las 5 más escritas para ese producto en los últimos 60 días (y las de
   su categoría, si el plato tiene pocas); un toque la añade y el texto libre se queda. Las aprende sola: nadie las
   configura. Se comparan sin mayúsculas ni espacios de más.
