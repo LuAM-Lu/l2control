@@ -34,10 +34,11 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.104.1 · 104 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.104.1 · 104 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
-v0.104.0): ya no queda código antes de B8-3.** M-28 y M-29
+v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
+pasos y tres correcciones, todo antes de la 1.0.0), en curso.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -138,6 +139,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-32** | **La caja más clara** (2026-10-08, decisiones del usuario, con las capturas de la caja tras vaciar el inventario) | (1) **La carta de mostrador** (venta directa y «Añadir ítems»): con el catálogo en hoja (B9-7) aparecen todos los productos y la lista se pierde hacia abajo. Lleva **un buscador** arriba que filtra al teclear en toda la carta (nombre, SKU o código de barras), sin importar la categoría abierta; con la búsqueda vacía vuelve la categoría que estaba; Intro añade el primero. La tecla «/» busca en lo que está a la vista: la carta si está abierta, la cola si no. **Los que no se venden ahora** (sin contar, agotados) van al final, atenuados, bajo un título con cuántos son y cada uno con su motivo. La rejilla desplaza dentro de su tarjeta: el panel nunca se sale de la pantalla. (2) **El pie de la cuenta, compacto:** los ítems que se le cobran a la persona son lo que más se tiene que ver. «Factura a», «Descuento» y «Dividir» pasan a **una fila de tres botones** que dicen su estado («Consumidor final» o el nombre, «−10 %», «Entre 3»); dividir abre un menú de 2 a 6 con «Sin dividir». Subtotal e impuestos en un renglón chico y el total, grande. Las reglas no cambian. (3) **«Cerrar cobro» pasa a «Cobrar $ 13.00»**, con el monto que se cobra (el de la parte, si está dividida). (4) **Los botones de categoría, de 44 px** (pedido del usuario durante el paso): con muchas categorías cada renglón cuenta; es una excepción a los 56 px del POS (§8.4), que se queda para todo lo demás de la caja. Descartados por ahora: más columnas en pantallas anchas, una pestaña «Más vendidos» y las categorías en una sola fila que desliza. La ruta pasa a **92** | B3-10 |
 | **M-33** | **Saber a quién cobrarle** (2026-10-08, decisiones del usuario: quien se sienta junto a la salida, consume y se va con el local lleno) | (1) **Mesa y de pie, con el cliente identificado:** sentar a alguien (o abrirle cuenta de pie) pide **nombre, cédula y teléfono**, los tres obligatorios; «Nombre de la familia (opcional)» desaparece. El directorio de representantes (B4-1) pasa a ser el de clientes y gana la cédula: encuentra al que vuelve por teléfono o cédula para no teclearlo dos veces, y una familia del parque ya trae nombre y teléfono. **Cambia DEC-9** (el directorio no llevaba documento) para quien abre una cuenta en el restaurante; la entrada al parque sigue sin pedir la cédula. (2) **Mostrador:** sigue «Consumidor final» y se cobra al momento (DEC-23 no cambia); una venta directa que la cajera deja en la cola sin cobrar pide los mismos tres datos. (3) **Quien se va sin pagar deja una deuda:** se marca con la 🔐 de supervisión; la cuenta sale de la jornada sin bloquear el cierre y pasa a «Deudas de clientes» con sus datos, lo consumido y quién atendió; cuando vuelve (al buscarlo por cédula o teléfono, en la mesa o en la caja) se avisa y se cobra con la tasa del día; administración puede darla por perdida (incobrable). (4) **Quién ve los datos:** todo el que atiende ve la cédula y el teléfono completos (decisión del usuario; se propuso enmascararlos salvo a supervisión); nunca en los registros, la URL ni la captura de un reporte (`data-privado`, PLAN §7.6). «Factura a» sigue en consumidor final y ofrece al cliente de la cuenta con un toque. (5) **El reporte del flujo entero** (pedido del usuario al revisar el plan): Reportes → Deudas, con su PDF; por mesero (el que sentó al cliente), por supervisor que autorizó y cada deuda con su historia, de la mesa al desenlace. El PDF lleva la cédula y el teléfono completos (decisión del usuario; se propuso enmascararlos en el papel). Descartados por ahora: la cédula en la entrada del parque y «paga al pedir» sin datos en la mesa. La ruta pasa a **95** | B6-9, B3-11, B11-4 |
 | **M-34** | **Lo visto en la segunda visita al local** (2026-10-08, el usuario con el sistema funcionando en el local; decidido en cuatro rondas de preguntas) | Veinte pedidos y dos que llegaron al revisarlos (S-1 a S-22, abajo). Primero **dos correcciones** de lo que el local ve cada día: v0.90.1, la entrada desde la caja parte los paquetes letra por letra en su hoja de 480 px, y v0.90.2, los papeles salen sin acentos y con símbolos chinos porque la impresora queda en modo chino. Después **14 pasos nuevos**: B3-12 a B3-14, B4-12 a B4-15, B5-4, B6-10 a B6-12, B9-11, B9-12 y T-19. **D-REL queda decidida:** todo entra antes de la 1.0.0 y la capacitación (B8-3) se da con todo hecho. **Cambian DEC-9 y DEC-23:** la cédula es lo primero que se pide en todo proceso (mesa, de pie, parque y mostrador), con campos que ayudan a llenarla. **Cambia ADR-030 en parte:** «Servido» pasa a ser por plato. Con la sala unificada, Entrada y Salida dejan de ser pestañas. El usuario autorizó encadenar los pasos sin pedir el sí entre ellos. La ruta pasa a **109** | B3-12 a T-19 |
+| **M-35** | **La tercera ronda** (2026-10-09, el usuario tras usar el staging en el local: las dos cajas del 8 oct., las medias, el salón, inventario, respaldos y PDF; decidido en cuatro rondas de preguntas) | R-1 a R-8, abajo en «M-35 en detalle». Primero **tres correcciones** (v0.104.2): la fila del inventario inicial que no se podía quitar, el respaldo que no se hizo sin dejar dicho por qué y los cierres de caja rechazados sin asiento. Después, en este orden y sin pedir el sí entre pasos: B3-15 (la caja cerrada no mueve dinero y sin relevo) → B6-13 (servir y cerrar la mesa) → B6-14 (por limpiar y los avisos del salón) → B4-16 (medias con interruptor) → B9-13 (entradas por periodo) → B7-8 (respaldar ahora) → B11-5 (los PDF compactos). La semilla sigue sin personas (decisión del usuario). La ruta pasa a **116** | B3-15 a B11-5 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -195,6 +197,19 @@ escribirlo o pegarlo; «sección inteligente» y «manual inteligente», sin IA 
 cosa; «Botones de Tiempo… estamos el monitor de parque» se lee como que el monitor de parque trabaja con ellos en el
 teléfono, así que T-15 los mide también a 390 px; la pausa «máxima 10 min» se hace ajuste con 10 de fábrica, y «una
 pausa por pulsera» es una por visita (la pulsera ya es de un solo uso, V-1).
+
+**M-35 en detalle.** Lo que trajo el usuario el 2026-10-09 y lo que se hará (decidido en cuatro rondas de preguntas).
+
+| # | Lo que se vio | Lo que se hará | Paso |
+|---|---|---|---|
+| **R-1** | Limpiar las entradas anuladas o antiguas | Ocultar, no borrar: Vigentes / Anuladas / Todas, periodo y páginas | B9-13 |
+| **R-2** | «Ya tiene su inventario inicial… Quita esta fila» y no se puede quitar | Corrección: la fila siempre se quita y el inventario inicial no ofrece lo ya contado | v0.104.2 |
+| **R-3** | La hoja de conteo y los PDF de lista gastan mucho papel | Un renglón por producto en todos los PDF de lista; la hoja de conteo sigue a ciegas | B11-5 |
+| **R-4** | «No se hizo el respaldo de anoche» sin cómo hacerlo a mano; la semilla no lleva las personas | «Respaldar ahora»; el de anoche falló por el disco lleno (v0.104.1) sin anotarse (corrección). La semilla sigue sin personas: es un archivo que viaja | B7-8, v0.104.2 |
+| **R-5** | Las medias: dos botones por niño, y sin existencia el niño no entra | Interruptor apagado y una confirmación para todos; sin existencia, entra sin cobrarlas | B4-16 |
+| **R-6** | Dos cajas (Lenovo y PC Electro): la Lenovo no dejaba cerrar y se cerraron las dos desde la otra | El 8 oct. las dos se cerraron como RELEVO y el día quedó abierto con 11 cuentas: sin relevo, el cierre lo decide si quedan otras cajas | B3-15 |
+| **R-7** | Qué se puede con la caja cerrada | Nada que mueva dinero, negado en el servidor | B3-15 |
+| **R-8** | El salón de punta a punta: el mesero no marca servido, cerrar una mesa, después de la caja, limpiar, avisos | «¿Ya se sirvió todo?» al pedir la cuenta; cerrar la mesa sin cobrar (admin y supervisión); por limpiar en la base (mesero, y caja y supervisión de respaldo); la caja ve la mesa y los niños; avisos suaves | B6-13, B6-14 |
 
 **M-34 en detalle.** Lo que se vio en la segunda visita y lo que se hará; las preguntas y sus respuestas están en el
 registro (§7). Donde el texto no decidía, se leyó como dice la columna del medio.
@@ -306,8 +321,12 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    (el cobro en curso). Después lo que cambia los flujos que se enseñan: T-19 (la cédula primero y el buscador) → B4-12
    (el parque en una pantalla) → B9-11 (productos) → B9-12 (corregir una entrada) → B3-14 (devoluciones) → B6-10 (barra
    y cocina) → B6-11 (servido por plato) → B4-15 (el aviso) → B6-12 (notas rápidas).
+14. **M-35** (la tercera ronda), todo antes de B8-3 y sin pedir el sí entre pasos (el usuario, 2026-10-09: «dale sin
+   parar con esto»). Primero las tres correcciones de **v0.104.2**. Después: B3-15 (la caja cerrada) → B6-13 (servir y
+   cerrar la mesa) → B6-14 (por limpiar y avisos) → B4-16 (medias) → B9-13 (entradas) → B7-8 (respaldar ahora) → B11-5
+   (los PDF compactos).
 
-Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 116: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -1598,6 +1617,22 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   «Devuelto por un cliente». Lo que no: los reintegros se reparten en el orden de los pagos (la caja no elige otro reparto).
   7 pruebas del dominio y 5 contra la base.*
 
+- [ ] **B3-15 · La caja cerrada no mueve dinero** (M-35, R-6, R-7).
+  → **Sin turno abierto en ese equipo, nada que mueva dinero**, negado en el servidor (no solo escondido): cobrar, cobrar
+  una deuda o un anticipo de cumpleaños, devolver, anular un cobro, cortesía y descuentos. Sí: consultar cuentas,
+  registrar entradas al parque (la cuenta queda abierta), tomar pedidos, inventario y reportes. La pantalla lo dice:
+  «Abre tu turno para cobrar».
+  → **Sin relevo** (decisión del usuario: nadie se va hasta cerrar lo suyo, y supervisión puede cerrar). Cerrar la caja
+  no pregunta qué cierre es: con otra caja abierta, se cierra esta (su conteo y su dinero; lo abierto sigue para la otra);
+  si es la última, **es el cierre del día** y no se deja con nada pendiente: lista lo que falta y lo resuelve ahí (cobrar,
+  incobrable, anular). Los cortes RELEVO de antes se siguen leyendo.
+  → **La caja de otro equipo** (una laptop dañada o apagada) la cierran administración y supervisión, con el conteo de su
+  gaveta, y queda dicho desde qué equipo se cerró.
+  → **Un día que quedó sin cerrar** avisa al abrir turno al día siguiente («La jornada del 8 oct. sigue abierta»), con lo
+  pendiente.
+  → Lo que se vio (R-6): el 8 oct. las dos cajas se cerraron como RELEVO sin que nadie siguiera; el día quedó abierto con
+  11 cuentas.
+
 ### Etapa 4 · Parque (F5, es el producto)
 
 - [x] **B4-1 · `Guardian`, `Kid` y `ParkSession`**, sin entidad pulsera. El código solo es único entre
@@ -1925,6 +1960,15 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   `/acceso?pulsera=`, que tras el PIN abre su ficha si quien entra ve la sala. Lo que no: un niño que entra por otro equipo
   mientras este está bloqueado no avisa hasta que la pantalla vuelve a verse. 3 pruebas del dominio y 1 contra la base;
   en el navegador con el reloj de Playwright (claro 1366, oscuro 390).*
+
+- [ ] **B4-16 · Medias con interruptor** (M-35, R-5).
+  → Por niño, un interruptor **«Compra medias · $2»**, apagado de entrada, con un icono de medias (el de Font Awesome
+  Free, `FaSocks`, como icono propio con su atribución CC BY 4.0: sin añadir `react-icons`). Al registrar, si alguno
+  está apagado, **una sola confirmación** para todos: «Confirmo que los N niños traen sus medias». En el parque y en la
+  caja (la misma pieza, B3-9).
+  → **Sin medias en existencia**, el niño entra y no se cobran: el interruptor lo dice y queda apagado (decisión del
+  usuario: el aviso de inventario de Inicio ya avisa de lo agotado; conviene ponerles un mínimo). Hoy la entrada entera
+  se rechaza.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
@@ -2375,6 +2419,11 @@ antes del cobro en servidor (orden de ejecución).
   de nuevo». La acción de auditoría es `inventario.anular_entrada` (las acciones van en minúsculas: CHECK de audit_log).
   4 pruebas contra la base.*
 
+- [ ] **B9-13 · Entradas: vigentes, anuladas y por periodo** (M-35, R-1).
+  → Inventario → Entradas: filtro **Vigentes / Anuladas / Todas** (abre en Vigentes), filtro de periodo (este mes, el
+  mes pasado, entre fechas) y páginas. «Limpiar» es ocultar: nada se borra (regla 5); las anuladas, a un toque, con
+  quién y por qué.
+
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
 - [x] **B6-1 · Mesas, plano y carta** persistidos (F6-01 a F6-03). Se borra `src/demo/restaurante.ts`.
@@ -2595,6 +2644,21 @@ antes del cobro en servidor (orden de ejecución).
   días con una consulta (`jsonb_array_elements`), del producto y de su categoría (`pedido.tomar`). La tablet, al abrir la
   nota de un plato, «Las más pedidas», con su carga, vacío y error a la vista. 3 pruebas del dominio y 1 contra la base.*
 
+- [ ] **B6-13 · Servir y cerrar la mesa** (M-35, R-8).
+  → **«Pide la cuenta» con platos sin marcar** pregunta «¿Ya se sirvió todo?» → «Sí, todo servido»: esos platos quedan
+  servidos **sin hora exacta** (una marca propia) y la atención en el salón no los mide como espera. No bloquea la cuenta.
+  → **«Cerrar la mesa sin cobrar»**, de administración y supervisión, con PIN y motivo: **anular** lo consumido (no lo
+  consumió o fue un error de registro: al estante o a merma, como B6-6) o **dejarlo como deuda** (se fue sin pagar,
+  B3-11). Un camino para los dos; nada se borra.
+
+- [ ] **B6-14 · Por limpiar y los avisos del salón** (M-35, R-8).
+  → **«Por limpiar» en la base** (solo agregar): hoy viaja por el canal en vivo y se pierde si el servidor se reinicia. Lo
+  quita el mesero; la caja (en su cola, «Mesas por limpiar: 3, 7») y supervisión (en Mesas) también, por si se olvida.
+  → **La cuenta en la caja dice su mesa:** platos sin servir, si pidió la cuenta y los niños de la familia que siguen en
+  la sala, con su tiempo; cobrar con niños en sala avisa «Dales salida antes».
+  → **Avisos suaves:** uno por mesa y por umbral (sin pedir, esperando, pidió la cuenta sin cobrar, por limpiar), sin
+  sonido, a quien le toca; los umbrales en Ajustes → Sucursal (dos ya existen, B6-8).
+
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
 - [x] **B10-1 · Reservas con agenda y anticipo**: fecha y horario, cliente (del directorio de familias),
@@ -2756,6 +2820,12 @@ F9-05).
   de dos páginas y la línea de Ventas con su enlace. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desplazar a 1366 y 1280, sin desbordes y sin errores de consola.*
 
+- [ ] **B11-5 · Los PDF compactos** (M-35, R-3).
+  → La hoja de conteo (**sigue a ciegas**, decisión del usuario; las diferencias, en el informe), el informe de
+  diferencias, el inventario al momento, las ventas, los movimientos y las deudas: **un renglón por producto** (la
+  presentación al lado del nombre), la categoría como franja, el encabezado de columnas repetido en cada página, 9 pt y
+  «Página X de Y». Unos 40 productos por hoja en lugar de 20. Los formularios en papel no (se llenan a mano).
+
 ### Etapa 7 · Staging en VPS
 
 - [x] **B7-1 · VPS con Docker, HTTPS y dominio**; despliegue reversible y migraciones ensayadas antes
@@ -2903,6 +2973,11 @@ F9-05).
   archivo descargado no lleva ninguno de prueba; cargar esa semilla con dos productos y una impresora de más enseña solo
   eso para marcar: «Agua B77» entró sin inventario inicial y la impresora desmarcada no. A 1366×768, 1280×800, 800×1280 y
   390 px, en los dos temas, sin desbordar ni errores de consola.*
+
+- [ ] **B7-8 · Respaldar ahora** (M-35, R-4).
+  → Ajustes → Sistema → Respaldos: **«Respaldar ahora»**, de administración con la identidad confirmada. La web anota el
+  pedido y el servidor lo hace en el minuto siguiente (como una actualización, T-8b); el resultado sale en vivo y quita
+  el aviso de «no se hizo el respaldo». Un respaldo que no se puede hacer siempre queda anotado con su motivo.
 
 ### Etapa 8 · Producción
 
