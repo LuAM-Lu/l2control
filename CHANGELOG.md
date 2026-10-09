@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.101.0] — 2026-10-09 · Hacia la puesta en marcha
+
 La comanda de cocina y la de barra (B6-10, M-34).
 
 ### Añadido
@@ -25,8 +27,6 @@ La comanda de cocina y la de barra (B6-10, M-34).
   y la carta. Sin elegir, lo preparado va a cocina, lo de nevera a barra y un servicio sin papel.
 - **Las impresoras por área:** cada una marca si imprime recibos, comandas de cocina o de barra. La que ya imprimía las
   comandas imprime las dos áreas hasta que se reparta.
-
-El cliente por su cédula, en todo, y el buscador (T-19, M-34).
 
 ## [0.100.0] — 2026-10-09 · Hacia la puesta en marcha
 
