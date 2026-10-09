@@ -14,6 +14,16 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
+## [Sin publicar]
+
+Los papeles con sus acentos (M-34, S-21).
+
+### Corregido
+- **Recibos, comandas y cortes salían sin acentos y con símbolos chinos.** Muchas impresoras térmicas genéricas vienen
+  de fábrica en modo chino: cada letra con tilde se juntaba con la siguiente y salía un ideograma, que además descuadraba
+  el renglón. Cada papel apaga ahora ese modo antes de elegir la página de las tildes; a las que no lo tienen no les
+  cambia nada. Si una impresora sigue sin acentos, su página se elegirá en su ficha (B5-4).
+
 ## [0.90.1] — 2026-10-08 · Hacia la puesta en marcha
 
 La entrada al parque desde la caja, legible (M-34, S-12).

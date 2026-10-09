@@ -2,9 +2,13 @@
  * El ESC/POS que entiende la impresora térmica — B5-2, ADR-026.
  *
  * Lo hablan casi todas las térmicas (Epson, Xprinter, 3nStar, Bixolon…), así que se usa solo lo común:
- * iniciar (ESC @), la página de códigos 850 (ESC t 2) para las tildes, la eñe, «¿» y «¡», negrita
- * (ESC E), tamaño doble (GS !), avanzar (ESC d) y cortar dejando una pestaña (GS V 66). Un carácter que
- * la página 850 no tiene sale como «?»: un ticket con un signo raro se lee; uno con bytes basura, no.
+ * iniciar (ESC @), apagar el modo chino (FS .), la página de códigos 850 (ESC t 2) para las tildes, la eñe,
+ * «¿» y «¡», negrita (ESC E), tamaño doble (GS !), avanzar (ESC d) y cortar dejando una pestaña (GS V 66). Un
+ * carácter que la página 850 no tiene sale como «?»: un ticket con un signo raro se lee; uno con bytes basura, no.
+ *
+ * El modo chino: muchas térmicas genéricas salen de fábrica con él encendido. Ahí cada byte por encima de 0x7F se
+ * junta con el siguiente y sale un ideograma: las tildes desaparecen, se comen la letra de al lado y el renglón se
+ * descuadra (lo vio el local, M-34, S-21). Las que no lo tienen ignoran FS ., así que se manda siempre.
  *
  * Y una pregunta: el estado del papel (DLE EOT 4). La impresora responde con un byte; el agente lo lee
  * antes de imprimir y `problemaDePapel` dice si hay que parar.
@@ -13,6 +17,7 @@ import { componer, type Ancho, type Documento } from "./documento.ts";
 
 const ESC = 0x1b;
 const GS = 0x1d;
+const FS = 0x1c;
 const LF = 0x0a;
 
 /** Lo que no es ASCII imprimible y sí existe en la página 850 (lo que se escribe en español). */
@@ -42,7 +47,9 @@ export function enCp850(texto: string): number[] {
 
 /** Los bytes del documento para una impresora de ese ancho. */
 export function escpos(doc: Documento, ancho: Ancho): Uint8Array {
-  const b: number[] = [ESC, 0x40, ESC, 0x74, 0x02];
+  // Iniciar, apagar el modo chino y elegir la página 850, en ese orden: con el modo chino encendido, la impresora no
+  // atiende a la página.
+  const b: number[] = [ESC, 0x40, FS, 0x2e, ESC, 0x74, 0x02];
   let negrita = false;
   let grande = false;
   for (const r of componer(doc, ancho)) {
