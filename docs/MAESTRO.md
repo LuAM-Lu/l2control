@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.98.0 · 98 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.99.0 · 99 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -2334,7 +2334,7 @@ antes del cobro en servidor (orden de ejecución).
   lista (`FichaProducto` exportada). `CampoCategoria`: lista desplegable con «Escribir una nueva…», en la ficha, «Alta
   en lote» y la ficha corta de la entrada. 3 pruebas contra la base.*
 - [x] **B9-12 · Corregir una entrada mal cargada** (M-34, S-4).
-  *Hecho el 2026-10-09, en `feat/b9-12`.*
+  *Hecho el 2026-10-09 (v0.99.0), en `feat/b9-12`.*
   → **Anular una entrada.** Una compra, una reposición o un inventario inicial se anula con su asiento de reverso (nada se
   borra), con la 🔐 de administración y un motivo: cada línea sale a su costo de esa entrada y el costo promedio se
   recalcula. Si ya se vendió o se sacó parte, se niega y dice cuánto: eso se corrige con un conteo. Un inventario inicial
