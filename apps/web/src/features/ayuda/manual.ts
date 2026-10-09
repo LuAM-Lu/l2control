@@ -488,6 +488,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Dónde se prepara cada producto (en su ficha, en «Alta en lote», en la carta o con varios elegidos): Cocina, Barra o Sin papel. Sin elegir, lo preparado va a cocina, lo de nevera a barra y un servicio sin papel.",
       "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay). Cada fila dice la categoría y la presentación del producto, y «Ver o editar su ficha» la abre encima sin perder la lista.",
       "Una entrada mal cargada (una compra, una reposición o el inventario inicial): «Anular», con el motivo y el PIN de administración. Cada línea sale a su costo de esa entrada y el costo promedio se recalcula; queda tachada, con quién y por qué. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.",
+      "La lista abre con las vigentes de este mes. Arriba, «Vigentes», «Anuladas» o «Todas» (con cuántas hay) y el periodo: hoy, esta semana, este mes, el anterior o entre dos fechas; abajo, las páginas. Las anuladas no se borran: se ocultan, y en «Anuladas» se ven con quién y por qué.",
       "Salidas y conteo: merma, consumo interno, regalo o devolución, con motivo; el conteo deja la existencia igual a lo contado.",
     ],
     problemas: [

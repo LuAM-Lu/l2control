@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.108.0 · 108 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.109.0 · 109 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
@@ -2437,10 +2437,18 @@ antes del cobro en servidor (orden de ejecución).
   de nuevo». La acción de auditoría es `inventario.anular_entrada` (las acciones van en minúsculas: CHECK de audit_log).
   4 pruebas contra la base.*
 
-- [ ] **B9-13 · Entradas: vigentes, anuladas y por periodo** (M-35, R-1).
+- [x] **B9-13 · Entradas: vigentes, anuladas y por periodo** (M-35, R-1).
+  *Hecho el 2026-10-09 (v0.109.0), en `feat/b9-13`.*
   → Inventario → Entradas: filtro **Vigentes / Anuladas / Todas** (abre en Vigentes), filtro de periodo (este mes, el
   mes pasado, entre fechas) y páginas. «Limpiar» es ocultar: nada se borra (regla 5); las anuladas, a un toque, con
   quién y por qué.
+  *· Hecho: `ConsultaDeEntradasSchema` (estado `VIGENTES`/`ANULADAS`/`TODAS`, periodo de días de negocio y página) y
+  `EntradasSchema` con `total`, `pagina`, `vigentes`, `anuladas` y `existe`. `entradas.leer(ctx, consulta?)` filtra por
+  la anulación (`stock_entry_void`) y por `received_at` en la zona del local, 20 por página, de la más nueva a la más
+  vieja; sin consulta, todas (como antes). Web: estado, periodo y página en la dirección (`entradasDelLocal(q)`); abre
+  en las vigentes de este mes, con el filtro de periodo de los reportes (`FiltroDePeriodo`), las tres pestañas con su
+  cuenta y `Paginacion`. Un periodo sin entradas lo dice; sin ninguna en la sucursal, «Todavía no llegó nada». Anular
+  o registrar vuelve a leer. 1 prueba contra la base.*
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 

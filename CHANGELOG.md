@@ -16,6 +16,15 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.109.0] — 2026-10-09 · Hacia la puesta en marcha
+
+Entradas: vigentes, anuladas y por periodo (B9-13, M-35).
+
+### Añadido
+- **Inventario → Entradas abre con las vigentes de este mes**: arriba, «Vigentes», «Anuladas» o «Todas» con cuántas
+  hay, y el periodo (hoy, esta semana, este mes, el anterior o entre dos fechas); abajo, las páginas. Las anuladas no
+  se borran: se ocultan, y en «Anuladas» se ven con quién y por qué. El filtro va en la dirección.
+
 ## [0.108.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Medias con interruptor (B4-16, M-35).

@@ -16,6 +16,8 @@
  */
 import {
   AnularEntradaDeMercanciaCommandSchema,
+  ConsultaDeEntradasSchema,
+  ENTRADAS_POR_PAGINA,
   EntradasSchema,
   RegistrarEntradaCommandSchema,
   problemasDe,
@@ -27,6 +29,7 @@ import {
 } from "@l2/contracts";
 import { entryLineProblem, entryLineTotals, type EntryCostBasis, type EntryLine, type EntryLineProblem } from "@l2/domain-inventory";
 import { money, sum } from "@l2/domain-money";
+import { addDays, startOfDay } from "@l2/domain-rates";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
@@ -34,13 +37,14 @@ import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identid
 import { arranquesDe, asentarArranques, bloquearProducto } from "./existencias.ts";
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { Deshacer, crearProductoEn } from "./productos.ts";
-
-/** Cuántas entradas enseña la pantalla: las más recientes. */
-export const ENTRADAS_RECIENTES = 60;
+import { ajustesDe } from "../sucursal/ajustes.ts";
 
 export interface CasosEntradas {
-  /** Las entradas recientes de la sucursal, de la más nueva a la más vieja. */
-  leer(ctx: Contexto): Promise<Resultado<EntradasDto>>;
+  /**
+   * Una página de las entradas de la sucursal, de la más nueva a la más vieja (`ConsultaDeEntradasSchema`, B9-13): por
+   * estado (vigentes, anuladas o todas) y periodo. Sin consulta, todas.
+   */
+  leer(ctx: Contexto, consulta?: unknown): Promise<Resultado<EntradasDto>>;
   /** Registra una entrada (`RegistrarEntradaCommandSchema`). Devuelve cómo quedó. */
   registrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EntradaDto>>;
   /**
@@ -78,14 +82,44 @@ const invalido = (mensaje: string, path: (string | number)[], message: string): 
 
 export function casosEntradas(base: Base): CasosEntradas {
   return {
-    async leer(ctx) {
+    async leer(ctx, consulta) {
+      const v = ConsultaDeEntradasSchema.safeParse(consulta ?? {});
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "No se leyeron las entradas: el filtro no es válido.", problemas: problemasDe(v.error) };
+      const q = v.data;
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<EntradasDto | Rechazo> => {
         const p = await permisoEn(tx, ctx, "inventario.entrada");
         if (p === "DENEGADO") return rechazoDePermiso(p);
-        const filas = await tx.stockEntry.findMany({ where: { branchId: ctx.branchId }, orderBy: { receivedAt: "desc" }, take: ENTRADAS_RECIENTES });
+        // El periodo en instantes: del comienzo del primer día al del siguiente al último, en la zona del local.
+        const zona = (await ajustesDe(tx, ctx.branchId)).zonaHoraria;
+        const enPeriodo = {
+          branchId: ctx.branchId,
+          ...(q.desde || q.hasta
+            ? {
+                receivedAt: {
+                  ...(q.desde ? { gte: new Date(startOfDay(q.desde, zona)) } : {}),
+                  ...(q.hasta ? { lt: new Date(startOfDay(addDays(q.hasta, 1), zona)) } : {}),
+                },
+              }
+            : {}),
+        };
+        // Uno a uno: en una transacción nunca dos consultas a la vez.
+        const vigentes = await tx.stockEntry.count({ where: { ...enPeriodo, anulacion: { is: null } } });
+        const anuladas = await tx.stockEntry.count({ where: { ...enPeriodo, anulacion: { isNot: null } } });
+        const existe = vigentes + anuladas > 0 || (await tx.stockEntry.count({ where: { branchId: ctx.branchId }, take: 1 })) > 0;
+        const where =
+          q.estado === "VIGENTES" ? { ...enPeriodo, anulacion: { is: null } } : q.estado === "ANULADAS" ? { ...enPeriodo, anulacion: { isNot: null } } : enPeriodo;
+        const total = q.estado === "VIGENTES" ? vigentes : q.estado === "ANULADAS" ? anuladas : vigentes + anuladas;
+        // Una página que ya no existe (se anuló la última de la página) da la última que hay.
+        const pagina = Math.min(q.pagina, Math.max(1, Math.ceil(total / ENTRADAS_POR_PAGINA)));
+        const filas = await tx.stockEntry.findMany({
+          where,
+          orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+          skip: (pagina - 1) * ENTRADAS_POR_PAGINA,
+          take: ENTRADAS_POR_PAGINA,
+        });
         const entradas: EntradaDto[] = [];
         for (const f of filas) entradas.push(await entradaDe(tx, f.id));
-        return EntradasSchema.parse({ entradas });
+        return EntradasSchema.parse({ entradas, total, pagina, porPagina: ENTRADAS_POR_PAGINA, vigentes, anuladas, existe });
       });
       return "ok" in r ? r : { ok: true, valor: r };
     },

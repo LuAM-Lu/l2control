@@ -93,7 +93,7 @@ export type { CasosCategorias } from "./inventario/categorias.ts";
 export type { CasosSemilla } from "./sucursal/semilla.ts";
 export { compararVersiones, type CasosActualizaciones, type Servidor } from "./sistema/actualizaciones.ts";
 export { clasificar as clasificarRespaldos, type CasosRespaldos, type PcDeRespaldos } from "./sistema/respaldos.ts";
-export { ENTRADAS_RECIENTES, type CasosEntradas } from "./inventario/entradas.ts";
+export { type CasosEntradas } from "./inventario/entradas.ts";
 export { AJUSTES_RECIENTES, type CasosSalidas } from "./inventario/salidas.ts";
 export type { Aviso, CasosTiempoReal } from "./tiempo-real/tiempo-real.ts";
 export { TICKET_MS, type DatosDelTicket } from "./tiempo-real/ticket.ts";

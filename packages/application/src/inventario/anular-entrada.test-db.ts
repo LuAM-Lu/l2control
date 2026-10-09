@@ -112,3 +112,35 @@ describe("anular una entrada (B9-12)", () => {
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.stockEntryVoid.deleteMany({})));
   });
 });
+
+describe("vigentes, anuladas y por periodo (B9-13)", () => {
+  const leer = (consulta: unknown) => local.app.entradas.leer(ctxAdmin, consulta);
+
+  test("se filtran por estado y por días del local, y se pagina; ocultar no borra", async () => {
+    const vieja = valor(await entrar("COMPRA", [linea("Galleta", 1, 10, "500")], Date.parse("2026-09-15T15:00:00.000Z")));
+    const todas = valor(await leer({}));
+    const vigentes = valor(await leer({ estado: "VIGENTES" }));
+    const anuladas = valor(await leer({ estado: "ANULADAS" }));
+    assert.equal(todas.total, vigentes.total + anuladas.total);
+    assert.ok(anuladas.total >= 1 && anuladas.entradas.every((e) => e.anulada));
+    assert.ok(vigentes.entradas.every((e) => !e.anulada));
+    assert.deepEqual([todas.vigentes, todas.anuladas], [vigentes.total, anuladas.total]);
+    // Por periodo, en días del local: septiembre trae solo la vieja; octubre, no.
+    assert.deepEqual(valor(await leer({ desde: "2026-09-01", hasta: "2026-09-30" })).entradas.map((e) => e.id), [vieja.id]);
+    assert.ok(!valor(await leer({ desde: "2026-10-01", hasta: "2026-10-31" })).entradas.some((e) => e.id === vieja.id));
+    // Un periodo sin entradas está vacío, pero la sucursal sí tiene.
+    const nada = valor(await leer({ desde: "2026-08-01", hasta: "2026-08-02" }));
+    assert.deepEqual([nada.total, nada.entradas.length, nada.existe], [0, 0, true]);
+    // Páginas de 20, de la más nueva a la más vieja; una que no existe da la última.
+    for (let i = 0; i < 21; i++) valor(await entrar("COMPRA", [linea("Chupeta", 1, 1, "10")], Date.parse("2026-08-10T15:00:00.000Z") + i * MIN));
+    const dia = { desde: "2026-08-10", hasta: "2026-08-10" };
+    const p1 = valor(await leer(dia));
+    const p2 = valor(await leer({ ...dia, pagina: 2 }));
+    assert.deepEqual([p1.total, p1.entradas.length, p2.entradas.length, p2.pagina], [21, 20, 1, 2]);
+    assert.ok(p1.entradas[0]!.recibidaEn > p2.entradas[0]!.recibidaEn);
+    assert.equal(valor(await leer({ ...dia, pagina: 9 })).pagina, 2);
+    // Un filtro al revés no se lee.
+    const mal = await leer({ desde: "2026-10-31", hasta: "2026-10-01" });
+    assert.equal(!mal.ok && mal.motivo, "INVALIDO");
+  });
+});

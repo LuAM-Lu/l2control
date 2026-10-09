@@ -121,7 +121,7 @@ const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.Rea
       </MarcoDeSeccion>
     );
   },
-  "inventario/entradas": async () => <EntradasScreen catalogo={await catalogoDelLocal()} entradas={await entradasDelLocal()} />,
+  "inventario/entradas": async (q) => <EntradasScreen catalogo={await catalogoDelLocal()} {...await entradasDelLocal(q)} />,
   "inventario/salidas": async () => <SalidasScreen catalogo={await catalogoDelLocal()} ajustes={await ajustesDelLocal()} />,
   // Los reportes (Etapa 11) leen su periodo de la dirección: se comparte el enlace y se ve lo mismo.
   "reportes/ventas": async (q) => <VentasScreen {...await informeDeVentas(q)} />,
