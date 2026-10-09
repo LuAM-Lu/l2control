@@ -755,6 +755,7 @@ function NuevaEntrada({
                 linea={j >= 0 ? (entendidas[j] ?? null) : null}
                 enCero={enCeroDe(b, inicial)}
                 yaContado={inicial && elegido?.inventarioInicialEl ? diaDe(Date.parse(elegido.inventarioInicialEl)) : null}
+                contadoEl={(p) => (inicial && p.inventarioInicialEl ? diaDe(Date.parse(p.inventarioInicialEl)) : null)}
                 errores={errores}
                 indice={i}
                 producto={porId.get(b.productId) ?? null}
@@ -771,7 +772,13 @@ function NuevaEntrada({
                   enfocar(b.uid, "cantidad");
                 }}
                 onSiguiente={() => siguiente(b.uid)}
-                onQuitar={filas.length > 1 ? () => setFilas((fs) => fs.filter((x) => x.uid !== b.uid)) : null}
+                // Siempre se quita (v0.104.2): la única que queda se cambia por una vacía, y una ya contada no traba la carga.
+                onQuitar={() =>
+                  setFilas((fs) => {
+                    const resto = fs.filter((x) => x.uid !== b.uid);
+                    return resto.length > 0 ? resto : [filaVacia()];
+                  })
+                }
                 onVerFicha={elegido ? () => setFichaId(elegido.id) : null}
               />
             );
@@ -835,6 +842,7 @@ function FilaDeLaTabla({
   linea,
   enCero,
   yaContado,
+  contadoEl,
   errores,
   indice,
   producto,
@@ -858,6 +866,8 @@ function FilaDeLaTabla({
   enCero: boolean;
   /** En el inventario inicial, el día en que ya se contó, si ya tiene el suyo. */
   yaContado: string | null;
+  /** Cuándo se contó un producto, en el inventario inicial (v0.104.2): el buscador lo enseña sin dejar elegirlo. */
+  contadoEl: (p: ProductoDto) => string | null;
   errores: Readonly<Record<string, string>>;
   indice: number;
   producto: ProductoDto | null;
@@ -871,7 +881,7 @@ function FilaDeLaTabla({
   onCambiar: (c: Partial<Borrador>) => void;
   onElegir: (p: ProductoDto) => void;
   onSiguiente: () => void;
-  onQuitar: (() => void) | null;
+  onQuitar: () => void;
   /** B9-11: abrir la ficha del producto elegido, encima de la lista. */
   onVerFicha: (() => void) | null;
 }) {
@@ -899,6 +909,7 @@ function FilaDeLaTabla({
             esNuevo={b.nuevo !== null}
             contables={contables}
             todos={todos}
+            contadoEl={contadoEl}
             puedeCrear={puedeCrear}
             error={errorProducto}
             inputRef={(el) => casilla("producto", el)}
@@ -1040,6 +1051,7 @@ function BuscadorDeProducto({
   esNuevo,
   contables,
   todos,
+  contadoEl,
   puedeCrear,
   error,
   inputRef,
@@ -1053,6 +1065,8 @@ function BuscadorDeProducto({
   esNuevo: boolean;
   contables: readonly ProductoDto[];
   todos: readonly ProductoDto[];
+  /** En el inventario inicial, el día en que ya se contó (se ve pero no se elige: se corrige con un conteo, v0.104.2); si no, `null`. */
+  contadoEl: (p: ProductoDto) => string | null;
   puedeCrear: boolean;
   error: string | undefined;
   inputRef: (el: HTMLInputElement | null) => void;
@@ -1077,8 +1091,11 @@ function BuscadorDeProducto({
   const opciones = coincidencias.length + (ofrecerNuevo ? 1 : 0);
   const visible = abierto && opciones > 0;
 
+  const yaContado = contadoEl;
+
   function elegir(i: number) {
     const p = coincidencias[i];
+    if (p && yaContado(p)) return;
     if (p) onElegir(p);
     else if (ofrecerNuevo) onNuevo();
     setAbierto(false);
@@ -1139,24 +1156,32 @@ function BuscadorDeProducto({
       {!error && deOtro && !elegido && <span className="text-[12px] text-state-warn">«{deOtro.nombre}» ya existe y no se cuenta: cámbiale el tipo en Productos.</span>}
       {visible && (
         <ul id={`${id}-lista`} role="listbox" className="absolute top-full right-0 left-0 z-20 mt-1 max-h-72 overflow-y-auto rounded-[var(--radius-control)] border border-line bg-surface py-1 shadow-lift">
-          {coincidencias.map((p, i) => (
-            <li
-              key={p.id}
-              id={`${id}-${i}`}
-              role="option"
-              aria-selected={activo === i}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                elegir(i);
-              }}
-              className={cn("flex cursor-pointer items-center gap-2 px-3 py-1.5 text-[13.5px]", activo === i ? "bg-surface-2 text-ink" : "text-ink-2")}
-            >
-              <span className="min-w-0 flex-1 truncate font-medium text-ink">{p.nombre}</span>
-              <span className="tnum shrink-0 text-[11.5px] text-ink-3">
-                {p.sku} · {estadoDe(p) === "SIN_INICIAL" ? "sin contar" : `quedan ${p.existencia ?? 0}`}
-              </span>
-            </li>
-          ))}
+          {coincidencias.map((p, i) => {
+            const contado = yaContado(p);
+            return (
+              <li
+                key={p.id}
+                id={`${id}-${i}`}
+                role="option"
+                aria-selected={activo === i}
+                aria-disabled={contado ? true : undefined}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  elegir(i);
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 text-[13.5px]",
+                  contado ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+                  activo === i ? "bg-surface-2 text-ink" : "text-ink-2",
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate font-medium text-ink">{p.nombre}</span>
+                <span className="tnum shrink-0 text-[11.5px] text-ink-3">
+                  {p.sku} · {contado ? `contado el ${contado}: se corrige con un conteo` : estadoDe(p) === "SIN_INICIAL" ? "sin contar" : `quedan ${p.existencia ?? 0}`}
+                </span>
+              </li>
+            );
+          })}
           {ofrecerNuevo && (
             <li
               id={`${id}-${coincidencias.length}`}

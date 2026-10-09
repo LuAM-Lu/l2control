@@ -169,6 +169,15 @@ respaldar() {
   [ -f .env ] || { decir "Falta .env junto a compose.yml."; exit 2; }
   TENANT=$(del_env L2_TENANT_ID)
   SUCURSAL=$(del_env L2_BRANCH_ID)
+  # Sin etiqueta pero con la web en marcha (el disco lleno la borraba antes de la 0.104.1; así se perdió el respaldo del
+  # 9 oct.), se rehace con la versión de su imagen y se respalda: un respaldo no se salta en silencio.
+  if [ -z "$(en_marcha)" ]; then
+    local marcha
+    marcha=$(docker ps --filter label=com.docker.compose.service=web --format '{{.Image}}' 2>/dev/null | head -n 1 | sed -n 's/^.*:\([0-9][0-9.]*\)$/\1/p')
+    if [ -n "$marcha" ] && printf 'L2_ETIQUETA=%s\n' "$marcha" >"$ETIQUETA_ENV.nuevo" && mv -f "$ETIQUETA_ENV.nuevo" "$ETIQUETA_ENV"; then
+      decir "Faltaba $ETIQUETA_ENV: se rehízo con la versión en marcha, la $marcha."
+    fi
+  fi
   VERSION=$(en_marcha)
   [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || VERSION=""
   [ -n "$(en_marcha)" ] || { decir "No hay ninguna versión desplegada: no hay nada que respaldar."; exit 0; }

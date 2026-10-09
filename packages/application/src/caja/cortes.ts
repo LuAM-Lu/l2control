@@ -682,7 +682,8 @@ export function casosCortes(base: Base): CasosCortes {
       try {
         const r = await intentar();
         if ("ok" in r) {
-          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.corte_z", reason: r.mensaje });
+          // También lo que no se dejó cerrar por pendientes (v0.104.2): el 8 oct. una caja no cerraba y no quedó por qué.
+          if (r.motivo === "NO_PERMITIDO" || r.motivo === "CONFLICTO") await auditarRechazo(base, ctx, { action: "turno.corte_z", reason: r.mensaje });
           return r;
         }
         return { ok: true, valor: r };
