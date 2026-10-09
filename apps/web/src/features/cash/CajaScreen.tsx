@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Baby,
   BadgePercent,
   Banknote,
   Check,
@@ -120,6 +119,10 @@ import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
 import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
+import { SalonDeLaCuenta, esDelSalon, nombreDelNino } from "./SalonDeLaCuenta.tsx";
+import { usePlano } from "../mesas/PlanoProvider.tsx";
+import { usePorLimpiar } from "../mesas/porLimpiar.ts";
+import { AvisosDelSalon } from "../mesas/AvisosDelSalon.tsx";
 import { asignarCliente } from "../clientes/clientes.acciones";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 import { cobrarDeuda, leerDeudas } from "../deudas/deudas.acciones";
@@ -139,17 +142,17 @@ import { reciboDeVenta } from "./recibo.ts";
 import { useVentas } from "./VentasProvider.tsx";
 import { can } from "@l2/domain-identity";
 import { useActorEnSesion } from "../identity/sesion.ts";
-import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
+import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import {
   esLineaDeMostrador,
   esVentaDirecta,
   nombreDeCuenta,
   dividirEn,
   lineasParaCobrar,
+  ninosEnSalaDeLaCuenta,
   numeroDeOrden,
   puedeDescartarse,
   unirCuenta,
-  ninosDeLaMesa,
 } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useSala } from "../park/SalaProvider.tsx";
@@ -634,6 +637,13 @@ function CobroCuenta({
   const { imprimirRecibo: reciboDeFabrica } = useSucursal().ajustes;
   const [imprimirRecibo, setImprimirRecibo] = useState(reciboDeFabrica && !modoPapel);
   const [enviando, setEnviando] = useState(false);
+  /**
+   * B6-14: cobrar una mesa con niños en la sala deja su tiempo sin cerrar. La caja avisa «Dales salida antes» una vez por
+   * cuenta; «Cobrar igual» sigue. Cargando desde papel no: la sala de ahora no es la de entonces.
+   */
+  const { sala: salaDelCobro } = useSala();
+  const [ninosSinSalida, setNinosSinSalida] = useState<string[] | null>(null);
+  const avisadosDeSalida = useRef<string | null>(null);
 
   /**
    * El cobro en curso, guardado en el servidor (B3-13, M-34): lo que se lleva escrito aguanta cambiar de cuenta o de
@@ -728,6 +738,13 @@ function CobroCuenta({
   async function cobrar() {
     if (enviando) return;
     setError(null);
+    if (!modoPapel && avisadosDeSalida.current !== cuenta.id) {
+      const enSala = ninosEnSalaDeLaCuenta(cuenta, salaDelCobro?.sessions ?? []);
+      if (enSala.length > 0) {
+        setNinosSinSalida(enSala.map(nombreDelNino));
+        return;
+      }
+    }
     if (medioDelDescuento && pagos.some((p) => p.medio.code !== medioDelDescuento)) {
       const nombre = mediosDisponibles.find((m) => m.code === medioDelDescuento)?.label ?? medioDelDescuento;
       setError(`El descuento «${descuento!.nombre}» exige cobrar toda la cuenta con ${nombre}: quita los otros pagos o el descuento.`);
@@ -1049,8 +1066,9 @@ function CobroCuenta({
             </button>
           )}
         </div>
-        {/* Los niños vinculados a la mesa (B4-14): lo suyo en esta cuenta, o ya pagado aparte (no se cobra otra vez). */}
-        {cuenta.kind === "MESA" && cuenta.sessionIds.length > 0 && <NinosDeLaMesa cuenta={cuenta} />}
+        {/* B6-14: una cuenta del salón dice su mesa, si pidió la cuenta, lo que falta servir y sus niños (B4-14: lo suyo
+            en esta cuenta, o ya pagado aparte), con su tiempo si siguen en la sala. */}
+        {esDelSalon(cuenta) && <SalonDeLaCuenta cuenta={cuenta} />}
 
         {/* Catálogo táctil de mostrador (snacks, bebidas, golosinas). Cede su sitio a los ítems (B3-10): como mucho la
             mitad larga de la tarjeta, y menos si hace falta para que se vean al menos dos o tres. */}
@@ -1904,6 +1922,35 @@ function CobroCuenta({
         </div>
       </aside>
 
+      {/* B6-14: niños de la mesa en la sala al cobrarla. */}
+      <Dialog
+        abierto={ninosSinSalida !== null}
+        onCerrar={() => setNinosSinSalida(null)}
+        titulo="Dales salida antes"
+        descripcion={ninosSinSalida ? `Siguen en la sala: ${ninosSinSalida.join(", ")}. Su tiempo va en esta cuenta y todavía corre.` : ""}
+        pie={
+          <div className="grid grid-cols-2 gap-2">
+            <Button surface="pos" variant="primary" onClick={() => setNinosSinSalida(null)}>
+              Volver
+            </Button>
+            <Button
+              surface="pos"
+              variant="neutral"
+              onClick={() => {
+                avisadosDeSalida.current = cuenta.id;
+                setNinosSinSalida(null);
+                void cobrar();
+              }}
+            >
+              Cobrar igual
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-detalle text-ink-2">
+          Pasa su pulsera por la caja o dales salida en la sala: su tiempo se suma a esta cuenta y se cobra todo junto.
+        </p>
+      </Dialog>
       <MarcarDeudaDialog
         cuenta={seFue ? cuenta : null}
         onCerrar={() => setSeFue(false)}
@@ -2139,9 +2186,15 @@ export function CajaScreen({
     (cuenta: FamilyAccountDto) => guardarEnProvider(cuenta, modoPapel && cuenta.kind === "MOSTRADOR" ? modoPapel.desdePapel() : undefined),
     [guardarEnProvider, modoPapel],
   );
-  const op = useOperacion();
   const { sala } = useSala();
   const router = useRouter();
+  // B6-14: las mesas por limpiar, del servidor. La caja las deja limpias si el mesero se olvidó.
+  const { plano } = usePlano();
+  const { mesas: mesasSucias, porId: porLimpiarPorId, marcarLimpia } = usePorLimpiar();
+  const porLimpiar = useMemo(
+    () => mesasSucias.map((m) => ({ tableId: m.tableId, label: plano?.tables.find((t) => t.id === m.tableId)?.label ?? "?" })),
+    [mesasSucias, plano],
+  );
   const porCobrar = useMemo(
     () => ordenarCola(cuentas.filter((c) => c.status === "POR_COBRAR")),
     [cuentas],
@@ -2391,12 +2444,8 @@ export function CajaScreen({
     // dice el servidor, que la marcó en la misma transacción del cobro.
     const despues = r.cuenta;
     const faltan = despues.status === "COBRADA" || !despues.split ? 0 : despues.split.parts - despues.split.paid;
-    // Cobrada del todo la última cuenta de la mesa, la mesa queda por limpiar: el salón lo ve al momento (D7).
-    // En una mesa compartida (B6-7) las otras familias siguen sentadas: la mesa no se limpia todavía.
-    const otraEnLaMesa = cuentas.some((c) => c.id !== cuenta.id && c.kind === "MESA" && c.tableId === cuenta.tableId && (c.status === "ABIERTA" || c.status === "POR_COBRAR"));
-    if (faltan === 0 && cuenta.kind === "MESA" && cuenta.tableId && !otraEnLaMesa) {
-      op.emitir({ type: "mesa.por_limpiar", tableId: cuenta.tableId });
-    }
+    // Cobrada del todo la última cuenta de la mesa, la mesa queda por limpiar: lo calcula el servidor (B6-14), y el
+    // salón lo ve al momento por el canal.
     // Si quedan partes, la cuenta sigue elegida: la siguiente persona paga ya.
     setElegida(faltan > 0 ? cuenta.id : null);
     if (faltan === 0) setVista("cola");
@@ -2592,6 +2641,8 @@ export function CajaScreen({
       {/* Sin cabecera visible: lo que decía («2 por cobrar · mostrador») ya está en
           la cola. El título sigue para los lectores de pantalla. */}
       <h1 className="sr-only">Caja</h1>
+      {/* B6-14: el aviso suave de la cuenta del salón que pidió y sigue sin cobrar. */}
+      <AvisosDelSalon para="CAJA" porLimpiar={porLimpiarPorId} />
       <Container
         as="main"
         ancho="muro"
@@ -2698,6 +2749,10 @@ export function CajaScreen({
           onVerAtajos={() => setViendoAtajos(true)}
           deudas={deudas}
           onCobrarDeuda={(d) => void cobrarLaDeuda(d)}
+          porLimpiar={porLimpiar}
+          onMesaLimpia={(m) =>
+            void marcarLimpia(m.tableId).then((r) => (r.ok ? avisar.ok(`Mesa ${m.label} limpia y libre`) : avisar.error(r.mensaje)))
+          }
         />
         {ventaNueva ? (
           <NuevaVentaDirecta
@@ -3580,26 +3635,5 @@ function SinCuentas() {
         </Link>
       </div>
     </section>
-  );
-}
-
-/** Los niños de una cuenta de mesa, en un renglón (B4-14): su nombre o su pulsera, y si lo suyo está aquí o ya se pagó. */
-function NinosDeLaMesa({ cuenta }: { cuenta: FamilyAccountDto }) {
-  const { sala } = useSala();
-  const nombre = (id: string) => {
-    const s = sala?.sessions.find((x) => x.id === id);
-    return s ? (s.kid.nickname ?? s.kid.name ?? s.wristbandCode) : "ya salió";
-  };
-  return (
-    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-5 py-1.5 text-[12px] text-ink-3">
-      <span className="font-semibold tracking-[0.06em] uppercase">Niños</span>
-      {ninosDeLaMesa(cuenta).map((n) => (
-        <span key={n.sessionId} className="inline-flex items-center gap-1">
-          <Baby size={12} aria-hidden="true" />
-          {nombre(n.sessionId)} ·{" "}
-          {n.enLaCuenta ? "en la cuenta" : <span className="font-semibold text-state-ok">pagado</span>}
-        </span>
-      ))}
-    </p>
   );
 }

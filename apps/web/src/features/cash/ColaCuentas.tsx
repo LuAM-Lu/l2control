@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Clock, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Clock, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
 import { money, toMajor } from "@l2/domain-money";
 import { WristbandCodeSchema, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
 import { Marquesina, MoneyDisplay, ScannerField, cn } from "@l2/ui";
@@ -104,6 +104,8 @@ export function ColaCuentas({
   onVerAtajos,
   deudas = [],
   onCobrarDeuda,
+  porLimpiar = [],
+  onMesaLimpia,
 }: {
   className?: string;
   /** Ya ordenadas y filtradas. */
@@ -137,6 +139,9 @@ export function ColaCuentas({
   /** Lo que sus clientes dejaron sin pagar (B3-11): sale al buscarlos, con «Cobrar». */
   deudas?: readonly DeudaDto[];
   onCobrarDeuda?: (d: DeudaDto) => void;
+  /** Las mesas por limpiar (B6-14): la caja las deja limpias con un toque, por si el mesero se olvidó. */
+  porLimpiar?: readonly { tableId: string; label: string }[];
+  onMesaLimpia?: (mesa: { tableId: string; label: string }) => void;
 }) {
   // El reloj de la espera. Arranca en 0 para que servidor y navegador pinten
   // lo mismo; la espera aparece tras hidratar y se refresca cada 30 s.
@@ -308,6 +313,28 @@ export function ColaCuentas({
           </div>
         )}
       </div>
+
+      {/* B6-14: las mesas que quedaron por limpiar; un toque la deja limpia y libre. */}
+      {onMesaLimpia && porLimpiar.length > 0 && (
+        <section aria-label="Mesas por limpiar" className="mx-2 mt-2 flex flex-wrap items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-base/50 px-2 py-1.5">
+          <h3 className="flex items-center gap-1 pr-1 text-etiqueta font-semibold text-ink-3 uppercase">
+            <Sparkles className="size-(--icono-etiqueta)" aria-hidden="true" />
+            Por limpiar
+          </h3>
+          {porLimpiar.map((m) => (
+            <button
+              key={m.tableId}
+              type="button"
+              onClick={() => onMesaLimpia(m)}
+              aria-label={`Mesa ${m.label} limpia`}
+              title={`Mesa ${m.label}: marcarla limpia y libre`}
+              className="tnum grid min-h-14 min-w-14 cursor-pointer place-content-center rounded-[var(--radius-control)] border border-line bg-surface px-2 text-[14px] font-bold text-ink-2 transition-colors hover:border-brand hover:text-ink"
+            >
+              {m.label}
+            </button>
+          ))}
+        </section>
+      )}
 
       {/* Debe de antes (B3-11): al buscar a un cliente que se fue sin pagar, su deuda sale aquí, con «Cobrar». */}
       {onCobrarDeuda && deudasQueCoinciden(deudas, busqueda).length > 0 && (

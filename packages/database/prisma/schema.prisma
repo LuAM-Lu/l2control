@@ -77,6 +77,7 @@ model Branch {
   stockEntries      StockEntry[]
   stockEntryVoids   StockEntryVoid[]
   saleReturns       SaleReturn[]
+  tablesCleaned     DiningTableCleaned[]
   stockAdjustments  StockAdjustment[]
   stockStarts       StockStart[]
   printers          Printer[]
@@ -1975,6 +1976,25 @@ model KitchenOrderLineServed {
   @@unique([tenantId, id])
   @@index([tenantId, orderId])
   @@map("kitchen_order_line_served")
+}
+
+/// Cuándo y quién dejó limpia una mesa (B6-14): «por limpiar» se calcula con esto y el cierre de su última cuenta.
+/// Solo se agrega.
+model DiningTableCleaned {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  tableId   String   @map("table_id")
+  cleanedAt DateTime @map("cleaned_at") @db.Timestamptz(3)
+  by        String?  @db.Uuid
+  byName    String   @map("by_name")
+  deviceId  String?  @map("device_id") @db.Uuid
+
+  branch Branch @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, branchId, tableId, cleanedAt])
+  @@map("dining_table_cleaned")
 }
 
 /// Los paquetes de cumpleaños y el anticipo publicados (B10-1, D-EVT): cada publicación es una versión

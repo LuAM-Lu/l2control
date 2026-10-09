@@ -162,3 +162,32 @@ describe("vincular pulseras a una mesa", () => {
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
   });
 });
+
+describe("por limpiar, en la base (B6-14)", () => {
+  test("una mesa cerrada queda por limpiar hasta que alguien la deja limpia; sentarse y volver a cerrar, otra vez", async () => {
+    const t = AHORA + 60 * MIN;
+    const sentada = await sentarDePrueba(otro, otroMesero, "mesa-1", t);
+    assert.deepEqual(valor(await otro.app.mesas.porLimpiar(otroMesero, t)).mesas, [], "con su cuenta abierta, no");
+    const liberar = async (c: { id: string; version?: number | undefined }, en: number) =>
+      valor(await otro.app.cuentas.liberarMesa(otroMesero, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version! }, en));
+    await liberar(sentada, t + MIN);
+    const por = valor(await otro.app.mesas.porLimpiar(otroMesero, t + 2 * MIN)).mesas;
+    assert.deepEqual(por.map((m) => m.tableId), ["mesa-1"]);
+    const limpia = valor(await otro.app.mesas.marcarLimpia(otroMesero, { tableId: "mesa-1" }, t + 3 * MIN));
+    assert.deepEqual(limpia.mesas, []);
+    // Marcarla otra vez no hace nada.
+    valor(await otro.app.mesas.marcarLimpia(otroMesero, { tableId: "mesa-1" }, t + 3 * MIN));
+    const asientos = await otro.app.auditoria.listar(otro.sistema, { entityType: "dining_table", entityId: "mesa-1" });
+    assert.equal(asientos.filter((a) => a.action === "mesa.limpia").length, 1);
+    assert.deepEqual([...temasDe("mesa.limpia")], ["mesas"]);
+
+    const otraVez = await sentarDePrueba(otro, otroMesero, "mesa-1", t + 4 * MIN);
+    await liberar(otraVez, t + 5 * MIN);
+    assert.deepEqual(valor(await otro.app.mesas.porLimpiar(otroMesero, t + 6 * MIN)).mesas.map((m) => m.tableId), ["mesa-1"]);
+  });
+
+  test("quien no atiende el salón no las ve", async () => {
+    const r = await l.app.mesas.porLimpiar(monitora, AHORA);
+    assert.equal(r.ok, false);
+  });
+});

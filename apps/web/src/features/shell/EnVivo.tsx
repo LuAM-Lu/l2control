@@ -22,6 +22,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { panelVivo, type Alerta } from "./vivo.ts";
 import { usePedidos } from "../mesas/PedidosProvider.tsx";
+import { usePorLimpiar } from "../mesas/porLimpiar.ts";
 import { useSala } from "../park/SalaProvider.tsx";
 import { useTasas, useTasaVigente } from "../cash/TasasProvider.tsx";
 import { useTarifario } from "../park/TarifarioProvider";
@@ -70,6 +71,7 @@ export function EnVivo({
   const { tarifario } = useTarifario();
   const { sala } = useSala();
   const { pedidos } = usePedidos();
+  const { mesas: mesasPorLimpiar } = usePorLimpiar();
   const v = panelVivo({
     estado: op.estado,
     cuentas,
@@ -80,6 +82,7 @@ export function EnVivo({
     tasaConfirmada: tasa !== null,
     alertasDeTasa: historial.alertas,
     huerfanas: sala?.huerfanas.length ?? 0,
+    porLimpiar: mesasPorLimpiar.length,
   });
 
   /**

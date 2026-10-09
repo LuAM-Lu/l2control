@@ -123,6 +123,7 @@ export function panelVivo({
   tasaConfirmada,
   alertasDeTasa = [],
   huerfanas = 0,
+  porLimpiar = 0,
 }: {
   estado: EstadoLocal;
   cuentas: readonly FamilyAccountDto[];
@@ -138,6 +139,8 @@ export function panelVivo({
   alertasDeTasa?: readonly { mensaje: string; tono: "warn" | "crit" }[];
   /** Estancias a revisar (F5-13): abiertas desde otro día o con más de 8 horas. */
   huerfanas?: number;
+  /** Las mesas por limpiar, del servidor (B6-14). */
+  porLimpiar?: number;
 }): PanelVivo {
   /* ── parque ── */
   const reglas = toParkPolicy(politica);
@@ -182,12 +185,11 @@ export function panelVivo({
 
   /* ── mesas ── */
   // Las cuentas del salón son del servidor (B6-7): una mesa está ocupada si tiene alguna abierta, y piden la
-  // cuenta las que están por cobrar (de una mesa o de pie). Del bus queda solo «por limpiar».
+  // cuenta las que están por cobrar (de una mesa o de pie). «Por limpiar» también es del servidor (B6-14).
   const delSalon = cuentas.filter((c) => (c.kind === "MESA" || c.dePie === true) && (c.status === "ABIERTA" || c.status === "POR_COBRAR"));
   const conCuenta = new Set(delSalon.flatMap((c) => (c.tableId ? [c.tableId] : [])));
   const piden = delSalon.filter((c) => c.status === "POR_COBRAR");
   const esperaCuentaMin = piden.reduce((max, c) => Math.max(max, minutos(c.pendingSince ?? c.openedAt, ahora)), 0);
-  const porLimpiar = Object.values(estado.mesas).filter((m) => m.estado === "POR_LIMPIAR" && !conCuenta.has(m.id)).length;
   const mesas: ZonaMesas = {
     ocupadas: conCuenta.size,
     total: conCuenta.size + porLimpiar,

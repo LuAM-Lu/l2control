@@ -226,6 +226,15 @@ export const ServirPedidoCommandSchema = z.strictObject({
   sinHora: z.boolean().optional(),
 });
 
+/**
+ * Las mesas por limpiar (B6-14, M-35): sin cuentas abiertas y con su última cuenta de hoy cerrada después de la última
+ * vez que se dejaron limpias. `desde`: cuándo se cerró esa cuenta.
+ */
+export const MesasPorLimpiarSchema = z.object({ mesas: z.array(z.object({ tableId: z.string().min(1).max(64), desde: TimestampSchema })) });
+export type MesasPorLimpiarDto = z.infer<typeof MesasPorLimpiarSchema>;
+/** Dejar limpia una mesa (B6-14): el mesero, y la caja y supervisión por si se olvida. */
+export const MarcarMesaLimpiaCommandSchema = z.strictObject({ tableId: z.string().min(1, "Mesa desconocida").max(64) });
+
 /** Las notas rápidas de un plato (B6-12): las más escritas para ese producto en los últimos 60 días, y las de su categoría. */
 export const NotasRapidasQuerySchema = z.strictObject({ productId: z.uuid("Producto desconocido") });
 export const NotasRapidasSchema = z.object({ notas: z.array(z.string().min(1).max(80)).max(5) });
