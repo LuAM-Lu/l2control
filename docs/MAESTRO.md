@@ -1794,7 +1794,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Iconos** en las pestañas de la barra de las estaciones (Parque, Cobrar, Turno, Papel, Deudas, Mesas).
   Se adapta a lo que hay (punto 10): los recorridos de Entrada y Salida pasan a uno de Parque; el manual; los atajos; 48 px
   en el teléfono y 56 en la caja.
-- [ ] **B4-13 · El reloj de la sala no se queda pegado** (M-34, S-13).
+- [~] **B4-13 · El reloj de la sala no se queda pegado** (M-34, S-13). *A cargo: LuAMi, rama `feat/b4-13`.*
   → **El fallo.** El desfase con el servidor se mide al pintar la tarjeta (`useServerClock`) y no al recibir la lectura:
   si la sala se vuelve a pintar con una lectura de hace 10 minutos (volver a la pestaña, despertar el teléfono), el reloj
   queda 10 minutos atrás hasta recargar. Lo mismo pasa en la salida y en los impuestos vigentes de la caja.
