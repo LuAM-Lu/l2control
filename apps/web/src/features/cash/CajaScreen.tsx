@@ -3274,7 +3274,9 @@ function useImpuestosVigentes(impuestos: ImpuestosDto, serverNow: number) {
       ),
     [impuestos],
   );
-  const [desfase] = useState(() => serverNow - Date.now());
+  // El desfase con el servidor, el que midió la sala al recibir su última lectura (B4-13); sin sala, el de la página.
+  const [desfaseDeLaPagina] = useState(() => serverNow - Date.now());
+  const desfase = useSala().hora?.desfase ?? desfaseDeLaPagina;
   const ahora = useAhoraLocal();
   const instante = ahora === 0 ? serverNow : Math.ceil((ahora + desfase) / 60_000) * 60_000;
   return useMemo(() => {

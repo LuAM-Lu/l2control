@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play } from "lucide-react";
 import { WristbandCodeSchema } from "@l2/contracts";
-import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery, useServerClock } from "@l2/ui";
+import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
 import Link from "next/link";
 import type { Route } from "next";
 import { toMajor } from "@l2/domain-money";
@@ -11,9 +11,10 @@ import { can } from "@l2/domain-identity";
 import { nombreDeCuenta, pendiente } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useOperacion } from "../operacion/OperacionProvider.tsx";
+import { useTiempoReal } from "../operacion/TiempoRealProvider.tsx";
 import { ParkChildCard } from "./ParkChildCard";
 import { enPausa, nombreVisible, toMonitorModel } from "./view-model";
-import { useSala } from "./SalaProvider.tsx";
+import { useAhoraDeLaSala, useSala } from "./SalaProvider.tsx";
 import { anularEntrada, nombrarEstancia, pausarEstancia } from "./parque.acciones";
 import { AnularEntradaDialog } from "./AnularEntradaDialog.tsx";
 import { CortesiaDialog } from "../cash/CortesiaDialog.tsx";
@@ -42,12 +43,15 @@ const SALA_VACIA = { serverNow: 0, capacityLimit: 1, shiftLabel: "", rateValue: 
 
 export function ParkMonitor() {
   const op = useOperacion();
-  const { sala, sinConexion, refrescar } = useSala();
+  const { sala, sinConexion, hora: lectura, refrescar } = useSala();
+  // Un solo reloj para toda la sala (B4-13): la cifra, el estado de cada niño, las cuentas y el orden avanzan juntos.
+  const ahora = useAhoraDeLaSala();
+  const canal = useTiempoReal();
   const { tarifario } = useTarifario();
   const [recargando, setRecargando] = useState(false);
   const [revisando, setRevisando] = useState(false);
   const huerfanas = sala?.huerfanas ?? [];
-  const model = useMemo(() => (sala ? toMonitorModel(sala) : SALA_VACIA), [sala]);
+  const model = useMemo(() => (sala ? toMonitorModel(sala, ahora) : SALA_VACIA), [sala, ahora]);
   const [selected, setSelected] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -163,7 +167,7 @@ export function ParkMonitor() {
     void refrescar();
     return null;
   }
-  const ahoraFicha = useServerClock(model.serverNow);
+  const ahoraFicha = model.serverNow;
   const pausaFicha = ficha?.pausa ?? null;
   async function pausar(accion: "PAUSAR" | "REANUDAR") {
     if (!ficha) return;
@@ -243,10 +247,13 @@ export function ParkMonitor() {
             <span className="ml-auto font-semibold underline">Ver</span>
           </button>
         )}
-        {sinConexion && sala && (
+        {(sinConexion || canal.estado === "sin-conexion") && sala && (
           <p role="status" className="mb-3 flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-4 py-2.5 text-[13px] text-state-warn">
-            <WifiOff size={15} aria-hidden="true" />
-            Sin conexión con el servidor: la sala puede estar atrasada. Se vuelve a intentar sola.
+            <WifiOff size={15} className="shrink-0" aria-hidden="true" />
+            <span>
+              Sin conexión con el servidor{lectura ? ` desde las ${hora(lectura.leidaEn + lectura.desfase)}` : ""}: los relojes siguen contando, pero
+              una entrada o una salida de otro equipo puede no verse aún. Se vuelve a intentar sola.
+            </span>
           </p>
         )}
         {!sala ? (
@@ -277,7 +284,7 @@ export function ParkMonitor() {
                 <ParkChildCard
                   key={card.id}
                   model={card}
-                  serverNow={model.serverNow}
+                  ahora={model.serverNow}
                   selected={selected === card.id}
                   densidad={compacta ? "compacta" : "normal"}
                   hora={hora}

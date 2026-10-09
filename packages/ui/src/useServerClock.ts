@@ -15,6 +15,11 @@ import { useEffect, useState } from "react";
  * Existe como hook único para que TODO lo que depende del tiempo en una misma
  * tarjeta (cifra y barra de progreso) avance con el mismo latido. Dos
  * temporizadores independientes se desincronizan y se nota.
+ *
+ * ⚠ Mide el desfase al MONTAR (o al cambiar `serverNow`): solo sirve si el
+ * instante llega fresco. Con una lectura que se guardó un rato y se pinta
+ * después, el reloj queda atrás lo que tenga de vieja (B4-13, «se queda
+ * pegado»). La sala del parque usa `useAhoraDeLaSala`, que mide al recibir.
  */
 export function useServerClock(serverNow: number, intervalMs = 1000): number {
   const [offset, setOffset] = useState(() => serverNow - Date.now());

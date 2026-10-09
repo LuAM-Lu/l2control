@@ -11,7 +11,7 @@
  */
 import type { MonitorSnapshotDto } from "@l2/contracts";
 import { toMajor } from "@l2/domain-money";
-import { computeOverdueCharge, computeSessionView, pauseEndsAt, type SessionStatus } from "@l2/domain-park";
+import { computeOverdueCharge, computeSessionView, epochMs, pauseEndsAt, type SessionStatus } from "@l2/domain-park";
 import { toEpochMs, toParkSession, toParkTerms } from "./mappers.ts";
 
 /**
@@ -99,8 +99,13 @@ export type MonitorModel = Readonly<{
 }>;
 
 
-export function toMonitorModel(snapshot: MonitorSnapshotDto): MonitorModel {
-  const now = toEpochMs(snapshot.serverNow);
+/**
+ * La sala a una hora: `ahora` es la del servidor según el reloj de la sala (`useAhoraDeLaSala`, B4-13), así que el
+ * estado de cada niño, el excedente y el orden avanzan con el tiempo y no se quedan en el de la lectura. Sin ella, la
+ * de la lectura.
+ */
+export function toMonitorModel(snapshot: MonitorSnapshotDto, ahora?: number): MonitorModel {
+  const now = ahora !== undefined && ahora > 0 ? epochMs(ahora) : toEpochMs(snapshot.serverNow);
 
   const cards = snapshot.sessions.map((dto) => {
     const session = toParkSession(dto);

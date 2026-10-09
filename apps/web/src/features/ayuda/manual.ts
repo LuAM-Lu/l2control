@@ -169,6 +169,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
         solucion: "El pase libre o la cuenta por tiempo abierto se cobra entero al salir: no hay minutos que sumar.",
         reconoce: ["el tiempo abierto no se recarga"],
       },
+      {
+        sintoma: "«Sin conexión con el servidor desde las…» en la sala",
+        solucion:
+          "Los relojes siguen contando y cada niño cambia de color a su hora, pero una entrada o una salida hecha en otro equipo no se ve hasta que vuelva la conexión. La sala se pone al día sola al volver; si se cayó todo, se trabaja en papel.",
+        reconoce: ["sin conexion con el servidor desde"],
+      },
     ],
     recorrido: "sala",
   },
