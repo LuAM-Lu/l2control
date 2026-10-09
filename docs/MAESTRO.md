@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.95.0 · 95 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.96.0 · 96 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -756,7 +756,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   dentro de Productos y supervisión con solo «Tasas»; a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desbordes ni errores de consola.*
 - [x] **T-19 · El cliente por su cédula, en todo, y el buscador** (M-34, S-15, S-22; cambia DEC-9 y DEC-23).
-  *Hecho el 2026-10-09, en `feat/t-19`.*
+  *Hecho el 2026-10-09 (v0.96.0), en `feat/t-19`.*
   → **La cédula, lo primero en todo proceso:** sentar a alguien o abrir una cuenta de pie, el representante en la entrada
   al parque (también desde la caja y los invitados de un cumpleaños), la venta del mostrador y «Factura a». Al teclearla,
   el directorio trae al cliente con su nombre y su teléfono; si es nuevo, los pide. En el mostrador sustituye a
