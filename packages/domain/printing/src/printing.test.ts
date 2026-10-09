@@ -70,9 +70,10 @@ describe("la composición", () => {
 });
 
 describe("el ESC/POS", () => {
-  test("empieza iniciando y con la página 850, y termina avanzando y cortando", () => {
+  test("empieza iniciando, sin el modo chino y con la página 850, y termina avanzando y cortando", () => {
     const b = escpos(recibo, 80);
-    assert.deepEqual([...b.slice(0, 5)], [0x1b, 0x40, 0x1b, 0x74, 0x02]);
+    // ESC @ · FS . (modo chino apagado: si no, las tildes salen como ideogramas, M-34) · ESC t 2
+    assert.deepEqual([...b.slice(0, 7)], [0x1b, 0x40, 0x1c, 0x2e, 0x1b, 0x74, 0x02]);
     assert.deepEqual([...b.slice(-7)], [0x1b, 0x64, 4, 0x1d, 0x56, 0x42, 0x00]);
     assert.deepEqual([...escpos({ ...recibo, cortar: false }, 80).slice(-3)], [0x1b, 0x64, 4]);
   });
