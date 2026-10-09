@@ -51,8 +51,13 @@ export const ReciboSchema = z.object({
   total: Texto(24),
   totalBs: Texto(32).nullable(),
   tasa: Texto(24).nullable(),
-  pagos: z.array(z.object({ medio: Texto(40), detalle: Texto(80).nullable(), monto: Texto(32) })),
+  /** Cada pago en su moneda y, si no es en dólares, lo que vale en dólares a la tasa del cobro (B3-12). */
+  pagos: z.array(z.object({ medio: Texto(40), detalle: Texto(80).nullable(), monto: Texto(32), equivalente: Texto(32).nullable().optional() })),
+  /** Lo pagado en total, cuando hace falta decirlo: varios pagos, otra moneda o algo de más (B3-12). */
+  pagado: Texto(32).nullable().optional(),
   vuelto: Texto(24).nullable(),
+  /** El vuelto en bolívares, si el cobro tuvo tasa (B3-12). */
+  vueltoBs: Texto(32).nullable().optional(),
   destinoVuelto: Texto(24).nullable(),
   cajera: Texto(80).nullable(),
   telefono: Texto(20).nullable(),

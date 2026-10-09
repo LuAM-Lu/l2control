@@ -12,6 +12,7 @@
  * ⚠ §7.6: las referencias de pago y el documento del cliente llegan enmascarados desde la venta.
  */
 import type { AjustesSucursalDto, CorteDto, ExcepcionDto, MoneyDto, VentaCerradaDto } from "@l2/contracts";
+import { cuentasDelCobro } from "@l2/domain-cash";
 import { convert, invertRate, money, multiply, type CurrencyCode, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { percentFromBasisPoints } from "@l2/domain-tax";
@@ -38,7 +39,13 @@ function cabecera(local: AjustesSucursalDto): Renglon[] {
   ];
 }
 
-/** El recibo no fiscal de una venta (C8). `copia`: una reimpresión lo dice arriba (§5.4). */
+/**
+ * El recibo no fiscal de una venta (C8). `copia`: una reimpresión lo dice arriba (§5.4).
+ *
+ * Los pagos dicen lo que pasó en la caja (B3-12): cada uno en su moneda y, si no es en dólares, su equivalente a la
+ * tasa del cobro; «Pagado», si hubo más de uno, otra moneda o algo de más; y el vuelto también en bolívares. Las
+ * cuentas las hace `cuentasDelCobro` (`@l2/domain-cash`), la misma que usa el recibo de la pantalla.
+ */
 export function documentoDeRecibo(v: VentaCerradaDto, local: AjustesSucursalDto, copia: boolean): Documento {
   const filas = new Map<string, { cantidad: number; concepto: string; precio: Money; cortesia: string | null }>();
   for (const l of v.lineas) {
@@ -50,11 +57,19 @@ export function documentoDeRecibo(v: VentaCerradaDto, local: AjustesSucursalDto,
   const total = dinero(v.total);
   const aBolivares = v.tasa ? invertRate(frozenRateOf({ pair: "USD/VES", value: v.tasa.value })) : null;
   const d = v.descuento;
+  const cuentas = cuentasDelCobro({
+    total,
+    pagos: v.payments.map((p) => ({ medio: p.label, pagado: dinero(p.paid), referencia: p.referencia })),
+    sobra: v.sobra ? { monto: dinero(v.sobra.amount), destino: v.sobra.destino } : null,
+    aBolivares,
+  });
   const renglones: Renglon[] = [
     ...cabecera(local),
     { tipo: "TEXTO", texto: "RECIBO NO FISCAL", alinear: "CENTRO", negrita: true },
     ...(copia ? [{ tipo: "TEXTO", texto: "*** COPIA ***", alinear: "CENTRO", negrita: true } as const] : []),
-    { tipo: "TEXTO", texto: `Orden ${orden(v.orderNumber)} · ${fechaYHora(Date.parse(v.closedAt), local.formatoHora, local.zonaHoraria)}`, alinear: "CENTRO" },
+    // La orden y la hora, cada una en su renglón: juntas, a 58 mm partían la hora y dejaban el «pm» solo (B3-12).
+    { tipo: "TEXTO", texto: `Orden ${orden(v.orderNumber)}`, alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: fechaYHora(Date.parse(v.closedAt), local.formatoHora, local.zonaHoraria), alinear: "CENTRO" },
     { tipo: "TEXTO", texto: v.cuenta.kind === "MOSTRADOR" ? "Venta de mostrador" : v.cuenta.kind === "MESA" ? `Mesa ${v.cuenta.tableLabel ?? ""} · ${v.cuenta.family}` : v.cuenta.family },
     { tipo: "TEXTO", texto: `Factura a: ${v.cliente.kind === "CONSUMIDOR_FINAL" ? "Consumidor final" : `${v.cliente.name} · ${v.cliente.document}`}` },
     ...(v.parte ? [{ tipo: "TEXTO", texto: `Parte ${v.parte.n} de ${v.parte.de}`, negrita: true } as const] : []),
@@ -85,11 +100,20 @@ export function documentoDeRecibo(v: VentaCerradaDto, local: AjustesSucursalDto,
       ? [{ tipo: "PAR", izq: `En Bs. a ${tasaVE(v.tasa.value)}`, der: texto(convert(total, aBolivares)) } as const]
       : []),
     { tipo: "LINEA" },
-    ...v.payments.flatMap((p): Renglon[] => [
-      { tipo: "PAR", izq: p.label, der: texto(dinero(p.paid)) },
-      ...(p.referencia ? [{ tipo: "TEXTO", texto: `  ${p.referencia}` } as const] : []),
+    ...cuentas.pagos.flatMap((p): Renglon[] => [
+      { tipo: "PAR", izq: p.medio, der: texto(p.pagado) },
+      // La referencia y, en otra moneda, lo que vale en dólares: así se suma contra el total.
+      ...(p.referencia || p.enFuncional
+        ? [{ tipo: "PAR", izq: `  ${p.referencia ?? ""}`, der: p.enFuncional ? `= ${texto(p.enFuncional)}` : "" } as const]
+        : []),
     ]),
-    ...(v.sobra ? [{ tipo: "PAR", izq: DESTINO[v.sobra.destino] ?? "Vuelto", der: texto(dinero(v.sobra.amount)) } as const] : []),
+    ...(cuentas.diceElPagado ? [{ tipo: "PAR", izq: "Pagado", der: texto(cuentas.pagado), negrita: true } as const] : []),
+    ...(cuentas.sobra
+      ? [
+          { tipo: "PAR", izq: DESTINO[cuentas.sobra.destino] ?? "Vuelto", der: texto(cuentas.sobra.monto) } as const,
+          ...(cuentas.sobra.enBolivares ? [{ tipo: "PAR", izq: "  en bolívares", der: texto(cuentas.sobra.enBolivares) } as const] : []),
+        ]
+      : []),
     { tipo: "VACIO" },
     { tipo: "TEXTO", texto: `Atendió ${v.cashier}`, alinear: "CENTRO" },
     { tipo: "TEXTO", texto: "¡Gracias por visitarnos!", alinear: "CENTRO" },

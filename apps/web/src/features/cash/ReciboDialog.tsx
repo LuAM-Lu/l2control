@@ -191,10 +191,18 @@ export function ReciboImpreso({
               <span>{p.medio}</span>
               <span className="tnum">{p.monto}</span>
             </span>
-            {p.detalle && <span className="tnum block text-[11px] text-ink-3">{p.detalle}</span>}
+            {(p.detalle || p.equivalente) && (
+              <span className="tnum flex items-baseline justify-between gap-2 text-[11px] text-ink-3">
+                <span>{p.detalle ?? ""}</span>
+                {/* En otra moneda, lo que vale en dólares: así se suma contra el total (B3-12). */}
+                {p.equivalente && <span>= {p.equivalente}</span>}
+              </span>
+            )}
           </li>
         ))}
+        {recibo.pagado && <Renglon etiqueta="Pagado" valor={recibo.pagado} />}
         {recibo.vuelto && <Renglon etiqueta={recibo.destinoVuelto ?? "Vuelto"} valor={recibo.vuelto} />}
+        {recibo.vueltoBs && <Renglon etiqueta="en bolívares" valor={recibo.vueltoBs} />}
       </ul>
 
       <footer className="text-center text-[11px] text-ink-3">

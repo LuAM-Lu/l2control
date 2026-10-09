@@ -223,6 +223,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
       "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I) si el cliente pide la factura con su cédula o RIF, «Descuento» y «Dividir» en partes iguales, de 2 a 6.",
       "«Cobrar $ …» dice lo que se cobra, el de la parte si está dividida (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
+      "El recibo dice lo que pasó: cada pago en su moneda (el de bolívares, con lo que vale en dólares a la tasa del cobro), lo pagado y el vuelto, también en bolívares. Lo pagado menos el vuelto es el total.",
       "Si el cliente de una mesa o de una venta se fue sin pagar: «Se fue sin pagar» en la cuenta, con el PIN de supervisión. Lo que debe queda a su nombre (Caja → Deudas). Cuando vuelva, al buscarlo en la cola sale «Debe de antes»: tócalo y se cobra como cualquier cuenta.",
     ],
     problemas: [

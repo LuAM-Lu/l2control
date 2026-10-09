@@ -1512,7 +1512,8 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   sin datos se va sin pagar (pide los datos), se pasa a la caja, se devuelve y se da por perdida; Inicio «1 deuda de
   clientes · $ 2.90»; la estación con su pestaña. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin
   desplazar ni cortar y sin errores de consola.*
-- [ ] **B3-12 · El recibo dice lo que pasó en la caja** (M-34, S-7, S-18).
+- [x] **B3-12 · El recibo dice lo que pasó en la caja** (M-34, S-7, S-18).
+  *Hecho el 2026-10-08, en `feat/b3-12`.*
   → **Lo que dice.** Cada pago con su medio y su monto en su moneda y, si es en bolívares, su equivalente en dólares a la
   tasa del cobro; lo recibido; el vuelto con su moneda y su medio (o la propina, o el redondeo); el descuento con su nombre
   y su importe; el subtotal, el IVA y el total en dólares y en bolívares. Cuadra a la vista: lo pagado menos el vuelto es
@@ -1522,6 +1523,19 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   moneda, descuento por porcentaje y por monto, cortesía, cuenta dividida, prepago del parque, deuda cobrada y salida a una
   mesa. Lo que no cuadre se corrige; las fotos de los recibos que salieron mal en el local, si llegan, entran como casos.
   Se adapta a lo que hay (punto 10): el manual de Cobrar y de Turno (reimprimir); en el papel, la referencia enmascarada.
+  *· Lo que había: el papel (`plantillas.ts`) y la pantalla (`recibo.ts`) armaban cada uno sus cuentas; los dos decían
+  cada pago solo en su moneda (con un mixto no se podía sumar contra el total en dólares), no decían lo pagado y el
+  vuelto, solo en dólares. Con los recibos de la base de pruebas a la vista, no faltaba nada más: lo demás que vio el
+  local era el modo chino (v0.90.2), que se comía letras y descuadraba los renglones.*
+  *· Hecho: `cuentasDelCobro` (`@l2/domain-cash`) hace las cuentas una vez —cada pago con su equivalente a la tasa
+  congelada, lo pagado, el vuelto en bolívares y la diferencia, que es cero si cuadra— y la usan la plantilla del papel,
+  el recibo de la pantalla y el de WhatsApp. En el papel, la orden y la hora en renglones propios (a 58 mm partían el
+  «pm»).*
+  *· Comprobado: 5 pruebas de las cuentas y una batería de 6 recibos en papel (`plantillas.test.ts`: exacto, con vuelto,
+  mixto, el vuelto en bolívares, descuento con el IVA incluido, cortesía y cuenta dividida), cada uno cuadrando. En el
+  navegador, en la base de pruebas: la cuenta #0066 cobrada con Pago Móvil Bs. 1.000,00 y $ 5 en efectivo; el recibo de
+  la pantalla y el papel de esa venta dicen lo mismo renglón por renglón (= $ 1.14, Pagado $ 6.14, vuelto $ 3.24 y
+  Bs. 2.834,13); a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni errores de consola.*
 - [ ] **B3-13 · El cobro en curso no se pierde** (M-34, S-6, S-17).
   → **Un borrador en el servidor.** Lo que se lleva de un cobro (los medios, los montos, las referencias y los datos de
   pago, el destino del vuelto, «Factura a» y el recibo a elección) se guarda como borrador de la cuenta mientras se
