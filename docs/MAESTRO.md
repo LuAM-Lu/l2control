@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.94.0 · 94 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.95.0 · 95 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1537,7 +1537,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   la pantalla y el papel de esa venta dicen lo mismo renglón por renglón (= $ 1.14, Pagado $ 6.14, vuelto $ 3.24 y
   Bs. 2.834,13); a 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desbordes ni errores de consola.*
 - [x] **B3-13 · El cobro en curso no se pierde** (M-34, S-6, S-17).
-  *Hecho el 2026-10-09, en `feat/b3-13`.*
+  *Hecho el 2026-10-09 (v0.95.0), en `feat/b3-13`.*
   → **Un borrador en el servidor.** Lo que se lleva de un cobro (los medios, los montos, las referencias y los datos de
   pago, el destino del vuelto, «Factura a» y el recibo a elección) se guarda como borrador de la cuenta mientras se
   escribe, con las referencias cifradas como las de los pagos. Aguanta cambiar de cuenta o de pestaña, recargar, un corte
