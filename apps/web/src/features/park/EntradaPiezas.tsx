@@ -1,12 +1,13 @@
 "use client";
 
 import type { Ref } from "react";
-import { CircleCheckBig, Footprints, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
+import { Check, CircleCheckBig, Footprints, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
 import type { PricePackageDto, RepresentanteEncontradoDto } from "@l2/contracts";
 import { toMajor, type Money } from "@l2/domain-money";
 import { Badge, Initial, Input, Marquesina, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import { PackagePicker } from "./PackagePicker";
+import { toMoney } from "./mappers.ts";
 import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import type { Entrada, EntradaDeNinos } from "./useEntradaDeNinos.ts";
 
@@ -27,7 +28,13 @@ export function NinosDeLaFamilia({ encontrado }: { encontrado: RepresentanteEnco
   );
 }
 
-/** Un niño de la entrada: su pulsera (o «Sin pulsera»), su paquete, sus medias y su nombre. */
+/**
+ * Un niño de la entrada: su pulsera (o «Sin pulsera»), su nombre, su paquete y sus medias.
+ *
+ * B4-12 (M-34): donde la fila es ancha (la capa de la entrada en escritorio) va en **un renglón**: pulsera, nombre,
+ * paquete en una lista y medias. Donde es angosta (el teléfono), como antes: el paquete en botones grandes y las medias y
+ * el nombre debajo. Se mide la fila, no la pantalla. Las medias no traen respuesta de fábrica: hay que responder.
+ */
 export function FilaDeEntrada({
   e,
   numero,
@@ -48,87 +55,108 @@ export function FilaDeEntrada({
   onActualizar: (patch: Partial<Entrada>) => void;
   onQuitar: () => void;
 }) {
+  const quien = e.sinPulsera ? e.nombre || "este niño" : e.wristbandCode;
+  const sinResponder = medias !== null && !invitadoDe && e.traeMedias === null;
   return (
-    <li className="@container/fila rounded-[var(--radius-card)] border border-line bg-surface p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Initial name={String(numero)} tone="brand" />
+    <li className={cn("@container/fila rounded-[var(--radius-card)] border bg-surface p-4 @3xl/fila:px-3 @3xl/fila:py-2.5", sinResponder ? "border-state-warn/50" : "border-line")}>
+      <div className="flex flex-wrap items-center gap-3 @3xl/fila:flex-nowrap @3xl/fila:gap-2.5">
+        <Initial name={String(numero)} tone="brand" className="order-1" />
 
         {e.sinPulsera ? (
-          <Badge tone="brand" icon={<HandHeart size={14} aria-hidden="true" />} className="text-[14px] px-3 py-1.5">
+          <Badge tone="brand" icon={<HandHeart size={14} aria-hidden="true" />} className="order-2 shrink-0 px-3 py-1.5 text-[14px]">
             Sin pulsera
           </Badge>
         ) : (
-          <Badge tone="idle" className="text-[15px] px-3 py-1.5">
+          <Badge tone="idle" className="order-2 shrink-0 px-3 py-1.5 text-[15px]">
             <span className="tnum font-mono">{e.wristbandCode}</span>
           </Badge>
-        )}
-
-        {/* Donde la fila es angosta (el teléfono, la hoja de la caja) el paquete va en su renglón, en 2×2: en la
-            fila, cuatro no caben. Se mide la fila, no la pantalla (v0.90.1). Un invitado de cumpleaños no elige
-            paquete: lo cubre el del evento (B10-2). */}
-        {invitadoDe ? (
-          <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">Invitado · Cumpleaños de {invitadoDe}</span>
-        ) : (
-          <div className="min-w-[200px] flex-1 @max-2xl/fila:order-last @max-2xl/fila:basis-full">
-            <PackagePicker packages={paquetes} selectedId={e.packageId} onSelect={(id) => onActualizar({ packageId: id })} compact />
-          </div>
         )}
 
         <button
           type="button"
           onClick={onQuitar}
           aria-label={e.sinPulsera ? `Quitar al niño sin pulsera ${e.nombre}` : `Quitar la pulsera ${e.wristbandCode}`}
-          className="grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit @max-2xl/fila:ml-auto"
+          className="order-3 ml-auto grid size-12 shrink-0 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-state-crit-bg hover:text-state-crit @3xl/fila:order-7 @3xl/fila:ml-0"
         >
           <X size={16} aria-hidden="true" />
         </button>
-      </div>
-      {/* B4-9: si no trae medias, se le cobra el par. «Trae» de fábrica: es lo que pide el local. */}
-      {medias && !invitadoDe && (
-        <div role="radiogroup" aria-label={`Medias de ${e.sinPulsera ? e.nombre || "este niño" : e.wristbandCode}`} className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-[13px] text-ink-2">
-            <Footprints size={15} aria-hidden="true" className="text-ink-3" />
-            Medias
-          </span>
-          {([true, false] as const).map((trae) => (
-            <button
-              key={String(trae)}
-              type="button"
-              role="radio"
-              aria-checked={e.traeMedias === trae}
-              onClick={() => onActualizar({ traeMedias: trae })}
-              className={cn(
-                "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13.5px] font-semibold",
-                e.traeMedias === trae ? "border-brand bg-brand/15 text-ink" : "border-line bg-base/40 text-ink-2 hover:border-line-strong",
-              )}
+
+        {/* Un invitado de cumpleaños no elige paquete: lo cubre el del evento (B10-2). */}
+        {invitadoDe ? (
+          <span className="order-4 min-w-0 flex-1 basis-full text-[13px] text-ink-2 @3xl/fila:basis-auto">Invitado · Cumpleaños de {invitadoDe}</span>
+        ) : (
+          <>
+            {/* Angosta: los paquetes en botones; ancha: en una lista, para que quepa en el renglón. */}
+            <div className="order-4 basis-full @3xl/fila:hidden">
+              <PackagePicker packages={paquetes} selectedId={e.packageId} onSelect={(id) => onActualizar({ packageId: id })} compact />
+            </div>
+            <select
+              aria-label={`Paquete de ${quien}`}
+              value={e.packageId}
+              onChange={(ev) => onActualizar({ packageId: ev.target.value })}
+              className="order-5 hidden min-h-12 w-48 shrink-0 cursor-pointer rounded-[var(--radius-control)] border border-line bg-base px-2.5 text-[14px] font-semibold text-ink focus-visible:outline-2 focus-visible:outline-brand @3xl/fila:block"
             >
-              {trae ? "Las trae" : `No trae · ${formatMoneyVE(toMajor(medias.precio), "USD")}`}
-            </button>
-          ))}
-        </div>
-      )}
-      {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. Los invitados
-          de un cumpleaños no son de la familia que reservó: se nombran después, desde la sala. */}
-      {!invitadoDe && (
-        <input
-          id={`nombre-${e.uid}`}
-          aria-label={e.sinPulsera ? "Nombre del niño sin pulsera (obligatorio)" : `Nombre del niño de la pulsera ${e.wristbandCode} (opcional)`}
-          aria-required={e.sinPulsera}
-          value={e.nombre}
-          onChange={(ev) => onActualizar({ nombre: ev.target.value })}
-          placeholder={
-            e.sinPulsera
-              ? "Nombre del niño (obligatorio: sin pulsera se le reconoce por él)"
-              : encontrado && encontrado.kids.length > 0
-                ? `Nombre (opcional): ${encontrado.kids.map((k) => k.nickname ?? k.name).join(", ")}`
-                : "Nombre del niño (opcional)"
-          }
-          list={encontrado && encontrado.kids.length > 0 ? "ninos-de-la-familia" : undefined}
-          autoComplete="off"
-          maxLength={60}
-          className="mt-3 min-h-12 w-full rounded-[var(--radius-control)] border border-line bg-base px-3 text-[14px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-brand"
-        />
-      )}
+              {paquetes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} · {formatMoneyVE(toMajor(toMoney(p.price)), "USD")}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {/* B4-9, B4-12: si no trae medias de seguridad, se le cobra el par. Sin respuesta de fábrica. */}
+        {medias && !invitadoDe && (
+          <div
+            role="radiogroup"
+            aria-label={`Medias de seguridad de ${quien}`}
+            className="order-6 flex basis-full flex-wrap items-center gap-2 @3xl/fila:basis-auto @3xl/fila:flex-nowrap"
+          >
+            <span className={cn("flex items-center gap-1.5 text-[13px]", sinResponder ? "font-semibold text-state-warn" : "text-ink-2")}>
+              <Footprints size={15} aria-hidden="true" className={sinResponder ? "" : "text-ink-3"} />
+              <span className="@3xl/fila:sr-only">{sinResponder ? "¿Trae medias de seguridad?" : "Medias de seguridad"}</span>
+            </span>
+            {([true, false] as const).map((trae) => (
+              <button
+                key={String(trae)}
+                type="button"
+                role="radio"
+                aria-checked={e.traeMedias === trae}
+                onClick={() => onActualizar({ traeMedias: trae })}
+                className={cn(
+                  "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13.5px] font-semibold whitespace-nowrap",
+                  e.traeMedias === trae ? "border-brand bg-brand/15 text-ink" : "border-line bg-base/40 text-ink-2 hover:border-line-strong",
+                )}
+              >
+                {trae ? "Las trae" : `No trae · ${formatMoneyVE(toMajor(medias.precio), "USD")}`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. Los invitados de un cumpleaños no
+            son de la familia que reservó: se nombran después, desde la sala. */}
+        {!invitadoDe && (
+          <input
+            id={`nombre-${e.uid}`}
+            aria-label={e.sinPulsera ? "Nombre del niño sin pulsera (obligatorio)" : `Nombre del niño de la pulsera ${e.wristbandCode} (opcional)`}
+            aria-required={e.sinPulsera}
+            value={e.nombre}
+            onChange={(ev) => onActualizar({ nombre: ev.target.value })}
+            placeholder={
+              e.sinPulsera
+                ? "Nombre (obligatorio: se le reconoce por él)"
+                : encontrado && encontrado.kids.length > 0
+                  ? `Nombre: ${encontrado.kids.map((k) => k.nickname ?? k.name).join(", ")}`
+                  : "Nombre (opcional)"
+            }
+            list={encontrado && encontrado.kids.length > 0 ? "ninos-de-la-familia" : undefined}
+            autoComplete="off"
+            maxLength={60}
+            className="order-7 min-h-12 w-full basis-full rounded-[var(--radius-control)] border border-line bg-base px-3 text-[14px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-brand @3xl/fila:order-3 @3xl/fila:w-auto @3xl/fila:min-w-0 @3xl/fila:flex-1 @3xl/fila:basis-0"
+          />
+        )}
+      </div>
     </li>
   );
 }
@@ -152,6 +180,9 @@ export function CampoRepresentante({
     | "porSuCedula"
     | "faltaSuCedula"
     | "telefonoDeOtro"
+    | "familiaEnSala"
+    | "sumar"
+    | "setSumar"
     | "esNuevo"
     | "nombreNuevo"
     | "setNombreNuevo"
@@ -218,6 +249,37 @@ export function CampoRepresentante({
         </div>
       )}
 
+      {/* B4-12: su familia tiene niños en la sala: el que llega se suma a esa cuenta, con su propio tiempo. */}
+      {e.familiaEnSala && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={e.sumar}
+          onClick={() => e.setSumar(!e.sumar)}
+          className={cn(
+            "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left transition-colors",
+            e.sumar ? "border-brand bg-brand/10" : "border-line bg-base/40 hover:border-line-strong",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cn("grid size-5 shrink-0 place-content-center rounded border", e.sumar ? "border-brand bg-brand text-on-brand" : "border-line-strong")}
+          >
+            {e.sumar && <Check size={13} strokeWidth={3} />}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[14px] font-semibold text-ink" data-privado="">
+              Sumar a la familia {e.familiaEnSala.familia} ({e.familiaEnSala.ninos} en sala)
+            </span>
+            <span className="block text-[12px] text-ink-2">
+              {e.sumar
+                ? `Entra en su cuenta, con su tiempo desde ahora, y sale con ella. ${e.familiaEnSala.mode === "PREPAGO" ? "Lo suyo va a la caja." : "Se cobra todo al salir."}`
+                : "Entra con una cuenta aparte."}
+            </span>
+          </span>
+        </button>
+      )}
+
       {e.esNuevo && (
         <Input
           label="Nombre del representante"
@@ -259,8 +321,12 @@ export function TotalDeEntrada({
           {medias.existencia === 0 ? "No quedan medias en el inventario" : `Quedan ${medias.existencia} pares de medias y hacen falta ${paresQueFaltan}`}
         </p>
       )}
-      {paresQueFaltan > 0 && medias && !sinMediasQueDar && (
-        <p className="mt-1 text-[12px] text-ink-3">Incluye {paresQueFaltan === 1 ? "un par de medias" : `${paresQueFaltan} pares de medias`}</p>
+      {medias && !sinMediasQueDar && (paresQueFaltan > 0 || medias.existencia !== null) && (
+        <p className="mt-1 text-[12px] text-ink-3">
+          {paresQueFaltan > 0 ? `Incluye ${paresQueFaltan === 1 ? "un par de medias" : `${paresQueFaltan} pares de medias`}` : "Medias de seguridad"}
+          {/* B4-12: cuántos pares quedan, al lado. */}
+          {medias.existencia !== null && ` · quedan ${medias.existencia} ${medias.existencia === 1 ? "par" : "pares"}`}
+        </p>
       )}
       <p className="mt-1 text-[12px] text-ink-3">{ninos === 0 ? "Sin niños en la entrada" : `${ninos} ${ninos === 1 ? "niño" : "niños"}`}</p>
     </div>

@@ -386,6 +386,12 @@ export const CheckInCommandSchema = z
      * un representante de antes que no la tenía, se le anota. El servidor la exige (salvo lo cargado desde papel).
      */
     guardianDocument: cedulaEscrita.optional(),
+    /**
+     * Sumar a la familia (B4-12, M-34): la cuenta abierta de esta familia con niños en la sala. Los niños nuevos entran
+     * en ella con su propio tiempo, desde que entran, y salen con ella. Cómo paga es el de esa cuenta (`paymentMode` no
+     * cuenta): en prepago, lo nuevo vuelve a la caja, como una recarga.
+     */
+    sumarA: IdSchema.optional(),
   })
   .refine((v) => Boolean(v.guardianId) !== Boolean(v.guardian), {
     message: "Indica un representante existente o crea uno nuevo, no ambos",

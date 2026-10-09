@@ -14,33 +14,24 @@ const en = (nombre: string) => `[data-recorrido="${nombre}"]`;
 
 export const RECORRIDOS: readonly RecorridoDePantalla[] = [
   {
-    id: "entrada",
-    version: 1,
-    ruta: "/entrada",
-    pasos: [
-      { objetivo: en("entrada-lector"), titulo: "Empieza por la pulsera", texto: "Pasa la pulsera de cada niño por el lector, sin tocar la pantalla. Si el lector no responde, usa la cámara." },
-      { objetivo: en("entrada-sin-pulsera"), titulo: "Niños sin pulsera", texto: "Un niño que no tolera la pulsera entra desde aquí, por su nombre. El sistema le da su propio código." },
-      { objetivo: en("entrada-representante"), titulo: "Quién los trae", texto: "La cédula del representante, lo primero: si ya vino, aparece solo con sus niños y no hay que teclear nada más. Si es nuevo, su teléfono y su nombre." },
-      { objetivo: en("entrada-registrar"), titulo: "Cómo paga y registrar", texto: "Ahora (prepago) o todo al salir (cuenta abierta). Al registrar, el tiempo de cada niño empieza a correr." },
-    ],
-  },
-  {
-    id: "sala",
+    // B4-12 (M-34): la sala, la entrada y la salida son una pantalla; sus tres recorridos, uno.
+    id: "parque",
     version: 1,
     ruta: "/monitor",
     pasos: [
       { objetivo: en("sala-cifras"), titulo: "La sala de un vistazo", texto: "Cuántos niños hay, a cuántos se les cumplió el tiempo y cuántos están por vencer." },
-      { objetivo: en("sala-lector"), titulo: "Abrir la ficha de un niño", texto: "Pasa su pulsera por el lector, o tócalo en la lista." },
-      { objetivo: en("sala-tarjetas"), titulo: "Cada niño, su tiempo", texto: "Verde en tiempo, amarillo por vencer, rojo cumplido. En su ficha: recargar, pausa por comida, nombre y mesa." },
-    ],
-  },
-  {
-    id: "salida",
-    version: 1,
-    ruta: "/salida",
-    pasos: [
-      { objetivo: en("salida-lector"), titulo: "Pasa la pulsera de quien se va", texto: "Si se va la familia entera, pasa todas seguidas: se liquidan juntas y se cobra una sola vez." },
-      { objetivo: en("salida-registrar"), titulo: "Quién lo recoge y dónde se paga", texto: "Marca quién recoge al niño y elige si se paga en caja o se carga a la mesa de su familia." },
+      {
+        objetivo: en("sala-lector"),
+        titulo: "Un solo lector",
+        texto: "Pasa cualquier pulsera, sin tocar la pantalla: una nueva abre la entrada con ella; la de un niño en la sala, su ficha. Si el lector no responde, la cámara.",
+      },
+      { objetivo: en("parque-sin-pulsera"), titulo: "Niños sin pulsera", texto: "Un niño que no tolera la pulsera entra desde aquí, por su nombre. El sistema le da su propio código." },
+      { objetivo: en("sala-buscar"), titulo: "Buscar a una familia", texto: "Por el nombre, la cédula o el teléfono del representante: qué niños suyos están en la sala." },
+      {
+        objetivo: en("sala-tarjetas"),
+        titulo: "Cada niño, su tiempo",
+        texto: "Verde en tiempo, amarillo por vencer, rojo cumplido. En su ficha: recargar, pausa por comida, nombre, mesa y la salida, la suya o la de toda la familia.",
+      },
     ],
   },
   {
