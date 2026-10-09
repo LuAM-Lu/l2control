@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.103.0] — 2026-10-09 · Hacia la puesta en marcha
+
 Aviso de pulseras por vencer (B4-15, M-34).
 
 ### Añadido

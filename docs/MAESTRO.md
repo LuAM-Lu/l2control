@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.102.0 · 102 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.103.0 · 103 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1905,7 +1905,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   A 1366×768, 1280×800, 800×1280 y 390 px (en el teléfono, en el segundo paso), en los dos temas, sin errores.*
   *· Visto de paso: el botón de quien recoge en la salida corta el nombre con «…»; va con el rediseño del parque (B4-12).*
 - [x] **B4-15 · Aviso de pulseras por vencer** (M-34, S-10).
-  *Hecho el 2026-10-09, en `feat/b4-15`.*
+  *Hecho el 2026-10-09 (v0.103.0), en `feat/b4-15`.*
   → **El aviso.** Con sonido en las pantallas del parque y en la caja, y vibración en Android: uno por niño al entrar en
   «por vencer» (el umbral del tarifario) y otro al cumplirse su tiempo; un toque lleva a su ficha. Se calla por equipo
   durante un rato. Funciona con la app abierta: no es una notificación del sistema.
