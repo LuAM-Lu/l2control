@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.91.0 · 91 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.92.0 · 92 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1927,7 +1927,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
 - ~~**B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09)~~. **Retirado el 2026-09-28
   (D-GAV):** la impresora de caja no lleva gaveta electrónica; la gaveta es manual. No cuenta en la ruta.
 - [x] **B5-4 · La impresora: acentos, USB y tinta oscura** (M-34, S-1, S-18, S-21).
-  *Hecho el 2026-10-08, en `feat/b5-4`.*
+  *Hecho el 2026-10-08 (v0.92.0), en `feat/b5-4`.*
   → **Acentos.** Cada papel apaga el modo chino (FS .) antes de elegir la página de códigos (desde v0.90.2), y la página
   se elige en la ficha de la impresora (850 de fábrica; 858, 1252 y las que use el modelo), con «Probar acentos», que
   imprime «áéíóú ñ ¿¡ $ Bs.» con cada una para elegir la que sale bien.
