@@ -14,7 +14,7 @@ según M-10 (docs/MAESTRO.md §2):
 Las versiones hasta 0.13.0 se reconstruyeron el 2026-09-26 desde el historial; sus etiquetas apuntan
 al commit que entregó cada paso.
 
-## [Sin publicar]
+## [0.94.0] — 2026-10-09 · Hacia la puesta en marcha
 
 La pulsera vinculada sale a su mesa (B4-14, M-34).
 

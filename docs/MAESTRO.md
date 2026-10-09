@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.93.0 · 93 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.94.0 · 94 de 109 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. Decidido M-34 (la segunda visita al local: dos correcciones y 14 pasos, todo antes de la
 1.0.0), en curso.** M-28 y M-29
@@ -1835,7 +1835,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cada niño y el primero pasó a «Tiempo cumplido» al acabar su gracia. El aviso sin red en 1,5 s con su hora, y se quita al
   volver. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar ni cortar y sin errores de consola.*
 - [x] **B4-14 · La pulsera vinculada sale a su mesa** (M-34, S-19).
-  *Hecho el 2026-10-09, en `feat/b4-14`.*
+  *Hecho el 2026-10-09 (v0.94.0), en `feat/b4-14`.*
   → **A su mesa, sin preguntar.** La salida de una pulsera vinculada va a la cuenta de su mesa, con el paquete por uso y
   el tiempo de más; para ella no se ofrece «Caja / A una mesa», y se dice por qué. Hoy, si no se elige la mesa, el tiempo
   de más cae en la cuenta de la familia.
