@@ -70,8 +70,11 @@ la 1.0.0.
   M-31 (B3-9): el punto de cobro (fuera de él, el turno se abre con el PIN de administración y queda avisado) y la
   entrada al parque desde la caja. Con M-32 (B3-10): un buscador en la carta de la caja, lo que no se vende al final y
   el pie de la cuenta en una fila, con «Cobrar $ …». El detalle de cada paso está en su casilla de §3 y en `CHANGELOG.md`.
-- **Staging:** `https://217-216-48-54.sslip.io` (Etapa 7). Se pone al día solo con cada versión publicada (T-8b),
-  hace un respaldo cifrado cada noche que baja una PC del local (B7-4) y pasó la revisión de seguridad (B7-5).
+- **El VPS es la operación real (M-36):** `https://217-216-48-54.sslip.io`, con perfiles, equipos e inventario de
+  verdad. Sigue en modo staging (D-ENT): se pone al día solo con cada versión publicada (T-8b), así que **no se publica
+  una versión sin avisar al usuario**. Hace un respaldo cifrado cada noche que baja la PC del local (B7-4; «Respaldar
+  ahora» desde el panel, B7-8), limpia sus imágenes viejas al actualizarse (0.104.1) y pasó la revisión de seguridad
+  (B7-5). Lo que sigue de este punto es anterior a M-36.
   **Pendiente de administración allí:** preparar la PC de los respaldos (Ajustes → Sistema → Respaldos), cargar la
   semilla (Ajustes → Sistema → Semilla del local) y los feriados (Ajustes → Tasas de cambio → Feriados), y elegir el producto «Medias» en Ajustes → Sucursal (M-34); y del usuario, poner `L2_SMTP_URL` y `L2_CORREO_SOPORTE` para que los
   reportes de problemas avisen por correo (T-11).
@@ -79,10 +82,21 @@ la 1.0.0.
   por confirmar con el cliente las propuestas de fábrica de P-1, P-3, P-5, P-6 y P-14.
 - **M-28 y M-29 (2026-10-08) entregados enteros:** los once pasos, de v0.74.0 a v0.84.0, sin pedir el sí entre uno y
   otro (lo pidió el usuario). Para usarlos en el staging: la cuenta de soporte se marca en Ajustes → Personas y equipos
-  (y allí sí abre turnos y cobra); la corrida limpia de producción es base nueva más la semilla con casillas (B7-7).
-- **Después, para producción:** B7-3 en el local, con los equipos reales (y T-8c comprobado en la laptop de caja); y la Etapa 8 (red del local con 4G,
-  runbooks del técnico, el procedimiento en papel y la capacitación (M-30: el manual es el de la app), operación en
-  paralelo y puesta en marcha, que es la 1.0.0).
+  (y allí sí abre turnos y cobra); la corrida limpia de producción es base nueva más la semilla con casillas (B7-7;
+  con M-36 no aplica a este local: la 1.0.0 se hace sobre la base del VPS).
+- **Lo que falta para la 1.0.0 (M-36), en corto:**
+  1. **B8-3, el usuario, en curso desde el 2026-10-09:** el sistema y el método escrito a la vez hasta que los totales
+     coincidan todos los días; la capacitación por rol con los recorridos de la app (cierra B8-2). Lo que salga lo
+     corrige Claude como PATCH y se publica cuando el usuario diga.
+  2. **B8-1, el usuario, en el local:** el router 4G de respaldo que cambie solo y la UPS. Prueba: sin el internet
+     principal, la caja cobra y la sala se actualiza. Los equipos reales ya están aprobados.
+  3. **B7-3, el usuario, en el local:** la Xprinter por USB (Ajustes → Impresoras → USB y la prueba de las tildes; por
+     la red ya imprime); la app en el teléfono, la tablet y la laptop, también por el 4G; el agente se actualiza solo
+     con la próxima versión.
+  4. **B8-4 = 1.0.0:** Claude lista, solo leyendo, lo que quedó de prueba en la base del VPS y el usuario decide; el VPS
+     pasa a modo producción (D-ENT, con su sí y la hora) y se etiqueta la 1.0.0. La reversión es el procedimiento en
+     papel.
+  Opcional del usuario: `L2_SMTP_URL` y `L2_CORREO_SOPORTE` en el VPS (el aviso por correo de los reportes).
 
 La historia de esta sección (qué decía al entregar cada paso y lo que se probó en la base local) está en §9.
 
@@ -3689,6 +3703,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   a secas aplicó su migración (solo expande) en la base local del cliente antes de fusionarse: no se edita más.
 - **2026-10-08** · B4-13 publicado como v0.91.0. B5-4 entregado: la impresora por red o por USB, la página de las tildes
   con su prueba y la impresión oscura.
+- **2026-10-09** · M-34 terminado (v0.94.0 a v0.104.0). El VPS se quedó sin disco y se cortó la 0.95.0: la 0.104.1
+  limpia las imágenes viejas y rehace `etiqueta.env`. M-35 decidido y entregado entero (v0.104.2 a v0.111.0). M-36: el
+  VPS ya es la operación real; empieza la operación en paralelo (B8-3) y no se publica sin avisar.
 
 ---
 
