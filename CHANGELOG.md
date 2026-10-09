@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.98.0] — 2026-10-09 · Hacia la puesta en marcha
+
 Productos: editar a la vista, retirar y la carga por lista (B9-11, M-34).
 
 ### Añadido
