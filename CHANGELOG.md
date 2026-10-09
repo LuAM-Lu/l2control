@@ -16,6 +16,12 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+Notas rápidas del mesero (B6-12, M-34).
+
+### Añadido
+- **«Las más pedidas» al poner una nota a un plato:** las que más se escribieron para ese plato en los últimos 60 días (y
+  las de su categoría, si tiene pocas). Un toque la añade y lo escrito se queda. Se aprenden solas de los pedidos.
+
 ## [0.103.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Aviso de pulseras por vencer (B4-15, M-34).

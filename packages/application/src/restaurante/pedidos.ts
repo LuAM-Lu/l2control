@@ -29,6 +29,9 @@ import {
   ReimprimirComandaCommandSchema,
   ServirPedidoCommandSchema,
   DeshacerServidoCommandSchema,
+  NotasRapidasQuerySchema,
+  NotasRapidasSchema,
+  type NotasRapidasDto,
   problemasDe,
   type AccountLineDto,
   type FamilyAccountDto,
@@ -42,6 +45,7 @@ import {
   estadoDeComanda,
   estadoDelPedido,
   lineasDelPedido,
+  notasSugeridas,
   partesDelPedido,
   problemaParaDeshacer,
   servidoDelPedido,
@@ -88,6 +92,11 @@ export interface CasosPedidos {
   servir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PedidoDto>>;
   /** Deshace, en el momento, un plato marcado servido por error (`DeshacerServidoCommandSchema`, B6-11). */
   deshacerServido(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PedidoDto>>;
+  /**
+   * Las notas rápidas de un plato (`NotasRapidasQuerySchema`, B6-12): las 5 más escritas para ese producto en los
+   * últimos 60 días en esta sucursal y, si tiene pocas, las de su categoría. Las aprende de los pedidos; nadie las configura.
+   */
+  notasRapidas(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<NotasRapidasDto>>;
 }
 
 /** Quién ve los pedidos: quien los toma y la caja, que cobra la mesa y ve si salió la comanda. */
@@ -428,8 +437,38 @@ export function casosPedidos(base: Base): CasosPedidos {
       }
       return { ok: true, valor: r };
     },
+
+    async notasRapidas(ctx, entrada, ahora = Date.now()) {
+      const v = NotasRapidasQuerySchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Ese plato no es válido.", problemas: problemasDe(v.error) };
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<NotasRapidasDto>> => {
+        const rechazo = await exigirPermiso(tx, ctx, "pedido.tomar");
+        if (rechazo) return rechazo;
+        const producto = await tx.product.findUnique({ where: { id: v.data.productId }, select: { id: true, category: true } });
+        if (!producto) return { ok: true, valor: { notas: [] } };
+        const deLaCategoria = (await tx.product.findMany({ where: { category: producto.category }, select: { id: true } })).map((p) => p.id);
+        // Las notas de los pedidos de esta sucursal, de lo más nuevo a lo más viejo: el empate lo gana la más reciente.
+        const filas = await tx.$queryRaw<{ producto: string; nota: string }[]>`
+          SELECT i->>'productId' AS producto, i->>'nota' AS nota
+          FROM kitchen_order k, jsonb_array_elements(k.items) i
+          WHERE k.branch_id = ${ctx.branchId}::uuid
+            AND k.created_at >= ${new Date(ahora - DIAS_DE_NOTAS * 86_400_000)}
+            AND i->>'productId' = ANY(${deLaCategoria}::text[])
+            AND coalesce(btrim(i->>'nota'), '') <> ''
+          ORDER BY k.created_at DESC
+          LIMIT 3000`;
+        const notas = notasSugeridas(
+          filas.filter((f) => f.producto === producto.id).map((f) => f.nota),
+          filas.filter((f) => f.producto !== producto.id).map((f) => f.nota),
+        );
+        return { ok: true, valor: NotasRapidasSchema.parse({ notas }) };
+      });
+    },
   };
 }
+
+/** De cuántos días atrás se aprenden las notas rápidas (B6-12). */
+const DIAS_DE_NOTAS = 60;
 
 /** Lo servido de cada plato de un pedido (B6-11): sus marcas sobre lo marcado por pedido antes de este paso. */
 async function servidosDe(tx: Transaccion, fila: FilaPedido) {
