@@ -22,6 +22,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   AnularCobroCommandSchema,
   AnularPedidoCommandSchema,
+  CerrarMesaSinCobrarCommandSchema,
   LiberarMesaCommandSchema,
   CobrarCuentaCommandSchema,
   CortesiaCommandSchema,
@@ -37,6 +38,7 @@ import {
   type CuentaYLibroDto,
   type CuentasDelLocalDto,
   type AnularPedidoCommand,
+  type MotivoAnulacionPedido,
   type FamilyAccountDto,
   type Rechazo,
   type Resultado,
@@ -50,6 +52,7 @@ import {
   USDT_AT_PAR,
   accountChangeProblem,
   anulacionesProblem,
+  anulacionProblem,
   closeWithoutConsumption,
   sinConsumoProblem,
   chargeableLines,
@@ -100,7 +103,7 @@ import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Action } from "@l2/domain-identity";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
-import { esSoporte, exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
+import { cargarActor, esSoporte, exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { autorizadoresPara, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import type { Cifrador } from "../identidad/cifrado.ts";
 import { programadaDeFila } from "../dinero/impuestos.ts";
@@ -176,6 +179,12 @@ export interface CasosCuentas {
    * cierra «sin consumo» (o cobrada, si ya se cobró una parte). Sin PIN: no se deja de cobrar nada.
    */
   liberarMesa(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
+  /**
+   * Cierra una mesa sin cobrar (`CerrarMesaSinCobrarCommandSchema`, B6-13, M-35): anula todo lo que debe, de todos sus
+   * pedidos (cada uno con su papel «ANULAR» y su inventario, como B6-6), y la libera. De supervisión y administración,
+   * con su PIN y un motivo. Lo que queda que no se anula (el tiempo del parque) lo impide.
+   */
+  cerrarSinCobrar(ctx: Contexto, entrada: unknown, autorizacion: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
   /** Quiénes pueden autorizar a quien opera una acción de la caja con 🔐 (vacío si no le hace falta). */
   autorizadores(ctx: Contexto, accion?: AccionDeCaja): Promise<{ id: string; nombre: string; rol: string }[]>;
 }
@@ -1108,122 +1117,14 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           if (!fila || fila.branchId !== ctx.branchId) return noExiste;
           const actual = (await vigenteDe(tx, cmd.accountId))!;
           if (actual.version !== cmd.version) return cuentaCambiada;
-          const problema = anulacionesProblem(actual.cuenta, cmd.lineIds);
-          if (problema) return invalido(MENSAJE_ANULACION[problema.problem], ["lineIds", cmd.lineIds.indexOf(problema.lineId)], problema.problem);
-          const anuladas = actual.cuenta.lines.filter((l) => cmd.lineIds.includes(l.id));
-          const pedido = await tx.kitchenOrder.findUnique({ where: { id: anuladas[0]!.orderId! } });
-          if (!pedido || pedido.branchId !== ctx.branchId) return noExiste;
-          // El papel «ANULAR» va al área de cada plato (B6-10): lo de cocina a la cocina, lo de barra a la barra; lo que se
-          // sirvió sin papel no lo lleva. Sin la impresora de un área, esa área no se entera (M-18): no se anula a ciegas.
-          const delPedido = pedido.items as unknown as LineaGuardada[];
-          const porArea = new Map<AreaDeComanda | null, typeof anuladas>();
-          for (const l of anuladas) {
-            const area = areaEnElPedido(delPedido, l.productId);
-            if (area === "SIN_PAPEL") continue;
-            porArea.set(area, [...(porArea.get(area) ?? []), l]);
-          }
-          const papeles = [...porArea].sort(([a], [b]) => (a === null ? -1 : AREAS_DE_COMANDA.indexOf(a)) - (b === null ? -1 : AREAS_DE_COMANDA.indexOf(b)));
-          const falta = await areaSinImpresora(tx, ctx.branchId, papeles.map(([a]) => a));
-          if (falta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: sinImpresoraPara(falta, `${falta === "BARRA" ? "la barra" : "la cocina"} no se enteraría de la anulación`) };
+          const prep = await prepararAnulacion(tx, ctx, actual.cuenta, cmd.lineIds, true);
+          if ("ok" in prep) return prep;
 
           // La autorización se comprueba y se registra ANTES de anular nada (§7.3).
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "pedido.anularEnProduccion", autorizacion, ahora, CON_PIN);
           if (!permiso.ok) return permiso;
           const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { id: true, fullName: true, role: true } });
-
-          // Lo anulado sale de lo que la cuenta tiene sacado del estante (B6-6): se calcula antes de guardar.
-          const devolucion = await comprobarExistencias(
-            tx,
-            ctx,
-            cmd.accountId,
-            actual.cuenta.lines,
-            actual.cuenta.lines.filter((l) => !cmd.lineIds.includes(l.id)),
-            () => ["lineIds"],
-          );
-          if ("ok" in devolucion) return devolucion;
-
-          const anulacion = {
-            motivo: cmd.motivo,
-            ...(cmd.detalle ? { detalle: cmd.detalle } : {}),
-            autorizadaPor: { id: autorizador.id, name: autorizador.fullName, role: autorizador.role },
-            en: new Date(ahora).toISOString(),
-            preparado: cmd.preparado,
-          };
-          const conAnulacion = cmd.lineIds.reduce((c, id) => withAnulacion(c, id, anulacion), actual.cuenta);
-          const nueva = FamilyAccountSchema.parse({ ...conAnulacion, version: actual.version + 1 });
-          const quien = await nombreDe(tx, ctx);
-          await guardarVersion(tx, ctx, nueva, { cause: "ANULACION_PEDIDO", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
-
-          // No preparado: vuelve al estante. Preparado: vuelve y sale como merma, con su costo y la misma
-          // autorización (M-18): la existencia queda igual, pero el reporte ve una pérdida y no una venta.
-          await asentarExistencias(tx, ctx, devolucion, { accountId: cmd.accountId, version: nueva.version!, ahora, quien: quien.nombre });
-          if (cmd.preparado && devolucion.length > 0) {
-            const hay = await existenciasDe(tx, ctx.branchId, devolucion.map((m) => m.productId));
-            await asentarAjuste(tx, ctx, {
-              kind: "SALIDA",
-              reason: "MERMA",
-              note: `Anulado ya preparado · comanda ${orden(pedido.number)} · ${rotuloDePedido(pedido)}`,
-              content: devolucion.map((m) => ({ productId: m.productId, cantidad: m.quantity })),
-              operationKey: claveSecundaria(cmd.idempotencyKey, "merma"),
-              ahora,
-              autorizadoPor: autorizador.id,
-              movimientos: devolucion.map((m) => ({
-                productId: m.productId,
-                quantity: -m.quantity,
-                valueMinor: -costOfUnits(hay.get(m.productId) ?? { quantity: 0, valueMinor: 0n }, m.quantity),
-              })),
-              resumen: { motivo: "MERMA", anulacionDe: { cuenta: cmd.accountId, comanda: pedido.number } },
-            });
-          }
-
-          // El papel «ANULAR» de cada área en su impresora, en la misma transacción (M-18, B6-10).
-          for (const [area, lineas] of papeles) {
-            const porPlato = new Map<string, number>();
-            for (const l of lineas) porPlato.set(l.concept, (porPlato.get(l.concept) ?? 0) + 1);
-            const trabajo = await encolarEn(
-              tx,
-              ctx,
-              {
-                tipo: "ANULACION",
-                para: oficioDe(area),
-                ...(area ? { area } : {}),
-                titulo: `Anular · comanda ${orden(pedido.number)}${area ? ` · ${NOMBRE_DE_AREA[area]}` : ""} · ${rotuloDePedido(pedido)}`,
-                orderId: pedido.id,
-                documento: documentoDeAnulacion(
-                  {
-                    numero: pedido.number,
-                    mesa: pedido.tableId === null ? null : pedido.tableLabel,
-                    nombreCuenta: pedido.accountLabel,
-                    anuladoEn: ahora,
-                    autorizadoPor: autorizador.fullName,
-                    motivo: `${TEXTO_MOTIVO_ANULACION[cmd.motivo]}${cmd.detalle ? `: ${cmd.detalle}` : ""}`,
-                    lineas: [...porPlato].map(([nombre, cantidad]) => ({ nombre, cantidad })),
-                    area,
-                  },
-                  await ajustesDe(tx, ctx.branchId),
-                ),
-              },
-              ahora,
-            );
-            if ("ok" in trabajo) throw new Error(`La anulación no encoló su papel: ${trabajo.mensaje}`);
-          }
-
-          await auditar(tx, ctx, {
-            action: "pedido.anular",
-            entityType: "account",
-            entityId: nueva.id,
-            authorizedBy: autorizador.id,
-            reason: cmd.motivo,
-            after: {
-              lineIds: cmd.lineIds,
-              conceptos: anuladas.map((l) => l.concept),
-              comanda: pedido.number,
-              preparado: cmd.preparado,
-              detalle: cmd.detalle ?? null,
-              version: nueva.version,
-            },
-          });
-          return nueva;
+          return asentarAnulacion(tx, ctx, actual, prep, { motivo: cmd.motivo, detalle: cmd.detalle, preparado: cmd.preparado }, autorizador, ahora, cmd.idempotencyKey);
         });
 
       try {
@@ -1234,6 +1135,103 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
         }
         return { ok: true, valor: r };
       } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
+    async cerrarSinCobrar(ctx, entrada, autorizacion, ahora = Date.now()) {
+      const v = CerrarMesaSinCobrarCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "La mesa no se cerró: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<FamilyAccountDto | Rechazo> => {
+          // De supervisión y administración (M-35), por su rol: el mesero no, ni con una autorización. Supervisión se
+          // autoriza a sí misma con su PIN (D-AUT), como al anular un pedido.
+          const actor = ctx.sistema ? null : ctx.quien?.userId ? await cargarActor(tx, ctx.quien.userId, ctx.branchId) : null;
+          if (!ctx.sistema && actor?.role !== "ADMIN" && actor?.role !== "SUPERVISOR") {
+            return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Cerrar una mesa sin cobrar es de supervisión y administración." };
+          }
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.accountId !== cmd.accountId || previa.cause !== "LIBERAR") return conflictoDeClave;
+            return (await vigenteDe(tx, cmd.accountId))!.cuenta;
+          }
+          const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
+          if (!fila || fila.branchId !== ctx.branchId) return noExiste;
+          const actual = (await vigenteDe(tx, cmd.accountId))!;
+          if (actual.version !== cmd.version) return cuentaCambiada;
+          const c = actual.cuenta;
+          if (c.kind !== "MESA" && !(c.kind === "MOSTRADOR" && c.dePie)) return { ok: false, motivo: "INVALIDO", mensaje: "Solo se cierra así una cuenta del salón." };
+          if (c.status !== "ABIERTA" && c.status !== "POR_COBRAR") return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta ya no está abierta." };
+
+          // Lo que se anula: todo lo que debe y se puede anular, agrupado por su pedido (cada uno con su papel).
+          const anulables = c.lines.filter((l) => anulacionProblem(c, l.id) === null);
+          const anulada = { motivo: cmd.motivo, autorizadaPor: { id: "", name: "", role: "" }, en: new Date(ahora).toISOString(), preparado: cmd.preparado };
+          const quedaria = chargeableLines(anulables.reduce((x, l) => withAnulacion(x, l.id, anulada), c));
+          if (quedaria.length > 0) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: `Le queda por cobrar lo que no se anula aquí (${[...new Set(quedaria.map((l) => l.concept))].slice(0, 3).join(", ")}): el tiempo del parque se resuelve en la sala.`,
+            };
+          }
+          const grupos = new Map<string, string[]>();
+          for (const l of anulables) grupos.set(l.orderId ?? "", [...(grupos.get(l.orderId ?? "") ?? []), l.id]);
+          const preparadas: PreparacionDeAnulacion[] = [];
+          for (const [orderId, ids] of grupos) {
+            const prep = await prepararAnulacion(tx, ctx, c, ids, orderId !== "");
+            if ("ok" in prep) return prep;
+            preparadas.push(prep);
+          }
+
+          // La autorización se comprueba y se registra ANTES de anular nada (§7.3): su propio PIN.
+          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "pedido.anularEnProduccion", autorizacion, ahora, CON_PIN);
+          if (!permiso.ok) return permiso;
+          const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { id: true, fullName: true, role: true } });
+
+          // Cada pedido, su anulación; si una no puede, no queda ninguna (se deshace la transacción).
+          let vigente = actual;
+          for (const [i, prep] of preparadas.entries()) {
+            const r = await asentarAnulacion(tx, ctx, vigente, prep, { motivo: cmd.motivo, detalle: cmd.detalle, preparado: cmd.preparado }, autorizador, ahora, claveSecundaria(cmd.idempotencyKey, `anular-${i}`));
+            if ("ok" in r) throw new CierreDeshecho(r);
+            vigente = { ...vigente, cuenta: r, version: r.version! };
+          }
+          // Y la mesa, libre: sin nada que cobrar, «sin consumo» (o cobrada, si se cobró una parte antes).
+          const { pendingSince: _, ...sinEspera } = closeWithoutConsumption(vigente.cuenta);
+          const nueva = FamilyAccountSchema.parse({ ...sinEspera, version: vigente.version + 1 });
+          const quien = await nombreDe(tx, ctx);
+          await guardarVersion(tx, ctx, nueva, { cause: "LIBERAR", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await auditar(tx, ctx, {
+            action: "mesa.cerrar_sin_cobrar",
+            entityType: "account",
+            entityId: nueva.id,
+            authorizedBy: autorizador.id,
+            reason: cmd.motivo,
+            after: {
+              orderNumber: nueva.orderNumber ?? null,
+              mesa: nueva.tableLabel ?? null,
+              anulados: anulables.map((l) => l.concept),
+              preparado: cmd.preparado,
+              detalle: cmd.detalle ?? null,
+              status: nueva.status,
+              version: nueva.version,
+            },
+          });
+          return nueva;
+        });
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "mesa.cerrar_sin_cobrar", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (e instanceof CierreDeshecho) return e.rechazo;
         if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
         const r = await intentar();
         return "ok" in r ? r : { ok: true, valor: r };
@@ -1612,4 +1610,181 @@ function resumenDe(c: FamilyAccountDto) {
 /** Un rechazo del libro dicho en los términos del cobro: sus asientos son los pagos de la caja. */
 function renombrarRuta(r: Rechazo, de: string, a: string): Rechazo {
   return r.problemas ? { ...r, problemas: r.problemas.map((p) => ({ ...p, path: p.path.map((x) => (x === de ? a : x)) })) } : r;
+}
+
+/* ─────────────────────────────── anular platos: un pedido (B6-6) o la mesa entera (B6-13) */
+
+/** Una anulación de la mesa entera que no pudo: se lanza para deshacer la transacción y se devuelve su rechazo. */
+class CierreDeshecho extends Error {
+  readonly rechazo: Rechazo;
+  constructor(rechazo: Rechazo) {
+    super(rechazo.mensaje);
+    this.rechazo = rechazo;
+  }
+}
+
+type FilaDePedido = NonNullable<Awaited<ReturnType<Transaccion["kitchenOrder"]["findUnique"]>>>;
+type LineaDeCuenta = FamilyAccountDto["lines"][number];
+/** Lo comprobado de una anulación antes de la autorización: los platos, su pedido (si salieron de uno) y sus papeles. */
+type PreparacionDeAnulacion = Readonly<{
+  lineIds: readonly string[];
+  anuladas: readonly LineaDeCuenta[];
+  pedido: FilaDePedido | null;
+  papeles: readonly (readonly [AreaDeComanda | null, readonly LineaDeCuenta[]])[];
+}>;
+
+/**
+ * Lo que se comprueba de una anulación antes de pedir la autorización (B6-6): que cada plato se pueda anular y, si son
+ * de un pedido, que su papel «ANULAR» tenga impresora en su área (B6-10). `delMismoPedido`: todos de un pedido (anular un
+ * pedido); sin él, los platos que se añadieron sin pedido (desde la caja) no llevan papel (B6-13).
+ */
+async function prepararAnulacion(
+  tx: Transaccion,
+  ctx: Contexto,
+  cuenta: FamilyAccountDto,
+  lineIds: readonly string[],
+  delMismoPedido: boolean,
+): Promise<PreparacionDeAnulacion | Rechazo> {
+  if (delMismoPedido) {
+    const problema = anulacionesProblem(cuenta, lineIds);
+    if (problema) return invalido(MENSAJE_ANULACION[problema.problem], ["lineIds", lineIds.indexOf(problema.lineId)], problema.problem);
+  } else {
+    for (const [i, id] of lineIds.entries()) {
+      const problema = anulacionProblem(cuenta, id);
+      if (problema) return invalido(MENSAJE_ANULACION[problema], ["lineIds", i], problema);
+    }
+  }
+  const anuladas = cuenta.lines.filter((l) => lineIds.includes(l.id));
+  const orderId = anuladas[0]?.orderId;
+  if (!orderId) return { lineIds, anuladas, pedido: null, papeles: [] };
+  const pedido = await tx.kitchenOrder.findUnique({ where: { id: orderId } });
+  if (!pedido || pedido.branchId !== ctx.branchId) return noExiste;
+  // El papel «ANULAR» va al área de cada plato (B6-10): lo de cocina a la cocina, lo de barra a la barra; lo que se
+  // sirvió sin papel no lo lleva. Sin la impresora de un área, esa área no se entera (M-18): no se anula a ciegas.
+  const delPedido = pedido.items as unknown as LineaGuardada[];
+  const porArea = new Map<AreaDeComanda | null, LineaDeCuenta[]>();
+  for (const l of anuladas) {
+    const area = areaEnElPedido(delPedido, l.productId);
+    if (area === "SIN_PAPEL") continue;
+    porArea.set(area, [...(porArea.get(area) ?? []), l]);
+  }
+  const papeles = [...porArea].sort(([a], [b]) => (a === null ? -1 : AREAS_DE_COMANDA.indexOf(a)) - (b === null ? -1 : AREAS_DE_COMANDA.indexOf(b)));
+  const falta = await areaSinImpresora(tx, ctx.branchId, papeles.map(([a]) => a));
+  if (falta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: sinImpresoraPara(falta, `${falta === "BARRA" ? "la barra" : "la cocina"} no se enteraría de la anulación`) };
+  return { lineIds, anuladas, pedido, papeles };
+}
+
+/**
+ * Asienta una anulación ya autorizada (B6-6, M-18): los platos quedan anulados en una versión nueva de la cuenta, lo que
+ * salió del estante vuelve (o, si ya estaba preparado, vuelve y sale como merma), y a cada área le sale su papel
+ * «ANULAR». Todo en la transacción de quien llama.
+ */
+async function asentarAnulacion(
+  tx: Transaccion,
+  ctx: Contexto,
+  actual: NonNullable<Awaited<ReturnType<typeof vigenteDe>>>,
+  prep: PreparacionDeAnulacion,
+  que: Readonly<{ motivo: MotivoAnulacionPedido; detalle?: string | undefined; preparado: boolean }>,
+  autorizador: Readonly<{ id: string; fullName: string; role: string }>,
+  ahora: number,
+  operationKey: string,
+): Promise<FamilyAccountDto | Rechazo> {
+  const accountId = actual.cuenta.id;
+  // Lo anulado sale de lo que la cuenta tiene sacado del estante (B6-6): se calcula antes de guardar.
+  const devolucion = await comprobarExistencias(
+    tx,
+    ctx,
+    accountId,
+    actual.cuenta.lines,
+    actual.cuenta.lines.filter((l) => !prep.lineIds.includes(l.id)),
+    () => ["lineIds"],
+  );
+  if ("ok" in devolucion) return devolucion;
+
+  const anulacion = {
+    motivo: que.motivo,
+    ...(que.detalle ? { detalle: que.detalle } : {}),
+    autorizadaPor: { id: autorizador.id, name: autorizador.fullName, role: autorizador.role },
+    en: new Date(ahora).toISOString(),
+    preparado: que.preparado,
+  };
+  const conAnulacion = prep.lineIds.reduce((c, id) => withAnulacion(c, id, anulacion), actual.cuenta);
+  const nueva = FamilyAccountSchema.parse({ ...conAnulacion, version: actual.version + 1 });
+  const quien = await nombreDe(tx, ctx);
+  await guardarVersion(tx, ctx, nueva, { cause: "ANULACION_PEDIDO", operationKey, ahora, quien: quien.nombre });
+
+  // No preparado: vuelve al estante. Preparado: vuelve y sale como merma, con su costo y la misma
+  // autorización (M-18): la existencia queda igual, pero el reporte ve una pérdida y no una venta.
+  await asentarExistencias(tx, ctx, devolucion, { accountId, version: nueva.version!, ahora, quien: quien.nombre });
+  const pedido = prep.pedido;
+  const de = pedido ? `comanda ${orden(pedido.number)} · ${rotuloDePedido(pedido)}` : `cuenta ${nueva.orderNumber ? orden(nueva.orderNumber) : accountId}`;
+  if (que.preparado && devolucion.length > 0) {
+    const hay = await existenciasDe(tx, ctx.branchId, devolucion.map((m) => m.productId));
+    await asentarAjuste(tx, ctx, {
+      kind: "SALIDA",
+      reason: "MERMA",
+      note: `Anulado ya preparado · ${de}`,
+      content: devolucion.map((m) => ({ productId: m.productId, cantidad: m.quantity })),
+      operationKey: claveSecundaria(operationKey, "merma"),
+      ahora,
+      autorizadoPor: autorizador.id,
+      movimientos: devolucion.map((m) => ({
+        productId: m.productId,
+        quantity: -m.quantity,
+        valueMinor: -costOfUnits(hay.get(m.productId) ?? { quantity: 0, valueMinor: 0n }, m.quantity),
+      })),
+      resumen: { motivo: "MERMA", anulacionDe: { cuenta: accountId, comanda: pedido?.number ?? null } },
+    });
+  }
+
+  // El papel «ANULAR» de cada área en su impresora, en la misma transacción (M-18, B6-10).
+  if (pedido) {
+    for (const [area, lineas] of prep.papeles) {
+      const porPlato = new Map<string, number>();
+      for (const l of lineas) porPlato.set(l.concept, (porPlato.get(l.concept) ?? 0) + 1);
+      const trabajo = await encolarEn(
+        tx,
+        ctx,
+        {
+          tipo: "ANULACION",
+          para: oficioDe(area),
+          ...(area ? { area } : {}),
+          titulo: `Anular · comanda ${orden(pedido.number)}${area ? ` · ${NOMBRE_DE_AREA[area]}` : ""} · ${rotuloDePedido(pedido)}`,
+          orderId: pedido.id,
+          documento: documentoDeAnulacion(
+            {
+              numero: pedido.number,
+              mesa: pedido.tableId === null ? null : pedido.tableLabel,
+              nombreCuenta: pedido.accountLabel,
+              anuladoEn: ahora,
+              autorizadoPor: autorizador.fullName,
+              motivo: `${TEXTO_MOTIVO_ANULACION[que.motivo]}${que.detalle ? `: ${que.detalle}` : ""}`,
+              lineas: [...porPlato].map(([nombre, cantidad]) => ({ nombre, cantidad })),
+              area,
+            },
+            await ajustesDe(tx, ctx.branchId),
+          ),
+        },
+        ahora,
+      );
+      if ("ok" in trabajo) throw new Error(`La anulación no encoló su papel: ${trabajo.mensaje}`);
+    }
+  }
+
+  await auditar(tx, ctx, {
+    action: "pedido.anular",
+    entityType: "account",
+    entityId: nueva.id,
+    authorizedBy: autorizador.id,
+    reason: que.motivo,
+    after: {
+      lineIds: prep.lineIds,
+      conceptos: prep.anuladas.map((l) => l.concept),
+      comanda: pedido?.number ?? null,
+      preparado: que.preparado,
+      detalle: que.detalle ?? null,
+      version: nueva.version,
+    },
+  });
+  return nueva;
 }

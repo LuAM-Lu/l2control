@@ -16,6 +16,20 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.106.0] — 2026-10-09 · Hacia la puesta en marcha
+
+Servir y cerrar la mesa (B6-13, M-35).
+
+### Añadido
+- **«¿Ya se sirvió todo?» al pedir la cuenta** si quedan platos sin marcar: «Sí, todo servido» los marca servidos sin
+  hora exacta (la atención en el salón no los cuenta como espera), o «Pedir la cuenta igual».
+- **«Cerrar la mesa sin cobrar…»**, de supervisión y administración, con su PIN: «Se fue sin pagar» (queda como deuda)
+  o «No consumió o fue un error», que anula todo lo que pidió (al estante o a merma, con su papel «ANULAR») y deja la
+  mesa libre.
+
+### Cambiado
+- **«Se fue sin pagar» en Mesas** ya no lo ve el mesero: está dentro de «Cerrar la mesa sin cobrar…».
+
 ## [0.105.0] — 2026-10-09 · Hacia la puesta en marcha
 
 La caja cerrada no mueve dinero, y el cierre se decide solo (B3-15, M-35).

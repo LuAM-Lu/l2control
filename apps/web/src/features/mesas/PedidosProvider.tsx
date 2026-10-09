@@ -24,7 +24,7 @@ type Valor = Readonly<{
   /** La comanda de un área (B6-10); sin ella, la única que tenga. */
   reimprimir: (pedidoId: string, area?: AreaDeComandaDto | null) => Promise<Resultado<PedidoDto>>;
   /** Marca servidos platos de un pedido (B6-11) o, sin decirlos, todo lo que falte (B6-8): termina su espera. */
-  servir: (pedidoId: string, lineas?: readonly number[]) => Promise<Resultado<PedidoDto>>;
+  servir: (pedidoId: string, lineas?: readonly number[], sinHora?: boolean) => Promise<Resultado<PedidoDto>>;
   /** Deshace, en el momento, un plato marcado servido (B6-11). */
   deshacer: (pedidoId: string, linea: number) => Promise<Resultado<PedidoDto>>;
 }>;
@@ -66,8 +66,8 @@ export function PedidosProvider({ inicial, children }: { inicial: readonly Pedid
     return r;
   }, []);
 
-  const servir = useCallback(async (pedidoId: string, lineas?: readonly number[]) => {
-    const r = await servirPedido({ pedidoId, ...(lineas ? { lineas: [...lineas] } : {}) }).catch(
+  const servir = useCallback(async (pedidoId: string, lineas?: readonly number[], sinHora?: boolean) => {
+    const r = await servirPedido({ pedidoId, ...(lineas ? { lineas: [...lineas] } : {}), ...(sinHora ? { sinHora: true } : {}) }).catch(
       (): Rechazo => ({ ...sinConexion, mensaje: "Sin conexión con el servidor: no se marcó servido." }),
     );
     if (r.ok) setPedidos((l) => conPedido(l, r.valor));

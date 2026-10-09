@@ -363,7 +363,17 @@ export function casosPedidos(base: Base): CasosPedidos {
             const quien = await nombreDe(tx, ctx);
             for (const i of nuevas) {
               await tx.kitchenOrderLineServed.create({
-                data: { tenantId: ctx.tenantId, orderId: fila.id, lineIndex: i, kind: "SERVIDO", at: new Date(ahora), by: ctx.quien?.userId ?? null, byName: quien.nombre, deviceId: ctx.quien?.deviceId ?? null },
+                data: {
+                  tenantId: ctx.tenantId,
+                  orderId: fila.id,
+                  lineIndex: i,
+                  kind: "SERVIDO",
+                  sinHora: v.data.sinHora ?? false,
+                  at: new Date(ahora),
+                  by: ctx.quien?.userId ?? null,
+                  byName: quien.nombre,
+                  deviceId: ctx.quien?.deviceId ?? null,
+                },
               });
             }
             const despues = await servidosDe(tx, fila);
@@ -384,6 +394,7 @@ export function casosPedidos(base: Base): CasosPedidos {
                 platos: nuevas.map((i) => lineas[i]!.nombre),
                 esperaMin: Math.max(0, Math.floor((ahora - fila.createdAt.getTime()) / 60_000)),
                 pedidoServido: entero !== null,
+                ...(v.data.sinHora ? { sinHora: true } : {}),
               },
             });
           }
@@ -490,7 +501,9 @@ async function servidosDeVarios(tx: Transaccion, filas: readonly FilaPedido[]) {
   // suyas): deshacer uno tiene que poder dejar el pedido sin servir.
   return new Map(
     filas.map((f) => {
-      const suyas: MarcaDePlato[] = marcas.filter((m) => m.orderId === f.id).map((m) => ({ linea: m.lineIndex, tipo: m.kind as MarcaDePlato["tipo"], en: m.at.getTime(), por: m.byName }));
+      const suyas: MarcaDePlato[] = marcas
+        .filter((m) => m.orderId === f.id)
+        .map((m) => ({ linea: m.lineIndex, tipo: m.kind as MarcaDePlato["tipo"], en: m.at.getTime(), por: m.byName, ...(m.sinHora ? { sinHora: true } : {}) }));
       const marcado = enteros.get(f.id) ?? null;
       const entero = marcado && suyas.every((m) => m.en > marcado.en) ? marcado : null;
       return [f.id, servidoPorPlato((f.items as unknown as LineaGuardada[]).length, suyas, entero)];
@@ -575,7 +588,7 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
   if (filas.length === 0) return [];
   // Cuándo se sirvió cada plato (B6-8, B6-11): sin marca, sigue esperando.
   const servidos = await servidosDeVarios(tx, filas);
-  const iso = (s: { en: number; por: string } | null) => (s ? { en: new Date(s.en).toISOString(), por: s.por } : null);
+  const iso = (s: { en: number; por: string; sinHora?: boolean | undefined } | null) => (s ? { en: new Date(s.en).toISOString(), por: s.por, sinHora: s.sinHora ?? false } : null);
   const trabajos = await tx.printJob.findMany({
     where: { orderId: { in: filas.map((f) => f.id) } },
     select: { orderId: true, kind: true, status: true, createdAt: true, copy: true, lastError: true, printerId: true, area: true },

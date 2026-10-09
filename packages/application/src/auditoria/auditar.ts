@@ -64,6 +64,7 @@ export type AccionAuditada =
   | "pedido.deshacer_servido"
   | "pedido.anular"
   | "mesa.liberar"
+  | "mesa.cerrar_sin_cobrar"
   | "evento.catalogo"
   | "evento.reservar"
   | "evento.cancelar"

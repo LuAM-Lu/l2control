@@ -1963,6 +1963,8 @@ model KitchenOrderLineServed {
   lineIndex Int      @map("line_index")
   /// SERVIDO o DESHECHO (CHECK).
   kind      String
+  /// Servido sin hora exacta (B6-13): marcado al pedir la cuenta; la atención no lo mide como espera.
+  sinHora   Boolean  @default(false) @map("sin_hora")
   at        DateTime @db.Timestamptz(3)
   by        String?  @db.Uuid
   byName    String   @map("by_name")

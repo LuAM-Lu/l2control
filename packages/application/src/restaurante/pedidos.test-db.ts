@@ -725,3 +725,35 @@ describe("notas rápidas del mesero (B6-12)", () => {
     assert.deepEqual(valor(await otro.app.pedidos.notasRapidas(otroMesero, { productId: ids["Tequeños"] }, AHORA)).notas, []);
   });
 });
+
+describe("servir y cerrar la mesa (B6-13)", () => {
+  test("«¿Ya se sirvió todo?» al pedir la cuenta: servidos sin hora exacta", async () => {
+    const id = randomUUID();
+    valor(await enviar(mesero, "mesa-4", [linea("Tequeños", 2)], id, AHORA));
+    const p = valor(await l.app.pedidos.servir(mesero, { pedidoId: id, sinHora: true }, AHORA + 30 * MIN));
+    assert.equal(p.lineas[0]!.servido?.sinHora, true);
+    assert.notEqual(p.servido, null, "el pedido queda servido");
+    const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "kitchen_order", entityId: id });
+    assert.equal((asientos.find((a) => a.action === "pedido.servir")?.after as { sinHora?: boolean }).sinHora, true);
+  });
+
+  test("cerrar la mesa sin cobrar: de supervisión con su PIN; anula todo, con su papel, y la deja libre", async () => {
+    const ctxSupervisor = await contextoDe(l, await crearEquipo(l, "Salón de supervisión"), supervisor, "5937");
+    await sentarDePrueba(l, mesero, "mesa-3", AHORA - MIN);
+    const id = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-3", [linea("Tequeños", 2)], id, AHORA));
+    const cmd = { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, motivo: "CLIENTE_DESISTIO", preparado: false };
+    // El mesero no: ni con la autorización de supervisión (es de quien lo tiene permitido).
+    const delMesero = await l.app.cuentas.cerrarSinCobrar(mesero, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "Lo autorizo" }, AHORA);
+    assert.equal(!delMesero.ok && delMesero.motivo, "NO_PERMITIDO");
+    const cerrada = valor(await l.app.cuentas.cerrarSinCobrar(ctxSupervisor, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "No consumió" }, AHORA + MIN));
+    assert.equal(cerrada.status, "SIN_CONSUMO");
+    assert.ok(cerrada.lines.filter((x) => x.orderId === id).every((x) => x.anulacion?.motivo === "CLIENTE_DESISTIO"));
+    assert.deepEqual((await trabajosDe(id)).map((t) => t.kind).sort(), ["ANULACION", "COMANDA"]);
+    // Repetirlo devuelve la cuenta como quedó.
+    const otra = valor(await l.app.cuentas.cerrarSinCobrar(ctxSupervisor, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "No consumió" }, AHORA + MIN));
+    assert.equal(otra.version, cerrada.version);
+    const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "account", entityId: cuenta.id });
+    assert.ok(asientos.some((a) => a.action === "mesa.cerrar_sin_cobrar"));
+  });
+});

@@ -304,7 +304,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     roles: CAJA,
     proposito: "Lo que dejaron sin pagar quienes se fueron: a nombre de su cliente, con lo que deben, quién los atendió y quién lo autorizó.",
     pasos: [
-      "Una deuda nace con «Se fue sin pagar» en la caja, en Mesas o al cerrar el turno, con el PIN de supervisión. La cuenta sale de la cola y del cierre y la mesa queda libre.",
+      "Una deuda nace con «Se fue sin pagar» en la caja, en Mesas («Cerrar la mesa sin cobrar…», de supervisión) o al cerrar el turno, con el PIN de supervisión. La cuenta sale de la cola y del cierre y la mesa queda libre.",
       "Cuando el cliente vuelve: «Cobrar» pasa a la caja una cuenta con lo que consumió, a su nombre, y se cobra con la tasa de hoy. Cobrada entera, la deuda queda cobrada.",
       "Si vino pero no pagó: «Devolver a deudas» saca su cuenta de la caja y la deuda sigue pendiente.",
       "«Dar por perdida» es de administración, con su PIN y un motivo. Nada se borra: queda en «Perdidas».",
@@ -409,8 +409,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "En el pedido se ve cada papel: «Cocina: impresa», «Barra: no salió». Cada uno se vuelve a imprimir por su cuenta.",
       "Al poner una nota a un plato salen «Las más pedidas»: las que más se escribieron para ese plato (o su categoría) en los últimos 60 días. Un toque la añade; lo que escribas se queda. Se aprenden solas de los pedidos.",
       "Cuando un plato llega a la mesa, toca «Servido» en su renglón (o «Servir todo» lo que falte): ahí termina su espera, y el pedido queda servido con su último plato. Si lo marcaste por error, «Deshacer» en los 5 minutos siguientes. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
-      "«Pide la cuenta» la manda a caja. Si no consumieron nada, «Liberar».",
-      "Si se fueron sin pagar: «Se fue sin pagar», con el PIN de supervisión. La mesa queda libre y lo que deben, a nombre del cliente. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
+      "«Pide la cuenta» la manda a caja. Si queda algún plato sin marcar servido, pregunta «¿Ya se sirvió todo?»: «Sí, todo servido» los marca sin hora exacta (no cuentan como espera). Si no consumieron nada, «Liberar».",
+      "Supervisión y administración cierran una mesa sin cobrar con «Cerrar la mesa sin cobrar…» y su PIN: «Se fue sin pagar» deja lo que debe a nombre del cliente; «No consumió o fue un error» anula todo lo que pidió (al estante o a merma, con su papel «ANULAR»). La mesa queda libre. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
     ],
     problemas: [
       {

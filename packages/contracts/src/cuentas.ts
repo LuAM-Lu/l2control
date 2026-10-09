@@ -161,6 +161,24 @@ export const AnularPedidoCommandSchema = z
 export type AnularPedidoCommand = z.infer<typeof AnularPedidoCommandSchema>;
 
 /**
+ * Cerrar una mesa sin cobrar (B6-13, M-35): no consumió o fue un error de registro. Se anula todo lo que debe, de todos
+ * sus pedidos, con un motivo y el PIN de quien lo hace (supervisión o administración), y la mesa queda libre. Lo que
+ * se fue sin pagar no va por aquí: es una deuda (B3-11).
+ */
+export const CerrarMesaSinCobrarCommandSchema = z
+  .strictObject({
+    idempotencyKey: IdempotencyKeySchema,
+    accountId: z.uuid("Cuenta desconocida"),
+    version: z.number().int().positive(),
+    motivo: MotivoAnulacionPedidoSchema,
+    detalle: z.string().trim().max(120).optional(),
+    /** ¿Ya se había preparado? Decide el inventario (como B6-6): no, vuelve al estante; sí, es merma. */
+    preparado: z.boolean({ error: "Di si ya se había preparado" }),
+  })
+  .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, { message: "Con «Otro» hay que explicarlo", path: ["detalle"] });
+export type CerrarMesaSinCobrarCommand = z.infer<typeof CerrarMesaSinCobrarCommandSchema>;
+
+/**
  * Liberar una mesa sin nada que cobrar (B6-5, M-18): la cuenta se cierra «sin consumo». Sin PIN; la
  * versión es la que vio la tablet, para no cerrar una cuenta a la que otro equipo le acaba de pedir algo.
  */

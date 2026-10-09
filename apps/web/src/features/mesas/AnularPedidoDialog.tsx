@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
+import type { MotivoAnulacionPedido, Rechazo } from "@l2/contracts";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "../cash/Autorizacion.tsx";
 
@@ -40,10 +40,15 @@ const PREPARADO: { id: boolean; texto: string; detalle: string }[] = [
  */
 export function AnularPedidoDialog({
   pedido,
+  titulo,
+  descripcion,
   onAplicar,
   onCerrar,
 }: {
-  pedido: PedidoDto | null;
+  /** Un pedido, o la mesa entera al cerrarla sin cobrar (B6-13): su número y lo que se anula. */
+  pedido: Readonly<{ id: string; numero: number; lineas: readonly Readonly<{ cantidad: number; nombre: string }>[] }> | null;
+  titulo?: string | undefined;
+  descripcion?: string | undefined;
   /** Anula todos los platos anulables de este pedido de una vez, con el mismo motivo y autorización. */
   onAplicar: (motivo: MotivoAnulacionPedido, detalle: string | undefined, preparado: boolean, autorizacion: unknown) => Promise<Rechazo | null>;
   onCerrar: () => void;
@@ -93,8 +98,8 @@ export function AnularPedidoDialog({
     <Dialog
       abierto
       onCerrar={onCerrar}
-      titulo={`Anular comanda ${comanda(pedido.numero)}`}
-      descripcion="Lo pedido no se borra: se anula, con su motivo y autorización, y no se cobra. A la cocina le sale un papel «ANULAR»."
+      titulo={titulo ?? `Anular comanda ${comanda(pedido.numero)}`}
+      descripcion={descripcion ?? "Lo pedido no se borra: se anula, con su motivo y autorización, y no se cobra. A la cocina le sale un papel «ANULAR»."}
       pie={
         <div className="grid grid-cols-2 gap-2">
           <Button surface="pos" variant="neutral" onClick={onCerrar}>

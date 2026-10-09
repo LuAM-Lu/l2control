@@ -11,10 +11,11 @@
 /** Hasta cuándo se deshace una marca de servido: «en el momento», no al otro día. */
 export const DESHACER_SERVIDO_MS = 5 * 60_000;
 
-export type Servido = Readonly<{ en: number; por: string }>;
+/** Servido, cuándo y quién. `sinHora` (B6-13): marcado al pedir la cuenta; no se sabe cuándo llegó a la mesa. */
+export type Servido = Readonly<{ en: number; por: string; sinHora?: boolean | undefined }>;
 
 /** Una marca de un plato: su posición en el pedido, servido o deshecho, cuándo y quién. */
-export type MarcaDePlato = Readonly<{ linea: number; tipo: "SERVIDO" | "DESHECHO"; en: number; por: string }>;
+export type MarcaDePlato = Readonly<{ linea: number; tipo: "SERVIDO" | "DESHECHO"; en: number; por: string; sinHora?: boolean | undefined }>;
 
 /**
  * Lo servido de cada plato de un pedido de `lineas` platos: la última marca de cada uno, sobre lo marcado por pedido
@@ -24,7 +25,7 @@ export function servidoPorPlato(lineas: number, marcas: readonly MarcaDePlato[],
   const estado: (Servido | null)[] = Array.from({ length: lineas }, () => pedidoEntero);
   for (const m of [...marcas].sort((a, b) => a.en - b.en)) {
     if (m.linea < 0 || m.linea >= lineas) continue;
-    estado[m.linea] = m.tipo === "SERVIDO" ? { en: m.en, por: m.por } : null;
+    estado[m.linea] = m.tipo === "SERVIDO" ? { en: m.en, por: m.por, ...(m.sinHora ? { sinHora: true } : {}) } : null;
   }
   return estado;
 }
