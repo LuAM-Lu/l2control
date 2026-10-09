@@ -8,8 +8,14 @@
  */
 export { cambioDePlanoProblem, mesasRetiradas, type MesaDelPlano, type ProblemaDePlano } from "./plano.ts";
 export {
+  AREAS_DE_COMANDA,
   MAX_UNIDADES_POR_PEDIDO,
+  areaDe,
   comandaPideAtencion,
+  estadoDelPedido,
+  partesDelPedido,
+  type AreaDeComanda,
+  type AreaDeProducto,
   estadoDeComanda,
   lineasDelPedido,
   type EstadoDeComanda,

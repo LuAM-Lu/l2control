@@ -111,6 +111,7 @@ export function ImpresorasScreen({
   const activas = local.impresoras.filter((i) => i.activa);
   const deRecibos = activas.find((i) => i.recibos);
   const deComandas = activas.find((i) => i.comandas);
+  const deBarra = activas.find((i) => i.barra);
   const vinculados = local.agentes.filter((a) => a.vinculadoEn !== null);
   const conectados = vinculados.filter((a) => a.conectado);
   const pendientes = historial.datos?.pendientes ?? { fallidos: trabajos.filter((t) => t.estado === "FALLIDO").length, enCola: 0 };
@@ -157,7 +158,8 @@ export function ImpresorasScreen({
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {i.recibos && <Badge tone="brand">Recibos y cortes</Badge>}
-                    {i.comandas && <Badge tone="brand">Comandas</Badge>}
+                    {i.comandas && <Badge tone="brand">Comandas de cocina</Badge>}
+                    {i.barra && <Badge tone="brand">Comandas de barra</Badge>}
                     {i.conexion === "USB" && <Badge tone="idle">USB</Badge>}
                     {i.oscura && <Badge tone="idle">Oscura</Badge>}
                   </div>
@@ -249,7 +251,7 @@ export function ImpresorasScreen({
           icono={<Printer aria-hidden="true" />}
           tono={deRecibos ? "idle" : "warn"}
           valor={local.impresoras.length === 0 ? "Ninguna" : `${activas.length} ${activas.length === 1 ? "encendida" : "encendidas"}`}
-          pie={`De ${local.impresoras.length} · ${deRecibos ? `Recibos: ${deRecibos.nombre}${deComandas ? ` · Comandas: ${deComandas.nombre}` : ""}` : "ninguna para los recibos"}`}
+          pie={`De ${local.impresoras.length} · ${deRecibos ? `Recibos: ${deRecibos.nombre}${deComandas ? ` · Cocina: ${deComandas.nombre}` : ""}${deBarra ? ` · Barra: ${deBarra.nombre}` : ""}` : "ninguna para los recibos"}`}
           activo={vista === "impresoras"}
           onClick={() => setVista("impresoras")}
         />

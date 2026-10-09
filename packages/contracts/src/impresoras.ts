@@ -4,8 +4,8 @@
  * Una impresora en red **es un dispositivo en la red**: si alguien del local puede alcanzarla, puede
  * imprimir en ella. Por eso aquí no hay un campo libre para «la dirección»: hay una IP privada validada,
  * un puerto y la constancia de que está en la VLAN de hardware con IP fija (§7.1, T4). Para qué sirve
- * cada una lo dicen dos marcas: **recibos** (y el ticket de corte) y **comandas** (V-4): hoy una sola, la
- * de caja, hace las dos; mañana la de la cocina hará las comandas, sin programar.
+ * cada una lo dicen tres marcas: **recibos** (y el ticket de corte), **comandas** de cocina (V-4) y **barra** (B6-10):
+ * con una sola impresora, las tres en ella; con más, se reparten sin programar. Una sola encendida por marca.
  *
  * Quién imprime es el **agente** de la laptop de caja (ADR-026): se vincula una vez con un código y se
  * conecta al servidor hacia fuera. Aquí van también sus mensajes, que el worker revalida.
@@ -68,8 +68,10 @@ export const DatosImpresoraSchema = z
     oscura: z.boolean().default(false),
     /** Recibos y tickets de corte. */
     recibos: z.boolean(),
-    /** Comandas del restaurante (V-4). */
+    /** Comandas de cocina (V-4; antes de B6-10, todas). */
     comandas: z.boolean(),
+    /** Comandas de barra (B6-10). */
+    barra: z.boolean().default(false),
     /**
      * Que esté en la VLAN de hardware con IP fija. No es decorativo: sin las dos cosas, cualquiera en la
      * red del local imprime en ella, y la IP se pierde al reiniciar el router (ADR-015).
@@ -77,7 +79,7 @@ export const DatosImpresoraSchema = z
     enVlanDeHardware: z.boolean().default(false),
     ipFija: z.boolean().default(false),
   })
-  .refine((d) => d.recibos || d.comandas, { message: "Elige para qué sirve: recibos, comandas o las dos", path: ["recibos"] })
+  .refine((d) => d.recibos || d.comandas || d.barra, { message: "Elige qué imprime: recibos, comandas de cocina o de barra", path: ["recibos"] })
   .superRefine((d, c) => {
     if (d.conexion === "RED") {
       if (!d.ip) c.addIssue({ code: "custom", message: "Escribe su IP", path: ["ip"] });
@@ -111,6 +113,8 @@ export const ImpresoraSchema = z.object({
   oscura: z.boolean().default(false),
   recibos: z.boolean(),
   comandas: z.boolean(),
+  /** Comandas de barra (B6-10). */
+  barra: z.boolean().default(false),
   enVlanDeHardware: z.boolean(),
   ipFija: z.boolean(),
   activa: z.boolean(),

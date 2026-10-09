@@ -2,13 +2,14 @@
 
 import { useMemo, useRef, useState } from "react";
 import { ClipboardPaste, ListPlus, Plus, ScanLine, TriangleAlert, X } from "lucide-react";
-import { MAX_ALTA_EN_LOTE, type CatalogoDto, type Problema, type TaxCodeDelCatalogo } from "@l2/contracts";
+import { MAX_ALTA_EN_LOTE, type AreaDeProductoDto, type CatalogoDto, type Problema, type TaxCodeDelCatalogo } from "@l2/contracts";
 import { barcodeProblem, nameKey, normalizeBarcode } from "@l2/domain-inventory";
 import { Button, Dialog, Sheet, TAMANO_ICONO, avisar, cn, useLectorDeCodigos } from "@l2/ui";
 import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { altaEnLote } from "./productos.acciones";
 import { CampoCategoria } from "./CampoCategoria.tsx";
+import { AREAS } from "./ElegirArea.tsx";
 
 /**
  * Inventario → Productos → «Alta en lote» (B9-7, M-28). El catálogo se carga de una vez, en una hoja y
@@ -23,7 +24,7 @@ const ETIQUETA = "text-etiqueta font-semibold text-ink-2 uppercase";
 const CAMPO =
   "min-h-9 w-full min-w-0 rounded-[var(--radius-control)] border bg-surface px-2.5 text-cuerpo text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50";
-const COLUMNAS = "lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem_8rem_5rem_minmax(0,1.1fr)_2.25rem]";
+const COLUMNAS = "lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem_8rem_6.5rem_5rem_minmax(0,1.1fr)_2.25rem]";
 
 /** Una fila tal como se teclea: nada se convierte hasta que se entiende. */
 type Fila = {
@@ -33,13 +34,15 @@ type Fila = {
   presentacion: string;
   precio: string;
   taxCode: TaxCodeDelCatalogo;
+  /** En qué comanda sale (B6-10): lo de nevera, de barra si no se dice. */
+  area: AreaDeProductoDto;
   minimo: string;
   codigo: string;
 };
 
-type Campo = "nombre" | "categoria" | "presentacion" | "precioMinor" | "taxCode" | "minimo" | "codigoBarras";
+type Campo = "nombre" | "categoria" | "presentacion" | "precioMinor" | "taxCode" | "area" | "minimo" | "codigoBarras";
 
-const filaVacia = (): Fila => ({ uid: globalThis.crypto.randomUUID(), nombre: "", categoria: "", presentacion: "", precio: "", taxCode: "GENERAL", minimo: "", codigo: "" });
+const filaVacia = (): Fila => ({ uid: globalThis.crypto.randomUUID(), nombre: "", categoria: "", presentacion: "", precio: "", taxCode: "GENERAL", area: "BARRA", minimo: "", codigo: "" });
 const vacia = (f: Fila) => [f.nombre, f.categoria, f.presentacion, f.precio, f.minimo, f.codigo].every((x) => x.trim() === "");
 
 /** «1,50», «$ 1.50», «1.234,50» → centavos; `null` si no se entiende o no es mayor que cero. */
@@ -90,6 +93,7 @@ function entender(f: Fila) {
           tipo: "PRODUCTO" as const,
           precioMinor: precioMinor!,
           ...(presentacion ? { presentacion } : {}),
+          ...(f.area !== "BARRA" ? { area: f.area } : {}),
           ...(minimo !== undefined && minimo !== null ? { minimo } : {}),
           ...(codigo ? { codigoBarras: codigo } : {}),
         }
@@ -247,7 +251,7 @@ export function AltaEnLote({
 
         <div role="table" aria-label="Productos del alta" className="flex flex-col gap-2">
           <div role="row" className={cn("hidden gap-2 px-2 lg:grid", COLUMNAS)}>
-            {["Nombre", "Categoría", "Presentación", "Precio ($)", "IVA", "Mínimo", "Código de barras", ""].map((t, i) => (
+            {["Nombre", "Categoría", "Presentación", "Precio ($)", "IVA", "Se prepara en", "Mínimo", "Código de barras", ""].map((t, i) => (
               <span key={i} role="columnheader" className={ETIQUETA}>
                 {t}
               </span>
@@ -378,6 +382,16 @@ function FilaDelAlta({
           </select>
         </label>
         <label role="cell" className="flex flex-col gap-1 lg:block">
+          <span className={cn(ETIQUETA, "lg:sr-only")}>Se prepara en</span>
+          <select aria-label={`Dónde se prepara la fila ${n}`} className={campo("area", "px-1.5")} value={f.area} onChange={(e) => onCambiar({ area: e.target.value as AreaDeProductoDto })}>
+            {AREAS.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label role="cell" className="flex flex-col gap-1 lg:block">
           <span className={cn(ETIQUETA, "lg:sr-only")}>Mínimo</span>
           <input
             aria-label={`Mínimo de la fila ${n}`}
@@ -446,7 +460,7 @@ function entenderPegado(texto: string): Fila[] {
     const [nombre = "", categoria = "", presentacion = "", precio = "", iva = "", minimo = "", codigo = ""] = linea.split(separador).map((c) => c.trim());
     // Una primera fila cuyo precio no es un importe es la de los títulos.
     if (i === 0 && centavos(precio) === null && nombre !== "") continue;
-    filas.push({ uid: globalThis.crypto.randomUUID(), nombre, categoria, presentacion, precio: precio.replace(/US\$|\$|USD/gi, "").trim(), taxCode: ivaDe(iva) ?? "GENERAL", minimo, codigo });
+    filas.push({ uid: globalThis.crypto.randomUUID(), nombre, categoria, presentacion, precio: precio.replace(/US\$|\$|USD/gi, "").trim(), taxCode: ivaDe(iva) ?? "GENERAL", area: "BARRA", minimo, codigo });
   }
   return filas;
 }

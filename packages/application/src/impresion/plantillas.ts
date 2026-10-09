@@ -276,6 +276,17 @@ export function rotuloDePedido(f: Readonly<{ tableId: string | null; tableLabel:
   return f.accountLabel ? `Mesa ${f.tableLabel} · ${f.accountLabel}` : `Mesa ${f.tableLabel}`;
 }
 
+/**
+ * De qué área es un papel (B6-10) y cuál de los del pedido: «COCINA», «BARRA» en grande; «1 de 2» si el pedido sacó más
+ * de uno. Sin área (un pedido de antes), nada.
+ */
+type AreaDelPapel = Readonly<{ area?: "COCINA" | "BARRA" | null; parte?: Readonly<{ n: number; de: number }> | null }>;
+
+function rotuloDeArea(a: AreaDelPapel): Renglon[] {
+  if (!a.area) return [];
+  return [{ tipo: "TEXTO", texto: a.parte && a.parte.de > 1 ? `${a.area} · ${a.parte.n} de ${a.parte.de}` : a.area, alinear: "CENTRO", negrita: true, grande: true }];
+}
+
 /** La cabecera en grande de la comanda y del papel «ANULAR»: la mesa (o DE PIE) y, debajo, a quién va. */
 function cabeceraDeMesa(d: Destino): Renglon[] {
   return [
@@ -291,12 +302,14 @@ function cabeceraDeMesa(d: Destino): Renglon[] {
  */
 export function documentoDeComanda(
   p: Destino &
+    AreaDelPapel &
     Readonly<{ numero: number; enviadoEn: number; enviadoPor: string; lineas: readonly Readonly<{ nombre: string; cantidad: number; nota: string | null }>[] }>,
   local: AjustesSucursalDto,
   copia: boolean,
 ): Documento {
   const renglones: Renglon[] = [
     ...(copia ? [{ tipo: "TEXTO", texto: "REIMPRESIÓN · NO PREPARAR DOS VECES", alinear: "CENTRO", negrita: true } as const] : []),
+    ...rotuloDeArea(p),
     ...cabeceraDeMesa(p),
     { tipo: "TEXTO", texto: `Comanda ${orden(p.numero)}`, alinear: "CENTRO", negrita: true },
     { tipo: "TEXTO", texto: `${fechaYHora(p.enviadoEn, local.formatoHora, local.zonaHoraria)} · ${p.enviadoPor}`, alinear: "CENTRO" },
@@ -317,11 +330,14 @@ export function documentoDeComanda(
  * quién lo autorizó y cada plato anulado con su cantidad. Sin precios, como la comanda.
  */
 export function documentoDeAnulacion(
-  a: Destino & Readonly<{ numero: number; anuladoEn: number; autorizadoPor: string; motivo: string; lineas: readonly Readonly<{ nombre: string; cantidad: number }>[] }>,
+  a: Destino &
+    AreaDelPapel &
+    Readonly<{ numero: number; anuladoEn: number; autorizadoPor: string; motivo: string; lineas: readonly Readonly<{ nombre: string; cantidad: number }>[] }>,
   local: AjustesSucursalDto,
 ): Documento {
   const renglones: Renglon[] = [
     { tipo: "TEXTO", texto: "ANULAR · NO PREPARAR", alinear: "CENTRO", negrita: true, grande: true },
+    ...rotuloDeArea({ area: a.area ?? null }),
     ...cabeceraDeMesa(a),
     { tipo: "TEXTO", texto: `De la comanda ${orden(a.numero)}`, alinear: "CENTRO", negrita: true },
     { tipo: "TEXTO", texto: `${fechaYHora(a.anuladoEn, local.formatoHora, local.zonaHoraria)} · ${a.autorizadoPor}`, alinear: "CENTRO" },

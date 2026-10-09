@@ -353,13 +353,13 @@ export async function sentarDePrueba(
 }
 
 /**
- * Una impresora de recibos y comandas encendida en el local (B5-2): sin ella, imprimir un recibo se
+ * Una impresora de recibos y comandas (de cocina y de barra, B6-10) encendida en el local (B5-2): sin ella, imprimir un recibo se
  * niega. Su dirección no existe: los trabajos esperan en la cola, que es lo que prueban estas pruebas.
  */
 export async function impresoraDePrueba(local: LocalDePrueba, ip = "192.168.250.250"): Promise<string> {
   const r = await local.app.impresion.aplicar(local.sistema, {
     kind: "CREAR",
-    datos: { nombre: "Caja de prueba", ip, puerto: 9100, ancho: 80, recibos: true, comandas: true, enVlanDeHardware: true, ipFija: true },
+    datos: { nombre: "Caja de prueba", ip, puerto: 9100, ancho: 80, recibos: true, comandas: true, barra: true, enVlanDeHardware: true, ipFija: true },
   });
   if (!r.ok) throw new Error(r.mensaje);
   const id = r.valor.local.impresoras.find((i) => i.ip === ip)!.id;

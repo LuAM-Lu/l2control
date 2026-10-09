@@ -15,6 +15,9 @@
  *
  * La cocina no tiene pantalla (ADR-022): no hay «en fuego», «listo» ni «entregado». Lo que importa es si
  * la comanda salió en papel; si no salió, la tablet y la caja lo ven y se reimprime.
+ *
+ * Un papel por área (B6-10): lo de cocina en la impresora de cocina y lo de barra en la de barra, con el mismo número;
+ * cada uno se reimprime por su cuenta. Lo que se sirve sin papel no sale (`comandas.ts`).
  */
 import { randomUUID } from "node:crypto";
 import {
@@ -34,7 +37,7 @@ import {
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
-import { estadoDeComanda, lineasDelPedido, type EstadoDeTrabajo } from "@l2/domain-orders";
+import { estadoDeComanda, estadoDelPedido, lineasDelPedido, partesDelPedido, type AreaDeComanda, type EstadoDeComanda, type EstadoDeTrabajo } from "@l2/domain-orders";
 import { reintentado } from "@l2/domain-printing";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
@@ -44,7 +47,8 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { catalogoEn, crearCuentaDeMesa, guardarVersion, nombrePropioDe, vigenteDe } from "../caja/cuentas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
-import { encolarEn } from "../impresion/impresion.ts";
+import { encolarEn, impresoraDe } from "../impresion/impresion.ts";
+import { NOMBRE_DE_AREA, areaSinImpresora, areasDeProductos, oficioDe, sinImpresoraPara, type LineaGuardada } from "./comandas.ts";
 import { documentoDeComanda, rotuloDePedido } from "../impresion/plantillas.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { candadoDeMesas, cuentaDeMesaPara, mesaParaCuentaNueva, mesaSinCuenta } from "./plano.ts";
@@ -73,10 +77,7 @@ export interface CasosPedidos {
 /** Quién ve los pedidos: quien los toma y la caja, que cobra la mesa y ve si salió la comanda. */
 const VEN_PEDIDOS: readonly Action[] = ["pedido.tomar", "documento.emitir"];
 
-const SIN_IMPRESORA = "No hay impresora de comandas encendida: el pedido no se envió. Configúrala en Ajustes → Impresoras.";
-
 type FilaPedido = Awaited<ReturnType<Transaccion["kitchenOrder"]["findFirstOrThrow"]>>;
-type LineaGuardada = Readonly<{ productId: string; nombre: string; cantidad: number; nota: string | null }>;
 
 const comanda = (n: number) => `#${String(n).padStart(4, "0")}`;
 
@@ -117,9 +118,12 @@ export function casosPedidos(base: Base): CasosPedidos {
             return { pedido: pedido!, cuenta: (await vigenteDe(tx, previo.accountId))!.cuenta };
           }
 
-          // Sin impresora de comandas no sale el papel: el pedido no se envía (fail-closed, ADR-022).
-          const impresora = await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, forOrders: true }, select: { id: true } });
-          if (!impresora) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: SIN_IMPRESORA };
+          // El área de cada plato (B6-10) y sus papeles: sin la impresora de un área no sale su papel, y el pedido no se
+          // envía (fail-closed, ADR-022).
+          const areaDelProducto = await areasDeProductos(tx, cmd.lineas.map((l) => l.productId));
+          const partes = partesDelPedido(cmd.lineas.map((l) => ({ area: areaDelProducto.get(l.productId) ?? "COCINA" })));
+          const falta = await areaSinImpresora(tx, ctx.branchId, partes.map((p) => p.area));
+          if (falta) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: sinImpresoraPara(falta, "el pedido no se envió") };
 
           // A qué cuenta va (B6-7): la que nombra la tablet, la única de la mesa o una nueva en una mesa libre,
           // con el candado de las mesas.
@@ -180,7 +184,7 @@ export function casosPedidos(base: Base): CasosPedidos {
           const max = await tx.kitchenOrder.aggregate({ where: { branchId: ctx.branchId }, _max: { number: true } });
           const lineas: LineaGuardada[] = cmd.lineas.map((l) => {
             const p = platoEn(l.productId)!;
-            return { productId: l.productId, nombre: p.name, cantidad: l.cantidad, nota: l.nota?.trim() ? l.nota.trim() : null };
+            return { productId: l.productId, nombre: p.name, cantidad: l.cantidad, nota: l.nota?.trim() ? l.nota.trim() : null, area: areaDelProducto.get(l.productId) ?? "COCINA" };
           });
           const fila = await tx.kitchenOrder.create({
             data: {
@@ -208,12 +212,15 @@ export function casosPedidos(base: Base): CasosPedidos {
               mesa,
               ...(fila.accountLabel ? { nombreCuenta: fila.accountLabel } : {}),
               cuenta: { id: cuenta.id, orden: cuenta.orderNumber ?? null, version: cuenta.version ?? null },
-              lineas: lineas.map((l) => ({ nombre: l.nombre, cantidad: l.cantidad })),
+              lineas: lineas.map((l) => ({ nombre: l.nombre, cantidad: l.cantidad, area: l.area })),
             },
           });
-          const trabajo = await encolarComanda(tx, ctx, fila, ahora, false);
-          // La impresora se comprobó arriba, en esta transacción: si aun así no hay, se deshace todo.
-          if ("ok" in trabajo) throw new Error(`La comanda no se encoló: ${trabajo.mensaje}`);
+          // Un papel por área, en su impresora.
+          for (const parte of partesDelPedido(lineas)) {
+            const trabajo = await encolarComanda(tx, ctx, fila, parte.area, ahora, false);
+            // Las impresoras se comprobaron arriba, en esta transacción: si aun así falta una, se deshace todo.
+            if ("ok" in trabajo) throw new Error(`La comanda no se encoló: ${trabajo.mensaje}`);
+          }
           const [pedido] = await pedidosDe(tx, [fila]);
           return { pedido: pedido!, cuenta };
         });
@@ -243,21 +250,35 @@ export function casosPedidos(base: Base): CasosPedidos {
         if (rechazo) return rechazo;
         const fila = await tx.kitchenOrder.findUnique({ where: { id: v.data.pedidoId } });
         if (!fila || fila.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese pedido no existe en esta sucursal." };
-        // Solo la comanda: el papel «ANULAR» del mismo pedido (B6-6) no es una reimpresión suya.
-        const trabajos = await tx.printJob.findMany({ where: { orderId: fila.id, kind: "COMANDA" }, orderBy: { createdAt: "asc" } });
+        // Cuál de sus papeles (B6-10): el del área que se pide o, sin decirla, el único que tenga.
+        const partes = partesDelPedido(fila.items as unknown as LineaGuardada[]);
+        if (partes.length === 0) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese pedido no tiene comanda: todo lo suyo se sirve sin papel." };
+        const parte = v.data.area === undefined ? (partes.length === 1 ? partes[0] : undefined) : partes.find((p) => p.area === v.data.area || p.area === null);
+        if (!parte) {
+          return v.data.area === undefined
+            ? { ok: false, motivo: "INVALIDO", mensaje: "Ese pedido tiene comanda de cocina y de barra: di cuál se reimprime.", problemas: [{ path: ["area"], message: "FALTA_EL_AREA" }] }
+            : { ok: false, motivo: "NO_DISPONIBLE", mensaje: `Ese pedido no tiene comanda de ${NOMBRE_DE_AREA[v.data.area].toLowerCase()}.` };
+        }
+        // Solo la comanda de esa área: el papel «ANULAR» del mismo pedido (B6-6) no es una reimpresión suya.
+        const trabajos = await tx.printJob.findMany({ where: { orderId: fila.id, kind: "COMANDA", area: parte.area }, orderBy: { createdAt: "asc" } });
         const estado = estadoDeComanda(trabajos.map((t) => ({ estado: t.status as EstadoDeTrabajo, creadoEn: t.createdAt.getTime() })));
         if (estado === "EN_COLA") {
           return { ok: false, motivo: "CONFLICTO", mensaje: "La comanda se está imprimiendo: espera a que la impresora responda." };
         }
         const quien = await nombreDe(tx, ctx);
-        const actual = await tx.printer.findFirst({ where: { branchId: ctx.branchId, active: true, forOrders: true }, select: { id: true } });
-        if (!actual) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: SIN_IMPRESORA.replace("el pedido no se envió", "la comanda no se reimprimió") };
+        const actual = await impresoraDe(tx, ctx.branchId, oficioDe(parte.area));
+        if (!actual) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: sinImpresoraPara(parte.area ?? "COMANDAS", "la comanda no se reimprimió") };
         let como: "REINTENTO" | "ORIGINAL" | "COPIA";
         if (estado === "NO_SALIO") {
           // No salió: la cocina nunca la vio. Se reintenta el mismo trabajo si su impresora sigue siendo la de
           // comandas; si cambió, se descarta (queda en el historial) y sale en la de ahora.
-          const fallido = trabajos.filter((t) => t.status === "FALLIDO").at(-1)!;
-          if (fallido.printerId === actual.id) {
+          const fallido = trabajos.filter((t) => t.status === "FALLIDO").at(-1);
+          if (!fallido) {
+            // Nunca se encoló (no debería pasar): sale como la primera vez.
+            const t = await encolarComanda(tx, ctx, fila, parte.area, ahora, false);
+            if ("ok" in t) return t;
+            como = "ORIGINAL";
+          } else if (fallido.printerId === actual.id) {
             const n = reintentado({ estado: "FALLIDO" as EstadoDeTrabajo, intentos: fallido.attempts, proximoIntento: 0, enviadoEn: null }, ahora);
             await tx.printJob.update({
               where: { id: fallido.id },
@@ -269,17 +290,22 @@ export function casosPedidos(base: Base): CasosPedidos {
               where: { id: fallido.id },
               data: { status: "DESCARTADO", discardedBy: ctx.quien?.userId ?? null, discardedByName: quien.nombre },
             });
-            const t = await encolarComanda(tx, ctx, fila, ahora, false);
+            const t = await encolarComanda(tx, ctx, fila, parte.area, ahora, false);
             if ("ok" in t) return t;
             como = "ORIGINAL";
           }
         } else {
           // Descartada: sale como la primera vez. Impresa (se perdió el papel): una copia que lo dice.
-          const t = await encolarComanda(tx, ctx, fila, ahora, estado === "IMPRESA");
+          const t = await encolarComanda(tx, ctx, fila, parte.area, ahora, estado === "IMPRESA");
           if ("ok" in t) return t;
           como = estado === "IMPRESA" ? "COPIA" : "ORIGINAL";
         }
-        await auditar(tx, ctx, { action: "pedido.reimprimir", entityType: "kitchen_order", entityId: fila.id, after: { comanda: fila.number, mesa: fila.tableLabel, como } });
+        await auditar(tx, ctx, {
+          action: "pedido.reimprimir",
+          entityType: "kitchen_order",
+          entityId: fila.id,
+          after: { comanda: fila.number, mesa: fila.tableLabel, como, ...(parte.area ? { area: parte.area } : {}) },
+        });
         const [pedido] = await pedidosDe(tx, [fila]);
         return pedido!;
       });
@@ -365,17 +391,24 @@ async function destinoDelPedido(tx: Transaccion, ctx: Contexto, cmd: EnviarPedid
   return mesaSinCuenta(["tableId"]);
 }
 
-/** La comanda de un pedido en la cola de la impresora de comandas; `copia`, si es una reimpresión. */
-async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, ahora: number, copia: boolean) {
+/**
+ * La comanda de un área de un pedido (B6-10) en la cola de la impresora de esa área; `area: null`, la de un pedido de
+ * antes, con todo, en la de cocina. `copia`, si es una reimpresión.
+ */
+async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, area: AreaDeComanda | null, ahora: number, copia: boolean) {
   const local = await ajustesDe(tx, ctx.branchId);
-  const lineas = fila.items as unknown as LineaGuardada[];
+  const partes = partesDelPedido(fila.items as unknown as LineaGuardada[]);
+  const i = partes.findIndex((p) => p.area === area);
+  const parte = partes[i];
+  if (!parte) throw new Error(`El pedido ${fila.id} no tiene papel de ${area ?? "todo"}`);
   return encolarEn(
     tx,
     ctx,
     {
       tipo: "COMANDA",
-      para: "comandas",
-      titulo: `Comanda ${comanda(fila.number)} · ${rotuloDePedido(fila)}`,
+      para: oficioDe(area),
+      ...(area ? { area } : {}),
+      titulo: `Comanda ${comanda(fila.number)}${area ? ` · ${NOMBRE_DE_AREA[area]}` : ""} · ${rotuloDePedido(fila)}`,
       copia,
       orderId: fila.id,
       documento: documentoDeComanda(
@@ -385,7 +418,9 @@ async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, 
           nombreCuenta: fila.accountLabel,
           enviadoEn: fila.createdAt.getTime(),
           enviadoPor: fila.createdByName,
-          lineas,
+          lineas: parte.lineas,
+          area,
+          parte: { n: i + 1, de: partes.length },
         },
         local,
         copia,
@@ -407,19 +442,38 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
   );
   const trabajos = await tx.printJob.findMany({
     where: { orderId: { in: filas.map((f) => f.id) } },
-    select: { orderId: true, kind: true, status: true, createdAt: true, copy: true, lastError: true, printerId: true },
+    select: { orderId: true, kind: true, status: true, createdAt: true, copy: true, lastError: true, printerId: true, area: true },
     orderBy: { createdAt: "asc" },
   });
   const impresoras = new Map(
     (await tx.printer.findMany({ where: { id: { in: [...new Set(trabajos.map((t) => t.printerId))] } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]),
   );
+  const estadoDe = (ts: readonly (typeof trabajos)[number][]) => estadoDeComanda(ts.map((t) => ({ estado: t.status as EstadoDeTrabajo, creadoEn: t.createdAt.getTime() })));
   return filas.map((f) => {
-    const suyos = trabajos.filter((t) => t.orderId === f.id && t.kind === "COMANDA");
-    const ultimo = suyos.at(-1);
-    const estado = estadoDeComanda(suyos.map((t) => ({ estado: t.status as EstadoDeTrabajo, creadoEn: t.createdAt.getTime() })));
-    // El último papel «ANULAR» de este pedido (B6-6), si se anuló algo.
-    const anulacion = trabajos.filter((t) => t.orderId === f.id && t.kind === "ANULACION").at(-1);
-    const estadoAnulacion = anulacion ? estadoDeComanda([{ estado: anulacion.status as EstadoDeTrabajo, creadoEn: anulacion.createdAt.getTime() }]) : null;
+    // Un estado por papel (B6-10): el de cocina y el de barra, cada uno por sus trabajos.
+    const comandas = partesDelPedido(f.items as unknown as LineaGuardada[]).map((p) => {
+      const suyos = trabajos.filter((t) => t.orderId === f.id && t.kind === "COMANDA" && t.area === p.area);
+      const ultimo = suyos.at(-1);
+      const estado = estadoDe(suyos);
+      return {
+        area: p.area,
+        estado,
+        impresora: ultimo ? (impresoras.get(ultimo.printerId) ?? null) : null,
+        error: estado === "NO_SALIO" ? (ultimo?.lastError ?? "No salió") : null,
+        reimpresiones: suyos.filter((t) => t.copy).length,
+      };
+    });
+    // El pedido entero: el papel que más atención pide.
+    const estado = estadoDelPedido(comandas.map((c) => c.estado));
+    const peor = comandas.find((c) => c.estado === estado) ?? null;
+    // El último papel «ANULAR» de cada área (B6-6, B6-10), si se anuló algo.
+    const anulaciones = [...new Set(trabajos.filter((t) => t.orderId === f.id && t.kind === "ANULACION").map((t) => t.area))].map((area) => {
+      const ultima = trabajos.filter((t) => t.orderId === f.id && t.kind === "ANULACION" && t.area === area).at(-1)!;
+      const e = estadoDe([ultima]);
+      return { area: area as AreaDeComanda | null, estado: e, error: e === "NO_SALIO" ? (ultima.lastError ?? "No salió") : null };
+    });
+    const estadoAnulacion = anulaciones.length > 0 ? (estadoDelPedido(anulaciones.map((a) => a.estado)) as EstadoDeComanda) : null;
+    const anulacion = anulaciones.find((a) => a.estado === estadoAnulacion) ?? null;
     return PedidoSchema.parse({
       id: f.id,
       numero: f.number,
@@ -430,15 +484,15 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
       lineas: f.items,
       enviadoEn: f.createdAt.toISOString(),
       enviadoPor: f.createdByName,
+      comandas,
       comanda: {
         estado,
-        impresora: ultimo ? (impresoras.get(ultimo.printerId) ?? null) : null,
-        error: estado === "NO_SALIO" ? (ultimo?.lastError ?? "No salió") : null,
-        reimpresiones: suyos.filter((t) => t.copy).length,
+        impresora: peor?.impresora ?? null,
+        error: peor?.error ?? null,
+        reimpresiones: comandas.reduce((n, c) => n + c.reimpresiones, 0),
       },
-      anulacion: anulacion && estadoAnulacion
-        ? { estado: estadoAnulacion, error: estadoAnulacion === "NO_SALIO" ? (anulacion.lastError ?? "No salió") : null }
-        : null,
+      anulacion: anulacion ? { estado: anulacion.estado, error: anulacion.error } : null,
+      anulaciones,
       servido: servidos.get(f.id) ?? null,
     });
   });

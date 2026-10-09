@@ -6,6 +6,7 @@ import {
   Baby,
   CircleCheckBig,
   Clock,
+  FileX,
   Hourglass,
   DoorOpen,
   HandPlatter,
@@ -23,7 +24,17 @@ import {
   UserSearch,
   X,
 } from "lucide-react";
-import type { CatalogoDto, DatosDelClienteDto, EstadoDeComandaDto, FamilyAccountDto, MotivoAnulacionPedido, PedidoDto, Rechazo } from "@l2/contracts";
+import type {
+  AreaDeComandaDto,
+  CatalogoDto,
+  ComandaDelPedidoDto,
+  DatosDelClienteDto,
+  EstadoDelPedidoDto,
+  FamilyAccountDto,
+  MotivoAnulacionPedido,
+  PedidoDto,
+  Rechazo,
+} from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
 import { Badge, Button, Confirmacion, Container, MoneyDisplay, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
@@ -90,11 +101,20 @@ const ESTADO_MESA: Readonly<Record<EstadoVisible, { texto: string; tono: Tone; i
 };
 
 /** La comanda en el papel: lo único que el sistema sabe de la cocina (ADR-022). Color + icono + texto. */
-const ESTADO_COMANDA: Readonly<Record<EstadoDeComandaDto, { texto: string; tono: Tone; icono: React.ReactNode }>> = {
-  EN_COLA: { texto: "Imprimiendo comanda", tono: "idle", icono: <Clock size={13} aria-hidden="true" /> },
-  IMPRESA: { texto: "Comanda impresa", tono: "ok", icono: <Printer size={13} aria-hidden="true" /> },
-  NO_SALIO: { texto: "La comanda no salió", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
-  DESCARTADA: { texto: "Comanda descartada", tono: "idle", icono: <Ban size={13} aria-hidden="true" /> },
+const ESTADO_COMANDA: Readonly<Record<EstadoDelPedidoDto, { texto: string; corto: string; tono: Tone; icono: React.ReactNode }>> = {
+  EN_COLA: { texto: "Imprimiendo comanda", corto: "imprimiéndose", tono: "idle", icono: <Clock size={13} aria-hidden="true" /> },
+  IMPRESA: { texto: "Comanda impresa", corto: "impresa", tono: "ok", icono: <Printer size={13} aria-hidden="true" /> },
+  NO_SALIO: { texto: "La comanda no salió", corto: "no salió", tono: "crit", icono: <TriangleAlert size={13} aria-hidden="true" /> },
+  DESCARTADA: { texto: "Comanda descartada", corto: "descartada", tono: "idle", icono: <Ban size={13} aria-hidden="true" /> },
+  // B6-10: todo lo del pedido se sirve sin papel.
+  SIN_PAPEL: { texto: "Sin comanda", corto: "sin papel", tono: "idle", icono: <FileX size={13} aria-hidden="true" /> },
+};
+
+/** Cómo se nombra cada papel (B6-10); el de un pedido de antes, sin área, es «la comanda». */
+const AREA: Readonly<Record<AreaDeComandaDto, { nombre: string; la: string }>> = { COCINA: { nombre: "Cocina", la: "la cocina" }, BARRA: { nombre: "Barra", la: "la barra" } };
+const aQuien = (areas: readonly (AreaDeComandaDto | null)[]) => {
+  const nombres = [...new Set(areas.map((a) => (a ? AREA[a].la : "la cocina")))];
+  return nombres.length === 0 ? "nadie" : nombres.join(" y a ");
 };
 
 const comanda = (n: number) => `#${String(n).padStart(4, "0")}`;
@@ -333,8 +353,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       return;
     }
     const { pedido } = r.valor;
+    // Un papel por área (B6-10): dónde sale cada uno.
     avisar.ok(`Comanda ${comanda(pedido.numero)} enviada · ${rotuloDePedido(pedido)}`, {
-      detalle: pedido.comanda.impresora ? `Sale en «${pedido.comanda.impresora}».` : "Sale en la impresora de comandas.",
+      detalle:
+        pedido.comandas.length === 0
+          ? "Todo se sirve sin comanda: no sale papel."
+          : pedido.comandas.map((c) => `${c.area ? `${AREA[c.area].nombre}: ` : ""}sale en «${c.impresora ?? "la impresora de comandas"}»`).join(" · ") + ".",
     });
     setEnvios((e) => {
       const { [c.id]: _, ...resto } = e;
@@ -345,11 +369,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   }
 
   /** Si no salió o se descartó, sale como la primera vez; si ya salió, una copia marcada «reimpresión». */
-  async function volverAImprimir(p: PedidoDto) {
-    const r = await reimprimir(p.id);
+  async function volverAImprimir(p: PedidoDto, c: ComandaDelPedidoDto) {
+    const r = await reimprimir(p.id, c.area);
+    const cual = `${comanda(p.numero)}${c.area ? ` de ${AREA[c.area].nombre.toLowerCase()}` : ""}`;
     if (!r.ok) avisar.error(r.mensaje);
-    else if (p.comanda.estado === "IMPRESA") avisar.info(`Copia de la comanda ${comanda(p.numero)} a la impresora`, { detalle: "Sale marcada «reimpresión»: que no se prepare dos veces." });
-    else avisar.info(`Comanda ${comanda(p.numero)} otra vez a la impresora`, { detalle: "La cocina todavía no la tenía." });
+    else if (c.estado === "IMPRESA") avisar.info(`Copia de la comanda ${cual} a la impresora`, { detalle: "Sale marcada «reimpresión»: que no se prepare dos veces." });
+    else avisar.info(`Comanda ${cual} otra vez a la impresora`, { detalle: `${aQuien([c.area]).replace(/^la /, "La ")} todavía no la tenía.` });
   }
 
   /**
@@ -373,7 +398,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     );
     if (!r.ok) return r;
     avisar.ok(`Comanda ${comanda(pedido.numero)} anulada`, {
-      detalle: `${preparado ? "Sale como merma" : "Vuelve al inventario"}. A la cocina le sale el papel «ANULAR».`,
+      detalle: `${preparado ? "Sale como merma" : "Vuelve al inventario"}.${pedido.comandas.length > 0 ? ` A ${aQuien(pedido.comandas.map((c) => c.area))} le sale su papel «ANULAR».` : ""}`,
     });
     return null;
   }
@@ -610,7 +635,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                       cuenta={cuenta}
                       ahora={ahora}
                       borrador={(borradores[cuenta.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
-                      onReimprimir={(p) => void volverAImprimir(p)}
+                      onReimprimir={(p, c) => void volverAImprimir(p, c)}
                       onAnular={(p) => setAnulando(p)}
                       esperaMin={atencionEsperaMin}
                       onServir={(p) =>
@@ -1090,7 +1115,8 @@ function PedidosDeLaCuenta({
   cuenta: FamilyAccountDto;
   ahora: number;
   borrador: number;
-  onReimprimir: (p: PedidoDto) => void;
+  /** Un papel del pedido (B6-10): el de cocina o el de barra. */
+  onReimprimir: (p: PedidoDto, c: ComandaDelPedidoDto) => void;
   onAnular: (p: PedidoDto) => void;
   /** Marca el pedido servido en la mesa (B6-8, D-SERV). */
   onServir: (p: PedidoDto) => void;
@@ -1118,13 +1144,16 @@ function PedidosDeLaCuenta({
             const anulado = propias.length > 0 && propias.every((l) => l.anulacion !== undefined);
             // Una comanda anulada no se reimprime: la cocina no tiene que preparar nada de ella.
             const fallo = p.comanda.estado === "NO_SALIO" && !anulado;
-            // El papel «ANULAR» que no salió (B6-6): la cocina no se enteró y hay que decírselo.
+            // El papel «ANULAR» que no salió (B6-6): esa área no se enteró y hay que decírselo.
             const anulacionSinPapel = p.anulacion?.estado === "NO_SALIO";
+            const anulacionesFallidas = p.anulaciones.filter((a) => a.estado === "NO_SALIO").map((a) => a.area);
+            // Con cocina y barra (B6-10), cada papel con su estado y su reimpresión; con uno, como siempre.
+            const unaSola = p.comandas.length === 1 ? p.comandas[0]! : null;
             return (
               <li key={p.id} className={cn("rounded-[var(--radius-control)] border px-3 py-2.5", fallo || anulacionSinPapel ? "border-state-crit/50 bg-state-crit-bg" : "border-line bg-base/40")}>
                 <div className="flex items-center justify-between gap-2">
                   <Badge tone={anulado ? "idle" : e.tono} icon={anulado ? <Ban size={13} aria-hidden="true" /> : e.icono}>
-                    {anulado ? "Pedido anulado" : e.texto}
+                    {anulado ? "Pedido anulado" : unaSola?.area ? `${e.texto} · ${AREA[unaSola.area].nombre}` : e.texto}
                   </Badge>
                   <span className="tnum text-[12px] text-ink-3">
                     {comanda(p.numero)} · {ahora > 0 ? `${hora(Date.parse(p.enviadoEn))} · hace ${minutosDesde(p.enviadoEn, ahora)} min` : ""}
@@ -1155,7 +1184,35 @@ function PedidosDeLaCuenta({
                       </Button>
                     </div>
                   ))}
-                {fallo && p.comanda.error && <p className="mt-1 text-[12.5px] text-state-crit">{p.comanda.error}</p>}
+                {!anulado && p.comandas.length > 1 && (
+                  <ul aria-label="Comandas del pedido" className="mt-2 flex flex-col gap-1.5">
+                    {p.comandas.map((c) => {
+                      const ec = ESTADO_COMANDA[c.estado];
+                      const falloC = c.estado === "NO_SALIO";
+                      return (
+                        <li key={c.area ?? "todo"} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <Badge tone={ec.tono} icon={ec.icono}>
+                            {c.area ? AREA[c.area].nombre : "Comanda"}: {ec.corto}
+                          </Badge>
+                          {falloC && c.error && <span className="text-[12.5px] text-state-crit">{c.error}</span>}
+                          {(falloC || c.estado === "DESCARTADA") && (
+                            <Button variant={falloC ? "primary" : "neutral"} onClick={() => onReimprimir(p, c)} className="ml-auto">
+                              <RotateCcw size={16} aria-hidden="true" />
+                              Volver a imprimir
+                            </Button>
+                          )}
+                          {c.estado === "IMPRESA" && (
+                            <Button variant="ghost" onClick={() => onReimprimir(p, c)} className="ml-auto text-[13px]">
+                              <Printer size={15} aria-hidden="true" />
+                              Se perdió: una copia
+                            </Button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {fallo && unaSola && p.comanda.error && <p className="mt-1 text-[12.5px] text-state-crit">{p.comanda.error}</p>}
                 {p.anulacion && (
                   <p
                     role={anulacionSinPapel ? "alert" : undefined}
@@ -1163,22 +1220,22 @@ function PedidosDeLaCuenta({
                   >
                     {anulacionSinPapel ? <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" /> : <Printer size={14} className="mt-0.5 shrink-0" aria-hidden="true" />}
                     {anulacionSinPapel
-                      ? `El papel «ANULAR» no salió${p.anulacion.error ? ` (${p.anulacion.error})` : ""}: avisa a la cocina de palabra.`
+                      ? `El papel «ANULAR» no salió${p.anulacion.error ? ` (${p.anulacion.error})` : ""}: avisa a ${aQuien(anulacionesFallidas)} de palabra.`
                       : p.anulacion.estado === "IMPRESA"
-                        ? "Papel «ANULAR» impreso en cocina"
+                        ? `Papel «ANULAR» impreso en ${aQuien(p.anulaciones.map((a) => a.area)).replaceAll("la ", "")}`
                         : p.anulacion.estado === "DESCARTADA"
                           ? "Papel «ANULAR» descartado"
                           : "Papel «ANULAR» imprimiéndose…"}
                   </p>
                 )}
-                {(fallo || p.comanda.estado === "DESCARTADA") && (
-                  <Button variant={fallo ? "primary" : "neutral"} onClick={() => onReimprimir(p)} className="mt-2 w-full">
+                {unaSola && (fallo || p.comanda.estado === "DESCARTADA") && (
+                  <Button variant={fallo ? "primary" : "neutral"} onClick={() => onReimprimir(p, unaSola)} className="mt-2 w-full">
                     <RotateCcw size={16} aria-hidden="true" />
                     Volver a imprimir
                   </Button>
                 )}
-                {p.comanda.estado === "IMPRESA" && !anulado && (
-                  <Button variant="ghost" onClick={() => onReimprimir(p)} className="mt-1 -mb-1 w-full text-[13px]">
+                {unaSola && p.comanda.estado === "IMPRESA" && !anulado && (
+                  <Button variant="ghost" onClick={() => onReimprimir(p, unaSola)} className="mt-1 -mb-1 w-full text-[13px]">
                     <Printer size={15} aria-hidden="true" />
                     Se perdió el papel: imprimir una copia
                   </Button>

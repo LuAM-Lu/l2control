@@ -3,7 +3,7 @@
  */
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { comandaPideAtencion, estadoDeComanda, lineasDelPedido, type PlatoAhora } from "./index.ts";
+import { areaDe, comandaPideAtencion, estadoDeComanda, estadoDelPedido, lineasDelPedido, partesDelPedido, type PlatoAhora } from "./index.ts";
 
 const CARTA: Record<string, PlatoAhora> = {
   "p-teq": { name: "Tequeños", amountMinor: 450n, taxCode: "GENERAL" },
@@ -65,5 +65,48 @@ describe("en qué quedó la comanda", () => {
     assert.equal(comandaPideAtencion("NO_SALIO"), true);
     assert.equal(comandaPideAtencion("EN_COLA"), false);
     assert.equal(comandaPideAtencion("DESCARTADA"), false);
+  });
+});
+
+describe("la comanda de cocina y la de barra (B6-10)", () => {
+  test("sin elegir, el área es la de su tipo; la elegida manda", () => {
+    assert.equal(areaDe("PREPARADO", null), "COCINA");
+    assert.equal(areaDe("PRODUCTO", undefined), "BARRA");
+    assert.equal(areaDe("SERVICIO", null), "SIN_PAPEL");
+    assert.equal(areaDe("PREPARADO", "BARRA"), "BARRA");
+    assert.equal(areaDe("PRODUCTO", "SIN_PAPEL"), "SIN_PAPEL");
+  });
+
+  test("un papel por área, cocina primero; lo sin papel no sale", () => {
+    const partes = partesDelPedido([
+      { n: "Refresco", area: "BARRA" as const },
+      { n: "Hamburguesa", area: "COCINA" as const },
+      { n: "Descorche", area: "SIN_PAPEL" as const },
+      { n: "Batido", area: "BARRA" as const },
+    ]);
+    assert.deepEqual(
+      partes.map((p) => [p.area, p.lineas.map((l) => l.n)]),
+      [
+        ["COCINA", ["Hamburguesa"]],
+        ["BARRA", ["Refresco", "Batido"]],
+      ],
+    );
+    assert.deepEqual(partesDelPedido([{ area: "SIN_PAPEL" as const }]), []);
+  });
+
+  test("un pedido de antes (sus líneas no dicen área) es un solo papel con todo", () => {
+    const deAntes: { n: string; area?: undefined }[] = [{ n: "Pizza" }, { n: "Refresco" }];
+    const partes = partesDelPedido(deAntes);
+    assert.equal(partes.length, 1);
+    assert.equal(partes[0]!.area, null);
+    assert.equal(partes[0]!.lineas.length, 2);
+  });
+
+  test("el pedido entero dice lo que más atención pide", () => {
+    assert.equal(estadoDelPedido([]), "SIN_PAPEL");
+    assert.equal(estadoDelPedido(["IMPRESA", "IMPRESA"]), "IMPRESA");
+    assert.equal(estadoDelPedido(["IMPRESA", "DESCARTADA"]), "DESCARTADA");
+    assert.equal(estadoDelPedido(["EN_COLA", "DESCARTADA"]), "EN_COLA");
+    assert.equal(estadoDelPedido(["IMPRESA", "NO_SALIO", "EN_COLA"]), "NO_SALIO");
   });
 });

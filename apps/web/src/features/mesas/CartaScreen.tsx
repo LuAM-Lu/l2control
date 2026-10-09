@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { BookOpen, CalendarClock, ChefHat, ClipboardList, EyeOff, Package, PackageX, Plus, Search, Tag, UtensilsCrossed } from "lucide-react";
-import type { CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo } from "@l2/contracts";
+import type { AreaDeProductoDto, CatalogoDto, ProductoCommand, ProductoDto, Resultado, TaxCodeDelCatalogo } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { money, toMajor } from "@l2/domain-money";
@@ -32,6 +32,7 @@ import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { importeTecleado } from "../cash/importe.ts";
 import { aplicarProducto } from "../inventario/productos.acciones";
 import { estadoDe } from "../inventario/EstadoStock.tsx";
+import { AREAS } from "../inventario/ElegirArea.tsx";
 
 /**
  * Inventario → Productos → En la carta (B6-1, F6-03; patrón de Ajustes, M-17; junto al precio desde T-18).
@@ -164,6 +165,30 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
     if (r.ok) avisar.ok(f.p.enCarta ? `${f.p.nombre}: fuera de la carta` : `${f.p.nombre}: en la carta`, { detalle: f.p.enCarta ? "La caja lo sigue vendiendo; el mesero ya no lo ofrece." : "El mesero ya lo ofrece en las mesas." });
     else avisar.error(r.mensaje);
   }
+
+  /** B6-10: en qué comanda sale (cocina, barra o sin papel). */
+  async function cambiarArea(f: Fila, area: AreaDeProductoDto) {
+    const r = await aplicar({ kind: "AREA", productId: f.p.id, area }, `area-${f.p.id}`);
+    if (!r) return;
+    if (r.ok) avisar.ok(`${f.p.nombre}: ${area === "SIN_PAPEL" ? "se sirve sin comanda" : `sale en la comanda de ${area === "COCINA" ? "cocina" : "barra"}`}`);
+    else avisar.error(r.mensaje);
+  }
+
+  const selectorDeArea = (f: Fila, surface: "admin" | "tablet") => (
+    <select
+      aria-label={`Dónde se prepara ${f.p.nombre}`}
+      className={cn(CAMPO_DE_FILTRO, "min-w-28", surface === "tablet" && "min-h-12")}
+      value={f.p.area}
+      disabled={!puede || enviando === `area-${f.p.id}`}
+      onChange={(e) => void cambiarArea(f, e.target.value as AreaDeProductoDto)}
+    >
+      {AREAS.map((a) => (
+        <option key={a.id} value={a.id}>
+          {a.nombre}
+        </option>
+      ))}
+    </select>
+  );
 
   const enLaHoja = hoja?.kind === "precio" ? (filas.find((f) => f.p.id === hoja.id) ?? null) : null;
 
@@ -343,6 +368,7 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
                       <th className={TH}>Categoría</th>
                       <th className={TH}>Precio</th>
                       <th className={TH}>Existencia</th>
+                      <th className={TH}>Se prepara en</th>
                       <th className={TH}>Carta</th>
                       <th className={TH}>
                         <span className="sr-only">Acciones</span>
@@ -372,6 +398,7 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
                         <td className={cn(TD, "whitespace-nowrap")}>{f.p.categoria}</td>
                         <td className={cn(TD, "whitespace-nowrap")}>{precio(f)}</td>
                         <td className={cn(TD, "whitespace-nowrap")}>{existencia(f)}</td>
+                        <td className={cn(TD, "py-1")}>{selectorDeArea(f, "admin")}</td>
                         <td className={cn(TD, "py-1")}>{interruptor(f, "admin")}</td>
                         <td className={cn(TD, "py-1")}>
                           {puede && (
@@ -401,6 +428,7 @@ export function CartaScreen({ catalogo: inicial }: { catalogo: CatalogoDto }) {
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px]">
                       {existencia(f)}
+                      {selectorDeArea(f, "tablet")}
                       <span className="ml-auto flex items-center gap-1">
                         {puede && (
                           <Button type="button" variant="ghost" surface="tablet" onClick={() => setHoja({ kind: "precio", id: f.p.id })}>

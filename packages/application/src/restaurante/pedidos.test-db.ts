@@ -12,7 +12,31 @@ import { randomUUID } from "node:crypto";
 import type { CatalogoDto, PedidoEnviadoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
 import { temasDe } from "../tiempo-real/temas.ts";
-import { abrirLocalDePrueba, contextoDe, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, contextoDe, crearCuenta, crearEquipo, crearPersona, impresoraDePrueba, planoDePrueba, sentarDePrueba, type LocalDePrueba } from "../para-pruebas.ts";
+
+/** Un pedido como lo guardaba la versión de antes de B6-10: sus platos sin área, sin papel todavía. */
+async function pedidoDeAntes(local: LocalDePrueba, ...productIds: string[]): Promise<string> {
+  const id = randomUUID();
+  const accountId = await crearCuenta(local, "MESA");
+  const { tenantId, branchId } = local.sistema;
+  await local.base.conTenant(tenantId, (tx) =>
+    tx.kitchenOrder.create({
+      data: {
+        id,
+        tenantId,
+        branchId,
+        accountId,
+        number: 9_000,
+        tableId: "mesa-3",
+        tableLabel: "3",
+        items: productIds.map((productId, i) => ({ productId, nombre: i === 0 ? "Hamburguesa" : "Agua", cantidad: 1, nota: null })),
+        createdAt: new Date(AHORA),
+        createdByName: "Prueba de antes",
+      },
+    }),
+  );
+  return id;
+}
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 /** Viernes 2 de octubre de 2026, 1:00 pm en Caracas. */
@@ -114,7 +138,7 @@ describe("enviar un pedido", () => {
     assert.equal(pedido.numero, 1);
     assert.equal(pedido.mesa, "1");
     assert.equal(pedido.enviadoPor, "Pedro Díaz");
-    assert.deepEqual(pedido.lineas, [{ productId: ids["Tequeños"], nombre: "Tequeños", cantidad: 2, nota: "sin salsa" }]);
+    assert.deepEqual(pedido.lineas, [{ productId: ids["Tequeños"], nombre: "Tequeños", cantidad: 2, nota: "sin salsa", area: "COCINA" }]);
     assert.equal(pedido.comanda.estado, "EN_COLA");
     assert.equal(pedido.comanda.impresora, "Caja de prueba");
     assert.equal(cuenta.kind, "MESA");
@@ -131,7 +155,7 @@ describe("enviar un pedido", () => {
     assert.equal(mas.length, 0);
     assert.equal(trabajo!.kind, "COMANDA");
     // La cuenta se llama como su cliente (B6-9): la comanda dice la mesa y su nombre, nunca su cédula ni su teléfono.
-    assert.match(trabajo!.title, /^Comanda #0001 · Mesa 1 · Prueba Cliente \d+$/);
+    assert.match(trabajo!.title, /^Comanda #0001 · Cocina · Mesa 1 · Prueba Cliente \d+$/);
     assert.equal(trabajo!.copy, false);
     const papel = JSON.stringify(trabajo!.content);
     assert.match(papel, /MESA 1/);
@@ -290,7 +314,7 @@ describe("anular en cocina, con papel e inventario (B6-6, M-18)", () => {
     );
   });
 
-  test("sin preparar: no se cobra, vuelve al estante y a la cocina le sale un papel «ANULAR», todo de una vez", async () => {
+  test("sin preparar: no se cobra, vuelve al estante y a cada área le sale su papel «ANULAR», todo de una vez", async () => {
     const antes = await existencia("Refresco");
     const pedidoId = randomUUID();
     const { cuenta } = valor(await enviar(mesero, "mesa-4", [linea("Refresco", 2), linea("Tequeños")], pedidoId));
@@ -300,15 +324,20 @@ describe("anular en cocina, con papel e inventario (B6-6, M-18)", () => {
     assert.ok(r.lines.filter((x) => x.orderId === pedidoId).every((x) => x.anulacion?.preparado === false));
     assert.equal(await existencia("Refresco"), antes, "lo que no se preparó vuelve al estante");
 
+    // El refresco salió en la comanda de barra y los tequeños en la de cocina (B6-10): cada área recibe su «ANULAR».
     const trabajos = await trabajosDe(pedidoId);
-    assert.deepEqual(trabajos.map((t) => t.kind), ["COMANDA", "ANULACION"]);
-    const papel = trabajos[1]!;
-    assert.match(papel.title, /Anular · comanda #\d{4} · Mesa 4/);
-    const texto = JSON.stringify(papel.content);
+    assert.deepEqual(trabajos.map((t) => `${t.kind}:${t.area}`).sort(), ["ANULACION:BARRA", "ANULACION:COCINA", "COMANDA:BARRA", "COMANDA:COCINA"]);
+    const barra = trabajos.find((t) => t.kind === "ANULACION" && t.area === "BARRA")!;
+    const cocina = trabajos.find((t) => t.kind === "ANULACION" && t.area === "COCINA")!;
+    assert.match(barra.title, /Anular · comanda #\d{4} · Barra · Mesa 4/);
+    const texto = JSON.stringify(barra.content);
     assert.match(texto, /ANULAR · NO PREPARAR/);
+    assert.match(texto, /"BARRA"/);
     assert.match(texto, /2 x Refresco/);
-    assert.match(texto, /1 x Tequeños/);
+    assert.doesNotMatch(texto, /Tequeños/);
     assert.match(texto, /Luis Guerrero/);
+    assert.match(JSON.stringify(cocina.content), /1 x Tequeños/);
+    assert.doesNotMatch(JSON.stringify(cocina.content), /Refresco/);
 
     // La comanda sigue siendo la comanda: el papel de anulación se ve aparte y no la cambia.
     const { pedidos } = valor(await l.app.pedidos.leer(mesero, AHORA));
@@ -316,9 +345,12 @@ describe("anular en cocina, con papel e inventario (B6-6, M-18)", () => {
     assert.equal(leido.comanda.estado, "EN_COLA");
     assert.equal(leido.comanda.reimpresiones, 0);
     assert.deepEqual(leido.anulacion, { estado: "EN_COLA", error: null });
-    await mover(papel.id, "FALLIDO");
+    assert.equal(leido.anulaciones.length, 2);
+    await mover(barra.id, "FALLIDO");
     const tras = valor(await l.app.pedidos.leer(mesero, AHORA)).pedidos.find((p) => p.id === pedidoId)!;
     assert.deepEqual(tras.anulacion, { estado: "NO_SALIO", error: "La impresora no responde" });
+    assert.equal(tras.anulaciones.find((a) => a.area === "BARRA")?.estado, "NO_SALIO");
+    assert.equal(tras.anulaciones.find((a) => a.area === "COCINA")?.estado, "EN_COLA");
   });
 
   test("ya preparado: la existencia no vuelve y sale como merma, con su costo y quien lo autorizó", async () => {
@@ -395,5 +427,191 @@ describe("servido en la mesa (B6-8, D-SERV)", () => {
     const ajeno = await l.app.pedidos.servir(otroMesero, { pedidoId: id }, AHORA);
     assert.equal(ajeno.ok, false);
     assert.equal(valor(await l.app.pedidos.leer(mesero, AHORA)).pedidos.find((p) => p.id === id)?.servido, null);
+  });
+});
+
+describe("la comanda de cocina y la de barra (B6-10)", () => {
+  let barra: string;
+  let local: LocalDePrueba;
+  let meseroB: Contexto;
+  const productos: Record<string, string> = {};
+  const lineaB = (nombre: string, cantidad = 1) => ({ productId: productos[nombre]!, cantidad, precioMinor: "200" });
+  const enviarB = (lineas: unknown[], pedidoId = randomUUID()) => local.app.pedidos.enviar(meseroB, { pedidoId, tableId: "mesa-1", lineas }, AHORA);
+  const trabajosB = (pedidoId: string) =>
+    local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.findMany({ where: { orderId: pedidoId }, include: { printer: { select: { name: true } } }, orderBy: { createdAt: "asc" } }));
+
+  before(async () => {
+    local = await abrirLocalDePrueba(URL_APP, "Prueba barra");
+    const rosa = await crearPersona(local, { nombre: "Rosa Peña", role: "MESERO", pin: "3175" });
+    meseroB = await contextoDe(local, await crearEquipo(local, "Salón"), rosa, "3175");
+    await planoDePrueba(local);
+    // Una de cocina (que también hace recibos) y otra de barra.
+    const cocina = await impresoraDePrueba(local, "192.168.250.251");
+    valor(await local.app.impresion.aplicar(local.sistema, { kind: "ACTIVAR", impresoraId: cocina, activa: false }));
+    const datos = (nombre: string, ip: string, marcas: { recibos: boolean; comandas: boolean; barra: boolean }) => ({
+      nombre,
+      ip,
+      puerto: 9100,
+      ancho: 80,
+      ...marcas,
+      enVlanDeHardware: true,
+      ipFija: true,
+    });
+    valor(await local.app.impresion.aplicar(local.sistema, { kind: "EDITAR", impresoraId: cocina, datos: datos("Cocina de prueba", "192.168.250.251", { recibos: true, comandas: true, barra: false }) }));
+    valor(await local.app.impresion.aplicar(local.sistema, { kind: "ACTIVAR", impresoraId: cocina, activa: true }));
+    const r = valor(await local.app.impresion.aplicar(local.sistema, { kind: "CREAR", datos: datos("Barra de prueba", "192.168.250.252", { recibos: false, comandas: false, barra: true }) }));
+    barra = r.local.impresoras.find((i) => i.nombre === "Barra de prueba")!.id;
+    for (const [nombre, tipo, area] of [
+      ["Hamburguesa", "PREPARADO", undefined],
+      ["Batido", "PREPARADO", "BARRA"],
+      ["Agua", "PRODUCTO", undefined],
+      ["Descorche", "SERVICIO", undefined],
+    ] as const) {
+      const c = valor(
+        await local.app.productos.aplicar(
+          local.sistema,
+          { kind: "CREAR", producto: { nombre, categoria: "Carta", taxCode: "GENERAL", tipo, precioMinor: "200", enCarta: true, ...(area ? { area } : {}) } },
+          AHORA - 10 * MIN,
+        ),
+      );
+      productos[nombre] = c.productos.find((p) => p.nombre === nombre)!.id;
+    }
+    // El agua se cuenta: entra antes de pedirla.
+    valor(
+      await local.app.entradas.registrar(
+        local.sistema,
+        { idempotencyKey: randomUUID(), tipo: "INICIAL", lineas: [{ productId: productos["Agua"]!, bultos: 1, unidadesPorBulto: 10, costo: { por: "BULTO", minor: "500" } }] },
+        AHORA - 9 * MIN,
+      ),
+    );
+    await sentarDePrueba(local, meseroB, "mesa-1", AHORA - 5 * MIN);
+  });
+
+  after(async () => {
+    await local.cerrar();
+  });
+
+  test("el área de cada producto: la de su tipo, o la elegida al crearlo, en la ficha o en lote", async () => {
+    let c = await local.app.productos.leer(local.sistema);
+    const area = (n: string) => c.productos.find((p) => p.nombre === n)!;
+    assert.deepEqual([area("Hamburguesa").area, area("Hamburguesa").areaDeSuTipo], ["COCINA", true]);
+    assert.deepEqual([area("Batido").area, area("Batido").areaDeSuTipo], ["BARRA", false]);
+    assert.equal(area("Agua").area, "BARRA");
+    assert.equal(area("Descorche").area, "SIN_PAPEL");
+    c = valor(await local.app.productos.aplicar(local.sistema, { kind: "AREA", productId: productos["Descorche"]!, area: "COCINA" }, AHORA - 8 * MIN));
+    assert.equal(area("Descorche").area, "COCINA");
+    c = valor(await local.app.productos.editarEnLote(local.sistema, { productIds: [productos["Descorche"]!], cambio: { kind: "AREA", area: "SIN_PAPEL" } }, AHORA - 8 * MIN));
+    assert.deepEqual([area("Descorche").area, area("Descorche").areaDeSuTipo], ["SIN_PAPEL", true]);
+  });
+
+  test("sin la impresora de barra encendida, un pedido con algo de barra no se envía; uno solo de cocina, sí", async () => {
+    const r = await enviarB([lineaB("Hamburguesa"), lineaB("Agua")]);
+    assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE", JSON.stringify(r));
+    assert.match(!r.ok ? r.mensaje : "", /comandas de barra/);
+    const solo = valor(await enviarB([lineaB("Hamburguesa")]));
+    assert.deepEqual(solo.pedido.comandas.map((c) => c.area), ["COCINA"]);
+    valor(await local.app.impresion.aplicar(local.sistema, { kind: "ACTIVAR", impresoraId: barra, activa: true }));
+  });
+
+  test("un papel por área, cada uno en su impresora, rotulado y con «1 de 2»; lo sin papel no sale", async () => {
+    const pedidoId = randomUUID();
+    const { pedido } = valor(await enviarB([lineaB("Agua", 2), lineaB("Hamburguesa"), lineaB("Descorche"), lineaB("Batido")], pedidoId));
+    assert.deepEqual(
+      pedido.lineas.map((x) => [x.nombre, x.area]),
+      [
+        ["Agua", "BARRA"],
+        ["Hamburguesa", "COCINA"],
+        ["Descorche", "SIN_PAPEL"],
+        ["Batido", "BARRA"],
+      ],
+    );
+    assert.deepEqual(
+      pedido.comandas.map((c) => [c.area, c.estado, c.impresora]),
+      [
+        ["COCINA", "EN_COLA", "Cocina de prueba"],
+        ["BARRA", "EN_COLA", "Barra de prueba"],
+      ],
+    );
+    const trabajos = await trabajosB(pedidoId);
+    assert.equal(trabajos.length, 2);
+    const cocina = trabajos.find((t) => t.area === "COCINA")!;
+    const deBarra = trabajos.find((t) => t.area === "BARRA")!;
+    assert.equal(cocina.printer.name, "Cocina de prueba");
+    assert.equal(deBarra.printer.name, "Barra de prueba");
+    assert.match(cocina.title, /^Comanda #\d{4} · Cocina · Mesa 1/);
+    const textoCocina = JSON.stringify(cocina.content);
+    const textoBarra = JSON.stringify(deBarra.content);
+    assert.match(textoCocina, /COCINA · 1 de 2/);
+    assert.match(textoBarra, /BARRA · 2 de 2/);
+    assert.match(textoCocina, /1 x Hamburguesa/);
+    assert.doesNotMatch(textoCocina, /Agua|Batido|Descorche/);
+    assert.match(textoBarra, /2 x Agua/);
+    assert.match(textoBarra, /1 x Batido/);
+    assert.doesNotMatch(textoBarra, /Hamburguesa|Descorche/);
+
+    // Cada papel se sigue y se reimprime por su cuenta: la barra no salió, la cocina sí.
+    const mover2 = (id: string, a: "CONFIRMADO" | "FALLIDO") =>
+      local.base.conTenant(local.sistema.tenantId, async (tx) => {
+        await tx.printJob.update({ where: { id }, data: { status: "ENVIADO", sentAt: new Date(AHORA) } });
+        await tx.printJob.update({ where: { id }, data: { status: a, sentAt: null, finishedAt: new Date(AHORA + MIN), ...(a === "FALLIDO" ? { lastError: "Sin papel", attempts: 5 } : {}) } });
+      });
+    await mover2(cocina.id, "CONFIRMADO");
+    await mover2(deBarra.id, "FALLIDO");
+    let leido = valor(await local.app.pedidos.leer(meseroB, AHORA)).pedidos.find((p) => p.id === pedidoId)!;
+    assert.deepEqual(
+      leido.comandas.map((c) => [c.area, c.estado]),
+      [
+        ["COCINA", "IMPRESA"],
+        ["BARRA", "NO_SALIO"],
+      ],
+    );
+    assert.deepEqual([leido.comanda.estado, leido.comanda.error, leido.comanda.impresora], ["NO_SALIO", "Sin papel", "Barra de prueba"]);
+
+    const sinArea = await local.app.pedidos.reimprimir(meseroB, { pedidoId }, AHORA);
+    assert.equal(!sinArea.ok && sinArea.motivo, "INVALIDO", "con dos papeles, se dice cuál");
+    leido = valor(await local.app.pedidos.reimprimir(meseroB, { pedidoId, area: "BARRA" }, AHORA));
+    assert.deepEqual(
+      leido.comandas.map((c) => [c.area, c.estado, c.reimpresiones]),
+      [
+        ["COCINA", "IMPRESA", 0],
+        ["BARRA", "EN_COLA", 0],
+      ],
+    );
+    // La de cocina salió y se perdió el papel: una copia, solo de cocina.
+    leido = valor(await local.app.pedidos.reimprimir(meseroB, { pedidoId, area: "COCINA" }, AHORA));
+    assert.equal(leido.comandas.find((c) => c.area === "COCINA")!.reimpresiones, 1);
+    const despues = await trabajosB(pedidoId);
+    assert.equal(despues.length, 3);
+    assert.equal(despues.filter((t) => t.area === "BARRA").length, 1, "la de barra se reintentó en el mismo trabajo");
+  });
+
+  test("un pedido de solo cosas sin papel no saca comanda", async () => {
+    const pedidoId = randomUUID();
+    const { pedido } = valor(await enviarB([lineaB("Descorche")], pedidoId));
+    assert.deepEqual(pedido.comandas, []);
+    assert.equal(pedido.comanda.estado, "SIN_PAPEL");
+    assert.equal((await trabajosB(pedidoId)).length, 0);
+    const r = await local.app.pedidos.reimprimir(meseroB, { pedidoId }, AHORA);
+    assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
+  });
+
+  test("un pedido de antes de este paso es un solo papel, con todo, en la de cocina", async () => {
+    const pedidoId = await pedidoDeAntes(local, productos["Hamburguesa"]!, productos["Agua"]!);
+    const leido = valor(await local.app.pedidos.leer(meseroB, AHORA)).pedidos.find((p) => p.id === pedidoId)!;
+    assert.deepEqual(leido.comandas.map((c) => c.area), [null]);
+    const r = valor(await local.app.pedidos.reimprimir(meseroB, { pedidoId }, AHORA));
+    assert.equal(r.comandas[0]!.estado, "EN_COLA");
+    const [t] = await trabajosB(pedidoId);
+    assert.equal(t!.area, null);
+    assert.equal(t!.printer.name, "Cocina de prueba");
+    assert.match(JSON.stringify(t!.content), /Hamburguesa[\s\S]*Agua/);
+  });
+
+  test("una impresora no se enciende para la barra si otra ya la tiene", async () => {
+    const r = valor(await local.app.impresion.aplicar(local.sistema, { kind: "CREAR", datos: { nombre: "Otra barra", ip: "192.168.250.253", puerto: 9100, ancho: 80, recibos: false, comandas: false, barra: true, enVlanDeHardware: true, ipFija: true } }));
+    const otra = r.local.impresoras.find((i) => i.nombre === "Otra barra")!.id;
+    const a = await local.app.impresion.aplicar(local.sistema, { kind: "ACTIVAR", impresoraId: otra, activa: true });
+    assert.equal(!a.ok && a.motivo, "CONFLICTO");
+    assert.match(!a.ok ? a.mensaje : "", /comandas de barra/);
   });
 });
