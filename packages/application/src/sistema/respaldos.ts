@@ -32,11 +32,12 @@ import {
   type NivelDeRespaldos,
   type PcDeRespaldosDto,
   type PcPreparadaDto,
+  type PedidoDeRespaldoDto,
   type Rechazo,
   type Resultado,
   type TipoDeCarpeta,
 } from "@l2/contracts";
-import { errorDeBase, type BackupCopy, type BackupPin, type BackupReceiver, type BackupRehearsal, type Base } from "@l2/database";
+import { errorDeBase, type BackupCopy, type BackupPin, type BackupReceiver, type BackupRehearsal, type BackupRequest, type Base } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
@@ -84,9 +85,30 @@ export interface CasosRespaldos {
   fijar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstadoDeRespaldosDto>>;
   /** Suelta un respaldo fijado (`SoltarRespaldoCommandSchema`, B7-6), con elevación: vuelve a la retención. */
   soltar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstadoDeRespaldosDto>>;
+  /**
+   * «Respaldar ahora» (B7-8, M-35), con elevación: la web lo pide y el actualizador del servidor lo hace en el minuto
+   * siguiente, con `respaldar.sh`, y escribe cómo terminó. Uno a la vez: con otro pedido o en curso, se queda ese.
+   */
+  pedirAhora(ctx: Contexto, ahora?: number): Promise<Resultado<EstadoDeRespaldosDto>>;
 }
 
 const huellaDe = (credencial: string) => createHash("sha256").update(credencial).digest("hex");
+
+/** Un «Respaldar ahora» que terminó se enseña un día (B7-8); el pedido o en curso, siempre. */
+const PEDIDO_VISIBLE_MS = 24 * HORA;
+
+function pedidoDto(p: BackupRequest | null, ahora: number): PedidoDeRespaldoDto | null {
+  if (!p) return null;
+  const fin = p.finishedAt?.getTime() ?? null;
+  if (fin !== null && ahora - fin > PEDIDO_VISIBLE_MS) return null;
+  return {
+    estado: p.state as PedidoDeRespaldoDto["estado"],
+    pedidoEn: p.requestedAt.toISOString(),
+    por: p.requestedByName,
+    terminadoEn: p.finishedAt?.toISOString() ?? null,
+    detalle: p.detail,
+  };
+}
 
 const ensayoDto = (e: BackupRehearsal): EnsayoDeRestauracionDto => ({ integro: e.intact, en: e.at.toISOString(), segundos: e.seconds, detalle: e.detail });
 
@@ -186,13 +208,14 @@ export function casosRespaldos(base: Base): CasosRespaldos {
       fijados: pines
         .sort((a, b) => b.copia.madeAt.getTime() - a.copia.madeAt.getTime())
         .map((p) => dto(p.copia, p, ensayoDe.get(p.copyId))),
+      pedido: pedidoDto(await tx.backupRequest.findFirst({ orderBy: [{ requestedAt: "desc" }, { id: "desc" }] }), ahora),
     });
   }
 
   /** Lee como `estado`, pero dentro de una escritura que ya comprobó el permiso. */
   async function conPermiso(
     ctx: Contexto,
-    accion: "respaldo.fijar" | "respaldo.soltar",
+    accion: "respaldo.fijar" | "respaldo.soltar" | "respaldo.pedir",
     ahora: number,
     escribir: (tx: Parameters<Parameters<Base["conTenant"]>[1]>[0], quien: string) => Promise<Rechazo | null>,
   ): Promise<Resultado<EstadoDeRespaldosDto>> {
@@ -320,6 +343,31 @@ export function casosRespaldos(base: Base): CasosRespaldos {
         return { yaEstaba: false };
       });
       return "ok" in r ? r : { ok: true, valor: r };
+    },
+
+    async pedirAhora(ctx, ahora = Date.now()) {
+      try {
+        return await conPermiso(ctx, "respaldo.pedir", ahora, async (tx, quien) => {
+          // Uno a la vez: con otro pedido o en curso, se queda ese (otra persona lo pidió, o un doble toque).
+          if (await tx.backupRequest.findFirst({ where: { state: { in: ["PEDIDO", "EN_CURSO"] } } })) return null;
+          const p = await tx.backupRequest.create({
+            data: {
+              tenantId: ctx.tenantId,
+              state: "PEDIDO",
+              requestedAt: new Date(ahora),
+              requestedBy: ctx.quien?.userId ?? null,
+              requestedByName: quien,
+              deviceId: ctx.quien?.deviceId ?? null,
+            },
+          });
+          await auditar(tx, ctx, { action: "respaldo.pedir", entityType: "backup_request", entityId: p.id, after: { estado: "PEDIDO" } });
+          return null;
+        });
+      } catch (e) {
+        // Dos a la vez: la base deja uno, y se enseña ese.
+        if (errorDeBase(e)?.motivo === "DUPLICADO") return { ok: true, valor: await base.conTenant(ctx.tenantId, (tx) => leer(tx, ahora)) };
+        throw e;
+      }
     },
 
     async fijar(ctx, entrada, ahora = Date.now()) {

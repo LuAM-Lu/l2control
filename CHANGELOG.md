@@ -16,6 +16,15 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.110.0] — 2026-10-09 · Hacia la puesta en marcha
+
+Respaldar ahora (B7-8, M-35).
+
+### Añadido
+- **«Respaldar ahora»** en Ajustes → Sistema → Respaldos, de administración con la identidad confirmada: el servidor lo
+  hace en el minuto siguiente y la pantalla dice en vivo si se hizo o por qué no. Hecho, quita el aviso de «no se hizo
+  el respaldo de anoche». Uno a la vez.
+
 ## [0.109.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Entradas: vigentes, anuladas y por periodo (B9-13, M-35).

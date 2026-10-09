@@ -846,6 +846,8 @@ export {
   CopiaDeRespaldoSchema,
   NivelDeRespaldosSchema,
   EstadoDeRespaldosSchema,
+  PedidoDeRespaldoSchema,
+  type PedidoDeRespaldoDto,
   IndiceDeRespaldosSchema,
   AcuseDeRespaldoCommandSchema,
   PcDeRespaldosSchema,

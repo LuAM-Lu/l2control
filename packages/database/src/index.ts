@@ -51,6 +51,7 @@ export type {
   BackupPin,
   BackupReceiver,
   BackupRehearsal,
+  BackupRequest,
   Tenant,
 } from "./generated/client.ts";
 export { errorDeBase, type ErrorDeBase, type MotivoDeBase } from "./errores.ts";

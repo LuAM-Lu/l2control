@@ -78,6 +78,20 @@ export const PcDeRespaldosSchema = z.object({
 });
 export type PcDeRespaldosDto = z.infer<typeof PcDeRespaldosSchema>;
 
+/**
+ * Un respaldo pedido desde el panel (B7-8, M-35): «Respaldar ahora». Lo pide administración y lo hace el servidor en el
+ * minuto siguiente; aquí, cómo va o cómo terminó.
+ */
+export const PedidoDeRespaldoSchema = z.object({
+  estado: z.enum(["PEDIDO", "EN_CURSO", "HECHO", "FALLIDO"]),
+  pedidoEn: TimestampSchema,
+  por: z.string(),
+  terminadoEn: TimestampSchema.nullable(),
+  /** Por qué falló. */
+  detalle: z.string().nullable(),
+});
+export type PedidoDeRespaldoDto = z.infer<typeof PedidoDeRespaldoSchema>;
+
 export const EstadoDeRespaldosSchema = z.object({
   nivel: NivelDeRespaldosSchema,
   /** La PC del local en uso; `null` si no hay ninguna preparada. */
@@ -94,6 +108,8 @@ export const EstadoDeRespaldosSchema = z.object({
   ensayo: EnsayoDeRestauracionSchema.extend({ archivo: z.string().nullable() }).nullable().default(null),
   /** Los fijados vigentes, aunque sean viejos (B7-6). */
   fijados: z.array(CopiaDeRespaldoSchema).default([]),
+  /** El último «Respaldar ahora» (B7-8): el que está pedido o en curso, o el que terminó en el último día. */
+  pedido: PedidoDeRespaldoSchema.nullable().default(null),
 });
 export type EstadoDeRespaldosDto = z.infer<typeof EstadoDeRespaldosSchema>;
 

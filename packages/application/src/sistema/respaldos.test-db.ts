@@ -275,3 +275,36 @@ describe("con control (B7-6)", () => {
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupRehearsal.updateMany({ where: { copyId: r.id }, data: { intact: true } })));
   });
 });
+
+describe("respaldar ahora (B7-8)", () => {
+  test("administración con la identidad confirmada lo pide; uno a la vez, y el panel lo enseña pedido", async () => {
+    const r = await local.app.respaldos.pedirAhora(ctxAdmin, AHORA);
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.valor.pedido?.estado, "PEDIDO");
+    assert.equal(r.valor.pedido?.por, "Abigail Karam");
+    // Otra vez (un doble toque, u otra persona): se queda el mismo.
+    const otra = await local.app.respaldos.pedirAhora(ctxAdmin, AHORA + 1000);
+    assert.ok(otra.ok);
+    assert.equal(otra.valor.pedido?.pedidoEn, r.valor.pedido?.pedidoEn);
+    assert.equal(await local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupRequest.count()), 1);
+    const leido = await local.app.respaldos.estado(ctxAdmin, AHORA + 2000);
+    assert.ok(leido.ok && leido.valor.pedido?.estado === "PEDIDO");
+  });
+
+  test("sin confirmar la identidad, o desde la caja, no se pide", async () => {
+    const sin = await local.app.respaldos.pedirAhora(ctxAdminSinConfirmar, AHORA);
+    assert.equal(!sin.ok && sin.motivo, "ELEVACION_REQUERIDA");
+    const caja = await local.app.respaldos.pedirAhora(ctxCajera, AHORA);
+    assert.equal(!caja.ok && caja.motivo, "NO_PERMITIDO");
+  });
+
+  test("la web solo pide: el resultado lo escribe el servidor, y la base no deja uno hecho sin su respaldo", async () => {
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupRequest.updateMany({ data: { state: "HECHO" } })));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.backupRequest.deleteMany({})));
+    await assert.rejects(
+      local.base.conTenant(local.sistema.tenantId, (tx) =>
+        tx.backupRequest.create({ data: { tenantId: local.sistema.tenantId, state: "HECHO", requestedByName: "Abigail Karam", startedAt: new Date(AHORA), finishedAt: new Date(AHORA) } }),
+      ),
+    );
+  });
+});

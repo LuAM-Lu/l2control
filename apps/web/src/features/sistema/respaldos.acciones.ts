@@ -52,3 +52,18 @@ export async function soltarRespaldo(entrada: unknown): Promise<Resultado<Estado
   if (r.ok) revalidatePath("/", "layout");
   return r;
 }
+
+/**
+ * «Respaldar ahora» (B7-8, M-35), con la identidad confirmada: queda pedido y el servidor lo hace en el minuto
+ * siguiente. Con otro pedido o en curso, se queda ese.
+ */
+export async function respaldarAhora(): Promise<Resultado<EstadoDeRespaldosDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).respaldos.pedirAhora(ctx);
+  if (r.ok) {
+    log().info({ tenantId: ctx.tenantId, estado: r.valor.pedido?.estado }, "respaldo pedido desde el panel");
+    revalidatePath("/", "layout");
+  }
+  return r;
+}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, CircleSlash, Download, FlaskConical, HardDrive, Pin, PinOff, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleSlash, DatabaseBackup, Download, FlaskConical, HardDrive, LoaderCircle, Pin, PinOff, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
 import type { CopiaDeRespaldoDto, EstadoDeRespaldosDto, NivelDeRespaldos, Resultado } from "@l2/contracts";
 import { Button, Confirmacion, Container, Dialog, Input, TAMANO_ICONO, avisar, cn } from "@l2/ui";
 import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
@@ -10,7 +10,7 @@ import { useConElevacion } from "../identity/ElevacionProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { PcDelLocal } from "./PcDelLocal.tsx";
-import { fijarRespaldo, soltarRespaldo } from "./respaldos.acciones";
+import { fijarRespaldo, respaldarAhora, soltarRespaldo } from "./respaldos.acciones";
 
 /**
  * Ajustes → Sistema · Respaldos (B7-4, M-26; con control, B7-6, M-29). Cada noche el servidor hace un respaldo
@@ -18,6 +18,7 @@ import { fijarRespaldo, soltarRespaldo } from "./respaldos.acciones";
  * fuera del local). Aquí se ve si el de anoche se hizo, si ya salió del servidor con su huella comprobada, el
  * ensayo semanal de restauración (ÍNTEGRO, o qué falló) y los fijados, que nada borra. Fijar y soltar piden
  * confirmar la identidad; lo demás lo hacen el servidor (`infra/produccion/respaldar.sh`) y la PC del local.
+ * «Respaldar ahora» (B7-8, M-35) también: queda pedido y el servidor lo hace en el minuto siguiente; cómo va llega en vivo.
  */
 
 const NIVEL: Readonly<Record<NivelDeRespaldos, { tono: "ok" | "warn" | "crit"; icono: typeof CheckCircle2 }>> = {
@@ -77,6 +78,22 @@ export function RespaldosScreen({ estado: r, servidor }: { estado: Resultado<Est
   // Los fijados que no salen entre los últimos intentos se enseñan aparte (no se pierden de vista).
   const fijadosViejos = e.fijados.filter((f) => !e.copias.some((c) => c.id === f.id));
 
+  // B7-8: el respaldo pedido desde aquí, mientras el servidor lo hace (se ve en vivo por el canal).
+  const enCurso = e.pedido !== null && (e.pedido.estado === "PEDIDO" || e.pedido.estado === "EN_CURSO");
+  async function pedirRespaldo() {
+    setOcupado(true);
+    try {
+      const res = await conElevacion(() => respaldarAhora());
+      if (!res.ok) return avisar.error(res.mensaje);
+      avisar.ok("Respaldo pedido", { detalle: "El servidor lo hace en el minuto siguiente; aquí verás cómo terminó." });
+      router.refresh();
+    } catch {
+      avisar.error("El servidor no respondió. No se pidió el respaldo.");
+    } finally {
+      setOcupado(false);
+    }
+  }
+
   async function fijar() {
     if (!fijando) return;
     setOcupado(true);
@@ -122,7 +139,41 @@ export function RespaldosScreen({ estado: r, servidor }: { estado: Resultado<Est
         migas={[{ texto: ajustes.nombre, href: "/panel" }, { texto: "Ajustes", href: "/panel/ajustes" }, { texto: "Respaldos" }]}
         titulo="Respaldos"
         descripcion="Cada noche el servidor guarda un respaldo de la base, cifrado con la clave del local, y una PC del local lo baja. Sin esa clave, que no está en el servidor, nadie lo puede abrir."
+        acciones={
+          <Button type="button" variant="neutral" surface="admin" className="gap-1.5" disabled={ocupado || enCurso} onClick={() => void pedirRespaldo()}>
+            {enCurso ? <LoaderCircle size={TAMANO_ICONO.admin} className="animate-spin" aria-hidden="true" /> : <DatabaseBackup size={TAMANO_ICONO.admin} aria-hidden="true" />}
+            {enCurso ? "Respaldando…" : "Respaldar ahora"}
+          </Button>
+        }
       />
+
+      {/* B7-8: cómo va el respaldo pedido desde aquí, o cómo terminó (un día). */}
+      {e.pedido && (
+        <p
+          role={e.pedido.estado === "FALLIDO" ? "alert" : "status"}
+          className={cn(
+            "mb-4 flex items-start gap-2 rounded-[var(--radius-card)] border px-4 py-3 text-cuerpo",
+            e.pedido.estado === "HECHO" && "border-state-ok/40 bg-state-ok-bg text-state-ok",
+            e.pedido.estado === "FALLIDO" && "border-state-crit/40 bg-state-crit-bg text-state-crit",
+            enCurso && "border-line bg-surface text-ink-2",
+          )}
+        >
+          {e.pedido.estado === "HECHO" ? (
+            <CheckCircle2 size={TAMANO_ICONO.admin} className="mt-px shrink-0" aria-hidden="true" />
+          ) : e.pedido.estado === "FALLIDO" ? (
+            <AlertTriangle size={TAMANO_ICONO.admin} className="mt-px shrink-0" aria-hidden="true" />
+          ) : (
+            <LoaderCircle size={TAMANO_ICONO.admin} className="mt-px shrink-0 animate-spin" aria-hidden="true" />
+          )}
+          {e.pedido.estado === "PEDIDO"
+            ? `${e.pedido.por} pidió un respaldo a las ${reloj.hora(Date.parse(e.pedido.pedidoEn))}: el servidor lo hace en el minuto siguiente.`
+            : e.pedido.estado === "EN_CURSO"
+              ? `Respaldando ahora (lo pidió ${e.pedido.por}).`
+              : e.pedido.estado === "HECHO"
+                ? `El respaldo que pidió ${e.pedido.por} se hizo ${e.pedido.terminadoEn ? reloj.diaYHora(Date.parse(e.pedido.terminadoEn)) : ""}.`
+                : `El respaldo que pidió ${e.pedido.por} no se hizo: ${e.pedido.detalle ?? "sin motivo"}`}
+        </p>
+      )}
 
       <p
         role={n.tono === "ok" ? "status" : "alert"}
