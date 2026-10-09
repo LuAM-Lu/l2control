@@ -698,3 +698,30 @@ describe("la comanda de cocina y la de barra (B6-10)", () => {
     assert.match(!a.ok ? a.mensaje : "", /comandas de barra/);
   });
 });
+
+describe("notas rápidas del mesero (B6-12)", () => {
+  test("las más escritas para el plato, iguales sin mayúsculas ni espacios de más; con pocas, las de su categoría; de los últimos 60 días", async () => {
+    valor(
+      await l.app.entradas.registrar(
+        l.sistema,
+        { idempotencyKey: randomUUID(), tipo: "REPOSICION", lineas: [{ productId: ids["Refresco"]!, bultos: 1, unidadesPorBulto: 6, costo: { por: "BULTO", minor: "600" } }] },
+        AHORA - 5 * MIN,
+      ),
+    );
+    const conNota = async (nombre: string, nota: string) => valor(await enviar(mesero, "mesa-2", [linea(nombre, 1, { nota })]));
+    for (const nota of ["Extra queso", "extra  queso", "EXTRA QUESO", "para llevar"]) await conNota("Tequeños", nota);
+    for (const nota of ["sin hielo", "Sin hielo"]) await conNota("Refresco", nota);
+    const r = valor(await l.app.pedidos.notasRapidas(mesero, { productId: ids["Tequeños"] }, AHORA + MIN));
+    assert.equal(r.notas[0]?.toLowerCase(), "extra queso", "la más escrita: tres veces, con sus mayúsculas y espacios");
+    assert.ok(r.notas.includes("para llevar"));
+    assert.ok(r.notas.some((n) => n.toLowerCase() === "sin hielo"), "con pocas, completa con las de su categoría");
+    assert.equal(new Set(r.notas.map((n) => n.toLowerCase().replace(/\s+/g, " "))).size, r.notas.length, "sin repetir");
+    assert.ok(r.notas.length <= 5);
+    // Pasados 60 días, ya no cuentan.
+    assert.deepEqual(valor(await l.app.pedidos.notasRapidas(mesero, { productId: ids["Tequeños"] }, AHORA + 61 * 86_400_000)).notas, []);
+    // Quien no toma pedidos no las pide; otro local no ve las de este.
+    const r2 = await l.app.pedidos.notasRapidas(monitora, { productId: ids["Tequeños"] }, AHORA);
+    assert.equal(!r2.ok && r2.motivo, "NO_PERMITIDO");
+    assert.deepEqual(valor(await otro.app.pedidos.notasRapidas(otroMesero, { productId: ids["Tequeños"] }, AHORA)).notas, []);
+  });
+});

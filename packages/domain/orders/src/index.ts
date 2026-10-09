@@ -25,6 +25,7 @@ export {
   type ProblemaDePedido,
   type UnidadPedida,
 } from "./pedido.ts";
+export { NOTAS_SUGERIDAS, claveDeNota, conNotaRapida, notaLimpia, notasSugeridas } from "./notas.ts";
 export {
   DESHACER_SERVIDO_MS,
   problemaParaDeshacer,

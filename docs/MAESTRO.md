@@ -2583,10 +2583,16 @@ antes del cobro en servidor (orden de ejecución).
   como todo servido. `pedidos.servir` con `lineas` (sin ellas, todo lo que falte) y `pedidos.deshacerServido`
   (`pedido.deshacer_servido`). Mesas: un renglón por plato con «Servido», su hora y «Deshacer»; «Servir todo» con dos o
   más por servir. 5 pruebas del dominio y 4 contra la base.*
-- [ ] **B6-12 · Notas rápidas del mesero** (M-34, S-11).
+- [x] **B6-12 · Notas rápidas del mesero** (M-34, S-11).
+  *Hecho el 2026-10-09, en `feat/b6-12`.*
   → Al poner una nota a un plato, la tablet ofrece las 5 más escritas para ese producto en los últimos 60 días (y las de
   su categoría, si el plato tiene pocas); un toque la añade y el texto libre se queda. Las aprende sola: nadie las
   configura. Se comparan sin mayúsculas ni espacios de más.
+  *· Hecho: sin migración (las notas ya están en los pedidos). En `@l2/domain-orders`, `notasSugeridas` (las más escritas,
+  en su forma más escrita; con menos de 5, las de su categoría sin repetir), `claveDeNota` y `conNotaRapida` (añade a lo
+  escrito sin repetir, hasta 80). `pedidos.notasRapidas` las saca de `kitchen_order.items` de la sucursal en los últimos 60
+  días con una consulta (`jsonb_array_elements`), del producto y de su categoría (`pedido.tomar`). La tablet, al abrir la
+  nota de un plato, «Las más pedidas», con su carga, vacío y error a la vista. 3 pruebas del dominio y 1 contra la base.*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 

@@ -221,6 +221,11 @@ export const ServirPedidoCommandSchema = z.strictObject({
   lineas: z.array(z.number().int().min(0).max(39)).min(1, "Elige un plato").max(40).optional(),
 });
 
+/** Las notas rápidas de un plato (B6-12): las más escritas para ese producto en los últimos 60 días, y las de su categoría. */
+export const NotasRapidasQuerySchema = z.strictObject({ productId: z.uuid("Producto desconocido") });
+export const NotasRapidasSchema = z.object({ notas: z.array(z.string().min(1).max(80)).max(5) });
+export type NotasRapidasDto = z.infer<typeof NotasRapidasSchema>;
+
 /** Deshacer, en el momento, un plato marcado servido por error (B6-11). */
 export const DeshacerServidoCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido"), linea: z.number().int().min(0).max(39) });
 export type DeshacerServidoCommand = z.infer<typeof DeshacerServidoCommandSchema>;

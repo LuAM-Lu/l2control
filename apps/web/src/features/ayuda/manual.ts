@@ -405,6 +405,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Quien pide sin mesa: «De pie», con sus mismos datos.",
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: sale un papel por área, la comanda de cocina y la de barra, con el mismo número y «1 de 2». Lo que se sirve sin papel no sale.",
       "En el pedido se ve cada papel: «Cocina: impresa», «Barra: no salió». Cada uno se vuelve a imprimir por su cuenta.",
+      "Al poner una nota a un plato salen «Las más pedidas»: las que más se escribieron para ese plato (o su categoría) en los últimos 60 días. Un toque la añade; lo que escribas se queda. Se aprenden solas de los pedidos.",
       "Cuando un plato llega a la mesa, toca «Servido» en su renglón (o «Servir todo» lo que falte): ahí termina su espera, y el pedido queda servido con su último plato. Si lo marcaste por error, «Deshacer» en los 5 minutos siguientes. En «Atender» salen las mesas que esperan su pedido o no han pedido.",
       "«Pide la cuenta» la manda a caja. Si no consumieron nada, «Liberar».",
       "Si se fueron sin pagar: «Se fue sin pagar», con el PIN de supervisión. La mesa queda libre y lo que deben, a nombre del cliente. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
