@@ -538,7 +538,7 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
                   </option>
                 ))}
               </select>
-              <span className="text-[12px] text-ink-3">Quien entra sin medias paga este producto</span>
+              <span className="text-[12px] text-ink-3">Quien compra medias en la entrada paga este producto</span>
             </label>
           </div>
           {/* B6-8 (P-19): a partir de cuántos minutos una mesa pide atención, en la tablet y en Atención en el salón. B6-14:

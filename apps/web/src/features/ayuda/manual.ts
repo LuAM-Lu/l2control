@@ -103,7 +103,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Registrar la llegada de los niños: su pulsera, su paquete de tiempo y quién los trae y a quién se llama.",
     pasos: [
       "En «Parque», pasa la pulsera nueva por el lector (o la cámara): se abre la entrada con ella. Cada pulsera que pases después suma un niño.",
-      "Cada niño en su renglón: el nombre (opcional, se puede poner después), el paquete y si trae medias de seguridad. Las medias no vienen marcadas: hay que responder por cada niño; al lado dice cuántos pares quedan.",
+      "Cada niño en su renglón: el nombre (opcional, se puede poner después), el paquete y «Compra medias», apagado de entrada: enciéndelo para quien no trae sus medias de seguridad (el par va a su cuenta). Al registrar, una sola pregunta confirma que los demás las traen. Si no quedan medias en el inventario, entran sin cobrárselas.",
       "Un niño que no tolera la pulsera entra con «Sin pulsera»: su nombre es obligatorio, porque es como se le reconoce.",
       "Escribe la cédula del representante (lo primero; el foco va a ella tras la primera pulsera): si ya vino, aparece solo, con sus niños, y no hay que escribir nada más. Si es nuevo, su teléfono y su nombre. La letra (V, E, J, G, P) se elige al lado; los puntos los pone el campo. El teléfono se entiende escrito como sea, también con +58.",
       "Un representante de antes, sin cédula, aparece por su teléfono y dice «escribe su cédula»: se le anota al registrar.",

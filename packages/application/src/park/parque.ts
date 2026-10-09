@@ -93,7 +93,7 @@ import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
 import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
 import { catalogoEn, claveSecundaria, guardarVersion, siguienteNumero, vigenteDe } from "../caja/cuentas.ts";
-import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
+import { asentarExistencias, bloquearProducto, comprobarExistencias, existenciasDe } from "../inventario/existencias.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "../caja/papel-en.ts";
 import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "../restaurante/plano.ts";
 import { claveDeNombre, representanteDeLaEntrada } from "./representantes.ts";
@@ -326,8 +326,9 @@ export function casosParque(base: Base): CasosParque {
           if (pulseras) return pulseras;
 
           // Medias (B4-9, P-6): quien no las trae paga el par del producto de medias de la sucursal, que sale del
-          // inventario. Sin producto configurado o sin existencia, la entrada no se registra (fail-closed, ADR-023).
-          const sinMedias = cmd.entries.flatMap((e, i) => (e.sinMedias ? [i] : []));
+          // inventario. Sin producto configurado, la entrada no se registra (fail-closed). Sin existencia (B4-16, M-35),
+          // el niño entra y no se le cobran: se cobran los pares que quedan, a los primeros de la lista.
+          let sinMedias = cmd.entries.flatMap((e, i) => (e.sinMedias ? [i] : []));
           let medias: Readonly<{ productId: string; name: string; amountMinor: bigint; taxCode: "GENERAL" | "REDUCIDA" | "EXENTA" }> | null = null;
           if (sinMedias.length > 0) {
             const { productoMedias } = await ajustesDe(tx, ctx.branchId);
@@ -337,6 +338,13 @@ export function casosParque(base: Base): CasosParque {
             const p = (await catalogoEn(tx, ahora))(productoMedias);
             if (!p) return invalido("Las medias no están a la venta: revísalas en Inventario → Productos.", ["entries", sinMedias[0]!, "sinMedias"], "MEDIAS_NO_SE_VENDEN");
             medias = { productId: productoMedias, ...p };
+            if ((await tx.product.findUnique({ where: { id: productoMedias }, select: { tracksStock: true } }))?.tracksStock) {
+              // Con su candado: dos entradas a la vez no se llevan el último par las dos.
+              await bloquearProducto(tx, ctx.branchId, productoMedias);
+              const quedan = (await existenciasDe(tx, ctx.branchId, [productoMedias])).get(productoMedias)?.quantity ?? 0;
+              sinMedias = sinMedias.slice(0, Math.max(0, quedan));
+              if (sinMedias.length === 0) medias = null;
+            }
           }
 
           // La cédula del representante se exige (T-19), salvo en lo cargado desde papel: se anotó o no.

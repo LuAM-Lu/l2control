@@ -43,10 +43,10 @@ export type Entrada = {
   /** Opcional (DEC-28): vacío, el niño entra solo con su pulsera. Sin pulsera, obligatorio. */
   nombre: string;
   /**
-   * Si trae sus medias de seguridad (B4-9, P-6). Sin ellas, el par va a la cuenta de la familia. `null`: sin responder
-   * todavía (B4-12, M-34): no hay respuesta de fábrica, y la entrada no se registra hasta responder por cada niño.
+   * Si compra el par de medias de seguridad (B4-9, P-6; B4-16, M-35): un interruptor, apagado de entrada; encendido, el
+   * par va a la cuenta de la familia. Quien lo deja apagado las trae: al registrar se confirma una vez por todos.
    */
-  traeMedias: boolean | null;
+  compraMedias: boolean;
 };
 
 /** Un nombre como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
@@ -185,7 +185,7 @@ export function useEntradaDeNinos({
       }
 
       const uid = NUEVO_UID();
-      setEntradas((prev) => [...prev, { uid, wristbandCode: limpio, sinPulsera: false, packageId: defaultPackageId, nombre: "", traeMedias: null }]);
+      setEntradas((prev) => [...prev, { uid, wristbandCode: limpio, sinPulsera: false, packageId: defaultPackageId, nombre: "", compraMedias: false }]);
       setAviso(null);
       // V-1: el servidor dice ya si la pulsera se usó en otra visita o no es de la serie; la fila
       // se quita en vez de descubrirlo al registrar. Sin respuesta, lo comprueba la entrada.
@@ -213,7 +213,7 @@ export function useEntradaDeNinos({
       return null;
     }
     const uid = NUEVO_UID();
-    setEntradas((prev) => [...prev, { uid, wristbandCode: "", sinPulsera: true, packageId: defaultPackageId, nombre: "", traeMedias: null }]);
+    setEntradas((prev) => [...prev, { uid, wristbandCode: "", sinPulsera: true, packageId: defaultPackageId, nombre: "", compraMedias: false }]);
     setAviso(null);
     // Cuando su fila ya está pintada (en una capa recién abierta, después de que la capa toma el foco).
     window.setTimeout(() => document.getElementById(`nombre-${uid}`)?.focus(), 80);
@@ -233,30 +233,33 @@ export function useEntradaDeNinos({
       const p = tarifario.packages.find((x) => x.id === e.packageId);
       return p ? toMoney(p.price) : zero("USD");
     });
-    // Las medias de quien no las trae también se cobran (B4-9).
-    const deMedias = medias ? entradas.filter((e) => e.traeMedias === false).map(() => medias.precio) : [];
+    // Las medias de quien las compra también se cobran (B4-9, B4-16).
+    const deMedias = medias ? entradas.filter((e) => e.compraMedias).map(() => medias.precio) : [];
     return sum([...precios, ...deMedias], "USD");
   }, [entradas, tarifario.packages, medias]);
-  /** Cuántos pares hacen falta y si quedan: sin existencia, el servidor no registra la entrada (ADR-023). */
-  const paresQueFaltan = entradas.filter((e) => e.traeMedias === false).length;
-  /** Niños sin responder si traen medias (B4-12): con producto de medias elegido, hay que responder por cada uno. */
-  const mediasSinResponder = medias ? entradas.filter((e) => e.traeMedias === null).length : 0;
-  const sinMediasQueDar = medias !== null && medias.existencia !== null && paresQueFaltan > medias.existencia;
+  /** Cuántos pares se compran. */
+  const paresQueFaltan = medias ? entradas.filter((e) => e.compraMedias).length : 0;
+  /**
+   * B4-16 (M-35): sin medias en existencia, el niño entra y no se cobran. `mediasAgotadas`: no queda otro par que dar
+   * (los interruptores apagados ya no se encienden); `sinMedias`: no queda ninguno.
+   */
+  const mediasAgotadas = medias !== null && medias.existencia !== null && paresQueFaltan >= medias.existencia;
+  const sinMedias = medias !== null && medias.existencia !== null && medias.existencia <= 0;
+  /** Los que dejan las medias apagadas: al registrar, una confirmación por todos de que las traen. Sin medias, nada. */
+  const mediasPorConfirmar = medias && !sinMedias ? entradas.filter((e) => !e.compraMedias).length : 0;
 
   /* ------------------------------------------------------------- envío */
 
   const telefonoValido = GuardianSchema.shape.contactReference.safeParse(telefono).success;
   const representanteListo = encontrado ? !faltaSuCedula : esNuevo && cedulaValida && telefonoValido && nombreNuevo.trim().length >= 2;
-  const puedeEnviar = entradas.length > 0 && representanteListo && mediasSinResponder === 0 && !capacidad.isFull && !enviando;
+  const puedeEnviar = entradas.length > 0 && representanteListo && !capacidad.isFull && !enviando;
   /** §8.7: el motivo por el que el botón está deshabilitado se dice, no se deja adivinar. */
   const porQueNo =
     puedeEnviar || enviando || entradas.length === 0
       ? null
       : capacidad.isFull
         ? "Aforo completo"
-        : mediasSinResponder > 0
-          ? `Responde si ${mediasSinResponder === 1 ? "el niño trae" : `los ${mediasSinResponder} niños traen`} medias de seguridad`
-          : faltaSuCedula
+        : faltaSuCedula
           ? `Falta la cédula de ${encontrado!.fullName}`
           : !cedula.trim()
             ? "Falta la cédula del representante"
@@ -313,7 +316,7 @@ export function useEntradaDeNinos({
       paymentMode: modo,
       entries: entradas.map((e) => ({
         ...(e.sinPulsera ? { sinPulsera: true as const } : { wristbandCode: e.wristbandCode }),
-        ...(medias && e.traeMedias === false ? { sinMedias: true as const } : {}),
+        ...(medias && e.compraMedias ? { sinMedias: true as const } : {}),
         kid: ninoDe(e.nombre),
         packageId: e.packageId,
       })),
@@ -383,7 +386,7 @@ export function useEntradaDeNinos({
     sumar,
     setSumar,
     sumarA,
-    mediasSinResponder,
+    mediasPorConfirmar,
     porSuCedula,
     faltaSuCedula,
     telefonoDeOtro,
@@ -398,7 +401,8 @@ export function useEntradaDeNinos({
     quitar,
     total,
     paresQueFaltan,
-    sinMediasQueDar,
+    mediasAgotadas,
+    sinMedias,
     puedeEnviar,
     porQueNo,
     limpiar,

@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Cake, HandHeart, ScanLine, Ticket, TriangleAlert } from "lucide-react";
 import type { CatalogoDto, FamilyAccountDto, PaymentMode, ReservaEventoDto } from "@l2/contracts";
-import { Button, EmptyState, ScannerField, Sheet, avisar, cn } from "@l2/ui";
+import { Button, Dialog, EmptyState, ScannerField, Sheet, avisar, cn } from "@l2/ui";
 import { entrarInvitados } from "../eventos/eventos.acciones";
 import { horario } from "../eventos/formato.ts";
 import { BotonCamara, LectorCamara } from "../lector/LectorCamara";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { CampoRepresentante, FilaDeEntrada, NinosDeLaFamilia, TotalDeEntrada } from "./EntradaPiezas.tsx";
 import { useEntradaDeNinos } from "./useEntradaDeNinos.ts";
+import { IconoMedias } from "./IconoMedias.tsx";
 
 /**
  * La entrada al parque en una capa — B4-12 (M-34), F5-02 a F5-04, B3-9.
@@ -83,7 +84,18 @@ export function EntradaEnCapa({
     onCerrar();
   };
 
+  /**
+   * B4-16 (M-35): quien deja las medias apagadas las trae. Antes de registrar, una sola confirmación por todos; sin
+   * medias en el inventario no se pregunta (entran sin cobrárselas).
+   */
+  const [confirmandoMedias, setConfirmandoMedias] = useState(false);
+  function pedirRegistro() {
+    if (e.mediasPorConfirmar > 0) setConfirmandoMedias(true);
+    else void registrar();
+  }
+
   async function registrar() {
+    setConfirmandoMedias(false);
     const r = await e.registrar(modo);
     if (!r) return;
     setReservaId(null);
@@ -158,7 +170,7 @@ export function EntradaEnCapa({
             </div>
           ) : (
             <div data-recorrido="parque-registrar" className="flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
-              <TotalDeEntrada total={e.total} ninos={entradas.length} medias={medias} paresQueFaltan={e.paresQueFaltan} sinMediasQueDar={e.sinMediasQueDar} />
+              <TotalDeEntrada total={e.total} ninos={entradas.length} medias={medias} paresQueFaltan={e.paresQueFaltan} sinMedias={e.sinMedias} />
               {/* DEC-21: la familia elige cómo paga (en el parque, salvo que se sume a su cuenta). M-18 (B4-6): lo
                   pagado al entrar no se devuelve si sale antes; en cuenta abierta se cobra por lo que usó. */}
               {!enCaja && !e.sumarA && (
@@ -190,7 +202,7 @@ export function EntradaEnCapa({
                 </div>
               )}
               <div className="flex shrink-0 flex-col gap-1.5 md:w-64">
-                <Button surface="pos" variant="primary" className="w-full" disabled={!e.puedeEnviar || sinTurno} onClick={() => void registrar()}>
+                <Button surface="pos" variant="primary" className="w-full" disabled={!e.puedeEnviar || sinTurno} onClick={pedirRegistro}>
                   {textoRegistrar}
                 </Button>
                 {/* §8.7: el motivo por el que un botón está deshabilitado se dice, no se deja adivinar. */}
@@ -321,6 +333,7 @@ export function EntradaEnCapa({
                     numero={i + 1}
                     paquetes={e.paquetesActivos}
                     medias={medias}
+                    mediasAgotadas={e.mediasAgotadas}
                     encontrado={encontrado}
                     invitadoDe={cumple?.cumpleanero ?? null}
                     onActualizar={(patch) => e.actualizar(x.uid, patch)}
@@ -331,6 +344,32 @@ export function EntradaEnCapa({
             )}
           </div>
         ))}
+      {/* B4-16: una sola confirmación de las medias, por todos los que las dejan apagadas. */}
+      <Dialog
+        abierto={confirmandoMedias}
+        onCerrar={() => setConfirmandoMedias(false)}
+        titulo="¿Traen sus medias?"
+        descripcion={
+          e.mediasPorConfirmar === 1
+            ? "Confirmo que el niño trae sus medias de seguridad."
+            : `Confirmo que los ${e.mediasPorConfirmar} niños traen sus medias de seguridad.`
+        }
+        pie={
+          <div className="grid grid-cols-2 gap-2">
+            <Button surface="pos" variant="neutral" onClick={() => setConfirmandoMedias(false)}>
+              Volver
+            </Button>
+            <Button surface="pos" variant="primary" disabled={enviando} onClick={() => void registrar()}>
+              Sí, las traen
+            </Button>
+          </div>
+        }
+      >
+        <p className="flex items-center gap-2 text-detalle text-ink-2">
+          <IconoMedias size={18} className="shrink-0 text-ink-3" />
+          Quien no las trae compra el par: vuelve y enciende «Compra medias» en su renglón.
+        </p>
+      </Dialog>
     </Sheet>
   );
 }

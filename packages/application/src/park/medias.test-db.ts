@@ -2,8 +2,8 @@
  * Medias en la entrada, contra l2control_test — B4-9 (M-27, P-6).
  *
  * Lo que fijan: sin producto de medias elegido, la entrada no las cobra (y lo dice); con él, quien no las trae paga
- * el par en la cuenta de su familia y sale del inventario; sin existencia, la entrada no se registra y no queda nada
- * escrito. Corre con `pnpm test:db`.
+ * el par en la cuenta de su familia y sale del inventario; sin existencia (B4-16, M-35), el niño entra y no se le
+ * cobran: se cobran los pares que quedan. Corre con `pnpm test:db`.
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -83,11 +83,19 @@ describe("medias en la entrada", () => {
     assert.equal(await existenciaDeMedias(), 1);
   });
 
-  test("sin existencia no se registra la entrada, y no queda nada escrito", async () => {
-    const antes = await l.base.conTenant(l.sistema.tenantId, (tx) => tx.parkSession.count());
-    const r = rechazo(await l.app.parque.entrar(monitora, entrada([{ sinMedias: true }, { sinMedias: true }]), AHORA + 2 * MIN));
-    assert.notEqual(r.ok, true);
-    assert.equal(await l.base.conTenant(l.sistema.tenantId, (tx) => tx.parkSession.count()), antes);
-    assert.equal(await existenciaDeMedias(), 1);
+  test("sin existencia suficiente entran todos: se cobra el par que queda y al otro no (B4-16)", async () => {
+    const r = valor(await l.app.parque.entrar(monitora, entrada([{ sinMedias: true }, { sinMedias: true }]), AHORA + 2 * MIN));
+    assert.equal(r.sessions.length, 2);
+    const pares = r.account.lines.filter((x) => x.productId === medias);
+    assert.equal(pares.length, 1, "solo el par que quedaba");
+    assert.match(pares[0]!.concept, new RegExp(r.sessions[0]!.wristbandCode));
+    assert.equal(await existenciaDeMedias(), 0);
+  });
+
+  test("sin ninguna en existencia, el niño entra y no se le cobran (B4-16)", async () => {
+    const r = valor(await l.app.parque.entrar(monitora, entrada([{ sinMedias: true }]), AHORA + 3 * MIN));
+    assert.equal(r.sessions.length, 1);
+    assert.equal(r.account.lines.filter((x) => x.productId === medias).length, 0);
+    assert.equal(await existenciaDeMedias(), 0);
   });
 });

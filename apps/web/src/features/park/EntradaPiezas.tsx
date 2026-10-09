@@ -1,13 +1,14 @@
 "use client";
 
 import type { Ref } from "react";
-import { Check, CircleCheckBig, Footprints, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
+import { Check, CircleCheckBig, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
 import type { PricePackageDto, RepresentanteEncontradoDto } from "@l2/contracts";
 import { toMajor, type Money } from "@l2/domain-money";
 import { Badge, Initial, Input, Marquesina, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
+import { IconoMedias } from "./IconoMedias.tsx";
 import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import type { Entrada, EntradaDeNinos } from "./useEntradaDeNinos.ts";
 
@@ -33,13 +34,14 @@ export function NinosDeLaFamilia({ encontrado }: { encontrado: RepresentanteEnco
  *
  * B4-12 (M-34): donde la fila es ancha (la capa de la entrada en escritorio) va en **un renglón**: pulsera, nombre,
  * paquete en una lista y medias. Donde es angosta (el teléfono), como antes: el paquete en botones grandes y las medias y
- * el nombre debajo. Se mide la fila, no la pantalla. Las medias no traen respuesta de fábrica: hay que responder.
+ * el nombre debajo. Se mide la fila, no la pantalla. Las medias (B4-16, M-35): un interruptor, apagado de entrada.
  */
 export function FilaDeEntrada({
   e,
   numero,
   paquetes,
   medias,
+  mediasAgotadas = false,
   encontrado,
   invitadoDe = null,
   onActualizar,
@@ -49,6 +51,8 @@ export function FilaDeEntrada({
   numero: number;
   paquetes: readonly PricePackageDto[];
   medias: ProductoALaVenta | null;
+  /** No queda otro par que dar (B4-16): un interruptor apagado ya no se enciende, y el niño entra sin cobrárselas. */
+  mediasAgotadas?: boolean;
   encontrado: RepresentanteEncontradoDto | null;
   /** El cumpleañero, si es un invitado de su cumpleaños (B10-2): sin paquete, medias ni nombre. */
   invitadoDe?: string | null;
@@ -56,9 +60,9 @@ export function FilaDeEntrada({
   onQuitar: () => void;
 }) {
   const quien = e.sinPulsera ? e.nombre || "este niño" : e.wristbandCode;
-  const sinResponder = medias !== null && !invitadoDe && e.traeMedias === null;
+  const sinPar = mediasAgotadas && !e.compraMedias;
   return (
-    <li className={cn("@container/fila rounded-[var(--radius-card)] border bg-surface p-4 @3xl/fila:px-3 @3xl/fila:py-2.5", sinResponder ? "border-state-warn/50" : "border-line")}>
+    <li className="@container/fila rounded-[var(--radius-card)] border border-line bg-surface p-4 @3xl/fila:px-3 @3xl/fila:py-2.5">
       <div className="flex flex-wrap items-center gap-3 @3xl/fila:flex-nowrap @3xl/fila:gap-2.5">
         <Initial name={String(numero)} tone="brand" className="order-1" />
 
@@ -105,33 +109,31 @@ export function FilaDeEntrada({
           </>
         )}
 
-        {/* B4-9, B4-12: si no trae medias de seguridad, se le cobra el par. Sin respuesta de fábrica. */}
+        {/* B4-16 (M-35): «Compra medias», un interruptor apagado de entrada; encendido, el par va a su cuenta. Sin medias
+            que dar, lo dice y queda apagado: el niño entra sin cobrárselas. */}
         {medias && !invitadoDe && (
-          <div
-            role="radiogroup"
-            aria-label={`Medias de seguridad de ${quien}`}
-            className="order-6 flex basis-full flex-wrap items-center gap-2 @3xl/fila:basis-auto @3xl/fila:flex-nowrap"
+          <button
+            type="button"
+            role="switch"
+            aria-checked={e.compraMedias}
+            aria-label={`${quien}: compra medias, ${formatMoneyVE(toMajor(medias.precio), "USD")}`}
+            disabled={sinPar}
+            onClick={() => onActualizar({ compraMedias: !e.compraMedias })}
+            className={cn(
+              "order-6 flex min-h-12 shrink-0 basis-full cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border px-3 text-[13.5px] font-semibold whitespace-nowrap @3xl/fila:w-60 @3xl/fila:basis-auto",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed",
+              e.compraMedias ? "border-brand bg-brand/15 text-ink" : "border-line bg-base/40 text-ink-2 hover:border-line-strong",
+              sinPar && "text-ink-3 hover:border-line",
+            )}
           >
-            <span className={cn("flex items-center gap-1.5 text-[13px]", sinResponder ? "font-semibold text-state-warn" : "text-ink-2")}>
-              <Footprints size={15} aria-hidden="true" className={sinResponder ? "" : "text-ink-3"} />
-              <span className="@3xl/fila:sr-only">{sinResponder ? "¿Trae medias de seguridad?" : "Medias de seguridad"}</span>
-            </span>
-            {([true, false] as const).map((trae) => (
-              <button
-                key={String(trae)}
-                type="button"
-                role="radio"
-                aria-checked={e.traeMedias === trae}
-                onClick={() => onActualizar({ traeMedias: trae })}
-                className={cn(
-                  "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13.5px] font-semibold whitespace-nowrap",
-                  e.traeMedias === trae ? "border-brand bg-brand/15 text-ink" : "border-line bg-base/40 text-ink-2 hover:border-line-strong",
-                )}
-              >
-                {trae ? "Las trae" : `No trae · ${formatMoneyVE(toMajor(medias.precio), "USD")}`}
-              </button>
-            ))}
-          </div>
+            <IconoMedias size={15} className={e.compraMedias ? "text-brand" : "text-ink-3"} />
+            {sinPar ? "Sin medias en existencia" : `Compra medias · ${formatMoneyVE(toMajor(medias.precio), "USD")}`}
+            {!sinPar && (
+              <span aria-hidden="true" className={cn("relative ml-auto h-4 w-7 shrink-0 rounded-full transition-colors", e.compraMedias ? "bg-brand" : "bg-line-strong")}>
+                <span className={cn("absolute top-0.5 size-3 rounded-full bg-surface transition-[left]", e.compraMedias ? "left-3.5" : "left-0.5")} />
+              </span>
+            )}
+          </button>
         )}
 
         {/* DEC-28: el nombre es opcional. Si la familia ya vino, sus niños se proponen. Los invitados de un cumpleaños no
@@ -301,13 +303,14 @@ export function TotalDeEntrada({
   ninos,
   medias,
   paresQueFaltan,
-  sinMediasQueDar,
+  sinMedias,
 }: {
   total: Money;
   ninos: number;
   medias: ProductoALaVenta | null;
   paresQueFaltan: number;
-  sinMediasQueDar: boolean;
+  /** No queda ningún par (B4-16): los niños entran sin cobrárselas. */
+  sinMedias: boolean;
 }) {
   return (
     <div className="flex-1">
@@ -315,13 +318,13 @@ export function TotalDeEntrada({
         <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase">Paquetes</span>
         <MoneyDisplay value={toMajor(total)} currency={total.currency} size="lg" />
       </div>
-      {sinMediasQueDar && medias && (
-        <p role="alert" className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-state-crit">
+      {sinMedias && medias && (
+        <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-state-warn">
           <TriangleAlert size={14} aria-hidden="true" />
-          {medias.existencia === 0 ? "No quedan medias en el inventario" : `Quedan ${medias.existencia} pares de medias y hacen falta ${paresQueFaltan}`}
+          No quedan medias en el inventario: entran sin cobrárselas
         </p>
       )}
-      {medias && !sinMediasQueDar && (paresQueFaltan > 0 || medias.existencia !== null) && (
+      {medias && !sinMedias && (paresQueFaltan > 0 || medias.existencia !== null) && (
         <p className="mt-1 text-[12px] text-ink-3">
           {paresQueFaltan > 0 ? `Incluye ${paresQueFaltan === 1 ? "un par de medias" : `${paresQueFaltan} pares de medias`}` : "Medias de seguridad"}
           {/* B4-12: cuántos pares quedan, al lado. */}
