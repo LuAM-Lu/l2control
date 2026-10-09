@@ -520,6 +520,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Cada sección tiene arriba sus cifras, y el alta y la edición se hacen en una hoja lateral.",
       "Las que reúnen varias cosas las ponen en pestañas: Personas y equipos (usuarios, roles y dispositivos), Tasas (y feriados) y Sistema (versión, respaldos y semilla).",
+      "Sistema → Respaldos: si se hizo el de anoche, si la PC del local ya lo bajó y el ensayo de la semana. «Respaldar ahora» (con tu identidad confirmada) pide uno al momento: el servidor lo hace en el minuto siguiente y ahí mismo dice si se hizo o por qué no. Hecho, quita el aviso de «no se hizo el respaldo de anoche».",
       "Lo que cambia precios o personas pide confirmar tu identidad (vale 15 minutos).",
       "Nada se borra: un precio nuevo rige desde su día; lo que ya no se usa se retira.",
     ],

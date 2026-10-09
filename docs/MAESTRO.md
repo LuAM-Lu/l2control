@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.109.0 · 109 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.110.0 · 110 de 116 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). Decidido M-35 (la tercera ronda: la caja cerrada, el salón, las medias, entradas, respaldo y PDF; siete
@@ -3023,10 +3023,20 @@ F9-05).
   eso para marcar: «Agua B77» entró sin inventario inicial y la impresora desmarcada no. A 1366×768, 1280×800, 800×1280 y
   390 px, en los dos temas, sin desbordar ni errores de consola.*
 
-- [ ] **B7-8 · Respaldar ahora** (M-35, R-4).
+- [x] **B7-8 · Respaldar ahora** (M-35, R-4).
+  *Hecho el 2026-10-09 (v0.110.0), en `feat/b7-8`.*
   → Ajustes → Sistema → Respaldos: **«Respaldar ahora»**, de administración con la identidad confirmada. La web anota el
   pedido y el servidor lo hace en el minuto siguiente (como una actualización, T-8b); el resultado sale en vivo y quita
   el aviso de «no se hizo el respaldo». Un respaldo que no se puede hacer siempre queda anotado con su motivo.
+  *· Hecho: migración `20261126000000_respaldo_pedido` (solo expande): `backup_request` (PEDIDO, EN_CURSO, HECHO con su
+  respaldo o FALLIDO con su motivo; uno a la vez por un índice parcial; la web solo inserta: `UPDATE` y `DELETE`
+  revocados a `l2_app`). `respaldos.pedirAhora` (`respaldo.pedir`), con `sistema.actualizar` y la identidad confirmada;
+  con otro pedido o en curso, se queda ese. `EstadoDeRespaldosDto.pedido`: el pedido o en curso, o el que terminó en el
+  último día. **Servidor:** `actualizador.sh` (cada minuto) lo toma, corre `respaldar.sh`, busca el respaldo que este
+  anotó y lo deja HECHO o FALLIDO (`respaldo.pedido`, al canal en vivo); uno que quedó EN_CURSO de una pasada que murió
+  se cierra como FALLIDO; sin la tabla, no hace nada. Web: «Respaldar ahora» en Ajustes → Sistema → Respaldos, con el
+  aviso de cómo va. Hecho, quita «no se hizo el respaldo de anoche». 3 pruebas contra la base; el SQL del actualizador,
+  ensayado contra `l2control_test`.*
 
 ### Etapa 8 · Producción
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# El actualizador del servidor (T-8b, ADR-028, M-25). Corre cada minuto en el VPS (cron) y hace tres cosas:
+# El actualizador del servidor (T-8b, ADR-028, M-25). Corre cada minuto en el VPS (cron) y hace cuatro cosas:
 #
 #   1. mira las versiones publicadas (los «release» de GitHub con sus tres imágenes ya en ghcr.io) y las
 #      apunta en la base para que Ajustes → Sistema las enseñe con sus novedades;
 #   2. en staging, pide sola la más nueva (en producción la pide administración desde el panel);
-#   3. si hay una pedida y es su momento, la pone con ./desplegar.sh y escribe en la base cómo terminó.
+#   3. si hay una pedida y es su momento, la pone con ./desplegar.sh y escribe en la base cómo terminó;
+#   4. si administración pidió «Respaldar ahora» (B7-8), lo hace con ./respaldar.sh y escribe cómo terminó.
 #
 #   ./actualizador.sh              una pasada (lo que hace el cron)
 #   ./actualizador.sh --instalar   lo deja en el cron del usuario, cada minuto (una vez por servidor)
@@ -234,6 +235,58 @@ poner_la_pedida() {
   terminar "$id" "$v" "$estado" "$detalle"
 }
 
+# 4 · «Respaldar ahora» (B7-8, M-35): el respaldo pedido desde el panel se hace en esta pasada con respaldar.sh (el
+# mismo de cada noche) y se anota cómo terminó, con el respaldo que salió. Uno a la vez: lo cuida la base.
+auditar_respaldo() { # id estado detalle
+  sql -v id="$1" -v e="$2" -v d="$3" <<'SQL'
+INSERT INTO audit_log (id, tenant_id, branch_id, action, outcome, entity_type, entity_id, after)
+VALUES (gen_random_uuid(), :'t', :'b', 'respaldo.pedido', 'HECHO', 'backup_request', :'id',
+        jsonb_build_object('estado', :'e', 'detalle', NULLIF(:'d', '')));
+SQL
+}
+
+terminar_respaldo() { # id estado copia detalle
+  sql -v id="$1" -v e="$2" -v c="$3" -v d="$4" <<'SQL'
+UPDATE backup_request SET state = :'e', finished_at = now(), copy_id = NULLIF(:'c', '')::uuid, detail = NULLIF(:'d', '')
+ WHERE tenant_id = :'t' AND id = :'id' AND state IN ('PEDIDO', 'EN_CURSO');
+SQL
+  auditar_respaldo "$1" "$2" "$4"
+  decir "Respaldo pedido desde el panel: $2${4:+ · $4}"
+}
+
+respaldar_pedido() {
+  local id copia estado detalle
+  # Sin la tabla (una base todavía sin la migración de la 0.110.0), nada: no se corta la pasada.
+  [ "$(sql <<<"SELECT to_regclass('backup_request') IS NOT NULL;")" = "t" ] || return 0
+  # Uno que quedó EN_CURSO de una pasada que murió (con el cerrojo en la mano, nadie lo está haciendo).
+  while read -r id; do
+    if [ -n "$id" ]; then terminar_respaldo "$id" FALLIDO "" "Se cortó a mitad (el servidor se reinició): pídelo otra vez."; fi
+  done < <(sql <<<"SELECT id FROM backup_request WHERE tenant_id = :'t' AND state = 'EN_CURSO';")
+
+  # Se toma con la condición en el WHERE: uno solo, aunque dos pasadas lo miren a la vez.
+  id=$(sql <<<"UPDATE backup_request SET state = 'EN_CURSO', started_at = now() WHERE tenant_id = :'t' AND state = 'PEDIDO' RETURNING id;")
+  [ -n "$id" ] || return 0
+  auditar_respaldo "$id" EN_CURSO ""
+  decir "Respaldo pedido desde el panel: respaldando…"
+  ./respaldar.sh >>respaldos.log 2>&1 </dev/null || true
+  # Lo que respaldar.sh anotó desde que empezó: hecho con su archivo, o fallido con su motivo.
+  copia="" estado="" detalle=""
+  IFS=$'\t' read -r copia estado detalle < <(sql -v id="$id" <<'SQL'
+SELECT c.id, c.state, coalesce(c.detail, '')
+  FROM backup_copy c JOIN backup_request r ON r.tenant_id = c.tenant_id AND r.id = :'id'
+ WHERE c.tenant_id = :'t' AND c.made_at >= r.started_at
+ ORDER BY c.made_at DESC LIMIT 1;
+SQL
+  ) || true
+  if [ -z "$copia" ]; then
+    terminar_respaldo "$id" FALLIDO "" "respaldar.sh terminó sin anotar el respaldo: mira respaldos.log en el servidor."
+  elif [ "$estado" = "HECHO" ]; then
+    terminar_respaldo "$id" HECHO "$copia" ""
+  else
+    terminar_respaldo "$id" FALLIDO "$copia" "${detalle:-sin motivo}"
+  fi
+}
+
 pasada() {
   local marcha entorno automatico
   [ -f .env ] || { decir "Falta .env junto a compose.yml."; exit 2; }
@@ -262,6 +315,8 @@ pasada() {
   [ "$(sql <<<"SELECT 1;" 2>/dev/null)" = "1" ] || exit 0
 
   recoger_interrumpidas "$marcha"
+  # El respaldo pedido va antes que lo demás: quien lo pidió está mirando el panel.
+  respaldar_pedido
   consultar_versiones "$marcha"
   [ "$automatico" = "si" ] && pedir_sola "$marcha"
   poner_la_pedida "$marcha" "$automatico"

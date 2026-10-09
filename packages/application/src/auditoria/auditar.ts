@@ -137,6 +137,8 @@ export type AccionAuditada =
   | "respaldo.fijar"
   | "respaldo.soltar"
   | "respaldo.ensayar"
+  | "respaldo.pedir"
+  | "respaldo.pedido"
   | "puesta.posponer"
   | "puesta.retomar"
   | "existencia.mover"

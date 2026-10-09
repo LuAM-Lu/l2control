@@ -39,6 +39,7 @@ model Tenant {
   setupPostponements SetupPostponement[]
   backupCopies       BackupCopy[]
   backupReceivers    BackupReceiver[]
+  backupRequests     BackupRequest[]
   guardians          Guardian[]
   discountRules      DiscountRule[]
 
@@ -2247,6 +2248,7 @@ model BackupCopy {
   pc      BackupReceiver?   @relation(fields: [tenantId, downloadedBy], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   fijados BackupPin[]
   ensayos BackupRehearsal[]
+  pedidos BackupRequest[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, file])
@@ -2277,6 +2279,32 @@ model BackupPin {
 /// El ensayo de restauración del volcado de una noche en una base de usar y tirar (B7-6, M-29): lo hace
 /// `respaldar.sh` una vez por semana, antes de cifrarlo (la clave privada no está en el servidor). Íntegro = la
 /// base restaurada tiene la misma huella que se tomó al respaldar. Solo se agrega.
+/// Un respaldo pedido desde el panel (B7-8, M-35): «Respaldar ahora», de administración con la identidad confirmada.
+/// La web solo pide (PEDIDO); el actualizador del VPS lo toma en el minuto siguiente, lo hace con respaldar.sh y
+/// escribe cómo terminó (HECHO con su respaldo, o FALLIDO con su motivo). Uno a la vez.
+model BackupRequest {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  /// PEDIDO, EN_CURSO, HECHO o FALLIDO (CHECK).
+  state           String
+  requestedAt     DateTime  @default(now()) @map("requested_at") @db.Timestamptz(3)
+  requestedBy     String?   @map("requested_by") @db.Uuid
+  requestedByName String    @map("requested_by_name")
+  deviceId        String?   @map("device_id") @db.Uuid
+  startedAt       DateTime? @map("started_at") @db.Timestamptz(3)
+  finishedAt      DateTime? @map("finished_at") @db.Timestamptz(3)
+  /// El respaldo que salió (también el fallido, con su motivo).
+  copyId          String?   @map("copy_id") @db.Uuid
+  detail          String?
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  copia  BackupCopy? @relation(fields: [tenantId, copyId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, requestedAt])
+  @@map("backup_request")
+}
+
 model BackupRehearsal {
   id       String   @id @default(uuid(7)) @db.Uuid
   tenantId String   @map("tenant_id") @db.Uuid
