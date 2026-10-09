@@ -163,6 +163,9 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Un solo lector: pasa cualquier pulsera. Una nueva abre la entrada con ella; la de un niño en la sala abre su ficha. Si el lector no responde, la cámara o «Escribir».",
       "Cada tarjeta dice el tiempo: verde en tiempo, amarillo por vencer o en gracia, rojo con el tiempo cumplido (con lo que va de más).",
+      "Avisos: cuando un niño entra en «por vencer» y cuando se cumple su tiempo, suena (y en Android vibra) un aviso arriba, aquí y en la caja; tócalo y abre su ficha. La campana tachada lo calla 15 minutos en este equipo; el altavoz de la barra quita o pone el sonido del equipo.",
+      "Con el equipo bloqueado, la pantalla del PIN sigue avisando, solo con la pulsera y los minutos (sin nombres): tócalo, pon tu PIN y abre la ficha de ese niño.",
+      "Los avisos funcionan con la aplicación abierta: no son notificaciones del teléfono. Si el equipo se apaga o se cierra el navegador, no avisa.",
       "En la ficha: recargar tiempo, pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa.",
       "«Dar salida» abre su salida aquí mismo; «Toda la familia» trae a todos los niños de su cuenta, marcados: quita de la lista a quien se queda.",
       "«Sin pulsera» abre la entrada de un niño que no la tolera. «Buscar»: por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",

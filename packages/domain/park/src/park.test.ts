@@ -42,6 +42,7 @@ import {
   wristbandlessCode,
   pausedMs,
   resumeProblem,
+  instantesDeAviso,
   type PaqueteDeUso,
   type ParkSession,
 } from "./index.ts";
@@ -487,5 +488,32 @@ describe("niños sin pulsera (B4-8, M-27)", () => {
     assert.equal(isWristbandless("SP-00012"), true);
     assert.equal(isWristbandless("sp-1"), true);
     assert.equal(isWristbandless("AK-0012"), false);
+  });
+});
+
+describe("los avisos de pulseras por vencer (B4-15)", () => {
+  test("por vencer al llegar al aviso del tarifario, y vence al cumplirse su tiempo; coinciden con el estado", () => {
+    const a = instantesDeAviso(sesion(), POLICY)!;
+    assert.equal(a.porVencer, T0 + 50 * MIN);
+    assert.equal(a.vence, T0 + 60 * MIN);
+    assert.equal(computeSessionView(sesion(), POLICY, epochMs(a.porVencer - 1)).status, "ACTIVA");
+    assert.equal(computeSessionView(sesion(), POLICY, a.porVencer).status, "POR_VENCER");
+    assert.equal(computeSessionView(sesion(), POLICY, epochMs(a.vence + 1)).status, "EN_GRACIA");
+  });
+
+  test("la pausa por comida, si empieza antes, los corre lo que dura", () => {
+    const conPausa = sesion({ pause: { startedAt: epochMs(T0 + 20 * MIN), endedAt: epochMs(T0 + 28 * MIN), maxMinutes: 10 } });
+    const a = instantesDeAviso(conPausa, POLICY)!;
+    assert.equal(a.porVencer, T0 + 58 * MIN);
+    assert.equal(a.vence, T0 + 68 * MIN);
+    // Una pausa que empieza después del aviso no corre el aviso, sí el vencimiento.
+    const tarde = sesion({ pause: { startedAt: epochMs(T0 + 55 * MIN), endedAt: null, maxMinutes: 10 } });
+    const b = instantesDeAviso(tarde, POLICY)!;
+    assert.equal(b.porVencer, T0 + 50 * MIN);
+    assert.equal(b.vence, T0 + 70 * MIN);
+  });
+
+  test("sin tiempo fijo no avisa: no vence", () => {
+    assert.equal(instantesDeAviso(sesion({ duration: openEnded }), POLICY), null);
   });
 });

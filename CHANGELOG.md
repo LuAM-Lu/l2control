@@ -16,6 +16,15 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+Aviso de pulseras por vencer (B4-15, M-34).
+
+### Añadido
+- **Avisos en el parque y en la caja:** cuando un niño entra en «por vencer» y cuando se cumple su tiempo, suena (y en
+  Android vibra) un aviso; tocarlo abre su ficha. Se calla 15 minutos por equipo, y el altavoz de la barra quita o pone
+  el sonido del equipo.
+- **Con el equipo bloqueado**, la pantalla del PIN sigue avisando, solo con la pulsera y los minutos, sin nombres; un
+  toque pide el PIN y lleva al niño. El bloqueo se queda.
+
 ## [0.102.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Servido por plato (B6-11, M-34).
