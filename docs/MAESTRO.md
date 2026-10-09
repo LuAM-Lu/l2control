@@ -1926,7 +1926,7 @@ Fuera de la cuenta de 109: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   caja y Turno a 1366×768, 1280×800 y 800×1280 sin desplazar el documento; sin errores de consola.*
 - ~~**B5-3 · Gaveta** que solo se abre asociada a una operación (F4-09)~~. **Retirado el 2026-09-28
   (D-GAV):** la impresora de caja no lleva gaveta electrónica; la gaveta es manual. No cuenta en la ruta.
-- [ ] **B5-4 · La impresora: acentos, USB y tinta oscura** (M-34, S-1, S-18, S-21).
+- [~] **B5-4 · La impresora: acentos, USB y tinta oscura** (M-34, S-1, S-18, S-21). *A cargo: LuAMi, rama `feat/b5-4`.*
   → **Acentos.** Cada papel apaga el modo chino (FS .) antes de elegir la página de códigos (desde v0.90.2), y la página
   se elige en la ficha de la impresora (850 de fábrica; 858, 1252 y las que use el modelo), con «Probar acentos», que
   imprime «áéíóú ñ ¿¡ $ Bs.» con cada una para elegir la que sale bien.
