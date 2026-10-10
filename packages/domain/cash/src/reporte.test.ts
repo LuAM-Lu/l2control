@@ -56,6 +56,10 @@ test("el tiempo del parque es del parque aunque se cobre en una mesa; el total s
   assert.equal(repartoPorOrigen({ kind: "MESA" }, [{ amount: usd(500n) }], usd(500n)).get("RESTAURANTE")?.amount, 500n);
   assert.equal(repartoPorOrigen({ kind: "MOSTRADOR" }, [{ kind: "RESTAURANTE", amount: usd(0n) }], usd(0n)).get("MOSTRADOR")?.amount, 0n);
   // Al céntimo: tres partes que no dividen exacto suman el total.
+  // B3-16: un plato de una mesa juntado en la cuenta de su familia sigue siendo del restaurante.
+  const j = repartoPorOrigen({ kind: "FAMILIA" }, [{ kind: "RESTAURANTE", amount: usd(300n), deCuenta: { kind: "MESA" } }, { kind: "PAQUETE", amount: usd(500n) }], usd(800n));
+  assert.equal(j.get("RESTAURANTE")?.amount, 300n);
+  assert.equal(j.get("PARQUE")?.amount, 500n);
   const t = repartoPorOrigen({ kind: "MESA" }, [{ kind: "PAQUETE", amount: usd(100n) }, { kind: "RESTAURANTE", amount: usd(200n) }], usd(1000n));
   assert.equal((t.get("PARQUE")?.amount ?? 0n) + (t.get("RESTAURANTE")?.amount ?? 0n), 1000n);
 });

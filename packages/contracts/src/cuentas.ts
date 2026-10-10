@@ -188,3 +188,29 @@ export const LiberarMesaCommandSchema = z.strictObject({
   version: z.number().int().positive(),
 });
 export type LiberarMesaCommand = z.infer<typeof LiberarMesaCommandSchema>;
+
+/**
+ * Cobrar juntas (B3-16, M-37): lo pendiente de `otras` pasa a `destinoId`, que se cobra una vez con un solo recibo; las
+ * otras quedan «juntadas» en ella. Cada cuenta va con la versión que vio la caja: si otro equipo la cambió, se niega.
+ */
+export const JuntarCuentasCommandSchema = z
+  .strictObject({
+    idempotencyKey: IdempotencyKeySchema,
+    destino: z.strictObject({ accountId: z.uuid("Cuenta desconocida"), version: z.number().int().positive() }),
+    otras: z
+      .array(z.strictObject({ accountId: z.uuid("Cuenta desconocida"), version: z.number().int().positive() }))
+      .min(1, "Elige al menos otra cuenta")
+      .max(11, "Hasta doce cuentas juntas"),
+  })
+  .refine((c) => new Set([c.destino.accountId, ...c.otras.map((o) => o.accountId)]).size === c.otras.length + 1, {
+    message: "Una cuenta se junta una vez",
+    path: ["otras"],
+  });
+export type JuntarCuentasCommand = z.infer<typeof JuntarCuentasCommandSchema>;
+
+/** Lo que devuelve juntar: la cuenta que queda, ya con todo, y las otras como quedaron. */
+export const JuntarCuentasResultSchema = z.object({
+  destino: FamilyAccountSchema,
+  otras: z.array(FamilyAccountSchema),
+});
+export type JuntarCuentasResultDto = z.infer<typeof JuntarCuentasResultSchema>;

@@ -40,6 +40,8 @@ export type AccountLineDoc = Readonly<{
   anulacion?: unknown;
   /** Cambiada por uso al salir antes de tiempo (B4-6): se queda con su importe y la cobra la línea que la cambió. */
   porUso?: unknown;
+  /** La cuenta de la que vino al cobrar juntas (B3-16) o al dividir por ítems (B3-20): el ticket dice de dónde es. */
+  vieneDe?: LineOrigin | undefined;
 }>;
 
 export type AccountDoc = Readonly<{
@@ -56,6 +58,8 @@ export type AccountDoc = Readonly<{
   eventDay?: true | undefined;
   /** Una cuenta de pie (B6-7): de mostrador, abierta por el mesero para quien pide sin mesa. */
   dePie?: true | undefined;
+  /** Se juntó en otra para cobrarse con ella (B3-16): lo que debía está allí. */
+  juntadaEn?: unknown;
 }>;
 
 /* ─────────────────────────────────────────────────────────── qué se cobra */
@@ -476,6 +480,63 @@ export function receiveSession<A extends AccountDoc & { mode?: string | undefine
   const nuevas = lineas.filter((l) => !destino.lines.some((x) => x.id === l.id));
   const aLaCola = nuevas.length > 0 && destino.kind === "FAMILIA" && (destino.mode === "PREPAGO" || todosFuera(destino));
   return { ...destino, sessionIds, lines: [...destino.lines, ...nuevas], status: aLaCola ? "POR_COBRAR" : destino.status };
+}
+
+/* ─────────────────────────────────────────── cobrar juntas (B3-16, M-37) */
+
+/**
+ * De qué cuenta vino una línea juntada: su id, su número de orden, a nombre de quién y de qué clase (Ventas la cuenta
+ * con el origen de la cuenta de la que vino, no con el de la que la cobró).
+ */
+export type LineOrigin = Readonly<{ cuentaId: string; orderNumber?: number | undefined; family: string; kind: AccountKind; dePie?: true | undefined }>;
+
+export type JoinProblem = "EVENTO" | "CERRADA" | "COBRO_EN_CURSO" | "CON_DESCUENTO" | "SIN_PENDIENTE";
+
+/**
+ * Por qué esta cuenta no entra en un cobro junto (B3-16), o `null`. No se juntan las de un cumpleaños (las cobra su
+ * reserva), las cerradas, las que ya cobraron una parte de su división ni las que llevan un descuento (se calculó sobre
+ * su total: se quita, o se cobra sola); y una sin nada pendiente no tiene qué juntar.
+ */
+export function joinProblem(c: Pick<AccountDoc, "kind" | "status" | "split" | "descuento" | "lines">): JoinProblem | null {
+  if (c.kind === "EVENTO") return "EVENTO";
+  if (c.status !== "ABIERTA" && c.status !== "POR_COBRAR") return "CERRADA";
+  if (c.split && c.split.paid > 0) return "COBRO_EN_CURSO";
+  if (c.descuento) return "CON_DESCUENTO";
+  if (chargeableLines(c).length === 0) return "SIN_PENDIENTE";
+  return null;
+}
+
+/**
+ * Junta en `destino` lo pendiente de `otra` (B3-16): como al vincular, en `otra` cada línea queda marcada `movedTo` y
+ * en `destino` nace su igual con un id propio y `vieneDe` (de dónde vino); nada se borra. `otra` sale de la cola con
+ * `juntadaEn`: cerrada (cobrada en `destino`), o abierta si es una familia con niños todavía en la sala (lo que
+ * consuman después se cobra aparte). `destino` queda en la cola. Quien llama comprueba antes `joinProblem` de las dos.
+ */
+export function joinInto<A extends AccountDoc>(
+  destino: A,
+  destinoId: string,
+  otra: A,
+  origen: LineOrigin,
+  juntadaEn: unknown,
+  idDeLaNueva: (l: AccountLineDoc) => string,
+): Readonly<{ destino: A; otra: A }> {
+  const nuevas: AccountLineDoc[] = [];
+  const lines = otra.lines.map((l) => {
+    if (!seDebe(l)) return l;
+    nuevas.push({ ...l, id: idDeLaNueva(l), vieneDe: origen });
+    return { ...l, movedTo: destinoId };
+  });
+  const status: AccountStatus = otra.kind === "FAMILIA" && !todosFuera(otra) ? "ABIERTA" : "COBRADA";
+  return {
+    destino: { ...destino, lines: [...destino.lines, ...nuevas], status: "POR_COBRAR" },
+    // Una división sin partes cobradas se deja: lo que debía se cobra en destino.
+    otra: { ...(sinDivision(otra) as A), lines, status, juntadaEn },
+  };
+}
+
+function sinDivision<A extends AccountDoc>(c: A): Omit<A, "split"> {
+  const { split: _, ...resto } = c;
+  return resto;
 }
 
 /* ───────────────────────────────────── salir antes de tiempo (B4-6, M-18) */

@@ -66,13 +66,17 @@ export function casosReportes(base: Base): CasosReportes {
         const porOrigen = new Map<OrigenDeVenta, { ventas: number; vendido: Money }>(ORIGENES_DE_VENTA.map((o) => [o, { ventas: 0, vendido: zero(FUNCIONAL) }]));
         const porCajera = new Map<string, { ventas: number; vendido: Money; anuladas: number }>();
         // El tipo de cada línea (M-37): la venta guarda su concepto e importe, y su cuenta, el tipo. Una vez por cuenta.
-        const tiposDe = new Map<string, Map<string, string>>();
+        const tiposDe = new Map<string, Map<string, { kind: string | undefined; deCuenta: { kind: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"; dePie: boolean } | undefined }>>();
         const tiposDeLaCuenta = async (accountId: string) => {
           const ya = tiposDe.get(accountId);
           if (ya) return ya;
           const v = await tx.accountVersion.findFirst({ where: { accountId }, orderBy: { version: "desc" }, select: { content: true } });
-          const lineas = (v?.content as { lines?: { id: string; kind?: string }[] } | undefined)?.lines ?? [];
-          const m = new Map(lineas.flatMap((l) => (l.kind ? [[l.id, l.kind] as const] : [])));
+          type Linea = { id: string; kind?: string; vieneDe?: { kind?: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"; dePie?: true } };
+          const lineas = (v?.content as { lines?: Linea[] } | undefined)?.lines ?? [];
+          // El tipo de cada línea y, si se juntó de otra cuenta (B3-16), la clase de esa cuenta.
+          const m = new Map(
+            lineas.map((l) => [l.id, { kind: l.kind, deCuenta: l.vieneDe?.kind ? { kind: l.vieneDe.kind, dePie: l.vieneDe.dePie === true } : undefined }] as const),
+          );
           tiposDe.set(accountId, m);
           return m;
         };
@@ -154,7 +158,7 @@ export function casosReportes(base: Base): CasosReportes {
               const tipos = await tiposDeLaCuenta(s.accountId);
               const reparto = repartoPorOrigen(
                 { kind: c.cuenta?.kind ?? "MOSTRADOR", dePie: c.cuenta?.dePie === true },
-                (c.lineas ?? []).map((l) => ({ kind: tipos.get(l.lineId), amount: money(BigInt(l.amount.minor), FUNCIONAL) })),
+                (c.lineas ?? []).map((l) => ({ ...tipos.get(l.lineId), amount: money(BigInt(l.amount.minor), FUNCIONAL) })),
                 total,
               );
               for (const [origen, parte] of reparto) {

@@ -36,19 +36,25 @@ const DEL_PARQUE: ReadonlySet<string> = new Set(["PAQUETE", "EXCEDENTE"]);
  * Lo que una venta deja en cada origen (M-37, U-6): el paquete y el tiempo de más son del parque aunque se cobren en la
  * cuenta de una mesa; lo demás, del origen de la cuenta (las medias de una familia siguen siendo del parque). El total
  * de la venta, con su IVA y su descuento, se reparte en proporción al importe de cada línea, con el mayor resto: la suma
- * es el total, al céntimo. Una línea sin tipo conocido (una venta de antes) va con su cuenta.
+ * es el total, al céntimo. Una línea sin tipo conocido (una venta de antes) va con su cuenta; una juntada de otra cuenta
+ * al cobrar juntas (B3-16), con la cuenta de la que vino (`deCuenta`).
  */
 export function repartoPorOrigen(
   cuenta: Readonly<{ kind: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"; dePie?: boolean }>,
-  lineas: readonly Readonly<{ kind?: string | undefined; amount: Money }>[],
+  lineas: readonly Readonly<{
+    kind?: string | undefined;
+    amount: Money;
+    deCuenta?: Readonly<{ kind: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"; dePie?: boolean | undefined }> | undefined;
+  }>[],
   total: Money,
 ): Map<OrigenDeVenta, Money> {
   const deLaCuenta = origenDeCuenta(cuenta.kind, cuenta.dePie === true);
-  const origenDe = (kind: string | undefined): OrigenDeVenta => (kind !== undefined && DEL_PARQUE.has(kind) ? "PARQUE" : deLaCuenta);
+  const origenDe = (l: (typeof lineas)[number]): OrigenDeVenta =>
+    l.kind !== undefined && DEL_PARQUE.has(l.kind) ? "PARQUE" : l.deCuenta ? origenDeCuenta(l.deCuenta.kind, l.deCuenta.dePie === true) : deLaCuenta;
   const pesos = new Map<OrigenDeVenta, bigint>();
   for (const l of lineas) {
     if (l.amount.amount <= 0n) continue;
-    const o = origenDe(l.kind);
+    const o = origenDe(l);
     pesos.set(o, (pesos.get(o) ?? 0n) + l.amount.amount);
   }
   const r = new Map<OrigenDeVenta, Money>();

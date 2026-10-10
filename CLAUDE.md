@@ -148,6 +148,11 @@ ahí (`sessionsVinculadas`). Desvincular (`mesas.desvincular`, quien vincula, si
 pone en su familia o en otra cuenta de mesa con `receiveSession`; lo cobrado no se mueve (`unlinkProblem`). Una cuenta de
 pie no recibe a un niño: su salida del parque no tiene a dónde ir.
 
+**Cobrar juntas (B3-16).** `cobrarJuntas.juntar` lleva lo pendiente de varias cuentas de la cola a una (`joinInto`): las
+líneas nuevas llevan `vieneDe` (de qué cuenta vinieron, también su clase: Ventas las cuenta en su origen) y las otras
+quedan con `juntadaEn`, cerradas. Cada cuenta va con su versión; no se juntan un cumpleaños, una con partes cobradas o
+descuento, la que otra persona está cobrando (su borrador, B3-13) ni, como otra, la que cobra una deuda.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 
