@@ -14,7 +14,7 @@ import {
   type SettlementLineDto,
 } from "@l2/contracts";
 import { add, money, toMajor, zero, type Money } from "@l2/domain-money";
-import { fixed, liquidarEstancia, openEnded, type PaqueteDeUso } from "@l2/domain-park";
+import { epochMs, fixed, liquidarEstancia, openEnded, type PaqueteDeUso } from "@l2/domain-park";
 import { toEpochMs, toMoney, toParkSession, toParkTerms } from "./mappers.ts";
 
 function toMoneyDto(m: Money) {
@@ -107,4 +107,21 @@ export function buildCheckoutPreview(
 /** Formatea un `MoneyDto` para mostrarlo, sin pasar por `number`. */
 export function moneyDtoToMajor(dto: { minor: string; currency: string }): string {
   return toMajor(toMoney(dto as { minor: string; currency: "USD" | "VES" | "USDT" }));
+}
+
+/**
+ * Lo que no usó un niño que pagó por adelantado y sale antes (B3-18, M-37 U-11): lo contratado menos lo que vale su
+ * tiempo con la regla de B4-17, como lo calcula el servidor. `null` si usó todo, o si es tiempo abierto. Se le devuelve
+ * en la caja (Ventas → Devolver, con el PIN de administración), donde está el dinero.
+ */
+export function noUsadoDe(dto: MonitorSnapshotDto["sessions"][number], ahora: number): Money | null {
+  if (dto.packageId === TIEMPO_ABIERTO_ID) return null;
+  const contratado = contratadoDeEstancia(dto);
+  const l = liquidarEstancia(
+    { session: toParkSession(dto), policy: toParkTerms(dto.terms), tarifa: tarifaDeEstancia(dto), contratado, cuentaAbierta: true, tiempoAbierto: false },
+    epochMs(ahora),
+  );
+  if (!l.porUso) return null;
+  const resto = contratado.amount - l.porUso.precio.amount;
+  return resto > 0n ? money(resto, contratado.currency) : null;
 }

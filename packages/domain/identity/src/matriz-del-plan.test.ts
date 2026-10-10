@@ -34,8 +34,8 @@ const PLAN: Readonly<Partial<Record<Action, Fila>>> = {
   "documento.reimprimir": ["✅", "🔐", "🔐", "❌", "❌", "❌"],
   // Anular un cobro (DEC-24)
   "cobro.anular": ["✅", "🔐", "🔐", "❌", "❌", "❌"],
-  // Devolver parte de una venta (B3-14, M-34)
-  "venta.devolver": ["✅", "✅", "🔐", "❌", "❌", "❌"],
+  // Devolver parte de una venta (B3-14, M-34); desde B3-18 (M-37), supervisión también la pide a administración
+  "venta.devolver": ["✅", "🔐", "🔐", "❌", "❌", "❌"],
   "mesa.reabrir": ["✅", "🔐", "❌", "❌", "❌", "❌"],
   "kds.cambiarEstado": ["✅", "✅", "❌", "❌", "❌", "✅"],
   // Check-in / check-out de niño

@@ -56,7 +56,7 @@ import {
   type TarifarioDto,
 } from "@l2/contracts";
 import { annulEntry, chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
-import { add, money } from "@l2/domain-money";
+import { add, money, type Money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import {
   admits,
@@ -1549,4 +1549,16 @@ async function ninoDeLaEntrada(
     select: { id: true },
   });
   return nuevo.id;
+}
+
+/**
+ * Lo que vale el tiempo que estuvo una estancia que ya salió (B3-18, M-37 U-11), con la regla de precio de B4-17: la
+ * combinación más barata de la tarifa con que entró que cubre lo que estuvo (con la gracia), o lo contratado si eso no
+ * cuesta menos. Lo que pagó por adelantado menos esto es lo que no usó. `null` si no salió o no es de esta sucursal.
+ */
+export async function valorDelTiempoUsado(tx: Transaccion, branchId: string, sessionId: string): Promise<Money | null> {
+  const [f] = await estancias(tx, { where: { id: sessionId, branchId } });
+  if (!f || !f.endedAt) return null;
+  const l = liquidarDe(f, f.endedAt.getTime(), true);
+  return l.porUso ? l.porUso.precio : l.contratado;
 }

@@ -351,12 +351,14 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Cerrar la caja» no pregunta qué cierre es: si queda otra caja abierta, cierras la tuya (tu conteo y tu dinero; lo abierto sigue para la otra); si es la última, es el cierre del día, que no se hace con nada pendiente.",
       "Con la caja cerrada no se cobra, ni se devuelve, ni se anula un cobro; con todas cerradas, tampoco se dan cortesías ni descuentos. Sí se consulta, se registran entradas al parque y se toman pedidos.",
       "La caja de otro equipo (una laptop dañada) la cierran supervisión o administración desde el suyo, con el conteo de su gaveta: queda dicho desde dónde se cerró.",
-      "Si un cliente devuelve parte de lo que compró: en Ventas del turno, la venta y «Devolver…» (la de otro día, por su número en «Devolver de otra venta»). Elige cuántas de cada cosa y si vuelven al estante o a merma; el dinero vuelve por su pago, en su moneda (uno electrónico, con la referencia de la devolución), con el descuento y el IVA ya calculados. Lo autoriza supervisión. Sale su comprobante, y el corte lo cuenta.",
+      "Si un cliente devuelve parte de lo que compró: en Ventas del turno, la venta y «Devolver…» (la de otro día, por su número en «Devolver de otra venta»). Elige cuántas de cada cosa y si vuelven al estante o a merma; el dinero vuelve por su pago, en su moneda (uno electrónico, con la referencia de la devolución), con el descuento y el IVA ya calculados. Lo autoriza administración con su PIN. Sale su comprobante, y el corte lo cuenta.",
+      "Un niño que pagó por adelantado y salió antes: en su venta, «Devolver…» y en su paquete «Lo que no usó» (lo pagado menos lo que vale el tiempo que estuvo, calculado solo) o «Entero» si fue un problema del local. La salida del parque ya dice cuánto es. Con el PIN de administración.",
+      "«Anular» un cobro (con el PIN de administración y su motivo): «Cobrarla de nuevo» la devuelve a la cola para corregir el medio o el monto; «Anular la venta entera» devuelve el dinero por sus medios, cierra la cuenta con su motivo y lo que tiene inventario vuelve al estante (o a merma, si se elige). Antes del corte Z de su turno.",
     ],
     problemas: [
       {
         sintoma: "«No se devuelve por aquí» o «ya se devolvió»",
-        solucion: "Solo se devuelven productos y lo preparado (que va a merma); el tiempo del parque y los servicios, no. Lo ya devuelto no vuelve otra vez. Una venta con devoluciones ya no se anula entera.",
+        solucion: "Se devuelven productos, lo preparado (que va a merma) y el paquete de un niño que ya salió (entero o lo que no usó); el tiempo de más y los servicios, no. Lo ya devuelto no vuelve otra vez. Una venta con devoluciones ya no se anula entera.",
         reconoce: ["no se devuelve por aqui", "ya se devolvio", "ya tiene devoluciones"],
       },
       {

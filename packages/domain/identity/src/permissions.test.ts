@@ -153,11 +153,14 @@ describe("las operaciones sensibles exigen autorización, no se deniegan", () =>
 });
 
 describe("quién autoriza un 🔐 (DEC-24)", () => {
-  test("anular un cobro: la cajera lo pide, lo autoriza un supervisor o el administrador", () => {
+  test("anular un cobro y devolver: la caja lo pide y lo autoriza solo administración (B3-18, M-37)", () => {
     const cajera = actor("CAJERO");
     assert.equal(can(cajera, "cobro.anular"), "REQUIERE_AUTORIZACION");
-    assert.equal(canAuthorize(actor("SUPERVISOR"), cajera, "cobro.anular"), true);
+    assert.equal(canAuthorize(actor("SUPERVISOR"), cajera, "cobro.anular"), false);
     assert.equal(canAuthorize(actor("ADMIN"), cajera, "cobro.anular"), true);
+    assert.equal(can(actor("SUPERVISOR"), "venta.devolver"), "REQUIERE_AUTORIZACION");
+    assert.equal(canAuthorize(actor("ADMIN"), actor("SUPERVISOR"), "venta.devolver"), true);
+    assert.equal(canAuthorize(actor("SUPERVISOR"), cajera, "venta.devolver"), false);
   });
 
   test("otra cajera, un mesero o la monitora no autorizan", () => {
@@ -176,9 +179,9 @@ describe("quién autoriza un 🔐 (DEC-24)", () => {
     assert.equal(canAuthorize(sinAnular, actor("CAJERO"), "cobro.anular"), false);
   });
 
-  test("supervisión se autoriza a sí misma en la caja, no en la tasa ni en el inventario (D-AUT)", () => {
+  test("supervisión se autoriza a sí misma en la caja, no en la tasa, el inventario, anular ni devolver (D-AUT, B3-18)", () => {
     const sup = actor("SUPERVISOR");
-    assert.equal(canAuthorize(sup, sup, "cobro.anular"), true);
+    assert.equal(canAuthorize(sup, sup, "cobro.anular"), false);
     assert.equal(canAuthorize(sup, sup, "cuenta.cortesia"), true);
     assert.equal(canAuthorize(sup, sup, "tasa.confirmar"), false);
     assert.equal(canAuthorize(sup, sup, "inventario.ajustar"), false);

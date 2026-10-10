@@ -32,14 +32,19 @@ function proporcion(a: bigint, b: bigint, c: bigint): bigint {
   return (a * b * 2n + c) / (2n * c);
 }
 
-/** Lo que vuelve por las líneas elegidas (las que no son de la venta se ignoran). */
-export function devolucionDe(v: VentaParaDevolver, lineIds: readonly string[]): DevolucionCalculada {
+/**
+ * Lo que vuelve por las líneas elegidas (las que no son de la venta se ignoran). `parciales` (B3-18): de una línea
+ * solo esta parte de su importe, sin pasar de él (lo que un niño no usó de su paquete); el resto, entera.
+ */
+export function devolucionDe(v: VentaParaDevolver, lineIds: readonly string[], parciales: ReadonlyMap<string, Money> = new Map()): DevolucionCalculada {
   const moneda = v.total.currency;
   const elegidas = new Set(lineIds);
   const porAlicuota = new Map<number, bigint>();
   for (const l of v.lineas) {
     if (!elegidas.has(l.lineId)) continue;
-    porAlicuota.set(l.taxBp, (porAlicuota.get(l.taxBp) ?? 0n) + l.amount.amount);
+    const parte = parciales.get(l.lineId);
+    const importe = parte && parte.amount < l.amount.amount ? (parte.amount < 0n ? 0n : parte.amount) : l.amount.amount;
+    porAlicuota.set(l.taxBp, (porAlicuota.get(l.taxBp) ?? 0n) + importe);
   }
   let base = 0n;
   let descuento = 0n;

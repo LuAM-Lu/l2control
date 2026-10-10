@@ -48,6 +48,14 @@ describe("lo que vuelve por las líneas devueltas (B3-14)", () => {
   test("lo que no es de la venta no cuenta", () => {
     assert.deepEqual(devolucionDe(venta, ["zzz"]).total, usd(0));
   });
+
+  test("de una línea, solo una parte: lo que un niño no usó de su paquete, con su IVA (B3-18)", () => {
+    // De la «a» ($ 2,00 + 16 %) vuelve $ 0,50: $ 0,58 con su IVA.
+    assert.deepEqual(devolucionDe(venta, ["a"], new Map([["a", usd(50)]])).total, usd(58));
+    // Nunca más que la línea, ni menos que cero.
+    assert.deepEqual(devolucionDe(venta, ["a"], new Map([["a", usd(900)]])).total, usd(232));
+    assert.deepEqual(devolucionDe(venta, ["a"], new Map([["a", usd(-5)]])).total, usd(0));
+  });
 });
 
 describe("cómo vuelve por los pagos", () => {

@@ -167,6 +167,12 @@ comanda al cobrar o al dejar pendiente una venta directa: `restaurante/comanda.t
 nada (su impresora: sin ella no se cobra) y la **asienta** después, poniendo el pedido (`orderId`) en esas líneas, que
 ya no se quitan. La línea lleva su `nota`. `comanda.ts` no importa las cuentas: así la caja la usa sin ciclo.
 
+**Anular y devolver (B3-18).** Solo con el PIN de administración: `cobro.anular` y `venta.devolver` están en
+`SOLO_AUTORIZA_QUIEN_LO_TIENE` (supervisión ya no se autoriza sola, cambia D-AUT). Anular tiene dos caminos: «Cobrarla de
+nuevo» (la cuenta vuelve a la cola) o «Anular la venta entera» (sus líneas anuladas, la cuenta cerrada, lo que tiene
+inventario al estante o a merma con `aMerma`). Del parque se devuelve el paquete de un niño que ya salió: entero, o «lo
+que no usó» (`valorDelTiempoUsado`, la regla de B4-17), en la caja, donde está el dinero.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 

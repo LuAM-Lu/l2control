@@ -39,6 +39,7 @@ import {
   type CuentaYLibroDto,
   type CuentasDelLocalDto,
   type AnularPedidoCommand,
+  type AnularCobroCommand,
   type MotivoAnulacionPedido,
   type FamilyAccountDto,
   type Rechazo,
@@ -871,6 +872,16 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           if (suTurno?.shift.status === "CERRADO_Z") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa venta es de un turno con corte Z: ya no se anula." };
           }
+          // B3-18: anular la venta entera cierra la cuenta. No la de un cumpleaños (se cancela su reserva), ni una en partes
+          // (se anula parte por parte), ni una familia con niños en la sala (se anula su entrada desde el parque).
+          const laVigente = deVersion(versiones.at(-1)!.content, versiones.at(-1)!.version);
+          if (cmd.camino === "ANULAR_VENTA") {
+            if (laVigente.kind === "EVENTO") return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de un cumpleaños se anula cancelando su reserva." };
+            if (laVigente.split) return { ok: false, motivo: "CONFLICTO", mensaje: "Una cuenta en partes se anula parte por parte: «Cobrarla de nuevo»." };
+            if (laVigente.kind === "FAMILIA" && laVigente.closedSessionIds.length < laVigente.sessionIds.length) {
+              return { ok: false, motivo: "CONFLICTO", mensaje: "Sus niños siguen en la sala: anula su entrada desde el parque." };
+            }
+          }
           const devoluciones: DevolucionGuardada[] = [];
           for (const [k, pago] of venta.payments.entries()) {
             const d = cmd.devoluciones.find((x) => x.paymentIndex === k);
@@ -957,12 +968,41 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           const anulada = revertPaid(vigente, lineIds, fueParte);
           const instante = new Date(ahora).toISOString();
           const quien = await nombreDe(tx, ctx);
-          const nueva = FamilyAccountSchema.parse({
-            ...anulada,
-            version: vigente.version! + 1,
-            pendingSince: vigente.status === "POR_COBRAR" ? (vigente.pendingSince ?? instante) : instante,
-          });
-          await guardarVersion(tx, ctx, nueva, { cause: "ANULACION", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          let nueva: FamilyAccountDto;
+          if (cmd.camino === "ANULAR_VENTA") {
+            // B3-18: lo que pagó ese cobro queda anulado con su motivo (no se borra: se queda con su importe) y la cuenta
+            // sale de la cola cerrada. Lo que tiene inventario vuelve al estante; o vuelve y sale como merma.
+            const anulacion = {
+              motivo: "OTRO" as const,
+              detalle: `Venta anulada: ${TEXTO_ANULACION_COBRO[cmd.motivo]}${cmd.detalle ? ` · ${cmd.detalle}` : ""}`.slice(0, 120),
+              autorizadaPor: { id: permiso.autorizadoPor!, name: autorizador.fullName, role: autorizador.role as "ADMIN" | "SUPERVISOR" },
+              en: instante,
+              preparado: cmd.inventario === "MERMA",
+            };
+            const conAnulacion = lineIds.reduce((c, id) => withAnulacion(c, id, anulacion), anulada);
+            const devolucion = await comprobarExistencias(tx, ctx, cmd.accountId, vigente.lines, vigente.lines.filter((l) => !lineIds.includes(l.id)), () => ["accountId"]);
+            if ("ok" in devolucion) throw new CierreDeshecho(devolucion);
+            const { pendingSince: _, ...sinEspera } = conAnulacion;
+            nueva = FamilyAccountSchema.parse({ ...sinEspera, status: conAnulacion.lines.some((l) => l.paid) ? "COBRADA" : "SIN_CONSUMO", version: vigente.version! + 1 });
+            await guardarVersion(tx, ctx, nueva, { cause: "ANULACION", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+            await asentarExistencias(tx, ctx, devolucion, { accountId: cmd.accountId, version: nueva.version!, ahora, quien: quien.nombre });
+            if (cmd.inventario === "MERMA") {
+              await aMerma(tx, ctx, devolucion, {
+                nota: `Venta anulada · orden ${nueva.orderNumber ? orden(nueva.orderNumber) : cmd.accountId}`,
+                operationKey: claveSecundaria(cmd.idempotencyKey, "merma"),
+                autorizadoPor: permiso.autorizadoPor!,
+                resumen: { motivo: "MERMA", ventaAnulada: { cuenta: cmd.accountId, cobro: cmd.cobroKey } },
+                ahora,
+              });
+            }
+          } else {
+            nueva = FamilyAccountSchema.parse({
+              ...anulada,
+              version: vigente.version! + 1,
+              pendingSince: vigente.status === "POR_COBRAR" ? (vigente.pendingSince ?? instante) : instante,
+            });
+            await guardarVersion(tx, ctx, nueva, { cause: "ANULACION", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          }
           await auditar(tx, ctx, {
             action: "cuenta.anular_cobro",
             entityType: "account",
@@ -970,7 +1010,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             ...(permiso.autorizadoPor ? { authorizedBy: permiso.autorizadoPor } : {}),
             reason: cmd.motivo,
             before: resumenDe(vigente),
-            after: { ...resumenDe(nueva), cobroKey: cmd.cobroKey, detalle: cmd.detalle ?? null },
+            after: { ...resumenDe(nueva), cobroKey: cmd.cobroKey, detalle: cmd.detalle ?? null, camino: cmd.camino, ...(cmd.camino === "ANULAR_VENTA" ? { inventario: cmd.inventario } : {}) },
           });
           await tx.saleVoid.create({
             data: {
@@ -1001,6 +1041,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
       } catch (e) {
         // Dos anulaciones a la vez: la base deja una. Si la otra es esta misma (un doble clic), se
         // devuelve; si no, ese cobro ya se anuló.
+        // Anular la venta entera que no pudo a mitad (B3-18): se deshizo todo y se dice por qué.
+        if (e instanceof CierreDeshecho) return e.rechazo;
         if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
         const r = await intentar();
         return "ok" in r ? r : { ok: true, valor: CuentaYLibroSchema.parse(r) };
@@ -1750,6 +1792,43 @@ async function prepararAnulacion(
  * salió del estante vuelve (o, si ya estaba preparado, vuelve y sale como merma), y a cada área le sale su papel
  * «ANULAR». Todo en la transacción de quien llama.
  */
+/**
+ * Lo que volvió al estante sale como merma (M-18), con su costo y la misma autorización: la existencia queda igual, pero
+ * el reporte ve una pérdida y no una venta. Lo usan la anulación de un plato ya preparado y la de una venta entera (B3-18).
+ */
+async function aMerma(
+  tx: Transaccion,
+  ctx: Contexto,
+  devolucion: readonly Readonly<{ productId: string; quantity: number }>[],
+  d: Readonly<{ nota: string; operationKey: string; autorizadoPor: string; resumen: Record<string, unknown>; ahora: number }>,
+): Promise<void> {
+  if (devolucion.length === 0) return;
+  const hay = await existenciasDe(tx, ctx.branchId, devolucion.map((m) => m.productId));
+  await asentarAjuste(tx, ctx, {
+    kind: "SALIDA",
+    reason: "MERMA",
+    note: d.nota,
+    content: devolucion.map((m) => ({ productId: m.productId, cantidad: m.quantity })),
+    operationKey: d.operationKey,
+    ahora: d.ahora,
+    autorizadoPor: d.autorizadoPor,
+    movimientos: devolucion.map((m) => ({
+      productId: m.productId,
+      quantity: -m.quantity,
+      valueMinor: -costOfUnits(hay.get(m.productId) ?? { quantity: 0, valueMinor: 0n }, m.quantity),
+    })),
+    resumen: d.resumen,
+  });
+}
+
+/** El motivo de anular un cobro, dicho en la anulación de sus líneas (B3-18). */
+const TEXTO_ANULACION_COBRO: Record<AnularCobroCommand["motivo"], string> = {
+  ERROR_EN_COBRO: "error en el cobro",
+  CLIENTE_DESISTIO: "el cliente desistió",
+  NO_ENTREGADO: "no se entregó",
+  OTRO: "otro motivo",
+};
+
 async function asentarAnulacion(
   tx: Transaccion,
   ctx: Contexto,
@@ -1789,22 +1868,13 @@ async function asentarAnulacion(
   await asentarExistencias(tx, ctx, devolucion, { accountId, version: nueva.version!, ahora, quien: quien.nombre });
   const pedido = prep.pedido;
   const de = pedido ? `comanda ${orden(pedido.number)} · ${rotuloDePedido(pedido)}` : `cuenta ${nueva.orderNumber ? orden(nueva.orderNumber) : accountId}`;
-  if (que.preparado && devolucion.length > 0) {
-    const hay = await existenciasDe(tx, ctx.branchId, devolucion.map((m) => m.productId));
-    await asentarAjuste(tx, ctx, {
-      kind: "SALIDA",
-      reason: "MERMA",
-      note: `Anulado ya preparado · ${de}`,
-      content: devolucion.map((m) => ({ productId: m.productId, cantidad: m.quantity })),
+  if (que.preparado) {
+    await aMerma(tx, ctx, devolucion, {
+      nota: `Anulado ya preparado · ${de}`,
       operationKey: claveSecundaria(operationKey, "merma"),
-      ahora,
       autorizadoPor: autorizador.id,
-      movimientos: devolucion.map((m) => ({
-        productId: m.productId,
-        quantity: -m.quantity,
-        valueMinor: -costOfUnits(hay.get(m.productId) ?? { quantity: 0, valueMinor: 0n }, m.quantity),
-      })),
       resumen: { motivo: "MERMA", anulacionDe: { cuenta: accountId, comanda: pedido?.number ?? null } },
+      ahora,
     });
   }
 

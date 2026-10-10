@@ -128,7 +128,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
       .join(" · ");
     const enCola = cuenta.status === "POR_COBRAR";
     avisar.ok(`Orden ${ordenDe(v.orderNumber)} anulada`, {
-      detalle: `${devoluciones ? `Devolver ${devoluciones}.` : ""}${enCola ? " La cuenta volvió a «por cobrar»." : ""}`.trim(),
+      detalle: `${devoluciones ? `Devolver ${devoluciones}.` : ""}${enCola ? " La cuenta volvió a «por cobrar»." : pedido.camino === "ANULAR_VENTA" ? ` La venta se anuló entera${pedido.inventario === "MERMA" ? "; lo que tenía inventario, a merma" : "; lo que tenía inventario volvió al estante"}.` : ""}`.trim(),
       ...(enCola ? { accion: { texto: "Ir a cobrar", alPulsar: () => router.push(`/caja?cuenta=${cuenta.id}` as Route) } } : {}),
     });
     return null;

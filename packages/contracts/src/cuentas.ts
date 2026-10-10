@@ -21,7 +21,7 @@ import { LibroDocumentoSchema } from "./libro.ts";
 import { CodigoMedioSchema } from "./medios.ts";
 import { DatosDePagoSchema } from "./pagos.ts";
 import { IdSchema, IdempotencyKeySchema, MoneySchema } from "./primitives.ts";
-import { DestinoSobraSchema, DevolucionSchema, MotivoAnulacionSchema, VentaCerradaSchema } from "./ventas.ts";
+import { DestinoDevueltoSchema, DestinoSobraSchema, DevolucionSchema, MotivoAnulacionSchema, VentaCerradaSchema } from "./ventas.ts";
 
 /** Las cuentas que ve una estación: las abiertas y las cobradas del día. */
 export const CuentasDelLocalSchema = z.object({
@@ -136,6 +136,12 @@ export const AnularCobroCommandSchema = z
     detalle: z.string().trim().max(280).optional(),
     /** Cómo vuelve el dinero de cada pago con algo que devolver (DEC-24). */
     devoluciones: z.array(DevolucionSchema).max(20),
+    /**
+     * Qué pasa con la cuenta (B3-18): «Cobrarla de nuevo» vuelve a la cola para corregir el medio o el monto (como
+     * antes); «Anular la venta entera» la cierra con su motivo, y lo que tiene inventario vuelve al estante o a merma.
+     */
+    camino: z.enum(["COBRAR_DE_NUEVO", "ANULAR_VENTA"]).default("COBRAR_DE_NUEVO"),
+    inventario: DestinoDevueltoSchema.default("ESTANTE"),
   })
   .refine((c) => c.motivo !== "OTRO" || (c.detalle?.length ?? 0) >= 3, {
     message: "«Otro» exige explicarlo",

@@ -22,6 +22,7 @@ let ctxAdmin: Contexto;
 let ctxCajera: Contexto;
 let ctxMonitora: Contexto;
 let supervisor: string;
+let admin: string;
 let tasa: string;
 let pendiente: string;
 
@@ -55,7 +56,7 @@ before(async () => {
   otro = await abrirLocalDePrueba(URL_APP, "Libro de otro");
   // El libro cita la cuenta que cobra (B3-3): cada documento de estas pruebas es una cuenta real.
   DOC = await crearCuenta(local);
-  const admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
+  admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   const cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
   const monitora = await crearPersona(local, { nombre: "Ana Rojas", role: "MONITOR_PARQUE", pin: "6284" });
@@ -247,18 +248,20 @@ describe("revertir (F3-10)", () => {
     assert.deepEqual(libro.cobrado, { minor: "0", currency: "USD" });
   });
 
-  test("la caja revierte solo con la autorización de supervisión (DEC-24)", async () => {
+  test("la caja revierte solo con la autorización de administración (DEC-24, B3-18)", async () => {
     const doc = await crearCuenta(local);
     const id = valor(await local.app.pagos.asentar(ctxCajera, cobro([usd("4.00")], doc), AHORA)).asientos[0]!.id;
     const sin = await local.app.pagos.revertir(ctxCajera, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, undefined, AHORA);
     assert.equal(!sin.ok && sin.motivo, "NO_PERMITIDO");
-    const pinMalo = await local.app.pagos.revertir(ctxCajera, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, { autorizadorId: supervisor, pin: "0000", motivo: "Cobro repetido" }, AHORA);
+    const pinMalo = await local.app.pagos.revertir(ctxCajera, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, { autorizadorId: admin, pin: "0000", motivo: "Cobro repetido" }, AHORA);
     assert.equal(!pinMalo.ok && pinMalo.motivo, "NO_PERMITIDO");
+    const deSupervision = await local.app.pagos.revertir(ctxCajera, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, { autorizadorId: supervisor, pin: "5937", motivo: "Cobro repetido" }, AHORA);
+    assert.equal(!deSupervision.ok && deSupervision.motivo, "NO_PERMITIDO", "B3-18: supervisión ya no autoriza anular");
     const libro = valor(
-      await local.app.pagos.revertir(ctxCajera, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, { autorizadorId: supervisor, pin: "5937", motivo: "Cobro repetido" }, AHORA),
+      await local.app.pagos.revertir(ctxCajera, { idempotencyKey: randomUUID(), paymentId: id, motivo: "ERROR_EN_COBRO" }, { autorizadorId: admin, pin: "4826", motivo: "Cobro repetido" }, AHORA),
     );
     const rev = libro.asientos.find((a) => a.reversesId === id)!;
-    assert.equal(rev.authorizedBy, "Luis Guerrero");
+    assert.equal(rev.authorizedBy, "Abigail Karam");
     assert.equal(rev.recordedBy, "Marisol Prieto");
   });
 

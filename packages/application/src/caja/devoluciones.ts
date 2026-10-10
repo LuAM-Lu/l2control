@@ -5,13 +5,16 @@
  * nunca una que ya volvió) y a dónde va cada una: al estante (vuelve a venderse, al costo con que salió) o a merma. Lo
  * que se devuelve lo calcula el dominio (`devolucionDe`): el descuento en proporción, el IVA recalculado por alícuota y
  * el IGTF en proporción. El dinero vuelve por los pagos que elige la caja, cada uno por su medio y en su moneda, sin
- * pasar de lo que le queda: en el libro, asientos DEVOLUCION en el turno de hoy (el efectivo, de esta gaveta). Con la 🔐
- * de supervisión (`venta.devolver`) y un motivo. Imprime su comprobante. El tiempo del parque y los servicios no se
- * devuelven por aquí; una venta anulada o dividida en partes, tampoco. Nada se borra.
+ * pasar de lo que le queda: en el libro, asientos DEVOLUCION en el turno de hoy (el efectivo, de esta gaveta). Con el
+ * PIN de administración (`venta.devolver`, B3-18) y un motivo. Imprime su comprobante. Del parque, solo el paquete de un
+ * niño que ya salió: entero, o lo que no usó (B3-18); el tiempo de más y los servicios no se devuelven por aquí; una
+ * venta anulada o dividida en partes, tampoco. Nada se borra.
  */
 import {
   BuscarVentaSchema,
   DevolucionHechaSchema,
+  ParqueDeLaVentaSchema,
+  type ParqueDeLaVentaDto,
   DevolverVentaCommandSchema,
   problemasDe,
   type DevolucionHechaDto,
@@ -20,7 +23,7 @@ import {
   type VentaCerradaDto,
 } from "@l2/contracts";
 import { cuadraLaDevolucion, devolucionDe, USDT_AT_PAR } from "@l2/domain-cash";
-import { invertRate, money, type CurrencyCode, type FrozenRate } from "@l2/domain-money";
+import { invertRate, money, type CurrencyCode, type FrozenRate, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { errorDeBase, type Base } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
@@ -35,6 +38,7 @@ import { documentoDeDevolucion } from "../impresion/plantillas.ts";
 import { ajustesDe } from "../sucursal/ajustes.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { turnoParaCobrar } from "./turnos.ts";
+import { valorDelTiempoUsado } from "../park/parque.ts";
 import { CON_TODO, ventaDe, type LineaDevueltaGuardada, type ReintegroGuardado } from "./ventas.ts";
 
 export interface CasosDevoluciones {
@@ -42,6 +46,8 @@ export interface CasosDevoluciones {
   devolver(ctx: Contexto, entrada: unknown, autorizacion?: unknown, ahora?: number): Promise<Resultado<DevolucionHechaDto>>;
   /** La venta más reciente con ese número de orden en la sucursal (`BuscarVentaSchema`), o `null`. */
   buscar(ctx: Contexto, entrada: unknown): Promise<Resultado<VentaCerradaDto | null>>;
+  /** El tiempo del parque de una venta y lo que su niño no usó (B3-18), para devolverlo. */
+  delParque(ctx: Contexto, saleId: string): Promise<Resultado<ParqueDeLaVentaDto>>;
 }
 
 const CON_PIN = { confirmarConPin: true } as const;
@@ -55,7 +61,7 @@ function desdeFuncional(moneda: string, tasa: { value: string } | null): FrozenR
 }
 
 /** Las líneas de la cuenta tal como se cobraron: de ahí salen su tipo, su producto y su IVA. */
-type LineaDeLaCuenta = { id: string; kind: string; productId?: string; taxCode?: string };
+type LineaDeLaCuenta = { id: string; kind: string; productId?: string; taxCode?: string; sessionId?: string };
 
 export function casosDevoluciones(base: Base, cifrador: Cifrador | null, soporteOpera = false): CasosDevoluciones {
   return {
@@ -67,6 +73,28 @@ export function casosDevoluciones(base: Base, cifrador: Cifrador | null, soporte
         if (p === "DENEGADO") return rechazoDePermiso(p);
         const s = await tx.sale.findFirst({ where: { branchId: ctx.branchId, orderNumber: v.data.orden }, orderBy: { closedAt: "desc" }, include: CON_TODO });
         return { ok: true, valor: s ? ventaDe(s, cifrador) : null };
+      });
+    },
+
+    async delParque(ctx, saleId) {
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<ParqueDeLaVentaDto>> => {
+        const p = await permisoEn(tx, ctx, "venta.devolver");
+        if (p === "DENEGADO") return rechazoDePermiso(p);
+        const s = await tx.sale.findFirst({ where: { id: saleId, branchId: ctx.branchId }, select: { accountId: true, operationKey: true, content: true } });
+        if (!s) return { ok: true, valor: { lineas: [] } };
+        const cobro = await tx.accountVersion.findFirst({ where: { accountId: s.accountId, operationKey: s.operationKey }, select: { content: true } });
+        const deLaCuenta = ((cobro?.content as { lines?: LineaDeLaCuenta[] } | undefined)?.lines ?? []).filter((l) => l.kind === "PAQUETE" && l.sessionId);
+        const vendidas = new Map(((s.content as { lineas?: { lineId: string; amount: { minor: string } }[] }).lineas ?? []).map((l) => [l.lineId, BigInt(l.amount.minor)]));
+        const lineas: ParqueDeLaVentaDto["lineas"] = [];
+        for (const l of deLaCuenta) {
+          const pagado = vendidas.get(l.id);
+          if (pagado === undefined) continue;
+          const valor = await valorDelTiempoUsado(tx, ctx.branchId, l.sessionId!);
+          const masTiempo = deLaCuenta.filter((x) => x.sessionId === l.sessionId).length > 1;
+          const noUsado = valor && !masTiempo ? pagado - valor.amount : null;
+          lineas.push({ lineId: l.id, enSala: valor === null, noUsado: noUsado !== null && noUsado > 0n ? { minor: String(noUsado), currency: "USD" } : null });
+        }
+        return { ok: true, valor: ParqueDeLaVentaSchema.parse({ lineas }) };
       });
     },
 
@@ -107,12 +135,29 @@ export function casosDevoluciones(base: Base, cifrador: Cifrador | null, soporte
               })
             ).map((x) => [x.id, x]),
           );
+          /** De una línea, solo esta parte (B3-18): lo que un niño no usó de su paquete. */
+          const parciales = new Map<string, Money>();
           for (const [i, l] of cmd.lineas.entries()) {
             const vendida = venta.lineas.find((x) => x.lineId === l.lineId);
             if (!vendida) return invalido("Esa línea no es de esta venta.", ["lineas", i, "lineId"], "LINEA_AJENA");
             if (yaDevueltas.has(l.lineId)) return invalido(`«${vendida.concept}» ya se devolvió.`, ["lineas", i, "lineId"], "YA_DEVUELTA");
             if (vendida.cortesia) return invalido(`«${vendida.concept}» fue una cortesía: no hay nada que devolver.`, ["lineas", i, "lineId"], "CORTESIA");
             const linea = deLaCuenta.get(l.lineId);
+            // B3-18 (M-37 U-11, cambia M-18): el paquete que un niño pagó por adelantado, cuando ya salió: entero (un
+            // problema del local) o lo que no usó, lo pagado menos lo que vale su tiempo con la regla de B4-17.
+            if (linea?.kind === "PAQUETE" && linea.sessionId) {
+              const valor = await valorDelTiempoUsado(tx, ctx.branchId, linea.sessionId);
+              if (!valor) return invalido(`«${vendida.concept}»: el niño sigue en la sala; su tiempo se devuelve después de su salida.`, ["lineas", i, "lineId"], "NINO_EN_SALA");
+              if (l.noUsado) {
+                const delMismo = [...deLaCuenta.values()].filter((x) => x.kind === "PAQUETE" && x.sessionId === linea.sessionId);
+                if (delMismo.length > 1) return invalido(`«${vendida.concept}» tuvo más tiempo: devuelve sus líneas enteras.`, ["lineas", i, "noUsado"], "CON_MAS_TIEMPO");
+                const noUsado = BigInt(vendida.amount.minor) - valor.amount;
+                if (noUsado <= 0n) return invalido(`«${vendida.concept}»: usó todo lo que pagó, no queda nada que devolver.`, ["lineas", i, "noUsado"], "USO_TODO");
+                parciales.set(l.lineId, money(noUsado, "USD"));
+              }
+              continue;
+            }
+            if (l.noUsado) return invalido("«Lo que no usó» es del tiempo del parque.", ["lineas", i, "noUsado"], "NO_ES_DEL_PARQUE");
             const producto = linea?.productId ? tipos.get(linea.productId) : undefined;
             // El tiempo del parque y los servicios no se devuelven por aquí.
             if (!linea || linea.kind !== "RESTAURANTE" || !producto || producto.kind === "SERVICIO") {
@@ -140,6 +185,7 @@ export function casosDevoluciones(base: Base, cifrador: Cifrador | null, soporte
               total: money(BigInt(venta.total.minor), funcional),
             },
             cmd.lineas.map((l) => l.lineId),
+            parciales,
           );
 
           // Cómo vuelve: por cada pago elegido, en su moneda, sin pasar de lo que le queda; entre todos, lo que vuelve.
@@ -206,7 +252,14 @@ export function casosDevoluciones(base: Base, cifrador: Cifrador | null, soporte
 
           const lineas: LineaDevueltaGuardada[] = cmd.lineas.map((l) => {
             const vendida = venta.lineas.find((x) => x.lineId === l.lineId)!;
-            return { lineId: l.lineId, concept: vendida.concept, productId: deLaCuenta.get(l.lineId)?.productId ?? null, amount: vendida.amount, destino: l.destino };
+            const parte = parciales.get(l.lineId);
+            return {
+              lineId: l.lineId,
+              concept: parte ? `${vendida.concept} · lo que no usó`.slice(0, 80) : vendida.concept,
+              productId: deLaCuenta.get(l.lineId)?.productId ?? null,
+              amount: parte ? { minor: String(parte.amount), currency: vendida.amount.currency } : vendida.amount,
+              destino: l.destino,
+            };
           });
           const reintegros: ReintegroGuardado[] = cmd.reintegros.map((r) => {
             const pago = venta.payments[r.paymentIndex]!;

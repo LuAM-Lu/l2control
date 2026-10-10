@@ -31,7 +31,7 @@ import type { Route } from "next";
 import { sum, toMajor } from "@l2/domain-money";
 import { pendiente, previsualizarSalida } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
-import { buildCheckoutPreview, moneyDtoToMajor } from "./settlement.ts";
+import { buildCheckoutPreview, moneyDtoToMajor, noUsadoDe } from "./settlement.ts";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { cuentasDeLaMesa } from "../mesas/mesas.ts";
 import { useAhoraDeLaSala, useSala } from "./SalaProvider.tsx";
@@ -545,6 +545,17 @@ export function CheckoutScreen({
                       </div>
                       )}
 
+                      {/* B3-18: pagó por adelantado y sale antes; lo que no usó se le devuelve en la caja, donde está el dinero. */}
+                      {(() => {
+                        const cuenta = estancia ? cuentas.find((c) => c.id === estancia.accountId) : undefined;
+                        const resto = estancia && cuenta?.mode === "PREPAGO" ? noUsadoDe(estancia, Date.parse(l.endedAt)) : null;
+                        return resto ? (
+                          <p className="rounded-[var(--radius-control)] bg-surface-2 px-2.5 py-1.5 text-[12.5px] text-ink-2">
+                            Pagó por adelantado y no usó <span className="tnum font-semibold text-ink">{formatMoneyVE(toMajor(resto), "USD")}</span>: si se le
+                            devuelve, es en la caja (Ventas → Devolver, con el PIN de administración).
+                          </p>
+                        ) : null;
+                      })()}
                       {l.porUso && l.tiempoAbierto && (
                         // B4-17: el tiempo abierto, con lo que vale su tiempo en la tarifa.
                         <div className="flex items-baseline justify-between gap-3">

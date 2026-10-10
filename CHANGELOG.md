@@ -16,6 +16,21 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.118.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Anular y devolver, de administración (B3-18, M-37).
+
+### Añadido
+- **«Anular la venta entera»**: además de «Cobrarla de nuevo» (la cuenta vuelve a la cola), anular un cobro puede cerrar
+  la venta: el dinero vuelve por sus medios, la cuenta se cierra con su motivo y lo que tiene inventario vuelve al
+  estante (o a merma, si se elige). Antes del corte Z de su turno.
+- **Devolver lo que un niño no usó**: el paquete de un niño que pagó por adelantado y salió antes se devuelve en la caja
+  (Ventas → Devolver): lo pagado menos lo que vale el tiempo que estuvo (1 hora $ 5, estuvo 5 minutos: vuelven $ 2 más
+  su IVA), o entero si fue un problema del local. La salida del parque ya dice cuánto es.
+
+### Cambiado
+- **Anular y devolver piden el PIN de administración**: supervisión ya no se autoriza sola en esto.
+
 ## [0.117.0] — 2026-10-10 · Hacia la puesta en marcha
 
 La comanda de la venta directa (B6-16, M-37).
