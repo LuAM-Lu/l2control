@@ -61,6 +61,13 @@ import { rutaPestana } from "./navigation.ts";
  * Este bloque NO decide nada: solo lee. Ni un botón que cambie el estado del
  * local.
  */
+/** «Dietina G.»: el nombre y la inicial del apellido, para que quepa en la tarjeta de los puestos. */
+function nombreCorto(completo: string): string {
+  const partes = completo.trim().split(/\s+/);
+  if (partes.length < 2) return completo.trim();
+  return `${partes[0]} ${partes[partes.length - 1]!.charAt(0).toUpperCase()}.`;
+}
+
 /**
  * Las ausencias ya avisadas (T-20): un aviso por ausencia, aunque se navegue y se vuelva a Inicio. No se guarda en el
  * navegador: al recargar la página, la que siga se avisa una vez más.
@@ -265,27 +272,36 @@ export function EnVivo({
             <UserRound size={13} aria-hidden="true" />
             Personas
           </p>
-          <ul className="flex flex-col gap-0.5 text-[11.5px]">
+          {/* Cada puesto en renglones cortos (v0.122.1): el puesto con su punto y «ocupado» o «libre»; quién o desde cuándo; y la llegada, con
+              el nombre corto (el completo, al pasar). Así un nombre largo no parte la tarjeta. */}
+          <ul className="flex flex-col gap-1.5 text-[11.5px]">
             {v.personas.puestos.length === 0 && <li className="text-ink-3">Sin datos de los puestos.</li>}
-            {v.personas.puestos.map((p) => (
-              <li key={p.id} className="flex flex-col">
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="shrink-0 text-ink-3">{p.nombre}</span>
-                  {p.quien ? (
-                    <span className="min-w-0 text-right font-medium break-words text-ink">{p.quien}</span>
-                  ) : (
-                    <span className="min-w-0 text-right text-ink-3">{p.sinActividadDesde ? "sin actividad" : "sin actividad hoy"}</span>
-                  )}
-                </span>
-                {!p.quien && p.sinActividadDesde && <span className="text-right text-ink-3">desde {reloj.hora(p.sinActividadDesde)}</span>}
-                {p.llegada && (
-                  <span className="text-right text-ink-3">
-                    llegó {reloj.hora(p.llegada.en)}
-                    {p.llegada.quien !== p.quien ? ` · ${p.llegada.quien}` : ""}
+            {v.personas.puestos.map((p) => {
+              const ocupado = p.quien !== null;
+              const completos = [p.quien, p.llegada?.quien].filter((x): x is string => !!x);
+              return (
+                <li key={p.id} className="flex min-w-0 flex-col">
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", ocupado ? "bg-state-ok" : "bg-line-strong")} />
+                    <span className="font-semibold text-ink">{p.nombre}</span>
+                    <span className="ml-auto shrink-0 text-ink-3">{ocupado ? "ocupado" : "libre"}</span>
                   </span>
-                )}
-              </li>
-            ))}
+                  <span className="pl-3.5" title={completos.length > 0 ? [...new Set(completos)].join(" · ") : undefined}>
+                    {ocupado ? (
+                      <span className="font-medium text-ink">{nombreCorto(p.quien!)}</span>
+                    ) : (
+                      <span className="text-ink-3">{p.sinActividadDesde ? `Sin nadie desde ${reloj.hora(p.sinActividadDesde)}` : "Sin actividad hoy"}</span>
+                    )}
+                  </span>
+                  {p.llegada && (
+                    <span className="pl-3.5 text-ink-3">
+                      llegó {reloj.hora(p.llegada.en)}
+                      {p.llegada.quien !== p.quien ? ` · ${nombreCorto(p.llegada.quien)}` : ""}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           <Link
             href={rutaPestana("ajustes", "personas", "dispositivos")}

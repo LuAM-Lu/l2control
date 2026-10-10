@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.122.1] — 2026-10-10 · Hacia la puesta en marcha
+
+Corrección (M-38, W-3).
+
+### Corregido
+- **Los avisos se leen en el tema claro**: el texto de detalle salía casi blanco sobre blanco. Ahora los avisos siguen el
+  tema del equipo.
+- **La tarjeta de los puestos en Inicio** ya no se parte con nombres largos: cada puesto, en renglones cortos, con el
+  nombre y la inicial del apellido (el completo, al pasar).
+
 ## [0.122.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Movimientos: todo lo del periodo (B11-7, M-37).

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CircleCheckBig, Info, TriangleAlert, OctagonAlert } from "lucide-react";
 import { Toaster, toast } from "sonner";
 
@@ -21,7 +21,23 @@ import { Toaster, toast } from "sonner";
  *
  * Por qué Sonner: apila, pausa al pasar el ratón o enfocar, anuncia por
  * `aria-live` y se descarta deslizando. Aquí solo se viste con los tokens.
+ *
+ * El tema de Sonner sigue al del equipo (`data-tema` en `<html>`, M-21): fijado en oscuro, su hoja de estilos le ponía
+ * al detalle un gris casi blanco que en el tema claro quedaba blanco sobre blanco (v0.122.1).
  */
+function useTemaDelEquipo(): "light" | "dark" {
+  const [tema, setTema] = useState<"light" | "dark">("dark");
+  useEffect(() => {
+    const raiz = document.documentElement;
+    const leer = () => setTema(raiz.dataset.tema === "claro" ? "light" : "dark");
+    leer();
+    // El botón del sol o la luna cambia el tema sin recargar: se sigue el atributo.
+    const vigia = new MutationObserver(leer);
+    vigia.observe(raiz, { attributes: true, attributeFilter: ["data-tema"] });
+    return () => vigia.disconnect();
+  }, []);
+  return tema;
+}
 
 const BASE =
   "pointer-events-auto flex w-[min(24rem,calc(100vw-2rem))] items-start gap-2.5 rounded-[var(--radius-card)] " +
@@ -36,6 +52,7 @@ export function Avisos({
   /** Separación desde arriba, en px: en las estaciones, lo que mide su barra. */
   desdeArriba?: number;
 }) {
+  const tema = useTemaDelEquipo();
   return (
     <Toaster
       position={posicion}
@@ -43,7 +60,7 @@ export function Avisos({
       mobileOffset={{ top: desdeArriba, right: 16, left: 16 }}
       visibleToasts={3}
       gap={8}
-      theme="dark"
+      theme={tema}
       containerAriaLabel="Avisos"
       icons={{
         success: <CircleCheckBig size={17} className="text-state-ok" aria-hidden="true" />,
@@ -61,7 +78,8 @@ export function Avisos({
           icon: "mt-px shrink-0",
           content: "min-w-0 flex-1",
           title: "font-medium leading-snug",
-          description: "mt-0.5 text-[12.5px] text-ink-2",
+          // Con prioridad sobre la hoja de Sonner: el detalle se lee en los dos temas.
+          description: "mt-0.5 text-[12.5px] text-ink-2!",
           actionButton:
             "ml-1 shrink-0 cursor-pointer self-center rounded-[var(--radius-control)] border-l border-line pl-3 " +
             "min-h-9 font-semibold text-brand hover:text-brand-2 focus-visible:outline-2 focus-visible:outline-brand",
