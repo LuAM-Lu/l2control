@@ -20,7 +20,7 @@ El siguiente: B3-24. Criterio: con la caja de ayer abierta, cobrar hoy lleva al 
 El día 9: la caja de «PC Recep. Lenovo» quedó abierta con seis mesas. El usuario la cierra con lo que ya tiene L2
   (cobrar o «Se fue sin pagar», cerrar con su justificación, abrir la del 10). Hay que confirmar que se hizo.
 La impresora: hoy por USB («CAJA POS», POS-80C), sin aviso de papel; el agente va en 0.111.0. «CAJA» es la de red.
-  B5-6 las une como principal (red) y respaldo (USB).
+  B5-6 las une como principal y respaldo, a elección de administración (L2 sugiere la de red).
 Cuidado: MAESTRO.md va con finales CRLF (un guion que lo edite los respeta). La cocina no tiene pantalla: su gente entra
   una vez para cambiar el PIN temporal, o no firma su consumo. Sonner sigue data-tema. Mira cada pantalla en los dos temas.
 ```
