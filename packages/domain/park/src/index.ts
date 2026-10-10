@@ -746,3 +746,4 @@ export function liquidarEstancia(
     total: add(porUso ? porUso.precio : contratado, s.overdue),
   });
 }
+export { picoDeAforo, type Intervalo } from "./reporte.ts";

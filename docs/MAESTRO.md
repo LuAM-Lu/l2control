@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.120.0 · 120 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.121.0 · 121 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3147,10 +3147,21 @@ F9-05).
   10 a 5 y las ventas de 2 a 1. **Decidido al construir:** el estado «Sin inventario inicial» no se parte: partido,
   duplicaba el alto de cada fila.*
 
-- [ ] **B11-6 · Reportes → Parque** (M-37, U-4).
+- [x] **B11-6 · Reportes → Parque** (M-37, U-4).
+  *Hecho el 2026-10-10 (v0.121.0), en `feat/b11-6`.*
   → Por periodo de días de negocio, con su PDF compacto: niños por día y por hora (y el aforo pico); paquetes, recargas
   y tiempo de más con su dinero, también lo pagado en mesas; estancias (tiempo promedio, pausas por comida, salidas
   antes de tiempo y cobradas por uso); y las excepciones (sin pulsera, a revisar, recogidos por otra persona, medias).
+  *· Hecho: `reportes.parque` (B11-6) lee las estancias que empezaron en el periodo y da los niños por día y por hora de
+  entrada (en la zona del local), el aforo pico (`picoDeAforo` en `@l2/domain-park`; una abierta cuenta hasta ahora, sin
+  pasar de sus horas de huérfana ni de su día), el dinero del tiempo línea por línea donde terminó (se sigue `movedTo`
+  hasta la mesa: lo pagado en mesas sale de ahí; «Sube a…» es recarga, EXCEDENTE es tiempo de más; lo anulado y lo
+  cambiado por uso no cuentan; lo regalado, aparte), las estancias (tiempo promedio sin pausas, pausas por comida, antes
+  de tiempo, cobradas por uso, invitados de cumpleaños) y las excepciones (sin pulsera, a revisar, recogido por otra
+  persona, medias). Reportes → Parque con sus cinco pestañas y su PDF compacto. Probado en la base (3 pruebas: 90 min de
+  60 con 5 de gracia dan 2 bloques de tiempo de más, el pico, la subida a 2 horas, las excepciones) y en el navegador en
+  los dos temas.*
+
 - [ ] **B11-7 · Movimientos: todo lo del día** (M-37, U-5).
   → Reportes → Movimientos pasa a ser todo lo que pasó en el periodo: caja (cobros, devoluciones, anulaciones, turnos),
   parque (entradas, salidas, recargas), mesas (sentar, pedidos, cerrar), inventario y personal. Se busca por número de
