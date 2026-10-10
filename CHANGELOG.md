@@ -16,6 +16,15 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.122.2] — 2026-10-10 · Hacia la puesta en marcha
+
+Corrección (M-38, W-3).
+
+### Corregido
+- **La tarjeta de los puestos en Inicio, de un vistazo**: un renglón por puesto, con el icono de su zona en verde si hay
+  alguien, ámbar si avisa y gris si está libre; quién está, o «Libre»; y una hora, la llegada o desde cuándo no hay nadie.
+  La llegada de otra persona y los nombres completos, al pasar el ratón.
+
 ## [0.122.1] — 2026-10-10 · Hacia la puesta en marcha
 
 Corrección (M-38, W-3).

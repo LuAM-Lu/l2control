@@ -7,11 +7,11 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-10 · v0.122.1 en `main` (publicada, la 0.122.0) · M-38 definido entero; nada reclamado*
+*2026-10-10 · v0.122.2 en `main` (publicada, la 0.122.0) · M-38 definido entero; nada reclamado*
 
 ```text
 M-38 definido con una propuesta dibujada y cuatro rondas de preguntas (MAESTRO §2, «M-38 en detalle», W-1 a W-14). Su
-  corrección v0.122.1 ya está en main, sin publicar: avisos legibles en el tema claro y los puestos en renglones cortos.
+  corrección (v0.122.1 y v0.122.2) ya está en main, sin publicar: avisos legibles en el tema claro y un renglón por puesto.
 Siguen, en tanda y sin parar (Claude): B3-24 → B5-6 → T-23 → B4-18 → B6-17 → T-21 → T-22 → B3-21 → B3-22. Cada uno
   entra en main probado y con su versión. Se publica una sola vez al final, con el permiso del usuario del 2026-10-10:
   se le avisa la hora, se etiqueta la última y se comprueba el VPS solo leyendo. Ruta: 136 pasos.

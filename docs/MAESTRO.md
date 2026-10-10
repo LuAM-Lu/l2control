@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.122.1 en `main` (publicada, la 0.122.0) · 122 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.122.2 en `main` (publicada, la 0.122.0) · 122 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -43,7 +43,7 @@ equipos e inventario de verdad); la operación en paralelo con el método escrit
 se hace sobre esa base. M-37 entregado entero (2026-10-10, lo visto en la operación en paralelo): cuatro correcciones y
 once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.1 a v0.122.0, publicados juntos al final
 con la etiqueta de la última. M-38 decidido (2026-10-10, tras la operación en paralelo y el día 9 sin cerrar): una
-corrección (v0.122.1, ya en `main`) y nueve pasos, antes de la 1.0.0, publicados juntos al final.** M-28 y M-29
+corrección (v0.122.1 y v0.122.2, ya en `main`) y nueve pasos, antes de la 1.0.0, publicados juntos al final.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -104,9 +104,9 @@ la 1.0.0.
      en el local: que las notas del mesero salgan en la comanda impresa (en el VPS se guardan e imprimen), las áreas de
      cada producto (cocina, barra o sin papel: la venta directa saca comanda según ellas), el consumo del personal con
      el vale firmado y el aviso de los puestos (Ajustes → Sucursal, 15 min de fábrica).
-  6. **M-38, Claude:** la corrección v0.122.1 (en `main`, sin publicar) y los nueve pasos de §3, punto 16, en tanda y
-     sin parar: cada uno entra en `main` probado y con su versión. **Se publica una sola vez al final** (la 0.122.1
-     también), cuando todo esté probado: el usuario dio permiso el 2026-10-10 para etiquetar la última y entrar al VPS a
+  6. **M-38, Claude:** la corrección v0.122.1 y v0.122.2 (en `main`, sin publicar) y los nueve pasos de §3, punto 16, en tanda y
+     sin parar: cada uno entra en `main` probado y con su versión. **Se publica una sola vez al final** (la
+     corrección también), cuando todo esté probado: el usuario dio permiso el 2026-10-10 para etiquetar la última y entrar al VPS a
      comprobarlo (solo leyendo la base). Antes de etiquetar se le avisa la hora, por el corte de un minuto (M-36). **El día 9 (incidente del 2026-10-10):** la caja de «PC Recep. Lenovo» quedó abierta con
      seis mesas sin cobrar ($ 128,80 antes del IVA) y una venta del 10 entró en el día 9; se resuelve con lo que ya tiene
      L2 (cobrar o «Se fue sin pagar» cada mesa, cerrar la caja del 9 con su justificación, abrir la del 10). B3-24 lo
@@ -240,7 +240,7 @@ Square, Toast, Shopify POS, Loyverse y Odoo POS.
 |---|---|---|---|
 | **W-1** | Sin papel, la impresora por USB: el 9 de octubre L2 dio por impresas 58 comandas y recibos, sin avisar | Principal y respaldo por impresora, a elección de administración en Ajustes → Impresoras (L2 sugiere la de red, que pregunta por el papel antes de mandar; el usuario, 2026-10-10: «deja que elija el admin»); por USB, el estado de Windows y la vigilancia de su cola; el estado en la barra con sonido y en la tablet | B5-6 |
 | **W-2** | El día 9 no se cerró (todo paró por la impresora) y una venta del 10 entró en el día 9: el cobro no mira de qué día es la caja | Una caja de un día anterior no cobra: pide cerrarse, con un asistente de lo pendiente; Inicio avisa de noche | B3-24 |
-| **W-3** | El detalle de los avisos sale blanco sobre blanco en el tema claro (la librería, fijada en oscuro); la tarjeta de los puestos se rompe con nombres largos | Los avisos siguen el tema del equipo; los puestos en dos renglones, con nombre corto | v0.122.1 |
+| **W-3** | El detalle de los avisos sale blanco sobre blanco en el tema claro (la librería, fijada en oscuro); la tarjeta de los puestos se rompe con nombres largos | Los avisos siguen el tema del equipo; los puestos, primero en renglones cortos y después (el usuario: «sigue siendo muchas líneas, debe ser más iconográfico») en un renglón por puesto: el icono de su zona del color de su estado, quién o «Libre» y una hora con su icono | v0.122.1, v0.122.2 |
 | **W-4** | La Entrada en tablet: el paquete es una lista de 14 px en horizontal (tarjetas en vertical); el texto pide la cédula primero y la pulsera va arriba; campos sin las ayudas del teclado | Cédula primero con los niños de la última vez; tarjetas de paquete en las dos orientaciones; reglas de teclado | B4-18 |
 | **W-5** | El mesero en tablet: sin buscador en la carta, categorías en tres renglones, la franja roja de comandas tapa el plano, tiempos en minutos sueltos, todo en amarillo en «Atender», plano y cuenta apilados en vertical | Buscador y tira de categorías, píldora de comandas, tiempos legibles, amarillo solo para lo que pide acción, la mesa en hoja en vertical | B6-17 |
 | **W-6** | Las cinco pestañas de Caja no caben a 1366 con los avisos | Laptop y tablet: Cobrar y Turno fijas y «Más»; atajos Alt+1 a 5; píldoras cortas | T-21 |

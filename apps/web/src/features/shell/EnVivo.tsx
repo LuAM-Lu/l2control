@@ -9,6 +9,9 @@ import {
   Baby,
   ChevronRight,
   CircleCheckBig,
+  Clock,
+  Headset,
+  LogIn,
   OctagonAlert,
   Printer,
   Receipt,
@@ -17,6 +20,7 @@ import {
   UserRound,
   UtensilsCrossed,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
 import { MoneyDisplay, avisar, cn } from "@l2/ui";
@@ -61,6 +65,9 @@ import { rutaPestana } from "./navigation.ts";
  * Este bloque NO decide nada: solo lee. Ni un botón que cambie el estado del
  * local.
  */
+/** Cada puesto, con el icono de su zona en Inicio (la cuenta de soporte, el de su acceso). */
+const ICONO_DEL_PUESTO: Readonly<Record<string, LucideIcon>> = { CAJA: Wallet, PARQUE: Baby, MESAS: UtensilsCrossed, soporte: Headset };
+
 /** «Dietina G.»: el nombre y la inicial del apellido, para que quepa en la tarjeta de los puestos. */
 function nombreCorto(completo: string): string {
   const partes = completo.trim().split(/\s+/);
@@ -272,33 +279,49 @@ export function EnVivo({
             <UserRound size={13} aria-hidden="true" />
             Personas
           </p>
-          {/* Cada puesto en renglones cortos (v0.122.1): el puesto con su punto y «ocupado» o «libre»; quién o desde cuándo; y la llegada, con
-              el nombre corto (el completo, al pasar). Así un nombre largo no parte la tarjeta. */}
-          <ul className="flex flex-col gap-1.5 text-[11.5px]">
+          {/* Un renglón por puesto (v0.122.2): el icono de su zona en una ficha del color de su estado (verde con alguien,
+              ámbar si avisa, gris libre), quién o «Libre», y una hora: la llegada (entrar) si hay alguien, desde cuándo
+              (reloj) si no. La llegada de otra persona y los nombres completos, al pasar. */}
+          <ul className="flex flex-col gap-1 text-[11.5px]">
             {v.personas.puestos.length === 0 && <li className="text-ink-3">Sin datos de los puestos.</li>}
             {v.personas.puestos.map((p) => {
+              const Icono = ICONO_DEL_PUESTO[p.id] ?? UserRound;
               const ocupado = p.quien !== null;
-              const completos = [p.quien, p.llegada?.quien].filter((x): x is string => !!x);
+              const hora = ocupado ? (p.llegada?.en ?? null) : p.sinActividadDesde;
+              const detalle = [
+                ocupado ? `${p.nombre}: ${p.quien}` : p.sinActividadDesde ? `${p.nombre}: sin nadie desde ${reloj.hora(p.sinActividadDesde)}` : `${p.nombre}: sin actividad hoy`,
+                p.llegada ? `llegó ${reloj.hora(p.llegada.en)}, ${p.llegada.quien}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
               return (
-                <li key={p.id} className="flex min-w-0 flex-col">
-                  <span className="flex items-center gap-1.5">
-                    <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", ocupado ? "bg-state-ok" : "bg-line-strong")} />
-                    <span className="font-semibold text-ink">{p.nombre}</span>
-                    <span className="ml-auto shrink-0 text-ink-3">{ocupado ? "ocupado" : "libre"}</span>
+                <li key={p.id} title={detalle} className="flex min-w-0 items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-md",
+                      ocupado ? "bg-state-ok-bg text-state-ok" : p.avisa ? "bg-state-warn-bg text-state-warn" : "bg-surface-2 text-ink-3",
+                    )}
+                  >
+                    <Icono size={12} />
                   </span>
-                  <span className="pl-3.5" title={completos.length > 0 ? [...new Set(completos)].join(" · ") : undefined}>
+                  <span className="sr-only">{detalle}</span>
+                  <span aria-hidden="true" className="flex min-w-0 flex-1 items-center gap-1">
                     {ocupado ? (
                       <span className="font-medium text-ink">{nombreCorto(p.quien!)}</span>
                     ) : (
-                      <span className="text-ink-3">{p.sinActividadDesde ? `Sin nadie desde ${reloj.hora(p.sinActividadDesde)}` : "Sin actividad hoy"}</span>
+                      <span className={cn("flex items-center gap-1", p.avisa ? "font-medium text-state-warn" : "text-ink-3")}>
+                        {p.avisa && <TriangleAlert size={11} className="shrink-0" />}
+                        {p.sinActividadDesde ? "Libre" : "Sin actividad"}
+                      </span>
+                    )}
+                    {hora !== null && (
+                      <span className="ml-auto flex shrink-0 items-center gap-1 text-ink-3 tnum">
+                        {ocupado ? <LogIn size={10} /> : <Clock size={10} />}
+                        {reloj.hora(hora)}
+                      </span>
                     )}
                   </span>
-                  {p.llegada && (
-                    <span className="pl-3.5 text-ink-3">
-                      llegó {reloj.hora(p.llegada.en)}
-                      {p.llegada.quien !== p.quien ? ` · ${nombreCorto(p.llegada.quien)}` : ""}
-                    </span>
-                  )}
                 </li>
               );
             })}
