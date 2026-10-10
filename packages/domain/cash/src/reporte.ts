@@ -3,13 +3,13 @@
  * periodo de días de negocio. Sin base ni reloj: el día de hoy y las tasas entran como argumentos.
  *
  *  · El origen de una venta es la cuenta en que se cobró: una familia es del parque, una mesa (o una cuenta de pie) del
- *    restaurante, el mostrador es la venta directa y un evento es un cumpleaños. Separar parque y restaurante línea por
- *    línea es otro informe (F9-03), después del piloto.
+ *    restaurante, el mostrador es la venta directa y un evento es un cumpleaños. Salvo el tiempo del parque (M-37, U-6):
+ *    el paquete y el tiempo de más son del parque aunque se cobren en la cuenta de una mesa (`repartoPorOrigen`).
  *  · Cada asiento en bolívares se lleva a dólares con la tasa con que se cobró (ADR-005), nunca con la de hoy: así el
  *    informe de ayer no cambia mañana. El USDT, a la par con el dólar (como en el cobro).
  *  · Un turno con su Z cerrado debe dar lo mismo que su Z: `cuadreConZ` dice qué no cuadra.
  */
-import { convert, money, type FrozenRate, type Money } from "@l2/domain-money";
+import { allocateByRatios, convert, money, type FrozenRate, type Money } from "@l2/domain-money";
 
 export type OrigenDeVenta = "PARQUE" | "RESTAURANTE" | "MOSTRADOR" | "CUMPLEANOS";
 export const ORIGENES_DE_VENTA: readonly OrigenDeVenta[] = ["PARQUE", "RESTAURANTE", "MOSTRADOR", "CUMPLEANOS"];
@@ -27,6 +27,40 @@ export function origenDeCuenta(kind: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"
     case "EVENTO":
       return "CUMPLEANOS";
   }
+}
+
+/** Las líneas que son tiempo del parque, se cobren donde se cobren. */
+const DEL_PARQUE: ReadonlySet<string> = new Set(["PAQUETE", "EXCEDENTE"]);
+
+/**
+ * Lo que una venta deja en cada origen (M-37, U-6): el paquete y el tiempo de más son del parque aunque se cobren en la
+ * cuenta de una mesa; lo demás, del origen de la cuenta (las medias de una familia siguen siendo del parque). El total
+ * de la venta, con su IVA y su descuento, se reparte en proporción al importe de cada línea, con el mayor resto: la suma
+ * es el total, al céntimo. Una línea sin tipo conocido (una venta de antes) va con su cuenta.
+ */
+export function repartoPorOrigen(
+  cuenta: Readonly<{ kind: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"; dePie?: boolean }>,
+  lineas: readonly Readonly<{ kind?: string | undefined; amount: Money }>[],
+  total: Money,
+): Map<OrigenDeVenta, Money> {
+  const deLaCuenta = origenDeCuenta(cuenta.kind, cuenta.dePie === true);
+  const origenDe = (kind: string | undefined): OrigenDeVenta => (kind !== undefined && DEL_PARQUE.has(kind) ? "PARQUE" : deLaCuenta);
+  const pesos = new Map<OrigenDeVenta, bigint>();
+  for (const l of lineas) {
+    if (l.amount.amount <= 0n) continue;
+    const o = origenDe(l.kind);
+    pesos.set(o, (pesos.get(o) ?? 0n) + l.amount.amount);
+  }
+  const r = new Map<OrigenDeVenta, Money>();
+  // Sin líneas con importe (todo regalado), el total va entero a la cuenta.
+  if (pesos.size === 0) {
+    r.set(deLaCuenta, total);
+    return r;
+  }
+  const origenes = [...pesos.keys()];
+  const partes = allocateByRatios(total, origenes.map((o) => pesos.get(o)!));
+  origenes.forEach((o, i) => r.set(o, partes[i]!));
+  return r;
 }
 
 /**

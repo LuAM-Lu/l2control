@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { money } from "@l2/domain-money";
-import { cuadreConZ, diasDelPeriodo, enDolaresConSuTasa, origenDeCuenta, periodoPredefinido } from "./reporte.ts";
+import { cuadreConZ, diasDelPeriodo, enDolaresConSuTasa, origenDeCuenta, periodoPredefinido, repartoPorOrigen } from "./reporte.ts";
 
 /** 190,50 Bs por dólar, de bolívares a dólares (como la deja `frozenRateOf`). */
 const TASA = { from: "VES", to: "USD", numerator: 19050n, denominator: 100n } as const;
@@ -41,4 +41,21 @@ test("los periodos de un toque, desde el día del local", () => {
   assert.deepEqual(periodoPredefinido("AYER", "2027-01-01"), { desde: "2026-12-31", hasta: "2026-12-31" });
   assert.equal(diasDelPeriodo("2026-10-01", "2026-10-31"), 31);
   assert.equal(diasDelPeriodo("2026-10-08", "2026-10-08"), 1);
+});
+
+test("el tiempo del parque es del parque aunque se cobre en una mesa; el total se reparte al céntimo (M-37, U-6)", () => {
+  const usd = (minor: bigint) => money(minor, "USD");
+  // Una mesa con un paquete de $5 y $10 de comida, cobrada en $17,40 con su IVA: 5/15 al parque y 10/15 al restaurante.
+  const r = repartoPorOrigen({ kind: "MESA" }, [{ kind: "PAQUETE", amount: usd(500n) }, { kind: "RESTAURANTE", amount: usd(1000n) }], usd(1740n));
+  assert.equal(r.get("PARQUE")?.amount, 580n);
+  assert.equal(r.get("RESTAURANTE")?.amount, 1160n);
+  // El tiempo de más también; y las medias de una familia siguen siendo del parque.
+  const f = repartoPorOrigen({ kind: "FAMILIA" }, [{ kind: "EXCEDENTE", amount: usd(300n) }, { kind: "RESTAURANTE", amount: usd(150n) }], usd(450n));
+  assert.deepEqual([...f.entries()].map(([o, m]) => [o, m.amount]), [["PARQUE", 450n]]);
+  // Una línea de una venta de antes, sin tipo, va con su cuenta; todo regalado, el total a la cuenta.
+  assert.equal(repartoPorOrigen({ kind: "MESA" }, [{ amount: usd(500n) }], usd(500n)).get("RESTAURANTE")?.amount, 500n);
+  assert.equal(repartoPorOrigen({ kind: "MOSTRADOR" }, [{ kind: "RESTAURANTE", amount: usd(0n) }], usd(0n)).get("MOSTRADOR")?.amount, 0n);
+  // Al céntimo: tres partes que no dividen exacto suman el total.
+  const t = repartoPorOrigen({ kind: "MESA" }, [{ kind: "PAQUETE", amount: usd(100n) }, { kind: "RESTAURANTE", amount: usd(200n) }], usd(1000n));
+  assert.equal((t.get("PARQUE")?.amount ?? 0n) + (t.get("RESTAURANTE")?.amount ?? 0n), 1000n);
 });

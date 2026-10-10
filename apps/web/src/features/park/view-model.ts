@@ -67,6 +67,8 @@ export type SessionCardModel = Readonly<{
   startedAt: number;
   /** Duración contratada en ms; `null` si es abierta. */
   totalMs: number | null;
+  /** La gracia de sus condiciones, en ms (M-37): la tarjeta cuenta lo que le queda de ella. */
+  graceMs: number;
   overdueAmount: string;
   overdueCurrency: string;
   hasOverdueCharge: boolean;
@@ -135,6 +137,7 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto, ahora?: number): Mo
       contractedMinutes,
       startedAt: session.startedAt,
       totalMs,
+      graceMs: terms.graceMinutes * 60_000,
       overdueAmount: toMajor(overdue),
       overdueCurrency: overdue.currency,
       hasOverdueCharge: overdue.amount > 0n,
