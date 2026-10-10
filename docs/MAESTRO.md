@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.114.0 · 114 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.115.0 · 115 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1753,13 +1753,28 @@ Fuera de la cuenta de 126: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cobro) y avisa si en la gaveta no hay bastante de esa moneda (lo esperado del turno). La propina y el residuo «A caja»
   siguen como hoy.
 
-- [ ] **B3-20 · Dividir por ítems** (M-37, U-13).
+- [x] **B3-20 · Dividir por ítems** (M-37, U-13).
+  *Hecho el 2026-10-10 (v0.115.0), en `feat/b3-20`.*
   → Solo en la caja, rápido: «Dividir» ofrece «En partes iguales» (como hoy) y **«Por ítems»**: «Persona 1, Persona 2, +»;
   se elige la persona y un toque en cada ítem lo pasa a ella; **«Partir»** reparte un ítem compartido en partes iguales
   entre las personas que se elijan (cada parte con su IVA; el céntimo que sobra, a la primera; el inventario sale una
   vez). Cada persona tiene su total y su **«Cobrar»**, el cobro de siempre (su recibo, su «Factura a» y su vuelto). Sin
   nombres ni cédula, salvo para facturar. **«Unir de nuevo»** devuelve a la cuenta lo que no se cobró; lo cobrado se
   anula con B3-18. Usa la pieza de mover líneas de B6-15; nada se borra; con su asiento, sin PIN.
+  *· Hecho: el cobro exige todas las líneas pendientes de una cuenta, así que cada persona tiene la suya. En
+  `@l2/domain-cash`: `splitLineProblem` y `splitLine` (la línea queda `partida`, con su importe y su producto, y no se
+  cobra; sus partes, «Pizza (1/3)», con el mayor resto y su trato del IVA, sin producto ni pedido: el inventario salió
+  una vez), `takeLines` (lo de una persona sale `movedTo` con su origen) y `joinInto` con el origen por línea. En
+  `caja/dividir.ts`: `partir`, `dividir` (cuentas del mostrador con `divididaDe`, en la cola «De #0041») y `unir` (lo que
+  no se cobró vuelve, sin el origen de la división; lo cobrado se queda), con la versión, el cobro en curso de otra
+  persona, sus asientos (`cuenta.partir`, `cuenta.dividir`, `cuenta.unir`, tema cuentas) y las causas `DIVIDIR` y `UNIR`
+  (migración de expandir). No se divide una cuenta en partes iguales, con descuento, de un cumpleaños, que cobra una
+  deuda ni de otra persona. La cuenta de una persona no es venta directa: no pide «Factura a», no pregunta al dejarla ni
+  se descarta (tampoco una venta con líneas repartidas). En la caja, «Dividir» → «Por ítems»: «Persona 1, 2, +», un
+  toque pasa el ítem a la persona elegida, «Partir» entre las marcadas y «Separar y cobrar» abre la elegida sin
+  preguntar por la que se deja. Probado en la base (4 pruebas: partir y cobrar cada parte, unir de nuevo, rechazos,
+  reintento, permiso, auditoría y aislamiento) y en el navegador en los dos temas. **Decidido al construir:** la persona
+  1 es la cuenta original (lo que no se toca es suyo); las personas sin ítems no cuentan; hasta doce.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 

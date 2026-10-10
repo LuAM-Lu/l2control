@@ -151,7 +151,11 @@ pie no recibe a un niño: su salida del parque no tiene a dónde ir.
 **Cobrar juntas (B3-16).** `cobrarJuntas.juntar` lleva lo pendiente de varias cuentas de la cola a una (`joinInto`): las
 líneas nuevas llevan `vieneDe` (de qué cuenta vinieron, también su clase: Ventas las cuenta en su origen) y las otras
 quedan con `juntadaEn`, cerradas. Cada cuenta va con su versión; no se juntan un cumpleaños, una con partes cobradas o
-descuento, la que otra persona está cobrando (su borrador, B3-13) ni, como otra, la que cobra una deuda.
+descuento, la que otra persona está cobrando (su borrador, B3-13) ni, como otra, la que cobra una deuda. **Dividir por
+ítems (B3-20)** usa la misma pieza: `dividir.partir` deja la línea `partida` (con su producto: el inventario sale una
+vez) y crea sus partes (`parteDe`, sin producto); `dividir.dividir` pasa lo de cada persona a una cuenta del mostrador
+con `divididaDe` (no es venta directa: no pide cliente ni se descarta); `dividir.unir` lo devuelve. El cobro exige todas
+las líneas pendientes de una cuenta: por eso cada persona tiene la suya.
 
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.

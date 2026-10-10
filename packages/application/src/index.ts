@@ -34,6 +34,7 @@ import { casosTurnos, type CasosTurnos } from "./caja/turnos.ts";
 import { casosMedios, type CasosMedios } from "./caja/medios.ts";
 import { casosCuentas, type CasosCuentas } from "./caja/cuentas.ts";
 import { casosJuntar, type CasosJuntar } from "./caja/juntar.ts";
+import { casosDividir, type CasosDividir } from "./caja/dividir.ts";
 import { casosPapel, type CasosPapel } from "./caja/papel.ts";
 import { casosDescuentos, type CasosDescuentos } from "./caja/descuentos.ts";
 import { casosImpresion, type CasosImpresion } from "./impresion/impresion.ts";
@@ -153,6 +154,8 @@ export interface Aplicacion {
   readonly cuentas: CasosCuentas;
   /** Cobrar juntas (B3-16): varias cuentas de la cola en una, con un solo recibo. */
   readonly cobrarJuntas: CasosJuntar;
+  /** Dividir por ítems (B3-20): partir un ítem, la cuenta de cada persona y unir de nuevo. */
+  readonly dividir: CasosDividir;
   /** Lo anotado en papel cuando cayeron los dos enlaces: la carga, sus registros y su revisión (B3-7, ADR-027). */
   readonly papel: CasosPapel;
   /** Las reglas de descuento, las familias VIP y el descuento de cada cuenta (B3-6). */
@@ -283,6 +286,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
     cobrarJuntas: casosJuntar(base),
+    dividir: casosDividir(base),
     clientes: casosClientes(base),
     deudas: casosDeudas(base),
     borradores: casosBorrador(base, cifrador),

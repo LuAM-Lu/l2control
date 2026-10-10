@@ -214,3 +214,49 @@ export const JuntarCuentasResultSchema = z.object({
   otras: z.array(FamilyAccountSchema),
 });
 export type JuntarCuentasResultDto = z.infer<typeof JuntarCuentasResultSchema>;
+
+/* ──────────────────────────────────────── dividir por ítems (B3-20, M-37) */
+
+/** «Partir» un ítem compartido en partes iguales (B3-20): la línea deja de cobrarse y nacen sus partes en la cuenta. */
+export const PartirLineaCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  accountId: z.uuid("Cuenta desconocida"),
+  version: z.number().int().positive(),
+  lineId: IdSchema,
+  partes: z.number().int().min(2, "Se parte entre dos o más").max(12, "Hasta doce partes"),
+});
+export type PartirLineaCommand = z.infer<typeof PartirLineaCommandSchema>;
+
+/**
+ * Dividir por ítems (B3-20): lo de cada persona, de la 2 en adelante, pasa a su propia cuenta para cobrarse con el cobro
+ * de siempre; lo que no se nombra se queda en la cuenta, que es la de la persona 1.
+ */
+export const DividirPorItemsCommandSchema = z
+  .strictObject({
+    idempotencyKey: IdempotencyKeySchema,
+    accountId: z.uuid("Cuenta desconocida"),
+    version: z.number().int().positive(),
+    personas: z
+      .array(z.strictObject({ lineIds: z.array(IdSchema).min(1, "Cada persona lleva algo").max(200) }))
+      .min(1, "Al menos otra persona")
+      .max(11, "Hasta doce personas"),
+  })
+  .refine((c) => {
+    const ids = c.personas.flatMap((p) => p.lineIds);
+    return new Set(ids).size === ids.length;
+  }, { message: "Cada ítem va a una sola persona", path: ["personas"] });
+export type DividirPorItemsCommand = z.infer<typeof DividirPorItemsCommandSchema>;
+
+/** «Unir de nuevo» (B3-20): lo que las personas no cobraron vuelve a la cuenta. */
+export const UnirDivisionCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  accountId: z.uuid("Cuenta desconocida"),
+});
+export type UnirDivisionCommand = z.infer<typeof UnirDivisionCommandSchema>;
+
+/** La cuenta como quedó y la de cada persona (las que siguen por cobrar, al unir: ninguna). */
+export const DivisionPorItemsSchema = z.object({
+  cuenta: FamilyAccountSchema,
+  personas: z.array(FamilyAccountSchema),
+});
+export type DivisionPorItemsDto = z.infer<typeof DivisionPorItemsSchema>;

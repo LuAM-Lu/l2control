@@ -89,6 +89,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "mesa.desvincular": ["cuentas", "sala"],
   // Cobrar juntas (B3-16): lo pendiente de varias cuentas pasa a una; las otras salen de la cola.
   "cuenta.juntar": ["cuentas"],
+  // Dividir por ítems (B3-20): partir un ítem, la cuenta de cada persona y unir de nuevo cambian la cola.
+  "cuenta.partir": ["cuentas"],
+  "cuenta.dividir": ["cuentas"],
+  "cuenta.unir": ["cuentas"],
   // Los cumpleaños (B10-1): reservar abre la cuenta del anticipo en la cola de la caja; cancelar la
   // cierra sin consumo y la saca de los pendientes del cierre.
   "evento.catalogo": ["eventos"],
