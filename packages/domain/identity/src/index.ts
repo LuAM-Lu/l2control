@@ -352,3 +352,15 @@ export {
   type Role,
   type SurfaceId,
 } from "./permissions.ts";
+
+/* ---------------------------------------------------- puestos, por uso */
+
+export {
+  NOMBRE_DEL_PUESTO,
+  PUESTOS_DE_SERVICIO,
+  claveDeAusencia,
+  estadoDelPuesto,
+  puestoDeLaActividad,
+  type EstadoDelPuesto,
+  type PuestoDeServicio,
+} from "./puestos.ts";

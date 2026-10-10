@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.120.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Los puestos, por uso (T-20, M-37).
+
+### Cambiado
+- **Los puestos de Inicio se llaman Caja, Parque y Mesas** y se ocupan por uso: quien trabajó en uno hace poco, sea del
+  rol que sea (también supervisión o administración). Si no, «sin actividad desde 2:10 pm», en gris y sin alarma; debajo,
+  a qué hora llegó la primera persona del día.
+- **Un solo aviso**: con la caja abierta, un puesto que pasa de 15 minutos sin nadie avisa una vez, y no vuelve a avisar
+  hasta que alguien vuelva. Qué puestos se vigilan y los minutos, en Ajustes → Sucursal.
+
 ## [0.119.0] — 2026-10-10 · Hacia la puesta en marcha
 
 El consumo del personal (B3-17, M-37).

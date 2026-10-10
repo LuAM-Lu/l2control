@@ -491,7 +491,7 @@ function DialogoDispositivo({
               setNuevoNombre(e.target.value);
               setError(null);
             }}
-            placeholder="Ej. Tablet taquilla"
+            placeholder="Ej. Teléfono del parque"
           />
         )}
         <div className="flex flex-col gap-1.5">

@@ -179,6 +179,11 @@ lo acepta solo con `personal` (la persona y su PIN, `firmaDeLaPersona`), como ú
 (`consumoDelPersonal`); anular o devolver un consumo vuelve a su vale, sin referencia. Caja → Personal y Reportes →
 Personal leen `personal.vales`: los de todos con `reportes.verSucursal`, los de una persona con su PIN.
 
+**Los puestos, por uso (T-20).** Quién ocupa la caja, el parque o las mesas lo dice lo que se hace, no la sesión ni el
+rol: `puestoDeLaActividad` (por la acción; si no, el punto de cobro o el rol) sobre la auditoría del día
+(`puestos.delDia`). Una acción nueva que sea de un puesto va en su lista (`POR_ACCION` de `domain-identity/puestos.ts`).
+El aviso, uno por ausencia (`claveDeAusencia`), lo da Inicio con los minutos y los vigilados de los ajustes.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 

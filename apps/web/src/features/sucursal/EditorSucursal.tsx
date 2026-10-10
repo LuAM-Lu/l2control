@@ -597,6 +597,40 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               onChange={(e) => cambiar({ atencionLimpiarMin: Number(e.target.value) })}
             />
           </div>
+          {/* T-20: los puestos, por uso. Ocupado si alguien trabajó en él en estos minutos; con la caja abierta, uno vigilado
+              que pasa de ellos sin nadie avisa una vez en Inicio. */}
+          <div className="flex flex-col gap-1.5">
+            <span className={ETIQUETA}>Puestos que se vigilan</span>
+            <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Puestos que se vigilan">
+              {(["CAJA", "PARQUE", "MESAS"] as const).map((p) => {
+                const marcado = borrador.puestosVigilados.includes(p);
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-pressed={marcado}
+                    className={segmento(marcado)}
+                    onClick={() => cambiar({ puestosVigilados: marcado ? borrador.puestosVigilados.filter((x) => x !== p) : [...borrador.puestosVigilados, p] })}
+                  >
+                    {p === "CAJA" ? "Caja" : p === "PARQUE" ? "Parque" : "Mesas"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <Input
+            label="Sin nadie (min)"
+            surface="admin"
+            type="number"
+            min={5}
+            max={120}
+            step={1}
+            className="tnum"
+            value={String(borrador.puestoSinNadieMin)}
+            error={errores.puestoSinNadieMin}
+            hint="Un puesto está ocupado si alguien trabajó en él en estos minutos. Con la caja abierta, uno vigilado que pasa de ellos sin nadie avisa una vez en Inicio."
+            onChange={(e) => cambiar({ puestoSinNadieMin: Number(e.target.value) })}
+          />
           <p className="text-[12px] text-ink-3">
             El residuo es lo que la caja se queda si no hay vuelto exacto. Una estancia que pasa de sus horas (o del día) queda a revisar y deja de contar en el aforo. Un niño que sale a comer puede pausar su tiempo una vez; pasado el máximo, vuelve a correr solo.
           </p>

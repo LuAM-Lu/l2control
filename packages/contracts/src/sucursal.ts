@@ -213,6 +213,13 @@ export const AjustesSucursalSchema = z
      */
     atencionCuentaMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
     atencionLimpiarMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
+    /**
+     * Los puestos que se vigilan (T-20, M-37): con la caja abierta, uno de estos que pasa de `puestoSinNadieMin` sin nadie
+     * avisa una vez. Un puesto está ocupado si alguien trabajó en él en esos minutos. Los ajustes publicados antes no los
+     * traen: los tres y 15.
+     */
+    puestosVigilados: z.array(z.enum(["CAJA", "PARQUE", "MESAS"])).max(3).default(["CAJA", "PARQUE", "MESAS"]),
+    puestoSinNadieMin: z.number().int("Minutos enteros").min(5, "Al menos 5 minutos").max(120, "Hasta dos horas").default(15),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

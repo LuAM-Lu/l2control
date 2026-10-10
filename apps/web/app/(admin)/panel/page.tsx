@@ -12,6 +12,7 @@ import { ajustesDelLocal } from "../../../src/features/sucursal/ajustes.servidor
 import { avisoDeVersion } from "../../../src/features/sistema/sistema.servidor";
 import { avisoDeRespaldos } from "../../../src/features/sistema/respaldos.servidor";
 import { deudasDelLocal } from "../../../src/features/deudas/deudas.servidor";
+import { puestosDelDia } from "../../../src/features/operacion/operacion.servidor";
 
 /**
  * Inicio del back-office (F9-00) y tablero en vivo del local (F9-08).
@@ -32,7 +33,7 @@ const MESES = [
 ];
 
 export default async function InicioPage() {
-  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes, version, respaldos, deudas] = await Promise.all([
+  const [atendidos, turnos, resumen, catalogo, eventos, puesta, ajustes, version, respaldos, deudas, puestos] = await Promise.all([
     ninosAtendidos(),
     turnosAbiertos(),
     resumenDelDia(),
@@ -47,6 +48,8 @@ export default async function InicioPage() {
     avisoDeRespaldos(),
     // Las deudas de clientes (B3-11), para quien cobra o ve la sucursal.
     deudasDelLocal(),
+    // Los puestos, por uso (T-20): la llegada y la última actividad de cada uno.
+    puestosDelDia(),
   ]);
   const pendientes = deudas?.deudas.filter((d) => d.estado === "PENDIENTE") ?? [];
   // B9-5: lo que hay que reponer; B9-7: lo que falta contar. Solo si algún producto a la venta lleva existencia.
@@ -75,9 +78,7 @@ export default async function InicioPage() {
       fecha={`${dia} de ${MESES[mes - 1]}`}
       diaSemana={DIAS[hoy.getUTCDay()] ?? "Hoy"}
       turnos={turnos.map((t) => ({ id: t.id, abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto, fueraDelPunto: t.fueraDelPunto }))}
-      // Quién está en cada puesto sale de las sesiones de la base (B5-1): con un turno abierto, un
-      // puesto sin nadie es noticia.
-      enServicio={turnos.length > 0}
+      puestos={puestos}
       inventario={inventario}
       eventosHoy={eventos?.reservas ?? []}
       puestaAPunto={puesta.ok ? puesta.valor : null}

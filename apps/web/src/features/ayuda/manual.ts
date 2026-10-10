@@ -522,6 +522,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Arriba, los avisos que piden acción (tasa, impresión, respaldos, estancias a revisar, un turno abierto fuera del punto de cobro).",
       "Las cifras del día y quién está en cada puesto, en vivo.",
+      "Los puestos (Caja, Parque y Mesas) se ocupan por uso: quien trabajó en uno hace poco, sea del rol que sea (también supervisión o administración). Si no, «sin actividad desde 2:10 pm», en gris; debajo, a qué hora llegó la primera persona del día. Con la caja abierta, un puesto vigilado que pasa de los minutos sin nadie avisa una vez, y no vuelve a avisar hasta que alguien vuelva. Qué puestos se vigilan y los minutos (15, de fábrica), en Ajustes → Sucursal.",
       "La Puesta a punto dice qué falta configurar; se tacha sola.",
     ],
     problemas: GENERALES,
