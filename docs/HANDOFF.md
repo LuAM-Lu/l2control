@@ -7,21 +7,22 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-10 · v0.122.0 (publicada) · `main` más este relevo · M-37 entregado entero (Claude); nada reclamado*
+*2026-10-10 · v0.122.1 en `main` (publicada, la 0.122.0) · M-38 definido entero; nada reclamado*
 
 ```text
-M-37 entero, sin parar y publicado una vez al final (v0.122.0, con el permiso del usuario): v0.111.1 y once pasos, B4-17
-  (precio del tiempo) · B6-15 (desvincular) · B3-16 (cobrar juntas) · B3-20 (dividir por ítems) · B3-19 (el vuelto) ·
-  B6-16 (comanda de la venta directa, añadido) · B3-18 (anular y devolver, PIN de administración: cambia D-AUT) · B3-17
-  (consumo del personal, con su vale) · T-20 (puestos por uso) · B11-6 (Reportes → Parque) · B11-7 (Movimientos).
-Para la próxima visita al local: que las notas del mesero salgan en la comanda impresa (en el VPS se guardan e imprimen);
-  revisar el área de cada producto (cocina, barra o sin papel), porque la venta directa saca comanda según ella; probar
-  el consumo del personal con el vale firmado y el aviso de los puestos (Ajustes → Sucursal: vigilados y 15 min).
-Siguen, del usuario: B8-3 con la capacitación de B8-2, B8-1 (4G y UPS) y B7-3; después B8-4 = 1.0.0 (Claude lista,
-  solo leyendo, lo de prueba en la base del VPS; modo producción con D-ENT; la etiqueta 1.0.0). B6-4, tras el piloto.
-Cuidado: una composición nueva de @l2/application pide reiniciar `pnpm dev`; «mover líneas» (movedTo) lo comparten
-  desvincular, juntar y dividir; el cobro lleva vuelto, consumo del personal y comanda de caja: tocar uno es probar los
-  tres; la auditoría guarda la hora de la base (las pruebas de Movimientos y puestos operan en el día de hoy).
+M-38 definido con una propuesta dibujada y cuatro rondas de preguntas (MAESTRO §2, «M-38 en detalle», W-1 a W-14). Su
+  corrección v0.122.1 ya está en main, sin publicar: avisos legibles en el tema claro y los puestos en renglones cortos.
+Siguen, en tanda y sin parar (Claude): B3-24 → B5-6 → T-23 → B4-18 → B6-17 → T-21 → T-22 → B3-21 → B3-22. Cada uno
+  entra en main probado y con su versión. Se publica una sola vez al final, con el permiso del usuario del 2026-10-10:
+  se le avisa la hora, se etiqueta la última y se comprueba el VPS solo leyendo. Ruta: 136 pasos.
+El siguiente: B3-24. Criterio: con la caja de ayer abierta, cobrar hoy lleva al cierre y lo de hoy nunca cuenta en el
+  día de ayer; el día de negocio termina a la hora de los ajustes (4:00 am de fábrica); de noche, Inicio avisa.
+El día 9: la caja de «PC Recep. Lenovo» quedó abierta con seis mesas. El usuario la cierra con lo que ya tiene L2
+  (cobrar o «Se fue sin pagar», cerrar con su justificación, abrir la del 10). Hay que confirmar que se hizo.
+La impresora: hoy por USB («CAJA POS», POS-80C), sin aviso de papel; el agente va en 0.111.0. «CAJA» es la de red.
+  B5-6 las une como principal (red) y respaldo (USB).
+Cuidado: MAESTRO.md va con finales CRLF (un guion que lo edite los respeta). La cocina no tiene pantalla: su gente entra
+  una vez para cambiar el PIN temporal, o no firma su consumo. Sonner sigue data-tema. Mira cada pantalla en los dos temas.
 ```
 
 ## aemorandin-coder
