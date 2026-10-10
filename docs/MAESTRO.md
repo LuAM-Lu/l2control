@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.122.0 · 122 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.122.0 · 122 de 135 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -42,7 +42,8 @@ respaldo y PDF; tres correcciones y siete pasos, v0.104.2 a v0.111.0). M-36: el 
 equipos e inventario de verdad); la operación en paralelo con el método escrito (B8-3) empezó el 2026-10-09 y la 1.0.0
 se hace sobre esa base. M-37 entregado entero (2026-10-10, lo visto en la operación en paralelo): cuatro correcciones y
 once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.1 a v0.122.0, publicados juntos al final
-con la etiqueta de la última.** M-28 y M-29
+con la etiqueta de la última. M-38 decidido (2026-10-10, tras la operación en paralelo y el día 9 sin cerrar): una
+corrección y nueve pasos, antes de la 1.0.0.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -87,12 +88,12 @@ la 1.0.0.
   (y allí sí abre turnos y cobra); la corrida limpia de producción es base nueva más la semilla con casillas (B7-7;
   con M-36 no aplica a este local: la 1.0.0 se hace sobre la base del VPS).
 - **Lo que falta para la 1.0.0 (M-36), en corto:**
-  1. **B8-3, el usuario, en curso desde el 2026-10-09:** el sistema y el método escrito a la vez hasta que los totales
+  1. **B8-3, hecho por el usuario (2026-10-10), con la capacitación que cierra B8-2:** el sistema y el método escrito a la vez hasta que los totales
      coincidan todos los días; la capacitación por rol con los recorridos de la app (cierra B8-2). Lo que salga lo
      corrige Claude como PATCH y se publica cuando el usuario diga.
   2. **B8-1, el usuario, en el local:** el router 4G de respaldo que cambie solo y la UPS. Prueba: sin el internet
      principal, la caja cobra y la sala se actualiza. Los equipos reales ya están aprobados.
-  3. **B7-3, el usuario, en el local:** la Xprinter por USB (Ajustes → Impresoras → USB y la prueba de las tildes; por
+  3. **B7-3, hecho por el usuario (2026-10-10):** la Xprinter por USB (Ajustes → Impresoras → USB y la prueba de las tildes; por
      la red ya imprime); la app en el teléfono, la tablet y la laptop, también por el 4G; el agente se actualiza solo
      con la próxima versión.
   4. **B8-4 = 1.0.0:** Claude lista, solo leyendo, lo que quedó de prueba en la base del VPS y el usuario decide; el VPS
@@ -103,6 +104,12 @@ la 1.0.0.
      en el local: que las notas del mesero salgan en la comanda impresa (en el VPS se guardan e imprimen), las áreas de
      cada producto (cocina, barra o sin papel: la venta directa saca comanda según ellas), el consumo del personal con
      el vale firmado y el aviso de los puestos (Ajustes → Sucursal, 15 min de fábrica).
+  6. **M-38, Claude:** la corrección v0.122.1 y los nueve pasos de §3, punto 16, en tanda: cada uno entra en `main`
+     probado y con su versión, y se publica una vez al final, a la hora que diga el usuario (M-36); la 0.122.1 puede
+     publicarse antes, con su sí. **El día 9 (incidente del 2026-10-10):** la caja de «PC Recep. Lenovo» quedó abierta con
+     seis mesas sin cobrar ($ 128,80 antes del IVA) y una venta del 10 entró en el día 9; se resuelve con lo que ya tiene
+     L2 (cobrar o «Se fue sin pagar» cada mesa, cerrar la caja del 9 con su justificación, abrir la del 10). B3-24 lo
+     impide en adelante.
   Opcional del usuario: `L2_SMTP_URL` y `L2_CORREO_SOPORTE` en el VPS (el aviso por correo de los reportes).
 
 La historia de esta sección (qué decía al entregar cada paso y lo que se probó en la base local) está en §9.
@@ -165,6 +172,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-35** | **La tercera ronda** (2026-10-09, el usuario tras usar el staging en el local: las dos cajas del 8 oct., las medias, el salón, inventario, respaldos y PDF; decidido en cuatro rondas de preguntas) | R-1 a R-8, abajo en «M-35 en detalle». Primero **tres correcciones** (v0.104.2): la fila del inventario inicial que no se podía quitar, el respaldo que no se hizo sin dejar dicho por qué y los cierres de caja rechazados sin asiento. Después, en este orden y sin pedir el sí entre pasos: B3-15 (la caja cerrada no mueve dinero y sin relevo) → B6-13 (servir y cerrar la mesa) → B6-14 (por limpiar y los avisos del salón) → B4-16 (medias con interruptor) → B9-13 (entradas por periodo) → B7-8 (respaldar ahora) → B11-5 (los PDF compactos). La semilla sigue sin personas (decisión del usuario). La ruta pasa a **116** | B3-15 a B11-5 |
 | **M-36** | **El VPS es la operación real** (2026-10-09, decisiones del usuario) | (1) El VPS ya trabaja con perfiles reales, los equipos del local aprobados y el inventario de verdad: **la 1.0.0 (B8-4) se hace sobre esa base**, sin la corrida limpia de base nueva y semilla (B7-7 queda para otro local). Antes se revisa, solo leyendo, lo que quedó de prueba, y el usuario decide qué hacer con ello. (2) **La operación en paralelo** con el método escrito empieza el 2026-10-09 (B8-3, a cargo del usuario en el local). Lo que salga se corrige como PATCH y **no se publica una versión mientras se prueba**: en modo staging el VPS se pone al día solo y se reiniciaría a mitad. (3) **D-DOM:** no por ahora; sigue `sslip.io`. (4) **D-REIMP:** reimprimir un recibo sigue sin PIN. (5) **F0-09:** la firma formal del alcance queda sin efecto. (6) Pasar el VPS a **modo producción** queda propuesto como D-ENT (§4); **por ahora sigue en staging** (decisión del usuario). El agente de impresión ya imprime por la red del local; falta probarlo por USB (B7-3). La ruta no cambia | B8-3, B8-4 |
 | **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en diez rondas de preguntas) | U-1 a U-14, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, diez pasos, en este orden y sin pedir el sí entre ellos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto: cómo se da y cuánto se puede dar) → B6-16 (la comanda de la venta directa, sumado el 2026-10-10) → B3-18 (anular y devolver, de administración; y devolver lo que un niño no usó) → B3-17 (el consumo del personal, con su vale) → T-20 (los puestos, por uso) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). **Se publica una sola vez al final**, ya probado todo. **Cambian:** D-AUT (supervisión ya no se autoriza sola para anular ni devolver), M-18 (en prepago se puede devolver lo no usado, con PIN de administración) y B3-14 (el tiempo del parque se devuelve por la salida). La ruta pasa a **127** (B6-16, sumado el 2026-10-10) | B3-16 a B11-7, B6-16, T-20 |
+| **M-38** | **Papel, tablet y caja** (2026-10-10, el usuario tras quedarse sin papel con la impresora por USB y no cerrar el día 9; definido con una propuesta dibujada y tres rondas de preguntas) | W-1 a W-11, abajo en «M-38 en detalle». Primero la corrección **v0.122.1** (los avisos legibles en el tema claro y la tarjeta de los puestos). Después, nueve pasos en este orden, en tanda y publicados una vez al final: B3-24 (un día que no se cerró) → B5-6 (la impresora por red y por USB) → B4-18 (la Entrada en tablet) → B6-17 (el mesero en tablet) → T-21 (la barra de las estaciones, por pantalla) → T-22 (las listas largas) → B3-21 (mover efectivo) → B3-22 (el fondo fijo, opcional). **Cambian:** la impresora pasa a red como principal con USB de respaldo; la caja de un día anterior deja de cobrar. La ruta pasa a **135** | B3-21 a B3-24, B4-18, B5-6, B6-17, T-21, T-22 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -222,6 +230,24 @@ escribirlo o pegarlo; «sección inteligente» y «manual inteligente», sin IA 
 cosa; «Botones de Tiempo… estamos el monitor de parque» se lee como que el monitor de parque trabaja con ellos en el
 teléfono, así que T-15 los mide también a 390 px; la pausa «máxima 10 min» se hace ajuste con 10 de fábrica, y «una
 pausa por pulsera» es una por visita (la pulsera ya es de un solo uso, V-1).
+
+**M-38 en detalle.** Lo que trajo el usuario el 2026-10-10 y lo que se hará. La auditoría en tablet se hizo con el
+navegador (táctil, 1280×800 y 800×1280) como el mesero y la monitora; la comparación de la caja, con las prácticas de
+Square, Toast, Shopify POS, Loyverse y Odoo POS.
+
+| # | Lo que se vio | Lo que se hará | Paso |
+|---|---|---|---|
+| **W-1** | Sin papel, la impresora por USB: el 9 de octubre L2 dio por impresas 58 comandas y recibos, sin avisar | Por red como principal (la pregunta del papel funciona) y USB de respaldo, por impresora; por USB, el estado de Windows y la vigilancia de su cola; el estado en la barra con sonido y en la tablet | B5-6 |
+| **W-2** | El día 9 no se cerró (todo paró por la impresora) y una venta del 10 entró en el día 9: el cobro no mira de qué día es la caja | Una caja de un día anterior no cobra: pide cerrarse, con un asistente de lo pendiente; Inicio avisa de noche | B3-24 |
+| **W-3** | El detalle de los avisos sale blanco sobre blanco en el tema claro (la librería, fijada en oscuro); la tarjeta de los puestos se rompe con nombres largos | Los avisos siguen el tema del equipo; los puestos en dos renglones, con nombre corto | v0.122.1 |
+| **W-4** | La Entrada en tablet: el paquete es una lista de 14 px en horizontal (tarjetas en vertical); el texto pide la cédula primero y la pulsera va arriba; campos sin las ayudas del teclado | Cédula primero con los niños de la última vez; tarjetas de paquete en las dos orientaciones; reglas de teclado | B4-18 |
+| **W-5** | El mesero en tablet: sin buscador en la carta, categorías en tres renglones, la franja roja de comandas tapa el plano, tiempos en minutos sueltos, todo en amarillo en «Atender», plano y cuenta apilados en vertical | Buscador y tira de categorías, píldora de comandas, tiempos legibles, amarillo solo para lo que pide acción, la mesa en hoja en vertical | B6-17 |
+| **W-6** | Las cinco pestañas de Caja no caben a 1366 con los avisos | Laptop y tablet: Cobrar y Turno fijas y «Más»; atajos Alt+1 a 5; píldoras cortas | T-21 |
+| **W-7** | La navegación en escritorio (el usuario: «no tomaste en cuenta Desktop») | Escritorio: las cinco pestañas con su atajo y un riel con los módulos del panel; un rol con un solo puesto, sin pestaña gigante | T-21 |
+| **W-8** | El efectivo que entra y sale sin ser venta (el hielo, un proveedor, un adelanto, el sencillo, lo que va a la caja fuerte) termina como diferencia del arqueo | «Mover efectivo» con motivo: compras para el local, pago a proveedor, adelanto al personal (con su PIN, en su quincena), sencillo y retiro a resguardo | B3-21 |
+| **W-9** | El fondo se escribe cada noche y no se cuenta al abrir | Fondo fijo por caja, **opcional en Ajustes** (decisión del usuario), apagado de fábrica | B3-22 |
+| **W-10** | ¿Cómo está la caja de L2 frente a los POS más usados? | En el cierre ya cumple o va más allá (a ciegas por billete, umbral con firma, relevo, pendientes que bloquean, papel sin internet); faltaban W-2, W-8 y W-9. Fuera de esta ronda: el resumen del cierre por correo (necesita `L2_SMTP_URL`) | — |
+| **W-11** | Listas largas en varias partes; a «Lista · Tarjetas» le gusta | Un patrón según cuántos elementos: tres vistas, grupos fijos, A–Z, «Cargar más» | T-22 |
 
 **M-37 en detalle.** Lo que trajo el usuario el 2026-10-09 tras la operación en paralelo, y lo que se hará.
 
@@ -387,8 +413,19 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    B6-16 (sumado el 2026-10-10, el usuario) va antes que B3-18 porque anular una venta tiene que saber si salió en su
    comanda (su papel «ANULAR»). **Las notas de las comandas** (el usuario no las vio salir): en el sistema real las tres
    comandas con nota la imprimieron; queda como prueba para la visita al local (que la cocina y la barra la vean).
+16. **M-38** (2026-10-10, papel, tablet y caja). Primero la corrección **v0.122.1**: los avisos siguen el tema del
+   equipo (la librería estaba fijada en oscuro y en el claro el detalle salía blanco sobre blanco) y la tarjeta de los
+   puestos va en dos renglones, con nombre corto. Se puede publicar sola, con el sí del usuario. Después, en tanda y
+   publicados una vez al final: B3-24 (un día que no se cerró) → B5-6 (la impresora por red y por USB) → B4-18 (la
+   Entrada en tablet) → B6-17 (el mesero en tablet) → T-21 (la barra de las estaciones) → T-22 (las listas largas) →
+   B3-21 (mover efectivo) → B3-22 (el fondo fijo, opcional). Sin pedir el sí entre pasos.
+   **Cómo encajan:** B3-24 va primero porque es el hueco que dejó el día 9. B5-6 va antes de T-21 porque T-21 dibuja la
+   píldora del estado de la impresora que B5-6 crea. B4-18 y B6-17 aplican las mismas reglas de teclado (se escriben una
+   vez en B4-18). T-22 hace la pieza de listas en `@l2/ui` y la lleva a Representantes, Productos, Movimientos, Ventas e
+   Historial de impresión. B3-21 va antes de B3-22 porque el fondo fijo se calcula con la gaveta que ya conoce los
+   movimientos; los dos tocan el corte como B3-17 y mantienen el cierre a ciegas.
 
-Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 135: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -886,6 +923,22 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   nadie (min)» (los tres y 15, de fábrica). Probado (6 pruebas del dominio y 3 contra la base) y en el navegador en los
   dos temas. **Decidido al construir:** el aviso es uno, en Inicio (no en la franja de avisos, que se queda con lo que
   pide acción ya); la cocina no es un puesto (ADR-022).*
+
+- [ ] **T-21 · La barra de las estaciones, por pantalla** (M-38, W-6, W-7).
+  → Un rol con un solo puesto (el mesero, la monitora) no ve una pestaña gigante: el nombre del puesto va en la barra.
+  Caja por pantalla: en escritorio (1440 px o más) las cinco pestañas con su nombre, su número y su atajo, y un riel fino
+  con los módulos del panel (Inicio, Parque, Restaurante, Inventario, Reportes, Ajustes) para no salir de la caja; en la
+  laptop (1366) y la tablet, Cobrar y Turno fijas y «Más ▾» con Papel, Deudas y Personal, cada una con su número. Atajos
+  Alt+1 a Alt+5, también en la ayuda de atajos. El aviso de impresión, una píldora corta con su número; el turno, solo el
+  reloj por debajo de 1440. Criterio: a 1366 no se corta nada; a 1920 se ven las cinco; cada pestaña se abre con su
+  atajo; desde la caja se llega a Inicio o Reportes con un clic.
+- [ ] **T-22 · Las listas largas** (M-38, W-11).
+  → Una pieza en `@l2/ui` según cuántos elementos: hasta 50, todo a la vista; de 50 a 500, buscador, chips con su
+  cuenta que filtran, grupos con encabezado fijo (por día, por categoría, por letra) y solo lo visible dibujado; sin tope,
+  el servidor busca y trae de a 50 con «Cargar más · 50 de N», con índice A–Z en las personas. Tres vistas (Tarjetas,
+  Lista y Compacta) que cada persona elige y se recuerdan. Se lleva a Representantes, Productos, Movimientos, Ventas e
+  Historial de impresión, en ese orden. Criterio: el directorio con 2.000 representantes se abre y se busca sin trabarse
+  en la tablet; la vista elegida se recuerda; «Cargar más» dice cuántos faltan.
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -1843,6 +1896,27 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   reintento, permiso, auditoría y aislamiento) y en el navegador en los dos temas. **Decidido al construir:** la persona
   1 es la cuenta original (lo que no se toca es suyo); las personas sin ítems no cuentan; hasta doce.*
 
+- [ ] **B3-24 · Un día que no se cerró** (M-38, W-2).
+  → Una caja de un día de negocio anterior no cobra ni mueve dinero: «Esta caja es del 9 de octubre: ciérrala antes de
+  cobrar», con un asistente que lista lo pendiente de ese día (mesas sin cobrar, cargas de papel, niños) y lleva a su
+  cierre; supervisión y administración la cierran también desde otro equipo. El día de negocio termina a una hora de los
+  ajustes (de fábrica, 4:00 am) para que lo de pasada la medianoche siga siendo del día. De noche, Inicio avisa que el
+  día sigue abierto. Criterio: con la caja de ayer abierta, cobrar hoy lleva al cierre y lo de hoy nunca cuenta en el
+  día de ayer.
+- [ ] **B3-21 · Mover efectivo** (M-38, W-8).
+  → Caja → «Mover efectivo»: entrada (sencillo para la caja), salida (compras para el local, pago a proveedor, adelanto
+  al personal) y retiro a resguardo, en $ o en Bs, con su nota. Por encima de $ 20 (ajustable) y todo retiro, con el PIN
+  de supervisión; el adelanto lo firma la persona con su PIN y va a su quincena en Reportes → Personal, junto a sus vales.
+  Cada uno imprime su comprobante (el del retiro, con la firma de quien recibe). Solo agregar: en el libro del turno, en
+  el corte (aparte de las ventas), en «La gaveta» de Turno y en Movimientos. El cierre sigue a ciegas. Criterio: pagar el
+  hielo desde la gaveta no deja diferencia en el arqueo; un adelanto sale en la quincena de esa persona; por encima del
+  tope pide el PIN de supervisión.
+- [ ] **B3-22 · El fondo fijo, opcional** (M-38, W-9).
+  → En Ajustes, «Fondo fijo» por caja, apagado de fábrica (decisión del usuario). Encendido: el cierre propone dejar ese
+  fondo y retirar el resto, y la apertura pide contarlo por billete y dice (y anota a nombre de quien abre) si falta o
+  sobra de lo que quedó. Apagado, como hoy: se propone lo que quedó en el último Z. Criterio: con un fondo de $ 20, si al
+  abrir se cuentan $ 15 la apertura lo dice y queda en la auditoría.
+
 ### Etapa 4 · Parque (F5, es el producto)
 
 - [x] **B4-1 · `Guardian`, `Kid` y `ParkSession`**, sin entidad pulsera. El código solo es único entre
@@ -2213,6 +2287,14 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   ofrece tiempo abierto (cobra la entrada al momento); y quien sube a un paquete que no cuesta más que lo pagado, sube
   por $ 0.*
 
+- [ ] **B4-18 · La Entrada en tablet** (M-38, W-4).
+  → El orden del local: la cédula primero (rellena la familia y propone sus niños de la última vez con un toque), después
+  las pulseras y el paquete en tarjetas, en las dos orientaciones. Las reglas de teclado en todo campo: el teclado que
+  toca (numérico, teléfono, texto), la tecla Intro (Siguiente, Listo, Ir), mayúscula inicial en los nombres, letra de
+  16 px o más y 48 px de alto. La acción principal fija abajo y visible sobre el teclado. Criterio: una familia que ya
+  vino entra con cédula, pulseras y un toque de paquete, sin el teclado de letras; nada se desplaza a 1280×800 ni a
+  800×1280.
+
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
 - [x] **B5-1 · Socket.io con adaptador Valkey** y autorización en el handshake (F2-09, ADR-008). El
@@ -2337,6 +2419,16 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   «XP-80C», y la impresora nueva se eligió de esa lista; con el agente viejo, la tarjeta avisa que no imprime por USB y su
   trabajo espera. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar a lo ancho ni errores de
   consola. No se mandó nada a imprimir (la XP-80C de esta PC apunta al local).*
+
+- [ ] **B5-6 · La impresora por red y por USB** (M-38, W-1).
+  → Cada impresora dice si es principal o respaldo: la de red como principal (la pregunta del papel funciona) y la de USB
+  de respaldo. Si la principal no responde, el trabajo sale por la de respaldo y se avisa; si dice «sin papel», no cambia
+  de camino (el rollo es el mismo) y se avisa. Por USB, el estado de la impresora en Windows antes de mandar y la
+  vigilancia de su cola después: atascado más de 15 s, «sin papel o no responde», y se saca de la cola de Windows para que
+  no salga dos veces. El agente cuenta el estado cada 30 s: la barra de la caja dice «Impresora sin papel» con sonido y la
+  tablet, «Las comandas no están saliendo». «Ver estado» en Ajustes → Impresoras. Criterio: sin rollo, por red y por USB,
+  una comanda queda «no salió» y la tablet y la caja lo dicen en menos de 30 s; al volver el papel, «Reintentar» la saca
+  una sola vez; con el cable de red suelto, sale por USB.
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 
@@ -2973,6 +3065,13 @@ antes del cobro en servidor (orden de ejecución).
   a la 7 desde la mesa, y de vuelta a su familia desde la sala. **Decidido al construir:** una cuenta de pie no recibe a
   un niño (su salida del parque solo sabe ir a una mesa o a su familia); un niño a la vez.*
 
+- [ ] **B6-17 · El mesero en tablet** (M-38, W-5).
+  → Tomar pedido con buscador, categorías en una tira que se desliza y lo que no se vende al final; las comandas que no
+  salieron en una píldora con su número (y una hoja con cada una y «Reimprimir»); tiempos legibles («42 min», «1 h 15
+  min», «ayer 7:29 pm»); en «Atender», el amarillo solo para lo que pide acción; en vertical, la mesa en una hoja que sube
+  y el pedido con su ticket como cajón. Las reglas de teclado de B4-18 en sentar y en las notas. Criterio: pedir tres
+  platos lleva menos de 10 toques; nada se desplaza a 1280×800 ni a 800×1280.
+
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
 - [x] **B10-1 · Reservas con agenda y anticipo**: fecha y horario, cliente (del directorio de familias),
@@ -3208,7 +3307,8 @@ F9-05).
   12 platos, el plano de 8 mesas y 6 cumpleaños: cargada en el ensayo, plano, carta, cumpleaños y tarifas quedaron como en
   el local, y cargarla otra vez dice «ya está» en todo. **Falta cargarla en el staging** (la carga la hace administración
   desde su sesión).
-- [ ] **B7-3 · Medición con red real**: carga, error y degradación con latencia de verdad (RIE-13); la
+- [x] **B7-3 · Medición con red real** *(hecho por el usuario, 2026-10-10: la Xprinter por USB y por red, y la app en los
+  equipos reales)*: carga, error y degradación con latencia de verdad (RIE-13); la
   app en el teléfono de la monitora, la tablet del mesero y la laptop de caja reales, también por el 4G
   de respaldo (T-5, M-15); los 12 tamaños otra vez. *El agente de impresión ya está empaquetado e instalable
   (adelantado el 2026-10-01, v0.39.1): aquí queda instalarlo en la laptop real y medirlo.* Con T-8c (hecho y ensayado en
@@ -3351,7 +3451,8 @@ F9-05).
   principal y router 4G de respaldo con conmutación automática, UPS en router, módem y WiFi, y los equipos
   del local aprobados (F10-03).
   → Con el enlace principal desconectado, la caja cobra y la sala se actualiza por el 4G.
-- [~] **B8-2 · Runbooks, contingencia en papel y capacitación por rol** (F10-10, F11-02, F11-03, F11-08; sin
+- [x] **B8-2 · Runbooks, contingencia en papel y capacitación por rol** *(la capacitación, hecha por el usuario en B8-3,
+  2026-10-10)* (F10-10, F11-02, F11-03, F11-08; sin
   manual aparte desde M-30: el de la app es el manual). *A cargo: LuAMi. Lo escrito, hecho (v0.86.1); queda la
   capacitación por rol, en B8-3, y ahí se cierra.*
   → Una hoja impresa junto a la caja con el procedimiento en papel para cuando caigan los dos enlaces (cuándo se pasa
@@ -3374,8 +3475,8 @@ F9-05).
   *· Comprobado en el navegador, en la base de pruebas: la hoja a 1366×768, 1280×800, 800×1280 y 390 px en los dos
   temas, sin desbordes ni errores de consola; su PDF, una sola hoja A4 en blanco y negro; los enlaces desde Caja →
   Papel y los formularios. Versión de corrección (0.86.1), no de paso: B8-2 cuenta al cerrarse con la capacitación.*
-- [~] **B8-3 · Operación en paralelo** con el método anterior, piloto de un turno y ajustes (F11-04 a
-  F11-06). *A cargo: LuAMi, en el local, desde el 2026-10-09 (M-36), sobre el VPS con los datos reales. Lo que salga se
+- [x] **B8-3 · Operación en paralelo** con el método anterior, piloto de un turno y ajustes (F11-04 a
+  F11-06). *Hecho por el usuario el 2026-10-10; de lo visto salió M-38.* *A cargo: LuAMi, en el local, desde el 2026-10-09 (M-36), sobre el VPS con los datos reales. Lo que salga se
   corrige como PATCH y no se publica mientras se prueba.*
   → Los totales de los dos sistemas coinciden todos los días del período.
 - [ ] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). **Es la versión 1.0.0** (M-10).
@@ -3990,6 +4091,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   tiempo, desvincular, cobrar juntas, dividir por ítems, el vuelto, anular y devolver de administración (cambia D-AUT),
   la comanda de la venta directa (B6-16, añadido por el usuario), el consumo del personal, los puestos por uso,
   Reportes → Parque y Movimientos con todo lo del periodo. Quedan B8-1, B7-3, B8-3 (con la capacitación de B8-2) y B8-4.
+- **2026-10-10** · El usuario da por hechos B7-3 y B8-3 (con la capacitación, que cierra B8-2). El 9 se quedó sin papel con
+  la impresora por USB: L2 dio por impresas 58 comandas y recibos, se paró la operación y el día no se cerró (la caja de
+  la Lenovo sigue abierta con seis mesas sin cobrar, y una venta del 10 entró en el 9). Definido M-38 con una propuesta
+  dibujada (auditoría en tablet, comparación con los POS más usados) y tres rondas de preguntas: v0.122.1 y nueve pasos.
 
 ---
 
