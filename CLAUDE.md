@@ -236,7 +236,8 @@ al 0 % por decisión del cliente, V-13; el motor se queda), cortes de luz e inte
 del local: 30 niños, 7-10 mesas.
 Equipos (visita técnica, M-15): la monitora en un teléfono (pulseras preimpresas de un solo uso, cámara
 o lector Bluetooth), la caja en una laptop, el mesero en una tablet, la cocina con comanda impresa y una
-sola impresora en caja (la Xprinter: por red como principal y por USB de respaldo, B5-6). Un solo servidor en la nube con internet de respaldo (ADR-021).
+sola impresora en caja (la Xprinter, por red y por USB: cuál es la principal y cuál el respaldo lo elige administración
+en Ajustes → Impresoras, B5-6). Un solo servidor en la nube con internet de respaldo (ADR-021).
 Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
 ## Flujo de trabajo
