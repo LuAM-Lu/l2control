@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.122.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Movimientos: todo lo del periodo (B11-7, M-37).
+
+### Cambiado
+- **Reportes → Movimientos es todo lo que pasó en el periodo**: la caja (cobros, devoluciones, anulaciones, turnos), el
+  parque (entradas, salidas, recargas), las mesas (sentar, pedidos, cierres), el inventario y el personal, con quién y
+  cuándo. Se busca por número de orden, cliente, cédula, pulsera, persona o monto, o por parte del local, y cada fila
+  abre su detalle: una venta, entera, con sus líneas, sus pagos, la tasa y quién cobró. El kárdex de un producto sigue,
+  como la vista «Kárdex de inventario».
+
 ## [0.121.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Reportes → Parque (B11-6, M-37).

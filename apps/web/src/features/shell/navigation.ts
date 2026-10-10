@@ -300,7 +300,8 @@ export const MODULOS: readonly Modulo[] = [
         id: "movimientos",
         nombre: "Movimientos",
         href: rutaSeccion("reportes", "movimientos"),
-        proposito: "El kárdex de un producto o una categoría: cada entrada, venta, salida y conteo con su saldo.",
+        proposito:
+          "Todo lo que pasó en el periodo (caja, parque, mesas, inventario y personal), con su búsqueda y el detalle de cada fila; y el kárdex de un producto o una categoría.",
         tarea: "B11-3",
       },
       {

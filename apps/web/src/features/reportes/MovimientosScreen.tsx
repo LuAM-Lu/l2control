@@ -8,6 +8,7 @@ import { ArrowDownToLine, ArrowUpFromLine, FileDown, Flag, PackageSearch, Triang
 import type { InformeDeMovimientosDto } from "@l2/contracts";
 import { CAMPO_DE_FILTRO, Cifra, Container, PageHeader, Resumen, TAMANO_ICONO, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { VistaDeMovimientos } from "./ActividadScreen.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import type { MovimientosPedidos } from "./reportes.servidor.ts";
 import { FiltroDePeriodo, TablaDeInforme, periodoEnPalabras } from "./informe.tsx";
@@ -51,6 +52,7 @@ export function MovimientosScreen({ hoy, pedido, informe }: MovimientosPedidos) 
         }
       />
 
+      <VistaDeMovimientos actual="kardex" periodo={pedido} />
       <FiltroDePeriodo key={`${pedido.desde}|${pedido.hasta}`} hoy={hoy} desde={pedido.desde} hasta={pedido.hasta} cargando={cargando} onPeriodo={(p) => ir({ ...pedido, ...p })}>
         {informe.ok && (
           <>
