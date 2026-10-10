@@ -7,21 +7,18 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-09 (cierre) · v0.111.0 · `main` en 6dda47d más este relevo · B8-3 en curso (el usuario, en el local)*
+*2026-10-09 (noche) · v0.111.0 · `main` más este relevo · M-37 en curso (Claude); B8-3 hecho por el usuario*
 
 ```text
-Hecho hoy, todo en main y etiquetado: el fin de M-34 (v0.94.0 a v0.104.0), el disco lleno del VPS (v0.104.1: limpia
-  imágenes viejas) y M-35 entera (v0.104.2 a v0.111.0: la caja cerrada no mueve dinero, servir y cerrar la mesa, por
-  limpiar en la base, medias con interruptor, entradas por periodo, «Respaldar ahora» y los PDF compactos). 111 de 116.
-M-36: el VPS ES la operación real (perfiles, equipos e inventario reales), en modo staging (D-ENT). Se pone al día
-  solo con cada etiqueta: NO etiquetar sin avisar al usuario. Fusionar sin etiqueta no publica nada.
-El usuario: B8-3 (paralelo con el método escrito hasta que los totales coincidan; capacitación por rol), B8-1 (4G y
-  UPS; probar sin el internet principal) y B7-3 (la Xprinter por USB; la app por el 4G). Opcional: L2_SMTP_URL y
-  L2_CORREO_SOPORTE en el VPS.
-Siguiente para Claude: lo que salga de B8-3, como PATCH, publicado cuando el usuario diga. Para B8-4: listar (solo
-  leyendo) lo que quedó de prueba en la base del VPS; pasar a modo producción con su sí y la hora; etiqueta 1.0.0.
-Cuidado: «Respaldar ahora» solo se probó con el SQL simulado (pulsarlo una vez en el VPS). «Dales salida antes»
-  solo con prueba unitaria. La PC de respaldos bajó el último el 8 oct.: debe encenderse para bajar los nuevos.
+El usuario terminó la operación en paralelo (B8-3), B7-3, «Respaldar ahora» y la PC de respaldos. De lo que vio salió
+  M-37 (MAESTRO §2 «M-37 en detalle», §3 punto 15): 4 correcciones (v0.111.1) y 8 pasos, en este orden:
+  B4-17 (regla de precio del parque) → B6-15 (desvincular) → B3-16 (cobrar juntas) → B3-19 (el vuelto) → B3-18 (anular
+  y devolver, de admin) → B3-17 (consumo del personal) → B11-6 (Reportes → Parque) → B11-7 (Movimientos).
+Sin parar entre pasos. Cada uno entra en main probado y con su versión, SIN etiqueta: se publica una sola vez al final
+  (la etiqueta de la última), a la hora que diga el usuario. El VPS es la operación real en modo staging (M-36).
+Cambian D-AUT (anular y devolver, PIN de administración), M-18 (devolver lo no usado) y B3-14 (el parque se devuelve).
+Para la 1.0.0, después: listar lo de prueba en la base del VPS (solo leer), modo producción (D-ENT) y B8-1 (4G y UPS).
+Cuidado: B6-15 y B3-16 comparten «mover líneas entre cuentas» (movedTo); B3-19 y B3-17 tocan el cobro y el arqueo.
 ```
 
 ## aemorandin-coder
