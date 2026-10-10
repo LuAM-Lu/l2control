@@ -120,6 +120,7 @@ import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
 import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
 import { CobrarJuntasDialog } from "./CobrarJuntasDialog.tsx";
+import { DividirPorItems } from "./DividirPorItems.tsx";
 import { SalonDeLaCuenta, esDelSalon, nombreDelNino } from "./SalonDeLaCuenta.tsx";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { usePorLimpiar } from "../mesas/porLimpiar.ts";
@@ -222,6 +223,7 @@ function CobroCuenta({
   onAgregarProducto,
   onCambiarCantidad,
   onDividir,
+  onPorItems,
   onCortesia,
   categoryOf,
   onDescuento,
@@ -256,6 +258,8 @@ function CobroCuenta({
   onCambiarCantidad?: (item: ItemDeMostrador, cantidad: number) => void;
   /** Divide la cuenta en partes iguales, o la vuelve a unir con 1 (F6-12). */
   onDividir?: (partes: number) => void;
+  /** Dividir por ítems (B3-20): abre el reparto de los ítems entre personas. */
+  onPorItems?: () => void;
   /** Aplica o quita una cortesía en una línea de la cuenta (F6-14). */
   /**
    * Regala una línea o se la quita (F6-14), en el servidor y con su autorización. Devuelve el rechazo,
@@ -330,7 +334,8 @@ function CobroCuenta({
     cuenta.cliente ? { kind: "IDENTIFICADO", name: cuenta.cliente.nombre, document: cuenta.cliente.cedula } : CONSUMIDOR_FINAL,
   );
   /** Una venta del mostrador sin su cliente no se cobra: el servidor tampoco la deja (FALTA_EL_CLIENTE). */
-  const faltaCliente = cuenta.kind === "MOSTRADOR" && !cuenta.cliente && cliente.kind !== "IDENTIFICADO";
+  // La cuenta de una persona al dividir por ítems (B3-20) no: es parte de una cuenta que ya era de alguien.
+  const faltaCliente = cuenta.kind === "MOSTRADOR" && !cuenta.divididaDe && !cuenta.cliente && cliente.kind !== "IDENTIFICADO";
   const [identificando, setIdentificando] = useState(false);
   /** «Se fue sin pagar» (B3-11): el diálogo que deja la cuenta en deuda a nombre de su cliente. */
   const [seFue, setSeFue] = useState(false);
@@ -1415,7 +1420,7 @@ function CobroCuenta({
                 activo={partes > 1}
                 aria-expanded={enElPie === "dividir"}
                 disabled={bloqueoDividir !== null}
-                title={bloqueoDividir ?? "Dividir la cuenta en partes iguales"}
+                title={bloqueoDividir ?? "Dividir la cuenta: en partes iguales o por ítems"}
                 onClick={() => setEnElPie((x) => (x === "dividir" ? null : "dividir"))}
               >
                 {partes > 1 ? `Entre ${partes}` : "Sin dividir"}
@@ -1448,6 +1453,19 @@ function CobroCuenta({
                   {n === 1 ? "Sin dividir" : n}
                 </button>
               ))}
+              {/* B3-20: cada uno paga lo suyo, no en partes iguales. */}
+              {onPorItems && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEnElPie(null);
+                    onPorItems();
+                  }}
+                  className="min-h-14 shrink-0 cursor-pointer rounded-[var(--radius-control)] border border-line bg-surface px-3 text-detalle font-semibold text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                >
+                  Por ítems
+                </button>
+              )}
             </div>
           )}
 
@@ -1970,7 +1988,7 @@ function CobroCuenta({
         abierto={identificando}
         actual={cliente}
         // El cliente de la cuenta (B6-9) se ofrece con un toque: su nombre y su cédula ya puestos.
-        nombrePropuesto={cuenta.cliente?.nombre ?? (esVentaDirecta(cuenta) ? "" : cuenta.family)}
+        nombrePropuesto={cuenta.cliente?.nombre ?? (esVentaDirecta(cuenta) || cuenta.divididaDe ? "" : cuenta.family)}
         documentoPropuesto={cuenta.cliente?.cedula ?? ""}
         exigido={cuenta.kind === "MOSTRADOR" && !cuenta.cliente}
         onConfirmar={(c) => {
@@ -2210,6 +2228,8 @@ export function CajaScreen({
   const [juntando, setJuntando] = useState(false);
   const [marcadas, setMarcadas] = useState<string[]>([]);
   const [confirmandoJuntas, setConfirmandoJuntas] = useState(false);
+  /** Dividir por ítems (B3-20): la cuenta que se reparte entre personas. */
+  const [dividiendoPorItems, setDividiendoPorItems] = useState<string | null>(null);
   const actual =
     porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
   const lineas = useMemo(
@@ -2824,6 +2844,8 @@ export function CajaScreen({
                   onAgregarProducto: onAgregarProductoACuenta,
                   onCambiarCantidad: onCambiarCantidadEnCuenta,
                   onDividir: (n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n)),
+                  // La cuenta de una persona ya es parte de una división: se cobra, o se une de nuevo desde la suya.
+                  ...(actual.divididaDe ? {} : { onPorItems: () => setDividiendoPorItems(actual.id) }),
                   onCortesia: async (linea, motivo, detalle, autorizacion) => {
                     const r = await cortesiaEnServidor(
                       {
@@ -2872,6 +2894,19 @@ export function CajaScreen({
       <AtajosDialog
         abierto={viendoAtajos}
         onCerrar={() => setViendoAtajos(false)}
+      />
+      {/* B3-20: repartir los ítems entre personas; cada una se cobra aparte. */}
+      <DividirPorItems
+        cuentaId={dividiendoPorItems}
+        cuentas={cuentas}
+        adoptar={adoptarCuenta}
+        onCerrar={() => setDividiendoPorItems(null)}
+        onCobrar={(id) => {
+          setDividiendoPorItems(null);
+          setVista("cuenta");
+          // Sin preguntar por la que se deja: es la misma cuenta, repartida (B3-20).
+          elegir(id);
+        }}
       />
       {/* B3-16: confirmar cuál queda y juntarlas. */}
       <CobrarJuntasDialog

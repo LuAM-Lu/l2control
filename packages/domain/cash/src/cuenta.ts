@@ -42,6 +42,13 @@ export type AccountLineDoc = Readonly<{
   porUso?: unknown;
   /** La cuenta de la que vino al cobrar juntas (B3-16) o al dividir por ítems (B3-20): el ticket dice de dónde es. */
   vieneDe?: LineOrigin | undefined;
+  /**
+   * Partida en partes iguales al dividir por ítems (B3-20): se queda con su importe y su producto (el inventario salió
+   * una vez, con ella) y deja de cobrarse; la cobran sus partes.
+   */
+  partida?: unknown;
+  /** Una parte de una línea partida (B3-20): cuál y de cuántas. */
+  parteDe?: Readonly<{ lineId: string; parte: number; de: number }> | undefined;
 }>;
 
 export type AccountDoc = Readonly<{
@@ -60,6 +67,8 @@ export type AccountDoc = Readonly<{
   dePie?: true | undefined;
   /** Se juntó en otra para cobrarse con ella (B3-16): lo que debía está allí. */
   juntadaEn?: unknown;
+  /** La cuenta de una persona al dividir por ítems (B3-20): de qué cuenta salió y qué persona es. */
+  divididaDe?: unknown;
 }>;
 
 /* ─────────────────────────────────────────────────────────── qué se cobra */
@@ -71,7 +80,7 @@ export function chargeableLines<L extends AccountLineDoc>(c: Readonly<{ lines: r
 
 /** ¿Se debe esta línea? Sin pagar, sin moverse, sin regalarse, sin anularse y sin cambiarse por uso. */
 function seDebe(l: AccountLineDoc): boolean {
-  return !l.paid && !l.movedTo && !l.cortesia && !l.anulacion && !l.porUso;
+  return !l.paid && !l.movedTo && !l.cortesia && !l.anulacion && !l.porUso && !l.partida;
 }
 
 /**
@@ -516,14 +525,17 @@ export function joinInto<A extends AccountDoc>(
   destino: A,
   destinoId: string,
   otra: A,
-  origen: LineOrigin,
+  /** De dónde dice que vino cada línea; una función para «Unir de nuevo» (B3-20), que devuelve las suyas sin origen. */
+  origen: LineOrigin | ((l: AccountLineDoc) => LineOrigin | undefined),
   juntadaEn: unknown,
   idDeLaNueva: (l: AccountLineDoc) => string,
 ): Readonly<{ destino: A; otra: A }> {
   const nuevas: AccountLineDoc[] = [];
   const lines = otra.lines.map((l) => {
     if (!seDebe(l)) return l;
-    nuevas.push({ ...l, id: idDeLaNueva(l), vieneDe: origen });
+    const { vieneDe: _, ...sinOrigen } = l;
+    const de = typeof origen === "function" ? origen(l) : origen;
+    nuevas.push({ ...sinOrigen, id: idDeLaNueva(l), ...(de ? { vieneDe: de } : {}) });
     return { ...l, movedTo: destinoId };
   });
   const status: AccountStatus = otra.kind === "FAMILIA" && !todosFuera(otra) ? "ABIERTA" : "COBRADA";
@@ -532,6 +544,81 @@ export function joinInto<A extends AccountDoc>(
     // Una división sin partes cobradas se deja: lo que debía se cobra en destino.
     otra: { ...(sinDivision(otra) as A), lines, status, juntadaEn },
   };
+}
+
+/* ──────────────────────────────────────── dividir por ítems (B3-20, M-37) */
+
+export type SplitLineProblem = "LINEA_DESCONOCIDA" | "NO_SE_DEBE" | "YA_ES_PARTE" | "PARTES" | "MUY_POCO";
+
+/**
+ * Por qué no se parte esta línea en `partes` (B3-20), o `null`: tiene que deberse, no ser ya una parte, ir de 2 a 12
+ * partes y dar al menos un céntimo a cada una.
+ */
+export function splitLineProblem(c: Pick<AccountDoc, "lines">, lineId: string, partes: number): SplitLineProblem | null {
+  const l = c.lines.find((x) => x.id === lineId);
+  if (!l) return "LINEA_DESCONOCIDA";
+  if (!seDebe(l)) return "NO_SE_DEBE";
+  if (l.parteDe) return "YA_ES_PARTE";
+  if (!Number.isInteger(partes) || partes < 2 || partes > 12) return "PARTES";
+  if (BigInt(l.amount.minor) < BigInt(partes)) return "MUY_POCO";
+  return null;
+}
+
+/**
+ * Parte una línea en `partes` iguales (B3-20, «Partir»): la línea se queda con su importe y su producto, marcada
+ * `partida` (el inventario salió una vez, con ella), y detrás nacen sus partes: «Pizza (1/3)», con su parte del importe
+ * por el mayor resto (el céntimo que sobra, a la primera) y su trato del IVA, sin producto ni pedido. Quien llama
+ * comprueba antes `splitLineProblem`.
+ */
+export function splitLine<A extends AccountDoc>(c: A, lineId: string, partes: number, idDeLaParte: (i: number) => string): A {
+  const i = c.lines.findIndex((x) => x.id === lineId);
+  const l = c.lines[i]!;
+  const importes = allocateMinor(BigInt(l.amount.minor), partes);
+  const sufijo = (n: number) => ` (${n}/${partes})`;
+  const nuevas: AccountLineDoc[] = importes.map((minor, k) => {
+    const { productId: _p, orderId: _o, cortesia: _c, ...base } = l;
+    return {
+      ...base,
+      id: idDeLaParte(k + 1),
+      concept: l.concept.slice(0, 80 - sufijo(k + 1).length) + sufijo(k + 1),
+      amount: { minor: String(minor), currency: l.amount.currency },
+      parteDe: { lineId, parte: k + 1, de: partes },
+    };
+  });
+  const lines = [...c.lines.slice(0, i), { ...l, partida: { en: partes } }, ...nuevas, ...c.lines.slice(i + 1)];
+  return { ...c, lines };
+}
+
+/** El mayor resto en céntimos: `total` en `n` partes que suman `total`, con el sobrante a las primeras. */
+function allocateMinor(total: bigint, n: number): bigint[] {
+  const base = total / BigInt(n);
+  const resto = Number(total % BigInt(n));
+  return Array.from({ length: n }, (_, k) => base + (k < resto ? 1n : 0n));
+}
+
+/**
+ * Pasa a la cuenta de una persona (`destinoId`) estas líneas (B3-20): como al juntar, aquí quedan `movedTo` y allá
+ * nacen sus iguales con un id propio, y de dónde vinieron (`origen`, si no lo traían ya). `null` si alguna no se debe
+ * aquí: lo cobrado, lo regalado o lo movido no se reparte.
+ */
+export function takeLines<A extends AccountDoc>(
+  desde: A,
+  lineIds: readonly string[],
+  destinoId: string,
+  origen: LineOrigin,
+  idDeLaNueva: (l: AccountLineDoc) => string,
+): Readonly<{ desde: A; lineas: AccountLineDoc[] }> | null {
+  const ids = new Set(lineIds);
+  if (ids.size !== lineIds.length) return null;
+  const elegidas = desde.lines.filter((l) => ids.has(l.id));
+  if (elegidas.length !== ids.size || elegidas.some((l) => !seDebe(l))) return null;
+  const lineas: AccountLineDoc[] = [];
+  const lines = desde.lines.map((l) => {
+    if (!ids.has(l.id)) return l;
+    lineas.push({ ...l, id: idDeLaNueva(l), vieneDe: l.vieneDe ?? origen });
+    return { ...l, movedTo: destinoId };
+  });
+  return { desde: { ...desde, lines }, lineas };
 }
 
 function sinDivision<A extends AccountDoc>(c: A): Omit<A, "split"> {

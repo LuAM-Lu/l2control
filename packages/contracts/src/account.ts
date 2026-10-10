@@ -193,6 +193,13 @@ export const AccountLineSchema = z.object({
       dePie: z.literal(true).optional(),
     })
     .optional(),
+  /**
+   * Partida en partes iguales al dividir por ítems (B3-20): se queda con su importe y su producto (el inventario salió
+   * una vez, con ella) y deja de cobrarse; la cobran sus partes.
+   */
+  partida: z.object({ en: z.number().int().min(2).max(12) }).optional(),
+  /** Una parte de una línea partida (B3-20): cuál y de cuántas. */
+  parteDe: z.object({ lineId: IdSchema, parte: z.number().int().min(1).max(12), de: z.number().int().min(2).max(12) }).optional(),
 });
 export type AccountLineDto = z.infer<typeof AccountLineSchema>;
 
@@ -292,12 +299,14 @@ export const FamilyAccountSchema = z
     cliente: ClienteDeCuentaSchema.optional(),
     /** Se juntó en otra para cobrarse con ella (B3-16): lo que debía está en esa cuenta. */
     juntadaEn: z.object({ cuentaId: IdSchema, orderNumber: z.number().int().positive().optional() }).optional(),
+    /** La cuenta de una persona al dividir por ítems (B3-20): de qué cuenta salió y qué persona es (de la 2 en adelante). */
+    divididaDe: z.object({ cuentaId: IdSchema, orderNumber: z.number().int().positive().optional(), persona: z.number().int().min(2).max(12) }).optional(),
   })
   .superRefine((c, ctx) => {
     // Lo que queda por cobrar. Una línea regalada o anulada NO cuenta: no se
     // cobra (F6-14). Sin esta exclusión, una cuenta con una cortesía o un plato
     // anulado no podría cerrarse nunca, porque siempre parecería deber algo.
-    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion && !l.porUso);
+    const pendiente = c.lines.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion && !l.porUso && !l.partida);
     const regalado = c.lines.some((l) => l.cortesia || l.anulacion);
 
     // Una cuenta tiene que ser de ALGUIEN, y su tipo dice de quién: de unos

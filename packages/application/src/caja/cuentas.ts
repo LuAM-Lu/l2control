@@ -459,7 +459,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           if (porCobrar.length !== cmd.lineIds.length || porCobrar.some((id) => !cmd.lineIds.includes(id))) return cuentaCambiada;
           // T-19 (M-34): la venta del mostrador se cobra a alguien. Si la cuenta no nació con su cliente (de pie, una
           // deuda), «Factura a» lleva su cédula y su nombre. Lo cargado desde papel, no: se anotó o no.
-          if (cuenta.kind === "MOSTRADOR" && !carga && cmd.cliente?.kind !== "IDENTIFICADO") {
+          // La cuenta de una persona al dividir por ítems (B3-20) no: es parte de una cuenta que ya era de alguien.
+          if (cuenta.kind === "MOSTRADOR" && !cuenta.divididaDe && !carga && cmd.cliente?.kind !== "IDENTIFICADO") {
             const conCliente = await tx.accountCustomer.findFirst({ where: { accountId: cuenta.id }, select: { id: true } });
             if (!conCliente) {
               return invalido("Una venta del mostrador se cobra con la cédula y el nombre del cliente: escríbelos en «Factura a».", ["cliente"], "FALTA_EL_CLIENTE");
@@ -1398,7 +1399,9 @@ export async function guardarVersion(
       | "EMPEZAR_EVENTO"
       | "ANULAR_ENTRADA"
       | "DESVINCULAR"
-      | "JUNTAR";
+      | "JUNTAR"
+      | "DIVIDIR"
+      | "UNIR";
     operationKey: string | null;
     ahora: number;
     quien: string;
@@ -1482,6 +1485,21 @@ export async function crearCuentaDePie(
   args: Readonly<{ id?: string; nombre: string; comensales?: number; lines: readonly AccountLineDoc[]; ahora: number; quien: string }>,
 ): Promise<FamilyAccountDto> {
   return crearCuentaDelSalon(tx, ctx, { ...args, kind: "MOSTRADOR", family: args.nombre, extra: { dePie: true } });
+}
+
+/**
+ * Abre la cuenta de una persona al dividir por ítems (B3-20): del mostrador, en la cola con sus líneas, nombrada como la
+ * cuenta de la que sale y su persona. Como las otras altas, devuelve su primera versión sin guardarla.
+ */
+export async function crearCuentaDePersona(
+  tx: Transaccion,
+  ctx: Contexto,
+  args: Readonly<{ id: string; de: FamilyAccountDto; persona: number; lines: readonly AccountLineDoc[]; ahora: number; quien: string }>,
+): Promise<FamilyAccountDto> {
+  const nombre = `${args.de.family.slice(0, 66)} · Persona ${args.persona}`;
+  const divididaDe = { cuentaId: args.de.id, ...(args.de.orderNumber ? { orderNumber: args.de.orderNumber } : {}), persona: args.persona };
+  const cuenta = await crearCuentaDelSalon(tx, ctx, { id: args.id, kind: "MOSTRADOR", family: nombre, lines: args.lines, ahora: args.ahora, quien: args.quien, extra: { divididaDe } });
+  return FamilyAccountSchema.parse({ ...cuenta, mode: "PREPAGO", status: "POR_COBRAR", pendingSince: new Date(args.ahora).toISOString() });
 }
 
 async function crearCuentaDelSalon(

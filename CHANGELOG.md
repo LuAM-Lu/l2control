@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.115.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Dividir por ítems (B3-20, M-37).
+
+### Añadido
+- **«Dividir» → «Por ítems»** en la caja, cuando cada uno paga lo suyo: «Persona 1, 2, +» y un toque pasa cada ítem a la
+  persona elegida; **«Partir»** reparte un ítem compartido en partes iguales entre las personas que se marquen (cada
+  parte con su IVA; el céntimo que sobra, a la primera; el inventario sale una vez). «Separar y cobrar» deja lo de cada
+  persona en su cuenta y abre la elegida: se cobra con el cobro de siempre, su recibo y su vuelto, sin pedir sus datos.
+  **«Unir de nuevo»** devuelve lo que no se cobró.
+
 ## [0.114.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Cobrar juntas (B3-16, M-37).

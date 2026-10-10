@@ -83,7 +83,8 @@ export function numeroDeOrden(c: FamilyAccountDto): string {
  * caja se trata como la de una mesa, no como un borrador que se vacía.
  */
 export function esVentaDirecta(c: FamilyAccountDto): boolean {
-  return c.kind === "MOSTRADOR" && !c.dePie;
+  // La cuenta de una persona al dividir por ítems (B3-20) no: es parte de una cuenta que ya era de alguien.
+  return c.kind === "MOSTRADOR" && !c.dePie && !c.divididaDe;
 }
 
 /**
@@ -91,7 +92,8 @@ export function esVentaDirecta(c: FamilyAccountDto): boolean {
  * entera. Una cuenta de familia, nunca (regla 5): tiene estancias detrás.
  */
 export function puedeDescartarse(c: FamilyAccountDto): boolean {
-  return esVentaDirecta(c) && c.lines.every((l) => !l.paid);
+  // Una venta con algo pasado a otra cuenta (juntada o dividida, B3-16 y B3-20) tampoco: lo suyo sigue allí.
+  return esVentaDirecta(c) && c.lines.every((l) => !l.paid && !l.movedTo);
 }
 
 /** Las líneas pendientes, en la forma que cobra la caja. */

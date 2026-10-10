@@ -32,6 +32,9 @@ import {
   receiveSession,
   joinProblem,
   joinInto,
+  splitLineProblem,
+  splitLine,
+  takeLines,
   anulacionProblem,
   anulacionesProblem,
   withAnulacion,
@@ -552,6 +555,54 @@ describe("cobrar juntas (B3-16, M-37)", () => {
     assert.equal(joinProblem(mesa({ split: { parts: 2, paid: 1 } })), "COBRO_EN_CURSO");
     assert.equal(joinProblem(mesa({ descuento: { porcentaje: 10 } })), "CON_DESCUENTO");
     assert.equal(joinProblem(mesa({ lines: [agua("a", { paid: true })] })), "SIN_PENDIENTE");
+  });
+});
+
+describe("dividir por ítems (B3-20, M-37)", () => {
+  const mesa = (lines: AccountLineDoc[]): AccountDoc => ({ kind: "MESA", status: "POR_COBRAR", sessionIds: [], closedSessionIds: [], tableId: "t1", lines });
+  const pizza = linea("pz", { concept: "Pizza familiar", kind: "RESTAURANTE", amount: usd("1000"), productId: "p-pizza", orderId: "o1", taxCode: "GENERAL" });
+  const origen = { cuentaId: "mesa-1", orderNumber: 41, family: "Mesa 3", kind: "MESA" as const };
+
+  test("partir: la línea se queda con su producto y deja de cobrarse; sus partes suman su importe, el céntimo a la primera", () => {
+    const c = splitLine(mesa([pizza, agua("a1")]), "pz", 3, (i) => `pz-${i}`);
+    assert.deepEqual(c.lines.map((l) => l.id), ["pz", "pz-1", "pz-2", "pz-3", "a1"]);
+    assert.deepEqual(c.lines[0]!.partida, { en: 3 });
+    assert.equal(c.lines[0]!.productId, "p-pizza", "el inventario salió una vez, con ella");
+    assert.deepEqual(c.lines.slice(1, 4).map((l) => [l.amount.minor, l.concept, l.productId, l.orderId, l.taxCode]), [
+      ["334", "Pizza familiar (1/3)", undefined, undefined, "GENERAL"],
+      ["333", "Pizza familiar (2/3)", undefined, undefined, "GENERAL"],
+      ["333", "Pizza familiar (3/3)", undefined, undefined, "GENERAL"],
+    ]);
+    assert.deepEqual(chargeableLines(c).map((l) => l.id), ["pz-1", "pz-2", "pz-3", "a1"]);
+    assert.equal(splitLineProblem(c, "pz-1", 2), "YA_ES_PARTE");
+    assert.equal(splitLineProblem(c, "pz", 2), "NO_SE_DEBE");
+  });
+
+  test("no se parte en una sola parte, en más de 12, ni en partes de menos de un céntimo", () => {
+    const c = mesa([pizza, linea("barato", { amount: usd("2") })]);
+    assert.equal(splitLineProblem(c, "pz", 2), null);
+    assert.equal(splitLineProblem(c, "pz", 1), "PARTES");
+    assert.equal(splitLineProblem(c, "pz", 13), "PARTES");
+    assert.equal(splitLineProblem(c, "barato", 3), "MUY_POCO");
+    assert.equal(splitLineProblem(c, "nada", 2), "LINEA_DESCONOCIDA");
+  });
+
+  test("a una persona pasan solo lo que se debe, con de dónde vino; lo demás se queda", () => {
+    const c = splitLine(mesa([pizza, agua("a1"), agua("a2")]), "pz", 2, (i) => `pz-${i}`);
+    const r = takeLines(c, ["pz-2", "a2"], "persona-2", origen, (l) => `n-${l.id}`)!;
+    assert.deepEqual(r.lineas.map((l) => [l.id, l.vieneDe?.orderNumber]), [["n-pz-2", 41], ["n-a2", 41]]);
+    assert.deepEqual(chargeableLines(r.desde).map((l) => l.id), ["pz-1", "a1"]);
+    assert.equal(takeLines(c, ["pz"], "p", origen, (l) => l.id), null, "la partida no se cobra: se reparten sus partes");
+    assert.equal(takeLines(c, ["a1", "a1"], "p", origen, (l) => l.id), null);
+  });
+
+  test("unir de nuevo: lo de la persona vuelve sin el origen que le puso la división", () => {
+    const c = mesa([agua("a1"), agua("a2")]);
+    const r = takeLines(c, ["a2"], "persona-2", origen, (l) => `n-${l.id}`)!;
+    const persona = mostrador(r.lineas);
+    const { destino, otra } = joinInto(r.desde, "mesa-1", persona, (l) => (l.vieneDe?.cuentaId === "mesa-1" ? undefined : l.vieneDe), {}, (l) => `v-${l.id}`);
+    assert.deepEqual(destino.lines.map((l) => [l.id, l.vieneDe]), [["a1", undefined], ["a2", undefined], ["v-n-a2", undefined]]);
+    assert.equal(otra.status, "COBRADA");
   });
 });
 

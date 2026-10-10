@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Check, Clock, Combine, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Check, Clock, Combine, HandCoins, Users, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { joinProblem, type JoinProblem } from "@l2/domain-cash";
 import { WristbandCodeSchema, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
@@ -86,7 +86,8 @@ export function ordenarCola(cuentas: readonly FamilyAccountDto[]): FamilyAccount
 export function filtrarCola(cuentas: readonly FamilyAccountDto[], texto: string, filtro: FiltroCola): FamilyAccountDto[] {
   const q = sinAcentos(texto.trim()).replace(/^#/, "");
   return cuentas.filter((c) => {
-    const directa = esVentaDirecta(c);
+    // La cuenta de una persona (B3-20) va con el mostrador: es del mostrador, aunque no sea una venta directa.
+    const directa = esVentaDirecta(c) || c.divididaDe !== undefined;
     const deMesa = esDeMesa(c);
     if (filtro === "PARQUE" && (directa || deMesa)) return false;
     if (filtro === "MESAS" && !deMesa) return false;
@@ -462,7 +463,7 @@ export function ColaCuentas({
             const noSeJunta = juntando ? joinProblem(c) : null;
             const esDirecta = esVentaDirecta(c);
             const deMesa = esDeMesa(c);
-            const Origen = esDirecta ? ShoppingBag : deMesa ? UtensilsCrossed : c.kind === "EVENTO" ? Cake : Baby;
+            const Origen = esDirecta ? ShoppingBag : deMesa ? UtensilsCrossed : c.divididaDe ? Users : c.kind === "EVENTO" ? Cake : Baby;
             const minutos =
               ahora > 0 && c.pendingSince ? Math.max(0, Math.floor((ahora - Date.parse(c.pendingSince)) / 60_000)) : null;
             const larga = minutos !== null && minutos >= ESPERA_LARGA_MIN;
@@ -524,7 +525,19 @@ export function ColaCuentas({
                       <span className="tnum font-semibold text-ink-2">{numeroDeOrden(c)}</span>
                       <Origen size={12} className="ml-0.5 shrink-0" aria-hidden="true" />
                       <span className={cn("truncate", sinDatos && "sr-only")}>
-                        {esDirecta ? "Mostrador" : deMesa ? (c.dePie ? "De pie" : "Mesa") : c.kind === "EVENTO" ? "Cumpleaños" : c.mode === "PREPAGO" ? "Prepago" : "Cuenta abierta"}
+                        {esDirecta
+                          ? "Mostrador"
+                          : deMesa
+                            ? c.dePie
+                              ? "De pie"
+                              : "Mesa"
+                            : c.divididaDe
+                              ? `De #${String(c.divididaDe.orderNumber ?? 0).padStart(4, "0")}`
+                              : c.kind === "EVENTO"
+                                ? "Cumpleaños"
+                                : c.mode === "PREPAGO"
+                                  ? "Prepago"
+                                  : "Cuenta abierta"}
                         {!esDirecta && c.sessionIds.length > 0 &&
                           ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
                       </span>
