@@ -5,6 +5,9 @@
  * se queda con el rastro de adónde fue); puede juntar niños de más de una familia en una llamada; un
  * niño ya vinculado no se ofrece para otra mesa ni se vincula dos veces; el reintento no mueve nada
  * otra vez; permiso, auditoría y aislamiento por tenant. Corre con `pnpm test:db`.
+ *
+ * Y desvincular (B6-15): lo que se debe del niño vuelve a su familia o pasa a otra mesa, y su salida va ahí; una familia
+ * ya cerrada no lo recibe; el reintento no mueve nada otra vez; permiso, auditoría y aislamiento.
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
@@ -32,6 +35,16 @@ let otroMesero: Contexto;
 
 const vincular = (ctx: Contexto, tableId: string, sessionIds: string[], ahora = AHORA, idempotencyKey = randomUUID()) =>
   l.app.mesas.vincular(ctx, { idempotencyKey, tableId, sessionIds }, ahora);
+const desvincular = (
+  ctx: Contexto,
+  desdeCuentaId: string,
+  sessionId: string,
+  destino: { kind: "FAMILIA" } | { kind: "MESA"; cuentaId: string },
+  ahora = AHORA,
+  idempotencyKey = randomUUID(),
+) => l.app.mesas.desvincular(ctx, { idempotencyKey, desdeCuentaId, sessionId, destino }, ahora);
+const salir = (sessionId: string, ahora: number) =>
+  l.app.parque.salir(monitora, { idempotencyKey: randomUUID(), sessionIds: [sessionId], disposition: { kind: "CAJA" }, recogida: { kind: "REPRESENTANTE" } }, ahora);
 
 before(async () => {
   l = await abrirLocalDePrueba(URL_APP, "Prueba vincular pulseras");
@@ -160,6 +173,102 @@ describe("vincular pulseras a una mesa", () => {
     const k = await familiaDePrueba(l, monitora, AHORA + 10 * MIN, "CUENTA_ABIERTA");
     const r = await otro.app.mesas.vincular(otroMesero, { idempotencyKey: randomUUID(), tableId: "mesa-1", sessionIds: [k.sessionIds[0]!] }, AHORA + 10 * MIN);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
+  });
+});
+
+describe("desvincular una pulsera (B6-15, M-37)", () => {
+  const T = AHORA + 20 * MIN;
+
+  test("vuelve a su familia con lo que se debe; ya no está en la mesa y su salida va a su familia", async () => {
+    const familia = await familiaDePrueba(l, monitora, T, "CUENTA_ABIERTA");
+    const sessionId = familia.sessionIds[0]!;
+    const { mesa } = valor(await vincular(mesero, "mesa-10", [sessionId], T));
+    const { desde, destino } = valor(await desvincular(mesero, mesa.id, sessionId, { kind: "FAMILIA" }, T + MIN));
+
+    assert.equal(desde.id, mesa.id);
+    assert.deepEqual(desde.sessionIds, []);
+    assert.equal(desde.lines[0]!.movedTo, familia.id, "en la mesa queda el rastro de adónde fue");
+    assert.equal(destino.id, familia.id);
+    const vuelta = destino.lines.filter((x) => x.sessionId === sessionId && !x.movedTo);
+    assert.deepEqual(vuelta.map((x) => [x.amount.minor, x.paid]), [["1000", false]]);
+    assert.equal(destino.status, "ABIERTA", "el niño sigue jugando");
+    const causas = await l.base.conTenant(l.sistema.tenantId, (tx) =>
+      tx.accountVersion.findMany({ where: { accountId: { in: [mesa.id, familia.id] } }, orderBy: { version: "desc" }, distinct: ["accountId"], select: { cause: true } }),
+    );
+    assert.deepEqual(causas.map((c) => c.cause), ["DESVINCULAR", "DESVINCULAR"]);
+
+    // Ya no está vinculado: sale por la caja de su familia, y se puede vincular otra vez.
+    const s = await salir(sessionId, T + 2 * MIN);
+    assert.ok(s.ok, JSON.stringify(s));
+    assert.equal(s.valor.account.id, familia.id);
+    assert.equal(s.valor.account.status, "POR_COBRAR");
+  });
+
+  test("pasa a otra mesa con lo que se debe, y su salida va a esa mesa", async () => {
+    const a = await familiaDePrueba(l, monitora, T, "CUENTA_ABIERTA");
+    const b = await familiaDePrueba(l, monitora, T, "CUENTA_ABIERTA");
+    const { mesa: once } = valor(await vincular(mesero, "mesa-11", [b.sessionIds[0]!], T));
+    const sessionId = a.sessionIds[0]!;
+    const { mesa: diez } = valor(await vincular(mesero, "mesa-10", [sessionId], T));
+    const { desde, destino } = valor(await desvincular(mesero, diez.id, sessionId, { kind: "MESA", cuentaId: once.id }, T + MIN));
+    assert.ok(!desde.sessionIds.includes(sessionId));
+    assert.equal(destino.id, once.id);
+    assert.ok(destino.sessionIds.includes(sessionId), "ahora está vinculado a la otra mesa");
+    assert.equal(destino.lines.filter((x) => x.sessionId === sessionId).length, 1);
+
+    // Otra vez a la mesa de antes, no: ya no está ahí.
+    const otraVez = await desvincular(mesero, diez.id, sessionId, { kind: "FAMILIA" }, T + MIN);
+    assert.equal(!otraVez.ok && otraVez.problemas?.[0]?.message, "NO_VINCULADO", JSON.stringify(otraVez));
+
+    // Su salida va sola a la otra mesa, aunque la pantalla diga la caja.
+    const s = await l.app.parque.salir(
+      monitora,
+      { idempotencyKey: randomUUID(), sessionIds: [sessionId], disposition: { kind: "MESA", tableId: "mesa-10" }, recogida: { kind: "REPRESENTANTE" } },
+      T + 2 * MIN,
+    );
+    assert.equal(!s.ok && s.motivo, "CONFLICTO", "va a la mesa a la que se pasó, no a la de antes");
+    assert.ok((await salir(sessionId, T + 2 * MIN)).ok);
+  });
+
+  test("un niño que ya salió, con su tiempo en la mesa: su familia ya cerró, pero otra mesa sí lo recibe", async () => {
+    const f = await familiaDePrueba(l, monitora, T, "CUENTA_ABIERTA");
+    const sessionId = f.sessionIds[0]!;
+    const { mesa } = valor(await vincular(mesero, "mesa-12", [sessionId], T));
+    assert.ok((await salir(sessionId, T + 30 * MIN)).ok);
+    const aSuFamilia = await desvincular(mesero, mesa.id, sessionId, { kind: "FAMILIA" }, T + 31 * MIN);
+    assert.equal(!aSuFamilia.ok && aSuFamilia.problemas?.[0]?.message, "FAMILIA_CERRADA", JSON.stringify(aSuFamilia));
+    const { mesa: once } = valor(await vincular(mesero, "mesa-11", [(await familiaDePrueba(l, monitora, T, "CUENTA_ABIERTA")).sessionIds[0]!], T));
+    const { destino } = valor(await desvincular(mesero, mesa.id, sessionId, { kind: "MESA", cuentaId: once.id }, T + 31 * MIN));
+    assert.equal(destino.lines.filter((x) => x.sessionId === sessionId).length, 1);
+    assert.equal(!(await desvincular(mesero, mesa.id, sessionId, { kind: "MESA", cuentaId: mesa.id }, T + 31 * MIN)).ok, true);
+  });
+
+  test("reenviar el mismo desvincular (se cortó la red) no mueve nada otra vez", async () => {
+    const f = await familiaDePrueba(l, monitora, T, "CUENTA_ABIERTA");
+    const sessionId = f.sessionIds[0]!;
+    const { mesa } = valor(await vincular(mesero, "mesa-10", [sessionId], T));
+    const clave = randomUUID();
+    const primera = valor(await desvincular(mesero, mesa.id, sessionId, { kind: "FAMILIA" }, T + MIN, clave));
+    const otraVez = valor(await desvincular(mesero, mesa.id, sessionId, { kind: "FAMILIA" }, T + MIN, clave));
+    assert.deepEqual(otraVez, primera);
+  });
+
+  test("la cocina no desvincula, queda en la auditoría; el asiento queda y sale en vivo; otro local, nada", async () => {
+    const f = await familiaDePrueba(l, monitora, T, "CUENTA_ABIERTA");
+    const sessionId = f.sessionIds[0]!;
+    const { mesa } = valor(await vincular(mesero, "mesa-10", [sessionId], T));
+    const r = await desvincular(cocinero, mesa.id, sessionId, { kind: "FAMILIA" }, T + MIN);
+    assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
+    const negados = await l.app.auditoria.listar(l.sistema, { actorId: cocinero.quien!.userId! });
+    assert.ok(negados.some((a) => a.action === "mesa.desvincular" && a.outcome === "NEGADO"));
+
+    const deOtro = await otro.app.mesas.desvincular(otroMesero, { idempotencyKey: randomUUID(), desdeCuentaId: mesa.id, sessionId, destino: { kind: "FAMILIA" } }, T + MIN);
+    assert.equal(!deOtro.ok && deOtro.motivo, "NO_DISPONIBLE");
+
+    valor(await desvincular(monitora, mesa.id, sessionId, { kind: "FAMILIA" }, T + MIN));
+    const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "account", entityId: mesa.id });
+    assert.ok(asientos.some((a) => a.action === "mesa.desvincular"));
+    assert.deepEqual([...temasDe("mesa.desvincular")].sort(), ["cuentas", "sala"]);
   });
 });
 

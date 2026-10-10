@@ -143,6 +143,11 @@ tiempo» sube de paquete pagando la diferencia (`subirDePaquete`). La salida del
 (solo en cuenta abierta, precio 0): no deja línea al entrar, y la salida le pone la suya (`abierto-<estancia>`) antes de
 cerrar, así viaja con la estancia a una mesa. El bloque y el precio de excedente de la política ya no se editan.
 
+**Vincular y desvincular (B6-3, B6-15).** Un niño vinculado está en `sessionIds` de la cuenta de su mesa y su salida va
+ahí (`sessionsVinculadas`). Desvincular (`mesas.desvincular`, quien vincula, sin PIN) lo saca con `unlinkSession` y lo
+pone en su familia o en otra cuenta de mesa con `receiveSession`; lo cobrado no se mueve (`unlinkProblem`). Una cuenta de
+pie no recibe a un niño: su salida del parque no tiene a dónde ir.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 

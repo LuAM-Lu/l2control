@@ -420,6 +420,64 @@ export function moveSessionLines<A extends AccountDoc>(
   return { familia: { ...familia, lines, status }, lineasNuevas };
 }
 
+/* ───────────────────────────────────── desvincular una pulsera (B6-15, M-37) */
+
+export type UnlinkProblem = "NO_VINCULADO" | "COBRO_EN_CURSO" | "YA_COBRADO";
+
+/**
+ * Por qué no se desvincula esta estancia de esta cuenta (B6-15), o `null`. Lo cobrado no se mueve: si su parque ya se
+ * pagó aquí, o la cuenta ya cobró una parte de una división (lo que queda por cobrar cambiaría a medio cobro), se niega.
+ */
+export function unlinkProblem(desde: Pick<AccountDoc, "sessionIds" | "split" | "lines">, sessionId: string): UnlinkProblem | null {
+  if (!desde.sessionIds.includes(sessionId)) return "NO_VINCULADO";
+  if (desde.split && desde.split.paid > 0) return "COBRO_EN_CURSO";
+  if (desde.lines.some((l) => l.sessionId === sessionId && l.paid)) return "YA_COBRADO";
+  return null;
+}
+
+/**
+ * Desvincula una estancia de la cuenta de su mesa (B6-15): lo que se debe de ella pasa a `destinoId` (su familia, otra
+ * mesa u otra persona del salón) como al vincular —aquí queda marcado `movedTo`, allá nace su igual con un id propio— y
+ * la mesa deja de tenerla. Si lo movido era lo que ponía a la mesa en la cola, vuelve a abierta: la mesa sigue, y la
+ * libera su mesero. Lo regalado se queda donde se dio. Quien llama comprueba antes `unlinkProblem`.
+ */
+export function unlinkSession<A extends AccountDoc>(
+  desde: A,
+  sessionId: string,
+  destinoId: string,
+  idDeLaNueva: (l: AccountLineDoc) => string,
+): Readonly<{ desde: A; lineasNuevas: AccountLineDoc[] }> {
+  const lineasNuevas: AccountLineDoc[] = [];
+  const lines = desde.lines.map((l) => {
+    if (!seDebe(l) || l.sessionId !== sessionId) return l;
+    lineasNuevas.push({ ...l, id: idDeLaNueva(l) });
+    return { ...l, movedTo: destinoId };
+  });
+  const status: AccountStatus = desde.status === "POR_COBRAR" && chargeableLines({ lines }).length === 0 ? "ABIERTA" : desde.status;
+  return {
+    desde: {
+      ...desde,
+      sessionIds: desde.sessionIds.filter((id) => id !== sessionId),
+      closedSessionIds: desde.closedSessionIds.filter((id) => id !== sessionId),
+      lines,
+      status,
+    },
+    lineasNuevas,
+  };
+}
+
+/**
+ * La cuenta que recibe una estancia desvinculada (B6-15): sus líneas, y la estancia si es una mesa (desde ahora, su
+ * salida va ahí). Una familia de prepago, o que ya salió entera, pasa a la cola: lo que se debe se cobra ya. Una cuenta
+ * abierta sigue abierta, como cuando el niño estaba en ella.
+ */
+export function receiveSession<A extends AccountDoc & { mode?: string | undefined }>(destino: A, sessionId: string, lineas: readonly AccountLineDoc[]): A {
+  const sessionIds = destino.kind === "MESA" && !destino.sessionIds.includes(sessionId) ? [...destino.sessionIds, sessionId] : destino.sessionIds;
+  const nuevas = lineas.filter((l) => !destino.lines.some((x) => x.id === l.id));
+  const aLaCola = nuevas.length > 0 && destino.kind === "FAMILIA" && (destino.mode === "PREPAGO" || todosFuera(destino));
+  return { ...destino, sessionIds, lines: [...destino.lines, ...nuevas], status: aLaCola ? "POR_COBRAR" : destino.status };
+}
+
 /* ───────────────────────────────────── salir antes de tiempo (B4-6, M-18) */
 
 /**

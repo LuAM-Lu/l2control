@@ -72,6 +72,7 @@ export type AccionAuditada =
   | "evento.empezar"
   | "evento.entrada"
   | "mesa.vincular"
+  | "mesa.desvincular"
   | "impresora.crear"
   | "impresora.editar"
   | "impresora.activar"
