@@ -246,10 +246,20 @@ export function NombreDeProducto({ nombre, detalle, papel = false }: { nombre: R
   );
 }
 
-const PERIODOS: readonly { id: PeriodoPredefinido; nombre: string }[] = [
+type PeriodoDeUnToque = Readonly<{ id: PeriodoPredefinido; nombre: string }>;
+
+const PERIODOS: readonly PeriodoDeUnToque[] = [
   { id: "HOY", nombre: "Hoy" },
   { id: "AYER", nombre: "Ayer" },
   { id: "SEMANA", nombre: "Esta semana" },
+  { id: "MES", nombre: "Este mes" },
+  { id: "MES_ANTERIOR", nombre: "Mes anterior" },
+];
+
+/** Los de un informe que se cuenta por quincena (el consumo del personal, B3-17). */
+export const PERIODOS_POR_QUINCENA: readonly PeriodoDeUnToque[] = [
+  { id: "QUINCENA", nombre: "Esta quincena" },
+  { id: "QUINCENA_ANTERIOR", nombre: "Quincena anterior" },
   { id: "MES", nombre: "Este mes" },
   { id: "MES_ANTERIOR", nombre: "Mes anterior" },
 ];
@@ -265,6 +275,7 @@ export function FiltroDePeriodo({
   hasta: pedidoHasta,
   cargando,
   onPeriodo,
+  periodos = PERIODOS,
   children,
 }: {
   hoy: string;
@@ -272,6 +283,8 @@ export function FiltroDePeriodo({
   hasta: string;
   cargando: boolean;
   onPeriodo: (p: { desde: string; hasta: string }) => void;
+  /** Los de un toque; sin decirlo, de hoy al mes anterior. */
+  periodos?: readonly PeriodoDeUnToque[];
   children?: ReactNode;
 }) {
   const [desde, setDesde] = useState(pedidoDesde);
@@ -279,7 +292,7 @@ export function FiltroDePeriodo({
   const cambiado = desde !== pedidoDesde || hasta !== pedidoHasta;
   const valido = desde !== "" && hasta !== "" && desde <= hasta;
   const elegido =
-    PERIODOS.find((p) => {
+    periodos.find((p) => {
       const r = periodoPredefinido(p.id, hoy);
       return r.desde === pedidoDesde && r.hasta === pedidoHasta;
     })?.id ?? "RANGO";
@@ -287,7 +300,7 @@ export function FiltroDePeriodo({
     <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
       <FiltroSegmentado<PeriodoPredefinido | "RANGO">
         etiqueta="Periodo"
-        opciones={PERIODOS}
+        opciones={periodos}
         valor={elegido}
         onCambiar={(id) => {
           if (id !== "RANGO") onPeriodo(periodoPredefinido(id, hoy));

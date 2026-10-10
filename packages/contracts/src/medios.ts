@@ -105,7 +105,8 @@ export const MediosDePagoSchema = z
     message: "Dos terminales no pueden compartir identificador",
     path: ["terminales"],
   })
-  .refine((c) => c.medios.some((m) => m.activo), {
+  // El consumo del personal no cobra dinero (B3-17): no cuenta como medio para cobrar.
+  .refine((c) => c.medios.some((m) => m.activo && m.code !== "CONSUMO_PERSONAL"), {
     // Sin ningún medio encendido no se puede cobrar nada: es un local cerrado.
     message: "Tiene que quedar al menos un medio activo",
     path: ["medios"],

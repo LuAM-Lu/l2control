@@ -22,7 +22,7 @@ import {
   type Resultado,
   type VentaCerradaDto,
 } from "@l2/contracts";
-import { cuadraLaDevolucion, devolucionDe, USDT_AT_PAR } from "@l2/domain-cash";
+import { CONSUMO_DEL_PERSONAL, cuadraLaDevolucion, devolucionDe, USDT_AT_PAR } from "@l2/domain-cash";
 import { invertRate, money, type CurrencyCode, type FrozenRate, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { errorDeBase, type Base } from "@l2/database";
@@ -197,7 +197,8 @@ export function casosDevoluciones(base: Base, cifrador: Cifrador | null, soporte
             if (BigInt(r.amount.minor) > BigInt(pago.refundable.minor)) {
               return invalido(`De ${pago.label} queda menos por devolver.`, ["reintegros", i, "amount"], "MAS_DE_LO_QUE_QUEDA");
             }
-            if (!pago.cash && !r.reference) {
+            // El consumo del personal (B3-17) vuelve a su vale: no hay banco que dé una referencia.
+            if (!pago.cash && pago.methodCode !== CONSUMO_DEL_PERSONAL && !r.reference) {
               return invalido(pago.dataKind === "PUNTO" ? "Escribe la aprobación de la devolución en el terminal." : "Escribe la referencia de la devolución.", ["reintegros", i, "reference"], "FALTA_LA_REFERENCIA");
             }
             if (r.reference && !pago.cash && !cifrador) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Este servidor no puede guardar referencias (falta L2_CLAVE_CIFRADO)." };

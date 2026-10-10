@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, TriangleAlert, Undo2 } from "lucide-react";
-import type { DestinoDevuelto, DevolucionHechaDto, ParqueDeLaVentaDto, Rechazo, VentaCerradaDto } from "@l2/contracts";
+import { MEDIO_CONSUMO_DEL_PERSONAL, type DestinoDevuelto, type DevolucionHechaDto, type ParqueDeLaVentaDto, type Rechazo, type VentaCerradaDto } from "@l2/contracts";
 import { devolucionDe, repartirDevolucion, USDT_AT_PAR } from "@l2/domain-cash";
 import { invertRate, money, toMajor, type CurrencyCode, type FrozenRate } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
@@ -130,7 +130,7 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
     if (calculo.reparto.falta.amount > 0n) e.general = "Lo que queda de los pagos no alcanza para devolverlo.";
     calculo.reparto.montos.forEach((m, i) => {
       const p = venta.payments[i]!;
-      if (m.amount > 0n && !p.cash && (refs[i] ?? "").trim().length < 4) e[`ref.${i}`] = "Escribe la referencia de la devolución";
+      if (m.amount > 0n && !p.cash && p.methodCode !== MEDIO_CONSUMO_DEL_PERSONAL && (refs[i] ?? "").trim().length < 4) e[`ref.${i}`] = "Escribe la referencia de la devolución";
     });
     const falta = a.falta();
     if (Object.keys(e).length > 0 || falta) {
@@ -139,7 +139,15 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
     }
     setEnviando(true);
     const reintegros = calculo.reparto.montos.flatMap((m, i) =>
-      m.amount > 0n ? [{ paymentIndex: i, amount: { minor: String(m.amount), currency: m.currency }, ...(venta.payments[i]!.cash ? {} : { reference: (refs[i] ?? "").trim() }) }] : [],
+      m.amount > 0n
+        ? [
+            {
+              paymentIndex: i,
+              amount: { minor: String(m.amount), currency: m.currency },
+              ...(venta.payments[i]!.cash || venta.payments[i]!.methodCode === MEDIO_CONSUMO_DEL_PERSONAL ? {} : { reference: (refs[i] ?? "").trim() }),
+            },
+          ]
+        : [],
     );
     const r = await devolverVenta(
       { idempotencyKey: clave, saleId: venta.id, lineas: elegidas, reintegros, motivo: motivo.trim() },
@@ -299,7 +307,9 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
                       <span className="font-semibold text-ink">{p.label}</span>
                       <span className="font-semibold text-ink">{formatMoneyVE(toMajor(m), m.currency)}</span>
                     </span>
-                    {!p.cash && (
+                    {/* El consumo del personal (B3-17) vuelve a su vale: no hay referencia. */}
+                    {p.methodCode === MEDIO_CONSUMO_DEL_PERSONAL && <span className="text-detalle text-ink-3">Vuelve a su vale: no entró dinero.</span>}
+                    {!p.cash && p.methodCode !== MEDIO_CONSUMO_DEL_PERSONAL && (
                       <Input
                         label={etiquetaReferencia(p)}
                         surface="tablet"

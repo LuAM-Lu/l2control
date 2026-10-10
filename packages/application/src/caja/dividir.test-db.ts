@@ -124,7 +124,10 @@ describe("dividir por ítems (B3-20)", () => {
 
     // La persona 2 se cobra sin «Factura a»; la cuenta, como cualquier venta del mostrador.
     assert.equal(valor(await cobrar(p2, "174")).cuenta.status, "COBRADA");
-    assert.equal(valor(await cobrar(cuenta, "174", true)).cuenta.status, "COBRADA");
+    const r = valor(await cobrar(cuenta, "174", true));
+    assert.equal(r.cuenta.status, "COBRADA");
+    // La venta (y su recibo) dicen lo que se cobró: el agua y su mitad, no el agua partida entera.
+    assert.deepEqual(r.venta.lineas.map((l) => [l.concept, l.amount.minor]), [["Agua mineral", "100"], ["Agua mineral (1/2)", "50"]]);
   });
 
   test("unir de nuevo devuelve lo que no se cobró; lo cobrado se queda cobrado", async () => {

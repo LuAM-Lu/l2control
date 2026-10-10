@@ -31,6 +31,8 @@ export const SUPERFICIE_DE_RUTA: Readonly<Record<string, SurfaceId>> = {
   "/turno": "turno",
   "/papel": "papel",
   "/deudas": "deudas",
+  // Los vales del consumo del personal (B3-17): los ve quien cobra; los de todos, supervisión y administración.
+  "/personal": "caja",
   "/mesas": "mesas",
 };
 

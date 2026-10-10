@@ -89,6 +89,28 @@ export async function confirmarPinPropio(
   return comprobarPin(tx, ctx, accion, aut.data, ahora, "PIN incorrecto.");
 }
 
+/**
+ * La persona del equipo firma con su PIN lo que es suyo (B3-17): su consumo, o ver sus vales. No es una autorización:
+ * firma quien consumió, sea quien sea quien opera el equipo. Tiene que ser del local en esta sucursal (no la cuenta de
+ * soporte) y estar activa; el PIN pasa por su bloqueo creciente, y cada negativa queda en la auditoría.
+ */
+export async function firmaDeLaPersona(
+  tx: Transaccion,
+  ctx: Contexto,
+  accion: Action,
+  firma: Readonly<{ staffUserId: string; pin: string }>,
+  motivo: string,
+  ahora: number = Date.now(),
+): Promise<Readonly<{ ok: true; id: string; nombre: string }> | Rechazo> {
+  const u = await tx.staffUser.findFirst({
+    where: { id: firma.staffUserId, active: true, supportLogin: null, branches: { some: { branchId: ctx.branchId } } },
+    select: { id: true, fullName: true },
+  });
+  if (!u) return negarAutorizacion(tx, ctx, accion, firma.staffUserId, "Esa persona no es del equipo de este local.");
+  const r = await comprobarPin(tx, ctx, accion, { autorizadorId: u.id, pin: firma.pin, motivo }, ahora, "PIN incorrecto.");
+  return "ok" in r && r.ok ? { ok: true, id: u.id, nombre: u.fullName } : (r as Rechazo);
+}
+
 async function negarAutorizacion(tx: Transaccion, ctx: Contexto, accion: Action, autorizadorId: string, mensaje: string, extra?: object): Promise<Rechazo> {
   await auditar(tx, ctx, { action: "autorizacion.negar", outcome: "NEGADO", reason: mensaje, after: { accion, autorizador: autorizadorId, ...extra } });
   return { ok: false, motivo: "NO_PERMITIDO", mensaje };

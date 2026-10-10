@@ -971,3 +971,18 @@ export {
   type DevolverProductoCommand,
   type RetiroHechoDto,
 } from "./retiro.ts";
+export {
+  MEDIO_CONSUMO_DEL_PERSONAL,
+  FirmaDeLaPersonaSchema,
+  PersonaDelLocalSchema,
+  ConsultaDeValesSchema,
+  ValeSchema,
+  ValesDelPersonalSchema,
+  ReimprimirValeCommandSchema,
+  type FirmaDeLaPersonaDto,
+  type PersonaDelLocalDto,
+  type ConsultaDeValesDto,
+  type ValeDto,
+  type ValesDelPersonalDto,
+  type ReimprimirValeCommand,
+} from "./consumo.ts";

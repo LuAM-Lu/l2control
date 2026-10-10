@@ -8,6 +8,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { MovimientoPorMedioDto } from "@l2/contracts";
+import { CONSUMO_DEL_PERSONAL } from "@l2/domain-cash";
 import { money, toMajor } from "@l2/domain-money";
 import { MoneyDisplay, cn } from "@l2/ui";
 
@@ -32,11 +33,11 @@ export type PorMedio = {
 /**
  * Lo cobrado por cada medio, desde el libro del servidor (B3-5): lo que QUEDÓ por ese medio (lo
  * entregado menos el vuelto, sin lo anulado), no el billete que dio el cliente, ni el fondo, que no
- * es venta. Lo que no dejó nada no sale.
+ * es venta. Lo que no dejó nada no sale, ni el consumo del personal (B3-17): no es dinero (`consumoDelPersonal`).
  */
 export function porMedioDelLibro(movimientos: readonly MovimientoPorMedioDto[]): PorMedio[] {
   return movimientos
-    .filter((m) => BigInt(m.neto.minor) > 0n)
+    .filter((m) => BigInt(m.neto.minor) > 0n && m.methodCode !== CONSUMO_DEL_PERSONAL)
     .map((m) => ({
       medio: m.label,
       moneda: m.currency,
@@ -44,6 +45,12 @@ export function porMedioDelLibro(movimientos: readonly MovimientoPorMedioDto[]):
       minor: m.neto.minor,
       enGaveta: m.enGaveta,
     }));
+}
+
+/** Lo consumido por el personal en el turno o el día (B3-17), en dólares; `null` si no hubo. */
+export function consumoDelPersonal(movimientos: readonly MovimientoPorMedioDto[]): string | null {
+  const m = movimientos.find((x) => x.methodCode === CONSUMO_DEL_PERSONAL && BigInt(x.neto.minor) > 0n);
+  return m ? m.neto.minor : null;
 }
 
 export function EntradasPorMedio({

@@ -11,7 +11,7 @@ import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
 import { Badge, Button, Container, Dialog, Input, MoneyDisplay, Sheet, avisar, cn } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { CierreTurno } from "./CierreTurno.tsx";
-import { EntradasPorMedio, porMedioDelLibro } from "./EntradasPorMedio.tsx";
+import { EntradasPorMedio, consumoDelPersonal, porMedioDelLibro } from "./EntradasPorMedio.tsx";
 import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { abrirTurno } from "./turno.acciones";
 import { hacerCorteX, leerPendientesDelCierre, leerVistaDelTurno } from "./cortes.acciones";
@@ -486,6 +486,8 @@ function ResumenTurno({
   const [corteX, setCorteX] = useState<CorteDto | null>(null);
   const [haciendoX, setHaciendoX] = useState(false);
   const porMedio = useMemo(() => (vista ? porMedioDelLibro(vista.porMedio) : []), [vista]);
+  // El consumo del personal (B3-17) está en las ventas, pero no es dinero: se dice aparte.
+  const consumo = vista ? consumoDelPersonal(vista.porMedio) : null;
 
   const sacarX = async () => {
     setHaciendoX(true);
@@ -529,7 +531,7 @@ function ResumenTurno({
           ) : (
             <>
               <MoneyDisplay value={toMajor(aDinero(vista.ventas.total))} currency="USD" size="lg" className="mt-1" />
-              {porMedio.length === 0 ? (
+              {porMedio.length === 0 && !consumo ? (
                 <p className="mt-1 text-[12.5px] text-ink-3">Todavía no se ha cobrado nada en este turno.</p>
               ) : (
                 <ul className="mt-2 flex flex-col gap-1 border-t border-line/60 pt-2">
@@ -543,6 +545,12 @@ function ResumenTurno({
                     <li className="flex items-baseline justify-between gap-2 text-ink-3">
                       <span className="text-[12px]">de ello, IGTF</span>
                       <MoneyDisplay value={toMajor(aDinero(vista.ventas.igtf))} currency="USD" size="sm" />
+                    </li>
+                  )}
+                  {consumo && (
+                    <li className="flex items-baseline justify-between gap-2 text-ink-3">
+                      <span className="text-detalle">de ello, consumo del personal (no entra dinero)</span>
+                      <MoneyDisplay value={toMajor(aDinero({ minor: consumo, currency: "USD" }))} currency="USD" size="sm" />
                     </li>
                   )}
                 </ul>

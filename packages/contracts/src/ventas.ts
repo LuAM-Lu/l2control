@@ -238,6 +238,8 @@ export const VentaCerradaSchema = z
      * papel, no lo traen.
      */
     desdePapel: MarcaDePapelSchema.nullable().optional(),
+    /** Cobrada con «Consumo del personal» (B3-17): quién consumió y firmó con su PIN. Las demás no lo traen. */
+    personal: z.object({ id: IdSchema, nombre: Texto(120) }).optional(),
   })
   .superRefine((v, ctx) => {
     const a = v.voided;

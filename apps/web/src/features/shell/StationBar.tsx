@@ -17,6 +17,7 @@ import {
   Receipt,
   Timer,
   TrendingUp,
+  UserRoundCheck,
   TriangleAlert,
   WifiOff,
   type LucideIcon,
@@ -82,6 +83,7 @@ type Ruta =
   | "/turno"
   | "/papel"
   | "/deudas"
+  | "/personal"
   | "/mesas";
 
 type Puesto = {
@@ -110,6 +112,8 @@ const PUESTOS: Puesto[] = [
       { href: "/papel", corto: "Papel", largo: "Carga desde papel", icono: FileText },
       // Lo que dejaron sin pagar quienes se fueron (B3-11).
       { href: "/deudas", corto: "Deudas", largo: "Deudas de clientes", icono: HandCoins },
+      // Los vales del consumo del personal (B3-17).
+      { href: "/personal", corto: "Personal", largo: "Consumo del personal", icono: UserRoundCheck },
     ],
   },
   {
@@ -252,7 +256,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             }
             className="order-last w-full min-w-0 apaisado:order-none apaisado:w-auto"
           >
-            <ul className="flex items-center gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1">
+            <ul className="flex items-center gap-1 overflow-x-auto rounded-[var(--radius-control)] bg-surface/70 p-1 [scrollbar-width:none]">
               {puesto &&
                 puesto.superficies.map((s) => {
                   const activa = s.href === pathname;
@@ -261,10 +265,12 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
                     <li key={s.href} className="flex-1 apaisado:flex-none">
                       <Link
                         href={s.href}
+                        // Si las pestañas no caben (un aviso de impresión largo), se desplazan: la abierta, siempre a la vista.
+                        ref={activa ? (el) => el?.scrollIntoView({ block: "nearest", inline: "nearest" }) : undefined}
                         aria-current={activa ? "page" : undefined}
                         title={s.largo}
                         className={cn(
-                          "flex h-12 flex-1 items-center justify-center gap-1.5 rounded-[0.4rem] px-4 text-sm",
+                          "flex h-12 flex-1 items-center justify-center gap-1.5 rounded-[0.4rem] px-3 text-sm xl:px-4",
                           "whitespace-nowrap no-underline apaisado:flex-none apaisado:justify-start",
                           "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",

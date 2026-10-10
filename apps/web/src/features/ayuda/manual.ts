@@ -245,6 +245,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
       "Si sobra, «Vuelto» (o «Propina», o «A caja» si es poco). El vuelto va en efectivo $; para darlo de otra forma, toca «Vuelto» otra vez: efectivo Bs, Pago Móvil (con el banco del cliente y la referencia del envío) o «Repartido», que propone los dólares enteros en billetes y los centavos en bolívares, a la tasa del cobro. Avisa si en la gaveta no alcanza esa moneda. Cada parte sale de su moneda y el recibo dice cómo se dio.",
       "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I), «Descuento» y «Dividir» en partes iguales, de 2 a 6. La cuenta que nació con su cliente (una mesa, de pie) ya viene a su nombre. Una venta del mostrador se cobra a alguien: si no tiene cliente, «Factura a» dice «Falta el cliente» y pide su cédula (o el RIF de su empresa) y su nombre.",
+      "Lo que consume alguien del equipo: «Personal» (debajo de la cuenta, junto a «Dividir»). Elige quién consumió y que esa persona escriba su PIN: se cobra a precio normal, en dólares, sale del inventario y no entra dinero (no cuenta en la gaveta). Sale su vale para que lo firme, y el vale se queda en la caja. Es el único pago de esa cuenta: sin otros pagos, sin descuento y sin dividir.",
       "«Dividir» → «Por ítems», cuando cada uno paga lo suyo: elige «Persona 1, 2, +» y toca los ítems de esa persona (lo que no toques es de la persona 1). «Partir» reparte un ítem compartido en partes iguales entre las personas que marques, cada parte con su IVA. «Separar y cobrar» deja lo de cada persona en su cuenta (en la cola, «De #0041») y abre la elegida: se cobra con el cobro de siempre, sin pedir sus datos. «Dividir» → «Por ítems» en la cuenta original dice sus personas y «Unir de nuevo» devuelve lo que no se cobró.",
       "«Buscar cliente» (tecla C, o el icono de la persona en la cola): por su nombre, su cédula o su teléfono, dice lo que tiene abierto (y lo abre para cobrar), sus niños en la sala y lo que debe. Está también en Mesas y en la sala.",
       "«Cobrar $ …» dice lo que se cobra, el de la parte si está dividida (Ctrl+Intro con el teclado). El recibo sale en la impresora de caja si «Recibo» está encendido; si no, se imprime después desde el turno.",
@@ -305,6 +306,38 @@ export const MANUAL: readonly EntradaDelManual[] = [
       },
     ],
     recorrido: "caja",
+  },
+  {
+    id: "personal",
+    ruta: "/personal",
+    titulo: "Consumo del personal",
+    roles: CAJA,
+    proposito: "Los vales de lo que consumió el equipo, por quincena, con «Reimprimir vale». El descuento del sueldo se hace fuera del sistema.",
+    pasos: [
+      "El consumo se cobra en la caja con «Personal»: quien consumió escribe su PIN y sale su vale para que lo firme. El vale se queda en la caja.",
+      "Supervisión y administración ven aquí los vales de todos: lo de cada persona en la quincena y cada vale, con lo consumido, quién lo cobró y si se anuló o se devolvió algo.",
+      "Cada persona del equipo ve los suyos: «¿Quién eres?», su PIN y «Ver mis vales». Al terminar, «Listo» los quita de la pantalla.",
+      "«Esta quincena» va del 1 al 15 o del 16 al último día del mes; «Quincena anterior», la de antes.",
+      "«Reimprimir vale» saca una copia en la impresora de recibos (dice «COPIA»).",
+      "Un vale anulado no cuenta; lo devuelto se resta. Anular o devolver un consumo pide el PIN de administración, como cualquier venta, y vuelve a su vale: no sale dinero.",
+    ],
+    problemas: [
+      {
+        sintoma: "«PIN incorrecto» al cobrar el consumo o al ver los vales",
+        solucion: "Es el PIN de la persona que consumió, no el de quien cobra. Tras varios intentos se bloquea un rato, como al entrar.",
+        reconoce: ["pin incorrecto"],
+      },
+      {
+        sintoma: "«Personal» no se deja tocar en la caja",
+        solucion: "El consumo del personal es el único pago de la cuenta: quita los pagos, el descuento o las partes. Si no aparece, está apagado en Ajustes → Medios de pago.",
+        reconoce: ["el unico pago de su cobro", "va a precio normal", "una cuenta en partes no se cobra"],
+      },
+      {
+        sintoma: "«El vale no se imprimió»",
+        solucion: "El consumo sí quedó cobrado. Revisa la impresora de recibos y reimprímelo aquí.",
+        reconoce: ["el vale no se imprimio"],
+      },
+    ],
   },
   {
     id: "deudas",
@@ -621,13 +654,14 @@ export const MANUAL: readonly EntradaDelManual[] = [
     titulo: "Reportes",
     roles: DIRECCION,
     proposito:
-      "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas de un día o de un rango, el inventario al momento, los movimientos de inventario (el kárdex) y las deudas de clientes, cada uno con su PDF.",
+      "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas de un día o de un rango, el inventario al momento, los movimientos de inventario (el kárdex), las deudas de clientes y el consumo del personal, cada uno con su PDF.",
     pasos: [
       "Elige el periodo (hoy, ayer, esta semana, este mes o el anterior) o un rango de hasta 93 días y, si quieres, una cajera.",
       "Ventas: arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección. Por turno marca el que se abrió fuera del punto de cobro, con quién lo autorizó.",
       "Inventario al momento: lo que hay a esta hora y lo que vale al costo; las cifras filtran lo agotado, lo bajo mínimo y lo sin contar.",
       "Movimientos: elige un producto o una categoría; cada entrada, venta, salida y conteo sale con quién, el motivo y el saldo que dejó.",
       "Deudas: lo que quedó en deuda, lo recuperado y lo perdido; por mesero (quien sentó al cliente) y por quien autorizó. Toca el número de orden para ver su historia, de la mesa al desenlace; el PDF lleva la de todas, con la cédula y el teléfono del cliente.",
+      "Personal: lo que consumió cada persona del equipo en la quincena (esta o la anterior) y cada vale, sin lo anulado ni lo devuelto. Es para descontarlo del sueldo, fuera del sistema.",
       "«PDF» abre la hoja para imprimir: en el diálogo del navegador, elige la impresora o «Guardar como PDF».",
     ],
     problemas: [

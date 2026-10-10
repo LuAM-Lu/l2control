@@ -173,6 +173,12 @@ nuevo» (la cuenta vuelve a la cola) o «Anular la venta entera» (sus líneas a
 inventario al estante o a merma con `aMerma`). Del parque se devuelve el paquete de un niño que ya salió: entero, o «lo
 que no usó» (`valorDelTiempoUsado`, la regla de B4-17), en la caja, donde está el dinero.
 
+**El consumo del personal (B3-17).** El medio `CONSUMO_PERSONAL` no es dinero: `offeredMethods` no lo ofrece y el cobro
+lo acepta solo con `personal` (la persona y su PIN, `firmaDeLaPersona`), como único pago y por el total. Deja su vale en
+`staff_consumption` y lo imprime (trabajo RECIBO, título «Vale #…»). Fuera de la gaveta en el corte y en el turno
+(`consumoDelPersonal`); anular o devolver un consumo vuelve a su vale, sin referencia. Caja → Personal y Reportes →
+Personal leen `personal.vales`: los de todos con `reportes.verSucursal`, los de una persona con su PIN.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 

@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   Smartphone,
   TriangleAlert,
+  UserRoundCheck,
   UserX,
   Users,
   X,
@@ -75,6 +76,7 @@ import {
   formatMoneyVE,
 } from "@l2/ui";
 import { useMedios, useMediosActivos } from "./MediosProvider.tsx";
+import { ConsumoDelPersonalDialog } from "../personal/ConsumoDelPersonal.tsx";
 import { nombreBanco } from "./bancos.ts";
 import type { MedioPago } from "./medios.ts";
 import { BILLETES_USD } from "./billetes.ts";
@@ -86,6 +88,7 @@ import type { Route } from "next";
 import {
   FamilyAccountSchema,
   CONSUMIDOR_FINAL,
+  MEDIO_CONSUMO_DEL_PERSONAL,
   type AccountLineDto,
   type CatalogoDto,
   type ClienteFacturaDto,
@@ -184,6 +187,8 @@ type Cobrado = Readonly<{
   venta: VentaCerradaDto;
   /** Se pidió el recibo y no salió (B3-8): por qué. El cobro quedó cerrado igual. */
   reciboNoImpreso?: string;
+  /** El vale del consumo del personal no salió (B3-17): por qué. Se reimprime desde Caja → Personal. */
+  valeNoImpreso?: string;
   /** La cuenta como la dejó el servidor al cobrar. */
   cuenta: FamilyAccountDto;
 }>;
@@ -425,6 +430,8 @@ function CobroCuenta({
   const [quitandoDescuento, setQuitandoDescuento] = useState(false);
   /** Lo que el pie de la cuenta tiene abierto debajo de su fila de botones (B3-10): las partes o el descuento puesto. */
   const [enElPie, setEnElPie] = useState<"dividir" | "descuento" | null>(null);
+  /** El consumo del personal (B3-17): el diálogo donde quien consumió firma con su PIN. */
+  const [consumiendo, setConsumiendo] = useState(false);
   const [releerOfrecidos, setReleerOfrecidos] = useState(0);
   useAlCambiar(["descuentos"], () => setReleerOfrecidos((n) => n + 1));
   const ofreceDescuentos = onDescuento !== undefined && permisoDescuento !== "DENEGADO" && cuenta.status === "POR_COBRAR";
@@ -845,6 +852,46 @@ function CobroCuenta({
     });
     setPagos([]);
   }
+
+  /**
+   * Cobrar como consumo del personal (B3-17): su único pago, por la parte entera sin IGTF, y lo firma quien consumió. El
+   * servidor lo recalcula todo; devuelve el error para el diálogo, o `null` si quedó cobrado.
+   */
+  async function cobrarConsumo(firma: { staffUserId: string; pin: string }): Promise<string | null> {
+    const r = await cobrarEnServidor({
+      idempotencyKey: globalThis.crypto.randomUUID(),
+      accountId: cuenta.id,
+      version: cuenta.version ?? 0,
+      lineIds: lines.map((l) => l.id),
+      total: { minor: String(porParte.amount), currency: FUNCIONAL },
+      pagos: [{ method: MEDIO_CONSUMO_DEL_PERSONAL, amount: { minor: String(porParte.amount), currency: FUNCIONAL } }],
+      destinoSobra: "VUELTO" as const,
+      personal: firma,
+    });
+    if (!r.ok) return r.mensaje;
+    setConsumiendo(false);
+    onCobrado({
+      total: toMajor(porParte),
+      vuelto: "0.00",
+      cliente: { kind: "CONSUMIDOR_FINAL" },
+      venta: r.valor.venta,
+      cuenta: r.valor.cuenta,
+      ...(r.valor.valeNoImpreso ? { valeNoImpreso: r.valor.valeNoImpreso } : {}),
+    });
+    setPagos([]);
+    return null;
+  }
+  const consumoEncendido = mediosConfig?.medios.some((m) => m.code === MEDIO_CONSUMO_DEL_PERSONAL && m.activo) ?? false;
+  const bloqueoConsumo =
+    pagos.length > 0
+      ? "Quita los pagos: el consumo del personal es el único pago de su cobro."
+      : descuento
+        ? "Va a precio normal: quita el descuento."
+        : partes > 1
+          ? "Una cuenta en partes no se cobra como consumo del personal."
+          : porParte.amount <= 0n
+            ? "No hay nada que cobrar."
+            : null;
 
   const puedeCobrar =
     balance !== null && falta.amount === 0n && pagos.length > 0 && !faltaCliente;
@@ -1474,6 +1521,20 @@ function CobroCuenta({
                 onClick={() => setEnElPie((x) => (x === "dividir" ? null : "dividir"))}
               >
                 {partes > 1 ? `Entre ${partes}` : "Sin dividir"}
+              </BotonDelPie>
+            )}
+            {/* El consumo del personal (B3-17): no es un medio del cobro mixto; lo firma con su PIN quien consumió. */}
+            {consumoEncendido && !modoPapel && (
+              <BotonDelPie
+                icono={UserRoundCheck}
+                etiqueta="Personal"
+                activo={false}
+                aria-haspopup="dialog"
+                disabled={bloqueoConsumo !== null}
+                title={bloqueoConsumo ?? "Cobrarla como consumo del personal: firma con su PIN quien consumió"}
+                onClick={() => setConsumiendo(true)}
+              >
+                Consumo
               </BotonDelPie>
             )}
           </div>
@@ -2128,6 +2189,7 @@ function CobroCuenta({
         onConfirmar={confirmarEdicion}
         onCancelar={() => setEditando(null)}
       />
+      <ConsumoDelPersonalDialog abierto={consumiendo} total={porParte} onCerrar={() => setConsumiendo(false)} onFirmar={cobrarConsumo} />
       {onDescuento && (
         <DescuentoDialog
           abierto={viendoDescuento}
@@ -2570,9 +2632,11 @@ export function CajaScreen({
         : `Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`,
       {
         detalle: [
-          r.cliente.kind === "CONSUMIDOR_FINAL"
-            ? "Factura a consumidor final"
-            : `Factura a ${r.cliente.name}`,
+          r.venta.personal
+            ? `Consumo del personal de ${r.venta.personal.nombre}${r.valeNoImpreso ? "" : ": vale a la impresora"}`
+            : r.cliente.kind === "CONSUMIDOR_FINAL"
+              ? "Factura a consumidor final"
+              : `Factura a ${r.cliente.name}`,
           r.vuelto !== "0.00"
             ? `vuelto entregado: ${formatMoneyVE(r.vuelto, "USD")}`
             : null,
@@ -2592,6 +2656,13 @@ export function CajaScreen({
           : { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
       },
     );
+    // El vale del consumo del personal no salió (B3-17): el cobro está hecho; el vale se reimprime en Caja → Personal.
+    if (r.valeNoImpreso) {
+      avisar.aviso("El vale no se imprimió", {
+        detalle: `${r.valeNoImpreso} El consumo sí quedó cobrado: reimprime el vale en Caja → Personal.`,
+        accion: { texto: "Ir a Personal", alPulsar: () => router.push("/personal" as Route) },
+      });
+    }
     // Se pidió el recibo y no salió (B3-8): el cobro está hecho; el recibo se imprime desde aquí o desde Ventas.
     if (r.reciboNoImpreso) {
       avisar.aviso("El recibo no se imprimió", {

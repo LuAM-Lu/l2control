@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.118.0 · 118 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.119.0 · 119 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1730,13 +1730,31 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   temas. **Decidido al construir:** se marcan solo las que están en la cola; el recibo impreso lista las líneas como
   siempre (el origen va en el ticket de la pantalla); hasta doce cuentas juntas.*
 
-- [ ] **B3-17 · El consumo del personal** (M-37, U-3).
+- [x] **B3-17 · El consumo del personal** (M-37, U-3).
+  *Hecho el 2026-10-10 (v0.119.0), en `feat/b3-17`.*
   → Medio «Consumo del personal»: la cajera elige a la persona del equipo (las del local, no la cuenta de soporte) y esta
   pone su propio PIN. Precio normal, en $; sale del inventario y no entra dinero: no cuenta en la gaveta ni en el arqueo,
   y el cierre del turno lo lista aparte. Se imprime el **vale** (su nombre, lo consumido, el total en $ y una línea para
   su firma), que se queda en la caja. Caja → Personal y Reportes → Personal (con su PDF): cada empleado con sus vales por
   quincena y «Reimprimir vale»; lo ven supervisión y administración, y cada empleado el suyo con su PIN. Sin tope ni
   «descontado»: el descuento del sueldo se hace fuera del sistema.
+  *· Hecho: el medio `CONSUMO_PERSONAL` (en $, sin vuelto ni IGTF ni datos) nace encendido en todo local
+  (`DEFAULT_LEDGER_METHODS` y la migración `20261202000000_consumo_del_personal` para los que ya existen); la caja no lo
+  ofrece entre los medios (`offeredMethods` lo deja fuera). El cobro con `personal: { staffUserId, pin }` es su único pago,
+  por el total y sin vuelto, sin descuento, sin partes y no desde papel; firma quien consumió con su PIN
+  (`firmaDeLaPersona`: activa, de esta sucursal, sin la cuenta de soporte, con el bloqueo del PIN) antes del primer
+  asiento. Deja su vale en `staff_consumption` (solo agregar) y lo imprime en la impresora de recibos (nombre, lo
+  consumido, IVA, total y la línea de la firma); sin impresora se cobra igual y se dice. En la caja, el botón «Personal»
+  del pie de la cuenta abre el diálogo (quién y su PIN). Caja → Personal (`/personal`) y Reportes → Personal con su PDF:
+  por persona y cada vale, por quincena (`QUINCENA`, `QUINCENA_ANTERIOR`), con «Reimprimir vale» (sale COPIA); los de
+  todos con `reportes.verSucursal`, los suyos con su PIN («Ver mis vales»). Un vale anulado no cuenta y lo devuelto se
+  resta; anular o devolver un consumo vuelve a su vale, sin referencia ni efectivo. El corte lo lista fuera de la gaveta
+  («de ello, consumo del personal (no entra dinero)» en el turno; su renglón aparte en el ticket). Probado en la base (7
+  pruebas nuevas, y la semilla y los medios con el medio nuevo) y en el navegador en los dos temas. **Corregido de B3-20:**
+  la línea partida salía en la venta y en el recibo con su precio entero; ahora salen sus partes. La barra de la estación
+  se desplaza si las pestañas no caben (un aviso de impresión largo) y deja la abierta a la vista. **Decidido al
+  construir:** ver los de todos va con el permiso de los reportes, sin una acción nueva; el vale es un trabajo de la
+  impresora de recibos, como la devolución.*
 
 - [x] **B3-18 · Anular y devolver, de administración** (M-37, U-10, U-11).
   *Hecho el 2026-10-10 (v0.118.0), en `feat/b3-18`.*

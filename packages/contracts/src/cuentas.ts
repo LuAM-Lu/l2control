@@ -18,6 +18,7 @@ import { z } from "zod";
 import { FamilyAccountSchema, MotivoAnulacionPedidoSchema, MotivoCortesiaSchema } from "./account.ts";
 import { ClienteFacturaSchema } from "./documento.ts";
 import { LibroDocumentoSchema } from "./libro.ts";
+import { FirmaDeLaPersonaSchema, MEDIO_CONSUMO_DEL_PERSONAL } from "./consumo.ts";
 import { CodigoMedioSchema } from "./medios.ts";
 import { DatosDePagoSchema } from "./pagos.ts";
 import { IdSchema, IdempotencyKeySchema, MoneySchema } from "./primitives.ts";
@@ -95,6 +96,19 @@ export const CobrarCuentaCommandSchema = z
     imprimirRecibo: z.boolean().optional(),
     /** Cómo se da el vuelto (B3-19), por partes que suman lo que sobra. Sin decirlo, todo en efectivo $, como antes. */
     vuelto: z.array(ParteDelVueltoSchema).min(1).max(3).optional(),
+    /**
+     * El consumo del personal (B3-17): quién consumió, con su PIN. Su único pago es «Consumo del personal», por el total;
+     * sin vuelto. Queda su vale y se imprime para su firma.
+     */
+    personal: FirmaDeLaPersonaSchema.optional(),
+  })
+  .refine((c) => (c.personal !== undefined) === c.pagos.some((p) => p.method === MEDIO_CONSUMO_DEL_PERSONAL), {
+    message: "El consumo del personal lo firma con su PIN quien consumió",
+    path: ["personal"],
+  })
+  .refine((c) => c.personal === undefined || (c.pagos.length === 1 && c.vuelto === undefined), {
+    message: "El consumo del personal es el único pago de su cobro",
+    path: ["pagos"],
   })
   .refine((c) => !c.pagos.some((p) => p.amount.currency === "VES") || c.rateId !== undefined, {
     message: "Un cobro en bolívares cita su tasa",
@@ -120,6 +134,8 @@ export const CuentaYLibroSchema = z.object({
    * detiene un cobro); se imprime después desde Ventas.
    */
   reciboNoImpreso: z.string().optional(),
+  /** El vale del consumo del personal no salió (B3-17): por qué. El cobro quedó cerrado; se reimprime desde Caja → Personal. */
+  valeNoImpreso: z.string().optional(),
 });
 export type CuentaYLibroDto = z.infer<typeof CuentaYLibroSchema>;
 

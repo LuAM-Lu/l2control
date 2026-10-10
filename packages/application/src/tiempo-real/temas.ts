@@ -161,6 +161,9 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "producto.activar": ["catalogo"],
   "producto.retirar": ["catalogo"],
   "venta.devolver": ["ventas", "cuentas", "catalogo"],
+  // El vale del consumo del personal (B3-17): lo leen Caja → Personal y sus reportes, que escuchan las ventas.
+  "personal.consumir": ["ventas"],
+  "personal.reimprimir_vale": NADA,
   "pago.devolver": ["ventas"],
   "inventario.anular_entrada": ["catalogo"],
   "producto.devolver": ["catalogo"],

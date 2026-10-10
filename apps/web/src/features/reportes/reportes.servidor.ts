@@ -2,7 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { calendarDay } from "@l2/domain-rates";
 import { periodoPredefinido } from "@l2/domain-cash";
-import type { InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, Resultado } from "@l2/contracts";
+import type { InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, Resultado, ValesDelPersonalDto } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 import { ajustesDelLocal } from "../sucursal/ajustes.servidor";
@@ -72,6 +72,28 @@ export async function informeDeInventario(): Promise<Resultado<InformeDeInventar
   const ctx = await contextoActual();
   if (!ctx) return { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." };
   return (await aplicacion()).reportes.inventario(ctx);
+}
+
+/** Lo que se pidió de los vales del personal (de la dirección, o la quincena en curso) y lo que el servidor contestó. */
+export type ValesPedidos = Readonly<{
+  hoy: string;
+  pedido: Readonly<{ desde: string; hasta: string }>;
+  informe: Resultado<ValesDelPersonalDto>;
+}>;
+
+/**
+ * Caja → Personal y Reportes → Personal (B3-17, M-37): los vales del periodo de la dirección; sin periodo, los de la
+ * quincena en curso. Los de todos son de supervisión y administración: a los demás el caso de uso les dice que no, y la
+ * caja les ofrece ver los suyos con su PIN.
+ */
+export async function valesDelPeriodo(q: ConsultaEnLaDireccion): Promise<ValesPedidos> {
+  await connection();
+  const hoy = await hoyEnElLocal();
+  const porDefecto = periodoPredefinido("QUINCENA", hoy);
+  const pedido = { desde: uno(q.desde) ?? porDefecto.desde, hasta: uno(q.hasta) ?? porDefecto.hasta };
+  const ctx = await contextoActual();
+  if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los vales." } };
+  return { hoy, pedido, informe: await (await aplicacion()).personal.vales(ctx, pedido) };
 }
 
 /** Lo que se pidió del informe de deudas (de la dirección, o el día de hoy) y lo que el servidor contestó. */

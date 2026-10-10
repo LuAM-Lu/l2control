@@ -40,6 +40,7 @@ import { casosPapel, type CasosPapel } from "./caja/papel.ts";
 import { casosDescuentos, type CasosDescuentos } from "./caja/descuentos.ts";
 import { casosImpresion, type CasosImpresion } from "./impresion/impresion.ts";
 import { casosVentas, type CasosVentas } from "./caja/ventas.ts";
+import { casosPersonal, type CasosPersonal } from "./caja/personal.ts";
 import { casosCortes, type CasosCortes } from "./caja/cortes.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
@@ -166,6 +167,8 @@ export interface Aplicacion {
   /** Las impresoras, sus agentes y la cola de impresión (B5-2, ADR-026). */
   readonly impresion: CasosImpresion;
   readonly ventas: CasosVentas;
+  /** El consumo del personal (B3-17): quiénes consumen, sus vales por quincena y reimprimirlos. */
+  readonly personal: CasosPersonal;
   readonly cortes: CasosCortes;
   readonly feriados: CasosFeriados;
   readonly productos: CasosProductos;
@@ -272,6 +275,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     descuentos,
     impresion,
     ventas: casosVentas(base, cifrador),
+    personal: casosPersonal(base, cifrador),
     cortes: casosCortes(base),
     feriados: casosFeriados(base),
     productos: casosProductos(base),

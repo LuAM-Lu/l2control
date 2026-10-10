@@ -10,7 +10,7 @@
  *  · un medio que pide datos del local (el teléfono del Pago Móvil, el correo de Zelle, un
  *    terminal para el punto) no se ofrece mientras falten: el cliente pagaría a ninguna parte.
  *
- * Los siete de §5.5 son el catálogo con el que nace un local.
+ * Los siete de §5.5 son el catálogo con el que nace un local, más el consumo del personal (B3-17).
  */
 import type { CurrencyCode } from "@l2/domain-money";
 
@@ -31,7 +31,14 @@ export type LedgerMethodSpec = Readonly<{
   active: boolean;
 }>;
 
-/** Los siete medios de §5.5, con los que nace un local. Los que piden datos del local, apagados. */
+/**
+ * El consumo del personal (B3-17, M-37): no es dinero. La persona del equipo que consumió firma con su PIN, sale del
+ * inventario a precio normal y queda su vale; no vive en la gaveta, el arqueo no lo cuenta y el cierre lo lista aparte.
+ * La caja no lo ofrece entre los medios del cobro mixto: es el único pago de su cobro.
+ */
+export const CONSUMO_DEL_PERSONAL = "CONSUMO_PERSONAL";
+
+/** Los siete medios de §5.5 y el consumo del personal, con los que nace un local. Los que piden datos del local, apagados. */
 export const DEFAULT_LEDGER_METHODS: readonly LedgerMethodSpec[] = Object.freeze([
   { code: "EFECTIVO_USD", label: "Efectivo $", currency: "USD", givesChange: true, triggersIgtf: true, dataKind: null, active: true },
   { code: "EFECTIVO_VES", label: "Efectivo Bs", currency: "VES", givesChange: true, triggersIgtf: false, dataKind: null, active: true },
@@ -40,6 +47,7 @@ export const DEFAULT_LEDGER_METHODS: readonly LedgerMethodSpec[] = Object.freeze
   { code: "PDV_CREDITO", label: "Punto crédito", currency: "VES", givesChange: false, triggersIgtf: false, dataKind: "PUNTO", active: false },
   { code: "ZELLE", label: "Zelle", currency: "USD", givesChange: false, triggersIgtf: true, dataKind: "ZELLE", active: false },
   { code: "USDT", label: "USDT", currency: "USDT", givesChange: false, triggersIgtf: true, dataKind: "USDT", active: true },
+  { code: CONSUMO_DEL_PERSONAL, label: "Consumo del personal", currency: "USD", givesChange: false, triggersIgtf: false, dataKind: null, active: true },
 ] satisfies LedgerMethodSpec[]);
 
 /** Las monedas del cajón: de aquí sale el vuelto. */
@@ -80,9 +88,10 @@ export function offerProblem(m: Pick<LedgerMethodSpec, "active" | "dataKind">, l
 }
 
 /** Los medios que la caja ofrece, en el orden del catálogo. */
-export function offeredMethods<M extends Pick<LedgerMethodSpec, "active" | "dataKind">>(
+export function offeredMethods<M extends Pick<LedgerMethodSpec, "active" | "dataKind"> & Partial<Pick<LedgerMethodSpec, "code">>>(
   methods: readonly M[],
   local: CollectionReadiness,
 ): M[] {
-  return methods.filter((m) => offerProblem(m, local) === null);
+  // El consumo del personal no cobra dinero: tiene su propio camino en la caja (B3-17).
+  return methods.filter((m) => m.code !== CONSUMO_DEL_PERSONAL && offerProblem(m, local) === null);
 }
