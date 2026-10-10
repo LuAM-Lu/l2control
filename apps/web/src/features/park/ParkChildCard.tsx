@@ -62,9 +62,15 @@ export function ParkChildCard({
   // y la tarjeta lo dice con su icono y lo que le queda. No es un color de estado: es una espera.
   const pausado = enPausa(model.pausa, now);
   const target = model.targetMs + msEnPausa(model.pausa, now);
+  const enGracia = !pausado && model.status === "EN_GRACIA";
   const status = pausado
     ? { tone: "brand" as const, label: `En pausa · ${formatDuration(model.pausa!.fin - now)}`, icon: UtensilsCrossed, urgent: false }
-    : STATUS[model.status];
+    : enGracia
+      ? // M-37: la gracia dice lo que le queda, y la tarjeta es ámbar sólido (por vencer queda en tinte).
+        { ...STATUS.EN_GRACIA, label: `En gracia · ${formatDuration(Math.max(0, target + model.graceMs - now))}` }
+      : STATUS[model.status];
+  // Por vencer, un tinte; en gracia, el bloque ámbar sólido: tres escalones que se distinguen de un vistazo.
+  const fondo = enGracia ? "border-state-warn bg-state-warn-bg" : !pausado && model.status === "POR_VENCER" ? "bg-state-warn-bg/25" : undefined;
   const Icon = status.icon;
 
   const colorCifra =
@@ -86,6 +92,7 @@ export function ParkChildCard({
           "transition-[transform,border-color] duration-[var(--dur-normal)] ease-[var(--ease-salida)] hover:-translate-y-0.5",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           BALDOSA[status.tone],
+          fondo,
           selected && "ring-2 ring-brand ring-offset-2 ring-offset-base",
         )}
       >
@@ -149,6 +156,7 @@ export function ParkChildCard({
       // tercer estado.
       selected={selected ?? false}
       onClick={() => onSelect(model.id)}
+      {...(fondo ? { className: fondo } : {})}
       footer={
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="flex items-baseline gap-1.5 text-[11px] whitespace-nowrap text-ink-3">

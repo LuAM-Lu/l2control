@@ -162,7 +162,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "La sala, la entrada y la salida en una pantalla, con un solo lector: ver a cada niño con el tiempo que le queda y atenderlo.",
     pasos: [
       "Un solo lector: pasa cualquier pulsera. Una nueva abre la entrada con ella; la de un niño en la sala abre su ficha. Si el lector no responde, la cámara o «Escribir».",
-      "Cada tarjeta dice el tiempo: verde en tiempo, amarillo por vencer o en gracia, rojo con el tiempo cumplido (con lo que va de más).",
+      "Cada tarjeta dice el tiempo: verde en tiempo, un tinte amarillo por vencer, amarillo sólido en gracia (con lo que le queda de gracia: todavía no se cobra de más) y rojo con el tiempo cumplido (con lo que va de más).",
       "Avisos: cuando un niño entra en «por vencer» y cuando se cumple su tiempo, suena (y en Android vibra) un aviso arriba, aquí y en la caja; tócalo y abre su ficha. La campana tachada lo calla 15 minutos en este equipo; el altavoz de la barra quita o pone el sonido del equipo.",
       "Con el equipo bloqueado, la pantalla del PIN sigue avisando, solo con la pulsera y los minutos (sin nombres): tócalo, pon tu PIN y abre la ficha de ese niño.",
       "Los avisos funcionan con la aplicación abierta: no son notificaciones del teléfono. Si el equipo se apaga o se cierra el navegador, no avisa.",
@@ -205,7 +205,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "En «Parque», pasa la pulsera de quien se va y, en su ficha, «Dar salida»; si se va la familia entera, «Toda la familia» (quita a quien se queda). Dentro de la salida, cada pulsera que pases se suma; un niño que entró sin pulsera se elige en «Sin pulsera».",
       "Revisa el desglose: en cuenta abierta, si salió antes, se cobra el paquete más barato que cubre lo que estuvo.",
-      "Marca quién lo recoge: su representante u otra persona, con su nombre.",
+      "«Lo recoge» viene marcado «su representante»; si es otra persona, tócala y escribe su nombre.",
       "Elige dónde se paga: en caja o cargado a una mesa (la cuenta de su familia en esa mesa), y registra. Una pulsera vinculada a una mesa sale a su mesa sin elegir: lo que debe y su tiempo de más van a esa cuenta.",
     ],
     problemas: [

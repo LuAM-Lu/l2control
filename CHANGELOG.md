@@ -16,6 +16,18 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.111.1] — 2026-10-09 · Hacia la puesta en marcha
+
+Cuatro correcciones de lo visto en la operación en paralelo (M-37).
+
+### Corregido
+- **La pulsera de un niño vinculado a una mesa, pasada en la caja, trae la cuenta de su mesa**, que es donde está su
+  tiempo; si la mesa sigue abierta, lo dice. Antes abría la cuenta de su familia.
+- **La salida viene con «Lo recoge: su representante» marcado**: otra persona, con un toque y su nombre.
+- **«En gracia» se distingue de «Por vencer»**: la tarjeta es amarilla sólida y dice lo que le queda de gracia.
+- **Reportes → Ventas, por origen:** el paquete y el tiempo de más son del parque aunque se cobren en una mesa; una
+  venta con parque y restaurante reparte su total entre los dos, al céntimo.
+
 ## [0.111.0] — 2026-10-09 · Hacia la puesta en marcha
 
 Los PDF compactos (B11-5, M-35).

@@ -269,16 +269,17 @@ export function CheckoutScreen({
   // La cuenta del día de un cumpleaños (B10-2) no se cobra cuando sale un invitado: su saldo lo paga quien
   // reservó, en la caja, cuando quiera. Sus invitados salen sin cargo.
   const porCobrar = plan.resultados.filter((c) => c.status === "POR_COBRAR" && c.kind !== "EVENTO");
-  // D9: cada familia de la salida dice a quién se entrega; «otra persona», con su nombre.
+  // D9: cada familia de la salida dice a quién se entrega. Viene marcado «su representante» (M-37, U-1); «otra
+  // persona», con su nombre.
   const faltaRecogida = plan.grupos.some((g) => {
     const r = recogidas[g.cuenta.id];
-    return !r || (r.kind === "OTRA_PERSONA" && r.nombre.trim().length < 2);
+    return r?.kind === "OTRA_PERSONA" && r.nombre.trim().length < 2;
   });
   const aCobrar = sum(porCobrar.map(pendiente), "USD");
 
   async function confirmarSalida() {
     if (faltaRecogida) {
-      setAviso("Marca a quién se entrega cada familia antes de registrar la salida.");
+      setAviso("Escribe el nombre de quien recoge al niño, o márcalo como su representante.");
       return;
     }
     if (deMesa.mezcla) {
@@ -656,7 +657,7 @@ export function CheckoutScreen({
                       </p>
                       <Recogida
                         representante={c.family}
-                        valor={recogidas[c.id] ?? null}
+                        valor={recogidas[c.id] ?? { kind: "REPRESENTANTE" }}
                         onCambio={(v) => {
                           setRecogidas((prev) => ({ ...prev, [c.id]: v }));
                           setAviso(null);

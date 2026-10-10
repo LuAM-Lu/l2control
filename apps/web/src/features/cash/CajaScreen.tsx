@@ -2355,8 +2355,12 @@ export function CajaScreen({
       return;
     }
     const estancia = sala?.sessions.find((s) => s.wristbandCode === codigo) ?? null;
+    // Un niño vinculado a una mesa (B6-3, B4-14): su tiempo está en la cuenta de la mesa, no en la de su familia (M-37).
+    const suMesa = estancia
+      ? cuentas.find((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.sessionIds.includes(estancia.id))
+      : undefined;
     const cuenta = estancia
-      ? cuentas.find((c) => c.id === estancia.accountId)
+      ? (suMesa ?? cuentas.find((c) => c.id === estancia.accountId))
       : undefined;
     // Una pulsera que no está en la sala (ya leída) es un niño que llega (B3-9): se registra aquí mismo.
     if (sala && !estancia && puedeRegistrarEntrada) {
@@ -2376,7 +2380,9 @@ export function CajaScreen({
           detalle:
             cuenta.status === "COBRADA"
               ? `Orden ${numeroDeOrden(cuenta)}`
-              : "Pasa a caja cuando salgan los niños.",
+              : suMesa
+                ? "Ese niño está vinculado a esta mesa: se cobra con ella cuando pida la cuenta."
+                : "Pasa a caja cuando salgan los niños.",
         },
       );
       return;

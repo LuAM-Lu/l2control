@@ -5,7 +5,8 @@
  * periodo (por su día de negocio, el del local) y, de cada uno, lo mismo que calcula su corte: el libro (`libroDelTurno`,
  * `porMedioDe`) y las ventas (`ventasYExcepciones`). Por eso un turno con su Z da lo mismo que su Z, y si no, el
  * cuadre lo dice. Lo cobrado se lleva a dólares asiento por asiento, con la tasa con que se cobró (ADR-005); el
- * origen de cada venta es la cuenta en que se cobró (`@l2/domain-cash`).
+ * origen de cada venta es la cuenta en que se cobró, salvo el tiempo del parque, que es del parque aunque se cobre en
+ * una mesa (`repartoPorOrigen`, M-37).
  */
 import {
   ConsultaDeVentasSchema,
@@ -16,7 +17,7 @@ import {
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
-import { ORIGENES_DE_VENTA, cuadreConZ, enDolaresConSuTasa, origenDeCuenta, type OrigenDeVenta } from "@l2/domain-cash";
+import { ORIGENES_DE_VENTA, cuadreConZ, enDolaresConSuTasa, repartoPorOrigen, type OrigenDeVenta } from "@l2/domain-cash";
 import { add, money, zero, type CurrencyCode, type Money } from "@l2/domain-money";
 import { addDays, frozenRateOf, startOfDay } from "@l2/domain-rates";
 import { resumenDeDeudas } from "./deudas.ts";
@@ -64,6 +65,17 @@ export function casosReportes(base: Base): CasosReportes {
         const porMedio = new Map<string, Medio>();
         const porOrigen = new Map<OrigenDeVenta, { ventas: number; vendido: Money }>(ORIGENES_DE_VENTA.map((o) => [o, { ventas: 0, vendido: zero(FUNCIONAL) }]));
         const porCajera = new Map<string, { ventas: number; vendido: Money; anuladas: number }>();
+        // El tipo de cada línea (M-37): la venta guarda su concepto e importe, y su cuenta, el tipo. Una vez por cuenta.
+        const tiposDe = new Map<string, Map<string, string>>();
+        const tiposDeLaCuenta = async (accountId: string) => {
+          const ya = tiposDe.get(accountId);
+          if (ya) return ya;
+          const v = await tx.accountVersion.findFirst({ where: { accountId }, orderBy: { version: "desc" }, select: { content: true } });
+          const lineas = (v?.content as { lines?: { id: string; kind?: string }[] } | undefined)?.lines ?? [];
+          const m = new Map(lineas.flatMap((l) => (l.kind ? [[l.id, l.kind] as const] : [])));
+          tiposDe.set(accountId, m);
+          return m;
+        };
         const anuladas: InformeDeVentasDto["anuladas"] = [];
         const porTurno: InformeDeVentasDto["porTurno"] = [];
         let ventas = 0;
@@ -113,7 +125,10 @@ export function casosReportes(base: Base): CasosReportes {
           // Las ventas del turno: su origen, su cajera y las anuladas aparte.
           const filas = await tx.sale.findMany({ where: { shiftId: t.id }, include: { voids: true }, orderBy: { closedAt: "asc" } });
           for (const s of filas) {
-            const c = s.content as { cuenta?: { kind?: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"; dePie?: true } };
+            const c = s.content as {
+              cuenta?: { kind?: "FAMILIA" | "MESA" | "MOSTRADOR" | "EVENTO"; dePie?: true };
+              lineas?: { lineId: string; amount: { minor: string } }[];
+            };
             const total = money(s.totalMinor, FUNCIONAL);
             const cajera = porCajera.get(s.cashierName) ?? { ventas: 0, vendido: zero(FUNCIONAL), anuladas: 0 };
             const anulada = s.voids[0];
@@ -135,9 +150,18 @@ export function casosReportes(base: Base): CasosReportes {
               vendido = add(vendido, total);
               cajera.ventas += 1;
               cajera.vendido = add(cajera.vendido, total);
-              const o = porOrigen.get(origenDeCuenta(c.cuenta?.kind ?? "MOSTRADOR", c.cuenta?.dePie === true))!;
-              o.ventas += 1;
-              o.vendido = add(o.vendido, total);
+              // Una venta con parque y restaurante cuenta en los dos, cada uno con su parte del total.
+              const tipos = await tiposDeLaCuenta(s.accountId);
+              const reparto = repartoPorOrigen(
+                { kind: c.cuenta?.kind ?? "MOSTRADOR", dePie: c.cuenta?.dePie === true },
+                (c.lineas ?? []).map((l) => ({ kind: tipos.get(l.lineId), amount: money(BigInt(l.amount.minor), FUNCIONAL) })),
+                total,
+              );
+              for (const [origen, parte] of reparto) {
+                const o = porOrigen.get(origen)!;
+                o.ventas += 1;
+                o.vendido = add(o.vendido, parte);
+              }
             }
             porCajera.set(s.cashierName, cajera);
           }
