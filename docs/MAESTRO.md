@@ -40,8 +40,9 @@ cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos co
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
 respaldo y PDF; tres correcciones y siete pasos, v0.104.2 a v0.111.0). M-36: el VPS ya es la operación real (perfiles,
 equipos e inventario de verdad); la operación en paralelo con el método escrito (B8-3) empezó el 2026-10-09 y la 1.0.0
-se hace sobre esa base. M-37 decidido (2026-10-09, lo visto en la operación en paralelo): cuatro correcciones y diez
-pasos, antes de la 1.0.0; se publican todos juntos al final, ya probados.** M-28 y M-29
+se hace sobre esa base. M-37 entregado entero (2026-10-10, lo visto en la operación en paralelo): cuatro correcciones y
+once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.1 a v0.122.0, publicados juntos al final
+con la etiqueta de la última.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -97,9 +98,11 @@ la 1.0.0.
   4. **B8-4 = 1.0.0:** Claude lista, solo leyendo, lo que quedó de prueba en la base del VPS y el usuario decide; el VPS
      pasa a modo producción (D-ENT, con su sí y la hora) y se etiqueta la 1.0.0. La reversión es el procedimiento en
      papel.
-  5. **M-37, Claude, en curso:** las cuatro correcciones de v0.111.1 y los diez pasos de §3, punto 15, sin parar
-     entre ellos. Cada uno entra en `main` probado y con su versión; **se publica una sola vez al final** (la etiqueta de
-     la última), a la hora que diga el usuario.
+  5. **M-37, Claude, hecho (2026-10-10):** las cuatro correcciones de v0.111.1 y los once pasos de §3, punto 15 (con
+     B6-16), de v0.112.0 a v0.122.0, publicados juntos con la etiqueta v0.122.0 (el usuario dio el permiso). Para probar
+     en el local: que las notas del mesero salgan en la comanda impresa (en el VPS se guardan e imprimen), las áreas de
+     cada producto (cocina, barra o sin papel: la venta directa saca comanda según ellas), el consumo del personal con
+     el vale firmado y el aviso de los puestos (Ajustes → Sucursal, 15 min de fábrica).
   Opcional del usuario: `L2_SMTP_URL` y `L2_CORREO_SOPORTE` en el VPS (el aviso por correo de los reportes).
 
 La historia de esta sección (qué decía al entregar cada paso y lo que se probó en la base local) está en §9.
@@ -3983,6 +3986,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-09** · M-34 terminado (v0.94.0 a v0.104.0). El VPS se quedó sin disco y se cortó la 0.95.0: la 0.104.1
   limpia las imágenes viejas y rehace `etiqueta.env`. M-35 decidido y entregado entero (v0.104.2 a v0.111.0). M-36: el
   VPS ya es la operación real; empieza la operación en paralelo (B8-3) y no se publica sin avisar.
+- **2026-10-10** · M-37 entregado entero, sin parar entre pasos y publicado una vez al final (v0.122.0): el precio del
+  tiempo, desvincular, cobrar juntas, dividir por ítems, el vuelto, anular y devolver de administración (cambia D-AUT),
+  la comanda de la venta directa (B6-16, añadido por el usuario), el consumo del personal, los puestos por uso,
+  Reportes → Parque y Movimientos con todo lo del periodo. Quedan B8-1, B7-3, B8-3 (con la capacitación de B8-2) y B8-4.
 
 ---
 
