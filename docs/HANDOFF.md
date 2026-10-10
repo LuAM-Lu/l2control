@@ -11,14 +11,15 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ```text
 El usuario terminó la operación en paralelo (B8-3), B7-3, «Respaldar ahora» y la PC de respaldos. De lo que vio salió
-  M-37 (MAESTRO §2 «M-37 en detalle», §3 punto 15): 4 correcciones (v0.111.1) y 8 pasos, en este orden:
-  B4-17 (regla de precio del parque) → B6-15 (desvincular) → B3-16 (cobrar juntas) → B3-19 (el vuelto) → B3-18 (anular
-  y devolver, de admin) → B3-17 (consumo del personal) → B11-6 (Reportes → Parque) → B11-7 (Movimientos).
+  M-37 (MAESTRO §2 «M-37 en detalle», §3 punto 15): 4 correcciones (v0.111.1) y 10 pasos, en este orden:
+  B4-17 (regla de precio del parque) → B6-15 (desvincular) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19
+  (el vuelto) → B3-18 (anular y devolver, de admin) → B3-17 (consumo del personal) → T-20 (los puestos, por uso) →
+  B11-6 (Reportes → Parque) → B11-7 (Movimientos).
 Sin parar entre pasos. Cada uno entra en main probado y con su versión, SIN etiqueta: se publica una sola vez al final
   (la etiqueta de la última), a la hora que diga el usuario. El VPS es la operación real en modo staging (M-36).
 Cambian D-AUT (anular y devolver, PIN de administración), M-18 (devolver lo no usado) y B3-14 (el parque se devuelve).
 Para la 1.0.0, después: listar lo de prueba en la base del VPS (solo leer), modo producción (D-ENT) y B8-1 (4G y UPS).
-Cuidado: B6-15 y B3-16 comparten «mover líneas entre cuentas» (movedTo); B3-19 y B3-17 tocan el cobro y el arqueo.
+Cuidado: B6-15, B3-16 y B3-20 comparten «mover líneas entre cuentas» (movedTo); B3-19 y B3-17, el cobro y el arqueo.
 ```
 
 ## aemorandin-coder
