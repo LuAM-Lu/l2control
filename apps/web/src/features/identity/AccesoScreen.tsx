@@ -835,7 +835,7 @@ function AltaDeEquipo({
           <Input
             label="Nombre del equipo"
             surface="tablet"
-            placeholder="Tablet taquilla"
+            placeholder="Teléfono del parque"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             error={error ?? undefined}

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.119.0 · 119 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.120.0 · 120 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -863,13 +863,26 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   la reserva de un cumpleaños sigue por el teléfono (la cédula se pide a quien entra), y la revisión del papel no marca
   la entrada sin cédula. 6 pruebas de la máscara, 4 de la entrada, 1 del mostrador y 2 del buscador; 750 contra la base.*
 
-- [ ] **T-20 · Los puestos, por uso** (M-37, U-14).
+- [x] **T-20 · Los puestos, por uso** (M-37, U-14).
+  *Hecho el 2026-10-10 (v0.120.0), en `feat/t-20`.*
   → Los puestos del panel se llaman **Caja, Parque y Mesas** (antes Caja, Taquilla y Salón). Un puesto está ocupado si
   alguien trabajó en él en los últimos minutos (en el equipo del puesto o con el rol del puesto), sea del rol que sea,
   también supervisión o administración; si no, «sin actividad desde 2:10 pm», en gris y sin alarma. Con la caja abierta,
   **un solo aviso** cuando un puesto lleva más de 15 min sin nadie, sin repetir hasta que alguien vuelva. En Ajustes →
   Sucursal, qué puestos se vigilan y los minutos. De cada puesto, **la hora de llegada** de la primera persona del día,
   en Inicio.
+  *· Hecho: en `@l2/domain-identity`, `puestoDeLaActividad` dice de qué puesto es lo que alguien hizo (cobrar, el turno,
+  las deudas o los vales son de la caja; una entrada o un representante, del parque; un pedido o una mesa, de las mesas)
+  y, si la acción no lo dice, el punto de cobro es la caja y, si no, el puesto de su rol; `estadoDelPuesto` decide
+  ocupado (actividad hace menos de los minutos) y el aviso (caja abierta, vigilado, más de los minutos sin nadie desde su
+  última actividad o desde que se abrió la caja). `puestos.delDia` saca de la auditoría del día la llegada y la última
+  actividad de cada puesto (sin la cuenta de soporte) y desde cuándo está abierta la caja. Inicio los llama **Caja,
+  Parque y Mesas**: quién trabaja ahí, o «sin actividad desde 2:10 pm» en gris, y debajo «llegó 8:02 am · quién»; se
+  releen cuando algo cambia en el local y el reloj decide el resto. El aviso sale una vez por ausencia (la clave es el
+  puesto y su última actividad), también al volver a Inicio. En Ajustes → Sucursal, «Puestos que se vigilan» y «Sin
+  nadie (min)» (los tres y 15, de fábrica). Probado (6 pruebas del dominio y 3 contra la base) y en el navegador en los
+  dos temas. **Decidido al construir:** el aviso es uno, en Inicio (no en la franja de avisos, que se queda con lo que
+  pide acción ya); la cocina no es un puesto (ADR-022).*
 
 ### Etapa 0 · Cimientos del servidor (local)
 

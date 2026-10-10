@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, CircleCheck, ClipboardList, Clock, FileText, HandCoins, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
-import type { PuestaAPuntoDto, ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
+import type { PuestaAPuntoDto, PuestosDelDiaDto, ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
@@ -62,7 +62,7 @@ export function InicioScreen({
   fecha,
   diaSemana,
   turnos,
-  enServicio,
+  puestos,
   inventario = null,
   eventosHoy = [],
   puestaAPunto = null,
@@ -83,8 +83,8 @@ export function InicioScreen({
    */
   turnos: readonly { id: string; abiertoEn: string; abiertoPor: string; punto: string; fueraDelPunto: { autorizadoPor: string; motivo: string } | null }[];
   /** Cuándo una comanda tarda y cuándo está atrasada. */
-  /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
-  enServicio: boolean;
+  /** Los puestos del día, por uso (T-20); `null` para quien no ve la sucursal. */
+  puestos: PuestosDelDiaDto | null;
   /** Lo que hay que reponer (B9-5); `null` si nada a la venta lleva existencia. */
   inventario?: Readonly<{ sinInicial: number; agotados: number; bajoMinimo: number }> | null;
   /** Los cumpleaños de hoy que siguen en pie (B10-1): «Hoy hay un evento». */
@@ -203,9 +203,7 @@ export function InicioScreen({
       {puestaAPunto && <PuestaAPunto puesta={puestaAPunto} />}
 
       {/* ──────────────────────────── 1 · el local ahora ─────────────────── */}
-      <EnVivo
-        enServicio={enServicio}
-      />
+      <EnVivo puestosIniciales={puestos} />
 
       {/* ───────────────────────────── 2 · el día ────────────────────────── */}
       <section aria-label="El día" className="mb-3 xl:mb-4">

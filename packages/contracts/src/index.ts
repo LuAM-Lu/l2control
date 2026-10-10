@@ -986,3 +986,4 @@ export {
   type ValesDelPersonalDto,
   type ReimprimirValeCommand,
 } from "./consumo.ts";
+export { PuestoDeServicioSchema, PuestosDelDiaSchema, type PuestoDeServicioDto, type PuestosDelDiaDto } from "./puestos.ts";

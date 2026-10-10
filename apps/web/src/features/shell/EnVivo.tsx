@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import type { PuestosDelDiaDto } from "@l2/contracts";
 import {
   ArrowRight,
   Baby,
@@ -17,9 +19,12 @@ import {
   Wallet,
 } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
-import { MoneyDisplay, cn } from "@l2/ui";
+import { MoneyDisplay, avisar, cn } from "@l2/ui";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
+import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
+import { leerPuestos } from "../operacion/puestos.acciones";
+import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { panelVivo, type Alerta } from "./vivo.ts";
 import { usePedidos } from "../mesas/PedidosProvider.tsx";
 import { usePorLimpiar } from "../mesas/porLimpiar.ts";
@@ -56,12 +61,29 @@ import { rutaPestana } from "./navigation.ts";
  * Este bloque NO decide nada: solo lee. Ni un botón que cambie el estado del
  * local.
  */
+/**
+ * Las ausencias ya avisadas (T-20): un aviso por ausencia, aunque se navegue y se vuelva a Inicio. No se guarda en el
+ * navegador: al recargar la página, la que siga se avisa una vez más.
+ */
+const AVISADAS = new Set<string>();
+
 export function EnVivo({
-  enServicio,
+  puestosIniciales,
 }: {
-  /** Si el turno está abierto: fuera de servicio, un puesto vacío no es noticia. */
-  enServicio: boolean;
+  /** Los puestos del día, por uso (T-20), leídos en el servidor; `null` para quien no ve la sucursal. */
+  puestosIniciales: PuestosDelDiaDto | null;
 }) {
+  const reloj = useReloj();
+  const { puestosVigilados, puestoSinNadieMin } = useSucursal().ajustes;
+  // Lo que pasa en cualquier puesto deja su asiento: los puestos se vuelven a leer cuando algo cambia en el local.
+  const [puestos, setPuestos] = useState(puestosIniciales);
+  const huella = JSON.stringify(puestosIniciales);
+  useEffect(() => setPuestos(puestosIniciales), [huella]);
+  useAlCambiar(["cuentas", "ventas", "sala", "pedidos", "mesas", "sesiones", "turno"], () => {
+    void leerPuestos()
+      .then((r) => r.ok && setPuestos(r.valor))
+      .catch(() => undefined);
+  });
   // La tasa, de la misma fuente con la que cobra la caja (B2-1c): se actualiza sola.
   const { tasa } = useTasaVigente("USD/VES");
   const { historial } = useTasas();
@@ -78,12 +100,28 @@ export function EnVivo({
     ahora,
     politica: tarifario.policy,
     pedidos,
-    enServicio,
+    puestos,
+    vigilados: puestosVigilados,
+    minutosSinNadie: puestoSinNadieMin,
     tasaConfirmada: tasa !== null,
     alertasDeTasa: historial.alertas,
     huerfanas: sala?.huerfanas.length ?? 0,
     porLimpiar: mesasPorLimpiar.length,
   });
+
+  // Con la caja abierta, un puesto vigilado que pasa de los minutos sin nadie avisa una vez (T-20): no vuelve a avisar
+  // hasta que alguien vuelva y se vaya otra vez.
+  const porAvisar = v.personas.puestos.filter((p) => p.avisa && p.ausencia && !AVISADAS.has(p.ausencia));
+  useEffect(() => {
+    for (const p of porAvisar) {
+      // Se mira otra vez aquí: al volver a Inicio, Next vuelve a correr este efecto con lo que se pintó la primera vez.
+      if (AVISADAS.has(p.ausencia!)) continue;
+      AVISADAS.add(p.ausencia!);
+      avisar.aviso(`${p.nombre}: más de ${puestoSinNadieMin} min sin nadie`, {
+        detalle: p.sinActividadDesde ? `Sin actividad desde las ${reloj.hora(p.sinActividadDesde)}.` : "Nadie ha trabajado en este puesto desde que se abrió la caja.",
+      });
+    }
+  }, [porAvisar.map((p) => p.ausencia).join(",")]);
 
   /**
    * El color de una zona sale de su aviso MÁS GRAVE, no de que tenga alguno.
@@ -220,28 +258,30 @@ export function EnVivo({
           ]}
         />
 
-        {/* Personas conectadas: quién está en cada puesto (D7). */}
+        {/* Los puestos, por uso (T-20): quién trabaja en cada uno, o desde cuándo no hay nadie (en gris, sin alarma), y la
+            llegada del día. */}
         <div className="flex flex-col gap-1 bg-surface px-3 py-2">
           <p className="flex items-center gap-1.5 text-[9.5px] font-semibold tracking-[0.09em] text-ink-3 uppercase">
             <UserRound size={13} aria-hidden="true" />
             Personas
           </p>
           <ul className="flex flex-col gap-0.5 text-[11.5px]">
+            {v.personas.puestos.length === 0 && <li className="text-ink-3">Sin datos de los puestos.</li>}
             {v.personas.puestos.map((p) => (
-              <li key={p.id} className="flex items-baseline justify-between gap-2">
-                <span className="shrink-0 text-ink-3">{p.nombre}</span>
-                {p.quien ? (
-                  <span className="min-w-0 truncate text-right font-medium text-ink">{p.quien}</span>
-                ) : (
-                  <span className={cn("shrink-0", enServicio ? "text-state-warn" : "text-ink-3")}>
-                    {enServicio && (
-                      <TriangleAlert
-                        size={11}
-                        className="mr-1 inline align-[-1px]"
-                        aria-hidden="true"
-                      />
-                    )}
-                    Sin nadie
+              <li key={p.id} className="flex flex-col">
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="shrink-0 text-ink-3">{p.nombre}</span>
+                  {p.quien ? (
+                    <span className="min-w-0 text-right font-medium break-words text-ink">{p.quien}</span>
+                  ) : (
+                    <span className="min-w-0 text-right text-ink-3">{p.sinActividadDesde ? "sin actividad" : "sin actividad hoy"}</span>
+                  )}
+                </span>
+                {!p.quien && p.sinActividadDesde && <span className="text-right text-ink-3">desde {reloj.hora(p.sinActividadDesde)}</span>}
+                {p.llegada && (
+                  <span className="text-right text-ink-3">
+                    llegó {reloj.hora(p.llegada.en)}
+                    {p.llegada.quien !== p.quien ? ` · ${p.llegada.quien}` : ""}
                   </span>
                 )}
               </li>

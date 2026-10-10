@@ -18,15 +18,13 @@ export type OperadorEnSesion = Readonly<{ id: string; nombre: string; rol: strin
 export type Autor = Readonly<{ id: string; nombre: string }>;
 
 /**
- * En qué puesto se sienta cada rol — F9-08, D7.
- *
- * El panel en vivo enseña quién está en cada puesto y marca el que se queda sin nadie en hora
- * de servicio. TODO(B1-3): el puesto saldrá del registro del dispositivo, no del rol.
+ * En qué puesto se sienta cada rol — F9-08, D7. Solo agrupa las sesiones abiertas (la de soporte, aparte): quién ocupa
+ * cada puesto lo dice lo que hace, no el rol (T-20, `puestosDelDia`).
  */
 export const PUESTO_DE_ROL: Readonly<Record<Role, string>> = {
   CAJERO: "caja",
-  MONITOR_PARQUE: "taquilla",
-  MESERO: "salon",
+  MONITOR_PARQUE: "parque",
+  MESERO: "mesas",
   COCINA: "cocina",
   ADMIN: "administracion",
   SUPERVISOR: "administracion",

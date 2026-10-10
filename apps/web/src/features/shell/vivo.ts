@@ -9,7 +9,8 @@
  * «todo»: lo que a la administración le haría levantarse de la silla.
  */
 import type { Route } from "next";
-import type { FamilyAccountDto, ParkPolicyDto, PedidoDto } from "@l2/contracts";
+import type { FamilyAccountDto, ParkPolicyDto, PedidoDto, PuestosDelDiaDto } from "@l2/contracts";
+import { NOMBRE_DEL_PUESTO, claveDeAusencia, estadoDelPuesto, type PuestoDeServicio } from "@l2/domain-identity";
 import { sum, type Money } from "@l2/domain-money";
 import { computeSessionView } from "@l2/domain-park";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
@@ -69,13 +70,19 @@ export type ZonaCaja = Readonly<{
   alertas: readonly Alerta[];
 }>;
 
+/** Un puesto, por uso (T-20): ocupado si alguien trabajó en él hace poco, sea del rol que sea. */
 export type Puesto = Readonly<{
   id: string;
   nombre: string;
-  /** Quién tiene sesión abierta ahí, o `null` si no hay nadie. */
+  /** Quién trabaja ahí ahora (la última actividad, dentro de los minutos del local), o `null`. */
   quien: string | null;
-  rol: string | null;
-  desdeMin: number;
+  /** Sin nadie: la hora de su última actividad; `null` si está ocupado o si nadie vino hoy. */
+  sinActividadDesde: number | null;
+  /** La llegada: la primera actividad del día. */
+  llegada: Readonly<{ en: number; quien: string }> | null;
+  /** Con la caja abierta y vigilado, pasó de los minutos sin nadie: avisa una vez por ausencia (`ausencia`). */
+  avisa: boolean;
+  ausencia: string | null;
 }>;
 
 export type ZonaPersonas = Readonly<{
@@ -93,15 +100,6 @@ export type PanelVivo = Readonly<{
   urgencias: number;
 }>;
 
-/**
- * Los puestos que deberían tener a alguien en hora de servicio (D7). La cocina no: trabaja con la
- * comanda impresa y no entra en el sistema (ADR-022), así que «sin nadie en cocina» sería siempre falso.
- */
-export const PUESTOS_DE_SERVICIO: readonly { id: string; nombre: string }[] = [
-  { id: "caja", nombre: "Caja" },
-  { id: "taquilla", nombre: "Taquilla" },
-  { id: "salon", nombre: "Salón" },
-];
 
 /** Las rutas son literales: así las comprueba el tipado de rutas de Next. */
 const aviso = (texto: string, tono: "warn" | "crit", href: Route, accion: string): Alerta => ({
@@ -119,7 +117,9 @@ export function panelVivo({
   ahora,
   politica,
   pedidos = [],
-  enServicio,
+  puestos = null,
+  vigilados = ["CAJA", "PARQUE", "MESAS"],
+  minutosSinNadie = 15,
   tasaConfirmada,
   alertasDeTasa = [],
   huerfanas = 0,
@@ -131,8 +131,11 @@ export function panelVivo({
   politica: ParkPolicyDto;
   /** Los pedidos de hoy con su comanda, del servidor (B6-2). */
   pedidos?: readonly PedidoDto[];
-  /** Si el local está abierto: fuera de servicio, un puesto vacío no es noticia. */
-  enServicio: boolean;
+  /** Los puestos del día, por uso (T-20), del servidor; `null` para quien no ve la sucursal. */
+  puestos?: PuestosDelDiaDto | null;
+  /** Los que se vigilan y a partir de cuántos minutos sin nadie avisan (Ajustes → Sucursal). */
+  vigilados?: readonly PuestoDeServicio[];
+  minutosSinNadie?: number;
   /** Si hay tasa vigente (ADR-005). Sin ella no se cobra en bolívares. */
   tasaConfirmada: boolean;
   /** Lo que el servidor dice de la tasa: una del BCV que no se aplicó sola, o la que falta (ADR-019). */
@@ -223,28 +226,26 @@ export function panelVivo({
     ],
   };
 
-  /* ── personas conectadas (D7) ── */
-  const puestos = PUESTOS_DE_SERVICIO.map((p) => {
-    const sesion = estado.conectados[p.id] ?? null;
+  /* ── los puestos, por uso (T-20) ── */
+  // Un puesto sin nadie no es alarma: se dice en gris. El aviso (uno por ausencia, con la caja abierta) lo da la pantalla.
+  const cajaAbiertaDesde = puestos?.cajaAbiertaDesde ? Date.parse(puestos.cajaAbiertaDesde) : null;
+  const lista: Puesto[] = (puestos?.puestos ?? []).map((p) => {
+    const ultima = p.ultima ? Date.parse(p.ultima.en) : null;
+    const e = estadoDelPuesto({ ultima, cajaAbiertaDesde, ahora, minutos: minutosSinNadie, vigilado: vigilados.includes(p.puesto) });
     return {
-      id: p.id,
-      nombre: p.nombre,
-      quien: sesion?.userName ?? null,
-      rol: sesion?.role ?? null,
-      desdeMin: sesion ? minutos(sesion.desde, ahora) : 0,
+      id: p.puesto,
+      nombre: NOMBRE_DEL_PUESTO[p.puesto],
+      quien: e.ocupado ? (p.ultima?.quien ?? null) : null,
+      sinActividadDesde: e.sinNadieDesde,
+      llegada: p.primera ? { en: Date.parse(p.primera.en), quien: p.primera.quien } : null,
+      avisa: e.avisar,
+      ausencia: e.ocupado ? null : claveDeAusencia(p.puesto, ultima),
     };
   });
-  const vacios = puestos.filter((p) => p.quien === null);
   // La cuenta de soporte (T-17) se ve mientras está conectada, aparte: no es un puesto del local ni deja uno vacío.
   const soporte = estado.conectados["soporte"];
-  if (soporte) puestos.push({ id: "soporte", nombre: "Soporte", quien: soporte.userName, rol: soporte.role, desdeMin: minutos(soporte.desde, ahora) });
-  const personas: ZonaPersonas = {
-    puestos,
-    alertas:
-      enServicio && vacios.length > 0
-        ? [aviso(`Sin nadie en ${vacios.map((p) => p.nombre.toLowerCase()).join(", ")}`, "warn", "/acceso", "Ver dispositivos")]
-        : [],
-  };
+  if (soporte) lista.push({ id: "soporte", nombre: "Soporte", quien: soporte.userName, sinActividadDesde: null, llegada: null, avisa: false, ausencia: null });
+  const personas: ZonaPersonas = { puestos: lista, alertas: [] };
 
   const urgencias = [parque, comandas, mesas, caja, personas].reduce((n, z) => n + z.alertas.length, 0);
   return { parque, comandas, mesas, caja, personas, urgencias };

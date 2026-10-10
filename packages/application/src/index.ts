@@ -41,6 +41,7 @@ import { casosDescuentos, type CasosDescuentos } from "./caja/descuentos.ts";
 import { casosImpresion, type CasosImpresion } from "./impresion/impresion.ts";
 import { casosVentas, type CasosVentas } from "./caja/ventas.ts";
 import { casosPersonal, type CasosPersonal } from "./caja/personal.ts";
+import { casosPuestos, type CasosPuestos } from "./sucursal/puestos.ts";
 import { casosCortes, type CasosCortes } from "./caja/cortes.ts";
 import { casosFeriados, type CasosFeriados } from "./dinero/feriados.ts";
 import { casosProductos, type CasosProductos } from "./inventario/productos.ts";
@@ -169,6 +170,8 @@ export interface Aplicacion {
   readonly ventas: CasosVentas;
   /** El consumo del personal (B3-17): quiénes consumen, sus vales por quincena y reimprimirlos. */
   readonly personal: CasosPersonal;
+  /** Los puestos por uso (T-20): la llegada y la última actividad de la caja, el parque y las mesas. */
+  readonly puestos: CasosPuestos;
   readonly cortes: CasosCortes;
   readonly feriados: CasosFeriados;
   readonly productos: CasosProductos;
@@ -276,6 +279,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     impresion,
     ventas: casosVentas(base, cifrador),
     personal: casosPersonal(base, cifrador),
+    puestos: casosPuestos(base),
     cortes: casosCortes(base),
     feriados: casosFeriados(base),
     productos: casosProductos(base),
