@@ -7,19 +7,21 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-09 (noche) · v0.111.0 · `main` más este relevo · M-37 en curso (Claude); B8-3 hecho por el usuario*
+*2026-10-10 · v0.122.0 (publicada) · `main` más este relevo · M-37 entregado entero (Claude); nada reclamado*
 
 ```text
-El usuario terminó la operación en paralelo (B8-3), B7-3, «Respaldar ahora» y la PC de respaldos. De lo que vio salió
-  M-37 (MAESTRO §2 «M-37 en detalle», §3 punto 15): 4 correcciones (v0.111.1) y 10 pasos, en este orden:
-  B4-17 (regla de precio del parque) → B6-15 (desvincular) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19
-  (el vuelto) → B3-18 (anular y devolver, de admin) → B3-17 (consumo del personal) → T-20 (los puestos, por uso) →
-  B11-6 (Reportes → Parque) → B11-7 (Movimientos).
-Sin parar entre pasos. Cada uno entra en main probado y con su versión, SIN etiqueta: se publica una sola vez al final
-  (la etiqueta de la última), a la hora que diga el usuario. El VPS es la operación real en modo staging (M-36).
-Cambian D-AUT (anular y devolver, PIN de administración), M-18 (devolver lo no usado) y B3-14 (el parque se devuelve).
-Para la 1.0.0, después: listar lo de prueba en la base del VPS (solo leer), modo producción (D-ENT) y B8-1 (4G y UPS).
-Cuidado: B6-15, B3-16 y B3-20 comparten «mover líneas entre cuentas» (movedTo); B3-19 y B3-17, el cobro y el arqueo.
+M-37 entero, sin parar y publicado una vez al final (v0.122.0, con el permiso del usuario): v0.111.1 y once pasos, B4-17
+  (precio del tiempo) · B6-15 (desvincular) · B3-16 (cobrar juntas) · B3-20 (dividir por ítems) · B3-19 (el vuelto) ·
+  B6-16 (comanda de la venta directa, añadido) · B3-18 (anular y devolver, PIN de administración: cambia D-AUT) · B3-17
+  (consumo del personal, con su vale) · T-20 (puestos por uso) · B11-6 (Reportes → Parque) · B11-7 (Movimientos).
+Para la próxima visita al local: que las notas del mesero salgan en la comanda impresa (en el VPS se guardan e imprimen);
+  revisar el área de cada producto (cocina, barra o sin papel), porque la venta directa saca comanda según ella; probar
+  el consumo del personal con el vale firmado y el aviso de los puestos (Ajustes → Sucursal: vigilados y 15 min).
+Siguen, del usuario: B8-3 con la capacitación de B8-2, B8-1 (4G y UPS) y B7-3; después B8-4 = 1.0.0 (Claude lista,
+  solo leyendo, lo de prueba en la base del VPS; modo producción con D-ENT; la etiqueta 1.0.0). B6-4, tras el piloto.
+Cuidado: una composición nueva de @l2/application pide reiniciar `pnpm dev`; «mover líneas» (movedTo) lo comparten
+  desvincular, juntar y dividir; el cobro lleva vuelto, consumo del personal y comanda de caja: tocar uno es probar los
+  tres; la auditoría guarda la hora de la base (las pruebas de Movimientos y puestos operan en el día de hoy).
 ```
 
 ## aemorandin-coder
