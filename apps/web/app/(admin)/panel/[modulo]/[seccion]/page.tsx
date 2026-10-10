@@ -47,7 +47,8 @@ import { VentasScreen } from "../../../../../src/features/reportes/VentasScreen"
 import { MovimientosScreen } from "../../../../../src/features/reportes/MovimientosScreen";
 import { InventarioAlMomentoScreen } from "../../../../../src/features/reportes/InventarioAlMomentoScreen";
 import { DeudasReporteScreen } from "../../../../../src/features/reportes/DeudasReporteScreen";
-import { informeDeDeudas, informeDeInventario, informeDeMovimientos, informeDeVentas, type ConsultaEnLaDireccion } from "../../../../../src/features/reportes/reportes.servidor";
+import { PersonalReporteScreen } from "../../../../../src/features/reportes/PersonalReporteScreen";
+import { informeDeDeudas, informeDeInventario, informeDeMovimientos, informeDeVentas, valesDelPeriodo, type ConsultaEnLaDireccion } from "../../../../../src/features/reportes/reportes.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -128,6 +129,7 @@ const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.Rea
   "reportes/movimientos": async (q) => <MovimientosScreen {...await informeDeMovimientos(q)} />,
   "reportes/inventario": async () => <InventarioAlMomentoScreen informe={await informeDeInventario()} />,
   "reportes/deudas": async (q) => <DeudasReporteScreen {...await informeDeDeudas(q)} />,
+  "reportes/personal": async (q) => <PersonalReporteScreen {...await valesDelPeriodo(q)} />,
 };
 
 /**

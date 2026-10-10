@@ -16,6 +16,24 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.119.0] — 2026-10-10 · Hacia la puesta en marcha
+
+El consumo del personal (B3-17, M-37).
+
+### Añadido
+- **Consumo del personal**: lo que consume alguien del equipo se cobra en la caja con «Personal» (debajo de la cuenta).
+  Esa persona escribe su PIN; va a precio normal, en dólares, sale del inventario y no entra dinero: no cuenta en la
+  gaveta ni en el arqueo, y el cierre lo dice aparte. Sale su vale para que lo firme, y el vale se queda en la caja.
+- **Caja → Personal**: los vales de la quincena, por persona y uno a uno, con «Reimprimir vale». Supervisión y
+  administración ven los de todos; cada persona, los suyos con su PIN.
+- **Reportes → Personal**, con su PDF: lo que consumió cada persona en la quincena (esta o la anterior) y cada vale, sin
+  lo anulado ni lo devuelto. El descuento del sueldo se hace fuera del sistema.
+
+### Corregido
+- Al dividir por ítems, la línea que se partió salía en el recibo con su precio entero además de sus partes.
+- En la barra de la caja, con un aviso de impresión largo, una pestaña quedaba tapada: ahora se desplazan y la abierta
+  queda a la vista.
+
 ## [0.118.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Anular y devolver, de administración (B3-18, M-37).

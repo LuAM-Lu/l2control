@@ -181,7 +181,8 @@ describe("cargar la semilla en otro local", () => {
     const medios = valor(await destino.app.medios.leer(enDestino));
     assert.deepEqual(medios.pagoMovil, PAGO_MOVIL);
     assert.deepEqual(medios.terminales.map((t) => t.name), ["Banesco 1"]);
-    assert.deepEqual(medios.medios.filter((m) => m.activo).map((m) => m.code).sort(), ["BIOPAGO", "EFECTIVO_USD", "EFECTIVO_VES", "PAGO_MOVIL", "PDV_DEBITO", "USDT"]);
+    // El consumo del personal (B3-17) nace encendido en todo local.
+    assert.deepEqual(medios.medios.filter((m) => m.activo).map((m) => m.code).sort(), ["BIOPAGO", "CONSUMO_PERSONAL", "EFECTIVO_USD", "EFECTIVO_VES", "PAGO_MOVIL", "PDV_DEBITO", "USDT"]);
     const descuentos = valor(await destino.app.descuentos.leer(enDestino));
     assert.deepEqual(descuentos.reglas.map((r) => [r.nombre, r.desde]).sort(), [["Pago Móvil 5 %", HOY], ["VIP 10 %", HOY]]);
     const impresoras = valor(await destino.app.impresion.leer(enDestino, AHORA));

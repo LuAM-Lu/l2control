@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { Banknote } from "lucide-react";
-import type { DevolucionDto, MotivoAnulacion, Rechazo, VentaCerradaDto } from "@l2/contracts";
+import { MEDIO_CONSUMO_DEL_PERSONAL, type DevolucionDto, type MotivoAnulacion, type Rechazo, type VentaCerradaDto } from "@l2/contracts";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero, textoMotivo } from "./anulacion.ts";
 import { nombreDeCuenta } from "../cuentas/cuentas.ts";
+
+/** El consumo del personal (B3-17) vuelve a su vale: sin referencia ni efectivo. */
+const delPersonal = (p: VentaCerradaDto["payments"][number]) => p.methodCode === MEDIO_CONSUMO_DEL_PERSONAL;
 
 /**
  * Anular un cobro ya cerrado — DEC-24, en el servidor desde B3-3 y B3-4.
@@ -96,7 +99,7 @@ export function AnularCobroDialog({
     if (efectivoAlternativo && nota.trim().length < 5) nuevos.nota = "Explica por qué se devuelve en efectivo";
     if (faltaEfectivo) nuevos.efectivo = `En la gaveta no hay efectivo en ${faltaEfectivo} suficiente para devolver`;
     for (const [p, i] of conDevolucion) {
-      if (!p.cash && viaDe(i) === "MISMO_MEDIO" && (refs[i] ?? "").trim().length < 4) {
+      if (!p.cash && !delPersonal(p) && viaDe(i) === "MISMO_MEDIO" && (refs[i] ?? "").trim().length < 4) {
         nuevos[`ref-${i}`] = p.dataKind === "PUNTO" ? "Escribe la aprobación de la anulación en el terminal" : "Escribe la referencia de la devolución";
       }
     }
@@ -113,7 +116,7 @@ export function AnularCobroDialog({
       devoluciones: conDevolucion.map(([p, i]) => ({
         paymentIndex: i,
         via: p.cash ? "MISMO_MEDIO" : viaDe(i),
-        ...(!p.cash && viaDe(i) === "MISMO_MEDIO" ? { reference: (refs[i] ?? "").trim() } : {}),
+        ...(!p.cash && !delPersonal(p) && viaDe(i) === "MISMO_MEDIO" ? { reference: (refs[i] ?? "").trim() } : {}),
       })),
     };
     setEnviando(true);
@@ -247,6 +250,8 @@ export function AnularCobroDialog({
                   <p className="flex items-center gap-1.5 text-[12px] text-ink-2">
                     <Banknote size={14} aria-hidden="true" /> Sale de la gaveta, en efectivo.
                   </p>
+                ) : delPersonal(p) ? (
+                  <p className="text-detalle text-ink-2">Vuelve a su vale: no entró dinero, no sale dinero.</p>
                 ) : (
                   <>
                     <div role="radiogroup" aria-label={`Cómo se devuelve ${p.label}`} className="grid grid-cols-2 gap-1">

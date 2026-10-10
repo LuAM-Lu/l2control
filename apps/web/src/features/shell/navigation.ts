@@ -203,6 +203,15 @@ export const MODULOS: readonly Modulo[] = [
           "Lo que dejaron sin pagar quienes se fueron (B3-11): a nombre de su cliente, con quién lo atendió y quién lo autorizó. Se cobra en la caja cuando vuelven, o administración la da por perdida.",
         tarea: "B3-11",
       },
+      {
+        id: "personal",
+        nombre: "Personal",
+        href: "/personal",
+        abre: "estacion",
+        proposito:
+          "Los vales del consumo del personal por quincena, con «Reimprimir vale»: supervisión y administración ven los de todos; cada persona, los suyos con su PIN.",
+        tarea: "B3-17",
+      },
     ],
   },
   {
@@ -270,7 +279,7 @@ export const MODULOS: readonly Modulo[] = [
     nombre: "Reportes",
     icon: ChartColumn,
     accion: "reportes.verSucursal",
-    resumen: "Lo que pasó en un periodo, sacado de los asientos: ventas, inventario, movimientos y deudas, cada uno con su PDF.",
+    resumen: "Lo que pasó en un periodo, sacado de los asientos: ventas, inventario, movimientos, deudas y el consumo del personal, cada uno con su PDF.",
     secciones: [
       {
         id: "ventas",
@@ -300,6 +309,13 @@ export const MODULOS: readonly Modulo[] = [
         href: rutaSeccion("reportes", "deudas"),
         proposito: "Quien se fue sin pagar: lo que quedó en deuda, lo recuperado y lo perdido, por mesero y por quien autorizó, con la historia de cada una.",
         tarea: "B11-4",
+      },
+      {
+        id: "personal",
+        nombre: "Personal",
+        href: rutaSeccion("reportes", "personal"),
+        proposito: "Lo que consumió cada persona del equipo en la quincena, vale por vale, firmado con su PIN. El descuento del sueldo se hace fuera del sistema.",
+        tarea: "B3-17",
       },
     ],
   },

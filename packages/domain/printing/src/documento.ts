@@ -22,7 +22,8 @@ export type Renglon =
   | Readonly<{ tipo: "TEXTO"; texto: string; alinear?: Alineacion; negrita?: boolean; grande?: boolean }>
   /** Un concepto a la izquierda y su importe a la derecha, en el mismo renglón si caben. */
   | Readonly<{ tipo: "PAR"; izq: string; der: string; negrita?: boolean; grande?: boolean }>
-  | Readonly<{ tipo: "LINEA"; caracter?: "-" | "=" }>
+  /** `_`: la línea de una firma (el vale del consumo del personal, B3-17). */
+  | Readonly<{ tipo: "LINEA"; caracter?: "-" | "=" | "_" }>
   | Readonly<{ tipo: "VACIO" }>;
 
 export type Documento = Readonly<{

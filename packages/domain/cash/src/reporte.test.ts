@@ -39,6 +39,14 @@ test("los periodos de un toque, desde el día del local", () => {
   assert.deepEqual(periodoPredefinido("MES_ANTERIOR", "2026-10-08"), { desde: "2026-09-01", hasta: "2026-09-30" });
   assert.deepEqual(periodoPredefinido("MES_ANTERIOR", "2026-03-15"), { desde: "2026-02-01", hasta: "2026-02-28" });
   assert.deepEqual(periodoPredefinido("AYER", "2027-01-01"), { desde: "2026-12-31", hasta: "2026-12-31" });
+  // La quincena del consumo del personal (B3-17): del 1 al 15 y del 16 al último día.
+  assert.deepEqual(periodoPredefinido("QUINCENA", "2026-10-08"), { desde: "2026-10-01", hasta: "2026-10-08" });
+  assert.deepEqual(periodoPredefinido("QUINCENA", "2026-10-15"), { desde: "2026-10-01", hasta: "2026-10-15" });
+  assert.deepEqual(periodoPredefinido("QUINCENA", "2026-10-16"), { desde: "2026-10-16", hasta: "2026-10-16" });
+  assert.deepEqual(periodoPredefinido("QUINCENA_ANTERIOR", "2026-10-20"), { desde: "2026-10-01", hasta: "2026-10-15" });
+  assert.deepEqual(periodoPredefinido("QUINCENA_ANTERIOR", "2026-10-08"), { desde: "2026-09-16", hasta: "2026-09-30" });
+  assert.deepEqual(periodoPredefinido("QUINCENA_ANTERIOR", "2027-03-02"), { desde: "2027-02-16", hasta: "2027-02-28" });
+  assert.deepEqual(periodoPredefinido("QUINCENA_ANTERIOR", "2027-01-10"), { desde: "2026-12-16", hasta: "2026-12-31" });
   assert.equal(diasDelPeriodo("2026-10-01", "2026-10-31"), 31);
   assert.equal(diasDelPeriodo("2026-10-08", "2026-10-08"), 1);
 });

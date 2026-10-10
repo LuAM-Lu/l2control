@@ -12,7 +12,7 @@
  * ⚠ §7.6: las referencias de pago y el documento del cliente llegan enmascarados desde la venta.
  */
 import type { AjustesSucursalDto, CorteDto, DevolucionDeVentaDto, ExcepcionDto, MoneyDto, VentaCerradaDto } from "@l2/contracts";
-import { cuentasDelCobro } from "@l2/domain-cash";
+import { CONSUMO_DEL_PERSONAL, cuentasDelCobro } from "@l2/domain-cash";
 import { convert, invertRate, money, multiply, type CurrencyCode, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { percentFromBasisPoints } from "@l2/domain-tax";
@@ -174,6 +174,51 @@ export function documentoDeRecibo(v: VentaCerradaDto, local: AjustesSucursalDto,
   return { renglones };
 }
 
+/**
+ * El vale del consumo del personal (B3-17, M-37): quién consumió, qué, el total en dólares y la línea para su firma. Se
+ * queda en la caja: el descuento del sueldo se hace fuera del sistema. `copia`: una reimpresión lo dice arriba.
+ */
+export function documentoDeVale(v: VentaCerradaDto, local: AjustesSucursalDto, copia: boolean): Documento {
+  const filas = new Map<string, { cantidad: number; concepto: string; precio: Money; cortesia: boolean }>();
+  for (const l of v.lineas) {
+    const clave = `${l.concept}|${l.amount.minor}|${l.cortesia ? "c" : ""}`;
+    const f = filas.get(clave);
+    if (f) f.cantidad += 1;
+    else filas.set(clave, { cantidad: 1, concepto: l.concept, precio: dinero(l.amount), cortesia: l.cortesia !== null });
+  }
+  const quien = v.personal?.nombre ?? "";
+  const renglones: Renglon[] = [
+    ...cabecera(local),
+    { tipo: "TEXTO", texto: "VALE DE CONSUMO", alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: "DEL PERSONAL", alinear: "CENTRO", negrita: true },
+    ...(copia ? [{ tipo: "TEXTO", texto: "*** COPIA ***", alinear: "CENTRO", negrita: true } as const] : []),
+    { tipo: "TEXTO", texto: `Orden ${orden(v.orderNumber)}`, alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: fechaYHora(Date.parse(v.closedAt), local.formatoHora, local.zonaHoraria), alinear: "CENTRO" },
+    { tipo: "TEXTO", texto: `Consumió: ${quien}`, negrita: true },
+    { tipo: "LINEA" },
+    ...[...filas.values()].map(
+      (f): Renglon =>
+        f.cortesia
+          ? { tipo: "PAR", izq: `${f.cantidad} × ${f.concepto} (cortesía)`, der: "0.00" }
+          : { tipo: "PAR", izq: `${f.cantidad} × ${f.concepto}`, der: texto(multiply(f.precio, BigInt(f.cantidad))) },
+    ),
+    { tipo: "LINEA" },
+    ...v.impuestos.map((i): Renglon => ({ tipo: "PAR", izq: `IVA ${percentFromBasisPoints(i.basisPoints)} %${v.ivaIncluido ? " (incluido)" : ""}`, der: texto(dinero(i.tax)) })),
+    { tipo: "LINEA", caracter: "=" },
+    { tipo: "PAR", izq: "TOTAL", der: texto(dinero(v.total)), negrita: true, grande: true },
+    { tipo: "VACIO" },
+    { tipo: "VACIO" },
+    { tipo: "VACIO" },
+    { tipo: "LINEA", caracter: "_" },
+    { tipo: "TEXTO", texto: quien, alinear: "CENTRO" },
+    { tipo: "TEXTO", texto: "Firma", alinear: "CENTRO" },
+    { tipo: "VACIO" },
+    { tipo: "TEXTO", texto: `Cobró ${v.cashier}`, alinear: "CENTRO" },
+    { tipo: "TEXTO", texto: "Se queda en la caja.", alinear: "CENTRO" },
+  ];
+  return { renglones };
+}
+
 const TIPO_EXCEPCION: Readonly<Record<ExcepcionDto["tipo"], string>> = {
   ANULACION: "Anulación",
   DESCUENTO: "Descuento",
@@ -191,6 +236,9 @@ export function documentoDeCorte(c: CorteDto, local: AjustesSucursalDto): Docume
   const t = c.turno;
   const cuando = (iso: string) => fechaYHora(Date.parse(iso), local.formatoHora, local.zonaHoraria);
   const [a, m, d] = t.businessDate.split("-");
+  // El consumo del personal no es dinero (B3-17): fuera de los medios de pago, en su renglón.
+  const deDinero = c.porMedio.filter((p) => p.methodCode !== CONSUMO_DEL_PERSONAL);
+  const consumo = c.porMedio.find((p) => p.methodCode === CONSUMO_DEL_PERSONAL && BigInt(p.neto.minor) !== 0n);
   const renglones: Renglon[] = [
     ...cabecera(local),
     { tipo: "TEXTO", texto: c.tipo === "Z" ? "CORTE Z" : "CORTE X", alinear: "CENTRO", negrita: true, grande: true },
@@ -204,7 +252,14 @@ export function documentoDeCorte(c: CorteDto, local: AjustesSucursalDto): Docume
     ...(BigInt(c.ventas.igtf.minor) > 0n ? [{ tipo: "PAR", izq: "IGTF retenido", der: texto(dinero(c.ventas.igtf)) } as const] : []),
     { tipo: "LINEA" },
     { tipo: "TEXTO", texto: "Por medio de pago", negrita: true },
-    ...(c.porMedio.length === 0 ? [{ tipo: "TEXTO", texto: "Sin cobros" } as const] : c.porMedio.map((p): Renglon => ({ tipo: "PAR", izq: p.label, der: texto(dinero(p.neto)) }))),
+    ...(deDinero.length === 0 ? [{ tipo: "TEXTO", texto: "Sin cobros" } as const] : deDinero.map((p): Renglon => ({ tipo: "PAR", izq: p.label, der: texto(dinero(p.neto)) }))),
+    ...(consumo
+      ? ([
+          { tipo: "LINEA" },
+          { tipo: "PAR", izq: "Consumo del personal", der: texto(dinero(consumo.neto)), negrita: true },
+          { tipo: "TEXTO", texto: "No entra dinero: sus vales firmados, en la caja." },
+        ] as const)
+      : []),
   ];
   if (c.gaveta) {
     renglones.push({ tipo: "LINEA" }, { tipo: "TEXTO", texto: "Gaveta según el libro", negrita: true });

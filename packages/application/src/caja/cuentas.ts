@@ -87,6 +87,7 @@ import {
   type ProductAtNow,
   type LedgerMethodSpec,
   type Tender,
+  CONSUMO_DEL_PERSONAL,
 } from "@l2/domain-cash";
 import { add, allocate, money, zero, type CurrencyCode, type Money } from "@l2/domain-money";
 import { calendarDay, citedRateValid, frozenRateOf, startOfDay } from "@l2/domain-rates";
@@ -107,7 +108,7 @@ import type { Action } from "@l2/domain-identity";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { cargarActor, esSoporte, exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
-import { autorizadoresPara, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
+import { autorizadoresPara, exigirPermisoOAutorizacion, firmaDeLaPersona } from "../identidad/autorizacion.ts";
 import type { Cifrador } from "../identidad/cifrado.ts";
 import { programadaDeFila } from "../dinero/impuestos.ts";
 import {
@@ -127,6 +128,7 @@ import { sinCajaAbiertaEnElLocal, turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { imprimirVentaDelCobro, ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 import { borrarBorradorEn } from "./borrador.ts";
+import { imprimirValeEn } from "./personal.ts";
 import { asentarExistencias, comprobarExistencias, existenciasDe } from "../inventario/existencias.ts";
 import { asentarAjuste } from "../inventario/salidas.ts";
 import { encolarEn } from "../impresion/impresion.ts";
@@ -462,10 +464,19 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // Lo que la pantalla cobraba es lo que hay por cobrar, ni una línea más ni una menos.
           const porCobrar = chargeableLines(cuenta).map((l) => l.id);
           if (porCobrar.length !== cmd.lineIds.length || porCobrar.some((id) => !cmd.lineIds.includes(id))) return cuentaCambiada;
+          // El consumo del personal (B3-17): en la caja, a precio normal y de una vez. Lo firma con su PIN quien consumió,
+          // antes de asentar nada (más abajo).
+          const consumo = cmd.personal ?? null;
+          if (consumo) {
+            if (carga) return invalido("Desde papel no se carga un consumo del personal: lo firma con su PIN quien consumió.", ["personal"], "CONSUMO_DESDE_PAPEL");
+            if (cuenta.descuento) return invalido("El consumo del personal va a precio normal: quita el descuento.", ["personal"], "CONSUMO_CON_DESCUENTO");
+            if (cuenta.split && cuenta.split.paid < cuenta.split.parts) return invalido("Una cuenta en partes no se cobra como consumo del personal.", ["personal"], "CONSUMO_EN_PARTES");
+          }
           // T-19 (M-34): la venta del mostrador se cobra a alguien. Si la cuenta no nació con su cliente (de pie, una
           // deuda), «Factura a» lleva su cédula y su nombre. Lo cargado desde papel, no: se anotó o no.
           // La cuenta de una persona al dividir por ítems (B3-20) no: es parte de una cuenta que ya era de alguien.
-          if (cuenta.kind === "MOSTRADOR" && !cuenta.divididaDe && !carga && cmd.cliente?.kind !== "IDENTIFICADO") {
+          // El consumo del personal tampoco: es de quien firmó.
+          if (cuenta.kind === "MOSTRADOR" && !cuenta.divididaDe && !carga && !consumo && cmd.cliente?.kind !== "IDENTIFICADO") {
             const conCliente = await tx.accountCustomer.findFirst({ where: { accountId: cuenta.id }, select: { id: true } });
             if (!conCliente) {
               return invalido("Una venta del mostrador se cobra con la cédula y el nombre del cliente: escríbelos en «Factura a».", ["cliente"], "FALTA_EL_CLIENTE");
@@ -513,6 +524,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             const medio = catalogo.medios.get(p.method);
             if (!medio) return invalido("Ese medio no existe en este local.", ["pagos", i, "method"], "Medio desconocido");
             if (medio.currency !== p.amount.currency) return invalido(`«${medio.label}» cobra en ${medio.currency}.`, ["pagos", i, "amount"], "Moneda del medio");
+            if (consumo && !medio.active) return invalido("El consumo del personal está apagado: se enciende en Ajustes → Medios de pago.", ["pagos", i, "method"], "Medio apagado");
             medios.push(medio);
           }
           // El descuento se cobra si se cumple lo suyo: toda la cuenta por su medio, su regla vigente y
@@ -590,6 +602,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
 
           // §5.6: lo entregado = lo cobrado + vuelto + propina + residuo, al céntimo.
           const sobra = computeBalance(aCobrar, tenders, FUNCIONAL).surplus;
+          if (consumo && sobra.amount !== 0n) return invalido("El consumo del personal es por el total, ni un céntimo más.", ["pagos", 0, "amount"], "CONSUMO_NO_ES_EL_TOTAL");
           // B3-19: cómo se da el vuelto, por partes que suman lo que sobra; sin decirlo, todo en efectivo $ (como antes).
           // Cada parte sale de su medio: los bolívares, a la tasa del cobro; el Pago Móvil, desde la cuenta del local.
           if (cmd.vuelto && (sobra.amount === 0n || cmd.destinoSobra !== "VUELTO")) return invalido("No hay vuelto que dar.", ["vuelto"], "SIN_VUELTO");
@@ -626,6 +639,10 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             }
             throw e;
           }
+
+          // Firma quien consumió, con su PIN (B3-17), antes del primer asiento. Un PIN malo queda en su bloqueo y en la auditoría.
+          const firmo = consumo ? await firmaDeLaPersona(tx, ctx, "documento.emitir", consumo, "Consumo del personal", ahora) : null;
+          if (firmo && !firmo.ok) return firmo;
 
           // Los asientos del cobro: cada pago y, si sobra, su destino en el efectivo en dólares.
           const asientos: AsentarPagosCommand["asientos"] = [
@@ -686,6 +703,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               descuento: cuenta.descuento ? { nombre: cuenta.descuento.nombre, importe: { minor: String(doc.discountTotal.amount), currency: FUNCIONAL } } : null,
               sobra: { minor: String(sobra.amount), currency: FUNCIONAL, destino: sobra.amount > 0n ? cmd.destinoSobra : null },
               ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
+              ...(firmo?.ok ? { personal: firmo.nombre } : {}),
             },
           });
 
@@ -706,8 +724,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
                 ? { kind: "IDENTIFICADO", name: cmd.cliente.name, document: enmascararDocumento(cmd.cliente.document) }
                 : { kind: "CONSUMIDOR_FINAL" },
             // Lo que se cobra y lo que se regala en este cobro (lo regalado, con su motivo).
+            // Una línea partida (B3-20) no se cobra: se cobran sus partes, y es lo que dice el recibo.
             lineas: cuenta.lines
-              .filter((l) => !l.paid && !l.movedTo)
+              .filter((l) => !l.paid && !l.movedTo && !l.partida)
               // El IVA de cada línea (B3-14): una devolución lo recalcula por alícuota.
               .map((l) => ({ lineId: l.id, concept: l.concept, amount: l.amount, cortesia: l.cortesia?.motivo ?? null, ...(l.taxCode ? { taxCode: l.taxCode } : {}) })),
             subtotal: conDinero(doc.subtotal),
@@ -761,8 +780,10 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
                 : null,
             // Cargada desde papel: `closedAt` es la hora real anotada, y esto dice de qué carga y cuándo se cargó (B3-7).
             ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
+            // El consumo del personal (B3-17): de quién es.
+            ...(firmo?.ok ? { personal: { id: firmo.id, nombre: firmo.nombre } } : {}),
           };
-          await tx.sale.create({
+          const filaDeVenta = await tx.sale.create({
             data: {
               tenantId: ctx.tenantId,
               branchId: ctx.branchId,
@@ -786,7 +807,34 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // Cobrado, el cobro en curso se acaba (B3-13): su borrador se va con él, en la misma transacción.
           await borrarBorradorEn(tx, cuenta.id);
           let reciboNoImpreso: string | undefined;
-          if (cmd.imprimirRecibo && !papel) {
+          // El consumo del personal deja su vale (B3-17) y lo imprime para su firma: el vale es su papel, no el recibo.
+          // Sin impresora de recibos se cobra igual y se dice; se reimprime desde Caja → Personal.
+          let valeNoImpreso: string | undefined;
+          if (firmo?.ok) {
+            const vale = await tx.staffConsumption.create({
+              data: {
+                tenantId: ctx.tenantId,
+                branchId: ctx.branchId,
+                saleId: filaDeVenta.id,
+                staffUserId: firmo.id,
+                staffName: firmo.nombre,
+                businessDate: turno.businessDate,
+                at: new Date(ahora),
+                totalMinor: aCobrar.amount,
+                currency: FUNCIONAL,
+                createdBy: ctx.quien?.userId ?? null,
+                createdByName: quien.nombre,
+              },
+            });
+            await auditar(tx, ctx, {
+              action: "personal.consumir",
+              entityType: "staff_consumption",
+              entityId: vale.id,
+              after: { persona: firmo.nombre, orden: cuenta.orderNumber, total: conDinero(aCobrar) },
+            });
+            const impreso = await imprimirValeEn(tx, ctx, filaDeVenta.id, cifrador, false, ahora);
+            if ("ok" in impreso) valeNoImpreso = impreso.mensaje;
+          } else if (cmd.imprimirRecibo && !papel) {
             const impreso = await imprimirVentaDelCobro(tx, ctx, cmd.idempotencyKey, cifrador, ahora);
             if ("ok" in impreso) reciboNoImpreso = impreso.mensaje;
           }
@@ -806,7 +854,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             });
           }
           const hecho = await cuentaYLibro(tx, cmd.accountId, cmd.idempotencyKey, cifrador);
-          return reciboNoImpreso ? { ...hecho, reciboNoImpreso } : hecho;
+          return { ...hecho, ...(reciboNoImpreso ? { reciboNoImpreso } : {}), ...(valeNoImpreso ? { valeNoImpreso } : {}) };
         });
 
       try {
@@ -891,7 +939,10 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             }
             if (!d) return invalido(`Falta decir cómo se devuelve ${pago.label}.`, ["devoluciones"], "Falta la devolución");
             if (pago.cash && d.via !== "MISMO_MEDIO") return invalido("El efectivo se devuelve en efectivo.", ["devoluciones"], "Vía del efectivo");
-            if (!pago.cash && d.via === "MISMO_MEDIO" && !d.reference) {
+            // El consumo del personal no movió dinero (B3-17): vuelve a su vale, sin referencia ni efectivo.
+            const delPersonal = pago.methodCode === CONSUMO_DEL_PERSONAL;
+            if (delPersonal && d.via !== "MISMO_MEDIO") return invalido("El consumo del personal vuelve a su vale: no entró dinero que devolver.", ["devoluciones"], "Vía del consumo");
+            if (!pago.cash && !delPersonal && d.via === "MISMO_MEDIO" && !d.reference) {
               return invalido(pago.dataKind === "PUNTO" ? "Escribe la aprobación de la anulación en el terminal." : "Escribe la referencia de la devolución.", ["devoluciones"], "Falta la referencia");
             }
             if (!pago.cash && d.via === "EFECTIVO" && (cmd.detalle?.length ?? 0) < 5) {

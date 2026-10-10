@@ -43,10 +43,10 @@ after(async () => {
 });
 
 describe("el catálogo con el que nace un local (F4-02)", () => {
-  test("los siete medios de §5.5; cobra de entrada en efectivo y en USDT", async () => {
+  test("los siete medios de §5.5 y el consumo del personal; cobra de entrada en efectivo y en USDT", async () => {
     const c = valor(await local.app.medios.leer(ctxCajera));
-    assert.deepEqual(c.medios.map((m) => m.code), ["EFECTIVO_USD", "EFECTIVO_VES", "PAGO_MOVIL", "PDV_DEBITO", "PDV_CREDITO", "ZELLE", "USDT"]);
-    assert.deepEqual(c.medios.filter((m) => m.activo).map((m) => m.code), ["EFECTIVO_USD", "EFECTIVO_VES", "USDT"]);
+    assert.deepEqual(c.medios.map((m) => m.code), ["EFECTIVO_USD", "EFECTIVO_VES", "PAGO_MOVIL", "PDV_DEBITO", "PDV_CREDITO", "ZELLE", "USDT", "CONSUMO_PERSONAL"]);
+    assert.deepEqual(c.medios.filter((m) => m.activo).map((m) => m.code), ["EFECTIVO_USD", "EFECTIVO_VES", "USDT", "CONSUMO_PERSONAL"]);
     assert.deepEqual(c.terminales, []);
     assert.equal(c.pagoMovil, undefined);
   });
@@ -136,7 +136,7 @@ describe("administración configura el cobro", () => {
     for (const code of ["EFECTIVO_USD", "EFECTIVO_VES"]) valor(await otro.app.medios.aplicar(otro.sistema, { kind: "ACTIVAR", code, activo: false }));
     const r = await otro.app.medios.aplicar(otro.sistema, { kind: "ACTIVAR", code: "USDT", activo: false });
     assert.equal(!r.ok && r.motivo, "INVALIDO");
-    assert.equal(c.medios.length, 7);
+    assert.equal(c.medios.length, 8);
   });
 
   test("cada cambio queda en la auditoría con quién lo hizo", async () => {

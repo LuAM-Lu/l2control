@@ -107,8 +107,8 @@ export function cuadreConZ(calculado: TotalesDeTurno, z: TotalesDeTurno): string
   return diferencias;
 }
 
-/** Los periodos que se eligen con un toque; el rango, a mano. */
-export type PeriodoPredefinido = "HOY" | "AYER" | "SEMANA" | "MES" | "MES_ANTERIOR";
+/** Los periodos que se eligen con un toque; el rango, a mano. La quincena (B3-17) es la del consumo del personal. */
+export type PeriodoPredefinido = "HOY" | "AYER" | "SEMANA" | "MES" | "MES_ANTERIOR" | "QUINCENA" | "QUINCENA_ANTERIOR";
 
 /** El día `dia` («2026-10-08») movido `n` días. */
 function mover(dia: string, n: number): string {
@@ -118,7 +118,7 @@ function mover(dia: string, n: number): string {
 
 /**
  * Los días de negocio de un periodo predefinido, contados desde `hoy` (el día del local, que pone quien llama). La
- * semana empieza el lunes; el mes, el día 1.
+ * semana empieza el lunes; el mes, el día 1; la quincena, el 1 o el 16.
  */
 export function periodoPredefinido(p: PeriodoPredefinido, hoy: string): Readonly<{ desde: string; hasta: string }> {
   const [a, m] = hoy.split("-").map(Number) as [number, number];
@@ -136,6 +136,14 @@ export function periodoPredefinido(p: PeriodoPredefinido, hoy: string): Readonly
     case "MES_ANTERIOR": {
       const primero = new Date(Date.UTC(a, m - 2, 1)).toISOString().slice(0, 10);
       return { desde: primero, hasta: mover(`${hoy.slice(0, 7)}-01`, -1) };
+    }
+    case "QUINCENA":
+      return { desde: `${hoy.slice(0, 7)}-${Number(hoy.slice(8)) <= 15 ? "01" : "16"}`, hasta: hoy };
+    case "QUINCENA_ANTERIOR": {
+      // La primera del mes viene de la segunda del anterior (del 16 a su último día); la segunda, de la primera.
+      if (Number(hoy.slice(8)) > 15) return { desde: `${hoy.slice(0, 7)}-01`, hasta: `${hoy.slice(0, 7)}-15` };
+      const ultimo = mover(`${hoy.slice(0, 7)}-01`, -1);
+      return { desde: `${ultimo.slice(0, 7)}-16`, hasta: ultimo };
     }
   }
 }
