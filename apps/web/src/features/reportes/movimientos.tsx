@@ -26,7 +26,8 @@ export const conSigno = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "
 
 /** La dirección del kárdex: su periodo y el producto o la categoría. */
 export function direccionDeMovimientos(base: string, p: { desde: string; hasta: string; producto: string | null; categoria: string | null }): string {
-  const q = new URLSearchParams({ desde: p.desde, hasta: p.hasta });
+  // La vista del kárdex (B11-7): Movimientos, sin ella, es todo lo que pasó en el periodo.
+  const q = new URLSearchParams({ vista: "kardex", desde: p.desde, hasta: p.hasta });
   if (p.producto) q.set("producto", p.producto);
   else if (p.categoria) q.set("categoria", p.categoria);
   return `${base}?${q.toString()}`;

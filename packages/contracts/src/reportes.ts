@@ -363,3 +363,58 @@ export const InformeDelParqueSchema = z.object({
   excepciones: z.array(ExcepcionDelParqueSchema),
 });
 export type InformeDelParqueDto = z.infer<typeof InformeDelParqueSchema>;
+
+/** De qué parte del local es un movimiento (B11-7). */
+export const CategoriaDeMovimientoSchema = z.enum(["CAJA", "PARQUE", "MESAS", "INVENTARIO", "PERSONAL"]);
+export type CategoriaDeMovimientoDto = z.infer<typeof CategoriaDeMovimientoSchema>;
+
+/** Pedir lo que pasó en un periodo (B11-7): con una búsqueda (orden, cliente, cédula, pulsera, persona o monto) o una parte del local. */
+export const ConsultaDeActividadSchema = z
+  .strictObject({
+    desde: FechaSchema,
+    hasta: FechaSchema,
+    buscar: z.string().trim().max(80).optional(),
+    categoria: CategoriaDeMovimientoSchema.optional(),
+  })
+  .refine((p) => p.desde <= p.hasta, { message: "El periodo termina antes de empezar", path: ["hasta"] })
+  .refine((p) => dias(p.desde, p.hasta) <= MAX_DIAS_DE_INFORME, { message: `Hasta ${MAX_DIAS_DE_INFORME} días: parte el periodo`, path: ["desde"] });
+export type ConsultaDeActividadDto = z.infer<typeof ConsultaDeActividadSchema>;
+
+/** Un movimiento: lo que alguien hizo, cuándo, de qué orden y por cuánto, con su detalle. */
+export const MovimientoDelLocalSchema = z.object({
+  id: IdSchema,
+  en: TimestampSchema,
+  categoria: CategoriaDeMovimientoSchema,
+  accion: z.string(),
+  /** Lo que pasó, en palabras: «Cobró», «Entrada al parque». */
+  que: z.string(),
+  quien: z.string(),
+  orden: z.number().int().nullable(),
+  monto: MoneySchema.nullable(),
+  /** El cliente de la cuenta, si lo tiene (con su cédula completa: el informe es de la dirección). */
+  cliente: z.object({ nombre: z.string(), cedula: z.string() }).nullable(),
+  /** Lo demás, corto: las pulseras, la mesa, el paquete, el motivo. */
+  detalle: z.string(),
+  /** Quién lo autorizó y por qué, si hizo falta. */
+  autorizo: z.string().nullable(),
+  motivo: z.string().nullable(),
+  /** La venta que abre su detalle (sus líneas, sus pagos, la tasa y quién cobró), si la hay. */
+  ventaId: IdSchema.nullable(),
+  /** Los datos del asiento, campo por campo, para el detalle de lo que no es una venta. */
+  datos: z.array(z.object({ campo: z.string(), valor: z.string() })),
+});
+export type MovimientoDelLocalDto = z.infer<typeof MovimientoDelLocalSchema>;
+
+/** Lo que pasó en el periodo (B11-7): los movimientos que cumplen la búsqueda, los más nuevos primero (hasta 1000). */
+export const ActividadDelPeriodoSchema = z.object({
+  encabezado: EncabezadoDeInformeSchema,
+  periodo: z.object({ desde: FechaSchema, hasta: FechaSchema }),
+  /** Cuántos cumplen la búsqueda, y por parte del local. */
+  total: z.number().int().nonnegative(),
+  porCategoria: z.array(z.object({ categoria: CategoriaDeMovimientoSchema, cantidad: z.number().int().nonnegative() })),
+  movimientos: z.array(MovimientoDelLocalSchema),
+});
+export type ActividadDelPeriodoDto = z.infer<typeof ActividadDelPeriodoSchema>;
+
+/** Abrir el detalle de una venta desde Movimientos (B11-7). */
+export const ConsultaDeVentaSchema = z.strictObject({ saleId: IdSchema });

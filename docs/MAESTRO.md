@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.121.0 · 121 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.122.0 · 122 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3162,11 +3162,22 @@ F9-05).
   60 con 5 de gracia dan 2 bloques de tiempo de más, el pico, la subida a 2 horas, las excepciones) y en el navegador en
   los dos temas.*
 
-- [ ] **B11-7 · Movimientos: todo lo del día** (M-37, U-5).
+- [x] **B11-7 · Movimientos: todo lo del día** (M-37, U-5).
+  *Hecho el 2026-10-10 (v0.122.0), en `feat/b11-7`.*
   → Reportes → Movimientos pasa a ser todo lo que pasó en el periodo: caja (cobros, devoluciones, anulaciones, turnos),
   parque (entradas, salidas, recargas), mesas (sentar, pedidos, cerrar), inventario y personal. Se busca por número de
   orden, cliente, cédula, pulsera, persona o monto, y cada fila abre su detalle: una venta con sus líneas, sus pagos,
   la tasa y quién cobró. El kárdex por producto sigue, como el filtro de inventario.
+  *· Hecho: `reportes.actividad` saca de la auditoría del periodo lo que es un movimiento (la lista `ACCIONES` de
+  `reportes/actividad.ts`: cobros, anulaciones, devoluciones, turnos, deudas; entradas, salidas, recargas y pausas del
+  parque; sentar, vincular, pedidos y cierres de mesas; entradas, salidas y conteos de inventario; vales y entradas al
+  sistema del personal), los más nuevos primero (hasta 1000), cada uno con su parte del local, quién, quién autorizó y
+  por qué, su orden, su monto, el cliente de su cuenta (el de `account_customer` o, en una familia, su representante) y
+  su detalle. Se busca por orden, cliente, cédula (por sus cifras), pulsera, persona o monto (con coma o punto), y por
+  parte del local. `reportes.venta` abre la venta entera de un cobro o de una devolución. Reportes → Movimientos es esa
+  lista, con una hoja de detalle (la venta: líneas, totales, tasa, pagos, quién cobró, anulada o devuelta; lo demás, sus
+  datos con nombre), y «Kárdex de inventario» como su otra vista (`?vista=kardex`). Probado en la base (3 pruebas) y en
+  el navegador en los dos temas.*
 
 ### Etapa 7 · Staging en VPS
 

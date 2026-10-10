@@ -49,7 +49,8 @@ import { InventarioAlMomentoScreen } from "../../../../../src/features/reportes/
 import { DeudasReporteScreen } from "../../../../../src/features/reportes/DeudasReporteScreen";
 import { PersonalReporteScreen } from "../../../../../src/features/reportes/PersonalReporteScreen";
 import { ParqueReporteScreen } from "../../../../../src/features/reportes/ParqueReporteScreen";
-import { informeDeDeudas, informeDeInventario, informeDeMovimientos, informeDeVentas, informeDelParque, valesDelPeriodo, type ConsultaEnLaDireccion } from "../../../../../src/features/reportes/reportes.servidor";
+import { ActividadScreen } from "../../../../../src/features/reportes/ActividadScreen";
+import { informeDeDeudas, informeDeInventario, informeDeMovimientos, informeDeVentas, informeDelParque, valesDelPeriodo, actividadDelPeriodo, type ConsultaEnLaDireccion } from "../../../../../src/features/reportes/reportes.servidor";
 
 /**
  * Secciones del back-office que ya tienen pantalla propia bajo esta ruta.
@@ -127,7 +128,9 @@ const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.Rea
   "inventario/salidas": async () => <SalidasScreen catalogo={await catalogoDelLocal()} ajustes={await ajustesDelLocal()} />,
   // Los reportes (Etapa 11) leen su periodo de la dirección: se comparte el enlace y se ve lo mismo.
   "reportes/ventas": async (q) => <VentasScreen {...await informeDeVentas(q)} />,
-  "reportes/movimientos": async (q) => <MovimientosScreen {...await informeDeMovimientos(q)} />,
+  // Movimientos (B11-7): todo lo del periodo; el kárdex de inventario, con su vista o con un producto o una categoría.
+  "reportes/movimientos": async (q) =>
+    q.vista === "kardex" || q.producto || q.categoria ? <MovimientosScreen {...await informeDeMovimientos(q)} /> : <ActividadScreen {...await actividadDelPeriodo(q)} />,
   "reportes/inventario": async () => <InventarioAlMomentoScreen informe={await informeDeInventario()} />,
   "reportes/deudas": async (q) => <DeudasReporteScreen {...await informeDeDeudas(q)} />,
   "reportes/personal": async (q) => <PersonalReporteScreen {...await valesDelPeriodo(q)} />,

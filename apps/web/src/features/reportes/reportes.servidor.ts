@@ -2,7 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { calendarDay } from "@l2/domain-rates";
 import { periodoPredefinido } from "@l2/domain-cash";
-import type { InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, InformeDelParqueDto, Resultado, ValesDelPersonalDto } from "@l2/contracts";
+import type { ActividadDelPeriodoDto, CategoriaDeMovimientoDto, InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, InformeDelParqueDto, Resultado, ValesDelPersonalDto } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 import { ajustesDelLocal } from "../sucursal/ajustes.servidor";
@@ -94,6 +94,30 @@ export async function valesDelPeriodo(q: ConsultaEnLaDireccion): Promise<ValesPe
   const ctx = await contextoActual();
   if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los vales." } };
   return { hoy, pedido, informe: await (await aplicacion()).personal.vales(ctx, pedido) };
+}
+
+/** Lo que se pidió de Movimientos (de la dirección, o el día de hoy) y lo que el servidor contestó. */
+export type ActividadPedida = Readonly<{
+  hoy: string;
+  pedido: Readonly<{ desde: string; hasta: string; buscar: string | null; parte: CategoriaDeMovimientoDto | null }>;
+  informe: Resultado<ActividadDelPeriodoDto>;
+}>;
+
+const PARTES: readonly string[] = ["CAJA", "PARQUE", "MESAS", "INVENTARIO", "PERSONAL"];
+
+/** Reportes → Movimientos (B11-7): todo lo que pasó en el periodo de la dirección, con su búsqueda y su parte del local. */
+export async function actividadDelPeriodo(q: ConsultaEnLaDireccion): Promise<ActividadPedida> {
+  await connection();
+  const hoy = await hoyEnElLocal();
+  const porDefecto = periodoPredefinido("HOY", hoy);
+  const buscar = uno(q.buscar)?.trim() || null;
+  const p = uno(q.parte) ?? null;
+  const parte = p && PARTES.includes(p) ? (p as CategoriaDeMovimientoDto) : null;
+  const pedido = { desde: uno(q.desde) ?? porDefecto.desde, hasta: uno(q.hasta) ?? porDefecto.hasta, buscar, parte };
+  const ctx = await contextoActual();
+  if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." } };
+  const consulta = { desde: pedido.desde, hasta: pedido.hasta, ...(buscar ? { buscar } : {}), ...(parte ? { categoria: parte } : {}) };
+  return { hoy, pedido, informe: await (await aplicacion()).reportes.actividad(ctx, consulta) };
 }
 
 /** Lo que se pidió del informe del parque (de la dirección, o el día de hoy) y lo que el servidor contestó. */
