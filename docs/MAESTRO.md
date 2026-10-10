@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.116.0 · 116 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.117.0 · 117 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -161,7 +161,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-34** | **Lo visto en la segunda visita al local** (2026-10-08, el usuario con el sistema funcionando en el local; decidido en cuatro rondas de preguntas) | Veinte pedidos y dos que llegaron al revisarlos (S-1 a S-22, abajo). Primero **dos correcciones** de lo que el local ve cada día: v0.90.1, la entrada desde la caja parte los paquetes letra por letra en su hoja de 480 px, y v0.90.2, los papeles salen sin acentos y con símbolos chinos porque la impresora queda en modo chino. Después **14 pasos nuevos**: B3-12 a B3-14, B4-12 a B4-15, B5-4, B6-10 a B6-12, B9-11, B9-12 y T-19. **D-REL queda decidida:** todo entra antes de la 1.0.0 y la capacitación (B8-3) se da con todo hecho. **Cambian DEC-9 y DEC-23:** la cédula es lo primero que se pide en todo proceso (mesa, de pie, parque y mostrador), con campos que ayudan a llenarla. **Cambia ADR-030 en parte:** «Servido» pasa a ser por plato. Con la sala unificada, Entrada y Salida dejan de ser pestañas. El usuario autorizó encadenar los pasos sin pedir el sí entre ellos. La ruta pasa a **109** | B3-12 a T-19 |
 | **M-35** | **La tercera ronda** (2026-10-09, el usuario tras usar el staging en el local: las dos cajas del 8 oct., las medias, el salón, inventario, respaldos y PDF; decidido en cuatro rondas de preguntas) | R-1 a R-8, abajo en «M-35 en detalle». Primero **tres correcciones** (v0.104.2): la fila del inventario inicial que no se podía quitar, el respaldo que no se hizo sin dejar dicho por qué y los cierres de caja rechazados sin asiento. Después, en este orden y sin pedir el sí entre pasos: B3-15 (la caja cerrada no mueve dinero y sin relevo) → B6-13 (servir y cerrar la mesa) → B6-14 (por limpiar y los avisos del salón) → B4-16 (medias con interruptor) → B9-13 (entradas por periodo) → B7-8 (respaldar ahora) → B11-5 (los PDF compactos). La semilla sigue sin personas (decisión del usuario). La ruta pasa a **116** | B3-15 a B11-5 |
 | **M-36** | **El VPS es la operación real** (2026-10-09, decisiones del usuario) | (1) El VPS ya trabaja con perfiles reales, los equipos del local aprobados y el inventario de verdad: **la 1.0.0 (B8-4) se hace sobre esa base**, sin la corrida limpia de base nueva y semilla (B7-7 queda para otro local). Antes se revisa, solo leyendo, lo que quedó de prueba, y el usuario decide qué hacer con ello. (2) **La operación en paralelo** con el método escrito empieza el 2026-10-09 (B8-3, a cargo del usuario en el local). Lo que salga se corrige como PATCH y **no se publica una versión mientras se prueba**: en modo staging el VPS se pone al día solo y se reiniciaría a mitad. (3) **D-DOM:** no por ahora; sigue `sslip.io`. (4) **D-REIMP:** reimprimir un recibo sigue sin PIN. (5) **F0-09:** la firma formal del alcance queda sin efecto. (6) Pasar el VPS a **modo producción** queda propuesto como D-ENT (§4); **por ahora sigue en staging** (decisión del usuario). El agente de impresión ya imprime por la red del local; falta probarlo por USB (B7-3). La ruta no cambia | B8-3, B8-4 |
-| **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en diez rondas de preguntas) | U-1 a U-14, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, diez pasos, en este orden y sin pedir el sí entre ellos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto: cómo se da y cuánto se puede dar) → B3-18 (anular y devolver, de administración; y devolver lo que un niño no usó) → B3-17 (el consumo del personal, con su vale) → T-20 (los puestos, por uso) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). **Se publica una sola vez al final**, ya probado todo. **Cambian:** D-AUT (supervisión ya no se autoriza sola para anular ni devolver), M-18 (en prepago se puede devolver lo no usado, con PIN de administración) y B3-14 (el tiempo del parque se devuelve por la salida). La ruta pasa a **126** | B3-16 a B11-7, T-20 |
+| **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en diez rondas de preguntas) | U-1 a U-14, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, diez pasos, en este orden y sin pedir el sí entre ellos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto: cómo se da y cuánto se puede dar) → B6-16 (la comanda de la venta directa, sumado el 2026-10-10) → B3-18 (anular y devolver, de administración; y devolver lo que un niño no usó) → B3-17 (el consumo del personal, con su vale) → T-20 (los puestos, por uso) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). **Se publica una sola vez al final**, ya probado todo. **Cambian:** D-AUT (supervisión ya no se autoriza sola para anular ni devolver), M-18 (en prepago se puede devolver lo no usado, con PIN de administración) y B3-14 (el tiempo del parque se devuelve por la salida). La ruta pasa a **127** (B6-16, sumado el 2026-10-10) | B3-16 a B11-7, B6-16, T-20 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -370,7 +370,7 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    **v0.111.1**: la pulsera de un niño vinculado, pasada en la caja, trae su mesa; «Lo recoge» viene marcado «su
    representante»; «En gracia» en ámbar sólido con su cuenta atrás; y en Reportes → Ventas el origen se decide por
    línea (el paquete pagado en una mesa es Parque). Después: B4-17 (la regla de precio del parque) → B6-15 (desvincular)
-   → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto) → B3-18 (anular y devolver, de
+   → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto) → B6-16 (la comanda de la venta directa) → B3-18 (anular y devolver, de
    administración) → B3-17 (el consumo del personal) → T-20 (los puestos, por uso) → B11-6 (Reportes → Parque) → B11-7
    (Movimientos). Sin pedir el sí entre pasos (el usuario, 2026-10-09);
    cada uno entra en `main` probado y con su versión, y **se publica una sola vez al final**: la etiqueta de la última,
@@ -381,8 +381,11 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    que los dos sepan de un cobro por persona. B3-19 va antes que B3-18 porque anular tiene que deshacer un vuelto dado en Bs o por Pago Móvil; B3-17
    va después de los dos porque toca el mismo cobro y el mismo arqueo (un medio que no entra a la gaveta). Las
    correcciones de v0.111.1 van antes que todo (el origen por línea lo usa B11-6). B11-6 y B11-7 leen todo lo anterior.
+   B6-16 (sumado el 2026-10-10, el usuario) va antes que B3-18 porque anular una venta tiene que saber si salió en su
+   comanda (su papel «ANULAR»). **Las notas de las comandas** (el usuario no las vio salir): en el sistema real las tres
+   comandas con nota la imprimieron; queda como prueba para la visita al local (que la cocina y la barra la vean).
 
-Fuera de la cuenta de 126: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -2879,6 +2882,28 @@ antes del cobro en servidor (orden de ejecución).
   sonido. Ajustes → Sucursal: «Pidió la cuenta» y «Por limpiar» (10 min de fábrica). **Decidido al construir:** lo que
   ya pasaba al abrir la pantalla se da por visto (está en «Atender» y en la cola): sin ráfaga de avisos al entrar. 2
   pruebas contra la base y 5 de la web.*
+
+- [x] **B6-16 · La comanda de la venta directa** (M-37, sumado el 2026-10-10).
+  *Hecho el 2026-10-10 (v0.117.0), en `feat/b6-16`.*
+  → Lo que la caja vende de cocina o de barra sale en su comanda, un papel por área como el del mesero: al cobrar la
+  venta, o al dejarla pendiente (y después, al cobrarla, solo lo nuevo). «CAJA» en grande y a quién va. Cada producto
+  que se prepara lleva su nota, con las más pedidas, como la del mesero. Sin la impresora de un área no se cobra
+  (fail-closed, ADR-022). Lo que ya salió no se quita: se anula (B3-18).
+  *· Hecho: en `restaurante/comanda.ts` (aparte de `pedidos.ts`, sin ciclo con las cuentas) `prepararComandaDeCaja`
+  (las líneas de un producto de cocina o de barra sin comanda; comprueba su impresora sin escribir nada) y
+  `asentarComandaDeCaja` (el pedido con su número, «CAJA» y a quién va, cada producto con su cantidad y su nota, un papel
+  por área; pone el pedido en esas líneas), con `encolarComanda`, que comparten el mesero y la caja. El cobro la prepara
+  con sus comprobaciones y la asienta tras el libro, en la misma versión (lo cargado desde papel no saca papel); dejar
+  pendiente una venta directa (`clientes.asignar`) igual. La línea de la cuenta lleva `nota`; lo que salió en una comanda
+  no se quita ni cambia su nota, y una pantalla no pone el pedido de una línea (`PEDIDO_DESDE_LA_PANTALLA`). En la caja,
+  el producto que se prepara tiene «Nota» (con las más pedidas, que ahora ve también la caja), el ticket la dice y lo que
+  salió dice «Salió en su comanda». Probado en la base (3 pruebas: al cobrar, al dejar pendiente y lo nuevo después, y
+  sin impresora no se cobra ni se escribe nada; y se ajustaron las de cobro que vendían un «preparado» sin impresora de
+  comandas) y en el navegador en los dos temas: la nota de unos tequeños, la venta dejada pendiente y su comanda impresa
+  («COCINA», «CAJA», «> Sin salsa»). **Ojo en el local:** sale según el área de cada producto (Ajustes → Productos); lo
+  que se entrega en la caja sin preparar (una bebida de nevera) va «sin papel», o sacará papel en barra. **Las notas del
+  mesero:** el usuario no las vio salir, pero en el sistema real las tres comandas con nota la imprimieron: queda como
+  prueba para la visita al local.*
 
 - [x] **B6-15 · Desvincular una pulsera** (M-37, U-8).
   *Hecho el 2026-10-10 (v0.113.0), en `feat/b6-15`.*

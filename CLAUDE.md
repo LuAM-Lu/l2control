@@ -162,6 +162,11 @@ efectivo Bs (`changeInBolivares`, a la tasa del cobro) o Pago Móvil; cada parte
 referencia del Pago Móvil va cifrada en la venta (el asiento no lleva datos). Sin decirlo, todo en efectivo $ como
 antes. `vuelto.alcanza` dice qué moneda no alcanza en la gaveta, nunca cuánto hay: el arqueo es a ciegas.
 
+**La comanda de la caja (B6-16).** Lo que la caja vende de cocina o de barra (el área de su producto) sale en su
+comanda al cobrar o al dejar pendiente una venta directa: `restaurante/comanda.ts` la **prepara** antes de escribir
+nada (su impresora: sin ella no se cobra) y la **asienta** después, poniendo el pedido (`orderId`) en esas líneas, que
+ya no se quitan. La línea lleva su `nota`. `comanda.ts` no importa las cuentas: así la caja la usa sin ciclo.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 

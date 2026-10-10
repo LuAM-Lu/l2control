@@ -134,6 +134,7 @@ import { AREAS_DE_COMANDA, type AreaDeComanda } from "@l2/domain-orders";
 import { documentoDeAnulacion, rotuloDePedido } from "../impresion/plantillas.ts";
 import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
 import { mesaSinCuenta } from "../restaurante/plano.ts";
+import { asentarComandaDeCaja, prepararComandaDeCaja } from "../restaurante/comanda.ts";
 import { asentarRegistroEn, cargaParaRegistrar, marcaDePapel, type EnPapel } from "./papel-en.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
@@ -246,6 +247,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   ANULACION_DESDE_LA_PANTALLA: "Un pedido se anula con su autorización, no al guardar la cuenta.",
   POR_USO_DESDE_LA_PANTALLA: "Cobrar el parque por uso lo decide la salida, no al guardar la cuenta.",
   EVENTO_DESDE_LA_PANTALLA: "La cuenta de un cumpleaños la abre su reserva: aquí solo se cobra (o se anula su cobro).",
+  PEDIDO_DESDE_LA_PANTALLA: "Lo que va a la cocina lo manda su pedido o el cobro: una pantalla no lo marca enviado.",
 };
 
 const MENSAJE_ANULACION: Record<AnulacionProblem, string> = {
@@ -472,6 +474,10 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // Sin turno abierto en el equipo no se cobra (F4-01).
           const turno = await turnoParaCobrar(tx, ctx);
           if ("ok" in turno) return turno;
+          // Lo que la caja vende de cocina o de barra y no salió en una comanda (B6-16): se comprueba ahora (su impresora)
+          // y se asienta con el cobro. Lo cargado desde papel ya se sirvió: no saca papel.
+          const porSalir = carga ? null : await prepararComandaDeCaja(tx, ctx, cuenta, "la venta no se cobró");
+          if (porSalir && "ok" in porSalir) return porSalir;
           // La zona que decide qué tasa rige y el residuo que la caja puede quedarse (B4-4).
           const ajustes = await ajustesDe(tx, ctx.branchId);
 
@@ -652,7 +658,10 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           }
 
           // La cuenta, pagada (o una parte más), en la misma transacción que sus asientos.
-          const { pendingSince, ...pagada } = markPartPaid(cuenta);
+          // Su comanda (B6-16), con su pedido puesto en esas líneas: así no vuelven a salir.
+          const aQuien = cmd.cliente?.kind === "IDENTIFICADO" ? cmd.cliente.name : (cuenta.cliente?.nombre ?? cuenta.family);
+          const conPedido = porSalir ? await asentarComandaDeCaja(tx, ctx, cuenta, porSalir, aQuien, ahora) : cuenta;
+          const { pendingSince, ...pagada } = markPartPaid(conPedido);
           const quien = await nombreDe(tx, ctx);
           // Mientras queden partes sigue en la cola, con la hora a la que llegó.
           const nueva = FamilyAccountSchema.parse({
@@ -1817,6 +1826,7 @@ async function asentarAnulacion(
             {
               numero: pedido.number,
               mesa: pedido.tableId === null ? null : pedido.tableLabel,
+              enCaja: pedido.tableId === null && pedido.tableLabel === "Caja",
               nombreCuenta: pedido.accountLabel,
               anuladoEn: ahora,
               autorizadoPor: autorizador.fullName,

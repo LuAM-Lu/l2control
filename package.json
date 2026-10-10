@@ -1,11 +1,11 @@
 {
   "name": "l2-control",
   "private": true,
-  "version": "0.116.0",
+  "version": "0.117.0",
   "description": "L2 Control — gestión integral de parque infantil y restaurante",
   "l2": {
     "etapa": "Hacia la puesta en marcha",
-    "pasos": 126
+    "pasos": 127
   },
   "packageManager": "pnpm@12.3.4",
   "engines": {

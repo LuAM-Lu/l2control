@@ -200,6 +200,8 @@ export const AccountLineSchema = z.object({
   partida: z.object({ en: z.number().int().min(2).max(12) }).optional(),
   /** Una parte de una línea partida (B3-20): cuál y de cuántas. */
   parteDe: z.object({ lineId: IdSchema, parte: z.number().int().min(1).max(12), de: z.number().int().min(2).max(12) }).optional(),
+  /** La nota para la cocina de un producto que vende la caja (B6-16): sale en su comanda. */
+  nota: z.string().trim().min(1).max(80, "Una nota corta: hasta 80 caracteres").optional(),
 });
 export type AccountLineDto = z.infer<typeof AccountLineSchema>;
 

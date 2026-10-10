@@ -64,10 +64,10 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { catalogoEn, crearCuentaDeMesa, guardarVersion, nombrePropioDe, vigenteDe } from "../caja/cuentas.ts";
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
-import { encolarEn, impresoraDe } from "../impresion/impresion.ts";
+import { impresoraDe } from "../impresion/impresion.ts";
 import { NOMBRE_DE_AREA, areaSinImpresora, areasDeProductos, oficioDe, sinImpresoraPara, type LineaGuardada } from "./comandas.ts";
-import { documentoDeComanda, rotuloDePedido } from "../impresion/plantillas.ts";
-import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
+import { encolarComanda } from "./comanda.ts";
+import { zonaDe } from "../sucursal/ajustes.ts";
 import { candadoDeMesas, cuentaDeMesaPara, mesaParaCuentaNueva, mesaSinCuenta } from "./plano.ts";
 
 export interface CasosPedidos {
@@ -104,7 +104,6 @@ const VEN_PEDIDOS: readonly Action[] = ["pedido.tomar", "documento.emitir"];
 
 type FilaPedido = Awaited<ReturnType<Transaccion["kitchenOrder"]["findFirstOrThrow"]>>;
 
-const comanda = (n: number) => `#${String(n).padStart(4, "0")}`;
 
 export function casosPedidos(base: Base): CasosPedidos {
   return {
@@ -453,8 +452,8 @@ export function casosPedidos(base: Base): CasosPedidos {
       const v = NotasRapidasQuerySchema.safeParse(entrada);
       if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Ese plato no es válido.", problemas: problemasDe(v.error) };
       return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<NotasRapidasDto>> => {
-        const rechazo = await exigirPermiso(tx, ctx, "pedido.tomar");
-        if (rechazo) return rechazo;
+        // Las pide el mesero y, desde B6-16, la caja para lo que vende.
+        if (!(await puedeAlguna(tx, ctx, VEN_PEDIDOS))) return rechazoDePermiso("DENEGADO");
         const producto = await tx.product.findUnique({ where: { id: v.data.productId }, select: { id: true, category: true } });
         if (!producto) return { ok: true, valor: { notas: [] } };
         const deLaCategoria = (await tx.product.findMany({ where: { category: producto.category }, select: { id: true } })).map((p) => p.id);
@@ -542,45 +541,6 @@ async function destinoDelPedido(tx: Transaccion, ctx: Contexto, cmd: EnviarPedid
   const enElSalon = await mesaParaCuentaNueva(tx, ctx.branchId, cmd.tableId);
   if ("ok" in enElSalon) return { ...enElSalon, ...(enElSalon.problemas ? { problemas: enElSalon.problemas.map((p) => ({ ...p, path: ["tableId"] })) } : {}) };
   return mesaSinCuenta(["tableId"]);
-}
-
-/**
- * La comanda de un área de un pedido (B6-10) en la cola de la impresora de esa área; `area: null`, la de un pedido de
- * antes, con todo, en la de cocina. `copia`, si es una reimpresión.
- */
-async function encolarComanda(tx: Transaccion, ctx: Contexto, fila: FilaPedido, area: AreaDeComanda | null, ahora: number, copia: boolean) {
-  const local = await ajustesDe(tx, ctx.branchId);
-  const partes = partesDelPedido(fila.items as unknown as LineaGuardada[]);
-  const i = partes.findIndex((p) => p.area === area);
-  const parte = partes[i];
-  if (!parte) throw new Error(`El pedido ${fila.id} no tiene papel de ${area ?? "todo"}`);
-  return encolarEn(
-    tx,
-    ctx,
-    {
-      tipo: "COMANDA",
-      para: oficioDe(area),
-      ...(area ? { area } : {}),
-      titulo: `Comanda ${comanda(fila.number)}${area ? ` · ${NOMBRE_DE_AREA[area]}` : ""} · ${rotuloDePedido(fila)}`,
-      copia,
-      orderId: fila.id,
-      documento: documentoDeComanda(
-        {
-          numero: fila.number,
-          mesa: fila.tableId === null ? null : fila.tableLabel,
-          nombreCuenta: fila.accountLabel,
-          enviadoEn: fila.createdAt.getTime(),
-          enviadoPor: fila.createdByName,
-          lineas: parte.lineas,
-          area,
-          parte: { n: i + 1, de: partes.length },
-        },
-        local,
-        copia,
-      ),
-    },
-    ahora,
-  );
 }
 
 /** Los pedidos con su comanda, como los lee una pantalla. Los trabajos, en su propia consulta. */

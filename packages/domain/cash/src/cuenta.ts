@@ -49,6 +49,8 @@ export type AccountLineDoc = Readonly<{
   partida?: unknown;
   /** Una parte de una línea partida (B3-20): cuál y de cuántas. */
   parteDe?: Readonly<{ lineId: string; parte: number; de: number }> | undefined;
+  /** La nota para la cocina de un producto de la venta directa (B6-16): sale en su comanda. */
+  nota?: string | undefined;
 }>;
 
 export type AccountDoc = Readonly<{
@@ -193,7 +195,8 @@ export type AccountChangeProblem =
   | "DIVISION_CON_DESCUENTO"
   | "ANULACION_DESDE_LA_PANTALLA"
   | "POR_USO_DESDE_LA_PANTALLA"
-  | "EVENTO_DESDE_LA_PANTALLA";
+  | "EVENTO_DESDE_LA_PANTALLA"
+  | "PEDIDO_DESDE_LA_PANTALLA";
 
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
@@ -201,7 +204,9 @@ export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: s
  * Una línea que la pantalla puede quitar: sin pagar y de mostrador (un producto del catálogo). Lo
  * consumido en el parque o servido en la mesa no se quita: se regala (cortesía) o se anula.
  */
-const quitable = (l: AccountLineDoc, kind: AccountKind) => !l.paid && !l.movedTo && l.productId !== undefined && kind !== "MESA";
+const quitable = (l: AccountLineDoc, kind: AccountKind) =>
+  // Lo que ya salió en una comanda (B6-16) se preparó: no se quita, se anula.
+  !l.paid && !l.movedTo && l.productId !== undefined && kind !== "MESA" && l.orderId === undefined;
 
 const mismoContenido = (a: AccountLineDoc, b: AccountLineDoc) =>
   a.concept === b.concept &&
@@ -269,6 +274,8 @@ export function accountChangeProblem(
     const antes = previas.get(l.id);
     if (antes) {
       if (!mismoContenido(antes, l)) return { problem: "LINEA_ALTERADA", lineId: l.id };
+      // La nota de lo que ya salió en una comanda (B6-16) es la que leyó la cocina: no cambia.
+      if (antes.orderId !== undefined && (antes.nota ?? "") !== (l.nota ?? "")) return { problem: "LINEA_ALTERADA", lineId: l.id };
       if (antes.paid !== l.paid) return { problem: "PAGO_DESDE_LA_PANTALLA", lineId: l.id };
       if (antes.movedTo !== undefined && l.movedTo !== antes.movedTo) return { problem: "MOVIDA_OTRA_VEZ", lineId: l.id };
       // Regalar es un mando propio, con su autorización (B3-4): un «guardar» no da ni quita cortesías.
@@ -291,6 +298,8 @@ export function accountChangeProblem(
     if (l.cortesia !== undefined) return { problem: "CORTESIA_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.anulacion !== undefined) return { problem: "ANULACION_DESDE_LA_PANTALLA", lineId: l.id };
     if (l.porUso !== undefined) return { problem: "POR_USO_DESDE_LA_PANTALLA", lineId: l.id };
+    // El pedido de una línea lo pone quien la manda a cocina (el mesero, o el cobro de la venta directa, B6-16).
+    if (l.orderId !== undefined) return { problem: "PEDIDO_DESDE_LA_PANTALLA", lineId: l.id };
     if (after.kind === "MOSTRADOR" && l.productId === undefined) return { problem: "MOSTRADOR_SIN_PRODUCTO", lineId: l.id };
     // Lo que se pide en la mesa sale de la carta, que es el catálogo (B6-1): su precio lo pone el
     // servidor, no la tablet. Lo del parque que llega a la mesa lo trae la vinculación (B6-3).

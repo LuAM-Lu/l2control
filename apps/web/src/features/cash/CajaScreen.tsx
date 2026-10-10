@@ -26,6 +26,7 @@ import {
   X,
   Zap,
   ChevronDown,
+  StickyNote,
 } from "lucide-react";
 import {
   type CurrencyCode,
@@ -122,6 +123,7 @@ import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
 import { CobrarJuntasDialog } from "./CobrarJuntasDialog.tsx";
 import { DividirPorItems } from "./DividirPorItems.tsx";
 import { ComoSeDaElVuelto } from "./ComoSeDaElVuelto.tsx";
+import { NotaDelProducto } from "./NotaDelProducto.tsx";
 import { VUELTO_EN_DOLARES, etiquetaDelVuelto, faltaEnElVuelto, partesDelVuelto, type FormaDelVuelto } from "./vuelto.ts";
 import { SalonDeLaCuenta, esDelSalon, nombreDelNino } from "./SalonDeLaCuenta.tsx";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
@@ -226,6 +228,7 @@ function CobroCuenta({
   onCambiarCantidad,
   onDividir,
   onPorItems,
+  onPonerNota,
   onCortesia,
   categoryOf,
   onDescuento,
@@ -260,6 +263,8 @@ function CobroCuenta({
   onCambiarCantidad?: (item: ItemDeMostrador, cantidad: number) => void;
   /** Divide la cuenta en partes iguales, o la vuelve a unir con 1 (F6-12). */
   onDividir?: (partes: number) => void;
+  /** La nota para la comanda de estas líneas de un producto (B6-16); vacía, se quita. */
+  onPonerNota?: (lineIds: readonly string[], nota: string) => void;
   /** Dividir por ítems (B3-20): abre el reparto de los ítems entre personas. */
   onPorItems?: () => void;
   /** Aplica o quita una cortesía en una línea de la cuenta (F6-14). */
@@ -382,6 +387,14 @@ function CobroCuenta({
   const [destinoVuelto, setDestinoVuelto] = useState<
     "VUELTO" | "PROPINA" | "CAJA"
   >("VUELTO");
+  /** El producto cuya nota se escribe (B6-16), con sus líneas. */
+  const [notaPara, setNotaPara] = useState<{ id: string; nombre: string; lineIds: readonly string[]; nota: string } | null>(null);
+  const vendibles = useContext(ALaVenta);
+  /** Si sale en una comanda (cocina o barra): lo que no, no lleva nota. */
+  const seConPapel = (productId: string) => {
+    const a = vendibles.find((p) => p.id === productId)?.area;
+    return a === "COCINA" || a === "BARRA";
+  };
   /** Cómo se da el vuelto (B3-19): por defecto, todo en efectivo $. */
   const [formaVuelto, setFormaVuelto] = useState<FormaDelVuelto>(VUELTO_EN_DOLARES);
   const [eligiendoVuelto, setEligiendoVuelto] = useState(false);
@@ -1187,6 +1200,13 @@ function CobroCuenta({
                         De {f.deCuenta}
                       </span>
                     )}
+                    {(f.nota || f.enCocina) && (
+                      <span className="mt-0.5 text-[11.5px] text-ink-3">
+                        {f.nota ? `Nota: ${f.nota}` : ""}
+                        {f.nota && f.enCocina ? " · " : ""}
+                        {f.enCocina ? "Salió en su comanda" : ""}
+                      </span>
+                    )}
                   </span>
                   <span className="hidden tnum text-right text-ink-3 @md/ticket:block">
                     {tachada ? (
@@ -1239,6 +1259,18 @@ function CobroCuenta({
                         />
                       )}
                       <div className="ml-auto flex gap-2">
+                        {/* B6-16: lo que se prepara lleva su nota a la comanda. */}
+                        {esMostrador && f.item?.productId && onPonerNota && seConPapel(f.item.productId) && (
+                          <Button
+                            surface="pos"
+                            variant="neutral"
+                            className="text-[13px]"
+                            onClick={() => setNotaPara({ id: f.item!.productId!, nombre: f.concepto, lineIds: f.lineIds, nota: f.nota ?? "" })}
+                          >
+                            <StickyNote size={15} aria-hidden="true" />
+                            {f.nota ? "Cambiar nota" : "Nota"}
+                          </Button>
+                        )}
                         {onCortesia !== undefined &&
                           permisoCortesia !== "DENEGADO" &&
                           lineaOriginal && (
@@ -2108,6 +2140,13 @@ function CobroCuenta({
           onCerrar={() => setViendoDescuento(false)}
         />
       )}
+      {/* B6-16: la nota de un producto para su comanda. */}
+      <NotaDelProducto
+        producto={notaPara ? { id: notaPara.id, nombre: notaPara.nombre } : null}
+        nota={notaPara?.nota ?? ""}
+        onGuardar={(nota) => notaPara && onPonerNota?.(notaPara.lineIds, nota)}
+        onCerrar={() => setNotaPara(null)}
+      />
       {/* B3-19: cómo se da el vuelto. */}
       <ComoSeDaElVuelto
         abierto={eligiendoVuelto && sobra.amount > 0n}
@@ -2633,6 +2672,8 @@ export function CajaScreen({
     if (!actual) return;
     const esDelItem = (l: AccountLineDto) =>
       esLineaDeMostrador(l) &&
+      l.orderId === undefined &&
+      (l.nota ?? "") === (item.nota ?? "") &&
       l.concept === item.concepto &&
       l.amount.minor === item.priceMinor;
     const suyas = actual.lines.filter(esDelItem);
@@ -2676,7 +2717,7 @@ export function CajaScreen({
       const nuevas: AccountLineDto[] = Array.from(
         { length: objetivo - suyas.length },
         () =>
-          lineaDeProducto(globalThis.crypto.randomUUID(), producto),
+          ({ ...lineaDeProducto(globalThis.crypto.randomUUID(), producto), ...(item.nota ? { nota: item.nota } : {}) }),
       );
       const ultima = actual.lines.findLastIndex(esDelItem);
       lineas =
@@ -2872,6 +2913,18 @@ export function CajaScreen({
               : ({
                   onAgregarProducto: onAgregarProductoACuenta,
                   onCambiarCantidad: onCambiarCantidadEnCuenta,
+                  // B6-16: la nota de lo que se prepara, guardada en la cuenta hasta que sale en su comanda.
+                  onPonerNota: (lineIds, nota) => {
+                    const ids = new Set(lineIds);
+                    void guardar({
+                      ...actual,
+                      lines: actual.lines.map((l) => {
+                        if (!ids.has(l.id)) return l;
+                        const { nota: _, ...sinNota } = l;
+                        return nota ? { ...sinNota, nota } : sinNota;
+                      }),
+                    });
+                  },
                   onDividir: (n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n)),
                   // La cuenta de una persona ya es parte de una división: se cobra, o se une de nuevo desde la suya.
                   ...(actual.divididaDe ? {} : { onPorItems: () => setDividiendoPorItems(actual.id) }),
@@ -3456,7 +3509,8 @@ function NuevaVentaDirecta({
 }
 
 /** La clave de un ítem de mostrador: lo que se vende, a qué precio y de qué producto. */
-type ItemDeMostrador = Readonly<{ concepto: string; priceMinor: string; productId?: string }>;
+/** Un producto de la venta como lo edita la caja; con su nota (B6-16), las unidades que se suman la llevan. */
+type ItemDeMostrador = Readonly<{ concepto: string; priceMinor: string; productId?: string; nota?: string }>;
 
 /** Lo que la caja vende ahora (B9-1), para la carta y para sumar unidades a una fila. */
 const ALaVenta = createContext<readonly ProductoALaVenta[]>([]);
@@ -3504,6 +3558,9 @@ type Fila = Readonly<{
   porUso?: number;
   /** De qué cuenta vino al cobrar juntas (B3-16): «#0123 · Familia Pérez». */
   deCuenta?: string;
+  /** La nota para la comanda (B6-16), y si ya salió en una. */
+  nota?: string;
+  enCocina?: boolean;
 }>;
 
 /** «#0123 · Familia Pérez»: de dónde vino una línea juntada (B3-16). */
@@ -3521,16 +3578,19 @@ function agruparFilas(
   const filas = new Map<string, Fila>();
   for (const l of lines) {
     const linea = cuenta.lines.find((x) => x.id === l.id);
-    const deMostrador = linea !== undefined && esLineaDeMostrador(linea);
-    // Lo juntado de otra cuenta (B3-16) no se suma con lo de esta: cada fila dice de dónde vino.
+    // Lo que ya salió en una comanda (B6-16) no se edita: se preparó.
+    const deMostrador = linea !== undefined && esLineaDeMostrador(linea) && linea.orderId === undefined;
+    // Lo juntado de otra cuenta (B3-16) no se suma con lo de esta, ni lo que lleva otra nota (B6-16).
     const clave = deMostrador
-      ? `mostrador|${linea.vieneDe?.cuentaId ?? ""}|${l.description}|${l.unitPrice.amount}`
+      ? `mostrador|${linea.vieneDe?.cuentaId ?? ""}|${linea.nota ?? ""}|${l.description}|${l.unitPrice.amount}`
       : l.id;
     const previa = filas.get(clave);
     const deCuenta = deCuentaDe(linea);
     filas.set(clave, {
       clave,
       ...(deCuenta ? { deCuenta } : {}),
+      ...(linea?.nota ? { nota: linea.nota } : {}),
+      ...(linea?.orderId !== undefined && linea.productId !== undefined && linea.kind === "RESTAURANTE" ? { enCocina: true } : {}),
       concepto: l.description,
       precio: l.unitPrice,
       cantidad: (previa?.cantidad ?? 0) + Number(l.quantity),
@@ -3539,6 +3599,7 @@ function agruparFilas(
             concepto: l.description,
             priceMinor: String(l.unitPrice.amount),
             ...(linea.productId ? { productId: linea.productId } : {}),
+            ...(linea.nota ? { nota: linea.nota } : {}),
           }
         : null,
       lineIds: [...(previa?.lineIds ?? []), l.id],

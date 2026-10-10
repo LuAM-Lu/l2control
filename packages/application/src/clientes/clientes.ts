@@ -35,6 +35,7 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn } from "../identidad/actor.ts";
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { guardarVersion, vigenteDe } from "../caja/cuentas.ts";
+import { asentarComandaDeCaja, prepararComandaDeCaja } from "../restaurante/comanda.ts";
 import { avisosDeDeuda } from "../deudas/lectura.ts";
 export { clientesDeCuentas } from "./de-cuentas.ts";
 
@@ -253,12 +254,19 @@ export function casosClientes(base: Base): CasosClientes {
             if (rechazo) return rechazo;
           }
 
+          // Una venta directa que queda pendiente (B6-16): lo que se prepara sale ya en su comanda, no al cobrarla. Se
+          // comprueba antes de escribir nada (su impresora).
+          const ventaDirecta = cuenta.kind === "MOSTRADOR" && !cuenta.dePie && !cuenta.divididaDe && cuenta.status === "POR_COBRAR";
+          const porSalir = ventaDirecta ? await prepararComandaDeCaja(tx, ctx, cuenta, "la venta no quedó pendiente") : null;
+          if (porSalir && "ok" in porSalir) return porSalir;
+
           const c = await resolverCliente(tx, ctx, cmd.cliente, ahora);
           if ("ok" in c) return c;
           const quien = await nombreDe(tx, ctx);
           const cliente = await anotarCliente(tx, ctx, cuenta.id, c, ahora, quien.nombre);
+          const conPedido = porSalir ? await asentarComandaDeCaja(tx, ctx, cuenta, porSalir, c.nombre, ahora) : cuenta;
           // La cuenta se llama como su cliente: así la ve la cola y la busca la caja.
-          const nueva = FamilyAccountSchema.parse({ ...cuenta, family: c.nombre, cliente, version: vigente.version + 1 });
+          const nueva = FamilyAccountSchema.parse({ ...conPedido, family: c.nombre, cliente, version: vigente.version + 1 });
           await guardarVersion(tx, ctx, nueva, { cause: "GUARDAR", operationKey: null, ahora, quien: quien.nombre });
           await auditar(tx, ctx, {
             action: accion,

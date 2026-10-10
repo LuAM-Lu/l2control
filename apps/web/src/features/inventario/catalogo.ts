@@ -26,6 +26,8 @@ export type ProductoALaVenta = Readonly<{
   codigoBarras: string | null;
   /** Si el mesero lo ofrece en las mesas (B6-1): la carta del restaurante es el catálogo con esta marca. */
   enCarta: boolean;
+  /** En qué comanda sale (B6-10): cocina, barra o sin papel. La caja ofrece la nota de lo que se prepara (B6-16). */
+  area: "COCINA" | "BARRA" | "SIN_PAPEL";
 }>;
 
 /** El calendario de precios de todo el catálogo, como lo entiende el dominio. */
@@ -60,6 +62,7 @@ export function productosALaVenta(catalogo: CatalogoDto, instante: number): Prod
     sku: p.sku,
     codigoBarras: p.codigoBarras,
     enCarta: p.enCarta,
+    area: p.area,
   }));
 }
 
