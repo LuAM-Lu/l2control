@@ -276,11 +276,12 @@ export function documentoDePrueba(
 }
 
 /** De dónde es un pedido (B6-7): su mesa (`null` si es de pie) y el nombre propio de su cuenta, si lo tiene. */
-type Destino = Readonly<{ mesa: string | null; nombreCuenta: string | null }>;
+/** A dónde va un papel: la mesa, de pie (`null`) o la caja (B6-16), y a quién. */
+type Destino = Readonly<{ mesa: string | null; nombreCuenta: string | null; enCaja?: boolean }>;
 
 /** «Mesa 3», «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis»: cómo se nombra un pedido en una lista o un título. */
 export function rotuloDePedido(f: Readonly<{ tableId: string | null; tableLabel: string; accountLabel: string | null }>): string {
-  if (f.tableId === null) return `De pie · ${f.accountLabel ?? ""}`;
+  if (f.tableId === null) return `${f.tableLabel === "Caja" ? "Caja" : "De pie"} · ${f.accountLabel ?? ""}`;
   return f.accountLabel ? `Mesa ${f.tableLabel} · ${f.accountLabel}` : `Mesa ${f.tableLabel}`;
 }
 
@@ -298,7 +299,7 @@ function rotuloDeArea(a: AreaDelPapel): Renglon[] {
 /** La cabecera en grande de la comanda y del papel «ANULAR»: la mesa (o DE PIE) y, debajo, a quién va. */
 function cabeceraDeMesa(d: Destino): Renglon[] {
   return [
-    { tipo: "TEXTO", texto: d.mesa === null ? "DE PIE" : `MESA ${d.mesa}`, alinear: "CENTRO", negrita: true, grande: true },
+    { tipo: "TEXTO", texto: d.enCaja ? "CAJA" : d.mesa === null ? "DE PIE" : `MESA ${d.mesa}`, alinear: "CENTRO", negrita: true, grande: true },
     ...(d.nombreCuenta ? [{ tipo: "TEXTO", texto: d.nombreCuenta, alinear: "CENTRO", negrita: true } as const] : []),
   ];
 }

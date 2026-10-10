@@ -606,6 +606,21 @@ describe("dividir por ítems (B3-20, M-37)", () => {
   });
 });
 
+describe("la nota de la venta directa (B6-16, M-37)", () => {
+  const productAtAgua = (id: string) => (id === "p-agua" ? { name: "Agua mineral", amountMinor: 120n, taxCode: "GENERAL" as const } : null);
+  test("una línea sin enviar cambia su nota; la que ya salió en una comanda, no, ni se quita", () => {
+    const antes = mostrador([agua("a1"), agua("a2", { orderId: "o1", nota: "Fría" })]);
+    assert.equal(accountChangeProblem(antes, { ...antes, lines: [agua("a1", { nota: "Sin hielo" }), antes.lines[1]!] }, productAtAgua), null);
+    assert.deepEqual(accountChangeProblem(antes, { ...antes, lines: [antes.lines[0]!, { ...antes.lines[1]!, nota: "Caliente" }] }, productAtAgua), { problem: "LINEA_ALTERADA", lineId: "a2" });
+    assert.deepEqual(accountChangeProblem(antes, { ...antes, lines: [antes.lines[0]!] }, productAtAgua), { problem: "LINEA_QUITADA", lineId: "a2" });
+  });
+
+  test("una pantalla no pone el pedido de una línea nueva", () => {
+    const antes = mostrador([agua("a1")]);
+    assert.deepEqual(accountChangeProblem(antes, { ...antes, lines: [...antes.lines, agua("a3", { orderId: "o9" })] }, productAtAgua), { problem: "PEDIDO_DESDE_LA_PANTALLA", lineId: "a3" });
+  });
+});
+
 describe("anular un pedido en producción (F6-14, B6-3)", () => {
   const plato = (id: string, extra: Partial<AccountLineDoc> = {}) => agua(id, { orderId: "ped-1", ...extra });
 

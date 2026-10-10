@@ -115,7 +115,7 @@ before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
   impresora = await impresoraDePrueba(local);
-  await planoDePrueba(local, 12);
+  await planoDePrueba(local, 13);
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
@@ -475,7 +475,11 @@ describe("la venta de cada cobro (B3-4, C12)", () => {
     const apagar = (activa: boolean) => local.app.impresion.aplicar(local.sistema, { kind: "ACTIVAR", impresoraId: impresora, activa });
     assert.ok((await apagar(false)).ok);
     try {
-      const c = await abrir(mostrador([lineaDeAgua()]));
+      // Sin la única impresora tampoco hay comandas (B6-16): lo que se cobra aquí se sirve sin papel.
+      const galleta = valor(
+        await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre: "Galleta sin papel", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PREPARADO", precioMinor: "100", area: "SIN_PAPEL" } }, AHORA - MIN),
+      ).productos.find((p) => p.nombre === "Galleta sin papel")!.id;
+      const c = await abrir(mostrador([{ ...lineaDeAgua(), concept: "Galleta sin papel", productId: galleta }]));
       const cobrada = valor(await local.app.cuentas.cobrar(ctxCajera, { ...enEfectivo(c, "500", "131"), imprimirRecibo: true }, AHORA));
       assert.equal(cobrada.cuenta.status, "COBRADA");
       assert.deepEqual(cobrada.venta.prints, []);
@@ -674,7 +678,9 @@ describe("anular un pedido en producción (F6-14, B6-3, B6-6)", () => {
   });
 
   test("no se anula lo ya pagado ni lo del parque; ni dos veces, ni dos comandas de una vez", async () => {
-    const pagada = await abrir(mostrador([{ ...lineaDeAgua(), orderId: randomUUID() }]));
+    // Una línea con su pedido la pone el pedido (B6-16: una pantalla no la marca enviada).
+    const pedida = await pedir("mesa-13");
+    const pagada = valor(await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...pedida, status: "POR_COBRAR" } }, AHORA));
     const { cuenta: cobrada } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(pagada, "500", "131"), AHORA));
     const yaPagada = await local.app.cuentas.anularPedido(ctxAdmin, anular(cobrada, [cobrada.lines[0]!.id], { motivo: "OTRO", detalle: "Prueba" }), pinDeAdmin(), AHORA);
     assert.equal(!yaPagada.ok && yaPagada.problemas?.[0]?.message, "LINEA_PAGADA");

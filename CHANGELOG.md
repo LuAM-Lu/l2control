@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.117.0] — 2026-10-10 · Hacia la puesta en marcha
+
+La comanda de la venta directa (B6-16, M-37).
+
+### Añadido
+- **Lo que la caja vende de cocina o de barra sale en su comanda**, un papel por área como el del mesero, al cobrar la
+  venta o al dejarla pendiente (y después solo lo nuevo): «CAJA» en grande y a quién va. Sale según el área de cada
+  producto (Ajustes → Productos): lo que se entrega sin preparar, «sin papel».
+- **La nota para la cocina en la caja**: tocar el producto en el ticket y «Nota», con las más pedidas. Lo que ya salió
+  en su comanda lo dice y no se quita: se anula.
+
 ## [0.116.0] — 2026-10-10 · Hacia la puesta en marcha
 
 El vuelto: cómo se da y cuánto se puede dar (B3-19, M-37).

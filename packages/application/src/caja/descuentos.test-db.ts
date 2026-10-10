@@ -113,7 +113,7 @@ before(async () => {
   ]) {
     valor(await local.app.impuestos.programar(local.sistema, cmd, AHORA - 60 * MIN));
   }
-  const producto = (nombre: string, categoria: string, precioMinor: string) => ({ kind: "CREAR", producto: { nombre, categoria, taxCode: "GENERAL", tipo: "PREPARADO", precioMinor } });
+  const producto = (nombre: string, categoria: string, precioMinor: string) => ({ kind: "CREAR", producto: { nombre, categoria, taxCode: "GENERAL", tipo: "PREPARADO", precioMinor, area: "SIN_PAPEL" } });
   agua = valor(await local.app.productos.aplicar(local.sistema, producto("Agua mineral", "Bebidas", "100"), AHORA - 50 * MIN)).productos.find((p) => p.nombre === "Agua mineral")!.id;
   galleta = valor(await local.app.productos.aplicar(local.sistema, producto("Galleta", "Snacks", "200"), AHORA - 50 * MIN)).productos.find((p) => p.nombre === "Galleta")!.id;
   valor(await local.app.medios.aplicar(local.sistema, { kind: "DATOS_ZELLE", datos: { holder: "Inversiones Parque C.A.", email: "cobros@ejemplo-parque.com" } }));

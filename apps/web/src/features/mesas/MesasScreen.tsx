@@ -129,7 +129,8 @@ const aQuien = (areas: readonly (AreaDeComandaDto | null)[]) => {
 
 const comanda = (n: number) => `#${String(n).padStart(4, "0")}`;
 /** «Mesa 3», «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis»: cómo se nombra un pedido. */
-const rotuloDePedido = (p: PedidoDto) => (p.tableId === null ? `De pie · ${p.nombreCuenta ?? ""}` : p.nombreCuenta ? `Mesa ${p.mesa} · ${p.nombreCuenta}` : `Mesa ${p.mesa}`);
+const rotuloDePedido = (p: PedidoDto) =>
+  p.tableId === null ? `${p.mesa === "Caja" ? "Caja" : "De pie"} · ${p.nombreCuenta ?? ""}` : p.nombreCuenta ? `Mesa ${p.mesa} · ${p.nombreCuenta}` : `Mesa ${p.mesa}`;
 
 /** Lo elegido en el salón: una mesa del plano o las cuentas de pie. */
 const PIE = "PIE";

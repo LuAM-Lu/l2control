@@ -91,7 +91,7 @@ before(async () => {
   valor(await local.app.impuestos.programar(local.sistema, { impuesto: "IGTF", code: null, basisPoints: 0, dia: HOY }, AHORA - 10 * MIN));
   for (const [nombre, precioMinor] of Object.entries(PRECIOS)) {
     const tipo = nombre !== "Café" ? ("PRODUCTO" as const) : ("PREPARADO" as const); // un café hecho al momento no lleva existencia
-    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Mostrador", taxCode: "GENERAL", tipo, precioMinor } }, AHORA - 5 * MIN));
+    const c = valor(await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre, categoria: "Mostrador", taxCode: "GENERAL", tipo, precioMinor, area: "SIN_PAPEL" } }, AHORA - 5 * MIN));
     ids[nombre] = c.productos.find((p) => p.nombre === nombre)!.id;
   }
 });

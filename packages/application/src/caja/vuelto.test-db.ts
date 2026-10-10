@@ -85,7 +85,7 @@ before(async () => {
     valor(await local.app.impuestos.programar(local.sistema, cmd, AHORA - 10 * MIN));
   }
   const catalogo = valor(
-    await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PREPARADO", precioMinor: "100" } }, AHORA - 5 * MIN),
+    await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre: "Agua mineral", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PREPARADO", precioMinor: "100", area: "SIN_PAPEL" } }, AHORA - 5 * MIN),
   );
   agua = catalogo.productos.find((p) => p.nombre === "Agua mineral")!.id;
   valor(await local.app.medios.aplicar(local.sistema, { kind: "DATOS_PAGO_MOVIL", datos: { bankCode: "0134", phone: "0414-2345678", document: "J-40123456-7" } }));
