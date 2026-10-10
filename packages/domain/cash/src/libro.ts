@@ -65,8 +65,9 @@ export function entryProblem(
   // Los bolívares siempre con la tasa congelada; el dólar nunca; el USDT va a la par.
   if (medio.currency === "VES" && !e.rate) return "FALTA_TASA";
   if (medio.currency !== "VES" && e.rate) return "TASA_SOBRANTE";
-  // El vuelto es efectivo que sale de la gaveta (§5.6): no se «devuelve» por Pago Móvil.
-  if (e.kind === "VUELTO" && !medio.givesChange) return "VUELTO_SOLO_EN_EFECTIVO";
+  // El vuelto sale de la gaveta (§5.6) o, desde M-37 (U-12), por Pago Móvil desde la cuenta del local: así se da en
+  // Venezuela cuando no hay billetes. Por los demás medios (punto, Zelle, USDT), no.
+  if (e.kind === "VUELTO" && !medio.givesChange && medio.dataKind !== "PAGO_MOVIL") return "VUELTO_SOLO_EN_EFECTIVO";
   // Solo el cobro lleva la referencia: el vuelto, la propina y el residuo no vienen de un banco.
   const pide = e.kind === "COBRO" ? medio.dataKind : null;
   if (pide !== null && e.dataKind === null) return "FALTAN_DATOS";

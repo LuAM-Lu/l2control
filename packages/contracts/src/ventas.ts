@@ -59,6 +59,8 @@ export const ReciboSchema = z.object({
   vuelto: Texto(24).nullable(),
   /** El vuelto en bolívares, si el cobro tuvo tasa (B3-12). */
   vueltoBs: Texto(32).nullable().optional(),
+  /** Cómo se dio el vuelto, si no fue todo en efectivo $ (B3-19): cada parte con su medio y, por Pago Móvil, su referencia. */
+  vueltoPartes: z.array(z.object({ medio: Texto(40), monto: Texto(32), detalle: Texto(60).nullable() })).optional(),
   destinoVuelto: Texto(24).nullable(),
   cajera: Texto(80).nullable(),
   telefono: Texto(20).nullable(),
@@ -205,7 +207,27 @@ export const VentaCerradaSchema = z
     /** La tasa congelada del cobro, si se pagó algo en bolívares. */
     tasa: z.object({ id: IdSchema, value: Texto(24) }).nullable(),
     payments: z.array(PagoDeVentaSchema),
-    sobra: z.object({ amount: MoneySchema, destino: DestinoSobraSchema }).nullable(),
+    sobra: z
+      .object({
+        amount: MoneySchema,
+        destino: DestinoSobraSchema,
+        /**
+         * Cómo se dio el vuelto (B3-19): cada parte con su medio, lo entregado en su moneda y lo que vale en dólares; por
+         * Pago Móvil, su referencia enmascarada. Las ventas de antes no lo traen: se dio todo en efectivo $.
+         */
+        vuelto: z
+          .array(
+            z.object({
+              methodCode: z.string(),
+              label: z.string(),
+              amount: MoneySchema,
+              enDolares: MoneySchema,
+              referencia: z.string().nullable(),
+            }),
+          )
+          .optional(),
+      })
+      .nullable(),
     prints: z.array(ImpresionSchema),
     voided: AnulacionSchema.nullable(),
     /** Lo que el cliente devolvió después (B3-14), en orden. Lo que queda de cada pago ya lo descuenta. */

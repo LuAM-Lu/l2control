@@ -51,6 +51,24 @@ export const PagoDelCobroSchema = z.strictObject({
 export type PagoDelCobroDto = z.infer<typeof PagoDelCobroSchema>;
 
 /**
+ * Una parte del vuelto (B3-19, M-37): de qué medio sale y cuánto vale en dólares (los bolívares los calcula el servidor a
+ * la tasa del cobro). Por Pago Móvil, la referencia del envío y el banco del cliente.
+ */
+export const ParteDelVueltoSchema = z
+  .strictObject({
+    method: z.enum(["EFECTIVO_USD", "EFECTIVO_VES", "PAGO_MOVIL"]),
+    enDolares: MoneySchema,
+    referencia: z.string().regex(/^\d{4,20}$/, "La referencia del Pago Móvil, de 4 a 20 cifras").optional(),
+    banco: z.string().regex(/^\d{4}$/, "El banco del cliente").optional(),
+  })
+  .refine((p) => p.enDolares.currency === "USD", { message: "La parte va en dólares", path: ["enDolares"] })
+  .refine((p) => p.method !== "PAGO_MOVIL" || (p.referencia !== undefined && p.banco !== undefined), {
+    message: "Un vuelto por Pago Móvil lleva su referencia y el banco",
+    path: ["referencia"],
+  });
+export type ParteDelVueltoDto = z.infer<typeof ParteDelVueltoSchema>;
+
+/**
  * Cobrar una cuenta (o una parte, si está dividida).
  *
  * `lineIds` y `total` son lo que la pantalla enseñaba al cobrar: si la cuenta cambió o el servidor
@@ -75,10 +93,20 @@ export const CobrarCuentaCommandSchema = z
      * imprime: es lo que hacía la caja antes, y el recibo se saca después desde Ventas.
      */
     imprimirRecibo: z.boolean().optional(),
+    /** Cómo se da el vuelto (B3-19), por partes que suman lo que sobra. Sin decirlo, todo en efectivo $, como antes. */
+    vuelto: z.array(ParteDelVueltoSchema).min(1).max(3).optional(),
   })
   .refine((c) => !c.pagos.some((p) => p.amount.currency === "VES") || c.rateId !== undefined, {
     message: "Un cobro en bolívares cita su tasa",
     path: ["rateId"],
+  })
+  .refine((c) => !c.vuelto?.some((p) => p.method !== "EFECTIVO_USD") || c.rateId !== undefined, {
+    message: "Un vuelto en bolívares cita la tasa del cobro",
+    path: ["rateId"],
+  })
+  .refine((c) => c.vuelto === undefined || c.destinoSobra === "VUELTO", {
+    message: "Cómo se da el vuelto, solo si lo que sobra es vuelto",
+    path: ["vuelto"],
   });
 export type CobrarCuentaCommand = z.infer<typeof CobrarCuentaCommandSchema>;
 
@@ -260,3 +288,13 @@ export const DivisionPorItemsSchema = z.object({
   personas: z.array(FamilyAccountSchema),
 });
 export type DivisionPorItemsDto = z.infer<typeof DivisionPorItemsSchema>;
+
+/**
+ * ¿Alcanza la gaveta para este vuelto? (B3-19): lo que saldría de cada moneda. La respuesta dice solo qué monedas no
+ * alcanzan según lo esperado del turno, nunca cuánto hay: el arqueo es a ciegas.
+ */
+export const AlcanzaLaGavetaSchema = z.strictObject({
+  salidas: z.array(MoneySchema).min(1).max(3),
+});
+export const GavetaAlcanzaSchema = z.object({ faltan: z.array(z.enum(["USD", "VES"])) });
+export type GavetaAlcanzaDto = z.infer<typeof GavetaAlcanzaSchema>;

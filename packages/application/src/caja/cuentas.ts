@@ -21,6 +21,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
   AnularCobroCommandSchema,
+  enmascararDatos,
   AnularPedidoCommandSchema,
   CerrarMesaSinCobrarCommandSchema,
   LiberarMesaCommandSchema,
@@ -57,6 +58,7 @@ import {
   sinConsumoProblem,
   chargeableLines,
   closeSettlement,
+  changeInBolivares,
   computeBalance,
   courtesyProblem,
   discountAtChargeProblem,
@@ -581,16 +583,31 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
 
           // §5.6: lo entregado = lo cobrado + vuelto + propina + residuo, al céntimo.
           const sobra = computeBalance(aCobrar, tenders, FUNCIONAL).surplus;
+          // B3-19: cómo se da el vuelto, por partes que suman lo que sobra; sin decirlo, todo en efectivo $ (como antes).
+          // Cada parte sale de su medio: los bolívares, a la tasa del cobro; el Pago Móvil, desde la cuenta del local.
+          if (cmd.vuelto && (sobra.amount === 0n || cmd.destinoSobra !== "VUELTO")) return invalido("No hay vuelto que dar.", ["vuelto"], "SIN_VUELTO");
+          const partesDelVuelto =
+            sobra.amount > 0n && cmd.destinoSobra === "VUELTO"
+              ? (cmd.vuelto ?? [{ method: "EFECTIVO_USD" as const, enDolares: { minor: String(sobra.amount), currency: FUNCIONAL } }])
+              : [];
+          for (const [i, p] of partesDelVuelto.entries()) {
+            if (BigInt(p.enDolares.minor) <= 0n) return invalido("Cada parte del vuelto es de un céntimo o más.", ["vuelto", i, "enDolares"], "PARTE_VACIA");
+            if (p.method !== "EFECTIVO_USD" && !tasa) return invalido("Sin la tasa del cobro no se da vuelto en bolívares.", ["rateId"], "FALTA_LA_TASA");
+            if (!catalogo.medios.get(p.method)) return invalido("Ese medio no existe en este local.", ["vuelto", i, "method"], "Medio desconocido");
+          }
+          const vueltoEnDolares = partesDelVuelto.reduce((n, p) => n + BigInt(p.enDolares.minor), 0n);
+          if (partesDelVuelto.length > 0 && vueltoEnDolares !== sobra.amount) {
+            return invalido("El vuelto repartido no suma lo que sobra: revisa sus partes.", ["vuelto"], "VUELTO_NO_CUADRA");
+          }
           const destino: ChangeDisposition[] =
             sobra.amount === 0n
               ? []
-              : [
-                  cmd.destinoSobra === "VUELTO"
-                    ? { kind: "CHANGE_OUT", amount: sobra, rate: null }
-                    : cmd.destinoSobra === "PROPINA"
-                      ? { kind: "TIP_FROM_CHANGE", amount: sobra }
-                      : { kind: "ROUNDING_RETAINED", amount: sobra },
-                ];
+              : cmd.destinoSobra === "VUELTO"
+                ? partesDelVuelto.map((p) => ({ kind: "CHANGE_OUT" as const, amount: money(BigInt(p.enDolares.minor), FUNCIONAL), rate: null }))
+                : [cmd.destinoSobra === "PROPINA" ? { kind: "TIP_FROM_CHANGE", amount: sobra } : { kind: "ROUNDING_RETAINED", amount: sobra }];
+          /** Cada parte del vuelto en la moneda de su medio: los bolívares, a la tasa congelada del cobro. */
+          const enSuMoneda = (p: (typeof partesDelVuelto)[number]): Money =>
+            p.method === "EFECTIVO_USD" ? money(BigInt(p.enDolares.minor), FUNCIONAL) : changeInBolivares(money(BigInt(p.enDolares.minor), FUNCIONAL), tasa!);
           try {
             closeSettlement({ due: aCobrar, tenders, dispositions: destino, functional: FUNCIONAL, maxRetained: money(BigInt(ajustes.maxRetenido.minor), FUNCIONAL) });
           } catch (e) {
@@ -612,9 +629,14 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               ...(p.amount.currency === "VES" && cmd.rateId ? { rateId: cmd.rateId } : {}),
               ...(p.datos ? { datos: p.datos } : {}),
             })),
-            ...(sobra.amount > 0n
-              ? [{ kind: TIPO_DE_SOBRA[cmd.destinoSobra], method: MEDIO_DE_LO_QUE_SOBRA, amount: { minor: String(sobra.amount), currency: FUNCIONAL } }]
-              : []),
+            ...(sobra.amount > 0n && cmd.destinoSobra === "VUELTO"
+              ? partesDelVuelto.map((p) => {
+                  const m = enSuMoneda(p);
+                  return { kind: "VUELTO" as const, method: p.method, amount: { minor: String(m.amount), currency: m.currency }, ...(m.currency === "VES" && cmd.rateId ? { rateId: cmd.rateId } : {}) };
+                })
+              : sobra.amount > 0n
+                ? [{ kind: TIPO_DE_SOBRA[cmd.destinoSobra], method: MEDIO_DE_LO_QUE_SOBRA, amount: { minor: String(sobra.amount), currency: FUNCIONAL } }]
+                : []),
           ];
           let filas: Awaited<ReturnType<typeof asentarEn>> = [];
           if (asientos.length > 0) {
@@ -706,7 +728,27 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               refundable: conDinero(devolvible[i]!),
               referencia: filas[i] ? referenciaDe(filas[i]!, cifrador) : null,
             })),
-            sobra: sobra.amount > 0n ? { amount: conDinero(sobra), destino: cmd.destinoSobra } : null,
+            sobra:
+              sobra.amount > 0n
+                ? {
+                    amount: conDinero(sobra),
+                    destino: cmd.destinoSobra,
+                    // Cómo se dio (B3-19): el recibo lo dice. La referencia de un Pago Móvil, enmascarada aquí y cifrada aparte.
+                    // Solo si la caja dijo cómo: sin decirlo, todo en efectivo $, como en las ventas de antes.
+                    ...(cmd.vuelto && partesDelVuelto.length > 0
+                      ? {
+                          vuelto: partesDelVuelto.map((p) => ({
+                            methodCode: p.method,
+                            label: catalogo.medios.get(p.method)!.label,
+                            amount: conDinero(enSuMoneda(p)),
+                            enDolares: p.enDolares,
+                            referencia: p.referencia && p.banco ? enmascararDatos({ kind: "PAGO_MOVIL", reference: p.referencia, bankCode: p.banco }) : null,
+                            ...(p.referencia && cifrador ? { referenciaCifrada: cifrador.cifrar(JSON.stringify({ reference: p.referencia, bankCode: p.banco })) } : {}),
+                          })),
+                        }
+                      : {}),
+                  }
+                : null,
             // Cargada desde papel: `closedAt` es la hora real anotada, y esto dice de qué carga y cuándo se cargó (B3-7).
             ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
           };

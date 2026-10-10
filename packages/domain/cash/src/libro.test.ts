@@ -45,7 +45,8 @@ describe("un asiento nuevo (F3-09)", () => {
       [{ kind: "COBRO", amount: fromMajor("5.00", "VES"), rate: TASA_VIERNES, dataKind: "ZELLE" }, medio("ZELLE"), "MONEDA_DEL_MEDIO"],
       [{ kind: "COBRO", amount: fromMajor("100.00", "VES"), rate: null, dataKind: "PAGO_MOVIL" }, MOVIL, "FALTA_TASA"],
       [{ kind: "COBRO", amount: fromMajor("5.00", "USD"), rate: TASA_VIERNES, dataKind: null }, EFECTIVO, "TASA_SOBRANTE"],
-      [{ kind: "VUELTO", amount: fromMajor("100.00", "VES"), rate: TASA_VIERNES, dataKind: null }, MOVIL, "VUELTO_SOLO_EN_EFECTIVO"],
+      // Por punto o USDT no se da vuelto; por Pago Móvil, sí (B3-19, abajo).
+      [{ kind: "VUELTO", amount: fromMajor("1.00", "USDT"), rate: null, dataKind: null }, USDT, "VUELTO_SOLO_EN_EFECTIVO"],
     ];
     for (const [e, m, problema] of casos) assert.equal(entryProblem(e, m), problema, problema);
   });
@@ -60,6 +61,8 @@ describe("un asiento nuevo (F3-09)", () => {
   test("el vuelto, la propina y el residuo no llevan referencia: no vienen de un banco", () => {
     const vuelto = { kind: "VUELTO", amount: fromMajor("1.00", "USD"), rate: null } as const;
     assert.equal(entryProblem({ ...vuelto, dataKind: null }, EFECTIVO), null);
+    // B3-19 (M-37): el vuelto por Pago Móvil, desde la cuenta del local; su referencia va en la venta, no en el asiento.
+    assert.equal(entryProblem({ kind: "VUELTO", amount: fromMajor("316.59", "VES"), rate: TASA_VIERNES, dataKind: null }, MOVIL), null);
     assert.equal(entryProblem({ kind: "PROPINA", amount: fromMajor("1.00", "USD"), rate: null, dataKind: "ZELLE" }, medio("ZELLE")), "DATOS_SOBRANTES");
   });
 });

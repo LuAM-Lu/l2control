@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.115.0 · 115 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.116.0 · 116 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1745,13 +1745,27 @@ Fuera de la cuenta de 126: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Devolver lo que un niño no usó:** en la salida de un niño que pagó por adelantado, administración con su PIN y un
   motivo devuelve lo pagado menos lo que vale su tiempo real con la regla de B4-17 (o todo, si fue un problema del
   local), como una devolución: la caja elige el medio y la moneda de cada parte. Con su comprobante. Cambia M-18.
-- [ ] **B3-19 · El vuelto: cómo se da y cuánto se puede dar** (M-37, U-12).
+- [x] **B3-19 · El vuelto: cómo se da y cuánto se puede dar** (M-37, U-12).
+  *Hecho el 2026-10-10 (v0.116.0), en `feat/b3-19`.*
   → Al haber vuelto, la caja dice cómo lo da: **efectivo $, efectivo Bs** (a la tasa congelada del cobro), **Pago
   Móvil** (con su referencia, `data-privado`) **o repartido**. Cada parte sale de su moneda y de su medio: el arqueo de
   $ y de Bs cuadra, y el recibo dice cómo se dio. Por defecto, efectivo $, como hoy.
   → **La ayuda a la cajera:** propone el reparto (los dólares enteros en billetes y los centavos en Bs, a la tasa del
   cobro) y avisa si en la gaveta no hay bastante de esa moneda (lo esperado del turno). La propina y el residuo «A caja»
   siguen como hoy.
+  *· Hecho: en `@l2/domain-cash`, `proposeChange` (los dólares enteros y los centavos aparte; sin tasa, todo en $) y
+  `changeInBolivares` (a la tasa del cobro: el céntimo de bolívar es más fino que el de dólar y vuelve exacto, el libro
+  cuadra); `entryProblem` admite el vuelto por Pago Móvil (por punto, Zelle o USDT, no), y el disparador de la base
+  igual (migración de expandir). El cobro lleva `vuelto` (partes en dólares que suman lo que sobra, cada una de su
+  medio; las de bolívares citan la tasa del cobro): cada parte es su asiento VUELTO y la venta dice cómo se dio (la
+  referencia del Pago Móvil, enmascarada, y cifrada aparte). Sin decirlo, todo en efectivo $ y la venta queda como las
+  de antes. `vuelto.alcanza` dice qué moneda no alcanza en la gaveta del turno, sin montos (el arqueo es a ciegas). En
+  la caja, «Vuelto · en $» y, tocado otra vez, «Cómo se da el vuelto»: efectivo $, efectivo Bs, Pago Móvil (banco y
+  referencia, `data-privado`) o «Repartido» con la propuesta, sus dólares con −/+ y el resto en Bs o por Pago Móvil, y
+  el aviso de la gaveta. El recibo (pantalla, WhatsApp y papel) lista cada parte. Probado en la base (5 pruebas: por
+  defecto, repartido con la gaveta de $ y de Bs, Pago Móvil y su anulación, la gaveta y los rechazos) y en el navegador
+  en los dos temas, con el cobro y su recibo. **Decidido al construir:** el aviso no enseña cuánto hay en la gaveta; la
+  forma vuelve a «en $» si cambia lo que sobra; la propina y «A caja» siguen como antes.*
 
 - [x] **B3-20 · Dividir por ítems** (M-37, U-13).
   *Hecho el 2026-10-10 (v0.115.0), en `feat/b3-20`.*

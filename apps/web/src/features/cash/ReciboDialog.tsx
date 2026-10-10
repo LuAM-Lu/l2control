@@ -202,7 +202,21 @@ export function ReciboImpreso({
         ))}
         {recibo.pagado && <Renglon etiqueta="Pagado" valor={recibo.pagado} />}
         {recibo.vuelto && <Renglon etiqueta={recibo.destinoVuelto ?? "Vuelto"} valor={recibo.vuelto} />}
-        {recibo.vueltoBs && <Renglon etiqueta="en bolívares" valor={recibo.vueltoBs} />}
+        {recibo.vueltoBs && !recibo.vueltoPartes && <Renglon etiqueta="en bolívares" valor={recibo.vueltoBs} />}
+        {/* B3-19: cómo se dio el vuelto, parte por parte; la referencia de un Pago Móvil es privada. */}
+        {recibo.vueltoPartes?.map((p, i) => (
+          <li key={`v${i}`} className="pl-3">
+            <span className="flex items-baseline justify-between gap-2 text-ink-2">
+              <span>{p.medio}</span>
+              <span className="tnum">{p.monto}</span>
+            </span>
+            {p.detalle && (
+              <span data-privado="" className="tnum block text-[11px] text-ink-3">
+                {p.detalle}
+              </span>
+            )}
+          </li>
+        ))}
       </ul>
 
       <footer className="text-center text-[11px] text-ink-3">

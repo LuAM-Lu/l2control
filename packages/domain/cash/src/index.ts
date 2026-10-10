@@ -537,3 +537,25 @@ export * from "./papel.ts";
 export * from "./reporte.ts";
 export * from "./recibo.ts";
 export * from "./devolucion.ts";
+
+/* ---------------------------------------------- el vuelto, por partes (B3-19) */
+
+/**
+ * La propuesta de la caja para dar un vuelto (B3-19, M-37 U-12): los dólares enteros en billetes y los centavos en
+ * bolívares, a la tasa congelada del cobro. Sin tasa, todo en dólares. `enBolivares` es la parte en dólares que se
+ * da en bolívares (cero si el vuelto es redondo).
+ */
+export function proposeChange(change: Money, hasRate: boolean): Readonly<{ enDolares: Money; enBolivares: Money }> {
+  if (change.currency !== "USD") throw new Error("El vuelto se propone en dólares, la moneda funcional.");
+  const centavos = hasRate ? change.amount % 100n : 0n;
+  return Object.freeze({ enDolares: money(change.amount - centavos, "USD"), enBolivares: money(centavos, "USD") });
+}
+
+/**
+ * Cuánto se entrega en bolívares por una parte del vuelto en dólares (B3-19), a la tasa congelada del cobro (`vesToUsd`,
+ * la misma con que se convierten sus pagos). El céntimo de bolívar es mucho más fino que el de dólar: llevado de vuelta
+ * con la misma tasa, da exactamente la parte en dólares, y el libro cuadra.
+ */
+export function changeInBolivares(enDolares: Money, vesToUsd: FrozenRate): Money {
+  return convert(enDolares, invertRate(vesToUsd));
+}
