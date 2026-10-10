@@ -1396,7 +1396,8 @@ export async function guardarVersion(
       | "RESERVA"
       | "CANCELAR_RESERVA"
       | "EMPEZAR_EVENTO"
-      | "ANULAR_ENTRADA";
+      | "ANULAR_ENTRADA"
+      | "DESVINCULAR";
     operationKey: string | null;
     ahora: number;
     quien: string;

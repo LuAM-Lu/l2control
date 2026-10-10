@@ -16,10 +16,15 @@
  *  · el dominio (`@l2/domain-cash`): qué línea se mueve y cómo queda cada cuenta;
  *  · este archivo: el permiso, que la estancia esté activa y sin vincular, la mesa (con el candado de
  *    las mesas, el mismo del plano) y que todo —la mesa y cada familia tocada— se guarde junto.
+ *
+ * Desvincular (B6-15, M-37) es lo contrario, de un niño a la vez: lo que se debe de él sale de la mesa a la cuenta de
+ * su familia o a otra cuenta de mesa, y su salida del parque va ahí. Lo hace quien vincula, sin PIN; lo cobrado no se
+ * mueve. Así una mesa con un niño vinculado ya no queda trabada.
  */
 import { randomUUID } from "node:crypto";
 import {
   AbrirCuentaDelSalonCommandSchema,
+  DesvincularPulseraCommandSchema,
   FamilyAccountSchema,
   MarcarMesaLimpiaCommandSchema,
   MesasPorLimpiarSchema,
@@ -30,8 +35,9 @@ import {
   type Rechazo,
   type Resultado,
   type VincularPulserasResultDto,
+  type DesvincularPulseraResultDto,
 } from "@l2/contracts";
-import { moveSessionLines, type AccountLineDoc } from "@l2/domain-cash";
+import { moveSessionLines, receiveSession, unlinkProblem, unlinkSession, type AccountLineDoc, type UnlinkProblem } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Action } from "@l2/domain-identity";
@@ -56,6 +62,11 @@ export interface CasosMesas {
    * devuelve lo que ya quedó, sin volver a mover nada.
    */
   vincular(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<VincularPulserasResultDto>>;
+  /**
+   * Desvincula un niño de la cuenta de su mesa (`DesvincularPulseraCommandSchema`, B6-15): lo que se debe de él pasa a
+   * su familia o a otra cuenta de mesa. Reenviar la misma `idempotencyKey` devuelve lo que ya quedó.
+   */
+  desvincular(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<DesvincularPulseraResultDto>>;
   /**
    * Las mesas por limpiar (B6-14, M-35): sin cuentas abiertas y con su última cuenta de hoy cerrada después de la última
    * vez que se dejaron limpias. Se calcula: vale igual si se cobró, se liberó, quedó en deuda o se cerró sin cobrar.
@@ -288,8 +299,118 @@ export function casosMesas(base: Base): CasosMesas {
         return "ok" in r ? r : { ok: true, valor: r };
       }
     },
+
+    async desvincular(ctx, entrada, ahora = Date.now()) {
+      const v = DesvincularPulseraCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "No se desvinculó: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<DesvincularPulseraResultDto | Rechazo> => {
+          // Lo hace quien vincula (mesero, caja y supervisión), sin PIN.
+          const rechazo = await exigirPermiso(tx, ctx, "parque.vincularMesa");
+          if (rechazo) return rechazo;
+
+          // El reintento (se cortó la red) devuelve lo que ya quedó: la mesa con la clave del mando y la que lo recibió.
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.cause !== "DESVINCULAR" || previa.accountId !== cmd.desdeCuentaId) return conflictoDeClave;
+            const recibio = await tx.accountVersion.findFirst({ where: { operationKey: claveSecundaria(cmd.idempotencyKey, "destino") } });
+            if (!recibio) return conflictoDeClave;
+            return { desde: (await vigenteDe(tx, previa.accountId))!.cuenta, destino: (await vigenteDe(tx, recibio.accountId))!.cuenta };
+          }
+
+          const s = await tx.parkSession.findUnique({ where: { id: cmd.sessionId }, select: { branchId: true, accountId: true, wristbandCode: true } });
+          if (!s || s.branchId !== ctx.branchId) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa pulsera no está en esta sucursal." };
+
+          // Las mesas, con su candado (el mismo de vincular y del plano): nadie la vincula ni la mueve mientras tanto.
+          await candadoDeMesas(tx, ctx.branchId);
+          const fila = await tx.account.findUnique({ where: { id: cmd.desdeCuentaId }, select: { branchId: true } });
+          const desde = fila?.branchId === ctx.branchId ? await vigenteDe(tx, cmd.desdeCuentaId) : null;
+          if (!desde || desde.cuenta.kind !== "MESA" || (desde.cuenta.status !== "ABIERTA" && desde.cuenta.status !== "POR_COBRAR")) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa mesa ya no tiene su cuenta abierta: no hay nada que desvincular." };
+          }
+          const problema = unlinkProblem(desde.cuenta, cmd.sessionId);
+          if (problema) return { ok: false, motivo: "CONFLICTO", mensaje: MENSAJE_DESVINCULAR[problema], problemas: [{ path: ["sessionId"], message: problema }] };
+
+          // A dónde va: la cuenta de su familia, abierta; u otra cuenta de mesa abierta de esta sucursal.
+          const destinoId = cmd.destino.kind === "FAMILIA" ? s.accountId : cmd.destino.cuentaId;
+          if (destinoId === desde.cuenta.id) return { ok: false, motivo: "INVALIDO", mensaje: "Ya está en esa cuenta: elige otra." };
+          const filaDestino = await tx.account.findUnique({ where: { id: destinoId }, select: { branchId: true } });
+          const destino = filaDestino?.branchId === ctx.branchId ? await vigenteDe(tx, destinoId) : null;
+          const abierta = destino !== null && (destino.cuenta.status === "ABIERTA" || destino.cuenta.status === "POR_COBRAR");
+          if (cmd.destino.kind === "FAMILIA" && (!destino || !abierta)) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: "La cuenta de su familia ya se cerró: pásalo a otra mesa.",
+              problemas: [{ path: ["destino"], message: "FAMILIA_CERRADA" }],
+            };
+          }
+          if (cmd.destino.kind === "MESA" && (!destino || destino.cuenta.kind !== "MESA" || !abierta)) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: "Esa mesa ya no tiene su cuenta abierta: elige otra.",
+              problemas: [{ path: ["destino", "cuentaId"], message: "MESA_CERRADA" }],
+            };
+          }
+          const recibe = destino!;
+
+          const { desde: sinEl, lineasNuevas } = unlinkSession(desde.cuenta, cmd.sessionId, recibe.cuenta.id, () => randomUUID());
+          const conEl = receiveSession(recibe.cuenta, cmd.sessionId, lineasNuevas);
+          const quien = await nombreDe(tx, ctx);
+          const instante = new Date(ahora).toISOString();
+          // En la cola desde ahora si quedó ahí (una familia de prepago, o que ya salió entera); fuera de ella, sin espera.
+          const espera = (antes: FamilyAccountDto, despues: FamilyAccountDto) => {
+            const { pendingSince: _, ...sin } = despues;
+            return despues.status === "POR_COBRAR" ? { ...sin, pendingSince: antes.status === "POR_COBRAR" ? (antes.pendingSince ?? instante) : instante } : sin;
+          };
+          const mesa = FamilyAccountSchema.parse({ ...espera(desde.cuenta, sinEl), version: desde.version + 1 });
+          const otra = FamilyAccountSchema.parse({ ...espera(recibe.cuenta, conEl), version: recibe.version + 1 });
+          await guardarVersion(tx, ctx, mesa, { cause: "DESVINCULAR", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await guardarVersion(tx, ctx, otra, { cause: "DESVINCULAR", operationKey: claveSecundaria(cmd.idempotencyKey, "destino"), ahora, quien: quien.nombre });
+
+          const movido = lineasNuevas.reduce((acc, l) => add(acc, money(BigInt(l.amount.minor), "USD")), money(0n, "USD"));
+          await auditar(tx, ctx, {
+            action: "mesa.desvincular",
+            entityType: "account",
+            entityId: mesa.id,
+            after: {
+              mesa: mesa.tableLabel ?? "?",
+              pulsera: s.wristbandCode,
+              a: otra.kind === "MESA" ? `Mesa ${otra.tableLabel ?? "?"}` : "Su familia",
+              cuenta: otra.id,
+              movido: { minor: String(movido.amount), currency: movido.currency },
+            },
+          });
+          return { desde: mesa, destino: otra };
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "mesa.desvincular", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
   };
 }
+
+/** Por qué no se desvincula (B6-15), dicho para quien está en la mesa. */
+const MENSAJE_DESVINCULAR: Record<UnlinkProblem, string> = {
+  NO_VINCULADO: "Ese niño ya no está vinculado a esta mesa.",
+  COBRO_EN_CURSO: "Esta mesa ya cobró una parte de su división: termina de cobrarla, o anula ese cobro, antes de desvincular.",
+  YA_COBRADO: "Su tiempo ya se cobró en esta mesa: lo cobrado no se mueve.",
+};
 
 /** Quien ve el salón: quien atiende las mesas y la caja (supervisión y administración tienen las dos). */
 const VEN_EL_SALON: readonly Action[] = ["pedido.tomar", "documento.emitir"];

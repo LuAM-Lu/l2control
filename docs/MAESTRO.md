@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.112.0 · 112 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.113.0 · 113 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2837,11 +2837,23 @@ antes del cobro en servidor (orden de ejecución).
   ya pasaba al abrir la pantalla se da por visto (está en «Atender» y en la cola): sin ráfaga de avisos al entrar. 2
   pruebas contra la base y 5 de la web.*
 
-- [ ] **B6-15 · Desvincular una pulsera** (M-37, U-8).
+- [x] **B6-15 · Desvincular una pulsera** (M-37, U-8).
+  *Hecho el 2026-10-10 (v0.113.0), en `feat/b6-15`.*
   → Desde la mesa (y desde la sala), «Desvincular»: el niño y lo que se debe de él vuelven a la cuenta de su familia, o
   pasan a otra mesa o a la cuenta de otra persona del salón. Lo hace quien vincula (mesero, caja y supervisión), sin
   PIN, con su asiento. Lo ya cobrado no se mueve: se niega con el motivo. Así una mesa con un niño vinculado ya no queda
   trabada (hoy no se libera ni se cierra mientras tenga su tiempo).
+  *· Hecho: en `@l2/domain-cash`, `unlinkProblem` (no vinculado, su parque ya cobrado aquí, o la mesa a medio cobrar una
+  división), `unlinkSession` (lo que se debe de esa estancia queda `movedTo` en la mesa y nace su igual para el destino;
+  la mesa deja de tenerla y, si era lo único en la cola, vuelve a abierta) y `receiveSession` (una mesa la recibe y su
+  salida va ahí; su familia, a la cola si es de prepago o ya salieron todos). `mesas.desvincular` con el permiso de
+  vincular, el candado de las mesas, su asiento `mesa.desvincular` (temas cuentas y sala) y la causa `DESVINCULAR`
+  (migración de expandir). La hoja «Desvincular» es una sola: en la mesa, cada niño vinculado tiene su botón; en la
+  ficha del niño, «Desvincular de la mesa». Dice lo que debe de su tiempo y a dónde puede ir: su familia (si su cuenta
+  sigue abierta) u otra cuenta de mesa. Probado en la base (5 pruebas: a su familia y su salida va ahí, a otra mesa y su
+  salida va ahí, familia ya cerrada, reintento, permiso y aislamiento) y en el navegador en los dos temas: de la Mesa 6
+  a la 7 desde la mesa, y de vuelta a su familia desde la sala. **Decidido al construir:** una cuenta de pie no recibe a
+  un niño (su salida del parque solo sabe ir a una mesa o a su familia); un niño a la vez.*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 

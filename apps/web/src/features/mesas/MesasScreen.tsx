@@ -11,6 +11,7 @@ import {
   DoorOpen,
   HandPlatter,
   Link2,
+  Unlink,
   NotebookPen,
   PersonStanding,
   Plus,
@@ -66,6 +67,7 @@ import { usePlano } from "./PlanoProvider.tsx";
 import { cartaDelMesero } from "../inventario/catalogo.ts";
 import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
+import { DesvincularNino } from "./DesvincularNino.tsx";
 import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
 import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { usePedidos } from "./PedidosProvider.tsx";
@@ -1231,6 +1233,9 @@ function ResumenDeCuenta({ cuenta, ahora }: { cuenta: FamilyAccountDto; ahora: n
 
 function NinosDeLaCuenta({ cuenta, onVincular }: { cuenta: FamilyAccountDto; onVincular: () => void }) {
   const op = useOperacion();
+  const { cuentas, adoptar } = useCuentas();
+  /** El niño que se está desvinculando (B6-15). */
+  const [desvinculando, setDesvinculando] = useState<string | null>(null);
   const ids = cuenta.sessionIds;
   const nombre = (id: string) => {
     const s = op.estado.sesiones.find((x) => x.id === id);
@@ -1248,16 +1253,32 @@ function NinosDeLaCuenta({ cuenta, onVincular }: { cuenta: FamilyAccountDto; onV
       {ids.length === 0 ? (
         <p className="text-[13px] text-ink-3">Ninguno. Si la familia tiene niños jugando, vincúlalos: pagan todo junto.</p>
       ) : (
-        <ul className="flex flex-wrap gap-1.5">
+        <ul className="flex flex-col gap-1">
           {ninosDeLaMesa(cuenta).map((n) => (
-            <li key={n.sessionId}>
+            <li key={n.sessionId} className="flex items-center justify-between gap-2">
               {/* Lo suyo en esta cuenta, o ya pagado aparte (B4-14): un prepago vinculado no se cobra otra vez. */}
               <Badge tone={n.enLaCuenta ? "idle" : "ok"} icon={<Baby size={12} aria-hidden="true" />}>
                 {nombre(n.sessionId)} · {n.enLaCuenta ? "en la cuenta" : "pagado"}
               </Badge>
+              {/* B6-15: vuelve a su familia o pasa a otra mesa, con lo que se debe de él. */}
+              <Button variant="ghost" onClick={() => setDesvinculando(n.sessionId)} className="-mr-2 text-[13px]" aria-label={`Desvincular a ${nombre(n.sessionId)}`}>
+                <Unlink size={15} aria-hidden="true" />
+                Desvincular
+              </Button>
             </li>
           ))}
         </ul>
+      )}
+      {desvinculando && (
+        <DesvincularNino
+          abierto
+          onCerrar={() => setDesvinculando(null)}
+          sesionId={desvinculando}
+          nombre={nombre(desvinculando)}
+          desde={cuenta}
+          cuentas={cuentas}
+          adoptar={adoptar}
+        />
       )}
     </section>
   );

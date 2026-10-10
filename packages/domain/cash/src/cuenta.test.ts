@@ -27,6 +27,9 @@ import {
   registerExit,
   registerRecharge,
   moveSessionLines,
+  unlinkProblem,
+  unlinkSession,
+  receiveSession,
   anulacionProblem,
   anulacionesProblem,
   withAnulacion,
@@ -440,6 +443,64 @@ describe("vincular pulseras a una mesa (F6-05, B6-3)", () => {
   test("si queda otra cosa pendiente en la familia, sigue en la cola", () => {
     const enCola = familia({ status: "POR_COBRAR", lines: [linea("l1", { sessionId: "s1" }), agua("x")] });
     assert.equal(moveSessionLines(enCola, ["s1"], "mesa-1", idsNuevos("mov")).familia.status, "POR_COBRAR");
+  });
+});
+
+describe("desvincular una pulsera (B6-15, M-37)", () => {
+  const mesa = (extra: Partial<AccountDoc> = {}): AccountDoc => ({
+    kind: "MESA",
+    status: "ABIERTA",
+    sessionIds: ["s1", "s2"],
+    closedSessionIds: [],
+    tableId: "t1",
+    lines: [linea("m1", { sessionId: "s1" }), linea("m2", { sessionId: "s2" }), agua("a1")],
+    ...extra,
+  });
+  const ids = (l: AccountLineDoc) => `n-${l.id}`;
+
+  test("lo que se debe de esa estancia sale de la mesa marcado y nace igual, con id propio, para el destino", () => {
+    const { desde, lineasNuevas } = unlinkSession(mesa(), "s1", "fam-1", ids);
+    assert.deepEqual(desde.sessionIds, ["s2"]);
+    assert.equal(desde.lines[0]!.movedTo, "fam-1");
+    assert.deepEqual(desde.lines[1], mesa().lines[1]); // s2 no se toca
+    assert.deepEqual(lineasNuevas.map((l) => [l.id, l.sessionId, l.movedTo]), [["n-m1", "s1", undefined]]);
+    assert.deepEqual(chargeableLines(desde).map((l) => l.id), ["m2", "a1"]);
+  });
+
+  test("lo regalado se queda donde se dio, y una mesa en la cola sin nada que cobrar vuelve a abierta", () => {
+    const enCola = mesa({ status: "POR_COBRAR", sessionIds: ["s1"], lines: [linea("m1", { sessionId: "s1" }), linea("r1", { sessionId: "s1", cortesia: { motivo: "X" } })] });
+    const { desde, lineasNuevas } = unlinkSession(enCola, "s1", "fam-1", ids);
+    assert.deepEqual(lineasNuevas.map((l) => l.id), ["n-m1"]);
+    assert.equal(desde.lines[1]!.movedTo, undefined);
+    assert.equal(desde.status, "ABIERTA");
+    assert.equal(unlinkSession(mesa({ status: "POR_COBRAR" }), "s1", "f", ids).desde.status, "POR_COBRAR"); // queda lo demás
+  });
+
+  test("lo cobrado no se mueve: ni su parque pagado ni una división a medio cobrar", () => {
+    assert.equal(unlinkProblem(mesa(), "s1"), null);
+    assert.equal(unlinkProblem(mesa(), "s9"), "NO_VINCULADO");
+    assert.equal(unlinkProblem(mesa({ lines: [linea("m1", { sessionId: "s1", paid: true })] }), "s1"), "YA_COBRADO");
+    assert.equal(unlinkProblem(mesa({ split: { parts: 3, paid: 1 } }), "s1"), "COBRO_EN_CURSO");
+    assert.equal(unlinkProblem(mesa({ split: { parts: 3, paid: 0 } }), "s1"), null);
+  });
+
+  test("otra mesa recibe la estancia (su salida va ahí) y sus líneas, sin cambiar de estado", () => {
+    const otra = mesa({ sessionIds: [], lines: [agua("b1")] });
+    const r = receiveSession(otra, "s1", [linea("n-m1", { sessionId: "s1" })]);
+    assert.deepEqual(r.sessionIds, ["s1"]);
+    assert.deepEqual(r.lines.map((l) => l.id), ["b1", "n-m1"]);
+    assert.equal(r.status, "ABIERTA");
+    assert.deepEqual(receiveSession(r, "s1", [linea("n-m1", { sessionId: "s1" })]).lines.length, 2); // un reintento no duplica
+  });
+
+  test("la familia la recibe: abierta si quedan niños dentro; a la cola en prepago o si ya salieron todos", () => {
+    const abierta = { ...familia({ lines: [] }), mode: "CUENTA_ABIERTA" };
+    const vuelta = [linea("n-m1", { sessionId: "s1" })];
+    assert.equal(receiveSession(abierta, "s1", vuelta).status, "ABIERTA");
+    assert.deepEqual(receiveSession(abierta, "s1", vuelta).sessionIds, ["s1", "s2"]); // la familia ya la tenía
+    assert.equal(receiveSession({ ...abierta, mode: "PREPAGO" }, "s1", vuelta).status, "POR_COBRAR");
+    assert.equal(receiveSession({ ...abierta, closedSessionIds: ["s1", "s2"] }, "s1", vuelta).status, "POR_COBRAR");
+    assert.equal(receiveSession({ ...abierta, mode: "PREPAGO" }, "s1", []).status, "ABIERTA"); // sin deuda, nada cambia
   });
 });
 

@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.113.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Desvincular una pulsera (B6-15, M-37).
+
+### Añadido
+- **«Desvincular»** un niño de una mesa, desde la mesa (en «Niños vinculados») o desde su ficha en la sala: vuelve a la
+  cuenta de su familia o pasa a otra mesa (u otra familia de una mesa compartida), con lo que debe de su tiempo, y su
+  salida del parque va ahí. Lo hace quien vincula, sin PIN; lo ya cobrado no se mueve. Una mesa con un niño vinculado
+  ya no queda trabada.
+
 ## [0.112.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Una regla de precio para el parque (B4-17, M-37).

@@ -167,7 +167,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Avisos: cuando un niño entra en «por vencer» y cuando se cumple su tiempo, suena (y en Android vibra) un aviso arriba, aquí y en la caja; tócalo y abre su ficha. La campana tachada lo calla 15 minutos en este equipo; el altavoz de la barra quita o pone el sonido del equipo.",
       "Con el equipo bloqueado, la pantalla del PIN sigue avisando, solo con la pulsera y los minutos (sin nombres): tócalo, pon tu PIN y abre la ficha de ese niño.",
       "Los avisos funcionan con la aplicación abierta: no son notificaciones del teléfono. Si el equipo se apaga o se cierra el navegador, no avisa.",
-      "En la ficha: «Más tiempo» (sube a un paquete mayor y paga solo la diferencia: de 30 minutos a 1 hora, lo que falta), pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa.",
+      "En la ficha: «Más tiempo» (sube a un paquete mayor y paga solo la diferencia: de 30 minutos a 1 hora, lo que falta), pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa. Si ya está en una, «Desvincular de la mesa»: vuelve a su familia o pasa a otra mesa, con lo que se debe de él.",
       "El tiempo de más, pasada la gracia, va en bloques del paquete más chico (30 minutos al precio de 30 minutos), y nunca cuesta más que la combinación de paquetes que cubre lo que estuvo.",
       "«Dar salida» abre su salida aquí mismo; «Toda la familia» trae a todos los niños de su cuenta, marcados: quita de la lista a quien se queda.",
       "«Sin pulsera» abre la entrada de un niño que no la tolera. «Buscar»: por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",
@@ -410,6 +410,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Buscar cliente»: por su nombre, su cédula o su teléfono, dice dónde está sentado (toca su cuenta para abrir su mesa), sus niños en la sala y si debe algo de antes.",
       "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, sus datos, su pedido y su cobro.",
       "Quien pide sin mesa: «De pie», con sus mismos datos.",
+      "«Niños vinculados» → «Vincular»: los niños de la familia que juegan en el parque pagan su tiempo con la mesa. Si fue un error o se cambian de mesa, «Desvincular» en el niño: vuelve a la cuenta de su familia o pasa a otra mesa (u otra familia de una mesa compartida), con lo que se debe de él, y su salida del parque va ahí. Lo hace quien vincula, sin PIN; lo ya cobrado no se mueve.",
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: sale un papel por área, la comanda de cocina y la de barra, con el mismo número y «1 de 2». Lo que se sirve sin papel no sale.",
       "En el pedido se ve cada papel: «Cocina: impresa», «Barra: no salió». Cada uno se vuelve a imprimir por su cuenta.",
       "Al poner una nota a un plato salen «Las más pedidas»: las que más se escribieron para ese plato (o su categoría) en los últimos 60 días. Un toque la añade; lo que escribas se queda. Se aprenden solas de los pedidos.",
@@ -429,6 +430,16 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«No hay impresora de comandas de cocina (o de barra)»",
         solucion: "El pedido no se envía sin papel para esa área. Administración marca qué imprime cada impresora en Ajustes → Impresoras (con una sola, las tres marcas en ella).",
         reconoce: ["no hay impresora de comandas", "comandas de barra encendida", "comandas de cocina encendida"],
+      },
+      {
+        sintoma: "«Su tiempo ya se cobró en esta mesa» o «La mesa ya cobró una parte de su división»",
+        solucion: "Lo cobrado no se mueve: el niño se queda en la mesa. Si la división está a medio cobrar, termina de cobrarla o anula ese cobro, y desvincula después.",
+        reconoce: ["su tiempo ya se cobro en esta mesa", "ya cobro una parte de su division"],
+      },
+      {
+        sintoma: "«La cuenta de su familia ya se cerró: pásalo a otra mesa»",
+        solucion: "El niño ya salió y su familia no tiene otra cuenta abierta: elige otra mesa, o cobra lo suyo con esta.",
+        reconoce: ["la cuenta de su familia ya se cerro"],
       },
       {
         sintoma: "«La comanda no salió»",

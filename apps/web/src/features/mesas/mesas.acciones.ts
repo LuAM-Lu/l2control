@@ -1,6 +1,6 @@
 "use server";
 
-import type { FamilyAccountDto, Resultado, VincularPulserasResultDto, MesasPorLimpiarDto } from "@l2/contracts";
+import type { DesvincularPulseraResultDto, FamilyAccountDto, Resultado, VincularPulserasResultDto, MesasPorLimpiarDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -76,5 +76,18 @@ export async function liberarMesa(entrada: unknown): Promise<Resultado<FamilyAcc
   const r = await (await aplicacion()).cuentas.liberarMesa(ctx, entrada);
   if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id, estado: r.valor.status }, "mesa liberada sin consumo");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "liberar mesa rechazado");
+  return r;
+}
+
+/**
+ * Desvincula a un niño de la cuenta de su mesa (B6-15): lo que se debe de él vuelve a su familia o pasa a otra mesa, y
+ * su salida va ahí. Quien vincula, sin PIN; lo cobrado no se mueve.
+ */
+export async function desvincularPulsera(entrada: unknown): Promise<Resultado<DesvincularPulseraResultDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).mesas.desvincular(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, mesa: r.valor.desde.tableLabel, a: r.valor.destino.kind }, "pulsera desvinculada de una mesa");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "desvincular pulsera rechazado");
   return r;
 }

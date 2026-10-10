@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen } from "lucide-react";
+import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen, Unlink } from "lucide-react";
 import { WristbandCodeSchema, type CatalogoDto, type ReservaEventoDto } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
 import type { Route } from "next";
@@ -31,6 +31,7 @@ import { EntradaEnCapa, type PedidoDeEntrada } from "./EntradaEnCapa.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { PonerNombre } from "./PonerNombre.tsx";
 import { VincularAMesa } from "./VincularAMesa.tsx";
+import { DesvincularNino } from "../mesas/DesvincularNino.tsx";
 import { vincularPulseras } from "../mesas/mesas.acciones.ts";
 import { formatDuration } from "@l2/domain-park";
 
@@ -81,6 +82,8 @@ export function ParkMonitor({
 
   const [poniendoNombre, setPoniendoNombre] = useState(false);
   const [vinculandoAMesa, setVinculandoAMesa] = useState(false);
+  /** Desvincular al niño de la ficha de su mesa (B6-15). */
+  const [desvinculando, setDesvinculando] = useState(false);
 
   /**
    * B4-12 (M-34): un solo lector para el parque. Una pulsera que está en la sala abre su ficha (F5-10); una nueva abre la
@@ -401,6 +404,7 @@ export function ParkMonitor({
           setSelected(null);
           setPoniendoNombre(false);
           setVinculandoAMesa(false);
+          setDesvinculando(false);
           setRecargando(false);
         }}
         titulo={ficha ? nombreVisible(ficha) : ""}
@@ -448,6 +452,13 @@ export function ParkMonitor({
                   >
                     <Link2 size={17} aria-hidden="true" />
                     Vincular a una mesa
+                  </Button>
+                )}
+                {/* B6-15: vuelve a su familia o pasa a otra mesa, con lo que se debe de él. */}
+                {puedeVincular && mesaActual && (
+                  <Button variant="neutral" className="w-full" onClick={() => setDesvinculando(true)}>
+                    <Unlink size={17} aria-hidden="true" />
+                    Desvincular de la mesa
                   </Button>
                 )}
               </div>
@@ -610,6 +621,18 @@ export function ParkMonitor({
         hora={hora}
         onCerrada={() => void refrescar()}
       />
+
+      {ficha && mesaActual && desvinculando && (
+        <DesvincularNino
+          abierto
+          onCerrar={() => setDesvinculando(false)}
+          sesionId={ficha.id}
+          nombre={nombreVisible(ficha)}
+          desde={mesaActual}
+          cuentas={cuentas}
+          adoptar={adoptarCuenta}
+        />
+      )}
 
       {ficha && (
         <VincularAMesa

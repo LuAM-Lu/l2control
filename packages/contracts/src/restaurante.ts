@@ -377,3 +377,29 @@ export const VincularPulserasResultSchema = z.object({
 });
 export type VincularPulserasResultDto = z.infer<typeof VincularPulserasResultSchema>;
 
+/* ─────────────────────────────── desvincular una pulsera (B6-15, M-37) */
+
+/**
+ * Desvincula una estancia de la cuenta de su mesa: lo que se debe de ella vuelve a la cuenta de su familia, o pasa a
+ * otra cuenta de mesa del salón (otra mesa, u otra persona de una mesa compartida), y su salida va ahí. Lo cobrado no se
+ * mueve. Una cuenta de pie no recibe a un niño: su salida del parque va a una mesa o a su familia.
+ */
+export const DesvincularPulseraCommandSchema = z.strictObject({
+  idempotencyKey: IdSchema,
+  /** La cuenta de la mesa de la que sale. */
+  desdeCuentaId: z.uuid("Cuenta desconocida"),
+  sessionId: IdSchema,
+  destino: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("FAMILIA") }),
+    z.strictObject({ kind: z.literal("MESA"), cuentaId: z.uuid("Cuenta desconocida") }),
+  ]),
+});
+export type DesvincularPulseraCommand = z.infer<typeof DesvincularPulseraCommandSchema>;
+
+/** Lo que devuelve desvincular: la cuenta de la mesa de la que salió y la que lo recibió, como quedaron. */
+export const DesvincularPulseraResultSchema = z.object({
+  desde: FamilyAccountSchema,
+  destino: FamilyAccountSchema,
+});
+export type DesvincularPulseraResultDto = z.infer<typeof DesvincularPulseraResultSchema>;
+
