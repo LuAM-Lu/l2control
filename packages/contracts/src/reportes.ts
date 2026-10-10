@@ -299,3 +299,67 @@ export const InformeDeInventarioSchema = z.object({
   ),
 });
 export type InformeDeInventarioDto = z.infer<typeof InformeDeInventarioSchema>;
+
+/** Pedir el informe del parque (B11-6): su periodo. */
+export const ConsultaDelParqueSchema = PeriodoDeInformeSchema;
+
+const ConCuanto = z.object({ cantidad: z.number().int().nonnegative(), monto: MoneySchema });
+
+/** Una excepción del parque: cuándo, de quién (el niño o su pulsera) y qué pasó. */
+export const ExcepcionDelParqueSchema = z.object({
+  tipo: z.enum(["SIN_PULSERA", "A_REVISAR", "RECOGIDO_POR_OTRO", "MEDIAS"]),
+  en: TimestampSchema,
+  nino: z.string(),
+  pulsera: z.string(),
+  representante: z.string(),
+  detalle: z.string(),
+});
+export type ExcepcionDelParqueDto = z.infer<typeof ExcepcionDelParqueSchema>;
+
+/**
+ * El informe del parque (B11-6, M-37): por días de negocio, de las estancias que empezaron en el periodo. Los niños por
+ * día y por hora de entrada, con el aforo pico; el dinero del tiempo (paquetes, recargas y tiempo de más) donde terminó
+ * cada línea (en la cuenta de la familia o en la de una mesa), sin lo anulado y con lo regalado aparte; las estancias
+ * (tiempo, pausas por comida, salidas antes de tiempo, cobradas por uso) y las excepciones.
+ */
+export const InformeDelParqueSchema = z.object({
+  encabezado: EncabezadoDeInformeSchema,
+  periodo: z.object({ desde: FechaSchema, hasta: FechaSchema }),
+  resumen: z.object({
+    ninos: z.number().int().nonnegative(),
+    /** Los niños a la vez en la sala, el máximo del periodo, y cuándo (`null` sin estancias). */
+    pico: z.object({ ninos: z.number().int().nonnegative(), en: TimestampSchema }).nullable(),
+    aforo: z.number().int().positive(),
+    /** El tiempo promedio de las que salieron, sin sus pausas por comida; `null` si ninguna salió. */
+    minutosPromedio: z.number().int().nonnegative().nullable(),
+    dinero: MoneySchema,
+  }),
+  porDia: z.array(
+    z.object({ dia: FechaSchema, ninos: z.number().int().nonnegative(), pico: z.number().int().nonnegative(), paquetes: MoneySchema, recargas: MoneySchema, tiempoDeMas: MoneySchema, total: MoneySchema }),
+  ),
+  /** Los que entraron a cada hora del local (0 a 23), sumando los días del periodo. Solo las horas con alguno. */
+  porHora: z.array(z.object({ hora: z.number().int().min(0).max(23), ninos: z.number().int().nonnegative() })),
+  dinero: z.object({
+    paquetes: ConCuanto,
+    recargas: ConCuanto.extend({ minutos: z.number().int().nonnegative() }),
+    tiempoDeMas: ConCuanto,
+    /** De todo lo anterior, lo que terminó en la cuenta de una mesa (al vincular la pulsera). */
+    enMesas: ConCuanto,
+    /** Lo regalado (cortesía), que no suma. */
+    regalado: ConCuanto,
+    porPaquete: z.array(z.object({ paquete: z.string(), ninos: z.number().int().nonnegative(), monto: MoneySchema })),
+  }),
+  estancias: z.object({
+    salieron: z.number().int().nonnegative(),
+    enSala: z.number().int().nonnegative(),
+    pausas: z.number().int().nonnegative(),
+    minutosDePausaPromedio: z.number().int().nonnegative().nullable(),
+    /** Salieron antes de cumplir su paquete. */
+    antesDeTiempo: z.number().int().nonnegative(),
+    /** Cobradas por lo que usaron (B4-6, B4-17): un paquete más barato o el tiempo abierto. */
+    porUso: z.number().int().nonnegative(),
+    invitadosDeCumpleanos: z.number().int().nonnegative(),
+  }),
+  excepciones: z.array(ExcepcionDelParqueSchema),
+});
+export type InformeDelParqueDto = z.infer<typeof InformeDelParqueSchema>;

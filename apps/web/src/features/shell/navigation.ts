@@ -279,7 +279,7 @@ export const MODULOS: readonly Modulo[] = [
     nombre: "Reportes",
     icon: ChartColumn,
     accion: "reportes.verSucursal",
-    resumen: "Lo que pasó en un periodo, sacado de los asientos: ventas, inventario, movimientos, deudas y el consumo del personal, cada uno con su PDF.",
+    resumen: "Lo que pasó en un periodo, sacado de los asientos: ventas, inventario, movimientos, deudas, el parque y el consumo del personal, cada uno con su PDF.",
     secciones: [
       {
         id: "ventas",
@@ -309,6 +309,13 @@ export const MODULOS: readonly Modulo[] = [
         href: rutaSeccion("reportes", "deudas"),
         proposito: "Quien se fue sin pagar: lo que quedó en deuda, lo recuperado y lo perdido, por mesero y por quien autorizó, con la historia de cada una.",
         tarea: "B11-4",
+      },
+      {
+        id: "parque",
+        nombre: "Parque",
+        href: rutaSeccion("reportes", "parque"),
+        proposito: "Los niños por día y por hora con el aforo pico, el dinero del tiempo (también lo pagado en mesas), las estancias y las excepciones.",
+        tarea: "B11-6",
       },
       {
         id: "personal",

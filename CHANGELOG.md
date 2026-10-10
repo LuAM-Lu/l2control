@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.121.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Reportes → Parque (B11-6, M-37).
+
+### Añadido
+- **Reportes → Parque**, con su PDF: los niños por día y por hora de entrada con el aforo pico; el dinero del tiempo
+  (paquetes, recargas y tiempo de más, y cuánto de eso se pagó en mesas, con lo regalado aparte); las estancias (tiempo
+  promedio sin las pausas por comida, salidas antes de tiempo, cobradas por uso) y las excepciones (sin pulsera, a
+  revisar, recogidos por otra persona, medias).
+
 ## [0.120.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Los puestos, por uso (T-20, M-37).

@@ -2,7 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { calendarDay } from "@l2/domain-rates";
 import { periodoPredefinido } from "@l2/domain-cash";
-import type { InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, Resultado, ValesDelPersonalDto } from "@l2/contracts";
+import type { InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, InformeDelParqueDto, Resultado, ValesDelPersonalDto } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 import { ajustesDelLocal } from "../sucursal/ajustes.servidor";
@@ -94,6 +94,24 @@ export async function valesDelPeriodo(q: ConsultaEnLaDireccion): Promise<ValesPe
   const ctx = await contextoActual();
   if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los vales." } };
   return { hoy, pedido, informe: await (await aplicacion()).personal.vales(ctx, pedido) };
+}
+
+/** Lo que se pidió del informe del parque (de la dirección, o el día de hoy) y lo que el servidor contestó. */
+export type ParquePedido = Readonly<{
+  hoy: string;
+  pedido: Readonly<{ desde: string; hasta: string }>;
+  informe: Resultado<InformeDelParqueDto>;
+}>;
+
+/** Reportes → Parque (B11-6): el parque del periodo de la dirección; sin periodo, el de hoy. */
+export async function informeDelParque(q: ConsultaEnLaDireccion): Promise<ParquePedido> {
+  await connection();
+  const hoy = await hoyEnElLocal();
+  const porDefecto = periodoPredefinido("HOY", hoy);
+  const pedido = { desde: uno(q.desde) ?? porDefecto.desde, hasta: uno(q.hasta) ?? porDefecto.hasta };
+  const ctx = await contextoActual();
+  if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." } };
+  return { hoy, pedido, informe: await (await aplicacion()).reportes.parque(ctx, pedido) };
 }
 
 /** Lo que se pidió del informe de deudas (de la dirección, o el día de hoy) y lo que el servidor contestó. */
