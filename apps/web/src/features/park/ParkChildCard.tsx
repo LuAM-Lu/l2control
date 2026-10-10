@@ -10,6 +10,7 @@ import {
   TimeBar,
   type Tone,
   cn,
+  formatMoneyVE,
 } from "@l2/ui";
 import { formatDuration, isWristbandless, type SessionStatus } from "@l2/domain-park";
 import { enPausa, msEnPausa, nombreVisible, type SessionCardModel } from "./view-model";
@@ -187,7 +188,12 @@ export function ParkChildCard({
             </span>
           ) : (
             <span className="shrink-0 text-[11px] whitespace-nowrap text-ink-3">
-              {model.contractedMinutes ? `${model.contractedMinutes} min` : "Tiempo abierto"}
+              {model.contractedMinutes
+                ? `${model.contractedMinutes} min`
+                : model.tiempoAbierto
+                  ? // B4-17: lo que va costando, con la tarifa; se cobra al salir.
+                    <span className="tnum">Tiempo abierto · va {formatMoneyVE(model.precioAbierto ?? "0", "USD")}</span>
+                  : model.packageName}
             </span>
           )}
         </div>

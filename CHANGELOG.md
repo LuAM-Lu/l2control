@@ -16,6 +16,22 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.112.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Una regla de precio para el parque (B4-17, M-37).
+
+### Añadido
+- **Tiempo abierto** al entrar en cuenta abierta: el niño entra sin paquete y al salir se cobra la combinación más
+  barata de paquetes que cubre lo que estuvo (1 h 20 min = 1 hora + 30 minutos = $ 8). La tarjeta dice lo que va
+  costando.
+
+### Cambiado
+- **«Más tiempo» sube de paquete pagando la diferencia**: de 30 minutos a 1 hora son $ 2 más ($ 5 en total), no otros
+  30 minutos por $ 3. La gracia corre desde el fin del paquete nuevo.
+- **El tiempo de más va en bloques del paquete más chico** (30 minutos al precio de 30 minutos) y nunca cuesta más que
+  la combinación que cubre el tiempo real: 1 hora que sale a la 1:50 paga $ 9, lo que vale 2 horas. En Ajustes →
+  Tarifas, el bloque y el precio de excedente ya no se editan; el ejemplo de las reglas usa la regla nueva.
+
 ## [0.111.1] — 2026-10-09 · Hacia la puesta en marcha
 
 Cuatro correcciones de lo visto en la operación en paralelo (M-37).

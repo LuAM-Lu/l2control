@@ -349,6 +349,8 @@ export type ExitSettlement = Readonly<{
   billableOverdueMinutes: number;
   /** Bloques de penalización iniciados que se cobran. */
   penaltyBlocks: number;
+  /** Los minutos de cada bloque (B4-17: los del paquete más chico de la tarifa). */
+  blockMinutes: number;
   overdue: Money;
 }>;
 
@@ -357,14 +359,22 @@ export type ExitSettlement = Readonly<{
  * condiciones que regían AL ENTRAR (`policy`). Es la misma cuenta que enseña la sala; la hace el
  * servidor con su reloj (ADR-010) y la pantalla solo la anticipa.
  */
-export function settleAtExit(session: ParkSession, policy: ParkPolicy, now: EpochMs): ExitSettlement {
+export function settleAtExit(
+  session: ParkSession,
+  policy: ParkPolicy,
+  now: EpochMs,
+  /** La tarifa con que entró y lo contratado (B4-17): con ella, el tiempo de más va en bloques del paquete más chico. */
+  cobro?: Readonly<{ tarifa: readonly PaqueteDeUso[]; contratado: Money }>,
+): ExitSettlement {
   const view = computeSessionView(session, policy, now);
-  const desglose = computeOverdueBreakdown(view, policy);
+  const nuevo = cobro && session.duration.kind === "fixed" ? tiempoDeMas(view, cobro.contratado, cobro.tarifa, policy.graceMinutes) : null;
+  const desglose = nuevo ?? computeOverdueBreakdown(view, policy);
   return Object.freeze({
     // Se redondea hacia arriba igual que el cobro: «59 min» cuando se cobró una hora sería explicar mal el recibo.
     consumedMinutes: Math.ceil(view.elapsedMs / MS_PER_MINUTE),
     billableOverdueMinutes: desglose.billableMinutes,
     penaltyBlocks: desglose.blocks,
+    blockMinutes: nuevo ? nuevo.blockMinutes : policy.penaltyBlockMinutes,
     overdue: desglose.charge,
   });
 }
@@ -551,3 +561,188 @@ export { money };
 /* ---------------------------------------------------------- cumpleaños */
 
 export * from "./eventos.ts";
+
+/* ------------------------------------------------- la regla de precio (B4-17, M-37) */
+
+/** Una combinación de paquetes de la tarifa: lo que cuesta y cómo se dice («1 hora + 30 minutos»). */
+export type Combinacion = Readonly<{ precio: Money; paquetes: readonly string[] }>;
+
+/**
+ * Lo que vale un tiempo con la tarifa (B4-17, M-37): la combinación más barata de paquetes cuya duración, con la gracia,
+ * cubre lo que el niño estuvo; al menos un paquete, y nunca más que el pase libre (un paquete sin límite). Es la misma
+ * regla para el tiempo abierto, el tiempo de más y salir antes de tiempo en cuenta abierta. `null` si la tarifa no tiene
+ * ningún paquete en esa moneda.
+ *
+ * Los paquetes son los de la versión del tarifario con que entró el niño: las condiciones no cambian a mitad de una
+ * estancia (B4-2).
+ */
+export function precioDelTiempo(
+  tarifa: readonly PaqueteDeUso[],
+  elapsedMs: number,
+  graceMinutes: number,
+  currency: Money["currency"],
+): Combinacion | null {
+  const fijos = tarifa.filter(
+    (p): p is PaqueteDeUso & { duration: Extract<Duration, { kind: "fixed" }> } =>
+      p.price.currency === currency && p.duration.kind === "fixed" && p.duration.minutes > 0,
+  );
+  const libre = tarifa
+    .filter((p) => p.price.currency === currency && p.duration.kind === "openEnded")
+    .sort((a, b) => (a.price.amount < b.price.amount ? -1 : a.price.amount > b.price.amount ? 1 : 0))[0];
+  if (fijos.length === 0) return libre ? { precio: libre.price, paquetes: [libre.name] } : null;
+
+  // Los minutos que hay que cubrir, ya con la gracia; al menos uno: estar dentro cuesta al menos un paquete.
+  const cubrir = Math.max(1, Math.ceil(elapsedMs / MS_PER_MINUTE) - graceMinutes);
+  // Lo más barato para cubrir al menos m minutos, con lo que se eligió para reconstruir la combinación.
+  const costo: bigint[] = new Array(cubrir + 1).fill(-1n);
+  const elegido: number[] = new Array(cubrir + 1).fill(-1);
+  costo[0] = 0n;
+  for (let m = 1; m <= cubrir; m++) {
+    for (let i = 0; i < fijos.length; i++) {
+      const p = fijos[i]!;
+      const antes = costo[Math.max(0, m - p.duration.minutes)]!;
+      const c = antes + p.price.amount;
+      // A igual precio, el de más minutos: la combinación más corta de decir.
+      if (costo[m] === -1n || c < costo[m]! || (c === costo[m]! && p.duration.minutes > fijos[elegido[m]!]!.duration.minutes)) {
+        costo[m] = c;
+        elegido[m] = i;
+      }
+    }
+  }
+  const paquetes: string[] = [];
+  for (let m = cubrir; m > 0; ) {
+    const p = fijos[elegido[m]!]!;
+    paquetes.push(p.name);
+    m = Math.max(0, m - p.duration.minutes);
+  }
+  // Los mayores primero: «2 horas + 30 minutos».
+  const largo = new Map(fijos.map((p) => [p.name, p.duration.minutes]));
+  paquetes.sort((a, b) => (largo.get(b) ?? 0) - (largo.get(a) ?? 0));
+  const combinacion: Combinacion = { precio: money(costo[cubrir]!, currency), paquetes };
+  return libre && libre.price.amount < combinacion.precio.amount ? { precio: libre.price, paquetes: [libre.name] } : combinacion;
+}
+
+export type TiempoDeMas = Readonly<{
+  /** Minutos cobrables, ya descontada la gracia. */
+  billableMinutes: number;
+  /** Bloques iniciados, del paquete más chico de la tarifa. */
+  blocks: number;
+  /** Los minutos de cada bloque (los del paquete más chico: 30). */
+  blockMinutes: number;
+  charge: Money;
+}>;
+
+/**
+ * El tiempo de más de un paquete fijo (B4-17, M-37): pasada la gracia, en bloques del paquete más chico de la tarifa
+ * (30 min al precio de 30 min), y nunca más que lo que falta para la combinación más barata que cubre el tiempo real.
+ * Con 30 min $3, 1 h $5, 2 h $9 y 5 min de gracia, 1 h que sale a 1:20 paga $3 y a 1:50 paga $4 ($9 en total, no $11).
+ * `null` si la tarifa no tiene paquetes fijos: entonces vale el recargo de antes (`computeOverdueBreakdown`).
+ */
+export function tiempoDeMas(view: SessionView, contratado: Money, tarifa: readonly PaqueteDeUso[], graceMinutes: number): TiempoDeMas | null {
+  const fijos = tarifa.filter((p) => p.price.currency === contratado.currency && p.duration.kind === "fixed" && p.duration.minutes > 0);
+  if (fijos.length === 0) return null;
+  const chico = fijos.reduce((a, b) => {
+    const ma = a.duration.kind === "fixed" ? a.duration.minutes : 0;
+    const mb = b.duration.kind === "fixed" ? b.duration.minutes : 0;
+    return mb < ma || (mb === ma && b.price.amount < a.price.amount) ? b : a;
+  });
+  const blockMinutes = chico.duration.kind === "fixed" ? chico.duration.minutes : 0;
+  if (view.billableOverdueMs <= 0) return Object.freeze({ billableMinutes: 0, blocks: 0, blockMinutes, charge: zero(contratado.currency) });
+  const blocks = Math.ceil(view.billableOverdueMs / (blockMinutes * MS_PER_MINUTE));
+  const porBloques = multiply(chico.price, BigInt(blocks));
+  const total = precioDelTiempo(tarifa, view.elapsedMs, graceMinutes, contratado.currency);
+  const tope = total && total.precio.amount > contratado.amount ? total.precio.amount - contratado.amount : 0n;
+  return Object.freeze({
+    billableMinutes: Math.ceil(view.billableOverdueMs / MS_PER_MINUTE),
+    blocks,
+    blockMinutes,
+    charge: money(porBloques.amount < tope ? porBloques.amount : tope, contratado.currency),
+  });
+}
+
+/**
+ * Subir de paquete (B4-17, M-37): lo que falta pagar para pasar de lo contratado (el paquete y lo que ya subió) a un
+ * paquete mayor, y los minutos que suma. El total queda en el precio del paquete final. `null` si ese paquete no es
+ * mayor que lo que ya tiene, o no es de tiempo fijo.
+ */
+export function subirDePaquete(
+  actual: Readonly<{ minutos: number; contratado: Money }>,
+  destino: PaqueteDeUso,
+): Readonly<{ minutos: number; diferencia: Money }> | null {
+  if (destino.duration.kind !== "fixed" || destino.duration.minutes <= actual.minutos) return null;
+  if (destino.price.currency !== actual.contratado.currency) return null;
+  const falta = destino.price.amount - actual.contratado.amount;
+  return { minutos: destino.duration.minutes - actual.minutos, diferencia: money(falta > 0n ? falta : 0n, actual.contratado.currency) };
+}
+
+export type Liquidacion = Readonly<{
+  consumedMinutes: number;
+  billableOverdueMinutes: number;
+  penaltyBlocks: number;
+  blockMinutes: number;
+  overdue: Money;
+  /** Lo contratado: el paquete y lo que subió. */
+  contratado: Money;
+  /**
+   * Lo que se cobra en lugar de lo contratado, con la regla de precio: el tiempo abierto, o salir antes de tiempo en
+   * cuenta abierta si la combinación cuesta menos (B4-6, B4-17). `null` si se cobra lo contratado.
+   */
+  porUso: Combinacion | null;
+  total: Money;
+}>;
+
+/**
+ * La liquidación de una estancia al salir en `now` (B4-17, M-37): la cuenta que anticipa la salida y la que asienta el
+ * servidor, con las condiciones y la tarifa con que entró. Una sola función para los dos: si cambia la regla, cambia en
+ * los dos a la vez (§9.7).
+ *
+ *  · **Tiempo abierto:** lo que vale su tiempo con la tarifa (`precioDelTiempo`); sin tarifa, `porUso` es `null` y
+ *    quien liquida tiene que negarse (fail-closed: el tiempo abierto no sale gratis).
+ *  · **Paquete fijo:** lo contratado, más el tiempo de más en bloques con tope (`tiempoDeMas`; sin tarifa, el recargo de
+ *    antes). En cuenta abierta, si salió antes y la combinación cuesta menos, se cobra la combinación.
+ *  · **Pase libre** (sin límite y con su precio): lo contratado.
+ */
+export function liquidarEstancia(
+  input: Readonly<{
+    session: ParkSession;
+    policy: ParkPolicy;
+    tarifa: readonly PaqueteDeUso[];
+    contratado: Money;
+    cuentaAbierta: boolean;
+    tiempoAbierto: boolean;
+  }>,
+  now: EpochMs,
+): Liquidacion {
+  const { session, policy, tarifa, contratado } = input;
+  const view = computeSessionView(session, policy, now);
+  const consumedMinutes = Math.ceil(view.elapsedMs / MS_PER_MINUTE);
+  if (input.tiempoAbierto) {
+    const c = precioDelTiempo(tarifa, view.elapsedMs, policy.graceMinutes, contratado.currency);
+    return Object.freeze({
+      consumedMinutes,
+      billableOverdueMinutes: 0,
+      penaltyBlocks: 0,
+      blockMinutes: 0,
+      overdue: zero(contratado.currency),
+      contratado,
+      porUso: c,
+      total: c ? c.precio : contratado,
+    });
+  }
+  const s = settleAtExit(session, policy, now, { tarifa, contratado });
+  let porUso: Combinacion | null = null;
+  if (input.cuentaAbierta && s.overdue.amount === 0n) {
+    const c = precioDelTiempo(tarifa, view.elapsedMs, policy.graceMinutes, contratado.currency);
+    if (c && c.precio.amount < contratado.amount) porUso = c;
+  }
+  return Object.freeze({
+    consumedMinutes,
+    billableOverdueMinutes: s.billableOverdueMinutes,
+    penaltyBlocks: s.penaltyBlocks,
+    blockMinutes: s.blockMinutes,
+    overdue: s.overdue,
+    contratado,
+    porUso,
+    total: add(porUso ? porUso.precio : contratado, s.overdue),
+  });
+}

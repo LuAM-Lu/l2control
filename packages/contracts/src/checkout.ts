@@ -31,11 +31,16 @@ export const SettlementLineSchema = z.object({
   billableOverdueMinutes: z.number().int().min(0),
   /** Bloques de penalización iniciados que se cobran. */
   penaltyBlocks: z.number().int().min(0),
+  /** Los minutos de cada bloque (B4-17: los del paquete más chico de la tarifa). Las de antes: 15. */
+  blockMinutes: z.number().int().min(0).default(15),
+  /** Si entró con tiempo abierto (B4-17): se cobra lo que vale su tiempo, en `porUso`. */
+  tiempoAbierto: z.boolean().default(false),
   /** Lo contratado: el paquete y sus recargas. */
   packagePrice: MoneySchema,
   /**
-   * Salió antes de tiempo en cuenta abierta (B4-6): el paquete que se cobra en lugar de lo contratado, el más
-   * barato que cubre lo que estuvo. `null` si se cobra lo contratado. `total` ya lo lleva en cuenta.
+   * Lo que se cobra en lugar de lo contratado (B4-6, B4-17): el tiempo abierto, o salir antes de tiempo en cuenta abierta,
+   * con la combinación más barata de la tarifa que cubre lo que estuvo («1 hora + 30 minutos»). `null` si se cobra lo
+   * contratado. `total` ya lo lleva en cuenta.
    */
   porUso: z.object({ paquete: z.string(), precio: MoneySchema }).nullable().default(null),
   overdue: MoneySchema,

@@ -230,6 +230,7 @@ export function CheckoutScreen({
         salen: string[];
         excedentes: { sessionId: string; concept: string; amount: { minor: string; currency: "USD" | "VES" | "USDT" } }[];
         porUso: { sessionId: string; concept: string; amount: { minor: string; currency: "USD" | "VES" | "USDT" }; minutos: number }[];
+        abiertas: { sessionId: string; concept: string; amount: { minor: string; currency: "USD" | "VES" | "USDT" } }[];
       }
     >();
     const sinCuenta: string[] = [];
@@ -242,16 +243,19 @@ export function CheckoutScreen({
         sinCuenta.push(nombre);
         continue;
       }
-      const g = porCuenta.get(c.id) ?? { cuenta: c, salen: [], excedentes: [], porUso: [] };
+      const g = porCuenta.get(c.id) ?? { cuenta: c, salen: [], excedentes: [], porUso: [], abiertas: [] };
       g.salen.push(l.sessionId);
       if (l.penaltyBlocks > 0) {
         g.excedentes.push({
           sessionId: l.sessionId,
-          concept: `Tiempo de más · ${nombre} (${l.penaltyBlocks === 1 ? "1 bloque" : `${l.penaltyBlocks} bloques`})`,
+          concept: `Tiempo de más · ${nombre} (${l.penaltyBlocks === 1 ? "1 bloque" : `${l.penaltyBlocks} bloques`} de ${l.blockMinutes} min)`,
           amount: l.overdue,
         });
       }
-      if (l.porUso) {
+      if (l.porUso && l.tiempoAbierto) {
+        // B4-17: el tiempo abierto entra al salir, con lo que vale su tiempo.
+        g.abiertas.push({ sessionId: l.sessionId, concept: `Tiempo abierto ${l.consumedMinutes} min: ${l.porUso.paquete} · ${l.wristbandCode}`, amount: l.porUso.precio });
+      } else if (l.porUso) {
         g.porUso.push({
           sessionId: l.sessionId,
           concept: `Paquete ${l.porUso.paquete} por uso (${l.consumedMinutes} min) · ${l.wristbandCode}`,
@@ -262,7 +266,7 @@ export function CheckoutScreen({
       porCuenta.set(c.id, g);
     }
     const grupos = [...porCuenta.values()];
-    const resultados = grupos.map((g) => previsualizarSalida(g.cuenta, g.salen, g.excedentes, g.porUso));
+    const resultados = grupos.map((g) => previsualizarSalida(g.cuenta, g.salen, g.excedentes, g.porUso, g.abiertas));
     return { resultados, grupos, sinCuenta };
   }, [preview.lines, cuentas, snapshot.sessions]);
 
@@ -524,6 +528,7 @@ export function CheckoutScreen({
                     {/* El desglose, siempre visible. Es lo que evita la
                         discusión en taquilla. */}
                     <dl className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3 text-[13px]">
+                      {!l.tiempoAbierto && (
                       <div className="flex items-baseline justify-between gap-3">
                         <dt className="text-ink-2">
                           Paquete contratado
@@ -538,8 +543,22 @@ export function CheckoutScreen({
                           />
                         </dd>
                       </div>
+                      )}
 
-                      {l.porUso && (
+                      {l.porUso && l.tiempoAbierto && (
+                        // B4-17: el tiempo abierto, con lo que vale su tiempo en la tarifa.
+                        <div className="flex items-baseline justify-between gap-3">
+                          <dt className="text-ink-2">
+                            Tiempo abierto: {l.porUso.paquete}
+                            <span className="tnum ml-1.5 text-ink-3">({l.consumedMinutes} min)</span>
+                          </dt>
+                          <dd>
+                            <MoneyDisplay value={moneyDtoToMajor(l.porUso.precio)} currency={l.porUso.precio.currency} size="sm" />
+                          </dd>
+                        </div>
+                      )}
+
+                      {l.porUso && !l.tiempoAbierto && (
                         // Salió antes de tiempo en cuenta abierta (B4-6): se cobra lo que usó.
                         <div className="flex items-baseline justify-between gap-3">
                           <dt className="text-state-ok">
@@ -560,8 +579,8 @@ export function CheckoutScreen({
                               ({l.billableOverdueMinutes} min ·{" "}
                               {l.penaltyBlocks === 1
                                 ? "1 bloque"
-                                : `${l.penaltyBlocks} bloques`}
-                              )
+                                : `${l.penaltyBlocks} bloques`}{" "}
+                              de {l.blockMinutes} min)
                             </span>
                           </dt>
                           <dd>

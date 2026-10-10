@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { Infinity as SinLimite } from "lucide-react";
-import type { DurationDto, PricePackageDto } from "@l2/contracts";
+import { TIEMPO_ABIERTO_ID, type DurationDto, type PricePackageDto } from "@l2/contracts";
 import { cn, MoneyDisplay } from "@l2/ui";
 import { toMajor } from "@l2/domain-money";
 import { toMoney } from "./mappers.ts";
@@ -59,12 +59,17 @@ export function PackagePicker({
                 <span className={cn("text-[13px] leading-tight font-semibold break-words text-balance", active && "text-brand")}>
                   {p.name}
                 </span>
-                <MoneyDisplay
-                  value={toMajor(toMoney(p.price))}
-                  currency={p.price.currency}
-                  size="sm"
-                  tone={active ? "default" : "muted"}
-                />
+                {p.id === TIEMPO_ABIERTO_ID ? (
+                  // B4-17: se cobra al salir, lo que valga su tiempo.
+                  <span className="text-[12px] text-ink-3">Se cobra al salir</span>
+                ) : (
+                  <MoneyDisplay
+                    value={toMajor(toMoney(p.price))}
+                    currency={p.price.currency}
+                    size="sm"
+                    tone={active ? "default" : "muted"}
+                  />
+                )}
               </span>
             </button>
           );

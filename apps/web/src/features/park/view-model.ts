@@ -9,10 +9,11 @@
  * del dominio a `number` —el error que §5.1 prohíbe— se formatea aquí, en el
  * borde, igual que las unidades mayores solo aparecen al mostrar.
  */
-import type { MonitorSnapshotDto } from "@l2/contracts";
+import { TIEMPO_ABIERTO_ID, type MonitorSnapshotDto } from "@l2/contracts";
 import { toMajor } from "@l2/domain-money";
-import { computeOverdueCharge, computeSessionView, epochMs, pauseEndsAt, type SessionStatus } from "@l2/domain-park";
+import { computeOverdueCharge, computeSessionView, epochMs, pauseEndsAt, precioDelTiempo, tiempoDeMas, type SessionStatus } from "@l2/domain-park";
 import { toEpochMs, toParkSession, toParkTerms } from "./mappers.ts";
+import { contratadoDeEstancia, tarifaDeEstancia } from "./settlement.ts";
 
 /**
  * Cómo se llama una estancia en pantalla: el apodo, el nombre o —si nadie se
@@ -77,6 +78,10 @@ export type SessionCardModel = Readonly<{
   /** A quién se entrega el niño. */
   guardianName: string;
   packageName: string;
+  /** Entró con tiempo abierto (B4-17): se cobra al salir lo que vale su tiempo. */
+  tiempoAbierto: boolean;
+  /** Lo que va costando su tiempo abierto ahora, con la tarifa; `null` si no es tiempo abierto. */
+  precioAbierto: string | null;
 }>;
 
 /** Cuánto lleva en pausa en `now` (B4-7): lo que el reloj de la tarjeta no cuenta. */
@@ -114,7 +119,11 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto, ahora?: number): Mo
     // Cada estancia se mide con las condiciones con que entró: así la sala dice lo mismo que cobrará la salida.
     const terms = toParkTerms(dto.terms);
     const view = computeSessionView(session, terms, now);
-    const overdue = computeOverdueCharge(view, terms);
+    // B4-17: el tiempo de más con la regla de precio (bloques del paquete más chico, con tope); sin tarifa, el de antes.
+    const tarifa = tarifaDeEstancia(dto);
+    const overdue = tiempoDeMas(view, contratadoDeEstancia(dto), tarifa, terms.graceMinutes)?.charge ?? computeOverdueCharge(view, terms);
+    const tiempoAbierto = dto.packageId === TIEMPO_ABIERTO_ID;
+    const abierto = tiempoAbierto ? precioDelTiempo(tarifa, view.elapsedMs, terms.graceMinutes, "USD") : null;
 
     const isFixed = session.duration.kind === "fixed";
     const contractedMinutes = isFixed ? session.duration.minutes : null;
@@ -144,6 +153,8 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto, ahora?: number): Mo
       accountId: dto.accountId,
       guardianName: dto.guardianName,
       packageName: dto.packageName,
+      tiempoAbierto,
+      precioAbierto: abierto ? toMajor(abierto.precio) : null,
     };
   });
 

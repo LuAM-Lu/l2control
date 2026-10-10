@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.111.1 · 111 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.112.0 · 112 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2092,7 +2092,8 @@ Fuera de la cuenta de 126: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   **Servidor:** `parque.entrar` ya no rechaza la entrada sin existencia: con el candado del producto cobra los pares que
   quedan (a los primeros) y el resto entra sin ellas. 2 pruebas contra la base nuevas (`medias.test-db.ts`).*
 
-- [ ] **B4-17 · Una regla de precio para el parque** (M-37, U-6, U-9).
+- [x] **B4-17 · Una regla de precio para el parque** (M-37, U-6, U-9).
+  *Hecho el 2026-10-10 (v0.112.0), en `feat/b4-17`.*
   → Lo que vale un tiempo con la tarifa: la combinación más barata de los paquetes que cubre el tiempo real, con la
   gracia, y nunca más que el pase libre. **Tiempo abierto:** al entrar en cuenta abierta (también si después se vincula
   a una mesa) se elige «Tiempo abierto» en vez de un paquete, y al salir se cobra así. **Tiempo de más:** en bloques del
@@ -2102,6 +2103,19 @@ Fuera de la cuenta de 126: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   al día.
   → Con 30 min $3, 1 h $5, 2 h $9 y 5 min de gracia: 1 h que sale a 1:04, $5; a 1:20, $8; a 1:50, $9. Tiempo abierto de
   1 h 20, $8. De 30 min a 1 h con «Más tiempo», $2 más ($5 en total).
+  *· Hecho: en `@l2/domain-park`, `precioDelTiempo` (la combinación más barata de la tarifa con que entró, con la gracia
+  y tope en el pase libre), `tiempoDeMas` (bloques del paquete más chico, con tope en esa combinación), `subirDePaquete`
+  y `liquidarEstancia`, que usan la salida del servidor y la vista previa de la salida, la tarjeta y el ejemplo de
+  Ajustes. El tiempo abierto es el paquete `tiempo-abierto`: solo en cuenta abierta, precio 0 y sin duración (la
+  restricción de la base lo admite en una migración de expandir); no deja línea al entrar y la salida pone la suya antes
+  de cerrar, así viaja con la estancia a una mesa. La tarjeta dice «Tiempo abierto · va $ X». «Más tiempo» ofrece los
+  paquetes mayores con lo que falta pagar; la extensión guarda los minutos y la diferencia (puede ser $ 0, nunca
+  negativa). En Ajustes → Tarifas, el bloque y el precio de excedente dejan de editarse (se guardan tal cual, son el
+  respaldo de una estancia sin tarifa). Probado en el navegador en los dos temas: la tarjeta, «Más tiempo» de 30 min
+  (+$2 a 1 hora, +$6 a 2 horas), la salida «Tiempo abierto: 30 minutos (9 min) $ 3.00», la entrada (con tiempo abierto
+  se marca cuenta abierta y «Pagar ahora» queda deshabilitado) y las reglas. **Decidido al construir:** la caja no
+  ofrece tiempo abierto (cobra la entrada al momento); y quien sube a un paquete que no cuesta más que lo pagado, sube
+  por $ 0.*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 

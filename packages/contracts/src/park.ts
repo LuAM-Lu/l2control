@@ -538,9 +538,16 @@ export const RepresentanteEncontradoSchema = z.object({
 export type RepresentanteEncontradoDto = z.infer<typeof RepresentanteEncontradoSchema>;
 
 /**
- * Recargar tiempo a un niño en sala (F5-11, R2): un paquete de tiempo fijo más. La estancia conserva
- * sus tramos y la recarga entra en la cuenta de la familia; en prepago, a la caja.
+ * Más tiempo para un niño en sala (F5-11; B4-17, M-37): subir a un paquete mayor (`packageId`, el paquete al que sube)
+ * pagando la diferencia; el total queda en el precio de ese paquete. La estancia conserva sus tramos y la diferencia
+ * entra en la cuenta de la familia; en prepago, a la caja.
  */
+/**
+ * El «paquete» de quien entra con tiempo abierto (B4-17, M-37): sin límite, solo en cuenta abierta, y al salir se cobra lo
+ * que vale su tiempo con la tarifa. No es un paquete del tarifario: la entrada lo pide con este id.
+ */
+export const TIEMPO_ABIERTO_ID = "tiempo-abierto";
+
 export const RecargaCommandSchema = z.strictObject({
   idempotencyKey: IdempotencyKeySchema,
   sessionId: IdSchema,

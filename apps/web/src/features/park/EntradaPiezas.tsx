@@ -2,7 +2,7 @@
 
 import type { Ref } from "react";
 import { Check, CircleCheckBig, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
-import type { PricePackageDto, RepresentanteEncontradoDto } from "@l2/contracts";
+import { TIEMPO_ABIERTO_ID, type PricePackageDto, type RepresentanteEncontradoDto } from "@l2/contracts";
 import { toMajor, type Money } from "@l2/domain-money";
 import { Badge, Initial, Input, Marquesina, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
@@ -102,7 +102,7 @@ export function FilaDeEntrada({
             >
               {paquetes.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} · {formatMoneyVE(toMajor(toMoney(p.price)), "USD")}
+                  {p.name} · {p.id === TIEMPO_ABIERTO_ID ? "al salir" : formatMoneyVE(toMajor(toMoney(p.price)), "USD")}
                 </option>
               ))}
             </select>
@@ -301,12 +301,15 @@ export function CampoRepresentante({
 export function TotalDeEntrada({
   total,
   ninos,
+  conTiempoAbierto = 0,
   medias,
   paresQueFaltan,
   sinMedias,
 }: {
   total: Money;
   ninos: number;
+  /** Cuántos entran con tiempo abierto (B4-17): su tiempo no está en el total, se cobra al salir. */
+  conTiempoAbierto?: number;
   medias: ProductoALaVenta | null;
   paresQueFaltan: number;
   /** No queda ningún par (B4-16): los niños entran sin cobrárselas. */
@@ -331,7 +334,10 @@ export function TotalDeEntrada({
           {medias.existencia !== null && ` · quedan ${medias.existencia} ${medias.existencia === 1 ? "par" : "pares"}`}
         </p>
       )}
-      <p className="mt-1 text-[12px] text-ink-3">{ninos === 0 ? "Sin niños en la entrada" : `${ninos} ${ninos === 1 ? "niño" : "niños"}`}</p>
+      <p className="mt-1 text-[12px] text-ink-3">
+        {ninos === 0 ? "Sin niños en la entrada" : `${ninos} ${ninos === 1 ? "niño" : "niños"}`}
+        {conTiempoAbierto > 0 && ` · ${conTiempoAbierto === ninos ? "su tiempo" : `el tiempo abierto de ${conTiempoAbierto}`} se cobra al salir`}
+      </p>
     </div>
   );
 }

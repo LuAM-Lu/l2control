@@ -109,6 +109,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Un representante de antes, sin cédula, aparece por su teléfono y dice «escribe su cédula»: se le anota al registrar.",
       "Si su familia ya tiene niños en la sala, sale marcado «Sumar a la familia …»: el que llega entra en esa cuenta, con su tiempo desde que entra, y sale con ella. Desmárcalo si va aparte.",
       "Elige cómo paga: ahora (prepago, no se devuelve si sale antes) o todo al salir (cuenta abierta, por lo que usó), y registra.",
+      "«Tiempo abierto» (al final de los paquetes): entra sin límite y al salir se cobra lo que vale su tiempo con la tarifa, la combinación más barata de paquetes (1 h 20 = 1 hora + 30 minutos). Va siempre en cuenta abierta.",
     ],
     problemas: [
       {
@@ -166,7 +167,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Avisos: cuando un niño entra en «por vencer» y cuando se cumple su tiempo, suena (y en Android vibra) un aviso arriba, aquí y en la caja; tócalo y abre su ficha. La campana tachada lo calla 15 minutos en este equipo; el altavoz de la barra quita o pone el sonido del equipo.",
       "Con el equipo bloqueado, la pantalla del PIN sigue avisando, solo con la pulsera y los minutos (sin nombres): tócalo, pon tu PIN y abre la ficha de ese niño.",
       "Los avisos funcionan con la aplicación abierta: no son notificaciones del teléfono. Si el equipo se apaga o se cierra el navegador, no avisa.",
-      "En la ficha: recargar tiempo, pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa.",
+      "En la ficha: «Más tiempo» (sube a un paquete mayor y paga solo la diferencia: de 30 minutos a 1 hora, lo que falta), pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa.",
+      "El tiempo de más, pasada la gracia, va en bloques del paquete más chico (30 minutos al precio de 30 minutos), y nunca cuesta más que la combinación de paquetes que cubre lo que estuvo.",
       "«Dar salida» abre su salida aquí mismo; «Toda la familia» trae a todos los niños de su cuenta, marcados: quita de la lista a quien se queda.",
       "«Sin pulsera» abre la entrada de un niño que no la tolera. «Buscar»: por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",
     ],
@@ -183,7 +185,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       },
       {
         sintoma: "«El tiempo abierto no se recarga»",
-        solucion: "El pase libre o la cuenta por tiempo abierto se cobra entero al salir: no hay minutos que sumar.",
+        solucion: "El pase libre y el tiempo abierto no tienen límite: no hay minutos que sumar. El tiempo abierto se cobra al salir, por lo que estuvo.",
         reconoce: ["el tiempo abierto no se recarga"],
       },
       {
@@ -204,7 +206,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Cerrar la visita de los niños: lo que usaron, el tiempo de más y dónde se paga.",
     pasos: [
       "En «Parque», pasa la pulsera de quien se va y, en su ficha, «Dar salida»; si se va la familia entera, «Toda la familia» (quita a quien se queda). Dentro de la salida, cada pulsera que pases se suma; un niño que entró sin pulsera se elige en «Sin pulsera».",
-      "Revisa el desglose: en cuenta abierta, si salió antes, se cobra el paquete más barato que cubre lo que estuvo.",
+      "Revisa el desglose: en cuenta abierta, si salió antes, se cobra la combinación más barata de paquetes que cubre lo que estuvo; el tiempo abierto, lo que vale su tiempo; y el tiempo de más, en bloques del paquete más chico, con tope.",
       "«Lo recoge» viene marcado «su representante»; si es otra persona, tócala y escribe su nombre.",
       "Elige dónde se paga: en caja o cargado a una mesa (la cuenta de su familia en esa mesa), y registra. Una pulsera vinculada a una mesa sale a su mesa sin elegir: lo que debe y su tiempo de más van a esa cuenta.",
     ],

@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckInCommandSchema,
   GuardianSchema,
+  TIEMPO_ABIERTO_ID,
   WristbandCodeSchema,
   type CatalogoDto,
   type FamilyAccountDto,
   type PaymentMode,
   type EstanciaDto,
+  type PricePackageDto,
   type RepresentanteEncontradoDto,
 } from "@l2/contracts";
 import { sum, zero, type Money } from "@l2/domain-money";
@@ -49,6 +51,16 @@ export type Entrada = {
   compraMedias: boolean;
 };
 
+/** El «paquete» de tiempo abierto (B4-17): sin límite, sin precio al entrar; al salir se cobra lo que vale su tiempo. */
+export const PAQUETE_TIEMPO_ABIERTO: PricePackageDto = {
+  id: TIEMPO_ABIERTO_ID,
+  name: "Tiempo abierto",
+  mode: "POSTPAGO",
+  duration: { kind: "openEnded" },
+  price: { minor: "0", currency: "USD" },
+  active: true,
+};
+
 /** Un nombre como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
 const claveDeNombre = (n: string) =>
   n.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ");
@@ -65,11 +77,14 @@ export type Registrada = Readonly<{ cuenta: FamilyAccountDto; sessions: readonly
 export function useEntradaDeNinos({
   catalogo,
   alPrimeraPulsera,
+  conTiempoAbierto = false,
 }: {
   /** El catálogo, para las medias de quien no las trae (B4-9). */
   catalogo?: CatalogoDto | undefined;
   /** Tras la primera pulsera, con la cédula vacía: la pantalla pone el foco en ella. */
   alPrimeraPulsera?: () => void;
+  /** Ofrecer «Tiempo abierto» (B4-17): en el parque sí; en la caja no, que cobra al momento. */
+  conTiempoAbierto?: boolean;
 } = {}) {
   const { sala, adoptar: adoptarEstancias } = useSala();
   const activeSessions = sala?.sessions.length ?? 0;
@@ -80,7 +95,11 @@ export function useEntradaDeNinos({
    */
   const occupiedWristbands = useMemo(() => sala?.sessions.map((s) => s.wristbandCode) ?? [], [sala]);
   const { tarifario, publicado } = useTarifario();
-  const paquetesActivos = useMemo(() => tarifario.packages.filter((p) => p.active), [tarifario.packages]);
+  // B4-17: «Tiempo abierto» va al final, después de los paquetes del tarifario; se cobra al salir.
+  const paquetesActivos = useMemo(
+    () => [...tarifario.packages.filter((p) => p.active), ...(conTiempoAbierto ? [PAQUETE_TIEMPO_ABIERTO] : [])],
+    [tarifario.packages, conTiempoAbierto],
+  );
   const defaultPackageId = paquetesActivos.find((p) => p.id === "pkg-60")?.id ?? paquetesActivos[0]?.id ?? "";
   const capacityLimit = tarifario.policy.capacityLimit;
   const { productoMedias } = useSucursal().ajustes;
@@ -239,6 +258,9 @@ export function useEntradaDeNinos({
   }, [entradas, tarifario.packages, medias]);
   /** Cuántos pares se compran. */
   const paresQueFaltan = medias ? entradas.filter((e) => e.compraMedias).length : 0;
+  /** Algún niño entra con tiempo abierto (B4-17): la entrada es en cuenta abierta, se paga al salir. */
+  const ninosConTiempoAbierto = entradas.filter((e) => e.packageId === TIEMPO_ABIERTO_ID).length;
+  const hayTiempoAbierto = ninosConTiempoAbierto > 0;
   /**
    * B4-16 (M-35): sin medias en existencia, el niño entra y no se cobran. `mediasAgotadas`: no queda otro par que dar
    * (los interruptores apagados ya no se encienden); `sinMedias`: no queda ninguno.
@@ -368,6 +390,8 @@ export function useEntradaDeNinos({
   return {
     publicado,
     paquetesActivos,
+    hayTiempoAbierto,
+    ninosConTiempoAbierto,
     capacityLimit,
     capacidad,
     medias,

@@ -123,10 +123,18 @@ export function previsualizarSalida(
   }[],
   /** Lo que sale antes de tiempo en cuenta abierta (B4-6): su paquete por uso, como lo asienta el servidor. */
   porUso: readonly { sessionId: string; concept: string; amount: MoneyDto; minutos: number }[] = [],
+  /** El tiempo abierto (B4-17): entra al salir, como una línea del parque de esa estancia. */
+  abiertas: readonly { sessionId: string; concept: string; amount: MoneyDto }[] = [],
 ): FamilyAccountDto {
   const conUso = porUso.reduce(
     (cuenta, p) => chargeByUsage(cuenta, p.sessionId, { id: `uso-${p.sessionId}`, concept: p.concept, amountMinor: BigInt(p.amount.minor), minutos: p.minutos }) ?? cuenta,
-    c,
+    {
+      ...c,
+      lines: [
+        ...c.lines,
+        ...abiertas.map((a) => ({ id: `abierto-${a.sessionId}`, concept: a.concept.slice(0, 80), kind: "PAQUETE" as const, amount: a.amount, paid: false, sessionId: a.sessionId })),
+      ],
+    },
   );
   return FamilyAccountSchema.parse(
     registerExit(
