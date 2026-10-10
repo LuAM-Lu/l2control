@@ -1,6 +1,6 @@
 "use server";
 
-import type { DevolucionHechaDto, Resultado, VentaCerradaDto, VentasDelTurnoDto } from "@l2/contracts";
+import type { DevolucionHechaDto, ParqueDeLaVentaDto, Resultado, VentaCerradaDto, VentasDelTurnoDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -46,4 +46,11 @@ export async function buscarVentaPorOrden(orden: number): Promise<Resultado<Vent
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).devoluciones.buscar(ctx, { orden });
+}
+
+/** El tiempo del parque de una venta y lo que su niño no usó (B3-18), para devolverlo. */
+export async function parqueDeLaVenta(saleId: string): Promise<Resultado<ParqueDeLaVentaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).devoluciones.delParque(ctx, saleId);
 }

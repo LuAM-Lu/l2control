@@ -266,7 +266,8 @@ describe("en la caja", () => {
       await local.app.cuentas.anular(
         ctxCajera,
         { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: r.venta.cobroKey, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] },
-        deSupervisor(),
+        // B3-18: anular lo autoriza administración.
+        { autorizadorId: admin, pin: "4826", motivo: "Lo autorizo" },
         AHORA,
       ),
     );

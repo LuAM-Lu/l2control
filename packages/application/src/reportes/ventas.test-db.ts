@@ -108,7 +108,7 @@ before(async () => {
     await l.app.cuentas.anular(
       a.ctx,
       { idempotencyKey: randomUUID(), accountId: anulada.cuenta.id, cobroKey: anulada.clave, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] },
-      pinDe(ids.supervisor, PIN.supervisor, "Cobro repetido"),
+      pinDe(ids.admin, PIN.admin, "Cobro repetido"),
       AHORA + MIN,
     ),
   );
@@ -156,7 +156,7 @@ describe("las ventas de un periodo (F9-01)", () => {
     assert.deepEqual([r.resumen.turnos, r.resumen.turnosSinZ], [2, 1]);
     assert.deepEqual(
       r.anuladas.map((a) => [a.cajera, a.total, a.motivo, a.autorizadoPor]),
-      [["Marisol Prieto", usd("131"), "Error en el cobro", "Luis Guerrero"]],
+      [["Marisol Prieto", usd("131"), "Error en el cobro", "Abigail Karam"]],
     );
     assert.deepEqual([r.encabezado.generadoPor, r.encabezado.generadoEn], ["Luis Guerrero", new Date(AHORA + 30 * MIN).toISOString()]);
   });

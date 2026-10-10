@@ -274,7 +274,17 @@ export const DevolverVentaCommandSchema = z
     idempotencyKey: IdempotencyKeySchema,
     saleId: z.uuid("Venta desconocida"),
     lineas: z
-      .array(z.strictObject({ lineId: IdSchema, destino: DestinoDevueltoSchema }))
+      .array(
+        z.strictObject({
+          lineId: IdSchema,
+          destino: DestinoDevueltoSchema,
+          /**
+           * El tiempo del parque que un niño pagó y no usó (B3-18, M-37 U-11): de su paquete vuelve lo pagado menos lo que
+           * vale su tiempo real (lo calcula el servidor). Sin marcarlo, el paquete vuelve entero (un problema del local).
+           */
+          noUsado: z.boolean().optional(),
+        }),
+      )
       .min(1, "Elige lo que se devuelve")
       .max(200),
     reintegros: z
@@ -303,3 +313,19 @@ export const BuscarVentaSchema = z.strictObject({ orden: z.number().int().positi
 /** Imprimir el recibo de una venta: el servidor anota quién y cuándo, y si ya era una copia. */
 export const ImprimirVentaCommandSchema = z.strictObject({ saleId: z.uuid("Venta desconocida") });
 export type ImprimirVentaCommand = z.infer<typeof ImprimirVentaCommandSchema>;
+
+/**
+ * El tiempo del parque de una venta, para devolverlo (B3-18, M-37 U-11): cada paquete con su niño, si sigue en la sala
+ * (entonces todavía no se devuelve) y lo que no usó (lo pagado menos lo que vale su tiempo con la regla de B4-17);
+ * `null` si tuvo más tiempo (se devuelve entero) o sigue en la sala.
+ */
+export const ParqueDeLaVentaSchema = z.object({
+  lineas: z.array(
+    z.object({
+      lineId: IdSchema,
+      enSala: z.boolean(),
+      noUsado: MoneySchema.nullable(),
+    }),
+  ),
+});
+export type ParqueDeLaVentaDto = z.infer<typeof ParqueDeLaVentaSchema>;

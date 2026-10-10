@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.117.0 · 117 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.118.0 · 118 de 127 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1738,7 +1738,8 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   quincena y «Reimprimir vale»; lo ven supervisión y administración, y cada empleado el suyo con su PIN. Sin tope ni
   «descontado»: el descuento del sueldo se hace fuera del sistema.
 
-- [ ] **B3-18 · Anular y devolver, de administración** (M-37, U-10, U-11).
+- [x] **B3-18 · Anular y devolver, de administración** (M-37, U-10, U-11).
+  *Hecho el 2026-10-10 (v0.118.0), en `feat/b3-18`.*
   → «Anular» ofrece dos caminos: **«Cobrarla de nuevo»** (como hoy: el dinero vuelve y la cuenta vuelve a la cola para
   corregir el medio o el monto) o **«Anular la venta entera»**: el dinero vuelve por sus mismos medios (el efectivo, de
   la gaveta del turno abierto), lo que tiene inventario vuelve al estante (o a merma, si se elige) y la cuenta sale de la
@@ -1748,6 +1749,21 @@ Fuera de la cuenta de 127: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → **Devolver lo que un niño no usó:** en la salida de un niño que pagó por adelantado, administración con su PIN y un
   motivo devuelve lo pagado menos lo que vale su tiempo real con la regla de B4-17 (o todo, si fue un problema del
   local), como una devolución: la caja elige el medio y la moneda de cada parte. Con su comprobante. Cambia M-18.
+  *· Hecho: en `@l2/domain-identity`, `cobro.anular` y `venta.devolver` entran en `SOLO_AUTORIZA_QUIEN_LO_TIENE` y
+  supervisión pasa a pedir devolver: solo administración autoriza, con su PIN (la caja lo pide; la lista de quien
+  autoriza ya no ofrece a supervisión). Anular tiene `camino`: «Cobrarla de nuevo» (como antes) o «Anular la venta
+  entera», que tras revertir el libro anula las líneas de ese cobro con su motivo («Venta anulada: …»), cierra la cuenta
+  (sin consumo, o cobrada si le queda algo pagado de antes) y devuelve lo que tiene inventario al estante o, con `aMerma`
+  (la pieza que ya usaba anular un plato preparado), a merma; no una de un cumpleaños, una en partes ni una familia con
+  niños en la sala. Devolver admite el paquete de un niño que ya salió: entero (un problema del local) o «lo que no usó»
+  (`valorDelTiempoUsado` en `park/parque.ts`, la regla de B4-17; `devolucionDe` con su parte, con su IVA); el tiempo de
+  más, no. `devoluciones.delParque` dice a la pantalla cuánto es. La salida del parque avisa de lo que no usó un niño de
+  prepago y dónde se devuelve. Probado en la base (4 pruebas nuevas: la venta entera al estante y a merma, el PIN de
+  supervisión y la familia con niños, y lo que no usó: pagó 1 hora $ 5, estuvo 5 min, vuelven $ 2 + IVA = $ 2,32; y se
+  ajustaron las que autorizaban con supervisión) y en el navegador en los dos temas. **Decidido al construir:** lo que no
+  usó se devuelve en la caja (Ventas → Devolver), no en la salida del parque: el dinero sale de la gaveta del turno de la
+  caja; la salida lo anuncia con su monto.*
+
 - [x] **B3-19 · El vuelto: cómo se da y cuánto se puede dar** (M-37, U-12).
   *Hecho el 2026-10-10 (v0.116.0), en `feat/b3-19`.*
   → Al haber vuelto, la caja dice cómo lo da: **efectivo $, efectivo Bs** (a la tasa congelada del cobro), **Pago

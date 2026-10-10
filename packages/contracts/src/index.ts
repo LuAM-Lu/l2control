@@ -642,6 +642,8 @@ export {
   DestinoDevueltoSchema,
   DevolucionDeVentaSchema,
   DevolverVentaCommandSchema,
+  ParqueDeLaVentaSchema,
+  type ParqueDeLaVentaDto,
   DevolucionHechaSchema,
   BuscarVentaSchema,
   type DestinoDevuelto,

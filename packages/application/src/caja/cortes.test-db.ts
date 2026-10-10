@@ -279,7 +279,7 @@ describe("cómo va el turno: la vista y el corte X (F4-05)", () => {
       await m.l.app.cuentas.anular(
         ctx,
         { idempotencyKey: randomUUID(), accountId: anulada.cuenta.id, cobroKey: anulada.clave, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] },
-        pinDe(m.supervisor, PIN.supervisor, "Cobro repetido"),
+        pinDe(m.admin, PIN.admin, "Cobro repetido"),
         AHORA + 2 * MIN,
       ),
     );
@@ -289,7 +289,7 @@ describe("cómo va el turno: la vista y el corte X (F4-05)", () => {
       [
         ["CORTESIA", "Marisol Prieto", "Luis Guerrero"],
         ["REIMPRESION", "Marisol Prieto", null],
-        ["ANULACION", "Marisol Prieto", "Luis Guerrero"],
+        ["ANULACION", "Marisol Prieto", "Abigail Karam"],
       ],
     );
     assert.equal(x.ventas.cantidad, 2);
@@ -398,7 +398,7 @@ describe("el arqueo a ciegas y el corte Z (F4-06, F4-07)", () => {
     const anular = await m.l.app.cuentas.anular(
       siguiente.ctx,
       { idempotencyKey: randomUUID(), accountId: venta.cuenta.id, cobroKey: venta.clave, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] },
-      pinDe(m.supervisor, PIN.supervisor, "Cobro repetido"),
+      pinDe(m.admin, PIN.admin, "Cobro repetido"),
       AHORA,
     );
     assert.equal(!anular.ok && anular.motivo, "CONFLICTO", JSON.stringify(anular));
@@ -450,11 +450,11 @@ describe("el arqueo a ciegas y el corte Z (F4-06, F4-07)", () => {
       motivo: "ERROR_EN_COBRO",
       devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }],
     };
-    const r = await m.l.app.cuentas.anular(vacia.ctx, pedido, pinDe(m.supervisor, PIN.supervisor, "Cobro repetido"), AHORA);
+    const r = await m.l.app.cuentas.anular(vacia.ctx, pedido, pinDe(m.admin, PIN.admin, "Cobro repetido"), AHORA);
     assert.equal(!r.ok && r.motivo, "CONFLICTO");
     assert.match(!r.ok ? r.mensaje : "", /no hay dólares suficientes/);
     // Desde la caja que cobró, sí: ahí está el dinero.
-    valor(await m.l.app.cuentas.anular(ctx, pedido, pinDe(m.supervisor, PIN.supervisor, "Cobro repetido"), AHORA));
+    valor(await m.l.app.cuentas.anular(ctx, pedido, pinDe(m.admin, PIN.admin, "Cobro repetido"), AHORA));
   });
 
   test("el Z se niega si entró dinero después de contar, o si no es el último conteo", async () => {

@@ -24,7 +24,14 @@ import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 
 type Via = DevolucionDto["via"];
 
-export type PedidoDeAnulacion = Readonly<{ motivo: MotivoAnulacion; detalle?: string; devoluciones: DevolucionDto[] }>;
+export type PedidoDeAnulacion = Readonly<{
+  motivo: MotivoAnulacion;
+  detalle?: string;
+  devoluciones: DevolucionDto[];
+  /** B3-18: la cuenta vuelve a la cola, o la venta se anula entera (y lo que tiene inventario, al estante o a merma). */
+  camino: "COBRAR_DE_NUEVO" | "ANULAR_VENTA";
+  inventario: "ESTANTE" | "MERMA";
+}>;
 
 export function AnularCobroDialog({
   venta,
@@ -45,6 +52,8 @@ export function AnularCobroDialog({
   const [refs, setRefs] = useState<Record<number, string>>({});
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
+  const [camino, setCamino] = useState<PedidoDeAnulacion["camino"]>("COBRAR_DE_NUEVO");
+  const [inventario, setInventario] = useState<PedidoDeAnulacion["inventario"]>("ESTANTE");
   const [para, setPara] = useState<string | null>(null);
   const a = useAutorizacion("cobro.anular", venta !== null);
 
@@ -56,6 +65,8 @@ export function AnularCobroDialog({
     setVias({});
     setRefs({});
     setErrores({});
+    setCamino("COBRAR_DE_NUEVO");
+    setInventario("ESTANTE");
   }
 
   if (!venta) return null;
@@ -95,6 +106,8 @@ export function AnularCobroDialog({
     }
 
     const pedido: PedidoDeAnulacion = {
+      camino,
+      inventario,
       motivo: motivo!,
       ...(nota.trim() ? { detalle: nota.trim() } : {}),
       devoluciones: conDevolucion.map(([p, i]) => ({
@@ -121,14 +134,14 @@ export function AnularCobroDialog({
       // Dos columnas desde tablet: a 1366×768 todo cabe sin desplazar hasta el PIN.
       className="md:w-[min(52rem,calc(100vw-2rem))]"
       titulo={`Anular cobro · Orden #${String(venta.orderNumber).padStart(4, "0")}`}
-      descripcion={`${nombreDeCuenta(venta.cuenta)} · ${textoDinero(venta.total)}. La cuenta vuelve a «por cobrar»; nada se borra.`}
+      descripcion={`${nombreDeCuenta(venta.cuenta)} · ${textoDinero(venta.total)}. Con el PIN de administración; nada se borra.`}
       pie={
         <div className="grid grid-cols-2 gap-2">
           <Button surface="pos" variant="neutral" onClick={onCerrar}>
             Cancelar
           </Button>
           <Button surface="pos" variant="danger" onClick={() => void confirmar()} disabled={a.permiso === "DENEGADO" || enviando}>
-            {enviando ? "Anulando…" : "Anular y devolver"}
+            {enviando ? "Anulando…" : camino === "ANULAR_VENTA" ? "Anular la venta" : "Anular y devolver"}
           </Button>
         </div>
       }
@@ -166,6 +179,54 @@ export function AnularCobroDialog({
             onChange={(e) => setNota(e.target.value)}
             error={errores.nota || undefined}
           />
+          {/* B3-18: qué pasa con la cuenta. */}
+          <div role="radiogroup" aria-label="Qué pasa con la cuenta" className="grid grid-cols-2 gap-1.5">
+            {(
+              [
+                ["COBRAR_DE_NUEVO", "Cobrarla de nuevo", "Vuelve a la cola para corregir el medio o el monto"],
+                ["ANULAR_VENTA", "Anular la venta entera", "Se cierra con su motivo: no se vendió"],
+              ] as const
+            ).map(([k, titulo, detalle]) => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={camino === k}
+                onClick={() => setCamino(k)}
+                className={cn(
+                  "flex min-h-14 cursor-pointer flex-col justify-center rounded-[var(--radius-control)] border px-3 text-left leading-tight transition-colors",
+                  camino === k ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-2 hover:text-ink",
+                )}
+              >
+                <span className="text-[13px] font-semibold">{titulo}</span>
+                <span className="text-[11.5px] text-ink-3">{detalle}</span>
+              </button>
+            ))}
+          </div>
+          {camino === "ANULAR_VENTA" && (
+            <div role="radiogroup" aria-label="Lo que tiene inventario" className="grid grid-cols-2 gap-1.5">
+              {(
+                [
+                  ["ESTANTE", "Vuelve al estante"],
+                  ["MERMA", "A merma"],
+                ] as const
+              ).map(([k, texto]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={inventario === k}
+                  onClick={() => setInventario(k)}
+                  className={cn(
+                    "min-h-12 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[12.5px] transition-colors",
+                    inventario === k ? "border-brand bg-brand/20 font-semibold text-ink" : "border-line text-ink-2 hover:text-ink",
+                  )}
+                >
+                  {texto}
+                </button>
+              ))}
+            </div>
+          )}
         </fieldset>
 
         <div className="flex flex-col gap-4">

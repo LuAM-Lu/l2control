@@ -23,6 +23,7 @@ let ctxMonitora: Contexto;
 let ctxMesero: Contexto;
 let ctxOtro: Contexto;
 let supervisor: string;
+let admin: string;
 let alquiler: string;
 let torta: string;
 let apartado: string;
@@ -90,7 +91,7 @@ const cobroDe = (c: FamilyAccountDto, total: string) => ({
 before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cumpleaños");
   otro = await abrirLocalDePrueba(URL_APP, "Cumpleaños de otro");
-  const admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
+  admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   const cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
   const monitora = await crearPersona(local, { nombre: "Ana Rojas", role: "MONITOR_PARQUE", pin: "6284" });
@@ -254,7 +255,7 @@ describe("el anticipo en la caja y la cancelación (DEC-24)", () => {
       await local.app.cuentas.anular(
         ctxCajera,
         { idempotencyKey: randomUUID(), accountId: c.id, cobroKey: cobro.idempotencyKey, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] },
-        { autorizadorId: supervisor, pin: "5937", motivo: "El cliente desistió" },
+        { autorizadorId: admin, pin: "4826", motivo: "El cliente desistió" },
         AHORA + 3 * MIN,
       ),
     );

@@ -342,18 +342,20 @@ describe("anular un cobro (DEC-24)", () => {
 
     const sin = await local.app.cuentas.anular(ctxCajera, pedido, undefined, AHORA);
     assert.equal(!sin.ok && sin.motivo, "NO_PERMITIDO");
+    // B3-18 (M-37, cambia D-AUT): anular lo autoriza solo administración, con su PIN.
     assert.deepEqual(await local.app.cuentas.autorizadores(ctxCajera), [
       { id: (await local.base.conTenant(local.sistema.tenantId, (tx) => tx.staffUser.findFirstOrThrow({ where: { role: "ADMIN" } }))).id, nombre: "Abigail Karam", rol: "ADMIN" },
-      { id: supervisor, nombre: "Luis Guerrero", rol: "SUPERVISOR" },
     ]);
+    const deSupervision = await local.app.cuentas.anular(ctxCajera, pedido, { autorizadorId: supervisor, pin: "5937", motivo: "Cobro repetido" }, AHORA);
+    assert.equal(!deSupervision.ok && deSupervision.motivo, "NO_PERMITIDO");
 
-    const anulada = valor(await local.app.cuentas.anular(ctxCajera, pedido, { autorizadorId: supervisor, pin: "5937", motivo: "Cobro repetido" }, AHORA));
+    const anulada = valor(await local.app.cuentas.anular(ctxCajera, pedido, { autorizadorId: admin, pin: "4826", motivo: "Cobro repetido" }, AHORA));
     assert.equal(anulada.cuenta.status, "POR_COBRAR");
     assert.equal(anulada.cuenta.lines[0]!.paid, false);
     assert.equal(anulada.cuenta.pendingSince, new Date(AHORA).toISOString());
     assert.deepEqual(anulada.libro.aplicado, usd("0"));
     assert.deepEqual(anulada.libro.vuelto, usd("0"));
-    assert.ok(anulada.libro.asientos.filter((a) => a.reversesId).every((a) => a.authorizedBy === "Luis Guerrero"));
+    assert.ok(anulada.libro.asientos.filter((a) => a.reversesId).every((a) => a.authorizedBy === "Abigail Karam"));
 
     // Un doble clic devuelve lo anulado sin pedir otra vez el PIN; otra anulación, no.
     assert.deepEqual(valor(await local.app.cuentas.anular(ctxCajera, pedido, undefined, AHORA)), anulada);

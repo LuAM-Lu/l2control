@@ -137,7 +137,8 @@ export const MATRIZ: Matriz = Object.freeze({
   // supervisor con su PIN o el administrador.
   "cobro.anular": fila(P, A, A, D, D, D),
   // B3-14 (M-34): un cliente devuelve parte de lo que compró. Supervisión lo hace; la caja, con su autorización.
-  "venta.devolver": fila(P, P, A, D, D, D),
+  // B3-18 (M-37): devolver, como anular, lo autoriza solo administración con su PIN (supervisión ya no se autoriza sola).
+  "venta.devolver": fila(P, A, A, D, D, D),
 
   "mesa.reabrir": fila(P, A, D, D, D, D),
   "kds.cambiarEstado": fila(P, P, D, D, D, P),
@@ -352,7 +353,12 @@ export const SIN_AUTORIZARSE_A_SI_MISMO: readonly Action[] = ["tasa.confirmar", 
  * de administración, no el de supervisión. Se pregunta por el permiso, no por el rol: si un local le concede la acción a
  * una persona, esa persona también la autoriza.
  */
-export const SOLO_AUTORIZA_QUIEN_LO_TIENE: readonly Action[] = ["turno.abrirFueraDelPunto"];
+export const SOLO_AUTORIZA_QUIEN_LO_TIENE: readonly Action[] = [
+  "turno.abrirFueraDelPunto",
+  // B3-18 (M-37, cambia D-AUT): anular un cobro y devolver piden el PIN de administración.
+  "cobro.anular",
+  "venta.devolver",
+];
 
 /**
  * ¿Puede `authorizer` autorizar que `requester` haga `action`?

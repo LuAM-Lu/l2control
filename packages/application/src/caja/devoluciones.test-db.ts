@@ -4,7 +4,8 @@
  * Lo que fijan: lo que vuelve (con su IVA) sale por el pago elegido como un asiento DEVOLUCION en el turno de hoy, y lo
  * que vuelve al estante entra al costo con que salió; una línea no vuelve dos veces, ni más de lo que queda de un pago, ni
  * lo que no cuadra; lo preparado no vuelve al estante y los servicios no se devuelven; una venta con devoluciones ya no se
- * anula entera; la caja necesita la autorización de supervisión y la monitora no devuelve; el libro impone que una
+ * anula entera; la caja necesita el PIN de administración (B3-18: el de supervisión ya no basta) y la monitora no
+ * devuelve; el libro impone que una
  * devolución no pase de lo que entró. Corre con `pnpm test:db`.
  */
 import { after, before, describe, test } from "node:test";
@@ -24,6 +25,7 @@ let ctxCajera: Contexto;
 let ctxSupervisor: Contexto;
 let ctxMonitora: Contexto;
 let supervisor: string;
+let admin: string;
 const ids: Record<string, string> = {};
 
 const usd = (minor: string) => ({ minor, currency: "USD" as const });
@@ -33,6 +35,8 @@ const valor = <T,>(r: { ok: true; valor: T } | { ok: false; mensaje: string }): 
 };
 const motivoDe = (r: { ok: boolean; motivo?: string; problemas?: readonly { message: string }[] | undefined }) => (r.ok ? "OK" : (r.problemas?.[0]?.message ?? r.motivo));
 const pinDeSupervisor = () => ({ autorizadorId: supervisor, pin: "5937", motivo: "Revisé el producto" });
+/** B3-18 (M-37): devolver lo autoriza administración con su PIN. */
+const pinDeAdmin = () => ({ autorizadorId: admin, pin: "4826", motivo: "Revisé el producto" });
 const FONDO = { fondos: [{ currency: "USD", amount: usd("2000") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] };
 
 const linea = (nombre: string, precio: string) => ({ id: randomUUID(), concept: nombre, kind: "RESTAURANTE" as const, amount: usd(precio), paid: false, productId: ids[nombre]!, taxCode: "GENERAL" as const });
@@ -64,6 +68,7 @@ before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Devoluciones");
   await impresoraDePrueba(local);
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
+  admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   const cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
   const monitora = await crearPersona(local, { nombre: "Ana Rojas", role: "MONITOR_PARQUE", pin: "6284" });
   ctxCajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), cajera, "7391");
@@ -92,10 +97,10 @@ describe("devolver parte de una venta (B3-14)", () => {
   test("vuelve lo devuelto con su IVA, por su pago, en el turno de hoy; al estante, al costo con que salió", async () => {
     venta = await vender([linea("Refresco", "100"), linea("Refresco", "100"), linea("Refresco", "100")], "348", "500");
     assert.equal(await existencia("Refresco"), 21);
-    const hecha = valor(await local.app.devoluciones.devolver(ctxCajera, devolucion(venta, [venta.lineas[0]!.lineId], "116"), pinDeSupervisor(), AHORA + MIN));
+    const hecha = valor(await local.app.devoluciones.devolver(ctxCajera, devolucion(venta, [venta.lineas[0]!.lineId], "116"), pinDeAdmin(), AHORA + MIN));
     assert.equal(hecha.comprobanteNoImpreso, null);
     const d = hecha.venta.devoluciones[0]!;
-    assert.deepEqual([d.total, d.iva, d.autorizo], [usd("116"), usd("16"), "Luis Guerrero"]);
+    assert.deepEqual([d.total, d.iva, d.autorizo], [usd("116"), usd("16"), "Abigail Karam"]);
     // Lo que queda del pago baja; el libro tiene su asiento DEVOLUCION, que cita el cobro.
     assert.equal(BigInt(hecha.venta.payments[0]!.refundable.minor), BigInt(venta.payments[0]!.refundable.minor) - 116n);
     const asientos = await local.base.conTenant(local.sistema.tenantId, (tx) => tx.payment.findMany({ where: { kind: "DEVOLUCION", refundsId: { not: null } } }));
@@ -107,22 +112,22 @@ describe("devolver parte de una venta (B3-14)", () => {
   });
 
   test("una línea no vuelve dos veces, ni más de lo que queda del pago, ni lo que no cuadra", async () => {
-    const otra = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(venta, [venta.lineas[0]!.lineId], "116"), pinDeSupervisor(), AHORA + 2 * MIN);
+    const otra = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(venta, [venta.lineas[0]!.lineId], "116"), pinDeAdmin(), AHORA + 2 * MIN);
     assert.equal(motivoDe(otra), "YA_DEVUELTA");
-    const noCuadra = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(venta, [venta.lineas[1]!.lineId], "100"), pinDeSupervisor(), AHORA + 2 * MIN);
+    const noCuadra = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(venta, [venta.lineas[1]!.lineId], "100"), pinDeAdmin(), AHORA + 2 * MIN);
     assert.match(String(motivoDe(noCuadra)), /^NO_CUADRA/);
-    const demasiado = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(venta, [venta.lineas[1]!.lineId], "9999"), pinDeSupervisor(), AHORA + 2 * MIN);
+    const demasiado = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(venta, [venta.lineas[1]!.lineId], "9999"), pinDeAdmin(), AHORA + 2 * MIN);
     assert.equal(motivoDe(demasiado), "MAS_DE_LO_QUE_QUEDA");
   });
 
   test("lo preparado no vuelve al estante (va a merma); un servicio no se devuelve", async () => {
     const v = await vender([linea("Torta", "300"), linea("Alquiler de disfraz", "500")], "928", "1000");
-    const alEstante = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(v, [v.lineas[0]!.lineId], "348"), pinDeSupervisor(), AHORA + 3 * MIN);
+    const alEstante = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(v, [v.lineas[0]!.lineId], "348"), pinDeAdmin(), AHORA + 3 * MIN);
     assert.equal(motivoDe(alEstante), "NO_VUELVE_AL_ESTANTE");
-    const servicio = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(v, [v.lineas[1]!.lineId], "580"), pinDeSupervisor(), AHORA + 3 * MIN);
+    const servicio = await local.app.devoluciones.devolver(ctxSupervisor, devolucion(v, [v.lineas[1]!.lineId], "580"), pinDeAdmin(), AHORA + 3 * MIN);
     assert.equal(motivoDe(servicio), "NO_SE_DEVUELVE");
     const aMerma = valor(
-      await local.app.devoluciones.devolver(ctxSupervisor, { ...devolucion(v, [], "348"), lineas: [{ lineId: v.lineas[0]!.lineId, destino: "MERMA" }] }, pinDeSupervisor(), AHORA + 3 * MIN),
+      await local.app.devoluciones.devolver(ctxSupervisor, { ...devolucion(v, [], "348"), lineas: [{ lineId: v.lineas[0]!.lineId, destino: "MERMA" }] }, pinDeAdmin(), AHORA + 3 * MIN),
     );
     assert.equal(aMerma.venta.devoluciones[0]!.lineas[0]!.destino, "MERMA");
   });
@@ -131,16 +136,18 @@ describe("devolver parte de una venta (B3-14)", () => {
     const r = await local.app.cuentas.anular(
       ctxSupervisor,
       { idempotencyKey: randomUUID(), accountId: venta.accountId, cobroKey: venta.cobroKey, motivo: "ERROR_EN_COBRO", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }] },
-      pinDeSupervisor(),
+      pinDeAdmin(),
       AHORA + 4 * MIN,
     );
     assert.equal(!r.ok && r.motivo, "CONFLICTO");
   });
 
-  test("la caja necesita la autorización de supervisión; la monitora no devuelve; el libro no deja devolver de más", async () => {
+  test("la caja necesita el PIN de administración, no el de supervisión; la monitora no devuelve; el libro no deja devolver de más", async () => {
     const sinPin = await local.app.devoluciones.devolver(ctxCajera, devolucion(venta, [venta.lineas[1]!.lineId], "116"), undefined, AHORA + 5 * MIN);
     assert.notEqual(sinPin.ok, true);
-    const monitora = await local.app.devoluciones.devolver(ctxMonitora, devolucion(venta, [venta.lineas[1]!.lineId], "116"), pinDeSupervisor(), AHORA + 5 * MIN);
+    const deSupervision = await local.app.devoluciones.devolver(ctxCajera, devolucion(venta, [venta.lineas[1]!.lineId], "116"), pinDeSupervisor(), AHORA + 5 * MIN);
+    assert.equal(!deSupervision.ok && deSupervision.motivo, "NO_PERMITIDO", "B3-18: supervisión ya no autoriza devolver");
+    const monitora = await local.app.devoluciones.devolver(ctxMonitora, devolucion(venta, [venta.lineas[1]!.lineId], "116"), pinDeAdmin(), AHORA + 5 * MIN);
     assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
     // La base, aunque el código se equivocara: no se devuelve más de lo que entró por ese cobro.
     await assert.rejects(

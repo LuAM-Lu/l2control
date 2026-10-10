@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, TriangleAlert, Undo2 } from "lucide-react";
-import type { DestinoDevuelto, DevolucionHechaDto, Rechazo, VentaCerradaDto } from "@l2/contracts";
+import type { DestinoDevuelto, DevolucionHechaDto, ParqueDeLaVentaDto, Rechazo, VentaCerradaDto } from "@l2/contracts";
 import { devolucionDe, repartirDevolucion, USDT_AT_PAR } from "@l2/domain-cash";
 import { invertRate, money, toMajor, type CurrencyCode, type FrozenRate } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { Button, Input, Sheet, cn, formatMoneyVE } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { etiquetaReferencia, textoDinero } from "./anulacion.ts";
-import { devolverVenta } from "./ventas.acciones";
+import { devolverVenta, parqueDeLaVenta } from "./ventas.acciones";
 
 /**
  * Un cliente devuelve parte de lo que compró — B3-14 (M-34, S-4).
@@ -37,6 +37,22 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
   const [enviando, setEnviando] = useState(false);
   const [clave, setClave] = useState(() => globalThis.crypto.randomUUID());
   const a = useAutorizacion("venta.devolver", venta !== null);
+  /** El tiempo del parque de la venta (B3-18): cada paquete, si su niño sigue en la sala y lo que no usó. */
+  const [parque, setParque] = useState<ParqueDeLaVentaDto["lineas"] | null>(null);
+  /** Qué vuelve de cada paquete: nada, lo que no usó o entero (un problema del local). */
+  const [delParque, setDelParque] = useState<Record<string, "NADA" | "NO_USADO" | "ENTERO">>({});
+  useEffect(() => {
+    if (!venta) return;
+    let vivo = true;
+    setParque(null);
+    parqueDeLaVenta(venta.id)
+      .then((r) => vivo && setParque(r.ok ? r.valor.lineas : []))
+      .catch(() => vivo && setParque([]));
+    return () => {
+      vivo = false;
+    };
+  }, [venta?.id]);
+  const delParqueIds = new Set((parque ?? []).map((p) => p.lineId));
 
   // Cada venta abre el formulario limpio. Derivado en el render, sin efecto.
   if ((venta?.id ?? null) !== para) {
@@ -46,6 +62,7 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
     setRefs({});
     setMotivo("");
     setErrores({});
+    setDelParque({});
     setClave(globalThis.crypto.randomUUID());
   }
 
@@ -55,16 +72,28 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
     const devueltas = new Set(venta.devoluciones.flatMap((d) => d.lineas.map((l) => l.lineId)));
     const m = new Map<string, Grupo>();
     for (const l of venta.lineas) {
-      if (l.cortesia || devueltas.has(l.lineId)) continue;
+      // El tiempo del parque va aparte (B3-18), con lo que no usó.
+      if (l.cortesia || devueltas.has(l.lineId) || delParqueIds.has(l.lineId)) continue;
       const k = `${l.concept}|${l.amount.minor}|${l.taxCode ?? ""}`;
       const g = m.get(k) ?? { clave: k, concepto: l.concept, precio: l.amount, lineIds: [] };
       g.lineIds.push(l.lineId);
       m.set(k, g);
     }
     return [...m.values()];
-  }, [venta]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venta, parque]);
 
-  const elegidas = grupos.flatMap((g) => g.lineIds.slice(0, cantidades[g.clave] ?? 0).map((lineId) => ({ lineId, destino: destinos[g.clave] ?? "ESTANTE" })));
+  const devueltasYa = new Set((venta?.devoluciones ?? []).flatMap((d) => d.lineas.map((l) => l.lineId)));
+  const paquetes = (parque ?? []).filter((p) => !devueltasYa.has(p.lineId));
+  const elegidas = [
+    ...grupos.flatMap((g) => g.lineIds.slice(0, cantidades[g.clave] ?? 0).map((lineId) => ({ lineId, destino: destinos[g.clave] ?? "ESTANTE" }))),
+    ...paquetes.flatMap((p) => {
+      const como = delParque[p.lineId] ?? "NADA";
+      return como === "NADA" ? [] : [{ lineId: p.lineId, destino: "ESTANTE" as const, ...(como === "NO_USADO" ? { noUsado: true } : {}) }];
+    }),
+  ];
+  /** Lo que no usó cada paquete elegido así: de su línea vuelve solo eso. */
+  const parciales = new Map(paquetes.flatMap((p) => (delParque[p.lineId] === "NO_USADO" && p.noUsado ? [[p.lineId, money(BigInt(p.noUsado.minor), "USD")] as const] : [])));
 
   // Lo que vuelve y por qué pago: la misma cuenta que hace el servidor (el dominio).
   const calculo = useMemo(() => {
@@ -81,13 +110,15 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
         total: money(BigInt(venta.total.minor), f),
       },
       elegidas.map((e) => e.lineId),
+      parciales,
     );
     const reparto = repartirDevolucion(
       d.total,
       venta.payments.map((p) => ({ restante: money(BigInt(p.refundable.minor), p.refundable.currency as CurrencyCode), desdeFuncional: desdeFuncional(p.refundable.currency, venta.tasa) })),
     );
     return { d, reparto };
-  }, [venta, elegidas.map((e) => e.lineId).join(",")]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venta, elegidas.map((e) => `${e.lineId}:${"noUsado" in e ? 1 : 0}`).join(",")]);
 
   if (!venta) return <Sheet abierto={false} onCerrar={onCerrar} titulo="Devolver">{null}</Sheet>;
 
@@ -129,7 +160,7 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
       abierto
       onCerrar={onCerrar}
       titulo={`Devolver de la orden #${String(venta.orderNumber).padStart(4, "0")}`}
-      descripcion="Lo que el cliente devuelve: vuelve por su pago, en su moneda, desde la gaveta de hoy. Lo que vuelve al estante se vuelve a vender."
+      descripcion="Lo que el cliente devuelve: vuelve por su pago, en su moneda, desde la gaveta de hoy, con el PIN de administración. Lo que vuelve al estante se vuelve a vender."
       className="md:w-[min(42rem,100vw)]"
       pie={
         <div className="flex w-full flex-col gap-2">
@@ -149,7 +180,44 @@ export function DevolverVentaDialog({ venta, onCerrar, onHecha }: { venta: Venta
       <div className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-etiqueta font-semibold text-ink-2 uppercase">1 · Qué devuelve</legend>
-          {grupos.length === 0 ? (
+          {/* B3-18: el tiempo del parque de un niño que ya salió: lo que no usó, o entero si fue un problema del local. */}
+          {paquetes.map((p) => {
+            const l = venta.lineas.find((x) => x.lineId === p.lineId)!;
+            const como = delParque[p.lineId] ?? "NADA";
+            const opciones = [
+              ["NADA", "No"],
+              ...(p.noUsado ? ([["NO_USADO", `Lo que no usó · ${textoDinero(p.noUsado)}`]] as const) : []),
+              ["ENTERO", `Entero · ${textoDinero(l.amount)}`],
+            ] as const;
+            return (
+              <div key={p.lineId} className={cn("flex flex-col gap-2 rounded-[var(--radius-control)] border px-3 py-2", como !== "NADA" ? "border-brand/60 bg-brand/5" : "border-line")}>
+                <span className="block text-[14px] font-semibold text-ink">{l.concept}</span>
+                {p.enSala ? (
+                  <span className="text-[12.5px] text-ink-3">El niño sigue en la sala: su tiempo se devuelve después de su salida.</span>
+                ) : (
+                  <span role="radiogroup" aria-label={`Qué vuelve de ${l.concept}`} className="flex flex-wrap gap-1.5">
+                    {opciones.map(([k, texto]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        role="radio"
+                        aria-checked={como === k}
+                        onClick={() => setDelParque((d) => ({ ...d, [p.lineId]: k }))}
+                        className={cn(
+                          "tnum min-h-12 flex-1 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold",
+                          como === k ? "border-brand bg-brand/15 text-ink" : "border-line text-ink-2 hover:border-line-strong",
+                        )}
+                      >
+                        {texto}
+                      </button>
+                    ))}
+                  </span>
+                )}
+                {!p.enSala && !p.noUsado && <span className="text-[12px] text-ink-3">Usó todo lo que pagó (o tuvo más tiempo): solo se devuelve entero.</span>}
+              </div>
+            );
+          })}
+          {grupos.length === 0 && paquetes.length === 0 ? (
             <p className="text-[13px] text-ink-3">De esta venta ya no queda nada que devolver.</p>
           ) : (
             grupos.map((g) => {
