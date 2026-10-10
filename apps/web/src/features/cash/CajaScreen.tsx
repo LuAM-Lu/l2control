@@ -119,6 +119,7 @@ import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
 import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
+import { CobrarJuntasDialog } from "./CobrarJuntasDialog.tsx";
 import { SalonDeLaCuenta, esDelSalon, nombreDelNino } from "./SalonDeLaCuenta.tsx";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { usePorLimpiar } from "../mesas/porLimpiar.ts";
@@ -1156,6 +1157,11 @@ function CobroCuenta({
                     {f.porUso !== undefined && (
                       <span className="tnum mt-0.5 text-[11.5px] text-ink-3">
                         Cambiado por uso · estuvo {f.porUso} min
+                      </span>
+                    )}
+                    {f.deCuenta && (
+                      <span className="tnum mt-0.5 text-[11.5px] text-ink-3">
+                        De {f.deCuenta}
                       </span>
                     )}
                   </span>
@@ -2200,6 +2206,10 @@ export function CajaScreen({
     [cuentas],
   );
   const [elegida, setElegida] = useState<string | null>(cuentaInicial);
+  /** Cobrar juntas (B3-16): la cola marcando, lo marcado y si se está confirmando. */
+  const [juntando, setJuntando] = useState(false);
+  const [marcadas, setMarcadas] = useState<string[]>([]);
+  const [confirmandoJuntas, setConfirmandoJuntas] = useState(false);
   const actual =
     porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
   const lineas = useMemo(
@@ -2322,6 +2332,16 @@ export function CajaScreen({
     if (ventaSinDatos) setSaliendo(() => seguir);
     else seguir();
   }
+  /** Juntadas (B3-16): la cola deja de marcar y se abre la que queda, para cobrarla. */
+  function alJuntar(destino: FamilyAccountDto) {
+    setConfirmandoJuntas(false);
+    setJuntando(false);
+    setMarcadas([]);
+    setVista("cuenta");
+    elegirOtra(destino.id);
+    avisar.ok(`Juntas en ${numeroDeOrden(destino)}`, { detalle: "Cóbrala: lleva lo de todas, con un solo recibo." });
+  }
+
   /** Elegir otra cuenta de la cola: si la que se deja es una venta sin cobrar ni datos, primero la pregunta. */
   function elegirOtra(id: string) {
     if (id === actual?.id) elegir(id);
@@ -2756,6 +2776,12 @@ export function CajaScreen({
           deudas={deudas}
           onCobrarDeuda={(d) => void cobrarLaDeuda(d)}
           porLimpiar={porLimpiar}
+          juntando={juntando}
+          onJuntando={setJuntando}
+          marcadas={marcadas}
+          onMarcadas={setMarcadas}
+          todas={porCobrar}
+          onCobrarJuntas={() => setConfirmandoJuntas(true)}
           onMesaLimpia={(m) =>
             void marcarLimpia(m.tableId).then((r) => (r.ok ? avisar.ok(`Mesa ${m.label} limpia y libre`) : avisar.error(r.mensaje)))
           }
@@ -2846,6 +2872,13 @@ export function CajaScreen({
       <AtajosDialog
         abierto={viendoAtajos}
         onCerrar={() => setViendoAtajos(false)}
+      />
+      {/* B3-16: confirmar cuál queda y juntarlas. */}
+      <CobrarJuntasDialog
+        cuentas={confirmandoJuntas ? marcadas.flatMap((id) => porCobrar.find((c) => c.id === id) ?? []) : []}
+        onCerrar={() => setConfirmandoJuntas(false)}
+        adoptar={adoptarCuenta}
+        onHecha={alJuntar}
       />
       <VentaSinCobrar
         cuenta={saliendo && actual ? actual : null}
@@ -3405,7 +3438,16 @@ type Fila = Readonly<{
    * la cobra la línea del paquete que cubre, que va debajo.
    */
   porUso?: number;
+  /** De qué cuenta vino al cobrar juntas (B3-16): «#0123 · Familia Pérez». */
+  deCuenta?: string;
 }>;
+
+/** «#0123 · Familia Pérez»: de dónde vino una línea juntada (B3-16). */
+function deCuentaDe(l: FamilyAccountDto["lines"][number] | undefined): string | undefined {
+  const j = l?.vieneDe;
+  if (!j) return undefined;
+  return `${j.orderNumber ? `#${String(j.orderNumber).padStart(4, "0")}` : "otra cuenta"} · ${j.family}`;
+}
 
 /** Agrupa las líneas por ítem de mostrador, en el orden en que apareció cada uno. */
 function agruparFilas(
@@ -3416,12 +3458,15 @@ function agruparFilas(
   for (const l of lines) {
     const linea = cuenta.lines.find((x) => x.id === l.id);
     const deMostrador = linea !== undefined && esLineaDeMostrador(linea);
+    // Lo juntado de otra cuenta (B3-16) no se suma con lo de esta: cada fila dice de dónde vino.
     const clave = deMostrador
-      ? `mostrador|${l.description}|${l.unitPrice.amount}`
+      ? `mostrador|${linea.vieneDe?.cuentaId ?? ""}|${l.description}|${l.unitPrice.amount}`
       : l.id;
     const previa = filas.get(clave);
+    const deCuenta = deCuentaDe(linea);
     filas.set(clave, {
       clave,
+      ...(deCuenta ? { deCuenta } : {}),
       concepto: l.description,
       precio: l.unitPrice,
       cantidad: (previa?.cantidad ?? 0) + Number(l.quantity),

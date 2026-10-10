@@ -133,5 +133,6 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "I", que: "Identificar al cliente de la factura" },
   { teclas: "C", que: "Buscar un cliente por su nombre, cédula o teléfono: lo que tiene abierto, sus niños y lo que debe" },
   { teclas: "R", que: "Ver el recibo del último cobro" },
+  { teclas: "Mayús + clic", que: "En la cola: marcar un rango de cuentas para cobrarlas juntas (Esc lo suelta)" },
   { teclas: "?", que: "Ver estos atajos" },
 ];

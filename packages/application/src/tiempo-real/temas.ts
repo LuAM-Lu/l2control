@@ -87,6 +87,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "mesa.vincular": ["cuentas", "sala"],
   // Desvincular (B6-15) mueve lo del niño de la mesa a su familia o a otra mesa, y cambia a dónde va su salida.
   "mesa.desvincular": ["cuentas", "sala"],
+  // Cobrar juntas (B3-16): lo pendiente de varias cuentas pasa a una; las otras salen de la cola.
+  "cuenta.juntar": ["cuentas"],
   // Los cumpleaños (B10-1): reservar abre la cuenta del anticipo en la cola de la caja; cancelar la
   // cierra sin consumo y la saca de los pendientes del cierre.
   "evento.catalogo": ["eventos"],

@@ -33,6 +33,7 @@ import { casosPagos, type CasosPagos } from "./dinero/pagos.ts";
 import { casosTurnos, type CasosTurnos } from "./caja/turnos.ts";
 import { casosMedios, type CasosMedios } from "./caja/medios.ts";
 import { casosCuentas, type CasosCuentas } from "./caja/cuentas.ts";
+import { casosJuntar, type CasosJuntar } from "./caja/juntar.ts";
 import { casosPapel, type CasosPapel } from "./caja/papel.ts";
 import { casosDescuentos, type CasosDescuentos } from "./caja/descuentos.ts";
 import { casosImpresion, type CasosImpresion } from "./impresion/impresion.ts";
@@ -150,6 +151,8 @@ export interface Aplicacion {
   readonly turnos: CasosTurnos;
   readonly medios: CasosMedios;
   readonly cuentas: CasosCuentas;
+  /** Cobrar juntas (B3-16): varias cuentas de la cola en una, con un solo recibo. */
+  readonly cobrarJuntas: CasosJuntar;
   /** Lo anotado en papel cuando cayeron los dos enlaces: la carga, sus registros y su revisión (B3-7, ADR-027). */
   readonly papel: CasosPapel;
   /** Las reglas de descuento, las familias VIP y el descuento de cada cuenta (B3-6). */
@@ -279,6 +282,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     reportes: { ...casosReportes(base), ...casosMovimientos(base), ...casosInventarioAlMomento(base), ...casosInformeDeDeudas(base) },
     pedidos: casosPedidos(base),
     mesas: casosMesas(base),
+    cobrarJuntas: casosJuntar(base),
     clientes: casosClientes(base),
     deudas: casosDeudas(base),
     borradores: casosBorrador(base, cifrador),

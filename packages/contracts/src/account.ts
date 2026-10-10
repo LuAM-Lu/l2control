@@ -180,6 +180,19 @@ export const AccountLineSchema = z.object({
    * cubre los `minutos` que estuvo. Solo lo pone la salida del parque.
    */
   porUso: z.object({ cambiadaPor: IdSchema, minutos: z.number().int().min(0) }).optional(),
+  /**
+   * La cuenta de la que vino al cobrar juntas (B3-16): su número de orden y a nombre de quién, para que el ticket y el
+   * recibo digan de dónde es cada cosa; y su clase, para que Ventas la cuente en su origen.
+   */
+  vieneDe: z
+    .object({
+      cuentaId: IdSchema,
+      orderNumber: z.number().int().positive().optional(),
+      family: z.string().trim().min(1).max(80),
+      kind: AccountKindSchema,
+      dePie: z.literal(true).optional(),
+    })
+    .optional(),
 });
 export type AccountLineDto = z.infer<typeof AccountLineSchema>;
 
@@ -277,6 +290,8 @@ export const FamilyAccountSchema = z
      * propia tabla y lo pone aquí; lo que mande una pantalla al guardar la cuenta se ignora.
      */
     cliente: ClienteDeCuentaSchema.optional(),
+    /** Se juntó en otra para cobrarse con ella (B3-16): lo que debía está en esa cuenta. */
+    juntadaEn: z.object({ cuentaId: IdSchema, orderNumber: z.number().int().positive().optional() }).optional(),
   })
   .superRefine((c, ctx) => {
     // Lo que queda por cobrar. Una línea regalada o anulada NO cuenta: no se

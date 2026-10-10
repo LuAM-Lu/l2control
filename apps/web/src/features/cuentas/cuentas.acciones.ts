@@ -1,6 +1,6 @@
 "use server";
 
-import type { CuentaYLibroDto, CuentasDelLocalDto, DescuentosDeCuentaDto, FamilyAccountDto, Resultado } from "@l2/contracts";
+import type { CuentaYLibroDto, CuentasDelLocalDto, DescuentosDeCuentaDto, FamilyAccountDto, JuntarCuentasResultDto, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -115,4 +115,14 @@ export async function autorizadoresDeCaja(accion: unknown): Promise<{ id: string
   const a = CON_AUTORIZADORES.find((x) => x === accion);
   if (!ctx || !a) return [];
   return (await aplicacion()).cuentas.autorizadores(ctx, a);
+}
+
+/** Cobrar juntas (B3-16): lo pendiente de varias cuentas de la cola pasa a una, que se cobra una vez. */
+export async function juntarCuentas(entrada: unknown): Promise<Resultado<JuntarCuentasResultDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).cobrarJuntas.juntar(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.destino.id, juntadas: r.valor.otras.length }, "cuentas juntadas");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "juntar cuentas rechazado");
+  return r;
 }

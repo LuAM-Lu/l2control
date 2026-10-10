@@ -30,6 +30,8 @@ import {
   unlinkProblem,
   unlinkSession,
   receiveSession,
+  joinProblem,
+  joinInto,
   anulacionProblem,
   anulacionesProblem,
   withAnulacion,
@@ -501,6 +503,55 @@ describe("desvincular una pulsera (B6-15, M-37)", () => {
     assert.equal(receiveSession({ ...abierta, mode: "PREPAGO" }, "s1", vuelta).status, "POR_COBRAR");
     assert.equal(receiveSession({ ...abierta, closedSessionIds: ["s1", "s2"] }, "s1", vuelta).status, "POR_COBRAR");
     assert.equal(receiveSession({ ...abierta, mode: "PREPAGO" }, "s1", []).status, "ABIERTA"); // sin deuda, nada cambia
+  });
+});
+
+describe("cobrar juntas (B3-16, M-37)", () => {
+  const ids = (l: AccountLineDoc) => `j-${l.id}`;
+  const origen = { cuentaId: "fam-1", orderNumber: 12, family: "Familia Pérez", kind: "FAMILIA" as const };
+  const mesa = (extra: Partial<AccountDoc> = {}): AccountDoc => ({
+    kind: "MESA",
+    status: "POR_COBRAR",
+    sessionIds: [],
+    closedSessionIds: [],
+    tableId: "t1",
+    lines: [agua("a1")],
+    ...extra,
+  });
+
+  test("lo pendiente de la otra pasa a la que queda, con su origen; lo pagado y lo regalado se quedan", () => {
+    const fam = familia({
+      status: "POR_COBRAR",
+      closedSessionIds: ["s1", "s2"],
+      lines: [linea("l1", { sessionId: "s1" }), linea("pagada", { sessionId: "s2", paid: true }), linea("r", { cortesia: { motivo: "X" } })],
+    });
+    const { destino, otra } = joinInto(mesa(), "mesa-1", fam, origen, { cuentaId: "mesa-1", orderNumber: 7 }, ids);
+    assert.deepEqual(destino.lines.map((l) => [l.id, l.vieneDe?.orderNumber]), [["a1", undefined], ["j-l1", 12]]);
+    assert.equal(destino.status, "POR_COBRAR");
+    assert.equal(otra.lines[0]!.movedTo, "mesa-1");
+    assert.equal(otra.lines[1]!.movedTo, undefined);
+    assert.equal(otra.lines[2]!.movedTo, undefined);
+    assert.equal(otra.status, "COBRADA", "se cobra en la otra");
+    assert.deepEqual(otra.juntadaEn, { cuentaId: "mesa-1", orderNumber: 7 });
+    assert.deepEqual(chargeableLines(otra), []);
+  });
+
+  test("una familia con niños todavía en la sala queda abierta; una división sin partes cobradas se deja", () => {
+    const conNinos = familia({ status: "POR_COBRAR", closedSessionIds: ["s1"] });
+    assert.equal(joinInto(mesa(), "m", conNinos, origen, {}, ids).otra.status, "ABIERTA");
+    const dividida = mesa({ split: { parts: 3, paid: 0 } });
+    const { otra } = joinInto(mesa(), "m", dividida, origen, {}, ids);
+    assert.equal(otra.split, undefined);
+    assert.equal(otra.status, "COBRADA");
+  });
+
+  test("no se juntan un cumpleaños, una cerrada, una con partes cobradas o con descuento, ni una sin pendiente", () => {
+    assert.equal(joinProblem(mesa()), null);
+    assert.equal(joinProblem(mesa({ kind: "EVENTO" })), "EVENTO");
+    assert.equal(joinProblem(mesa({ status: "COBRADA" })), "CERRADA");
+    assert.equal(joinProblem(mesa({ split: { parts: 2, paid: 1 } })), "COBRO_EN_CURSO");
+    assert.equal(joinProblem(mesa({ descuento: { porcentaje: 10 } })), "CON_DESCUENTO");
+    assert.equal(joinProblem(mesa({ lines: [agua("a", { paid: true })] })), "SIN_PENDIENTE");
   });
 });
 

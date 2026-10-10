@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.113.0 · 113 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.114.0 · 114 de 126 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1707,12 +1707,26 @@ Fuera de la cuenta de 126: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   abiertas y lo dice bajo los pasos; al abrir, «La jornada del … sigue abierta». 2 pruebas nuevas contra la base y la de
   la jornada reescrita con la regla nueva.*
 
-- [ ] **B3-16 · Cobrar juntas** (M-37, U-2, U-7).
+- [x] **B3-16 · Cobrar juntas** (M-37, U-2, U-7).
+  *Hecho el 2026-10-10 (v0.114.0), en `feat/b3-16`.*
   → En la cola de la caja se eligen varias cuentas (una casilla en cada una, con toque o clic; Mayús+clic, un rango) y
   «Cobrar juntas»: lo pendiente de cada una pasa a una sola (la primera elegida, o la que diga la cajera), cada línea
   dice de qué cuenta vino, y se cobra una vez con un solo recibo. Las otras quedan cerradas como «juntada en #0123»;
   nada se borra (`movedTo`, como al vincular). No se juntan las de un cumpleaños, las que tienen pagos a medias
   (divididas con partes cobradas) ni las que tienen un cobro en curso de otra persona. Lo hace la caja, con su asiento.
+  *· Hecho: en `@l2/domain-cash`, `joinProblem` y `joinInto` (lo pendiente de la otra queda `movedTo` y nace en la que
+  queda con `vieneDe`: su id, su número, a nombre de quién y su clase; la otra, con `juntadaEn`, cerrada, o abierta si
+  es una familia con niños en la sala). `repartoPorOrigen` cuenta una línea juntada en el origen de la cuenta de la que
+  vino. `cobrarJuntas.juntar` (`caja/juntar.ts`) con el permiso de la caja, la versión de cada cuenta, el cobro en curso
+  de otra persona (su borrador), la deuda (puede quedar, no juntarse), la espera desde la que más llevaba, su asiento
+  `cuenta.juntar` (tema cuentas) y la causa `JUNTAR` (migración de expandir). En la cola, el icono «Juntar» (o
+  Mayús+clic desde la cuenta abierta) pasa a marcar: un toque marca, Mayús+clic un rango, Esc suelta; las que no se
+  juntan salen apagadas con su motivo. «Cobrar juntas» pregunta cuál queda y abre esa para cobrarla; el ticket dice
+  «De #0044 · …» en cada línea juntada. Probado en la base (4 pruebas: juntar y cobrar una vez $ 12,76, reintento,
+  versión vieja, cerrada, cobro en curso de otra persona, permiso, auditoría y aislamiento) y en el navegador en los dos
+  temas. **Decidido al construir:** se marcan solo las que están en la cola; el recibo impreso lista las líneas como
+  siempre (el origen va en el ticket de la pantalla); hasta doce cuentas juntas.*
+
 - [ ] **B3-17 · El consumo del personal** (M-37, U-3).
   → Medio «Consumo del personal»: la cajera elige a la persona del equipo (las del local, no la cuenta de soporte) y esta
   pone su propio PIN. Precio normal, en $; sale del inventario y no entra dinero: no cuenta en la gaveta ni en el arqueo,

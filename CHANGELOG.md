@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.114.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Cobrar juntas (B3-16, M-37).
+
+### Añadido
+- **«Cobrar juntas»** en la cola de la caja: el icono «Juntar» (o Mayús+clic) marca varias cuentas del mismo cliente (un
+  toque cada una; Mayús+clic, un rango; Esc lo suelta) y se cobran una vez, con un solo recibo. Se elige cuál queda; lo
+  que deben las otras pasa a ella y cada línea dice de qué cuenta vino («De #0044 · …»). Las otras salen de la cola
+  juntadas en ella. No se juntan un cumpleaños, una con partes cobradas, una con descuento ni la que otra persona está
+  cobrando. En Ventas, cada cosa cuenta en su origen (un plato de la mesa sigue siendo del restaurante).
+
 ## [0.113.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Desvincular una pulsera (B6-15, M-37).

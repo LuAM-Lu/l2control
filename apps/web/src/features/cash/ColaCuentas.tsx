@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Clock, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
-import { money, toMajor } from "@l2/domain-money";
+import { Baby, Cake, Check, Clock, Combine, HandCoins, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
+import { money, sum, toMajor } from "@l2/domain-money";
+import { joinProblem, type JoinProblem } from "@l2/domain-cash";
 import { WristbandCodeSchema, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
-import { Marquesina, MoneyDisplay, ScannerField, cn } from "@l2/ui";
+import { Button, Marquesina, MoneyDisplay, ScannerField, cn, formatMoneyVE } from "@l2/ui";
 import { esDeMesa, esVentaDirecta, nombreDeCuenta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 
@@ -20,6 +21,9 @@ import { PistaTecla } from "./AtajosDialog.tsx";
  *    «/» busca por familia o número de orden; los filtros separan parque y
  *    mostrador. El buscador solo ocupa sitio cuando hace falta.
  *  · **Se ve lo que llega**: una cuenta nueva destella al entrar a la cola.
+ *
+ * Y **cobrar juntas** (B3-16): «Juntar» (o Mayús+clic) pasa la cola a marcar; un toque marca o desmarca una cuenta y
+ * Mayús+clic, un rango. «Cobrar juntas» las lleva a una sola, con un solo recibo.
  *
  * El estado se dice con icono + texto, nunca solo con color (§8.2).
  */
@@ -38,6 +42,37 @@ export const ESPERA_LARGA_MIN = 10;
 
 /** Con más cuentas que esta, el buscador se queda a la vista. */
 export const COLA_LARGA = 5;
+
+/** Por qué una cuenta no se puede marcar para cobrar juntas (B3-16), corto, para la cola. */
+const NO_SE_JUNTA: Record<JoinProblem, string> = {
+  EVENTO: "Cumpleaños: se cobra sola",
+  CERRADA: "Ya no está por cobrar",
+  COBRO_EN_CURSO: "Tiene partes cobradas",
+  CON_DESCUENTO: "Lleva un descuento",
+  SIN_PENDIENTE: "Nada que cobrar",
+};
+
+/**
+ * Marca o desmarca `id` (B3-16); con `rango`, todas las que se pueden juntar entre la última marcada (`ancla`) y
+ * ella, en el orden de la cola. Las marcadas guardan el orden en que se marcaron: la primera es la que queda.
+ */
+export function marcarParaJuntar(
+  marcadas: readonly string[],
+  id: string,
+  cola: readonly FamilyAccountDto[],
+  ancla: string | null,
+  rango: boolean,
+): string[] {
+  const orden = cola.map((c) => c.id);
+  const i = ancla ? orden.indexOf(ancla) : -1;
+  const j = orden.indexOf(id);
+  if (rango && i >= 0 && j >= 0) {
+    const [desde, hasta] = i <= j ? [i, j] : [j, i];
+    const tramo = cola.slice(desde, hasta + 1).filter((c) => joinProblem(c) === null).map((c) => c.id);
+    return [...marcadas, ...tramo.filter((x) => !marcadas.includes(x))];
+  }
+  return marcadas.includes(id) ? marcadas.filter((x) => x !== id) : [...marcadas, id];
+}
 
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
@@ -106,6 +141,12 @@ export function ColaCuentas({
   onCobrarDeuda,
   porLimpiar = [],
   onMesaLimpia,
+  juntando = false,
+  onJuntando,
+  marcadas = [],
+  onMarcadas,
+  todas,
+  onCobrarJuntas,
 }: {
   className?: string;
   /** Ya ordenadas y filtradas. */
@@ -142,7 +183,38 @@ export function ColaCuentas({
   /** Las mesas por limpiar (B6-14): la caja las deja limpias con un toque, por si el mesero se olvidó. */
   porLimpiar?: readonly { tableId: string; label: string }[];
   onMesaLimpia?: (mesa: { tableId: string; label: string }) => void;
+  /** Cobrar juntas (B3-16): si la cola está marcando, y las marcadas en el orden en que se marcaron. */
+  juntando?: boolean;
+  onJuntando?: (si: boolean) => void;
+  marcadas?: readonly string[];
+  onMarcadas?: (ids: string[]) => void;
+  /** Toda la cola, sin filtro: una marcada sigue marcada aunque la búsqueda la oculte. */
+  todas?: readonly FamilyAccountDto[];
+  onCobrarJuntas?: () => void;
 }) {
+  const [ancla, setAncla] = useState<string | null>(null);
+  const cola = todas ?? cuentas;
+  const lasMarcadas = marcadas.flatMap((id) => cola.find((c) => c.id === id) ?? []);
+  const puedeJuntar = onJuntando !== undefined && onMarcadas !== undefined && onCobrarJuntas !== undefined;
+  function marcar(id: string, rango: boolean) {
+    onMarcadas?.(marcarParaJuntar(marcadas, id, cuentas, ancla, rango));
+    setAncla(id);
+  }
+  function dejarDeJuntar() {
+    onMarcadas?.([]);
+    onJuntando?.(false);
+    setAncla(null);
+  }
+  // Escape suelta la selección, si no hay un diálogo abierto que lo use antes.
+  useEffect(() => {
+    if (!juntando) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("dialog[open], [role=dialog]")) dejarDeJuntar();
+    };
+    window.addEventListener("keydown", alTeclear);
+    return () => window.removeEventListener("keydown", alTeclear);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [juntando]);
   // El reloj de la espera. Arranca en 0 para que servidor y navegador pinten
   // lo mismo; la espera aparece tras hidratar y se refresca cada 30 s.
   const [ahora, setAhora] = useState(0);
@@ -200,6 +272,22 @@ export function ColaCuentas({
           >
             <UserSearch size={16} aria-hidden="true" />
           </button>
+          {/* B3-16: marcar varias cuentas para cobrarlas juntas. */}
+          {puedeJuntar && (
+            <button
+              type="button"
+              onClick={() => (juntando ? dejarDeJuntar() : onJuntando!(true))}
+              aria-pressed={juntando}
+              aria-label="Cobrar juntas varias cuentas"
+              title="Cobrar juntas: marca las cuentas (Mayús+clic, un rango)"
+              className={cn(
+                "grid size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] transition-colors",
+                juntando ? "bg-brand/20 text-ink" : "text-ink-3 hover:bg-surface-2 hover:text-ink",
+              )}
+            >
+              <Combine size={16} aria-hidden="true" />
+            </button>
+          )}
           {/* Solo donde hay teclado: en la tablet no hay teclas que enseñar. */}
           <button
             type="button"
@@ -370,6 +458,8 @@ export function ColaCuentas({
         <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
           {cuentas.map((c) => {
             const activa = c.id === actual && !ventaNueva;
+            const marcada = marcadas.includes(c.id);
+            const noSeJunta = juntando ? joinProblem(c) : null;
             const esDirecta = esVentaDirecta(c);
             const deMesa = esDeMesa(c);
             const Origen = esDirecta ? ShoppingBag : deMesa ? UtensilsCrossed : c.kind === "EVENTO" ? Cake : Baby;
@@ -382,17 +472,49 @@ export function ColaCuentas({
               <li key={c.id}>
                 <button
                   type="button"
-                  aria-pressed={activa}
-                  onClick={() => onElegir(c.id)}
+                  aria-pressed={juntando ? marcada : activa}
+                  aria-disabled={noSeJunta !== null || undefined}
+                  title={noSeJunta ? NO_SE_JUNTA[noSeJunta] : undefined}
+                  onClick={(e) => {
+                    // B3-16: marcando, un toque marca o desmarca (Mayús+clic, un rango); fuera, Mayús+clic empieza a
+                    // marcar desde la cuenta abierta.
+                    if (juntando) {
+                      if (!noSeJunta) marcar(c.id, e.shiftKey);
+                    } else if (e.shiftKey && puedeJuntar && actual && joinProblem(c) === null) {
+                      onJuntando!(true);
+                      const desde = cuentas.find((x) => x.id === actual);
+                      onMarcadas!(marcarParaJuntar(desde && joinProblem(desde) === null ? [actual] : [], c.id, cuentas, actual, true));
+                      setAncla(c.id);
+                    } else onElegir(c.id);
+                  }}
                   className={cn(
                     "flex min-h-14 w-full cursor-pointer flex-col gap-1 rounded-[var(--radius-control)] border px-3 py-2 text-left",
                     "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    activa ? "border-brand bg-brand/20" : "border-transparent hover:bg-surface-2",
+                    juntando
+                      ? marcada
+                        ? "border-brand bg-brand/20"
+                        : noSeJunta
+                          ? "cursor-not-allowed border-transparent opacity-55"
+                          : "border-line hover:bg-surface-2"
+                      : activa
+                        ? "border-brand bg-brand/20"
+                        : "border-transparent hover:bg-surface-2",
                     recientes.has(c.id) && "l2-destello",
                   )}
                 >
                   <span className="flex items-baseline justify-between gap-2">
+                    {juntando && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "grid size-5 shrink-0 place-content-center self-center rounded border",
+                          marcada ? "border-brand bg-brand text-on-brand" : "border-line-strong bg-base",
+                        )}
+                      >
+                        {marcada && <Check size={13} />}
+                      </span>
+                    )}
                     {/* Un nombre largo no se corta: va y vuelve (T-15, P-9). */}
                     <Marquesina className="flex-1 text-[13.5px] font-semibold text-ink">{nombreDeCuenta(c)}</Marquesina>
                     <MoneyDisplay value={toMajor(pendiente(c))} currency="USD" size="sm" />
@@ -406,6 +528,7 @@ export function ColaCuentas({
                         {!esDirecta && c.sessionIds.length > 0 &&
                           ` · ${c.sessionIds.length} ${c.sessionIds.length === 1 ? "niño" : "niños"}`}
                       </span>
+                      {noSeJunta && <span className="shrink-0 font-semibold text-ink-2">· {NO_SE_JUNTA[noSeJunta]}</span>}
                       {sinDatos && (
                         <span className="flex shrink-0 items-center gap-0.5 rounded bg-state-warn-bg px-1 font-semibold whitespace-nowrap text-state-warn">
                           <UserX size={11} aria-hidden="true" />
@@ -433,7 +556,33 @@ export function ColaCuentas({
         </ul>
       )}
 
-      {ultimoCobro && (
+      {/* B3-16: lo marcado y «Cobrar juntas». */}
+      {juntando && (
+        <div className="flex flex-col gap-1.5 border-t border-line p-2">
+          <p className="px-1 text-[12.5px] text-ink-2" role="status">
+            {lasMarcadas.length === 0 ? (
+              "Toca las cuentas que se cobran juntas (Mayús+clic, un rango)."
+            ) : (
+              <>
+                <span className="tnum font-semibold text-ink">{lasMarcadas.length}</span> marcadas ·{" "}
+                <span className="tnum font-semibold text-ink">{formatMoneyVE(toMajor(sum(lasMarcadas.map(pendiente), "USD")), "USD")}</span>
+                {lasMarcadas.length === 1 && " · marca otra"}
+              </>
+            )}
+          </p>
+          <div className="grid grid-cols-[auto_1fr] gap-2">
+            <Button surface="pos" variant="neutral" className="w-14 px-0" onClick={dejarDeJuntar} aria-label="Cancelar: soltar las marcadas" title="Cancelar (Esc)">
+              <X size={18} aria-hidden="true" />
+            </Button>
+            <Button surface="pos" variant="primary" className="px-3 whitespace-nowrap" disabled={lasMarcadas.length < 2} onClick={onCobrarJuntas}>
+              <Combine size={16} aria-hidden="true" />
+              Cobrar juntas
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {ultimoCobro && !juntando && (
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-line py-1.5 pr-1.5 pl-4 text-[12px]">
           <span className="min-w-0 truncate text-ink-3" title={`Último cobro ${ultimoCobro.orden} · ${ultimoCobro.total}`}>
             Último <span className="tnum font-semibold text-ink-2">{ultimoCobro.orden}</span>
