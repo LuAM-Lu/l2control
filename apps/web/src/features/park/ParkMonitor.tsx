@@ -417,7 +417,7 @@ export function ParkMonitor({
                 {ficha.contractedMinutes !== null && (
                   <Button variant="neutral" className="w-full" onClick={() => setRecargando(true)}>
                     <Plus size={17} aria-hidden="true" />
-                    Recargar tiempo
+                    Más tiempo
                   </Button>
                 )}
                 {pausaFicha === null ? (
@@ -519,9 +519,9 @@ export function ParkMonitor({
         )}
         <CortesiaDialog linea={regalando ? tiempoARegalar : null} onAplicar={regalar} onCerrar={() => setRegalando(false)} />
         <AnularEntradaDialog nino={anulandoEntrada && ficha ? nombreVisible(ficha) : null} onAplicar={anular} onCerrar={() => setAnulandoEntrada(false)} />
-        {ficha && recargando && (
+        {ficha && recargando && estanciaFicha && (
           <RecargarTiempo
-            sessionId={ficha.id}
+            estancia={estanciaFicha}
             paquetes={tarifario.packages}
             onCancelar={() => setRecargando(false)}
             onHecha={(cuenta) => {

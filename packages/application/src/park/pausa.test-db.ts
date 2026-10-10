@@ -150,12 +150,12 @@ describe("la salida sin la pausa", () => {
     assert.equal(linea.overdue.minor, "0", JSON.stringify(linea));
   });
 
-  test("sin pausa, los mismos 68 minutos sí pagan un bloque", async () => {
+  test("sin pausa, los mismos 68 minutos sí pagan un bloque (el del paquete más chico, 1 hora; B4-17)", async () => {
     const s = await entra();
     const r = valor(
       await l.app.parque.salir(monitora, { idempotencyKey: randomUUID(), sessionIds: [s.id], disposition: { kind: "CAJA" }, recogida: { kind: "REPRESENTANTE" } }, AHORA + 68 * MIN),
     );
-    assert.equal(r.lines.find((x) => x.sessionId === s.id)!.overdue.minor, "150");
+    assert.equal(r.lines.find((x) => x.sessionId === s.id)!.overdue.minor, "500");
   });
 
   test("un niño que ya salió no se pausa", async () => {

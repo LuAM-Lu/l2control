@@ -970,6 +970,10 @@ test("una estancia cobra en dólares un paquete de verdad, con su pulsera bien e
   ];
   for (const extra of malos) await assert.rejects(estancia(A, c.id, g.id, extra), por("RESTRICCION"), JSON.stringify(extra, (_, v) => (typeof v === "bigint" ? String(v) : v)));
   await estancia(A, c.id, g.id, { durationMinutes: null, mode: "POSTPAGO" }); // tiempo abierto
+  // B4-17: el tiempo abierto entra sin precio (se cobra al salir), solo con su paquete y sin duración.
+  await estancia(A, c.id, g.id, { packageId: "tiempo-abierto", durationMinutes: null, mode: "POSTPAGO", priceMinor: 0n });
+  await assert.rejects(estancia(A, c.id, g.id, { packageId: "tiempo-abierto", durationMinutes: 60, priceMinor: 0n }), por("RESTRICCION"));
+  await assert.rejects(estancia(A, c.id, g.id, { packageId: "tiempo-abierto", durationMinutes: null, mode: "POSTPAGO", priceMinor: -1n }), por("RESTRICCION"));
 });
 
 test("A no abre una estancia en la cuenta ni con el representante de B", async () => {
@@ -1040,9 +1044,11 @@ test("una recarga es un tramo más de una estancia activa de tiempo fijo, y no s
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSessionExtension.update({ where: { id: r.id }, data: { minutes: 90 } })), SOLO_AGREGAR);
   await assert.rejects(app.conTenant(A.tenant, (tx) => tx.parkSessionExtension.delete({ where: { id: r.id } })), SOLO_AGREGAR);
   await assert.rejects(recarga(s.id, { operationKey: r.operationKey }), por("DUPLICADO"));
-  for (const extra of [{ minutes: 0 }, { priceMinor: 0n }, { currency: "VES" }]) {
+  // B4-17: subir a un paquete que no cuesta más que lo pagado deja una diferencia de $ 0; negativa, nunca.
+  for (const extra of [{ minutes: 0 }, { priceMinor: -1n }, { currency: "VES" }]) {
     await assert.rejects(recarga(s.id, extra), por("RESTRICCION"), Object.keys(extra)[0]);
   }
+  await recarga(s.id, { priceMinor: 0n });
   const libre = await estancia(A, c.id, g.id, { durationMinutes: null, mode: "POSTPAGO" });
   await assert.rejects(recarga(libre.id), por("RESTRICCION")); // el tiempo abierto no se recarga
   await cerrar(A, s.id, { closureKind: "SALIDA", pickedUpByGuardian: true });

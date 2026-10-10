@@ -47,6 +47,7 @@ import {
   type MonitorSnapshotDto,
   type ParkTermsDto,
   type PausaDto,
+  TIEMPO_ABIERTO_ID,
   type PricePackageDto,
   type RecargaResult,
   type Rechazo,
@@ -66,8 +67,9 @@ import {
   wristbandSeriesProblem,
   openEnded,
   parkPolicy,
-  computeSessionView,
-  paquetePorUso,
+  liquidarEstancia,
+  subirDePaquete,
+  type Liquidacion,
   pauseProblem,
   pausedMs,
   isWristbandless,
@@ -75,7 +77,6 @@ import {
   wristbandlessCode,
   WRISTBANDLESS_PREFIX,
   resumeProblem,
-  settleAtExit,
   withRecharges,
   instantesDeAviso,
   type Duration,
@@ -310,6 +311,14 @@ export function casosParque(base: Base): CasosParque {
           if (!vigente) return sinTarifario;
           const paquetes: PricePackageDto[] = [];
           for (const [i, e] of cmd.entries.entries()) {
+            // Tiempo abierto (B4-17): sin límite y se cobra al salir, así que solo en cuenta abierta.
+            if (e.packageId === TIEMPO_ABIERTO_ID) {
+              if (cmd.paymentMode !== "CUENTA_ABIERTA") {
+                return invalido("El tiempo abierto se paga al salir: elige «Cuenta abierta».", ["entries", i, "packageId"], "TIEMPO_ABIERTO_EN_PREPAGO");
+              }
+              paquetes.push(TIEMPO_ABIERTO);
+              continue;
+            }
             const p = vigente.tarifario.packages.find((x) => x.id === e.packageId && x.active);
             if (!p) return invalido("Ese paquete ya no está a la venta: elige otro.", ["entries", i, "packageId"], "PAQUETE_QUE_NO_SE_VENDE");
             paquetes.push(p);
@@ -368,14 +377,22 @@ export function casosParque(base: Base): CasosParque {
           const orderNumber = sumada?.cuenta.orderNumber ?? (await siguienteNumero(tx, ctx));
           // El precio es el del tarifario vigente, no el que enseñaba la pantalla.
           const lineasNuevas = [
-              ...cmd.entries.map((_, i) => ({
-              id: `paq-${sesiones[i]}`,
-              concept: `Paquete ${paquetes[i]!.name} · ${codigos[i]}`.slice(0, 80),
-              kind: "PAQUETE",
-              amount: paquetes[i]!.price,
-              paid: false,
-              sessionId: sesiones[i],
-            })),
+              // El tiempo abierto no deja línea al entrar (B4-17): su precio entra al salir, como el tiempo de más. Así
+              // ninguna mesa se cobra o se libera con él en $ 0 y el niño todavía dentro.
+              ...cmd.entries.flatMap((_, i) =>
+                paquetes[i]!.id === TIEMPO_ABIERTO_ID
+                  ? []
+                  : [
+                      {
+                        id: `paq-${sesiones[i]}`,
+                        concept: `Paquete ${paquetes[i]!.name} · ${codigos[i]}`.slice(0, 80),
+                        kind: "PAQUETE",
+                        amount: paquetes[i]!.price,
+                        paid: false,
+                        sessionId: sesiones[i],
+                      },
+                    ],
+              ),
               // El par de medias de quien no las trajo: una venta del inventario, no tiempo (no lleva `sessionId`).
               ...(medias
                 ? sinMedias.map((i) => ({
@@ -606,23 +623,41 @@ export function casosParque(base: Base): CasosParque {
             mesaInfo = { accountId: vigente.cuenta.id, tableId, label: vigente.cuenta.tableLabel ?? "?", vigente };
           }
 
-          // Salir antes de tiempo en cuenta abierta (B4-6, M-18): se cobra el paquete que cubre lo que estuvo.
-          // En prepago no: lo pagado al entrar no se devuelve, y la entrada lo avisa.
-          const porUso = new Map<string, PaqueteDeUso>();
-          if (actual.cuenta.mode === "CUENTA_ABIERTA") {
-            for (const f of enOrden) {
-              const p = paqueteParaCobrarPorUso(f, ahora);
-              if (p) porUso.set(f.id, p);
-            }
+          // La regla de precio (B4-17): cada estancia se liquida con la tarifa con que entró. El tiempo abierto, lo que
+          // vale su tiempo; un paquete fijo, lo contratado y el tiempo de más con tope; y en cuenta abierta, si salió
+          // antes, la combinación que cubre lo que estuvo (B4-6). En prepago lo pagado no se devuelve aquí (B3-18).
+          const liquidaciones = enOrden.map((f) => liquidarDe(f, ahora, actual.cuenta.mode === "CUENTA_ABIERTA"));
+          // Fail-closed: el tiempo abierto no sale gratis porque falte la tarifa.
+          const sinPrecio = enOrden.find((f, i) => esTiempoAbierto(f) && liquidaciones[i]!.porUso === null);
+          if (sinPrecio) {
+            return { ok: false, motivo: "NO_DISPONIBLE", mensaje: `No hay tarifa para cobrar el tiempo abierto de ${nombreDeFila(sinPrecio)}: revisa Ajustes → Tarifas.` };
           }
-          const lineas = enOrden.map((f) => liquidacionDe(f, ahora, porUso.get(f.id) ?? null));
+          const lineas = enOrden.map((f, i) => lineaDeLiquidacion(f, ahora, liquidaciones[i]!));
+          // Salir antes de tiempo en cuenta abierta: la línea por uso reemplaza a la del paquete (`chargeByUsage`).
+          const porUso = new Map(enOrden.flatMap((f, i) => (!esTiempoAbierto(f) && liquidaciones[i]!.porUso ? [[f.id, liquidaciones[i]!.porUso!] as const] : [])));
           const lineaPorUso = (f: FilaDeEstancia, i: number) => ({
             id: `uso-${f.id}`,
-            concept: `Paquete ${porUso.get(f.id)!.name} por uso (${lineas[i]!.consumedMinutes} min) · ${f.wristbandCode}`,
-            amountMinor: porUso.get(f.id)!.price.amount,
+            concept: `Paquete ${porUso.get(f.id)!.paquetes.join(" + ")} por uso (${lineas[i]!.consumedMinutes} min) · ${f.wristbandCode}`,
+            amountMinor: porUso.get(f.id)!.precio.amount,
             minutos: lineas[i]!.consumedMinutes,
           });
           let base = actual.cuenta;
+          // El tiempo abierto entra ahora, como línea del parque de esa estancia: si va a una mesa, se mueve con ella.
+          const abiertas = enOrden.flatMap((f, i) =>
+            esTiempoAbierto(f)
+              ? [
+                  {
+                    id: `abierto-${f.id}`,
+                    concept: `Tiempo abierto ${lineas[i]!.consumedMinutes} min: ${liquidaciones[i]!.porUso!.paquetes.join(" + ")} · ${f.wristbandCode}`.slice(0, 80),
+                    kind: "PAQUETE" as const,
+                    amount: { minor: String(liquidaciones[i]!.porUso!.precio.amount), currency: "USD" as const },
+                    paid: false,
+                    sessionId: f.id,
+                  },
+                ]
+              : [],
+          );
+          if (abiertas.length > 0) base = { ...base, lines: [...base.lines, ...abiertas.filter((l) => !base.lines.some((x) => x.id === l.id))] };
           // Lo de un niño vinculado a una mesa ya no está aquí (B6-3): se cobra por uso en la cuenta de la mesa.
           const enUnaMesa: number[] = [];
           // Las estancias cuyo ajuste quedó asentado: el desglose solo dice «por uso» de esas.
@@ -640,7 +675,7 @@ export function casosParque(base: Base): CasosParque {
             cmd.sessionIds,
             lineas.map((l, i) => ({
               sessionId: l.sessionId,
-              concept: `Tiempo de más · ${nombreDeFila(enOrden[i]!)} (${l.penaltyBlocks === 1 ? "1 bloque" : `${l.penaltyBlocks} bloques`})`,
+              concept: `Tiempo de más · ${nombreDeFila(enOrden[i]!)} (${l.penaltyBlocks === 1 ? "1 bloque" : `${l.penaltyBlocks} bloques`} de ${l.blockMinutes} min)`,
               amountMinor: BigInt(l.overdue.minor),
             })),
           );
@@ -742,7 +777,9 @@ export function casosParque(base: Base): CasosParque {
           }
           // Si el paquete ya no se debía en ninguna cuenta (p. ej., la mesa ya lo cobró), no hubo ajuste:
           // el desglose dice lo contratado, como lo dirá un reintento.
-          const desglose = lineas.map((l, i) => (porUso.has(l.sessionId) && !asentado.has(l.sessionId) ? liquidacionDe(enOrden[i]!, ahora) : l));
+          const desglose = lineas.map((l, i) =>
+            porUso.has(l.sessionId) && !asentado.has(l.sessionId) ? lineaDeLiquidacion(enOrden[i]!, ahora, { ...liquidaciones[i]!, porUso: null, total: add(liquidaciones[i]!.contratado, liquidaciones[i]!.overdue) }) : l,
+          );
           return { lines: desglose, account: nueva };
         });
 
@@ -791,7 +828,7 @@ export function casosParque(base: Base): CasosParque {
           if (!vigente) return sinTarifario;
           const p = vigente.tarifario.packages.find((x) => x.id === cmd.packageId && x.active);
           if (!p || p.duration.kind !== "fixed") {
-            return invalido("Ese paquete no sirve para recargar: elige uno de tiempo fijo que esté a la venta.", ["packageId"], "PAQUETE_QUE_NO_SE_RECARGA");
+            return invalido("Ese paquete no sirve para dar más tiempo: elige uno de tiempo fijo que esté a la venta.", ["packageId"], "PAQUETE_QUE_NO_SE_RECARGA");
           }
           const actual = (await vigenteDe(tx, f.accountId))!;
           if (actual.cuenta.status === "INCOBRABLE") {
@@ -801,15 +838,24 @@ export function casosParque(base: Base): CasosParque {
           if (actual.cuenta.kind === "EVENTO") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Es un invitado de un cumpleaños: su tiempo es el del evento y no se recarga." };
           }
+          // Subir de paquete (B4-17): lo que falta para el paquete mayor; el total queda en su precio.
+          const minutosAhora = f.durationMinutes + f.extensions.reduce((acc, e) => acc + e.minutes, 0);
+          const sube = subirDePaquete(
+            { minutos: minutosAhora, contratado: contratadoDe(f) },
+            { name: p.name, duration: fixed(p.duration.minutes), price: money(BigInt(p.price.minor), "USD") },
+          );
+          if (!sube) {
+            return invalido(`Ya tiene ${minutosAhora} min: elige un paquete mayor.`, ["packageId"], "PAQUETE_NO_ES_MAYOR");
+          }
           const quien = await nombreDe(tx, ctx);
           const extension = await tx.parkSessionExtension.create({
             data: {
               tenantId: ctx.tenantId,
               sessionId: f.id,
-              minutes: p.duration.minutes,
+              minutes: sube.minutos,
               packageId: p.id,
               packageName: p.name,
-              priceMinor: BigInt(p.price.minor),
+              priceMinor: sube.diferencia.amount,
               currency: "USD",
               operationKey: cmd.idempotencyKey,
               createdAt: new Date(ahora),
@@ -819,9 +865,9 @@ export function casosParque(base: Base): CasosParque {
           });
           const despues = registerRecharge(actual.cuenta, {
             id: `rec-${extension.id}`,
-            concept: `Recarga ${p.name} · ${f.wristbandCode}`,
+            concept: `Sube a ${p.name} · ${f.wristbandCode}`,
             sessionId: f.id,
-            amountMinor: BigInt(p.price.minor),
+            amountMinor: sube.diferencia.amount,
           });
           const instante = new Date(ahora).toISOString();
           const { pendingSince: _, ...sinEspera } = despues;
@@ -837,7 +883,7 @@ export function casosParque(base: Base): CasosParque {
             action: "parque.recarga",
             entityType: "park_session",
             entityId: f.id,
-            after: { minutos: p.duration.minutes, paquete: p.name, precio: p.price, cuenta: nueva.orderNumber ?? null },
+            after: { minutos: sube.minutos, paquete: p.name, precio: { minor: String(sube.diferencia.amount), currency: "USD" }, cuenta: nueva.orderNumber ?? null },
           });
           const recargada = await estanciaQueExiste(tx, { id: f.id });
           return { session: estanciaDe(recargada), account: nueva };
@@ -1359,28 +1405,41 @@ function contratadoDe(f: FilaDeEstancia) {
   return f.extensions.reduce((acc, e) => add(acc, money(e.priceMinor, "USD")), money(f.priceMinor, "USD"));
 }
 
-/**
- * Salir antes de tiempo en cuenta abierta (B4-6, M-18): el paquete que se cobra en lugar de lo contratado, el
- * más barato del tarifario con que entró que cubre lo que estuvo. `null` si se pasó (se cobra como siempre,
- * con el tiempo de más) o si lo contratado ya es lo más barato.
- */
-function paqueteParaCobrarPorUso(f: FilaDeEstancia, hasta: number): PaqueteDeUso | null {
-  const { sesion, politica } = paraMedir(f);
-  if (settleAtExit(sesion, politica, epochMs(hasta)).overdue.amount > 0n) return null;
-  const paquetes: PaqueteDeUso[] = f.porUso.map((p) => ({
+/** El «paquete» de quien entra con tiempo abierto (B4-17): sin límite, sin precio al entrar y en cuenta abierta. */
+const TIEMPO_ABIERTO: PricePackageDto = {
+  id: TIEMPO_ABIERTO_ID,
+  name: "Tiempo abierto",
+  mode: "POSTPAGO",
+  duration: { kind: "openEnded" },
+  price: { minor: "0", currency: "USD" },
+  active: true,
+};
+
+const esTiempoAbierto = (f: FilaDeEstancia) => f.packageId === TIEMPO_ABIERTO_ID;
+
+/** La tarifa con que entró una estancia (B4-2): los paquetes de esa versión del tarifario. */
+function tarifaDe(f: FilaDeEstancia): PaqueteDeUso[] {
+  return f.porUso.map((p) => ({
     name: p.name,
     duration: p.duration.kind === "fixed" ? fixed(p.duration.minutes) : openEnded,
     price: money(BigInt(p.price.minor), "USD"),
   }));
-  return paquetePorUso(paquetes, computeSessionView(sesion, politica, epochMs(hasta)).elapsedMs, politica.graceMinutes, contratadoDe(f));
+}
+
+/** La liquidación de una estancia en `hasta` con la regla de precio (B4-17): la misma que anticipa la salida. */
+function liquidarDe(f: FilaDeEstancia, hasta: number, cuentaAbierta: boolean): Liquidacion {
+  const { sesion, politica } = paraMedir(f);
+  return liquidarEstancia(
+    { session: sesion, policy: politica, tarifa: tarifaDe(f), contratado: contratadoDe(f), cuentaAbierta, tiempoAbierto: esTiempoAbierto(f) },
+    epochMs(hasta),
+  );
 }
 
 /** El desglose de la salida de una estancia en `hasta` (el instante del servidor, ADR-010). */
-function liquidacionDe(f: FilaDeEstancia, hasta: number, porUso: PaqueteDeUso | null = null): SettlementLineDto {
-  const { sesion, politica } = paraMedir(f);
-  const s = settleAtExit(sesion, politica, epochMs(hasta));
-  // Lo contratado, o el paquete por uso si salió antes de tiempo en cuenta abierta (B4-6).
-  const contratado = contratadoDe(f);
+function lineaDeLiquidacion(f: FilaDeEstancia, hasta: number, l: Liquidacion): SettlementLineDto {
+  const s = { consumedMinutes: l.consumedMinutes, billableOverdueMinutes: l.billableOverdueMinutes, penaltyBlocks: l.penaltyBlocks, overdue: l.overdue };
+  const contratado = l.contratado;
+  const porUso = l.porUso ? { name: l.porUso.paquetes.join(" + "), price: l.porUso.precio } : null;
   const paquete = porUso ? porUso.price : contratado;
   return {
     sessionId: f.id,
@@ -1391,6 +1450,8 @@ function liquidacionDe(f: FilaDeEstancia, hasta: number, porUso: PaqueteDeUso | 
     consumedMinutes: s.consumedMinutes,
     billableOverdueMinutes: s.billableOverdueMinutes,
     penaltyBlocks: s.penaltyBlocks,
+    blockMinutes: l.blockMinutes,
+    tiempoAbierto: esTiempoAbierto(f),
     packagePrice: { minor: String(contratado.amount), currency: "USD" },
     porUso: porUso ? { paquete: porUso.name, precio: { minor: String(porUso.price.amount), currency: "USD" } } : null,
     overdue: { minor: String(s.overdue.amount), currency: "USD" },
@@ -1437,7 +1498,12 @@ async function salidaHecha(tx: Transaccion, clave: string, accountId: string): P
   const cuenta = (await vigenteDe(tx, accountId))!.cuenta;
   const lines: SettlementLineDto[] = [];
   // Una a una: dentro de la transacción, nunca dos consultas a la vez (§5).
-  for (const f of filas) lines.push(liquidacionDe(f, f.endedAt!.getTime(), await porUsoAsentado(tx, cuenta, f)));
+  for (const f of filas) {
+    const l = liquidarDe(f, f.endedAt!.getTime(), cuenta.mode === "CUENTA_ABIERTA");
+    // El tiempo abierto siempre se asentó; el cobro por uso, solo si su línea quedó (en la familia o en su mesa).
+    const asentado = esTiempoAbierto(f) || (await porUsoAsentado(tx, cuenta, f, l));
+    lines.push(lineaDeLiquidacion(f, f.endedAt!.getTime(), asentado ? l : { ...l, porUso: null, total: add(l.contratado, l.overdue) }));
+  }
   return { lines, account: cuenta };
 }
 
@@ -1447,18 +1513,16 @@ async function salidaHecha(tx: Transaccion, clave: string, accountId: string): P
  * entrada, y la hora en que se cerró); se da por asentado si su línea `uso-` está en la cuenta de la
  * familia o en la de la mesa adonde se fue el paquete.
  */
-async function porUsoAsentado(tx: Transaccion, familia: FamilyAccountDto, f: FilaDeEstancia): Promise<PaqueteDeUso | null> {
-  if (familia.mode !== "CUENTA_ABIERTA") return null;
-  const p = paqueteParaCobrarPorUso(f, f.endedAt!.getTime());
-  if (!p) return null;
+async function porUsoAsentado(tx: Transaccion, familia: FamilyAccountDto, f: FilaDeEstancia, l: Liquidacion): Promise<boolean> {
+  if (familia.mode !== "CUENTA_ABIERTA" || !l.porUso) return false;
   const id = `uso-${f.id}`;
-  if (familia.lines.some((l) => l.id === id)) return p;
-  const mesas = new Set(familia.lines.filter((l) => l.sessionId === f.id && l.movedTo).map((l) => l.movedTo!));
+  if (familia.lines.some((x) => x.id === id)) return true;
+  const mesas = new Set(familia.lines.filter((x) => x.sessionId === f.id && x.movedTo).map((x) => x.movedTo!));
   for (const mesaId of mesas) {
     const mesa = await vigenteDe(tx, mesaId);
-    if (mesa?.cuenta.lines.some((l) => l.id === id)) return p;
+    if (mesa?.cuenta.lines.some((x) => x.id === id)) return true;
   }
-  return null;
+  return false;
 }
 
 /**

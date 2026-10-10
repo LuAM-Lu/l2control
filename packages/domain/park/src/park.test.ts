@@ -36,6 +36,10 @@ import {
   openEnded,
   parkPolicy,
   paquetePorUso,
+  precioDelTiempo,
+  tiempoDeMas,
+  subirDePaquete,
+  liquidarEstancia,
   pauseProblem,
   isWristbandless,
   nextWristbandlessNumber,
@@ -515,5 +519,87 @@ describe("los avisos de pulseras por vencer (B4-15)", () => {
 
   test("sin tiempo fijo no avisa: no vence", () => {
     assert.equal(instantesDeAviso(sesion({ duration: openEnded }), POLICY), null);
+  });
+});
+
+describe("una regla de precio para el parque (B4-17, M-37)", () => {
+  const usd = (s: string) => fromMajor(s, "USD");
+  const TARIFA = [
+    { name: "30 minutos", duration: fixed(30), price: usd("3.00") },
+    { name: "1 hora", duration: fixed(60), price: usd("5.00") },
+    { name: "2 horas", duration: fixed(120), price: usd("9.00") },
+    { name: "Pase libre", duration: openEnded, price: usd("12.00") },
+  ];
+  const precio = (min: number) => precioDelTiempo(TARIFA, min * MIN, 5, "USD");
+
+  test("lo que vale un tiempo: la combinación más barata que lo cubre, con la gracia", () => {
+    assert.deepEqual([toMajor(precio(5)!.precio), precio(5)!.paquetes], ["3.00", ["30 minutos"]]);
+    assert.equal(toMajor(precio(35)!.precio), "3.00"); // 30 min + 5 de gracia
+    assert.equal(toMajor(precio(36)!.precio), "5.00"); // ya no cabe en 30: la hora
+    assert.deepEqual([toMajor(precio(80)!.precio), precio(80)!.paquetes], ["8.00", ["1 hora", "30 minutos"]]);
+    assert.deepEqual([toMajor(precio(110)!.precio), precio(110)!.paquetes], ["9.00", ["2 horas"]]);
+    // Nunca más que el pase libre.
+    assert.deepEqual([toMajor(precio(200)!.precio), precio(200)!.paquetes], ["12.00", ["Pase libre"]]);
+    // Sin paquetes en esa moneda, nada.
+    assert.equal(precioDelTiempo(TARIFA, 10 * MIN, 5, "VES"), null);
+  });
+
+  test("el tiempo de más de un paquete fijo: bloques de 30 min, nunca más que la combinación", () => {
+    const una = sesion({ duration: fixed(60) });
+    const de = (min: number) => tiempoDeMas(alos(min, una), usd("5.00"), TARIFA, 5)!;
+    assert.equal(toMajor(de(64).charge), "0.00"); // en gracia
+    assert.deepEqual([de(80).blocks, de(80).blockMinutes, toMajor(de(80).charge)], [1, 30, "3.00"]); // $8 en total
+    assert.deepEqual([de(110).blocks, toMajor(de(110).charge)], [2, "4.00"]); // dos bloques serían $6: tope en 2 h, $9
+    // Sin paquetes fijos en la tarifa, la regla de antes.
+    assert.equal(tiempoDeMas(alos(80, una), usd("5.00"), [], 5), null);
+  });
+
+  test("la salida con la tarifa cobra así; sin ella, el recargo de antes", () => {
+    const una = sesion({ duration: fixed(60) });
+    const a = epochMs(T0 + 80 * MIN);
+    assert.equal(toMajor(settleAtExit(una, POLICY, a, { tarifa: TARIFA, contratado: usd("5.00") }).overdue), "3.00");
+    assert.equal(settleAtExit(una, POLICY, a, { tarifa: TARIFA, contratado: usd("5.00") }).penaltyBlocks, 1);
+    assert.equal(toMajor(settleAtExit(una, POLICY, a).overdue), "1.50"); // 15 min de más: un bloque de 15
+  });
+
+  test("subir de paquete: la diferencia, y el total queda en el precio del paquete final", () => {
+    const de30 = { minutos: 30, contratado: usd("3.00") };
+    assert.deepEqual(subirDePaquete(de30, TARIFA[1]!), { minutos: 30, diferencia: usd("2.00") });
+    assert.deepEqual(subirDePaquete(de30, TARIFA[2]!), { minutos: 90, diferencia: usd("6.00") });
+    // A uno igual o menor, o sin límite, no se sube.
+    assert.equal(subirDePaquete(de30, TARIFA[0]!), null);
+    assert.equal(subirDePaquete(de30, TARIFA[3]!), null);
+  });
+});
+
+describe("la liquidación de una estancia, una para la salida y el servidor (B4-17)", () => {
+  const usd = (s: string) => fromMajor(s, "USD");
+  const TARIFA = [
+    { name: "30 minutos", duration: fixed(30), price: usd("3.00") },
+    { name: "1 hora", duration: fixed(60), price: usd("5.00") },
+    { name: "2 horas", duration: fixed(120), price: usd("9.00") },
+  ];
+  const liquidar = (s: ParkSession, contratado: string, min: number, extra: { cuentaAbierta?: boolean; tiempoAbierto?: boolean } = {}) =>
+    liquidarEstancia(
+      { session: s, policy: POLICY, tarifa: TARIFA, contratado: usd(contratado), cuentaAbierta: extra.cuentaAbierta ?? false, tiempoAbierto: extra.tiempoAbierto ?? false },
+      epochMs(T0 + min * MIN),
+    );
+
+  test("tiempo abierto: lo que vale su tiempo; sin tarifa, nada que cobrar (y quien liquida se niega)", () => {
+    const abierta = sesion({ duration: openEnded, mode: "POSTPAGO" });
+    const l = liquidar(abierta, "0.00", 80, { tiempoAbierto: true, cuentaAbierta: true });
+    assert.deepEqual([toMajor(l.total), l.porUso?.paquetes], ["8.00", ["1 hora", "30 minutos"]]);
+    const sin = liquidarEstancia({ session: abierta, policy: POLICY, tarifa: [], contratado: usd("0.00"), cuentaAbierta: true, tiempoAbierto: true }, epochMs(T0 + 80 * MIN));
+    assert.equal(sin.porUso, null);
+  });
+
+  test("un paquete fijo: lo contratado y el tiempo de más con tope; en cuenta abierta, si salió antes, la combinación", () => {
+    const una = sesion({ duration: fixed(60) });
+    assert.deepEqual([toMajor(liquidar(una, "5.00", 80).total), toMajor(liquidar(una, "5.00", 80).overdue)], ["8.00", "3.00"]);
+    assert.equal(toMajor(liquidar(una, "5.00", 110).total), "9.00");
+    // Prepago que sale a los 5 min: lo pagado no se devuelve aquí (lo devuelve administración, B3-18).
+    assert.deepEqual([toMajor(liquidar(una, "5.00", 5).total), liquidar(una, "5.00", 5).porUso], ["5.00", null]);
+    // Cuenta abierta que sale a los 5 min: 30 minutos.
+    assert.equal(toMajor(liquidar(una, "5.00", 5, { cuentaAbierta: true }).total), "3.00");
   });
 });

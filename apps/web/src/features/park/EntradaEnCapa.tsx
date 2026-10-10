@@ -52,14 +52,16 @@ export function EntradaEnCapa({
   onRegistrada: (cuenta: FamilyAccountDto, modo: PaymentMode, ninos: number) => void;
 }) {
   const cedulaRef = useRef<HTMLInputElement>(null);
-  const e = useEntradaDeNinos({ catalogo, alPrimeraPulsera: () => cedulaRef.current?.focus() });
+  const enCaja = desde === "CAJA";
+  // B4-17: el tiempo abierto se ofrece en el parque; la caja cobra la entrada al momento.
+  const e = useEntradaDeNinos({ catalogo, alPrimeraPulsera: () => cedulaRef.current?.focus(), conTiempoAbierto: !enCaja });
   const { entradas, capacidad, capacityLimit, medias, encontrado, aviso, enviando } = e;
   const { formatoHora } = useSucursal().ajustes;
-  const enCaja = desde === "CAJA";
 
   // DEC-21: cómo paga esta familia, en el parque. En la caja, ahora. Si se suma a su familia, como su cuenta.
   const [modoElegido, setModo] = useState<PaymentMode>("PREPAGO");
-  const modo: PaymentMode = enCaja ? "PREPAGO" : e.sumarA && e.familiaEnSala ? e.familiaEnSala.mode : modoElegido;
+  // Con tiempo abierto, cuenta abierta: se paga al salir (B4-17).
+  const modo: PaymentMode = enCaja ? "PREPAGO" : e.sumarA && e.familiaEnSala ? e.familiaEnSala.mode : e.hayTiempoAbierto ? "CUENTA_ABIERTA" : modoElegido;
   /** La cámara del teléfono como lector (V-2). */
   const [camara, setCamara] = useState(false);
 
@@ -170,7 +172,14 @@ export function EntradaEnCapa({
             </div>
           ) : (
             <div data-recorrido="parque-registrar" className="flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
-              <TotalDeEntrada total={e.total} ninos={entradas.length} medias={medias} paresQueFaltan={e.paresQueFaltan} sinMedias={e.sinMedias} />
+              <TotalDeEntrada
+                total={e.total}
+                ninos={entradas.length}
+                conTiempoAbierto={e.ninosConTiempoAbierto}
+                medias={medias}
+                paresQueFaltan={e.paresQueFaltan}
+                sinMedias={e.sinMedias}
+              />
               {/* DEC-21: la familia elige cómo paga (en el parque, salvo que se sume a su cuenta). M-18 (B4-6): lo
                   pagado al entrar no se devuelve si sale antes; en cuenta abierta se cobra por lo que usó. */}
               {!enCaja && !e.sumarA && (
@@ -186,6 +195,7 @@ export function EntradaEnCapa({
                       type="button"
                       role="radio"
                       aria-checked={modo === valor}
+                      disabled={valor === "PREPAGO" && e.hayTiempoAbierto}
                       title={detalle}
                       onClick={() => setModo(valor)}
                       className={cn(

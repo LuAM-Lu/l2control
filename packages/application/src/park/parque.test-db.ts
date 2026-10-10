@@ -387,17 +387,23 @@ describe("la salida (B4-3)", () => {
     assert.deepEqual(s.account.closedSessionIds, [r.sessions[0]!.id]);
   });
 
-  test("el excedente lo mide el servidor con las condiciones de la entrada, aunque el tarifario cambie", async () => {
+  test("el tiempo de más lo mide el servidor con la tarifa de la entrada, aunque el tarifario cambie (B4-17)", async () => {
     const r = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA" }));
-    // Se publica un bloque más caro después de la entrada: a esta familia no le toca.
-    valor(await local.app.tarifario.publicar(local.sistema, { ...TARIFARIO, policy: { ...TARIFARIO.policy, penaltyPricePerBlock: usd("400") } }));
+    // Después de la entrada, las 2 horas pasan a costar $ 15: a esta familia no le toca.
+    valor(
+      await local.app.tarifario.publicar(local.sistema, {
+        ...TARIFARIO,
+        packages: TARIFARIO.packages.map((p) => (p.id === "pkg-120" ? { ...p, price: usd("1500") } : p)),
+      }),
+    );
+    // 72 min con 1 hora ($ 5): un bloque, con tope en lo que falta para 2 horas a $ 8 de su tarifa: $ 3.
     const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 72 * MIN));
     assert.equal(s.lines[0]!.billableOverdueMinutes, 7);
     assert.equal(s.lines[0]!.penaltyBlocks, 1);
-    assert.equal(s.lines[0]!.overdue.minor, "150");
-    assert.equal(s.lines[0]!.total.minor, "650");
+    assert.equal(s.lines[0]!.overdue.minor, "300");
+    assert.equal(s.lines[0]!.total.minor, "800");
     assert.equal(s.account.status, "POR_COBRAR"); // el último salió: a la caja
-    assert.deepEqual(s.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"], ["EXCEDENTE", "150"]]);
+    assert.deepEqual(s.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"], ["EXCEDENTE", "300"]]);
     valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
   });
 
@@ -438,7 +444,7 @@ describe("la salida (B4-3)", () => {
     const mesa = cuentas.cuentas.find((c) => c.kind === "MESA" && c.tableId === "mesa-10")!;
     assert.deepEqual(mesa.lines.map((l) => [l.kind, l.amount.minor, l.movedTo]), [
       ["PAQUETE", "500", undefined],
-      ["EXCEDENTE", "150", undefined],
+      ["EXCEDENTE", "300", undefined],
     ]);
     assert.deepEqual(mesa.sessionIds, [r.sessions[0]!.id]);
     assert.equal(mesa.status, "ABIERTA");
@@ -544,28 +550,28 @@ describe("salir antes de tiempo (B4-6, M-18)", () => {
     const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
     const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 72 * MIN));
     assert.equal(s.lines[0]!.porUso, null);
-    assert.equal(s.lines[0]!.total.minor, "650");
+    assert.equal(s.lines[0]!.total.minor, "800");
     assert.ok(s.account.lines.every((l) => l.porUso === undefined));
-    assert.deepEqual(seDebe(s.account), ["500", "150"]);
+    assert.deepEqual(seDebe(s.account), ["500", "300"]);
   });
 
-  test("el paquete y sus recargas se cambian juntos: 1 hora + 1 hora y sale a los 70 min, se cobran 2 horas", async () => {
+  test("el paquete y lo que subió se cambian juntos: sube a 2 horas y sale a los 40 min, se cobra 1 hora (B4-17)", async () => {
     const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
     const id = r.sessions[0]!.id;
-    valor(await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: id, packageId: "pkg-60" }, AHORA + 50 * MIN));
-    const s = valor(await local.app.parque.salir(ctxMonitora, salida([id]), AHORA + 70 * MIN));
-    assert.deepEqual(s.lines[0]!.porUso, { paquete: "2 horas", precio: usd("800") });
-    assert.equal(s.lines[0]!.packagePrice.minor, "1000");
-    assert.equal(s.lines[0]!.total.minor, "800");
+    valor(await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: id, packageId: "pkg-120" }, AHORA + 20 * MIN));
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([id]), AHORA + 40 * MIN));
+    assert.deepEqual(s.lines[0]!.porUso, { paquete: "1 hora", precio: usd("500") });
+    assert.equal(s.lines[0]!.packagePrice.minor, "800");
+    assert.equal(s.lines[0]!.total.minor, "500");
     assert.deepEqual(
       s.account.lines.map((l) => [l.amount.minor, l.porUso?.cambiadaPor ?? null]),
       [
         ["500", `uso-${id}`],
-        ["500", `uso-${id}`],
-        ["800", null],
+        ["300", `uso-${id}`],
+        ["500", null],
       ],
     );
-    assert.deepEqual(seDebe(s.account), ["800"]);
+    assert.deepEqual(seDebe(s.account), ["500"]);
   });
 
   test("vinculado a una mesa: el ajuste se hace en la cuenta de la mesa", async () => {
@@ -609,7 +615,7 @@ describe("la pulsera vinculada sale a su mesa (B4-14)", () => {
     assert.equal(s.lines[0]!.penaltyBlocks, 1);
     assert.deepEqual(chargeableLines(s.account).map((l) => l.amount.minor), [], "la familia no debe nada: todo está en la mesa");
     const enMesa = valor(await local.app.cuentas.leer(ctxCajera, AHORA + 81 * MIN)).cuentas.find((c) => c.id === mesa.id)!;
-    assert.ok(enMesa.lines.some((l) => l.sessionId === id && l.amount.minor === "150"), "el tiempo de más está en la mesa");
+    assert.ok(enMesa.lines.some((l) => l.sessionId === id && l.amount.minor === "300"), "el tiempo de más está en la mesa");
   });
 
   test("vinculados con sueltos, o hacia otra mesa, no salen juntos: se dice por qué", async () => {
@@ -672,22 +678,26 @@ describe("la sala, los permisos y el aislamiento", () => {
 });
 
 describe("la recarga de tiempo (B4-3, F5-11)", () => {
-  test("suma su tramo a la estancia y su precio a la cuenta; en prepago vuelve a la caja", async () => {
+  test("subir de paquete: suma lo que falta y paga la diferencia; en prepago vuelve a la caja (B4-17)", async () => {
     const r = await entrar(entrada([{}], { paymentMode: "PREPAGO" }));
     const s = r.sessions[0]!;
-    const cmd = { idempotencyKey: randomUUID(), sessionId: s.id, packageId: "pkg-60" };
+    // De 1 hora ($ 5) a 2 horas ($ 8): 60 min más y $ 3, no otra hora de $ 5.
+    const cmd = { idempotencyKey: randomUUID(), sessionId: s.id, packageId: "pkg-120" };
     const rec = valor(await local.app.parque.recargar(ctxMonitora, cmd, AHORA + 55 * MIN));
     assert.deepEqual(rec.session.duration, { kind: "fixed", minutes: 120 });
-    assert.deepEqual(rec.session.recargas.map((x) => [x.minutes, x.price.minor]), [[60, "500"]]);
+    assert.deepEqual(rec.session.recargas.map((x) => [x.minutes, x.price.minor]), [[60, "300"]]);
     assert.equal(rec.account.status, "POR_COBRAR");
-    assert.deepEqual(rec.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"], ["PAQUETE", "500"]]);
+    assert.deepEqual(rec.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"], ["PAQUETE", "300"]]);
+    // A un paquete igual o menor no se sube.
+    const igual = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: s.id, packageId: "pkg-60" }, AHORA + 56 * MIN);
+    assert.equal(!igual.ok && igual.problemas?.[0]?.message, "PAQUETE_NO_ES_MAYOR");
     // Un reintento no recarga dos veces.
     const otra = valor(await local.app.parque.recargar(ctxMonitora, cmd, AHORA + 56 * MIN));
     assert.equal(otra.account.version, rec.account.version);
-    // Con la recarga, a los 125 min está en su gracia: sale sin tiempo de más, y lo contratado son $ 10,00.
+    // Con las 2 horas, a los 125 min está en su gracia: sale sin tiempo de más, y lo contratado son $ 8,00.
     const fuera = valor(await local.app.parque.salir(ctxMonitora, salida([s.id]), AHORA + 125 * MIN));
     assert.equal(fuera.lines[0]!.overdue.minor, "0");
-    assert.equal(fuera.lines[0]!.packagePrice.minor, "1000");
+    assert.equal(fuera.lines[0]!.packagePrice.minor, "800");
   });
 
   test("el tiempo abierto no se recarga, ni con un paquete de tiempo abierto; lo que ya salió, tampoco", async () => {
@@ -778,5 +788,30 @@ describe("los avisos de pulseras por vencer en la pantalla del PIN (B4-15)", () 
     const desconocido = await local.app.parque.avisosDelEquipo({ estado: "DESCONOCIDO" }, AHORA + MIN);
     assert.equal(desconocido.ok, false);
     await vaciarSala(AHORA + 2 * MIN);
+  });
+});
+
+describe("el tiempo abierto (B4-17, M-37)", () => {
+  test("entra sin paquete ni línea, solo en cuenta abierta; al salir se cobra lo que vale su tiempo con la tarifa", async () => {
+    await vaciarSala(AHORA);
+    // En prepago no: el tiempo abierto se paga al salir.
+    const prepago = await local.app.parque.entrar(ctxMonitora, entrada([{ packageId: "tiempo-abierto" }]), AHORA);
+    assert.equal(!prepago.ok && prepago.problemas?.[0]?.message, "TIEMPO_ABIERTO_EN_PREPAGO");
+    const r = await entrar(entrada([{ packageId: "tiempo-abierto" }], { paymentMode: "CUENTA_ABIERTA" }));
+    const id = r.sessions[0]!.id;
+    assert.deepEqual([r.sessions[0]!.duration, r.sessions[0]!.packageName], [{ kind: "openEnded" }, "Tiempo abierto"], "sin límite");
+    assert.deepEqual(r.account.lines, [], "nada en la cuenta hasta que salga: ninguna mesa se cobra con él en $ 0");
+    // Más tiempo no aplica: ya es abierto.
+    const mas = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: id, packageId: "pkg-120" }, AHORA + 10 * MIN);
+    assert.equal(!mas.ok && mas.problemas?.[0]?.message, "TIEMPO_ABIERTO");
+    // 80 min con la tarifa de la prueba (1 h $ 5, 2 h $ 8, pase libre $ 12; los 30 min no se venden): 2 horas, $ 8.
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([id]), AHORA + 80 * MIN));
+    assert.deepEqual([s.lines[0]!.tiempoAbierto, s.lines[0]!.porUso, s.lines[0]!.total.minor], [true, { paquete: "2 horas", precio: usd("800") }, "800"]);
+    assert.equal(s.account.status, "POR_COBRAR");
+    assert.deepEqual(
+      s.account.lines.map((l) => [l.id, l.kind, l.amount.minor]),
+      [[`abierto-${id}`, "PAQUETE", "800"]],
+    );
+    assert.match(s.account.lines[0]!.concept, /^Tiempo abierto 80 min: 2 horas · /);
   });
 });
