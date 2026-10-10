@@ -8,7 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { type FrozenRate, fromMajor, toMajor, zero } from "@l2/domain-money";
+import { type FrozenRate, convert, fromMajor, toMajor, zero } from "@l2/domain-money";
 import {
   MissingRateError,
   ShiftClosedError,
@@ -22,6 +22,8 @@ import {
   refundableByTender,
   ExcessNotCoveredError,
   reconcile,
+  proposeChange,
+  changeInBolivares,
   type Tender,
   type TenderMethod,
 } from "./index.ts";
@@ -464,5 +466,38 @@ describe("anular un cobro: cuánto se devuelve de cada pago (DEC-24)", () => {
 
   test("un excedente mayor que lo pagado se niega", () => {
     assert.throws(() => refundableByTender([pago(USD_EFECTIVO, usd("5.00"))], usd("6.00"), "USD"), ExcessNotCoveredError);
+  });
+});
+
+describe("el vuelto, por partes (B3-19, M-37)", () => {
+  test("la caja propone los dólares enteros en billetes y los centavos en bolívares; sin tasa, todo en dólares", () => {
+    const p = proposeChange(fromMajor("12.37", "USD"), true);
+    assert.equal(toMajor(p.enDolares), "12.00");
+    assert.equal(toMajor(p.enBolivares), "0.37");
+    const sinTasa = proposeChange(fromMajor("12.37", "USD"), false);
+    assert.equal(toMajor(sinTasa.enDolares), "12.37");
+    assert.equal(sinTasa.enBolivares.amount, 0n);
+    assert.equal(proposeChange(fromMajor("5.00", "USD"), true).enBolivares.amount, 0n);
+  });
+
+  test("la parte en bolívares, a la tasa del cobro, vuelve exacta a dólares: el libro cuadra", () => {
+    const bs = changeInBolivares(fromMajor("0.37", "USD"), TASA);
+    assert.equal(bs.currency, "VES");
+    assert.equal(toMajor(bs), "84.51");
+    assert.equal(toMajor(convert(bs, TASA)), "0.37");
+  });
+
+  test("repartido, el cobro cuadra al céntimo con cada parte de su moneda", () => {
+    const r = closeSettlement({
+      due: fromMajor("7.63", "USD"),
+      tenders: [{ method: USD_EFECTIVO, amount: fromMajor("20.00", "USD"), rate: null }],
+      dispositions: [
+        { kind: "CHANGE_OUT", amount: fromMajor("12.00", "USD"), rate: null },
+        { kind: "CHANGE_OUT", amount: fromMajor("0.37", "USD"), rate: null },
+      ],
+      functional: "USD",
+      maxRetained: zero("USD"),
+    });
+    assert.equal(toMajor(r.changeOut), "12.37");
   });
 });

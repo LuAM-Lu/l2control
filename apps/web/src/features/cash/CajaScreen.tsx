@@ -121,6 +121,8 @@ import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
 import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
 import { CobrarJuntasDialog } from "./CobrarJuntasDialog.tsx";
 import { DividirPorItems } from "./DividirPorItems.tsx";
+import { ComoSeDaElVuelto } from "./ComoSeDaElVuelto.tsx";
+import { VUELTO_EN_DOLARES, etiquetaDelVuelto, faltaEnElVuelto, partesDelVuelto, type FormaDelVuelto } from "./vuelto.ts";
 import { SalonDeLaCuenta, esDelSalon, nombreDelNino } from "./SalonDeLaCuenta.tsx";
 import { usePlano } from "../mesas/PlanoProvider.tsx";
 import { usePorLimpiar } from "../mesas/porLimpiar.ts";
@@ -380,6 +382,9 @@ function CobroCuenta({
   const [destinoVuelto, setDestinoVuelto] = useState<
     "VUELTO" | "PROPINA" | "CAJA"
   >("VUELTO");
+  /** Cómo se da el vuelto (B3-19): por defecto, todo en efectivo $. */
+  const [formaVuelto, setFormaVuelto] = useState<FormaDelVuelto>(VUELTO_EN_DOLARES);
+  const [eligiendoVuelto, setEligiendoVuelto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [mostrarCatalogo, setMostrarCatalogo] = useState(esVentaDirecta(cuenta));
@@ -542,6 +547,10 @@ function CobroCuenta({
     (t) => t.amount.currency !== FUNCIONAL && !t.rate,
   );
   const sobra = balance?.surplus ?? zero(FUNCIONAL);
+  // Si cambia lo que sobra, el vuelto vuelve a darse en efectivo $: el reparto era de otro monto.
+  useEffect(() => {
+    setFormaVuelto(VUELTO_EN_DOLARES);
+  }, [sobra.amount]);
   const falta = balance?.outstanding ?? aCobrar;
 
   /* --------------------------------------------------------- acciones */
@@ -756,6 +765,13 @@ function CobroCuenta({
       setError(`El descuento «${descuento!.nombre}» exige cobrar toda la cuenta con ${nombre}: quita los otros pagos o el descuento.`);
       return;
     }
+    // B3-19: cómo se da el vuelto; con Pago Móvil, su banco y su referencia.
+    const vuelto = destinoVuelto === "VUELTO" ? partesDelVuelto(formaVuelto, sobra) : undefined;
+    const faltaVuelto = destinoVuelto === "VUELTO" ? faltaEnElVuelto(formaVuelto, sobra) : null;
+    if (faltaVuelto) {
+      setError(`${faltaVuelto}: tócalo en «Vuelto».`);
+      return;
+    }
     const dispositions: ChangeDisposition[] = [];
     if (sobra.amount > 0n) {
       if (destinoVuelto === "VUELTO") {
@@ -784,8 +800,10 @@ function CobroCuenta({
         amount: { minor: String(p.amount.amount), currency: p.amount.currency },
         ...(p.datos ? { datos: p.datos } : {}),
       })),
-      ...(pagos.some((p) => p.amount.currency === "VES") && tasaId ? { rateId: tasaId } : {}),
+      // La tasa del cobro: con pagos en bolívares, o con vuelto en bolívares (B3-19).
+      ...((pagos.some((p) => p.amount.currency === "VES") || vuelto?.some((p) => p.method !== "EFECTIVO_USD")) && tasaId ? { rateId: tasaId } : {}),
       destinoSobra: destinoVuelto === "CAJA" ? ("RESIDUO" as const) : destinoVuelto,
+      ...(vuelto ? { vuelto } : {}),
     };
     const huella = JSON.stringify({ ...cuerpo, cliente });
     if (intento.current?.huella !== huella) intento.current = { huella, clave: globalThis.crypto.randomUUID() };
@@ -1720,7 +1738,9 @@ function CobroCuenta({
                   type="button"
                   role="radio"
                   aria-checked={destinoVuelto === k}
-                  onClick={() => setDestinoVuelto(k)}
+                  // B3-19: tocar «Vuelto» ya elegido abre cómo se da (en $, en Bs, Pago Móvil o repartido).
+                  onClick={() => (k === "VUELTO" && destinoVuelto === "VUELTO" ? setEligiendoVuelto(true) : setDestinoVuelto(k))}
+                  title={k === "VUELTO" ? "Tócalo otra vez para elegir cómo se da: en $, en Bs, por Pago Móvil o repartido" : undefined}
                   className={cn(
                     "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] border text-[12px]",
                     "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
@@ -1730,7 +1750,7 @@ function CobroCuenta({
                   )}
                 >
                   <Icon size={15} aria-hidden="true" />
-                  {label}
+                  {k === "VUELTO" ? `Vuelto · ${etiquetaDelVuelto(formaVuelto)}` : label}
                 </button>
               ))}
             </div>
@@ -2088,6 +2108,15 @@ function CobroCuenta({
           onCerrar={() => setViendoDescuento(false)}
         />
       )}
+      {/* B3-19: cómo se da el vuelto. */}
+      <ComoSeDaElVuelto
+        abierto={eligiendoVuelto && sobra.amount > 0n}
+        sobra={sobra}
+        rate={rate}
+        forma={formaVuelto}
+        onCambiar={setFormaVuelto}
+        onCerrar={() => setEligiendoVuelto(false)}
+      />
       {lineaParaCortesia && onCortesia && (
         <CortesiaDialog
           linea={lineaParaCortesia.linea}

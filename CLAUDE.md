@@ -157,6 +157,11 @@ vez) y crea sus partes (`parteDe`, sin producto); `dividir.dividir` pasa lo de c
 con `divididaDe` (no es venta directa: no pide cliente ni se descarta); `dividir.unir` lo devuelve. El cobro exige todas
 las líneas pendientes de una cuenta: por eso cada persona tiene la suya.
 
+**El vuelto (B3-19).** El cobro dice cómo se da (`vuelto`: partes en dólares que suman lo que sobra): efectivo $,
+efectivo Bs (`changeInBolivares`, a la tasa del cobro) o Pago Móvil; cada parte es un asiento VUELTO de su medio, y la
+referencia del Pago Móvil va cifrada en la venta (el asiento no lleva datos). Sin decirlo, todo en efectivo $ como
+antes. `vuelto.alcanza` dice qué moneda no alcanza en la gaveta, nunca cuánto hay: el arqueo es a ciegas.
+
 Cada paquete tiene su propio `README.md` con qué resuelve y **qué no le corresponde**. Léelo
 antes de añadirle nada.
 

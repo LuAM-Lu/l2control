@@ -102,6 +102,10 @@ export function reciboDeVenta(v: VentaCerradaDto, local: AjustesSucursalDto): Re
     pagado: cuentas.diceElPagado ? texto(cuentas.pagado) : null,
     vuelto: cuentas.sobra ? texto(cuentas.sobra.monto) : null,
     vueltoBs: cuentas.sobra?.enBolivares ? texto(cuentas.sobra.enBolivares) : null,
+    // B3-19: repartido, o en otro medio que el efectivo $, el recibo dice cómo se dio.
+    ...(v.sobra?.vuelto && (v.sobra.vuelto.length > 1 || v.sobra.vuelto.some((p) => p.methodCode !== "EFECTIVO_USD"))
+      ? { vueltoPartes: v.sobra.vuelto.map((p) => ({ medio: p.label, monto: texto(aDinero(p.amount)), detalle: p.referencia })) }
+      : {}),
     destinoVuelto: v.sobra ? DESTINO[v.sobra.destino] : null,
     cajera: v.cashier,
     // TODO(F5-03/backend): el teléfono del representante vendrá con la cuenta.
@@ -133,7 +137,8 @@ export function textoRecibo(r: Recibo, copia = false): string {
     "",
     ...r.pagos.map((p) => `Pagado con ${p.medio}: ${p.monto}${p.equivalente ? ` (= ${p.equivalente})` : ""}`),
     ...(r.pagado ? [`Pagado: ${r.pagado}`] : []),
-    ...(r.vuelto ? [`${r.destinoVuelto ?? "Vuelto"}: ${r.vuelto}${r.vueltoBs ? ` (${r.vueltoBs})` : ""}`] : []),
+    ...(r.vuelto ? [`${r.destinoVuelto ?? "Vuelto"}: ${r.vuelto}${r.vueltoBs && !r.vueltoPartes ? ` (${r.vueltoBs})` : ""}`] : []),
+    ...(r.vueltoPartes ?? []).map((p) => `  ${p.medio}: ${p.monto}${p.detalle ? ` · ${p.detalle}` : ""}`),
     "",
     "¡Gracias por visitarnos!",
   ];

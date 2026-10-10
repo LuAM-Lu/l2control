@@ -159,9 +159,12 @@ describe("asentar un cobro (F3-09)", () => {
     assert.equal(!r.ok && r.motivo, "INVALIDO");
   });
 
-  test("un vuelto que no es efectivo no se asienta (§5.6)", async () => {
-    const r = await local.app.pagos.asentar(ctxCajera, cobro([usd("20.00"), { kind: "VUELTO", method: "PAGO_MOVIL", amount: { minor: "171133", currency: "VES" }, rateId: tasa }]), AHORA);
-    assert.equal(!r.ok && r.motivo, "INVALIDO");
+  test("un vuelto sale del efectivo o por Pago Móvil (§5.6, B3-19); por Zelle, no", async () => {
+    const zelle = await local.app.pagos.asentar(ctxCajera, cobro([usd("20.00"), { kind: "VUELTO", method: "ZELLE", amount: usd("1.00").amount }]), AHORA);
+    assert.equal(!zelle.ok && zelle.motivo, "INVALIDO");
+    // En su propio documento: el de las demás pruebas no cambia.
+    const movil = await local.app.pagos.asentar(ctxCajera, cobro([usd("20.00"), { kind: "VUELTO", method: "PAGO_MOVIL", amount: { minor: "171133", currency: "VES" }, rateId: tasa }], await crearCuenta(local)), AHORA);
+    assert.ok(movil.ok, JSON.stringify(movil));
   });
 
   test("la monitora no cobra (DEC-25), y el intento queda en la auditoría", async () => {

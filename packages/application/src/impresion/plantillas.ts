@@ -155,7 +155,15 @@ export function documentoDeRecibo(v: VentaCerradaDto, local: AjustesSucursalDto,
     ...(cuentas.sobra
       ? [
           { tipo: "PAR", izq: DESTINO[cuentas.sobra.destino] ?? "Vuelto", der: texto(cuentas.sobra.monto) } as const,
-          ...(cuentas.sobra.enBolivares ? [{ tipo: "PAR", izq: "  en bolívares", der: texto(cuentas.sobra.enBolivares) } as const] : []),
+          // B3-19: repartido, o en otro medio que el efectivo $, cada parte con su medio (y su referencia, por Pago Móvil).
+          ...(v.sobra?.vuelto && (v.sobra.vuelto.length > 1 || v.sobra.vuelto.some((p) => p.methodCode !== "EFECTIVO_USD"))
+            ? v.sobra.vuelto.flatMap((p): Renglon[] => [
+                { tipo: "PAR", izq: `  ${p.label}`, der: texto(dinero(p.amount)) },
+                ...(p.referencia ? [{ tipo: "PAR", izq: `    ${p.referencia}`, der: "" } as const] : []),
+              ])
+            : cuentas.sobra.enBolivares
+              ? [{ tipo: "PAR", izq: "  en bolívares", der: texto(cuentas.sobra.enBolivares) } as const]
+              : []),
         ]
       : []),
     { tipo: "VACIO" },

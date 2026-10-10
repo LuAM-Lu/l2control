@@ -16,6 +16,18 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.116.0] — 2026-10-10 · Hacia la puesta en marcha
+
+El vuelto: cómo se da y cuánto se puede dar (B3-19, M-37).
+
+### Añadido
+- **Cómo se da el vuelto**: «Vuelto · en $» como siempre y, tocándolo otra vez, en efectivo Bs (a la tasa del cobro),
+  por Pago Móvil (con el banco del cliente y la referencia) o **repartido**: la caja propone los dólares enteros en
+  billetes y los centavos en bolívares, y se ajusta con −/+. Cada parte sale de su moneda, así el arqueo de $ y de Bs
+  cuadra, y el recibo dice cómo se dio.
+- La caja **avisa si en la gaveta no alcanza** esa moneda para el vuelto (sin decir cuánto hay: el arqueo sigue a
+  ciegas).
+
 ## [0.115.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Dividir por ítems (B3-20, M-37).
