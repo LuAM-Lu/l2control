@@ -194,7 +194,8 @@ Equipo: dos personas — ver §11.3 para el recorte de alcance de la Ruta A.
 
 - **El VPS es la operación real (M-36).** Trabaja con datos reales y está en modo staging: **se pone al día solo con
   cada etiqueta `vX.Y.Z`**, aunque haya gente trabajando (un corte de un minuto). **No se etiqueta sin avisar al
-  usuario.** Fusionar en `main` sin etiqueta no publica nada.
+  usuario.** Fusionar en `main` sin etiqueta no publica nada. **En tanda (M-37):** los pasos de una tanda entran en
+  `main` probados y con su versión, y se publica una sola vez al final con la etiqueta de la última.
 - **Somos dos (M-20).** Nada entra en `main` sin PR y sin el CI en verde: `main` está protegido y **siempre
   en verde**. Cada trabajo va en su rama desde `main` actualizado: `feat/<tema>`, `fix/<tema>` o
   `docs/<tema>`; no se reescribe historia compartida (nada de `push --force` en una rama que otro usa).

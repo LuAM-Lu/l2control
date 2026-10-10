@@ -34,14 +34,14 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.111.0 · 111 de 122 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.111.0 · 111 de 124 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
 respaldo y PDF; tres correcciones y siete pasos, v0.104.2 a v0.111.0). M-36: el VPS ya es la operación real (perfiles,
 equipos e inventario de verdad); la operación en paralelo con el método escrito (B8-3) empezó el 2026-10-09 y la 1.0.0
-se hace sobre esa base. M-37 decidido (2026-10-09, lo visto en la operación en paralelo): cuatro correcciones y seis
-pasos, antes de la 1.0.0.** M-28 y M-29
+se hace sobre esa base. M-37 decidido (2026-10-09, lo visto en la operación en paralelo): cuatro correcciones y ocho
+pasos, antes de la 1.0.0; se publican todos juntos al final, ya probados.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -97,9 +97,9 @@ la 1.0.0.
   4. **B8-4 = 1.0.0:** Claude lista, solo leyendo, lo que quedó de prueba en la base del VPS y el usuario decide; el VPS
      pasa a modo producción (D-ENT, con su sí y la hora) y se etiqueta la 1.0.0. La reversión es el procedimiento en
      papel.
-  5. **M-37, Claude:** las cuatro correcciones de v0.111.1 y los seis pasos de §3, punto 15 (la regla de precio del
-     parque, desvincular, cobrar juntas, el consumo del personal, el reporte del parque y Movimientos). Nada se etiqueta
-     sin el visto bueno del usuario.
+  5. **M-37, Claude, en curso:** las cuatro correcciones de v0.111.1 y los ocho pasos de §3, punto 15, sin parar
+     entre ellos. Cada uno entra en `main` probado y con su versión; **se publica una sola vez al final** (la etiqueta de
+     la última), a la hora que diga el usuario.
   Opcional del usuario: `L2_SMTP_URL` y `L2_CORREO_SOPORTE` en el VPS (el aviso por correo de los reportes).
 
 La historia de esta sección (qué decía al entregar cada paso y lo que se probó en la base local) está en §9.
@@ -161,7 +161,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-34** | **Lo visto en la segunda visita al local** (2026-10-08, el usuario con el sistema funcionando en el local; decidido en cuatro rondas de preguntas) | Veinte pedidos y dos que llegaron al revisarlos (S-1 a S-22, abajo). Primero **dos correcciones** de lo que el local ve cada día: v0.90.1, la entrada desde la caja parte los paquetes letra por letra en su hoja de 480 px, y v0.90.2, los papeles salen sin acentos y con símbolos chinos porque la impresora queda en modo chino. Después **14 pasos nuevos**: B3-12 a B3-14, B4-12 a B4-15, B5-4, B6-10 a B6-12, B9-11, B9-12 y T-19. **D-REL queda decidida:** todo entra antes de la 1.0.0 y la capacitación (B8-3) se da con todo hecho. **Cambian DEC-9 y DEC-23:** la cédula es lo primero que se pide en todo proceso (mesa, de pie, parque y mostrador), con campos que ayudan a llenarla. **Cambia ADR-030 en parte:** «Servido» pasa a ser por plato. Con la sala unificada, Entrada y Salida dejan de ser pestañas. El usuario autorizó encadenar los pasos sin pedir el sí entre ellos. La ruta pasa a **109** | B3-12 a T-19 |
 | **M-35** | **La tercera ronda** (2026-10-09, el usuario tras usar el staging en el local: las dos cajas del 8 oct., las medias, el salón, inventario, respaldos y PDF; decidido en cuatro rondas de preguntas) | R-1 a R-8, abajo en «M-35 en detalle». Primero **tres correcciones** (v0.104.2): la fila del inventario inicial que no se podía quitar, el respaldo que no se hizo sin dejar dicho por qué y los cierres de caja rechazados sin asiento. Después, en este orden y sin pedir el sí entre pasos: B3-15 (la caja cerrada no mueve dinero y sin relevo) → B6-13 (servir y cerrar la mesa) → B6-14 (por limpiar y los avisos del salón) → B4-16 (medias con interruptor) → B9-13 (entradas por periodo) → B7-8 (respaldar ahora) → B11-5 (los PDF compactos). La semilla sigue sin personas (decisión del usuario). La ruta pasa a **116** | B3-15 a B11-5 |
 | **M-36** | **El VPS es la operación real** (2026-10-09, decisiones del usuario) | (1) El VPS ya trabaja con perfiles reales, los equipos del local aprobados y el inventario de verdad: **la 1.0.0 (B8-4) se hace sobre esa base**, sin la corrida limpia de base nueva y semilla (B7-7 queda para otro local). Antes se revisa, solo leyendo, lo que quedó de prueba, y el usuario decide qué hacer con ello. (2) **La operación en paralelo** con el método escrito empieza el 2026-10-09 (B8-3, a cargo del usuario en el local). Lo que salga se corrige como PATCH y **no se publica una versión mientras se prueba**: en modo staging el VPS se pone al día solo y se reiniciaría a mitad. (3) **D-DOM:** no por ahora; sigue `sslip.io`. (4) **D-REIMP:** reimprimir un recibo sigue sin PIN. (5) **F0-09:** la firma formal del alcance queda sin efecto. (6) Pasar el VPS a **modo producción** queda propuesto como D-ENT (§4); **por ahora sigue en staging** (decisión del usuario). El agente de impresión ya imprime por la red del local; falta probarlo por USB (B7-3). La ruta no cambia | B8-3, B8-4 |
-| **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en seis rondas de preguntas) | U-1 a U-9, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, seis pasos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-17 (el consumo del personal, con su vale) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). La ruta pasa a **122** | B3-16 a B11-7 |
+| **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en ocho rondas de preguntas) | U-1 a U-12, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, ocho pasos, en este orden y sin pedir el sí entre ellos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-19 (el vuelto: cómo se da y cuánto se puede dar) → B3-18 (anular y devolver, de administración; y devolver lo que un niño no usó) → B3-17 (el consumo del personal, con su vale) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). **Se publica una sola vez al final**, ya probado todo. **Cambian:** D-AUT (supervisión ya no se autoriza sola para anular ni devolver), M-18 (en prepago se puede devolver lo no usado, con PIN de administración) y B3-14 (el tiempo del parque se devuelve por la salida). La ruta pasa a **124** | B3-16 a B11-7 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -232,6 +232,9 @@ pausa por pulsera» es una por visita (la pulsera ya es de un solo uso, V-1).
 | **U-6** | «La vinculación de pulsera a mesa está rota en pagos» | Revisados todos los flujos. Fallos: la pulsera vinculada, pasada en la caja, abre la cuenta de la familia (trae la mesa, v0.111.1), y el paquete pagado en una mesa cuenta como Restaurante en Ventas (por línea, v0.111.1). Lo que el usuario recordaba era el cobro del tiempo: tiempo abierto y la recarga (U-9). Se quedan como están dos trabas: la salida de hermanos vinculado y suelto, y la mesa cobrada con el niño dentro (la resuelve U-7) | v0.111.1, B4-17 |
 | **U-7** | Si no se vinculó la pulsera antes de la salida, la caja ve dos cuentas del mismo cliente | «Cobrar juntas»: lo pendiente de varias cuentas pasa a una, que dice de dónde vino cada cosa, y se cobra una vez con un solo recibo; nada se borra | B3-16 |
 | **U-8** | Desvincular una pulsera de una mesa y pasarla a otra mesa o a una persona | Quien vincula, sin PIN: vuelve a su familia, a otra mesa o a la cuenta de otra persona; lo cobrado no se mueve | B6-15 |
+| **U-10** | Anular una venta hecha por error, y que el inventario vuelva; solo administración | «Anular» con dos caminos: «Cobrarla de nuevo» (la cuenta vuelve a la cola, como hoy) o «Anular la venta entera» (el dinero vuelve por sus mismos medios, lo que tiene inventario vuelve al estante o a merma y la cuenta se cierra con su motivo). Anular y «Devolver» (B3-14) piden el **PIN de administración** y un motivo; supervisión ya no se autoriza sola (cambia D-AUT) | B3-18 |
+| **U-11** | Un niño que pagó por adelantado sale a los 5 minutos | En la salida, administración con su PIN y un motivo devuelve lo que no usó: lo pagado menos lo que vale su tiempo real con la regla de B4-17 (pagó 1 h $5, estuvo 5 min = 30 min $3: $2), o todo si fue un problema del local. Como una devolución: la caja elige el medio y la moneda de cada parte, y el efectivo sale de la gaveta del turno abierto. Cambia M-18 | B3-18 |
+| **U-12** | El vuelto: en el local se da en $, en Bs, por Pago Móvil o mezclado, y el sistema lo anota siempre como $ en efectivo (el arqueo no cuadra) | Al haber vuelto, la caja dice cómo lo da: efectivo $, efectivo Bs (a la tasa congelada del cobro), Pago Móvil (con su referencia) o repartido; cada parte sale de su moneda y el recibo lo dice. **Y ayuda a la cajera:** propone el reparto (los dólares enteros en billetes y los centavos en Bs) y avisa si en la gaveta no alcanza esa moneda | B3-19 |
 | **U-9** | El tiempo abierto, la recarga que «no es real» (30 min + 30 min = $6 cuando la hora vale $5), el tiempo de más y la gracia | Una regla de precio: la combinación más barata de la tarifa que cubre el tiempo real, en bloques del paquete más chico (30 min) y con tope. «Más tiempo» sube de paquete pagando la diferencia; la gracia corre desde el fin del paquete final; «En gracia» se ve en ámbar sólido con su cuenta atrás (v0.111.1) | B4-17 |
 
 **M-35 en detalle.** Lo que trajo el usuario el 2026-10-09 y lo que se hará (decidido en cuatro rondas de preguntas).
@@ -365,10 +368,17 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    **v0.111.1**: la pulsera de un niño vinculado, pasada en la caja, trae su mesa; «Lo recoge» viene marcado «su
    representante»; «En gracia» en ámbar sólido con su cuenta atrás; y en Reportes → Ventas el origen se decide por
    línea (el paquete pagado en una mesa es Parque). Después: B4-17 (la regla de precio del parque) → B6-15 (desvincular)
-   → B3-16 (cobrar juntas) → B3-17 (el consumo del personal) → B11-6 (Reportes → Parque) → B11-7 (Movimientos). Nada se
-   etiqueta sin el visto bueno del usuario (M-36).
+   → B3-16 (cobrar juntas) → B3-19 (el vuelto) → B3-18 (anular y devolver, de administración) → B3-17 (el consumo del
+   personal) → B11-6 (Reportes → Parque) → B11-7 (Movimientos). Sin pedir el sí entre pasos (el usuario, 2026-10-09);
+   cada uno entra en `main` probado y con su versión, y **se publica una sola vez al final**: la etiqueta de la última,
+   a la hora que diga el usuario (M-36).
+   **Cómo encajan (para que no se pisen):** B4-17 va primero porque «devolver lo no usado» (B3-18) y el reporte del
+   parque (B11-6) cobran con su regla. B6-15 y B3-16 mueven líneas entre cuentas: la pieza se hace una vez en B6-15 y B3-16
+   la reutiliza. B3-19 va antes que B3-18 porque anular tiene que deshacer un vuelto dado en Bs o por Pago Móvil; B3-17
+   va después de los dos porque toca el mismo cobro y el mismo arqueo (un medio que no entra a la gaveta). Las
+   correcciones de v0.111.1 van antes que todo (el origen por línea lo usa B11-6). B11-6 y B11-7 leen todo lo anterior.
 
-Fuera de la cuenta de 122: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
+Fuera de la cuenta de 124: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
 ### Transversal
 
@@ -1698,6 +1708,24 @@ Fuera de la cuenta de 122: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   su firma), que se queda en la caja. Caja → Personal y Reportes → Personal (con su PDF): cada empleado con sus vales por
   quincena y «Reimprimir vale»; lo ven supervisión y administración, y cada empleado el suyo con su PIN. Sin tope ni
   «descontado»: el descuento del sueldo se hace fuera del sistema.
+
+- [ ] **B3-18 · Anular y devolver, de administración** (M-37, U-10, U-11).
+  → «Anular» ofrece dos caminos: **«Cobrarla de nuevo»** (como hoy: el dinero vuelve y la cuenta vuelve a la cola para
+  corregir el medio o el monto) o **«Anular la venta entera»**: el dinero vuelve por sus mismos medios (el efectivo, de
+  la gaveta del turno abierto), lo que tiene inventario vuelve al estante (o a merma, si se elige) y la cuenta sale de la
+  cola cerrada con su motivo. Antes del corte Z de su turno, como hoy; nada se borra.
+  → Anular y «Devolver» (B3-14) piden el **PIN de administración** y un motivo: supervisión ya no se autoriza sola en
+  esto (cambia D-AUT). Lo pide quien esté en la caja.
+  → **Devolver lo que un niño no usó:** en la salida de un niño que pagó por adelantado, administración con su PIN y un
+  motivo devuelve lo pagado menos lo que vale su tiempo real con la regla de B4-17 (o todo, si fue un problema del
+  local), como una devolución: la caja elige el medio y la moneda de cada parte. Con su comprobante. Cambia M-18.
+- [ ] **B3-19 · El vuelto: cómo se da y cuánto se puede dar** (M-37, U-12).
+  → Al haber vuelto, la caja dice cómo lo da: **efectivo $, efectivo Bs** (a la tasa congelada del cobro), **Pago
+  Móvil** (con su referencia, `data-privado`) **o repartido**. Cada parte sale de su moneda y de su medio: el arqueo de
+  $ y de Bs cuadra, y el recibo dice cómo se dio. Por defecto, efectivo $, como hoy.
+  → **La ayuda a la cajera:** propone el reparto (los dólares enteros en billetes y los centavos en Bs, a la tasa del
+  cobro) y avisa si en la gaveta no hay bastante de esa moneda (lo esperado del turno). La propina y el residuo «A caja»
+  siguen como hoy.
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -3201,7 +3229,7 @@ F9-05).
 | ~~D-EVT~~ | Anticipo e invitados de un cumpleaños | **Decidido el 2026-09-28:** anticipo del 50 % del paquete, configurable; mínimo y máximo de invitados por paquete, que carga administración con lo que incluye | B10-1 |
 | ~~D-PUL~~ | Formato de las pulseras y lector Bluetooth | **Decidido el 2026-09-28:** el formato se fija con el primer lote (hasta entonces, cualquier código legible); se empieza con la cámara y el lector se compra si hace falta | B4-5 |
 | ~~D-GAV~~ | ¿La impresora de caja lleva gaveta de dinero? | **Decidido el 2026-09-28:** no; la gaveta es manual y B5-3 sale de la ruta | — |
-| ~~D-AUT~~ | ¿Supervisión puede autorizarse a sí misma un 🔐? | **Decidido el 2026-09-28:** sí en la caja (con PIN y motivo, en la auditoría); no en tasas ni en ajustes de inventario. Como lo aplicó B3-4 | B3-4 |
+| ~~D-AUT~~ | ¿Supervisión puede autorizarse a sí misma un 🔐? | **Decidido el 2026-09-28:** sí en la caja (con PIN y motivo, en la auditoría); no en tasas ni en ajustes de inventario. Como lo aplicó B3-4. **Cambia el 2026-10-09 (M-37, U-10):** anular una venta y devolver piden el PIN de administración; supervisión ya no se autoriza sola en eso | B3-4, B3-18 |
 
 **Hace el usuario en GitHub** (M-20; los cambios de cuenta y de reglas no los hace Claude: se lo bloquea el sistema de permisos)
 
