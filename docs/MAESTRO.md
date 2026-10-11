@@ -929,7 +929,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   dos temas. **Decidido al construir:** el aviso es uno, en Inicio (no en la franja de avisos, que se queda con lo que
   pide acción ya); la cocina no es un puesto (ADR-022).*
 
-- [ ] **T-21 · La barra de las estaciones, por pantalla** (M-38, W-6, W-7).
+- [~] **T-21 · La barra de las estaciones, por pantalla** (M-38, W-6, W-7). *A cargo: LuAMi (Claude), en `feat/t-21`.*
   → Un rol con un solo puesto (el mesero, la monitora) no ve una pestaña gigante: el nombre del puesto va en la barra.
   Caja por pantalla: en escritorio (1440 px o más) las cinco pestañas con su nombre, su número y su atajo, y un riel fino
   con los módulos del panel (Inicio, Parque, Restaurante, Inventario, Reportes, Ajustes) para no salir de la caja; en la
