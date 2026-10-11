@@ -16,6 +16,22 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.126.0] — 2026-10-11 · Hacia la puesta en marcha
+
+La Entrada en tablet (B4-18, M-38, W-4).
+
+### Cambiado
+- **El orden del local**: la cédula del representante primero; después las pulseras y, por niño, el paquete.
+- **Sus niños, en botones**: reconocida la familia, sus niños de la última vez salen en botones; un toque pone su nombre
+  en el primer niño de la entrada que no lo tiene. Antes era una sugerencia del teclado que la tablet casi no mostraba.
+- **El paquete en tarjetas** en las dos orientaciones (antes, una lista de 14 px en horizontal).
+- **La familia reconocida, en un renglón**, con «No es esta persona»; el aforo pasa al pie, junto a cuántos niños.
+- **Las reglas de teclado**: mayúscula inicial en los nombres, Intro «Listo», y letra de 16 px en la tablet.
+
+### Corregido
+- **Pasar una pulsera con el foco en la cédula** ya no deja dígitos del código en la cédula ni corta el código: el lector
+  mide la pausa entre teclas con la hora de cada tecla, no con la del manejador (que en la tablet corre tarde).
+
 ## [0.125.0] — 2026-10-11 · Hacia la puesta en marcha
 
 El campo del cliente (T-23, M-38, W-12).

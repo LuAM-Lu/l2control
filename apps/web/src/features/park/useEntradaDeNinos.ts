@@ -62,7 +62,7 @@ export const PAQUETE_TIEMPO_ABIERTO: PricePackageDto = {
 };
 
 /** Un nombre como lo lee una persona: sin mayúsculas, acentos ni espacios de más. */
-const claveDeNombre = (n: string) =>
+export const claveDeNombre = (n: string) =>
   n.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ");
 
 const NUEVO_UID = () => globalThis.crypto.randomUUID();

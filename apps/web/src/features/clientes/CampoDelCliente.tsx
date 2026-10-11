@@ -205,6 +205,8 @@ export function CampoDelCliente({
 
   const numerico = tactil && !porNombre;
   const altura = surface === "pos" ? "min-h-14" : surface === "admin" ? "min-h-9" : "min-h-12";
+  // B4-18: la letra de los campos (16 px o más en la tablet y la caja: así no se acerca la pantalla al escribir).
+  const letra = surface === "pos" ? "text-lg" : surface === "admin" ? "text-cuerpo" : "text-base";
   return (
     <div className={cn("relative flex flex-col gap-1.5", className)}>
       <label htmlFor={`${id}-campo`} className="text-etiqueta font-semibold tracking-[0.06em] text-ink-2 uppercase">
@@ -228,6 +230,8 @@ export function CampoDelCliente({
             autoFocus={autoFocus}
             autoComplete="off"
             inputMode={numerico ? "numeric" : "text"}
+            autoCapitalize={numerico ? "off" : "words"}
+            spellCheck={false}
             enterKeyHint="search"
             placeholder={numerico ? "Cédula o teléfono" : "Cédula, teléfono o nombre"}
             value={texto}
@@ -242,7 +246,7 @@ export function CampoDelCliente({
               setAbierto(true);
             }}
             onKeyDown={alTeclear}
-            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3"
+            className={cn("min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-3", letra)}
           />
         </div>
         {tactil && (
