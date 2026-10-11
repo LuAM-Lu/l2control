@@ -2453,7 +2453,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   trabajo espera. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar a lo ancho ni errores de
   consola. No se mandó nada a imprimir (la XP-80C de esta PC apunta al local).*
 
-- [ ] **B5-6 · La impresora por red y por USB** (M-38, W-1).
+- [~] **B5-6 · La impresora por red y por USB** (M-38, W-1). *A cargo: LuAMi (Claude), en `feat/b5-6`.*
   → Cada impresora dice si es principal o respaldo, y lo elige administración en Ajustes → Impresoras: red o USB, en
   cualquier orden. L2 sugiere la de red como principal (pregunta por el papel antes de mandar; la de USB lo sabe después),
   pero no lo impone ni lo cambia solo; con una sola impresora no hay respaldo. Si la principal no responde, el trabajo
