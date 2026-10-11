@@ -444,6 +444,33 @@ export const RepresentanteSchema = z.object({
 });
 export type RepresentanteDto = z.infer<typeof RepresentanteSchema>;
 
+/**
+ * Una página del directorio (T-22, M-38): el directorio no tiene tope, así que el servidor busca y trae de a 50. Lo
+ * buscado compara el nombre del representante y el de sus niños (sin acentos), y el teléfono o la cédula por sus cifras;
+ * la letra es la inicial del representante (la del índice A–Z).
+ */
+export const PaginaDelDirectorioQuerySchema = z.strictObject({
+  texto: z.string().trim().max(60).default(""),
+  letra: z
+    .string()
+    .regex(/^[A-ZÑ]$/)
+    .nullable()
+    .default(null),
+  desde: z.number().int().min(0).max(1_000_000).default(0),
+  cuantos: z.number().int().min(1).max(100).default(50),
+});
+export type PaginaDelDirectorioQuery = z.input<typeof PaginaDelDirectorioQuerySchema>;
+export const PaginaDelDirectorioSchema = z.object({
+  representantes: z.array(RepresentanteSchema),
+  /** Cuántas hay con lo buscado y la letra. */
+  total: z.number().int().min(0),
+  /** Cuántas familias tiene el directorio. */
+  familias: z.number().int().min(0),
+  /** Las iniciales con alguien, para el índice A–Z. */
+  letras: z.array(z.string()),
+});
+export type PaginaDelDirectorioDto = z.infer<typeof PaginaDelDirectorioSchema>;
+
 export const DirectorioRepresentantesSchema = z
   .object({ representantes: z.array(RepresentanteSchema) })
   .refine(

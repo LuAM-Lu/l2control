@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ChefHat, ClipboardList, LayoutGrid, LayoutList, Package, PackageX, Pencil, ScanLine, Search, Ticket, TriangleAlert, Boxes, Wallet } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChefHat, ClipboardList, Package, PackageX, Pencil, ScanLine, Search, Ticket, TriangleAlert, Boxes, Wallet } from "lucide-react";
 import type { CatalogoDto, ProductoDto, TipoProducto } from "@l2/contracts";
 import { categoriesOf, marginBasisPoints, nameKey, periodAt, type PricePeriod, type StockStatus } from "@l2/domain-inventory";
 import { convert, money, sum, toMajor, type FrozenRate } from "@l2/domain-money";
-import { MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
+import { ChipsDeFiltro, ListaLarga, MoneyDisplay, SelectorDeVista, cn, formatMoneyVE, useVistaDeLista } from "@l2/ui";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import { EstadoStock, estadoDe } from "./EstadoStock.tsx";
 
 /**
@@ -15,9 +16,12 @@ import { EstadoStock, estadoDe } from "./EstadoStock.tsx";
  *
  * Solo pinta y filtra: los datos son del servidor (el catálogo con su existencia, costo y mínimo), y
  * el estado lo decide el dominio (`stockStatus`), el mismo que usa Inicio para avisar.
+ *
+ * T-22 (M-38): tres vistas que cada persona elige y se recuerdan —la tabla es la Lista (con la selección para editar
+ * en lote), las tarjetas y una Compacta de un renglón—; el estado del stock en chips con su cuenta, y sin una categoría
+ * elegida, los grupos por categoría con su encabezado fijo.
  */
 
-type Vista = "tabla" | "tarjetas";
 type FiltroEstado = "TODOS" | StockStatus;
 
 const TIPOS: readonly { id: TipoProducto; nombre: string; Icono: typeof Package }[] = [
@@ -30,7 +34,6 @@ const PORCENTAJE = new Intl.NumberFormat("es-VE", { minimumFractionDigits: 1, ma
 const CAMPO =
   "min-h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13.5px] text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
-const CLAVE_VISTA = "l2.inventario.vista";
 
 const usd = (minor: bigint) => formatMoneyVE(toMajor(money(minor, "USD")), "USD");
 
@@ -68,26 +71,8 @@ export function InventarioVista({
   const [categoria, setCategoria] = useState("");
   const [apartados, setApartados] = useState(false);
   const [busqueda, setBusqueda] = useState("");
-  const [vista, setVista] = useState<Vista>("tabla");
-  // La vista elegida se recuerda en este navegador (una comodidad, no un dato del negocio).
-  useEffect(() => {
-    try {
-      // lint-permitido: sin-simulacion — tabla o tarjetas es una preferencia de la pantalla, no un dato del negocio
-      const v = window.localStorage.getItem(CLAVE_VISTA);
-      if (v === "tabla" || v === "tarjetas") setVista(v);
-    } catch {
-      /* sin almacenamiento: se queda la tabla */
-    }
-  }, []);
-  const elegirVista = (v: Vista) => {
-    setVista(v);
-    try {
-      // lint-permitido: sin-simulacion — tabla o tarjetas es una preferencia de la pantalla, no un dato del negocio
-      window.localStorage.setItem(CLAVE_VISTA, v);
-    } catch {
-      /* sin almacenamiento: dura lo que dure la pantalla */
-    }
-  };
+  const actor = useActorEnSesion();
+  const [vista, setVista] = useVistaDeLista("productos", actor?.id ?? null);
 
   const filas = useMemo<Fila[]>(
     () =>
@@ -117,13 +102,23 @@ export function InventarioVista({
   const porTipo = (t: TipoProducto) => filas.filter((f) => f.p.tipo === t && (retirados || f.p.activo !== apartados)).length;
   const categorias = useMemo(() => categoriesOf(filas.filter((f) => f.p.tipo === tipo).map((f) => ({ category: f.p.categoria }))), [filas, tipo]);
   const q = nameKey(busqueda);
-  const visibles = filas
+  // Lo que se busca y la categoría, antes del estado: así cada chip cuenta lo que dejaría (T-22).
+  const buscados = filas
     .filter((f) => f.p.tipo === tipo && (retirados || f.p.activo !== apartados))
     .filter((f) => categoria === "" || nameKey(f.p.categoria) === nameKey(categoria))
+    .filter((f) => q === "" || nameKey(f.p.nombre).includes(q) || f.p.sku.toLowerCase().includes(busqueda.trim().toLowerCase()) || (f.p.codigoBarras ?? "").includes(busqueda.trim().toUpperCase()));
+  const porEstado = (e: FiltroEstado) => buscados.filter((f) => e === "TODOS" || f.estado === e).length;
+  // Sin una categoría elegida, por categoría (los grupos de las tarjetas y la compacta); dentro, lo que exige atención
+  // arriba (agotados, luego bajo mínimo) y por nombre.
+  const agrupar = categoria === "";
+  const visibles = buscados
     .filter((f) => tipo !== "PRODUCTO" || estado === "TODOS" || f.estado === estado)
-    .filter((f) => q === "" || nameKey(f.p.nombre).includes(q) || f.p.sku.toLowerCase().includes(busqueda.trim().toLowerCase()) || (f.p.codigoBarras ?? "").includes(busqueda.trim().toUpperCase()))
-    // Lo que exige atención, arriba: agotados, luego bajo mínimo; dentro, por nombre.
-    .sort((a, b) => (a.estado && b.estado ? URGENCIA[a.estado] - URGENCIA[b.estado] : 0) || a.p.nombre.localeCompare(b.p.nombre, "es"));
+    .sort(
+      (a, b) =>
+        (agrupar && vista !== "LISTA" ? a.p.categoria.localeCompare(b.p.categoria, "es") : 0) ||
+        (a.estado && b.estado ? URGENCIA[a.estado] - URGENCIA[b.estado] : 0) ||
+        a.p.nombre.localeCompare(b.p.nombre, "es"),
+    );
 
   const filtrarEstado = (e: FiltroEstado) => {
     setTipo("PRODUCTO");
@@ -197,7 +192,7 @@ export function InventarioVista({
             </button>
           ))}
         </div>
-        <VistaToggle vista={vista} onElegir={elegirVista} />
+        <SelectorDeVista vista={vista} onCambiar={setVista} className="ml-auto" />
       </div>
       <div className="-mt-1 flex flex-wrap items-center gap-2">
         <label className="relative flex min-w-48 flex-1 sm:max-w-72">
@@ -216,18 +211,6 @@ export function InventarioVista({
             ))}
           </select>
         </label>
-        {tipo === "PRODUCTO" && (
-          <label className="flex items-center">
-            <span className="sr-only">Estado del stock</span>
-            <select className={CAMPO} value={estado} onChange={(e) => setEstado(e.target.value as FiltroEstado)}>
-              <option value="TODOS">Todo el stock</option>
-              <option value="SIN_INICIAL">Sin inventario inicial</option>
-              <option value="AGOTADO">Agotados</option>
-              <option value="BAJO_MINIMO">Bajo mínimo</option>
-              <option value="BIEN">Bien</option>
-            </select>
-          </label>
-        )}
         {!retirados && (
           <label className="flex min-h-9 cursor-pointer items-center gap-2 text-[13px] text-ink-2">
             <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={apartados} onChange={(e) => setApartados(e.target.checked)} />
@@ -239,6 +222,23 @@ export function InventarioVista({
           Pasa un código por el lector para abrir su ficha.
         </p>
       </div>
+      {tipo === "PRODUCTO" && (
+        <ChipsDeFiltro
+          etiqueta="Estado del stock"
+          chips={(
+            [
+              ["TODOS", "Todo el stock"],
+              ["SIN_INICIAL", "Sin inventario inicial"],
+              ["AGOTADO", "Agotados"],
+              ["BAJO_MINIMO", "Bajo mínimo"],
+              ["BIEN", "Bien"],
+            ] as const
+          ).map(([id, nombre]) => ({ id, nombre, cuenta: porEstado(id) }))}
+          elegido={estado}
+          onElegir={(id) => setEstado(id as FiltroEstado)}
+          className="-mt-2"
+        />
+      )}
 
       {visibles.length === 0 ? (
         <p className="rounded-[var(--radius-card)] border border-dashed border-line px-4 py-8 text-center text-[13px] text-ink-3">
@@ -252,10 +252,20 @@ export function InventarioVista({
                   ? "Todavía no hay preparados (lo que se hace al momento)."
                   : "Todavía no hay servicios."}
         </p>
-      ) : vista === "tabla" ? (
+      ) : vista === "LISTA" ? (
         <Tabla filas={visibles} tipo={tipo} tasa={tasa} onAbrir={onAbrir} seleccion={seleccion} />
       ) : (
-        <Tarjetas filas={visibles} tipo={tipo} onAbrir={onAbrir} />
+        <ListaLarga
+          barra={false}
+          etiqueta="Productos"
+          elementos={visibles}
+          clave={(f) => f.p.id}
+          vista={vista}
+          onVista={setVista}
+          {...(agrupar ? { grupo: (f: Fila) => f.p.categoria } : {})}
+          vacio={null}
+          render={(f, v) => (v === "TARJETAS" ? <TarjetaDeProducto fila={f} tipo={tipo} onAbrir={onAbrir} /> : <FilaCompacta fila={f} onAbrir={onAbrir} />)}
+        />
       )}
     </div>
   );
@@ -432,94 +442,80 @@ function Tabla({ filas, tipo, tasa, onAbrir, seleccion }: { filas: readonly Fila
   );
 }
 
-function Tarjetas({ filas, tipo, onAbrir }: { filas: readonly Fila[]; tipo: TipoProducto; onAbrir: (id: string) => void }) {
-  const Icono = TIPOS.find((t) => t.id === tipo)!.Icono;
+/** Un producto en un renglón (T-22): el stock, el nombre y el precio; lo demás, en su ficha. */
+function FilaCompacta({ fila: { p, estado, precio }, onAbrir }: { fila: Fila; onAbrir: (id: string) => void }) {
   return (
-    <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-      {filas.map(({ p, estado, precio, margen }) => {
-        // La barra mide el stock contra el doble del mínimo: en el mínimo, a la mitad.
-        const nivel = estado && p.minimo ? Math.min(1, (p.existencia ?? 0) / (p.minimo * 2)) : null;
-        return (
-          <li key={p.id}>
-            <button
-              type="button"
-              onClick={() => onAbrir(p.id)}
-              className={cn(
-                "flex h-full w-full cursor-pointer flex-col gap-2 rounded-[var(--radius-card)] border bg-surface p-3.5 text-left shadow-card transition-colors hover:bg-surface-2",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                estado === "AGOTADO" ? "border-state-crit/40" : estado === "BAJO_MINIMO" ? "border-state-warn/40" : estado === "SIN_INICIAL" ? "border-dashed border-line-strong" : "border-line",
-              )}
-            >
-              <span className="flex items-center justify-between gap-2">
-                {estado ? (
-                  <EstadoStock estado={estado} />
-                ) : (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-ink-3">
-                    <Icono size={12} aria-hidden="true" />
-                    {TIPOS.find((t) => t.id === tipo)!.nombre.slice(0, -1)}
-                  </span>
-                )}
-                <span className="tnum font-mono text-[11.5px] text-ink-3">{p.sku}</span>
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[14.5px] font-bold text-ink">{p.nombre}</span>
-                <span className="truncate text-[12px] text-ink-3">{p.presentacion ?? p.categoria}</span>
-              </span>
-              {estado === "SIN_INICIAL" ? (
-                <span className="text-detalle text-ink-3">{p.minimo !== null ? `Sin contar · mín. ${p.minimo}` : "Sin contar: no se vende"}</span>
-              ) : estado && (
-                <span className="flex flex-col gap-1.5">
-                  <span className="flex items-baseline gap-1.5">
-                    <span className={cn("tnum font-display text-[32px] leading-none font-bold", estado === "AGOTADO" ? "text-state-crit" : "text-ink")}>{p.existencia}</span>
-                    <span className="text-[12px] text-ink-3">{p.existencia === 1 ? "unidad" : "unidades"}</span>
-                    {p.minimo !== null && <span className="tnum ml-auto text-[11.5px] text-ink-3">mín. {p.minimo}</span>}
-                  </span>
-                  {nivel !== null && (
-                    <span aria-hidden="true" className="block h-1.5 overflow-hidden rounded-full bg-surface-2">
-                      <span
-                        className={cn("block h-full rounded-full", estado === "AGOTADO" ? "bg-state-crit" : estado === "BAJO_MINIMO" ? "bg-state-warn" : "bg-state-ok")}
-                        style={{ width: `${Math.max(nivel * 100, estado === "AGOTADO" ? 0 : 4)}%` }}
-                      />
-                    </span>
-                  )}
-                </span>
-              )}
-              <span className="mt-auto flex items-baseline justify-between gap-2 border-t border-line pt-2">
-                <span className="tnum text-[14px] font-bold text-ink">{precio === null ? <span className="text-[12px] text-state-warn">Sin precio hoy</span> : usd(precio)}</span>
-                {estado && <span className={cn("tnum text-[12px]", margen !== null && margen < 0 ? "font-semibold text-state-crit" : "text-ink-3")}>{margen === null ? "sin costo" : `margen ${PORCENTAJE.format(margen / 100)} %`}</span>}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <button
+      type="button"
+      onClick={() => onAbrir(p.id)}
+      title={[p.nombre, p.presentacion, p.sku, p.categoria].filter(Boolean).join(" · ")}
+      className="flex min-h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+    >
+      {estado && (
+        <span className={cn("tnum w-9 shrink-0 text-right font-display text-[15px] font-bold", estado === "AGOTADO" ? "text-state-crit" : estado === "SIN_INICIAL" ? "text-ink-3" : "text-ink")}>
+          {estado === "SIN_INICIAL" ? "—" : p.existencia}
+        </span>
+      )}
+      {estado && <EstadoStock estado={estado} />}
+      <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">{p.nombre}</span>
+      <span className="tnum shrink-0 text-[13px] text-ink-2">{precio === null ? <span className="text-state-warn">Sin precio</span> : usd(precio)}</span>
+    </button>
   );
 }
 
-function VistaToggle({ vista, onElegir }: { vista: Vista; onElegir: (v: Vista) => void }) {
+/** Un producto en su tarjeta: su estado, su stock con la barra contra el mínimo, su precio y su margen. */
+function TarjetaDeProducto({ fila: { p, estado, precio, margen }, tipo, onAbrir }: { fila: Fila; tipo: TipoProducto; onAbrir: (id: string) => void }) {
+  const Icono = TIPOS.find((t) => t.id === tipo)!.Icono;
+  // La barra mide el stock contra el doble del mínimo: en el mínimo, a la mitad.
+  const nivel = estado && p.minimo ? Math.min(1, (p.existencia ?? 0) / (p.minimo * 2)) : null;
   return (
-    <div role="group" aria-label="Cómo ver" className="ml-auto flex gap-1 rounded-[var(--radius-control)] bg-surface-2 p-1">
-      {(
-        [
-          ["tabla", "Tabla", LayoutList],
-          ["tarjetas", "Tarjetas", LayoutGrid],
-        ] as const
-      ).map(([v, texto, Icono]) => (
-        <button
-          key={v}
-          type="button"
-          aria-pressed={vista === v}
-          aria-label={`Ver en ${texto.toLowerCase()}`}
-          title={texto}
-          onClick={() => onElegir(v)}
-          className={cn(
-            "grid size-8 cursor-pointer place-content-center rounded-[var(--radius-control)] transition-colors",
-            vista === v ? "bg-surface text-ink shadow-card" : "text-ink-3 hover:text-ink",
+    <button
+      type="button"
+      onClick={() => onAbrir(p.id)}
+      className={cn(
+        "flex h-full w-full cursor-pointer flex-col gap-2 rounded-[var(--radius-card)] border bg-surface p-3.5 text-left shadow-card transition-colors hover:bg-surface-2",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        estado === "AGOTADO" ? "border-state-crit/40" : estado === "BAJO_MINIMO" ? "border-state-warn/40" : estado === "SIN_INICIAL" ? "border-dashed border-line-strong" : "border-line",
+      )}
+    >
+      <span className="flex items-center justify-between gap-2">
+        {estado ? (
+          <EstadoStock estado={estado} />
+        ) : (
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-ink-3">
+            <Icono size={12} aria-hidden="true" />
+            {TIPOS.find((t) => t.id === tipo)!.nombre.slice(0, -1)}
+          </span>
+        )}
+        <span className="tnum font-mono text-[11.5px] text-ink-3">{p.sku}</span>
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-[14.5px] font-bold text-ink">{p.nombre}</span>
+        <span className="truncate text-[12px] text-ink-3">{p.presentacion ?? p.categoria}</span>
+      </span>
+      {estado === "SIN_INICIAL" ? (
+        <span className="text-detalle text-ink-3">{p.minimo !== null ? `Sin contar · mín. ${p.minimo}` : "Sin contar: no se vende"}</span>
+      ) : estado && (
+        <span className="flex flex-col gap-1.5">
+          <span className="flex items-baseline gap-1.5">
+            <span className={cn("tnum font-display text-[32px] leading-none font-bold", estado === "AGOTADO" ? "text-state-crit" : "text-ink")}>{p.existencia}</span>
+            <span className="text-[12px] text-ink-3">{p.existencia === 1 ? "unidad" : "unidades"}</span>
+            {p.minimo !== null && <span className="tnum ml-auto text-[11.5px] text-ink-3">mín. {p.minimo}</span>}
+          </span>
+          {nivel !== null && (
+            <span aria-hidden="true" className="block h-1.5 overflow-hidden rounded-full bg-surface-2">
+              <span
+                className={cn("block h-full rounded-full", estado === "AGOTADO" ? "bg-state-crit" : estado === "BAJO_MINIMO" ? "bg-state-warn" : "bg-state-ok")}
+                style={{ width: `${Math.max(nivel * 100, estado === "AGOTADO" ? 0 : 4)}%` }}
+              />
+            </span>
           )}
-        >
-          <Icono size={15} aria-hidden="true" />
-        </button>
-      ))}
-    </div>
+        </span>
+      )}
+      <span className="mt-auto flex items-baseline justify-between gap-2 border-t border-line pt-2">
+        <span className="tnum text-[14px] font-bold text-ink">{precio === null ? <span className="text-[12px] text-state-warn">Sin precio hoy</span> : usd(precio)}</span>
+        {estado && <span className={cn("tnum text-[12px]", margen !== null && margen < 0 ? "font-semibold text-state-crit" : "text-ink-3")}>{margen === null ? "sin costo" : `margen ${PORCENTAJE.format(margen / 100)} %`}</span>}
+      </span>
+    </button>
   );
 }

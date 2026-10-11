@@ -10,14 +10,16 @@ import {
   type TipoTrabajo,
   type TrabajoDeImpresionDto,
 } from "@l2/contracts";
-import { BarraDeFiltros, Button, CAMPO_DE_FILTRO, Confirmacion, Dialog, EmptyState, FiltroSegmentado, Paginacion, avisar, cn } from "@l2/ui";
+import { BarraDeFiltros, Button, CAMPO_DE_FILTRO, CargarMas, Confirmacion, Dialog, EmptyState, FiltroSegmentado, ListaLarga, SelectorDeVista, avisar, cn, useVistaDeLista } from "@l2/ui";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { ESTADO_DE_TRABAJO, useCola } from "./ColaProvider.tsx";
 import { leerHistorial } from "./impresion.acciones";
 
 /**
- * La cola y el historial de impresión, por páginas (nunca una lista sin fin): qué se mandó a imprimir,
- * dónde, quién y cómo fue. Se filtra por estado, impresora y tipo; lo que no salió o espera se reintenta
+ * La cola y el historial de impresión, de a 50 (nunca una lista sin fin): qué se mandó a imprimir,
+ * dónde, quién y cómo fue. T-22 (M-38): «Cargar más · 50 de N» trae los siguientes; tres vistas que cada persona elige
+ * (la tabla es la Lista, las tarjetas y una compacta de un renglón). Se filtra por estado, impresora y tipo; lo que no salió o espera se reintenta
  * o se descarta (uno, o todos los que no salieron). Descartar no borra: queda aquí, con quién lo hizo.
  */
 
@@ -29,7 +31,7 @@ export type ConsultaHistorial = Readonly<{
   tipo?: TipoTrabajo | undefined;
 }>;
 
-export const CONSULTA_INICIAL: ConsultaHistorial = { pagina: 1, porPagina: 20, filtro: "TODOS" };
+export const CONSULTA_INICIAL: ConsultaHistorial = { pagina: 1, porPagina: 50, filtro: "TODOS" };
 
 /** El historial que se ve y cómo cambiarlo. Se vuelve a leer con cada cambio de filtro o página. */
 export function useHistorial(inicial: HistorialDeImpresionDto | null) {
@@ -42,7 +44,8 @@ export function useHistorial(inicial: HistorialDeImpresionDto | null) {
   const actual = useRef(consulta);
   actual.current = consulta;
 
-  const leer = useCallback(async (q: ConsultaHistorial) => {
+  /** Lee una página: la primera (con otros filtros) o, con `juntar`, la siguiente, que se suma a lo que ya se ve. */
+  const leer = useCallback(async (q: ConsultaHistorial, juntar = false) => {
     const mio = ++turno.current;
     setCargando(true);
     const r = await leerHistorial(q).catch(() => null);
@@ -52,7 +55,7 @@ export function useHistorial(inicial: HistorialDeImpresionDto | null) {
     else if (!r.ok) setError(r.mensaje);
     else {
       setError(null);
-      setDatos(r.valor);
+      setDatos((d) => (juntar && d ? { ...r.valor, trabajos: [...d.trabajos, ...r.valor.trabajos.filter((t) => !d.trabajos.some((x) => x.id === t.id))] } : r.valor));
       // El servidor ajusta la página si ya no existe (se descartó lo último de ella).
       if (r.valor.pagina !== q.pagina) setConsulta((c) => ({ ...c, pagina: r.valor.pagina }));
     }
@@ -67,9 +70,20 @@ export function useHistorial(inicial: HistorialDeImpresionDto | null) {
     },
     [leer],
   );
-  const releer = useCallback(() => leer(actual.current), [leer]);
+  // Tras reintentar o descartar, se vuelve a los 50 más recientes con los mismos filtros.
+  const releer = useCallback(() => {
+    const q = { ...actual.current, pagina: 1 };
+    setConsulta(q);
+    return leer(q);
+  }, [leer]);
+  /** «Cargar más» (T-22): la página siguiente, sumada a lo que se ve. */
+  const cargarMas = useCallback(() => {
+    const q = { ...actual.current, pagina: actual.current.pagina + 1 };
+    setConsulta(q);
+    return leer(q, true);
+  }, [leer]);
 
-  return { datos, consulta, cargando, error, cambiar, releer } as const;
+  return { datos, consulta, cargando, error, cambiar, releer, cargarMas } as const;
 }
 export type Historial = ReturnType<typeof useHistorial>;
 
@@ -104,7 +118,9 @@ function detalle(t: TrabajoDeImpresionDto): string {
 const sePuedeDescartar = (t: TrabajoDeImpresionDto) => t.estado === "FALLIDO" || t.estado === "PENDIENTE";
 
 export function HistorialDeImpresion({ historial, impresoras }: { historial: Historial; impresoras: readonly ImpresoraDto[] }) {
-  const { datos, consulta, cargando, error, cambiar, releer } = historial;
+  const { datos, consulta, cargando, error, cambiar, releer, cargarMas } = historial;
+  const actor = useActorEnSesion();
+  const [vista, setVista] = useVistaDeLista("historial-de-impresion", actor?.id ?? null);
   const { reintentar, descartar } = useCola();
   const reloj = useReloj();
   const [viendo, setViendo] = useState<TrabajoDeImpresionDto | null>(null);
@@ -206,6 +222,7 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
             ))}
           </select>
         </label>
+        <SelectorDeVista vista={vista} onCambiar={setVista} className="ml-auto" />
       </BarraDeFiltros>
 
       {/* ── lo que no salió, con su salida: reintentar uno a uno o descartarlos de una vez ── */}
@@ -248,8 +265,9 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
           />
         ) : (
           <>
-            {/* Escritorio: tabla de una línea por trabajo; la cabecera queda fija al desplazarse. */}
-            <div className="hidden min-h-0 flex-1 overflow-auto rounded-[var(--radius-card)] border border-line bg-surface shadow-card lg:block">
+            {/* La Lista: una tabla de una línea por trabajo; la cabecera queda fija al desplazarse. */}
+            {vista === "LISTA" && (
+            <div className="min-h-0 flex-1 overflow-auto rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
               <table className="w-full border-collapse text-[13px]">
                 <thead className="sticky top-0 z-10 bg-surface-2">
                   <tr>
@@ -294,12 +312,34 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
                 </tbody>
               </table>
             </div>
+            )}
 
-            {/* Tableta y teléfono: una tarjeta por trabajo; tocarla abre el ticket. Los botones, solo si
-                hay algo que hacer. En tableta la lista se desplaza por dentro y las páginas quedan a la vista. */}
-            <ul className="flex flex-col gap-2 md:min-h-0 md:flex-1 md:overflow-y-auto lg:hidden">
-              {trabajos.map((t) => (
-                <li key={t.id} className="shrink-0 overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
+            {/* Las tarjetas y la compacta: tocar un trabajo abre su ticket; los botones, solo si hay algo que hacer. */}
+            {vista !== "LISTA" && (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <ListaLarga
+                  barra={false}
+                  etiqueta="Trabajos de impresión"
+                  elementos={trabajos}
+                  clave={(t) => t.id}
+                  vista={vista}
+                  onVista={setVista}
+                  grupo={(t) => reloj.dia(Date.parse(t.creadoEn))}
+                  vacio={null}
+                  render={(t, v) =>
+                    v === "COMPACTA" ? (
+                      <button
+                        type="button"
+                        onClick={() => setViendo(t)}
+                        title={[t.impresora.nombre, t.creadoPor, detalle(t)].filter(Boolean).join(" · ")}
+                        className="flex min-h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-[13px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+                      >
+                        <span className="tnum w-16 shrink-0 text-ink-3">{reloj.hora(Date.parse(t.creadoEn))}</span>
+                        <span className="min-w-0 flex-1 truncate font-semibold text-ink">{nombreDe(t)}</span>
+                        <span className="shrink-0 text-[12.5px]">{estado(t)}</span>
+                      </button>
+                    ) : (
+                <div className="h-full overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
                   <button
                     type="button"
                     onClick={() => setViendo(t)}
@@ -318,25 +358,18 @@ export function HistorialDeImpresion({ historial, impresoras }: { historial: His
                     {detalle(t) && <span className={cn("text-[12.5px]", t.estado === "FALLIDO" ? "text-state-crit" : "text-ink-2")}>{detalle(t)}</span>}
                   </button>
                   {sePuedeDescartar(t) && <div className="border-t border-line px-2 py-1.5">{acciones(t, "tablet")}</div>}
-                </li>
-              ))}
-            </ul>
+                </div>
+                    )
+                  }
+                />
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* ── las páginas ── */}
-      {!error && total > 0 && (
-        <Paginacion
-          etiqueta="Páginas del historial"
-          pagina={consulta.pagina}
-          porPagina={consulta.porPagina}
-          opciones={POR_PAGINA_HISTORIAL}
-          total={total}
-          cargando={cargando}
-          onCambiar={(c) => cambiar(c)}
-        />
-      )}
+      {/* ── los siguientes (T-22): «Cargar más · 50 de N» y cuántos faltan ── */}
+      {!error && total > 0 && <CargarMas cargados={trabajos.length} total={total} cargando={cargando} onCargarMas={() => void cargarMas()} />}
 
       <VistaPrevia
         trabajo={viendo}

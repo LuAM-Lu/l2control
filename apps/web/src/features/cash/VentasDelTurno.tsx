@@ -8,7 +8,7 @@ import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
 import type { Rechazo, VentaCerradaDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
-import { Button, MoneyDisplay, avisar, cn, formatMoneyVE } from "@l2/ui";
+import { Button, ChipsDeFiltro, ListaLarga, MoneyDisplay, SelectorDeVista, avisar, cn, formatMoneyVE, useVistaDeLista, type VistaDeLista } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { AnularCobroDialog, type PedidoDeAnulacion } from "./AnularCobroDialog.tsx";
@@ -59,6 +59,56 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
   });
 }
 
+/** Una venta en tarjeta o en un renglón (T-22): su orden, su hora, la cuenta, los medios y el total; anulada, tachada. */
+function VentaEnVista({ v, vista, activa, hora, onElegir }: { v: VentaCerradaDto; vista: VistaDeLista; activa: boolean; hora: (t: number) => string; onElegir: () => void }) {
+  const totalVenta = formatMoneyVE(toMajor(money(BigInt(v.total.minor), "USD")), "USD");
+  const estado = v.voided ? (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded border border-line-strong px-1.5 text-[11px] font-semibold text-ink-2">
+      <Ban size={11} aria-hidden="true" />
+      Anulada
+    </span>
+  ) : null;
+  if (vista === "COMPACTA") {
+    return (
+      <button
+        type="button"
+        onClick={onElegir}
+        aria-pressed={activa}
+        title={mediosDe(v).join(" · ")}
+        className={cn("flex min-h-12 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-[13px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand", activa ? "bg-brand/20" : "hover:bg-surface-2")}
+      >
+        <span className="tnum w-14 shrink-0 font-bold text-ink">{ordenDe(v.orderNumber)}</span>
+        <span className="tnum w-16 shrink-0 text-ink-2">{hora(Date.parse(v.closedAt))}</span>
+        <span className="min-w-0 flex-1 truncate text-ink">{nombreDeCuenta(v.cuenta)}</span>
+        {estado}
+        <span className={cn("tnum shrink-0 font-semibold", v.voided ? "text-ink-3 line-through" : "text-ink")}>{totalVenta}</span>
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onElegir}
+      aria-pressed={activa}
+      className={cn(
+        "flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-[var(--radius-card)] border bg-surface p-3 text-left text-[13px] focus-visible:outline-2 focus-visible:outline-brand",
+        activa ? "border-brand/60 bg-brand/10" : "border-line hover:border-line-strong",
+      )}
+    >
+      <span className="flex items-center gap-2">
+        <span className="tnum font-bold text-ink">{ordenDe(v.orderNumber)}</span>
+        <span className="tnum text-ink-3">{hora(Date.parse(v.closedAt))}</span>
+        <span className={cn("tnum ml-auto font-semibold", v.voided ? "text-ink-3 line-through" : "text-ink")}>{totalVenta}</span>
+      </span>
+      <span className="truncate text-ink">{nombreDeCuenta(v.cuenta)}</span>
+      <span className="flex items-center gap-2 text-[12px] text-ink-3">
+        <span className="min-w-0 flex-1 truncate">{mediosDe(v).join(" · ")}</span>
+        {estado}
+      </span>
+    </button>
+  );
+}
+
 export function VentasDelTurno({ className }: { className?: string }) {
   const hora = useHora();
   const { ajustes } = useSucursal();
@@ -86,6 +136,8 @@ export function VentasDelTurno({ className }: { className?: string }) {
   }
   const [texto, setTexto] = useState("");
   const [medio, setMedio] = useState<string | null>(null);
+  // T-22: tres vistas que cada persona elige y se recuerdan; la tabla es la Lista.
+  const [vista, setVista] = useVistaDeLista("ventas", actor?.id ?? null);
   const [elegida, setElegida] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const buscadorRef = useRef<HTMLInputElement>(null);
@@ -183,6 +235,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
               <MoneyDisplay value={toMajor(total)} currency="USD" size="md" />
               {anuladas > 0 && <span className="tnum">· {anuladas} {anuladas === 1 ? "anulada" : "anuladas"}</span>}
             </p>
+            <SelectorDeVista vista={vista} onCambiar={setVista} surface="tablet" />
           </div>
 
           {puedeDevolver && (
@@ -242,23 +295,18 @@ export function VentasDelTurno({ className }: { className?: string }) {
                 </button>
               )}
             </label>
-            <div role="radiogroup" aria-label="Medio de pago" className="flex gap-1 overflow-x-auto">
-              {[null, ...medios].map((m) => (
-                <button
-                  key={m ?? "todos"}
-                  type="button"
-                  role="radio"
-                  aria-checked={medio === m}
-                  onClick={() => setMedio(m)}
-                  className={cn(
-                    "min-h-14 shrink-0 cursor-pointer rounded-[var(--radius-control)] px-3 text-[12.5px] font-semibold whitespace-nowrap transition-colors",
-                    medio === m ? "bg-surface-2 text-ink ring-1 ring-line-strong" : "text-ink-3 hover:text-ink",
-                  )}
-                >
-                  {m ?? "Todos"}
-                </button>
-              ))}
-            </div>
+            {/* T-22: el medio en chips con su cuenta (con lo buscado): lo que deja cada uno. */}
+            <ChipsDeFiltro
+              etiqueta="Medio de pago"
+              surface="tablet"
+              chips={[
+                { id: "", nombre: "Todos", cuenta: filtrar(ventas, texto, null).length },
+                ...medios.map((m) => ({ id: m, nombre: m, cuenta: filtrar(ventas, texto, m).length })),
+              ]}
+              elegido={medio ?? ""}
+              onElegir={(id) => setMedio(id === "" ? null : id)}
+              className="min-w-0"
+            />
           </div>
 
           {ventas.length === 0 ? (
@@ -274,6 +322,21 @@ export function VentasDelTurno({ className }: { className?: string }) {
             </div>
           ) : visibles.length === 0 ? (
             <p className="px-4 py-4 text-[13px] text-ink-3">Ninguna venta coincide con la búsqueda.</p>
+          ) : vista !== "LISTA" ? (
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              <ListaLarga
+                barra={false}
+                etiqueta="Ventas"
+                elementos={visibles}
+                clave={(v) => v.id}
+                vista={vista}
+                onVista={setVista}
+                // Por la hora en que se cerraron: «De las 9 pm».
+                grupo={(v) => `De las ${hora(Math.floor(Date.parse(v.closedAt) / 3_600_000) * 3_600_000)}`}
+                vacio={null}
+                render={(v, vi) => <VentaEnVista v={v} vista={vi} activa={v.id === actual?.id} hora={hora} onElegir={() => setElegida(v.id)} />}
+              />
+            </div>
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto">
               <table className="w-full border-collapse text-[13px]">

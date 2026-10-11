@@ -16,6 +16,24 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.129.0] — 2026-10-11 · Hacia la puesta en marcha
+
+Las listas largas (T-22, M-38, W-11).
+
+### Añadido
+- **Tres vistas en las listas** (Tarjetas, Lista y Compacta) que cada persona elige y se recuerdan en el equipo: en
+  Representantes, Productos, Movimientos, Ventas del turno y el historial de impresión.
+- **«Cargar más · 50 de N»** y cuántos faltan, en las listas sin tope: el directorio de familias, los movimientos del
+  periodo y el historial de impresión (antes, páginas o un tope de mil).
+- **El índice A–Z** en el directorio, por la inicial sin acento y con la Ñ en su sitio.
+
+### Cambiado
+- **El directorio busca en el servidor** (el nombre, el de los niños, el teléfono o la cédula) y trae de a 50: con 2.000
+  familias se abre y se busca sin trabarse en la tablet. En vertical, el detalle de una familia se abre en una hoja.
+- **Chips con su cuenta** que filtran: el estado del stock en Productos y el medio de pago en Ventas del turno.
+- **Grupos con su encabezado fijo** en las tarjetas y la compacta: por categoría (Productos), por día (Movimientos,
+  historial) y por hora (Ventas). Lo que está fuera de la pantalla no se dibuja.
+
 ## [0.128.0] — 2026-10-11 · Hacia la puesta en marcha
 
 La barra de las estaciones, por pantalla (T-21, M-38, W-6 y W-7).

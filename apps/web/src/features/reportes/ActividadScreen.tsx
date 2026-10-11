@@ -6,14 +6,15 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { Baby, Boxes, CreditCard, LoaderCircle, Search, TriangleAlert, UserRound, UtensilsCrossed } from "lucide-react";
 import type { ActividadDelPeriodoDto, CategoriaDeMovimientoDto, MovimientoDelLocalDto, VentaCerradaDto } from "@l2/contracts";
-import { CAMPO_DE_FILTRO, Container, FiltroSegmentado, PageHeader, Sheet, TAMANO_ICONO, cn } from "@l2/ui";
+import { CAMPO_DE_FILTRO, CargarMas, Container, FiltroSegmentado, ListaLarga, PageHeader, SelectorDeVista, Sheet, TAMANO_ICONO, cn, useVistaDeLista } from "@l2/ui";
+import { useActorEnSesion } from "../identity/sesion.ts";
 import { percentFromBasisPoints } from "@l2/domain-tax";
 import { formatTasaVE } from "../cash/tasa-format.ts";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import type { ActividadPedida } from "./reportes.servidor.ts";
 import { FiltroDePeriodo, importe, periodoEnPalabras } from "./informe.tsx";
-import { ventaDelMovimiento } from "./reportes.acciones";
+import { masMovimientos, ventaDelMovimiento } from "./reportes.acciones";
 
 /**
  * Panel → Reportes → Movimientos (B11-7, M-37): todo lo que pasó en el periodo, de la caja, el parque, las mesas, el
@@ -121,27 +122,72 @@ export function ActividadScreen({ hoy, pedido, informe }: ActividadPedida) {
   );
 }
 
+/**
+ * T-22 (M-38): de a 50, los más nuevos primero, con «Cargar más» (cuántos faltan); tres vistas que cada persona elige
+ * —la tabla es la Lista; las tarjetas y la compacta, por día con su encabezado fijo—.
+ */
 function Lista({ informe, pedido, cargando, onParte }: { informe: ActividadDelPeriodoDto; pedido: Pedido; cargando: boolean; onParte: (p: CategoriaDeMovimientoDto | null) => void }) {
   const reloj = useReloj();
+  const actor = useActorEnSesion();
+  const [vista, setVista] = useVistaDeLista("movimientos", actor?.id ?? null);
   const [abierto, setAbierto] = useState<MovimientoDelLocalDto | null>(null);
   const todos = informe.porCategoria.reduce((n, c) => n + c.cantidad, 0);
+  // Lo que «Cargar más» trajo; una búsqueda nueva (otro informe) empieza de nuevo.
+  const [mas, setMas] = useState<readonly MovimientoDelLocalDto[]>([]);
+  const [trayendo, setTrayendo] = useState(false);
+  const [errorMas, setErrorMas] = useState<string | null>(null);
+  useEffect(() => {
+    setMas([]);
+    setErrorMas(null);
+  }, [informe]);
+  const movimientos = [...informe.movimientos, ...mas.filter((m) => !informe.movimientos.some((x) => x.id === m.id))];
+  async function cargarMas() {
+    setTrayendo(true);
+    const r = await masMovimientos({
+      desde: pedido.desde,
+      hasta: pedido.hasta,
+      ...(pedido.buscar ? { buscar: pedido.buscar } : {}),
+      ...(pedido.parte ? { categoria: pedido.parte } : {}),
+      saltar: movimientos.length,
+      cuantos: 50,
+    }).catch(() => null);
+    setTrayendo(false);
+    if (!r) return setErrorMas("Sin conexión con el servidor: no se trajeron los siguientes.");
+    if (!r.ok) return setErrorMas(r.mensaje);
+    setErrorMas(null);
+    setMas((m) => [...m, ...r.valor.movimientos]);
+  }
   return (
     <div className={cn("flex flex-col gap-3 transition-opacity", cargando && "opacity-60")}>
       <p className="text-detalle text-ink-2">
         {periodoEnPalabras(informe.periodo)} · {informe.total} {informe.total === 1 ? "movimiento" : "movimientos"}
         {pedido.buscar ? ` con «${pedido.buscar}»` : ""}
-        {informe.total > informe.movimientos.length ? `: se ven los ${informe.movimientos.length} más nuevos, afina la búsqueda` : ""}
       </p>
-      <FiltroSegmentado<CategoriaDeMovimientoDto | "TODO">
-        etiqueta="Parte del local"
-        opciones={[{ id: "TODO", nombre: "Todo", cuenta: todos }, ...informe.porCategoria.map((c) => ({ id: c.categoria, nombre: PARTE[c.categoria].nombre, cuenta: c.cantidad }))]}
-        valor={pedido.parte ?? "TODO"}
-        onCambiar={(id) => onParte(id === "TODO" ? null : id)}
-      />
-      {informe.movimientos.length === 0 ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <FiltroSegmentado<CategoriaDeMovimientoDto | "TODO">
+          etiqueta="Parte del local"
+          opciones={[{ id: "TODO", nombre: "Todo", cuenta: todos }, ...informe.porCategoria.map((c) => ({ id: c.categoria, nombre: PARTE[c.categoria].nombre, cuenta: c.cantidad }))]}
+          valor={pedido.parte ?? "TODO"}
+          onCambiar={(id) => onParte(id === "TODO" ? null : id)}
+        />
+        <SelectorDeVista vista={vista} onCambiar={setVista} className="ml-auto" />
+      </div>
+      {movimientos.length === 0 ? (
         <p className="rounded-[var(--radius-card)] border border-line bg-surface px-4 py-6 text-center text-detalle text-ink-3">
           {pedido.buscar ? "Nada coincide con la búsqueda en este periodo." : "Nada pasó en este periodo."}
         </p>
+      ) : vista !== "LISTA" ? (
+        <ListaLarga
+          barra={false}
+          etiqueta="Movimientos"
+          elementos={movimientos}
+          clave={(m) => m.id}
+          vista={vista}
+          onVista={setVista}
+          grupo={(m) => reloj.dia(Date.parse(m.en))}
+          vacio={null}
+          render={(m, v) => <MovimientoEnVista m={m} vista={v} hora={reloj.hora} onAbrir={() => setAbierto(m)} />}
+        />
       ) : (
         <div className="overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
           <table className="w-full border-collapse text-detalle">
@@ -156,7 +202,7 @@ function Lista({ informe, pedido, cargando, onParte }: { informe: ActividadDelPe
               </tr>
             </thead>
             <tbody>
-              {informe.movimientos.map((m) => {
+              {movimientos.map((m) => {
                 const { Icono } = PARTE[m.categoria];
                 return (
                   <tr key={m.id} className="border-t border-line/60 align-top hover:bg-surface-2/50">
@@ -194,8 +240,63 @@ function Lista({ informe, pedido, cargando, onParte }: { informe: ActividadDelPe
           </table>
         </div>
       )}
+      {errorMas && (
+        <p role="alert" className="flex items-center gap-1.5 text-detalle text-state-crit">
+          <TriangleAlert size={TAMANO_ICONO.texto} aria-hidden="true" />
+          {errorMas}
+        </p>
+      )}
+      {movimientos.length > 0 && <CargarMas cargados={movimientos.length} total={informe.total} cargando={trayendo} onCargarMas={() => void cargarMas()} />}
       <Detalle movimiento={abierto} onCerrar={() => setAbierto(null)} />
     </div>
+  );
+}
+
+/** Un movimiento en tarjeta o en un renglón (T-22): qué, quién, cuándo, su orden y su monto; tocarlo abre su detalle. */
+function MovimientoEnVista({ m, vista, hora, onAbrir }: { m: MovimientoDelLocalDto; vista: "TARJETAS" | "LISTA" | "COMPACTA"; hora: (t: number) => string; onAbrir: () => void }) {
+  const { Icono } = PARTE[m.categoria];
+  const orden = m.orden !== null ? `#${String(m.orden).padStart(4, "0")}` : null;
+  if (vista === "COMPACTA") {
+    return (
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        onClick={onAbrir}
+        title={[m.detalle, m.cliente?.nombre].filter(Boolean).join(" · ")}
+        className="flex min-h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-detalle hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+      >
+        <span className="tnum w-16 shrink-0 text-ink-3">{hora(Date.parse(m.en))}</span>
+        <Icono size={TAMANO_ICONO.texto} className="shrink-0 text-ink-3" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate font-semibold text-ink">{m.que}</span>
+        <span className="hidden shrink-0 text-ink-2 sm:inline">{m.quien}</span>
+        {orden && <span className="tnum shrink-0 text-ink-3">{orden}</span>}
+        <span className="tnum w-20 shrink-0 text-right font-semibold text-ink">{m.monto ? importe(m.monto) : ""}</span>
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      onClick={onAbrir}
+      className="flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-[var(--radius-card)] border border-line bg-surface p-3 text-left text-detalle hover:border-line-strong focus-visible:outline-2 focus-visible:outline-brand"
+    >
+      <span className="flex items-center gap-2">
+        <Icono size={TAMANO_ICONO.texto} className="shrink-0 text-brand" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate font-semibold text-ink">{m.que}</span>
+        <span className="tnum shrink-0 font-semibold text-ink">{m.monto ? importe(m.monto) : ""}</span>
+      </span>
+      <span className="tnum text-ink-2">
+        {hora(Date.parse(m.en))} · {m.quien}
+        {m.autorizo ? ` · autorizó ${m.autorizo}` : ""}
+      </span>
+      {(orden || m.cliente) && (
+        <span className="tnum text-nota text-ink-3" data-privado="">
+          {[orden, m.cliente?.nombre].filter(Boolean).join(" · ")}
+        </span>
+      )}
+      {m.detalle && <span className="line-clamp-2 text-nota text-ink-3">{m.detalle}</span>}
+    </button>
   );
 }
 

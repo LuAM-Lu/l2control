@@ -5,6 +5,7 @@ import type {
   CheckInResult,
   CheckoutResult,
   DirectorioRepresentantesDto,
+  PaginaDelDirectorioDto,
   EstanciaDto,
   EstadoPulseraDto,
   FamilyAccountDto,
@@ -113,6 +114,13 @@ export async function buscarRepresentante(entrada: unknown): Promise<Resultado<R
 }
 
 /** Corrige un representante o un niño del directorio; devuelve el directorio. */
+/** Busca en el directorio y trae de a 50 (T-22, `PaginaDelDirectorioQuerySchema`): lo escrito, la letra, cargar más. */
+export async function buscarEnElDirectorio(entrada: unknown): Promise<Resultado<PaginaDelDirectorioDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).representantes.pagina(ctx, entrada);
+}
+
 export async function corregirDirectorio(entrada: unknown): Promise<Resultado<DirectorioRepresentantesDto>> {
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
