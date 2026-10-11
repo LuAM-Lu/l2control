@@ -3143,7 +3143,7 @@ antes del cobro en servidor (orden de ejecución).
   a la 7 desde la mesa, y de vuelta a su familia desde la sala. **Decidido al construir:** una cuenta de pie no recibe a
   un niño (su salida del parque solo sabe ir a una mesa o a su familia); un niño a la vez.*
 
-- [ ] **B6-17 · El mesero en tablet** (M-38, W-5).
+- [~] **B6-17 · El mesero en tablet** (M-38, W-5). *A cargo: LuAMi (Claude), en `feat/b6-17`.*
   → Tomar pedido con buscador, categorías en una tira que se desliza y lo que no se vende al final; las comandas que no
   salieron en una píldora con su número (y una hoja con cada una y «Reimprimir»); tiempos legibles («42 min», «1 h 15
   min», «ayer 7:29 pm»); en «Atender», el amarillo solo para lo que pide acción; en vertical, la mesa en una hoja que sube
