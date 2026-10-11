@@ -136,6 +136,10 @@ export function DatosDelCliente({
         onChange={(e) => onCambio({ ...valor, nombre: e.target.value })}
         maxLength={80}
         autoComplete="off"
+        // B6-17: las reglas de teclado de B4-18 en sentar: mayúscula inicial e Intro «Listo».
+        autoCapitalize="words"
+        enterKeyHint="done"
+        spellCheck={false}
         placeholder="María Pérez"
         aria-required="true"
         error={errores?.nombre}

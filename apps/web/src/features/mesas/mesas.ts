@@ -12,6 +12,13 @@ import { multiply, sum, type Money } from "@l2/domain-money";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
 import { esDelSalonAbierta, nombreDeCuenta } from "../cuentas/cuentas.ts";
+import { duracion } from "./tiempo.ts";
+
+/**
+ * La tablet en vertical (y el teléfono): fuera de `apaisado:` de los tokens (desde 64rem, o desde 48rem en horizontal).
+ * En el servidor no hay pantalla: se pinta apaisada, la de la caja y la tablet en horizontal.
+ */
+export const EN_VERTICAL = "(max-width: 63.999rem) and (orientation: portrait), (max-width: 47.999rem)";
 
 export type EstadoVisible = "LIBRE" | "OCUPADA" | "PIDE_CUENTA" | "POR_LIMPIAR";
 
@@ -98,6 +105,8 @@ export type Urgencia = Readonly<{
   rotulo: string;
   /** La cuenta, si lo que pide atención es de una sola. */
   cuentaId: string | null;
+  /** Qué es (B6-17): de él salen su icono y si es una acción (el amarillo es solo para lo que pide acción). */
+  tipo: "COMANDA" | "CUENTA" | "ESPERA" | "SIN_PEDIR" | "LIMPIAR" | "LARGA";
   /** Qué pide, en una línea. */
   que: string;
   /** Debajo: la zona y las sillas, o la cuenta. */
@@ -121,19 +130,22 @@ export function loQuePideAtencion(
   ahora: number,
   /** Los pedidos y los umbrales (B6-8): quien espera su pedido, o no ha pedido, pasado su umbral. */
   atencion?: Readonly<{ pedidos: readonly PedidoParaAtencion[]; umbrales: UmbralesDeAtencion }>,
+  /** Cuánto lleva desde un instante, legible (B6-17: «42 min», «desde ayer 7:29 pm»); sin él, su duración. */
+  tiempo: (desdeIso: string) => string = (iso) => duracion(minutosDesde(iso, ahora)),
 ): Urgencia[] {
   const filas: Urgencia[] = [];
+  const haceMin = (min: number) => tiempo(new Date(ahora - min * 60_000).toISOString());
   const grupos = [
     ...mesas.map((v) => ({ lugar: v.mesa.id, rotulo: v.mesa.label, detalle: `${v.mesa.zone} · ${v.comensales} de ${v.mesa.seats} sillas`, v })),
     { lugar: "PIE", rotulo: "De pie", detalle: "Sin mesa", v: pie },
   ];
   for (const { lugar, rotulo, detalle, v } of grupos) {
     if (v.sinSalir > 0) {
-      filas.push({ lugar, rotulo, cuentaId: null, que: v.sinSalir === 1 ? "Una comanda no salió: vuelve a imprimirla" : `${v.sinSalir} comandas no salieron: vuelve a imprimirlas`, detalle, tono: "crit", orden: 0, minutos: v.minutos ?? 0 });
+      filas.push({ lugar, rotulo, cuentaId: null, tipo: "COMANDA", que: v.sinSalir === 1 ? "Una comanda no salió: vuelve a imprimirla" : `${v.sinSalir} comandas no salieron: vuelve a imprimirlas`, detalle, tono: "crit", orden: 0, minutos: v.minutos ?? 0 });
     }
     for (const c of v.cuentas.filter((x) => x.status === "POR_COBRAR")) {
       const espera = minutosDesde(c.pendingSince ?? c.openedAt, ahora);
-      filas.push({ lugar, rotulo, cuentaId: c.id, que: `Pide la cuenta · ${espera} min esperando`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: espera });
+      filas.push({ lugar, rotulo, cuentaId: c.id, tipo: "CUENTA", que: `Pide la cuenta · ${tiempo(c.pendingSince ?? c.openedAt)}`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: espera });
     }
     // B6-8 (P-19): la que espera lo que pidió, o no ha pedido, pasado su umbral. Para llamar a quien atiende.
     if (atencion && ahora > 0) {
@@ -143,16 +155,16 @@ export function loQuePideAtencion(
         const c = abiertas.find((x) => x.id === a.cuentaId)!;
         filas.push(
           a.alerta === "ESPERANDO"
-            ? { lugar, rotulo, cuentaId: c.id, que: `Espera su pedido · ${a.esperandoMin} min`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: a.esperandoMin ?? 0 }
-            : { lugar, rotulo, cuentaId: c.id, que: `Sin pedir · ${a.sinPedirMin} min sentada`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: a.sinPedirMin ?? 0 },
+            ? { lugar, rotulo, cuentaId: c.id, tipo: "ESPERA", que: `Espera su pedido · ${haceMin(a.esperandoMin ?? 0)}`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: a.esperandoMin ?? 0 }
+            : { lugar, rotulo, cuentaId: c.id, tipo: "SIN_PEDIR", que: `Sin pedir · ${tiempo(c.openedAt)}`, detalle: nombreDeCuenta(c), tono: "warn", orden: 1, minutos: a.sinPedirMin ?? 0 },
         );
       }
     }
     if (v.estado === "POR_LIMPIAR") {
-      filas.push({ lugar, rotulo, cuentaId: null, que: "Por limpiar", detalle, tono: "idle", orden: 2, minutos: v.minutos ?? 0 });
+      filas.push({ lugar, rotulo, cuentaId: null, tipo: "LIMPIAR", que: "Por limpiar", detalle, tono: "idle", orden: 2, minutos: v.minutos ?? 0 });
     }
     if (v.estado === "OCUPADA" && lugar !== "PIE" && (v.minutos ?? 0) >= MESA_LARGA_MIN) {
-      filas.push({ lugar, rotulo, cuentaId: null, que: `Lleva ${v.minutos} min sentada`, detalle, tono: "idle", orden: 3, minutos: v.minutos ?? 0 });
+      filas.push({ lugar, rotulo, cuentaId: null, tipo: "LARGA", que: `Sentada · ${v.desde ? tiempo(v.desde) : duracion(v.minutos ?? 0)}`, detalle, tono: "idle", orden: 3, minutos: v.minutos ?? 0 });
     }
   }
   return filas.sort((a, b) => a.orden - b.orden || b.minutos - a.minutos);
@@ -300,7 +312,7 @@ export function avisosDelSalon(
     for (const c of delSalon.filter((x) => x.status === "POR_COBRAR")) {
       const desde = c.pendingSince ?? c.openedAt;
       const min = minutosDesde(desde, ahora);
-      if (min >= umbrales.cuentaMin) avisos.push({ clave: `CUENTA:${c.id}:${desde}`, texto: `${rotulo(c)} pidió la cuenta hace ${min} min`, detalle: nombreDeCuenta(c) });
+      if (min >= umbrales.cuentaMin) avisos.push({ clave: `CUENTA:${c.id}:${desde}`, texto: `${rotulo(c)} pidió la cuenta hace ${duracion(min)}`, detalle: nombreDeCuenta(c) });
     }
     return avisos;
   }
@@ -308,7 +320,7 @@ export function avisosDelSalon(
     const suyos = pedidos.filter((p) => p.cuentaId === c.id).map((p) => ({ p, a: paraAtender(p, cuentas) })).filter((x) => !x.a.anulado);
     if (suyos.length === 0) {
       const min = minutosDesde(c.openedAt, ahora);
-      if (min >= umbrales.sinPedirMin) avisos.push({ clave: `SIN_PEDIR:${c.id}`, texto: `${rotulo(c)} lleva ${min} min sin pedir`, detalle: nombreDeCuenta(c) });
+      if (min >= umbrales.sinPedirMin) avisos.push({ clave: `SIN_PEDIR:${c.id}`, texto: `${rotulo(c)} lleva ${duracion(min)} sin pedir`, detalle: nombreDeCuenta(c) });
       continue;
     }
     const esperando = suyos
@@ -316,12 +328,12 @@ export function avisosDelSalon(
       .sort((x, y) => x.a.enviadoEn - y.a.enviadoEn)[0];
     if (esperando) {
       const min = minutosDesde(esperando.p.enviadoEn, ahora);
-      if (min >= umbrales.esperaMin) avisos.push({ clave: `ESPERANDO:${esperando.p.id}`, texto: `${rotulo(c)} espera su pedido hace ${min} min`, detalle: nombreDeCuenta(c) });
+      if (min >= umbrales.esperaMin) avisos.push({ clave: `ESPERANDO:${esperando.p.id}`, texto: `${rotulo(c)} espera su pedido hace ${duracion(min)}`, detalle: nombreDeCuenta(c) });
     }
   }
   for (const [tableId, desde] of porLimpiar) {
     const min = minutosDesde(desde, ahora);
-    if (min >= umbrales.limpiarMin) avisos.push({ clave: `LIMPIAR:${tableId}:${desde}`, texto: `${rotuloDeMesa(tableId)} lleva ${min} min por limpiar`, detalle: "Al limpiarla, márcala «Mesa limpia»" });
+    if (min >= umbrales.limpiarMin) avisos.push({ clave: `LIMPIAR:${tableId}:${desde}`, texto: `${rotuloDeMesa(tableId)} lleva ${duracion(min)} por limpiar`, detalle: "Al limpiarla, márcala «Mesa limpia»" });
   }
   return avisos;
 }

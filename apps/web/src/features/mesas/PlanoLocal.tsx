@@ -4,6 +4,7 @@ import type { DiningTableDto, PlanoLocalDto } from "@l2/contracts";
 import { cn } from "@l2/ui";
 import { PiezaFija, Suelo, TramaParque } from "./piezas.tsx";
 import type { EstadoVisible, MesaVista } from "./mesas.ts";
+import { duracion, duracionCorta } from "./tiempo.ts";
 
 /**
  * El plano del local, como está de verdad — V3 (UX-MEJORAS §2).
@@ -157,7 +158,7 @@ function Mesa({
   const cuentas = vista?.cuentas.length ?? 0;
   const detalle =
     (estado === "OCUPADA" || estado === "PIDE_CUENTA") && vista
-      ? `, ${sentados} de ${t.seats} sillas, ${vista.minutos} minutos${cuentas > 1 ? `, ${cuentas} cuentas` : ""}`
+      ? `, ${sentados} de ${t.seats} sillas, ${duracion(vista.minutos ?? 0)}${cuentas > 1 ? `, ${cuentas} cuentas` : ""}`
       : "";
 
   return (
@@ -260,7 +261,7 @@ function Mesa({
         fill={pinta.texto}
         opacity={0.85}
       >
-        {estado === "OCUPADA" && vista ? `${sentados}/${t.seats} · ${vista.minutos}′` : TEXTO[estado]}
+        {estado === "OCUPADA" && vista ? `${sentados}/${t.seats} · ${duracionCorta(vista.minutos ?? 0)}` : TEXTO[estado]}
       </text>
     </g>
   );

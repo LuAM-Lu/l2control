@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.126.0 en `main` (publicada, la 0.122.0) · 126 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.127.0 en `main` (publicada, la 0.122.0) · 127 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3143,13 +3143,24 @@ antes del cobro en servidor (orden de ejecución).
   a la 7 desde la mesa, y de vuelta a su familia desde la sala. **Decidido al construir:** una cuenta de pie no recibe a
   un niño (su salida del parque solo sabe ir a una mesa o a su familia); un niño a la vez.*
 
-- [~] **B6-17 · El mesero en tablet** (M-38, W-5). *A cargo: LuAMi (Claude), en `feat/b6-17`.*
+- [x] **B6-17 · El mesero en tablet** (M-38, W-5).
+  *Hecho el 2026-10-11 (v0.127.0), en `feat/b6-17`.*
   → Tomar pedido con buscador, categorías en una tira que se desliza y lo que no se vende al final; las comandas que no
   salieron en una píldora con su número (y una hoja con cada una y «Reimprimir»); tiempos legibles («42 min», «1 h 15
   min», «ayer 7:29 pm»); en «Atender», el amarillo solo para lo que pide acción; en vertical, la mesa en una hoja que sube
   y el pedido con su ticket como cajón. Sentar con el campo del cliente de T-23; las reglas de teclado de B4-18 en sentar
   y en las notas. Criterio: pedir tres
   platos lleva menos de 10 toques; nada se desplaza a 1280×800 ni a 800×1280.
+  *· Hecho: `TomaPedido` con «Buscar en la carta» (toda la carta, sin acentos), la tira de categorías que se desliza y lo
+  que no se vende al final; en vertical, el ticket en un `Cajon` (nuevo en `@l2/ui`: la capa que sube desde abajo en
+  cualquier pantalla, `.l2-cajon`) con una barra fija al `body` («3 platos · $ 7,50», «Enviar»). En `MesasScreen`, la
+  franja de comandas pasa a una píldora con su hoja (`Sheet`, «Reimprimir» por papel); en vertical (`EN_VERTICAL`, fuera
+  de `apaisado:`) la mesa sube en un `Cajon` con sus acciones al pie (`accionesDelLugar`, `detalleDelLugar`). Los tiempos,
+  en `mesas/tiempo.ts` (`duracion`, `duracionCorta`, `transcurrido`, `conSuHora`, con su prueba): «Atender», los avisos,
+  el plano, la cuenta y sus pedidos. `Urgencia.tipo` da su icono; el amarillo, solo en el icono, el texto y el borde. Las
+  reglas de teclado de B4-18 en la nota (Intro guarda) y en el nombre al sentar. En el navegador, tablet táctil a 1280×800
+  y 800×1280 en los dos temas: tres platos en 7 toques (la mesa, «Tomar pedido», tres platos, enviar y confirmar), nada
+  desplaza; con la impresora de mentira sin papel, la píldora «3 no salieron» y su hoja con «Reimprimir cocina».*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 

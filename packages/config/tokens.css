@@ -243,6 +243,14 @@
   @starting-style { .l2-capa[open] .l2-hoja { transform: translateX(100%); } }
 }
 
+/* El cajón (B6-17): sube desde abajo en cualquier pantalla, también en la tablet en vertical. */
+.l2-cajon {
+  transform: translateY(100%);
+  transition: transform var(--dur-normal) var(--ease-salida);
+}
+.l2-capa[open] .l2-cajon { transform: none; transition-duration: var(--dur-capa); }
+@starting-style { .l2-capa[open] .l2-cajon { transform: translateY(100%); } }
+
 .l2-dialogo {
   opacity: 0;
   transform: scale(0.96);

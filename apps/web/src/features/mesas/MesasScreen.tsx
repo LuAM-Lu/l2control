@@ -40,7 +40,7 @@ import type {
 } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, Confirmacion, Container, Dialog, MoneyDisplay, StatTile, Stepper, avisar, cn, type Tone } from "@l2/ui";
+import { Badge, Button, Cajon, Confirmacion, Container, Dialog, Marquesina, MoneyDisplay, Sheet, StatTile, Stepper, avisar, cn, useMediaQuery, type Tone } from "@l2/ui";
 import { chargeableLines } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
@@ -49,6 +49,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
 import { ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
 import {
+  EN_VERTICAL,
   loQuePideAtencion,
   minutosDesde,
   paraAtender,
@@ -70,7 +71,8 @@ import { TomaPedido } from "./TomaPedido.tsx";
 import { VincularPulseras } from "./VincularPulseras.tsx";
 import { DesvincularNino } from "./DesvincularNino.tsx";
 import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
-import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { useHora, useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { conSuHora, duracion, transcurrido } from "./tiempo.ts";
 import { usePedidos } from "./PedidosProvider.tsx";
 import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
@@ -136,6 +138,7 @@ const rotuloDePedido = (p: PedidoDto) =>
 
 /** Lo elegido en el salón: una mesa del plano o las cuentas de pie. */
 const PIE = "PIE";
+
 
 /** Un lugar del salón visto en el detalle: una mesa o «De pie». */
 type Lugar = Readonly<{ tipo: "MESA"; vista: MesaVista } | { tipo: "PIE"; vista: PieVista }>;
@@ -211,7 +214,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   /** El id del pedido que se está enviando en cada cuenta: reintentarlo no pide dos veces. */
   const [envios, setEnvios] = useState<Readonly<Record<string, string>>>({});
   const [enviando, setEnviando] = useState(false);
-  const detalle = useRef<HTMLElement>(null);
+  const reloj = useReloj();
+  /** Cuánto lleva desde un instante, legible (B6-17): «42 min», «1 h 15 min», «desde ayer 7:29 pm». */
+  const tiempo = (iso: string) => transcurrido(iso, ahora, reloj);
+  // B6-17: en la tablet en vertical, la mesa sube en un cajón sobre el plano (antes, apilada debajo).
+  const vertical = useMediaQuery(EN_VERTICAL);
+  /** La hoja de las comandas que no salieron (B6-17), con «Reimprimir» en cada una. */
+  const [viendoSinSalir, setViendoSinSalir] = useState(false);
 
   // Una mesa retirada ya no está en el salón: no se pinta ni se puede abrir.
   const mesas = useMemo(
@@ -266,10 +275,6 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     }
     setSeleccion(id);
     setCuentaSel(cuentaId);
-    // En pantallas estrechas el detalle queda debajo del plano.
-    if (window.matchMedia("(max-width: 1023px)").matches) {
-      window.requestAnimationFrame(() => detalle.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    }
   };
 
   /* ── acciones: cada una va al servidor y adopta lo que devuelve ── */
@@ -517,14 +522,18 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   /* ── vista de pedido: carta + ticket ── */
   if (vista === "pedido" && cuenta) {
     return (
-      <div className="flex flex-1 flex-col apaisado:min-h-0">
+      <div className={cn("flex flex-1 flex-col apaisado:min-h-0", vertical && "min-h-0")}>
         <Cabecera titulo={`Pedido · ${nombreDeCuenta(cuenta)}`} subtitulo="Borrador: la cocina lo verá cuando lo envíes" />
         <Container
           as="main"
           ancho="operacion"
-          className="grid flex-1 content-start gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[3fr_2fr] apaisado:grid-rows-[minmax(0,1fr)] apaisado:content-stretch"
+          className={cn(
+            "grid flex-1 content-start gap-5 py-4 apaisado:min-h-0 apaisado:grid-cols-[3fr_2fr] apaisado:grid-rows-[minmax(0,1fr)] apaisado:content-stretch",
+            vertical && "min-h-0 grid-rows-[minmax(0,1fr)]",
+          )}
         >
           <TomaPedido
+            vertical={vertical}
             rotulo={nombreDeCuenta(cuenta)}
             carta={carta}
             lineas={borradores[cuenta.id] ?? []}
@@ -541,6 +550,315 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
 
   /* ── vista de plano: mesas + detalle ── */
   const enEspera = (borradores[cuenta?.id ?? ""] ?? []).length > 0;
+  // B6-17: lo que se hace con la mesa elegida (al pie del detalle, o del cajón en vertical).
+  const accionesDelLugar = lugar ? (
+    <>
+      {formulario ? (
+        <>
+          <Button variant="primary" disabled={abriendo} onClick={() => void sentar(lugar)} className="w-full">
+            {lugar.tipo === "PIE" ? <PersonStanding size={17} aria-hidden="true" /> : <Users size={17} aria-hidden="true" />}
+            {abriendo
+              ? "Abriendo la cuenta…"
+              : lugar.tipo === "PIE"
+                ? "Abrir la cuenta de pie"
+                : cuentasDelLugar.length > 0
+                  ? `Sentar a otra familia en la mesa ${lugar.vista.mesa.label}`
+                  : `Sentar en la mesa ${lugar.vista.mesa.label}`}
+          </Button>
+          {cuentasDelLugar.length > 0 && (
+            <Button variant="ghost" onClick={() => setSentando(false)} className="w-full">
+              <X size={16} aria-hidden="true" />
+              Cancelar
+            </Button>
+          )}
+          {lugar.tipo === "MESA" && lugar.vista.estado === "POR_LIMPIAR" && (
+            <Button
+              variant="neutral"
+              onClick={() =>
+                void marcarLimpia(lugar.vista.mesa.id).then((r) => (r.ok ? avisar.ok(`Mesa ${lugar.vista.mesa.label} limpia y libre`) : avisar.error(r.mensaje)))
+              }
+              className="w-full"
+            >
+              <Sparkles size={16} aria-hidden="true" />
+              Mesa limpia: dejarla libre
+            </Button>
+          )}
+        </>
+      ) : (
+        cuenta && (
+          <>
+            <Button variant="primary" onClick={() => setVista("pedido")} className="w-full">
+              <NotebookPen size={17} aria-hidden="true" />
+              {enEspera ? "Seguir con el pedido" : "Tomar pedido"}
+            </Button>
+            {chargeableLines(cuenta).length === 0 ? (
+              // Nada que cobrar (B6-5): no se manda a la caja, se libera.
+              <Button variant="neutral" onClick={() => setLiberando(cuenta)} className="w-full">
+                <DoorOpen size={16} aria-hidden="true" />
+                {lugar.tipo === "PIE" || cuentasDelLugar.length > 1 ? "Liberar esta cuenta" : "Liberar mesa"}
+              </Button>
+            ) : cuenta.status === "ABIERTA" ? (
+              <Button variant="neutral" onClick={() => pedirLaCuentaConServido(cuenta)} className="w-full">
+                <Receipt size={16} aria-hidden="true" />
+                Pide la cuenta
+              </Button>
+            ) : (
+              <p className="text-center text-[12.5px] text-ink-3">Pagan en caja. El mesero no cobra (DEC-14).</p>
+            )}
+            {/* B6-13: cerrar la mesa sin cobrar, de supervisión y administración: se fue sin pagar (deuda, B3-11) o
+                no consumió / fue un error (se anula todo). */}
+            {cierraSinCobrar && chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid) && (
+              <Button variant="ghost" onClick={() => setCerrandoSinCobrar(cuenta)} className="w-full" aria-haspopup="dialog">
+                <UserX size={16} aria-hidden="true" />
+                Cerrar la mesa sin cobrar…
+              </Button>
+            )}
+          </>
+        )
+      )}
+    </>
+  ) : null;
+  const detalleDelLugar = (
+    <aside
+      data-recorrido="mesas-detalle"
+      aria-label="Detalle"
+      className={cn("flex min-w-0 flex-col", vertical ? "-mx-5 -my-4" : "rounded-[var(--radius-card)] border border-line bg-surface apaisado:min-h-0")}
+    >
+      {!lugar ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+          <HandPlatter size={34} aria-hidden="true" className="text-ink-3" />
+          <p className="font-display text-lg font-semibold text-ink">Elige una mesa</p>
+          <p className="max-w-[18rem] text-[13px] text-ink-2">
+            Una libre para sentar a una familia; una ocupada para tomar su pedido. Quien pide sin mesa, en «De pie».
+          </p>
+        </div>
+      ) : (
+        <>
+          {!vertical && <CabeceraDetalle lugar={lugar} ahora={ahora} />}
+          {cuentasDelLugar.length > 0 && (
+            <CuentasDelLugar
+              lugar={lugar}
+              elegida={formulario ? null : (cuenta?.id ?? null)}
+              onElegir={(id) => {
+                setSentando(false);
+                setCuentaSel(id);
+              }}
+              nueva={sentando}
+              onNueva={() => {
+                reiniciarFormulario(seleccion);
+                setSentando(true);
+              }}
+            />
+          )}
+
+          {formulario ? (
+            <FormularioSentar
+              lugar={lugar}
+              cliente={cliente}
+              // Después del primer intento, lo que falta se recalcula al escribir: un error corregido se va solo.
+              onCliente={(c) => {
+                setCliente(c);
+                if (erroresCliente) setErroresCliente(problemasDelCliente(c));
+              }}
+              errores={erroresCliente}
+              comensales={comensales}
+              onComensales={setComensales}
+              onEnviar={() => void sentar(lugar)}
+              elegido={elegido}
+              onElegido={setElegido}
+              llevarTiempo={llevarTiempo}
+              onLlevarTiempo={setLlevarTiempo}
+            />
+          ) : (
+            cuenta && (
+              <div className="flex flex-1 flex-col gap-4 px-4 py-3 apaisado:min-h-0 apaisado:overflow-y-auto">
+                <ResumenDeCuenta cuenta={cuenta} ahora={ahora} />
+                {lugar.tipo === "MESA" && <NinosDeLaCuenta cuenta={cuenta} onVincular={() => setVinculando(true)} />}
+                <PedidosDeLaCuenta
+                  pedidos={pedidos.filter((p) => p.cuentaId === cuenta.id)}
+                  cuenta={cuenta}
+                  ahora={ahora}
+                  borrador={(borradores[cuenta.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
+                  onReimprimir={(p, c) => void volverAImprimir(p, c)}
+                  onAnular={(p) => setAnulando(p)}
+                  esperaMin={atencionEsperaMin}
+                  onServir={(p, lineas) =>
+                    void servir(p.id, lineas).then((r) => {
+                      if (!r.ok) avisar.error(r.mensaje);
+                    })
+                  }
+                  onDeshacer={(p, linea) =>
+                    void deshacer(p.id, linea).then((r) => {
+                      if (!r.ok) avisar.error(r.mensaje);
+                    })
+                  }
+                />
+              </div>
+            )
+          )}
+
+          {!vertical && <footer className="flex flex-col gap-2 border-t border-line px-4 py-3">{accionesDelLugar}</footer>}
+          <MarcarDeudaDialog
+            cuenta={seFue}
+            onCerrar={() => setSeFue(null)}
+            onHecha={(r) => {
+              setSeFue(null);
+              // Incobrable: la mesa queda libre (o con sus otras cuentas).
+              adoptar(r.cuenta);
+            }}
+          />
+
+          {cuenta && lugar.tipo === "MESA" && (
+            <VincularPulseras
+              abierto={vinculando}
+              onCerrar={() => setVinculando(false)}
+              cuenta={cuenta}
+              estado={estado}
+              cuentas={cuentas}
+              onVincular={(ids) => vincular(cuenta, ids)}
+            />
+          )}
+          <Confirmacion
+            abierto={liberando !== null}
+            onCerrar={() => setLiberando(null)}
+            titulo={`Liberar · ${liberando ? nombreDeCuenta(liberando) : ""}`}
+            confirmar="Sí, liberar"
+            ocupado={liberandoEnvio}
+            onConfirmar={() => void (liberando && liberar(liberando))}
+          >
+            <p>
+              {liberando && liberando.lines.length > 0
+                ? "Lo que se pidió está anulado o regalado: no hay nada que cobrar. La cuenta se cierra sin consumo."
+                : "No pidieron nada. La cuenta se cierra sin consumo."}
+            </p>
+            {(borradores[liberando?.id ?? ""] ?? []).length > 0 && (
+              <p className="mt-2 text-state-warn">El pedido sin enviar de esta cuenta se descarta.</p>
+            )}
+          </Confirmacion>
+          {/* B6-13: cerrar la mesa sin cobrar: elegir el camino. */}
+          <Dialog
+            abierto={cerrandoSinCobrar !== null}
+            onCerrar={() => setCerrandoSinCobrar(null)}
+            titulo={`Cerrar sin cobrar · ${cerrandoSinCobrar ? nombreDeCuenta(cerrandoSinCobrar) : ""}`}
+            descripcion="Nada se borra: queda como deuda a su nombre, o se anula con su motivo. Lo autoriza tu PIN."
+            pie={
+              <Button surface="pos" variant="neutral" className="w-full" onClick={() => setCerrandoSinCobrar(null)}>
+                Volver
+              </Button>
+            }
+          >
+            <div className="flex flex-col gap-2">
+              {[
+                {
+                  titulo: "Se fue sin pagar",
+                  detalle: "Lo que debe queda como deuda a nombre de su cliente, y se cobra cuando vuelva.",
+                  icono: <UserX size={18} aria-hidden="true" />,
+                  ir: () => {
+                    setSeFue(cerrandoSinCobrar);
+                    setCerrandoSinCobrar(null);
+                  },
+                },
+                {
+                  titulo: "No consumió o fue un error",
+                  detalle: "Se anula todo lo que pidió (vuelve al estante o va a merma) y a cada área le sale su papel «ANULAR».",
+                  icono: <Ban size={18} aria-hidden="true" />,
+                  ir: () => {
+                    setAnulandoMesa(cerrandoSinCobrar);
+                    setCerrandoSinCobrar(null);
+                  },
+                },
+              ].map((o) => (
+                <button
+                  key={o.titulo}
+                  type="button"
+                  onClick={o.ir}
+                  className="flex min-h-14 cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong"
+                >
+                  <span className="mt-0.5 text-ink-2">{o.icono}</span>
+                  <span>
+                    <span className="block text-cuerpo font-semibold text-ink">{o.titulo}</span>
+                    <span className="block text-detalle text-ink-3">{o.detalle}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Dialog>
+          <AnularPedidoDialog
+            pedido={
+              anulandoMesa
+                ? {
+                    id: anulandoMesa.id,
+                    numero: anulandoMesa.orderNumber ?? 0,
+                    lineas: [...chargeableLines(anulandoMesa).reduce((m, l) => m.set(l.concept, (m.get(l.concept) ?? 0) + 1), new Map<string, number>())].map(([nombre, cantidad]) => ({ nombre, cantidad })),
+                  }
+                : null
+            }
+            titulo={anulandoMesa ? `Anular todo · ${nombreDeCuenta(anulandoMesa)}` : undefined}
+            descripcion="Se anula todo lo que debe esta cuenta, de todos sus pedidos, con su motivo, y la mesa queda libre. A cada área le sale su papel «ANULAR»."
+            onCerrar={() => setAnulandoMesa(null)}
+            onAplicar={async (motivo, detalle, preparado, autorizacion) => {
+              const c = anulandoMesa!;
+              const r = await cerrarSinCobrar(
+                { idempotencyKey: crypto.randomUUID(), accountId: c.id, version: c.version!, motivo, preparado, ...(detalle ? { detalle } : {}) },
+                autorizacion,
+              );
+              if (!r.ok) return r;
+              setAnulandoMesa(null);
+              avisar.ok(`${nombreDeCuenta(c)}: cerrada sin cobrar`, { detalle: `Se anuló lo que debía. ${preparado ? "Sale como merma." : "Vuelve al inventario."}` });
+              return null;
+            }}
+          />
+          {/* B6-13: «¿Ya se sirvió todo?» al pedir la cuenta. */}
+          <Dialog
+            abierto={sinServir !== null}
+            onCerrar={() => setSinServir(null)}
+            titulo="¿Ya se sirvió todo?"
+            descripcion={
+              sinServir
+                ? `Falta marcar servido: ${textoDePlatos(sinServir.platos)}.`
+                : ""
+            }
+            pie={
+              <div className="flex flex-col gap-2">
+                <Button surface="pos" variant="primary" disabled={sirviendoTodo} onClick={() => void servirTodoYPedir()}>
+                  <HandPlatter size={17} aria-hidden="true" />
+                  {sirviendoTodo ? "Marcando…" : "Sí, todo servido"}
+                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button surface="pos" variant="neutral" disabled={sirviendoTodo} onClick={() => setSinServir(null)}>
+                    Volver
+                  </Button>
+                  <Button
+                    surface="pos"
+                    variant="ghost"
+                    disabled={sirviendoTodo}
+                    onClick={() => {
+                      const c = sinServir!.cuenta;
+                      setSinServir(null);
+                      pedirLaCuenta(c);
+                    }}
+                  >
+                    Pedir la cuenta igual
+                  </Button>
+                </div>
+              </div>
+            }
+          >
+            <p className="text-detalle text-ink-2">Se marcan servidos sin hora exacta: la atención en el salón no los cuenta como espera.</p>
+          </Dialog>
+          <AnularPedidoDialog
+            pedido={anulando}
+            onCerrar={() => setAnulando(null)}
+            onAplicar={async (motivo, detalleMotivo, preparado, autorizacion) => {
+              const rechazoAnular = await aplicarAnulacion(anulando!, motivo, detalleMotivo, preparado, autorizacion);
+              if (!rechazoAnular) setAnulando(null);
+              return rechazoAnular;
+            }}
+          />
+        </>
+      )}
+    </aside>
+  );
   return (
     <div className="flex flex-1 flex-col apaisado:min-h-0">
       {/* B6-14: los avisos suaves al salón (sin pedir, esperando, por limpiar). */}
@@ -575,12 +893,21 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
             </Button>
             <StatTile label="Ocupadas" value={ocupadas} suffix={`de ${mesas.length}`} />
             <StatTile label="De pie" value={pie.cuentas.length} icon={<PersonStanding size={11} aria-hidden="true" />} />
-            <StatTile
-              label="No salieron"
-              value={sinSalir.length}
-              tone={sinSalir.length > 0 ? "crit" : "idle"}
-              icon={<TriangleAlert size={11} aria-hidden="true" />}
-            />
+            {/* B6-17: las comandas que no salieron, en una píldora con su número y su hoja (antes, una franja que tapaba el plano). */}
+            {sinSalir.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setViendoSinSalir(true)}
+                aria-haspopup="dialog"
+                className="inline-flex min-h-12 cursor-pointer items-center gap-2 self-center rounded-full border border-state-crit/50 bg-state-crit-bg px-4 text-cuerpo font-semibold text-state-crit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                <Printer className="size-(--icono-texto) shrink-0" aria-hidden="true" />
+                <span className="tnum">{sinSalir.length}</span>
+                {sinSalir.length === 1 ? "no salió" : "no salieron"}
+              </button>
+            ) : (
+              <StatTile label="No salieron" value={0} tone="idle" icon={<TriangleAlert size={11} aria-hidden="true" />} />
+            )}
             <StatTile
               label="Piden cuenta"
               value={pidenCuenta}
@@ -603,18 +930,39 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         }}
       />
 
-      {sinSalir.length > 0 && (
-        <p
-          role="alert"
-          className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-state-crit/40 bg-state-crit-bg px-4 py-2 text-[13px] text-state-crit"
-        >
-          <Printer size={15} aria-hidden="true" />
-          <strong className="font-semibold">
-            {sinSalir.length === 1 ? "Una comanda no salió en papel" : `${sinSalir.length} comandas no salieron en papel`}:
-          </strong>
-          {sinSalir.map((p) => `${comanda(p.numero)} · ${rotuloDePedido(p)}`).join(", ")}. Vuelve a imprimirla desde su cuenta o avisa en cocina.
-        </p>
-      )}
+
+      <Sheet
+        abierto={viendoSinSalir && sinSalir.length > 0}
+        onCerrar={() => setViendoSinSalir(false)}
+        titulo={sinSalir.length === 1 ? "Una comanda no salió" : `${sinSalir.length} comandas no salieron`}
+        descripcion="La cocina no sabe de ellas: reimprímelas, o avisa en cocina si la impresora sigue sin papel."
+      >
+        <ul className="flex flex-col gap-2" aria-label="Comandas que no salieron">
+          {sinSalir.map((p) => (
+            <li key={p.id} className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <Printer className="size-(--icono-texto) shrink-0 text-state-crit" aria-hidden="true" />
+                <Marquesina className="flex-1 text-cuerpo font-semibold text-ink">
+                  {comanda(p.numero)} · {rotuloDePedido(p)}
+                </Marquesina>
+                <span className="tnum shrink-0 text-nota text-ink-3" title={p.comanda.error ?? undefined}>
+                  {ahora > 0 ? tiempo(p.enviadoEn) : ""}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {p.comandas
+                  .filter((k) => k.estado === "NO_SALIO")
+                  .map((k) => (
+                    <Button key={k.area ?? "todo"} variant="primary" surface="tablet" onClick={() => void volverAImprimir(p, k)}>
+                      <RotateCcw size={16} aria-hidden="true" />
+                      {k.area ? `Reimprimir ${AREA[k.area].nombre.toLowerCase()}` : "Reimprimir"}
+                    </Button>
+                  ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
 
       <Container
         as="main"
@@ -628,317 +976,44 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
               <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion === PIE ? null : seleccion} onElegir={(id) => elegir(id)} className="apaisado:min-h-0" />
             </>
           ) : (
-            <Atender filas={loQuePideAtencion(mesas, pie, ahora, { pedidos: pedidos.map((p) => paraAtender(p, cuentas)), umbrales: { sinPedirMin: atencionSinPedirMin, esperaMin: atencionEsperaMin } })} elegida={seleccion} onElegir={(f) => elegir(f.lugar, f.cuentaId)} onDePie={() => elegir(PIE)} pie={pie} />
+            <Atender filas={loQuePideAtencion(mesas, pie, ahora, { pedidos: pedidos.map((p) => paraAtender(p, cuentas)), umbrales: { sinPedirMin: atencionSinPedirMin, esperaMin: atencionEsperaMin } }, tiempo)} elegida={seleccion} onElegir={(f) => elegir(f.lugar, f.cuentaId)} onDePie={() => elegir(PIE)} pie={pie} />
           )}
         </section>
 
-        <aside
-          ref={detalle}
-          data-recorrido="mesas-detalle"
-          aria-label="Detalle"
-          className="flex min-w-0 scroll-mt-20 flex-col rounded-[var(--radius-card)] border border-line bg-surface apaisado:min-h-0"
-        >
-          {!lugar ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-              <HandPlatter size={34} aria-hidden="true" className="text-ink-3" />
-              <p className="font-display text-lg font-semibold text-ink">Elige una mesa</p>
-              <p className="max-w-[18rem] text-[13px] text-ink-2">
-                Una libre para sentar a una familia; una ocupada para tomar su pedido. Quien pide sin mesa, en «De pie».
-              </p>
-            </div>
-          ) : (
-            <>
-              <CabeceraDetalle lugar={lugar} ahora={ahora} />
-              {cuentasDelLugar.length > 0 && (
-                <CuentasDelLugar
-                  lugar={lugar}
-                  elegida={formulario ? null : (cuenta?.id ?? null)}
-                  onElegir={(id) => {
-                    setSentando(false);
-                    setCuentaSel(id);
-                  }}
-                  nueva={sentando}
-                  onNueva={() => {
-                    reiniciarFormulario(seleccion);
-                    setSentando(true);
-                  }}
-                />
-              )}
-
-              {formulario ? (
-                <FormularioSentar
-                  lugar={lugar}
-                  cliente={cliente}
-                  // Después del primer intento, lo que falta se recalcula al escribir: un error corregido se va solo.
-                  onCliente={(c) => {
-                    setCliente(c);
-                    if (erroresCliente) setErroresCliente(problemasDelCliente(c));
-                  }}
-                  errores={erroresCliente}
-                  comensales={comensales}
-                  onComensales={setComensales}
-                  onEnviar={() => void sentar(lugar)}
-                  elegido={elegido}
-                  onElegido={setElegido}
-                  llevarTiempo={llevarTiempo}
-                  onLlevarTiempo={setLlevarTiempo}
-                />
-              ) : (
-                cuenta && (
-                  <div className="flex flex-1 flex-col gap-4 px-4 py-3 apaisado:min-h-0 apaisado:overflow-y-auto">
-                    <ResumenDeCuenta cuenta={cuenta} ahora={ahora} />
-                    {lugar.tipo === "MESA" && <NinosDeLaCuenta cuenta={cuenta} onVincular={() => setVinculando(true)} />}
-                    <PedidosDeLaCuenta
-                      pedidos={pedidos.filter((p) => p.cuentaId === cuenta.id)}
-                      cuenta={cuenta}
-                      ahora={ahora}
-                      borrador={(borradores[cuenta.id] ?? []).reduce((n, l) => n + l.cantidad, 0)}
-                      onReimprimir={(p, c) => void volverAImprimir(p, c)}
-                      onAnular={(p) => setAnulando(p)}
-                      esperaMin={atencionEsperaMin}
-                      onServir={(p, lineas) =>
-                        void servir(p.id, lineas).then((r) => {
-                          if (!r.ok) avisar.error(r.mensaje);
-                        })
-                      }
-                      onDeshacer={(p, linea) =>
-                        void deshacer(p.id, linea).then((r) => {
-                          if (!r.ok) avisar.error(r.mensaje);
-                        })
-                      }
-                    />
-                  </div>
-                )
-              )}
-
-              <footer className="flex flex-col gap-2 border-t border-line px-4 py-3">
-                {formulario ? (
-                  <>
-                    <Button variant="primary" disabled={abriendo} onClick={() => void sentar(lugar)} className="w-full">
-                      {lugar.tipo === "PIE" ? <PersonStanding size={17} aria-hidden="true" /> : <Users size={17} aria-hidden="true" />}
-                      {abriendo
-                        ? "Abriendo la cuenta…"
-                        : lugar.tipo === "PIE"
-                          ? "Abrir la cuenta de pie"
-                          : cuentasDelLugar.length > 0
-                            ? `Sentar a otra familia en la mesa ${lugar.vista.mesa.label}`
-                            : `Sentar en la mesa ${lugar.vista.mesa.label}`}
-                    </Button>
-                    {cuentasDelLugar.length > 0 && (
-                      <Button variant="ghost" onClick={() => setSentando(false)} className="w-full">
-                        <X size={16} aria-hidden="true" />
-                        Cancelar
-                      </Button>
-                    )}
-                    {lugar.tipo === "MESA" && lugar.vista.estado === "POR_LIMPIAR" && (
-                      <Button
-                        variant="neutral"
-                        onClick={() =>
-                          void marcarLimpia(lugar.vista.mesa.id).then((r) => (r.ok ? avisar.ok(`Mesa ${lugar.vista.mesa.label} limpia y libre`) : avisar.error(r.mensaje)))
-                        }
-                        className="w-full"
-                      >
-                        <Sparkles size={16} aria-hidden="true" />
-                        Mesa limpia: dejarla libre
-                      </Button>
-                    )}
-                  </>
-                ) : (
-                  cuenta && (
-                    <>
-                      <Button variant="primary" onClick={() => setVista("pedido")} className="w-full">
-                        <NotebookPen size={17} aria-hidden="true" />
-                        {enEspera ? "Seguir con el pedido" : "Tomar pedido"}
-                      </Button>
-                      {chargeableLines(cuenta).length === 0 ? (
-                        // Nada que cobrar (B6-5): no se manda a la caja, se libera.
-                        <Button variant="neutral" onClick={() => setLiberando(cuenta)} className="w-full">
-                          <DoorOpen size={16} aria-hidden="true" />
-                          {lugar.tipo === "PIE" || cuentasDelLugar.length > 1 ? "Liberar esta cuenta" : "Liberar mesa"}
-                        </Button>
-                      ) : cuenta.status === "ABIERTA" ? (
-                        <Button variant="neutral" onClick={() => pedirLaCuentaConServido(cuenta)} className="w-full">
-                          <Receipt size={16} aria-hidden="true" />
-                          Pide la cuenta
-                        </Button>
-                      ) : (
-                        <p className="text-center text-[12.5px] text-ink-3">Pagan en caja. El mesero no cobra (DEC-14).</p>
-                      )}
-                      {/* B6-13: cerrar la mesa sin cobrar, de supervisión y administración: se fue sin pagar (deuda, B3-11) o
-                          no consumió / fue un error (se anula todo). */}
-                      {cierraSinCobrar && chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid) && (
-                        <Button variant="ghost" onClick={() => setCerrandoSinCobrar(cuenta)} className="w-full" aria-haspopup="dialog">
-                          <UserX size={16} aria-hidden="true" />
-                          Cerrar la mesa sin cobrar…
-                        </Button>
-                      )}
-                    </>
-                  )
-                )}
-              </footer>
-              <MarcarDeudaDialog
-                cuenta={seFue}
-                onCerrar={() => setSeFue(null)}
-                onHecha={(r) => {
-                  setSeFue(null);
-                  // Incobrable: la mesa queda libre (o con sus otras cuentas).
-                  adoptar(r.cuenta);
-                }}
-              />
-
-              {cuenta && lugar.tipo === "MESA" && (
-                <VincularPulseras
-                  abierto={vinculando}
-                  onCerrar={() => setVinculando(false)}
-                  cuenta={cuenta}
-                  estado={estado}
-                  cuentas={cuentas}
-                  onVincular={(ids) => vincular(cuenta, ids)}
-                />
-              )}
-              <Confirmacion
-                abierto={liberando !== null}
-                onCerrar={() => setLiberando(null)}
-                titulo={`Liberar · ${liberando ? nombreDeCuenta(liberando) : ""}`}
-                confirmar="Sí, liberar"
-                ocupado={liberandoEnvio}
-                onConfirmar={() => void (liberando && liberar(liberando))}
-              >
-                <p>
-                  {liberando && liberando.lines.length > 0
-                    ? "Lo que se pidió está anulado o regalado: no hay nada que cobrar. La cuenta se cierra sin consumo."
-                    : "No pidieron nada. La cuenta se cierra sin consumo."}
-                </p>
-                {(borradores[liberando?.id ?? ""] ?? []).length > 0 && (
-                  <p className="mt-2 text-state-warn">El pedido sin enviar de esta cuenta se descarta.</p>
-                )}
-              </Confirmacion>
-              {/* B6-13: cerrar la mesa sin cobrar: elegir el camino. */}
-              <Dialog
-                abierto={cerrandoSinCobrar !== null}
-                onCerrar={() => setCerrandoSinCobrar(null)}
-                titulo={`Cerrar sin cobrar · ${cerrandoSinCobrar ? nombreDeCuenta(cerrandoSinCobrar) : ""}`}
-                descripcion="Nada se borra: queda como deuda a su nombre, o se anula con su motivo. Lo autoriza tu PIN."
-                pie={
-                  <Button surface="pos" variant="neutral" className="w-full" onClick={() => setCerrandoSinCobrar(null)}>
-                    Volver
-                  </Button>
-                }
-              >
-                <div className="flex flex-col gap-2">
-                  {[
-                    {
-                      titulo: "Se fue sin pagar",
-                      detalle: "Lo que debe queda como deuda a nombre de su cliente, y se cobra cuando vuelva.",
-                      icono: <UserX size={18} aria-hidden="true" />,
-                      ir: () => {
-                        setSeFue(cerrandoSinCobrar);
-                        setCerrandoSinCobrar(null);
-                      },
-                    },
-                    {
-                      titulo: "No consumió o fue un error",
-                      detalle: "Se anula todo lo que pidió (vuelve al estante o va a merma) y a cada área le sale su papel «ANULAR».",
-                      icono: <Ban size={18} aria-hidden="true" />,
-                      ir: () => {
-                        setAnulandoMesa(cerrandoSinCobrar);
-                        setCerrandoSinCobrar(null);
-                      },
-                    },
-                  ].map((o) => (
-                    <button
-                      key={o.titulo}
-                      type="button"
-                      onClick={o.ir}
-                      className="flex min-h-14 cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong"
-                    >
-                      <span className="mt-0.5 text-ink-2">{o.icono}</span>
-                      <span>
-                        <span className="block text-cuerpo font-semibold text-ink">{o.titulo}</span>
-                        <span className="block text-detalle text-ink-3">{o.detalle}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </Dialog>
-              <AnularPedidoDialog
-                pedido={
-                  anulandoMesa
-                    ? {
-                        id: anulandoMesa.id,
-                        numero: anulandoMesa.orderNumber ?? 0,
-                        lineas: [...chargeableLines(anulandoMesa).reduce((m, l) => m.set(l.concept, (m.get(l.concept) ?? 0) + 1), new Map<string, number>())].map(([nombre, cantidad]) => ({ nombre, cantidad })),
-                      }
-                    : null
-                }
-                titulo={anulandoMesa ? `Anular todo · ${nombreDeCuenta(anulandoMesa)}` : undefined}
-                descripcion="Se anula todo lo que debe esta cuenta, de todos sus pedidos, con su motivo, y la mesa queda libre. A cada área le sale su papel «ANULAR»."
-                onCerrar={() => setAnulandoMesa(null)}
-                onAplicar={async (motivo, detalle, preparado, autorizacion) => {
-                  const c = anulandoMesa!;
-                  const r = await cerrarSinCobrar(
-                    { idempotencyKey: crypto.randomUUID(), accountId: c.id, version: c.version!, motivo, preparado, ...(detalle ? { detalle } : {}) },
-                    autorizacion,
-                  );
-                  if (!r.ok) return r;
-                  setAnulandoMesa(null);
-                  avisar.ok(`${nombreDeCuenta(c)}: cerrada sin cobrar`, { detalle: `Se anuló lo que debía. ${preparado ? "Sale como merma." : "Vuelve al inventario."}` });
-                  return null;
-                }}
-              />
-              {/* B6-13: «¿Ya se sirvió todo?» al pedir la cuenta. */}
-              <Dialog
-                abierto={sinServir !== null}
-                onCerrar={() => setSinServir(null)}
-                titulo="¿Ya se sirvió todo?"
-                descripcion={
-                  sinServir
-                    ? `Falta marcar servido: ${textoDePlatos(sinServir.platos)}.`
-                    : ""
-                }
-                pie={
-                  <div className="flex flex-col gap-2">
-                    <Button surface="pos" variant="primary" disabled={sirviendoTodo} onClick={() => void servirTodoYPedir()}>
-                      <HandPlatter size={17} aria-hidden="true" />
-                      {sirviendoTodo ? "Marcando…" : "Sí, todo servido"}
-                    </Button>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button surface="pos" variant="neutral" disabled={sirviendoTodo} onClick={() => setSinServir(null)}>
-                        Volver
-                      </Button>
-                      <Button
-                        surface="pos"
-                        variant="ghost"
-                        disabled={sirviendoTodo}
-                        onClick={() => {
-                          const c = sinServir!.cuenta;
-                          setSinServir(null);
-                          pedirLaCuenta(c);
-                        }}
-                      >
-                        Pedir la cuenta igual
-                      </Button>
-                    </div>
-                  </div>
-                }
-              >
-                <p className="text-detalle text-ink-2">Se marcan servidos sin hora exacta: la atención en el salón no los cuenta como espera.</p>
-              </Dialog>
-              <AnularPedidoDialog
-                pedido={anulando}
-                onCerrar={() => setAnulando(null)}
-                onAplicar={async (motivo, detalleMotivo, preparado, autorizacion) => {
-                  const rechazoAnular = await aplicarAnulacion(anulando!, motivo, detalleMotivo, preparado, autorizacion);
-                  if (!rechazoAnular) setAnulando(null);
-                  return rechazoAnular;
-                }}
-              />
-            </>
-          )}
-        </aside>
+        {!vertical && detalleDelLugar}
       </Container>
+
+      {/* B6-17: en vertical, la mesa sube en un cajón; tocar fuera lo baja y deja el plano a la vista. */}
+      {vertical && (
+        <Cajon
+          abierto={lugar !== null}
+          onCerrar={() => {
+            setSeleccion(null);
+            setSentando(false);
+          }}
+          titulo={lugar ? tituloDelLugar(lugar) : "Mesa"}
+          {...(lugar ? { descripcion: lineaDelLugar(lugar, ahora, reloj.hora) } : {})}
+          {...(accionesDelLugar ? { pie: <div className="flex flex-col gap-2">{accionesDelLugar}</div> } : {})}
+        >
+          {detalleDelLugar}
+        </Cajon>
+      )}
     </div>
   );
+}
+
+/** «Mesa 3» o «De pie». */
+function tituloDelLugar(lugar: Lugar): string {
+  return lugar.tipo === "PIE" ? "De pie" : `Mesa ${lugar.vista.mesa.label}`;
+}
+
+/** La cabecera del detalle en un renglón (en el cajón va como su descripción): su estado, su zona, quiénes y desde cuándo. */
+function lineaDelLugar(lugar: Lugar, ahora: number, hora: (t: number) => string): string {
+  const v = lugar.vista;
+  const base = lugar.tipo === "PIE" ? "Quien pide sin mesa" : `${ESTADO_MESA[v.estado].texto} · ${lugar.vista.mesa.zone} · ${lugar.vista.mesa.seats} sillas`;
+  if (v.cuentas.length === 0 || ahora <= 0) return base;
+  const personas = `${v.comensales} ${v.comensales === 1 ? "persona" : "personas"}`;
+  return `${base} · ${personas}${lugar.tipo === "MESA" && v.desde ? ` · desde las ${hora(Date.parse(v.cuentas[0]!.openedAt))}` : ""}`;
 }
 
 /* ───────────────────────────────────────────────────── piezas ── */
@@ -1047,11 +1122,8 @@ function Atender({
                   "flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left",
                   "transition-colors duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                  f.tono === "crit"
-                    ? "border-state-crit/40 bg-state-crit-bg/40"
-                    : f.tono === "warn"
-                      ? "border-state-warn/40 bg-state-warn-bg/40"
-                      : "border-line bg-surface",
+                  // B6-17: el amarillo marca lo que pide acción (su icono, su texto y un borde), sin pintar la fila entera.
+                  f.tono === "crit" ? "border-state-crit/40 bg-state-crit-bg/25" : f.tono === "warn" ? "border-line border-l-4 border-l-state-warn bg-surface" : "border-line bg-surface",
                   f.lugar === elegida && "ring-2 ring-brand",
                 )}
               >
@@ -1069,13 +1141,7 @@ function Atender({
                   </span>
                   <span className="block text-[12px] leading-tight text-ink-3">{f.detalle}</span>
                 </span>
-                {f.tono === "crit" ? (
-                  <Printer size={18} className="shrink-0 text-state-crit" aria-hidden="true" />
-                ) : f.tono === "warn" ? (
-                  <Receipt size={18} className="shrink-0 text-state-warn" aria-hidden="true" />
-                ) : (
-                  <Sparkles size={18} className="shrink-0 text-ink-3" aria-hidden="true" />
-                )}
+                <IconoDeUrgencia f={f} />
               </button>
             </li>
           ))}
@@ -1083,6 +1149,14 @@ function Atender({
       )}
     </div>
   );
+}
+
+/** Qué pide cada fila de «Atender», con su icono (B6-17): la comanda, la cuenta, la espera, el pedido, la limpieza. */
+const ICONO_DE_URGENCIA = { COMANDA: Printer, CUENTA: Receipt, ESPERA: Hourglass, SIN_PEDIR: NotebookPen, LIMPIAR: Sparkles, LARGA: Clock } as const;
+
+function IconoDeUrgencia({ f }: { f: Urgencia }) {
+  const Icono = ICONO_DE_URGENCIA[f.tipo];
+  return <Icono size={18} className={cn("shrink-0", f.tono === "crit" ? "text-state-crit" : f.tono === "warn" ? "text-state-warn" : "text-ink-3")} aria-hidden="true" />;
 }
 
 function CabeceraDetalle({ lugar, ahora }: { lugar: Lugar; ahora: number }) {
@@ -1271,12 +1345,12 @@ function FormularioSentar({
 
 /** El número de orden de la cuenta, desde cuándo y lo que debe: lo que el mesero dice si le preguntan. */
 function ResumenDeCuenta({ cuenta, ahora }: { cuenta: FamilyAccountDto; ahora: number }) {
-  const hora = useHora();
+  const reloj = useReloj();
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
       <p className="tnum text-[12.5px] text-ink-3">
         {nombreDeCuenta(cuenta)} · {numeroDeOrden(cuenta)}
-        {ahora > 0 ? ` · ${hora(Date.parse(cuenta.openedAt))} · hace ${minutosDesde(cuenta.openedAt, ahora)} min` : ""}
+        {ahora > 0 ? ` · ${conSuHora(cuenta.openedAt, ahora, reloj)}` : ""}
       </p>
       <span className="flex items-center gap-1.5 text-[12.5px] text-ink-3">
         Debe
@@ -1365,6 +1439,7 @@ function PedidosDeLaCuenta({
   esperaMin: number;
 }) {
   const hora = useHora();
+  const reloj = useReloj();
   return (
     <section aria-label="Pedidos de la cuenta">
       <h3 className="mb-2 text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">Pedidos</h3>
@@ -1397,7 +1472,7 @@ function PedidosDeLaCuenta({
                     {anulado ? "Pedido anulado" : unaSola?.area ? `${e.texto} · ${AREA[unaSola.area].nombre}` : e.texto}
                   </Badge>
                   <span className="tnum text-[12px] text-ink-3">
-                    {comanda(p.numero)} · {ahora > 0 ? `${hora(Date.parse(p.enviadoEn))} · hace ${minutosDesde(p.enviadoEn, ahora)} min` : ""}
+                    {comanda(p.numero)} · {ahora > 0 ? conSuHora(p.enviadoEn, ahora, reloj) : ""}
                   </span>
                 </div>
                 {/* B6-11: cada plato con su «Servido»; servido, su hora y, en el momento, «Deshacer». */}
@@ -1441,7 +1516,7 @@ function PedidosDeLaCuenta({
                   (p.servido ? (
                     <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-state-ok">
                       <CircleCheckBig size={14} aria-hidden="true" />
-                      Servido{ahora > 0 ? ` a las ${hora(Date.parse(p.servido.en))} · esperó ${Math.max(0, Math.floor((Date.parse(p.servido.en) - Date.parse(p.enviadoEn)) / 60_000))} min` : ""}
+                      Servido{ahora > 0 ? ` a las ${hora(Date.parse(p.servido.en))} · esperó ${duracion((Date.parse(p.servido.en) - Date.parse(p.enviadoEn)) / 60_000)}` : ""}
                     </p>
                   ) : (
                     <div className="mt-2 flex items-center gap-2">
@@ -1452,7 +1527,7 @@ function PedidosDeLaCuenta({
                         )}
                       >
                         <Hourglass size={14} aria-hidden="true" />
-                        Esperando · {minutosDesde(p.enviadoEn, ahora)} min
+                        Esperando · {transcurrido(p.enviadoEn, ahora, reloj)}
                       </span>
                       {p.lineas.filter((l) => l.servido === null && !platoAnulado(l.productId, propias)).length > 1 && (
                         <Button variant="primary" onClick={() => onServir(p)} className="ml-auto">

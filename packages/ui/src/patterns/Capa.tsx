@@ -16,6 +16,8 @@ import { Button } from "../primitives/Button";
  *    pulgar.
  *  · **`Dialog`** — decisión corta que hay que terminar antes de seguir:
  *    confirmar un corte Z, el resultado de un cobro.
+ *  · **`Cajon`** — una hoja que sube desde abajo en cualquier pantalla: lo que acompaña a lo que se ve arriba en una
+ *    tablet en vertical (la mesa sobre el plano, el pedido sobre la carta), donde una hoja lateral taparía todo.
  *
  * Y una que NO es: ninguna de las dos sirve para la navegación principal. Un
  * flujo que vive dentro de modales rompe el camino del usuario y el botón de
@@ -50,6 +52,10 @@ export function Dialog(props: Props) {
   return <Capa variante="dialogo" {...props} />;
 }
 
+export function Cajon(props: Props) {
+  return <Capa variante="cajon" {...props} />;
+}
+
 function Capa({
   variante,
   abierto,
@@ -59,7 +65,7 @@ function Capa({
   children,
   pie,
   className,
-}: Props & { variante: "hoja" | "dialogo" }) {
+}: Props & { variante: "hoja" | "dialogo" | "cajon" }) {
   const ref = useRef<HTMLDialogElement>(null);
   const tituloId = useId();
   const descripcionId = useId();
@@ -95,7 +101,9 @@ function Capa({
         "l2-capa m-0 max-h-none max-w-none border-0 bg-transparent p-0 text-ink",
         variante === "hoja"
           ? "fixed inset-x-0 top-auto bottom-0 w-full md:inset-x-auto md:inset-y-0 md:right-0 md:left-auto md:h-dvh md:w-[min(30rem,100vw)]"
-          : "fixed inset-0 m-auto h-fit w-[min(30rem,calc(100vw-2rem))]",
+          : variante === "cajon"
+            ? "fixed inset-x-0 top-auto bottom-0 w-full"
+            : "fixed inset-0 m-auto h-fit w-[min(30rem,calc(100vw-2rem))]",
         className,
       )}
     >
@@ -104,7 +112,9 @@ function Capa({
           "flex flex-col border border-line bg-surface shadow-lift",
           variante === "hoja"
             ? "l2-hoja max-h-[88dvh] rounded-t-[var(--radius-card)] md:h-full md:max-h-none md:rounded-none md:rounded-l-[var(--radius-card)]"
-            : "l2-dialogo max-h-[85dvh] rounded-[var(--radius-card)]",
+            : variante === "cajon"
+              ? "l2-cajon max-h-[85dvh] rounded-t-[var(--radius-card)]"
+              : "l2-dialogo max-h-[85dvh] rounded-[var(--radius-card)]",
         )}
       >
         <header className="flex items-start gap-3 border-b border-line px-5 py-4">
