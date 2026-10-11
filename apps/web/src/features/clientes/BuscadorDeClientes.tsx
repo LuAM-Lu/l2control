@@ -9,7 +9,7 @@ import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeCuenta } from "../cuentas/cuentas.ts";
 import { useSala } from "../park/SalaProvider.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
-import { encontrarClientes } from "./clientes.acciones";
+import { clientesDeAqui, encontrarClientes } from "./clientes.acciones";
 
 /**
  * El buscador de clientes — T-19 (M-34, S-19). Lo abren la caja, el salón y la sala.
@@ -18,6 +18,8 @@ import { encontrarClientes } from "./clientes.acciones";
  * que debe, B3-11); lo abierto lo pone esta pantalla con lo que ya tiene: sus cuentas sin cobrar y sus niños en la
  * sala. Una cuenta abierta a nombre de alguien que no está en el directorio (su teléfono era de otra persona) también
  * sale. Los datos llevan `data-privado` (PLAN §7.6).
+ *
+ * T-23 (M-38): antes de escribir, quien está aquí (las familias de la sala, las cuentas abiertas, el cumpleaños de hoy).
  */
 
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -62,6 +64,18 @@ export function BuscadorDeClientes({
   const hora = useHora();
   const buscado = texto.trim();
   const listo = buscado.length >= 3;
+  // «Aquí ahora» (T-23): se lee al abrir, una vez por apertura.
+  const [aqui, setAqui] = useState<readonly ClienteEncontradoDto[] | null>(null);
+  useEffect(() => {
+    if (!abierto || aqui !== null) return;
+    let vivo = true;
+    clientesDeAqui()
+      .then((r) => vivo && setAqui(r.ok ? r.valor.clientes.map((a) => a.cliente) : []))
+      .catch(() => vivo && setAqui([]));
+    return () => {
+      vivo = false;
+    };
+  }, [abierto, aqui]);
 
   useEffect(() => {
     if (!abierto || !listo) return;
@@ -80,7 +94,7 @@ export function BuscadorDeClientes({
     };
   }, [abierto, listo, buscado]);
 
-  const vigente = respuesta?.texto === buscado ? respuesta : null;
+  const vigente = buscado === "" ? (aqui ? { texto: "", clientes: aqui } : null) : respuesta?.texto === buscado ? respuesta : null;
   const resultados = useMemo((): Resultado[] => {
     if (!vigente || "error" in vigente) return [];
     const abiertas = cuentas.filter((c) => ABIERTAS.includes(c.status));
@@ -106,6 +120,7 @@ export function BuscadorDeClientes({
       onCerrar={() => {
         setTexto("");
         setRespuesta(null);
+        setAqui(null);
         onCerrar();
       }}
       titulo="Buscar cliente"
@@ -125,7 +140,9 @@ export function BuscadorDeClientes({
           data-privado=""
         />
 
-        {!listo ? (
+        {buscado === "" && aqui !== null && resultados.length === 0 ? (
+          <p className="text-detalle text-ink-3">Nadie en la sala ni en una cuenta abierta. Escribe al menos 3 letras o dígitos.</p>
+        ) : buscado !== "" && !listo ? (
           <p className="text-detalle text-ink-3">Escribe al menos 3 letras o dígitos.</p>
         ) : !vigente ? (
           <p role="status" className="text-detalle text-ink-3">
@@ -142,7 +159,9 @@ export function BuscadorDeClientes({
             Nadie con ese nombre, cédula o teléfono. Si es la primera vez que viene, se registra al sentarlo o en la entrada.
           </p>
         ) : (
-          <ul className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto" aria-label="Clientes encontrados">
+          <>
+          {buscado === "" && <p className="text-etiqueta font-semibold tracking-[0.06em] text-ink-3 uppercase">Aquí ahora</p>}
+          <ul className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto" aria-label={buscado === "" ? "Aquí ahora" : "Clientes encontrados"}>
             {resultados.map((r) => (
               <li key={r.clave} className="rounded-[var(--radius-control)] border border-line bg-surface p-3">
                 <p className="text-cuerpo font-semibold text-ink" data-privado="">
@@ -201,6 +220,7 @@ export function BuscadorDeClientes({
               </li>
             ))}
           </ul>
+          </>
         )}
       </div>
     </Dialog>

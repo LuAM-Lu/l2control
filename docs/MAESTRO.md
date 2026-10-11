@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.124.0 en `main` (publicada, la 0.122.0) · 124 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.125.0 en `main` (publicada, la 0.122.0) · 125 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -944,7 +944,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Lista y Compacta) que cada persona elige y se recuerdan. Se lleva a Representantes, Productos, Movimientos, Ventas e
   Historial de impresión, en ese orden. Criterio: el directorio con 2.000 representantes se abre y se busca sin trabarse
   en la tablet; la vista elegida se recuerda; «Cargar más» dice cuántos faltan.
-- [~] **T-23 · El campo del cliente** (M-38, W-12). *A cargo: LuAMi (Claude), en `feat/t-23`.*
+- [x] **T-23 · El campo del cliente** (M-38, W-12).
+  *Hecho el 2026-10-11 (v0.125.0), en `feat/t-23`.*
   → Una pieza en `features/clientes` para los nueve formularios que piden un cliente (la entrada del parque, sentar,
   la venta sin cobrar, «Se fue sin pagar», la factura, los datos del pago, cumpleaños, papel y la lupa): un campo
   «Cédula, teléfono o nombre». Antes de escribir propone a quien está aquí (las familias con niños en la sala, las
@@ -958,6 +959,22 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   por cédula primero. Lo buscado no va a ningún registro; las listas, con `data-privado`. Criterio: sentar a una familia
   que está en la sala lleva un toque y su cuenta nace con el tiempo de sus niños; escribir «mar» propone a una María con
   la cédula enmascarada; una familia que debe, al entrar al parque, lo dice en rojo.
+  *· Hecho: `CampoDelCliente` (`features/clientes`): un combobox «Cédula, teléfono o nombre»; antes de escribir, «aquí
+  ahora» (`clientes.deAqui`: las familias de la sala de hoy con sus estancias sin mesa, el cliente de cada cuenta abierta
+  hoy con su mesa o «De pie», y el cumpleaños de hoy; sin repetir, hasta 24; una estancia olvidada o una cuenta de otro día
+  no está aquí); con 3 letras, hasta 6 del directorio (`encontrar` con `limite`), cada uno con `vinoEl`, `ninos` (los
+  de ficha o los de su última visita) y su deuda; la cédula como el recibo (`enmascararDocumento`). En tablet y teléfono
+  (`pointer: coarse`) el teclado numérico y «Por nombre». Lo usan los nueve: `DatosDelCliente` (sentar, la venta sin
+  cobrar y «Se fue sin pagar»), la entrada (`buscar` por `clienteId` para la deuda, en rojo, sin bloquear; la monitora
+  ya puede), «Factura a», cumpleaños, papel (la cédula antes del teléfono) y la lupa («aquí ahora» antes de escribir); los
+  datos del pago proponen «Paga …» con el teléfono y la cédula del cliente de la cuenta. Al sentar desde la sala, «Llevar
+  el tiempo de sus N niños a esta mesa» (marcado, justo debajo del elegido) vincula con `mesas.vincular` al abrir la
+  cuenta. La factura: migración `20261204000000_empresa_de_la_factura` (solo expande), `invoice_company` de solo agregar
+  con el RIF (J-, G-), la razón social y la dirección; el cobro la anota si cambió (`recordarEmpresa`) y «Factura a» la
+  propone (`empresas.empresa`, `documento.emitir`). Pruebas: `campo-del-cliente.test-db.ts` (10) y las de B6-9 y T-19;
+  en el navegador, en tablet táctil a 1280×800 y 800×1280 en los dos temas (sentar con el tiempo de 2 niños, «mar» con 6
+  María y la deuda en rojo en la entrada) y en la laptop la lupa, «Factura a», cumpleaños y papel. «Paga …» no se vio: la
+  caja de pruebas es de otro día y solo cobra una cuenta sin cliente.*
 
 ### Etapa 0 · Cimientos del servidor (local)
 

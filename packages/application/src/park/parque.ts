@@ -249,6 +249,12 @@ const inicioDelDia = (ahora: number, zona: string) => startOfDay(calendarDay(new
 const huerfana = (f: { startedAt: Date }, ahora: number, regla: ReglaDeHuerfanas) =>
   isOrphan(epochMs(f.startedAt.getTime()), epochMs(ahora), epochMs(inicioDelDia(ahora, regla.zona)), regla.afterMs);
 
+/** ¿Está en la sala de hoy? Una estancia olvidada (de otro día) está a revisar, no aquí: lo usa «aquí ahora» (T-23). */
+export async function enLaSalaDeHoy(tx: Transaccion, branchId: string, ahora: number): Promise<(f: { startedAt: Date }) => boolean> {
+  const regla = await reglaDeHuerfanas(tx, branchId);
+  return (f) => !huerfana(f, ahora, regla);
+}
+
 export function casosParque(base: Base): CasosParque {
   return {
     async sala(ctx, ahora = Date.now()) {

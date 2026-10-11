@@ -750,7 +750,7 @@ const ESTADO_DEL_DIA: Readonly<Partial<Record<FamilyAccountDto["status"], Estado
  * Las reservas que cumplen `where`, en orden de día y de hora, con el estado que dicen sus cuentas (su última
  * versión): la del anticipo y, si el día empezó, la del día con cuántos invitados entraron y siguen dentro.
  */
-async function reservasDe(tx: Transaccion, where: Prisma.EventReservationWhereInput): Promise<ReservaEventoDto[]> {
+export async function reservasDe(tx: Transaccion, where: Prisma.EventReservationWhereInput): Promise<ReservaEventoDto[]> {
   const filas = await tx.eventReservation.findMany({
     where,
     include: {

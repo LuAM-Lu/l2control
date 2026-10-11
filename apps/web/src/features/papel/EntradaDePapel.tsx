@@ -15,6 +15,7 @@ import { contactKey } from "@l2/domain-park";
 import { Button, Input, Sheet, avisar, cn } from "@l2/ui";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { buscarRepresentante, registrarEntrada } from "../park/parque.acciones";
+import { CampoDelCliente, type ClienteElegido } from "../clientes/CampoDelCliente.tsx";
 import { PackagePicker } from "../park/PackagePicker";
 import { useSala } from "../park/SalaProvider.tsx";
 import { useTarifario } from "../park/TarifarioProvider";
@@ -50,6 +51,8 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
   const [telefono, setTelefono] = useState("");
   /** La cédula, si el formulario la trae (T-19): lo cargado desde papel no la exige, porque se anotó o no. */
   const [cedula, setCedula] = useState("");
+  // T-23: por cédula primero (o por su nombre): el elegido pone su teléfono y su cédula, y la familia se reconoce.
+  const [clienteElegido, setClienteElegido] = useState<ClienteElegido | null>(null);
   const [nombreNuevo, setNombreNuevo] = useState("");
   const [filas, setFilas] = useState<Fila[]>([nueva()]);
   const [enviando, setEnviando] = useState(false);
@@ -166,6 +169,22 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
 
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Familia</legend>
+          <CampoDelCliente
+            label="Cédula, teléfono o nombre del representante"
+            elegido={clienteElegido}
+            onElegir={(c) => {
+              setClienteElegido(c);
+              if (telefono.trim() === "") setTelefono(c.telefono);
+              if (c.cedula && cedula.trim() === "") setCedula(c.cedula);
+            }}
+            onDeshacer={() => {
+              if (clienteElegido && telefono === clienteElegido.telefono) setTelefono("");
+              if (clienteElegido?.cedula && cedula === clienteElegido.cedula) setCedula("");
+              setClienteElegido(null);
+            }}
+            aqui={false}
+          />
+          <CampoCedula label="Cédula del representante (si se anotó)" valor={cedula} onCambio={setCedula} />
           <CampoTelefono
             label="Teléfono del representante"
             valor={telefono}
@@ -173,7 +192,6 @@ export function EntradaDePapel({ carga, abierto, onCerrar }: { carga: CargaDePap
             error={telefono !== "" && !telefonoValido ? "Contacto demasiado corto" : undefined}
             hint={encontrada ? `Ya vino: ${encontrada.fullName}.` : esNueva ? "No ha venido antes: escribe su nombre." : "Con el teléfono entero se reconoce a la familia."}
           />
-          <CampoCedula label="Cédula del representante (si se anotó)" valor={cedula} onCambio={setCedula} />
           {esNueva && <Input label="Nombre del representante" surface="tablet" autoComplete="off" value={nombreNuevo} onChange={(e) => setNombreNuevo(e.target.value)} />}
         </fieldset>
 

@@ -16,6 +16,29 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.125.0] — 2026-10-11 · Hacia la puesta en marcha
+
+El campo del cliente (T-23, M-38, W-12).
+
+### Añadido
+- **«Cédula, teléfono o nombre»**, un solo campo en los nueve formularios que piden un cliente: la entrada al parque,
+  sentar, la venta sin cobrar, «Se fue sin pagar», «Factura a», los datos del pago, cumpleaños, papel y la lupa.
+- **Aquí ahora**: al tocar el campo, antes de escribir, propone a quien está en el local: las familias con niños en la
+  sala, los clientes de las cuentas abiertas (su mesa o «De pie») y el cumpleaños de hoy. Lo de otro día no sale.
+- **Por su nombre**: con 3 letras, hasta 6 del directorio, cada uno con la cédula a medias (`V-12···678`), cuándo vino,
+  cuántos niños y «Debe» en rojo. Al elegir rellena lo que esté vacío y «No es esta persona» lo deja como estaba.
+- **En la tablet y el teléfono**, el teclado numérico, con «Por nombre» para el de letras.
+- **Llevar el tiempo a la mesa**: al sentar a una familia que está en la sala, «Llevar el tiempo de sus N niños a esta
+  mesa» viene marcado y su cuenta nace con ellos vinculados. Desmarcado, van aparte.
+- **La factura recuerda a la empresa**: con el RIF (J- o G-) completo, propone la razón social y la dirección fiscal de
+  la última factura a ese RIF.
+- **Los datos del pago** ofrecen «Paga …» con el teléfono y la cédula del cliente de la cuenta.
+
+### Cambiado
+- **La entrada avisa la deuda** en rojo, con su cuenta, y deja entrar: se cobra en la caja.
+- **Cumpleaños y papel**, por la cédula primero (o el nombre); en papel, la cédula va antes del teléfono.
+- **La lupa** abre con «Aquí ahora».
+
 ## [0.124.0] — 2026-10-11 · Hacia la puesta en marcha
 
 La impresora por red y por USB (B5-6, M-38, W-1).

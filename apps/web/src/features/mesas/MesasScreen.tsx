@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Ban,
   Baby,
+  Check,
   CircleCheckBig,
   Clock,
   FileX,
@@ -74,6 +75,7 @@ import { usePedidos } from "./PedidosProvider.tsx";
 import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
+import type { ClienteElegido } from "../clientes/CampoDelCliente.tsx";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { usePorLimpiar } from "./porLimpiar.ts";
@@ -200,6 +202,9 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   /** Lo que falta o no vale, después de intentar sentar. */
   const [erroresCliente, setErroresCliente] = useState<ReturnType<typeof problemasDelCliente>>(null);
   const [comensales, setComensales] = useState(2);
+  /** T-23: el cliente elegido en el campo del cliente; si es una familia de la sala, sus niños se llevan a la mesa. */
+  const [elegido, setElegido] = useState<ClienteElegido | null>(null);
+  const [llevarTiempo, setLlevarTiempo] = useState(true);
   /** El id de la cuenta que se está abriendo: reintentarlo (se cortó la red) no abre dos. */
   const altaId = useRef<string | null>(null);
   const [abriendo, setAbriendo] = useState(false);
@@ -249,6 +254,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     setCliente(SIN_DATOS);
     setErroresCliente(null);
     setComensales(lugarNuevo === PIE ? 1 : 2);
+    setElegido(null);
+    setLlevarTiempo(true);
     altaId.current = null;
   };
 
@@ -302,8 +309,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     adoptar(r.valor);
     setCuentaSel(r.valor.id);
     setSentando(false);
+    // T-23: una familia de la sala trae el tiempo de sus niños a su mesa (como vincular, B6-3), en el mismo toque.
+    const suyos = l.tipo === "MESA" && llevarTiempo ? (elegido?.estancias ?? []) : [];
     reiniciarFormulario(seleccion);
     avisar.ok(`${nombreDeCuenta(r.valor)} · ${comensales} ${comensales === 1 ? "persona" : "personas"}`, { detalle: "Ya se le puede tomar el pedido." });
+    if (suyos.length > 0 && !(await vincular(r.valor, [...suyos]))) {
+      avisar.error("La mesa quedó abierta, pero el tiempo de sus niños no se llevó", { detalle: "Vincúlalos desde la mesa con «Vincular pulseras»." });
+    }
   }
 
   /**
@@ -666,6 +678,10 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                   comensales={comensales}
                   onComensales={setComensales}
                   onEnviar={() => void sentar(lugar)}
+                  elegido={elegido}
+                  onElegido={setElegido}
+                  llevarTiempo={llevarTiempo}
+                  onLlevarTiempo={setLlevarTiempo}
                 />
               ) : (
                 cuenta && (
@@ -1175,6 +1191,10 @@ function FormularioSentar({
   comensales,
   onComensales,
   onEnviar,
+  elegido,
+  onElegido,
+  llevarTiempo,
+  onLlevarTiempo,
 }: {
   lugar: Lugar;
   cliente: DatosDelClienteDto;
@@ -1183,7 +1203,13 @@ function FormularioSentar({
   comensales: number;
   onComensales: (n: number) => void;
   onEnviar: () => void;
+  /** T-23: el elegido en el campo del cliente y si se lleva el tiempo de sus niños de la sala a esta mesa. */
+  elegido: ClienteElegido | null;
+  onElegido: (c: ClienteElegido | null) => void;
+  llevarTiempo: boolean;
+  onLlevarTiempo: (v: boolean) => void;
 }) {
+  const ninosEnSala = lugar.tipo === "MESA" && elegido?.motivo === "SALA" ? (elegido.estancias?.length ?? 0) : 0;
   const sillas = lugar.tipo === "MESA" ? lugar.vista.mesa.seats - lugar.vista.comensales : null;
   return (
     <form
@@ -1200,7 +1226,35 @@ function FormularioSentar({
         </p>
       )}
       {/* Quien consume primero y paga al final deja sus datos (B6-9, M-33): la cuenta se llama como él. */}
-      <DatosDelCliente valor={cliente} onCambio={onCliente} errores={errores} surface="tablet" />
+      {/* T-23: la familia viene de la sala: su tiempo pasa a esta cuenta al sentarla (como vincular, B6-3), a la vista
+          debajo de quien se eligió. */}
+      <DatosDelCliente
+        valor={cliente}
+        onCambio={onCliente}
+        errores={errores}
+        surface="tablet"
+        onElegido={onElegido}
+        trasElElegido={
+          ninosEnSala > 0 && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={llevarTiempo}
+              onClick={() => onLlevarTiempo(!llevarTiempo)}
+              title="Lo del parque se paga con la mesa, de una vez"
+              className={cn(
+                "flex min-h-12 items-center gap-3 rounded-[var(--radius-control)] border px-3 text-left",
+                llevarTiempo ? "border-brand/50 bg-brand/10" : "border-line bg-surface",
+              )}
+            >
+              <span className={cn("grid size-5 shrink-0 place-content-center rounded border", llevarTiempo ? "border-brand bg-brand text-on-brand" : "border-line-strong")} aria-hidden="true">
+                {llevarTiempo && <Check size={13} />}
+              </span>
+              <span className="min-w-0 flex-1 text-cuerpo text-ink">Llevar el tiempo de {ninosEnSala === 1 ? "su niño" : `sus ${ninosEnSala} niños`} a esta mesa</span>
+            </button>
+          )
+        }
+      />
       <div>
         <p className="mb-2 text-[13px] text-ink-2">¿Cuántas personas?</p>
         <Stepper value={comensales} onChange={onComensales} label="Personas" min={1} max={30} />

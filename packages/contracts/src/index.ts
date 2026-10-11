@@ -606,7 +606,10 @@ export {
   ClienteFacturaSchema,
   CONSUMIDOR_FINAL,
   enmascararDocumento,
+  EmpresaDeFacturaQuerySchema,
+  EmpresaDeFacturaSchema,
   type ClienteFacturaDto,
+  type EmpresaDeFacturaDto,
 } from "./documento.ts";
 
 export {
@@ -615,6 +618,10 @@ export {
   EncontrarClienteSchema,
   ClienteDeCuentaSchema,
   ClienteEncontradoSchema,
+  ClienteDeAquiSchema,
+  ClientesDeAquiSchema,
+  type ClienteDeAquiDto,
+  type ClientesDeAquiDto,
   DatosDelClienteSchema,
   type AsignarClienteCommand,
   type BuscarClienteQuery,
