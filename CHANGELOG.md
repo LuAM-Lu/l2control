@@ -16,6 +16,27 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.127.0] — 2026-10-11 · Hacia la puesta en marcha
+
+El mesero en tablet (B6-17, M-38, W-5).
+
+### Añadido
+- **Buscar en la carta**: un plato se encuentra en todas las categorías al escribir parte de su nombre.
+- **Las comandas que no salieron, en una píldora** («3 no salieron») que abre la lista con «Reimprimir» en cada una.
+- **En vertical, la mesa en un cajón** que sube sobre el plano, con sus botones abajo; y en «Tomar pedido», una barra fija
+  abajo («3 platos · $ 7,50») que abre el ticket y envía.
+
+### Cambiado
+- **Las categorías, en una tira que se desliza** (antes, en tres renglones), y lo agotado o sin contar al final.
+- **Los tiempos se leen**: «42 min», «1 h 15 min» y, lo que viene de otro día, «desde ayer 7:29 pm» (antes, «4711 min»).
+  En el plano, corto: «42′», «3 h», «2 d».
+- **En «Atender», el amarillo solo marca lo que pide acción** (su icono, su texto y un borde), sin pintar la fila; cada
+  fila con el icono de lo que pide.
+- **La nota de un plato** se guarda con Intro y empieza con mayúscula; el nombre al sentar, con mayúscula inicial.
+
+### Quitado
+- La franja roja de comandas sobre el plano: ahora es la píldora.
+
 ## [0.126.0] — 2026-10-11 · Hacia la puesta en marcha
 
 La Entrada en tablet (B4-18, M-38, W-4).
