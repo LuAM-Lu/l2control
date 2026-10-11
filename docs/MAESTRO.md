@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.130.0 en `main` (publicada, la 0.122.0) · 130 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.131.0 en `main` (publicada, la 0.122.0) · 131 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -42,8 +42,8 @@ respaldo y PDF; tres correcciones y siete pasos, v0.104.2 a v0.111.0). M-36: el 
 equipos e inventario de verdad); la operación en paralelo con el método escrito (B8-3) empezó el 2026-10-09 y la 1.0.0
 se hace sobre esa base. M-37 entregado entero (2026-10-10, lo visto en la operación en paralelo): cuatro correcciones y
 once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.1 a v0.122.0, publicados juntos al final
-con la etiqueta de la última. M-38 decidido (2026-10-10, tras la operación en paralelo y el día 9 sin cerrar): una
-corrección (v0.122.1 y v0.122.2, ya en `main`) y nueve pasos, antes de la 1.0.0, publicados juntos al final.** M-28 y M-29
+con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
+una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -1999,11 +1999,26 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   adelantos en Reportes → Personal, Caja → Personal y su PDF; «Comprobantes de efectivo» en el historial de impresión; la
   ayuda (Turno y Personal) y el atajo. `efectivo.test-db.ts` (7): el criterio, el retiro con PIN y quien recibe, la tasa,
   la gaveta, el corte aparte de las ventas, la reimpresión, el mesero, solo agregar y el aislamiento.*
-- [~] **B3-22 · El fondo fijo, opcional** (M-38, W-9). *A cargo: LuAMi (Claude), en `feat/b3-22`.*
+- [x] **B3-22 · El fondo fijo, opcional** (M-38, W-9).
+  *Hecho el 2026-10-11 (v0.131.0), en `feat/b3-22`.*
   → En Ajustes, «Fondo fijo» por caja, apagado de fábrica (decisión del usuario). Encendido: el cierre propone dejar ese
   fondo y retirar el resto, y la apertura pide contarlo por billete y dice (y anota a nombre de quien abre) si falta o
   sobra de lo que quedó. Apagado, como hoy: se propone lo que quedó en el último Z. Criterio: con un fondo de $ 20, si al
   abrir se cuentan $ 15 la apertura lo dice y queda en la auditoría.
+  *· Hecho: por caja, en el equipo punto de cobro (`device.fixed_float_usd_minor` y `_ves_minor`, NULL = apagado, con su
+  CHECK) y el conteo de la apertura en `shift_opening_count` (solo agregar, RLS); migración de expandir
+  `20261206000000_fondo_fijo`. Lo puro en `@l2/domain-cash` (`fondo.ts`: `dejarConFondoFijo` y
+  `aperturaContraLoQueQuedo`). `dispositivos.ordenar` con `FONDO_FIJO` (de un punto de cobro, con su motivo; asiento
+  `dispositivo.fondo_fijo`). `turnos.abrir`: con fondo fijo pide el `conteo` por billete (y que sume el fondo), lo compara
+  con lo que dejó el último Z de esa caja (sin él, el fondo fijo) y, si no cuadra, lo dice (CONFLICTO
+  `DIFERENCIA_DE_APERTURA`) hasta `aceptarDiferencia`; abierta así, a nombre de quien abre: en `turno.apertura`, en el
+  asiento `turno.abrir` (Movimientos: «Abrió la caja con diferencia») y como excepción DIFERENCIA del corte. `TurnoDto`
+  lleva `fondoFijo` y `apertura` (`CON_FONDOS`); la comprobación de la apertura, `fondoFijo`. `ConteoMonedaSchema` pasa a
+  `turno.ts` (`cortes.ts` lo reexporta). En la web: el botón y el diálogo en Dispositivos («Punto de cobro · fondo $ 20.00»
+  en su fila), `ConteoDelFondo` en la apertura (las dos monedas lado a lado, con el aviso de la diferencia y «Abrir
+  así»), la propuesta del cierre, la insignia «Abrió con diferencia» en Turno y la ayuda (Turno y Personas y equipos).
+  `fondo-fijo.test-db.ts` (5): apagado de fábrica, de un punto de cobro, el criterio, lo que quedó del último Z, apagarlo,
+  solo agregar y el aislamiento.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 

@@ -388,6 +388,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Abrir y cerrar el turno de la caja: el fondo, los cortes y el arqueo.",
     pasos: [
       "Abre el turno contando el fondo de la gaveta, en dólares y en bolívares. Se abre en el punto de cobro: el equipo de la caja, marcado en Dispositivos.",
+      "Si la caja tiene fondo fijo (Ajustes → Dispositivos), el fondo se cuenta por billete. Si no es lo que quedó en el último cierre, lo dice («Falta $ 5.00 de lo que quedó»): vuelve a contar, o «Abrir así» y la diferencia queda a tu nombre, en el turno («Abrió con diferencia») y en su corte. Al cerrar, se propone dejar el fondo fijo y retirar el resto.",
       "Si la laptop de caja falla, el turno se abre en otro equipo con el PIN de administración y el motivo: queda en la auditoría e Inicio lo avisa mientras siga abierto.",
       "El corte X enseña lo cobrado sin cerrar nada.",
       "«Mover efectivo» (en «La gaveta», o la tecla M en Cobrar): lo que entra o sale de la gaveta sin ser venta. Entrada: sencillo para la caja. Salida: compras para el local (el hielo), pago a proveedor o adelanto al personal. Retiro: a resguardo (la caja fuerte). En $ o en Bs, con para qué es. Sale su comprobante; el del adelanto lo firma la persona, el del retiro quien lo recibe. El arqueo lo cuenta: pagar el hielo de la gaveta ya no deja diferencia.",
@@ -433,6 +434,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
         solucion:
           "La caja quedó abierta de un día que ya terminó. La caja enseña lo pendiente de ese día: cóbralo ahí (o «Se fue sin pagar» o incobrable), registra la salida de sus niños y «Cerrar la caja» lleva al conteo y al corte Z. Lo de hoy se cobra después, en la caja de hoy. Si el equipo de esa caja no está, supervisión la cierra desde Inicio.",
         reconoce: ["esta caja es del", "cierrala antes", "abierta la caja del"],
+      },
+      {
+        sintoma: "«Falta … de lo que quedó en la gaveta» al abrir el turno",
+        solucion: "Lo contado no es lo que dejó el último cierre de esta caja (con fondo fijo). Vuelve a contar billete por billete; si de verdad falta o sobra, «Abrir así»: queda anotado a tu nombre y supervisión lo ve en el corte.",
+        reconoce: ["de lo que quedo en la gaveta", "cuentalo por billete", "el fondo no es lo que suman los billetes"],
       },
       {
         sintoma: "«Este equipo no es el punto de cobro»",
@@ -693,8 +699,14 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Dispositivos: un equipo nuevo pide registro desde su pantalla; se aprueba comparando su código.",
       "El equipo de la caja lleva la marca «Punto de cobro» (el botón de la cartera): en él el turno se abre sin pedir nada. En otro, abrirlo pide el PIN de administración y un motivo.",
       "Si la laptop de caja se daña, el turno se abre en otro equipo con tu PIN; si la cambian por otra, marca la nueva y quita la marca a la vieja.",
+      "«Fondo fijo» (el botón de las monedas, en un punto de cobro): apagado de fábrica. Encendido, con su monto en $ y en Bs, el cierre propone dejar ese fondo y retirar el resto, y la apertura se cuenta por billete: si falta o sobra de lo que quedó, lo dice y queda a nombre de quien abre. Apagado, como siempre.",
     ],
     problemas: [
+      {
+        sintoma: "«El fondo fijo es de un punto de cobro»",
+        solucion: "Marca primero el equipo como punto de cobro (el botón de la cartera) y después ponle su fondo fijo.",
+        reconoce: ["el fondo fijo es de un punto de cobro"],
+      },
       {
         sintoma: "«Solo un equipo aprobado puede ser punto de cobro»",
         solucion: "Aprueba primero el equipo (compara su código) y después márcalo como punto de cobro.",

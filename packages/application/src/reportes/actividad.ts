@@ -99,6 +99,8 @@ const MOVIMIENTO_DE_EFECTIVO: Readonly<Record<string, string>> = { ENTRADA: "Ent
 function claseDe(accion: string, despues: Record<string, unknown>): Clase {
   if (accion === "cuenta.abrir" && despues.kind === "MESA") return { categoria: "MESAS", que: "Sentó a un cliente" };
   if (accion === "cuenta.abrir" && despues.kind === "MOSTRADOR") return { categoria: "CAJA", que: "Abrió una venta" };
+  // La apertura con fondo fijo que no cuadró (B3-22): se dice, con la diferencia en el detalle.
+  if (accion === "turno.abrir" && (despues.apertura as { cuadra?: boolean } | undefined)?.cuadra === false) return { categoria: "CAJA", que: "Abrió la caja con diferencia" };
   // Mover efectivo (B3-21): lo que entró, salió o se retiró de la gaveta.
   if (accion === "efectivo.mover" && typeof despues.movimiento === "string") return { categoria: "CAJA", que: MOVIMIENTO_DE_EFECTIVO[despues.movimiento] ?? "Movió efectivo" };
   return ACCIONES[accion]!;

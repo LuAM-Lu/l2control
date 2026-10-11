@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowLeftRight, CalendarClock, CalendarX2, CircleCheckBig, F
 import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
-import { Badge, Button, Container, Dialog, Input, MoneyDisplay, Sheet, avisar, cn } from "@l2/ui";
+import { Badge, Button, Container, Dialog, Input, MoneyDisplay, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { CierreTurno } from "./CierreTurno.tsx";
 import { EntradasPorMedio, consumoDelPersonal, porMedioDelLibro } from "./EntradasPorMedio.tsx";
@@ -17,6 +17,7 @@ import { abrirTurno } from "./turno.acciones";
 import { hacerCorteX, leerPendientesDelCierre, leerVistaDelTurno } from "./cortes.acciones";
 import { importeTecleado } from "./importe.ts";
 import { MoverEfectivoDialog, MovimientosDeLaGaveta } from "./MoverEfectivo.tsx";
+import { ConteoDelFondo, billetesDelConteo, totalDelConteo, type ConteoDelFondo as Conteo } from "./ConteoDelFondo.tsx";
 import { VentasDelTurno } from "./VentasDelTurno.tsx";
 import { useVentas } from "./VentasProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -99,6 +100,10 @@ function AperturaTurno({
   };
   const [usd, setUsd] = useState(() => dejado("USD"));
   const [bs, setBs] = useState(() => dejado("VES"));
+  // B3-22: con fondo fijo, el fondo se cuenta por billete (a ciegas) y el servidor dice si falta o sobra de lo que quedó.
+  const fondoFijo = comprobacion?.fondoFijo ?? null;
+  const [conteo, setConteo] = useState<Conteo>({});
+  const [diferencia, setDiferencia] = useState<string | null>(null);
   const [errores, setErrores] = useState<{ USD?: string | undefined; VES?: string | undefined }>({});
   const [enviando, setEnviando] = useState(false);
   // B3-9 (M-31): fuera del punto de cobro, el turno se abre con el PIN de administración y un motivo.
@@ -110,10 +115,10 @@ function AperturaTurno({
   const ahora = useAhoraLocal();
   const deAntes = ahora > 0 ? otrosAbiertos.filter((t) => ahora >= finDelDiaDelTurno(t, ajustes)) : [];
 
-  const abrir = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const fondoUsd = importeTecleado(usd, "USD");
-    const fondoBs = importeTecleado(bs, "VES");
+  const abrir = async (e: React.FormEvent | null, aceptarDiferencia = false) => {
+    e?.preventDefault();
+    const fondoUsd = fondoFijo ? totalDelConteo(conteo, "USD") : importeTecleado(usd, "USD");
+    const fondoBs = fondoFijo ? totalDelConteo(conteo, "VES") : importeTecleado(bs, "VES");
     if (!fondoUsd || !fondoBs) {
       setErrores({
         ...(fondoUsd ? {} : { USD: "Un importe en dólares, con hasta dos decimales" }),
@@ -129,13 +134,19 @@ function AperturaTurno({
     setEnviando(true);
     try {
       const r = await abrirTurno(
-        { fondos: [fondoUsd, fondoBs].map((f) => ({ currency: f.currency, amount: { minor: String(f.amount), currency: f.currency } })) },
+        {
+          fondos: [fondoUsd, fondoBs].map((f) => ({ currency: f.currency, amount: { minor: String(f.amount), currency: f.currency } })),
+          ...(fondoFijo ? { conteo: billetesDelConteo(conteo), ...(aceptarDiferencia ? { aceptarDiferencia: true } : {}) } : {}),
+        },
         fuera ? autorizacion.autorizacion(motivo.trim()) : undefined,
       );
       if (r.ok) {
         avisar.ok(`Turno abierto en ${r.valor.punto}: ya se puede cobrar`, r.valor.fueraDelPunto ? { detalle: `Fuera del punto de cobro, autorizado por ${r.valor.fueraDelPunto.autorizadoPor}.` } : undefined);
         // Abierto, a cobrar (B3-13, M-34): lo siguiente que se hace con un turno abierto es la caja.
         router.push("/caja" as Route);
+      } else if (r.motivo === "CONFLICTO" && r.problemas?.some((p) => p.message === "DIFERENCIA_DE_APERTURA")) {
+        // Lo contado no es lo que quedó: se dice aquí, para volver a contar o abrirla así.
+        setDiferencia(r.mensaje);
       } else if (fuera && /PIN|autorizar/i.test(r.mensaje)) {
         // Lo del PIN o de quién autoriza, junto al PIN: el aviso suelto se perdería.
         setErroresFuera(erroresDeRechazo(r.mensaje));
@@ -156,7 +167,11 @@ function AperturaTurno({
     <Container ancho="operacion" className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto py-6 apaisado:flex-row apaisado:items-start apaisado:justify-center">
       <form
         onSubmit={abrir}
-        className="flex w-full max-w-md shrink-0 flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-card apaisado:bajo:gap-3 apaisado:bajo:p-5"
+        className={cn(
+          "flex w-full shrink-0 flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-6 shadow-card apaisado:bajo:gap-3 apaisado:bajo:p-5",
+          // Con fondo fijo (B3-22), los billetes de las dos monedas lado a lado.
+          fondoFijo ? "max-w-2xl" : "max-w-md",
+        )}
       >
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand/20 text-brand">
@@ -167,6 +182,37 @@ function AperturaTurno({
             <p className="mt-1 text-[13.5px] text-ink-2">Cuenta el fondo que hay en la gaveta antes de empezar. Sin turno abierto, la caja no cobra.</p>
           </div>
         </div>
+        {fondoFijo ? (
+          <>
+            <p className="-mt-1 text-detalle text-ink-2" title="Fondo fijo de esta caja (Ajustes → Dispositivos): el servidor lo compara con lo que quedó en el último cierre.">
+              Esta caja tiene fondo fijo: cuéntalo por billete.
+            </p>
+            <ConteoDelFondo
+              conteo={conteo}
+              deshabilitado={enviando}
+              onCambiar={(c) => {
+                setConteo(c);
+                setDiferencia(null);
+              }}
+            />
+            {diferencia && (
+              <div role="alert" className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-2.5 text-detalle text-state-warn">
+                <span className="flex items-start gap-1.5 font-semibold">
+                  <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  {diferencia}
+                </span>
+                <span className="flex flex-wrap gap-2">
+                  <Button type="button" surface="tablet" variant="neutral" onClick={() => setDiferencia(null)} disabled={enviando}>
+                    Volver a contar
+                  </Button>
+                  <Button type="button" surface="tablet" variant="primary" onClick={() => void abrir(null, true)} disabled={enviando}>
+                    Abrir así
+                  </Button>
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
         <div className={cn("flex flex-col gap-4 apaisado:bajo:gap-3", fuera && "grid grid-cols-2 gap-3")}>
         <Input
           surface="pos"
@@ -196,6 +242,7 @@ function AperturaTurno({
           }}
         />
         </div>
+        )}
         {fuera && (
           <>
             <Input
@@ -221,9 +268,12 @@ function AperturaTurno({
             />
           </>
         )}
-        <Button id="abrir-turno" type="submit" surface="pos" variant="primary" className="w-full text-base" disabled={enviando || (fuera && autorizacion.permiso === "DENEGADO")}>
-          {enviando ? "Abriendo…" : fuera ? "Abrir turno con autorización" : "Abrir turno"}
-        </Button>
+        {/* Con la diferencia a la vista, se decide en su aviso: volver a contar o abrirla así. */}
+        {diferencia === null && (
+          <Button id="abrir-turno" type="submit" surface="pos" variant="primary" className="w-full text-base" disabled={enviando || (fuera && autorizacion.permiso === "DENEGADO")}>
+            {enviando ? "Abriendo…" : fuera ? "Abrir turno con autorización" : "Abrir turno"}
+          </Button>
+        )}
         <p className="text-[12px] text-ink-3">
           {fuera ? "Queda en la auditoría, con quién lo autorizó, e Inicio lo avisa mientras siga abierto." : "El turno queda a tu nombre, en este equipo y con el día de hoy como día de negocio."}
         </p>
@@ -419,6 +469,14 @@ function TurnoAbierto({ turno, vistaInicial, ajeno, cerrar }: { turno: TurnoDto;
                 <span title={`Autorizó ${turno.fueraDelPunto.autorizadoPor}: «${turno.fueraDelPunto.motivo}»`}>
                   <Badge tone="warn" icon={<TriangleAlert size={13} aria-hidden="true" />}>
                     Fuera del punto de cobro
+                  </Badge>
+                </span>
+              )}
+              {/* B3-22: abierta con fondo fijo y lo contado no fue lo que quedó. */}
+              {turno.apertura && !turno.apertura.cuadra && (
+                <span title={`${textoDeDiferencias(turno.apertura.diferencias)} de lo que quedó al abrir · contó ${turno.apertura.por}`}>
+                  <Badge tone="warn" icon={<TriangleAlert size={13} aria-hidden="true" />}>
+                    Abrió con diferencia
                   </Badge>
                 </span>
               )}
@@ -708,6 +766,17 @@ function CorteXDialog({ corte, onCerrar }: { corte: CorteDto | null; onCerrar: (
 }
 
 const TITULO = "text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase";
+
+/** «Falta $ 5.00» o «Sobra Bs. 100,00», de cada moneda con diferencia (B3-22). */
+function textoDeDiferencias(diferencias: readonly MoneyDto[]): string {
+  return diferencias
+    .filter((d) => BigInt(d.minor) !== 0n)
+    .map((d) => {
+      const n = BigInt(d.minor);
+      return `${n < 0n ? "Falta" : "Sobra"} ${formatMoneyVE(toMajor(money(n < 0n ? -n : n, d.currency as CurrencyCode)), d.currency as "USD" | "VES")}`;
+    })
+    .join(" y ");
+}
 
 /** «dom 27 sept»: un día de calendario en palabras. Es fecha, no instante: se pinta en UTC. */
 function diaEnPalabras(dia: string): string {

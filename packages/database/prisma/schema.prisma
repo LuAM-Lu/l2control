@@ -495,6 +495,9 @@ model Device {
   /// El punto de cobro (B3-9, M-31): en un equipo marcado el turno se abre como siempre; en otro, con el PIN de
   /// administración y un motivo. La marca la pone administración en Dispositivos.
   cashPoint             Boolean   @default(false) @map("cash_point")
+  /// El fondo fijo de la caja (B3-22): en dólares y en bolívares; NULL, apagado (de fábrica). Las dos a la vez (CHECK).
+  fixedFloatUsdMinor    BigInt?   @map("fixed_float_usd_minor")
+  fixedFloatVesMinor    BigInt?   @map("fixed_float_ves_minor")
 
   branch    Branch          @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   changes   DeviceChange[]
@@ -833,6 +836,7 @@ model CashShift {
   returns           SaleReturn[]
   counts            ShiftCount[]
   cuts              ShiftCut[]
+  openingCount      ShiftOpeningCount?
   paperLoads        PaperLoad[]
 
   @@unique([tenantId, id])
@@ -2606,4 +2610,30 @@ model CashMovement {
   @@index([tenantId, shiftId])
   @@index([tenantId, staffUserId, businessDate])
   @@map("cash_movement")
+}
+
+/// El conteo de la apertura con fondo fijo (B3-22): por billete, contra lo que quedó en el último cierre de esa caja.
+/// Solo agregar: a nombre de quien abre, con su diferencia.
+model ShiftOpeningCount {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  shiftId       String   @map("shift_id") @db.Uuid
+  /// Los billetes, por moneda (ConteoMonedaSchema).
+  counts        Json
+  /// Lo contado, por moneda ([{ minor, currency }]).
+  counted       Json
+  /// Lo que quedó en el último cierre de la caja (o su fondo fijo, si no hubo).
+  leftInDrawer  Json     @map("left_in_drawer")
+  /// Lo contado menos lo que quedó: positiva si sobra, negativa si falta.
+  differences   Json
+  matches       Boolean
+  countedAt     DateTime @map("counted_at") @db.Timestamptz(3)
+  countedBy     String?  @map("counted_by") @db.Uuid
+  countedByName String   @map("counted_by_name")
+
+  shift CashShift @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, shiftId])
+  @@map("shift_opening_count")
 }

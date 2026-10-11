@@ -15,7 +15,9 @@ import { MovimientoDeEfectivoSchema } from "./efectivo.ts";
 import { CargaPendienteSchema } from "./papel.ts";
 import { EstanciaSchema } from "./park.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
-import { TurnoSchema } from "./turno.ts";
+import { ConteoMonedaSchema, TurnoSchema } from "./turno.ts";
+
+export { ConteoMonedaSchema, type ConteoMonedaDto } from "./turno.ts";
 
 const Texto = (max: number) => z.string().max(max);
 const Positivo = MoneySchema.refine((m) => /^\d+$/.test(m.minor), "No puede ser negativo");
@@ -23,18 +25,6 @@ const Positivo = MoneySchema.refine((m) => /^\d+$/.test(m.minor), "No puede ser 
 /* ─────────────────────────────────────────────────────────────── el arqueo */
 
 /** Lo contado de una moneda: billetes y monedas, por denominación (F4-07: se cuentan billetes, no importes). */
-export const ConteoMonedaSchema = z.strictObject({
-  currency: z.enum(["USD", "VES"]),
-  billetes: z
-    .array(
-      z.strictObject({
-        denominacion: MoneySchema.refine((m) => /^\d+$/.test(m.minor) && BigInt(m.minor) > 0n, "Una denominación vale más que cero"),
-        cantidad: z.number().int().min(0).max(100_000),
-      }),
-    )
-    .max(30),
-});
-export type ConteoMonedaDto = z.infer<typeof ConteoMonedaSchema>;
 
 /** Registrar el conteo de la gaveta de un turno. */
 export const ArqueoCommandSchema = z
@@ -238,6 +228,11 @@ export const ComprobacionAperturaSchema = z.object({
    * cerraban como relevo sin que nadie siguiera). Lo que dejó pendiente, para cerrarlo con el próximo turno.
    */
   jornadaSinCerrar: z.object({ dia: FechaSchema, cuentas: z.number().int().nonnegative(), ninos: z.number().int().nonnegative() }).nullable().default(null),
+  /**
+   * El fondo fijo de este equipo (B3-22), en dólares y en bolívares, o `null` si está apagado (de fábrica). Encendido, la
+   * apertura se cuenta por billete contra lo que quedó en el último cierre.
+   */
+  fondoFijo: z.array(MoneySchema).nullable().default(null),
 });
 export type ComprobacionAperturaDto = z.infer<typeof ComprobacionAperturaSchema>;
 

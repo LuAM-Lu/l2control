@@ -25,6 +25,7 @@ import {
   type DeviceDto,
   type DevicesDirectoryDto,
   type FiltroDispositivos,
+  type MoneyDto,
   type PaginaDeDispositivosDto,
   type Rechazo,
   type Resultado,
@@ -81,6 +82,15 @@ export interface CasosDispositivos {
 
 const NOMBRE_REPETIDO = "Ya hay un equipo con ese nombre. Usa uno que diga dónde está: «Tablet taquilla».";
 
+/** El fondo fijo de una caja (B3-22): en dólares y en bolívares, o `null` si está apagado. */
+export function fondoFijoDe(d: Readonly<{ fixedFloatUsdMinor: bigint | null; fixedFloatVesMinor: bigint | null }>): MoneyDto[] | null {
+  if (d.fixedFloatUsdMinor === null || d.fixedFloatVesMinor === null) return null;
+  return [
+    { minor: String(d.fixedFloatUsdMinor), currency: "USD" },
+    { minor: String(d.fixedFloatVesMinor), currency: "VES" },
+  ];
+}
+
 export function casosDispositivos(base: Base): CasosDispositivos {
   async function directorio(tx: Transaccion, branchId: string, soloId?: string | readonly string[]): Promise<DeviceDto[]> {
     const filas = await tx.device.findMany({
@@ -106,6 +116,7 @@ export function casosDispositivos(base: Base): CasosDispositivos {
         registeredAt: d.registeredAt.toISOString(),
         pairingCode: codigoDeEmparejamiento(d.id),
         puntoDeCobro: d.cashPoint,
+        fondoFijo: fondoFijoDe(d),
         ...(d.status === "PENDIENTE"
           ? { requestExpiresAt: new Date(d.requestedAt.getTime() + SOLICITUD_EQUIPO_MS).toISOString() }
           : {}),
@@ -254,7 +265,15 @@ export function casosDispositivos(base: Base): CasosDispositivos {
       }
       const c = cmd.data;
       const accion =
-        c.kind === "APROBAR" ? "dispositivo.aprobar" : c.kind === "REVOCAR" ? "dispositivo.revocar" : c.kind === "RENOMBRAR" ? "dispositivo.renombrar" : "dispositivo.punto_de_cobro";
+        c.kind === "APROBAR"
+          ? "dispositivo.aprobar"
+          : c.kind === "REVOCAR"
+            ? "dispositivo.revocar"
+            : c.kind === "RENOMBRAR"
+              ? "dispositivo.renombrar"
+              : c.kind === "FONDO_FIJO"
+                ? "dispositivo.fondo_fijo"
+                : "dispositivo.punto_de_cobro";
 
       try {
         const r = await base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<DeviceDto>> => {
@@ -264,6 +283,25 @@ export function casosDispositivos(base: Base): CasosDispositivos {
           const d = await tx.device.findUnique({ where: { id: c.deviceId } });
           if (!d || d.branchId !== ctx.branchId) {
             return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Ese equipo no está en esta sucursal." };
+          }
+          // El fondo fijo (B3-22): de un punto de cobro; apagarlo, en cualquiera que lo tenga.
+          if (c.kind === "FONDO_FIJO") {
+            if (c.fondo && !d.cashPoint) return { ok: false, motivo: "INVALIDO", mensaje: "El fondo fijo es de un punto de cobro: márcalo primero." };
+            const antes = fondoFijoDe(d);
+            const usd = c.fondo ? BigInt(c.fondo.find((m) => m.currency === "USD")!.minor) : null;
+            const ves = c.fondo ? BigInt(c.fondo.find((m) => m.currency === "VES")!.minor) : null;
+            if (!c.fondo && !antes) return { ok: false, motivo: "INVALIDO", mensaje: "Ese equipo no tiene fondo fijo." };
+            await tx.device.update({ where: { id: d.id }, data: { fixedFloatUsdMinor: usd, fixedFloatVesMinor: ves } });
+            await auditar(tx, ctx, {
+              action: accion,
+              entityType: "device",
+              entityId: d.id,
+              before: { label: d.label, fondoFijo: antes },
+              after: { label: d.label, fondoFijo: fondoFijoDe({ fixedFloatUsdMinor: usd, fixedFloatVesMinor: ves }) },
+              reason: c.reason,
+            });
+            const [marcado] = await directorio(tx, ctx.branchId, d.id);
+            return { ok: true, valor: marcado! };
           }
           if (c.kind === "PUNTO_DE_COBRO") {
             if (c.puntoDeCobro && d.status !== "APROBADO") {

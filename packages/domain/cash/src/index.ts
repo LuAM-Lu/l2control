@@ -542,6 +542,7 @@ export * from "./recibo.ts";
 export * from "./devolucion.ts";
 export * from "./dia.ts";
 export * from "./efectivo.ts";
+export * from "./fondo.ts";
 
 /* ---------------------------------------------- el vuelto, por partes (B3-19) */
 
