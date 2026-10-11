@@ -38,13 +38,17 @@ export const ClienteDeCuentaSchema = z.object({
 });
 export type ClienteDeCuentaDto = z.infer<typeof ClienteDeCuentaSchema>;
 
-/** Buscar a un cliente que ya vino, por su cédula o su teléfono completos (no por pedazos: se escribe entero). */
+/**
+ * Buscar a un cliente que ya vino, por su cédula o su teléfono completos (no por pedazos: se escribe entero), o por su
+ * ficha del directorio (T-23: el que se eligió de «aquí ahora» o de la lista).
+ */
 export const BuscarClienteSchema = z
   .strictObject({
     cedula: z.string().trim().max(20).optional(),
     telefono: z.string().trim().max(20).optional(),
+    clienteId: IdSchema.optional(),
   })
-  .refine((b) => (b.cedula ?? "") !== "" || (b.telefono ?? "") !== "", { message: "Escribe la cédula o el teléfono" });
+  .refine((b) => (b.cedula ?? "") !== "" || (b.telefono ?? "") !== "" || b.clienteId !== undefined, { message: "Escribe la cédula o el teléfono" });
 export type BuscarClienteQuery = z.infer<typeof BuscarClienteSchema>;
 
 /**
@@ -53,6 +57,8 @@ export type BuscarClienteQuery = z.infer<typeof BuscarClienteSchema>;
  */
 export const EncontrarClienteSchema = z.strictObject({
   texto: z.string().trim().min(3, "Escribe al menos 3 letras o dígitos").max(80),
+  /** Cuántos como mucho: 12 de fábrica (la lupa); el campo del cliente pide 6 (T-23). */
+  limite: z.number().int().min(1).max(12).optional(),
 });
 export type EncontrarClienteQuery = z.infer<typeof EncontrarClienteSchema>;
 
@@ -68,8 +74,29 @@ export const ClienteEncontradoSchema = z.object({
   deudas: z
     .array(z.object({ id: IdSchema, orden: z.number().int().positive(), lugar: z.string(), monto: MoneySchema, marcadaEl: TimestampSchema }))
     .default([]),
+  /** La última vez que vino (su última entrada al parque o su última cuenta), para reconocerlo en la lista (T-23). */
+  vinoEl: TimestampSchema.nullable().default(null),
+  /** Cuántos niños tiene en el directorio (T-23). */
+  ninos: z.number().int().min(0).default(0),
 });
 export type ClienteEncontradoDto = z.infer<typeof ClienteEncontradoSchema>;
+
+/**
+ * Los clientes que están aquí ahora (T-23, M-38, W-12): los que el campo del cliente propone antes de escribir nada. Una
+ * familia con niños en la sala (sus estancias, para llevar su tiempo a una mesa al sentarla), el cliente de una cuenta
+ * abierta y el representante de un cumpleaños de hoy.
+ */
+export const ClienteDeAquiSchema = z.object({
+  cliente: ClienteEncontradoSchema,
+  motivo: z.enum(["SALA", "CUENTA", "CUMPLEANOS"]),
+  /** «2 niños en la sala», «Mesa 4», «Cumpleaños de Sofía». */
+  detalle: z.string().max(80),
+  /** Las estancias de sus niños en la sala (SALA): las que se llevan a la mesa al sentarla. */
+  estancias: z.array(IdSchema).default([]),
+});
+export type ClienteDeAquiDto = z.infer<typeof ClienteDeAquiSchema>;
+export const ClientesDeAquiSchema = z.object({ clientes: z.array(ClienteDeAquiSchema).max(24) });
+export type ClientesDeAquiDto = z.infer<typeof ClientesDeAquiSchema>;
 
 /**
  * Poner el cliente de una cuenta abierta (una venta del mostrador que se deja pendiente) o cambiarlo (un dato mal

@@ -9,6 +9,7 @@ import {
   type RedUsdt,
   type TipoDeDatosDePago,
 } from "@l2/contracts";
+import { UserCheck } from "lucide-react";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import { BANCOS_VE, nombreBanco } from "./bancos.ts";
@@ -95,7 +96,10 @@ export function DatosPagoDialog({
   onCancelar,
   edicion = null,
   clave,
+  delCliente = null,
 }: {
+  /** El cliente de la cuenta (B6-9): su teléfono y su cédula se proponen como los de quien paga (T-23). */
+  delCliente?: Readonly<{ nombre: string; telefono: string; cedula: string }> | null;
   /** `null` = cerrado. */
   tipo: TipoDialogo | null;
   /** El monto ya formateado, para leerlo mientras se copian los datos. */
@@ -370,6 +374,24 @@ export function DatosPagoDialog({
             <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">
               Quien paga (opcional)
             </legend>
+            {/* T-23: casi siempre paga el cliente de la cuenta: sus datos, de un toque. */}
+            {delCliente && !campos.payerPhone && !campos.payerDocument && (
+              <button
+                type="button"
+                data-privado=""
+                onClick={() => {
+                  poner("payerPhone", delCliente.telefono);
+                  poner("payerDocument", delCliente.cedula);
+                }}
+                className="col-span-2 flex min-h-12 items-center gap-2 rounded-[var(--radius-control)] border border-dashed border-line-strong px-3 text-left text-detalle text-ink-2 hover:border-brand/50 hover:text-ink"
+              >
+                <UserCheck className="size-(--icono-texto) shrink-0 text-brand" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">
+                  Paga {delCliente.nombre}: <span className="tnum">{delCliente.telefono}</span>
+                </span>
+                <span className="shrink-0 font-semibold text-brand">Usar</span>
+              </button>
+            )}
             <CampoTelefono valor={campos.payerPhone ?? ""} onCambio={(v) => poner("payerPhone", v)} error={errores.payerPhone} />
             <CampoCedula valor={campos.payerDocument ?? ""} onCambio={(v) => poner("payerDocument", v)} error={errores.payerDocument} />
           </fieldset>

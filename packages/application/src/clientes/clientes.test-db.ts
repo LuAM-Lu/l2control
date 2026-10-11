@@ -167,8 +167,8 @@ describe("buscar al cliente (B6-9)", () => {
     assert.equal(valor(await l.app.clientes.buscar(mesero, { telefono: "0414" })), null);
   });
 
-  test("la monitora no busca clientes del restaurante; otro local no los ve", async () => {
-    assert.equal(rechazo(await l.app.clientes.buscar(monitora, { cedula: "V-30000801" })).motivo, "NO_PERMITIDO");
+  test("la monitora también la reconoce (T-23: la entrada avisa lo que debe); otro local no los ve", async () => {
+    assert.equal(valor(await l.app.clientes.buscar(monitora, { cedula: "V-30000801" }))?.nombre, "Prueba María Pérez");
     assert.equal(valor(await otro.app.clientes.buscar(otroMesero, { cedula: "V-30000801" })), null);
   });
 });

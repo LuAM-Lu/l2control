@@ -28,6 +28,11 @@ export type ClienteFacturaDto = z.infer<typeof ClienteFacturaSchema>;
 
 export const CONSUMIDOR_FINAL: ClienteFacturaDto = Object.freeze({ kind: "CONSUMIDOR_FINAL" });
 
+/** Lo que se facturó a una empresa por su RIF (T-23): se propone al volver a escribirlo. */
+export const EmpresaDeFacturaQuerySchema = z.strictObject({ documento: z.string().trim().min(6).max(20) });
+export const EmpresaDeFacturaSchema = z.object({ nombre: z.string(), direccion: z.string().nullable() });
+export type EmpresaDeFacturaDto = z.infer<typeof EmpresaDeFacturaSchema>;
+
 /** «V-12···678»: un documento a la vista (§7.6). El recibo viaja por WhatsApp y se reenvía. */
 export function enmascararDocumento(documento: string): string {
   const limpio = documento.replace(/\s/g, "");

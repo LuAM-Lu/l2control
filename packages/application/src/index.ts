@@ -65,6 +65,7 @@ import { casosEventos, type CasosEventos } from "./park/eventos.ts";
 import { casosPedidos, type CasosPedidos } from "./restaurante/pedidos.ts";
 import { casosMesas, type CasosMesas } from "./restaurante/mesas.ts";
 import { casosClientes, type CasosClientes } from "./clientes/clientes.ts";
+import { casosEmpresas, type CasosEmpresas } from "./clientes/empresas.ts";
 import { casosDeudas, type CasosDeudas } from "./deudas/deudas.ts";
 import { casosBorrador, type CasosBorrador } from "./caja/borrador.ts";
 import { crearFirmante } from "./tiempo-real/ticket.ts";
@@ -202,6 +203,8 @@ export interface Aplicacion {
   readonly mesas: CasosMesas;
   /** El cliente de una cuenta del salón o del mostrador: buscarlo y ponérselo (B6-9, M-33). */
   readonly clientes: CasosClientes;
+  /** La empresa de una factura por su RIF (T-23). */
+  readonly empresas: CasosEmpresas;
   /** Las deudas de clientes: quien se va sin pagar, cobrarlas cuando vuelve o darlas por perdidas (B3-11, M-33). */
   readonly deudas: CasosDeudas;
   /** El cobro en curso de cada cuenta, guardado en el servidor (B3-13, M-34). */
@@ -302,6 +305,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     dividir: casosDividir(base),
     vuelto: casosVuelto(base),
     clientes: casosClientes(base),
+    empresas: casosEmpresas(base),
     deudas: casosDeudas(base),
     borradores: casosBorrador(base, cifrador),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),

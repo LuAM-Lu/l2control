@@ -1274,6 +1274,24 @@ model Guardian {
 /// A quién es una cuenta del salón o del mostrador (B6-9, M-33): nombre, cédula y teléfono como se dieron, y
 /// el cliente del directorio si se reconoció. Solo agregar: cambiarlo añade una fila y la vigente es la última.
 /// Va fuera del contenido de la cuenta para que una versión anterior, que no lo conoce, no lo pierda al guardarla.
+/// La empresa de una factura (T-23, M-38): su RIF (J- o G-, CHECK), su razón social y su dirección fiscal, para
+/// proponerlos la próxima vez que se escriba ese RIF. Solo agregar: la vigente es la última de su RIF.
+model InvoiceCompany {
+  id            String   @id @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  documentKey   String   @map("document_key")
+  document      String
+  name          String
+  fiscalAddress String?  @map("fiscal_address")
+  setAt         DateTime @map("set_at") @db.Timestamptz(3)
+  setBy         String?  @map("set_by") @db.Uuid
+  setByName     String   @map("set_by_name")
+
+  @@unique([tenantId, id])
+  @@index([tenantId, documentKey, setAt])
+  @@map("invoice_company")
+}
+
 model AccountCustomer {
   id          String   @id @default(uuid(7)) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid

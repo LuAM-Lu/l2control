@@ -23,6 +23,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { buscarRepresentante } from "../park/parque.acciones";
+import { CampoDelCliente, type ClienteElegido } from "../clientes/CampoDelCliente.tsx";
 import { CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import { cancelarReserva, empezarEvento, reservarEvento } from "./eventos.acciones";
 import { AL_DIA, ESTADO, POR_COBRAR, fechaCorta, fechaLarga, horaDelDia, horario } from "./formato.ts";
@@ -385,6 +386,8 @@ function NuevaReserva({
   const [edad, setEdad] = useState("");
   const [telefono, setTelefono] = useState("");
   const [nombre, setNombre] = useState("");
+  // T-23: por cédula primero (o por su nombre): el elegido pone su teléfono y la familia se reconoce como siempre.
+  const [elegido, setElegido] = useState<ClienteElegido | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
 
@@ -593,6 +596,21 @@ function NuevaReserva({
           />
         </div>
 
+        <CampoDelCliente
+          surface="admin"
+          label="La familia: cédula, teléfono o nombre"
+          elegido={elegido}
+          onElegir={(c) => {
+            setElegido(c);
+            if (telefono.trim() === "") setTelefono(c.telefono);
+            if (nombre.trim() === "") setNombre(c.nombre);
+            limpiar("telefono");
+          }}
+          onDeshacer={() => {
+            if (elegido && telefono === elegido.telefono) setTelefono("");
+            setElegido(null);
+          }}
+        />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <CampoTelefono
             surface="admin"

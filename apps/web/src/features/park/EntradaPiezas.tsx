@@ -1,15 +1,17 @@
 "use client";
 
-import type { Ref } from "react";
-import { Check, CircleCheckBig, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
-import { TIEMPO_ABIERTO_ID, type PricePackageDto, type RepresentanteEncontradoDto } from "@l2/contracts";
-import { toMajor, type Money } from "@l2/domain-money";
+import { useEffect, useState, type Ref } from "react";
+import { Check, CircleCheckBig, CircleDollarSign, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
+import { TIEMPO_ABIERTO_ID, type ClienteEncontradoDto, type PricePackageDto, type RepresentanteEncontradoDto } from "@l2/contracts";
+import { money, sum, toMajor, type Money } from "@l2/domain-money";
 import { Badge, Initial, Input, Marquesina, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import { PackagePicker } from "./PackagePicker";
 import { toMoney } from "./mappers.ts";
 import { IconoMedias } from "./IconoMedias.tsx";
 import { CampoCedula, CampoTelefono } from "../clientes/CamposDelCliente.tsx";
+import { CampoDelCliente, type ClienteElegido } from "../clientes/CampoDelCliente.tsx";
+import { buscarCliente } from "../clientes/clientes.acciones";
 import type { Entrada, EntradaDeNinos } from "./useEntradaDeNinos.ts";
 
 /**
@@ -195,8 +197,39 @@ export function CampoRepresentante({
   const { encontrado } = e;
   // Encontrada por su cédula, el teléfono ya lo tiene el directorio: no se pide.
   const pedirTelefono = !e.porSuCedula || e.telefono.trim() !== "";
+  // T-23: el elegido en el campo del cliente (quien está aquí, o por su nombre) pone su cédula o su teléfono; la
+  // familia se reconoce como siempre.
+  const [elegido, setElegido] = useState<ClienteElegido | null>(null);
+  const elegir = (c: ClienteElegido) => {
+    setElegido(c);
+    if (c.cedula && e.cedula.trim() === "") e.setCedula(c.cedula);
+    else if (!c.cedula && e.telefono.trim() === "") e.setTelefono(c.telefono);
+  };
+  const deshacer = () => {
+    if (elegido?.cedula && e.cedula === elegido.cedula) e.setCedula("");
+    if (elegido && e.telefono === elegido.telefono) e.setTelefono("");
+    setElegido(null);
+  };
+  // Lo que dejó sin pagar (B3-11, T-23): la entrada lo avisa en rojo y no lo bloquea (se cobra en la caja).
+  const [deudas, setDeudas] = useState<ClienteEncontradoDto["deudas"]>([]);
+  const suFicha = encontrado?.id ?? null;
+  useEffect(() => {
+    if (!suFicha) {
+      setDeudas([]);
+      return;
+    }
+    let vivo = true;
+    buscarCliente({ clienteId: suFicha })
+      .then((r) => vivo && setDeudas(r.ok && r.valor ? r.valor.deudas : []))
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, [suFicha]);
+  const debe = deudas.length > 0 ? sum(deudas.map((d) => money(BigInt(d.monto.minor), "USD")), "USD") : null;
   return (
     <>
+      <CampoDelCliente elegido={elegido} onElegir={elegir} onDeshacer={deshacer} surface="pos" conDeuda={false} />
       {/* T-19: la cédula, lo primero. Con ella se reconoce a la familia que vuelve. */}
       <CampoCedula
         label="Cédula del representante"
@@ -228,7 +261,8 @@ export function CampoRepresentante({
         </p>
       )}
 
-      {encontrado && (
+      {/* El elegido ya dice quién es: la tarjeta queda para lo que falta (su cédula) o para quien se reconoció escribiendo. */}
+      {encontrado && (e.faltaSuCedula || elegido?.clienteId !== encontrado.id) && (
         <div
           className={cn(
             "flex items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2.5",
@@ -249,6 +283,16 @@ export function CampoRepresentante({
             </p>
           </div>
         </div>
+      )}
+
+      {debe && (
+        <p role="alert" className="flex items-start gap-1.5 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-detalle text-state-crit">
+          <CircleDollarSign className="mt-0.5 size-(--icono-texto) shrink-0" aria-hidden="true" />
+          <span data-privado="">
+            <span className="font-semibold">Debe {formatMoneyVE(toMajor(debe), "USD")} de antes</span> (
+            {deudas.map((d) => `#${String(d.orden).padStart(4, "0")} · ${d.lugar}`).join("; ")}). Puede entrar: se cobra en la caja.
+          </span>
+        </p>
       )}
 
       {/* B4-12: su familia tiene niños en la sala: el que llega se suma a esa cuenta, con su propio tiempo. */}

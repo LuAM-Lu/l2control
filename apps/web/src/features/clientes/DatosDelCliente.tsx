@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TriangleAlert, UserCheck } from "lucide-react";
 import { DatosDelClienteSchema, type ClienteEncontradoDto, type DatosDelClienteDto } from "@l2/contracts";
 import { contactKey, documentKey, telefonoLegible } from "@l2/domain-park";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { Input, formatMoneyVE, type Surface } from "@l2/ui";
 import { CampoCedula, CampoTelefono } from "./CamposDelCliente.tsx";
+import { CampoDelCliente, type ClienteElegido } from "./CampoDelCliente.tsx";
 import { buscarCliente } from "./clientes.acciones";
 
 /**
@@ -16,6 +17,9 @@ import { buscarCliente } from "./clientes.acciones";
  * La cédula va primero: el que ya vino se reconoce por ella (o por su teléfono) y lo demás se rellena solo, sin pisar
  * lo que ya se escribió. Todo el que atiende ve los datos completos (M-33); los campos llevan `data-privado` para que la
  * captura de un reporte de problema no los lleve (PLAN §7.6).
+ *
+ * T-23 (M-38): arriba, el campo del cliente («Cédula, teléfono o nombre»), que propone a quien está aquí y busca por
+ * nombre; al elegir, rellena lo que esté vacío y «No es esta persona» lo deja como estaba.
  */
 
 export const SIN_DATOS: DatosDelClienteDto = { nombre: "", cedula: "", telefono: "" };
@@ -38,15 +42,39 @@ export function DatosDelCliente({
   errores,
   surface = "tablet",
   autoFocus = false,
+  onElegido,
+  trasElElegido,
 }: {
+  /** Lo que va justo debajo del campo del cliente (sentar: «Llevar el tiempo de sus niños»), a la vista al elegir. */
+  trasElElegido?: ReactNode;
   valor: DatosDelClienteDto;
   onCambio: (d: DatosDelClienteDto) => void;
+  /** El cliente que se eligió en el campo del cliente (T-23), o `null` al deshacerlo: sentar lo usa para sus niños. */
+  onElegido?: (c: ClienteElegido | null) => void;
   /** Los problemas a la vista, después de intentar enviar. */
   errores?: Partial<Record<keyof DatosDelClienteDto, string>> | null;
   surface?: Surface;
   autoFocus?: boolean;
 }) {
   const [conocido, setConocido] = useState<ClienteEncontradoDto | null>(null);
+  // T-23: el elegido en el campo del cliente y lo que había antes, para deshacerlo.
+  const [elegido, setElegido] = useState<{ cliente: ClienteElegido; antes: DatosDelClienteDto } | null>(null);
+  const elegir = (c: ClienteElegido) => {
+    setElegido({ cliente: c, antes: valor });
+    onElegido?.(c);
+    // Nada pisa lo escrito: se rellena lo que esté vacío.
+    onCambio({
+      nombre: valor.nombre.trim() === "" ? c.nombre : valor.nombre,
+      cedula: valor.cedula.trim() === "" && c.cedula ? c.cedula : valor.cedula,
+      telefono: valor.telefono.trim() === "" ? c.telefono : valor.telefono,
+    });
+  };
+  const deshacer = () => {
+    if (elegido) onCambio(elegido.antes);
+    setElegido(null);
+    setConocido(null);
+    onElegido?.(null);
+  };
   // Lo último que se buscó: la misma cédula o el mismo teléfono no se vuelven a pedir.
   const buscado = useRef<string | null>(null);
   // Lo último que se escribió y a quién avisar, sin reiniciar la búsqueda en cada render.
@@ -95,8 +123,11 @@ export function DatosDelCliente({
   return (
     <fieldset className="flex flex-col gap-3">
       <legend className="sr-only">Datos del cliente</legend>
+      {/* T-23: quien está aquí, o por su nombre; lo de abajo se rellena al elegir. */}
+      <CampoDelCliente elegido={elegido?.cliente ?? null} onElegir={elegir} onDeshacer={deshacer} surface={surface} autoFocus={autoFocus} />
+      {trasElElegido}
       {/* La cédula y el teléfono, con los campos que ayudan a llenarlos (T-19). */}
-      <CampoCedula label="Cédula o RIF" surface={surface} valor={valor.cedula} onCambio={(cedula) => onCambio({ ...valor, cedula })} autoFocus={autoFocus} required error={errores?.cedula} />
+      <CampoCedula label="Cédula o RIF" surface={surface} valor={valor.cedula} onCambio={(cedula) => onCambio({ ...valor, cedula })} required error={errores?.cedula} />
       <CampoTelefono surface={surface} valor={valor.telefono} onCambio={(telefono) => onCambio({ ...valor, telefono })} required error={errores?.telefono} />
       <Input
         label="Nombre y apellido"
@@ -109,7 +140,7 @@ export function DatosDelCliente({
         aria-required="true"
         error={errores?.nombre}
       />
-      {sigueSiendo && (
+      {sigueSiendo && !elegido && (
         <p role="status" className="flex items-center gap-1.5 text-detalle text-ink-2">
           <UserCheck className="size-(--icono-texto) shrink-0 text-brand" aria-hidden="true" />
           Ya vino antes: sus datos se rellenaron solos.

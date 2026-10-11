@@ -1,6 +1,6 @@
 "use server";
 
-import type { ClienteEncontradoDto, FamilyAccountDto, Resultado } from "@l2/contracts";
+import type { ClienteEncontradoDto, ClientesDeAquiDto, EmpresaDeFacturaDto, FamilyAccountDto, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -33,6 +33,16 @@ export async function asignarCliente(entrada: unknown, autorizacion?: unknown): 
 }
 
 /**
+ * Los clientes que están aquí ahora (T-23): las familias de la sala, los de las cuentas abiertas y el cumpleaños de hoy.
+ * Lo que propone el campo del cliente antes de escribir nada.
+ */
+export async function clientesDeAqui(): Promise<Resultado<ClientesDeAquiDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).clientes.deAqui(ctx);
+}
+
+/**
  * El buscador de clientes (T-19): por su nombre, su cédula o su teléfono. Lo buscado no sale en el registro ni en la
  * auditoría (PLAN §7.6): solo cuántos se encontraron.
  */
@@ -40,4 +50,11 @@ export async function encontrarClientes(entrada: unknown): Promise<Resultado<Cli
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).clientes.encontrar(ctx, entrada);
+}
+
+/** Lo último que se facturó a ese RIF de empresa (T-23): la factura lo propone al volver a escribirlo. */
+export async function empresaDeFactura(entrada: unknown): Promise<Resultado<EmpresaDeFacturaDto | null>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).empresas.empresa(ctx, entrada);
 }

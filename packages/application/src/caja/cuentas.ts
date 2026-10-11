@@ -47,6 +47,7 @@ import {
   type VentaCerradaDto,
 } from "@l2/contracts";
 import { clientesDeCuentas } from "../clientes/de-cuentas.ts";
+import { recordarEmpresa } from "../clientes/empresas.ts";
 import { saldarDeudaDelCobro } from "../deudas/saldar.ts";
 import {
   RetainedAboveThresholdError,
@@ -803,6 +804,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               content: venta,
             },
           });
+          // T-23: la empresa de la factura (J- o G-) se recuerda para la próxima vez que se escriba su RIF.
+          if (cmd.cliente?.kind === "IDENTIFICADO") await recordarEmpresa(tx, ctx, cmd.cliente, ahora, quien.nombre);
           // El recibo, si se pidió (B3-8), en la misma transacción: si el cobro no se asienta, tampoco sale el
           // papel. Sin impresora de recibos el cobro se cierra igual y se dice por qué no salió (un recibo no
           // detiene un cobro: se imprime después desde Ventas). Desde papel no: el cliente ya se llevó el suyo.

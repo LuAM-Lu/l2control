@@ -2163,6 +2163,8 @@ function CobroCuenta({
         )}
         onConfirmar={confirmarDatos}
         onCancelar={() => setPendienteDeDatos(null)}
+        // T-23: quien paga suele ser el cliente de la cuenta: sus datos se proponen.
+        delCliente={cuenta.cliente ?? null}
       />
 
       {/* Corregir un pago: el mismo formulario, prellenado, con su monto. Una
