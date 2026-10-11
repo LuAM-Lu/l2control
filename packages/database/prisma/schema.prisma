@@ -80,6 +80,7 @@ model Branch {
   saleReturns       SaleReturn[]
   tablesCleaned     DiningTableCleaned[]
   staffConsumptions StaffConsumption[]
+  cashMovements     CashMovement[]
   stockAdjustments  StockAdjustment[]
   stockStarts       StockStart[]
   printers          Printer[]
@@ -246,6 +247,7 @@ model StaffUser {
   shiftsClosed       CashShift[] @relation("ShiftClosedBy")
   shiftsOutsidePoint CashShift[] @relation("ShiftOutsidePointBy")
   consumptions       StaffConsumption[]
+  cashMovements      CashMovement[]
 
   @@unique([tenantId, id])
   @@map("staff_user")
@@ -827,6 +829,7 @@ model CashShift {
   floats            CashShiftFloat[]
   payments          Payment[]
   sales             Sale[]
+  cashMovements     CashMovement[]
   returns           SaleReturn[]
   counts            ShiftCount[]
   cuts              ShiftCut[]
@@ -1923,6 +1926,8 @@ model PrintJob {
   area            String?
   /// Sale por el respaldo de su impresora (B5-6): la principal no respondió. Su impresora sigue siendo la principal.
   viaBackup       Boolean       @default(false) @map("via_backup")
+  /// El movimiento de efectivo de un comprobante MOVIMIENTO (B3-21): todo comprobante lleva el suyo (CHECK).
+  cashMovementId  String?       @map("cash_movement_id") @db.Uuid
 
   branch  Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   printer Printer       @relation(fields: [tenantId, branchId, printerId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -1930,9 +1935,11 @@ model PrintJob {
   cut     ShiftCut?     @relation(fields: [tenantId, cutId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   agent   PrintAgent?   @relation(fields: [tenantId, agentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   order   KitchenOrder? @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  cashMovement CashMovement? @relation(fields: [tenantId, cashMovementId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([tenantId, id])
   @@index([tenantId, orderId])
+  @@index([tenantId, cashMovementId])
   @@index([tenantId, branchId, status, nextAttemptAt])
   @@index([tenantId, branchId, createdAt])
   @@map("print_job")
@@ -2550,4 +2557,53 @@ model ChargeDraft {
   @@unique([tenantId, accountId])
   @@index([tenantId, branchId])
   @@map("charge_draft")
+}
+
+/// El efectivo que entra o sale de la gaveta sin ser venta (B3-21, M-38): la entrada (sencillo), la salida (compras,
+/// proveedor, adelanto) y el retiro a resguardo. Del turno: suma o resta en la gaveta y va en el corte aparte de las
+/// ventas. Solo agregar.
+model CashMovement {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  branchId        String    @map("branch_id") @db.Uuid
+  shiftId         String    @map("shift_id") @db.Uuid
+  businessDate    DateTime  @map("business_date") @db.Date
+  /// El número del comprobante en la sucursal (#0001), continuo.
+  number          Int
+  /// ENTRADA, SALIDA o RETIRO (CHECK).
+  kind            String
+  /// SENCILLO (entrada); COMPRAS, PROVEEDOR o ADELANTO (salida); RESGUARDO (retiro).
+  reason          String
+  /// USD o VES: el efectivo de la gaveta.
+  currency        String
+  amountMinor     BigInt    @map("amount_minor")
+  /// Lo que vale en dólares (los bolívares, a la tasa del momento): el tope y la quincena se miden así.
+  usdMinor        BigInt    @map("usd_minor")
+  rateId          String?   @map("rate_id") @db.Uuid
+  rateValue       String?   @map("rate_value")
+  note            String
+  /// El adelanto: a quién (firma con su PIN).
+  staffUserId     String?   @map("staff_user_id") @db.Uuid
+  staffName       String?   @map("staff_name")
+  /// El retiro: quién lo recibe (firma el comprobante).
+  receivedByName  String?   @map("received_by_name")
+  operationKey    String    @map("operation_key") @db.Uuid
+  recordedAt      DateTime  @map("recorded_at") @db.Timestamptz(3)
+  recordedBy      String?   @map("recorded_by") @db.Uuid
+  recordedByName  String    @map("recorded_by_name")
+  deviceId        String?   @map("device_id") @db.Uuid
+  authorizedBy    String?   @map("authorized_by") @db.Uuid
+  authorizedByName String?  @map("authorized_by_name")
+
+  branch    Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  shift     CashShift  @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  staffUser StaffUser? @relation(fields: [tenantId, staffUserId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  printJobs PrintJob[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@unique([tenantId, branchId, number])
+  @@index([tenantId, shiftId])
+  @@index([tenantId, staffUserId, businessDate])
+  @@map("cash_movement")
 }

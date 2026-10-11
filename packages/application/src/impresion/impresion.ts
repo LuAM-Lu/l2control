@@ -225,11 +225,13 @@ async function anotarEstado(
 
 /** Qué se pide imprimir. `para` elige la impresora activa de ese oficio; `impresoraId`, una concreta. */
 export type Encargo = Readonly<{
-  tipo: "RECIBO" | "CORTE" | "COMANDA" | "ANULACION" | "PRUEBA";
+  tipo: "RECIBO" | "CORTE" | "COMANDA" | "ANULACION" | "PRUEBA" | "MOVIMIENTO";
   titulo: string;
   copia?: boolean;
   saleId?: string;
   cutId?: string;
+  /** El movimiento de efectivo de su comprobante (MOVIMIENTO, B3-21). */
+  cashMovementId?: string;
   /** El pedido del mesero que imprime una COMANDA (B6-2) o corrige una ANULACION (B6-6): las dos llevan el suyo. */
   orderId?: string;
   documento: Documento;
@@ -278,6 +280,7 @@ export async function encolarEn(tx: Transaccion, ctx: Contexto, e: Encargo, ahor
       copy: e.copia ?? false,
       saleId: e.saleId ?? null,
       cutId: e.cutId ?? null,
+      cashMovementId: e.cashMovementId ?? null,
       orderId: e.orderId ?? null,
       area: e.area ?? null,
       content: e.documento as object,

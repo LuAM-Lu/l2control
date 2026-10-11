@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, CalendarX2, CircleCheckBig, FileText, Laptop, Lock, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, CalendarClock, CalendarX2, CircleCheckBig, FileText, Laptop, Lock, TriangleAlert, Wallet } from "lucide-react";
 import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
@@ -16,6 +16,7 @@ import { ExcepcionesTurno } from "./ExcepcionesTurno.tsx";
 import { abrirTurno } from "./turno.acciones";
 import { hacerCorteX, leerPendientesDelCierre, leerVistaDelTurno } from "./cortes.acciones";
 import { importeTecleado } from "./importe.ts";
+import { MoverEfectivoDialog, MovimientosDeLaGaveta } from "./MoverEfectivo.tsx";
 import { VentasDelTurno } from "./VentasDelTurno.tsx";
 import { useVentas } from "./VentasProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -368,7 +369,9 @@ function TurnoAbierto({ turno, vistaInicial, ajeno, cerrar }: { turno: TurnoDto;
   // esta; si es la última, es el cierre del día.
   const [cierre, setCierre] = useState<{ tipo: TipoDeCierre; otras: string[] } | null>(null);
   const [decidiendo, setDecidiendo] = useState(false);
-  const vista = useVistaDelTurno(turno.id, vistaInicial, ajeno);
+  // Mover efectivo (B3-21) cambia la gaveta: la vista se vuelve a leer.
+  const [movidos, setMovidos] = useState(0);
+  const vista = useVistaDelTurno(turno.id, vistaInicial, ajeno, movidos);
   async function pedirCierre() {
     setDecidiendo(true);
     const r = await leerPendientesDelCierre(ajeno ? turno.id : undefined).catch(() => null);
@@ -452,7 +455,7 @@ function TurnoAbierto({ turno, vistaInicial, ajeno, cerrar }: { turno: TurnoDto;
           ancho="muro"
           className="grid flex-1 gap-4 py-4 apaisado:min-h-0 apaisado:grid-cols-[clamp(260px,22vw,300px)_minmax(0,1fr)] apaisado:grid-rows-[minmax(0,1fr)] apaisado:bajo:py-3"
         >
-          <ResumenTurno turno={turno} vista={vista} ajeno={ajeno} decidiendo={decidiendo} onCerrar={() => void pedirCierre()} />
+          <ResumenTurno turno={turno} vista={vista} ajeno={ajeno} decidiendo={decidiendo} onCerrar={() => void pedirCierre()} onMovido={() => setMovidos((n) => n + 1)} />
           {ajeno ? (
             <ExcepcionesTurno excepciones={vista?.excepciones ?? []} className="apaisado:min-h-0" />
           ) : (
@@ -468,7 +471,7 @@ function TurnoAbierto({ turno, vistaInicial, ajeno, cerrar }: { turno: TurnoDto;
  * La vista del turno según el libro, al día: se vuelve a leer cuando cambian las ventas de este equipo
  * (un cobro, una anulación, una reimpresión) y al volver el foco.
  */
-function useVistaDelTurno(turnoId: string, inicial: CorteDto | null, ajeno: boolean): CorteDto | null {
+function useVistaDelTurno(turnoId: string, inicial: CorteDto | null, ajeno: boolean, recarga: number): CorteDto | null {
   const [vista, setVista] = useState(inicial);
   const { ventas } = useVentas();
   const huella = ajeno ? "" : ventas.map((v) => `${v.id}:${v.voided ? 1 : 0}:${v.prints.length}`).join("|");
@@ -485,15 +488,16 @@ function useVistaDelTurno(turnoId: string, inicial: CorteDto | null, ajeno: bool
       vivo = false;
       window.removeEventListener("focus", alVolver);
     };
-  }, [turnoId, ajeno, huella]);
+  }, [turnoId, ajeno, huella, recarga]);
   return vista;
 }
 
 const aDinero = (m: MoneyDto) => money(BigInt(m.minor), m.currency as CurrencyCode);
 
 /**
- * Cómo va el turno: el fondo, lo cobrado por medio y las excepciones, del libro. Al pie, «Cerrar la caja»: el servidor
- * decide si es solo esta caja o el día (B3-15). El corte X, a un toque.
+ * Cómo va el turno: la gaveta (el fondo y lo movido sin ser venta, B3-21), lo cobrado por medio y las excepciones, del
+ * libro. Al pie, «Cerrar la caja»: el servidor decide si es solo esta caja o el día (B3-15). El corte X y «Mover
+ * efectivo», a un toque.
  */
 function ResumenTurno({
   turno,
@@ -501,6 +505,7 @@ function ResumenTurno({
   ajeno,
   decidiendo,
   onCerrar,
+  onMovido,
 }: {
   turno: TurnoDto;
   vista: CorteDto | null;
@@ -508,7 +513,11 @@ function ResumenTurno({
   /** Mientras se pregunta al servidor si quedan otras cajas abiertas (B3-15). */
   decidiendo: boolean;
   onCerrar: () => void;
+  onMovido: () => void;
 }) {
+  const actor = useActorEnSesion();
+  const puedeMover = !ajeno && actor !== null && can(actor, "efectivo.mover") !== "DENEGADO";
+  const [moviendo, setMoviendo] = useState(false);
   const [verExcepciones, setVerExcepciones] = useState(false);
   const [corteX, setCorteX] = useState<CorteDto | null>(null);
   const [haciendoX, setHaciendoX] = useState(false);
@@ -530,17 +539,30 @@ function ResumenTurno({
     <aside aria-label="Resumen del turno" className="flex min-h-0 min-w-0 flex-col rounded-[var(--radius-card)] border border-line bg-surface shadow-card">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 apaisado:bajo:gap-3 apaisado:bajo:p-3">
         <section aria-labelledby="resumen-fondo">
-          <h2 id="resumen-fondo" className={TITULO}>
-            En la gaveta al abrir
-          </h2>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 id="resumen-fondo" className={TITULO}>
+              La gaveta
+            </h2>
+            {puedeMover && (
+              <Button surface="tablet" variant="ghost" className="gap-1 px-2 text-[13px]" onClick={() => setMoviendo(true)} title="Entrada, salida o retiro de efectivo sin ser venta">
+                <ArrowLeftRight size={13} aria-hidden="true" />
+                Mover efectivo
+              </Button>
+            )}
+          </div>
           <ul className="mt-1.5 flex flex-col gap-1">
             {turno.fondos.map((f) => (
               <li key={f.currency} className="flex items-baseline justify-between gap-2">
-                <span className="text-[12.5px] text-ink-3">{f.currency === "VES" ? "Bolívares" : "Dólares"}</span>
+                <span className="text-[12.5px] text-ink-3">Al abrir, {f.currency === "VES" ? "bolívares" : "dólares"}</span>
                 <MoneyDisplay value={toMajor(aDinero(f.amount))} currency={f.currency} size="sm" />
               </li>
             ))}
           </ul>
+          {vista && vista.movimientos.length > 0 && (
+            <div className="mt-2 border-t border-line/60 pt-1.5">
+              <MovimientosDeLaGaveta movimientos={vista.movimientos} />
+            </div>
+          )}
         </section>
 
         <section aria-labelledby="resumen-cobrado">
@@ -617,6 +639,16 @@ function ResumenTurno({
         <ExcepcionesTurno excepciones={vista?.excepciones ?? []} sinTitulo className="border-0 p-0 shadow-none" />
       </Sheet>
       <CorteXDialog corte={corteX} onCerrar={() => setCorteX(null)} />
+      {puedeMover && (
+        <MoverEfectivoDialog
+          abierto={moviendo}
+          onCerrar={() => setMoviendo(false)}
+          onHecho={() => {
+            setMoviendo(false);
+            onMovido();
+          }}
+        />
+      )}
     </aside>
   );
 }
@@ -646,6 +678,14 @@ function CorteXDialog({ corte, onCerrar }: { corte: CorteDto | null; onCerrar: (
           <MoneyDisplay value={toMajor(aDinero(corte.ventas.total))} currency="USD" size="lg" />
         </div>
         <EntradasPorMedio porMedio={porMedioDelLibro(corte.porMedio)} titulo="Cobrado por medio" className="border-0 p-0 shadow-none" />
+        {corte.movimientos.length > 0 && (
+          <section>
+            <h3 className={TITULO}>Movido sin ser venta</h3>
+            <div className="mt-1.5">
+              <MovimientosDeLaGaveta movimientos={corte.movimientos} />
+            </div>
+          </section>
+        )}
         {corte.gaveta && (
           <section>
             <h3 className={TITULO}>Debería haber en la gaveta</h3>

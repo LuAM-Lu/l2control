@@ -11,16 +11,11 @@
 import { z } from "zod";
 import { FechaSchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 import { EncabezadoDeInformeSchema, MAX_DIAS_DE_INFORME } from "./reportes.ts";
+import { MovimientoDeEfectivoSchema } from "./efectivo.ts";
+import { FirmaDeLaPersonaSchema } from "./identity.ts";
 
 /** El código del medio: el mismo que `CONSUMO_DEL_PERSONAL` de `@l2/domain-cash`. */
 export const MEDIO_CONSUMO_DEL_PERSONAL = "CONSUMO_PERSONAL";
-
-/** Quien consumió y su PIN: firma su consumo, o pide ver sus vales. */
-export const FirmaDeLaPersonaSchema = z.strictObject({
-  staffUserId: z.uuid("Persona desconocida"),
-  pin: z.string().regex(/^\d{4,8}$/, "El PIN son de 4 a 8 dígitos"),
-});
-export type FirmaDeLaPersonaDto = z.infer<typeof FirmaDeLaPersonaSchema>;
 
 /** Una persona del local que puede consumir (sin la cuenta de soporte). */
 export const PersonaDelLocalSchema = z.object({ id: z.uuid(), nombre: z.string(), rol: z.string() });
@@ -62,9 +57,19 @@ export const ValesDelPersonalSchema = z.object({
   periodo: z.object({ desde: FechaSchema, hasta: FechaSchema }),
   /** Todos los de la sucursal, o los de una sola persona (la que puso su PIN). */
   alcance: z.enum(["TODOS", "PERSONA"]),
-  porPersona: z.array(z.object({ persona: z.object({ id: z.uuid(), nombre: z.string() }), vales: z.number().int(), neto: MoneySchema })),
+  porPersona: z.array(
+    z.object({
+      persona: z.object({ id: z.uuid(), nombre: z.string() }),
+      vales: z.number().int(),
+      neto: MoneySchema,
+      /** Los adelantos de efectivo de la quincena (B3-21), en dólares. */
+      adelantado: MoneySchema.default({ minor: "0", currency: "USD" }),
+    }),
+  ),
   vales: z.array(ValeSchema),
   total: MoneySchema,
+  /** Los adelantos de efectivo del periodo (B3-21): cada uno, de quién y por cuánto. */
+  adelantos: z.array(MovimientoDeEfectivoSchema).default([]),
 });
 export type ValesDelPersonalDto = z.infer<typeof ValesDelPersonalSchema>;
 

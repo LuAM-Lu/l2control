@@ -30,7 +30,8 @@ export type AccionConPin =
   | "papel.revisar"
   | "inventario.ajustar"
   | "pedido.anularEnProduccion"
-  | "parque.anularEntrada";
+  | "parque.anularEntrada"
+  | "efectivo.sobreTope";
 const PIN_LONGITUD = 4;
 
 export type Autorizador = { id: string; nombre: string; rol: string };

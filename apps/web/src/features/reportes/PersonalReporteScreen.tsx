@@ -4,14 +4,14 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { FileDown, ReceiptText, TriangleAlert, UsersRound } from "lucide-react";
+import { FileDown, HandCoins, ReceiptText, TriangleAlert, UsersRound } from "lucide-react";
 import type { ValesDelPersonalDto } from "@l2/contracts";
 import { Cifra, Container, FiltroSegmentado, PageHeader, Resumen, TAMANO_ICONO, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import type { ValesPedidos } from "./reportes.servidor.ts";
 import { FiltroDePeriodo, PERIODOS_POR_QUINCENA, TablaDeInforme, importe, periodoEnPalabras } from "./informe.tsx";
-import { direccionDelPersonal, seccionesDelPersonal, type SeccionDelPersonal } from "./personal.tsx";
+import { NOMBRE_DE_SECCION, direccionDelPersonal, seccionesDelPersonal, type SeccionDelPersonal } from "./personal.tsx";
 
 /**
  * Panel → Reportes → Personal (B3-17, M-37). De solo lectura, para administración y supervisión: lo que consumió cada
@@ -35,7 +35,7 @@ export function PersonalReporteScreen({ hoy, pedido, informe }: ValesPedidos) {
       <PageHeader
         migas={[{ texto: ajustes.nombre, href: "/panel" }, { texto: "Reportes", href: "/panel/reportes" }, { texto: "Personal" }]}
         titulo="Consumo del personal"
-        descripcion="Lo que consumió cada persona del equipo en la quincena, vale por vale, firmado con su PIN. Sin tope: el descuento del sueldo se hace fuera del sistema."
+        descripcion="Lo que consumió cada persona del equipo en la quincena, vale por vale, firmado con su PIN, y sus adelantos en efectivo. Sin tope: el descuento del sueldo se hace fuera del sistema."
         acciones={
           informe.ok && (
             <Link
@@ -100,10 +100,20 @@ function Informe({ informe, cargando }: { informe: ValesDelPersonalDto; cargando
           onClick={() => setPestana("vales")}
           activo={pestana === "vales"}
         />
+        {/* B3-21: lo que el equipo recibió en efectivo por adelantado, en dólares. */}
+        <Cifra
+          etiqueta="Adelantos"
+          icono={<HandCoins />}
+          valor={importe({ minor: String(informe.adelantos.reduce((n, a) => n + BigInt(a.enDolares.minor), 0n)), currency: "USD" })}
+          pie={informe.adelantos.length === 0 ? "Ninguno" : `${informe.adelantos.length} ${informe.adelantos.length === 1 ? "adelanto" : "adelantos"}`}
+          tono="idle"
+          onClick={() => setPestana("adelantos")}
+          activo={pestana === "adelantos"}
+        />
       </Resumen>
       <FiltroSegmentado<SeccionDelPersonal>
         etiqueta="Qué ver"
-        opciones={secciones.map((s) => ({ id: s.id, nombre: s.id === "personas" ? "Por persona" : "Los vales" }))}
+        opciones={secciones.map((s) => ({ id: s.id, nombre: NOMBRE_DE_SECCION[s.id] }))}
         valor={pestana}
         onCambiar={setPestana}
       />

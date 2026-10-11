@@ -329,6 +329,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Esta quincena» va del 1 al 15 o del 16 al último día del mes; «Quincena anterior», la de antes.",
       "«Reimprimir vale» saca una copia en la impresora de recibos (dice «COPIA»).",
       "Un vale anulado no cuenta; lo devuelto se resta. Anular o devolver un consumo pide el PIN de administración, como cualquier venta, y vuelve a su vale: no sale dinero.",
+      "Los adelantos en efectivo (Turno → «Mover efectivo» → Salida → Adelanto al personal, con el PIN de la persona) salen en su quincena, junto a sus vales: en «Por persona» y en «Adelantos», con su comprobante, para qué fue y quién lo entregó.",
     ],
     problemas: [
       {
@@ -389,6 +390,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Abre el turno contando el fondo de la gaveta, en dólares y en bolívares. Se abre en el punto de cobro: el equipo de la caja, marcado en Dispositivos.",
       "Si la laptop de caja falla, el turno se abre en otro equipo con el PIN de administración y el motivo: queda en la auditoría e Inicio lo avisa mientras siga abierto.",
       "El corte X enseña lo cobrado sin cerrar nada.",
+      "«Mover efectivo» (en «La gaveta», o la tecla M en Cobrar): lo que entra o sale de la gaveta sin ser venta. Entrada: sencillo para la caja. Salida: compras para el local (el hielo), pago a proveedor o adelanto al personal. Retiro: a resguardo (la caja fuerte). En $ o en Bs, con para qué es. Sale su comprobante; el del adelanto lo firma la persona, el del retiro quien lo recibe. El arqueo lo cuenta: pagar el hielo de la gaveta ya no deja diferencia.",
+      "Hasta el tope de Ajustes → Sucursal («Mover», $ 20 de fábrica) la caja lo hace sola; por encima, y todo retiro, con el PIN de supervisión. Lo de bolívares se mide en dólares a la tasa de hoy. El adelanto lo firma la persona con su PIN y sale en su quincena (Reportes → Personal). Tocar un movimiento en «La gaveta» reimprime su comprobante (como copia).",
       "Para cerrar: cuenta lo que hay (arqueo a ciegas) y sella el corte Z. Hasta $ 1,00 de diferencia lo firma la cajera; más, supervisión.",
       "«Cerrar la caja» no pregunta qué cierre es: si queda otra caja abierta, cierras la tuya (tu conteo y tu dinero; lo abierto sigue para la otra); si es la última, es el cierre del día, que no se hace con nada pendiente.",
       "Con la caja cerrada no se cobra, ni se devuelve, ni se anula un cobro; con todas cerradas, tampoco se dan cortesías ni descuentos. Sí se consulta, se registran entradas al parque y se toman pedidos.",
@@ -404,6 +407,16 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«No se devuelve por aquí» o «ya se devolvió»",
         solucion: "Se devuelven productos, lo preparado (que va a merma) y el paquete de un niño que ya salió (entero o lo que no usó); el tiempo de más y los servicios, no. Lo ya devuelto no vuelve otra vez. Una venta con devoluciones ya no se anula entera.",
         reconoce: ["no se devuelve por aqui", "ya se devolvio", "ya tiene devoluciones"],
+      },
+      {
+        sintoma: "«No hay dólares (o bolívares) suficientes para sacarlo» al mover efectivo",
+        solucion: "Lo que sale de la gaveta no puede ser más de lo que el libro dice que hay en esa moneda. Revisa el monto o la moneda: si el dinero está, quizás entró sin anotarse (anota primero la entrada).",
+        reconoce: ["no hay dolares suficientes para sacarlo", "no hay bolivares suficientes para sacarlo"],
+      },
+      {
+        sintoma: "«Mover efectivo» pide la autorización de un supervisor",
+        solucion: "Pasa del tope de Ajustes → Sucursal («Mover»), o es un retiro a resguardo: lo autoriza supervisión o administración con su PIN, en el mismo diálogo.",
+        reconoce: ["esto necesita la autorizacion de un supervisor"],
       },
       {
         sintoma: "La jornada no se cierra",

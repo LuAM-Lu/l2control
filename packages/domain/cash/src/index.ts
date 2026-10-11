@@ -276,7 +276,8 @@ export function openingMovements(fondos: readonly Money[]): ShiftMovement[] {
  *
  * `PAYMENT` entra, `CHANGE_OUT` y `PAYOUT` salen. La propina no es ingreso
  * del negocio pero sí está físicamente en la gaveta si se dejó en efectivo,
- * por eso también es un movimiento.
+ * por eso también es un movimiento. `CASH_IN` (B3-21) es efectivo que entra sin
+ * ser venta (el sencillo para la caja): suma en la gaveta y no en lo cobrado.
  */
 export type ShiftMovementKind =
   | "OPENING_FLOAT"
@@ -284,7 +285,8 @@ export type ShiftMovementKind =
   | "CHANGE_OUT"
   | "TIP_IN_DRAWER"
   | "RETAINED"
-  | "PAYOUT";
+  | "PAYOUT"
+  | "CASH_IN";
 
 export type ShiftMovement = Readonly<{
   kind: ShiftMovementKind;
@@ -337,6 +339,7 @@ const SIGN: Record<ShiftMovementKind, 1n | -1n> = {
   PAYMENT: 1n,
   TIP_IN_DRAWER: 1n,
   RETAINED: 1n,
+  CASH_IN: 1n,
   CHANGE_OUT: -1n,
   PAYOUT: -1n,
 };
@@ -538,6 +541,7 @@ export * from "./reporte.ts";
 export * from "./recibo.ts";
 export * from "./devolucion.ts";
 export * from "./dia.ts";
+export * from "./efectivo.ts";
 
 /* ---------------------------------------------- el vuelto, por partes (B3-19) */
 

@@ -322,7 +322,7 @@ export const MODULOS: readonly Modulo[] = [
         id: "personal",
         nombre: "Personal",
         href: rutaSeccion("reportes", "personal"),
-        proposito: "Lo que consumió cada persona del equipo en la quincena, vale por vale, firmado con su PIN. El descuento del sueldo se hace fuera del sistema.",
+        proposito: "Lo que consumió cada persona del equipo en la quincena, vale por vale, firmado con su PIN, y sus adelantos en efectivo. El descuento del sueldo se hace fuera del sistema.",
         tarea: "B3-17",
       },
     ],

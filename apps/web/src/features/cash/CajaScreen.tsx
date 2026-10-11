@@ -124,6 +124,7 @@ import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
 import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
 import { EntradaDesdeCaja } from "./EntradaDesdeCaja.tsx";
+import { MoverEfectivoDialog } from "./MoverEfectivo.tsx";
 import { VentaSinCobrar } from "./VentaSinCobrar.tsx";
 import { CobrarJuntasDialog } from "./CobrarJuntasDialog.tsx";
 import { DividirPorItems } from "./DividirPorItems.tsx";
@@ -2432,6 +2433,9 @@ export function CajaScreen({
      cargar lo anotado en papel, no: eso sigue en Entrada. `pedido` lleva la pulsera que lo abrió, una vez. */
   const actorDeCaja = useActorEnSesion();
   const puedeRegistrarEntrada = actorDeCaja !== null && can(actorDeCaja, "parque.checkIn") !== "DENEGADO" && !modoPapel;
+  // B3-21: mover efectivo de la gaveta sin ser venta (M); también desde Turno, en «La gaveta».
+  const puedeMoverEfectivo = actorDeCaja !== null && can(actorDeCaja, "efectivo.mover") !== "DENEGADO" && !modoPapel && turno !== null;
+  const [moviendoEfectivo, setMoviendoEfectivo] = useState(false);
   const [entradaAbierta, setEntradaAbierta] = useState(false);
   const [pedidoDeEntrada, setPedidoDeEntrada] = useState<{ codigo: string | null; n: number } | null>(null);
   function abrirEntrada(codigo: string | null) {
@@ -2620,6 +2624,10 @@ export function CajaScreen({
     }
     if (letra === "C") {
       setBuscandoCliente(true);
+      return true;
+    }
+    if (letra === "M" && puedeMoverEfectivo) {
+      setMoviendoEfectivo(true);
       return true;
     }
     return false;
@@ -3071,6 +3079,7 @@ export function CajaScreen({
         abierto={viendoAtajos}
         onCerrar={() => setViendoAtajos(false)}
       />
+      {puedeMoverEfectivo && <MoverEfectivoDialog abierto={moviendoEfectivo} onCerrar={() => setMoviendoEfectivo(false)} onHecho={() => setMoviendoEfectivo(false)} />}
       {/* B3-20: repartir los ítems entre personas; cada una se cobra aparte. */}
       <DividirPorItems
         cuentaId={dividiendoPorItems}

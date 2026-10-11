@@ -208,7 +208,8 @@ export type AccionDeCaja =
   | "turno.abrirFueraDelPunto"
   | "pedido.anularEnProduccion"
   | "parque.anularEntrada"
-  | "venta.devolver";
+  | "venta.devolver"
+  | "efectivo.sobreTope";
 
 /** Anular y regalar mueven dinero: quien puede por sí mismo confirma igual con su PIN (B3-4). */
 const CON_PIN = { confirmarConPin: true } as const;

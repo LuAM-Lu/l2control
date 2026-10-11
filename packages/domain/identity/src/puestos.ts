@@ -22,6 +22,7 @@ export const NOMBRE_DEL_PUESTO: Readonly<Record<PuestoDeServicio, string>> = Obj
 /** Lo que se hizo y de qué puesto es: por el comienzo de su acción. */
 const POR_ACCION: readonly (readonly [string, PuestoDeServicio])[] = [
   ["cuenta.cobrar", "CAJA"],
+  ["efectivo.mover", "CAJA"],
   ["cuenta.anular_cobro", "CAJA"],
   ["cuenta.cortesia", "CAJA"],
   ["cuenta.quitar_cortesia", "CAJA"],

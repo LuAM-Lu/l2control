@@ -47,6 +47,7 @@ export type {
   ShiftCount,
   ShiftCut,
   StaffConsumption,
+  CashMovement,
   SystemUpdate,
   BackupCopy,
   BackupPin,

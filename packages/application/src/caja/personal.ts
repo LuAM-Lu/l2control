@@ -8,7 +8,8 @@
  *  · los vales de un periodo (la quincena): supervisión y administración, los de todos (`reportes.verSucursal`); cada
  *    persona, los suyos con su PIN, desde la caja.
  * Lo consumido y el total salen de la venta; su anulación (B3-18) y sus devoluciones (B3-14), también: un vale anulado
- * no cuenta, y lo devuelto se resta. Sin tope ni «descontado»: el descuento del sueldo se hace fuera del sistema.
+ * no cuenta, y lo devuelto se resta. Sin tope ni «descontado»: el descuento del sueldo se hace fuera del sistema. Los
+ * adelantos de efectivo (B3-21) van en la quincena de su persona, aparte de lo consumido.
  */
 import {
   ConsultaDeValesSchema,
@@ -32,6 +33,7 @@ import { encolarEn } from "../impresion/impresion.ts";
 import { documentoDeVale } from "../impresion/plantillas.ts";
 import { ajustesDe } from "../sucursal/ajustes.ts";
 import { CON_TODO, ventaDe } from "./ventas.ts";
+import { movimientoDto } from "./efectivo.ts";
 
 const USD = (minor: bigint) => ({ minor: String(minor), currency: "USD" as const });
 const orden = (n: number) => `#${String(n).padStart(4, "0")}`;
@@ -129,12 +131,30 @@ export function casosPersonal(base: Base, cifrador: Cifrador | null): CasosPerso
           orderBy: [{ at: "asc" }, { id: "asc" }],
         });
         const vales = filas.map((f) => valeDe(f, cifrador));
-        const porPersona = new Map<string, { nombre: string; vales: number; neto: bigint }>();
+        // Los adelantos de efectivo del periodo (B3-21), de su día de negocio, como los vales.
+        const adelantos = (
+          await tx.cashMovement.findMany({
+            where: {
+              branchId: ctx.branchId,
+              reason: "ADELANTO",
+              businessDate: { gte: new Date(`${q.desde}T00:00:00.000Z`), lte: new Date(`${q.hasta}T00:00:00.000Z`) },
+              ...(soloDe ? { staffUserId: soloDe } : {}),
+            },
+            orderBy: [{ recordedAt: "asc" }, { number: "asc" }],
+          })
+        ).map(movimientoDto);
+        const porPersona = new Map<string, { nombre: string; vales: number; neto: bigint; adelantado: bigint }>();
         for (const x of vales) {
-          const p = porPersona.get(x.persona.id) ?? { nombre: x.persona.nombre, vales: 0, neto: 0n };
+          const p = porPersona.get(x.persona.id) ?? { nombre: x.persona.nombre, vales: 0, neto: 0n, adelantado: 0n };
           if (!x.anulado) p.vales += 1;
           p.neto += BigInt(x.neto.minor);
           porPersona.set(x.persona.id, p);
+        }
+        for (const a of adelantos) {
+          if (!a.persona) continue;
+          const p = porPersona.get(a.persona.id) ?? { nombre: a.persona.nombre, vales: 0, neto: 0n, adelantado: 0n };
+          p.adelantado += BigInt(a.enDolares.minor);
+          porPersona.set(a.persona.id, p);
         }
         const quien = await nombreDe(tx, ctx);
         const ajustes = await ajustesDe(tx, ctx.branchId);
@@ -144,9 +164,10 @@ export function casosPersonal(base: Base, cifrador: Cifrador | null): CasosPerso
           alcance: soloDe ? "PERSONA" : "TODOS",
           porPersona: [...porPersona]
             .sort(([, a], [, b]) => a.nombre.localeCompare(b.nombre, "es"))
-            .map(([id, p]) => ({ persona: { id, nombre: p.nombre }, vales: p.vales, neto: USD(p.neto) })),
+            .map(([id, p]) => ({ persona: { id, nombre: p.nombre }, vales: p.vales, neto: USD(p.neto), adelantado: USD(p.adelantado) })),
           vales,
           total: USD(vales.reduce((n, x) => n + BigInt(x.neto.minor), 0n)),
+          adelantos,
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };

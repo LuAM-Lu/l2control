@@ -167,6 +167,9 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   // El vale del consumo del personal (B3-17): lo leen Caja → Personal y sus reportes, que escuchan las ventas.
   "personal.consumir": ["ventas"],
   "personal.reimprimir_vale": NADA,
+  // Mover efectivo (B3-21): cambia la gaveta del turno; el adelanto, la quincena de su persona (Caja → Personal escucha las ventas).
+  "efectivo.mover": ["turno", "ventas"],
+  "efectivo.reimprimir": NADA,
   "pago.devolver": ["ventas"],
   "inventario.anular_entrada": ["catalogo"],
   "producto.devolver": ["catalogo"],

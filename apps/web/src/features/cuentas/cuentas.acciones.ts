@@ -104,6 +104,7 @@ const CON_AUTORIZADORES = [
   "turno.abrirFueraDelPunto",
   "pedido.anularEnProduccion",
   "parque.anularEntrada",
+  "efectivo.sobreTope",
 ] as const;
 
 /**

@@ -391,3 +391,13 @@ export const SesionEnCursoSchema = z.object({
   soporte: z.boolean().default(false),
 });
 export type SesionEnCursoDto = z.infer<typeof SesionEnCursoSchema>;
+
+/**
+ * Una persona del equipo y su PIN (B3-17, B3-21): firma lo que es suyo, sea quien sea quien opera el equipo (su consumo,
+ * su adelanto) o pide ver sus vales.
+ */
+export const FirmaDeLaPersonaSchema = z.strictObject({
+  staffUserId: z.uuid("Persona desconocida"),
+  pin: z.string().regex(/^\d{4,8}$/, "El PIN son de 4 a 8 dígitos"),
+});
+export type FirmaDeLaPersonaDto = z.infer<typeof FirmaDeLaPersonaSchema>;

@@ -1,17 +1,21 @@
 import type { ReactNode } from "react";
 import { CircleCheckBig, CircleX, Undo2 } from "lucide-react";
-import type { ValeDto, ValesDelPersonalDto } from "@l2/contracts";
+import type { MoneyDto, ValeDto, ValesDelPersonalDto } from "@l2/contracts";
 import { TAMANO_ICONO, cn } from "@l2/ui";
 import type { Reloj } from "../sucursal/SucursalProvider.tsx";
 import { importe, type SeccionDeInforme } from "./informe.tsx";
 
 /**
  * Las secciones de los vales del personal (B3-17, M-37): lo de cada persona en el periodo (la quincena) y cada vale, con
- * lo consumido, su total y si se anuló o se devolvió algo. Las pintan Caja → Personal (con «Reimprimir vale»), Reportes →
- * Personal y su PDF. Sin tope ni «descontado»: el descuento del sueldo se hace fuera del sistema.
+ * lo consumido, su total y si se anuló o se devolvió algo; y los adelantos de efectivo (B3-21), cada uno con su
+ * comprobante. Las pintan Caja → Personal (con «Reimprimir vale»), Reportes → Personal y su PDF. Sin tope ni
+ * «descontado»: el descuento del sueldo se hace fuera del sistema.
  */
 
-export type SeccionDelPersonal = "personas" | "vales";
+export type SeccionDelPersonal = "personas" | "vales" | "adelantos";
+
+/** Cómo se llama cada sección en el selector. */
+export const NOMBRE_DE_SECCION: Readonly<Record<SeccionDelPersonal, string>> = { personas: "Por persona", vales: "Los vales", adelantos: "Adelantos" };
 
 /** La dirección del informe: su periodo. */
 export function direccionDelPersonal(base: string, p: { desde: string; hasta: string }): string {
@@ -46,10 +50,12 @@ export function EstadoDelVale({ v, papel = false }: { v: ValeDto; papel?: boolea
 }
 
 const vales = (n: number) => `${n} ${n === 1 ? "vale" : "vales"}`;
+const adelantos = (n: number) => `${n} ${n === 1 ? "adelanto" : "adelantos"}`;
+const sumaUsd = (ms: readonly MoneyDto[]): MoneyDto => ({ minor: String(ms.reduce((n, m) => n + BigInt(m.minor), 0n)), currency: "USD" });
 
 /**
- * Las dos secciones: por persona y cada vale. `accion`, lo que cada vale ofrece en la pantalla («Reimprimir vale»); en el
- * papel, nada.
+ * Las tres secciones: por persona, cada vale y cada adelanto. `accion`, lo que cada vale ofrece en la pantalla
+ * («Reimprimir vale»); en el papel, nada.
  */
 export function seccionesDelPersonal(
   i: ValesDelPersonalDto,
@@ -63,11 +69,21 @@ export function seccionesDelPersonal(
     {
       id: "personas",
       titulo: "Por persona",
-      columnas: [{ titulo: "Persona" }, { titulo: "Vales", derecha: true }, { titulo: "Consumió", derecha: true }],
-      filas: i.porPersona.map((p) => [<span key="n" className="font-semibold">{p.persona.nombre}</span>, <span key="v" className="tnum">{p.vales}</span>, <span key="t" className="tnum font-semibold">{importe(p.neto)}</span>]),
-      pie: ["Total", <span key="v" className="tnum">{cuantos}</span>, <span key="t" className="tnum">{importe(i.total)}</span>],
-      vacio: "Nadie del equipo consumió en este periodo.",
-      nota: "Lo que consumió cada persona, sin lo anulado y sin lo devuelto. El descuento del sueldo se hace fuera del sistema.",
+      columnas: [{ titulo: "Persona" }, { titulo: "Vales", derecha: true }, { titulo: "Consumió", derecha: true }, { titulo: "Adelantos", derecha: true }],
+      filas: i.porPersona.map((p) => [
+        <span key="n" className="font-semibold">{p.persona.nombre}</span>,
+        <span key="v" className="tnum">{p.vales}</span>,
+        <span key="t" className="tnum font-semibold">{importe(p.neto)}</span>,
+        <span key="a" className={cn("tnum", BigInt(p.adelantado.minor) > 0n && "font-semibold")}>{importe(p.adelantado)}</span>,
+      ]),
+      pie: [
+        "Total",
+        <span key="v" className="tnum">{cuantos}</span>,
+        <span key="t" className="tnum">{importe(i.total)}</span>,
+        <span key="a" className="tnum">{importe(sumaUsd(i.porPersona.map((p) => p.adelantado)))}</span>,
+      ],
+      vacio: "Nadie del equipo consumió ni recibió adelantos en este periodo.",
+      nota: "Lo que consumió cada persona, sin lo anulado y sin lo devuelto, y lo que recibió en efectivo por adelantado (en dólares). El descuento del sueldo se hace fuera del sistema.",
     },
     {
       id: "vales",
@@ -94,6 +110,28 @@ export function seccionesDelPersonal(
         ...(conAccion ? [<span key="a">{accion(v)}</span>] : []),
       ]),
       vacio: "Sin vales en este periodo.",
+    },
+    {
+      id: "adelantos",
+      titulo: `Adelantos (${adelantos(i.adelantos.length)})`,
+      columnas: [{ titulo: "Cuándo" }, { titulo: "Comprobante" }, { titulo: "Persona" }, { titulo: "Para qué" }, { titulo: "Monto", derecha: true }],
+      filas: i.adelantos.map((a) => [
+        <span key="c" className="tnum whitespace-nowrap">{reloj.diaYHora(Date.parse(a.en))}</span>,
+        <span key="o" className="tnum">{ordenDelVale(a.numero)}</span>,
+        <span key="p" className="font-semibold">{a.persona?.nombre ?? ""}</span>,
+        <span key="n">
+          {a.nota}
+          <span className={cn("block text-nota", !papel && "text-ink-3")}>
+            Entregó {a.por}
+            {a.autorizo ? ` · autorizó ${a.autorizo}` : ""}
+          </span>
+        </span>,
+        <span key="m" className="tnum font-semibold">
+          {importe(a.monto)}
+          {a.monto.currency !== "USD" && <span className={cn("block text-nota font-normal", !papel && "text-ink-3")}>{importe(a.enDolares)}</span>}
+        </span>,
+      ]),
+      vacio: "Sin adelantos en este periodo.",
     },
   ];
 }
