@@ -2336,7 +2336,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   ofrece tiempo abierto (cobra la entrada al momento); y quien sube a un paquete que no cuesta más que lo pagado, sube
   por $ 0.*
 
-- [ ] **B4-18 · La Entrada en tablet** (M-38, W-4).
+- [~] **B4-18 · La Entrada en tablet** (M-38, W-4). *A cargo: LuAMi (Claude), en `feat/b4-18`.*
   → El orden del local: la cédula primero, con el campo del cliente de T-23 (rellena la familia, propone sus niños de la
   última vez como botones con un toque, no como sugerencia del teclado, y avisa si debe), después
   las pulseras y el paquete en tarjetas, en las dos orientaciones. Las reglas de teclado en todo campo: el teclado que
