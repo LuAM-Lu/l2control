@@ -311,7 +311,8 @@ export function casosActividad(base: Base, cifrador: Cifrador | null): CasosActi
           periodo: { desde: q.desde, hasta: q.hasta },
           total: filtrados.length,
           porCategoria: (["CAJA", "PARQUE", "MESAS", "INVENTARIO", "PERSONAL"] as const).map((categoria) => ({ categoria, cantidad: cuenta.get(categoria) ?? 0 })),
-          movimientos: filtrados.slice(0, MAXIMO),
+          // T-22: de a tramos, para «Cargar más»; sin decirlo, los mil más nuevos (el PDF).
+          movimientos: filtrados.slice(q.saltar ?? 0, (q.saltar ?? 0) + (q.cuantos ?? MAXIMO)),
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };

@@ -95,6 +95,17 @@ describe("Movimientos: todo lo del periodo (B11-7)", () => {
     assert.equal(a.porCategoria.find((c) => c.categoria === "PARQUE")!.cantidad, 1);
   });
 
+  test("de a tramos (T-22): «Cargar más» trae los siguientes, sin repetir, con el mismo total", async () => {
+    const todo = await actividad();
+    const primero = await actividad({ cuantos: 2 });
+    const segundo = await actividad({ saltar: 2, cuantos: 2 });
+    assert.equal(primero.total, todo.total);
+    assert.deepEqual(
+      [...primero.movimientos, ...segundo.movimientos].map((m) => m.id),
+      todo.movimientos.slice(0, 4).map((m) => m.id),
+    );
+  });
+
   test("se busca por orden, cliente, cédula, monto y persona; y por parte del local", async () => {
     assert.ok((await actividad({ buscar: `#${String(orden).padStart(4, "0")}` })).movimientos.every((m) => m.orden === orden));
     const porCliente = await actividad({ buscar: "rosa diaz" });

@@ -394,6 +394,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Con la caja cerrada no se cobra, ni se devuelve, ni se anula un cobro; con todas cerradas, tampoco se dan cortesías ni descuentos. Sí se consulta, se registran entradas al parque y se toman pedidos.",
       "La caja de otro equipo (una laptop dañada) la cierran supervisión o administración desde el suyo, con el conteo de su gaveta: queda dicho desde dónde se cerró.",
       "El día de negocio termina a la hora de Ajustes → Sucursal («El día termina», 4:00 am de fábrica): lo cobrado pasada la medianoche sigue siendo del día. Desde esa hora, una caja que siga abierta es de un día anterior: cobra lo de su día (las cuentas abiertas antes), no lo de hoy, y pide cerrarse. Su cierre pide solo lo de su día; lo de hoy pasa a la caja de hoy. De noche, Inicio avisa que el día sigue abierto.",
+      "Ventas del turno: búscalas por familia o número de orden; los medios de pago van en chips con su cuenta. Tres vistas (Tarjetas, Lista y Compacta): la Lista es la tabla; en Tarjetas o Compacta, por hora. Cada persona elige la suya y se recuerda.",
       "Si un cliente devuelve parte de lo que compró: en Ventas del turno, la venta y «Devolver…» (la de otro día, por su número en «Devolver de otra venta»). Elige cuántas de cada cosa y si vuelven al estante o a merma; el dinero vuelve por su pago, en su moneda (uno electrónico, con la referencia de la devolución), con el descuento y el IVA ya calculados. Lo autoriza administración con su PIN. Sale su comprobante, y el corte lo cuenta.",
       "Un niño que pagó por adelantado y salió antes: en su venta, «Devolver…» y en su paquete «Lo que no usó» (lo pagado menos lo que vale el tiempo que estuvo, calculado solo) o «Entero» si fue un problema del local. La salida del parque ya dice cuánto es. Con el PIN de administración.",
       "«Anular» un cobro (con el PIN de administración y su motivo): «Cobrarla de nuevo» la devuelve a la cola para corregir el medio o el monto; «Anular la venta entera» devuelve el dinero por sus medios, cierra la cuenta con su motivo y lo que tiene inventario vuelve al estante (o a merma, si se elige). Antes del corte Z de su turno.",
@@ -550,6 +551,20 @@ export const MANUAL: readonly EntradaDelManual[] = [
     problemas: GENERALES,
   },
   {
+    id: "representantes",
+    ruta: "/panel/parque/representantes",
+    titulo: "Representantes y niños",
+    roles: ["MONITOR_PARQUE", "SUPERVISOR", "ADMIN"],
+    proposito: "El directorio de familias: quién vino, con qué niños y cuántas veces. La entrada busca aquí para no volver a pedir los datos.",
+    pasos: [
+      "Busca por el nombre del representante o de un niño, por su teléfono o su cédula (desde 3 cifras). El servidor trae las 50 que más recientemente vinieron; «Cargar más · 50 de N» trae las siguientes y dice cuántas faltan.",
+      "La fila de letras filtra por la inicial del representante (sin acento; la Ñ en su sitio). «Todas» la quita.",
+      "Tres vistas a la derecha (Tarjetas, Lista y Compacta): cada persona elige la suya y se recuerda en este equipo.",
+      "Toca una familia para ver su detalle: sus datos, su descuento VIP y sus niños, con «Corregir». En la tablet en vertical se abre en una hoja.",
+    ],
+    problemas: [],
+  },
+  {
     id: "inventario",
     ruta: "/panel/inventario",
     titulo: "Inventario",
@@ -557,6 +572,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Los productos con su existencia, las entradas de mercancía, las salidas y el conteo.",
     pasos: [
       "Productos: la existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
+      "Tres vistas a la derecha (Tarjetas, Lista y Compacta): la Lista es la tabla, donde se eligen productos para editarlos en lote; cada persona elige la suya y se recuerda en este equipo. El estado del stock va en chips con su cuenta (Agotados, Bajo mínimo…), y sin una categoría elegida, las tarjetas y la compacta se agrupan por categoría con su nombre arriba.",
       "«Editar» en cada fila abre su ficha: los datos arriba (nombre, categoría, presentación), el precio debajo. La categoría se elige de la lista; «Escribir una nueva…» para la que no está.",
       "Uno creado por error (también en la carga inicial): en su ficha, «Retirar». Sale de la caja, la carta, la tablet y las listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra: «Retirados» los muestra y, en su ficha, «Devolver al catálogo».",
       "Productos → En la carta: qué platos ofrece el mesero, su precio con su día (un solo sitio para el precio) y dónde se prepara.",
@@ -616,7 +632,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "El estado de cada una (lista, poco papel, sin papel, no responde) lo dice el agente cada 30 s: por red, preguntándole; por USB, a Windows, y si un trabajo se queda más de 15 s en la cola de Windows se saca de ahí para que no salga dos veces. La barra de la caja dice «Impresora sin papel» con sonido, y la tablet, «Las comandas no están saliendo».",
       "Agente: se descarga, se vincula con un código de un solo uso y queda instalado en la laptop de caja.",
       "El agente se actualiza solo: cuando el sistema trae otra versión, la baja, comprueba su huella y se cambia con la cola vacía. Aquí se ve su versión y la disponible; «Actualizar ahora» no espera a su próxima revisión.",
-      "Cola e historial: lo que salió, lo que espera y lo que falló, con «Reintentar» o «Descartar».",
+      "Cola e historial: lo que salió, lo que espera y lo que falló, con «Reintentar» o «Descartar». Se ven los 50 más recientes; «Cargar más · 50 de N» trae los siguientes y dice cuántos faltan. En Tarjetas o Compacta, por día.",
     ],
     problemas: [
       {
@@ -685,7 +701,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Elige el periodo (hoy, ayer, esta semana, este mes o el anterior) o un rango de hasta 93 días y, si quieres, una cajera.",
       "Ventas: arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección. Por turno marca el que se abrió fuera del punto de cobro, con quién lo autorizó.",
       "Inventario al momento: lo que hay a esta hora y lo que vale al costo; las cifras filtran lo agotado, lo bajo mínimo y lo sin contar.",
-      "Movimientos: todo lo que pasó en el periodo (cobros, devoluciones, anulaciones, turnos; entradas, salidas y recargas del parque; sentar, pedidos y cierres de mesas; inventario y personal), con quién y cuándo, los más nuevos primero. Busca por orden, cliente, cédula, pulsera, persona o monto, o elige una parte del local; toca lo que pasó para ver su detalle (una venta, entera: sus líneas, sus pagos, la tasa y quién cobró). «Kárdex de inventario»: elige un producto o una categoría; cada entrada, venta, salida y conteo sale con su saldo.",
+      "Movimientos: todo lo que pasó en el periodo (cobros, devoluciones, anulaciones, turnos; entradas, salidas y recargas del parque; sentar, pedidos y cierres de mesas; inventario y personal), con quién y cuándo, los más nuevos primero. Busca por orden, cliente, cédula, pulsera, persona o monto, o elige una parte del local; toca lo que pasó para ver su detalle (una venta, entera: sus líneas, sus pagos, la tasa y quién cobró). Se ven los 50 más nuevos y «Cargar más» trae los siguientes; en Tarjetas o Compacta, agrupados por día. «Kárdex de inventario»: elige un producto o una categoría; cada entrada, venta, salida y conteo sale con su saldo.",
       "Deudas: lo que quedó en deuda, lo recuperado y lo perdido; por mesero (quien sentó al cliente) y por quien autorizó. Toca el número de orden para ver su historia, de la mesa al desenlace; el PDF lleva la de todas, con la cédula y el teléfono del cliente.",
       "Parque: los niños por día y por hora de entrada con el aforo pico; el dinero del tiempo (paquetes, recargas y tiempo de más, y cuánto de eso se pagó en mesas, con lo regalado aparte); las estancias (tiempo promedio sin las pausas por comida, salidas antes de tiempo, cobradas por uso) y las excepciones (sin pulsera, a revisar, recogidos por otra persona, medias).",
       "Personal: lo que consumió cada persona del equipo en la quincena (esta o la anterior) y cada vale, sin lo anulado ni lo devuelto. Es para descontarlo del sueldo, fuera del sistema.",

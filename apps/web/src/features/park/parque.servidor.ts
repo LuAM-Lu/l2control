@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import type { DirectorioRepresentantesDto, MonitorSnapshotDto } from "@l2/contracts";
+import type { MonitorSnapshotDto, PaginaDelDirectorioDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -22,12 +22,12 @@ export async function salaDelLocal(): Promise<MonitorSnapshotDto | null> {
   return r.valor;
 }
 
-/** El directorio de familias (B4-1), solo para quien puede ver sus contactos. */
-export async function directorioDeFamilias(): Promise<DirectorioRepresentantesDto | null> {
+/** La primera página del directorio (T-22): de a 50, de la visita más reciente a la más vieja. */
+export async function paginaDelDirectorio(): Promise<PaginaDelDirectorioDto | null> {
   await connection();
   const ctx = await contextoActual();
   if (!ctx) return null;
-  const r = await (await aplicacion()).representantes.directorio(ctx);
+  const r = await (await aplicacion()).representantes.pagina(ctx, {});
   return r.ok ? r.valor : null;
 }
 

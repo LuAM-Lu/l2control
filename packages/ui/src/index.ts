@@ -32,6 +32,8 @@ export { ConnectionBadge, type DegradationLevel } from "./patterns/ConnectionBad
 export { EmptyState } from "./patterns/EmptyState";
 export { ScanPrompt } from "./patterns/ScanPrompt";
 export { Sheet, Dialog, Cajon, Confirmacion } from "./patterns/Capa";
+export { CargarMas, ChipsDeFiltro, ListaLarga, SelectorDeVista, useVistaDeLista, type ListaDelServidor } from "./patterns/ListaLarga";
+export { DE_A, LETRAS, TODO_A_LA_VISTA, VISTAS, letraDe, textoDeCargarMas, verLista, type Chip, type Grupo, type VistaDeLista } from "./patterns/listas";
 export {
   BarraDeFiltros,
   CAMPO_DE_FILTRO,

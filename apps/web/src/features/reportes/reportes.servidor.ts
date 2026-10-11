@@ -118,7 +118,8 @@ export async function actividadDelPeriodo(q: ConsultaEnLaDireccion): Promise<Act
   const pedido = { desde: uno(q.desde) ?? porDefecto.desde, hasta: uno(q.hasta) ?? porDefecto.hasta, buscar, parte };
   const ctx = await contextoActual();
   if (!ctx) return { hoy, pedido, informe: { ok: false, motivo: "NO_PERMITIDO", mensaje: "Entra con tu PIN para ver los reportes." } };
-  const consulta = { desde: pedido.desde, hasta: pedido.hasta, ...(buscar ? { buscar } : {}), ...(parte ? { categoria: parte } : {}) };
+  // T-22: los 50 más nuevos; «Cargar más» trae los siguientes.
+  const consulta = { desde: pedido.desde, hasta: pedido.hasta, ...(buscar ? { buscar } : {}), ...(parte ? { categoria: parte } : {}), cuantos: 50 };
   return { hoy, pedido, informe: await (await aplicacion()).reportes.actividad(ctx, consulta) };
 }
 

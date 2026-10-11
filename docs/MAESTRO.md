@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.128.0 en `main` (publicada, la 0.122.0) · 128 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.129.0 en `main` (publicada, la 0.122.0) · 129 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -946,13 +946,25 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   el nombre de quien entró, desde 1600. En el navegador a 1280, 1366, 1440 y 1920 (y 800 en vertical), en los dos temas:
   nada se corta ni se pisa (comprobado midiendo cada pieza de la barra), las cinco desde 1440, Alt+1 a Alt+5 abren cada
   una, y el riel lleva a Reportes con un clic (a 1366, «Panel» a Inicio).*
-- [~] **T-22 · Las listas largas** (M-38, W-11). *A cargo: LuAMi (Claude), en `feat/t-22`.*
+- [x] **T-22 · Las listas largas** (M-38, W-11).
+  *Hecho el 2026-10-11 (v0.129.0), en `feat/t-22`.*
   → Una pieza en `@l2/ui` según cuántos elementos: hasta 50, todo a la vista; de 50 a 500, buscador, chips con su
   cuenta que filtran, grupos con encabezado fijo (por día, por categoría, por letra) y solo lo visible dibujado; sin tope,
   el servidor busca y trae de a 50 con «Cargar más · 50 de N», con índice A–Z en las personas. Tres vistas (Tarjetas,
   Lista y Compacta) que cada persona elige y se recuerdan. Se lleva a Representantes, Productos, Movimientos, Ventas e
   Historial de impresión, en ese orden. Criterio: el directorio con 2.000 representantes se abre y se busca sin trabarse
   en la tablet; la vista elegida se recuerda; «Cargar más» dice cuántos faltan.
+  *· Hecho: en `@l2/ui`, `ListaLarga` (hasta 50 todo a la vista; desde 50, buscador, `ChipsDeFiltro` con su cuenta, grupos
+  con su encabezado fijo y `content-visibility`; del servidor, `CargarMas` y el índice `LETRAS`), `SelectorDeVista` y
+  `useVistaDeLista` (por persona y equipo), con lo puro en `listas.ts` (`verLista`, `textoDeCargarMas`, `letraDe`; su
+  prueba). El directorio por páginas: `representantes.pagina` (`PaginaDelDirectorioQuerySchema`: lo buscado sin acentos,
+  los niños, las cifras del teléfono o la cédula, la letra; de la visita más reciente, de a 50; auditado sin lo buscado;
+  `directorio.test-db.ts`). Movimientos con `saltar` y `cuantos` en `ConsultaDeActividadSchema`; el historial de
+  impresión, de a 50 con «Cargar más» en vez de páginas. Donde había tabla (Productos con su selección para editar en lote,
+  Movimientos, Ventas, historial), la tabla es la Lista. En el navegador, con 2.091 familias en la base de pruebas y la CPU
+  cuatro veces más lenta (tablet a 1280×800 y 800×1280, en los dos temas): abre con 50 en unos 3 s (en desarrollo), lo
+  buscado aparece al medio segundo de escribirlo, «Cargar más · 50 de 2.091 · Faltan 2.041», la Ñ filtra, y la vista
+  elegida se recuerda al volver; las otras cuatro, a 1366 con sus vistas, chips y «Cargar más».*
 - [x] **T-23 · El campo del cliente** (M-38, W-12).
   *Hecho el 2026-10-11 (v0.125.0), en `feat/t-23`.*
   → Una pieza en `features/clientes` para los nueve formularios que piden un cliente (la entrada del parque, sentar,

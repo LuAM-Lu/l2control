@@ -32,7 +32,8 @@ export async function colaDelLocal(): Promise<TrabajosDeImpresionDto> {
 export async function historialDelLocal(): Promise<HistorialDeImpresionDto | null> {
   const ctx = await contextoActual();
   if (!ctx) return null;
-  const r = await (await aplicacion()).impresion.historial(ctx, {});
+  // T-22: los 50 más recientes; «Cargar más» trae los siguientes.
+  const r = await (await aplicacion()).impresion.historial(ctx, { porPagina: 50 });
   return r.ok ? r.valor : null;
 }
 

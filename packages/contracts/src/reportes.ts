@@ -375,6 +375,9 @@ export const ConsultaDeActividadSchema = z
     hasta: FechaSchema,
     buscar: z.string().trim().max(80).optional(),
     categoria: CategoriaDeMovimientoSchema.optional(),
+    /** T-22: desde cuál y cuántos (la pantalla trae de a 50 con «Cargar más»; el PDF, los mil más nuevos). */
+    saltar: z.number().int().min(0).max(100_000).optional(),
+    cuantos: z.number().int().min(1).max(1000).optional(),
   })
   .refine((p) => p.desde <= p.hasta, { message: "El periodo termina antes de empezar", path: ["hasta"] })
   .refine((p) => dias(p.desde, p.hasta) <= MAX_DIAS_DE_INFORME, { message: `Hasta ${MAX_DIAS_DE_INFORME} días: parte el periodo`, path: ["desde"] });
