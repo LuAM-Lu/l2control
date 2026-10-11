@@ -15,7 +15,8 @@ const VIGENTE_MS = 5 * 60_000;
 /** Para quién avisa: la caja (sus recibos) o el salón (las comandas de cocina y de barra). */
 export type Para = "caja" | "salon";
 
-export type AvisoDeImpresoras = Readonly<{ tono: "crit" | "warn"; texto: string; detalle: string }>;
+/** `corto` (T-21): lo que cabe en la barra; `texto`, al pasar el ratón. */
+export type AvisoDeImpresoras = Readonly<{ tono: "crit" | "warn"; texto: string; corto: string; detalle: string }>;
 
 /**
  * Cómo salen los papeles de esta estación (B5-6): la principal de su oficio y su respaldo. Sin papel, en rojo (el rollo
@@ -31,14 +32,14 @@ export function avisoDeImpresoras(impresoras: readonly ImpresoraEnLaColaDto[], p
     const [ep, eb] = [vigente(p), vigente(b)];
     const detalle = `${p.nombre}: ${p.estado?.detalle ?? p.estado?.estado ?? ""} (${p.estado ? hora(Date.parse(p.estado.en)) : ""})`;
     if (ep === "SIN_PAPEL" || eb === "SIN_PAPEL") {
-      return { tono: "crit", texto: para === "caja" ? "Impresora sin papel" : "Las comandas no están saliendo", detalle: eb === "SIN_PAPEL" && b ? `${b.nombre}: sin papel` : detalle };
+      return { tono: "crit", texto: para === "caja" ? "Impresora sin papel" : "Las comandas no están saliendo", corto: "Sin papel", detalle: eb === "SIN_PAPEL" && b ? `${b.nombre}: sin papel` : detalle };
     }
     if (ep === "NO_RESPONDE") {
       const sale = b && eb !== "NO_RESPONDE";
-      if (!sale) return { tono: "crit", texto: para === "caja" ? "Impresora no responde" : "Las comandas no están saliendo", detalle };
-      peor ??= { tono: "warn", texto: para === "caja" ? `Imprime por «${b.nombre}»` : `Comandas por «${b.nombre}»`, detalle: `${detalle} · sale por su respaldo` };
+      if (!sale) return { tono: "crit", texto: para === "caja" ? "Impresora no responde" : "Las comandas no están saliendo", corto: "No responde", detalle };
+      peor ??= { tono: "warn", texto: para === "caja" ? `Imprime por «${b.nombre}»` : `Comandas por «${b.nombre}»`, corto: "Por respaldo", detalle: `${detalle} · sale por su respaldo` };
     } else if (ep === "POCO_PAPEL") {
-      peor ??= { tono: "warn", texto: "Queda poco papel", detalle };
+      peor ??= { tono: "warn", texto: "Queda poco papel", corto: "Poco papel", detalle };
     }
   }
   return peor;
@@ -69,7 +70,7 @@ export function EstadoDeImpresoras({ para, className }: { para: Para; className?
   return (
     <span
       role="status"
-      title={aviso.detalle}
+      title={`${aviso.texto} · ${aviso.detalle}`}
       className={cn(
         "inline-flex h-10 shrink-0 items-center gap-2 rounded-[var(--radius-control)] border px-2.5 text-[13px] font-semibold whitespace-nowrap",
         aviso.tono === "crit" ? "border-state-crit/40 bg-state-crit-bg text-state-crit" : "border-state-warn/40 bg-state-warn-bg text-state-warn",
@@ -77,7 +78,8 @@ export function EstadoDeImpresoras({ para, className }: { para: Para; className?
       )}
     >
       <Icono size={15} aria-hidden="true" className={cn(aviso.tono === "crit" && "l2-pulse")} />
-      <span>{aviso.texto}</span>
+      {/* T-21: corto en la barra; lo que dice entero, al pasar el ratón. */}
+      <span>{aviso.corto}</span>
       <span className="sr-only">. {aviso.detalle}</span>
     </span>
   );

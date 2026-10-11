@@ -134,5 +134,6 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "C", que: "Buscar un cliente por su nombre, cédula o teléfono: lo que tiene abierto, sus niños y lo que debe" },
   { teclas: "R", que: "Ver el recibo del último cobro" },
   { teclas: "Mayús + clic", que: "En la cola: marcar un rango de cuentas para cobrarlas juntas (Esc lo suelta)" },
+  { teclas: "Alt + 1 – 5", que: "Abrir Cobrar, Turno, Papel, Deudas o Personal" },
   { teclas: "?", que: "Ver estos atajos" },
 ];

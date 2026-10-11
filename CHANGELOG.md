@@ -16,6 +16,23 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.128.0] — 2026-10-11 · Hacia la puesta en marcha
+
+La barra de las estaciones, por pantalla (T-21, M-38, W-6 y W-7).
+
+### Añadido
+- **Alt+1 a Alt+5** abren Cobrar, Turno, Papel, Deudas y Personal (también en la ayuda de atajos).
+- **El riel del panel en la caja**, en una pantalla de 1440 px o más: Inicio, Parque, Restaurante, Inventario, Reportes y
+  Ajustes a un clic.
+
+### Cambiado
+- **La caja, por pantalla**: desde 1440 px, sus cinco pestañas con su número; en la laptop (1366) y la tablet, «Cobrar» y
+  «Turno» fijas y «Más ▾» con las demás. A 1366 ya no se corta nada.
+- **Un puesto de una sola pantalla** (el mesero, la monitora) dice su nombre en la barra, sin una pestaña gigante.
+- **Los avisos, cortos**: el de impresión, su número; el estado de la impresora, «Sin papel» o «No responde»; lo que dicen
+  entero, al pasar el ratón. Por debajo de 1440 px el turno es solo su reloj, y el nombre de quien entró se ve desde
+  1600 px (su inicial abre «Mi cuenta»).
+
 ## [0.127.0] — 2026-10-11 · Hacia la puesta en marcha
 
 El mesero en tablet (B6-17, M-38, W-5).

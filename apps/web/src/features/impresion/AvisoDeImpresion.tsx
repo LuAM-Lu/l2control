@@ -66,7 +66,8 @@ export function AvisoDeImpresion({ className }: { className?: string }) {
         type="button"
         aria-haspopup="dialog"
         onClick={() => setAbierto(true)}
-        title={critico ? "Impresiones que no salieron" : "Impresiones esperando al agente de la caja"}
+        title={critico ? `${fallidos.length} sin imprimir${enEspera.length > 0 ? ` · ${enEspera.length} en espera` : ""}: lo que no salió en papel` : `${enEspera.length} esperando al agente de la caja`}
+        aria-label={critico ? `${fallidos.length} sin imprimir` : `${enEspera.length} en espera`}
         className={cn(
           "inline-flex h-12 shrink-0 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-3 text-[13px] font-medium whitespace-nowrap",
           critico ? "bg-state-crit-bg text-state-crit" : "bg-state-warn-bg text-state-warn",
@@ -75,10 +76,8 @@ export function AvisoDeImpresion({ className }: { className?: string }) {
         )}
       >
         {critico ? <PrinterX size={14} aria-hidden="true" /> : <Clock3 size={14} aria-hidden="true" />}
-        <span className="tnum">
-          {critico ? `${fallidos.length} sin imprimir` : `${enEspera.length} en espera`}
-          {critico && enEspera.length > 0 ? ` · ${enEspera.length} en espera` : ""}
-        </span>
+        {/* T-21: una píldora corta, con su número; lo que dice, al pasar el ratón. */}
+        <span className="tnum">{critico ? fallidos.length : enEspera.length}</span>
       </button>
       <Dialog
         abierto={abierto}

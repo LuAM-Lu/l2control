@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
   Baby,
+  ChevronDown,
   ChevronLeft,
   Clock,
   FileText,
@@ -14,6 +15,7 @@ import {
   LogOut,
   Maximize,
   Minimize,
+  MoreHorizontal,
   Receipt,
   Timer,
   TrendingUp,
@@ -24,7 +26,7 @@ import {
 } from "lucide-react";
 import { Initial, Sheet, cn } from "@l2/ui";
 import { can } from "@l2/domain-identity";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   cerrarSesion,
   useOperador,
@@ -76,7 +78,17 @@ import { BotonSonidoDeAvisos } from "../park/BotonSonidoDeAvisos.tsx";
  *
  * 4. **Navegación cruzada.** Un botón al final de las pestañas permite abrir
  *    otros puestos a los que el rol tiene acceso (N-06).
+ *
+ * 5. **Por pantalla (T-21, M-38).** Un puesto de una sola pantalla (el mesero, la
+ *    monitora) dice su nombre en la barra en vez de una pestaña gigante. La caja,
+ *    desde 1440 px, sus cinco pestañas con su número (Alt+1 a Alt+5); por debajo
+ *    (la laptop de 1366 y la tablet), Cobrar y Turno fijas y «Más ▾» con las
+ *    demás. Los avisos, cortos por debajo de 1440: el de impresión, su número;
+ *    el turno, el reloj.
  */
+
+/** Las pestañas que se ven siempre; las demás, desde 1440 px o en «Más» (T-21). */
+const FIJAS = 2;
 
 type Ruta =
   | "/monitor"
@@ -171,10 +183,42 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
   // Los ganchos, antes de cualquier salida: en el acceso no hay barra, pero el
   // orden de los ganchos no puede depender de la ruta.
   const actorDeSesion = useActorEnSesion();
-
-  // La pantalla de acceso no lleva barra: todavía no se sabe quién entra, y
-  // enseñar el turno o la tasa antes de autenticar no aporta nada.
-  if (pathname === "/acceso") return null;
+  const router = useRouter();
+  /** Adónde lleva Alt+N (T-21): la pestaña N del puesto abierto. */
+  const destinos = useRef<readonly Ruta[]>([]);
+  useEffect(() => {
+    const alTeclear = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.repeat) return;
+      const n = /^Digit([1-9])$/.exec(e.code)?.[1];
+      // Con una capa abierta, las teclas son de ella.
+      if (!n || document.querySelector("dialog[open]")) return;
+      const destino = destinos.current[Number(n) - 1];
+      if (!destino) return;
+      e.preventDefault();
+      router.push(destino);
+    };
+    window.addEventListener("keydown", alTeclear);
+    return () => window.removeEventListener("keydown", alTeclear);
+  }, [router]);
+  /** «Más ▾» (T-21): las pestañas que no caben por debajo de 1440 px. */
+  const [masAbierto, setMasAbierto] = useState(false);
+  const mas = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (!masAbierto) return;
+    const fuera = (e: PointerEvent) => {
+      if (!mas.current?.contains(e.target as Node)) setMasAbierto(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMasAbierto(false);
+    };
+    document.addEventListener("pointerdown", fuera);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", fuera);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [masAbierto]);
+  useEffect(() => setMasAbierto(false), [pathname]);
 
   // V2: solo las pestañas que el rol puede abrir, y «Panel» solo para quien
   // ve informes. Sin sesión no hay a dónde ir más que al acceso.
@@ -201,6 +245,13 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
         }))
         .filter((p) => p.superficies.length > 0)
     : [];
+  useEffect(() => {
+    destinos.current = (puesto?.superficies ?? []).map((s) => s.href);
+  });
+
+  // La pantalla de acceso no lleva barra: todavía no se sabe quién entra, y
+  // enseñar el turno o la tasa antes de autenticar no aporta nada.
+  if (pathname === "/acceso") return null;
 
   const verPanel = actor !== null && puedeVerInicio(actor);
   const sinTasa = tasaVigente === null;
@@ -248,52 +299,86 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
           </Link>
         )}
 
-        {/* Conmutador del puesto: pestañas, no navegación hacia atrás.
-            Se desplaza en horizontal antes que comprimirse. */}
-        {(puesto || otros.length > 0) && (
-          <nav
-            aria-label={
-              puesto ? `Superficies de ${puesto.nombre}` : "Otros puestos"
-            }
-            className="order-last w-full min-w-0 apaisado:order-none apaisado:w-auto"
-          >
-            <ul className="flex items-center gap-1 overflow-x-auto rounded-[var(--radius-control)] bg-surface/70 p-1 [scrollbar-width:none]">
-              {puesto &&
-                puesto.superficies.map((s) => {
-                  const activa = s.href === pathname;
-                  const Icono = s.icono;
-                  return (
-                    <li key={s.href} className="flex-1 apaisado:flex-none">
-                      <Link
-                        href={s.href}
-                        // Si las pestañas no caben (un aviso de impresión largo), se desplazan: la abierta, siempre a la vista.
-                        ref={activa ? (el) => el?.scrollIntoView({ block: "nearest", inline: "nearest" }) : undefined}
-                        aria-current={activa ? "page" : undefined}
-                        title={s.largo}
-                        className={cn(
-                          "flex h-12 flex-1 items-center justify-center gap-1.5 rounded-[0.4rem] px-3 text-sm xl:px-4",
-                          "whitespace-nowrap no-underline apaisado:flex-none apaisado:justify-start",
-                          "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
-                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                          activa
-                            ? "bg-brand text-on-brand font-semibold shadow-sm"
-                            : "text-ink-2 hover:bg-surface-2 hover:text-ink",
-                        )}
-                      >
-                        <Icono className="size-(--icono-texto) shrink-0" aria-hidden="true" />
-                        {s.corto}
-                        {s.href === "/caja" && !activa && porCobrar > 0 && (
-                          <span className="tnum ml-2 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
-                            {porCobrar}
-                            <span className="sr-only"> por cobrar</span>
-                          </span>
-                        )}
-                      </Link>
+        {/* T-21: un puesto de una sola pantalla (el mesero, la monitora) dice su nombre en la barra, sin una pestaña
+            gigante. El de varias (la caja), sus pestañas: las cinco desde 1440 px; por debajo, Cobrar y Turno y «Más». */}
+        {puesto && puesto.superficies.length === 1 ? (
+          <div className="flex min-w-0 items-center gap-1">
+            <NombreDelPuesto nombre={puesto.nombre} superficie={puesto.superficies[0]!} />
+            {otros.length > 0 && <button
+                type="button"
+                aria-label="Otros puestos"
+                title="Otros puestos"
+                aria-haspopup="dialog"
+                aria-expanded={otrosAbierto}
+                onClick={() => setOtrosAbierto(true)}
+                className="grid size-12 shrink-0 place-content-center rounded-[0.4rem] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                <ArrowLeftRight size={18} aria-hidden="true" />
+              </button>}
+          </div>
+        ) : (
+          (puesto || otros.length > 0) && (
+            <nav aria-label={puesto ? `Superficies de ${puesto.nombre}` : "Otros puestos"} className="order-last w-full min-w-0 apaisado:order-none apaisado:w-auto">
+              <ul className="flex items-center gap-1 rounded-[var(--radius-control)] bg-surface/70 p-1">
+                {puesto &&
+                  puesto.superficies.map((s, i) => (
+                    <li key={s.href} className={cn("flex-1 apaisado:flex-none", i >= FIJAS && "hidden min-[1440px]:block")}>
+                      <PestanaDelPuesto superficie={s} numero={i + 1} activa={s.href === pathname} porCobrar={s.href === "/caja" ? porCobrar : 0} />
                     </li>
-                  );
-                })}
-              {otros.length > 0 && (
-                <li className="flex-none">
+                  ))}
+                {puesto && puesto.superficies.length > FIJAS && (
+                  <li ref={mas} className={cn("relative flex-1 apaisado:flex-none", "min-[1440px]:hidden")}>
+                    {(() => {
+                      const activa = puesto?.superficies.slice(FIJAS).find((x) => x.href === pathname);
+                      const Icono = activa?.icono ?? MoreHorizontal;
+                      return (
+                        <button
+                          type="button"
+                          aria-haspopup="menu"
+                          aria-expanded={masAbierto}
+                          onClick={() => setMasAbierto((v) => !v)}
+                          className={cn(
+                            "flex h-12 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[0.4rem] px-3 text-sm whitespace-nowrap apaisado:justify-start",
+                            "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                            activa ? "bg-brand font-semibold text-on-brand shadow-sm" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                          )}
+                        >
+                          <Icono className="size-(--icono-texto) shrink-0" aria-hidden="true" />
+                          {activa ? activa.corto : "Más"}
+                          <ChevronDown className="size-(--icono-etiqueta) shrink-0 opacity-70" aria-hidden="true" />
+                        </button>
+                      );
+                    })()}
+                    {masAbierto && (
+                      <div role="menu" aria-label="Más superficies de la caja" className="absolute top-full right-0 z-40 mt-1.5 flex w-64 flex-col gap-0.5 rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-lift">
+                        {puesto.superficies.slice(FIJAS).map((s, j) => {
+                          const Icono = s.icono;
+                          const n = FIJAS + j + 1;
+                          return (
+                            <Link
+                              key={s.href}
+                              href={s.href}
+                              role="menuitem"
+                              aria-current={s.href === pathname ? "page" : undefined}
+                              aria-keyshortcuts={`Alt+${n}`}
+                              onClick={() => setMasAbierto(false)}
+                              className={cn(
+                                "flex min-h-12 items-center gap-2.5 rounded-[0.4rem] px-3 text-sm no-underline focus-visible:outline-2 focus-visible:outline-brand",
+                                s.href === pathname ? "bg-brand/15 font-semibold text-ink" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                              )}
+                            >
+                              <Icono className="size-(--icono-texto) shrink-0" aria-hidden="true" />
+                              <span className="min-w-0 flex-1">{s.corto}</span>
+                              <Tecla>Alt {n}</Tecla>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </li>
+                )}
+                {otros.length > 0 && (
+                  <li className="flex-none">
                   <button
                     type="button"
                     aria-label="Otros puestos"
@@ -305,10 +390,11 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
                   >
                     <ArrowLeftRight size={18} aria-hidden="true" />
                   </button>
-                </li>
-              )}
-            </ul>
-          </nav>
+                  </li>
+                )}
+              </ul>
+            </nav>
+          )
         )}
 
         {/* ── contexto: píldoras de la misma altura ─────────────────────── */}
@@ -328,7 +414,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
               tono="tenue"
               icono={<Clock size={14} />}
               texto={`Turno desde ${turnoDesde}`}
-              ocultarTextoHasta="lg"
+              ocultarTextoHasta="escritorio"
               titulo={`Turno de ${contexto.turno!.punto} abierto desde las ${turnoDesde}`}
             />
           )}
@@ -400,7 +486,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
               // Tocar el propio nombre abre «Mi cuenta» (T-14): cambiar el PIN.
               <MiCuenta nombre={operador.nombre} rol={operador.rol} className="flex h-10 items-center gap-2 px-1">
                 <Initial name={operador.nombre} tone="idle" className="size-8 rounded-[0.45rem] text-[11.5px]" />
-                <span className="hidden leading-tight xl:block">
+                <span className="hidden leading-tight min-[1600px]:block">
                   <span className="block text-[12.5px] font-medium text-ink">{operador.nombre}</span>
                   <span className="block text-[11px] text-ink-3">{operador.rol}</span>
                 </span>
@@ -408,7 +494,7 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
             ) : (
               <>
                 <Initial name="?" tone="warn" className="size-8 rounded-[0.45rem] text-[11.5px]" />
-                <span className="hidden leading-tight xl:block">
+                <span className="hidden leading-tight min-[1600px]:block">
                   <span className="block text-[12.5px] font-medium text-state-warn">Sin identificar</span>
                   <span className="block text-[11px] text-ink-3">Entra por el acceso</span>
                 </span>
@@ -497,7 +583,7 @@ function Pildora({
   icono: React.ReactNode;
   texto: string;
   sufijo?: string;
-  ocultarTextoHasta?: "sm" | "lg";
+  ocultarTextoHasta?: "sm" | "lg" | "escritorio";
   titulo?: string;
 }) {
   return (
@@ -517,6 +603,7 @@ function Pildora({
           "tnum font-medium",
           ocultarTextoHasta === "sm" && "hidden sm:inline",
           ocultarTextoHasta === "lg" && "hidden lg:inline",
+          ocultarTextoHasta === "escritorio" && "hidden min-[1440px]:inline",
         )}
       >
         {texto}
@@ -525,5 +612,73 @@ function Pildora({
         )}
       </span>
     </span>
+  );
+}
+
+/** El nombre del puesto de una sola pantalla (T-21): el mesero y la monitora no ven una pestaña gigante. */
+function NombreDelPuesto({ nombre, superficie }: { nombre: string; superficie: Puesto["superficies"][number] }) {
+  const Icono = superficie.icono;
+  return (
+    <span title={superficie.largo} className="inline-flex h-12 min-w-0 items-center gap-2 px-2 font-display text-seccion font-bold text-ink">
+      <Icono className="size-(--icono-texto) shrink-0 text-brand" aria-hidden="true" />
+      <span className="truncate">{nombre}</span>
+    </span>
+  );
+}
+
+/** Una pestaña de la caja: su icono, su nombre, lo que espera y, desde 1440 px, su número (Alt+N, T-21). */
+function PestanaDelPuesto({
+  superficie: s,
+  numero,
+  activa,
+  porCobrar,
+}: {
+  superficie: Puesto["superficies"][number];
+  numero: number;
+  activa: boolean;
+  porCobrar: number;
+}) {
+  const Icono = s.icono;
+  return (
+    <Link
+      href={s.href}
+      aria-current={activa ? "page" : undefined}
+      aria-keyshortcuts={`Alt+${numero}`}
+      title={`${s.largo} · Alt+${numero}`}
+      className={cn(
+        "flex h-12 flex-1 items-center justify-center gap-1.5 rounded-[0.4rem] px-3 text-sm",
+        "whitespace-nowrap no-underline apaisado:flex-none apaisado:justify-start",
+        "transition-all duration-[var(--dur-rapida)] ease-[var(--ease-salida)]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        activa ? "bg-brand text-on-brand font-semibold shadow-sm" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+      )}
+    >
+      <Icono className="size-(--icono-texto) shrink-0" aria-hidden="true" />
+      {s.corto}
+      {!activa && porCobrar > 0 && (
+        <span className="tnum ml-1 rounded-full bg-brand px-1.5 text-[11px] leading-5 font-bold text-on-brand">
+          {porCobrar}
+          <span className="sr-only"> por cobrar</span>
+        </span>
+      )}
+      <span className="hidden min-[1440px]:inline">
+        <Tecla claro={activa}>{numero}</Tecla>
+      </span>
+    </Link>
+  );
+}
+
+/** Una tecla, como en la ayuda de atajos. */
+function Tecla({ children, claro = false }: { children: React.ReactNode; claro?: boolean }) {
+  return (
+    <kbd
+      aria-hidden="true"
+      className={cn(
+        "tnum ml-1 rounded border border-b-2 px-1 font-mono text-[10.5px] leading-4 font-semibold",
+        claro ? "border-on-brand/40 text-on-brand/85" : "border-line-strong text-ink-3",
+      )}
+    >
+      {children}
+    </kbd>
   );
 }
