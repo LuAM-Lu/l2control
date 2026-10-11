@@ -58,7 +58,7 @@ import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
 import { exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { programadaDeFila } from "./impuestos.ts";
-import { turnoParaCobrar } from "../caja/turnos.ts";
+import { turnoParaCobrar, type UsoDelTurno } from "../caja/turnos.ts";
 import type { Cifrador } from "../identidad/cifrado.ts";
 
 /** La moneda funcional del local (DEC: USD). Se hará ajuste de la sucursal con B4-4. */
@@ -154,14 +154,14 @@ export function casosPagos(base: Base, cifrador: Cifrador | null): CasosPagos {
             return previas[0]!.reversesId === cmd.paymentId ? leerLibro(tx, previas[0]!.documentId) : conflictoDeClave;
           }
           // DEC-24: la autorización se comprueba y se registra ANTES de tocar el libro.
-          // El dinero vuelve desde la gaveta de este equipo: hace falta su turno abierto.
-          const turno = await turnoParaCobrar(tx, ctx);
+          // El dinero vuelve desde la gaveta de este equipo: hace falta su turno abierto. En una caja de un día anterior,
+          // solo lo que entró en ella (B3-24): es corregir su día.
+          const original = await tx.payment.findUnique({ where: { id: cmd.paymentId } });
+          if (!original) return noExiste;
+          const turno = await turnoParaCobrar(tx, ctx, ahora, { kind: "CORRECCION", turnoId: original.shiftId });
           if ("ok" in turno) return turno;
           const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cobro.anular", autorizacion, ahora);
           if (!permiso.ok) return permiso;
-
-          const original = await tx.payment.findUnique({ where: { id: cmd.paymentId } });
-          if (!original) return noExiste;
           const problema = await problemaDeReversion(tx, original);
           if (problema === "YA_REVERTIDO") {
             // Un doble clic puede colarse entre las dos miradas: al empezar, la otra petición aún no
@@ -250,9 +250,11 @@ export async function asentarEn(
   huellas: readonly (string | null)[],
   cifrador: Cifrador | null,
   ahora: number,
+  uso: UsoDelTurno = { kind: "COBRO", abiertaEn: null },
 ): Promise<Payment[] | Rechazo> {
-  // Sin turno abierto en el equipo no se cobra (F4-01); el asiento dice en qué turno entró.
-  const turno = await turnoParaCobrar(tx, ctx);
+  // Sin turno abierto en el equipo no se cobra (F4-01); el asiento dice en qué turno entró. Sin cuenta detrás, el asiento
+  // es de ahora: una caja de un día anterior no lo toma (B3-24).
+  const turno = await turnoParaCobrar(tx, ctx, ahora, uso);
   if ("ok" in turno) return turno;
 
   // La tasa congelada: la cita quien cobra; su valor lo copia el servidor de la base.

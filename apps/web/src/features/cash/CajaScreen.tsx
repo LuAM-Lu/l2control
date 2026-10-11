@@ -80,6 +80,8 @@ import { ConsumoDelPersonalDialog } from "../personal/ConsumoDelPersonal.tsx";
 import { nombreBanco } from "./bancos.ts";
 import type { MedioPago } from "./medios.ts";
 import { BILLETES_USD } from "./billetes.ts";
+import { PendientesDelCierre } from "./PendientesDelCierre.tsx";
+import { diaDelTurno, finDelDiaDelTurno } from "./turno.ts";
 import { categoriesOf, nameKey } from "@l2/domain-inventory";
 import { disponible, productosALaVenta, type ProductoALaVenta } from "../inventario/catalogo.ts";
 import Link from "next/link";
@@ -2326,6 +2328,12 @@ export function CajaScreen({
   };
   const { congelada: rate, tasa: tasaVigente } = useTasaVigente("USD/VES");
   const fiscal = useImpuestosVigentes(impuestos, serverNow);
+  // B3-24: la caja de un día anterior (su día terminó a la hora de los ajustes) solo cobra lo de su día; lo de hoy pide
+  // cerrarla. Lo cargado desde papel es del corte de su carga: no cuenta. El servidor decide igual.
+  const ahoraDelEquipo = useAhoraLocal();
+  const finDelDia = turno ? finDelDiaDelTurno(turno, ajustes) : null;
+  const deOtroDia = finDelDia !== null && ahoraDelEquipo > 0 && ahoraDelEquipo >= finDelDia;
+  const deSuDia = (c: FamilyAccountDto) => finDelDia !== null && Date.parse(c.openedAt) < finDelDia;
   // Lo que se vende ahora, con el precio de ahora (B9-1): el mismo instante que las alícuotas.
   const aLaVenta = useMemo(() => productosALaVenta(catalogo, fiscal.instante), [catalogo, fiscal.instante]);
   // Si no queda ningún medio que ofrecer —todos apagados, o al que quedaba le
@@ -2360,8 +2368,9 @@ export function CajaScreen({
   const [confirmandoJuntas, setConfirmandoJuntas] = useState(false);
   /** Dividir por ítems (B3-20): la cuenta que se reparte entre personas. */
   const [dividiendoPorItems, setDividiendoPorItems] = useState<string | null>(null);
+  // B3-24: en la caja de un día anterior no se elige sola la primera: lo primero que se ve es que hay que cerrarla.
   const actual =
-    porCobrar.find((c) => c.id === elegida) ?? porCobrar[0] ?? null;
+    porCobrar.find((c) => c.id === elegida) ?? (deOtroDia ? null : porCobrar[0]) ?? null;
   const lineas = useMemo(
     () => (actual ? lineasParaCobrar(actual) : []),
     [actual],
@@ -2692,6 +2701,11 @@ export function CajaScreen({
   }
 
   function onNuevaVentaDirecta() {
+    // B3-24: una venta nueva es de hoy, y la caja de un día anterior no la cobra.
+    if (turno && deOtroDia) {
+      avisar.error(`Esta caja es del ${diaDelTurno(turno.businessDate)}: ciérrala antes de cobrar`, { detalle: "Lo de hoy se vende en la caja de hoy." });
+      return;
+    }
     setVentaNueva(true);
     setVista("cuenta");
   }
@@ -2705,6 +2719,11 @@ export function CajaScreen({
    * exige vender del catálogo con el precio de ese instante.
    */
   function crearVentaDirecta(producto: ProductoALaVenta) {
+    // B3-24: una venta nueva es de hoy, y la caja de un día anterior no la cobra. Se dice antes de abrirla.
+    if (turno && deOtroDia) {
+      avisar.error(`Esta caja es del ${diaDelTurno(turno.businessDate)}: ciérrala antes de cobrar`, { detalle: "Lo de hoy se vende en la caja de hoy." });
+      return;
+    }
     const nueva: FamilyAccountDto = FamilyAccountSchema.parse({
       id: globalThis.crypto.randomUUID(),
       kind: "MOSTRADOR",
@@ -2947,7 +2966,7 @@ export function CajaScreen({
             void marcarLimpia(m.tableId).then((r) => (r.ok ? avisar.ok(`Mesa ${m.label} limpia y libre`) : avisar.error(r.mensaje)))
           }
         />
-        {ventaNueva ? (
+        {ventaNueva && !deOtroDia ? (
           <NuevaVentaDirecta
             aBolivares={aBolivares}
             onElegir={crearVentaDirecta}
@@ -2959,6 +2978,8 @@ export function CajaScreen({
           />
         ) : actual && !turno ? (
           <SinTurno />
+        ) : turno && deOtroDia && (!actual || !deSuDia(actual)) ? (
+          <CajaDeOtroDia turno={turno} cuentaDeHoy={actual !== null} />
         ) : actual && fiscal.faltan.length > 0 ? (
           <SinImpuestos faltan={fiscal.faltan} />
         ) : actual && mediosDisponibles.length === 0 ? (
@@ -3768,6 +3789,32 @@ function SinTurno() {
       >
         Abrir el turno
       </Link>
+    </section>
+  );
+}
+
+/**
+ * La caja de un día anterior — B3-24 (M-38, W-2). Su día terminó a la hora de los ajustes y sigue abierta: aquí se resuelve
+ * lo de ese día (el servidor lista solo eso) y se lleva al cierre. Lo de hoy no se cobra aquí: el 9 de octubre una venta
+ * del 10 entró en el día 9 porque nadie cerró la caja.
+ */
+function CajaDeOtroDia({ turno, cuentaDeHoy }: { turno: TurnoDto; cuentaDeHoy: boolean }) {
+  const router = useRouter();
+  const dia = diaDelTurno(turno.businessDate);
+  return (
+    <section className={cn("flex min-h-0 flex-col", PLACEMENT_SIN_CUENTAS)} aria-label={`La caja del ${dia}`}>
+      <PendientesDelCierre
+        turnoId={turno.id}
+        alerta
+        titulo={`Esta caja es del ${dia}: ciérrala antes de cobrar`}
+        descripcion={
+          cuentaDeHoy
+            ? `Esa cuenta no es del ${dia}: se cobra en la caja de hoy. Aquí se resuelve lo del ${dia} y se cierra.`
+            : `Lo del ${dia} se cobra aquí; lo de después, en la caja de hoy. Resuelve lo pendiente y cierra.`
+        }
+        listo="Cerrar la caja"
+        onListo={() => router.push("/turno?cerrar=1" as Route)}
+      />
     </section>
   );
 }

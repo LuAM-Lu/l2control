@@ -8,18 +8,20 @@ import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
  * del turno, y el cierre con arqueo a ciegas y corte Z (F4-05 a F4-08), en una sola sección.
  *
  * `?turno=` abre el turno de otro equipo, para que supervisión lo cierre (la cajera se fue o el
- * equipo falló, JORNADA §5). El servidor decide si quien lo pide puede.
+ * equipo falló, JORNADA §5). El servidor decide si quien lo pide puede. `?cerrar=1` empieza por su
+ * cierre: así llegan la caja y el Inicio a una caja de un día anterior (B3-24).
  */
 export const dynamic = "force-dynamic";
 
-export default async function TurnoPage({ searchParams }: { searchParams: Promise<{ turno?: string }> }) {
-  const { turno: ajeno } = await searchParams;
+export default async function TurnoPage({ searchParams }: { searchParams: Promise<{ turno?: string; cerrar?: string }> }) {
+  const { turno: ajeno, cerrar } = await searchParams;
+  const aCerrar = cerrar === "1";
   if (ajeno) {
     const vista = await vistaDelTurno(ajeno);
-    return <TurnoScreen ajeno turno={vista?.ok ? vista.valor.turno : null} vista={vista} />;
+    return <TurnoScreen ajeno turno={vista?.ok ? vista.valor.turno : null} vista={vista} cerrar={aCerrar} />;
   }
   const turno = await turnoDelEquipo();
-  if (turno) return <TurnoScreen turno={turno} vista={await vistaDelTurno()} />;
+  if (turno) return <TurnoScreen turno={turno} vista={await vistaDelTurno()} cerrar={aCerrar} />;
   const [comprobacion, otrosAbiertos, ultimoZ, eventos] = await Promise.all([comprobacionApertura(), turnosAbiertosDeOtros(), ultimoCorteZ(), eventosDeHoy()]);
   return <TurnoScreen turno={null} vista={null} comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} eventosHoy={eventos?.reservas ?? []} />;
 }

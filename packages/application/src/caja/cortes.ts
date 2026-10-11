@@ -37,6 +37,7 @@ import {
   type ResumenDelDiaDto,
 } from "@l2/contracts";
 import {
+  businessDayAt,
   countDenominations,
   countDifferenceInUsd,
   isPendingAtClose,
@@ -63,12 +64,12 @@ import { confirmarPinPropio, exigirPermisoOAutorizacion } from "../identidad/aut
 import { programadaDeFila } from "../dinero/impuestos.ts";
 import { catalogoDe, conflictoDeClave } from "../dinero/pagos.ts";
 import { historialParaCobrar } from "../dinero/tasas.ts";
-import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
+import { ajustesDe, diaDeNegocioDe, zonaDe } from "../sucursal/ajustes.ts";
 import { estanciasActivas } from "../park/parque.ts";
-import { pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
+import { desdeCuandoEs, pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
 import { TEXTO_MOTIVO_DESCUENTO } from "./reglas-de-descuento.ts";
 import { encolarCorteEn } from "../impresion/impresion.ts";
-import { turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
+import { finDelTurno, turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
 import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
 
 const FUNCIONAL: CurrencyCode = "USD";
@@ -364,8 +365,11 @@ function arqueoDto(c: {
 /**
  * Lo que impide cerrar la jornada (JORNADA §5, C2): las cuentas pendientes de la sucursal, los niños
  * en sala, las huérfanas sin cerrar y los turnos abiertos de otros equipos.
+ *
+ * `hasta` (B3-24): al cerrar la caja de un día anterior, solo lo de ese día, lo que empezó antes de que terminara. Lo
+ * de hoy (una familia que entró esta mañana) no frena el cierre de ayer: es de la caja de hoy.
  */
-async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | null, ahora: number): Promise<PendientesDelCierreDto> {
+async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | null, ahora: number, hasta: number | null = null): Promise<PendientesDelCierreDto> {
   const filas = await tx.$queryRaw<{ version: number; content: unknown }[]>`
     SELECT ultima.version, ultima.content FROM (
       SELECT DISTINCT ON (v.account_id) v.version, v.content, v.status
@@ -377,9 +381,10 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
     WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')`;
   const periodos = await periodosDeImpuestos(tx);
   const ivaIncluido = (await ajustesDe(tx, ctx.branchId)).preciosConIva;
-  const cuentas = filas
-    .map((f) => FamilyAccountSchema.parse({ ...(f.content as object), version: f.version }))
-    .filter(isPendingAtClose)
+  const pendientes = filas.map((f) => FamilyAccountSchema.parse({ ...(f.content as object), version: f.version })).filter(isPendingAtClose);
+  const deSuDia = [];
+  for (const c of pendientes) if (hasta === null || (await desdeCuandoEs(tx, c.id, c)).getTime() < hasta) deSuDia.push(c);
+  const cuentas = deSuDia
     .map((c) => ({
       id: c.id,
       orderNumber: c.orderNumber!,
@@ -395,7 +400,10 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
     include: { floats: true },
     orderBy: { openedAt: "asc" },
   });
-  const { enSala, huerfanas } = await estanciasActivas(tx, ctx.branchId, ahora);
+  const activas = await estanciasActivas(tx, ctx.branchId, ahora);
+  const antesDe = (s: { startedAt: string }) => hasta === null || Date.parse(s.startedAt) < hasta;
+  const enSala = activas.enSala.filter(antesDe);
+  const huerfanas = activas.huerfanas.filter(antesDe);
   // Lo cargado desde papel que nadie revisó (B3-7): abierto o terminado, pero sin revisar. Incluye el del turno
   // que se va a cerrar: sin revisar, tampoco se sella.
   const sinRevisar = await tx.paperLoad.findMany({ where: { branchId: ctx.branchId, status: { in: ["ABIERTA", "CERRADA"] } }, orderBy: { openedAt: "asc" } });
@@ -413,6 +421,12 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
     });
   }
   return PendientesDelCierreSchema.parse({ cuentas, ninos: enSala, huerfanas, turnos: turnos.map(turnoDto), papel });
+}
+
+/** El fin del día de un turno si ya pasó (es de un día anterior, B3-24); `null` mientras su día sigue. */
+async function hastaDe(tx: Transaccion, turno: { branchId: string; businessDate: Date }, ahora: number): Promise<number | null> {
+  const fin = await finDelTurno(tx, turno);
+  return ahora >= fin ? fin : null;
 }
 
 /** «2 cuentas pendientes y 1 niño en sala»: lo que falta, para el rechazo del cierre. */
@@ -592,9 +606,9 @@ export function casosCortes(base: Base): CasosCortes {
           const cierre: "RELEVO" | "JORNADA" = otrasAbiertas > 0 ? "RELEVO" : "JORNADA";
           const cerradoDesde = o.propio || !ctx.quien?.deviceId ? null : ((await tx.device.findUnique({ where: { id: ctx.quien.deviceId }, select: { label: true } }))?.label ?? null);
 
-          // La jornada no se cierra con pendientes (JORNADA §5, C2).
+          // La jornada no se cierra con pendientes (JORNADA §5, C2): los de su día, si ya terminó (B3-24).
           if (cierre === "JORNADA") {
-            const falta = textoDePendientes(await pendientesEn(tx, ctx, o.turno.id, ahora));
+            const falta = textoDePendientes(await pendientesEn(tx, ctx, o.turno.id, ahora, await hastaDe(tx, o.turno, ahora)));
             if (falta) return { ok: false, motivo: "CONFLICTO", mensaje: `La jornada no se cierra con pendientes: ${falta}.` };
           }
 
@@ -716,9 +730,11 @@ export function casosCortes(base: Base): CasosCortes {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<PendientesDelCierreDto | Rechazo> => {
         const p = await permisoEn(tx, ctx, "turno.corteZ");
         if (p === "DENEGADO") return rechazoDePermiso(p);
-        // El turno que se va a cerrar no cuenta como pendiente: el suyo, o el ajeno que cierra supervisión.
+        // El turno que se va a cerrar no cuenta como pendiente: el suyo, o el ajeno que cierra supervisión. Si es de un día
+        // anterior, solo lo de ese día (B3-24): es lo que su cierre pide resolver.
         const objetivo = turnoId ?? (ctx.quien?.deviceId ? (await turnoSinCorteDe(tx, ctx.quien.deviceId))?.id : undefined);
-        return pendientesEn(tx, ctx, objetivo ?? null, ahora);
+        const turno = objetivo ? await tx.cashShift.findFirst({ where: { id: objetivo, branchId: ctx.branchId } }) : null;
+        return pendientesEn(tx, ctx, objetivo ?? null, ahora, turno ? await hastaDe(tx, turno, ahora) : null);
       });
       return "ok" in r ? r : { ok: true, valor: r };
     },
@@ -774,7 +790,9 @@ export function casosCortes(base: Base): CasosCortes {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<ResumenDelDiaDto | Rechazo> => {
         const p = await permisoEn(tx, ctx, "reportes.verSucursal");
         if (p === "DENEGADO") return rechazoDePermiso(p);
-        const dia = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
+        // El día de negocio (B3-24): a la 1:30 am, con el fin a las 4:00 am, Inicio sigue mostrando el día que se trabaja.
+        const { zona, finMin } = await diaDeNegocioDe(tx, ctx.branchId);
+        const dia = businessDayAt(ahora, zona, finMin);
         const turnos = await tx.cashShift.findMany({
           where: { branchId: ctx.branchId, businessDate: new Date(`${dia}T00:00:00.000Z`) },
           include: { floats: true, cuts: { where: { kind: "Z" }, include: { count: true } } },

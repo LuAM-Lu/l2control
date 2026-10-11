@@ -254,6 +254,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Una cuenta del salón dice, debajo de su nombre, su mesa (o «De pie»), hace cuánto pidió la cuenta, lo que sigue sin servir y sus niños, con su tiempo si siguen en la sala. Si al cobrarla hay niños suyos en la sala, la caja avisa «Dales salida antes»: pasa su pulsera o dales salida, y su tiempo se suma a la cuenta. «Cobrar igual» sigue sin esperar.",
       "Cobrada la última cuenta de una mesa, la mesa queda por limpiar. La limpia el mesero; si se olvida, la cola dice «Por limpiar» con sus números: un toque la deja limpia y libre.",
       "Una cuenta del salón que pidió y sigue sin cobrar pasados unos minutos (10, de fábrica) sale en un aviso suave, sin sonido, una vez. Los minutos, en Ajustes → Sucursal.",
+      "Si la caja quedó abierta de un día que ya terminó (pasadas las 4:00 am de fábrica), dice «Esta caja es del …: ciérrala antes de cobrar» con lo pendiente de ese día. Lo de ese día se cobra ahí; lo de hoy, no. «Cerrar la caja» lleva al cierre; después se abre la de hoy.",
     ],
     problemas: [
       {
@@ -384,6 +385,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Cerrar la caja» no pregunta qué cierre es: si queda otra caja abierta, cierras la tuya (tu conteo y tu dinero; lo abierto sigue para la otra); si es la última, es el cierre del día, que no se hace con nada pendiente.",
       "Con la caja cerrada no se cobra, ni se devuelve, ni se anula un cobro; con todas cerradas, tampoco se dan cortesías ni descuentos. Sí se consulta, se registran entradas al parque y se toman pedidos.",
       "La caja de otro equipo (una laptop dañada) la cierran supervisión o administración desde el suyo, con el conteo de su gaveta: queda dicho desde dónde se cerró.",
+      "El día de negocio termina a la hora de Ajustes → Sucursal («El día termina», 4:00 am de fábrica): lo cobrado pasada la medianoche sigue siendo del día. Desde esa hora, una caja que siga abierta es de un día anterior: cobra lo de su día (las cuentas abiertas antes), no lo de hoy, y pide cerrarse. Su cierre pide solo lo de su día; lo de hoy pasa a la caja de hoy. De noche, Inicio avisa que el día sigue abierto.",
       "Si un cliente devuelve parte de lo que compró: en Ventas del turno, la venta y «Devolver…» (la de otro día, por su número en «Devolver de otra venta»). Elige cuántas de cada cosa y si vuelven al estante o a merma; el dinero vuelve por su pago, en su moneda (uno electrónico, con la referencia de la devolución), con el descuento y el IVA ya calculados. Lo autoriza administración con su PIN. Sale su comprobante, y el corte lo cuenta.",
       "Un niño que pagó por adelantado y salió antes: en su venta, «Devolver…» y en su paquete «Lo que no usó» (lo pagado menos lo que vale el tiempo que estuvo, calculado solo) o «Entero» si fue un problema del local. La salida del parque ya dice cuánto es. Con el PIN de administración.",
       "«Anular» un cobro (con el PIN de administración y su motivo): «Cobrarla de nuevo» la devuelve a la cola para corregir el medio o el monto; «Anular la venta entera» devuelve el dinero por sus medios, cierra la cuenta con su motivo y lo que tiene inventario vuelve al estante (o a merma, si se elige). Antes del corte Z de su turno.",
@@ -403,6 +405,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "Hay cargas de papel sin revisar",
         solucion: "Supervisión revisa la carga en Caja → Papel con su PIN (quien la cargó no la revisa). Después se sella el Z.",
         reconoce: ["sin revisar"],
+      },
+      {
+        sintoma: "«Esta caja es del … : ciérrala antes de cobrar»",
+        solucion:
+          "La caja quedó abierta de un día que ya terminó. La caja enseña lo pendiente de ese día: cóbralo ahí (o «Se fue sin pagar» o incobrable), registra la salida de sus niños y «Cerrar la caja» lleva al conteo y al corte Z. Lo de hoy se cobra después, en la caja de hoy. Si el equipo de esa caja no está, supervisión la cierra desde Inicio.",
+        reconoce: ["esta caja es del", "cierrala antes", "abierta la caja del"],
       },
       {
         sintoma: "«Este equipo no es el punto de cobro»",
@@ -575,6 +583,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Las que reúnen varias cosas las ponen en pestañas: Personas y equipos (usuarios, roles y dispositivos), Tasas (y feriados) y Sistema (versión, respaldos y semilla).",
       "Sistema → Respaldos: si se hizo el de anoche, si la PC del local ya lo bajó y el ensayo de la semana. «Respaldar ahora» (con tu identidad confirmada) pide uno al momento: el servidor lo hace en el minuto siguiente y ahí mismo dice si se hizo o por qué no. Hecho, quita el aviso de «no se hizo el respaldo de anoche».",
       "Lo que cambia precios o personas pide confirmar tu identidad (vale 15 minutos).",
+      "Sucursal → «El día termina» (4:00 am de fábrica, de las 12:00 am a las 10:00 am): lo cobrado antes sigue siendo del día que se trabaja; desde esa hora, la caja que siga abierta pide cerrarse. Como la zona horaria, se cambia sin turnos abiertos.",
       "Nada se borra: un precio nuevo rige desde su día; lo que ya no se usa se retira.",
     ],
     problemas: GENERALES,

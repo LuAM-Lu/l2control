@@ -537,6 +537,7 @@ export * from "./papel.ts";
 export * from "./reporte.ts";
 export * from "./recibo.ts";
 export * from "./devolucion.ts";
+export * from "./dia.ts";
 
 /* ---------------------------------------------- el vuelto, por partes (B3-19) */
 

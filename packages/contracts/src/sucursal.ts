@@ -140,8 +140,19 @@ export const AjustesSucursalSchema = z
      * precio del día y las huérfanas. Venezuela: `America/Caracas`.
      */
     zonaHoraria: z.string().trim().min(3).max(64).refine(zonaConocida, "Zona horaria desconocida"),
-    /** Sin declarar hasta que el cliente lo dé (F0-04). Hoy no bloquea nada. */
+    /** Sin declarar hasta que el cliente lo dé (F0-04). No bloquea nada; desde su cierre, Inicio avisa de noche (B3-24). */
     horario: z.array(HorarioDelDiaSchema).length(7, "El horario declara los siete días").nullable(),
+    /**
+     * A qué hora termina el día de negocio, en minutos desde la medianoche (B3-24, M-38): lo cobrado antes de esa hora
+     * sigue siendo del día que se trabaja, y desde ella una caja que siga abierta es de un día anterior (no cobra lo
+     * nuevo y pide cerrarse). Los ajustes publicados antes no lo traen: las 4:00 am.
+     */
+    finDelDiaMin: z
+      .number()
+      .int("Minutos enteros")
+      .min(0, "Va de las 12:00 am a las 10:00 am")
+      .max(600, "Va de las 12:00 am a las 10:00 am")
+      .default(240),
     /**
      * Residuo que la caja puede quedarse cuando no hay vuelto exacto (F4-04c).
      * Por encima, hay que dar vuelto o marcarlo como propina.

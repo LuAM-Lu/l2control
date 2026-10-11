@@ -25,7 +25,7 @@ export function casosVuelto(base: Base): CasosVuelto {
       return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<GavetaAlcanzaDto>> => {
         const rechazo = await exigirPermiso(tx, ctx, "documento.emitir");
         if (rechazo) return rechazo;
-        const turno = await turnoParaCobrar(tx, ctx);
+        const turno = await turnoParaCobrar(tx, ctx, Date.now(), { kind: "LECTURA" });
         if ("ok" in turno) return turno;
         const hay = await esperadoEnGaveta(tx, turno.id);
         const sale = new Map<"USD" | "VES", bigint>();

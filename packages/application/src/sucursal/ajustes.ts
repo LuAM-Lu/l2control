@@ -7,7 +7,8 @@
  * el teléfono y el horario quedan sin declarar hasta que el cliente los dé (F0-04).
  *
  * Los demás casos de uso leen de aquí lo que antes era una constante: la zona que decide qué día es
- * hoy, el residuo del cobro, el umbral del arqueo y las horas de una huérfana (`ajustesDe`).
+ * hoy y la hora en que termina el día de negocio (`diaDeNegocioDe`), el residuo del cobro, el umbral
+ * del arqueo y las horas de una huérfana (`ajustesDe`).
  */
 import {
   AjustesPublicadosSchema,
@@ -68,6 +69,12 @@ export async function zonaDe(tx: Transaccion, branchId: string): Promise<string>
   return (await ajustesDe(tx, branchId)).zonaHoraria;
 }
 
+/** Lo que decide el día de negocio (ADR-009, B3-24): la zona y la hora en que termina el día, en minutos. */
+export async function diaDeNegocioDe(tx: Transaccion, branchId: string): Promise<Readonly<{ zona: string; finMin: number }>> {
+  const a = await ajustesDe(tx, branchId);
+  return { zona: a.zonaHoraria, finMin: a.finDelDiaMin };
+}
+
 export interface CasosAjustes {
   /**
    * Los ajustes vigentes. No exige persona: el formato de hora y el nombre del local los enseña
@@ -120,6 +127,19 @@ export function casosAjustes(base: Base): CasosAjustes {
                   ? "La zona horaria decide el día de negocio: se cambia sin turnos abiertos. Cierra los turnos y vuelve a publicar."
                   : "La zona horaria decide el día de negocio: se cambia sin niños en sala. Vuelve a publicar cuando salgan.",
                 problemas: [{ path: ["ajustes", "zonaHoraria"], message: "No se cambia con el local en marcha" }],
+              };
+            }
+          }
+          if (ajustes.finDelDiaMin !== antes.ajustes.finDelDiaMin) {
+            // La hora en que termina el día decide de qué día es cada turno (B3-24): moverla con uno abierto lo dejaría
+            // de un día anterior de golpe, o alargaría un día ya terminado. Se cambia con la caja cerrada.
+            const turno = await tx.cashShift.findFirst({ where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" } }, select: { id: true } });
+            if (turno) {
+              return {
+                ok: false as const,
+                motivo: "CONFLICTO" as const,
+                mensaje: "La hora en que termina el día decide de qué día es cada turno: se cambia sin turnos abiertos. Cierra los turnos y vuelve a publicar.",
+                problemas: [{ path: ["ajustes", "finDelDiaMin"], message: "No se cambia con la caja abierta" }],
               };
             }
           }

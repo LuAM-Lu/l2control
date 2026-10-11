@@ -6,6 +6,7 @@ import { AjustesSucursalSchema, HorarioDelDiaSchema, type AjustesSucursalDto, ty
 import { fromMajor, money, toMajor } from "@l2/domain-money";
 import { Button, Container, Input, PageHeader, avisar, cn } from "@l2/ui";
 import { useReloj, useSucursal } from "./SucursalProvider";
+import { horaDelDia } from "../eventos/formato.ts";
 
 /**
  * Ajustes → Sucursal (B4-4, F5-08b). Los datos del local, su horario y cómo opera: formato de hora,
@@ -18,6 +19,8 @@ import { useReloj, useSucursal } from "./SucursalProvider";
  */
 
 const DIAS: readonly DiaSemana[] = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
+/** A qué hora puede terminar el día de negocio (B3-24): cada media hora, de las 12:00 am a las 10:00 am. */
+const FINES_DEL_DIA: readonly number[] = Array.from({ length: 21 }, (_, i) => i * 30);
 
 /** El enum no lleva tildes; la pantalla sí, que la lee una persona. */
 const NOMBRE_DIA: Readonly<Record<DiaSemana, string>> = {
@@ -401,6 +404,31 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
             <p id="suc-zona-nota" className={cn("flex items-start gap-1 text-[12px]", errores.zonaHoraria ? "font-medium text-state-crit" : "text-ink-3")}>
               {errores.zonaHoraria && <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />}
               {errores.zonaHoraria ?? "Decide el día de negocio: se cambia sin turnos abiertos ni niños en sala."}
+            </p>
+          </div>
+          {/* B3-24 (M-38): lo cobrado pasada la medianoche sigue siendo del día hasta esta hora; desde ella, una caja que siga
+              abierta es de un día anterior y pide cerrarse. */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="suc-fin-del-dia" className={ETIQUETA}>
+              El día termina
+            </label>
+            <select
+              id="suc-fin-del-dia"
+              className={cn(CAMPO, "tnum", errores.finDelDiaMin ? "border-state-crit" : "border-line")}
+              value={String(borrador.finDelDiaMin)}
+              aria-invalid={errores.finDelDiaMin ? true : undefined}
+              aria-describedby="suc-fin-del-dia-nota"
+              onChange={(e) => cambiar({ finDelDiaMin: Number(e.target.value) })}
+            >
+              {FINES_DEL_DIA.map((min) => (
+                <option key={min} value={String(min)}>
+                  {horaDelDia(min, borrador.formatoHora)}
+                </option>
+              ))}
+            </select>
+            <p id="suc-fin-del-dia-nota" className={cn("flex items-start gap-1 text-[12px]", errores.finDelDiaMin ? "font-medium text-state-crit" : "text-ink-3")}>
+              {errores.finDelDiaMin && <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />}
+              {errores.finDelDiaMin ?? "Lo cobrado antes sigue siendo del día; desde esa hora, la caja que siga abierta pide cerrarse. Se cambia sin turnos abiertos."}
             </p>
           </div>
           {/* Lo que dice el menú es lo que paga el cliente, o el IVA se suma encima. Cambia lo que se cobra. */}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { Baby, CircleCheckBig, Clock3, FileText, Monitor, ReceiptText, RefreshCw } from "lucide-react";
+import { Baby, CalendarX2, CircleCheckBig, Clock3, FileText, Monitor, ReceiptText, RefreshCw } from "lucide-react";
 import type { PendientesDelCierreDto, Rechazo } from "@l2/contracts";
 import { money, toMajor } from "@l2/domain-money";
 import { can } from "@l2/domain-identity";
@@ -28,8 +28,27 @@ import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
  * resolverla (cobrar, registrar la salida, cerrar la huérfana, cerrar ese turno) o, una cuenta que no
  * se va a cobrar, a marcarla incobrable con motivo y 🔐 (D-JOR). No hay «cerrar igual»: el conteo no
  * se ofrece hasta que la lista está vacía.
+ *
+ * B3-24: la caja de un día anterior la usa como su asistente, con su propio título (de qué día es la caja) y llevando al
+ * cierre; el servidor le pasa solo lo de ese día.
  */
-export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onListo: () => void }) {
+export function PendientesDelCierre({
+  turnoId,
+  onListo,
+  titulo = "Antes de cerrar la jornada",
+  descripcion = "La jornada no se cierra con pendientes: resuelve cada uno y vuelve a comprobar.",
+  listo = "Contar la gaveta",
+  alerta = false,
+}: {
+  turnoId: string;
+  onListo: () => void;
+  titulo?: string;
+  descripcion?: string;
+  /** El botón cuando ya no queda nada. */
+  listo?: string;
+  /** La caja de un día anterior (B3-24): el título va en rojo, con su icono. */
+  alerta?: boolean;
+}) {
   const [p, setP] = useState<PendientesDelCierreDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -79,8 +98,11 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
       <section className="flex w-full max-w-3xl flex-col gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-bold text-ink">Antes de cerrar la jornada</h2>
-            <p className="mt-1 text-[13px] text-ink-2">La jornada no se cierra con pendientes: resuelve cada uno y vuelve a comprobar.</p>
+            <h2 className={cn("flex items-center gap-2 font-display text-lg font-bold", alerta ? "text-state-crit" : "text-ink")} {...(alerta ? { role: "alert" } : {})}>
+              {alerta && <CalendarX2 size={19} className="shrink-0" aria-hidden="true" />}
+              {titulo}
+            </h2>
+            <p className="mt-1 text-[13px] text-ink-2">{descripcion}</p>
           </div>
           <Button surface="tablet" variant="neutral" className="gap-1.5" onClick={() => void leer()} disabled={cargando}>
             <RefreshCw size={15} aria-hidden="true" className={cn(cargando && "animate-spin")} />
@@ -103,7 +125,7 @@ export function PendientesDelCierre({ turnoId, onListo }: { turnoId: string; onL
               Nada pendiente: sin cuentas por cobrar, sin niños en sala, sin otros turnos abiertos y sin cargas desde papel por revisar.
             </p>
             <Button surface="pos" variant="primary" onClick={onListo}>
-              Contar la gaveta
+              {listo}
             </Button>
           </div>
         ) : (

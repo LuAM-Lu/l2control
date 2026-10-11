@@ -1,7 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import { calendarDay } from "@l2/domain-rates";
-import { periodoPredefinido } from "@l2/domain-cash";
+import { businessDayAt, periodoPredefinido } from "@l2/domain-cash";
 import type { ActividadDelPeriodoDto, CategoriaDeMovimientoDto, InformeDeDeudasDto, InformeDeInventarioDto, InformeDeMovimientosDto, InformeDeVentasDto, InformeDelParqueDto, Resultado, ValesDelPersonalDto } from "@l2/contracts";
 import { aplicacion } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
@@ -12,10 +11,13 @@ export type ConsultaEnLaDireccion = Readonly<Record<string, string | string[] | 
 
 const uno = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-/** El día de hoy en el local (su zona), para los periodos de un toque. */
+/**
+ * El día de hoy en el local, para los periodos de un toque: el día de negocio (su zona y la hora en que termina, B3-24).
+ * A la 1:30 am «Hoy» sigue siendo el día que se trabaja.
+ */
 export async function hoyEnElLocal(): Promise<string> {
   const { ajustes } = await ajustesDelLocal();
-  return calendarDay(new Date().toISOString(), ajustes.zonaHoraria);
+  return businessDayAt(Date.now(), ajustes.zonaHoraria, ajustes.finDelDiaMin);
 }
 
 /** Lo que se pidió (de la dirección, o el día de hoy) y lo que el servidor contestó. */

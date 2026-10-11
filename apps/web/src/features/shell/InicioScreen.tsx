@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, CircleCheck, ClipboardList, Clock, FileText, HandCoins, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarX2, CircleCheck, ClipboardList, Clock, FileText, HandCoins, MoonStar, PackageX, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
 import type { PuestaAPuntoDto, PuestosDelDiaDto, ReservaEventoDto, ResumenDelDiaDto } from "@l2/contracts";
+import { businessDayAt, isAfterHours } from "@l2/domain-cash";
 import { add, money, toMajor, zero } from "@l2/domain-money";
 import { Container, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
 import { EnVivo } from "./EnVivo.tsx";
@@ -16,6 +17,9 @@ import { useTasaVigente } from "../cash/TasasProvider.tsx";
 import { formatTasaVE } from "../cash/tasa-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
+import { horaDelDia } from "../eventos/formato.ts";
+import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
+import { diaDelTurno, finDelDiaDelTurno } from "../cash/turno.ts";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
 import { ChipEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 import type { AvisoDeVersion } from "../sistema/sistema.servidor.ts";
@@ -81,7 +85,16 @@ export function InicioScreen({
    * Los turnos abiertos de la sucursal, del servidor (B3-1). Vacío = ninguno. `fueraDelPunto`: abierto fuera del punto de
    * cobro (B3-9), con quién lo autorizó y por qué.
    */
-  turnos: readonly { id: string; abiertoEn: string; abiertoPor: string; punto: string; fueraDelPunto: { autorizadoPor: string; motivo: string } | null }[];
+  turnos: readonly {
+    id: string;
+    abiertoEn: string;
+    abiertoPor: string;
+    punto: string;
+    fueraDelPunto: { autorizadoPor: string; motivo: string } | null;
+    /** Su día de negocio y cuándo termina (B3-24): desde ahí es una caja de un día anterior. */
+    businessDate: string;
+    terminaEl: string | null;
+  }[];
   /** Cuándo una comanda tarda y cuándo está atrasada. */
   /** Los puestos del día, por uso (T-20); `null` para quien no ve la sucursal. */
   puestos: PuestosDelDiaDto | null;
@@ -161,6 +174,8 @@ export function InicioScreen({
           <ChipEventosDeHoy reservas={eventosHoy} />
           {/* B3-7: lo cargado desde papel que nadie ha revisado frena el Z y el cierre: se dice aquí. */}
           {resumen && resumen.papelPorRevisar > 0 && <AvisoDePapel porRevisar={resumen.papelPorRevisar} />}
+          {/* B3-24 (M-38): una caja de un día anterior, en rojo; de noche, que el día sigue abierto. */}
+          <AvisoDelDia turnos={turnos} />
           {/* B3-9 (M-31): un turno abierto fuera del punto de cobro se avisa mientras siga abierto. */}
           <AvisoFueraDelPunto turnos={turnos} />
           {/* B9-5: lo que hay que reponer, con color + icono + texto; lleva al inventario. */}
@@ -351,6 +366,64 @@ function AvisoDeudas({ pendientes, minor }: { pendientes: number; minor: string 
     </Link>
   );
 }
+
+/**
+ * El día que sigue abierto (B3-24, M-38, W-2). Una caja de un día anterior (su día terminó a la hora de los ajustes y no se
+ * cerró) va en rojo y lleva a su cierre. De noche, desde la hora de cierre del local (o las 10:00 pm, sin horario) hasta
+ * que el día termina, con alguna caja abierta, se avisa en ámbar. Un renglón; lo demás, al pasar el ratón.
+ */
+function AvisoDelDia({ turnos }: { turnos: React.ComponentProps<typeof InicioScreen>["turnos"] }) {
+  const { ajustes } = useSucursal();
+  const ahora = useAhoraLocal();
+  if (ahora === 0 || turnos.length === 0) return null;
+  const hora = (min: number) => horaDelDia(min, ajustes.formatoHora);
+  const vencidos = turnos.filter((t) => ahora >= finDelDiaDelTurno(t, ajustes));
+  const primero = vencidos[0];
+  if (primero) {
+    const dia = diaDelTurno(primero.businessDate);
+    const detalle = `Abierta por ${primero.abiertoPor}. Su día terminó a las ${hora(ajustes.finDelDiaMin)}: no cobra lo de hoy hasta que se cierre.`;
+    return (
+      <Link
+        href={`/turno?turno=${primero.id}&cerrar=1` as Route}
+        title={detalle}
+        className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-1.5 text-xs lg:text-[13px] font-medium text-state-crit shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand"
+      >
+        <CalendarX2 size={14} aria-hidden="true" />
+        <span>
+          {vencidos.length === 1 ? `Caja del ${dia} sin cerrar · ${primero.punto}` : `${vencidos.length} cajas de días anteriores sin cerrar`}
+          <span className="sr-only">. {detalle}</span>
+        </span>
+        <ArrowRight size={13} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
+      </Link>
+    );
+  }
+  // El horario del día que se trabaja: su cierre marca la noche. Sin horario (o cerrado ese día), las 10:00 pm.
+  const dia = businessDayAt(ahora, ajustes.zonaHoraria, ajustes.finDelDiaMin);
+  const semana = DIAS_DEL_HORARIO[new Date(`${dia}T12:00:00.000Z`).getUTCDay()];
+  const delDia = ajustes.horario?.find((h) => h.dia === semana);
+  const cierra = delDia?.kind === "ABIERTO" ? minutosDeHora(delDia.cierra) : null;
+  if (!isAfterHours(ahora, ajustes.zonaHoraria, ajustes.finDelDiaMin, cierra)) return null;
+  const detalle = `${turnos.map((t) => t.punto).join(", ")}. El día termina a las ${hora(ajustes.finDelDiaMin)}: ciérralo antes, con su corte Z.`;
+  return (
+    <Link
+      href={"/turno?cerrar=1" as Route}
+      title={detalle}
+      className="group inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border border-state-warn/40 bg-state-warn-bg px-3 py-1.5 text-xs lg:text-[13px] font-medium text-state-warn shadow-sm transition-colors duration-[var(--dur-rapida)] focus-visible:outline-2 focus-visible:outline-brand"
+    >
+      <MoonStar size={14} aria-hidden="true" />
+      <span>
+        {turnos.length === 1 ? "El día sigue abierto · 1 caja" : `El día sigue abierto · ${turnos.length} cajas`}
+        <span className="sr-only">. {detalle}</span>
+      </span>
+      <ArrowRight size={13} className="transition-transform duration-[var(--dur-rapida)] group-hover:translate-x-0.5" aria-hidden="true" />
+    </Link>
+  );
+}
+
+/** El día de la semana del horario de los ajustes, por `getUTCDay()` (0 = domingo). */
+const DIAS_DEL_HORARIO = ["DOMINGO", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"] as const;
+/** «22:30» → 1350. */
+const minutosDeHora = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 
 function AvisoFueraDelPunto({ turnos }: { turnos: React.ComponentProps<typeof InicioScreen>["turnos"] }) {
   const fuera = turnos.filter((t) => t.fueraDelPunto !== null);
