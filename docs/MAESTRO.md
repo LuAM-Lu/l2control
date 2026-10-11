@@ -1915,7 +1915,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   reintento, permiso, auditoría y aislamiento) y en el navegador en los dos temas. **Decidido al construir:** la persona
   1 es la cuenta original (lo que no se toca es suyo); las personas sin ítems no cuentan; hasta doce.*
 
-- [ ] **B3-24 · Un día que no se cerró** (M-38, W-2).
+- [~] **B3-24 · Un día que no se cerró** (M-38, W-2). *A cargo: LuAMi (Claude), en `feat/b3-24`.*
   → Una caja de un día de negocio anterior no cobra ni mueve dinero: «Esta caja es del 9 de octubre: ciérrala antes de
   cobrar», con un asistente que lista lo pendiente de ese día (mesas sin cobrar, cargas de papel, niños) y lleva a su
   cierre; supervisión y administración la cierran también desde otro equipo. El día de negocio termina a una hora de los
