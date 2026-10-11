@@ -71,6 +71,7 @@ import { TEXTO_MOTIVO_DESCUENTO } from "./reglas-de-descuento.ts";
 import { encolarCorteEn } from "../impresion/impresion.ts";
 import { finDelTurno, turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
 import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
+import { movimientosDelTurno } from "./efectivo.ts";
 
 const FUNCIONAL: CurrencyCode = "USD";
 
@@ -151,7 +152,7 @@ async function puedeSobre(tx: Transaccion, ctx: Contexto, accion: Action, propio
 }
 
 
-export function porMedioDe(libro: Libro): MovimientoPorMedioDto[] {
+export function porMedioDe(libro: Pick<Libro, "entradas" | "medio">): MovimientoPorMedioDto[] {
   return tallyShift(ledgerMovements(libro.entradas)).byMethod.map((m) => ({
     methodCode: m.methodCode,
     label: libro.medio.get(m.methodCode)?.label ?? m.methodCode,
@@ -319,6 +320,8 @@ async function foto(tx: Transaccion, t: ConFondos, tipo: CorteDto["tipo"], conGa
     porMedio: porMedioDe(libro),
     gaveta: conGaveta ? gavetaDe(t, libro) : null,
     ventas: { ...ventas, igtf: dinero(libro.igtf) },
+    // Lo movido sin ser venta (B3-21), aparte; la vista también: lo hizo la caja, no es lo que espera la gaveta.
+    movimientos: (await movimientosDelTurno(tx, t.id)).movimientos,
     excepciones,
     arqueo: null,
     cierre: null,
@@ -823,7 +826,7 @@ export function casosCortes(base: Base): CasosCortes {
         excepciones.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
         return ResumenDelDiaSchema.parse({
           dia,
-          porMedio: porMedioDe({ entradas, medio, igtf }),
+          porMedio: porMedioDe({ entradas, medio }),
           ventas: { cantidad, anuladas, total: dinero(total), igtf: dinero(igtf), desdePapel },
           turnos: turnos.map((t) => {
             const z = t.cuts[0];

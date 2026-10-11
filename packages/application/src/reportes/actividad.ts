@@ -87,14 +87,20 @@ const ACCIONES: Readonly<Record<string, Clase>> = {
   "precio.programar": { categoria: "INVENTARIO", que: "Cambió precios" },
   "personal.consumir": { categoria: "PERSONAL", que: "Consumo del personal" },
   "personal.reimprimir_vale": { categoria: "PERSONAL", que: "Reimprimió un vale" },
+  "efectivo.mover": { categoria: "CAJA", que: "Movió efectivo" },
+  "efectivo.reimprimir": { categoria: "CAJA", que: "Reimprimió un comprobante" },
   "sesion.abrir": { categoria: "PERSONAL", que: "Entró" },
   "sesion.cerrar": { categoria: "PERSONAL", que: "Salió" },
 };
+
+const MOVIMIENTO_DE_EFECTIVO: Readonly<Record<string, string>> = { ENTRADA: "Entró efectivo", SALIDA: "Salió efectivo", RETIRO: "Retiró efectivo" };
 
 /** Sentar a un cliente es de las mesas; abrir una venta del mostrador, de la caja. */
 function claseDe(accion: string, despues: Record<string, unknown>): Clase {
   if (accion === "cuenta.abrir" && despues.kind === "MESA") return { categoria: "MESAS", que: "Sentó a un cliente" };
   if (accion === "cuenta.abrir" && despues.kind === "MOSTRADOR") return { categoria: "CAJA", que: "Abrió una venta" };
+  // Mover efectivo (B3-21): lo que entró, salió o se retiró de la gaveta.
+  if (accion === "efectivo.mover" && typeof despues.movimiento === "string") return { categoria: "CAJA", que: MOVIMIENTO_DE_EFECTIVO[despues.movimiento] ?? "Movió efectivo" };
   return ACCIONES[accion]!;
 }
 
@@ -152,6 +158,9 @@ const CAMPOS: Readonly<Record<string, string>> = {
   regaladas: "Regaladas",
   alEstante: "Al estante",
   persona: "Persona",
+  numero: "Comprobante",
+  enDolares: "En dólares",
+  recibe: "Recibió",
   punto: "Punto de cobro",
   businessDate: "Día",
   firma: "Firmó",

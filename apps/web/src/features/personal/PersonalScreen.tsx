@@ -102,7 +102,7 @@ function Reimprimir({ v }: { v: ValeDto }) {
 
 function Vales({ informe }: { informe: ValesDelPersonalDto }) {
   const reloj = useReloj();
-  const [personas, vales] = seccionesDelPersonal(informe, reloj, false, (v) => <Reimprimir v={v} />);
+  const [personas, vales, adelantos] = seccionesDelPersonal(informe, reloj, false, (v) => <Reimprimir v={v} />);
   return (
     <>
       <div className="flex items-baseline justify-between gap-2">
@@ -114,6 +114,7 @@ function Vales({ informe }: { informe: ValesDelPersonalDto }) {
       </div>
       {informe.alcance === "TODOS" && <TablaDeInforme seccion={personas!} />}
       <TablaDeInforme seccion={vales!} />
+      {informe.adelantos.length > 0 && <TablaDeInforme seccion={adelantos!} />}
     </>
   );
 }

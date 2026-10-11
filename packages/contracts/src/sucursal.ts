@@ -165,6 +165,11 @@ export const AjustesSucursalSchema = z
      */
     umbralArqueo: MoneySchema,
     /**
+     * Mover efectivo (B3-21): hasta cuánto, en dólares, lo mueve la caja sin el PIN de supervisión; por encima, y todo
+     * retiro, con él. Los ajustes publicados antes no lo traen: $ 20.
+     */
+    topeMoverEfectivo: MoneySchema.default({ minor: "2000", currency: "USD" }),
+    /**
      * Pasadas estas horas dentro, una estancia es huérfana aunque sea del día (D9, F5-13): deja de
      * contar en el aforo y la cierra la dirección.
      */
@@ -253,6 +258,15 @@ export const AjustesSucursalSchema = z
   .refine((a) => a.umbralArqueo.currency === a.monedaFuncional, {
     message: "El umbral del arqueo va en la moneda funcional",
     path: ["umbralArqueo"],
+  })
+  .refine((a) => a.topeMoverEfectivo.currency === a.monedaFuncional, {
+    message: "El tope para mover efectivo va en la moneda funcional",
+    path: ["topeMoverEfectivo"],
+  })
+  .refine((a) => BigInt(a.topeMoverEfectivo.minor) >= 0n && BigInt(a.topeMoverEfectivo.minor) <= 100_000n, {
+    // Cero es válido: todo movimiento lo autoriza supervisión.
+    message: "El tope va de $ 0,00 a $ 1.000,00",
+    path: ["topeMoverEfectivo"],
   })
   .refine((a) => BigInt(a.umbralArqueo.minor) >= 0n && BigInt(a.umbralArqueo.minor) <= MAX_UMBRAL_ARQUEO_MINOR, {
     // Cero es válido: toda diferencia, por pequeña que sea, la firma supervisión.

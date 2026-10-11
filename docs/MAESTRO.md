@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.129.0 en `main` (publicada, la 0.122.0) · 129 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.130.0 en `main` (publicada, la 0.122.0) · 130 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1973,7 +1973,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   `dia.test.ts` (9) y `dia-anterior.test-db.ts` (11). **Decidido al construir:** «de noche» empieza al cierre del horario
   del día (o a las 10:00 pm sin horario) y dura hasta que el día termina; el cierre de una caja vencida no lo frena lo de
   después (queda para la caja de hoy); la tasa del BCV sigue por día del calendario.*
-- [~] **B3-21 · Mover efectivo** (M-38, W-8). *A cargo: LuAMi (Claude), en `feat/b3-21`.*
+- [x] **B3-21 · Mover efectivo** (M-38, W-8).
+  *Hecho el 2026-10-11 (v0.130.0), en `feat/b3-21`.*
   → Caja → «Mover efectivo»: entrada (sencillo para la caja), salida (compras para el local, pago a proveedor, adelanto
   al personal) y retiro a resguardo, en $ o en Bs, con su nota. Por encima de $ 20 (ajustable) y todo retiro, con el PIN
   de supervisión; el adelanto lo firma la persona con su PIN y va a su quincena en Reportes → Personal, junto a sus vales.
@@ -1981,6 +1982,23 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   el corte (aparte de las ventas), en «La gaveta» de Turno y en Movimientos. El cierre sigue a ciegas. Criterio: pagar el
   hielo desde la gaveta no deja diferencia en el arqueo; un adelanto sale en la quincena de esa persona; por encima del
   tope pide el PIN de supervisión.
+  *· Hecho: `cash_movement` (solo agregar, RLS; migración de expandir `20261205000000_mover_efectivo`, con el trabajo de
+  impresión MOVIMIENTO y su `cash_movement_id`). Lo puro en `@l2/domain-cash` (`efectivo.ts`: los motivos de cada tipo,
+  `pideAutorizacion` y `movimientosDeEfectivo` para `tallyShift`, con el movimiento `CASH_IN`). `efectivo.mover` (caja,
+  supervisión y administración) y `efectivo.sobreTope` (🔐 para la caja; quien puede, confirma con su PIN), el puesto
+  CAJA. `casosEfectivo` (`caja/efectivo.ts`): del turno de hoy de este equipo (`turnoParaCobrar` SALIDA), los bolívares a
+  la tasa vigente (sin ella, no), lo que sale nunca más de lo que la gaveta tiene, el adelanto con `firmaDeLaPersona`, el
+  número continuo por sucursal, su asiento `efectivo.mover` (temas `turno` y `ventas`) y su comprobante
+  (`documentoDeMovimiento`); sin impresora, se anota igual y se dice; la cuenta de soporte, solo fuera de producción.
+  `libroDelTurno` y `gavetaDe` cuentan lo movido (`movido` en la gaveta del corte), así el arqueo, el vuelto, las
+  devoluciones y la anulación lo ven; el corte lleva `movimientos` y el Z los imprime aparte. La quincena
+  (`personal.vales`) trae `adelantos` y `adelantado` por persona. `FirmaDeLaPersonaSchema` pasa a `identity.ts` (sin
+  ciclo entre contratos). En la web, `MoverEfectivoDialog` (tipo, motivo, $ o Bs con su equivalente, la nota, la persona y
+  su PIN o quién recibe, y la autorización cuando pasa del tope) en Turno → «La gaveta» (con cada movimiento en un renglón
+  y lo demás al pasar el ratón; tocarlo reimprime) y con M en Cobrar; el tope «Mover ($)» en Ajustes → Sucursal; los
+  adelantos en Reportes → Personal, Caja → Personal y su PDF; «Comprobantes de efectivo» en el historial de impresión; la
+  ayuda (Turno y Personal) y el atajo. `efectivo.test-db.ts` (7): el criterio, el retiro con PIN y quien recibe, la tasa,
+  la gaveta, el corte aparte de las ventas, la reimpresión, el mesero, solo agregar y el aislamiento.*
 - [ ] **B3-22 · El fondo fijo, opcional** (M-38, W-9).
   → En Ajustes, «Fondo fijo» por caja, apagado de fábrica (decisión del usuario). Encendido: el cierre propone dejar ese
   fondo y retirar el resto, y la apertura pide contarlo por billete y dice (y anota a nombre de quien abre) si falta o

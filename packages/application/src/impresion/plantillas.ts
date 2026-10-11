@@ -11,8 +11,8 @@
  *
  * ⚠ §7.6: las referencias de pago y el documento del cliente llegan enmascarados desde la venta.
  */
-import type { AjustesSucursalDto, CorteDto, DevolucionDeVentaDto, ExcepcionDto, MoneyDto, VentaCerradaDto } from "@l2/contracts";
-import { CONSUMO_DEL_PERSONAL, cuentasDelCobro } from "@l2/domain-cash";
+import type { AjustesSucursalDto, CorteDto, DevolucionDeVentaDto, ExcepcionDto, MoneyDto, MovimientoDeEfectivoDto, VentaCerradaDto } from "@l2/contracts";
+import { CONSUMO_DEL_PERSONAL, NOMBRE_DEL_MOTIVO, NOMBRE_DEL_TIPO, cuentasDelCobro } from "@l2/domain-cash";
 import { convert, invertRate, money, multiply, type CurrencyCode, type Money } from "@l2/domain-money";
 import { frozenRateOf } from "@l2/domain-rates";
 import { percentFromBasisPoints } from "@l2/domain-tax";
@@ -261,6 +261,15 @@ export function documentoDeCorte(c: CorteDto, local: AjustesSucursalDto): Docume
         ] as const)
       : []),
   ];
+  // Lo movido sin ser venta (B3-21), aparte de las ventas: cada uno con su comprobante y su motivo.
+  if (c.movimientos.length > 0) {
+    renglones.push({ tipo: "LINEA" }, { tipo: "TEXTO", texto: `Movimientos de efectivo (${c.movimientos.length})`, negrita: true });
+    for (const m of c.movimientos) {
+      const signo = m.tipo === "ENTRADA" ? "+" : "-";
+      renglones.push({ tipo: "PAR", izq: `${orden(m.numero)} ${NOMBRE_DEL_MOTIVO[m.motivo]}`, der: `${signo}${texto(dinero(m.monto))}` });
+      renglones.push({ tipo: "TEXTO", texto: `  ${m.persona ? `${m.persona.nombre} · ` : ""}${m.nota}${m.autorizo ? ` · autorizó ${m.autorizo}` : ""}` });
+    }
+  }
   if (c.gaveta) {
     renglones.push({ tipo: "LINEA" }, { tipo: "TEXTO", texto: "Gaveta según el libro", negrita: true });
     for (const g of c.gaveta) {
@@ -268,6 +277,7 @@ export function documentoDeCorte(c: CorteDto, local: AjustesSucursalDto): Docume
         { tipo: "PAR", izq: `Fondo ${g.currency}`, der: texto(dinero(g.fondo)) },
         { tipo: "PAR", izq: "Entradas", der: texto(dinero(g.entradas)) },
         { tipo: "PAR", izq: "Salidas", der: texto(dinero(g.salidas)) },
+        ...(g.movido && BigInt(g.movido.minor) !== 0n ? [{ tipo: "PAR", izq: "Movimientos", der: texto(dinero(g.movido)) } as const] : []),
         { tipo: "PAR", izq: "Esperado", der: texto(dinero(g.esperado)), negrita: true },
       );
     }
@@ -414,3 +424,40 @@ export function documentoDeAnulacion(
   return { renglones };
 }
 
+/**
+ * El comprobante de un movimiento de efectivo (B3-21): qué fue (entrada, salida o retiro, y su motivo), cuánto (y, en
+ * bolívares, cuánto en dólares a la tasa del momento), la nota, quién lo hizo y quién lo autorizó. El adelanto lo firma
+ * la persona que lo recibe; el retiro, quien se lo lleva a resguardo. Se queda en la caja.
+ */
+export function documentoDeMovimiento(m: MovimientoDeEfectivoDto, local: AjustesSucursalDto, copia: boolean): Documento {
+  const firma = m.persona?.nombre ?? m.recibe;
+  const renglones: Renglon[] = [
+    ...cabecera(local),
+    { tipo: "TEXTO", texto: `${NOMBRE_DEL_TIPO[m.tipo].toUpperCase()} DE EFECTIVO`, alinear: "CENTRO", negrita: true },
+    ...(copia ? [{ tipo: "TEXTO", texto: "*** COPIA ***", alinear: "CENTRO", negrita: true } as const] : []),
+    { tipo: "TEXTO", texto: `Comprobante ${orden(m.numero)}`, alinear: "CENTRO", negrita: true },
+    { tipo: "TEXTO", texto: fechaYHora(Date.parse(m.en), local.formatoHora, local.zonaHoraria), alinear: "CENTRO" },
+    { tipo: "LINEA" },
+    { tipo: "TEXTO", texto: NOMBRE_DEL_MOTIVO[m.motivo], negrita: true },
+    ...(m.persona ? [{ tipo: "PAR", izq: "A", der: m.persona.nombre } as const] : []),
+    { tipo: "TEXTO", texto: m.nota },
+    { tipo: "LINEA", caracter: "=" },
+    { tipo: "PAR", izq: m.tipo === "ENTRADA" ? "ENTRA" : "SALE", der: texto(dinero(m.monto)), negrita: true, grande: true },
+    ...(m.monto.currency !== "USD" ? [{ tipo: "PAR", izq: "En dólares", der: texto(dinero(m.enDolares)) } as const] : []),
+    { tipo: "LINEA" },
+    { tipo: "PAR", izq: "Hizo", der: m.por },
+    ...(m.autorizo ? [{ tipo: "PAR", izq: "Autorizó", der: m.autorizo } as const] : []),
+  ];
+  if (firma) {
+    renglones.push(
+      { tipo: "VACIO" },
+      { tipo: "VACIO" },
+      { tipo: "VACIO" },
+      { tipo: "LINEA", caracter: "_" },
+      { tipo: "TEXTO", texto: firma, alinear: "CENTRO" },
+      { tipo: "TEXTO", texto: m.tipo === "RETIRO" ? "Firma de quien recibe" : "Firma", alinear: "CENTRO" },
+    );
+  }
+  renglones.push({ tipo: "VACIO" }, { tipo: "TEXTO", texto: "Se queda en la caja.", alinear: "CENTRO" });
+  return { renglones };
+}

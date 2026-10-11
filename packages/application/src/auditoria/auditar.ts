@@ -127,6 +127,8 @@ export type AccionAuditada =
   | "venta.devolver"
   | "personal.consumir"
   | "personal.reimprimir_vale"
+  | "efectivo.mover"
+  | "efectivo.reimprimir"
   | "pago.devolver"
   | "inventario.anular_entrada"
   | "producto.devolver"

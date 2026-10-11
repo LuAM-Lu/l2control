@@ -192,7 +192,7 @@ describe("el consumo del personal (B3-17)", () => {
     assert.equal(anulado.neto.minor, "0");
     assert.deepEqual(
       i.porPersona.find((p) => p.persona.id === pedro)!,
-      { persona: { id: pedro, nombre: "Pedro Salas" }, vales: 1, neto: usd("232") },
+      { persona: { id: pedro, nombre: "Pedro Salas" }, vales: 1, neto: usd("232"), adelantado: usd("0") },
       "el anulado no suma",
     );
     const copia = valor(await local.app.personal.reimprimir(cajera, { valeId: i.vales[0]!.id }, AHORA + 6 * MIN));

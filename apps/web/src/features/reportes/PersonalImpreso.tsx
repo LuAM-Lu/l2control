@@ -38,9 +38,14 @@ export function PersonalImpreso({ pedido, informe }: ValesPedidos) {
       generadoPor={i.encabezado.generadoPor}
       volver={volver}
     >
-      <dl className="mb-3 grid grid-cols-3 gap-x-3 gap-y-1 border-b border-current/40 pb-2 text-[9.5pt]">
+      <dl className="mb-3 grid grid-cols-4 gap-x-3 gap-y-1 border-b border-current/40 pb-2 text-[9.5pt]">
         <Dato termino="Consumió el equipo" valor={importe(i.total)} pie={`${i.porPersona.length} ${i.porPersona.length === 1 ? "persona" : "personas"}`} />
         <Dato termino="Vales" valor={String(vales)} pie="sin los anulados" />
+        <Dato
+          termino="Adelantos"
+          valor={importe({ minor: String(i.adelantos.reduce((n, a) => n + BigInt(a.enDolares.minor), 0n)), currency: "USD" })}
+          pie={`${i.adelantos.length} en efectivo`}
+        />
         <Dato termino="Descuento del sueldo" valor="Fuera del sistema" pie="con los vales firmados de la caja" />
       </dl>
       {seccionesDelPersonal(i, reloj, true).map((s) => (

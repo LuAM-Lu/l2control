@@ -38,6 +38,8 @@ export type Action =
   | "documento.reimprimir"
   | "cobro.anular"
   | "venta.devolver"
+  | "efectivo.mover"
+  | "efectivo.sobreTope"
   | "mesa.reabrir"
   | "kds.cambiarEstado"
   | "parque.checkIn"
@@ -139,6 +141,10 @@ export const MATRIZ: Matriz = Object.freeze({
   // B3-14 (M-34): un cliente devuelve parte de lo que compró. Supervisión lo hace; la caja, con su autorización.
   // B3-18 (M-37): devolver, como anular, lo autoriza solo administración con su PIN (supervisión ya no se autoriza sola).
   "venta.devolver": fila(P, A, A, D, D, D),
+  // B3-21 (M-38): mover efectivo de la gaveta sin ser venta (sencillo, compras, proveedor, adelanto, resguardo). Hasta el
+  // tope de Ajustes lo hace la caja; por encima, y todo retiro, con el PIN de supervisión.
+  "efectivo.mover": fila(P, P, P, D, D, D),
+  "efectivo.sobreTope": fila(P, P, A, D, D, D),
 
   "mesa.reabrir": fila(P, A, D, D, D, D),
   "kds.cambiarEstado": fila(P, P, D, D, D, P),

@@ -16,6 +16,27 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.130.0] — 2026-10-11 · Hacia la puesta en marcha
+
+Mover efectivo (B3-21, M-38, W-8).
+
+### Añadido
+- **«Mover efectivo»** en Turno → «La gaveta» y con la tecla M en Cobrar: la entrada (sencillo para la caja), la salida
+  (compras para el local, pago a proveedor, adelanto al personal) y el retiro a resguardo, en $ o en Bs, con para qué
+  es. Pagar el hielo de la gaveta ya no deja diferencia en el arqueo.
+- **El tope** en Ajustes → Sucursal («Mover», $ 20 de fábrica): por encima, y en todo retiro, con el PIN de supervisión.
+  Lo de bolívares se mide en dólares a la tasa de hoy (sin tasa vigente no se mueven bolívares).
+- **El adelanto** lo firma la persona con su PIN y sale en su quincena: Reportes → Personal (y Caja → Personal) lo dicen
+  por persona y en «Adelantos», también en el PDF.
+- **Su comprobante**, en la impresora de recibos (el del retiro, con la firma de quien recibe; el del adelanto, con la de
+  la persona). Tocar un movimiento en «La gaveta» lo reimprime como copia; el historial de impresión los filtra.
+
+### Cambiado
+- **El corte X y el Z** listan lo movido aparte de las ventas, y la gaveta según el libro lo cuenta («Movimientos»). El
+  arqueo, el vuelto y las devoluciones saben lo que hay después de moverlo; el cierre sigue a ciegas.
+- **Movimientos** (Reportes) dice «Entró efectivo», «Salió efectivo» o «Retiró efectivo», con su comprobante y quién lo
+  autorizó.
+
 ## [0.129.0] — 2026-10-11 · Hacia la puesta en marcha
 
 Las listas largas (T-22, M-38, W-11).

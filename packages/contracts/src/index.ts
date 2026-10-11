@@ -384,6 +384,8 @@ export {
   type DevicesDirectoryDto,
   type DeviceCommand,
   type SesionEnCursoDto,
+  FirmaDeLaPersonaSchema,
+  type FirmaDeLaPersonaDto,
 } from "./identity.ts";
 
 export {
@@ -1009,17 +1011,30 @@ export {
 } from "./retiro.ts";
 export {
   MEDIO_CONSUMO_DEL_PERSONAL,
-  FirmaDeLaPersonaSchema,
   PersonaDelLocalSchema,
   ConsultaDeValesSchema,
   ValeSchema,
   ValesDelPersonalSchema,
   ReimprimirValeCommandSchema,
-  type FirmaDeLaPersonaDto,
   type PersonaDelLocalDto,
   type ConsultaDeValesDto,
   type ValeDto,
   type ValesDelPersonalDto,
   type ReimprimirValeCommand,
 } from "./consumo.ts";
+export {
+  TipoDeEfectivoSchema,
+  MotivoDeEfectivoSchema,
+  MoverEfectivoCommandSchema,
+  MovimientoDeEfectivoSchema,
+  MovimientosDelTurnoSchema,
+  MovimientoHechoSchema,
+  ReimprimirMovimientoCommandSchema,
+  type TipoDeEfectivoDto,
+  type MotivoDeEfectivoDto,
+  type MoverEfectivoCommand,
+  type MovimientoDeEfectivoDto,
+  type MovimientosDelTurnoDto,
+  type MovimientoHechoDto,
+} from "./efectivo.ts";
 export { PuestoDeServicioSchema, PuestosDelDiaSchema, type PuestoDeServicioDto, type PuestosDelDiaDto } from "./puestos.ts";

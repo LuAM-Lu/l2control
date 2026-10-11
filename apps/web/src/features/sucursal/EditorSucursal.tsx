@@ -93,7 +93,7 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
   const [borrador, setBorrador] = useState<AjustesSucursalDto>(vigentes);
   const [base, setBase] = useState(version);
   /** Los importes y las horas se teclean como texto: no se convierten hasta que se entiende lo escrito. */
-  const [textos, setTextos] = useState(() => ({ residuo: aTexto(vigentes.maxRetenido.minor), umbral: aTexto(vigentes.umbralArqueo.minor) }));
+  const [textos, setTextos] = useState(() => ({ residuo: aTexto(vigentes.maxRetenido.minor), umbral: aTexto(vigentes.umbralArqueo.minor), mover: aTexto(vigentes.topeMoverEfectivo.minor) }));
   const [errores, setErrores] = useState<Errores>({});
   const [general, setGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -121,15 +121,15 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
   function cargarVigentes() {
     setBorrador(vigentes);
     setBase(version);
-    setTextos({ residuo: aTexto(vigentes.maxRetenido.minor), umbral: aTexto(vigentes.umbralArqueo.minor) });
+    setTextos({ residuo: aTexto(vigentes.maxRetenido.minor), umbral: aTexto(vigentes.umbralArqueo.minor), mover: aTexto(vigentes.topeMoverEfectivo.minor) });
     setErrores({});
     setGeneral(null);
   }
 
-  function importe(campo: "residuo" | "umbral", texto: string) {
+  function importe(campo: "residuo" | "umbral" | "mover", texto: string) {
     setTextos((t) => ({ ...t, [campo]: texto }));
     const minor = aMinor(texto);
-    const clave = campo === "residuo" ? "maxRetenido" : "umbralArqueo";
+    const clave = campo === "residuo" ? "maxRetenido" : campo === "umbral" ? "umbralArqueo" : "topeMoverEfectivo";
     if (minor === null) {
       setErrores((e) => ({ ...e, [clave]: "Escribe el monto en dólares, por ejemplo 0,50" }));
       return;
@@ -485,6 +485,19 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               hint="Más, supervisión"
               onChange={(e) => importe("umbral", e.target.value)}
             />
+          </div>
+          {/* B3-21: hasta aquí la caja mueve efectivo sola; por encima, y todo retiro, con el PIN de supervisión. */}
+          <div className="grid grid-cols-2 items-start gap-3">
+            <Input
+              label="Mover ($)"
+              surface="admin"
+              inputMode="decimal"
+              className="tnum"
+              value={textos.mover}
+              error={errores.topeMoverEfectivo}
+              onChange={(e) => importe("mover", e.target.value)}
+            />
+            <p className="pt-5 text-[12px] text-ink-3">Mover efectivo: más, y todo retiro, con el PIN de supervisión.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input

@@ -6,7 +6,7 @@
  * anulación, que no devuelve en efectivo lo que la gaveta no tiene (`cuentas.ts`).
  */
 import type { MoneyDto } from "@l2/contracts";
-import { ledgerMovements, openingMovements, tallyShift, type LedgerKind, type ShiftLedgerEntry } from "@l2/domain-cash";
+import { ledgerMovements, movimientosDeEfectivo, openingMovements, tallyShift, type LedgerKind, type ShiftLedgerEntry, type TipoDeMovimiento } from "@l2/domain-cash";
 import { add, money, zero, type CurrencyCode, type Money } from "@l2/domain-money";
 import type { Transaccion } from "@l2/database";
 import type { ConFondos } from "./turnos.ts";
@@ -30,24 +30,33 @@ export async function libroDelTurno(tx: Transaccion, shiftId: string) {
   const igtf = pagos
     .filter((p) => p.kind === "COBRO" && (p.currency === "USD" || p.currency === "USDT"))
     .reduce<Money>((acc, p) => add(acc, money(p.igtfMinor, FUNCIONAL)), zero(FUNCIONAL));
-  return { entradas, medio, igtf };
+  // Lo movido sin ser venta (B3-21): suma o resta en la gaveta; no es de ningún medio de pago.
+  const movimientos = (await tx.cashMovement.findMany({ where: { shiftId }, select: { kind: true, currency: true, amountMinor: true } })).map((m) => ({
+    tipo: m.kind as TipoDeMovimiento,
+    monto: money(m.amountMinor, m.currency as CurrencyCode),
+  }));
+  return { entradas, medio, igtf, movimientos };
 }
 
 export type Libro = Awaited<ReturnType<typeof libroDelTurno>>;
 
-/** Lo que debería haber en la gaveta, por moneda: el fondo más lo que entró menos lo que salió. */
+/** Lo que debería haber en la gaveta, por moneda: el fondo más lo que entró menos lo que salió, con lo movido (B3-21). */
 export function gavetaDe(t: ConFondos, libro: Libro) {
   const fondos = t.floats.map((f) => money(f.amountMinor, f.currency as CurrencyCode));
+  // Las entradas y salidas son las del cobro (ventas, vueltos, devoluciones); lo movido va aparte, y el esperado lo cuenta.
   const drawer = tallyShift([...openingMovements(fondos), ...ledgerMovements(libro.entradas)]).drawer;
+  const conMovido = tallyShift([...openingMovements(fondos), ...ledgerMovements(libro.entradas), ...movimientosDeEfectivo(libro.movimientos)]).drawer;
   return GAVETA.map((currency) => {
     const d = drawer.find((x) => x.currency === currency);
+    const todo = conMovido.find((x) => x.currency === currency);
     const z = zero(currency);
     return {
       currency,
       fondo: dinero(d?.openingFloat ?? z),
       entradas: dinero(d?.cashIn ?? z),
       salidas: dinero(d?.cashOut ?? z),
-      esperado: dinero(d?.expected ?? z),
+      movido: dinero(money((todo?.expected.amount ?? 0n) - (d?.expected.amount ?? 0n), currency)),
+      esperado: dinero(todo?.expected ?? z),
     };
   });
 }

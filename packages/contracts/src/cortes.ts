@@ -11,6 +11,7 @@
  */
 import { z } from "zod";
 import { AccountKindSchema, AccountStatusSchema } from "./account.ts";
+import { MovimientoDeEfectivoSchema } from "./efectivo.ts";
 import { CargaPendienteSchema } from "./papel.ts";
 import { EstanciaSchema } from "./park.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
@@ -101,6 +102,8 @@ export const GavetaSchema = z.object({
   fondo: MoneySchema,
   entradas: MoneySchema,
   salidas: MoneySchema,
+  /** Lo movido sin ser venta (B3-21): las entradas menos las salidas y los retiros. Los cortes de antes no lo traen. */
+  movido: MoneySchema.optional(),
   esperado: MoneySchema,
 });
 export type GavetaDto = z.infer<typeof GavetaSchema>;
@@ -129,6 +132,8 @@ export const CorteSchema = z.object({
     /** Cuántas de esas ventas se cargaron desde papel (B3-7). Los cortes de antes no lo traen. */
     desdePapel: z.number().int().nonnegative().default(0),
   }),
+  /** Lo que entró y salió de la gaveta sin ser venta (B3-21), aparte de las ventas. Los cortes de antes no lo traen. */
+  movimientos: z.array(MovimientoDeEfectivoSchema).default([]),
   excepciones: z.array(ExcepcionSchema),
   arqueo: ArqueoSchema.nullable(),
   cierre: z
