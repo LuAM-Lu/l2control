@@ -1999,7 +1999,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   adelantos en Reportes → Personal, Caja → Personal y su PDF; «Comprobantes de efectivo» en el historial de impresión; la
   ayuda (Turno y Personal) y el atajo. `efectivo.test-db.ts` (7): el criterio, el retiro con PIN y quien recibe, la tasa,
   la gaveta, el corte aparte de las ventas, la reimpresión, el mesero, solo agregar y el aislamiento.*
-- [ ] **B3-22 · El fondo fijo, opcional** (M-38, W-9).
+- [~] **B3-22 · El fondo fijo, opcional** (M-38, W-9). *A cargo: LuAMi (Claude), en `feat/b3-22`.*
   → En Ajustes, «Fondo fijo» por caja, apagado de fábrica (decisión del usuario). Encendido: el cierre propone dejar ese
   fondo y retirar el resto, y la apertura pide contarlo por billete y dice (y anota a nombre de quien abre) si falta o
   sobra de lo que quedó. Apagado, como hoy: se propone lo que quedó en el último Z. Criterio: con un fondo de $ 20, si al
