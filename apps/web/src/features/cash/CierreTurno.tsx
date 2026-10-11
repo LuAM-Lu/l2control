@@ -284,13 +284,14 @@ function Revisar({
   // Una clave por conteo revisado: un doble clic sella una sola vez.
   const [clave] = useState(() => crypto.randomUUID());
   const deMoneda = (lista: MoneyDto[], m: "USD" | "VES") => aDinero(lista.find((x) => x.currency === m) ?? { minor: "0", currency: m });
-  // Lo que se deja: el fondo con que se abrió (en un relevo lo recibe quien entra, D-JOR), nunca
-  // más de lo contado.
+  // Lo que se deja: el fondo fijo de la caja, si lo tiene (B3-22); si no, el fondo con que se abrió (en un relevo lo
+  // recibe quien entra, D-JOR). Nunca más de lo contado.
   const [queda, setQueda] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       MONEDAS.map((m) => {
+        const fijo = turno.fondoFijo?.find((f) => f.currency === m);
         const fondo = turno.fondos.find((f) => f.currency === m);
-        const f = fondo ? aDinero(fondo.amount) : zero(m);
+        const f = fijo ? aDinero(fijo) : fondo ? aDinero(fondo.amount) : zero(m);
         const c = deMoneda(arqueo.contado, m);
         return [m, aTexto(f.amount <= c.amount ? f : c)];
       }),
@@ -412,9 +413,19 @@ function Revisar({
         <fieldset className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-card">
           <legend className="font-display px-1 text-base font-bold text-ink">Qué se deja en la gaveta</legend>
           <p className="mb-3 text-[12.5px] text-ink-2">
-            {tipo === "RELEVO"
-              ? `Se deja el fondo en la gaveta, para la próxima apertura de esta caja. Lo demás se retira.${otras.length > 0 ? ` Siguen abiertas: ${otras.join(", ")}; lo que quede abierto sigue para ellas.` : ""}`
-              : "Es la última caja abierta: se cierra el día. Lo que se deja queda para la apertura de mañana. Lo demás se retira."}
+            {/* B3-22: con fondo fijo, se propone dejarlo (nunca más de lo contado) y retirar el resto. */}
+            {turno.fondoFijo ? (
+              <>
+                <strong className="font-semibold text-ink">
+                  Fondo fijo de esta caja: {turno.fondoFijo.filter((m, i) => i === 0 || BigInt(m.minor) > 0n).map((m) => formatMoneyVE(toMajor(aDinero(m)), m.currency as "USD" | "VES")).join(" + ")}.
+                </strong>{" "}
+                {tipo === "RELEVO" ? "Se deja para la próxima apertura de esta caja y se retira el resto." : "Es la última caja abierta: se cierra el día. Se deja para mañana y se retira el resto."}
+              </>
+            ) : tipo === "RELEVO" ? (
+              `Se deja el fondo en la gaveta, para la próxima apertura de esta caja. Lo demás se retira.${otras.length > 0 ? ` Siguen abiertas: ${otras.join(", ")}; lo que quede abierto sigue para ellas.` : ""}`
+            ) : (
+              "Es la última caja abierta: se cierra el día. Lo que se deja queda para la apertura de mañana. Lo demás se retira."
+            )}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {MONEDAS.map((m) => {

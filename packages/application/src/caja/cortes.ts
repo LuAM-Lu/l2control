@@ -69,9 +69,10 @@ import { estanciasActivas } from "../park/parque.ts";
 import { desdeCuandoEs, pendienteDe, periodosDeImpuestos } from "./cuentas.ts";
 import { TEXTO_MOTIVO_DESCUENTO } from "./reglas-de-descuento.ts";
 import { encolarCorteEn } from "../impresion/impresion.ts";
-import { finDelTurno, turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
+import { CON_FONDOS, finDelTurno, turnoDto, turnoSinCorteDe, type ConFondos } from "./turnos.ts";
 import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
 import { movimientosDelTurno } from "./efectivo.ts";
+import { fondoFijoDe } from "../identidad/dispositivos.ts";
 
 const FUNCIONAL: CurrencyCode = "USD";
 
@@ -129,7 +130,7 @@ const orden = (n: number) => `#${String(n).padStart(4, "0")}`;
 /** El turno al que va la operación: el del equipo si no se dice otro, de esta sucursal. */
 async function turnoObjetivo(tx: Transaccion, ctx: Contexto, turnoId?: string): Promise<{ turno: ConFondos; propio: boolean } | Rechazo> {
   const t = turnoId
-    ? await tx.cashShift.findUnique({ where: { id: turnoId }, include: { floats: true } })
+    ? await tx.cashShift.findUnique({ where: { id: turnoId }, include: CON_FONDOS })
     : ctx.quien?.deviceId
       ? await turnoSinCorteDe(tx, ctx.quien.deviceId)
       : null;
@@ -284,6 +285,21 @@ export async function ventasYExcepciones(tx: Transaccion, t: ConFondos, hasta: D
       importe: { minor: String(d.totalMinor), currency: d.currency as "USD" },
     });
   }
+  // La apertura con fondo fijo que no cuadró con lo que quedó (B3-22): a nombre de quien abrió, una por moneda.
+  const apertura = await tx.shiftOpeningCount.findFirst({ where: { shiftId: t.id } });
+  if (apertura && !apertura.matches) {
+    for (const d of (apertura.differences as MoneyDto[]).filter((x) => BigInt(x.minor) !== 0n)) {
+      excepciones.push({
+        at: apertura.countedAt.toISOString(),
+        tipo: "DIFERENCIA",
+        detalle: `Apertura del turno ${t.pointLabel}`.slice(0, 160),
+        usuario: apertura.countedByName,
+        motivo: `${BigInt(d.minor) < 0n ? "Faltó" : "Sobró"} de lo que quedó en la gaveta; se abrió así`,
+        autorizadoPor: null,
+        importe: d,
+      });
+    }
+  }
   // Lo cargado desde papel es una excepción del turno (B3-7): sale en el corte y en el resumen del día con su
   // responsable y, si ya la revisó supervisión, con quién. Una descartada no cargó nada: no cuenta.
   const cargas = await tx.paperLoad.findMany({ where: { shiftId: t.id, status: { not: "DESCARTADA" } }, orderBy: { openedAt: "asc" } });
@@ -400,7 +416,7 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
     .sort((a, b) => a.orderNumber - b.orderNumber);
   const turnos = await tx.cashShift.findMany({
     where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" }, ...(excepto ? { id: { not: excepto } } : {}) },
-    include: { floats: true },
+    include: CON_FONDOS,
     orderBy: { openedAt: "asc" },
   });
   const activas = await estanciasActivas(tx, ctx.branchId, ahora);
@@ -769,7 +785,7 @@ export function casosCortes(base: Base): CasosCortes {
           faltan.push({ que: "IMPRESORA", mensaje: "No hay impresora de recibos encendida.", bloquea: "Imprimir recibos y el ticket del corte", enlace: "/panel/ajustes/impresoras" });
         }
         // El punto de cobro (B3-9, M-31): fuera de él, abrir pide el PIN de administración y un motivo.
-        const equipo = ctx.quien?.deviceId ? await tx.device.findUnique({ where: { id: ctx.quien.deviceId }, select: { cashPoint: true } }) : null;
+        const equipo = ctx.quien?.deviceId ? await tx.device.findUnique({ where: { id: ctx.quien.deviceId }, select: { cashPoint: true, fixedFloatUsdMinor: true, fixedFloatVesMinor: true } }) : null;
         const puntos = await tx.device.findMany({ where: { branchId: ctx.branchId, status: "APROBADO", cashPoint: true }, select: { label: true }, orderBy: { label: "asc" } });
         // Un día que quedó sin cerrar (B3-15): ninguna caja abierta y su último Z no fue el del día. Se dice, con lo que
         // dejó pendiente: el próximo turno, al ser la última caja que se cierre, cerrará el día.
@@ -785,7 +801,8 @@ export function casosCortes(base: Base): CasosCortes {
             jornadaSinCerrar = { dia: ultimo.shift.businessDate.toISOString().slice(0, 10), cuentas: p.cuentas.length, ninos: p.ninos.length };
           }
         }
-        return ComprobacionAperturaSchema.parse({ faltan, puntoDeCobro: { esEste: equipo?.cashPoint ?? false, puntos: puntos.map((p) => p.label) }, jornadaSinCerrar });
+        // El fondo fijo de este equipo (B3-22): con él, la apertura se cuenta por billete.
+        return ComprobacionAperturaSchema.parse({ faltan, puntoDeCobro: { esEste: equipo?.cashPoint ?? false, puntos: puntos.map((p) => p.label) }, jornadaSinCerrar, fondoFijo: equipo ? fondoFijoDe(equipo) : null });
       });
     },
 

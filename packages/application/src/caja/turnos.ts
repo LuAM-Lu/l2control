@@ -17,15 +17,17 @@
  * enciende), abrirlo pide el PIN de administración y un motivo; el turno los guarda, la auditoría dice quién autorizó e
  * Inicio lo avisa mientras siga abierto.
  */
-import { AbrirTurnoCommandSchema, TurnoSchema, problemasDe, type Rechazo, type Resultado, type TurnoDto } from "@l2/contracts";
-import { businessDayAt, businessDayEnd, chargeProblem, openingFloatProblem, type ShiftStatus } from "@l2/domain-cash";
-import { money, type CurrencyCode } from "@l2/domain-money";
-import { errorDeBase, type Base, type CashShift, type Transaccion } from "@l2/database";
+import { AbrirTurnoCommandSchema, CorteSchema, TurnoSchema, problemasDe, type MoneyDto, type Rechazo, type Resultado, type TurnoDto } from "@l2/contracts";
+import { aperturaContraLoQueQuedo, businessDayAt, businessDayEnd, chargeProblem, countDenominations, openingFloatProblem, type ShiftStatus } from "@l2/domain-cash";
+import { money, type CurrencyCode, type Money } from "@l2/domain-money";
+import { importeVE } from "@l2/domain-printing";
+import { errorDeBase, type Base, type CashShift, type ShiftOpeningCount, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { esSoporte, exigirPermiso, nombreDe, permisoEn } from "../identidad/actor.ts";
 import { AutorizacionSchema, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
 import { diaDeNegocioDe } from "../sucursal/ajustes.ts";
+import { fondoFijoDe } from "../identidad/dispositivos.ts";
 
 export interface CasosTurnos {
   /**
@@ -39,11 +41,39 @@ export interface CasosTurnos {
   abiertos(ctx: Contexto): Promise<TurnoDto[]>;
 }
 
-export type ConFondos = CashShift & { floats: { currency: string; amountMinor: bigint }[] };
+/** Lo que se lee de un turno para enseñarlo: su fondo y, de B3-22, el fondo fijo de su caja y su apertura contada. */
+export const CON_FONDOS = { floats: true, device: { select: { fixedFloatUsdMinor: true, fixedFloatVesMinor: true } }, openingCount: true } as const;
+
+export type ConFondos = CashShift & {
+  floats: { currency: string; amountMinor: bigint }[];
+  device?: { fixedFloatUsdMinor: bigint | null; fixedFloatVesMinor: bigint | null };
+  openingCount?: ShiftOpeningCount | null;
+};
 
 /** El turno sin corte Z de un equipo, dentro de una transacción ya abierta. */
 export function turnoSinCorteDe(tx: Transaccion, deviceId: string) {
-  return tx.cashShift.findFirst({ where: { deviceId, status: { not: "CERRADO_Z" } }, include: { floats: true } });
+  return tx.cashShift.findFirst({ where: { deviceId, status: { not: "CERRADO_Z" } }, include: CON_FONDOS });
+}
+
+const aDinero = (m: MoneyDto): Money => money(BigInt(m.minor), m.currency as CurrencyCode);
+const dineroDto = (m: Money): MoneyDto => ({ minor: String(m.amount), currency: m.currency });
+
+/** «Falta $ 5.00» o «Sobra Bs. 100,00», de cada moneda con diferencia. */
+export function textoDeLaDiferencia(diferencias: readonly Money[]): string {
+  return diferencias
+    .filter((x) => x.amount !== 0n)
+    .map((x) => `${x.amount < 0n ? "Falta" : "Sobra"} ${importeVE(x.amount < 0n ? -x.amount : x.amount, x.currency)}`)
+    .join(" y ");
+}
+
+/**
+ * Lo que quedó en la gaveta de una caja (B3-22): lo que dejó su último corte Z; si no lo hubo (o no dejó nada dicho), su
+ * fondo fijo.
+ */
+async function loQueQuedoEn(tx: Transaccion, deviceId: string, fijo: readonly MoneyDto[]): Promise<Money[]> {
+  const z = await tx.shiftCut.findFirst({ where: { kind: "Z", shift: { deviceId } }, orderBy: { madeAt: "desc" } });
+  const quedaron = z ? CorteSchema.parse(z.content).cierre?.quedaEnGaveta : undefined;
+  return (quedaron && quedaron.length > 0 ? quedaron : fijo).map(aDinero);
 }
 
 /**
@@ -166,6 +196,33 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
             const u = await tx.staffUser.findUniqueOrThrow({ where: { id: aut.autorizadorId }, select: { fullName: true, supportLogin: true } });
             fuera = { por: aut.autorizadorId, nombre: u.supportLogin ? `${u.fullName} (soporte)` : u.fullName, motivo: aut.motivo.trim() };
           }
+          // El fondo fijo (B3-22): se cuenta por billete contra lo que quedó en el último cierre de esta caja. Si falta o
+          // sobra, se dice antes de abrir; abierta así, la diferencia queda a nombre de quien abre.
+          const fijo = fondoFijoDe(equipo);
+          let apertura: ReturnType<typeof aperturaContraLoQueQuedo> | null = null;
+          if (fijo) {
+            if (!v.data.conteo) {
+              return { ok: false, motivo: "INVALIDO", mensaje: "Esta caja tiene fondo fijo: cuéntalo por billete.", problemas: [{ path: ["conteo"], message: "FALTA_EL_CONTEO" }] };
+            }
+            const contado = v.data.conteo.map((c) =>
+              countDenominations(
+                c.billetes.map((b) => ({ denomination: money(BigInt(b.denominacion.minor), c.currency), count: b.cantidad })),
+                c.currency,
+              ),
+            );
+            if (contado.some((c) => fondos.find((f) => f.currency === c.currency)?.amount !== c.amount)) {
+              return { ok: false, motivo: "INVALIDO", mensaje: "El fondo no es lo que suman los billetes: vuelve a contarlo.", problemas: [{ path: ["conteo"], message: "NO_SUMA" }] };
+            }
+            apertura = aperturaContraLoQueQuedo(contado, await loQueQuedoEn(tx, equipo.id, fijo));
+            if (!apertura.cuadra && v.data.aceptarDiferencia !== true) {
+              return {
+                ok: false,
+                motivo: "CONFLICTO",
+                mensaje: `${textoDeLaDiferencia(apertura.lineas.map((l) => l.diferencia))} de lo que quedó en la gaveta: vuelve a contar, o ábrela así y queda anotado a tu nombre.`,
+                problemas: [{ path: ["conteo"], message: "DIFERENCIA_DE_APERTURA" }],
+              };
+            }
+          }
           const quien = await nombreDe(tx, ctx);
           // El día de negocio lo fijan la zona de la sucursal y la hora en que termina (ADR-009, B4-4, B3-24): a la 1:30 am
           // con el fin a las 4:00 am, el turno es todavía del día anterior.
@@ -189,6 +246,23 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
           for (const f of fondos) {
             floats.push(await tx.cashShiftFloat.create({ data: { tenantId: ctx.tenantId, shiftId: turno.id, currency: f.currency, amountMinor: f.amount } }));
           }
+          const conteo =
+            apertura && v.data.conteo
+              ? await tx.shiftOpeningCount.create({
+                  data: {
+                    tenantId: ctx.tenantId,
+                    shiftId: turno.id,
+                    counts: v.data.conteo,
+                    counted: apertura.lineas.map((l) => dineroDto(l.contado)),
+                    leftInDrawer: apertura.lineas.map((l) => dineroDto(l.quedo)),
+                    differences: apertura.lineas.map((l) => dineroDto(l.diferencia)),
+                    matches: apertura.cuadra,
+                    countedAt: new Date(ahora),
+                    countedBy: ctx.quien.userId,
+                    countedByName: quien.nombre,
+                  },
+                })
+              : null;
           await auditar(tx, ctx, {
             action: "turno.abrir",
             entityType: "cash_shift",
@@ -199,9 +273,16 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
               businessDate: dia,
               fondos: floats.map((f) => ({ currency: f.currency, amountMinor: String(f.amountMinor) })),
               ...(fuera ? { fueraDelPunto: { autorizadoPor: fuera.nombre, motivo: fuera.motivo } } : {}),
+              // B3-22: la apertura contada por billete; con diferencia, a nombre de quien abre.
+              ...(apertura
+                ? {
+                    apertura: { cuadra: apertura.cuadra, diferencias: apertura.lineas.map((l) => dineroDto(l.diferencia)) },
+                    ...(apertura.cuadra ? {} : { detalle: textoDeLaDiferencia(apertura.lineas.map((l) => l.diferencia)) }),
+                  }
+                : {}),
             },
           });
-          return { ...turno, floats, fin: businessDayEnd(dia, zona, finMin) };
+          return { ...turno, floats, device: equipo, openingCount: conteo, fin: businessDayEnd(dia, zona, finMin) };
         });
         if ("ok" in r) {
           if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.abrir", reason: r.mensaje });
@@ -220,7 +301,7 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
         if ((await permisoEn(tx, ctx, "reportes.verSucursal")) === "DENEGADO") return [];
         const filas = await tx.cashShift.findMany({
           where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" } },
-          include: { floats: true },
+          include: CON_FONDOS,
           orderBy: { openedAt: "asc" },
         });
         const turnos: TurnoDto[] = [];
@@ -260,6 +341,16 @@ export function turnoDto(t: ConFondos, terminaEl?: number): TurnoDto {
     abiertoEn: t.openedAt.toISOString(),
     fondos: t.floats.map((f) => ({ currency: f.currency, amount: { minor: String(f.amountMinor), currency: f.currency } })),
     fueraDelPunto: t.outsidePointByName && t.outsidePointReason ? { autorizadoPor: t.outsidePointByName, motivo: t.outsidePointReason } : null,
+    fondoFijo: t.device ? fondoFijoDe(t.device) : null,
+    apertura: t.openingCount
+      ? {
+          contado: t.openingCount.counted,
+          quedo: t.openingCount.leftInDrawer,
+          diferencias: t.openingCount.differences,
+          cuadra: t.openingCount.matches,
+          por: t.openingCount.countedByName,
+        }
+      : null,
     ...(t.closedAt && t.closedBy && t.closedByName
       ? { cerradoPor: { id: t.closedBy, name: t.closedByName }, cerradoEn: t.closedAt.toISOString() }
       : {}),

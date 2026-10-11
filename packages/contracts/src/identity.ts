@@ -10,7 +10,7 @@
  * dominio añade un rol y el contrato no, deja de compilar allí—.
  */
 import { z } from "zod";
-import { IdSchema, TimestampSchema, PaginaSchema, PorPaginaSchema } from "./primitives.ts";
+import { IdSchema, MoneySchema, TimestampSchema, PaginaSchema, PorPaginaSchema } from "./primitives.ts";
 
 export const RoleSchema = z.enum([
   "ADMIN",
@@ -303,6 +303,8 @@ export const DeviceSchema = z.object({
    * un motivo. Los equipos de antes no lo traen: no lo son.
    */
   puntoDeCobro: z.boolean().default(false),
+  /** El fondo fijo de la caja (B3-22), en dólares y en bolívares, o `null` si está apagado (de fábrica). */
+  fondoFijo: z.array(MoneySchema).nullable().default(null),
   /** Quién tiene sesión abierta ahora mismo, si hay alguien. */
   session: z
     .object({ userId: IdSchema, userName: z.string().trim().min(2).max(80), since: TimestampSchema })
@@ -375,6 +377,20 @@ export const DeviceCommandSchema = z.discriminatedUnion("kind", [
   }),
   /** Marcar o desmarcar el punto de cobro (B3-9, M-31), con su motivo: cambia dónde se abre el turno sin pedir nada. */
   z.strictObject({ kind: z.literal("PUNTO_DE_COBRO"), deviceId: IdSchema, puntoDeCobro: z.boolean(), reason: ReasonSchema }),
+  /**
+   * El fondo fijo de una caja (B3-22): en dólares y en bolívares, o `null` para apagarlo. Solo en un punto de cobro.
+   */
+  z.strictObject({
+    kind: z.literal("FONDO_FIJO"),
+    deviceId: IdSchema,
+    fondo: z
+      .array(MoneySchema)
+      .length(2, "El fondo en dólares y en bolívares")
+      .refine((f) => new Set(f.map((m) => m.currency)).size === 2 && f.every((m) => m.currency === "USD" || m.currency === "VES"), "El fondo en dólares y en bolívares, una vez cada uno")
+      .refine((f) => f.every((m) => /^\d+$/.test(m.minor) && BigInt(m.minor) <= 100_000_000_000n), "Sin negativos")
+      .nullable(),
+    reason: ReasonSchema,
+  }),
 ]);
 export type DeviceCommand = z.infer<typeof DeviceCommandSchema>;
 

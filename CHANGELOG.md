@@ -16,6 +16,22 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.131.0] — 2026-10-11 · Hacia la puesta en marcha
+
+El fondo fijo, opcional (B3-22, M-38, W-9).
+
+### Añadido
+- **«Fondo fijo» por caja**, en Ajustes → Personas y equipos → Dispositivos (el botón de las monedas, en un punto de
+  cobro): en $ y en Bs, apagado de fábrica. Queda en la auditoría con su motivo.
+- **La apertura con fondo fijo se cuenta por billete.** Si lo contado no es lo que quedó en el último cierre de esa caja
+  (o su fondo fijo, la primera vez), lo dice («Falta $ 5.00 de lo que quedó en la gaveta»): volver a contar, o «Abrir
+  así» y la diferencia queda a nombre de quien abre, en Turno («Abrió con diferencia»), en el corte (una excepción) y en
+  Movimientos («Abrió la caja con diferencia»).
+
+### Cambiado
+- **El cierre con fondo fijo** propone dejar ese fondo (nunca más de lo contado) y retirar el resto. Apagado, como
+  antes: se propone el fondo con que se abrió.
+
 ## [0.130.0] — 2026-10-11 · Hacia la puesta en marcha
 
 Mover efectivo (B3-21, M-38, W-8).

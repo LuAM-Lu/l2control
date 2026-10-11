@@ -69,6 +69,16 @@ export const TurnoSchema = z
      * pide cerrarse. Lo pone el servidor con la hora de los ajustes; sin él (un turno leído sin ajustes), no se sabe.
      */
     terminaEl: TimestampSchema.optional(),
+    /** El fondo fijo de su caja (B3-22), o `null` si está apagado: el cierre propone dejarlo y retirar el resto. */
+    fondoFijo: z.array(MoneySchema).nullable().default(null),
+    /**
+     * La apertura contada por billete (B3-22): contra lo que quedó, con su diferencia (positiva si sobra). `null` sin
+     * fondo fijo o en los turnos de antes.
+     */
+    apertura: z
+      .object({ contado: z.array(MoneySchema), quedo: z.array(MoneySchema), diferencias: z.array(MoneySchema), cuadra: z.boolean(), por: z.string() })
+      .nullable()
+      .default(null),
     /** Quién hizo el corte Z y cuándo. Van juntos o no van (§7.4). */
     cerradoPor: Persona.optional(),
     cerradoEn: TimestampSchema.optional(),
@@ -124,8 +134,27 @@ export type TurnosDto = z.infer<typeof TurnosSchema>;
  * sesión (ADR-017), para que nadie pueda declarar que abrió en otro equipo, a otra hora o a nombre
  * de otra persona. Un turno nace abierto: no hay `estado` que declarar.
  */
+export const ConteoMonedaSchema = z.strictObject({
+  currency: z.enum(["USD", "VES"]),
+  billetes: z
+    .array(
+      z.strictObject({
+        denominacion: MoneySchema.refine((m) => /^\d+$/.test(m.minor) && BigInt(m.minor) > 0n, "Una denominación vale más que cero"),
+        cantidad: z.number().int().min(0).max(100_000),
+      }),
+    )
+    .max(30),
+});
+export type ConteoMonedaDto = z.infer<typeof ConteoMonedaSchema>;
+
 const AbrirTurnoBase = z.strictObject({
   fondos: z.array(FondoInicialSchema).min(1, "Declara el fondo de cada moneda"),
+  /**
+   * Con fondo fijo (B3-22): el fondo contado por billete, en dólares y en bolívares. Lo que suma son los `fondos`.
+   */
+  conteo: z.array(ConteoMonedaSchema).length(2, "Se cuentan los dólares y los bolívares").optional(),
+  /** Abrir aunque lo contado no sea lo que quedó: la diferencia queda a nombre de quien abre. */
+  aceptarDiferencia: z.boolean().optional(),
 });
 export const AbrirTurnoCommandSchema = AbrirTurnoBase.refine(
   (c) => c.fondos.length === 2 && new Set(c.fondos.map((f) => f.currency)).size === 2,

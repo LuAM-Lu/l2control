@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, CircleCheckBig, History, KeyRound, MonitorSmartphone, MonitorX, Pencil, Search, SmartphoneNfc, TriangleAlert, Users, Wallet } from "lucide-react";
-import { POR_PAGINA, type DeviceCommand, type DeviceDto, type FiltroDispositivos, type PaginaDeDispositivosDto, type PorPagina } from "@l2/contracts";
+import { Ban, CircleCheckBig, Coins, History, KeyRound, MonitorSmartphone, MonitorX, Pencil, Search, SmartphoneNfc, TriangleAlert, Users, Wallet } from "lucide-react";
+import { POR_PAGINA, type DeviceCommand, type DeviceDto, type FiltroDispositivos, type MoneyDto, type PaginaDeDispositivosDto, type PorPagina } from "@l2/contracts";
+import { money, toMajor } from "@l2/domain-money";
+import { importeTecleado } from "../cash/importe.ts";
 import {
   BarraDeFiltros,
   Button,
@@ -17,6 +19,7 @@ import {
   Resumen,
   Sheet,
   avisar,
+  formatMoneyVE,
   cn,
 } from "@l2/ui";
 import { EncabezadoDePagina } from "../shell/MarcoDeSeccion.tsx";
@@ -40,7 +43,14 @@ import { leerDispositivos, ordenarDispositivo } from "./dispositivos.acciones";
  */
 
 type Consulta = Readonly<{ pagina: number; porPagina: PorPagina; filtro: FiltroDispositivos; busqueda?: string | undefined }>;
-type Orden = { kind: "APROBAR" | "REVOCAR" | "RENOMBRAR" | "MARCAR_PUNTO" | "QUITAR_PUNTO"; dev: DeviceDto };
+type Orden = { kind: "APROBAR" | "REVOCAR" | "RENOMBRAR" | "MARCAR_PUNTO" | "QUITAR_PUNTO" | "FONDO_FIJO"; dev: DeviceDto };
+
+/** El fondo fijo en corto: «$ 20.00» o «$ 20.00 + Bs. 500,00». */
+const textoDelFondo = (f: readonly MoneyDto[]) =>
+  f
+    .filter((m, i) => i === 0 || BigInt(m.minor) > 0n)
+    .map((m) => formatMoneyVE(toMajor(money(BigInt(m.minor), m.currency as "USD" | "VES")), m.currency as "USD" | "VES"))
+    .join(" + ");
 
 const ESTADOS = {
   APROBADO: { texto: "Aprobado", clase: "text-state-ok", bg: "bg-state-ok-bg", Icono: CircleCheckBig },
@@ -100,9 +110,9 @@ export function DispositivosScreen({
           {e.texto}
         </span>
         {d.puntoDeCobro && (
-          <span className="flex items-center gap-1.5 text-[12px] font-semibold whitespace-nowrap text-brand">
+          <span className="flex items-center gap-1.5 text-[12px] font-semibold whitespace-nowrap text-brand" title={d.fondoFijo ? "Con fondo fijo (B3-22): el cierre propone dejarlo y la apertura se cuenta por billete" : undefined}>
             <Wallet size={13} aria-hidden="true" />
-            Punto de cobro
+            Punto de cobro{d.fondoFijo ? ` · fondo ${textoDelFondo(d.fondoFijo)}` : ""}
           </span>
         )}
       </span>
@@ -138,6 +148,21 @@ export function DispositivosScreen({
         >
           <Wallet size={14} className={d.puntoDeCobro ? "text-brand" : undefined} aria-hidden="true" />
           {surface === "tablet" && (d.puntoDeCobro ? "Quitar punto de cobro" : "Punto de cobro")}
+        </Button>
+      )}
+      {/* B3-22: el fondo fijo, de un punto de cobro (o para apagarlo en el que lo tenga). */}
+      {(d.puntoDeCobro || d.fondoFijo) && puedeGestionar && (
+        <Button
+          type="button"
+          variant="ghost"
+          surface={surface}
+          aria-label={`Fondo fijo de ${d.label}`}
+          aria-pressed={d.fondoFijo !== null}
+          title={d.fondoFijo ? `Fondo fijo: ${textoDelFondo(d.fondoFijo)}` : "Fondo fijo: apagado"}
+          onClick={() => setOrden({ kind: "FONDO_FIJO", dev: d })}
+        >
+          <Coins size={14} className={d.fondoFijo ? "text-brand" : undefined} aria-hidden="true" />
+          {surface === "tablet" && "Fondo fijo"}
         </Button>
       )}
       {d.status === "APROBADO" && puedeGestionar && (
@@ -368,7 +393,11 @@ export function DispositivosScreen({
                 ? "Equipo revocado: sus sesiones se cerraron"
                 : cmd.kind === "RENOMBRAR"
                   ? "Equipo renombrado"
-                  : cmd.puntoDeCobro
+                  : cmd.kind === "FONDO_FIJO"
+                    ? cmd.fondo
+                      ? "Fondo fijo guardado: el cierre lo propone y la apertura se cuenta por billete"
+                      : "Fondo fijo apagado: la caja abre y cierra como siempre"
+                    : cmd.puntoDeCobro
                     ? "Marcado como punto de cobro: abre su turno sin pedir nada"
                     : "Ya no es punto de cobro: su turno pedirá el PIN de administración",
           );
@@ -406,6 +435,11 @@ const TEXTO_DIALOGO = {
     desc: "Desde ahora, abrir el turno en este equipo pedirá el PIN de administración y un motivo. El turno que tenga abierto sigue igual.",
     boton: "Quitar",
   },
+  FONDO_FIJO: {
+    titulo: "Fondo fijo de la caja",
+    desc: "Encendido, el cierre propone dejar este fondo y retirar el resto, y la apertura se cuenta por billete: si falta o sobra de lo que quedó, lo dice y queda a nombre de quien abre. Apagado, como siempre.",
+    boton: "Guardar",
+  },
 } as const;
 
 /** Aprobar, revocar, renombrar o el punto de cobro: qué se hace, sobre qué equipo y por qué (el motivo queda en su historia). */
@@ -422,6 +456,9 @@ function DialogoDispositivo({
 }) {
   const [motivo, setMotivo] = useState("");
   const [nuevoNombre, setNuevoNombre] = useState("");
+  const [conFondo, setConFondo] = useState(false);
+  const [fondoUsd, setFondoUsd] = useState("");
+  const [fondoBs, setFondoBs] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [para, setPara] = useState<string | null>(null);
@@ -431,6 +468,10 @@ function DialogoDispositivo({
     setPara(clave);
     setMotivo("");
     setNuevoNombre(orden?.kind === "RENOMBRAR" ? orden.dev.label : "");
+    const fijo = orden?.kind === "FONDO_FIJO" ? orden.dev.fondoFijo : null;
+    setConFondo(orden?.kind === "FONDO_FIJO" ? (fijo !== null || orden.dev.puntoDeCobro) : false);
+    setFondoUsd(fijo ? aTexto(fijo.find((m) => m.currency === "USD")!) : "20,00");
+    setFondoBs(fijo ? aTexto(fijo.find((m) => m.currency === "VES")!) : "0,00");
     setError(null);
   }
   if (!orden || !autor) return null;
@@ -448,6 +489,13 @@ function DialogoDispositivo({
       const label = nuevoNombre.trim();
       if (label.length < 2) return setError("El nombre debe tener al menos 2 caracteres.");
       return void enviar({ kind: "RENOMBRAR", deviceId: orden.dev.id, label, reason });
+    }
+    if (orden.kind === "FONDO_FIJO") {
+      if (!conFondo) return void enviar({ kind: "FONDO_FIJO", deviceId: orden.dev.id, fondo: null, reason });
+      const u = importeTecleado(fondoUsd, "USD");
+      const b = importeTecleado(fondoBs, "VES");
+      if (!u || !b) return setError("Escribe el fondo en dólares y en bolívares, como 20,00 (cero vale).");
+      return void enviar({ kind: "FONDO_FIJO", deviceId: orden.dev.id, fondo: [{ minor: String(u.amount), currency: "USD" }, { minor: String(b.amount), currency: "VES" }], reason });
     }
     if (orden.kind === "MARCAR_PUNTO" || orden.kind === "QUITAR_PUNTO") {
       return void enviar({ kind: "PUNTO_DE_COBRO", deviceId: orden.dev.id, puntoDeCobro: orden.kind === "MARCAR_PUNTO", reason });
@@ -481,6 +529,37 @@ function DialogoDispositivo({
             </span>
           )}
         </p>
+        {orden.kind === "FONDO_FIJO" && (
+          <div className="flex flex-col gap-3">
+            <div role="radiogroup" aria-label="Fondo fijo" className="grid grid-cols-2 gap-1.5">
+              {([true, false] as const).map((on) => (
+                <button
+                  key={String(on)}
+                  type="button"
+                  role="radio"
+                  aria-checked={conFondo === on}
+                  disabled={on && !orden.dev.puntoDeCobro}
+                  onClick={() => {
+                    setConFondo(on);
+                    setError(null);
+                  }}
+                  className={cn(
+                    "min-h-10 cursor-pointer rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+                    conFondo === on ? "border-brand bg-brand/20 text-ink" : "border-line text-ink-2 hover:text-ink",
+                  )}
+                >
+                  {on ? "Encendido" : "Apagado"}
+                </button>
+              ))}
+            </div>
+            {conFondo && (
+              <div className="grid grid-cols-2 gap-3">
+                <Input surface="admin" label="En dólares" inputMode="decimal" className="tnum" value={fondoUsd} onChange={(e) => setFondoUsd(e.target.value)} />
+                <Input surface="admin" label="En bolívares" inputMode="decimal" className="tnum" value={fondoBs} onChange={(e) => setFondoBs(e.target.value)} />
+              </div>
+            )}
+          </div>
+        )}
         {orden.kind === "RENOMBRAR" && (
           <Input
             surface="admin"
@@ -519,7 +598,7 @@ function DialogoDispositivo({
             </p>
           ) : (
             <p className="text-[12.5px] text-ink-3">
-              {orden.kind === "MARCAR_PUNTO" || orden.kind === "QUITAR_PUNTO" ? "Queda en la auditoría, con quién lo hizo." : "Queda en la historia del equipo y en la auditoría."}
+              {orden.kind === "MARCAR_PUNTO" || orden.kind === "QUITAR_PUNTO" || orden.kind === "FONDO_FIJO" ? "Queda en la auditoría, con quién lo hizo." : "Queda en la historia del equipo y en la auditoría."}
             </p>
           )}
         </div>
@@ -527,6 +606,9 @@ function DialogoDispositivo({
     </Dialog>
   );
 }
+
+/** Un importe para editarlo: «20,00». */
+const aTexto = (m: MoneyDto) => toMajor(money(BigInt(m.minor), m.currency as "USD" | "VES")).replace(".", ",");
 
 /** Una solicitud pendiente que pasó su plazo (M-7): ya no se aprueba; el equipo la renueva. */
 function caducada(dev: DeviceDto): boolean {
