@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Ban, CircleCheck, Clock3, Printer, RotateCcw, TriangleAlert } from "lucide-react";
-import type { DescartarTrabajosCommand, Rechazo, Resultado, TrabajoDeImpresionDto, TrabajosDescartadosDto } from "@l2/contracts";
+import type { DescartarTrabajosCommand, ImpresoraEnLaColaDto, Rechazo, Resultado, TrabajoDeImpresionDto, TrabajosDescartadosDto } from "@l2/contracts";
 import { Button, avisar, cn } from "@l2/ui";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useHora } from "../sucursal/SucursalProvider.tsx";
@@ -20,6 +20,8 @@ const sinConexion: Rechazo = { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin
 
 type Valor = Readonly<{
   trabajos: readonly TrabajoDeImpresionDto[];
+  /** Las impresoras encendidas y lo último que dijo su agente de cada una (B5-6). */
+  impresoras: readonly ImpresoraEnLaColaDto[];
   /** Vuelve a leer la cola (tras encolar algo, sin esperar al canal). */
   releer: () => Promise<void>;
   reintentar: (id: string) => Promise<Resultado<TrabajoDeImpresionDto>>;
@@ -29,16 +31,30 @@ type Valor = Readonly<{
 
 const Contexto = createContext<Valor | null>(null);
 
-export function ColaProvider({ inicial, children }: { inicial: readonly TrabajoDeImpresionDto[]; children: React.ReactNode }) {
+export function ColaProvider({
+  inicial,
+  impresoras: impresorasIniciales = [],
+  children,
+}: {
+  inicial: readonly TrabajoDeImpresionDto[];
+  impresoras?: readonly ImpresoraEnLaColaDto[];
+  children: React.ReactNode;
+}) {
   const [trabajos, setTrabajos] = useState<readonly TrabajoDeImpresionDto[]>(inicial);
-  const huella = JSON.stringify(inicial.map((t) => [t.id, t.estado]));
+  const [impresoras, setImpresoras] = useState<readonly ImpresoraEnLaColaDto[]>(impresorasIniciales);
+  const huella = JSON.stringify([inicial.map((t) => [t.id, t.estado]), impresorasIniciales.map((i) => [i.id, i.estado?.estado, i.estado?.en])]);
   useEffect(() => {
     setTrabajos(inicial);
+    setImpresoras(impresorasIniciales);
   }, [huella]);
 
+  // Un cambio de estado de una impresora (B5-6) llega por el mismo tema que la cola: se relee todo junto.
   const releer = useCallback(async () => {
     const r = await leerTrabajos().catch(() => null);
-    if (r?.ok) setTrabajos(r.valor.trabajos);
+    if (r?.ok) {
+      setTrabajos(r.valor.trabajos);
+      setImpresoras(r.valor.impresoras);
+    }
   }, []);
   useAlCambiar(["impresion"], () => void releer());
 
@@ -60,7 +76,7 @@ export function ColaProvider({ inicial, children }: { inicial: readonly TrabajoD
     [releer],
   );
 
-  const valor = useMemo(() => ({ trabajos, releer, reintentar, descartar }), [trabajos, releer, reintentar, descartar]);
+  const valor = useMemo(() => ({ trabajos, impresoras, releer, reintentar, descartar }), [trabajos, impresoras, releer, reintentar, descartar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 

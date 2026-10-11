@@ -70,6 +70,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "impresion.fallar": ["impresion"],
   "impresion.reintentar": ["impresion"],
   "impresion.descartar": ["impresion"],
+  "impresion.desviar": ["impresion"],
   "producto.carta": ["catalogo"],
   "plano.publicar": ["plano"],
   // El pedido cambia la cuenta de la mesa; su comanda en la cola avisa con su propio asiento (impresion).
@@ -106,6 +107,8 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "impresora.editar": ["impresion"],
   "impresora.activar": ["impresion"],
   "impresora.retirar": ["impresion"],
+  "impresora.principal": ["impresion"],
+  "impresora.estado": ["impresion"],
   "agente.codigo": ["impresion"],
   "agente.vincular": ["impresion"],
   "agente.retirar": ["impresion"],

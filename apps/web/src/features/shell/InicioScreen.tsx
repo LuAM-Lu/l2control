@@ -21,6 +21,7 @@ import { horaDelDia } from "../eventos/formato.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { diaDelTurno, finDelDiaDelTurno } from "../cash/turno.ts";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
+import { EstadoDeImpresoras } from "../impresion/EstadoDeImpresoras.tsx";
 import { ChipEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 import type { AvisoDeVersion } from "../sistema/sistema.servidor.ts";
 import type { AvisoDeRespaldos } from "../sistema/respaldos.servidor.ts";
@@ -181,6 +182,8 @@ export function InicioScreen({
           {/* B9-5: lo que hay que reponer, con color + icono + texto; lleva al inventario. */}
           {inventario && <AvisoInventario {...inventario} />}
           {/* Lo que no salió en papel (ADR-015, ADR-022: las comandas fallidas, en Inicio). */}
+          {/* B5-6: cómo está la impresora (sin papel, no responde, por el respaldo). */}
+          <EstadoDeImpresoras para="caja" className="h-auto min-h-8 py-1.5 text-xs lg:text-[13px]" />
           <AvisoDeImpresion className="h-auto min-h-8 py-1.5 text-xs lg:text-[13px]" />
           {version && <AvisoVersion {...version} />}
           {respaldos && <AvisoRespaldos {...respaldos} />}

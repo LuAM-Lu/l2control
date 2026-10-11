@@ -254,6 +254,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Una cuenta del salón dice, debajo de su nombre, su mesa (o «De pie»), hace cuánto pidió la cuenta, lo que sigue sin servir y sus niños, con su tiempo si siguen en la sala. Si al cobrarla hay niños suyos en la sala, la caja avisa «Dales salida antes»: pasa su pulsera o dales salida, y su tiempo se suma a la cuenta. «Cobrar igual» sigue sin esperar.",
       "Cobrada la última cuenta de una mesa, la mesa queda por limpiar. La limpia el mesero; si se olvida, la cola dice «Por limpiar» con sus números: un toque la deja limpia y libre.",
       "Una cuenta del salón que pidió y sigue sin cobrar pasados unos minutos (10, de fábrica) sale en un aviso suave, sin sonido, una vez. Los minutos, en Ajustes → Sucursal.",
+      "Arriba, la barra dice cómo está la impresora: «Impresora sin papel» o «Impresora no responde» en rojo (con sonido), «Imprime por …» en ámbar cuando sale por su respaldo. Pon el rollo y, en «N sin imprimir», «Reintentar».",
       "Si la caja quedó abierta de un día que ya terminó (pasadas las 4:00 am de fábrica), dice «Esta caja es del …: ciérrala antes de cobrar» con lo pendiente de ese día. Lo de ese día se cobra ahí; lo de hoy, no. «Cerrar la caja» lleva al cierre; después se abre la de hoy.",
     ],
     problemas: [
@@ -453,6 +454,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     roles: SALON,
     proposito: "Atender el salón: sentar a las familias, tomar sus pedidos (la comanda sale en papel) y mandar la cuenta a caja.",
     pasos: [
+      "Si arriba dice «Las comandas no están saliendo» (en rojo, con sonido), la impresora está sin papel o no responde: avisa a la caja. Lo que no salió queda en «N sin imprimir» y sale con «Reintentar» cuando vuelva.",
       "Toca una mesa libre y «Sentar»: pide la cédula, el teléfono y el nombre del cliente (los tres, obligatorios) y cuántas personas son. Quien consume primero y paga al final deja sus datos: si se va sin pagar, hay a quién cobrarle. Si ya vino antes, al escribir su cédula o su teléfono lo demás se rellena solo. La letra de la cédula se elige al lado y los puntos los pone el campo.",
       "«Buscar cliente»: por su nombre, su cédula o su teléfono, dice dónde está sentado (toca su cuenta para abrir su mesa), sus niños en la sala y si debe algo de antes.",
       "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, sus datos, su pedido y su cobro.",
@@ -598,6 +600,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Impresoras: cada una marca qué imprime (recibos y cortes, comandas de cocina, comandas de barra), una sola encendida por marca; con una sola impresora, las tres en ella. Se prueba antes de encenderla. Por red, con su IP fija; por USB, se elige el equipo al que está enchufada y su nombre en Windows (el agente de ese equipo la imprime).",
       "En «Editar», «Imprimir la prueba de acentos» saca las tildes con cada página de códigos, numeradas: en «Página de las tildes» se elige la que se leyó bien. «Impresión oscura» pone todo en negrita y con doble pasada, para la que marca pálido.",
+      "Principal y respaldo: una impresora puede ser «Respaldo de otra» (la misma por red y por USB, o una segunda). Lo de la principal sale por el respaldo cuando no responde, una vez, y se avisa; sin papel no cambia de camino (el rollo es el mismo): queda «no salió» y «Reintentar» lo saca una vez cuando vuelva. L2 sugiere la de red como principal, porque pregunta por el papel antes de mandar. «Hacer principal», en el respaldo, las cambia de una vez: lo siguiente sale por ella.",
+      "El estado de cada una (lista, poco papel, sin papel, no responde) lo dice el agente cada 30 s: por red, preguntándole; por USB, a Windows, y si un trabajo se queda más de 15 s en la cola de Windows se saca de ahí para que no salga dos veces. La barra de la caja dice «Impresora sin papel» con sonido, y la tablet, «Las comandas no están saliendo».",
       "Agente: se descarga, se vincula con un código de un solo uso y queda instalado en la laptop de caja.",
       "El agente se actualiza solo: cuando el sistema trae otra versión, la baja, comprueba su huella y se cambia con la cola vacía. Aquí se ve su versión y la disponible; «Actualizar ahora» no espera a su próxima revisión.",
       "Cola e historial: lo que salió, lo que espera y lo que falló, con «Reintentar» o «Descartar».",

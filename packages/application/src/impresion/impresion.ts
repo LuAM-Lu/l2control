@@ -31,6 +31,8 @@ import {
   VincularAgenteSchema,
   CorteSchema,
   DescartarTrabajosCommandSchema,
+  EstadosDeImpresorasSchema,
+  ImpresorasAVigilarSchema,
   HistorialDeImpresionSchema,
   HistorialQuerySchema,
   TrabajosDescartadosSchema,
@@ -39,6 +41,7 @@ import {
   type FiltroHistorial,
   type HistorialDeImpresionDto,
   type TrabajosDescartadosDto,
+  type ImpresorasAVigilarDto,
   type ImpresorasAplicadasDto,
   type ImpresorasDelLocalDto,
   type Rechazo,
@@ -48,9 +51,11 @@ import {
   type TrabajosDeImpresionDto,
 } from "@l2/contracts";
 import {
+  causaDeFallo,
   comoTexto,
   descarteProblem,
   escpos,
+  estadoTrasFallo,
   NUMERO_DE_PAGINA,
   PAGINAS,
   pruebaDeAcentos,
@@ -60,8 +65,10 @@ import {
   respuestaProblem,
   sinRespuesta,
   trasFallo,
+  trasFalloConCausa,
   type Ancho,
   type Documento,
+  type EstadoDeImpresora,
   type EstadoTrabajo,
   type PaginaDeCodigos,
 } from "@l2/domain-printing";
@@ -121,6 +128,13 @@ export interface CasosImpresion {
   anotarImpresorasDeWindows(agente: AgenteAbierto, entrada: unknown, ahora?: number): Promise<Resultado<{ anotadas: number }>>;
   /** Cómo le fue con un trabajo que reclamó (`ResultadoDelAgenteSchema`). */
   responder(agente: AgenteAbierto, entrada: unknown, ahora?: number): Promise<Resultado<{ estado: EstadoTrabajo }>>;
+  /**
+   * Las impresoras que vigila el agente (B5-6): las encendidas de su sucursal por red y las suyas por USB (si contó sus
+   * impresoras de Windows).
+   */
+  vigilar(agente: AgenteAbierto): Promise<ImpresorasAVigilarDto>;
+  /** Cómo están, cada 30 s (`EstadosDeImpresorasSchema`, B5-6). Solo de las que vigila; un cambio va a la auditoría. */
+  anotarEstados(agente: AgenteAbierto, entrada: unknown, ahora?: number): Promise<Resultado<{ anotadas: number }>>;
   /** Lo enviado que no respondió en 30 s vuelve a la cola (o falla). Devuelve cuántos. */
   barrer(tenantId: string, ahora?: number): Promise<number>;
   /** Anota que estos agentes siguen conectados y devuelve los que siguen vinculados (los demás, fuera). */
@@ -177,7 +191,36 @@ function trabajoDto(t: FilaTrabajo, impresora: Pick<FilaImpresora, "id" | "name"
     vistaPrevia: comoTexto(t.content as unknown as Documento, impresora.width as Ancho),
     ventaId: t.saleId,
     corteId: t.cutId,
+    porRespaldo: t.viaBackup,
   });
+}
+
+/** Lo último que dijo su agente de una impresora (B5-6), o `null`. */
+function estadoDe(i: Pick<FilaImpresora, "status" | "statusDetail" | "statusAt">) {
+  return i.status && i.statusAt ? { estado: i.status, detalle: i.statusDetail, en: i.statusAt.toISOString() } : null;
+}
+
+/** El respaldo encendido de una impresora (B5-6), o `null`. */
+function respaldoDe(tx: Transaccion, printerId: string) {
+  return tx.printer.findFirst({ where: { backupOf: printerId, active: true, retiredAt: null } });
+}
+
+/**
+ * Anota el estado de una impresora (B5-6). Si cambió, va a la auditoría (y por ella, a las pantallas en vivo: la barra de
+ * la caja y la tablet lo dicen). Si es el mismo, solo su hora: es el estado del aparato, como el latido del agente.
+ */
+async function anotarEstado(
+  tx: Transaccion,
+  ctx: Contexto,
+  i: Pick<FilaImpresora, "id" | "name" | "status" | "statusDetail">,
+  estado: EstadoDeImpresora,
+  detalle: string | null,
+  ahora: number,
+): Promise<void> {
+  await tx.printer.update({ where: { id: i.id }, data: { status: estado, statusDetail: detalle, statusAt: new Date(ahora) } });
+  if (i.status !== estado) {
+    await auditar(tx, ctx, { action: "impresora.estado", entityType: "printer", entityId: i.id, before: { estado: i.status }, after: { estado, detalle, nombre: i.name } });
+  }
 }
 
 /** Qué se pide imprimir. `para` elige la impresora activa de ese oficio; `impresoraId`, una concreta. */
@@ -288,6 +331,8 @@ async function delLocal(tx: Transaccion, branchId: string, ahora: number): Promi
         ipFija: i.fixedIp,
         activa: i.active,
         ultimo: t ? { estado: t.status, at: (t.finishedAt ?? t.createdAt).toISOString(), error: t.lastError } : null,
+        respaldoDe: i.backupOf,
+        estado: estadoDe(i),
       };
     }),
     agentes: agentes
@@ -345,6 +390,20 @@ export function casosImpresion(base: Base): CasosImpresion {
                 const agente = await tx.printAgent.findFirst({ where: { id: d.agenteId!, branchId: ctx.branchId, retiredAt: null } });
                 if (!agente || agente.pairedAt === null) return invalido("Ese equipo no tiene un agente vinculado en esta sucursal.", ["datos", "agenteId"], "Equipo sin agente");
               }
+              // El respaldo (B5-6): de una principal de esta sucursal, que no sea ella ni otro respaldo, y que no tenga ya
+              // el suyo. Una principal que tiene respaldo no pasa a ser respaldo de otra: primero se le quita el suyo.
+              const propia = cmd.kind === "EDITAR" ? cmd.impresoraId : null;
+              if (d.respaldoDe !== null) {
+                const principal = await buscar(d.respaldoDe);
+                if (!principal || principal.id === propia) return invalido("Elige de cuál de las otras impresoras es respaldo.", ["datos", "respaldoDe"], "Principal desconocida");
+                if (principal.backupOf !== null) return invalido(`«${principal.name}» ya es respaldo de otra: elige una principal.`, ["datos", "respaldoDe"], "Respaldo de un respaldo");
+                const yaTiene = await tx.printer.findFirst({ where: { backupOf: principal.id, retiredAt: null, ...(propia ? { id: { not: propia } } : {}) } });
+                if (yaTiene) return invalido(`«${principal.name}» ya tiene de respaldo a «${yaTiene.name}».`, ["datos", "respaldoDe"], "Ya tiene respaldo");
+                if (propia && (await tx.printer.findFirst({ where: { backupOf: propia, retiredAt: null } }))) {
+                  return invalido("Esta impresora es la principal de un respaldo: quítale el respaldo antes de hacerla respaldo de otra.", ["datos", "respaldoDe"], "Tiene respaldo");
+                }
+              }
+              const esRespaldo = d.respaldoDe !== null;
               const datos = {
                 name: d.nombre,
                 connection: d.conexion,
@@ -355,9 +414,11 @@ export function casosImpresion(base: Base): CasosImpresion {
                 codePage: d.pagina,
                 dark: d.oscura,
                 width: d.ancho,
-                forReceipts: d.recibos,
-                forOrders: d.comandas,
-                forBarOrders: d.barra,
+                // Un respaldo imprime lo de su principal: sus áreas no cuentan (la base lo impone).
+                forReceipts: esRespaldo ? false : d.recibos,
+                forOrders: esRespaldo ? false : d.comandas,
+                forBarOrders: esRespaldo ? false : d.barra,
+                backupOf: d.respaldoDe,
                 inHardwareLan: usb ? false : d.enVlanDeHardware,
                 fixedIp: usb ? false : d.ipFija,
               };
@@ -388,10 +449,32 @@ export function casosImpresion(base: Base): CasosImpresion {
                     forReceipts: antes.forReceipts,
                     forOrders: antes.forOrders,
                     forBarOrders: antes.forBarOrders,
+                    backupOf: antes.backupOf,
                   },
                   after: datos,
                 });
               }
+              break;
+            }
+            case "PRINCIPAL": {
+              // «Hacer principal» (B5-6): el respaldo toma las áreas de su principal y esta queda de respaldo suyo, de una
+              // vez. La siguiente comanda (o recibo) ya sale por ella.
+              const i = await buscar(cmd.impresoraId);
+              if (!i) return noDisponible("Esa impresora no existe en esta sucursal.");
+              if (i.backupOf === null) return { ok: false, motivo: "CONFLICTO", mensaje: `«${i.name}» ya es principal.` };
+              if (!i.active) return { ok: false, motivo: "CONFLICTO", mensaje: `Enciende «${i.name}» antes de hacerla principal: si no, nada saldría.` };
+              const p = await buscar(i.backupOf);
+              if (!p) return noDisponible("Su principal ya no existe en esta sucursal.");
+              // Primero la principal deja sus áreas (así nunca hay dos encendidas para lo mismo) y después las toma el respaldo.
+              await tx.printer.update({ where: { id: p.id }, data: { forReceipts: false, forOrders: false, forBarOrders: false, backupOf: i.id } });
+              await tx.printer.update({ where: { id: i.id }, data: { forReceipts: p.forReceipts, forOrders: p.forOrders, forBarOrders: p.forBarOrders, backupOf: null } });
+              await auditar(tx, ctx, {
+                action: "impresora.principal",
+                entityType: "printer",
+                entityId: i.id,
+                before: { principal: p.name, respaldo: i.name },
+                after: { principal: i.name, respaldo: p.name, recibos: p.forReceipts, comandas: p.forOrders, barra: p.forBarOrders },
+              });
               break;
             }
             case "ACTIVAR": {
@@ -489,7 +572,24 @@ export function casosImpresion(base: Base): CasosImpresion {
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 40,
         });
-        return { ok: true, valor: TrabajosDeImpresionSchema.parse({ trabajos: filas.map((f) => trabajoDto(f, f.printer)) }) };
+        // Las encendidas, con lo último que dijo su agente (B5-6): la barra de la caja y la tablet avisan con ellas.
+        const impresoras = await tx.printer.findMany({ where: { branchId: ctx.branchId, active: true, retiredAt: null }, orderBy: { createdAt: "asc" } });
+        return {
+          ok: true,
+          valor: TrabajosDeImpresionSchema.parse({
+            trabajos: filas.map((f) => trabajoDto(f, f.printer)),
+            impresoras: impresoras.map((i) => ({
+              id: i.id,
+              nombre: i.name,
+              conexion: i.connection,
+              respaldoDe: i.backupOf,
+              recibos: i.forReceipts,
+              comandas: i.forOrders,
+              barra: i.forBarOrders,
+              estado: estadoDe(i),
+            })),
+          }),
+        };
       });
     },
 
@@ -548,9 +648,10 @@ export function casosImpresion(base: Base): CasosImpresion {
         if (!t) return noDisponible("Ese trabajo no existe en esta sucursal.");
         if (reintentoProblem({ estado: t.status as EstadoTrabajo })) return { ok: false, motivo: "CONFLICTO", mensaje: "Ese trabajo no falló: ya se está intentando o ya salió." };
         const n = reintentado({ estado: "FALLIDO" as EstadoTrabajo, intentos: t.attempts, proximoIntento: 0, enviadoEn: null }, ahora);
+        // Vuelve a su principal (B5-6): si sigue sin responder, saldrá otra vez por el respaldo.
         const f = await tx.printJob.update({
           where: { id: t.id },
-          data: { status: n.estado, attempts: n.intentos, nextAttemptAt: new Date(n.proximoIntento), sentAt: null, finishedAt: null },
+          data: { status: n.estado, attempts: n.intentos, nextAttemptAt: new Date(n.proximoIntento), sentAt: null, finishedAt: null, viaBackup: false },
         });
         await auditar(tx, ctx, { action: "impresion.reintentar", entityType: "print_job", entityId: t.id, after: { titulo: t.title, error: t.lastError } });
         return trabajoDto(f, t.printer);
@@ -724,11 +825,13 @@ export function casosImpresion(base: Base): CasosImpresion {
       return base.conTenant(agente.tenantId, async (tx) => {
         // Dos agentes (o dos vueltas) a la vez: cada trabajo lo toma uno. Lo de una impresora por USB (B5-4) solo lo
         // toma el agente de su equipo, y solo si contó sus impresoras de Windows: uno de antes no sabría imprimirlo.
+        // Lo que sale por el respaldo (B5-6) va por donde va el respaldo: su red, o el agente de su equipo.
         const [libre] = await tx.$queryRaw<{ id: string }[]>`
-          SELECT j.id FROM print_job j JOIN printer p ON p.id = j.printer_id
+          SELECT j.id FROM print_job j JOIN printer pr ON pr.id = j.printer_id
+          LEFT JOIN printer b ON j.via_backup AND b.backup_of = j.printer_id AND b.active AND b.retired_at IS NULL
           WHERE j.branch_id = ${agente.branchId}::uuid AND j.status = 'PENDIENTE' AND j.next_attempt_at <= ${new Date(ahora)}
-            AND (p.connection = 'RED'
-              OR (p.agent_id = ${agente.agenteId}::uuid
+            AND (COALESCE(b.connection, pr.connection) = 'RED'
+              OR (COALESCE(b.agent_id, pr.agent_id) = ${agente.agenteId}::uuid
                 AND EXISTS (SELECT 1 FROM print_agent a WHERE a.id = ${agente.agenteId}::uuid AND a.windows_printers IS NOT NULL)))
           ORDER BY j.created_at, j.id
           LIMIT 1
@@ -745,10 +848,14 @@ export function casosImpresion(base: Base): CasosImpresion {
           return null;
         }
         await tx.printJob.update({ where: { id: t.id }, data: { status: "ENVIADO", attempts: r.intentos, sentAt: new Date(ahora), agentId: agente.agenteId } });
-        const bytes = Buffer.from(t.payload).toString("base64");
-        return TrabajoParaElAgenteSchema.parse(
-          t.printer.connection === "USB" ? { id: t.id, impresoraDeWindows: t.printer.windowsName, bytes } : { id: t.id, ip: t.printer.ip, puerto: t.printer.port, bytes },
-        );
+        // Por el respaldo (B5-6), con su ancho, su página y su tinta: si no son los de la principal, se compone para él.
+        const respaldo = t.viaBackup ? await respaldoDe(tx, t.printerId) : null;
+        const sale = respaldo ?? t.printer;
+        const mismoPapel = sale.width === t.printer.width && sale.codePage === t.printer.codePage && sale.dark === t.printer.dark;
+        const bytes = (
+          mismoPapel ? Buffer.from(t.payload) : Buffer.from(escpos(t.content as unknown as Documento, sale.width as Ancho, { pagina: sale.codePage as PaginaDeCodigos, oscura: sale.dark }))
+        ).toString("base64");
+        return TrabajoParaElAgenteSchema.parse(sale.connection === "USB" ? { id: t.id, impresoraDeWindows: sale.windowsName, bytes } : { id: t.id, ip: sale.ip, puerto: sale.port, bytes });
       });
     },
 
@@ -777,25 +884,91 @@ export function casosImpresion(base: Base): CasosImpresion {
         if (respuestaProblem({ estado: t.status as EstadoTrabajo }) || t.agentId !== agente.agenteId) {
           return { ok: false, motivo: "CONFLICTO", mensaje: "Ese trabajo ya no espera respuesta de este agente." };
         }
+        // La impresora por la que salió (B5-6): su respaldo, si iba por él. Lo que pasó dice cómo está.
+        const principal = await tx.printer.findUniqueOrThrow({ where: { id: t.printerId } });
+        const respaldo = await respaldoDe(tx, t.printerId);
+        const salio = (t.viaBackup ? respaldo : null) ?? principal;
         if (res.ok) {
           await tx.printJob.update({ where: { id: t.id }, data: { status: "CONFIRMADO", sentAt: null, finishedAt: new Date(ahora), lastError: null } });
-          await auditar(tx, ctxDe(agente), { action: "impresion.confirmar", entityType: "print_job", entityId: t.id, after: { titulo: t.title, intentos: t.attempts, agente: agente.nombre } });
+          await auditar(tx, ctxDe(agente), {
+            action: "impresion.confirmar",
+            entityType: "print_job",
+            entityId: t.id,
+            after: { titulo: t.title, intentos: t.attempts, agente: agente.nombre, ...(salio.id !== principal.id ? { porRespaldo: salio.name } : {}) },
+          });
+          // Imprimió: tiene papel y responde. Si decía lo contrario, ya no.
+          if (salio.status === "SIN_PAPEL" || salio.status === "NO_RESPONDE") await anotarEstado(tx, ctxDe(agente), salio, "LISTA", null, ahora);
           return { ok: true, valor: { estado: "CONFIRMADO" } };
         }
         const error = res.error ?? "La impresora no respondió";
-        const n = trasFallo({ estado: "ENVIADO" as EstadoTrabajo, intentos: t.attempts, proximoIntento: t.nextAttemptAt.getTime(), enviadoEn: t.sentAt?.getTime() ?? ahora }, ahora);
+        // Sin papel, «no salió» ya; sin responder, por su respaldo una vez (la prueba es de su impresora: no se desvía).
+        const causa = causaDeFallo(error);
+        const hayRespaldo = respaldo !== null && t.kind !== "PRUEBA";
+        const n = trasFalloConCausa(
+          { estado: "ENVIADO" as EstadoTrabajo, intentos: t.attempts, proximoIntento: t.nextAttemptAt.getTime(), enviadoEn: t.sentAt?.getTime() ?? ahora, porRespaldo: t.viaBackup },
+          causa,
+          hayRespaldo,
+          ahora,
+        );
+        const motivo = n.desviado && respaldo ? `${error} · sale por «${respaldo.name}»` : error;
         await tx.printJob.update({
           where: { id: t.id },
           data: {
             status: n.estado,
             sentAt: null,
             nextAttemptAt: new Date(n.proximoIntento),
-            lastError: error,
+            lastError: motivo.slice(0, 200),
             finishedAt: n.estado === "FALLIDO" ? new Date(ahora) : null,
+            viaBackup: n.porRespaldo,
           },
         });
-        await auditar(tx, ctxDe(agente), { action: "impresion.fallar", entityType: "print_job", entityId: t.id, after: { titulo: t.title, error, estado: n.estado, intentos: t.attempts, agente: agente.nombre } });
+        await auditar(tx, ctxDe(agente), {
+          action: n.desviado ? "impresion.desviar" : "impresion.fallar",
+          entityType: "print_job",
+          entityId: t.id,
+          after: { titulo: t.title, error, estado: n.estado, intentos: t.attempts, agente: agente.nombre, ...(n.desviado && respaldo ? { de: principal.name, por: respaldo.name } : {}) },
+        });
+        const estado = estadoTrasFallo(causa);
+        if (estado) await anotarEstado(tx, ctxDe(agente), salio, estado, error.slice(0, 200), ahora);
         return { ok: true, valor: { estado: n.estado } };
+      });
+    },
+
+    async vigilar(agente) {
+      return base.conTenant(agente.tenantId, async (tx) => {
+        const a = await tx.printAgent.findFirst({ where: { id: agente.agenteId, branchId: agente.branchId, retiredAt: null }, select: { windowsPrinters: true } });
+        if (!a) return ImpresorasAVigilarSchema.parse({ impresoras: [] });
+        const filas = await tx.printer.findMany({
+          where: {
+            branchId: agente.branchId,
+            active: true,
+            retiredAt: null,
+            OR: [{ connection: "RED" }, ...(a.windowsPrinters !== null ? [{ connection: "USB", agentId: agente.agenteId }] : [])],
+          },
+          orderBy: { createdAt: "asc" },
+          take: 20,
+        });
+        return ImpresorasAVigilarSchema.parse({
+          impresoras: filas.map((i) => (i.connection === "USB" ? { id: i.id, impresoraDeWindows: i.windowsName } : { id: i.id, ip: i.ip, puerto: i.port })),
+        });
+      });
+    },
+
+    async anotarEstados(agente, entrada, ahora = Date.now()) {
+      const v = EstadosDeImpresorasSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "Estados de impresoras mal formados.", problemas: problemasDe(v.error) };
+      return base.conTenant(agente.tenantId, async (tx): Promise<Resultado<{ anotadas: number }>> => {
+        const a = await tx.printAgent.findFirst({ where: { id: agente.agenteId, branchId: agente.branchId, retiredAt: null } });
+        if (!a) return noDisponible("Ese agente ya no está vinculado.");
+        let n = 0;
+        for (const e of v.data.impresoras) {
+          // Solo de las que vigila: por red, las de su sucursal; por USB, las de su equipo.
+          const i = await tx.printer.findFirst({ where: { id: e.id, branchId: agente.branchId, retiredAt: null, OR: [{ connection: "RED" }, { agentId: agente.agenteId }] } });
+          if (!i) continue;
+          await anotarEstado(tx, ctxDe(agente), i, e.estado, e.detalle?.trim() ? e.detalle.trim() : null, ahora);
+          n += 1;
+        }
+        return { ok: true, valor: { anotadas: n } };
       });
     },
 

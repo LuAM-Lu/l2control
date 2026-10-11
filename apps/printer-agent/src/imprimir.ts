@@ -7,9 +7,44 @@
  * es que la impresora los aceptó y la conexión cerró bien (ADR-026, punto 4).
  */
 import { connect } from "node:net";
-import { PREGUNTA_PAPEL, problemaDePapel } from "@l2/domain-printing";
+import { ERROR_SIN_PAPEL, PREGUNTA_PAPEL, problemaDePapel, type EstadoDeImpresora } from "@l2/domain-printing";
 
 export type ResultadoDeImpresion = Readonly<{ ok: true; aviso?: string }> | Readonly<{ ok: false; error: string }>;
+
+/** Cómo está una impresora (B5-6), con su detalle para el panel. */
+export type EstadoVisto = Readonly<{ estado: EstadoDeImpresora; detalle?: string }>;
+
+/**
+ * Cómo está la impresora en la red, sin imprimir nada (B5-6): se conecta, pregunta por el papel y cierra. Si no contesta
+ * a la pregunta (hay modelos que no), está lista: responde. Si no acepta la conexión, no responde.
+ */
+export function estadoPorRed(destino: Readonly<{ ip: string; puerto: number }>, o: Readonly<{ conectarMs?: number; papelMs?: number }> = {}): Promise<EstadoVisto> {
+  const donde = `${destino.ip}:${destino.puerto}`;
+  return new Promise((resolver) => {
+    let terminado = false;
+    const socket = connect({ host: destino.ip, port: destino.puerto });
+    const fin = (e: EstadoVisto) => {
+      if (terminado) return;
+      terminado = true;
+      clearTimeout(alConectar);
+      socket.destroy();
+      resolver(e);
+    };
+    const alConectar = setTimeout(() => fin({ estado: "NO_RESPONDE", detalle: `No responde en ${donde}` }), o.conectarMs ?? 3_000);
+    socket.on("error", (e: NodeJS.ErrnoException) =>
+      fin({ estado: "NO_RESPONDE", detalle: `La impresora en ${donde} ${e.code === "ECONNREFUSED" ? "rechaza la conexión" : e.code === "EHOSTUNREACH" || e.code === "ENETUNREACH" ? "no está en la red" : "no responde"}` }),
+    );
+    socket.once("connect", () => {
+      clearTimeout(alConectar);
+      socket.once("data", (d: Buffer) => {
+        const p = problemaDePapel(d[0] ?? 0);
+        fin(p === "SIN_PAPEL" ? { estado: "SIN_PAPEL", detalle: ERROR_SIN_PAPEL } : p === "POCO_PAPEL" ? { estado: "POCO_PAPEL", detalle: "Queda poco papel" } : { estado: "LISTA" });
+      });
+      socket.write(PREGUNTA_PAPEL);
+      setTimeout(() => fin({ estado: "LISTA" }), o.papelMs ?? 800);
+    });
+  });
+}
 
 export type OpcionesDeImpresion = Readonly<{
   /** Lo que se espera a que la impresora acepte la conexión. */
@@ -57,7 +92,7 @@ export function imprimir(destino: Readonly<{ ip: string; puerto: number }>, byte
         respondio = true;
         const problema = problemaDePapel(d[0] ?? 0);
         if (problema === "SIN_PAPEL") {
-          fin({ ok: false, error: "Sin papel" });
+          fin({ ok: false, error: ERROR_SIN_PAPEL });
           return;
         }
         if (problema === "POCO_PAPEL") aviso = "Queda poco papel";

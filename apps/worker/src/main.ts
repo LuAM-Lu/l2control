@@ -86,6 +86,8 @@ async function arrancar() {
       },
       anotarActualizacion: (a, n) => app.impresion.anotarActualizacion(a, n, Date.now()),
       anotarImpresorasDeWindows: (a, l) => app.impresion.anotarImpresorasDeWindows(a, l, Date.now()),
+      vigilar: (a) => app.impresion.vigilar(a),
+      anotarEstados: (a, x) => app.impresion.anotarEstados(a, x, Date.now()),
     },
     alError: (err, contexto) => log.error({ err, contexto }, "error con un agente de impresión"),
   });

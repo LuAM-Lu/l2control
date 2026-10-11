@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import type { HistorialDeImpresionDto, ImpresorasDelLocalDto, TrabajoDeImpresionDto } from "@l2/contracts";
+import type { HistorialDeImpresionDto, ImpresorasDelLocalDto, TrabajosDeImpresionDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -20,12 +20,12 @@ export async function impresorasDelLocal(): Promise<ImpresorasDelLocalDto | null
   return r.valor;
 }
 
-/** La cola de la sucursal, para quien imprime o configura; vacía si no puede verla. */
-export async function trabajosDelLocal(): Promise<readonly TrabajoDeImpresionDto[]> {
+/** La cola de la sucursal y el estado de sus impresoras (B5-6), para quien imprime o configura; vacía si no puede verla. */
+export async function colaDelLocal(): Promise<TrabajosDeImpresionDto> {
   const ctx = await contextoActual();
-  if (!ctx) return [];
+  if (!ctx) return { trabajos: [], impresoras: [] };
   const r = await (await aplicacion()).impresion.trabajos(ctx);
-  return r.ok ? r.valor.trabajos : [];
+  return r.ok ? r.valor : { trabajos: [], impresoras: [] };
 }
 
 /** La primera página del historial (todo, lo más reciente primero); `null` si no se puede leer. */

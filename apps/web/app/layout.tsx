@@ -30,7 +30,7 @@ import { ventasDelTurno } from "../src/features/cash/ventas.servidor";
 import { RegistroServiceWorker } from "../src/features/shell/RegistroServiceWorker";
 import { PuestaAlDia } from "../src/features/shell/PuestaAlDia";
 import { ColaProvider } from "../src/features/impresion/ColaProvider";
-import { trabajosDelLocal } from "../src/features/impresion/impresion.servidor";
+import { colaDelLocal } from "../src/features/impresion/impresion.servidor";
 import { AyudaProvider } from "../src/features/ayuda/AyudaProvider";
 import { recorridosVistos } from "../src/features/ayuda/ayuda.servidor";
 
@@ -102,8 +102,8 @@ export default async function RootLayout({
   const ventas = sesion ? await ventasDelTurno() : [];
   // Los niños en sala, de la base con la hora del servidor (B4-2). Sin sesión, ninguno.
   const sala = sesion ? await salaDelLocal() : null;
-  // La cola de impresión de la sucursal (B5-2): si salió el recibo o el ticket del corte.
-  const trabajos = sesion ? await trabajosDelLocal() : [];
+  // La cola de impresión de la sucursal (B5-2): si salió el recibo o el ticket del corte; y cómo está cada impresora (B5-6).
+  const cola = sesion ? await colaDelLocal() : { trabajos: [], impresoras: [] };
   // El plano del local, de la base (B6-1): `null` si todavía no se dibujó. Sin sesión, ninguno.
   const plano = sesion ? await planoDelLocal() : SIN_PLANO;
   // Los pedidos de hoy con su comanda (B6-2): si salió en papel. Solo para quien los toma o cobra.
@@ -150,7 +150,7 @@ export default async function RootLayout({
                         <CuentasProvider inicial={cuentas}>
                           <PedidosProvider inicial={pedidos}>
                             <VentasProvider inicial={ventas}>
-                              <ColaProvider inicial={trabajos}>
+                              <ColaProvider inicial={cola.trabajos} impresoras={cola.impresoras}>
                                 {/* La ayuda de cada pantalla, sus recorridos y la solución de los errores conocidos (T-12). */}
                                 <AyudaProvider vistos={vistos}>{children}</AyudaProvider>
                               </ColaProvider>

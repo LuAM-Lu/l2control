@@ -27,8 +27,8 @@ import { escpos, type Ancho } from "@l2/domain-printing";
 import { isSea } from "node:sea";
 import { anotarArranque, archivosEn, programarActualizacion } from "./actualizacion.ts";
 import { crearAgente } from "./agente.ts";
-import { imprimir } from "./imprimir.ts";
-import { imprimirEnWindows, listarImpresorasDeWindows } from "./windows.ts";
+import { estadoPorRed, imprimir } from "./imprimir.ts";
+import { estadoEnWindows, imprimirEnWindows, listarImpresorasDeWindows } from "./windows.ts";
 import { crearRegistro, type Registro } from "./registro.ts";
 import { leerVinculacion } from "./vinculacion.ts";
 import {
@@ -164,6 +164,9 @@ function iniciar(archivo: string) {
     // Por la red, o por USB en este equipo (B5-4): solo en Windows.
     imprimir: (d, b) => ("impresoraDeWindows" in d ? imprimirEnWindows(d.impresoraDeWindows, b) : imprimir(d, b)),
     ...(esWindows ? { impresorasDeWindows: () => listarImpresorasDeWindows() } : {}),
+    // El estado de sus impresoras, cada 30 s (B5-6): por red, preguntándoles; por USB, a Windows.
+    estadoPorRed: (d) => estadoPorRed(d),
+    ...(esWindows ? { estadoEnWindows: (n) => estadoEnWindows(n) } : {}),
     registro: r,
   });
   let pararActualizacion = () => {};

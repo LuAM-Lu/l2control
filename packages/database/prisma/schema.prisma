@@ -1806,15 +1806,26 @@ model Printer {
   createdByName String    @map("created_by_name")
   retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
   retiredByName String?   @map("retired_by_name")
+  /// De qué impresora es respaldo (B5-6): lo de la principal sale por esta cuando aquella no responde. Sin áreas propias
+  /// (CHECK), una por principal; la elige administración.
+  backupOf      String?   @map("backup_of") @db.Uuid
+  /// Lo último que dijo su agente de ella (B5-6): LISTA, POCO_PAPEL, SIN_PAPEL o NO_RESPONDE (CHECK), con su detalle y
+  /// su hora. Es el estado del aparato, como el último latido del agente: no es un asiento.
+  status        String?
+  statusDetail  String?   @map("status_detail")
+  statusAt      DateTime? @map("status_at") @db.Timestamptz(3)
 
-  branch Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  agent  PrintAgent? @relation(fields: [tenantId, agentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
-  jobs   PrintJob[]
+  branch    Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  agent     PrintAgent? @relation(fields: [tenantId, agentId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  principal Printer?    @relation("Respaldo", fields: [tenantId, branchId, backupOf], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)
+  respaldos Printer[]   @relation("Respaldo")
+  jobs      PrintJob[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, branchId, id])
   @@index([tenantId, branchId])
   @@index([tenantId, agentId])
+  @@index([tenantId, branchId, backupOf])
   @@map("printer")
 }
 
@@ -1892,6 +1903,8 @@ model PrintJob {
   orderId         String?   @map("order_id") @db.Uuid
   /// COCINA o BARRA (CHECK, B6-10): de qué área es una COMANDA o su ANULACION. Nula en las de antes: una sola con todo.
   area            String?
+  /// Sale por el respaldo de su impresora (B5-6): la principal no respondió. Su impresora sigue siendo la principal.
+  viaBackup       Boolean       @default(false) @map("via_backup")
 
   branch  Branch        @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   printer Printer       @relation(fields: [tenantId, branchId, printerId], references: [tenantId, branchId, id], onDelete: Restrict, onUpdate: Restrict)

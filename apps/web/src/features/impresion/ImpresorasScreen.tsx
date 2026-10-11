@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { History, Info, ListOrdered, Pencil, Plus, Power, Printer, Trash2, TriangleAlert, Wifi, WifiOff } from "lucide-react";
+import { ArrowUpToLine, CircleCheck, CircleHelp, History, Info, ListOrdered, Pencil, Plus, Power, Printer, PrinterX, Trash2, TriangleAlert, Wifi, WifiOff } from "lucide-react";
 import type { AgenteDto, HistorialDeImpresionDto, ImpresoraDto, ImpresorasDelLocalDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Badge, Button, Cifra, Confirmacion, Container, EmptyState, PageHeader, Resumen, Tabs, avisar } from "@l2/ui";
@@ -21,6 +21,9 @@ import { aplicarImpresora, imprimirPrueba } from "./impresion.acciones";
  * el agente, lo que no salió y lo que está en cola (cada cifra lleva a su sitio). Debajo, tres pestañas:
  * las impresoras (tarjetas; alta y edición en una hoja lateral), la cola y el historial por páginas, y
  * el agente de la laptop de caja. Cambiar algo pide confirmar identidad; una prueba, no.
+ *
+ * B5-6 (M-38): cada impresora dice si es principal o respaldo de otra («Hacer principal» las cambia de una vez) y cómo
+ * está según su agente (lista, poco papel, sin papel, no responde), con su hora: el «Ver estado» de cada una.
  */
 
 type Vista = "impresoras" | "cola" | "agente";
@@ -115,6 +118,9 @@ export function ImpresorasScreen({
   const vinculados = local.agentes.filter((a) => a.vinculadoEn !== null);
   const conectados = vinculados.filter((a) => a.conectado);
   const pendientes = historial.datos?.pendientes ?? { fallidos: trabajos.filter((t) => t.estado === "FALLIDO").length, enCola: 0 };
+  // El estado de las encendidas (B5-6): la peor manda en el resumen.
+  const conProblema = activas.filter((i) => i.estado?.estado === "SIN_PAPEL" || i.estado?.estado === "NO_RESPONDE");
+  const nombreDe = (id: string | null) => local.impresoras.find((x) => x.id === id)?.nombre ?? "otra";
 
   const impresoras = (
     <div className="flex flex-col gap-3">
@@ -156,7 +162,10 @@ export function ImpresorasScreen({
                       <Power size={11} aria-hidden="true" /> {i.activa ? "Encendida" : "Apagada"}
                     </Badge>
                   </div>
+                  {/* B5-6: lo último que dijo su agente, en un renglón; el detalle, al pasar. */}
+                  {i.activa && <EstadoDeLaImpresora i={i} hora={(ms) => reloj.diaYHora(ms)} />}
                   <div className="flex flex-wrap gap-1.5">
+                    {i.respaldoDe && <Badge tone="idle">Respaldo de «{nombreDe(i.respaldoDe)}»</Badge>}
                     {i.recibos && <Badge tone="brand">Recibos y cortes</Badge>}
                     {i.comandas && <Badge tone="brand">Comandas de cocina</Badge>}
                     {i.barra && <Badge tone="brand">Comandas de barra</Badge>}
@@ -200,6 +209,18 @@ export function ImpresorasScreen({
                       </Button>
                     </>
                   )}
+                  {puede && i.respaldoDe && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      surface="admin"
+                      disabled={enviando}
+                      title={`Que lo de «${nombreDe(i.respaldoDe)}» salga por esta, y aquella quede de respaldo`}
+                      onClick={() => void mandar({ kind: "PRINCIPAL", impresoraId: i.id }, `${i.nombre} es la principal: lo siguiente sale por ella`)}
+                    >
+                      <ArrowUpToLine size={14} aria-hidden="true" /> Hacer principal
+                    </Button>
+                  )}
                   <Button type="button" variant="ghost" surface="admin" className="ml-auto" aria-label={`Historial de ${i.nombre}`} title="Lo que se mandó a esta impresora" onClick={() => verCola({ impresoraId: i.id })}>
                     <History size={14} aria-hidden="true" />
                   </Button>
@@ -222,7 +243,7 @@ export function ImpresorasScreen({
       <p className="flex items-start gap-1.5 text-[12.5px] text-ink-3">
         <Info size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
         {puede
-          ? "Una sola encendida para los recibos y una para las comandas. Una impresora retirada no se borra: lo que imprimió sigue en el historial."
+          ? "Una sola encendida para los recibos y una para las comandas; cada una puede tener su respaldo (la misma por red y por USB, o una segunda): lo de la principal sale por él cuando no responde. Una impresora retirada no se borra: lo que imprimió sigue en el historial."
           : "Las impresoras las configura la administración. Aquí se ve cómo va la impresión."}
       </p>
     </div>
@@ -253,6 +274,15 @@ export function ImpresorasScreen({
           valor={local.impresoras.length === 0 ? "Ninguna" : `${activas.length} ${activas.length === 1 ? "encendida" : "encendidas"}`}
           pie={`De ${local.impresoras.length} · ${deRecibos ? `Recibos: ${deRecibos.nombre}${deComandas ? ` · Cocina: ${deComandas.nombre}` : ""}${deBarra ? ` · Barra: ${deBarra.nombre}` : ""}` : "ninguna para los recibos"}`}
           activo={vista === "impresoras"}
+          onClick={() => setVista("impresoras")}
+        />
+        <Cifra
+          etiqueta="Estado"
+          icono={conProblema.length > 0 ? <PrinterX aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
+          tono={conProblema.length > 0 ? "crit" : activas.some((i) => i.estado) ? "ok" : "idle"}
+          valor={conProblema.length > 0 ? (conProblema[0]!.estado!.estado === "SIN_PAPEL" ? "Sin papel" : "No responde") : activas.some((i) => i.estado) ? "Listas" : "Sin datos"}
+          pie={conProblema.length > 0 ? conProblema.map((i) => i.nombre).join(" · ") : "Lo dice el agente cada 30 s"}
+          activo={false}
           onClick={() => setVista("impresoras")}
         />
         <Cifra
@@ -312,7 +342,12 @@ export function ImpresorasScreen({
         ]}
       />
 
-      <ImpresoraForm abierta={hojaAbierta} impresora={editando} agentes={vinculados} onProbarAcentos={(i) => void prueba(i, true)} onCerrar={() => setHojaAbierta(false)} mandar={mandar} enviando={enviando} />
+      <ImpresoraForm
+        abierta={hojaAbierta}
+        impresora={editando}
+        agentes={vinculados}
+        principales={local.impresoras.filter((x) => x.respaldoDe === null && x.id !== editando?.id)}
+        onProbarAcentos={(i) => void prueba(i, true)} onCerrar={() => setHojaAbierta(false)} mandar={mandar} enviando={enviando} />
 
       <Confirmacion
         abierto={retirar !== null}
@@ -347,4 +382,32 @@ function avisoUsb(i: ImpresoraDto, agentes: readonly AgenteDto[]): string | null
   if (a.impresorasDeWindows === null) return `El agente de «${a.nombre}» no imprime por USB: actualízalo en la pestaña Agente`;
   if (i.nombreEnWindows && !a.impresorasDeWindows.includes(i.nombreEnWindows)) return `«${a.nombre}» no ve «${i.nombreEnWindows}» en Windows: ¿está enchufada y encendida?`;
   return null;
+}
+
+/** Cómo se dice el estado de una impresora (B5-6): color + icono + texto, nunca solo color. */
+const ESTADO_IMPRESORA = {
+  LISTA: { texto: "Lista", tono: "text-state-ok", Icono: CircleCheck },
+  POCO_PAPEL: { texto: "Queda poco papel", tono: "text-state-warn", Icono: TriangleAlert },
+  SIN_PAPEL: { texto: "Sin papel", tono: "text-state-crit", Icono: PrinterX },
+  NO_RESPONDE: { texto: "No responde", tono: "text-state-crit", Icono: PrinterX },
+} as const;
+
+/** El estado de una impresora en un renglón (B5-6): lo último que dijo su agente y cuándo; sin datos, se dice. */
+function EstadoDeLaImpresora({ i, hora }: { i: ImpresoraDto; hora: (ms: number) => string }) {
+  if (!i.estado) {
+    return (
+      <p className="flex items-center gap-1.5 text-[12px] text-ink-3" title="El agente lo dice cada 30 s cuando está conectado">
+        <CircleHelp size={13} aria-hidden="true" /> Sin datos del estado todavía
+      </p>
+    );
+  }
+  const e = ESTADO_IMPRESORA[i.estado.estado];
+  return (
+    <p className={`flex min-w-0 items-center gap-1.5 text-[12px] font-medium ${e.tono}`} title={i.estado.detalle ?? e.texto}>
+      <e.Icono size={13} className="shrink-0" aria-hidden="true" />
+      <span className="truncate">{e.texto}</span>
+      <span className="tnum shrink-0 font-normal text-ink-3">· {hora(Date.parse(i.estado.en))}</span>
+      {i.estado.detalle && <span className="sr-only">. {i.estado.detalle}</span>}
+    </p>
+  );
 }

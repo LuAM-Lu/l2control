@@ -126,21 +126,21 @@ describe("el agente y la cola (ADR-026)", () => {
     assert.equal(cola.find((x) => x.id === t.id)?.estado, "CONFIRMADO");
   });
 
-  test("un fallo espera y vuelve; al quinto queda FALLIDO con su motivo, y una persona lo reintenta desde cero", async () => {
+  test("un fallo espera y vuelve; al quinto queda FALLIDO con su motivo, y una persona lo reintenta desde cero (sin respaldo, B5-6)", async () => {
     const ag = await agente(local, ctxAdmin, "Laptop C");
     const t = valor(await local.app.impresion.imprimirPrueba(ctxAdmin, { impresoraId: impresora }, AHORA));
     let ahora = AHORA;
     for (let i = 1; i <= 5; i++) {
       const j = (await local.app.impresion.reclamar(ag, ahora))!;
       assert.equal(j.id, t.id, `intento ${i}`);
-      const r = valor(await local.app.impresion.responder(ag, { trabajoId: t.id, ok: false, error: "Sin papel" }, ahora));
+      const r = valor(await local.app.impresion.responder(ag, { trabajoId: t.id, ok: false, error: "No responde en 192.168.250.250:9100" }, ahora));
       assert.equal(r.estado, i < 5 ? "PENDIENTE" : "FALLIDO");
       if (i < 5) assert.equal(await local.app.impresion.reclamar(ag, ahora + 1000), null, "espera antes del siguiente intento");
       ahora += 60_000;
     }
     const fallido = valor(await local.app.impresion.trabajos(ctxCajera, ahora)).trabajos.find((x) => x.id === t.id)!;
     assert.equal(fallido.estado, "FALLIDO");
-    assert.equal(fallido.error, "Sin papel");
+    assert.equal(fallido.error, "No responde en 192.168.250.250:9100");
     const otra = valor(await local.app.impresion.reintentar(ctxCajera, { trabajoId: t.id }, ahora));
     assert.equal(otra.estado, "PENDIENTE");
     assert.equal(otra.intentos, 0);
@@ -217,12 +217,12 @@ describe("descartar y el historial", () => {
       valor(await local.app.impresion.responder(ag, { trabajoId: j.id, ok: true }, ahora));
     }
   }
-  /** Lleva a FALLIDO el único trabajo en cola: cinco intentos sin papel. */
+  /** Lleva a FALLIDO el único trabajo en cola: cinco intentos sin que responda (sin papel sería «no salió» al primero, B5-6). */
   async function fallar(ag: AgenteAbierto, id: string, desde: number): Promise<number> {
     let ahora = desde;
     for (let i = 1; i <= 5; i++) {
       assert.equal((await local.app.impresion.reclamar(ag, ahora))?.id, id);
-      valor(await local.app.impresion.responder(ag, { trabajoId: id, ok: false, error: "Sin papel" }, ahora));
+      valor(await local.app.impresion.responder(ag, { trabajoId: id, ok: false, error: "No responde en 192.168.250.250:9100" }, ahora));
       ahora += MIN;
     }
     return ahora;

@@ -6,7 +6,7 @@ import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:net";
 import type { AddressInfo } from "node:net";
-import { imprimir } from "./imprimir.ts";
+import { estadoPorRed, imprimir } from "./imprimir.ts";
 
 const abiertos: Server[] = [];
 after(() => abiertos.forEach((s) => s.close()));
@@ -58,5 +58,26 @@ describe("imprimir por TCP 9100", () => {
     const r = await imprimir({ ip: "127.0.0.1", puerto }, BYTES);
     assert.equal(r.ok, false);
     assert.match((r as { error: string }).error, new RegExp(`127\\.0\\.0\\.1:${puerto} rechaza la conexión`));
+  });
+});
+
+describe("el estado por la red, sin imprimir nada (B5-6)", () => {
+  test("pregunta por el papel y no manda otra cosa: con papel, lista; sin él, sin papel; con poco, poco papel", async () => {
+    const con = await impresora(0x12);
+    assert.deepEqual(await estadoPorRed({ ip: "127.0.0.1", puerto: con.puerto }), { estado: "LISTA" });
+    await new Promise((x) => setTimeout(x, 50));
+    assert.deepEqual([...con.recibido()], [0x10, 0x04, 0x04]);
+    assert.deepEqual(await estadoPorRed({ ip: "127.0.0.1", puerto: (await impresora(0x72)).puerto }), { estado: "SIN_PAPEL", detalle: "Sin papel" });
+    assert.equal((await estadoPorRed({ ip: "127.0.0.1", puerto: (await impresora(0x1e)).puerto })).estado, "POCO_PAPEL");
+  });
+
+  test("una que no contesta al papel está lista; una que no está, no responde", async () => {
+    assert.deepEqual(await estadoPorRed({ ip: "127.0.0.1", puerto: (await impresora(null)).puerto }, { papelMs: 100 }), { estado: "LISTA" });
+    const libre = await impresora(null);
+    const puerto = libre.puerto;
+    await new Promise<void>((ok) => abiertos.pop()!.close(() => ok()));
+    const e = await estadoPorRed({ ip: "127.0.0.1", puerto });
+    assert.equal(e.estado, "NO_RESPONDE");
+    assert.match(e.detalle ?? "", /rechaza la conexión/);
   });
 });

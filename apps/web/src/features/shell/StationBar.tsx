@@ -45,6 +45,7 @@ import { formatTasaVE } from "../cash/tasa-format.ts";
 import { formatClock } from "../park/time-format.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { AvisoDeImpresion } from "../impresion/AvisoDeImpresion.tsx";
+import { EstadoDeImpresoras } from "../impresion/EstadoDeImpresoras.tsx";
 import { BotonAyuda } from "../ayuda/AyudaProvider.tsx";
 import { MiCuenta } from "../identity/MiCuenta.tsx";
 import { BotonSonidoDeAvisos } from "../park/BotonSonidoDeAvisos.tsx";
@@ -312,6 +313,8 @@ export function StationBar({ contexto }: { contexto: ContextoEstacion }) {
 
         {/* ── contexto: píldoras de la misma altura ─────────────────────── */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {/* B5-6: cómo está la impresora de esta estación (sin papel, no responde, por el respaldo), con sonido. */}
+          <EstadoDeImpresoras para={pathname.startsWith("/mesas") ? "salon" : "caja"} />
           {/* ADR-015: lo que no salió en papel se ve aquí, con su lista y «Reintentar». */}
           <AvisoDeImpresion />
           {!abreTurno && sinTurno ? null : sinTurno ? (

@@ -9,6 +9,15 @@ impresora del local; este programa sí: se conecta **hacia fuera** al worker (So
 contarlas, el servidor no le da trabajos por USB.
 Si el servidor lo rechaza un momento o se cae la red, vuelve a intentarlo solo, sin rendirse nunca.
 
+**El estado de las impresoras (B5-6).** Por USB, antes de mandar mira lo que Windows sabe de la impresora (sin
+conexión, sin papel, atascada) y, después, su cola: el trabajo tiene que salir de ella en 15 s; si no, lo saca de la
+cola de Windows (que no salga dos veces cuando vuelva el papel) y falla con «sin papel o no responde». Cada 30 s
+pregunta al servidor qué impresoras vigila (`impresoras-a-vigilar`: las de red de su sucursal y las suyas por USB) y le
+cuenta cómo está cada una (`estado-impresoras`): por red, preguntándole por el papel; por USB, a Windows. Las frases de
+cada fallo viven en `@l2/domain-printing` (`causaDeFallo`): el servidor decide con ellas si un trabajo queda «no salió»
+(sin papel) o sale por el respaldo (no responde). Un servidor de antes no contesta a lo nuevo y el agente imprime como
+siempre.
+
 ## Instalarlo en la laptop de caja
 
 1. **Descargarlo**: Ajustes → Impresoras → «Descargar el agente» (`l2-impresion.exe`, un solo archivo; la

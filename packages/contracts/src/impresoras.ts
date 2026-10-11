@@ -78,8 +78,16 @@ export const DatosImpresoraSchema = z
      */
     enVlanDeHardware: z.boolean().default(false),
     ipFija: z.boolean().default(false),
+    /**
+     * De qué impresora es respaldo (B5-6): lo de esa sale por esta cuando aquella no responde. Un respaldo no tiene áreas
+     * propias (las que se marquen no cuentan). `null`, es principal: imprime sus áreas.
+     */
+    respaldoDe: z.uuid("Elige de qué impresora es respaldo").nullable().default(null),
   })
-  .refine((d) => d.recibos || d.comandas || d.barra, { message: "Elige qué imprime: recibos, comandas de cocina o de barra", path: ["recibos"] })
+  .refine((d) => d.respaldoDe !== null || d.recibos || d.comandas || d.barra, {
+    message: "Elige qué imprime: recibos, comandas de cocina o de barra",
+    path: ["recibos"],
+  })
   .superRefine((d, c) => {
     if (d.conexion === "RED") {
       if (!d.ip) c.addIssue({ code: "custom", message: "Escribe su IP", path: ["ip"] });
@@ -96,6 +104,18 @@ export type EstadoTrabajo = z.infer<typeof EstadoTrabajoSchema>;
 
 export const TipoTrabajoSchema = z.enum(["RECIBO", "CORTE", "COMANDA", "ANULACION", "PRUEBA"]);
 export type TipoTrabajo = z.infer<typeof TipoTrabajoSchema>;
+
+/** Cómo está una impresora según lo último que dijo su agente (B5-6). */
+export const EstadoDeImpresoraSchema = z.enum(["LISTA", "POCO_PAPEL", "SIN_PAPEL", "NO_RESPONDE"]);
+export type EstadoDeImpresoraDto = z.infer<typeof EstadoDeImpresoraSchema>;
+
+/** El estado de una impresora con su detalle («Sin papel», «no está en la red») y desde cuándo lo dice. */
+export const EstadoImpresoraSchema = z.object({
+  estado: EstadoDeImpresoraSchema,
+  detalle: z.string().max(200).nullable(),
+  en: TimestampSchema,
+});
+export type EstadoImpresoraDto = z.infer<typeof EstadoImpresoraSchema>;
 
 /** Una impresora del local, como la lee una pantalla, con cómo le fue al último trabajo. */
 export const ImpresoraSchema = z.object({
@@ -119,6 +139,10 @@ export const ImpresoraSchema = z.object({
   ipFija: z.boolean(),
   activa: z.boolean(),
   ultimo: z.object({ estado: EstadoTrabajoSchema, at: TimestampSchema, error: z.string().nullable() }).nullable(),
+  /** De qué impresora es respaldo (B5-6); `null`, es principal. */
+  respaldoDe: IdSchema.nullable().default(null),
+  /** Lo último que dijo su agente de ella (B5-6); `null` si todavía no dijo nada. */
+  estado: EstadoImpresoraSchema.nullable().default(null),
 });
 export type ImpresoraDto = z.infer<typeof ImpresoraSchema>;
 
@@ -183,6 +207,11 @@ export const ImpresoraCommandSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("RETIRAR_AGENTE"), agenteId: z.uuid("Agente desconocido") }),
   /** «Actualizar ahora» (T-8c): el agente revisa ya la versión disponible y, con la cola vacía, se cambia. */
   z.strictObject({ kind: z.literal("ACTUALIZAR_AGENTE"), agenteId: z.uuid("Agente desconocido") }),
+  /**
+   * «Hacer principal» (B5-6): el respaldo pasa a ser la principal, con las áreas de la que lo era, y aquella queda de
+   * respaldo suyo. De una vez, para que nunca haya dos principales ni ninguna.
+   */
+  z.strictObject({ kind: z.literal("PRINCIPAL"), impresoraId: z.uuid("Impresora desconocida") }),
 ]);
 export type ImpresoraCommand = z.infer<typeof ImpresoraCommandSchema>;
 
@@ -215,10 +244,32 @@ export const TrabajoDeImpresionSchema = z.object({
   vistaPrevia: z.string(),
   ventaId: IdSchema.nullable(),
   corteId: IdSchema.nullable(),
+  /** Sale (o salió) por el respaldo de su impresora: la principal no respondió (B5-6). */
+  porRespaldo: z.boolean().default(false),
 });
 export type TrabajoDeImpresionDto = z.infer<typeof TrabajoDeImpresionSchema>;
 
-export const TrabajosDeImpresionSchema = z.object({ trabajos: z.array(TrabajoDeImpresionSchema) });
+/**
+ * Cómo está cada impresora encendida del local, para la barra de la caja y la tablet (B5-6): qué imprime (o de cuál es
+ * respaldo) y lo último que dijo su agente.
+ */
+export const ImpresoraEnLaColaSchema = z.object({
+  id: IdSchema,
+  nombre: z.string(),
+  conexion: ConexionImpresoraSchema,
+  respaldoDe: IdSchema.nullable(),
+  recibos: z.boolean(),
+  comandas: z.boolean(),
+  barra: z.boolean(),
+  estado: EstadoImpresoraSchema.nullable(),
+});
+export type ImpresoraEnLaColaDto = z.infer<typeof ImpresoraEnLaColaSchema>;
+
+export const TrabajosDeImpresionSchema = z.object({
+  trabajos: z.array(TrabajoDeImpresionSchema),
+  /** Las impresoras encendidas y su estado (B5-6). */
+  impresoras: z.array(ImpresoraEnLaColaSchema).default([]),
+});
 export type TrabajosDeImpresionDto = z.infer<typeof TrabajosDeImpresionSchema>;
 
 export const ImprimirCorteCommandSchema = z.strictObject({ corteId: z.uuid("Corte desconocido") });
@@ -311,6 +362,29 @@ export const ImpresorasDeWindowsSchema = z.strictObject({
   impresoras: z.array(NombreEnWindowsSchema).max(50),
 });
 export type ImpresorasDeWindowsDto = z.infer<typeof ImpresorasDeWindowsSchema>;
+
+/**
+ * Las impresoras que el agente vigila (B5-6): el servidor se las dice cada vez que pregunta. Por red, todas las de su
+ * sucursal; por USB, las suyas, por su nombre en Windows.
+ */
+export const ImpresoraAVigilarSchema = z
+  .object({
+    id: IdSchema,
+    ip: IpLocalSchema.optional(),
+    puerto: z.number().int().min(1).max(65_535).optional(),
+    impresoraDeWindows: NombreEnWindowsSchema.optional(),
+  })
+  .refine((t) => (t.ip !== undefined && t.puerto !== undefined) !== (t.impresoraDeWindows !== undefined), { message: "Se vigila por red o por USB" });
+export const ImpresorasAVigilarSchema = z.object({ impresoras: z.array(ImpresoraAVigilarSchema).max(20) });
+export type ImpresorasAVigilarDto = z.infer<typeof ImpresorasAVigilarSchema>;
+
+/** Cómo está cada una, cada 30 s (B5-6): lo que el agente sabe preguntándole (por red) o a Windows (por USB). */
+export const EstadosDeImpresorasSchema = z.strictObject({
+  impresoras: z
+    .array(z.strictObject({ id: z.uuid(), estado: EstadoDeImpresoraSchema, detalle: z.string().trim().max(200).optional() }))
+    .max(20),
+});
+export type EstadosDeImpresorasDto = z.infer<typeof EstadosDeImpresorasSchema>;
 
 /** Cómo le fue: bien, o mal con su motivo («Sin papel», «No responde en 192.168.1.50:9100»). */
 export const ResultadoDelAgenteSchema = z.strictObject({
