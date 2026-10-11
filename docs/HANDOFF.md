@@ -7,22 +7,22 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-10 · v0.122.2 en `main` (publicada, la 0.122.0) · M-38 definido entero; nada reclamado*
+*2026-10-11 · v0.131.0 en `main` y publicada (el VPS en 0.131.0) · M-38 entregado entero; nada reclamado*
 
 ```text
-M-38 definido con una propuesta dibujada y cuatro rondas de preguntas (MAESTRO §2, «M-38 en detalle», W-1 a W-14). Su
-  corrección (v0.122.1 y v0.122.2) ya está en main, sin publicar: avisos legibles en el tema claro y un renglón por puesto.
-Siguen, en tanda y sin parar (Claude): B3-24 → B5-6 → T-23 → B4-18 → B6-17 → T-21 → T-22 → B3-21 → B3-22. Cada uno
-  entra en main probado y con su versión. Se publica una sola vez al final, con el permiso del usuario del 2026-10-10:
-  se le avisa la hora, se etiqueta la última y se comprueba el VPS solo leyendo. Ruta: 136 pasos.
-El siguiente: B3-24. Criterio: con la caja de ayer abierta, cobrar hoy lleva al cierre y lo de hoy nunca cuenta en el
-  día de ayer; el día de negocio termina a la hora de los ajustes (4:00 am de fábrica); de noche, Inicio avisa.
-El día 9: la caja de «PC Recep. Lenovo» quedó abierta con seis mesas. El usuario la cierra con lo que ya tiene L2
-  (cobrar o «Se fue sin pagar», cerrar con su justificación, abrir la del 10). Hay que confirmar que se hizo.
-La impresora: hoy por USB («CAJA POS», POS-80C), sin aviso de papel; el agente va en 0.111.0. «CAJA» es la de red.
-  B5-6 las une como principal y respaldo, a elección de administración (L2 sugiere la de red).
-Cuidado: MAESTRO.md va con finales CRLF (un guion que lo edite los respeta). La cocina no tiene pantalla: su gente entra
-  una vez para cambiar el PIN temporal, o no firma su consumo. Sonner sigue data-tema. Mira cada pantalla en los dos temas.
+M-38 entero, en tanda y publicado una vez con la etiqueta v0.131.0 (el VPS se puso al día solo a las 5:09 am): B3-24 (un
+  día sin cerrar), B5-6 (impresora principal y respaldo, red o USB), T-23 (el campo del cliente), B4-18 y B6-17 (las
+  tablets), T-21 (la barra por pantalla), T-22 (las listas largas), B3-21 (mover efectivo) y B3-22 (el fondo fijo).
+Quedan B8-1 (la red del local) y B8-4 (la puesta en marcha, 1.0.0), del usuario. B6-4, después del piloto.
+El día 9: la caja «PC Recep. Lenovo» sigue abierta en el VPS. Con la 0.131.0 es una caja de un día anterior: solo cobra lo
+  de su día y pide cerrarse (Turno → «Cerrar la caja»). La cierra el usuario con su PIN; nadie la tocó.
+Impresoras en el VPS: «CAJA POS» (USB) encendida para recibos y «CAJA» (red) apagada, sin respaldo elegido. Si se quiere,
+  administración pone una de respaldo en Ajustes → Impresoras.
+El agente de la laptop de caja sigue en 0.111.0 (la laptop estaba apagada al publicar): al encenderla se pone al día solo;
+  comprobarlo en Ajustes → Impresoras. La USB de verdad como respaldo no se probó en la laptop del local.
+Por mirar en el local: «Paga …» del campo del cliente (T-23); el detalle de un representante en la tablet vertical (T-22);
+  mover efectivo (tope de $ 20, Ajustes → Sucursal) y el fondo fijo (apagado; Ajustes → Dispositivos).
+Cuidado: MAESTRO.md y muchos .ts van con CRLF. El día de negocio termina a las 4:00 am: un turno abierto antes es de ayer.
 ```
 
 ## aemorandin-coder
