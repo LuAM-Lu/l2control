@@ -1973,7 +1973,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   `dia.test.ts` (9) y `dia-anterior.test-db.ts` (11). **Decidido al construir:** «de noche» empieza al cierre del horario
   del día (o a las 10:00 pm sin horario) y dura hasta que el día termina; el cierre de una caja vencida no lo frena lo de
   después (queda para la caja de hoy); la tasa del BCV sigue por día del calendario.*
-- [ ] **B3-21 · Mover efectivo** (M-38, W-8).
+- [~] **B3-21 · Mover efectivo** (M-38, W-8). *A cargo: LuAMi (Claude), en `feat/b3-21`.*
   → Caja → «Mover efectivo»: entrada (sencillo para la caja), salida (compras para el local, pago a proveedor, adelanto
   al personal) y retiro a resguardo, en $ o en Bs, con su nota. Por encima de $ 20 (ajustable) y todo retiro, con el PIN
   de supervisión; el adelanto lo firma la persona con su PIN y va a su quincena en Reportes → Personal, junto a sus vales.
