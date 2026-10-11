@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.127.0 en `main` (publicada, la 0.122.0) · 127 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.128.0 en `main` (publicada, la 0.122.0) · 128 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -929,7 +929,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   dos temas. **Decidido al construir:** el aviso es uno, en Inicio (no en la franja de avisos, que se queda con lo que
   pide acción ya); la cocina no es un puesto (ADR-022).*
 
-- [~] **T-21 · La barra de las estaciones, por pantalla** (M-38, W-6, W-7). *A cargo: LuAMi (Claude), en `feat/t-21`.*
+- [x] **T-21 · La barra de las estaciones, por pantalla** (M-38, W-6, W-7).
+  *Hecho el 2026-10-11 (v0.128.0), en `feat/t-21`.*
   → Un rol con un solo puesto (el mesero, la monitora) no ve una pestaña gigante: el nombre del puesto va en la barra.
   Caja por pantalla: en escritorio (1440 px o más) las cinco pestañas con su nombre, su número y su atajo, y un riel fino
   con los módulos del panel (Inicio, Parque, Restaurante, Inventario, Reportes, Ajustes) para no salir de la caja; en la
@@ -937,6 +938,14 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Alt+1 a Alt+5, también en la ayuda de atajos. El aviso de impresión, una píldora corta con su número; el turno, solo el
   reloj por debajo de 1440. Criterio: a 1366 no se corta nada; a 1920 se ven las cinco; cada pestaña se abre con su
   atajo; desde la caja se llega a Inicio o Reportes con un clic.
+  *· Hecho: en `StationBar`, `NombreDelPuesto` para un puesto de una sola pantalla y `PestanaDelPuesto` (su número desde
+  1440 px, `aria-keyshortcuts`); por debajo de 1440, las dos primeras (`FIJAS`) y «Más ▾» (un menú; si la abierta es de
+  las de «Más», el botón la nombra). Alt+N con `e.code` (`DigitN`), no con una capa abierta. `RielDelPanel` en la cáscara
+  de las estaciones: solo en la caja, desde 1440 px, para quien puede abrir el panel y con los módulos de su rol. Los
+  avisos de impresión, cortos (`corto` en `avisoDeImpresoras`); el turno, solo el reloj por debajo de 1440 (`escritorio`);
+  el nombre de quien entró, desde 1600. En el navegador a 1280, 1366, 1440 y 1920 (y 800 en vertical), en los dos temas:
+  nada se corta ni se pisa (comprobado midiendo cada pieza de la barra), las cinco desde 1440, Alt+1 a Alt+5 abren cada
+  una, y el riel lleva a Reportes con un clic (a 1366, «Panel» a Inicio).*
 - [ ] **T-22 · Las listas largas** (M-38, W-11).
   → Una pieza en `@l2/ui` según cuántos elementos: hasta 50, todo a la vista; de 50 a 500, buscador, chips con su
   cuenta que filtran, grupos con encabezado fijo (por día, por categoría, por letra) y solo lo visible dibujado; sin tope,

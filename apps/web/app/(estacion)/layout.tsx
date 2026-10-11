@@ -5,6 +5,7 @@ import { IdleGuard } from "../../src/features/shell/IdleGuard";
 import { AvisoDePulseras } from "../../src/features/park/AvisoDePulseras";
 import { PageTransition } from "../../src/features/shell/PageTransition";
 import { StationBar } from "../../src/features/shell/StationBar";
+import { RielDelPanel } from "../../src/features/shell/RielDelPanel";
 import { turnoDelEquipo } from "../../src/features/cash/turno.servidor";
 
 /**
@@ -39,9 +40,13 @@ export default async function EstacionLayout({ children }: { children: React.Rea
       />
       {/* V2: la dirección no es una puerta. Cada pantalla pide el rol de su
           superficie; sin sesión, a identificarse. */}
-      <PageTransition>
-        <GuardiaEstacion>{children}</GuardiaEstacion>
-      </PageTransition>
+      {/* T-21: en la caja, desde 1440 px, el riel con los módulos del panel a la izquierda. */}
+      <div className="flex min-h-0 flex-1">
+        <RielDelPanel />
+        <PageTransition>
+          <GuardiaEstacion>{children}</GuardiaEstacion>
+        </PageTransition>
+      </div>
       {/* Toasts arriba al centro, bajo la barra de 64 px: lejos de la acción
           principal, que en las estaciones vive abajo a la derecha (UX-MEJORAS §4.2). */}
       <Avisos posicion="top-center" desdeArriba={76} />
