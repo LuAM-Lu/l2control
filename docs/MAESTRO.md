@@ -944,7 +944,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Lista y Compacta) que cada persona elige y se recuerdan. Se lleva a Representantes, Productos, Movimientos, Ventas e
   Historial de impresión, en ese orden. Criterio: el directorio con 2.000 representantes se abre y se busca sin trabarse
   en la tablet; la vista elegida se recuerda; «Cargar más» dice cuántos faltan.
-- [ ] **T-23 · El campo del cliente** (M-38, W-12).
+- [~] **T-23 · El campo del cliente** (M-38, W-12). *A cargo: LuAMi (Claude), en `feat/t-23`.*
   → Una pieza en `features/clientes` para los nueve formularios que piden un cliente (la entrada del parque, sentar,
   la venta sin cobrar, «Se fue sin pagar», la factura, los datos del pago, cumpleaños, papel y la lupa): un campo
   «Cédula, teléfono o nombre». Antes de escribir propone a quien está aquí (las familias con niños en la sala, las
