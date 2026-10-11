@@ -946,7 +946,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   el nombre de quien entró, desde 1600. En el navegador a 1280, 1366, 1440 y 1920 (y 800 en vertical), en los dos temas:
   nada se corta ni se pisa (comprobado midiendo cada pieza de la barra), las cinco desde 1440, Alt+1 a Alt+5 abren cada
   una, y el riel lleva a Reportes con un clic (a 1366, «Panel» a Inicio).*
-- [ ] **T-22 · Las listas largas** (M-38, W-11).
+- [~] **T-22 · Las listas largas** (M-38, W-11). *A cargo: LuAMi (Claude), en `feat/t-22`.*
   → Una pieza en `@l2/ui` según cuántos elementos: hasta 50, todo a la vista; de 50 a 500, buscador, chips con su
   cuenta que filtran, grupos con encabezado fijo (por día, por categoría, por letra) y solo lo visible dibujado; sin tope,
   el servidor busca y trae de a 50 con «Cargar más · 50 de N», con índice A–Z en las personas. Tres vistas (Tarjetas,
