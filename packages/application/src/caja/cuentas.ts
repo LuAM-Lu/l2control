@@ -483,8 +483,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             }
           }
 
-          // Sin turno abierto en el equipo no se cobra (F4-01).
-          const turno = await turnoParaCobrar(tx, ctx);
+          // Sin turno abierto en el equipo no se cobra (F4-01); en una caja de un día anterior, solo lo de su día (B3-24).
+          const uso = { kind: "COBRO", abiertaEn: await desdeCuandoEs(tx, cmd.accountId, cuenta), desdePapel: carga !== null } as const;
+          const turno = await turnoParaCobrar(tx, ctx, ahora, uso);
           if ("ok" in turno) return turno;
           // Lo que la caja vende de cocina o de barra y no salió en una comanda (B6-16): se comprueba ahora (su impresora)
           // y se asienta con el cobro. Lo cargado desde papel ya se sirvió: no saca papel.
@@ -671,6 +672,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               [...huellas, ...asientos.slice(cmd.pagos.length).map(() => null)],
               cifrador,
               ahora,
+              uso,
             );
             if ("ok" in filas) return renombrarRuta(filas, "asientos", "pagos");
           }
@@ -916,7 +918,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa venta ya tiene devoluciones: lo que queda se devuelve con «Devolver», no se anula entera." };
           }
           // El corte Z ya la contó: después del Z nada toca ese turno (F4-06; la base también lo impone).
-          const suTurno = await tx.sale.findFirst({ where: { operationKey: cmd.cobroKey }, select: { shift: { select: { status: true } } } });
+          const suTurno = await tx.sale.findFirst({ where: { operationKey: cmd.cobroKey }, select: { shiftId: true, shift: { select: { status: true } } } });
           if (suTurno?.shift.status === "CERRADO_Z") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Esa venta es de un turno con corte Z: ya no se anula." };
           }
@@ -962,8 +964,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           }
 
           // DEC-24: la autorización se comprueba y se registra ANTES de tocar el libro. El dinero
-          // vuelve desde la gaveta de este equipo: hace falta su turno abierto.
-          const turno = await turnoParaCobrar(tx, ctx);
+          // vuelve desde la gaveta de este equipo: hace falta su turno abierto. En una caja de un día anterior, solo lo
+          // que ella cobró (B3-24): es corregir su día.
+          const turno = await turnoParaCobrar(tx, ctx, ahora, { kind: "CORRECCION", turnoId: suTurno?.shiftId ?? "" });
           if ("ok" in turno) return turno;
           // Lo que se devuelve en efectivo sale de ESTA gaveta: no se devuelve lo que no tiene (fail-closed).
           const enEfectivo = new Map<"USD" | "VES", bigint>();
@@ -1508,6 +1511,19 @@ export async function vigenteDe(tx: Transaccion, accountId: string): Promise<Vig
   if (!v) return null;
   const cliente = (await clientesDeCuentas(tx, [accountId])).get(accountId);
   return { cuenta: deVersion(v.content, v.version, cliente), version: v.version };
+}
+
+/**
+ * Desde cuándo es lo que se cobra en una cuenta (B3-24), para que lo de hoy nunca cuente en el día de ayer: cuándo se abrió
+ * su cuenta de origen (la de una persona al dividir por ítems es de la cuenta que se dividió, B3-20) y, si juntó otras
+ * (B3-16), la más reciente de ellas. Lo pone la base, no la pantalla.
+ */
+export async function desdeCuandoEs(tx: Transaccion, accountId: string, c: FamilyAccountDto): Promise<Date> {
+  const ids = new Set([c.divididaDe?.cuentaId ?? accountId, ...c.lines.flatMap((l) => (l.vieneDe ? [l.vieneDe.cuentaId] : []))]);
+  const filas = await tx.account.findMany({ where: { id: { in: [...ids] } }, select: { openedAt: true } });
+  // Fail-closed: sin su fila no se sabe de qué día es, y se trata como de ahora (una caja de otro día no la cobra).
+  if (filas.length < ids.size) return new Date(8.64e15);
+  return new Date(Math.max(...filas.map((f) => f.openedAt.getTime())));
 }
 
 /** La cuenta vigente, su libro y la venta del cobro: la respuesta de un cobro o de una anulación. */

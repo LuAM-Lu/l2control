@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.122.2 en `main` (publicada, la 0.122.0) · 122 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.123.0 en `main` (publicada, la 0.122.0) · 123 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1915,13 +1915,26 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   reintento, permiso, auditoría y aislamiento) y en el navegador en los dos temas. **Decidido al construir:** la persona
   1 es la cuenta original (lo que no se toca es suyo); las personas sin ítems no cuentan; hasta doce.*
 
-- [~] **B3-24 · Un día que no se cerró** (M-38, W-2). *A cargo: LuAMi (Claude), en `feat/b3-24`.*
+- [x] **B3-24 · Un día que no se cerró** (M-38, W-2).
+  *Hecho el 2026-10-10 (v0.123.0), en `feat/b3-24`.*
   → Una caja de un día de negocio anterior no cobra ni mueve dinero: «Esta caja es del 9 de octubre: ciérrala antes de
   cobrar», con un asistente que lista lo pendiente de ese día (mesas sin cobrar, cargas de papel, niños) y lleva a su
   cierre; supervisión y administración la cierran también desde otro equipo. El día de negocio termina a una hora de los
   ajustes (de fábrica, 4:00 am) para que lo de pasada la medianoche siga siendo del día. De noche, Inicio avisa que el
   día sigue abierto. Criterio: con la caja de ayer abierta, cobrar hoy lleva al cierre y lo de hoy nunca cuenta en el
   día de ayer.
+  *· Hecho: en `@l2/domain-cash` (`dia.ts`), `businessDayAt`, `businessDayEnd`, `isFromAnEarlierDay` e `isAfterHours`,
+  puros. Ajuste `finDelDiaMin` (de 0 a 600, 240 de fábrica; los publicados antes no lo traen), que como la zona se cambia
+  sin turnos abiertos. El turno nace con el día de negocio y su DTO trae `terminaEl`. `turnoParaCobrar` recibe el uso
+  (`UsoDelTurno`): en una caja vencida, sí el cobro de una cuenta abierta antes del fin (`desdeCuandoEs`: la de origen al
+  dividir y la más reciente de lo juntado), lo cargado desde papel y corregir lo que ella cobró; no lo nuevo, el libro
+  directo ni una devolución (rechazo `CAJA_DE_OTRO_DIA`). Su cierre (`pendientes` y el Z de la jornada) cuenta solo lo
+  que empezó antes del fin. `resumenDelDia`, Inicio y «Hoy» de Reportes, por día de negocio. Web: la caja vencida no elige
+  cuenta sola y enseña `PendientesDelCierre` como asistente («Cerrar la caja» → `/turno?cerrar=1`); la venta directa se
+  niega; Turno, «Día terminado · sin cerrar»; Inicio, `AvisoDelDia` (rojo con una caja vencida, ámbar de noche).
+  `dia.test.ts` (9) y `dia-anterior.test-db.ts` (11). **Decidido al construir:** «de noche» empieza al cierre del horario
+  del día (o a las 10:00 pm sin horario) y dura hasta que el día termina; el cierre de una caja vencida no lo frena lo de
+  después (queda para la caja de hoy); la tasa del BCV sigue por día del calendario.*
 - [ ] **B3-21 · Mover efectivo** (M-38, W-8).
   → Caja → «Mover efectivo»: entrada (sencillo para la caja), salida (compras para el local, pago a proveedor, adelanto
   al personal) y retiro a resguardo, en $ o en Bs, con su nota. Por encima de $ 20 (ajustable) y todo retiro, con el PIN

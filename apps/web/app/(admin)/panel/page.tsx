@@ -5,7 +5,7 @@ import { resumenDelDia } from "../../../src/features/cash/cortes.servidor";
 import { RefrescarAlCambiar } from "../../../src/features/operacion/RefrescarAlCambiar";
 import { catalogoDelLocal } from "../../../src/features/inventario/productos.servidor";
 import { stockAlerts } from "@l2/domain-inventory";
-import { calendarDay } from "@l2/domain-rates";
+import { businessDayAt } from "@l2/domain-cash";
 import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
 import { puestaAPuntoDelLocal } from "../../../src/features/identity/identidad.servidor";
 import { ajustesDelLocal } from "../../../src/features/sucursal/ajustes.servidor";
@@ -60,9 +60,9 @@ export default async function InicioPage() {
   const deAntes = turnos
     .filter((t) => resumen && t.businessDate < resumen.dia)
     .map((turno) => ({ turno, diferenciaEnDolares: null, firma: null }));
-  // El día del local, en su zona: el servidor corre en UTC y, desde las 8 pm de Venezuela, su
-  // `new Date()` ya sería mañana.
-  const [anio, mes, dia] = calendarDay(new Date().toISOString(), ajustes.ajustes.zonaHoraria).split("-").map(Number) as [number, number, number];
+  // El día de negocio del local, en su zona y con la hora en que termina (B3-24): el servidor corre en UTC y, desde las
+  // 8 pm de Venezuela, su `new Date()` ya sería mañana; y a la 1:30 am todavía es el día que se trabaja.
+  const [anio, mes, dia] = businessDayAt(Date.now(), ajustes.ajustes.zonaHoraria, ajustes.ajustes.finDelDiaMin).split("-").map(Number) as [number, number, number];
   const hoy = new Date(Date.UTC(anio, mes - 1, dia));
 
   return (
@@ -77,7 +77,15 @@ export default async function InicioPage() {
       ninosSemanaPasada={atendidos && atendidos.semanaPasada > 0 ? atendidos.semanaPasada : null}
       fecha={`${dia} de ${MESES[mes - 1]}`}
       diaSemana={DIAS[hoy.getUTCDay()] ?? "Hoy"}
-      turnos={turnos.map((t) => ({ id: t.id, abiertoEn: t.abiertoEn, abiertoPor: t.abiertoPor.name, punto: t.punto, fueraDelPunto: t.fueraDelPunto }))}
+      turnos={turnos.map((t) => ({
+        id: t.id,
+        abiertoEn: t.abiertoEn,
+        abiertoPor: t.abiertoPor.name,
+        punto: t.punto,
+        fueraDelPunto: t.fueraDelPunto,
+        businessDate: t.businessDate,
+        terminaEl: t.terminaEl ?? null,
+      }))}
       puestos={puestos}
       inventario={inventario}
       eventosHoy={eventos?.reservas ?? []}

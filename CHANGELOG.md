@@ -16,6 +16,27 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.123.0] — 2026-10-10 · Hacia la puesta en marcha
+
+Un día que no se cerró (B3-24, M-38, W-2).
+
+### Añadido
+- **El día de negocio termina a una hora de los ajustes** (Ajustes → Sucursal → «El día termina», 4:00 am de fábrica):
+  lo cobrado pasada la medianoche sigue siendo del día que se trabaja, y una caja abierta a la 1:30 am es todavía de ese
+  día. Inicio y Reportes («Hoy») siguen ese día. Se cambia sin turnos abiertos, como la zona horaria.
+- **La caja de un día anterior** (su día terminó y no se cerró) dice «Esta caja es del 9 de octubre: ciérrala antes de
+  cobrar» con lo pendiente de ese día: cobrarlo, «Se fue sin pagar», incobrable o la salida de sus niños, y «Cerrar la
+  caja» lleva al conteo y al corte Z. Lo de ese día se cobra ahí; lo de hoy (una venta directa, una cuenta abierta
+  después), no.
+- En Turno, la insignia «Día terminado · sin cerrar»; en Inicio, «Caja del 9 de octubre sin cerrar» en rojo, que lleva a
+  su cierre, y de noche (desde el cierre del horario, o las 10:00 pm) «El día sigue abierto».
+
+### Cambiado
+- **Lo de hoy nunca cuenta en el día de ayer**: el servidor no cobra en una caja de un día anterior lo que se abrió
+  después de que terminó su día, ni devuelve dinero desde ella; sí corrige lo que ella cobró y lo cargado desde papel.
+  Su cierre pide solo lo de su día: una familia que entró hoy no lo frena y queda para la caja de hoy.
+- Abrir otra caja en un equipo que tiene abierta la de un día anterior dice de qué día es y que se cierre primero.
+
 ## [0.122.2] — 2026-10-10 · Hacia la puesta en marcha
 
 Corrección (M-38, W-3).

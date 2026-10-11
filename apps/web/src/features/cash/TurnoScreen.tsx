@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, CircleCheckBig, FileText, Laptop, Lock, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowLeft, CalendarClock, CalendarX2, CircleCheckBig, FileText, Laptop, Lock, TriangleAlert, Wallet } from "lucide-react";
 import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
@@ -21,6 +21,9 @@ import { useVentas } from "./VentasProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
+import { horaDelDia } from "../eventos/formato.ts";
+import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
+import { finDelDiaDelTurno } from "./turno.ts";
 import { TarjetaEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 
 /**
@@ -43,9 +46,12 @@ export function TurnoScreen({
   otrosAbiertos = [],
   ultimoZ = null,
   eventosHoy = [],
+  cerrar = false,
 }: {
   /** El turno del equipo (o el ajeno que se cierra); `null` si no hay ninguno abierto. */
   turno: TurnoDto | null;
+  /** Empezar por su cierre (`?cerrar=1`): la caja de un día anterior lleva aquí (B3-24). */
+  cerrar?: boolean;
   /** Cómo va el turno según el libro, o el rechazo del servidor. */
   vista: Resultado<CorteDto> | null;
   ajeno?: boolean;
@@ -61,10 +67,10 @@ export function TurnoScreen({
   if (ajeno) {
     if (!vista?.ok || !turno) return <SinTurnoAjeno mensaje={vista && !vista.ok ? vista.mensaje : "Ese turno no existe."} />;
     if (turno.estado === "CERRADO_Z") return <SinTurnoAjeno mensaje="Ese turno ya tiene su corte Z: está cerrado." />;
-    return <TurnoAbierto turno={turno} vistaInicial={vista.valor} ajeno />;
+    return <TurnoAbierto turno={turno} vistaInicial={vista.valor} ajeno cerrar={cerrar} />;
   }
   if (!turno) return <AperturaTurno comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} eventosHoy={eventosHoy} />;
-  return <TurnoAbierto turno={turno} vistaInicial={vista?.ok ? vista.valor : null} ajeno={false} />;
+  return <TurnoAbierto turno={turno} vistaInicial={vista?.ok ? vista.valor : null} ajeno={false} cerrar={cerrar} />;
 }
 
 /* ────────────────────────────────────────────────────────────── la apertura */
@@ -99,8 +105,9 @@ function AperturaTurno({
   const autorizacion = useAutorizacion("turno.abrirFueraDelPunto", fuera);
   const [motivo, setMotivo] = useState("");
   const [erroresFuera, setErroresFuera] = useState<{ motivo?: string; autorizador?: string; pin?: string }>({});
-  const hoy = new Date().toLocaleDateString("en-CA", { timeZone: ajustes.zonaHoraria });
-  const deAntes = otrosAbiertos.filter((t) => t.businessDate < hoy);
+  // Las de un día anterior (B3-24): su día terminó a la hora de los ajustes, no a medianoche.
+  const ahora = useAhoraLocal();
+  const deAntes = ahora > 0 ? otrosAbiertos.filter((t) => ahora >= finDelDiaDelTurno(t, ajustes)) : [];
 
   const abrir = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -351,9 +358,12 @@ function SinTurnoAjeno({ mensaje }: { mensaje: string }) {
 
 /* ──────────────────────────────────────────────────────────── el turno abierto */
 
-function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaInicial: CorteDto | null; ajeno: boolean }) {
+function TurnoAbierto({ turno, vistaInicial, ajeno, cerrar }: { turno: TurnoDto; vistaInicial: CorteDto | null; ajeno: boolean; cerrar: boolean }) {
   const router = useRouter();
   const { ajustes } = useSucursal();
+  // B3-24: su día terminó a la hora de los ajustes y sigue abierta. Se dice en la cabecera, en rojo.
+  const ahora = useAhoraLocal();
+  const deOtroDia = ahora > 0 && ahora >= finDelDiaDelTurno(turno, ajustes);
   // B3-15: el cierre no se elige. Al pedirlo se pregunta al servidor si quedan otras cajas abiertas: con alguna, se cierra
   // esta; si es la última, es el cierre del día.
   const [cierre, setCierre] = useState<{ tipo: TipoDeCierre; otras: string[] } | null>(null);
@@ -370,6 +380,15 @@ function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaIn
     const otras = r.valor.turnos.map((t) => t.punto);
     setCierre({ tipo: otras.length > 0 ? "RELEVO" : "JORNADA", otras });
   }
+  // `?cerrar=1` (B3-24): se llega a cerrarla desde la caja o desde Inicio, y el cierre empieza solo, una vez.
+  const pedido = useRef(false);
+  useEffect(() => {
+    if (!cerrar || pedido.current) return;
+    pedido.current = true;
+    void pedirCierre();
+    // Una vez al llegar, no en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cerrar]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -400,9 +419,17 @@ function TurnoAbierto({ turno, vistaInicial, ajeno }: { turno: TurnoDto; vistaIn
                   </Badge>
                 </span>
               )}
-              <Badge tone="ok" icon={<CircleCheckBig size={13} aria-hidden="true" />}>
-                Abierto
-              </Badge>
+              {deOtroDia ? (
+                <span title={`Su día terminó a las ${horaDelDia(ajustes.finDelDiaMin, ajustes.formatoHora)}: solo cobra lo de su día. Ciérrala.`}>
+                  <Badge tone="crit" icon={<CalendarX2 size={13} aria-hidden="true" />}>
+                    Día terminado · sin cerrar
+                  </Badge>
+                </span>
+              ) : (
+                <Badge tone="ok" icon={<CircleCheckBig size={13} aria-hidden="true" />}>
+                  Abierto
+                </Badge>
+              )}
             </span>
           )}
         </Container>

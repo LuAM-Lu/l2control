@@ -212,7 +212,7 @@ export function casosDevoluciones(base: Base, cifrador: Cifrador | null, soporte
           }
 
           // El dinero sale de la gaveta de HOY: hace falta el turno de este equipo, y el efectivo que se devuelve.
-          const turno = await turnoParaCobrar(tx, ctx);
+          const turno = await turnoParaCobrar(tx, ctx, ahora, { kind: "SALIDA" });
           if ("ok" in turno) return turno;
           const enEfectivo = new Map<"USD" | "VES", bigint>();
           for (const r of cmd.reintegros) {

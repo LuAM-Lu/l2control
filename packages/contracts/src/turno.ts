@@ -64,6 +64,11 @@ export const TurnoSchema = z
      * siga abierto y Reportes lo marca. Los turnos de antes no lo traen: se abrieron en su equipo.
      */
     fueraDelPunto: z.object({ autorizadoPor: z.string().trim().min(2).max(80), motivo: z.string().trim().min(3).max(280) }).nullable().default(null),
+    /**
+     * Cuándo termina su día de negocio (B3-24, M-38): desde ahí es una caja de un día anterior, que no cobra lo nuevo y
+     * pide cerrarse. Lo pone el servidor con la hora de los ajustes; sin él (un turno leído sin ajustes), no se sabe.
+     */
+    terminaEl: TimestampSchema.optional(),
     /** Quién hizo el corte Z y cuándo. Van juntos o no van (§7.4). */
     cerradoPor: Persona.optional(),
     cerradoEn: TimestampSchema.optional(),

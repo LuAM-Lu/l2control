@@ -8,20 +8,24 @@
  * El día de negocio es el del local al abrir el turno (ADR-009): lo que se cobre en él cuenta en
  * ese día aunque sea a la 1:30 am. Los cortes X y Z y el arqueo guardado llegan con B3-5.
  *
+ * Un día que no se cerró (B3-24, M-38): el día de negocio termina a la hora de los ajustes (4:00 am de fábrica). Desde
+ * ahí la caja que siga abierta es de un día anterior: solo resuelve lo de su día (cobra las cuentas abiertas antes de que
+ * terminara, carga su papel, corrige lo que ella cobró) y pide cerrarse para todo lo demás. Lo de hoy nunca cuenta en el
+ * día de ayer: el 9 de octubre una venta del 10 entró en el día 9 porque nadie cerró la caja.
+ *
  * El punto de cobro (B3-9, M-31): en un equipo marcado el turno se abre como siempre. En otro (la laptop de caja no
  * enciende), abrirlo pide el PIN de administración y un motivo; el turno los guarda, la auditoría dice quién autorizó e
  * Inicio lo avisa mientras siga abierto.
  */
 import { AbrirTurnoCommandSchema, TurnoSchema, problemasDe, type Rechazo, type Resultado, type TurnoDto } from "@l2/contracts";
-import { chargeProblem, openingFloatProblem, type ShiftStatus } from "@l2/domain-cash";
+import { businessDayAt, businessDayEnd, chargeProblem, openingFloatProblem, type ShiftStatus } from "@l2/domain-cash";
 import { money, type CurrencyCode } from "@l2/domain-money";
-import { calendarDay } from "@l2/domain-rates";
 import { errorDeBase, type Base, type CashShift, type Transaccion } from "@l2/database";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { esSoporte, exigirPermiso, nombreDe, permisoEn } from "../identidad/actor.ts";
 import { AutorizacionSchema, exigirPermisoOAutorizacion } from "../identidad/autorizacion.ts";
-import { zonaDe } from "../sucursal/ajustes.ts";
+import { diaDeNegocioDe } from "../sucursal/ajustes.ts";
 
 export interface CasosTurnos {
   /**
@@ -43,10 +47,6 @@ export function turnoSinCorteDe(tx: Transaccion, deviceId: string) {
 }
 
 /**
- * El turno en el que puede cobrar el equipo de `ctx`, o el rechazo (F4-01, I-14): sin turno
- * abierto no se cobra, y con corte Z tampoco.
- */
-/**
  * B3-15 (M-35): la cortesía y el descuento cambian lo que se cobra, y sin ninguna caja abierta en el local nadie va a
  * cobrar esa cuenta. Se dan con alguna abierta (no en el equipo: la cortesía desde la sala la da supervisión en su
  * teléfono, que no es una caja, M-27). Cobrar, anular, devolver y revertir piden el turno de ESE equipo.
@@ -56,13 +56,58 @@ export async function sinCajaAbiertaEnElLocal(tx: Transaccion, ctx: Contexto, qu
   return abiertas > 0 ? null : { ok: false, motivo: "NO_DISPONIBLE", mensaje: `Con todas las cajas cerradas no se dan ${que}: abre un turno.` };
 }
 
-export async function turnoParaCobrar(tx: Transaccion, ctx: Contexto): Promise<CashShift | Rechazo> {
+/**
+ * Para qué se pide el turno (B3-24): una caja de un día anterior solo resuelve lo de su día.
+ * - `COBRO`: cobrar una cuenta abierta en `abiertaEn` (`null`, un asiento sin cuenta: es de ahora). Lo cargado desde
+ *   papel (`desdePapel`) es del corte de su carga, que ya está en este turno.
+ * - `CORRECCION`: anular o revertir lo que se cobró en el turno `turnoId`.
+ * - `SALIDA`: dinero que sale ahora de la gaveta (una devolución): es de hoy.
+ * - `LECTURA`: solo mirar la gaveta.
+ */
+export type UsoDelTurno =
+  | Readonly<{ kind: "COBRO"; abiertaEn: Date | null; desdePapel?: boolean }>
+  | Readonly<{ kind: "CORRECCION"; turnoId: string }>
+  | Readonly<{ kind: "SALIDA" }>
+  | Readonly<{ kind: "LECTURA" }>;
+
+/** Cuándo termina el día de negocio de un turno, con la hora de los ajustes de su sucursal (B3-24). */
+export async function finDelTurno(tx: Transaccion, t: Pick<CashShift, "branchId" | "businessDate">): Promise<number> {
+  const { zona, finMin } = await diaDeNegocioDe(tx, t.branchId);
+  return businessDayEnd(t.businessDate.toISOString().slice(0, 10), zona, finMin);
+}
+
+const DIA_EN_PALABRAS = new Intl.DateTimeFormat("es-VE", { day: "numeric", month: "long", timeZone: "UTC" });
+/** «9 de octubre»: el día de negocio de un turno, como se dice. */
+export const diaEnPalabras = (t: Pick<CashShift, "businessDate">) => DIA_EN_PALABRAS.format(t.businessDate);
+
+/** El rechazo de una caja de un día anterior (B3-24): se dice de qué día es y que se cierre; la caja lleva al cierre. */
+export function cajaDeOtroDia(t: Pick<CashShift, "businessDate">): Rechazo {
+  return {
+    ok: false,
+    motivo: "CONFLICTO",
+    mensaje: `Esta caja es del ${diaEnPalabras(t)}: ciérrala antes de cobrar.`,
+    problemas: [{ path: ["turno"], message: "CAJA_DE_OTRO_DIA" }],
+  };
+}
+
+/**
+ * El turno en el que puede cobrar el equipo de `ctx`, o el rechazo (F4-01, I-14): sin turno abierto no se cobra, con
+ * corte Z tampoco, y en una caja de un día anterior solo lo de su día (B3-24, `UsoDelTurno`).
+ */
+export async function turnoParaCobrar(tx: Transaccion, ctx: Contexto, ahora: number, uso: UsoDelTurno): Promise<CashShift | Rechazo> {
   const turno = ctx.quien?.deviceId ? await turnoSinCorteDe(tx, ctx.quien.deviceId) : null;
   const problema = chargeProblem(turno ? { status: turno.status as ShiftStatus } : null);
   if (problema || !turno) {
     return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Este equipo no tiene turno abierto: sin turno no se cobra. Ábrelo en Turno." };
   }
-  return turno;
+  if (uso.kind === "LECTURA") return turno;
+  const fin = await finDelTurno(tx, turno);
+  if (ahora < fin) return turno;
+  // Una caja de un día anterior (B3-24): lo de su día, sí; lo de hoy, no, ni nada que salga hoy de la gaveta.
+  const deSuDia =
+    (uso.kind === "COBRO" && (uso.desdePapel === true || (uso.abiertaEn !== null && uso.abiertaEn.getTime() < fin))) ||
+    (uso.kind === "CORRECCION" && uso.turnoId === turno.id);
+  return deSuDia ? turno : cajaDeOtroDia(turno);
 }
 
 /**
@@ -83,7 +128,7 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
       }
 
       try {
-        const r = await base.conTenant(ctx.tenantId, async (tx): Promise<ConFondos | Rechazo> => {
+        const r = await base.conTenant(ctx.tenantId, async (tx): Promise<(ConFondos & { fin: number }) | Rechazo> => {
           const rechazo = await exigirPermiso(tx, ctx, "turno.abrir");
           if (rechazo) return rechazo;
           if (!soporteOpera && (await esSoporte(tx, ctx))) {
@@ -95,8 +140,15 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
           if (!equipo || equipo.status !== "APROBADO" || !ctx.quien?.userId) {
             return { ok: false, motivo: "NO_PERMITIDO", mensaje: "El turno se abre desde un equipo aprobado, con tu sesión." };
           }
-          if (await turnoSinCorteDe(tx, equipo.id)) {
-            return { ok: false, motivo: "CONFLICTO", mensaje: "Este equipo ya tiene un turno abierto." };
+          const abierto = await turnoSinCorteDe(tx, equipo.id);
+          if (abierto) {
+            // La de un día anterior se dice con su día (B3-24): se cierra esa antes de abrir la de hoy.
+            const deAntes = ahora >= (await finDelTurno(tx, abierto));
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: deAntes ? `Este equipo tiene abierta la caja del ${diaEnPalabras(abierto)}: ciérrala antes de abrir la de hoy.` : "Este equipo ya tiene un turno abierto.",
+            };
           }
           // Fuera del punto de cobro, el PIN de administración y un motivo (M-31). Administración confirma con el suyo.
           let fuera: { por: string; nombre: string; motivo: string } | null = null;
@@ -115,8 +167,10 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
             fuera = { por: aut.autorizadorId, nombre: u.supportLogin ? `${u.fullName} (soporte)` : u.fullName, motivo: aut.motivo.trim() };
           }
           const quien = await nombreDe(tx, ctx);
-          // El día de negocio lo fija la zona de la sucursal (ADR-009, B4-4).
-          const dia = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
+          // El día de negocio lo fijan la zona de la sucursal y la hora en que termina (ADR-009, B4-4, B3-24): a la 1:30 am
+          // con el fin a las 4:00 am, el turno es todavía del día anterior.
+          const { zona, finMin } = await diaDeNegocioDe(tx, ctx.branchId);
+          const dia = businessDayAt(ahora, zona, finMin);
           const turno = await tx.cashShift.create({
             data: {
               tenantId: ctx.tenantId,
@@ -147,13 +201,13 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
               ...(fuera ? { fueraDelPunto: { autorizadoPor: fuera.nombre, motivo: fuera.motivo } } : {}),
             },
           });
-          return { ...turno, floats };
+          return { ...turno, floats, fin: businessDayEnd(dia, zona, finMin) };
         });
         if ("ok" in r) {
           if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "turno.abrir", reason: r.mensaje });
           return r;
         }
-        return { ok: true, valor: turnoDto(r) };
+        return { ok: true, valor: turnoDto(r, r.fin) };
       } catch (e) {
         // Dos aperturas a la vez en el mismo equipo: la base deja una (I-06).
         if (errorDeBase(e)?.motivo === "DUPLICADO") return { ok: false, motivo: "CONFLICTO", mensaje: "Este equipo ya tiene un turno abierto." };
@@ -162,22 +216,26 @@ export function casosTurnos(base: Base, soporteOpera = false): CasosTurnos {
     },
 
     async abiertos(ctx) {
-      const filas = await base.conTenant(ctx.tenantId, async (tx) => {
+      return base.conTenant(ctx.tenantId, async (tx) => {
         if ((await permisoEn(tx, ctx, "reportes.verSucursal")) === "DENEGADO") return [];
-        return tx.cashShift.findMany({
+        const filas = await tx.cashShift.findMany({
           where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" } },
           include: { floats: true },
           orderBy: { openedAt: "asc" },
         });
+        const turnos: TurnoDto[] = [];
+        for (const t of filas) turnos.push(turnoDto(t, await finDelTurno(tx, t)));
+        return turnos;
       });
-      return filas.map(turnoDto);
     },
 
     async delEquipo(ctx) {
       const deviceId = ctx.quien?.deviceId;
       if (!deviceId) return null;
-      const t = await base.conTenant(ctx.tenantId, (tx) => turnoSinCorteDe(tx, deviceId));
-      return t ? turnoDto(t) : null;
+      return base.conTenant(ctx.tenantId, async (tx) => {
+        const t = await turnoSinCorteDe(tx, deviceId);
+        return t ? turnoDto(t, await finDelTurno(tx, t)) : null;
+      });
     },
   };
 }
@@ -189,9 +247,10 @@ const FUERA_DEL_PUNTO: Rechazo = {
   mensaje: "Este equipo no es el punto de cobro: abrir el turno aquí pide el PIN de administración y un motivo.",
 };
 
-/** El turno en la forma del contrato, revalidado al salir (fail-closed). */
-export function turnoDto(t: ConFondos): TurnoDto {
+/** El turno en la forma del contrato, revalidado al salir (fail-closed). `terminaEl`: el fin de su día (B3-24). */
+export function turnoDto(t: ConFondos, terminaEl?: number): TurnoDto {
   return TurnoSchema.parse({
+    ...(terminaEl === undefined ? {} : { terminaEl: new Date(terminaEl).toISOString() }),
     id: t.id,
     deviceId: t.deviceId,
     punto: t.pointLabel,
