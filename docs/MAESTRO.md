@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.125.0 en `main` (publicada, la 0.122.0) · 125 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.126.0 en `main` (publicada, la 0.122.0) · 126 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2336,7 +2336,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   ofrece tiempo abierto (cobra la entrada al momento); y quien sube a un paquete que no cuesta más que lo pagado, sube
   por $ 0.*
 
-- [~] **B4-18 · La Entrada en tablet** (M-38, W-4). *A cargo: LuAMi (Claude), en `feat/b4-18`.*
+- [x] **B4-18 · La Entrada en tablet** (M-38, W-4).
+  *Hecho el 2026-10-11 (v0.126.0), en `feat/b4-18`.*
   → El orden del local: la cédula primero, con el campo del cliente de T-23 (rellena la familia, propone sus niños de la
   última vez como botones con un toque, no como sugerencia del teclado, y avisa si debe), después
   las pulseras y el paquete en tarjetas, en las dos orientaciones. Las reglas de teclado en todo campo: el teclado que
@@ -2344,6 +2345,18 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   16 px o más y 48 px de alto. La acción principal fija abajo y visible sobre el teclado. Criterio: una familia que ya
   vino entra con cédula, pulseras y un toque de paquete, sin el teclado de letras; nada se desplaza a 1280×800 ni a
   800×1280.
+  *· Hecho: en `EntradaEnCapa` el representante va antes que el lector; reconocida la familia, un renglón con su nombre y
+  «No es esta persona» en lugar del buscador y la tarjeta, y `SusNinos` (sus niños en botones: un toque nombra al primer
+  niño sin nombre; el `datalist` se fue). `FilaDeEntrada`, en dos renglones desde 42rem (pulsera, nombre y medias; el
+  paquete en tarjetas, `PackagePicker` compacto con tantas por renglón como quepan; 48 px en el parque, 56 en la caja). El
+  aforo, al pie (`TotalDeEntrada`). Teclado: nombres con mayúscula inicial e Intro «Listo», 16 px en la tablet (el campo
+  del cliente, el nombre del niño, la pulsera escrita). Lo que pedía el criterio y no estaba: con la cédula primero, la
+  pulsera se pasa con el foco en ella, y el lector (`ScannerField`) medía la pausa entre teclas con la hora del manejador,
+  que en la tablet corre tarde por cada re-dibujo: la lectura se partía y dejaba dígitos en la cédula. Ahora la mide con
+  `event.timeStamp`. En el navegador, en tablet táctil a 1280×800 y 800×1280 en los dos temas, con las pulseras mandadas
+  como un lector (por CDP, cada tecla con su hora): «Prueba B64 Representante» entra con su cédula, dos pulseras enteras,
+  sus dos niños en botones y un toque de paquete; solo el teclado numérico; nada desplaza; registrada en cuenta abierta. La
+  entrada desde la caja, a 1366×768.*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 

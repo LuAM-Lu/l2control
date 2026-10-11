@@ -84,8 +84,12 @@ function alTeclear(event: KeyboardEvent) {
   // `keydown` que no es de ninguna tecla: llega sin `key`. No lo tecleó nadie ni lo leyó un lector.
   if (typeof event.key !== "string") return;
   const now = Date.now();
-  const gap = now - bus.lastKeyAt;
-  bus.lastKeyAt = now;
+  // La pausa se mide con la hora de la tecla (`timeStamp`, cuando llegó), no con la del manejador. Con el foco en un
+  // campo, cada tecla del lector re-dibuja la pantalla y el manejador corre tarde: en la tablet, la cédula enfocada
+  // hacía parecer persona al lector, la lectura se partía y lo «escrito» se quedaba en el campo (B4-18).
+  const instante = event.timeStamp > 0 ? event.timeStamp : performance.now();
+  const gap = instante - bus.lastKeyAt;
+  bus.lastKeyAt = instante;
 
   // CUALQUIER pausa a velocidad humana reinicia el buffer. Así el contenido
   // siempre es «la última secuencia contigua tecleada a velocidad de máquina»,
@@ -306,9 +310,11 @@ export function ScannerField({
           placeholder="Escribe el código de la pulsera"
           autoComplete="off"
           autoCapitalize="characters"
+          // B4-18: Intro dice «Listo» y la letra es de 16 px (la tablet no acerca la pantalla al escribir).
+          enterKeyHint="done"
           spellCheck={false}
           maxLength={MAX_BUFFER}
-          className="min-h-12 min-w-0 flex-1 bg-transparent font-mono text-[15px] text-ink uppercase outline-none placeholder:font-sans placeholder:text-[13px] placeholder:normal-case placeholder:text-ink-3"
+          className="min-h-12 min-w-0 flex-1 bg-transparent font-mono text-base text-ink uppercase outline-none placeholder:font-sans placeholder:text-[13px] placeholder:normal-case placeholder:text-ink-3"
         />
         <button
           type="submit"

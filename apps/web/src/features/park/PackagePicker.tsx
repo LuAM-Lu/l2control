@@ -33,7 +33,8 @@ export function PackagePicker({
       <div
         role="radiogroup"
         aria-label="Paquete de tiempo"
-        className={cn("grid grid-cols-2 gap-2", compact ? "@xl:grid-cols-4" : "@lg:grid-cols-4")}
+        // Compacto (la entrada, B4-18): tantas tarjetas por renglón como quepan; todos los paquetes en uno, si caben.
+        className={cn("grid grid-cols-2 gap-2", compact ? "@xl:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))]" : "@lg:grid-cols-4")}
       >
         {packages.map((p) => {
           const active = p.id === selectedId;
