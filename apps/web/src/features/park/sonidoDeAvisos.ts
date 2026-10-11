@@ -92,7 +92,8 @@ export function prepararSonido() {
 /** Dos tonos cortos (y uno más grave y largo cuando se cumple el tiempo), y vibra en Android. */
 export function sonar(urgente: boolean) {
   try {
-    navigator.vibrate?.(urgente ? [300, 120, 300, 120, 300] : [200, 100, 200]);
+    // Antes del primer toque el navegador no deja vibrar (y lo apunta como error en la consola): se vibra después.
+    if (navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.(urgente ? [300, 120, 300, 120, 300] : [200, 100, 200]);
   } catch {
     // Un navegador sin vibración no avisa menos: suena y se ve.
   }

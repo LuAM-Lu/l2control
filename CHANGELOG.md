@@ -16,6 +16,28 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.124.0] — 2026-10-11 · Hacia la puesta en marcha
+
+La impresora por red y por USB (B5-6, M-38, W-1).
+
+### Añadido
+- **Principal y respaldo**: en Ajustes → Impresoras una impresora puede ser «Respaldo de otra» (la misma por red y por
+  USB, o una segunda); lo elige administración y L2 sugiere la de red como principal. Si la principal no responde, el
+  trabajo sale por el respaldo (una vez) y la barra lo dice: «Imprime por …». «Hacer principal» las cambia de una vez y
+  lo siguiente sale por ella.
+- **El estado de cada impresora**, cada 30 s, del agente: lista, poco papel, sin papel o no responde, con su hora, en
+  cada tarjeta y en la cifra «Estado».
+- **La barra lo avisa con sonido**: en la caja, «Impresora sin papel» o «no responde»; en la tablet, «Las comandas no
+  están saliendo».
+
+### Cambiado
+- **Sin papel, el trabajo queda «no salió» en el acto** (antes reintentaba solo varios minutos) y «Reintentar» lo saca
+  una vez cuando vuelve el rollo. Sin papel no cambia de camino: el rollo es el mismo.
+- **Por USB, L2 ya no da por impreso lo que Windows solo recibió**: antes de mandar mira el estado de la impresora en
+  Windows y, después, que el trabajo salga de su cola en 15 s; si no, lo saca de la cola (que no salga dos veces) y queda
+  «no salió». El 9 de octubre se dieron por impresas 58 comandas y recibos sin papel.
+- El aviso con vibración espera al primer toque en la pantalla (el navegador no deja antes).
+
 ## [0.123.0] — 2026-10-10 · Hacia la puesta en marcha
 
 Un día que no se cerró (B3-24, M-38, W-2).

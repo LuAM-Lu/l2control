@@ -466,8 +466,8 @@ export function casosSemilla(base: Base, deps: Dependencias): CasosSemilla {
         impresoras: impresoras.ok
           ? impresoras.valor.impresoras
               // Solo las de red: una por USB es de un equipo con su agente, y la semilla no lleva equipos (B5-4). Se
-              // da de alta en el local que la recibe.
-              .filter((i) => i.conexion === "RED")
+              // da de alta en el local que la recibe. Tampoco los respaldos (B5-6): son de otra impresora de aquí.
+              .filter((i) => i.conexion === "RED" && i.respaldoDe === null)
               .map((i) => ({
                 nombre: i.nombre,
                 conexion: "RED" as const,

@@ -10,6 +10,9 @@ import { Button, Input, Sheet, cn } from "@l2/ui";
  *
  * B5-4 (M-34): por **red** (IP y puerto, como siempre) o por **USB** en un equipo con su agente, elegida por su nombre
  * en Windows; con la página de códigos de las tildes y la impresión oscura.
+ *
+ * B5-6 (M-38): principal (imprime sus áreas) o **respaldo** de otra: lo de esa sale por esta cuando aquella no responde.
+ * Lo elige administración; L2 sugiere la de red como principal (pregunta por el papel antes de mandar).
  */
 
 const ETIQUETA = "text-[11px] font-semibold tracking-[0.07em] text-ink-2 uppercase";
@@ -41,6 +44,8 @@ type Form = {
   barra: boolean;
   enVlanDeHardware: boolean;
   ipFija: boolean;
+  /** De cuál es respaldo (B5-6); vacío, es principal. */
+  respaldoDe: string;
 };
 const VACIO: Form = {
   nombre: "",
@@ -57,6 +62,7 @@ const VACIO: Form = {
   barra: true,
   enVlanDeHardware: false,
   ipFija: false,
+  respaldoDe: "",
 };
 const deImpresora = (i: ImpresoraDto): Form => ({
   nombre: i.nombre,
@@ -73,6 +79,7 @@ const deImpresora = (i: ImpresoraDto): Form => ({
   barra: i.barra,
   enVlanDeHardware: i.enVlanDeHardware,
   ipFija: i.ipFija,
+  respaldoDe: i.respaldoDe ?? "",
 });
 
 export type Mandar = (cmd: ImpresoraCommand, ok: string) => Promise<{ hecho: boolean; problemas?: Record<string, string> | undefined }>;
@@ -81,6 +88,7 @@ export function ImpresoraForm({
   abierta,
   impresora,
   agentes,
+  principales,
   onProbarAcentos,
   onCerrar,
   mandar,
@@ -91,6 +99,8 @@ export function ImpresoraForm({
   impresora: ImpresoraDto | null;
   /** Los agentes vinculados: por USB, la impresora es de uno de ellos. */
   agentes: readonly AgenteDto[];
+  /** Las otras impresoras que son principales: de una de ellas puede ser respaldo (B5-6). */
+  principales: readonly ImpresoraDto[];
   /** Imprime la prueba de acentos de la que se edita (con lo guardado: su conexión de ahora). */
   onProbarAcentos: (i: ImpresoraDto) => void;
   onCerrar: () => void;
@@ -172,6 +182,7 @@ export function ImpresoraForm({
     </div>
   );
   const error = (k: string) => (errores[k] ? <p className="text-[12px] font-medium text-state-crit">{errores[k]}</p> : null);
+  const deQuien = principales.find((x) => x.id === form.respaldoDe) ?? null;
 
   return (
     <Sheet
@@ -282,13 +293,44 @@ export function ImpresoraForm({
           )}
         </div>
         {marca("oscura", "Impresión oscura", "Todo en negrita y con doble pasada, para la que marca pálido")}
-        <fieldset className="flex flex-col gap-0.5">
-          <legend className={cn(ETIQUETA, "mb-1")}>Imprime</legend>
-          {marca("recibos", "Recibos y ticket del corte")}
-          {marca("comandas", "Comandas de cocina", "Lo preparado en la cocina")}
-          {marca("barra", "Comandas de barra", "Bebidas y lo de nevera. Con una sola impresora, las tres marcas en ella")}
-          {error("recibos")}
-        </fieldset>
+        {/* B5-6: principal o respaldo de otra (la misma impresora por red y por USB, o una segunda). */}
+        {principales.length > 0 &&
+          segmento<"PRINCIPAL" | "RESPALDO">(
+            "Es",
+            [
+              { id: "PRINCIPAL", texto: "Principal" },
+              { id: "RESPALDO", texto: "Respaldo de otra" },
+            ],
+            form.respaldoDe ? "RESPALDO" : "PRINCIPAL",
+            (e) => cambiar({ respaldoDe: e === "RESPALDO" ? (principales[0]?.id ?? "") : "" }, ["respaldoDe", "recibos"]),
+          )}
+        {form.respaldoDe ? (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="impresora-respaldo" className={ETIQUETA}>
+              Respaldo de
+            </label>
+            <select id="impresora-respaldo" className={CAMPO} value={form.respaldoDe} onChange={(e) => cambiar({ respaldoDe: e.target.value })}>
+              {principales.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.nombre} · {x.conexion === "USB" ? "USB" : "red"}
+                </option>
+              ))}
+            </select>
+            {error("respaldoDe")}
+            <p className="text-[11.5px] text-ink-3">
+              Imprime lo de {deQuien ? `«${deQuien.nombre}»` : "esa"} cuando no responde; sin papel no cambia de camino (el rollo es el mismo).
+              {deQuien && deQuien.conexion === "USB" && form.conexion === "RED" ? " L2 sugiere la de red como principal: pregunta por el papel antes de mandar." : ""}
+            </p>
+          </div>
+        ) : (
+          <fieldset className="flex flex-col gap-0.5">
+            <legend className={cn(ETIQUETA, "mb-1")}>Imprime</legend>
+            {marca("recibos", "Recibos y ticket del corte")}
+            {marca("comandas", "Comandas de cocina", "Lo preparado en la cocina")}
+            {marca("barra", "Comandas de barra", "Bebidas y lo de nevera. Con una sola impresora, las tres marcas en ella")}
+            {error("recibos")}
+          </fieldset>
+        )}
         {form.conexion === "RED" && (
           <fieldset className="flex flex-col gap-0.5">
             <legend className={cn(ETIQUETA, "mb-1")}>Para encenderla</legend>
@@ -303,5 +345,5 @@ export function ImpresoraForm({
 
 /** Lo que va igual por red y por USB. */
 function base(f: Form) {
-  return { nombre: f.nombre, ancho: f.ancho, pagina: f.pagina, oscura: f.oscura, recibos: f.recibos, comandas: f.comandas, barra: f.barra };
+  return { nombre: f.nombre, ancho: f.ancho, pagina: f.pagina, oscura: f.oscura, recibos: f.recibos, comandas: f.comandas, barra: f.barra, respaldoDe: f.respaldoDe || null };
 }

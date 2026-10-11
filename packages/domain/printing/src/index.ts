@@ -5,4 +5,5 @@
 export * from "./documento.ts";
 export * from "./escpos.ts";
 export * from "./cola.ts";
+export * from "./impresora.ts";
 export * from "./importe.ts";

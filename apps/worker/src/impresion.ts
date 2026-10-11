@@ -13,6 +13,7 @@
  *  · `resultado` (el agente → el worker): cómo le fue.
  *  · `revisar-version` (el worker → el agente, T-8c): administración pidió «Actualizar ahora»; el agente revisa ya.
  *  · `actualizacion` (el agente → el worker, T-8c): cómo le fue a un cambio de versión que no salió.
+ *  · `impresoras-a-vigilar` y `estado-impresoras` (el agente → el worker, B5-6): cada 30 s, cuáles vigila y cómo están.
  *
  * El agente dice su versión en el apretón de manos (`auth.version`), junto a su credencial.
  *
@@ -20,7 +21,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Server, Namespace } from "socket.io";
-import type { Resultado, TrabajoParaElAgenteDto } from "@l2/contracts";
+import type { ImpresorasAVigilarDto, Resultado, TrabajoParaElAgenteDto } from "@l2/contracts";
 import type { AgenteAbierto } from "@l2/application";
 
 /** Lo que el worker usa de la aplicación (en las pruebas, dobles). */
@@ -32,6 +33,10 @@ export interface CasosDelAgente {
   anotarActualizacion(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ anotada: true }>>;
   /** Las impresoras que el agente ve en Windows (B5-4). */
   anotarImpresorasDeWindows(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ anotadas: number }>>;
+  /** Las impresoras que vigila (B5-6). */
+  vigilar(agente: AgenteAbierto): Promise<ImpresorasAVigilarDto>;
+  /** Cómo están, cada 30 s (B5-6). */
+  anotarEstados(agente: AgenteAbierto, entrada: unknown): Promise<Resultado<{ anotadas: number }>>;
 }
 
 export interface AlAgente {
@@ -44,6 +49,10 @@ export interface DelAgente {
   actualizacion: (n: unknown, responder: (r: Resultado<{ anotada: true }>) => void) => void;
   /** Las impresoras que ve en Windows, al conectarse y cada tanto (B5-4). */
   "impresoras-windows": (l: unknown, responder: (r: Resultado<{ anotadas: number }>) => void) => void;
+  /** Cuáles vigilar, cada 30 s (B5-6). */
+  "impresoras-a-vigilar": (responder: (r: ImpresorasAVigilarDto) => void) => void;
+  /** Cómo están (B5-6). */
+  "estado-impresoras": (e: unknown, responder: (r: Resultado<{ anotadas: number }>) => void) => void;
 }
 interface DatosDelAgente {
   agente: AgenteAbierto;
@@ -133,6 +142,30 @@ export function crearCanalDeImpresion(o: {
         .catch((e: unknown) => {
           alError(e, "impresoras de Windows del agente");
           responde({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "El servidor no pudo guardar la lista." });
+        });
+    });
+
+    // B5-6: qué vigila y cómo están. Un agente de antes no pregunta; uno nuevo con un servidor de antes no oye respuesta
+    // y sigue imprimiendo como siempre.
+    socket.on("impresoras-a-vigilar", (responder) => {
+      if (typeof responder !== "function") return;
+      o.casos
+        .vigilar(agente)
+        .then(responder)
+        .catch((e: unknown) => {
+          alError(e, "impresoras a vigilar");
+          responder({ impresoras: [] });
+        });
+    });
+
+    socket.on("estado-impresoras", (e, responder) => {
+      const responde = typeof responder === "function" ? responder : () => undefined;
+      o.casos
+        .anotarEstados(agente, e)
+        .then(responde)
+        .catch((err: unknown) => {
+          alError(err, "estado de las impresoras");
+          responde({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "El servidor no pudo guardar el estado." });
         });
     });
 

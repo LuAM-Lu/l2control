@@ -131,7 +131,8 @@ describe("descargar la semilla", () => {
     assert.ok(semilla.medios?.medios.some((m) => m.code === "BIOPAGO" && m.activo));
     assert.deepEqual(semilla.descuentos?.map((d) => d.nombre).sort(), ["Pago Móvil 5 %", "VIP 10 %"]);
     // Con su página y su tinta (B5-4); por red, que es lo único que lleva.
-    assert.deepEqual(semilla.impresoras, [{ ...IMPRESORA, conexion: "RED", pagina: "PC850", oscura: false, barra: false }]);
+    // Sin respaldo (B5-6): la semilla no lleva los respaldos, que son de otra impresora de este local.
+    assert.deepEqual(semilla.impresoras, [{ ...IMPRESORA, conexion: "RED", pagina: "PC850", oscura: false, barra: false, respaldoDe: null }]);
     const texto = JSON.stringify(semilla);
     assert.ok(!/pinHash|passwordHash|Marisol|deviceId/.test(texto), "ni personas, ni PIN, ni equipos");
   });

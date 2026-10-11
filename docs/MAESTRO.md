@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.123.0 en `main` (publicada, la 0.122.0) · 123 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.124.0 en `main` (publicada, la 0.122.0) · 124 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2453,7 +2453,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   trabajo espera. A 1366×768, 1280×800, 800×1280 y 390 px, en los dos temas, sin desplazar a lo ancho ni errores de
   consola. No se mandó nada a imprimir (la XP-80C de esta PC apunta al local).*
 
-- [~] **B5-6 · La impresora por red y por USB** (M-38, W-1). *A cargo: LuAMi (Claude), en `feat/b5-6`.*
+- [x] **B5-6 · La impresora por red y por USB** (M-38, W-1).
+  *Hecho el 2026-10-11 (v0.124.0), en `feat/b5-6`.*
   → Cada impresora dice si es principal o respaldo, y lo elige administración en Ajustes → Impresoras: red o USB, en
   cualquier orden. L2 sugiere la de red como principal (pregunta por el papel antes de mandar; la de USB lo sabe después),
   pero no lo impone ni lo cambia solo; con una sola impresora no hay respaldo. Si la principal no responde, el trabajo
@@ -2464,6 +2465,18 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   una comanda queda «no salió» y la tablet y la caja lo dicen en menos de 30 s; al volver el papel, «Reintentar» la saca
   una sola vez; con la principal sin responder, sale por la de respaldo y se avisa; cambiar en Ajustes cuál es la
   principal cambia por dónde sale la siguiente comanda.
+  *· Hecho: migración `20261203000000_impresora_de_respaldo` (solo expande): `printer.backup_of` (FK en su sucursal, sin
+  áreas propias y uno por principal), `printer.status` con su detalle y su hora, y `print_job.via_backup` (la impresora del
+  trabajo no cambia: el trigger lo impide; sale por su respaldo, recompuesto si es otro papel). En `@l2/domain-printing`
+  (`impresora.ts`), las frases del agente y `causaDeFallo`, `trasFalloConCausa` y `estadoTrasFallo`: así un agente nuevo no
+  manda nada que un servidor de antes rechace. Sin papel → FALLIDO en el acto; no responde con respaldo → PENDIENTE por él
+  (`impresion.desviar`); un cambio de estado se audita (`impresora.estado`, tema `impresion`). «Hacer principal»
+  (`PRINCIPAL`, `impresora.principal`). El agente: `estadoPorRed`, y por USB el estado de Windows antes y la cola después
+  (15 s, `ATASCADA_MS`, se saca con `Remove-CimInstance`) y `estadoEnWindows`; cada 30 s `impresoras-a-vigilar` y
+  `estado-impresoras`. Web: `EstadoDeImpresoras` en la barra (caja y tablet, con sonido), el papel y el estado en cada
+  tarjeta y la cifra «Estado». Pruebas: `impresora.test.ts` (7), `respaldo.test-db.ts` (5), las del agente (21) y del
+  worker (6); en el navegador con una impresora de mentira por TCP y el agente desde su código (el USB, simulado: esta PC no
+  tiene térmica; la cola de Windows se prueba con un PowerShell de mentira y queda por ver en la laptop real).*
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 

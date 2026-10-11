@@ -9,10 +9,13 @@
  *
  * Por USB (B5-4): al conectarse, y cada 10 minutos si cambió, cuenta las impresoras que ve en Windows; sin contarlas, el
  * servidor no le da trabajos por USB. Cada trabajo dice a dónde: una IP y un puerto, o una impresora de Windows.
+ *
+ * El estado de las impresoras (B5-6): cada 30 s pregunta cuáles vigila y cuenta cómo está cada una (por red, preguntándole
+ * por el papel; por USB, a Windows). Mientras imprime no pregunta: la impresora atiende una conexión a la vez.
  */
 import { io, type Socket } from "socket.io-client";
-import { TrabajoParaElAgenteSchema, type NotaDeActualizacionDto } from "@l2/contracts";
-import type { ResultadoDeImpresion } from "./imprimir.ts";
+import { ImpresorasAVigilarSchema, TrabajoParaElAgenteSchema, type NotaDeActualizacionDto } from "@l2/contracts";
+import type { EstadoVisto, ResultadoDeImpresion } from "./imprimir.ts";
 
 export type Registro = Readonly<{ info: (m: string) => void; error: (m: string) => void }>;
 
@@ -25,6 +28,8 @@ export const destinoEnPalabras = (d: Destino) => ("impresoraDeWindows" in d ? `�
 export type Agente = Readonly<{
   socket: Socket;
   vaciar: () => Promise<number>;
+  /** Cuenta cómo están sus impresoras (B5-6). Devuelve cuántas contó. */
+  vigilar: () => Promise<number>;
   /** Cuenta al servidor cómo le fue a un cambio de versión (T-8c). Devuelve si lo anotó. */
   informar: (n: NotaDeActualizacionDto) => Promise<boolean>;
   parar: () => void;
@@ -38,6 +43,12 @@ export function crearAgente(o: {
   imprimir: (destino: Destino, bytes: Uint8Array) => Promise<ResultadoDeImpresion>;
   /** Las impresoras de Windows de este equipo (B5-4); sin ella (fuera de Windows) no imprime por USB. */
   impresorasDeWindows?: () => Promise<string[]>;
+  /** Cómo está una impresora en la red (B5-6). Sin ella no se vigila nada. */
+  estadoPorRed?: (destino: Readonly<{ ip: string; puerto: number }>) => Promise<EstadoVisto>;
+  /** Cómo están estas impresoras de Windows (B5-6), por su nombre. */
+  estadoEnWindows?: (nombres: readonly string[]) => Promise<Map<string, EstadoVisto>>;
+  /** Cada cuánto cuenta el estado de sus impresoras. */
+  vigilarMs?: number;
   /** Cada cuánto vuelve a contarlas. */
   contarMs?: number;
   registro: Registro;
@@ -124,7 +135,8 @@ export function crearAgente(o: {
   }
   socket.on("connect", () => {
     o.registro.info("Conectado al servidor.");
-    void contar(true);
+    // Primero cuenta sus impresoras de Windows, y después cómo están (B5-6): la barra de la caja lo sabe al momento.
+    void contar(true).then(() => vigilar());
   });
   const recuento = setInterval(() => void contar(false), o.contarMs ?? 10 * 60_000);
   socket.on("disconnect", (motivo) => {
@@ -139,6 +151,35 @@ export function crearAgente(o: {
   socket.on("hay-trabajo", () => void vaciar());
   const reloj = setInterval(() => void vaciar(), o.mirarMs ?? 30_000);
 
+  /**
+   * Cuenta cómo están sus impresoras (B5-6). Un servidor de antes no contesta a la pregunta: no se cuenta nada y se sigue
+   * imprimiendo como siempre. Devuelve cuántas contó.
+   */
+  let vigilando = false;
+  async function vigilar(): Promise<number> {
+    if (!o.estadoPorRed || vigilando || vaciando || !socket.connected) return 0;
+    vigilando = true;
+    try {
+      const crudo: unknown = await socket.timeout(10_000).emitWithAck("impresoras-a-vigilar");
+      const v = ImpresorasAVigilarSchema.safeParse(crudo);
+      if (!v.success || v.data.impresoras.length === 0) return 0;
+      const porUsb = v.data.impresoras.flatMap((i) => (i.impresoraDeWindows !== undefined ? [i.impresoraDeWindows] : []));
+      const deWindows = porUsb.length > 0 && o.estadoEnWindows ? await o.estadoEnWindows(porUsb) : new Map<string, EstadoVisto>();
+      const estados: { id: string; estado: EstadoVisto["estado"]; detalle?: string }[] = [];
+      for (const i of v.data.impresoras) {
+        const visto = i.impresoraDeWindows !== undefined ? deWindows.get(i.impresoraDeWindows) : await o.estadoPorRed({ ip: i.ip!, puerto: i.puerto! });
+        if (visto) estados.push({ id: i.id, estado: visto.estado, ...(visto.detalle ? { detalle: visto.detalle.slice(0, 200) } : {}) });
+      }
+      if (estados.length > 0) await socket.timeout(10_000).emitWithAck("estado-impresoras", { impresoras: estados });
+      return estados.length;
+    } catch {
+      return 0;
+    } finally {
+      vigilando = false;
+    }
+  }
+  const vigia = setInterval(() => void vigilar(), o.vigilarMs ?? 30_000);
+
   async function informar(n: NotaDeActualizacionDto): Promise<boolean> {
     if (!socket.connected) return false;
     try {
@@ -152,9 +193,11 @@ export function crearAgente(o: {
   return {
     socket,
     vaciar,
+    vigilar,
     informar,
     parar: () => {
       clearInterval(reloj);
+      clearInterval(vigia);
       clearInterval(recuento);
       if (reintento) clearTimeout(reintento);
       socket.off("disconnect");

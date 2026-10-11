@@ -26,6 +26,7 @@ test("rechazado una vez, vuelve solo; cuenta sus impresoras, vacía la cola y re
   let pendientes: unknown[] = [TRABAJO, POR_USB];
   const resultados: unknown[] = [];
   const contadas: unknown[] = [];
+  const estados: unknown[] = [];
   const espacio = io.of("/impresion");
   espacio.use((socket, siguiente) => {
     intentos += 1;
@@ -40,6 +41,14 @@ test("rechazado una vez, vuelve solo; cuenta sus impresoras, vacía la cola y re
       responder({ ok: true, valor: { anotadas: 1 } });
     });
     s.on("reclamar", (responder: (t: unknown) => void) => responder(pendientes.shift() ?? null));
+    // B5-6: qué vigila (una por red y una por USB) y cómo están.
+    s.on("impresoras-a-vigilar", (responder: (x: unknown) => void) =>
+      responder({ impresoras: [{ id: TRABAJO.id, ip: "192.168.1.50", puerto: 9100 }, { id: POR_USB.id, impresoraDeWindows: "XP-80C" }] }),
+    );
+    s.on("estado-impresoras", (e: unknown, responder: (x: unknown) => void) => {
+      estados.push(e);
+      responder({ ok: true, valor: { anotadas: 2 } });
+    });
     s.on("resultado", (r: unknown, responder: (x: unknown) => void) => {
       resultados.push(r);
       responder({ ok: true, valor: { estado: "CONFIRMADO" } });

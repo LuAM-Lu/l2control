@@ -27,6 +27,7 @@ let io: Server;
 const respuestas: unknown[] = [];
 const versiones: unknown[] = [];
 const notas: unknown[] = [];
+const estados: unknown[] = [];
 const abiertos: Socket[] = [];
 
 function conectar(credencial: string, version?: string): Promise<Socket> {
@@ -68,6 +69,11 @@ before(async () => {
           ? { ok: true, valor: { agenteId: "a3", nombre: "Nueva", credencial: "l2ag_x" } }
           : { ok: false, motivo: "NO_PERMITIDO", mensaje: "Ese código no vale" },
       anotarImpresorasDeWindows: async () => ({ ok: true, valor: { anotadas: 0 } }),
+      vigilar: async (a) => ({ impresoras: a.branchId === B1 ? [{ id: TRABAJO.id, ip: "192.168.1.50", puerto: 9100 }] : [] }),
+      anotarEstados: async (a, e) => {
+        estados.push({ agente: a.agenteId, e });
+        return { ok: true, valor: { anotadas: 1 } };
+      },
       anotarActualizacion: async (a, n) => {
         notas.push({ agente: a.agenteId, n });
         return { ok: true, valor: { anotada: true } };
@@ -112,6 +118,18 @@ describe("el agente en el apretón de manos", () => {
     impresion.echar(new Set(["a2"]));
     await fuera;
     assert.ok(!impresion.conectados().some((a) => a.agenteId === "a2"));
+  });
+});
+
+describe("el estado de las impresoras (B5-6)", () => {
+  test("cada agente pregunta cuáles vigila (las de su sucursal) y cuenta cómo están", async () => {
+    const b1 = await conectar("l2ag_caja-b1");
+    const b2 = await conectar("l2ag_caja-b2");
+    assert.deepEqual(await b1.emitWithAck("impresoras-a-vigilar"), { impresoras: [{ id: TRABAJO.id, ip: "192.168.1.50", puerto: 9100 }] });
+    assert.deepEqual(await b2.emitWithAck("impresoras-a-vigilar"), { impresoras: [] });
+    const e = { impresoras: [{ id: TRABAJO.id, estado: "SIN_PAPEL", detalle: "Sin papel" }] };
+    assert.deepEqual(await b1.emitWithAck("estado-impresoras", e), { ok: true, valor: { anotadas: 1 } });
+    assert.deepEqual(estados.at(-1), { agente: "a1", e });
   });
 });
 
