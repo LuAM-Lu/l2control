@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.131.0 en `main` (publicada, la 0.122.0) · 131 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.131.0 en `main` (publicada, la 0.131.0) · 131 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -4243,6 +4243,9 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
   código (W-12), dónde se pierde tiempo (W-13) y las cuentas de cocina para los vales (W-14, ya se puede). Entra T-23 (el
   campo del cliente) antes de B4-18; la entrada avisa la deuda sin bloquear. La ruta pasa a 136. El usuario pide la tanda
   entera sin parar y una sola publicación al final, probado todo, con permiso para etiquetar y entrar al VPS.
+- **2026-10-11** · M-38 entregado entero, sin parar entre pasos (v0.123.0 a v0.131.0) y publicado una vez con la etiqueta
+  v0.131.0: el VPS se puso al día solo a las 5:09 am (sus seis migraciones de expandir, la salud en verde). La caja del
+  día 9 sigue abierta y ahora pide cerrarse. Quedan B8-1 y B8-4.
 
 ---
 
