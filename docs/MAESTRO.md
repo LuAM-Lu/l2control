@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.137.0 en `main` (publicada, la 0.131.0) · 137 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.138.0 en `main` (publicada, la 0.131.0) · 138 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1143,11 +1143,18 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   mala rechazada y buena aprobando, panel con el código, caducada en los dos lados y renovada; sin
   desplazar la página a 1366×768, 1280×800 y 800×1280.*
 
-- [~] **B1-7 · Una persona, un equipo** (M-39, X-7). *A cargo: LuAMi (Claude), en `feat/b1-7`.*
+- [x] **B1-7 · Una persona, un equipo** (M-39, X-7).
+  *Hecho el 2026-10-14 (v0.138.0), en `feat/b1-7`.*
   → Entrar con el PIN en un equipo cierra la sesión que esa persona tenga abierta en otro, y ese otro lo dice al momento
   («Entraste en «Tablet»: aquí se cerró la sesión»), por el canal en vivo; queda en la auditoría como cerrada en otro equipo.
   Administración y la cuenta de soporte no tienen límite. Criterio: con Ana en la PC de recepción, entrar como Ana en la
   tablet cierra la de la PC y la PC lo dice; Abigail sigue en dos equipos.
+  *B1-7: migración `20261210000000_una_persona_un_equipo` (solo expande: el motivo `OTRO_EQUIPO`). `sesiones.entrar`
+  cierra las otras sesiones abiertas de la persona (salvo ADMIN y la de soporte) y anota cada `sesion.cerrar` con «Entró
+  en «equipo»»; `sesiones.porQueSeCerro` dice el motivo y el equipo nuevo. En la web, `SesionVigilada` (en el layout, con
+  sesión) mira su sesión cuando el canal dice «sesiones», avisa y vuelve al acceso. `sesiones.test-db.ts` (1 nueva).
+  Visto en el navegador en los dos temas: la cajera en la caja entra en la tablet y la caja lo dice; Abigail sigue en los
+  dos.*
 
 ### Etapa 2 · Dinero (F3, sin lo fiscal)
 

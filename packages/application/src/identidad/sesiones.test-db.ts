@@ -227,3 +227,26 @@ describe("los permisos los decide el servidor con la matriz", () => {
     assert.equal(r.ok ? "ok" : r.motivo, "NO_PERMITIDO");
   });
 });
+
+describe("una persona, un equipo (B1-7, M-39)", () => {
+  test("entrar en la tablet cierra la sesión de la PC, que sabe por qué; administración sigue en dos equipos", async () => {
+    const pc = await crearEquipo(local, "PC recepción B17");
+    const tablet = await crearEquipo(local, "Tablet B17");
+    const enPc = await entrar(cajera, "7391", T0 + 1000, pc);
+    if (!enPc.ok) throw new Error(enPc.mensaje);
+    const enTablet = await entrar(cajera, "7391", T0 + 2000, tablet);
+    if (!enTablet.ok) throw new Error(enTablet.mensaje);
+    assert.equal(await local.app.sesiones.consultar(enPc.credencial, T0 + 3000), null, "la de la PC se cerró");
+    assert.ok(await local.app.sesiones.consultar(enTablet.credencial, T0 + 3000));
+    assert.deepEqual(await local.app.sesiones.porQueSeCerro(enPc.credencial), { motivo: "OTRO_EQUIPO", equipo: "Tablet B17" });
+    assert.equal(await local.app.sesiones.porQueSeCerro(enTablet.credencial), null, "la de la tablet sigue abierta");
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "staff_session", entityId: enPc.sesion.id });
+    assert.ok(asientos.some((a) => a.action === "sesion.cerrar" && a.reason === "Entró en «Tablet B17»"));
+
+    const adminPc = await entrar(admin, "4826", T0 + 4000, pc);
+    const adminTablet = await entrar(admin, "4826", T0 + 5000, tablet);
+    if (!adminPc.ok || !adminTablet.ok) throw new Error("administración no entró");
+    assert.ok(await local.app.sesiones.consultar(adminPc.credencial, T0 + 6000), "administración sigue en los dos");
+    assert.ok(await local.app.sesiones.consultar(adminTablet.credencial, T0 + 6000));
+  });
+});

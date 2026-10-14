@@ -16,6 +16,15 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.138.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-7: las sesiones duplicadas.
+
+### Añadido
+- **Una persona, un equipo:** entrar con el PIN en un equipo cierra la sesión que esa persona tuviera abierta en otro, y
+  ese otro lo dice al momento («Entraste en «Tablet»: aquí se cerró la sesión») y vuelve al acceso. Queda en la
+  auditoría como cerrada en otro equipo. Administración y la cuenta de soporte no tienen límite.
+
 ## [0.137.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-6: lo que debe el personal, junto a lo que deben los clientes.

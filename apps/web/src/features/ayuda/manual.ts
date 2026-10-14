@@ -90,6 +90,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Escribe tu PIN de cuatro cifras y pulsa «Entrar».",
       "Si te equivocas varias veces, el acceso espera un rato antes de dejarte intentar otra vez.",
       "Para cambiar de persona en el mismo equipo, pulsa el botón de salir junto a tu nombre.",
+      "Una persona trabaja en un equipo a la vez: si entras en otro, la sesión del anterior se cierra y ese equipo lo dice («Entraste en «Tablet»: aquí se cerró la sesión»). Administración y la cuenta de soporte, no.",
       "La cuenta de soporte no está en la lista: entra por «Acceso de soporte», con su usuario y después su PIN.",
     ],
     problemas: GENERALES,

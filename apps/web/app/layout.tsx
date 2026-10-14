@@ -3,6 +3,7 @@ import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
 import { OperacionProvider } from "../src/features/operacion/OperacionProvider";
 import { TiempoRealProvider } from "../src/features/operacion/TiempoRealProvider";
+import { SesionVigilada } from "../src/features/identity/SesionVigilada";
 import { sesionesEnCurso } from "../src/features/operacion/operacion.servidor";
 import { SesionProvider } from "../src/features/identity/operador";
 import { ElevacionProvider } from "../src/features/identity/ElevacionProvider";
@@ -130,6 +131,8 @@ export default async function RootLayout({
         <ElevacionProvider>
         {/* El canal en vivo (B5-1): por encima de todo lo que vuelve a leer cuando algo cambia. */}
         <TiempoRealProvider sesionId={sesion?.id ?? null}>
+          {/* B1-7: si la persona entra en otro equipo, este lo dice y vuelve al acceso. */}
+          {sesion && <SesionVigilada />}
         {/* Tras poner una versión nueva, cada pantalla se recarga sola cuando está libre (T-8b). */}
         <PuestaAlDia />
         {/* Los ajustes del local (B4-4) envuelven a todo lo demás: el formato de hora, la zona y los

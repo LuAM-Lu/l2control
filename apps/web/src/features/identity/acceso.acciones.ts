@@ -84,6 +84,11 @@ export async function entrarSoporte(usuario: unknown, pin: unknown, pinNuevo?: u
 }
 
 /** Salir: cierra la sesión EN EL SERVIDOR y borra la cookie. El corte Z también la cierra. */
+/** Por qué se cerró la sesión de este equipo (B1-7): `null` si sigue abierta. */
+export async function porQueSeCerroMiSesion(): Promise<Readonly<{ motivo: string; equipo: string | null }> | null> {
+  return (await aplicacion()).sesiones.porQueSeCerro(await credencialSesion());
+}
+
 export async function salir(motivo: "SALIDA" | "CORTE_Z" = "SALIDA"): Promise<void> {
   await (await aplicacion()).sesiones.salir(await credencialSesion(), motivo === "CORTE_Z" ? "CORTE_Z" : "SALIDA", await ipDeLaPeticion());
   await borrarCookieSesion();
