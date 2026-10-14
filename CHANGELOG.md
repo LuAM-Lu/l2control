@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.141.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-11: el calendario de los cumpleaños y cambiarles la fecha.
+
+### Añadido
+- **Parque → Cumpleaños tiene vista de mes** junto a la lista: cada día con sus cumpleaños (la hora, quién cumple y el
+  icono de su estado). La vista elegida (Próximas, Mes o Canceladas) se recuerda en el equipo.
+- **«Cambiar fecha»**: el día y el horario nuevos con su motivo, también con el anticipo cobrado, hasta que empiece. El
+  aforo del nuevo horario se comprueba como al reservar; lo hace quien reserva y la fila dice de qué fecha venía, el
+  motivo y quién lo cambió. El manual de la ayuda tiene ahora su entrada de Cumpleaños.
+
 ## [0.140.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-10: dónde está la gente de pie.

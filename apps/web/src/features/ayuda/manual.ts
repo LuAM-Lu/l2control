@@ -599,6 +599,27 @@ export const MANUAL: readonly EntradaDelManual[] = [
     problemas: [],
   },
   {
+    id: "eventos",
+    ruta: "/panel/parque/eventos",
+    titulo: "Cumpleaños",
+    roles: CAJA,
+    proposito: "La agenda de los cumpleaños de los próximos tres meses: reservar, cobrar el anticipo en la caja, cambiarles la fecha y empezarlos el día del evento.",
+    pasos: [
+      "«Nueva reserva»: el día, el horario, el paquete, los invitados, quién cumple y su familia. El anticipo queda en la cola de la caja; el saldo se cobra el día del evento.",
+      "Tres vistas: «Próximas» (la lista por día, con lo que falta por cobrar), «Mes» (el calendario: cada día con la hora y quién cumple; las flechas pasan de mes) y «Canceladas». La que elijas se recuerda en este equipo.",
+      "«Cambiar fecha» (en la fila, o tocando el cumpleaños en el mes): el día y el horario nuevos con su motivo. Vale con el anticipo cobrado, hasta que empiece; el aforo del nuevo horario se comprueba como al reservar. La fila dice de qué fecha venía, el motivo y quién lo cambió.",
+      "Con el anticipo por cobrar, «Cancelar» la quita de la agenda. Con el anticipo cobrado no se cancela aquí: devolverlo es anular su cobro en la caja.",
+    ],
+    problemas: [
+      {
+        sintoma: "«Con los otros cumpleaños de ese horario se pasa del aforo» al cambiar la fecha",
+        solucion: "El nuevo horario se cruza con otros cumpleaños y juntos pasan del aforo del parque. Elige otra hora u otro día; el calendario del mes dice qué hay cada día.",
+        reconoce: ["se pasa del aforo"],
+      },
+      ...GENERALES,
+    ],
+  },
+  {
     id: "inventario",
     ruta: "/panel/inventario",
     titulo: "Inventario",

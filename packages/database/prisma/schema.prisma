@@ -2163,6 +2163,31 @@ model StandingAccountPosition {
   @@map("standing_account_position")
 }
 
+/// Un cambio de fecha de un cumpleaños (B10-3, M-39): de cuándo a cuándo, el motivo y quién. La historia de la reserva;
+/// la reserva solo cambia su día y su horario con uno de estos anotado. Solo se añade.
+model EventReschedule {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  reservationId String   @map("reservation_id") @db.Uuid
+  fromDate      DateTime @map("from_date") @db.Date
+  fromStart     Int      @map("from_start")
+  fromEnd       Int      @map("from_end")
+  toDate        DateTime @map("to_date") @db.Date
+  toStart       Int      @map("to_start")
+  toEnd         Int      @map("to_end")
+  reason        String
+  operationKey  String   @map("operation_key") @db.Uuid
+  at            DateTime @db.Timestamptz(3)
+  by            String?  @db.Uuid
+  byName        String   @map("by_name")
+  deviceId      String?  @map("device_id") @db.Uuid
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, reservationId, at], map: "event_reschedule_reserva_idx")
+  @@map("event_reschedule")
+}
+
 /// Los paquetes de cumpleaños y el anticipo publicados (B10-1, D-EVT): cada publicación es una versión
 /// nueva, solo-agregar. La vigente es la más alta; sin ninguna, el local no tiene paquetes y no reserva.
 model EventCatalogVersion {

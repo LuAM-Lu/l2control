@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.140.0 en `main` (publicada, la 0.131.0) · 140 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.141.0 en `main` (publicada, la 0.131.0) · 141 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3431,11 +3431,18 @@ antes del cobro en servidor (orden de ejecución).
   de la hora del evento (hoy, «en gracia» como aviso, sin cobro) y que los que sobran de lo reservado entren como
   visita normal.*
 
-- [~] **B10-3 · El calendario y cambiar de fecha** (M-39, X-11). *A cargo: LuAMi (Claude), en `feat/b10-3`.*
+- [x] **B10-3 · El calendario y cambiar de fecha** (M-39, X-11).
+  *Hecho el 2026-10-14 (v0.141.0), en `feat/b10-3`.*
   → Parque → Eventos con vista de mes (cada día con sus cumpleaños: hora, quién y el icono de su estado) junto a la lista; la
   vista elegida se recuerda. «Cambiar fecha» (día y hora) con motivo, también con el anticipo cobrado, hasta antes de
   empezar: comprueba el aforo del nuevo horario como al reservar, lo hace quien reserva y queda en su historia. Criterio: un
   cumpleaños confirmado pasa del sábado al domingo con su motivo y el anticipo sigue cobrado; a un horario sin aforo, no.
+  *B10-3: migración `20261212000000_cambiar_fecha_del_cumpleanos` (solo expande: `event_reschedule`, de solo agregar; la
+  reserva deja de ser de solo agregar y pasa a un disparador que solo deja cambiar su día y su horario con su cambio
+  anotado, y nunca borrarla). `eventos.cambiarFecha` (permiso `evento.reservar`, solo ANTICIPO_POR_COBRAR o CONFIRMADA,
+  aforo con `reservaProblem` bajo el candado de eventos, asiento `evento.cambiar_fecha`, tema eventos); `reservasDe` trae
+  los `cambios`. En la web, `MesYCambioDeFecha.tsx` (el mes y el diálogo). `eventos.test-db.ts` (2 nuevas). Visto en el
+  navegador en los dos temas: el mes, la vista recordada al recargar y un cambio con su motivo y su línea de historia.*
 - [ ] **B10-4 · El aforo del cumpleaños y el exclusivo** (M-39, X-12).
   → Desde 30 minutos antes y hasta su fin, el parque guarda el lugar de los invitados que no han llegado: las visitas
   normales tienen el aforo menos esos lugares, y la entrada lo dice («Quedan 8 lugares: 7 guardados para el cumpleaños de

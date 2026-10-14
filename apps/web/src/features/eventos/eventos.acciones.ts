@@ -32,6 +32,16 @@ export async function cancelarReserva(entrada: unknown): Promise<Resultado<Reser
   return r;
 }
 
+/** Cambia el día y el horario de un cumpleaños con su motivo (B10-3): lo hace quien reserva. */
+export async function cambiarFechaEvento(entrada: unknown): Promise<Resultado<ReservaEventoDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).eventos.cambiarFecha(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, reserva: r.valor.id }, "fecha del cumpleaños cambiada");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cambio de fecha rechazado");
+  return r;
+}
+
 /** Publica los paquetes de cumpleaños y el anticipo: `catalogo.modificar`, con elevación. */
 export async function publicarCatalogoEventos(entrada: unknown): Promise<Resultado<CatalogoEventosPublicadoDto>> {
   const ctx = await contextoActual();

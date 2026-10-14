@@ -145,6 +145,22 @@ export const ReservarEventoCommandSchema = z
 export type ReservarEventoCommand = z.infer<typeof ReservarEventoCommandSchema>;
 
 /**
+ * Cambiar la fecha de un cumpleaños (B10-3, M-39): día y horario nuevos, con su motivo. También con el anticipo cobrado,
+ * hasta antes de empezar; el aforo del nuevo horario se comprueba como al reservar.
+ */
+export const CambiarFechaEventoCommandSchema = z
+  .strictObject({
+    idempotencyKey: IdempotencyKeySchema,
+    reservaId: IdSchema,
+    fecha: FechaSchema,
+    inicio: MinutoDelDiaSchema,
+    fin: MinutoDelDiaSchema,
+    motivo: z.string().trim().min(3, "Di por qué se cambia").max(200, "Hasta 200 caracteres"),
+  })
+  .refine((v) => v.inicio < v.fin, { message: "El evento termina después de empezar", path: ["fin"] });
+export type CambiarFechaEventoCommand = z.infer<typeof CambiarFechaEventoCommandSchema>;
+
+/**
  * En qué va una reserva. Sale de sus cuentas, no de una columna que alguien tenga que mantener:
  *  · ANTICIPO_POR_COBRAR — la cuenta del anticipo está en la cola de la caja;
  *  · CONFIRMADA          — el anticipo está cobrado;
@@ -178,6 +194,17 @@ export const ReservaEventoSchema = z.object({
   reservadaPor: z.string(),
   /** Quién la canceló y cuándo, si se canceló. */
   cancelada: z.object({ en: TimestampSchema, por: z.string() }).nullable(),
+  /** Sus cambios de fecha (B10-3), del más viejo al más nuevo: de cuándo a cuándo, el motivo, quién y cuándo. */
+  cambios: z
+    .array(
+      z.object({
+        de: z.object({ fecha: FechaSchema, inicio: MinutoDelDiaSchema, fin: MinutoDelDiaSchema }),
+        motivo: z.string(),
+        en: TimestampSchema,
+        por: z.string(),
+      }),
+    )
+    .default([]),
   /**
    * El día del evento, si ya empezó (B10-2): su cuenta (el saldo y lo incluido), cuántos invitados entraron
    * y cuántos siguen dentro.
