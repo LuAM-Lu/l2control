@@ -1,6 +1,6 @@
 "use server";
 
-import type { DesvincularPulseraResultDto, FamilyAccountDto, Resultado, VincularPulserasResultDto, MesasPorLimpiarDto } from "@l2/contracts";
+import type { CambioDeMesaDto, DesvincularPulseraResultDto, FamilyAccountDto, Resultado, VincularPulserasResultDto, MesasPorLimpiarDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -32,6 +32,16 @@ export async function vincularPulseras(entrada: unknown): Promise<Resultado<Vinc
   const r = await (await aplicacion()).mesas.vincular(ctx, entrada);
   if (r.ok) log().info({ tenantId: ctx.tenantId, mesa: r.valor.mesa.tableLabel, niños: r.valor.mesa.sessionIds.length }, "pulseras vinculadas a una mesa");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "vincular pulseras rechazado");
+  return r;
+}
+
+/** Cambia una cuenta de mesa entera (B6-21): con sus pedidos, sus niños y el papel «CAMBIO DE MESA». Sin PIN. */
+export async function cambiarDeMesa(entrada: unknown): Promise<Resultado<CambioDeMesaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).mesas.cambiar(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.cuenta.id, desde: r.valor.desde, a: r.valor.a }, "cuenta cambiada de mesa");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cambiar de mesa rechazado");
   return r;
 }
 

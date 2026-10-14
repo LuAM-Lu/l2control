@@ -587,7 +587,7 @@ async function destinoDelPedido(tx: Transaccion, ctx: Contexto, cmd: EnviarPedid
 }
 
 /** Los pedidos con su comanda, como los lee una pantalla. Los trabajos, en su propia consulta. */
-async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise<PedidoDto[]> {
+export async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise<PedidoDto[]> {
   if (filas.length === 0) return [];
   // Cuándo se sirvió cada plato (B6-8, B6-11): sin marca, sigue esperando.
   const servidos = await servidosDeVarios(tx, filas);

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowRightLeft,
   BadgePercent,
   Ban,
   Banknote,
@@ -149,6 +150,7 @@ import {
 } from "./ColaCuentas.tsx";
 import { CortesiaDialog } from "./CortesiaDialog.tsx";
 import { AnularPedidoDialog } from "../mesas/AnularPedidoDialog.tsx";
+import { CambiarDeMesa } from "../mesas/CambiarDeMesa.tsx";
 import { usePedidos } from "../mesas/PedidosProvider.tsx";
 import { anularSinPin } from "@l2/domain-orders";
 import { useOperador } from "../identity/operador.ts";
@@ -371,6 +373,8 @@ function CobroCuenta({
   // La cuenta de una persona al dividir por ítems (B3-20) no: es parte de una cuenta que ya era de alguien.
   const faltaCliente = cuenta.kind === "MOSTRADOR" && !cuenta.divididaDe && !cuenta.cliente && cliente.kind !== "IDENTIFICADO";
   const [identificando, setIdentificando] = useState(false);
+  /** «Cambiar de mesa» (B6-21): la cuenta de una mesa pasa entera a otra. */
+  const [cambiandoMesa, setCambiandoMesa] = useState(false);
   /** «Se fue sin pagar» (B3-11): el diálogo que deja la cuenta en deuda a nombre de su cliente. */
   const [seFue, setSeFue] = useState(false);
   const { adoptar: adoptarCuenta } = useCuentas();
@@ -1173,6 +1177,20 @@ function CobroCuenta({
             >
               <UserX size={14} aria-hidden="true" />
               <span className="hidden @lg/ticket:inline">Se fue sin pagar</span>
+            </button>
+          )}
+          {/* B6-21: se cambiaron de mesa (la caja también lo hace, sin PIN: no mueve dinero). */}
+          {cuenta.kind === "MESA" && (
+            <button
+              type="button"
+              onClick={() => setCambiandoMesa(true)}
+              title="Cambiar de mesa: la cuenta pasa entera a otra"
+              aria-label="Cambiar de mesa"
+              aria-haspopup="dialog"
+              className="inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] font-semibold text-ink-2 transition-all hover:border-brand/50 hover:text-ink"
+            >
+              <ArrowRightLeft size={14} aria-hidden="true" />
+              <span className="hidden @lg/ticket:inline">Cambiar de mesa</span>
             </button>
           )}
         </div>
@@ -2269,6 +2287,7 @@ function CobroCuenta({
         onCambiar={setFormaVuelto}
         onCerrar={() => setEligiendoVuelto(false)}
       />
+      <CambiarDeMesa cuenta={cambiandoMesa ? cuenta : null} onCerrar={() => setCambiandoMesa(false)} />
       {onAnularPedido && (
         <AnularPedidoDialog
           pedido={

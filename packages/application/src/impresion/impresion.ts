@@ -225,7 +225,7 @@ async function anotarEstado(
 
 /** Qué se pide imprimir. `para` elige la impresora activa de ese oficio; `impresoraId`, una concreta. */
 export type Encargo = Readonly<{
-  tipo: "RECIBO" | "CORTE" | "COMANDA" | "ANULACION" | "PRUEBA" | "MOVIMIENTO";
+  tipo: "RECIBO" | "CORTE" | "COMANDA" | "ANULACION" | "PRUEBA" | "MOVIMIENTO" | "CAMBIO_MESA";
   titulo: string;
   copia?: boolean;
   saleId?: string;
@@ -237,7 +237,7 @@ export type Encargo = Readonly<{
   documento: Documento;
   /** Los bytes, si no salen del documento (la prueba de acentos, B5-4): el documento queda como vista previa. */
   bytes?: Uint8Array;
-  /** De qué área es una COMANDA o su ANULACION (B6-10). */
+  /** De qué área es una COMANDA, su ANULACION (B6-10) o un CAMBIO_MESA (B6-21). */
   area?: "COCINA" | "BARRA";
 }> &
   (Readonly<{ para: Oficio }> | Readonly<{ impresoraId: string }>);
