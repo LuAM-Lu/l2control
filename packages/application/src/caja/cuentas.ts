@@ -1878,7 +1878,7 @@ async function prepararAnulacion(
  * Lo que volvió al estante sale como merma (M-18), con su costo y la misma autorización: la existencia queda igual, pero
  * el reporte ve una pérdida y no una venta. Lo usan la anulación de un plato ya preparado y la de una venta entera (B3-18).
  */
-async function aMerma(
+export async function aMerma(
   tx: Transaccion,
   ctx: Contexto,
   devolucion: readonly Readonly<{ productId: string; quantity: number }>[],

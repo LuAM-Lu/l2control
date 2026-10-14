@@ -62,28 +62,63 @@ export function seccionesDelPersonal(
   reloj: Reloj,
   papel = false,
   accion?: (v: ValeDto) => ReactNode,
+  /** Lo que cada persona ofrece en la pantalla (B3-26: «Descontado en la quincena»); en el papel, nada. */
+  accionPersona?: (p: ValesDelPersonalDto["porPersona"][number]) => ReactNode,
 ): SeccionDeInforme<SeccionDelPersonal>[] {
   const conAccion = accion !== undefined && !papel;
+  // La quincena de cada persona (B3-26): descontada (cuándo y quién) o pendiente.
+  const quincena = (p: ValesDelPersonalDto["porPersona"][number]) =>
+    p.descontado && BigInt(p.descontado.despues.minor) === 0n ? (
+      <span key="q" className={cn("inline-flex items-center gap-1 font-semibold whitespace-nowrap", !papel && "text-state-ok")}>
+        <CircleCheckBig size={TAMANO_ICONO.texto} aria-hidden="true" />
+        Descontado {reloj.dia(Date.parse(p.descontado.en))} · {p.descontado.por}
+      </span>
+    ) : p.descontado ? (
+      // Descontada antes, con algo registrado después: eso sigue pendiente.
+      <span key="q" className="flex flex-col gap-1">
+        <span className={cn("inline-flex items-center gap-1 font-semibold whitespace-nowrap", !papel && "text-state-warn")}>
+          <Undo2 size={TAMANO_ICONO.texto} aria-hidden="true" />
+          Descontado {reloj.dia(Date.parse(p.descontado.en))} · faltan {importe(p.descontado.despues)}
+        </span>
+        {!papel && accionPersona?.(p)}
+      </span>
+    ) : BigInt(p.neto.minor) + BigInt(p.adelantado.minor) > 0n ? (
+      papel || !accionPersona ? (
+        <span key="q" className="whitespace-nowrap">Pendiente</span>
+      ) : (
+        <span key="q">{accionPersona(p)}</span>
+      )
+    ) : (
+      <span key="q" />
+    );
   const cuantos = i.porPersona.reduce((n, p) => n + p.vales, 0);
   return [
     {
       id: "personas",
       titulo: "Por persona",
-      columnas: [{ titulo: "Persona" }, { titulo: "Vales", derecha: true }, { titulo: "Consumió", derecha: true }, { titulo: "Adelantos", derecha: true }],
+      columnas: [
+        { titulo: "Persona" },
+        { titulo: "Vales", derecha: true },
+        { titulo: "Consumió", derecha: true },
+        { titulo: "Adelantos", derecha: true },
+        { titulo: "Quincena" },
+      ],
       filas: i.porPersona.map((p) => [
         <span key="n" className="font-semibold">{p.persona.nombre}</span>,
         <span key="v" className="tnum">{p.vales}</span>,
         <span key="t" className="tnum font-semibold">{importe(p.neto)}</span>,
         <span key="a" className={cn("tnum", BigInt(p.adelantado.minor) > 0n && "font-semibold")}>{importe(p.adelantado)}</span>,
+        quincena(p),
       ]),
       pie: [
         "Total",
         <span key="v" className="tnum">{cuantos}</span>,
         <span key="t" className="tnum">{importe(i.total)}</span>,
         <span key="a" className="tnum">{importe(sumaUsd(i.porPersona.map((p) => p.adelantado)))}</span>,
+        "",
       ],
       vacio: "Nadie del equipo consumió ni recibió adelantos en este periodo.",
-      nota: "Lo que consumió cada persona, sin lo anulado y sin lo devuelto, y lo que recibió en efectivo por adelantado (en dólares). El descuento del sueldo se hace fuera del sistema.",
+      nota: "Lo que consumió cada persona, sin lo anulado y sin lo devuelto, y lo que recibió en efectivo por adelantado (en dólares). El descuento del sueldo se hace fuera del sistema, en su quincena: administración lo marca «Descontado» y deja de estar pendiente.",
     },
     {
       id: "vales",

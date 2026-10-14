@@ -48,8 +48,43 @@ export const ValeSchema = z.object({
   devuelto: MoneySchema,
   /** Lo que cuenta: el total menos lo devuelto; cero si se anuló. */
   neto: MoneySchema,
+  /** El vale anulado desde Deudas → Personal (B3-26): cuándo, quién lo autorizó y si algo salió como merma. */
+  anulacion: z.object({ en: TimestampSchema, por: z.string(), merma: z.boolean() }).nullable().default(null),
 });
 export type ValeDto = z.infer<typeof ValeSchema>;
+
+/**
+ * «Descontado en la quincena» (B3-26): el periodo, cuándo y quién lo marcó, y lo que se descontó con esa marca. Lo que se
+ * registró en la quincena después de la marca (`despues`) sigue pendiente, y se descuenta con otra.
+ */
+export const DescuentoDeQuincenaSchema = z.object({
+  desde: FechaSchema,
+  hasta: FechaSchema,
+  en: TimestampSchema,
+  por: z.string(),
+  consumido: MoneySchema,
+  adelantado: MoneySchema,
+  despues: MoneySchema.default({ minor: "0", currency: "USD" }),
+});
+export type DescuentoDeQuincenaDto = z.infer<typeof DescuentoDeQuincenaSchema>;
+
+/** Marcar «Descontado en la quincena» a una persona y un periodo (B3-26): administración, con su PIN. */
+export const DescontarQuincenaCommandSchema = z
+  .strictObject({ idempotencyKey: z.uuid(), persona: z.uuid("Persona desconocida"), desde: FechaSchema, hasta: FechaSchema })
+  .refine((p) => p.desde <= p.hasta, { message: "El periodo termina antes de empezar", path: ["hasta"] });
+export type DescontarQuincenaCommand = z.infer<typeof DescontarQuincenaCommandSchema>;
+
+/**
+ * Anular un vale (B3-26), de cualquier día: no movió dinero. Lo de cada línea vuelve al estante, o sale como merma la de
+ * los índices de `aMerma`. Administración, con su PIN.
+ */
+export const AnularValeCommandSchema = z.strictObject({
+  idempotencyKey: z.uuid(),
+  valeId: z.uuid("Vale desconocido"),
+  aMerma: z.array(z.number().int().min(0)).max(100).default([]),
+  nota: z.string().trim().max(120).optional(),
+});
+export type AnularValeCommand = z.infer<typeof AnularValeCommandSchema>;
 
 /** Los vales de un periodo y lo de cada persona. */
 export const ValesDelPersonalSchema = z.object({
@@ -64,6 +99,8 @@ export const ValesDelPersonalSchema = z.object({
       neto: MoneySchema,
       /** Los adelantos de efectivo de la quincena (B3-21), en dólares. */
       adelantado: MoneySchema.default({ minor: "0", currency: "USD" }),
+      /** Ya se descontó de su quincena (B3-26): deja de estar pendiente. */
+      descontado: DescuentoDeQuincenaSchema.nullable().default(null),
     }),
   ),
   vales: z.array(ValeSchema),

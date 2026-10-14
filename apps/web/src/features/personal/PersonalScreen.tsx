@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { Printer, TriangleAlert, UserRoundSearch } from "lucide-react";
+import { Ban, CircleCheckBig, Printer, TriangleAlert, UserRoundSearch } from "lucide-react";
 import type { ValeDto, ValesDelPersonalDto } from "@l2/contracts";
 import { periodoPredefinido } from "@l2/domain-cash";
 import { Button, Container, FiltroSegmentado, MoneyDisplay, TAMANO_ICONO, avisar, cn } from "@l2/ui";
@@ -14,21 +14,24 @@ import type { ValesPedidos } from "../reportes/reportes.servidor.ts";
 import { TablaDeInforme, periodoEnPalabras } from "../reportes/informe.tsx";
 import { direccionDelPersonal, ordenDelVale, seccionesDelPersonal } from "../reportes/personal.tsx";
 import { PersonaYPin, usePersonasDelLocal } from "./ConsumoDelPersonal.tsx";
+import { AnularValeDialog, DescontarDialog } from "./AccionesDelPersonal.tsx";
+import { PestanasDeDeudas } from "../deudas/PestanasDeDeudas.tsx";
 import { reimprimirVale, valesDelPersonal } from "./personal.acciones";
 
 /**
- * Caja → Personal — B3-17 (M-37). Los vales del consumo del personal de la quincena: lo de cada persona y cada vale, con
- * «Reimprimir vale». Supervisión y administración ven los de todos; cada persona ve los suyos con su PIN, aquí mismo, y
- * al terminar se cierran (nadie más los ve en la pantalla). El descuento del sueldo se hace fuera del sistema.
+ * Caja → Deudas → Personal — B3-17 (M-37), B3-26 (M-39). Los vales del consumo del personal y sus adelantos de la quincena:
+ * lo de cada persona y cada vale, con «Reimprimir vale». Supervisión y administración ven los de todos; cada persona ve los
+ * suyos con su PIN, aquí mismo, y al terminar se cierran. El descuento del sueldo se hace fuera del sistema: la
+ * administración marca «Descontado en la quincena» y anula un vale de cualquier día, con su PIN.
  */
 
-const RUTA = "/personal";
+const RUTA = "/deudas";
 type Quincena = "QUINCENA" | "QUINCENA_ANTERIOR";
 
 export function PersonalScreen({ hoy, pedido, informe }: ValesPedidos) {
   const router = useRouter();
   const [cargando, iniciar] = useTransition();
-  const ir = (q: Quincena) => iniciar(() => router.push(direccionDelPersonal(RUTA, periodoPredefinido(q, hoy)) as Route));
+  const ir = (q: Quincena) => iniciar(() => router.push(`${direccionDelPersonal(RUTA, periodoPredefinido(q, hoy))}&vista=personal` as Route));
   const todos = informe.ok ? informe.valor : null;
   // Los de todos se releen cuando se cobra, se anula o se devuelve algo; los de una persona, no: pedirían su PIN.
   useAlCambiar(["ventas"], () => {
@@ -44,11 +47,12 @@ export function PersonalScreen({ hoy, pedido, informe }: ValesPedidos) {
       <header className="border-b border-line">
         <Container ancho="muro" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3 apaisado:bajo:py-2">
           <div className="min-w-0">
-            <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">Consumo del personal</h1>
+            <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">Deudas del personal</h1>
             <p className="mt-1 text-detalle text-ink-3">
               {periodoEnPalabras(pedido)} · los vales firmados se quedan en la caja; el descuento del sueldo, fuera del sistema.
             </p>
           </div>
+          <PestanasDeDeudas activa="PERSONAL" />
           <FiltroSegmentado<Quincena | "RANGO">
             etiqueta="Quincena"
             opciones={[
@@ -63,7 +67,7 @@ export function PersonalScreen({ hoy, pedido, informe }: ValesPedidos) {
 
       <Container as="main" ancho="muro" className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4 transition-opacity apaisado:bajo:py-3", cargando && "opacity-60")}>
         {todos ? (
-          <Vales informe={todos} />
+          <Vales informe={todos} administra />
         ) : !informe.ok && informe.motivo === "NO_PERMITIDO" ? (
           <MisVales pedido={pedido} />
         ) : (
@@ -100,11 +104,39 @@ function Reimprimir({ v }: { v: ValeDto }) {
   );
 }
 
-function Vales({ informe }: { informe: ValesDelPersonalDto }) {
+function Vales({ informe, administra = false }: { informe: ValesDelPersonalDto; administra?: boolean }) {
   const reloj = useReloj();
-  const [personas, vales, adelantos] = seccionesDelPersonal(informe, reloj, false, (v) => <Reimprimir v={v} />);
+  // B3-26: lo de administración (con su PIN): marcar la quincena descontada y anular un vale.
+  const [descontando, setDescontando] = useState<ValesDelPersonalDto["porPersona"][number] | null>(null);
+  const [anulando, setAnulando] = useState<ValeDto | null>(null);
+  const [personas, vales, adelantos] = seccionesDelPersonal(
+    informe,
+    reloj,
+    false,
+    (v) => (
+      <span className="flex flex-wrap gap-1">
+        <Reimprimir v={v} />
+        {administra && !v.anulado && (
+          <Button surface="tablet" variant="ghost" className="gap-1.5 px-2 text-detalle whitespace-nowrap text-state-crit" onClick={() => setAnulando(v)}>
+            <Ban size={TAMANO_ICONO.texto} aria-hidden="true" />
+            Anular vale
+          </Button>
+        )}
+      </span>
+    ),
+    administra
+      ? (p) => (
+          <Button surface="tablet" variant="neutral" className="gap-1.5 px-2 text-detalle whitespace-nowrap" onClick={() => setDescontando(p)}>
+            <CircleCheckBig size={TAMANO_ICONO.texto} aria-hidden="true" />
+            Descontado en la quincena
+          </Button>
+        )
+      : undefined,
+  );
   return (
     <>
+      <DescontarDialog para={descontando && { ...descontando, periodo: informe.periodo }} onCerrar={() => setDescontando(null)} />
+      <AnularValeDialog vale={anulando} onCerrar={() => setAnulando(null)} />
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-tarjeta font-semibold text-ink">{informe.alcance === "PERSONA" ? `Los vales de ${informe.porPersona[0]?.persona.nombre ?? "esta persona"}` : "El equipo"}</h2>
         <span className="flex items-baseline gap-2 text-detalle text-ink-2">

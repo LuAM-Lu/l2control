@@ -19,7 +19,6 @@ import {
   Receipt,
   Timer,
   TrendingUp,
-  UserRoundCheck,
   TriangleAlert,
   WifiOff,
   type LucideIcon,
@@ -123,10 +122,8 @@ const PUESTOS: Puesto[] = [
       { href: "/turno", corto: "Turno", largo: "Turno de caja", icono: Timer },
       // Lo anotado en papel cuando cayeron los dos enlaces (B3-7, V-12).
       { href: "/papel", corto: "Papel", largo: "Carga desde papel", icono: FileText },
-      // Lo que dejaron sin pagar quienes se fueron (B3-11).
-      { href: "/deudas", corto: "Deudas", largo: "Deudas de clientes", icono: HandCoins },
-      // Los vales del consumo del personal (B3-17).
-      { href: "/personal", corto: "Personal", largo: "Consumo del personal", icono: UserRoundCheck },
+      // Lo que dejaron sin pagar los clientes (B3-11) y lo del personal (B3-17, B3-26), en una pestaña.
+      { href: "/deudas", corto: "Deudas", largo: "Deudas de clientes y del personal", icono: HandCoins },
     ],
   },
   {

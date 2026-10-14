@@ -200,17 +200,8 @@ export const MODULOS: readonly Modulo[] = [
         href: "/deudas",
         abre: "estacion",
         proposito:
-          "Lo que dejaron sin pagar quienes se fueron (B3-11): a nombre de su cliente, con quién lo atendió y quién lo autorizó. Se cobra en la caja cuando vuelven, o administración la da por perdida.",
-        tarea: "B3-11",
-      },
-      {
-        id: "personal",
-        nombre: "Personal",
-        href: "/personal",
-        abre: "estacion",
-        proposito:
-          "Los vales del consumo del personal por quincena, con «Reimprimir vale»: supervisión y administración ven los de todos; cada persona, los suyos con su PIN.",
-        tarea: "B3-17",
+          "Lo que dejaron sin pagar los clientes (B3-11), para cobrarlo cuando vuelven, y lo del personal (B3-26): sus vales y adelantos de la quincena, que administración marca «Descontado» y deja de estar pendiente.",
+        tarea: "B3-26",
       },
     ],
   },

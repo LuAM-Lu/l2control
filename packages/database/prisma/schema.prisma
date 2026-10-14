@@ -2098,6 +2098,51 @@ model StaffConsumption {
   @@map("staff_consumption")
 }
 
+/// «Descontado en la quincena» (B3-26, M-39): el personal paga fuera del sistema; la administración lo marca por persona y
+/// periodo, con lo consumido y lo adelantado de ese momento (después de la marca anterior). Solo se añade.
+model StaffPayrollDeduction {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  staffUserId   String   @map("staff_user_id") @db.Uuid
+  staffName     String   @map("staff_name")
+  periodFrom    DateTime @map("period_from") @db.Date
+  periodTo      DateTime @map("period_to") @db.Date
+  consumedMinor BigInt   @map("consumed_minor")
+  advancedMinor BigInt   @map("advanced_minor")
+  currency      String
+  operationKey  String   @map("operation_key") @db.Uuid
+  markedAt      DateTime @map("marked_at") @db.Timestamptz(3)
+  markedBy      String?  @map("marked_by") @db.Uuid
+  markedByName  String   @map("marked_by_name")
+  authorizedBy  String   @map("authorized_by") @db.Uuid
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, branchId, staffUserId, periodFrom], map: "staff_payroll_deduction_persona_idx")
+  @@map("staff_payroll_deduction")
+}
+
+/// Un vale anulado (B3-26, M-39), de cualquier día: lo que volvió al estante o salió como merma y quién lo autorizó.
+/// Uno por vale; solo se añade.
+model StaffConsumptionVoid {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  consumptionId String   @map("consumption_id") @db.Uuid
+  content       Json
+  note          String?
+  operationKey  String   @map("operation_key") @db.Uuid
+  voidedAt      DateTime @map("voided_at") @db.Timestamptz(3)
+  voidedBy      String?  @map("voided_by") @db.Uuid
+  voidedByName  String   @map("voided_by_name")
+  authorizedBy  String   @map("authorized_by") @db.Uuid
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, consumptionId])
+  @@unique([tenantId, operationKey])
+  @@map("staff_consumption_void")
+}
+
 /// Los paquetes de cumpleaños y el anticipo publicados (B10-1, D-EVT): cada publicación es una versión
 /// nueva, solo-agregar. La vigente es la más alta; sin ninguna, el local no tiene paquetes y no reserva.
 model EventCatalogVersion {

@@ -1,6 +1,6 @@
 "use server";
 
-import type { PersonaDelLocalDto, Resultado, ValeDto, ValesDelPersonalDto } from "@l2/contracts";
+import type { DescuentoDeQuincenaDto, PersonaDelLocalDto, Resultado, ValeDto, ValesDelPersonalDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -24,6 +24,24 @@ export async function valesDelPersonal(entrada: unknown): Promise<Resultado<Vale
   if (!ctx) return sinSesion;
   const r = await (await aplicacion()).personal.vales(ctx, entrada);
   if (!r.ok) log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "vales del personal rechazados");
+  return r;
+}
+
+/** «Descontado en la quincena» (B3-26): administración, con su PIN. */
+export async function descontarQuincena(entrada: unknown, autorizacion: unknown): Promise<Resultado<DescuentoDeQuincenaDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).personal.descontar(ctx, entrada, autorizacion);
+  if (!r.ok) log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "descontado en la quincena rechazado");
+  return r;
+}
+
+/** Anula un vale de cualquier día (B3-26): administración, con su PIN. */
+export async function anularValeDelPersonal(entrada: unknown, autorizacion: unknown): Promise<Resultado<ValeDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).personal.anularVale(ctx, entrada, autorizacion);
+  if (!r.ok) log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "anular vale rechazado");
   return r;
 }
 
